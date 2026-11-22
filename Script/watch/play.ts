@@ -33,6 +33,9 @@ const SOLDIER_H = 88;
 const SOLDIER_SPEED = 264;
 const ROLL_TIME = 0.35;
 const ROLL_SPEED = 280;
+/** 翻上矮台：贴着一人高的柜台/台阶时，空格改跳，不再翻滚。 */
+const SOLDIER_JUMP = 340;
+const LEDGE_RISE = 60;
 
 /** 世界层画布：320×180 逻辑像素，1 美术像素 = 2 世界单位。 */
 export const LOGIC_W = 320;
@@ -318,6 +321,25 @@ export class Play {
         this.updateCamera(dt);
     }
 
+    /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
+    private nearLowLedge(a: Actor): boolean {
+        const reach = 26;
+        const x0 = a.facing > 0 ? a.x + a.w / 2 : a.x - a.w / 2 - reach;
+        const x1 = x0 + reach;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.x1 <= x0 || b.x0 >= x1) {
+                continue;
+            }
+            const rise = b.y1 - a.y;
+            if (rise > 0 && rise <= LEDGE_RISE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private stepPlayer(a: Actor, dt: number, input: Input): void {
         if (!a.alive) {
             return;
@@ -348,10 +370,17 @@ export class Play {
         }
 
         if (!isChild && input.jump.pressed && a.onGround) {
-            a.rollT = ROLL_TIME;
             if (input.moveX !== 0) {
                 a.facing = input.moveX > 0 ? 1 : -1;
             }
+            // 贴着一人高的柜台/台阶时改成跳上去；平地上仍是翻滚。
+            if (this.nearLowLedge(a)) {
+                a.vy = SOLDIER_JUMP;
+                a.onGround = false;
+                this.flashSet("翻上去", 0.3);
+                return;
+            }
+            a.rollT = ROLL_TIME;
             this.flashSet("翻滚", 0.3);
             return;
         }
@@ -426,7 +455,13 @@ export class Play {
         a.vx = dir * CHILD_SPEED;
         if (dir !== 0) {
             a.facing = dir;
+            const before = a.x;
             this.slideX(a, dir * CHILD_SPEED * dt);
+            // 跟随时撞到矮台（柜台、台阶）：自己跳上去，不卡在台前。
+            if (a.onGround && Math.abs(a.x - before) < 0.4) {
+                a.vy = CHILD_JUMP;
+                a.onGround = false;
+            }
         }
         this.fallY(a, dt);
     }
