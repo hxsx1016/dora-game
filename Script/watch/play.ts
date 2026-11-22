@@ -10,7 +10,7 @@
  */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
-import { CartSpec, RoomSpec, ScavSpec, SolidSpec, CHECKPOINT_ROOM, OUTSIDE_ROOM } from "Script/watch/rooms";
+import { CartSpec, RoomSpec, ScavSpec, SolidSpec, withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
@@ -53,6 +53,10 @@ const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
 const CART_HALF = 24;
 const CART_CLEAR = 44;
+/** 洞后墙根小路的尽头：走到这里才切村口（D4 扩图后不再是 388）。 */
+const WALL_ROAD_END = 1150;
+/** 走路时能自动抬脚的高度：矮台阶直接走上去，柜台 44 仍要跳。 */
+const STEP_UP = 24;
 
 const INK = Color(232, 232, 228, 255);
 const INK_DIM = Color(150, 152, 150, 255);
@@ -223,6 +227,8 @@ export class Play {
     ticks = 0;
     /** 当前窗口的像素视口，绘制前算一次。 */
     view: Viewport = { zoom: 1, ox: 0, oy: 0 };
+    /** 本段在世界地图里的偏移；room 数据还是段内坐标时用它换算。 */
+    ox = 0;
     /** 准星在画布上的位置（局部、左下原点），由 app 每帧写入。 */
     aimX = 0;
     aimY = 0;
@@ -231,26 +237,29 @@ export class Play {
     viewH = 0;
 
     constructor(room: RoomSpec, resume?: { checkpoint: number }) {
-        this.room = room;
-        this.cam = { x: (room.minX + room.maxX) / 2, y: room.height / 2 };
+        // 段内坐标 → 世界坐标。房间数据里的锚点保持不变，Play 内部一律读世界坐标。
+        this.ox = room.originX;
+        this.room = withOrigin(room);
+        const wr = this.room;
+        this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
-        this.player = makeActor(room, room.key === "checkpoint" ? 1 : 0);
-        this.partner = makeActor(room, room.key === "checkpoint" ? 0 : -1);
+        this.player = makeActor(wr, wr.key === "checkpoint" ? 1 : 0);
+        this.partner = makeActor(wr, wr.key === "checkpoint" ? 0 : -1);
         this.cam.x = this.player.x;
         this.cam.y = this.player.y + CAM_LOOK_UP;
-        this.cartAxle = room.cart.startX;
-        this.escort = new Escort(safeAnchorX(room.marks));
-        this.scavX = room.scavenger !== undefined ? room.scavenger.x0 : 0;
+        this.cartAxle = wr.cart.startX;
+        this.escort = new Escort(safeAnchorX(wr.marks));
+        this.scavX = wr.scavenger !== undefined ? wr.scavenger.x0 : 0;
         this.buildEnemies();
         // 重试/复演：洞后检查点已提交则车已在 432 落窝，小满回到洞后。
         if (resume !== undefined && resume.checkpoint > 0) {
             this.checkpoint = resume.checkpoint;
-            if (room.key === "outside" && resume.checkpoint >= 380) {
-                this.cartAxle = room.cart.endX;
+            if (this.room.key === "outside" && resume.checkpoint >= 380) {
+                this.cartAxle = this.room.cart.endX;
                 this.cartDocked = true;
                 // 恢复到下层洞后安全点：脚踩地面 y=0、站 380（还没到 388 的切线）。
                 // 车轴同步到 432，松键空转也不会自己进村，得自己走过 388。
-                this.player.x = 380;
+                this.player.x = this.ox + 380;
                 this.player.y = 0;
                 this.player.vy = 0;
                 this.player.onGround = true;
@@ -293,8 +302,8 @@ export class Play {
         if (this.room.key !== "checkpoint") {
             return;
         }
-        this.enemies.push({ x: 430, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
-        this.enemies.push({ x: 505, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+        this.enemies.push({ x: this.ox + 430, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+        this.enemies.push({ x: this.ox + 505, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
     }
 
     /** 推进一帧。input 已在本帧刷新过。 */
@@ -480,7 +489,7 @@ export class Play {
             this.gateOpen = false;
             return;
         }
-        const inZone = (x: number): boolean => x >= 792 && x <= 928;
+        const inZone = (x: number): boolean => x >= this.ox + 792 && x <= this.ox + 928;
         this.gateOpen = this.cartDocked && inZone(this.player.x) && inZone(this.partner.x);
     }
 
@@ -770,7 +779,7 @@ export class Play {
      */
     private checkCarryGate(): void {
         if (this.room.key === "checkpoint") {
-            if (this.gateOpen && this.player.x >= 900) {
+            if (this.gateOpen && this.player.x >= this.ox + 900) {
                 this.carryCartAxle = this.cartAxle;
                 this.carryCartDocked = this.cartDocked;
                 this.wantRoom = "outside";
@@ -780,11 +789,12 @@ export class Play {
         }
         if (this.room.key === "outside") {
             // 周戍 88 高过不了 44 的拱，切场由被护送的小满触发。
-            if (this.checkpoint >= 380 && this.player.x >= 388) {
+            // D4 起 388 只是「进墙根小路」，要把 640 走完（石阶 700–820、塔灯 1120）才进村口。
+            if (this.checkpoint >= 380 && this.player.x >= WALL_ROAD_END) {
                 this.carryCartAxle = this.cartAxle;
                 this.carryCartDocked = this.cartDocked;
                 this.wantRoom = "village";
-                this.flashSet("洞后 · 墙根小路", 1.2);
+                this.flashSet("墙根走完 · 进村口", 1.2);
             }
         }
     }
@@ -870,10 +880,10 @@ export class Play {
         if (!c.alive) {
             return false;
         }
-        if (c.x > 240 && c.x < 340) {
+        if (c.x > this.ox + 240 && c.x < this.ox + 340) {
             return false;
         }
-        if (c.x < 380 || c.x > 560) {
+        if (c.x < this.ox + 380 || c.x > this.ox + 560) {
             return false;
         }
         const toDanger = dangerX - c.x;
@@ -945,11 +955,14 @@ export class Play {
                 }
             }
         }
-        // 城外：车身下缘在下层形成随车移动的阻挡（离地 0..44），车拉走才让开洞口。
+        // 城外：车身下缘在下层形成随车移动的阻挡（离地 0..44）。
+        // 车没落窝时封死整条通道（这就是「先把车拉走」的谜题）；
+        // 落窝后只挡站姿，蹲 36 能从车底钻过去——D4 的墙根小路在车之后。
         if (this.room.key === "outside" && a.y < CART_CLEAR - 0.001) {
+            const blocked = !this.cartDocked || a.y + a.h > CART_CLEAR + 0.001;
             const bx0 = this.cartAxle - CART_HALF;
             const bx1 = this.cartAxle + CART_HALF;
-            if (nx + half > bx0 && nx - half < bx1) {
+            if (blocked && nx + half > bx0 && nx - half < bx1) {
                 if (a.x <= bx0) {
                     nx = bx0 - half;
                 } else if (a.x >= bx1) {
@@ -986,7 +999,9 @@ export class Play {
         let ny = a.y + a.vy * dt;
         const half = a.w / 2;
         if (a.vy <= 0) {
-            const ground = this.groundAt(a.x, a.y + 0.5, half);
+            // 站在地上时多探 24 单位：矮台阶（每级 16–22）直接走上去，柜台 44、台面 96 仍要跳。
+            const reach = a.onGround ? STEP_UP : 0;
+            const ground = this.groundAt(a.x, a.y + 0.5 + reach, half);
             if (ny <= ground) {
                 ny = ground;
                 a.vy = 0;
@@ -1357,6 +1372,18 @@ export class Play {
             const mx = this.sx(m.x, w);
             const my = this.sy(m.y, h);
             draw.drawSegment(Vec2(mx, my), Vec2(mx, my + this.px(24)), this.px(1), col);
+        }
+        // 塔灯：灯柱 + 灯头，城外墙根小路尽头的地标
+        let t = 0;
+        for (t = 0; t < this.room.marks.length; t++) {
+            const m = this.room.marks[t];
+            if (m.kind !== 6) {
+                continue;
+            }
+            const mx = this.sx(m.x, w);
+            const my = this.sy(m.y, h);
+            draw.drawSegment(Vec2(mx, my), Vec2(mx, my + this.px(30)), this.px(1), INK_DIM);
+            this.drawBox(draw, w, h, m.x - 5, m.x + 5, m.y + 30, m.y + 40, CHECK);
         }
         if (this.room.key === "village") {
             this.drawVillage(draw, w, h);
