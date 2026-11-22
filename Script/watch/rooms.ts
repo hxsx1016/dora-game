@@ -1,61 +1,80 @@
 /**
- * 《守望》D1 · 两张灰盒的摆放定稿。
+ * D1 灰盒坐标：世界单位，与《守望-逐日开发与代码实现逻辑》第五、六节逐字对齐。
  *
- * 单位一律为米；地面 y = 0；x 轴向右。
- * 检查站与城墙外共用“车心距门中线 2.0m”这一定位量：
- * 检查站里门中线 29.5、车心 27.5；城外门中线 -0.4、车心 2.4（车身 1.6–3.2）。
- * 车把始终在车身左端，红布绑在车把上，所以城外从门里出来第一眼就落在红布上。
+ * 1 世界单位 ≈ 1.84 cm（小满 64 = 1.18 m，周戍 88 = 1.62 m）。
+ * 车轴就是车身中心，车身半宽 24，所以停车后左沿 = 432 − 24 = 408，
+ * 与小满右沿 402 之间留 6 单位净空——这条在城外剖面上要看得见。
  */
 
-export interface SpawnSpec {
-    x: number;
-    label: string;
+export interface FloorSpec {
+    y: number;
+    x0: number;
+    x1: number;
 }
 
 export interface SolidSpec {
     x: number;
     w: number;
     h: number;
+    y: number;
     label: string;
 }
 
-/** tint: 1 危险区 / 2 台面 / 3 洞体 */
 export interface ZoneSpec {
     x0: number;
     x1: number;
+    y: number;
+    h: number;
+    tint: number;
+    label: string;
+}
+
+export interface ArchSpec {
+    x0: number;
+    x1: number;
+    y: number;
     h: number;
     label: string;
-    tint: number;
+}
+
+export interface StairSpec {
+    x0: number;
+    x1: number;
+    y0: number;
+    y1: number;
+    steps: number;
+    label: string;
 }
 
 export interface CartSpec {
+    /** 车轴起点（世界 x）。 */
     startX: number;
+    /** 车轴终点。 */
     endX: number;
+    /** 车所在的地面高度。 */
+    baseY: number;
+    /** 车身宽（车轴到沿 = bodyW / 2）。 */
     bodyW: number;
     bodyH: number;
     wheelR: number;
-    handleH: number;
+    /** 外侧手柄相对车轴的偏移，负=左、正=右。 */
+    handleOffset: number;
+    /** 红布系在哪一侧，负=左、正=右。 */
+    clothSide: number;
 }
 
-export interface HoleSpec {
+export interface SpawnSpec {
     x: number;
-    w: number;
+    y: number;
     h: number;
     label: string;
 }
 
-export interface GateSpec {
-    x: number;
-    w: number;
-    h: number;
-    label: string;
-}
-
-/** kind: 0 检查点 / 1 交接站位 / 2 出口 / 3 地标 */
 export interface MarkSpec {
     x: number;
-    label: string;
+    y: number;
     kind: number;
+    label: string;
 }
 
 export interface DimSpec {
@@ -65,83 +84,105 @@ export interface DimSpec {
 }
 
 export interface RoomSpec {
-    id: string;
+    key: string;
     name: string;
     caption: string;
     minX: number;
     maxX: number;
     height: number;
-    spawns: SpawnSpec[];
+    floors: FloorSpec[];
     solids: SolidSpec[];
     zones: ZoneSpec[];
+    arch: ArchSpec;
+    stairs: StairSpec[];
     cart: CartSpec;
-    hole: HoleSpec;
-    gates: GateSpec[];
+    spawns: SpawnSpec[];
     marks: MarkSpec[];
     dims: DimSpec[];
 }
 
-export const ROOM_CHECKPOINT: RoomSpec = {
-    id: "checkpoint",
-    name: "检查站 · 灰盒",
-    caption: "点射 → 小满躲柜台 → 恐惧三格 → E 敲两下安抚 → 按住 E 推车到装卸台 → 门洞交接",
+/** 检查站：周戍把车从 640 推到 768 落入 dock，再和小满一起走到出口。 */
+export const CHECKPOINT_ROOM: RoomSpec = {
+    key: "checkpoint",
+    name: "检查站 · 地面 y=0",
+    caption: "周戍左柄按住 E + D 推车 128 单位入窝；双人到齐且车在 dock 才开绞盘",
     minX: 0,
-    maxX: 33,
-    height: 6,
+    maxX: 1000,
+    height: 210,
+    floors: [{ y: 0, x0: 0, x1: 1000 }],
+    solids: [
+        { x: 240, w: 100, h: 60, y: 0, label: "柜台 240–340 · 高 60" },
+        { x: 950, w: 50, h: 150, y: 0, label: "城门内侧" },
+    ],
+    zones: [{ x0: 380, x1: 560, y: 0, h: 120, tint: 1, label: "危险段 380–560" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: {
+        startX: 640,
+        endX: 768,
+        baseY: 0,
+        bodyW: 48,
+        bodyH: 26,
+        wheelR: 12,
+        handleOffset: -40,
+        clothSide: -1,
+    },
     spawns: [
-        { x: 1.0, label: "小满出生" },
-        { x: 2.6, label: "周戍出生" },
+        { x: 32, y: 0, h: 64, label: "小满 32" },
+        { x: 80, y: 0, h: 88, label: "周戍 80" },
+    ],
+    marks: [
+        { x: 264, y: 0, kind: 1, label: "安全锚 264" },
+        { x: 768, y: 0, kind: 1, label: "dock 768" },
+        { x: 860, y: 0, kind: 2, label: "双人出口 792–928" },
+    ],
+    dims: [
+        { x0: 240, x1: 340, text: "柜台 100" },
+        { x0: 640, x1: 768, text: "推车 128 · 左柄 E+D" },
+        { x0: 792, x1: 928, text: "出口 136" },
+    ],
+};
+
+/** 城外：同一剖面里同时看上层手柄与下层拱口，这是 D1 要交的那张图。 */
+export const OUTSIDE_ROOM: RoomSpec = {
+    key: "outside",
+    name: "城外 · 上层 y=96 / 下层 y=0",
+    caption: "从右柄按住 E+D 朝空窝拉 128 单位，轮子落窝后沿台面回左端跳下，蹲过 44 高的拱",
+    minX: 0,
+    maxX: 600,
+    height: 230,
+    floors: [
+        { y: 0, x0: 0, x1: 600 },
+        { y: 96, x0: 128, x1: 512 },
     ],
     solids: [
-        { x: 8.0, w: 2.4, h: 1.0, label: "柜台 1.0m" },
-        { x: 19.2, w: 1.2, h: 0.9, label: "矮墙 0.9m" },
-        { x: 30.6, w: 1.4, h: 4.0, label: "城门墙" },
+        { x: 512, w: 88, h: 96, y: 0, label: "台面右端实墙" },
+        { x: 0, w: 40, h: 96, y: 0, label: "街口" },
     ],
-    zones: [
-        { x0: 13.0, x1: 17.0, h: 3.0, label: "敌人触发区", tint: 1 },
-        { x0: 26.4, x1: 29.4, h: 0.12, label: "装卸台", tint: 2 },
-    ],
-    cart: { startX: 23.0, endX: 27.5, bodyW: 1.6, bodyH: 0.55, wheelR: 0.25, handleH: 0.95 },
-    hole: { x: 0, w: 0, h: 0, label: "" },
-    gates: [{ x: 29.5, w: 2.2, h: 3.2, label: "城门洞 2.2m" }],
+    zones: [],
+    arch: { x0: 280, x1: 360, y: 0, h: 44, label: "拱 280–360 · 净高 44" },
+    stairs: [{ x0: 40, x1: 128, y0: 0, y1: 96, steps: 2, label: "石阶 0 / 48 / 96" }],
+    cart: {
+        startX: 304,
+        endX: 432,
+        baseY: 96,
+        bodyW: 48,
+        bodyH: 26,
+        wheelR: 12,
+        handleOffset: 40,
+        clothSide: -1,
+    },
+    spawns: [{ x: 160, y: 96, h: 64, label: "小满 160" }],
     marks: [
-        { x: 21.0, label: "检查点", kind: 0 },
-        { x: 29.0, label: "周戍侧", kind: 1 },
-        { x: 30.8, label: "小满侧", kind: 1 },
-        { x: 31.9, label: "双人出口", kind: 2 },
+        { x: 432, y: 96, kind: 1, label: "空窝 432" },
+        { x: 380, y: 0, kind: 0, label: "洞后检查点 380" },
+        { x: 520, y: 96, kind: 3, label: "石阶光 · 回首红布" },
     ],
     dims: [
-        { x0: 8.0, x1: 10.4, text: "柜台 2.4m / 高 1.0m" },
-        { x0: 23.0, x1: 27.5, text: "推车 4.5m（按住 E + D）" },
-        { x0: 27.5, x1: 29.5, text: "车心距门 2.0m" },
+        { x0: 304, x1: 432, text: "拉车 128 · 右柄 E+D" },
+        { x0: 128, x1: 512, text: "台面 384" },
+        { x0: 280, x1: 360, text: "拱 80" },
     ],
 };
 
-export const ROOM_OUTSIDE: RoomSpec = {
-    id: "outside",
-    name: "城墙外 · 灰盒",
-    caption: "认出左端红布 → 按住 E 拉车 1.0m → 车轮落窝 → S/Ctrl 蹲下钻低洞 → 洞后检查点",
-    minX: -2.2,
-    maxX: 26,
-    height: 6,
-    spawns: [{ x: 1.4, label: "小满出生（刚接过控制权）" }],
-    solids: [],
-    zones: [
-        { x0: -0.2, x1: 5.0, h: 0.12, label: "装卸台", tint: 2 },
-        { x0: 8.0, x1: 12.0, h: 0.12, label: "北路口", tint: 2 },
-    ],
-    cart: { startX: 2.4, endX: 1.4, bodyW: 1.6, bodyH: 0.55, wheelR: 0.25, handleH: 0.95 },
-    hole: { x: 2.8, w: 1.1, h: 0.78, label: "低洞 0.78m" },
-    gates: [{ x: -0.4, w: 2.0, h: 3.2, label: "大门（已落下）" }],
-    marks: [
-        { x: 5.2, label: "洞后检查点", kind: 0 },
-        { x: 11.0, label: "塔灯方向", kind: 3 },
-    ],
-    dims: [
-        { x0: 1.6, x1: 3.2, text: "车体 1.6m（起点挡住半个洞）" },
-        { x0: 1.4, x1: 2.4, text: "拉车 1.0m / 约 2.0s" },
-        { x0: 2.8, x1: 3.9, text: "洞宽 1.1m / 高 0.78m" },
-    ],
-};
-
-export const ROOMS: RoomSpec[] = [ROOM_CHECKPOINT, ROOM_OUTSIDE];
+export const ROOMS: RoomSpec[] = [CHECKPOINT_ROOM, OUTSIDE_ROOM];
