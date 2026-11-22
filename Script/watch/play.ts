@@ -31,13 +31,18 @@ const SOLDIER_SPEED = 264;
 const ROLL_TIME = 0.35;
 const ROLL_SPEED = 280;
 
-/** 相机：1 世界单位 = 4 屏幕像素；视点略高于脚底。 */
-const CAM_ZOOM = 4;
+/** 世界层画布：320×180 逻辑像素，1 美术像素 = 2 世界单位。 */
+export const LOGIC_W = 320;
+export const LOGIC_H = 180;
+export const UNITS_PER_PX = 2;
+/** 主地面（世界 y=0）落在画布从底往上 22% 处，上方留给天光与远景。 */
+const GROUND_PX = 40;
 const CAM_FOLLOW = 9;
 const CAM_LOOK_UP = 46;
 
 const INK = Color(232, 232, 228, 255);
 const INK_DIM = Color(150, 152, 150, 255);
+const BG_VOID = Color(8, 9, 10, 255);
 const BG_FAR = Color(24, 26, 28, 255);
 const BG_MID = Color(31, 34, 37, 255);
 const GROUND = Color(112, 114, 112, 255);
@@ -97,6 +102,26 @@ interface Camera {
     y: number;
 }
 
+/** 当前窗口下的像素视口：整数倍放大 + 居中（黑边留在两侧）。 */
+export interface Viewport {
+    zoom: number;
+    ox: number;
+    oy: number;
+}
+
+/** 取能容纳 320×180 画布的最大整数倍，并把画布居中。 */
+export function computeViewport(w: number, h: number): Viewport {
+    let zoom = Math.floor(Math.min(w / LOGIC_W, h / LOGIC_H));
+    if (zoom < 1) {
+        zoom = 1;
+    }
+    return {
+        zoom: zoom,
+        ox: Math.floor((w - LOGIC_W * zoom) / 2),
+        oy: Math.floor((h - LOGIC_H * zoom) / 2),
+    };
+}
+
 /** 一次命中判定的结果，供表现层画弹道与反馈。 */
 interface Trace {
     x0: number;
@@ -130,6 +155,8 @@ export class Play {
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
     ticks = 0;
+    /** 当前窗口的像素视口，绘制前算一次。 */
+    view: Viewport = { zoom: 1, ox: 0, oy: 0 };
     /** 准星在画布上的位置（局部、左下原点），由 app 每帧写入。 */
     aimX = 0;
     aimY = 0;
@@ -354,7 +381,7 @@ export class Play {
         const ox = a.x + a.facing * 8;
         const oy = a.y + a.h * 0.72;
         // 准星在世界里的位置由 app 传进来，这里直接用相机反算
-        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.viewW, this.viewH);
+        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
         let dx = aim.x - ox;
         let dy = aim.y - oy;
         const len = Math.sqrt(dx * dx + dy * dy);
@@ -529,19 +556,21 @@ export class Play {
     /** 相机按画布尺寸钳制，保证看不到房间外。由绘制前调用。 */
     clampCamera(w: number, h: number): void {
         const room = this.room;
-        const halfW = (w / 2) / CAM_ZOOM;
-        const halfH = (h / 2) / CAM_ZOOM;
+        const halfW = (LOGIC_W * UNITS_PER_PX) / 2;
         const spanX = room.maxX - room.minX;
         if (spanX <= halfW * 2) {
             this.cam.x = (room.minX + room.maxX) / 2;
         } else {
             this.cam.x = Math.max(room.minX + halfW, Math.min(room.maxX - halfW, this.cam.x));
         }
+        // 竖向：主地面固定在画布下部，房间更高时不再额外抬高相机。
+        const camY = (LOGIC_H / 2 - GROUND_PX) * UNITS_PER_PX;
         const spanY = room.height;
+        const halfH = (LOGIC_H * UNITS_PER_PX) / 2;
         if (spanY <= halfH * 2) {
-            this.cam.y = spanY / 2;
+            this.cam.y = camY;
         } else {
-            this.cam.y = Math.max(halfH, Math.min(spanY - halfH, this.cam.y));
+            this.cam.y = Math.max(camY, Math.min(camY + (spanY - halfH * 2), this.cam.y));
         }
     }
 
@@ -608,10 +637,14 @@ export class Play {
     draw(draw: DrawNode.Type, w: number, h: number): void {
         this.viewW = w;
         this.viewH = h;
+        this.view = computeViewport(w, h);
         this.clampCamera(w, h);
         draw.clear();
-        draw.drawRect(Rect(0, 0, w, h), BG_FAR);
-        draw.drawRect(Rect(0, 0, w, h * 0.62), BG_MID);
+        // 画布外的黑边与画布底
+        draw.drawRect(Rect(0, 0, w, h), BG_VOID);
+        const box = this.canvasRect(w, h);
+        draw.drawRect(box, BG_FAR);
+        draw.drawRect(Rect(box.x, box.y + box.height * 0.38, box.width, box.height * 0.62), BG_MID);
 
         this.drawFloors(draw, w, h);
         this.drawSolids(draw, w, h);
@@ -623,18 +656,40 @@ export class Play {
         this.drawAim(draw, w, h);
     }
 
-    sx(wx: number, w: number): number {
-        return (wx - this.cam.x) * CAM_ZOOM + w / 2;
+    /** 画布矩形（窗口坐标，左下原点）。 */
+    canvasRect(w: number, h: number): Rect.Type {
+        const v = this.view;
+        return Rect(v.ox, v.oy, LOGIC_W * v.zoom, LOGIC_H * v.zoom);
     }
 
+    /** 逻辑像素长度 → 屏幕像素。用于线宽、圆点等。 */
+    px(n: number): number {
+        return n * this.view.zoom;
+    }
+
+    /** 世界 x → 窗口 x。量化到逻辑像素格，保证边缘锐利。 */
+    sx(wx: number, w: number): number {
+        const v = this.view;
+        const lx = Math.round((wx - this.cam.x) / UNITS_PER_PX + LOGIC_W / 2);
+        return v.ox + lx * v.zoom;
+    }
+
+    /** 世界 y → 窗口 y。 */
     sy(wy: number, h: number): number {
-        return (wy - this.cam.y) * CAM_ZOOM + h / 2;
+        const v = this.view;
+        const ly = Math.round((wy - this.cam.y) / UNITS_PER_PX + LOGIC_H / 2);
+        return v.oy + ly * v.zoom;
     }
 
     drawBox(draw: DrawNode.Type, w: number, h: number, x0: number, x1: number, y0: number, y1: number, color: Color.Type): void {
-        const px = this.sx(x0, w);
-        const py = this.sy(y0, h);
-        draw.drawRect(Rect(px, py, (x1 - x0) * CAM_ZOOM, (y1 - y0) * CAM_ZOOM), color);
+        const px0 = this.sx(x0, w);
+        const px1 = this.sx(x1, w);
+        const py0 = this.sy(y0, h);
+        const py1 = this.sy(y1, h);
+        if (px1 <= px0 || py1 <= py0) {
+            return;
+        }
+        draw.drawRect(Rect(px0, py0, px1 - px0, py1 - py0), color);
     }
 
     private drawFloors(draw: DrawNode.Type, w: number, h: number): void {
@@ -644,8 +699,9 @@ export class Play {
             const y = this.sy(f.y, h);
             const x0 = this.sx(f.x0, w);
             const x1 = this.sx(f.x1, w);
-            draw.drawRect(Rect(x0, y - 10 * 2, x1 - x0, 10 * 2), FLOOR_DECK);
-            draw.drawSegment(Vec2(x0, y), Vec2(x1, y), 3, GROUND);
+            const deck = this.px(5);
+            draw.drawRect(Rect(x0, y - deck, x1 - x0, deck), FLOOR_DECK);
+            draw.drawSegment(Vec2(x0, y), Vec2(x1, y), this.px(1), GROUND);
         }
     }
 
@@ -655,11 +711,11 @@ export class Play {
             const b = this.boxes[i];
             if (b.y0 < -4 && b.y1 <= 96) {
                 // 台阶体：只需顶面线
-                draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1, h)), Vec2(this.sx(b.x1, w), this.sy(b.y1, h)), 3, GROUND);
+                draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1, h)), Vec2(this.sx(b.x1, w), this.sy(b.y1, h)), this.px(1), GROUND);
                 continue;
             }
             this.drawBox(draw, w, h, b.x0, b.x1, b.y0, b.y1, SOLID_FILL);
-            draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1, h)), Vec2(this.sx(b.x1, w), this.sy(b.y1, h)), 2, SOLID_EDGE);
+            draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1, h)), Vec2(this.sx(b.x1, w), this.sy(b.y1, h)), this.px(1), SOLID_EDGE);
         }
     }
 
@@ -668,8 +724,8 @@ export class Play {
         for (i = 0; i < this.room.zones.length; i++) {
             const z = this.room.zones[i];
             this.drawBox(draw, w, h, z.x0, z.x1, z.y, z.y + z.h, DANGER);
-            draw.drawSegment(Vec2(this.sx(z.x0, w), this.sy(z.y, h)), Vec2(this.sx(z.x0, w), this.sy(z.y + z.h, h)), 2, DANGER_LINE);
-            draw.drawSegment(Vec2(this.sx(z.x1, w), this.sy(z.y, h)), Vec2(this.sx(z.x1, w), this.sy(z.y + z.h, h)), 2, DANGER_LINE);
+            draw.drawSegment(Vec2(this.sx(z.x0, w), this.sy(z.y, h)), Vec2(this.sx(z.x0, w), this.sy(z.y + z.h, h)), this.px(1), DANGER_LINE);
+            draw.drawSegment(Vec2(this.sx(z.x1, w), this.sy(z.y, h)), Vec2(this.sx(z.x1, w), this.sy(z.y + z.h, h)), this.px(1), DANGER_LINE);
         }
     }
 
@@ -679,15 +735,15 @@ export class Play {
             return;
         }
         this.drawBox(draw, w, h, a.x0, a.x1, a.y, a.y + a.h, HOLE_FILL);
-        draw.drawSegment(Vec2(this.sx(a.x0, w), this.sy(a.y + a.h, h)), Vec2(this.sx(a.x1, w), this.sy(a.y + a.h, h)), 3, SOLID_EDGE);
-        draw.drawSegment(Vec2(this.sx(a.x0, w), this.sy(a.y, h)), Vec2(this.sx(a.x0, w), this.sy(a.y + a.h, h)), 2, SOLID_EDGE);
-        draw.drawSegment(Vec2(this.sx(a.x1, w), this.sy(a.y, h)), Vec2(this.sx(a.x1, w), this.sy(a.y + a.h, h)), 2, SOLID_EDGE);
+        draw.drawSegment(Vec2(this.sx(a.x0, w), this.sy(a.y + a.h, h)), Vec2(this.sx(a.x1, w), this.sy(a.y + a.h, h)), this.px(1), SOLID_EDGE);
+        draw.drawSegment(Vec2(this.sx(a.x0, w), this.sy(a.y, h)), Vec2(this.sx(a.x0, w), this.sy(a.y + a.h, h)), this.px(1), SOLID_EDGE);
+        draw.drawSegment(Vec2(this.sx(a.x1, w), this.sy(a.y, h)), Vec2(this.sx(a.x1, w), this.sy(a.y + a.h, h)), this.px(1), SOLID_EDGE);
     }
 
     private drawCart(draw: DrawNode.Type, w: number, h: number): void {
         const c: CartSpec = this.room.cart;
         drawCartShape(draw, this, w, h, c, c.startX);
-        draw.drawRect(Rect(this.sx(c.startX + c.handleOffset, w) - 3, this.sy(c.baseY + 40, h), 6, 80), STAND);
+        draw.drawRect(Rect(this.sx(c.startX + c.handleOffset, w) - this.px(1), this.sy(c.baseY + 40, h), this.px(2), this.px(40)), STAND);
     }
 
     private drawActors(draw: DrawNode.Type, w: number, h: number): void {
@@ -715,8 +771,8 @@ export class Play {
             const on = this.checkpoint === m.x;
             const x = this.sx(m.x, w);
             const y = this.sy(m.y, h);
-            draw.drawSegment(Vec2(x, y), Vec2(x, y + 70), 2, on ? CHECK : INK_DIM);
-            draw.drawDot(Vec2(x, y + 70), 5, on ? CHECK : INK_DIM);
+            draw.drawSegment(Vec2(x, y), Vec2(x, y + this.px(35)), this.px(1), on ? CHECK : INK_DIM);
+            draw.drawDot(Vec2(x, y + this.px(35)), this.px(2), on ? CHECK : INK_DIM);
         }
     }
 
@@ -728,17 +784,21 @@ export class Play {
         draw.drawSegment(
             Vec2(this.sx(t.x0, w), this.sy(t.y0, h)),
             Vec2(this.sx(t.x1, w), this.sy(t.y1, h)),
-            2, t.hit ? AIM_HIT : INK_DIM);
+            this.px(1), t.hit ? AIM_HIT : INK_DIM);
     }
 
     private drawAim(draw: DrawNode.Type, w: number, h: number): void {
-        const x = this.aimX;
-        const y = this.aimY;
-        draw.drawRing(Vec2(x, y), 7, 9, Color(0, 0, 0, 0), 1, AIM);
-        draw.drawSegment(Vec2(x - 14, y), Vec2(x - 4, y), 1, AIM);
-        draw.drawSegment(Vec2(x + 4, y), Vec2(x + 14, y), 1, AIM);
-        draw.drawSegment(Vec2(x, y - 14), Vec2(x, y - 4), 1, AIM);
-        draw.drawSegment(Vec2(x, y + 4), Vec2(x, y + 14), 1, AIM);
+        // 准星按逻辑像素画：中心留 1 像素缺口，四臂各 3 像素，外圈 1 像素。
+        const v = this.view;
+        const gx = v.ox + Math.round((this.aimX - v.ox) / v.zoom) * v.zoom;
+        const gy = v.oy + Math.round((this.aimY - v.oy) / v.zoom) * v.zoom;
+        const dot = this.px(1);
+        const arm = this.px(3);
+        const gap = this.px(1);
+        draw.drawSegment(Vec2(gx - arm - gap, gy), Vec2(gx - gap, gy), dot / 2, AIM);
+        draw.drawSegment(Vec2(gx + gap, gy), Vec2(gx + arm + gap, gy), dot / 2, AIM);
+        draw.drawSegment(Vec2(gx, gy - arm - gap), Vec2(gx, gy - gap), dot / 2, AIM);
+        draw.drawSegment(Vec2(gx, gy + gap), Vec2(gx, gy + arm + gap), dot / 2, AIM);
     }
 }
 
@@ -767,11 +827,17 @@ function drawFigure(draw: DrawNode.Type, play: Play, w: number, h: number, a: Ac
     const y1 = a.y + a.h;
     play.drawBox(draw, w, h, x0, x1, y0, y1 - a.h * 0.26, body);
     play.drawBox(draw, w, h, x0 + 2, x1 - 2, y1 - a.h * 0.26, y1, head);
+    // 眼睛：1 逻辑像素的亮点，朝向前方
+    const eyeX = a.facing > 0 ? a.x + a.w * 0.16 : a.x - a.w * 0.28;
+    play.drawBox(draw, w, h, eyeX, eyeX + 4, y1 - a.h * 0.14, y1 - a.h * 0.08, INK);
 }
 
-/** 屏幕（局部、左下原点）→ 世界。 */
-export function screenToWorld(sx: number, sy: number, cam: Camera, w: number, h: number): { x: number; y: number } {
-    return { x: (sx - w / 2) / CAM_ZOOM + cam.x, y: (sy - h / 2) / CAM_ZOOM + cam.y };
+/** 窗口坐标（局部、左下原点）→ 世界。用实际画面原点、显示倍数与相机反算。 */
+export function screenToWorld(sx: number, sy: number, cam: Camera, view: Viewport): { x: number; y: number } {
+    return {
+        x: cam.x + ((sx - view.ox) / view.zoom - LOGIC_W / 2) * UNITS_PER_PX,
+        y: cam.y + ((sy - view.oy) / view.zoom - LOGIC_H / 2) * UNITS_PER_PX,
+    };
 }
 
 /** 射线与轴对齐盒求交，返回命中距离；不相交返回 -1。 */
@@ -818,8 +884,8 @@ function drawCartShape(draw: DrawNode.Type, play: Play, w: number, h: number, c:
     const x0 = axleX - half;
     const x1 = axleX + half;
     play.drawBox(draw, w, h, x0, x1, c.baseY + c.wheelR, c.baseY + c.wheelR + c.bodyH, CART_FILL);
-    draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(c.baseY + c.wheelR, h)), c.wheelR * CAM_ZOOM, Color(52, 50, 48, 255));
-    draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(c.baseY + c.wheelR, h)), c.wheelR * CAM_ZOOM, Color(52, 50, 48, 255));
+    draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(c.baseY + c.wheelR, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
+    draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(c.baseY + c.wheelR, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
     const cx = c.clothSide < 0 ? x0 : x1;
     play.drawBox(draw, w, h, cx - 10, cx + 10, c.baseY + c.wheelR + c.bodyH, c.baseY + c.wheelR + c.bodyH + 18, CLOTH);
 }

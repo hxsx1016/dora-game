@@ -80,8 +80,9 @@ function place(lb: Label.Type | undefined, x: number, y: number, ax: number, ay:
     lb.visible = true;
 }
 
-export function start(parent: Node.Type): void {
+export function start(parent: Node.Type, initialMode: number = 1): void {
     root = parent;
+    mode = initialMode;
     draw = DrawNode();
     draw.addTo(parent);
 
@@ -174,6 +175,9 @@ function tick(): void {
         if (mode === 1) {
             ensurePlay();
         }
+    }
+    if (mode === 1 && play === undefined) {
+        ensurePlay();
     }
     if (input.pickRoom !== 0) {
         current = input.pickRoom - 1;
