@@ -1,0 +1,11 @@
+# Dora SSR 构建/导出缓存
+.download/
+.cache/
+.build/
+.upload/
+.agent/
+
+# CLI 生成的 TypeScript 类型声明（ts install）
+API/
+
+.DS_Store
