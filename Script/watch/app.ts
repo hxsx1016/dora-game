@@ -9,6 +9,8 @@ import { Color, DrawNode, KeyName, Label, Node, Rect, Size, Vec2, View } from "D
 import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { ROOMS } from "Script/watch/rooms";
+import { Input } from "Script/watch/input";
+import { Play, STEP } from "Script/watch/play";
 
 declare function print(...args: string[]): void;
 
@@ -49,6 +51,10 @@ let current = 0;
 let viewW = 0;
 let viewH = 0;
 let dirty = true;
+/** 0 = 灰盒查看，1 = 试玩。D2 的入口在这里分叉，G 键来回切。 */
+let mode = 0;
+let input: Input | undefined;
+let play: Play | undefined;
 
 function makeLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
     if (root === undefined) {
@@ -101,16 +107,33 @@ export function start(parent: Node.Type): void {
         }
     }
 
+    input = new Input();
+
+    // 开发钩子：F1 进试玩、F2 回灰盒、1/2 换房间。走事件而不是轮询，
+    // 这样 Lua 侧可以 emit("KeyDown","F1") 直接切模式与房间做验收，不必碰物理键盘。
+    // 物理按 1/2 时轮询也会命中，两路结果一致，不会打架。
     parent.onKeyDown((key: KeyName) => {
-        if (key === KeyName.Num1) {
-            current = 0;
+        if (key === KeyName.F1) {
+            mode = 1;
+            play = undefined;
+            ensurePlay();
+        } else if (key === KeyName.F2) {
+            mode = 0;
             dirty = true;
+        } else if (key === KeyName.Num1) {
+            current = 0;
+            play = undefined;
+            dirty = true;
+            if (mode === 1) {
+                ensurePlay();
+            }
         } else if (key === KeyName.Num2) {
             current = 1;
+            play = undefined;
             dirty = true;
-        } else if (key === KeyName.Tab) {
-            current = (current + 1) % ROOMS.length;
-            dirty = true;
+            if (mode === 1) {
+                ensurePlay();
+            }
         }
     });
 
@@ -141,10 +164,104 @@ function tick(): void {
         applySize();
         dirty = true;
     }
+    if (input === undefined) {
+        return;
+    }
+    input.update();
+    if (input.toggleView.pressed) {
+        mode = mode === 0 ? 1 : 0;
+        dirty = true;
+        if (mode === 1) {
+            ensurePlay();
+        }
+    }
+    if (input.pickRoom !== 0) {
+        current = input.pickRoom - 1;
+        dirty = true;
+        play = undefined;
+        if (mode === 1) {
+            ensurePlay();
+        }
+    } else if (input.tab.pressed) {
+        current = (current + 1) % ROOMS.length;
+        dirty = true;
+        play = undefined;
+        if (mode === 1) {
+            ensurePlay();
+        }
+    }
+    if (mode === 1) {
+        tickPlay();
+        return;
+    }
     if (dirty) {
         redraw();
         dirty = false;
     }
+}
+
+/** 试玩模式下按当前房间建运行时；切房间时重建。 */
+function ensurePlay(): void {
+    play = new Play(ROOMS[current]);
+}
+
+/** 试玩每帧：输入 → 位移与碰撞 → 事件 → 绘制。 */
+function tickPlay(): void {
+    if (play === undefined || draw === undefined || input === undefined) {
+        return;
+    }
+    const p = play;
+    if (input.retry.pressed) {
+        play = new Play(ROOMS[current]);
+        return;
+    }
+    p.aimX = input.mx;
+    p.aimY = input.my;
+    p.update(STEP, input);
+    p.draw(draw, viewW, viewH);
+    playHud(p);
+}
+
+/** 试玩模式的 HUD 用灰盒那套标签，不加新节点。 */
+function playHud(p: Play): void {
+    const room = ROOMS[current];
+    if (titleLabel !== undefined) {
+        titleLabel.text = "守望 · D2 试玩";
+    }
+    if (roomLabel !== undefined) {
+        roomLabel.text = room.name;
+    }
+    if (captionLabel !== undefined) {
+        captionLabel.text = p.statusText();
+        captionLabel.color = C_TEXT;
+    }
+    if (hintLabel !== undefined) {
+        hintLabel.text = p.hintText();
+    }
+    if (switchLabel !== undefined) {
+        switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · R 重置";
+    }
+    if (rulerLabel !== undefined) {
+        rulerLabel.text = "";
+    }
+    if (standLabel !== undefined) {
+        standLabel.text = "";
+    }
+    if (cartLabel !== undefined) {
+        cartLabel.text = "";
+    }
+    let i = 0;
+    for (i = 0; i < poolBody.length; i++) {
+        poolBody[i].visible = false;
+    }
+    for (i = 0; i < poolSmall.length; i++) {
+        poolSmall[i].visible = false;
+    }
+    place(titleLabel, 48, viewH - 40, 0, 1);
+    place(roomLabel, 48, viewH - 96, 0, 1);
+    place(captionLabel, 48, viewH - 140, 0, 1);
+    place(switchLabel, 48, 40, 0, 0);
+    place(hintLabel, 48, 84, 0, 0);
 }
 
 function redraw(): void {
