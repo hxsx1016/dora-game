@@ -290,7 +290,7 @@ function tickPlay(frameDt: number): void {
 function playHud(p: Play): void {
     const room = ROOMS[current];
     if (titleLabel !== undefined) {
-        titleLabel.text = "守望 · D3 试玩";
+        titleLabel.text = "守望 · D5 完整试玩";
     }
     if (roomLabel !== undefined) {
         roomLabel.text = room.name;
@@ -303,7 +303,7 @@ function playHud(p: Play): void {
         hintLabel.text = p.hintText();
     }
     if (switchLabel !== undefined) {
-        switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · 3 村口 · R 重置";
+        switchLabel.text = "G 回灰盒 · Tab 换房 · 1/2/3 快跳 · R 重置";
     }
     if (rulerLabel !== undefined) {
         rulerLabel.text = "";

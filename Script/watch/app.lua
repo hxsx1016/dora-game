@@ -165,7 +165,7 @@ end -- 286
 function playHud(p) -- 290
 	local room = ROOMS[current + 1] -- 291
 	if titleLabel ~= nil then -- 291
-		titleLabel.text = "守望 · D3 试玩" -- 293
+		titleLabel.text = "守望 · D5 完整试玩" -- 293
 	end -- 293
 	if roomLabel ~= nil then -- 293
 		roomLabel.text = room.name -- 296
@@ -178,7 +178,7 @@ function playHud(p) -- 290
 		hintLabel.text = p:hintText() -- 303
 	end -- 303
 	if switchLabel ~= nil then -- 303
-		switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · 3 村口 · R 重置" -- 306
+		switchLabel.text = "G 回灰盒 · Tab 换房 · 1/2/3 快跳 · R 重置" -- 306
 	end -- 306
 	if rulerLabel ~= nil then -- 306
 		rulerLabel.text = "" -- 309
