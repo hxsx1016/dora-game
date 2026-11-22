@@ -161,6 +161,26 @@ interface Trace {
     hit: boolean;
 }
 
+/** 每个房间进入时的剧情初态。 */
+function phaseOf(key: string): string {
+    if (key === "prologue") {
+        return "prologue-wait";
+    }
+    if (key === "street") {
+        return "street-run";
+    }
+    if (key === "gate") {
+        return "gate-idle";
+    }
+    if (key === "forest") {
+        return "forest-run";
+    }
+    if (key === "tower") {
+        return "tower-wait";
+    }
+    return "run";
+}
+
 export class Play {
     room: RoomSpec;
     player: Actor;
@@ -217,11 +237,39 @@ export class Play {
     /** 拾荒者位置与状态机。 */
     scavX = 0;
     scavDir = 1;
-    scavState: "patrol" | "turn" | "walk" | "stall" | "back" = "patrol";
+    scavState: "patrol" | "turn" | "walk" | "stall" | "back" | "chase" = "patrol";
     scavT = 0;
     scavTargetX = 0;
     /** 是否已过第一院通行线。 */
     passed = false;
+
+    // —— 剧情段（D5）——
+    /** 这一局控制谁：false 周戍，true 小满。城门送别后换人。 */
+    childMode = false;
+    /** 当前剧情阶段名，按房间前缀区分。 */
+    phase = "";
+    /** 剧情阶段计时（拍）。 */
+    phaseTick = 0;
+    /** 城门守点累计的可操作拍数；暂停不增。 */
+    gateTick = 0;
+    /** 数到一百的拍数（24 秒 = 1440）。 */
+    countTick = 0;
+    /** 数数阶段必须先松开方向键，新按才算迈步。 */
+    countArmed = false;
+    /** 被抓后的复位余韵，>0 时锁输入。 */
+    caughtT = 0;
+    /** 森林里的狗。 */
+    dogX = 0;
+    dogDir = 1;
+    dogState: "patrol" | "ear" | "chase" | "sniff" | "back" = "patrol";
+    dogT = 0;
+    dogTargetX = 0;
+    /** 拾荒者的发现计数与追逐标志。 */
+    scavSee = 0;
+    scavChase = false;
+    /** 城门守点已登场的敌兵批数。 */
+    gateSpawned = 0;
+
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
     ticks = 0;
@@ -243,8 +291,16 @@ export class Play {
         const wr = this.room;
         this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
-        this.player = makeActor(wr, wr.key === "checkpoint" ? 1 : 0);
-        this.partner = makeActor(wr, wr.key === "checkpoint" ? 0 : -1);
+        // 周戍段（序章/街道/检查站/城门）操控周戍；其余路段操控小满。
+        this.childMode = wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower";
+        const playerIdx = wr.key === "checkpoint" ? 1 : 0;
+        const partnerIdx = wr.key === "checkpoint" ? 0 : (this.childMode ? -1 : 1);
+        this.player = makeActor(wr, playerIdx);
+        this.partner = makeActor(wr, partnerIdx);
+        this.phase = phaseOf(wr.key);
+        if (wr.story !== undefined) {
+            this.dogX = wr.story.dog === undefined ? 0 : wr.story.dog.x0;
+        }
         this.cam.x = this.player.x;
         this.cam.y = this.player.y + CAM_LOOK_UP;
         this.cartAxle = wr.cart.startX;
@@ -281,7 +337,7 @@ export class Play {
         }
         for (i = 0; i < room.solids.length; i++) {
             const s: SolidSpec = room.solids[i];
-            this.boxes.push({ x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h });
+            this.boxes.push({ x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h, passable: s.passable === true });
         }
         for (i = 0; i < room.stairs.length; i++) {
             const st = room.stairs[i];
@@ -299,11 +355,17 @@ export class Play {
 
     private buildEnemies(): void {
         this.enemies = [];
-        if (this.room.key !== "checkpoint") {
+        if (this.room.key === "checkpoint") {
+            this.enemies.push({ x: this.ox + 430, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+            this.enemies.push({ x: this.ox + 505, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
             return;
         }
-        this.enemies.push({ x: this.ox + 430, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
-        this.enemies.push({ x: this.ox + 505, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+        if (this.room.key === "street") {
+            // 街道第一次交火：柜台后一个、街心一个。
+            this.enemies.push({ x: this.ox + 340, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+            this.enemies.push({ x: this.ox + 560, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+        }
+        // 城门的四批敌兵由 stepGate 按守点拍数登场。
     }
 
     /** 推进一帧。input 已在本帧刷新过。 */
@@ -331,9 +393,11 @@ export class Play {
         this.ticks += 1;
         const p = this.player;
         this.stepPlayer(p, dt, input);
+        this.stepStory(dt, input);
         this.stepEscort(dt, input);
         this.stepEnemies(dt);
         this.stepVillage(dt, input);
+        this.stepChase(dt, input);
         this.stepInteract(dt, input);
         this.updateGate();
         this.updateCamera(dt);
@@ -362,7 +426,15 @@ export class Play {
         if (!a.alive) {
             return;
         }
-        const isChild = this.room.key !== "checkpoint";
+        const isChild = this.childMode;
+        // 演出段（递物、关门、数数、片尾）由剧情持有控制，先落体。
+        if (this.storyLocked()) {
+            a.vx = 0;
+            a.crouch = false;
+            a.h = isChild ? CHILD_H : SOLDIER_H;
+            this.fallY(a, dt);
+            return;
+        }
         // 安抚的 60 拍里周戍蹲着不动，交火与移动都停。
         if (!isChild && this.escort.state === "calming") {
             a.crouch = false;
@@ -459,7 +531,7 @@ export class Play {
         if (!a.alive) {
             return;
         }
-        if (this.room.key !== "checkpoint") {
+        if (!this.escortOn()) {
             a.vx = 0;
             this.fallY(a, dt);
             return;
@@ -484,7 +556,421 @@ export class Play {
         this.fallY(a, dt);
     }
 
-    /** 出口：车落窝、两人都进 [792,928] 才开。 */    private updateGate(): void {
+    /** 这些房间的小满由护送逻辑驱动；序章要等递完东西才开始跟。 */
+    private escortOn(): boolean {
+        if (this.room.key === "checkpoint") {
+            return true;
+        }
+        if (this.room.key === "prologue") {
+            return this.phase === "prologue-follow";
+        }
+        return this.room.key === "street";
+    }
+
+    /** 演出持有控制权：递物、关门数数、片尾。 */
+    private storyLocked(): boolean {
+        if (this.caughtT > 0) {
+            return true;
+        }
+        if (this.room.key === "prologue" && this.phase === "prologue-give") {
+            return true;
+        }
+        if (this.room.key === "gate" && this.phase === "gate-count") {
+            return true;
+        }
+        if (this.room.key === "tower" && this.phase !== "tower-wait") {
+            return true;
+        }
+        return false;
+    }
+
+    /** 城门送别：把控制权交给门外的小满，周戍留在门内。 */
+    private swapToChild(x: number): void {
+        const tmp = this.player;
+        this.player = this.partner;
+        this.partner = tmp;
+        this.childMode = true;
+        this.player.alive = true;
+        this.player.x = this.ox + x;
+        this.player.y = 0;
+        this.player.vy = 0;
+        this.player.vx = 0;
+        this.player.onGround = true;
+        this.player.crouch = false;
+        this.player.h = CHILD_H;
+        this.player.facing = 1;
+        this.partner.alive = true;
+        this.cam.x = this.player.x;
+    }
+
+    /** 剧情段分派。 */
+    private stepStory(dt: number, input: Input): void {
+        if (this.room.key === "prologue") {
+            this.stepPrologue(dt, input);
+        } else if (this.room.key === "street") {
+            this.stepStreet(dt, input);
+        } else if (this.room.key === "gate") {
+            this.stepGate(dt, input);
+        } else if (this.room.key === "tower") {
+            this.stepTower(dt, input);
+        }
+    }
+
+    /** 序章：走近递针套，60 拍后她开始跟随，两人一起出门。 */
+    private stepPrologue(dt: number, input: Input): void {
+        const child = this.partner;
+        if (this.phase === "prologue-wait") {
+            child.crouch = true;
+            child.h = CHILD_CROUCH_H;
+            const reach = this.room.story === undefined || this.room.story.prologue === undefined
+                ? 46 : this.room.story.prologue.giveReach;
+            const near = Math.abs(this.player.x - child.x) <= reach;
+            if (near && input.interact.pressed) {
+                this.phase = "prologue-give";
+                this.phaseTick = 0;
+                this.flashSet("递出针套", 1.0);
+            }
+            return;
+        }
+        if (this.phase === "prologue-give") {
+            this.phaseTick += 1;
+            if (this.phaseTick === 12) {
+                this.flashSet("针套递过去", 0.7);
+            } else if (this.phaseTick === 36) {
+                this.flashSet("纸条塞进针套", 0.9);
+            } else if (this.phaseTick >= 60) {
+                this.phase = "prologue-follow";
+                this.phaseTick = 0;
+                child.crouch = false;
+                child.h = CHILD_H;
+                this.flashSet("她跟上了", 1.2);
+            }
+            return;
+        }
+        // 跟随段：两人一起到门口。
+        if (this.player.x >= this.ox + 660 && child.x >= this.ox + 620) {
+            this.wantRoom = "street";
+            this.flashSet("进街道", 1.2);
+        }
+    }
+
+    /** 街道：清完两个敌兵后两人走到检查站入口。 */
+    private stepStreet(dt: number, input: Input): void {
+        const p = this.player;
+        const c = this.partner;
+        if (p.x >= this.ox + 900 && c.x >= this.ox + 860) {
+            this.wantRoom = "checkpoint";
+            this.flashSet("到检查站", 1.2);
+        }
+    }
+
+    /** 城门：两人就位 → 45 秒守点 → 门边按 E 送别 → 关门数到一百 → 新按 D 迈步。 */
+    private stepGate(dt: number, input: Input): void {
+        const g = this.room.story === undefined ? undefined : this.room.story.gate;
+        if (g === undefined) {
+            return;
+        }
+        const p = this.player;
+        if (this.phase === "gate-idle") {
+            // 这一段小满自己走向门洞等待点，就位后站住；周戍自由回绞盘。
+            const a = this.partner;
+            const gap = g.waitX - a.x;
+            if (Math.abs(gap) > 3) {
+                a.facing = gap > 0 ? 1 : -1;
+                a.vx = a.facing * CHILD_SPEED;
+                const beforeX = a.x;
+                this.slideX(a, a.facing * CHILD_SPEED * dt);
+                if (Math.abs(a.x - beforeX) < 0.4 && a.onGround) {
+                    a.vy = CHILD_JUMP;
+                    a.onGround = false;
+                }
+                this.fallY(a, dt);
+            } else {
+                a.vx = 0;
+                a.x = g.waitX;
+            }
+            const atWinch = Math.abs(p.x - g.winchX) <= 60 && p.y < 20;
+            const atWait = this.partner.alive && Math.abs(this.partner.x - g.waitX) <= 60;
+            if (atWinch && atWait) {
+                this.phase = "gate-hold";
+                this.gateTick = 0;
+                this.gateSpawned = 0;
+                this.flashSet("两人就位 · 守点开始", 1.4);
+            }
+            return;
+        }
+        if (this.phase === "gate-hold") {
+            this.gateTick += 1;
+            // 四批敌兵：第 0 / 9 / 15 / 25 秒；出场 ID 各自独立，只登一次。
+            const marks = [0, 540, 900, 1500];
+            while (this.gateSpawned < marks.length && this.gateTick - 1 >= marks[this.gateSpawned]) {
+                const idx = this.gateSpawned;
+                this.enemies.push({ x: this.ox + 620 + idx * 62, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+                this.gateSpawned += 1;
+                this.flashSet("敌兵出现 · 第 " + (idx + 1) + " 批", 0.9);
+            }
+            if (this.gateTick === 900) {
+                this.flashSet("灯灭了", 1.0);
+            } else if (this.gateTick === 2100) {
+                this.flashSet("门底压下来了", 1.0);
+            }
+            if (this.gateTick >= g.holdTicks) {
+                this.phase = "gate-send";
+                this.phaseTick = 0;
+                // 撤预警：敌兵冻结，让玩家走到门边。
+                this.enemies = [];
+                this.flashSet("守满了 · 到门边按 E 送她", 2.0);
+            }
+            return;
+        }
+        if (this.phase === "gate-send") {
+            const near = Math.abs(p.x - g.doorX) <= 60;
+            if (near && input.interact.pressed) {
+                this.swapToChild(g.doorX + 30);
+                this.phase = "gate-count";
+                this.countTick = 0;
+                // 送别时已经按着 D 的不算「新按」，必须先松开。
+                this.countArmed = input.moveX === 0;
+                this.flashSet("门开了 · 送她出去", 1.8);
+            }
+            return;
+        }
+        if (this.phase === "gate-count") {
+            this.countTick += 1;
+            if (this.countTick === 360) {
+                this.flashSet("门关上", 0.9);
+            } else if (this.countTick === 1020) {
+                this.flashSet("数到一百", 2.2);
+            }
+            if (this.countTick >= 1440) {
+                if (input.moveX === 0) {
+                    this.countArmed = true;
+                }
+                if (this.countArmed && input.moveX > 0) {
+                    this.phase = "gate-walk";
+                    this.phaseTick = 0;
+                    this.flashSet("她迈出第一步", 1.4);
+                }
+            }
+            return;
+        }
+        // gate-walk：她自己走，玩家可以控。
+        if (this.player.x >= g.exitX) {
+            this.wantRoom = "outside";
+            this.flashSet("出城门 · 城外", 1.4);
+        }
+    }
+
+    /** 塔门与尾声：按一次 E 敲两下，递针套，看空行，片尾再玩。 */
+    private stepTower(dt: number, input: Input): void {
+        const t = this.room.story === undefined ? undefined : this.room.story.tower;
+        if (t === undefined) {
+            return;
+        }
+        if (this.phase === "tower-wait") {
+            const near = Math.abs(this.player.x - t.doorX) <= 50;
+            if (near && input.interact.pressed) {
+                this.phase = "tower-knock";
+                this.phaseTick = 0;
+                this.knocks = 1;
+                this.flashSet("敲一下", 0.6);
+            }
+            return;
+        }
+        if (this.phase === "tower-knock") {
+            this.phaseTick += 1;
+            if (this.phaseTick === 12) {
+                this.knocks = 2;
+                this.flashSet("敲两下 · 第二声", 1.0);
+            } else if (this.phaseTick >= t.knockTicks) {
+                this.phase = "tower-given";
+                this.phaseTick = 0;
+                this.flashSet("门开了 · 提灯", 1.4);
+            }
+            return;
+        }
+        if (this.phase === "tower-given") {
+            this.phaseTick += 1;
+            if (this.phaseTick === 60) {
+                this.flashSet("她递出针套和纸条", 1.6);
+            } else if (this.phaseTick === 120) {
+                this.flashSet("登记簿最后一页 · 空行留着", 2.4);
+            } else if (this.phaseTick >= 180) {
+                this.phase = "tower-end";
+                this.phaseTick = 0;
+                this.flashSet("片尾 · E 再玩一次", 3.0);
+            }
+            return;
+        }
+        if (input.interact.pressed || input.retry.pressed) {
+            this.wantRoom = "prologue";
+            this.flashSet("回到序章", 1.4);
+        }
+    }
+
+    /** 追逐与被抓：村口拾荒者、森林的狗。 */
+    private stepChase(dt: number, input: Input): void {
+        if (this.caughtT > 0) {
+            this.caughtT -= dt;
+            if (this.caughtT <= 0) {
+                this.recoverFromCaught();
+            }
+            return;
+        }
+        if (this.room.key === "village") {
+            this.stepScavChase();
+        } else if (this.room.key === "forest") {
+            this.stepDog(dt);
+            // 走到林缘（1450）就进北塔门口。
+            if (this.player.x >= this.ox + 1450) {
+                this.wantRoom = "tower";
+                this.flashSet("林缘 · 北塔", 1.4);
+            }
+        }
+    }
+
+    /** 村口：暴露的小满被看见 24 拍后，拾荒者转为追逐。 */
+    private stepScavChase(): void {
+        const s = this.room.scavenger;
+        if (s === undefined) {
+            return;
+        }
+        const p = this.player;
+        const dx = p.x - this.scavX;
+        const dist = Math.abs(dx);
+        const hidden = p.crouch || (this.room.arch.h > 0 && p.x > this.room.arch.x0 && p.x < this.room.arch.x1);
+        const visible = !hidden && dist < 240 && Math.abs(p.y - s.y) < 40;
+        if (!this.scavChase) {
+            if (visible) {
+                this.scavSee += 1;
+                if (this.scavSee >= 24) {
+                    this.scavChase = true;
+                    this.scavState = "chase";
+                    this.scavTargetX = p.x;
+                    this.flashSet("他看见你了", 1.2);
+                }
+            } else {
+                this.scavSee = 0;
+            }
+            return;
+        }
+        // 追逐：以 96 单位/秒靠近，接触即被抓。
+        const dir = p.x > this.scavX ? 1 : -1;
+        this.scavX += dir * 96 / 60;
+        if (Math.abs(p.x - this.scavX) < 18 && Math.abs(p.y - s.y) < 40) {
+            this.caught();
+            return;
+        }
+        // 蹲下或钻桌后甩掉视线 60 拍，回到巡逻。
+        if (hidden) {
+            this.scavSee = 0;
+            this.scavT = this.scavT > 0 ? this.scavT : 60;
+            this.scavT -= 1;
+            if (this.scavT <= 0) {
+                this.scavChase = false;
+                this.scavState = "patrol";
+                this.flashSet("他失去了目标", 1.0);
+            }
+        }
+    }
+
+    /** 森林的狗：先转耳朵，再追；蹲下或拉开距离就丢。 */
+    private stepDog(dt: number): void {
+        const dog = this.room.story === undefined ? undefined : this.room.story.dog;
+        if (dog === undefined) {
+            return;
+        }
+        const p = this.player;
+        const dist = Math.abs(p.x - this.dogX);
+        if (this.dogState === "patrol") {
+            this.dogX += this.dogDir * dog.speed * dt;
+            if (this.dogX < dog.x0) {
+                this.dogX = dog.x0;
+                this.dogDir = 1;
+            } else if (this.dogX > dog.x1) {
+                this.dogX = dog.x1;
+                this.dogDir = -1;
+            }
+            const moving = Math.abs(p.vx) > 1 || !p.onGround;
+            if (!p.crouch && moving && dist < dog.range) {
+                this.dogState = "ear";
+                this.dogT = 18;
+                this.dogTargetX = p.x;
+                this.flashSet("狗转耳朵", 0.8);
+            }
+            return;
+        }
+        if (this.dogState === "ear") {
+            this.dogT -= 1;
+            if (this.dogT <= 0) {
+                this.dogState = "chase";
+                this.dogTargetX = p.x;
+                this.flashSet("狗追来了", 1.4);
+            }
+            return;
+        }
+        if (this.dogState === "chase") {
+            const dir = p.x > this.dogX ? 1 : -1;
+            this.dogX += dir * dog.speed * 1.4 * dt;
+            if (Math.abs(p.x - this.dogX) < 18 && Math.abs(p.y) < 40) {
+                this.caught();
+                this.dogState = "sniff";
+                this.dogT = 60;
+            } else if (dist > dog.range * 1.5 || p.crouch) {
+                this.dogState = "sniff";
+                this.dogT = 60;
+                this.flashSet("狗停下了", 0.9);
+            }
+            return;
+        }
+        if (this.dogState === "sniff") {
+            this.dogT -= 1;
+            if (this.dogT <= 0) {
+                this.dogState = "back";
+            }
+            return;
+        }
+        // back：走回巡逻起点。
+        const dir = dog.x0 > this.dogX ? 1 : -1;
+        this.dogX += dir * dog.speed * dt;
+        if (Math.abs(this.dogX - dog.x0) < 2) {
+            this.dogX = dog.x0;
+            this.dogState = "patrol";
+        }
+    }
+
+    private caught(): void {
+        this.caughtT = 1.0;
+        this.flashSet("被抓 · 回到安全点", 1.6);
+    }
+
+    /** 被抓复位：回本房间起点，敌人回位，已拿的瓶子保留。 */
+    private recoverFromCaught(): void {
+        const p = this.player;
+        p.x = this.ox + 140;
+        p.y = 0;
+        p.vy = 0;
+        p.vx = 0;
+        p.onGround = true;
+        if (this.room.key === "village" && this.room.scavenger !== undefined) {
+            this.scavX = this.room.scavenger.x0;
+            this.scavState = "patrol";
+            this.scavSee = 0;
+            this.scavChase = false;
+            this.scavT = 0;
+        }
+        if (this.room.key === "forest" && this.room.story !== undefined && this.room.story.dog !== undefined) {
+            this.dogX = this.room.story.dog.x0;
+            this.dogState = "patrol";
+            this.dogT = 0;
+        }
+        this.cam.x = p.x;
+        this.cam.y = p.y + CAM_LOOK_UP;
+        this.flashSet("回到安全点", 1.2);
+    }
+
+    /** 出口：车落窝、两人都进 [792,928] 才开。 */
+    private updateGate(): void {
         if (this.room.key !== "checkpoint") {
             this.gateOpen = false;
             return;
@@ -519,7 +1005,8 @@ export class Play {
         // E 先给安抚；同一只 E 不再触发敲木板。
         if (calmUsed) {
             this.flashSet("安抚 · 敲两下", 0.8);
-        } else if (input.interact.pressed && !this.gripping && this.room.key !== "village") {
+        } else if (input.interact.pressed && !this.gripping
+            && this.room.key !== "village" && this.room.key !== "tower" && this.room.key !== "prologue") {
             if (this.knockT > 0) {
                 this.knocks += 1;
             } else {
@@ -631,6 +1118,11 @@ export class Play {
         if (line !== undefined && !this.passed && p.x >= line) {
             this.passed = true;
             this.flashSet("过了第一院 · 通行线 440", 1.4);
+        }
+        // 过了第一院、走到院墙前就进北塔森林。
+        if (this.passed && p.x >= this.ox + 640) {
+            this.wantRoom = "forest";
+            this.flashSet("出院 · 北塔森林", 1.4);
         }
     }
 
@@ -782,8 +1274,8 @@ export class Play {
             if (this.gateOpen && this.player.x >= this.ox + 900) {
                 this.carryCartAxle = this.cartAxle;
                 this.carryCartDocked = this.cartDocked;
-                this.wantRoom = "outside";
-                this.flashSet("过城门 · 城外", 1.2);
+                this.wantRoom = "gate";
+                this.flashSet("出检查站 · 城门", 1.2);
             }
             return;
         }
@@ -1087,8 +1579,73 @@ export class Play {
     statusText(): string {
         const p = this.player;
         const parts: string[] = [];
+        const who = this.childMode ? "小满" : "周戍";
+        parts.push(who + " x=" + Math.round(p.x) + " y=" + Math.round(p.y));
+
+        if (this.room.key === "prologue") {
+            parts.push("小满 " + Math.round(this.partner.x));
+            if (this.phase === "prologue-wait") {
+                parts.push("待递 " + Math.round(Math.abs(p.x - this.partner.x)));
+            } else if (this.phase === "prologue-give") {
+                parts.push("递物 " + this.phaseTick + "/60");
+            } else {
+                parts.push("跟随");
+            }
+            if (this.paused) {
+                parts.push("已暂停");
+            }
+            return parts.join(" · ");
+        }
+        if (this.room.key === "street") {
+            parts.push("敌 " + this.aliveEnemies() + "/" + this.enemies.length);
+            parts.push("小满 " + Math.round(this.partner.x));
+            if (this.paused) {
+                parts.push("已暂停");
+            }
+            return parts.join(" · ");
+        }
+        if (this.room.key === "gate") {
+            const g = this.room.story === undefined ? undefined : this.room.story.gate;
+            if (g !== undefined) {
+                parts.push(this.gateLabel());
+                parts.push("守点 " + this.gateTick + "/" + g.holdTicks
+                    + " · 剩 " + Math.max(0, Math.ceil((g.holdTicks - this.gateTick) / 60)) + " 秒");
+                parts.push("小满 " + Math.round(this.partner.x));
+                parts.push("敌 " + this.aliveEnemies() + "/" + this.enemies.length);
+            }
+            if (this.paused) {
+                parts.push("已暂停");
+            }
+            return parts.join(" · ");
+        }
+        if (this.room.key === "forest") {
+            parts.push(p.crouch ? "蹲" : "站");
+            parts.push("狗 " + this.dogLabel() + " @" + Math.round(this.dogX));
+            parts.push("距 " + Math.round(Math.abs(p.x - this.dogX)));
+            if (this.caughtT > 0) {
+                parts.push("复位中");
+            }
+            if (this.paused) {
+                parts.push("已暂停");
+            }
+            return parts.join(" · ");
+        }
+        if (this.room.key === "tower") {
+            if (this.phase === "tower-wait") {
+                parts.push("门前 " + Math.round(Math.abs(p.x - this.doorXOf())));
+            } else if (this.phase === "tower-knock") {
+                parts.push("敲 " + this.phaseTick + " 拍");
+            } else if (this.phase === "tower-given") {
+                parts.push("递交 " + this.phaseTick);
+            } else {
+                parts.push("片尾");
+            }
+            if (this.paused) {
+                parts.push("已暂停");
+            }
+            return parts.join(" · ");
+        }
         if (this.room.key === "village") {
-            parts.push("小满 x=" + Math.round(p.x) + " y=" + Math.round(p.y));
             parts.push(p.crouch ? "蹲" : "站");
             if (this.hasBottle) {
                 parts.push("有瓶");
@@ -1098,6 +1655,9 @@ export class Play {
                 parts.push("空手");
             }
             parts.push("拾荒者 " + this.scavLabel() + " @" + Math.round(this.scavX));
+            if (this.scavChase) {
+                parts.push("追 " + this.scavSee);
+            }
             if (this.passed) {
                 parts.push("已过通行线");
             }
@@ -1107,9 +1667,7 @@ export class Play {
             return parts.join(" · ");
         }
 
-        const isChild = this.room.key !== "checkpoint";
-        const who = isChild ? "小满" : "周戍";
-        parts.push(who + " x=" + Math.round(p.x) + " y=" + Math.round(p.y));
+        const isChild = this.childMode;
         if (isChild) {
             parts.push(p.crouch ? "蹲" : "站");
             parts.push("高 " + Math.round(p.h));
@@ -1119,14 +1677,7 @@ export class Play {
             if (p.rollT > 0) {
                 parts.push("翻滚中");
             }
-            let alive = 0;
-            let i = 0;
-            for (i = 0; i < this.enemies.length; i++) {
-                if (this.enemies[i].alive) {
-                    alive += 1;
-                }
-            }
-            parts.push("敌 " + alive + "/" + this.enemies.length);
+            parts.push("敌 " + this.aliveEnemies() + "/" + this.enemies.length);
             parts.push("车轴 " + Math.round(this.cartAxle));
             parts.push(this.gateOpen ? "出口开" : "出口关");
             parts.push("恐惧 " + this.escort.fear + "/" + FEAR_MAX);
@@ -1140,8 +1691,62 @@ export class Play {
         return parts.join(" · ");
     }
 
+    /** 还活着的敌兵数。 */
+    private aliveEnemies(): number {
+        let n = 0;
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            if (this.enemies[i].alive) {
+                n += 1;
+            }
+        }
+        return n;
+    }
+
+    /** 城门阶段的中文短标签。 */
+    gateLabel(): string {
+        if (this.phase === "gate-idle") {
+            return "待就位";
+        }
+        if (this.phase === "gate-hold") {
+            return "守点中";
+        }
+        if (this.phase === "gate-send") {
+            return "送别";
+        }
+        if (this.phase === "gate-count") {
+            return "数数 " + this.countTick;
+        }
+        return "她走";
+    }
+
+    /** 狗状态的中文短标签。 */
+    dogLabel(): string {
+        if (this.dogState === "ear") {
+            return "转耳";
+        }
+        if (this.dogState === "chase") {
+            return "追";
+        }
+        if (this.dogState === "sniff") {
+            return "停";
+        }
+        if (this.dogState === "back") {
+            return "回线";
+        }
+        return "巡逻";
+    }
+
+    private doorXOf(): number {
+        const t = this.room.story === undefined ? undefined : this.room.story.tower;
+        return t === undefined ? 0 : t.doorX;
+    }
+
     /** 拾荒者状态的中文短标签。 */
     scavLabel(): string {
+        if (this.scavState === "chase") {
+            return "追";
+        }
         if (this.scavState === "turn") {
             return "转头";
         }
@@ -1164,6 +1769,64 @@ export class Play {
         }
         if (this.flash !== "") {
             return this.flash;
+        }
+        if (this.room.key === "prologue") {
+            if (this.phase === "prologue-wait") {
+                const near = Math.abs(this.player.x - this.partner.x) <= 46;
+                return near ? "点 E 递出针套 · 纸条一起塞进去" : "走到倒柜后的小满身边（x≈214）再点 E";
+            }
+            if (this.phase === "prologue-give") {
+                return "递物 " + this.phaseTick + " / 60 拍 · 站着别动";
+            }
+            return "她跟着你了 · 两人一起走到门口 680";
+        }
+        if (this.room.key === "street") {
+            if (this.aliveEnemies() > 0) {
+                return "左键点射清街心敌兵 · A / D 走，空格贴柜台翻上去";
+            }
+            return "清完了 · 两人一起走到右边检查站入口 900";
+        }
+        if (this.room.key === "gate") {
+            const g = this.room.story === undefined ? undefined : this.room.story.gate;
+            if (g !== undefined) {
+                if (this.phase === "gate-idle") {
+                    return "小满到门洞 960、周戍回绞盘 195，两人就位才开始守点";
+                }
+                if (this.phase === "gate-hold") {
+                    return "守 45 秒 · 左键点射 · 守满走到门边 860 按 E 送她";
+                }
+                if (this.phase === "gate-send") {
+                    return "去门边 860 按 E 送别 · 她已经站在门口";
+                }
+                if (this.phase === "gate-count") {
+                    if (this.countTick >= 1440) {
+                        return this.countArmed ? "新按 D · 让她迈出第一步" : "先松开方向键，再按 D";
+                    }
+                    return "数到一百 " + this.countTick + " / 1440 拍 · 门正在关";
+                }
+                return "她自己走 · 跟着出城门 1120";
+            }
+        }
+        if (this.room.key === "forest") {
+            if (this.dogState === "chase") {
+                return "狗在追 · 蹲下或拉开距离，等它停下";
+            }
+            if (this.dogState === "ear") {
+                return "狗转耳朵了 · 停下或蹲下别出声";
+            }
+            return "草后等、Shift 慢走、Ctrl 蹲 · 林缘 1450 走到灯下";
+        }
+        if (this.room.key === "tower") {
+            if (this.phase === "tower-wait") {
+                return "走到门前 445 点一次 E 敲两下";
+            }
+            if (this.phase === "tower-knock") {
+                return "敲两下 · 等门开";
+            }
+            if (this.phase === "tower-given") {
+                return "递交针套和纸条 · 看登记簿最后一行";
+            }
+            return "片尾 · 点 E 再玩一次，回到序章";
         }
         if (this.room.key === "village") {
             if (this.bottleFly !== undefined) {
@@ -1326,7 +1989,7 @@ export class Play {
 
     private drawActors(draw: DrawNode.Type, w: number, h: number): void {
         const p = this.player;
-        const isChild = this.room.key !== "checkpoint";
+        const isChild = this.childMode;
         drawFigure(draw, this, w, h, p, isChild ? CHILD_BODY : SOLDIER_BODY, isChild ? CHILD_HEAD : SOLDIER_HEAD);
         const q = this.partner;
         if (q.alive) {
@@ -1360,7 +2023,8 @@ export class Play {
             if (m.kind !== 1 && m.kind !== 4 && m.kind !== 5) {
                 continue;
             }
-            if (m.kind === 1 && this.room.key !== "checkpoint") {
+            if (m.kind === 1 && this.room.key !== "checkpoint" && this.room.key !== "prologue"
+                && this.room.key !== "gate" && this.room.key !== "tower") {
                 continue;
             }
             let col = STAND;
@@ -1387,6 +2051,21 @@ export class Play {
         }
         if (this.room.key === "village") {
             this.drawVillage(draw, w, h);
+        }
+        if (this.room.key === "forest") {
+            this.drawDog(draw, w, h);
+        }
+    }
+
+    /** 森林的狗：四足简笔，转耳时头顶画一道短竖线。 */
+    private drawDog(draw: DrawNode.Type, w: number, h: number): void {
+        const x = this.dogX;
+        this.drawBox(draw, w, h, x - 14, x + 14, 0, 20, SCAV_BODY);
+        this.drawBox(draw, w, h, x - 10, x - 2, 20, 30, SCAV_BODY);
+        this.drawBox(draw, w, h, x + 2, x + 10, 20, 30, SCAV_HEAD);
+        if (this.dogState === "ear" || this.dogState === "chase") {
+            draw.drawSegment(Vec2(this.sx(x, w), this.sy(30, h)),
+                Vec2(this.sx(x, w), this.sy(40, h)), this.px(1), DANGER);
         }
     }
 

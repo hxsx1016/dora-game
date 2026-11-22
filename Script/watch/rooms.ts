@@ -18,6 +18,8 @@ export interface SolidSpec {
     h: number;
     y: number;
     label: string;
+    /** 低矮植被等：只挡撞头不做水平阻挡，蹲行与走过都能穿过。 */
+    passable?: boolean;
 }
 
 export interface ZoneSpec {
@@ -99,6 +101,28 @@ export interface ScavSpec {
     range: number;
 }
 
+/** 城门守点：绞盘、门洞等待点、门边送别位与离场线。 */
+export interface GateSpec {
+    winchX: number;
+    waitX: number;
+    doorX: number;
+    exitX: number;
+    /** 45 秒 = 2700 拍，只累计可操作的模拟步。 */
+    holdTicks: number;
+}
+
+/** 剧本段数据：与房间尺寸无关，只放这一段需要的锚点。 */
+export interface StorySpec {
+    /** 序章：小满藏在柜后的位置与可以递交的距离。 */
+    prologue?: { giveReach: number };
+    /** 城门。 */
+    gate?: GateSpec;
+    /** 森林里的狗：巡逻段、速度与听觉半径。 */
+    dog?: { x0: number; x1: number; speed: number; range: number };
+    /** 塔门：门前交互点与敲两下用的拍数。 */
+    tower?: { doorX: number; knockTicks: number };
+}
+
 export interface RoomSpec {
     key: string;
     name: string;
@@ -131,6 +155,8 @@ export interface RoomSpec {
     softX?: number;
     /** 村口：第一院通行线。 */
     passLine?: number;
+    /** 剧本段数据；没有这一项的房间就是纯路段。 */
+    story?: StorySpec;
 }
 
 /** 检查站：周戍把车从 640 推到 768 落入 dock，再和小满一起走到出口。 */
@@ -287,7 +313,234 @@ export const VILLAGE_ROOM: RoomSpec = {
     passLine: 440,
 };
 
-export const ROOMS: RoomSpec[] = [CHECKPOINT_ROOM, OUTSIDE_ROOM, VILLAGE_ROOM];
+/** 剧本锚点跟着 originX 一起搬，判定仍读世界坐标。 */
+function shiftStory(story: StorySpec | undefined, ox: number): StorySpec | undefined {
+    if (story === undefined) {
+        return undefined;
+    }
+    if (ox === 0) {
+        return story;
+    }
+    const out: StorySpec = {};
+    if (story.prologue !== undefined) {
+        out.prologue = { giveReach: story.prologue.giveReach };
+    }
+    if (story.gate !== undefined) {
+        out.gate = {
+            winchX: story.gate.winchX + ox,
+            waitX: story.gate.waitX + ox,
+            doorX: story.gate.doorX + ox,
+            exitX: story.gate.exitX + ox,
+            holdTicks: story.gate.holdTicks,
+        };
+    }
+    if (story.dog !== undefined) {
+        out.dog = { x0: story.dog.x0 + ox, x1: story.dog.x1 + ox, speed: story.dog.speed, range: story.dog.range };
+    }
+    if (story.tower !== undefined) {
+        out.tower = { doorX: story.tower.doorX + ox, knockTicks: story.tower.knockTicks };
+    }
+    return out;
+}
+
+/**
+ * 序章：周戍在废墟里找到藏在倒柜后的小满，走近点 E 递出指南针（纸条夹在针套里）。
+ * 递完她开始跟随，两人一起走进街道。
+ */
+export const PROLOGUE_ROOM: RoomSpec = {
+    key: "prologue",
+    originX: 0,
+    name: "序章 · 倒柜后",
+    caption: "周戍持针套，小满藏在倒柜后；走近点 E 递过去，纸条塞进针套，她开始跟随",
+    minX: 0,
+    maxX: 720,
+    height: 200,
+    floors: [{ y: 0, x0: 0, x1: 720 }],
+    solids: [
+        { x: 150, w: 100, h: 32, y: 0, label: "倒柜 150–250 · 高 32" },
+        { x: 700, w: 20, h: 120, y: 0, label: "门框 700" },
+    ],
+    zones: [],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [
+        { x: 80, y: 0, h: 88, label: "周戍 80" },
+        { x: 300, y: 0, h: 64, label: "小满 300 · 柜子后面" },
+    ],
+    marks: [
+        { x: 300, y: 0, kind: 1, label: "柜后 300" },
+        { x: 700, y: 0, kind: 0, label: "门口 700" },
+    ],
+    dims: [
+        { x0: 150, x1: 250, text: "倒柜 100" },
+        { x0: 700, x1: 720, text: "门 20" },
+    ],
+    story: { prologue: { giveReach: 46 } },
+};
+
+/**
+ * 街道：两人已经同行，第一次交火在街心柜台后，打完把柜台敲两下算解除。
+ * 一路走到检查站入口，提交进度后进入检查站。
+ */
+export const STREET_ROOM: RoomSpec = {
+    key: "street",
+    originX: 0,
+    name: "街道 · 柜台与交火",
+    caption: "小满跟着走；街心柜台后有两名敌兵，点鼠标射击，清掉后一起走到检查站入口",
+    minX: 0,
+    maxX: 1000,
+    height: 210,
+    floors: [{ y: 0, x0: 0, x1: 1000 }],
+    solids: [
+        { x: 300, w: 100, h: 44, y: 0, label: "街心柜台 300–400 · 高 44" },
+        { x: 620, w: 60, h: 36, y: 0, label: "街边矮墙 620" },
+        { x: 960, w: 40, h: 120, y: 0, label: "检查站门 960" },
+    ],
+    zones: [],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [
+        { x: 100, y: 0, h: 88, label: "周戍 100" },
+        { x: 60, y: 0, h: 64, label: "小满 60" },
+    ],
+    marks: [
+        { x: 900, y: 0, kind: 0, label: "检查站入口 900" },
+        { x: 520, y: 0, kind: 3, label: "街心 520" },
+    ],
+    dims: [
+        { x0: 300, x1: 400, text: "柜台 100" },
+        { x0: 900, x1: 1000, text: "入口 100" },
+    ],
+};
+
+/**
+ * 城门：周戍把小满送到门洞等待点，自己回到绞盘；两人就位后开始 45 秒守点。
+ * 守满后玩家走到门边按 E 送别，接着是数到一百与交权。
+ */
+export const GATE_ROOM: RoomSpec = {
+    key: "gate",
+    originX: 0,
+    name: "城门 · 45 秒守点",
+    caption: "小满到门洞 960、周戍回绞盘 195，两人就位开始 45 秒；守满走到门边按 E 送她",
+    minX: 0,
+    maxX: 1200,
+    height: 240,
+    floors: [{ y: 0, x0: 0, x1: 1200 }],
+    solids: [
+        { x: 40, w: 60, h: 60, y: 0, label: "绞盘 40–100 · 高 60" },
+        { x: 520, w: 80, h: 44, y: 0, label: "街垒 520 · 高 44" },
+        { x: 1040, w: 160, h: 180, y: 0, label: "门洞右墙 1040" },
+        { x: 840, w: 200, h: 56, y: 160, label: "门楣 840–1040" },
+    ],
+    zones: [
+        { x0: 860, x1: 1000, y: 0, h: 8, tint: 4, label: "门洞 860–1000" },
+    ],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [
+        { x: 130, y: 0, h: 88, label: "周戍 130" },
+        { x: 150, y: 0, h: 64, label: "小满 150" },
+    ],
+    marks: [
+        { x: 70, y: 0, kind: 1, label: "绞盘 70" },
+        { x: 960, y: 0, kind: 1, label: "门洞等待点 960" },
+        { x: 860, y: 0, kind: 0, label: "门边 860" },
+        { x: 1020, y: 0, kind: 0, label: "出门 1020" },
+    ],
+    dims: [
+        { x0: 40, x1: 100, text: "绞盘 60" },
+        { x0: 840, x1: 1040, text: "门洞 200" },
+    ],
+    story: { gate: { winchX: 70, waitX: 960, doorX: 860, exitX: 1020, holdTicks: 2700 } },
+};
+
+/**
+ * 北塔森林：小满独自走。草后可以等，狗听见脚步会转耳朵、赶来、停一会儿再回线。
+ * 最后一段从林缘自己选时机走到灯下门廊。
+ */
+export const FOREST_ROOM: RoomSpec = {
+    key: "forest",
+    originX: 0,
+    name: "北塔森林 · 草与狗",
+    caption: "狗对动静比人快：草后等、Shift 慢走、蹲着过；林缘 1450 走到灯下门廊",
+    minX: 0,
+    maxX: 1600,
+    height: 200,
+    floors: [{ y: 0, x0: 0, x1: 1600 }],
+    solids: [
+        { x: 300, w: 80, h: 24, y: 0, label: "草丛 300–380 · 高 24", passable: true },
+        { x: 700, w: 90, h: 24, y: 0, label: "草丛 700–790 · 高 24", passable: true },
+        { x: 1150, w: 90, h: 24, y: 0, label: "草丛 1150–1240 · 高 24", passable: true },
+        { x: 1560, w: 40, h: 160, y: 0, label: "林缘 1560" },
+    ],
+    zones: [
+        { x0: 1400, x1: 1470, y: 0, h: 6, tint: 4, label: "林边 1400–1470" },
+    ],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [
+        { x0: 520, x1: 640, y0: 0, y1: 22, steps: 1, label: "矮台 520–640 · 高 22" },
+        { x0: 980, x1: 1100, y0: 0, y1: 22, steps: 1, label: "矮台 980–1100 · 高 22" },
+    ],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [{ x: 120, y: 0, h: 64, label: "小满 120" }],
+    marks: [
+        { x: 1450, y: 0, kind: 0, label: "林边安全点 1450" },
+        { x: 620, y: 0, kind: 3, label: "矮台 620" },
+    ],
+    dims: [
+        { x0: 700, x1: 790, text: "草 90" },
+        { x0: 1400, x1: 1470, text: "林边 70" },
+    ],
+    story: { dog: { x0: 620, x1: 780, speed: 56, range: 300 } },
+};
+
+/**
+ * 塔门与尾声：小满走到门前，按一次 E 敲两下；守卫开门接过针套和纸条，
+ * 在登记簿里给下一个人留出一行空白。片尾可以再玩。
+ */
+export const TOWER_ROOM: RoomSpec = {
+    key: "tower",
+    originX: 0,
+    name: "北塔塔门 · 尾声",
+    caption: "走到门前点一次 E 敲两下；递出针套和纸条，看登记簿空行，片尾可再玩",
+    minX: 0,
+    maxX: 720,
+    height: 220,
+    floors: [{ y: 0, x0: 0, x1: 720 }],
+    solids: [
+        { x: 180, w: 220, h: 200, y: 0, label: "塔身 180–400" },
+        { x: 490, w: 230, h: 200, y: 0, label: "塔身 490–720" },
+        { x: 400, w: 90, h: 30, y: 110, label: "门楣 400–490" },
+    ],
+    zones: [
+        { x0: 400, x1: 490, y: 0, h: 8, tint: 4, label: "门廊 400–490" },
+    ],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [{ x: 418, y: 0, h: 64, label: "小满 418 · 门廊里" }],
+    marks: [
+        { x: 445, y: 0, kind: 1, label: "门前 445" },
+    ],
+    dims: [
+        { x0: 400, x1: 490, text: "门 90" },
+    ],
+    story: { tower: { doorX: 445, knockTicks: 36 } },
+};
+
+export const ROOMS: RoomSpec[] = [
+    PROLOGUE_ROOM,
+    STREET_ROOM,
+    CHECKPOINT_ROOM,
+    GATE_ROOM,
+    OUTSIDE_ROOM,
+    VILLAGE_ROOM,
+    FOREST_ROOM,
+    TOWER_ROOM,
+];
 
 /**
  * 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
@@ -334,5 +587,6 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         brickX: room.brickX === undefined ? undefined : shift(room.brickX),
         softX: room.softX === undefined ? undefined : shift(room.softX),
         passLine: room.passLine === undefined ? undefined : shift(room.passLine),
+        story: shiftStory(room.story, ox),
     };
 }
