@@ -145,6 +145,10 @@ export function start(parent: Node.Type, initialMode: number = 1): void {
     viewH = View.size.height;
     applySize();
 
+    // 验收钩子：把输入层也挂出来，键鼠实测时能读到本拍是否真的收到按键。
+    const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
+    reg["watch.input"] = input;
+
     parent.schedule((frameDt: number) => {
         tick(frameDt);
         return false;
@@ -219,6 +223,12 @@ function tick(frameDt: number): void {
 /** 试玩模式下按当前房间建运行时；切房间时重建。 */
 function ensurePlay(): void {
     play = new Play(ROOMS[current]);
+    // 验收钩子：把实例挂到 package.loaded（已存在的表，引擎禁止新建全局）。
+    // Lua 侧 `package.loaded["watch.play"]` 就能看真实运行中的实例，不必手动 new Play。
+    // 只放引用，不参与任何逻辑。
+    const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
+    reg["watch.play"] = play;
+    reg["watch.room"] = ROOMS[current].key;
     clock.reset();
 }
 
