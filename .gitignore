@@ -9,3 +9,6 @@
 API/
 
 .DS_Store
+
+# 组装的发行包与 ZIP（体积大，用 tools/make-windows-pack.sh 重建）
+dist/

@@ -38,381 +38,384 @@ function place(lb, x, y, ax, ay) -- 74
 	lb.anchor = Vec2(ax, ay) -- 79
 	lb.visible = true -- 80
 end -- 80
-function applySize() -- 150
-	if root == nil then -- 150
-		return -- 152
-	end -- 152
-	root.size = Size(viewW, viewH) -- 154
-	root.position = Vec2(-viewW / 2, -viewH / 2) -- 155
-end -- 155
-function tick() -- 158
-	local w = View.size.width -- 159
-	local h = View.size.height -- 160
-	if w ~= viewW or h ~= viewH then -- 160
-		viewW = w -- 162
-		viewH = h -- 163
-		applySize() -- 164
-		dirty = true -- 165
-	end -- 165
-	if input == nil then -- 165
-		return -- 168
-	end -- 168
-	input:update() -- 170
-	if input.toggleView.pressed then -- 170
-		mode = mode == 0 and 1 or 0 -- 172
-		dirty = true -- 173
-		if mode == 1 then -- 173
-			ensurePlay() -- 175
-		end -- 175
-	end -- 175
-	if input.pickRoom ~= 0 then -- 175
-		current = input.pickRoom - 1 -- 179
-		dirty = true -- 180
-		play = nil -- 181
-		if mode == 1 then -- 181
-			ensurePlay() -- 183
-		end -- 183
-	elseif input.tab.pressed then -- 183
-		current = (current + 1) % #ROOMS -- 186
-		dirty = true -- 187
-		play = nil -- 188
-		if mode == 1 then -- 188
-			ensurePlay() -- 190
-		end -- 190
-	end -- 190
-	if mode == 1 then -- 190
-		tickPlay() -- 194
-		return -- 195
-	end -- 195
-	if dirty then -- 195
-		redraw() -- 198
-		dirty = false -- 199
+function applySize() -- 151
+	if root == nil then -- 151
+		return -- 153
+	end -- 153
+	root.size = Size(viewW, viewH) -- 155
+	root.position = Vec2(-viewW / 2, -viewH / 2) -- 156
+end -- 156
+function tick() -- 159
+	local w = View.size.width -- 160
+	local h = View.size.height -- 161
+	if w ~= viewW or h ~= viewH then -- 161
+		viewW = w -- 163
+		viewH = h -- 164
+		applySize() -- 165
+		dirty = true -- 166
+	end -- 166
+	if input == nil then -- 166
+		return -- 169
+	end -- 169
+	input:update() -- 171
+	if input.toggleView.pressed then -- 171
+		mode = mode == 0 and 1 or 0 -- 173
+		dirty = true -- 174
+		if mode == 1 then -- 174
+			ensurePlay() -- 176
+		end -- 176
+	end -- 176
+	if mode == 1 and play == nil then -- 176
+		ensurePlay() -- 180
+	end -- 180
+	if input.pickRoom ~= 0 then -- 180
+		current = input.pickRoom - 1 -- 183
+		dirty = true -- 184
+		play = nil -- 185
+		if mode == 1 then -- 185
+			ensurePlay() -- 187
+		end -- 187
+	elseif input.tab.pressed then -- 187
+		current = (current + 1) % #ROOMS -- 190
+		dirty = true -- 191
+		play = nil -- 192
+		if mode == 1 then -- 192
+			ensurePlay() -- 194
+		end -- 194
+	end -- 194
+	if mode == 1 then -- 194
+		tickPlay() -- 198
+		return -- 199
 	end -- 199
-end -- 199
-function ensurePlay() -- 204
-	play = __TS__New(Play, ROOMS[current + 1]) -- 205
-end -- 205
-function tickPlay() -- 209
-	if play == nil or draw == nil or input == nil then -- 209
-		return -- 211
-	end -- 211
-	local p = play -- 213
-	if input.retry.pressed then -- 213
-		play = __TS__New(Play, ROOMS[current + 1]) -- 215
-		return -- 216
-	end -- 216
-	p.aimX = input.mx -- 218
-	p.aimY = input.my -- 219
-	p:update(STEP, input) -- 220
-	p:draw(draw, viewW, viewH) -- 221
-	playHud(p) -- 222
-end -- 222
-function playHud(p) -- 226
-	local room = ROOMS[current + 1] -- 227
-	if titleLabel ~= nil then -- 227
-		titleLabel.text = "守望 · D2 试玩" -- 229
-	end -- 229
-	if roomLabel ~= nil then -- 229
-		roomLabel.text = room.name -- 232
-	end -- 232
-	if captionLabel ~= nil then -- 232
-		captionLabel.text = p:statusText() -- 235
-		captionLabel.color = C_TEXT -- 236
+	if dirty then -- 199
+		redraw() -- 202
+		dirty = false -- 203
+	end -- 203
+end -- 203
+function ensurePlay() -- 208
+	play = __TS__New(Play, ROOMS[current + 1]) -- 209
+end -- 209
+function tickPlay() -- 213
+	if play == nil or draw == nil or input == nil then -- 213
+		return -- 215
+	end -- 215
+	local p = play -- 217
+	if input.retry.pressed then -- 217
+		play = __TS__New(Play, ROOMS[current + 1]) -- 219
+		return -- 220
+	end -- 220
+	p.aimX = input.mx -- 222
+	p.aimY = input.my -- 223
+	p:update(STEP, input) -- 224
+	p:draw(draw, viewW, viewH) -- 225
+	playHud(p) -- 226
+end -- 226
+function playHud(p) -- 230
+	local room = ROOMS[current + 1] -- 231
+	if titleLabel ~= nil then -- 231
+		titleLabel.text = "守望 · D2 试玩" -- 233
+	end -- 233
+	if roomLabel ~= nil then -- 233
+		roomLabel.text = room.name -- 236
 	end -- 236
-	if hintLabel ~= nil then -- 236
-		hintLabel.text = p:hintText() -- 239
-	end -- 239
-	if switchLabel ~= nil then -- 239
-		switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · R 重置" -- 242
-	end -- 242
-	if rulerLabel ~= nil then -- 242
-		rulerLabel.text = "" -- 245
-	end -- 245
-	if standLabel ~= nil then -- 245
-		standLabel.text = "" -- 248
-	end -- 248
-	if cartLabel ~= nil then -- 248
-		cartLabel.text = "" -- 251
-	end -- 251
-	local i = 0 -- 253
-	do -- 253
-		i = 0 -- 254
-		while i < #poolBody do -- 254
-			poolBody[i + 1].visible = false -- 255
-			i = i + 1 -- 254
-		end -- 254
-	end -- 254
-	do -- 254
-		i = 0 -- 257
-		while i < #poolSmall do -- 257
-			poolSmall[i + 1].visible = false -- 258
-			i = i + 1 -- 257
-		end -- 257
-	end -- 257
-	place( -- 260
-		titleLabel, -- 260
-		48, -- 260
-		viewH - 40, -- 260
-		0, -- 260
-		1 -- 260
-	) -- 260
-	place( -- 261
-		roomLabel, -- 261
-		48, -- 261
-		viewH - 96, -- 261
-		0, -- 261
-		1 -- 261
-	) -- 261
-	place( -- 262
-		captionLabel, -- 262
-		48, -- 262
-		viewH - 140, -- 262
-		0, -- 262
-		1 -- 262
-	) -- 262
-	place( -- 263
-		switchLabel, -- 263
-		48, -- 263
-		40, -- 263
-		0, -- 263
-		0 -- 263
-	) -- 263
+	if captionLabel ~= nil then -- 236
+		captionLabel.text = p:statusText() -- 239
+		captionLabel.color = C_TEXT -- 240
+	end -- 240
+	if hintLabel ~= nil then -- 240
+		hintLabel.text = p:hintText() -- 243
+	end -- 243
+	if switchLabel ~= nil then -- 243
+		switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · R 重置" -- 246
+	end -- 246
+	if rulerLabel ~= nil then -- 246
+		rulerLabel.text = "" -- 249
+	end -- 249
+	if standLabel ~= nil then -- 249
+		standLabel.text = "" -- 252
+	end -- 252
+	if cartLabel ~= nil then -- 252
+		cartLabel.text = "" -- 255
+	end -- 255
+	local i = 0 -- 257
+	do -- 257
+		i = 0 -- 258
+		while i < #poolBody do -- 258
+			poolBody[i + 1].visible = false -- 259
+			i = i + 1 -- 258
+		end -- 258
+	end -- 258
+	do -- 258
+		i = 0 -- 261
+		while i < #poolSmall do -- 261
+			poolSmall[i + 1].visible = false -- 262
+			i = i + 1 -- 261
+		end -- 261
+	end -- 261
 	place( -- 264
-		hintLabel, -- 264
+		titleLabel, -- 264
 		48, -- 264
-		84, -- 264
+		viewH - 40, -- 264
 		0, -- 264
-		0 -- 264
+		1 -- 264
 	) -- 264
-end -- 264
-function redraw() -- 267
-	if draw == nil then -- 267
-		return -- 269
-	end -- 269
-	local w = viewW -- 271
-	local h = viewH -- 272
-	local room = ROOMS[current + 1] -- 273
-	draw:clear() -- 275
-	draw:drawRect( -- 278
-		Rect(0, h - TOP_H, w, TOP_H), -- 278
-		C_BG -- 278
-	) -- 278
-	draw:drawRect( -- 279
-		Rect(0, 0, w, BOTTOM_H), -- 279
-		C_BG -- 279
-	) -- 279
-	draw:drawSegment( -- 280
-		Vec2(0, h - TOP_H), -- 280
-		Vec2(w, h - TOP_H), -- 280
-		1, -- 280
-		Color(52, 54, 54, 255) -- 280
-	) -- 280
-	draw:drawSegment( -- 281
-		Vec2(0, BOTTOM_H), -- 281
-		Vec2(w, BOTTOM_H), -- 281
-		1, -- 281
-		Color(52, 54, 54, 255) -- 281
-	) -- 281
-	local v = computeView(room, w, h) -- 283
-	renderWorld( -- 284
-		draw, -- 284
-		room, -- 284
-		v, -- 284
-		w, -- 284
-		h -- 284
+	place( -- 265
+		roomLabel, -- 265
+		48, -- 265
+		viewH - 96, -- 265
+		0, -- 265
+		1 -- 265
+	) -- 265
+	place( -- 266
+		captionLabel, -- 266
+		48, -- 266
+		viewH - 140, -- 266
+		0, -- 266
+		1 -- 266
+	) -- 266
+	place( -- 267
+		switchLabel, -- 267
+		48, -- 267
+		40, -- 267
+		0, -- 267
+		0 -- 267
+	) -- 267
+	place( -- 268
+		hintLabel, -- 268
+		48, -- 268
+		84, -- 268
+		0, -- 268
+		0 -- 268
+	) -- 268
+end -- 268
+function redraw() -- 271
+	if draw == nil then -- 271
+		return -- 273
+	end -- 273
+	local w = viewW -- 275
+	local h = viewH -- 276
+	local room = ROOMS[current + 1] -- 277
+	draw:clear() -- 279
+	draw:drawRect( -- 282
+		Rect(0, h - TOP_H, w, TOP_H), -- 282
+		C_BG -- 282
+	) -- 282
+	draw:drawRect( -- 283
+		Rect(0, 0, w, BOTTOM_H), -- 283
+		C_BG -- 283
+	) -- 283
+	draw:drawSegment( -- 284
+		Vec2(0, h - TOP_H), -- 284
+		Vec2(w, h - TOP_H), -- 284
+		1, -- 284
+		Color(52, 54, 54, 255) -- 284
 	) -- 284
-	local roomTop = v.groundPx + room.height * v.scale -- 286
-	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 287
-	place( -- 289
-		titleLabel, -- 289
-		48, -- 289
-		h - 40, -- 289
-		0, -- 289
-		1 -- 289
-	) -- 289
-	place( -- 290
-		roomLabel, -- 290
-		48, -- 290
-		h - 96, -- 290
-		0, -- 290
-		1 -- 290
-	) -- 290
-	place( -- 291
-		captionLabel, -- 291
-		48, -- 291
-		h - 140, -- 291
-		0, -- 291
-		1 -- 291
-	) -- 291
+	draw:drawSegment( -- 285
+		Vec2(0, BOTTOM_H), -- 285
+		Vec2(w, BOTTOM_H), -- 285
+		1, -- 285
+		Color(52, 54, 54, 255) -- 285
+	) -- 285
+	local v = computeView(room, w, h) -- 287
+	renderWorld( -- 288
+		draw, -- 288
+		room, -- 288
+		v, -- 288
+		w, -- 288
+		h -- 288
+	) -- 288
+	local roomTop = v.groundPx + room.height * v.scale -- 290
+	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 291
 	place( -- 293
-		switchLabel, -- 293
+		titleLabel, -- 293
 		48, -- 293
-		40, -- 293
+		h - 40, -- 293
 		0, -- 293
-		0 -- 293
+		1 -- 293
 	) -- 293
 	place( -- 294
-		hintLabel, -- 294
+		roomLabel, -- 294
 		48, -- 294
-		84, -- 294
+		h - 96, -- 294
 		0, -- 294
-		0 -- 294
+		1 -- 294
 	) -- 294
 	place( -- 295
-		rulerLabel, -- 295
-		w - 216, -- 295
-		roomTop + 36 + v.scale * 0.5 - 14, -- 295
-		1, -- 295
-		0 -- 295
+		captionLabel, -- 295
+		48, -- 295
+		h - 140, -- 295
+		0, -- 295
+		1 -- 295
 	) -- 295
-	place( -- 296
-		standLabel, -- 296
-		48, -- 296
-		roomTop + 40, -- 296
-		0, -- 296
-		0 -- 296
-	) -- 296
 	place( -- 297
-		cartLabel, -- 297
+		switchLabel, -- 297
 		48, -- 297
-		roomTop + 92, -- 297
+		40, -- 297
 		0, -- 297
 		0 -- 297
 	) -- 297
-	if roomLabel ~= nil then -- 297
-		roomLabel.text = room.name -- 300
-	end -- 300
-	if captionLabel ~= nil then -- 300
-		captionLabel.text = room.caption -- 303
-	end -- 303
-	if hintLabel ~= nil then -- 303
-		local lines = HINTS[current + 1] -- 306
-		local merged = lines[1] -- 307
-		do -- 307
-			local i = 1 -- 308
-			while i < #lines do -- 308
-				merged = (merged .. "    ") .. lines[i + 1] -- 309
-				i = i + 1 -- 308
-			end -- 308
-		end -- 308
-		hintLabel.text = merged -- 311
-	end -- 311
-	local specs = collectLabels(room, v, w) -- 315
-	local body = {} -- 316
-	local small = {} -- 317
-	do -- 317
-		local i = 0 -- 318
-		while i < #specs do -- 318
-			local s = specs[i + 1] -- 319
-			if s.size >= 24 then -- 319
-				body[#body + 1] = s -- 321
-			else -- 321
-				small[#small + 1] = s -- 323
-			end -- 323
-			i = i + 1 -- 318
-		end -- 318
-	end -- 318
-	applyPool(body, poolBody) -- 326
-	applyPool(small, poolSmall) -- 327
-	if LAYOUT_AUDIT then -- 327
-		auditLayout(w, h) -- 330
-	end -- 330
-end -- 330
-function applyPool(specs, pool) -- 334
-	do -- 334
-		local i = 0 -- 335
-		while i < #pool do -- 335
-			local lb = pool[i + 1] -- 336
-			if i < #specs then -- 336
-				local s = specs[i + 1] -- 338
-				lb.text = s.text -- 339
-				lb.position = Vec2(s.x, s.y) -- 340
-				lb.anchor = Vec2(s.ax, s.ay) -- 341
-				lb.color = s.color -- 342
-				lb.visible = true -- 343
-			else -- 343
-				lb.visible = false -- 345
-			end -- 345
-			i = i + 1 -- 335
-		end -- 335
-	end -- 335
-end -- 335
-function auditLayout(w, h) -- 351
-	local all = {} -- 352
-	collectOne(all, titleLabel) -- 353
-	collectOne(all, roomLabel) -- 354
-	collectOne(all, captionLabel) -- 355
-	collectOne(all, switchLabel) -- 356
-	collectOne(all, hintLabel) -- 357
-	collectOne(all, rulerLabel) -- 358
-	collectOne(all, standLabel) -- 359
-	collectOne(all, cartLabel) -- 360
-	do -- 360
-		local i = 0 -- 361
-		while i < #poolBody do -- 361
-			collectOne(all, poolBody[i + 1]) -- 362
-			i = i + 1 -- 361
-		end -- 361
-	end -- 361
-	do -- 361
-		local i = 0 -- 364
-		while i < #poolSmall do -- 364
-			collectOne(all, poolSmall[i + 1]) -- 365
-			i = i + 1 -- 364
-		end -- 364
-	end -- 364
-	local lefts = {} -- 368
-	local rights = {} -- 369
-	local bottoms = {} -- 370
-	local tops = {} -- 371
-	local outOfScreen = 0 -- 372
-	do -- 372
-		local i = 0 -- 373
-		while i < #all do -- 373
-			local lb = all[i + 1] -- 374
-			local bw = lb.width -- 375
-			local bh = lb.height -- 376
-			local l = lb.x - bw * lb.anchor.x -- 377
-			local r = l + bw -- 378
-			local b = lb.y - bh * lb.anchor.y -- 379
-			local t = b + bh -- 380
-			lefts[#lefts + 1] = l -- 381
-			rights[#rights + 1] = r -- 382
-			bottoms[#bottoms + 1] = b -- 383
-			tops[#tops + 1] = t -- 384
-			if l < 0 or r > w or b < 0 or t > h then -- 384
-				outOfScreen = outOfScreen + 1 -- 386
-				print((((((((("AUDIT|越界|" .. lb.text) .. "|") .. tostring(l)) .. ",") .. tostring(r)) .. ",") .. tostring(b)) .. ",") .. tostring(t)) -- 387
-			end -- 387
-			i = i + 1 -- 373
-		end -- 373
-	end -- 373
-	local overlaps = 0 -- 391
-	do -- 391
-		local i = 0 -- 392
-		while i < #all do -- 392
-			do -- 392
-				local j = i + 1 -- 393
-				while j < #all do -- 393
-					local ox = math.min(rights[i + 1], rights[j + 1]) - math.max(lefts[i + 1], lefts[j + 1]) -- 394
-					local oy = math.min(tops[i + 1], tops[j + 1]) - math.max(bottoms[i + 1], bottoms[j + 1]) -- 395
-					if ox > 4 and oy > 4 then -- 395
-						overlaps = overlaps + 1 -- 397
-						print((((((("AUDIT|重叠|" .. all[i + 1].text) .. " <> ") .. all[j + 1].text) .. "|") .. tostring(ox)) .. "x") .. tostring(oy)) -- 398
-					end -- 398
-					j = j + 1 -- 393
-				end -- 393
-			end -- 393
-			i = i + 1 -- 392
-		end -- 392
-	end -- 392
-	print((((((((("AUDIT|小结|标签=" .. tostring(#all)) .. "|越界=") .. tostring(outOfScreen)) .. "|重叠=") .. tostring(overlaps)) .. "|屏幕=") .. tostring(w)) .. "x") .. tostring(h)) -- 402
-end -- 402
-function collectOne(out, lb) -- 405
-	if lb ~= nil and lb.visible then -- 405
-		out[#out + 1] = lb -- 407
-	end -- 407
-end -- 407
+	place( -- 298
+		hintLabel, -- 298
+		48, -- 298
+		84, -- 298
+		0, -- 298
+		0 -- 298
+	) -- 298
+	place( -- 299
+		rulerLabel, -- 299
+		w - 216, -- 299
+		roomTop + 36 + v.scale * 0.5 - 14, -- 299
+		1, -- 299
+		0 -- 299
+	) -- 299
+	place( -- 300
+		standLabel, -- 300
+		48, -- 300
+		roomTop + 40, -- 300
+		0, -- 300
+		0 -- 300
+	) -- 300
+	place( -- 301
+		cartLabel, -- 301
+		48, -- 301
+		roomTop + 92, -- 301
+		0, -- 301
+		0 -- 301
+	) -- 301
+	if roomLabel ~= nil then -- 301
+		roomLabel.text = room.name -- 304
+	end -- 304
+	if captionLabel ~= nil then -- 304
+		captionLabel.text = room.caption -- 307
+	end -- 307
+	if hintLabel ~= nil then -- 307
+		local lines = HINTS[current + 1] -- 310
+		local merged = lines[1] -- 311
+		do -- 311
+			local i = 1 -- 312
+			while i < #lines do -- 312
+				merged = (merged .. "    ") .. lines[i + 1] -- 313
+				i = i + 1 -- 312
+			end -- 312
+		end -- 312
+		hintLabel.text = merged -- 315
+	end -- 315
+	local specs = collectLabels(room, v, w) -- 319
+	local body = {} -- 320
+	local small = {} -- 321
+	do -- 321
+		local i = 0 -- 322
+		while i < #specs do -- 322
+			local s = specs[i + 1] -- 323
+			if s.size >= 24 then -- 323
+				body[#body + 1] = s -- 325
+			else -- 325
+				small[#small + 1] = s -- 327
+			end -- 327
+			i = i + 1 -- 322
+		end -- 322
+	end -- 322
+	applyPool(body, poolBody) -- 330
+	applyPool(small, poolSmall) -- 331
+	if LAYOUT_AUDIT then -- 331
+		auditLayout(w, h) -- 334
+	end -- 334
+end -- 334
+function applyPool(specs, pool) -- 338
+	do -- 338
+		local i = 0 -- 339
+		while i < #pool do -- 339
+			local lb = pool[i + 1] -- 340
+			if i < #specs then -- 340
+				local s = specs[i + 1] -- 342
+				lb.text = s.text -- 343
+				lb.position = Vec2(s.x, s.y) -- 344
+				lb.anchor = Vec2(s.ax, s.ay) -- 345
+				lb.color = s.color -- 346
+				lb.visible = true -- 347
+			else -- 347
+				lb.visible = false -- 349
+			end -- 349
+			i = i + 1 -- 339
+		end -- 339
+	end -- 339
+end -- 339
+function auditLayout(w, h) -- 355
+	local all = {} -- 356
+	collectOne(all, titleLabel) -- 357
+	collectOne(all, roomLabel) -- 358
+	collectOne(all, captionLabel) -- 359
+	collectOne(all, switchLabel) -- 360
+	collectOne(all, hintLabel) -- 361
+	collectOne(all, rulerLabel) -- 362
+	collectOne(all, standLabel) -- 363
+	collectOne(all, cartLabel) -- 364
+	do -- 364
+		local i = 0 -- 365
+		while i < #poolBody do -- 365
+			collectOne(all, poolBody[i + 1]) -- 366
+			i = i + 1 -- 365
+		end -- 365
+	end -- 365
+	do -- 365
+		local i = 0 -- 368
+		while i < #poolSmall do -- 368
+			collectOne(all, poolSmall[i + 1]) -- 369
+			i = i + 1 -- 368
+		end -- 368
+	end -- 368
+	local lefts = {} -- 372
+	local rights = {} -- 373
+	local bottoms = {} -- 374
+	local tops = {} -- 375
+	local outOfScreen = 0 -- 376
+	do -- 376
+		local i = 0 -- 377
+		while i < #all do -- 377
+			local lb = all[i + 1] -- 378
+			local bw = lb.width -- 379
+			local bh = lb.height -- 380
+			local l = lb.x - bw * lb.anchor.x -- 381
+			local r = l + bw -- 382
+			local b = lb.y - bh * lb.anchor.y -- 383
+			local t = b + bh -- 384
+			lefts[#lefts + 1] = l -- 385
+			rights[#rights + 1] = r -- 386
+			bottoms[#bottoms + 1] = b -- 387
+			tops[#tops + 1] = t -- 388
+			if l < 0 or r > w or b < 0 or t > h then -- 388
+				outOfScreen = outOfScreen + 1 -- 390
+				print((((((((("AUDIT|越界|" .. lb.text) .. "|") .. tostring(l)) .. ",") .. tostring(r)) .. ",") .. tostring(b)) .. ",") .. tostring(t)) -- 391
+			end -- 391
+			i = i + 1 -- 377
+		end -- 377
+	end -- 377
+	local overlaps = 0 -- 395
+	do -- 395
+		local i = 0 -- 396
+		while i < #all do -- 396
+			do -- 396
+				local j = i + 1 -- 397
+				while j < #all do -- 397
+					local ox = math.min(rights[i + 1], rights[j + 1]) - math.max(lefts[i + 1], lefts[j + 1]) -- 398
+					local oy = math.min(tops[i + 1], tops[j + 1]) - math.max(bottoms[i + 1], bottoms[j + 1]) -- 399
+					if ox > 4 and oy > 4 then -- 399
+						overlaps = overlaps + 1 -- 401
+						print((((((("AUDIT|重叠|" .. all[i + 1].text) .. " <> ") .. all[j + 1].text) .. "|") .. tostring(ox)) .. "x") .. tostring(oy)) -- 402
+					end -- 402
+					j = j + 1 -- 397
+				end -- 397
+			end -- 397
+			i = i + 1 -- 396
+		end -- 396
+	end -- 396
+	print((((((((("AUDIT|小结|标签=" .. tostring(#all)) .. "|越界=") .. tostring(outOfScreen)) .. "|重叠=") .. tostring(overlaps)) .. "|屏幕=") .. tostring(w)) .. "x") .. tostring(h)) -- 406
+end -- 406
+function collectOne(out, lb) -- 409
+	if lb ~= nil and lb.visible then -- 409
+		out[#out + 1] = lb -- 411
+	end -- 411
+end -- 411
 local FONT = "sarasa-mono-sc-regular" -- 17
 LAYOUT_AUDIT = false -- 24
 C_TEXT = Color(236, 236, 232, 255) -- 26
@@ -444,69 +447,73 @@ local function makeLabel(text, size, color) -- 59
 	lb.visible = true -- 70
 	return lb -- 71
 end -- 59
-function ____exports.start(parent) -- 83
+function ____exports.start(parent, initialMode) -- 83
+	if initialMode == nil then -- 83
+		initialMode = 1 -- 83
+	end -- 83
 	root = parent -- 84
-	draw = DrawNode() -- 85
-	draw:addTo(parent) -- 86
-	titleLabel = makeLabel(TITLE, 40, C_TEXT) -- 88
-	roomLabel = makeLabel("", 26, C_ACCENT) -- 89
-	captionLabel = makeLabel("", 22, C_DIM) -- 90
-	switchLabel = makeLabel(SWITCH_HINT, 22, C_DIM) -- 91
-	hintLabel = makeLabel("", 22, C_TEXT) -- 92
-	rulerLabel = makeLabel(RULER_TEXT, 22, C_DIM) -- 93
-	standLabel = makeLabel(STAND_NOTE, 24, C_DIM) -- 94
-	cartLabel = makeLabel(CART_NOTE, 24, C_ACCENT) -- 95
-	do -- 95
-		local i = 0 -- 97
-		while i < POOL_BODY do -- 97
-			local lb = makeLabel("", 24, C_TEXT) -- 98
-			if lb ~= nil then -- 98
-				poolBody[#poolBody + 1] = lb -- 100
-			end -- 100
-			i = i + 1 -- 97
-		end -- 97
-	end -- 97
-	do -- 97
-		local i = 0 -- 103
-		while i < POOL_SMALL do -- 103
-			local lb = makeLabel("", 22, C_DIM) -- 104
-			if lb ~= nil then -- 104
-				poolSmall[#poolSmall + 1] = lb -- 106
-			end -- 106
-			i = i + 1 -- 103
-		end -- 103
-	end -- 103
-	input = __TS__New(Input) -- 110
-	parent:onKeyDown(function(key) -- 115
-		if key == "F1" then -- 115
-			mode = 1 -- 117
-			play = nil -- 118
-			ensurePlay() -- 119
-		elseif key == "F2" then -- 119
-			mode = 0 -- 121
-			dirty = true -- 122
-		elseif key == "1" then -- 122
-			current = 0 -- 124
-			play = nil -- 125
-			dirty = true -- 126
-			if mode == 1 then -- 126
-				ensurePlay() -- 128
-			end -- 128
-		elseif key == "2" then -- 128
-			current = 1 -- 131
-			play = nil -- 132
-			dirty = true -- 133
-			if mode == 1 then -- 133
-				ensurePlay() -- 135
-			end -- 135
-		end -- 135
-	end) -- 115
-	viewW = View.size.width -- 140
-	viewH = View.size.height -- 141
-	applySize() -- 142
-	parent:schedule(function() -- 144
-		tick() -- 145
-		return false -- 146
-	end) -- 144
+	mode = initialMode -- 85
+	draw = DrawNode() -- 86
+	draw:addTo(parent) -- 87
+	titleLabel = makeLabel(TITLE, 40, C_TEXT) -- 89
+	roomLabel = makeLabel("", 26, C_ACCENT) -- 90
+	captionLabel = makeLabel("", 22, C_DIM) -- 91
+	switchLabel = makeLabel(SWITCH_HINT, 22, C_DIM) -- 92
+	hintLabel = makeLabel("", 22, C_TEXT) -- 93
+	rulerLabel = makeLabel(RULER_TEXT, 22, C_DIM) -- 94
+	standLabel = makeLabel(STAND_NOTE, 24, C_DIM) -- 95
+	cartLabel = makeLabel(CART_NOTE, 24, C_ACCENT) -- 96
+	do -- 96
+		local i = 0 -- 98
+		while i < POOL_BODY do -- 98
+			local lb = makeLabel("", 24, C_TEXT) -- 99
+			if lb ~= nil then -- 99
+				poolBody[#poolBody + 1] = lb -- 101
+			end -- 101
+			i = i + 1 -- 98
+		end -- 98
+	end -- 98
+	do -- 98
+		local i = 0 -- 104
+		while i < POOL_SMALL do -- 104
+			local lb = makeLabel("", 22, C_DIM) -- 105
+			if lb ~= nil then -- 105
+				poolSmall[#poolSmall + 1] = lb -- 107
+			end -- 107
+			i = i + 1 -- 104
+		end -- 104
+	end -- 104
+	input = __TS__New(Input) -- 111
+	parent:onKeyDown(function(key) -- 116
+		if key == "F1" then -- 116
+			mode = 1 -- 118
+			play = nil -- 119
+			ensurePlay() -- 120
+		elseif key == "F2" then -- 120
+			mode = 0 -- 122
+			dirty = true -- 123
+		elseif key == "1" then -- 123
+			current = 0 -- 125
+			play = nil -- 126
+			dirty = true -- 127
+			if mode == 1 then -- 127
+				ensurePlay() -- 129
+			end -- 129
+		elseif key == "2" then -- 129
+			current = 1 -- 132
+			play = nil -- 133
+			dirty = true -- 134
+			if mode == 1 then -- 134
+				ensurePlay() -- 136
+			end -- 136
+		end -- 136
+	end) -- 116
+	viewW = View.size.width -- 141
+	viewH = View.size.height -- 142
+	applySize() -- 143
+	parent:schedule(function() -- 145
+		tick() -- 146
+		return false -- 147
+	end) -- 145
 end -- 83
 return ____exports -- 83
