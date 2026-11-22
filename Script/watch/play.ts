@@ -95,6 +95,8 @@ interface Box {
     x1: number;
     y0: number;
     y1: number;
+    /** 单向平台：只做落脚面，水平不挡人，从下方也不撞头。 */
+    passable?: boolean;
 }
 
 interface Actor {
@@ -246,8 +248,14 @@ export class Play {
             if (room.key === "outside" && resume.checkpoint >= 380) {
                 this.cartAxle = room.cart.endX;
                 this.cartDocked = true;
-                this.player.x = 390;
+                // 恢复到下层洞后安全点：脚踩地面 y=0、站 380（还没到 388 的切线）。
+                // 车轴同步到 432，松键空转也不会自己进村，得自己走过 388。
+                this.player.x = 380;
+                this.player.y = 0;
+                this.player.vy = 0;
+                this.player.onGround = true;
                 this.cam.x = this.player.x;
+                this.cam.y = this.player.y + CAM_LOOK_UP;
             }
         }
     }
@@ -274,7 +282,8 @@ export class Play {
             for (k = 0; k < n; k++) {
                 const y = st.y0 + (st.y1 - st.y0) * k / (n - 1);
                 const x0 = st.x0 + stepW * k;
-                this.boxes.push({ x0: x0, x1: x0 + stepW, y0: -8, y1: y });
+                // 台阶做成单向平台：从台面下来能踩，从地面走过不会被挡住，也不会从下方撞头。
+                this.boxes.push({ x0: x0, x1: x0 + stepW, y0: -8, y1: y, passable: true });
             }
         }
     }
@@ -920,6 +929,9 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
+            if (b.passable === true) {
+                continue;
+            }
             if (a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
                 continue;
             }
@@ -950,8 +962,9 @@ export class Play {
         // 拱洞（低洞）：身高超出净空就进不去。
         // 已经在洞里的人（例如蹲着进来后站起来）允许朝任一侧走出去，
         // 否则会被永久卡在洞内。
+        // 只有脚底低于拱顶时才会被拱口挡；站在上层台面（y=96）时拱洞在脚下，不该拦人。
         const arch = room.arch;
-        if (arch.h > 0 && a.y + a.h > arch.y + arch.h + 0.001) {
+        if (arch.h > 0 && a.y < arch.y + arch.h - 0.001 && a.y + a.h > arch.y + arch.h + 0.001) {
             const insideNow = a.x > arch.x0 && a.x < arch.x1;
             if (!insideNow && nx + half > arch.x0 && nx - half < arch.x1) {
                 if (a.x <= arch.x0) {
@@ -986,6 +999,9 @@ export class Play {
             let i = 0;
             for (i = 0; i < this.boxes.length; i++) {
                 const b = this.boxes[i];
+                if (b.passable === true) {
+                    continue;
+                }
                 if (a.x + half <= b.x0 || a.x - half >= b.x1) {
                     continue;
                 }
