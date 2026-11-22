@@ -137,7 +137,8 @@ export const CHECKPOINT_ROOM: RoomSpec = {
     height: 210,
     floors: [{ y: 0, x0: 0, x1: 1000 }],
     solids: [
-        { x: 240, w: 100, h: 60, y: 0, label: "柜台 240–340 · 高 60" },
+        // 高 44：两人跳得上去（小满 51、周戍 58），也能在柜台后蹲下躲子弹。
+        { x: 240, w: 100, h: 44, y: 0, label: "柜台 240–340 · 高 44" },
         { x: 950, w: 50, h: 150, y: 0, label: "城门内侧" },
     ],
     zones: [{ x0: 380, x1: 560, y: 0, h: 120, tint: 1, label: "危险段 380–560" }],
