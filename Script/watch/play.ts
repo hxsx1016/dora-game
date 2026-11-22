@@ -239,8 +239,10 @@ export class Play {
     bottleFly: { x: number; y: number; vx: number; vy: number } | undefined;
     /** 最近一次落点与余音计时。 */
     bottleLandX = -1;
+    bottleTargetX = -1;
+    bottleTargetY = 0;
     bottleLandT = 0;
-    /** 按住 F 的蓄力时长（D3 只用来画准星，不影响手感）。 */
+    /** 按住 F 的时长（只用于提示与动作反馈，不改变投掷参数）。 */
     aimHold = 0;
     /** 拾荒者位置与状态机。 */
     scavX = 0;
@@ -264,6 +266,8 @@ export class Play {
     countTick = 0;
     /** 数数阶段必须先松开方向键，新按才算迈步。 */
     countArmed = false;
+    /** 上一拍的水平方向；用来认「新按下」而不是「一直按着」。 */
+    countPrevMove = 0;
     /** 被抓后的复位余韵，>0 时锁输入。 */
     caughtT = 0;
     /** 城门守点里周戍的血量；打空就回绞盘重来。 */
@@ -408,14 +412,34 @@ export class Play {
         this.ticks += 1;
         const p = this.player;
         this.stepPlayer(p, dt, input);
+        // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
+        this.stepEnemies(dt, input);
         this.stepStory(dt, input);
         this.stepEscort(dt, input);
-        this.stepEnemies(dt, input);
         this.stepVillage(dt, input);
         this.stepChase(dt, input);
         this.stepInteract(dt, input);
         this.updateGate();
         this.updateCamera(dt);
+    }
+
+    /** 身边是否有能贴的一人高实体：贴住才算掩体，空地按 Shift 不挡枪。 */
+    private nearCover(a: Actor): boolean {
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.passable === true || b.y1 - b.y0 < 44) {
+                continue;
+            }
+            if (a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
+                continue;
+            }
+            const half = a.w / 2;
+            if (Math.min(Math.abs(a.x + half - b.x0), Math.abs(a.x - half - b.x1)) < 24) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
@@ -460,7 +484,7 @@ export class Play {
         }
         a.crouch = isChild && input.crouch.held && a.onGround;
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
-        a.covered = !isChild && input.cover.held;
+        a.covered = !isChild && input.cover.held && this.nearCover(a);
 
         // 翻滚：周戍按下空格，0.35 秒内按固定速度冲出去，期间不能改向
         if (a.rollT > 0) {
@@ -704,7 +728,8 @@ export class Play {
                 a.vx = 0;
                 a.x = g.waitX;
             }
-            const atWinch = Math.abs(p.x - g.winchX) <= 60 && p.y < 20;
+            // 要真的碰到绞盘才算就位：±24 是身体边缘贴住的距离。
+            const atWinch = Math.abs(p.x - g.winchX) <= 24 && p.y < 20;
             const atWait = this.partner.alive && Math.abs(this.partner.x - g.waitX) <= 60;
             if (atWinch && atWait) {
                 this.phase = "gate-hold";
@@ -748,7 +773,8 @@ export class Play {
                 this.phase = "gate-count";
                 this.countTick = 0;
                 // 送别时已经按着 D 的不算「新按」，必须先松开。
-                this.countArmed = input.moveX === 0;
+                this.countArmed = false;
+                this.countPrevMove = input.moveX;
                 this.flashSet("门开了 · 送她出去", 1.8);
             }
             return;
@@ -760,8 +786,12 @@ export class Play {
             } else if (this.countTick === 1020) {
                 this.flashSet("数到一百", 2.2);
             }
+            // 24 秒之后才认「新按下」：上一拍没按、这一拍按下。
+            // 1439 拍就按住不放的，没有上升沿，必须松开再按。
+            const prevMove = this.countPrevMove;
+            this.countPrevMove = input.moveX;
             if (this.countTick >= 1440) {
-                if (input.moveX === 0) {
+                if (prevMove <= 0 && input.moveX > 0) {
                     this.countArmed = true;
                 }
                 if (this.countArmed && input.moveX > 0) {
@@ -1038,6 +1068,9 @@ export class Play {
                 if (e.fireCd <= 0) {
                     e.warnT = WARN_TICKS;
                 }
+            } else {
+                // 刚出场（fireCd = 0）也要举一次枪，否则第一枪永远等不到。
+                e.warnT = WARN_TICKS;
             }
         }
     }
@@ -1050,7 +1083,9 @@ export class Play {
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
-        const covered = p.crouch || input.cover.held || this.blockedByCover(e.x, p.x);
+        // 掩体要主动贴：Shift 加身位都到位才挡；站绞盘空地按 Shift 照吃。
+        const hugging = this.blockedByCover(e.x, p.x);
+        const covered = hugging && input.cover.held;
         if (covered) {
             this.coveredFlash = 0.5;
             this.flashSet("掩体挡下", 0.5);
@@ -1206,8 +1241,8 @@ export class Play {
                     this.aimHold = 1.2;
                 }
             } else if (input.aim.released) {
-                const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
-                this.throwBottle(aim.x, aim.y);
+                const end = this.bottleEnd();
+                this.throwBottle(end.x, end.y);
                 this.aimHold = 0;
             }
         } else {
@@ -1221,11 +1256,13 @@ export class Play {
             fly.x += fly.vx * dt;
             fly.y += fly.vy * dt;
             const g = this.groundAt(fly.x, fly.y + 4, 3);
-            if (fly.y <= g) {
+            const reached = this.bottleTargetX >= 0 && (fly.vx >= 0 ? fly.x >= this.bottleTargetX : fly.x <= this.bottleTargetX);
+            if (fly.y <= g || reached) {
+                const landX = this.bottleTargetX >= 0 ? this.bottleTargetX : fly.x;
                 this.bottleFly = undefined;
-                this.bottleLandX = fly.x;
+                this.bottleLandX = landX;
                 this.bottleLandT = 0.9;
-                this.hearBottle(fly.x);
+                this.hearBottle(landX);
             }
         }
         if (this.bottleLandT > 0) {
@@ -1248,12 +1285,21 @@ export class Play {
         }
     }
 
-    /** 固定飞行时间反解初速，落点跟着准星走。 */
+    /** 准星点的世界坐标换算成「实际落点」：横向就是准星 x，纵向取该处地面。 */
+    private bottleEnd(): { x: number; y: number } {
+        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
+        const g = this.groundAt(aim.x, aim.y + 240, 3);
+        return { x: aim.x, y: g };
+    }
+
+    /** 固定飞行时间反解初速；终点就是准星指定的落点，预览与触地用同一套参数。 */
     private throwBottle(tx: number, ty: number): void {
         const p = this.player;
         const x0 = p.x + p.facing * 10;
         const y0 = p.y + p.h * 0.7;
         const T = 0.62;
+        this.bottleTargetX = tx;
+        this.bottleTargetY = ty;
         const vx = (tx - x0) / T;
         const vy = (ty - y0 + 0.5 * GRAVITY * T * T) / T;
         this.bottleFly = { x: x0, y: y0, vx: vx, vy: vy };
@@ -1927,20 +1973,20 @@ export class Play {
             const g = this.room.story === undefined ? undefined : this.room.story.gate;
             if (g !== undefined) {
                 if (this.phase === "gate-idle") {
-                    return "小满到门洞 960、周戍回绞盘 195，两人就位才开始守点";
+                    return "小满到门洞 960、周戍贴住绞盘 118，两人就位才开始守点";
                 }
                 if (this.phase === "gate-hold") {
                     if (this.coveredFlash > 0) {
                         return "掩体挡下了这一枪 · 别露头";
                     }
-                    return "红灯是预警 · 先贴街垒 520（Shift）再 F 射击 · 守满去门边 860 按 E";
+                    return "红灯是预警 · 贴住街垒/柜台再按 Shift 才挡枪 · F 射击 · 守满去门边 860 按 E";
                 }
                 if (this.phase === "gate-send") {
                     return "去门边 860 按 E 送别 · 她已经站在门口";
                 }
                 if (this.phase === "gate-count") {
                     if (this.countTick >= 1440) {
-                        return this.countArmed ? "新按 D · 让她迈出第一步" : "先松开方向键，再按 D";
+                        return this.countPrevMove > 0 ? "先松开方向键，再按 D" : "按 D · 让她迈出第一步";
                     }
                     return "数到一百 " + this.countTick + " / 1440 拍 · 门正在关";
                 }
@@ -1973,7 +2019,7 @@ export class Play {
                 return "等瓶子落地 · 触地才发声";
             }
             if (this.hasBottle) {
-                return "按住 F 瞄，松手投 · 往右投到砖地 608，他才会走开";
+                return "按住 F 瞄，准星圈就是落点，松手投 · 往右投到砖地 608";
             }
             if (this.passed) {
                 return "已过第一院 · R 重置可再来一遍";
@@ -2130,6 +2176,11 @@ export class Play {
     private drawActors(draw: DrawNode.Type, w: number, h: number): void {
         const p = this.player;
         const isChild = this.childMode;
+        // 贴住掩体时在身前画一条短竖线，和「压低的肩」一起表示真的靠住了。
+        if (p.covered) {
+            const edge = p.x + p.facing * (p.w / 2 + 2);
+            draw.drawSegment(Vec2(this.sx(edge, w), this.sy(p.y + 8, h)), Vec2(this.sx(edge, w), this.sy(p.y + p.h * 0.62, h)), this.px(2), STAND);
+        }
         drawFigure(draw, this, w, h, p, isChild ? CHILD_BODY : SOLDIER_BODY, isChild ? CHILD_HEAD : SOLDIER_HEAD);
         const q = this.partner;
         if (q.alive) {
@@ -2292,15 +2343,15 @@ export class Play {
         draw.drawSegment(Vec2(gx, gy - arm - gap), Vec2(gx, gy - gap), dot / 2, AIM);
         draw.drawSegment(Vec2(gx, gy + gap), Vec2(gx, gy + arm + gap), dot / 2, AIM);
 
-        // 村口：手上有瓶时画出落点弧线
+        // 村口：手上有瓶时画落点弧线；弧线终点就是鼠标指的位置（落点）。
         if (this.room.key === "village" && this.hasBottle) {
             const p = this.player;
-            const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
+            const end = this.bottleEnd();
             const x0 = p.x + p.facing * 10;
             const y0 = p.y + p.h * 0.7;
             const T = 0.62;
-            const vx = (aim.x - x0) / T;
-            const vy = (aim.y - y0 + 0.5 * GRAVITY * T * T) / T;
+            const vx = (end.x - x0) / T;
+            const vy = (end.y - y0 + 0.5 * GRAVITY * T * T) / T;
             let pxr = x0;
             let pyr = y0;
             let t = 1;
@@ -2312,6 +2363,7 @@ export class Play {
                 pxr = nx;
                 pyr = ny;
             }
+            draw.drawCircle(Vec2(this.sx(end.x, w), this.sy(end.y + 2, h)), this.px(2), BOTTLE);
         }
     }
 }

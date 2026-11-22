@@ -423,7 +423,7 @@ export const GATE_ROOM: RoomSpec = {
     key: "gate",
     originX: 0,
     name: "城门 · 45 秒守点",
-    caption: "小满到门洞 960、周戍回绞盘 195，两人就位开始 45 秒；守满走到门边按 E 送她",
+    caption: "小满到门洞 960、周戍贴住绞盘 118，两人就位开始 45 秒；守满走到门边按 E 送她",
     minX: 0,
     maxX: 1200,
     height: 240,
@@ -445,7 +445,7 @@ export const GATE_ROOM: RoomSpec = {
         { x: 150, y: 0, h: 64, label: "小满 150" },
     ],
     marks: [
-        { x: 70, y: 0, kind: 1, label: "绞盘 70" },
+        { x: 118, y: 0, kind: 1, label: "绞盘站位 118" },
         { x: 960, y: 0, kind: 1, label: "门洞等待点 960" },
         { x: 860, y: 0, kind: 0, label: "门边 860" },
         { x: 1020, y: 0, kind: 0, label: "出门 1020" },
@@ -454,7 +454,8 @@ export const GATE_ROOM: RoomSpec = {
         { x0: 40, x1: 100, text: "绞盘 60" },
         { x0: 840, x1: 1040, text: "门洞 200" },
     ],
-    story: { gate: { winchX: 70, waitX: 960, doorX: 860, exitX: 1020, holdTicks: 2700 } },
+    // winchX 是「站的位置」不是绞盘中心：绞盘实体 40–100，周戍半宽 15，站 118 正好贴住右侧。
+    story: { gate: { winchX: 118, waitX: 960, doorX: 860, exitX: 1020, holdTicks: 2700 } },
 };
 
 /**

@@ -353,7 +353,7 @@ ____exports.GATE_ROOM = { -- 422
 	key = "gate", -- 423
 	originX = 0, -- 424
 	name = "城门 · 45 秒守点", -- 425
-	caption = "小满到门洞 960、周戍回绞盘 195，两人就位开始 45 秒；守满走到门边按 E 送她", -- 426
+	caption = "小满到门洞 960、周戍贴住绞盘 118，两人就位开始 45 秒；守满走到门边按 E 送她", -- 426
 	minX = 0, -- 427
 	maxX = 1200, -- 428
 	height = 240, -- 429
@@ -410,336 +410,336 @@ ____exports.GATE_ROOM = { -- 422
 		clothSide = 1 -- 442
 	}, -- 442
 	spawns = {{x = 130, y = 0, h = 88, label = "周戍 130"}, {x = 150, y = 0, h = 64, label = "小满 150"}}, -- 443
-	marks = {{x = 70, y = 0, kind = 1, label = "绞盘 70"}, {x = 960, y = 0, kind = 1, label = "门洞等待点 960"}, {x = 860, y = 0, kind = 0, label = "门边 860"}, {x = 1020, y = 0, kind = 0, label = "出门 1020"}}, -- 447
+	marks = {{x = 118, y = 0, kind = 1, label = "绞盘站位 118"}, {x = 960, y = 0, kind = 1, label = "门洞等待点 960"}, {x = 860, y = 0, kind = 0, label = "门边 860"}, {x = 1020, y = 0, kind = 0, label = "出门 1020"}}, -- 447
 	dims = {{x0 = 40, x1 = 100, text = "绞盘 60"}, {x0 = 840, x1 = 1040, text = "门洞 200"}}, -- 453
-	story = {gate = { -- 457
-		winchX = 70, -- 457
-		waitX = 960, -- 457
-		doorX = 860, -- 457
-		exitX = 1020, -- 457
-		holdTicks = 2700 -- 457
-	}} -- 457
-} -- 457
+	story = {gate = { -- 458
+		winchX = 118, -- 458
+		waitX = 960, -- 458
+		doorX = 860, -- 458
+		exitX = 1020, -- 458
+		holdTicks = 2700 -- 458
+	}} -- 458
+} -- 458
 --- 北塔森林：小满独自走。草后可以等，狗听见脚步会转耳朵、赶来、停一会儿再回线。
 -- 最后一段从林缘自己选时机走到灯下门廊。
-____exports.FOREST_ROOM = { -- 464
-	key = "forest", -- 465
-	originX = 0, -- 466
-	name = "北塔森林 · 草与狗", -- 467
-	caption = "狗对动静比人快：草后等、Shift 慢走、蹲着过；林缘 1450 走到灯下门廊", -- 468
-	minX = 0, -- 469
-	maxX = 1600, -- 470
-	height = 200, -- 471
-	floors = {{y = 0, x0 = 0, x1 = 1600}}, -- 472
-	solids = {{ -- 473
-		x = 300, -- 474
-		w = 80, -- 474
-		h = 24, -- 474
-		y = 0, -- 474
-		label = "草丛 300–380 · 高 24", -- 474
-		passable = true -- 474
-	}, { -- 474
-		x = 700, -- 475
-		w = 90, -- 475
+____exports.FOREST_ROOM = { -- 465
+	key = "forest", -- 466
+	originX = 0, -- 467
+	name = "北塔森林 · 草与狗", -- 468
+	caption = "狗对动静比人快：草后等、Shift 慢走、蹲着过；林缘 1450 走到灯下门廊", -- 469
+	minX = 0, -- 470
+	maxX = 1600, -- 471
+	height = 200, -- 472
+	floors = {{y = 0, x0 = 0, x1 = 1600}}, -- 473
+	solids = {{ -- 474
+		x = 300, -- 475
+		w = 80, -- 475
 		h = 24, -- 475
 		y = 0, -- 475
-		label = "草丛 700–790 · 高 24", -- 475
+		label = "草丛 300–380 · 高 24", -- 475
 		passable = true -- 475
 	}, { -- 475
-		x = 1150, -- 476
+		x = 700, -- 476
 		w = 90, -- 476
 		h = 24, -- 476
 		y = 0, -- 476
-		label = "草丛 1150–1240 · 高 24", -- 476
+		label = "草丛 700–790 · 高 24", -- 476
 		passable = true -- 476
 	}, { -- 476
-		x = 1560, -- 477
-		w = 40, -- 477
-		h = 160, -- 477
+		x = 1150, -- 477
+		w = 90, -- 477
+		h = 24, -- 477
 		y = 0, -- 477
-		label = "林缘 1560" -- 477
-	}}, -- 477
-	zones = {{ -- 479
-		x0 = 1400, -- 480
-		x1 = 1470, -- 480
-		y = 0, -- 480
-		h = 6, -- 480
-		tint = 4, -- 480
-		label = "林边 1400–1470" -- 480
-	}}, -- 480
-	arch = { -- 482
-		x0 = 0, -- 482
-		x1 = 0, -- 482
-		y = 0, -- 482
-		h = 0, -- 482
-		label = "" -- 482
-	}, -- 482
-	stairs = {{ -- 483
-		x0 = 520, -- 484
-		x1 = 640, -- 484
-		y0 = 0, -- 484
-		y1 = 22, -- 484
-		steps = 1, -- 484
-		label = "矮台 520–640 · 高 22" -- 484
-	}, { -- 484
-		x0 = 980, -- 485
-		x1 = 1100, -- 485
+		label = "草丛 1150–1240 · 高 24", -- 477
+		passable = true -- 477
+	}, { -- 477
+		x = 1560, -- 478
+		w = 40, -- 478
+		h = 160, -- 478
+		y = 0, -- 478
+		label = "林缘 1560" -- 478
+	}}, -- 478
+	zones = {{ -- 480
+		x0 = 1400, -- 481
+		x1 = 1470, -- 481
+		y = 0, -- 481
+		h = 6, -- 481
+		tint = 4, -- 481
+		label = "林边 1400–1470" -- 481
+	}}, -- 481
+	arch = { -- 483
+		x0 = 0, -- 483
+		x1 = 0, -- 483
+		y = 0, -- 483
+		h = 0, -- 483
+		label = "" -- 483
+	}, -- 483
+	stairs = {{ -- 484
+		x0 = 520, -- 485
+		x1 = 640, -- 485
 		y0 = 0, -- 485
 		y1 = 22, -- 485
 		steps = 1, -- 485
-		label = "矮台 980–1100 · 高 22" -- 485
-	}}, -- 485
-	cart = { -- 487
-		startX = 0, -- 487
-		endX = 0, -- 487
-		baseY = 0, -- 487
-		bodyW = 0, -- 487
-		bodyH = 0, -- 487
-		wheelR = 0, -- 487
-		handleOffset = 0, -- 487
-		clothSide = 1 -- 487
-	}, -- 487
-	spawns = {{x = 120, y = 0, h = 64, label = "小满 120"}}, -- 488
-	marks = {{x = 1450, y = 0, kind = 0, label = "林边安全点 1450"}, {x = 620, y = 0, kind = 3, label = "矮台 620"}}, -- 489
-	dims = {{x0 = 700, x1 = 790, text = "草 90"}, {x0 = 1400, x1 = 1470, text = "林边 70"}}, -- 493
-	story = {dog = {x0 = 620, x1 = 780, speed = 56, range = 300}} -- 497
-} -- 497
+		label = "矮台 520–640 · 高 22" -- 485
+	}, { -- 485
+		x0 = 980, -- 486
+		x1 = 1100, -- 486
+		y0 = 0, -- 486
+		y1 = 22, -- 486
+		steps = 1, -- 486
+		label = "矮台 980–1100 · 高 22" -- 486
+	}}, -- 486
+	cart = { -- 488
+		startX = 0, -- 488
+		endX = 0, -- 488
+		baseY = 0, -- 488
+		bodyW = 0, -- 488
+		bodyH = 0, -- 488
+		wheelR = 0, -- 488
+		handleOffset = 0, -- 488
+		clothSide = 1 -- 488
+	}, -- 488
+	spawns = {{x = 120, y = 0, h = 64, label = "小满 120"}}, -- 489
+	marks = {{x = 1450, y = 0, kind = 0, label = "林边安全点 1450"}, {x = 620, y = 0, kind = 3, label = "矮台 620"}}, -- 490
+	dims = {{x0 = 700, x1 = 790, text = "草 90"}, {x0 = 1400, x1 = 1470, text = "林边 70"}}, -- 494
+	story = {dog = {x0 = 620, x1 = 780, speed = 56, range = 300}} -- 498
+} -- 498
 --- 塔门与尾声：小满走到门前，按一次 E 敲两下；守卫开门接过针套和纸条，
 -- 在登记簿里给下一个人留出一行空白。片尾可以再玩。
-____exports.TOWER_ROOM = { -- 504
-	key = "tower", -- 505
-	originX = 0, -- 506
-	name = "北塔塔门 · 尾声", -- 507
-	caption = "走到门前点一次 E 敲两下；递出针套和纸条，看登记簿空行，片尾可再玩", -- 508
-	minX = 0, -- 509
-	maxX = 720, -- 510
-	height = 220, -- 511
-	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 512
-	solids = {{ -- 513
-		x = 180, -- 514
-		w = 220, -- 514
-		h = 200, -- 514
-		y = 0, -- 514
-		label = "塔身 180–400" -- 514
-	}, { -- 514
-		x = 490, -- 515
-		w = 230, -- 515
+____exports.TOWER_ROOM = { -- 505
+	key = "tower", -- 506
+	originX = 0, -- 507
+	name = "北塔塔门 · 尾声", -- 508
+	caption = "走到门前点一次 E 敲两下；递出针套和纸条，看登记簿空行，片尾可再玩", -- 509
+	minX = 0, -- 510
+	maxX = 720, -- 511
+	height = 220, -- 512
+	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 513
+	solids = {{ -- 514
+		x = 180, -- 515
+		w = 220, -- 515
 		h = 200, -- 515
 		y = 0, -- 515
-		label = "塔身 490–720" -- 515
+		label = "塔身 180–400" -- 515
 	}, { -- 515
-		x = 400, -- 516
-		w = 90, -- 516
-		h = 30, -- 516
-		y = 110, -- 516
-		label = "门楣 400–490" -- 516
-	}}, -- 516
-	zones = {{ -- 518
-		x0 = 400, -- 519
-		x1 = 490, -- 519
-		y = 0, -- 519
-		h = 8, -- 519
-		tint = 4, -- 519
-		label = "门廊 400–490" -- 519
-	}}, -- 519
-	arch = { -- 521
-		x0 = 0, -- 521
-		x1 = 0, -- 521
-		y = 0, -- 521
-		h = 0, -- 521
-		label = "" -- 521
-	}, -- 521
-	stairs = {}, -- 522
-	cart = { -- 523
-		startX = 0, -- 523
-		endX = 0, -- 523
-		baseY = 0, -- 523
-		bodyW = 0, -- 523
-		bodyH = 0, -- 523
-		wheelR = 0, -- 523
-		handleOffset = 0, -- 523
-		clothSide = 1 -- 523
-	}, -- 523
-	spawns = {{x = 418, y = 0, h = 64, label = "小满 418 · 门廊里"}}, -- 524
-	marks = {{x = 445, y = 0, kind = 1, label = "门前 445"}}, -- 525
-	dims = {{x0 = 400, x1 = 490, text = "门 90"}}, -- 528
-	story = {tower = {doorX = 445, knockTicks = 36}} -- 531
-} -- 531
-____exports.ROOMS = { -- 534
-	____exports.PROLOGUE_ROOM, -- 534
-	____exports.STREET_ROOM, -- 534
-	____exports.CHECKPOINT_ROOM, -- 534
-	____exports.GATE_ROOM, -- 534
-	____exports.OUTSIDE_ROOM, -- 534
-	____exports.VILLAGE_ROOM, -- 534
-	____exports.FOREST_ROOM, -- 534
-	____exports.TOWER_ROOM -- 534
-} -- 534
+		x = 490, -- 516
+		w = 230, -- 516
+		h = 200, -- 516
+		y = 0, -- 516
+		label = "塔身 490–720" -- 516
+	}, { -- 516
+		x = 400, -- 517
+		w = 90, -- 517
+		h = 30, -- 517
+		y = 110, -- 517
+		label = "门楣 400–490" -- 517
+	}}, -- 517
+	zones = {{ -- 519
+		x0 = 400, -- 520
+		x1 = 490, -- 520
+		y = 0, -- 520
+		h = 8, -- 520
+		tint = 4, -- 520
+		label = "门廊 400–490" -- 520
+	}}, -- 520
+	arch = { -- 522
+		x0 = 0, -- 522
+		x1 = 0, -- 522
+		y = 0, -- 522
+		h = 0, -- 522
+		label = "" -- 522
+	}, -- 522
+	stairs = {}, -- 523
+	cart = { -- 524
+		startX = 0, -- 524
+		endX = 0, -- 524
+		baseY = 0, -- 524
+		bodyW = 0, -- 524
+		bodyH = 0, -- 524
+		wheelR = 0, -- 524
+		handleOffset = 0, -- 524
+		clothSide = 1 -- 524
+	}, -- 524
+	spawns = {{x = 418, y = 0, h = 64, label = "小满 418 · 门廊里"}}, -- 525
+	marks = {{x = 445, y = 0, kind = 1, label = "门前 445"}}, -- 526
+	dims = {{x0 = 400, x1 = 490, text = "门 90"}}, -- 529
+	story = {tower = {doorX = 445, knockTicks = 36}} -- 532
+} -- 532
+____exports.ROOMS = { -- 535
+	____exports.PROLOGUE_ROOM, -- 535
+	____exports.STREET_ROOM, -- 535
+	____exports.CHECKPOINT_ROOM, -- 535
+	____exports.GATE_ROOM, -- 535
+	____exports.OUTSIDE_ROOM, -- 535
+	____exports.VILLAGE_ROOM, -- 535
+	____exports.FOREST_ROOM, -- 535
+	____exports.TOWER_ROOM -- 535
+} -- 535
 --- 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
 -- 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
-function ____exports.withOrigin(room) -- 549
-	local ox = room.originX -- 550
-	if ox == 0 then -- 550
-		return room -- 552
-	end -- 552
-	local function shift(x) -- 554
-		return x + ox -- 554
-	end -- 554
-	local ____room_key_5 = room.key -- 556
-	local ____room_name_6 = room.name -- 557
-	local ____room_caption_7 = room.caption -- 558
-	local ____shift_result_8 = shift(room.minX) -- 560
-	local ____shift_result_9 = shift(room.maxX) -- 561
-	local ____room_height_10 = room.height -- 562
-	local ____TS__ArrayMap_result_11 = __TS__ArrayMap( -- 563
-		room.floors, -- 563
-		function(____, f) return { -- 563
-			y = f.y, -- 563
-			x0 = shift(f.x0), -- 563
-			x1 = shift(f.x1) -- 563
-		} end -- 563
-	) -- 563
-	local ____TS__ArrayMap_result_12 = __TS__ArrayMap( -- 564
-		room.solids, -- 564
-		function(____, s) return { -- 564
-			x = shift(s.x), -- 564
-			w = s.w, -- 564
-			h = s.h, -- 564
-			y = s.y, -- 564
-			label = s.label -- 564
+function ____exports.withOrigin(room) -- 550
+	local ox = room.originX -- 551
+	if ox == 0 then -- 551
+		return room -- 553
+	end -- 553
+	local function shift(x) -- 555
+		return x + ox -- 555
+	end -- 555
+	local ____room_key_5 = room.key -- 557
+	local ____room_name_6 = room.name -- 558
+	local ____room_caption_7 = room.caption -- 559
+	local ____shift_result_8 = shift(room.minX) -- 561
+	local ____shift_result_9 = shift(room.maxX) -- 562
+	local ____room_height_10 = room.height -- 563
+	local ____TS__ArrayMap_result_11 = __TS__ArrayMap( -- 564
+		room.floors, -- 564
+		function(____, f) return { -- 564
+			y = f.y, -- 564
+			x0 = shift(f.x0), -- 564
+			x1 = shift(f.x1) -- 564
 		} end -- 564
 	) -- 564
-	local ____TS__ArrayMap_result_13 = __TS__ArrayMap( -- 565
-		room.zones, -- 565
-		function(____, z) return { -- 565
-			x0 = shift(z.x0), -- 565
-			x1 = shift(z.x1), -- 565
-			y = z.y, -- 565
-			h = z.h, -- 565
-			tint = z.tint, -- 565
-			label = z.label -- 565
+	local ____TS__ArrayMap_result_12 = __TS__ArrayMap( -- 565
+		room.solids, -- 565
+		function(____, s) return { -- 565
+			x = shift(s.x), -- 565
+			w = s.w, -- 565
+			h = s.h, -- 565
+			y = s.y, -- 565
+			label = s.label -- 565
 		} end -- 565
 	) -- 565
-	local ____temp_14 = { -- 566
-		x0 = shift(room.arch.x0), -- 566
-		x1 = shift(room.arch.x1), -- 566
-		y = room.arch.y, -- 566
-		h = room.arch.h, -- 566
-		label = room.arch.label -- 566
-	} -- 566
-	local ____TS__ArrayMap_result_15 = __TS__ArrayMap( -- 567
-		room.stairs, -- 567
-		function(____, s) return { -- 567
-			x0 = shift(s.x0), -- 567
-			x1 = shift(s.x1), -- 567
-			y0 = s.y0, -- 567
-			y1 = s.y1, -- 567
-			steps = s.steps, -- 567
-			label = s.label -- 567
-		} end -- 567
-	) -- 567
-	local ____temp_16 = { -- 568
-		startX = shift(room.cart.startX), -- 569
-		endX = shift(room.cart.endX), -- 570
-		baseY = room.cart.baseY, -- 571
-		bodyW = room.cart.bodyW, -- 572
-		bodyH = room.cart.bodyH, -- 573
-		wheelR = room.cart.wheelR, -- 574
-		handleOffset = room.cart.handleOffset, -- 575
-		clothSide = room.cart.clothSide -- 576
-	} -- 576
-	local ____TS__ArrayMap_result_17 = __TS__ArrayMap( -- 578
-		room.spawns, -- 578
-		function(____, s) return { -- 578
-			x = shift(s.x), -- 578
-			y = s.y, -- 578
-			h = s.h, -- 578
-			label = s.label -- 578
-		} end -- 578
-	) -- 578
-	local ____TS__ArrayMap_result_18 = __TS__ArrayMap( -- 579
-		room.marks, -- 579
-		function(____, m) return { -- 579
-			x = shift(m.x), -- 579
-			y = m.y, -- 579
-			kind = m.kind, -- 579
-			label = m.label -- 579
+	local ____TS__ArrayMap_result_13 = __TS__ArrayMap( -- 566
+		room.zones, -- 566
+		function(____, z) return { -- 566
+			x0 = shift(z.x0), -- 566
+			x1 = shift(z.x1), -- 566
+			y = z.y, -- 566
+			h = z.h, -- 566
+			tint = z.tint, -- 566
+			label = z.label -- 566
+		} end -- 566
+	) -- 566
+	local ____temp_14 = { -- 567
+		x0 = shift(room.arch.x0), -- 567
+		x1 = shift(room.arch.x1), -- 567
+		y = room.arch.y, -- 567
+		h = room.arch.h, -- 567
+		label = room.arch.label -- 567
+	} -- 567
+	local ____TS__ArrayMap_result_15 = __TS__ArrayMap( -- 568
+		room.stairs, -- 568
+		function(____, s) return { -- 568
+			x0 = shift(s.x0), -- 568
+			x1 = shift(s.x1), -- 568
+			y0 = s.y0, -- 568
+			y1 = s.y1, -- 568
+			steps = s.steps, -- 568
+			label = s.label -- 568
+		} end -- 568
+	) -- 568
+	local ____temp_16 = { -- 569
+		startX = shift(room.cart.startX), -- 570
+		endX = shift(room.cart.endX), -- 571
+		baseY = room.cart.baseY, -- 572
+		bodyW = room.cart.bodyW, -- 573
+		bodyH = room.cart.bodyH, -- 574
+		wheelR = room.cart.wheelR, -- 575
+		handleOffset = room.cart.handleOffset, -- 576
+		clothSide = room.cart.clothSide -- 577
+	} -- 577
+	local ____TS__ArrayMap_result_17 = __TS__ArrayMap( -- 579
+		room.spawns, -- 579
+		function(____, s) return { -- 579
+			x = shift(s.x), -- 579
+			y = s.y, -- 579
+			h = s.h, -- 579
+			label = s.label -- 579
 		} end -- 579
 	) -- 579
-	local ____TS__ArrayMap_result_19 = __TS__ArrayMap( -- 580
-		room.dims, -- 580
-		function(____, d) return { -- 580
-			x0 = shift(d.x0), -- 580
-			x1 = shift(d.x1), -- 580
-			text = d.text -- 580
+	local ____TS__ArrayMap_result_18 = __TS__ArrayMap( -- 580
+		room.marks, -- 580
+		function(____, m) return { -- 580
+			x = shift(m.x), -- 580
+			y = m.y, -- 580
+			kind = m.kind, -- 580
+			label = m.label -- 580
 		} end -- 580
 	) -- 580
-	local ____temp_0 -- 581
-	if room.scavenger == nil then -- 581
-		____temp_0 = nil -- 581
-	else -- 581
-		____temp_0 = { -- 581
-			x0 = shift(room.scavenger.x0), -- 582
-			x1 = shift(room.scavenger.x1), -- 582
-			y = room.scavenger.y, -- 582
-			h = room.scavenger.h, -- 582
-			patrolSpeed = room.scavenger.patrolSpeed, -- 583
-			approachSpeed = room.scavenger.approachSpeed, -- 583
-			hearTicks = room.scavenger.hearTicks, -- 584
-			stallTicks = room.scavenger.stallTicks, -- 584
-			range = room.scavenger.range -- 584
-		} -- 584
-	end -- 584
-	local ____temp_1 -- 586
-	if room.bottle == nil then -- 586
-		____temp_1 = nil -- 586
-	else -- 586
-		____temp_1 = { -- 586
-			x = shift(room.bottle.x), -- 586
-			y = room.bottle.y -- 586
-		} -- 586
-	end -- 586
-	local ____temp_2 -- 587
-	if room.brickX == nil then -- 587
-		____temp_2 = nil -- 587
+	local ____TS__ArrayMap_result_19 = __TS__ArrayMap( -- 581
+		room.dims, -- 581
+		function(____, d) return { -- 581
+			x0 = shift(d.x0), -- 581
+			x1 = shift(d.x1), -- 581
+			text = d.text -- 581
+		} end -- 581
+	) -- 581
+	local ____temp_0 -- 582
+	if room.scavenger == nil then -- 582
+		____temp_0 = nil -- 582
+	else -- 582
+		____temp_0 = { -- 582
+			x0 = shift(room.scavenger.x0), -- 583
+			x1 = shift(room.scavenger.x1), -- 583
+			y = room.scavenger.y, -- 583
+			h = room.scavenger.h, -- 583
+			patrolSpeed = room.scavenger.patrolSpeed, -- 584
+			approachSpeed = room.scavenger.approachSpeed, -- 584
+			hearTicks = room.scavenger.hearTicks, -- 585
+			stallTicks = room.scavenger.stallTicks, -- 585
+			range = room.scavenger.range -- 585
+		} -- 585
+	end -- 585
+	local ____temp_1 -- 587
+	if room.bottle == nil then -- 587
+		____temp_1 = nil -- 587
 	else -- 587
-		____temp_2 = shift(room.brickX) -- 587
+		____temp_1 = { -- 587
+			x = shift(room.bottle.x), -- 587
+			y = room.bottle.y -- 587
+		} -- 587
 	end -- 587
-	local ____temp_3 -- 588
-	if room.softX == nil then -- 588
-		____temp_3 = nil -- 588
+	local ____temp_2 -- 588
+	if room.brickX == nil then -- 588
+		____temp_2 = nil -- 588
 	else -- 588
-		____temp_3 = shift(room.softX) -- 588
+		____temp_2 = shift(room.brickX) -- 588
 	end -- 588
-	local ____temp_4 -- 589
-	if room.passLine == nil then -- 589
-		____temp_4 = nil -- 589
+	local ____temp_3 -- 589
+	if room.softX == nil then -- 589
+		____temp_3 = nil -- 589
 	else -- 589
-		____temp_4 = shift(room.passLine) -- 589
+		____temp_3 = shift(room.softX) -- 589
 	end -- 589
-	return { -- 555
-		key = ____room_key_5, -- 556
-		name = ____room_name_6, -- 557
-		caption = ____room_caption_7, -- 558
-		originX = 0, -- 559
-		minX = ____shift_result_8, -- 560
-		maxX = ____shift_result_9, -- 561
-		height = ____room_height_10, -- 562
-		floors = ____TS__ArrayMap_result_11, -- 563
-		solids = ____TS__ArrayMap_result_12, -- 564
-		zones = ____TS__ArrayMap_result_13, -- 565
-		arch = ____temp_14, -- 566
-		stairs = ____TS__ArrayMap_result_15, -- 567
-		cart = ____temp_16, -- 568
-		spawns = ____TS__ArrayMap_result_17, -- 578
-		marks = ____TS__ArrayMap_result_18, -- 579
-		dims = ____TS__ArrayMap_result_19, -- 580
-		scavenger = ____temp_0, -- 581
-		bottle = ____temp_1, -- 586
-		brickX = ____temp_2, -- 587
-		softX = ____temp_3, -- 588
-		passLine = ____temp_4, -- 589
-		story = shiftStory(room.story, ox) -- 590
-	} -- 590
-end -- 549
-return ____exports -- 549
+	local ____temp_4 -- 590
+	if room.passLine == nil then -- 590
+		____temp_4 = nil -- 590
+	else -- 590
+		____temp_4 = shift(room.passLine) -- 590
+	end -- 590
+	return { -- 556
+		key = ____room_key_5, -- 557
+		name = ____room_name_6, -- 558
+		caption = ____room_caption_7, -- 559
+		originX = 0, -- 560
+		minX = ____shift_result_8, -- 561
+		maxX = ____shift_result_9, -- 562
+		height = ____room_height_10, -- 563
+		floors = ____TS__ArrayMap_result_11, -- 564
+		solids = ____TS__ArrayMap_result_12, -- 565
+		zones = ____TS__ArrayMap_result_13, -- 566
+		arch = ____temp_14, -- 567
+		stairs = ____TS__ArrayMap_result_15, -- 568
+		cart = ____temp_16, -- 569
+		spawns = ____TS__ArrayMap_result_17, -- 579
+		marks = ____TS__ArrayMap_result_18, -- 580
+		dims = ____TS__ArrayMap_result_19, -- 581
+		scavenger = ____temp_0, -- 582
+		bottle = ____temp_1, -- 587
+		brickX = ____temp_2, -- 588
+		softX = ____temp_3, -- 589
+		passLine = ____temp_4, -- 590
+		story = shiftStory(room.story, ox) -- 591
+	} -- 591
+end -- 550
+return ____exports -- 550
