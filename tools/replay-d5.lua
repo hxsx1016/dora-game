@@ -151,26 +151,13 @@ show("P4 到门口", p)
 p = hop(p)
 show("S0 街道", p)
 
--- 2) 街道：两枪清掉街心敌兵，两人走到检查站入口
-p.view = { zoom = 1, ox = 0, oy = 0 }
-local function shootAt(tx, ty)
-	p.viewW = 320
-	p.viewH = 180
-	p:shoot(p.player)
-	p.aimX = 160 + (tx - p.cam.x) / 2
-	p.aimY = 90 + (ty - p.cam.y) / 2
-	p:shoot(p.player)
-	show("S* 射击", p)
-end
--- 先把相机对准街心，再逐枪打
+-- 2) 街道：走到有射界的位置，用 Input.fire + 准星（aimAt）逐枪清敌
 walkTo(p, i, 240, 400)
 p.view = { zoom = 1, ox = 0, oy = 0 }
 p.viewW = 320
 p.viewH = 180
-p.cam.x = p.player.x
-p.cam.y = p.player.y + 46
 local shootGuard = 0
-while p:aliveEnemies() > 0 and shootGuard < 12 do
+while p:aliveEnemies() > 0 and shootGuard < 16 do
 	local target = nil
 	for _, e in ipairs(p.enemies) do
 		if e.alive then
@@ -180,9 +167,11 @@ while p:aliveEnemies() > 0 and shootGuard < 12 do
 	if target == nil then
 		break
 	end
-	p.aimX = 160 + (target.x - p.cam.x) / 2
-	p.aimY = 90 + (target.y + 42 - p.cam.y) / 2
-	p:shoot(p.player)
+	-- aimAt 只把世界坐标换成准星坐标；真正的开枪走 stepPlayer 里的 fire.pressed
+	p:aimAt(target.x, target.y + 42)
+	tap(i.fire)
+	p:update(STEP, i)
+	rel(i.fire)
 	shootGuard = shootGuard + 1
 end
 print(string.format("S1 清敌 alive=%d 枪=%d", p:aliveEnemies(), shootGuard))
@@ -229,13 +218,41 @@ while p.phase == "gate-idle" and guard < 1400 do
 end
 print(string.format("G2 就位 phase=%s gateTick=%d 小满=%.1f", p.phase, p.gateTick, p.partner.x))
 
--- 守到 44 秒（2640 拍），暂停 5 秒再恢复
+-- 绞盘 130 的射界被街垒挡死，得前出到 505 才有射线；守点期间还得压制四批敌兵
+i.moveX = 1
 guard = 0
-while p.gateTick < 2640 and guard < 3000 do
+while p.player.x < 505 and guard < 400 do
 	p:update(STEP, i)
 	guard = guard + 1
 end
-print(string.format("G3 44秒 gateTick=%d 敌=%d", p.gateTick, p:aliveEnemies()))
+i.moveX = 0
+print(string.format("G2b 前出街垒 x=%.1f 血=%d", p.player.x, p.hp))
+
+-- 守到 44 秒（2640 拍），途中用准星 + fire 清敌，暂停 5 秒再恢复
+guard = 0
+while p.gateTick < 2640 and guard < 5000 do
+	if guard % 12 == 0 then
+		local target = nil
+		for _, e in ipairs(p.enemies) do
+			if e.alive then
+				target = e
+				break
+			end
+		end
+		if target ~= nil then
+			p:aimAt(target.x, target.y + 42)
+			tap(i.fire)
+			p:update(STEP, i)
+			rel(i.fire)
+		else
+			p:update(STEP, i)
+		end
+	else
+		p:update(STEP, i)
+	end
+	guard = guard + 1
+end
+print(string.format("G3 44秒 gateTick=%d 敌=%d 血=%d 倒=%d", p.gateTick, p:aliveEnemies(), p.hp, p.gateFailCount))
 tap(i.pause)
 p:update(STEP, i)
 rel(i.pause)
@@ -255,8 +272,25 @@ while p.gateTick < 2700 and guard < 200 do
 end
 print(string.format("G7 守满 phase=%s gateTick=%d", p.phase, p.gateTick))
 
--- 送别：按住 D 走到门边，按 E（此时 D 仍按着，测交权）
-guard = push(p, i, function() return p.player.x >= 855 end, 1200)
+-- 送别：按住 D 走到门边（途中翻街垒），按 E（此时 D 仍按着，测交权）
+i.moveX = 1
+guard = 0
+local stuckG = 0
+while p.player.x < 855 and guard < 1500 do
+	if p.player.onGround and p.player.x < 640 then
+		stuckG = stuckG + 1
+		if stuckG >= 4 then
+			tap(i.jump)
+			stuckG = 0
+		end
+	else
+		stuckG = 0
+	end
+	p:update(STEP, i)
+	rel(i.jump)
+	guard = guard + 1
+end
+i.moveX = 0
 print(string.format("G8 到门边 x=%.1f", p.player.x))
 tap(i.interact)
 p:update(STEP, i)
@@ -312,25 +346,70 @@ p = hop(p)
 
 -- 6) 村口：先站着靠近，测一次被抓重试；再蹲行通过
 show("V0 村口", p)
-guard = push(p, i, function() return p.caughtT > 0 end, 700)
-print(string.format("V1 被抓 caughtT=%.2f x=%.1f", p.caughtT, p.player.x))
+-- 先站着走到 430 停住，让他看见并追上来（跑是跑得掉的，但他要够近才抓得到）
+guard = push(p, i, function() return p.player.x >= 430 end, 400)
+guard = 0
+while p.caughtT <= 0 and guard < 500 do
+	p:update(STEP, i)
+	guard = guard + 1
+end
+print(string.format("V1 被抓 caughtT=%.2f x=%.1f 拾荒者=%s@%.1f see=%d chase=%s passed=%s",
+	p.caughtT, p.player.x, tostring(p.scavState), p.scavX, p.scavSee, tostring(p.scavChase), tostring(p.passed)))
 for _ = 1, 70 do
 	p:update(STEP, i)
 end
 print(string.format("V2 复位 x=%.1f 拾荒者=%.1f", p.player.x, p.scavX))
--- 拾瓶
-guard = push(p, i, function() return p.player.x >= 140 end, 400)
+-- 拾瓶：复位点 142 在瓶架 112 右边，往左走几步
+i.moveX = -1
+for _ = 1, 24 do
+	p:update(STEP, i)
+end
+i.moveX = 0
 tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)
 print(string.format("V3 拾瓶 has=%s", tostring(p.hasBottle)))
-print("MARK-V4 前")
+-- 按住 F 瞄向砖地 608，攒到 40 拍再松手投
+p:aimAt(p.brickX or 608, 34)
+i.aim.held = true
+for _ = 1, 40 do
+	p:update(STEP, i)
+end
+print(string.format("V4 瞄住 aimHold=%.2f 有瓶=%s", p.aimHold, tostring(p.hasBottle)))
+i.aim.held = false
+i.aim.released = true
+p:update(STEP, i)
+rel(i.aim)
+print(string.format("V5 出手 飞行=%s 拾荒者=%s@%.1f", tostring(p.bottleFly ~= nil), tostring(p.scavState), p.scavX))
+-- 等瓶子触地发声
+guard = 0
+while p.bottleLandX < 0 and guard < 300 do
+	p:update(STEP, i)
+	guard = guard + 1
+end
+print(string.format("V6 落地 landX=%.1f 拾荒者=%s@%.1f", p.bottleLandX, tostring(p.scavState), p.scavX))
+-- 等他真正转头走开（walk → stall 后走远），再钻桌
+guard = 0
+while p.scavState ~= "walk" and p.scavState ~= "stall" and guard < 600 do
+	p:update(STEP, i)
+	guard = guard + 1
+end
+print(string.format("V7 他走了 状态=%s@%.1f 等=%d拍", tostring(p.scavState), p.scavX, guard))
+guard = 0
+while p.scavX < 580 and guard < 600 do
+	p:update(STEP, i)
+	guard = guard + 1
+end
+print(string.format("V8 让开桌下 拾荒者=%.1f 等=%d拍", p.scavX, guard))
 -- 蹲行穿过桌下到 460
 i.crouch.held = true
 walkTo(p, i, 460, 900)
 i.crouch.held = false
-print(string.format("V4 过桌 x=%.1f passed=%s", p.player.x, tostring(p.passed)))
+print(string.format("V9 过桌 x=%.1f passed=%s", p.player.x, tostring(p.passed)))
+-- 钻出桌后立刻冲向 640 切线；被追就贴着地面跑，别停
 guard = push(p, i, function() return p.wantRoom ~= "" end, 800)
+print(string.format("V9b 冲线 x=%.1f caught=%.2f 拾荒者=%s@%.1f want=%s",
+	p.player.x, p.caughtT, tostring(p.scavState), p.scavX, tostring(p.wantRoom)))
 show("V5 出村", p)
 p = hop(p)
 
