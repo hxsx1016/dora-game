@@ -83,12 +83,23 @@ while p.gateFailCount == 0 and guard < 3000 do
 	end
 end
 print("G2 中弹 " .. table.concat(hitAt, " / "))
-print(string.format("G3 被击倒 第%d拍 tick=%d（重置后重开第一批，敌=1 是新批次） 倒=%d 敌=%d 血=%d x=%.1f 小满=%.1f phase=%s",
+print(string.format("G3 被击倒 第%d拍 tick=%d 倒=%d 敌=%d 血=%d x=%.1f 小满=%.1f phase=%s（回 idle 等重新就位）",
 	guard, p.gateTick, p.gateFailCount, #p.enemies, p.hp, p.player.x, p.partner.x, tostring(p.phase)))
 
 -- 二、成功：同一局从重置状态继续，用准星与 fire 打掉敌兵
 print("==== 城门守点 · 成功一局（贴街垒 + 准星 + F 射击） ====")
 local failBase = p.gateFailCount
+-- 倒地后回 gate-idle：先在绞盘 118 站住，按 E 确认重新就位，才开始下一轮
+guard = 0
+while p.phase ~= "gate-hold" and guard < 300 do
+	if p.gateNeedConfirm then
+		i.interact.pressed = true
+	end
+	p:update(STEP, i)
+	i.interact.pressed = false
+	guard = guard + 1
+end
+print(string.format("G3b 重新就位 phase=%s x=%.1f 小满=%.1f", tostring(p.phase), p.player.x, p.partner.x))
 -- 绞盘 130 的射界被街垒 520–600 挡死；守点必须前出到街垒左侧 512 才有射线
 i.moveX = 1
 guard = 0
@@ -214,7 +225,7 @@ p3.gateTick = 500
 p3.player.x = 130
 p3.partner.x = 900
 k.cover.held = true
-for _ = 1, 600 do
+for _ = 1, 220 do
 	p3:update(STEP, k)
 end
 print(string.format("H2 绞盘空地+Shift 血=%d/3 tick=%d 贴=%s", p3.hp, p3.gateTick, tostring(p3.player.covered)))
@@ -225,7 +236,7 @@ p4.phase = "gate-hold"
 p4.gateTick = 500
 p4.player.x = 130
 p4.partner.x = 900
-for _ = 1, 600 do
+for _ = 1, 220 do
 	p4:update(STEP, m)
 end
 print(string.format("H3 绞盘空地空手 血=%d/3 tick=%d 贴=%s", p4.hp, p4.gateTick, tostring(p4.player.covered)))

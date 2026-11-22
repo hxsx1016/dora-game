@@ -222,10 +222,22 @@ do
 	p.gateTick = 2699
 	putEnemy(p, 620, 1)
 	step(p, i)
-	-- 失败后同一拍就会按新守点重新放第一批敌兵，所以这里的 1 是「重开的第一批」。
-	check("E2 最后一拍被打倒优先", p.phase == "gate-hold" and p.gateFailCount == 1 and p.gateTick <= 1 and #p.enemies <= 1,
-		string.format("phase=%s tick=%d 倒=%d 敌=%d want=%s", tostring(p.phase), p.gateTick, p.gateFailCount, #p.enemies, tostring(p.wantRoom)))
+	-- 失败后回 gate-idle：计时归零、敌兵清空，要玩家重新贴住绞盘才开始。
+	check("E2 最后一拍被打倒优先", p.phase == "gate-idle" and p.gateFailCount == 1 and p.gateTick == 0 and #p.enemies == 0 and p.hp == p.maxHp,
+		string.format("phase=%s tick=%d 倒=%d 敌=%d 血=%d", tostring(p.phase), p.gateTick, p.gateFailCount, #p.enemies, p.hp))
 	check("E3 失败不切场", p.wantRoom == "", "want=" .. tostring(p.wantRoom))
+	-- 回绞盘站位 118，玩家不动就不会自动开下一轮：这正是「倒地重开」要的停顿。
+	local idleX = p.player.x
+	for _ = 1, 30 do
+		step(p, i)
+	end
+	check("E4 倒地后等玩家按 E", p.phase == "gate-idle" and p.gateTick == 0 and p.gateNeedConfirm == true and math.abs(p.player.x - (p.ox + 118)) < 1,
+		string.format("phase=%s tick=%d 待确认=%s x=%.1f", tostring(p.phase), p.gateTick, tostring(p.gateNeedConfirm), p.player.x))
+	-- 站对了但不按 E 就不开；按 E 才重新就位。
+	i.interact.pressed = true
+	step(p, i)
+	check("E5 按 E 才重新就位", p.phase == "gate-hold" and p.gateTick <= 1 and p.gateNeedConfirm == false,
+		string.format("phase=%s tick=%d 待确认=%s", tostring(p.phase), p.gateTick, tostring(p.gateNeedConfirm)))
 end
 
 -- ---------------------------------------------------------------- 4. 投瓶落点
@@ -245,7 +257,16 @@ local function throwCase(name, targetX, targetY)
 	end
 	p.hasBottle = true
 	p:aimAt(targetX, targetY)
-	local prev = p:bottleEnd()
+	-- 按住一段时间（>0.12 秒）才算瞄准，松手才投。
+	i.aim.held = true
+	local hold = 0
+	while hold < 10 do
+		step(p, i)
+		hold = hold + 1
+	end
+	-- 预览点取「按住 F 时缓存的那个数」，这才是玩家在屏幕上看到的终点。
+	local prev = { x = p.bottleAimX, y = p.bottleAimY }
+	i.aim.held = false
 	i.aim.released = true
 	step(p, i)
 	local steps = 0

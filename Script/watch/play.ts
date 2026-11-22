@@ -275,6 +275,15 @@ export class Play {
     maxHp = 3;
     /** 本拍被掩体或蹲伏挡下的提示，给 HUD 用。 */
     coveredFlash = 0;
+    /** 本步是否「贴住掩体且按着 Shift」；HUD 与姿态都读它，别处不要再各算一遍。 */
+    coverHug = false;
+    /** 本步是否贴得住掩体（还没按 Shift 也算），用来提示「按住 Shift」。 */
+    coverNear = false;
+    /** 倒地回绞盘后要玩家按 E 确认重新就位，避免「静默重开」把玩家又打一遍。 */
+    gateNeedConfirm = false;
+    /** 按住 F 期间每拍缓存的落点；预览与投掷共用它，避免松手那拍镜头移动造成偏差。 */
+    bottleAimX = -1;
+    bottleAimY = 0;
     /** 森林里的狗。 */
     dogX = 0;
     dogDir = 1;
@@ -484,7 +493,12 @@ export class Play {
         }
         a.crouch = isChild && input.crouch.held && a.onGround;
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
-        a.covered = !isChild && input.cover.held && this.nearCover(a);
+        const nearCover = !isChild && this.nearCover(a);
+        a.covered = nearCover && input.cover.held;
+        if (!isChild) {
+            this.coverHug = a.covered;
+            this.coverNear = nearCover;
+        }
 
         // 翻滚：周戍按下空格，0.35 秒内按固定速度冲出去，期间不能改向
         if (a.rollT > 0) {
@@ -731,6 +745,17 @@ export class Play {
             // 要真的碰到绞盘才算就位：±24 是身体边缘贴住的距离。
             const atWinch = Math.abs(p.x - g.winchX) <= 24 && p.y < 20;
             const atWait = this.partner.alive && Math.abs(this.partner.x - g.waitX) <= 60;
+            if (this.gateNeedConfirm) {
+                // 倒地之后不自动重开：站位到位也要玩家按一次 E，确认「我知道要重来」。
+                if (atWinch && atWait && input.interact.pressed) {
+                    this.gateNeedConfirm = false;
+                    this.phase = "gate-hold";
+                    this.gateTick = 0;
+                    this.gateSpawned = 0;
+                    this.flashSet("重新就位 · 守点开始", 1.4);
+                }
+                return;
+            }
             if (atWinch && atWait) {
                 this.phase = "gate-hold";
                 this.gateTick = 0;
@@ -1125,25 +1150,28 @@ export class Play {
     /** 被击倒：回绞盘，计时、敌兵和角色状态全部重来。 */
     private gateFailed(): void {
         const g = this.room.story === undefined ? undefined : this.room.story.gate;
-        this.flashSet("被击倒 · 回绞盘重来", 2.0);
+        this.flashSet("被击倒 · 回绞盘 118，重新就位再守", 2.0);
         this.hp = this.maxHp;
         this.gateTick = 0;
         this.gateSpawned = 0;
         this.enemies = [];
         this.gateFailCount += 1;
-        this.player.x = this.ox + (g === undefined ? 130 : 130);
+        // 回绞盘站位（118 是能贴住绞盘又站得下的点），并要求重新就位：不自动接着计时。
+        this.player.x = this.ox + (g === undefined ? 118 : g.winchX);
         this.player.y = 0;
         this.player.vy = 0;
         this.player.onGround = true;
         this.player.crouch = false;
         this.player.h = SOLDIER_H;
-        this.partner.x = this.ox + (g === undefined ? 900 : 900);
+        this.partner.x = this.ox + (g === undefined ? 900 : g.waitX);
         this.partner.y = 0;
         this.partner.vy = 0;
         this.partner.onGround = true;
         this.cam.x = this.player.x;
-        this.phase = "gate-hold";
+        this.phase = "gate-idle";
         this.phaseTick = 0;
+        this.coverHug = false;
+        this.gateNeedConfirm = true;
     }
 
     private stepInteract(dt: number, input: Input): void {
@@ -1240,13 +1268,24 @@ export class Play {
                 if (this.aimHold > 1.2) {
                     this.aimHold = 1.2;
                 }
+                // 每拍刷新缓存：预览画的就是这个点，松手投的也是这个点。
+                const cached = this.bottleEnd();
+                this.bottleAimX = cached.x;
+                this.bottleAimY = cached.y;
             } else if (input.aim.released) {
-                const end = this.bottleEnd();
-                this.throwBottle(end.x, end.y);
-                this.aimHold = 0;
+                if (this.aimHold < 0.12) {
+                    // 原地误点一下不算投：先说清楚要按住瞄准。
+                    this.flashSet("按住 F 瞄一下再松手", 0.9);
+                    this.aimHold = 0;
+                } else {
+                    const end = this.bottleAimX >= 0 ? { x: this.bottleAimX, y: this.bottleAimY } : this.bottleEnd();
+                    this.throwBottle(end.x, end.y);
+                    this.aimHold = 0;
+                }
             }
         } else {
             this.aimHold = 0;
+            this.bottleAimX = -1;
         }
 
         // 瓶子飞行，触地才发声
@@ -1295,7 +1334,10 @@ export class Play {
     /** 固定飞行时间反解初速；终点就是准星指定的落点，预览与触地用同一套参数。 */
     private throwBottle(tx: number, ty: number): void {
         const p = this.player;
-        const x0 = p.x + p.facing * 10;
+        // 起点朝着目标出手：原地站着把瓶子扔到背后时，弧线不能从身体里穿过去。
+        const dir = tx >= p.x ? 1 : -1;
+        p.facing = dir;
+        const x0 = p.x + dir * 10;
         const y0 = p.y + p.h * 0.7;
         const T = 0.62;
         this.bottleTargetX = tx;
@@ -1792,8 +1834,12 @@ export class Play {
                 parts.push("小满 " + Math.round(this.partner.x));
                 parts.push("敌 " + this.aliveEnemies() + "/" + this.enemies.length);
                 parts.push("血 " + Math.max(0, this.hp) + "/" + this.maxHp);
+                parts.push(this.coverHug ? "掩体 已贴住" : (this.coverNear ? "掩体 可贴·按 Shift" : "掩体 无"));
                 if (this.gateFailCount > 0) {
                     parts.push("倒 " + this.gateFailCount);
+                }
+                if (this.flash !== "") {
+                    parts.push(this.flash);
                 }
             }
             if (this.paused) {
@@ -1887,6 +1933,25 @@ export class Play {
     }
 
     /** 城门阶段的中文短标签。 */
+    /** 有存活敌兵正在举枪（warnT 已走）就返回真。 */
+    private threatened(): boolean {
+        for (let i = 0; i < this.enemies.length; i += 1) {
+            const e = this.enemies[i];
+            if (e.alive && e.warnT > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private gateSecondsLeft(): number {
+        const g = this.room.story === undefined ? undefined : this.room.story.gate;
+        if (g === undefined) {
+            return 0;
+        }
+        return Math.max(0, Math.ceil((g.holdTicks - this.gateTick) / 60));
+    }
+
     gateLabel(): string {
         if (this.phase === "gate-idle") {
             return "待就位";
@@ -1950,6 +2015,20 @@ export class Play {
         if (this.paused) {
             return "Esc 继续 · R 重置";
         }
+        // 守点中的主提示不能被「第 n 批敌兵出现」「中弹」这类 flash 抢走：
+        // 玩家此刻最需要知道的是挡枪与开火，短反馈改由状态行承担。
+        if (this.room.key === "gate" && this.phase === "gate-hold" && !this.paused) {
+            if (this.threatened()) {
+                return "敌兵举枪（红线）· 贴住街垒 520 按 Shift，或 F 打掉他";
+            }
+            if (this.coverHug) {
+                return "掩体中 · F 射击 · 守点剩 " + this.gateSecondsLeft() + " 秒";
+            }
+            if (this.coverNear) {
+                return "贴住了，按住 Shift 才挡枪 · F 射击";
+            }
+            return "到街垒左侧 505 贴住（空地挡不住）· F 射击 · 守满 45 秒";
+        }
         if (this.flash !== "") {
             return this.flash;
         }
@@ -1973,6 +2052,9 @@ export class Play {
             const g = this.room.story === undefined ? undefined : this.room.story.gate;
             if (g !== undefined) {
                 if (this.phase === "gate-idle") {
+                    if (this.gateNeedConfirm) {
+                        return "回到绞盘 118 按 E 重新就位 · 这一轮从 0 秒重算";
+                    }
                     return "小满到门洞 960、周戍贴住绞盘 118，两人就位才开始守点";
                 }
                 if (this.phase === "gate-hold") {
@@ -2180,6 +2262,11 @@ export class Play {
         if (p.covered) {
             const edge = p.x + p.facing * (p.w / 2 + 2);
             draw.drawSegment(Vec2(this.sx(edge, w), this.sy(p.y + 8, h)), Vec2(this.sx(edge, w), this.sy(p.y + p.h * 0.62, h)), this.px(2), STAND);
+            // 头顶这道横线是「压低身位」的读数：按住 Shift 且贴住才有。
+            draw.drawSegment(Vec2(this.sx(p.x - 8, w), this.sy(p.y + p.h + 3, h)), Vec2(this.sx(p.x + 8, w), this.sy(p.y + p.h + 3, h)), this.px(2), STAND);
+        } else if (this.coverNear && !isChild) {
+            // 能贴、但还没按 Shift：脚边一个方点，提示这里有掩体可用。
+            draw.drawRect(Rect(this.sx(p.x - 3, w), this.sy(p.y + 1, h), this.px(3), this.px(3)), STAND);
         }
         drawFigure(draw, this, w, h, p, isChild ? CHILD_BODY : SOLDIER_BODY, isChild ? CHILD_HEAD : SOLDIER_HEAD);
         const q = this.partner;
@@ -2346,8 +2433,10 @@ export class Play {
         // 村口：手上有瓶时画落点弧线；弧线终点就是鼠标指的位置（落点）。
         if (this.room.key === "village" && this.hasBottle) {
             const p = this.player;
-            const end = this.bottleEnd();
-            const x0 = p.x + p.facing * 10;
+            // 预览优先用按住 F 时缓存的落点：它和松手投掷的目标是同一个数。
+            const end = this.bottleAimX >= 0 ? { x: this.bottleAimX, y: this.bottleAimY } : this.bottleEnd();
+            const dir = end.x >= p.x ? 1 : -1;
+            const x0 = p.x + dir * 10;
             const y0 = p.y + p.h * 0.7;
             const T = 0.62;
             const vx = (end.x - x0) / T;
