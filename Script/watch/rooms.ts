@@ -83,6 +83,22 @@ export interface DimSpec {
     text: string;
 }
 
+/** 拾荒者：巡逻段、听觉、赶来与停留。 */
+export interface ScavSpec {
+    x0: number;
+    x1: number;
+    y: number;
+    h: number;
+    patrolSpeed: number;
+    approachSpeed: number;
+    /** 听见声音后原地转头多少拍。 */
+    hearTicks: number;
+    /** 到落点后停多少拍。 */
+    stallTicks: number;
+    /** 听觉半径。 */
+    range: number;
+}
+
 export interface RoomSpec {
     key: string;
     name: string;
@@ -99,6 +115,16 @@ export interface RoomSpec {
     spawns: SpawnSpec[];
     marks: MarkSpec[];
     dims: DimSpec[];
+    /** 村口：拾荒者。 */
+    scavenger?: ScavSpec;
+    /** 村口：瓶架上的瓶子位置。 */
+    bottle?: { x: number; y: number };
+    /** 村口：砖地落点。 */
+    brickX?: number;
+    /** 村口：软土落点。 */
+    softX?: number;
+    /** 村口：第一院通行线。 */
+    passLine?: number;
 }
 
 /** 检查站：周戍把车从 640 推到 768 落入 dock，再和小满一起走到出口。 */
@@ -185,4 +211,57 @@ export const OUTSIDE_ROOM: RoomSpec = {
     ],
 };
 
-export const ROOMS: RoomSpec[] = [CHECKPOINT_ROOM, OUTSIDE_ROOM];
+/**
+ * 村口：瓶架 112、观察位 160、桌下 304–416（净高 44）、第一院通行线 440、
+ * 软土 272（D5 完整）、砖地 608、拾荒者巡逻 464–512。
+ * 小满脚底中心 290 起必须蹲，超过 430 才站起；160→440 约 2.63 秒。
+ */
+export const VILLAGE_ROOM: RoomSpec = {
+    key: "village",
+    name: "村口 · 架、桌、砖地",
+    caption: "点 E 拾瓶，按住 F 瞄，松手投；砖地一响，拾荒者转身，趁他走开钻过桌下",
+    minX: 0,
+    maxX: 720,
+    height: 200,
+    floors: [{ y: 0, x0: 0, x1: 720 }],
+    solids: [
+        { x: 96, w: 32, h: 64, y: 0, label: "瓶架" },
+        // 桌腿只是视觉（drawVillage 补画），碰撞交给 arch：站 64 进不去、蹲 36 能过。
+        { x: 672, w: 48, h: 96, y: 0, label: "院墙" },
+    ],
+    zones: [
+        { x0: 256, x1: 288, y: 0, h: 6, tint: 2, label: "软土 272" },
+        { x0: 440, x1: 448, y: 0, h: 120, tint: 4, label: "通行线 440" },
+        { x0: 592, x1: 624, y: 0, h: 6, tint: 3, label: "砖地 608" },
+    ],
+    arch: { x0: 304, x1: 416, y: 0, h: 44, label: "桌下 304–416 · 净高 44" },
+    stairs: [],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [{ x: 160, y: 0, h: 64, label: "小满 160" }],
+    marks: [
+        { x: 608, y: 0, kind: 5, label: "砖地落点 608" },
+        { x: 440, y: 0, kind: 4, label: "通行线 440" },
+    ],
+    dims: [
+        { x0: 96, x1: 128, text: "瓶架" },
+        { x0: 304, x1: 416, text: "桌下 112" },
+        { x0: 464, x1: 512, text: "巡逻 48" },
+    ],
+    scavenger: {
+        x0: 464,
+        x1: 512,
+        y: 0,
+        h: 56,
+        patrolSpeed: 40,
+        approachSpeed: 64,
+        hearTicks: 18,
+        stallTicks: 120,
+        range: 480,
+    },
+    bottle: { x: 112, y: 48 },
+    brickX: 608,
+    softX: 272,
+    passLine: 440,
+};
+
+export const ROOMS: RoomSpec[] = [CHECKPOINT_ROOM, OUTSIDE_ROOM, VILLAGE_ROOM];

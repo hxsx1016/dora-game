@@ -7,7 +7,7 @@
 
 export const TITLE = "守望 · D1 灰盒摆放";
 
-export const SWITCH_HINT = "1 检查站 · 2 城墙外 · Tab 切换";
+export const SWITCH_HINT = "1 检查站 · 2 城墙外 · 3 村口 · Tab 切换";
 
 export const RULER_TEXT = "1m";
 
@@ -22,6 +22,11 @@ export const HINTS: string[][] = [
         "A / D 移动 · Shift 慢走 · 空格跳",
         "S / Ctrl 蹲下 · E 交互 · 按住 E + A/D 拉车",
         "按住 F 瞄落点，松手投瓶",
+    ],
+    [
+        "A / D 移动 · Ctrl 蹲下 · 空格跳",
+        "点 E 拾瓶 · 按住 F 瞄 · 松手投",
+        "砖地一响，趁他走开钻过桌下 44",
     ],
 ];
 

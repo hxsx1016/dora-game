@@ -10,7 +10,8 @@ import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } fr
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
-import { Play, STEP } from "Script/watch/play";
+import { Play } from "Script/watch/play";
+import { STEP, StepClock } from "Script/watch/clock";
 
 declare function print(...args: string[]): void;
 
@@ -55,6 +56,8 @@ let dirty = true;
 let mode = 0;
 let input: Input | undefined;
 let play: Play | undefined;
+/** 固定步累加器：真实帧时长 → 1/60 步数。 */
+const clock = new StepClock();
 
 function makeLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
     if (root === undefined) {
@@ -142,8 +145,8 @@ export function start(parent: Node.Type, initialMode: number = 1): void {
     viewH = View.size.height;
     applySize();
 
-    parent.schedule(() => {
-        tick();
+    parent.schedule((frameDt: number) => {
+        tick(frameDt);
         return false;
     });
 }
@@ -156,7 +159,7 @@ function applySize(): void {
     root.position = Vec2(-viewW / 2, -viewH / 2);
 }
 
-function tick(): void {
+function tick(frameDt: number): void {
     const w = View.size.width;
     const h = View.size.height;
     if (w !== viewW || h !== viewH) {
@@ -169,9 +172,14 @@ function tick(): void {
         return;
     }
     input.update();
+
+    // 模式与选房是「视图层」动作：当帧生效，不等模拟步，读完就把边沿清掉，
+    // 否则同一帧跑两步或 120 Hz 下会重复切换。
     if (input.toggleView.pressed) {
+        input.toggleView.pressed = false;
         mode = mode === 0 ? 1 : 0;
         dirty = true;
+        clock.reset();
         if (mode === 1) {
             ensurePlay();
         }
@@ -181,21 +189,25 @@ function tick(): void {
     }
     if (input.pickRoom !== 0) {
         current = input.pickRoom - 1;
+        input.pickRoom = 0;
         dirty = true;
         play = undefined;
+        clock.reset();
         if (mode === 1) {
             ensurePlay();
         }
     } else if (input.tab.pressed) {
+        input.tab.pressed = false;
         current = (current + 1) % ROOMS.length;
         dirty = true;
         play = undefined;
+        clock.reset();
         if (mode === 1) {
             ensurePlay();
         }
     }
     if (mode === 1) {
-        tickPlay();
+        tickPlay(frameDt);
         return;
     }
     if (dirty) {
@@ -207,21 +219,69 @@ function tick(): void {
 /** 试玩模式下按当前房间建运行时；切房间时重建。 */
 function ensurePlay(): void {
     play = new Play(ROOMS[current]);
+    clock.reset();
 }
 
-/** 试玩每帧：输入 → 位移与碰撞 → 事件 → 绘制。 */
-function tickPlay(): void {
+/**
+ * 试玩每帧：采样输入 → 按真实帧时长推进固定步 → 只画一次。
+ *
+ * 绘制放在步循环外：1/30 秒回调跑两步也只画最后一步的结果，
+ * 画面不会出现「同帧画两次」的撕裂或双份闪字。
+ */
+function tickPlay(frameDt: number): void {
     if (play === undefined || draw === undefined || input === undefined) {
         return;
     }
     const p = play;
     if (input.retry.pressed) {
-        play = new Play(ROOMS[current]);
+        input.consumeEdges();
+        // 重试保留已提交的检查点：城外洞后重试，车在 432 落窝、小满在洞后。
+        play = new Play(ROOMS[current], { checkpoint: p.checkpoint });
+        clock.reset();
         return;
     }
     p.aimX = input.mx;
     p.aimY = input.my;
-    p.update(STEP, input);
+
+    // 暂停时仍跑一步：Esc 的恢复由 Play.update 读，但位置与计时不走时钟。
+    if (p.paused) {
+        clock.reset();
+        input.beginStep(true);
+        p.update(STEP, input);
+        input.endStep();
+        p.draw(draw, viewW, viewH);
+        playHud(p);
+        return;
+    }
+
+    const steps = clock.advance(frameDt);
+    let i = 0;
+    for (i = 0; i < steps; i++) {
+        input.beginStep(i === 0);
+        p.update(STEP, input);
+        input.endStep();
+    }
+
+    // 切场：Play 只登记目标房间，重建与计时重置放在这里，避免在 update 里换掉自己。
+    if (p.wantRoom !== "") {
+        const key = p.wantRoom;
+        p.wantRoom = "";
+        let idx = -1;
+        let j = 0;
+        for (j = 0; j < ROOMS.length; j++) {
+            if (ROOMS[j].key === key) {
+                idx = j;
+            }
+        }
+        if (idx >= 0) {
+            current = idx;
+            ensurePlay();
+            clock.reset();
+            dirty = true;
+        }
+        return;
+    }
+
     p.draw(draw, viewW, viewH);
     playHud(p);
 }
@@ -230,7 +290,7 @@ function tickPlay(): void {
 function playHud(p: Play): void {
     const room = ROOMS[current];
     if (titleLabel !== undefined) {
-        titleLabel.text = "守望 · D2 试玩";
+        titleLabel.text = "守望 · D3 试玩";
     }
     if (roomLabel !== undefined) {
         roomLabel.text = room.name;
@@ -243,7 +303,7 @@ function playHud(p: Play): void {
         hintLabel.text = p.hintText();
     }
     if (switchLabel !== undefined) {
-        switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · R 重置";
+        switchLabel.text = "G 回灰盒 · 1 检查站 · 2 城外 · 3 村口 · R 重置";
     }
     if (rulerLabel !== undefined) {
         rulerLabel.text = "";
