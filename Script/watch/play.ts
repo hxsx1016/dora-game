@@ -53,6 +53,10 @@ const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
 const CART_HALF = 24;
 const CART_CLEAR = 44;
+/** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
+const WARN_TICKS = 36;
+const FIRE_COOLDOWN = 150;
+const ENEMY_RANGE = 760;
 /** 洞后墙根小路的尽头：走到这里才切村口（D4 扩图后不再是 388）。 */
 const WALL_ROAD_END = 1150;
 /** 走路时能自动抬脚的高度：矮台阶直接走上去，柜台 44 仍要跳。 */
@@ -125,6 +129,10 @@ interface Enemy {
     h: number;
     alive: boolean;
     hitT: number;
+    /** 举枪预警剩余拍数；>0 时画红色准线，归零即开火。 */
+    warnT: number;
+    /** 距下一次举枪的拍数。 */
+    fireCd: number;
 }
 
 interface Camera {
@@ -258,6 +266,11 @@ export class Play {
     countArmed = false;
     /** 被抓后的复位余韵，>0 时锁输入。 */
     caughtT = 0;
+    /** 城门守点里周戍的血量；打空就回绞盘重来。 */
+    hp = 3;
+    maxHp = 3;
+    /** 本拍被掩体或蹲伏挡下的提示，给 HUD 用。 */
+    coveredFlash = 0;
     /** 森林里的狗。 */
     dogX = 0;
     dogDir = 1;
@@ -269,6 +282,8 @@ export class Play {
     scavChase = false;
     /** 城门守点已登场的敌兵批数。 */
     gateSpawned = 0;
+    /** 守点被打倒的次数，给 HUD 与回放读。 */
+    gateFailCount = 0;
 
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
@@ -356,14 +371,14 @@ export class Play {
     private buildEnemies(): void {
         this.enemies = [];
         if (this.room.key === "checkpoint") {
-            this.enemies.push({ x: this.ox + 430, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
-            this.enemies.push({ x: this.ox + 505, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+            this.enemies.push({ x: this.ox + 430, y: 0, w: 26, h: 84, alive: true, hitT: 0, warnT: 0, fireCd: 0 });
+            this.enemies.push({ x: this.ox + 505, y: 0, w: 26, h: 84, alive: true, hitT: 0, warnT: 0, fireCd: 0 });
             return;
         }
         if (this.room.key === "street") {
             // 街道第一次交火：柜台后一个、街心一个。
-            this.enemies.push({ x: this.ox + 340, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
-            this.enemies.push({ x: this.ox + 560, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+            this.enemies.push({ x: this.ox + 340, y: 0, w: 26, h: 84, alive: true, hitT: 0, warnT: 0, fireCd: 0 });
+            this.enemies.push({ x: this.ox + 560, y: 0, w: 26, h: 84, alive: true, hitT: 0, warnT: 0, fireCd: 0 });
         }
         // 城门的四批敌兵由 stepGate 按守点拍数登场。
     }
@@ -395,7 +410,7 @@ export class Play {
         this.stepPlayer(p, dt, input);
         this.stepStory(dt, input);
         this.stepEscort(dt, input);
-        this.stepEnemies(dt);
+        this.stepEnemies(dt, input);
         this.stepVillage(dt, input);
         this.stepChase(dt, input);
         this.stepInteract(dt, input);
@@ -705,7 +720,10 @@ export class Play {
             const marks = [0, 540, 900, 1500];
             while (this.gateSpawned < marks.length && this.gateTick - 1 >= marks[this.gateSpawned]) {
                 const idx = this.gateSpawned;
-                this.enemies.push({ x: this.ox + 620 + idx * 62, y: 0, w: 26, h: 84, alive: true, hitT: 0 });
+                this.enemies.push({
+                    x: this.ox + 620 + idx * 62, y: 0, w: 26, h: 84,
+                    alive: true, hitT: 0, warnT: 0, fireCd: 90 + idx * 45,
+                });
                 this.gateSpawned += 1;
                 this.flashSet("敌兵出现 · 第 " + (idx + 1) + " 批", 0.9);
             }
@@ -836,6 +854,15 @@ export class Play {
             return;
         }
         const p = this.player;
+        // 过了第一院通行线 440 就算进了院子，他不再追——这是「钻桌成功」的落点。
+        if (this.passed && p.x > this.ox + 440) {
+            if (this.scavChase) {
+                this.scavChase = false;
+                this.scavState = "back";
+                this.scavT = 0;
+            }
+            return;
+        }
         const dx = p.x - this.scavX;
         const dist = Math.abs(dx);
         const hidden = p.crouch || (this.room.arch.h > 0 && p.x > this.room.arch.x0 && p.x < this.room.arch.x1);
@@ -979,7 +1006,7 @@ export class Play {
         this.gateOpen = this.cartDocked && inZone(this.player.x) && inZone(this.partner.x);
     }
 
-    private stepEnemies(dt: number): void {
+    private stepEnemies(dt: number, input: Input): void {
         let i = 0;
         for (i = 0; i < this.enemies.length; i++) {
             const e = this.enemies[i];
@@ -987,6 +1014,101 @@ export class Play {
                 e.hitT -= dt;
             }
         }
+        if (this.coveredFlash > 0) {
+            this.coveredFlash -= dt;
+        }
+        // 只有城门守点期间敌兵会打人；街道与检查站仍是纯靶子。
+        if (this.room.key !== "gate" || this.phase !== "gate-hold") {
+            return;
+        }
+        for (i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e.alive) {
+                continue;
+            }
+            if (e.warnT > 0) {
+                e.warnT -= 1;
+                if (e.warnT <= 0) {
+                    this.enemyFire(e, input);
+                }
+                continue;
+            }
+            if (e.fireCd > 0) {
+                e.fireCd -= 1;
+                if (e.fireCd <= 0) {
+                    e.warnT = WARN_TICKS;
+                }
+            }
+        }
+    }
+
+    /** 敌兵开火：掩体、蹲伏或不在射程都能挡下；否则扣一格血。 */
+    private enemyFire(e: Enemy, input: Input): void {
+        const p = this.player;
+        if (Math.abs(e.x - p.x) > ENEMY_RANGE) {
+            this.flashSet("枪声响在远处", 0.4);
+            e.fireCd = FIRE_COOLDOWN;
+            return;
+        }
+        const covered = p.crouch || input.cover.held || this.blockedByCover(e.x, p.x);
+        if (covered) {
+            this.coveredFlash = 0.5;
+            this.flashSet("掩体挡下", 0.5);
+            e.fireCd = FIRE_COOLDOWN;
+            return;
+        }
+        this.hp -= 1;
+        this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.7);
+        e.fireCd = FIRE_COOLDOWN;
+        if (this.hp <= 0) {
+            this.gateFailed();
+        }
+    }
+
+    /** 贴着街垒/柜台这类一人高实体才挡枪：挡的是「主动躲」，不是「路过」。 */
+    private blockedByCover(ex: number, px: number): boolean {
+        const lo = Math.min(ex, px);
+        const hi = Math.max(ex, px);
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.passable === true || b.y1 - b.y0 < 44) {
+                continue;
+            }
+            const cx = (b.x0 + b.x1) / 2;
+            if (cx <= lo + 8 || cx >= hi - 8) {
+                continue;
+            }
+            const hug = Math.min(Math.abs(px - b.x0), Math.abs(px - b.x1)) < 24;
+            if (hug) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 被击倒：回绞盘，计时、敌兵和角色状态全部重来。 */
+    private gateFailed(): void {
+        const g = this.room.story === undefined ? undefined : this.room.story.gate;
+        this.flashSet("被击倒 · 回绞盘重来", 2.0);
+        this.hp = this.maxHp;
+        this.gateTick = 0;
+        this.gateSpawned = 0;
+        this.enemies = [];
+        this.gateFailCount += 1;
+        this.player.x = this.ox + (g === undefined ? 130 : 130);
+        this.player.y = 0;
+        this.player.vy = 0;
+        this.player.onGround = true;
+        this.player.crouch = false;
+        this.player.h = SOLDIER_H;
+        this.partner.x = this.ox + (g === undefined ? 900 : 900);
+        this.partner.y = 0;
+        this.partner.vy = 0;
+        this.partner.onGround = true;
+        this.cam.x = this.player.x;
+        this.phase = "gate-hold";
+        this.phaseTick = 0;
     }
 
     private stepInteract(dt: number, input: Input): void {
@@ -1157,6 +1279,10 @@ export class Play {
 
     /** 拾荒者：巡逻 → 转头 18 拍 → 赶到落点 → 停 120 拍 → 走回巡逻段。 */
     private stepScav(dt: number, s: ScavSpec): void {
+        // 追逐由 stepScavChase 单独推进；这里只管巡查与「听见后过去看看」。
+        if (this.scavState === "chase") {
+            return;
+        }
         if (this.scavState === "turn") {
             this.scavT -= 1;
             if (this.scavT <= 0) {
@@ -1292,6 +1418,13 @@ export class Play {
     }
 
     /** 点射：从枪口到准星拉一条线，命中最近的敌人；被实体挡住则打空。 */
+    /** 把准星世界坐标换算成 aimX/aimY；只在回放与调试里用。 */
+    aimAt(wx: number, wy: number): void {
+        const s = worldToScreen(wx, wy, this.cam, this.view);
+        this.aimX = s.x;
+        this.aimY = s.y;
+    }
+
     private shoot(a: Actor): void {
         const ox = a.x + a.facing * 8;
         const oy = a.y + a.h * 0.72;
@@ -1612,6 +1745,10 @@ export class Play {
                     + " · 剩 " + Math.max(0, Math.ceil((g.holdTicks - this.gateTick) / 60)) + " 秒");
                 parts.push("小满 " + Math.round(this.partner.x));
                 parts.push("敌 " + this.aliveEnemies() + "/" + this.enemies.length);
+                parts.push("血 " + Math.max(0, this.hp) + "/" + this.maxHp);
+                if (this.gateFailCount > 0) {
+                    parts.push("倒 " + this.gateFailCount);
+                }
             }
             if (this.paused) {
                 parts.push("已暂停");
@@ -1793,7 +1930,10 @@ export class Play {
                     return "小满到门洞 960、周戍回绞盘 195，两人就位才开始守点";
                 }
                 if (this.phase === "gate-hold") {
-                    return "守 45 秒 · 左键点射 · 守满走到门边 860 按 E 送她";
+                    if (this.coveredFlash > 0) {
+                        return "掩体挡下了这一枪 · 别露头";
+                    }
+                    return "红灯是预警 · 先贴街垒 520（Shift）再 F 射击 · 守满去门边 860 按 E";
                 }
                 if (this.phase === "gate-send") {
                     return "去门边 860 按 E 送别 · 她已经站在门口";
@@ -2001,6 +2141,23 @@ export class Play {
             const e = this.enemies[i];
             const col = e.alive ? ENEMY_BODY : ENEMY_DEAD;
             this.drawBox(draw, w, h, e.x - e.w / 2, e.x + e.w / 2, e.y, e.y + e.h, col);
+            // 举枪预警：枪口到周戍的红色准线，越接近开火越短。
+            if (e.alive && e.warnT > 0) {
+                const gunX = this.sx(e.x, w);
+                const gunY = this.sy(e.y + e.h * 0.72, h);
+                const aimX = this.sx(p.x, w);
+                const aimY = this.sy(p.y + p.h * 0.55, h);
+                const seg = 8;
+                let s = 0;
+                for (s = 0; s < seg; s += 2) {
+                    const t0 = s / seg;
+                    const t1 = (s + 1) / seg;
+                    draw.drawSegment(
+                        Vec2(gunX + (aimX - gunX) * t0, gunY + (aimY - gunY) * t0),
+                        Vec2(gunX + (aimX - gunX) * t1, gunY + (aimY - gunY) * t1),
+                        this.px(1), DANGER);
+                }
+            }
         }
         // 检查点标记
         let k = 0;
@@ -2194,6 +2351,14 @@ export function screenToWorld(sx: number, sy: number, cam: Camera, view: Viewpor
     return {
         x: cam.x + ((sx - view.ox) / view.zoom - LOGIC_W / 2) * UNITS_PER_PX,
         y: cam.y + ((sy - view.oy) / view.zoom - LOGIC_H / 2) * UNITS_PER_PX,
+    };
+}
+
+/** screenToWorld 的反函数：给回放和调试把世界坐标换成准星屏幕坐标。 */
+export function worldToScreen(wx: number, wy: number, cam: Camera, view: Viewport): { x: number; y: number } {
+    return {
+        x: ((wx - cam.x) / UNITS_PER_PX + LOGIC_W / 2) * view.zoom + view.ox,
+        y: ((wy - cam.y) / UNITS_PER_PX + LOGIC_H / 2) * view.zoom + view.oy,
     };
 }
 
