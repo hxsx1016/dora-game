@@ -14,7 +14,7 @@
 | 体验时长 | 设计目标 25—30 分钟，真人首通时间待测 |
 | 团队规模 | 5 人 |
 | 开发周期 | 10 天 |
-| 当前阶段 | 八房间逻辑回放已贯通，默认入口真人连玩与 Windows 冷启动待验收 |
+| 当前阶段 | 八房间玩法、像素场景与水墨前端整合中；验证记录见开发文档 |
 
 开发入口为 `init.ts`，游戏代码在 `Script/watch/`。从 [开发与提交指南](CONTRIBUTING.md) 查看构建、回归和打包步骤，从 [前端需求](docs/守望-前端需求.md) 查看画面、声音和玩法数据约定。
 
@@ -69,6 +69,10 @@
 ```text
 init.ts / init.lua   # 正式入口源码与引擎运行文件
 Script/watch/        # 房间、回合步进、护送、输入、表现
+Script/watch/fe/     # 水墨标题、章节选择、HUD、渲染与特效
+assets/art/          # 运行时像素场景、角色和水墨 UI 图集
+assets/font/         # 开源中文字体及许可
+art-source/          # 分层 PSD、帧坐标与素材来源
 Script/core/         # 历史探针
 Script/game/         # 历史回合原型
 docs/                # 开发需求、阶段记录与验收截图
@@ -78,11 +82,51 @@ dist/                # 在本地组装的发行包
 
 ## 运行
 
-1. 在 Dora SSR 中打开含 `init.ts` 的仓库根目录。当前守望开发线是 `feature/watch-d1-graybox`。
-2. 用 Dora 构建项目的 TypeScript，再从 `init.lua` 运行，默认进入序章。
+1. 在 Dora SSR 中打开含 `init.ts` 的仓库根目录。合并版分支为 `feature/watch-integrated`。
+2. 用 Dora 构建项目的 TypeScript，再从 `init.lua` 运行，默认进入标题页，可选择开始游戏或章节。
 3. Windows 便携包解压后从 `Dora.exe` 启动。记录包的提交号与 Windows 真机验收结果。
 
 开发者可在仓库根目录运行 `python3 tools/check-repo.py`。分支协作见 [AGENTS.md](AGENTS.md)，灰盒布局与像素换算见 [D1 灰盒记录](docs/守望-D1-灰盒与制作环境.md) 和 [D2 画布记录](docs/守望-D2-输入与试玩层.md)。
+## 开发协作
+
+### 分支与提交
+
+从已包含完整玩法和前端的整合分支创建任务分支，不要在 `main` 上直接开发：
+
+```sh
+git switch feature/watch-integrated
+git pull --ff-only
+git switch -c feature/<简短任务名>
+```
+
+完成修改并在 Dora SSR 中构建、运行验证后，提交并推送：
+
+```sh
+git add init.ts init.lua
+git commit -m "描述这次修改"
+git push -u <remote> feature/<简短任务名>
+```
+
+本仓库当前的远端名是 `dora-game`；Fork 后通常为 `origin`。推送后在 GitHub 上向本仓库发起 Pull Request。
+
+### 提交前检查
+
+- `git status` / `git diff` 中没有无关文件、密钥或构建产物。
+- 在 Dora SSR 中重新构建 `init.ts`，并运行场景确认无报错。
+- 同时提交 `init.ts` 和生成的 `init.lua`。
+- 不提交 `.agent/`、`.cache/`、`.build/`、`.download/`、`.upload/` 或任何密钥文件。
+
+### 长任务协作
+
+预计超过 30 分钟、涉及多个文件或多次提交的任务，必须遵守：
+
+- 每 30—60 分钟，或每完成一个可验证阶段，提交并推送到当前任务分支。
+- 推送前执行 `git fetch --all --prune`，检查其他活跃分支是否有相关代码。
+- 如果其他分支已实现相同能力，优先复用；如果修改了当前依赖的接口，评估适配、合并或 rebase。
+- 无法判断分支意图、影响范围或冲突处理方式时，停止修改并询问用户，不要猜测。
+- 禁止未经确认 force push、删除远端分支或改写已推送历史。
+
+完整规范见 [`AGENTS.md`](./AGENTS.md)。
 
 ## 开发节奏
 
