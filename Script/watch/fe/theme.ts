@@ -39,46 +39,46 @@ export function lerpRGBA(a: RGBA, b: RGBA, t: number): RGBA {
 
 /** 通用 ICEY 功能色 Token */
 export const PALETTE = {
-    voidDark: rgba(5, 8, 14, 255),
-    panelBg: rgba(9, 14, 24, 218),
-    panelBgDeep: rgba(6, 10, 18, 238),
-    steelDark: rgba(20, 28, 42, 255),
-    steelMid: rgba(34, 46, 66, 255),
-    steelLight: rgba(68, 86, 114, 255),
-    rimSilver: rgba(148, 178, 210, 255),
+    voidDark: rgba(16, 17, 24, 255),
+    panelBg: rgba(25, 25, 32, 230),
+    panelBgDeep: rgba(19, 19, 25, 242),
+    steelDark: rgba(36, 33, 39, 255),
+    steelMid: rgba(57, 53, 57, 255),
+    steelLight: rgba(110, 98, 91, 255),
+    rimSilver: rgba(142, 128, 114, 255),
 
-    // 周戍 / 战术 / ICEY 标志冰青
-    cyanCore: rgba(215, 250, 255, 255),
-    cyan: rgba(72, 224, 255, 255),
-    cyanDim: rgba(32, 128, 168, 255),
-    cyanGlow: rgba(56, 210, 255, 110),
+    // 周戍的冷月轮廓
+    cyanCore: rgba(223, 222, 208, 255),
+    cyan: rgba(149, 176, 184, 255),
+    cyanDim: rgba(101, 115, 126, 255),
+    cyanGlow: rgba(149, 176, 184, 94),
 
     // 小满 / 指南针 / 塔灯暖琥珀
-    amberCore: rgba(255, 242, 212, 255),
-    amber: rgba(242, 188, 96, 255),
-    amberDim: rgba(154, 112, 54, 255),
-    amberGlow: rgba(246, 196, 108, 100),
+    amberCore: rgba(251, 229, 182, 255),
+    amber: rgba(222, 171, 105, 255),
+    amberDim: rgba(142, 105, 74, 255),
+    amberGlow: rgba(222, 171, 105, 96),
 
     // 敌意 / 预警 / 红布绯红
-    crimsonCore: rgba(255, 206, 214, 255),
-    crimson: rgba(255, 48, 82, 255),
-    crimsonDeep: rgba(176, 28, 48, 255),
-    crimsonGlow: rgba(255, 42, 78, 110),
+    crimsonCore: rgba(248, 195, 161, 255),
+    crimson: rgba(215, 115, 98, 255),
+    crimsonDeep: rgba(137, 67, 63, 255),
+    crimsonGlow: rgba(215, 115, 98, 95),
 
-    // 安全 / 同步完成 / 玻璃瓶翡翠青
-    emerald: rgba(84, 232, 168, 255),
-    emeraldDim: rgba(38, 118, 88, 255),
+    // 安全区与草叶
+    emerald: rgba(163, 184, 139, 255),
+    emeraldDim: rgba(99, 128, 102, 255),
 
     // 文字
-    textBright: rgba(238, 244, 252, 255),
-    textMid: rgba(164, 182, 206, 255),
-    textDim: rgba(102, 120, 146, 255),
+    textBright: rgba(245, 231, 204, 255),
+    textMid: rgba(201, 193, 178, 255),
+    textDim: rgba(163, 155, 152, 255),
 
     // 道具
-    cartWood: rgba(82, 54, 44, 255),
-    cartMetal: rgba(114, 126, 142, 255),
-    clothRed: rgba(216, 40, 56, 255),
-    clothRedHighlight: rgba(252, 92, 104, 255),
+    cartWood: rgba(104, 73, 55, 255),
+    cartMetal: rgba(125, 110, 97, 255),
+    clothRed: rgba(162, 60, 48, 255),
+    clothRedHighlight: rgba(214, 106, 81, 255),
 };
 
 export type AmbientKind = "ash" | "drizzle" | "spores" | "motes";
@@ -115,7 +115,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         key: "prologue",
         actCode: "ACT 01",
         titleZh: "序章 · 倒柜后",
-        titleEn: "PROLOGUE // BROKEN WARD",
+        titleEn: "BROKEN WARD",
         lineTag: "SOLDIER LINE",
         skyTop: rgba(5, 8, 16, 255),
         skyMid: rgba(11, 20, 36, 255),
@@ -297,7 +297,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         key: "tower",
         actCode: "ACT 08",
         titleZh: "北塔 · 最后一行",
-        titleEn: "EPILOGUE // THE NORTH TOWER",
+        titleEn: "THE NORTH TOWER",
         lineTag: "EPILOGUE",
         skyTop: rgba(6, 10, 20, 255),
         skyMid: rgba(16, 26, 46, 255),

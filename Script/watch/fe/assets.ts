@@ -1,49 +1,108 @@
-/**
- * 可插拔图像资产槽位注册表。
- *
- * 本分支（独立前端分支）不含 AI 生图类外部图像文件，全部默认回退到高完成度程序化矢量渲染。
- * 下游「完整前端分支」接入生图资产时，只需把对应 PNG / clip 路径填入 ASSET_SLOTS，
- * 前端会自动用真实 Sprite 替换或叠加对应槽位，无需改动 HUD、镜头、特效与状态机。
- */
-
-import { Content, Node, Sprite, Vec2 } from "Dora";
+import { Content, Node, Sprite, TextureFilter, Vec2 } from "Dora";
 
 export type AssetSlotKey =
     | "bgFar_prologue" | "bgFar_street" | "bgFar_checkpoint" | "bgFar_gate"
     | "bgFar_outside" | "bgFar_village" | "bgFar_forest" | "bgFar_tower"
-    | "bgMid_prologue" | "bgMid_street" | "bgMid_checkpoint" | "bgMid_gate"
-    | "bgMid_outside" | "bgMid_village" | "bgMid_forest" | "bgMid_tower"
     | "soldier_idle" | "soldier_run" | "soldier_roll" | "soldier_cover"
-    | "child_idle" | "child_run" | "child_crouch" | "child_fear"
-    | "enemy_idle" | "enemy_aim" | "enemy_down"
-    | "scavenger" | "dog"
-    | "prop_cart" | "prop_bottle" | "prop_tower_door"
-    | "title_backdrop";
+    | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire"
+    | "child_idle" | "child_run" | "child_crouch" | "child_fear" | "child_peek"
+    | "child_pull" | "child_aim" | "child_throw" | "child_knock" | "child_offer"
+    | "enemy_idle" | "enemy_aim" | "enemy_down" | "enemy_hit" | "scavenger" | "dog"
+    | "prop_cart" | "prop_bottle" | "prop_tower_door" | "prop_lantern" | "prop_table"
+    | "prop_compass" | "prop_winch" | "wall" | "cover_wood" | "cover_stone" | "fence"
+    | "slab" | "eaves" | "pine" | "grass" | "grass_low"
+    | "stone_chips" | "ui_corner" | "ui_paper" | "title_backdrop";
 
-export interface AssetSlotConfig {
-    path?: string;
-    anchorX?: number;
-    anchorY?: number;
-    scale?: number;
+interface AssetSlotConfig {
+    paths: string[];
+    anchorY: number;
+    preserveAspect: boolean;
 }
 
-/**
- * 留空表示使用本分支的程序化 ICEY 矢量绘制。
- * 完整前端分支在此填写相对路径（如 "assets/art/soldier_idle.png"）。
- */
-export const ASSET_SLOTS: Partial<Record<AssetSlotKey, AssetSlotConfig>> = {};
-
-interface CachedSlot {
-    checked: boolean;
-    exists: boolean;
-    sprite?: Sprite.Type;
+export interface SpritePlacement {
+    facing?: number;
+    opacity?: number;
+    frame?: number;
+    angle?: number;
+    layer?: number;
 }
 
-/** 轻量 Sprite 槽位宿主：每帧仅激活实际有外部贴图资源的槽位。 */
+function backdrop(name: string): AssetSlotConfig {
+    return { paths: ["assets/art/" + name + ".png"], anchorY: 0, preserveAspect: false };
+}
+
+function clip(names: string | string[], anchorY: number = 0, preserveAspect: boolean = false): AssetSlotConfig {
+    const frames = typeof names === "string" ? [names] : names;
+    return { paths: frames.map(name => "assets/art/sprites.clip|" + name), anchorY, preserveAspect };
+}
+
+function actor(names: string | string[]): AssetSlotConfig {
+    return clip(names, 0, true);
+}
+
+export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
+    bgFar_prologue: backdrop("prologue"),
+    bgFar_street: backdrop("street"),
+    bgFar_checkpoint: backdrop("checkpoint"),
+    bgFar_gate: backdrop("gate"),
+    bgFar_outside: backdrop("outside"),
+    bgFar_village: backdrop("village"),
+    bgFar_forest: backdrop("forest"),
+    bgFar_tower: backdrop("tower"),
+    title_backdrop: backdrop("title"),
+    soldier_idle: actor("soldier_idle"),
+    soldier_run: actor(["soldier_run", "soldier_idle", "soldier_step", "soldier_idle"]),
+    soldier_roll: actor("soldier_roll"),
+    soldier_cover: actor("soldier_cover"),
+    soldier_push: actor(["soldier_push", "soldier_push_step"]),
+    soldier_hold: actor("soldier_hold"),
+    soldier_offer: actor("soldier_offer"),
+    soldier_knock: actor(["soldier_cover", "soldier_knock"]),
+    soldier_hit: actor("soldier_hit"),
+    soldier_fire: actor("soldier_fire"),
+    child_idle: actor("child_idle"),
+    child_run: actor(["child_run", "child_idle", "child_step", "child_idle"]),
+    child_crouch: actor(["child_crouch", "child_crouch_step"]),
+    child_fear: actor("child_fear"),
+    child_peek: actor("child_peek"),
+    child_pull: actor(["child_pull", "child_pull_step"]),
+    child_aim: actor("child_aim"),
+    child_throw: actor("child_throw"),
+    child_knock: actor("child_knock"),
+    child_offer: actor("child_offer"),
+    enemy_idle: actor("enemy_idle"),
+    enemy_aim: actor("enemy_aim"),
+    enemy_down: actor("enemy_down"),
+    enemy_hit: actor("enemy_hit"),
+    scavenger: actor(["scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"]),
+    dog: actor(["dog_idle", "dog_alert", "dog_run", "dog_sniff"]),
+    prop_cart: clip("cart"),
+    prop_bottle: clip("bottle", 0.5, true),
+    prop_tower_door: clip("door"),
+    prop_lantern: clip("lantern", 0.5, true),
+    prop_table: clip("table"),
+    prop_compass: clip("compass", 0.5, true),
+    prop_winch: clip("winch", 0.5, true),
+    wall: clip("wall"),
+    cover_wood: clip("cover_wood"),
+    cover_stone: clip("cover_stone"),
+    fence: clip("fence"),
+    slab: clip("slab"),
+    eaves: clip("eaves"),
+    pine: clip("pine"),
+    grass: clip("grass"),
+    grass_low: clip("grass_low"),
+    stone_chips: clip("stone_chips", 0.5, true),
+    ui_corner: clip("ui_corner"),
+    ui_paper: clip("paper", 0.5),
+};
+
 export class AssetSlotHost {
     private container: Node.Type;
-    private cache: Record<string, CachedSlot> = {};
-    private usedThisFrame: Record<string, boolean> = {};
+    private sprites: Record<string, Sprite.Type> = {};
+    private unavailable: Record<string, boolean> = {};
+    private visibleLastFrame: Record<string, Sprite.Type> = {};
+    private visibleThisFrame: Record<string, Sprite.Type> = {};
 
     constructor(parent: Node.Type, order: number) {
         this.container = Node();
@@ -51,78 +110,61 @@ export class AssetSlotHost {
         this.container.addTo(parent);
     }
 
-    /** 帧首重置：隐藏上一帧启用但本帧未出现的 Sprite。 */
     beginFrame(): void {
-        this.usedThisFrame = {};
+        this.visibleThisFrame = {};
     }
 
-    /**
-     * 尝试用外部贴图绘制指定槽位。
-     * 返回 true 表示外部图像已接管绘制；返回 false 表示继续走程序化矢量回退。
-     */
     tryPlace(
         slotKey: AssetSlotKey,
         instanceKey: string,
-        x: number,
-        y: number,
-        targetW: number,
-        targetH: number,
-        facing: number = 1,
-        opacity: number = 1,
+        x: number, y: number, targetW: number, targetH: number,
+        options: SpritePlacement = {},
     ): boolean {
         const cfg = ASSET_SLOTS[slotKey];
-        if (cfg === undefined || cfg.path === undefined || cfg.path === "") {
+        if (cfg === undefined || targetW <= 0 || targetH <= 0) {
             return false;
         }
-        let entry = this.cache[instanceKey];
-        if (entry === undefined) {
-            const exists = Content.exist(cfg.path);
-            entry = { checked: true, exists };
-            if (exists) {
-                const sp = Sprite(cfg.path);
-                if (sp !== undefined) {
-                    sp.anchor = Vec2(cfg.anchorX !== undefined ? cfg.anchorX : 0.5, cfg.anchorY !== undefined ? cfg.anchorY : 0);
-                    sp.addTo(this.container);
-                    entry.sprite = sp;
-                } else {
-                    entry.exists = false;
-                }
+        const frame = (options.frame ?? 0) % cfg.paths.length;
+        const path = cfg.paths[frame];
+        const key = instanceKey + ":" + path;
+        let sprite = this.sprites[key];
+        if (sprite === undefined) {
+            if (this.unavailable[path]) {
+                return false;
             }
-            this.cache[instanceKey] = entry;
+            const divider = path.indexOf("|");
+            const file = divider < 0 ? path : path.slice(0, divider);
+            const loaded = Content.exist(file) ? Sprite(path) : undefined;
+            if (loaded === undefined) {
+                this.unavailable[path] = true;
+                return false;
+            }
+            loaded.anchor = Vec2(0.5, cfg.anchorY);
+            loaded.filter = TextureFilter.Point;
+            loaded.addTo(this.container);
+            this.sprites[key] = loaded;
+            sprite = loaded;
         }
-        if (!entry.exists || entry.sprite === undefined) {
-            return false;
-        }
-        const sp = entry.sprite;
-        const sw = sp.width > 0 ? sp.width : 1;
-        const sh = sp.height > 0 ? sp.height : 1;
-        const baseScale = cfg.scale !== undefined ? cfg.scale : 1;
-        const sx = (targetW / sw) * baseScale * (facing < 0 ? -1 : 1);
-        const sy = (targetH / sh) * baseScale;
-        sp.position = Vec2(x, y);
-        sp.scaleX = sx;
-        sp.scaleY = sy;
-        sp.opacity = opacity;
-        sp.visible = true;
-        this.usedThisFrame[instanceKey] = true;
+
+        const scaleY = targetH / Math.max(1, sprite.height);
+        const scaleX = cfg.preserveAspect ? scaleY : targetW / Math.max(1, sprite.width);
+        sprite.position = Vec2(Math.round(x), Math.round(y));
+        sprite.scaleX = (options.facing ?? 1) < 0 ? -scaleX : scaleX;
+        sprite.scaleY = scaleY;
+        sprite.angle = options.angle ?? 0;
+        sprite.order = options.layer ?? 0;
+        sprite.opacity = options.opacity ?? 1;
+        sprite.visible = true;
+        this.visibleThisFrame[key] = sprite;
         return true;
     }
 
-    /** 帧尾清理本帧未命中的 Sprite。 */
     endFrame(): void {
-        for (const key in this.cache) {
-            if (!this.usedThisFrame[key]) {
-                const sp = this.cache[key].sprite;
-                if (sp !== undefined) {
-                    sp.visible = false;
-                }
+        for (const key in this.visibleLastFrame) {
+            if (this.visibleThisFrame[key] === undefined) {
+                this.visibleLastFrame[key].visible = false;
             }
         }
-    }
-
-    /** 检查是否至少挂载了一张外部图。 */
-    hasExternalAsset(slotKey: AssetSlotKey): boolean {
-        const cfg = ASSET_SLOTS[slotKey];
-        return cfg !== undefined && cfg.path !== undefined && cfg.path !== "" && Content.exist(cfg.path);
+        this.visibleLastFrame = this.visibleThisFrame;
     }
 }

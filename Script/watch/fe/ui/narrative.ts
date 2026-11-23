@@ -6,6 +6,7 @@
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
+import { AssetSlotHost } from "Script/watch/fe/assets";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import {
     PALETTE,
@@ -59,6 +60,7 @@ export class NarrativeRenderer {
     draw(
         uiDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
+        art: AssetSlotHost,
         texts: TextPool,
         p: Play,
         w: number,
@@ -79,8 +81,8 @@ export class NarrativeRenderer {
         }
 
         // 3. 北塔尾声「登记簿空行」专属仪式卡片
-        if (p.room.key === "tower" && (p.phase === "tower-end" || (p.phase === "tower-given" && p.phaseTick >= 96))) {
-            this.drawTowerRegistryCard(uiDraw, uiGlow, texts, p, w, h);
+        if (p.room.key === "tower" && (p.phase === "tower-end" || (p.phase === "tower-given" && p.phaseTick >= 120))) {
+            this.drawTowerRegistryCard(uiDraw, uiGlow, art, texts, p, w, h);
         }
 
         // 4. 底部艾希式旁白 / 系统指令字幕条（永远清晰、克制、不含坐标杂讯）
@@ -146,9 +148,9 @@ export class NarrativeRenderer {
                 return { speaker: "WARN // 锁敌", text: "敌兵举枪瞄准 —— 贴住街垒按住 [SHIFT] 格挡，或左键先手击倒", urgent: true };
             }
             if (p.coverHug) {
-                return { speaker: "SYS // 掩体", text: "已贴靠掩体。左键点射压制来敌，守满四十五秒", urgent: false };
+                return { speaker: "掩体", text: "已贴靠掩体。左键点射压制来敌，守满四十五秒", urgent: false };
             }
-            return { speaker: "SYS // 守点", text: "前出至街垒左侧贴掩体，左键点射守住城门", urgent: false };
+            return { speaker: "守点", text: "前出至街垒左侧贴掩体，左键点射守住城门", urgent: false };
         }
 
         if (key === "gate" && p.phase === "gate-count") {
@@ -196,7 +198,7 @@ export class NarrativeRenderer {
                 if (p.enemies[i].alive) { alive += 1; }
             }
             if (alive > 0) {
-                return { speaker: "SYS // 交火", text: "前方街心有封锁敌兵。鼠标瞄准左键点射，空格贴矮台可翻越", urgent: false };
+                return { speaker: "交火", text: "前方街心有封锁敌兵。鼠标瞄准左键点射，空格贴矮台可翻越", urgent: false };
             }
             return { speaker: "NARRATOR", text: "街心安静了。带她继续向右，前往城邦检查站", urgent: false };
         }
@@ -209,9 +211,9 @@ export class NarrativeRenderer {
                 return { speaker: "NARRATOR", text: "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent: false };
             }
             if (!p.cartDocked) {
-                return { speaker: "SYS // 机关", text: "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent: false };
+                return { speaker: "机关", text: "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent: false };
             }
-            return { speaker: "SYS // 出口", text: "车轮落窝了。与小满一同站进右侧双人出口，推开城门", urgent: false };
+            return { speaker: "出口", text: "车轮落窝了。与小满一同站进右侧双人出口，推开城门", urgent: false };
         }
 
         if (key === "gate") {
@@ -233,7 +235,7 @@ export class NarrativeRenderer {
                 return { speaker: "NARRATOR", text: "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent: false };
             }
             if (p.checkpoint < 380) {
-                return { speaker: "SYS // 潜行", text: "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent: false };
+                return { speaker: "潜行", text: "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent: false };
             }
             return { speaker: "NARRATOR", text: "穿过矮拱，沿墙根小路向北塔灯火前行", urgent: false };
         }
@@ -243,7 +245,7 @@ export class NarrativeRenderer {
                 return { speaker: "ALERT // 暴露", text: "拾荒者追上来了！迅速蹲伏或钻进桌底甩开视线", urgent: true };
             }
             if (p.hasBottle) {
-                return { speaker: "SYS // 诱敌", text: "按住 [F] 瞄准右侧砖地，松手投瓶 —— 趁他转身走开，按 [CTRL] 钻过桌下", urgent: false };
+                return { speaker: "诱敌", text: "按住 [F] 瞄准右侧砖地，松手投瓶 —— 趁他转身走开，按 [CTRL] 钻过桌下", urgent: false };
             }
             if (p.passed) {
                 return { speaker: "NARRATOR", text: "越过了第一院。继续向右，走进通往北塔的森林", urgent: false };
@@ -304,6 +306,7 @@ export class NarrativeRenderer {
     private drawTowerRegistryCard(
         uiDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
+        art: AssetSlotHost,
         texts: TextPool,
         p: Play,
         w: number,
@@ -318,7 +321,9 @@ export class NarrativeRenderer {
         fillChamferBox(uiDraw, cx, cy, cardW, cardH, 18, toColor(PALETTE.panelBgDeep, 242), 1.5, toColor(PALETTE.amber, 210));
         fillVGradRect(uiGlow, cx, cy + cardH - 52, cardW, 52, Color(242, 188, 96, 0), Color(242, 188, 96, 48));
 
-        texts.put("xs", "NORTH TOWER ARCHIVE  //  北塔入塔登记簿 · 末页", cx + 26, cy + cardH - 22, toColor(PALETTE.amber), 0, 0.5, TextAlign.Left, 1.2, 1);
+        art.tryPlace("ui_paper", "registry_paper", cx + cardW * 0.5, cy + cardH * 0.5, cardW - 20, cardH - 16,
+            { opacity: 0.14 });
+        texts.put("xs", "北塔登记簿 · 末页", cx + 26, cy + cardH - 22, toColor(PALETTE.amber), 0, 0.5, TextAlign.Left, 1.2, 1);
         uiDraw.drawSegment(Vec2(cx + 22, cy + cardH - 40), Vec2(cx + cardW - 22, cy + cardH - 40), 1.1, toColor(PALETTE.amberDim, 180));
 
         // 登记条目
@@ -332,8 +337,8 @@ export class NarrativeRenderer {
         texts.put("sm", "#042   ____________________________  （空行留待）", cx + 28, blankY + 4, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.5, 0.88 * pulse);
 
         if (p.phase === "tower-end") {
-            texts.put("md", "月下山谷 · 守望", w * 0.5, cy + 52, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 3.0, 1);
-            texts.put("xs", "[E] 再次启程     ·     [ESC] 系统菜单", w * 0.5, cy + 24, toColor(PALETTE.cyan), 0.5, 0.5, TextAlign.Center, 1.2, 0.95);
+            texts.put("md", "向西守望", w * 0.5, cy + 52, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 3.0, 1);
+            texts.put("xs", "[E] 再次启程     ·     [ESC] 暂停菜单", w * 0.5, cy + 24, toColor(PALETTE.cyan), 0.5, 0.5, TextAlign.Center, 1.2, 0.95);
         }
     }
 
@@ -359,7 +364,6 @@ export class NarrativeRenderer {
         uiGlow.drawSegment(Vec2(w * 0.5 - lineW * 0.5, cy - 2), Vec2(w * 0.5 + lineW * 0.5, cy - 2), 1.6, toColor(theme.accent, 210 * alpha));
         drawDiamond(uiGlow, w * 0.5, cy - 2, 5, 5, toColor(PALETTE.cyanCore, 230 * alpha));
 
-        texts.put("lg", theme.actCode + "  ·  " + theme.titleZh, w * 0.5, cy + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 2.2, alpha);
-        texts.put("xs", theme.titleEn, w * 0.5, cy - 20, toColor(theme.accent), 0.5, 0.5, TextAlign.Center, 2.0, alpha * 0.9);
+        texts.put("lg", theme.titleZh, w * 0.5, cy + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 2.2, alpha);
     }
 }

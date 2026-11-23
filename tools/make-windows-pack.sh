@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# 从 Dora SSR 官方 Windows 发行包组装「守望」试玩包。
+# 从 Dora SSR 官方 Windows 发行包组装《向西守望》离线试玩包。
 #
 # 前置：把 dora-ssr-v1.10.2-windows-x64.zip 解压到 .download/win/，
-#       并在仓库根跑过一次 TS 构建（要拿到最新的 init.lua 与 Script/watch/*.lua）。
+#       并在仓库根跑过一次 TS 构建（要拿到最新的 init.lua 与 Script/watch 下的各层 Lua）。
 #
 # 用法：tools/make-windows-pack.sh
 # 产物：dist/watch-windows-x64/ 与 dist/watch-windows-x64.zip
@@ -24,8 +24,13 @@ if [ ! -f "$SRC/Dora.exe" ]; then
     echo "缺少发行包：请把 dora-ssr-v1.10.2-windows-x64.zip 解压到 .download/win/" >&2
     exit 1
 fi
-if [ ! -f "$ROOT/init.lua" ] || [ ! -d "$ROOT/Script/watch" ]; then
+if [ ! -f "$ROOT/init.lua" ] || [ ! -f "$ROOT/Script/watch/fe/frontend.lua" ]; then
     echo "缺少构建产物：先在仓库根执行一次 TS 构建。" >&2
+    exit 1
+fi
+
+if [ ! -f "$ROOT/assets/art/sprites.clip" ] || [ ! -f "$ROOT/assets/art/title.png" ]; then
+    echo "缺少正式游戏素材，请检查 assets/art/。" >&2
     exit 1
 fi
 
@@ -50,12 +55,14 @@ rsync -a \
 cp "$ROOT/tools/windows-boot.lua" "$OUT/Script/init.lua"
 cp "$ROOT/init.lua" "$OUT/Script/main.lua"
 mkdir -p "$OUT/Script/watch"
-cp "$ROOT"/Script/watch/*.lua "$OUT/Script/watch/"
+rsync -a --include='*/' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
+mkdir -p "$OUT/assets/art"
+rsync -a "$ROOT/assets/art/" "$OUT/assets/art/"
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
 
 cat > "$OUT/启动.cmd" <<'CMD'
 @echo off
-rem 守望 · Windows 试玩包
+rem 向西守望 · Windows 试玩包
 rem 双击本文件或 Dora.exe 都可以。若系统提示“已保护你的电脑”，
 rem 点“更多信息 -> 仍要运行”。
 cd /d "%~dp0"

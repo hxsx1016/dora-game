@@ -1,10 +1,4 @@
-/**
- * 4 层视差 2.5D 艾希风格舞台渲染器（远景天际 / 中景工业骨架 / 逻辑实体平面 / 近景压边与暗角）。
- *
- * 所有建筑实体严格读取 RoomSpec 世界坐标，确保碰撞盒与视觉 1:1 吻合；
- * 同时通过多层切面、金属高光顶边、体积探照灯、远方北塔灯标与底部雾气，
- * 在零外部贴图前提下实现冷峻高对比度的《艾希》式工业废土氛围。
- */
+/** 远景、视差装饰和按碰撞尺寸绘制的场景贴图。 */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
@@ -55,6 +49,19 @@ export class StageRenderer {
         const theme = themeOf(p.room.key);
         const seed = roomSeed(p.room.key);
 
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const farSlot = ("bgFar_" + p.room.key) as AssetSlotKey;
+        const artW = Math.max(w, h * 16 / 9) + w * 0.12;
+        const artH = artW * 9 / 16;
+        if (assets.tryPlace(farSlot, "scene", w * (0.5 - progress * 0.09), (h - artH) * 0.5, artW, artH)) {
+            this.drawDressing(assets, p, cam, progress);
+            const y = cam.groundScreenY;
+            fillVGradRect(bgDraw, 0, 0, w, h, toColor(PALETTE.voidDark), toColor(theme.skyMid));
+            fillVGradRect(bgGlow, 0, y - 1, w, h * 0.14, Color(43, 49, 63, 15), Color(43, 49, 63, 0));
+            return;
+        }
+
         // 1. 多段垂直渐变天穹
         const splitY = h * 0.46;
         fillVGradRect(bgDraw, 0, splitY, w, h - splitY, toColor(theme.skyMid), toColor(theme.skyTop));
@@ -72,38 +79,18 @@ export class StageRenderer {
             bgDraw.drawCircle(Vec2(mx + mr * 0.28, my + mr * 0.16), mr * 0.84, toColor(theme.skyTop, 110));
         }
 
-        // 3. 远景外挂生图槽位（完整前端分支若挂载 PNG 将自动启用）
-        const farSlot = ("bgFar_" + p.room.key) as AssetSlotKey;
-        const hasFarArt = assets.tryPlace(farSlot, "stage_far_" + p.room.key, w * 0.5, 0, w, h, 1, 1);
-
-        if (!hasFarArt) {
-            // 扫掠体积探照灯（城市/城门段，强化 ICEY 反乌托邦监视压迫感）
-            if (theme.showSearchlights) {
-                this.drawSearchlights(bgGlow, w, h, cam, theme, time, seed);
-            }
-
-            // 远景建筑剪影 / 森林山脊（0.20x 视差）
-            if (p.room.key === "forest") {
-                this.drawFarForest(bgDraw, w, h, cam, theme, seed);
-            } else {
-                this.drawFarCity(bgDraw, bgGlow, w, h, cam, theme, seed);
-            }
-
-            // 孩子线远方北塔灯塔（地平线右端永恒的视觉信标）
-            if (theme.showTowerBeacon) {
-                this.drawDistantNorthTower(bgDraw, bgGlow, w, h, cam, p, time);
-            }
+        if (p.room.key === "forest") {
+            this.drawFarForest(bgDraw, w, h, cam, theme, seed);
+            this.drawMidForest(bgDraw, bgGlow, w, h, cam, theme, time, seed);
+        } else {
+            this.drawFarCity(bgDraw, bgGlow, w, h, cam, theme, seed);
+            this.drawMidArchitecture(bgDraw, bgGlow, w, h, cam, theme, time, seed);
         }
-
-        // 4. 中景工业骨架 / 破损街灯 / 垂落电缆（0.48x 视差）
-        const midSlot = ("bgMid_" + p.room.key) as AssetSlotKey;
-        const hasMidArt = assets.tryPlace(midSlot, "stage_mid_" + p.room.key, w * 0.5, 0, w, h, 1, 1);
-        if (!hasMidArt) {
-            if (p.room.key === "forest") {
-                this.drawMidForest(bgDraw, bgGlow, w, h, cam, theme, time, seed);
-            } else {
-                this.drawMidArchitecture(bgDraw, bgGlow, w, h, cam, theme, time, seed);
-            }
+        if (theme.showSearchlights) {
+            this.drawSearchlights(bgGlow, w, h, cam, theme, time, seed);
+        }
+        if (theme.showTowerBeacon) {
+            this.drawDistantNorthTower(bgDraw, bgGlow, w, h, cam, p, time);
         }
 
         // 5. 底部大气深度雾气（把背景与逻辑前景锐利切开，艾希经典景深手法）
@@ -117,6 +104,26 @@ export class StageRenderer {
             toColor(theme.fogBottom),
             Color(theme.fogBottom.r, theme.fogBottom.g, theme.fogBottom.b, 0),
         );
+    }
+
+    private drawDressing(assets: AssetSlotHost, p: Play, cam: CameraDirector, progress: number): void {
+        const w = cam.viewW;
+        const ground = cam.groundScreenY;
+        const x = w * (0.75 - progress * 0.29);
+        if (p.room.key === "forest" || p.room.key === "outside" || p.room.key === "tower") {
+            assets.tryPlace("pine", "mid_pine", x, ground - cam.len(12), cam.len(124), cam.len(138),
+                { layer: 1, opacity: 0.52 });
+        } else if (p.room.key === "prologue" || p.room.key === "village" || p.room.key === "checkpoint") {
+            assets.tryPlace("eaves", "mid_eaves", x, ground - cam.len(8), cam.len(186), cam.len(104),
+                { layer: 1, opacity: 0.46 });
+        } else {
+            assets.tryPlace("cover_stone", "mid_ruin", x, ground - cam.len(8), cam.len(140), cam.len(48),
+                { layer: 1, opacity: 0.46 });
+        }
+        if (p.room.key === "street" || p.room.key === "checkpoint" || p.room.key === "prologue") {
+            assets.tryPlace("prop_lantern", "mid_lantern", w * (0.27 - progress * 0.21),
+                ground + cam.len(92), cam.len(22), cam.len(30), { layer: 2, opacity: 0.82 });
+        }
     }
 
     /** 标题菜单专用动态背景（无需 Play 实例即可直接绘制高氛围冷月废墟舞台） */
@@ -255,27 +262,18 @@ export class StageRenderer {
     drawPlayableWorld(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         time: number,
     ): void {
         const theme = themeOf(p.room.key);
-
-        // 1. 地面与悬空台面
-        this.drawFloors(fgDraw, fgGlow, p, cam, theme);
-
-        // 2. 台阶（建筑石阶 / 森林矮台）
-        this.drawStairs(fgDraw, fgGlow, p, cam, theme);
-
-        // 3. 实体（按标签类型走专属 ICEY 工业/叙事外观）
-        this.drawSolids(fgDraw, fgGlow, p, cam, theme, time);
-
-        // 4. 城门动态降落重型闸门（随 45 秒守点与关门阶段真实下压）
+        this.drawFloors(fgDraw, assets, p, cam, theme);
+        this.drawStairs(fgDraw, fgGlow, assets, p, cam, theme);
+        this.drawSolids(fgDraw, fgGlow, assets, p, cam, theme, time);
         if (p.room.key === "gate") {
-            this.drawGateShutter(fgDraw, fgGlow, p, cam, time);
+            this.drawGateShutter(fgDraw, fgGlow, assets, p, cam, time);
         }
-
-        // 5. 低拱洞 / 村口桌下净空
         this.drawArch(fgDraw, fgGlow, p, cam, theme);
     }
 
@@ -571,62 +569,44 @@ export class StageRenderer {
 
     private drawFloors(
         fgDraw: DrawNode.Type,
-        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         theme: RoomTheme,
     ): void {
-        let i = 0;
-        for (i = 0; i < p.room.floors.length; i++) {
-            const f = p.room.floors[i];
-            const x0 = cam.sx(f.x0);
-            const x1 = cam.sx(f.x1);
-            const y = cam.sy(f.y);
-            const isMain = f.y <= 0.1;
-
-            if (isMain) {
-                // 主地面：深沉基底 + 工业地砖分缝 + 顶部冷光高光沿
-                fillVGradRect(fgDraw, x0, 0, x1 - x0, y, toColor(PALETTE.voidDark), toColor(theme.groundBody));
-                fgDraw.drawRect(Rect(x0, y - 10, x1 - x0, 10), toColor(theme.groundTop));
-                fgDraw.drawSegment(Vec2(x0, y), Vec2(x1, y), 1.8, toColor(theme.groundRim));
-                fgGlow.drawSegment(Vec2(x0, y + 1), Vec2(x1, y + 1), 1.2, toColor(theme.accent, 65));
-
-                // 地面伸缩缝与透视短线
-                const jointStep = cam.len(64);
-                if (jointStep > 16) {
-                    let gx = x0;
-                    while (gx < x1) {
-                        fgDraw.drawSegment(Vec2(gx, y - 2), Vec2(gx - 14, y - 28), 1, Color(42, 56, 76, 120));
-                        gx += jointStep;
-                    }
-                }
-            } else {
-                // 悬空装卸台面（如城外 y=96、墙根石台 y=64）：厚重钢结构桁架 + 下方投影
-                const deckH = Math.max(14, cam.len(9));
-                // 下方阴影带
-                fillVGradRect(fgDraw, x0, y - deckH - 26, x1 - x0, 26, Color(4, 6, 10, 0), Color(4, 6, 10, 155));
-                fgDraw.drawRect(Rect(x0, y - deckH, x1 - x0, deckH), toColor(PALETTE.steelDark));
-                fgDraw.drawRect(Rect(x0, y - 4, x1 - x0, 4), toColor(theme.groundTop));
-                fgDraw.drawSegment(Vec2(x0, y), Vec2(x1, y), 1.8, toColor(theme.groundRim));
-                fgDraw.drawSegment(Vec2(x0, y - deckH), Vec2(x1, y - deckH), 1.2, toColor(PALETTE.steelLight, 150));
-
-                // 钢桁架斜撑
-                const trussStep = Math.max(24, cam.len(26));
-                let tx = x0 + 6;
-                while (tx + trussStep < x1) {
-                    fgDraw.drawSegment(Vec2(tx, y - deckH + 2), Vec2(tx + trussStep * 0.5, y - 4), 1.1, toColor(PALETTE.steelLight, 120));
-                    fgDraw.drawSegment(Vec2(tx + trussStep * 0.5, y - 4), Vec2(tx + trussStep, y - deckH + 2), 1.1, toColor(PALETTE.steelLight, 120));
-                    tx += trussStep;
-                }
-                // 台面边缘警示斜纹
-                drawHazardStripes(fgDraw, x0 + 2, y - deckH + 2, Math.min(48, (x1 - x0) * 0.15), deckH - 5, 10, toColor(PALETTE.amber, 120));
+        const grass = p.room.key === "forest" || p.room.key === "outside";
+        for (let i = 0; i < p.room.floors.length; i++) {
+            const floor = p.room.floors[i];
+            const left = cam.sx(floor.x0);
+            const right = cam.sx(floor.x1);
+            const top = cam.sy(floor.y);
+            const isMain = floor.y <= 0.1;
+            const height = cam.len(isMain ? 22 : 12);
+            const bottom = top - height;
+            if (isMain && bottom > 0) {
+                fillVGradRect(fgDraw, left, 0, right - left, bottom + 1,
+                    toColor(PALETTE.voidDark), toColor(theme.groundBody));
             }
+            fgDraw.drawRect(Rect(left, bottom, right - left, height), toColor(PALETTE.steelDark));
+            const step = cam.len(96);
+            const start = Math.max(0, Math.floor(-left / step));
+            for (let j = start; left + j * step < Math.min(right, cam.viewW); j++) {
+                const x = left + j * step;
+                const width = Math.min(step, right - x);
+                assets.tryPlace("slab", "deck_" + i + "_" + j, x + width * 0.5, bottom, width, height);
+                if (grass && isMain && j % 3 === 1) {
+                    assets.tryPlace("grass_low", "edge_" + i + "_" + j, x + width * 0.5,
+                        top - cam.len(3), width * 0.74, cam.len(13), { opacity: 0.83, layer: 1 });
+                }
+            }
+            fgDraw.drawSegment(Vec2(left, top), Vec2(right, top), 1, toColor(theme.groundRim, 140));
         }
     }
 
     private drawStairs(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         theme: RoomTheme,
@@ -648,6 +628,10 @@ export class StageRenderer {
                 if (y1 > y0 + 2) {
                     fgDraw.drawRect(Rect(x0, y0, x1 - x0, y1 - y0), toColor(PALETTE.steelDark, 230));
                     fgDraw.drawRect(Rect(x0, y1 - 5, x1 - x0, 5), toColor(theme.groundTop));
+                    assets.tryPlace("wall", "stairs_" + i + "_" + k, (x0 + x1) * 0.5, y0,
+                        x1 - x0, y1 - y0, { opacity: 0.78 });
+                    assets.tryPlace("slab", "step_top_" + i + "_" + k, (x0 + x1) * 0.5, y1 - cam.len(5),
+                        x1 - x0, cam.len(5), { layer: 1 });
                 }
                 fgDraw.drawSegment(Vec2(x0, y1), Vec2(x1, y1), 1.8, toColor(theme.groundRim));
                 fgGlow.drawSegment(Vec2(x0, y1 + 1), Vec2(x1, y1 + 1), 1, toColor(theme.accent, 55));
@@ -658,6 +642,7 @@ export class StageRenderer {
     private drawSolids(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         theme: RoomTheme,
@@ -672,45 +657,57 @@ export class StageRenderer {
             const y1 = cam.sy(s.y + s.h);
             const sw = x1 - x0;
             const sh = y1 - y0;
-            if (sw <= 1 || sh <= 1) {
+            if (sw <= 1 || sh <= 1 || x1 < 0 || x0 > cam.viewW) {
                 continue;
             }
 
             // 1) 森林草丛（可穿过潜行植被）
             if (s.passable === true) {
-                this.drawGrassCluster(fgDraw, fgGlow, x0, y0, sw, sh, p.player.x, s.x + s.w * 0.5, time);
+                if (!assets.tryPlace("grass", "hide_grass_" + i, (x0 + x1) * 0.5, y0, sw, sh * 1.55,
+                    { opacity: 0.79, layer: 7 })) {
+                    this.drawGrassCluster(fgDraw, fgGlow, x0, y0, sw, sh, p.player.x, s.x + s.w * 0.5, time);
+                }
                 continue;
             }
 
             // 2) 城门绞盘
             if (s.label.indexOf("绞盘") >= 0) {
                 this.drawWinch(fgDraw, fgGlow, x0, y0, sw, sh, p, time);
+                assets.tryPlace("prop_winch", "gate_winch", (x0 + x1) * 0.5, y0 + sh * 0.55, sw, sh * 0.78,
+                    { layer: 2 });
                 continue;
             }
 
             // 3) 北塔塔身与门楣
             if (p.room.key === "tower") {
-                this.drawTowerStructure(fgDraw, fgGlow, x0, y0, sw, sh, s, p, time);
+                this.drawTowerStructure(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, time);
                 continue;
             }
 
             // 4) 矮掩体（柜台 / 街垒 / 倒柜 / 矮墙 / 队栏）
             if (s.h <= 64 && s.y <= 2) {
-                this.drawCoverBlock(fgDraw, fgGlow, x0, y0, sw, sh, s, p, theme);
+                this.drawCoverBlock(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, theme);
                 continue;
             }
 
-            // 5) 重型墙体 / 门框 / 城墙基座 / 院墙
             fillVGradRect(fgDraw, x0, y0, sw, sh, toColor(PALETTE.steelDark), toColor(PALETTE.steelMid));
-            fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.2, toColor(PALETTE.steelLight, 180));
-            // 内嵌装甲线与铆钉节奏
-            const inset = Math.min(10, sw * 0.14);
-            fgDraw.drawSegment(Vec2(x0 + inset, y0 + 10), Vec2(x0 + inset, y1 - 10), 1, toColor(PALETTE.voidDark, 150));
-            fgDraw.drawSegment(Vec2(x1 - inset, y0 + 10), Vec2(x1 - inset, y1 - 10), 1, toColor(PALETTE.voidDark, 150));
-            // 顶部高光切边
-            fgDraw.drawSegment(Vec2(x0, y1), Vec2(x1, y1), 2.0, toColor(theme.groundRim));
-            if (s.label.indexOf("城门") >= 0 || s.label.indexOf("门洞") >= 0 || s.label.indexOf("门楣") >= 0) {
-                drawHazardStripes(fgDraw, x0 + 2, y0 + 4, sw - 4, Math.min(14, sh * 0.2), 14, toColor(PALETTE.crimson, 130));
+            this.tileMasonry(assets, s, x0, y0, sw, sh);
+        }
+    }
+
+    private tileMasonry(
+        assets: AssetSlotHost, s: SolidSpec,
+        x: number, y: number, width: number, height: number,
+    ): void {
+        const columns = Math.max(1, Math.ceil(s.w / 154));
+        const rows = Math.max(1, Math.ceil(s.h / 100));
+        const tileW = width / columns;
+        const tileH = height / rows;
+        for (let row = 0; row < rows; row++) {
+            for (let column = 0; column < columns; column++) {
+                assets.tryPlace("wall", "masonry_" + s.x + "_" + s.y + "_" + row + "_" + column,
+                    x + (column + 0.5) * tileW, y + row * tileH, tileW + 0.5, tileH + 0.5,
+                    { opacity: 0.86, facing: (row + column) % 2 === 0 ? 1 : -1 });
             }
         }
     }
@@ -718,31 +715,16 @@ export class StageRenderer {
     private drawCoverBlock(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         x0: number, y0: number, sw: number, sh: number,
         s: SolidSpec, p: Play, theme: RoomTheme,
     ): void {
-        const isRail = s.label.indexOf("队栏") >= 0;
-        if (isRail) {
-            // 候检队栏：金属栏杆柱 + 顶部冰青警示横杠
-            const posts = 4;
-            let k = 0;
-            for (k = 0; k <= posts; k++) {
-                const px = x0 + (sw * k) / posts;
-                fgDraw.drawSegment(Vec2(px, y0), Vec2(px, y0 + sh), 3, toColor(PALETTE.steelLight));
-            }
-            fgDraw.drawRect(Rect(x0, y0 + sh - 8, sw, 8), toColor(PALETTE.steelMid));
-            fgDraw.drawSegment(Vec2(x0, y0 + sh), Vec2(x0 + sw, y0 + sh), 2, toColor(theme.accent, 210));
-            fgDraw.drawSegment(Vec2(x0, y0 + sh * 0.48), Vec2(x0 + sw, y0 + sh * 0.48), 2, toColor(PALETTE.steelLight, 180));
-            return;
+        const slot = s.label.indexOf("队栏") >= 0 ? "fence"
+            : (s.label.indexOf("柜") >= 0 || s.label.indexOf("货") >= 0 ? "cover_wood" : "cover_stone");
+        if (!assets.tryPlace(slot, "cover_" + s.x, x0 + sw * 0.5, y0, sw, sh, { layer: 1 })) {
+            fillVGradRect(fgDraw, x0, y0, sw, sh, toColor(PALETTE.steelDark), toColor(PALETTE.steelMid));
+            fgDraw.drawSegment(Vec2(x0, y0 + sh), Vec2(x0 + sw, y0 + sh), 1.4, toColor(theme.groundRim));
         }
-
-        // 艾希风格倒角装甲掩体（柜台 / 街垒 / 倒柜）
-        fillChamferBox(fgDraw, x0, y0, sw, sh, 10, toColor(PALETTE.steelMid), 1.4, toColor(PALETTE.rimSilver, 180));
-        fillVGradRect(fgDraw, x0 + 4, y0 + 4, sw - 8, sh - 12, toColor(PALETTE.steelDark), toColor(PALETTE.steelMid));
-        // 顶边锐利冷光
-        fgDraw.drawSegment(Vec2(x0 + 8, y0 + sh), Vec2(x0 + sw - 2, y0 + sh), 2.2, toColor(PALETTE.rimSilver, 235));
-        // 底部警示斜纹
-        drawHazardStripes(fgDraw, x0 + 6, y0 + 4, sw - 12, Math.min(11, sh * 0.22), 14, toColor(theme.accent, 110));
 
         // 战术后方贴掩体时，掩体侧沿亮起冰青全息护盾线
         if (!p.childMode && (p.coverHug || p.coverNear)) {
@@ -796,6 +778,7 @@ export class StageRenderer {
     private drawGateShutter(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         time: number,
@@ -821,8 +804,8 @@ export class StageRenderer {
         const botY = cam.sy(160 * (1 - closeFrac));
         if (topY > botY + 2) {
             fillVGradRect(fgDraw, gx0, botY, gx1 - gx0, topY - botY, toColor(PALETTE.steelDark), toColor(PALETTE.steelMid));
-            fgDraw.drawSegment(Vec2(gx0, botY), Vec2(gx1, botY), 3, toColor(PALETTE.crimson, 220));
-            drawHazardStripes(fgDraw, gx0 + 4, botY + 3, gx1 - gx0 - 8, Math.min(14, topY - botY - 4), 18, toColor(PALETTE.amber, 140));
+            assets.tryPlace("cover_wood", "gate_shutter", (gx0 + gx1) * 0.5, botY,
+                gx1 - gx0, topY - botY, { layer: 6 });
         }
         // 门洞外溢的冷月光缝（送别与未关门前，象征城外的生路）
         if (closeFrac < 0.98) {
@@ -835,6 +818,7 @@ export class StageRenderer {
     private drawTowerStructure(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         x0: number, y0: number, sw: number, sh: number,
         s: SolidSpec, p: Play, time: number,
     ): void {
@@ -842,6 +826,7 @@ export class StageRenderer {
         fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.4, toColor(PALETTE.rimSilver, 165));
 
         if (s.label.indexOf("塔身") >= 0) {
+            this.tileMasonry(assets, s, x0, y0, sw, sh);
             // 纪念碑式北塔墙面：竖向石肋、横梁与狭长暖光观察窗缝
             const ribs = 4;
             let r = 1;
@@ -871,6 +856,12 @@ export class StageRenderer {
             const opened = p.phase === "tower-given" || p.phase === "tower-end";
             const cx = x0 + sw * 0.5;
             const lampY = y0 - 8;
+            const doorHeight = y0 - Math.max(0, y0 - sh * 3.8);
+            if (!opened) {
+                assets.tryPlace("prop_tower_door", "tower_door", cx, y0 - doorHeight, sw, doorHeight, { layer: 2 });
+            }
+            assets.tryPlace("prop_lantern", "tower_lantern", cx + sw * 0.43, lampY - sh * 0.36,
+                sw * 0.17, sh * 0.84, { layer: 3 });
             const pulse = 0.85 + 0.15 * Math.sin(time * 3);
             const alpha = opened ? 155 : 88;
             // 门框重型立柱与门板纹理
@@ -884,7 +875,7 @@ export class StageRenderer {
                 y0 - sh * 3.8,
                 sw - 12,
                 sh * 3.8,
-                Color(255, 206, 128, Math.round(alpha * pulse)),
+                Color(255, 206, 128, Math.round((opened ? alpha : alpha * 0.25) * pulse)),
                 Color(255, 224, 168, opened ? 180 : 62),
             );
             fillRadialGlow(fgGlow, cx, lampY, opened ? 105 : 58, opened ? 105 : 58, Color(255, 232, 178, Math.round(170 * pulse)), Color(255, 180, 86, 0), 18);

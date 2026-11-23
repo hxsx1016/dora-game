@@ -36,812 +36,814 @@ function HudRenderer.prototype.update(self, dt, p) -- 38
 		self.ghostHp = p.hp -- 43
 	end -- 43
 end -- 38
-function HudRenderer.prototype.draw(self, uiDraw, uiGlow, texts, p, cam, vfx, letterboxFrac) -- 47
-	local w = cam.viewW -- 56
-	local h = cam.viewH -- 57
-	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 60
-	if hudAlpha > 0.05 then -- 60
-		if p.childMode then -- 60
-			self:drawChildStatus( -- 65
-				uiDraw, -- 65
-				uiGlow, -- 65
-				texts, -- 65
-				p, -- 65
-				h, -- 65
-				hudAlpha -- 65
-			) -- 65
-		else -- 65
-			self:drawSoldierStatus( -- 67
-				uiDraw, -- 67
-				uiGlow, -- 67
-				texts, -- 67
-				p, -- 67
-				h, -- 67
-				hudAlpha -- 67
-			) -- 67
-		end -- 67
-		self:drawChapterBadge( -- 71
-			uiDraw, -- 71
-			uiGlow, -- 71
-			texts, -- 71
-			p, -- 71
-			w, -- 71
-			h, -- 71
-			hudAlpha -- 71
-		) -- 71
-		self:drawContextualObjective( -- 74
-			uiDraw, -- 74
-			uiGlow, -- 74
-			texts, -- 74
-			p, -- 74
-			w, -- 74
-			h, -- 74
-			hudAlpha -- 74
-		) -- 74
-		local prompts = deriveWorldPrompts(p) -- 77
-		self:drawWorldPrompts( -- 78
-			uiDraw, -- 78
-			uiGlow, -- 78
-			texts, -- 78
-			prompts, -- 78
-			cam, -- 78
-			hudAlpha -- 78
-		) -- 78
-		if vfx.deflectFlash > 0.25 then -- 78
-			local dx = cam:sx(vfx.deflectX) -- 82
-			local dy = cam:sy(vfx.deflectY) + 34 + (1 - vfx.deflectFlash) * 18 -- 83
-			texts:put( -- 84
-				"sm", -- 85
-				"DEFLECT // 掩体挡下", -- 86
-				dx, -- 87
-				dy, -- 88
-				toColor(PALETTE.cyanCore), -- 89
-				0.5, -- 90
+function HudRenderer.prototype.draw(self, uiDraw, uiGlow, texts, p, cam, vfx, letterboxFrac, uiScale) -- 47
+	local w = cam.viewW / uiScale -- 57
+	local h = cam.viewH / uiScale -- 58
+	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 61
+	if hudAlpha > 0.05 then -- 61
+		if p.childMode then -- 61
+			self:drawChildStatus( -- 66
+				uiDraw, -- 66
+				uiGlow, -- 66
+				texts, -- 66
+				p, -- 66
+				h, -- 66
+				hudAlpha -- 66
+			) -- 66
+		else -- 66
+			self:drawSoldierStatus( -- 68
+				uiDraw, -- 68
+				uiGlow, -- 68
+				texts, -- 68
+				p, -- 68
+				h, -- 68
+				hudAlpha -- 68
+			) -- 68
+		end -- 68
+		self:drawChapterBadge( -- 72
+			uiDraw, -- 72
+			uiGlow, -- 72
+			texts, -- 72
+			p, -- 72
+			w, -- 72
+			h, -- 72
+			hudAlpha -- 72
+		) -- 72
+		self:drawContextualObjective( -- 75
+			uiDraw, -- 75
+			uiGlow, -- 75
+			texts, -- 75
+			p, -- 75
+			w, -- 75
+			h, -- 75
+			hudAlpha -- 75
+		) -- 75
+		local prompts = deriveWorldPrompts(p) -- 78
+		self:drawWorldPrompts( -- 79
+			uiDraw, -- 79
+			uiGlow, -- 79
+			texts, -- 79
+			prompts, -- 79
+			cam, -- 79
+			hudAlpha, -- 79
+			uiScale -- 79
+		) -- 79
+		if vfx.deflectFlash > 0.25 then -- 79
+			local dx = cam:sx(vfx.deflectX) / uiScale -- 83
+			local dy = cam:sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 18 -- 84
+			texts:put( -- 85
+				"sm", -- 86
+				"掩体挡下", -- 87
+				dx, -- 88
+				dy, -- 89
+				toColor(PALETTE.cyanCore), -- 90
 				0.5, -- 91
-				"Center", -- 92
-				1.2, -- 93
-				vfx.deflectFlash -- 94
-			) -- 94
-		end -- 94
-	end -- 94
-	if not p.paused and letterboxFrac < 0.5 then -- 94
-		self:drawReticle( -- 101
-			uiDraw, -- 101
-			uiGlow, -- 101
-			p, -- 101
-			cam, -- 101
-			vfx -- 101
-		) -- 101
-	end -- 101
+				0.5, -- 92
+				"Center", -- 93
+				1.2, -- 94
+				vfx.deflectFlash -- 95
+			) -- 95
+		end -- 95
+	end -- 95
+	if not p.paused and letterboxFrac < 0.5 then -- 95
+		self:drawReticle( -- 102
+			uiDraw, -- 102
+			uiGlow, -- 102
+			p, -- 102
+			cam, -- 102
+			vfx, -- 102
+			uiScale -- 102
+		) -- 102
+	end -- 102
 end -- 47
-function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiGlow, texts, p, h, alpha) -- 105
-	local bx = 34 -- 113
-	local by = h - 78 -- 114
-	local panelW = 286 -- 115
-	local panelH = 50 -- 116
-	fillSkewRect( -- 119
-		uiDraw, -- 119
-		bx, -- 119
-		by, -- 119
-		panelW, -- 119
-		panelH, -- 119
-		14, -- 119
-		toColor(PALETTE.panelBg, 210 * alpha), -- 119
-		1.1, -- 119
-		toColor(PALETTE.cyanDim, 165 * alpha) -- 119
-	) -- 119
+function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiGlow, texts, p, h, alpha) -- 106
+	local bx = 34 -- 114
+	local by = h - 78 -- 115
+	local panelW = 286 -- 116
+	local panelH = 50 -- 117
 	fillSkewRect( -- 120
-		uiGlow, -- 120
-		bx - 4, -- 120
+		uiDraw, -- 120
+		bx, -- 120
 		by, -- 120
-		5, -- 120
+		panelW, -- 120
 		panelH, -- 120
 		14, -- 120
-		toColor(PALETTE.cyan, 235 * alpha) -- 120
+		toColor(PALETTE.panelBg, 210 * alpha), -- 120
+		1.1, -- 120
+		toColor(PALETTE.cyanDim, 165 * alpha) -- 120
 	) -- 120
-	texts:put( -- 122
-		"xs", -- 122
-		"周戍  //  SOLDIER UNIT", -- 122
-		bx + 18, -- 122
-		by + panelH - 12, -- 122
-		toColor(PALETTE.cyanCore), -- 122
-		0, -- 122
-		0.5, -- 122
-		"Left", -- 122
-		1, -- 122
-		alpha -- 122
-	) -- 122
-	local segCount = math.max(1, p.maxHp) -- 125
-	local barX = bx + 16 -- 126
-	local barY = by + 11 -- 127
-	local barW = 192 -- 128
-	local barH = 12 -- 129
-	local gap = 6 -- 130
-	local segW = (barW - gap * (segCount - 1)) / segCount -- 131
-	local i = 0 -- 133
-	do -- 133
-		i = 0 -- 134
-		while i < segCount do -- 134
-			local sx = barX + i * (segW + gap) -- 135
-			fillSkewRect( -- 137
-				uiDraw, -- 137
-				sx, -- 137
-				barY, -- 137
-				segW, -- 137
-				barH, -- 137
-				6, -- 137
-				Color( -- 137
-					16, -- 137
-					26, -- 137
-					40, -- 137
-					math.floor(220 * alpha + 0.5) -- 137
-				), -- 137
-				1, -- 137
-				toColor(PALETTE.steelLight, 140 * alpha) -- 137
-			) -- 137
-			if self.ghostHp > i then -- 137
-				local gw = segW * math.min(1, self.ghostHp - i) -- 140
-				fillSkewRect( -- 141
-					uiDraw, -- 141
-					sx, -- 141
-					barY, -- 141
-					gw, -- 141
-					barH, -- 141
-					6, -- 141
-					Color( -- 141
-						235, -- 141
-						244, -- 141
-						255, -- 141
-						math.floor(180 * alpha + 0.5) -- 141
-					) -- 141
-				) -- 141
-			end -- 141
-			if p.hp > i then -- 141
-				local hpCol = p.hp == 1 and PALETTE.crimson or PALETTE.cyan -- 145
-				fillSkewRect( -- 146
-					uiDraw, -- 146
-					sx, -- 146
-					barY, -- 146
-					segW, -- 146
-					barH, -- 146
-					6, -- 146
-					toColor(hpCol, 240 * alpha) -- 146
-				) -- 146
+	fillSkewRect( -- 121
+		uiGlow, -- 121
+		bx - 4, -- 121
+		by, -- 121
+		5, -- 121
+		panelH, -- 121
+		14, -- 121
+		toColor(PALETTE.cyan, 235 * alpha) -- 121
+	) -- 121
+	texts:put( -- 123
+		"xs", -- 123
+		"周戍 · 体力", -- 123
+		bx + 18, -- 123
+		by + panelH - 12, -- 123
+		toColor(PALETTE.cyanCore), -- 123
+		0, -- 123
+		0.5, -- 123
+		"Left", -- 123
+		1, -- 123
+		alpha -- 123
+	) -- 123
+	local segCount = math.max(1, p.maxHp) -- 126
+	local barX = bx + 16 -- 127
+	local barY = by + 11 -- 128
+	local barW = 192 -- 129
+	local barH = 12 -- 130
+	local gap = 6 -- 131
+	local segW = (barW - gap * (segCount - 1)) / segCount -- 132
+	local i = 0 -- 134
+	do -- 134
+		i = 0 -- 135
+		while i < segCount do -- 135
+			local sx = barX + i * (segW + gap) -- 136
+			fillSkewRect( -- 138
+				uiDraw, -- 138
+				sx, -- 138
+				barY, -- 138
+				segW, -- 138
+				barH, -- 138
+				6, -- 138
+				Color( -- 138
+					16, -- 138
+					26, -- 138
+					40, -- 138
+					math.floor(220 * alpha + 0.5) -- 138
+				), -- 138
+				1, -- 138
+				toColor(PALETTE.steelLight, 140 * alpha) -- 138
+			) -- 138
+			if self.ghostHp > i then -- 138
+				local gw = segW * math.min(1, self.ghostHp - i) -- 141
+				fillSkewRect( -- 142
+					uiDraw, -- 142
+					sx, -- 142
+					barY, -- 142
+					gw, -- 142
+					barH, -- 142
+					6, -- 142
+					Color( -- 142
+						235, -- 142
+						244, -- 142
+						255, -- 142
+						math.floor(180 * alpha + 0.5) -- 142
+					) -- 142
+				) -- 142
+			end -- 142
+			if p.hp > i then -- 142
+				local hpCol = p.hp == 1 and PALETTE.crimson or PALETTE.cyan -- 146
 				fillSkewRect( -- 147
-					uiGlow, -- 147
+					uiDraw, -- 147
 					sx, -- 147
-					barY + barH - 3, -- 147
+					barY, -- 147
 					segW, -- 147
-					3, -- 147
-					2, -- 147
-					toColor(PALETTE.cyanCore, 150 * alpha) -- 147
+					barH, -- 147
+					6, -- 147
+					toColor(hpCol, 240 * alpha) -- 147
 				) -- 147
-			end -- 147
-			i = i + 1 -- 134
-		end -- 134
-	end -- 134
-	local covX = barX + barW + 16 -- 152
-	if p.coverHug then -- 152
-		fillSkewRect( -- 154
-			uiGlow, -- 154
-			covX, -- 154
-			barY - 2, -- 154
-			58, -- 154
-			16, -- 154
-			6, -- 154
-			toColor(PALETTE.cyan, 195 * alpha) -- 154
-		) -- 154
-		texts:put( -- 155
-			"xs", -- 155
-			"掩体中", -- 155
-			covX + 31, -- 155
-			barY + 6, -- 155
-			Color(6, 12, 20, 255), -- 155
-			0.5, -- 155
-			0.5, -- 155
-			"Center", -- 155
-			0, -- 155
-			alpha -- 155
+				fillSkewRect( -- 148
+					uiGlow, -- 148
+					sx, -- 148
+					barY + barH - 3, -- 148
+					segW, -- 148
+					3, -- 148
+					2, -- 148
+					toColor(PALETTE.cyanCore, 150 * alpha) -- 148
+				) -- 148
+			end -- 148
+			i = i + 1 -- 135
+		end -- 135
+	end -- 135
+	local covX = barX + barW + 16 -- 153
+	if p.coverHug then -- 153
+		fillSkewRect( -- 155
+			uiGlow, -- 155
+			covX, -- 155
+			barY - 2, -- 155
+			58, -- 155
+			16, -- 155
+			6, -- 155
+			toColor(PALETTE.cyan, 195 * alpha) -- 155
 		) -- 155
-	elseif p.coverNear then -- 155
-		fillSkewRect( -- 157
-			uiDraw, -- 157
-			covX, -- 157
-			barY - 2, -- 157
-			58, -- 157
-			16, -- 157
-			6, -- 157
-			Color( -- 157
-				42, -- 157
-				34, -- 157
-				18, -- 157
-				math.floor(200 * alpha + 0.5) -- 157
-			), -- 157
-			1.1, -- 157
-			toColor(PALETTE.amber, 215 * alpha) -- 157
-		) -- 157
-		texts:put( -- 158
-			"xs", -- 158
-			"可贴靠", -- 158
-			covX + 31, -- 158
-			barY + 6, -- 158
-			toColor(PALETTE.amberCore), -- 158
-			0.5, -- 158
-			0.5, -- 158
-			"Center", -- 158
-			0, -- 158
-			alpha -- 158
+		texts:put( -- 156
+			"xs", -- 156
+			"掩体中", -- 156
+			covX + 31, -- 156
+			barY + 6, -- 156
+			Color(6, 12, 20, 255), -- 156
+			0.5, -- 156
+			0.5, -- 156
+			"Center", -- 156
+			0, -- 156
+			alpha -- 156
+		) -- 156
+	elseif p.coverNear then -- 156
+		fillSkewRect( -- 158
+			uiDraw, -- 158
+			covX, -- 158
+			barY - 2, -- 158
+			58, -- 158
+			16, -- 158
+			6, -- 158
+			Color( -- 158
+				42, -- 158
+				34, -- 158
+				18, -- 158
+				math.floor(200 * alpha + 0.5) -- 158
+			), -- 158
+			1.1, -- 158
+			toColor(PALETTE.amber, 215 * alpha) -- 158
 		) -- 158
-	end -- 158
-	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" then -- 158
-		local subY = by - 36 -- 163
-		local frozen = p.escort.state == "frozen" -- 164
-		local calming = p.escort.state == "calming" -- 165
-		local borderCol = frozen and PALETTE.crimson or PALETTE.amberDim -- 166
-		fillSkewRect( -- 167
-			uiDraw, -- 167
-			bx + 6, -- 167
-			subY, -- 167
-			212, -- 167
-			28, -- 167
-			9, -- 167
-			toColor(PALETTE.panelBg, 195 * alpha), -- 167
-			1, -- 167
-			toColor(borderCol, 180 * alpha) -- 167
-		) -- 167
+		texts:put( -- 159
+			"xs", -- 159
+			"可贴靠", -- 159
+			covX + 31, -- 159
+			barY + 6, -- 159
+			toColor(PALETTE.amberCore), -- 159
+			0.5, -- 159
+			0.5, -- 159
+			"Center", -- 159
+			0, -- 159
+			alpha -- 159
+		) -- 159
+	end -- 159
+	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" then -- 159
+		local subY = by - 36 -- 164
+		local frozen = p.escort.state == "frozen" -- 165
+		local calming = p.escort.state == "calming" -- 166
+		local borderCol = frozen and PALETTE.crimson or PALETTE.amberDim -- 167
 		fillSkewRect( -- 168
-			uiGlow, -- 168
-			bx + 3, -- 168
+			uiDraw, -- 168
+			bx + 6, -- 168
 			subY, -- 168
-			3, -- 168
+			212, -- 168
 			28, -- 168
 			9, -- 168
-			toColor(frozen and PALETTE.crimson or PALETTE.amber, 220 * alpha) -- 168
+			toColor(PALETTE.panelBg, 195 * alpha), -- 168
+			1, -- 168
+			toColor(borderCol, 180 * alpha) -- 168
 		) -- 168
-		texts:put( -- 169
-			"xs", -- 169
-			"小满 · 恐惧", -- 169
-			bx + 18, -- 169
-			subY + 14, -- 169
-			toColor(PALETTE.amberCore), -- 169
-			0, -- 169
-			0.5, -- 169
-			"Left", -- 169
-			0.5, -- 169
-			alpha -- 169
+		fillSkewRect( -- 169
+			uiGlow, -- 169
+			bx + 3, -- 169
+			subY, -- 169
+			3, -- 169
+			28, -- 169
+			9, -- 169
+			toColor(frozen and PALETTE.crimson or PALETTE.amber, 220 * alpha) -- 169
 		) -- 169
-		local k = 0 -- 171
-		do -- 171
-			k = 0 -- 172
-			while k < FEAR_MAX do -- 172
-				local dx = bx + 116 + k * 20 -- 173
-				local dy = subY + 14 -- 174
-				local lit = k < p.escort.fear -- 175
-				local dc = frozen and PALETTE.crimson or PALETTE.amber -- 176
-				drawDiamond( -- 177
-					lit and uiGlow or uiDraw, -- 178
-					dx, -- 179
-					dy, -- 180
-					6.5, -- 181
-					7.5, -- 182
-					lit and toColor(dc, 235 * alpha) or Color( -- 183
-						24, -- 183
-						34, -- 183
-						48, -- 183
-						math.floor(180 * alpha + 0.5) -- 183
-					), -- 183
-					1.1, -- 184
-					toColor(dc, (lit and 255 or 120) * alpha) -- 185
-				) -- 185
-				k = k + 1 -- 172
-			end -- 172
-		end -- 172
-		if frozen then -- 172
-			local pulse = 0.65 + 0.35 * math.sin(self.time * 9) -- 189
-			texts:put( -- 190
-				"xs", -- 190
-				"[E]安抚", -- 190
-				bx + 172, -- 190
-				subY + 14, -- 190
-				toColor(PALETTE.crimsonCore), -- 190
-				0, -- 190
-				0.5, -- 190
-				"Left", -- 190
-				0, -- 190
-				alpha * pulse -- 190
-			) -- 190
-		elseif calming then -- 190
-			texts:put( -- 192
-				"xs", -- 192
-				"安抚中", -- 192
-				bx + 172, -- 192
-				subY + 14, -- 192
-				toColor(PALETTE.cyanCore), -- 192
-				0, -- 192
-				0.5, -- 192
-				"Left", -- 192
-				0, -- 192
-				alpha -- 192
-			) -- 192
-		end -- 192
-	end -- 192
-end -- 105
-function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiGlow, texts, p, h, alpha) -- 197
-	local bx = 34 -- 205
-	local by = h - 72 -- 206
-	local alert = p.scavChase or p.dogState == "chase" or p.dogState == "ear" or p.scavSee > 0 -- 207
-	local accent = alert and PALETTE.crimson or (p.player.crouch and PALETTE.emerald or PALETTE.amber) -- 208
-	fillSkewRect( -- 210
-		uiDraw, -- 210
-		bx, -- 210
-		by, -- 210
-		246, -- 210
-		44, -- 210
-		12, -- 210
-		toColor(PALETTE.panelBg, 205 * alpha), -- 210
-		1.1, -- 210
-		toColor(accent, 175 * alpha) -- 210
-	) -- 210
+		texts:put( -- 170
+			"xs", -- 170
+			"小满 · 恐惧", -- 170
+			bx + 18, -- 170
+			subY + 14, -- 170
+			toColor(PALETTE.amberCore), -- 170
+			0, -- 170
+			0.5, -- 170
+			"Left", -- 170
+			0.5, -- 170
+			alpha -- 170
+		) -- 170
+		local k = 0 -- 172
+		do -- 172
+			k = 0 -- 173
+			while k < FEAR_MAX do -- 173
+				local dx = bx + 116 + k * 20 -- 174
+				local dy = subY + 14 -- 175
+				local lit = k < p.escort.fear -- 176
+				local dc = frozen and PALETTE.crimson or PALETTE.amber -- 177
+				drawDiamond( -- 178
+					lit and uiGlow or uiDraw, -- 179
+					dx, -- 180
+					dy, -- 181
+					6.5, -- 182
+					7.5, -- 183
+					lit and toColor(dc, 235 * alpha) or Color( -- 184
+						24, -- 184
+						34, -- 184
+						48, -- 184
+						math.floor(180 * alpha + 0.5) -- 184
+					), -- 184
+					1.1, -- 185
+					toColor(dc, (lit and 255 or 120) * alpha) -- 186
+				) -- 186
+				k = k + 1 -- 173
+			end -- 173
+		end -- 173
+		if frozen then -- 173
+			local pulse = 0.65 + 0.35 * math.sin(self.time * 9) -- 190
+			texts:put( -- 191
+				"xs", -- 191
+				"[E]安抚", -- 191
+				bx + 172, -- 191
+				subY + 14, -- 191
+				toColor(PALETTE.crimsonCore), -- 191
+				0, -- 191
+				0.5, -- 191
+				"Left", -- 191
+				0, -- 191
+				alpha * pulse -- 191
+			) -- 191
+		elseif calming then -- 191
+			texts:put( -- 193
+				"xs", -- 193
+				"安抚中", -- 193
+				bx + 172, -- 193
+				subY + 14, -- 193
+				toColor(PALETTE.cyanCore), -- 193
+				0, -- 193
+				0.5, -- 193
+				"Left", -- 193
+				0, -- 193
+				alpha -- 193
+			) -- 193
+		end -- 193
+	end -- 193
+end -- 106
+function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiGlow, texts, p, h, alpha) -- 198
+	local bx = 34 -- 206
+	local by = h - 72 -- 207
+	local alert = p.scavChase or p.dogState == "chase" or p.dogState == "ear" or p.scavSee > 0 -- 208
+	local accent = alert and PALETTE.crimson or (p.player.crouch and PALETTE.emerald or PALETTE.amber) -- 209
 	fillSkewRect( -- 211
-		uiGlow, -- 211
-		bx - 4, -- 211
+		uiDraw, -- 211
+		bx, -- 211
 		by, -- 211
-		5, -- 211
+		246, -- 211
 		44, -- 211
 		12, -- 211
-		toColor(accent, 235 * alpha) -- 211
+		toColor(PALETTE.panelBg, 205 * alpha), -- 211
+		1.1, -- 211
+		toColor(accent, 175 * alpha) -- 211
 	) -- 211
-	texts:put( -- 213
-		"xs", -- 213
-		"小满  //  STEALTH", -- 213
-		bx + 18, -- 213
-		by + 31, -- 213
-		toColor(PALETTE.amberCore), -- 213
-		0, -- 213
-		0.5, -- 213
-		"Left", -- 213
-		1, -- 213
-		alpha -- 213
-	) -- 213
-	local posture = "轻步前行 · 保持隐蔽" -- 215
-	if alert then -- 215
-		posture = (p.scavChase or p.dogState == "chase") and "已被发现 · 速隐蔽！" or "引起警觉 · 停步蹲伏" -- 217
-	elseif p.player.crouch then -- 217
-		posture = "低姿潜行 · 隐蔽中" -- 219
-	elseif p.hasBottle then -- 219
-		posture = "手持玻璃瓶 · 按住 [F] 瞄投" -- 221
-	end -- 221
-	texts:put( -- 223
-		"xs", -- 223
-		posture, -- 223
-		bx + 18, -- 223
-		by + 12, -- 223
-		toColor(alert and PALETTE.crimsonCore or PALETTE.textMid), -- 223
-		0, -- 223
-		0.5, -- 223
-		"Left", -- 223
-		0.3, -- 223
-		alpha -- 223
-	) -- 223
-end -- 197
-function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiGlow, texts, p, w, h, alpha) -- 226
-	local theme = themeOf(p.room.key) -- 235
-	local bw = 248 -- 236
-	local bh = 44 -- 237
-	local bx = w - bw - 34 -- 238
-	local by = h - 72 -- 239
-	fillSkewRect( -- 241
-		uiDraw, -- 241
-		bx, -- 241
-		by, -- 241
-		bw, -- 241
-		bh, -- 241
-		-12, -- 241
-		toColor(PALETTE.panelBg, 195 * alpha), -- 241
-		1, -- 241
-		toColor(PALETTE.steelLight, 140 * alpha) -- 241
-	) -- 241
+	fillSkewRect( -- 212
+		uiGlow, -- 212
+		bx - 4, -- 212
+		by, -- 212
+		5, -- 212
+		44, -- 212
+		12, -- 212
+		toColor(accent, 235 * alpha) -- 212
+	) -- 212
+	texts:put( -- 214
+		"xs", -- 214
+		"小满 · 潜行", -- 214
+		bx + 18, -- 214
+		by + 31, -- 214
+		toColor(PALETTE.amberCore), -- 214
+		0, -- 214
+		0.5, -- 214
+		"Left", -- 214
+		1, -- 214
+		alpha -- 214
+	) -- 214
+	local posture = "轻步前行 · 保持隐蔽" -- 216
+	if alert then -- 216
+		posture = (p.scavChase or p.dogState == "chase") and "已被发现 · 速隐蔽！" or "引起警觉 · 停步蹲伏" -- 218
+	elseif p.player.crouch then -- 218
+		posture = "低姿潜行 · 隐蔽中" -- 220
+	elseif p.hasBottle then -- 220
+		posture = "手持玻璃瓶 · 按住 [F] 瞄投" -- 222
+	end -- 222
+	texts:put( -- 224
+		"xs", -- 224
+		posture, -- 224
+		bx + 18, -- 224
+		by + 12, -- 224
+		toColor(alert and PALETTE.crimsonCore or PALETTE.textMid), -- 224
+		0, -- 224
+		0.5, -- 224
+		"Left", -- 224
+		0.3, -- 224
+		alpha -- 224
+	) -- 224
+end -- 198
+function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiGlow, texts, p, w, h, alpha) -- 227
+	local theme = themeOf(p.room.key) -- 236
+	local bw = 248 -- 237
+	local bh = 44 -- 238
+	local bx = w - bw - 34 -- 239
+	local by = h - 72 -- 240
 	fillSkewRect( -- 242
-		uiGlow, -- 242
-		bx + bw - 2, -- 242
+		uiDraw, -- 242
+		bx, -- 242
 		by, -- 242
-		4, -- 242
+		bw, -- 242
 		bh, -- 242
 		-12, -- 242
-		toColor(theme.accent, 220 * alpha) -- 242
+		toColor(PALETTE.panelBg, 195 * alpha), -- 242
+		1, -- 242
+		toColor(PALETTE.steelLight, 140 * alpha) -- 242
 	) -- 242
-	texts:put( -- 244
-		"xs", -- 244
-		(theme.actCode .. " // ") .. theme.titleZh, -- 244
-		bx + bw - 18, -- 244
-		by + 30, -- 244
-		toColor(PALETTE.textBright), -- 244
-		1, -- 244
-		0.5, -- 244
-		"Right", -- 244
-		0.6, -- 244
-		alpha -- 244
-	) -- 244
+	fillSkewRect( -- 243
+		uiGlow, -- 243
+		bx + bw - 2, -- 243
+		by, -- 243
+		4, -- 243
+		bh, -- 243
+		-12, -- 243
+		toColor(theme.accent, 220 * alpha) -- 243
+	) -- 243
 	texts:put( -- 245
 		"xs", -- 245
-		"[ESC] 系统   [G] 灰盒调试", -- 245
+		theme.titleZh, -- 245
 		bx + bw - 18, -- 245
-		by + 12, -- 245
-		toColor(PALETTE.textDim), -- 245
+		by + 30, -- 245
+		toColor(PALETTE.textBright), -- 245
 		1, -- 245
 		0.5, -- 245
 		"Right", -- 245
-		0.4, -- 245
+		0.6, -- 245
 		alpha -- 245
 	) -- 245
-end -- 226
-function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiGlow, texts, p, w, h, alpha) -- 248
-	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 248
-		local g = p.room.story.gate -- 259
-		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 259
-			local bw = 420 -- 261
-			local bx = (w - bw) * 0.5 -- 262
-			local by = h - 66 -- 263
-			local ratio = math.max( -- 264
-				0, -- 264
-				math.min( -- 264
-					1, -- 264
-					p.gateTick / math.max(1, g.holdTicks) -- 264
-				) -- 264
-			) -- 264
-			local secLeft = math.max(0, (g.holdTicks - p.gateTick) / 60) -- 265
-			local secStr = __TS__NumberToFixed(secLeft, 1) .. "s" -- 266
-			fillSkewRect( -- 268
-				uiDraw, -- 268
-				bx, -- 268
-				by, -- 268
-				bw, -- 268
-				36, -- 268
-				10, -- 268
-				toColor(PALETTE.panelBgDeep, 220 * alpha), -- 268
-				1.1, -- 268
-				toColor(PALETTE.crimson, 185 * alpha) -- 268
-			) -- 268
-			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and "绞盘待命 · 按 [E] 重新守点" or "等待两人就位 · 绞盘启动") or "城门守点  //  GATE HOLD    " .. secStr -- 269
-			texts:put( -- 272
-				"xs", -- 272
-				label, -- 272
-				w * 0.5, -- 272
-				by + 26, -- 272
-				toColor(PALETTE.textBright), -- 272
-				0.5, -- 272
-				0.5, -- 272
-				"Center", -- 272
-				1, -- 272
-				alpha -- 272
-			) -- 272
-			local pbx = bx + 20 -- 275
-			local pbw = bw - 40 -- 276
-			local pby = by + 7 -- 277
-			fillSkewRect( -- 278
-				uiDraw, -- 278
-				pbx, -- 278
-				pby, -- 278
-				pbw, -- 278
-				7, -- 278
-				4, -- 278
-				Color( -- 278
-					24, -- 278
-					18, -- 278
-					28, -- 278
-					math.floor(220 * alpha + 0.5) -- 278
-				) -- 278
-			) -- 278
-			if ratio > 0.002 then -- 278
-				fillSkewRect( -- 280
-					uiGlow, -- 280
-					pbx, -- 280
-					pby, -- 280
-					pbw * ratio, -- 280
-					7, -- 280
-					4, -- 280
-					toColor(PALETTE.crimson, 235 * alpha) -- 280
-				) -- 280
+	texts:put( -- 246
+		"xs", -- 246
+		"[Esc] 暂停", -- 246
+		bx + bw - 18, -- 246
+		by + 12, -- 246
+		toColor(PALETTE.textDim), -- 246
+		1, -- 246
+		0.5, -- 246
+		"Right", -- 246
+		0.4, -- 246
+		alpha -- 246
+	) -- 246
+end -- 227
+function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiGlow, texts, p, w, h, alpha) -- 249
+	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 249
+		local g = p.room.story.gate -- 260
+		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 260
+			local bw = 420 -- 262
+			local bx = (w - bw) * 0.5 -- 263
+			local by = h - 66 -- 264
+			local ratio = math.max( -- 265
+				0, -- 265
+				math.min( -- 265
+					1, -- 265
+					p.gateTick / math.max(1, g.holdTicks) -- 265
+				) -- 265
+			) -- 265
+			local secLeft = math.max(0, (g.holdTicks - p.gateTick) / 60) -- 266
+			local secStr = __TS__NumberToFixed(secLeft, 1) .. "s" -- 267
+			fillSkewRect( -- 269
+				uiDraw, -- 269
+				bx, -- 269
+				by, -- 269
+				bw, -- 269
+				36, -- 269
+				10, -- 269
+				toColor(PALETTE.panelBgDeep, 220 * alpha), -- 269
+				1.1, -- 269
+				toColor(PALETTE.crimson, 185 * alpha) -- 269
+			) -- 269
+			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and "绞盘待命 · 按 [E] 重新守点" or "等待两人就位 · 绞盘启动") or "城门守点  //  GATE HOLD    " .. secStr -- 270
+			texts:put( -- 273
+				"xs", -- 273
+				label, -- 273
+				w * 0.5, -- 273
+				by + 26, -- 273
+				toColor(PALETTE.textBright), -- 273
+				0.5, -- 273
+				0.5, -- 273
+				"Center", -- 273
+				1, -- 273
+				alpha -- 273
+			) -- 273
+			local pbx = bx + 20 -- 276
+			local pbw = bw - 40 -- 277
+			local pby = by + 7 -- 278
+			fillSkewRect( -- 279
+				uiDraw, -- 279
+				pbx, -- 279
+				pby, -- 279
+				pbw, -- 279
+				7, -- 279
+				4, -- 279
+				Color( -- 279
+					24, -- 279
+					18, -- 279
+					28, -- 279
+					math.floor(220 * alpha + 0.5) -- 279
+				) -- 279
+			) -- 279
+			if ratio > 0.002 then -- 279
 				fillSkewRect( -- 281
 					uiGlow, -- 281
 					pbx, -- 281
-					pby + 4, -- 281
+					pby, -- 281
 					pbw * ratio, -- 281
-					3, -- 281
-					2, -- 281
-					toColor(PALETTE.crimsonCore, 160 * alpha) -- 281
+					7, -- 281
+					4, -- 281
+					toColor(PALETTE.crimson, 235 * alpha) -- 281
 				) -- 281
-			end -- 281
-			local waves = {0, 540 / 2700, 900 / 2700, 1500 / 2700} -- 284
-			local k = 0 -- 285
-			do -- 285
-				k = 0 -- 286
-				while k < #waves do -- 286
-					local wx = pbx + pbw * waves[k + 1] -- 287
-					local passed = p.gateSpawned > k -- 288
-					drawDiamond( -- 289
-						uiGlow, -- 289
-						wx, -- 289
-						pby + 3.5, -- 289
-						4, -- 289
-						5, -- 289
-						toColor(passed and PALETTE.cyanCore or PALETTE.crimson, 230 * alpha) -- 289
-					) -- 289
-					k = k + 1 -- 286
-				end -- 286
-			end -- 286
-		end -- 286
-		return -- 292
-	end -- 292
-	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 292
-		local bw = 320 -- 297
-		local bx = (w - bw) * 0.5 -- 298
-		local by = h - 56 -- 299
-		local step1 = p.cartDocked -- 300
-		local ____temp_0 -- 301
-		if p.room.key == "checkpoint" then -- 301
-			____temp_0 = p.gateOpen -- 301
-		else -- 301
-			____temp_0 = p.checkpoint >= 380 -- 301
-		end -- 301
-		local step2 = ____temp_0 -- 301
-		local t1 = p.room.key == "checkpoint" and "红布板车入窝" or "上层拉车让拱" -- 302
-		local t2 = p.room.key == "checkpoint" and "双人汇合出口" or "蹲伏穿拱赴塔" -- 303
-		fillSkewRect( -- 305
-			uiDraw, -- 305
-			bx, -- 305
-			by, -- 305
-			bw, -- 305
-			28, -- 305
-			8, -- 305
-			toColor(PALETTE.panelBg, 185 * alpha), -- 305
-			1, -- 305
-			toColor(PALETTE.steelLight, 130 * alpha) -- 305
-		) -- 305
-		drawDiamond( -- 306
-			uiGlow, -- 306
-			bx + 24, -- 306
-			by + 14, -- 306
-			5, -- 306
-			5, -- 306
-			toColor(step1 and PALETTE.emerald or PALETTE.amber, 230 * alpha) -- 306
+				fillSkewRect( -- 282
+					uiGlow, -- 282
+					pbx, -- 282
+					pby + 4, -- 282
+					pbw * ratio, -- 282
+					3, -- 282
+					2, -- 282
+					toColor(PALETTE.crimsonCore, 160 * alpha) -- 282
+				) -- 282
+			end -- 282
+			local waves = {0, 540 / 2700, 900 / 2700, 1500 / 2700} -- 285
+			local k = 0 -- 286
+			do -- 286
+				k = 0 -- 287
+				while k < #waves do -- 287
+					local wx = pbx + pbw * waves[k + 1] -- 288
+					local passed = p.gateSpawned > k -- 289
+					drawDiamond( -- 290
+						uiGlow, -- 290
+						wx, -- 290
+						pby + 3.5, -- 290
+						4, -- 290
+						5, -- 290
+						toColor(passed and PALETTE.cyanCore or PALETTE.crimson, 230 * alpha) -- 290
+					) -- 290
+					k = k + 1 -- 287
+				end -- 287
+			end -- 287
+		end -- 287
+		return -- 293
+	end -- 293
+	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 293
+		local bw = 320 -- 298
+		local bx = (w - bw) * 0.5 -- 299
+		local by = h - 56 -- 300
+		local step1 = p.cartDocked -- 301
+		local ____temp_0 -- 302
+		if p.room.key == "checkpoint" then -- 302
+			____temp_0 = p.gateOpen -- 302
+		else -- 302
+			____temp_0 = p.checkpoint >= 380 -- 302
+		end -- 302
+		local step2 = ____temp_0 -- 302
+		local t1 = p.room.key == "checkpoint" and "红布板车入窝" or "上层拉车让拱" -- 303
+		local t2 = p.room.key == "checkpoint" and "双人汇合出口" or "蹲伏穿拱赴塔" -- 304
+		fillSkewRect( -- 306
+			uiDraw, -- 306
+			bx, -- 306
+			by, -- 306
+			bw, -- 306
+			28, -- 306
+			8, -- 306
+			toColor(PALETTE.panelBg, 185 * alpha), -- 306
+			1, -- 306
+			toColor(PALETTE.steelLight, 130 * alpha) -- 306
 		) -- 306
-		texts:put( -- 307
-			"xs", -- 307
-			t1, -- 307
-			bx + 36, -- 307
+		drawDiamond( -- 307
+			uiGlow, -- 307
+			bx + 24, -- 307
 			by + 14, -- 307
-			toColor(step1 and PALETTE.emerald or PALETTE.textMid), -- 307
-			0, -- 307
-			0.5, -- 307
-			"Left", -- 307
-			0.4, -- 307
-			alpha -- 307
+			5, -- 307
+			5, -- 307
+			toColor(step1 and PALETTE.emerald or PALETTE.amber, 230 * alpha) -- 307
 		) -- 307
-		drawDiamond( -- 309
-			uiGlow, -- 309
-			bx + 178, -- 309
-			by + 14, -- 309
-			5, -- 309
-			5, -- 309
-			toColor(step2 and PALETTE.emerald or PALETTE.textDim, 230 * alpha) -- 309
-		) -- 309
-		texts:put( -- 310
-			"xs", -- 310
-			t2, -- 310
-			bx + 190, -- 310
+		texts:put( -- 308
+			"xs", -- 308
+			t1, -- 308
+			bx + 36, -- 308
+			by + 14, -- 308
+			toColor(step1 and PALETTE.emerald or PALETTE.textMid), -- 308
+			0, -- 308
+			0.5, -- 308
+			"Left", -- 308
+			0.4, -- 308
+			alpha -- 308
+		) -- 308
+		drawDiamond( -- 310
+			uiGlow, -- 310
+			bx + 178, -- 310
 			by + 14, -- 310
-			toColor(step2 and PALETTE.emerald or PALETTE.textMid), -- 310
-			0, -- 310
-			0.5, -- 310
-			"Left", -- 310
-			0.4, -- 310
-			alpha -- 310
+			5, -- 310
+			5, -- 310
+			toColor(step2 and PALETTE.emerald or PALETTE.textDim, 230 * alpha) -- 310
 		) -- 310
-	end -- 310
-end -- 248
-function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiGlow, texts, prompts, cam, alpha) -- 314
-	local bob = math.sin(self.time * 4.5) * 3.5 -- 322
-	local i = 0 -- 323
-	do -- 323
-		i = 0 -- 324
-		while i < #prompts do -- 324
-			local pr = prompts[i + 1] -- 325
-			local sx = math.max( -- 326
-				110, -- 326
-				math.min( -- 326
-					cam.viewW - 110, -- 326
-					cam:sx(pr.x) -- 326
-				) -- 326
-			) -- 326
-			local sy = math.max( -- 327
-				96, -- 327
-				math.min( -- 327
-					cam.viewH - 110, -- 327
-					cam:sy(pr.y) + bob -- 327
-				) -- 327
-			) -- 327
-			local col = pr.urgent and PALETTE.cyan or PALETTE.amber -- 328
-			uiGlow:drawSegment( -- 331
-				Vec2(sx, sy - 16), -- 331
-				Vec2(sx, sy - 30), -- 331
-				1.2, -- 331
-				toColor(col, 165 * alpha) -- 331
-			) -- 331
-			uiGlow:drawDot( -- 332
-				Vec2(sx, sy - 30), -- 332
-				2.5, -- 332
-				toColor(col, 220 * alpha) -- 332
-			) -- 332
-			local keyW = math.max( -- 335
-				26, -- 335
-				visualTextWidth(pr.keyTag, 14) + 16 -- 335
-			) -- 335
-			local labelW = visualTextWidth(pr.label, 14) -- 336
-			local pillW = keyW + labelW + 26 -- 337
-			local px = sx - pillW * 0.5 -- 338
-			local py = sy - 14 -- 339
-			fillSkewRect( -- 341
-				uiDraw, -- 341
-				px, -- 341
-				py, -- 341
-				pillW, -- 341
-				26, -- 341
-				7, -- 341
-				toColor(PALETTE.panelBgDeep, 228 * alpha), -- 341
-				1.1, -- 341
-				toColor(col, 215 * alpha) -- 341
-			) -- 341
-			fillSkewRect( -- 342
-				uiGlow, -- 342
-				px + 2, -- 342
-				py + 2, -- 342
-				keyW, -- 342
-				22, -- 342
-				6, -- 342
-				toColor(col, 232 * alpha) -- 342
-			) -- 342
-			texts:put( -- 343
-				"xs", -- 343
-				pr.keyTag, -- 343
-				px + 2 + keyW * 0.5 + 3, -- 343
-				py + 13, -- 343
-				Color(6, 11, 18, 255), -- 343
-				0.5, -- 343
-				0.5, -- 343
-				"Center", -- 343
-				0.4, -- 343
-				alpha -- 343
+		texts:put( -- 311
+			"xs", -- 311
+			t2, -- 311
+			bx + 190, -- 311
+			by + 14, -- 311
+			toColor(step2 and PALETTE.emerald or PALETTE.textMid), -- 311
+			0, -- 311
+			0.5, -- 311
+			"Left", -- 311
+			0.4, -- 311
+			alpha -- 311
+		) -- 311
+	end -- 311
+end -- 249
+function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiGlow, texts, prompts, cam, alpha, uiScale) -- 315
+	local bob = math.sin(self.time * 4.5) * 3.5 -- 324
+	local i = 0 -- 325
+	do -- 325
+		i = 0 -- 326
+		while i < #prompts do -- 326
+			local pr = prompts[i + 1] -- 327
+			local sx = math.max( -- 328
+				110, -- 328
+				math.min( -- 328
+					cam.viewW / uiScale - 110, -- 328
+					cam:sx(pr.x) / uiScale -- 328
+				) -- 328
+			) -- 328
+			local sy = math.max( -- 329
+				96, -- 329
+				math.min( -- 329
+					cam.viewH / uiScale - 110, -- 329
+					cam:sy(pr.y) / uiScale + bob -- 329
+				) -- 329
+			) -- 329
+			local col = pr.urgent and PALETTE.cyan or PALETTE.amber -- 330
+			uiGlow:drawSegment( -- 333
+				Vec2(sx, sy - 16), -- 333
+				Vec2(sx, sy - 30), -- 333
+				1.2, -- 333
+				toColor(col, 165 * alpha) -- 333
+			) -- 333
+			uiGlow:drawDot( -- 334
+				Vec2(sx, sy - 30), -- 334
+				2.5, -- 334
+				toColor(col, 220 * alpha) -- 334
+			) -- 334
+			local keyW = math.max( -- 337
+				26, -- 337
+				visualTextWidth(pr.keyTag, 14) + 16 -- 337
+			) -- 337
+			local labelW = visualTextWidth(pr.label, 14) -- 338
+			local pillW = keyW + labelW + 26 -- 339
+			local px = sx - pillW * 0.5 -- 340
+			local py = sy - 14 -- 341
+			fillSkewRect( -- 343
+				uiDraw, -- 343
+				px, -- 343
+				py, -- 343
+				pillW, -- 343
+				26, -- 343
+				7, -- 343
+				toColor(PALETTE.panelBgDeep, 228 * alpha), -- 343
+				1.1, -- 343
+				toColor(col, 215 * alpha) -- 343
 			) -- 343
-			texts:put( -- 344
-				"xs", -- 344
-				pr.label, -- 344
-				px + keyW + 14, -- 344
-				py + 13, -- 344
-				toColor(PALETTE.textBright), -- 344
-				0, -- 344
-				0.5, -- 344
-				"Left", -- 344
-				0.4, -- 344
-				alpha -- 344
+			fillSkewRect( -- 344
+				uiGlow, -- 344
+				px + 2, -- 344
+				py + 2, -- 344
+				keyW, -- 344
+				22, -- 344
+				6, -- 344
+				toColor(col, 232 * alpha) -- 344
 			) -- 344
-			i = i + 1 -- 324
-		end -- 324
-	end -- 324
-end -- 314
-function HudRenderer.prototype.drawReticle(self, uiDraw, uiGlow, p, cam, vfx) -- 348
-	local mx = p.aimX -- 355
-	local my = p.aimY -- 356
-	if mx <= 0 and my <= 0 then -- 356
-		return -- 358
-	end -- 358
-	if p.childMode then -- 358
-		local aiming = p.room.key == "village" and p.hasBottle -- 363
-		local r = aiming and (p.aimHold > 0 and 15 or 11) or 4 -- 364
-		local col = aiming and PALETTE.emerald or PALETTE.amber -- 365
-		uiGlow:drawDot( -- 366
-			Vec2(mx, my), -- 366
-			2.2, -- 366
-			toColor(col, 220) -- 366
-		) -- 366
-		if aiming then -- 366
-			uiGlow:drawRing( -- 368
-				Vec2(mx, my), -- 368
-				r - 1.5, -- 368
-				r, -- 368
-				Color(0, 0, 0, 0), -- 368
-				1.4, -- 368
-				toColor(col, 210) -- 368
-			) -- 368
-		end -- 368
-		return -- 370
-	end -- 370
-	local wAim = cam:screenToWorld(mx, my) -- 374
-	local onEnemy = false -- 375
-	local i = 0 -- 376
-	do -- 376
-		i = 0 -- 377
-		while i < #p.enemies do -- 377
-			local e = p.enemies[i + 1] -- 378
-			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= e.y - 6 and wAim.y <= e.y + e.h + 6 then -- 378
-				onEnemy = true -- 380
-			end -- 380
-			i = i + 1 -- 377
-		end -- 377
-	end -- 377
-	local col = onEnemy and PALETTE.crimson or PALETTE.cyan -- 384
-	local gap = 7 + vfx.crosshairKick -- 385
-	local arm = 10 -- 386
-	local rot = onEnemy and self.time * 2.5 or 0 -- 387
-	uiGlow:drawSegment( -- 390
-		Vec2(mx - gap - arm, my), -- 390
-		Vec2(mx - gap, my), -- 390
-		1.6, -- 390
-		toColor(col, 240) -- 390
-	) -- 390
-	uiGlow:drawSegment( -- 391
-		Vec2(mx + gap, my), -- 391
-		Vec2(mx + gap + arm, my), -- 391
-		1.6, -- 391
-		toColor(col, 240) -- 391
-	) -- 391
-	uiGlow:drawSegment( -- 392
-		Vec2(mx, my - gap - arm), -- 392
-		Vec2(mx, my - gap), -- 392
-		1.6, -- 392
-		toColor(col, 240) -- 392
-	) -- 392
+			texts:put( -- 345
+				"xs", -- 345
+				pr.keyTag, -- 345
+				px + 2 + keyW * 0.5 + 3, -- 345
+				py + 13, -- 345
+				Color(6, 11, 18, 255), -- 345
+				0.5, -- 345
+				0.5, -- 345
+				"Center", -- 345
+				0.4, -- 345
+				alpha -- 345
+			) -- 345
+			texts:put( -- 346
+				"xs", -- 346
+				pr.label, -- 346
+				px + keyW + 14, -- 346
+				py + 13, -- 346
+				toColor(PALETTE.textBright), -- 346
+				0, -- 346
+				0.5, -- 346
+				"Left", -- 346
+				0.4, -- 346
+				alpha -- 346
+			) -- 346
+			i = i + 1 -- 326
+		end -- 326
+	end -- 326
+end -- 315
+function HudRenderer.prototype.drawReticle(self, uiDraw, uiGlow, p, cam, vfx, uiScale) -- 350
+	local mx = p.aimX / uiScale -- 358
+	local my = p.aimY / uiScale -- 359
+	if mx <= 0 and my <= 0 then -- 359
+		return -- 361
+	end -- 361
+	if p.childMode then -- 361
+		local aiming = p.room.key == "village" and p.hasBottle -- 366
+		local r = aiming and (p.aimHold > 0 and 15 or 11) or 4 -- 367
+		local col = aiming and PALETTE.emerald or PALETTE.amber -- 368
+		uiGlow:drawDot( -- 369
+			Vec2(mx, my), -- 369
+			2.2, -- 369
+			toColor(col, 220) -- 369
+		) -- 369
+		if aiming then -- 369
+			uiGlow:drawRing( -- 371
+				Vec2(mx, my), -- 371
+				r - 1.5, -- 371
+				r, -- 371
+				Color(0, 0, 0, 0), -- 371
+				1.4, -- 371
+				toColor(col, 210) -- 371
+			) -- 371
+		end -- 371
+		return -- 373
+	end -- 373
+	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 377
+	local onEnemy = false -- 378
+	local i = 0 -- 379
+	do -- 379
+		i = 0 -- 380
+		while i < #p.enemies do -- 380
+			local e = p.enemies[i + 1] -- 381
+			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= e.y - 6 and wAim.y <= e.y + e.h + 6 then -- 381
+				onEnemy = true -- 383
+			end -- 383
+			i = i + 1 -- 380
+		end -- 380
+	end -- 380
+	local col = onEnemy and PALETTE.crimson or PALETTE.cyan -- 387
+	local gap = 7 + vfx.crosshairKick -- 388
+	local arm = 10 -- 389
+	local rot = onEnemy and self.time * 2.5 or 0 -- 390
 	uiGlow:drawSegment( -- 393
-		Vec2(mx, my + gap), -- 393
-		Vec2(mx, my + gap + arm), -- 393
+		Vec2(mx - gap - arm, my), -- 393
+		Vec2(mx - gap, my), -- 393
 		1.6, -- 393
 		toColor(col, 240) -- 393
 	) -- 393
-	uiGlow:drawDot( -- 394
-		Vec2(mx, my), -- 394
-		2.2, -- 394
-		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.cyanCore, 255) -- 394
+	uiGlow:drawSegment( -- 394
+		Vec2(mx + gap, my), -- 394
+		Vec2(mx + gap + arm, my), -- 394
+		1.6, -- 394
+		toColor(col, 240) -- 394
 	) -- 394
-	if onEnemy then -- 394
-		local dr = 17 + math.sin(self.time * 16) * 1.5 -- 398
-		drawDiamond( -- 399
-			uiGlow, -- 399
-			mx, -- 399
-			my, -- 399
-			dr, -- 399
-			dr, -- 399
-			Color(255, 48, 82, 24), -- 399
-			1.5, -- 399
-			toColor(PALETTE.crimson, 230) -- 399
-		) -- 399
-		fillRadialGlow( -- 400
-			uiGlow, -- 400
-			mx, -- 400
-			my, -- 400
-			24, -- 400
-			24, -- 400
-			toColor(PALETTE.crimson, 75), -- 400
-			Color(255, 48, 82, 0), -- 400
-			12 -- 400
-		) -- 400
-	else -- 400
-		local cr = gap + 4 -- 402
-		uiDraw:drawArc( -- 403
-			Vec2(mx, my), -- 403
-			cr, -- 403
-			25 + rot * 20, -- 403
-			65 + rot * 20, -- 403
-			1.1, -- 403
-			toColor(PALETTE.cyanDim, 180) -- 403
+	uiGlow:drawSegment( -- 395
+		Vec2(mx, my - gap - arm), -- 395
+		Vec2(mx, my - gap), -- 395
+		1.6, -- 395
+		toColor(col, 240) -- 395
+	) -- 395
+	uiGlow:drawSegment( -- 396
+		Vec2(mx, my + gap), -- 396
+		Vec2(mx, my + gap + arm), -- 396
+		1.6, -- 396
+		toColor(col, 240) -- 396
+	) -- 396
+	uiGlow:drawDot( -- 397
+		Vec2(mx, my), -- 397
+		2.2, -- 397
+		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.cyanCore, 255) -- 397
+	) -- 397
+	if onEnemy then -- 397
+		local dr = 17 + math.sin(self.time * 16) * 1.5 -- 401
+		drawDiamond( -- 402
+			uiGlow, -- 402
+			mx, -- 402
+			my, -- 402
+			dr, -- 402
+			dr, -- 402
+			Color(255, 48, 82, 24), -- 402
+			1.5, -- 402
+			toColor(PALETTE.crimson, 230) -- 402
+		) -- 402
+		fillRadialGlow( -- 403
+			uiGlow, -- 403
+			mx, -- 403
+			my, -- 403
+			24, -- 403
+			24, -- 403
+			toColor(PALETTE.crimson, 75), -- 403
+			Color(255, 48, 82, 0), -- 403
+			12 -- 403
 		) -- 403
-		uiDraw:drawArc( -- 404
-			Vec2(mx, my), -- 404
-			cr, -- 404
-			205 + rot * 20, -- 404
-			245 + rot * 20, -- 404
-			1.1, -- 404
-			toColor(PALETTE.cyanDim, 180) -- 404
-		) -- 404
-	end -- 404
-end -- 348
-return ____exports -- 348
+	else -- 403
+		local cr = gap + 4 -- 405
+		uiDraw:drawArc( -- 406
+			Vec2(mx, my), -- 406
+			cr, -- 406
+			25 + rot * 20, -- 406
+			65 + rot * 20, -- 406
+			1.1, -- 406
+			toColor(PALETTE.cyanDim, 180) -- 406
+		) -- 406
+		uiDraw:drawArc( -- 407
+			Vec2(mx, my), -- 407
+			cr, -- 407
+			205 + rot * 20, -- 407
+			245 + rot * 20, -- 407
+			1.1, -- 407
+			toColor(PALETTE.cyanDim, 180) -- 407
+		) -- 407
+	end -- 407
+end -- 350
+return ____exports -- 350
