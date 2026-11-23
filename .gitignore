@@ -12,3 +12,6 @@ API/
 
 # 组装的发行包与 ZIP（体积大，用 tools/make-windows-pack.sh 重建）
 dist/
+
+# 原始截帧；用于文档的图片收在 docs/
+/shots/
