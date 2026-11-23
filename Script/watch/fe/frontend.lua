@@ -100,150 +100,144 @@ function WatchFrontend.prototype.bindPlay(self, p, w, h) -- 116
 	self.adapter:reset(p) -- 120
 	self.actors:reset(p) -- 121
 	self.vfx:reset() -- 122
-	self.hud:reset(p) -- 123
-	self.narrative:onEnterRoom(p.room.key) -- 124
+	self.narrative:onEnterRoom(p.room.key) -- 123
 end -- 116
-function WatchFrontend.prototype.clearAll(self) -- 127
-	self.bgDraw:clear() -- 128
-	self.bgGlow:clear() -- 129
-	self.fgDraw:clear() -- 130
-	self.fgGlow:clear() -- 131
-	self.uiDraw:clear() -- 132
-	self.uiGlow:clear() -- 133
-	self.backdropArt:beginFrame() -- 134
-	self.worldArt:beginFrame() -- 135
-	self.uiArt:beginFrame() -- 136
-	self.texts:beginFrame() -- 137
-end -- 127
-function WatchFrontend.prototype.finishFrame(self) -- 140
-	self.backdropArt:endFrame() -- 141
-	self.worldArt:endFrame() -- 142
-	self.uiArt:endFrame() -- 143
-	self.texts:endFrame() -- 144
-end -- 140
-function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 148
-	self:setVisible(true) -- 149
-	self:clearAll() -- 150
-	local uiScale = self:resizeInterface(w, h) -- 151
-	local act = self.menus:updateAndDrawScreen( -- 152
-		dt, -- 153
-		self.screen, -- 154
-		input, -- 155
-		self.stage, -- 156
-		self.bgDraw, -- 157
-		self.bgGlow, -- 158
-		self.backdropArt, -- 159
-		self.uiArt, -- 160
-		self.uiDraw, -- 161
-		self.uiGlow, -- 162
-		self.texts, -- 163
-		w, -- 164
-		h, -- 165
-		uiScale -- 166
-	) -- 166
-	self:finishFrame() -- 168
-	return act -- 169
-end -- 148
-function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 173
-	self:setVisible(true) -- 174
-	if self.boundPlay ~= p then -- 174
-		self:bindPlay(p, w, h) -- 176
-	end -- 176
-	local safeDt = math.min( -- 178
-		0.05, -- 178
-		math.max(0.001, dt) -- 178
-	) -- 178
-	local ev = self.adapter:sample(p) -- 181
-	self.vfx:ingest(ev, p, self.cam) -- 182
-	if not p.paused then -- 182
-		self.time = self.time + safeDt -- 185
-		self.cam:update(safeDt, p, w, h) -- 186
-		self.actors:update(safeDt, p) -- 187
-		self.vfx:update( -- 188
-			safeDt, -- 188
-			themeOf(p.room.key).ambient -- 188
-		) -- 188
-		self.hud:update(safeDt, p) -- 189
-		self.narrative:update(safeDt, p) -- 190
-	else -- 190
-		self.narrative.wipeT = 0 -- 193
-		self.cam:update(0, p, w, h) -- 194
-	end -- 194
-	self:clearAll() -- 197
-	self.stage:drawBackdrop( -- 200
-		self.bgDraw, -- 200
-		self.bgGlow, -- 200
-		self.backdropArt, -- 200
-		p, -- 200
-		self.cam, -- 200
-		self.time -- 200
-	) -- 200
-	self.stage:drawPlayableWorld( -- 203
-		self.fgDraw, -- 203
-		self.fgGlow, -- 203
-		self.worldArt, -- 203
-		p, -- 203
-		self.cam, -- 203
-		self.time -- 203
-	) -- 203
-	self.props:drawAll( -- 206
-		self.fgDraw, -- 206
-		self.fgGlow, -- 206
-		self.worldArt, -- 206
-		p, -- 206
-		self.cam, -- 206
-		self.time -- 206
-	) -- 206
-	self.actors:drawAll( -- 209
-		self.fgDraw, -- 209
-		self.fgGlow, -- 209
-		self.worldArt, -- 209
-		p, -- 209
-		self.cam -- 209
-	) -- 209
-	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 212
-	self.stage:drawForegroundFraming( -- 215
-		self.fgDraw, -- 215
-		w, -- 215
-		h, -- 215
-		p, -- 215
-		self.cam -- 215
-	) -- 215
-	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 216
-	local uiScale = self:resizeInterface(w, h) -- 219
-	self.hud:draw( -- 220
-		self.uiDraw, -- 220
-		self.uiGlow, -- 220
-		self.texts, -- 220
-		p, -- 220
-		self.cam, -- 220
-		self.vfx, -- 220
-		self.narrative.letterbox, -- 220
-		uiScale -- 220
-	) -- 220
-	self.narrative:draw( -- 221
-		self.uiDraw, -- 221
-		self.uiGlow, -- 221
-		self.uiArt, -- 221
-		self.texts, -- 221
-		p, -- 221
-		w / uiScale, -- 221
-		h / uiScale -- 221
-	) -- 221
-	local action = {type = "none"} -- 224
-	if p.paused then -- 224
-		action = self.menus:updateAndDrawPause( -- 226
-			safeDt, -- 226
-			input, -- 226
-			self.uiDraw, -- 226
-			self.uiGlow, -- 226
-			self.texts, -- 226
-			w / uiScale, -- 226
-			h / uiScale, -- 226
-			uiScale -- 226
-		) -- 226
-	end -- 226
-	self:finishFrame() -- 229
-	return action -- 230
-end -- 173
-return ____exports -- 173
+function WatchFrontend.prototype.clearAll(self) -- 126
+	self.bgDraw:clear() -- 127
+	self.bgGlow:clear() -- 128
+	self.fgDraw:clear() -- 129
+	self.fgGlow:clear() -- 130
+	self.uiDraw:clear() -- 131
+	self.uiGlow:clear() -- 132
+	self.backdropArt:beginFrame() -- 133
+	self.worldArt:beginFrame() -- 134
+	self.uiArt:beginFrame() -- 135
+	self.texts:beginFrame() -- 136
+end -- 126
+function WatchFrontend.prototype.finishFrame(self) -- 139
+	self.backdropArt:endFrame() -- 140
+	self.worldArt:endFrame() -- 141
+	self.uiArt:endFrame() -- 142
+	self.texts:endFrame() -- 143
+end -- 139
+function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 147
+	self:setVisible(true) -- 148
+	self:clearAll() -- 149
+	local uiScale = self:resizeInterface(w, h) -- 150
+	local act = self.menus:updateAndDrawScreen( -- 151
+		dt, -- 152
+		self.screen, -- 153
+		input, -- 154
+		self.stage, -- 155
+		self.bgDraw, -- 156
+		self.bgGlow, -- 157
+		self.backdropArt, -- 158
+		self.uiDraw, -- 159
+		self.texts, -- 160
+		w, -- 161
+		h, -- 162
+		uiScale -- 163
+	) -- 163
+	self:finishFrame() -- 165
+	return act -- 166
+end -- 147
+function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 170
+	self:setVisible(true) -- 171
+	if self.boundPlay ~= p then -- 171
+		self:bindPlay(p, w, h) -- 173
+	end -- 173
+	local safeDt = math.min( -- 175
+		0.05, -- 175
+		math.max(0.001, dt) -- 175
+	) -- 175
+	local ev = self.adapter:sample(p) -- 178
+	self.vfx:ingest(ev, p, self.cam) -- 179
+	if not p.paused then -- 179
+		self.time = self.time + safeDt -- 182
+		self.cam:update(safeDt, p, w, h) -- 183
+		self.actors:update(safeDt, p) -- 184
+		self.vfx:update( -- 185
+			safeDt, -- 185
+			themeOf(p.room.key).ambient -- 185
+		) -- 185
+		self.narrative:update(safeDt, p) -- 186
+	else -- 186
+		self.narrative.wipeT = 0 -- 189
+		self.cam:update(0, p, w, h) -- 190
+	end -- 190
+	self:clearAll() -- 193
+	self.stage:drawBackdrop( -- 196
+		self.bgDraw, -- 196
+		self.bgGlow, -- 196
+		self.backdropArt, -- 196
+		p, -- 196
+		self.cam, -- 196
+		self.time -- 196
+	) -- 196
+	self.stage:drawPlayableWorld( -- 199
+		self.fgDraw, -- 199
+		self.fgGlow, -- 199
+		self.worldArt, -- 199
+		p, -- 199
+		self.cam, -- 199
+		self.time -- 199
+	) -- 199
+	self.props:drawAll( -- 202
+		self.fgDraw, -- 202
+		self.fgGlow, -- 202
+		self.worldArt, -- 202
+		p, -- 202
+		self.cam, -- 202
+		self.time -- 202
+	) -- 202
+	self.actors:drawAll( -- 205
+		self.fgDraw, -- 205
+		self.fgGlow, -- 205
+		self.worldArt, -- 205
+		p, -- 205
+		self.cam -- 205
+	) -- 205
+	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 208
+	self.stage:drawForegroundFraming( -- 211
+		self.fgDraw, -- 211
+		w, -- 211
+		h, -- 211
+		p, -- 211
+		self.cam -- 211
+	) -- 211
+	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 212
+	local uiScale = self:resizeInterface(w, h) -- 214
+	local action = {type = "none"} -- 215
+	if p.paused then -- 215
+		action = self.menus:updateAndDrawPause( -- 217
+			input, -- 217
+			self.uiDraw, -- 217
+			self.texts, -- 217
+			w / uiScale, -- 217
+			h / uiScale, -- 217
+			uiScale -- 217
+		) -- 217
+	else -- 217
+		self.hud:draw( -- 219
+			self.uiDraw, -- 219
+			self.uiGlow, -- 219
+			self.texts, -- 219
+			p, -- 219
+			self.cam, -- 219
+			self.vfx, -- 219
+			self.narrative.letterbox, -- 219
+			uiScale -- 219
+		) -- 219
+		self.narrative:draw( -- 220
+			self.uiDraw, -- 220
+			self.uiArt, -- 220
+			self.texts, -- 220
+			p, -- 220
+			w / uiScale, -- 220
+			h / uiScale -- 220
+		) -- 220
+	end -- 220
+	self:finishFrame() -- 223
+	return action -- 224
+end -- 170
+return ____exports -- 170

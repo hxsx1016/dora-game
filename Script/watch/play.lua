@@ -206,7 +206,7 @@ local CAM_LOOK_UP = 46 -- 47
 --- 拉车速度：规划初值 64 单位/秒。
 local CART_SPEED = 64 -- 50
 --- 握把触发半径。
-local CART_REACH = 70 -- 52
+____exports.CART_REACH = 70 -- 52
 --- 车身半宽与下缘净高（城外下层阻挡）。
 local CART_HALF = 24 -- 54
 local CART_CLEAR = 44 -- 55
@@ -1282,7 +1282,7 @@ function Play.prototype.stepInteract(self, dt, input) -- 1179
 		local c = self.room.cart -- 1185
 		local dx = p.x - (self.cartAxle + c.handleOffset) -- 1186
 		local dy = p.y - c.baseY -- 1187
-		self.focusCart = dx * dx + dy * dy < CART_REACH * CART_REACH -- 1188
+		self.focusCart = dx * dx + dy * dy < ____exports.CART_REACH * ____exports.CART_REACH -- 1188
 	end -- 1188
 	self:stepCart(dt, input) -- 1190
 	if calmUsed then -- 1190
@@ -1524,7 +1524,7 @@ function Play.prototype.stepCart(self, dt, input) -- 1425
 		if not input.interact.pressed then -- 1434
 			return -- 1438
 		end -- 1438
-		if math.abs(p.x - handleX) > CART_REACH or math.abs(p.y - c.baseY) > 40 then -- 1438
+		if math.abs(p.x - handleX) > ____exports.CART_REACH or math.abs(p.y - c.baseY) > 40 then -- 1438
 			return -- 1441
 		end -- 1441
 		self.gripping = true -- 1443
@@ -1555,7 +1555,7 @@ function Play.prototype.stepCart(self, dt, input) -- 1425
 	p.x = p.x + delta -- 1469
 	p.facing = dir > 0 and 1 or -1 -- 1470
 	self:slideX(p, 0) -- 1471
-	if math.abs(p.x - (self.cartAxle + c.handleOffset)) > CART_REACH then -- 1471
+	if math.abs(p.x - (self.cartAxle + c.handleOffset)) > ____exports.CART_REACH then -- 1471
 		self.gripping = false -- 1473
 		self:flashSet("跟不上了，脱手", 0.6) -- 1474
 		return -- 1475

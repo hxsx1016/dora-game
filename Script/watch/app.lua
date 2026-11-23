@@ -43,347 +43,363 @@ function place(lb, x, y, ax, ay) -- 74
 	lb.anchor = Vec2(ax, ay) -- 79
 	lb.visible = true -- 80
 end -- 80
-function setMode(nextMode) -- 212
-	mode = nextMode -- 213
-	if grayboxLayer ~= nil then -- 213
-		grayboxLayer.visible = mode == 0 -- 215
-	end -- 215
-	if fe ~= nil then -- 215
-		fe:setVisible(mode == 1) -- 218
-	end -- 218
-	dirty = true -- 220
-	clock:reset() -- 221
-end -- 221
-function enterPlayRoom(idx) -- 224
-	current = idx -- 225
-	setMode(1) -- 226
-	if fe ~= nil then -- 226
-		fe.screen = "play" -- 228
-	end -- 228
-	play = nil -- 230
-	ensurePlay() -- 231
-end -- 231
-function pickByIndex(idx) -- 234
-	if idx < 0 or idx >= #ROOMS then -- 234
-		return -- 236
-	end -- 236
-	current = idx -- 238
-	dirty = true -- 239
-	play = nil -- 240
-	clock:reset() -- 241
-	if mode == 1 then -- 241
-		if fe ~= nil then -- 241
-			fe.screen = "play" -- 244
-		end -- 244
-		ensurePlay() -- 246
-	end -- 246
-end -- 246
-function applySize() -- 250
-	if root == nil then -- 250
-		return -- 252
-	end -- 252
-	root.size = Size(viewW, viewH) -- 254
-	root.position = Vec2(-viewW / 2, -viewH / 2) -- 255
-end -- 255
-function tick(frameDt) -- 258
-	local w = View.size.width -- 259
-	local h = View.size.height -- 260
-	if w ~= viewW or h ~= viewH then -- 260
-		viewW = w -- 262
-		viewH = h -- 263
-		applySize() -- 264
-		dirty = true -- 265
-	end -- 265
-	if input == nil then -- 265
-		return -- 268
-	end -- 268
-	input:update() -- 270
-	if input.toggleView.pressed then -- 270
-		input.toggleView.pressed = false -- 274
-		setMode(mode == 0 and 1 or 0) -- 275
-		if mode == 1 and fe ~= nil and fe.screen == "play" and play == nil then -- 275
-			ensurePlay() -- 277
-		end -- 277
-	end -- 277
-	if input.pickRoom ~= 0 then -- 277
-		local idx = input.pickRoom - 1 -- 283
-		input.pickRoom = 0 -- 284
-		pickByIndex(idx) -- 285
-	elseif input.tab.pressed then -- 285
-		input.tab.pressed = false -- 287
-		pickByIndex((current + 1) % #ROOMS) -- 288
-	end -- 288
-	if mode == 1 then -- 288
-		tickFrontend(frameDt) -- 292
-		return -- 293
-	end -- 293
-	if dirty then -- 293
-		redrawGraybox() -- 296
-		dirty = false -- 297
-	end -- 297
-end -- 297
-function ensurePlay(resume) -- 301
-	play = __TS__New(Play, ROOMS[current + 1], resume) -- 302
-	local reg = _G.package.loaded -- 303
-	reg["watch.play"] = play -- 304
-	reg["watch.room"] = ROOMS[current + 1].key -- 305
-	clock:reset() -- 306
-	if fe ~= nil then -- 306
-		fe:bindPlay(play, viewW, viewH) -- 308
-	end -- 308
-end -- 308
-function tickFrontend(frameDt) -- 312
-	if fe == nil or input == nil then -- 312
-		return -- 314
-	end -- 314
-	if fe.screen ~= "play" then -- 314
-		local act = fe:renderMenu(frameDt, input, viewW, viewH) -- 319
-		input:consumeEdges() -- 320
-		if act.type == "start" then -- 320
-			enterPlayRoom(0) -- 322
-		elseif act.type == "jump" and act.roomIndex ~= nil then -- 322
-			enterPlayRoom(act.roomIndex) -- 324
-		elseif act.type == "openChapters" then -- 324
-			fe.screen = "chapters" -- 326
-		elseif act.type == "openControls" then -- 326
-			fe.screen = "controls" -- 328
-		elseif act.type == "backTitle" then -- 328
-			fe.screen = "title" -- 330
-		end -- 330
-		return -- 332
-	end -- 332
-	if play == nil then -- 332
-		ensurePlay() -- 337
-	end -- 337
-	if play == nil then -- 337
-		return -- 340
-	end -- 340
-	local p = play -- 342
-	if input.retry.pressed then -- 342
-		input:consumeEdges() -- 345
-		ensurePlay({checkpoint = p.checkpoint}) -- 346
-		return -- 347
-	end -- 347
-	p.aimX = input.mx -- 350
-	p.aimY = input.my -- 351
-	if p.paused then -- 351
-		clock:reset() -- 354
-		input:beginStep(true) -- 355
-		p:update(STEP, input) -- 356
-		input:endStep() -- 357
-		local pauseAct = fe:renderPlay( -- 358
-			frameDt, -- 358
-			p, -- 358
-			input, -- 358
-			viewW, -- 358
-			viewH -- 358
-		) -- 358
-		if pauseAct.type == "resume" then -- 358
-			p.paused = false -- 360
-		elseif pauseAct.type == "retry" then -- 360
-			ensurePlay({checkpoint = p.checkpoint}) -- 362
-		elseif pauseAct.type == "openChapters" then -- 362
-			p.paused = false -- 364
-			fe.screen = "chapters" -- 365
-		elseif pauseAct.type == "toTitle" then -- 365
-			p.paused = false -- 367
-			fe.screen = "title" -- 368
-		end -- 368
-		return -- 370
-	end -- 370
-	local steps = clock:advance(frameDt) -- 373
-	local i = 0 -- 374
-	do -- 374
-		i = 0 -- 375
-		while i < steps do -- 375
-			input:beginStep(i == 0) -- 376
-			p:update(STEP, input) -- 377
-			input:endStep() -- 378
-			i = i + 1 -- 375
-		end -- 375
-	end -- 375
-	if p.wantRoom ~= "" then -- 375
-		local key = p.wantRoom -- 383
-		p.wantRoom = "" -- 384
-		local idx = -1 -- 385
-		local j = 0 -- 386
-		do -- 386
-			j = 0 -- 387
-			while j < #ROOMS do -- 387
-				if ROOMS[j + 1].key == key then -- 387
-					idx = j -- 389
-				end -- 389
-				j = j + 1 -- 387
-			end -- 387
-		end -- 387
-		if idx >= 0 then -- 387
-			current = idx -- 393
-			ensurePlay() -- 394
-			dirty = true -- 395
+function setMode(nextMode) -- 217
+	mode = nextMode -- 218
+	if grayboxLayer ~= nil then -- 218
+		grayboxLayer.visible = mode == 0 -- 220
+	end -- 220
+	if fe ~= nil then -- 220
+		fe:setVisible(mode == 1) -- 223
+	end -- 223
+	dirty = true -- 225
+	clock:reset() -- 226
+end -- 226
+function enterPlayRoom(idx) -- 229
+	current = idx -- 230
+	setMode(1) -- 231
+	if fe ~= nil then -- 231
+		fe.screen = "play" -- 233
+	end -- 233
+	play = nil -- 235
+	ensurePlay() -- 236
+end -- 236
+function pickByIndex(idx) -- 239
+	if idx < 0 or idx >= #ROOMS then -- 239
+		return -- 241
+	end -- 241
+	current = idx -- 243
+	dirty = true -- 244
+	play = nil -- 245
+	clock:reset() -- 246
+	if mode == 1 then -- 246
+		if fe ~= nil then -- 246
+			fe.screen = "play" -- 249
+		end -- 249
+		ensurePlay() -- 251
+	end -- 251
+end -- 251
+function applySize() -- 255
+	if root == nil then -- 255
+		return -- 257
+	end -- 257
+	root.size = Size(viewW, viewH) -- 259
+	root.position = Vec2(-viewW / 2, -viewH / 2) -- 260
+end -- 260
+function tick(frameDt) -- 263
+	local w = View.size.width -- 264
+	local h = View.size.height -- 265
+	if w ~= viewW or h ~= viewH then -- 265
+		viewW = w -- 267
+		viewH = h -- 268
+		applySize() -- 269
+		dirty = true -- 270
+	end -- 270
+	if input == nil then -- 270
+		return -- 273
+	end -- 273
+	input:update() -- 275
+	if input.toggleView.pressed then -- 275
+		input.toggleView.pressed = false -- 279
+		setMode(mode == 0 and 1 or 0) -- 280
+		if mode == 1 and fe ~= nil and fe.screen == "play" and play == nil then -- 280
+			ensurePlay() -- 282
+		end -- 282
+	end -- 282
+	if input.pickRoom ~= 0 then -- 282
+		local idx = input.pickRoom - 1 -- 288
+		input.pickRoom = 0 -- 289
+		pickByIndex(idx) -- 290
+	elseif input.tab.pressed then -- 290
+		input.tab.pressed = false -- 292
+		if mode == 0 or (fe and fe.screen) == "play" and not (play and play.paused) then -- 292
+			pickByIndex((current + 1) % #ROOMS) -- 294
+		end -- 294
+	end -- 294
+	if mode == 1 then -- 294
+		tickFrontend(frameDt) -- 299
+		return -- 300
+	end -- 300
+	if dirty then -- 300
+		redrawGraybox() -- 303
+		dirty = false -- 304
+	end -- 304
+end -- 304
+function ensurePlay(resume) -- 308
+	play = __TS__New(Play, ROOMS[current + 1], resume) -- 309
+	local reg = _G.package.loaded -- 310
+	reg["watch.play"] = play -- 311
+	reg["watch.room"] = ROOMS[current + 1].key -- 312
+	clock:reset() -- 313
+	if fe ~= nil then -- 313
+		fe:bindPlay(play, viewW, viewH) -- 315
+	end -- 315
+end -- 315
+function tickFrontend(frameDt) -- 319
+	if fe == nil or input == nil then -- 319
+		return -- 321
+	end -- 321
+	if fe.screen ~= "play" then -- 321
+		local act = fe:renderMenu(frameDt, input, viewW, viewH) -- 326
+		input:consumeEdges() -- 327
+		if act.type == "start" then -- 327
+			enterPlayRoom(0) -- 329
+		elseif act.type == "jump" and act.roomIndex ~= nil then -- 329
+			enterPlayRoom(act.roomIndex) -- 331
+		elseif act.type == "openChapters" then -- 331
+			fe.menus:openChapters() -- 333
+			fe.screen = "chapters" -- 334
+		elseif act.type == "openControls" then -- 334
+			fe.menus:resetInput() -- 336
+			fe.screen = "controls" -- 337
+		elseif act.type == "backTitle" then -- 337
+			fe.menus:resetInput() -- 339
+			fe.screen = "title" -- 340
+		elseif act.type == "backPause" then -- 340
+			fe.menus:resetInput() -- 342
+			fe.screen = "play" -- 343
+		end -- 343
+		return -- 345
+	end -- 345
+	if play == nil then -- 345
+		ensurePlay() -- 350
+	end -- 350
+	if play == nil then -- 350
+		return -- 353
+	end -- 353
+	local p = play -- 355
+	if input.retry.pressed then -- 355
+		input:consumeEdges() -- 358
+		ensurePlay({checkpoint = p.checkpoint}) -- 359
+		return -- 360
+	end -- 360
+	p.aimX = input.mx -- 363
+	p.aimY = input.my -- 364
+	if not p.paused and input.pause.pressed then -- 364
+		p.paused = true -- 367
+		p.aimHold = 0 -- 368
+		p.bottleAimX = -1 -- 369
+		fe.menus:openPause() -- 370
+		input:consumeEdges() -- 371
+	end -- 371
+	if p.paused then -- 371
+		clock:reset() -- 376
+		local pauseAct = fe:renderPlay( -- 377
+			frameDt, -- 377
+			p, -- 377
+			input, -- 377
+			viewW, -- 377
+			viewH -- 377
+		) -- 377
+		input:consumeEdges() -- 378
+		if pauseAct.type == "resume" then -- 378
+			p.paused = false -- 380
+		elseif pauseAct.type == "retry" then -- 380
+			ensurePlay({checkpoint = p.checkpoint}) -- 382
+		elseif pauseAct.type == "openChapters" then -- 382
+			fe.menus:openChapters(current) -- 384
+			fe.screen = "chapters" -- 385
+		elseif pauseAct.type == "toTitle" then -- 385
+			fe.menus:resetInput() -- 387
+			fe.screen = "title" -- 388
+		end -- 388
+		return -- 390
+	end -- 390
+	local steps = clock:advance(frameDt) -- 393
+	local i = 0 -- 394
+	do -- 394
+		i = 0 -- 395
+		while i < steps do -- 395
+			input:beginStep(i == 0) -- 396
+			p:update(STEP, input) -- 397
+			input:endStep() -- 398
+			if p.wantRoom ~= "" then -- 398
+				break -- 400
+			end -- 400
+			i = i + 1 -- 395
 		end -- 395
-		return -- 397
-	end -- 397
-	fe:renderPlay( -- 400
-		frameDt, -- 400
-		p, -- 400
-		input, -- 400
-		viewW, -- 400
-		viewH -- 400
-	) -- 400
-end -- 400
-function redrawGraybox() -- 404
-	if draw == nil then -- 404
-		return -- 406
-	end -- 406
-	local w = viewW -- 408
-	local h = viewH -- 409
-	local room = ROOMS[current + 1] -- 410
-	draw:clear() -- 412
-	draw:drawRect( -- 413
-		Rect(0, h - TOP_H, w, TOP_H), -- 413
-		C_BG -- 413
-	) -- 413
-	draw:drawRect( -- 414
-		Rect(0, 0, w, BOTTOM_H), -- 414
-		C_BG -- 414
-	) -- 414
-	draw:drawSegment( -- 415
-		Vec2(0, h - TOP_H), -- 415
-		Vec2(w, h - TOP_H), -- 415
-		1, -- 415
-		Color(52, 54, 54, 255) -- 415
-	) -- 415
-	draw:drawSegment( -- 416
-		Vec2(0, BOTTOM_H), -- 416
-		Vec2(w, BOTTOM_H), -- 416
-		1, -- 416
-		Color(52, 54, 54, 255) -- 416
-	) -- 416
-	local v = computeView(room, w, h) -- 418
-	renderWorld( -- 419
-		draw, -- 419
-		room, -- 419
-		v, -- 419
-		w, -- 419
-		h -- 419
-	) -- 419
-	local roomTop = v.groundPx + room.height * v.scale -- 421
-	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 422
-	place( -- 424
-		titleLabel, -- 424
-		48, -- 424
-		h - 40, -- 424
-		0, -- 424
-		1 -- 424
-	) -- 424
-	place( -- 425
-		roomLabel, -- 425
-		48, -- 425
-		h - 96, -- 425
-		0, -- 425
-		1 -- 425
-	) -- 425
-	place( -- 426
-		captionLabel, -- 426
-		48, -- 426
-		h - 140, -- 426
-		0, -- 426
-		1 -- 426
-	) -- 426
-	place( -- 428
-		switchLabel, -- 428
-		48, -- 428
-		40, -- 428
-		0, -- 428
-		0 -- 428
-	) -- 428
-	place( -- 429
-		hintLabel, -- 429
-		48, -- 429
-		84, -- 429
-		0, -- 429
-		0 -- 429
-	) -- 429
-	place( -- 430
-		rulerLabel, -- 430
-		w - 216, -- 430
-		roomTop + 36 + v.scale * 0.5 - 14, -- 430
-		1, -- 430
-		0 -- 430
-	) -- 430
-	place( -- 431
-		standLabel, -- 431
-		48, -- 431
-		roomTop + 40, -- 431
-		0, -- 431
-		0 -- 431
-	) -- 431
-	place( -- 432
-		cartLabel, -- 432
-		48, -- 432
-		roomTop + 92, -- 432
-		0, -- 432
-		0 -- 432
-	) -- 432
-	if roomLabel ~= nil then -- 432
-		roomLabel.text = room.name -- 435
-	end -- 435
-	if captionLabel ~= nil then -- 435
-		captionLabel.text = room.caption -- 438
-	end -- 438
-	if hintLabel ~= nil then -- 438
-		local hintIdx = math.min(current, #HINTS - 1) -- 441
-		local lines = HINTS[hintIdx + 1] -- 442
-		local merged = lines[1] -- 443
-		do -- 443
-			local i = 1 -- 444
-			while i < #lines do -- 444
-				merged = (merged .. "    ") .. lines[i + 1] -- 445
-				i = i + 1 -- 444
-			end -- 444
-		end -- 444
-		hintLabel.text = merged -- 447
-	end -- 447
-	local specs = collectLabels(room, v, w) -- 450
-	local body = {} -- 451
-	local small = {} -- 452
-	do -- 452
-		local i = 0 -- 453
-		while i < #specs do -- 453
-			local s = specs[i + 1] -- 454
-			if s.size >= 24 then -- 454
-				body[#body + 1] = s -- 456
-			else -- 456
-				small[#small + 1] = s -- 458
-			end -- 458
-			i = i + 1 -- 453
-		end -- 453
-	end -- 453
-	applyPool(body, poolBody) -- 461
-	applyPool(small, poolSmall) -- 462
-	if LAYOUT_AUDIT then -- 462
-		print((("AUDIT|" .. room.key) .. "|") .. tostring(#specs)) -- 465
-	end -- 465
-end -- 465
-function applyPool(specs, pool) -- 469
-	do -- 469
-		local i = 0 -- 470
-		while i < #pool do -- 470
-			local lb = pool[i + 1] -- 471
-			if i < #specs then -- 471
-				local s = specs[i + 1] -- 473
-				lb.text = s.text -- 474
-				lb.position = Vec2(s.x, s.y) -- 475
-				lb.anchor = Vec2(s.ax, s.ay) -- 476
-				lb.color = s.color -- 477
-				lb.visible = true -- 478
-			else -- 478
-				lb.visible = false -- 480
-			end -- 480
-			i = i + 1 -- 470
-		end -- 470
+	end -- 395
+	if p.wantRoom ~= "" then -- 395
+		local key = p.wantRoom -- 406
+		p.wantRoom = "" -- 407
+		local idx = -1 -- 408
+		local j = 0 -- 409
+		do -- 409
+			j = 0 -- 410
+			while j < #ROOMS do -- 410
+				if ROOMS[j + 1].key == key then -- 410
+					idx = j -- 412
+				end -- 412
+				j = j + 1 -- 410
+			end -- 410
+		end -- 410
+		if idx >= 0 then -- 410
+			current = idx -- 416
+			ensurePlay() -- 417
+			dirty = true -- 418
+		end -- 418
+		return -- 420
+	end -- 420
+	fe:renderPlay( -- 423
+		frameDt, -- 423
+		p, -- 423
+		input, -- 423
+		viewW, -- 423
+		viewH -- 423
+	) -- 423
+end -- 423
+function redrawGraybox() -- 427
+	if draw == nil then -- 427
+		return -- 429
+	end -- 429
+	local w = viewW -- 431
+	local h = viewH -- 432
+	local room = ROOMS[current + 1] -- 433
+	draw:clear() -- 435
+	draw:drawRect( -- 436
+		Rect(0, h - TOP_H, w, TOP_H), -- 436
+		C_BG -- 436
+	) -- 436
+	draw:drawRect( -- 437
+		Rect(0, 0, w, BOTTOM_H), -- 437
+		C_BG -- 437
+	) -- 437
+	draw:drawSegment( -- 438
+		Vec2(0, h - TOP_H), -- 438
+		Vec2(w, h - TOP_H), -- 438
+		1, -- 438
+		Color(52, 54, 54, 255) -- 438
+	) -- 438
+	draw:drawSegment( -- 439
+		Vec2(0, BOTTOM_H), -- 439
+		Vec2(w, BOTTOM_H), -- 439
+		1, -- 439
+		Color(52, 54, 54, 255) -- 439
+	) -- 439
+	local v = computeView(room, w, h) -- 441
+	renderWorld( -- 442
+		draw, -- 442
+		room, -- 442
+		v, -- 442
+		w, -- 442
+		h -- 442
+	) -- 442
+	local roomTop = v.groundPx + room.height * v.scale -- 444
+	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 445
+	place( -- 447
+		titleLabel, -- 447
+		48, -- 447
+		h - 40, -- 447
+		0, -- 447
+		1 -- 447
+	) -- 447
+	place( -- 448
+		roomLabel, -- 448
+		48, -- 448
+		h - 96, -- 448
+		0, -- 448
+		1 -- 448
+	) -- 448
+	place( -- 449
+		captionLabel, -- 449
+		48, -- 449
+		h - 140, -- 449
+		0, -- 449
+		1 -- 449
+	) -- 449
+	place( -- 451
+		switchLabel, -- 451
+		48, -- 451
+		40, -- 451
+		0, -- 451
+		0 -- 451
+	) -- 451
+	place( -- 452
+		hintLabel, -- 452
+		48, -- 452
+		84, -- 452
+		0, -- 452
+		0 -- 452
+	) -- 452
+	place( -- 453
+		rulerLabel, -- 453
+		w - 216, -- 453
+		roomTop + 36 + v.scale * 0.5 - 14, -- 453
+		1, -- 453
+		0 -- 453
+	) -- 453
+	place( -- 454
+		standLabel, -- 454
+		48, -- 454
+		roomTop + 40, -- 454
+		0, -- 454
+		0 -- 454
+	) -- 454
+	place( -- 455
+		cartLabel, -- 455
+		48, -- 455
+		roomTop + 92, -- 455
+		0, -- 455
+		0 -- 455
+	) -- 455
+	if roomLabel ~= nil then -- 455
+		roomLabel.text = room.name -- 458
+	end -- 458
+	if captionLabel ~= nil then -- 458
+		captionLabel.text = room.caption -- 461
+	end -- 461
+	if hintLabel ~= nil then -- 461
+		local hintIdx = math.min(current, #HINTS - 1) -- 464
+		local lines = HINTS[hintIdx + 1] -- 465
+		local merged = lines[1] -- 466
+		do -- 466
+			local i = 1 -- 467
+			while i < #lines do -- 467
+				merged = (merged .. "    ") .. lines[i + 1] -- 468
+				i = i + 1 -- 467
+			end -- 467
+		end -- 467
+		hintLabel.text = merged -- 470
 	end -- 470
-end -- 470
+	local specs = collectLabels(room, v, w) -- 473
+	local body = {} -- 474
+	local small = {} -- 475
+	do -- 475
+		local i = 0 -- 476
+		while i < #specs do -- 476
+			local s = specs[i + 1] -- 477
+			if s.size >= 24 then -- 477
+				body[#body + 1] = s -- 479
+			else -- 479
+				small[#small + 1] = s -- 481
+			end -- 481
+			i = i + 1 -- 476
+		end -- 476
+	end -- 476
+	applyPool(body, poolBody) -- 484
+	applyPool(small, poolSmall) -- 485
+	if LAYOUT_AUDIT then -- 485
+		print((("AUDIT|" .. room.key) .. "|") .. tostring(#specs)) -- 488
+	end -- 488
+end -- 488
+function applyPool(specs, pool) -- 492
+	do -- 492
+		local i = 0 -- 493
+		while i < #pool do -- 493
+			local lb = pool[i + 1] -- 494
+			if i < #specs then -- 494
+				local s = specs[i + 1] -- 496
+				lb.text = s.text -- 497
+				lb.position = Vec2(s.x, s.y) -- 498
+				lb.anchor = Vec2(s.ax, s.ay) -- 499
+				lb.color = s.color -- 500
+				lb.visible = true -- 501
+			else -- 501
+				lb.visible = false -- 503
+			end -- 503
+			i = i + 1 -- 493
+		end -- 493
+	end -- 493
+end -- 493
 local FONT = "sarasa-mono-sc-regular" -- 20
 LAYOUT_AUDIT = false -- 21
 local C_TEXT = Color(236, 236, 232, 255) -- 23
@@ -512,39 +528,44 @@ function ____exports.start(parent, initialMode, startScreen) -- 83
 			end -- 174
 			setMode(1) -- 176
 			fe.screen = sc -- 177
-			if sc == "play" then -- 177
-				ensurePlay() -- 179
-			end -- 179
+			if sc == "chapters" then -- 177
+				fe.menus:openChapters() -- 179
+			else -- 179
+				fe.menus:resetInput() -- 181
+			end -- 181
+			if sc == "play" then -- 181
+				ensurePlay() -- 184
+			end -- 184
 		end, -- 172
-		jumpRoom = function(keyOrIdx) -- 182
-			local idx = -1 -- 183
-			if type(keyOrIdx) == "number" then -- 183
-				idx = keyOrIdx -- 185
-			else -- 185
-				local k = 0 -- 187
-				do -- 187
-					k = 0 -- 188
-					while k < #ROOMS do -- 188
-						if ROOMS[k + 1].key == keyOrIdx then -- 188
-							idx = k -- 190
-						end -- 190
-						k = k + 1 -- 188
-					end -- 188
-				end -- 188
-			end -- 188
-			if idx >= 0 and idx < #ROOMS then -- 188
-				enterPlayRoom(idx) -- 195
-			end -- 195
-		end, -- 182
-		getPlay = function() return play end, -- 198
-		getFrontend = function() return fe end -- 199
-	} -- 199
-	if mode == 1 and startScreen == "play" then -- 199
-		ensurePlay() -- 203
-	end -- 203
-	parent:schedule(function(frameDt) -- 206
-		tick(frameDt) -- 207
-		return false -- 208
-	end) -- 206
+		jumpRoom = function(keyOrIdx) -- 187
+			local idx = -1 -- 188
+			if type(keyOrIdx) == "number" then -- 188
+				idx = keyOrIdx -- 190
+			else -- 190
+				local k = 0 -- 192
+				do -- 192
+					k = 0 -- 193
+					while k < #ROOMS do -- 193
+						if ROOMS[k + 1].key == keyOrIdx then -- 193
+							idx = k -- 195
+						end -- 195
+						k = k + 1 -- 193
+					end -- 193
+				end -- 193
+			end -- 193
+			if idx >= 0 and idx < #ROOMS then -- 193
+				enterPlayRoom(idx) -- 200
+			end -- 200
+		end, -- 187
+		getPlay = function() return play end, -- 203
+		getFrontend = function() return fe end -- 204
+	} -- 204
+	if mode == 1 and startScreen == "play" then -- 204
+		ensurePlay() -- 208
+	end -- 208
+	parent:schedule(function(frameDt) -- 211
+		tick(frameDt) -- 212
+		return false -- 213
+	end) -- 211
 end -- 83
 return ____exports -- 83
