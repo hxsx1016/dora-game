@@ -289,6 +289,7 @@ function tickPlay(frameDt: number): void {
         }
         if (idx >= 0) {
             // 换实例前先取走旧队列，再接到新实例队首；前端下一帧仍能拿到切房这一条 roomChange。
+            // adoptEvents 会丢掉旧房间的 knock，避免跨出口同拍按 E 时在新房重播旧房敲声。
             const leaving = p.drainEvents();
             current = idx;
             ensurePlay();
