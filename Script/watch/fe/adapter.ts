@@ -221,7 +221,7 @@ export function deriveWorldPrompts(p: Play): WorldPrompt[] {
             if (p.gateNeedConfirm) {
                 out.push({ x: g.winchX, y: 84, keyTag: "E", label: "重新就位", urgent: true });
             } else {
-                out.push({ x: g.winchX, y: 84, keyTag: "WINCH", label: "绞盘就位", urgent: false });
+                out.push({ x: g.winchX, y: 84, keyTag: "守", label: "贴近绞盘就位", urgent: false });
             }
         } else if (p.phase === "gate-send") {
             out.push({ x: g.doorX, y: 98, keyTag: "E", label: "送她出城", urgent: true });

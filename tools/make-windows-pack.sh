@@ -58,6 +58,10 @@ mkdir -p "$OUT/Script/watch"
 rsync -a --include='*/' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
 mkdir -p "$OUT/assets/art"
 rsync -a "$ROOT/assets/art/" "$OUT/assets/art/"
+if [ -d "$ROOT/assets/font" ]; then
+    mkdir -p "$OUT/assets/font"
+    rsync -a "$ROOT/assets/font/" "$OUT/assets/font/"
+fi
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
 
 cat > "$OUT/启动.cmd" <<'CMD'
