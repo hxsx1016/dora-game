@@ -1,8 +1,8 @@
 /**
- * 《向西守望》中国水墨视觉体系（参考《饿殍：明末千里行》苍凉克制的水墨美学）：
- * - 传统矿石与墨韵色板（玄墨、淡烟、素宣、陈纸、古铜、黛青、松烟、暗朱砂）
- * - 八房间氛围与汉字卷目配置（壹~捌、上卷孤城护童 / 下卷独赴北塔）
- * - 水墨飞白笔刷、宣纸卷轴框、朱砂篆印、枯笔分隔线原语（优先挂接 ui_ink.clip，缺图自动回退顶点渐变）
+ * 《向西守望》宋明清雅水墨视觉体系（V2 · 参考《饿殍：明末千里行》风流婉转之美）：
+ * - 去土黄、去粗滚轴、去满屏硬章；
+ * - 色板收束为「鸦青烟纱、霜月素白、淡玉青灰、一缕微杏、孤点胭脂朱砂」；
+ * - 原语全面轻盈化：烟黛渐变幕、水袖飞白游丝、婉转烟岚曲线、海棠菱花微结、纤细云肩折角、文人孤印。
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
@@ -35,67 +35,72 @@ export function lerpRGBA(a: RGBA, b: RGBA, t: number): RGBA {
     };
 }
 
-/** 中国水墨矿石色板（兼容原有 Token 命名，确保舞台/角色/道具无破坏接入） */
+/** 宋明清雅色板（彻底剔除浊土黄，保持鸦青冷月与清丽胭脂的高级克制对比） */
 export const PALETTE = {
-    // 玄墨与烟霭底色
-    voidDark: rgba(13, 14, 19, 255),
-    panelBg: rgba(19, 20, 26, 224),
-    panelBgDeep: rgba(14, 15, 20, 240),
-    steelDark: rgba(32, 30, 34, 255),
-    steelMid: rgba(54, 49, 52, 255),
-    steelLight: rgba(112, 97, 82, 255),
-    rimSilver: rgba(154, 138, 118, 255),
+    // 鸦青与松墨烟纱
+    voidDark: rgba(11, 13, 19, 255),
+    panelBg: rgba(16, 19, 27, 218),
+    panelBgDeep: rgba(12, 14, 21, 236),
+    steelDark: rgba(26, 30, 39, 255),
+    steelMid: rgba(44, 50, 62, 255),
+    steelLight: rgba(102, 112, 124, 255),
+    rimSilver: rgba(176, 184, 192, 255),
 
-    // 周戍：冷月黛青 / 霜月素白
-    cyanCore: rgba(232, 230, 218, 255),
-    cyan: rgba(146, 170, 178, 255),
-    cyanDim: rgba(94, 110, 118, 255),
-    cyanGlow: rgba(146, 170, 178, 72),
+    // 周戍：冷月玉青 / 霜月素白
+    cyanCore: rgba(235, 238, 236, 255),
+    cyan: rgba(154, 178, 188, 255),
+    cyanDim: rgba(94, 112, 124, 255),
+    cyanGlow: rgba(154, 178, 188, 64),
 
-    // 小满 / 指南针 / 北塔残灯：古铜暖金
-    amberCore: rgba(246, 228, 188, 255),
-    amber: rgba(212, 164, 102, 255),
-    amberDim: rgba(134, 100, 64, 255),
-    amberGlow: rgba(212, 164, 102, 74),
+    // 小满 / 指南针 / 北塔残灯：极克制的微杏淡金（不发土黄）
+    amberCore: rgba(244, 234, 214, 255),
+    amber: rgba(214, 186, 146, 255),
+    amberDim: rgba(132, 118, 102, 255),
+    amberGlow: rgba(214, 186, 146, 60),
 
-    // 印鉴 / 战火 / 危急 / 红布：暗朱砂
-    crimsonCore: rgba(245, 204, 182, 255),
-    crimson: rgba(186, 66, 54, 255),
-    crimsonDeep: rgba(124, 38, 34, 255),
-    crimsonGlow: rgba(186, 66, 54, 72),
+    // 孤朱 / 胭脂 / 危急：清丽暗胭脂朱砂
+    crimsonCore: rgba(246, 208, 200, 255),
+    crimson: rgba(188, 68, 64, 255),
+    crimsonDeep: rgba(124, 38, 42, 255),
+    crimsonGlow: rgba(188, 68, 64, 62),
 
-    // 林间隐蔽 / 落窝安抚：松烟青
-    emerald: rgba(148, 172, 130, 255),
-    emeraldDim: rgba(92, 118, 90, 255),
+    // 林间隐蔽 / 安抚：淡松烟青玉
+    emerald: rgba(152, 178, 152, 255),
+    emeraldDim: rgba(92, 118, 102, 255),
 
-    // 宣纸与墨文字
-    textBright: rgba(243, 233, 212, 255),
-    textMid: rgba(202, 191, 172, 255),
-    textDim: rgba(146, 139, 130, 255),
+    // 素月文字层级（保证 15px 新致宋纤细横画在暗底上清透可读）
+    textBright: rgba(244, 242, 236, 255),
+    textMid: rgba(208, 210, 212, 255),
+    textDim: rgba(164, 170, 178, 255),
 
-    // 水墨与宣纸专用色
-    inkVoid: rgba(12, 13, 18, 255),
-    inkWash: rgba(15, 16, 22, 255),
-    inkMist: rgba(28, 30, 38, 255),
-    inkWarm: rgba(42, 31, 28, 255),
-    xuanWarm: rgba(226, 211, 182, 255),
-    xuanInk: rgba(34, 26, 21, 255),
-    xuanInkSub: rgba(88, 70, 54, 255),
-    xuanPaper: rgba(226, 212, 184, 255),
-    sealRed: rgba(168, 46, 40, 255),
-    sealRedBright: rgba(202, 68, 56, 255),
-    sealText: rgba(248, 239, 222, 255),
-    cinnabar: rgba(182, 62, 52, 255),
-    cinnabarDeep: rgba(122, 38, 34, 255),
-    bronzeLine: rgba(168, 132, 84, 255),
-    bronzeDim: rgba(118, 90, 58, 255),
-    moonPale: rgba(228, 229, 218, 255),
+    // V2 宋明清雅专用 Token
+    inkVoid: rgba(10, 12, 18, 255),
+    inkWash: rgba(14, 17, 25, 255),
+    inkMist: rgba(28, 34, 46, 255),
+    inkWarm: rgba(34, 22, 27, 255),
+    silkLine: rgba(196, 202, 208, 255),
+    silkDim: rgba(118, 126, 138, 255),
+    jadeMist: rgba(164, 184, 190, 255),
+    rouge: rgba(182, 58, 56, 255),
+    rougeSoft: rgba(148, 46, 48, 255),
+    xuanWarm: rgba(232, 226, 214, 255),
+    xuanInk: rgba(32, 30, 32, 255),
+    xuanInkSub: rgba(92, 86, 82, 255),
+    xuanPaper: rgba(232, 227, 216, 255),
+    sealRed: rgba(168, 46, 44, 255),
+    sealRedBright: rgba(198, 64, 60, 255),
+    sealText: rgba(248, 244, 236, 255),
+    cinnabar: rgba(182, 58, 56, 255),
+    cinnabarDeep: rgba(116, 36, 40, 255),
+    bronzeLine: rgba(178, 184, 192, 255),
+    bronzeDim: rgba(114, 122, 134, 255),
+    moonPale: rgba(232, 236, 234, 255),
 
     // 道具
     cartWood: rgba(104, 73, 55, 255),
     cartMetal: rgba(125, 110, 97, 255),
-    clothRed: rgba(162, 56, 46, 255),
-    clothRedHighlight: rgba(208, 96, 76, 255),
+    clothRed: rgba(168, 52, 48, 255),
+    clothRedHighlight: rgba(210, 90, 78, 255),
 };
 
 export type AmbientKind = "ash" | "drizzle" | "spores" | "motes";
@@ -105,6 +110,7 @@ export interface RoomTheme {
     numeralZh: string;
     actCode: string;
     titleZh: string;
+    shortNameZh: string;
     titleEn: string;
     lineTag: string;
     volumeTagZh: string;
@@ -135,6 +141,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         numeralZh: "壹",
         actCode: "第壹章",
         titleZh: "序章 · 倒柜后",
+        shortNameZh: "倒柜后",
         titleEn: "孤城护童",
         lineTag: "周戍",
         volumeTagZh: "上卷 · 孤城护童",
@@ -146,7 +153,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(44, 58, 78, 62),
         groundTop: rgba(46, 52, 62, 255),
         groundBody: rgba(17, 20, 28, 255),
-        groundRim: rgba(146, 170, 178, 195),
+        groundRim: rgba(154, 178, 188, 195),
         accent: PALETTE.cyan,
         beamColor: rgba(140, 168, 184, 34),
         ambient: "ash",
@@ -156,13 +163,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.78,
         moonYFrac: 0.78,
         defaultZoom: 1.12,
-        introWhisper: "城破前夜。她在倒塌的柜子后面。",
+        introWhisper: "城破前夜，月光斜漏旧仓。她在倒塌的柜子后面。",
     },
     street: {
         key: "street",
         numeralZh: "贰",
         actCode: "第贰章",
         titleZh: "街道 · 封锁线",
+        shortNameZh: "封锁线",
         titleEn: "孤城护童",
         lineTag: "周戍",
         volumeTagZh: "上卷 · 孤城护童",
@@ -174,7 +182,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(66, 54, 68, 64),
         groundTop: rgba(48, 52, 60, 255),
         groundBody: rgba(18, 20, 28, 255),
-        groundRim: rgba(146, 170, 178, 190),
+        groundRim: rgba(154, 178, 188, 190),
         accent: PALETTE.cyan,
         beamColor: rgba(148, 170, 184, 34),
         ambient: "ash",
@@ -184,13 +192,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.82,
         moonYFrac: 0.80,
         defaultZoom: 1.0,
-        introWhisper: "带她穿过街心。别让火力压住她的步子。",
+        introWhisper: "夜雾漫过长街，带她穿过火线，莫让枪声压住她的步子。",
     },
     checkpoint: {
         key: "checkpoint",
         numeralZh: "叁",
         actCode: "第叁章",
         titleZh: "检查站 · 装卸台",
+        shortNameZh: "装卸台",
         titleEn: "孤城护童",
         lineTag: "周戍",
         volumeTagZh: "上卷 · 孤城护童",
@@ -202,7 +211,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(48, 68, 86, 58),
         groundTop: rgba(46, 54, 64, 255),
         groundBody: rgba(16, 20, 28, 255),
-        groundRim: rgba(146, 170, 178, 200),
+        groundRim: rgba(154, 178, 188, 200),
         accent: PALETTE.cyan,
         beamColor: rgba(140, 172, 188, 36),
         ambient: "ash",
@@ -212,13 +221,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.74,
         moonYFrac: 0.82,
         defaultZoom: 1.0,
-        introWhisper: "把那辆系着红布的板车推进装卸窝，城门才会放行。",
+        introWhisper: "红布在夜风里轻晃，把板车推进装卸窝，城门才会放行。",
     },
     gate: {
         key: "gate",
         numeralZh: "肆",
         actCode: "第肆章",
         titleZh: "城门 · 四十五秒",
+        shortNameZh: "四十五秒",
         titleEn: "死守断后",
         lineTag: "周戍",
         volumeTagZh: "上卷 · 孤城护童",
@@ -230,8 +240,8 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(118, 42, 42, 62),
         groundTop: rgba(54, 48, 52, 255),
         groundBody: rgba(18, 16, 21, 255),
-        groundRim: rgba(186, 66, 54, 195),
-        accent: PALETTE.crimson,
+        groundRim: rgba(188, 68, 64, 195),
+        accent: PALETTE.rouge,
         beamColor: rgba(196, 76, 62, 38),
         ambient: "ash",
         showSearchlights: true,
@@ -240,13 +250,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.22,
         moonYFrac: 0.80,
         defaultZoom: 0.92,
-        introWhisper: "把她送到门洞，守住绞盘四十五秒。",
+        introWhisper: "把她送到门洞，自己留下来，守住绞盘最后的四十五秒。",
     },
     outside: {
         key: "outside",
         numeralZh: "伍",
         actCode: "第伍章",
         titleZh: "城墙外 · 拱与红布",
+        shortNameZh: "拱与红布",
         titleEn: "独赴北塔",
         lineTag: "小满",
         volumeTagZh: "下卷 · 独赴北塔",
@@ -258,7 +269,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(48, 64, 88, 58),
         groundTop: rgba(48, 54, 64, 255),
         groundBody: rgba(16, 20, 28, 255),
-        groundRim: rgba(168, 152, 126, 185),
+        groundRim: rgba(184, 176, 162, 185),
         accent: PALETTE.amber,
         beamColor: rgba(176, 166, 146, 28),
         ambient: "drizzle",
@@ -268,13 +279,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.68,
         moonYFrac: 0.82,
         defaultZoom: 0.96,
-        introWhisper: "门后再没有人应声。把板车拉进空窝，蹲着穿过低拱。",
+        introWhisper: "数到一百，门后再无应声。拉开车辙，伏身穿过石拱。",
     },
     village: {
         key: "village",
         numeralZh: "陆",
         actCode: "第陆章",
         titleZh: "废弃村庄 · 砖地一响",
+        shortNameZh: "砖地一响",
         titleEn: "独赴北塔",
         lineTag: "小满",
         volumeTagZh: "下卷 · 独赴北塔",
@@ -286,7 +298,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(74, 68, 60, 54),
         groundTop: rgba(54, 54, 58, 255),
         groundBody: rgba(18, 20, 25, 255),
-        groundRim: rgba(206, 174, 122, 185),
+        groundRim: rgba(202, 184, 152, 185),
         accent: PALETTE.amber,
         beamColor: rgba(212, 174, 118, 24),
         ambient: "drizzle",
@@ -296,13 +308,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.78,
         moonYFrac: 0.82,
         defaultZoom: 1.0,
-        introWhisper: "别被拾荒者看见。拾起瓶子扔向砖地，趁他转身钻过桌底。",
+        introWhisper: "残垣旧院里有拾荒者游荡。掷瓶引响，趁隙潜过案底。",
     },
     forest: {
         key: "forest",
         numeralZh: "柒",
         actCode: "第柒章",
         titleZh: "北塔森林 · 听风辨步",
+        shortNameZh: "听风辨步",
         titleEn: "独赴北塔",
         lineTag: "小满",
         volumeTagZh: "下卷 · 独赴北塔",
@@ -314,7 +327,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(52, 86, 82, 56),
         groundTop: rgba(36, 52, 48, 255),
         groundBody: rgba(14, 22, 22, 255),
-        groundRim: rgba(148, 172, 130, 190),
+        groundRim: rgba(152, 178, 152, 190),
         accent: PALETTE.emerald,
         beamColor: rgba(148, 178, 146, 24),
         ambient: "spores",
@@ -324,13 +337,14 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.72,
         moonYFrac: 0.84,
         defaultZoom: 1.0,
-        introWhisper: "猎犬比人先听见脚步。伏在草影里，向北塔灯火走去。",
+        introWhisper: "松涛起落，猎犬先人闻步。屏息伏于草影，向北塔行去。",
     },
     tower: {
         key: "tower",
         numeralZh: "捌",
         actCode: "终章",
         titleZh: "北塔 · 最后一行",
+        shortNameZh: "最后一行",
         titleEn: "归途尾声",
         lineTag: "尾声",
         volumeTagZh: "终章 · 北塔守望",
@@ -339,10 +353,10 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         skyHorizon: rgba(48, 52, 66, 255),
         farBuilding: rgba(16, 21, 32, 255),
         midBuilding: rgba(24, 30, 44, 255),
-        fogBottom: rgba(212, 168, 104, 48),
+        fogBottom: rgba(214, 186, 146, 44),
         groundTop: rgba(60, 60, 66, 255),
         groundBody: rgba(19, 21, 28, 255),
-        groundRim: rgba(232, 194, 128, 210),
+        groundRim: rgba(232, 214, 182, 210),
         accent: PALETTE.amber,
         beamColor: rgba(236, 198, 132, 40),
         ambient: "motes",
@@ -352,7 +366,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.24,
         moonYFrac: 0.80,
         defaultZoom: 1.12,
-        introWhisper: "灯亮着。走到门前，像他教你的那样，敲两下。",
+        introWhisper: "孤灯犹明。走到北塔门前，照他教过的节奏，轻敲两下。",
     },
 };
 
@@ -378,7 +392,7 @@ export function toChineseUpper(n: number): string {
     return ones === 0 ? prefix : prefix + UPPER_DIGITS[ones];
 }
 
-/** 顶点渐变四边形（按顺时针/逆时针拆成两个三角形） */
+/** 顶点渐变四边形 */
 export function fillGradQuad(
     draw: DrawNode.Type,
     x0: number, y0: number, c00: Color.Type,
@@ -426,7 +440,7 @@ export function fillHGradRect(
     );
 }
 
-/** 径向柔和光晕（扇形顶点渐变） */
+/** 径向柔和光晕 */
 export function fillRadialGlow(
     draw: DrawNode.Type,
     cx: number, cy: number, rx: number, ry: number,
@@ -451,168 +465,128 @@ export function fillRadialGlow(
 }
 
 /**
- * 水墨飞白横刷长带（优先使用 ui_ink.clip 的毛笔笔触贴图，缺图自动回退两端渐隐墨晕）
+ * 烟黛渐变轻幕（《饿殍》柔边字幕幕 / 顶部轻带，四周自然消融无硬框）
  */
-export function drawInkWashStrip(
+export function drawSilkVeil(
     fallbackDraw: DrawNode.Type,
     art: AssetSlotHost,
     id: string,
     cx: number, cy: number, w: number, h: number,
-    tint: RGBA, opacity: number = 0.88,
-    symmetric: boolean = true,
+    tint: RGBA, opacity: number = 0.84,
+    layer: number = -1,
+): void {
+    if (w <= 2 || h <= 2 || opacity <= 0.01) {
+        return;
+    }
+    if (art.tryPlace("ink_veil_strip", id, cx, cy, w, h, { color: toColor(tint, 255), opacity, layer })) {
+        return;
+    }
+    const x = cx - w * 0.5;
+    const y = cy - h * 0.5;
+    const fadeW = w * 0.22;
+    const midCol = toColor(tint, Math.round(225 * opacity));
+    const zeroCol = Color(tint.r, tint.g, tint.b, 0);
+    fillHGradRect(fallbackDraw, x, y, fadeW, h, zeroCol, midCol);
+    fallbackDraw.drawRect(Rect(x + fadeW, y, Math.max(0, w - fadeW * 2), h), midCol);
+    fillHGradRect(fallbackDraw, x + w - fadeW, y, fadeW, h, midCol, zeroCol);
+}
+
+/**
+ * 水袖游丝飞白飘带（用于菜单选中态轻拂高光，柔美弧线非粗重墨块）
+ */
+export function drawSilkRibbon(
+    fallbackDraw: DrawNode.Type,
+    art: AssetSlotHost,
+    id: string,
+    cx: number, cy: number, w: number, h: number,
+    tint: RGBA, opacity: number = 0.65,
     layer: number = 0,
 ): void {
     if (w <= 2 || h <= 2 || opacity <= 0.01) {
         return;
     }
-    const slot = symmetric ? "ink_brush_sym" : "ink_brush_wide";
-    if (art.tryPlace(slot, id, cx, cy, w, h, { color: toColor(tint, 255), opacity, layer })) {
+    if (art.tryPlace("ink_ribbon_sweep", id, cx, cy, w, h, { color: toColor(tint, 255), opacity, layer })) {
         return;
     }
-    // 程序化墨韵回退：中段实、左右柔化渐隐
     const x = cx - w * 0.5;
     const y = cy - h * 0.5;
-    const fadeW = symmetric ? w * 0.18 : w * 0.34;
-    const midCol = toColor(tint, Math.round(235 * opacity));
-    const zeroCol = Color(tint.r, tint.g, tint.b, 0);
-    if (symmetric) {
-        fillHGradRect(fallbackDraw, x, y, fadeW, h, zeroCol, midCol);
-        fallbackDraw.drawRect(Rect(x + fadeW, y, Math.max(0, w - fadeW * 2), h), midCol);
-        fillHGradRect(fallbackDraw, x + w - fadeW, y, fadeW, h, midCol, zeroCol);
-    } else {
-        const leftFade = Math.min(20, w * 0.08);
-        fillHGradRect(fallbackDraw, x, y, leftFade, h, zeroCol, midCol);
-        fallbackDraw.drawRect(Rect(x + leftFade, y, Math.max(0, w - leftFade - fadeW), h), midCol);
-        fillHGradRect(fallbackDraw, x + w - fadeW, y, fadeW, h, midCol, zeroCol);
-    }
+    fillHGradRect(fallbackDraw, x, y, w * 0.65, h, toColor(tint, Math.round(160 * opacity)), Color(tint.r, tint.g, tint.b, 0));
 }
 
 /**
- * 宣纸墨云面板（四周柔化渐隐的暗墨托底，可选叠加微弱宣纸纤维肌理）
+ * 婉转烟岚流云曲线（赋予标题、驿道长卷、章名以轻盈流动感）
  */
-export function drawInkPanel(
-    fallbackDraw: DrawNode.Type,
-    art: AssetSlotHost,
-    id: string,
-    x: number, y: number, w: number, h: number,
-    tint: RGBA, opacity: number = 0.90,
-    withPaperGrain: boolean = false,
-    layer: number = -1,
-): void {
-    const cx = x + w * 0.5;
-    const cy = y + h * 0.5;
-    if (!art.tryPlace("ink_wash_panel", id, cx, cy, w + 18, h + 16, { color: toColor(tint, 255), opacity, layer })) {
-        fallbackDraw.drawRect(Rect(x, y, w, h), toColor(tint, Math.round(230 * opacity)));
-    }
-    if (withPaperGrain) {
-        art.tryPlace("ink_paper_grain", id + "_grain", cx, cy, w - 6, h - 6, { opacity: 0.11 * opacity, layer: layer + 1 });
-    }
-}
-
-/**
- * 典籍双线卷轴框（外古铜枯线 + 内缩极细线 + 四角镜像铜雕花 + 可选卷轴木杆）
- */
-export function drawScrollFrame(
-    overlayDraw: DrawNode.Type,
-    art: AssetSlotHost,
-    id: string,
-    x: number, y: number, w: number, h: number,
-    borderCol: RGBA, alpha: number = 1,
-    showCorners: boolean = true,
-    showRollers: boolean = false,
-    cornerSize: number = 22,
-    layer: number = 2,
-): void {
-    if (alpha <= 0.01) {
-        return;
-    }
-    // 外古铜细框 + 内缩 4px 淡墨金线
-    overlayDraw.drawRect(Rect(x, y, w, h), Color(0, 0, 0, 0), 1.15, toColor(borderCol, 175 * alpha));
-    overlayDraw.drawRect(Rect(x + 4, y + 4, Math.max(0, w - 8), Math.max(0, h - 8)), Color(0, 0, 0, 0), 0.7, toColor(borderCol, 72 * alpha));
-
-    if (showCorners) {
-        const half = cornerSize * 0.5;
-        const insetX = showRollers ? -6 : 2;
-        const insetY = showRollers ? -8 : 2;
-        const cCol = toColor(borderCol, 255);
-        const op = (showRollers ? 0.72 : 0.85) * alpha;
-        // ui_corner 原图开口朝右下方（左上角雕花）
-        art.tryPlace("ui_corner_c", id + "_tl", x + half - insetX, y + h - half + insetY, cornerSize, cornerSize, { color: cCol, opacity: op, layer });
-        art.tryPlace("ui_corner_c", id + "_tr", x + w - half + insetX, y + h - half + insetY, cornerSize, cornerSize, { facing: -1, color: cCol, opacity: op, layer });
-        art.tryPlace("ui_corner_c", id + "_bl", x + half - insetX, y + half - insetY, cornerSize, cornerSize, { flipY: true, color: cCol, opacity: op, layer });
-        art.tryPlace("ui_corner_c", id + "_br", x + w - half + insetX, y + half - insetY, cornerSize, cornerSize, { facing: -1, flipY: true, color: cCol, opacity: op, layer });
-    }
-
-    if (showRollers) {
-        const rodW = w + 36;
-        const rodH = 18;
-        art.tryPlace("ink_scroll_bar", id + "_rod_top", x + w * 0.5, y + h + 2, rodW, rodH, { opacity: 0.94 * alpha, layer: layer + 1 });
-        art.tryPlace("ink_scroll_bar", id + "_rod_bot", x + w * 0.5, y - 2, rodW, rodH, { opacity: 0.94 * alpha, layer: layer + 1 });
-    }
-}
-
-/**
- * 枯笔一字墨线分隔符（中段实、两端尖细透明收锋）
- */
-export function drawBrushDivider(
-    overlayDraw: DrawNode.Type,
+export function drawMistCurve(
     art: AssetSlotHost,
     id: string,
     cx: number, cy: number, w: number, h: number,
-    col: RGBA, alpha: number = 0.82,
+    tint: RGBA, opacity: number = 0.36,
+    layer: number = -1,
+    facing: number = 1,
+): void {
+    if (w <= 4 || h <= 4 || opacity <= 0.01) {
+        return;
+    }
+    art.tryPlace("ink_mist_curve", id, cx, cy, w, h, { color: toColor(tint, 255), opacity, layer, facing });
+}
+
+/**
+ * 霜月游丝细线（可选在中点缀一枚极精巧的宋明海棠菱花微结）
+ */
+export function drawHairline(
+    overlayDraw: DrawNode.Type,
+    art: AssetSlotHost,
+    id: string,
+    cx: number, cy: number, w: number,
+    col: RGBA, alpha: number = 0.72,
+    withKnot: boolean = false,
     layer: number = 2,
 ): void {
     if (w <= 4 || alpha <= 0.01) {
         return;
     }
-    if (art.tryPlace("ink_divider", id, cx, cy, w, h, { color: toColor(col, 255), opacity: alpha, layer })) {
-        return;
+    if (!art.tryPlace("ink_hairline", id, cx, cy, w, 10, { color: toColor(col, 255), opacity: alpha, layer })) {
+        const half = w * 0.5;
+        fillHGradRect(overlayDraw, cx - half, cy - 0.5, half, 1.0, Color(col.r, col.g, col.b, 0), toColor(col, 190 * alpha));
+        fillHGradRect(overlayDraw, cx, cy - 0.5, half, 1.0, toColor(col, 190 * alpha), Color(col.r, col.g, col.b, 0));
     }
-    const half = w * 0.5;
-    fillHGradRect(overlayDraw, cx - half, cy - 0.7, half, 1.4, Color(col.r, col.g, col.b, 0), toColor(col, 200 * alpha));
-    fillHGradRect(overlayDraw, cx, cy - 0.7, half, 1.4, toColor(col, 200 * alpha), Color(col.r, col.g, col.b, 0));
+    if (withKnot) {
+        art.tryPlace("ink_knot_ornament", id + "_knot", cx, cy, 88, 24, { color: toColor(col, 255), opacity: Math.min(1, alpha * 1.15), layer: layer + 1 });
+    }
 }
 
 /**
- * 中国传统方形残边篆印（阳刻空心框 / 阴刻实底印泥 + 毛笔字）
+ * 宋明纤细海棠折角（取代笨重双线铁框与像素铜角，带留白呼吸感）
  */
-export function drawSealStamp(
+export function drawFiligreeCorners(
     overlayDraw: DrawNode.Type,
     art: AssetSlotHost,
-    texts: TextPool,
     id: string,
-    cx: number, cy: number, size: number,
-    text: string,
-    stampCol: RGBA, textCol: RGBA,
-    alpha: number = 1,
-    solid: boolean = true,
-    layer: number = 4,
+    x: number, y: number, w: number, h: number,
+    col: RGBA, alpha: number = 0.78,
+    cornerSize: number = 34,
+    withHairBorder: boolean = true,
+    layer: number = 2,
 ): void {
     if (alpha <= 0.01) {
         return;
     }
-    const slot = solid ? "ink_seal_solid" : "ink_seal_hollow";
-    const placed = art.tryPlace(slot, id, cx, cy, size, size, { color: toColor(stampCol, 255), opacity: 0.94 * alpha, layer });
-    if (!placed) {
-        const half = size * 0.45;
-        if (solid) {
-            overlayDraw.drawRect(Rect(cx - half, cy - half, half * 2, half * 2), toColor(stampCol, 230 * alpha), 1.0, toColor(textCol, 85 * alpha));
-        } else {
-            overlayDraw.drawRect(Rect(cx - half, cy - half, half * 2, half * 2), Color(16, 17, 22, Math.round(165 * alpha)), 1.3, toColor(stampCol, 225 * alpha));
-        }
+    if (withHairBorder) {
+        overlayDraw.drawRect(Rect(x, y, w, h), Color(0, 0, 0, 0), 0.75, toColor(col, 78 * alpha));
     }
-    if (text !== "") {
-        const bucket = size >= 36 ? "sealLg" : "seal";
-        // 实底印泥上的反白字去掉黑描边，避免字形浑浊
-        const outW = solid ? 0 : 0.1;
-        texts.put(bucket, text, cx, cy, toColor(textCol), 0.5, 0.5, TextAlign.Center, 0, alpha, outW);
-    }
+    const half = cornerSize * 0.5;
+    const c = toColor(col, 255);
+    const op = alpha;
+    art.tryPlace("ink_corner_fine", id + "_tl", x + half - 2, y + h - half + 2, cornerSize, cornerSize, { color: c, opacity: op, layer });
+    art.tryPlace("ink_corner_fine", id + "_tr", x + w - half + 2, y + h - half + 2, cornerSize, cornerSize, { facing: -1, color: c, opacity: op, layer });
+    art.tryPlace("ink_corner_fine", id + "_bl", x + half - 2, y + half - 2, cornerSize, cornerSize, { flipY: true, color: c, opacity: op, layer });
+    art.tryPlace("ink_corner_fine", id + "_br", x + w - half + 2, y + half - 2, cornerSize, cornerSize, { facing: -1, flipY: true, color: c, opacity: op, layer });
 }
 
 /**
- * 竖向腰圆引首章（常用于古典竖排主标题旁，如「守」「望」）
+ * 文人孤印（全屏仅用于主标题落款与北塔登记簿落款，清瘦精致不泛滥）
  */
-export function drawOvalSeal(
+export function drawLoneSeal(
     overlayDraw: DrawNode.Type,
     art: AssetSlotHost,
     texts: TextPool,
@@ -620,44 +594,54 @@ export function drawOvalSeal(
     cx: number, cy: number, w: number, h: number,
     topChar: string, botChar: string,
     stampCol: RGBA, textCol: RGBA,
-    alpha: number = 1,
+    alpha: number = 0.94,
     layer: number = 4,
 ): void {
     if (alpha <= 0.01) {
         return;
     }
-    const placed = art.tryPlace("ink_seal_oval", id, cx, cy, w, h, { color: toColor(stampCol, 255), opacity: 0.94 * alpha, layer });
-    if (!placed) {
-        overlayDraw.drawRect(Rect(cx - w * 0.44, cy - h * 0.44, w * 0.88, h * 0.88), toColor(stampCol, 225 * alpha));
+    if (!art.tryPlace("ink_seal_slender", id, cx, cy, w, h, { color: toColor(stampCol, 255), opacity: alpha, layer })) {
+        overlayDraw.drawRect(Rect(cx - w * 0.42, cy - h * 0.44, w * 0.84, h * 0.88), toColor(stampCol, 225 * alpha));
     }
     texts.put("seal", topChar, cx, cy + h * 0.17, toColor(textCol), 0.5, 0.5, TextAlign.Center, 0, alpha, 0);
     texts.put("seal", botChar, cx, cy - h * 0.18, toColor(textCol), 0.5, 0.5, TextAlign.Center, 0, alpha, 0);
 }
 
-/**
- * 方正古铜细边键位印格（替换科幻斜切键帽）
- */
-export function drawInkKeycap(
+/** 纤巧菱花花蕊点（替换笨重圆点与方印焦点） */
+export function drawBlossomDot(
+    overlayDraw: DrawNode.Type,
+    art: AssetSlotHost,
+    id: string,
+    cx: number, cy: number, size: number,
+    col: RGBA, alpha: number = 0.92,
+    layer: number = 4,
+): void {
+    if (alpha <= 0.01) {
+        return;
+    }
+    if (!art.tryPlace("ink_blossom_dot", id, cx, cy, size, size, { color: toColor(col, 255), opacity: alpha, layer })) {
+        drawDiamond(overlayDraw, cx, cy, size * 0.35, size * 0.35, toColor(col, 230 * alpha));
+    }
+}
+
+/** 清雅霜银发丝微框键位（去土黄、去厚底） */
+export function drawSilkKeycap(
     overlayDraw: DrawNode.Type,
     texts: TextPool,
     x: number, y: number, w: number, h: number,
     keyText: string,
     accent: RGBA,
     alpha: number = 1,
-    filled: boolean = false,
+    urgent: boolean = false,
 ): void {
-    const bg = filled ? toColor(accent, 220 * alpha) : Color(18, 17, 21, Math.round(218 * alpha));
-    const bd = toColor(accent, (filled ? 245 : 195) * alpha);
-    overlayDraw.drawRect(Rect(x, y, w, h), bg, 1.15, bd);
-    // 四角微刻点，增强器物雕印感
-    if (!filled) {
-        overlayDraw.drawRect(Rect(x + 2.5, y + 2.5, Math.max(0, w - 5), Math.max(0, h - 5)), Color(0, 0, 0, 0), 0.6, toColor(accent, 75 * alpha));
-    }
-    const tc = filled ? toColor(PALETTE.sealText) : toColor(PALETTE.amberCore);
-    texts.put("xs", keyText, x + w * 0.5, y + h * 0.5, tc, 0.5, 0.5, TextAlign.Center, 0.3, alpha, filled ? 0 : 0.1);
+    const bg = urgent ? toColor(PALETTE.rougeSoft, 200 * alpha) : Color(14, 17, 25, Math.round(186 * alpha));
+    const bd = toColor(urgent ? PALETTE.crimsonCore : accent, (urgent ? 225 : 165) * alpha);
+    overlayDraw.drawRect(Rect(x, y, w, h), bg, 0.85, bd);
+    const tc = urgent ? toColor(PALETTE.sealText) : toColor(PALETTE.textBright);
+    texts.put("xs", keyText, x + w * 0.5, y + h * 0.5, tc, 0.5, 0.5, TextAlign.Center, 0.5, alpha, urgent ? 0 : 0.08);
 }
 
-/** 以下四项仅为 stage/props/actors 既有调用保留兼容，新 UI 一律使用上述水墨原语 */
+/** 以下四项仅为 stage/props/actors 既有调用保留兼容，新 UI 一律使用上述清雅水墨原语 */
 export function fillSkewRect(
     draw: DrawNode.Type,
     x: number, y: number, w: number, h: number, skew: number,
@@ -718,9 +702,6 @@ export function drawDiamond(
     }
 }
 
-/**
- * 估算 UTF-8 中英文混排字符串的视觉像素宽度（Lua 的 string.length 返回字节数，1 个汉字占 3 字节）。
- */
 export function visualTextWidth(text: string, fontSize: number): number {
     let units = 0;
     let i = 0;

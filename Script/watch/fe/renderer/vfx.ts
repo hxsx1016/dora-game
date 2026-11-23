@@ -1,10 +1,10 @@
 /**
- * 艾希（ICEY）风格特效与粒子池：
- * - 斩切式霓虹曳光弹道、枪口十字焰、命中碎屑与受击闪白
- * - 掩体格挡（类「一闪」）冰青菱形护盾爆闪
- * - 双环声波扩散（安抚敲两下、塔门敲两下、投瓶落砖地）
- * - 各房间专属环境粒子（火星灰烬 / 细雨 / 森林孢子 / 北塔暖光浮尘）
- * - 纯表现层微顿帧（Hitstop）与全屏受击红边脉冲（不阻塞后端 60Hz 时钟）
+ * 《向西守望》冷月火药与水墨韵律特效池：
+ * - 冷月火药曳光弹道、枪口暖焰、命中暗朱星芒与碎屑
+ * - 掩体格挡石屑飞溅
+ * - 枯笔墨韵扩散声波环（安抚敲两下、塔门敲两下、投瓶落砖地）
+ * - 各房间专属环境粒子（火星灰烬 / 细雨 / 森林微孢 / 北塔暖灯浮尘）
+ * - 纯表现层微顿帧（Hitstop）与暗朱墨烟受击屏边脉冲（不阻塞后端 60Hz 时钟）
  */
 
 import { Color, DrawNode, Vec2 } from "Dora";
@@ -323,13 +323,12 @@ export class VfxSystem {
                 fgGlow.drawSegment(Vec2(x0 - 10 * mk, y0), Vec2(x0 + 10 * mk, y0), 1.2, toColor(PALETTE.amberCore, 165 * mk));
                 fgGlow.drawSegment(Vec2(x0, y0 - 7 * mk), Vec2(x0, y0 + 7 * mk), 1.0, toColor(PALETTE.amber, 145 * mk));
             }
-            // 命中暗朱溅墨微闪
+            // 命中暗朱星芒与火药微闪（避免花瓣贴图误入弹着点）
             if (tr.hit) {
-                const s = 18 * (1.15 - k * 0.45);
-                fgGlow.drawSegment(Vec2(x1 - s, y1 - s * 0.55), Vec2(x1 + s, y1 + s * 0.55), 1.7 * k, toColor(PALETTE.sealRedBright, 155 * k));
-                assets.tryPlace("ink_splatter", "hit_ink_" + i, x1, y1, s * 2.0, s * 2.0, {
-                    color: toColor(PALETTE.sealRed), opacity: 0.52 * k, layer: 7,
-                });
+                const s = 16 * (1.15 - k * 0.45);
+                fillRadialGlow(fgGlow, x1, y1, s * 1.15, s * 0.9, toColor(PALETTE.sealRedBright, 130 * k), Color(168, 46, 44, 0), 12);
+                fgGlow.drawSegment(Vec2(x1 - s, y1 - s * 0.55), Vec2(x1 + s, y1 + s * 0.55), 1.6 * k, toColor(PALETTE.crimsonCore, 185 * k));
+                fgGlow.drawSegment(Vec2(x1 - s * 0.45, y1 + s * 0.7), Vec2(x1 + s * 0.45, y1 - s * 0.7), 1.2 * k, toColor(PALETTE.sealRedBright, 160 * k));
             }
         }
 
@@ -342,18 +341,18 @@ export class VfxSystem {
             });
         }
 
-        // 3. 枯笔墨韵扩散声波环
+        // 3. 纤细枯笔墨韵扩散声波环
         for (i = 0; i < this.rings.length; i++) {
             const rg = this.rings[i];
             const prog = 1 - rg.life / rg.maxLife;
             const r = Math.max(4, cam.len(rg.maxR) * prog);
-            const alpha = (1 - prog) * 0.82;
+            const alpha = (1 - prog) * 0.80;
             const rx = cam.sx(rg.x);
             const ry = cam.sy(rg.y);
-            if (!assets.tryPlace("ink_ring", "vfx_ring_" + i, rx, ry, r * 2.35, r * 2.35, {
+            if (!assets.tryPlace("ink_enso_fine", "vfx_ring_" + i, rx, ry, r * 2.35, r * 2.35, {
                 color: toColor(rg.color), opacity: alpha, angle: prog * 24, layer: 7,
             })) {
-                fgGlow.drawRing(Vec2(rx, ry), Math.max(1, r - 2.0), r, Color(0, 0, 0, 0), 1.3, toColor(rg.color, alpha * 235));
+                fgGlow.drawRing(Vec2(rx, ry), Math.max(1, r - 1.8), r, Color(0, 0, 0, 0), 1.2, toColor(rg.color, alpha * 230));
             }
         }
 
