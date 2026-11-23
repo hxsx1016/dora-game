@@ -159,322 +159,327 @@ function tickPlay(frameDt) -- 243
 			end -- 285
 		end -- 285
 		if idx >= 0 then -- 285
-			current = idx -- 291
-			ensurePlay() -- 292
-			clock:reset() -- 293
-			dirty = true -- 294
-		end -- 294
-		return -- 296
-	end -- 296
-	p:draw(draw, viewW, viewH) -- 299
-	playHud(p) -- 300
-end -- 300
-function playHud(p) -- 304
-	local room = ROOMS[current + 1] -- 305
-	if titleLabel ~= nil then -- 305
-		titleLabel.text = "守望 · D5 完整试玩" -- 307
-	end -- 307
-	if roomLabel ~= nil then -- 307
-		roomLabel.text = room.name -- 310
-	end -- 310
-	if captionLabel ~= nil then -- 310
-		captionLabel.text = p:statusText() -- 313
-		captionLabel.color = C_TEXT -- 314
-	end -- 314
-	if hintLabel ~= nil then -- 314
-		hintLabel.text = p:hintText() -- 317
-	end -- 317
-	if switchLabel ~= nil then -- 317
-		switchLabel.text = "G 回灰盒 · Tab 换房 · 1/2/3 快跳 · R 重置" -- 320
+			local leaving = p:drainEvents() -- 292
+			current = idx -- 293
+			ensurePlay() -- 294
+			local fresh = play -- 295
+			if fresh ~= nil then -- 295
+				fresh:adoptEvents(leaving) -- 297
+			end -- 297
+			clock:reset() -- 299
+			dirty = true -- 300
+		end -- 300
+		return -- 302
+	end -- 302
+	p:draw(draw, viewW, viewH) -- 305
+	playHud(p) -- 306
+end -- 306
+function playHud(p) -- 310
+	local room = ROOMS[current + 1] -- 311
+	if titleLabel ~= nil then -- 311
+		titleLabel.text = "守望 · D5 完整试玩" -- 313
+	end -- 313
+	if roomLabel ~= nil then -- 313
+		roomLabel.text = room.name -- 316
+	end -- 316
+	if captionLabel ~= nil then -- 316
+		captionLabel.text = p:statusText() -- 319
+		captionLabel.color = C_TEXT -- 320
 	end -- 320
-	if rulerLabel ~= nil then -- 320
-		rulerLabel.text = "" -- 323
+	if hintLabel ~= nil then -- 320
+		hintLabel.text = p:hintText() -- 323
 	end -- 323
-	if standLabel ~= nil then -- 323
-		standLabel.text = "" -- 326
+	if switchLabel ~= nil then -- 323
+		switchLabel.text = "G 回灰盒 · Tab 换房 · 1/2/3 快跳 · R 重置" -- 326
 	end -- 326
-	if cartLabel ~= nil then -- 326
-		cartLabel.text = "" -- 329
+	if rulerLabel ~= nil then -- 326
+		rulerLabel.text = "" -- 329
 	end -- 329
-	local i = 0 -- 331
-	do -- 331
-		i = 0 -- 332
-		while i < #poolBody do -- 332
-			poolBody[i + 1].visible = false -- 333
-			i = i + 1 -- 332
-		end -- 332
+	if standLabel ~= nil then -- 329
+		standLabel.text = "" -- 332
 	end -- 332
-	do -- 332
-		i = 0 -- 335
-		while i < #poolSmall do -- 335
-			poolSmall[i + 1].visible = false -- 336
-			i = i + 1 -- 335
-		end -- 335
+	if cartLabel ~= nil then -- 332
+		cartLabel.text = "" -- 335
 	end -- 335
-	place( -- 338
-		titleLabel, -- 338
-		48, -- 338
-		viewH - 40, -- 338
-		0, -- 338
-		1 -- 338
-	) -- 338
-	place( -- 339
-		roomLabel, -- 339
-		48, -- 339
-		viewH - 96, -- 339
-		0, -- 339
-		1 -- 339
-	) -- 339
-	place( -- 340
-		captionLabel, -- 340
-		48, -- 340
-		viewH - 140, -- 340
-		0, -- 340
-		1 -- 340
-	) -- 340
-	place( -- 341
-		switchLabel, -- 341
-		48, -- 341
-		40, -- 341
-		0, -- 341
-		0 -- 341
-	) -- 341
-	place( -- 342
-		hintLabel, -- 342
-		48, -- 342
-		84, -- 342
-		0, -- 342
-		0 -- 342
-	) -- 342
-end -- 342
-function redraw() -- 345
-	if draw == nil then -- 345
-		return -- 347
-	end -- 347
-	local w = viewW -- 349
-	local h = viewH -- 350
-	local room = ROOMS[current + 1] -- 351
-	draw:clear() -- 353
-	draw:drawRect( -- 356
-		Rect(0, h - TOP_H, w, TOP_H), -- 356
-		C_BG -- 356
-	) -- 356
-	draw:drawRect( -- 357
-		Rect(0, 0, w, BOTTOM_H), -- 357
-		C_BG -- 357
-	) -- 357
-	draw:drawSegment( -- 358
-		Vec2(0, h - TOP_H), -- 358
-		Vec2(w, h - TOP_H), -- 358
-		1, -- 358
-		Color(52, 54, 54, 255) -- 358
-	) -- 358
-	draw:drawSegment( -- 359
-		Vec2(0, BOTTOM_H), -- 359
-		Vec2(w, BOTTOM_H), -- 359
-		1, -- 359
-		Color(52, 54, 54, 255) -- 359
-	) -- 359
-	local v = computeView(room, w, h) -- 361
-	renderWorld( -- 362
-		draw, -- 362
-		room, -- 362
-		v, -- 362
-		w, -- 362
-		h -- 362
+	local i = 0 -- 337
+	do -- 337
+		i = 0 -- 338
+		while i < #poolBody do -- 338
+			poolBody[i + 1].visible = false -- 339
+			i = i + 1 -- 338
+		end -- 338
+	end -- 338
+	do -- 338
+		i = 0 -- 341
+		while i < #poolSmall do -- 341
+			poolSmall[i + 1].visible = false -- 342
+			i = i + 1 -- 341
+		end -- 341
+	end -- 341
+	place( -- 344
+		titleLabel, -- 344
+		48, -- 344
+		viewH - 40, -- 344
+		0, -- 344
+		1 -- 344
+	) -- 344
+	place( -- 345
+		roomLabel, -- 345
+		48, -- 345
+		viewH - 96, -- 345
+		0, -- 345
+		1 -- 345
+	) -- 345
+	place( -- 346
+		captionLabel, -- 346
+		48, -- 346
+		viewH - 140, -- 346
+		0, -- 346
+		1 -- 346
+	) -- 346
+	place( -- 347
+		switchLabel, -- 347
+		48, -- 347
+		40, -- 347
+		0, -- 347
+		0 -- 347
+	) -- 347
+	place( -- 348
+		hintLabel, -- 348
+		48, -- 348
+		84, -- 348
+		0, -- 348
+		0 -- 348
+	) -- 348
+end -- 348
+function redraw() -- 351
+	if draw == nil then -- 351
+		return -- 353
+	end -- 353
+	local w = viewW -- 355
+	local h = viewH -- 356
+	local room = ROOMS[current + 1] -- 357
+	draw:clear() -- 359
+	draw:drawRect( -- 362
+		Rect(0, h - TOP_H, w, TOP_H), -- 362
+		C_BG -- 362
 	) -- 362
-	local roomTop = v.groundPx + room.height * v.scale -- 364
-	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 365
-	place( -- 367
-		titleLabel, -- 367
-		48, -- 367
-		h - 40, -- 367
-		0, -- 367
-		1 -- 367
-	) -- 367
-	place( -- 368
-		roomLabel, -- 368
-		48, -- 368
-		h - 96, -- 368
-		0, -- 368
-		1 -- 368
+	draw:drawRect( -- 363
+		Rect(0, 0, w, BOTTOM_H), -- 363
+		C_BG -- 363
+	) -- 363
+	draw:drawSegment( -- 364
+		Vec2(0, h - TOP_H), -- 364
+		Vec2(w, h - TOP_H), -- 364
+		1, -- 364
+		Color(52, 54, 54, 255) -- 364
+	) -- 364
+	draw:drawSegment( -- 365
+		Vec2(0, BOTTOM_H), -- 365
+		Vec2(w, BOTTOM_H), -- 365
+		1, -- 365
+		Color(52, 54, 54, 255) -- 365
+	) -- 365
+	local v = computeView(room, w, h) -- 367
+	renderWorld( -- 368
+		draw, -- 368
+		room, -- 368
+		v, -- 368
+		w, -- 368
+		h -- 368
 	) -- 368
-	place( -- 369
-		captionLabel, -- 369
-		48, -- 369
-		h - 140, -- 369
-		0, -- 369
-		1 -- 369
-	) -- 369
-	place( -- 371
-		switchLabel, -- 371
-		48, -- 371
-		40, -- 371
-		0, -- 371
-		0 -- 371
-	) -- 371
-	place( -- 372
-		hintLabel, -- 372
-		48, -- 372
-		84, -- 372
-		0, -- 372
-		0 -- 372
-	) -- 372
+	local roomTop = v.groundPx + room.height * v.scale -- 370
+	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 371
 	place( -- 373
-		rulerLabel, -- 373
-		w - 216, -- 373
-		roomTop + 36 + v.scale * 0.5 - 14, -- 373
-		1, -- 373
-		0 -- 373
+		titleLabel, -- 373
+		48, -- 373
+		h - 40, -- 373
+		0, -- 373
+		1 -- 373
 	) -- 373
 	place( -- 374
-		standLabel, -- 374
+		roomLabel, -- 374
 		48, -- 374
-		roomTop + 40, -- 374
+		h - 96, -- 374
 		0, -- 374
-		0 -- 374
+		1 -- 374
 	) -- 374
 	place( -- 375
-		cartLabel, -- 375
+		captionLabel, -- 375
 		48, -- 375
-		roomTop + 92, -- 375
+		h - 140, -- 375
 		0, -- 375
-		0 -- 375
+		1 -- 375
 	) -- 375
-	if roomLabel ~= nil then -- 375
-		roomLabel.text = room.name -- 378
-	end -- 378
-	if captionLabel ~= nil then -- 378
-		captionLabel.text = room.caption -- 381
-	end -- 381
-	if hintLabel ~= nil then -- 381
-		local lines = HINTS[current + 1] -- 384
-		local merged = lines[1] -- 385
-		do -- 385
-			local i = 1 -- 386
-			while i < #lines do -- 386
-				merged = (merged .. "    ") .. lines[i + 1] -- 387
-				i = i + 1 -- 386
-			end -- 386
-		end -- 386
-		hintLabel.text = merged -- 389
-	end -- 389
-	local specs = collectLabels(room, v, w) -- 393
-	local body = {} -- 394
-	local small = {} -- 395
-	do -- 395
-		local i = 0 -- 396
-		while i < #specs do -- 396
-			local s = specs[i + 1] -- 397
-			if s.size >= 24 then -- 397
-				body[#body + 1] = s -- 399
-			else -- 399
-				small[#small + 1] = s -- 401
-			end -- 401
-			i = i + 1 -- 396
-		end -- 396
-	end -- 396
-	applyPool(body, poolBody) -- 404
-	applyPool(small, poolSmall) -- 405
-	if LAYOUT_AUDIT then -- 405
-		auditLayout(w, h) -- 408
-	end -- 408
-end -- 408
-function applyPool(specs, pool) -- 412
-	do -- 412
-		local i = 0 -- 413
-		while i < #pool do -- 413
-			local lb = pool[i + 1] -- 414
-			if i < #specs then -- 414
-				local s = specs[i + 1] -- 416
-				lb.text = s.text -- 417
-				lb.position = Vec2(s.x, s.y) -- 418
-				lb.anchor = Vec2(s.ax, s.ay) -- 419
-				lb.color = s.color -- 420
-				lb.visible = true -- 421
-			else -- 421
-				lb.visible = false -- 423
-			end -- 423
-			i = i + 1 -- 413
-		end -- 413
-	end -- 413
-end -- 413
-function auditLayout(w, h) -- 429
-	local all = {} -- 430
-	collectOne(all, titleLabel) -- 431
-	collectOne(all, roomLabel) -- 432
-	collectOne(all, captionLabel) -- 433
-	collectOne(all, switchLabel) -- 434
-	collectOne(all, hintLabel) -- 435
-	collectOne(all, rulerLabel) -- 436
-	collectOne(all, standLabel) -- 437
-	collectOne(all, cartLabel) -- 438
-	do -- 438
-		local i = 0 -- 439
-		while i < #poolBody do -- 439
-			collectOne(all, poolBody[i + 1]) -- 440
-			i = i + 1 -- 439
-		end -- 439
-	end -- 439
-	do -- 439
-		local i = 0 -- 442
-		while i < #poolSmall do -- 442
-			collectOne(all, poolSmall[i + 1]) -- 443
-			i = i + 1 -- 442
-		end -- 442
-	end -- 442
-	local lefts = {} -- 446
-	local rights = {} -- 447
-	local bottoms = {} -- 448
-	local tops = {} -- 449
-	local outOfScreen = 0 -- 450
-	do -- 450
-		local i = 0 -- 451
-		while i < #all do -- 451
-			local lb = all[i + 1] -- 452
-			local bw = lb.width -- 453
-			local bh = lb.height -- 454
-			local l = lb.x - bw * lb.anchor.x -- 455
-			local r = l + bw -- 456
-			local b = lb.y - bh * lb.anchor.y -- 457
-			local t = b + bh -- 458
-			lefts[#lefts + 1] = l -- 459
-			rights[#rights + 1] = r -- 460
-			bottoms[#bottoms + 1] = b -- 461
-			tops[#tops + 1] = t -- 462
-			if l < 0 or r > w or b < 0 or t > h then -- 462
-				outOfScreen = outOfScreen + 1 -- 464
-				print((((((((("AUDIT|越界|" .. lb.text) .. "|") .. tostring(l)) .. ",") .. tostring(r)) .. ",") .. tostring(b)) .. ",") .. tostring(t)) -- 465
-			end -- 465
-			i = i + 1 -- 451
-		end -- 451
-	end -- 451
-	local overlaps = 0 -- 469
-	do -- 469
-		local i = 0 -- 470
-		while i < #all do -- 470
-			do -- 470
-				local j = i + 1 -- 471
-				while j < #all do -- 471
-					local ox = math.min(rights[i + 1], rights[j + 1]) - math.max(lefts[i + 1], lefts[j + 1]) -- 472
-					local oy = math.min(tops[i + 1], tops[j + 1]) - math.max(bottoms[i + 1], bottoms[j + 1]) -- 473
-					if ox > 4 and oy > 4 then -- 473
-						overlaps = overlaps + 1 -- 475
-						print((((((("AUDIT|重叠|" .. all[i + 1].text) .. " <> ") .. all[j + 1].text) .. "|") .. tostring(ox)) .. "x") .. tostring(oy)) -- 476
-					end -- 476
-					j = j + 1 -- 471
-				end -- 471
+	place( -- 377
+		switchLabel, -- 377
+		48, -- 377
+		40, -- 377
+		0, -- 377
+		0 -- 377
+	) -- 377
+	place( -- 378
+		hintLabel, -- 378
+		48, -- 378
+		84, -- 378
+		0, -- 378
+		0 -- 378
+	) -- 378
+	place( -- 379
+		rulerLabel, -- 379
+		w - 216, -- 379
+		roomTop + 36 + v.scale * 0.5 - 14, -- 379
+		1, -- 379
+		0 -- 379
+	) -- 379
+	place( -- 380
+		standLabel, -- 380
+		48, -- 380
+		roomTop + 40, -- 380
+		0, -- 380
+		0 -- 380
+	) -- 380
+	place( -- 381
+		cartLabel, -- 381
+		48, -- 381
+		roomTop + 92, -- 381
+		0, -- 381
+		0 -- 381
+	) -- 381
+	if roomLabel ~= nil then -- 381
+		roomLabel.text = room.name -- 384
+	end -- 384
+	if captionLabel ~= nil then -- 384
+		captionLabel.text = room.caption -- 387
+	end -- 387
+	if hintLabel ~= nil then -- 387
+		local lines = HINTS[current + 1] -- 390
+		local merged = lines[1] -- 391
+		do -- 391
+			local i = 1 -- 392
+			while i < #lines do -- 392
+				merged = (merged .. "    ") .. lines[i + 1] -- 393
+				i = i + 1 -- 392
+			end -- 392
+		end -- 392
+		hintLabel.text = merged -- 395
+	end -- 395
+	local specs = collectLabels(room, v, w) -- 399
+	local body = {} -- 400
+	local small = {} -- 401
+	do -- 401
+		local i = 0 -- 402
+		while i < #specs do -- 402
+			local s = specs[i + 1] -- 403
+			if s.size >= 24 then -- 403
+				body[#body + 1] = s -- 405
+			else -- 405
+				small[#small + 1] = s -- 407
+			end -- 407
+			i = i + 1 -- 402
+		end -- 402
+	end -- 402
+	applyPool(body, poolBody) -- 410
+	applyPool(small, poolSmall) -- 411
+	if LAYOUT_AUDIT then -- 411
+		auditLayout(w, h) -- 414
+	end -- 414
+end -- 414
+function applyPool(specs, pool) -- 418
+	do -- 418
+		local i = 0 -- 419
+		while i < #pool do -- 419
+			local lb = pool[i + 1] -- 420
+			if i < #specs then -- 420
+				local s = specs[i + 1] -- 422
+				lb.text = s.text -- 423
+				lb.position = Vec2(s.x, s.y) -- 424
+				lb.anchor = Vec2(s.ax, s.ay) -- 425
+				lb.color = s.color -- 426
+				lb.visible = true -- 427
+			else -- 427
+				lb.visible = false -- 429
+			end -- 429
+			i = i + 1 -- 419
+		end -- 419
+	end -- 419
+end -- 419
+function auditLayout(w, h) -- 435
+	local all = {} -- 436
+	collectOne(all, titleLabel) -- 437
+	collectOne(all, roomLabel) -- 438
+	collectOne(all, captionLabel) -- 439
+	collectOne(all, switchLabel) -- 440
+	collectOne(all, hintLabel) -- 441
+	collectOne(all, rulerLabel) -- 442
+	collectOne(all, standLabel) -- 443
+	collectOne(all, cartLabel) -- 444
+	do -- 444
+		local i = 0 -- 445
+		while i < #poolBody do -- 445
+			collectOne(all, poolBody[i + 1]) -- 446
+			i = i + 1 -- 445
+		end -- 445
+	end -- 445
+	do -- 445
+		local i = 0 -- 448
+		while i < #poolSmall do -- 448
+			collectOne(all, poolSmall[i + 1]) -- 449
+			i = i + 1 -- 448
+		end -- 448
+	end -- 448
+	local lefts = {} -- 452
+	local rights = {} -- 453
+	local bottoms = {} -- 454
+	local tops = {} -- 455
+	local outOfScreen = 0 -- 456
+	do -- 456
+		local i = 0 -- 457
+		while i < #all do -- 457
+			local lb = all[i + 1] -- 458
+			local bw = lb.width -- 459
+			local bh = lb.height -- 460
+			local l = lb.x - bw * lb.anchor.x -- 461
+			local r = l + bw -- 462
+			local b = lb.y - bh * lb.anchor.y -- 463
+			local t = b + bh -- 464
+			lefts[#lefts + 1] = l -- 465
+			rights[#rights + 1] = r -- 466
+			bottoms[#bottoms + 1] = b -- 467
+			tops[#tops + 1] = t -- 468
+			if l < 0 or r > w or b < 0 or t > h then -- 468
+				outOfScreen = outOfScreen + 1 -- 470
+				print((((((((("AUDIT|越界|" .. lb.text) .. "|") .. tostring(l)) .. ",") .. tostring(r)) .. ",") .. tostring(b)) .. ",") .. tostring(t)) -- 471
 			end -- 471
-			i = i + 1 -- 470
-		end -- 470
-	end -- 470
-	print((((((((("AUDIT|小结|标签=" .. tostring(#all)) .. "|越界=") .. tostring(outOfScreen)) .. "|重叠=") .. tostring(overlaps)) .. "|屏幕=") .. tostring(w)) .. "x") .. tostring(h)) -- 480
-end -- 480
-function collectOne(out, lb) -- 483
-	if lb ~= nil and lb.visible then -- 483
-		out[#out + 1] = lb -- 485
-	end -- 485
-end -- 485
+			i = i + 1 -- 457
+		end -- 457
+	end -- 457
+	local overlaps = 0 -- 475
+	do -- 475
+		local i = 0 -- 476
+		while i < #all do -- 476
+			do -- 476
+				local j = i + 1 -- 477
+				while j < #all do -- 477
+					local ox = math.min(rights[i + 1], rights[j + 1]) - math.max(lefts[i + 1], lefts[j + 1]) -- 478
+					local oy = math.min(tops[i + 1], tops[j + 1]) - math.max(bottoms[i + 1], bottoms[j + 1]) -- 479
+					if ox > 4 and oy > 4 then -- 479
+						overlaps = overlaps + 1 -- 481
+						print((((((("AUDIT|重叠|" .. all[i + 1].text) .. " <> ") .. all[j + 1].text) .. "|") .. tostring(ox)) .. "x") .. tostring(oy)) -- 482
+					end -- 482
+					j = j + 1 -- 477
+				end -- 477
+			end -- 477
+			i = i + 1 -- 476
+		end -- 476
+	end -- 476
+	print((((((((("AUDIT|小结|标签=" .. tostring(#all)) .. "|越界=") .. tostring(outOfScreen)) .. "|重叠=") .. tostring(overlaps)) .. "|屏幕=") .. tostring(w)) .. "x") .. tostring(h)) -- 486
+end -- 486
+function collectOne(out, lb) -- 489
+	if lb ~= nil and lb.visible then -- 489
+		out[#out + 1] = lb -- 491
+	end -- 491
+end -- 491
 local FONT = "sarasa-mono-sc-regular" -- 18
 LAYOUT_AUDIT = false -- 25
 C_TEXT = Color(236, 236, 232, 255) -- 27

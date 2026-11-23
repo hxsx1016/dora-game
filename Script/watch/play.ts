@@ -460,6 +460,22 @@ export class Play {
         return out;
     }
 
+    /**
+     * 切房换实例时，把旧实例尚未消费的事件接到新实例队首。
+     * app 在 ensurePlay 前先 drain 旧队列，再调用这里；seq 重新编号，tick 保留旧值。
+     */
+    adoptEvents(events: PlayEvent[]): void {
+        if (events.length === 0) {
+            return;
+        }
+        this.events = events.concat(this.events);
+        let i = 0;
+        for (i = 0; i < this.events.length; i++) {
+            this.events[i].seq = i;
+        }
+        this.eventSeq = this.events.length;
+    }
+
     /** 推进一帧。input 已在本帧刷新过。 */
     update(dt: number, input: Input): void {
         if (input.pause.pressed) {
@@ -712,7 +728,16 @@ export class Play {
         }
         const p = this.player;
         const dist = Math.abs(p.x - a.x);
+        const hadKnock1 = this.escort.knock1;
+        const hadKnock2 = this.escort.knock2;
         this.calmConsumed = this.escort.update(input, p.x, p.facing, a.x, dist);
+        // 安抚的第 12 / 36 拍是两次接触，各自只发一条 knock，供前端播手指与音效。
+        if (!hadKnock1 && this.escort.knock1) {
+            this.emit("knock", { count: 1, x: a.x, room: this.room.key });
+        }
+        if (!hadKnock2 && this.escort.knock2) {
+            this.emit("knock", { count: 2, x: a.x, room: this.room.key });
+        }
         a.crouch = this.escort.crouchPose;
         a.h = a.crouch ? CHILD_CROUCH_H : CHILD_H;
         const dir = this.escort.moveDir(a.x);
@@ -1634,6 +1659,11 @@ export class Play {
      * 事件让前端在切房前就能停掉旧房间的事件与音效。
      */
     private requestRoom(key: string, reason: string): void {
+        // 一帧补跑多步时，出口条件会在每一步都成立。已有登记就不再发第二条，
+        // 真正换实例由 app 的步循环后统一处理。
+        if (this.wantRoom !== "") {
+            return;
+        }
         this.wantRoom = key;
         this.emit("roomChange", { from: this.room.key, to: key, reason: reason });
     }
