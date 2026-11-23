@@ -175,5 +175,156 @@ do
 		string.format("crouch=%s h=%.0f", tostring(p.player.crouch), p.player.h))
 end
 
+-- ---------------------------------------------------------------- 4. 同拍 E + 动作：有效握柄优先
+do
+	local p = checkpointAtCart()
+	local i = newInput()
+	tap(i.interact)
+	tap(i.fire)
+	local x0 = p.player.x
+	step(p, i)
+	check("D1 E+左键先握柄不开枪", p.gripping == true and countEvent(p, "shotResolved") == 0 and p.player.x == x0,
+		string.format("gripping=%s shotResolved=%d x=%.1f", tostring(p.gripping), countEvent(p, "shotResolved"), p.player.x))
+
+	local p2 = checkpointAtCart()
+	local i2 = newInput()
+	tap(i2.interact)
+	tap(i2.jump)
+	local x2 = p2.player.x
+	step(p2, i2)
+	check("D2 E+空格先握柄不翻滚", p2.gripping == true and p2.player.rollT == 0 and p2.player.y == 0 and p2.player.x == x2,
+		string.format("gripping=%s rollT=%.2f y=%.1f", tostring(p2.gripping), p2.player.rollT, p2.player.y))
+
+	-- 远离车柄时，点射和翻滚仍应正常。
+	local p3 = checkpointAtCart()
+	p3.player.x = 900
+	p3.partner.x = 880
+	p3:drainEvents()
+	local i3 = newInput()
+	tap(i3.fire)
+	step(p3, i3)
+	check("D3 远离车柄点射正常", countEvent(p3, "shotResolved") == 1 and p3.gripping == false,
+		string.format("shotResolved=%d gripping=%s", countEvent(p3, "shotResolved"), tostring(p3.gripping)))
+
+	local p4 = checkpointAtCart()
+	p4.player.x = 600
+	p4.partner.x = 580
+	local i4 = newInput()
+	tap(i4.jump)
+	step(p4, i4)
+	check("D4 远离车柄翻滚正常", p4.player.rollT > 0 and p4.gripping == false,
+		string.format("rollT=%.2f gripping=%s", p4.player.rollT, tostring(p4.gripping)))
+end
+
+-- ---------------------------------------------------------------- 5. 安抚 1–59 拍占用动作（车把旁 / 远离车把）
+local function enterCalm(p)
+	p.escort:applyDanger(1, true, p.partner.x)
+	p.escort:applyDanger(2, true, p.partner.x)
+	p.escort:applyDanger(3, true, p.partner.x)
+	local i = newInput()
+	tap(i.interact)
+	step(p, i)
+	rel(i.interact)
+	step(p, i) -- calmTick=1
+	return i
+end
+
+local function runCalm(p, i, keepHands)
+	local knocks = {}
+	local x0 = p.player.x
+	local axle0 = p.cartAxle
+	local function collect()
+		for _, e in ipairs(p:drainEvents()) do
+			if e.name == "knock" then
+				table.insert(knocks, { tick = e.tick, calm = p.escort.calmTick })
+			end
+		end
+	end
+	collect()
+
+	-- 第 2 拍重新按 E+D；旧实现在这里会抓车/推车，或远离车把时发通用 knock。
+	i.moveX = 1
+	tap(i.interact)
+	step(p, i)
+	collect()
+
+	while p.escort.calmTick < 59 do
+		step(p, i)
+		collect()
+	end
+	rel(i.interact)
+	i.moveX = 0
+	step(p, i) -- 第 60 拍：回 follow
+	collect()
+	return knocks, x0, axle0
+end
+
+do
+	local p = checkpointAtCart()
+	local i = enterCalm(p)
+	local knocks, x0, axle0 = runCalm(p, i, true)
+	check("E1 安抚中车把旁不抓车", p.gripping == false and p.player.x == x0 and p.cartAxle == axle0,
+		string.format("gripping=%s x=%.1f/%.1f axle=%.1f/%.1f", tostring(p.gripping), p.player.x, x0, p.cartAxle, axle0))
+	check("E2 安抚中车把旁不移动", p.player.x == x0 and p.cartAxle == axle0,
+		string.format("x=%.1f/%.1f axle=%.1f/%.1f", p.player.x, x0, p.cartAxle, axle0))
+	check("E3 安抚敲击恰两条且在第12/36拍", #knocks == 2 and knocks[1].calm == 12 and knocks[2].calm == 36,
+		string.format("knocks=%d calm=%s/%s tick=%s/%s", #knocks,
+			tostring(knocks[1] and knocks[1].calm), tostring(knocks[2] and knocks[2].calm),
+			tostring(knocks[1] and knocks[1].tick), tostring(knocks[2] and knocks[2].tick)))
+	check("E4 第60拍回 follow", p.escort.state == "follow" and p.escort.calmTick == 60,
+		string.format("state=%s calmTick=%d", p.escort.state, p.escort.calmTick))
+end
+
+do
+	local p = checkpointAtCart()
+	p.player.x = 900
+	p.partner.x = 880
+	local i = enterCalm(p)
+	local knocks, x0, axle0 = runCalm(p, i, false)
+	check("E5 安抚中远离车把不移动", p.player.x == x0 and p.cartAxle == axle0,
+		string.format("x=%.1f/%.1f axle=%.1f/%.1f", p.player.x, x0, p.cartAxle, axle0))
+	check("E6 安抚中远离车把不发通用knock", #knocks == 2,
+		string.format("knocks=%d", #knocks))
+	check("E7 远离车把安抚敲击仍为12/36", #knocks == 2 and knocks[1].calm == 12 and knocks[2].calm == 36,
+		string.format("calm=%s/%s", tostring(knocks[1] and knocks[1].calm), tostring(knocks[2] and knocks[2].calm)))
+end
+
+-- ---------------------------------------------------------------- 6. 城外握右柄时空格不跳
+do
+	local p = lualib.__TS__New(play.Play, rooms.OUTSIDE_ROOM)
+	local i = newInput()
+	p.player.x = 344
+	p.player.y = 96
+	p.player.onGround = true
+	p.player.crouch = false
+	p.cartAxle = 304
+	p:drainEvents()
+
+	tap(i.interact)
+	step(p, i)
+	check("F1 城外握住右柄", p.gripping == true,
+		string.format("gripping=%s axle=%.1f", tostring(p.gripping), p.cartAxle))
+
+	i.moveX = 1
+	tap(i.jump)
+	local axle0 = p.cartAxle
+	step(p, i)
+	check("F2 握车空格不起跳", p.player.y == 96 and p.player.onGround == true,
+		string.format("y=%.1f onGround=%s", p.player.y, tostring(p.player.onGround)))
+	check("F3 握车时D仍拉车", p.cartAxle > axle0 and p.gripping == true,
+		string.format("axle=%.1f/%.1f gripping=%s", p.cartAxle, axle0, tostring(p.gripping)))
+
+	rel(i.jump)
+	rel(i.interact)
+	step(p, i)
+	check("F4 松E当拍脱手", p.gripping == false,
+		string.format("gripping=%s", tostring(p.gripping)))
+
+	tap(i.jump)
+	step(p, i)
+	check("F5 脱手后空格可跳", p.player.y > 96 or p.player.onGround == false,
+		string.format("y=%.1f onGround=%s vy=%.1f", p.player.y, tostring(p.player.onGround), p.player.vy))
+end
+
 print(string.format("==== 结果：PASS %d / FAIL %d ====", pass, fail))
 assert(fail == 0, "verify-d9 有失败项")
