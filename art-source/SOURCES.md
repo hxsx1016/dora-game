@@ -13,9 +13,9 @@
 
 ## 水墨界面贴图与开源字体（`feature/fe-ink-ui`）
 
-- `assets/art/ui_ink.png` + `assets/art/ui_ink.clip`：程序化多鬃毛笔触模拟生成的水墨界面图集（含飞白横/竖笔刷、墨晕面板、卷轴木杆、残边朱砂方印与腰圆引首章、枯笔墨环、墨迹飞溅、玉简体力墨格及宣纸纤维肌理）。
-- `assets/font/lxgw-wenkai-medium.ttf`：霞鹜文楷 Lite Medium（[lxgw/LxgwWenKai-Lite](https://github.com/lxgw/LxgwWenKai-Lite) v1.530），按 GB2312 一级字库与项目用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-LXGW-WenKai.txt`）。
-- `assets/font/mashanzheng-calligraphy.ttf`：马善政毛笔楷书（[Google Fonts Ma Shan Zheng](https://github.com/google/fonts/tree/main/ofl/mashanzheng)），按标题/章目/篆印/中文大写数字及常用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-MaShanZheng.txt`）。
+- `assets/art/ui_ink.png` + `assets/art/ui_ink.clip`：宋明清雅水墨界面图集（含水袖飞白飘带、婉转烟岚流云曲线、烟黛渐变幕、霜月游丝细线、海棠菱花微结、纤细云肩折角、文人纤长孤印、玉簪体力细痕、月窗柔边墨云及 640×440 高清冷素宣纸页）。
+- `assets/font/lxgw-neo-zhisong.ttf`：霞鹜新致宋（[lxgw/LxgwNeoZhiSong](https://github.com/lxgw/LxgwNeoZhiSong) v1.071），按 GB2312 一级字库与项目用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-LXGW-NeoZhiSong.txt`）。
+- `assets/font/longcang-brush.ttf`：龙藏体（[Google Fonts Long Cang](https://github.com/google/fonts/tree/main/ofl/longcang)），按标题/章名/孤印/中文大写数字及常用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-LongCang.txt`）。
 
 ## 生成提示词
 

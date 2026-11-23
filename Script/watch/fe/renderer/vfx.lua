@@ -412,186 +412,189 @@ function VfxSystem.prototype.drawWorldVfx(self, fgGlow, assets, cam) -- 303
 				) -- 324
 			end -- 324
 			if tr.hit then -- 324
-				local s = 18 * (1.15 - k * 0.45) -- 328
-				fgGlow:drawSegment( -- 329
-					Vec2(x1 - s, y1 - s * 0.55), -- 329
-					Vec2(x1 + s, y1 + s * 0.55), -- 329
-					1.7 * k, -- 329
-					toColor(PALETTE.sealRedBright, 155 * k) -- 329
+				local s = 16 * (1.15 - k * 0.45) -- 328
+				fillRadialGlow( -- 329
+					fgGlow, -- 329
+					x1, -- 329
+					y1, -- 329
+					s * 1.15, -- 329
+					s * 0.9, -- 329
+					toColor(PALETTE.sealRedBright, 130 * k), -- 329
+					Color(168, 46, 44, 0), -- 329
+					12 -- 329
 				) -- 329
-				assets:tryPlace( -- 330
-					"ink_splatter", -- 330
-					"hit_ink_" .. tostring(i), -- 330
-					x1, -- 330
-					y1, -- 330
-					s * 2, -- 330
-					s * 2, -- 330
-					{ -- 330
-						color = toColor(PALETTE.sealRed), -- 331
-						opacity = 0.52 * k, -- 331
-						layer = 7 -- 331
-					} -- 331
+				fgGlow:drawSegment( -- 330
+					Vec2(x1 - s, y1 - s * 0.55), -- 330
+					Vec2(x1 + s, y1 + s * 0.55), -- 330
+					1.6 * k, -- 330
+					toColor(PALETTE.crimsonCore, 185 * k) -- 330
+				) -- 330
+				fgGlow:drawSegment( -- 331
+					Vec2(x1 - s * 0.45, y1 + s * 0.7), -- 331
+					Vec2(x1 + s * 0.45, y1 - s * 0.7), -- 331
+					1.2 * k, -- 331
+					toColor(PALETTE.sealRedBright, 160 * k) -- 331
 				) -- 331
 			end -- 331
 			i = i + 1 -- 306
 		end -- 306
 	end -- 306
 	if self.deflectFlash > 0 then -- 306
-		local k = self.deflectFlash -- 337
-		local dy = cam:sy(self.deflectY + (1 - k) * 11) -- 338
-		local height = cam:len(18 + (1 - k) * 12) -- 339
-		assets:tryPlace( -- 340
-			"stone_chips", -- 340
-			"blocked", -- 340
-			cam:sx(self.deflectX), -- 340
-			dy, -- 340
-			height, -- 340
-			height, -- 340
-			{opacity = k, layer = 8} -- 340
-		) -- 340
-	end -- 340
-	do -- 340
-		i = 0 -- 346
-		while i < #self.rings do -- 346
-			local rg = self.rings[i + 1] -- 347
-			local prog = 1 - rg.life / rg.maxLife -- 348
-			local r = math.max( -- 349
-				4, -- 349
-				cam:len(rg.maxR) * prog -- 349
-			) -- 349
-			local alpha = (1 - prog) * 0.82 -- 350
-			local rx = cam:sx(rg.x) -- 351
-			local ry = cam:sy(rg.y) -- 352
-			if not assets:tryPlace( -- 352
-				"ink_ring", -- 353
-				"vfx_ring_" .. tostring(i), -- 353
-				rx, -- 353
-				ry, -- 353
-				r * 2.35, -- 353
-				r * 2.35, -- 353
-				{ -- 353
-					color = toColor(rg.color), -- 354
-					opacity = alpha, -- 354
-					angle = prog * 24, -- 354
-					layer = 7 -- 354
-				} -- 354
-			) then -- 354
-				fgGlow:drawRing( -- 356
-					Vec2(rx, ry), -- 356
-					math.max(1, r - 2), -- 356
-					r, -- 356
-					Color(0, 0, 0, 0), -- 356
-					1.3, -- 356
-					toColor(rg.color, alpha * 235) -- 356
-				) -- 356
-			end -- 356
-			i = i + 1 -- 346
-		end -- 346
-	end -- 346
-	do -- 346
-		i = 0 -- 361
-		while i < #self.sparks do -- 361
-			local sp = self.sparks[i + 1] -- 362
-			local k = sp.life / sp.maxLife -- 363
-			local sx = cam:sx(sp.x) -- 364
-			local sy = cam:sy(sp.y) -- 365
-			local tx = sx - sp.vx * 0.02 * cam.ppu -- 366
-			local ty = sy - sp.vy * 0.02 * cam.ppu -- 367
-			fgGlow:drawSegment( -- 368
-				Vec2(tx, ty), -- 368
-				Vec2(sx, sy), -- 368
-				sp.size * k * 0.9, -- 368
-				toColor(sp.color, 210 * k) -- 368
-			) -- 368
-			i = i + 1 -- 361
-		end -- 361
-	end -- 361
+		local k = self.deflectFlash -- 336
+		local dy = cam:sy(self.deflectY + (1 - k) * 11) -- 337
+		local height = cam:len(18 + (1 - k) * 12) -- 338
+		assets:tryPlace( -- 339
+			"stone_chips", -- 339
+			"blocked", -- 339
+			cam:sx(self.deflectX), -- 339
+			dy, -- 339
+			height, -- 339
+			height, -- 339
+			{opacity = k, layer = 8} -- 339
+		) -- 339
+	end -- 339
+	do -- 339
+		i = 0 -- 345
+		while i < #self.rings do -- 345
+			local rg = self.rings[i + 1] -- 346
+			local prog = 1 - rg.life / rg.maxLife -- 347
+			local r = math.max( -- 348
+				4, -- 348
+				cam:len(rg.maxR) * prog -- 348
+			) -- 348
+			local alpha = (1 - prog) * 0.8 -- 349
+			local rx = cam:sx(rg.x) -- 350
+			local ry = cam:sy(rg.y) -- 351
+			if not assets:tryPlace( -- 351
+				"ink_enso_fine", -- 352
+				"vfx_ring_" .. tostring(i), -- 352
+				rx, -- 352
+				ry, -- 352
+				r * 2.35, -- 352
+				r * 2.35, -- 352
+				{ -- 352
+					color = toColor(rg.color), -- 353
+					opacity = alpha, -- 353
+					angle = prog * 24, -- 353
+					layer = 7 -- 353
+				} -- 353
+			) then -- 353
+				fgGlow:drawRing( -- 355
+					Vec2(rx, ry), -- 355
+					math.max(1, r - 1.8), -- 355
+					r, -- 355
+					Color(0, 0, 0, 0), -- 355
+					1.2, -- 355
+					toColor(rg.color, alpha * 230) -- 355
+				) -- 355
+			end -- 355
+			i = i + 1 -- 345
+		end -- 345
+	end -- 345
+	do -- 345
+		i = 0 -- 360
+		while i < #self.sparks do -- 360
+			local sp = self.sparks[i + 1] -- 361
+			local k = sp.life / sp.maxLife -- 362
+			local sx = cam:sx(sp.x) -- 363
+			local sy = cam:sy(sp.y) -- 364
+			local tx = sx - sp.vx * 0.02 * cam.ppu -- 365
+			local ty = sy - sp.vy * 0.02 * cam.ppu -- 366
+			fgGlow:drawSegment( -- 367
+				Vec2(tx, ty), -- 367
+				Vec2(sx, sy), -- 367
+				sp.size * k * 0.9, -- 367
+				toColor(sp.color, 210 * k) -- 367
+			) -- 367
+			i = i + 1 -- 360
+		end -- 360
+	end -- 360
 end -- 303
-function VfxSystem.prototype.drawScreenVfx(self, fgGlow, w, h, roomKey) -- 373
-	local theme = themeOf(roomKey) -- 374
-	local kind = theme.ambient -- 375
-	local i = 0 -- 376
-	do -- 376
-		i = 0 -- 377
-		while i < #self.motes do -- 377
-			local m = self.motes[i + 1] -- 378
-			local x = m.fx * w -- 379
-			local y = m.fy * h -- 380
-			local tw = 0.55 + 0.45 * math.sin(m.phase) -- 381
-			if kind == "drizzle" then -- 381
-				fgGlow:drawSegment( -- 383
-					Vec2(x, y), -- 383
-					Vec2(x + 4, y + 18), -- 383
-					0.85, -- 383
-					Color( -- 383
-						156, -- 383
-						174, -- 383
-						188, -- 383
-						math.floor(44 * tw + 0.5) -- 383
-					) -- 383
-				) -- 383
-			elseif kind == "ash" then -- 383
-				local c = roomKey == "gate" and PALETTE.sealRedBright or PALETTE.amberDim -- 385
-				fgGlow:drawDot( -- 386
-					Vec2(x, y), -- 386
-					m.size * 0.82, -- 386
-					toColor(c, 78 * tw) -- 386
-				) -- 386
-			elseif kind == "spores" then -- 386
-				fgGlow:drawDot( -- 388
-					Vec2(x, y), -- 388
-					m.size * 0.9, -- 388
-					toColor(PALETTE.emerald, 82 * tw) -- 388
-				) -- 388
-			else -- 388
-				fgGlow:drawDot( -- 390
-					Vec2(x, y), -- 390
-					m.size * 0.95, -- 390
-					toColor(PALETTE.amberCore, 94 * tw) -- 390
-				) -- 390
-			end -- 390
-			i = i + 1 -- 377
-		end -- 377
-	end -- 377
-	if self.hitVignette > 0.01 then -- 377
-		local a = math.floor(120 * self.hitVignette + 0.5) -- 396
-		local edge = 72 -- 397
+function VfxSystem.prototype.drawScreenVfx(self, fgGlow, w, h, roomKey) -- 372
+	local theme = themeOf(roomKey) -- 373
+	local kind = theme.ambient -- 374
+	local i = 0 -- 375
+	do -- 375
+		i = 0 -- 376
+		while i < #self.motes do -- 376
+			local m = self.motes[i + 1] -- 377
+			local x = m.fx * w -- 378
+			local y = m.fy * h -- 379
+			local tw = 0.55 + 0.45 * math.sin(m.phase) -- 380
+			if kind == "drizzle" then -- 380
+				fgGlow:drawSegment( -- 382
+					Vec2(x, y), -- 382
+					Vec2(x + 4, y + 18), -- 382
+					0.85, -- 382
+					Color( -- 382
+						156, -- 382
+						174, -- 382
+						188, -- 382
+						math.floor(44 * tw + 0.5) -- 382
+					) -- 382
+				) -- 382
+			elseif kind == "ash" then -- 382
+				local c = roomKey == "gate" and PALETTE.sealRedBright or PALETTE.amberDim -- 384
+				fgGlow:drawDot( -- 385
+					Vec2(x, y), -- 385
+					m.size * 0.82, -- 385
+					toColor(c, 78 * tw) -- 385
+				) -- 385
+			elseif kind == "spores" then -- 385
+				fgGlow:drawDot( -- 387
+					Vec2(x, y), -- 387
+					m.size * 0.9, -- 387
+					toColor(PALETTE.emerald, 82 * tw) -- 387
+				) -- 387
+			else -- 387
+				fgGlow:drawDot( -- 389
+					Vec2(x, y), -- 389
+					m.size * 0.95, -- 389
+					toColor(PALETTE.amberCore, 94 * tw) -- 389
+				) -- 389
+			end -- 389
+			i = i + 1 -- 376
+		end -- 376
+	end -- 376
+	if self.hitVignette > 0.01 then -- 376
+		local a = math.floor(120 * self.hitVignette + 0.5) -- 395
+		local edge = 72 -- 396
+		fillHGradRect( -- 397
+			fgGlow, -- 397
+			0, -- 397
+			0, -- 397
+			edge, -- 397
+			h, -- 397
+			Color(148, 36, 32, a), -- 397
+			Color(148, 36, 32, 0) -- 397
+		) -- 397
 		fillHGradRect( -- 398
 			fgGlow, -- 398
-			0, -- 398
+			w - edge, -- 398
 			0, -- 398
 			edge, -- 398
 			h, -- 398
-			Color(148, 36, 32, a), -- 398
-			Color(148, 36, 32, 0) -- 398
+			Color(148, 36, 32, 0), -- 398
+			Color(148, 36, 32, a) -- 398
 		) -- 398
-		fillHGradRect( -- 399
+		fillVGradRect( -- 399
 			fgGlow, -- 399
-			w - edge, -- 399
 			0, -- 399
-			edge, -- 399
-			h, -- 399
-			Color(148, 36, 32, 0), -- 399
-			Color(148, 36, 32, a) -- 399
+			0, -- 399
+			w, -- 399
+			edge * 0.8, -- 399
+			Color(148, 36, 32, a), -- 399
+			Color(148, 36, 32, 0) -- 399
 		) -- 399
 		fillVGradRect( -- 400
 			fgGlow, -- 400
 			0, -- 400
-			0, -- 400
+			h - edge * 0.8, -- 400
 			w, -- 400
 			edge * 0.8, -- 400
-			Color(148, 36, 32, a), -- 400
-			Color(148, 36, 32, 0) -- 400
+			Color(148, 36, 32, 0), -- 400
+			Color(148, 36, 32, a) -- 400
 		) -- 400
-		fillVGradRect( -- 401
-			fgGlow, -- 401
-			0, -- 401
-			h - edge * 0.8, -- 401
-			w, -- 401
-			edge * 0.8, -- 401
-			Color(148, 36, 32, 0), -- 401
-			Color(148, 36, 32, a) -- 401
-		) -- 401
-	end -- 401
-end -- 373
-return ____exports -- 373
+	end -- 400
+end -- 372
+return ____exports -- 372

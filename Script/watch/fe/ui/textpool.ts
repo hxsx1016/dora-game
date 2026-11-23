@@ -1,44 +1,42 @@
 /**
- * 零抖动水墨双字体 Label 对象池：
- * - 正文/界面桶（xs/sm/md/lg/xl）：霞鹜文楷（LXGW WenKai Medium，SIL OFL 1.1），兼顾古典楷意与小字号清晰度；
- * - 标题/章名/朱印/数数大字桶（seal/sealLg/banner/title）：马善政毛笔楷书（Ma Shan Zheng，SIL OFL 1.1）；
- * - 任意外部字体缺失时自动回退至引擎内置 sarasa-mono-sc-regular，保证零崩溃。
- *
- * 每帧开始调用 beginFrame()，渲染期间调用 put(...)，帧末调用 endFrame() 自动隐藏未复用标签。
+ * 零抖动宋明风雅双字体 Label 对象池：
+ * - 正文/界面桶（xs/sm/md/lg/xl）：霞鹜新致宋（LXGW Neo ZhiSong，SIL OFL 1.1），横细竖挺、清秀雕版明体；
+ * - 标题/章名/孤印/数数大字桶（seal/sealLg/banner/title）：龙藏体（Long Cang，SIL OFL 1.1），瘦劲婉转行书；
+ * - 外部字体缺失时自动回退至引擎内置 sarasa-mono-sc-regular，保证零崩溃。
  */
 
 import { Color, Content, Label, Node, TextAlign, Vec2 } from "Dora";
 
 const FONT_FALLBACK = "sarasa-mono-sc-regular";
-const FONT_BODY_PATH = "assets/font/lxgw-wenkai-medium.ttf";
-const FONT_CALLI_PATH = "assets/font/mashanzheng-calligraphy.ttf";
+const FONT_BODY_PATH = "assets/font/lxgw-neo-zhisong.ttf";
+const FONT_CALLI_PATH = "assets/font/longcang-brush.ttf";
 
-const DEFAULT_OUTLINE = Color(8, 9, 13, 220);
+const DEFAULT_OUTLINE = Color(8, 10, 15, 200);
 
 export type FontBucket = "xs" | "sm" | "md" | "lg" | "xl" | "seal" | "sealLg" | "banner" | "title";
 
 const BUCKET_SIZES: Record<FontBucket, number> = {
     xs: 15,
     sm: 18,
-    md: 23,
-    lg: 32,
-    xl: 48,
-    seal: 16,
-    sealLg: 21,
-    banner: 38,
-    title: 60,
+    md: 21,
+    lg: 28,
+    xl: 44,
+    seal: 15,
+    sealLg: 19,
+    banner: 42,
+    title: 68,
 };
 
 const BUCKET_CAPS: Record<FontBucket, number> = {
-    xs: 36,
-    sm: 40,
+    xs: 44,
+    sm: 44,
     md: 28,
     lg: 14,
     xl: 6,
-    seal: 20,
+    seal: 16,
     sealLg: 8,
-    banner: 6,
-    title: 8,
+    banner: 8,
+    title: 10,
 };
 
 const CALLI_BUCKETS: Record<FontBucket, boolean> = {
