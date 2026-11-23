@@ -19,9 +19,9 @@ local themeOf = ____theme.themeOf -- 20
 local toChineseUpper = ____theme.toChineseUpper -- 21
 local toColor = ____theme.toColor -- 22
 local visualTextWidth = ____theme.visualTextWidth -- 23
-function uiArtSafe(art) -- 494
-	return art -- 495
-end -- 495
+function uiArtSafe(art) -- 500
+	return art -- 501
+end -- 501
 ____exports.NarrativeRenderer = __TS__Class() -- 26
 local NarrativeRenderer = ____exports.NarrativeRenderer -- 26
 NarrativeRenderer.name = "NarrativeRenderer" -- 26
@@ -311,7 +311,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p) -- 179
 			end -- 241
 		end -- 241
 		if alive > 0 then -- 241
-			return {seal = "战", text = "前方街心有封锁敌兵。鼠标瞄准左键点射，空格贴矮台可翻越", urgent = false} -- 245
+			return {seal = "战", text = "前方街心有倭寇封锁。鼠标瞄准，左键发射火铳，空格贴矮台可翻越", urgent = false} -- 245
 		end -- 245
 		return {seal = "", text = "街心安静了。带她继续向右，前往城邦检查站", urgent = false} -- 247
 	end -- 247
@@ -355,531 +355,537 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p) -- 179
 		if p.passed then -- 292
 			return {seal = "", text = "越过了第一院。继续向右，走进通往北塔的森林", urgent = false} -- 295
 		end -- 295
-		return {seal = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 297
-	end -- 297
-	if key == "forest" then -- 297
-		if p.dogState == "chase" or p.dogState == "ear" then -- 297
-			return {seal = "警", text = "猎犬竖起了耳朵 —— 立刻蹲下或伏在草影里别出声！", urgent = true} -- 302
-		end -- 302
-		return {seal = "", text = "林间有猎犬巡逻。按住 [SHIFT] 慢走或 [CTRL] 伏低，穿过林缘抵达北塔", urgent = false} -- 304
-	end -- 304
-	if key == "tower" then -- 304
-		if p.phase == "tower-wait" then -- 304
-			return {seal = "", text = "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent = false} -- 309
-		end -- 309
-		if p.phase == "tower-knock" then -- 309
-			return {seal = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 312
-		end -- 312
-		if p.phase == "tower-given" then -- 312
-			return {seal = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 315
+		if p.bottleFly ~= nil then -- 295
+			return {seal = "诱", text = "等瓶子落地，把拾荒者引开。", urgent = false} -- 298
+		end -- 298
+		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 298
+			return {seal = "潜", text = "趁拾荒者走开，按住 [CTRL] 钻过桌下。", urgent = false} -- 301
+		end -- 301
+		return {seal = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 303
+	end -- 303
+	if key == "forest" then -- 303
+		if p.dogState == "chase" or p.dogState == "ear" then -- 303
+			return {seal = "警", text = "猎犬竖起了耳朵 —— 立刻蹲下或伏在草影里别出声！", urgent = true} -- 308
+		end -- 308
+		return {seal = "", text = "林间有猎犬巡逻。按住 [SHIFT] 慢走或 [CTRL] 伏低，穿过林缘抵达北塔", urgent = false} -- 310
+	end -- 310
+	if key == "tower" then -- 310
+		if p.phase == "tower-wait" then -- 310
+			return {seal = "", text = "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent = false} -- 315
 		end -- 315
-		return {seal = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 317
-	end -- 317
-	return {seal = "", text = theme.introWhisper, urgent = false} -- 320
+		if p.phase == "tower-knock" then -- 315
+			return {seal = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 318
+		end -- 318
+		if p.phase == "tower-given" then -- 318
+			return {seal = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 321
+		end -- 321
+		return {seal = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 323
+	end -- 323
+	return {seal = "", text = theme.introWhisper, urgent = false} -- 326
 end -- 179
-function NarrativeRenderer.prototype.drawGateCountOverlay(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h) -- 323
-	local frac = math.min(1, p.countTick / 1440) -- 333
-	local countNum = math.min( -- 334
-		100, -- 334
-		math.floor(frac * 100) -- 334
-	) -- 334
-	uiDraw:drawRect( -- 336
-		Rect(0, 0, w, h), -- 336
-		Color( -- 336
-			7, -- 336
-			8, -- 336
-			12, -- 336
-			math.floor(74 + frac * 114 + 0.5) -- 336
-		) -- 336
-	) -- 336
-	local cy = h * 0.56 -- 338
-	art:tryPlace( -- 339
-		"ink_splatter", -- 339
-		"gate_count_mist", -- 339
-		w * 0.5, -- 339
-		cy, -- 339
-		260, -- 339
-		220, -- 339
-		{ -- 339
-			color = toColor(PALETTE.inkMist), -- 340
-			opacity = 0.34 + frac * 0.22, -- 340
-			layer = 0 -- 340
-		} -- 340
+function NarrativeRenderer.prototype.drawGateCountOverlay(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h) -- 329
+	local frac = math.min(1, p.countTick / 1440) -- 339
+	local countNum = math.min( -- 340
+		100, -- 340
+		math.floor(frac * 100) -- 340
 	) -- 340
-	local numZh = toChineseUpper(countNum) -- 344
-	texts:put( -- 345
-		"title", -- 345
-		numZh, -- 345
+	uiDraw:drawRect( -- 342
+		Rect(0, 0, w, h), -- 342
+		Color( -- 342
+			7, -- 342
+			8, -- 342
+			12, -- 342
+			math.floor(74 + frac * 114 + 0.5) -- 342
+		) -- 342
+	) -- 342
+	local cy = h * 0.56 -- 344
+	art:tryPlace( -- 345
+		"ink_splatter", -- 345
+		"gate_count_mist", -- 345
 		w * 0.5, -- 345
-		cy + 4, -- 345
-		toColor(PALETTE.amberCore), -- 345
-		0.5, -- 345
-		0.5, -- 345
-		"Center", -- 345
-		10, -- 345
-		0.38 + frac * 0.6 -- 345
-	) -- 345
-	drawBrushDivider( -- 346
-		uiInkDraw, -- 346
-		art, -- 346
-		"gate_count_div", -- 346
-		w * 0.5, -- 346
-		cy - 34, -- 346
-		240, -- 346
-		10, -- 346
-		PALETTE.bronzeDim, -- 346
-		0.65, -- 346
-		2 -- 346
+		cy, -- 345
+		260, -- 345
+		220, -- 345
+		{ -- 345
+			color = toColor(PALETTE.inkMist), -- 346
+			opacity = 0.34 + frac * 0.22, -- 346
+			layer = 0 -- 346
+		} -- 346
 	) -- 346
-	texts:put( -- 347
-		"sm", -- 347
-		"城外静候 · 默数至百", -- 347
-		w * 0.5, -- 347
-		cy - 54, -- 347
-		toColor(PALETTE.textMid), -- 347
-		0.5, -- 347
-		0.5, -- 347
-		"Center", -- 347
-		3, -- 347
-		0.8 -- 347
-	) -- 347
-	if p.countTick >= 1440 then -- 347
-		local pulse = 0.72 + 0.28 * math.sin(self.time * 3.8) -- 350
-		local py = cy - 108 -- 351
-		fillRadialGlow( -- 352
-			uiGlow, -- 352
-			w * 0.5, -- 352
-			py, -- 352
-			130, -- 352
-			24, -- 352
-			toColor(PALETTE.amber, 42 * pulse), -- 352
-			Color(212, 164, 102, 0), -- 352
-			14 -- 352
-		) -- 352
-		drawInkWashStrip( -- 353
-			uiDraw, -- 353
-			uiArtSafe(art), -- 353
-			"gate_go_strip", -- 353
-			w * 0.5, -- 353
-			py, -- 353
-			300, -- 353
-			42, -- 353
-			PALETTE.inkWarm, -- 353
-			0.86, -- 353
-			true, -- 353
-			1 -- 353
-		) -- 353
-		drawBrushDivider( -- 354
-			uiInkDraw, -- 354
-			art, -- 354
-			"gate_go_top", -- 354
-			w * 0.5, -- 354
-			py + 17, -- 354
-			220, -- 354
-			8, -- 354
-			PALETTE.amber, -- 354
-			0.65 * pulse, -- 354
-			2 -- 354
-		) -- 354
-		drawBrushDivider( -- 355
-			uiInkDraw, -- 355
-			art, -- 355
-			"gate_go_bot", -- 355
-			w * 0.5, -- 355
-			py - 17, -- 355
-			220, -- 355
-			8, -- 355
-			PALETTE.amber, -- 355
-			0.65 * pulse, -- 355
-			2 -- 355
-		) -- 355
-		local prompt = p.countPrevMove > 0 and "先松开方向键，再按 [D]" or "按 [D] · 独自向北" -- 356
-		texts:put( -- 357
-			"sm", -- 357
-			prompt, -- 357
-			w * 0.5, -- 357
-			py, -- 357
-			toColor(PALETTE.amberCore), -- 357
-			0.5, -- 357
-			0.5, -- 357
-			"Center", -- 357
-			1.6, -- 357
-			1 -- 357
-		) -- 357
-	end -- 357
-end -- 323
-function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h) -- 365
-	local cardW = 548 -- 375
-	local cardH = 356 -- 376
-	local cx = (w - cardW) * 0.5 -- 377
-	local cy = (h - cardH) * 0.5 + 10 -- 378
-	local midX = w * 0.5 -- 379
-	local midY = cy + cardH * 0.5 -- 380
-	uiDraw:drawRect( -- 383
-		Rect(0, 0, w, h), -- 383
-		Color(7, 8, 12, 168) -- 383
-	) -- 383
-	art:tryPlace( -- 384
-		"ink_wash_panel", -- 384
-		"reg_shadow", -- 384
-		midX, -- 384
-		midY - 6, -- 384
-		cardW + 52, -- 384
-		cardH + 46, -- 384
-		{ -- 384
-			color = toColor(PALETTE.voidDark), -- 385
-			opacity = 0.85, -- 385
-			layer = -1 -- 385
-		} -- 385
-	) -- 385
-	if not art:tryPlace( -- 385
-		"ui_paper", -- 389
-		"registry_paper_full", -- 389
-		midX, -- 389
-		midY, -- 389
-		cardW, -- 389
-		cardH, -- 389
-		{opacity = 0.96, layer = 1} -- 389
-	) then -- 389
-		uiDraw:drawRect( -- 390
-			Rect(cx, cy, cardW, cardH), -- 390
-			toColor(PALETTE.xuanPaper, 245), -- 390
-			1.6, -- 390
-			toColor(PALETTE.bronzeDim, 210) -- 390
-		) -- 390
-	end -- 390
-	fillRadialGlow( -- 393
-		uiGlow, -- 393
-		midX, -- 393
-		midY + 40, -- 393
-		260, -- 393
-		140, -- 393
-		Color(235, 196, 130, 18), -- 393
-		Color(235, 196, 130, 0), -- 393
-		16 -- 393
-	) -- 393
-	local padX = 60 -- 396
-	local padY = 44 -- 397
-	local inX = cx + padX -- 398
-	local inY = cy + padY -- 399
-	local inW = cardW - padX * 2 -- 400
-	local inH = cardH - padY * 2 -- 401
-	local redLine = toColor(PALETTE.sealRed, 145) -- 402
-	local redLineFaint = toColor(PALETTE.sealRed, 82) -- 403
-	uiInkDraw:drawRect( -- 405
-		Rect(inX, inY, inW, inH), -- 405
-		Color(0, 0, 0, 0), -- 405
-		1.25, -- 405
-		redLine -- 405
-	) -- 405
-	uiInkDraw:drawRect( -- 406
-		Rect(inX + 4, inY + 4, inW - 8, inH - 8), -- 406
-		Color(0, 0, 0, 0), -- 406
-		0.7, -- 406
-		redLineFaint -- 406
-	) -- 406
-	local headY = inY + inH - 26 -- 409
-	texts:put( -- 410
-		"md", -- 410
-		"北塔入塔登记簿 · 末页", -- 410
-		inX + 18, -- 410
-		headY, -- 410
-		toColor(PALETTE.xuanInk), -- 410
-		0, -- 410
-		0.5, -- 410
-		"Left", -- 410
-		1.6, -- 410
-		0.96, -- 410
-		0 -- 410
-	) -- 410
-	drawSealStamp( -- 411
-		uiInkDraw, -- 411
-		art, -- 411
-		texts, -- 411
-		"reg_top_seal", -- 411
-		inX + inW - 28, -- 411
-		headY, -- 411
-		28, -- 411
-		"塔", -- 411
-		PALETTE.sealRed, -- 411
-		PALETTE.sealText, -- 411
-		0.9, -- 411
-		true, -- 411
-		4 -- 411
+	local numZh = toChineseUpper(countNum) -- 350
+	texts:put( -- 351
+		"title", -- 351
+		numZh, -- 351
+		w * 0.5, -- 351
+		cy + 4, -- 351
+		toColor(PALETTE.amberCore), -- 351
+		0.5, -- 351
+		0.5, -- 351
+		"Center", -- 351
+		10, -- 351
+		0.38 + frac * 0.6 -- 351
+	) -- 351
+	drawBrushDivider( -- 352
+		uiInkDraw, -- 352
+		art, -- 352
+		"gate_count_div", -- 352
+		w * 0.5, -- 352
+		cy - 34, -- 352
+		240, -- 352
+		10, -- 352
+		PALETTE.bronzeDim, -- 352
+		0.65, -- 352
+		2 -- 352
+	) -- 352
+	texts:put( -- 353
+		"sm", -- 353
+		"城外静候 · 默数至百", -- 353
+		w * 0.5, -- 353
+		cy - 54, -- 353
+		toColor(PALETTE.textMid), -- 353
+		0.5, -- 353
+		0.5, -- 353
+		"Center", -- 353
+		3, -- 353
+		0.8 -- 353
+	) -- 353
+	if p.countTick >= 1440 then -- 353
+		local pulse = 0.72 + 0.28 * math.sin(self.time * 3.8) -- 356
+		local py = cy - 108 -- 357
+		fillRadialGlow( -- 358
+			uiGlow, -- 358
+			w * 0.5, -- 358
+			py, -- 358
+			130, -- 358
+			24, -- 358
+			toColor(PALETTE.amber, 42 * pulse), -- 358
+			Color(212, 164, 102, 0), -- 358
+			14 -- 358
+		) -- 358
+		drawInkWashStrip( -- 359
+			uiDraw, -- 359
+			uiArtSafe(art), -- 359
+			"gate_go_strip", -- 359
+			w * 0.5, -- 359
+			py, -- 359
+			300, -- 359
+			42, -- 359
+			PALETTE.inkWarm, -- 359
+			0.86, -- 359
+			true, -- 359
+			1 -- 359
+		) -- 359
+		drawBrushDivider( -- 360
+			uiInkDraw, -- 360
+			art, -- 360
+			"gate_go_top", -- 360
+			w * 0.5, -- 360
+			py + 17, -- 360
+			220, -- 360
+			8, -- 360
+			PALETTE.amber, -- 360
+			0.65 * pulse, -- 360
+			2 -- 360
+		) -- 360
+		drawBrushDivider( -- 361
+			uiInkDraw, -- 361
+			art, -- 361
+			"gate_go_bot", -- 361
+			w * 0.5, -- 361
+			py - 17, -- 361
+			220, -- 361
+			8, -- 361
+			PALETTE.amber, -- 361
+			0.65 * pulse, -- 361
+			2 -- 361
+		) -- 361
+		local prompt = p.countPrevMove > 0 and "先松开方向键，再按 [D]" or "按 [D] · 独自向北" -- 362
+		texts:put( -- 363
+			"sm", -- 363
+			prompt, -- 363
+			w * 0.5, -- 363
+			py, -- 363
+			toColor(PALETTE.amberCore), -- 363
+			0.5, -- 363
+			0.5, -- 363
+			"Center", -- 363
+			1.6, -- 363
+			1 -- 363
+		) -- 363
+	end -- 363
+end -- 329
+function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h) -- 371
+	local cardW = 548 -- 381
+	local cardH = 356 -- 382
+	local cx = (w - cardW) * 0.5 -- 383
+	local cy = (h - cardH) * 0.5 + 10 -- 384
+	local midX = w * 0.5 -- 385
+	local midY = cy + cardH * 0.5 -- 386
+	uiDraw:drawRect( -- 389
+		Rect(0, 0, w, h), -- 389
+		Color(7, 8, 12, 168) -- 389
+	) -- 389
+	art:tryPlace( -- 390
+		"ink_wash_panel", -- 390
+		"reg_shadow", -- 390
+		midX, -- 390
+		midY - 6, -- 390
+		cardW + 52, -- 390
+		cardH + 46, -- 390
+		{ -- 390
+			color = toColor(PALETTE.voidDark), -- 391
+			opacity = 0.85, -- 391
+			layer = -1 -- 391
+		} -- 391
+	) -- 391
+	if not art:tryPlace( -- 391
+		"ui_paper", -- 395
+		"registry_paper_full", -- 395
+		midX, -- 395
+		midY, -- 395
+		cardW, -- 395
+		cardH, -- 395
+		{opacity = 0.96, layer = 1} -- 395
+	) then -- 395
+		uiDraw:drawRect( -- 396
+			Rect(cx, cy, cardW, cardH), -- 396
+			toColor(PALETTE.xuanPaper, 245), -- 396
+			1.6, -- 396
+			toColor(PALETTE.bronzeDim, 210) -- 396
+		) -- 396
+	end -- 396
+	fillRadialGlow( -- 399
+		uiGlow, -- 399
+		midX, -- 399
+		midY + 40, -- 399
+		260, -- 399
+		140, -- 399
+		Color(235, 196, 130, 18), -- 399
+		Color(235, 196, 130, 0), -- 399
+		16 -- 399
+	) -- 399
+	local padX = 60 -- 402
+	local padY = 44 -- 403
+	local inX = cx + padX -- 404
+	local inY = cy + padY -- 405
+	local inW = cardW - padX * 2 -- 406
+	local inH = cardH - padY * 2 -- 407
+	local redLine = toColor(PALETTE.sealRed, 145) -- 408
+	local redLineFaint = toColor(PALETTE.sealRed, 82) -- 409
+	uiInkDraw:drawRect( -- 411
+		Rect(inX, inY, inW, inH), -- 411
+		Color(0, 0, 0, 0), -- 411
+		1.25, -- 411
+		redLine -- 411
 	) -- 411
-	uiInkDraw:drawSegment( -- 412
-		Vec2(inX + 12, headY - 22), -- 412
-		Vec2(inX + inW - 12, headY - 22), -- 412
-		1.1, -- 412
-		redLine -- 412
+	uiInkDraw:drawRect( -- 412
+		Rect(inX + 4, inY + 4, inW - 8, inH - 8), -- 412
+		Color(0, 0, 0, 0), -- 412
+		0.7, -- 412
+		redLineFaint -- 412
 	) -- 412
-	local row1Y = headY - 52 -- 415
+	local headY = inY + inH - 26 -- 415
 	texts:put( -- 416
-		"sm", -- 416
-		"肆拾壹  小满 · 持黄铜指南针与纸条 · 已入塔", -- 416
+		"md", -- 416
+		"北塔入塔登记簿 · 末页", -- 416
 		inX + 18, -- 416
-		row1Y, -- 416
+		headY, -- 416
 		toColor(PALETTE.xuanInk), -- 416
 		0, -- 416
 		0.5, -- 416
 		"Left", -- 416
-		0.5, -- 416
+		1.6, -- 416
 		0.96, -- 416
 		0 -- 416
 	) -- 416
-	texts:put( -- 417
-		"xs", -- 417
-		"附注：护送者留守南城门，托她独自走完余路。", -- 417
-		inX + 18, -- 417
-		row1Y - 27, -- 417
-		toColor(PALETTE.xuanInkSub), -- 417
-		0, -- 417
-		0.5, -- 417
-		"Left", -- 417
-		0.4, -- 417
-		0.92, -- 417
-		0 -- 417
+	drawSealStamp( -- 417
+		uiInkDraw, -- 417
+		art, -- 417
+		texts, -- 417
+		"reg_top_seal", -- 417
+		inX + inW - 28, -- 417
+		headY, -- 417
+		28, -- 417
+		"塔", -- 417
+		PALETTE.sealRed, -- 417
+		PALETTE.sealText, -- 417
+		0.9, -- 417
+		true, -- 417
+		4 -- 417
 	) -- 417
 	uiInkDraw:drawSegment( -- 418
-		Vec2(inX + 14, row1Y - 46), -- 418
-		Vec2(inX + inW - 14, row1Y - 46), -- 418
-		0.85, -- 418
-		redLineFaint -- 418
+		Vec2(inX + 12, headY - 22), -- 418
+		Vec2(inX + inW - 12, headY - 22), -- 418
+		1.1, -- 418
+		redLine -- 418
 	) -- 418
-	local blankY = row1Y - 74 -- 421
-	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.4) -- 422
+	local row1Y = headY - 52 -- 421
+	texts:put( -- 422
+		"sm", -- 422
+		"肆拾壹  小满 · 持黄铜指南针与纸条 · 已入塔", -- 422
+		inX + 18, -- 422
+		row1Y, -- 422
+		toColor(PALETTE.xuanInk), -- 422
+		0, -- 422
+		0.5, -- 422
+		"Left", -- 422
+		0.5, -- 422
+		0.96, -- 422
+		0 -- 422
+	) -- 422
 	texts:put( -- 423
-		"sm", -- 423
-		"肆拾贰", -- 423
+		"xs", -- 423
+		"附注：护送者留守南城门，托她独自走完余路。", -- 423
 		inX + 18, -- 423
-		blankY, -- 423
-		toColor(PALETTE.sealRed), -- 423
+		row1Y - 27, -- 423
+		toColor(PALETTE.xuanInkSub), -- 423
 		0, -- 423
 		0.5, -- 423
 		"Left", -- 423
-		0.6, -- 423
-		0.94, -- 423
+		0.4, -- 423
+		0.92, -- 423
 		0 -- 423
 	) -- 423
 	uiInkDraw:drawSegment( -- 424
-		Vec2(inX + 88, blankY - 7), -- 424
-		Vec2(inX + inW - 108, blankY - 7), -- 424
-		1.15, -- 424
-		toColor(PALETTE.xuanInkSub, 175 * pulse) -- 424
+		Vec2(inX + 14, row1Y - 46), -- 424
+		Vec2(inX + inW - 14, row1Y - 46), -- 424
+		0.85, -- 424
+		redLineFaint -- 424
 	) -- 424
-	texts:put( -- 425
-		"xs", -- 425
-		"（空行留待）", -- 425
-		inX + inW - 98, -- 425
-		blankY, -- 425
-		toColor(PALETTE.xuanInkSub), -- 425
-		0, -- 425
-		0.5, -- 425
-		"Left", -- 425
-		0.6, -- 425
-		0.86 * pulse, -- 425
-		0 -- 425
-	) -- 425
-	if p.phase == "tower-end" then -- 425
-		local signY = inY + 38 -- 429
-		texts:put( -- 430
-			"banner", -- 430
-			"向西守望", -- 430
-			midX - 18, -- 430
-			signY, -- 430
-			toColor(PALETTE.xuanInk), -- 430
-			0.5, -- 430
-			0.5, -- 430
-			"Center", -- 430
-			6, -- 430
-			0.94, -- 430
-			0 -- 430
-		) -- 430
-		drawOvalSeal( -- 431
-			uiInkDraw, -- 431
-			art, -- 431
-			texts, -- 431
-			"reg_end_seal", -- 431
-			midX + 86, -- 431
-			signY, -- 431
-			24, -- 431
-			42, -- 431
-			"守", -- 431
-			"望", -- 431
-			PALETTE.sealRed, -- 431
-			PALETTE.sealText, -- 431
-			0.92, -- 431
-			4 -- 431
-		) -- 431
-		drawInkWashStrip( -- 434
-			uiDraw, -- 434
-			art, -- 434
-			"reg_hint_bg", -- 434
-			midX, -- 434
-			cy - 28, -- 434
-			340, -- 434
-			34, -- 434
-			PALETTE.inkWash, -- 434
-			0.78, -- 434
-			true, -- 434
-			0 -- 434
-		) -- 434
-		texts:put( -- 435
-			"xs", -- 435
-			"[E] 再次启程     ·     [ESC] 暂歇", -- 435
-			midX, -- 435
-			cy - 28, -- 435
-			toColor(PALETTE.amberCore), -- 435
-			0.5, -- 435
-			0.5, -- 435
-			"Center", -- 435
-			1.2, -- 435
-			0.95 -- 435
-		) -- 435
-	end -- 435
-end -- 365
-function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 439
-	local theme = themeOf(roomKey) -- 448
-	local t = self.bannerT / self.bannerMax -- 449
-	local alpha = 1 -- 451
-	if t > 0.82 then -- 451
-		alpha = (1 - t) / 0.18 -- 453
-	elseif t < 0.28 then -- 453
-		alpha = t / 0.28 -- 455
-	end -- 455
-	local cx = w * 0.5 -- 457
-	local cy = h * 0.77 -- 458
-	local spread = math.min(1, alpha * 1.15) -- 459
-	drawInkWashStrip( -- 462
-		uiDraw, -- 462
-		art, -- 462
-		"banner_ink", -- 462
-		cx, -- 462
-		cy + 4, -- 462
-		460 * spread + 60, -- 462
-		74, -- 462
-		PALETTE.inkWash, -- 462
-		0.78 * alpha, -- 462
-		true, -- 462
-		-1 -- 462
-	) -- 462
-	drawBrushDivider( -- 463
-		uiInkDraw, -- 463
-		art, -- 463
-		"banner_line", -- 463
-		cx, -- 463
-		cy - 18, -- 463
-		340 * spread, -- 463
-		12, -- 463
-		theme.accent, -- 463
-		0.78 * alpha, -- 463
-		2 -- 463
-	) -- 463
-	local sep = " · " -- 466
-	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 467
-	local sealCol = roomKey == "gate" and PALETTE.sealRed or PALETTE.cinnabarDeep -- 468
-	if idx > 0 then -- 468
-		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 470
-		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 471
-		local lw = visualTextWidth(leftPart, 38) -- 472
-		local rw = visualTextWidth(rightPart, 38) -- 473
-		local dotGap = 24 -- 474
-		local totalW = lw + rw + dotGap -- 475
-		local leftEdge = cx + 16 - totalW * 0.5 -- 476
-		local dotX = leftEdge + lw + dotGap * 0.5 -- 477
-		drawSealStamp( -- 479
-			uiInkDraw, -- 479
-			art, -- 479
-			texts, -- 479
-			"banner_seal", -- 479
-			leftEdge - 24, -- 479
-			cy + 14, -- 479
-			32, -- 479
-			theme.numeralZh, -- 479
-			sealCol, -- 479
-			PALETTE.sealText, -- 479
-			alpha, -- 479
-			true, -- 479
-			4 -- 479
-		) -- 479
-		texts:put( -- 480
-			"banner", -- 480
-			leftPart, -- 480
-			leftEdge, -- 480
-			cy + 14, -- 480
-			toColor(PALETTE.textBright), -- 480
-			0, -- 480
-			0.5, -- 480
-			"Left", -- 480
-			2, -- 480
-			alpha -- 480
-		) -- 480
-		art:tryPlace( -- 481
-			"ink_dot", -- 481
-			"banner_mid_dot", -- 481
-			dotX, -- 481
-			cy + 12, -- 481
-			9, -- 481
-			9, -- 481
-			{ -- 481
-				color = toColor(roomKey == "gate" and PALETTE.sealRedBright or PALETTE.amber), -- 482
-				opacity = 0.92 * alpha, -- 482
-				layer = 4 -- 482
-			} -- 482
-		) -- 482
-		texts:put( -- 484
-			"banner", -- 484
-			rightPart, -- 484
-			dotX + dotGap * 0.5, -- 484
-			cy + 14, -- 484
-			toColor(PALETTE.textBright), -- 484
-			0, -- 484
-			0.5, -- 484
-			"Left", -- 484
-			2, -- 484
-			alpha -- 484
-		) -- 484
-	else -- 484
-		local titleW = visualTextWidth(theme.titleZh, 38) -- 486
-		drawSealStamp( -- 487
-			uiInkDraw, -- 487
-			art, -- 487
-			texts, -- 487
-			"banner_seal", -- 487
-			cx - titleW * 0.5 - 24, -- 487
-			cy + 14, -- 487
-			32, -- 487
-			theme.numeralZh, -- 487
-			sealCol, -- 487
-			PALETTE.sealText, -- 487
-			alpha, -- 487
-			true, -- 487
-			4 -- 487
-		) -- 487
-		texts:put( -- 488
-			"banner", -- 488
-			theme.titleZh, -- 488
-			cx + 10, -- 488
-			cy + 14, -- 488
-			toColor(PALETTE.textBright), -- 488
-			0.5, -- 488
-			0.5, -- 488
-			"Center", -- 488
-			3, -- 488
-			alpha -- 488
+	local blankY = row1Y - 74 -- 427
+	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.4) -- 428
+	texts:put( -- 429
+		"sm", -- 429
+		"肆拾贰", -- 429
+		inX + 18, -- 429
+		blankY, -- 429
+		toColor(PALETTE.sealRed), -- 429
+		0, -- 429
+		0.5, -- 429
+		"Left", -- 429
+		0.6, -- 429
+		0.94, -- 429
+		0 -- 429
+	) -- 429
+	uiInkDraw:drawSegment( -- 430
+		Vec2(inX + 88, blankY - 7), -- 430
+		Vec2(inX + inW - 108, blankY - 7), -- 430
+		1.15, -- 430
+		toColor(PALETTE.xuanInkSub, 175 * pulse) -- 430
+	) -- 430
+	texts:put( -- 431
+		"xs", -- 431
+		"（空行留待）", -- 431
+		inX + inW - 98, -- 431
+		blankY, -- 431
+		toColor(PALETTE.xuanInkSub), -- 431
+		0, -- 431
+		0.5, -- 431
+		"Left", -- 431
+		0.6, -- 431
+		0.86 * pulse, -- 431
+		0 -- 431
+	) -- 431
+	if p.phase == "tower-end" then -- 431
+		local signY = inY + 38 -- 435
+		texts:put( -- 436
+			"banner", -- 436
+			"向西守望", -- 436
+			midX - 18, -- 436
+			signY, -- 436
+			toColor(PALETTE.xuanInk), -- 436
+			0.5, -- 436
+			0.5, -- 436
+			"Center", -- 436
+			6, -- 436
+			0.94, -- 436
+			0 -- 436
+		) -- 436
+		drawOvalSeal( -- 437
+			uiInkDraw, -- 437
+			art, -- 437
+			texts, -- 437
+			"reg_end_seal", -- 437
+			midX + 86, -- 437
+			signY, -- 437
+			24, -- 437
+			42, -- 437
+			"守", -- 437
+			"望", -- 437
+			PALETTE.sealRed, -- 437
+			PALETTE.sealText, -- 437
+			0.92, -- 437
+			4 -- 437
+		) -- 437
+		drawInkWashStrip( -- 440
+			uiDraw, -- 440
+			art, -- 440
+			"reg_hint_bg", -- 440
+			midX, -- 440
+			cy - 28, -- 440
+			340, -- 440
+			34, -- 440
+			PALETTE.inkWash, -- 440
+			0.78, -- 440
+			true, -- 440
+			0 -- 440
+		) -- 440
+		texts:put( -- 441
+			"xs", -- 441
+			"[E] 再次启程     ·     [ESC] 暂歇", -- 441
+			midX, -- 441
+			cy - 28, -- 441
+			toColor(PALETTE.amberCore), -- 441
+			0.5, -- 441
+			0.5, -- 441
+			"Center", -- 441
+			1.2, -- 441
+			0.95 -- 441
+		) -- 441
+	end -- 441
+end -- 371
+function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 445
+	local theme = themeOf(roomKey) -- 454
+	local t = self.bannerT / self.bannerMax -- 455
+	local alpha = 1 -- 457
+	if t > 0.82 then -- 457
+		alpha = (1 - t) / 0.18 -- 459
+	elseif t < 0.28 then -- 459
+		alpha = t / 0.28 -- 461
+	end -- 461
+	local cx = w * 0.5 -- 463
+	local cy = h * 0.77 -- 464
+	local spread = math.min(1, alpha * 1.15) -- 465
+	drawInkWashStrip( -- 468
+		uiDraw, -- 468
+		art, -- 468
+		"banner_ink", -- 468
+		cx, -- 468
+		cy + 4, -- 468
+		460 * spread + 60, -- 468
+		74, -- 468
+		PALETTE.inkWash, -- 468
+		0.78 * alpha, -- 468
+		true, -- 468
+		-1 -- 468
+	) -- 468
+	drawBrushDivider( -- 469
+		uiInkDraw, -- 469
+		art, -- 469
+		"banner_line", -- 469
+		cx, -- 469
+		cy - 18, -- 469
+		340 * spread, -- 469
+		12, -- 469
+		theme.accent, -- 469
+		0.78 * alpha, -- 469
+		2 -- 469
+	) -- 469
+	local sep = " · " -- 472
+	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 473
+	local sealCol = roomKey == "gate" and PALETTE.sealRed or PALETTE.cinnabarDeep -- 474
+	if idx > 0 then -- 474
+		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 476
+		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 477
+		local lw = visualTextWidth(leftPart, 38) -- 478
+		local rw = visualTextWidth(rightPart, 38) -- 479
+		local dotGap = 24 -- 480
+		local totalW = lw + rw + dotGap -- 481
+		local leftEdge = cx + 16 - totalW * 0.5 -- 482
+		local dotX = leftEdge + lw + dotGap * 0.5 -- 483
+		drawSealStamp( -- 485
+			uiInkDraw, -- 485
+			art, -- 485
+			texts, -- 485
+			"banner_seal", -- 485
+			leftEdge - 24, -- 485
+			cy + 14, -- 485
+			32, -- 485
+			theme.numeralZh, -- 485
+			sealCol, -- 485
+			PALETTE.sealText, -- 485
+			alpha, -- 485
+			true, -- 485
+			4 -- 485
+		) -- 485
+		texts:put( -- 486
+			"banner", -- 486
+			leftPart, -- 486
+			leftEdge, -- 486
+			cy + 14, -- 486
+			toColor(PALETTE.textBright), -- 486
+			0, -- 486
+			0.5, -- 486
+			"Left", -- 486
+			2, -- 486
+			alpha -- 486
+		) -- 486
+		art:tryPlace( -- 487
+			"ink_dot", -- 487
+			"banner_mid_dot", -- 487
+			dotX, -- 487
+			cy + 12, -- 487
+			9, -- 487
+			9, -- 487
+			{ -- 487
+				color = toColor(roomKey == "gate" and PALETTE.sealRedBright or PALETTE.amber), -- 488
+				opacity = 0.92 * alpha, -- 488
+				layer = 4 -- 488
+			} -- 488
 		) -- 488
-	end -- 488
-	texts:put( -- 490
-		"xs", -- 490
-		theme.volumeTagZh, -- 490
-		cx, -- 490
-		cy - 34, -- 490
-		toColor(PALETTE.textMid), -- 490
-		0.5, -- 490
-		0.5, -- 490
-		"Center", -- 490
-		2.2, -- 490
-		0.86 * alpha -- 490
-	) -- 490
-end -- 439
-return ____exports -- 439
+		texts:put( -- 490
+			"banner", -- 490
+			rightPart, -- 490
+			dotX + dotGap * 0.5, -- 490
+			cy + 14, -- 490
+			toColor(PALETTE.textBright), -- 490
+			0, -- 490
+			0.5, -- 490
+			"Left", -- 490
+			2, -- 490
+			alpha -- 490
+		) -- 490
+	else -- 490
+		local titleW = visualTextWidth(theme.titleZh, 38) -- 492
+		drawSealStamp( -- 493
+			uiInkDraw, -- 493
+			art, -- 493
+			texts, -- 493
+			"banner_seal", -- 493
+			cx - titleW * 0.5 - 24, -- 493
+			cy + 14, -- 493
+			32, -- 493
+			theme.numeralZh, -- 493
+			sealCol, -- 493
+			PALETTE.sealText, -- 493
+			alpha, -- 493
+			true, -- 493
+			4 -- 493
+		) -- 493
+		texts:put( -- 494
+			"banner", -- 494
+			theme.titleZh, -- 494
+			cx + 10, -- 494
+			cy + 14, -- 494
+			toColor(PALETTE.textBright), -- 494
+			0.5, -- 494
+			0.5, -- 494
+			"Center", -- 494
+			3, -- 494
+			alpha -- 494
+		) -- 494
+	end -- 494
+	texts:put( -- 496
+		"xs", -- 496
+		theme.volumeTagZh, -- 496
+		cx, -- 496
+		cy - 34, -- 496
+		toColor(PALETTE.textMid), -- 496
+		0.5, -- 496
+		0.5, -- 496
+		"Center", -- 496
+		2.2, -- 496
+		0.86 * alpha -- 496
+	) -- 496
+end -- 445
+return ____exports -- 445

@@ -78,7 +78,7 @@ const CAM_LOOK_UP = 46;
 /** 拉车速度：规划初值 64 单位/秒。 */
 const CART_SPEED = 64;
 /** 握把触发半径。 */
-const CART_REACH = 70;
+export const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
 const CART_HALF = 24;
 const CART_CLEAR = 44;

@@ -33,7 +33,7 @@ import {
 export type ScreenKind = "title" | "chapters" | "controls" | "play";
 
 export interface MenuAction {
-    type: "none" | "start" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle";
+    type: "none" | "start" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause";
     roomIndex?: number;
 }
 
@@ -61,7 +61,8 @@ export class MenuRenderer {
     private prevLeft = false;
     private prevRight = false;
     private prevEnter = false;
-    private prevClick = false;
+    private chaptersFromPause = false;
+    private pointerActive = false;
     private queuedUp = false;
     private queuedDown = false;
     private queuedLeft = false;
@@ -69,6 +70,28 @@ export class MenuRenderer {
     private queuedConfirm = false;
     private queuedBack = false;
     private time = 0;
+
+    openChapters(roomIndex?: number): void {
+        this.chaptersFromPause = roomIndex !== undefined;
+        this.chapterSelected = roomIndex ?? 0;
+        this.resetInput();
+    }
+
+    openPause(): void {
+        this.pauseSelected = 0;
+        this.resetInput();
+    }
+
+    /** 页面切换时锁住仍按下的键，避免确认键穿透到下一页。 */
+    resetInput(): void {
+        this.prevUp = Keyboard.isKeyPressed(KeyName.Up) || Keyboard.isKeyPressed(KeyName.W);
+        this.prevDown = Keyboard.isKeyPressed(KeyName.Down) || Keyboard.isKeyPressed(KeyName.S);
+        this.prevLeft = Keyboard.isKeyPressed(KeyName.Left) || Keyboard.isKeyPressed(KeyName.A);
+        this.prevRight = Keyboard.isKeyPressed(KeyName.Right) || Keyboard.isKeyPressed(KeyName.D);
+        this.prevEnter = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space);
+        this.queuedUp = this.queuedDown = this.queuedLeft = this.queuedRight = false;
+        this.queuedConfirm = this.queuedBack = false;
+    }
 
     /** 由 app.ts 的 onKeyDown 事件锁存短按键，避免低帧率下短按被轮询漏掉 */
     onKeyEvent(key: KeyName): void {
@@ -116,10 +139,7 @@ export class MenuRenderer {
     }
 
     private clickEdge(input: Input): boolean {
-        const held = input.fire.held;
-        const fired = held && !this.prevClick;
-        this.prevClick = held;
-        return fired;
+        return input.inside && input.fire.pressed;
     }
 
     /** 标题/章节/操作说明的交互更新与渲染 */
@@ -153,6 +173,9 @@ export class MenuRenderer {
 
         const mk = this.readMenuKeys();
         const clicked = this.clickEdge(input);
+        this.pointerActive = input.inside && (clicked ||
+            (Math.abs(input.mdx) + Math.abs(input.mdy) >= uiScale &&
+                !mk.up && !mk.down && !mk.left && !mk.right && !mk.confirm));
 
         if (screen === "title") {
             return this.drawTitle(mk, clicked, pointer, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
@@ -258,7 +281,7 @@ export class MenuRenderer {
         for (i = 0; i < TITLE_ITEMS.length; i++) {
             const by = startY - i * (btnH + gap);
             const hover = pointer.x >= menuX - 10 && pointer.x <= menuX + btnW && pointer.y >= by && pointer.y <= by + btnH;
-            if (hover) {
+            if (hover && this.pointerActive) {
                 this.selected = i;
                 hitIdx = i;
             }
@@ -325,7 +348,7 @@ export class MenuRenderer {
         h: number,
     ): MenuAction {
         if (input.pause.pressed || mk.back) {
-            return { type: "backTitle" };
+            return { type: this.chaptersFromPause ? "backPause" : "backTitle" };
         }
         if (mk.left) {
             this.chapterSelected = (this.chapterSelected + ROOMS.length - 1) % ROOMS.length;
@@ -370,7 +393,7 @@ export class MenuRenderer {
             const cy = row === 0 ? rowY0 : rowY1;
             const theme = themeOf(ROOMS[i].key);
             const hover = pointer.x >= cx && pointer.x <= cx + cardW && pointer.y >= cy && pointer.y <= cy + cardH;
-            if (hover) {
+            if (hover && this.pointerActive) {
                 this.chapterSelected = i;
                 hitIdx = i;
             }
@@ -429,10 +452,10 @@ export class MenuRenderer {
         const backHover = pointer.x >= backX && pointer.x <= backX + 188 && pointer.y >= backY && pointer.y <= backY + 38;
         drawInkWashStrip(uiDraw, uiArt, "chap_back_bg", backX + 90, backY + 19, 200, 38, backHover ? PALETTE.cinnabarDeep : PALETTE.inkWash, backHover ? 0.78 : 0.64, false, 0);
         drawInkKeycap(uiInkDraw, texts, backX + 6, backY + 7, 46, 24, "ESC", backHover ? PALETTE.sealRedBright : PALETTE.bronzeLine, 0.95, backHover);
-        texts.put("sm", "返回标题", backX + 62, backY + 19, toColor(backHover ? PALETTE.amberCore : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.2, 1);
+        texts.put("sm", this.chaptersFromPause ? "返回暂停" : "返回标题", backX + 62, backY + 19, toColor(backHover ? PALETTE.amberCore : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.2, 1);
 
         if (clicked && backHover) {
-            return { type: "backTitle" };
+            return { type: this.chaptersFromPause ? "backPause" : "backTitle" };
         }
         if (mk.confirm || (clicked && hitIdx >= 0)) {
             return { type: "jump", roomIndex: this.chapterSelected };
@@ -478,7 +501,7 @@ export class MenuRenderer {
 
         const sRows: [string, string][] = [
             ["A / D", "左右移动"],
-            ["鼠标 + 左键", "瞄准与点射"],
+            ["鼠标 + 左键", "瞄准 / 发射火铳"],
             ["SHIFT 按住", "贴靠柜台 / 街垒挡枪"],
             ["SPACE", "平地翻滚 / 贴矮台翻越"],
             ["E", "递物 / 敲两下安抚 / 按住+D 推车"],
@@ -544,6 +567,12 @@ export class MenuRenderer {
         const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
         const mk = this.readMenuKeys();
         const clicked = this.clickEdge(input);
+        this.pointerActive = input.inside && (clicked ||
+            (Math.abs(input.mdx) + Math.abs(input.mdy) >= uiScale &&
+                !mk.up && !mk.down && !mk.confirm));
+        if (mk.back || input.pause.pressed) {
+            return { type: "resume" };
+        }
 
         if (mk.up) {
             this.pauseSelected = (this.pauseSelected + PAUSE_ITEMS.length - 1) % PAUSE_ITEMS.length;
@@ -576,7 +605,7 @@ export class MenuRenderer {
             const iw = boxW - 72;
             const ih = 44;
             const hover = pointer.x >= ix && pointer.x <= ix + iw && pointer.y >= iy && pointer.y <= iy + ih;
-            if (hover) {
+            if (hover && this.pointerActive) {
                 this.pauseSelected = i;
                 hitIdx = i;
             }
