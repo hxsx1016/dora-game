@@ -242,7 +242,7 @@ export class NarrativeRenderer {
                 if (p.enemies[i].alive) { alive += 1; }
             }
             if (alive > 0) {
-                return { seal: "战", text: "前方街心有封锁敌兵。鼠标瞄准左键点射，空格贴矮台可翻越", urgent: false };
+                return { seal: "战", text: "前方街心有倭寇封锁。鼠标瞄准，左键发射火铳，空格贴矮台可翻越", urgent: false };
             }
             return { seal: "", text: "街心安静了。带她继续向右，前往城邦检查站", urgent: false };
         }
@@ -293,6 +293,12 @@ export class NarrativeRenderer {
             }
             if (p.passed) {
                 return { seal: "", text: "越过了第一院。继续向右，走进通往北塔的森林", urgent: false };
+            }
+            if (p.bottleFly !== undefined) {
+                return { seal: "诱", text: "等瓶子落地，把拾荒者引开。", urgent: false };
+            }
+            if (p.scavState === "turn" || p.scavState === "walk" || p.scavState === "stall") {
+                return { seal: "潜", text: "趁拾荒者走开，按住 [CTRL] 钻过桌下。", urgent: false };
             }
             return { seal: "", text: "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent: false };
         }

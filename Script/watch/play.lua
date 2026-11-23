@@ -209,7 +209,7 @@ local CAM_LOOK_UP = 46 -- 76
 --- 拉车速度：规划初值 64 单位/秒。
 local CART_SPEED = 64 -- 79
 --- 握把触发半径。
-local CART_REACH = 70 -- 81
+____exports.CART_REACH = 70 -- 81
 --- 车身半宽与下缘净高（城外下层阻挡）。
 local CART_HALF = 24 -- 83
 local CART_CLEAR = 44 -- 84
@@ -688,7 +688,7 @@ function Play.prototype.cartHandleInReach(self, a) -- 627
 		return false -- 630
 	end -- 630
 	local handleX = self.cartAxle + c.handleOffset -- 632
-	return math.abs(a.x - handleX) <= CART_REACH and math.abs(a.y - c.baseY) <= 40 -- 633
+	return math.abs(a.x - handleX) <= ____exports.CART_REACH and math.abs(a.y - c.baseY) <= 40 -- 633
 end -- 627
 function Play.prototype.nearLowLedge(self, a) -- 637
 	local reach = 26 -- 638
@@ -1421,7 +1421,7 @@ function Play.prototype.stepInteract(self, dt, input) -- 1375
 		local c = self.room.cart -- 1383
 		local dx = p.x - (self.cartAxle + c.handleOffset) -- 1384
 		local dy = p.y - c.baseY -- 1385
-		self.focusCart = not calmUsed and not calming and dx * dx + dy * dy < CART_REACH * CART_REACH -- 1386
+		self.focusCart = not calmUsed and not calming and dx * dx + dy * dy < ____exports.CART_REACH * ____exports.CART_REACH -- 1386
 	end -- 1386
 	if not calmUsed and not calming then -- 1386
 		self:stepCart(dt, input) -- 1390
@@ -1684,7 +1684,7 @@ function Play.prototype.stepCart(self, dt, input) -- 1647
 		if not input.interact.pressed then -- 1656
 			return -- 1660
 		end -- 1660
-		if math.abs(p.x - handleX) > CART_REACH or math.abs(p.y - c.baseY) > 40 then -- 1660
+		if math.abs(p.x - handleX) > ____exports.CART_REACH or math.abs(p.y - c.baseY) > 40 then -- 1660
 			return -- 1663
 		end -- 1663
 		self.gripping = true -- 1665
@@ -1715,7 +1715,7 @@ function Play.prototype.stepCart(self, dt, input) -- 1647
 	p.x = p.x + delta -- 1691
 	p.facing = dir > 0 and 1 or -1 -- 1692
 	self:slideX(p, 0) -- 1693
-	if math.abs(p.x - (self.cartAxle + c.handleOffset)) > CART_REACH then -- 1693
+	if math.abs(p.x - (self.cartAxle + c.handleOffset)) > ____exports.CART_REACH then -- 1693
 		self.gripping = false -- 1695
 		self:flashSet("跟不上了，脱手", 0.6) -- 1696
 		return -- 1697

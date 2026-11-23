@@ -2,6 +2,8 @@
 local ____lualib = require("lualib_bundle") -- 1
 local __TS__Class = ____lualib.__TS__Class -- 1
 local ____exports = {} -- 1
+local ____play = require("Script.watch.play") -- 8
+local CART_REACH = ____play.CART_REACH -- 8
 local ____escort = require("Script.watch.escort") -- 9
 local CALM_REACH = ____escort.CALM_REACH -- 9
 ____exports.PlayAdapter = __TS__Class() -- 41
@@ -60,237 +62,251 @@ function PlayAdapter.prototype.sample(self, p) -- 81
 	if roomChanged then -- 82
 		self:reset(p) -- 84
 	end -- 84
-	local shotFired = p.trace ~= nil and p.trace ~= self.prevTrace -- 87
-	local shotHit = shotFired and p.trace ~= nil and p.trace.hit -- 88
-	local enemyKilledX = -9999 -- 89
-	local enemyKilledY = 0 -- 90
-	local i = 0 -- 91
-	do -- 91
-		i = 0 -- 92
-		while i < #p.enemies do -- 92
-			local ____temp_2 -- 93
-			if i < #self.prevAliveMask then -- 93
-				____temp_2 = self.prevAliveMask[i + 1] -- 93
-			else -- 93
-				____temp_2 = true -- 93
-			end -- 93
-			local wasAlive = ____temp_2 -- 93
-			if wasAlive and not p.enemies[i + 1].alive then -- 93
-				enemyKilledX = p.enemies[i + 1].x -- 95
-				enemyKilledY = p.enemies[i + 1].y + p.enemies[i + 1].h * 0.55 -- 96
-			end -- 96
-			i = i + 1 -- 92
-		end -- 92
-	end -- 92
-	local playerHit = p.hp < self.prevHp or self.prevPhase == "gate-hold" and p.phase == "gate-idle" and p.gateNeedConfirm -- 100
-	local coverDeflect = p.coveredFlash > self.prevCoveredFlash + 0.05 -- 101
-	local rollStarted = p.player.rollT > 0 and self.prevRollT <= 0 -- 102
-	local knockPulse = false -- 105
-	local knockX = p.player.x -- 106
-	local knockY = p.player.y + p.player.h * 0.5 -- 107
-	if p.escort.state == "calming" then -- 107
-		if self.prevCalmTick < 12 and p.escort.calmTick >= 12 or self.prevCalmTick < 36 and p.escort.calmTick >= 36 then -- 107
-			knockPulse = true -- 110
-			knockX = (p.player.x + p.partner.x) * 0.5 -- 111
-			knockY = p.partner.y + 28 -- 112
-		end -- 112
-	end -- 112
-	if p.knocks ~= self.prevKnocks and p.knocks > 0 then -- 112
-		knockPulse = true -- 116
-		knockX = p.player.x + p.player.facing * 12 -- 117
-		knockY = p.player.y + p.player.h * 0.55 -- 118
-	end -- 118
-	local bottleLanded = p.bottleLandT > self.prevBottleLandT + 0.1 and p.bottleLandX >= 0 -- 121
-	local cartJustDocked = p.cartDocked and not self.prevCartDocked -- 122
-	local checkpointJustHit = p.checkpoint >= 0 and p.checkpoint ~= self.prevCheckpoint -- 123
-	local caughtTriggered = p.caughtT > 0 and self.prevCaughtT <= 0 -- 124
-	local phaseChanged = self.prevPhase ~= "" and self.prevPhase ~= p.phase -- 125
-	local gateWaveSpawned = p.gateSpawned > self.prevGateSpawned -- 126
-	self.prevRoomKey = p.room.key -- 129
-	self.prevPhase = p.phase -- 130
-	self.prevHp = p.hp -- 131
-	self.prevTrace = p.trace -- 132
-	self.prevCoveredFlash = p.coveredFlash -- 133
-	self.prevRollT = p.player.rollT -- 134
-	self.prevCalmTick = p.escort.calmTick -- 135
-	self.prevKnocks = p.knocks -- 136
-	self.prevBottleLandT = p.bottleLandT -- 137
-	self.prevCartDocked = p.cartDocked -- 138
-	self.prevCheckpoint = p.checkpoint -- 139
-	self.prevCaughtT = p.caughtT -- 140
-	self.prevGateSpawned = p.gateSpawned -- 141
-	self.prevAliveMask = {} -- 142
-	do -- 142
-		i = 0 -- 143
-		while i < #p.enemies do -- 143
-			local ____self_prevAliveMask_3 = self.prevAliveMask -- 143
-			____self_prevAliveMask_3[#____self_prevAliveMask_3 + 1] = p.enemies[i + 1].alive -- 144
-			i = i + 1 -- 143
-		end -- 143
-	end -- 143
-	local ____shotFired_5 = shotFired -- 148
-	local ____shotHit_6 = shotHit -- 149
-	local ____shotFired_4 -- 150
-	if shotFired then -- 150
-		____shotFired_4 = p.trace -- 150
-	else -- 150
-		____shotFired_4 = nil -- 150
-	end -- 150
-	return { -- 147
-		shotFired = ____shotFired_5, -- 148
-		shotHit = ____shotHit_6, -- 149
-		shotTrace = ____shotFired_4, -- 150
-		enemyKilledX = enemyKilledX, -- 151
-		enemyKilledY = enemyKilledY, -- 152
-		playerHit = playerHit, -- 153
-		coverDeflect = coverDeflect, -- 154
-		rollStarted = rollStarted, -- 155
-		knockPulse = knockPulse, -- 156
-		knockX = knockX, -- 157
-		knockY = knockY, -- 158
-		bottleLanded = bottleLanded, -- 159
-		bottleLandX = p.bottleLandX, -- 160
-		cartJustDocked = cartJustDocked, -- 161
-		checkpointJustHit = checkpointJustHit, -- 162
-		caughtTriggered = caughtTriggered, -- 163
-		phaseChanged = phaseChanged, -- 164
-		roomChanged = roomChanged, -- 165
-		gateWaveSpawned = gateWaveSpawned -- 166
-	} -- 166
+	local events = p:drainEvents() -- 87
+	local shotFired = p.trace ~= nil and p.trace ~= self.prevTrace -- 88
+	local shotHit = shotFired and p.trace ~= nil and p.trace.hit -- 89
+	local enemyKilledX = -9999 -- 90
+	local enemyKilledY = 0 -- 91
+	local i = 0 -- 92
+	do -- 92
+		i = 0 -- 93
+		while i < #p.enemies do -- 93
+			local ____temp_2 -- 94
+			if i < #self.prevAliveMask then -- 94
+				____temp_2 = self.prevAliveMask[i + 1] -- 94
+			else -- 94
+				____temp_2 = true -- 94
+			end -- 94
+			local wasAlive = ____temp_2 -- 94
+			if wasAlive and not p.enemies[i + 1].alive then -- 94
+				enemyKilledX = p.enemies[i + 1].x -- 96
+				enemyKilledY = p.enemies[i + 1].y + p.enemies[i + 1].h * 0.55 -- 97
+			end -- 97
+			i = i + 1 -- 93
+		end -- 93
+	end -- 93
+	local playerHit = p.hp < self.prevHp or self.prevPhase == "gate-hold" and p.phase == "gate-idle" and p.gateNeedConfirm -- 101
+	local coverDeflect = p.coveredFlash > self.prevCoveredFlash + 0.05 -- 102
+	local rollStarted = p.player.rollT > 0 and self.prevRollT <= 0 -- 103
+	local knockPulse = false -- 106
+	local knockX = p.player.x -- 107
+	local knockY = p.player.y + p.player.h * 0.5 -- 108
+	local bottleLanded = p.bottleLandT > self.prevBottleLandT + 0.1 and p.bottleLandX >= 0 -- 110
+	local cartJustDocked = p.cartDocked and not self.prevCartDocked -- 111
+	local checkpointJustHit = p.checkpoint >= 0 and p.checkpoint ~= self.prevCheckpoint -- 112
+	local caughtTriggered = p.caughtT > 0 and self.prevCaughtT <= 0 -- 113
+	local phaseChanged = self.prevPhase ~= "" and self.prevPhase ~= p.phase -- 114
+	local gateWaveSpawned = p.gateSpawned > self.prevGateSpawned -- 115
+	local migratedRoomChange = false -- 116
+	for ____, event in ipairs(events) do -- 117
+		if event.name == "knock" then -- 117
+			knockPulse = true -- 119
+			local x = event.data.x -- 120
+			knockX = type(x) == "number" and x or p.player.x -- 121
+			knockY = p.escort.state == "calming" and p.partner.y + 28 or p.player.y + p.player.h * 0.55 -- 122
+		elseif event.name == "actorHit" or event.name == "gateFailed" then -- 122
+			playerHit = true -- 124
+		elseif event.name == "coverBlocked" then -- 124
+			coverDeflect = true -- 126
+		elseif event.name == "bottleLanded" then -- 126
+			bottleLanded = true -- 128
+		elseif event.name == "cartDocked" then -- 128
+			cartJustDocked = true -- 130
+		elseif event.name == "roomChange" then -- 130
+			migratedRoomChange = true -- 132
+		end -- 132
+	end -- 132
+	self.prevRoomKey = p.room.key -- 137
+	self.prevPhase = p.phase -- 138
+	self.prevHp = p.hp -- 139
+	self.prevTrace = p.trace -- 140
+	self.prevCoveredFlash = p.coveredFlash -- 141
+	self.prevRollT = p.player.rollT -- 142
+	self.prevCalmTick = p.escort.calmTick -- 143
+	self.prevKnocks = p.knocks -- 144
+	self.prevBottleLandT = p.bottleLandT -- 145
+	self.prevCartDocked = p.cartDocked -- 146
+	self.prevCheckpoint = p.checkpoint -- 147
+	self.prevCaughtT = p.caughtT -- 148
+	self.prevGateSpawned = p.gateSpawned -- 149
+	self.prevAliveMask = {} -- 150
+	do -- 150
+		i = 0 -- 151
+		while i < #p.enemies do -- 151
+			local ____self_prevAliveMask_3 = self.prevAliveMask -- 151
+			____self_prevAliveMask_3[#____self_prevAliveMask_3 + 1] = p.enemies[i + 1].alive -- 152
+			i = i + 1 -- 151
+		end -- 151
+	end -- 151
+	local ____shotFired_5 = shotFired -- 156
+	local ____shotHit_6 = shotHit -- 157
+	local ____shotFired_4 -- 158
+	if shotFired then -- 158
+		____shotFired_4 = p.trace -- 158
+	else -- 158
+		____shotFired_4 = nil -- 158
+	end -- 158
+	return { -- 155
+		shotFired = ____shotFired_5, -- 156
+		shotHit = ____shotHit_6, -- 157
+		shotTrace = ____shotFired_4, -- 158
+		enemyKilledX = enemyKilledX, -- 159
+		enemyKilledY = enemyKilledY, -- 160
+		playerHit = playerHit, -- 161
+		coverDeflect = coverDeflect, -- 162
+		rollStarted = rollStarted, -- 163
+		knockPulse = knockPulse, -- 164
+		knockX = knockX, -- 165
+		knockY = knockY, -- 166
+		bottleLanded = bottleLanded, -- 167
+		bottleLandX = p.bottleLandX, -- 168
+		cartJustDocked = cartJustDocked, -- 169
+		checkpointJustHit = checkpointJustHit, -- 170
+		caughtTriggered = caughtTriggered, -- 171
+		phaseChanged = phaseChanged, -- 172
+		roomChanged = roomChanged or migratedRoomChange, -- 173
+		gateWaveSpawned = gateWaveSpawned -- 174
+	} -- 174
 end -- 81
---- 推导当前场景内最应高亮的 1–2 个世界空间悬浮交互提示（艾希风场景内嵌指引）
-function ____exports.deriveWorldPrompts(p) -- 172
-	local out = {} -- 173
-	local key = p.room.key -- 174
-	local pl = p.player -- 175
-	if p.paused then -- 175
-		return out -- 178
-	end -- 178
-	if key == "prologue" and p.phase == "prologue-wait" then -- 178
-		local d = math.abs(pl.x - p.partner.x) -- 183
-		out[#out + 1] = { -- 184
-			x = p.partner.x, -- 185
-			y = p.partner.y + p.partner.h + 18, -- 186
-			keyTag = d <= 52 and "E" or "→", -- 187
-			label = d <= 52 and "递出指南针" or "走近小满", -- 188
-			urgent = d <= 52 -- 189
-		} -- 189
-		return out -- 191
-	end -- 191
-	if not p.childMode and p.escort.state == "frozen" then -- 191
-		local d = math.abs(pl.x - p.partner.x) -- 196
-		out[#out + 1] = { -- 197
-			x = p.partner.x, -- 198
-			y = p.partner.y + p.partner.h + 18, -- 199
-			keyTag = d <= CALM_REACH and "E" or "!", -- 200
-			label = d <= CALM_REACH and "敲两下安抚" or "小满受惊停步", -- 201
-			urgent = true -- 202
-		} -- 202
-	end -- 202
-	if not p.childMode and p.coverNear and not p.coverHug and not (key == "gate" and p.phase == "gate-idle") then -- 202
-		out[#out + 1] = { -- 208
-			x = pl.x, -- 209
-			y = pl.y + pl.h + 22, -- 210
-			keyTag = "SHIFT", -- 211
-			label = "贴靠掩体", -- 212
-			urgent = key == "gate" and p.phase == "gate-hold" -- 213
-		} -- 213
-	end -- 213
-	if key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 213
-		local g = p.room.story.gate -- 219
-		if p.phase == "gate-idle" then -- 219
-			if p.gateNeedConfirm then -- 219
-				out[#out + 1] = { -- 222
-					x = g.winchX, -- 222
-					y = 84, -- 222
-					keyTag = "E", -- 222
-					label = "重新就位", -- 222
-					urgent = true -- 222
-				} -- 222
-			else -- 222
-				out[#out + 1] = { -- 224
-					x = g.winchX, -- 224
-					y = 84, -- 224
-					keyTag = "守", -- 224
-					label = "贴近绞盘就位", -- 224
-					urgent = false -- 224
-				} -- 224
-			end -- 224
-		elseif p.phase == "gate-send" then -- 224
-			out[#out + 1] = { -- 227
-				x = g.doorX, -- 227
-				y = 98, -- 227
-				keyTag = "E", -- 227
-				label = "送她出城", -- 227
-				urgent = true -- 227
-			} -- 227
-		end -- 227
-	end -- 227
-	if (key == "checkpoint" or key == "outside") and not p.cartDocked and p.room.cart.bodyW > 0 then -- 227
-		local c = p.room.cart -- 233
-		local hx = p.cartAxle + c.handleOffset -- 234
-		local d = math.abs(pl.x - hx) -- 235
-		local dy = math.abs(pl.y - c.baseY) -- 236
-		if d < 95 and dy < 48 then -- 236
-			out[#out + 1] = { -- 238
-				x = hx, -- 239
-				y = c.baseY + c.wheelR + c.bodyH + 26, -- 240
-				keyTag = p.gripping and "D" or "E+D", -- 241
-				label = key == "checkpoint" and "推车入窝" or "拉车入窝", -- 242
-				urgent = p.gripping -- 243
-			} -- 243
-		end -- 243
-	end -- 243
-	if key == "outside" and p.cartDocked and pl.y < 30 and pl.x > 190 and pl.x < 320 and not pl.crouch then -- 243
-		out[#out + 1] = { -- 250
-			x = 320, -- 251
-			y = 54, -- 252
-			keyTag = "CTRL", -- 253
-			label = "蹲伏穿拱", -- 254
-			urgent = false -- 255
-		} -- 255
-	end -- 255
-	if key == "village" then -- 255
-		if not p.hasBottle and p.bottleFly == nil and p.room.bottle ~= nil then -- 255
-			local d = math.abs(pl.x - p.room.bottle.x) -- 262
-			if d < 85 then -- 262
-				out[#out + 1] = { -- 264
-					x = p.room.bottle.x, -- 265
-					y = 78, -- 266
-					keyTag = "E", -- 267
-					label = "拾取玻璃瓶", -- 268
-					urgent = true -- 269
-				} -- 269
-			end -- 269
-		elseif p.hasBottle and p.aimHold <= 0 then -- 269
-			out[#out + 1] = { -- 273
-				x = pl.x, -- 274
-				y = pl.y + pl.h + 22, -- 275
-				keyTag = "F", -- 276
-				label = "按住瞄准 · 松手投向砖地", -- 277
-				urgent = false -- 278
-			} -- 278
-		end -- 278
-		if pl.x > 250 and pl.x < 330 and not pl.crouch then -- 278
-			out[#out + 1] = { -- 282
-				x = 360, -- 283
-				y = 58, -- 284
-				keyTag = "CTRL", -- 285
-				label = "蹲伏钻桌", -- 286
-				urgent = false -- 287
-			} -- 287
-		end -- 287
-	end -- 287
-	if key == "tower" and p.phase == "tower-wait" and p.room.story ~= nil and p.room.story.tower ~= nil then -- 287
-		local dx = math.abs(pl.x - p.room.story.tower.doorX) -- 294
-		out[#out + 1] = { -- 295
-			x = p.room.story.tower.doorX, -- 296
-			y = 96, -- 297
-			keyTag = "E", -- 298
-			label = dx <= 50 and "敲两下" or "走到塔门前", -- 299
-			urgent = dx <= 50 -- 300
-		} -- 300
-	end -- 300
-	return out -- 304
-end -- 172
-return ____exports -- 172
+--- 每次只展示最相关的就近操作。走到可触发的位置才显示按键。
+function ____exports.deriveWorldPrompt(p) -- 180
+	local room = p.room -- 181
+	local player = p.player -- 182
+	if p.paused or not player.alive then -- 182
+		return nil -- 184
+	end -- 184
+	if room.key == "prologue" and p.phase == "prologue-wait" then -- 184
+		local ____opt_9 = room.story -- 184
+		local ____opt_7 = ____opt_9 and ____opt_9.prologue -- 184
+		local reach = ____opt_7 and ____opt_7.giveReach or 46 -- 188
+		if math.abs(player.x - p.partner.x) <= reach then -- 188
+			return { -- 190
+				x = p.partner.x, -- 190
+				y = p.partner.y + p.partner.h + 22, -- 190
+				keyTag = "E", -- 190
+				label = "递出指南针", -- 190
+				urgent = false -- 190
+			} -- 190
+		end -- 190
+		return nil -- 192
+	end -- 192
+	if not p.childMode and p.escort.state == "frozen" then -- 192
+		if math.abs(player.x - p.partner.x) <= CALM_REACH then -- 192
+			return { -- 197
+				x = p.partner.x, -- 197
+				y = p.partner.y + p.partner.h + 22, -- 197
+				keyTag = "E", -- 197
+				label = "安抚小满", -- 197
+				urgent = true -- 197
+			} -- 197
+		end -- 197
+		return nil -- 199
+	end -- 199
+	local ____opt_11 = room.story -- 199
+	local gate = ____opt_11 and ____opt_11.gate -- 202
+	if gate ~= nil then -- 202
+		if p.phase == "gate-idle" and p.gateNeedConfirm and math.abs(player.x - gate.winchX) <= 24 and player.y < 20 and p.partner.alive and math.abs(p.partner.x - gate.waitX) <= 60 then -- 202
+			return { -- 207
+				x = gate.winchX, -- 207
+				y = 84, -- 207
+				keyTag = "E", -- 207
+				label = "重新守门", -- 207
+				urgent = true -- 207
+			} -- 207
+		end -- 207
+		if p.phase == "gate-send" and math.abs(player.x - gate.doorX) <= 60 then -- 207
+			return { -- 210
+				x = gate.doorX, -- 210
+				y = 98, -- 210
+				keyTag = "E", -- 210
+				label = "送小满出城", -- 210
+				urgent = true -- 210
+			} -- 210
+		end -- 210
+	end -- 210
+	local cart = room.cart -- 214
+	if (room.key == "checkpoint" or room.key == "outside") and not p.cartDocked and cart.bodyW > 0 then -- 214
+		local handleX = p.cartAxle + cart.handleOffset -- 216
+		if p.gripping or math.abs(player.x - handleX) <= CART_REACH and math.abs(player.y - cart.baseY) <= 40 then -- 216
+			return { -- 218
+				x = handleX, -- 219
+				y = cart.baseY + cart.wheelR + cart.bodyH + 46, -- 220
+				keyTag = "按住 E + D", -- 221
+				label = room.key == "checkpoint" and "向前推车" or "向前拉车", -- 222
+				urgent = false -- 223
+			} -- 223
+		end -- 223
+	end -- 223
+	if room.key == "village" and p.scavChase then -- 223
+		local ____player_crouch_13 -- 229
+		if player.crouch then -- 229
+			____player_crouch_13 = nil -- 229
+		else -- 229
+			____player_crouch_13 = { -- 229
+				x = player.x, -- 230
+				y = player.y + player.h + 22, -- 230
+				keyTag = "按住 Ctrl", -- 230
+				label = "蹲下躲避", -- 230
+				urgent = true -- 230
+			} -- 230
+		end -- 230
+		return ____player_crouch_13 -- 229
+	end -- 229
+	if room.key == "village" and not p.passed then -- 229
+		local bottle = room.bottle -- 235
+		if p.hasBottle then -- 235
+			return { -- 237
+				x = player.x, -- 238
+				y = player.y + player.h + 26, -- 238
+				keyTag = p.aimHold >= 0.12 and "松开 F" or "按住 F", -- 239
+				label = p.aimHold >= 0.12 and "投瓶" or "瞄准砖地", -- 240
+				urgent = false -- 240
+			} -- 240
+		end -- 240
+		if p.bottleFly == nil and bottle ~= nil then -- 240
+			local dx = player.x - bottle.x -- 244
+			local dy = player.y + player.h * 0.5 - bottle.y -- 245
+			if dx * dx + dy * dy < 56 * 56 then -- 245
+				return { -- 247
+					x = bottle.x, -- 247
+					y = bottle.y + 36, -- 247
+					keyTag = "E", -- 247
+					label = "拾起瓶子", -- 247
+					urgent = false -- 247
+				} -- 247
+			end -- 247
+		end -- 247
+	end -- 247
+	local arch = room.arch -- 252
+	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 252
+		return { -- 256
+			x = (arch.x0 + arch.x1) * 0.5, -- 257
+			y = arch.y + arch.h + 44, -- 257
+			keyTag = "按住 Ctrl", -- 258
+			label = room.key == "outside" and "蹲着穿过拱洞" or "蹲着钻过桌下", -- 258
+			urgent = false -- 258
+		} -- 258
+	end -- 258
+	local ____opt_14 = room.story -- 258
+	local tower = ____opt_14 and ____opt_14.tower -- 262
+	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 262
+		return { -- 264
+			x = tower.doorX, -- 264
+			y = 96, -- 264
+			keyTag = "E", -- 264
+			label = "敲门", -- 264
+			urgent = false -- 264
+		} -- 264
+	end -- 264
+	if not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 264
+		return { -- 269
+			x = player.x, -- 270
+			y = player.y + player.h + 25, -- 270
+			keyTag = "按住 Shift", -- 271
+			label = "贴靠掩体", -- 271
+			urgent = gate ~= nil -- 271
+		} -- 271
+	end -- 271
+	return nil -- 274
+end -- 180
+return ____exports -- 180

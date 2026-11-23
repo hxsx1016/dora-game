@@ -12,7 +12,7 @@
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { FEAR_MAX } from "Script/watch/escort";
-import { WorldPrompt, deriveWorldPrompts } from "Script/watch/fe/adapter";
+import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
@@ -80,7 +80,8 @@ export class HudRenderer {
             this.drawContextualObjective(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha);
 
             // 4. 世界空间悬浮纸签交互提示
-            const prompts = deriveWorldPrompts(p);
+            const prompt = deriveWorldPrompt(p);
+            const prompts = prompt !== undefined ? [prompt] : [];
             this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, prompts, cam, hudAlpha, uiScale);
 
             // 5. 掩体挡枪浮字
@@ -103,7 +104,8 @@ export class HudRenderer {
         }
 
         // 6. 枯笔准星（过场全开时不遮挡画面）
-        if (!p.paused && letterboxFrac < 0.5) {
+        if (!p.paused && letterboxFrac < 0.5 && !p.gripping &&
+            p.escort.state !== "calming" && !p.gateNeedConfirm && p.phase !== "prologue-give") {
             this.drawReticle(uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale);
         }
     }
