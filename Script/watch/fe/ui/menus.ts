@@ -45,8 +45,8 @@ const CHAPTER_TITLES: Record<string, string> = {
 };
 
 const SOLDIER_CONTROLS: [string, string][] = [
-    ["鼠标 / 左键", "瞄准 / 开枪"],
-    ["按住 Shift", "贴住掩体挡枪"],
+    ["鼠标 / 左键", "瞄准 / 发射火铳"],
+    ["按住 Shift", "贴住掩体"],
     ["空格", "翻滚 / 靠近矮柜时翻越"],
     ["按住 E + D", "握住车把，推车向前"],
 ];
@@ -219,7 +219,7 @@ export class MenuRenderer {
         if (title) {
             const heading = h * 0.74;
             texts.put("xl", "向西守望", left, heading, toColor(PALETTE.textBright));
-            texts.put("sm", "城破后，护送小满出城。", left, heading - 56, toColor(PALETTE.textMid));
+            texts.put("sm", "明代沿海，倭寇袭城。护送小满出城。", left, heading - 56, toColor(PALETTE.textMid));
             const boxes = verticalBoxes(left, h * 0.43, 300, TITLE_ITEMS.length);
             this.selected = this.verticalSelection(this.selected, boxes, frame);
             texts.put("sm", "↑ ↓ 选择　Enter 确认", left, boxes[2].y - 34, toColor(PALETTE.textMid));

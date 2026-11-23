@@ -52,113 +52,114 @@ ____exports.ASSET_SLOTS = { -- 43
 	soldier_knock = actor({"soldier_cover", "soldier_knock"}), -- 60
 	soldier_hit = actor("soldier_hit"), -- 61
 	soldier_fire = actor("soldier_fire"), -- 62
-	child_idle = actor("child_idle"), -- 63
-	child_run = actor({"child_run", "child_idle", "child_step", "child_idle"}), -- 64
-	child_crouch = actor({"child_crouch", "child_crouch_step"}), -- 65
-	child_fear = actor("child_fear"), -- 66
-	child_peek = actor("child_peek"), -- 67
-	child_pull = actor({"child_pull", "child_pull_step"}), -- 68
-	child_aim = actor("child_aim"), -- 69
-	child_throw = actor("child_throw"), -- 70
-	child_knock = actor("child_knock"), -- 71
-	child_offer = actor("child_offer"), -- 72
-	enemy_idle = actor("enemy_idle"), -- 73
-	enemy_aim = actor("enemy_aim"), -- 74
-	enemy_down = actor("enemy_down"), -- 75
-	enemy_hit = actor("enemy_hit"), -- 76
-	scavenger = actor({"scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"}), -- 77
-	dog = actor({"dog_idle", "dog_alert", "dog_run", "dog_sniff"}), -- 78
-	prop_cart = clip("cart"), -- 79
-	prop_bottle = clip("bottle", 0.5, true), -- 80
-	prop_tower_door = clip("door"), -- 81
-	prop_lantern = clip("lantern", 0.5, true), -- 82
-	prop_table = clip("table"), -- 83
-	prop_compass = clip("compass", 0.5, true), -- 84
-	prop_winch = clip("winch", 0.5, true), -- 85
-	wall = clip("wall"), -- 86
-	cover_wood = clip("cover_wood"), -- 87
-	cover_stone = clip("cover_stone"), -- 88
-	fence = clip("fence"), -- 89
-	slab = clip("slab"), -- 90
-	eaves = clip("eaves"), -- 91
-	pine = clip("pine"), -- 92
-	grass = clip("grass"), -- 93
-	grass_low = clip("grass_low"), -- 94
-	stone_chips = clip("stone_chips", 0.5, true), -- 95
-	ui_corner = clip("ui_corner"), -- 96
-	ui_paper = clip("paper", 0.5) -- 97
-} -- 97
-____exports.AssetSlotHost = __TS__Class() -- 100
-local AssetSlotHost = ____exports.AssetSlotHost -- 100
-AssetSlotHost.name = "AssetSlotHost" -- 100
-function AssetSlotHost.prototype.____constructor(self, parent, order) -- 107
-	self.sprites = {} -- 102
-	self.unavailable = {} -- 103
-	self.visibleLastFrame = {} -- 104
-	self.visibleThisFrame = {} -- 105
-	self.container = Node() -- 108
-	self.container.order = order -- 109
-	self.container:addTo(parent) -- 110
-end -- 107
-function AssetSlotHost.prototype.beginFrame(self) -- 113
-	self.visibleThisFrame = {} -- 114
-end -- 113
-function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 117
-	if options == nil then -- 117
-		options = {} -- 121
-	end -- 121
-	local cfg = ____exports.ASSET_SLOTS[slotKey] -- 123
-	if cfg == nil or targetW <= 0 or targetH <= 0 then -- 123
-		return false -- 125
-	end -- 125
-	local frame = (options.frame or 0) % #cfg.paths -- 127
-	local path = cfg.paths[frame + 1] -- 128
-	local key = (instanceKey .. ":") .. path -- 129
-	local sprite = self.sprites[key] -- 130
-	if sprite == nil then -- 130
-		if self.unavailable[path] then -- 130
-			return false -- 133
-		end -- 133
-		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 135
-		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 136
-		local ____Content_exist_result_0 -- 137
-		if Content:exist(file) then -- 137
-			____Content_exist_result_0 = Sprite(path) -- 137
-		else -- 137
-			____Content_exist_result_0 = nil -- 137
-		end -- 137
-		local loaded = ____Content_exist_result_0 -- 137
-		if loaded == nil then -- 137
-			self.unavailable[path] = true -- 139
-			return false -- 140
-		end -- 140
-		loaded.anchor = Vec2(0.5, cfg.anchorY) -- 142
-		loaded.filter = "Point" -- 143
-		loaded:addTo(self.container) -- 144
-		self.sprites[key] = loaded -- 145
-		sprite = loaded -- 146
-	end -- 146
-	local scaleY = targetH / math.max(1, sprite.height) -- 149
-	local scaleX = cfg.preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 150
-	sprite.position = Vec2( -- 151
-		math.floor(x + 0.5), -- 151
-		math.floor(y + 0.5) -- 151
-	) -- 151
-	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 152
-	sprite.scaleY = scaleY -- 153
-	sprite.angle = options.angle or 0 -- 154
-	sprite.order = options.layer or 0 -- 155
-	sprite.opacity = options.opacity or 1 -- 156
-	sprite.visible = true -- 157
-	self.visibleThisFrame[key] = sprite -- 158
-	return true -- 159
-end -- 117
-function AssetSlotHost.prototype.endFrame(self) -- 162
-	for key in pairs(self.visibleLastFrame) do -- 163
-		if self.visibleThisFrame[key] == nil then -- 163
-			self.visibleLastFrame[key].visible = false -- 165
-		end -- 165
-	end -- 165
-	self.visibleLastFrame = self.visibleThisFrame -- 168
-end -- 162
-return ____exports -- 162
+	soldier_fire_move = actor({"soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"}), -- 63
+	child_idle = actor("child_idle"), -- 64
+	child_run = actor({"child_run", "child_idle", "child_step", "child_idle"}), -- 65
+	child_crouch = actor({"child_crouch", "child_crouch_step"}), -- 66
+	child_fear = actor("child_fear"), -- 67
+	child_peek = actor("child_peek"), -- 68
+	child_pull = actor({"child_pull", "child_pull_step"}), -- 69
+	child_aim = actor("child_aim"), -- 70
+	child_throw = actor("child_throw"), -- 71
+	child_knock = actor("child_knock"), -- 72
+	child_offer = actor("child_offer"), -- 73
+	enemy_idle = actor("enemy_idle"), -- 74
+	enemy_aim = actor("enemy_aim"), -- 75
+	enemy_down = actor("enemy_down"), -- 76
+	enemy_hit = actor("enemy_hit"), -- 77
+	scavenger = actor({"scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"}), -- 78
+	dog = actor({"dog_idle", "dog_alert", "dog_run", "dog_sniff"}), -- 79
+	prop_cart = clip("cart"), -- 80
+	prop_bottle = clip("bottle", 0.5, true), -- 81
+	prop_tower_door = clip("door"), -- 82
+	prop_lantern = clip("lantern", 0.5, true), -- 83
+	prop_table = clip("table"), -- 84
+	prop_compass = clip("compass", 0.5, true), -- 85
+	prop_winch = clip("winch", 0.5, true), -- 86
+	wall = clip("wall"), -- 87
+	cover_wood = clip("cover_wood"), -- 88
+	cover_stone = clip("cover_stone"), -- 89
+	fence = clip("fence"), -- 90
+	slab = clip("slab"), -- 91
+	eaves = clip("eaves"), -- 92
+	pine = clip("pine"), -- 93
+	grass = clip("grass"), -- 94
+	grass_low = clip("grass_low"), -- 95
+	stone_chips = clip("stone_chips", 0.5, true), -- 96
+	ui_corner = clip("ui_corner"), -- 97
+	ui_paper = clip("paper", 0.5) -- 98
+} -- 98
+____exports.AssetSlotHost = __TS__Class() -- 101
+local AssetSlotHost = ____exports.AssetSlotHost -- 101
+AssetSlotHost.name = "AssetSlotHost" -- 101
+function AssetSlotHost.prototype.____constructor(self, parent, order) -- 108
+	self.sprites = {} -- 103
+	self.unavailable = {} -- 104
+	self.visibleLastFrame = {} -- 105
+	self.visibleThisFrame = {} -- 106
+	self.container = Node() -- 109
+	self.container.order = order -- 110
+	self.container:addTo(parent) -- 111
+end -- 108
+function AssetSlotHost.prototype.beginFrame(self) -- 114
+	self.visibleThisFrame = {} -- 115
+end -- 114
+function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 118
+	if options == nil then -- 118
+		options = {} -- 122
+	end -- 122
+	local cfg = ____exports.ASSET_SLOTS[slotKey] -- 124
+	if cfg == nil or targetW <= 0 or targetH <= 0 then -- 124
+		return false -- 126
+	end -- 126
+	local frame = (options.frame or 0) % #cfg.paths -- 128
+	local path = cfg.paths[frame + 1] -- 129
+	local key = (instanceKey .. ":") .. path -- 130
+	local sprite = self.sprites[key] -- 131
+	if sprite == nil then -- 131
+		if self.unavailable[path] then -- 131
+			return false -- 134
+		end -- 134
+		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 136
+		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 137
+		local ____Content_exist_result_0 -- 138
+		if Content:exist(file) then -- 138
+			____Content_exist_result_0 = Sprite(path) -- 138
+		else -- 138
+			____Content_exist_result_0 = nil -- 138
+		end -- 138
+		local loaded = ____Content_exist_result_0 -- 138
+		if loaded == nil then -- 138
+			self.unavailable[path] = true -- 140
+			return false -- 141
+		end -- 141
+		loaded.anchor = Vec2(0.5, cfg.anchorY) -- 143
+		loaded.filter = "Point" -- 144
+		loaded:addTo(self.container) -- 145
+		self.sprites[key] = loaded -- 146
+		sprite = loaded -- 147
+	end -- 147
+	local scaleY = targetH / math.max(1, sprite.height) -- 150
+	local scaleX = cfg.preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 151
+	sprite.position = Vec2( -- 152
+		math.floor(x + 0.5), -- 152
+		math.floor(y + 0.5) -- 152
+	) -- 152
+	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 153
+	sprite.scaleY = scaleY -- 154
+	sprite.angle = options.angle or 0 -- 155
+	sprite.order = options.layer or 0 -- 156
+	sprite.opacity = options.opacity or 1 -- 157
+	sprite.visible = true -- 158
+	self.visibleThisFrame[key] = sprite -- 159
+	return true -- 160
+end -- 118
+function AssetSlotHost.prototype.endFrame(self) -- 163
+	for key in pairs(self.visibleLastFrame) do -- 164
+		if self.visibleThisFrame[key] == nil then -- 164
+			self.visibleLastFrame[key].visible = false -- 166
+		end -- 166
+	end -- 166
+	self.visibleLastFrame = self.visibleThisFrame -- 169
+end -- 163
+return ____exports -- 163

@@ -62,7 +62,7 @@ export class NarrativeRenderer {
         const room = p.room.key;
         if (room === "prologue") {
             if (p.phase === "prologue-wait") {
-                return "用 A / D 向右走近小满，把指南针交给她。";
+                return "按 D 往右走，靠近小满后把指南针交给她。";
             }
             if (p.phase === "prologue-give") {
                 return "周戍把纸条塞进针套，递到她手里。";
@@ -78,7 +78,7 @@ export class NarrativeRenderer {
                 return "咚、咚。小满慢慢抬起了头。";
             }
             if (p.enemies.some(enemy => enemy.alive)) {
-                return "鼠标瞄准，左键开枪。靠近矮柜时按空格翻越。";
+                return "用鼠标瞄准倭寇，左键发射火铳。";
             }
             if (room === "street") {
                 return "带小满向右，前往检查站。";
@@ -89,10 +89,10 @@ export class NarrativeRenderer {
         if (room === "gate") {
             if (p.phase === "gate-hold") {
                 if (p.coverHug) {
-                    return "已贴靠掩体。用鼠标瞄准，左键开枪。";
+                    return "已贴靠掩体。用鼠标瞄准，左键发射火铳。";
                 }
                 return p.enemies.some(enemy => enemy.alive && enemy.warnT > 0)
-                    ? "敌兵举枪了。靠近街垒，按住 Shift 挡枪。"
+                    ? "倭寇要开火了。靠近街垒，按住 Shift 贴住。"
                     : "靠近街垒，按住 Shift 贴掩体，守住城门。";
             }
             if (p.phase === "gate-idle") {
