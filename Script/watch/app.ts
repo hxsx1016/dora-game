@@ -220,15 +220,17 @@ function tick(frameDt: number): void {
     }
 }
 
-/** 试玩模式下按当前房间建运行时；切房间时重建。 */
-function ensurePlay(): void {
-    play = new Play(ROOMS[current]);
-    // 验收钩子：把实例挂到 package.loaded（已存在的表，引擎禁止新建全局）。
-    // Lua 侧 `package.loaded["watch.play"]` 就能看真实运行中的实例，不必手动 new Play。
-    // 只放引用，不参与任何逻辑。
+/** 把当前 Play 实例挂到 package.loaded，供 Lua 回放/验收读真实运行态。 */
+function registerPlay(): void {
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.play"] = play;
     reg["watch.room"] = ROOMS[current].key;
+}
+
+/** 试玩模式下按当前房间建运行时；切房间时重建。 */
+function ensurePlay(): void {
+    play = new Play(ROOMS[current]);
+    registerPlay();
     clock.reset();
 }
 
@@ -247,6 +249,8 @@ function tickPlay(frameDt: number): void {
         input.consumeEdges();
         // 重试保留已提交的检查点：城外洞后重试，车在 432 落窝、小满在洞后。
         play = new Play(ROOMS[current], { checkpoint: p.checkpoint });
+        // 断言钩子必须指向新实例；否则 Lua 回放读到的还是旧局的 ticks 与事件。
+        registerPlay();
         clock.reset();
         return;
     }

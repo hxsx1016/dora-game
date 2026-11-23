@@ -17,7 +17,36 @@ import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
-const GRAVITY = 1000;
+export const GRAVITY = 1000;
+/** 投瓶的固定飞行时长（秒）：触地拍 = 松手拍 + 37 拍。 */
+const BOTTLE_FLY_TIME = 0.62;
+
+/**
+ * 前端可消费的一次性事件。
+ * 事件只在模拟步里产生，每个事件带唯一递增 seq 与所在拍 tick；
+ * 一次渲染帧补跑多步时，前端按 seq 顺序消费整段，不要按帧去重。
+ */
+export type PlayEventName =
+    | "shotResolved"
+    | "coverBlocked"
+    | "actorHit"
+    | "bottleThrown"
+    | "bottleLanded"
+    | "knock"
+    | "gateFailed"
+    | "gateRestart"
+    | "cartDocked"
+    | "fearChanged"
+    | "roomChange";
+
+export interface PlayEvent {
+    /** 本局内递增；换房、R 重试、再玩都会新建 Play，序号从头开始。 */
+    seq: number;
+    /** 产生事件的模拟拍（Play.ticks）。 */
+    tick: number;
+    name: PlayEventName;
+    data: Record<string, number | string | boolean>;
+}
 
 /** 小满：高 64、蹲 36、走 160、慢走 80、跳初速 320（顶点 51）。 */
 const CHILD_W = 28;
@@ -105,6 +134,8 @@ interface Box {
     y1: number;
     /** 单向平台：只做落脚面，水平不挡人，从下方也不撞头。 */
     passable?: boolean;
+    /** 房间数据里的名字；前端用它说明「贴的是街垒还是绞盘」。 */
+    label?: string;
 }
 
 interface Actor {
@@ -235,8 +266,8 @@ export class Play {
     // —— 村口 ——
     /** 手上是否有瓶。 */
     hasBottle = false;
-    /** 投出的瓶子（飞行中）。 */
-    bottleFly: { x: number; y: number; vx: number; vy: number } | undefined;
+    /** 投出的瓶子（飞行中）：解析轨迹，t 到 BOTTLE_FLY_TIME 才算触地。 */
+    bottleFly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number } | undefined;
     /** 最近一次落点与余音计时。 */
     bottleLandX = -1;
     bottleTargetX = -1;
@@ -279,11 +310,25 @@ export class Play {
     coverHug = false;
     /** 本步是否贴得住掩体（还没按 Shift 也算），用来提示「按住 Shift」。 */
     coverNear = false;
+    /** 贴住的那件实体名字：街垒、绞盘、柜台……没有就空串。 */
+    coverEntity = "";
+    /** 贴住的实体是否正挡在最近敌兵的来向上；贴住但背向火力时为 false。 */
+    coverBlocking = false;
     /** 倒地回绞盘后要玩家按 E 确认重新就位，避免「静默重开」把玩家又打一遍。 */
     gateNeedConfirm = false;
+    /** 倒地当拍烧掉了 E：必须先看到松开，下一次按下才算「新按」。 */
+    gateRestartArmed = true;
     /** 按住 F 期间每拍缓存的落点；预览与投掷共用它，避免松手那拍镜头移动造成偏差。 */
     bottleAimX = -1;
     bottleAimY = 0;
+    /** 上一次投掷的落点表面高度；飞行只在这个高度上触地。 */
+    bottleSurfaceY = -1;
+    /** 最近一次落地的世界坐标，给前端画砸地扬尘。 */
+    bottleLandY = 0;
+    /** 一次性事件队列；前端每渲染帧 drainEvents() 一次。 */
+    events: PlayEvent[] = [];
+    /** 本局事件序号；换房/重试/再玩都是新实例，序号从 0 起。 */
+    private eventSeq = 0;
     /** 森林里的狗。 */
     dogX = 0;
     dogDir = 1;
@@ -365,7 +410,7 @@ export class Play {
         }
         for (i = 0; i < room.solids.length; i++) {
             const s: SolidSpec = room.solids[i];
-            this.boxes.push({ x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h, passable: s.passable === true });
+            this.boxes.push({ x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h, passable: s.passable === true, label: s.label });
         }
         for (i = 0; i < room.stairs.length; i++) {
             const st = room.stairs[i];
@@ -396,6 +441,25 @@ export class Play {
         // 城门的四批敌兵由 stepGate 按守点拍数登场。
     }
 
+    /** 记一条一次性事件。超过 256 条丢最旧的，防止前端还没接时队列无限长。 */
+    private emit(name: PlayEventName, data: Record<string, number | string | boolean>): void {
+        this.events.push({ seq: this.eventSeq, tick: this.ticks, name: name, data: data });
+        this.eventSeq += 1;
+        if (this.events.length > 256) {
+            this.events.shift();
+        }
+    }
+
+    /**
+     * 前端每渲染帧调用一次：拿回自上次调用以来所有模拟步产生的事件，并清空队列。
+     * 一次补跑 N 步时这里会按 seq 顺序给出 N 步的全部事件；0 步帧返回空数组。
+     */
+    drainEvents(): PlayEvent[] {
+        const out = this.events;
+        this.events = [];
+        return out;
+    }
+
     /** 推进一帧。input 已在本帧刷新过。 */
     update(dt: number, input: Input): void {
         if (input.pause.pressed) {
@@ -421,6 +485,8 @@ export class Play {
         this.ticks += 1;
         const p = this.player;
         this.stepPlayer(p, dt, input);
+        // 移动结束后再定贴靠：本拍的身体边缘、垂直重叠、来向都按新位置算。
+        this.refreshCover(p, input);
         // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
         this.stepEnemies(dt, input);
         this.stepStory(dt, input);
@@ -432,8 +498,14 @@ export class Play {
         this.updateCamera(dt);
     }
 
-    /** 身边是否有能贴的一人高实体：贴住才算掩体，空地按 Shift 不挡枪。 */
-    private nearCover(a: Actor): boolean {
+    /**
+     * 贴靠实体：按移动后的身体左右边缘量水平间隙，并要求垂直重叠。
+     * 间隙 <24 算贴住；多个实体取间隙最小的那件，返回 undefined 表示没贴住。
+     */
+    private coverAt(a: Actor): Box | undefined {
+        let best: Box | undefined = undefined;
+        let bestGap = 24;
+        const half = a.w / 2;
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
@@ -443,12 +515,65 @@ export class Play {
             if (a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
                 continue;
             }
-            const half = a.w / 2;
-            if (Math.min(Math.abs(a.x + half - b.x0), Math.abs(a.x - half - b.x1)) < 24) {
-                return true;
+            const gap = Math.max(b.x0 - (a.x + half), (a.x - half) - b.x1, 0);
+            if (gap < bestGap) {
+                bestGap = gap;
+                best = b;
             }
         }
-        return false;
+        return best;
+    }
+
+    private nearCover(a: Actor): boolean {
+        return this.coverAt(a) !== undefined;
+    }
+
+    /** 实体是否挡在 a 与来敌之间：敌人从右来，实体主体要在 a 右侧且不越过敌人。 */
+    private coverGuardsFrom(b: Box, a: Actor, enemyX: number): boolean {
+        if (enemyX < 0) {
+            return false;
+        }
+        if (enemyX >= a.x) {
+            return b.x0 >= a.x - 0.001 && b.x0 <= enemyX;
+        }
+        return b.x1 <= a.x + 0.001 && b.x1 >= enemyX;
+    }
+
+    /** 最近存活敌兵的 x；没有返回 -1。 */
+    private nearestEnemyX(a: Actor): number {
+        let best = -1;
+        let bestD = 1e9;
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e.alive) {
+                continue;
+            }
+            const d = Math.abs(e.x - a.x);
+            if (d < bestD) {
+                bestD = d;
+                best = e.x;
+            }
+        }
+        return best;
+    }
+
+    /** 移动后刷新贴靠状态：姿态、HUD、事件都读这里，别处不再各算一遍。 */
+    private refreshCover(a: Actor, input: Input): void {
+        if (this.childMode) {
+            this.coverNear = false;
+            this.coverHug = false;
+            this.coverEntity = "";
+            this.coverBlocking = false;
+            a.covered = false;
+            return;
+        }
+        const b = this.coverAt(a);
+        this.coverNear = b !== undefined;
+        a.covered = this.coverNear && input.cover.held;
+        this.coverHug = a.covered;
+        this.coverEntity = b === undefined ? "" : (b.label === undefined ? "一人高实体" : b.label);
+        this.coverBlocking = b !== undefined && this.coverGuardsFrom(b, a, this.nearestEnemyX(a));
     }
 
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
@@ -495,10 +620,6 @@ export class Play {
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
         const nearCover = !isChild && this.nearCover(a);
         a.covered = nearCover && input.cover.held;
-        if (!isChild) {
-            this.coverHug = a.covered;
-            this.coverNear = nearCover;
-        }
 
         // 翻滚：周戍按下空格，0.35 秒内按固定速度冲出去，期间不能改向
         if (a.rollT > 0) {
@@ -702,7 +823,7 @@ export class Play {
         }
         // 跟随段：两人一起到门口。
         if (this.player.x >= this.ox + 660 && child.x >= this.ox + 620) {
-            this.wantRoom = "street";
+            this.requestRoom("street", "序章跟到门口");
             this.flashSet("进街道", 1.2);
         }
     }
@@ -712,7 +833,7 @@ export class Play {
         const p = this.player;
         const c = this.partner;
         if (p.x >= this.ox + 900 && c.x >= this.ox + 860) {
-            this.wantRoom = "checkpoint";
+            this.requestRoom("checkpoint", "两人都到街尾");
             this.flashSet("到检查站", 1.2);
         }
     }
@@ -747,12 +868,18 @@ export class Play {
             const atWait = this.partner.alive && Math.abs(this.partner.x - g.waitX) <= 60;
             if (this.gateNeedConfirm) {
                 // 倒地之后不自动重开：站位到位也要玩家按一次 E，确认「我知道要重来」。
-                if (atWinch && atWait && input.interact.pressed) {
+                // 倒地当拍烧掉的那次 E 不算新按：必须先看到松开，下一次按下才生效。
+                if (!input.interact.held) {
+                    this.gateRestartArmed = true;
+                }
+                if (this.gateRestartArmed && atWinch && atWait && input.interact.pressed) {
                     this.gateNeedConfirm = false;
+                    this.gateRestartArmed = true;
                     this.phase = "gate-hold";
                     this.gateTick = 0;
                     this.gateSpawned = 0;
                     this.flashSet("重新就位 · 守点开始", 1.4);
+                    this.emit("gateRestart", { failCount: this.gateFailCount });
                 }
                 return;
             }
@@ -829,7 +956,7 @@ export class Play {
         }
         // gate-walk：她自己走，玩家可以控。
         if (this.player.x >= g.exitX) {
-            this.wantRoom = "outside";
+            this.requestRoom("outside", "走出城门");
             this.flashSet("出城门 · 城外", 1.4);
         }
     }
@@ -846,6 +973,7 @@ export class Play {
                 this.phase = "tower-knock";
                 this.phaseTick = 0;
                 this.knocks = 1;
+                this.emit("knock", { count: 1, x: this.player.x, room: "tower" });
                 this.flashSet("敲一下", 0.6);
             }
             return;
@@ -854,6 +982,7 @@ export class Play {
             this.phaseTick += 1;
             if (this.phaseTick === 12) {
                 this.knocks = 2;
+                this.emit("knock", { count: 2, x: this.player.x, room: "tower" });
                 this.flashSet("敲两下 · 第二声", 1.0);
             } else if (this.phaseTick >= t.knockTicks) {
                 this.phase = "tower-given";
@@ -876,7 +1005,7 @@ export class Play {
             return;
         }
         if (input.interact.pressed || input.retry.pressed) {
-            this.wantRoom = "prologue";
+            this.requestRoom("prologue", "片尾再玩");
             this.flashSet("回到序章", 1.4);
         }
     }
@@ -896,7 +1025,7 @@ export class Play {
             this.stepDog(dt);
             // 走到林缘（1450）就进北塔门口。
             if (this.player.x >= this.ox + 1450) {
-                this.wantRoom = "tower";
+                this.requestRoom("tower", "到林缘北塔");
                 this.flashSet("林缘 · 北塔", 1.4);
             }
         }
@@ -1108,16 +1237,24 @@ export class Play {
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
-        // 掩体要主动贴：Shift 加身位都到位才挡；站绞盘空地按 Shift 照吃。
-        const hugging = this.blockedByCover(e.x, p.x);
+        // 贴靠实体 + 来向 + 主动按 Shift，三件事同时成立才挡；站绞盘空地按 Shift 照吃。
+        const cover = this.blockedByCover(e.x, p);
+        const hugging = cover !== undefined;
+        this.coverBlocking = hugging;
         const covered = hugging && input.cover.held;
         if (covered) {
             this.coveredFlash = 0.5;
             this.flashSet("掩体挡下", 0.5);
+            this.emit("coverBlocked", {
+                entity: cover.label === undefined ? "一人高实体" : cover.label,
+                enemyX: e.x,
+                hp: this.hp,
+            });
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
         this.hp -= 1;
+        this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
         this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.7);
         e.fireCd = FIRE_COOLDOWN;
         if (this.hp <= 0) {
@@ -1125,26 +1262,13 @@ export class Play {
         }
     }
 
-    /** 贴着街垒/柜台这类一人高实体才挡枪：挡的是「主动躲」，不是「路过」。 */
-    private blockedByCover(ex: number, px: number): boolean {
-        const lo = Math.min(ex, px);
-        const hi = Math.max(ex, px);
-        let i = 0;
-        for (i = 0; i < this.boxes.length; i++) {
-            const b = this.boxes[i];
-            if (b.passable === true || b.y1 - b.y0 < 44) {
-                continue;
-            }
-            const cx = (b.x0 + b.x1) / 2;
-            if (cx <= lo + 8 || cx >= hi - 8) {
-                continue;
-            }
-            const hug = Math.min(Math.abs(px - b.x0), Math.abs(px - b.x1)) < 24;
-            if (hug) {
-                return true;
-            }
+    /** 贴着街垒/柜台这类一人高实体、且实体挡在来向上，才算掩体。 */
+    private blockedByCover(ex: number, p: Actor): Box | undefined {
+        const b = this.coverAt(p);
+        if (b === undefined) {
+            return undefined;
         }
-        return false;
+        return this.coverGuardsFrom(b, p, ex) ? b : undefined;
     }
 
     /** 被击倒：回绞盘，计时、敌兵和角色状态全部重来。 */
@@ -1171,7 +1295,11 @@ export class Play {
         this.phase = "gate-idle";
         this.phaseTick = 0;
         this.coverHug = false;
+        this.coverBlocking = false;
+        this.coverEntity = "";
         this.gateNeedConfirm = true;
+        this.gateRestartArmed = false;
+        this.emit("gateFailed", { failCount: this.gateFailCount, hp: 0, maxHp: this.maxHp });
     }
 
     private stepInteract(dt: number, input: Input): void {
@@ -1191,12 +1319,13 @@ export class Play {
         if (calmUsed) {
             this.flashSet("安抚 · 敲两下", 0.8);
         } else if (input.interact.pressed && !this.gripping
-            && this.room.key !== "village" && this.room.key !== "tower" && this.room.key !== "prologue") {
+            && this.room.key !== "village" && this.room.key !== "tower" && this.room.key !== "prologue" && this.room.key !== "gate") {
             if (this.knockT > 0) {
                 this.knocks += 1;
             } else {
                 this.knocks = 1;
             }
+            this.emit("knock", { count: this.knocks, x: p.x, room: this.room.key });
             this.knockT = 1.2;
             if (this.knocks >= 2) {
                 this.flashSet("敲两下", 0.8);
@@ -1288,20 +1417,16 @@ export class Play {
             this.bottleAimX = -1;
         }
 
-        // 瓶子飞行，触地才发声
+        // 瓶子飞行：位置按出手时定下的解析轨迹走；t 到固定飞行时长、且在下降，
+        // 才算瓶子触及落点表面。落点就是预览缓存的 (targetX, surfaceY)。
         const fly = this.bottleFly;
         if (fly !== undefined) {
-            fly.vy -= GRAVITY * dt;
-            fly.x += fly.vx * dt;
-            fly.y += fly.vy * dt;
-            const g = this.groundAt(fly.x, fly.y + 4, 3);
-            const reached = this.bottleTargetX >= 0 && (fly.vx >= 0 ? fly.x >= this.bottleTargetX : fly.x <= this.bottleTargetX);
-            if (fly.y <= g || reached) {
-                const landX = this.bottleTargetX >= 0 ? this.bottleTargetX : fly.x;
-                this.bottleFly = undefined;
-                this.bottleLandX = landX;
-                this.bottleLandT = 0.9;
-                this.hearBottle(landX);
+            fly.t += dt;
+            fly.x = fly.x0 + fly.vx * fly.t;
+            fly.y = fly.y0 + fly.vy * fly.t - 0.5 * GRAVITY * fly.t * fly.t;
+            const falling = fly.vy - GRAVITY * fly.t <= 0;
+            if (fly.t >= BOTTLE_FLY_TIME && falling) {
+                this.landBottle(fly);
             }
         }
         if (this.bottleLandT > 0) {
@@ -1319,7 +1444,7 @@ export class Play {
         }
         // 过了第一院、走到院墙前就进北塔森林。
         if (this.passed && p.x >= this.ox + 640) {
-            this.wantRoom = "forest";
+            this.requestRoom("forest", "过第一院出院");
             this.flashSet("出院 · 北塔森林", 1.4);
         }
     }
@@ -1339,14 +1464,38 @@ export class Play {
         p.facing = dir;
         const x0 = p.x + dir * 10;
         const y0 = p.y + p.h * 0.7;
-        const T = 0.62;
         this.bottleTargetX = tx;
         this.bottleTargetY = ty;
-        const vx = (tx - x0) / T;
-        const vy = (ty - y0 + 0.5 * GRAVITY * T * T) / T;
-        this.bottleFly = { x: x0, y: y0, vx: vx, vy: vy };
+        this.bottleSurfaceY = ty;
+        const vx = (tx - x0) / BOTTLE_FLY_TIME;
+        const vy = (ty - y0 + 0.5 * GRAVITY * BOTTLE_FLY_TIME * BOTTLE_FLY_TIME) / BOTTLE_FLY_TIME;
+        this.bottleFly = { x: x0, y: y0, x0: x0, y0: y0, vx: vx, vy: vy, t: 0 };
         this.hasBottle = false;
         this.flashSet("投出", 0.4);
+        this.emit("bottleThrown", {
+            fromX: x0,
+            fromY: y0,
+            targetX: tx,
+            targetY: ty,
+            flightTicks: Math.round(BOTTLE_FLY_TIME * 60),
+        });
+    }
+
+    /** 触地：只在这里派发一次声音事件，落点固定用预览缓存。 */
+    private landBottle(fly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number }): void {
+        const x = this.bottleTargetX >= 0 ? this.bottleTargetX : fly.x;
+        const y = this.bottleSurfaceY >= 0 ? this.bottleSurfaceY : fly.y;
+        const s = this.room.scavenger;
+        const heard = s !== undefined && Math.abs(x - this.scavX) <= s.range;
+        this.bottleFly = undefined;
+        this.bottleTargetX = -1;
+        this.bottleTargetY = 0;
+        this.bottleSurfaceY = -1;
+        this.bottleLandX = x;
+        this.bottleLandY = y;
+        this.bottleLandT = 0.9;
+        this.emit("bottleLanded", { x: x, y: y, heard: heard, scavState: this.scavState });
+        this.hearBottle(x);
     }
 
     /** 落地才结算听觉：射程内才转头。 */
@@ -1473,10 +1622,20 @@ export class Play {
         if (Math.abs(this.cartAxle - c.endX) < 0.01) {
             this.cartDocked = true;
             this.gripping = false;
+            this.emit("cartDocked", { axle: this.cartAxle, playerX: p.x, room: this.room.key });
             this.flashSet("车轮落窝", 1.2);
         } else if (Math.abs(this.cartAxle - c.startX) < 0.01) {
             this.flashSet("车轮回到起点", 0.5);
         }
+    }
+
+    /**
+     * 请求切房：模拟步只登记意图，真正的 ensurePlay 在 app 的步循环之后。
+     * 事件让前端在切房前就能停掉旧房间的事件与音效。
+     */
+    private requestRoom(key: string, reason: string): void {
+        this.wantRoom = key;
+        this.emit("roomChange", { from: this.room.key, to: key, reason: reason });
     }
 
     /**
@@ -1488,7 +1647,7 @@ export class Play {
             if (this.gateOpen && this.player.x >= this.ox + 900) {
                 this.carryCartAxle = this.cartAxle;
                 this.carryCartDocked = this.cartDocked;
-                this.wantRoom = "gate";
+                this.requestRoom("gate", "检查站出口");
                 this.flashSet("出检查站 · 城门", 1.2);
             }
             return;
@@ -1499,7 +1658,7 @@ export class Play {
             if (this.checkpoint >= 380 && this.player.x >= WALL_ROAD_END) {
                 this.carryCartAxle = this.cartAxle;
                 this.carryCartDocked = this.cartDocked;
-                this.wantRoom = "village";
+                this.requestRoom("village", "墙根走完");
                 this.flashSet("墙根走完 · 进村口", 1.2);
             }
         }
@@ -1551,6 +1710,15 @@ export class Play {
         } else {
             this.flashSet("打空", 0.35);
         }
+        this.emit("shotResolved", {
+            hit: hit,
+            enemyIndex: hit ? hitEnemy.index : -1,
+            enemyX: hit ? this.enemies[hitEnemy.index].x : -1,
+            aimX: aim.x,
+            aimY: aim.y,
+            impactX: ox + dx * t,
+            impactY: oy + dy * t,
+        });
     }
 
     /** 把一次开火派发成危险事件；是否真的吓到她由 childExposed 判。 */
@@ -1578,8 +1746,10 @@ export class Play {
         }
         const exposed = this.childExposed(dangerX);
         const before = this.escort.fear;
-        const after = this.escort.applyDanger(this.nextDangerId, exposed, this.partner.x);
+        const dangerId = this.nextDangerId;
+        const after = this.escort.applyDanger(dangerId, exposed, this.partner.x);
         this.nextDangerId += 1;
+        this.emit("fearChanged", { fear: after, max: FEAR_MAX, exposed: exposed, dangerId: dangerId });
         if (after > before) {
             this.flashSet(`小满受惊 ${after}/${FEAR_MAX}`, 1.0);
         } else if (!exposed) {
@@ -2438,7 +2608,7 @@ export class Play {
             const dir = end.x >= p.x ? 1 : -1;
             const x0 = p.x + dir * 10;
             const y0 = p.y + p.h * 0.7;
-            const T = 0.62;
+            const T = BOTTLE_FLY_TIME;
             const vx = (end.x - x0) / T;
             const vy = (end.y - y0 + 0.5 * GRAVITY * T * T) / T;
             let pxr = x0;

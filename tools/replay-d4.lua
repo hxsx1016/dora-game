@@ -247,8 +247,12 @@ tap(i.jump)
 	aimAt(608, 0)
 	vi.aim = { held = true, pressed = true, released = false }
 	v:update(STEP, vi)
-	vi.aim = { held = true, pressed = false, released = false }
-	v:update(STEP, vi)
+	-- 按满 10 拍（8 拍才越过 0.12 秒可投阈值），期间持续把准星压到砖地 608
+	for _ = 1, 9 do
+		aimAt(608, 0)
+		vi.aim = { held = true, pressed = false, released = false }
+		v:update(STEP, vi)
+	end
 	aimAt(608, 0)
 	vi.aim = { held = false, pressed = false, released = true }
 	v:update(STEP, vi)
