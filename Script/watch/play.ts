@@ -127,7 +127,7 @@ const SCAV_BODY = Color(128, 118, 96, 255);
 const SCAV_HEAD = Color(196, 182, 158, 255);
 
 /** 轴对齐盒（世界单位）。 */
-interface Box {
+export interface Box {
     x0: number;
     x1: number;
     y0: number;
@@ -138,7 +138,7 @@ interface Box {
     label?: string;
 }
 
-interface Actor {
+export interface Actor {
     x: number;
     y: number;
     vx: number;
@@ -153,7 +153,7 @@ interface Actor {
     alive: boolean;
 }
 
-interface Enemy {
+export interface Enemy {
     x: number;
     y: number;
     w: number;
@@ -166,7 +166,7 @@ interface Enemy {
     fireCd: number;
 }
 
-interface Camera {
+export interface Camera {
     x: number;
     y: number;
 }
@@ -192,7 +192,7 @@ export function computeViewport(w: number, h: number): Viewport {
 }
 
 /** 一次命中判定的结果，供表现层画弹道与反馈。 */
-interface Trace {
+export interface Trace {
     x0: number;
     y0: number;
     x1: number;
@@ -356,6 +356,8 @@ export class Play {
     /** 最近一次绘制的画布尺寸，供屏幕↔世界换算。 */
     viewW = 0;
     viewH = 0;
+    /** 可选的高清前端屏幕→世界反算钩子；未挂接时回退到 320×180 像素画布反算，不破坏既有验收脚本。 */
+    worldMapper: ((sx: number, sy: number) => { x: number; y: number }) | undefined;
 
     constructor(room: RoomSpec, resume?: { checkpoint: number }) {
         // 段内坐标 → 世界坐标。房间数据里的锚点保持不变，Play 内部一律读世界坐标。
@@ -1524,7 +1526,9 @@ export class Play {
 
     /** 准星点的世界坐标换算成「实际落点」：横向就是准星 x，纵向取该处地面。 */
     private bottleEnd(): { x: number; y: number } {
-        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
+        const aim = this.worldMapper !== undefined
+            ? this.worldMapper(this.aimX, this.aimY)
+            : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
         const g = this.groundAt(aim.x, aim.y + 240, 3);
         return { x: aim.x, y: g };
     }
@@ -1753,8 +1757,10 @@ export class Play {
     private shoot(a: Actor): void {
         const ox = a.x + a.facing * 8;
         const oy = a.y + a.h * 0.72;
-        // 准星在世界里的位置由 app 传进来，这里直接用相机反算
-        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
+        // 准星在世界里的位置由 app 传进来，优先走高清前端坐标映射，缺省回退原像素视口
+        const aim = this.worldMapper !== undefined
+            ? this.worldMapper(this.aimX, this.aimY)
+            : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
         let dx = aim.x - ox;
         let dy = aim.y - oy;
         const len = Math.sqrt(dx * dx + dy * dy);
