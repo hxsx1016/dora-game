@@ -6,6 +6,7 @@
 --    换实例前 drain 旧队列，再 adopt 到新实例，下一帧仍只有这一条。
 -- 2. 检查站安抚：第 12 / 36 拍各一条 knock，共两条；第 60 拍回 follow。
 -- 3. 塔门仍走自己的 0 / 12 拍，两条 knock，不受安抚事件影响。
+-- 4. 街道跨出口同拍按 E：迁移队列保留切房，丢弃旧房敲击；新房敲击随其后。
 
 local rooms = require("Script.watch.rooms")
 package.loaded["Script.watch.play"] = nil
@@ -183,6 +184,47 @@ do
 		and ev[2].tick - ev[1].tick == 12,
 		#ev == 2 and string.format("count=%d@tick%d count=%d@tick%d", ev[1].data.count, ev[1].tick, ev[2].data.count, ev[2].tick)
 			or string.format("总数=%d", #ev))
+end
+
+-- ---------------------------------------------------------------- 4. 跨出口同拍按 E
+do
+	local p = lualib.__TS__New(play.Play, rooms.STREET_ROOM)
+	local i = newInput()
+	p.player.x = 900
+	p.partner.x = 860
+	p:drainEvents()
+
+	tap(i.interact)
+	step(p, i)
+	local leaving = p:drainEvents()
+
+	local oldKnock = 0
+	for _, e in ipairs(leaving) do
+		if e.name == "knock" and e.data.room == "street" then
+			oldKnock = oldKnock + 1
+		end
+	end
+	check("D1 同拍产生切房与旧房敲击", #leaving == 2 and leaving[1].name == "roomChange"
+		and leaving[1].data.to == "checkpoint" and oldKnock == 1,
+		string.format("队列=%d 首=%s 旧房knock=%d", #leaving, leaving[1].name, oldKnock))
+
+	-- 模拟 app：旧实例 drain 后换新实例，新实例 adopt 旧队列。
+	local fresh = lualib.__TS__New(play.Play, rooms.CHECKPOINT_ROOM)
+	fresh:adoptEvents(leaving)
+	check("D2 旧房敲击不迁移", #fresh.events == 1 and fresh.events[1].name == "roomChange"
+		and fresh.events[1].data.to == "checkpoint" and fresh.events[1].seq == 0,
+		string.format("迁移后=%d seq=%d", #fresh.events, #fresh.events > 0 and fresh.events[1].seq or -1))
+
+	tap(i.interact)
+	step(fresh, i)
+	local all = fresh:drainEvents()
+	check("D3 新房敲击按队列顺序接在后面", #all == 2 and all[1].name == "roomChange"
+		and all[1].seq == 0 and all[2].name == "knock" and all[2].data.room == "checkpoint"
+		and all[2].seq == 1,
+		string.format("队列=%d [0]=%s/%d [1]=%s/%s/%d", #all, all[1].name, all[1].seq,
+			#all > 1 and all[2].name or "无", #all > 1 and all[2].data.room or "无",
+			#all > 1 and all[2].seq or -1))
+	check("D4 第二次排空为空", #fresh:drainEvents() == 0, "重复 drain 应为 0")
 end
 
 print(string.format("==== 结果：PASS %d / FAIL %d ====", pass, fail))

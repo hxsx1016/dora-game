@@ -463,13 +463,26 @@ export class Play {
     /**
      * 切房换实例时，把旧实例尚未消费的事件接到新实例队首。
      * app 在 ensurePlay 前先 drain 旧队列，再调用这里；seq 重新编号，tick 保留旧值。
+     * 旧房间的 knock 不迁移：跨出口同拍按 E 时，旧房敲声不能在新房重播；
+     * 新房自己的 knock 由新房 update 正常产生。
      */
     adoptEvents(events: PlayEvent[]): void {
         if (events.length === 0) {
             return;
         }
-        this.events = events.concat(this.events);
+        const keep: PlayEvent[] = [];
         let i = 0;
+        for (i = 0; i < events.length; i++) {
+            const e = events[i];
+            if (e.name === "knock" && e.data.room !== this.room.key) {
+                continue;
+            }
+            keep.push(e);
+        }
+        if (keep.length === 0) {
+            return;
+        }
+        this.events = keep.concat(this.events);
         for (i = 0; i < this.events.length; i++) {
             this.events[i].seq = i;
         }
