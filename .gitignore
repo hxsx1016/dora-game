@@ -1,0 +1,17 @@
+# Dora SSR 构建/导出缓存
+.download/
+.cache/
+.build/
+.upload/
+.agent/
+
+# CLI 生成的 TypeScript 类型声明（ts install）
+API/
+
+.DS_Store
+
+# 组装的发行包与 ZIP（体积大，用 tools/make-windows-pack.sh 重建）
+dist/
+
+# 原始截帧；用于文档的图片收在 docs/
+/shots/

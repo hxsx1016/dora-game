@@ -1,0 +1,17 @@
+name: Repository checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  repository:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Check repository structure and document links
+        run: python3 tools/check-repo.py
