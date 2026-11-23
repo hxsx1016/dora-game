@@ -2,6 +2,8 @@
 local ____lualib = require("lualib_bundle") -- 1
 local __TS__Class = ____lualib.__TS__Class -- 1
 local ____exports = {} -- 1
+local ____play = require("Script.watch.play") -- 8
+local CART_REACH = ____play.CART_REACH -- 8
 local ____escort = require("Script.watch.escort") -- 9
 local CALM_REACH = ____escort.CALM_REACH -- 9
 ____exports.PlayAdapter = __TS__Class() -- 41
@@ -158,139 +160,145 @@ function PlayAdapter.prototype.sample(self, p) -- 81
 		gateWaveSpawned = gateWaveSpawned -- 166
 	} -- 166
 end -- 81
---- 推导当前场景内最应高亮的 1–2 个世界空间悬浮交互提示（艾希风场景内嵌指引）
-function ____exports.deriveWorldPrompts(p) -- 172
-	local out = {} -- 173
-	local key = p.room.key -- 174
-	local pl = p.player -- 175
-	if p.paused then -- 175
-		return out -- 178
-	end -- 178
-	if key == "prologue" and p.phase == "prologue-wait" then -- 178
-		local d = math.abs(pl.x - p.partner.x) -- 183
-		out[#out + 1] = { -- 184
-			x = p.partner.x, -- 185
-			y = p.partner.y + p.partner.h + 18, -- 186
-			keyTag = d <= 52 and "E" or "→", -- 187
-			label = d <= 52 and "递出指南针" or "走近小满", -- 188
-			urgent = d <= 52 -- 189
-		} -- 189
-		return out -- 191
+--- 每次只展示最相关的就近操作。走到可触发的位置才显示按键。
+function ____exports.deriveWorldPrompt(p) -- 172
+	local room = p.room -- 173
+	local player = p.player -- 174
+	if p.paused or not player.alive then -- 174
+		return nil -- 176
+	end -- 176
+	if room.key == "prologue" and p.phase == "prologue-wait" then -- 176
+		local ____opt_9 = room.story -- 176
+		local ____opt_7 = ____opt_9 and ____opt_9.prologue -- 176
+		local reach = ____opt_7 and ____opt_7.giveReach or 46 -- 180
+		if math.abs(player.x - p.partner.x) <= reach then -- 180
+			return { -- 182
+				x = p.partner.x, -- 182
+				y = p.partner.y + p.partner.h + 22, -- 182
+				keyTag = "E", -- 182
+				label = "递出指南针", -- 182
+				urgent = false -- 182
+			} -- 182
+		end -- 182
+		return nil -- 184
+	end -- 184
+	if not p.childMode and p.escort.state == "frozen" then -- 184
+		if math.abs(player.x - p.partner.x) <= CALM_REACH then -- 184
+			return { -- 189
+				x = p.partner.x, -- 189
+				y = p.partner.y + p.partner.h + 22, -- 189
+				keyTag = "E", -- 189
+				label = "安抚小满", -- 189
+				urgent = true -- 189
+			} -- 189
+		end -- 189
+		return nil -- 191
 	end -- 191
-	if not p.childMode and p.escort.state == "frozen" then -- 191
-		local d = math.abs(pl.x - p.partner.x) -- 196
-		out[#out + 1] = { -- 197
-			x = p.partner.x, -- 198
-			y = p.partner.y + p.partner.h + 18, -- 199
-			keyTag = d <= CALM_REACH and "E" or "!", -- 200
-			label = d <= CALM_REACH and "敲两下安抚" or "小满受惊停步", -- 201
-			urgent = true -- 202
-		} -- 202
+	local ____opt_11 = room.story -- 191
+	local gate = ____opt_11 and ____opt_11.gate -- 194
+	if gate ~= nil then -- 194
+		if p.phase == "gate-idle" and p.gateNeedConfirm and math.abs(player.x - gate.winchX) <= 24 and player.y < 20 and p.partner.alive and math.abs(p.partner.x - gate.waitX) <= 60 then -- 194
+			return { -- 199
+				x = gate.winchX, -- 199
+				y = 84, -- 199
+				keyTag = "E", -- 199
+				label = "重新守门", -- 199
+				urgent = true -- 199
+			} -- 199
+		end -- 199
+		if p.phase == "gate-send" and math.abs(player.x - gate.doorX) <= 60 then -- 199
+			return { -- 202
+				x = gate.doorX, -- 202
+				y = 98, -- 202
+				keyTag = "E", -- 202
+				label = "送小满出城", -- 202
+				urgent = true -- 202
+			} -- 202
+		end -- 202
 	end -- 202
-	if not p.childMode and p.coverNear and not p.coverHug and not (key == "gate" and p.phase == "gate-idle") then -- 202
-		out[#out + 1] = { -- 208
-			x = pl.x, -- 209
-			y = pl.y + pl.h + 22, -- 210
-			keyTag = "SHIFT", -- 211
-			label = "贴靠掩体", -- 212
-			urgent = key == "gate" and p.phase == "gate-hold" -- 213
-		} -- 213
-	end -- 213
-	if key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 213
-		local g = p.room.story.gate -- 219
-		if p.phase == "gate-idle" then -- 219
-			if p.gateNeedConfirm then -- 219
-				out[#out + 1] = { -- 222
-					x = g.winchX, -- 222
-					y = 84, -- 222
-					keyTag = "E", -- 222
-					label = "重新就位", -- 222
-					urgent = true -- 222
-				} -- 222
-			else -- 222
-				out[#out + 1] = { -- 224
-					x = g.winchX, -- 224
-					y = 84, -- 224
-					keyTag = "WINCH", -- 224
-					label = "绞盘就位", -- 224
-					urgent = false -- 224
-				} -- 224
-			end -- 224
-		elseif p.phase == "gate-send" then -- 224
-			out[#out + 1] = { -- 227
-				x = g.doorX, -- 227
-				y = 98, -- 227
-				keyTag = "E", -- 227
-				label = "送她出城", -- 227
-				urgent = true -- 227
-			} -- 227
-		end -- 227
-	end -- 227
-	if (key == "checkpoint" or key == "outside") and not p.cartDocked and p.room.cart.bodyW > 0 then -- 227
-		local c = p.room.cart -- 233
-		local hx = p.cartAxle + c.handleOffset -- 234
-		local d = math.abs(pl.x - hx) -- 235
-		local dy = math.abs(pl.y - c.baseY) -- 236
-		if d < 95 and dy < 48 then -- 236
-			out[#out + 1] = { -- 238
-				x = hx, -- 239
-				y = c.baseY + c.wheelR + c.bodyH + 26, -- 240
-				keyTag = p.gripping and "D" or "E+D", -- 241
-				label = key == "checkpoint" and "推车入窝" or "拉车入窝", -- 242
-				urgent = p.gripping -- 243
-			} -- 243
-		end -- 243
-	end -- 243
-	if key == "outside" and p.cartDocked and pl.y < 30 and pl.x > 190 and pl.x < 320 and not pl.crouch then -- 243
-		out[#out + 1] = { -- 250
-			x = 320, -- 251
-			y = 54, -- 252
-			keyTag = "CTRL", -- 253
-			label = "蹲伏穿拱", -- 254
-			urgent = false -- 255
-		} -- 255
-	end -- 255
-	if key == "village" then -- 255
-		if not p.hasBottle and p.bottleFly == nil and p.room.bottle ~= nil then -- 255
-			local d = math.abs(pl.x - p.room.bottle.x) -- 262
-			if d < 85 then -- 262
-				out[#out + 1] = { -- 264
-					x = p.room.bottle.x, -- 265
-					y = 78, -- 266
-					keyTag = "E", -- 267
-					label = "拾取玻璃瓶", -- 268
-					urgent = true -- 269
-				} -- 269
-			end -- 269
-		elseif p.hasBottle and p.aimHold <= 0 then -- 269
-			out[#out + 1] = { -- 273
-				x = pl.x, -- 274
-				y = pl.y + pl.h + 22, -- 275
-				keyTag = "F", -- 276
-				label = "按住瞄准 · 松手投向砖地", -- 277
-				urgent = false -- 278
-			} -- 278
-		end -- 278
-		if pl.x > 250 and pl.x < 330 and not pl.crouch then -- 278
-			out[#out + 1] = { -- 282
-				x = 360, -- 283
-				y = 58, -- 284
-				keyTag = "CTRL", -- 285
-				label = "蹲伏钻桌", -- 286
-				urgent = false -- 287
-			} -- 287
-		end -- 287
-	end -- 287
-	if key == "tower" and p.phase == "tower-wait" and p.room.story ~= nil and p.room.story.tower ~= nil then -- 287
-		local dx = math.abs(pl.x - p.room.story.tower.doorX) -- 294
-		out[#out + 1] = { -- 295
-			x = p.room.story.tower.doorX, -- 296
-			y = 96, -- 297
-			keyTag = "E", -- 298
-			label = dx <= 50 and "敲两下" or "走到塔门前", -- 299
-			urgent = dx <= 50 -- 300
-		} -- 300
-	end -- 300
-	return out -- 304
+	local cart = room.cart -- 206
+	if (room.key == "checkpoint" or room.key == "outside") and not p.cartDocked and cart.bodyW > 0 then -- 206
+		local handleX = p.cartAxle + cart.handleOffset -- 208
+		if p.gripping or math.abs(player.x - handleX) <= CART_REACH and math.abs(player.y - cart.baseY) <= 40 then -- 208
+			return { -- 210
+				x = handleX, -- 211
+				y = cart.baseY + cart.wheelR + cart.bodyH + 46, -- 212
+				keyTag = "按住 E + D", -- 213
+				label = room.key == "checkpoint" and "向前推车" or "向前拉车", -- 214
+				urgent = false -- 215
+			} -- 215
+		end -- 215
+	end -- 215
+	if room.key == "village" and p.scavChase then -- 215
+		local ____player_crouch_13 -- 221
+		if player.crouch then -- 221
+			____player_crouch_13 = nil -- 221
+		else -- 221
+			____player_crouch_13 = { -- 221
+				x = player.x, -- 222
+				y = player.y + player.h + 22, -- 222
+				keyTag = "按住 Ctrl", -- 222
+				label = "蹲下躲避", -- 222
+				urgent = true -- 222
+			} -- 222
+		end -- 222
+		return ____player_crouch_13 -- 221
+	end -- 221
+	if room.key == "village" and not p.passed then -- 221
+		local bottle = room.bottle -- 227
+		if p.hasBottle then -- 227
+			return { -- 229
+				x = player.x, -- 230
+				y = player.y + player.h + 26, -- 230
+				keyTag = p.aimHold >= 0.12 and "松开 F" or "按住 F", -- 231
+				label = p.aimHold >= 0.12 and "投瓶" or "瞄准砖地", -- 232
+				urgent = false -- 232
+			} -- 232
+		end -- 232
+		if p.bottleFly == nil and bottle ~= nil then -- 232
+			local dx = player.x - bottle.x -- 236
+			local dy = player.y + player.h * 0.5 - bottle.y -- 237
+			if dx * dx + dy * dy < 56 * 56 then -- 237
+				return { -- 239
+					x = bottle.x, -- 239
+					y = bottle.y + 36, -- 239
+					keyTag = "E", -- 239
+					label = "拾起瓶子", -- 239
+					urgent = false -- 239
+				} -- 239
+			end -- 239
+		end -- 239
+	end -- 239
+	local arch = room.arch -- 244
+	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 244
+		return { -- 248
+			x = (arch.x0 + arch.x1) * 0.5, -- 249
+			y = arch.y + arch.h + 44, -- 249
+			keyTag = "按住 Ctrl", -- 250
+			label = room.key == "outside" and "蹲着穿过拱洞" or "蹲着钻过桌下", -- 250
+			urgent = false -- 250
+		} -- 250
+	end -- 250
+	local ____opt_14 = room.story -- 250
+	local tower = ____opt_14 and ____opt_14.tower -- 254
+	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 254
+		return { -- 256
+			x = tower.doorX, -- 256
+			y = 96, -- 256
+			keyTag = "E", -- 256
+			label = "敲门", -- 256
+			urgent = false -- 256
+		} -- 256
+	end -- 256
+	if not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 256
+		return { -- 261
+			x = player.x, -- 262
+			y = player.y + player.h + 25, -- 262
+			keyTag = "按住 Shift", -- 263
+			label = "贴靠掩体", -- 263
+			urgent = gate ~= nil -- 263
+		} -- 263
+	end -- 263
+	return nil -- 266
 end -- 172
 return ____exports -- 172

@@ -120,7 +120,6 @@ export class WatchFrontend {
         this.adapter.reset(p);
         this.actors.reset(p);
         this.vfx.reset();
-        this.hud.reset(p);
         this.narrative.onEnterRoom(p.room.key);
     }
 
@@ -157,9 +156,7 @@ export class WatchFrontend {
             this.bgDraw,
             this.bgGlow,
             this.backdropArt,
-            this.uiArt,
             this.uiDraw,
-            this.uiGlow,
             this.texts,
             w,
             h,
@@ -186,7 +183,6 @@ export class WatchFrontend {
             this.cam.update(safeDt, p, w, h);
             this.actors.update(safeDt, p);
             this.vfx.update(safeDt, themeOf(p.room.key).ambient);
-            this.hud.update(safeDt, p);
             this.narrative.update(safeDt, p);
         } else {
             // 暂停时立即收净切场斜切幕布，避免遮挡暂停面板
@@ -215,15 +211,13 @@ export class WatchFrontend {
         this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
-        // 7. 极简斜切 HUD 与旁白电影演出层
         const uiScale = this.resizeInterface(w, h);
-        this.hud.draw(this.uiDraw, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox, uiScale);
-        this.narrative.draw(this.uiDraw, this.uiGlow, this.uiArt, this.texts, p, w / uiScale, h / uiScale);
-
-        // 8. 暂停覆层
         let action: MenuAction = { type: "none" };
         if (p.paused) {
-            action = this.menus.updateAndDrawPause(safeDt, input, this.uiDraw, this.uiGlow, this.texts, w / uiScale, h / uiScale, uiScale);
+            action = this.menus.updateAndDrawPause(input, this.uiDraw, this.texts, w / uiScale, h / uiScale, uiScale);
+        } else {
+            this.hud.draw(this.uiDraw, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox, uiScale);
+            this.narrative.draw(this.uiDraw, this.uiArt, this.texts, p, w / uiScale, h / uiScale);
         }
 
         this.finishFrame();

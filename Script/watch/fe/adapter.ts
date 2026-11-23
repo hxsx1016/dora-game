@@ -5,7 +5,7 @@
  * 后端零耦合：所有判断都基于 Play 已公开的状态字段。
  */
 
-import { Play, Trace } from "Script/watch/play";
+import { CART_REACH, Play, Trace } from "Script/watch/play";
 import { CALM_REACH } from "Script/watch/escort";
 
 export interface FrameEvents {
@@ -168,138 +168,100 @@ export class PlayAdapter {
     }
 }
 
-/** 推导当前场景内最应高亮的 1–2 个世界空间悬浮交互提示（艾希风场景内嵌指引） */
-export function deriveWorldPrompts(p: Play): WorldPrompt[] {
-    const out: WorldPrompt[] = [];
-    const key = p.room.key;
-    const pl = p.player;
-
-    if (p.paused) {
-        return out;
+/** 每次只展示最相关的就近操作。走到可触发的位置才显示按键。 */
+export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
+    const room = p.room;
+    const player = p.player;
+    if (p.paused || !player.alive) {
+        return undefined;
     }
 
-    // 序章：递针套
-    if (key === "prologue" && p.phase === "prologue-wait") {
-        const d = Math.abs(pl.x - p.partner.x);
-        out.push({
-            x: p.partner.x,
-            y: p.partner.y + p.partner.h + 18,
-            keyTag: d <= 52 ? "E" : "→",
-            label: d <= 52 ? "递出指南针" : "走近小满",
-            urgent: d <= 52,
-        });
-        return out;
+    if (room.key === "prologue" && p.phase === "prologue-wait") {
+        const reach = room.story?.prologue?.giveReach ?? 46;
+        if (Math.abs(player.x - p.partner.x) <= reach) {
+            return { x: p.partner.x, y: p.partner.y + p.partner.h + 22, keyTag: "E", label: "递出指南针", urgent: false };
+        }
+        return undefined;
     }
 
-    // 小满恐惧冻结：安抚提示最高优先
     if (!p.childMode && p.escort.state === "frozen") {
-        const d = Math.abs(pl.x - p.partner.x);
-        out.push({
-            x: p.partner.x,
-            y: p.partner.y + p.partner.h + 18,
-            keyTag: d <= CALM_REACH ? "E" : "!",
-            label: d <= CALM_REACH ? "敲两下安抚" : "小满受惊停步",
-            urgent: true,
-        });
+        if (Math.abs(player.x - p.partner.x) <= CALM_REACH) {
+            return { x: p.partner.x, y: p.partner.y + p.partner.h + 22, keyTag: "E", label: "安抚小满", urgent: true };
+        }
+        return undefined;
     }
 
-    // 掩体提示（城门待就位时不与绞盘提示重叠）
-    if (!p.childMode && p.coverNear && !p.coverHug && !(key === "gate" && p.phase === "gate-idle")) {
-        out.push({
-            x: pl.x,
-            y: pl.y + pl.h + 22,
-            keyTag: "SHIFT",
-            label: "贴靠掩体",
-            urgent: key === "gate" && p.phase === "gate-hold",
-        });
-    }
-
-    // 城门提示
-    if (key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
-        const g = p.room.story.gate;
-        if (p.phase === "gate-idle") {
-            if (p.gateNeedConfirm) {
-                out.push({ x: g.winchX, y: 84, keyTag: "E", label: "重新就位", urgent: true });
-            } else {
-                out.push({ x: g.winchX, y: 84, keyTag: "WINCH", label: "绞盘就位", urgent: false });
-            }
-        } else if (p.phase === "gate-send") {
-            out.push({ x: g.doorX, y: 98, keyTag: "E", label: "送她出城", urgent: true });
+    const gate = room.story?.gate;
+    if (gate !== undefined) {
+        if (p.phase === "gate-idle" && p.gateNeedConfirm &&
+            Math.abs(player.x - gate.winchX) <= 24 && player.y < 20 &&
+            p.partner.alive && Math.abs(p.partner.x - gate.waitX) <= 60) {
+            return { x: gate.winchX, y: 84, keyTag: "E", label: "重新守门", urgent: true };
+        }
+        if (p.phase === "gate-send" && Math.abs(player.x - gate.doorX) <= 60) {
+            return { x: gate.doorX, y: 98, keyTag: "E", label: "送小满出城", urgent: true };
         }
     }
 
-    // 板车提示（检查站 & 城外）
-    if ((key === "checkpoint" || key === "outside") && !p.cartDocked && p.room.cart.bodyW > 0) {
-        const c = p.room.cart;
-        const hx = p.cartAxle + c.handleOffset;
-        const d = Math.abs(pl.x - hx);
-        const dy = Math.abs(pl.y - c.baseY);
-        if (d < 95 && dy < 48) {
-            out.push({
-                x: hx,
-                y: c.baseY + c.wheelR + c.bodyH + 26,
-                keyTag: p.gripping ? "D" : "E+D",
-                label: key === "checkpoint" ? "推车入窝" : "拉车入窝",
-                urgent: p.gripping,
-            });
-        }
-    }
-
-    // 城外低拱提示
-    if (key === "outside" && p.cartDocked && pl.y < 30 && pl.x > 190 && pl.x < 320 && !pl.crouch) {
-        out.push({
-            x: 320,
-            y: 54,
-            keyTag: "CTRL",
-            label: "蹲伏穿拱",
-            urgent: false,
-        });
-    }
-
-    // 村口拾瓶 / 投瓶 / 钻桌提示
-    if (key === "village") {
-        if (!p.hasBottle && p.bottleFly === undefined && p.room.bottle !== undefined) {
-            const d = Math.abs(pl.x - p.room.bottle.x);
-            if (d < 85) {
-                out.push({
-                    x: p.room.bottle.x,
-                    y: 78,
-                    keyTag: "E",
-                    label: "拾取玻璃瓶",
-                    urgent: true,
-                });
-            }
-        } else if (p.hasBottle && p.aimHold <= 0) {
-            out.push({
-                x: pl.x,
-                y: pl.y + pl.h + 22,
-                keyTag: "F",
-                label: "按住瞄准 · 松手投向砖地",
+    const cart = room.cart;
+    if ((room.key === "checkpoint" || room.key === "outside") && !p.cartDocked && cart.bodyW > 0) {
+        const handleX = p.cartAxle + cart.handleOffset;
+        if (p.gripping || (Math.abs(player.x - handleX) <= CART_REACH && Math.abs(player.y - cart.baseY) <= 40)) {
+            return {
+                x: handleX,
+                y: cart.baseY + cart.wheelR + cart.bodyH + 46,
+                keyTag: "按住 E + D",
+                label: room.key === "checkpoint" ? "向前推车" : "向前拉车",
                 urgent: false,
-            });
-        }
-        if (pl.x > 250 && pl.x < 330 && !pl.crouch) {
-            out.push({
-                x: 360,
-                y: 58,
-                keyTag: "CTRL",
-                label: "蹲伏钻桌",
-                urgent: false,
-            });
+            };
         }
     }
 
-    // 塔门敲两下
-    if (key === "tower" && p.phase === "tower-wait" && p.room.story !== undefined && p.room.story.tower !== undefined) {
-        const dx = Math.abs(pl.x - p.room.story.tower.doorX);
-        out.push({
-            x: p.room.story.tower.doorX,
-            y: 96,
-            keyTag: "E",
-            label: dx <= 50 ? "敲两下" : "走到塔门前",
-            urgent: dx <= 50,
-        });
+    if (room.key === "village" && p.scavChase) {
+        return player.crouch ? undefined : {
+            x: player.x, y: player.y + player.h + 22, keyTag: "按住 Ctrl", label: "蹲下躲避", urgent: true,
+        };
     }
 
-    return out;
+    if (room.key === "village" && !p.passed) {
+        const bottle = room.bottle;
+        if (p.hasBottle) {
+            return {
+                x: player.x, y: player.y + player.h + 26,
+                keyTag: p.aimHold >= 0.12 ? "松开 F" : "按住 F",
+                label: p.aimHold >= 0.12 ? "投瓶" : "瞄准砖地", urgent: false,
+            };
+        }
+        if (p.bottleFly === undefined && bottle !== undefined) {
+            const dx = player.x - bottle.x;
+            const dy = player.y + player.h * 0.5 - bottle.y;
+            if (dx * dx + dy * dy < 56 * 56) {
+                return { x: bottle.x, y: bottle.y + 36, keyTag: "E", label: "拾起瓶子", urgent: false };
+            }
+        }
+    }
+
+    const arch = room.arch;
+    if ((room.key === "village" || (room.key === "outside" && p.cartDocked)) &&
+        arch.h > 0 && !player.crouch && player.y <= arch.y + 28 &&
+        player.x >= arch.x0 - 56 && player.x < arch.x1) {
+        return {
+            x: (arch.x0 + arch.x1) * 0.5, y: arch.y + arch.h + 44,
+            keyTag: "按住 Ctrl", label: room.key === "outside" ? "蹲着穿过拱洞" : "蹲着钻过桌下", urgent: false,
+        };
+    }
+
+    const tower = room.story?.tower;
+    if (p.phase === "tower-wait" && tower !== undefined && Math.abs(player.x - tower.doorX) <= 50) {
+        return { x: tower.doorX, y: 96, keyTag: "E", label: "敲门", urgent: false };
+    }
+
+    if (!p.childMode && p.coverNear && !p.coverHug && !p.gripping &&
+        p.escort.state !== "calming" && (gate === undefined || p.phase === "gate-hold")) {
+        return {
+            x: player.x, y: player.y + player.h + 25,
+            keyTag: "按住 Shift", label: "贴靠掩体", urgent: gate !== undefined,
+        };
+    }
+    return undefined;
 }
