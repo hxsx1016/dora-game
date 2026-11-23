@@ -288,8 +288,14 @@ function tickPlay(frameDt: number): void {
             }
         }
         if (idx >= 0) {
+            // 换实例前先取走旧队列，再接到新实例队首；前端下一帧仍能拿到切房这一条 roomChange。
+            const leaving = p.drainEvents();
             current = idx;
             ensurePlay();
+            const fresh = play;
+            if (fresh !== undefined) {
+                fresh.adoptEvents(leaving);
+            }
             clock.reset();
             dirty = true;
         }
