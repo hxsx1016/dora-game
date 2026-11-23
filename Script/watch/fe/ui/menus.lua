@@ -26,7 +26,7 @@ local CHAPTER_TITLES = { -- 36
 	forest = "北塔森林", -- 43
 	tower = "北塔" -- 44
 } -- 44
-local SOLDIER_CONTROLS = {{"鼠标 / 左键", "瞄准 / 开枪"}, {"按住 Shift", "贴住掩体挡枪"}, {"空格", "翻滚 / 靠近矮柜时翻越"}, {"按住 E + D", "握住车把，推车向前"}} -- 47
+local SOLDIER_CONTROLS = {{"鼠标 / 左键", "瞄准 / 发射火铳"}, {"按住 Shift", "贴住掩体"}, {"空格", "翻滚 / 靠近矮柜时翻越"}, {"按住 E + D", "握住车把，推车向前"}} -- 47
 local CHILD_CONTROLS = { -- 54
 	{"空格", "跳跃"}, -- 55
 	{"按住 Shift", "轻步慢走"}, -- 56
@@ -210,7 +210,7 @@ function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, sta
 		) -- 221
 		texts:put( -- 222
 			"sm", -- 222
-			"城破后，护送小满出城。", -- 222
+			"明代沿海，倭寇袭城。护送小满出城。", -- 222
 			left, -- 222
 			heading - 56, -- 222
 			toColor(PALETTE.textMid) -- 222

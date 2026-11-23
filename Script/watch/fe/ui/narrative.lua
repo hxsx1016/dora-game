@@ -107,7 +107,7 @@ function NarrativeRenderer.prototype.goalText(self, p) -- 58
 	local room = p.room.key -- 62
 	if room == "prologue" then -- 62
 		if p.phase == "prologue-wait" then -- 62
-			return "用 A / D 向右走近小满，把指南针交给她。" -- 65
+			return "按 D 往右走，靠近小满后把指南针交给她。" -- 65
 		end -- 65
 		if p.phase == "prologue-give" then -- 65
 			return "周戍把纸条塞进针套，递到她手里。" -- 68
@@ -125,7 +125,7 @@ function NarrativeRenderer.prototype.goalText(self, p) -- 58
 			p.enemies, -- 80
 			function(____, enemy) return enemy.alive end -- 80
 		) then -- 80
-			return "鼠标瞄准，左键开枪。靠近矮柜时按空格翻越。" -- 81
+			return "用鼠标瞄准倭寇，左键发射火铳。" -- 81
 		end -- 81
 		if room == "street" then -- 81
 			return "带小满向右，前往检查站。" -- 84
@@ -135,12 +135,12 @@ function NarrativeRenderer.prototype.goalText(self, p) -- 58
 	if room == "gate" then -- 86
 		if p.phase == "gate-hold" then -- 86
 			if p.coverHug then -- 86
-				return "已贴靠掩体。用鼠标瞄准，左键开枪。" -- 92
+				return "已贴靠掩体。用鼠标瞄准，左键发射火铳。" -- 92
 			end -- 92
 			return __TS__ArraySome( -- 94
 				p.enemies, -- 94
 				function(____, enemy) return enemy.alive and enemy.warnT > 0 end -- 94
-			) and "敌兵举枪了。靠近街垒，按住 Shift 挡枪。" or "靠近街垒，按住 Shift 贴掩体，守住城门。" -- 94
+			) and "倭寇要开火了。靠近街垒，按住 Shift 贴住。" or "靠近街垒，按住 Shift 贴掩体，守住城门。" -- 94
 		end -- 94
 		if p.phase == "gate-idle" then -- 94
 			return p.gateNeedConfirm and "回到绞盘，按 E 重新守门。" or "走到左侧绞盘，等小满到门边。" -- 99

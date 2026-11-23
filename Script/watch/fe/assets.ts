@@ -4,7 +4,7 @@ export type AssetSlotKey =
     | "bgFar_prologue" | "bgFar_street" | "bgFar_checkpoint" | "bgFar_gate"
     | "bgFar_outside" | "bgFar_village" | "bgFar_forest" | "bgFar_tower"
     | "soldier_idle" | "soldier_run" | "soldier_roll" | "soldier_cover"
-    | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire"
+    | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire" | "soldier_fire_move"
     | "child_idle" | "child_run" | "child_crouch" | "child_fear" | "child_peek"
     | "child_pull" | "child_aim" | "child_throw" | "child_knock" | "child_offer"
     | "enemy_idle" | "enemy_aim" | "enemy_down" | "enemy_hit" | "scavenger" | "dog"
@@ -60,6 +60,7 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     soldier_knock: actor(["soldier_cover", "soldier_knock"]),
     soldier_hit: actor("soldier_hit"),
     soldier_fire: actor("soldier_fire"),
+    soldier_fire_move: actor(["soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"]),
     child_idle: actor("child_idle"),
     child_run: actor(["child_run", "child_idle", "child_step", "child_idle"]),
     child_crouch: actor(["child_crouch", "child_crouch_step"]),
