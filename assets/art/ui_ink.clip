@@ -1,0 +1,17 @@
+<A A="ui_ink.png">
+  <B A="ink_brush_wide" B="8,8,500,64" />
+  <B A="ink_brush_sym" B="8,84,500,64" />
+  <B A="ink_divider" B="8,160,440,24" />
+  <B A="ink_scroll_bar" B="8,196,440,28" />
+  <B A="ink_wash_panel" B="8,240,420,256" />
+  <B A="ink_vbrush" B="528,8,64,320" />
+  <B A="ink_seal_solid" B="612,8,96,96" />
+  <B A="ink_seal_hollow" B="724,8,96,96" />
+  <B A="ink_seal_oval" B="836,8,72,112" />
+  <B A="ink_dot" B="924,16,48,48" />
+  <B A="ink_ring" B="612,124,128,128" />
+  <B A="ink_splatter" B="756,124,144,144" />
+  <B A="ink_hp_bar" B="612,272,160,32" />
+  <B A="ink_hp_slot" B="612,316,160,32" />
+  <B A="ink_paper_grain" B="788,280,224,224" />
+</A>

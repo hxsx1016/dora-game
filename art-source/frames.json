@@ -1,0 +1,453 @@
+{
+  "atlas": "assets/art/sprites.png",
+  "clips": [
+    {
+      "key": "soldier_idle",
+      "x": 2,
+      "y": 2,
+      "w": 22,
+      "h": 44,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_run",
+      "x": 28,
+      "y": 2,
+      "w": 33,
+      "h": 44,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_roll",
+      "x": 65,
+      "y": 2,
+      "w": 29,
+      "h": 26,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_idle",
+      "x": 98,
+      "y": 2,
+      "w": 15,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_run",
+      "x": 117,
+      "y": 2,
+      "w": 26,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_fear",
+      "x": 147,
+      "y": 2,
+      "w": 24,
+      "h": 24,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "enemy_idle",
+      "x": 175,
+      "y": 2,
+      "w": 18,
+      "h": 42,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "enemy_aim",
+      "x": 197,
+      "y": 2,
+      "w": 51,
+      "h": 42,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "enemy_down",
+      "x": 252,
+      "y": 2,
+      "w": 48,
+      "h": 10,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "enemy_hit",
+      "x": 304,
+      "y": 2,
+      "w": 40,
+      "h": 42,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "scavenger_idle",
+      "x": 348,
+      "y": 2,
+      "w": 19,
+      "h": 40,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "scavenger_walk",
+      "x": 371,
+      "y": 2,
+      "w": 29,
+      "h": 40,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "scavenger_turn",
+      "x": 404,
+      "y": 2,
+      "w": 31,
+      "h": 40,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "scavenger_run",
+      "x": 439,
+      "y": 2,
+      "w": 39,
+      "h": 37,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_cover",
+      "x": 2,
+      "y": 50,
+      "w": 47,
+      "h": 34,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_step",
+      "x": 53,
+      "y": 50,
+      "w": 31,
+      "h": 44,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_push",
+      "x": 88,
+      "y": 50,
+      "w": 65,
+      "h": 40,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_hold",
+      "x": 157,
+      "y": 50,
+      "w": 36,
+      "h": 49,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_offer",
+      "x": 197,
+      "y": 50,
+      "w": 47,
+      "h": 34,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_knock",
+      "x": 248,
+      "y": 50,
+      "w": 39,
+      "h": 34,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_hit",
+      "x": 291,
+      "y": 50,
+      "w": 28,
+      "h": 42,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_fire",
+      "x": 323,
+      "y": 50,
+      "w": 62,
+      "h": 44,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_crouch",
+      "x": 389,
+      "y": 50,
+      "w": 17,
+      "h": 18,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_step",
+      "x": 410,
+      "y": 50,
+      "w": 25,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_peek",
+      "x": 439,
+      "y": 50,
+      "w": 23,
+      "h": 27,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_pull",
+      "x": 466,
+      "y": 50,
+      "w": 41,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_aim",
+      "x": 2,
+      "y": 103,
+      "w": 32,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_throw",
+      "x": 38,
+      "y": 103,
+      "w": 43,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_knock",
+      "x": 85,
+      "y": 103,
+      "w": 27,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_offer",
+      "x": 116,
+      "y": 103,
+      "w": 25,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "soldier_push_step",
+      "x": 145,
+      "y": 103,
+      "w": 65,
+      "h": 40,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_pull_step",
+      "x": 214,
+      "y": 103,
+      "w": 41,
+      "h": 32,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "child_crouch_step",
+      "x": 259,
+      "y": 103,
+      "w": 17,
+      "h": 18,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "cart",
+      "x": 280,
+      "y": 103,
+      "w": 80,
+      "h": 27,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "bottle",
+      "x": 364,
+      "y": 103,
+      "w": 11,
+      "h": 14,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "door",
+      "x": 379,
+      "y": 103,
+      "w": 112,
+      "h": 90,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "lantern",
+      "x": 2,
+      "y": 197,
+      "w": 36,
+      "h": 45,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "dog_idle",
+      "x": 42,
+      "y": 197,
+      "w": 22,
+      "h": 15,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "dog_alert",
+      "x": 68,
+      "y": 197,
+      "w": 19,
+      "h": 16,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "dog_run",
+      "x": 91,
+      "y": 197,
+      "w": 27,
+      "h": 14,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "dog_sniff",
+      "x": 122,
+      "y": 197,
+      "w": 28,
+      "h": 14,
+      "pivot": "center at floor"
+    },
+    {
+      "key": "table",
+      "x": 154,
+      "y": 197,
+      "w": 64,
+      "h": 28,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "compass",
+      "x": 222,
+      "y": 197,
+      "w": 36,
+      "h": 28,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "grass",
+      "x": 262,
+      "y": 197,
+      "w": 54,
+      "h": 24,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "stone_chips",
+      "x": 320,
+      "y": 197,
+      "w": 30,
+      "h": 23,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "ui_corner",
+      "x": 354,
+      "y": 197,
+      "w": 45,
+      "h": 41,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "paper",
+      "x": 2,
+      "y": 246,
+      "w": 152,
+      "h": 105,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "cover_wood",
+      "x": 158,
+      "y": 246,
+      "w": 63,
+      "h": 25,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "cover_stone",
+      "x": 225,
+      "y": 246,
+      "w": 64,
+      "h": 28,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "fence",
+      "x": 293,
+      "y": 246,
+      "w": 60,
+      "h": 17,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "wall",
+      "x": 357,
+      "y": 246,
+      "w": 82,
+      "h": 54,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "slab",
+      "x": 443,
+      "y": 246,
+      "w": 64,
+      "h": 15,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "eaves",
+      "x": 2,
+      "y": 355,
+      "w": 82,
+      "h": 48,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "pine",
+      "x": 88,
+      "y": 355,
+      "w": 82,
+      "h": 72,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "winch",
+      "x": 174,
+      "y": 355,
+      "w": 49,
+      "h": 41,
+      "pivot": "see AssetSlotConfig"
+    },
+    {
+      "key": "grass_low",
+      "x": 227,
+      "y": 355,
+      "w": 57,
+      "h": 15,
+      "pivot": "see AssetSlotConfig"
+    }
+  ]
+}
