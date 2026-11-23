@@ -1,0 +1,669 @@
+/**
+ * 艾希（ICEY）风关节剪影角色渲染器 + 高速残影系统。
+ *
+ * 严格遵循后端世界单位尺寸（周戍高 88 / 宽 30；小满站 64、蹲 36 / 宽 28；敌兵高 84）：
+ * - 周戍：深战术大衣 + 飘动下摆 + 冷白/冰青肩甲与战术目镜光带 + 随准星转向的步枪 + 翻滚 5 层冰青残影
+ * - 小满：暖琥珀/米白兜帽斗篷 + 飘动围巾 + 手中微光指南针 + 紧凑蹲姿 + 恐惧晶格环
+ * - 敌兵：冷峻黑岩机甲风步兵 + 霓虹绯红目镜 + 渐缩举枪激光瞄准线与枪口锁定菱标
+ * - 拾荒者与森林猎犬：动态视野扇形 / 转耳声波预警 / 追逐红瞳脉冲
+ *
+ * 若「完整前端分支」在 AssetSlots 中配置了角色生图 Sprite，自动优先切至 Sprite 渲染。
+ */
+
+import { Color, DrawNode, Vec2 } from "Dora";
+import { Actor, Enemy, Play } from "Script/watch/play";
+import { FEAR_MAX } from "Script/watch/escort";
+import { CameraDirector } from "Script/watch/fe/camera";
+import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
+import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/theme";
+
+interface Afterimage {
+    x: number;
+    y: number;
+    h: number;
+    facing: number;
+    life: number;
+    maxLife: number;
+    isRoll: boolean;
+}
+
+export class ActorsRenderer {
+    private ghosts: Afterimage[] = [];
+    private ghostCooldown = 0;
+    private animTime = 0;
+
+    reset(): void {
+        this.ghosts = [];
+        this.ghostCooldown = 0;
+    }
+
+    /** 推进残影与步态时间 */
+    update(dt: number, p: Play): void {
+        this.animTime += dt;
+        // 周戍翻滚期间高频采样冰青残影（复刻《艾希》冲刺残影手感）
+        if (!p.childMode && p.player.rollT > 0) {
+            this.ghostCooldown -= dt;
+            if (this.ghostCooldown <= 0) {
+                this.ghosts.push({
+                    x: p.player.x,
+                    y: p.player.y,
+                    h: p.player.h,
+                    facing: p.player.facing,
+                    life: 0.28,
+                    maxLife: 0.28,
+                    isRoll: true,
+                });
+                this.ghostCooldown = 0.036;
+            }
+        } else {
+            this.ghostCooldown = 0;
+        }
+
+        // 更新并回收过期残影
+        let write = 0;
+        let i = 0;
+        for (i = 0; i < this.ghosts.length; i++) {
+            const g = this.ghosts[i];
+            g.life -= dt;
+            if (g.life > 0) {
+                this.ghosts[write] = g;
+                write += 1;
+            }
+        }
+        this.ghosts.length = write;
+    }
+
+    drawAll(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        p: Play,
+        cam: CameraDirector,
+    ): void {
+        // 1. 翻滚冰青残影（最底层）
+        this.drawAfterimages(fgGlow, cam);
+
+        // 2. 敌兵 + 举枪激光预警线
+        let i = 0;
+        for (i = 0; i < p.enemies.length; i++) {
+            this.drawEnemy(fgDraw, fgGlow, assets, p.enemies[i], i, p, cam);
+        }
+
+        // 3. 村口拾荒者
+        if (p.room.key === "village" && p.room.scavenger !== undefined) {
+            this.drawScavenger(fgDraw, fgGlow, assets, p, cam);
+        }
+
+        // 4. 森林猎犬
+        if (p.room.key === "forest" && p.room.story !== undefined && p.room.story.dog !== undefined) {
+            this.drawDog(fgDraw, fgGlow, assets, p, cam);
+        }
+
+        // 5. 同伴（先画同伴，再画主角，确保主角层级最突出）
+        if (p.partner.alive) {
+            const partnerIsChild = p.partner.w <= 28;
+            if (partnerIsChild) {
+                this.drawXiaoman(fgDraw, fgGlow, assets, p.partner, p, cam, false);
+            } else {
+                this.drawZhouShu(fgDraw, fgGlow, assets, p.partner, p, cam, false);
+            }
+        }
+
+        // 6. 当前操控主角
+        if (p.player.alive) {
+            if (p.childMode) {
+                this.drawXiaoman(fgDraw, fgGlow, assets, p.player, p, cam, true);
+            } else {
+                this.drawZhouShu(fgDraw, fgGlow, assets, p.player, p, cam, true);
+            }
+        }
+    }
+
+    private drawAfterimages(fgGlow: DrawNode.Type, cam: CameraDirector): void {
+        let i = 0;
+        for (i = 0; i < this.ghosts.length; i++) {
+            const g = this.ghosts[i];
+            const k = g.life / g.maxLife;
+            const cx = cam.sx(g.x);
+            const by = cam.sy(g.y);
+            const h = cam.len(g.h * 0.68);
+            const w = cam.len(28);
+            const f = g.facing;
+            // 低伏冲刺流线剪影
+            fgGlow.drawPolygon([
+                Vec2(cx - f * w * 0.9, by + 4),
+                Vec2(cx + f * w * 0.55, by + 6),
+                Vec2(cx + f * w * 0.85, by + h * 0.72),
+                Vec2(cx - f * w * 0.15, by + h),
+                Vec2(cx - f * w * 0.85, by + h * 0.58),
+            ], toColor(PALETTE.cyan, 115 * k));
+            // 高亮残影尾光条
+            fgGlow.drawSegment(
+                Vec2(cx - f * w * 1.15, by + h * 0.62),
+                Vec2(cx + f * w * 0.72, by + h * 0.76),
+                2.2 * k,
+                toColor(PALETTE.cyanCore, 165 * k),
+            );
+        }
+    }
+
+    /** 周戍（军人线主角）：ICEY 标志性暗战术装 + 冷白冰青肩甲与目镜光带 + 随鼠标转向步枪 */
+    private drawZhouShu(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        a: Actor,
+        p: Play,
+        cam: CameraDirector,
+        isControlled: boolean,
+    ): void {
+        const cx = cam.sx(a.x);
+        const by = cam.sy(a.y);
+        const H = cam.len(a.h);
+        const W = cam.len(a.w);
+        const f = a.facing;
+
+        // 外部生图 Sprite 槽位检查
+        let slot: AssetSlotKey = "soldier_idle";
+        if (a.rollT > 0) {
+            slot = "soldier_roll";
+        } else if (a.covered) {
+            slot = "soldier_cover";
+        } else if (Math.abs(a.vx) > 8) {
+            slot = "soldier_run";
+        }
+        if (assets.tryPlace(slot, "actor_soldier", cx, by, W * 1.8, H * 1.05, f, 1)) {
+            return;
+        }
+
+        // 脚底接地阴影
+        fgDraw.drawEllipse(Vec2(cx, by + 1), H * 0.24, 4.5, Color(3, 5, 10, 175));
+
+        const speed = Math.abs(a.vx);
+        const walking = speed > 10 && a.onGround;
+        const stride = walking ? Math.sin(this.animTime * 12.5) : 0;
+        const bob = walking ? Math.abs(Math.cos(this.animTime * 12.5)) * 3.5 : Math.sin(this.animTime * 2.6) * 1.4;
+        const calming = !p.childMode && p.escort.state === "calming";
+        const rolling = a.rollT > 0;
+        const crouching = a.covered || calming || rolling;
+
+        // 艾希风凌厉修长动漫比例：7 头身（headR ≈ H * 0.088，肩宽 ≈ H * 0.22，收腰 V 廓形）
+        const bodyH = rolling ? H * 0.62 : (crouching ? H * 0.82 : H);
+        const lean = rolling ? f * H * 0.14 : (p.gripping ? f * H * 0.10 : (walking ? f * 6 : f * 2));
+        const sw = H * 0.115; // 半肩宽
+
+        // 1. 双节 Articulated 腿部（大腿 + 小腿 + 战靴）
+        const hipY = by + bodyH * 0.44 + bob * 0.4;
+        const kneeY = by + bodyH * 0.23;
+        const stepX = stride * H * 0.15;
+        const legDark = Color(14, 21, 34, 255);
+        const legFront = Color(26, 38, 58, 255);
+        // 后腿
+        const bkX = cx - f * 4 - stepX * 0.5;
+        const bfX = cx - f * 8 - stepX;
+        fgDraw.drawSegment(Vec2(cx - f * 3, hipY), Vec2(bkX, kneeY), H * 0.044, legDark);
+        fgDraw.drawSegment(Vec2(bkX, kneeY), Vec2(bfX, by + 3), H * 0.038, legDark);
+        // 前腿
+        const fkX = cx + f * 6 + stepX * 0.55;
+        const ffX = cx + f * 7 + stepX;
+        fgDraw.drawSegment(Vec2(cx + f * 3, hipY), Vec2(fkX, kneeY), H * 0.048, legFront);
+        fgDraw.drawSegment(Vec2(fkX, kneeY), Vec2(ffX, by + 3), H * 0.042, legFront);
+        // 战靴与护膝冰青光点
+        fgDraw.drawSegment(Vec2(ffX - f * 2, by + 3), Vec2(ffX + f * 9, by + 3), 3.4, Color(42, 60, 86, 255));
+        fgGlow.drawDot(Vec2(fkX + f * 2, kneeY), 2.3, toColor(PALETTE.cyan, 195));
+
+        // 2. 飘动开衩战术风衣下摆（ICEY 速度感核心剪影）
+        const shY = by + bodyH * 0.80 + bob;
+        const coatDrag = -f * (walking ? 24 : (rolling ? 34 : 14)) + Math.sin(this.animTime * 4.4) * 4;
+        fgDraw.drawPolygon([
+            Vec2(cx - f * sw * 0.75 + lean * 0.5, shY - 6),
+            Vec2(cx + f * sw * 0.35 + lean * 0.5, hipY + 4),
+            Vec2(cx - f * sw * 0.25 + coatDrag * 0.45, by + bodyH * 0.16),
+            Vec2(cx - f * sw * 1.15 + coatDrag, by + bodyH * 0.22),
+        ], Color(16, 26, 42, 248), 1.2, Color(64, 118, 164, 195));
+
+        // 3. 收腰 V 形战术胸甲 + 标志性冷白冰青斜切肩甲
+        fgDraw.drawPolygon([
+            Vec2(cx - sw * 0.62 + lean * 0.45, hipY),
+            Vec2(cx + sw * 0.62 + lean * 0.45, hipY),
+            Vec2(cx + sw * 1.05 + lean, shY),
+            Vec2(cx - sw * 0.98 + lean, shY),
+        ], Color(24, 38, 60, 255), 1.3, toColor(PALETTE.rimSilver, 190));
+        // 胸前斜切冷白/冰青战术背带
+        fgDraw.drawSegment(
+            Vec2(cx - sw * 0.7 + lean, shY - 2),
+            Vec2(cx + sw * 0.5 + lean * 0.5, hipY + 6),
+            2.4,
+            Color(196, 232, 248, 220),
+        );
+        // 锐利斜切冰白肩甲
+        fgDraw.drawPolygon([
+            Vec2(cx - sw * 1.18 + lean, shY - 6),
+            Vec2(cx + sw * 1.12 + lean, shY - 3),
+            Vec2(cx + sw * 0.90 + lean, shY + 5),
+            Vec2(cx - sw * 0.95 + lean, shY + 4),
+        ], Color(218, 240, 252, 248));
+        fgGlow.drawSegment(
+            Vec2(cx - sw * 0.9 + lean, shY - 1),
+            Vec2(cx + sw * 0.95 + lean, shY + 1),
+            1.8,
+            toColor(PALETTE.cyan, 230),
+        );
+
+        // 4. 凌厉修长头部轮廓 + 飞扬银发冠 + 发光冰青目镜光带
+        const headR = H * 0.088;
+        const headX = cx + lean + f * 3;
+        const headY = shY + headR * 1.35;
+        fgDraw.drawCircle(Vec2(headX, headY), headR, Color(20, 32, 50, 255));
+        // 战术银白头盔/尖锐刘海剪影
+        fgDraw.drawPolygon([
+            Vec2(headX - f * headR * 1.18, headY + headR * 0.15),
+            Vec2(headX - f * headR * 0.45, headY + headR * 1.18),
+            Vec2(headX + f * headR * 0.92, headY + headR * 0.72),
+            Vec2(headX + f * headR * 0.25, headY + headR * 0.18),
+        ], Color(224, 244, 255, 245));
+        // 发光目镜斜线 + 尾光
+        const vx0 = headX + f * headR * 0.12;
+        const vx1 = headX + f * headR * 1.05;
+        fgGlow.drawSegment(Vec2(vx0, headY - 1), Vec2(vx1, headY + 1.5), 2.5, toColor(PALETTE.cyanCore, 255));
+        fgGlow.drawSegment(Vec2(vx0 - f * 5, headY - 1), Vec2(vx1 + f * 4, headY + 2), 1.1, toColor(PALETTE.cyan, 165));
+        fillRadialGlow(fgGlow, vx1, headY + 1, 18, 10, toColor(PALETTE.cyan, 125), Color(72, 224, 255, 0), 12);
+
+        // 5. 科幻战术步枪（枪托 + 机匣 + 冰青导轨 + 持枪手臂）
+        if (isControlled && !calming && !rolling && !p.gripping) {
+            const gunPivotX = cx + lean + f * sw * 0.35;
+            const gunPivotY = shY - bodyH * 0.10;
+            let aimDx = f;
+            let aimDy = 0;
+            if (p.aimX > 0 || p.aimY > 0) {
+                aimDx = p.aimX - gunPivotX;
+                aimDy = p.aimY - gunPivotY;
+                const dLen = Math.sqrt(aimDx * aimDx + aimDy * aimDy);
+                if (dLen > 4) {
+                    aimDx /= dLen;
+                    aimDy /= dLen;
+                }
+            }
+            const barrelLen = H * 0.34;
+            const tipX = gunPivotX + aimDx * barrelLen;
+            const tipY = gunPivotY + aimDy * barrelLen;
+            const stockX = gunPivotX - aimDx * (H * 0.08);
+            const stockY = gunPivotY - aimDy * (H * 0.08);
+            // 手臂
+            fgDraw.drawSegment(Vec2(cx + lean, shY - 5), Vec2(gunPivotX + aimDx * 14, gunPivotY + aimDy * 14 - 4), 3.6, Color(26, 40, 62, 255));
+            // 枪身机匣与枪管
+            fgDraw.drawSegment(Vec2(stockX, stockY), Vec2(gunPivotX + aimDx * barrelLen * 0.62, gunPivotY + aimDy * barrelLen * 0.62), 4.6, Color(34, 48, 70, 255));
+            fgDraw.drawSegment(Vec2(gunPivotX, gunPivotY), Vec2(tipX, tipY), 2.4, Color(166, 202, 232, 235));
+            // 冰青战术能量导轨
+            fgGlow.drawSegment(
+                Vec2(gunPivotX + aimDx * 6, gunPivotY + aimDy * 6 + 2.5),
+                Vec2(gunPivotX + aimDx * barrelLen * 0.68, gunPivotY + aimDy * barrelLen * 0.68 + 2.5),
+                1.4,
+                toColor(PALETTE.cyan, 230),
+            );
+            fgGlow.drawDot(Vec2(tipX, tipY), 2.6, toColor(PALETTE.cyanCore, 230));
+        } else if (calming) {
+            fgDraw.drawSegment(Vec2(cx + lean, shY - 6), Vec2(cx + f * sw * 2.1, shY - 14), 3.0, Color(196, 222, 240, 235));
+            fgGlow.drawDot(Vec2(cx + f * sw * 2.15, shY - 14), 3.6, toColor(PALETTE.amber, 225));
+        }
+
+        // 6. 贴掩体时的全息冰青能量盾沿
+        if (a.covered) {
+            const shieldX = cx + f * (sw * 1.85);
+            fgGlow.drawSegment(Vec2(shieldX, by + 6), Vec2(shieldX, by + bodyH * 0.92), 2.8, toColor(PALETTE.cyan, 240));
+            fgGlow.drawSegment(Vec2(shieldX - f * 9, by + bodyH * 0.96), Vec2(shieldX + f * 4, by + bodyH * 0.92), 2.0, toColor(PALETTE.cyanCore, 230));
+            fillRadialGlow(fgGlow, shieldX, by + bodyH * 0.5, 20, bodyH * 0.52, toColor(PALETTE.cyan, 82), Color(72, 224, 255, 0), 14);
+        }
+    }
+
+    /** 小满（孩子线主角 / 护送同伴）：优雅尖兜帽琥珀斗篷 + 飘带围巾 + 微光指南针 */
+    private drawXiaoman(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        a: Actor,
+        p: Play,
+        cam: CameraDirector,
+        isControlled: boolean,
+    ): void {
+        const cx = cam.sx(a.x);
+        const by = cam.sy(a.y);
+        const H = cam.len(a.h);
+        const W = cam.len(a.w);
+        const f = a.facing;
+
+        const afraid = !isControlled && (p.escort.state === "frozen" || p.escort.fear > 0);
+        let slot: AssetSlotKey = "child_idle";
+        if (afraid && p.escort.state === "frozen") {
+            slot = "child_fear";
+        } else if (a.crouch) {
+            slot = "child_crouch";
+        } else if (Math.abs(a.vx) > 8) {
+            slot = "child_run";
+        }
+        if (assets.tryPlace(slot, "actor_child", cx, by, W * 1.75, H * 1.05, f, 1)) {
+            return;
+        }
+
+        const jitter = (!isControlled && p.escort.state === "frozen") ? Math.sin(this.animTime * 42) * 2.2 : 0;
+        const x = cx + jitter;
+
+        const fullRef = a.crouch ? H * 1.35 : H;
+        const cw = fullRef * 0.16;
+
+        // 接地阴影
+        fgDraw.drawEllipse(Vec2(x, by + 1), cw * 1.15, 3.6, Color(4, 6, 10, 155));
+
+        const speed = Math.abs(a.vx);
+        const walking = speed > 6 && a.onGround;
+        const stride = walking ? Math.sin(this.animTime * 11) : 0;
+        const bob = walking ? Math.abs(Math.cos(this.animTime * 11)) * 2.8 : Math.sin(this.animTime * 2.8) * 1.1;
+
+        // 1. 腿部
+        const hipY = by + H * 0.30;
+        const legSwing = stride * cw * 0.85;
+        fgDraw.drawSegment(Vec2(x - 2, hipY), Vec2(x - legSwing, by + 2), Math.max(2.6, cw * 0.22), Color(34, 30, 38, 255));
+        fgDraw.drawSegment(Vec2(x + 2, hipY), Vec2(x + legSwing, by + 2), Math.max(2.8, cw * 0.24), Color(52, 46, 56, 255));
+
+        // 2. 层次感暖琥珀斗篷（外层亮面 + 内褶阴影 + 底边米白花边）
+        const cloakTopY = by + H * (a.crouch ? 0.68 : 0.74) + bob;
+        const cloakBotY = by + H * 0.20;
+        const cloakDrag = -f * (walking ? 14 : 6) + Math.sin(this.animTime * 3.8) * 2.8;
+        fgDraw.drawPolygon([
+            Vec2(x - cw * 1.05 + cloakDrag * 0.45, cloakBotY),
+            Vec2(x + cw * 0.92, cloakBotY),
+            Vec2(x + cw * 0.62, cloakTopY),
+            Vec2(x - cw * 0.68, cloakTopY),
+        ], Color(214, 166, 94, 255), 1.3, Color(252, 232, 192, 225));
+        fgDraw.drawPolygon([
+            Vec2(x - cw * 0.92 + cloakDrag * 0.38, cloakBotY + 2),
+            Vec2(x - f * cw * 0.12, cloakBotY + 2),
+            Vec2(x - f * cw * 0.18, cloakTopY - 3),
+            Vec2(x - cw * 0.60, cloakTopY - 2),
+        ], Color(148, 108, 56, 215));
+        fgDraw.drawSegment(Vec2(x - cw * 0.98 + cloakDrag * 0.42, cloakBotY + 3), Vec2(x + cw * 0.88, cloakBotY + 3), 1.8, toColor(PALETTE.amberCore, 200));
+
+        // 3. 双节飘动围巾丝带
+        const scarfY = cloakTopY - 2;
+        const smidX = x - f * cw * 0.95 + cloakDrag * 0.55;
+        const smidY = scarfY - 6 + Math.sin(this.animTime * 4.5) * 2.5;
+        const sendX = x - f * cw * 1.65 + cloakDrag;
+        const sendY = scarfY - 12 + Math.cos(this.animTime * 4.8) * 3.5;
+        fgDraw.drawQuadraticBezier(Vec2(x - f * cw * 0.3, scarfY), Vec2(smidX, smidY), Vec2(sendX, sendY), 2.8, toColor(PALETTE.amberCore, 235));
+
+        // 4. 柔和儿童比例头部 + 尖角兜帽轮廓
+        const headR = fullRef * (a.crouch ? 0.118 : 0.126);
+        const headX = x + f * (a.crouch ? 5 : 2);
+        const headY = Math.min(by + H - headR - 1, cloakTopY + headR * 0.92);
+        fgDraw.drawCircle(Vec2(headX, headY), headR, Color(240, 222, 198, 255));
+        // 尖角暖褐兜帽包裹头后侧，既可爱又极契合废土旅人剪影
+        fgDraw.drawPolygon([
+            Vec2(headX - f * headR * 1.28, headY - headR * 0.72),
+            Vec2(headX - f * headR * 1.48, headY + headR * 0.35),
+            Vec2(headX - f * headR * 0.25, headY + headR * 1.15),
+            Vec2(headX + f * headR * 0.68, headY + headR * 0.82),
+            Vec2(headX - f * headR * 0.18, headY + headR * 0.15),
+            Vec2(headX - f * headR * 0.35, headY - headR * 0.78),
+        ], Color(156, 114, 62, 248), 1.1, Color(244, 214, 162, 200));
+        // 明眸光点
+        fgGlow.drawDot(Vec2(headX + f * headR * 0.45, headY + 1), 2.2, toColor(PALETTE.amberCore));
+
+        // 5. 指南针微光
+        const hasCompass = isControlled || p.room.key !== "prologue" || p.phase !== "prologue-wait";
+        if (hasCompass) {
+            const compX = x + f * cw * 0.65;
+            const compY = by + H * 0.48;
+            const glowPulse = 0.78 + 0.22 * Math.sin(this.animTime * 3.2);
+            fgGlow.drawDot(Vec2(compX, compY), 2.6, toColor(PALETTE.amberCore, 250));
+            fillRadialGlow(fgGlow, compX, compY, 26 * glowPulse, 26 * glowPulse, Color(248, 206, 120, 78 * glowPulse), Color(248, 180, 72, 0), 14);
+        }
+
+        // 6. 护送恐惧视觉反馈（头顶三枚恐惧晶格 + 冻结时警示脉环）
+        if (!isControlled && p.escort.fear > 0) {
+            const topY = by + H + 16;
+            let k = 0;
+            for (k = 0; k < FEAR_MAX; k++) {
+                const dx = x + (k - 1) * 14;
+                const lit = k < p.escort.fear;
+                const c = p.escort.state === "frozen" ? PALETTE.crimson : PALETTE.amber;
+                drawDiamond(
+                    fgGlow,
+                    dx,
+                    topY,
+                    5,
+                    6.5,
+                    lit ? toColor(c, 235) : Color(60, 72, 92, 90),
+                    1.2,
+                    toColor(c, lit ? 255 : 120),
+                );
+            }
+            if (p.escort.state === "frozen") {
+                const ringR = 26 + (this.animTime * 28) % 22;
+                fgGlow.drawRing(Vec2(x, by + H * 0.45), ringR, ringR + 2, Color(0, 0, 0, 0), 1.4, toColor(PALETTE.crimson, 130));
+            }
+        }
+
+        // 7. 孩子线潜行脚步微环
+        if (isControlled && walking && !a.crouch && speed > 100) {
+            const r = 10 + (this.animTime * 32) % 24;
+            fgGlow.drawRing(Vec2(x, by + 3), r, r + 1.5, Color(0, 0, 0, 0), 1.1, toColor(PALETTE.amber, 95 * (1 - r / 36)));
+        }
+    }
+
+    /** 敌兵（黑岩锐利机甲风步兵 + 绯红目镜 + 举枪激光预警线） */
+    private drawEnemy(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        e: Enemy,
+        index: number,
+        p: Play,
+        cam: CameraDirector,
+    ): void {
+        const cx = cam.sx(e.x);
+        const by = cam.sy(e.y);
+        const H = cam.len(e.h);
+        const W = cam.len(e.w);
+        const f = p.player.x >= e.x ? 1 : -1;
+
+        const slot: AssetSlotKey = !e.alive ? "enemy_down" : (e.warnT > 0 ? "enemy_aim" : "enemy_idle");
+        if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W * 1.8, H * 1.05, f, e.alive ? 1 : 0.65)) {
+            return;
+        }
+
+        if (!e.alive) {
+            const flash = e.hitT > 0 ? Math.min(1, e.hitT / 0.4) : 0;
+            fgDraw.drawPolygon([
+                Vec2(cx - H * 0.30, by),
+                Vec2(cx + H * 0.28, by),
+                Vec2(cx + H * 0.20, by + H * 0.14),
+                Vec2(cx - H * 0.24, by + H * 0.11),
+            ], flash > 0.2 ? Color(220, 120, 130, 220) : Color(28, 22, 34, 215));
+            if (flash > 0) {
+                fillRadialGlow(fgGlow, cx, by + 12, 34 * flash, 18 * flash, toColor(PALETTE.crimson, 180 * flash), Color(255, 48, 82, 0), 12);
+            }
+            return;
+        }
+
+        const sw = H * 0.112;
+        fgDraw.drawEllipse(Vec2(cx, by + 1), sw * 1.9, 4, Color(4, 6, 10, 165));
+
+        // 腿部与 V 形机甲重甲躯干
+        const hipY = by + H * 0.44;
+        const kneeY = by + H * 0.23;
+        const shY = by + H * 0.79;
+        fgDraw.drawSegment(Vec2(cx - 5, hipY), Vec2(cx - 7, kneeY), H * 0.044, Color(20, 16, 26, 255));
+        fgDraw.drawSegment(Vec2(cx - 7, kneeY), Vec2(cx - 8, by + 2), H * 0.038, Color(20, 16, 26, 255));
+        fgDraw.drawSegment(Vec2(cx + 5, hipY), Vec2(cx + 7, kneeY), H * 0.046, Color(28, 22, 36, 255));
+        fgDraw.drawSegment(Vec2(cx + 7, kneeY), Vec2(cx + 8, by + 2), H * 0.040, Color(28, 22, 36, 255));
+
+        fgDraw.drawPolygon([
+            Vec2(cx - sw * 0.68, hipY),
+            Vec2(cx + sw * 0.68, hipY),
+            Vec2(cx + sw * 1.12, shY),
+            Vec2(cx - sw * 1.12, shY),
+        ], Color(30, 22, 36, 255), 1.3, Color(134, 52, 72, 210));
+        // 锋利机甲尖肩甲
+        fgDraw.drawPolygon([
+            Vec2(cx - sw * 1.26, shY - 6),
+            Vec2(cx + sw * 1.26, shY - 6),
+            Vec2(cx + sw * 0.96, shY + 5),
+            Vec2(cx - sw * 0.96, shY + 5),
+        ], Color(44, 28, 44, 255), 1.2, toColor(PALETTE.crimson, 200));
+
+        // 尖锐机甲头盔 + 发光绯红目镜
+        const headR = H * 0.086;
+        const headY = shY + headR * 1.32;
+        fgDraw.drawPolygon([
+            Vec2(cx - headR * 0.95, headY - headR * 0.8),
+            Vec2(cx + headR * 0.95, headY - headR * 0.8),
+            Vec2(cx + headR * 0.65, headY + headR * 1.05),
+            Vec2(cx - headR * 0.65, headY + headR * 1.05),
+        ], Color(22, 16, 28, 255), 1.1, Color(138, 48, 68, 220));
+        fgGlow.drawSegment(
+            Vec2(cx + f * 1, headY),
+            Vec2(cx + f * headR * 0.98, headY + 1.5),
+            2.5,
+            toColor(PALETTE.crimson, 255),
+        );
+        fillRadialGlow(fgGlow, cx + f * headR * 0.6, headY + 1, 18, 10, toColor(PALETTE.crimson, 125), Color(255, 48, 82, 0), 12);
+
+        // 重型步枪
+        const gunX = cx + f * H * 0.34;
+        const gunY = by + H * 0.69;
+        fgDraw.drawSegment(Vec2(cx - f * 6, gunY), Vec2(gunX, gunY), 3.6, Color(46, 34, 52, 255));
+        fgGlow.drawDot(Vec2(gunX, gunY), 2.4, toColor(PALETTE.crimson, 220));
+
+        // 举枪预警：艾希风超高张力激光锁定线 + 渐缩绯红菱形预警框
+        if (e.warnT > 0) {
+            const urgency = 1 - Math.min(1, e.warnT / 36);
+            const tx = cam.sx(p.player.x);
+            const ty = cam.sy(p.player.y + p.player.h * 0.56);
+            const flash = e.warnT < 10 ? (0.55 + 0.45 * Math.sin(this.animTime * 48)) : 1.0;
+
+            fgGlow.drawSegment(Vec2(gunX, gunY), Vec2(tx, ty), 3.2 * (0.6 + urgency * 0.7), toColor(PALETTE.crimson, 85 * flash));
+            fgGlow.drawSegment(Vec2(gunX, gunY), Vec2(tx, ty), 1.2, toColor(PALETTE.crimsonCore, 235 * flash));
+
+            const retR = 18 - urgency * 11;
+            drawDiamond(fgGlow, gunX, gunY, retR, retR, Color(255, 48, 82, 40), 1.6, toColor(PALETTE.crimson, 240 * flash));
+            fillRadialGlow(fgGlow, gunX, gunY, 24, 24, toColor(PALETTE.crimson, 140 * flash), Color(255, 48, 82, 0), 14);
+        }
+    }
+
+    /** 村口拾荒者（动态视野锥 + 听觉转头 + 发现进度弧） */
+    private drawScavenger(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        p: Play,
+        cam: CameraDirector,
+    ): void {
+        const s = p.room.scavenger;
+        if (s === undefined) {
+            return;
+        }
+        const cx = cam.sx(p.scavX);
+        const by = cam.sy(s.y);
+        const H = cam.len(s.h);
+        const W = cam.len(26);
+        const f = p.scavState === "chase" ? (p.player.x >= p.scavX ? 1 : -1) : p.scavDir;
+
+        // 视线预警锥（潜行可读性的核心视觉锚点）
+        const alert = p.scavChase || p.scavSee > 0;
+        const coneCol = alert ? PALETTE.crimson : PALETTE.amber;
+        const eyeY = by + H * 0.80;
+        const coneLen = cam.len(alert ? 155 : 115);
+        fgGlow.drawVertices([
+            [Vec2(cx + f * 6, eyeY), toColor(coneCol, alert ? 78 : 34)],
+            [Vec2(cx + f * coneLen, by + H * 1.05), Color(coneCol.r, coneCol.g, coneCol.b, 0)],
+            [Vec2(cx + f * coneLen, by + 4), Color(coneCol.r, coneCol.g, coneCol.b, 0)],
+        ]);
+
+        if (assets.tryPlace("scavenger", "actor_scav", cx, by, W * 1.8, H * 1.05, f, 1)) {
+            return;
+        }
+
+        fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.62, 4, Color(4, 6, 10, 155));
+        const walk = p.scavState === "patrol" || p.scavState === "walk" || p.scavState === "back" || p.scavState === "chase";
+        const stride = walk ? Math.sin(this.animTime * (p.scavState === "chase" ? 13 : 7)) * W * 0.36 : 0;
+
+        fgDraw.drawSegment(Vec2(cx - 4, by + H * 0.4), Vec2(cx - stride, by + 2), W * 0.16, Color(32, 30, 28, 255));
+        fgDraw.drawSegment(Vec2(cx + 4, by + H * 0.4), Vec2(cx + stride, by + 2), W * 0.16, Color(44, 40, 36, 255));
+        // 佝偻大衣剪影
+        fgDraw.drawPolygon([
+            Vec2(cx - W * 0.45, by + H * 0.25),
+            Vec2(cx + W * 0.42, by + H * 0.25),
+            Vec2(cx + f * W * 0.22 + W * 0.32, by + H * 0.78),
+            Vec2(cx + f * W * 0.22 - W * 0.34, by + H * 0.74),
+        ], Color(56, 52, 46, 255), 1.2, Color(128, 118, 100, 180));
+        // 头与护目灯
+        const headX = cx + f * 5;
+        const headY = by + H * 0.88;
+        fgDraw.drawCircle(Vec2(headX, headY), W * 0.30, Color(42, 38, 34, 255));
+        fgGlow.drawDot(Vec2(headX + f * 6, headY), 3.0, toColor(coneCol, 245));
+
+        // 头顶状态指示（转头 / 发现充能 / 追逐！）
+        const indY = by + H + 18;
+        if (p.scavChase) {
+            drawDiamond(fgGlow, cx, indY, 9, 12, toColor(PALETTE.crimson, 240), 1.5, toColor(PALETTE.crimsonCore));
+        } else if (p.scavSee > 0) {
+            const frac = Math.min(1, p.scavSee / 24);
+            fgGlow.drawArc(Vec2(cx, indY), 11, 90, 90 - 360 * frac, 2.4, toColor(PALETTE.crimson, 235));
+            fgGlow.drawDot(Vec2(cx, indY), 3, toColor(PALETTE.amber));
+        } else if (p.scavState === "turn" || p.scavState === "walk") {
+            drawDiamond(fgGlow, cx, indY, 6, 8, toColor(PALETTE.amber, 220));
+        }
+    }
+
+    /** 森林猎犬（四足奔袭剪影 + 转耳听觉声波） */
+    private drawDog(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        p: Play,
+        cam: CameraDirector,
+    ): void {
+        const cx = cam.sx(p.dogX);
+        const by = cam.sy(0);
+        const f = p.dogState === "chase" ? (p.player.x >= p.dogX ? 1 : -1) : p.dogDir;
+        const W = cam.len(34);
+        const H = cam.len(28);
+
+        if (assets.tryPlace("dog", "actor_dog", cx, by, W * 1.4, H * 1.2, f, 1)) {
+            return;
+        }
+
+        fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.56, 3.5, Color(4, 8, 10, 155));
+        const running = p.dogState === "patrol" || p.dogState === "chase" || p.dogState === "back";
+        const gallop = running ? Math.sin(this.animTime * (p.dogState === "chase" ? 18 : 10)) * 9 : 0;
+
+        // 四足
+        fgDraw.drawSegment(Vec2(cx - f * W * 0.28, by + H * 0.48), Vec2(cx - f * W * 0.36 - gallop, by + 2), 2.8, Color(26, 30, 34, 255));
+        fgDraw.drawSegment(Vec2(cx + f * W * 0.28, by + H * 0.48), Vec2(cx + f * W * 0.34 + gallop, by + 2), 2.8, Color(36, 40, 44, 255));
+        // 凌厉猎犬躯干与尖耳头颅
+        fgDraw.drawPolygon([
+            Vec2(cx - W * 0.42, by + H * 0.36),
+            Vec2(cx + W * 0.38, by + H * 0.42),
+            Vec2(cx + W * 0.34, by + H * 0.78),
+            Vec2(cx - W * 0.38, by + H * 0.72),
+        ], Color(38, 42, 48, 255), 1.2, Color(102, 118, 126, 175));
+        const hx = cx + f * W * 0.42;
+        const hy = by + H * 0.84;
+        fgDraw.drawPolygon([
+            Vec2(hx - f * 8, hy - 6),
+            Vec2(hx + f * 12, hy - 2),
+            Vec2(hx + f * 4, hy + 8),
+            Vec2(hx - f * 6, hy + 14), // 尖耳
+        ], Color(44, 48, 54, 255));
+
+        const alert = p.dogState === "ear" || p.dogState === "chase";
+        const eyeCol = alert ? PALETTE.crimson : PALETTE.amber;
+        fgGlow.drawDot(Vec2(hx + f * 4, hy + 2), 2.8, toColor(eyeCol, 250));
+        fillRadialGlow(fgGlow, hx + f * 4, hy + 2, 16, 16, toColor(eyeCol, alert ? 135 : 70), Color(eyeCol.r, eyeCol.g, eyeCol.b, 0), 12);
+
+        if (alert) {
+            const r = 12 + (this.animTime * 42) % 24;
+            fgGlow.drawArc(Vec2(hx, hy + 12), r, 35, 145, 1.8, toColor(PALETTE.crimson, 210 * (1 - r / 38)));
+        }
+    }
+}
