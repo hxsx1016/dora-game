@@ -132,9 +132,9 @@ export class VfxSystem {
         }
 
         if (ev.enemyKilledX > -5000) {
-            this.spawnBurst(ev.enemyKilledX, ev.enemyKilledY, 18, PALETTE.crimson, 210);
-            this.spawnBurst(ev.enemyKilledX, ev.enemyKilledY, 8, PALETTE.cyanCore, 150);
-            this.rings.push({ x: ev.enemyKilledX, y: ev.enemyKilledY, maxR: 46, life: 0.34, maxLife: 0.34, color: PALETTE.crimson });
+            this.spawnBurst(ev.enemyKilledX, ev.enemyKilledY, 14, PALETTE.sealRedBright, 175);
+            this.spawnBurst(ev.enemyKilledX, ev.enemyKilledY, 7, PALETTE.amberDim, 130);
+            this.rings.push({ x: ev.enemyKilledX, y: ev.enemyKilledY, maxR: 40, life: 0.34, maxLife: 0.34, color: PALETTE.sealRed });
         }
 
         if (ev.coverDeflect) {
@@ -157,35 +157,35 @@ export class VfxSystem {
 
         if (ev.playerHit) {
             this.hitVignette = 1.0;
-            this.spawnBurst(p.player.x, p.player.y + p.player.h * 0.55, 16, PALETTE.crimson, 220);
-            cam.addShake(11);
-            this.visualHitstop = 0.06;
+            this.spawnBurst(p.player.x, p.player.y + p.player.h * 0.55, 14, PALETTE.sealRedBright, 185);
+            cam.addShake(10);
+            this.visualHitstop = 0.055;
         }
 
         if (ev.rollStarted) {
-            this.spawnBurst(p.player.x, p.player.y + 4, 8, PALETTE.cyan, 95);
+            this.spawnBurst(p.player.x, p.player.y + 4, 7, PALETTE.textDim, 82);
         }
 
         if (ev.knockPulse) {
-            this.rings.push({ x: ev.knockX, y: ev.knockY, maxR: 54, life: 0.55, maxLife: 0.55, color: PALETTE.amber });
-            this.rings.push({ x: ev.knockX, y: ev.knockY, maxR: 34, life: 0.38, maxLife: 0.38, color: PALETTE.cyanCore });
+            this.rings.push({ x: ev.knockX, y: ev.knockY, maxR: 52, life: 0.55, maxLife: 0.55, color: PALETTE.amber });
+            this.rings.push({ x: ev.knockX, y: ev.knockY, maxR: 32, life: 0.38, maxLife: 0.38, color: PALETTE.xuanWarm });
         }
 
         if (ev.bottleLanded) {
             const isBrick = p.room.brickX !== undefined && Math.abs(ev.bottleLandX - p.room.brickX) <= 36;
             const ringCol = isBrick ? PALETTE.amber : PALETTE.emerald;
             this.rings.push({ x: ev.bottleLandX, y: 4, maxR: isBrick ? 96 : 38, life: 0.85, maxLife: 0.85, color: ringCol });
-            this.rings.push({ x: ev.bottleLandX, y: 4, maxR: isBrick ? 62 : 22, life: 0.52, maxLife: 0.52, color: PALETTE.cyanCore });
-            this.spawnBurst(ev.bottleLandX, 6, 12, PALETTE.emerald, 140);
+            this.rings.push({ x: ev.bottleLandX, y: 4, maxR: isBrick ? 62 : 22, life: 0.52, maxLife: 0.52, color: PALETTE.xuanWarm });
+            this.spawnBurst(ev.bottleLandX, 6, 10, PALETTE.amberDim, 120);
             cam.addShake(isBrick ? 3.5 : 1.5);
         }
 
         if (ev.cartJustDocked) {
             const cx = p.cartAxle;
             const cy = p.room.cart.baseY + 8;
-            this.rings.push({ x: cx, y: cy, maxR: 60, life: 0.55, maxLife: 0.55, color: PALETTE.emerald });
-            this.spawnBurst(cx, cy, 14, PALETTE.amber, 130);
-            cam.addShake(5.0);
+            this.rings.push({ x: cx, y: cy, maxR: 58, life: 0.55, maxLife: 0.55, color: PALETTE.emerald });
+            this.spawnBurst(cx, cy, 12, PALETTE.amber, 115);
+            cam.addShake(4.8);
         }
 
         if (ev.caughtTriggered) {
@@ -197,11 +197,11 @@ export class VfxSystem {
     private spawnShot(t: Trace): void {
         this.tracers.push({
             x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1,
-            hit: t.hit, life: 0.18, maxLife: 0.18,
+            hit: t.hit, life: 0.16, maxLife: 0.16,
         });
-        // 枪口火花 + 落点火花
-        this.spawnBurst(t.x0, t.y0, 5, PALETTE.cyanCore, 120);
-        this.spawnBurst(t.x1, t.y1, t.hit ? 10 : 6, t.hit ? PALETTE.crimson : PALETTE.cyan, 145);
+        // 枪口火药火星 + 落点碎屑/暗朱溅星
+        this.spawnBurst(t.x0, t.y0, 5, PALETTE.amberCore, 105);
+        this.spawnBurst(t.x1, t.y1, t.hit ? 9 : 6, t.hit ? PALETTE.sealRedBright : PALETTE.amberDim, 130);
     }
 
     private spawnBurst(wx: number, wy: number, count: number, color: RGBA, speed: number): void {
@@ -299,9 +299,9 @@ export class VfxSystem {
         }
     }
 
-    /** 绘制世界空间特效（弹道、火花、格挡光幕、声波环） */
+    /** 绘制世界空间特效（冷月火药弹道、暗朱墨烟溅星、枯笔声波环） */
     drawWorldVfx(fgGlow: DrawNode.Type, assets: AssetSlotHost, cam: CameraDirector): void {
-        // 1. 斩切式霓虹曳光弹道
+        // 1. 冷月火药曳光弹道（去赛博宽青光）
         let i = 0;
         for (i = 0; i < this.tracers.length; i++) {
             const tr = this.tracers[i];
@@ -310,24 +310,26 @@ export class VfxSystem {
             const y0 = cam.sy(tr.y0);
             const x1 = cam.sx(tr.x1);
             const y1 = cam.sy(tr.y1);
-            const outerCol = tr.hit ? PALETTE.crimson : PALETTE.cyan;
+            const outerCol = tr.hit ? PALETTE.sealRedBright : PALETTE.amber;
 
-            // 宽光晕 + 锐利白芯
-            fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 5.5 * k, toColor(outerCol, 130 * k));
-            fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 1.8 * k, toColor(PALETTE.cyanCore, 255 * k));
+            // 克制火药余烟外晕 + 暖白弹芯
+            fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 3.2 * k, toColor(outerCol, 88 * k));
+            fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 1.3 * k, toColor(PALETTE.amberCore, 195 * k));
 
-            // 枪口十字焰
+            // 枪口火药暖焰（去冰青激光十字）
             if (k > 0.55) {
                 const mk = (k - 0.55) / 0.45;
-                fillRadialGlow(fgGlow, x0, y0, 26 * mk, 26 * mk, toColor(PALETTE.cyanCore, 180 * mk), Color(72, 224, 255, 0), 12);
-                fgGlow.drawSegment(Vec2(x0 - 16 * mk, y0), Vec2(x0 + 16 * mk, y0), 1.6, toColor(PALETTE.cyanCore, 220 * mk));
-                fgGlow.drawSegment(Vec2(x0, y0 - 14 * mk), Vec2(x0, y0 + 14 * mk), 1.6, toColor(PALETTE.cyanCore, 220 * mk));
+                fillRadialGlow(fgGlow, x0, y0, 18 * mk, 14 * mk, toColor(PALETTE.amberCore, 138 * mk), Color(186, 126, 62, 0), 12);
+                fgGlow.drawSegment(Vec2(x0 - 10 * mk, y0), Vec2(x0 + 10 * mk, y0), 1.2, toColor(PALETTE.amberCore, 165 * mk));
+                fgGlow.drawSegment(Vec2(x0, y0 - 7 * mk), Vec2(x0, y0 + 7 * mk), 1.0, toColor(PALETTE.amber, 145 * mk));
             }
-            // 命中斜切星芒（ICEY 标志打击感）
+            // 命中暗朱溅墨微闪
             if (tr.hit) {
-                const s = 26 * (1.2 - k * 0.5);
-                fgGlow.drawSegment(Vec2(x1 - s, y1 - s * 0.65), Vec2(x1 + s, y1 + s * 0.65), 2.4 * k, toColor(PALETTE.crimsonCore, 240 * k));
-                fgGlow.drawSegment(Vec2(x1 - s * 0.55, y1 + s * 0.7), Vec2(x1 + s * 0.55, y1 - s * 0.7), 1.8 * k, toColor(PALETTE.crimson, 210 * k));
+                const s = 18 * (1.15 - k * 0.45);
+                fgGlow.drawSegment(Vec2(x1 - s, y1 - s * 0.55), Vec2(x1 + s, y1 + s * 0.55), 1.7 * k, toColor(PALETTE.sealRedBright, 155 * k));
+                assets.tryPlace("ink_splatter", "hit_ink_" + i, x1, y1, s * 2.0, s * 2.0, {
+                    color: toColor(PALETTE.sealRed), opacity: 0.52 * k, layer: 7,
+                });
             }
         }
 
@@ -340,30 +342,34 @@ export class VfxSystem {
             });
         }
 
-        // 3. 同心扩散声波环
+        // 3. 枯笔墨韵扩散声波环
         for (i = 0; i < this.rings.length; i++) {
             const rg = this.rings[i];
             const prog = 1 - rg.life / rg.maxLife;
             const r = Math.max(4, cam.len(rg.maxR) * prog);
-            const alpha = (1 - prog) * 215;
+            const alpha = (1 - prog) * 0.82;
             const rx = cam.sx(rg.x);
             const ry = cam.sy(rg.y);
-            fgGlow.drawRing(Vec2(rx, ry), Math.max(1, r - 2.2), r, Color(0, 0, 0, 0), 1.5, toColor(rg.color, alpha));
+            if (!assets.tryPlace("ink_ring", "vfx_ring_" + i, rx, ry, r * 2.35, r * 2.35, {
+                color: toColor(rg.color), opacity: alpha, angle: prog * 24, layer: 7,
+            })) {
+                fgGlow.drawRing(Vec2(rx, ry), Math.max(1, r - 2.0), r, Color(0, 0, 0, 0), 1.3, toColor(rg.color, alpha * 235));
+            }
         }
 
-        // 4. 高速火花与碎片
+        // 4. 火药火星与灰烬碎片
         for (i = 0; i < this.sparks.length; i++) {
             const sp = this.sparks[i];
             const k = sp.life / sp.maxLife;
             const sx = cam.sx(sp.x);
             const sy = cam.sy(sp.y);
-            const tx = sx - sp.vx * 0.022 * cam.ppu;
-            const ty = sy - sp.vy * 0.022 * cam.ppu;
-            fgGlow.drawSegment(Vec2(tx, ty), Vec2(sx, sy), sp.size * k, toColor(sp.color, 235 * k));
+            const tx = sx - sp.vx * 0.020 * cam.ppu;
+            const ty = sy - sp.vy * 0.020 * cam.ppu;
+            fgGlow.drawSegment(Vec2(tx, ty), Vec2(sx, sy), sp.size * k * 0.9, toColor(sp.color, 210 * k));
         }
     }
 
-    /** 绘制屏幕空间氛围粒子 + 受击红边脉冲 */
+    /** 绘制屏幕空间氛围粒子 + 暗朱受击墨边脉冲 */
     drawScreenVfx(fgGlow: DrawNode.Type, w: number, h: number, roomKey: string): void {
         const theme = themeOf(roomKey);
         const kind = theme.ambient;
@@ -374,25 +380,25 @@ export class VfxSystem {
             const y = m.fy * h;
             const tw = 0.55 + 0.45 * Math.sin(m.phase);
             if (kind === "drizzle") {
-                fgGlow.drawSegment(Vec2(x, y), Vec2(x + 4, y + 18), 0.9, Color(156, 206, 240, Math.round(52 * tw)));
+                fgGlow.drawSegment(Vec2(x, y), Vec2(x + 4, y + 18), 0.85, Color(156, 174, 188, Math.round(44 * tw)));
             } else if (kind === "ash") {
-                const c = roomKey === "gate" ? PALETTE.crimson : PALETTE.amber;
-                fgGlow.drawDot(Vec2(x, y), m.size * 0.85, toColor(c, 92 * tw));
+                const c = roomKey === "gate" ? PALETTE.sealRedBright : PALETTE.amberDim;
+                fgGlow.drawDot(Vec2(x, y), m.size * 0.82, toColor(c, 78 * tw));
             } else if (kind === "spores") {
-                fgGlow.drawDot(Vec2(x, y), m.size, toColor(PALETTE.emerald, 108 * tw));
+                fgGlow.drawDot(Vec2(x, y), m.size * 0.9, toColor(PALETTE.emerald, 82 * tw));
             } else {
-                fgGlow.drawDot(Vec2(x, y), m.size * 1.05, toColor(PALETTE.amberCore, 118 * tw));
+                fgGlow.drawDot(Vec2(x, y), m.size * 0.95, toColor(PALETTE.amberCore, 94 * tw));
             }
         }
 
-        // 受击全屏绯红脉冲边框
+        // 受击暗朱墨烟屏边（去荧光红）
         if (this.hitVignette > 0.01) {
-            const a = Math.round(135 * this.hitVignette);
-            const edge = 68;
-            fillHGradRect(fgGlow, 0, 0, edge, h, Color(255, 32, 68, a), Color(255, 32, 68, 0));
-            fillHGradRect(fgGlow, w - edge, 0, edge, h, Color(255, 32, 68, 0), Color(255, 32, 68, a));
-            fillVGradRect(fgGlow, 0, 0, w, edge * 0.8, Color(255, 32, 68, a), Color(255, 32, 68, 0));
-            fillVGradRect(fgGlow, 0, h - edge * 0.8, w, edge * 0.8, Color(255, 32, 68, 0), Color(255, 32, 68, a));
+            const a = Math.round(120 * this.hitVignette);
+            const edge = 72;
+            fillHGradRect(fgGlow, 0, 0, edge, h, Color(148, 36, 32, a), Color(148, 36, 32, 0));
+            fillHGradRect(fgGlow, w - edge, 0, edge, h, Color(148, 36, 32, 0), Color(148, 36, 32, a));
+            fillVGradRect(fgGlow, 0, 0, w, edge * 0.8, Color(148, 36, 32, a), Color(148, 36, 32, 0));
+            fillVGradRect(fgGlow, 0, h - edge * 0.8, w, edge * 0.8, Color(148, 36, 32, 0), Color(148, 36, 32, a));
         }
     }
 }

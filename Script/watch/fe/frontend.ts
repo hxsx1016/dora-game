@@ -35,6 +35,7 @@ export class WatchFrontend {
     private fgGlow: DrawNode.Type;
     private uiLayer: Node.Type;
     private uiDraw: DrawNode.Type;
+    private uiInkDraw: DrawNode.Type;
     private uiGlow: DrawNode.Type;
     private texts: TextPool;
 
@@ -85,12 +86,17 @@ export class WatchFrontend {
         this.uiLayer.addTo(this.layerRoot);
 
         this.uiDraw = DrawNode();
+        this.uiDraw.order = 0;
         this.uiDraw.addTo(this.uiLayer);
 
         this.uiArt = new AssetSlotHost(this.uiLayer, 2);
 
+        this.uiInkDraw = DrawNode();
+        this.uiInkDraw.order = 4;
+        this.uiInkDraw.addTo(this.uiLayer);
+
         this.uiGlow = DrawNode();
-        this.uiGlow.order = 5;
+        this.uiGlow.order = 6;
         this.uiGlow.blendFunc = additive;
         this.uiGlow.addTo(this.uiLayer);
 
@@ -130,6 +136,7 @@ export class WatchFrontend {
         this.fgDraw.clear();
         this.fgGlow.clear();
         this.uiDraw.clear();
+        this.uiInkDraw.clear();
         this.uiGlow.clear();
         this.backdropArt.beginFrame();
         this.worldArt.beginFrame();
@@ -159,6 +166,7 @@ export class WatchFrontend {
             this.backdropArt,
             this.uiArt,
             this.uiDraw,
+            this.uiInkDraw,
             this.uiGlow,
             this.texts,
             w,
@@ -215,15 +223,25 @@ export class WatchFrontend {
         this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
-        // 7. 极简斜切 HUD 与旁白电影演出层
+        // 7. 水墨 HUD、旁白叙事与暂停卷轴
         const uiScale = this.resizeInterface(w, h);
-        this.hud.draw(this.uiDraw, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox, uiScale);
-        this.narrative.draw(this.uiDraw, this.uiGlow, this.uiArt, this.texts, p, w / uiScale, h / uiScale);
-
-        // 8. 暂停覆层
         let action: MenuAction = { type: "none" };
         if (p.paused) {
-            action = this.menus.updateAndDrawPause(safeDt, input, this.uiDraw, this.uiGlow, this.texts, w / uiScale, h / uiScale, uiScale);
+            action = this.menus.updateAndDrawPause(
+                safeDt,
+                input,
+                this.uiDraw,
+                this.uiInkDraw,
+                this.uiArt,
+                this.uiGlow,
+                this.texts,
+                w / uiScale,
+                h / uiScale,
+                uiScale,
+            );
+        } else {
+            this.hud.draw(this.uiDraw, this.uiInkDraw, this.uiArt, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox, uiScale);
+            this.narrative.draw(this.uiDraw, this.uiInkDraw, this.uiGlow, this.uiArt, this.texts, p, w / uiScale, h / uiScale);
         }
 
         this.finishFrame();

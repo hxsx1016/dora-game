@@ -211,8 +211,8 @@ function ____exports.deriveWorldPrompts(p) -- 172
 				out[#out + 1] = { -- 224
 					x = g.winchX, -- 224
 					y = 84, -- 224
-					keyTag = "WINCH", -- 224
-					label = "绞盘就位", -- 224
+					keyTag = "守", -- 224
+					label = "贴近绞盘就位", -- 224
 					urgent = false -- 224
 				} -- 224
 			end -- 224
