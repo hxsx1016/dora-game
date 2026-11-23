@@ -528,6 +528,22 @@ export class Play {
     }
 
     /**
+     * 低拱下不能起身：站高会穿顶、蹲高能过。只对小满生效。
+     * 用身体左右边缘判是否还在拱内，走出拱后下一拍才恢复站姿。
+     */
+    private underLowArch(a: Actor): boolean {
+        const arch = this.room.arch;
+        if (arch.h <= 0) {
+            return false;
+        }
+        if (a.x + a.w / 2 <= arch.x0 || a.x - a.w / 2 >= arch.x1) {
+            return false;
+        }
+        const top = arch.y + arch.h;
+        return a.y + CHILD_H > top && a.y + CHILD_CROUCH_H <= top;
+    }
+
+    /**
      * 贴靠实体：按移动后的身体左右边缘量水平间隙，并要求垂直重叠。
      * 间隙 <24 算贴住；多个实体取间隙最小的那件，返回 undefined 表示没贴住。
      */
@@ -629,11 +645,13 @@ export class Play {
             return;
         }
         const isChild = this.childMode;
+        // 低拱下（村口桌下、城外矮洞）站高会穿顶：松开蹲键也保持蹲，走出拱再恢复。
+        const lowArch = isChild && this.underLowArch(a);
         // 演出段（递物、关门、数数、片尾）由剧情持有控制，先落体。
         if (this.storyLocked()) {
             a.vx = 0;
-            a.crouch = false;
-            a.h = isChild ? CHILD_H : SOLDIER_H;
+            a.crouch = isChild && lowArch;
+            a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
             this.fallY(a, dt);
             return;
         }
@@ -645,7 +663,7 @@ export class Play {
             this.fallY(a, dt);
             return;
         }
-        a.crouch = isChild && input.crouch.held && a.onGround;
+        a.crouch = isChild && (input.crouch.held || lowArch) && a.onGround;
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
         const nearCover = !isChild && this.nearCover(a);
         a.covered = nearCover && input.cover.held;
@@ -662,7 +680,7 @@ export class Play {
             return;
         }
 
-        if (!isChild && input.jump.pressed && a.onGround) {
+        if (!isChild && !this.gripping && input.jump.pressed && a.onGround) {
             if (input.moveX !== 0) {
                 a.facing = input.moveX > 0 ? 1 : -1;
             }
@@ -707,8 +725,8 @@ export class Play {
         this.slideX(a, a.vx * dt);
         this.fallY(a, dt);
 
-        // 点射：周戍按住左键，朝准星打一条线
-        if (!isChild && input.fire.pressed) {
+        // 点射：周戍按住左键，朝准星打一条线；两手握车时不能开枪。
+        if (!isChild && !this.gripping && input.fire.pressed) {
             this.shoot(a);
         }
     }
@@ -1349,9 +1367,12 @@ export class Play {
             const c = this.room.cart;
             const dx = p.x - (this.cartAxle + c.handleOffset);
             const dy = p.y - c.baseY;
-            this.focusCart = dx * dx + dy * dy < CART_REACH * CART_REACH;
+            this.focusCart = !calmUsed && dx * dx + dy * dy < CART_REACH * CART_REACH;
         }
-        this.stepCart(dt, input);
+        // 安抚优先消费当拍 E：同一只 E 不再抓车把。
+        if (!calmUsed) {
+            this.stepCart(dt, input);
+        }
 
         // E 先给安抚；同一只 E 不再触发敲木板。
         if (calmUsed) {
