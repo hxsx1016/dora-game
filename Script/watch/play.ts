@@ -621,6 +621,16 @@ export class Play {
         this.coverBlocking = b !== undefined && this.coverGuardsFrom(b, a, this.nearestEnemyX(a));
     }
 
+    /** 车把是否在有效握持范围内；用来让同拍 E 优先于射击/跳跃。 */
+    private cartHandleInReach(a: Actor): boolean {
+        const c = this.room.cart;
+        if (this.cartDocked || c.endX <= c.startX) {
+            return false;
+        }
+        const handleX = this.cartAxle + c.handleOffset;
+        return Math.abs(a.x - handleX) <= CART_REACH && Math.abs(a.y - c.baseY) <= 40;
+    }
+
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
     private nearLowLedge(a: Actor): boolean {
         const reach = 26;
@@ -667,6 +677,8 @@ export class Play {
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
         const nearCover = !isChild && this.nearCover(a);
         a.covered = nearCover && input.cover.held;
+        // 同一拍先按 E 且车把在范围里：这只 E 归握车，不能先射击/起跳/翻滚。
+        const gripIntent = !this.gripping && input.interact.pressed && this.cartHandleInReach(a);
 
         // 翻滚：周戍按下空格，0.35 秒内按固定速度冲出去，期间不能改向
         if (a.rollT > 0) {
@@ -680,7 +692,7 @@ export class Play {
             return;
         }
 
-        if (!isChild && !this.gripping && input.jump.pressed && a.onGround) {
+        if (!isChild && !this.gripping && !gripIntent && input.jump.pressed && a.onGround) {
             if (input.moveX !== 0) {
                 a.facing = input.moveX > 0 ? 1 : -1;
             }
@@ -716,7 +728,7 @@ export class Play {
         a.vx = dir * speed;
 
         // 小满跳跃：地面 + 未蹲
-        if (isChild && input.jump.pressed && a.onGround && !a.crouch) {
+        if (isChild && !this.gripping && !gripIntent && input.jump.pressed && a.onGround && !a.crouch) {
             a.vy = CHILD_JUMP;
             a.onGround = false;
             this.flashSet("跳", 0.25);
@@ -726,7 +738,7 @@ export class Play {
         this.fallY(a, dt);
 
         // 点射：周戍按住左键，朝准星打一条线；两手握车时不能开枪。
-        if (!isChild && !this.gripping && input.fire.pressed) {
+        if (!isChild && !this.gripping && !gripIntent && input.fire.pressed) {
             this.shoot(a);
         }
     }
@@ -1362,22 +1374,24 @@ export class Play {
         const p = this.player;
         const calmUsed = this.calmConsumed;
         this.calmConsumed = false;
+        // 安抚从进入到第 59 拍占用动作：期间 E/D 不抓车、不推车、不转通用敲击。
+        const calming = this.escort.state === "calming";
         this.focusCart = false;
         if (this.room.key === "outside") {
             const c = this.room.cart;
             const dx = p.x - (this.cartAxle + c.handleOffset);
             const dy = p.y - c.baseY;
-            this.focusCart = !calmUsed && dx * dx + dy * dy < CART_REACH * CART_REACH;
+            this.focusCart = !calmUsed && !calming && dx * dx + dy * dy < CART_REACH * CART_REACH;
         }
         // 安抚优先消费当拍 E：同一只 E 不再抓车把。
-        if (!calmUsed) {
+        if (!calmUsed && !calming) {
             this.stepCart(dt, input);
         }
 
         // E 先给安抚；同一只 E 不再触发敲木板。
         if (calmUsed) {
             this.flashSet("安抚 · 敲两下", 0.8);
-        } else if (input.interact.pressed && !this.gripping
+        } else if (!calming && input.interact.pressed && !this.gripping
             && this.room.key !== "village" && this.room.key !== "tower" && this.room.key !== "prologue" && this.room.key !== "gate") {
             if (this.knockT > 0) {
                 this.knocks += 1;
