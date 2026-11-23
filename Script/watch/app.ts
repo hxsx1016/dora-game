@@ -1,8 +1,8 @@
 /**
- * 《守望》D1 · 灰盒查看器装配。
- *
- * 只做三件事：建绘制层与标签池、按窗口尺寸排版、用 1/2/Tab 切两张灰盒。
- * 游戏逻辑留到 D2 的 Script/watch/ 正式模块里，这里只负责“摆放能被看见、能被量”。
+ * 《守望》入口装配器：
+ * - 正常启动进入艾希（ICEY）风格高清前端（WatchFrontend：终端标题页 → 8 章节全链试玩）；
+ * - 保留 G / F2 切回 D1 灰盒调试视图（graybox.ts），保留 1..8 / Tab / F1 开发快跳与
+ *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
  */
 
 import { Color, DrawNode, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
@@ -12,16 +12,12 @@ import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
+import { WatchFrontend } from "Script/watch/fe/frontend";
+import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 declare function print(...args: string[]): void;
 
 const FONT = "sarasa-mono-sc-regular";
-
-/**
- * 排版自检开关：打开后每次切房间把可见标签的包围盒打到引擎日志，
- * 输出形如 AUDIT|小结|标签=25|越界=0|重叠=0|屏幕=2560x1440。
- * D1 验收时开过一轮（检查站 25 个标签 / 城墙外 20 个标签，均无越界无重叠），平时关掉。
- */
 const LAYOUT_AUDIT = false;
 
 const C_TEXT = Color(236, 236, 232, 255);
@@ -35,6 +31,7 @@ const TOP_H = 208;
 const BOTTOM_H = 216;
 
 let root: Node.Type | undefined;
+let grayboxLayer: Node.Type | undefined;
 let draw: DrawNode.Type | undefined;
 let titleLabel: Label.Type | undefined;
 let roomLabel: Label.Type | undefined;
@@ -52,15 +49,15 @@ let current = 0;
 let viewW = 0;
 let viewH = 0;
 let dirty = true;
-/** 0 = 灰盒查看，1 = 试玩。D2 的入口在这里分叉，G 键来回切。 */
-let mode = 0;
+/** 0 = D1 灰盒调试视图，1 = 正式艾希风高清前端 */
+let mode = 1;
 let input: Input | undefined;
 let play: Play | undefined;
-/** 固定步累加器：真实帧时长 → 1/60 步数。 */
+let fe: WatchFrontend | undefined;
 const clock = new StepClock();
 
-function makeLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
-    if (root === undefined) {
+function makeGrayboxLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
+    if (grayboxLayer === undefined) {
         return undefined;
     }
     const lb = Label(FONT, size);
@@ -69,7 +66,7 @@ function makeLabel(text: string, size: number, color: Color.Type): Label.Type | 
     }
     lb.text = text;
     lb.color = color;
-    lb.addTo(root);
+    lb.addTo(grayboxLayer);
     lb.visible = true;
     return lb;
 }
@@ -83,61 +80,84 @@ function place(lb: Label.Type | undefined, x: number, y: number, ax: number, ay:
     lb.visible = true;
 }
 
-export function start(parent: Node.Type, initialMode: number = 1): void {
+export function start(parent: Node.Type, initialMode: number = 1, startScreen: ScreenKind = "title"): void {
     root = parent;
     mode = initialMode;
-    draw = DrawNode();
-    draw.addTo(parent);
 
-    titleLabel = makeLabel(TITLE, 40, C_TEXT);
-    roomLabel = makeLabel("", 26, C_ACCENT);
-    captionLabel = makeLabel("", 22, C_DIM);
-    switchLabel = makeLabel(SWITCH_HINT, 22, C_DIM);
-    hintLabel = makeLabel("", 22, C_TEXT);
-    rulerLabel = makeLabel(RULER_TEXT, 22, C_DIM);
-    standLabel = makeLabel(STAND_NOTE, 24, C_DIM);
-    cartLabel = makeLabel(CART_NOTE, 24, C_ACCENT);
+    // 1. 保留 D1 灰盒调试层（G / F2 按需切入）
+    grayboxLayer = Node();
+    grayboxLayer.order = 2;
+    grayboxLayer.addTo(parent);
+
+    draw = DrawNode();
+    draw.addTo(grayboxLayer);
+
+    titleLabel = makeGrayboxLabel(TITLE, 40, C_TEXT);
+    roomLabel = makeGrayboxLabel("", 26, C_ACCENT);
+    captionLabel = makeGrayboxLabel("", 22, C_DIM);
+    switchLabel = makeGrayboxLabel(SWITCH_HINT, 22, C_DIM);
+    hintLabel = makeGrayboxLabel("", 22, C_TEXT);
+    rulerLabel = makeGrayboxLabel(RULER_TEXT, 22, C_DIM);
+    standLabel = makeGrayboxLabel(STAND_NOTE, 24, C_DIM);
+    cartLabel = makeGrayboxLabel(CART_NOTE, 24, C_ACCENT);
 
     for (let i = 0; i < POOL_BODY; i++) {
-        const lb = makeLabel("", 24, C_TEXT);
+        const lb = makeGrayboxLabel("", 24, C_TEXT);
         if (lb !== undefined) {
             poolBody.push(lb);
         }
     }
     for (let i = 0; i < POOL_SMALL; i++) {
-        const lb = makeLabel("", 22, C_DIM);
+        const lb = makeGrayboxLabel("", 22, C_DIM);
         if (lb !== undefined) {
             poolSmall.push(lb);
         }
     }
 
+    // 2. 挂载艾希风格高清前端层
+    fe = new WatchFrontend(parent);
+    fe.screen = startScreen;
+    grayboxLayer.visible = mode === 0;
+    fe.setVisible(mode === 1);
+
     input = new Input();
 
-    // 开发钩子：F1 进试玩、F2 回灰盒、1/2 换房间。走事件而不是轮询，
-    // 这样 Lua 侧可以 emit("KeyDown","F1") 直接切模式与房间做验收，不必碰物理键盘。
-    // 物理按 1/2 时轮询也会命中，两路结果一致，不会打架。
+    // 开发与验收快捷键 + 瞬时按键边沿锁存（防止低帧率下短按 E / Space / Esc / 菜单方向键被轮询漏掉）
     parent.onKeyDown((key: KeyName) => {
+        if (fe !== undefined && mode === 1 && (fe.screen !== "play" || (play !== undefined && play.paused))) {
+            fe.menus.onKeyEvent(key);
+        }
+        if (input !== undefined && mode === 1 && fe !== undefined && fe.screen === "play") {
+            if (key === KeyName.E) {
+                input.interact.pressed = true;
+            } else if (key === KeyName.Space) {
+                input.jump.pressed = true;
+            } else if (key === KeyName.Escape) {
+                input.pause.pressed = true;
+            } else if (key === KeyName.R) {
+                input.retry.pressed = true;
+            }
+        }
         if (key === KeyName.F1) {
-            mode = 1;
-            play = undefined;
-            ensurePlay();
+            enterPlayRoom(current);
         } else if (key === KeyName.F2) {
-            mode = 0;
-            dirty = true;
+            setMode(0);
         } else if (key === KeyName.Num1) {
-            current = 0;
-            play = undefined;
-            dirty = true;
-            if (mode === 1) {
-                ensurePlay();
-            }
+            pickByIndex(0);
         } else if (key === KeyName.Num2) {
-            current = 1;
-            play = undefined;
-            dirty = true;
-            if (mode === 1) {
-                ensurePlay();
-            }
+            pickByIndex(1);
+        } else if (key === KeyName.Num3) {
+            pickByIndex(2);
+        } else if (key === KeyName.Num4) {
+            pickByIndex(3);
+        } else if (key === KeyName.Num5) {
+            pickByIndex(4);
+        } else if (key === KeyName.Num6) {
+            pickByIndex(5);
+        } else if (key === KeyName.Num7) {
+            pickByIndex(6);
+        } else if (key === KeyName.Num8) {
+            pickByIndex(7);
         }
     });
 
@@ -145,14 +165,86 @@ export function start(parent: Node.Type, initialMode: number = 1): void {
     viewH = View.size.height;
     applySize();
 
-    // 验收钩子：把输入层也挂出来，键鼠实测时能读到本拍是否真的收到按键。
+    // 验收钩子：保留 watch.input / watch.play / watch.room，并补充 watch.fe 控制面
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.input"] = input;
+    reg["watch.fe"] = {
+        setScreen: (sc: ScreenKind) => {
+            if (fe === undefined) {
+                return;
+            }
+            setMode(1);
+            fe.screen = sc;
+            if (sc === "play") {
+                ensurePlay();
+            }
+        },
+        jumpRoom: (keyOrIdx: string | number) => {
+            let idx = -1;
+            if (typeof keyOrIdx === "number") {
+                idx = keyOrIdx;
+            } else {
+                let k = 0;
+                for (k = 0; k < ROOMS.length; k++) {
+                    if (ROOMS[k].key === keyOrIdx) {
+                        idx = k;
+                    }
+                }
+            }
+            if (idx >= 0 && idx < ROOMS.length) {
+                enterPlayRoom(idx);
+            }
+        },
+        getPlay: () => play,
+        getFrontend: () => fe,
+    };
+
+    if (mode === 1 && startScreen === "play") {
+        ensurePlay();
+    }
 
     parent.schedule((frameDt: number) => {
         tick(frameDt);
         return false;
     });
+}
+
+function setMode(nextMode: number): void {
+    mode = nextMode;
+    if (grayboxLayer !== undefined) {
+        grayboxLayer.visible = mode === 0;
+    }
+    if (fe !== undefined) {
+        fe.setVisible(mode === 1);
+    }
+    dirty = true;
+    clock.reset();
+}
+
+function enterPlayRoom(idx: number): void {
+    current = idx;
+    setMode(1);
+    if (fe !== undefined) {
+        fe.screen = "play";
+    }
+    play = undefined;
+    ensurePlay();
+}
+
+function pickByIndex(idx: number): void {
+    if (idx < 0 || idx >= ROOMS.length) {
+        return;
+    }
+    current = idx;
+    dirty = true;
+    play = undefined;
+    clock.reset();
+    if (mode === 1) {
+        if (fe !== undefined) {
+            fe.screen = "play";
+        }
+        ensurePlay();
+    }
 }
 
 function applySize(): void {
@@ -177,90 +269,104 @@ function tick(frameDt: number): void {
     }
     input.update();
 
-    // 模式与选房是「视图层」动作：当帧生效，不等模拟步，读完就把边沿清掉，
-    // 否则同一帧跑两步或 120 Hz 下会重复切换。
+    // G 键切换灰盒调试视图 / 高清前端
     if (input.toggleView.pressed) {
         input.toggleView.pressed = false;
-        mode = mode === 0 ? 1 : 0;
-        dirty = true;
-        clock.reset();
-        if (mode === 1) {
+        setMode(mode === 0 ? 1 : 0);
+        if (mode === 1 && fe !== undefined && fe.screen === "play" && play === undefined) {
             ensurePlay();
         }
     }
-    if (mode === 1 && play === undefined) {
-        ensurePlay();
-    }
+
+    // 1/2/3 与 Tab 轮询快跳
     if (input.pickRoom !== 0) {
-        current = input.pickRoom - 1;
+        const idx = input.pickRoom - 1;
         input.pickRoom = 0;
-        dirty = true;
-        play = undefined;
-        clock.reset();
-        if (mode === 1) {
-            ensurePlay();
-        }
+        pickByIndex(idx);
     } else if (input.tab.pressed) {
         input.tab.pressed = false;
-        current = (current + 1) % ROOMS.length;
-        dirty = true;
-        play = undefined;
-        clock.reset();
-        if (mode === 1) {
-            ensurePlay();
-        }
+        pickByIndex((current + 1) % ROOMS.length);
     }
+
     if (mode === 1) {
-        tickPlay(frameDt);
+        tickFrontend(frameDt);
         return;
     }
     if (dirty) {
-        redraw();
+        redrawGraybox();
         dirty = false;
     }
 }
 
-/** 试玩模式下按当前房间建运行时；切房间时重建。 */
-function ensurePlay(): void {
-    play = new Play(ROOMS[current]);
-    // 验收钩子：把实例挂到 package.loaded（已存在的表，引擎禁止新建全局）。
-    // Lua 侧 `package.loaded["watch.play"]` 就能看真实运行中的实例，不必手动 new Play。
-    // 只放引用，不参与任何逻辑。
+function ensurePlay(resume?: { checkpoint: number }): void {
+    play = new Play(ROOMS[current], resume);
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.play"] = play;
     reg["watch.room"] = ROOMS[current].key;
     clock.reset();
+    if (fe !== undefined) {
+        fe.bindPlay(play, viewW, viewH);
+    }
 }
 
-/**
- * 试玩每帧：采样输入 → 按真实帧时长推进固定步 → 只画一次。
- *
- * 绘制放在步循环外：1/30 秒回调跑两步也只画最后一步的结果，
- * 画面不会出现「同帧画两次」的撕裂或双份闪字。
- */
-function tickPlay(frameDt: number): void {
-    if (play === undefined || draw === undefined || input === undefined) {
+function tickFrontend(frameDt: number): void {
+    if (fe === undefined || input === undefined) {
+        return;
+    }
+
+    // 1. 标题 / 章节直达 / 操作图鉴
+    if (fe.screen !== "play") {
+        const act = fe.renderMenu(frameDt, input, viewW, viewH);
+        input.consumeEdges();
+        if (act.type === "start") {
+            enterPlayRoom(0);
+        } else if (act.type === "jump" && act.roomIndex !== undefined) {
+            enterPlayRoom(act.roomIndex);
+        } else if (act.type === "openChapters") {
+            fe.screen = "chapters";
+        } else if (act.type === "openControls") {
+            fe.screen = "controls";
+        } else if (act.type === "backTitle") {
+            fe.screen = "title";
+        }
+        return;
+    }
+
+    // 2. 局内试玩
+    if (play === undefined) {
+        ensurePlay();
+    }
+    if (play === undefined) {
         return;
     }
     const p = play;
+
     if (input.retry.pressed) {
         input.consumeEdges();
-        // 重试保留已提交的检查点：城外洞后重试，车在 432 落窝、小满在洞后。
-        play = new Play(ROOMS[current], { checkpoint: p.checkpoint });
-        clock.reset();
+        ensurePlay({ checkpoint: p.checkpoint });
         return;
     }
+
     p.aimX = input.mx;
     p.aimY = input.my;
 
-    // 暂停时仍跑一步：Esc 的恢复由 Play.update 读，但位置与计时不走时钟。
     if (p.paused) {
         clock.reset();
         input.beginStep(true);
         p.update(STEP, input);
         input.endStep();
-        p.draw(draw, viewW, viewH);
-        playHud(p);
+        const pauseAct = fe.renderPlay(frameDt, p, input, viewW, viewH);
+        if (pauseAct.type === "resume") {
+            p.paused = false;
+        } else if (pauseAct.type === "retry") {
+            ensurePlay({ checkpoint: p.checkpoint });
+        } else if (pauseAct.type === "openChapters") {
+            p.paused = false;
+            fe.screen = "chapters";
+        } else if (pauseAct.type === "toTitle") {
+            p.paused = false;
+            fe.screen = "title";
+        }
         return;
     }
 
@@ -272,7 +378,7 @@ function tickPlay(frameDt: number): void {
         input.endStep();
     }
 
-    // 切场：Play 只登记目标房间，重建与计时重置放在这里，避免在 update 里换掉自己。
+    // 切场由后端 wantRoom 触发，前端无缝接管
     if (p.wantRoom !== "") {
         const key = p.wantRoom;
         p.wantRoom = "";
@@ -286,59 +392,16 @@ function tickPlay(frameDt: number): void {
         if (idx >= 0) {
             current = idx;
             ensurePlay();
-            clock.reset();
             dirty = true;
         }
         return;
     }
 
-    p.draw(draw, viewW, viewH);
-    playHud(p);
+    fe.renderPlay(frameDt, p, input, viewW, viewH);
 }
 
-/** 试玩模式的 HUD 用灰盒那套标签，不加新节点。 */
-function playHud(p: Play): void {
-    const room = ROOMS[current];
-    if (titleLabel !== undefined) {
-        titleLabel.text = "守望 · D5 完整试玩";
-    }
-    if (roomLabel !== undefined) {
-        roomLabel.text = room.name;
-    }
-    if (captionLabel !== undefined) {
-        captionLabel.text = p.statusText();
-        captionLabel.color = C_TEXT;
-    }
-    if (hintLabel !== undefined) {
-        hintLabel.text = p.hintText();
-    }
-    if (switchLabel !== undefined) {
-        switchLabel.text = "G 回灰盒 · Tab 换房 · 1/2/3 快跳 · R 重置";
-    }
-    if (rulerLabel !== undefined) {
-        rulerLabel.text = "";
-    }
-    if (standLabel !== undefined) {
-        standLabel.text = "";
-    }
-    if (cartLabel !== undefined) {
-        cartLabel.text = "";
-    }
-    let i = 0;
-    for (i = 0; i < poolBody.length; i++) {
-        poolBody[i].visible = false;
-    }
-    for (i = 0; i < poolSmall.length; i++) {
-        poolSmall[i].visible = false;
-    }
-    place(titleLabel, 48, viewH - 40, 0, 1);
-    place(roomLabel, 48, viewH - 96, 0, 1);
-    place(captionLabel, 48, viewH - 140, 0, 1);
-    place(switchLabel, 48, 40, 0, 0);
-    place(hintLabel, 48, 84, 0, 0);
-}
-
-function redraw(): void {
+/** D1 灰盒调试视图（按 G / F2 切入） */
+function redrawGraybox(): void {
     if (draw === undefined) {
         return;
     }
@@ -347,8 +410,6 @@ function redraw(): void {
     const room = ROOMS[current];
 
     draw.clear();
-
-    // 顶部与底部信息带
     draw.drawRect(Rect(0, h - TOP_H, w, TOP_H), C_BG);
     draw.drawRect(Rect(0, 0, w, BOTTOM_H), C_BG);
     draw.drawSegment(Vec2(0, h - TOP_H), Vec2(w, h - TOP_H), 1, Color(52, 54, 54, 255));
@@ -377,7 +438,8 @@ function redraw(): void {
         captionLabel.text = room.caption;
     }
     if (hintLabel !== undefined) {
-        const lines = HINTS[current];
+        const hintIdx = Math.min(current, HINTS.length - 1);
+        const lines = HINTS[hintIdx];
         let merged = lines[0];
         for (let i = 1; i < lines.length; i++) {
             merged = merged + "    " + lines[i];
@@ -385,7 +447,6 @@ function redraw(): void {
         hintLabel.text = merged;
     }
 
-    // 标签池：按字号分到 12 号与 11 号两组
     const specs = collectLabels(room, v, w);
     const body: LabelSpec[] = [];
     const small: LabelSpec[] = [];
@@ -401,7 +462,7 @@ function redraw(): void {
     applyPool(small, poolSmall);
 
     if (LAYOUT_AUDIT) {
-        auditLayout(w, h);
+        print("AUDIT|" + room.key + "|" + specs.length);
     }
 }
 
@@ -418,66 +479,5 @@ function applyPool(specs: LabelSpec[], pool: Label.Type[]): void {
         } else {
             lb.visible = false;
         }
-    }
-}
-
-/** 打印所有可见标签的屏幕包围盒，并统计越界与重叠。 */
-function auditLayout(w: number, h: number): void {
-    const all: Label.Type[] = [];
-    collectOne(all, titleLabel);
-    collectOne(all, roomLabel);
-    collectOne(all, captionLabel);
-    collectOne(all, switchLabel);
-    collectOne(all, hintLabel);
-    collectOne(all, rulerLabel);
-    collectOne(all, standLabel);
-    collectOne(all, cartLabel);
-    for (let i = 0; i < poolBody.length; i++) {
-        collectOne(all, poolBody[i]);
-    }
-    for (let i = 0; i < poolSmall.length; i++) {
-        collectOne(all, poolSmall[i]);
-    }
-
-    const lefts: number[] = [];
-    const rights: number[] = [];
-    const bottoms: number[] = [];
-    const tops: number[] = [];
-    let outOfScreen = 0;
-    for (let i = 0; i < all.length; i++) {
-        const lb = all[i];
-        const bw = lb.width;
-        const bh = lb.height;
-        const l = lb.x - bw * lb.anchor.x;
-        const r = l + bw;
-        const b = lb.y - bh * lb.anchor.y;
-        const t = b + bh;
-        lefts.push(l);
-        rights.push(r);
-        bottoms.push(b);
-        tops.push(t);
-        if (l < 0 || r > w || b < 0 || t > h) {
-            outOfScreen++;
-            print("AUDIT|越界|" + lb.text + "|" + l + "," + r + "," + b + "," + t);
-        }
-    }
-
-    let overlaps = 0;
-    for (let i = 0; i < all.length; i++) {
-        for (let j = i + 1; j < all.length; j++) {
-            const ox = Math.min(rights[i], rights[j]) - Math.max(lefts[i], lefts[j]);
-            const oy = Math.min(tops[i], tops[j]) - Math.max(bottoms[i], bottoms[j]);
-            if (ox > 4 && oy > 4) {
-                overlaps++;
-                print("AUDIT|重叠|" + all[i].text + " <> " + all[j].text + "|" + ox + "x" + oy);
-            }
-        }
-    }
-    print("AUDIT|小结|标签=" + all.length + "|越界=" + outOfScreen + "|重叠=" + overlaps + "|屏幕=" + w + "x" + h);
-}
-
-function collectOne(out: Label.Type[], lb: Label.Type | undefined): void {
-    if (lb !== undefined && lb.visible) {
-        out.push(lb);
     }
 }
