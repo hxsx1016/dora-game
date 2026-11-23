@@ -1,5 +1,5 @@
 /**
- * 《守望》艾希（ICEY）风格前端总控器（WatchFrontend）。
+ * 《守望》像素贴图前端总控器。
  *
  * 职责边界：
  * - 统一管理 Dora SSR 渲染节点分层（远景 / 远景发光 / 外部 Sprite 槽位 / 前景 / 前景发光 / UI / UI 发光 / 文本池）；
@@ -28,9 +28,12 @@ export class WatchFrontend {
     private layerRoot: Node.Type;
     private bgDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
-    private assets: AssetSlotHost;
+    private backdropArt: AssetSlotHost;
+    private worldArt: AssetSlotHost;
+    private uiArt: AssetSlotHost;
     private fgDraw: DrawNode.Type;
     private fgGlow: DrawNode.Type;
+    private uiLayer: Node.Type;
     private uiDraw: DrawNode.Type;
     private uiGlow: DrawNode.Type;
     private texts: TextPool;
@@ -65,7 +68,8 @@ export class WatchFrontend {
         this.bgGlow.blendFunc = additive;
         this.bgGlow.addTo(this.layerRoot);
 
-        this.assets = new AssetSlotHost(this.layerRoot, 20);
+        this.backdropArt = new AssetSlotHost(this.layerRoot, 12);
+        this.worldArt = new AssetSlotHost(this.layerRoot, 32);
 
         this.fgDraw = DrawNode();
         this.fgDraw.order = 30;
@@ -76,16 +80,28 @@ export class WatchFrontend {
         this.fgGlow.blendFunc = additive;
         this.fgGlow.addTo(this.layerRoot);
 
+        this.uiLayer = Node();
+        this.uiLayer.order = 40;
+        this.uiLayer.addTo(this.layerRoot);
+
         this.uiDraw = DrawNode();
-        this.uiDraw.order = 40;
-        this.uiDraw.addTo(this.layerRoot);
+        this.uiDraw.addTo(this.uiLayer);
+
+        this.uiArt = new AssetSlotHost(this.uiLayer, 2);
 
         this.uiGlow = DrawNode();
-        this.uiGlow.order = 45;
+        this.uiGlow.order = 5;
         this.uiGlow.blendFunc = additive;
-        this.uiGlow.addTo(this.layerRoot);
+        this.uiGlow.addTo(this.uiLayer);
 
-        this.texts = new TextPool(this.layerRoot, 50);
+        this.texts = new TextPool(this.uiLayer, 10);
+    }
+
+    private resizeInterface(w: number, h: number): number {
+        const scale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        this.uiLayer.scaleX = scale;
+        this.uiLayer.scaleY = scale;
+        return scale;
     }
 
     /** 显示或隐藏整套高清前端（切回 D1 灰盒调试模式时自动隐藏） */
@@ -102,7 +118,7 @@ export class WatchFrontend {
         p.worldMapper = (sx: number, sy: number) => this.cam.screenToWorld(sx, sy);
         this.cam.snap(p, w, h);
         this.adapter.reset(p);
-        this.actors.reset();
+        this.actors.reset(p);
         this.vfx.reset();
         this.hud.reset(p);
         this.narrative.onEnterRoom(p.room.key);
@@ -115,12 +131,16 @@ export class WatchFrontend {
         this.fgGlow.clear();
         this.uiDraw.clear();
         this.uiGlow.clear();
-        this.assets.beginFrame();
+        this.backdropArt.beginFrame();
+        this.worldArt.beginFrame();
+        this.uiArt.beginFrame();
         this.texts.beginFrame();
     }
 
     private finishFrame(): void {
-        this.assets.endFrame();
+        this.backdropArt.endFrame();
+        this.worldArt.endFrame();
+        this.uiArt.endFrame();
         this.texts.endFrame();
     }
 
@@ -128,6 +148,7 @@ export class WatchFrontend {
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.setVisible(true);
         this.clearAll();
+        const uiScale = this.resizeInterface(w, h);
         const act = this.menus.updateAndDrawScreen(
             dt,
             this.screen,
@@ -135,11 +156,14 @@ export class WatchFrontend {
             this.stage,
             this.bgDraw,
             this.bgGlow,
+            this.backdropArt,
+            this.uiArt,
             this.uiDraw,
             this.uiGlow,
             this.texts,
             w,
             h,
+            uiScale,
         );
         this.finishFrame();
         return act;
@@ -152,13 +176,13 @@ export class WatchFrontend {
             this.bindPlay(p, w, h);
         }
         const safeDt = Math.min(0.05, Math.max(0.001, dt));
-        this.time += safeDt;
 
         // 采样后端边沿事件 → 触发震屏/残影/粒子/顿帧
         const ev = this.adapter.sample(p);
         this.vfx.ingest(ev, p, this.cam);
 
         if (!p.paused) {
+            this.time += safeDt;
             this.cam.update(safeDt, p, w, h);
             this.actors.update(safeDt, p);
             this.vfx.update(safeDt, themeOf(p.room.key).ambient);
@@ -173,32 +197,33 @@ export class WatchFrontend {
         this.clearAll();
 
         // 1. 远景与中景视差舞台
-        this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.assets, p, this.cam, this.time);
+        this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
 
         // 2. 逻辑平面建筑与地面
-        this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, p, this.cam, this.time);
+        this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
 
         // 3. 互动道具（红布板车、村口瓶架/桌子/抛物线、区域与信标）
-        this.props.drawAll(this.fgDraw, this.fgGlow, this.assets, p, this.cam, this.time);
+        this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
 
         // 4. 关节剪影角色与翻滚冰青残影
-        this.actors.drawAll(this.fgDraw, this.fgGlow, this.assets, p, this.cam);
+        this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam);
 
         // 5. 世界空间特效（霓虹曳光弹道、护盾格挡、声波环、火花）
-        this.vfx.drawWorldVfx(this.fgGlow, this.cam);
+        this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam);
 
         // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边
         this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
         // 7. 极简斜切 HUD 与旁白电影演出层
-        this.hud.draw(this.uiDraw, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox);
-        this.narrative.draw(this.uiDraw, this.uiGlow, this.texts, p, w, h);
+        const uiScale = this.resizeInterface(w, h);
+        this.hud.draw(this.uiDraw, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox, uiScale);
+        this.narrative.draw(this.uiDraw, this.uiGlow, this.uiArt, this.texts, p, w / uiScale, h / uiScale);
 
         // 8. 暂停覆层
         let action: MenuAction = { type: "none" };
         if (p.paused) {
-            action = this.menus.updateAndDrawPause(safeDt, input, this.uiDraw, this.uiGlow, this.texts, w, h);
+            action = this.menus.updateAndDrawPause(safeDt, input, this.uiDraw, this.uiGlow, this.texts, w / uiScale, h / uiScale, uiScale);
         }
 
         this.finishFrame();

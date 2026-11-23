@@ -52,9 +52,10 @@ export class HudRenderer {
         cam: CameraDirector,
         vfx: VfxSystem,
         letterboxFrac: number,
+        uiScale: number,
     ): void {
-        const w = cam.viewW;
-        const h = cam.viewH;
+        const w = cam.viewW / uiScale;
+        const h = cam.viewH / uiScale;
 
         // 电影遮幅全开（如关门数数、尾声）时自动渐隐 HUD，让画面彻底聚焦演出
         const hudAlpha = Math.max(0, 1 - letterboxFrac * 1.15);
@@ -75,15 +76,15 @@ export class HudRenderer {
 
             // 4. 世界空间悬浮按键提示
             const prompts = deriveWorldPrompts(p);
-            this.drawWorldPrompts(uiDraw, uiGlow, texts, prompts, cam, hudAlpha);
+            this.drawWorldPrompts(uiDraw, uiGlow, texts, prompts, cam, hudAlpha, uiScale);
 
             // 5. 掩体精准挡枪 DEFLECT 浮标
             if (vfx.deflectFlash > 0.25) {
-                const dx = cam.sx(vfx.deflectX);
-                const dy = cam.sy(vfx.deflectY) + 34 + (1 - vfx.deflectFlash) * 18;
+                const dx = cam.sx(vfx.deflectX) / uiScale;
+                const dy = cam.sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 18;
                 texts.put(
                     "sm",
-                    "DEFLECT // 掩体挡下",
+                    "掩体挡下",
                     dx,
                     dy,
                     toColor(PALETTE.cyanCore),
@@ -98,7 +99,7 @@ export class HudRenderer {
 
         // 6. 艾希战术准星（暂停或纯过场时不遮挡菜单）
         if (!p.paused && letterboxFrac < 0.5) {
-            this.drawReticle(uiDraw, uiGlow, p, cam, vfx);
+            this.drawReticle(uiDraw, uiGlow, p, cam, vfx, uiScale);
         }
     }
 
@@ -119,7 +120,7 @@ export class HudRenderer {
         fillSkewRect(uiDraw, bx, by, panelW, panelH, 14, toColor(PALETTE.panelBg, 210 * alpha), 1.1, toColor(PALETTE.cyanDim, 165 * alpha));
         fillSkewRect(uiGlow, bx - 4, by, 5, panelH, 14, toColor(PALETTE.cyan, 235 * alpha));
 
-        texts.put("xs", "周戍  //  SOLDIER UNIT", bx + 18, by + panelH - 12, toColor(PALETTE.cyanCore), 0, 0.5, TextAlign.Left, 1.0, alpha);
+        texts.put("xs", "周戍 · 体力", bx + 18, by + panelH - 12, toColor(PALETTE.cyanCore), 0, 0.5, TextAlign.Left, 1.0, alpha);
 
         // 3 格斜切装甲血条（带掉血白条缓降）
         const segCount = Math.max(1, p.maxHp);
@@ -210,7 +211,7 @@ export class HudRenderer {
         fillSkewRect(uiDraw, bx, by, 246, 44, 12, toColor(PALETTE.panelBg, 205 * alpha), 1.1, toColor(accent, 175 * alpha));
         fillSkewRect(uiGlow, bx - 4, by, 5, 44, 12, toColor(accent, 235 * alpha));
 
-        texts.put("xs", "小满  //  STEALTH", bx + 18, by + 31, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.0, alpha);
+        texts.put("xs", "小满 · 潜行", bx + 18, by + 31, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.0, alpha);
 
         let posture = "轻步前行 · 保持隐蔽";
         if (alert) {
@@ -241,8 +242,8 @@ export class HudRenderer {
         fillSkewRect(uiDraw, bx, by, bw, bh, -12, toColor(PALETTE.panelBg, 195 * alpha), 1.0, toColor(PALETTE.steelLight, 140 * alpha));
         fillSkewRect(uiGlow, bx + bw - 2, by, 4, bh, -12, toColor(theme.accent, 220 * alpha));
 
-        texts.put("xs", theme.actCode + " // " + theme.titleZh, bx + bw - 18, by + 30, toColor(PALETTE.textBright), 1, 0.5, TextAlign.Right, 0.6, alpha);
-        texts.put("xs", "[ESC] 系统   [G] 灰盒调试", bx + bw - 18, by + 12, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 0.4, alpha);
+        texts.put("xs", theme.titleZh, bx + bw - 18, by + 30, toColor(PALETTE.textBright), 1, 0.5, TextAlign.Right, 0.6, alpha);
+        texts.put("xs", "[Esc] 暂停", bx + bw - 18, by + 12, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 0.4, alpha);
     }
 
     private drawContextualObjective(
@@ -318,13 +319,14 @@ export class HudRenderer {
         prompts: WorldPrompt[],
         cam: CameraDirector,
         alpha: number,
+        uiScale: number,
     ): void {
         const bob = Math.sin(this.time * 4.5) * 3.5;
         let i = 0;
         for (i = 0; i < prompts.length; i++) {
             const pr = prompts[i];
-            const sx = Math.max(110, Math.min(cam.viewW - 110, cam.sx(pr.x)));
-            const sy = Math.max(96, Math.min(cam.viewH - 110, cam.sy(pr.y) + bob));
+            const sx = Math.max(110, Math.min(cam.viewW / uiScale - 110, cam.sx(pr.x) / uiScale));
+            const sy = Math.max(96, Math.min(cam.viewH / uiScale - 110, cam.sy(pr.y) / uiScale + bob));
             const col = pr.urgent ? PALETTE.cyan : PALETTE.amber;
 
             // 细长引导线连向目标
@@ -351,9 +353,10 @@ export class HudRenderer {
         p: Play,
         cam: CameraDirector,
         vfx: VfxSystem,
+        uiScale: number,
     ): void {
-        const mx = p.aimX;
-        const my = p.aimY;
+        const mx = p.aimX / uiScale;
+        const my = p.aimY / uiScale;
         if (mx <= 0 && my <= 0) {
             return;
         }
@@ -371,7 +374,7 @@ export class HudRenderer {
         }
 
         // 军人线：艾希风响应型战术十字准星（悬停活敌变绯红锁标 + 开枪后坐力外扩）
-        const wAim = cam.screenToWorld(mx, my);
+        const wAim = cam.screenToWorld(p.aimX, p.aimY);
         let onEnemy = false;
         let i = 0;
         for (i = 0; i < p.enemies.length; i++) {

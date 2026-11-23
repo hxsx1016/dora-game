@@ -34,190 +34,216 @@ local themeOf = ____theme.themeOf -- 25
 ____exports.WatchFrontend = __TS__Class() -- 27
 local WatchFrontend = ____exports.WatchFrontend -- 27
 WatchFrontend.name = "WatchFrontend" -- 27
-function WatchFrontend.prototype.____constructor(self, parent) -- 52
-	self.cam = __TS__New(CameraDirector) -- 38
-	self.adapter = __TS__New(PlayAdapter) -- 39
-	self.stage = __TS__New(StageRenderer) -- 40
-	self.props = __TS__New(PropsRenderer) -- 41
-	self.actors = __TS__New(ActorsRenderer) -- 42
-	self.vfx = __TS__New(VfxSystem) -- 43
-	self.hud = __TS__New(HudRenderer) -- 44
-	self.narrative = __TS__New(NarrativeRenderer) -- 45
-	self.menus = __TS__New(MenuRenderer) -- 46
-	self.screen = "title" -- 48
-	self.time = 0 -- 49
-	self.layerRoot = Node() -- 53
-	self.layerRoot.order = 5 -- 54
-	self.layerRoot:addTo(parent) -- 55
-	local additive = BlendFunc("SrcAlpha", "One") -- 57
-	self.bgDraw = DrawNode() -- 59
-	self.bgDraw.order = 10 -- 60
-	self.bgDraw:addTo(self.layerRoot) -- 61
-	self.bgGlow = DrawNode() -- 63
-	self.bgGlow.order = 15 -- 64
-	self.bgGlow.blendFunc = additive -- 65
-	self.bgGlow:addTo(self.layerRoot) -- 66
-	self.assets = __TS__New(AssetSlotHost, self.layerRoot, 20) -- 68
-	self.fgDraw = DrawNode() -- 70
-	self.fgDraw.order = 30 -- 71
-	self.fgDraw:addTo(self.layerRoot) -- 72
-	self.fgGlow = DrawNode() -- 74
-	self.fgGlow.order = 35 -- 75
-	self.fgGlow.blendFunc = additive -- 76
-	self.fgGlow:addTo(self.layerRoot) -- 77
-	self.uiDraw = DrawNode() -- 79
-	self.uiDraw.order = 40 -- 80
-	self.uiDraw:addTo(self.layerRoot) -- 81
-	self.uiGlow = DrawNode() -- 83
-	self.uiGlow.order = 45 -- 84
-	self.uiGlow.blendFunc = additive -- 85
-	self.uiGlow:addTo(self.layerRoot) -- 86
-	self.texts = __TS__New(TextPool, self.layerRoot, 50) -- 88
-end -- 52
-function WatchFrontend.prototype.setVisible(self, v) -- 92
-	self.layerRoot.visible = v -- 93
-	if not v then -- 93
-		self.texts:hideAll() -- 95
-	end -- 95
-end -- 92
-function WatchFrontend.prototype.bindPlay(self, p, w, h) -- 100
-	self.boundPlay = p -- 101
-	p.worldMapper = function(sx, sy) return self.cam:screenToWorld(sx, sy) end -- 102
-	self.cam:snap(p, w, h) -- 103
-	self.adapter:reset(p) -- 104
-	self.actors:reset() -- 105
-	self.vfx:reset() -- 106
-	self.hud:reset(p) -- 107
-	self.narrative:onEnterRoom(p.room.key) -- 108
+function WatchFrontend.prototype.____constructor(self, parent) -- 55
+	self.cam = __TS__New(CameraDirector) -- 41
+	self.adapter = __TS__New(PlayAdapter) -- 42
+	self.stage = __TS__New(StageRenderer) -- 43
+	self.props = __TS__New(PropsRenderer) -- 44
+	self.actors = __TS__New(ActorsRenderer) -- 45
+	self.vfx = __TS__New(VfxSystem) -- 46
+	self.hud = __TS__New(HudRenderer) -- 47
+	self.narrative = __TS__New(NarrativeRenderer) -- 48
+	self.menus = __TS__New(MenuRenderer) -- 49
+	self.screen = "title" -- 51
+	self.time = 0 -- 52
+	self.layerRoot = Node() -- 56
+	self.layerRoot.order = 5 -- 57
+	self.layerRoot:addTo(parent) -- 58
+	local additive = BlendFunc("SrcAlpha", "One") -- 60
+	self.bgDraw = DrawNode() -- 62
+	self.bgDraw.order = 10 -- 63
+	self.bgDraw:addTo(self.layerRoot) -- 64
+	self.bgGlow = DrawNode() -- 66
+	self.bgGlow.order = 15 -- 67
+	self.bgGlow.blendFunc = additive -- 68
+	self.bgGlow:addTo(self.layerRoot) -- 69
+	self.backdropArt = __TS__New(AssetSlotHost, self.layerRoot, 12) -- 71
+	self.worldArt = __TS__New(AssetSlotHost, self.layerRoot, 32) -- 72
+	self.fgDraw = DrawNode() -- 74
+	self.fgDraw.order = 30 -- 75
+	self.fgDraw:addTo(self.layerRoot) -- 76
+	self.fgGlow = DrawNode() -- 78
+	self.fgGlow.order = 35 -- 79
+	self.fgGlow.blendFunc = additive -- 80
+	self.fgGlow:addTo(self.layerRoot) -- 81
+	self.uiLayer = Node() -- 83
+	self.uiLayer.order = 40 -- 84
+	self.uiLayer:addTo(self.layerRoot) -- 85
+	self.uiDraw = DrawNode() -- 87
+	self.uiDraw:addTo(self.uiLayer) -- 88
+	self.uiArt = __TS__New(AssetSlotHost, self.uiLayer, 2) -- 90
+	self.uiGlow = DrawNode() -- 92
+	self.uiGlow.order = 5 -- 93
+	self.uiGlow.blendFunc = additive -- 94
+	self.uiGlow:addTo(self.uiLayer) -- 95
+	self.texts = __TS__New(TextPool, self.uiLayer, 10) -- 97
+end -- 55
+function WatchFrontend.prototype.resizeInterface(self, w, h) -- 100
+	local scale = math.max( -- 101
+		0.25, -- 101
+		math.min(w / 1280, h / 720) -- 101
+	) -- 101
+	self.uiLayer.scaleX = scale -- 102
+	self.uiLayer.scaleY = scale -- 103
+	return scale -- 104
 end -- 100
-function WatchFrontend.prototype.clearAll(self) -- 111
-	self.bgDraw:clear() -- 112
-	self.bgGlow:clear() -- 113
-	self.fgDraw:clear() -- 114
-	self.fgGlow:clear() -- 115
-	self.uiDraw:clear() -- 116
-	self.uiGlow:clear() -- 117
-	self.assets:beginFrame() -- 118
-	self.texts:beginFrame() -- 119
-end -- 111
-function WatchFrontend.prototype.finishFrame(self) -- 122
-	self.assets:endFrame() -- 123
-	self.texts:endFrame() -- 124
-end -- 122
-function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 128
-	self:setVisible(true) -- 129
-	self:clearAll() -- 130
-	local act = self.menus:updateAndDrawScreen( -- 131
-		dt, -- 132
-		self.screen, -- 133
-		input, -- 134
-		self.stage, -- 135
-		self.bgDraw, -- 136
-		self.bgGlow, -- 137
-		self.uiDraw, -- 138
-		self.uiGlow, -- 139
-		self.texts, -- 140
-		w, -- 141
-		h -- 142
-	) -- 142
-	self:finishFrame() -- 144
-	return act -- 145
-end -- 128
-function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 149
-	self:setVisible(true) -- 150
-	if self.boundPlay ~= p then -- 150
-		self:bindPlay(p, w, h) -- 152
-	end -- 152
-	local safeDt = math.min( -- 154
-		0.05, -- 154
-		math.max(0.001, dt) -- 154
-	) -- 154
-	self.time = self.time + safeDt -- 155
-	local ev = self.adapter:sample(p) -- 158
-	self.vfx:ingest(ev, p, self.cam) -- 159
-	if not p.paused then -- 159
-		self.cam:update(safeDt, p, w, h) -- 162
-		self.actors:update(safeDt, p) -- 163
-		self.vfx:update( -- 164
-			safeDt, -- 164
-			themeOf(p.room.key).ambient -- 164
-		) -- 164
-		self.hud:update(safeDt, p) -- 165
-		self.narrative:update(safeDt, p) -- 166
-	else -- 166
-		self.narrative.wipeT = 0 -- 169
-		self.cam:update(0, p, w, h) -- 170
-	end -- 170
-	self:clearAll() -- 173
-	self.stage:drawBackdrop( -- 176
-		self.bgDraw, -- 176
-		self.bgGlow, -- 176
-		self.assets, -- 176
-		p, -- 176
-		self.cam, -- 176
-		self.time -- 176
-	) -- 176
-	self.stage:drawPlayableWorld( -- 179
-		self.fgDraw, -- 179
-		self.fgGlow, -- 179
-		p, -- 179
-		self.cam, -- 179
-		self.time -- 179
-	) -- 179
-	self.props:drawAll( -- 182
-		self.fgDraw, -- 182
-		self.fgGlow, -- 182
-		self.assets, -- 182
-		p, -- 182
-		self.cam, -- 182
-		self.time -- 182
-	) -- 182
-	self.actors:drawAll( -- 185
-		self.fgDraw, -- 185
-		self.fgGlow, -- 185
-		self.assets, -- 185
-		p, -- 185
-		self.cam -- 185
-	) -- 185
-	self.vfx:drawWorldVfx(self.fgGlow, self.cam) -- 188
-	self.stage:drawForegroundFraming( -- 191
-		self.fgDraw, -- 191
-		w, -- 191
-		h, -- 191
-		p, -- 191
-		self.cam -- 191
-	) -- 191
-	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 192
-	self.hud:draw( -- 195
-		self.uiDraw, -- 195
-		self.uiGlow, -- 195
-		self.texts, -- 195
-		p, -- 195
-		self.cam, -- 195
-		self.vfx, -- 195
-		self.narrative.letterbox -- 195
-	) -- 195
-	self.narrative:draw( -- 196
-		self.uiDraw, -- 196
-		self.uiGlow, -- 196
-		self.texts, -- 196
-		p, -- 196
-		w, -- 196
-		h -- 196
-	) -- 196
-	local action = {type = "none"} -- 199
-	if p.paused then -- 199
-		action = self.menus:updateAndDrawPause( -- 201
-			safeDt, -- 201
-			input, -- 201
-			self.uiDraw, -- 201
-			self.uiGlow, -- 201
-			self.texts, -- 201
-			w, -- 201
-			h -- 201
-		) -- 201
-	end -- 201
-	self:finishFrame() -- 204
-	return action -- 205
-end -- 149
-return ____exports -- 149
+function WatchFrontend.prototype.setVisible(self, v) -- 108
+	self.layerRoot.visible = v -- 109
+	if not v then -- 109
+		self.texts:hideAll() -- 111
+	end -- 111
+end -- 108
+function WatchFrontend.prototype.bindPlay(self, p, w, h) -- 116
+	self.boundPlay = p -- 117
+	p.worldMapper = function(sx, sy) return self.cam:screenToWorld(sx, sy) end -- 118
+	self.cam:snap(p, w, h) -- 119
+	self.adapter:reset(p) -- 120
+	self.actors:reset(p) -- 121
+	self.vfx:reset() -- 122
+	self.hud:reset(p) -- 123
+	self.narrative:onEnterRoom(p.room.key) -- 124
+end -- 116
+function WatchFrontend.prototype.clearAll(self) -- 127
+	self.bgDraw:clear() -- 128
+	self.bgGlow:clear() -- 129
+	self.fgDraw:clear() -- 130
+	self.fgGlow:clear() -- 131
+	self.uiDraw:clear() -- 132
+	self.uiGlow:clear() -- 133
+	self.backdropArt:beginFrame() -- 134
+	self.worldArt:beginFrame() -- 135
+	self.uiArt:beginFrame() -- 136
+	self.texts:beginFrame() -- 137
+end -- 127
+function WatchFrontend.prototype.finishFrame(self) -- 140
+	self.backdropArt:endFrame() -- 141
+	self.worldArt:endFrame() -- 142
+	self.uiArt:endFrame() -- 143
+	self.texts:endFrame() -- 144
+end -- 140
+function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 148
+	self:setVisible(true) -- 149
+	self:clearAll() -- 150
+	local uiScale = self:resizeInterface(w, h) -- 151
+	local act = self.menus:updateAndDrawScreen( -- 152
+		dt, -- 153
+		self.screen, -- 154
+		input, -- 155
+		self.stage, -- 156
+		self.bgDraw, -- 157
+		self.bgGlow, -- 158
+		self.backdropArt, -- 159
+		self.uiArt, -- 160
+		self.uiDraw, -- 161
+		self.uiGlow, -- 162
+		self.texts, -- 163
+		w, -- 164
+		h, -- 165
+		uiScale -- 166
+	) -- 166
+	self:finishFrame() -- 168
+	return act -- 169
+end -- 148
+function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 173
+	self:setVisible(true) -- 174
+	if self.boundPlay ~= p then -- 174
+		self:bindPlay(p, w, h) -- 176
+	end -- 176
+	local safeDt = math.min( -- 178
+		0.05, -- 178
+		math.max(0.001, dt) -- 178
+	) -- 178
+	local ev = self.adapter:sample(p) -- 181
+	self.vfx:ingest(ev, p, self.cam) -- 182
+	if not p.paused then -- 182
+		self.time = self.time + safeDt -- 185
+		self.cam:update(safeDt, p, w, h) -- 186
+		self.actors:update(safeDt, p) -- 187
+		self.vfx:update( -- 188
+			safeDt, -- 188
+			themeOf(p.room.key).ambient -- 188
+		) -- 188
+		self.hud:update(safeDt, p) -- 189
+		self.narrative:update(safeDt, p) -- 190
+	else -- 190
+		self.narrative.wipeT = 0 -- 193
+		self.cam:update(0, p, w, h) -- 194
+	end -- 194
+	self:clearAll() -- 197
+	self.stage:drawBackdrop( -- 200
+		self.bgDraw, -- 200
+		self.bgGlow, -- 200
+		self.backdropArt, -- 200
+		p, -- 200
+		self.cam, -- 200
+		self.time -- 200
+	) -- 200
+	self.stage:drawPlayableWorld( -- 203
+		self.fgDraw, -- 203
+		self.fgGlow, -- 203
+		self.worldArt, -- 203
+		p, -- 203
+		self.cam, -- 203
+		self.time -- 203
+	) -- 203
+	self.props:drawAll( -- 206
+		self.fgDraw, -- 206
+		self.fgGlow, -- 206
+		self.worldArt, -- 206
+		p, -- 206
+		self.cam, -- 206
+		self.time -- 206
+	) -- 206
+	self.actors:drawAll( -- 209
+		self.fgDraw, -- 209
+		self.fgGlow, -- 209
+		self.worldArt, -- 209
+		p, -- 209
+		self.cam -- 209
+	) -- 209
+	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 212
+	self.stage:drawForegroundFraming( -- 215
+		self.fgDraw, -- 215
+		w, -- 215
+		h, -- 215
+		p, -- 215
+		self.cam -- 215
+	) -- 215
+	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 216
+	local uiScale = self:resizeInterface(w, h) -- 219
+	self.hud:draw( -- 220
+		self.uiDraw, -- 220
+		self.uiGlow, -- 220
+		self.texts, -- 220
+		p, -- 220
+		self.cam, -- 220
+		self.vfx, -- 220
+		self.narrative.letterbox, -- 220
+		uiScale -- 220
+	) -- 220
+	self.narrative:draw( -- 221
+		self.uiDraw, -- 221
+		self.uiGlow, -- 221
+		self.uiArt, -- 221
+		self.texts, -- 221
+		p, -- 221
+		w / uiScale, -- 221
+		h / uiScale -- 221
+	) -- 221
+	local action = {type = "none"} -- 224
+	if p.paused then -- 224
+		action = self.menus:updateAndDrawPause( -- 226
+			safeDt, -- 226
+			input, -- 226
+			self.uiDraw, -- 226
+			self.uiGlow, -- 226
+			self.texts, -- 226
+			w / uiScale, -- 226
+			h / uiScale, -- 226
+			uiScale -- 226
+		) -- 226
+	end -- 226
+	self:finishFrame() -- 229
+	return action -- 230
+end -- 173
+return ____exports -- 173

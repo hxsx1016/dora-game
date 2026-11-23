@@ -9,332 +9,276 @@ local Rect = ____Dora.Rect -- 9
 local Vec2 = ____Dora.Vec2 -- 9
 local ____rooms = require("Script.watch.rooms") -- 10
 local ROOMS = ____rooms.ROOMS -- 10
-local ____theme = require("Script.watch.fe.theme") -- 14
-local PALETTE = ____theme.PALETTE -- 15
-local drawDiamond = ____theme.drawDiamond -- 16
-local fillChamferBox = ____theme.fillChamferBox -- 17
-local fillRadialGlow = ____theme.fillRadialGlow -- 18
-local fillSkewRect = ____theme.fillSkewRect -- 19
-local fillVGradRect = ____theme.fillVGradRect -- 20
-local themeOf = ____theme.themeOf -- 21
-local toColor = ____theme.toColor -- 22
-local TITLE_ITEMS = {{id = "start", zh = "开始接入", en = "INITIATE // PROLOGUE"}, {id = "chapters", zh = "章节直达", en = "CHAPTER MATRIX (01-08)"}, {id = "controls", zh = "操作图鉴", en = "CONTROL INTERFACE"}} -- 32
-local PAUSE_ITEMS = {{id = "resume", zh = "继续任务", en = "RESUME"}, {id = "retry", zh = "重来本段", en = "RETRY CHECKPOINT"}, {id = "chapters", zh = "章节直达", en = "CHAPTER SELECT"}, {id = "title", zh = "返回标题", en = "DISCONNECT TO TITLE"}} -- 38
-____exports.MenuRenderer = __TS__Class() -- 45
-local MenuRenderer = ____exports.MenuRenderer -- 45
-MenuRenderer.name = "MenuRenderer" -- 45
-function MenuRenderer.prototype.____constructor(self) -- 45
-	self.selected = 0 -- 46
-	self.chapterSelected = 0 -- 47
-	self.pauseSelected = 0 -- 48
-	self.prevUp = false -- 49
-	self.prevDown = false -- 50
-	self.prevLeft = false -- 51
-	self.prevRight = false -- 52
-	self.prevEnter = false -- 53
-	self.prevClick = false -- 54
-	self.queuedUp = false -- 55
-	self.queuedDown = false -- 56
-	self.queuedLeft = false -- 57
-	self.queuedRight = false -- 58
-	self.queuedConfirm = false -- 59
-	self.queuedBack = false -- 60
-	self.time = 0 -- 61
-end -- 45
-function MenuRenderer.prototype.onKeyEvent(self, key) -- 64
-	if key == "Up" or key == "W" then -- 64
-		self.queuedUp = true -- 66
-	elseif key == "Down" or key == "S" then -- 66
-		self.queuedDown = true -- 68
-	elseif key == "Left" or key == "A" then -- 68
-		self.queuedLeft = true -- 70
-	elseif key == "Right" or key == "D" then -- 70
-		self.queuedRight = true -- 72
-	elseif key == "Return" or key == "Space" then -- 72
-		self.queuedConfirm = true -- 74
-	elseif key == "Escape" then -- 74
-		self.queuedBack = true -- 76
-	end -- 76
-end -- 64
-function MenuRenderer.prototype.readMenuKeys(self) -- 80
-	local u = Keyboard:isKeyPressed("Up") or Keyboard:isKeyPressed("W") -- 81
-	local d = Keyboard:isKeyPressed("Down") or Keyboard:isKeyPressed("S") -- 82
-	local l = Keyboard:isKeyPressed("Left") or Keyboard:isKeyPressed("A") -- 83
-	local r = Keyboard:isKeyPressed("Right") or Keyboard:isKeyPressed("D") -- 84
-	local e = Keyboard:isKeyPressed("Return") or Keyboard:isKeyPressed("Space") -- 85
-	local res = { -- 86
-		up = u and not self.prevUp or self.queuedUp, -- 87
-		down = d and not self.prevDown or self.queuedDown, -- 88
-		left = l and not self.prevLeft or self.queuedLeft, -- 89
-		right = r and not self.prevRight or self.queuedRight, -- 90
-		confirm = e and not self.prevEnter or self.queuedConfirm, -- 91
-		back = self.queuedBack -- 92
-	} -- 92
-	self.prevUp = u -- 94
-	self.prevDown = d -- 95
-	self.prevLeft = l -- 96
-	self.prevRight = r -- 97
-	self.prevEnter = e -- 98
-	self.queuedUp = false -- 99
-	self.queuedDown = false -- 100
-	self.queuedLeft = false -- 101
-	self.queuedRight = false -- 102
-	self.queuedConfirm = false -- 103
-	self.queuedBack = false -- 104
-	return res -- 105
-end -- 80
-function MenuRenderer.prototype.clickEdge(self, input) -- 108
-	local held = input.fire.held -- 109
-	local fired = held and not self.prevClick -- 110
-	self.prevClick = held -- 111
-	return fired -- 112
-end -- 108
-function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, stage, bgDraw, bgGlow, uiDraw, uiGlow, texts, w, h) -- 116
-	self.time = self.time + dt -- 129
-	stage:drawMenuBackdrop( -- 130
-		bgDraw, -- 130
-		bgGlow, -- 130
-		w, -- 130
-		h, -- 130
-		self.time -- 130
-	) -- 130
-	local y = 16 -- 133
-	while y < h do -- 133
-		uiDraw:drawSegment( -- 135
-			Vec2(0, y), -- 135
-			Vec2(w, y), -- 135
-			0.5, -- 135
-			Color(72, 224, 255, 8) -- 135
-		) -- 135
-		y = y + 14 -- 136
-	end -- 136
-	uiDraw:drawSegment( -- 138
-		Vec2(66, 48), -- 138
-		Vec2(66, h - 48), -- 138
-		1.2, -- 138
-		toColor(PALETTE.cyanDim, 140) -- 138
-	) -- 138
-	drawDiamond( -- 139
-		uiGlow, -- 139
-		66, -- 139
-		h - 48, -- 139
-		5, -- 139
-		5, -- 139
-		toColor(PALETTE.cyan) -- 139
-	) -- 139
-	drawDiamond( -- 140
-		uiGlow, -- 140
-		66, -- 140
-		48, -- 140
-		5, -- 140
-		5, -- 140
-		toColor(PALETTE.cyanDim) -- 140
-	) -- 140
-	local mk = self:readMenuKeys() -- 142
-	local clicked = self:clickEdge(input) -- 143
-	if screen == "title" then -- 143
-		return self:drawTitle( -- 146
-			mk, -- 146
-			clicked, -- 146
-			input, -- 146
-			uiDraw, -- 146
-			uiGlow, -- 146
-			texts, -- 146
-			w, -- 146
-			h -- 146
-		) -- 146
-	end -- 146
-	if screen == "chapters" then -- 146
-		return self:drawChapters( -- 149
-			mk, -- 149
-			clicked, -- 149
-			input, -- 149
-			uiDraw, -- 149
-			uiGlow, -- 149
-			texts, -- 149
-			w, -- 149
-			h -- 149
-		) -- 149
-	end -- 149
-	return self:drawControls( -- 151
-		mk, -- 151
-		clicked, -- 151
-		input, -- 151
-		uiDraw, -- 151
-		uiGlow, -- 151
-		texts, -- 151
-		w, -- 151
-		h -- 151
-	) -- 151
-end -- 116
-function MenuRenderer.prototype.drawTitle(self, mk, clicked, input, uiDraw, uiGlow, texts, w, h) -- 154
-	if mk.up then -- 154
-		self.selected = (self.selected + #TITLE_ITEMS - 1) % #TITLE_ITEMS -- 165
-	elseif mk.down then -- 165
-		self.selected = (self.selected + 1) % #TITLE_ITEMS -- 167
-	end -- 167
-	local leftX = 104 -- 170
-	local titleY = h * 0.72 -- 171
-	texts:put( -- 174
-		"xs", -- 174
-		"SYS // TERMINAL ACCESS   ·   DORA SSR FRONTEND PROTOTYPE", -- 174
-		leftX, -- 174
-		titleY + 62, -- 174
-		toColor(PALETTE.cyan), -- 174
-		0, -- 174
-		0.5, -- 174
-		"Left", -- 174
-		1.8, -- 174
-		0.92 -- 174
-	) -- 174
-	uiGlow:drawSegment( -- 175
-		Vec2(leftX - 10, titleY - 12), -- 175
-		Vec2(leftX + 430, titleY - 12), -- 175
-		2.2, -- 175
-		toColor(PALETTE.cyan, 215) -- 175
-	) -- 175
-	uiGlow:drawSegment( -- 176
-		Vec2(leftX + 390, titleY - 12), -- 176
-		Vec2(leftX + 448, titleY + 26), -- 176
-		1.8, -- 176
-		toColor(PALETTE.cyanCore, 180) -- 176
-	) -- 176
-	texts:put( -- 178
-		"xl", -- 178
-		"月下山谷 · 守望", -- 178
-		leftX, -- 178
-		titleY + 24, -- 178
-		toColor(PALETTE.textBright), -- 178
-		0, -- 178
-		0.5, -- 178
-		"Left", -- 178
-		3.2, -- 178
-		1 -- 178
-	) -- 178
+local ____theme = require("Script.watch.fe.theme") -- 15
+local PALETTE = ____theme.PALETTE -- 16
+local drawDiamond = ____theme.drawDiamond -- 17
+local fillChamferBox = ____theme.fillChamferBox -- 18
+local fillRadialGlow = ____theme.fillRadialGlow -- 19
+local fillSkewRect = ____theme.fillSkewRect -- 20
+local fillVGradRect = ____theme.fillVGradRect -- 21
+local themeOf = ____theme.themeOf -- 22
+local toColor = ____theme.toColor -- 23
+local TITLE_ITEMS = {{id = "start", zh = "开始游戏"}, {id = "chapters", zh = "选择章节"}, {id = "controls", zh = "操作说明"}} -- 33
+local PAUSE_ITEMS = {{id = "resume", zh = "继续游戏"}, {id = "retry", zh = "重试检查点"}, {id = "chapters", zh = "选择章节"}, {id = "title", zh = "返回标题"}} -- 39
+____exports.MenuRenderer = __TS__Class() -- 46
+local MenuRenderer = ____exports.MenuRenderer -- 46
+MenuRenderer.name = "MenuRenderer" -- 46
+function MenuRenderer.prototype.____constructor(self) -- 46
+	self.selected = 0 -- 47
+	self.chapterSelected = 0 -- 48
+	self.pauseSelected = 0 -- 49
+	self.prevUp = false -- 50
+	self.prevDown = false -- 51
+	self.prevLeft = false -- 52
+	self.prevRight = false -- 53
+	self.prevEnter = false -- 54
+	self.prevClick = false -- 55
+	self.queuedUp = false -- 56
+	self.queuedDown = false -- 57
+	self.queuedLeft = false -- 58
+	self.queuedRight = false -- 59
+	self.queuedConfirm = false -- 60
+	self.queuedBack = false -- 61
+	self.time = 0 -- 62
+end -- 46
+function MenuRenderer.prototype.onKeyEvent(self, key) -- 65
+	if key == "Up" or key == "W" then -- 65
+		self.queuedUp = true -- 67
+	elseif key == "Down" or key == "S" then -- 67
+		self.queuedDown = true -- 69
+	elseif key == "Left" or key == "A" then -- 69
+		self.queuedLeft = true -- 71
+	elseif key == "Right" or key == "D" then -- 71
+		self.queuedRight = true -- 73
+	elseif key == "Return" or key == "Space" then -- 73
+		self.queuedConfirm = true -- 75
+	elseif key == "Escape" then -- 75
+		self.queuedBack = true -- 77
+	end -- 77
+end -- 65
+function MenuRenderer.prototype.readMenuKeys(self) -- 81
+	local u = Keyboard:isKeyPressed("Up") or Keyboard:isKeyPressed("W") -- 82
+	local d = Keyboard:isKeyPressed("Down") or Keyboard:isKeyPressed("S") -- 83
+	local l = Keyboard:isKeyPressed("Left") or Keyboard:isKeyPressed("A") -- 84
+	local r = Keyboard:isKeyPressed("Right") or Keyboard:isKeyPressed("D") -- 85
+	local e = Keyboard:isKeyPressed("Return") or Keyboard:isKeyPressed("Space") -- 86
+	local res = { -- 87
+		up = u and not self.prevUp or self.queuedUp, -- 88
+		down = d and not self.prevDown or self.queuedDown, -- 89
+		left = l and not self.prevLeft or self.queuedLeft, -- 90
+		right = r and not self.prevRight or self.queuedRight, -- 91
+		confirm = e and not self.prevEnter or self.queuedConfirm, -- 92
+		back = self.queuedBack -- 93
+	} -- 93
+	self.prevUp = u -- 95
+	self.prevDown = d -- 96
+	self.prevLeft = l -- 97
+	self.prevRight = r -- 98
+	self.prevEnter = e -- 99
+	self.queuedUp = false -- 100
+	self.queuedDown = false -- 101
+	self.queuedLeft = false -- 102
+	self.queuedRight = false -- 103
+	self.queuedConfirm = false -- 104
+	self.queuedBack = false -- 105
+	return res -- 106
+end -- 81
+function MenuRenderer.prototype.clickEdge(self, input) -- 109
+	local held = input.fire.held -- 110
+	local fired = held and not self.prevClick -- 111
+	self.prevClick = held -- 112
+	return fired -- 113
+end -- 109
+function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, stage, bgDraw, bgGlow, backdropArt, uiArt, uiDraw, uiGlow, texts, w, h, uiScale) -- 117
+	self.time = self.time + dt -- 133
+	local artW = math.max(w, h * 16 / 9) -- 134
+	local artH = artW * 9 / 16 -- 135
+	if not backdropArt:tryPlace( -- 135
+		"title_backdrop", -- 136
+		"menu_landscape", -- 136
+		w * 0.5, -- 136
+		(h - artH) * 0.5, -- 136
+		artW, -- 136
+		artH -- 136
+	) then -- 136
+		stage:drawMenuBackdrop( -- 137
+			bgDraw, -- 137
+			bgGlow, -- 137
+			w, -- 137
+			h, -- 137
+			self.time -- 137
+		) -- 137
+	end -- 137
+	local pointer = Vec2(input.mx / uiScale, input.my / uiScale) -- 140
+	w = w / uiScale -- 141
+	h = h / uiScale -- 142
+	local titleScreen = screen == "title" -- 143
+	uiDraw:drawRect( -- 144
+		Rect(0, 0, w, h), -- 144
+		Color(15, 14, 20, titleScreen and 25 or 118) -- 144
+	) -- 144
+	uiArt:tryPlace( -- 145
+		"ui_corner", -- 145
+		"menu_corner", -- 145
+		88, -- 145
+		titleScreen and h * 0.72 + 58 or h - 145, -- 145
+		42, -- 146
+		45, -- 146
+		{opacity = 0.87} -- 146
+	) -- 146
+	local mk = self:readMenuKeys() -- 148
+	local clicked = self:clickEdge(input) -- 149
+	if screen == "title" then -- 149
+		return self:drawTitle( -- 152
+			mk, -- 152
+			clicked, -- 152
+			pointer, -- 152
+			uiDraw, -- 152
+			uiGlow, -- 152
+			texts, -- 152
+			w, -- 152
+			h -- 152
+		) -- 152
+	end -- 152
+	if screen == "chapters" then -- 152
+		return self:drawChapters( -- 155
+			mk, -- 155
+			clicked, -- 155
+			input, -- 155
+			pointer, -- 155
+			uiDraw, -- 155
+			uiGlow, -- 155
+			texts, -- 155
+			w, -- 155
+			h -- 155
+		) -- 155
+	end -- 155
+	return self:drawControls( -- 157
+		mk, -- 157
+		clicked, -- 157
+		input, -- 157
+		pointer, -- 157
+		uiDraw, -- 157
+		uiGlow, -- 157
+		texts, -- 157
+		w, -- 157
+		h -- 157
+	) -- 157
+end -- 117
+function MenuRenderer.prototype.drawTitle(self, mk, clicked, pointer, uiDraw, uiGlow, texts, w, h) -- 160
+	if mk.up then -- 160
+		self.selected = (self.selected + #TITLE_ITEMS - 1) % #TITLE_ITEMS -- 171
+	elseif mk.down then -- 171
+		self.selected = (self.selected + 1) % #TITLE_ITEMS -- 173
+	end -- 173
+	local leftX = 106 -- 176
+	local titleY = h * 0.72 -- 177
 	texts:put( -- 179
-		"sm", -- 179
-		"VALLEY UNDER MOONLIGHT  //  双线叙事动作与潜行", -- 179
+		"xl", -- 179
+		"向西守望", -- 179
 		leftX, -- 179
-		titleY - 34, -- 179
-		toColor(PALETTE.textMid), -- 179
+		titleY + 24, -- 179
+		toColor(PALETTE.textBright), -- 179
 		0, -- 179
 		0.5, -- 179
 		"Left", -- 179
-		1.2, -- 179
-		0.92 -- 179
+		3.2, -- 179
+		1 -- 179
 	) -- 179
-	texts:put( -- 180
-		"xs", -- 180
-		"“城破那天，一个士兵把一个孩子送出了城门；现在，她要一个人走到北方的塔。”", -- 180
-		leftX, -- 180
-		titleY - 64, -- 180
-		toColor(PALETTE.amberCore), -- 180
-		0, -- 180
-		0.5, -- 180
-		"Left", -- 180
-		0.4, -- 180
-		0.85 -- 180
+	uiDraw:drawSegment( -- 180
+		Vec2(leftX, titleY - 16), -- 180
+		Vec2(leftX + 310, titleY - 16), -- 180
+		1.3, -- 180
+		toColor(PALETTE.amberDim, 210) -- 180
 	) -- 180
-	local btnW = 340 -- 183
-	local btnH = 50 -- 184
-	local gap = 16 -- 185
-	local startY = h * 0.42 -- 186
-	local hitIdx = -1 -- 187
-	local i = 0 -- 189
-	do -- 189
-		i = 0 -- 190
-		while i < #TITLE_ITEMS do -- 190
-			local bx = leftX -- 191
-			local by = startY - i * (btnH + gap) -- 192
-			local hover = input.mx >= bx and input.mx <= bx + btnW + 16 and input.my >= by and input.my <= by + btnH -- 193
-			if hover then -- 193
-				self.selected = i -- 195
-				hitIdx = i -- 196
-			end -- 196
-			local active = self.selected == i -- 198
-			local shiftX = active and 12 or 0 -- 199
-			fillSkewRect( -- 201
-				uiDraw, -- 202
-				bx + shiftX, -- 203
-				by, -- 204
-				btnW, -- 205
-				btnH, -- 206
-				14, -- 207
-				active and Color(18, 44, 68, 228) or toColor(PALETTE.panelBg, 195), -- 208
-				active and 1.6 or 1, -- 209
-				toColor(active and PALETTE.cyan or PALETTE.steelLight, active and 240 or 140) -- 210
-			) -- 210
-			if active then -- 210
-				fillSkewRect( -- 213
-					uiGlow, -- 213
-					bx + shiftX - 4, -- 213
-					by, -- 213
-					6, -- 213
-					btnH, -- 213
-					14, -- 213
-					toColor(PALETTE.cyanCore, 240) -- 213
-				) -- 213
-				fillRadialGlow( -- 214
+	texts:put( -- 181
+		"sm", -- 181
+		"城破那天，他留下断后。她独自走向北塔。", -- 181
+		leftX, -- 181
+		titleY - 48, -- 181
+		toColor(PALETTE.textMid), -- 182
+		0, -- 182
+		0.5, -- 182
+		"Left", -- 182
+		0.4, -- 182
+		1 -- 182
+	) -- 182
+	local btnW = 340 -- 184
+	local btnH = 50 -- 185
+	local gap = 16 -- 186
+	local startY = h * 0.42 -- 187
+	local hitIdx = -1 -- 188
+	local i = 0 -- 190
+	do -- 190
+		i = 0 -- 191
+		while i < #TITLE_ITEMS do -- 191
+			local bx = leftX -- 192
+			local by = startY - i * (btnH + gap) -- 193
+			local hover = pointer.x >= bx and pointer.x <= bx + btnW + 16 and pointer.y >= by and pointer.y <= by + btnH -- 194
+			if hover then -- 194
+				self.selected = i -- 196
+				hitIdx = i -- 197
+			end -- 197
+			local active = self.selected == i -- 199
+			local shiftX = active and 7 or 0 -- 200
+			fillSkewRect( -- 202
+				uiDraw, -- 203
+				bx + shiftX, -- 204
+				by, -- 205
+				btnW, -- 206
+				btnH, -- 207
+				14, -- 208
+				active and Color(60, 45, 42, 240) or toColor(PALETTE.panelBg, 195), -- 209
+				active and 1.6 or 1, -- 210
+				toColor(active and PALETTE.cyan or PALETTE.steelLight, active and 240 or 140) -- 211
+			) -- 211
+			if active then -- 211
+				fillSkewRect( -- 214
 					uiGlow, -- 214
-					bx + shiftX + 24, -- 214
-					by + btnH * 0.5, -- 214
-					42, -- 214
-					22, -- 214
-					toColor(PALETTE.cyan, 85), -- 214
-					Color(72, 224, 255, 0), -- 214
-					12 -- 214
+					bx + shiftX - 4, -- 214
+					by, -- 214
+					6, -- 214
+					btnH, -- 214
+					14, -- 214
+					toColor(PALETTE.cyanCore, 240) -- 214
 				) -- 214
-			end -- 214
-			texts:put( -- 216
-				"md", -- 216
-				(active and "▸  " or "   ") .. TITLE_ITEMS[i + 1].zh, -- 216
-				bx + shiftX + 22, -- 216
-				by + 31, -- 216
-				toColor(active and PALETTE.cyanCore or PALETTE.textBright), -- 216
-				0, -- 216
-				0.5, -- 216
-				"Left", -- 216
-				1, -- 216
-				1 -- 216
-			) -- 216
+				fillRadialGlow( -- 215
+					uiGlow, -- 215
+					bx + shiftX + 24, -- 215
+					by + btnH * 0.5, -- 215
+					42, -- 215
+					22, -- 215
+					toColor(PALETTE.cyan, 85), -- 215
+					Color(193, 161, 114, 0), -- 215
+					12 -- 215
+				) -- 215
+			end -- 215
 			texts:put( -- 217
-				"xs", -- 217
-				TITLE_ITEMS[i + 1].en, -- 217
-				bx + shiftX + 42, -- 217
-				by + 12, -- 217
-				toColor(active and PALETTE.cyan or PALETTE.textDim), -- 217
-				0, -- 217
-				0.5, -- 217
-				"Left", -- 217
-				1, -- 217
-				0.9 -- 217
-			) -- 217
-			i = i + 1 -- 190
-		end -- 190
-	end -- 190
+				"md", -- 217
+				(active and "▸  " or "   ") .. TITLE_ITEMS[i + 1].zh, -- 217
+				bx + shiftX + 22, -- 217
+				by + btnH * 0.5, -- 217
+				toColor(active and PALETTE.amberCore or PALETTE.textBright), -- 218
+				0, -- 218
+				0.5, -- 218
+				"Left", -- 218
+				0.8, -- 218
+				1 -- 218
+			) -- 218
+			i = i + 1 -- 191
+		end -- 191
+	end -- 191
 	texts:put( -- 221
 		"xs", -- 221
-		"↑ / ↓ 选择   ·   ENTER / 点击 确认   ·   支持 8 章节全链体验", -- 221
+		"↑ / ↓ 选择   ·   Enter 或点击确认", -- 221
 		leftX, -- 221
 		52, -- 221
-		toColor(PALETTE.textDim), -- 221
-		0, -- 221
-		0.5, -- 221
-		"Left", -- 221
-		0.8, -- 221
-		0.85 -- 221
-	) -- 221
-	texts:put( -- 222
-		"xs", -- 222
-		"BUILD // ICEY-STYLE PROCEDURAL VECTOR FRONTEND", -- 222
-		w - 48, -- 222
-		52, -- 222
-		toColor(PALETTE.cyanDim), -- 222
-		1, -- 222
+		toColor(PALETTE.textMid), -- 222
+		0, -- 222
 		0.5, -- 222
-		"Right", -- 222
-		1, -- 222
-		0.8 -- 222
+		"Left", -- 222
+		0.3, -- 222
+		1 -- 222
 	) -- 222
 	if mk.confirm or clicked and hitIdx >= 0 then -- 222
 		local id = TITLE_ITEMS[self.selected + 1].id -- 225
@@ -347,36 +291,24 @@ function MenuRenderer.prototype.drawTitle(self, mk, clicked, input, uiDraw, uiGl
 		return {type = "openControls"} -- 232
 	end -- 232
 	return {type = "none"} -- 234
-end -- 154
-function MenuRenderer.prototype.drawChapters(self, mk, clicked, input, uiDraw, uiGlow, texts, w, h) -- 237
+end -- 160
+function MenuRenderer.prototype.drawChapters(self, mk, clicked, input, pointer, uiDraw, uiGlow, texts, w, h) -- 237
 	if input.pause.pressed or mk.back then -- 237
-		return {type = "backTitle"} -- 248
-	end -- 248
-	if mk.left then -- 248
-		self.chapterSelected = (self.chapterSelected + #ROOMS - 1) % #ROOMS -- 251
-	elseif mk.right then -- 251
-		self.chapterSelected = (self.chapterSelected + 1) % #ROOMS -- 253
-	elseif mk.up then -- 253
-		self.chapterSelected = (self.chapterSelected + #ROOMS - 4) % #ROOMS -- 255
-	elseif mk.down then -- 255
-		self.chapterSelected = (self.chapterSelected + 4) % #ROOMS -- 257
-	end -- 257
-	local leftX = 104 -- 260
-	texts:put( -- 261
-		"xs", -- 261
-		"CHAPTER MATRIX  //  双线叙事八段关卡直达", -- 261
-		leftX, -- 261
-		h - 78, -- 261
-		toColor(PALETTE.cyan), -- 261
-		0, -- 261
-		0.5, -- 261
-		"Left", -- 261
-		1.6, -- 261
-		1 -- 261
-	) -- 261
+		return {type = "backTitle"} -- 249
+	end -- 249
+	if mk.left then -- 249
+		self.chapterSelected = (self.chapterSelected + #ROOMS - 1) % #ROOMS -- 252
+	elseif mk.right then -- 252
+		self.chapterSelected = (self.chapterSelected + 1) % #ROOMS -- 254
+	elseif mk.up then -- 254
+		self.chapterSelected = (self.chapterSelected + #ROOMS - 4) % #ROOMS -- 256
+	elseif mk.down then -- 256
+		self.chapterSelected = (self.chapterSelected + 4) % #ROOMS -- 258
+	end -- 258
+	local leftX = 106 -- 261
 	texts:put( -- 262
 		"lg", -- 262
-		"选择接入节点", -- 262
+		"选择章节", -- 262
 		leftX, -- 262
 		h - 116, -- 262
 		toColor(PALETTE.textBright), -- 262
@@ -432,7 +364,7 @@ function MenuRenderer.prototype.drawChapters(self, mk, clicked, input, uiDraw, u
 			local cx = leftX + col * (cardW + gapX) -- 281
 			local cy = row == 0 and rowY0 or rowY1 -- 282
 			local theme = themeOf(ROOMS[i + 1].key) -- 283
-			local hover = input.mx >= cx and input.mx <= cx + cardW and input.my >= cy and input.my <= cy + cardH -- 284
+			local hover = pointer.x >= cx and pointer.x <= cx + cardW and pointer.y >= cy and pointer.y <= cy + cardH -- 284
 			if hover then -- 284
 				self.chapterSelected = i -- 286
 				hitIdx = i -- 287
@@ -482,334 +414,299 @@ function MenuRenderer.prototype.drawChapters(self, mk, clicked, input, uiDraw, u
 				0.6, -- 304
 				1 -- 304
 			) -- 304
-			texts:put( -- 305
-				"xs", -- 305
-				theme.titleEn, -- 305
-				cx + 16, -- 305
-				cy + 26, -- 305
-				toColor(PALETTE.textDim), -- 305
-				0, -- 305
-				0.5, -- 305
-				"Left", -- 305
-				0.5, -- 305
-				0.9 -- 305
-			) -- 305
-			if active then -- 305
-				drawDiamond( -- 307
-					uiGlow, -- 307
-					cx + cardW - 22, -- 307
-					cy + 24, -- 307
-					6, -- 307
-					6, -- 307
-					toColor(theme.accent) -- 307
-				) -- 307
-			end -- 307
+			if active then -- 304
+				drawDiamond( -- 306
+					uiGlow, -- 306
+					cx + cardW - 22, -- 306
+					cy + 24, -- 306
+					6, -- 306
+					6, -- 306
+					toColor(theme.accent) -- 306
+				) -- 306
+			end -- 306
 			i = i + 1 -- 278
 		end -- 278
 	end -- 278
-	local backX = leftX -- 312
-	local backY = 48 -- 313
-	local backHover = input.mx >= backX and input.mx <= backX + 160 and input.my >= backY and input.my <= backY + 34 -- 314
-	fillSkewRect( -- 315
-		uiDraw, -- 315
-		backX, -- 315
-		backY, -- 315
-		156, -- 315
-		34, -- 315
-		9, -- 315
-		toColor(PALETTE.panelBg, 210), -- 315
-		1.2, -- 315
-		toColor(backHover and PALETTE.cyan or PALETTE.steelLight, 200) -- 315
+	local backX = leftX -- 311
+	local backY = 48 -- 312
+	local backHover = pointer.x >= backX and pointer.x <= backX + 160 and pointer.y >= backY and pointer.y <= backY + 34 -- 313
+	fillSkewRect( -- 314
+		uiDraw, -- 314
+		backX, -- 314
+		backY, -- 314
+		156, -- 314
+		34, -- 314
+		9, -- 314
+		toColor(PALETTE.panelBg, 210), -- 314
+		1.2, -- 314
+		toColor(backHover and PALETTE.cyan or PALETTE.steelLight, 200) -- 314
+	) -- 314
+	texts:put( -- 315
+		"xs", -- 315
+		"← 返回标题 [ESC]", -- 315
+		backX + 82, -- 315
+		backY + 17, -- 315
+		toColor(backHover and PALETTE.cyanCore or PALETTE.textMid), -- 315
+		0.5, -- 315
+		0.5, -- 315
+		"Center", -- 315
+		0.6, -- 315
+		1 -- 315
 	) -- 315
-	texts:put( -- 316
-		"xs", -- 316
-		"← 返回标题 [ESC]", -- 316
-		backX + 82, -- 316
-		backY + 17, -- 316
-		toColor(backHover and PALETTE.cyanCore or PALETTE.textMid), -- 316
-		0.5, -- 316
-		0.5, -- 316
-		"Center", -- 316
-		0.6, -- 316
-		1 -- 316
-	) -- 316
-	if clicked and backHover then -- 316
-		return {type = "backTitle"} -- 319
-	end -- 319
-	if mk.confirm or clicked and hitIdx >= 0 then -- 319
-		return {type = "jump", roomIndex = self.chapterSelected} -- 322
-	end -- 322
-	return {type = "none"} -- 324
+	if clicked and backHover then -- 315
+		return {type = "backTitle"} -- 318
+	end -- 318
+	if mk.confirm or clicked and hitIdx >= 0 then -- 318
+		return {type = "jump", roomIndex = self.chapterSelected} -- 321
+	end -- 321
+	return {type = "none"} -- 323
 end -- 237
-function MenuRenderer.prototype.drawControls(self, mk, clicked, input, uiDraw, uiGlow, texts, w, h) -- 327
-	if input.pause.pressed or mk.back or mk.confirm then -- 327
+function MenuRenderer.prototype.drawControls(self, mk, clicked, input, pointer, uiDraw, uiGlow, texts, w, h) -- 326
+	if input.pause.pressed or mk.back or mk.confirm then -- 326
 		return {type = "backTitle"} -- 338
 	end -- 338
-	local leftX = 104 -- 340
+	local leftX = 106 -- 340
 	texts:put( -- 341
-		"xs", -- 341
-		"CONTROL INTERFACE  //  双线共享键位对照", -- 341
+		"lg", -- 341
+		"操作说明", -- 341
 		leftX, -- 341
-		h - 78, -- 341
-		toColor(PALETTE.cyan), -- 341
+		h - 116, -- 341
+		toColor(PALETTE.textBright), -- 341
 		0, -- 341
 		0.5, -- 341
 		"Left", -- 341
-		1.6, -- 341
+		2, -- 341
 		1 -- 341
 	) -- 341
-	texts:put( -- 342
-		"lg", -- 342
-		"操作图鉴", -- 342
-		leftX, -- 342
-		h - 116, -- 342
-		toColor(PALETTE.textBright), -- 342
-		0, -- 342
-		0.5, -- 342
-		"Left", -- 342
-		2, -- 342
-		1 -- 342
+	uiGlow:drawSegment( -- 342
+		Vec2(leftX, h - 142), -- 342
+		Vec2(w - 86, h - 142), -- 342
+		1.4, -- 342
+		toColor(PALETTE.cyanDim, 180) -- 342
 	) -- 342
-	uiGlow:drawSegment( -- 343
-		Vec2(leftX, h - 142), -- 343
-		Vec2(w - 86, h - 142), -- 343
-		1.4, -- 343
-		toColor(PALETTE.cyanDim, 180) -- 343
-	) -- 343
-	local colW = (w - leftX - 116) * 0.5 -- 345
-	local panelY = h * 0.22 -- 346
-	local panelH = h * 0.52 -- 347
-	fillChamferBox( -- 350
-		uiDraw, -- 350
-		leftX, -- 350
-		panelY, -- 350
-		colW, -- 350
-		panelH, -- 350
-		16, -- 350
-		toColor(PALETTE.panelBgDeep, 225), -- 350
-		1.3, -- 350
-		toColor(PALETTE.cyan, 185) -- 350
+	local colW = (w - leftX - 116) * 0.5 -- 344
+	local panelY = h * 0.22 -- 345
+	local panelH = h * 0.52 -- 346
+	fillChamferBox( -- 349
+		uiDraw, -- 349
+		leftX, -- 349
+		panelY, -- 349
+		colW, -- 349
+		panelH, -- 349
+		16, -- 349
+		toColor(PALETTE.panelBgDeep, 225), -- 349
+		1.3, -- 349
+		toColor(PALETTE.cyan, 185) -- 349
+	) -- 349
+	texts:put( -- 350
+		"md", -- 350
+		"周戍  //  军人线（枪战 · 掩体 · 护送）", -- 350
+		leftX + 24, -- 350
+		panelY + panelH - 32, -- 350
+		toColor(PALETTE.cyanCore), -- 350
+		0, -- 350
+		0.5, -- 350
+		"Left", -- 350
+		0.6, -- 350
+		1 -- 350
 	) -- 350
-	texts:put( -- 351
-		"md", -- 351
-		"周戍  //  军人线（枪战 · 掩体 · 护送）", -- 351
-		leftX + 24, -- 351
-		panelY + panelH - 32, -- 351
-		toColor(PALETTE.cyanCore), -- 351
-		0, -- 351
-		0.5, -- 351
-		"Left", -- 351
-		0.6, -- 351
-		1 -- 351
-	) -- 351
-	local sRows = { -- 352
-		{"A / D", "战术横移"}, -- 353
-		{"鼠标 + 左键", "瞄准与点射（射线判定）"}, -- 354
-		{"SHIFT（按住）", "贴靠柜台/街垒掩体挡枪"}, -- 355
-		{"SPACE", "平地高速翻滚 / 贴矮台翻越"}, -- 356
-		{"E", "递物 / 敲两下安抚 / 按住+D 推车"}, -- 357
-		{"ESC / R", "暂停系统 / 从检查点重试"} -- 358
-	} -- 358
-	local i = 0 -- 360
-	do -- 360
-		i = 0 -- 361
-		while i < #sRows do -- 361
-			local ry = panelY + panelH - 82 - i * 44 -- 362
-			fillSkewRect( -- 363
-				uiDraw, -- 363
-				leftX + 24, -- 363
-				ry - 12, -- 363
-				132, -- 363
-				24, -- 363
-				6, -- 363
-				Color(18, 42, 62, 220), -- 363
-				1, -- 363
-				toColor(PALETTE.cyanDim, 180) -- 363
+	local sRows = { -- 351
+		{"A / D", "左右移动"}, -- 352
+		{"鼠标 + 左键", "瞄准与点射"}, -- 353
+		{"SHIFT（按住）", "贴靠柜台/街垒掩体挡枪"}, -- 354
+		{"SPACE", "平地高速翻滚 / 贴矮台翻越"}, -- 355
+		{"E", "递物 / 敲两下安抚 / 按住+D 推车"}, -- 356
+		{"ESC / R", "暂停 / 从检查点重试"} -- 357
+	} -- 357
+	local i = 0 -- 359
+	do -- 359
+		i = 0 -- 360
+		while i < #sRows do -- 360
+			local ry = panelY + panelH - 82 - i * 44 -- 361
+			fillSkewRect( -- 362
+				uiDraw, -- 362
+				leftX + 24, -- 362
+				ry - 12, -- 362
+				132, -- 362
+				24, -- 362
+				6, -- 362
+				Color(18, 42, 62, 220), -- 362
+				1, -- 362
+				toColor(PALETTE.cyanDim, 180) -- 362
+			) -- 362
+			texts:put( -- 363
+				"xs", -- 363
+				sRows[i + 1][1], -- 363
+				leftX + 92, -- 363
+				ry, -- 363
+				toColor(PALETTE.cyanCore), -- 363
+				0.5, -- 363
+				0.5, -- 363
+				"Center", -- 363
+				0.4, -- 363
+				1 -- 363
 			) -- 363
 			texts:put( -- 364
-				"xs", -- 364
-				sRows[i + 1][1], -- 364
-				leftX + 92, -- 364
+				"sm", -- 364
+				sRows[i + 1][2], -- 364
+				leftX + 174, -- 364
 				ry, -- 364
-				toColor(PALETTE.cyanCore), -- 364
+				toColor(PALETTE.textBright), -- 364
+				0, -- 364
 				0.5, -- 364
-				0.5, -- 364
-				"Center", -- 364
-				0.4, -- 364
-				1 -- 364
+				"Left", -- 364
+				0.3, -- 364
+				0.95 -- 364
 			) -- 364
-			texts:put( -- 365
-				"sm", -- 365
-				sRows[i + 1][2], -- 365
-				leftX + 174, -- 365
-				ry, -- 365
-				toColor(PALETTE.textBright), -- 365
-				0, -- 365
-				0.5, -- 365
-				"Left", -- 365
-				0.3, -- 365
-				0.95 -- 365
-			) -- 365
-			i = i + 1 -- 361
-		end -- 361
-	end -- 361
-	local rightX = leftX + colW + 28 -- 369
-	fillChamferBox( -- 370
-		uiDraw, -- 370
-		rightX, -- 370
-		panelY, -- 370
-		colW, -- 370
-		panelH, -- 370
-		16, -- 370
-		toColor(PALETTE.panelBgDeep, 225), -- 370
-		1.3, -- 370
-		toColor(PALETTE.amber, 185) -- 370
+			i = i + 1 -- 360
+		end -- 360
+	end -- 360
+	local rightX = leftX + colW + 28 -- 368
+	fillChamferBox( -- 369
+		uiDraw, -- 369
+		rightX, -- 369
+		panelY, -- 369
+		colW, -- 369
+		panelH, -- 369
+		16, -- 369
+		toColor(PALETTE.panelBgDeep, 225), -- 369
+		1.3, -- 369
+		toColor(PALETTE.amber, 185) -- 369
+	) -- 369
+	texts:put( -- 370
+		"md", -- 370
+		"小满  //  孩子线（潜行 · 平台 · 诱敌）", -- 370
+		rightX + 24, -- 370
+		panelY + panelH - 32, -- 370
+		toColor(PALETTE.amberCore), -- 370
+		0, -- 370
+		0.5, -- 370
+		"Left", -- 370
+		0.6, -- 370
+		1 -- 370
 	) -- 370
-	texts:put( -- 371
-		"md", -- 371
-		"小满  //  孩子线（潜行 · 平台 · 诱敌）", -- 371
-		rightX + 24, -- 371
-		panelY + panelH - 32, -- 371
-		toColor(PALETTE.amberCore), -- 371
-		0, -- 371
-		0.5, -- 371
-		"Left", -- 371
-		0.6, -- 371
-		1 -- 371
-	) -- 371
-	local cRows = { -- 372
-		{"A / D", "潜行行走"}, -- 373
-		{"SHIFT（按住）", "轻步慢走（压低脚步声）"}, -- 374
-		{"S / CTRL（按住）", "蹲伏隐蔽 · 穿过 44 净高拱洞/桌下"}, -- 375
-		{"SPACE", "跳跃攀上石阶与矮台"}, -- 376
-		{"E", "拾瓶 / 敲塔门 / 按住+D 拉红布板车"}, -- 377
-		{"F（按住→松手）", "预览抛物线落点，投瓶引开拾荒者"} -- 378
-	} -- 378
-	do -- 378
-		i = 0 -- 380
-		while i < #cRows do -- 380
-			local ry = panelY + panelH - 82 - i * 44 -- 381
-			fillSkewRect( -- 382
-				uiDraw, -- 382
-				rightX + 24, -- 382
-				ry - 12, -- 382
-				142, -- 382
-				24, -- 382
-				6, -- 382
-				Color(52, 38, 18, 220), -- 382
-				1, -- 382
-				toColor(PALETTE.amberDim, 190) -- 382
+	local cRows = { -- 371
+		{"A / D", "潜行行走"}, -- 372
+		{"SHIFT（按住）", "轻步慢走（压低脚步声）"}, -- 373
+		{"S / CTRL（按住）", "蹲伏隐蔽 · 穿过 44 净高拱洞/桌下"}, -- 374
+		{"SPACE", "跳跃攀上石阶与矮台"}, -- 375
+		{"E", "拾瓶 / 敲塔门 / 按住+D 拉红布板车"}, -- 376
+		{"F（按住→松手）", "预览抛物线落点，投瓶引开拾荒者"} -- 377
+	} -- 377
+	do -- 377
+		i = 0 -- 379
+		while i < #cRows do -- 379
+			local ry = panelY + panelH - 82 - i * 44 -- 380
+			fillSkewRect( -- 381
+				uiDraw, -- 381
+				rightX + 24, -- 381
+				ry - 12, -- 381
+				142, -- 381
+				24, -- 381
+				6, -- 381
+				Color(52, 38, 18, 220), -- 381
+				1, -- 381
+				toColor(PALETTE.amberDim, 190) -- 381
+			) -- 381
+			texts:put( -- 382
+				"xs", -- 382
+				cRows[i + 1][1], -- 382
+				rightX + 97, -- 382
+				ry, -- 382
+				toColor(PALETTE.amberCore), -- 382
+				0.5, -- 382
+				0.5, -- 382
+				"Center", -- 382
+				0.4, -- 382
+				1 -- 382
 			) -- 382
 			texts:put( -- 383
-				"xs", -- 383
-				cRows[i + 1][1], -- 383
-				rightX + 97, -- 383
+				"sm", -- 383
+				cRows[i + 1][2], -- 383
+				rightX + 182, -- 383
 				ry, -- 383
-				toColor(PALETTE.amberCore), -- 383
+				toColor(PALETTE.textBright), -- 383
+				0, -- 383
 				0.5, -- 383
-				0.5, -- 383
-				"Center", -- 383
-				0.4, -- 383
-				1 -- 383
+				"Left", -- 383
+				0.3, -- 383
+				0.95 -- 383
 			) -- 383
-			texts:put( -- 384
-				"sm", -- 384
-				cRows[i + 1][2], -- 384
-				rightX + 182, -- 384
-				ry, -- 384
-				toColor(PALETTE.textBright), -- 384
-				0, -- 384
-				0.5, -- 384
-				"Left", -- 384
-				0.3, -- 384
-				0.95 -- 384
-			) -- 384
-			i = i + 1 -- 380
-		end -- 380
-	end -- 380
-	local backX = leftX -- 387
-	local backY = 48 -- 388
-	local backHover = input.mx >= backX and input.mx <= backX + 190 and input.my >= backY and input.my <= backY + 34 -- 389
-	fillSkewRect( -- 390
-		uiDraw, -- 390
-		backX, -- 390
-		backY, -- 390
-		186, -- 390
-		34, -- 390
-		9, -- 390
-		toColor(PALETTE.panelBg, 210), -- 390
-		1.2, -- 390
-		toColor(backHover and PALETTE.cyan or PALETTE.steelLight, 200) -- 390
+			i = i + 1 -- 379
+		end -- 379
+	end -- 379
+	local backX = leftX -- 386
+	local backY = 48 -- 387
+	local backHover = pointer.x >= backX and pointer.x <= backX + 190 and pointer.y >= backY and pointer.y <= backY + 34 -- 388
+	fillSkewRect( -- 389
+		uiDraw, -- 389
+		backX, -- 389
+		backY, -- 389
+		186, -- 389
+		34, -- 389
+		9, -- 389
+		toColor(PALETTE.panelBg, 210), -- 389
+		1.2, -- 389
+		toColor(backHover and PALETTE.cyan or PALETTE.steelLight, 200) -- 389
+	) -- 389
+	texts:put( -- 390
+		"xs", -- 390
+		"← 返回标题 [ESC / ENTER]", -- 390
+		backX + 96, -- 390
+		backY + 17, -- 390
+		toColor(backHover and PALETTE.cyanCore or PALETTE.textMid), -- 390
+		0.5, -- 390
+		0.5, -- 390
+		"Center", -- 390
+		0.5, -- 390
+		1 -- 390
 	) -- 390
-	texts:put( -- 391
-		"xs", -- 391
-		"← 返回标题 [ESC / ENTER]", -- 391
-		backX + 96, -- 391
-		backY + 17, -- 391
-		toColor(backHover and PALETTE.cyanCore or PALETTE.textMid), -- 391
-		0.5, -- 391
-		0.5, -- 391
-		"Center", -- 391
-		0.5, -- 391
-		1 -- 391
-	) -- 391
-	if clicked and backHover then -- 391
-		return {type = "backTitle"} -- 394
-	end -- 394
-	return {type = "none"} -- 396
-end -- 327
-function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiGlow, texts, w, h) -- 400
+	if clicked and backHover then -- 390
+		return {type = "backTitle"} -- 393
+	end -- 393
+	return {type = "none"} -- 395
+end -- 326
+function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiGlow, texts, w, h, uiScale) -- 399
 	self.time = self.time + dt -- 409
-	local mk = self:readMenuKeys() -- 410
-	local clicked = self:clickEdge(input) -- 411
-	if mk.up then -- 411
-		self.pauseSelected = (self.pauseSelected + #PAUSE_ITEMS - 1) % #PAUSE_ITEMS -- 414
-	elseif mk.down then -- 414
-		self.pauseSelected = (self.pauseSelected + 1) % #PAUSE_ITEMS -- 416
-	end -- 416
-	uiDraw:drawRect( -- 420
-		Rect(0, 0, w, h), -- 420
-		Color(4, 7, 13, 175) -- 420
-	) -- 420
-	local boxW = 390 -- 422
-	local boxH = 336 -- 423
-	local bx = (w - boxW) * 0.5 -- 424
-	local by = (h - boxH) * 0.5 -- 425
-	fillChamferBox( -- 427
-		uiDraw, -- 427
-		bx, -- 427
-		by, -- 427
-		boxW, -- 427
-		boxH, -- 427
-		18, -- 427
-		toColor(PALETTE.panelBgDeep, 242), -- 427
-		1.5, -- 427
-		toColor(PALETTE.cyan, 210) -- 427
-	) -- 427
-	fillVGradRect( -- 428
-		uiGlow, -- 428
+	local pointer = Vec2(input.mx / uiScale, input.my / uiScale) -- 410
+	local mk = self:readMenuKeys() -- 411
+	local clicked = self:clickEdge(input) -- 412
+	if mk.up then -- 412
+		self.pauseSelected = (self.pauseSelected + #PAUSE_ITEMS - 1) % #PAUSE_ITEMS -- 415
+	elseif mk.down then -- 415
+		self.pauseSelected = (self.pauseSelected + 1) % #PAUSE_ITEMS -- 417
+	end -- 417
+	uiDraw:drawRect( -- 421
+		Rect(0, 0, w, h), -- 421
+		Color(4, 7, 13, 175) -- 421
+	) -- 421
+	local boxW = 390 -- 423
+	local boxH = 336 -- 424
+	local bx = (w - boxW) * 0.5 -- 425
+	local by = (h - boxH) * 0.5 -- 426
+	fillChamferBox( -- 428
+		uiDraw, -- 428
 		bx, -- 428
-		by + boxH - 64, -- 428
+		by, -- 428
 		boxW, -- 428
-		64, -- 428
-		Color(72, 224, 255, 0), -- 428
-		Color(72, 224, 255, 42) -- 428
+		boxH, -- 428
+		18, -- 428
+		toColor(PALETTE.panelBgDeep, 242), -- 428
+		1.5, -- 428
+		toColor(PALETTE.cyan, 210) -- 428
 	) -- 428
-	texts:put( -- 429
-		"xs", -- 429
-		"SYSTEM PAUSED  //  已挂起", -- 429
-		bx + 28, -- 429
-		by + boxH - 24, -- 429
-		toColor(PALETTE.cyan), -- 429
-		0, -- 429
-		0.5, -- 429
-		"Left", -- 429
-		1.4, -- 429
-		1 -- 429
+	fillVGradRect( -- 429
+		uiGlow, -- 429
+		bx, -- 429
+		by + boxH - 64, -- 429
+		boxW, -- 429
+		64, -- 429
+		Color(193, 161, 114, 0), -- 429
+		Color(193, 161, 114, 36) -- 429
 	) -- 429
 	texts:put( -- 430
 		"lg", -- 430
-		"任务暂停", -- 430
+		"游戏暂停", -- 430
 		bx + 28, -- 430
 		by + boxH - 56, -- 430
 		toColor(PALETTE.textBright), -- 430
@@ -828,7 +725,7 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiGl
 			local ix = bx + 28 -- 436
 			local iw = boxW - 56 -- 437
 			local ih = 42 -- 438
-			local hover = input.mx >= ix and input.mx <= ix + iw and input.my >= iy and input.my <= iy + ih -- 439
+			local hover = pointer.x >= ix and pointer.x <= ix + iw and pointer.y >= iy and pointer.y <= iy + ih -- 439
 			if hover then -- 439
 				self.pauseSelected = i -- 441
 				hitIdx = i -- 442
@@ -841,7 +738,7 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiGl
 				iw, -- 449
 				ih, -- 450
 				10, -- 451
-				active and Color(20, 48, 72, 232) or Color(12, 18, 30, 200), -- 452
+				active and Color(59, 44, 41, 233) or Color(12, 18, 30, 200), -- 452
 				active and 1.5 or 1, -- 453
 				toColor(active and PALETTE.cyan or PALETTE.steelLight, active and 240 or 130) -- 454
 			) -- 454
@@ -868,34 +765,22 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiGl
 				0.8, -- 459
 				1 -- 459
 			) -- 459
-			texts:put( -- 460
-				"xs", -- 460
-				PAUSE_ITEMS[i + 1].en, -- 460
-				ix + iw - 14, -- 460
-				iy + 21, -- 460
-				toColor(active and PALETTE.cyan or PALETTE.textDim), -- 460
-				1, -- 460
-				0.5, -- 460
-				"Right", -- 460
-				0.8, -- 460
-				0.9 -- 460
-			) -- 460
 			i = i + 1 -- 434
 		end -- 434
 	end -- 434
 	if mk.confirm or clicked and hitIdx >= 0 then -- 434
-		local id = PAUSE_ITEMS[self.pauseSelected + 1].id -- 464
-		if id == "resume" then -- 464
-			return {type = "resume"} -- 466
-		end -- 466
-		if id == "retry" then -- 466
-			return {type = "retry"} -- 469
-		end -- 469
-		if id == "chapters" then -- 469
-			return {type = "openChapters"} -- 472
-		end -- 472
-		return {type = "toTitle"} -- 474
-	end -- 474
-	return {type = "none"} -- 476
-end -- 400
-return ____exports -- 400
+		local id = PAUSE_ITEMS[self.pauseSelected + 1].id -- 463
+		if id == "resume" then -- 463
+			return {type = "resume"} -- 465
+		end -- 465
+		if id == "retry" then -- 465
+			return {type = "retry"} -- 468
+		end -- 468
+		if id == "chapters" then -- 468
+			return {type = "openChapters"} -- 471
+		end -- 471
+		return {type = "toTitle"} -- 473
+	end -- 473
+	return {type = "none"} -- 475
+end -- 399
+return ____exports -- 399

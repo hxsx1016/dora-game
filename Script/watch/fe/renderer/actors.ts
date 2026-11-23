@@ -1,17 +1,7 @@
-/**
- * 艾希（ICEY）风关节剪影角色渲染器 + 高速残影系统。
- *
- * 严格遵循后端世界单位尺寸（周戍高 88 / 宽 30；小满站 64、蹲 36 / 宽 28；敌兵高 84）：
- * - 周戍：深战术大衣 + 飘动下摆 + 冷白/冰青肩甲与战术目镜光带 + 随准星转向的步枪 + 翻滚 5 层冰青残影
- * - 小满：暖琥珀/米白兜帽斗篷 + 飘动围巾 + 手中微光指南针 + 紧凑蹲姿 + 恐惧晶格环
- * - 敌兵：冷峻黑岩机甲风步兵 + 霓虹绯红目镜 + 渐缩举枪激光瞄准线与枪口锁定菱标
- * - 拾荒者与森林猎犬：动态视野扇形 / 转耳声波预警 / 追逐红瞳脉冲
- *
- * 若「完整前端分支」在 AssetSlots 中配置了角色生图 Sprite，自动优先切至 Sprite 渲染。
- */
+/** 角色像素帧随玩法姿态切换，脚底与当前相机共用世界坐标。 */
 
 import { Color, DrawNode, Vec2 } from "Dora";
-import { Actor, Enemy, Play } from "Script/watch/play";
+import { Actor, Enemy, Play, Trace } from "Script/watch/play";
 import { FEAR_MAX } from "Script/watch/escort";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
@@ -31,15 +21,46 @@ export class ActorsRenderer {
     private ghosts: Afterimage[] = [];
     private ghostCooldown = 0;
     private animTime = 0;
+    private previousHp = 3;
+    private previousAxle = 0;
+    private cartMoving = false;
+    private previousBottle = false;
+    private previousTrace: Trace | undefined;
+    private hitUntil = -1;
+    private throwUntil = -1;
+    private shotUntil = -1;
 
-    reset(): void {
+    reset(p: Play): void {
         this.ghosts = [];
         this.ghostCooldown = 0;
+        this.animTime = 0;
+        this.previousHp = p.hp;
+        this.previousAxle = p.cartAxle;
+        this.cartMoving = false;
+        this.previousBottle = p.hasBottle;
+        this.previousTrace = p.trace;
+        this.hitUntil = -1;
+        this.throwUntil = -1;
+        this.shotUntil = -1;
     }
 
     /** 推进残影与步态时间 */
     update(dt: number, p: Play): void {
         this.animTime += dt;
+        if (p.hp < this.previousHp || p.gateNeedConfirm) {
+            this.hitUntil = p.ticks + 14;
+        }
+        if (this.previousBottle && !p.hasBottle && p.bottleFly !== undefined) {
+            this.throwUntil = p.ticks + 12;
+        }
+        if (p.trace !== undefined && p.trace !== this.previousTrace) {
+            this.shotUntil = p.ticks + 7;
+        }
+        this.cartMoving = Math.abs(p.cartAxle - this.previousAxle) > 0.01;
+        this.previousAxle = p.cartAxle;
+        this.previousHp = p.hp;
+        this.previousBottle = p.hasBottle;
+        this.previousTrace = p.trace;
         // 周戍翻滚期间高频采样冰青残影（复刻《艾希》冲刺残影手感）
         if (!p.childMode && p.player.rollT > 0) {
             this.ghostCooldown -= dt;
@@ -163,16 +184,46 @@ export class ActorsRenderer {
         const W = cam.len(a.w);
         const f = a.facing;
 
-        // 外部生图 Sprite 槽位检查
         let slot: AssetSlotKey = "soldier_idle";
-        if (a.rollT > 0) {
+        let height = H;
+        let frame = 0;
+        let facing = f;
+        const step = Math.floor(this.animTime * 10);
+        if (isControlled && p.ticks < this.hitUntil) {
+            slot = "soldier_hit";
+        } else if (a.rollT > 0) {
             slot = "soldier_roll";
-        } else if (a.covered) {
+            height *= 0.59;
+        } else if (p.phase === "prologue-give") {
+            slot = "soldier_offer";
+            height *= 0.75;
+            facing = p.partner.x >= a.x ? 1 : -1;
+        } else if (isControlled && p.gripping) {
+            slot = "soldier_push";
+            frame = this.cartMoving ? step : 0;
+            facing = p.room.cart.handleOffset < 0 ? 1 : -1;
+            height *= 0.91;
+        } else if (isControlled && p.escort.state === "calming") {
+            slot = "soldier_knock";
+            const calm = p.escort.calmTick;
+            frame = (calm >= 12 && calm < 18) || (calm >= 36 && calm < 42) ? 1 : 0;
+            height *= 0.76;
+        } else if (p.phase === "gate-send" && p.room.story?.gate !== undefined &&
+            Math.abs(a.x - p.room.story.gate.doorX) <= 60 && Math.abs(a.vx) <= 8) {
+            slot = "soldier_hold";
+            height *= 1.11;
+        } else if (isControlled && p.ticks < this.shotUntil) {
+            slot = "soldier_fire";
+            facing = p.trace !== undefined && p.trace.x1 < p.trace.x0 ? -1 : 1;
+        } else if (a.covered || (isControlled && p.coverHug)) {
             slot = "soldier_cover";
+            height *= 0.77;
         } else if (Math.abs(a.vx) > 8) {
             slot = "soldier_run";
+            frame = step;
         }
-        if (assets.tryPlace(slot, "actor_soldier", cx, by, W * 1.8, H * 1.05, f, 1)) {
+        if (assets.tryPlace(slot, "actor_soldier", cx, by, W, height, { facing, frame, layer: 4 })) {
+            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.54, 4, Color(12, 11, 13, 145));
             return;
         }
 
@@ -332,16 +383,47 @@ export class ActorsRenderer {
         const W = cam.len(a.w);
         const f = a.facing;
 
-        const afraid = !isControlled && (p.escort.state === "frozen" || p.escort.fear > 0);
+        const afraid = !isControlled && p.escort.fear > 0;
         let slot: AssetSlotKey = "child_idle";
-        if (afraid && p.escort.state === "frozen") {
+        let height = H;
+        let frame = 0;
+        const step = Math.floor(this.animTime * 10);
+        const nearCover = p.room.solids.some(solid =>
+            solid.h <= 64 && solid.y <= 2 &&
+            Math.min(Math.abs(a.x - solid.x), Math.abs(a.x - solid.x - solid.w)) <= 30,
+        );
+        if (p.phase === "tower-knock" && (p.phaseTick < 6 || (p.phaseTick >= 12 && p.phaseTick < 18))) {
+            slot = "child_knock";
+        } else if ((p.phase === "tower-given" && p.phaseTick >= 60 && p.phaseTick < 120) ||
+            (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36)) {
+            slot = "child_offer";
+        } else if (isControlled && p.ticks < this.throwUntil) {
+            slot = "child_throw";
+        } else if (isControlled && p.hasBottle && p.aimHold > 0) {
+            slot = "child_aim";
+        } else if (isControlled && p.gripping) {
+            slot = "child_pull";
+            frame = this.cartMoving ? step : 0;
+        } else if (afraid && p.escort.state === "frozen") {
             slot = "child_fear";
+            height *= 0.74;
+        } else if (!isControlled && nearCover &&
+            (p.room.key === "street" || p.room.key === "checkpoint") && Math.abs(a.vx) < 8) {
+            slot = "child_peek";
+            height *= 0.83;
         } else if (a.crouch) {
             slot = "child_crouch";
+            frame = Math.abs(a.vx) > 8 ? step : 0;
         } else if (Math.abs(a.vx) > 8) {
             slot = "child_run";
+            frame = step;
         }
-        if (assets.tryPlace(slot, "actor_child", cx, by, W * 1.75, H * 1.05, f, 1)) {
+        const facing = slot === "child_pull" ? (p.room.cart.handleOffset < 0 ? 1 : -1) : f;
+        if (assets.tryPlace(slot, "actor_child", cx, by, W, height, { facing, frame, layer: 5 })) {
+            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.48, 3, Color(12, 11, 13, 125));
+            if (afraid) {
+                this.drawFear(fgGlow, p, cx, by + height + 14);
+            }
             return;
         }
 
@@ -418,35 +500,37 @@ export class ActorsRenderer {
             fillRadialGlow(fgGlow, compX, compY, 26 * glowPulse, 26 * glowPulse, Color(248, 206, 120, 78 * glowPulse), Color(248, 180, 72, 0), 14);
         }
 
-        // 6. 护送恐惧视觉反馈（头顶三枚恐惧晶格 + 冻结时警示脉环）
-        if (!isControlled && p.escort.fear > 0) {
-            const topY = by + H + 16;
-            let k = 0;
-            for (k = 0; k < FEAR_MAX; k++) {
-                const dx = x + (k - 1) * 14;
-                const lit = k < p.escort.fear;
-                const c = p.escort.state === "frozen" ? PALETTE.crimson : PALETTE.amber;
-                drawDiamond(
-                    fgGlow,
-                    dx,
-                    topY,
-                    5,
-                    6.5,
-                    lit ? toColor(c, 235) : Color(60, 72, 92, 90),
-                    1.2,
-                    toColor(c, lit ? 255 : 120),
-                );
-            }
-            if (p.escort.state === "frozen") {
-                const ringR = 26 + (this.animTime * 28) % 22;
-                fgGlow.drawRing(Vec2(x, by + H * 0.45), ringR, ringR + 2, Color(0, 0, 0, 0), 1.4, toColor(PALETTE.crimson, 130));
-            }
+        if (afraid) {
+            this.drawFear(fgGlow, p, x, by + H + 16);
         }
 
         // 7. 孩子线潜行脚步微环
         if (isControlled && walking && !a.crouch && speed > 100) {
             const r = 10 + (this.animTime * 32) % 24;
             fgGlow.drawRing(Vec2(x, by + 3), r, r + 1.5, Color(0, 0, 0, 0), 1.1, toColor(PALETTE.amber, 95 * (1 - r / 36)));
+        }
+    }
+
+    private drawFear(fgGlow: DrawNode.Type, p: Play, x: number, y: number): void {
+        const tint = p.escort.state === "frozen" ? PALETTE.crimson : PALETTE.amber;
+        for (let i = 0; i < FEAR_MAX; i++) {
+            const lit = i < p.escort.fear;
+            drawDiamond(fgGlow, x + (i - 1) * 13, y, 4, 5,
+                toColor(lit ? tint : PALETTE.steelDark, 215), 1, toColor(tint, lit ? 235 : 100));
+        }
+    }
+
+    private drawEnemyWarning(fgGlow: DrawNode.Type, e: Enemy, p: Play, cam: CameraDirector, f: number): void {
+        const x = cam.sx(e.x + f * 20);
+        const y = cam.sy(e.y + e.h * 0.69);
+        const dx = cam.sx(p.player.x) - x;
+        const dy = cam.sy(p.player.y + p.player.h * 0.56) - y;
+        const length = 0.4 + 0.6 * Math.min(1, e.warnT / 36);
+        for (let i = 0; i < 8; i += 2) {
+            const a = length * i / 8;
+            const b = length * (i + 1) / 8;
+            fgGlow.drawSegment(Vec2(x + dx * a, y + dy * a), Vec2(x + dx * b, y + dy * b),
+                1.3, toColor(PALETTE.crimsonCore, 200));
         }
     }
 
@@ -466,8 +550,21 @@ export class ActorsRenderer {
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
 
-        const slot: AssetSlotKey = !e.alive ? "enemy_down" : (e.warnT > 0 ? "enemy_aim" : "enemy_idle");
-        if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W * 1.8, H * 1.05, f, e.alive ? 1 : 0.65)) {
+        let slot: AssetSlotKey = "enemy_idle";
+        if (!e.alive) {
+            slot = "enemy_down";
+        } else if (e.hitT > 0) {
+            slot = "enemy_hit";
+        } else if (e.warnT > 0) {
+            slot = "enemy_aim";
+        }
+        const height = e.alive ? H : H * 0.24;
+        if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W, height, {
+            facing: f, opacity: e.alive ? 1 : 0.78, layer: 3,
+        })) {
+            if (e.alive && e.warnT > 0) {
+                this.drawEnemyWarning(fgGlow, e, p, cam, f);
+            }
             return;
         }
 
@@ -579,7 +676,15 @@ export class ActorsRenderer {
             [Vec2(cx + f * coneLen, by + 4), Color(coneCol.r, coneCol.g, coneCol.b, 0)],
         ]);
 
-        if (assets.tryPlace("scavenger", "actor_scav", cx, by, W * 1.8, H * 1.05, f, 1)) {
+        let frame = 0;
+        if (p.scavState === "turn") {
+            frame = 2;
+        } else if (p.scavState === "chase") {
+            frame = Math.floor(this.animTime * 12) % 2 === 0 ? 3 : 1;
+        } else if (p.scavState === "patrol" || p.scavState === "walk" || p.scavState === "back") {
+            frame = Math.floor(this.animTime * 8) % 2;
+        }
+        if (assets.tryPlace("scavenger", "actor_scav", cx, by, W, H, { facing: f, frame, layer: 3 })) {
             return;
         }
 
@@ -629,7 +734,15 @@ export class ActorsRenderer {
         const W = cam.len(34);
         const H = cam.len(28);
 
-        if (assets.tryPlace("dog", "actor_dog", cx, by, W * 1.4, H * 1.2, f, 1)) {
+        let frame = 0;
+        if (p.dogState === "ear") {
+            frame = 1;
+        } else if (p.dogState === "sniff") {
+            frame = 3;
+        } else if (p.dogState === "patrol" || p.dogState === "chase" || p.dogState === "back") {
+            frame = Math.floor(this.animTime * (p.dogState === "chase" ? 14 : 8)) % 2 === 0 ? 0 : 2;
+        }
+        if (assets.tryPlace("dog", "actor_dog", cx, by, W, H, { facing: f, frame, layer: 3 })) {
             return;
         }
 

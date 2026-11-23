@@ -1,5 +1,5 @@
 /**
- * 艾希（ICEY）终端接入风格主界面、8 章节直达面板、操作图鉴与暂停覆层。
+ * 标题、选章、操作说明与暂停菜单。
  *
  * 支持键鼠双通道操作：
  * - W/S 或 ↑/↓ 移动选框，Enter / Space 确认，Esc 返回；
@@ -10,6 +10,7 @@ import { Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora"
 import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { TextPool } from "Script/watch/fe/ui/textpool";
+import { AssetSlotHost } from "Script/watch/fe/assets";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import {
     PALETTE,
@@ -30,16 +31,16 @@ export interface MenuAction {
 }
 
 const TITLE_ITEMS = [
-    { id: "start", zh: "开始接入", en: "INITIATE // PROLOGUE" },
-    { id: "chapters", zh: "章节直达", en: "CHAPTER MATRIX (01-08)" },
-    { id: "controls", zh: "操作图鉴", en: "CONTROL INTERFACE" },
+    { id: "start", zh: "开始游戏" },
+    { id: "chapters", zh: "选择章节" },
+    { id: "controls", zh: "操作说明" },
 ];
 
 const PAUSE_ITEMS = [
-    { id: "resume", zh: "继续任务", en: "RESUME" },
-    { id: "retry", zh: "重来本段", en: "RETRY CHECKPOINT" },
-    { id: "chapters", zh: "章节直达", en: "CHAPTER SELECT" },
-    { id: "title", zh: "返回标题", en: "DISCONNECT TO TITLE" },
+    { id: "resume", zh: "继续游戏" },
+    { id: "retry", zh: "重试检查点" },
+    { id: "chapters", zh: "选择章节" },
+    { id: "title", zh: "返回标题" },
 ];
 
 export class MenuRenderer {
@@ -112,7 +113,7 @@ export class MenuRenderer {
         return fired;
     }
 
-    /** 标题/章节/操作图鉴的交互更新与渲染 */
+    /** 标题/章节/操作说明的交互更新与渲染 */
     updateAndDrawScreen(
         dt: number,
         screen: ScreenKind,
@@ -120,41 +121,46 @@ export class MenuRenderer {
         stage: StageRenderer,
         bgDraw: DrawNode.Type,
         bgGlow: DrawNode.Type,
+        backdropArt: AssetSlotHost,
+        uiArt: AssetSlotHost,
         uiDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
         texts: TextPool,
         w: number,
         h: number,
+        uiScale: number,
     ): MenuAction {
         this.time += dt;
-        stage.drawMenuBackdrop(bgDraw, bgGlow, w, h, this.time);
-
-        // 细微终端扫描线与左区结构竖线（ICEY 终端接入辨识度）
-        let y = 16;
-        while (y < h) {
-            uiDraw.drawSegment(Vec2(0, y), Vec2(w, y), 0.5, Color(72, 224, 255, 8));
-            y += 14;
+        const artW = Math.max(w, h * 16 / 9);
+        const artH = artW * 9 / 16;
+        if (!backdropArt.tryPlace("title_backdrop", "menu_landscape", w * 0.5, (h - artH) * 0.5, artW, artH)) {
+            stage.drawMenuBackdrop(bgDraw, bgGlow, w, h, this.time);
         }
-        uiDraw.drawSegment(Vec2(66, 48), Vec2(66, h - 48), 1.2, toColor(PALETTE.cyanDim, 140));
-        drawDiamond(uiGlow, 66, h - 48, 5, 5, toColor(PALETTE.cyan));
-        drawDiamond(uiGlow, 66, 48, 5, 5, toColor(PALETTE.cyanDim));
+
+        const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
+        w /= uiScale;
+        h /= uiScale;
+        const titleScreen = screen === "title";
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(15, 14, 20, titleScreen ? 25 : 118));
+        uiArt.tryPlace("ui_corner", "menu_corner", 88, titleScreen ? h * 0.72 + 58 : h - 145,
+            42, 45, { opacity: 0.87 });
 
         const mk = this.readMenuKeys();
         const clicked = this.clickEdge(input);
 
         if (screen === "title") {
-            return this.drawTitle(mk, clicked, input, uiDraw, uiGlow, texts, w, h);
+            return this.drawTitle(mk, clicked, pointer, uiDraw, uiGlow, texts, w, h);
         }
         if (screen === "chapters") {
-            return this.drawChapters(mk, clicked, input, uiDraw, uiGlow, texts, w, h);
+            return this.drawChapters(mk, clicked, input, pointer, uiDraw, uiGlow, texts, w, h);
         }
-        return this.drawControls(mk, clicked, input, uiDraw, uiGlow, texts, w, h);
+        return this.drawControls(mk, clicked, input, pointer, uiDraw, uiGlow, texts, w, h);
     }
 
     private drawTitle(
         mk: { up: boolean; down: boolean; confirm: boolean },
         clicked: boolean,
-        input: Input,
+        pointer: Vec2.Type,
         uiDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
         texts: TextPool,
@@ -167,19 +173,14 @@ export class MenuRenderer {
             this.selected = (this.selected + 1) % TITLE_ITEMS.length;
         }
 
-        const leftX = 104;
+        const leftX = 106;
         const titleY = h * 0.72;
 
-        // 系统抬头与锋利斜切标题光痕
-        texts.put("xs", "SYS // TERMINAL ACCESS   ·   DORA SSR FRONTEND PROTOTYPE", leftX, titleY + 62, toColor(PALETTE.cyan), 0, 0.5, TextAlign.Left, 1.8, 0.92);
-        uiGlow.drawSegment(Vec2(leftX - 10, titleY - 12), Vec2(leftX + 430, titleY - 12), 2.2, toColor(PALETTE.cyan, 215));
-        uiGlow.drawSegment(Vec2(leftX + 390, titleY - 12), Vec2(leftX + 448, titleY + 26), 1.8, toColor(PALETTE.cyanCore, 180));
+        texts.put("xl", "向西守望", leftX, titleY + 24, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 3.2, 1);
+        uiDraw.drawSegment(Vec2(leftX, titleY - 16), Vec2(leftX + 310, titleY - 16), 1.3, toColor(PALETTE.amberDim, 210));
+        texts.put("sm", "城破那天，他留下断后。她独自走向北塔。", leftX, titleY - 48,
+            toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.4, 1);
 
-        texts.put("xl", "月下山谷 · 守望", leftX, titleY + 24, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 3.2, 1);
-        texts.put("sm", "VALLEY UNDER MOONLIGHT  //  双线叙事动作与潜行", leftX, titleY - 34, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.2, 0.92);
-        texts.put("xs", "“城破那天，一个士兵把一个孩子送出了城门；现在，她要一个人走到北方的塔。”", leftX, titleY - 64, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.4, 0.85);
-
-        // 3 个斜切菜单按钮
         const btnW = 340;
         const btnH = 50;
         const gap = 16;
@@ -190,13 +191,13 @@ export class MenuRenderer {
         for (i = 0; i < TITLE_ITEMS.length; i++) {
             const bx = leftX;
             const by = startY - i * (btnH + gap);
-            const hover = input.mx >= bx && input.mx <= bx + btnW + 16 && input.my >= by && input.my <= by + btnH;
+            const hover = pointer.x >= bx && pointer.x <= bx + btnW + 16 && pointer.y >= by && pointer.y <= by + btnH;
             if (hover) {
                 this.selected = i;
                 hitIdx = i;
             }
             const active = this.selected === i;
-            const shiftX = active ? 12 : 0;
+            const shiftX = active ? 7 : 0;
 
             fillSkewRect(
                 uiDraw,
@@ -205,21 +206,20 @@ export class MenuRenderer {
                 btnW,
                 btnH,
                 14,
-                active ? Color(18, 44, 68, 228) : toColor(PALETTE.panelBg, 195),
+                active ? Color(60, 45, 42, 240) : toColor(PALETTE.panelBg, 195),
                 active ? 1.6 : 1.0,
                 toColor(active ? PALETTE.cyan : PALETTE.steelLight, active ? 240 : 140),
             );
             if (active) {
                 fillSkewRect(uiGlow, bx + shiftX - 4, by, 6, btnH, 14, toColor(PALETTE.cyanCore, 240));
-                fillRadialGlow(uiGlow, bx + shiftX + 24, by + btnH * 0.5, 42, 22, toColor(PALETTE.cyan, 85), Color(72, 224, 255, 0), 12);
+                fillRadialGlow(uiGlow, bx + shiftX + 24, by + btnH * 0.5, 42, 22, toColor(PALETTE.cyan, 85), Color(193, 161, 114, 0), 12);
             }
-            texts.put("md", (active ? "▸  " : "   ") + TITLE_ITEMS[i].zh, bx + shiftX + 22, by + 31, toColor(active ? PALETTE.cyanCore : PALETTE.textBright), 0, 0.5, TextAlign.Left, 1.0, 1);
-            texts.put("xs", TITLE_ITEMS[i].en, bx + shiftX + 42, by + 12, toColor(active ? PALETTE.cyan : PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.9);
+            texts.put("md", (active ? "▸  " : "   ") + TITLE_ITEMS[i].zh, bx + shiftX + 22, by + btnH * 0.5,
+                toColor(active ? PALETTE.amberCore : PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 1);
         }
 
-        // 右下状态标签
-        texts.put("xs", "↑ / ↓ 选择   ·   ENTER / 点击 确认   ·   支持 8 章节全链体验", leftX, 52, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 0.8, 0.85);
-        texts.put("xs", "BUILD // ICEY-STYLE PROCEDURAL VECTOR FRONTEND", w - 48, 52, toColor(PALETTE.cyanDim), 1, 0.5, TextAlign.Right, 1.0, 0.8);
+        texts.put("xs", "↑ / ↓ 选择   ·   Enter 或点击确认", leftX, 52,
+            toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.3, 1);
 
         if (mk.confirm || (clicked && hitIdx >= 0)) {
             const id = TITLE_ITEMS[this.selected].id;
@@ -238,6 +238,7 @@ export class MenuRenderer {
         mk: { up: boolean; down: boolean; left: boolean; right: boolean; confirm: boolean; back: boolean },
         clicked: boolean,
         input: Input,
+        pointer: Vec2.Type,
         uiDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
         texts: TextPool,
@@ -257,9 +258,8 @@ export class MenuRenderer {
             this.chapterSelected = (this.chapterSelected + 4) % ROOMS.length;
         }
 
-        const leftX = 104;
-        texts.put("xs", "CHAPTER MATRIX  //  双线叙事八段关卡直达", leftX, h - 78, toColor(PALETTE.cyan), 0, 0.5, TextAlign.Left, 1.6, 1);
-        texts.put("lg", "选择接入节点", leftX, h - 116, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.0, 1);
+        const leftX = 106;
+        texts.put("lg", "选择章节", leftX, h - 116, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.0, 1);
         uiGlow.drawSegment(Vec2(leftX, h - 142), Vec2(w - 86, h - 142), 1.4, toColor(PALETTE.cyanDim, 180));
 
         // 上行：军人线 01–04（冷冰青）；下行：孩子线 05–08（暖琥珀）
@@ -281,7 +281,7 @@ export class MenuRenderer {
             const cx = leftX + col * (cardW + gapX);
             const cy = row === 0 ? rowY0 : rowY1;
             const theme = themeOf(ROOMS[i].key);
-            const hover = input.mx >= cx && input.mx <= cx + cardW && input.my >= cy && input.my <= cy + cardH;
+            const hover = pointer.x >= cx && pointer.x <= cx + cardW && pointer.y >= cy && pointer.y <= cy + cardH;
             if (hover) {
                 this.chapterSelected = i;
                 hitIdx = i;
@@ -302,7 +302,6 @@ export class MenuRenderer {
             fillVGradRect(uiGlow, cx, cy + cardH - 36, cardW, 36, Color(theme.accent.r, theme.accent.g, theme.accent.b, 0), toColor(theme.accent, active ? 68 : 26));
             texts.put("xs", theme.actCode + "  //  " + theme.lineTag, cx + 16, cy + cardH - 20, toColor(theme.accent), 0, 0.5, TextAlign.Left, 0.8, 1);
             texts.put("md", theme.titleZh, cx + 16, cy + cardH - 54, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, 1);
-            texts.put("xs", theme.titleEn, cx + 16, cy + 26, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 0.5, 0.9);
             if (active) {
                 drawDiamond(uiGlow, cx + cardW - 22, cy + 24, 6, 6, toColor(theme.accent));
             }
@@ -311,7 +310,7 @@ export class MenuRenderer {
         // 返回按钮
         const backX = leftX;
         const backY = 48;
-        const backHover = input.mx >= backX && input.mx <= backX + 160 && input.my >= backY && input.my <= backY + 34;
+        const backHover = pointer.x >= backX && pointer.x <= backX + 160 && pointer.y >= backY && pointer.y <= backY + 34;
         fillSkewRect(uiDraw, backX, backY, 156, 34, 9, toColor(PALETTE.panelBg, 210), 1.2, toColor(backHover ? PALETTE.cyan : PALETTE.steelLight, 200));
         texts.put("xs", "← 返回标题 [ESC]", backX + 82, backY + 17, toColor(backHover ? PALETTE.cyanCore : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.6, 1);
 
@@ -328,6 +327,7 @@ export class MenuRenderer {
         mk: { confirm: boolean; back: boolean },
         clicked: boolean,
         input: Input,
+        pointer: Vec2.Type,
         uiDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
         texts: TextPool,
@@ -337,9 +337,8 @@ export class MenuRenderer {
         if (input.pause.pressed || mk.back || mk.confirm) {
             return { type: "backTitle" };
         }
-        const leftX = 104;
-        texts.put("xs", "CONTROL INTERFACE  //  双线共享键位对照", leftX, h - 78, toColor(PALETTE.cyan), 0, 0.5, TextAlign.Left, 1.6, 1);
-        texts.put("lg", "操作图鉴", leftX, h - 116, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.0, 1);
+        const leftX = 106;
+        texts.put("lg", "操作说明", leftX, h - 116, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.0, 1);
         uiGlow.drawSegment(Vec2(leftX, h - 142), Vec2(w - 86, h - 142), 1.4, toColor(PALETTE.cyanDim, 180));
 
         const colW = (w - leftX - 116) * 0.5;
@@ -350,12 +349,12 @@ export class MenuRenderer {
         fillChamferBox(uiDraw, leftX, panelY, colW, panelH, 16, toColor(PALETTE.panelBgDeep, 225), 1.3, toColor(PALETTE.cyan, 185));
         texts.put("md", "周戍  //  军人线（枪战 · 掩体 · 护送）", leftX + 24, panelY + panelH - 32, toColor(PALETTE.cyanCore), 0, 0.5, TextAlign.Left, 0.6, 1);
         const sRows: [string, string][] = [
-            ["A / D", "战术横移"],
-            ["鼠标 + 左键", "瞄准与点射（射线判定）"],
+            ["A / D", "左右移动"],
+            ["鼠标 + 左键", "瞄准与点射"],
             ["SHIFT（按住）", "贴靠柜台/街垒掩体挡枪"],
             ["SPACE", "平地高速翻滚 / 贴矮台翻越"],
             ["E", "递物 / 敲两下安抚 / 按住+D 推车"],
-            ["ESC / R", "暂停系统 / 从检查点重试"],
+            ["ESC / R", "暂停 / 从检查点重试"],
         ];
         let i = 0;
         for (i = 0; i < sRows.length; i++) {
@@ -386,7 +385,7 @@ export class MenuRenderer {
 
         const backX = leftX;
         const backY = 48;
-        const backHover = input.mx >= backX && input.mx <= backX + 190 && input.my >= backY && input.my <= backY + 34;
+        const backHover = pointer.x >= backX && pointer.x <= backX + 190 && pointer.y >= backY && pointer.y <= backY + 34;
         fillSkewRect(uiDraw, backX, backY, 186, 34, 9, toColor(PALETTE.panelBg, 210), 1.2, toColor(backHover ? PALETTE.cyan : PALETTE.steelLight, 200));
         texts.put("xs", "← 返回标题 [ESC / ENTER]", backX + 96, backY + 17, toColor(backHover ? PALETTE.cyanCore : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.5, 1);
 
@@ -405,8 +404,10 @@ export class MenuRenderer {
         texts: TextPool,
         w: number,
         h: number,
+        uiScale: number,
     ): MenuAction {
         this.time += dt;
+        const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
         const mk = this.readMenuKeys();
         const clicked = this.clickEdge(input);
 
@@ -425,9 +426,8 @@ export class MenuRenderer {
         const by = (h - boxH) * 0.5;
 
         fillChamferBox(uiDraw, bx, by, boxW, boxH, 18, toColor(PALETTE.panelBgDeep, 242), 1.5, toColor(PALETTE.cyan, 210));
-        fillVGradRect(uiGlow, bx, by + boxH - 64, boxW, 64, Color(72, 224, 255, 0), Color(72, 224, 255, 42));
-        texts.put("xs", "SYSTEM PAUSED  //  已挂起", bx + 28, by + boxH - 24, toColor(PALETTE.cyan), 0, 0.5, TextAlign.Left, 1.4, 1);
-        texts.put("lg", "任务暂停", bx + 28, by + boxH - 56, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 1.8, 1);
+        fillVGradRect(uiGlow, bx, by + boxH - 64, boxW, 64, Color(193, 161, 114, 0), Color(193, 161, 114, 36));
+        texts.put("lg", "游戏暂停", bx + 28, by + boxH - 56, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 1.8, 1);
 
         let hitIdx = -1;
         let i = 0;
@@ -436,7 +436,7 @@ export class MenuRenderer {
             const ix = bx + 28;
             const iw = boxW - 56;
             const ih = 42;
-            const hover = input.mx >= ix && input.mx <= ix + iw && input.my >= iy && input.my <= iy + ih;
+            const hover = pointer.x >= ix && pointer.x <= ix + iw && pointer.y >= iy && pointer.y <= iy + ih;
             if (hover) {
                 this.pauseSelected = i;
                 hitIdx = i;
@@ -449,7 +449,7 @@ export class MenuRenderer {
                 iw,
                 ih,
                 10,
-                active ? Color(20, 48, 72, 232) : Color(12, 18, 30, 200),
+                active ? Color(59, 44, 41, 233) : Color(12, 18, 30, 200),
                 active ? 1.5 : 1.0,
                 toColor(active ? PALETTE.cyan : PALETTE.steelLight, active ? 240 : 130),
             );
@@ -457,7 +457,6 @@ export class MenuRenderer {
                 fillSkewRect(uiGlow, ix - 3, iy, 5, ih, 10, toColor(PALETTE.cyanCore, 235));
             }
             texts.put("sm", (active ? "▸  " : "   ") + PAUSE_ITEMS[i].zh, ix + 18, iy + 21, toColor(active ? PALETTE.cyanCore : PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 1);
-            texts.put("xs", PAUSE_ITEMS[i].en, ix + iw - 14, iy + 21, toColor(active ? PALETTE.cyan : PALETTE.textDim), 1, 0.5, TextAlign.Right, 0.8, 0.9);
         }
 
         if (mk.confirm || (clicked && hitIdx >= 0)) {

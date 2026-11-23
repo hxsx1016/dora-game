@@ -34,8 +34,13 @@ export class PropsRenderer {
         this.drawZones(fgDraw, fgGlow, p, cam, time);
         this.drawMarks(fgDraw, fgGlow, p, cam, time);
         this.drawCart(fgDraw, fgGlow, assets, p, cam, time);
+        if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
+            const x = (p.player.x + p.partner.x) * 0.5;
+            const y = p.partner.y + p.partner.h * 0.62;
+            assets.tryPlace("prop_compass", "handover", cam.sx(x), cam.sy(y), cam.len(12), cam.len(12), { layer: 6 });
+        }
         if (p.room.key === "village") {
-            this.drawVillageProps(fgDraw, fgGlow, p, cam, time);
+            this.drawVillageProps(fgDraw, fgGlow, assets, p, cam, time);
         }
     }
 
@@ -171,11 +176,6 @@ export class PropsRenderer {
         const bh = cam.len(c.bodyH);
         const wr = cam.len(c.wheelR);
 
-        // 若完整前端分支挂接了板车 PNG，则用外部贴图替换
-        if (assets.tryPlace("prop_cart", "cart_" + p.room.key, cx, baseY, bw * 1.4, (c.wheelR + c.bodyH + 18) * cam.ppu, 1, 1)) {
-            return;
-        }
-
         const x0 = cx - bw * 0.5;
         const x1 = cx + bw * 0.5;
         const bodyY0 = baseY + wr * 1.05;
@@ -184,34 +184,44 @@ export class PropsRenderer {
         // 车底暗影
         fgDraw.drawEllipse(Vec2(cx, baseY + 2), bw * 0.62, 5, Color(4, 6, 10, 150));
 
-        // 车身木钢复合车斗
-        fillVGradRect(fgDraw, x0, bodyY0, bw, bh, Color(48, 32, 28, 255), toColor(PALETTE.cartWood));
-        fgDraw.drawRect(Rect(x0, bodyY0, bw, bh), Color(0, 0, 0, 0), 1.6, toColor(PALETTE.cartMetal, 220));
-        // 车斗加固铁条
-        fgDraw.drawSegment(Vec2(x0 + bw * 0.33, bodyY0), Vec2(x0 + bw * 0.33, bodyY1), 1.4, toColor(PALETTE.cartMetal, 180));
-        fgDraw.drawSegment(Vec2(x0 + bw * 0.67, bodyY0), Vec2(x0 + bw * 0.67, bodyY1), 1.4, toColor(PALETTE.cartMetal, 180));
-        fgDraw.drawSegment(Vec2(x0 - 2, bodyY1), Vec2(x1 + 2, bodyY1), 2.2, toColor(PALETTE.rimSilver, 220));
+        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY, bw * 1.36,
+            (c.wheelR * 2 + c.bodyH) * cam.ppu * 0.88, { layer: 2 });
+        if (!painted) {
+            // 车身木钢复合车斗
+            fillVGradRect(fgDraw, x0, bodyY0, bw, bh, Color(48, 32, 28, 255), toColor(PALETTE.cartWood));
+            fgDraw.drawRect(Rect(x0, bodyY0, bw, bh), Color(0, 0, 0, 0), 1.6, toColor(PALETTE.cartMetal, 220));
+            // 车斗加固铁条
+            fgDraw.drawSegment(Vec2(x0 + bw * 0.33, bodyY0), Vec2(x0 + bw * 0.33, bodyY1), 1.4, toColor(PALETTE.cartMetal, 180));
+            fgDraw.drawSegment(Vec2(x0 + bw * 0.67, bodyY0), Vec2(x0 + bw * 0.67, bodyY1), 1.4, toColor(PALETTE.cartMetal, 180));
+            fgDraw.drawSegment(Vec2(x0 - 2, bodyY1), Vec2(x1 + 2, bodyY1), 2.2, toColor(PALETTE.rimSilver, 220));
 
-        // 旋转双轮（按位移真实滚动）
-        const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
-        const wxA = x0 + bw * 0.24;
-        const wxB = x1 - bw * 0.24;
-        const wy = baseY + wr;
-        this.drawWheel(fgDraw, wxA, wy, wr, wheelSpin);
-        this.drawWheel(fgDraw, wxB, wy, wr, wheelSpin);
+            // 旋转双轮（按位移真实滚动）
+            const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
+            const wxA = x0 + bw * 0.24;
+            const wxB = x1 - bw * 0.24;
+            const wy = baseY + wr;
+            this.drawWheel(fgDraw, wxA, wy, wr, wheelSpin);
+            this.drawWheel(fgDraw, wxB, wy, wr, wheelSpin);
+        }
 
         // 外侧推拉手柄
         const hx = cam.sx(axleX + c.handleOffset);
-        const hTop = bodyY1 + cam.len(18);
+        const hTop = bodyY1 + cam.len(9);
         const gripReady = p.gripping || p.focusCart || Math.abs(p.player.x - (axleX + c.handleOffset)) < 70;
         const handleCol = p.gripping ? PALETTE.cyan : (gripReady ? PALETTE.amber : PALETTE.cartMetal);
-        fgDraw.drawSegment(Vec2(hx, bodyY0 + 4), Vec2(hx, hTop), 2.6, toColor(handleCol));
-        fgDraw.drawSegment(Vec2(c.handleOffset < 0 ? x0 : x1, bodyY0 + bh * 0.5), Vec2(hx, bodyY0 + bh * 0.55), 2.2, toColor(PALETTE.cartMetal));
+        const edge = c.handleOffset < 0 ? x0 : x1;
+        fgDraw.drawSegment(Vec2(edge, bodyY0 + bh * 0.55), Vec2(hx, hTop - cam.len(4)),
+            Math.max(2, cam.len(3)), toColor(PALETTE.cartWood));
+        fgDraw.drawSegment(Vec2(hx, hTop - cam.len(6)), Vec2(hx, hTop),
+            Math.max(2, cam.len(4)), toColor(handleCol));
         fgGlow.drawDot(Vec2(hx, hTop), gripReady ? 4.8 : 3.2, toColor(handleCol, gripReady ? 245 : 160));
         if (gripReady && !p.cartDocked) {
             fillRadialGlow(fgGlow, hx, hTop, 22, 22, toColor(handleCol, 95), Color(handleCol.r, handleCol.g, handleCol.b, 0), 12);
         }
 
+        if (painted) {
+            return;
+        }
         // 标志性猩红布条（系在左侧，绝不镜像，随风微摆）
         const clothAnchorX = c.clothSide < 0 ? x0 + 3 : x1 - 3;
         const wave = Math.sin(time * 3.4) * 5 + (p.gripping ? -p.player.facing * 6 : 0);
@@ -254,6 +264,7 @@ export class PropsRenderer {
     private drawVillageProps(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         time: number,
@@ -268,37 +279,40 @@ export class PropsRenderer {
             fgDraw.drawRect(Rect(bx0, by0, bx1 - bx0, by1 - by0), Color(32, 36, 46, 235), 1.2, toColor(PALETTE.steelLight, 180));
             // 两层木板隔层
             fgDraw.drawSegment(Vec2(bx0 + 2, by0 + (by1 - by0) * 0.48), Vec2(bx1 - 2, by0 + (by1 - by0) * 0.48), 2, toColor(PALETTE.cartWood));
-            fgDraw.drawSegment(Vec2(bx0, by1), Vec2(bx1, by1), 2.2, toColor(PALETTE.rimSilver, 210));
+            assets.tryPlace("cover_wood", "village_shelf", (bx0 + bx1) * 0.5, by0,
+                bx1 - bx0, by1 - by0, { layer: 1, opacity: 0.85 });
+            fgDraw.drawSegment(Vec2(bx0, by1), Vec2(bx1, by1), 1.3, toColor(PALETTE.rimSilver, 175));
             if (!p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0) {
-                this.drawBottleSprite(fgDraw, fgGlow, cam.sx(bottle.x), cam.sy(65), cam.ppu, 0, true, time);
+                this.drawBottleSprite(fgDraw, fgGlow, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(65), cam.ppu, 0, true, time);
             }
         }
 
-        // 2. 村口木桌（桌下净高 44，304..416）
-        const tx0 = cam.sx(300);
-        const tx1 = cam.sx(420);
-        const ty0 = cam.sy(0);
-        const tyBot = cam.sy(44);
-        const tyTop = cam.sy(51);
-        // 桌下隐蔽暗影
-        fillVGradRect(fgDraw, tx0 + 6, ty0, tx1 - tx0 - 12, tyBot - ty0, Color(5, 7, 12, 185), Color(5, 7, 12, 110));
-        // 桌面与桌腿
-        fgDraw.drawRect(Rect(tx0, tyBot, tx1 - tx0, tyTop - tyBot), Color(68, 52, 42, 255), 1.3, toColor(PALETTE.rimSilver, 185));
-        fgDraw.drawRect(Rect(tx0 + 2, ty0, 7, tyBot - ty0), Color(48, 38, 32, 255));
-        fgDraw.drawRect(Rect(tx1 - 9, ty0, 7, tyBot - ty0), Color(48, 38, 32, 255));
-        fgDraw.drawSegment(Vec2(tx0, tyTop), Vec2(tx1, tyTop), 1.8, toColor(PALETTE.amber, 165));
+        const arch = p.room.arch;
+        const tx0 = cam.sx(arch.x0 - 4);
+        const tx1 = cam.sx(arch.x1 + 4);
+        const ty0 = cam.sy(arch.y);
+        const tyBot = cam.sy(arch.y + arch.h);
+        const tyTop = cam.sy(arch.y + arch.h + 7);
+        fillVGradRect(fgDraw, tx0 + 6, ty0, tx1 - tx0 - 12, tyBot - ty0,
+            Color(9, 10, 15, 165), Color(9, 10, 15, 100));
+        if (!assets.tryPlace("prop_table", "village_table", (tx0 + tx1) * 0.5, ty0,
+            tx1 - tx0, tyTop - ty0, { layer: 6 })) {
+            fgDraw.drawRect(Rect(tx0, tyBot, tx1 - tx0, tyTop - tyBot), toColor(PALETTE.cartWood));
+            fgDraw.drawRect(Rect(tx0 + 2, ty0, 7, tyBot - ty0), toColor(PALETTE.cartWood));
+            fgDraw.drawRect(Rect(tx1 - 9, ty0, 7, tyBot - ty0), toColor(PALETTE.cartWood));
+        }
 
         // 3. 手上持瓶 / 飞行中瓶子
         if (p.hasBottle) {
             const pl = p.player;
-            this.drawBottleSprite(fgDraw, fgGlow, cam.sx(pl.x + pl.facing * 12), cam.sy(pl.y + pl.h * 0.56), cam.ppu, pl.facing * 0.2, false, time);
+            this.drawBottleSprite(fgDraw, fgGlow, assets, "bottle_held", cam.sx(pl.x + pl.facing * 12), cam.sy(pl.y + pl.h * 0.56), cam.ppu, pl.facing * 0.2, false, time);
         }
         if (p.bottleFly !== undefined) {
-            this.drawBottleSprite(fgDraw, fgGlow, cam.sx(p.bottleFly.x), cam.sy(p.bottleFly.y), cam.ppu, time * 14, true, time);
+            this.drawBottleSprite(fgDraw, fgGlow, assets, "bottle_air", cam.sx(p.bottleFly.x), cam.sy(p.bottleFly.y), cam.ppu, time * 14, true, time);
         }
 
         // 4. 持瓶抛物线预览（与后端 bottleAimX/Y 100% 同参数，精准预测落点声响）
-        if (p.hasBottle) {
+        if (p.hasBottle && p.aimHold > 0) {
             const pl = p.player;
             let endX = p.bottleAimX;
             let endY = p.bottleAimY;
@@ -345,15 +359,20 @@ export class PropsRenderer {
     private drawBottleSprite(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        id: string,
         cx: number, cy: number, ppu: number,
         tilt: number, highlight: boolean, time: number,
     ): void {
-        const bw = Math.max(5, ppu * 3.2);
-        const bh = Math.max(12, ppu * 8.5);
-        const dx = Math.sin(tilt) * bh * 0.4;
-        const dy = Math.cos(tilt) * bh * 0.5;
-        fgDraw.drawSegment(Vec2(cx - dx, cy - dy), Vec2(cx + dx, cy + dy), bw * 0.52, toColor(PALETTE.emerald, 225));
-        fgDraw.drawSegment(Vec2(cx + dx * 0.7, cy + dy * 0.7), Vec2(cx + dx * 1.25, cy + dy * 1.25), bw * 0.28, toColor(PALETTE.cyanCore, 230));
+        const height = Math.max(12, ppu * 13);
+        if (!assets.tryPlace("prop_bottle", id, cx, cy, height, height, {
+            angle: tilt * 180 / Math.PI, layer: 6,
+        })) {
+            const dx = Math.sin(tilt) * height * 0.4;
+            const dy = Math.cos(tilt) * height * 0.5;
+            fgDraw.drawSegment(Vec2(cx - dx, cy - dy), Vec2(cx + dx, cy + dy), height * 0.32,
+                toColor(PALETTE.amber, 225));
+        }
         if (highlight) {
             const p = 0.7 + 0.3 * Math.sin(time * 4.5);
             fillRadialGlow(fgGlow, cx, cy, 18 * p, 18 * p, toColor(PALETTE.emerald, 85 * p), Color(84, 232, 168, 0), 12);

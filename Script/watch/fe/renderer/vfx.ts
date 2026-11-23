@@ -10,12 +10,12 @@
 import { Color, DrawNode, Vec2 } from "Dora";
 import { Play, Trace } from "Script/watch/play";
 import { FrameEvents } from "Script/watch/fe/adapter";
+import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import {
     AmbientKind,
     PALETTE,
     RGBA,
-    drawDiamond,
     fillHGradRect,
     fillRadialGlow,
     fillVGradRect,
@@ -139,11 +139,20 @@ export class VfxSystem {
 
         if (ev.coverDeflect) {
             this.deflectFlash = 1.0;
-            this.deflectX = p.player.x + p.player.facing * 20;
-            this.deflectY = p.player.y + p.player.h * 0.58;
-            this.spawnBurst(this.deflectX, this.deflectY, 14, PALETTE.cyan, 180);
-            this.rings.push({ x: this.deflectX, y: this.deflectY, maxR: 42, life: 0.32, maxLife: 0.32, color: PALETTE.cyan });
-            cam.addShake(4.2);
+            this.deflectX = p.player.x + p.player.facing * 16;
+            this.deflectY = p.player.y + p.player.h * 0.48;
+            let nearest = 48;
+            for (const solid of p.room.solids) {
+                const edge = p.player.x < solid.x ? solid.x : solid.x + solid.w;
+                const gap = Math.abs(p.player.x - edge);
+                if (!solid.passable && solid.y <= p.player.y + 2 && solid.h <= 64 && gap < nearest) {
+                    nearest = gap;
+                    this.deflectX = edge;
+                    this.deflectY = solid.y + solid.h * 0.86;
+                }
+            }
+            this.spawnBurst(this.deflectX, this.deflectY, 8, PALETTE.amberDim, 115);
+            cam.addShake(2.6);
         }
 
         if (ev.playerHit) {
@@ -291,7 +300,7 @@ export class VfxSystem {
     }
 
     /** 绘制世界空间特效（弹道、火花、格挡光幕、声波环） */
-    drawWorldVfx(fgGlow: DrawNode.Type, cam: CameraDirector): void {
+    drawWorldVfx(fgGlow: DrawNode.Type, assets: AssetSlotHost, cam: CameraDirector): void {
         // 1. 斩切式霓虹曳光弹道
         let i = 0;
         for (i = 0; i < this.tracers.length; i++) {
@@ -322,14 +331,13 @@ export class VfxSystem {
             }
         }
 
-        // 2. 掩体格挡全息盾爆闪
         if (this.deflectFlash > 0) {
             const k = this.deflectFlash;
-            const dx = cam.sx(this.deflectX);
-            const dy = cam.sy(this.deflectY);
-            const r = 18 + (1 - k) * 32;
-            drawDiamond(fgGlow, dx, dy, r * 0.65, r * 1.15, toColor(PALETTE.cyan, 65 * k), 2.2, toColor(PALETTE.cyanCore, 235 * k));
-            fillRadialGlow(fgGlow, dx, dy, r * 1.6, r * 1.6, toColor(PALETTE.cyan, 120 * k), Color(72, 224, 255, 0), 14);
+            const dy = cam.sy(this.deflectY + (1 - k) * 11);
+            const height = cam.len(18 + (1 - k) * 12);
+            assets.tryPlace("stone_chips", "blocked", cam.sx(this.deflectX), dy, height, height, {
+                opacity: k, layer: 8,
+            });
         }
 
         // 3. 同心扩散声波环
