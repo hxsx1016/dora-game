@@ -287,3 +287,4 @@ throwCase("F2 砖地瞄高空", 608, 120)
 throwCase("F3 软土 272", 272, 0)
 
 print(string.format("==== 结果：PASS %d / FAIL %d ====", pass, fail))
+assert(fail == 0, string.format("D6 回归失败 %d 项", fail))
