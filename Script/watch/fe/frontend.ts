@@ -223,7 +223,7 @@ export class WatchFrontend {
         this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
-        // 7. 水墨 HUD、旁白叙事与暂停卷轴
+        // 7. 水墨 HUD、旁白叙事与暂停垂纱
         const uiScale = this.resizeInterface(w, h);
         let action: MenuAction = { type: "none" };
         if (p.paused) {
