@@ -300,7 +300,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p) -- 156
 	end -- 209
 	if key == "prologue" then -- 209
 		if p.phase == "prologue-wait" then -- 209
-			return {cue = "", text = "倒塌的柜台后面藏着一个孩子。走近她，按 [E] 递出指南针与纸条", urgent = false} -- 214
+			return {cue = "", text = "按 [W/S] 前后绕过倒柜，走近小满后按 [E] 递出指南针", urgent = false} -- 214
 		end -- 214
 		if p.phase == "prologue-give" then -- 214
 			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 217

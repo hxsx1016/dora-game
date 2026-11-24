@@ -5,8 +5,9 @@
  * 后端零耦合：所有判断都基于 Play 已公开的状态字段。
  */
 
-import { CART_REACH, Play, Trace } from "Script/watch/play";
+import { Play, Trace } from "Script/watch/play";
 import { CALM_REACH } from "Script/watch/escort";
+import { inReachDepth } from "Script/watch/depth";
 
 export interface FrameEvents {
     shotFired: boolean;
@@ -33,6 +34,7 @@ export interface FrameEvents {
 
 export interface WorldPrompt {
     x: number;
+    /** 已含纵深的投影高度。 */
     y: number;
     keyTag: string;
     label: string;
@@ -95,7 +97,7 @@ export class PlayAdapter {
             const wasAlive = i < this.prevAliveMask.length ? this.prevAliveMask[i] : true;
             if (wasAlive && !p.enemies[i].alive) {
                 enemyKilledX = p.enemies[i].x;
-                enemyKilledY = p.enemies[i].y + p.enemies[i].h * 0.55;
+                enemyKilledY = p.enemies[i].y + (p.enemies[i].depth ?? 0) + p.enemies[i].h * 0.55;
             }
         }
 
@@ -106,7 +108,7 @@ export class PlayAdapter {
         // 敲击只消费模拟队列，避免重试、换房或补跑多步时重复/漏播。
         let knockPulse = false;
         let knockX = p.player.x;
-        let knockY = p.player.y + p.player.h * 0.5;
+        let knockY = p.player.y + p.player.depth + p.player.h * 0.5;
 
         let bottleLanded = p.bottleLandT > this.prevBottleLandT + 0.1 && p.bottleLandX >= 0;
         let bottleLandX = p.bottleLandX;
@@ -122,7 +124,8 @@ export class PlayAdapter {
                 knockPulse = true;
                 const x = event.data.x;
                 knockX = typeof x === "number" ? x : p.player.x;
-                knockY = p.escort.state === "calming" ? p.partner.y + 28 : p.player.y + p.player.h * 0.55;
+                knockY = p.escort.state === "calming"
+                    ? p.partner.y + p.partner.depth + 28 : p.player.y + p.player.depth + p.player.h * 0.55;
             } else if (event.name === "actorHit" || event.name === "gateFailed") {
                 playerHit = true;
             } else if (event.name === "coverBlocked") {
@@ -196,15 +199,15 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
 
     if (room.key === "prologue" && p.phase === "prologue-wait") {
         const reach = room.story?.prologue?.giveReach ?? 46;
-        if (Math.abs(player.x - p.partner.x) <= reach) {
-            return { x: p.partner.x, y: p.partner.y + p.partner.h + 22, keyTag: "E", label: "递出指南针", urgent: false };
+        if (Math.abs(player.x - p.partner.x) <= reach && inReachDepth(player.depth, p.partner.depth)) {
+            return { x: p.partner.x, y: p.partner.y + p.partner.depth + p.partner.h + 22, keyTag: "E", label: "递出指南针", urgent: false };
         }
         return undefined;
     }
 
     if (!p.childMode && p.escort.state === "frozen") {
-        if (Math.abs(player.x - p.partner.x) <= CALM_REACH) {
-            return { x: p.partner.x, y: p.partner.y + p.partner.h + 22, keyTag: "E", label: "安抚小满", urgent: true };
+        if (Math.abs(player.x - p.partner.x) <= CALM_REACH && inReachDepth(player.depth, p.partner.depth)) {
+            return { x: p.partner.x, y: p.partner.y + p.partner.depth + p.partner.h + 22, keyTag: "E", label: "安抚小满", urgent: true };
         }
         return undefined;
     }
@@ -212,11 +215,11 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     const gate = room.story?.gate;
     if (gate !== undefined) {
         if (p.phase === "gate-idle" && p.gateNeedConfirm &&
-            Math.abs(player.x - gate.winchX) <= 24 && player.y < 20 &&
+            Math.abs(player.x - gate.winchX) <= 24 && player.y < 20 && inReachDepth(player.depth) &&
             p.partner.alive && Math.abs(p.partner.x - gate.waitX) <= 60) {
             return { x: gate.winchX, y: 84, keyTag: "E", label: "重新守门", urgent: true };
         }
-        if (p.phase === "gate-send" && Math.abs(player.x - gate.doorX) <= 60) {
+        if (p.phase === "gate-send" && Math.abs(player.x - gate.doorX) <= 60 && inReachDepth(player.depth)) {
             return { x: gate.doorX, y: 98, keyTag: "E", label: "送小满出城", urgent: true };
         }
     }
@@ -224,10 +227,10 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     const cart = room.cart;
     if ((room.key === "checkpoint" || room.key === "outside") && !p.cartDocked && cart.bodyW > 0) {
         const handleX = p.cartAxle + cart.handleOffset;
-        if (p.gripping || (Math.abs(player.x - handleX) <= CART_REACH && Math.abs(player.y - cart.baseY) <= 40)) {
+        if (p.gripping || p.cartHandleInReach()) {
             return {
                 x: handleX,
-                y: cart.baseY + cart.wheelR + cart.bodyH + 46,
+                y: cart.baseY + (cart.depth ?? 0) + cart.wheelR + cart.bodyH + 46,
                 keyTag: "按住 E + D",
                 label: room.key === "checkpoint" ? "向前推车" : "向前拉车",
                 urgent: false,
@@ -277,7 +280,7 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     if (!p.childMode && p.coverNear && !p.coverHug && !p.gripping &&
         p.escort.state !== "calming" && (gate === undefined || p.phase === "gate-hold")) {
         return {
-            x: player.x, y: player.y + player.h + 25,
+            x: player.x, y: player.y + player.depth + player.h + 25,
             keyTag: "按住 Shift", label: "贴靠掩体", urgent: gate !== undefined,
         };
     }

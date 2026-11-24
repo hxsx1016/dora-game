@@ -2,9 +2,10 @@
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
-import { SolidSpec } from "Script/watch/rooms";
+import { DepthRange, SolidSpec } from "Script/watch/rooms";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
+import { DepthOcclusion, depthOrder } from "Script/watch/fe/occlusion";
 import {
     PALETTE,
     RoomTheme,
@@ -32,6 +33,11 @@ function roomSeed(key: string): number {
         h = (h * 31 + key.charCodeAt(i)) % 9973;
     }
     return h;
+}
+
+function coverArt(solid: SolidSpec): AssetSlotKey {
+    return solid.art ?? (solid.label.indexOf("队栏") >= 0 ? "fence"
+        : (solid.label.indexOf("柜") >= 0 || solid.label.indexOf("货") >= 0 ? "cover_wood" : "cover_stone"));
 }
 
 export class StageRenderer {
@@ -266,11 +272,13 @@ export class StageRenderer {
         p: Play,
         cam: CameraDirector,
         time: number,
+        occlusion: DepthOcclusion,
+        fadeDt: number,
     ): void {
         const theme = themeOf(p.room.key);
         this.drawFloors(fgDraw, assets, p, cam, theme);
         this.drawStairs(fgDraw, fgGlow, assets, p, cam, theme);
-        this.drawSolids(fgDraw, fgGlow, assets, p, cam, theme, time);
+        this.drawSolids(fgDraw, fgGlow, assets, p, cam, theme, time, occlusion, fadeDt);
         if (p.room.key === "gate") {
             this.drawGateShutter(fgDraw, fgGlow, assets, p, cam, time);
         }
@@ -579,8 +587,12 @@ export class StageRenderer {
             const floor = p.room.floors[i];
             const left = cam.sx(floor.x0);
             const right = cam.sx(floor.x1);
-            const top = cam.sy(floor.y);
             const isMain = floor.y <= 0.1;
+            const road = isMain ? p.room.depth : undefined;
+            const top = cam.sy(floor.y, road?.min ?? 0);
+            if (road !== undefined) {
+                this.drawRoad(fgDraw, assets, i, left, right, top, cam.sy(floor.y, road.max), cam, theme);
+            }
             const height = cam.len(isMain ? 22 : 12);
             const bottom = top - height;
             if (isMain && bottom > 0) {
@@ -601,6 +613,42 @@ export class StageRenderer {
             }
             fgDraw.drawSegment(Vec2(left, top), Vec2(right, top), 1, toColor(theme.groundRim, 140));
         }
+    }
+
+    private drawRoad(
+        draw: DrawNode.Type, assets: AssetSlotHost, floor: number,
+        left: number, right: number, front: number, back: number,
+        cam: CameraDirector, theme: RoomTheme,
+    ): void {
+        const width = right - left;
+        const height = back - front;
+        fillVGradRect(draw, left, front, width, height,
+            toColor(lerpRGBA(theme.groundBody, PALETTE.steelMid, 0.34)),
+            toColor(lerpRGBA(theme.groundBody, PALETTE.voidDark, 0.36)));
+        const bands = [0, 0.31, 0.59, 0.82, 1];
+        const edge = toColor(theme.groundRim, 34);
+        for (let row = 0; row < bands.length - 1; row++) {
+            const y = front + bands[row] * height;
+            const rowHeight = (bands[row + 1] - bands[row]) * height;
+            const slabWidth = cam.len(132 - row * 12);
+            const offset = left - row % 2 * slabWidth * 0.5;
+            const start = Math.max(0, Math.floor(-offset / slabWidth));
+            for (let column = start; offset + column * slabWidth < Math.min(right, cam.viewW); column++) {
+                const tileStart = offset + column * slabWidth;
+                const x = Math.max(left, tileStart);
+                const w = Math.min(right, tileStart + slabWidth) - x;
+                if (w > 1) {
+                    assets.tryPlace("wall", "road_" + floor + "_" + row + "_" + column,
+                        x + w * 0.5, y, w, rowHeight, {
+                            opacity: 0.88 - row * 0.09,
+                            facing: (column + row) % 2 === 0 ? 1 : -1,
+                            color: Color(174 - row * 9, 167 - row * 7, 154 - row * 3, 255),
+                        });
+                }
+            }
+            draw.drawSegment(Vec2(left, y), Vec2(right, y), 0.8, edge);
+        }
+        draw.drawSegment(Vec2(left, back), Vec2(right, back), 1.1, toColor(theme.groundRim, 53));
     }
 
     private drawStairs(
@@ -647,12 +695,24 @@ export class StageRenderer {
         cam: CameraDirector,
         theme: RoomTheme,
         time: number,
+        occlusion: DepthOcclusion,
+        fadeDt: number,
     ): void {
         let i = 0;
         for (i = 0; i < p.room.solids.length; i++) {
             const s = p.room.solids[i];
             const x0 = cam.sx(s.x);
             const x1 = cam.sx(s.x + s.w);
+            if (p.room.depth !== undefined && s.depth !== undefined) {
+                const opacity = occlusion.update("solid_" + i, {
+                    x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h,
+                    depth: s.depth, passThrough: s.decorative,
+                }, p, fadeDt);
+                if (x1 > 0 && x0 < cam.viewW) {
+                    this.drawDepthSolid(fgDraw, assets, s, s.depth, x0, x1, cam, theme, opacity);
+                }
+                continue;
+            }
             const y0 = cam.sy(s.y);
             const y1 = cam.sy(s.y + s.h);
             const sw = x1 - x0;
@@ -695,6 +755,37 @@ export class StageRenderer {
         }
     }
 
+    private drawDepthSolid(
+        draw: DrawNode.Type, assets: AssetSlotHost, solid: SolidSpec, depth: DepthRange,
+        left: number, right: number, cam: CameraDirector, theme: RoomTheme, opacity: number,
+    ): void {
+        const width = right - left;
+        const base = cam.sy(solid.y, depth.min);
+        const top = cam.sy(solid.y + solid.h, depth.min);
+        const rear = cam.sy(solid.y + solid.h, depth.max);
+        const slot = coverArt(solid);
+        const layer = depthOrder(depth.min, 1);
+        const key = "depth_solid_" + solid.x + "_" + depth.min;
+        const capHeight = rear - top;
+        draw.drawEllipse(Vec2((left + right) * 0.5, base + cam.len(3)), width * 0.52,
+            cam.len(3.5), Color(13, 12, 16, 123 * opacity));
+        if (slot !== "fence" && capHeight > 1) {
+            const timber = slot === "cover_wood";
+            draw.drawRect(Rect(left, top, width, capHeight),
+                timber ? Color(79, 63, 50, 239 * opacity) : Color(76, 78, 85, 239 * opacity));
+            assets.tryPlace(timber ? "slab" : "wall", key + "_top", (left + right) * 0.5, top, width, capHeight, {
+                layer: layer - 1,
+                opacity: opacity * 0.92,
+                color: timber ? Color(162, 126, 96, 255) : Color(158, 157, 156, 255),
+            });
+        }
+        if (!assets.tryPlace(slot, key, (left + right) * 0.5,
+            base, width, top - base, { layer, opacity })) {
+            draw.drawRect(Rect(left, base, width, top - base),
+                toColor(PALETTE.steelMid, 255 * opacity), 1, toColor(theme.groundRim, 150 * opacity));
+        }
+    }
+
     private tileMasonry(
         assets: AssetSlotHost, s: SolidSpec,
         x: number, y: number, width: number, height: number,
@@ -719,8 +810,7 @@ export class StageRenderer {
         x0: number, y0: number, sw: number, sh: number,
         s: SolidSpec, p: Play, theme: RoomTheme,
     ): void {
-        const slot = s.label.indexOf("队栏") >= 0 ? "fence"
-            : (s.label.indexOf("柜") >= 0 || s.label.indexOf("货") >= 0 ? "cover_wood" : "cover_stone");
+        const slot = coverArt(s);
         if (!assets.tryPlace(slot, "cover_" + s.x, x0 + sw * 0.5, y0, sw, sh, { layer: 1 })) {
             fillVGradRect(fgDraw, x0, y0, sw, sh, toColor(PALETTE.steelDark), toColor(PALETTE.steelMid));
             fgDraw.drawSegment(Vec2(x0, y0 + sh), Vec2(x0 + sw, y0 + sh), 1.4, toColor(theme.groundRim));
