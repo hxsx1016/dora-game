@@ -115,7 +115,7 @@ local i = newInput()
 local p = lualib.__TS__New(play.Play, rooms.PROLOGUE_ROOM)
 show("P0 出生", p)
 
--- 1) 序章：绕过石柱和倒柜，回中路递针套，两人出门
+-- 1) 序章：绕过石柱和倒柜，靠近小满递针套，两人出门
 i.moveY = -1
 for _ = 1, 16 do
 	p:update(STEP, i)
@@ -123,7 +123,7 @@ end
 i.moveY = 0
 walkTo(p, i, 270, 400)
 i.moveY = 1
-for _ = 1, 16 do
+for _ = 1, 12 do
 	p:update(STEP, i)
 end
 i.moveY = 0
@@ -132,7 +132,7 @@ tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)
 print(string.format("P2 递物 phase=%s tick=%s", tostring(p.phase), tostring(p.phaseTick)))
-assert(p.phase == "prologue-give", "绕过石柱后应当能在中路递针套")
+assert(p.phase == "prologue-give", "绕过石柱并在纵深上靠近以后应当能递针套")
 for _ = 1, 62 do
 	p:update(STEP, i)
 end

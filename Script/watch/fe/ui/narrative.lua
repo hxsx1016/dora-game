@@ -300,12 +300,12 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p) -- 156
 	end -- 209
 	if key == "prologue" then -- 209
 		if p.phase == "prologue-wait" then -- 209
-			return {cue = "", text = "按 [W] 走上路绕过石柱和倒柜，再按 [S] 回中路找小满", urgent = false} -- 214
+			return {cue = "", text = "按住 [W] 向里走，绕过石柱和倒柜，再用 [S] 靠近小满", urgent = false} -- 214
 		end -- 214
 		if p.phase == "prologue-give" then -- 214
 			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 217
 		end -- 217
-		return {cue = "", text = "带小满向右走，从中路穿过门洞", urgent = false} -- 219
+		return {cue = "", text = "带小满往右，从两根门柱之间穿过", urgent = false} -- 219
 	end -- 219
 	if key == "street" then -- 219
 		local alive = 0 -- 223
@@ -320,9 +320,9 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p) -- 156
 			end -- 225
 		end -- 225
 		if alive > 0 then -- 225
-			return {cue = "战", text = "前方街心有倭寇封锁。鼠标瞄准左键发射火铳，空格贴矮柜可翻越", urgent = false} -- 229
+			return {cue = "战", text = "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent = false} -- 229
 		end -- 229
-		return {cue = "", text = "带小满从中路进右侧检查站", urgent = false} -- 231
+		return {cue = "", text = "带小满穿过右侧门洞，进入检查站", urgent = false} -- 231
 	end -- 231
 	if key == "checkpoint" then -- 231
 		if p.escort.state == "frozen" then -- 231
@@ -334,7 +334,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p) -- 156
 		if not p.cartDocked then -- 239
 			return {cue = "机", text = "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent = false} -- 242
 		end -- 242
-		return {cue = "归", text = "车轮落窝了。带小满从中路走出检查站", urgent = false} -- 244
+		return {cue = "归", text = "车轮落窝了。带小满从右侧门洞出去", urgent = false} -- 244
 	end -- 244
 	if key == "gate" then -- 244
 		if p.phase == "gate-idle" then -- 244

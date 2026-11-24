@@ -1169,7 +1169,7 @@ function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiA
 		2 -- 576
 	) -- 576
 	local sRows = { -- 578
-		{"WASD / 方向键", "左右移动，按上下换一条路"}, -- 579
+		{"WASD / 方向键", "左右、前后自由移动"}, -- 579
 		{"鼠标 + 左键", "瞄准与发射火铳"}, -- 580
 		{"按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"}, -- 581
 		{"SPACE", "平地翻滚 / 靠近矮柜翻越"}, -- 582

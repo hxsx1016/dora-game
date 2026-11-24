@@ -1101,7 +1101,13 @@ function StageRenderer.prototype.drawRoad(self, draw, assets, floor, left, right
 		toColor(lerpRGBA(theme.groundBody, PALETTE.steelMid, 0.34)), -- 630
 		toColor(lerpRGBA(theme.groundBody, PALETTE.voidDark, 0.36)) -- 631
 	) -- 631
-	local bands = {0, 0.32, 0.68, 1} -- 632
+	local bands = { -- 632
+		0, -- 632
+		0.31, -- 632
+		0.59, -- 632
+		0.82, -- 632
+		1 -- 632
+	} -- 632
 	local edge = toColor(theme.groundRim, 34) -- 633
 	do -- 633
 		local row = 0 -- 634
