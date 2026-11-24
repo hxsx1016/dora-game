@@ -1,11 +1,11 @@
 /**
- * 《向西守望》宋明清雅水墨菜单体系（V2 · 《饿殍》风流婉转美学）：
+ * 《向西守望》宋明清雅水墨菜单体系（V2 视觉 × 改进键鼠输入状态机）：
  * - 标题页：龙藏体瘦逸竖排主标题「向西守望」+ 唯一文人孤印「守望」+ 右起错落古画竖排题诗 + 无盒新致宋菜单与水袖飞白；
- * - 选章页：「千里驿道长卷」+ 单幅月窗大图画笺（柔和烟边、诗意引语、8 驿站游丝时间轴）；
+ * - 选章页：「千里驿道长卷」+ 单幅月窗大图画笺（柔和烟边、诗意引语、8 驿站游丝时间轴，支持从暂停往返保留进度）；
  * - 操作说明：极简通透「双栏素笺」（去滚轴去方盒，一缕竖烟丝与海棠结轻分周戍/小满）；
- * - 局内暂停：左侧通天垂落「烟黛纱幔」（去土黄居中卷轴盒，保留右侧月夜实景）。
+ * - 局内暂停：左侧通天垂落「烟黛纱幔」（保留右侧月夜实景，支持 Esc 续行与切页不串键）。
  *
- * 完整保留键鼠双通道操作（W/S/↑/↓/A/D、Enter/Space、Esc 与鼠标悬停/点击）。
+ * 键鼠输入逻辑承接 watch-controls：切页重置旧按键边沿、鼠标未移动时不抢占键盘高亮、仅窗口内按下触发点击。
  */
 
 import { Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora";
@@ -35,7 +35,7 @@ import {
 export type ScreenKind = "title" | "chapters" | "controls" | "play";
 
 export interface MenuAction {
-    type: "none" | "start" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle";
+    type: "none" | "start" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause";
     roomIndex?: number;
 }
 
@@ -57,73 +57,121 @@ const VERTICAL_TITLE = ["向", "西", "守", "望"];
 const EPIGRAPH_RIGHT = ["城", "破", "那", "天", "", "他", "留", "下", "断", "后"];
 const EPIGRAPH_LEFT = ["她", "独", "自", "走", "向", "北", "塔"];
 
+interface MenuKeys {
+    up: boolean;
+    down: boolean;
+    left: boolean;
+    right: boolean;
+    confirm: boolean;
+}
+
+interface MenuFrame {
+    keys: MenuKeys;
+    back: boolean;
+    pointer: Vec2.Type;
+    inside: boolean;
+    click: boolean;
+    pointerMoved: boolean;
+}
+
+function pressedKeys(): MenuKeys {
+    return {
+        up: Keyboard.isKeyPressed(KeyName.Up) || Keyboard.isKeyPressed(KeyName.W),
+        down: Keyboard.isKeyPressed(KeyName.Down) || Keyboard.isKeyPressed(KeyName.S),
+        left: Keyboard.isKeyPressed(KeyName.Left) || Keyboard.isKeyPressed(KeyName.A),
+        right: Keyboard.isKeyPressed(KeyName.Right) || Keyboard.isKeyPressed(KeyName.D),
+        confirm: Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space),
+    };
+}
+
+function hitIndex(boxes: Rect.Type[], pointer: Vec2.Type, inside: boolean): number {
+    if (!inside) {
+        return -1;
+    }
+    return boxes.findIndex(box => box.containsPoint(pointer));
+}
+
 export class MenuRenderer {
     selected = 0;
     chapterSelected = 0;
     pauseSelected = 0;
-    private prevUp = false;
-    private prevDown = false;
-    private prevLeft = false;
-    private prevRight = false;
-    private prevEnter = false;
-    private prevClick = false;
-    private queuedUp = false;
-    private queuedDown = false;
-    private queuedLeft = false;
-    private queuedRight = false;
-    private queuedConfirm = false;
+    private chaptersFromPause = false;
+    private previousKeys: Partial<MenuKeys> = {};
+    private queuedKeys: Partial<MenuKeys> = {};
     private queuedBack = false;
     private time = 0;
 
+    openChapters(roomIndex?: number): void {
+        this.chaptersFromPause = roomIndex !== undefined;
+        this.chapterSelected = roomIndex ?? 0;
+        this.resetInput();
+    }
+
+    openPause(): void {
+        this.pauseSelected = 0;
+        this.resetInput();
+    }
+
+    /** 页面切换后，把仍按住的键视为旧输入，避免切页串键。 */
+    resetInput(): void {
+        this.previousKeys = pressedKeys();
+        this.queuedKeys = {};
+        this.queuedBack = false;
+    }
+
+    /** 锁存两个渲染帧之间的短按。方向键轮询也保留同一份按下边沿。 */
     onKeyEvent(key: KeyName): void {
         if (key === KeyName.Up || key === KeyName.W) {
-            this.queuedUp = true;
+            this.queuedKeys.up = true;
         } else if (key === KeyName.Down || key === KeyName.S) {
-            this.queuedDown = true;
+            this.queuedKeys.down = true;
         } else if (key === KeyName.Left || key === KeyName.A) {
-            this.queuedLeft = true;
+            this.queuedKeys.left = true;
         } else if (key === KeyName.Right || key === KeyName.D) {
-            this.queuedRight = true;
+            this.queuedKeys.right = true;
         } else if (key === KeyName.Return || key === KeyName.Space) {
-            this.queuedConfirm = true;
+            this.queuedKeys.confirm = true;
         } else if (key === KeyName.Escape) {
             this.queuedBack = true;
         }
     }
 
-    private readMenuKeys(): { up: boolean; down: boolean; left: boolean; right: boolean; confirm: boolean; back: boolean } {
-        const u = Keyboard.isKeyPressed(KeyName.Up) || Keyboard.isKeyPressed(KeyName.W);
-        const d = Keyboard.isKeyPressed(KeyName.Down) || Keyboard.isKeyPressed(KeyName.S);
-        const l = Keyboard.isKeyPressed(KeyName.Left) || Keyboard.isKeyPressed(KeyName.A);
-        const r = Keyboard.isKeyPressed(KeyName.Right) || Keyboard.isKeyPressed(KeyName.D);
-        const e = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space);
-        const res = {
-            up: (u && !this.prevUp) || this.queuedUp,
-            down: (d && !this.prevDown) || this.queuedDown,
-            left: (l && !this.prevLeft) || this.queuedLeft,
-            right: (r && !this.prevRight) || this.queuedRight,
-            confirm: (e && !this.prevEnter) || this.queuedConfirm,
-            back: this.queuedBack,
+    private readFrame(input: Input, scale: number): MenuFrame {
+        const held = pressedKeys();
+        const prev = this.previousKeys;
+        const queued = this.queuedKeys;
+        const frame: MenuFrame = {
+            keys: {
+                up: queued.up === true || (held.up && !prev.up),
+                down: queued.down === true || (held.down && !prev.down),
+                left: queued.left === true || (held.left && !prev.left),
+                right: queued.right === true || (held.right && !prev.right),
+                confirm: queued.confirm === true || (held.confirm && !prev.confirm),
+            },
+            back: this.queuedBack || input.pause.pressed,
+            pointer: Vec2(input.mx / scale, input.my / scale),
+            inside: input.inside,
+            click: input.inside && input.fire.pressed,
+            pointerMoved: input.inside && Math.abs(input.mdx) + Math.abs(input.mdy) >= scale,
         };
-        this.prevUp = u;
-        this.prevDown = d;
-        this.prevLeft = l;
-        this.prevRight = r;
-        this.prevEnter = e;
-        this.queuedUp = false;
-        this.queuedDown = false;
-        this.queuedLeft = false;
-        this.queuedRight = false;
-        this.queuedConfirm = false;
+        this.previousKeys = held;
+        this.queuedKeys = {};
         this.queuedBack = false;
-        return res;
+        return frame;
     }
 
-    private clickEdge(input: Input): boolean {
-        const held = input.fire.held;
-        const fired = held && !this.prevClick;
-        this.prevClick = held;
-        return fired;
+    private verticalSelection(selected: number, boxes: Rect.Type[], frame: MenuFrame): number {
+        const hit = hitIndex(boxes, frame.pointer, frame.inside);
+        if (frame.click && hit >= 0) {
+            return hit;
+        }
+        if (frame.keys.up) {
+            return (selected + boxes.length - 1) % boxes.length;
+        }
+        if (frame.keys.down) {
+            return (selected + 1) % boxes.length;
+        }
+        return frame.pointerMoved && hit >= 0 && !frame.keys.confirm ? hit : selected;
     }
 
     updateAndDrawScreen(
@@ -150,26 +198,21 @@ export class MenuRenderer {
             stage.drawMenuBackdrop(bgDraw, bgGlow, w, h, this.time);
         }
 
-        const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
+        const frame = this.readFrame(input, uiScale);
         w /= uiScale;
         h /= uiScale;
 
-        const mk = this.readMenuKeys();
-        const clicked = this.clickEdge(input);
-
         if (screen === "title") {
-            return this.drawTitle(mk, clicked, pointer, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+            return this.drawTitle(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
         }
         if (screen === "chapters") {
-            return this.drawChapters(mk, clicked, input, pointer, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+            return this.drawChapters(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
         }
-        return this.drawControls(mk, clicked, input, pointer, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+        return this.drawControls(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
     }
 
     private drawTitle(
-        mk: { up: boolean; down: boolean; confirm: boolean },
-        clicked: boolean,
-        pointer: Vec2.Type,
+        frame: MenuFrame,
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
@@ -178,13 +221,7 @@ export class MenuRenderer {
         w: number,
         h: number,
     ): MenuAction {
-        if (mk.up) {
-            this.selected = (this.selected + TITLE_ITEMS.length - 1) % TITLE_ITEMS.length;
-        } else if (mk.down) {
-            this.selected = (this.selected + 1) % TITLE_ITEMS.length;
-        }
-
-        // 左侧轻透鸦青烟纱，右侧完整让出冷月、松影、红布板车与北塔暖灯
+        // 左侧轻透鸦青烟纱，右侧完整让出冷月、松影、红布板车、明代人物与北塔暖灯
         fillHGradRect(uiDraw, 0, 0, w * 0.22, h, Color(9, 11, 18, 192), Color(9, 11, 18, 116));
         fillHGradRect(uiDraw, w * 0.22, 0, w * 0.28, h, Color(9, 11, 18, 116), Color(9, 11, 18, 0));
         fillVGradRect(uiDraw, 0, 0, w, 78, Color(8, 10, 16, 138), Color(8, 10, 16, 0));
@@ -254,29 +291,27 @@ export class MenuRenderer {
             texts.put("xs", EPIGRAPH_LEFT[p], colLeftX, topY - 68 - p * poemStep, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0, 0.90, 0.08);
         }
 
-        // 无盒清雅宋体菜单（水袖游丝飞白 + 菱花微星，彻底去红方印与厚墨块）
+        // 无盒清雅宋体菜单（水袖游丝飞白 + 菱花微星，键盘与鼠标移动仲裁防抢焦）
         const menuX = 112;
         const btnW = 280;
         const btnH = 44;
         const gap = 12;
         const startY = 252;
-        let hitIdx = -1;
-
+        const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < TITLE_ITEMS.length; i++) {
-            const by = startY - i * (btnH + gap);
-            const hover = pointer.x >= menuX - 10 && pointer.x <= menuX + btnW && pointer.y >= by && pointer.y <= by + btnH;
-            if (hover) {
-                this.selected = i;
-                hitIdx = i;
-            }
+            boxes.push(Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH));
+        }
+        this.selected = this.verticalSelection(this.selected, boxes, frame);
+
+        for (i = 0; i < TITLE_ITEMS.length; i++) {
+            const by = boxes[i].y;
             const active = this.selected === i;
             const cy = by + btnH * 0.5;
             const shiftX = active ? 10 : 0;
 
             if (active) {
                 const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.2);
-                // 柔和胭脂水袖飞白飘带 + 下沿霜月游丝
                 drawSilkRibbon(uiDraw, uiArt, "title_rib_red_" + i, menuX + 124, cy, 290, 40, PALETTE.rougeSoft, 0.52 * breathe, 0);
                 drawHairline(uiInkDraw, uiArt, "title_rib_line_" + i, menuX + 114, by + 4, 230, PALETTE.silkLine, 0.42 * breathe, false, 2);
                 drawBlossomDot(uiInkDraw, uiArt, "title_dot_" + i, menuX + 14, cy, 16, PALETTE.rouge, 0.96, 4);
@@ -302,8 +337,10 @@ export class MenuRenderer {
 
         texts.put("xs", "上下择项   ·   回车或点选启程", menuX + 12, 42, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
 
-        if (mk.confirm || (clicked && hitIdx >= 0)) {
-            const id = TITLE_ITEMS[this.selected].id;
+        const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
+        if (hit >= 0 || frame.keys.confirm) {
+            const idx = hit >= 0 ? hit : this.selected;
+            const id = TITLE_ITEMS[idx].id;
             if (id === "start") {
                 return { type: "start" };
             }
@@ -317,13 +354,10 @@ export class MenuRenderer {
 
     /**
      * 选章页 V2：「千里驿道长卷 + 单幅月窗大图画笺」
-     * 彻底摒弃八个土黄方盒子，改为上方诗意月窗大图预览 + 下方连绵游丝驿道时间轴。
+     * 保留水墨长卷布局，接入 watch-controls 方向键/鼠标防抢焦与从暂停往返逻辑。
      */
     private drawChapters(
-        mk: { up: boolean; down: boolean; left: boolean; right: boolean; confirm: boolean; back: boolean },
-        clicked: boolean,
-        input: Input,
-        pointer: Vec2.Type,
+        frame: MenuFrame,
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
@@ -332,21 +366,38 @@ export class MenuRenderer {
         w: number,
         h: number,
     ): MenuAction {
-        if (input.pause.pressed || mk.back) {
-            return { type: "backTitle" };
+        const back: MenuAction = { type: this.chaptersFromPause ? "backPause" : "backTitle" };
+        if (frame.back) {
+            return back;
         }
-        if (mk.left) {
-            this.chapterSelected = (this.chapterSelected + ROOMS.length - 1) % ROOMS.length;
-        } else if (mk.right) {
-            this.chapterSelected = (this.chapterSelected + 1) % ROOMS.length;
-        } else if (mk.up || mk.down) {
-            this.chapterSelected = (this.chapterSelected + 4) % ROOMS.length;
+
+        const marginX = 96;
+        const trackY = 148;
+        const trackX0 = marginX + 34;
+        const trackX1 = w - marginX - 34;
+        const stepX = (trackX1 - trackX0) / (ROOMS.length - 1);
+
+        const stationBoxes: Rect.Type[] = [];
+        let s = 0;
+        for (s = 0; s < ROOMS.length; s++) {
+            const sx = trackX0 + s * stepX;
+            stationBoxes.push(Rect(sx - stepX * 0.45, trackY - 46, stepX * 0.9, 92));
+        }
+
+        const hitStation = hitIndex(stationBoxes, frame.pointer, frame.inside);
+        const keys = frame.keys;
+        if (frame.click && hitStation >= 0) {
+            this.chapterSelected = hitStation;
+        } else if (keys.left || keys.right || keys.up || keys.down) {
+            const step = keys.left ? -1 : keys.right ? 1 : 4;
+            this.chapterSelected = (this.chapterSelected + step + ROOMS.length) % ROOMS.length;
+        } else if (frame.pointerMoved && hitStation >= 0 && !keys.confirm) {
+            this.chapterSelected = hitStation;
         }
 
         // 清冷鸦青全屏轻幕
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 198));
 
-        const marginX = 96;
         // 顶部清雅眉题（无红方块，一缕霜月游丝配海棠结）
         texts.put("banner", "千里行纪", marginX, h - 66, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
         texts.put("xs", "双线八驿 · 择章重历", marginX + 196, h - 70, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.85, 0.08);
@@ -359,7 +410,8 @@ export class MenuRenderer {
         const winY = 266;
         const winW = 548;
         const winH = 300;
-        const winHover = pointer.x >= winX && pointer.x <= winX + winW && pointer.y >= winY && pointer.y <= winY + winH;
+        const winBox = Rect(winX, winY, winW, winH);
+        const winHover = frame.inside && winBox.containsPoint(frame.pointer);
 
         // 柔和墨云底 + 房间画卷实景
         uiArt.tryPlace("ink_frame_mask", "chap_win_shadow", winX + winW * 0.5, winY + winH * 0.5, winW + 40, winH + 34, {
@@ -369,7 +421,7 @@ export class MenuRenderer {
         uiArt.tryPlace(bgSlot, "chap_win_art", winX + winW * 0.5, winY + 4, winW - 8, winH - 8, {
             opacity: 0.92, layer: -1,
         });
-        // 四周极柔烟边羽化，让像素画卷自然融进夜色（告别生硬裁切盒）
+        // 四周极柔烟边羽化，让像素画卷自然融进夜色
         fillVGradRect(uiInkDraw, winX, winY, winW, 56, Color(10, 12, 19, 200), Color(10, 12, 19, 0));
         fillVGradRect(uiInkDraw, winX, winY + winH - 36, winW, 36, Color(10, 12, 19, 0), Color(10, 12, 19, 130));
         fillHGradRect(uiInkDraw, winX, winY, 34, winH, Color(10, 12, 19, 135), Color(10, 12, 19, 0));
@@ -414,7 +466,8 @@ export class MenuRenderer {
         const goY = winY + 26;
         const goW = 220;
         const goH = 42;
-        const goHover = pointer.x >= goX && pointer.x <= goX + goW && pointer.y >= goY && pointer.y <= goY + goH;
+        const goBox = Rect(goX, goY, goW, goH);
+        const goHover = frame.inside && goBox.containsPoint(frame.pointer);
         const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.4);
         drawSilkRibbon(uiDraw, uiArt, "chap_go_rib", goX + 106, goY + 21, 250, 40, goHover ? PALETTE.rouge : PALETTE.rougeSoft, (goHover ? 0.68 : 0.46) * breathe, 0);
         drawHairline(uiInkDraw, uiArt, "chap_go_line", goX + 94, goY + 3, 196, PALETTE.silkLine, goHover ? 0.68 : 0.40, false, 2);
@@ -423,12 +476,6 @@ export class MenuRenderer {
         texts.put("xs", "Enter", goX + 156, goY + 21, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.82, 0.08);
 
         // -------- 2. 下方「千里驿道」八驿游丝长卷轴 --------
-        const trackY = 148;
-        const trackX0 = marginX + 34;
-        const trackX1 = w - marginX - 34;
-        const stepX = (trackX1 - trackX0) / (ROOMS.length - 1);
-
-        // 蜿蜒流云墨丝贯通八驿 + 柔边烟纱托底，确保八驿题名与右下石阶背景清晰分离
         drawSilkVeil(uiDraw, uiArt, "chap_track_veil", w * 0.5, trackY + 6, w - marginX * 1.1, 126, PALETTE.inkWash, 0.72, -2);
         drawMistCurve(uiArt, "chap_track_mist", w * 0.5, trackY, trackX1 - trackX0 + 160, 74, PALETTE.inkMist, 0.62, -1);
         uiInkDraw.drawSegment(Vec2(trackX0, trackY), Vec2(trackX1, trackY), 0.9, toColor(PALETTE.silkDim, 145));
@@ -439,16 +486,10 @@ export class MenuRenderer {
         texts.put("xs", "上卷 · 孤城护童", trackX0 + stepX * 1.5, trackY + 52, toColor(PALETTE.cyan), 0.5, 0.5, TextAlign.Center, 2.2, 0.88, 0.08);
         texts.put("xs", "下卷 · 独赴北塔", trackX0 + stepX * 5.5, trackY + 52, toColor(PALETTE.amber), 0.5, 0.5, TextAlign.Center, 2.2, 0.88, 0.08);
 
-        let hitStation = -1;
         let i = 0;
         for (i = 0; i < ROOMS.length; i++) {
             const sx = trackX0 + i * stepX;
             const rt = themeOf(ROOMS[i].key);
-            const hover = Math.abs(pointer.x - sx) <= stepX * 0.45 && Math.abs(pointer.y - trackY) <= 46;
-            if (hover) {
-                this.chapterSelected = i;
-                hitStation = i;
-            }
             const active = this.chapterSelected === i;
             const nodeCol = active ? PALETTE.rouge : (i < 4 ? PALETTE.cyan : PALETTE.amber);
 
@@ -469,18 +510,19 @@ export class MenuRenderer {
             texts.put("xs", rt.shortNameZh, sx, trackY - 26, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, active ? 1 : 0.84, 0.08);
         }
 
-        // 左下返回按钮
+        // 左下返回按钮（由暂停进入时返回暂停，不丢失场景进度）
         const backX = marginX;
         const backY = 40;
-        const backHover = pointer.x >= backX && pointer.x <= backX + 168 && pointer.y >= backY && pointer.y <= backY + 34;
+        const backBox = Rect(backX, backY, 190, 34);
+        const backHover = frame.inside && backBox.containsPoint(frame.pointer);
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 44, 24, "ESC", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
-        texts.put("sm", "返回标题", backX + 56, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
+        texts.put("sm", this.chaptersFromPause ? "返回暂停" : "返回标题", backX + 56, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
         texts.put("xs", "← / → 沿驿道阅览   ·   Enter 或点选入章", w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
 
-        if (clicked && backHover) {
-            return { type: "backTitle" };
+        if (frame.click && backHover) {
+            return back;
         }
-        if (mk.confirm || (clicked && (hitStation >= 0 || winHover || goHover))) {
+        if (keys.confirm || (frame.click && (hitStation >= 0 || winHover || goHover))) {
             return { type: "jump", roomIndex: this.chapterSelected };
         }
         return { type: "none" };
@@ -490,10 +532,7 @@ export class MenuRenderer {
      * 操作说明 V2：「极简通透双栏素笺」（去拟物木滚轴与厚黑盒，一缕竖烟丝轻分周戍与小满）
      */
     private drawControls(
-        mk: { confirm: boolean; back: boolean },
-        clicked: boolean,
-        input: Input,
-        pointer: Vec2.Type,
+        frame: MenuFrame,
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
@@ -502,12 +541,16 @@ export class MenuRenderer {
         w: number,
         h: number,
     ): MenuAction {
-        if (input.pause.pressed || mk.back || mk.confirm) {
+        const marginX = 96;
+        const backX = marginX;
+        const backY = 40;
+        const backBox = Rect(backX, backY, 230, 34);
+        const backHover = frame.inside && backBox.containsPoint(frame.pointer);
+        if (frame.back || frame.keys.confirm || (frame.click && backHover)) {
             return { type: "backTitle" };
         }
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 204));
 
-        const marginX = 96;
         texts.put("banner", "执器要诀", marginX, h - 66, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
         texts.put("xs", "键鼠操作说明", marginX + 196, h - 70, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.85, 0.08);
         drawHairline(uiInkDraw, uiArt, "ctrl_top_line", w * 0.5, h - 100, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
@@ -533,18 +576,18 @@ export class MenuRenderer {
         drawHairline(uiInkDraw, uiArt, "ctrl_l_line", leftColX + colW * 0.5, headY - 24, colW, PALETTE.cyanDim, 0.58, false, 2);
 
         const sRows: [string, string][] = [
-            ["A / D", "左右移动"],
-            ["鼠标 + 左键", "瞄准与点射"],
-            ["SHIFT 按住", "贴靠柜台 / 街垒挡枪"],
-            ["SPACE", "平地翻滚 / 贴矮台翻越"],
-            ["E", "递物 / 敲两下安抚 / 按住+D 推车"],
-            ["ESC / R", "暂歇 / 从检查点重试"],
+            ["A / D · ← / →", "左右移动"],
+            ["鼠标 + 左键", "瞄准与发射火铳"],
+            ["按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"],
+            ["SPACE", "平地翻滚 / 靠近矮柜翻越"],
+            ["E", "递物 / 轻敲安抚 / 按住+D 推车"],
+            ["ESC / R", "暂歇菜单 / 重试检查点"],
         ];
         let i = 0;
         for (i = 0; i < sRows.length; i++) {
             const ry = headY - 66 - i * 52;
-            drawSilkKeycap(uiInkDraw, texts, leftColX + 2, ry - 13, 122, 26, sRows[i][0], PALETTE.cyan, 0.92, false);
-            texts.put("sm", sRows[i][1], leftColX + 144, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
+            drawSilkKeycap(uiInkDraw, texts, leftColX + 2, ry - 13, 132, 26, sRows[i][0], PALETTE.cyan, 0.92, false);
+            texts.put("sm", sRows[i][1], leftColX + 150, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
         }
 
         // 右栏：小满
@@ -554,34 +597,28 @@ export class MenuRenderer {
         drawHairline(uiInkDraw, uiArt, "ctrl_r_line", rightColX + colW * 0.5, headY - 24, colW, PALETTE.amberDim, 0.58, false, 2);
 
         const cRows: [string, string][] = [
-            ["A / D", "潜行行走"],
-            ["SHIFT 按住", "轻步慢走（压低脚步声）"],
-            ["S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
+            ["A / D · ← / →", "左右潜行"],
+            ["按住 SHIFT", "轻步慢走（压低脚步声）"],
+            ["按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
             ["SPACE", "跳跃攀上石阶与矮台"],
-            ["E", "拾瓶 / 敲塔门 / 按住+D 拉板车"],
-            ["F 按住→松手", "预览落点，投瓶引开拾荒者"],
+            ["E", "拾瓶 / 敲塔门 / 按住+D 拉车"],
+            ["F 按住→松开", "瞄准砖地，投瓶引开拾荒者"],
         ];
         for (i = 0; i < cRows.length; i++) {
             const ry = headY - 66 - i * 52;
-            drawSilkKeycap(uiInkDraw, texts, rightColX + 2, ry - 13, 126, 26, cRows[i][0], PALETTE.amber, 0.92, false);
-            texts.put("sm", cRows[i][1], rightColX + 148, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
+            drawSilkKeycap(uiInkDraw, texts, rightColX + 2, ry - 13, 132, 26, cRows[i][0], PALETTE.amber, 0.92, false);
+            texts.put("sm", cRows[i][1], rightColX + 150, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
         }
 
         // 左下返回按钮
-        const backX = marginX;
-        const backY = 40;
-        const backHover = pointer.x >= backX && pointer.x <= backX + 230 && pointer.y >= backY && pointer.y <= backY + 34;
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 110, 24, "ESC / ENTER", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
         texts.put("sm", "返回标题", backX + 122, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
 
-        if (clicked && backHover) {
-            return { type: "backTitle" };
-        }
         return { type: "none" };
     }
 
     /**
-     * 局内暂停 V2：「左侧通天烟黛垂纱」（彻底告别屏幕正中土黄卷轴盒！）
+     * 局内暂停 V2：「左侧通天烟黛垂纱」（保留右侧月夜实景 + watch-controls 独占帧输入）
      */
     updateAndDrawPause(
         dt: number,
@@ -596,14 +633,9 @@ export class MenuRenderer {
         uiScale: number,
     ): MenuAction {
         this.time += dt;
-        const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
-        const mk = this.readMenuKeys();
-        const clicked = this.clickEdge(input);
-
-        if (mk.up) {
-            this.pauseSelected = (this.pauseSelected + PAUSE_ITEMS.length - 1) % PAUSE_ITEMS.length;
-        } else if (mk.down) {
-            this.pauseSelected = (this.pauseSelected + 1) % PAUSE_ITEMS.length;
+        const frame = this.readFrame(input, uiScale);
+        if (frame.back) {
+            return { type: "resume" };
         }
 
         // 右侧轻压暗留出月夜定格，左侧垂落通天烟黛半透明纱幔
@@ -623,19 +655,17 @@ export class MenuRenderer {
         texts.put("xs", "月夜暂驻 · 卷页留痕", menuX + 18, h - 184, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.80, 0.08);
         drawHairline(uiInkDraw, uiArt, "pause_div", menuX + 124, h - 210, 240, PALETTE.silkDim, 0.58, true, 2);
 
-        let hitIdx = -1;
+        const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < PAUSE_ITEMS.length; i++) {
-            const iy = h - 284 - i * 60;
-            const iw = 260;
-            const ih = 44;
-            const hover = pointer.x >= menuX - 10 && pointer.x <= menuX + iw && pointer.y >= iy && pointer.y <= iy + ih;
-            if (hover) {
-                this.pauseSelected = i;
-                hitIdx = i;
-            }
+            boxes.push(Rect(menuX - 10, h - 284 - i * 60, 270, 44));
+        }
+        this.pauseSelected = this.verticalSelection(this.pauseSelected, boxes, frame);
+
+        for (i = 0; i < PAUSE_ITEMS.length; i++) {
+            const iy = boxes[i].y;
             const active = this.pauseSelected === i;
-            const cy = iy + ih * 0.5;
+            const cy = iy + 22;
             const shiftX = active ? 10 : 0;
 
             if (active) {
@@ -665,8 +695,10 @@ export class MenuRenderer {
 
         texts.put("xs", "Esc 续行   ·   Enter 或点击确认", menuX + 12, 56, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.2, 0.86, 0.08);
 
-        if (mk.confirm || (clicked && hitIdx >= 0)) {
-            const id = PAUSE_ITEMS[this.pauseSelected].id;
+        const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
+        if (hit >= 0 || frame.keys.confirm) {
+            const idx = hit >= 0 ? hit : this.pauseSelected;
+            const id = PAUSE_ITEMS[idx].id;
             if (id === "resume") {
                 return { type: "resume" };
             }

@@ -1,6 +1,6 @@
 /**
  * 《守望》入口装配器：
- * - 正常启动进入艾希（ICEY）风格高清前端（WatchFrontend：终端标题页 → 8 章节全链试玩）；
+ * - 正常启动进入 WatchFrontend 的标题页与八个房间；
  * - 保留 G / F2 切回 D1 灰盒调试视图（graybox.ts），保留 1..8 / Tab / F1 开发快跳与
  *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
  */
@@ -49,7 +49,7 @@ let current = 0;
 let viewW = 0;
 let viewH = 0;
 let dirty = true;
-/** 0 = D1 灰盒调试视图，1 = 正式艾希风高清前端 */
+/** 0 = 灰盒调试视图，1 = 游戏前端。 */
 let mode = 1;
 let input: Input | undefined;
 let play: Play | undefined;
@@ -114,7 +114,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         }
     }
 
-    // 2. 挂载艾希风格高清前端层
+    // 挂载菜单与游戏前端。
     fe = new WatchFrontend(parent);
     fe.screen = startScreen;
     grayboxLayer.visible = mode === 0;
@@ -175,6 +175,11 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             }
             setMode(1);
             fe.screen = sc;
+            if (sc === "chapters") {
+                fe.menus.openChapters();
+            } else {
+                fe.menus.resetInput();
+            }
             if (sc === "play") {
                 ensurePlay();
             }
@@ -285,7 +290,9 @@ function tick(frameDt: number): void {
         pickByIndex(idx);
     } else if (input.tab.pressed) {
         input.tab.pressed = false;
-        pickByIndex((current + 1) % ROOMS.length);
+        if (mode === 0 || (fe?.screen === "play" && !play?.paused)) {
+            pickByIndex((current + 1) % ROOMS.length);
+        }
     }
 
     if (mode === 1) {
@@ -323,11 +330,17 @@ function tickFrontend(frameDt: number): void {
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
             enterPlayRoom(act.roomIndex);
         } else if (act.type === "openChapters") {
+            fe.menus.openChapters();
             fe.screen = "chapters";
         } else if (act.type === "openControls") {
+            fe.menus.resetInput();
             fe.screen = "controls";
         } else if (act.type === "backTitle") {
+            fe.menus.resetInput();
             fe.screen = "title";
+        } else if (act.type === "backPause") {
+            fe.menus.resetInput();
+            fe.screen = "play";
         }
         return;
     }
@@ -350,21 +363,28 @@ function tickFrontend(frameDt: number): void {
     p.aimX = input.mx;
     p.aimY = input.my;
 
+    if (!p.paused && input.pause.pressed) {
+        p.paused = true;
+        p.aimHold = 0;
+        p.bottleAimX = -1;
+        fe.menus.openPause();
+        input.consumeEdges();
+    }
+
     if (p.paused) {
+        // 菜单独占这一帧的输入。恢复时从下一帧开始推进游戏。
         clock.reset();
-        input.beginStep(true);
-        p.update(STEP, input);
-        input.endStep();
         const pauseAct = fe.renderPlay(frameDt, p, input, viewW, viewH);
+        input.consumeEdges();
         if (pauseAct.type === "resume") {
             p.paused = false;
         } else if (pauseAct.type === "retry") {
             ensurePlay({ checkpoint: p.checkpoint });
         } else if (pauseAct.type === "openChapters") {
-            p.paused = false;
+            fe.menus.openChapters(current);
             fe.screen = "chapters";
         } else if (pauseAct.type === "toTitle") {
-            p.paused = false;
+            fe.menus.resetInput();
             fe.screen = "title";
         }
         return;
@@ -376,6 +396,9 @@ function tickFrontend(frameDt: number): void {
         input.beginStep(i === 0);
         p.update(STEP, input);
         input.endStep();
+        if (p.wantRoom !== "") {
+            break;
+        }
     }
 
     // 切场由后端 wantRoom 触发，前端无缝接管
