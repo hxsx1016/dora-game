@@ -576,7 +576,7 @@ export class MenuRenderer {
         drawHairline(uiInkDraw, uiArt, "ctrl_l_line", leftColX + colW * 0.5, headY - 24, colW, PALETTE.cyanDim, 0.58, false, 2);
 
         const sRows: [string, string][] = [
-            ["WASD / 方向键", "左右、前后移动"],
+            ["WASD / 方向键", "左右移动，按上下换一条路"],
             ["鼠标 + 左键", "瞄准与发射火铳"],
             ["按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"],
             ["SPACE", "平地翻滚 / 靠近矮柜翻越"],

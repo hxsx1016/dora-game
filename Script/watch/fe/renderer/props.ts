@@ -11,7 +11,7 @@ import { Play } from "Script/watch/play";
 import { CartSpec } from "Script/watch/rooms";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost } from "Script/watch/fe/assets";
-import { DepthOcclusion, depthOrder } from "Script/watch/fe/occlusion";
+import { DepthOcclusion, depthOrder, occlusionTint } from "Script/watch/fe/occlusion";
 import {
     PALETTE,
     drawDiamond,
@@ -209,7 +209,7 @@ export class PropsRenderer {
         fgDraw.drawEllipse(Vec2(cx, baseY + 2), bw * 0.62, 5, Color(4, 6, 10, 150 * opacity));
 
         const painted = assets.tryPlace("prop_cart", "cart", cx, baseY, cam.len(artWidth), cam.len(artHeight), {
-            layer: raised ? depthOrder(depth, 2) : 2, opacity,
+            layer: raised ? depthOrder(depth, 2) : 2, opacity, color: occlusionTint(opacity),
         });
         if (!painted) {
             // 车身木钢复合车斗

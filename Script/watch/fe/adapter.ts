@@ -277,7 +277,7 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
         return { x: tower.doorX, y: 96, keyTag: "E", label: "敲门", urgent: false };
     }
 
-    if (!p.childMode && p.coverNear && !p.coverHug && !p.gripping &&
+    if (room.key !== "prologue" && !p.childMode && p.coverNear && !p.coverHug && !p.gripping &&
         p.escort.state !== "calming" && (gate === undefined || p.phase === "gate-hold")) {
         return {
             x: player.x, y: player.y + player.depth + player.h + 25,

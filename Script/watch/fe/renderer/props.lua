@@ -8,6 +8,7 @@ local Rect = ____Dora.Rect -- 9
 local Vec2 = ____Dora.Vec2 -- 9
 local ____occlusion = require("Script.watch.fe.occlusion") -- 14
 local depthOrder = ____occlusion.depthOrder -- 14
+local occlusionTint = ____occlusion.occlusionTint -- 14
 local ____theme = require("Script.watch.fe.theme") -- 15
 local PALETTE = ____theme.PALETTE -- 16
 local drawDiamond = ____theme.drawDiamond -- 17
@@ -395,7 +396,8 @@ function PropsRenderer.prototype.drawCart(self, fgDraw, fgGlow, assets, p, cam, 
 		cam:len(artHeight), -- 211
 		{ -- 211
 			layer = raised and depthOrder(depth, 2) or 2, -- 212
-			opacity = opacity -- 212
+			opacity = opacity, -- 212
+			color = occlusionTint(opacity) -- 212
 		} -- 212
 	) -- 212
 	if not painted then -- 212

@@ -2,10 +2,11 @@
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
+import { LANE_DEPTH } from "Script/watch/depth";
 import { DepthRange, SolidSpec } from "Script/watch/rooms";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
-import { DepthOcclusion, depthOrder } from "Script/watch/fe/occlusion";
+import { DepthOcclusion, depthOrder, occlusionTint } from "Script/watch/fe/occlusion";
 import {
     PALETTE,
     RoomTheme,
@@ -36,6 +37,9 @@ function roomSeed(key: string): number {
 }
 
 function coverArt(solid: SolidSpec): AssetSlotKey {
+    if (solid.art === "gate_post") {
+        return "wall";
+    }
     return solid.art ?? (solid.label.indexOf("队栏") >= 0 ? "fence"
         : (solid.label.indexOf("柜") >= 0 || solid.label.indexOf("货") >= 0 ? "cover_wood" : "cover_stone"));
 }
@@ -625,7 +629,7 @@ export class StageRenderer {
         fillVGradRect(draw, left, front, width, height,
             toColor(lerpRGBA(theme.groundBody, PALETTE.steelMid, 0.34)),
             toColor(lerpRGBA(theme.groundBody, PALETTE.voidDark, 0.36)));
-        const bands = [0, 0.31, 0.59, 0.82, 1];
+        const bands = [0, 0.32, 0.68, 1];
         const edge = toColor(theme.groundRim, 34);
         for (let row = 0; row < bands.length - 1; row++) {
             const y = front + bands[row] * height;
@@ -767,22 +771,38 @@ export class StageRenderer {
         const layer = depthOrder(depth.min, 1);
         const key = "depth_solid_" + solid.x + "_" + depth.min;
         const capHeight = rear - top;
-        draw.drawEllipse(Vec2((left + right) * 0.5, base + cam.len(3)), width * 0.52,
+        const center = (left + right) * 0.5;
+        if (solid.art === "gate_post" && depth.min > LANE_DEPTH.middle) {
+            assets.tryPlace("slab", "gate_sill_" + solid.x, center, cam.sy(solid.y, LANE_DEPTH.middle - 6),
+                width + cam.len(34), cam.len(12), { layer: 1, color: Color(180, 169, 150, 255) });
+        }
+        draw.drawEllipse(Vec2(center, base + cam.len(3)), width * 0.52,
             cam.len(3.5), Color(13, 12, 16, 123 * opacity));
         if (slot !== "fence" && capHeight > 1) {
             const timber = slot === "cover_wood";
-            draw.drawRect(Rect(left, top, width, capHeight),
-                timber ? Color(79, 63, 50, 239 * opacity) : Color(76, 78, 85, 239 * opacity));
-            assets.tryPlace(timber ? "slab" : "wall", key + "_top", (left + right) * 0.5, top, width, capHeight, {
+            draw.drawRect(Rect(left, top, width, capHeight), occlusionTint(opacity,
+                timber ? Color(79, 63, 50, 239 * opacity) : Color(76, 78, 85, 239 * opacity)));
+            assets.tryPlace(timber ? "slab" : "wall", key + "_top", center, top, width, capHeight, {
                 layer: layer - 1,
                 opacity: opacity * 0.92,
-                color: timber ? Color(162, 126, 96, 255) : Color(158, 157, 156, 255),
+                color: occlusionTint(opacity, timber ? Color(162, 126, 96, 255) : Color(158, 157, 156, 255)),
             });
         }
-        if (!assets.tryPlace(slot, key, (left + right) * 0.5,
-            base, width, top - base, { layer, opacity })) {
+        const rows = slot === "wall" ? Math.max(1, Math.ceil(solid.h * 1.25 / solid.w)) : 1;
+        const rowHeight = (top - base) / rows;
+        const masonryColor = slot === "wall" ? Color(181, 176, 167, 255) : undefined;
+        const color = occlusionTint(opacity, masonryColor);
+        for (let row = 0; row < rows; row++) {
+            const tileKey = row === 0 ? key : key + "_row_" + row;
+            if (assets.tryPlace(slot, tileKey, center, base + row * rowHeight, width, rowHeight, {
+                layer, opacity, color, facing: row % 2 === 0 ? 1 : -1,
+            })) {
+                continue;
+            }
             draw.drawRect(Rect(left, base, width, top - base),
-                toColor(PALETTE.steelMid, 255 * opacity), 1, toColor(theme.groundRim, 150 * opacity));
+                occlusionTint(opacity, toColor(PALETTE.steelMid, 255 * opacity)),
+                1, toColor(theme.groundRim, 150 * opacity));
+            break;
         }
     }
 

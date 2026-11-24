@@ -307,7 +307,7 @@ function ____exports.deriveWorldPrompt(p) -- 193
 			urgent = false -- 277
 		} -- 277
 	end -- 277
-	if not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 277
+	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 277
 		return { -- 282
 			x = player.x, -- 283
 			y = player.y + player.depth + player.h + 25, -- 283
