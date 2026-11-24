@@ -1,7 +1,7 @@
 /**
  * D2 试玩层：把 D1 的灰盒数值变成能走、能跳、能蹲、能打的一段。
  *
- * 世界坐标：单位同 rooms.ts，y 向上，地面 y=0，角色位置是「脚底中心」。
+ * 世界坐标：x 左右，y 为离地高度，depth 为地面前后位置；角色位置是脚底中心。
  * 绘制坐标：Dora DrawNode 局部坐标，左下原点、y 向上；Rect(x, y, w, h) 以 (x, y)
  * 为左下角向右上扩展。相机把世界线性映射到这块画布上，zoom 固定。
  *
@@ -10,10 +10,15 @@
  */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
-import { CartSpec, RoomSpec, ScavSpec, SolidSpec, withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM } from "Script/watch/rooms";
+import {
+    BreakSpec, CartSpec, DepthRange, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
+    withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
+} from "Script/watch/rooms";
+import { createRun, mmss, RunState } from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
+import { ACTOR_DEPTH_HALF, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
@@ -37,7 +42,12 @@ export type PlayEventName =
     | "gateRestart"
     | "cartDocked"
     | "fearChanged"
-    | "roomChange";
+    | "roomChange"
+    | "pickup"
+    | "propBroken"
+    | "interactUsed"
+    | "campaignFailed"
+    | "objectiveDone";
 
 export interface PlayEvent {
     /** 本局内递增；换房、R 重试、再玩都会新建 Play，序号从头开始。 */
@@ -54,7 +64,7 @@ const CHILD_H = 64;
 const CHILD_CROUCH_H = 36;
 const CHILD_SPEED = 160;
 const CHILD_SLOW = 80;
-const CHILD_JUMP = 320;
+const CHILD_JUMP = 372;
 
 /** 周戍：高 88、速度 264、翻滚 0.35 秒约 97 单位。 */
 const SOLDIER_W = 30;
@@ -78,7 +88,7 @@ const CAM_LOOK_UP = 46;
 /** 拉车速度：规划初值 64 单位/秒。 */
 const CART_SPEED = 64;
 /** 握把触发半径。 */
-const CART_REACH = 70;
+export const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
 const CART_HALF = 24;
 const CART_CLEAR = 44;
@@ -90,6 +100,8 @@ const ENEMY_RANGE = 760;
 const WALL_ROAD_END = 1150;
 /** 走路时能自动抬脚的高度：矮台阶直接走上去，柜台 44 仍要跳。 */
 const STEP_UP = 24;
+const DEPTH_SPEED_RATIO = 0.55;
+const DIAGONAL_SCALE = 1 / Math.sqrt(2);
 
 const INK = Color(232, 232, 228, 255);
 const INK_DIM = Color(150, 152, 150, 255);
@@ -127,20 +139,36 @@ const SCAV_BODY = Color(128, 118, 96, 255);
 const SCAV_HEAD = Color(196, 182, 158, 255);
 
 /** 轴对齐盒（世界单位）。 */
-interface Box {
+export interface Box {
     x0: number;
     x1: number;
     y0: number;
     y1: number;
+    depth?: DepthRange;
     /** 单向平台：只做落脚面，水平不挡人，从下方也不撞头。 */
     passable?: boolean;
     /** 房间数据里的名字；前端用它说明「贴的是街垒还是绞盘」。 */
     label?: string;
+    /** 新版关卡：机关 id，跨房恢复用。 */
+    id?: string;
+    /** 布帘 / 窗纸：挡视线与子弹，不挡人和车。 */
+    soft?: boolean;
+    /** 机关未打开前隐藏，不参与碰撞、射击与绘制。 */
+    hidden?: boolean;
+    /** 已经碎了：同拍撤掉碰撞、遮挡与挡弹。 */
+    broken?: boolean;
+    breakable?: BreakSpec;
+    interact?: InteractSpec;
+    /** 帘 / 板放下后的绘制状态。 */
+    revealed?: boolean;
 }
 
-interface Actor {
+export interface Actor {
     x: number;
     y: number;
+    /** 地面的前后坐标。正值朝远景，与跳跃高度分开。 */
+    depth: number;
+    depthSpeed: number;
     vx: number;
     vy: number;
     w: number;
@@ -153,9 +181,10 @@ interface Actor {
     alive: boolean;
 }
 
-interface Enemy {
+export interface Enemy {
     x: number;
     y: number;
+    depth?: number;
     w: number;
     h: number;
     alive: boolean;
@@ -164,9 +193,24 @@ interface Enemy {
     warnT: number;
     /** 距下一次举枪的拍数。 */
     fireCd: number;
+    /** 新版关卡：火器手 / 持盾手 / 破障手 / 侧线带队者。 */
+    kind?: "gunner" | "shield" | "breaker" | "leader";
+    /** 盾耐久；正面挡弹，碎盾后不掉残盾。 */
+    shieldHp?: number;
+    shieldHpMax?: number;
+    /** 击倒掉落。 */
+    drop?: "shield" | "wedge" | "ammo" | "pass" | "quickbelt" | "none";
+    /** 出生点，破障手用它在触发前站桩。 */
+    homeX?: number;
+    /** 近战/破障的节拍。 */
+    swingT?: number;
+    /** 警戒是否已触发。 */
+    awake?: boolean;
+    /** 小队编号，留给侧线带队者。 */
+    squad?: number;
 }
 
-interface Camera {
+export interface Camera {
     x: number;
     y: number;
 }
@@ -191,13 +235,22 @@ export function computeViewport(w: number, h: number): Viewport {
     };
 }
 
-/** 一次命中判定的结果，供表现层画弹道与反馈。 */
-interface Trace {
+/** 一次命中判定的结果。y0 / y1 是包含纵深偏移的投影高度。 */
+export interface Trace {
     x0: number;
     y0: number;
     x1: number;
     y1: number;
     hit: boolean;
+}
+
+interface Ray {
+    x: number;
+    y: number;
+    dx: number;
+    dy: number;
+    depth?: number;
+    dDepth?: number;
 }
 
 /** 每个房间进入时的剧情初态。 */
@@ -304,6 +357,13 @@ export class Play {
     /** 城门守点里周戍的血量；打空就回绞盘重来。 */
     hp = 3;
     maxHp = 3;
+    /** 受击后的短暂硬直保护：0.7 秒内不再扣血，避免近战连击秒杀。 */
+    invulnT = 0;
+    /** 小满撞墙后累计的时间：超过 0.3 秒就换一档绕行，别在柱前原地跳。 */
+    partnerStuck = 0;
+    /** 小满当前尝试的绕行档位与保持时间。 */
+    partnerLaneIdx = 0;
+    partnerLaneHold = 0;
     /** 本拍被掩体或蹲伏挡下的提示，给 HUD 用。 */
     coveredFlash = 0;
     /** 本步是否「贴住掩体且按着 Shift」；HUD 与姿态都读它，别处不要再各算一遍。 */
@@ -343,6 +403,26 @@ export class Play {
     /** 守点被打倒的次数，给 HUD 与回放读。 */
     gateFailCount = 0;
 
+    // —— 新版关卡 S1–C2 ——
+    /** 本段走新版关卡数据。 */
+    isCampaign = false;
+    /** 跨房运行态；单房回放时自动建一份。 */
+    run: RunState;
+    /** 本段地上的掉落物（房间自带 + 敌人掉落）。 */
+    pickups: PickupSpec[] = [];
+    /** 装填剩余拍；>0 时不能开火。 */
+    reloadT = 0;
+    /** 架在暴露轨段的残盾。 */
+    bracedShield: { x: number; y: number; w: number; h: number; hp: number } | undefined;
+    /** 本段目标已达成，等两人到出口。 */
+    objectiveDone = false;
+    /** 最近一次交互提示。 */
+    hint = "";
+    /** 进入本段的累计拍，HUD 用来算本段用时。 */
+    roomStartTick = 0;
+    /** 推车时的暴露伤害节拍。 */
+    cartHitT = 0;
+
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
     ticks = 0;
@@ -356,12 +436,16 @@ export class Play {
     /** 最近一次绘制的画布尺寸，供屏幕↔世界换算。 */
     viewW = 0;
     viewH = 0;
+    /** 可选的高清前端屏幕→世界反算钩子；未挂接时回退到 320×180 像素画布反算，不破坏既有验收脚本。 */
+    worldMapper: ((sx: number, sy: number) => { x: number; y: number }) | undefined;
 
-    constructor(room: RoomSpec, resume?: { checkpoint: number }) {
+    constructor(room: RoomSpec, resume?: { checkpoint: number }, run?: RunState) {
         // 段内坐标 → 世界坐标。房间数据里的锚点保持不变，Play 内部一律读世界坐标。
         this.ox = room.originX;
         this.room = withOrigin(room);
         const wr = this.room;
+        this.run = run ?? createRun();
+        this.isCampaign = wr.campaign !== undefined;
         this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
         // 周戍段（序章/街道/检查站/城门）操控周戍；其余路段操控小满。
@@ -379,7 +463,11 @@ export class Play {
         this.cartAxle = wr.cart.startX;
         this.escort = new Escort(safeAnchorX(wr.marks));
         this.scavX = wr.scavenger !== undefined ? wr.scavenger.x0 : 0;
-        this.buildEnemies();
+        if (this.isCampaign) {
+            this.setupCampaign();
+        } else {
+            this.buildEnemies();
+        }
         // 重试/复演：洞后检查点已提交则车已在 432 落窝，小满回到洞后。
         if (resume !== undefined && resume.checkpoint > 0) {
             this.checkpoint = resume.checkpoint;
@@ -410,7 +498,20 @@ export class Play {
         }
         for (i = 0; i < room.solids.length; i++) {
             const s: SolidSpec = room.solids[i];
-            this.boxes.push({ x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h, passable: s.passable === true, label: s.label });
+            if (!s.decorative) {
+                // lanes 把同一件实体拆成几块占地：分开的档位之间留出通行缝，
+                // 相邻档位合成一块，碰撞、挡弹、寻路都按这几块算。
+                // lanes 已在 withOrigin/placeSolids 拆成逐档的实体，这里只做一次入箱；
+                // 没有 depth 的旧房间保持整条通路都挡。
+                this.boxes.push({
+                    x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h,
+                    depth: room.depth === undefined ? undefined : s.depth,
+                    passable: s.passable === true, label: s.label,
+                    id: s.id, soft: s.soft === true, hidden: s.hidden === true,
+                    breakable: s.breakable === undefined ? undefined : { ...s.breakable },
+                    interact: s.interact,
+                });
+            }
         }
         for (i = 0; i < room.stairs.length; i++) {
             const st = room.stairs[i];
@@ -426,8 +527,107 @@ export class Play {
         }
     }
 
+    /**
+     * 新版关卡开局：玩家按路线站位、小满到等待点、敌兵从房间 spawns 生成、
+     * 机关按运行态恢复（碎掉的薄木挡、放下的帘、已抬的闩）。
+     */
+    private setupCampaign(): void {
+        const wr = this.room;
+        const c = wr.campaign;
+        if (c === undefined) {
+            return;
+        }
+        this.roomStartTick = this.run.ticks;
+        // S1 是共同起点：小满当拍就在队尾，A 线全程带着走。
+        if (wr.key === "s1-crossroad") {
+            this.run.joined = true;
+        } else if (wr.companion !== undefined && wr.companion.followAfter !== undefined) {
+            // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则两人都在门前停。
+            this.run.joined = wr.key === "s2-drygoods" ? this.run.route !== "drygoods" : false;
+        }
+        let x = wr.minX + 60;
+        let y = 0;
+        let depth = 0;
+        if (wr.key === "s2-drygoods" && this.run.route === "drygoods") {
+            x = wr.minX + 210;
+            depth = -32;
+        } else if (wr.key === "s3-archway" && this.run.route === "drygoods") {
+            x = wr.minX + 40;
+            y = 32;
+            depth = 32;
+        }
+        this.player = {
+            x: x, y: y, depth: depth, depthSpeed: 0, vx: 0, vy: 0,
+            w: SOLDIER_W, h: SOLDIER_H, onGround: y <= 0, facing: 1, crouch: false, rollT: 0, covered: false, alive: true,
+        };
+        this.partner = {
+            x: x + 60, y: y, depth: depth, depthSpeed: 0, vx: 0, vy: 0,
+            w: CHILD_W, h: CHILD_H, onGround: y <= 0, facing: 1, crouch: false, rollT: 0, covered: false, alive: true,
+        };
+        this.cam.x = x;
+        this.cam.y = y + CAM_LOOK_UP;
+        this.phase = "run";
+        this.hp = this.maxHp;
+        this.buildEnemies();
+        this.pickups = wr.pickups === undefined ? [] : wr.pickups.slice();
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.id === undefined) {
+                continue;
+            }
+            const st = this.run.props[b.id];
+            if (st !== undefined) {
+                b.broken = st.broken;
+                b.breakable = b.breakable === undefined ? undefined : { ...b.breakable, hp: st.hp };
+                b.hidden = b.hidden === true && st.revealed !== true;
+                if (b.hidden) {
+                    b.broken = true;
+                }
+            } else if (b.hidden === true) {
+                // 卷起的帘 / 背后的窗板：机关没开就不在场。
+                b.broken = true;
+            }
+        }
+        if (wr.cart.bodyW > 0) {
+            this.cartAxle = wr.cart.startX;
+            if (this.run.props["c2_cart"] !== undefined && this.run.props["c2_cart"].broken) {
+                this.cartAxle = wr.cart.endX;
+                this.cartDocked = true;
+            }
+        }
+        for (i = 0; i < this.pickups.length; i++) {
+            const pk = this.pickups[i];
+            if (this.run.taken[pk.id] === true) {
+                pk.id = "";
+            }
+        }
+        this.log("进入 " + wr.name + " · " + this.run.route);
+    }
+
+    private log(line: string): void {
+        this.run.log.push("[" + this.run.ticks + "] " + line);
+        if (this.run.log.length > 120) {
+            this.run.log.shift();
+        }
+    }
+
     private buildEnemies(): void {
         this.enemies = [];
+        if (this.isCampaign) {
+            let i = 0;
+            for (i = 0; i < this.room.spawns.length; i++) {
+                const sp = this.room.spawns[i];
+                const kind = sp.kind ?? "gunner";
+                const hp = sp.shieldHp ?? (kind === "shield" ? 2 : 0);
+                this.enemies.push({
+                    x: sp.x, y: sp.y, depth: sp.depth, w: 26, h: sp.h, alive: true, hitT: 0, warnT: 0, fireCd: 40,
+                    kind: kind, shieldHp: hp, shieldHpMax: hp, drop: sp.drop ?? "none",
+                    homeX: sp.x, swingT: 0, awake: false, squad: i,
+                });
+            }
+            return;
+        }
         if (this.room.key === "checkpoint") {
             this.enemies.push({ x: this.ox + 430, y: 0, w: 26, h: 84, alive: true, hitT: 0, warnT: 0, fireCd: 0 });
             this.enemies.push({ x: this.ox + 505, y: 0, w: 26, h: 84, alive: true, hitT: 0, warnT: 0, fireCd: 0 });
@@ -494,6 +694,9 @@ export class Play {
         if (input.pause.pressed) {
             this.paused = !this.paused;
         }
+        if (this.invulnT > 0) {
+            this.invulnT -= dt;
+        }
         if (this.flashT > 0) {
             this.flashT -= dt;
             if (this.flashT <= 0) {
@@ -512,17 +715,27 @@ export class Play {
         }
 
         this.ticks += 1;
+        if (this.isCampaign) {
+            this.run.ticks += 1;
+            this.run.roomTicks[this.room.key] = (this.run.roomTicks[this.room.key] ?? 0) + 1;
+        }
         const p = this.player;
         this.stepPlayer(p, dt, input);
         // 移动结束后再定贴靠：本拍的身体边缘、垂直重叠、来向都按新位置算。
         this.refreshCover(p, input);
+        if (this.isCampaign) {
+            this.stepCampaign(dt, input);
+            this.stepCampaignPartner(dt);
+        }
         // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
         this.stepEnemies(dt, input);
-        this.stepStory(dt, input);
-        this.stepEscort(dt, input);
-        this.stepVillage(dt, input);
-        this.stepChase(dt, input);
-        this.stepInteract(dt, input);
+        if (!this.isCampaign) {
+            this.stepStory(dt, input);
+            this.stepEscort(dt, input);
+            this.stepVillage(dt, input);
+            this.stepChase(dt, input);
+            this.stepInteract(dt, input);
+        }
         this.updateGate();
         this.updateCamera(dt);
     }
@@ -554,7 +767,7 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
-            if (b.passable === true || b.y1 - b.y0 < 44) {
+            if (b.passable === true || b.y1 - b.y0 < 44 || !overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
                 continue;
             }
             if (a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
@@ -574,19 +787,22 @@ export class Play {
     }
 
     /** 实体是否挡在 a 与来敌之间：敌人从右来，实体主体要在 a 右侧且不越过敌人。 */
-    private coverGuardsFrom(b: Box, a: Actor, enemyX: number): boolean {
-        if (enemyX < 0) {
+    private coverGuardsFrom(b: Box, a: Actor, enemy: Enemy | undefined): boolean {
+        if (enemy === undefined) {
             return false;
         }
-        if (enemyX >= a.x) {
-            return b.x0 >= a.x - 0.001 && b.x0 <= enemyX;
-        }
-        return b.x1 <= a.x + 0.001 && b.x1 >= enemyX;
+        const fromRight = enemy.x >= a.x;
+        const edge = fromRight ? b.x0 : b.x1;
+        const between = fromRight ? edge >= a.x - 0.001 && edge <= enemy.x
+            : edge <= a.x + 0.001 && edge >= enemy.x;
+        const separation = enemy.x - a.x;
+        const fraction = separation === 0 ? 0 : (edge - a.x) / separation;
+        const depthAtEdge = a.depth + ((enemy.depth ?? 0) - a.depth) * fraction;
+        return between && overlapsDepth(depthAtEdge, b.depth, 0);
     }
 
-    /** 最近存活敌兵的 x；没有返回 -1。 */
-    private nearestEnemyX(a: Actor): number {
-        let best = -1;
+    private nearestEnemy(a: Actor): Enemy | undefined {
+        let best: Enemy | undefined;
         let bestD = 1e9;
         let i = 0;
         for (i = 0; i < this.enemies.length; i++) {
@@ -597,7 +813,7 @@ export class Play {
             const d = Math.abs(e.x - a.x);
             if (d < bestD) {
                 bestD = d;
-                best = e.x;
+                best = e;
             }
         }
         return best;
@@ -618,17 +834,18 @@ export class Play {
         a.covered = this.coverNear && input.cover.held;
         this.coverHug = a.covered;
         this.coverEntity = b === undefined ? "" : (b.label === undefined ? "一人高实体" : b.label);
-        this.coverBlocking = b !== undefined && this.coverGuardsFrom(b, a, this.nearestEnemyX(a));
+        this.coverBlocking = b !== undefined && this.coverGuardsFrom(b, a, this.nearestEnemy(a));
     }
 
     /** 车把是否在有效握持范围内；用来让同拍 E 优先于射击/跳跃。 */
-    private cartHandleInReach(a: Actor): boolean {
+    cartHandleInReach(a: Actor = this.player): boolean {
         const c = this.room.cart;
-        if (this.cartDocked || c.endX <= c.startX) {
+        if (this.cartDocked || c.bodyW <= 0 || c.endX === c.startX) {
             return false;
         }
         const handleX = this.cartAxle + c.handleOffset;
-        return Math.abs(a.x - handleX) <= CART_REACH && Math.abs(a.y - c.baseY) <= 40;
+        return Math.abs(a.x - handleX) <= CART_REACH && Math.abs(a.y - c.baseY) <= 40
+            && inReachDepth(a.depth, c.depth ?? 0);
     }
 
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
@@ -639,7 +856,7 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
-            if (b.x1 <= x0 || b.x0 >= x1) {
+            if (b.x1 <= x0 || b.x0 >= x1 || !overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
                 continue;
             }
             const rise = b.y1 - a.y;
@@ -651,6 +868,7 @@ export class Play {
     }
 
     private stepPlayer(a: Actor, dt: number, input: Input): void {
+        a.depthSpeed = 0;
         if (!a.alive) {
             return;
         }
@@ -721,11 +939,14 @@ export class Play {
         }
 
         // 握车把时人由车带着走，自己按方向键不再叠加位移。
+        const handsBusy = this.gripping || gripIntent;
         const dir = this.gripping ? 0 : input.moveX;
+        const depthDir = this.room.depth !== undefined && !isChild && !handsBusy ? -input.moveY : 0;
+        const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
         }
-        a.vx = dir * speed;
+        a.vx = dir * speed * diagonal;
 
         // 小满跳跃：地面 + 未蹲
         if (isChild && !this.gripping && !gripIntent && input.jump.pressed && a.onGround && !a.crouch) {
@@ -734,6 +955,10 @@ export class Play {
             this.flashSet("跳", 0.25);
         }
 
+        // 两个地面方向各自结算碰撞，斜着走时可以贴着实体边缘绕行。
+        const previousDepth = a.depth;
+        this.slideDepth(a, depthDir * speed * DEPTH_SPEED_RATIO * diagonal * dt);
+        a.depthSpeed = dt > 0 ? (a.depth - previousDepth) / dt : 0;
         this.slideX(a, a.vx * dt);
         this.fallY(a, dt);
 
@@ -752,6 +977,7 @@ export class Play {
         a.crouch = false;
         a.h = a.w === CHILD_W ? CHILD_H : SOLDIER_H;
         a.vx = 0;
+        a.depthSpeed = 0;
         this.fallY(a, dt);
     }
 
@@ -761,6 +987,7 @@ export class Play {
      */
     private stepEscort(dt: number, input: Input): void {
         const a = this.partner;
+        a.depthSpeed = 0;
         if (!a.alive) {
             return;
         }
@@ -770,7 +997,7 @@ export class Play {
             return;
         }
         const p = this.player;
-        const dist = Math.abs(p.x - a.x);
+        const dist = inReachDepth(p.depth, a.depth) ? Math.abs(p.x - a.x) : 1e9;
         const hadKnock1 = this.escort.knock1;
         const hadKnock2 = this.escort.knock2;
         this.calmConsumed = this.escort.update(input, p.x, p.facing, a.x, dist);
@@ -783,6 +1010,18 @@ export class Play {
         }
         a.crouch = this.escort.crouchPose;
         a.h = a.crouch ? CHILD_CROUCH_H : CHILD_H;
+        if (!this.escort.stopped) {
+            const targetDepth = this.escort.state === "follow" ? p.depth : 0;
+            const previousDepth = a.depth;
+            const travel = CHILD_SPEED * DEPTH_SPEED_RATIO * dt;
+            const distance = Math.max(-travel, Math.min(travel, targetDepth - previousDepth));
+            this.slideDepth(a, distance);
+            a.depthSpeed = dt > 0 ? (a.depth - previousDepth) / dt : 0;
+            if (Math.abs(distance) > 0.5 && a.depth === previousDepth && a.onGround) {
+                a.vy = CHILD_JUMP;
+                a.onGround = false;
+            }
+        }
         const dir = this.escort.moveDir(a.x);
         a.vx = dir * CHILD_SPEED;
         if (dir !== 0) {
@@ -835,6 +1074,8 @@ export class Play {
         this.player.alive = true;
         this.player.x = this.ox + x;
         this.player.y = 0;
+        this.player.depth = 0;
+        this.player.depthSpeed = 0;
         this.player.vy = 0;
         this.player.vx = 0;
         this.player.onGround = true;
@@ -866,7 +1107,7 @@ export class Play {
             child.h = CHILD_CROUCH_H;
             const reach = this.room.story === undefined || this.room.story.prologue === undefined
                 ? 46 : this.room.story.prologue.giveReach;
-            const near = Math.abs(this.player.x - child.x) <= reach;
+            const near = Math.abs(this.player.x - child.x) <= reach && inReachDepth(this.player.depth, child.depth);
             if (near && input.interact.pressed) {
                 this.phase = "prologue-give";
                 this.phaseTick = 0;
@@ -932,7 +1173,7 @@ export class Play {
                 a.x = g.waitX;
             }
             // 要真的碰到绞盘才算就位：±24 是身体边缘贴住的距离。
-            const atWinch = Math.abs(p.x - g.winchX) <= 24 && p.y < 20;
+            const atWinch = Math.abs(p.x - g.winchX) <= 24 && p.y < 20 && inReachDepth(p.depth);
             const atWait = this.partner.alive && Math.abs(this.partner.x - g.waitX) <= 60;
             if (this.gateNeedConfirm) {
                 // 倒地之后不自动重开：站位到位也要玩家按一次 E，确认「我知道要重来」。
@@ -987,7 +1228,7 @@ export class Play {
             return;
         }
         if (this.phase === "gate-send") {
-            const near = Math.abs(p.x - g.doorX) <= 60;
+            const near = Math.abs(p.x - g.doorX) <= 60 && inReachDepth(p.depth);
             if (near && input.interact.pressed) {
                 this.swapToChild(g.doorX + 30);
                 this.phase = "gate-count";
@@ -1258,6 +1499,595 @@ export class Play {
         this.gateOpen = this.cartDocked && inZone(this.player.x) && inZone(this.partner.x);
     }
 
+    // ---------- 新版关卡 S1–C2 ----------
+
+    /** 掉落与拾取都走同一张背包。 */
+    private addItem(kind: string): void {
+        const inv = this.run.inventory;
+        if (kind === "shield") {
+            inv.shield += 1;
+        } else if (kind === "wedge") {
+            inv.wedge += 1;
+        } else if (kind === "ammo") {
+            inv.ammo += 1;
+        } else if (kind === "pass") {
+            inv.pass += 1;
+        } else if (kind === "quickbelt") {
+            inv.quickbelt += 1;
+        }
+    }
+
+    private findBox(id: string): Box | undefined {
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            if (this.boxes[i].id === id) {
+                return this.boxes[i];
+            }
+        }
+        return undefined;
+    }
+
+    private nearBox(b: Box, reach: number): boolean {
+        const p = this.player;
+        return p.x + p.w / 2 >= b.x0 - reach && p.x - p.w / 2 <= b.x1 + reach
+            && p.y <= b.y1 + 12 && p.y + p.h >= b.y0 - 12
+            && overlapsDepth(p.depth, b.depth, INTERACT_DEPTH_REACH);
+    }
+
+    /** 本拍能按 E 的机关；没有就返回 undefined。 */
+    private findInteract(): Box | undefined {
+        const p = this.player;
+        let best: Box | undefined = undefined;
+        let bestD = 1e9;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.interact === undefined || b.broken === true) {
+                continue;
+            }
+            if (!this.nearBox(b, b.interact.reach ?? 27)) {
+                continue;
+            }
+            const d = Math.abs(p.x - (b.x0 + b.x1) / 2);
+            if (d < bestD) {
+                bestD = d;
+                best = b;
+            }
+        }
+        return best;
+    }
+
+    /** 关卡步：回运行态、路线判定、拾取、E 交互、推车与出口。 */
+    private stepCampaign(dt: number, input: Input): void {
+        const wr = this.room;
+        const p = this.player;
+        if (this.reloadT > 0) {
+            this.reloadT -= 1;
+        }
+        // S2 从布行侧进入：转到窗板线，小满先去后仓等。
+        if (wr.key === "s2-drygoods" && this.run.route !== "drygoods"
+            && p.x < wr.minX + 330 && p.depth <= -16) {
+            this.run.route = "drygoods";
+            this.run.joined = false;
+            this.flashSet("转布行线 · 小满到窗板后等", 1.3);
+            this.log("转布行线");
+        }
+        // 拾取：走到掉落物上自动进包。
+        let i = 0;
+        for (i = 0; i < this.pickups.length; i++) {
+            const pk = this.pickups[i];
+            if (pk.id === "" || this.run.taken[pk.id] === true) {
+                continue;
+            }
+            const sameDepth = overlapsDepth(p.depth, { min: (pk.depth ?? 0) - 10, max: (pk.depth ?? 0) + 10 }, 10);
+            const dy = Math.abs((pk.y + (pk.depth ?? 0)) - (p.y + p.depth));
+            if (Math.abs(pk.x - p.x) < 44 && dy < 60 && sameDepth) {
+                this.run.taken[pk.id] = true;
+                this.addItem(pk.kind);
+                pk.id = "";
+                this.flashSet("拾取 " + pk.label, 1.0);
+                this.log("拾取 " + pk.kind + " " + pk.label);
+                this.emit("pickup", { kind: pk.kind, x: pk.x, y: pk.y, label: pk.label });
+            }
+        }
+        if (input.interact.pressed) {
+            this.campaignInteract();
+        }
+        this.stepCampaignCart(dt, input);
+        this.stepCampaignGoal();
+    }
+
+    /** E：机关优先，其次加固 / 架盾 / 号牌。 */
+    private campaignInteract(): void {
+        const b = this.findInteract();
+        if (b !== undefined) {
+            this.useInteract(b);
+            return;
+        }
+        const inv = this.run.inventory;
+        if (inv.wedge > 0) {
+            const w = this.findBox("s2_wood");
+            if (w !== undefined && w.broken !== true && this.nearBox(w, 26)) {
+                if (w.breakable !== undefined) {
+                    w.breakable.hp += w.breakable.wedgeHp ?? 1;
+                }
+                inv.wedge -= 1;
+                this.run.props["s2_wood"] = { broken: false, hp: w.breakable === undefined ? 0 : w.breakable.hp, wedge: true };
+                this.flashSet("钉木楔 · 薄木挡多承一次", 1.2);
+                this.log("加固薄木挡");
+                this.emit("interactUsed", { kind: "wedge", x: w.x0 });
+                return;
+            }
+        }
+        if (inv.shield > 0 && this.bracedShield === undefined && this.room.key === "c2-granary"
+            && this.player.x >= this.room.minX + 960 && this.player.x <= this.room.minX + 1320) {
+            const p = this.player;
+            this.bracedShield = { x: p.x + p.facing * 26, y: p.y, w: 30, h: 64, hp: 1 };
+            this.boxes.push({
+                x0: this.bracedShield.x - 15, x1: this.bracedShield.x + 15,
+                y0: p.y, y1: p.y + 64, depth: { min: -46, max: 46 }, label: "架起的残盾", id: "braced_shield",
+            });
+            inv.shield -= 1;
+            this.flashSet("架残盾 · 挡一发", 1.2);
+            this.log("架残盾");
+            this.emit("interactUsed", { kind: "shield", x: p.x });
+            return;
+        }
+        if (inv.pass > 0 && this.run.joined === false) {
+            inv.pass -= 1;
+            this.run.joined = true;
+            this.flashSet("护送号牌 · 小满跟上", 1.2);
+            this.emit("interactUsed", { kind: "pass", x: this.player.x });
+            return;
+        }
+        this.flashSet(this.hint === "" ? "这里没有可用的机关" : this.hint, 0.8);
+    }
+
+    private useInteract(b: Box): void {
+        const kind = b.interact === undefined ? "" : b.interact.kind;
+        const wr = this.room;
+        if (kind === "open_board") {
+            b.broken = true;
+            this.run.props["s2_board"] = { broken: true, hp: 0, wedge: false };
+            for (const cover of this.boxes) {
+                if (cover.id === "s2_board_cover") {
+                    cover.broken = false;
+                    cover.hidden = false;
+                }
+            }
+            this.run.props["s2_board_cover"] = { broken: false, hp: 0, wedge: false, revealed: true };
+            this.run.joined = true;
+            this.flashSet("放下窗板 · 小满跟上", 1.4);
+            this.log("放下窗板");
+            this.emit("interactUsed", { kind: "open_board", x: b.x0 });
+            return;
+        }
+        if (kind === "lower_curtain") {
+            for (const curtain of this.boxes) {
+                if (curtain.id === "c2_curtain") {
+                    curtain.broken = false;
+                    curtain.hidden = false;
+                }
+            }
+            this.run.props["c2_curtain"] = { broken: false, hp: 0, wedge: false, revealed: true };
+            this.flashSet("放下木帘 · 暴露轨段有遮挡", 1.4);
+            this.log("放下木帘");
+            this.emit("interactUsed", { kind: "lower_curtain", x: b.x0 });
+            return;
+        }
+        if (kind === "raise_latch") {
+            if (wr.key === "c2-granary" && !this.cartDocked) {
+                this.flashSet("车轮还没入窝 · 先把车推到底", 1.0);
+                return;
+            }
+            b.broken = true;
+            this.run.latchOpen = true;
+            this.objectiveDone = true;
+            // 候检门前等着的两人，抬闩后重新同行。
+            if (wr.key === "c1-yard") {
+                this.run.joined = true;
+            }
+            this.run.props[b.id ?? "latch"] = { broken: true, hp: 0, wedge: false };
+            this.emit("objectiveDone", { goal: "raise_latch", room: wr.key });
+            this.log("抬闩");
+            this.flashSet("抬闩 · 通路打开", 1.4);
+            this.emit("interactUsed", { kind: "raise_latch", x: b.x0 });
+        }
+    }
+
+    /** 推车：E 握柄，A/D 推，车轮入窝后松开；暴露轨段的射击照常结算。 */
+    private stepCampaignCart(dt: number, input: Input): void {
+        const wr = this.room;
+        const c = wr.cart;
+        if (c.bodyW <= 0) {
+            return;
+        }
+        const p = this.player;
+        const handleX = this.cartAxle + c.handleOffset;
+        if (!this.gripping) {
+            if (input.interact.pressed && Math.abs(p.x - handleX) <= CART_REACH
+                && p.y <= c.baseY + (c.depth ?? 0) + 40 && !this.objectiveDone) {
+                this.gripping = true;
+                this.flashSet("握住车柄 · A/D 推", 1.0);
+            }
+            return;
+        }
+        if (input.interact.pressed) {
+            this.gripping = false;
+            this.flashSet("松手", 0.5);
+            return;
+        }
+        if (!this.cartDocked) {
+            if (input.moveX !== 0 && !this.stuckCart()) {
+                this.cartAxle = Math.max(c.startX, Math.min(c.endX, this.cartAxle + input.moveX * CART_SPEED * dt));
+            }
+            p.x = this.cartAxle + c.handleOffset;
+            p.y = c.baseY + (c.depth ?? 0);
+            p.vx = 0;
+            if (Math.abs(this.cartAxle - c.endX) < 0.5) {
+                this.cartAxle = c.endX;
+                this.cartDocked = true;
+                this.gripping = false;
+                this.run.props["c2_cart"] = { broken: true, hp: 0, wedge: false };
+                this.emit("cartDocked", { axle: this.cartAxle, playerX: p.x, room: wr.key });
+                this.flashSet("车轮入窝", 1.2);
+                this.log("车轮入窝");
+            }
+        }
+    }
+
+    /** 车头前有未打散的围挡就推不动。 */
+    private stuckCart(): boolean {
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.broken === true || b.breakable === undefined || b.soft === true) {
+                continue;
+            }
+            const front = this.cartAxle + this.room.cart.handleOffset + this.room.cart.bodyW / 2;
+            if (b.y0 < 40 && b.x0 < front + 10 && b.x1 > front - 10) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 目标与出口：两人到位才切下一段。 */
+    private stepCampaignGoal(): void {
+        const wr = this.room;
+        const c = wr.campaign;
+        if (c === undefined) {
+            return;
+        }
+        if (wr.key === "c2-granary" && this.cartDocked && this.run.latchOpen === true) {
+            this.objectiveDone = true;
+        }
+        if (c.goal === "reach_exit") {
+            this.objectiveDone = true;
+        }
+        if (!this.objectiveDone) {
+            return;
+        }
+        const p = this.player;
+        const partnerOk = this.run.joined && this.partner.x >= c.exitX - 220;
+        if (p.x < c.exitX || !partnerOk) {
+            return;
+        }
+        if (c.next !== undefined && c.next !== "") {
+            this.requestRoom(c.next, "段出口 " + wr.key);
+            this.flashSet("过关 · " + c.next, 1.2);
+        } else if (!this.run.finished) {
+            this.run.finished = true;
+            this.flashSet("C2 灰盒完成 · " + mmss(this.run.roomTicks[wr.key] ?? 0), 2.0);
+            this.log("C2 灰盒完成");
+            this.emit("objectiveDone", { goal: "dock_cart", room: wr.key });
+        }
+    }
+
+    /** 小满在新版关卡里的跟随：等待点 → 跟上 → 跨台阶自己跳。 */
+    private stepCampaignPartner(dt: number): void {
+        const a = this.partner;
+        const wr = this.room;
+        const cp = wr.companion;
+        if (!a.alive) {
+            return;
+        }
+        const p = this.player;
+        let wait = false;
+        let targetX = cp === undefined ? p.x - 70 : p.x - (p.facing > 0 ? 70 : -70);
+        let targetDepth = p.depth;
+        if (this.run.joined === false) {
+            wait = true;
+            targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
+            targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
+        } else if (wr.key === "c1-yard" && !this.run.latchOpen) {
+            wait = true;
+            targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
+            targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
+        } else if (wr.key === "c2-granary" && !this.cartDocked) {
+            wait = true;
+            targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
+            targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
+        }
+        if (this.partnerStuck > 0.3) {
+            // 撞在柱列 / 台角上：按 中 → 上 → 下 轮换一条能过的档，别再贴着玩家的档硬顶。
+            this.partnerLaneIdx = (this.partnerLaneIdx + 1) % 3;
+            this.partnerLaneHold = 1.1;
+            this.partnerStuck = 0;
+        }
+        if (this.partnerLaneHold > 0) {
+            this.partnerLaneHold -= dt;
+            targetDepth = this.partnerLaneIdx === 0 ? 0 : (this.partnerLaneIdx === 1 ? 32 : -32);
+        }
+        const dx = targetX - a.x;
+        if (!wait && Math.abs(dx) > 74) {
+            const speed = Math.abs(dx) > 260 ? CHILD_SPEED * 1.4 : CHILD_SPEED;
+            const before = a.x;
+            a.vx = dx > 0 ? speed : -speed;
+            a.facing = dx > 0 ? 1 : -1;
+            this.slideX(a, a.vx * dt);
+            // 跟随时撞到矮台（柜台、台阶）：自己跳上去，不卡在台前。
+            if (a.onGround && Math.abs(a.x - before) < 0.5) {
+                a.vy = CHILD_JUMP;
+                a.onGround = false;
+            }
+            this.partnerStuck = Math.abs(a.x - before) < 0.5 ? this.partnerStuck + dt : 0;
+        } else {
+            a.vx = 0;
+            this.partnerStuck = 0;
+        }
+        const dz = targetDepth - a.depth;
+        if (Math.abs(dz) > 6) {
+            const step = Math.max(-CHILD_SPEED * DEPTH_SPEED_RATIO * dt, Math.min(CHILD_SPEED * DEPTH_SPEED_RATIO * dt, dz));
+            a.depth += step;
+        }
+        a.depthSpeed = 0;
+        a.h = CHILD_H;
+        a.crouch = false;
+        this.fallY(a, dt);
+    }
+
+    /** 新版关卡的敌人：火器手按深度与遮挡开火，持盾手推进，破障手砸挡或砸人。 */
+    private stepCampaignEnemies(dt: number, input: Input): void {
+        const p = this.player;
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e.alive) {
+                continue;
+            }
+            if (e.hitT > 0) {
+                e.hitT -= dt;
+            }
+            if (e.kind === "breaker") {
+                this.stepBreaker(e, dt);
+                continue;
+            }
+            if (e.kind === "shield") {
+                this.stepShield(e, dt, input);
+                continue;
+            }
+            // 火器手 / 带队者：站桩举枪。先近身才觉醒，避免隔着半条街就开火。
+            const dx = e.x - p.x;
+            if (!e.awake) {
+                if (Math.abs(dx) > 520) {
+                    continue;
+                }
+                e.awake = true;
+                e.fireCd = 48;
+                continue;
+            }
+            if (Math.abs(dx) > ENEMY_RANGE) {
+                continue;
+            }
+            if (Math.abs((e.depth ?? 0) - p.depth) > 44) {
+                continue;
+            }
+            if (this.blockedShot(e, p)) {
+                continue;
+            }
+            if (e.warnT > 0) {
+                e.warnT -= 1;
+                if (e.warnT <= 0) {
+                    this.campaignEnemyFire(e);
+                }
+            } else if (e.fireCd > 0) {
+                e.fireCd -= 1;
+                if (e.fireCd <= 0) {
+                    e.warnT = WARN_TICKS;
+                }
+            } else {
+                e.fireCd = 40;
+            }
+        }
+    }
+
+    /** 射线是否被实体或软遮挡挡在敌我之间。 */
+    private blockedShot(e: Enemy, p: Actor): boolean {
+        const ex = e.x;
+        const ey = e.y + (e.depth ?? 0) + e.h * 0.62;
+        const px = p.x;
+        const py = p.y + p.depth + p.h * 0.55;
+        const dx = px - ex;
+        const dy = py - ey;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.01) {
+            return false;
+        }
+        const ray = { x: ex, y: ey, dx: dx / len, dy: dy / len };
+        let best = -1;
+        let j = 0;
+        for (j = 0; j < this.boxes.length; j++) {
+            const b = this.boxes[j];
+            if (b.broken === true || b.passable === true) {
+                continue;
+            }
+            if (!overlapsDepth(e.depth ?? 0, b.depth, ACTOR_DEPTH_HALF)) {
+                continue;
+            }
+            const t = hitBox(ray, b);
+            if (t >= 0 && t < len - 2 && (best < 0 || t < best)) {
+                best = t;
+            }
+        }
+        return best >= 0;
+    }
+
+    private campaignEnemyFire(e: Enemy): void {
+        const p = this.player;
+        e.fireCd = FIRE_COOLDOWN;
+        if (this.bracedShield !== undefined && Math.abs(this.bracedShield.x - p.x) < 50) {
+            this.bracedShield.hp -= 1;
+            this.boxes = this.boxes.filter((b) => b.id !== "braced_shield");
+            this.bracedShield = undefined;
+            this.flashSet("残盾碎 · 挡下一发", 1.0);
+            this.emit("coverBlocked", { entity: "残盾", enemyX: e.x, hp: this.hp });
+            return;
+        }
+        const cover = this.blockedByCover(e, p);
+        if (cover !== undefined && this.coverHug) {
+            this.coveredFlash = 0.5;
+            this.flashSet("掩体挡下", 0.6);
+            this.emit("coverBlocked", {
+                entity: cover.label === undefined ? "一人高实体" : cover.label,
+                enemyX: e.x,
+                hp: this.hp,
+            });
+            return;
+        }
+        if (this.invulnT > 0) {
+            return;
+        }
+        this.invulnT = 0.7;
+        this.hp -= 1;
+        this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
+        this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
+        if (this.hp <= 0) {
+            this.campaignFailed();
+        }
+    }
+
+    /** 持盾手：缓慢压近，近身就砸；盾完整时正面挡弹。 */
+    private stepShield(e: Enemy, dt: number, input: Input): void {
+        const p = this.player;
+        const dx = p.x - e.x;
+        const adx = Math.abs(dx);
+        if (adx > 150) {
+            const before = e.x;
+            e.x += (dx > 0 ? 1 : -1) * 60 * dt;
+            if (Math.abs(e.x - before) < 0.3) {
+                // 被挡：尝试换更深/更浅一档绕行。
+                e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
+            }
+        } else if (adx < 48 && (e.swingT ?? 0) <= 0) {
+            if (p.rollT <= 0 && this.invulnT <= 0) {
+                this.invulnT = 0.7;
+                this.hp -= 1;
+                this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
+                this.flashSet("盾手近身 · " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
+                if (this.hp <= 0) {
+                    this.campaignFailed();
+                    return;
+                }
+            }
+            e.swingT = 70;
+        }
+        if ((e.swingT ?? 0) > 0) {
+            e.swingT = (e.swingT ?? 0) - 1;
+        }
+        if (Math.abs((e.depth ?? 0) - p.depth) > 20) {
+            const dd = p.depth - (e.depth ?? 0);
+            e.depth = (e.depth ?? 0) + (dd > 0 ? 1 : -1) * 30 * dt;
+        }
+    }
+
+    /** 破障手：先砸最近的可破坏挡，挡碎后追人。 */
+    private stepBreaker(e: Enemy, dt: number): void {
+        const p = this.player;
+        if (e.awake !== true) {
+            if (Math.abs(p.x - e.x) < 560) {
+                e.awake = true;
+            } else {
+                return;
+            }
+        }
+        let target: Box | undefined = undefined;
+        let bestD = 1e9;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.breakable === undefined || b.broken === true) {
+                continue;
+            }
+            const d = Math.abs((b.x0 + b.x1) / 2 - e.x);
+            if (d < bestD) {
+                bestD = d;
+                target = b;
+            }
+        }
+        const tx = target === undefined ? p.x : (target.x0 + target.x1) / 2;
+        const dx = tx - e.x;
+        const reach = target === undefined ? 46 : (target.x1 - target.x0) / 2 + 40;
+        if (Math.abs(dx) > reach) {
+            const before = e.x;
+            e.x += (dx > 0 ? 1 : -1) * 48 * dt;
+            if (Math.abs(e.x - before) < 0.3) {
+                e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
+            }
+        } else if ((e.swingT ?? 0) <= 0) {
+            e.swingT = 64;
+            if (target !== undefined) {
+                this.damageProp(target, 2);
+            } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
+                this.invulnT = 0.7;
+                this.hp -= 1;
+                this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
+                this.flashSet("破障手近身", 0.8);
+                if (this.hp <= 0) {
+                    this.campaignFailed();
+                    return;
+                }
+            }
+        }
+        if ((e.swingT ?? 0) > 0) {
+            e.swingT = (e.swingT ?? 0) - 1;
+        }
+    }
+
+    private campaignFailed(): void {
+        const p = this.player;
+        this.hp = this.maxHp;
+        this.invulnT = 1.2;
+        this.reloadT = 0;
+        this.gripping = false;
+        this.flashSet("被击倒 · 回到本段起点，破坏与拾取保留", 2.0);
+        this.log("被击倒");
+        p.x = this.room.minX + 90;
+        p.y = 0;
+        p.depth = 0;
+        p.vx = 0;
+        p.vy = 0;
+        p.onGround = true;
+        p.rollT = 0;
+        this.partner.x = p.x - 50;
+        this.partner.y = 0;
+        this.partner.depth = 0;
+        this.cam.x = p.x;
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e.alive) {
+                continue;
+            }
+            e.x = e.homeX === undefined ? e.x : e.homeX;
+            e.warnT = 0;
+            e.fireCd = 40;
+            e.swingT = 0;
+            e.awake = false;
+        }
+        this.emit("campaignFailed", { room: this.room.key, hp: 0, maxHp: this.maxHp });
+    }
+
     private stepEnemies(dt: number, input: Input): void {
         let i = 0;
         for (i = 0; i < this.enemies.length; i++) {
@@ -1268,6 +2098,10 @@ export class Play {
         }
         if (this.coveredFlash > 0) {
             this.coveredFlash -= dt;
+        }
+        if (this.isCampaign) {
+            this.stepCampaignEnemies(dt, input);
+            return;
         }
         // 只有城门守点期间敌兵会打人；街道与检查站仍是纯靶子。
         if (this.room.key !== "gate" || this.phase !== "gate-hold") {
@@ -1306,7 +2140,7 @@ export class Play {
             return;
         }
         // 贴靠实体 + 来向 + 主动按 Shift，三件事同时成立才挡；站绞盘空地按 Shift 照吃。
-        const cover = this.blockedByCover(e.x, p);
+        const cover = this.blockedByCover(e, p);
         const hugging = cover !== undefined;
         this.coverBlocking = hugging;
         const covered = hugging && input.cover.held;
@@ -1331,12 +2165,12 @@ export class Play {
     }
 
     /** 贴着街垒/柜台这类一人高实体、且实体挡在来向上，才算掩体。 */
-    private blockedByCover(ex: number, p: Actor): Box | undefined {
+    private blockedByCover(enemy: Enemy, p: Actor): Box | undefined {
         const b = this.coverAt(p);
         if (b === undefined) {
             return undefined;
         }
-        return this.coverGuardsFrom(b, p, ex) ? b : undefined;
+        return this.coverGuardsFrom(b, p, enemy) ? b : undefined;
     }
 
     /** 被击倒：回绞盘，计时、敌兵和角色状态全部重来。 */
@@ -1352,12 +2186,16 @@ export class Play {
         this.player.x = this.ox + (g === undefined ? 118 : g.winchX);
         this.player.y = 0;
         this.player.vy = 0;
+        this.player.depth = 0;
+        this.player.depthSpeed = 0;
         this.player.onGround = true;
         this.player.crouch = false;
         this.player.h = SOLDIER_H;
         this.partner.x = this.ox + (g === undefined ? 900 : g.waitX);
         this.partner.y = 0;
         this.partner.vy = 0;
+        this.partner.depth = 0;
+        this.partner.depthSpeed = 0;
         this.partner.onGround = true;
         this.cam.x = this.player.x;
         this.phase = "gate-idle";
@@ -1524,7 +2362,9 @@ export class Play {
 
     /** 准星点的世界坐标换算成「实际落点」：横向就是准星 x，纵向取该处地面。 */
     private bottleEnd(): { x: number; y: number } {
-        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
+        const aim = this.worldMapper !== undefined
+            ? this.worldMapper(this.aimX, this.aimY)
+            : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
         const g = this.groundAt(aim.x, aim.y + 240, 3);
         return { x: aim.x, y: g };
     }
@@ -1643,7 +2483,6 @@ export class Play {
     private stepCart(dt: number, input: Input): void {
         const p = this.player;
         const c = this.room.cart;
-        const handleX = this.cartAxle + c.handleOffset;
 
         if (this.gripping) {
             if (!input.interact.held) {
@@ -1655,9 +2494,15 @@ export class Play {
             if (!input.interact.pressed) {
                 return;
             }
-            if (Math.abs(p.x - handleX) > CART_REACH || Math.abs(p.y - c.baseY) > 40) {
+            if (!this.cartHandleInReach(p)) {
                 return;
             }
+            const track = c.depth ?? 0;
+            if (this.limitDepth(p, track) !== track) {
+                return;
+            }
+            p.depth = track;
+            p.depthSpeed = 0;
             this.gripping = true;
             this.flashSet("握住车把", 0.4);
             return;
@@ -1751,10 +2596,17 @@ export class Play {
     }
 
     private shoot(a: Actor): void {
+        if (this.isCampaign && this.reloadT > 0) {
+            this.flashSet("装填中 · 等枪机复位", 0.35);
+            return;
+        }
         const ox = a.x + a.facing * 8;
-        const oy = a.y + a.h * 0.72;
-        // 准星在世界里的位置由 app 传进来，这里直接用相机反算
-        const aim = screenToWorld(this.aimX, this.aimY, this.cam, this.view);
+        const muzzleY = a.y + a.h * 0.72;
+        const oy = muzzleY + a.depth;
+        // 先按准星可见的投影选择尝试命中的目标，再在场景中检测实体是否挡住这条线。
+        const aim = this.worldMapper !== undefined
+            ? this.worldMapper(this.aimX, this.aimY)
+            : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
         let dx = aim.x - ox;
         let dy = aim.y - oy;
         const len = Math.sqrt(dx * dx + dy * dy);
@@ -1769,24 +2621,49 @@ export class Play {
             a.facing = dx > 0 ? 1 : -1;
         }
 
-        const hitEnemy = this.raycast(ox, oy, dx, dy, true);
-        const hitWall = this.raycast(ox, oy, dx, dy, false);
+        const ray = { x: ox, y: oy, dx, dy };
+        const hitEnemy = this.raycastEnemies(ray);
         const tEnemy = hitEnemy.t;
-        const tWall = hitWall.t;
+        const targetDepth = tEnemy > 0.001 ? (this.enemies[hitEnemy.index].depth ?? 0) : a.depth;
+        const dDepth = tEnemy > 0.001 ? (targetDepth - a.depth) / tEnemy : 0;
+        const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth, depth: a.depth, dDepth });
+        const tWall = solid.t;
         const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall);
         const t = hit ? tEnemy : (tWall >= 0 ? tWall : 700);
 
         this.trace = { x0: ox, y0: oy, x1: ox + dx * t, y1: oy + dy * t, hit: hit };
         this.traceT = 0.12;
         this.applyFireDanger(ox);
+        let killed = false;
         if (hit) {
             const i = hitEnemy.index;
             const e = this.enemies[i];
+            const impactY = oy + dy * tEnemy;
+            const fromFront = (a.x < e.x && dx > 0) || (a.x > e.x && dx < 0);
+            const shieldTop = e.y + (e.depth ?? 0) + 64;
+            if (e.kind === "shield" && (e.shieldHp ?? 0) > 0 && fromFront && impactY <= shieldTop) {
+                e.shieldHp = (e.shieldHp ?? 0) - 1;
+                e.hitT = 0.3;
+                this.flashSet("盾面挡下 · 盾 " + e.shieldHp + "/" + (e.shieldHpMax ?? 2), 0.8);
+                this.emit("shotResolved", {
+                    hit: true, enemyIndex: i, enemyX: e.x, aimX: aim.x, aimY: aim.y,
+                    impactX: ox + dx * t, impactY: oy + dy * t, shield: true,
+                });
+                this.reloadT = this.run.inventory.quickbelt > 0 ? 36 : 54;
+                return;
+            }
             e.alive = false;
             e.hitT = 0.4;
+            killed = true;
             this.flashSet("命中", 0.6);
+            this.dropFor(e);
+        } else if (solid.box !== undefined && solid.box.breakable !== undefined) {
+            this.damageProp(solid.box, 1);
         } else {
             this.flashSet("打空", 0.35);
+        }
+        if (this.isCampaign) {
+            this.reloadT = this.run.inventory.quickbelt > 0 ? 36 : 54;
         }
         this.emit("shotResolved", {
             hit: hit,
@@ -1841,7 +2718,8 @@ export class Play {
         if (!c.alive) {
             return false;
         }
-        if (c.x > this.ox + 240 && c.x < this.ox + 340) {
+        if (c.x > this.ox + 240 && c.x < this.ox + 340 &&
+            this.boxes.some(b => b.x0 === this.ox + 240 && overlapsDepth(c.depth, b.depth, ACTOR_DEPTH_HALF))) {
             return false;
         }
         if (c.x < this.ox + 380 || c.x > this.ox + 560) {
@@ -1849,46 +2727,128 @@ export class Play {
         }
         const toDanger = dangerX - c.x;
         const toPlayer = this.player.x - c.x;
-        if (toDanger * toPlayer > 0 && Math.abs(toPlayer) < Math.abs(toDanger)) {
+        if (toDanger * toPlayer > 0 && Math.abs(toPlayer) < Math.abs(toDanger) &&
+            inReachDepth(this.player.depth, c.depth)) {
             return false;
         }
         return true;
     }
 
-    /** 射线求交：enemies=true 打敌人，false 打实体与地面。返回命中距离与敌人下标。 */
-    private raycast(ox: number, oy: number, dx: number, dy: number, enemies: boolean): { t: number; index: number } {
+    /** 对准画面上的角色，包括站在不同纵深的目标。 */
+    private raycastEnemies(ray: Ray): { t: number; index: number } {
         let best = -1;
         let bestI = -1;
-        let i = 0;
-        if (enemies) {
-            for (i = 0; i < this.enemies.length; i++) {
-                const e = this.enemies[i];
-                if (!e.alive) {
-                    continue;
-                }
-                const t = hitBox(ox, oy, dx, dy, e.x - e.w / 2, e.x + e.w / 2, e.y, e.y + e.h);
-                if (t >= 0 && (best < 0 || t < best)) {
-                    best = t;
-                    bestI = i;
-                }
+        for (let i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e.alive) {
+                continue;
             }
-            return { t: best, index: bestI };
-        }
-        for (i = 0; i < this.boxes.length; i++) {
-            const b = this.boxes[i];
-            const t = hitBox(ox, oy, dx, dy, b.x0, b.x1, b.y0, b.y1);
+            const y = e.y + (e.depth ?? 0);
+            const t = hitBox(ray, { x0: e.x - e.w / 2, x1: e.x + e.w / 2, y0: y, y1: y + e.h });
             if (t >= 0 && (best < 0 || t < best)) {
                 best = t;
+                bestI = i;
             }
         }
-        // 地面 y=0 也是一条挡线
-        if (dy < 0) {
-            const t = (0 - oy) / dy;
+        return { t: best, index: bestI };
+    }
+
+    private raycastWorld(ray: Ray): number {
+        return this.raycastSolid(ray).t;
+    }
+
+    /** 命中最近的实体，并把那件实体带回来，供破坏与挡弹归属。 */
+    private raycastSolid(ray: Ray): { t: number; box?: Box } {
+        let best = -1;
+        let bestBox: Box | undefined = undefined;
+        for (const box of this.boxes) {
+            if (box.broken === true || box.hidden === true) {
+                continue;
+            }
+            const t = hitBox(ray, box);
             if (t >= 0 && (best < 0 || t < best)) {
                 best = t;
+                bestBox = box;
             }
         }
-        return { t: best, index: -1 };
+        if (ray.dy < 0) {
+            const t = -ray.y / ray.dy;
+            if (t >= 0 && (best < 0 || t < best)) {
+                best = t;
+                bestBox = undefined;
+            }
+        }
+        return { t: best, box: bestBox };
+    }
+
+    /** 命中敌人后的掉落：盾完整掉残盾，破障手掉木楔，火器手掉弹包。 */
+    private dropFor(e: Enemy): void {
+        if (!this.isCampaign || e.drop === undefined || e.drop === "none") {
+            return;
+        }
+        if (e.drop === "shield" && (e.shieldHp ?? 0) <= 0) {
+            return;
+        }
+        const label = e.drop === "shield" ? "残盾" : (e.drop === "wedge" ? "木楔" : (e.drop === "ammo" ? "备用弹包" : e.drop));
+        this.pickups.push({
+            id: this.room.key + "_drop_" + (e.squad ?? 0), kind: e.drop, x: e.x, y: e.y,
+            depth: e.depth, label: label + " ×1",
+        });
+        this.log("掉落 " + label);
+    }
+
+    /** 破坏物掉血；归零就同拍撤掉碰撞、遮挡与挡弹。 */
+    private damageProp(b: Box, amount: number): void {
+        if (b.breakable === undefined || b.broken === true) {
+            return;
+        }
+        b.breakable.hp -= amount;
+        if (b.breakable.hp > 0) {
+            this.flashSet(b.breakable.kind === "thin_wood" ? "薄木挡裂开 · 再一下" : "围挡松了 · 再一下", 0.9);
+            this.emit("propBroken", { id: b.id ?? "", phase: "crack", hp: b.breakable.hp, x: b.x0 });
+            return;
+        }
+        b.broken = true;
+        for (const other of this.boxes) {
+            if (other.id !== undefined && other.id === b.id) {
+                other.broken = true;
+            }
+        }
+        this.run.props[b.id ?? ""] = { broken: true, hp: 0, wedge: false };
+        this.flashSet(b.breakable.kind === "thin_wood" ? "薄木挡碎了 · 通路打开" : "空筐散了 · 短口打开", 1.2);
+        this.log("破坏 " + (b.id ?? "") + " " + b.breakable.kind);
+        this.emit("propBroken", { id: b.id ?? "", phase: "broken", hp: 0, x: b.x0 });
+    }
+
+    /** 地面前后位移；有体积的道具拦住穿入，纯装饰和单向平台放行。 */
+    private slideDepth(a: Actor, distance: number): void {
+        a.depth = this.limitDepth(a, a.depth + distance);
+    }
+
+    private limitDepth(a: Actor, target: number): number {
+        const road = this.room.depth;
+        if (road === undefined || target === a.depth) {
+            return a.depth;
+        }
+        let next = Math.max(road.min, Math.min(road.max, target));
+        const half = a.w / 2;
+        for (const b of this.boxes) {
+            const footprint = b.depth;
+            if (footprint === undefined || b.passable === true ||
+                b.broken === true || b.hidden === true || b.soft === true ||
+                a.x + half <= b.x0 || a.x - half >= b.x1 ||
+                a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
+                continue;
+            }
+            const front = footprint.min - ACTOR_DEPTH_HALF;
+            const back = footprint.max + ACTOR_DEPTH_HALF;
+            if (a.depth <= front && next > front) {
+                next = front;
+            } else if (a.depth >= back && next < back) {
+                next = back;
+            }
+        }
+        return next;
     }
 
     /** 水平位移 + 实体/拱洞阻挡。 */
@@ -1900,7 +2860,10 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
-            if (b.passable === true) {
+            if (b.passable === true || b.broken === true || b.hidden === true || b.soft === true) {
+                continue;
+            }
+            if (!overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
                 continue;
             }
             if (a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
@@ -1962,7 +2925,7 @@ export class Play {
         if (a.vy <= 0) {
             // 站在地上时多探 24 单位：矮台阶（每级 16–22）直接走上去，柜台 44、台面 96 仍要跳。
             const reach = a.onGround ? STEP_UP : 0;
-            const ground = this.groundAt(a.x, a.y + 0.5 + reach, half);
+            const ground = this.groundAt(a.x, a.y + 0.5 + reach, half, a.depth);
             if (ny <= ground) {
                 ny = ground;
                 a.vy = 0;
@@ -1975,7 +2938,10 @@ export class Play {
             let i = 0;
             for (i = 0; i < this.boxes.length; i++) {
                 const b = this.boxes[i];
-                if (b.passable === true) {
+                if (b.passable === true || b.broken === true || b.hidden === true || b.soft === true) {
+                    continue;
+                }
+                if (!overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
                     continue;
                 }
                 if (a.x + half <= b.x0 || a.x - half >= b.x1) {
@@ -1991,7 +2957,7 @@ export class Play {
     }
 
     /** 当前 x 处、不高于 ceiling 的最高落脚面。 */
-    private groundAt(x: number, ceiling: number, half: number): number {
+    private groundAt(x: number, ceiling: number, half: number, depth: number = 0): number {
         let g = -9999;
         let i = 0;
         for (i = 0; i < this.floors.length; i++) {
@@ -2002,7 +2968,11 @@ export class Play {
         }
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
-            if (x + half > b.x0 && x - half < b.x1 && b.y1 <= ceiling && b.y1 > g) {
+            if (b.broken === true || b.hidden === true || b.soft === true) {
+                continue;
+            }
+            if (x + half > b.x0 && x - half < b.x1 && b.y1 <= ceiling && b.y1 > g &&
+                overlapsDepth(depth, b.depth, ACTOR_DEPTH_HALF)) {
                 g = b.y1;
             }
         }
@@ -2393,6 +3363,7 @@ export class Play {
         this.drawZones(draw, w, h);
         this.drawArch(draw, w, h);
         this.drawCart(draw, w, h);
+        this.drawCampaignProps(draw, w, h);
         this.drawActors(draw, w, h);
         this.drawTrace(draw, w, h);
         this.drawAim(draw, w, h);
@@ -2438,10 +3409,15 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.room.floors.length; i++) {
             const f = this.room.floors[i];
-            const y = this.sy(f.y, h);
+            const road = f.y === 0 ? this.room.depth : undefined;
+            const y = this.sy(f.y + (road?.min ?? 0), h);
             const x0 = this.sx(f.x0, w);
             const x1 = this.sx(f.x1, w);
             const deck = this.px(5);
+            if (road !== undefined) {
+                const back = this.sy(f.y + road.max, h);
+                draw.drawRect(Rect(x0, y, x1 - x0, back - y), FLOOR_DECK, this.px(1), SOLID_EDGE);
+            }
             draw.drawRect(Rect(x0, y - deck, x1 - x0, deck), FLOOR_DECK);
             draw.drawSegment(Vec2(x0, y), Vec2(x1, y), this.px(1), GROUND);
         }
@@ -2451,13 +3427,68 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
-            if (b.y0 < -4 && b.y1 <= 96) {
-                // 台阶体：只需顶面线
-                draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1, h)), Vec2(this.sx(b.x1, w), this.sy(b.y1, h)), this.px(1), GROUND);
+            if (b.id === "braced_shield" || b.hidden === true) {
                 continue;
             }
-            this.drawBox(draw, w, h, b.x0, b.x1, b.y0, b.y1, SOLID_FILL);
-            draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1, h)), Vec2(this.sx(b.x1, w), this.sy(b.y1, h)), this.px(1), SOLID_EDGE);
+            if (b.broken === true) {
+                // 碎屑留在地上，只作读数，不挡路。
+                if (b.breakable !== undefined) {
+                    const gy = this.sy(b.y0, h);
+                    const rgb = b.breakable.kind === "basket_wall" ? Color(0.52, 0.42, 0.28, 1) : Color(0.46, 0.34, 0.22, 1);
+                    let k = 0;
+                    for (k = 0; k < 3; k++) {
+                        const gx = this.sx(b.x0 + (b.x1 - b.x0) * (0.2 + k * 0.3), w);
+                        draw.drawSegment(Vec2(gx - this.px(4), gy + this.px(k % 2)), Vec2(gx + this.px(5), gy + this.px(k % 2)), this.px(1), rgb);
+                    }
+                }
+                continue;
+            }
+            const front = b.depth?.min ?? 0;
+            const back = b.depth?.max ?? 0;
+            let fill = SOLID_FILL;
+            let line = SOLID_EDGE;
+            if (b.soft === true) {
+                fill = SOFT;
+                line = SOFT_LINE;
+            } else if (b.breakable !== undefined) {
+                line = DANGER_LINE;
+                fill = Color(0.30, 0.24, 0.16, 1);
+            } else if (b.interact !== undefined) {
+                line = PASS_LINE;
+            }
+            this.drawBox(draw, w, h, b.x0, b.x1, b.y0 + front, b.y1 + back, fill);
+            draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1 + front, h)),
+                Vec2(this.sx(b.x1, w), this.sy(b.y1 + front, h)), this.px(1), line);
+            // 承击一次：顶面一道短斜线，读作「还可以再扛一下」。
+            if (b.breakable !== undefined) {
+                const cxp = this.sx((b.x0 + b.x1) / 2, w);
+                const cyp = this.sy(b.y1 + front, h);
+                draw.drawSegment(Vec2(cxp - this.px(4), cyp + this.px(1)), Vec2(cxp + this.px(3), cyp + this.px(5)), this.px(1), line);
+            }
+        }
+    }
+
+    /** 掉落物与架起的残盾：只画在玩法层，不影响碰撞。 */
+    private drawCampaignProps(draw: DrawNode.Type, w: number, h: number): void {
+        let i = 0;
+        for (i = 0; i < this.pickups.length; i++) {
+            const pk = this.pickups[i];
+            if (pk.id === "") {
+                continue;
+            }
+            const gy = pk.y + (pk.depth ?? 0);
+            const bob = Math.sin((this.run.ticks + pk.x) * 0.12) * 2;
+            draw.drawRect(Rect(this.sx(pk.x - 5, w), this.sy(gy + 12 + bob, h), this.px(10), this.px(10)),
+                Color(0.84, 0.70, 0.30, 1));
+            draw.drawSegment(Vec2(this.sx(pk.x - 5, w), this.sy(gy + 12 + bob, h)),
+                Vec2(this.sx(pk.x + 5, w), this.sy(gy + 12 + bob, h)), this.px(1), Color(0.95, 0.86, 0.52, 1));
+        }
+        if (this.bracedShield !== undefined) {
+            const sh = this.bracedShield;
+            draw.drawRect(Rect(this.sx(sh.x - sh.w / 2, w), this.sy(sh.y, h), this.px(sh.w), this.px(sh.h)),
+                Color(0.42, 0.40, 0.34, 1));
+            draw.drawSegment(Vec2(this.sx(sh.x - sh.w / 2, w), this.sy(sh.y + sh.h, h)),
+                Vec2(this.sx(sh.x + sh.w / 2, w), this.sy(sh.y + sh.h, h)), this.px(1), Color(0.74, 0.72, 0.62, 1));
         }
     }
 
@@ -2500,21 +3531,22 @@ export class Play {
             return;
         }
         drawCartShape(draw, this, w, h, c, this.cartAxle);
-        draw.drawRect(Rect(this.sx(this.cartAxle + c.handleOffset, w) - this.px(1), this.sy(c.baseY + 40, h), this.px(2), this.px(40)), STAND);
+        draw.drawRect(Rect(this.sx(this.cartAxle + c.handleOffset, w) - this.px(1), this.sy(c.baseY + (c.depth ?? 0) + 40, h), this.px(2), this.px(40)), STAND);
     }
 
     private drawActors(draw: DrawNode.Type, w: number, h: number): void {
         const p = this.player;
         const isChild = this.childMode;
+        const footY = p.y + p.depth;
         // 贴住掩体时在身前画一条短竖线，和「压低的肩」一起表示真的靠住了。
         if (p.covered) {
             const edge = p.x + p.facing * (p.w / 2 + 2);
-            draw.drawSegment(Vec2(this.sx(edge, w), this.sy(p.y + 8, h)), Vec2(this.sx(edge, w), this.sy(p.y + p.h * 0.62, h)), this.px(2), STAND);
+            draw.drawSegment(Vec2(this.sx(edge, w), this.sy(footY + 8, h)), Vec2(this.sx(edge, w), this.sy(footY + p.h * 0.62, h)), this.px(2), STAND);
             // 头顶这道横线是「压低身位」的读数：按住 Shift 且贴住才有。
-            draw.drawSegment(Vec2(this.sx(p.x - 8, w), this.sy(p.y + p.h + 3, h)), Vec2(this.sx(p.x + 8, w), this.sy(p.y + p.h + 3, h)), this.px(2), STAND);
+            draw.drawSegment(Vec2(this.sx(p.x - 8, w), this.sy(footY + p.h + 3, h)), Vec2(this.sx(p.x + 8, w), this.sy(footY + p.h + 3, h)), this.px(2), STAND);
         } else if (this.coverNear && !isChild) {
             // 能贴、但还没按 Shift：脚边一个方点，提示这里有掩体可用。
-            draw.drawRect(Rect(this.sx(p.x - 3, w), this.sy(p.y + 1, h), this.px(3), this.px(3)), STAND);
+            draw.drawRect(Rect(this.sx(p.x - 3, w), this.sy(footY + 1, h), this.px(3), this.px(3)), STAND);
         }
         drawFigure(draw, this, w, h, p, isChild ? CHILD_BODY : SOLDIER_BODY, isChild ? CHILD_HEAD : SOLDIER_HEAD);
         const q = this.partner;
@@ -2526,13 +3558,25 @@ export class Play {
         for (i = 0; i < this.enemies.length; i++) {
             const e = this.enemies[i];
             const col = e.alive ? ENEMY_BODY : ENEMY_DEAD;
-            this.drawBox(draw, w, h, e.x - e.w / 2, e.x + e.w / 2, e.y, e.y + e.h, col);
+            const enemyY = e.y + (e.depth ?? 0);
+            this.drawBox(draw, w, h, e.x - e.w / 2, e.x + e.w / 2, enemyY, enemyY + e.h, col);
+            if (e.alive) {
+                const ef = p.x >= e.x ? 1 : -1;
+                if (e.kind === "shield") {
+                    const sh = (e.shieldHp ?? 0) > 0;
+                    draw.drawRect(Rect(this.sx(e.x + ef * (e.w / 2 + 2) - 3, w), this.sy(enemyY, h), this.px(6), this.px(64)),
+                        sh ? Color(0.46, 0.44, 0.38, 1) : Color(0.28, 0.26, 0.22, 1));
+                } else if (e.kind === "breaker") {
+                    draw.drawSegment(Vec2(this.sx(e.x + ef * 12, w), this.sy(enemyY + 8, h)),
+                        Vec2(this.sx(e.x + ef * 22, w), this.sy(enemyY + 46, h)), this.px(3), Color(0.50, 0.36, 0.22, 1));
+                }
+            }
             // 举枪预警：枪口到周戍的红色准线，越接近开火越短。
             if (e.alive && e.warnT > 0) {
                 const gunX = this.sx(e.x, w);
-                const gunY = this.sy(e.y + e.h * 0.72, h);
+                const gunY = this.sy(enemyY + e.h * 0.72, h);
                 const aimX = this.sx(p.x, w);
-                const aimY = this.sy(p.y + p.h * 0.55, h);
+                const aimY = this.sy(footY + p.h * 0.55, h);
                 const seg = 8;
                 let s = 0;
                 for (s = 0; s < seg; s += 2) {
@@ -2708,12 +3752,14 @@ export class Play {
 function makeActor(room: RoomSpec, index: number): Actor {
     const sp = room.spawns;
     if (index < 0 || index >= sp.length) {
-        return { x: 0, y: 0, vx: 0, vy: 0, w: CHILD_W, h: CHILD_H, onGround: true, facing: 1, crouch: false, rollT: 0, covered: false, alive: false };
+        return { x: 0, y: 0, depth: 0, depthSpeed: 0, vx: 0, vy: 0, w: CHILD_W, h: CHILD_H, onGround: true, facing: 1, crouch: false, rollT: 0, covered: false, alive: false };
     }
     const s = sp[index];
     const child = s.h <= CHILD_H;
+    const ground = room.depth;
+    const depth = ground === undefined ? 0 : Math.max(ground.min, Math.min(ground.max, s.depth ?? 0));
     return {
-        x: s.x, y: s.y, vx: 0, vy: 0,
+        x: s.x, y: s.y, depth, depthSpeed: 0, vx: 0, vy: 0,
         w: child ? CHILD_W : SOLDIER_W,
         h: child ? CHILD_H : SOLDIER_H,
         onGround: true, facing: 1, crouch: false, rollT: 0, covered: false, alive: true,
@@ -2726,8 +3772,8 @@ function drawFigure(draw: DrawNode.Type, play: Play, w: number, h: number, a: Ac
     }
     const x0 = a.x - a.w / 2;
     const x1 = a.x + a.w / 2;
-    const y0 = a.y;
-    const y1 = a.y + a.h;
+    const y0 = a.y + a.depth;
+    const y1 = y0 + a.h;
     play.drawBox(draw, w, h, x0, x1, y0, y1 - a.h * 0.26, body);
     play.drawBox(draw, w, h, x0 + 2, x1 - 2, y1 - a.h * 0.26, y1, head);
     // 眼睛：1 逻辑像素的亮点，朝向前方
@@ -2751,52 +3797,38 @@ export function worldToScreen(wx: number, wy: number, cam: Camera, view: Viewpor
     };
 }
 
-/** 射线与轴对齐盒求交，返回命中距离；不相交返回 -1。 */
-function hitBox(ox: number, oy: number, dx: number, dy: number, x0: number, x1: number, y0: number, y1: number): number {
-    let tmin = 0;
-    let tmax = 99999;
-    if (dx === 0) {
-        if (ox < x0 || ox > x1) {
-            return -1;
-        }
-    } else {
-        const t1 = (x0 - ox) / dx;
-        const t2 = (x1 - ox) / dx;
-        const lo = t1 < t2 ? t1 : t2;
-        const hi = t1 < t2 ? t2 : t1;
-        if (lo > tmin) {
-            tmin = lo;
-        }
-        if (hi < tmax) {
-            tmax = hi;
-        }
+/** 沿某轴穿过区间时，射线参数的起止范围。 */
+function rayInterval(origin: number, direction: number, min: number, max: number): DepthRange {
+    if (direction === 0) {
+        return origin < min || origin > max ? { min: 1, max: 0 } : { min: -Infinity, max: Infinity };
     }
-    if (dy === 0) {
-        if (oy < y0 || oy > y1) {
-            return -1;
-        }
-    } else {
-        const t1 = (y0 - oy) / dy;
-        const t2 = (y1 - oy) / dy;
-        const lo = t1 < t2 ? t1 : t2;
-        const hi = t1 < t2 ? t2 : t1;
-        if (lo > tmin) {
-            tmin = lo;
-        }
-        if (hi < tmax) {
-            tmax = hi;
-        }
+    const a = (min - origin) / direction;
+    const b = (max - origin) / direction;
+    return { min: Math.min(a, b), max: Math.max(a, b) };
+}
+
+/** 三轴区间都有交集时命中。没有纵深边界的墙横跨整条路。 */
+function hitBox(ray: Ray, box: Box): number {
+    const x = rayInterval(ray.x, ray.dx, box.x0, box.x1);
+    const y = rayInterval(ray.y, ray.dy, box.y0, box.y1);
+    let enter = Math.max(0, x.min, y.min);
+    let leave = Math.min(99999, x.max, y.max);
+    if (box.depth !== undefined) {
+        const depth = rayInterval(ray.depth ?? 0, ray.dDepth ?? 0, box.depth.min, box.depth.max);
+        enter = Math.max(enter, depth.min);
+        leave = Math.min(leave, depth.max);
     }
-    return tmax >= tmin ? tmin : -1;
+    return leave >= enter ? enter : -1;
 }
 
 function drawCartShape(draw: DrawNode.Type, play: Play, w: number, h: number, c: CartSpec, axleX: number): void {
     const half = c.bodyW / 2;
     const x0 = axleX - half;
     const x1 = axleX + half;
-    play.drawBox(draw, w, h, x0, x1, c.baseY + c.wheelR, c.baseY + c.wheelR + c.bodyH, CART_FILL);
-    draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(c.baseY + c.wheelR, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
-    draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(c.baseY + c.wheelR, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
+    const axleY = c.baseY + (c.depth ?? 0) + c.wheelR;
+    play.drawBox(draw, w, h, x0, x1, axleY, axleY + c.bodyH, CART_FILL);
+    draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
+    draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
     const cx = c.clothSide < 0 ? x0 : x1;
-    play.drawBox(draw, w, h, cx - 10, cx + 10, c.baseY + c.wheelR + c.bodyH, c.baseY + c.wheelR + c.bodyH + 18, CLOTH);
+    play.drawBox(draw, w, h, cx - 10, cx + 10, axleY + c.bodyH, axleY + c.bodyH + 18, CLOTH);
 }

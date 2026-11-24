@@ -5,11 +5,68 @@
  * 车轴就是车身中心，车身半宽 24，所以停车后左沿 = 432 − 24 = 408，
  * 与小满右沿 402 之间留 6 单位净空——这条在城外剖面上要看得见。
  */
+import { DepthLane, LANE_DEPTH, LANE_ROAD, laneFootprints } from "Script/watch/depth";
 
 export interface FloorSpec {
     y: number;
     x0: number;
     x1: number;
+}
+
+/** 地面前后坐标，min 靠玩家、max 靠远景。y 始终表示离地高度。 */
+export interface DepthRange {
+    min: number;
+    max: number;
+}
+
+/** 新版关卡的可破坏与可交互件种类。 */
+export type PropKind =
+    | "thin_wood" | "basket_wall" | "curtain" | "window_board" | "latch" | "grain_sack" | "well";
+
+export interface BreakSpec {
+    kind: PropKind;
+    /** 未加固时承受的命中次数；归零后碎裂，碰撞与遮挡同拍撤下。 */
+    hp: number;
+    /** 木楔加固后多承受的次数，每件只能加固一次。 */
+    wedgeHp?: number;
+}
+
+export interface InteractSpec {
+    /** open_board 放窗板、lower_curtain 放木帘、raise_latch 抬门闩。 */
+    kind: "open_board" | "lower_curtain" | "raise_latch";
+    /** 交互半径，默认 40。 */
+    reach?: number;
+}
+
+export interface PickupSpec {
+    id: string;
+    kind: "shield" | "wedge" | "ammo" | "pass" | "quickbelt";
+    x: number;
+    y: number;
+    depth?: number;
+    label: string;
+}
+
+/** 小满在本房的等待与汇合点；缺省时一直跟随。 */
+export interface CompanionSpec {
+    waitX?: number;
+    waitDepth?: number;
+    joinX?: number;
+    /** 完成这个机关后她才离开等待点。 */
+    followAfter?: "open_board" | "lower_curtain" | "raise_latch";
+}
+
+export interface CampaignSpec {
+    chapter: "S" | "C" | "G" | "O" | "V" | "F" | "T";
+    act: number;
+    /** 设计预算秒数，只用于 HUD 对照，不强制等待。 */
+    budget: number;
+    /** 本段结束条件。 */
+    goal: "reach_exit" | "dock_cart" | "raise_latch";
+    next?: string;
+    exitX: number;
+    /** 检查点序号；进入本段时提交。 */
+    checkpoint?: number;
 }
 
 export interface SolidSpec {
@@ -18,8 +75,24 @@ export interface SolidSpec {
     h: number;
     y: number;
     label: string;
+    /** 编辑关卡时优先用档位。非相邻档位会分成独立的实体。 */
+    lanes?: readonly DepthLane[];
+    /** 自定义占地或由档位算出的实体范围。缺省时横跨整条道路。 */
+    depth?: DepthRange;
+    /** 布料、小植被一类软布景，只参与绘制和遮挡。 */
+    decorative?: boolean;
+    /** 破坏与机关状态靠 id 跨房保留。 */
+    id?: string;
+    breakable?: BreakSpec;
+    interact?: InteractSpec;
+    art?: "cover_wood" | "cover_stone" | "fence" | "wall" | "gate_post"
+        | "thin_wood" | "basket_wall" | "curtain" | "board" | "latch" | "grain_sack" | "well";
     /** 低矮植被等：只挡撞头不做水平阻挡，蹲行与走过都能穿过。 */
     passable?: boolean;
+    /** 布帘、窗纸一类：挡视线与子弹，但不挡人、车和碎屑。 */
+    soft?: boolean;
+    /** 机关未打开前不参与碰撞与绘制（卷起的帘、背后的窗板）。 */
+    hidden?: boolean;
 }
 
 export interface ZoneSpec {
@@ -55,6 +128,8 @@ export interface CartSpec {
     endX: number;
     /** 车所在的地面高度。 */
     baseY: number;
+    /** 车辙所在的地面纵深，默认为道路中间。 */
+    depth?: number;
     /** 车身宽（车轴到沿 = bodyW / 2）。 */
     bodyW: number;
     bodyH: number;
@@ -70,6 +145,13 @@ export interface SpawnSpec {
     y: number;
     h: number;
     label: string;
+    depth?: number;
+    /** 新版关卡：火器手 / 持盾手 / 破障手 / 侧线带队者。 */
+    kind?: "gunner" | "shield" | "breaker" | "leader";
+    /** 盾的耐久；盾完整倒地才掉残盾。 */
+    shieldHp?: number;
+    /** 击倒时掉什么；缺省按 kind 推断。 */
+    drop?: "shield" | "wedge" | "ammo" | "pass" | "quickbelt" | "none";
 }
 
 export interface MarkSpec {
@@ -136,6 +218,7 @@ export interface RoomSpec {
     minX: number;
     maxX: number;
     height: number;
+    depth?: DepthRange;
     floors: FloorSpec[];
     solids: SolidSpec[];
     zones: ZoneSpec[];
@@ -155,6 +238,12 @@ export interface RoomSpec {
     softX?: number;
     /** 村口：第一院通行线。 */
     passLine?: number;
+    /** 新版关卡：本段目标、出口与预算。 */
+    campaign?: CampaignSpec;
+    /** 新版关卡：本段地面上的掉落物。 */
+    pickups?: PickupSpec[];
+    /** 新版关卡：小满的等待点与汇合点。 */
+    companion?: CompanionSpec;
     /** 剧本段数据；没有这一项的房间就是纯路段。 */
     story?: StorySpec;
 }
@@ -169,13 +258,14 @@ export const CHECKPOINT_ROOM: RoomSpec = {
     minX: -640,
     maxX: 1000,
     height: 210,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: -640, x1: 1000 }],
     solids: [
         // 候检区队栏：28 高，周戍空格翻过去，小满跟随会自己跳。缺口留在 330–390（世界）。
-        { x: -430, w: 180, h: 28, y: 0, label: "队栏 -430–-250 · 高 28" },
+        { x: -430, w: 180, h: 28, y: 0, label: "队栏 -430–-250 · 高 28", lanes: ["lower", "middle"] },
         // 高 44：两人跳得上去（小满 51、周戍 58），也能在柜台后蹲下躲子弹。
-        { x: 240, w: 100, h: 44, y: 0, label: "柜台 240–340 · 高 44" },
-        { x: 950, w: 50, h: 150, y: 0, label: "城门内侧" },
+        { x: 240, w: 100, h: 44, y: 0, label: "柜台 240–340 · 高 44", lanes: ["lower", "middle"] },
+        { x: 890, w: 36, h: 122, y: 0, label: "检查站出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
     ],
     zones: [{ x0: 380, x1: 560, y: 0, h: 120, tint: 1, label: "危险段 380–560" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -184,6 +274,7 @@ export const CHECKPOINT_ROOM: RoomSpec = {
         startX: 640,
         endX: 768,
         baseY: 0,
+        depth: LANE_DEPTH.middle,
         bodyW: 48,
         bodyH: 26,
         wheelR: 12,
@@ -355,10 +446,12 @@ export const PROLOGUE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 720,
     height: 200,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
-        { x: 150, w: 100, h: 32, y: 0, label: "倒柜 150–250 · 高 32" },
-        { x: 700, w: 20, h: 120, y: 0, label: "门框 700" },
+        { x: 152, w: 98, h: 32, y: 0, label: "倒柜 152–250 · 高 32", lanes: ["lower", "middle"] },
+        { x: 648, w: 30, h: 118, y: 0, label: "出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 110, w: 38, h: 84, y: 0, label: "石柱", lanes: ["lower", "middle"], art: "wall" },
     ],
     zones: [],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -370,11 +463,11 @@ export const PROLOGUE_ROOM: RoomSpec = {
     ],
     marks: [
         { x: 300, y: 0, kind: 1, label: "柜后 300" },
-        { x: 700, y: 0, kind: 0, label: "门口 700" },
+        { x: 660, y: 0, kind: 0, label: "门口中路 660" },
     ],
     dims: [
-        { x0: 150, x1: 250, text: "倒柜 100" },
-        { x0: 700, x1: 720, text: "门 20" },
+        { x0: 152, x1: 250, text: "倒柜 98" },
+        { x0: 648, x1: 678, text: "门柱 30" },
     ],
     story: { prologue: { giveReach: 46 } },
 };
@@ -391,11 +484,12 @@ export const STREET_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1000,
     height: 210,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1000 }],
     solids: [
-        { x: 300, w: 100, h: 44, y: 0, label: "街心柜台 300–400 · 高 44" },
-        { x: 620, w: 60, h: 36, y: 0, label: "街边矮墙 620" },
-        { x: 960, w: 40, h: 120, y: 0, label: "检查站门 960" },
+        { x: 300, w: 100, h: 44, y: 0, label: "街心柜台 300–400 · 高 44", lanes: ["lower", "middle"] },
+        { x: 620, w: 60, h: 36, y: 0, label: "街边矮墙 620", lanes: ["upper"] },
+        { x: 892, w: 40, h: 120, y: 0, label: "检查站门柱", lanes: ["lower", "upper"], art: "gate_post" },
     ],
     zones: [],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -427,10 +521,12 @@ export const GATE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1200,
     height: 240,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1200 }],
     solids: [
         { x: 40, w: 60, h: 60, y: 0, label: "绞盘 40–100 · 高 60" },
-        { x: 520, w: 80, h: 44, y: 0, label: "街垒 520 · 高 44" },
+        { x: 520, w: 80, h: 44, y: 0, label: "街垒 520 · 高 44", lanes: ["middle", "upper"] },
+        { x: 970, w: 34, h: 100, y: 0, label: "城门门柱", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1040, w: 160, h: 180, y: 0, label: "门洞右墙 1040" },
         { x: 840, w: 200, h: 56, y: 160, label: "门楣 840–1040" },
     ],
@@ -532,6 +628,264 @@ export const TOWER_ROOM: RoomSpec = {
     story: { tower: { doorX: 445, knockTicks: 36 } },
 };
 
+const NO_CART: CartSpec = {
+    startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: -1,
+};
+
+/**
+ * S1 十字街：同一个街口先教单方向火器，再让破障手从街角压近。
+ * 外檐线与布行线都从这里的出口分叉；井背是退回点，窗台是可选的翻窗捷径。
+ */
+export const S1_CROSSROAD: RoomSpec = {
+    key: "s1-crossroad",
+    name: "S1 · 十字街",
+    caption: "井背 → 摊后窄道 → 观察转角 → 街角压近者。薄木挡与窗台分别通向 S2 的两条线。",
+    originX: 0,
+    minX: 0,
+    maxX: 1600,
+    height: 220,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1600 }],
+    solids: [
+        { x: 180, w: 88, h: 56, y: 0, label: "井背 180–268 · 高 56", lanes: ["lower"], art: "cover_stone", id: "s1_well" },
+        { x: 360, w: 160, h: 44, y: 0, label: "摊后柜台 360–520 · 高 44", lanes: ["lower", "middle"], art: "cover_wood" },
+        { x: 620, w: 44, h: 24, y: 0, label: "观察转角石基 620–664 · 高 24", lanes: ["lower"] },
+        { x: 1130, w: 20, h: 120, y: 0, label: "窗柱左", lanes: ["lower"], art: "wall" },
+        { x: 1150, w: 80, h: 44, y: 0, label: "窗台 1150–1230 · 高 44", lanes: ["lower"] },
+        { x: 1230, w: 20, h: 120, y: 0, label: "窗柱右", lanes: ["lower"], art: "wall" },
+        { x: 1460, w: 40, h: 140, y: 0, label: "街尾门柱", lanes: ["lower", "upper"], art: "gate_post" },
+    ],
+    zones: [{ x0: 700, x1: 960, y: 0, h: 150, tint: 1, label: "街角交火 700–960" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [{ x0: 900, x1: 1040, y0: 0, y1: 40, steps: 4, label: "石基斜走 900–1040 · 高 40" }],
+    cart: NO_CART,
+    spawns: [
+        { x: 760, y: 0, h: 84, depth: 32, label: "单方向火器手 760", kind: "gunner", drop: "ammo" },
+        { x: 880, y: 0, h: 84, label: "街角压近者 880", kind: "breaker", drop: "wedge" },
+    ],
+    marks: [
+        { x: 220, y: 0, kind: 1, label: "井背安全点 220" },
+        { x: 640, y: 0, kind: 0, label: "观察转角 640" },
+        { x: 1190, y: 0, kind: 0, label: "窗台捷径 1190" },
+        { x: 1500, y: 0, kind: 0, label: "出口 1500" },
+    ],
+    dims: [
+        { x0: 180, x1: 268, text: "井 88" },
+        { x0: 360, x1: 520, text: "柜台 160" },
+        { x0: 900, x1: 1040, text: "石基 140" },
+    ],
+    companion: { waitX: 220, waitDepth: -32, joinX: 900 },
+    campaign: { chapter: "S", act: 1, budget: 210, goal: "reach_exit", next: "s2-drygoods", exitX: 1500, checkpoint: 1 },
+};
+
+/**
+ * S2 布行与外檐：近檐柱下短跨、可碎摊挡与转角装卸面是一条线；
+ * 从染布架侧面进布行、绕柜到窗板背后放板、后仓折回是另一条线。两条线同通牌楼。
+ */
+export const S2_DRYGOODS: RoomSpec = {
+    key: "s2-drygoods",
+    name: "S2 · 布行与外檐",
+    caption: "近檐：檐柱短跨、薄木摊挡、装卸面。远帘：染布架入内、绕柜、放窗板、后仓折回。两路同通牌楼。",
+    originX: 1600,
+    minX: 0,
+    maxX: 1800,
+    height: 230,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1800 }],
+    solids: [
+        { x: 100, w: 24, h: 130, y: 0, label: "檐柱 100", lanes: ["middle"], art: "cover_wood" },
+        { x: 240, w: 24, h: 130, y: 0, label: "檐柱 240", lanes: ["middle"], art: "cover_wood" },
+        {
+            x: 460, w: 100, h: 52, y: 0, label: "薄木摊挡 460–560 · 高 52", lanes: ["middle", "upper"],
+            art: "thin_wood", id: "s2_wood", breakable: { kind: "thin_wood", hp: 2, wedgeHp: 1 },
+        },
+        { x: 620, w: 40, h: 130, y: 0, label: "永久石柱 620–660", lanes: ["upper"], art: "cover_stone" },
+        { x: 700, w: 120, h: 32, y: 0, label: "转角装卸面 700–820 · 高 32", lanes: ["middle"] },
+        { x: 340, w: 120, h: 44, y: 0, label: "布行柜台 340–460 · 高 44", lanes: ["upper"], art: "cover_wood" },
+        {
+            x: 600, w: 80, h: 72, y: 0, label: "窗板背后 600–680", lanes: ["upper"],
+            art: "board", id: "s2_board", interact: { kind: "open_board", reach: 46 },
+        },
+        {
+            x: 600, w: 80, h: 40, y: 0, label: "放下的窗板 600–680", lanes: ["lower"],
+            art: "board", id: "s2_board_cover", soft: true,
+        },
+        { x: 1560, w: 30, h: 150, y: 0, label: "牌楼左柱", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 1700, w: 30, h: 150, y: 0, label: "牌楼右柱", lanes: ["lower", "upper"], art: "gate_post" },
+    ],
+    zones: [{ x0: 640, x1: 1300, y: 0, h: 150, tint: 1, label: "转角装卸面交火 700–1200" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: NO_CART,
+    spawns: [
+        { x: 940, y: 0, h: 84, depth: 0, label: "持盾手 940", kind: "shield", shieldHp: 2, drop: "shield" },
+        { x: 1060, y: 0, h: 84, depth: 32, label: "远侧火器手 1060", kind: "gunner", drop: "ammo" },
+        { x: 1140, y: 0, h: 84, depth: 0, label: "破障手 1140", kind: "breaker", drop: "wedge" },
+    ],
+    marks: [
+        { x: 640, y: 0, kind: 1, label: "窗板后等待位 640" },
+        { x: 900, y: 0, kind: 0, label: "后仓汇合口 900" },
+        { x: 1740, y: 0, kind: 0, label: "牌楼出口 1740" },
+    ],
+    dims: [
+        { x0: 100, x1: 124, text: "檐柱 24" },
+        { x0: 460, x1: 560, text: "摊挡 100" },
+        { x0: 700, x1: 820, text: "装卸面 120" },
+    ],
+    companion: { waitX: 640, waitDepth: 32, joinX: 900, followAfter: "open_board" },
+    campaign: { chapter: "S", act: 2, budget: 390, goal: "reach_exit", next: "s3-archway", exitX: 1740, checkpoint: 2 },
+};
+
+/**
+ * S3 牌楼后巷：外檐线从低处进、布行线从高处进，两条入口在墙脚汇合。
+ * 装卸坡可先上去看同一堆粮袋的敌位，再退半层接小满；也可以沿墙脚直接绕。
+ */
+export const S3_ARCHWAY: RoomSpec = {
+    key: "s3-archway",
+    name: "S3 · 牌楼后巷",
+    caption: "两高度入口看同一粮袋。登装卸坡看敌位再退半层接人，或沿墙脚绕走；候检门前两人停。",
+    originX: 3400,
+    minX: 0,
+    maxX: 1400,
+    height: 230,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1400 }],
+    solids: [
+        { x: 0, w: 180, h: 32, y: 0, label: "高处进口台 0–180 · 高 32", lanes: ["upper"] },
+        { x: 380, w: 140, h: 64, y: 0, label: "装卸高台 380–520 · 高 64", lanes: ["upper"] },
+        { x: 560, w: 160, h: 48, y: 0, label: "粮袋堆 560–720 · 高 48", lanes: ["lower", "middle"] },
+        { x: 1260, w: 30, h: 140, y: 0, label: "候检门左柱", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 1330, w: 30, h: 140, y: 0, label: "候检门右柱", lanes: ["lower", "upper"], art: "gate_post" },
+    ],
+    zones: [{ x0: 780, x1: 1060, y: 0, h: 150, tint: 1, label: "后巷交火 780–1060" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [
+        { x0: 140, x1: 200, y0: 0, y1: 32, steps: 3, label: "进口台阶" },
+        { x0: 260, x1: 380, y0: 0, y1: 64, steps: 4, label: "装卸坡 260–380 · 高 64" },
+    ],
+    cart: NO_CART,
+    spawns: [
+        { x: 860, y: 0, h: 84, depth: 32, label: "高处火器手 860", kind: "gunner", drop: "ammo" },
+        { x: 980, y: 0, h: 84, depth: 0, label: "墙脚火器手 980", kind: "gunner", drop: "ammo" },
+    ],
+    marks: [
+        { x: 440, y: 0, kind: 0, label: "装卸坡观察位 440" },
+        { x: 620, y: 0, kind: 1, label: "粮袋后安全点 620" },
+        { x: 1300, y: 0, kind: 0, label: "候检门前 1300" },
+    ],
+    dims: [{ x0: 260, x1: 380, text: "装卸坡 120" }, { x0: 560, x1: 720, text: "粮袋 160" }],
+    companion: { waitX: 620, waitDepth: 0, joinX: 1240 },
+    campaign: { chapter: "S", act: 3, budget: 180, goal: "reach_exit", next: "c1-yard", exitX: 1320, checkpoint: 3 },
+};
+
+/**
+ * C1 候检院：侧门横闩在门背，粮棚可见但被队栏、查验台与棚柱交错挡住。
+ * 绕缺口进栏，截断压近者或穿查验台后到棚口；正面看门，转到背面才抬得动闩。
+ */
+export const C1_YARD: RoomSpec = {
+    key: "c1-yard",
+    name: "C1 · 候检院",
+    caption: "队栏与查验台把粮棚切成几段。绕缺口进栏，压近者会截断通路；侧门横闩要转到门背才抬得动。",
+    originX: 4800,
+    minX: 0,
+    maxX: 1900,
+    height: 240,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1900 }],
+    solids: [
+        { x: 280, w: 340, h: 28, y: 0, label: "候检队栏 280–620 · 高 28", lanes: ["lower", "middle"], art: "fence" },
+        { x: 820, w: 180, h: 44, y: 0, label: "查验台 820–1000 · 高 44", lanes: ["lower", "middle"] },
+        { x: 1100, w: 40, h: 150, y: 0, label: "棚柱 1100–1140", lanes: ["lower", "middle"], art: "cover_wood" },
+        { x: 1240, w: 40, h: 150, y: 0, label: "棚柱 1240–1280", lanes: ["lower", "middle"], art: "cover_wood" },
+        { x: 1600, w: 160, h: 48, y: 0, label: "粮棚袋堆 1600–1760 · 高 48", lanes: ["lower", "middle"] },
+        { x: 1780, w: 50, h: 150, y: 0, label: "侧门 1780–1830", lanes: ["lower", "middle"], art: "wall", id: "c1_door" },
+        {
+            x: 1810, w: 30, h: 24, y: 40, label: "侧门横闩（门背）", lanes: ["upper"],
+            art: "latch", id: "c1_latch", interact: { kind: "raise_latch", reach: 52 },
+        },
+    ],
+    zones: [{ x0: 760, x1: 1080, y: 0, h: 150, tint: 1, label: "查验台截断 820–1000" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: NO_CART,
+    spawns: [
+        { x: 900, y: 0, h: 84, depth: 0, label: "截断压近者 900", kind: "breaker", drop: "wedge" },
+        { x: 1200, y: 0, h: 84, depth: 32, label: "棚柱后火器手 1200", kind: "gunner", drop: "ammo" },
+    ],
+    marks: [
+        { x: 1000, y: 0, kind: 1, label: "查验台后等待位 1000" },
+        { x: 1700, y: 0, kind: 0, label: "侧门正面 1700" },
+        { x: 1860, y: 0, kind: 0, label: "门背出口 1860" },
+    ],
+    dims: [{ x0: 820, x1: 1000, text: "查验台 180" }, { x0: 1780, x1: 1830, text: "侧门 50" }],
+    companion: { waitX: 1000, waitDepth: 0, joinX: 1700, followAfter: "raise_latch" },
+    campaign: { chapter: "C", act: 1, budget: 270, goal: "raise_latch", next: "c2-granary", exitX: 1860, checkpoint: 4 },
+};
+
+/**
+ * C2 军粮棚：粮袋安全区居中，远柱木帘与近侧车轨分列。
+ * 有残盾可以在暴露轨段架起来挡一发；空手路线先绕上远柱放帘，再回来握车柄。
+ */
+export const C2_GRANARY: RoomSpec = {
+    key: "c2-granary",
+    name: "C2 · 军粮棚",
+    caption: "空筐围挡、暴露轨段与远柱木帘。先绕上远柱放帘，或架残盾，再握车柄把车推入轮窝并抬连杆闩。",
+    originX: 6700,
+    minX: 0,
+    maxX: 1800,
+    height: 240,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1800 }],
+    solids: [
+        {
+            x: 900, w: 120, h: 44, y: 0, label: "空筐围挡 900–1020 · 高 44", lanes: ["lower", "middle"],
+            art: "basket_wall", id: "c2_basket", breakable: { kind: "basket_wall", hp: 2 },
+        },
+        { x: 600, w: 300, h: 48, y: 0, label: "粮袋安全区 600–900 · 高 48", lanes: ["lower", "middle"] },
+        { x: 980, w: 40, h: 24, y: 0, label: "棚口下轨台 980–1020 · 高 24", lanes: ["lower", "middle"] },
+        {
+            x: 1200, w: 40, h: 150, y: 0, label: "远柱 1200–1240 · 高 150", lanes: ["upper"],
+            art: "cover_wood", id: "c2_post", interact: { kind: "lower_curtain", reach: 46 },
+        },
+        {
+            x: 1240, w: 120, h: 120, y: 24, label: "木帘落点 1240–1360", lanes: ["lower", "middle"],
+            art: "curtain", soft: true, id: "c2_curtain", hidden: true,
+        },
+        {
+            x: 1560, w: 30, h: 24, y: 40, label: "连杆抬闩 1560–1590", lanes: ["middle"],
+            art: "latch", id: "c2_latch", interact: { kind: "raise_latch", reach: 50 },
+        },
+        { x: 1720, w: 30, h: 150, y: 0, label: "棚尾门柱", lanes: ["lower", "upper"], art: "gate_post" },
+    ],
+    zones: [{ x0: 1000, x1: 1200, y: 0, h: 150, tint: 1, label: "暴露轨段 1000–1200" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: {
+        startX: 1150, endX: 1500, baseY: 0, depth: 0, bodyW: 48, bodyH: 26, wheelR: 12, handleOffset: -50, clothSide: -1,
+    },
+    spawns: [
+        { x: 1580, y: 0, h: 84, depth: 32, label: "棚尾火器手 1580", kind: "gunner", drop: "ammo" },
+        { x: 1340, y: 0, h: 84, depth: 32, label: "远侧持盾手 1340", kind: "shield", shieldHp: 2, drop: "shield" },
+    ],
+    marks: [
+        { x: 760, y: 0, kind: 1, label: "袋堆后等待位 760" },
+        { x: 1100, y: 0, kind: 0, label: "车柄 1100" },
+        { x: 1500, y: 0, kind: 0, label: "轮窝 1500" },
+        { x: 1700, y: 0, kind: 0, label: "棚尾出口 1700" },
+    ],
+    dims: [{ x0: 1150, x1: 1500, text: "推车 350" }, { x0: 1240, x1: 1360, text: "木帘 120" }],
+    companion: { waitX: 760, waitDepth: 0, joinX: 1700 },
+    campaign: { chapter: "C", act: 2, budget: 360, goal: "dock_cart", exitX: 1700, checkpoint: 5 },
+};
+
+export const CAMPAIGN_ROOMS: RoomSpec[] = [
+    S1_CROSSROAD,
+    S2_DRYGOODS,
+    S3_ARCHWAY,
+    C1_YARD,
+    C2_GRANARY,
+];
+
 export const ROOMS: RoomSpec[] = [
     PROLOGUE_ROOM,
     STREET_ROOM,
@@ -543,6 +897,21 @@ export const ROOMS: RoomSpec[] = [
     TOWER_ROOM,
 ];
 
+function placeSolids(room: RoomSpec): SolidSpec[] {
+    const blocks: SolidSpec[] = [];
+    for (const solid of room.solids) {
+        const x = solid.x + room.originX;
+        if (room.depth !== undefined && solid.lanes !== undefined) {
+            for (const depth of laneFootprints(solid.lanes)) {
+                blocks.push({ ...solid, x, depth, lanes: undefined });
+            }
+        } else {
+            blocks.push({ ...solid, x });
+        }
+    }
+    return blocks;
+}
+
 /**
  * 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
  * 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
@@ -550,7 +919,7 @@ export const ROOMS: RoomSpec[] = [
 export function withOrigin(room: RoomSpec): RoomSpec {
     const ox = room.originX;
     if (ox === 0) {
-        return room;
+        return room.depth === undefined ? room : { ...room, solids: placeSolids(room) };
     }
     const shift = (x: number): number => x + ox;
     return {
@@ -561,22 +930,18 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         minX: shift(room.minX),
         maxX: shift(room.maxX),
         height: room.height,
+        depth: room.depth,
         floors: room.floors.map((f) => ({ y: f.y, x0: shift(f.x0), x1: shift(f.x1) })),
-        solids: room.solids.map((s) => ({ x: shift(s.x), w: s.w, h: s.h, y: s.y, label: s.label })),
+        solids: placeSolids(room),
         zones: room.zones.map((z) => ({ x0: shift(z.x0), x1: shift(z.x1), y: z.y, h: z.h, tint: z.tint, label: z.label })),
         arch: { x0: shift(room.arch.x0), x1: shift(room.arch.x1), y: room.arch.y, h: room.arch.h, label: room.arch.label },
         stairs: room.stairs.map((s) => ({ x0: shift(s.x0), x1: shift(s.x1), y0: s.y0, y1: s.y1, steps: s.steps, label: s.label })),
         cart: {
+            ...room.cart,
             startX: shift(room.cart.startX),
             endX: shift(room.cart.endX),
-            baseY: room.cart.baseY,
-            bodyW: room.cart.bodyW,
-            bodyH: room.cart.bodyH,
-            wheelR: room.cart.wheelR,
-            handleOffset: room.cart.handleOffset,
-            clothSide: room.cart.clothSide,
         },
-        spawns: room.spawns.map((s) => ({ x: shift(s.x), y: s.y, h: s.h, label: s.label })),
+        spawns: room.spawns.map((s) => ({ ...s, x: shift(s.x) })),
         marks: room.marks.map((m) => ({ x: shift(m.x), y: m.y, kind: m.kind, label: m.label })),
         dims: room.dims.map((d) => ({ x0: shift(d.x0), x1: shift(d.x1), text: d.text })),
         scavenger: room.scavenger === undefined ? undefined : {
@@ -588,6 +953,9 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         brickX: room.brickX === undefined ? undefined : shift(room.brickX),
         softX: room.softX === undefined ? undefined : shift(room.softX),
         passLine: room.passLine === undefined ? undefined : shift(room.passLine),
+        campaign: room.campaign === undefined ? undefined : { ...room.campaign, exitX: shift(room.campaign.exitX) },
+        pickups: room.pickups === undefined ? undefined : room.pickups.map((p) => ({ ...p, x: shift(p.x) })),
+        companion: room.companion,
         story: shiftStory(room.story, ox),
     };
 }

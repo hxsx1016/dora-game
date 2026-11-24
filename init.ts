@@ -31,4 +31,4 @@ root.anchor = Vec2(0, 0);
 root.position = Vec2(-W / 2, -H / 2);
 Director.ui.addChild(root);
 
-start(root);
+start(root, 2);
