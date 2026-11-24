@@ -22,6 +22,7 @@ export interface FrameEvents {
     knockY: number;
     bottleLanded: boolean;
     bottleLandX: number;
+    bottleLandY: number;
     cartJustDocked: boolean;
     checkpointJustHit: boolean;
     caughtTriggered: boolean;
@@ -108,6 +109,8 @@ export class PlayAdapter {
         let knockY = p.player.y + p.player.h * 0.5;
 
         let bottleLanded = p.bottleLandT > this.prevBottleLandT + 0.1 && p.bottleLandX >= 0;
+        let bottleLandX = p.bottleLandX;
+        let bottleLandY = p.bottleLandY;
         let cartJustDocked = p.cartDocked && !this.prevCartDocked;
         const checkpointJustHit = p.checkpoint >= 0 && p.checkpoint !== this.prevCheckpoint;
         const caughtTriggered = p.caughtT > 0 && this.prevCaughtT <= 0;
@@ -126,6 +129,12 @@ export class PlayAdapter {
                 coverDeflect = true;
             } else if (event.name === "bottleLanded") {
                 bottleLanded = true;
+                if (typeof event.data.x === "number") {
+                    bottleLandX = event.data.x;
+                }
+                if (typeof event.data.y === "number") {
+                    bottleLandY = event.data.y;
+                }
             } else if (event.name === "cartDocked") {
                 cartJustDocked = true;
             } else if (event.name === "roomChange") {
@@ -165,7 +174,8 @@ export class PlayAdapter {
             knockX,
             knockY,
             bottleLanded,
-            bottleLandX: p.bottleLandX,
+            bottleLandX,
+            bottleLandY,
             cartJustDocked,
             checkpointJustHit,
             caughtTriggered,

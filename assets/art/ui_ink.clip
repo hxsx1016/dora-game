@@ -1,17 +1,17 @@
 <A A="ui_ink.png">
-  <B A="ink_brush_wide" B="8,8,500,64" />
-  <B A="ink_brush_sym" B="8,84,500,64" />
-  <B A="ink_divider" B="8,160,440,24" />
-  <B A="ink_scroll_bar" B="8,196,440,28" />
-  <B A="ink_wash_panel" B="8,240,420,256" />
-  <B A="ink_vbrush" B="528,8,64,320" />
-  <B A="ink_seal_solid" B="612,8,96,96" />
-  <B A="ink_seal_hollow" B="724,8,96,96" />
-  <B A="ink_seal_oval" B="836,8,72,112" />
-  <B A="ink_dot" B="924,16,48,48" />
-  <B A="ink_ring" B="612,124,128,128" />
-  <B A="ink_splatter" B="756,124,144,144" />
-  <B A="ink_hp_bar" B="612,272,160,32" />
-  <B A="ink_hp_slot" B="612,316,160,32" />
-  <B A="ink_paper_grain" B="788,280,224,224" />
+  <B A="ink_ribbon_sweep" B="8,8,520,56" />
+  <B A="ink_mist_curve" B="8,76,620,112" />
+  <B A="ink_veil_strip" B="8,200,620,72" />
+  <B A="ink_hairline" B="8,284,520,16" />
+  <B A="ink_bamboo_slip" B="8,316,168,22" />
+  <B A="ink_bamboo_slot" B="8,348,168,22" />
+  <B A="ink_frame_mask" B="196,316,440,220" />
+  <B A="ink_vstream" B="644,8,56,360" />
+  <B A="ink_knot_ornament" B="716,8,128,36" />
+  <B A="ink_corner_fine" B="860,8,72,72" />
+  <B A="ink_seal_slender" B="944,8,68,128" />
+  <B A="ink_blossom_dot" B="716,60,48,48" />
+  <B A="ink_enso_fine" B="780,60,128,128" />
+  <B A="ink_petal_mist" B="716,200,220,170" />
+  <B A="ink_song_paper" B="8,560,640,440" />
 </A>

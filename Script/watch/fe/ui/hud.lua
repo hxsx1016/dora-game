@@ -3,957 +3,1008 @@ local ____lualib = require("lualib_bundle") -- 1
 local __TS__Class = ____lualib.__TS__Class -- 1
 local __TS__NumberToFixed = ____lualib.__TS__NumberToFixed -- 1
 local ____exports = {} -- 1
-local ____Dora = require("Dora") -- 12
-local Color = ____Dora.Color -- 12
-local Rect = ____Dora.Rect -- 12
-local Vec2 = ____Dora.Vec2 -- 12
-local ____escort = require("Script.watch.escort") -- 14
-local FEAR_MAX = ____escort.FEAR_MAX -- 14
-local ____adapter = require("Script.watch.fe.adapter") -- 15
-local deriveWorldPrompt = ____adapter.deriveWorldPrompt -- 15
-local ____theme = require("Script.watch.fe.theme") -- 20
-local PALETTE = ____theme.PALETTE -- 21
-local drawBrushDivider = ____theme.drawBrushDivider -- 22
-local drawInkKeycap = ____theme.drawInkKeycap -- 23
-local drawInkWashStrip = ____theme.drawInkWashStrip -- 24
-local drawSealStamp = ____theme.drawSealStamp -- 25
-local fillRadialGlow = ____theme.fillRadialGlow -- 26
-local themeOf = ____theme.themeOf -- 27
-local toColor = ____theme.toColor -- 28
-local visualTextWidth = ____theme.visualTextWidth -- 29
-____exports.HudRenderer = __TS__Class() -- 32
-local HudRenderer = ____exports.HudRenderer -- 32
-HudRenderer.name = "HudRenderer" -- 32
-function HudRenderer.prototype.____constructor(self) -- 32
-	self.ghostHp = 3 -- 34
-	self.time = 0 -- 35
-end -- 32
-function HudRenderer.prototype.reset(self, p) -- 37
-	self.ghostHp = p ~= nil and p.hp or 3 -- 38
-end -- 37
-function HudRenderer.prototype.update(self, dt, p) -- 41
-	self.time = self.time + dt -- 42
-	if self.ghostHp > p.hp then -- 42
-		self.ghostHp = math.max(p.hp, self.ghostHp - dt * 1.45) -- 44
-	else -- 44
-		self.ghostHp = p.hp -- 46
-	end -- 46
-end -- 41
-function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, texts, p, cam, vfx, letterboxFrac, uiScale) -- 50
-	local w = cam.viewW / uiScale -- 62
-	local h = cam.viewH / uiScale -- 63
-	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 66
-	if hudAlpha > 0.05 then -- 66
-		if p.childMode then -- 66
-			self:drawChildStatus( -- 71
-				uiDraw, -- 71
-				uiInkDraw, -- 71
-				uiArt, -- 71
-				texts, -- 71
-				p, -- 71
-				h, -- 71
-				hudAlpha -- 71
-			) -- 71
-		else -- 71
-			self:drawSoldierStatus( -- 73
-				uiDraw, -- 73
-				uiInkDraw, -- 73
-				uiArt, -- 73
-				texts, -- 73
-				p, -- 73
-				h, -- 73
-				hudAlpha -- 73
-			) -- 73
-		end -- 73
-		self:drawChapterBadge( -- 77
-			uiDraw, -- 77
-			uiInkDraw, -- 77
-			uiArt, -- 77
-			texts, -- 77
-			p, -- 77
-			w, -- 77
-			h, -- 77
-			hudAlpha -- 77
-		) -- 77
-		self:drawContextualObjective( -- 80
-			uiDraw, -- 80
-			uiInkDraw, -- 80
-			uiArt, -- 80
-			texts, -- 80
-			p, -- 80
-			w, -- 80
-			h, -- 80
-			hudAlpha -- 80
-		) -- 80
-		local prompt = deriveWorldPrompt(p) -- 83
-		local prompts = prompt ~= nil and ({prompt}) or ({}) -- 84
-		self:drawWorldPrompts( -- 85
-			uiDraw, -- 85
-			uiInkDraw, -- 85
-			uiArt, -- 85
-			texts, -- 85
-			prompts, -- 85
-			cam, -- 85
-			hudAlpha, -- 85
-			uiScale -- 85
-		) -- 85
-		if vfx.deflectFlash > 0.25 then -- 85
-			local dx = cam:sx(vfx.deflectX) / uiScale -- 89
-			local dy = cam:sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 16 -- 90
-			texts:put( -- 91
-				"sm", -- 92
-				"掩体挡下", -- 93
-				dx, -- 94
-				dy, -- 95
-				toColor(PALETTE.xuanPaper), -- 96
-				0.5, -- 97
-				0.5, -- 98
-				"Center", -- 99
-				1.6, -- 100
-				vfx.deflectFlash -- 101
-			) -- 101
-		end -- 101
-	end -- 101
-	if not p.paused and letterboxFrac < 0.5 and not p.gripping and p.escort.state ~= "calming" and not p.gateNeedConfirm and p.phase ~= "prologue-give" then -- 101
-		self:drawReticle( -- 109
-			uiInkDraw, -- 109
-			uiArt, -- 109
-			uiGlow, -- 109
-			p, -- 109
-			cam, -- 109
-			vfx, -- 109
-			uiScale -- 109
-		) -- 109
-	end -- 109
-end -- 50
-function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha) -- 113
-	local bx = 28 -- 122
-	local by = h - 76 -- 123
-	local lowHp = p.hp <= 1 -- 124
-	drawInkWashStrip( -- 127
-		uiDraw, -- 127
-		uiArt, -- 127
-		"hud_soldier_bg", -- 127
-		bx + 158, -- 127
-		by + 26, -- 127
-		336, -- 127
-		58, -- 127
-		PALETTE.inkWash, -- 127
-		0.78 * alpha, -- 127
-		false, -- 127
-		-1 -- 127
-	) -- 127
-	drawSealStamp( -- 130
-		uiInkDraw, -- 131
-		uiArt, -- 132
-		texts, -- 133
-		"hud_soldier_seal", -- 134
-		bx + 22, -- 135
-		by + 27, -- 136
-		30, -- 137
-		"戍", -- 138
-		lowHp and PALETTE.sealRed or PALETTE.cyanDim, -- 139
-		lowHp and PALETTE.sealText or PALETTE.moonPale, -- 140
-		alpha, -- 141
-		true, -- 142
-		4 -- 143
-	) -- 143
-	texts:put( -- 146
-		"xs", -- 146
-		"周戍 · 体力", -- 146
-		bx + 46, -- 146
-		by + 39, -- 146
-		toColor(PALETTE.xuanWarm), -- 146
-		0, -- 146
-		0.5, -- 146
-		"Left", -- 146
-		1, -- 146
-		alpha -- 146
-	) -- 146
-	local segCount = math.max(1, p.maxHp) -- 149
-	local barX = bx + 46 -- 150
-	local barY = by + 16 -- 151
-	local segW = 54 -- 152
-	local segH = 11 -- 153
-	local gap = 8 -- 154
-	local i = 0 -- 156
-	do -- 156
-		i = 0 -- 157
-		while i < segCount do -- 157
-			local sx = barX + i * (segW + gap) -- 158
-			local scx = sx + segW * 0.5 -- 159
-			if not uiArt:tryPlace( -- 159
-				"ink_hp_slot", -- 161
-				"hp_slot_" .. tostring(i), -- 161
-				scx, -- 161
+local ____Dora = require("Dora") -- 9
+local Color = ____Dora.Color -- 9
+local Rect = ____Dora.Rect -- 9
+local Vec2 = ____Dora.Vec2 -- 9
+local ____escort = require("Script.watch.escort") -- 11
+local FEAR_MAX = ____escort.FEAR_MAX -- 11
+local ____adapter = require("Script.watch.fe.adapter") -- 12
+local deriveWorldPrompt = ____adapter.deriveWorldPrompt -- 12
+local ____theme = require("Script.watch.fe.theme") -- 17
+local PALETTE = ____theme.PALETTE -- 18
+local drawBlossomDot = ____theme.drawBlossomDot -- 19
+local drawHairline = ____theme.drawHairline -- 20
+local drawSilkKeycap = ____theme.drawSilkKeycap -- 21
+local drawSilkVeil = ____theme.drawSilkVeil -- 22
+local fillRadialGlow = ____theme.fillRadialGlow -- 23
+local themeOf = ____theme.themeOf -- 24
+local toColor = ____theme.toColor -- 25
+local visualTextWidth = ____theme.visualTextWidth -- 26
+____exports.HudRenderer = __TS__Class() -- 29
+local HudRenderer = ____exports.HudRenderer -- 29
+HudRenderer.name = "HudRenderer" -- 29
+function HudRenderer.prototype.____constructor(self) -- 29
+	self.ghostHp = 3 -- 31
+	self.time = 0 -- 32
+end -- 29
+function HudRenderer.prototype.reset(self, p) -- 34
+	self.ghostHp = p ~= nil and p.hp or 3 -- 35
+end -- 34
+function HudRenderer.prototype.update(self, dt, p) -- 38
+	self.time = self.time + dt -- 39
+	if self.ghostHp > p.hp then -- 39
+		self.ghostHp = math.max(p.hp, self.ghostHp - dt * 1.45) -- 41
+	else -- 41
+		self.ghostHp = p.hp -- 43
+	end -- 43
+end -- 38
+function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, texts, p, cam, vfx, letterboxFrac, uiScale) -- 47
+	local w = cam.viewW / uiScale -- 59
+	local h = cam.viewH / uiScale -- 60
+	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 62
+	if hudAlpha > 0.05 then -- 62
+		if p.childMode then -- 62
+			self:drawChildStatus( -- 66
+				uiDraw, -- 66
+				uiInkDraw, -- 66
+				uiArt, -- 66
+				texts, -- 66
+				p, -- 66
+				h, -- 66
+				hudAlpha -- 66
+			) -- 66
+		else -- 66
+			self:drawSoldierStatus( -- 68
+				uiDraw, -- 68
+				uiInkDraw, -- 68
+				uiArt, -- 68
+				texts, -- 68
+				p, -- 68
+				h, -- 68
+				hudAlpha -- 68
+			) -- 68
+		end -- 68
+		self:drawChapterBadge( -- 71
+			uiDraw, -- 71
+			uiArt, -- 71
+			texts, -- 71
+			p, -- 71
+			w, -- 71
+			h, -- 71
+			hudAlpha -- 71
+		) -- 71
+		self:drawContextualObjective( -- 72
+			uiDraw, -- 72
+			uiInkDraw, -- 72
+			uiArt, -- 72
+			texts, -- 72
+			p, -- 72
+			w, -- 72
+			h, -- 72
+			hudAlpha -- 72
+		) -- 72
+		local prompt = deriveWorldPrompt(p) -- 74
+		if prompt ~= nil then -- 74
+			self:drawWorldPrompts( -- 76
+				uiDraw, -- 76
+				uiInkDraw, -- 76
+				uiArt, -- 76
+				texts, -- 76
+				{prompt}, -- 76
+				cam, -- 76
+				hudAlpha, -- 76
+				uiScale -- 76
+			) -- 76
+		end -- 76
+		if vfx.deflectFlash > 0.25 then -- 76
+			local dx = cam:sx(vfx.deflectX) / uiScale -- 80
+			local dy = cam:sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 16 -- 81
+			texts:put( -- 82
+				"sm", -- 82
+				"掩体挡下", -- 82
+				dx, -- 82
+				dy, -- 82
+				toColor(PALETTE.textBright), -- 82
+				0.5, -- 82
+				0.5, -- 82
+				"Center", -- 82
+				2, -- 82
+				vfx.deflectFlash, -- 82
+				0.1 -- 82
+			) -- 82
+		end -- 82
+	end -- 82
+	if not p.paused and letterboxFrac < 0.5 and not p.gripping and p.escort.state ~= "calming" and not p.gateNeedConfirm and p.phase ~= "prologue-give" then -- 82
+		self:drawReticle( -- 88
+			uiInkDraw, -- 88
+			uiArt, -- 88
+			uiGlow, -- 88
+			p, -- 88
+			cam, -- 88
+			vfx, -- 88
+			uiScale -- 88
+		) -- 88
+	end -- 88
+end -- 47
+function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha) -- 92
+	local bx = 28 -- 101
+	local by = h - 72 -- 102
+	local lowHp = p.hp <= 1 -- 103
+	drawSilkVeil( -- 106
+		uiDraw, -- 106
+		uiArt, -- 106
+		"hud_soldier_veil", -- 106
+		bx + 150, -- 106
+		by + 24, -- 106
+		340, -- 106
+		56, -- 106
+		PALETTE.inkWash, -- 106
+		0.62 * alpha, -- 106
+		-1 -- 106
+	) -- 106
+	texts:put( -- 109
+		"md", -- 109
+		"戍", -- 109
+		bx + 16, -- 109
+		by + 25, -- 109
+		toColor(lowHp and PALETTE.rouge or PALETTE.cyanCore), -- 109
+		0.5, -- 109
+		0.5, -- 109
+		"Center", -- 109
+		0, -- 109
+		alpha, -- 109
+		0.1 -- 109
+	) -- 109
+	uiInkDraw:drawSegment( -- 110
+		Vec2(bx + 32, by + 9), -- 110
+		Vec2(bx + 32, by + 40), -- 110
+		0.8, -- 110
+		toColor(PALETTE.silkDim, 130 * alpha) -- 110
+	) -- 110
+	texts:put( -- 112
+		"xs", -- 112
+		"周戍 · 体力", -- 112
+		bx + 44, -- 112
+		by + 36, -- 112
+		toColor(PALETTE.textMid), -- 112
+		0, -- 112
+		0.5, -- 112
+		"Left", -- 112
+		1.4, -- 112
+		alpha, -- 112
+		0.08 -- 112
+	) -- 112
+	local segCount = math.max(1, p.maxHp) -- 115
+	local barX = bx + 44 -- 116
+	local barY = by + 16 -- 117
+	local segW = 54 -- 118
+	local segH = 9 -- 119
+	local gap = 8 -- 120
+	local i = 0 -- 122
+	do -- 122
+		i = 0 -- 123
+		while i < segCount do -- 123
+			local sx = barX + i * (segW + gap) -- 124
+			local scx = sx + segW * 0.5 -- 125
+			if not uiArt:tryPlace( -- 125
+				"ink_bamboo_slot", -- 126
+				"hp_slot_" .. tostring(i), -- 126
+				scx, -- 126
+				barY, -- 126
+				segW, -- 126
+				segH, -- 126
+				{ -- 126
+					color = toColor(PALETTE.silkDim), -- 127
+					opacity = 0.72 * alpha, -- 127
+					layer = 1 -- 127
+				} -- 127
+			) then -- 127
+				uiInkDraw:drawRect( -- 129
+					Rect(sx, barY - 3, segW, 6), -- 129
+					Color(0, 0, 0, 0), -- 129
+					0.8, -- 129
+					toColor(PALETTE.silkDim, 145 * alpha) -- 129
+				) -- 129
+			end -- 129
+			if self.ghostHp > i and self.ghostHp > p.hp then -- 129
+				local frac = math.min(1, self.ghostHp - i) -- 132
+				uiInkDraw:drawRect( -- 133
+					Rect(sx + 3, barY - 2, (segW - 6) * frac, 4), -- 133
+					toColor(PALETTE.crimsonCore, 150 * alpha) -- 133
+				) -- 133
+			end -- 133
+			if p.hp > i then -- 133
+				local pulse = lowHp and 0.72 + 0.28 * math.sin(self.time * 7) or 1 -- 136
+				local fillCol = lowHp and PALETTE.rouge or PALETTE.moonPale -- 137
+				if not uiArt:tryPlace( -- 137
+					"ink_bamboo_slip", -- 138
+					"hp_fill_" .. tostring(i), -- 138
+					scx, -- 138
+					barY, -- 138
+					segW, -- 138
+					segH, -- 138
+					{ -- 138
+						color = toColor(fillCol), -- 139
+						opacity = 0.94 * alpha * pulse, -- 139
+						layer = 2 -- 139
+					} -- 139
+				) then -- 139
+					uiInkDraw:drawRect( -- 141
+						Rect(sx + 2, barY - 2.5, segW - 4, 5), -- 141
+						toColor(fillCol, 230 * alpha * pulse) -- 141
+					) -- 141
+				end -- 141
+			end -- 141
+			i = i + 1 -- 123
+		end -- 123
+	end -- 123
+	local covX = barX + segCount * (segW + gap) + 6 -- 147
+	local hasAliveEnemy = false -- 148
+	do -- 148
+		i = 0 -- 149
+		while i < #p.enemies do -- 149
+			if p.enemies[i + 1].alive then -- 149
+				hasAliveEnemy = true -- 151
+				break -- 152
+			end -- 152
+			i = i + 1 -- 149
+		end -- 149
+	end -- 149
+	if p.coverHug then -- 149
+		if hasAliveEnemy and not p.coverBlocking then -- 149
+			uiInkDraw:drawRect( -- 157
+				Rect(covX, barY - 9, 72, 18), -- 157
+				toColor(PALETTE.inkWarm, 185 * alpha), -- 157
+				0.8, -- 157
+				toColor(PALETTE.amber, 200 * alpha) -- 157
+			) -- 157
+			texts:put( -- 158
+				"xs", -- 158
+				"背向掩体", -- 158
+				covX + 36, -- 158
+				barY, -- 158
+				toColor(PALETTE.amberCore), -- 158
+				0.5, -- 158
+				0.5, -- 158
+				"Center", -- 158
+				0.6, -- 158
+				alpha, -- 158
+				0 -- 158
+			) -- 158
+		else -- 158
+			uiInkDraw:drawRect( -- 160
+				Rect(covX, barY - 9, 54, 18), -- 160
+				toColor(PALETTE.cyanDim, 165 * alpha), -- 160
+				0.8, -- 160
+				toColor(PALETTE.cyanCore, 180 * alpha) -- 160
+			) -- 160
+			texts:put( -- 161
+				"xs", -- 161
+				"掩体中", -- 161
+				covX + 27, -- 161
 				barY, -- 161
-				segW + 4, -- 161
-				segH + 6, -- 161
-				{ -- 161
-					color = toColor(PALETTE.bronzeDim), -- 162
-					opacity = 0.85 * alpha, -- 162
-					layer = 1 -- 162
-				} -- 162
-			) then -- 162
-				uiInkDraw:drawRect( -- 164
-					Rect(sx, barY - segH * 0.5, segW, segH), -- 164
-					Color( -- 164
-						16, -- 164
-						17, -- 164
-						22, -- 164
-						math.floor(180 * alpha + 0.5) -- 164
-					), -- 164
-					1, -- 164
-					toColor(PALETTE.bronzeDim, 180 * alpha) -- 164
-				) -- 164
-			end -- 164
-			if self.ghostHp > i and self.ghostHp > p.hp then -- 164
-				local frac = math.min(1, self.ghostHp - i) -- 168
-				uiInkDraw:drawRect( -- 169
-					Rect(sx + 1, barY - segH * 0.42, (segW - 2) * frac, segH * 0.84), -- 169
-					toColor(PALETTE.crimsonCore, 165 * alpha) -- 169
-				) -- 169
-			end -- 169
-			if p.hp > i then -- 169
-				local pulse = lowHp and 0.72 + 0.28 * math.sin(self.time * 7.5) or 1 -- 173
-				local fillCol = lowHp and PALETTE.sealRedBright or PALETTE.cyanCore -- 174
-				if not uiArt:tryPlace( -- 174
-					"ink_hp_bar", -- 175
-					"hp_fill_" .. tostring(i), -- 175
-					scx, -- 175
-					barY, -- 175
-					segW + 2, -- 175
-					segH + 4, -- 175
-					{ -- 175
-						color = toColor(fillCol), -- 176
-						opacity = 0.94 * alpha * pulse, -- 176
-						layer = 2 -- 176
-					} -- 176
-				) then -- 176
-					uiInkDraw:drawRect( -- 178
-						Rect(sx + 1, barY - segH * 0.42, segW - 2, segH * 0.84), -- 178
-						toColor(fillCol, 235 * alpha * pulse) -- 178
-					) -- 178
-				end -- 178
+				toColor(PALETTE.textBright), -- 161
+				0.5, -- 161
+				0.5, -- 161
+				"Center", -- 161
+				0.6, -- 161
+				alpha, -- 161
+				0 -- 161
+			) -- 161
+		end -- 161
+	elseif p.coverNear then -- 161
+		uiInkDraw:drawRect( -- 164
+			Rect(covX, barY - 9, 54, 18), -- 164
+			Color( -- 164
+				14, -- 164
+				17, -- 164
+				25, -- 164
+				math.floor(150 * alpha + 0.5) -- 164
+			), -- 164
+			0.8, -- 164
+			toColor(PALETTE.silkLine, 165 * alpha) -- 164
+		) -- 164
+		texts:put( -- 165
+			"xs", -- 165
+			"可贴靠", -- 165
+			covX + 27, -- 165
+			barY, -- 165
+			toColor(PALETTE.textMid), -- 165
+			0.5, -- 165
+			0.5, -- 165
+			"Center", -- 165
+			0.6, -- 165
+			alpha, -- 165
+			0.08 -- 165
+		) -- 165
+	end -- 165
+	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" then -- 165
+		local subY = by - 24 -- 170
+		local frozen = p.escort.state == "frozen" -- 171
+		local calming = p.escort.state == "calming" -- 172
+		drawSilkVeil( -- 174
+			uiDraw, -- 174
+			uiArt, -- 174
+			"hud_fear_veil", -- 174
+			bx + 126, -- 174
+			subY + 6, -- 174
+			260, -- 174
+			30, -- 174
+			frozen and PALETTE.inkWarm or PALETTE.inkWash, -- 174
+			0.64 * alpha, -- 174
+			-1 -- 174
+		) -- 174
+		texts:put( -- 175
+			"xs", -- 175
+			"小满 · 惊惧", -- 175
+			bx + 14, -- 175
+			subY + 6, -- 175
+			toColor(frozen and PALETTE.crimsonCore or PALETTE.textMid), -- 175
+			0, -- 175
+			0.5, -- 175
+			"Left", -- 175
+			1, -- 175
+			alpha, -- 175
+			0.08 -- 175
+		) -- 175
+		local k = 0 -- 177
+		do -- 177
+			k = 0 -- 178
+			while k < FEAR_MAX do -- 178
+				local dx = bx + 114 + k * 20 -- 179
+				local dy = subY + 6 -- 180
+				local lit = k < p.escort.fear -- 181
+				local dc = frozen and PALETTE.rouge or PALETTE.amber -- 182
+				uiArt:tryPlace( -- 183
+					"ink_enso_fine", -- 183
+					"fear_ring_" .. tostring(k), -- 183
+					dx, -- 183
+					dy, -- 183
+					14, -- 183
+					14, -- 183
+					{ -- 183
+						color = toColor(lit and dc or PALETTE.silkLine), -- 184
+						opacity = (lit and 0.92 or 0.64) * alpha, -- 184
+						layer = 2 -- 184
+					} -- 184
+				) -- 184
+				if lit then -- 184
+					drawBlossomDot( -- 187
+						uiInkDraw, -- 187
+						uiArt, -- 187
+						"fear_dot_" .. tostring(k), -- 187
+						dx, -- 187
+						dy, -- 187
+						10, -- 187
+						dc, -- 187
+						0.96 * alpha, -- 187
+						3 -- 187
+					) -- 187
+				end -- 187
+				k = k + 1 -- 178
 			end -- 178
-			i = i + 1 -- 157
-		end -- 157
-	end -- 157
-	local covX = barX + segCount * (segW + gap) + 6 -- 184
-	if p.coverHug then -- 184
-		uiInkDraw:drawRect( -- 186
-			Rect(covX, barY - 9, 56, 18), -- 186
-			toColor(PALETTE.cyanDim, 215 * alpha), -- 186
-			1, -- 186
-			toColor(PALETTE.cyanCore, 180 * alpha) -- 186
-		) -- 186
-		texts:put( -- 187
-			"xs", -- 187
-			"掩体中", -- 187
-			covX + 28, -- 187
-			barY, -- 187
-			toColor(PALETTE.textBright), -- 187
-			0.5, -- 187
-			0.5, -- 187
-			"Center", -- 187
-			0.4, -- 187
-			alpha, -- 187
-			0 -- 187
-		) -- 187
-	elseif p.coverNear then -- 187
-		uiInkDraw:drawRect( -- 189
-			Rect(covX, barY - 9, 56, 18), -- 189
-			Color( -- 189
-				22, -- 189
-				19, -- 189
-				17, -- 189
-				math.floor(195 * alpha + 0.5) -- 189
-			), -- 189
-			1, -- 189
-			toColor(PALETTE.amber, 210 * alpha) -- 189
-		) -- 189
-		texts:put( -- 190
-			"xs", -- 190
-			"可贴靠", -- 190
-			covX + 28, -- 190
-			barY, -- 190
-			toColor(PALETTE.amberCore), -- 190
-			0.5, -- 190
-			0.5, -- 190
-			"Center", -- 190
-			0.4, -- 190
-			alpha -- 190
-		) -- 190
-	end -- 190
-	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" then -- 190
-		local subY = by - 28 -- 195
-		local frozen = p.escort.state == "frozen" -- 196
-		local calming = p.escort.state == "calming" -- 197
-		drawInkWashStrip( -- 199
-			uiDraw, -- 200
-			uiArt, -- 201
-			"hud_fear_bg", -- 202
-			bx + 132, -- 203
-			subY + 8, -- 204
-			258, -- 205
-			32, -- 206
-			frozen and PALETTE.inkWarm or PALETTE.inkWash, -- 207
-			0.72 * alpha, -- 208
-			false, -- 209
-			-1 -- 209
-		) -- 209
-		texts:put( -- 212
-			"xs", -- 212
-			"小满 · 惊惧", -- 212
-			bx + 16, -- 212
-			subY + 8, -- 212
-			toColor(frozen and PALETTE.crimsonCore or PALETTE.textMid), -- 212
-			0, -- 212
-			0.5, -- 212
-			"Left", -- 212
-			0.8, -- 212
-			alpha -- 212
-		) -- 212
-		local k = 0 -- 214
-		do -- 214
-			k = 0 -- 215
-			while k < FEAR_MAX do -- 215
-				local dx = bx + 114 + k * 21 -- 216
-				local dy = subY + 8 -- 217
-				local lit = k < p.escort.fear -- 218
-				local dc = frozen and PALETTE.sealRedBright or PALETTE.amber -- 219
-				if not uiArt:tryPlace( -- 219
-					"ink_ring", -- 221
-					"fear_ring_" .. tostring(k), -- 221
-					dx, -- 221
-					dy, -- 221
-					16, -- 221
-					16, -- 221
-					{ -- 221
-						color = toColor(lit and dc or PALETTE.bronzeDim), -- 222
-						opacity = (lit and 0.92 or 0.65) * alpha, -- 222
-						layer = 2 -- 222
-					} -- 222
-				) then -- 222
-					uiInkDraw:drawRing( -- 224
-						Vec2(dx, dy), -- 224
-						5.5, -- 224
-						6.8, -- 224
-						Color(0, 0, 0, 0), -- 224
-						1.1, -- 224
-						toColor(dc, 180 * alpha) -- 224
-					) -- 224
-				end -- 224
-				if lit then -- 224
-					if not uiArt:tryPlace( -- 224
-						"ink_dot", -- 228
-						"fear_dot_" .. tostring(k), -- 228
-						dx, -- 228
-						dy, -- 228
-						10, -- 228
-						10, -- 228
-						{ -- 228
-							color = toColor(dc), -- 229
-							opacity = 0.96 * alpha, -- 229
-							layer = 3 -- 229
-						} -- 229
-					) then -- 229
-						uiInkDraw:drawDot( -- 231
-							Vec2(dx, dy), -- 231
-							4.2, -- 231
-							toColor(dc, 235 * alpha) -- 231
-						) -- 231
-					end -- 231
-				end -- 231
-				k = k + 1 -- 215
-			end -- 215
-		end -- 215
-		if frozen then -- 215
-			local pulse = 0.65 + 0.35 * math.sin(self.time * 7.5) -- 237
-			drawInkKeycap( -- 238
-				uiInkDraw, -- 238
-				texts, -- 238
-				bx + 172, -- 238
-				subY - 3, -- 238
-				22, -- 238
-				22, -- 238
-				"E", -- 238
-				PALETTE.sealRedBright, -- 238
-				alpha * pulse, -- 238
-				true -- 238
-			) -- 238
-			texts:put( -- 239
-				"xs", -- 239
-				"轻敲安抚", -- 239
-				bx + 199, -- 239
-				subY + 8, -- 239
-				toColor(PALETTE.crimsonCore), -- 239
-				0, -- 239
-				0.5, -- 239
-				"Left", -- 239
-				0.5, -- 239
-				alpha * pulse -- 239
-			) -- 239
-		elseif calming then -- 239
-			texts:put( -- 241
-				"xs", -- 241
-				"轻敲安抚中", -- 241
-				bx + 174, -- 241
-				subY + 8, -- 241
-				toColor(PALETTE.emerald), -- 241
-				0, -- 241
-				0.5, -- 241
-				"Left", -- 241
-				0.5, -- 241
-				alpha -- 241
-			) -- 241
-		end -- 241
-	end -- 241
-end -- 113
-function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha) -- 246
-	local bx = 28 -- 255
-	local by = h - 72 -- 256
-	local alert = p.scavChase or p.dogState == "chase" or p.dogState == "ear" or p.scavSee > 0 -- 257
-	local sealCol = alert and PALETTE.sealRed or (p.player.crouch and PALETTE.emeraldDim or PALETTE.amberDim) -- 258
-	local sealChar = alert and "危" or "满" -- 259
-	drawInkWashStrip( -- 261
-		uiDraw, -- 261
-		uiArt, -- 261
-		"hud_child_bg", -- 261
-		bx + 148, -- 261
-		by + 24, -- 261
-		308, -- 261
-		52, -- 261
-		alert and PALETTE.inkWarm or PALETTE.inkWash, -- 261
-		0.76 * alpha, -- 261
-		false, -- 261
-		-1 -- 261
-	) -- 261
-	drawSealStamp( -- 262
-		uiInkDraw, -- 262
-		uiArt, -- 262
-		texts, -- 262
-		"hud_child_seal", -- 262
-		bx + 22, -- 262
-		by + 24, -- 262
-		30, -- 262
-		sealChar, -- 262
-		sealCol, -- 262
-		PALETTE.sealText, -- 262
-		alpha, -- 262
-		true, -- 262
-		4 -- 262
-	) -- 262
-	texts:put( -- 264
-		"xs", -- 264
-		"小满 · 潜行", -- 264
-		bx + 46, -- 264
-		by + 35, -- 264
-		toColor(PALETTE.amberCore), -- 264
-		0, -- 264
-		0.5, -- 264
-		"Left", -- 264
-		1, -- 264
-		alpha -- 264
-	) -- 264
-	local posture = "轻步前行 · 保持隐蔽" -- 266
-	local col = PALETTE.textMid -- 267
-	if alert then -- 267
-		posture = (p.scavChase or p.dogState == "chase") and "已被发现 · 速寻隐蔽" or "引起警觉 · 停步蹲伏" -- 269
-		col = PALETTE.crimsonCore -- 270
-	elseif p.player.crouch then -- 270
-		posture = "低姿伏行 · 匿迹于影" -- 272
-		col = PALETTE.emerald -- 273
-	elseif p.hasBottle then -- 273
-		posture = "手持玻璃瓶 · 按住 [F] 瞄投" -- 275
-		col = PALETTE.amberCore -- 276
-	end -- 276
-	texts:put( -- 278
-		"xs", -- 278
-		posture, -- 278
-		bx + 46, -- 278
-		by + 13, -- 278
-		toColor(col), -- 278
-		0, -- 278
-		0.5, -- 278
-		"Left", -- 278
-		0.4, -- 278
-		alpha -- 278
-	) -- 278
-end -- 246
-function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha) -- 281
-	local theme = themeOf(p.room.key) -- 291
-	local rx = w - 30 -- 292
-	local cy = h - 46 -- 293
-	drawInkWashStrip( -- 296
-		uiDraw, -- 296
-		uiArt, -- 296
-		"hud_chap_bg", -- 296
-		rx - 94, -- 296
-		cy, -- 296
-		246, -- 296
-		48, -- 296
-		PALETTE.inkWash, -- 296
-		0.58 * alpha, -- 296
-		true, -- 296
-		-1 -- 296
-	) -- 296
-	drawSealStamp( -- 297
-		uiInkDraw, -- 298
-		uiArt, -- 299
-		texts, -- 300
-		"hud_chap_seal", -- 301
-		rx - 14, -- 302
-		cy + 2, -- 303
-		26, -- 304
-		theme.numeralZh, -- 305
-		p.room.key == "gate" and PALETTE.sealRed or PALETTE.bronzeDim, -- 306
-		PALETTE.sealText, -- 307
-		0.9 * alpha, -- 308
-		true, -- 309
-		4 -- 310
-	) -- 310
-	texts:put( -- 312
-		"xs", -- 312
-		theme.titleZh, -- 312
-		rx - 34, -- 312
-		cy + 9, -- 312
-		toColor(PALETTE.textBright), -- 312
-		1, -- 312
-		0.5, -- 312
-		"Right", -- 312
-		0.8, -- 312
-		alpha -- 312
-	) -- 312
-	texts:put( -- 313
-		"xs", -- 313
-		"Esc 暂歇", -- 313
-		rx - 34, -- 313
-		cy - 11, -- 313
-		toColor(PALETTE.textDim), -- 313
-		1, -- 313
-		0.5, -- 313
-		"Right", -- 313
-		0.6, -- 313
-		0.86 * alpha -- 313
-	) -- 313
-end -- 281
-function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha) -- 316
-	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 316
-		local g = p.room.story.gate -- 328
-		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 328
-			local bw = 420 -- 330
-			local cx = w * 0.5 -- 331
-			local by = h - 66 -- 332
-			local ratio = math.max( -- 333
-				0, -- 333
-				math.min( -- 333
-					1, -- 333
-					p.gateTick / math.max(1, g.holdTicks) -- 333
-				) -- 333
-			) -- 333
-			local secLeft = math.max(0, (g.holdTicks - p.gateTick) / 60) -- 334
-			local secStr = __TS__NumberToFixed(secLeft, 1) -- 335
-			drawInkWashStrip( -- 337
-				uiDraw, -- 337
-				uiArt, -- 337
-				"hud_gate_bg", -- 337
-				cx, -- 337
-				by + 18, -- 337
-				bw + 60, -- 337
-				50, -- 337
-				PALETTE.inkWash, -- 337
-				0.84 * alpha, -- 337
-				true, -- 337
-				-1 -- 337
-			) -- 337
-			drawBrushDivider( -- 338
-				uiInkDraw, -- 338
-				uiArt, -- 338
-				"hud_gate_top", -- 338
-				cx, -- 338
-				by + 39, -- 338
-				bw - 30, -- 338
-				8, -- 338
-				PALETTE.crimsonDeep, -- 338
-				0.58 * alpha, -- 338
-				2 -- 338
-			) -- 338
-			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and "绞盘待命 · 按 [E] 重新守门" or "待小满就位 · 绞盘启") or ("城门死守 · 余 " .. secStr) .. " 秒" -- 340
-			texts:put( -- 343
-				"xs", -- 343
-				label, -- 343
-				cx, -- 343
-				by + 27, -- 343
-				toColor(PALETTE.textBright), -- 343
-				0.5, -- 343
-				0.5, -- 343
-				"Center", -- 343
-				1.4, -- 343
-				alpha -- 343
-			) -- 343
-			local pbx = cx - (bw - 72) * 0.5 -- 346
-			local pbw = bw - 72 -- 347
-			local pby = by + 9 -- 348
-			uiInkDraw:drawRect( -- 349
-				Rect(pbx, pby - 2.5, pbw, 5), -- 349
-				Color( -- 349
-					28, -- 349
-					22, -- 349
-					24, -- 349
-					math.floor(210 * alpha + 0.5) -- 349
-				), -- 349
-				0.7, -- 349
-				toColor(PALETTE.bronzeDim, 130 * alpha) -- 349
-			) -- 349
-			if ratio > 0.002 then -- 349
-				uiInkDraw:drawRect( -- 351
-					Rect(pbx, pby - 2.5, pbw * ratio, 5), -- 351
-					toColor(PALETTE.sealRedBright, 235 * alpha) -- 351
-				) -- 351
-				uiInkDraw:drawRect( -- 352
-					Rect(pbx, pby + 0.5, pbw * ratio, 1.5), -- 352
-					toColor(PALETTE.crimsonCore, 160 * alpha) -- 352
-				) -- 352
-			end -- 352
-			local waves = {0, 540 / 2700, 900 / 2700, 1500 / 2700} -- 355
-			local k = 0 -- 356
-			do -- 356
-				k = 0 -- 357
-				while k < #waves do -- 357
-					local wx = pbx + pbw * waves[k + 1] -- 358
-					local passed = p.gateSpawned > k -- 359
-					uiArt:tryPlace( -- 360
-						passed and "ink_dot" or "ink_ring", -- 360
-						"gate_wave_" .. tostring(k), -- 360
-						wx, -- 360
-						pby, -- 360
-						passed and 9 or 11, -- 360
-						passed and 9 or 11, -- 360
-						{ -- 360
-							color = toColor(passed and PALETTE.amberCore or PALETTE.sealRedBright), -- 361
-							opacity = 0.92 * alpha, -- 361
-							layer = 3 -- 361
-						} -- 361
-					) -- 361
-					k = k + 1 -- 357
-				end -- 357
-			end -- 357
-		end -- 357
-		return -- 365
-	end -- 365
-	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 365
-		local cx = w * 0.5 -- 370
-		local by = h - 46 -- 371
-		local step1 = p.cartDocked -- 372
-		local ____temp_0 -- 373
-		if p.room.key == "checkpoint" then -- 373
-			____temp_0 = p.gateOpen -- 373
-		else -- 373
-			____temp_0 = p.checkpoint >= 380 -- 373
-		end -- 373
-		local step2 = ____temp_0 -- 373
-		local t1 = p.room.key == "checkpoint" and "红布板车入窝" or "上层拉车让拱" -- 374
-		local t2 = p.room.key == "checkpoint" and "双人汇合出口" or "蹲伏穿拱赴塔" -- 375
-		drawInkWashStrip( -- 377
-			uiDraw, -- 377
-			uiArt, -- 377
-			"hud_obj_bg", -- 377
-			cx, -- 377
-			by, -- 377
-			356, -- 377
-			36, -- 377
-			PALETTE.inkWash, -- 377
-			0.7 * alpha, -- 377
-			true, -- 377
-			-1 -- 377
-		) -- 377
-		local x1 = cx - 134 -- 379
-		uiArt:tryPlace( -- 380
-			step1 and "ink_dot" or "ink_ring", -- 380
-			"obj_m1", -- 380
-			x1, -- 380
-			by, -- 380
-			12, -- 380
-			12, -- 380
-			{ -- 380
-				color = toColor(step1 and PALETTE.emerald or PALETTE.amber), -- 381
-				opacity = 0.92 * alpha, -- 381
-				layer = 3 -- 381
-			} -- 381
-		) -- 381
-		texts:put( -- 383
-			"xs", -- 383
-			t1, -- 383
-			x1 + 13, -- 383
-			by, -- 383
-			toColor(step1 and PALETTE.emerald or PALETTE.textMid), -- 383
-			0, -- 383
-			0.5, -- 383
-			"Left", -- 383
-			0.6, -- 383
-			alpha -- 383
-		) -- 383
-		local x2 = cx + 18 -- 385
-		uiArt:tryPlace( -- 386
-			step2 and "ink_dot" or "ink_ring", -- 386
-			"obj_m2", -- 386
-			x2, -- 386
-			by, -- 386
-			12, -- 386
-			12, -- 386
-			{ -- 386
-				color = toColor(step2 and PALETTE.emerald or PALETTE.bronzeDim), -- 387
-				opacity = 0.92 * alpha, -- 387
-				layer = 3 -- 387
-			} -- 387
-		) -- 387
-		texts:put( -- 389
-			"xs", -- 389
-			t2, -- 389
-			x2 + 13, -- 389
-			by, -- 389
-			toColor(step2 and PALETTE.emerald or PALETTE.textDim), -- 389
-			0, -- 389
-			0.5, -- 389
-			"Left", -- 389
-			0.6, -- 389
-			alpha -- 389
-		) -- 389
-	end -- 389
-end -- 316
-function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiInkDraw, uiArt, texts, prompts, cam, alpha, uiScale) -- 393
-	local bob = math.sin(self.time * 3.8) * 3 -- 403
-	local i = 0 -- 404
-	do -- 404
-		i = 0 -- 405
-		while i < #prompts do -- 405
-			local pr = prompts[i + 1] -- 406
-			local sx = math.max( -- 407
-				115, -- 407
-				math.min( -- 407
-					cam.viewW / uiScale - 115, -- 407
-					cam:sx(pr.x) / uiScale -- 407
-				) -- 407
-			) -- 407
-			local sy = math.max( -- 408
-				96, -- 408
-				math.min( -- 408
-					cam.viewH / uiScale - 110, -- 408
-					cam:sy(pr.y) / uiScale + bob -- 408
-				) -- 408
-			) -- 408
-			local accent = pr.urgent and PALETTE.sealRedBright or PALETTE.amber -- 409
-			uiInkDraw:drawSegment( -- 412
-				Vec2(sx, sy - 15), -- 412
-				Vec2(sx, sy - 29), -- 412
-				1, -- 412
-				toColor(accent, 160 * alpha) -- 412
-			) -- 412
-			uiInkDraw:drawDot( -- 413
-				Vec2(sx, sy - 29), -- 413
-				2.2, -- 413
-				toColor(accent, 210 * alpha) -- 413
-			) -- 413
-			local keyW = math.max( -- 416
-				24, -- 416
-				visualTextWidth(pr.keyTag, 14) + 14 -- 416
-			) -- 416
-			local labelW = visualTextWidth(pr.label, 15) -- 417
-			local pillW = keyW + labelW + 26 -- 418
-			local px = sx - pillW * 0.5 -- 419
-			local py = sy - 13 -- 420
-			drawInkWashStrip( -- 422
-				uiDraw, -- 422
-				uiArt, -- 422
-				"wp_bg_" .. tostring(i), -- 422
-				sx, -- 422
-				py + 13, -- 422
-				pillW + 24, -- 422
-				34, -- 422
-				PALETTE.inkWash, -- 422
-				0.86 * alpha, -- 422
-				true, -- 422
-				0 -- 422
-			) -- 422
-			uiInkDraw:drawSegment( -- 423
-				Vec2(px + 2, py + 26), -- 423
-				Vec2(px + pillW - 2, py + 26), -- 423
-				0.8, -- 423
-				toColor(accent, 115 * alpha) -- 423
-			) -- 423
-			uiInkDraw:drawSegment( -- 424
-				Vec2(px + 2, py), -- 424
-				Vec2(px + pillW - 2, py), -- 424
-				0.8, -- 424
-				toColor(accent, 115 * alpha) -- 424
-			) -- 424
-			drawInkKeycap( -- 425
-				uiInkDraw, -- 425
-				texts, -- 425
-				px + 3, -- 425
-				py + 2, -- 425
-				keyW, -- 425
-				22, -- 425
-				pr.keyTag, -- 425
-				accent, -- 425
-				alpha, -- 425
-				pr.urgent -- 425
-			) -- 425
-			texts:put( -- 426
-				"xs", -- 426
-				pr.label, -- 426
-				px + keyW + 12, -- 426
-				py + 13, -- 426
-				toColor(PALETTE.textBright), -- 426
-				0, -- 426
-				0.5, -- 426
-				"Left", -- 426
-				0.5, -- 426
-				alpha -- 426
-			) -- 426
-			i = i + 1 -- 405
-		end -- 405
-	end -- 405
-end -- 393
-function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale) -- 430
-	local mx = p.aimX / uiScale -- 439
-	local my = p.aimY / uiScale -- 440
-	if mx <= 0 and my <= 0 then -- 440
-		return -- 442
-	end -- 442
-	if p.childMode then -- 442
-		local aiming = p.room.key == "village" and p.hasBottle -- 447
-		local col = aiming and PALETTE.amber or PALETTE.bronzeDim -- 448
-		uiInkDraw:drawDot( -- 449
-			Vec2(mx, my), -- 449
-			aiming and 2.2 or 1.8, -- 449
-			toColor(col, aiming and 225 or 135) -- 449
-		) -- 449
-		if aiming then -- 449
-			local sz = p.aimHold > 0 and 34 or 26 -- 451
-			if not uiArt:tryPlace( -- 451
-				"ink_ring", -- 452
-				"reticle_child", -- 452
-				mx, -- 452
-				my, -- 452
-				sz, -- 452
-				sz, -- 452
-				{ -- 452
-					color = toColor(PALETTE.amberCore), -- 453
-					opacity = 0.86, -- 453
-					angle = self.time * 28, -- 453
-					layer = 5 -- 453
-				} -- 453
-			) then -- 453
-				uiInkDraw:drawRing( -- 455
-					Vec2(mx, my), -- 455
-					sz * 0.44, -- 455
-					sz * 0.5, -- 455
-					Color(0, 0, 0, 0), -- 455
-					1.2, -- 455
-					toColor(PALETTE.amber, 200) -- 455
-				) -- 455
-			end -- 455
-		end -- 455
-		return -- 458
-	end -- 458
-	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 462
-	local onEnemy = false -- 463
-	local i = 0 -- 464
-	do -- 464
-		i = 0 -- 465
-		while i < #p.enemies do -- 465
-			local e = p.enemies[i + 1] -- 466
-			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= e.y - 6 and wAim.y <= e.y + e.h + 6 then -- 466
-				onEnemy = true -- 468
-			end -- 468
-			i = i + 1 -- 465
-		end -- 465
-	end -- 465
-	local col = onEnemy and PALETTE.sealRedBright or PALETTE.xuanPaper -- 472
-	local gap = (onEnemy and 5.5 or 7) + vfx.crosshairKick * 0.75 -- 473
-	local arm = onEnemy and 8.5 or 9.5 -- 474
-	local bg = Color(12, 13, 18, 170) -- 477
-	uiInkDraw:drawSegment( -- 478
-		Vec2(mx - gap - arm, my), -- 478
-		Vec2(mx - gap, my), -- 478
-		2.4, -- 478
-		bg -- 478
-	) -- 478
-	uiInkDraw:drawSegment( -- 479
-		Vec2(mx + gap, my), -- 479
-		Vec2(mx + gap + arm, my), -- 479
-		2.4, -- 479
-		bg -- 479
-	) -- 479
-	uiInkDraw:drawSegment( -- 480
-		Vec2(mx, my - gap - arm), -- 480
-		Vec2(mx, my - gap), -- 480
-		2.4, -- 480
-		bg -- 480
-	) -- 480
-	uiInkDraw:drawSegment( -- 481
-		Vec2(mx, my + gap), -- 481
-		Vec2(mx, my + gap + arm), -- 481
-		2.4, -- 481
-		bg -- 481
-	) -- 481
-	uiInkDraw:drawSegment( -- 483
-		Vec2(mx - gap - arm, my), -- 483
-		Vec2(mx - gap, my), -- 483
-		1.3, -- 483
-		toColor(col, 235) -- 483
-	) -- 483
-	uiInkDraw:drawSegment( -- 484
-		Vec2(mx + gap, my), -- 484
-		Vec2(mx + gap + arm, my), -- 484
-		1.3, -- 484
-		toColor(col, 235) -- 484
-	) -- 484
-	uiInkDraw:drawSegment( -- 485
-		Vec2(mx, my - gap - arm), -- 485
-		Vec2(mx, my - gap), -- 485
-		1.3, -- 485
-		toColor(col, 235) -- 485
-	) -- 485
-	uiInkDraw:drawSegment( -- 486
-		Vec2(mx, my + gap), -- 486
-		Vec2(mx, my + gap + arm), -- 486
-		1.3, -- 486
-		toColor(col, 235) -- 486
-	) -- 486
-	uiInkDraw:drawDot( -- 487
-		Vec2(mx, my), -- 487
-		2, -- 487
-		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.xuanPaper, 245) -- 487
-	) -- 487
-	if onEnemy then -- 487
-		local sz = 32 + math.sin(self.time * 12) * 2 -- 490
-		uiArt:tryPlace( -- 491
-			"ink_ring", -- 491
-			"reticle_lock", -- 491
-			mx, -- 491
-			my, -- 491
-			sz, -- 491
-			sz, -- 491
-			{ -- 491
-				color = toColor(PALETTE.sealRedBright), -- 492
-				opacity = 0.9, -- 492
-				angle = self.time * 42, -- 492
-				layer = 5 -- 492
-			} -- 492
-		) -- 492
-		fillRadialGlow( -- 494
-			uiGlow, -- 494
-			mx, -- 494
-			my, -- 494
-			18, -- 494
-			18, -- 494
-			toColor(PALETTE.cinnabar, 36), -- 494
-			Color(168, 46, 40, 0), -- 494
-			10 -- 494
-		) -- 494
-	end -- 494
-end -- 430
-return ____exports -- 430
+		end -- 178
+		if frozen then -- 178
+			local pulse = 0.65 + 0.35 * math.sin(self.time * 7) -- 192
+			drawSilkKeycap( -- 193
+				uiInkDraw, -- 193
+				texts, -- 193
+				bx + 170, -- 193
+				subY - 5, -- 193
+				22, -- 193
+				22, -- 193
+				"E", -- 193
+				PALETTE.rouge, -- 193
+				alpha * pulse, -- 193
+				true -- 193
+			) -- 193
+			texts:put( -- 194
+				"xs", -- 194
+				"轻敲安抚", -- 194
+				bx + 198, -- 194
+				subY + 6, -- 194
+				toColor(PALETTE.crimsonCore), -- 194
+				0, -- 194
+				0.5, -- 194
+				"Left", -- 194
+				0.8, -- 194
+				alpha * pulse, -- 194
+				0.08 -- 194
+			) -- 194
+		elseif calming then -- 194
+			texts:put( -- 196
+				"xs", -- 196
+				"轻敲安抚中", -- 196
+				bx + 172, -- 196
+				subY + 6, -- 196
+				toColor(PALETTE.emerald), -- 196
+				0, -- 196
+				0.5, -- 196
+				"Left", -- 196
+				0.8, -- 196
+				alpha, -- 196
+				0.08 -- 196
+			) -- 196
+		end -- 196
+	end -- 196
+end -- 92
+function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha) -- 201
+	local bx = 28 -- 210
+	local by = h - 68 -- 211
+	local alert = p.scavChase or p.dogState == "chase" or p.dogState == "ear" or p.scavSee > 0 -- 212
+	local leadCol = alert and PALETTE.rouge or (p.player.crouch and PALETTE.emerald or PALETTE.amberCore) -- 213
+	drawSilkVeil( -- 215
+		uiDraw, -- 215
+		uiArt, -- 215
+		"hud_child_veil", -- 215
+		bx + 144, -- 215
+		by + 22, -- 215
+		316, -- 215
+		48, -- 215
+		alert and PALETTE.inkWarm or PALETTE.inkWash, -- 215
+		0.58 * alpha, -- 215
+		-1 -- 215
+	) -- 215
+	texts:put( -- 216
+		"md", -- 216
+		alert and "危" or "满", -- 216
+		bx + 16, -- 216
+		by + 22, -- 216
+		toColor(leadCol), -- 216
+		0.5, -- 216
+		0.5, -- 216
+		"Center", -- 216
+		0, -- 216
+		alpha, -- 216
+		0.1 -- 216
+	) -- 216
+	uiInkDraw:drawSegment( -- 217
+		Vec2(bx + 32, by + 7), -- 217
+		Vec2(bx + 32, by + 37), -- 217
+		0.8, -- 217
+		toColor(PALETTE.silkDim, 130 * alpha) -- 217
+	) -- 217
+	texts:put( -- 219
+		"xs", -- 219
+		"小满 · 潜行", -- 219
+		bx + 44, -- 219
+		by + 33, -- 219
+		toColor(PALETTE.amberCore), -- 219
+		0, -- 219
+		0.5, -- 219
+		"Left", -- 219
+		1.4, -- 219
+		alpha, -- 219
+		0.08 -- 219
+	) -- 219
+	local posture = "轻步前行 · 保持隐蔽" -- 221
+	local col = PALETTE.textMid -- 222
+	if alert then -- 222
+		posture = (p.scavChase or p.dogState == "chase") and "已被发现 · 速寻隐蔽" or "引起警觉 · 停步蹲伏" -- 224
+		col = PALETTE.crimsonCore -- 225
+	elseif p.player.crouch then -- 225
+		posture = "低姿伏行 · 匿迹于影" -- 227
+		col = PALETTE.emerald -- 228
+	elseif p.hasBottle then -- 228
+		posture = "手持玻璃瓶 · 按住 [F] 瞄投" -- 230
+		col = PALETTE.amberCore -- 231
+	end -- 231
+	texts:put( -- 233
+		"xs", -- 233
+		posture, -- 233
+		bx + 44, -- 233
+		by + 12, -- 233
+		toColor(col), -- 233
+		0, -- 233
+		0.5, -- 233
+		"Left", -- 233
+		0.6, -- 233
+		alpha, -- 233
+		0.08 -- 233
+	) -- 233
+end -- 201
+function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiArt, texts, p, w, h, alpha) -- 236
+	local theme = themeOf(p.room.key) -- 245
+	local rx = w - 32 -- 246
+	local cy = h - 44 -- 247
+	drawSilkVeil( -- 249
+		uiDraw, -- 249
+		uiArt, -- 249
+		"hud_chap_veil", -- 249
+		rx - 82, -- 249
+		cy, -- 249
+		240, -- 249
+		44, -- 249
+		PALETTE.inkWash, -- 249
+		0.44 * alpha, -- 249
+		-1 -- 249
+	) -- 249
+	texts:put( -- 250
+		"xs", -- 250
+		(theme.numeralZh .. " · ") .. theme.titleZh, -- 250
+		rx, -- 250
+		cy + 9, -- 250
+		toColor(PALETTE.textBright), -- 250
+		1, -- 250
+		0.5, -- 250
+		"Right", -- 250
+		1.2, -- 250
+		alpha, -- 250
+		0.08 -- 250
+	) -- 250
+	texts:put( -- 251
+		"xs", -- 251
+		"Esc 暂歇", -- 251
+		rx, -- 251
+		cy - 11, -- 251
+		toColor(PALETTE.textDim), -- 251
+		1, -- 251
+		0.5, -- 251
+		"Right", -- 251
+		1, -- 251
+		0.78 * alpha, -- 251
+		0.08 -- 251
+	) -- 251
+end -- 236
+function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha) -- 254
+	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 254
+		local g = p.room.story.gate -- 266
+		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 266
+			local bw = 400 -- 268
+			local cx = w * 0.5 -- 269
+			local by = h - 64 -- 270
+			local ratio = math.max( -- 271
+				0, -- 271
+				math.min( -- 271
+					1, -- 271
+					p.gateTick / math.max(1, g.holdTicks) -- 271
+				) -- 271
+			) -- 271
+			local secLeft = math.max(0, (g.holdTicks - p.gateTick) / 60) -- 272
+			local secStr = __TS__NumberToFixed(secLeft, 1) -- 273
+			drawSilkVeil( -- 275
+				uiDraw, -- 275
+				uiArt, -- 275
+				"hud_gate_veil", -- 275
+				cx, -- 275
+				by + 18, -- 275
+				bw + 90, -- 275
+				48, -- 275
+				PALETTE.inkWash, -- 275
+				0.76 * alpha, -- 275
+				-1 -- 275
+			) -- 275
+			drawHairline( -- 276
+				uiInkDraw, -- 276
+				uiArt, -- 276
+				"hud_gate_top", -- 276
+				cx, -- 276
+				by + 39, -- 276
+				bw - 20, -- 276
+				PALETTE.rougeSoft, -- 276
+				0.55 * alpha, -- 276
+				false, -- 276
+				2 -- 276
+			) -- 276
+			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and "绞盘待命 · 按 [E] 重新守门" or "待小满就位 · 绞盘启") or ("城门死守 · 余 " .. secStr) .. " 秒" -- 278
+			texts:put( -- 281
+				"xs", -- 281
+				label, -- 281
+				cx, -- 281
+				by + 26, -- 281
+				toColor(PALETTE.textBright), -- 281
+				0.5, -- 281
+				0.5, -- 281
+				"Center", -- 281
+				1.8, -- 281
+				alpha, -- 281
+				0.08 -- 281
+			) -- 281
+			local pbw = bw - 80 -- 284
+			local pbx = cx - pbw * 0.5 -- 285
+			local pby = by + 9 -- 286
+			uiInkDraw:drawSegment( -- 287
+				Vec2(pbx, pby), -- 287
+				Vec2(pbx + pbw, pby), -- 287
+				1.4, -- 287
+				toColor(PALETTE.silkDim, 115 * alpha) -- 287
+			) -- 287
+			if ratio > 0.002 then -- 287
+				uiInkDraw:drawSegment( -- 289
+					Vec2(pbx, pby), -- 289
+					Vec2(pbx + pbw * ratio, pby), -- 289
+					2.8, -- 289
+					toColor(PALETTE.rouge, 230 * alpha) -- 289
+				) -- 289
+				uiInkDraw:drawSegment( -- 290
+					Vec2(pbx, pby), -- 290
+					Vec2(pbx + pbw * ratio, pby), -- 290
+					1, -- 290
+					toColor(PALETTE.crimsonCore, 165 * alpha) -- 290
+				) -- 290
+			end -- 290
+			local waves = {0, 540 / 2700, 900 / 2700, 1500 / 2700} -- 292
+			local k = 0 -- 293
+			do -- 293
+				k = 0 -- 294
+				while k < #waves do -- 294
+					local wx = pbx + pbw * waves[k + 1] -- 295
+					local passed = p.gateSpawned > k -- 296
+					if passed then -- 296
+						drawBlossomDot( -- 298
+							uiInkDraw, -- 298
+							uiArt, -- 298
+							"gate_wave_" .. tostring(k), -- 298
+							wx, -- 298
+							pby, -- 298
+							10, -- 298
+							PALETTE.moonPale, -- 298
+							0.92 * alpha, -- 298
+							3 -- 298
+						) -- 298
+					else -- 298
+						uiArt:tryPlace( -- 300
+							"ink_enso_fine", -- 300
+							"gate_wave_" .. tostring(k), -- 300
+							wx, -- 300
+							pby, -- 300
+							11, -- 300
+							11, -- 300
+							{ -- 300
+								color = toColor(PALETTE.rouge), -- 301
+								opacity = 0.84 * alpha, -- 301
+								layer = 3 -- 301
+							} -- 301
+						) -- 301
+					end -- 301
+					k = k + 1 -- 294
+				end -- 294
+			end -- 294
+		end -- 294
+		return -- 306
+	end -- 306
+	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 306
+		local cx = w * 0.5 -- 311
+		local by = h - 44 -- 312
+		local step1 = p.cartDocked -- 313
+		local ____temp_0 -- 314
+		if p.room.key == "checkpoint" then -- 314
+			____temp_0 = p.gateOpen -- 314
+		else -- 314
+			____temp_0 = p.checkpoint >= p.room.arch.x1 -- 314
+		end -- 314
+		local step2 = ____temp_0 -- 314
+		local t1 = p.room.key == "checkpoint" and "红布板车入窝" or "上层拉车让拱" -- 315
+		local t2 = p.room.key == "checkpoint" and "双人汇合出口" or "蹲伏穿拱赴塔" -- 316
+		drawSilkVeil( -- 318
+			uiDraw, -- 318
+			uiArt, -- 318
+			"hud_obj_veil", -- 318
+			cx, -- 318
+			by, -- 318
+			380, -- 318
+			34, -- 318
+			PALETTE.inkWash, -- 318
+			0.58 * alpha, -- 318
+			-1 -- 318
+		) -- 318
+		local x1 = cx - 134 -- 320
+		if step1 then -- 320
+			drawBlossomDot( -- 322
+				uiInkDraw, -- 322
+				uiArt, -- 322
+				"obj_m1", -- 322
+				x1, -- 322
+				by, -- 322
+				11, -- 322
+				PALETTE.emerald, -- 322
+				0.94 * alpha, -- 322
+				3 -- 322
+			) -- 322
+		else -- 322
+			uiArt:tryPlace( -- 324
+				"ink_enso_fine", -- 324
+				"obj_m1", -- 324
+				x1, -- 324
+				by, -- 324
+				11, -- 324
+				11, -- 324
+				{ -- 324
+					color = toColor(PALETTE.silkLine), -- 324
+					opacity = 0.72 * alpha, -- 324
+					layer = 3 -- 324
+				} -- 324
+			) -- 324
+		end -- 324
+		texts:put( -- 326
+			"xs", -- 326
+			t1, -- 326
+			x1 + 13, -- 326
+			by, -- 326
+			toColor(step1 and PALETTE.emerald or PALETTE.textMid), -- 326
+			0, -- 326
+			0.5, -- 326
+			"Left", -- 326
+			1, -- 326
+			alpha, -- 326
+			0.08 -- 326
+		) -- 326
+		local x2 = cx + 18 -- 328
+		if step2 then -- 328
+			drawBlossomDot( -- 330
+				uiInkDraw, -- 330
+				uiArt, -- 330
+				"obj_m2", -- 330
+				x2, -- 330
+				by, -- 330
+				11, -- 330
+				PALETTE.emerald, -- 330
+				0.94 * alpha, -- 330
+				3 -- 330
+			) -- 330
+		else -- 330
+			uiArt:tryPlace( -- 332
+				"ink_enso_fine", -- 332
+				"obj_m2", -- 332
+				x2, -- 332
+				by, -- 332
+				11, -- 332
+				11, -- 332
+				{ -- 332
+					color = toColor(PALETTE.silkDim), -- 332
+					opacity = 0.62 * alpha, -- 332
+					layer = 3 -- 332
+				} -- 332
+			) -- 332
+		end -- 332
+		texts:put( -- 334
+			"xs", -- 334
+			t2, -- 334
+			x2 + 13, -- 334
+			by, -- 334
+			toColor(step2 and PALETTE.emerald or PALETTE.textDim), -- 334
+			0, -- 334
+			0.5, -- 334
+			"Left", -- 334
+			1, -- 334
+			alpha, -- 334
+			0.08 -- 334
+		) -- 334
+	end -- 334
+end -- 254
+function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiInkDraw, uiArt, texts, prompts, cam, alpha, uiScale) -- 338
+	local bob = math.sin(self.time * 3.4) * 2.8 -- 348
+	local viewW = cam.viewW / uiScale -- 349
+	local viewH = cam.viewH / uiScale -- 350
+	local i = 0 -- 351
+	do -- 351
+		i = 0 -- 352
+		while i < #prompts do -- 352
+			local pr = prompts[i + 1] -- 353
+			local keyW = math.max( -- 354
+				24, -- 354
+				visualTextWidth(pr.keyTag, 15) + 16 -- 354
+			) -- 354
+			local labelW = visualTextWidth(pr.label, 15) -- 355
+			local pillW = keyW + labelW + 24 -- 356
+			local padX = math.max(115, pillW * 0.5 + 24) -- 357
+			local sx = math.max( -- 358
+				padX, -- 358
+				math.min( -- 358
+					viewW - padX, -- 358
+					cam:sx(pr.x) / uiScale -- 358
+				) -- 358
+			) -- 358
+			local sy = math.max( -- 359
+				96, -- 359
+				math.min( -- 359
+					viewH - 110, -- 359
+					cam:sy(pr.y) / uiScale + bob -- 359
+				) -- 359
+			) -- 359
+			local accent = pr.urgent and PALETTE.rouge or PALETTE.silkLine -- 360
+			uiInkDraw:drawSegment( -- 363
+				Vec2(sx, sy - 14), -- 363
+				Vec2(sx, sy - 27), -- 363
+				0.8, -- 363
+				toColor(accent, 135 * alpha) -- 363
+			) -- 363
+			drawBlossomDot( -- 364
+				uiInkDraw, -- 364
+				uiArt, -- 364
+				"wp_anchor_" .. tostring(i), -- 364
+				sx, -- 364
+				sy - 28, -- 364
+				7, -- 364
+				accent, -- 364
+				0.85 * alpha, -- 364
+				3 -- 364
+			) -- 364
+			local px = sx - pillW * 0.5 -- 366
+			local py = sy - 12 -- 367
+			drawSilkVeil( -- 369
+				uiDraw, -- 369
+				uiArt, -- 369
+				"wp_bg_" .. tostring(i), -- 369
+				sx, -- 369
+				py + 12, -- 369
+				pillW + 40, -- 369
+				32, -- 369
+				PALETTE.inkWash, -- 369
+				0.78 * alpha, -- 369
+				0 -- 369
+			) -- 369
+			drawHairline( -- 370
+				uiInkDraw, -- 370
+				uiArt, -- 370
+				"wp_line_" .. tostring(i), -- 370
+				sx, -- 370
+				py + 24, -- 370
+				pillW + 4, -- 370
+				accent, -- 370
+				0.45 * alpha, -- 370
+				false, -- 370
+				2 -- 370
+			) -- 370
+			drawSilkKeycap( -- 371
+				uiInkDraw, -- 371
+				texts, -- 371
+				px + 2, -- 371
+				py + 2, -- 371
+				keyW, -- 371
+				20, -- 371
+				pr.keyTag, -- 371
+				accent, -- 371
+				alpha, -- 371
+				pr.urgent -- 371
+			) -- 371
+			texts:put( -- 372
+				"xs", -- 372
+				pr.label, -- 372
+				px + keyW + 12, -- 372
+				py + 12, -- 372
+				toColor(PALETTE.textBright), -- 372
+				0, -- 372
+				0.5, -- 372
+				"Left", -- 372
+				0.8, -- 372
+				alpha, -- 372
+				0.08 -- 372
+			) -- 372
+			i = i + 1 -- 352
+		end -- 352
+	end -- 352
+end -- 338
+function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale) -- 376
+	local mx = p.aimX / uiScale -- 385
+	local my = p.aimY / uiScale -- 386
+	if mx <= 0 and my <= 0 then -- 386
+		return -- 388
+	end -- 388
+	if p.childMode then -- 388
+		local aiming = p.room.key == "village" and p.hasBottle -- 392
+		local col = aiming and PALETTE.amberCore or PALETTE.silkDim -- 393
+		uiInkDraw:drawDot( -- 394
+			Vec2(mx, my), -- 394
+			aiming and 2 or 1.6, -- 394
+			toColor(col, aiming and 215 or 120) -- 394
+		) -- 394
+		if aiming then -- 394
+			local sz = p.aimHold > 0 and 32 or 24 -- 396
+			uiArt:tryPlace( -- 397
+				"ink_enso_fine", -- 397
+				"reticle_child", -- 397
+				mx, -- 397
+				my, -- 397
+				sz, -- 397
+				sz, -- 397
+				{ -- 397
+					color = toColor(PALETTE.amberCore), -- 398
+					opacity = 0.82, -- 398
+					angle = self.time * 24, -- 398
+					layer = 5 -- 398
+				} -- 398
+			) -- 398
+		end -- 398
+		return -- 401
+	end -- 401
+	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 404
+	local onEnemy = false -- 405
+	local i = 0 -- 406
+	do -- 406
+		i = 0 -- 407
+		while i < #p.enemies do -- 407
+			local e = p.enemies[i + 1] -- 408
+			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= e.y - 6 and wAim.y <= e.y + e.h + 6 then -- 408
+				onEnemy = true -- 410
+			end -- 410
+			i = i + 1 -- 407
+		end -- 407
+	end -- 407
+	local col = onEnemy and PALETTE.rouge or PALETTE.textBright -- 414
+	local gap = (onEnemy and 5.5 or 7) + vfx.crosshairKick * 0.72 -- 415
+	local arm = onEnemy and 8.5 or 9.5 -- 416
+	local bg = Color(10, 12, 18, 160) -- 417
+	uiInkDraw:drawSegment( -- 419
+		Vec2(mx - gap - arm, my), -- 419
+		Vec2(mx - gap, my), -- 419
+		2.1, -- 419
+		bg -- 419
+	) -- 419
+	uiInkDraw:drawSegment( -- 420
+		Vec2(mx + gap, my), -- 420
+		Vec2(mx + gap + arm, my), -- 420
+		2.1, -- 420
+		bg -- 420
+	) -- 420
+	uiInkDraw:drawSegment( -- 421
+		Vec2(mx, my - gap - arm), -- 421
+		Vec2(mx, my - gap), -- 421
+		2.1, -- 421
+		bg -- 421
+	) -- 421
+	uiInkDraw:drawSegment( -- 422
+		Vec2(mx, my + gap), -- 422
+		Vec2(mx, my + gap + arm), -- 422
+		2.1, -- 422
+		bg -- 422
+	) -- 422
+	uiInkDraw:drawSegment( -- 424
+		Vec2(mx - gap - arm, my), -- 424
+		Vec2(mx - gap, my), -- 424
+		1.1, -- 424
+		toColor(col, 230) -- 424
+	) -- 424
+	uiInkDraw:drawSegment( -- 425
+		Vec2(mx + gap, my), -- 425
+		Vec2(mx + gap + arm, my), -- 425
+		1.1, -- 425
+		toColor(col, 230) -- 425
+	) -- 425
+	uiInkDraw:drawSegment( -- 426
+		Vec2(mx, my - gap - arm), -- 426
+		Vec2(mx, my - gap), -- 426
+		1.1, -- 426
+		toColor(col, 230) -- 426
+	) -- 426
+	uiInkDraw:drawSegment( -- 427
+		Vec2(mx, my + gap), -- 427
+		Vec2(mx, my + gap + arm), -- 427
+		1.1, -- 427
+		toColor(col, 230) -- 427
+	) -- 427
+	uiInkDraw:drawDot( -- 428
+		Vec2(mx, my), -- 428
+		1.8, -- 428
+		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.textBright, 240) -- 428
+	) -- 428
+	if onEnemy then -- 428
+		local sz = 30 + math.sin(self.time * 11) * 1.8 -- 431
+		uiArt:tryPlace( -- 432
+			"ink_enso_fine", -- 432
+			"reticle_lock", -- 432
+			mx, -- 432
+			my, -- 432
+			sz, -- 432
+			sz, -- 432
+			{ -- 432
+				color = toColor(PALETTE.rouge), -- 433
+				opacity = 0.88, -- 433
+				angle = self.time * 38, -- 433
+				layer = 5 -- 433
+			} -- 433
+		) -- 433
+		fillRadialGlow( -- 435
+			uiGlow, -- 435
+			mx, -- 435
+			my, -- 435
+			16, -- 435
+			16, -- 435
+			toColor(PALETTE.rouge, 30), -- 435
+			Color(182, 58, 56, 0), -- 435
+			10 -- 435
+		) -- 435
+	end -- 435
+end -- 376
+return ____exports -- 376

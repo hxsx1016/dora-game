@@ -1,12 +1,9 @@
 /**
- * 《向西守望》极简中国水墨 HUD + 世界空间古纸墨签提示 + 枯笔准星。
- *
- * 设计准则：
- * - 去硬壳斜切，用柔和飞白墨刷与方正篆印托起关键信息，画面大面积留白给月下山城；
- * - 静音与灰度可读：实心墨格 vs 空心框体、空心墨环 vs 朱砂墨点，不依赖单一色相；
- * - 军人线：「戍」印 + 三枚玉简墨格体力条（带淡朱滞后褪墨）+ 掩体印签 + 小满三墨点惊惧；
- * - 孩子线：「满」印 + 轻盈潜行姿态短签，无血条杂讯；
- * - 右上角采用无盒轻题款（章印 + 章名 + Esc 暂歇）。
+ * 《向西守望》宋明清雅极简 HUD（V2 · 隐入画境、轻盈通透）：
+ * - 取消所有方印与粗重灰块，以霜月细丝、竹叶玉簪体力痕、菱花惊惧点轻托信息；
+ * - 静音与灰度可读：实心月白竹叶 vs 极细空心线、空心墨环 vs 绽放菱花点；
+ * - 世界空间交互提示接入单点就近推导（deriveWorldPrompt），走到可触发处才浮现水墨纸签；
+ * - 右上角仅留清瘦宋体章题与淡字「Esc 暂歇」，彻底释放冷月夜空。
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
@@ -19,10 +16,10 @@ import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import {
     PALETTE,
-    drawBrushDivider,
-    drawInkKeycap,
-    drawInkWashStrip,
-    drawSealStamp,
+    drawBlossomDot,
+    drawHairline,
+    drawSilkKeycap,
+    drawSilkVeil,
     fillRadialGlow,
     themeOf,
     toColor,
@@ -30,7 +27,7 @@ import {
 } from "Script/watch/fe/theme";
 
 export class HudRenderer {
-    /** 掉血滞后淡朱条数值 */
+    /** 掉血滞后淡胭脂余痕 */
     private ghostHp = 3;
     private time = 0;
 
@@ -62,48 +59,30 @@ export class HudRenderer {
         const w = cam.viewW / uiScale;
         const h = cam.viewH / uiScale;
 
-        // 电影遮幅全开（关门数数、尾声）时自动渐隐 HUD
         const hudAlpha = Math.max(0, 1 - letterboxFrac * 1.15);
 
         if (hudAlpha > 0.05) {
-            // 1. 左上角：主角状态墨笺
             if (p.childMode) {
                 this.drawChildStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha);
             } else {
                 this.drawSoldierStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha);
             }
 
-            // 2. 右上角：无盒水墨章节题款
-            this.drawChapterBadge(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha);
-
-            // 3. 顶部中央：情境进度墨带（城门守点 / 检查站与城外双目标）
+            this.drawChapterBadge(uiDraw, uiArt, texts, p, w, h, hudAlpha);
             this.drawContextualObjective(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha);
 
-            // 4. 世界空间悬浮纸签交互提示
             const prompt = deriveWorldPrompt(p);
-            const prompts = prompt !== undefined ? [prompt] : [];
-            this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, prompts, cam, hudAlpha, uiScale);
+            if (prompt !== undefined) {
+                this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, [prompt], cam, hudAlpha, uiScale);
+            }
 
-            // 5. 掩体挡枪浮字
             if (vfx.deflectFlash > 0.25) {
                 const dx = cam.sx(vfx.deflectX) / uiScale;
                 const dy = cam.sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 16;
-                texts.put(
-                    "sm",
-                    "掩体挡下",
-                    dx,
-                    dy,
-                    toColor(PALETTE.xuanPaper),
-                    0.5,
-                    0.5,
-                    TextAlign.Center,
-                    1.6,
-                    vfx.deflectFlash,
-                );
+                texts.put("sm", "掩体挡下", dx, dy, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 2.0, vfx.deflectFlash, 0.10);
             }
         }
 
-        // 6. 枯笔准星（过场全开时不遮挡画面）
         if (!p.paused && letterboxFrac < 0.5 && !p.gripping &&
             p.escort.state !== "calming" && !p.gateNeedConfirm && p.phase !== "prologue-give") {
             this.drawReticle(uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale);
@@ -120,125 +99,101 @@ export class HudRenderer {
         alpha: number,
     ): void {
         const bx = 28;
-        const by = h - 76;
+        const by = h - 72;
         const lowHp = p.hp <= 1;
 
-        // 柔和非对称墨晕底（无硬边框盒子）
-        drawInkWashStrip(uiDraw, uiArt, "hud_soldier_bg", bx + 158, by + 26, 336, 58, PALETTE.inkWash, 0.78 * alpha, false, -1);
+        // 极轻鸦青烟雾托底（隐入夜空，无方块感）
+        drawSilkVeil(uiDraw, uiArt, "hud_soldier_veil", bx + 150, by + 24, 340, 56, PALETTE.inkWash, 0.62 * alpha, -1);
 
-        // 左侧方印「戍」（危血转朱砂）
-        drawSealStamp(
-            uiInkDraw,
-            uiArt,
-            texts,
-            "hud_soldier_seal",
-            bx + 22,
-            by + 27,
-            30,
-            "戍",
-            lowHp ? PALETTE.sealRed : PALETTE.cyanDim,
-            lowHp ? PALETTE.sealText : PALETTE.moonPale,
-            alpha,
-            true,
-            4,
-        );
+        // 清瘦宋体「戍」+ 一根纤细竖玉丝（彻底告别红/灰大印块）
+        texts.put("md", "戍", bx + 16, by + 25, toColor(lowHp ? PALETTE.rouge : PALETTE.cyanCore), 0.5, 0.5, TextAlign.Center, 0, alpha, 0.10);
+        uiInkDraw.drawSegment(Vec2(bx + 32, by + 9), Vec2(bx + 32, by + 40), 0.8, toColor(PALETTE.silkDim, 130 * alpha));
 
-        texts.put("xs", "周戍 · 体力", bx + 46, by + 39, toColor(PALETTE.xuanWarm), 0, 0.5, TextAlign.Left, 1.0, alpha);
+        texts.put("xs", "周戍 · 体力", bx + 44, by + 36, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.4, alpha, 0.08);
 
-        // 三枚手绘墨格体力条（空心框 + 淡朱滞后条 + 霜月/朱砂实心墨条）
+        // 三枚纤细玉簪/竹叶式体力细痕（实心月白 vs 极细空心线，危血转暗胭脂）
         const segCount = Math.max(1, p.maxHp);
-        const barX = bx + 46;
+        const barX = bx + 44;
         const barY = by + 16;
         const segW = 54;
-        const segH = 11;
+        const segH = 9;
         const gap = 8;
 
         let i = 0;
         for (i = 0; i < segCount; i++) {
             const sx = barX + i * (segW + gap);
             const scx = sx + segW * 0.5;
-            // 空心框体（灰度下依然明确分辨空/满）
-            if (!uiArt.tryPlace("ink_hp_slot", "hp_slot_" + i, scx, barY, segW + 4, segH + 6, {
-                color: toColor(PALETTE.bronzeDim), opacity: 0.85 * alpha, layer: 1,
+            if (!uiArt.tryPlace("ink_bamboo_slot", "hp_slot_" + i, scx, barY, segW, segH, {
+                color: toColor(PALETTE.silkDim), opacity: 0.72 * alpha, layer: 1,
             })) {
-                uiInkDraw.drawRect(Rect(sx, barY - segH * 0.5, segW, segH), Color(16, 17, 22, Math.round(180 * alpha)), 1.0, toColor(PALETTE.bronzeDim, 180 * alpha));
+                uiInkDraw.drawRect(Rect(sx, barY - 3, segW, 6), Color(0, 0, 0, 0), 0.8, toColor(PALETTE.silkDim, 145 * alpha));
             }
-            // 受击滞后淡朱条
             if (this.ghostHp > i && this.ghostHp > p.hp) {
                 const frac = Math.min(1, this.ghostHp - i);
-                uiInkDraw.drawRect(Rect(sx + 1, barY - segH * 0.42, (segW - 2) * frac, segH * 0.84), toColor(PALETTE.crimsonCore, 165 * alpha));
+                uiInkDraw.drawRect(Rect(sx + 3, barY - 2, (segW - 6) * frac, 4), toColor(PALETTE.crimsonCore, 150 * alpha));
             }
-            // 当前实心体力格
             if (p.hp > i) {
-                const pulse = lowHp ? (0.72 + 0.28 * Math.sin(this.time * 7.5)) : 1;
-                const fillCol = lowHp ? PALETTE.sealRedBright : PALETTE.cyanCore;
-                if (!uiArt.tryPlace("ink_hp_bar", "hp_fill_" + i, scx, barY, segW + 2, segH + 4, {
+                const pulse = lowHp ? (0.72 + 0.28 * Math.sin(this.time * 7.0)) : 1;
+                const fillCol = lowHp ? PALETTE.rouge : PALETTE.moonPale;
+                if (!uiArt.tryPlace("ink_bamboo_slip", "hp_fill_" + i, scx, barY, segW, segH, {
                     color: toColor(fillCol), opacity: 0.94 * alpha * pulse, layer: 2,
                 })) {
-                    uiInkDraw.drawRect(Rect(sx + 1, barY - segH * 0.42, segW - 2, segH * 0.84), toColor(fillCol, 235 * alpha * pulse));
+                    uiInkDraw.drawRect(Rect(sx + 2, barY - 2.5, segW - 4, 5), toColor(fillCol, 230 * alpha * pulse));
                 }
             }
         }
 
-        // 掩体印签（紧接体力条右侧）
+        // 掩体极简微标（对齐 D7 掩体三态：有来敌且背向火力时提示「背向掩体」）
         const covX = barX + segCount * (segW + gap) + 6;
+        let hasAliveEnemy = false;
+        for (i = 0; i < p.enemies.length; i++) {
+            if (p.enemies[i].alive) {
+                hasAliveEnemy = true;
+                break;
+            }
+        }
         if (p.coverHug) {
-            uiInkDraw.drawRect(Rect(covX, barY - 9, 56, 18), toColor(PALETTE.cyanDim, 215 * alpha), 1.0, toColor(PALETTE.cyanCore, 180 * alpha));
-            texts.put("xs", "掩体中", covX + 28, barY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.4, alpha, 0);
+            if (hasAliveEnemy && !p.coverBlocking) {
+                uiInkDraw.drawRect(Rect(covX, barY - 9, 72, 18), toColor(PALETTE.inkWarm, 185 * alpha), 0.8, toColor(PALETTE.amber, 200 * alpha));
+                texts.put("xs", "背向掩体", covX + 36, barY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0);
+            } else {
+                uiInkDraw.drawRect(Rect(covX, barY - 9, 54, 18), toColor(PALETTE.cyanDim, 165 * alpha), 0.8, toColor(PALETTE.cyanCore, 180 * alpha));
+                texts.put("xs", "掩体中", covX + 27, barY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0);
+            }
         } else if (p.coverNear) {
-            uiInkDraw.drawRect(Rect(covX, barY - 9, 56, 18), Color(22, 19, 17, Math.round(195 * alpha)), 1.0, toColor(PALETTE.amber, 210 * alpha));
-            texts.put("xs", "可贴靠", covX + 28, barY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0.4, alpha);
+            uiInkDraw.drawRect(Rect(covX, barY - 9, 54, 18), Color(14, 17, 25, Math.round(150 * alpha)), 0.8, toColor(PALETTE.silkLine, 165 * alpha));
+            texts.put("xs", "可贴靠", covX + 27, barY, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0.08);
         }
 
-        // 护送态：小满惊惧三墨点子栏（仅序章/街道/检查站显示）
+        // 护送态：小满惊惧三点菱花环（仅序章/街道/检查站）
         if (p.room.key === "prologue" || p.room.key === "street" || p.room.key === "checkpoint") {
-            const subY = by - 28;
+            const subY = by - 24;
             const frozen = p.escort.state === "frozen";
             const calming = p.escort.state === "calming";
 
-            drawInkWashStrip(
-                uiDraw,
-                uiArt,
-                "hud_fear_bg",
-                bx + 132,
-                subY + 8,
-                258,
-                32,
-                frozen ? PALETTE.inkWarm : PALETTE.inkWash,
-                0.72 * alpha,
-                false,
-                -1,
-            );
-            texts.put("xs", "小满 · 惊惧", bx + 16, subY + 8, toColor(frozen ? PALETTE.crimsonCore : PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.8, alpha);
+            drawSilkVeil(uiDraw, uiArt, "hud_fear_veil", bx + 126, subY + 6, 260, 30, frozen ? PALETTE.inkWarm : PALETTE.inkWash, 0.64 * alpha, -1);
+            texts.put("xs", "小满 · 惊惧", bx + 14, subY + 6, toColor(frozen ? PALETTE.crimsonCore : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.0, alpha, 0.08);
 
             let k = 0;
             for (k = 0; k < FEAR_MAX; k++) {
-                const dx = bx + 114 + k * 21;
-                const dy = subY + 8;
+                const dx = bx + 114 + k * 20;
+                const dy = subY + 6;
                 const lit = k < p.escort.fear;
-                const dc = frozen ? PALETTE.sealRedBright : PALETTE.amber;
-                // 空心枯笔墨环作为槽底
-                if (!uiArt.tryPlace("ink_ring", "fear_ring_" + k, dx, dy, 16, 16, {
-                    color: toColor(lit ? dc : PALETTE.bronzeDim), opacity: (lit ? 0.92 : 0.65) * alpha, layer: 2,
-                })) {
-                    uiInkDraw.drawRing(Vec2(dx, dy), 5.5, 6.8, Color(0, 0, 0, 0), 1.1, toColor(dc, 180 * alpha));
-                }
-                // 满格墨滴点染
+                const dc = frozen ? PALETTE.rouge : PALETTE.amber;
+                uiArt.tryPlace("ink_enso_fine", "fear_ring_" + k, dx, dy, 14, 14, {
+                    color: toColor(lit ? dc : PALETTE.silkLine), opacity: (lit ? 0.92 : 0.64) * alpha, layer: 2,
+                });
                 if (lit) {
-                    if (!uiArt.tryPlace("ink_dot", "fear_dot_" + k, dx, dy, 10, 10, {
-                        color: toColor(dc), opacity: 0.96 * alpha, layer: 3,
-                    })) {
-                        uiInkDraw.drawDot(Vec2(dx, dy), 4.2, toColor(dc, 235 * alpha));
-                    }
+                    drawBlossomDot(uiInkDraw, uiArt, "fear_dot_" + k, dx, dy, 10, dc, 0.96 * alpha, 3);
                 }
             }
 
             if (frozen) {
-                const pulse = 0.65 + 0.35 * Math.sin(this.time * 7.5);
-                drawInkKeycap(uiInkDraw, texts, bx + 172, subY - 3, 22, 22, "E", PALETTE.sealRedBright, alpha * pulse, true);
-                texts.put("xs", "轻敲安抚", bx + 199, subY + 8, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.5, alpha * pulse);
+                const pulse = 0.65 + 0.35 * Math.sin(this.time * 7.0);
+                drawSilkKeycap(uiInkDraw, texts, bx + 170, subY - 5, 22, 22, "E", PALETTE.rouge, alpha * pulse, true);
+                texts.put("xs", "轻敲安抚", bx + 198, subY + 6, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.8, alpha * pulse, 0.08);
             } else if (calming) {
-                texts.put("xs", "轻敲安抚中", bx + 174, subY + 8, toColor(PALETTE.emerald), 0, 0.5, TextAlign.Left, 0.5, alpha);
+                texts.put("xs", "轻敲安抚中", bx + 172, subY + 6, toColor(PALETTE.emerald), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
             }
         }
     }
@@ -253,15 +208,15 @@ export class HudRenderer {
         alpha: number,
     ): void {
         const bx = 28;
-        const by = h - 72;
+        const by = h - 68;
         const alert = p.scavChase || p.dogState === "chase" || p.dogState === "ear" || p.scavSee > 0;
-        const sealCol = alert ? PALETTE.sealRed : (p.player.crouch ? PALETTE.emeraldDim : PALETTE.amberDim);
-        const sealChar = alert ? "危" : "满";
+        const leadCol = alert ? PALETTE.rouge : (p.player.crouch ? PALETTE.emerald : PALETTE.amberCore);
 
-        drawInkWashStrip(uiDraw, uiArt, "hud_child_bg", bx + 148, by + 24, 308, 52, alert ? PALETTE.inkWarm : PALETTE.inkWash, 0.76 * alpha, false, -1);
-        drawSealStamp(uiInkDraw, uiArt, texts, "hud_child_seal", bx + 22, by + 24, 30, sealChar, sealCol, PALETTE.sealText, alpha, true, 4);
+        drawSilkVeil(uiDraw, uiArt, "hud_child_veil", bx + 144, by + 22, 316, 48, alert ? PALETTE.inkWarm : PALETTE.inkWash, 0.58 * alpha, -1);
+        texts.put("md", alert ? "危" : "满", bx + 16, by + 22, toColor(leadCol), 0.5, 0.5, TextAlign.Center, 0, alpha, 0.10);
+        uiInkDraw.drawSegment(Vec2(bx + 32, by + 7), Vec2(bx + 32, by + 37), 0.8, toColor(PALETTE.silkDim, 130 * alpha));
 
-        texts.put("xs", "小满 · 潜行", bx + 46, by + 35, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.0, alpha);
+        texts.put("xs", "小满 · 潜行", bx + 44, by + 33, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, alpha, 0.08);
 
         let posture = "轻步前行 · 保持隐蔽";
         let col = PALETTE.textMid;
@@ -275,12 +230,11 @@ export class HudRenderer {
             posture = "手持玻璃瓶 · 按住 [F] 瞄投";
             col = PALETTE.amberCore;
         }
-        texts.put("xs", posture, bx + 46, by + 13, toColor(col), 0, 0.5, TextAlign.Left, 0.4, alpha);
+        texts.put("xs", posture, bx + 44, by + 12, toColor(col), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
     }
 
     private drawChapterBadge(
         uiDraw: DrawNode.Type,
-        uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
         texts: TextPool,
         p: Play,
@@ -289,28 +243,12 @@ export class HudRenderer {
         alpha: number,
     ): void {
         const theme = themeOf(p.room.key);
-        const rx = w - 30;
-        const cy = h - 46;
+        const rx = w - 32;
+        const cy = h - 44;
 
-        // 极轻右上角淡墨烟，无硬框盒体，让夜空呼吸
-        drawInkWashStrip(uiDraw, uiArt, "hud_chap_bg", rx - 94, cy, 246, 48, PALETTE.inkWash, 0.58 * alpha, true, -1);
-        drawSealStamp(
-            uiInkDraw,
-            uiArt,
-            texts,
-            "hud_chap_seal",
-            rx - 14,
-            cy + 2,
-            26,
-            theme.numeralZh,
-            p.room.key === "gate" ? PALETTE.sealRed : PALETTE.bronzeDim,
-            PALETTE.sealText,
-            0.9 * alpha,
-            true,
-            4,
-        );
-        texts.put("xs", theme.titleZh, rx - 34, cy + 9, toColor(PALETTE.textBright), 1, 0.5, TextAlign.Right, 0.8, alpha);
-        texts.put("xs", "Esc 暂歇", rx - 34, cy - 11, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 0.6, 0.86 * alpha);
+        drawSilkVeil(uiDraw, uiArt, "hud_chap_veil", rx - 82, cy, 240, 44, PALETTE.inkWash, 0.44 * alpha, -1);
+        texts.put("xs", theme.numeralZh + " · " + theme.titleZh, rx, cy + 9, toColor(PALETTE.textBright), 1, 0.5, TextAlign.Right, 1.2, alpha, 0.08);
+        texts.put("xs", "Esc 暂歇", rx, cy - 11, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.0, 0.78 * alpha, 0.08);
     }
 
     private drawContextualObjective(
@@ -323,70 +261,77 @@ export class HudRenderer {
         h: number,
         alpha: number,
     ): void {
-        // 1. 城门 45 秒死守：水墨朱砂进度带（去英文 GATE HOLD）
+        // 1. 城门 45 秒死守：细丝胭脂进度带
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
             const g = p.room.story.gate;
             if (p.phase === "gate-hold" || p.phase === "gate-idle") {
-                const bw = 420;
+                const bw = 400;
                 const cx = w * 0.5;
-                const by = h - 66;
+                const by = h - 64;
                 const ratio = Math.max(0, Math.min(1, p.gateTick / Math.max(1, g.holdTicks)));
                 const secLeft = Math.max(0, (g.holdTicks - p.gateTick) / 60);
                 const secStr = secLeft.toFixed(1);
 
-                drawInkWashStrip(uiDraw, uiArt, "hud_gate_bg", cx, by + 18, bw + 60, 50, PALETTE.inkWash, 0.84 * alpha, true, -1);
-                drawBrushDivider(uiInkDraw, uiArt, "hud_gate_top", cx, by + 39, bw - 30, 8, PALETTE.crimsonDeep, 0.58 * alpha, 2);
+                drawSilkVeil(uiDraw, uiArt, "hud_gate_veil", cx, by + 18, bw + 90, 48, PALETTE.inkWash, 0.76 * alpha, -1);
+                drawHairline(uiInkDraw, uiArt, "hud_gate_top", cx, by + 39, bw - 20, PALETTE.rougeSoft, 0.55 * alpha, false, 2);
 
                 const label = p.phase === "gate-idle"
                     ? (p.gateNeedConfirm ? "绞盘待命 · 按 [E] 重新守门" : "待小满就位 · 绞盘启")
                     : ("城门死守 · 余 " + secStr + " 秒");
-                texts.put("xs", label, cx, by + 27, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.4, alpha);
+                texts.put("xs", label, cx, by + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.8, alpha, 0.08);
 
-                // 朱砂墨痕进度槽
-                const pbx = cx - (bw - 72) * 0.5;
-                const pbw = bw - 72;
+                // 3px 纤细胭脂进丝 + 四波菱花微珠
+                const pbw = bw - 80;
+                const pbx = cx - pbw * 0.5;
                 const pby = by + 9;
-                uiInkDraw.drawRect(Rect(pbx, pby - 2.5, pbw, 5), Color(28, 22, 24, Math.round(210 * alpha)), 0.7, toColor(PALETTE.bronzeDim, 130 * alpha));
+                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw, pby), 1.4, toColor(PALETTE.silkDim, 115 * alpha));
                 if (ratio > 0.002) {
-                    uiInkDraw.drawRect(Rect(pbx, pby - 2.5, pbw * ratio, 5), toColor(PALETTE.sealRedBright, 235 * alpha));
-                    uiInkDraw.drawRect(Rect(pbx, pby + 0.5, pbw * ratio, 1.5), toColor(PALETTE.crimsonCore, 160 * alpha));
+                    uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 2.8, toColor(PALETTE.rouge, 230 * alpha));
+                    uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 1.0, toColor(PALETTE.crimsonCore, 165 * alpha));
                 }
-                // 4 波敌兵节点圆钉（0 / 9 / 15 / 25 秒）
                 const waves = [0, 540 / 2700, 900 / 2700, 1500 / 2700];
                 let k = 0;
                 for (k = 0; k < waves.length; k++) {
                     const wx = pbx + pbw * waves[k];
                     const passed = p.gateSpawned > k;
-                    uiArt.tryPlace(passed ? "ink_dot" : "ink_ring", "gate_wave_" + k, wx, pby, passed ? 9 : 11, passed ? 9 : 11, {
-                        color: toColor(passed ? PALETTE.amberCore : PALETTE.sealRedBright), opacity: 0.92 * alpha, layer: 3,
-                    });
+                    if (passed) {
+                        drawBlossomDot(uiInkDraw, uiArt, "gate_wave_" + k, wx, pby, 10, PALETTE.moonPale, 0.92 * alpha, 3);
+                    } else {
+                        uiArt.tryPlace("ink_enso_fine", "gate_wave_" + k, wx, pby, 11, 11, {
+                            color: toColor(PALETTE.rouge), opacity: 0.84 * alpha, layer: 3,
+                        });
+                    }
                 }
             }
             return;
         }
 
-        // 2. 检查站 / 城外：精简双节点墨签
+        // 2. 检查站 / 城外：精简双珠游丝
         if (p.room.key === "checkpoint" || p.room.key === "outside") {
             const cx = w * 0.5;
-            const by = h - 46;
+            const by = h - 44;
             const step1 = p.cartDocked;
-            const step2 = p.room.key === "checkpoint" ? p.gateOpen : p.checkpoint >= 380;
+            const step2 = p.room.key === "checkpoint" ? p.gateOpen : p.checkpoint >= p.room.arch.x1;
             const t1 = p.room.key === "checkpoint" ? "红布板车入窝" : "上层拉车让拱";
             const t2 = p.room.key === "checkpoint" ? "双人汇合出口" : "蹲伏穿拱赴塔";
 
-            drawInkWashStrip(uiDraw, uiArt, "hud_obj_bg", cx, by, 356, 36, PALETTE.inkWash, 0.70 * alpha, true, -1);
+            drawSilkVeil(uiDraw, uiArt, "hud_obj_veil", cx, by, 380, 34, PALETTE.inkWash, 0.58 * alpha, -1);
 
             const x1 = cx - 134;
-            uiArt.tryPlace(step1 ? "ink_dot" : "ink_ring", "obj_m1", x1, by, 12, 12, {
-                color: toColor(step1 ? PALETTE.emerald : PALETTE.amber), opacity: 0.92 * alpha, layer: 3,
-            });
-            texts.put("xs", t1, x1 + 13, by, toColor(step1 ? PALETTE.emerald : PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.6, alpha);
+            if (step1) {
+                drawBlossomDot(uiInkDraw, uiArt, "obj_m1", x1, by, 11, PALETTE.emerald, 0.94 * alpha, 3);
+            } else {
+                uiArt.tryPlace("ink_enso_fine", "obj_m1", x1, by, 11, 11, { color: toColor(PALETTE.silkLine), opacity: 0.72 * alpha, layer: 3 });
+            }
+            texts.put("xs", t1, x1 + 13, by, toColor(step1 ? PALETTE.emerald : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.0, alpha, 0.08);
 
             const x2 = cx + 18;
-            uiArt.tryPlace(step2 ? "ink_dot" : "ink_ring", "obj_m2", x2, by, 12, 12, {
-                color: toColor(step2 ? PALETTE.emerald : PALETTE.bronzeDim), opacity: 0.92 * alpha, layer: 3,
-            });
-            texts.put("xs", t2, x2 + 13, by, toColor(step2 ? PALETTE.emerald : PALETTE.textDim), 0, 0.5, TextAlign.Left, 0.6, alpha);
+            if (step2) {
+                drawBlossomDot(uiInkDraw, uiArt, "obj_m2", x2, by, 11, PALETTE.emerald, 0.94 * alpha, 3);
+            } else {
+                uiArt.tryPlace("ink_enso_fine", "obj_m2", x2, by, 11, 11, { color: toColor(PALETTE.silkDim), opacity: 0.62 * alpha, layer: 3 });
+            }
+            texts.put("xs", t2, x2 + 13, by, toColor(step2 ? PALETTE.emerald : PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, alpha, 0.08);
         }
     }
 
@@ -400,30 +345,31 @@ export class HudRenderer {
         alpha: number,
         uiScale: number,
     ): void {
-        const bob = Math.sin(this.time * 3.8) * 3.0;
+        const bob = Math.sin(this.time * 3.4) * 2.8;
+        const viewW = cam.viewW / uiScale;
+        const viewH = cam.viewH / uiScale;
         let i = 0;
         for (i = 0; i < prompts.length; i++) {
             const pr = prompts[i];
-            const sx = Math.max(115, Math.min(cam.viewW / uiScale - 115, cam.sx(pr.x) / uiScale));
-            const sy = Math.max(96, Math.min(cam.viewH / uiScale - 110, cam.sy(pr.y) / uiScale + bob));
-            const accent = pr.urgent ? PALETTE.sealRedBright : PALETTE.amber;
-
-            // 细垂墨丝与落点微墨点
-            uiInkDraw.drawSegment(Vec2(sx, sy - 15), Vec2(sx, sy - 29), 1.0, toColor(accent, 160 * alpha));
-            uiInkDraw.drawDot(Vec2(sx, sy - 29), 2.2, toColor(accent, 210 * alpha));
-
-            // 古铜方印键帽 + 轻墨托底短签
-            const keyW = Math.max(24, visualTextWidth(pr.keyTag, 14) + 14);
+            const keyW = Math.max(24, visualTextWidth(pr.keyTag, 15) + 16);
             const labelW = visualTextWidth(pr.label, 15);
-            const pillW = keyW + labelW + 26;
-            const px = sx - pillW * 0.5;
-            const py = sy - 13;
+            const pillW = keyW + labelW + 24;
+            const padX = Math.max(115, pillW * 0.5 + 24);
+            const sx = Math.max(padX, Math.min(viewW - padX, cam.sx(pr.x) / uiScale));
+            const sy = Math.max(96, Math.min(viewH - 110, cam.sy(pr.y) / uiScale + bob));
+            const accent = pr.urgent ? PALETTE.rouge : PALETTE.silkLine;
 
-            drawInkWashStrip(uiDraw, uiArt, "wp_bg_" + i, sx, py + 13, pillW + 24, 34, PALETTE.inkWash, 0.86 * alpha, true, 0);
-            uiInkDraw.drawSegment(Vec2(px + 2, py + 26), Vec2(px + pillW - 2, py + 26), 0.8, toColor(accent, 115 * alpha));
-            uiInkDraw.drawSegment(Vec2(px + 2, py), Vec2(px + pillW - 2, py), 0.8, toColor(accent, 115 * alpha));
-            drawInkKeycap(uiInkDraw, texts, px + 3, py + 2, keyW, 22, pr.keyTag, accent, alpha, pr.urgent);
-            texts.put("xs", pr.label, px + keyW + 12, py + 13, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.5, alpha);
+            // 细垂霜丝与微花点
+            uiInkDraw.drawSegment(Vec2(sx, sy - 14), Vec2(sx, sy - 27), 0.8, toColor(accent, 135 * alpha));
+            drawBlossomDot(uiInkDraw, uiArt, "wp_anchor_" + i, sx, sy - 28, 7, accent, 0.85 * alpha, 3);
+
+            const px = sx - pillW * 0.5;
+            const py = sy - 12;
+
+            drawSilkVeil(uiDraw, uiArt, "wp_bg_" + i, sx, py + 12, pillW + 40, 32, PALETTE.inkWash, 0.78 * alpha, 0);
+            drawHairline(uiInkDraw, uiArt, "wp_line_" + i, sx, py + 24, pillW + 4, accent, 0.45 * alpha, false, 2);
+            drawSilkKeycap(uiInkDraw, texts, px + 2, py + 2, keyW, 20, pr.keyTag, accent, alpha, pr.urgent);
+            texts.put("xs", pr.label, px + keyW + 12, py + 12, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
         }
     }
 
@@ -443,22 +389,18 @@ export class HudRenderer {
         }
 
         if (p.childMode) {
-            // 孩子线：非投瓶时极轻暖点；持瓶瞄准时展开枯笔古铜环
             const aiming = p.room.key === "village" && p.hasBottle;
-            const col = aiming ? PALETTE.amber : PALETTE.bronzeDim;
-            uiInkDraw.drawDot(Vec2(mx, my), aiming ? 2.2 : 1.8, toColor(col, aiming ? 225 : 135));
+            const col = aiming ? PALETTE.amberCore : PALETTE.silkDim;
+            uiInkDraw.drawDot(Vec2(mx, my), aiming ? 2.0 : 1.6, toColor(col, aiming ? 215 : 120));
             if (aiming) {
-                const sz = p.aimHold > 0 ? 34 : 26;
-                if (!uiArt.tryPlace("ink_ring", "reticle_child", mx, my, sz, sz, {
-                    color: toColor(PALETTE.amberCore), opacity: 0.86, angle: this.time * 28, layer: 5,
-                })) {
-                    uiInkDraw.drawRing(Vec2(mx, my), sz * 0.44, sz * 0.5, Color(0, 0, 0, 0), 1.2, toColor(PALETTE.amber, 200));
-                }
+                const sz = p.aimHold > 0 ? 32 : 24;
+                uiArt.tryPlace("ink_enso_fine", "reticle_child", mx, my, sz, sz, {
+                    color: toColor(PALETTE.amberCore), opacity: 0.82, angle: this.time * 24, layer: 5,
+                });
             }
             return;
         }
 
-        // 军人线：克制枯笔十字准星（悬停活敌收拢朱砂墨环，去科技蓝光）
         const wAim = cam.screenToWorld(p.aimX, p.aimY);
         let onEnemy = false;
         let i = 0;
@@ -469,29 +411,28 @@ export class HudRenderer {
             }
         }
 
-        const col = onEnemy ? PALETTE.sealRedBright : PALETTE.xuanPaper;
-        const gap = (onEnemy ? 5.5 : 7) + vfx.crosshairKick * 0.75;
+        const col = onEnemy ? PALETTE.rouge : PALETTE.textBright;
+        const gap = (onEnemy ? 5.5 : 7) + vfx.crosshairKick * 0.72;
         const arm = onEnemy ? 8.5 : 9.5;
+        const bg = Color(10, 12, 18, 160);
 
-        // 细暗墨衬底防亮背景丢失 + 素宣/朱砂十字细臂
-        const bg = Color(12, 13, 18, 170);
-        uiInkDraw.drawSegment(Vec2(mx - gap - arm, my), Vec2(mx - gap, my), 2.4, bg);
-        uiInkDraw.drawSegment(Vec2(mx + gap, my), Vec2(mx + gap + arm, my), 2.4, bg);
-        uiInkDraw.drawSegment(Vec2(mx, my - gap - arm), Vec2(mx, my - gap), 2.4, bg);
-        uiInkDraw.drawSegment(Vec2(mx, my + gap), Vec2(mx, my + gap + arm), 2.4, bg);
+        uiInkDraw.drawSegment(Vec2(mx - gap - arm, my), Vec2(mx - gap, my), 2.1, bg);
+        uiInkDraw.drawSegment(Vec2(mx + gap, my), Vec2(mx + gap + arm, my), 2.1, bg);
+        uiInkDraw.drawSegment(Vec2(mx, my - gap - arm), Vec2(mx, my - gap), 2.1, bg);
+        uiInkDraw.drawSegment(Vec2(mx, my + gap), Vec2(mx, my + gap + arm), 2.1, bg);
 
-        uiInkDraw.drawSegment(Vec2(mx - gap - arm, my), Vec2(mx - gap, my), 1.3, toColor(col, 235));
-        uiInkDraw.drawSegment(Vec2(mx + gap, my), Vec2(mx + gap + arm, my), 1.3, toColor(col, 235));
-        uiInkDraw.drawSegment(Vec2(mx, my - gap - arm), Vec2(mx, my - gap), 1.3, toColor(col, 235));
-        uiInkDraw.drawSegment(Vec2(mx, my + gap), Vec2(mx, my + gap + arm), 1.3, toColor(col, 235));
-        uiInkDraw.drawDot(Vec2(mx, my), 2.0, toColor(onEnemy ? PALETTE.crimsonCore : PALETTE.xuanPaper, 245));
+        uiInkDraw.drawSegment(Vec2(mx - gap - arm, my), Vec2(mx - gap, my), 1.1, toColor(col, 230));
+        uiInkDraw.drawSegment(Vec2(mx + gap, my), Vec2(mx + gap + arm, my), 1.1, toColor(col, 230));
+        uiInkDraw.drawSegment(Vec2(mx, my - gap - arm), Vec2(mx, my - gap), 1.1, toColor(col, 230));
+        uiInkDraw.drawSegment(Vec2(mx, my + gap), Vec2(mx, my + gap + arm), 1.1, toColor(col, 230));
+        uiInkDraw.drawDot(Vec2(mx, my), 1.8, toColor(onEnemy ? PALETTE.crimsonCore : PALETTE.textBright, 240));
 
         if (onEnemy) {
-            const sz = 32 + Math.sin(this.time * 12) * 2.0;
-            uiArt.tryPlace("ink_ring", "reticle_lock", mx, my, sz, sz, {
-                color: toColor(PALETTE.sealRedBright), opacity: 0.90, angle: this.time * 42, layer: 5,
+            const sz = 30 + Math.sin(this.time * 11) * 1.8;
+            uiArt.tryPlace("ink_enso_fine", "reticle_lock", mx, my, sz, sz, {
+                color: toColor(PALETTE.rouge), opacity: 0.88, angle: this.time * 38, layer: 5,
             });
-            fillRadialGlow(uiGlow, mx, my, 18, 18, toColor(PALETTE.cinnabar, 36), Color(168, 46, 40, 0), 10);
+            fillRadialGlow(uiGlow, mx, my, 16, 16, toColor(PALETTE.rouge, 30), Color(182, 58, 56, 0), 10);
         }
     }
 }
