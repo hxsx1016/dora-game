@@ -115,27 +115,24 @@ local i = newInput()
 local p = lualib.__TS__New(play.Play, rooms.PROLOGUE_ROOM)
 show("P0 出生", p)
 
--- 1) 序章：翻过倒柜，走到柜后递针套，等她起身跟随，两人出门
-walkTo(p, i, 126, 400)
-show("P0b 柜前", p)
-tap(i.jump)
-p:update(STEP, i)
-rel(i.jump)
--- 跳到比柜面高之后再前进，落在柜顶 32 上
-for _ = 1, 8 do
+-- 1) 序章：绕过石柱和倒柜，回中路递针套，两人出门
+i.moveY = -1
+for _ = 1, 16 do
 	p:update(STEP, i)
 end
-i.moveX = 1
-for _ = 1, 46 do
+i.moveY = 0
+walkTo(p, i, 270, 400)
+i.moveY = 1
+for _ = 1, 16 do
 	p:update(STEP, i)
 end
-i.moveX = 0
-walkTo(p, i, 258, 400)
+i.moveY = 0
 show("P1 走近", p)
 tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)
 print(string.format("P2 递物 phase=%s tick=%s", tostring(p.phase), tostring(p.phaseTick)))
+assert(p.phase == "prologue-give", "绕过石柱后应当能在中路递针套")
 for _ = 1, 62 do
 	p:update(STEP, i)
 end

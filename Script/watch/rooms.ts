@@ -5,6 +5,7 @@
  * 车轴就是车身中心，车身半宽 24，所以停车后左沿 = 432 − 24 = 408，
  * 与小满右沿 402 之间留 6 单位净空——这条在城外剖面上要看得见。
  */
+import { DepthLane, LANE_DEPTH, LANE_ROAD, laneFootprints } from "Script/watch/depth";
 
 export interface FloorSpec {
     y: number;
@@ -24,11 +25,13 @@ export interface SolidSpec {
     h: number;
     y: number;
     label: string;
-    /** 在有纵深的房间里限定占地；缺省时横跨整条道路。 */
+    /** 编辑关卡时优先用档位。非相邻档位会分成独立的实体。 */
+    lanes?: readonly DepthLane[];
+    /** 自定义占地或由档位算出的实体范围。缺省时横跨整条道路。 */
     depth?: DepthRange;
-    /** 只参与绘制和遮挡，可从内部穿过。 */
+    /** 布料、小植被一类软布景，只参与绘制和遮挡。 */
     decorative?: boolean;
-    art?: "cover_wood" | "cover_stone" | "fence";
+    art?: "cover_wood" | "cover_stone" | "fence" | "wall" | "gate_post";
     /** 低矮植被等：只挡撞头不做水平阻挡，蹲行与走过都能穿过。 */
     passable?: boolean;
 }
@@ -174,8 +177,6 @@ export interface RoomSpec {
     story?: StorySpec;
 }
 
-const CITY_DEPTH: DepthRange = { min: -28, max: 60 };
-
 /** 检查站：周戍把车从 640 推到 768 落入 dock，再和小满一起走到出口。 */
 export const CHECKPOINT_ROOM: RoomSpec = {
     key: "checkpoint",
@@ -186,14 +187,14 @@ export const CHECKPOINT_ROOM: RoomSpec = {
     minX: -640,
     maxX: 1000,
     height: 210,
-    depth: CITY_DEPTH,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: -640, x1: 1000 }],
     solids: [
         // 候检区队栏：28 高，周戍空格翻过去，小满跟随会自己跳。缺口留在 330–390（世界）。
-        { x: -430, w: 180, h: 28, y: 0, label: "队栏 -430–-250 · 高 28", depth: { min: -10, max: 12 } },
+        { x: -430, w: 180, h: 28, y: 0, label: "队栏 -430–-250 · 高 28", lanes: ["lower", "middle"] },
         // 高 44：两人跳得上去（小满 51、周戍 58），也能在柜台后蹲下躲子弹。
-        { x: 240, w: 100, h: 44, y: 0, label: "柜台 240–340 · 高 44", depth: { min: -10, max: 20 } },
-        { x: 950, w: 50, h: 150, y: 0, label: "城门内侧" },
+        { x: 240, w: 100, h: 44, y: 0, label: "柜台 240–340 · 高 44", lanes: ["lower", "middle"] },
+        { x: 890, w: 36, h: 122, y: 0, label: "检查站出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
     ],
     zones: [{ x0: 380, x1: 560, y: 0, h: 120, tint: 1, label: "危险段 380–560" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -202,7 +203,7 @@ export const CHECKPOINT_ROOM: RoomSpec = {
         startX: 640,
         endX: 768,
         baseY: 0,
-        depth: 10,
+        depth: LANE_DEPTH.middle,
         bodyW: 48,
         bodyH: 26,
         wheelR: 12,
@@ -374,13 +375,12 @@ export const PROLOGUE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 720,
     height: 200,
-    depth: CITY_DEPTH,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
-        { x: 150, w: 100, h: 32, y: 0, label: "倒柜 150–250 · 高 32", depth: { min: -9, max: 12 } },
-        { x: 700, w: 20, h: 120, y: 0, label: "门框 700" },
-        { x: 110, w: 44, h: 62, y: 0, label: "近景石堆", depth: { min: -25, max: -15 },
-            decorative: true, art: "cover_stone" },
+        { x: 152, w: 98, h: 32, y: 0, label: "倒柜 152–250 · 高 32", lanes: ["lower", "middle"] },
+        { x: 648, w: 30, h: 118, y: 0, label: "出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 110, w: 38, h: 84, y: 0, label: "石柱", lanes: ["lower", "middle"], art: "wall" },
     ],
     zones: [],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -392,11 +392,11 @@ export const PROLOGUE_ROOM: RoomSpec = {
     ],
     marks: [
         { x: 300, y: 0, kind: 1, label: "柜后 300" },
-        { x: 700, y: 0, kind: 0, label: "门口 700" },
+        { x: 660, y: 0, kind: 0, label: "门口中路 660" },
     ],
     dims: [
-        { x0: 150, x1: 250, text: "倒柜 100" },
-        { x0: 700, x1: 720, text: "门 20" },
+        { x0: 152, x1: 250, text: "倒柜 98" },
+        { x0: 648, x1: 678, text: "门柱 30" },
     ],
     story: { prologue: { giveReach: 46 } },
 };
@@ -413,12 +413,12 @@ export const STREET_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1000,
     height: 210,
-    depth: CITY_DEPTH,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1000 }],
     solids: [
-        { x: 300, w: 100, h: 44, y: 0, label: "街心柜台 300–400 · 高 44", depth: { min: -11, max: 16 } },
-        { x: 620, w: 60, h: 36, y: 0, label: "街边矮墙 620", depth: { min: 22, max: 43 } },
-        { x: 960, w: 40, h: 120, y: 0, label: "检查站门 960" },
+        { x: 300, w: 100, h: 44, y: 0, label: "街心柜台 300–400 · 高 44", lanes: ["lower", "middle"] },
+        { x: 620, w: 60, h: 36, y: 0, label: "街边矮墙 620", lanes: ["upper"] },
+        { x: 892, w: 40, h: 120, y: 0, label: "检查站门柱", lanes: ["lower", "upper"], art: "gate_post" },
     ],
     zones: [],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -450,11 +450,12 @@ export const GATE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1200,
     height: 240,
-    depth: CITY_DEPTH,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1200 }],
     solids: [
         { x: 40, w: 60, h: 60, y: 0, label: "绞盘 40–100 · 高 60" },
-        { x: 520, w: 80, h: 44, y: 0, label: "街垒 520 · 高 44", depth: { min: -12, max: 24 } },
+        { x: 520, w: 80, h: 44, y: 0, label: "街垒 520 · 高 44", lanes: ["middle", "upper"] },
+        { x: 970, w: 34, h: 100, y: 0, label: "城门门柱", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1040, w: 160, h: 180, y: 0, label: "门洞右墙 1040" },
         { x: 840, w: 200, h: 56, y: 160, label: "门楣 840–1040" },
     ],
@@ -567,6 +568,21 @@ export const ROOMS: RoomSpec[] = [
     TOWER_ROOM,
 ];
 
+function placeSolids(room: RoomSpec): SolidSpec[] {
+    const blocks: SolidSpec[] = [];
+    for (const solid of room.solids) {
+        const x = solid.x + room.originX;
+        if (room.depth !== undefined && solid.lanes !== undefined) {
+            for (const depth of laneFootprints(solid.lanes)) {
+                blocks.push({ ...solid, x, depth, lanes: undefined });
+            }
+        } else {
+            blocks.push({ ...solid, x });
+        }
+    }
+    return blocks;
+}
+
 /**
  * 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
  * 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
@@ -574,7 +590,7 @@ export const ROOMS: RoomSpec[] = [
 export function withOrigin(room: RoomSpec): RoomSpec {
     const ox = room.originX;
     if (ox === 0) {
-        return room;
+        return room.depth === undefined ? room : { ...room, solids: placeSolids(room) };
     }
     const shift = (x: number): number => x + ox;
     return {
@@ -587,7 +603,7 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         height: room.height,
         depth: room.depth,
         floors: room.floors.map((f) => ({ y: f.y, x0: shift(f.x0), x1: shift(f.x1) })),
-        solids: room.solids.map((s) => ({ ...s, x: shift(s.x) })),
+        solids: placeSolids(room),
         zones: room.zones.map((z) => ({ x0: shift(z.x0), x1: shift(z.x1), y: z.y, h: z.h, tint: z.tint, label: z.label })),
         arch: { x0: shift(room.arch.x0), x1: shift(room.arch.x1), y: room.arch.y, h: room.arch.h, label: room.arch.label },
         stairs: room.stairs.map((s) => ({ x0: shift(s.x0), x1: shift(s.x1), y0: s.y0, y1: s.y1, steps: s.steps, label: s.label })),

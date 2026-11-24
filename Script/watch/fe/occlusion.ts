@@ -1,6 +1,15 @@
+import { Color } from "Dora";
 import { ACTOR_DEPTH_HALF, overlapsDepth } from "Script/watch/depth";
 import { Actor, Play } from "Script/watch/play";
 import { DepthRange } from "Script/watch/rooms";
+
+export const OCCLUDED_OPACITY = 0.44;
+const WHITE = Color(255, 255, 255, 255);
+
+export function occlusionTint(opacity: number, color: Color.Type = WHITE): Color.Type {
+    const shade = 1 - 0.32 * (1 - opacity) / (1 - OCCLUDED_OPACITY);
+    return Color(color.r * shade, color.g * shade, color.b * shade, color.a);
+}
 
 interface Occluder {
     x0: number;
@@ -41,7 +50,7 @@ export class DepthOcclusion {
     update(key: string, prop: Occluder, p: Play, dt: number): number {
         const current = this.opacity[key] ?? 1;
         const obscured = hides(p.player, prop) || hides(p.partner, prop);
-        const next = obscured ? Math.max(0.24, current - dt * 7)
+        const next = obscured ? Math.max(OCCLUDED_OPACITY, current - dt * 5)
             : Math.min(1, current + dt * 4);
         this.opacity[key] = next;
         return next;

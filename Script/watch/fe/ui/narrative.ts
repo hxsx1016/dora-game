@@ -211,12 +211,12 @@ export class NarrativeRenderer {
 
         if (key === "prologue") {
             if (p.phase === "prologue-wait") {
-                return { cue: "", text: "按 [W/S] 前后绕过倒柜，走近小满后按 [E] 递出指南针", urgent: false };
+                return { cue: "", text: "按 [W] 走上路绕过石柱和倒柜，再按 [S] 回中路找小满", urgent: false };
             }
             if (p.phase === "prologue-give") {
                 return { cue: "", text: "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent: false };
             }
-            return { cue: "", text: "她攥紧针套跟了上来。一起向右走出大门，进入街道", urgent: false };
+            return { cue: "", text: "带小满向右走，从中路穿过门洞", urgent: false };
         }
 
         if (key === "street") {
@@ -228,7 +228,7 @@ export class NarrativeRenderer {
             if (alive > 0) {
                 return { cue: "战", text: "前方街心有倭寇封锁。鼠标瞄准左键发射火铳，空格贴矮柜可翻越", urgent: false };
             }
-            return { cue: "", text: "街心安静了。带她继续向右，前往检查站", urgent: false };
+            return { cue: "", text: "带小满从中路进右侧检查站", urgent: false };
         }
 
         if (key === "checkpoint") {
@@ -241,7 +241,7 @@ export class NarrativeRenderer {
             if (!p.cartDocked) {
                 return { cue: "机", text: "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent: false };
             }
-            return { cue: "归", text: "车轮落窝了。与小满一同站进右侧双人出口，推开城门", urgent: false };
+            return { cue: "归", text: "车轮落窝了。带小满从中路走出检查站", urgent: false };
         }
 
         if (key === "gate") {

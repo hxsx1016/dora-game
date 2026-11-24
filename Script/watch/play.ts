@@ -14,7 +14,7 @@ import { CartSpec, DepthRange, RoomSpec, ScavSpec, SolidSpec, withOrigin, CHECKP
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
-import { ACTOR_DEPTH_HALF, inReachDepth, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, adjacentLane, inReachDepth, nearestLane, overlapsDepth } from "Script/watch/depth";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
@@ -346,6 +346,8 @@ export class Play {
     events: PlayEvent[] = [];
     /** 本局事件序号；换房/重试/再玩都是新实例，序号从 0 起。 */
     private eventSeq = 0;
+    private laneDestination: number | undefined;
+    private previousDepthInput = 0;
     /** 森林里的狗。 */
     dogX = 0;
     dogDir = 1;
@@ -681,6 +683,8 @@ export class Play {
 
     private stepPlayer(a: Actor, dt: number, input: Input): void {
         a.depthSpeed = 0;
+        const laneDirection = input.moveY === this.previousDepthInput ? 0 : -input.moveY;
+        this.previousDepthInput = input.moveY;
         if (!a.alive) {
             return;
         }
@@ -714,7 +718,7 @@ export class Play {
         if (a.rollT > 0) {
             a.rollT -= dt;
             a.vx = a.facing * ROLL_SPEED;
-            this.slideX(a, a.vx * dt);
+            this.slideX(a, a.vx * dt, this.laneDestination);
             this.fallY(a, dt);
             if (a.rollT <= 0) {
                 this.flashSet("翻滚结束", 0.5);
@@ -753,8 +757,14 @@ export class Play {
         // 握车把时人由车带着走，自己按方向键不再叠加位移。
         const handsBusy = this.gripping || gripIntent;
         const dir = this.gripping ? 0 : input.moveX;
-        const depthDir = this.room.depth !== undefined && !isChild && !handsBusy ? -input.moveY : 0;
-        const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
+        if (this.room.depth !== undefined && !isChild && !handsBusy && laneDirection !== 0) {
+            const target = adjacentLane(this.laneDestination ?? a.depth, laneDirection);
+            if (this.limitDepth(a, target) === target) {
+                this.laneDestination = target;
+            }
+        }
+        const targetDepth = handsBusy ? a.depth : this.laneDestination ?? a.depth;
+        const diagonal = dir !== 0 && targetDepth !== a.depth ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
         }
@@ -768,9 +778,16 @@ export class Play {
         }
 
         const previousDepth = a.depth;
-        this.slideDepth(a, depthDir * speed * DEPTH_SPEED_RATIO * diagonal * dt);
+        const depthStep = speed * DEPTH_SPEED_RATIO * diagonal * dt;
+        const nextDepth = targetDepth > a.depth ? Math.min(targetDepth, a.depth + depthStep)
+            : Math.max(targetDepth, a.depth - depthStep);
+        // 左右移动时给整段换道留出空间，避免先向前走进接下来要撞到的柱脚。
+        this.slideX(a, a.vx * dt, targetDepth);
+        a.depth = this.limitDepth(a, nextDepth);
+        if (a.depth === this.laneDestination) {
+            this.laneDestination = undefined;
+        }
         a.depthSpeed = dt > 0 ? (a.depth - previousDepth) / dt : 0;
-        this.slideX(a, a.vx * dt);
         this.fallY(a, dt);
 
         // 点射：周戍按住左键，朝准星打一条线；两手握车时不能开枪。
@@ -822,7 +839,7 @@ export class Play {
         a.crouch = this.escort.crouchPose;
         a.h = a.crouch ? CHILD_CROUCH_H : CHILD_H;
         if (!this.escort.stopped) {
-            const targetDepth = this.escort.state === "follow" ? p.depth : 0;
+            const targetDepth = this.escort.state === "follow" ? nearestLane(p.depth) : 0;
             const previousDepth = a.depth;
             const travel = CHILD_SPEED * DEPTH_SPEED_RATIO * dt;
             const distance = Math.max(-travel, Math.min(travel, targetDepth - previousDepth));
@@ -882,6 +899,7 @@ export class Play {
         this.player = this.partner;
         this.partner = tmp;
         this.childMode = true;
+        this.laneDestination = undefined;
         this.player.alive = true;
         this.player.x = this.ox + x;
         this.player.y = 0;
@@ -942,7 +960,7 @@ export class Play {
             return;
         }
         // 跟随段：两人一起到门口。
-        if (this.player.x >= this.ox + 660 && child.x >= this.ox + 620) {
+        if (this.player.x >= this.ox + 660 && inReachDepth(this.player.depth) && child.x >= this.ox + 620) {
             this.requestRoom("street", "序章跟到门口");
             this.flashSet("进街道", 1.2);
         }
@@ -952,7 +970,7 @@ export class Play {
     private stepStreet(dt: number, input: Input): void {
         const p = this.player;
         const c = this.partner;
-        if (p.x >= this.ox + 900 && c.x >= this.ox + 860) {
+        if (p.x >= this.ox + 900 && inReachDepth(p.depth) && c.x >= this.ox + 860) {
             this.requestRoom("checkpoint", "两人都到街尾");
             this.flashSet("到检查站", 1.2);
         }
@@ -1406,6 +1424,7 @@ export class Play {
         this.player.vy = 0;
         this.player.depth = 0;
         this.player.depthSpeed = 0;
+        this.laneDestination = undefined;
         this.player.onGround = true;
         this.player.crouch = false;
         this.player.h = SOLDIER_H;
@@ -1716,10 +1735,11 @@ export class Play {
                 return;
             }
             const track = c.depth ?? 0;
-            this.slideDepth(p, track - p.depth);
-            if (Math.abs(p.depth - track) > 0.001) {
+            if (this.limitDepth(p, track) !== track) {
                 return;
             }
+            p.depth = track;
+            this.laneDestination = undefined;
             p.depthSpeed = 0;
             this.gripping = true;
             this.flashSet("握住车把", 0.4);
@@ -1785,7 +1805,7 @@ export class Play {
      */
     private checkCarryGate(): void {
         if (this.room.key === "checkpoint") {
-            if (this.gateOpen && this.player.x >= this.ox + 900) {
+            if (this.gateOpen && this.player.x >= this.ox + 900 && inReachDepth(this.player.depth)) {
                 this.carryCartAxle = this.cartAxle;
                 this.carryCartDocked = this.cartDocked;
                 this.requestRoom("gate", "检查站出口");
@@ -1963,11 +1983,15 @@ export class Play {
 
     /** 地面前后位移；有体积的道具拦住穿入，纯装饰和单向平台放行。 */
     private slideDepth(a: Actor, distance: number): void {
+        a.depth = this.limitDepth(a, a.depth + distance);
+    }
+
+    private limitDepth(a: Actor, target: number): number {
         const road = this.room.depth;
-        if (road === undefined || distance === 0) {
-            return;
+        if (road === undefined || target === a.depth) {
+            return a.depth;
         }
-        let next = Math.max(road.min, Math.min(road.max, a.depth + distance));
+        let next = Math.max(road.min, Math.min(road.max, target));
         const half = a.w / 2;
         for (const b of this.boxes) {
             const footprint = b.depth;
@@ -1984,11 +2008,11 @@ export class Play {
                 next = back;
             }
         }
-        a.depth = next;
+        return next;
     }
 
     /** 水平位移 + 实体/拱洞阻挡。 */
-    private slideX(a: Actor, dx: number): void {
+    private slideX(a: Actor, dx: number, targetDepth: number = a.depth): void {
         let nx = a.x + dx;
         const half = a.w / 2;
         const room = this.room;
@@ -1996,7 +2020,7 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.boxes.length; i++) {
             const b = this.boxes[i];
-            if (b.passable === true || !overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
+            if (b.passable === true || !overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF, targetDepth)) {
                 continue;
             }
             if (a.y + a.h <= b.y0 + 0.001 || a.y >= b.y1 - 0.001) {
@@ -2820,7 +2844,7 @@ function makeActor(room: RoomSpec, index: number): Actor {
     const s = sp[index];
     const child = s.h <= CHILD_H;
     const ground = room.depth;
-    const depth = ground === undefined ? 0 : Math.max(ground.min, Math.min(ground.max, s.depth ?? 0));
+    const depth = ground === undefined ? 0 : nearestLane(s.depth ?? 0);
     return {
         x: s.x, y: s.y, depth, depthSpeed: 0, vx: 0, vy: 0,
         w: child ? CHILD_W : SOLDIER_W,
