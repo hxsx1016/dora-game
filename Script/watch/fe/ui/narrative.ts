@@ -152,7 +152,7 @@ export class NarrativeRenderer {
         }
     }
 
-    /** 将后端状态译作清雅克制的古风旁白与动作短句（零英文终端符号） */
+    /** 将后端状态译作清雅克制的古风旁白与动作短句（贴合明代火铳与最新交互指引） */
     private composeNarrativeLine(p: Play): { cue: string; text: string; urgent: boolean } {
         const key = p.room.key;
         const theme = themeOf(key);
@@ -166,12 +166,12 @@ export class NarrativeRenderer {
                 }
             }
             if (threatened) {
-                return { cue: "警", text: "敌兵举枪瞄准 —— 贴住街垒按住 [SHIFT] 挡下，或左键先手击倒", urgent: true };
+                return { cue: "警", text: "倭寇举铳瞄准 —— 贴住街垒按住 [SHIFT] 挡下，或左键先手击倒", urgent: true };
             }
             if (p.coverHug) {
-                return { cue: "掩", text: "已贴靠掩体。左键点射压制来敌，守满四十五秒", urgent: false };
+                return { cue: "掩", text: "已贴靠掩体。左键发射火铳压制来敌，守满四十五秒", urgent: false };
             }
-            return { cue: "守", text: "前出至街垒左侧贴掩体，左键点射守住城门", urgent: false };
+            return { cue: "守", text: "靠近街垒按住 [SHIFT] 贴掩体，左键发铳守住城门", urgent: false };
         }
 
         if (key === "gate" && p.phase === "gate-count") {
@@ -193,9 +193,9 @@ export class NarrativeRenderer {
                 cue = "";
             }
             if (text === "命中") {
-                text = "目标击倒 —— 继续推进并留意掩体";
+                text = "倭寇击倒 —— 继续推进并留意掩体";
             } else if (text === "打空") {
-                text = "弹道偏离或被掩体阻挡";
+                text = "铅丸偏离或被掩体阻挡";
             } else if (text === "翻滚") {
                 text = "伏身翻滚回避";
             }
@@ -219,14 +219,14 @@ export class NarrativeRenderer {
                 if (p.enemies[i].alive) { alive += 1; }
             }
             if (alive > 0) {
-                return { cue: "战", text: "前方街心有封锁敌兵。鼠标瞄准左键点射，空格贴矮台可翻越", urgent: false };
+                return { cue: "战", text: "前方街心有倭寇封锁。鼠标瞄准左键发射火铳，空格贴矮柜可翻越", urgent: false };
             }
-            return { cue: "", text: "街心安静了。带她继续向右，前往城邦检查站", urgent: false };
+            return { cue: "", text: "街心安静了。带她继续向右，前往检查站", urgent: false };
         }
 
         if (key === "checkpoint") {
             if (p.escort.state === "frozen") {
-                return { cue: "危", text: "枪声吓住了小满，她蹲在原地不走了 —— 走近按 [E] 敲两下安抚她", urgent: true };
+                return { cue: "危", text: "铳声吓住了小满，她蹲在原地不走了 —— 走近按 [E] 敲两下安抚她", urgent: true };
             }
             if (p.escort.state === "calming") {
                 return { cue: "", text: "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent: false };
@@ -241,12 +241,12 @@ export class NarrativeRenderer {
             if (p.phase === "gate-idle") {
                 return {
                     cue: p.gateNeedConfirm ? "警" : "",
-                    text: p.gateNeedConfirm ? "倒地后已退回绞盘。按 [E] 确认重新就位，再守四十五秒" : "小满正走向门洞等待点。贴近左侧绞盘就位，守住最后四十五秒",
+                    text: p.gateNeedConfirm ? "倒地后已退回绞盘。按 [E] 确认重新就位，再守四十五秒" : "小满正走向门洞等待点。走到左侧绞盘就位，守住最后四十五秒",
                     urgent: p.gateNeedConfirm,
                 };
             }
             if (p.phase === "gate-send") {
-                return { cue: "", text: "四十五秒守满了。走到右侧门洞边，按 [E] 把她送出城去", urgent: false };
+                return { cue: "", text: "四十五秒守满了。走到右侧城门边，按 [E] 把小满送出城去", urgent: false };
             }
             return { cue: "", text: "她迈出了第一步。沿着门外小道向前，离开这座沦陷的城", urgent: false };
         }
@@ -255,7 +255,7 @@ export class NarrativeRenderer {
             if (!p.cartDocked) {
                 return { cue: "", text: "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent: false };
             }
-            if (p.checkpoint < 380) {
+            if (p.checkpoint < p.room.arch.x1) {
                 return { cue: "潜", text: "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent: false };
             }
             return { cue: "", text: "穿过矮拱，沿墙根小路向北塔灯火前行", urgent: false };
@@ -263,22 +263,31 @@ export class NarrativeRenderer {
 
         if (key === "village") {
             if (p.scavChase) {
-                return { cue: "危", text: "拾荒者追上来了！迅速蹲伏或钻进桌底甩开视线", urgent: true };
-            }
-            if (p.hasBottle) {
-                return { cue: "诱", text: "按住 [F] 瞄准右侧砖地，松手投瓶 —— 趁他转身走开，按 [CTRL] 钻过桌下", urgent: false };
+                return { cue: "危", text: "拾荒者追上来了！按住 [CTRL] 钻进桌底甩开视线", urgent: true };
             }
             if (p.passed) {
                 return { cue: "", text: "越过了第一院。继续向右，走进通往北塔的森林", urgent: false };
+            }
+            if (p.hasBottle) {
+                return { cue: "诱", text: "按住 [F] 瞄准右侧砖地，松开投瓶 —— 引开拾荒者后按 [CTRL] 钻过桌下", urgent: false };
+            }
+            if (p.bottleFly !== undefined) {
+                return { cue: "潜", text: "瓶子正落向砖地，屏息等拾荒者被声响引开", urgent: false };
+            }
+            if (p.scavState === "turn" || p.scavState === "walk" || p.scavState === "stall") {
+                return { cue: "潜", text: "拾荒者循声走开了 —— 趁隙按住 [CTRL] 钻过桌下", urgent: false };
             }
             return { cue: "", text: "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent: false };
         }
 
         if (key === "forest") {
-            if (p.dogState === "chase" || p.dogState === "ear") {
-                return { cue: "警", text: "猎犬竖起了耳朵 —— 立刻蹲下或伏在草影里别出声！", urgent: true };
+            if (p.dogState === "chase") {
+                return { cue: "危", text: "猎犬追上来了 —— 速按 [CTRL] 蹲进草丛匿迹！", urgent: true };
             }
-            return { cue: "", text: "林间有猎犬巡逻。按住 [SHIFT] 慢走或 [CTRL] 伏低，穿过林缘抵达北塔", urgent: false };
+            if (p.dogState === "ear") {
+                return { cue: "警", text: "猎犬竖起了耳朵 —— 立刻按住 [CTRL] 蹲下别出声！", urgent: true };
+            }
+            return { cue: "", text: "林间有猎犬巡逻。按住 [SHIFT] 轻步慢走或 [CTRL] 伏低，绕开猎犬抵达北塔", urgent: false };
         }
 
         if (key === "tower") {

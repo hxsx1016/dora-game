@@ -2,13 +2,14 @@
  * 《向西守望》宋明清雅极简 HUD（V2 · 隐入画境、轻盈通透）：
  * - 取消所有方印与粗重灰块，以霜月细丝、竹叶玉簪体力痕、菱花惊惧点轻托信息；
  * - 静音与灰度可读：实心月白竹叶 vs 极细空心线、空心墨环 vs 绽放菱花点；
+ * - 世界空间交互提示接入单点就近推导（deriveWorldPrompt），走到可触发处才浮现水墨纸签；
  * - 右上角仅留清瘦宋体章题与淡字「Esc 暂歇」，彻底释放冷月夜空。
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { FEAR_MAX } from "Script/watch/escort";
-import { WorldPrompt, deriveWorldPrompts } from "Script/watch/fe/adapter";
+import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
@@ -70,8 +71,10 @@ export class HudRenderer {
             this.drawChapterBadge(uiDraw, uiArt, texts, p, w, h, hudAlpha);
             this.drawContextualObjective(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha);
 
-            const prompts = deriveWorldPrompts(p);
-            this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, prompts, cam, hudAlpha, uiScale);
+            const prompt = deriveWorldPrompt(p);
+            if (prompt !== undefined) {
+                this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, [prompt], cam, hudAlpha, uiScale);
+            }
 
             if (vfx.deflectFlash > 0.25) {
                 const dx = cam.sx(vfx.deflectX) / uiScale;
@@ -295,7 +298,7 @@ export class HudRenderer {
             const cx = w * 0.5;
             const by = h - 44;
             const step1 = p.cartDocked;
-            const step2 = p.room.key === "checkpoint" ? p.gateOpen : p.checkpoint >= 380;
+            const step2 = p.room.key === "checkpoint" ? p.gateOpen : p.checkpoint >= p.room.arch.x1;
             const t1 = p.room.key === "checkpoint" ? "红布板车入窝" : "上层拉车让拱";
             const t2 = p.room.key === "checkpoint" ? "双人汇合出口" : "蹲伏穿拱赴塔";
 
@@ -330,20 +333,23 @@ export class HudRenderer {
         uiScale: number,
     ): void {
         const bob = Math.sin(this.time * 3.4) * 2.8;
+        const viewW = cam.viewW / uiScale;
+        const viewH = cam.viewH / uiScale;
         let i = 0;
         for (i = 0; i < prompts.length; i++) {
             const pr = prompts[i];
-            const sx = Math.max(115, Math.min(cam.viewW / uiScale - 115, cam.sx(pr.x) / uiScale));
-            const sy = Math.max(96, Math.min(cam.viewH / uiScale - 110, cam.sy(pr.y) / uiScale + bob));
+            const keyW = Math.max(24, visualTextWidth(pr.keyTag, 15) + 16);
+            const labelW = visualTextWidth(pr.label, 15);
+            const pillW = keyW + labelW + 24;
+            const padX = Math.max(115, pillW * 0.5 + 24);
+            const sx = Math.max(padX, Math.min(viewW - padX, cam.sx(pr.x) / uiScale));
+            const sy = Math.max(96, Math.min(viewH - 110, cam.sy(pr.y) / uiScale + bob));
             const accent = pr.urgent ? PALETTE.rouge : PALETTE.silkLine;
 
             // 细垂霜丝与微花点
             uiInkDraw.drawSegment(Vec2(sx, sy - 14), Vec2(sx, sy - 27), 0.8, toColor(accent, 135 * alpha));
             drawBlossomDot(uiInkDraw, uiArt, "wp_anchor_" + i, sx, sy - 28, 7, accent, 0.85 * alpha, 3);
 
-            const keyW = Math.max(24, visualTextWidth(pr.keyTag, 15) + 14);
-            const labelW = visualTextWidth(pr.label, 15);
-            const pillW = keyW + labelW + 24;
             const px = sx - pillW * 0.5;
             const py = sy - 12;
 
