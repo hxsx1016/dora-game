@@ -629,7 +629,7 @@ export class StageRenderer {
         fillVGradRect(draw, left, front, width, height,
             toColor(lerpRGBA(theme.groundBody, PALETTE.steelMid, 0.34)),
             toColor(lerpRGBA(theme.groundBody, PALETTE.voidDark, 0.36)));
-        const bands = [0, 0.32, 0.68, 1];
+        const bands = [0, 0.31, 0.59, 0.82, 1];
         const edge = toColor(theme.groundRim, 34);
         for (let row = 0; row < bands.length - 1; row++) {
             const y = front + bands[row] * height;

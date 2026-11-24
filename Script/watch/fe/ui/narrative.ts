@@ -211,12 +211,12 @@ export class NarrativeRenderer {
 
         if (key === "prologue") {
             if (p.phase === "prologue-wait") {
-                return { cue: "", text: "按 [W] 走上路绕过石柱和倒柜，再按 [S] 回中路找小满", urgent: false };
+                return { cue: "", text: "按住 [W] 向里走，绕过石柱和倒柜，再用 [S] 靠近小满", urgent: false };
             }
             if (p.phase === "prologue-give") {
                 return { cue: "", text: "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent: false };
             }
-            return { cue: "", text: "带小满向右走，从中路穿过门洞", urgent: false };
+            return { cue: "", text: "带小满往右，从两根门柱之间穿过", urgent: false };
         }
 
         if (key === "street") {
@@ -226,9 +226,9 @@ export class NarrativeRenderer {
                 if (p.enemies[i].alive) { alive += 1; }
             }
             if (alive > 0) {
-                return { cue: "战", text: "前方街心有倭寇封锁。鼠标瞄准左键发射火铳，空格贴矮柜可翻越", urgent: false };
+                return { cue: "战", text: "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent: false };
             }
-            return { cue: "", text: "带小满从中路进右侧检查站", urgent: false };
+            return { cue: "", text: "带小满穿过右侧门洞，进入检查站", urgent: false };
         }
 
         if (key === "checkpoint") {
@@ -241,7 +241,7 @@ export class NarrativeRenderer {
             if (!p.cartDocked) {
                 return { cue: "机", text: "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent: false };
             }
-            return { cue: "归", text: "车轮落窝了。带小满从中路走出检查站", urgent: false };
+            return { cue: "归", text: "车轮落窝了。带小满从右侧门洞出去", urgent: false };
         }
 
         if (key === "gate") {

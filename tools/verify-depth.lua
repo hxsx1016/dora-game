@@ -4,7 +4,8 @@ local new = require("lualib_bundle").__TS__New
 local rooms = require("Script.watch.rooms")
 local gameplay = require("Script.watch.play")
 local Input = require("Script.watch.input").Input
-local lanes = require("Script.watch.depth").LANE_DEPTH
+local depth = require("Script.watch.depth")
+local lanes = depth.LANE_DEPTH
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local derivePrompt = require("Script.watch.fe.adapter").deriveWorldPrompt
 local occlusionModule = require("Script.watch.fe.occlusion")
@@ -30,17 +31,24 @@ for _, room in ipairs({rooms.PROLOGUE_ROOM, rooms.STREET_ROOM, rooms.CHECKPOINT_
     local input = new(Input)
     local birthX = play.player.x
     input.moveY = -1
-    advance(play, input, 60)
-    check(room.key .. " reaches the upper lane without jumping",
-        near(play.player.depth, lanes.upper) and near(play.player.x, birthX) and near(play.player.y, 0))
-    input.moveY = 1
-    advance(play, input, 70)
-    check(room.key .. " held input moves only one lane", near(play.player.depth, lanes.middle))
+    advance(play, input, 4)
+    local partialDepth = play.player.depth
+    check(room.key .. " moves through intermediate depths on the ground",
+        partialDepth > lanes.middle and partialDepth < lanes.upper and near(play.player.x, birthX) and near(play.player.y, 0))
     input.moveY = 0
+    advance(play, input, 20)
+    check(room.key .. " releasing movement stops at the current depth",
+        near(play.player.depth, partialDepth) and near(play.player.depthSpeed, 0))
+    input.moveY = 1
     advance(play, input, 1)
+    check(room.key .. " reverses immediately from an intermediate depth",
+        play.player.depth < partialDepth and play.player.depth > lanes.middle)
+    input.moveY = -1
+    advance(play, input, 60)
+    check(room.key .. " holding up continues all the way to the back edge", near(play.player.depth, room.depth.max))
     input.moveY = 1
     advance(play, input, 60)
-    check(room.key .. " next press reaches the lower lane", near(play.player.depth, lanes.lower))
+    check(room.key .. " one hold moves across the entire road", near(play.player.depth, room.depth.min))
 end
 
 do
@@ -54,20 +62,22 @@ do
 
     input.moveY = -1
     advance(play, input, 5)
-    check("diagonal movement waits for feet to clear the stone",
+    check("a stone only blocks the movement component into its face",
         near(play.player.x, stoneEdge) and play.player.depth > lanes.middle and play.player.depth < lanes.upper)
-    input.moveX = 0
-    advance(play, input, 18)
-    input.moveX, input.moveY = 1, 0
-    advance(play, input, 43)
-    check("upper lane bypasses the stone and cabinet", play.player.x > 280 and near(play.player.y, 0))
+    advance(play, input, 15)
+    check("holding diagonal walks around the corner as soon as it clears", play.player.x > stoneEdge + 16)
+    input.moveY = 0
+    advance(play, input, 37)
+    check("cabinet can be walked around without jumping", play.player.x > 280 and near(play.player.y, 0))
     check("prologue prompt respects depth", derivePrompt(play) == nil)
     input.moveX, input.interact.pressed = 0, true
     advance(play, input, 1)
     check("interact cannot reach across the road", play.phase == "prologue-wait")
     input.interact.pressed, input.moveY = false, 1
-    advance(play, input, 20)
-    check("prompt reappears beside the child", derivePrompt(play).keyTag == "E")
+    advance(play, input, 10)
+    check("prompt reappears at an off-center depth beside the child",
+        play.player.depth > lanes.middle and derivePrompt(play).keyTag == "E")
+    input.moveY = 0
     input.interact.pressed = true
     advance(play, input, 1)
     check("interact works within depth reach", play.phase == "prologue-give")
@@ -76,39 +86,47 @@ do
     play.player.depth = lanes.lower
     input.moveX, input.moveY, input.interact.pressed = 1, 0, false
     advance(play, input, 40)
-    check("stone is solid on the lower lane", near(play.player.x, stoneEdge))
+    check("stone still blocks on the side nearest the screen", near(play.player.x, stoneEdge))
 
     play.player.x, play.player.depth = 128, lanes.upper
     input.moveX, input.moveY = 0, 1
     advance(play, input, 40)
-    check("blocked lane switch keeps the actor on the upper lane", near(play.player.depth, lanes.upper))
+    local stone = play.room.solids[#play.room.solids]
+    local depthEdge = stone.depth.max + depth.ACTOR_DEPTH_HALF
+    check("depth movement stops at the actual stone edge", near(play.player.depth, depthEdge))
+    input.moveX = 1
+    advance(play, input, 24)
+    check("the actor slides along the obstacle while pressing into it",
+        play.player.x > 190 and near(play.player.depth, depthEdge))
+    advance(play, input, 31)
+    check("depth movement resumes beyond the footprint without a new press",
+        play.player.x > 265 and play.player.depth < depthEdge and near(play.player.y, 0))
 
     play.player.x = 195
     local cabinet = room.solids[1]
     play.player.y, play.player.depth, play.player.onGround = cabinet.h, lanes.middle, true
-    input.moveY = 0
-    advance(play, input, 1)
-    input.moveY = -1
+    input.moveX, input.moveY = 0, -1
     advance(play, input, 40)
-    check("step off the cabinet in depth and fall", near(play.player.depth, lanes.upper) and near(play.player.y, 0))
+    check("step off the cabinet in depth and fall", near(play.player.depth, room.depth.max) and near(play.player.y, 0))
 end
 
 do
-    local labels = {"upper", "middle", "lower"}
-    for _, lane in ipairs(labels) do
+    for _, side in ipairs({"upper", "lower"}) do
         local play = new(gameplay.Play, rooms.PROLOGUE_ROOM)
         local input = new(Input)
         play.phase = "prologue-follow"
-        play.player.x, play.player.depth, play.partner.x = 610, lanes[lane], 650
+        play.player.x, play.player.depth, play.partner.x = 610, lanes[side], 650
         input.moveX = 1
         advance(play, input, 26)
-        if lane == "middle" then
-            check("middle lane passes through the door and opens the next scene",
-                play.player.x >= 660 and play.wantRoom == "street")
-        else
-            check(lane .. " door post blocks movement and scene transition",
-                near(play.player.x, 648 - play.player.w / 2) and play.wantRoom == "")
-        end
+        check(side .. " door post blocks movement and scene transition",
+            near(play.player.x, 648 - play.player.w / 2) and play.wantRoom == "")
+        input.moveY = side == "upper" and 1 or -1
+        advance(play, input, 14)
+        local doorDepth = play.player.depth
+        input.moveY = 0
+        advance(play, input, 15)
+        check("the doorway is traversable off center from the " .. side .. " side",
+            math.abs(doorDepth) > 3 and near(play.player.depth, doorDepth) and play.wantRoom == "street")
     end
 end
 
@@ -116,8 +134,11 @@ do
     local play = new(gameplay.Play, rooms.STREET_ROOM)
     local input = new(Input)
     input.moveY = -1
+    advance(play, input, 5)
+    input.moveY = 0
     advance(play, input, 45)
-    check("companion follows a change in depth", near(play.partner.depth, play.player.depth))
+    check("companion follows the actor to an intermediate depth",
+        play.player.depth > lanes.middle and play.player.depth < lanes.upper and near(play.partner.depth, play.player.depth))
 end
 
 do
@@ -191,7 +212,7 @@ do
     local blocker = {x0=stoneSpec.x, x1=stoneSpec.x + stoneSpec.w, y0=0, y1=stoneSpec.h, depth=stoneSpec.depth}
     local occlusion = new(occlusionModule.DepthOcclusion)
     local input = new(Input)
-    play.player.x, play.player.depth = 128, lanes.upper
+    play.player.x, play.player.depth = 128, 28.5
     local alpha = occlusion:update("prop", blocker, play, 1 / 60)
     check("occluder fades gradually", alpha < 1 and alpha > obscuredOpacity)
     check("occluder retains a darker silhouette", near(occlusion:update("prop", blocker, play, .2), obscuredOpacity) and obscuredOpacity > .24)

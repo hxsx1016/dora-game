@@ -6,17 +6,10 @@ const INTERACT_DEPTH_REACH = 18;
 const LANE_SPACING = 32;
 const LANE_MARGIN = 12;
 
+/** 关卡摆放用的占地区段。 */
 export type DepthLane = "upper" | "middle" | "lower";
 export const LANE_DEPTH: Record<DepthLane, number> = { upper: LANE_SPACING, middle: 0, lower: -LANE_SPACING };
 export const LANE_ROAD: DepthRange = { min: LANE_DEPTH.lower - LANE_MARGIN, max: LANE_DEPTH.upper + LANE_MARGIN };
-
-export function nearestLane(depth: number): number {
-    return Math.max(LANE_DEPTH.lower, Math.min(LANE_DEPTH.upper, Math.round(depth / LANE_SPACING) * LANE_SPACING));
-}
-
-export function adjacentLane(depth: number, direction: number): number {
-    return nearestLane(nearestLane(depth) + direction * LANE_SPACING);
-}
 
 /** 相邻档位合成一块占地。分开的档位各生成一块，给中间留下通道。 */
 export function laneFootprints(lanes: readonly DepthLane[]): DepthRange[] {
@@ -39,11 +32,8 @@ export function laneFootprints(lanes: readonly DepthLane[]): DepthRange[] {
     return footprints;
 }
 
-export function overlapsDepth(
-    depth: number, range: DepthRange | undefined, half: number, endDepth: number = depth,
-): boolean {
-    return range === undefined || (Math.max(depth, endDepth) + half > range.min &&
-        Math.min(depth, endDepth) - half < range.max);
+export function overlapsDepth(depth: number, range: DepthRange | undefined, half: number): boolean {
+    return range === undefined || (depth + half > range.min && depth - half < range.max);
 }
 
 export function inReachDepth(depth: number, target: number = 0): boolean {
