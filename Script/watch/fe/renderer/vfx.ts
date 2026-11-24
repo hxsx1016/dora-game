@@ -9,6 +9,7 @@
 
 import { Color, DrawNode, Vec2 } from "Dora";
 import { Play, Trace } from "Script/watch/play";
+import { ACTOR_DEPTH_HALF, overlapsDepth } from "Script/watch/depth";
 import { FrameEvents } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -140,15 +141,16 @@ export class VfxSystem {
         if (ev.coverDeflect) {
             this.deflectFlash = 1.0;
             this.deflectX = p.player.x + p.player.facing * 16;
-            this.deflectY = p.player.y + p.player.h * 0.48;
+            this.deflectY = p.player.y + p.player.depth + p.player.h * 0.48;
             let nearest = 48;
             for (const solid of p.room.solids) {
                 const edge = p.player.x < solid.x ? solid.x : solid.x + solid.w;
                 const gap = Math.abs(p.player.x - edge);
-                if (!solid.passable && solid.y <= p.player.y + 2 && solid.h <= 64 && gap < nearest) {
+                if (!solid.passable && !solid.decorative && solid.y <= p.player.y + 2 && solid.h <= 64 &&
+                    gap < nearest && overlapsDepth(p.player.depth, solid.depth, ACTOR_DEPTH_HALF)) {
                     nearest = gap;
                     this.deflectX = edge;
-                    this.deflectY = solid.y + solid.h * 0.86;
+                    this.deflectY = solid.y + (solid.depth?.min ?? 0) + solid.h * 0.86;
                 }
             }
             this.spawnBurst(this.deflectX, this.deflectY, 8, PALETTE.amberDim, 115);
@@ -157,13 +159,13 @@ export class VfxSystem {
 
         if (ev.playerHit) {
             this.hitVignette = 1.0;
-            this.spawnBurst(p.player.x, p.player.y + p.player.h * 0.55, 14, PALETTE.sealRedBright, 185);
+            this.spawnBurst(p.player.x, p.player.y + p.player.depth + p.player.h * 0.55, 14, PALETTE.sealRedBright, 185);
             cam.addShake(10);
             this.visualHitstop = 0.055;
         }
 
         if (ev.rollStarted) {
-            this.spawnBurst(p.player.x, p.player.y + 4, 7, PALETTE.textDim, 82);
+            this.spawnBurst(p.player.x, p.player.y + p.player.depth + 4, 7, PALETTE.textDim, 82);
         }
 
         if (ev.knockPulse) {
@@ -183,7 +185,7 @@ export class VfxSystem {
 
         if (ev.cartJustDocked) {
             const cx = p.cartAxle;
-            const cy = p.room.cart.baseY + 8;
+            const cy = p.room.cart.baseY + (p.room.cart.depth ?? 0) + 8;
             this.rings.push({ x: cx, y: cy, maxR: 58, life: 0.55, maxLife: 0.55, color: PALETTE.emerald });
             this.spawnBurst(cx, cy, 12, PALETTE.amber, 115);
             cam.addShake(4.8);

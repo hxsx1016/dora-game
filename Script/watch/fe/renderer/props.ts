@@ -11,6 +11,7 @@ import { Play } from "Script/watch/play";
 import { CartSpec } from "Script/watch/rooms";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost } from "Script/watch/fe/assets";
+import { DepthOcclusion, depthOrder } from "Script/watch/fe/occlusion";
 import {
     PALETTE,
     drawDiamond,
@@ -30,14 +31,18 @@ export class PropsRenderer {
         p: Play,
         cam: CameraDirector,
         time: number,
+        occlusion: DepthOcclusion,
+        fadeDt: number,
     ): void {
         this.drawZones(fgDraw, fgGlow, p, cam, time);
         this.drawMarks(fgDraw, fgGlow, p, cam, time);
-        this.drawCart(fgDraw, fgGlow, assets, p, cam, time);
+        this.drawCart(fgDraw, fgGlow, assets, p, cam, time, occlusion, fadeDt);
         if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
             const x = (p.player.x + p.partner.x) * 0.5;
             const y = p.partner.y + p.partner.h * 0.62;
-            assets.tryPlace("prop_compass", "handover", cam.sx(x), cam.sy(y), cam.len(12), cam.len(12), { layer: 6 });
+            const depth = (p.player.depth + p.partner.depth) * 0.5;
+            assets.tryPlace("prop_compass", "handover", cam.sx(x), cam.sy(y, depth), cam.len(12), cam.len(12),
+                { layer: p.room.depth === undefined ? 6 : depthOrder(depth, 6) });
         }
         if (p.room.key === "village") {
             this.drawVillageProps(fgDraw, fgGlow, assets, p, cam, time);
@@ -62,6 +67,14 @@ export class PropsRenderer {
             const zh = Math.max(6, y1 - y0);
 
             if (z.tint === 1) {
+                const road = p.room.depth;
+                if (road !== undefined) {
+                    const front = cam.sy(z.y, road.min);
+                    const back = cam.sy(z.y, road.max);
+                    fgGlow.drawRect(Rect(x0, front, zw, back - front), Color(141, 56, 64, 24),
+                        1, Color(166, 75, 75, 57));
+                    continue;
+                }
                 // 危险火力封锁区：艾希风赤红低透明扫描栅格 + 扫描线
                 fillVGradRect(fgGlow, x0, y0, zw, zh, Color(255, 36, 70, 42), Color(255, 36, 70, 6));
                 fgGlow.drawSegment(Vec2(x0, y0), Vec2(x0, y1), 1.4, toColor(PALETTE.crimson, 145));
@@ -148,11 +161,15 @@ export class PropsRenderer {
         p: Play,
         cam: CameraDirector,
         time: number,
+        occlusion: DepthOcclusion,
+        fadeDt: number,
     ): void {
         const c: CartSpec = p.room.cart;
         if (c.bodyW <= 0) {
             return;
         }
+        const depth = c.depth ?? 0;
+        const raised = p.room.depth !== undefined;
 
         // 1. 车辙轨道与停靠窝（dock）
         const lo = Math.min(c.startX, c.endX);
@@ -160,7 +177,7 @@ export class PropsRenderer {
         if (hi - lo > 4) {
             const rx0 = cam.sx(lo);
             const rx1 = cam.sx(hi);
-            const ry = cam.sy(c.baseY);
+            const ry = cam.sy(c.baseY, depth);
             fgDraw.drawSegment(Vec2(rx0, ry + 2), Vec2(rx1, ry + 2), 1.2, toColor(PALETTE.steelLight, 140));
             const dockX = cam.sx(c.endX);
             const dockCol = p.cartDocked ? PALETTE.emerald : PALETTE.amber;
@@ -171,7 +188,7 @@ export class PropsRenderer {
 
         const axleX = p.cartAxle;
         const cx = cam.sx(axleX);
-        const baseY = cam.sy(c.baseY);
+        const baseY = cam.sy(c.baseY, depth);
         const bw = cam.len(c.bodyW);
         const bh = cam.len(c.bodyH);
         const wr = cam.len(c.wheelR);
@@ -182,10 +199,18 @@ export class PropsRenderer {
         const bodyY1 = bodyY0 + bh;
 
         // 车底暗影
-        fgDraw.drawEllipse(Vec2(cx, baseY + 2), bw * 0.62, 5, Color(4, 6, 10, 150));
+        const artWidth = c.bodyW * 1.36;
+        const artHeight = (c.wheelR * 2 + c.bodyH) * 0.88;
+        const opacity = raised ? occlusion.update("cart", {
+            x0: axleX - artWidth * 0.5, x1: axleX + artWidth * 0.5,
+            y0: c.baseY, y1: c.baseY + artHeight,
+            depth: { min: depth, max: depth + 8 }, passThrough: true,
+        }, p, fadeDt) : 1;
+        fgDraw.drawEllipse(Vec2(cx, baseY + 2), bw * 0.62, 5, Color(4, 6, 10, 150 * opacity));
 
-        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY, bw * 1.36,
-            (c.wheelR * 2 + c.bodyH) * cam.ppu * 0.88, { layer: 2 });
+        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY, cam.len(artWidth), cam.len(artHeight), {
+            layer: raised ? depthOrder(depth, 2) : 2, opacity,
+        });
         if (!painted) {
             // 车身木钢复合车斗
             fillVGradRect(fgDraw, x0, bodyY0, bw, bh, Color(48, 32, 28, 255), toColor(PALETTE.cartWood));
@@ -207,14 +232,14 @@ export class PropsRenderer {
         // 外侧推拉手柄
         const hx = cam.sx(axleX + c.handleOffset);
         const hTop = bodyY1 + cam.len(9);
-        const gripReady = p.gripping || p.focusCart || Math.abs(p.player.x - (axleX + c.handleOffset)) < 70;
+        const gripReady = p.gripping || p.focusCart || p.cartHandleInReach();
         const handleCol = p.gripping ? PALETTE.cyan : (gripReady ? PALETTE.amber : PALETTE.cartMetal);
         const edge = c.handleOffset < 0 ? x0 : x1;
         fgDraw.drawSegment(Vec2(edge, bodyY0 + bh * 0.55), Vec2(hx, hTop - cam.len(4)),
-            Math.max(2, cam.len(3)), toColor(PALETTE.cartWood));
+            Math.max(2, cam.len(3)), toColor(PALETTE.cartWood, 255 * opacity));
         fgDraw.drawSegment(Vec2(hx, hTop - cam.len(6)), Vec2(hx, hTop),
-            Math.max(2, cam.len(4)), toColor(handleCol));
-        fgGlow.drawDot(Vec2(hx, hTop), gripReady ? 4.8 : 3.2, toColor(handleCol, gripReady ? 245 : 160));
+            Math.max(2, cam.len(4)), toColor(handleCol, 255 * opacity));
+        fgGlow.drawDot(Vec2(hx, hTop), gripReady ? 4.8 : 3.2, toColor(handleCol, gripReady ? 245 : 160 * opacity));
         if (gripReady && !p.cartDocked) {
             fillRadialGlow(fgGlow, hx, hTop, 22, 22, toColor(handleCol, 95), Color(handleCol.r, handleCol.g, handleCol.b, 0), 12);
         }

@@ -3,6 +3,8 @@
 import { Color, DrawNode, Vec2 } from "Dora";
 import { Actor, Enemy, Play, Trace } from "Script/watch/play";
 import { FEAR_MAX } from "Script/watch/escort";
+import { ACTOR_DEPTH_HALF, overlapsDepth } from "Script/watch/depth";
+import { depthOrder } from "Script/watch/fe/occlusion";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/theme";
@@ -67,7 +69,7 @@ export class ActorsRenderer {
             if (this.ghostCooldown <= 0) {
                 this.ghosts.push({
                     x: p.player.x,
-                    y: p.player.y,
+                    y: p.player.y + p.player.depth,
                     h: p.player.h,
                     facing: p.player.facing,
                     life: 0.28,
@@ -179,10 +181,13 @@ export class ActorsRenderer {
         isControlled: boolean,
     ): void {
         const cx = cam.sx(a.x);
-        const by = cam.sy(a.y);
+        const by = cam.sy(a.y, a.depth);
+        const depthEnabled = p.room.depth !== undefined;
+        const shadowY = depthEnabled && !a.onGround ? cam.sy(0, a.depth) : by;
         const H = cam.len(a.h);
         const W = cam.len(a.w);
         const f = a.facing;
+        const speed = Math.max(Math.abs(a.vx), Math.abs(a.depthSpeed));
 
         let slot: AssetSlotKey = "soldier_idle";
         let height = H;
@@ -209,30 +214,31 @@ export class ActorsRenderer {
             frame = (calm >= 12 && calm < 18) || (calm >= 36 && calm < 42) ? 1 : 0;
             height *= 0.76;
         } else if (p.phase === "gate-send" && p.room.story?.gate !== undefined &&
-            Math.abs(a.x - p.room.story.gate.doorX) <= 60 && Math.abs(a.vx) <= 8) {
+            Math.abs(a.x - p.room.story.gate.doorX) <= 60 && speed <= 8) {
             slot = "soldier_hold";
             height *= 1.11;
         } else if (isControlled && p.ticks < this.shotUntil) {
-            const running = Math.abs(a.vx) > 8;
+            const running = speed > 8;
             slot = running ? "soldier_fire_move" : "soldier_fire";
             frame = running ? step : 0;
             facing = p.trace !== undefined && p.trace.x1 < p.trace.x0 ? -1 : 1;
         } else if (a.covered || (isControlled && p.coverHug)) {
             slot = "soldier_cover";
             height *= 0.77;
-        } else if (Math.abs(a.vx) > 8) {
+        } else if (speed > 8) {
             slot = "soldier_run";
             frame = step;
         }
-        if (assets.tryPlace(slot, "actor_soldier", cx, by, W, height, { facing, frame, layer: 4 })) {
-            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.54, 4, Color(12, 11, 13, 145));
+        if (assets.tryPlace(slot, "actor_soldier", cx, by, W, height, {
+            facing, frame, layer: depthEnabled ? depthOrder(a.depth, 4) : 4,
+        })) {
+            fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.54, 4, Color(12, 11, 13, 145));
             return;
         }
 
         // 脚底接地阴影
-        fgDraw.drawEllipse(Vec2(cx, by + 1), H * 0.24, 4.5, Color(3, 5, 10, 175));
+        fgDraw.drawEllipse(Vec2(cx, shadowY + 1), H * 0.24, 4.5, Color(3, 5, 10, 175));
 
-        const speed = Math.abs(a.vx);
         const walking = speed > 10 && a.onGround;
         const stride = walking ? Math.sin(this.animTime * 12.5) : 0;
         const bob = walking ? Math.abs(Math.cos(this.animTime * 12.5)) * 3.5 : Math.sin(this.animTime * 2.6) * 1.4;
@@ -348,10 +354,13 @@ export class ActorsRenderer {
         isControlled: boolean,
     ): void {
         const cx = cam.sx(a.x);
-        const by = cam.sy(a.y);
+        const by = cam.sy(a.y, a.depth);
+        const depthEnabled = p.room.depth !== undefined;
+        const shadowY = depthEnabled && !a.onGround ? cam.sy(0, a.depth) : by;
         const H = cam.len(a.h);
         const W = cam.len(a.w);
         const f = a.facing;
+        const speed = Math.max(Math.abs(a.vx), Math.abs(a.depthSpeed));
 
         const afraid = !isControlled && p.escort.fear > 0;
         let slot: AssetSlotKey = "child_idle";
@@ -359,7 +368,8 @@ export class ActorsRenderer {
         let frame = 0;
         const step = Math.floor(this.animTime * 10);
         const nearCover = p.room.solids.some(solid =>
-            solid.h <= 64 && solid.y <= 2 &&
+            !solid.decorative && solid.h <= 64 && solid.y <= 2 &&
+            overlapsDepth(a.depth, solid.depth, ACTOR_DEPTH_HALF) &&
             Math.min(Math.abs(a.x - solid.x), Math.abs(a.x - solid.x - solid.w)) <= 30,
         );
         if (p.phase === "tower-knock" && (p.phaseTick < 6 || (p.phaseTick >= 12 && p.phaseTick < 18))) {
@@ -378,19 +388,21 @@ export class ActorsRenderer {
             slot = "child_fear";
             height *= 0.74;
         } else if (!isControlled && nearCover &&
-            (p.room.key === "street" || p.room.key === "checkpoint") && Math.abs(a.vx) < 8) {
+            (p.room.key === "street" || p.room.key === "checkpoint") && speed < 8) {
             slot = "child_peek";
             height *= 0.83;
         } else if (a.crouch) {
             slot = "child_crouch";
-            frame = Math.abs(a.vx) > 8 ? step : 0;
-        } else if (Math.abs(a.vx) > 8) {
+            frame = speed > 8 ? step : 0;
+        } else if (speed > 8) {
             slot = "child_run";
             frame = step;
         }
         const facing = slot === "child_pull" ? (p.room.cart.handleOffset < 0 ? 1 : -1) : f;
-        if (assets.tryPlace(slot, "actor_child", cx, by, W, height, { facing, frame, layer: 5 })) {
-            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.48, 3, Color(12, 11, 13, 125));
+        if (assets.tryPlace(slot, "actor_child", cx, by, W, height, {
+            facing, frame, layer: depthEnabled ? depthOrder(a.depth, 5) : 5,
+        })) {
+            fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.48, 3, Color(12, 11, 13, 125));
             if (afraid) {
                 this.drawFear(fgGlow, p, cx, by + height + 14);
             }
@@ -404,9 +416,8 @@ export class ActorsRenderer {
         const cw = fullRef * 0.16;
 
         // 接地阴影
-        fgDraw.drawEllipse(Vec2(x, by + 1), cw * 1.15, 3.6, Color(4, 6, 10, 155));
+        fgDraw.drawEllipse(Vec2(x, shadowY + 1), cw * 1.15, 3.6, Color(4, 6, 10, 155));
 
-        const speed = Math.abs(a.vx);
         const walking = speed > 6 && a.onGround;
         const stride = walking ? Math.sin(this.animTime * 11) : 0;
         const bob = walking ? Math.abs(Math.cos(this.animTime * 11)) * 2.8 : Math.sin(this.animTime * 2.8) * 1.1;
@@ -492,9 +503,9 @@ export class ActorsRenderer {
 
     private drawEnemyWarning(fgGlow: DrawNode.Type, e: Enemy, p: Play, cam: CameraDirector, f: number): void {
         const x = cam.sx(e.x + f * 20);
-        const y = cam.sy(e.y + e.h * 0.69);
+        const y = cam.sy(e.y + e.h * 0.69, e.depth ?? 0);
         const dx = cam.sx(p.player.x) - x;
-        const dy = cam.sy(p.player.y + p.player.h * 0.56) - y;
+        const dy = cam.sy(p.player.y + p.player.h * 0.56, p.player.depth) - y;
         const length = 0.4 + 0.6 * Math.min(1, e.warnT / 36);
         for (let i = 0; i < 8; i += 2) {
             const a = length * i / 8;
@@ -515,7 +526,8 @@ export class ActorsRenderer {
         cam: CameraDirector,
     ): void {
         const cx = cam.sx(e.x);
-        const by = cam.sy(e.y);
+        const depth = e.depth ?? 0;
+        const by = cam.sy(e.y, depth);
         const H = cam.len(e.h);
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
@@ -530,7 +542,7 @@ export class ActorsRenderer {
         }
         const height = e.alive ? H : H * 0.24;
         if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W, height, {
-            facing: f, opacity: e.alive ? 1 : 0.78, layer: 3,
+            facing: f, opacity: e.alive ? 1 : 0.78, layer: p.room.depth === undefined ? 3 : depthOrder(depth, 3),
         })) {
             if (e.alive && e.warnT > 0) {
                 this.drawEnemyWarning(fgGlow, e, p, cam, f);
