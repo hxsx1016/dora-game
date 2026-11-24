@@ -32,7 +32,7 @@ function emptyKey(): KeyState {
 export class Input {
     /** 水平输入：-1 左、0 无、1 右。A/D 与方向键都算。 */
     moveX = 0;
-    /** 垂直输入：-1 上、0 无、1 下。只为菜单与爬梯预留。 */
+    /** 屏幕上下输入：-1 上、0 无、1 下。周戍用它在地面前后移动。 */
     moveY = 0;
 
     jump: KeyState = emptyKey();

@@ -1,0 +1,17 @@
+<A A="ui_ink.png">
+  <B A="ink_ribbon_sweep" B="8,8,520,56" />
+  <B A="ink_mist_curve" B="8,76,620,112" />
+  <B A="ink_veil_strip" B="8,200,620,72" />
+  <B A="ink_hairline" B="8,284,520,16" />
+  <B A="ink_bamboo_slip" B="8,316,168,22" />
+  <B A="ink_bamboo_slot" B="8,348,168,22" />
+  <B A="ink_frame_mask" B="196,316,440,220" />
+  <B A="ink_vstream" B="644,8,56,360" />
+  <B A="ink_knot_ornament" B="716,8,128,36" />
+  <B A="ink_corner_fine" B="860,8,72,72" />
+  <B A="ink_seal_slender" B="944,8,68,128" />
+  <B A="ink_blossom_dot" B="716,60,48,48" />
+  <B A="ink_enso_fine" B="780,60,128,128" />
+  <B A="ink_petal_mist" B="716,200,220,170" />
+  <B A="ink_song_paper" B="8,560,640,440" />
+</A>
