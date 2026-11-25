@@ -261,6 +261,44 @@ export class HudRenderer {
         h: number,
         alpha: number,
     ): void {
+        // 0. 慢时换弹：作答钟 4 秒、世界 1/4 速；3×3 盘已走过的点逐颗点亮。
+        if (p.reloadOpen) {
+            const bw = 400;
+            const cx = w * 0.5;
+            const by = h - 64;
+            const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / 240));
+            const effect = p.reloadPendingEffect;
+            const label = effect !== ""
+                ? "枪机复位 · " + (effect === "push" ? "推退" : (effect === "echo" ? "回声引声源" : "照明照遮蔽"))
+                : "连线换弹 · " + Math.min(9, p.reloadPath.length) + " / 9";
+            drawSilkVeil(uiDraw, uiArt, "hud_reload_veil", cx, by + 18, bw + 90, 48, PALETTE.inkWash, 0.76 * alpha, -1);
+            drawHairline(uiInkDraw, uiArt, "hud_reload_top", cx, by + 39, bw - 20, PALETTE.cyan, 0.55 * alpha, false, 2);
+            texts.put("xs", label, cx, by + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.8, alpha, 0.08);
+
+            // 9 颗节点：走过的路径点亮，终点 8 常亮为主。
+            for (let n = 0; n < 9; n++) {
+                const col = n % 3;
+                const row = Math.floor(n / 3);
+                const nx = cx + (col - 1) * 13;
+                const ny = by + 50 + row * 12;
+                const inPath = p.reloadPath.indexOf(n) >= 0;
+                const isEnd = n === 8;
+                uiArt.tryPlace("ink_enso_fine", "reload_node_" + n, nx, ny, isEnd ? 10 : 6, isEnd ? 10 : 6, {
+                    color: toColor(isEnd ? PALETTE.cyanCore : (inPath ? PALETTE.amber : PALETTE.silkDim)),
+                    opacity: (isEnd || inPath ? 0.92 : 0.4) * alpha, layer: 3,
+                });
+            }
+
+            const pbw = bw - 80;
+            const pbx = cx - pbw * 0.5;
+            const pby = by + 9;
+            uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw, pby), 1.4, toColor(PALETTE.silkDim, 115 * alpha));
+            if (ratio > 0.002) {
+                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 2.8, toColor(PALETTE.cyan, 220 * alpha));
+                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 1.0, toColor(PALETTE.cyanCore, 160 * alpha));
+            }
+        }
+
         // 1. 城门 45 秒死守：细丝胭脂进度带
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
             const g = p.room.story.gate;

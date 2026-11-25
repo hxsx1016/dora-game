@@ -81,7 +81,10 @@ local function gateHold(hp)
 	p.phase = "gate-hold"
 	p.gateTick = 1
 	p.gateSpawned = 4 -- 不再按秒数出场，测试自己放敌兵
-	p.hp = hp or 3
+	-- B1 默认 2/3：送别按 E 锁的是女主线，数数边沿用例保持原语义。
+	p.hp = hp or 2
+	p.maxHp = 3
+	p.storyRoute = ""
 	return p, i
 end
 
@@ -94,6 +97,9 @@ end
 -- 走到送别并把控制权交给小满。
 local function toCount(p, i)
 	local g = p.room.story.gate
+	-- B1：门洞送别按 E 才锁线。这组用例只测数数边沿，固定 2/3 血走女主线。
+	p.hp = 2
+	p.maxHp = 3
 	p.phase = "gate-send"
 	p.player.x = g.doorX
 	p.player.y = 0
@@ -111,7 +117,7 @@ print("==== D6/D5 四项逻辑验收 ====")
 -- ---------------------------------------------------------------- 1. 数数交权
 -- 用例 A：送别时就按住 D，一直到 1500 拍都不该迈步；松开再按才走。
 do
-	local p, i = gateHold(3)
+	local p, i = gateHold(2)
 	p.partner.x = p.room.story.gate.doorX + 30
 	-- 先按住 D，再进数数（模拟「送别前就按着」）
 	i.moveX = 1
@@ -141,7 +147,7 @@ end
 
 -- 用例 B：第 1439 拍按下并保持到 1440 —— 不算「24 秒后新按」。
 do
-	local p, i = gateHold(3)
+	local p, i = gateHold(2)
 	p.partner.x = p.room.story.gate.doorX + 30
 	toCount(p, i)
 	while p.countTick < 1438 do
@@ -171,7 +177,7 @@ end
 
 -- 用例 C：空手等到 1440，第一次按 D 就是新按。
 do
-	local p, i = gateHold(3)
+	local p, i = gateHold(2)
 	p.partner.x = p.room.story.gate.doorX + 30
 	toCount(p, i)
 	while p.countTick < 1440 do
