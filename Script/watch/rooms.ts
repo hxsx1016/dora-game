@@ -696,7 +696,7 @@ export const S2_DRYGOODS: RoomSpec = {
         { x: 100, w: 24, h: 130, y: 0, label: "檐柱 100", lanes: ["middle"], art: "cover_wood" },
         { x: 240, w: 24, h: 130, y: 0, label: "檐柱 240", lanes: ["middle"], art: "cover_wood" },
         {
-            x: 460, w: 100, h: 52, y: 0, label: "薄木摊挡 460–560 · 高 52", lanes: ["middle", "upper"],
+            x: 460, w: 100, h: 48, y: 0, label: "薄木摊挡 460–560 · 高 48", lanes: ["middle", "upper"],
             art: "thin_wood", id: "s2_wood", breakable: { kind: "thin_wood", hp: 2, wedgeHp: 1 },
         },
         { x: 620, w: 40, h: 130, y: 0, label: "永久石柱 620–660", lanes: ["upper"], art: "cover_stone" },
@@ -864,7 +864,7 @@ export const C2_GRANARY: RoomSpec = {
         startX: 1150, endX: 1500, baseY: 0, depth: 0, bodyW: 48, bodyH: 26, wheelR: 12, handleOffset: -50, clothSide: -1,
     },
     spawns: [
-        { x: 1580, y: 0, h: 84, depth: 32, label: "棚尾火器手 1580", kind: "gunner", drop: "ammo" },
+        { x: 1580, y: 0, h: 84, depth: 0, label: "棚尾火器手 1580", kind: "gunner", drop: "ammo" },
         { x: 1340, y: 0, h: 84, depth: 32, label: "远侧持盾手 1340", kind: "shield", shieldHp: 2, drop: "shield" },
     ],
     marks: [
