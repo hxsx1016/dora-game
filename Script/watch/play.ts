@@ -42,6 +42,9 @@ export type PlayEventName =
     | "gateRestart"
     | "cartDocked"
     | "fearChanged"
+    | "pickupRejected"
+    | "craftStart"
+    | "craftDone"
     | "roomChange"
     | "pickup"
     | "propBroken"
@@ -94,6 +97,15 @@ const CART_HALF = 24;
 const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
+/** 战具格与消耗品格各只放一件；满包时新东西留在原地，不吞物。 */
+const TOOL_CAP = 1;
+const CONSUMABLE_CAP = 1;
+/** 废木料制木楔要按住 E 的有效拍数。 */
+const CRAFT_TICKS = 45;
+/** 受伤后的保护拍数：t+41 仍在保护，t+42 可以再次扣血。 */
+const INVULN_HIT_TICKS = 42;
+/** 被击倒复活后的保护拍数（1.2 秒）。 */
+const INVULN_RESPAWN_TICKS = 72;
 const FIRE_COOLDOWN = 150;
 /** 新版关卡火器手的装填周期：比基础值长，给握车柄的玩家留出看枪口、停手、再推的窗口。 */
 const CAMPAIGN_FIRE_COOLDOWN = 240;
@@ -308,6 +320,8 @@ export class Play {
     gateOpen = false;
     /** 本步 E 是否已经给安抚用掉，避免同一步又敲木板。 */
     calmConsumed = false;
+    /** 正在制作的已按拍数；0 表示没在制作。 */
+    craftT = 0;
     /** 危险事件的递增 id，同一 id 只结算一次。 */
     nextDangerId = 1;
     /** 要切到哪个房间；app 读走后置空。 */
@@ -359,7 +373,11 @@ export class Play {
     /** 城门守点里周戍的血量；打空就回绞盘重来。 */
     hp = 3;
     maxHp = 3;
-    /** 受击后的短暂硬直保护：0.7 秒内不再扣血，避免近战连击秒杀。 */
+    /**
+     * 受击硬直保护：单位是「模拟拍」，不是秒。42 拍 = 0.7 秒。
+     * 这里必须用整数拍减法：用浮点秒减 dt 会在 t+42 处留下 ±1e-16 的残差，
+     * 同一发攻击在 t+41 / t+42 的判定就会随浮点符号漂移，回放不可复现。
+     */
     invulnT = 0;
     /** 小满撞墙后累计的时间：超过 0.3 秒就换一档绕行，别在柱前原地跳。 */
     partnerStuck = 0;
@@ -697,9 +715,6 @@ export class Play {
         if (input.pause.pressed) {
             this.paused = !this.paused;
         }
-        if (this.invulnT > 0) {
-            this.invulnT -= dt;
-        }
         if (this.flashT > 0) {
             this.flashT -= dt;
             if (this.flashT <= 0) {
@@ -718,6 +733,11 @@ export class Play {
         }
 
         this.ticks += 1;
+        // 保护按「可控模拟拍」走，暂停期间不递减：从暂停里回来时，
+        // 剩余保护应当还是离开时那么多，而不是被墙钟吃掉。
+        if (this.invulnT > 0) {
+            this.invulnT -= 1;
+        }
         if (this.isCampaign) {
             this.run.ticks += 1;
             this.run.roomTicks[this.room.key] = (this.run.roomTicks[this.room.key] ?? 0) + 1;
@@ -1505,19 +1525,43 @@ export class Play {
     // ---------- 新版关卡 S1–C2 ----------
 
     /** 掉落与拾取都走同一张背包。 */
-    private addItem(kind: string): void {
+    private addItem(kind: string): boolean {
         const inv = this.run.inventory;
         if (kind === "shield") {
+            if (inv.shield >= TOOL_CAP) {
+                return false;
+            }
             inv.shield += 1;
-        } else if (kind === "wedge") {
-            inv.wedge += 1;
-        } else if (kind === "ammo") {
-            inv.ammo += 1;
-        } else if (kind === "pass") {
-            inv.pass += 1;
-        } else if (kind === "quickbelt") {
-            inv.quickbelt += 1;
+            return true;
         }
+        if (kind === "wedge") {
+            if (inv.wedge >= CONSUMABLE_CAP) {
+                return false;
+            }
+            inv.wedge += 1;
+            return true;
+        }
+        if (kind === "ammo") {
+            if (inv.ammo >= CONSUMABLE_CAP) {
+                return false;
+            }
+            inv.ammo += 1;
+            return true;
+        }
+        if (kind === "scrap") {
+            // 材料不占格，多捡几块不挤掉消耗品。
+            inv.scrap += 1;
+            return true;
+        }
+        if (kind === "pass") {
+            inv.pass += 1;
+            return true;
+        }
+        if (kind === "quickbelt") {
+            inv.quickbelt += 1;
+            return true;
+        }
+        return false;
     }
 
     private findBox(id: string): Box | undefined {
@@ -1528,6 +1572,64 @@ export class Play {
             }
         }
         return undefined;
+    }
+
+    /** 最近的可加固木件。由数据决定（breakable 且没写 wedgeable:false），不按房间特判。 */
+    private findWedgeTarget(): Box | undefined {
+        let best: Box | undefined = undefined;
+        let bestD = 0;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.breakable === undefined || b.broken === true || b.breakable.wedgeable === false) {
+                continue;
+            }
+            if (!this.nearBox(b, 26)) {
+                continue;
+            }
+            const d = Math.abs(b.x0 - this.player.x) + Math.abs(b.x1 - this.player.x);
+            if (best === undefined || d < bestD) {
+                best = b;
+                bestD = d;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * 废木料制木楔：按住 E 满 45 拍才成。松手、受伤、握车柄都会取消，
+     * 完成后只结算一次，取消不退还也不复制原料。
+     * @returns 本拍是否吃掉了 E。
+     */
+    private stepCraft(input: Input): boolean {
+        const inv = this.run.inventory;
+        if (this.craftT > 0) {
+            if (!input.interact.held || this.gripping || this.player.rollT > 0
+                || this.escort.state === "calming" || this.paused) {
+                this.craftT = 0;
+                this.flashSet("制作中断", 0.8);
+                return true;
+            }
+            this.craftT += 1;
+            if (this.craftT >= CRAFT_TICKS) {
+                if (inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP) {
+                    inv.scrap -= 1;
+                    inv.wedge += 1;
+                    this.flashSet("制得木楔", 1.2);
+                    this.log("制木楔");
+                    this.emit("craftDone", { item: "wedge", ticks: CRAFT_TICKS });
+                }
+                this.craftT = 0;
+            }
+            return true;
+        }
+        if (input.interact.pressed && inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP) {
+            this.craftT = 1;
+            this.flashSet("握住废木料 · 按住 E 削木楔", 1.0);
+            this.emit("craftStart", { item: "wedge", ticks: CRAFT_TICKS });
+            return true;
+        }
+        return false;
     }
 
     private nearBox(b: Box, reach: number): boolean {
@@ -1597,15 +1699,21 @@ export class Play {
             const sameDepth = overlapsDepth(p.depth, { min: (pk.depth ?? 0) - 10, max: (pk.depth ?? 0) + 10 }, 10);
             const dy = Math.abs((pk.y + (pk.depth ?? 0)) - (p.y + p.depth));
             if (Math.abs(pk.x - p.x) < 44 && dy < 60 && sameDepth) {
+                if (!this.addItem(pk.kind)) {
+                    // 满包不吞物：不记 taken、不清 id，东西还在原地，腾出格位后能再来捡。
+                    this.flashSet("背包满了 · " + pk.label + " 留在原地", 1.0);
+                    this.log("满包拒绝 " + pk.kind);
+                    this.emit("pickupRejected", { kind: pk.kind, x: pk.x, y: pk.y });
+                    continue;
+                }
                 this.run.taken[pk.id] = true;
-                this.addItem(pk.kind);
                 pk.id = "";
                 this.flashSet("拾取 " + pk.label, 1.0);
                 this.log("拾取 " + pk.kind + " " + pk.label);
                 this.emit("pickup", { kind: pk.kind, x: pk.x, y: pk.y, label: pk.label });
             }
         }
-        if (input.interact.pressed) {
+        if (!this.stepCraft(input) && input.interact.pressed) {
             this.campaignInteract();
         }
         this.stepCampaignCart(dt, input);
@@ -1621,18 +1729,28 @@ export class Play {
         }
         const inv = this.run.inventory;
         if (inv.wedge > 0) {
-            const w = this.findBox("s2_wood");
-            if (w !== undefined && w.broken !== true && this.nearBox(w, 26)) {
+            const w = this.findWedgeTarget();
+            if (w !== undefined) {
                 if (w.breakable !== undefined) {
                     w.breakable.hp += w.breakable.wedgeHp ?? 1;
                 }
                 inv.wedge -= 1;
-                this.run.props["s2_wood"] = { broken: false, hp: w.breakable === undefined ? 0 : w.breakable.hp, wedge: true };
-                this.flashSet("钉木楔 · 薄木挡多承一次", 1.2);
-                this.log("加固薄木挡");
+                this.run.props[w.id === undefined ? "wedge" : w.id]
+                    = { broken: w.broken === true, hp: w.breakable === undefined ? 0 : w.breakable.hp, wedge: true };
+                this.flashSet("钉木楔 · 多承一次", 1.2);
+                this.log("加固 " + (w.label === undefined ? "木件" : w.label));
                 this.emit("interactUsed", { kind: "wedge", x: w.x0 });
                 return;
             }
+        }
+        if (inv.ammo > 0 && this.reloadT > 0) {
+            // 备用弹包：立刻补满当前这一发，不缩短后续装填。
+            this.reloadT = 0;
+            inv.ammo -= 1;
+            this.flashSet("备用弹包 · 膛内补满", 1.0);
+            this.log("用备用弹包");
+            this.emit("interactUsed", { kind: "ammo", x: this.player.x });
+            return;
         }
         if (inv.shield > 0 && this.bracedShield === undefined && this.room.key === "c2-granary"
             && this.player.x >= this.room.minX + 960 && this.player.x <= this.room.minX + 1320) {
@@ -1954,22 +2072,30 @@ export class Play {
 
     /** 射线是否被实体或软遮挡挡在敌我之间。 */
     private blockedShot(e: Enemy, p: Actor): boolean {
+        const eDepth = e.depth ?? 0;
         const ex = e.x;
-        const ey = e.y + (e.depth ?? 0) + e.h * 0.62;
+        // 纯高度作 y 轴，纵深作独立轴：屏幕 y = 高度 + 纵深。
+        const ey = e.y + e.h * 0.62;
         const px = p.x;
-        const py = p.y + p.depth + p.h * 0.55;
+        const py = p.y + p.h * 0.55;
         const dx = px - ex;
-        const dy = py - ey;
-        const len = Math.sqrt(dx * dx + dy * dy);
+        const dyScreen = (py + p.depth) - (ey + eDepth);
+        const len = Math.sqrt(dx * dx + dyScreen * dyScreen);
         if (len < 0.01) {
             return false;
         }
-        const ray = { x: ex, y: ey, dx: dx / len, dy: dy / len };
+        // 敌我一致：射线自带起点档位和纵深变化率，交给 hitBox 做完整三轴求交。
+        // 只拿「敌人所在档」过滤掩体，会把射线末端真实挡住的远端挡物漏掉。
+        const ray = {
+            x: ex, y: ey,
+            dx: dx / len, dy: (py - ey) / len,
+            depth: eDepth, dDepth: (p.depth - eDepth) / len,
+        };
         let best = -1;
         let j = 0;
         for (j = 0; j < this.boxes.length; j++) {
             const b = this.boxes[j];
-            if (b.broken === true || b.passable === true) {
+            if (b.broken === true || b.passable === true || b.hidden === true) {
                 continue;
             }
             // 残盾：留到 campaignEnemyFire 里判「挡下一发」，不在这里被当成普通掩体，
@@ -1977,11 +2103,10 @@ export class Play {
             if (b.id === "braced_shield") {
                 continue;
             }
-            if (!overlapsDepth(e.depth ?? 0, b.depth, ACTOR_DEPTH_HALF)) {
-                continue;
-            }
             const t = hitBox(ray, b);
-            if (t >= 0 && t < len - 2 && (best < 0 || t < best)) {
+            // t 太靠近起点说明射线是从这件东西内部出发的（比如火器手站在抬闩里），
+            // 那不是「挡在中间」，不该算遮挡。
+            if (t > 2 && t < len - 2 && (best < 0 || t < best)) {
                 best = t;
             }
         }
@@ -2017,7 +2142,8 @@ export class Play {
         if (this.invulnT > 0) {
             return;
         }
-        this.invulnT = 0.7;
+        this.invulnT = INVULN_HIT_TICKS;
+        this.craftT = 0;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
         this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2043,8 +2169,13 @@ export class Play {
                 e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
             }
         } else if (adx < 48 && sameLane && (e.swingT ?? 0) <= 0) {
-            if (p.rollT <= 0 && this.invulnT <= 0) {
-                this.invulnT = 0.7;
+            // 翻滚只抵消正面来击：盾手在背后挥过来时，往前滚等于把后背送上去。
+            // 全向免疫会让翻滚变成无成本的万能键，也就没有"看时机再滚"可言。
+            const fromFront = (e.x - p.x) * p.facing > 0;
+            const rollDodges = p.rollT > 0 && fromFront;
+            if (!rollDodges && this.invulnT <= 0) {
+                this.invulnT = INVULN_HIT_TICKS;
+        this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("盾手近身 · " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2102,7 +2233,8 @@ export class Play {
             if (target !== undefined) {
                 this.damageProp(target, 2);
             } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
-                this.invulnT = 0.7;
+                this.invulnT = INVULN_HIT_TICKS;
+        this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("破障手近身", 0.8);
@@ -2120,7 +2252,7 @@ export class Play {
     private campaignFailed(): void {
         const p = this.player;
         this.hp = this.maxHp;
-        this.invulnT = 1.2;
+        this.invulnT = INVULN_RESPAWN_TICKS;
         this.reloadT = 0;
         this.gripping = false;
         this.flashSet("被击倒 · 回到本段起点，破坏与拾取保留", 2.0);
@@ -2828,12 +2960,12 @@ export class Play {
             if (box.broken === true || box.hidden === true) {
                 continue;
             }
-            // 2.5D：不同纵深上的柱子不该挡住另一档的子弹。
-            if (ray.depth !== undefined && !overlapsDepth(ray.depth, box.depth, ACTOR_DEPTH_HALF)) {
-                continue;
-            }
+            // 2.5D：挡弹判定交给 hitBox 做完整三轴求交（含纵深区间）。
+            // 不能在这里只拿射线起点档位做前置过滤：射线从近侧档打向远侧档时，
+            // 起点与挡物档位不重叠、但射线末端真实穿过挡物，提前 continue 会漏挡。
             const t = hitBox(ray, box);
-            if (t >= 0 && (best < 0 || t < best)) {
+            // 起点已经落在挡物内部（贴身开火）不算遮挡，否则会把自己站的那块板当墙。
+            if (t > 2 && (best < 0 || t < best)) {
                 best = t;
                 bestBox = box;
             }
