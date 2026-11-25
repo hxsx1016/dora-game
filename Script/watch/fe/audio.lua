@@ -404,49 +404,134 @@ function AudioDirector.prototype.dispatchSingleEvent(self, e, roomSessionId, che
 			e.tick, -- 379
 			e.seq -- 379
 		) -- 379
-	end -- 379
+		return -- 380
+	end -- 380
+	local name = e.name -- 383
+	if name == "handHeld" then -- 383
+		self:playOnce( -- 385
+			key, -- 385
+			"sfx", -- 385
+			"assets/audio/gate/reunion_hold.wav", -- 385
+			0.9, -- 385
+			"gate:hand_held", -- 385
+			e.tick, -- 385
+			e.seq -- 385
+		) -- 385
+	elseif name == "handRelease" then -- 385
+		self:playOnce( -- 387
+			key, -- 387
+			"sfx", -- 387
+			"assets/audio/gate/reunion_release.wav", -- 387
+			0.7, -- 387
+			"gate:hand_release", -- 387
+			e.tick, -- 387
+			e.seq -- 387
+		) -- 387
+	elseif name == "carryStart" then -- 387
+		self:playOnce( -- 389
+			key, -- 389
+			"sfx", -- 389
+			"assets/audio/combat/carry_start.wav", -- 389
+			0.82, -- 389
+			"combat:carry_start", -- 389
+			e.tick, -- 389
+			e.seq -- 389
+		) -- 389
+	elseif name == "reloadOpen" then -- 389
+		self:playOnce( -- 391
+			key, -- 391
+			"sfx", -- 391
+			"assets/audio/combat/reload_open.wav", -- 391
+			0.8, -- 391
+			"reload:open", -- 391
+			e.tick, -- 391
+			e.seq -- 391
+		) -- 391
+	elseif name == "reloadNode" then -- 391
+		local nodeTag = type(e.data.node) == "number" and "" .. tostring(e.data.node) or "0" -- 393
+		self:playOnce( -- 394
+			key, -- 394
+			"sfx", -- 394
+			"assets/audio/combat/reload_node.wav", -- 394
+			0.78, -- 394
+			"reload:node:" .. nodeTag, -- 394
+			e.tick, -- 394
+			e.seq -- 394
+		) -- 394
+	elseif name == "reloadInvalid" then -- 394
+		self:playOnce( -- 396
+			key, -- 396
+			"sfx", -- 396
+			"assets/audio/combat/reload_invalid.wav", -- 396
+			0.72, -- 396
+			"reload:invalid", -- 396
+			e.tick, -- 396
+			e.seq -- 396
+		) -- 396
+	elseif name == "reloadSolved" then -- 396
+		local eff = type(e.data.effect) == "string" and e.data.effect or "push" -- 398
+		self:playOnce( -- 399
+			key, -- 399
+			"sfx", -- 399
+			"assets/audio/combat/reload_solved.wav", -- 399
+			0.9, -- 399
+			"reload:solved:" .. eff, -- 399
+			e.tick, -- 399
+			e.seq -- 399
+		) -- 399
+	elseif name == "reloadTimeout" then -- 399
+		self:playOnce( -- 401
+			key, -- 401
+			"sfx", -- 401
+			"assets/audio/combat/reload_timeout.wav", -- 401
+			0.78, -- 401
+			"reload:timeout", -- 401
+			e.tick, -- 401
+			e.seq -- 401
+		) -- 401
+	end -- 401
 end -- 340
-function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 383
-	return self.dedupeSet[dedupeKey] == true -- 384
-end -- 383
-function AudioDirector.prototype.getPlayLog(self) -- 387
-	return self.playLog -- 388
-end -- 387
-function AudioDirector.prototype.getLastEntry(self) -- 391
-	if #self.playLog == 0 then -- 391
-		return nil -- 393
-	end -- 393
-	return self.playLog[#self.playLog] -- 395
-end -- 391
-function AudioDirector.prototype.clearPlayLog(self) -- 398
-	self.playLog = {} -- 399
-end -- 398
-function AudioDirector.prototype.getTrackList(self) -- 402
-	return ALL_TRACKS -- 403
-end -- 402
-function AudioDirector.prototype.pruneStoppedSources(self) -- 406
-	local w = 0 -- 407
-	local i = 0 -- 408
-	do -- 408
-		i = 0 -- 409
-		while i < #self.activeSources do -- 409
-			local src = self.activeSources[i + 1] -- 410
-			if src.playing then -- 410
-				self.activeSources[w + 1] = src -- 412
-				w = w + 1 -- 413
-			else -- 413
-				src:removeFromParent(true) -- 415
-			end -- 415
-			i = i + 1 -- 409
-		end -- 409
-	end -- 409
-	__TS__ArraySetLength(self.activeSources, w) -- 409
-end -- 406
-function AudioDirector.prototype.recordLog(self, entry) -- 421
-	local ____self_playLog_4 = self.playLog -- 421
-	____self_playLog_4[#____self_playLog_4 + 1] = entry -- 422
-	if #self.playLog > MAX_PLAY_LOG then -- 422
-		table.remove(self.playLog, 1) -- 424
-	end -- 424
-end -- 421
-return ____exports -- 421
+function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 405
+	return self.dedupeSet[dedupeKey] == true -- 406
+end -- 405
+function AudioDirector.prototype.getPlayLog(self) -- 409
+	return self.playLog -- 410
+end -- 409
+function AudioDirector.prototype.getLastEntry(self) -- 413
+	if #self.playLog == 0 then -- 413
+		return nil -- 415
+	end -- 415
+	return self.playLog[#self.playLog] -- 417
+end -- 413
+function AudioDirector.prototype.clearPlayLog(self) -- 420
+	self.playLog = {} -- 421
+end -- 420
+function AudioDirector.prototype.getTrackList(self) -- 424
+	return ALL_TRACKS -- 425
+end -- 424
+function AudioDirector.prototype.pruneStoppedSources(self) -- 428
+	local w = 0 -- 429
+	local i = 0 -- 430
+	do -- 430
+		i = 0 -- 431
+		while i < #self.activeSources do -- 431
+			local src = self.activeSources[i + 1] -- 432
+			if src.playing then -- 432
+				self.activeSources[w + 1] = src -- 434
+				w = w + 1 -- 435
+			else -- 435
+				src:removeFromParent(true) -- 437
+			end -- 437
+			i = i + 1 -- 431
+		end -- 431
+	end -- 431
+	__TS__ArraySetLength(self.activeSources, w) -- 431
+end -- 428
+function AudioDirector.prototype.recordLog(self, entry) -- 443
+	local ____self_playLog_4 = self.playLog -- 443
+	____self_playLog_4[#____self_playLog_4 + 1] = entry -- 444
+	if #self.playLog > MAX_PLAY_LOG then -- 444
+		table.remove(self.playLog, 1) -- 446
+	end -- 446
+end -- 443
+return ____exports -- 443

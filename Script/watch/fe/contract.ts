@@ -123,6 +123,7 @@ export interface DualRouteSnapshot {
 export type FrontendIntent =
     | { kind: "gateReunionHold"; holding: boolean }
     | { kind: "reloadOpen" }
+    | { kind: "reloadTapNode"; node: number }
     | { kind: "reloadPathPreview"; path: number[] }
     | { kind: "reloadPathCommit"; path: number[] }
     | { kind: "reloadCancel" }
@@ -354,7 +355,10 @@ function parseStoryRoute(v: unknown): StoryRoute {
 }
 
 function parseReloadEffect(v: unknown): ReloadEffectKind {
-    if (v === "knockback" || v === "echo" || v === "light") {
+    if (v === "push" || v === "knockback") {
+        return "knockback";
+    }
+    if (v === "echo" || v === "light") {
         return v;
     }
     return "normal";
@@ -374,26 +378,30 @@ function parseMuseumPhase(v: unknown): MuseumPhase {
     return "locked";
 }
 
-/** 根据 3×3 路径点集合推导效果（用于排演态预览与提交：4=铃纹，5=灯纹，其余有效连线=推退） */
-function deriveRehearsalReloadEffect(path: number[]): ReloadEffectKind {
+/**
+ * 根据 3×3 路径点集合推导效果（对齐后端 reload.ts 布局）：
+ * - 0 = 左下起点，8 = 右上枪机复位终点；
+ * - 4 = 中心铃纹（echo，优先），2 = 右下灯纹（light），其余有效路径 = 推退（knockback）。
+ */
+function deriveReloadEffectFromPath(path: number[]): ReloadEffectKind {
     if (path.length < 2) {
         return "normal";
     }
     let hasBell = false;
-    let hasLight = false;
+    let hasLamp = false;
     let i = 0;
     for (i = 0; i < path.length; i++) {
         if (path[i] === 4) {
             hasBell = true;
-        } else if (path[i] === 5) {
-            hasLight = true;
+        } else if (path[i] === 2) {
+            hasLamp = true;
         }
-    }
-    if (hasLight) {
-        return "light";
     }
     if (hasBell) {
         return "echo";
+    }
+    if (hasLamp) {
+        return "light";
     }
     return "knockback";
 }
@@ -415,6 +423,12 @@ function deriveVisualMode(
         return "museum";
     }
     if (roomKey === "gate") {
+        if (phase === "gate-hand") {
+            return "pixel";
+        }
+        if (phase === "gate-wait") {
+            return reunionCompleted ? "pixel" : "lowpoly";
+        }
         if (phase === "gate-count") {
             if (storyRoute === "soldier" && reunionCompleted) {
                 return "pixel";
@@ -430,6 +444,9 @@ function deriveVisualMode(
         if (phase === "gate-walk") {
             return storyRoute === "soldier" ? "pixel" : (storyRoute === "child" ? "lowpoly" : "pixel");
         }
+        return "pixel";
+    }
+    if (roomKey === "gatepath" || roomKey === "escort1") {
         return "pixel";
     }
     if (roomKey === "outside" || roomKey === "village" || roomKey === "forest" || roomKey === "tower") {
@@ -448,6 +465,9 @@ export class DualRouteContract {
     private assistHintsEnabled = false;
     /** 正式模式工台制作请求幂等防重表（切房/重试清空） */
     private livePendingCraftRequests: Record<string, boolean> = {};
+    /** 正式模式瞬时交互计数（从后端一次性事件累计，切房/重试清零） */
+    private liveReleasedAbortCount = 0;
+    private liveReloadInvalidFlash = 0;
     private liveArchiveCache: ArchiveSnapshot = createEmptyArchive();
     private intentLog: IntentLogEntry[] = [];
     private lastSnapshot: DualRouteSnapshot | undefined;
@@ -527,6 +547,8 @@ export class DualRouteContract {
      */
     resetForRoom(p: Play): void {
         this.livePendingCraftRequests = {};
+        this.liveReleasedAbortCount = 0;
+        this.liveReloadInvalidFlash = 0;
         this.liveArchiveCache = this.readLiveArchive(p);
         if (this.rehearsal !== undefined) {
             this.rehearsal.gateReunion = createEmptyGateReunion();
@@ -546,11 +568,11 @@ export class DualRouteContract {
      * - 排演模式仅消费独立内存状态，并打 isRehearsal = true 标记；
      * - 暂停时 rawDt 应传 0（或由 p.paused 保护），冻结所有排演计时。
      */
-    sample(p: Play, rawDt: number, input: Input, _events?: FrameEvents): DualRouteSnapshot {
+    sample(p: Play, rawDt: number, input: Input, events?: FrameEvents): DualRouteSnapshot {
         const dt = p.paused ? 0 : Math.max(0, rawDt);
         const snap = this.source === "rehearsal" && this.rehearsal !== undefined
             ? this.sampleRehearsal(p, dt, input, this.rehearsal)
-            : this.sampleLive(p);
+            : this.sampleLive(p, dt, events);
         this.lastSnapshot = snap;
         return snap;
     }
@@ -688,14 +710,32 @@ export class DualRouteContract {
 
     // ==================== 正式模式读取适配（后端字段上线后仅改此处） ====================
 
-    private sampleLive(p: Play): DualRouteSnapshot {
+    private sampleLive(p: Play, dt: number, events?: FrameEvents): DualRouteSnapshot {
         const pRec = asRecord(p);
         const runRec = asRecord(p.run);
+        const storyRec = asRecord(runRec !== undefined ? runRec["story"] : undefined);
 
-        // 1. 路线锁存：仅读取后端锁存字段；严禁读即时 HP 或 run.route
-        const rawRoute = pRec !== undefined && pRec["storyRoute"] !== undefined
+        if (dt > 0 && this.liveReloadInvalidFlash > 0) {
+            this.liveReloadInvalidFlash = Math.max(0, this.liveReloadInvalidFlash - dt);
+        }
+        if (events !== undefined && events.rawEvents.length > 0) {
+            let ei = 0;
+            for (ei = 0; ei < events.rawEvents.length; ei++) {
+                const ename = events.rawEvents[ei].name as string;
+                if (ename === "handRelease") {
+                    this.liveReleasedAbortCount += 1;
+                } else if (ename === "reloadInvalid") {
+                    this.liveReloadInvalidFlash = 0.35;
+                }
+            }
+        }
+
+        // 1. 路线锁存：仅读取后端锁存字段（兼容 p.storyRoute 与 p.run.story.route）；严禁读即时 HP 或 run.route
+        const rawRoute = pRec !== undefined && typeof pRec["storyRoute"] === "string" && pRec["storyRoute"] !== ""
             ? pRec["storyRoute"]
-            : (runRec !== undefined ? runRec["storyRoute"] : undefined);
+            : (storyRec !== undefined && typeof storyRec["route"] === "string" && storyRec["route"] !== ""
+                ? storyRec["route"]
+                : (runRec !== undefined ? runRec["storyRoute"] : undefined));
         const storyRoute = parseStoryRoute(rawRoute);
 
         // 2. 风台数到二十：兼容 countElapsedTicks 与既有 countTick
@@ -704,48 +744,65 @@ export class DualRouteContract {
         const countNumber = gateCountAtTick(countElapsedTicks);
         const countProgress = Math.max(0, Math.min(1, countElapsedTicks / countDurationTicks));
 
-        // 3. 风台长按牵手重逢
+        // 3. 风台长按牵手重逢（兼容嵌套 gateReunion 与 A单后端 gate-wait/gate-hand + handTicks/handNeedTicks）
         const grRec = asRecord(pRec !== undefined ? pRec["gateReunion"] : undefined);
         const flatHold = readNum(pRec, "gateHoldProgress");
+        const inGateWaitOrHand = p.room.key === "gate" && (p.phase === "gate-wait" || p.phase === "gate-hand");
+        const handTicks = readNum(pRec, "handTicks") ?? 0;
+        const handNeedTicks = Math.max(1, readNum(pRec, "handNeedTicks") ?? 36);
+        const handTied = p.room.key === "gate" && p.phase === "gate-hand";
+        const derivedHoldProg = handTied ? 1 : (inGateWaitOrHand ? Math.max(0, Math.min(1, handTicks / handNeedTicks)) : 0);
         const gateReunion: GateReunionSnapshot = {
-            active: readBool(grRec, "active") ?? false,
-            knockHeard: readBool(grRec, "knockHeard") ?? false,
-            holdProgress: Math.max(0, Math.min(1, readNum(grRec, "holdProgress") ?? flatHold ?? 0)),
-            holding: readBool(grRec, "holding") ?? false,
-            completed: readBool(grRec, "completed") ?? false,
-            releasedAbortCount: readNum(grRec, "releasedAbortCount") ?? 0,
+            active: readBool(grRec, "active") ?? inGateWaitOrHand,
+            knockHeard: readBool(grRec, "knockHeard") ?? (inGateWaitOrHand && p.knocks >= 1),
+            holdProgress: Math.max(0, Math.min(1, readNum(grRec, "holdProgress") ?? flatHold ?? derivedHoldProg)),
+            holding: readBool(grRec, "holding") ?? (inGateWaitOrHand && !handTied && handTicks > 0),
+            completed: readBool(grRec, "completed") ?? handTied,
+            releasedAbortCount: readNum(grRec, "releasedAbortCount") ?? this.liveReleasedAbortCount,
         };
 
-        // 4. 牵手与背负姿态
+        // 4. 牵手与背负姿态（兼容嵌套 backCarry 与 B1后端 carryOn / run.story.carry / gatepath）
         const bcRec = asRecord(pRec !== undefined ? pRec["backCarry"] : undefined);
+        const carryOn = readBool(pRec, "carryOn") ?? readBool(storyRec, "carry") ?? false;
+        const handInHandLive = handTied || (p.room.key === "gatepath" && !carryOn);
         const backCarry: BackCarrySnapshot = {
-            active: readBool(bcRec, "active") ?? false,
-            handInHand: readBool(bcRec, "handInHand") ?? false,
-            mounting: readBool(bcRec, "mounting") ?? false,
+            active: readBool(bcRec, "active") ?? carryOn,
+            handInHand: readBool(bcRec, "handInHand") ?? handInHandLive,
+            mounting: readBool(bcRec, "mounting") ?? (p.room.key === "gatepath" && carryOn),
             atBench: readBool(bcRec, "atBench") ?? false,
         };
 
-        // 5. 世界慢时倍率
-        const rawScale = readNum(pRec, "timeScale") ?? readNum(runRec, "timeScale");
-        const timeScale = rawScale !== undefined && rawScale >= 0 ? rawScale : 1;
-
-        // 6. 3×3 换弹会话（兼容嵌套 reloadSession 与顶层 reloadPath/nextEffect）
+        // 5 & 6. 世界慢时与 3×3 换弹会话（兼容嵌套 reloadSession 与 B1后端 reloadOpen/reloadAnswerTicks/reloadPath/reloadPendingEffect）
         const rsRec = asRecord(pRec !== undefined ? pRec["reloadSession"] : undefined);
-        const flatPath = readNumArray(pRec, "reloadPath");
+        const reloadOpenLive = readBool(pRec, "reloadOpen") ?? false;
+        const reloadActive = readBool(rsRec, "active") ?? reloadOpenLive;
+        const reloadAnswerTicks = readNum(pRec, "reloadAnswerTicks") ?? 0;
+        const reloadTryCount = readNum(pRec, "reloadTryCount") ?? 0;
+        const livePath = readNumArray(rsRec, "path") ?? readNumArray(pRec, "reloadPath") ?? [];
+        const liveNextRaw = rsRec !== undefined && rsRec["nextEffect"] !== undefined
+            ? rsRec["nextEffect"]
+            : (pRec !== undefined && pRec["reloadPendingEffect"] !== undefined
+                ? pRec["reloadPendingEffect"]
+                : (pRec !== undefined ? pRec["nextEffect"] : undefined));
+        const livePreview = rsRec !== undefined && rsRec["previewEffect"] !== undefined
+            ? parseReloadEffect(rsRec["previewEffect"])
+            : (reloadActive ? deriveReloadEffectFromPath(livePath) : "normal");
+
         const reloadSession: ReloadSessionSnapshot = {
-            active: readBool(rsRec, "active") ?? false,
-            firstTime: readBool(rsRec, "firstTime") ?? true,
-            elapsed: readNum(rsRec, "elapsed") ?? 0,
+            active: reloadActive,
+            firstTime: readBool(rsRec, "firstTime") ?? (reloadTryCount <= 1),
+            elapsed: readNum(rsRec, "elapsed") ?? (reloadAnswerTicks / 60),
             duration: Math.max(0.01, readNum(rsRec, "duration") ?? DEFAULT_RELOAD_DURATION),
-            path: readNumArray(rsRec, "path") ?? flatPath ?? [],
-            previewEffect: parseReloadEffect(rsRec !== undefined ? rsRec["previewEffect"] : undefined),
-            nextEffect: parseReloadEffect(
-                rsRec !== undefined && rsRec["nextEffect"] !== undefined
-                    ? rsRec["nextEffect"]
-                    : (pRec !== undefined ? pRec["nextEffect"] : undefined),
-            ),
-            invalidFlash: readNum(rsRec, "invalidFlash") ?? 0,
+            path: livePath,
+            previewEffect: livePreview,
+            nextEffect: parseReloadEffect(liveNextRaw),
+            invalidFlash: readNum(rsRec, "invalidFlash") ?? this.liveReloadInvalidFlash,
         };
+
+        const rawScale = readNum(pRec, "timeScale") ?? readNum(runRec, "timeScale");
+        const timeScale = rawScale !== undefined && rawScale >= 0
+            ? rawScale
+            : (reloadActive ? DEFAULT_SLOW_TIME_SCALE : 1);
 
         // 7. 第三段安全工台
         const cbRec = asRecord(pRec !== undefined ? pRec["craftBench"] : undefined);
@@ -873,6 +930,25 @@ export class DualRouteContract {
         if (typeof handler === "function") {
             const result = (handler as (self: Play, req: FrontendIntent) => unknown)(p, intent);
             return result !== false;
+        }
+        // 兼容 B1 后端已落地的 reloadTapNode(node) 入口
+        const tapNode = pRec["reloadTapNode"];
+        if (typeof tapNode === "function") {
+            const fn = tapNode as (self: Play, node: number) => void;
+            if (intent.kind === "reloadTapNode") {
+                fn(p, intent.node);
+                return true;
+            }
+            if (intent.kind === "reloadPathCommit" && intent.path.length > 0) {
+                let i = 0;
+                for (i = 0; i < intent.path.length; i++) {
+                    if (i === 0 && intent.path[i] === 0) {
+                        continue;
+                    }
+                    fn(p, intent.path[i]);
+                }
+                return true;
+            }
         }
         return false;
     }
@@ -1030,12 +1106,37 @@ export class DualRouteContract {
             this.triggerMockReload(true);
             return true;
         }
+        if (intent.kind === "reloadTapNode") {
+            if (!st.reloadSession.active) {
+                return false;
+            }
+            if (st.reloadSession.path.length === 0) {
+                st.reloadSession.path.push(0);
+            }
+            if (st.reloadSession.path.indexOf(intent.node) >= 0) {
+                st.reloadSession.invalidFlash = 0.35;
+                st.reloadSession.path = [0];
+                st.reloadSession.previewEffect = "normal";
+                return false;
+            }
+            st.reloadSession.path.push(intent.node);
+            st.reloadSession.previewEffect = deriveReloadEffectFromPath(st.reloadSession.path);
+            if (intent.node === 8) {
+                st.reloadSession.nextEffect = st.reloadSession.previewEffect;
+                st.reloadSession.active = false;
+                st.reloadSession.elapsed = 0;
+                st.reloadSession.path = [];
+                st.reloadSession.firstTime = false;
+                st.timeScaleOverride = undefined;
+            }
+            return true;
+        }
         if (intent.kind === "reloadPathPreview") {
             if (!st.reloadSession.active) {
                 return false;
             }
             st.reloadSession.path = intent.path.slice();
-            st.reloadSession.previewEffect = deriveRehearsalReloadEffect(intent.path);
+            st.reloadSession.previewEffect = deriveReloadEffectFromPath(intent.path);
             return true;
         }
         if (intent.kind === "reloadPathCommit") {
@@ -1048,7 +1149,7 @@ export class DualRouteContract {
                 st.reloadSession.previewEffect = "normal";
                 return false;
             }
-            const effect = deriveRehearsalReloadEffect(intent.path);
+            const effect = deriveReloadEffectFromPath(intent.path);
             st.reloadSession.nextEffect = effect;
             st.reloadSession.previewEffect = effect;
             st.reloadSession.path = [];
