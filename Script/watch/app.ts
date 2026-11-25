@@ -13,7 +13,7 @@ import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { WatchFrontend } from "Script/watch/fe/frontend";
-import { createRun, createTrial, mmss, RunState, talentNames } from "Script/watch/run";
+import { createRun, createTrial, mmss, RunSource, RunState, talentNames } from "Script/watch/run";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 declare function print(...args: string[]): void;
@@ -178,7 +178,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 play = undefined;
                 ensurePlay();
             } else {
-                enterPlayRoom(current);
+                enterPlayRoom(current, storyRun === undefined ? "debug" : storyRun.source);
             }
         } else if (key === KeyName.F2) {
             setMode(0);
@@ -237,7 +237,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 }
             }
             if (idx >= 0 && idx < ROOMS.length) {
-                enterPlayRoom(idx);
+                enterPlayRoom(idx, "debug");
             }
         },
         getPlay: () => play,
@@ -269,21 +269,23 @@ function setMode(nextMode: number): void {
     clock.reset();
 }
 
-function enterPlayRoom(idx: number): void {
+function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false): void {
     current = idx;
     setMode(1);
     if (fe !== undefined) {
         fe.screen = "play";
     }
     play = undefined;
-    // 从菜单「开始」进序章视为开新局；其它章节直达保留既有跨房状态。
-    if (idx === 0) {
-        storyRun = createRun();
+    // 标题「新的旅程」进序章视为正式开新局；章节直达与快跳只预览，不写通关档案。
+    if (fresh || storyRun === undefined) {
+        storyRun = createRun(20261124, source);
+    } else {
+        storyRun.source = source;
     }
     ensurePlay();
 }
 
-function pickByIndex(idx: number): void {
+function pickByIndex(idx: number, source: RunSource = "debug"): void {
     if (mode === 2) {
         if (idx < 0 || idx >= CAMPAIGN_ROOMS.length) {
             return;
@@ -583,9 +585,9 @@ function tickFrontend(frameDt: number): void {
         if (act.type === "trial") {
             startTrial();
         } else if (act.type === "start") {
-            enterPlayRoom(0);
+            enterPlayRoom(0, "official", true);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
-            enterPlayRoom(act.roomIndex);
+            enterPlayRoom(act.roomIndex, "chapter");
         } else if (act.type === "openChapters") {
             fe.menus.openChapters();
             fe.screen = "chapters";
