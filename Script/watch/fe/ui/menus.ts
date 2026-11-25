@@ -49,6 +49,8 @@ const TITLE_ITEMS = [
 const PAUSE_ITEMS = [
     { id: "resume", zh: "继续游戏" },
     { id: "retry", zh: "重试检查点" },
+    { id: "controls", zh: "操作说明" },
+    { id: "assist", zh: "按键辅助：关" },
     { id: "chapters", zh: "选择章节" },
     { id: "title", zh: "返回标题" },
 ];
@@ -97,19 +99,27 @@ export class MenuRenderer {
     chapterSelected = 0;
     pauseSelected = 0;
     private chaptersFromPause = false;
+    /** 暂停态原地展开双栏素笺操作说明（零侵入 app.ts） */
+    private pauseShowControls = false;
     private previousKeys: Partial<MenuKeys> = {};
     private queuedKeys: Partial<MenuKeys> = {};
     private queuedBack = false;
     private time = 0;
 
+    isShowingPauseControls(): boolean {
+        return this.pauseShowControls;
+    }
+
     openChapters(roomIndex?: number): void {
         this.chaptersFromPause = roomIndex !== undefined;
         this.chapterSelected = roomIndex ?? 0;
+        this.pauseShowControls = false;
         this.resetInput();
     }
 
     openPause(): void {
         this.pauseSelected = 0;
+        this.pauseShowControls = false;
         this.resetInput();
     }
 
@@ -542,6 +552,7 @@ export class MenuRenderer {
         texts: TextPool,
         w: number,
         h: number,
+        backLabel: string = "返回标题",
     ): MenuAction {
         const marginX = 96;
         const backX = marginX;
@@ -614,13 +625,14 @@ export class MenuRenderer {
 
         // 左下返回按钮
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 110, 24, "ESC / ENTER", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
-        texts.put("sm", "返回标题", backX + 122, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
+        texts.put("sm", backLabel, backX + 122, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
 
         return { type: "none" };
     }
 
     /**
      * 局内暂停 V2：「左侧通天烟黛垂纱」（保留右侧月夜实景 + watch-controls 独占帧输入）
+     * 支持原地切换「操作说明」双栏素笺与「按键辅助：关/开」，零侵入 app.ts。
      */
     updateAndDrawPause(
         dt: number,
@@ -633,10 +645,24 @@ export class MenuRenderer {
         w: number,
         h: number,
         uiScale: number,
+        assistHintsEnabled: boolean = false,
+        onToggleAssist?: () => void,
     ): MenuAction {
         this.time += dt;
         const frame = this.readFrame(input, uiScale);
+
+        // 原地渲染双栏素笺操作说明：按 Esc / 确认 / 点击返回按钮仅切回暂停菜单列表，绝不串键。
+        if (this.pauseShowControls) {
+            const ctrlAct = this.drawControls(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, "返回暂停");
+            if (ctrlAct.type === "backTitle") {
+                this.pauseShowControls = false;
+                this.resetInput();
+            }
+            return { type: "none" };
+        }
+
         if (frame.back) {
+            this.pauseShowControls = false;
             return { type: "resume" };
         }
 
@@ -660,20 +686,24 @@ export class MenuRenderer {
         const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < PAUSE_ITEMS.length; i++) {
-            boxes.push(Rect(menuX - 10, h - 284 - i * 60, 270, 44));
+            boxes.push(Rect(menuX - 10, h - 270 - i * 52, 270, 42));
         }
         this.pauseSelected = this.verticalSelection(this.pauseSelected, boxes, frame);
 
         for (i = 0; i < PAUSE_ITEMS.length; i++) {
             const iy = boxes[i].y;
             const active = this.pauseSelected === i;
-            const cy = iy + 22;
+            const cy = iy + 21;
             const shiftX = active ? 10 : 0;
+            const item = PAUSE_ITEMS[i];
+            const label = item.id === "assist"
+                ? (assistHintsEnabled ? "按键辅助：开" : "按键辅助：关")
+                : item.zh;
 
             if (active) {
                 const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.4);
-                drawSilkRibbon(uiDraw, uiArt, "pause_rib_" + i, menuX + 116, cy, 276, 40, PALETTE.rougeSoft, 0.54 * breathe, 0);
-                drawHairline(uiInkDraw, uiArt, "pause_line_" + i, menuX + 106, iy + 4, 210, PALETTE.silkLine, 0.42 * breathe, false, 2);
+                drawSilkRibbon(uiDraw, uiArt, "pause_rib_" + i, menuX + 116, cy, 276, 38, PALETTE.rougeSoft, 0.54 * breathe, 0);
+                drawHairline(uiInkDraw, uiArt, "pause_line_" + i, menuX + 106, iy + 3, 210, PALETTE.silkLine, 0.42 * breathe, false, 2);
                 drawBlossomDot(uiInkDraw, uiArt, "pause_dot_" + i, menuX + 12, cy, 15, PALETTE.rouge, 0.96, 4);
                 fillRadialGlow(uiGlow, menuX + 12, cy, 22, 16, toColor(PALETTE.rouge, 26 * breathe), Color(182, 58, 56, 0), 10);
             } else {
@@ -682,7 +712,7 @@ export class MenuRenderer {
 
             texts.put(
                 "md",
-                PAUSE_ITEMS[i].zh,
+                label,
                 menuX + 32 + shiftX,
                 cy,
                 toColor(active ? PALETTE.textBright : PALETTE.textMid),
@@ -701,6 +731,19 @@ export class MenuRenderer {
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.pauseSelected;
             const id = PAUSE_ITEMS[idx].id;
+            if (id === "controls") {
+                this.pauseShowControls = true;
+                this.resetInput();
+                return { type: "none" };
+            }
+            if (id === "assist") {
+                if (onToggleAssist !== undefined) {
+                    onToggleAssist();
+                }
+                this.resetInput();
+                return { type: "none" };
+            }
+            this.pauseShowControls = false;
             if (id === "resume") {
                 return { type: "resume" };
             }

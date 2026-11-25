@@ -5,7 +5,7 @@
  * 后端零耦合：所有判断都基于 Play 已公开的状态字段。
  */
 
-import { Play, Trace } from "Script/watch/play";
+import { Play, PlayEvent, Trace } from "Script/watch/play";
 import { CALM_REACH } from "Script/watch/escort";
 import { inReachDepth } from "Script/watch/depth";
 
@@ -30,6 +30,50 @@ export interface FrameEvents {
     phaseChanged: boolean;
     roomChanged: boolean;
     gateWaveSpawned: boolean;
+    /** 本帧由唯一 drainEvents() 入口按 seq 升序取出的原始模拟事件（0 步帧与暂停帧为空） */
+    rawEvents: PlayEvent[];
+    /** 单调递增的已消费事件序号（供音频与插件防重播核对） */
+    eventSeq: number;
+    /** 单调递增的房间/实例会话号（切房与重试 reset 时自增），避免不同实例 seq 碰撞 */
+    roomSessionId: number;
+    /** 当前检查点代号（供音频与插件校验读档/重试恢复态） */
+    checkpoint: number;
+    /** 已消费事件摘要（seq@tick:name） */
+    eventSummary: string[];
+}
+
+export function createEmptyFrameEvents(
+    roomSessionId: number,
+    eventSeq: number,
+    checkpoint: number,
+): FrameEvents {
+    return {
+        shotFired: false,
+        shotHit: false,
+        shotTrace: undefined,
+        enemyKilledX: -9999,
+        enemyKilledY: 0,
+        playerHit: false,
+        coverDeflect: false,
+        rollStarted: false,
+        knockPulse: false,
+        knockX: 0,
+        knockY: 0,
+        bottleLanded: false,
+        bottleLandX: -1,
+        bottleLandY: 0,
+        cartJustDocked: false,
+        checkpointJustHit: false,
+        caughtTriggered: false,
+        phaseChanged: false,
+        roomChanged: false,
+        gateWaveSpawned: false,
+        rawEvents: [],
+        eventSeq,
+        roomSessionId,
+        checkpoint,
+        eventSummary: [],
+    };
 }
 
 export interface WorldPrompt {
@@ -56,8 +100,27 @@ export class PlayAdapter {
     private prevCaughtT = 0;
     private prevGateSpawned = 0;
     private prevAliveMask: boolean[] = [];
+    private roomSessionId = 0;
+    private eventSeq = 0;
+
+    getRoomSessionId(): number {
+        return this.roomSessionId;
+    }
+
+    getEventSeq(): number {
+        return this.eventSeq;
+    }
+
+    emptyFrame(p?: Play): FrameEvents {
+        return createEmptyFrameEvents(
+            this.roomSessionId,
+            this.eventSeq,
+            p !== undefined ? p.checkpoint : -1,
+        );
+    }
 
     reset(p?: Play): void {
+        this.roomSessionId += 1;
         this.prevRoomKey = p !== undefined ? p.room.key : "";
         this.prevPhase = p !== undefined ? p.phase : "";
         this.prevHp = p !== undefined ? p.hp : 3;
@@ -87,7 +150,12 @@ export class PlayAdapter {
             this.reset(p);
         }
 
-        const events = p.drainEvents();
+        const rawEvents = p.drainEvents();
+        // 按 seq 升序稳定排列，确保单帧补跑多步跨过多次事件时音频与插件严格按发生顺序逐条消费。
+        if (rawEvents.length > 1) {
+            rawEvents.sort((a, b) => (a.seq !== b.seq ? a.seq - b.seq : a.tick - b.tick));
+        }
+        const eventSummary: string[] = [];
         const shotFired = p.trace !== undefined && p.trace !== this.prevTrace;
         const shotHit = shotFired && p.trace !== undefined && p.trace.hit;
         let enemyKilledX = -9999;
@@ -119,7 +187,9 @@ export class PlayAdapter {
         const phaseChanged = this.prevPhase !== "" && this.prevPhase !== p.phase;
         const gateWaveSpawned = p.gateSpawned > this.prevGateSpawned;
         let migratedRoomChange = false;
-        for (const event of events) {
+        for (const event of rawEvents) {
+            this.eventSeq += 1;
+            eventSummary.push(event.seq + "@" + event.tick + ":" + event.name);
             if (event.name === "knock") {
                 knockPulse = true;
                 const x = event.data.x;
@@ -185,6 +255,11 @@ export class PlayAdapter {
             phaseChanged,
             roomChanged: roomChanged || migratedRoomChange,
             gateWaveSpawned,
+            rawEvents,
+            eventSeq: this.eventSeq,
+            roomSessionId: this.roomSessionId,
+            checkpoint: p.checkpoint,
+            eventSummary,
         };
     }
 }

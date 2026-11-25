@@ -55,6 +55,8 @@ export class HudRenderer {
         vfx: VfxSystem,
         letterboxFrac: number,
         uiScale: number,
+        assistHintsEnabled: boolean = false,
+        suppressReticle: boolean = false,
     ): void {
         const w = cam.viewW / uiScale;
         const h = cam.viewH / uiScale;
@@ -63,17 +65,19 @@ export class HudRenderer {
 
         if (hudAlpha > 0.05) {
             if (p.childMode) {
-                this.drawChildStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha);
+                this.drawChildStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha, assistHintsEnabled);
             } else {
-                this.drawSoldierStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha);
+                this.drawSoldierStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha, assistHintsEnabled);
             }
 
             this.drawChapterBadge(uiDraw, uiArt, texts, p, w, h, hudAlpha);
-            this.drawContextualObjective(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha);
+            this.drawContextualObjective(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha, assistHintsEnabled);
 
-            const prompt = deriveWorldPrompt(p);
-            if (prompt !== undefined) {
-                this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, [prompt], cam, hudAlpha, uiScale);
+            if (assistHintsEnabled) {
+                const prompt = deriveWorldPrompt(p);
+                if (prompt !== undefined) {
+                    this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, [prompt], cam, hudAlpha, uiScale);
+                }
             }
 
             if (vfx.deflectFlash > 0.25) {
@@ -83,6 +87,22 @@ export class HudRenderer {
             }
         }
 
+        if (!suppressReticle) {
+            this.drawReticleOverlay(uiInkDraw, uiArt, uiGlow, p, cam, vfx, letterboxFrac, uiScale);
+        }
+    }
+
+    /** 独立绘制战斗/投瓶准星（供 frontend.ts 在全速 UI 插件判定后决定是否绘制，实现同帧零闪烁隐藏） */
+    drawReticleOverlay(
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        p: Play,
+        cam: CameraDirector,
+        vfx: VfxSystem,
+        letterboxFrac: number,
+        uiScale: number,
+    ): void {
         if (!p.paused && letterboxFrac < 0.5 && !p.gripping &&
             p.escort.state !== "calming" && !p.gateNeedConfirm && p.phase !== "prologue-give") {
             this.drawReticle(uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale);
@@ -97,6 +117,7 @@ export class HudRenderer {
         p: Play,
         h: number,
         alpha: number,
+        assistHintsEnabled: boolean,
     ): void {
         const bx = 28;
         const by = h - 72;
@@ -190,8 +211,12 @@ export class HudRenderer {
 
             if (frozen) {
                 const pulse = 0.65 + 0.35 * Math.sin(this.time * 7.0);
-                drawSilkKeycap(uiInkDraw, texts, bx + 170, subY - 5, 22, 22, "E", PALETTE.rouge, alpha * pulse, true);
-                texts.put("xs", "轻敲安抚", bx + 198, subY + 6, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.8, alpha * pulse, 0.08);
+                if (assistHintsEnabled) {
+                    drawSilkKeycap(uiInkDraw, texts, bx + 170, subY - 5, 22, 22, "E", PALETTE.rouge, alpha * pulse, true);
+                    texts.put("xs", "轻敲安抚", bx + 198, subY + 6, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.8, alpha * pulse, 0.08);
+                } else {
+                    texts.put("xs", "受惊停步", bx + 172, subY + 6, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.8, alpha * pulse, 0.08);
+                }
             } else if (calming) {
                 texts.put("xs", "轻敲安抚中", bx + 172, subY + 6, toColor(PALETTE.emerald), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
             }
@@ -206,6 +231,7 @@ export class HudRenderer {
         p: Play,
         h: number,
         alpha: number,
+        assistHintsEnabled: boolean,
     ): void {
         const bx = 28;
         const by = h - 68;
@@ -227,7 +253,7 @@ export class HudRenderer {
             posture = "低姿伏行 · 匿迹于影";
             col = PALETTE.emerald;
         } else if (p.hasBottle) {
-            posture = "手持玻璃瓶 · 按住 [F] 瞄投";
+            posture = assistHintsEnabled ? "手持陶瓶 · 按住 [F] 瞄投" : "手持陶瓶";
             col = PALETTE.amberCore;
         }
         texts.put("xs", posture, bx + 44, by + 12, toColor(col), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
@@ -260,6 +286,7 @@ export class HudRenderer {
         w: number,
         h: number,
         alpha: number,
+        assistHintsEnabled: boolean,
     ): void {
         // 1. 城门 45 秒死守：细丝胭脂进度带
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
@@ -275,8 +302,9 @@ export class HudRenderer {
                 drawSilkVeil(uiDraw, uiArt, "hud_gate_veil", cx, by + 18, bw + 90, 48, PALETTE.inkWash, 0.76 * alpha, -1);
                 drawHairline(uiInkDraw, uiArt, "hud_gate_top", cx, by + 39, bw - 20, PALETTE.rougeSoft, 0.55 * alpha, false, 2);
 
+                const idleNeedConfirmLabel = assistHintsEnabled ? "绞盘待命 · 按 [E] 重新守门" : "绞盘待命";
                 const label = p.phase === "gate-idle"
-                    ? (p.gateNeedConfirm ? "绞盘待命 · 按 [E] 重新守门" : "待小满就位 · 绞盘启")
+                    ? (p.gateNeedConfirm ? idleNeedConfirmLabel : "待小满就位 · 绞盘启")
                     : ("城门死守 · 余 " + secStr + " 秒");
                 texts.put("xs", label, cx, by + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.8, alpha, 0.08);
 
@@ -306,7 +334,10 @@ export class HudRenderer {
             return;
         }
 
-        // 2. 检查站 / 城外：精简双珠游丝
+        // 2. 检查站 / 城外：文字目标清单默认关闭，仅在玩家开启「按键辅助」时显示
+        if (!assistHintsEnabled) {
+            return;
+        }
         if (p.room.key === "checkpoint" || p.room.key === "outside") {
             const cx = w * 0.5;
             const by = h - 44;
