@@ -67,6 +67,10 @@ export interface StoryState {
     lineSaid: boolean;
     /** 牵手演出已完成后的同行段标记。 */
     tied: boolean;
+    /** 男主线：小满已背在背上；背负只有一套移动与受击碰撞。 */
+    carry: boolean;
+    /** 第一段护送房已走到安全出口。 */
+    escortDone: boolean;
 }
 
 export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
@@ -84,6 +88,8 @@ export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
         handDone: false,
         lineSaid: false,
         tied: false,
+        carry: false,
+        escortDone: false,
     };
 }
 

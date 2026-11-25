@@ -169,6 +169,11 @@ local function routeCase(tag, hp, maxHp, want)
 	local bag = {}
 	step(p, i)
 	drainInto(p, bag)
+	-- B1：守点末拍只取血，不锁线；真正锁线在门洞送别按 E 那一刻。
+	check(tag .. " 守满未锁线", p.storyRoute == "" and hasEvent(bag, "storyRouteLocked") == nil,
+		"route=" .. tostring(p.storyRoute) .. " phase=" .. tostring(p.phase))
+	toCount(p, i)
+	drainInto(p, bag)
 	local locked = hasEvent(bag, "storyRouteLocked")
 	check(tag, p.storyRoute == want,
 		"hp=" .. hp .. "/" .. maxHp .. " route=" .. tostring(p.storyRoute)
@@ -402,11 +407,15 @@ do
 	local bag = {}
 	path:update(STEP, newInput())
 	drainInto(path, bag)
+	check("高石阶背起小满", path.carryOn == true and path.phase == "gatepath-carry",
+		"carryOn=" .. tostring(path.carryOn) .. " phase=" .. tostring(path.phase))
+	path.player.x = path.ox + 1005
+	path.player.onGround = true
 	for _ = 1, 30 do
 		path:update(STEP, newInput())
 		drainInto(path, bag)
 	end
-	check("同行段到高石阶交下一段", path.wantRoom == "outside", "wantRoom=" .. tostring(path.wantRoom))
+	check("同行段交首场护送", path.wantRoom == "escort1", "wantRoom=" .. tostring(path.wantRoom))
 	local ev = hasEvent(bag, "gatePathEnd")
 	check("同行段收尾事件", ev ~= nil, ev ~= nil and ("x=" .. tostring(ev.data.x)) or "无 gatePathEnd")
 end

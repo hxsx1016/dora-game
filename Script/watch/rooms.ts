@@ -195,12 +195,24 @@ export interface GateSpec {
     holdTicks: number;
 }
 
+/** 同行段：高石阶背起点、段出口与下一间房。 */
+export interface GatePathSpec {
+    /** 走到这里一次背起小满（段内坐标）。 */
+    carryX: number;
+    /** 背着走到这里切下一间。 */
+    exitX: number;
+    /** 下一间房 key。 */
+    next: string;
+}
+
 /** 剧本段数据：与房间尺寸无关，只放这一段需要的锚点。 */
 export interface StorySpec {
     /** 序章：小满藏在柜后的位置与可以递交的距离。 */
     prologue?: { giveReach: number };
     /** 城门。 */
     gate?: GateSpec;
+    /** 城门外的兄妹同行段：背起点与交接。 */
+    gatepath?: GatePathSpec;
     /** 森林里的狗：巡逻段、速度与听觉半径。 */
     dog?: { x0: number; x1: number; speed: number; range: number };
     /** 塔门：门前交互点与敲两下用的拍数。 */
@@ -427,6 +439,13 @@ function shiftStory(story: StorySpec | undefined, ox: number): StorySpec | undef
             holdTicks: story.gate.holdTicks,
         };
     }
+    if (story.gatepath !== undefined) {
+        out.gatepath = {
+            carryX: story.gatepath.carryX + ox,
+            exitX: story.gatepath.exitX + ox,
+            next: story.gatepath.next,
+        };
+    }
     if (story.dog !== undefined) {
         out.dog = { x0: story.dog.x0 + ox, x1: story.dog.x1 + ox, speed: story.dog.speed, range: story.dog.range };
     }
@@ -603,6 +622,7 @@ export const GATE_PATH_ROOM: RoomSpec = {
         { x0: 780, x1: 860, text: "高石阶 80 · 抬 48" },
         { x0: 860, x1: 1000, text: "平台 140" },
     ],
+    story: { gatepath: { carryX: 840, exitX: 1000, next: "escort1" } },
 };
 
 /**
@@ -681,6 +701,51 @@ export const TOWER_ROOM: RoomSpec = {
 
 const NO_CART: CartSpec = {
     startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: -1,
+};
+
+/**
+ * 男主首场护送战：背着受伤的小满穿过城外巷路。
+ * 巷底两名火器手与一名破障手压过来，玩家边观察边完成一次慢时连线换弹，走到巷尾脱身。
+ */
+export const ESCORT1_ROOM: RoomSpec = {
+    key: "escort1",
+    originX: 0,
+    name: "城外巷路 · 第一段护送",
+    caption: "背上的小满贴着肩；巷底两名火器手与一名破障手压过来，走到巷尾就算脱身",
+    minX: 0,
+    maxX: 1600,
+    height: 220,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1600 }],
+    solids: [
+        { x: 0, w: 50, h: 150, y: 0, label: "巷口背影 0–50" },
+        { x: 380, w: 96, h: 44, y: 0, label: "塌墙 380–476 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e1_wall" },
+        { x: 700, w: 40, h: 28, y: 0, label: "倒石 700 · 高 28", lanes: ["lower"] },
+        { x: 980, w: 160, h: 52, y: 0, label: "石台 980–1140 · 高 52", lanes: ["lower"], art: "cover_wood" },
+        { x: 1300, w: 40, h: 140, y: 0, label: "巷尾门柱 1300", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 1340, w: 260, h: 180, y: 0, label: "巷尾断墙 1340–1600 · 高 180" },
+    ],
+    zones: [{ x0: 560, x1: 900, y: 0, h: 150, tint: 1, label: "交火 560–900" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [{ x0: 1140, x1: 1300, y0: 0, y1: 40, steps: 3, label: "石台斜走 1140–1300" }],
+    cart: NO_CART,
+    spawns: [
+        { x: 820, y: 0, h: 84, depth: 32, label: "火器手 820 · 中档", kind: "gunner", drop: "ammo" },
+        { x: 1020, y: 0, h: 84, depth: -28, label: "火器手 1020 · 浅档", kind: "gunner", drop: "ammo" },
+        { x: 1120, y: 0, h: 84, depth: -28, label: "破障手 1120", kind: "breaker", drop: "wedge" },
+    ],
+    marks: [
+        { x: 200, y: 0, kind: 3, label: "背负起点 200" },
+        { x: 476, y: 0, kind: 3, label: "塌墙后 476" },
+        { x: 900, y: 0, kind: 0, label: "交火尽头 900" },
+        { x: 1500, y: 0, kind: 0, label: "安全出口 1500" },
+    ],
+    dims: [
+        { x0: 380, x1: 476, text: "塌墙 96" },
+        { x0: 980, x1: 1140, text: "石台 160" },
+        { x0: 1300, x1: 1600, text: "巷尾 300" },
+    ],
+    campaign: { chapter: "O", act: 1, budget: 240, goal: "reach_exit", exitX: 1500, next: "outside", checkpoint: 1 },
 };
 
 /**
@@ -947,6 +1012,7 @@ export const ROOMS: RoomSpec[] = [
     CHECKPOINT_ROOM,
     GATE_ROOM,
     GATE_PATH_ROOM,
+    ESCORT1_ROOM,
     OUTSIDE_ROOM,
     VILLAGE_ROOM,
     FOREST_ROOM,

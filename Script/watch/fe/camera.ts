@@ -83,6 +83,10 @@ export class CameraDirector {
         }
 
         const zk = Math.min(1, dt * 3.8);
+        if (p.reloadOpen) {
+            // 慢时换弹：镜头轻推近，把 3×3 盘与枪口一起收进画面。
+            desiredZoom = Math.max(desiredZoom, 1.16);
+        }
         this.zoom += (desiredZoom - this.zoom) * zk;
 
         // 水平前瞻：朝向 + 轻微鼠标偏向（军人瞄准时视野微展）

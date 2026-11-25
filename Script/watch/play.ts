@@ -19,6 +19,10 @@ import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
 import { ACTOR_DEPTH_HALF, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
+import {
+    RELOAD_ANSWER_PER_WORLD, RELOAD_ANSWER_TICKS, RELOAD_START, RELOAD_TARGET, ReloadEffect,
+    reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
+} from "Script/watch/reload";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
@@ -70,7 +74,14 @@ export type PlayEventName =
     | "handRelease"
     | "storyLine"
     | "storyExit"
-    | "gatePathEnd";
+    | "gatePathEnd"
+    | "carryStart"
+    | "reloadOpen"
+    | "reloadNode"
+    | "reloadInvalid"
+    | "reloadSolved"
+    | "reloadTimeout"
+    | "reloadApplied";
 
 export interface PlayEvent {
     /** 本局内递增；换房、R 重试、再玩都会新建 Play，序号从头开始。 */
@@ -488,6 +499,24 @@ export class Play {
     tied = false;
     /** 同行段已走到高石阶前（下一段入口）。 */
     pathDone = false;
+    /** 男主线：小满已背在背上。背负只有一套移动与受击碰撞，小满只更新背侧位置。 */
+    carryOn = false;
+    /** 第一段护送房已走到安全出口，交给下一段。 */
+    escortDone = false;
+
+    // —— 慢时连线换弹 ——
+    /** 3×3 线盘开着：世界降到 1/4 速，只有每 4 个作答拍推进 1 个世界拍。 */
+    reloadOpen = false;
+    /** 已用掉的作答拍；240 拍 = 60 世界拍 = 4 秒。 */
+    reloadAnswerTicks = 0;
+    /** 盘开着期间实际推进的世界拍，给前端画外圈。 */
+    reloadWorldTicks = 0;
+    /** 当前路径（节点 id）；起点固定 0，画到 8 结算。 */
+    reloadPath: number[] = [RELOAD_START];
+    /** 已画好的枪机效果；下一次有效开火消费一次，之后回到普通。 */
+    reloadPendingEffect: ReloadEffect = "";
+    /** 这一房开盘次数，回放用来确认「重画不重新计时」。 */
+    reloadTryCount = 0;
 
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
@@ -515,7 +544,11 @@ export class Play {
         this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
         // 周戍段（序章/街道/检查站/城门）操控周戍；其余路段操控小满。
-        this.childMode = wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower";
+        // 男主线背着妹妹进城外时仍控周戍：出入口同一间房，操控权按已锁路线分。
+        const lockedRoute = this.run.story === undefined ? "" : this.run.story.route;
+        const soldierOutside = wr.key === "outside" && lockedRoute === "soldier";
+        this.childMode = !soldierOutside
+            && (wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower");
         const playerIdx = wr.key === "checkpoint" ? 1 : 0;
         const partnerIdx = wr.key === "checkpoint" ? 0 : (this.childMode ? -1 : 1);
         this.player = makeActor(wr, playerIdx);
@@ -562,7 +595,8 @@ export class Play {
      */
     private restoreStory(): void {
         // 标题独立试炼有自己的跨房血量与路线，不走正式剧情的快照。
-        if (this.isCampaign) {
+        // 正式剧情的护送房虽然是 campaign 数据，仍要继承周戍的血量与背负状态。
+        if (this.isCampaign && this.run.trial !== undefined) {
             return;
         }
         const story = this.run.story;
@@ -580,11 +614,38 @@ export class Play {
         this.handDone = story.handDone;
         this.lineSaid = story.lineSaid;
         this.tied = story.handDone;
-        if (this.room.key !== "gate" || !story.settled) {
+        this.carryOn = story.carry || (story.route === "soldier" && this.room.key === "escort1");
+        this.escortDone = story.escortDone;
+        if (this.room.key !== "gate") {
             return;
         }
         const g = this.room.story === undefined ? undefined : this.room.story.gate;
         if (g === undefined) {
+            return;
+        }
+        // 守满、还没送别就按 R：回到待送别状态，不重打 45 秒守点，也不提前锁线。
+        if (story.phase === "gate-send") {
+            this.phase = "gate-send";
+            this.gateTick = g.holdTicks;
+            this.gateSpawned = 4;
+            this.enemies = [];
+            this.player.x = this.ox + g.doorX - 40;
+            this.player.y = 0;
+            this.player.depth = 0;
+            this.player.vx = 0;
+            this.player.vy = 0;
+            this.player.onGround = true;
+            this.partner.x = this.ox + g.waitX;
+            this.partner.y = 0;
+            this.partner.depth = 0;
+            this.partner.alive = true;
+            this.cam.x = this.player.x;
+            this.handTicks = 0;
+            this.handArmed = false;
+            this.flashSet("守满了 · 到门边按 E 送她", 2.0);
+            return;
+        }
+        if (!story.settled) {
             return;
         }
         // 锁线后重试/续读：只回到已经看过的演出拍，敌兵与守点不再重来。
@@ -662,7 +723,7 @@ export class Play {
         }
         this.roomStartTick = this.run.ticks;
         // S1 是共同起点：小满当拍就在队尾，A 线全程带着走。
-        if (wr.key === "s1-crossroad") {
+        if (wr.key === "s1-crossroad" || wr.key === "escort1") {
             this.run.joined = true;
         } else if (wr.companion !== undefined && wr.companion.followAfter !== undefined) {
             // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则两人都在门前停。
@@ -832,6 +893,109 @@ export class Play {
         this.flashSet(talentNames[talent], 1.2);
     }
 
+    /**
+     * 进入一次换弹：设好装填拍。
+     * 3×3 慢时线盘只在正式护送房（escort1）开；试炼与旧关卡保持普通装填，
+     * 避免把 4000 拍的试炼回放拖成 1/4 速。
+     */
+    private beginReload(): void {
+        this.reloadT = this.reloadTicks();
+        if (this.run.trial === undefined && this.room.key === "escort1") {
+            this.openReloadPuzzle();
+        }
+    }
+
+    /** 开线盘：从枪膛起点 0 起笔，240 作答拍；重开清空旧路径。 */
+    private openReloadPuzzle(): void {
+        this.reloadOpen = true;
+        this.reloadAnswerTicks = 0;
+        this.reloadWorldTicks = 0;
+        this.reloadPath = [RELOAD_START];
+        this.reloadPendingEffect = "";
+        this.reloadTryCount += 1;
+        this.emit("reloadOpen", { tryCount: this.reloadTryCount, needTicks: RELOAD_ANSWER_TICKS });
+    }
+
+    /** 补弹/被打倒/换房时收起盘子：世界恢复正常速，未结算的效果作废。 */
+    private closeReloadPuzzle(): void {
+        this.reloadOpen = false;
+        this.reloadAnswerTicks = 0;
+        this.reloadWorldTicks = 0;
+        this.reloadPath = [RELOAD_START];
+        this.reloadPendingEffect = "";
+    }
+
+    /**
+     * 前端点 3×3 盘上的一个节点：只接受与当前末点相邻、未走过的点。
+     * 不合法只清回起点重画，不重计时；画到枪机复位点 8 就结算一次效果。
+     */
+    reloadTapNode(node: number): void {
+        if (!this.reloadOpen) {
+            return;
+        }
+        const path = this.reloadPath;
+        const last = path[path.length - 1];
+        if (path.indexOf(node) >= 0 || !reloadAdjacent(last, node)) {
+            this.reloadPath = [RELOAD_START];
+            this.emit("reloadInvalid", { node: node, at: last });
+            return;
+        }
+        path.push(node);
+        if (node !== RELOAD_TARGET) {
+            this.emit("reloadNode", { node: node, pathLength: path.length });
+            return;
+        }
+        if (!reloadPathValid(path)) {
+            this.reloadPath = [RELOAD_START];
+            this.emit("reloadInvalid", { node: node, at: last });
+            return;
+        }
+        this.reloadPendingEffect = reloadEffectOf(path);
+        this.reloadOpen = false;
+        this.emit("reloadSolved", {
+            effect: this.reloadPendingEffect, answerTicks: this.reloadAnswerTicks, pathLength: path.length,
+        });
+        this.flashSet("枪机复位 · " + reloadEffectName(this.reloadPendingEffect), 1.4);
+    }
+
+    /** 取走已画好的效果：一枪只消费一次。 */
+    private consumeReloadEffect(): ReloadEffect {
+        const e = this.reloadPendingEffect;
+        if (e !== "") {
+            this.reloadPendingEffect = "";
+        }
+        return e;
+    }
+
+    /**
+     * 回声：把这一枪的余响引到最近一个还在场的敌人身上。
+     * 他被惊动、枪口先抬一下（下一次开火延后），给玩家一个换位窗口。
+     */
+    private echoToSource(from: Actor): void {
+        let best = -1;
+        let bestD = 1e9;
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
+            if (!e.alive) {
+                continue;
+            }
+            const d = Math.abs(e.x - from.x);
+            if (d < bestD) {
+                bestD = d;
+                best = i;
+            }
+        }
+        if (best < 0) {
+            return;
+        }
+        const e = this.enemies[best];
+        e.awake = true;
+        e.warnT = 0;
+        e.fireCd = Math.max(e.fireCd ?? 0, 60);
+        this.flashSet("回声引到声源 · 他先抬枪", 1.0);
+    }
+
     private reloadTicks(): number {
         return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * (this.run.trial?.ranks.reload ?? 0));
     }
@@ -859,6 +1023,23 @@ export class Play {
             return;
         }
 
+        // 慢时换弹：盘开着时世界 1/4 速。作答拍照走，只有每 4 拍推进 1 个世界拍；
+        // 超时只关闭盘子并回到普通装填，不额外扣血或重开房间。
+        if (this.reloadOpen) {
+            this.reloadAnswerTicks += 1;
+            if (this.reloadAnswerTicks > RELOAD_ANSWER_TICKS) {
+                this.reloadOpen = false;
+                this.reloadPendingEffect = "";
+                this.emit("reloadTimeout", { answerTicks: this.reloadAnswerTicks, needTicks: RELOAD_ANSWER_TICKS });
+                this.flashSet("换弹超时 · 普通装填", 1.2);
+            } else if (this.reloadAnswerTicks % RELOAD_ANSWER_PER_WORLD !== 0) {
+                this.updateCamera(dt);
+                return;
+            } else {
+                this.reloadWorldTicks += 1;
+            }
+        }
+
         this.ticks += 1;
         // 保护按「可控模拟拍」走，暂停期间不递减：从暂停里回来时，
         // 剩余保护应当还是离开时那么多，而不是被墙钟吃掉。
@@ -873,12 +1054,20 @@ export class Play {
         this.stepPlayer(p, dt, input);
         // 移动结束后再定贴靠：本拍的身体边缘、垂直重叠、来向都按新位置算。
         this.refreshCover(p, input);
+        if (this.carryOn) {
+            this.carryPose();
+        }
         if (this.isCampaign) {
             this.stepCampaign(dt, input);
-            this.stepCampaignPartner(dt);
+            if (!this.carryOn) {
+                this.stepCampaignPartner(dt);
+            }
         }
         // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
-        if (trial === undefined || !this.run.finished) this.stepEnemies(dt, input);
+        // 新版关卡房有自己的敌兵行为（掩体、深度、觉醒）；旧房才走简化敌兵。
+        // 试炼房保持原有双跑（旧简化敌兵 + 关卡敌兵），正式护送房只跑关卡敌兵。
+        const legacyEnemies = !this.isCampaign || trial !== undefined;
+        if (legacyEnemies && (trial === undefined || !this.run.finished)) this.stepEnemies(dt, input);
         if (trial !== undefined) trial.hp = this.hp;
         if (!this.isCampaign) {
             this.stepStory(dt, input);
@@ -1145,6 +1334,10 @@ export class Play {
             return;
         }
         if (this.room.key === "gatepath") {
+            // 背起来之后只由 carryPose 更新背侧位置，不再走牵手位。
+            if (this.carryOn) {
+                return;
+            }
             // 同行段：全程牵着手，她贴着周戍的侧手位同起同落，不会掉队。
             const p = this.player;
             a.depth = p.depth;
@@ -1391,8 +1584,9 @@ export class Play {
                 this.flashSet("门底压下来了", 1.0);
             }
             if (this.gateTick >= g.holdTicks) {
-                // 殿后最后一拍的伤害已由 stepEnemies 结算完，此刻锁存血量与路线。
-                this.settleRoute();
+                // 殿后最后一拍的伤害已由 stepEnemies 结算完，此刻只取血。
+                // 路线要等她真正过门（门洞送别确认）才锁，演出中途不提交结局。
+                this.captureGateBlood();
                 this.phase = "gate-send";
                 this.phaseTick = 0;
                 // 撤预警：敌兵冻结，让玩家走到门边。
@@ -1404,6 +1598,8 @@ export class Play {
         if (this.phase === "gate-send") {
             const near = Math.abs(p.x - g.doorX) <= 60 && inReachDepth(p.depth);
             if (near && input.interact.pressed) {
+                // 送别确认 = 小满安全过门：此刻才提交路线，且只提交一次。
+                this.commitRoute();
                 this.swapToChild(g.doorX + 30);
                 this.phase = "gate-count";
                 this.countTick = 0;
@@ -1506,15 +1702,28 @@ export class Play {
         }
     }
 
-    /** 锁存路线：只做一次；重试与续读都从快照恢复，不再重算。 */
-    private settleRoute(): void {
+    /**
+     * 守点末拍取血：只记下最后一拍伤害结算后的血量与上限。
+     * 这里不判定路线，也不发锁线事件——小满还没过门。
+     */
+    private captureGateBlood(): void {
+        this.hpAtGate = this.hp;
+        this.maxHpAtGate = this.maxHp;
+    }
+
+    /**
+     * 门洞送别确认后锁存路线：只做一次。
+     * 重试与续读都从快照恢复，不再按新房满血或有损血量重算。
+     */
+    private commitRoute(): void {
         if (this.storySettled) {
             return;
         }
-        const maxHp = this.maxHp > 0 ? this.maxHp : 1;
-        this.hpAtGate = this.hp;
-        this.maxHpAtGate = this.maxHp;
-        this.storyRoute = 100 * this.hp >= GATE_ROUTE_PERCENT * maxHp ? "soldier" : "child";
+        const maxHp = this.maxHpAtGate > 0 ? this.maxHpAtGate : (this.maxHp > 0 ? this.maxHp : 1);
+        const hp = this.hpAtGate >= 0 ? this.hpAtGate : this.hp;
+        this.hpAtGate = hp;
+        this.maxHpAtGate = this.maxHpAtGate > 0 ? this.maxHpAtGate : this.maxHp;
+        this.storyRoute = 100 * hp >= GATE_ROUTE_PERCENT * maxHp ? "soldier" : "child";
         this.storySettled = true;
         this.emit("storyRouteLocked", {
             route: this.storyRoute, hp: this.hp, maxHp: this.maxHp,
@@ -1525,7 +1734,7 @@ export class Play {
 
     /** 把本房的血量与演出拍写回跨房快照；R 重试与切房续读都靠它。 */
     private syncStory(): void {
-        if (this.isCampaign) {
+        if (this.isCampaign && this.run.trial !== undefined) {
             return;
         }
         const s = this.run.story;
@@ -1541,6 +1750,8 @@ export class Play {
         s.handDone = this.handDone;
         s.lineSaid = this.lineSaid;
         s.tied = this.tied;
+        s.carry = this.carryOn;
+        s.escortDone = this.escortDone;
         if (this.room.key === "gate") {
             s.phase = this.phase;
             s.countTick = this.countTick;
@@ -1549,24 +1760,51 @@ export class Play {
         }
     }
 
-    /** 同行段：牵手成对走，到高石阶前交下一段。 */
+    /** 同行段：牵手走到高石阶，蹲下把她背起来，再走进第一间护送房。 */
     private stepGatePath(): void {
+        const gp = this.room.story === undefined ? undefined : this.room.story.gatepath;
         if (this.phase === "gatepath-start") {
-            if (this.player.x >= this.ox + 840 && this.player.onGround) {
-                this.phase = "gatepath-stair";
+            if (gp !== undefined && this.player.onGround && this.player.x >= gp.carryX && !this.carryOn) {
+                this.carryOn = true;
+                this.phase = "gatepath-carry";
                 this.phaseTick = 0;
                 this.pathDone = true;
-                this.flashSet("高石阶 · 下一段入口", 2.6);
+                this.escortDone = false;
                 this.emit("gatePathEnd", { x: this.player.x, tied: this.tied, ticks: this.ticks });
+                this.emit("carryStart", { x: this.player.x, tied: this.tied, route: this.storyRoute, ticks: this.ticks });
+                this.flashSet("蹲下 · 背起小满", 2.6);
             }
             return;
         }
-        if (this.phase === "gatepath-stair") {
+        if (this.phase === "gatepath-carry") {
             this.phaseTick += 1;
-            if (this.phaseTick >= 30) {
-                this.requestRoom("outside", "同行段收尾");
+            if (this.phaseTick === 20) {
+                this.flashSet("她已经趴稳 · 走慢一点", 2.0);
+            }
+            if (gp !== undefined && this.player.x >= gp.exitX && this.player.onGround) {
+                this.requestRoom(gp.next, "背负进首战");
+                this.flashSet("背上她 · 巷口有脚步", 2.0);
             }
         }
+    }
+
+    /**
+     * 背负姿态：只有周戍有位移与受击碰撞；小满贴着背，只更新背侧位置与朝向。
+     * 转身时她换到另一侧肩上，不额外生成一套碰撞。
+     */
+    private carryPose(): void {
+        const p = this.player;
+        const a = this.partner;
+        a.alive = true;
+        a.x = p.x - p.facing * 12;
+        a.y = p.y + 26;
+        a.depth = p.depth;
+        a.vx = p.vx;
+        a.vy = 0;
+        a.onGround = true;
+        a.crouch = false;
+        a.h = CHILD_CROUCH_H;
+        a.facing = p.facing;
     }
 
     /** 塔门与尾声：按一次 E 敲两下，递针套，看空行，片尾再玩。 */
@@ -2021,8 +2259,9 @@ export class Play {
             }
         }
         if (inv.ammo > 0 && this.reloadT > 0) {
-            // 备用弹包：立刻补满当前这一发，不缩短后续装填。
+            // 备用弹包：立刻补满当前这一发，不缩短后续装填；线盘同时收起。
             this.reloadT = 0;
+            this.closeReloadPuzzle();
             inv.ammo -= 1;
             this.flashSet("备用弹包 · 膛内补满", 1.0);
             this.log("用备用弹包");
@@ -2538,6 +2777,7 @@ export class Play {
         this.hp = this.maxHp;
         this.invulnT = INVULN_RESPAWN_TICKS;
         this.reloadT = 0;
+        this.closeReloadPuzzle();
         this.gripping = false;
         this.flashSet("被击倒 · 回到本段起点，破坏与拾取保留", 2.0);
         this.log("被击倒");
@@ -3107,7 +3347,9 @@ export class Play {
         const dDepth = tEnemy > 0.001 ? (targetDepth - a.depth) / tEnemy : 0;
         const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth, depth: a.depth, dDepth });
         const tWall = solid.t;
-        const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall);
+        // 照明效果：这一枪的线被照透，掩体不再吃掉命中。
+        const reloadEffect = this.consumeReloadEffect();
+        const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall || reloadEffect === "light");
         const t = hit ? tEnemy : (tWall >= 0 ? tWall : 700);
 
         this.trace = { x0: ox, y0: oy, x1: ox + dx * t, y1: oy + dy * t, hit: hit };
@@ -3128,7 +3370,7 @@ export class Play {
                     hit: true, enemyIndex: i, enemyX: e.x, aimX: aim.x, aimY: aim.y,
                     impactX: ox + dx * t, impactY: oy + dy * t, shield: true,
                 });
-                this.reloadT = this.reloadTicks();
+                this.beginReload();
                 return;
             }
             e.alive = false;
@@ -3136,13 +3378,22 @@ export class Play {
             killed = true;
             this.flashSet("命中", 0.6);
             this.dropFor(e);
+            if (reloadEffect === "push") {
+                e.x += a.facing * 46;
+                this.emit("reloadApplied", { effect: "push", enemyX: e.x });
+            } else if (reloadEffect === "echo") {
+                this.echoToSource(a);
+                this.emit("reloadApplied", { effect: "echo", enemyX: e.x });
+            } else if (reloadEffect === "light") {
+                this.emit("reloadApplied", { effect: "light", enemyX: e.x });
+            }
         } else if (solid.box !== undefined && solid.box.breakable !== undefined) {
             this.damageProp(solid.box, 1);
         } else {
             this.flashSet("打空", 0.35);
         }
         if (this.isCampaign) {
-            this.reloadT = this.reloadTicks();
+            this.beginReload();
         }
         this.emit("shotResolved", {
             hit: hit,

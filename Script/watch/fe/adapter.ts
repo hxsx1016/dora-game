@@ -45,6 +45,16 @@ export interface FrameEvents {
     /** 走出出口的那一拍：child=迈步出城，soldier=牵手转同行段。 */
     storyExit: boolean;
     storyExitRoute: string;
+    /** 高石阶背起小满，同行段转首场护送。 */
+    carryStarted: boolean;
+    /** 慢时换弹：盘开盘 / 结算 / 超时 / 无效重画 / 效果已打出去。 */
+    reloadOpened: boolean;
+    reloadSolved: boolean;
+    reloadEffect: string;
+    reloadApplied: boolean;
+    reloadAppliedEffect: string;
+    reloadTimeout: boolean;
+    reloadInvalid: boolean;
 }
 
 export interface WorldPrompt {
@@ -144,6 +154,14 @@ export class PlayAdapter {
         let storyLineText = "";
         let storyExit = false;
         let storyExitRoute = "";
+        let carryStarted = false;
+        let reloadOpened = false;
+        let reloadSolved = false;
+        let reloadEffect = "";
+        let reloadApplied = false;
+        let reloadAppliedEffect = "";
+        let reloadTimeout = false;
+        let reloadInvalid = false;
         for (const event of events) {
             if (event.name === "knock") {
                 knockPulse = true;
@@ -181,6 +199,20 @@ export class PlayAdapter {
             } else if (event.name === "storyExit") {
                 storyExit = true;
                 storyExitRoute = typeof event.data.route === "string" ? event.data.route : "";
+            } else if (event.name === "carryStart") {
+                carryStarted = true;
+            } else if (event.name === "reloadOpen") {
+                reloadOpened = true;
+            } else if (event.name === "reloadSolved") {
+                reloadSolved = true;
+                reloadEffect = typeof event.data.effect === "string" ? event.data.effect : "";
+            } else if (event.name === "reloadApplied") {
+                reloadApplied = true;
+                reloadAppliedEffect = typeof event.data.effect === "string" ? event.data.effect : "";
+            } else if (event.name === "reloadTimeout") {
+                reloadTimeout = true;
+            } else if (event.name === "reloadInvalid") {
+                reloadInvalid = true;
             }
         }
 
@@ -233,6 +265,14 @@ export class PlayAdapter {
             storyLineText,
             storyExit,
             storyExitRoute,
+            carryStarted,
+            reloadOpened,
+            reloadSolved,
+            reloadEffect,
+            reloadApplied,
+            reloadAppliedEffect,
+            reloadTimeout,
+            reloadInvalid,
         };
     }
 }
@@ -286,6 +326,27 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
         if (p.phase === "gate-walk") {
             return { x: player.x, y: player.y + player.h + 22, keyTag: "→", label: "走向城外", urgent: false };
         }
+    }
+
+    // 慢时换弹：盘开着时只提示连线；已画好的枪机在下一枪前提示按住 F。
+    if (p.reloadOpen) {
+        const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / 240));
+        return {
+            x: player.x, y: player.y + player.depth + player.h + 34,
+            keyTag: "连线", label: "画到枪机复位", urgent: p.reloadAnswerTicks > 168, progress: ratio,
+        };
+    }
+    if (p.reloadPendingEffect !== "") {
+        return {
+            x: player.x, y: player.y + player.depth + player.h + 34,
+            keyTag: "F", label: "枪机已上势 · 打下一枪", urgent: false,
+        };
+    }
+    if (room.key === "gatepath" && !p.carryOn) {
+        return { x: player.x, y: player.y + player.h + 24, keyTag: "→", label: "走到高石阶", urgent: false };
+    }
+    if (room.key === "escort1" && p.carryOn) {
+        return { x: player.x, y: player.y + player.h + 24, keyTag: "→", label: "带她走到出口", urgent: false };
     }
 
     const cart = room.cart;
