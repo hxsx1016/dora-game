@@ -121,9 +121,11 @@ export class Input {
         this.moveY = (down ? 1 : 0) - (up ? 1 : 0);
 
         this.jump = edge(this.jump, Keyboard.isKeyPressed(KeyName.Space));
+        // 低姿只由 Ctrl 承诺。S / ↓ 只负责往近侧纵深移动：
+        // 同一个键既改纵深又改姿态时，玩家没法只做其中一件，ACT-03 的
+        // 「纵深与姿态独立」就无从兑现。
         this.crouch = edge(this.crouch,
-            Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down)
-            || Keyboard.isKeyPressed(KeyName.LCtrl) || Keyboard.isKeyPressed(KeyName.RCtrl));
+            Keyboard.isKeyPressed(KeyName.LCtrl) || Keyboard.isKeyPressed(KeyName.RCtrl));
         this.cover = edge(this.cover,
             Keyboard.isKeyPressed(KeyName.LShift) || Keyboard.isKeyPressed(KeyName.RShift));
         this.interact = edge(this.interact, Keyboard.isKeyPressed(KeyName.E));

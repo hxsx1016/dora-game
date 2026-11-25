@@ -8,17 +8,17 @@ local App = ____Dora.App -- 19
 local Keyboard = ____Dora.Keyboard -- 19
 local Mouse = ____Dora.Mouse -- 19
 local View = ____Dora.View -- 19
-function edge(state, held) -- 171
-	local was = state.held -- 172
-	state.held = held -- 173
-	if held and not was then -- 173
-		state.pressed = true -- 175
-	end -- 175
-	if not held and was then -- 175
-		state.released = true -- 178
-	end -- 178
-	return state -- 180
-end -- 180
+function edge(state, held) -- 173
+	local was = state.held -- 174
+	state.held = held -- 175
+	if held and not was then -- 175
+		state.pressed = true -- 177
+	end -- 177
+	if not held and was then -- 177
+		state.released = true -- 180
+	end -- 180
+	return state -- 182
+end -- 182
 local function emptyKey() -- 28
 	return {held = false, pressed = false, released = false} -- 29
 end -- 28
@@ -97,67 +97,67 @@ function Input.prototype.readKeys(self) -- 115
 		self.jump, -- 123
 		Keyboard:isKeyPressed("Space") -- 123
 	) -- 123
-	self.crouch = edge( -- 124
-		self.crouch, -- 124
-		Keyboard:isKeyPressed("S") or Keyboard:isKeyPressed("Down") or Keyboard:isKeyPressed("LCtrl") or Keyboard:isKeyPressed("RCtrl") -- 125
-	) -- 125
-	self.cover = edge( -- 127
-		self.cover, -- 127
-		Keyboard:isKeyPressed("LShift") or Keyboard:isKeyPressed("RShift") -- 128
+	self.crouch = edge( -- 127
+		self.crouch, -- 127
+		Keyboard:isKeyPressed("LCtrl") or Keyboard:isKeyPressed("RCtrl") -- 128
 	) -- 128
-	self.interact = edge( -- 129
-		self.interact, -- 129
-		Keyboard:isKeyPressed("E") -- 129
-	) -- 129
-	self.aim = edge( -- 130
-		self.aim, -- 130
-		Keyboard:isKeyPressed("F") -- 130
+	self.cover = edge( -- 129
+		self.cover, -- 129
+		Keyboard:isKeyPressed("LShift") or Keyboard:isKeyPressed("RShift") -- 130
 	) -- 130
-	self.fire = edge(self.fire, Mouse.leftButtonPressed) -- 131
-	self.flare = edge( -- 132
-		self.flare, -- 132
-		Keyboard:isKeyPressed("Q") -- 132
+	self.interact = edge( -- 131
+		self.interact, -- 131
+		Keyboard:isKeyPressed("E") -- 131
+	) -- 131
+	self.aim = edge( -- 132
+		self.aim, -- 132
+		Keyboard:isKeyPressed("F") -- 132
 	) -- 132
-	self.pause = edge( -- 133
-		self.pause, -- 133
-		Keyboard:isKeyPressed("Escape") -- 133
-	) -- 133
-	self.retry = edge( -- 134
-		self.retry, -- 134
-		Keyboard:isKeyPressed("R") -- 134
+	self.fire = edge(self.fire, Mouse.leftButtonPressed) -- 133
+	self.flare = edge( -- 134
+		self.flare, -- 134
+		Keyboard:isKeyPressed("Q") -- 134
 	) -- 134
-	self.toggleView = edge( -- 135
-		self.toggleView, -- 135
-		Keyboard:isKeyPressed("G") -- 135
+	self.pause = edge( -- 135
+		self.pause, -- 135
+		Keyboard:isKeyPressed("Escape") -- 135
 	) -- 135
-	self.tab = edge( -- 136
-		self.tab, -- 136
-		Keyboard:isKeyPressed("Tab") -- 136
+	self.retry = edge( -- 136
+		self.retry, -- 136
+		Keyboard:isKeyPressed("R") -- 136
 	) -- 136
-	local n1 = Keyboard:isKeyPressed("1") -- 138
-	local n2 = Keyboard:isKeyPressed("2") -- 139
-	local n3 = Keyboard:isKeyPressed("3") -- 140
-	local pick = n1 and 1 or (n2 and 2 or (n3 and 3 or 0)) -- 141
-	if pick ~= 0 and pick ~= self.lastPick then -- 141
-		self.pickRoom = pick -- 144
-	end -- 144
-	self.lastPick = pick -- 146
+	self.toggleView = edge( -- 137
+		self.toggleView, -- 137
+		Keyboard:isKeyPressed("G") -- 137
+	) -- 137
+	self.tab = edge( -- 138
+		self.tab, -- 138
+		Keyboard:isKeyPressed("Tab") -- 138
+	) -- 138
+	local n1 = Keyboard:isKeyPressed("1") -- 140
+	local n2 = Keyboard:isKeyPressed("2") -- 141
+	local n3 = Keyboard:isKeyPressed("3") -- 142
+	local pick = n1 and 1 or (n2 and 2 or (n3 and 3 or 0)) -- 143
+	if pick ~= 0 and pick ~= self.lastPick then -- 143
+		self.pickRoom = pick -- 146
+	end -- 146
+	self.lastPick = pick -- 148
 end -- 115
-function Input.prototype.readMouse(self) -- 149
-	local vs = App.visualSize -- 150
-	local vw = View.size.width -- 151
-	local vh = View.size.height -- 152
-	local sw = vs.width > 0 and vs.width or 1 -- 153
-	local sh = vs.height > 0 and vs.height or 1 -- 154
-	local p = Mouse.position -- 155
-	local x = p.x * vw / sw -- 157
-	local y = p.y * vh / sh -- 158
-	local nx = x -- 160
-	local ny = vh - y -- 161
-	self.mdx = nx - self.mx -- 162
-	self.mdy = ny - self.my -- 163
-	self.mx = nx -- 164
-	self.my = ny -- 165
-	self.inside = x >= 0 and x <= vw and y >= 0 and y <= vh -- 166
-end -- 149
-return ____exports -- 149
+function Input.prototype.readMouse(self) -- 151
+	local vs = App.visualSize -- 152
+	local vw = View.size.width -- 153
+	local vh = View.size.height -- 154
+	local sw = vs.width > 0 and vs.width or 1 -- 155
+	local sh = vs.height > 0 and vs.height or 1 -- 156
+	local p = Mouse.position -- 157
+	local x = p.x * vw / sw -- 159
+	local y = p.y * vh / sh -- 160
+	local nx = x -- 162
+	local ny = vh - y -- 163
+	self.mdx = nx - self.mx -- 164
+	self.mdy = ny - self.my -- 165
+	self.mx = nx -- 166
+	self.my = ny -- 167
+	self.inside = x >= 0 and x <= vw and y >= 0 and y <= vh -- 168
+end -- 151
+return ____exports -- 151
