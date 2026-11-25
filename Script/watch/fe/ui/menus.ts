@@ -35,7 +35,7 @@ import {
 export type ScreenKind = "title" | "chapters" | "controls" | "play";
 
 export interface MenuAction {
-    type: "none" | "start" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause";
+    type: "none" | "start" | "trial" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause";
     roomIndex?: number;
 }
 
@@ -43,6 +43,7 @@ const TITLE_ITEMS = [
     { id: "start", zh: "开始游戏" },
     { id: "chapters", zh: "选择章节" },
     { id: "controls", zh: "操作说明" },
+    { id: "trial", zh: "护送试炼 · 肉鸽" },
 ];
 
 const PAUSE_ITEMS = [
@@ -341,6 +342,7 @@ export class MenuRenderer {
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.selected;
             const id = TITLE_ITEMS[idx].id;
+            if (id === "trial") return { type: "trial" };
             if (id === "start") {
                 return { type: "start" };
             }

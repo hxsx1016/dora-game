@@ -5,7 +5,7 @@
  *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
  */
 
-import { Color, DrawNode, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
+import { App, Color, DrawNode, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
 import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
@@ -13,7 +13,7 @@ import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { WatchFrontend } from "Script/watch/fe/frontend";
-import { createRun, mmss, RunState } from "Script/watch/run";
+import { createRun, createTrial, mmss, RunState, talentNames } from "Script/watch/run";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 declare function print(...args: string[]): void;
@@ -169,6 +169,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 input.retry.pressed = true;
             }
         }
+        if (mode === 2 && run?.trial !== undefined) return;
         if (key === KeyName.F1) {
             if (mode === 2) {
                 current = 0;
@@ -323,6 +324,10 @@ function tick(frameDt: number): void {
         return;
     }
     input.update();
+    if (mode === 2 && run?.trial !== undefined) {
+        tickCampaign(frameDt);
+        return;
+    }
 
     // G 键切换灰盒调试视图 / 高清前端
     if (input.toggleView.pressed) {
@@ -384,7 +389,13 @@ function ensurePlay(resume?: { checkpoint: number }): void {
     }
 }
 
-/** 新版关卡试玩：固定步推进，切房沿用同一份 RunState。 */
+function startTrial(): void {
+    current = 0;
+    run = createTrial(App.rand);
+    setMode(2);
+    ensurePlay();
+}
+
 function tickCampaign(frameDt: number): void {
     if (input === undefined) {
         return;
@@ -398,6 +409,40 @@ function tickCampaign(frameDt: number): void {
     const p = play;
     p.aimX = input.mx;
     p.aimY = input.my;
+
+    const trial = run?.trial;
+    if (trial !== undefined) {
+        const ended = trial.lost || run?.finished === true;
+        const pick = input.pickRoom;
+        input.pickRoom = 0;
+        if ((ended && input.pause.pressed) || (p.paused && input.interact.pressed)) {
+            input.consumeEdges();
+            current = 0;
+            play = undefined;
+            run = undefined;
+            setMode(1);
+            if (fe !== undefined) {
+                fe.screen = "title";
+                fe.menus.resetInput();
+            }
+            return;
+        }
+        if (ended || (p.paused && input.retry.pressed)) {
+            const restart = input.retry.pressed;
+            input.consumeEdges();
+            if (restart) startTrial();
+            else drawCampaign(p);
+            return;
+        }
+        input.retry.pressed = false;
+        if (trial.offers.length > 0 && !p.paused && !input.pause.pressed) {
+            if (pick > 0) p.chooseTalent(pick - 1);
+            input.consumeEdges();
+            clock.reset();
+            drawCampaign(p);
+            return;
+        }
+    }
 
     if (input.retry.pressed) {
         input.retry.pressed = false;
@@ -424,7 +469,7 @@ function tickCampaign(frameDt: number): void {
         input.beginStep(i === 0);
         p.update(STEP, input);
         input.endStep();
-        if (p.wantRoom !== "") {
+        if (p.wantRoom !== "" || trial?.lost || (trial !== undefined && run?.finished)) {
             break;
         }
     }
@@ -477,6 +522,15 @@ function drawCampaign(p: Play): void {
     if (p.paused) {
         line = line + "  · 已暂停 Esc 继续";
     }
+    const trial = r?.trial;
+    if (trial !== undefined && r !== undefined) {
+        line = "护送试炼 · " + room.name + " · 体力 " + p.hp + "/" + p.maxHp + " · " + mmss(r.ticks);
+        if (p.paused) line += " · 暂停";
+        else if (trial.lost) line += " · 护送失败";
+        else if (r.finished) line += " · 护送完成";
+        else if (trial.offers.length > 0) line += " · 选择本段本领";
+        else if (c !== undefined) line += " · " + goalLabel(c.goal);
+    }
     if (campaignHud !== undefined) {
         campaignHud.text = line;
         campaignHud.position = Vec2(24, h - 14);
@@ -494,6 +548,12 @@ function drawCampaign(p: Play): void {
         if (p.flash !== "") {
             sub = sub + " · " + p.flash;
         }
+        if (trial !== undefined && r !== undefined) {
+            if (trial.lost || r.finished) sub = "种子 " + r.seed + " · R 再开一局 · Esc 返回标题";
+            else if (p.paused) sub = "种子 " + r.seed + " · Esc 继续 · R 重新开局 · E 返回标题";
+            else if (trial.offers.length > 0) sub = trial.offers.map((talent, index) => (index + 1) + " " + talentNames[talent]).join("　");
+            else sub = "厚甲" + trial.ranks.vitality + " 熟铳" + trial.ranks.reload + " 护身" + trial.ranks.guard + " 巧手" + trial.ranks.craft + " · " + (p.flash !== "" ? p.flash : (r.joined ? "小满跟随" : "小满等待"));
+        }
         campaignSub.text = sub;
         campaignSub.position = Vec2(24, h - 44);
         campaignSub.visible = true;
@@ -509,7 +569,9 @@ function tickFrontend(frameDt: number): void {
     if (fe.screen !== "play") {
         const act = fe.renderMenu(frameDt, input, viewW, viewH);
         input.consumeEdges();
-        if (act.type === "start") {
+        if (act.type === "trial") {
+            startTrial();
+        } else if (act.type === "start") {
             enterPlayRoom(0);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
             enterPlayRoom(act.roomIndex);
