@@ -22,7 +22,7 @@
 ## 二、本阶段要交付的 5 项核心改造
 
 ### 1. 新建 `Script/watch/fe/contract.ts`（前后端双模式契约 + 内置排演 Mock）
-为下游 6 条并行分支提供统一的只读视图 `DualRouteSnapshot`，自动融合**真实 `Play` 字段**与**前端排演 Mock 状态**：
+为下游 6 条并行分支提供统一的只读视图 `DualRouteSnapshot`，显式选用正式数据源或排演数据源。正式入口在接口缺失时保留已有玩法，排演状态只存在于独立内存中：
 
 - **必须导出的类型与接口**：
   - `StoryRoute = "undecided" | "child" | "soldier"`
@@ -31,7 +31,7 @@
   - `MuseumPhase = "locked" | "well_open" | "well_reflect" | "hall_walk" | "lamp_turn" | "return_cabinet" | "done"`
   - `CraftRecipeView`: `{ id: string; name: string; desc: string; enhancedEffect: ReloadEffectKind; cost: Record<string, number>; crafted: boolean }`
   - `DualRouteSnapshot`（覆盖 [双线前端交付单](../向西守望-双线前端交付单.md) 约定的全部 8 类字段）：
-    1. `storyRoute: StoryRoute`（默认从未来后端 `p.storyRoute` 读；未接入时可按城门血量 `100 * p.hp >= 80 * p.maxHp` 推导或由排演开关指定）
+    1. `storyRoute: StoryRoute`（只读后端在小满安全过门、殿后最后一拍结算后锁存的路线。字段缺失时返回 `undecided`。切房后即时 HP 与房内岔路 `run.route` 都不能代表分线结果）
     2. `countElapsedTicks: number` / `countDurationTicks: number` / `countNumber: number` / `countProgress: number`（自动兼容未来 `p.countElapsedTicks` 与当前 `p.countTick`、`GATE_COUNT_END`、`gateCountAtTick`）
     3. `gateReunion: { active: boolean; knockHeard: boolean; holdProgress: number; holding: boolean; completed: boolean; releasedAbortCount: number }`（0.6 秒长按重逢状态，支持中途松手归零重试、完成后只触发一次）
     4. `backCarry: { active: boolean; handInHand: boolean; mounting: boolean; atBench: boolean }`
@@ -42,11 +42,11 @@
   - `assistHintsEnabled: boolean`（**默认 `false`**，由暂停菜单切换）
   - `visualMode: VisualStyleMode`（由当前房间、`storyRoute`、`museumPhase` 与风台 `countProgress` 统一推导）
 - **排演控制器 `DualRouteContract` 类**：
-  - `resetForRoom(p: Play)`：切房/重试时清空瞬时态（如 `gateReunion`、`reloadSession`、`justCraftedTimer`），但保留跨房档案态（`childCleared`/`soldierCleared`/`assistHintsEnabled`）；
-  - `sample(p: Play, rawDt: number, input: Input): DualRouteSnapshot`：每帧优先读取后端真实字段（通过安全类型守卫检测 `(p as unknown as Record<string, unknown>)`），缺失时由 Mock 状态机驱动；
+  - `resetForRoom(p: Play)`：切房/重试时清空瞬时态（如 `gateReunion`、`reloadSession`、`justCraftedTimer`），并从后端档案重读双结局与神器归属。按键辅助取用户设置，排演档案只在该次排演内跨房保留；
+  - `sample(p: Play, rawDt: number, input: Input): DualRouteSnapshot`：正式模式读取玩法快照，缺字段按能力降级。排演入口使用专属快照并标记录屏，离开排演后恢复正式数据源；
   - **排演与自动化钩子**：挂在 `WatchFrontend.contract`（即 `package.loaded["watch.fe"].contract`），暴露简洁方法供后续分支自测与录屏脚本调用，例如：
     - `setMockRoute(route: StoryRoute)`
-    - `setMockCountTick(tick: number)`（方便直接定格 0 / 360 / 720 / 1080 / 1260 / 1440 拍截五张关键帧）
+    - `setMockCountTick(tick: number)`（定格 0 / 360 / 720 / 1080 / 1440 拍截五张关键帧，另在 1260 拍核对第十九声）
     - `triggerMockReload(active: boolean)`、`triggerMockBench(active: boolean)`、`setMockArchive(childCleared: boolean, soldierCleared: boolean)`、`enterMockMuseum(phase: MuseumPhase)`
   - 并在文件顶部注释清楚：**待后端字段就绪时，仅需把本文件内的真实字段读取分支对齐即可，零改动下游所有渲染模块**。
 
@@ -59,6 +59,8 @@
   2. **按事件序号 / 节拍去重**：提供 `playOnce(dedupeKey: string, track: AudioTrack, path: string, volume?: number)`，保证 0 步帧、暂停重绘、重复采样绝不重复触发同一声数数或敲门；
   3. **暂停冻结与恢复续播**：`setPaused(paused: boolean)` 在暂停时冻结音轨播放/逻辑位置，恢复时从同一拍/同一声音位置继续；
   4. **切房与重试清理**：`stopRoomTransient()` 停止房间瞬时音效并清空本房去重表；
+  正式事件由既有 `PlayAdapter.sample` 唯一调用 `drainEvents()`。在适配器将同帧事件按 `seq` 顺序分发给音效与插件，保留 `tick`、事件序号和检查点代号。验证一帧补跑跨过两次事件时各响一次，暂停重绘和读档重建不补播旧事件。
+
   5. **供验证脚本读取的播放记录**：记录最近触发的 `(tick, track, cueId)`，便于自动化脚本核对「声音、字幕和手势各出现一次」。
 
 ### 3. 新建 `Script/watch/fe/plugins.ts`（前端渲染插件接口，零冲突隔离核心）
@@ -135,7 +137,7 @@
    - 启动默认入口 `init.lua` 人工抽查：
      - 默认进入局内时，就近 `[E]` / `[Shift]` / `[F]` 浮签和检查站任务清单**不显示**；
      - 按 `Esc` 进暂停菜单 → 点「操作说明」能看到双栏素笺且返回暂停不串键 → 点「按键辅助：关」切换为「开」后返回局内，浮签恢复显示；
-     - 通过 `package.loaded["watch.fe"].contract` 切换 `timeScale = 0.25` 时角色/粒子减速、暂停时立即冻结、恢复时继续。
+     - 显式进入排演后，通过 `package.loaded["watch.fe"].contract` 切换 `timeScale = 0.25` 时角色/粒子减速、暂停时立即冻结、恢复时继续。
 4. **提交并合入总分支（形成 M0）**：
    - 推送本分支：`git push -u origin feature/fe-00-foundation`；
    - 在 `feature/fe-dual-route` 工作区合并 `feature/fe-00-foundation`（`git merge --no-ff feature/fe-00-foundation`），复跑 `python3 tools/check-repo.py` 后推送 `git push -u origin feature/fe-dual-route`。
