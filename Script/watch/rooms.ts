@@ -475,8 +475,13 @@ export const PROLOGUE_ROOM: RoomSpec = {
         { x: 152, w: 98, h: 32, y: 0, label: "倒柜 152–250 · 高 32", lanes: ["lower", "middle"] },
         { x: 648, w: 30, h: 118, y: 0, label: "出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 110, w: 38, h: 84, y: 0, label: "石柱", lanes: ["lower", "middle"], art: "wall" },
+        { x: 56, w: 44, h: 18, y: 0, label: "侧灶 56–100 · 高 18", decorative: true },
+        { x: 396, w: 34, h: 12, y: 0, label: "井沿 396–430 · 高 12", decorative: true },
+        { x: 470, w: 40, h: 26, y: 0, label: "后院矮墙 470–510 · 高 26" },
     ],
-    zones: [],
+    zones: [
+        { x0: 380, x1: 470, y: 0, h: 6, tint: 2, label: "后院旧井 380–470" },
+    ],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
     stairs: [],
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
@@ -486,6 +491,7 @@ export const PROLOGUE_ROOM: RoomSpec = {
     ],
     marks: [
         { x: 300, y: 0, kind: 1, label: "柜后 300" },
+        { x: 430, y: 0, kind: 7, label: "旧井 430" },
         { x: 660, y: 0, kind: 0, label: "门口中路 660" },
     ],
     dims: [

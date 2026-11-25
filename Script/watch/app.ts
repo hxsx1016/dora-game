@@ -14,6 +14,7 @@ import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createTrial, mmss, RunSource, RunState, talentNames } from "Script/watch/run";
+import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile } from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 declare function print(...args: string[]): void;
@@ -46,6 +47,10 @@ let campaignSub: Label.Type | undefined;
 let run: RunState | undefined;
 /** 正式剧情的跨房状态；模式 1 整局一份，切房与 R 重试都复用它。 */
 let storyRun: RunState | undefined;
+/** 跨局档案：正式通关与神器只写在这里，与每局的 RunState 分开。 */
+let profile: SaveState = emptySave();
+let profileStatus = "missing";
+let profileDetail = "";
 let rulerLabel: Label.Type | undefined;
 let standLabel: Label.Type | undefined;
 let cartLabel: Label.Type | undefined;
@@ -145,6 +150,13 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     }
 
     // 挂载菜单与游戏前端。
+    // 读档：缺文件按新档起局；损坏/版本不支持时保留原文件并报告，仍可继续玩。
+    if (mode === 1) {
+        const loaded = loadSave();
+        profile = loaded.state;
+        profileStatus = loaded.status;
+        profileDetail = loaded.detail;
+    }
     fe = new WatchFrontend(parent);
     fe.screen = startScreen;
     grayboxLayer.visible = mode === 0;
@@ -253,6 +265,19 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             return play;
         },
         getStoryRun: () => storyRun,
+        // 档案验收：测试只切隔离文件，绝不覆盖正式 watch-save/archive.txt。
+        getProfile: () => profile,
+        getProfileStatus: () => profileStatus,
+        getProfileDetail: () => profileDetail,
+        useTestSave: (name: string) => {
+            setSaveFile(name);
+            const loaded = loadSave();
+            profile = loaded.state;
+            profileStatus = loaded.status;
+            profileDetail = loaded.detail;
+        },
+        saveNow: () => saveSave(profile),
+        getSaveFile,
     };
 
     if (mode === 1 && startScreen === "play") {
@@ -289,7 +314,7 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
     play = undefined;
     // 标题「新的旅程」进序章视为正式开新局；章节直达与快跳只预览，不写通关档案。
     if (fresh || storyRun === undefined) {
-        storyRun = createRun(20261124, source);
+        storyRun = createRun(20261124, source, profile);
     } else {
         storyRun.source = source;
     }
@@ -402,7 +427,7 @@ function ensurePlay(resume?: { checkpoint: number }): void {
         // 正式剧情：整局只有一份跨房状态，血量、过门锁线与演出快照都在里面。
         // 重试与切房都重建 Play，但不再满血重算。
         if (storyRun === undefined) {
-            storyRun = createRun();
+            storyRun = createRun(20261124, "debug", profile);
         }
         play = new Play(ROOMS[current], resume, storyRun);
     }
@@ -687,6 +712,10 @@ function tickFrontend(frameDt: number): void {
             // 换实例前先取走旧队列，再接到新实例队首；前端下一帧仍能拿到切房这一条 roomChange。
             // adoptEvents 会丢掉旧房间的 knock，避免跨出口同拍按 E 时在新房重播旧房敲声。
             const leaving = p.drainEvents();
+            // 片尾回序章：重开一份局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
+            if (p.restartStory) {
+                storyRun = createRun(20261124, storyRun === undefined ? "official" : storyRun.source, profile);
+            }
             current = idx;
             ensurePlay();
             const fresh = play;
@@ -699,6 +728,13 @@ function tickFrontend(frameDt: number): void {
         return;
     }
 
+    // 档案变化（正式通关、井口取器）在下一个渲染帧落盘；写失败保留旧文件，下次再试。
+    if (p.archiveDirty) {
+        p.archiveDirty = false;
+        if (!saveSave(profile)) {
+            p.archiveDirty = true;
+        }
+    }
     fe.renderPlay(frameDt, p, input, viewW, viewH);
 }
 

@@ -36,11 +36,25 @@ export interface PropState {
 export type RouteTag = "outer" | "drygoods" | "";
 
 /** 双通关档案：C 单接收的结局结果；跨局持久化由 C 单落盘。 */
+export type MuseumPhase = "locked" | "well_open" | "well_reflect" | "hall_walk" | "lamp_turn" | "return_cabinet" | "done";
+export const MUSEUM_PHASES: readonly MuseumPhase[] = ["locked", "well_open", "well_reflect", "hall_walk", "lamp_turn", "return_cabinet", "done"];
+
+export function isMuseumPhase(value: string): value is MuseumPhase {
+    let i = 0;
+    for (i = 0; i < MUSEUM_PHASES.length; i++) {
+        if (MUSEUM_PHASES[i] === value) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export interface ArchiveState {
     childCleared: boolean;
     soldierCleared: boolean;
     artifactOwned: boolean;
-    museumPhase: string;
+    /** 0=未进馆；1..7=馆内步骤；8=已离馆。 */
+    museumPhase: MuseumPhase;
     museumSeen: boolean;
 }
 
@@ -208,7 +222,12 @@ export interface RunState {
     log: string[];
 }
 
-export function createRun(seed: number = 20261124, source: RunSource = "debug"): RunState {
+/**
+ * 开一局。`archive` 传入跨局档案（标题开局与片尾再玩都指向同一份），
+ * 不传则新建一份（试炼、章节直达、调试与测试默认各局独立）。
+ */
+export function createRun(seed: number = 20261124, source: RunSource = "debug",
+                          archive: ArchiveState = createArchive()): RunState {
     return {
         source: source,
         seed: seed,
@@ -225,7 +244,7 @@ export function createRun(seed: number = 20261124, source: RunSource = "debug"):
         checkpoint: 0,
         finished: false,
         story: createStory(),
-        archive: createArchive(),
+        archive: archive,
         log: [],
     };
 }
