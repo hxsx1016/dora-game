@@ -19,6 +19,10 @@ export interface Inventory {
     quickbelt: number;
     /** 材料：废木料，制木楔的原料。不占消耗品格。 */
     scrap: number;
+    /** 材料：木纹筹，工台改制引路灯铳（2）或回声铳（1）。不占格。 */
+    wood: number;
+    /** 材料：铃纹筹，工台改制回声铳（1）。不占格。 */
+    bell: number;
 }
 
 export interface PropState {
@@ -31,12 +35,41 @@ export interface PropState {
 
 export type RouteTag = "outer" | "drygoods" | "";
 
+/** 双通关档案：C 单接收的结局结果；跨局持久化由 C 单落盘。 */
+export interface ArchiveState {
+    childCleared: boolean;
+    soldierCleared: boolean;
+    artifactOwned: boolean;
+    museumPhase: string;
+    museumSeen: boolean;
+}
+
+export function createArchive(): ArchiveState {
+    return { childCleared: false, soldierCleared: false, artifactOwned: false, museumPhase: "locked", museumSeen: false };
+}
+
 /**
  * 正式剧情的结局路线：与房内岔路 RouteTag 分开。
  * child = 小满带伤送别后自己数完出城；soldier = 守住 80% 血量门槛后长按牵手。
  * 空串表示还没过门锁线。
  */
 export type StoryRoute = "child" | "soldier" | "";
+
+/** 检查点快照：库存、装备、已改制与背负，制前 / 制后各记一份。 */
+export interface CheckpointSnap {
+    id: number;
+    wood: number;
+    bell: number;
+    scrap: number;
+    wedge: number;
+    ammo: number;
+    shield: number;
+    pass: number;
+    quickbelt: number;
+    crafted: string;
+    equipped: string;
+    carry: boolean;
+}
 
 /**
  * 正式剧情跨房状态：周戍血量与上限、过门锁存、风台演出快照。
@@ -71,6 +104,14 @@ export interface StoryState {
     carry: boolean;
     /** 第一段护送房已走到安全出口。 */
     escortDone: boolean;
+    /** 已在第三段工台做出的武器 id；空串表示还没做。 */
+    craftedWeapon: string;
+    /** 结局：reunion=北塔团圆；lamp=小满留灯；空串表示还没落幕。 */
+    ending: string;
+    /** 最近一次检查点快照；切房/重试时随 run 一起带走。 */
+    cp?: CheckpointSnap;
+    /** 已走出的段出口：每段只结算一次，重试/回访不重复记。 */
+    segments: Record<string, boolean>;
 }
 
 export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
@@ -90,6 +131,10 @@ export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
         tied: false,
         carry: false,
         escortDone: false,
+        craftedWeapon: "",
+        ending: "",
+        cp: undefined,
+        segments: {},
     };
 }
 
@@ -152,6 +197,8 @@ export interface RunState {
     finished: boolean;
     /** 正式剧情的跨房状态（血量、过门锁线、风台演出快照）。 */
     story: StoryState;
+    /** 双通关档案：B2 结局写入，C 单读取后落盘。 */
+    archive: ArchiveState;
     /** 试玩记录：每次进房、达成目标、拾取都留一行。 */
     log: string[];
 }
@@ -163,7 +210,7 @@ export function createRun(seed: number = 20261124): RunState {
         roomTicks: {},
         roomEnterTick: 0,
         route: "",
-        inventory: { shield: 0, wedge: 0, ammo: 0, pass: 0, quickbelt: 0, scrap: 0 },
+        inventory: { shield: 0, wedge: 0, ammo: 0, pass: 0, quickbelt: 0, scrap: 0, wood: 0, bell: 0 },
         props: {},
         taken: {},
         joined: false,
@@ -172,6 +219,7 @@ export function createRun(seed: number = 20261124): RunState {
         checkpoint: 0,
         finished: false,
         story: createStory(),
+        archive: createArchive(),
         log: [],
     };
 }

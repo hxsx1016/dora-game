@@ -423,7 +423,8 @@ do
 	local i = newInput()
 	step(p, i)
 	check("护送房达成目标", p.objectiveDone == true, "objectiveDone=" .. tostring(p.objectiveDone))
-	check("交城外商道", p.wantRoom == "outside", "wantRoom=" .. tostring(p.wantRoom))
+	-- B2 分段后 escort1 出口接第二段粮棚；城外由 escort5 出口接回，另在 verify-b2 覆盖。
+	check("交第二段粮棚", p.wantRoom == "escort2", "wantRoom=" .. tostring(p.wantRoom))
 
 	local out = lualib.__TS__New(play.Play, rooms.OUTSIDE_ROOM, nil, r)
 	check("城外仍控周戍", out.childMode == false, "childMode=" .. tostring(out.childMode))

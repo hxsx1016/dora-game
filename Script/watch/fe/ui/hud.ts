@@ -262,6 +262,50 @@ export class HudRenderer {
         alpha: number,
     ): void {
         // 0. 慢时换弹：作答钟 4 秒、世界 1/4 速；3×3 盘已走过的点逐颗点亮。
+        // 第三段工台：材料、两张配方与当前装备；面板期间世界冻结。
+        if (p.craftBench.active) {
+            const bw = 470;
+            const cx = w * 0.5;
+            const top = h * 0.32;
+            drawSilkVeil(uiDraw, uiArt, "hud_bench_veil", cx, top + 118, bw + 64, 208, PALETTE.inkWash, 0.86 * alpha, -1);
+            texts.put("xs", "工台 · 放她下来做一件", cx, top - 6, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.7, alpha, 0.08);
+            const inv = p.craftBench.inventory;
+            const wood = inv["wood"] ?? 0;
+            const bell = inv["bell"] ?? 0;
+            const scrap = inv["scrap"] ?? 0;
+            texts.put("xs", "木纹筹 " + wood + " · 铃纹筹 " + bell + " · 碎片 " + scrap, cx, top + 24,
+                toColor(PALETTE.silkDim), 0.5, 0.5, TextAlign.Center, 1.5, alpha, 0.08);
+            const recipes = p.craftBench.recipes;
+            for (let i = 0; i < recipes.length; i++) {
+                const r = recipes[i];
+                let costText = "";
+                let afford = true;
+                const costWood = r.cost["wood"] ?? 0;
+                const costBell = r.cost["bell"] ?? 0;
+                if (costWood > 0) {
+                    costText = costText + (costText !== "" ? " + " : "") + "木 " + costWood;
+                    if (wood < costWood) {
+                        afford = false;
+                    }
+                }
+                if (costBell > 0) {
+                    costText = costText + (costText !== "" ? " + " : "") + "铃 " + costBell;
+                    if (bell < costBell) {
+                        afford = false;
+                    }
+                }
+                const equipped = p.craftBench.equippedWeapon === r.id;
+                const state = r.crafted ? "已做成" : (afford ? "可制作" : "缺料");
+                const mark = equipped ? " ◈" : "";
+                texts.put("xs", r.name + " · " + costText + " · " + state + mark, cx, top + 56 + i * 26,
+                    toColor(equipped ? PALETTE.cyanCore : (r.crafted ? PALETTE.silkDim : PALETTE.textBright)),
+                    0.5, 0.5, TextAlign.Center, 1.6, alpha, 0.08);
+            }
+            const firstMade = p.craftBench.firstCraftDone ? " · 首制完成" : "";
+            texts.put("xs", "E 制作 · Q 装备 · Esc 离开" + firstMade, cx, top + 128,
+                toColor(PALETTE.amber), 0.5, 0.5, TextAlign.Center, 1.5, alpha, 0.06);
+        }
+
         if (p.reloadOpen) {
             const bw = 400;
             const cx = w * 0.5;

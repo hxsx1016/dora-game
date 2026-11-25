@@ -55,6 +55,21 @@ export interface FrameEvents {
     reloadAppliedEffect: string;
     reloadTimeout: boolean;
     reloadInvalid: boolean;
+    /** 护送段过关：段名与下一房 key（escort2–escort5）。 */
+    segmentDone: boolean;
+    segmentKey: string;
+    segmentNext: string;
+    /** 第三段工台：开面板 / 做成 / 装备 / 关闭 / 拒绝。 */
+    benchOpened: boolean;
+    benchCrafted: boolean;
+    benchCraftedWeapon: string;
+    benchEquipped: boolean;
+    benchClosed: boolean;
+    benchRejected: boolean;
+    benchRejectReason: string;
+    /** 北塔落幕：结局标识 reunion / lamp。 */
+    endingReached: boolean;
+    ending: string;
 }
 
 export interface WorldPrompt {
@@ -162,6 +177,18 @@ export class PlayAdapter {
         let reloadAppliedEffect = "";
         let reloadTimeout = false;
         let reloadInvalid = false;
+        let segmentDone = false;
+        let segmentKey = "";
+        let segmentNext = "";
+        let benchOpened = false;
+        let benchCrafted = false;
+        let benchCraftedWeapon = "";
+        let benchEquipped = false;
+        let benchClosed = false;
+        let benchRejected = false;
+        let benchRejectReason = "";
+        let endingReached = false;
+        let ending = "";
         for (const event of events) {
             if (event.name === "knock") {
                 knockPulse = true;
@@ -213,6 +240,25 @@ export class PlayAdapter {
                 reloadTimeout = true;
             } else if (event.name === "reloadInvalid") {
                 reloadInvalid = true;
+            } else if (event.name === "segmentDone") {
+                segmentDone = true;
+                segmentKey = typeof event.data.room === "string" ? event.data.room : "";
+                segmentNext = typeof event.data.next === "string" ? event.data.next : "";
+            } else if (event.name === "benchOpen") {
+                benchOpened = true;
+            } else if (event.name === "benchCraft") {
+                benchCrafted = true;
+                benchCraftedWeapon = typeof event.data.weapon === "string" ? event.data.weapon : "";
+            } else if (event.name === "benchEquip") {
+                benchEquipped = true;
+            } else if (event.name === "benchClose") {
+                benchClosed = true;
+            } else if (event.name === "benchRejected") {
+                benchRejected = true;
+                benchRejectReason = typeof event.data.reason === "string" ? event.data.reason : "";
+            } else if (event.name === "endingReached") {
+                endingReached = true;
+                ending = typeof event.data.ending === "string" ? event.data.ending : "";
             }
         }
 
@@ -273,6 +319,18 @@ export class PlayAdapter {
             reloadAppliedEffect,
             reloadTimeout,
             reloadInvalid,
+            segmentDone,
+            segmentKey,
+            segmentNext,
+            benchOpened,
+            benchCrafted,
+            benchCraftedWeapon,
+            benchEquipped,
+            benchClosed,
+            benchRejected,
+            benchRejectReason,
+            endingReached,
+            ending,
         };
     }
 }
@@ -345,7 +403,13 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     if (room.key === "gatepath" && !p.carryOn) {
         return { x: player.x, y: player.y + player.h + 24, keyTag: "→", label: "走到高石阶", urgent: false };
     }
-    if (room.key === "escort1" && p.carryOn) {
+    if (room.key === "escort3" && !p.craftBench.active) {
+        const bench = 560;
+        if (Math.abs(player.x - bench) <= p.benchReach + 40 && player.y < 12) {
+            return { x: bench, y: 92, keyTag: "E", label: "在工台制作", urgent: false };
+        }
+    }
+    if ((room.key === "escort2" || room.key === "escort3" || room.key === "escort4" || room.key === "escort5") && p.carryOn) {
         return { x: player.x, y: player.y + player.h + 24, keyTag: "→", label: "带她走到出口", urgent: false };
     }
 

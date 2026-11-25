@@ -42,7 +42,7 @@ export interface InteractSpec {
 
 export interface PickupSpec {
     id: string;
-    kind: "shield" | "wedge" | "ammo" | "pass" | "quickbelt" | "scrap";
+    kind: "shield" | "wedge" | "ammo" | "pass" | "quickbelt" | "scrap" | "wood" | "bell";
     x: number;
     y: number;
     depth?: number;
@@ -65,6 +65,8 @@ export interface CampaignSpec {
     budget: number;
     /** 本段结束条件。 */
     goal: "reach_exit" | "dock_cart" | "raise_latch";
+    /** 本房允许开慢时连线换弹盘（房间能力，不按房名特判）。 */
+    reloadPuzzle?: boolean;
     next?: string;
     exitX: number;
     /** 检查点序号；进入本段时提交。 */
@@ -149,7 +151,7 @@ export interface SpawnSpec {
     label: string;
     depth?: number;
     /** 新版关卡：火器手 / 持盾手 / 破障手 / 侧线带队者。 */
-    kind?: "gunner" | "shield" | "breaker" | "leader";
+    kind?: "gunner" | "shield" | "breaker" | "leader" | "target";
     /** 盾的耐久；盾完整倒地才掉残盾。 */
     shieldHp?: number;
     /** 击倒时掉什么；缺省按 kind 推断。 */
@@ -622,7 +624,7 @@ export const GATE_PATH_ROOM: RoomSpec = {
         { x0: 780, x1: 860, text: "高石阶 80 · 抬 48" },
         { x0: 860, x1: 1000, text: "平台 140" },
     ],
-    story: { gatepath: { carryX: 840, exitX: 1000, next: "escort1" } },
+    story: { gatepath: { carryX: 840, exitX: 980, next: "escort1" } },
 };
 
 /**
@@ -723,7 +725,7 @@ export const ESCORT1_ROOM: RoomSpec = {
         { x: 700, w: 40, h: 28, y: 0, label: "倒石 700 · 高 28", lanes: ["lower"] },
         { x: 980, w: 160, h: 52, y: 0, label: "石台 980–1140 · 高 52", lanes: ["lower"], art: "cover_wood" },
         { x: 1300, w: 40, h: 140, y: 0, label: "巷尾门柱 1300", lanes: ["lower", "upper"], art: "gate_post" },
-        { x: 1340, w: 260, h: 180, y: 0, label: "巷尾断墙 1340–1600 · 高 180" },
+        { x: 1560, w: 40, h: 180, y: 0, label: "巷尾断墙 1560–1600 · 高 180" },
     ],
     zones: [{ x0: 560, x1: 900, y: 0, h: 150, tint: 1, label: "交火 560–900" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -745,7 +747,183 @@ export const ESCORT1_ROOM: RoomSpec = {
         { x0: 980, x1: 1140, text: "石台 160" },
         { x0: 1300, x1: 1600, text: "巷尾 300" },
     ],
-    campaign: { chapter: "O", act: 1, budget: 240, goal: "reach_exit", exitX: 1500, next: "outside", checkpoint: 1 },
+    campaign: { chapter: "O", act: 1, budget: 240, goal: "reach_exit", exitX: 1500, next: "escort2", checkpoint: 1, reloadPuzzle: true },
+};
+
+
+/**
+ * 第二段粮棚：从第一段巷尾转进粮棚，高低两条通路各放材料。
+ * 上层棚架两枚木纹筹，地面一枚木纹筹与一枚铃纹筹——走齐两条通路才能凑够两种配方。
+ */
+export const ESCORT2_ROOM: RoomSpec = {
+    key: "escort2",
+    originX: 0,
+    name: "粮棚 · 第二段取材",
+    caption: "棚架与地面各走一趟：木纹筹三枚、铃纹筹一枚，够在工台二选一",
+    minX: 0,
+    maxX: 1500,
+    height: 220,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1500 }],
+    solids: [
+        { x: 0, w: 50, h: 160, y: 0, label: "棚口背影 0–50" },
+        { x: 300, w: 24, h: 64, y: 0, label: "棚架柱 300", lanes: ["lower"], art: "gate_post" },
+        { x: 300, w: 600, h: 8, y: 64, label: "棚架梁 300–900 · 高 64", depth: { min: -40, max: -8 } },
+        { x: 640, w: 60, h: 32, y: 0, label: "倒粮袋 640 · 高 32", lanes: ["lower"] },
+        { x: 980, w: 140, h: 48, y: 0, label: "粮台 980–1120 · 高 48", lanes: ["lower", "middle"], art: "cover_wood" },
+        { x: 1460, w: 40, h: 180, y: 0, label: "棚尾断墙 1460–1500 · 高 180" },
+    ],
+    zones: [{ x0: 520, x1: 900, y: 0, h: 150, tint: 1, label: "取材 520–900" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [{ x0: 780, x1: 900, y0: 0, y1: 64, steps: 3, label: "棚架斜梯 780–900" }],
+    cart: NO_CART,
+    spawns: [
+        { x: 700, y: 0, h: 84, depth: 32, label: "火器手 700 · 中档", kind: "gunner", drop: "ammo" },
+        { x: 1080, y: 0, h: 84, depth: -28, label: "火器手 1080 · 浅档", kind: "gunner", drop: "ammo" },
+        { x: 1200, y: 0, h: 84, depth: 24, label: "破障手 1200", kind: "breaker", drop: "wedge" },
+    ],
+    marks: [
+        { x: 200, y: 0, kind: 3, label: "进棚 200" },
+        { x: 476, y: 0, kind: 3, label: "棚架下 476" },
+        { x: 900, y: 0, kind: 0, label: "棚架尽头 900" },
+        { x: 1400, y: 0, kind: 0, label: "粮棚出口 1400" },
+    ],
+    dims: [
+        { x0: 300, x1: 900, text: "棚架 600" },
+        { x0: 980, x1: 1120, text: "粮台 140" },
+    ],
+    pickups: [
+        { id: "e2_wood_a", kind: "wood", x: 380, y: 0, label: "木纹筹 · 棚下" },
+        { id: "e2_bell", kind: "bell", x: 560, y: 0, label: "铃纹筹 · 粮袋后" },
+        { id: "e2_wood_b", kind: "wood", x: 820, y: 64, depth: -24, label: "木纹筹 · 棚架上" },
+    ],
+    campaign: { chapter: "O", act: 2, budget: 240, goal: "reach_exit", exitX: 1400, next: "escort3", checkpoint: 1, reloadPuzzle: true },
+};
+
+/**
+ * 第三段安全工台：放下小满，看材料与两张配方，改制、装备、离站再背起。
+ * 工台前的薄掩体与两个靶位用于当场试射：灯纹穿掩体、铃纹同时惊起两个声源。
+ */
+export const ESCORT3_ROOM: RoomSpec = {
+    key: "escort3",
+    originX: 0,
+    name: "山腰工台 · 第三段改制",
+    caption: "放下小满 → 工台按 E 看配方 → 选一件改制装备 → 试射一枪 → 离站重新背起",
+    minX: 0,
+    maxX: 1200,
+    height: 220,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1200 }],
+    solids: [
+        { x: 0, w: 50, h: 160, y: 0, label: "工台口背影 0–50" },
+        { x: 560, w: 120, h: 44, y: 0, label: "工台 560–680 · 高 44", lanes: ["lower", "middle"], art: "cover_wood", id: "e3_bench" },
+        { x: 700, w: 56, h: 52, y: 0, label: "试射薄掩体 700–756 · 高 52", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
+        { x: 1050, w: 40, h: 140, y: 0, label: "出站门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 1170, w: 30, h: 180, y: 0, label: "出站断墙 1170–1200 · 高 180" },
+    ],
+    zones: [{ x0: 560, x1: 960, y: 0, h: 120, tint: 3, label: "工台安全区 560–960" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: NO_CART,
+    spawns: [
+        { x: 820, y: 0, h: 84, depth: 16, label: "试射靶一 820", kind: "target" },
+        { x: 940, y: 0, h: 84, depth: -16, label: "试射靶二 940", kind: "target" },
+    ],
+    marks: [
+        { x: 300, y: 0, kind: 0, label: "制前检查点 300" },
+        { x: 640, y: 0, kind: 3, label: "工台 640" },
+        { x: 960, y: 0, kind: 0, label: "制后检查点 960" },
+        { x: 1150, y: 0, kind: 0, label: "出站 1150" },
+    ],
+    dims: [
+        { x0: 560, x1: 680, text: "工台 120" },
+        { x0: 700, x1: 756, text: "掩体 56" },
+    ],
+    campaign: { chapter: "O", act: 3, budget: 240, goal: "reach_exit", exitX: 1150, next: "escort4", checkpoint: 1, reloadPuzzle: true },
+};
+
+/**
+ * 第四段山道：边走边换弹的窄道，塌方与追兵逼玩家在换弹与脱身之间选。
+ */
+export const ESCORT4_ROOM: RoomSpec = {
+    key: "escort4",
+    originX: 0,
+    name: "山道 · 第四段脱身",
+    caption: "窄道上两个火器手与一个破障手；换弹时世界会慢下来，也可以滚身脱出",
+    minX: 0,
+    maxX: 1400,
+    height: 240,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 900 }, { y: 0, x0: 960, x1: 1400 }],
+    solids: [
+        { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50" },
+        { x: 380, w: 80, h: 40, y: 0, label: "塌方 380–460 · 高 40", lanes: ["lower", "middle"], art: "cover_stone", id: "e4_fall" },
+        { x: 900, w: 60, h: 120, y: 0, label: "断口 900–960 · 高 120", passable: false },
+        { x: 1120, w: 40, h: 32, y: 0, label: "倒石 1120 · 高 32", lanes: ["lower"] },
+        { x: 1350, w: 50, h: 200, y: 0, label: "山道尾壁 1350–1400 · 高 200" },
+    ],
+    zones: [{ x0: 500, x1: 900, y: 0, h: 160, tint: 2, label: "窄道 500–900" }],
+    arch: { x0: 900, x1: 960, y: 0, h: 120, label: "山道断口 60" },
+    stairs: [{ x0: 960, x1: 1080, y0: 0, y1: 24, steps: 2, label: "断口下落 960–1080" }],
+    cart: NO_CART,
+    spawns: [
+        { x: 620, y: 0, h: 84, depth: 32, label: "火器手 620 · 中档", kind: "gunner", drop: "ammo" },
+        { x: 840, y: 0, h: 84, depth: -28, label: "火器手 840 · 浅档", kind: "gunner", drop: "ammo" },
+        { x: 1060, y: 0, h: 84, depth: 24, label: "破障手 1060", kind: "breaker", drop: "wedge" },
+    ],
+    marks: [
+        { x: 200, y: 0, kind: 3, label: "进山道 200" },
+        { x: 476, y: 0, kind: 3, label: "塌方后 476" },
+        { x: 960, y: 0, kind: 0, label: "断口 960" },
+        { x: 1300, y: 0, kind: 0, label: "山道出口 1300" },
+    ],
+    dims: [
+        { x0: 380, x1: 460, text: "塌方 80" },
+        { x0: 900, x1: 960, text: "断口 60" },
+    ],
+    campaign: { chapter: "O", act: 4, budget: 240, goal: "reach_exit", exitX: 1300, next: "escort5", checkpoint: 1, reloadPuzzle: true },
+};
+
+/**
+ * 第五段山道：带着自己改制的武器走到塔门；出口直接接北塔。
+ */
+export const ESCORT5_ROOM: RoomSpec = {
+    key: "escort5",
+    originX: 0,
+    name: "塔前山道 · 第五段",
+    caption: "最后一段：带自己的武器走到塔门，走到 1320 就进北塔",
+    minX: 0,
+    maxX: 1400,
+    height: 240,
+    depth: LANE_ROAD,
+    floors: [{ y: 0, x0: 0, x1: 1400 }],
+    solids: [
+        { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50" },
+        { x: 320, w: 96, h: 44, y: 0, label: "石阶塌墙 320–416 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e5_wall" },
+        { x: 700, w: 160, h: 52, y: 0, label: "石台 700–860 · 高 52", lanes: ["lower"], art: "cover_wood" },
+        { x: 1050, w: 40, h: 140, y: 0, label: "塔前门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
+        { x: 1370, w: 30, h: 200, y: 0, label: "塔前壁 1370–1400 · 高 200" },
+    ],
+    zones: [{ x0: 600, x1: 960, y: 0, h: 160, tint: 4, label: "塔前 600–960" }],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [{ x0: 860, x1: 980, y0: 0, y1: 40, steps: 3, label: "石台斜走 860–980" }],
+    cart: NO_CART,
+    spawns: [
+        { x: 560, y: 0, h: 84, depth: 32, label: "火器手 560 · 中档", kind: "gunner", drop: "ammo" },
+        { x: 780, y: 0, h: 84, depth: -28, label: "火器手 780 · 浅档", kind: "gunner", drop: "ammo" },
+        { x: 980, y: 0, h: 84, depth: 24, label: "持盾手 980", kind: "shield", drop: "shield" },
+    ],
+    marks: [
+        { x: 200, y: 0, kind: 3, label: "进塔前 200" },
+        { x: 476, y: 0, kind: 3, label: "塌墙后 476" },
+        { x: 960, y: 0, kind: 0, label: "塔前 960" },
+        { x: 1320, y: 0, kind: 0, label: "塔门 1320" },
+    ],
+    dims: [
+        { x0: 320, x1: 416, text: "塌墙 96" },
+        { x0: 700, x1: 860, text: "石台 160" },
+    ],
+    campaign: { chapter: "O", act: 5, budget: 240, goal: "reach_exit", exitX: 1320, next: "tower", checkpoint: 1, reloadPuzzle: true },
 };
 
 /**
@@ -1013,6 +1191,10 @@ export const ROOMS: RoomSpec[] = [
     GATE_ROOM,
     GATE_PATH_ROOM,
     ESCORT1_ROOM,
+    ESCORT2_ROOM,
+    ESCORT3_ROOM,
+    ESCORT4_ROOM,
+    ESCORT5_ROOM,
     OUTSIDE_ROOM,
     VILLAGE_ROOM,
     FOREST_ROOM,

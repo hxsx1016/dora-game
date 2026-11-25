@@ -14,7 +14,9 @@ import {
     BreakSpec, CartSpec, DepthRange, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
 } from "Script/watch/rooms";
-import { createRun, draftRoom, mmss, RunState, StoryRoute, talentNames } from "Script/watch/run";
+import {
+    ArchiveState, CheckpointSnap, createRun, draftRoom, Inventory, mmss, RunState, StoryRoute, talentNames,
+} from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
@@ -23,6 +25,9 @@ import {
     RELOAD_ANSWER_PER_WORLD, RELOAD_ANSWER_TICKS, RELOAD_START, RELOAD_TARGET, ReloadEffect,
     reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
 } from "Script/watch/reload";
+import {
+    CRAFT_RECIPES, RecipeSpec, findRecipe, missingMaterials, payMaterials, weaponEffectOf, weaponNameOf,
+} from "Script/watch/craft";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
@@ -81,7 +86,25 @@ export type PlayEventName =
     | "reloadInvalid"
     | "reloadSolved"
     | "reloadTimeout"
-    | "reloadApplied";
+    | "reloadApplied"
+    | "segmentDone"
+    | "benchOpen"
+    | "benchCraft"
+    | "benchEquip"
+    | "benchClose"
+    | "benchRejected"
+    | "trialShot"
+    | "endingReached";
+
+/** 工台视图：字段名与 fe/contract.ts 的 CraftBenchSnapshot 对齐。 */
+export interface CraftBenchView {
+    active: boolean;
+    firstCraftDone: boolean;
+    justCraftedTimer: number;
+    inventory: Record<string, number>;
+    recipes: { id: string; name: string; desc: string; enhancedEffect: string; cost: Record<string, number>; crafted: boolean }[];
+    equippedWeapon: string;
+}
 
 export interface PlayEvent {
     /** 本局内递增；换房、R 重试、再玩都会新建 Play，序号从头开始。 */
@@ -89,7 +112,7 @@ export interface PlayEvent {
     /** 产生事件的模拟拍（Play.ticks）。 */
     tick: number;
     name: PlayEventName;
-    data: Record<string, number | string | boolean>;
+    data: Record<string, unknown>;
 }
 
 /** 小满：高 64、蹲 36、走 160、慢走 80、跳初速 320（顶点 51）。 */
@@ -239,7 +262,7 @@ export interface Enemy {
     /** 距下一次举枪的拍数。 */
     fireCd: number;
     /** 新版关卡：火器手 / 持盾手 / 破障手 / 侧线带队者。 */
-    kind?: "gunner" | "shield" | "breaker" | "leader";
+    kind?: "gunner" | "shield" | "breaker" | "leader" | "target";
     /** 盾耐久；正面挡弹，碎盾后不掉残盾。 */
     shieldHp?: number;
     shieldHpMax?: number;
@@ -462,6 +485,29 @@ export class Play {
     isCampaign = false;
     /** 跨房运行态；单房回放时自动建一份。 */
     run: RunState;
+    /** 背包引用：前端契约可读 p.inventory，实际状态在 run.inventory。 */
+    readonly inventory: Inventory;
+    /** 双通关档案引用：C 单读取的结局结果。 */
+    readonly archive: ArchiveState;
+
+    // —— 第三段工台与武器 ——
+    /** 已装备的武器 id；标准铳之外由工台改制。 */
+    equippedWeapon = "standard_gun";
+    /** 工台视图：前端契约读这个对象，字段名与 fe/contract 对齐。 */
+    readonly craftBench: CraftBenchView = {
+        active: false,
+        firstCraftDone: false,
+        justCraftedTimer: 0,
+        inventory: {},
+        recipes: [],
+        equippedWeapon: "standard_gun",
+    };
+    /** 工台制作的请求幂等表：同一 requestId 只结算一次。 */
+    private handledCraftRequests: Record<string, boolean> = {};
+    /** 工台前按 E 的触发半径。 */
+    readonly benchReach = 48;
+    /** 检查点快照：制前 / 制后各自恢复库存、装备与背负。 */
+    private checkpointSnap: CheckpointSnap | undefined;
     /** 本段地上的掉落物（房间自带 + 敌人掉落）。 */
     pickups: PickupSpec[] = [];
     /** 装填剩余拍；>0 时不能开火。 */
@@ -540,14 +586,18 @@ export class Play {
         this.room = withOrigin(room);
         const wr = this.room;
         this.run = run ?? createRun();
+        this.inventory = this.run.inventory;
+        this.archive = this.run.archive;
+        this.equippedWeapon = this.run.story.craftedWeapon === "" ? "standard_gun" : this.run.story.craftedWeapon;
         this.isCampaign = wr.campaign !== undefined;
         this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
         // 周戍段（序章/街道/检查站/城门）操控周戍；其余路段操控小满。
         // 男主线背着妹妹进城外时仍控周戍：出入口同一间房，操控权按已锁路线分。
         const lockedRoute = this.run.story === undefined ? "" : this.run.story.route;
-        const soldierOutside = wr.key === "outside" && lockedRoute === "soldier";
-        this.childMode = !soldierOutside
+        // 男主线进塔仍是周戍；女主线单人抵塔时控小满。城外/空村/森林同按路线分。
+        const soldierRoom = (wr.key === "outside" || wr.key === "tower") && lockedRoute === "soldier";
+        this.childMode = !soldierRoom
             && (wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower");
         const playerIdx = wr.key === "checkpoint" ? 1 : 0;
         const partnerIdx = wr.key === "checkpoint" ? 0 : (this.childMode ? -1 : 1);
@@ -593,6 +643,233 @@ export class Play {
      * 门房若已锁线，则按快照回到数数 / 等牵手 / 已牵手的对应拍，
      * 让 R 重试与菜单续读都不必重打 45 秒守点。
      */
+    // ==================== 第三段工台与武器 ====================
+
+    /** 配方视图：后端是配方的唯一状态，前端只读这份派生视图。 */
+    private recipeViews(): CraftBenchView["recipes"] {
+        const out: CraftBenchView["recipes"] = [];
+        let i = 0;
+        for (i = 0; i < CRAFT_RECIPES.length; i++) {
+            const r: RecipeSpec = CRAFT_RECIPES[i];
+            const cost: Record<string, number> = {};
+            if (r.cost.wood !== undefined) {
+                cost["wood"] = r.cost.wood;
+            }
+            if (r.cost.bell !== undefined) {
+                cost["bell"] = r.cost.bell;
+            }
+            out.push({
+                id: r.id,
+                name: r.name,
+                desc: r.desc,
+                enhancedEffect: r.enhancedEffect,
+                cost: cost,
+                crafted: this.run.story.craftedWeapon === r.id,
+            });
+        }
+        return out;
+    }
+
+    /** 工台视图每帧跟随运行态：材料、装备、配方已做标记。 */
+    private syncCraftBench(): void {
+        const view = this.craftBench;
+        const inv = this.run.inventory;
+        view.inventory = { wood: inv.wood, bell: inv.bell, scrap: inv.scrap, wedge: inv.wedge, ammo: inv.ammo };
+        view.recipes = this.recipeViews();
+        view.equippedWeapon = this.equippedWeapon;
+        view.firstCraftDone = this.run.story.craftedWeapon !== "";
+        if (view.justCraftedTimer > 0) {
+            view.justCraftedTimer = Math.max(0, view.justCraftedTimer - STEP);
+        }
+    }
+
+    /** 走到工台按 E：放下小满，开面板。安全区不刷敌兵。 */
+    openCraftBench(): void {
+        if (this.room.key !== "escort3" || this.craftBench.active) {
+            return;
+        }
+        this.craftBench.active = true;
+        this.carryOn = false;
+        this.run.story.carry = false;
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.craftBench.justCraftedTimer = 0;
+        this.syncCraftBench();
+        this.flashSet("放下小满 · 工台按 E 选一件改制", 1.6);
+        this.log("开工台");
+        this.emit("benchOpen", {
+            recipes: this.craftBench.recipes.map((r) => r.id),
+            inventory: this.craftBench.inventory,
+            carry: this.carryOn,
+        });
+    }
+
+    /** 关面板离站：重新背起小满，材料不足/未选也不拦路。 */
+    closeCraftBench(): void {
+        if (!this.craftBench.active) {
+            return;
+        }
+        this.craftBench.active = false;
+        this.craftBench.justCraftedTimer = 0;
+        this.carryOn = true;
+        this.run.story.carry = true;
+        this.flashSet("重新背起小满 · 往山道", 1.4);
+        this.log("离站背起");
+        this.emit("benchClose", { equipped: this.equippedWeapon, crafted: this.run.story.craftedWeapon });
+    }
+
+    /**
+     * 制作一份配方：扣一份材料、产出一件、自动装备。
+     * 同一 requestId 只结算一次；缺料、已做过或被顶替都只回拒绝。
+     */
+    craftAtBench(recipeId: string, requestId: string): boolean {
+        if (!this.craftBench.active || this.handledCraftRequests[requestId] === true) {
+            return false;
+        }
+        const recipe = findRecipe(recipeId);
+        if (recipe === undefined || this.run.story.craftedWeapon !== "") {
+            this.flashSet(this.run.story.craftedWeapon === "" ? "没有这件配方" : "这一件已经做了 · 只能二选一", 1.4);
+            this.emit("benchRejected", { recipeId: recipeId, reason: this.run.story.craftedWeapon === "" ? "unknown" : "crafted" });
+            return false;
+        }
+        const missing = missingMaterials(this.run.inventory, recipe);
+        if (missing.length > 0) {
+            this.flashSet("缺料 · " + missing.join(" / "), 1.6);
+            this.emit("benchRejected", { recipeId: recipeId, reason: "materials", missing: missing });
+            return false;
+        }
+        payMaterials(this.run.inventory, recipe);
+        this.handledCraftRequests[requestId] = true;
+        this.run.story.craftedWeapon = recipe.id;
+        this.equippedWeapon = recipe.id;
+        this.craftBench.justCraftedTimer = this.craftBench.firstCraftDone ? 0.45 : 1.0;
+        this.craftBench.firstCraftDone = true;
+        this.syncCraftBench();
+        this.flashSet("改制完成 · " + recipe.name + " · 已装备", 2.0);
+        this.log("改制 " + recipe.id);
+        this.emit("benchCraft", {
+            recipeId: recipe.id,
+            weapon: recipe.id,
+            effect: recipe.enhancedEffect,
+            wood: this.run.inventory.wood,
+            bell: this.run.inventory.bell,
+        });
+        return true;
+    }
+
+    /** 换装：只允许已做过的武器与标准铳。 */
+    equipWeapon(weaponId: string): boolean {
+        if (weaponId !== "standard_gun" && this.run.story.craftedWeapon !== weaponId) {
+            this.emit("benchRejected", { recipeId: weaponId, reason: "unknown" });
+            return false;
+        }
+        this.equippedWeapon = weaponId;
+        this.syncCraftBench();
+        this.flashSet("已装备 " + weaponNameOf(weaponId), 1.0);
+        this.emit("benchEquip", { weapon: weaponId });
+        return true;
+    }
+
+    /**
+     * 前端结构化意图入口：换弹、工台制作/装备/关面板。
+     * fe/contract.ts 的 forwardLiveIntent 优先调用它；B1 的 reloadTapNode 仍可直接用。
+     */
+    submitFeIntent(intent: { kind: string; [key: string]: unknown }): boolean {
+        const kind = intent === undefined ? "" : intent.kind;
+        if (kind === "reloadTapNode") {
+            const node = intent.node;
+            if (typeof node === "number") {
+                this.reloadTapNode(node);
+                return true;
+            }
+            return false;
+        }
+        if (kind === "reloadPathCommit") {
+            const path = intent.path;
+            if (typeof path === "object" && path !== undefined && Array.isArray(path)) {
+                const list = path as number[];
+                let i = 0;
+                for (i = 0; i < list.length; i++) {
+                    if (i === 0 && list[i] === RELOAD_START) {
+                        continue;
+                    }
+                    this.reloadTapNode(list[i]);
+                }
+                return true;
+            }
+            return false;
+        }
+        if (kind === "reloadCancel") {
+            this.closeReloadPuzzle();
+            return true;
+        }
+        if (kind === "craftSubmit") {
+            const recipeId = intent.recipeId;
+            const requestId = intent.requestId;
+            if (typeof recipeId === "string" && typeof requestId === "string") {
+                return this.craftAtBench(recipeId, requestId);
+            }
+            return false;
+        }
+        if (kind === "craftEquip") {
+            const weaponId = intent.weaponId;
+            if (typeof weaponId === "string") {
+                return this.equipWeapon(weaponId);
+            }
+            return false;
+        }
+        if (kind === "craftClose") {
+            this.closeCraftBench();
+            return true;
+        }
+        return false;
+    }
+
+    /** 检查点快照：踩到 kind 0 标记时把库存、装备、已改制与背负整份记下。 */
+    private captureCheckpoint(id: number): void {
+        const inv = this.run.inventory;
+        this.checkpointSnap = {
+            id: id,
+            wood: inv.wood,
+            bell: inv.bell,
+            scrap: inv.scrap,
+            wedge: inv.wedge,
+            ammo: inv.ammo,
+            shield: inv.shield,
+            pass: inv.pass,
+            quickbelt: inv.quickbelt,
+            crafted: this.run.story.craftedWeapon,
+            equipped: this.equippedWeapon,
+            carry: this.carryOn,
+        };
+        this.run.story.cp = this.checkpointSnap;
+    }
+
+    /** 回到这份检查点：制前回到未改制，制后回到已装备。 */
+    private applyCheckpointSnap(id: number): boolean {
+        const snap = this.run.story.cp;
+        if (snap === undefined || snap.id !== id) {
+            return false;
+        }
+        this.checkpointSnap = snap;
+        const inv = this.run.inventory;
+        inv.wood = snap.wood;
+        inv.bell = snap.bell;
+        inv.scrap = snap.scrap;
+        inv.wedge = snap.wedge;
+        inv.ammo = snap.ammo;
+        inv.shield = snap.shield;
+        inv.pass = snap.pass;
+        inv.quickbelt = snap.quickbelt;
+        this.run.story.craftedWeapon = snap.crafted;
+        this.equippedWeapon = snap.equipped;
+        this.carryOn = snap.carry;
+        this.run.story.carry = snap.carry;
+        this.craftBench.active = false;
+        this.syncCraftBench();
+        return true;
+    }
+
     private restoreStory(): void {
         // 标题独立试炼有自己的跨房血量与路线，不走正式剧情的快照。
         // 正式剧情的护送房虽然是 campaign 数据，仍要继承周戍的血量与背负状态。
@@ -616,6 +893,17 @@ export class Play {
         this.tied = story.handDone;
         this.carryOn = story.carry || (story.route === "soldier" && this.room.key === "escort1");
         this.escortDone = story.escortDone;
+        this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        this.syncCraftBench();
+        // 检查点恢复：制前 / 制后各自的库存、装备与背负整份回滚。
+        if (this.checkpoint > 0 && story.cp !== undefined && story.cp.id === this.checkpoint) {
+            this.applyCheckpointSnap(this.checkpoint);
+        }
+        // 北塔：男主背着妹妹到门前，放到地上再敲门；女主单人抵塔。
+        if (this.room.key === "tower" && story.route === "soldier") {
+            this.carryOn = false;
+            this.run.story.carry = false;
+        }
         if (this.room.key !== "gate") {
             return;
         }
@@ -723,7 +1011,8 @@ export class Play {
         }
         this.roomStartTick = this.run.ticks;
         // S1 是共同起点：小满当拍就在队尾，A 线全程带着走。
-        if (wr.key === "s1-crossroad" || wr.key === "escort1") {
+        if (wr.key === "s1-crossroad" || wr.key === "escort1" || wr.key === "escort2" || wr.key === "escort3"
+            || wr.key === "escort4" || wr.key === "escort5") {
             this.run.joined = true;
         } else if (wr.companion !== undefined && wr.companion.followAfter !== undefined) {
             // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则两人都在门前停。
@@ -832,7 +1121,7 @@ export class Play {
     }
 
     /** 记一条一次性事件。超过 256 条丢最旧的，防止前端还没接时队列无限长。 */
-    private emit(name: PlayEventName, data: Record<string, number | string | boolean>): void {
+    private emit(name: PlayEventName, data: Record<string, unknown>): void {
         this.events.push({ seq: this.eventSeq, tick: this.ticks, name: name, data: data });
         this.eventSeq += 1;
         if (this.events.length > 256) {
@@ -900,7 +1189,9 @@ export class Play {
      */
     private beginReload(): void {
         this.reloadT = this.reloadTicks();
-        if (this.run.trial === undefined && this.room.key === "escort1") {
+        const camp = this.room.campaign;
+        // 慢时连线是房间能力：护送段都开，标题试炼不开（4000 拍会被 1/4 速拖死）。
+        if (this.run.trial === undefined && camp !== undefined && camp.reloadPuzzle === true) {
             this.openReloadPuzzle();
         }
     }
@@ -971,29 +1262,43 @@ export class Play {
      * 回声：把这一枪的余响引到最近一个还在场的敌人身上。
      * 他被惊动、枪口先抬一下（下一次开火延后），给玩家一个换位窗口。
      */
-    private echoToSource(from: Actor): void {
+    private echoToSource(from: Actor, count: number = 1): void {
         let best = -1;
         let bestD = 1e9;
         let i = 0;
-        for (i = 0; i < this.enemies.length; i++) {
-            const e = this.enemies[i];
-            if (!e.alive) {
-                continue;
+        const woken: Record<number, boolean> = {};
+        let n = 0;
+        while (n < count) {
+            best = -1;
+            bestD = 1e9;
+            for (i = 0; i < this.enemies.length; i++) {
+                if (woken[i] === true) {
+                    continue;
+                }
+                const e = this.enemies[i];
+                if (!e.alive) {
+                    continue;
+                }
+                const d = Math.abs(e.x - from.x);
+                if (d < bestD) {
+                    bestD = d;
+                    best = i;
+                }
             }
-            const d = Math.abs(e.x - from.x);
-            if (d < bestD) {
-                bestD = d;
-                best = i;
+            if (best < 0) {
+                break;
             }
+            woken[best] = true;
+            const e = this.enemies[best];
+            e.awake = true;
+            e.warnT = 0;
+            e.fireCd = Math.max(e.fireCd ?? 0, 60);
+            n += 1;
         }
-        if (best < 0) {
+        if (n === 0) {
             return;
         }
-        const e = this.enemies[best];
-        e.awake = true;
-        e.warnT = 0;
-        e.fireCd = Math.max(e.fireCd ?? 0, 60);
-        this.flashSet("回声引到声源 · 他先抬枪", 1.0);
+        this.flashSet(n > 1 ? "回声引到两处声源 · 他们同时抬枪" : "回声引到声源 · 他先抬枪", 1.0);
     }
 
     private reloadTicks(): number {
@@ -1001,6 +1306,7 @@ export class Play {
     }
 
     update(dt: number, input: Input): void {
+        this.syncCraftBench();
         const trial = this.run.trial;
         if (trial !== undefined && (trial.offers.length > 0 || trial.lost || this.run.finished)) return;
         if (input.pause.pressed) {
@@ -1019,6 +1325,11 @@ export class Play {
             }
         }
         if (this.paused) {
+            this.updateCamera(dt);
+            return;
+        }
+        // 工台面板打开：世界停在开面板那一拍，玩家不推进、敌兵不动。
+        if (this.craftBench.active) {
             this.updateCamera(dt);
             return;
         }
@@ -1066,8 +1377,10 @@ export class Play {
         // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
         // 新版关卡房有自己的敌兵行为（掩体、深度、觉醒）；旧房才走简化敌兵。
         // 试炼房保持原有双跑（旧简化敌兵 + 关卡敌兵），正式护送房只跑关卡敌兵。
-        const legacyEnemies = !this.isCampaign || trial !== undefined;
-        if (legacyEnemies && (trial === undefined || !this.run.finished)) this.stepEnemies(dt, input);
+        // campaign 房也走 stepEnemies：内部再分流到护送敌兵，城门/街道的旧敌兵不进这段。
+        if (trial === undefined || !this.run.finished) {
+            this.stepEnemies(dt, input);
+        }
         if (trial !== undefined) trial.hp = this.hp;
         if (!this.isCampaign) {
             this.stepStory(dt, input);
@@ -1408,6 +1721,10 @@ export class Play {
         if (this.room.key === "prologue") {
             return this.phase === "prologue-follow";
         }
+        if (this.room.key === "escort1" || this.room.key === "escort2" || this.room.key === "escort3"
+            || this.room.key === "escort4" || this.room.key === "escort5") {
+            return true;
+        }
         return this.room.key === "street";
     }
 
@@ -1423,6 +1740,10 @@ export class Play {
             return true;
         }
         if (this.room.key === "tower" && this.phase !== "tower-wait") {
+            return true;
+        }
+        // 工台面板打开时玩家站着选配方，世界不再推进（面板自己按 ui 拍走）。
+        if (this.craftBench.active) {
             return true;
         }
         return false;
@@ -1687,7 +2008,7 @@ export class Play {
             this.phaseTick += 1;
             if (this.phaseTick === 30) {
                 this.flashSet("袖口先入画 · 她抓住了", 1.8);
-            } else if (this.phaseTick >= 90) {
+            } else if (this.phaseTick >= 90 && this.wantRoom === "") {
                 this.emit("storyExit", { route: "soldier", via: "hand", handTicks: this.handTicks, hp: this.hp, maxHp: this.maxHp });
                 this.requestRoom("gatepath", "牵手同行");
             }
@@ -1752,6 +2073,8 @@ export class Play {
         s.tied = this.tied;
         s.carry = this.carryOn;
         s.escortDone = this.escortDone;
+        s.craftedWeapon = this.run.story.craftedWeapon;
+        s.ending = this.run.story.ending;
         if (this.room.key === "gate") {
             s.phase = this.phase;
             s.countTick = this.countTick;
@@ -1838,15 +2161,38 @@ export class Play {
             return;
         }
         if (this.phase === "tower-given") {
+            // 两条路线共用同一座塔：男主线兄妹同行，登记簿两行姓名；
+            // 女主线只有小满一个人，她把西窗的灯留下。
+            const soldier = this.storyRoute === "soldier";
             this.phaseTick += 1;
             if (this.phaseTick === 60) {
-                this.flashSet("她递出针套和纸条", 1.6);
+                this.flashSet(soldier ? "守卒问名 · 第一行 周戍" : "登记簿第一行 · 只有一个人", 1.6);
             } else if (this.phaseTick === 120) {
-                this.flashSet("登记簿最后一页 · 空行留着", 2.4);
+                this.flashSet(soldier ? "第二行 · 小满 · 两人同行" : "西窗留一盏灯 · 等他回来", 2.4);
             } else if (this.phaseTick >= 180) {
                 this.phase = "tower-end";
                 this.phaseTick = 0;
-                this.flashSet("片尾 · E 再玩一次", 3.0);
+                if (!this.run.finished) {
+                    this.run.finished = true;
+                    const ending = soldier ? "reunion" : "lamp";
+                    this.run.story.ending = ending;
+                    this.run.archive.artifactOwned = true;
+                    if (soldier) {
+                        this.run.archive.soldierCleared = true;
+                    } else {
+                        this.run.archive.childCleared = true;
+                    }
+                    this.log("结局 " + ending);
+                    this.emit("endingReached", {
+                        route: soldier ? "soldier" : "child",
+                        ending: ending,
+                        childCleared: this.run.archive.childCleared,
+                        soldierCleared: this.run.archive.soldierCleared,
+                        artifactOwned: true,
+                        equipped: this.equippedWeapon,
+                    });
+                    this.flashSet(soldier ? "北塔团圆 · 片尾" : "小满留灯 · 片尾", 3.0);
+                }
             }
             return;
         }
@@ -2067,6 +2413,14 @@ export class Play {
             inv.scrap += 1;
             return true;
         }
+        if (kind === "wood") {
+            inv.wood += 1;
+            return true;
+        }
+        if (kind === "bell") {
+            inv.bell += 1;
+            return true;
+        }
         if (kind === "pass") {
             inv.pass += 1;
             return true;
@@ -2204,6 +2558,18 @@ export class Play {
             this.flashSet("转布行线 · 小满到窗板后等", 1.3);
             this.log("转布行线");
         }
+        // 第三段安全工台：靠近工台按 E 开面板；面板里按 Esc 或再按 E 收起。
+        if (wr.key === "escort3") {
+            const benchX = wr.minX + 560;
+            const nearBench = Math.abs(p.x - benchX) <= this.benchReach + 40 && p.y < 12;
+            if (this.craftBench.active) {
+                if (input.interact.pressed || input.pause.pressed) {
+                    this.closeCraftBench();
+                }
+            } else if (nearBench && input.interact.pressed) {
+                this.openCraftBench();
+            }
+        }
         // 拾取：走到掉落物上自动进包。
         let i = 0;
         for (i = 0; i < this.pickups.length; i++) {
@@ -2233,6 +2599,25 @@ export class Play {
         }
         this.stepCampaignCart(dt, input);
         this.stepCampaignGoal();
+        this.campaignCheckpoint();
+    }
+
+    /** 护送段检查点：踩到 kind 0 标记就记一份库存/装备/背负快照。 */
+    private campaignCheckpoint(): void {
+        let i = 0;
+        for (i = 0; i < this.room.marks.length; i++) {
+            const m = this.room.marks[i];
+            if (m.kind !== 0) {
+                continue;
+            }
+            const dx = this.player.x - m.x;
+            const dy = this.player.y - m.y;
+            if (dx * dx + dy * dy < 26 * 26 && this.checkpoint !== m.x) {
+                this.checkpoint = m.x;
+                this.captureCheckpoint(m.x);
+                this.flashSet("检查点", 1.0);
+            }
+        }
     }
 
     /** E：机关优先，其次加固 / 架盾 / 号牌。 */
@@ -2444,6 +2829,16 @@ export class Play {
         if (p.x < c.exitX || !partnerOk) {
             return;
         }
+        // 段出口只结算一次：玩家真正走到出口、同伴跟上，记一段完成。
+        if (this.run.story.segments[wr.key] !== true) {
+            this.run.story.segments[wr.key] = true;
+            this.emit("segmentDone", { room: wr.key, act: c.act, next: c.next ?? "", ticks: this.ticks });
+        }
+        // 第五段出口就是全程走完；塔门由房间数据接上。
+        if (wr.key === "escort5") {
+            this.escortDone = true;
+            this.run.story.escortDone = true;
+        }
         if (c.next !== undefined && c.next !== "") {
             this.requestRoom(c.next, "段出口 " + wr.key);
             this.flashSet("过关 · " + c.next, 1.2);
@@ -2464,6 +2859,11 @@ export class Play {
             return;
         }
         const p = this.player;
+        // 工台打开时小满站在台边等，不跟着人绕台面。
+        if (this.craftBench.active) {
+            a.vx = 0;
+            return;
+        }
         let wait = false;
         let targetX = cp === undefined ? p.x - 70 : p.x - (p.facing > 0 ? 70 : -70);
         let targetDepth = p.depth;
@@ -2532,6 +2932,13 @@ export class Play {
             }
             if (e.hitT > 0) {
                 e.hitT -= dt;
+            }
+            if (e.kind === "target") {
+                // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来。
+                if (!e.alive && e.hitT <= 0) {
+                    e.alive = true;
+                }
+                continue;
             }
             if (e.kind === "breaker") {
                 this.stepBreaker(e, dt);
@@ -2989,6 +3396,10 @@ export class Play {
                 if (dx * dx + dy * dy < 26 * 26 && this.checkpoint !== m.x) {
                     this.checkpoint = m.x;
                     this.checkpointCartAxle = this.cartAxle;
+                    // 护送段：制前 / 制后各记一份库存、装备与背负，恢复时整份回滚。
+                    if (this.isCampaign) {
+                        this.captureCheckpoint(m.x);
+                    }
                     if (this.cartDocked) {
                         this.flashSet("检查点 · 车已落窝", 1.0);
                     } else {
@@ -3347,9 +3758,14 @@ export class Play {
         const dDepth = tEnemy > 0.001 ? (targetDepth - a.depth) / tEnemy : 0;
         const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth, depth: a.depth, dDepth });
         const tWall = solid.t;
-        // 照明效果：这一枪的线被照透，掩体不再吃掉命中。
-        const reloadEffect = this.consumeReloadEffect();
-        const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall || reloadEffect === "light");
+        // 画盘效果 + 已装备武器：只有引路灯铳能把线照透，只有回声铳能惊起两处声源。
+        const rawEffect = this.consumeReloadEffect();
+        const weaponFx = weaponEffectOf(this.equippedWeapon);
+        let reloadEffect: ReloadEffect = rawEffect;
+        if (rawEffect === "light" && weaponFx !== "light") {
+            reloadEffect = "push";
+        }
+        const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall || (reloadEffect === "light" && weaponFx === "light"));
         const t = hit ? tEnemy : (tWall >= 0 ? tWall : 700);
 
         this.trace = { x0: ox, y0: oy, x1: ox + dx * t, y1: oy + dy * t, hit: hit };
@@ -3380,12 +3796,12 @@ export class Play {
             this.dropFor(e);
             if (reloadEffect === "push") {
                 e.x += a.facing * 46;
-                this.emit("reloadApplied", { effect: "push", enemyX: e.x });
+                this.emit("reloadApplied", { effect: "push", weapon: this.equippedWeapon, enemyX: e.x });
             } else if (reloadEffect === "echo") {
-                this.echoToSource(a);
-                this.emit("reloadApplied", { effect: "echo", enemyX: e.x });
+                this.echoToSource(a, weaponFx === "echo" ? 2 : 1);
+                this.emit("reloadApplied", { effect: "echo", weapon: this.equippedWeapon, enemyX: e.x });
             } else if (reloadEffect === "light") {
-                this.emit("reloadApplied", { effect: "light", enemyX: e.x });
+                this.emit("reloadApplied", { effect: "light", weapon: this.equippedWeapon, enemyX: e.x });
             }
         } else if (solid.box !== undefined && solid.box.breakable !== undefined) {
             this.damageProp(solid.box, 1);
