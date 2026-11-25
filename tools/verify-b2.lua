@@ -62,9 +62,9 @@ check("棚下拾木纹筹", p2.run.inventory.wood == 1, "wood=" .. p2.run.invent
 p2.player.x = 560
 step(p2, i2)
 check("粮袋后拾铃纹筹", p2.run.inventory.bell == 1, "bell=" .. p2.run.inventory.bell)
-p2.player.x = 820; p2.player.y = 64; p2.player.depth = -24; p2.player.onGround = true; p2.player.vy = 0
+p2.player.x = 820; p2.player.y = 0; p2.player.depth = 0; p2.player.onGround = true; p2.player.vy = 0
 step(p2, i2)
-check("棚架上拾第二枚木纹筹", p2.run.inventory.wood == 2, "wood=" .. p2.run.inventory.wood)
+check("棚架后拾第二枚木纹筹", p2.run.inventory.wood == 2, "wood=" .. p2.run.inventory.wood)
 local keysWood, keysBell = p2.run.inventory.wood, p2.run.inventory.bell
 -- 回访：走回同一点，库存不再增加
 p2.player.x = 380; p2.player.y = 0
@@ -164,7 +164,8 @@ local pa = freshEscort3()
 pa.equippedWeapon = "standard_gun"
 pa.reloadPendingEffect = ""
 pa.player.x = 690; pa.player.y = 0
-pa:aimAt(820, 60)
+pa.player.crouch = true; pa.player.h = 36
+pa:aimAt(820, 30)
 pa:shoot(pa.player)
 check("普通弹被掩体挡下", pa.enemies[1].hitT <= 0 and pa.enemies[1].alive == true,
 	"hitT=" .. pa.enemies[1].hitT .. " alive=" .. tostring(pa.enemies[1].alive))
@@ -174,7 +175,8 @@ local pb = freshEscort3()
 pb.equippedWeapon = "standard_gun"
 pb.reloadPendingEffect = "light"
 pb.player.x = 690; pb.player.y = 0
-pb:aimAt(820, 60)
+pb.player.crouch = true; pb.player.h = 36
+pb:aimAt(820, 30)
 pb:shoot(pb.player)
 check("基础灯纹穿掩体命中", pb.enemies[1].hitT > 0, "hitT=" .. pb.enemies[1].hitT)
 check("基础灯纹不镇第二人", pb.enemies[2].fireCd == 40, "fireCd=" .. pb.enemies[2].fireCd)
@@ -184,7 +186,8 @@ local pc3 = freshEscort3()
 pc3.equippedWeapon = "guide_lantern_gun"
 pc3.reloadPendingEffect = "light"
 pc3.player.x = 690; pc3.player.y = 0
-pc3:aimAt(820, 60)
+pc3.player.crouch = true; pc3.player.h = 36
+pc3:aimAt(820, 30)
 pc3:shoot(pc3.player)
 check("灯铳灯纹穿掩体命中", pc3.enemies[1].hitT > 0, "hitT=" .. pc3.enemies[1].hitT)
 check("灯铳光晕镇第二人", pc3.enemies[2].fireCd == 150, "fireCd=" .. pc3.enemies[2].fireCd)
@@ -192,7 +195,8 @@ check("灯铳效果已消费一次", pc3.reloadPendingEffect == "", "pending=" .
 -- 同一目标第二发普通：仍被掩体挡（清零上一发的受击计时再验）。
 pc3.enemies[1].hitT = 0
 pc3.reloadPendingEffect = ""
-pc3:aimAt(820, 60)
+pc3.player.crouch = true; pc3.player.h = 36
+pc3:aimAt(820, 30)
 pc3:shoot(pc3.player)
 check("灯铳第二发普通被掩体挡", pc3.enemies[1].hitT == 0, "hitT=" .. pc3.enemies[1].hitT)
 

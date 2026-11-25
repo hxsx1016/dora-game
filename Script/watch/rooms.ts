@@ -723,7 +723,7 @@ export const ESCORT1_ROOM: RoomSpec = {
         { x: 0, w: 50, h: 150, y: 0, label: "巷口背影 0–50" },
         { x: 380, w: 96, h: 44, y: 0, label: "塌墙 380–476 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e1_wall" },
         { x: 700, w: 40, h: 28, y: 0, label: "倒石 700 · 高 28", lanes: ["lower"] },
-        { x: 980, w: 160, h: 52, y: 0, label: "石台 980–1140 · 高 52", lanes: ["lower"], art: "cover_wood" },
+        { x: 980, w: 160, h: 36, y: 0, label: "石台 980–1140 · 高 36（可跳）", lanes: ["lower"], art: "cover_wood" },
         { x: 1300, w: 40, h: 140, y: 0, label: "巷尾门柱 1300", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1560, w: 40, h: 180, y: 0, label: "巷尾断墙 1560–1600 · 高 180" },
     ],
@@ -795,7 +795,7 @@ export const ESCORT2_ROOM: RoomSpec = {
     pickups: [
         { id: "e2_wood_a", kind: "wood", x: 380, y: 0, label: "木纹筹 · 棚下" },
         { id: "e2_bell", kind: "bell", x: 560, y: 0, label: "铃纹筹 · 粮袋后" },
-        { id: "e2_wood_b", kind: "wood", x: 820, y: 64, depth: -24, label: "木纹筹 · 棚架上" },
+        { id: "e2_wood_b", kind: "wood", x: 820, y: 0, label: "木纹筹 · 棚架后" },
     ],
     campaign: { chapter: "O", act: 2, budget: 240, goal: "reach_exit", exitX: 1400, next: "escort3", checkpoint: 1, reloadPuzzle: true },
 };
@@ -817,7 +817,7 @@ export const ESCORT3_ROOM: RoomSpec = {
     solids: [
         { x: 0, w: 50, h: 160, y: 0, label: "工台口背影 0–50" },
         { x: 560, w: 120, h: 44, y: 0, label: "工台 560–680 · 高 44", lanes: ["lower", "middle"], art: "cover_wood", id: "e3_bench" },
-        { x: 700, w: 56, h: 80, y: 0, label: "试射薄掩体 700–756 · 高 80", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
+        { x: 700, w: 56, h: 52, y: 0, label: "试射薄掩体 700–756 · 高 52", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
         { x: 1050, w: 40, h: 140, y: 0, label: "出站门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1170, w: 30, h: 180, y: 0, label: "出站断墙 1170–1200 · 高 180" },
     ],
@@ -854,17 +854,17 @@ export const ESCORT4_ROOM: RoomSpec = {
     maxX: 1400,
     height: 240,
     depth: LANE_ROAD,
-    floors: [{ y: 0, x0: 0, x1: 900 }, { y: 0, x0: 960, x1: 1400 }],
+    floors: [{ y: 0, x0: 0, x1: 1400 }],
     solids: [
         { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50" },
         { x: 380, w: 80, h: 40, y: 0, label: "塌方 380–460 · 高 40", lanes: ["lower", "middle"], art: "cover_stone", id: "e4_fall" },
-        { x: 900, w: 60, h: 120, y: 0, label: "断口 900–960 · 高 120", passable: false },
+        { x: 900, w: 60, h: 36, y: 0, label: "断口 900–960 · 高 36（可跳）", lanes: ["lower", "middle"] },
         { x: 1120, w: 40, h: 32, y: 0, label: "倒石 1120 · 高 32", lanes: ["lower"] },
         { x: 1350, w: 50, h: 200, y: 0, label: "山道尾壁 1350–1400 · 高 200" },
     ],
     zones: [{ x0: 500, x1: 900, y: 0, h: 160, tint: 2, label: "窄道 500–900" }],
-    arch: { x0: 900, x1: 960, y: 0, h: 120, label: "山道断口 60" },
-    stairs: [{ x0: 960, x1: 1080, y0: 0, y1: 24, steps: 2, label: "断口下落 960–1080" }],
+    arch: { x0: 900, x1: 960, y: 0, h: 36, label: "山道断口 36" },
+    stairs: [],
     cart: NO_CART,
     spawns: [
         { x: 620, y: 0, h: 84, depth: 32, label: "火器手 620 · 中档", kind: "gunner", drop: "ammo" },
@@ -900,7 +900,7 @@ export const ESCORT5_ROOM: RoomSpec = {
     solids: [
         { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50" },
         { x: 320, w: 96, h: 44, y: 0, label: "石阶塌墙 320–416 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e5_wall" },
-        { x: 700, w: 160, h: 52, y: 0, label: "石台 700–860 · 高 52", lanes: ["lower"], art: "cover_wood" },
+        { x: 700, w: 160, h: 36, y: 0, label: "石台 700–860 · 高 36（可跳）", lanes: ["lower"], art: "cover_wood" },
         { x: 1050, w: 40, h: 140, y: 0, label: "塔前门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1370, w: 30, h: 200, y: 0, label: "塔前壁 1370–1400 · 高 200" },
     ],

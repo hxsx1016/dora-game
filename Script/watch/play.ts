@@ -1330,8 +1330,12 @@ export class Play {
             this.updateCamera(dt);
             return;
         }
-        // 工台面板打开：世界停在开面板那一拍，玩家不推进、敌兵不动。
+        // 工台面板打开：世界停在开面板那一拍，玩家不推进、敌兵不动；
+        // 面板里按 E 或 Esc 收起，重新背起小满再走。
         if (this.craftBench.active) {
+            if (input.interact.pressed || input.pause.pressed) {
+                this.closeCraftBench();
+            }
             this.updateCamera(dt);
             return;
         }
@@ -2575,7 +2579,7 @@ export class Play {
         // 第三段安全工台：靠近工台按 E 开面板；面板里按 Esc 或再按 E 收起。
         if (wr.key === "escort3") {
             const benchX = wr.minX + 560;
-            const nearBench = Math.abs(p.x - benchX) <= this.benchReach + 40 && p.y < 12;
+            const nearBench = Math.abs(p.x - benchX) <= this.benchReach + 40 && p.y < 60;
             if (this.craftBench.active) {
                 if (input.interact.pressed || input.pause.pressed) {
                     this.closeCraftBench();
