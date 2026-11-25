@@ -109,7 +109,8 @@ save.setSaveFault("")
 local a2 = save.loadSave()
 check("A2 旧档仍在", a2.status == "ok" and a2.state.childCleared == true and a2.state.soldierCleared == false,
     "status=" .. a2.status .. " soldier=" .. tostring(a2.state.soldierCleared))
-check("A2 无遗留 tmp", not Content:exist(abs(X .. ".tmp")), "")
+-- 覆盖失败时保留本次完整 .tmp 作为候选（不丢弃唯一有效新档）。
+check("A2 失败保留 tmp 候选", Content:exist(abs(X .. ".tmp")), "")
 -- A3 校验故障
 save.setSaveFault("verify")
 check("A3 回读校验失败返回 false", save.saveSave(s2) == false, "")
@@ -347,6 +348,129 @@ check("G4 app 层失败留责任", fe2.flushProfileNow() == false and fe2.getPro
 save.setSaveFault("")
 check("G5 重试成功", fe2.flushProfileNow() == true and fe2.getProfilePending() == false, "")
 check("G6 磁盘追上", save.loadSave().state.museumPhase == "done", save.loadSave().state.museumPhase)
+
+
+say("== H. 存档收口：真实恢复入口与操作层故障 ==")
+local HF = "watch-save/test-cfix-prev.txt"
+local function dropDerived(base)
+    Content:remove(abs(base))
+    for _, suffix in ipairs({ ".tmp", ".prev", ".corrupt", ".reset", ".unsupported" }) do
+        Content:remove(abs(base .. suffix))
+        for n = 2, 12 do Content:remove(abs(base .. suffix .. "." .. n)) end
+    end
+end
+dropDerived(HF)
+-- H1 prev-only：目标与 .tmp 都删掉，只剩完整 .prev
+save.setSaveFile(HF)
+local h1 = save.emptySave(); h1.childCleared = true
+check("H1 写基准档", save.saveSave(h1), "")
+Content:copy(abs(HF), abs(HF .. ".prev"))
+Content:remove(abs(HF)); Content:remove(abs(HF .. ".tmp"))
+local h1r = save.loadSave()
+check("H1 prev-only 恢复", h1r.status == "ok" and h1r.recovered == true and h1r.state.childCleared == true,
+    "status=" .. h1r.status .. " child=" .. tostring(h1r.state.childCleared) .. " recovered=" .. tostring(h1r.recovered))
+check("H1 恢复后 prev 仍在", Content:exist(abs(HF .. ".prev")), "")
+-- H2 目标损坏 + 完整最新 .tmp：优先用 tmp，而不是丢掉它
+dropDerived(HF)
+save.setSaveFile(HF)
+local h2a = save.emptySave(); h2a.childCleared = false
+check("H2 写旧档", save.saveSave(h2a), "")
+Content:save(abs(HF .. ".tmp"),
+    "version=1\nchildCleared=true\nsoldierCleared=false\nartifactOwned=false\nmuseumPhase=locked\nmuseumSeen=false\n")
+Content:save(abs(HF), "garbage-not-a-save")
+local h2r = save.loadSave()
+check("H2 损坏时用 tmp 恢复", h2r.status == "ok" and h2r.state.childCleared == true and h2r.recovered == true, h2r.detail)
+check("H2 损坏件备份保留", h2r.backup ~= "" and Content:exist(h2r.backup), h2r.backup)
+-- H3 操作层 copy 失败（备份 target→prev 返回 false）：不覆盖旧档
+dropDerived(HF)
+save.setSaveFile(HF)
+local h3a = save.emptySave(); h3a.childCleared = true
+check("H3 写基准档", save.saveSave(h3a), "")
+local function mkOps(copyImpl, saveImpl)
+    return {
+        exist = function(_, p) return Content:exist(p) end,
+        load = function(_, p) return Content:load(p) end,
+        save = saveImpl or function(_, p, t) return Content:save(p, t) end,
+        copy = copyImpl or function(_, a, b) return Content:copy(a, b) end,
+        remove = function(_, p) return Content:remove(p) end,
+        isdir = function(_, p) return Content:isdir(p) end,
+        mkdir = function(_, p) return Content:mkdir(p) end,
+    }
+end
+local realCopyFail = mkOps(function(_, a, b) if b == abs(HF .. ".prev") then return false end return Content:copy(a, b) end)
+save.setFileOpsForTest(realCopyFail)
+local h3b = save.emptySave(); h3b.soldierCleared = true
+check("H3 备份复制失败返回 false", save.saveSave(h3b) == false, "")
+save.setFileOpsForTest(nil)
+local h3r = save.loadSave()
+check("H3 旧档未被覆盖", h3r.status == "ok" and h3r.state.childCleared == true and h3r.state.soldierCleared == false, "")
+check("H3 无新 tmp 残留", not Content:exist(abs(HF .. ".tmp")), "")
+-- H4 操作层 save 失败
+local saveFailOps = mkOps(nil, function(_, p, t) return false end)
+local h4a = save.emptySave(); h4a.museumPhase = "done"
+save.setFileOpsForTest(saveFailOps)
+check("H4 写临时失败返回 false", save.saveSave(h4a) == false, "")
+save.setFileOpsForTest(nil)
+check("H4 旧档仍在", save.loadSave().state.childCleared == true, "")
+-- H5 resetSave 备份失败：不删目标
+Content:save(abs(HF), "garbage-not-a-save")
+Content:remove(abs(HF .. ".reset"))
+save.setSaveFile(HF)
+local h5ops = mkOps(function(_, a, b) if b:find(".reset") then return false end return Content:copy(a, b) end)
+save.setFileOpsForTest(h5ops)
+check("H5 备份失败拒绝 reset", save.resetSave() == false, "")
+save.setFileOpsForTest(nil)
+check("H5 原件仍在", Content:exist(abs(HF)), "")
+-- H6 pending 绑定路径：A 档 pending 不能写进 B 档
+local PA, PB = "watch-save/test-cfix-pa.txt", "watch-save/test-cfix-pb.txt"
+dropDerived(PA); dropDerived(PB)
+save.setSaveFile(PA)
+local pa = save.emptySave(); pa.childCleared = true
+save.markProfilePending(pa)
+save.setSaveFile(PB)
+check("H6 切档后 flush 拒绝", save.flushProfile() == false, "")
+check("H6 B 档未被创建", not Content:exist(abs(PB)), "")
+check("H6 pending 仍指 A", save.pendingMatchesCurrent() == false, "")
+save.setSaveFile(PA)
+check("H6 切回 A 可落盘", save.flushProfile() == true and save.loadSave().state.childCleared == true, "")
+-- H7 备份重名不覆盖
+dropDerived(HF)
+save.setSaveFile(HF)
+local h7 = save.emptySave(); h7.soldierCleared = true
+check("H7 写基准档", save.saveSave(h7), "")
+Content:save(abs(HF .. ".corrupt"), "old-corrupt-1")
+Content:save(abs(HF .. ".corrupt.2"), "old-corrupt-2")
+Content:save(abs(HF), "garbage-not-a-save")
+local h7r = save.loadSave()
+local h7backup = h7r.backup
+check("H7 派生到 .corrupt.3", h7backup ~= "" and h7backup:find(".corrupt.3") ~= nil, h7backup)
+check("H7 旧备份未被覆盖", Content:load(abs(HF .. ".corrupt")) == "old-corrupt-1"
+    and Content:load(abs(HF .. ".corrupt.2")) == "old-corrupt-2", "")
+check("H7 备份内容等于原件", Content:load(h7backup) == "garbage-not-a-save", "")
+-- H8 覆盖阶段 copy 失败：旧档保留，tmp 保留为唯一完整候选
+dropDerived(HF)
+save.setSaveFile(HF)
+local h8 = save.emptySave(); h8.childCleared = true
+check("H8 写基准档", save.saveSave(h8), "")
+local h8ops = mkOps(function(_, a, b) if b == abs(HF) then return false end return Content:copy(a, b) end)
+save.setFileOpsForTest(h8ops)
+local h8b = save.emptySave(); h8b.soldierCleared = true
+check("H8 覆盖失败返回 false", save.saveSave(h8b) == false, "")
+save.setFileOpsForTest(nil)
+local h8r = save.loadSave()
+check("H8 旧档未被覆盖", h8r.status == "ok" and h8r.state.childCleared == true and h8r.state.soldierCleared == false, h8r.status)
+check("H8 tmp 保留为候选", Content:exist(abs(HF .. ".tmp")), "")
+-- H9 切走再切回未知版本档：保护位按路径，不因切档失效
+local HY = "watch-save/test-cfix-he.txt"
+dropDerived(HY)
+Content:save(abs(HY), "version=2\nchildCleared=true\n")
+save.setSaveFile(HY)
+local h9 = save.loadSave()
+check("H9 未知版本置保护", h9.status == "unsupported" and save.saveSave(h8) == false, h9.status)
+save.setSaveFile(HF)
+check("H9 切走后别的档可写", save.saveSave(h8b) == true, "")
+save.setSaveFile(HY)
+check("H9 切回仍拒写", save.saveSave(h8) == false, "")
 
 say("== F. 正式档未碰 ==")
 save.setSaveFile(FORMAL)

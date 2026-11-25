@@ -31,8 +31,14 @@ local formalText = Content:exist(absOf(formalFile)) and Content:load(absOf(forma
 
 local TEST_A = "watch-save/test-c1-a.txt"
 local TEST_B = "watch-save/test-c1-b.txt"
-Content:remove(absOf(TEST_A))
-Content:remove(absOf(TEST_B))
+local function drop(p)
+    Content:remove(absOf(p))
+    for _, sfx in ipairs({ ".tmp", ".prev", ".corrupt", ".reset", ".unsupported" }) do
+        Content:remove(absOf(p .. sfx))
+        for n = 2, 12 do Content:remove(absOf(p .. sfx .. "." .. n)) end
+    end
+end
+drop(TEST_A); drop(TEST_B)
 
 say("== C1-1. 新档：缺文件按空档案起局 ==")
 save.setSaveFile(TEST_A)
