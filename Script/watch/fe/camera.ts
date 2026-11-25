@@ -13,6 +13,19 @@ const BASE_VIEW_UNITS_H = 304;
 /** 地面基准线落在屏幕从底往上的比例（约 22.5%，留出大气天际与底部叙事字幕带） */
 const GROUND_SCREEN_FRAC = 0.225;
 
+/** 双对齐点镜头锚定配置（供风台 24s 转景与特写镜头锁死脚底与门槛对齐点） */
+export interface CameraAnchorLock {
+    footWorldX: number;
+    footWorldY: number;
+    footDepth?: number;
+    thresholdWorldX: number;
+    screenFootFracX: number;
+    screenFootFracY: number;
+    /** 可选：门槛在屏幕上的目标水平占比；给出时按两点精确反推 ppu / zoom */
+    screenThresholdFracX?: number;
+    zoomOverride?: number;
+}
+
 export class CameraDirector {
     /** 当前镜头中心（世界单位） */
     x = 0;
@@ -24,6 +37,8 @@ export class CameraDirector {
     shakeX = 0;
     shakeY = 0;
     private shakePhase = 0;
+    /** 可选的双对齐点镜头锁定；切房/重试 snap() 时自动清空 */
+    private anchorLock: CameraAnchorLock | undefined;
 
     /** 当前帧视口缓存（供 screenToWorld 精确反算） */
     viewW = 1280;
@@ -31,8 +46,18 @@ export class CameraDirector {
     ppu = 2.37;
     groundScreenY = 162;
 
+    /** 设置或解除双对齐点镜头锁定（供风台 24s 转景和镜头特写使用） */
+    setAnchorLock(lock?: CameraAnchorLock): void {
+        this.anchorLock = lock;
+    }
+
+    getAnchorLock(): CameraAnchorLock | undefined {
+        return this.anchorLock;
+    }
+
     /** 立即对齐到房间初始位置（切房或重置时调用） */
     snap(p: Play, w: number, h: number): void {
+        this.anchorLock = undefined;
         const theme = themeOf(p.room.key);
         this.zoom = theme.defaultZoom;
         this.shakeAmp = 0;
@@ -54,6 +79,13 @@ export class CameraDirector {
 
     /** 每帧推进镜头前瞻、缩放、震屏与边界钳制 */
     update(dt: number, p: Play, w: number, h: number): void {
+        if (this.anchorLock !== undefined) {
+            this.shakeAmp = 0;
+            this.shakeX = 0;
+            this.shakeY = 0;
+            this.recomputeMetrics(p, w, h);
+            return;
+        }
         const theme = themeOf(p.room.key);
         let desiredZoom = theme.defaultZoom;
 
@@ -140,8 +172,38 @@ export class CameraDirector {
     private recomputeMetrics(p: Play, w: number, h: number): void {
         this.viewW = Math.max(320, w);
         this.viewH = Math.max(180, h);
-        this.ppu = (this.viewH / BASE_VIEW_UNITS_H) * this.zoom;
         this.groundScreenY = this.viewH * GROUND_SCREEN_FRAC;
+
+        const lock = this.anchorLock;
+        if (lock !== undefined) {
+            const basePpu = this.viewH / BASE_VIEW_UNITS_H;
+            const worldSpan = lock.thresholdWorldX - lock.footWorldX;
+            if (lock.screenThresholdFracX !== undefined && Math.abs(worldSpan) > 0.0001) {
+                const screenSpan = (lock.screenThresholdFracX - lock.screenFootFracX) * this.viewW;
+                const solvedPpu = screenSpan / worldSpan;
+                if (solvedPpu > 0.05) {
+                    this.ppu = solvedPpu;
+                    this.zoom = solvedPpu / basePpu;
+                } else {
+                    if (lock.zoomOverride !== undefined && lock.zoomOverride > 0.05) {
+                        this.zoom = lock.zoomOverride;
+                    }
+                    this.ppu = basePpu * this.zoom;
+                }
+            } else {
+                if (lock.zoomOverride !== undefined && lock.zoomOverride > 0.05) {
+                    this.zoom = lock.zoomOverride;
+                }
+                this.ppu = basePpu * this.zoom;
+            }
+            const footDepth = lock.footDepth ?? 0;
+            this.x = lock.footWorldX - ((lock.screenFootFracX - 0.5) * this.viewW) / this.ppu;
+            const desiredYOffset = lock.footWorldY + footDepth - (lock.screenFootFracY * this.viewH - this.groundScreenY) / this.ppu;
+            this.y = 82 + desiredYOffset / 0.45;
+            return;
+        }
+
+        this.ppu = (this.viewH / BASE_VIEW_UNITS_H) * this.zoom;
 
         // 水平钳制在房间边界内，避免露出房间外黑洞
         const halfWorldW = (this.viewW * 0.5) / this.ppu;
@@ -174,6 +236,14 @@ export class CameraDirector {
     /** 世界长度 → 屏幕像素长度 */
     len(worldLen: number): number {
         return worldLen * this.ppu;
+    }
+
+    /** 世界坐标 → 屏幕局部坐标（与 screenToWorld 严格互逆） */
+    worldToScreen(wx: number, wy: number, depth: number = 0): { x: number; y: number } {
+        return {
+            x: this.sx(wx),
+            y: this.sy(wy, depth),
+        };
     }
 
     /** 屏幕局部坐标 → 世界投影坐标。返回的 y 包含高度与纵深。 */

@@ -1,0 +1,2303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>《向西守望》前端双线协作任务流程与分支总览</title>
+<style>
+  :root {
+    --bg: #f6f3eb;
+    --bg-card: #fcfaf5;
+    --bg-subtle: #efeae0;
+    --bg-code: #20262c;
+    --ink: #1b242c;
+    --ink-2: #43505c;
+    --ink-3: #6c7a86;
+    --border: #dcd4c4;
+    --border-strong: #c4b8a2;
+
+    --gemini: #235784;
+    --gemini-bg: #e7f0f8;
+    --gemini-border: #9bc0df;
+
+    --huihui: #b35124;
+    --huihui-bg: #fbeee6;
+    --huihui-border: #e5a988;
+
+    --joint: #5c4383;
+    --joint-bg: #f1ebf8;
+    --joint-border: #c2b0dc;
+
+    --gate: #1e6b58;
+    --gate-bg: #e4f3ee;
+    --gate-border: #8ec7b7;
+
+    --tqym: #8a6418;
+    --tqym-bg: #f8f0dc;
+    --tqym-border: #dcc07e;
+
+    --danger: #a82d24;
+    --danger-bg: #fbe9e7;
+    --danger-border: #e2a29d;
+
+    --critical: #c83e2b;
+    --shadow-sm: 0 2px 6px rgba(27, 36, 44, 0.05);
+    --shadow-md: 0 8px 24px rgba(27, 36, 44, 0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-serif: "Songti SC", "STSong", "Noto Serif SC", Georgia, serif;
+    --font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Subtle rice-paper grain backdrop */
+  body {
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(35, 87, 132, 0.045), transparent 36%),
+      radial-gradient(circle at 88% 12%, rgba(179, 81, 36, 0.045), transparent 36%),
+      linear-gradient(180deg, #f8f5ee 0%, #f3efe4 100%);
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 24px 64px;
+  }
+
+  /* Top Header */
+  .hero {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 28px 22px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--tqym) 0%, var(--huihui) 28%, var(--gate) 52%, var(--gemini) 78%, var(--joint) 100%);
+  }
+  .hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .hero-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .hero h1 {
+    margin: 0 0 8px;
+    font-family: var(--font-serif);
+    font-size: clamp(24px, 3vw, 32px);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+  .hero-sub {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: 14px;
+    max-width: 820px;
+  }
+  .meta-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+  }
+  .badge code {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .badge.gemini { background: var(--gemini-bg); border-color: var(--gemini-border); color: var(--gemini); }
+  .badge.huihui { background: var(--huihui-bg); border-color: var(--huihui-border); color: var(--huihui); }
+  .badge.gate { background: var(--gate-bg); border-color: var(--gate-border); color: var(--gate); }
+  .badge.tqym { background: var(--tqym-bg); border-color: var(--tqym-border); color: var(--tqym); }
+  .badge.joint { background: var(--joint-bg); border-color: var(--joint-border); color: var(--joint); }
+  .badge.danger { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(92px, 1fr));
+    gap: 10px;
+    min-width: 390px;
+  }
+  .stat-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .stat-label {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+
+  /* Alert Banner for 64fc06f */
+  .alert-strip {
+    margin-top: 16px;
+    background: var(--tqym-bg);
+    border: 1px solid var(--tqym-border);
+    border-left: 4px solid var(--tqym);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .alert-strip strong { color: #67490d; }
+  .alert-btn {
+    background: #fff;
+    border: 1px solid var(--tqym-border);
+    color: var(--tqym);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .alert-btn:hover { background: var(--tqym); color: #fff; }
+
+  /* Sticky Nav & Filter Bar */
+  .toolbar {
+    position: sticky;
+    top: 10px;
+    z-index: 40;
+    margin: 20px 0;
+    background: rgba(252, 250, 245, 0.94);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-3);
+    margin-right: 4px;
+  }
+  .pill {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink-2);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pill:hover { border-color: var(--border-strong); background: var(--bg-subtle); }
+  .pill.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .pill.active[data-filter="gemini"] { background: var(--gemini); border-color: var(--gemini); }
+  .pill.active[data-filter="huihui"] { background: var(--huihui); border-color: var(--huihui); }
+  .pill.active[data-filter="critical"] { background: var(--critical); border-color: var(--critical); }
+  .pill.active[data-filter="gate"] { background: var(--gate); border-color: var(--gate); }
+
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  }
+  .dot.gemini { background: var(--gemini); }
+  .dot.huihui { background: var(--huihui); }
+  .dot.joint { background: var(--joint); }
+  .dot.gate { background: var(--gate); }
+  .dot.critical { background: var(--critical); }
+  .pill.active .dot { background: #fff; }
+
+  .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12.5px;
+  }
+  .nav-links a {
+    color: var(--ink-2);
+    text-decoration: none;
+    font-weight: 600;
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .nav-links a:hover { background: var(--bg-subtle); color: var(--ink); }
+
+  /* Section Styling */
+  .section {
+    margin-top: 28px;
+  }
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: #fff;
+    font-weight: 700;
+  }
+  .section-hint {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  /* Main Topology + Inspector Split */
+  .topology-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.38fr) minmax(350px, 0.92fr);
+    gap: 18px;
+    align-items: start;
+  }
+
+  .canvas-card, .inspector-card, .panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+  .canvas-card {
+    padding: 18px 20px 22px;
+    position: relative;
+  }
+
+  .legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--ink-2);
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-line {
+    width: 18px; height: 2px; display: inline-block;
+  }
+  .legend-line.trunk { background: var(--ink); height: 3px; }
+  .legend-line.dep { border-top: 2px dashed var(--critical); background: transparent; }
+
+  /* Visual DAG Layout */
+  .dag-flow {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .dag-stage {
+    position: relative;
+    padding: 12px 0;
+  }
+  .stage-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .stage-tag .pill-mini {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    color: var(--ink-2);
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Vertical connector arrows */
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 26px;
+    position: relative;
+  }
+  .connector::before {
+    content: "";
+    width: 2.5px;
+    height: 100%;
+    background: var(--border-strong);
+  }
+  .connector::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid var(--border-strong);
+  }
+  .connector.split {
+    height: 30px;
+  }
+  .connector.split svg {
+    width: 100%;
+    height: 30px;
+    display: block;
+  }
+  .connector.split::before, .connector.split::after { display: none; }
+
+  /* Nodes */
+  .node {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, opacity 0.2s ease;
+    position: relative;
+  }
+  .node:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .node.selected {
+    box-shadow: 0 0 0 3px rgba(27, 36, 44, 0.14), var(--shadow-md);
+    border-color: var(--ink) !important;
+  }
+  .node.dimmed {
+    opacity: 0.26;
+    filter: grayscale(40%);
+  }
+  .node.owner-gemini { border-left: 5px solid var(--gemini); }
+  .node.owner-huihui { border-left: 5px solid var(--huihui); }
+  .node.owner-joint { border-left: 5px solid var(--joint); }
+  .node.node-upstream {
+    background: var(--tqym-bg);
+    border-color: var(--tqym-border);
+    border-left: 5px solid var(--tqym);
+  }
+  .node.node-trunk {
+    background: #f4f7fa;
+    border-color: #b7cadb;
+    border-left: 5px solid var(--ink);
+  }
+  .node.node-gate {
+    background: var(--gate-bg);
+    border: 1.5px solid var(--gate-border);
+    border-left: 5px solid var(--gate);
+    padding: 10px 14px;
+  }
+  .node.node-critical::after {
+    content: "关键路径";
+    position: absolute;
+    top: -9px;
+    right: 10px;
+    background: var(--critical);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+  }
+  .node.done-item {
+    background: #f5fbf8;
+  }
+  .node.done-item .node-title {
+    text-decoration: line-through;
+    opacity: 0.72;
+  }
+
+  .parallel-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    position: relative;
+  }
+
+  .node-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .node-id {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--bg-subtle);
+    color: var(--ink);
+  }
+  .node.owner-gemini .node-id { background: var(--gemini-bg); color: var(--gemini); }
+  .node.owner-huihui .node-id { background: var(--huihui-bg); color: var(--huihui); }
+  .node.owner-joint .node-id { background: var(--joint-bg); color: var(--joint); }
+  .node.node-gate .node-id { background: #fff; color: var(--gate); }
+
+  .node-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+  }
+  .node-check input {
+    accent-color: var(--gate);
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .node-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 2px 0 4px;
+    line-height: 1.35;
+  }
+  .node-branch {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    word-break: break-all;
+    margin-bottom: 6px;
+  }
+  .node-desc {
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+  .node-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .mini-tag {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+  }
+  .mini-tag.gemini { background: var(--gemini-bg); color: var(--gemini); }
+  .mini-tag.huihui { background: var(--huihui-bg); color: var(--huihui); }
+  .mini-tag.joint { background: var(--joint-bg); color: var(--joint); }
+  .mini-tag.dep { background: #fdecec; color: var(--critical); border: 1px dashed #e5a39c; }
+  .mini-tag.rev { background: var(--tqym-bg); color: var(--tqym); border: 1px solid var(--tqym-border); }
+
+  /* Cross-wave dependency callout inside M1 */
+  .dep-callout {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px dashed var(--critical);
+    font-size: 11.5px;
+    color: #8c2618;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Inspector Panel */
+  .inspector-card {
+    position: sticky;
+    top: 72px;
+    padding: 20px;
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+  }
+  .inspector-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .inspector-kicker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .inspector-title {
+    margin: 0 0 4px;
+    font-family: var(--font-serif);
+    font-size: 19px;
+    line-height: 1.3;
+  }
+  .inspector-branch {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .inspector-block {
+    margin-bottom: 14px;
+  }
+  .inspector-block h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .cmd-box {
+    background: var(--bg-code);
+    color: #e6edf3;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    position: relative;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .copy-btn:hover { background: rgba(255, 255, 255, 0.24); }
+
+  .prompt-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .prompt-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .prompt-chip:hover { background: var(--ink); color: #fff; }
+
+  .detail-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12.8px;
+    color: var(--ink-2);
+  }
+  .detail-list li { margin-bottom: 5px; }
+  .detail-list code, .file-chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--bg-subtle);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+  .file-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .rev-box {
+    background: var(--tqym-bg);
+    border: 1px solid var(--tqym-border);
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 12.3px;
+    color: #5c420e;
+  }
+
+  /* Story-to-Branch Mapping Strip */
+  .story-map {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .story-pipeline {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.6fr 0.95fr;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .story-col {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .story-col h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .story-col p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .story-dual {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+  }
+  .route-box {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .route-box.child { border-left: 4px solid var(--gemini); }
+  .route-box.soldier { border-left: 4px solid var(--huihui); }
+  .route-box.easter { border-left: 4px solid var(--joint); background: #faf8fd; }
+  .route-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .route-meta { font-size: 11.5px; color: var(--ink-2); }
+
+  /* Two-Column Panels (Ownership + Redlines, Contract + 64fc06f, Risks + Schedule) */
+  .two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .panel-card {
+    padding: 18px 20px;
+  }
+  .panel-card h3 {
+    margin: 0 0 12px;
+    font-size: 15.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font-weight: 700;
+    font-size: 11.8px;
+    white-space: nowrap;
+  }
+  tr.row-dimmed { opacity: 0.25; }
+  tr:hover td { background: rgba(239, 234, 224, 0.35); }
+  td code {
+    font-family: var(--font-mono);
+    font-size: 11.3px;
+    background: var(--bg-subtle);
+    padding: 1px 5px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 1px 0;
+  }
+
+  /* Redline list */
+  .forbidden-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0 14px;
+  }
+  .forbid-chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .allow-chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--gate-bg);
+    color: var(--gate);
+    border: 1px solid var(--gate-border);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+
+  /* Analysis / Risk Cards */
+  .risk-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .risk-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .risk-card.warn { border-top: 3px solid var(--tqym); }
+  .risk-card.crit { border-top: 3px solid var(--danger); }
+  .risk-card.good { border-top: 3px solid var(--gate); }
+  .risk-card.info { border-top: 3px solid var(--gemini); }
+  .risk-card h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .risk-card p {
+    margin: 0;
+    font-size: 12.6px;
+    color: var(--ink-2);
+  }
+
+  /* 5 Hard QA Rules */
+  .qa-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .qa-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+  }
+  .qa-box .qa-idx {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--danger);
+    margin-bottom: 4px;
+  }
+  .qa-box strong { display: block; font-size: 13px; margin-bottom: 4px; color: var(--ink); }
+  .qa-box span { color: var(--ink-2); }
+
+  /* Schedule bar */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .day-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .day-date {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gate);
+    margin-bottom: 4px;
+  }
+  .day-title { font-size: 13.5px; font-weight: 700; margin-bottom: 6px; }
+  .day-desc { font-size: 12px; color: var(--ink-2); margin: 0; }
+
+  /* Progress Bar */
+  .progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .progress-track {
+    width: 120px;
+    height: 8px;
+    background: var(--bg-subtle);
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--gate);
+    width: 0%;
+    transition: width 0.25s ease;
+  }
+  .reset-link {
+    background: none;
+    border: none;
+    color: var(--ink-3);
+    font-size: 11.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
+  .reset-link:hover { color: var(--danger); }
+
+  /* Modal for 64fc06f diff details */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(27, 36, 44, 0.45);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    max-width: 760px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .modal-close {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--ink);
+    color: #fff;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  @media (max-width: 1120px) {
+    .topology-grid { grid-template-columns: 1fr; }
+    .inspector-card { position: static; max-height: none; }
+    .story-pipeline { grid-template-columns: 1fr 1fr; }
+    .qa-strip { grid-template-columns: repeat(2, 1fr); }
+    .schedule-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .parallel-row { grid-template-columns: 1fr; }
+    .two-col, .risk-grid { grid-template-columns: 1fr; }
+    .hero-stats { min-width: 0; grid-template-columns: repeat(2, 1fr); width: 100%; }
+    .story-pipeline, .qa-strip, .schedule-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO HEADER -->
+  <header class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="hero-kicker">
+          <span>《向西守望》· hxsx1016/dora-game</span>
+          <span>•</span>
+          <span>前端双人协作工程蓝图（我 / Gemini × huihui / GPT）</span>
+        </div>
+        <h1>前端双线开发任务流程与分支拓扑总览</h1>
+        <p class="hero-sub">
+          采用<strong>「串行拆壳 (M0) → 三路并行 (M1) → 三路并行 (M2) → 串行收口 (fe-07)」</strong>的漏斗-扇出-汇聚架构。
+          对内通过插件化与文件所有权隔离消除两人合并冲突；对外严守后端零侵入红线，最终仅交付<strong>唯一前端总集成分支</strong> <code>feature/fe-dual-route</code> 给 tqym 统一合并。
+        </p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-box">
+          <div class="stat-num">4</div>
+          <div class="stat-label">串并行阶段</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">8</div>
+          <div class="stat-label">功能子分支</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">3</div>
+          <div class="stat-label">合流闸口 M0-M2</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">0</div>
+          <div class="stat-label">后端核心侵入</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="meta-badges">
+      <span class="badge tqym">上游锁定基线 <code>origin/feature/watch-level-rework@648ff43</code></span>
+      <span class="badge gate">总集成分支 <code>origin/feature/fe-dual-route@64fc06f</code></span>
+      <span class="badge gemini">我（IGNGserver / Gemini 主攻）</span>
+      <span class="badge huihui">huihui（huihiya / GPT 主攻）</span>
+      <span class="badge joint">协作收口 / 灵活认领</span>
+      <span class="badge">领单与验收 <code>GitHub Issue #8</code></span>
+    </div>
+
+    <div class="alert-strip">
+      <div>
+        <strong>⚡ 最新上游同步提示（2026-11-25 21:45）：</strong>
+        tqym 已向 <code>origin/feature/fe-dual-route</code> 推送修订提交 <code>64fc06f</code>（<em>修订分线、慢时和档案的联调验收方案</em>），
+        收紧了「正式模式 vs 排演隔离」「M0 输入归属对齐」「世界60拍=作答240拍」「工台幂等」「正式档案纯净度」等 7 项口径。
+        <strong>开 <code>fe-00</code> 前请先确认本地 worktree 同步至 <code>64fc06f</code>！</strong>
+      </div>
+      <button class="alert-btn" id="openDiffModal">查看 64fc06f 修订要点</button>
+    </div>
+  </header>
+
+  <!-- STICKY FILTER & NAV BAR -->
+  <div class="toolbar">
+    <div class="filter-group" id="filterBar">
+      <span class="filter-label">视角筛选：</span>
+      <button class="pill active" data-filter="all">全部节点</button>
+      <button class="pill" data-filter="gemini"><span class="dot gemini"></span>我 (Gemini 主攻)</button>
+      <button class="pill" data-filter="huihui"><span class="dot huihui"></span>huihui (GPT 主攻)</button>
+      <button class="pill" data-filter="critical"><span class="dot critical"></span>关键路径 (Critical Path)</button>
+      <button class="pill" data-filter="gate"><span class="dot gate"></span>合流闸口 M0-M2</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div class="progress-wrap">
+        <span>本地进度</span>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <strong id="progressText">0 / 11</strong>
+        <button class="reset-link" id="resetProgress" title="清空本地勾选状态">重置</button>
+      </div>
+      <nav class="nav-links">
+        <a href="#sec-topology">分支拓扑</a>
+        <a href="#sec-story">剧情映射</a>
+        <a href="#sec-ownership">文件边界</a>
+        <a href="#sec-contract">契约与联调</a>
+        <a href="#sec-diagnosis">流程诊断</a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- SECTION 1: INTERACTIVE BRANCH TOPOLOGY & TASK INSPECTOR -->
+  <section class="section" id="sec-topology">
+    <div class="section-head">
+      <h2 class="section-title"><span class="section-num">01</span> 交互式分支拓扑与任务检查器</h2>
+      <span class="section-hint">点击任意分支或合流闸口，右侧即显示开工口令、建分支命令、独占文件、详细任务与 64fc06f 验收细则</span>
+    </div>
+
+    <div class="topology-grid">
+      <!-- LEFT: DAG VISUALIZATION -->
+      <div class="canvas-card">
+        <div class="legend-row">
+          <span class="legend-item"><span class="dot gemini"></span>我 (Gemini 主攻)</span>
+          <span class="legend-item"><span class="dot huihui"></span>huihui (GPT 主攻)</span>
+          <span class="legend-item"><span class="dot joint"></span>灵活认领 / 双人共同收口</span>
+          <span class="legend-item"><span class="dot gate"></span>串行合流闸口（M0 / M1 / M2）</span>
+          <span class="legend-item"><span class="legend-line dep"></span>跨波强依赖（<code>lowpoly.ts</code>）</span>
+        </div>
+
+        <div class="dag-flow">
+          <!-- UPSTREAM BASELINE -->
+          <div class="dag-stage" style="padding-top:0;">
+            <div class="stage-tag">上游基线 & 总集成主干 <span class="pill-mini">严禁直推 upstream / main</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:12px;">
+              <div class="node node-upstream" data-id="upstream" data-owner="tqym" data-role="upstream">
+                <div class="node-top">
+                  <span class="node-id">UPSTREAM</span>
+                  <span class="mini-tag rev">锁定起点 648ff43</span>
+                </div>
+                <div class="node-title">tqym 后端领先分支</div>
+                <div class="node-branch">origin/feature/watch-level-rework</div>
+                <div class="node-desc">提供玩法核心、现有 <code>countTick / GATE_COUNT_END</code>、前端开发手册与 Issue #8 交付单。</div>
+              </div>
+              <div class="node node-trunk" data-id="trunk" data-owner="trunk" data-role="trunk">
+                <div class="node-top">
+                  <span class="node-id">TRUNK</span>
+                  <span class="mini-tag rev">最新 64fc06f (tqym 审订)</span>
+                </div>
+                <div class="node-title">前端双线总集成分支（唯一交付出口）</div>
+                <div class="node-branch">origin/feature/fe-dual-route</div>
+                <div class="node-desc">承载总控文档、四份阶段施工书与 M0/M1/M2/最终冻结的全部前端成果。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="connector"></div>
+
+          <!-- PHASE 0 -->
+          <div class="dag-stage">
+            <div class="stage-tag">Phase 0 · 串行底座 <span class="pill-mini">必须最先做完 · 一次性拆壳热点文件</span></div>
+            <div class="node owner-huihui node-critical" data-id="fe-00" data-owner="huihui" data-critical="true">
+              <div class="node-top">
+                <span class="node-id">fe-00 · 串行</span>
+                <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-00" /> 完成</label>
+              </div>
+              <div class="node-title">前端底座与契约解耦（双模式契约 + 分轨音频 + 插件挂点 + 低引导 + 双时钟）</div>
+              <div class="node-branch">feature/fe-00-foundation</div>
+              <div class="node-desc">
+                新建 <code>contract.ts</code> / <code>audio.ts</code> / <code>plugins.ts</code>，集中改造 6 个热点大文件，为 Wave 1 &amp; Wave 2 零冲突并行打下全部扩展点。
+              </div>
+              <div class="node-tags">
+                <span class="mini-tag huihui">主攻：huihui (GPT)</span>
+                <span class="mini-tag gemini">支援：我 (Gemini)</span>
+                <span class="mini-tag rev">64fc06f：正式/排演隔离 + 输入意图对齐</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="connector"></div>
+
+          <!-- GATE M0 -->
+          <div class="dag-stage">
+            <div class="node node-gate" data-id="m0" data-owner="gate" data-critical="true">
+              <div class="node-top">
+                <span class="node-id">📍 合流闸口 M0</span>
+                <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="m0" /> 达成</label>
+              </div>
+              <div class="node-title">合并 fe-00 → feature/fe-dual-route · 解锁 Wave 1 三路并行</div>
+              <div class="node-desc">验证：Dora TS→Lua 编译、<code>check-repo.py</code>、零后端改动、<code>verify-d6/integration/trial</code> 及暂停菜单/低引导抽查。</div>
+            </div>
+          </div>
+
+          <!-- FAN OUT 1 -->
+          <div class="connector split">
+            <svg viewBox="0 0 600 30" preserveAspectRatio="none">
+              <path d="M300 0 L300 12 M100 12 L500 12 M100 12 L100 28 M300 12 L300 28 M500 12 L500 28" stroke="#c4b8a2" stroke-width="2.2" fill="none"/>
+            </svg>
+          </div>
+
+          <!-- WAVE 1 -->
+          <div class="dag-stage">
+            <div class="stage-tag">Phase 1 · Wave 1 三路并行 <span class="pill-mini">从 M0 独立切出 · 零文件重叠 · 目标 11/26–27 首批样片</span></div>
+            <div class="parallel-row">
+              <div class="node owner-gemini node-critical" data-id="fe-01" data-owner="gemini" data-critical="true">
+                <div class="node-top">
+                  <span class="node-id">fe-01 · 并行 A1</span>
+                  <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-01" /> 完成</label>
+                </div>
+                <div class="node-title">风台 24s 转景 + 低模内核 + 袖口三镜 + 双出口</div>
+                <div class="node-branch">feature/fe-01-gate-cuff-lowpoly</div>
+                <div class="node-desc">交付程序化 2.5D 低模投影底座 <code>lowpoly.ts</code>、风台 1440 拍转景（G01–G03）、补线袖口三镜（P03/P05/G05）与女主出口（G04）。</div>
+                <div class="node-tags">
+                  <span class="mini-tag gemini">主攻：我 (Gemini)</span>
+                  <span class="mini-tag huihui">支援：huihui</span>
+                  <span class="mini-tag dep">产出 lowpoly.ts → 喂给 fe-04</span>
+                  <span class="mini-tag rev">64fc06f：栈台侧移几何验收</span>
+                </div>
+              </div>
+
+              <div class="node owner-huihui" data-id="fe-02" data-owner="huihui">
+                <div class="node-top">
+                  <span class="node-id">fe-02 · 并行 B1</span>
+                  <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-02" /> 完成</label>
+                </div>
+                <div class="node-title">背负姿态 + 3×3 慢时线盘 + 第三段工台</div>
+                <div class="node-branch">feature/fe-02-reload-carry-craft</div>
+                <div class="node-desc">牵手/蹲背/放下（G06）、3×3 鼠键双输入慢时换弹（M01：推退/回声/照明）、第三段安全工台与 1s 首次试握（M02）。</div>
+                <div class="node-tags">
+                  <span class="mini-tag huihui">主攻：huihui (GPT)</span>
+                  <span class="mini-tag gemini">支援：我 (Gemini)</span>
+                  <span class="mini-tag rev">64fc06f：60/240 拍 + 工台幂等</span>
+                </div>
+              </div>
+
+              <div class="node owner-gemini" data-id="fe-03" data-owner="gemini">
+                <div class="node-top">
+                  <span class="node-id">fe-03 · 并行 C1</span>
+                  <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-03" /> 完成</label>
+                </div>
+                <div class="node-title">共同序章 P01–P04 演出 + 明朝全局美术体检</div>
+                <div class="node-branch">feature/fe-03-prologue-ming-art</div>
+                <div class="node-desc">睁眼叫醒（P01）、墙影瓷碗与逃柜心跳红晕（P02）、井庭枪火挡光（P04）及全仓明初宁村所考据换装/灰度体检。</div>
+                <div class="node-tags">
+                  <span class="mini-tag gemini">主攻：我 (Gemini)</span>
+                  <span class="mini-tag">兼容既有 .clip 帧键</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONVERGE 1 -->
+          <div class="connector split">
+            <svg viewBox="0 0 600 30" preserveAspectRatio="none">
+              <path d="M100 0 L100 16 M300 0 L300 16 M500 0 L500 16 M100 16 L500 16 M300 16 L300 30" stroke="#c4b8a2" stroke-width="2.2" fill="none"/>
+            </svg>
+          </div>
+
+          <!-- GATE M1 -->
+          <div class="dag-stage">
+            <div class="node node-gate" data-id="m1" data-owner="gate" data-critical="true">
+              <div class="node-top">
+                <span class="node-id">📍 合流闸口 M1 · 11/26–27 首批交付节点</span>
+                <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="m1" /> 达成</label>
+              </div>
+              <div class="node-title">合并 fe-01 + fe-02 + fe-03 → feature/fe-dual-route（frontend.ts 插件接线）</div>
+              <div class="node-desc">导出首批交付证据（风台 5 帧 + 栈台侧移 + 双版样片 + 换弹/工台录屏），同步至 Issue #8。</div>
+              <div class="dep-callout">
+                <strong>⚠ 强依赖闸口：</strong><code>fe-01</code> 产出的 <code>Script/watch/fe/renderer/lowpoly.ts</code> 必须经 M1 沉淀回总分支后，Wave 2 的 <code>fe-04</code> 才能切出复用！
+              </div>
+            </div>
+          </div>
+
+          <!-- FAN OUT 2 -->
+          <div class="connector split">
+            <svg viewBox="0 0 600 30" preserveAspectRatio="none">
+              <path d="M300 0 L300 12 M100 12 L500 12 M100 12 L100 28 M300 12 L300 28 M500 12 L500 28" stroke="#c4b8a2" stroke-width="2.2" fill="none"/>
+            </svg>
+          </div>
+
+          <!-- WAVE 2 -->
+          <div class="dag-stage">
+            <div class="stage-tag">Phase 2 · Wave 2 三路并行 <span class="pill-mini">必须 M1 后切出 · 零文件重叠 · 目标 11/28–30 全功能贯通</span></div>
+            <div class="parallel-row">
+              <div class="node owner-gemini node-critical" data-id="fe-04" data-owner="gemini" data-critical="true">
+                <div class="node-top">
+                  <span class="node-id">fe-04 · 并行 A2</span>
+                  <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-04" /> 完成</label>
+                </div>
+                <div class="node-title">小满单人线《小小梦魇》风低模四房</div>
+                <div class="node-branch">feature/fe-04-child-lowpoly</div>
+                <div class="node-desc">复用 <code>lowpoly.ts</code>，实现栈台红布车回忆（outside）、空村桌下鞋底与砖/铁盆双反馈（village）、密林犬追与溪湾碎灯（forest）。</div>
+                <div class="node-tags">
+                  <span class="mini-tag gemini">主攻：我 (Gemini)</span>
+                  <span class="mini-tag huihui">支援：huihui</span>
+                  <span class="mini-tag dep">依赖 M1 (lowpoly.ts)</span>
+                </div>
+              </div>
+
+              <div class="node owner-joint" data-id="fe-05" data-owner="joint">
+                <div class="node-top">
+                  <span class="node-id">fe-05 · 并行 B2</span>
+                  <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-05" /> 完成</label>
+                </div>
+                <div class="node-title">北塔双结局同机位配对演出（F03 / M03）</div>
+                <div class="node-branch">feature/fe-05-dual-endings</div>
+                <div class="node-desc">8s 同机位两叩回叩前段；女主线低模+西窗暖灯+簿页第二行留白（F03）vs 男主线像素风+周戍报姓名+双手端碗团圆（M03）。</div>
+                <div class="node-tags">
+                  <span class="mini-tag joint">灵活认领</span>
+                  <span class="mini-tag huihui">GPT 搭框架</span>
+                  <span class="mini-tag gemini">Gemini 精修</span>
+                </div>
+              </div>
+
+              <div class="node owner-huihui" data-id="fe-06" data-owner="huihui">
+                <div class="node-top">
+                  <span class="node-id">fe-06 · 并行 C2</span>
+                  <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-06" /> 完成</label>
+                </div>
+                <div class="node-title">双通关水井与现代抗日主题博物馆（E01–E02）</div>
+                <div class="node-branch">feature/fe-06-well-museum</div>
+                <div class="node-desc">双结局档案门控、滴水声零浮签引导、井水白灯反光匹配剪辑、现代展厅步行转灯与两声叩响回柜、穿梭器移动残影。</div>
+                <div class="node-tags">
+                  <span class="mini-tag huihui">主攻：huihui (GPT)</span>
+                  <span class="mini-tag gemini">支援：我 (Gemini)</span>
+                  <span class="mini-tag rev">64fc06f：正式档案不污染</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONVERGE 2 -->
+          <div class="connector split">
+            <svg viewBox="0 0 600 30" preserveAspectRatio="none">
+              <path d="M100 0 L100 16 M300 0 L300 16 M500 0 L500 16 M100 16 L500 16 M300 16 L300 30" stroke="#c4b8a2" stroke-width="2.2" fill="none"/>
+            </svg>
+          </div>
+
+          <!-- GATE M2 -->
+          <div class="dag-stage">
+            <div class="node node-gate" data-id="m2" data-owner="gate" data-critical="true">
+              <div class="node-top">
+                <span class="node-id">📍 合流闸口 M2 · 全功能贯通节点</span>
+                <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="m2" /> 达成</label>
+              </div>
+              <div class="node-title">合并 fe-04 + fe-05 + fe-06 → feature/fe-dual-route（Wave 2 插件接线）</div>
+              <div class="node-desc">全量 Dora 编译 + <code>check-repo.py</code> + 回归脚本通过后推送，进入最终串行 QA 收口。</div>
+            </div>
+          </div>
+
+          <div class="connector"></div>
+
+          <!-- PHASE 3 -->
+          <div class="dag-stage" style="padding-bottom:0;">
+            <div class="stage-tag">Phase 3 · 串行收口 & 最终交付 <span class="pill-mini">必须 M2 后 · 目标 11/30–12/01</span></div>
+            <div class="node owner-joint node-critical" data-id="fe-07" data-owner="joint" data-critical="true">
+              <div class="node-top">
+                <span class="node-id">fe-07 · 串行收口 → 🏁 最终冻结</span>
+                <label class="node-check" onclick="event.stopPropagation()"><input type="checkbox" data-check="fe-07" /> 完成</label>
+              </div>
+              <div class="node-title">全量验收、字库/混音体检、3 人盲测、Windows 离线包与 Issue #8 交接</div>
+              <div class="node-branch">feature/fe-07-qa-audio-pack → 合并回 origin/feature/fe-dual-route</div>
+              <div class="node-desc">
+                核查零侵入后端、8 项引擎回归、79/80 血量边界、中文字库 0 缺字、静音灰度复审、3 人低引导盲测 + 双线 85–95 分钟时长记录、更新 <code>make-windows-pack.sh</code>，提交 Issue #8 交付总表通知 tqym 合并。
+              </div>
+              <div class="node-tags">
+                <span class="mini-tag joint">两人共同收口</span>
+                <span class="mini-tag huihui">huihui：回归/打包/边界/对接表</span>
+                <span class="mini-tag gemini">我：视觉灰度/混音/字库/盲测调优</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: DETAIL INSPECTOR -->
+      <aside class="inspector-card" id="inspector">
+        <!-- Populated dynamically by JS -->
+      </aside>
+    </div>
+  </section>
+
+  <!-- SECTION 2: STORYLINE TO BRANCH MAPPING -->
+  <section class="section" id="sec-story">
+    <div class="section-head">
+      <h2 class="section-title"><span class="section-num">02</span> 剧情双线结构 ↔ 前端分支映射</h2>
+      <span class="section-hint">从明初温州宁村所出发，两条 90 分钟路线（各含 30 分钟共同序章 + 60 分钟专属内容）如何精确落到各条分支</span>
+    </div>
+
+    <div class="story-map">
+      <div class="story-pipeline">
+        <div class="story-col">
+          <h4><span>① 共同序章（0–20 分）</span><span class="mini-tag gemini">fe-03 + fe-01</span></h4>
+          <p><strong>序章像素风</strong> · 宁村所民居 → 井庭 → 十字街 → 军粮棚 → 城门绞盘。</p>
+          <div class="node-tags">
+            <span class="mini-tag">P01 第一人称睁眼 (fe-03)</span>
+            <span class="mini-tag">P02 墙影瓷碗逃柜 (fe-03)</span>
+            <span class="mini-tag">P03 补线袖口柜边相认 (fe-01)</span>
+            <span class="mini-tag">P04 井庭枪火挡光 (fe-03)</span>
+            <span class="mini-tag">P05 城门拉袖送别 (fe-01)</span>
+          </div>
+        </div>
+
+        <div class="story-col">
+          <h4><span>② 风台 24s 分水岭（20–30 分）</span><span class="mini-tag gemini">fe-01</span></h4>
+          <p><strong>像素 → 低模连续渐变</strong>（1440 拍，锁死「小满脚底+门槛」）。后端锁存 <code>storyRoute</code>：</p>
+          <div class="node-tags">
+            <span class="mini-tag">G01–G03 数到二十 (0/6/12/18/21/24s)</span>
+            <span class="mini-tag gemini">&lt; 80% 血 → child 独自迈步 (G04)</span>
+            <span class="mini-tag huihui">≥ 80% 血 → soldier 0.6s 牵手回像素风 (G05)</span>
+          </div>
+        </div>
+
+        <div class="story-dual">
+          <div class="route-box child">
+            <div class="route-title">
+              <span>③A 女主单人线（30–90 分 · 小满独自赴北塔）</span>
+              <span class="mini-tag gemini">fe-04 → fe-05 (F03)</span>
+            </div>
+            <div class="route-meta">
+              <strong>画风：</strong>《小小梦魇》第一作立体低模 + 2D 角色接触影。<br/>
+              <strong>段落：</strong>栈台红布车回忆（outside）→ 空村桌下看鞋底/砖与铁盆双投瓶（village）→ 密林枯枝犬追与溪湾碎灯（forest）→ 北塔西窗暖灯、簿页第二行留白（F03）。
+            </div>
+          </div>
+          <div class="route-box soldier">
+            <div class="route-title">
+              <span>③B 男主同行线（30–90 分 · 周戍背负小满护送）</span>
+              <span class="mini-tag huihui">fe-02 → fe-05 (M03)</span>
+            </div>
+            <div class="route-meta">
+              <strong>画风：</strong>自风台牵手切回并全程延续序章像素风。<br/>
+              <strong>段落：</strong>牵手→高石阶蹲背（G06）→ 1–2 段背负与 3×3 慢时连线换弹（M01）→ 第 3 段安全工台造灯铳/回声铳与 1s 试握（M02）→ 4–5 段山道护送 → 北塔周戍报姓名、解针套双手端碗团圆（M03）。
+            </div>
+          </div>
+        </div>
+
+        <div class="story-col route-box easter" style="border-width:1px 1px 1px 4px;">
+          <h4><span>④ 双通关彩蛋（+8–12 分）</span><span class="mini-tag huihui">fe-06</span></h4>
+          <p><strong>条件：</strong>同档正式完成 <code>childCleared && soldierCleared</code>，重玩序章寻柜前凭滴水声进后院深井。</p>
+          <div class="node-tags">
+            <span class="mini-tag">E01 井水白灯反光匹配剪辑</span>
+            <span class="mini-tag">拾取「时间穿梭器」+ 移动残影</span>
+            <span class="mini-tag">E02 现代抗日主题博物馆转西窗灯</span>
+            <span class="mini-tag">两声叩响无缝接回明初补线袖口</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: FILE OWNERSHIP & REDLINE MATRIX -->
+  <section class="section" id="sec-ownership">
+    <div class="section-head">
+      <h2 class="section-title"><span class="section-num">03</span> 防冲突文件所有权矩阵与后端零侵入红线</h2>
+      <span class="section-hint">Wave 1 / Wave 2 并行分支只写各自独占文件，绝不互碰热点大文件，M1 / M2 时仅在 frontend.ts 做几行插件注册</span>
+    </div>
+
+    <div class="two-col">
+      <div class="panel-card">
+        <h3>各分支独占文件边界 <span class="badge gate">物理级零冲突</span></h3>
+        <div class="table-wrap">
+          <table id="ownershipTable">
+            <thead>
+              <tr>
+                <th>分支</th>
+                <th>主攻</th>
+                <th>独占创建 / 修改范围</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-owner="huihui" data-critical="true">
+                <td><code>fe-00</code></td>
+                <td><span class="mini-tag huihui">huihui</span></td>
+                <td><strong>新建</strong> <code>fe/contract.ts</code> <code>fe/audio.ts</code> <code>fe/plugins.ts</code><br/><strong>集中改造</strong> <code>frontend.ts</code> <code>adapter.ts</code> <code>camera.ts</code> <code>assets.ts</code> <code>ui/hud.ts</code> <code>ui/menus.ts</code></td>
+              </tr>
+              <tr data-owner="gemini" data-critical="true">
+                <td><code>fe-01</code></td>
+                <td><span class="mini-tag gemini">我</span></td>
+                <td><code>fe/renderer/lowpoly.ts</code>（共享底座） <code>fe/scenes/gate_transition.ts</code> <code>fe/cutscenes/cuff_shots.ts</code> <code>assets/audio/gate/*</code></td>
+              </tr>
+              <tr data-owner="huihui">
+                <td><code>fe-02</code></td>
+                <td><span class="mini-tag huihui">huihui</span></td>
+                <td><code>fe/renderer/carry_pose.ts</code> <code>fe/ui/reload_wheel.ts</code> <code>fe/ui/craft_bench.ts</code> <code>assets/audio/combat/*</code></td>
+              </tr>
+              <tr data-owner="gemini">
+                <td><code>fe-03</code></td>
+                <td><span class="mini-tag gemini">我</span></td>
+                <td><code>fe/cutscenes/prologue_intro.ts</code> <code>fe/renderer/ming_audit.ts</code>（按需） <code>assets/art/*</code>（保留既有 <code>.clip</code> 帧键）</td>
+              </tr>
+              <tr data-owner="gemini" data-critical="true">
+                <td><code>fe-04</code></td>
+                <td><span class="mini-tag gemini">我</span></td>
+                <td><code>fe/scenes/lowpoly_world.ts</code> <code>fe/scenes/village_undertable.ts</code> <code>fe/scenes/forest_creek.ts</code> <code>assets/audio/child/*</code></td>
+              </tr>
+              <tr data-owner="joint">
+                <td><code>fe-05</code></td>
+                <td><span class="mini-tag joint">认领</span></td>
+                <td><code>fe/cutscenes/tower_endings.ts</code>（挂 <code>drawCutsceneOverlay</code>，不动 <code>narrative.ts</code>） <code>assets/audio/tower/*</code></td>
+              </tr>
+              <tr data-owner="huihui">
+                <td><code>fe-06</code></td>
+                <td><span class="mini-tag huihui">huihui</span></td>
+                <td><code>fe/scenes/well_museum.ts</code> <code>fe/renderer/afterimage_artifact.ts</code> <code>assets/audio/museum/*</code></td>
+              </tr>
+              <tr data-owner="joint" data-critical="true">
+                <td><code>fe-07</code></td>
+                <td><span class="mini-tag joint">共同</span></td>
+                <td>全局 QA 调优、更新 <code>tools/make-windows-pack.sh</code>、交付记录与 Issue #8 报告</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3>后端零侵入红线 &amp; Git 铁律 <span class="badge danger">强约束</span></h3>
+        <div style="font-size:12.8px;color:var(--ink-2);">
+          <strong>✅ 允许修改目录（前端权限范围）：</strong>
+          <div class="forbidden-grid">
+            <span class="allow-chip">Script/watch/fe/**</span>
+            <span class="allow-chip">assets/**</span>
+            <span class="allow-chip">tools/make-windows-pack.sh</span>
+            <span class="allow-chip">docs/**</span>
+          </div>
+
+          <strong>🚫 严禁修改文件（防止与 tqym 大冲突，含对应 .lua）：</strong>
+          <div class="forbidden-grid">
+            <span class="forbid-chip">Script/watch/play.ts</span>
+            <span class="forbid-chip">Script/watch/run.ts</span>
+            <span class="forbid-chip">Script/watch/rooms.ts</span>
+            <span class="forbid-chip">Script/watch/depth.ts</span>
+            <span class="forbid-chip">Script/watch/escort.ts</span>
+            <span class="forbid-chip">Script/watch/input.ts</span>
+            <span class="forbid-chip">Script/watch/keys.ts</span>
+            <span class="forbid-chip">Script/watch/app.ts</span>
+            <span class="forbid-chip">init.ts / init.lua</span>
+          </div>
+
+          <ul class="detail-list">
+            <li><strong>TS 与 Lua 成对提交：</strong><code>tools/check-repo.py</code> 强制 <code>Script/watch/</code> 下每个 <code>.ts</code> 都有同名 <code>.lua</code>，修改后必跑 <code>Dora cli build -p . --lang ts</code>。</li>
+            <li><strong>分支与推送红线：</strong>严禁向 <code>origin/feature/watch-level-rework</code> 或 <code>origin/main</code> 推送；开新分支统一加 <code>--no-track</code>，推送显式指定 <code>git push -u origin &lt;当前分支名&gt;</code>。</li>
+            <li><strong>_anchor 主目录红线：</strong>切勿在 <code>~/dev/ibb/2026gamejam</code> 主目录改代码或切分支，全部任务在 <code>~/dev/.wt/2026gamejam/&lt;slug&gt;</code> 进行。</li>
+            <li><strong>文档链接零断链：</strong>Markdown 相对链接只能指已存在文件，未建文件用反引号书写。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: CONTRACT.TS 8 FIELDS & SCHEDULE -->
+  <section class="section" id="sec-contract">
+    <div class="section-head">
+      <h2 class="section-title"><span class="section-num">04</span> <code>contract.ts</code> 8 类接口契约与排期里程碑</h2>
+      <span class="section-hint">已按 tqym 最新提交 <code>64fc06f</code> 对齐：正式模式严禁混入 Mock，排演模式显式启动、独立内存、退出即清</span>
+    </div>
+
+    <div class="panel-card" style="margin-bottom:18px;">
+      <h3>前后端 8 类契约字段总表（<code>DualRouteSnapshot</code>） <span class="badge tqym">已含 64fc06f 口径修订</span></h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>字段名（统一以 00-foundation 为准）</th>
+              <th>后端现状</th>
+              <th>正式模式规则 &amp; 联调约束（64fc06f 重点）</th>
+              <th>消费分支</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>storyRoute</code><br/><code>"undecided" | "child" | "soldier"</code></td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td><strong>只读后端过门殿后最后一拍锁存结果</strong>；字段缺失返回 <code>undecided</code>。严禁按切房后即时 HP 或 <code>run.route</code> 推导！验收测 79/100 vs 80/100 边界。</td>
+              <td><code>fe-01</code> <code>fe-04</code> <code>fe-05</code></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><code>countElapsedTicks</code> / <code>countDurationTicks</code><br/><code>countNumber</code> / <code>countProgress</code></td>
+              <td><span class="mini-tag" style="background:var(--gate-bg);color:var(--gate);">已有基础</span></td>
+              <td>兼容读取现有 <code>p.countTick</code>、<code>GATE_COUNT_END=1440</code>、<code>gateCountAtTick</code> 及未来改名；60 拍/秒，按数字变化各触发 1 次音画。</td>
+              <td><code>fe-01</code></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><code>gateReunion</code><br/><code>{ active, knockHeard, holdProgress, holding, completed, releasedAbortCount }</code></td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td>男主线风台 0.6s 长按牵手；1439 拍预按须松手再按；测重按 35/36 有效拍、中途松手归零重试、完成仅触发一次。前端交意图、玩法层消费。</td>
+              <td><code>fe-01</code></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><code>backCarry</code><br/><code>{ active, handInHand, mounting, atBench }</code></td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td>区分牵手平路 → 高石阶蹲背（<code>mounting</code>）→ 背负战斗 → 第三段工台放下（<code>atBench</code>）；转身平滑贴齐单碰撞体。</td>
+              <td><code>fe-02</code></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><code>timeScale</code>（默认 <code>1</code>，慢时 <code>0.25</code>）</td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td>前端按 <code>worldDt = dt * timeScale</code> 与全速 <code>uiDt</code> 双时钟驱动；<strong>正式联调由后端 1/4 速推进模拟</strong>：世界 60 拍 = 作答时钟 240 拍（4s），暂停二者同停。</td>
+              <td><code>fe-00</code> <code>fe-02</code></td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td><code>reloadSession</code><br/><code>{ active, firstTime, elapsed, duration, path, previewEffect, nextEffect, invalidFlash }</code></td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td>3×3 鼠键同意图入口，UI 读剩余时间与已确认路径；直连=推退、铃纹=回声、灯纹=照明、超时=普通；暂停冻结路径与计时。</td>
+              <td><code>fe-02</code></td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td><code>craftBench</code><br/><code>{ active, firstCraftDone, justCraftedTimer, inventory, recipes, equippedWeapon }</code></td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td>两份方案（引路灯铳 / 回声铳）；<strong>确认只发一次制作请求，收到后端成功结果才更新持有物与试握</strong>；读档按库存快照恢复，防重复制作。</td>
+              <td><code>fe-02</code></td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td><code>archive</code><br/><code>{ childCleared, soldierCleared, artifactOwned, museumPhase, museumSeen }</code></td>
+              <td><span class="mini-tag rev">待接</span></td>
+              <td>切房/重试从后端档案重读；<strong>章节直达、排演结局与重置排演绝不污染正式档案</strong>；支持展厅中途续读与二次进井不重复发奖。</td>
+              <td><code>fe-06</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SCHEDULE & 5 HARD QA RULES -->
+    <div class="panel-card" style="margin-bottom:18px;">
+      <h3>协同排期与验收里程碑（对齐后端规划与 Issue #8）</h3>
+      <div class="schedule-grid">
+        <div class="day-card">
+          <div class="day-date">11/25 今晚 → 11/26 上午</div>
+          <div class="day-title">Phase 0（fe-00 → M0）</div>
+          <p class="day-desc">huihui 主攻完成 <code>contract.ts</code> / <code>audio.ts</code> / <code>plugins.ts</code> / 低引导改造，同步对齐 M0 输入归属，合流达成 <strong>M0</strong>。</p>
+        </div>
+        <div class="day-card">
+          <div class="day-date">11/26 – 11/27</div>
+          <div class="day-title">Wave 1 并行 → M1 首批交付</div>
+          <p class="day-desc">三路并行完成 <code>fe-01/02/03</code>；合流 <strong>M1</strong> 交风台 5 帧、栈台侧移低模、袖口三镜、换弹三路径与工台对照图。</p>
+        </div>
+        <div class="day-card">
+          <div class="day-date">11/28 – 11/29</div>
+          <div class="day-title">Wave 2 并行 → M2 全功能贯通</div>
+          <p class="day-desc">复用 <code>lowpoly.ts</code> 完成小满低模四房（<code>fe-04</code>）、北塔双结局（<code>fe-05</code>）与水井博物馆（<code>fe-06</code>），合流 <strong>M2</strong>。</p>
+        </div>
+        <div class="day-card">
+          <div class="day-date">11/30 – 12/01</div>
+          <div class="day-title">Phase 3 收口 → 离线包交付</div>
+          <p class="day-desc"><code>fe-07</code> 完成全量回归、字库/灰度/混音、3 人盲测与双线 85–95 分钟计时，适配 Windows 离线包并提交 Issue #8。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-strip">
+      <div class="qa-box">
+        <div class="qa-idx">红线 01</div>
+        <strong>默认低提示 / 零引导</strong>
+        <span>默认关闭任务箭头、目标清单、就近按键浮签、自动解谜、超时催促；操作说明与按键辅助统一收进暂停菜单。</span>
+      </div>
+      <div class="qa-box">
+        <div class="qa-idx">红线 02</div>
+        <strong>一道补线袖口贯通四镜</strong>
+        <span><code>P03</code> 擦碎瓷、<code>P05</code> 城门拉袖、<code>G05</code> 风台重逢、<code>E02</code> 展厅回柜共用同套补线青袖，露脸前凭袖认人。</span>
+      </div>
+      <div class="qa-box">
+        <div class="qa-idx">红线 03</div>
+        <strong>明朝考据 &amp; 红布固左</strong>
+        <span>锁定明初温州宁村所，严禁清式顶戴/辫子/现代枪械/探照灯/仙侠光效；板车红布固定在左端不随转向翻面。</span>
+      </div>
+      <div class="qa-box">
+        <div class="qa-idx">红线 04</div>
+        <strong>静音与灰度可读</strong>
+        <span>关 HUD、关声音、转灰度仍能分辨守卒/孩子、举枪/挡下/受击、硬砖/软土、空行/满行与线盘三种纹样。</span>
+      </div>
+      <div class="qa-box">
+        <div class="qa-idx">红线 05</div>
+        <strong>暂停 / 重试 / 读档零污染</strong>
+        <span>暂停冻结镜头/字幕/计数/音频/慢时；长按松开可重试；切房/重试/读档清净旧声圈、旧准星与未播事件。</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: ARCHITECTURE DIAGNOSIS & RISK WATCHLIST -->
+  <section class="section" id="sec-diagnosis">
+    <div class="section-head">
+      <h2 class="section-title"><span class="section-num">05</span> 流程深度分析：架构优势与 4 项开工前必看预警</h2>
+      <span class="section-hint">基于仓库最新 commit（64fc06f）、worktree 状态与依赖链路的实测诊断</span>
+    </div>
+
+    <div class="risk-grid">
+      <div class="risk-card good">
+        <h4>✅ 架构优势：为什么这套流程抗冲突且高效？</h4>
+        <p>
+          <strong>① 热点前置收口：</strong>把 6 个高频冲突文件全部锁死在 <code>fe-00</code> 一次性改造完毕，后续 6 条并行分支只新增独立模块并通过 <code>plugins.ts</code> + <code>registerDynamicSlot</code> 挂载。<br/>
+          <strong>② 技能与负载均衡：</strong>huihui (GPT) 专攻状态机/拓扑/双时钟/音频去重/存档幂等（<code>fe-00/02/06</code>）；你 (Gemini) 专攻低模视觉/转景构图/明朝考据/四房氛围（<code>fe-01/03/04</code>）；<code>fe-05</code> 接力、<code>fe-07</code> 合力收口，全程几乎零互等。
+        </p>
+      </div>
+
+      <div class="risk-card crit">
+        <h4>🚨 预警 1：本地 fe-dual-route 落后远端 1 提交（64fc06f）</h4>
+        <p>
+          tqym 刚于 21:45 直接向 <code>origin/feature/fe-dual-route</code> 推送了 <code>64fc06f</code>，而你本机 <code>.wt/2026gamejam/fe-dual-route</code> 仍停在 <code>653b7fe</code>。
+          <strong>行动建议：</strong>开 <code>fe-00</code> 时务必先 <code>git fetch origin --prune</code> 并从最新 <code>origin/feature/fe-dual-route</code>（<code>64fc06f</code>）切出，确保双方按修订后的联调口径施工。
+        </p>
+      </div>
+
+      <div class="risk-card warn">
+        <h4>⚠️ 预警 2：关键路径与跨波阻塞点（fe-00 → fe-01 → fe-04 → fe-07）</h4>
+        <p>
+          全流程最长依赖链共 4 棒：<code>fe-00</code> 阻塞全员开工；<code>fe-01</code> 产出的 <code>renderer/lowpoly.ts</code> 强阻塞 <code>fe-04</code>。
+          <strong>行动建议：</strong>在 <code>fe-00</code> 开发期间，你可以先离线准备 <code>fe-03</code> 明朝考据素材清册与 <code>fe-01</code> 低模投影几何设计，M0 一达成立刻起跑 <code>fe-01</code>，尽快锁定 <code>lowpoly.ts</code> 的公共 API。
+        </p>
+      </div>
+
+      <div class="risk-card info">
+        <h4>💡 预警 3 &amp; 4：M0 输入意图对齐 + 本地旧 worktree 清理</h4>
+        <p>
+          <strong>输入归属：</strong><code>64fc06f</code> 要求换弹、牵手、制作、访馆由「前端提交操作意图 → 玩法层消费」，建议 M0 动工时在 Issue #8 与 tqym 快速敲定意图结构，避免联调返工。<br/>
+          <strong>本地环境：</strong><code>wt audit</code> 显示本机已有 3 个已并入 <code>main</code> 的历史 worktree（<code>fe-ink-art-controls</code> / <code>fe-ink-ui</code> / <code>watch-fe-v2-integrated</code>），建议先评估清理，以免后续开 <code>fe-00~07</code> 时触发 2 worktree 上限拦截。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>真源文档：<code>docs/前端双线开发总控与阶段任务书.md</code> · <code>docs/fe-phases/{00-foundation,wave1-01-03,wave2-04-06,07-qa-pack}.md</code></div>
+    <div>基于 <code>origin/feature/fe-dual-route@64fc06f</code> 生成 · 离线单文件 HTML（零外部依赖）</div>
+  </footer>
+</div>
+
+<!-- MODAL: 64fc06f DIFF HIGHLIGHTS -->
+<div class="modal-backdrop" id="diffModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 style="margin:0;font-family:var(--font-serif);">tqym 提交 <code>64fc06f</code> 联调验收修订要点（2026-11-25 21:45）</h3>
+      <button class="modal-close" id="closeDiffModal">关闭</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-2);margin-top:0;">
+      tqym 在审阅前端总控与四份施工书后，直接提交了 <code>64fc06f</code>（<em>docs(fe): 修订分线、慢时和档案的联调验收方案</em>），核心收紧以下 7 条：
+    </p>
+    <ol class="detail-list" style="font-size:13px;">
+      <li><strong>正式模式 vs 排演模式严格隔离（00-foundation &amp; 总控）：</strong>取消“缺字段自动 fallback 到 Mock/即时 HP 推导”，改为显式切换。正式入口字段缺失时 <code>storyRoute</code> 返回 <code>undecided</code> 并沿用既有玩法；排演须显式启动、独立内存状态、退出即清、录屏标注「排演」。</li>
+      <li><strong>输入归属 M0 提前对齐（总控）：</strong>暂停菜单和按键辅助归前端管理，但<strong>换弹、牵手、制作、访馆由前端提交操作意图，玩法层消费输入并返回状态与结果</strong>，避免按一次确认同时触发移动/射击/拾取。</li>
+      <li><strong>音频事件去重唯一入口（00-foundation）：</strong>正式事件由既有 <code>PlayAdapter.sample</code> 唯一调用 <code>drainEvents()</code>，按 <code>seq</code> 顺序分发给音效与插件，保留 <code>tick</code>、事件序号与检查点代号；验证同帧跨两次事件各响一次，暂停重绘和读档重建不补播旧事件。</li>
+      <li><strong>M1 低模栈台实测升级（wave1）：</strong>除静态 5 帧美术对照外，须取同一处栈台作小幅侧移，提交木板前后遮挡、踏步侧面与小满接地的连续画面，并实测车柄点选落点——以<strong>有深度坐标的几何和投影结果</strong>验收。</li>
+      <li><strong>慢时换弹双时钟读数 &amp; 工台幂等（wave1）：</strong>正式联调由后端 1/4 速推进战斗模拟、常速 4 秒作答（<strong>世界 60 拍 = 作答时钟 240 拍</strong>，暂停同停，读数随录屏提交）；工台确认只发一次请求，收到后端成功结果才更新持有物与试握。</li>
+      <li><strong>双通关档案纯净度（wave2）：</strong>正式解锁只取同一档案的两个正式结局记录；章节直达、排演结局与重置排演均不得改写正式档案；记录中途续读位置与二次进井神器数量。</li>
+      <li><strong>终验分线边界与时长目标（07-qa-pack）：</strong>正式玩法测过门血量 <code>79/100</code> 与 <code>80/100</code> 边界；1439 拍预按须释放再按；男主线测重按 <code>35/36</code> 有效拍；两线首通各 ≥3 位首玩者，中位目标 <strong>85–95 分钟</strong>、两线差 <strong>≤5 分钟</strong>；字段名统一对齐 <code>gateReunion.holdProgress</code>、<code>backCarry.mounting</code>、<code>craftBench</code>、<code>archive</code>。</li>
+    </ol>
+  </div>
+</div>
+
+<div class="toast" id="toast">已复制到剪贴板</div>
+
+<script>
+const NODES = {
+  "upstream": {
+    id: "UPSTREAM",
+    badgeClass: "tqym",
+    phase: "上游基线（只读参考）",
+    title: "tqym 后端领先分支",
+    branch: "origin/feature/watch-level-rework",
+    base: "锁定起点提交 648ff439318a572a8d45aa46f04738a03f4142e2",
+    owner: "tqym / Shaw Zhang（后端玩法 & 总控上游）",
+    prompts: [],
+    cmd: "git fetch origin --prune\ngit log --oneline -n 5 origin/feature/watch-level-rework",
+    files: ["Script/watch/play.ts (禁改)", "Script/watch/run.ts (禁改)", "docs/前端开发手册.md", "docs/向西守望-双线前端交付单.md"],
+    tasks: [
+      "后端已提供：countTick、GATE_COUNT_END=1440、gateCountAtTick、phase（prologue-wait/give、gate-count/walk、tower-knock/given）。",
+      "后端后续持续演进 8 类双线字段、存档与正式玩法联调；前端严禁向此分支推送，避免冲突。"
+    ],
+    acceptance: [
+      "前端最终只交付 feature/fe-dual-route 整条分支，由 tqym 在其后端侧统一合并。"
+    ],
+    rev64: "tqym 已于 2026-11-25 21:45 直接审订了 origin/feature/fe-dual-route（提交 64fc06f），明确前后端输入归属、正式/排演隔离与联调指标。"
+  },
+  "trunk": {
+    id: "TRUNK",
+    badgeClass: "gate",
+    phase: "前端总集成分支",
+    title: "feature/fe-dual-route（唯一前端交付出口）",
+    branch: "origin/feature/fe-dual-route",
+    base: "切自 origin/feature/watch-level-rework@648ff43",
+    owner: "我（Gemini） × huihui（GPT）共同维护",
+    prompts: [],
+    cmd: "# 先确认同步远端最新 64fc06f（切勿在主目录 _anchor 执行）\ngit fetch origin --prune\ngit -C ~/dev/.wt/2026gamejam/fe-dual-route status -sb",
+    files: ["AGENTS.md（含快捷口令索引）", "docs/前端双线开发总控与阶段任务书.md", "docs/fe-phases/00-foundation.md", "docs/fe-phases/wave1-01-03.md", "docs/fe-phases/wave2-04-06.md", "docs/fe-phases/07-qa-pack.md"],
+    tasks: [
+      "653b7fe（21:38 IGNGserver）：建立总分支与全阶段施工任务书。",
+      "64fc06f（21:45 TQYM）：修订分线、慢时、低模几何、工台幂等与档案联调验收方案。",
+      "作为 M0 / M1 / M2 / 最终冻结 的唯一合流主干，承载全部 8 条前端子分支的汇入。"
+    ],
+    acceptance: [
+      "每次合流后必跑：Dora cli build -p . --lang ts、python3 tools/check-repo.py、verify-d6 / verify-integration / verify-trial。",
+      "全过程保持 git diff --name-only origin/feature/watch-level-rework...HEAD 零后端核心文件改动。"
+    ],
+    rev64: "本地 worktree ~/dev/.wt/2026gamejam/fe-dual-route 当前落后 origin/feature/fe-dual-route 1 个提交（653b7fe vs 64fc06f），开工 fe-00 必须以最新远端 64fc06f 为起点。"
+  },
+  "fe-00": {
+    id: "fe-00",
+    badgeClass: "huihui",
+    phase: "Phase 0 · 串行底座（必先完成 · 关键路径）",
+    title: "前端底座与契约解耦",
+    branch: "feature/fe-00-foundation",
+    base: "origin/feature/fe-dual-route（M0 前基线 @64fc06f）",
+    owner: "huihui (GPT) 主攻 · 我 (Gemini) 支援",
+    prompts: ["开工前端第零阶段", "开工 fe-00"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-00-foundation -b feature/fe-00-foundation --no-track origin/feature/fe-dual-route",
+    files: [
+      "新建 Script/watch/fe/contract.ts",
+      "新建 Script/watch/fe/audio.ts",
+      "新建 Script/watch/fe/plugins.ts",
+      "改造 frontend.ts / adapter.ts / camera.ts / assets.ts",
+      "改造 ui/hud.ts / ui/menus.ts"
+    ],
+    tasks: [
+      "1. contract.ts：导出 8 类字段视图 DualRouteSnapshot，显式区分「正式模式」（读后端快照、缺字段降级保既有玩法）与「排演模式」（独立内存、退出即清、提供 setMockRoute/CountTick/Reload/Bench/Archive/Museum 钩子）。",
+      "2. audio.ts：分轨音控（voice/wind/water/ambience/sfx）、缺文件容错、按 eventSeq 去重 playOnce、暂停冻结续播、切房清瞬时态；唯一消费 PlayAdapter.sample 的 drainEvents()。",
+      "3. plugins.ts：定义 FePluginContext 与 FeRenderPlugin（drawBackdrop / drawWorld / drawActorsOverlay / drawCutsceneOverlay / drawFullSpeedUi），彻底隔离下游 6 条并行分支。",
+      "4. 低引导改造（零侵入 app.ts）：menus.ts 暂停菜单原地新增「操作说明」与「按键辅助：关/开（默认关）」；hud.ts 默认关闭就近浮签、检查站文字清单与 [E]/[F] 按键教学。",
+      "5. 底座扩展：frontend.ts 双时钟分离（worldDt = dt * timeScale vs uiDt）；camera.ts 双对齐点锚定 setAnchorLock；assets.ts 动态槽注册 registerDynamicSlot；adapter.ts 补单调递增 eventSeq。"
+    ],
+    acceptance: [
+      "Dora cli build -p . --lang ts 生成 contract.lua / audio.lua / plugins.lua 且零错误。",
+      "check-repo.py 与零后端改动检查通过；verify-d6 / verify-integration / verify-trial 全 PASS。",
+      "人工抽查默认入口：局内默认无浮签/无任务清单；Esc 暂停内可原地看操作说明、切换按键辅助并恢复显示；显式进排演测试 timeScale=0.25 减速与暂停冻结。"
+    ],
+    rev64: "64fc06f 强调：① 正式模式不得按即时 HP 或 run.route 推导 storyRoute（缺字段返 undecided）；② M0 先对齐换弹/牵手/制作/访馆的输入归属（前端提交意图、玩法层消费）；③ 同帧跨两次事件按 seq 各响一次、读档不补播旧事件。"
+  },
+  "m0": {
+    id: "M0",
+    badgeClass: "gate",
+    phase: "合流检查点 M0 · 关键闸口",
+    title: "Phase 0 合流 → 解锁 Wave 1 三路并行",
+    branch: "feature/fe-dual-route ← feature/fe-00-foundation",
+    base: "在 feature/fe-dual-route 工作区执行",
+    owner: "任一方执行（推荐由 fe-00 完成者执行）",
+    prompts: [],
+    cmd: "# 先推送 fe-00，再切到 fe-dual-route 工作区合流\ngit push -u origin feature/fe-00-foundation\ncd ~/dev/.wt/2026gamejam/fe-dual-route\ngit merge --no-ff feature/fe-00-foundation\npython3 tools/check-repo.py\ngit push -u origin feature/fe-dual-route",
+    files: ["feature/fe-dual-route 总分支更新至 M0"],
+    tasks: [
+      "合入 fe-00-foundation 并复跑 check-repo.py 与引擎回归。",
+      "确认 6 个热点大文件改造已稳定落地，后续并行分支不再修改热点文件。",
+      "推送 origin/feature/fe-dual-route 后通知双方立即并行开启 fe-01 / fe-02 / fe-03。"
+    ],
+    acceptance: [
+      "origin/feature/fe-dual-route 包含 M0 合并提交且全检通过。"
+    ],
+    rev64: "确认 fe-dual-route 合并前已包含远端 64fc06f，避免推送被拒或覆盖 tqym 修订。"
+  },
+  "fe-01": {
+    id: "fe-01",
+    badgeClass: "gemini",
+    phase: "Phase 1 · Wave 1 并行 A1（关键路径）",
+    title: "风台 24s 转景 + 低模内核 + 袖口三镜 + 双出口",
+    branch: "feature/fe-01-gate-cuff-lowpoly",
+    base: "origin/feature/fe-dual-route（M0 后）",
+    owner: "我 (Gemini) 主攻 · huihui (GPT) 支援",
+    prompts: ["开工前端01", "开工风台转景"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-01-gate-cuff-lowpoly -b feature/fe-01-gate-cuff-lowpoly --no-track origin/feature/fe-dual-route",
+    files: [
+      "Script/watch/fe/renderer/lowpoly.ts（核心共享底座 → fe-04 复用）",
+      "Script/watch/fe/scenes/gate_transition.ts",
+      "Script/watch/fe/cutscenes/cuff_shots.ts",
+      "assets/audio/gate/*"
+    ],
+    tasks: [
+      "1. lowpoly.ts：以有深度坐标的顶点和面组成可投影低模几何（墙体/栈台/石阶遮挡/方向侧光/体积雾/2D 角色脚底接触影），支持 morph ∈ [0,1] 连续形变且保证 worldToScreen / worldMapper 零误差。",
+      "2. 风台 24s 转景（G01–G03）：room=gate & phase=gate-count 时按 countElapsedTicks/1440 推进 morph；0–479 拍数 1–10、480–1079 数 11–17、1080 拍十八贴耳、1260 拍十九放轻留呼吸、1440 拍二十成景；锁死「小满脚底 + 门槛」双对齐点。",
+      "3. 同一道补线袖口三镜：P03 柜边擦碎瓷（3s）、P05 城门拉袖送别（4s，张开手指衔接 G01）、G05 男主线风台重逢（两下轻叩 → 0.6s 长按伸袖 → 松手退回重试 → 握稳抬镜切回序章像素风，说「我们走吧。」）。",
+      "4. 女主出口（G04）：storyRoute===child 数满二十后空门抚针套、远处红布轻动、零按键提示，静待松开再按方向键迈步。"
+    ],
+    acceptance: [
+      "截出 0 / 6 / 12 / 18 / 24s（0/360/720/1080/1440 拍）5 张同机位帧，小满脚底与门槛像素零跳动；另在 1260 拍核对第十九声。",
+      "提交两条带声连续样片（单人迈步版 + 0.6s 重逢切回像素风版），验中段暂停续播与松手重试。",
+      "Dora 编译、check-repo.py、verify-d6、verify-integration 全通过。"
+    ],
+    rev64: "64fc06f 新增硬标准：M1 样段须取同一处栈台作小幅侧移，提交木板前后遮挡、踏步侧面与小满接地的连续画面并实测车柄点选落点——以有深度坐标的几何和投影结果验收；G04 严格按 storyRoute===child 触发。"
+  },
+  "fe-02": {
+    id: "fe-02",
+    badgeClass: "huihui",
+    phase: "Phase 1 · Wave 1 并行 B1",
+    title: "背负姿态 + 3×3 慢时线盘 + 第三段工台",
+    branch: "feature/fe-02-reload-carry-craft",
+    base: "origin/feature/fe-dual-route（M0 后）",
+    owner: "huihui (GPT) 主攻 · 我 (Gemini) 支援",
+    prompts: ["开工前端02", "开工换弹工台"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-02-reload-carry-craft -b feature/fe-02-reload-carry-craft --no-track origin/feature/fe-dual-route",
+    files: [
+      "Script/watch/fe/renderer/carry_pose.ts",
+      "Script/watch/fe/ui/reload_wheel.ts",
+      "Script/watch/fe/ui/craft_bench.ts",
+      "assets/audio/combat/*"
+    ],
+    tasks: [
+      "1. 牵手与背负（G06）：序章像素风，区分牵手平路 → 高石阶蹲下攀背 → 背负战斗（转身平滑贴齐单碰撞体）→ 工台放下/出站背起。",
+      "2. 3×3 慢时连线换弹（M01）：小满探手触盘入慢时，画内同见敌人与她的手；鼠键双输入同一意图入口，只连相邻点；直连=推退、经铃纹=回声、经灯纹=照明（纸面墨线+纹样轮廓，灰度可辨）；无效重画、超时普通、暂停同时冻结世界慢时与 4 秒路径。",
+      "3. 第三段安全工台（M02）：与序章军粮棚同尺度/同灯光，放下小满排开材料，呈「引路灯铳」与「回声铳」方案及连线预览；缺料高亮、取消留料、首次制成 1s 试握动画、读档幂等。"
+    ],
+    acceptance: [
+      "正常速度录屏（保留操作轨迹）：覆盖三有效路径、无效重画、超时普通、暂停续答、转身背负、工台缺料/取消/首次试握/读档。",
+      "产出「序章军粮棚 vs 第三段工台」同尺度画面对照图。",
+      "Dora 编译、check-repo.py、verify-d6 / verify-integration / verify-trial 全通过。"
+    ],
+    rev64: "64fc06f 明确：① 正式联调由后端 1/4 速推进模拟 + 常速 4s 作答，世界 60 拍 = 作答时钟 240 拍、暂停同停，随录屏交读数；② 工台确认只发一次请求，收到后端成功结果才更新持有物与试握，读档按库存快照恢复。"
+  },
+  "fe-03": {
+    id: "fe-03",
+    badgeClass: "gemini",
+    phase: "Phase 1 · Wave 1 并行 C1",
+    title: "共同序章 P01–P04 演出 + 明朝全局美术体检",
+    branch: "feature/fe-03-prologue-ming-art",
+    base: "origin/feature/fe-dual-route（M0 后）",
+    owner: "我 (Gemini) 主攻",
+    prompts: ["开工前端03", "开工序章美术"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-03-prologue-ming-art -b feature/fe-03-prologue-ming-art --no-track origin/feature/fe-dual-route",
+    files: [
+      "Script/watch/fe/cutscenes/prologue_intro.ts",
+      "Script/watch/fe/renderer/ming_audit.ts（按需）",
+      "assets/art/*（兼容既有 sprites.clip / ui_ink.clip 帧键名）"
+    ],
+    tasks: [
+      "1. P01（约 4s）：黑场闻父唤「小满」→ 第一人称睁眼床帐透光 → 父亲撑床沿手陷褥子 → 望见门缝 → 落稳孩子眼高交还移动。",
+      "2. P02（约 2s 接可玩）：墙上两人影被长影截断 → 瓷碗滚撞门槛 → 限时逃柜（仅屏边红晕 + 加速心跳）→ 入柜收尽红晕留柜外脚步；重试无红晕/心跳残留。",
+      "3. P04（约 1s 叠加）：兵房巷井庭望十字街，枪火照墙影 → 周戍侧肩挡光 → 照亮窗板下沿与石槽磨痕，不锁走动与镜头。",
+      "4. 明朝全局美术体检：核查 8 房与全角色（周戍、小满、明代鸟铳手、拾荒者、林犬、守塔人），清零现代/清代/仙侠残留；三张关键尺度图关 HUD + 静音 + 灰度可读。"
+    ],
+    acceptance: [
+      "P01–P02 / P04 可在序章触发或排演回放，重试无红晕/心跳残留。",
+      "Dora 编译、check-repo.py、verify-integration 全通过。"
+    ],
+    rev64: "本分支 64fc06f 无额外结构变更，沿用原明朝考据与既有帧键兼容要求。"
+  },
+  "m1": {
+    id: "M1",
+    badgeClass: "gate",
+    phase: "合流检查点 M1 · 11/26–27 首批交付节点（关键闸口）",
+    title: "Wave 1 合流 + 插件接线 + 交付首批样片",
+    branch: "feature/fe-dual-route ← fe-01 + fe-02 + fe-03",
+    base: "在 feature/fe-dual-route 工作区执行",
+    owner: "任一方执行",
+    prompts: ["执行前端合流 M1"],
+    cmd: "cd ~/dev/.wt/2026gamejam/fe-dual-route\ngit merge --no-ff feature/fe-01-gate-cuff-lowpoly\ngit merge --no-ff feature/fe-02-reload-carry-craft\ngit merge --no-ff feature/fe-03-prologue-ming-art\n# 在 Script/watch/fe/frontend.ts 注册 Wave 1 插件后构建复检\nDora cli build -p . --lang ts\npython3 tools/check-repo.py\ngit push -u origin feature/fe-dual-route",
+    files: ["Script/watch/fe/frontend.ts（仅几行插件注册接线）", "沉淀 renderer/lowpoly.ts 供 Wave 2 复用"],
+    tasks: [
+      "依次合入 fe-01、fe-02、fe-03 并在 frontend.ts 完成注册接线。",
+      "全量 Dora 编译、check-repo.py、verify-d6 / verify-integration / verify-trial 复跑。",
+      "导出首批交付证据同步 Issue #8：风台 5 帧 + 栈台侧移画面 + 双版带声样片 + 袖口三镜 + 换弹三路径/超时/暂停录屏 + 军粮棚/工台对照图。",
+      "推送 origin/feature/fe-dual-route，正式解锁 Wave 2 三路并行！"
+    ],
+    acceptance: [
+      "lowpoly.ts 已合入总分支且实测无坐标偏差，fe-04 可直接切出复用。"
+    ],
+    rev64: "所有排演样片务必明确标注「排演」，正式联调未就绪字段列入待接清册。"
+  },
+  "fe-04": {
+    id: "fe-04",
+    badgeClass: "gemini",
+    phase: "Phase 2 · Wave 2 并行 A2（关键路径 · 必须 M1 后）",
+    title: "小满单人线《小小梦魇》风低模四房",
+    branch: "feature/fe-04-child-lowpoly",
+    base: "origin/feature/fe-dual-route（必须 M1 后，复用 lowpoly.ts）",
+    owner: "我 (Gemini) 主攻 · huihui (GPT) 支援",
+    prompts: ["开工前端04", "开工小满低模"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-04-child-lowpoly -b feature/fe-04-child-lowpoly --no-track origin/feature/fe-dual-route",
+    files: [
+      "Script/watch/fe/scenes/lowpoly_world.ts",
+      "Script/watch/fe/scenes/village_undertable.ts",
+      "Script/watch/fe/scenes/forest_creek.ts",
+      "assets/audio/child/*"
+    ],
+    tasks: [
+      "1. 统一视觉基准（visualMode===lowpoly）：《小小梦魇》第一作尺度 + 明初宁村所卫城；建筑与巨型日常物为立体低模，小满/拾荒者/林犬保持 2D + 脚底接触影，严丝合缝 rooms.ts 碰撞与投瓶落点。",
+      "2. 城外栈台 outside（F01 上）：灰砖低拱石阶，红布检修车旧红布固定在左端绝不翻面；首次握车柄 0.5s 叠家人缝布回忆且拉车输入不断档。",
+      "3. 空村桌下 village（F01 下 · 重点验收）：厚重木桌压顶+前景桌腿遮半门；暗处一眼辨清拾荒者鞋底朝向、暗渠入口、硬砖（干脆单响+停顿转向）与铁盆（盆沿颤动+余振跟转）双落点。",
+      "4. 密林溪湾 forest（F02）：枯枝微顿侧耳、草丛犬耳与肩线剪影、树根窄洞/旧渠自然光形引导；溪湾先见水面涟漪揉碎塔灯，上岸枝叶让开才露真塔灯。"
+    ],
+    acceptance: [
+      "空村桌下实机截图（暗处鞋底、暗渠入口、砖/铁盆双落点清晰，灰度可辨）。",
+      "空村桌下双材质投瓶完整录屏（含玩家操作轨迹）。",
+      "Dora 编译、check-repo.py、verify-integration 全通过。"
+    ],
+    rev64: "复用 M1 通过几何投影验收的 lowpoly.ts，保持 2D 落点偏差 <= 1 美术像素。"
+  },
+  "fe-05": {
+    id: "fe-05",
+    badgeClass: "joint",
+    phase: "Phase 2 · Wave 2 并行 B2",
+    title: "北塔双结局同机位配对演出（F03 / M03）",
+    branch: "feature/fe-05-dual-endings",
+    base: "origin/feature/fe-dual-route（M1 后）",
+    owner: "灵活认领（推荐 huihui/GPT 搭拍点与状态框架 + 我/Gemini 精修画面气氛）",
+    prompts: ["开工前端05", "开工北塔双结局"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-05-dual-endings -b feature/fe-05-dual-endings --no-track origin/feature/fe-dual-route",
+    files: [
+      "Script/watch/fe/cutscenes/tower_endings.ts（挂 drawCutsceneOverlay，不动原 narrative.ts）",
+      "assets/audio/tower/*"
+    ],
+    tasks: [
+      "1. 共用 8s 同机位前段（对齐 tower-knock / tower-given）：门外轻叩两下（当拍+第12拍）→ 门内隔一息回叩两声 → 守卒推门提灯照见手与针套 → 摊开宋明冷素宣纸收籍簿。",
+      "2. 女主单人线 F03（低模 + 西窗暖灯）：写下第一行「小满」、笔尖悬第二行留白；台词「朝西那盏灯，能留着吗？」→ 灯端去西窗，留白行绝不盖完成章；收尾簿页空行 + 碗沿同框。",
+      "3. 男主同行线 M03（序章像素风 + 团圆暖室）：牵小满跨门槛，同一悬停笔尖切入，周戍亲口报姓名写满第二行；小满解下针套轻放桌上、双手端碗；满行簿页 + 碗沿同框。",
+      "4. 防误触与重试边界：读完定格前消化旧按键；室内重试不重关塔门、不重复追加登记行。"
+    ],
+    acceptance: [
+      "两版北塔结局同机位并排对比截图（西窗亮处清晰读出空行 vs 满行周戍姓名与双手端碗）。",
+      "并排录屏核对两版敲门节奏、执笔手势与第二行归属严密对齐。",
+      "Dora 编译、check-repo.py、verify-d6、verify-integration 全通过。"
+    ],
+    rev64: "通过 drawCutsceneOverlay 接管尾声，确保不动原 narrative.ts 零冲突。"
+  },
+  "fe-06": {
+    id: "fe-06",
+    badgeClass: "huihui",
+    phase: "Phase 2 · Wave 2 并行 C2",
+    title: "双通关水井与现代抗日主题博物馆（E01–E02）",
+    branch: "feature/fe-06-well-museum",
+    base: "origin/feature/fe-dual-route（M1 后）",
+    owner: "huihui (GPT) 主攻 · 我 (Gemini) 支援",
+    prompts: ["开工前端06", "开工井底博物馆"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-06-well-museum -b feature/fe-06-well-museum --no-track origin/feature/fe-dual-route",
+    files: [
+      "Script/watch/fe/scenes/well_museum.ts",
+      "Script/watch/fe/renderer/afterimage_artifact.ts",
+      "assets/audio/museum/*"
+    ],
+    tasks: [
+      "1. 双通关门控：仅当 archive.childCleared && archive.soldierCleared 为真，且在序章周戍进屋寻小满、尚未触发靠柜特写时开放后院深井；单通关/新档完全不出现；零浮签，仅靠滴水声与水光引导。",
+      "2. 井底反光匹配剪辑（E01）：井水映白灯与指南针玻璃叠合；拾取「时间穿梭器」以同一屏幕坐标反光点匹配剪辑切入现代展柜玻璃。",
+      "3. 现代抗日主题博物馆（E02）：虚构庄重展厅、入口字幕、周戍自由步行收武器闻童声脚步、末厅亲手转西窗灯映出井庭，留台词「小满，外头天亮了。」；第一叩在展厅、第二叩落厨柜板，无缝接回补线袖口；支持 museumPhase 中途续读且离馆不重复发奖。",
+      "4. 穿梭器残影（afterimage_artifact.ts）：artifactOwned===true 且重玩男主线装备时呈现冷白/微金移动残影，不干扰判定视线。"
+    ],
+    acceptance: [
+      "演示并录屏三态：① 单通关/新档未开放；② 双通关完整流程；③ 馆内中途退出续读恢复。",
+      "记录中途续读位置与两次进井后的神器数量（验证幂等不重复发奖）。",
+      "Dora 编译、check-repo.py、verify-integration 全通过。"
+    ],
+    rev64: "64fc06f 明确：正式解锁必须取同一档案的两个正式结局完成记录；章节直达、排演结局和重置排演均须保持正式档案不变！"
+  },
+  "m2": {
+    id: "M2",
+    badgeClass: "gate",
+    phase: "合流检查点 M2 · 全功能贯通节点（关键闸口）",
+    title: "Wave 2 合流 + 插件接线 → 解锁最终收口",
+    branch: "feature/fe-dual-route ← fe-04 + fe-05 + fe-06",
+    base: "在 feature/fe-dual-route 工作区执行",
+    owner: "任一方执行",
+    prompts: ["执行前端合流 M2"],
+    cmd: "cd ~/dev/.wt/2026gamejam/fe-dual-route\ngit merge --no-ff feature/fe-04-child-lowpoly\ngit merge --no-ff feature/fe-05-dual-endings\ngit merge --no-ff feature/fe-06-well-museum\n# 在 Script/watch/fe/frontend.ts 注册 Wave 2 插件后构建复检\nDora cli build -p . --lang ts\npython3 tools/check-repo.py\ngit push -u origin feature/fe-dual-route",
+    files: ["Script/watch/fe/frontend.ts（注册 Wave 2 新增插件）"],
+    tasks: [
+      "依次合并 fe-04、fe-05、fe-06 并完成 frontend.ts 注册接线。",
+      "全量执行 Dora TS→Lua 编译、check-repo.py 与 verify-d6 / verify-integration / verify-trial。",
+      "推送 origin/feature/fe-dual-route → M2 达成，进入最终串行收口分支 fe-07。"
+    ],
+    acceptance: [
+      "全部双线与彩蛋前端模块已在总分支完整贯通、零回归。"
+    ],
+    rev64: "进入 fe-07 前确认所有 6 条业务分支的正式/排演边界均按 64fc06f 验收完毕。"
+  },
+  "fe-07": {
+    id: "fe-07",
+    badgeClass: "joint",
+    phase: "Phase 3 · 串行收口 → 最终冻结（关键路径 · 必须 M2 后）",
+    title: "全量验收、字库/混音体检、盲测、Windows 离线包与 Issue #8 交付",
+    branch: "feature/fe-07-qa-audio-pack → 合并回 feature/fe-dual-route",
+    base: "origin/feature/fe-dual-route（必须 M2 后）",
+    owner: "两人共同收口（huihui：回归/打包/边界/对接表 · 我：视觉灰度/混音/字库/盲测调优）",
+    prompts: ["开工前端收口阶段", "开工 fe-07"],
+    cmd: "git fetch origin --prune\ngit worktree add ~/dev/.wt/2026gamejam/fe-07-qa-audio-pack -b feature/fe-07-qa-audio-pack --no-track origin/feature/fe-dual-route\n# 最终冻结\ngit push -u origin feature/fe-07-qa-audio-pack\ncd ~/dev/.wt/2026gamejam/fe-dual-route\ngit merge --no-ff feature/fe-07-qa-audio-pack\npython3 tools/check-repo.py\ngit push -u origin feature/fe-dual-route",
+    files: [
+      "全局 QA 微调（Script/watch/fe/** & assets/**）",
+      "tools/make-windows-pack.sh（打包新增音频/贴图目录）",
+      "docs/ 最终交付记录 & GitHub Issue #8 回复报告"
+    ],
+    tasks: [
+      "1. 零侵入 & 8 项回归：核查 git diff --name-only origin/feature/watch-level-rework...HEAD 为 0 后端改动；跑通 verify-d6/d7/d8/d9、verify-integration、verify-trial、replay-gate、replay-d5。",
+      "2. 字库 & 混音：扫描全部中文文案对照 lxgw-neo-zhisong.ttf 与 longcang-brush.ttf 确保 0 缺字；平衡 18/19/20 声、砖/铁盆回声与博物馆→厨柜两声叩响。",
+      "3. 静音灰度 & 边界恢复：复审全关键帧静音灰度与明朝红线；实测风台暂停、重逢 0.3s 松手重试、慢时暂停、工台/博物馆/切房读档零残留。",
+      "4. 3 人低引导盲测 + 双线计时：默认设置测风台出口、空村桌下、首次 3×3 换弹（2 人同处误读先调构图/动作/声音再复测）；双线各 ≥3 位首玩者计中位 85–95 分钟（差 ≤5 分钟）。",
+      "5. Windows x64 离线包：更新 make-windows-pack.sh，720p/1080p/1440p + 非 16:9 冷启动实测（落点偏差 <= 1 美术像素）；在 Issue #8 提交完整报告与 8 字段对接总表，通知 tqym 合并。"
+    ],
+    acceptance: [
+      "origin/feature/fe-dual-route 最终冻结并推送，GitHub Issue #8 回复包含分支提交号、实测环境、样片/实机索引（标明拍号）与完整 contract.ts 8 字段对接表。"
+    ],
+    rev64: "64fc06f 终验追加：① 用 git diff --name-only origin/feature/watch-level-rework...HEAD 核对零侵入；② 正式玩法测 79/100 与 80/100 过门血量、1439 拍预按释放、男主重按 35/36 有效拍；③ 对接总表须标注输入意图消费方、后端确认事件及录屏属正式还是排演；④ 记录双线 85–95 分钟真人首通时长。"
+  }
+};
+
+const STORAGE_KEY = "xiangxi_fe_workflow_progress_v1";
+const CHECKABLE_IDS = ["fe-00", "m0", "fe-01", "fe-02", "fe-03", "m1", "fe-04", "fe-05", "fe-06", "m2", "fe-07"];
+
+let selectedId = "fe-00";
+let currentFilter = "all";
+let progressState = {};
+
+try {
+  progressState = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
+} catch (_) {
+  progressState = {};
+}
+
+function saveProgress() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(progressState)); } catch (_) {}
+}
+
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+async function copyText(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(`已复制${label || ""}`);
+  } catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    showToast(`已复制${label || ""}`);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderInspector(id) {
+  const data = NODES[id];
+  if (!data) return;
+  selectedId = id;
+
+  document.querySelectorAll(".node").forEach(n => {
+    n.classList.toggle("selected", n.dataset.id === id);
+  });
+
+  const promptsHtml = data.prompts && data.prompts.length
+    ? `<div class="inspector-block">
+         <h4>一键开工口令（点击复制，发给新对话 AI）</h4>
+         <div class="prompt-chip-row">
+           ${data.prompts.map(p => `<button class="prompt-chip" data-copy="${escapeHtml(p)}" data-label="口令「${escapeHtml(p)}」">📋 ${escapeHtml(p)}</button>`).join("")}
+         </div>
+       </div>`
+    : "";
+
+  const html = `
+    <div class="inspector-header">
+      <div class="inspector-kicker">
+        <span class="badge ${data.badgeClass}">${escapeHtml(data.id)}</span>
+        <span class="badge">${escapeHtml(data.phase)}</span>
+      </div>
+      <h3 class="inspector-title">${escapeHtml(data.title)}</h3>
+      <div class="inspector-branch">分支：${escapeHtml(data.branch)}</div>
+      <div class="inspector-branch" style="margin-top:2px;">基线：${escapeHtml(data.base)}</div>
+      <div class="inspector-branch" style="margin-top:2px;color:var(--ink-2);font-family:var(--font-sans);font-weight:600;">分工：${escapeHtml(data.owner)}</div>
+    </div>
+
+    ${promptsHtml}
+
+    <div class="inspector-block">
+      <h4>Git 执行命令</h4>
+      <div class="cmd-box">${escapeHtml(data.cmd)}<button class="copy-btn" data-copy="${escapeHtml(data.cmd)}" data-label=" Git 命令">复制</button></div>
+    </div>
+
+    <div class="inspector-block">
+      <h4>独占文件 / 影响范围</h4>
+      <div class="file-chips">
+        ${data.files.map(f => `<span class="file-chip">${escapeHtml(f)}</span>`).join("")}
+      </div>
+    </div>
+
+    <div class="inspector-block">
+      <h4>核心施工任务</h4>
+      <ul class="detail-list">
+        ${data.tasks.map(t => `<li>${escapeHtml(t)}</li>`).join("")}
+      </ul>
+    </div>
+
+    <div class="inspector-block">
+      <h4>验收与回归清单</h4>
+      <ul class="detail-list">
+        ${data.acceptance.map(a => `<li>${escapeHtml(a)}</li>`).join("")}
+      </ul>
+    </div>
+
+    <div class="inspector-block" style="margin-bottom:0;">
+      <h4>⚡ 64fc06f 联调口径与注意事项</h4>
+      <div class="rev-box">${escapeHtml(data.rev64)}</div>
+    </div>
+  `;
+
+  const panel = document.getElementById("inspector");
+  panel.innerHTML = html;
+
+  panel.querySelectorAll("[data-copy]").forEach(btn => {
+    btn.addEventListener("click", () => copyText(btn.dataset.copy, btn.dataset.label));
+  });
+}
+
+function applyFilter(filter) {
+  currentFilter = filter;
+  document.querySelectorAll("#filterBar .pill").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.filter === filter);
+  });
+
+  document.querySelectorAll(".node").forEach(node => {
+    const owner = node.dataset.owner;
+    const isCritical = node.dataset.critical === "true";
+    let match = true;
+    if (filter === "gemini") match = owner === "gemini" || owner === "joint" || owner === "gate" || owner === "trunk";
+    else if (filter === "huihui") match = owner === "huihui" || owner === "joint" || owner === "gate" || owner === "trunk";
+    else if (filter === "critical") match = isCritical || owner === "trunk" || owner === "tqym";
+    else if (filter === "gate") match = owner === "gate" || owner === "trunk";
+    node.classList.toggle("dimmed", !match);
+  });
+
+  document.querySelectorAll("#ownershipTable tbody tr").forEach(row => {
+    const owner = row.dataset.owner;
+    const isCritical = row.dataset.critical === "true";
+    let match = true;
+    if (filter === "gemini") match = owner === "gemini" || owner === "joint";
+    else if (filter === "huihui") match = owner === "huihui" || owner === "joint";
+    else if (filter === "critical") match = isCritical;
+    else if (filter === "gate") match = true;
+    row.classList.toggle("row-dimmed", !match);
+  });
+}
+
+function syncProgressUI() {
+  let doneCount = 0;
+  CHECKABLE_IDS.forEach(id => {
+    const checked = !!progressState[id];
+    if (checked) doneCount++;
+    const cb = document.querySelector(`input[data-check="${id}"]`);
+    if (cb) cb.checked = checked;
+    const node = document.querySelector(`.node[data-id="${id}"]`);
+    if (node) node.classList.toggle("done-item", checked);
+  });
+  const pct = Math.round((doneCount / CHECKABLE_IDS.length) * 100);
+  document.getElementById("progressFill").style.width = `${pct}%`;
+  document.getElementById("progressText").textContent = `${doneCount} / ${CHECKABLE_IDS.length}`;
+}
+
+// Event bindings
+document.querySelectorAll(".node").forEach(node => {
+  node.addEventListener("click", () => renderInspector(node.dataset.id));
+});
+
+document.querySelectorAll("#filterBar .pill").forEach(btn => {
+  btn.addEventListener("click", () => applyFilter(btn.dataset.filter));
+});
+
+document.querySelectorAll("input[data-check]").forEach(cb => {
+  cb.addEventListener("change", () => {
+    progressState[cb.dataset.check] = cb.checked;
+    saveProgress();
+    syncProgressUI();
+  });
+});
+
+document.getElementById("resetProgress").addEventListener("click", () => {
+  progressState = {};
+  saveProgress();
+  syncProgressUI();
+  showToast("已重置本地进度勾选");
+});
+
+const diffModal = document.getElementById("diffModal");
+document.getElementById("openDiffModal").addEventListener("click", () => diffModal.classList.add("open"));
+document.getElementById("closeDiffModal").addEventListener("click", () => diffModal.classList.remove("open"));
+diffModal.addEventListener("click", (e) => { if (e.target === diffModal) diffModal.classList.remove("open"); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") diffModal.classList.remove("open"); });
+
+// Initial render
+renderInspector("fe-00");
+syncProgressUI();
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@ export type AssetSlotKey =
     | "ink_knot_ornament" | "ink_corner_fine" | "ink_seal_slender" | "ink_blossom_dot"
     | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper";
 
-interface AssetSlotConfig {
+export interface AssetSlotConfig {
     paths: string[];
     anchorY: number;
     preserveAspect: boolean;
@@ -32,6 +32,12 @@ export interface SpritePlacement {
     frame?: number;
     angle?: number;
     layer?: number;
+}
+
+export interface PathPlacementOptions extends SpritePlacement {
+    anchorY?: number;
+    preserveAspect?: boolean;
+    smooth?: boolean;
 }
 
 function backdrop(name: string): AssetSlotConfig {
@@ -127,12 +133,43 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
 
 const WHITE = Color(255, 255, 255, 255);
 
+/**
+ * 并行分支动态注册资源槽（与静态 ASSET_SLOTS 隔离，不破坏 verify-integration 全量槽位断言）。
+ * 挂在 package.loaded 共享表上，避免不同 Dora 编译版本以 "Script.watch.*" 与 "watch.*" 双路径加载时产生双份表。
+ */
+function sharedDynamicSlots(): Record<string, AssetSlotConfig> {
+    const g = globalThis as unknown as { package?: { loaded?: Record<string, unknown> } };
+    const loaded = g.package !== undefined ? g.package.loaded : undefined;
+    if (loaded !== undefined) {
+        const existing = loaded["watch.fe.dynamic_slots"];
+        if (existing !== undefined && typeof existing === "object") {
+            return existing as Record<string, AssetSlotConfig>;
+        }
+        const created: Record<string, AssetSlotConfig> = {};
+        loaded["watch.fe.dynamic_slots"] = created;
+        return created;
+    }
+    return FALLBACK_DYNAMIC_SLOTS;
+}
+
+const FALLBACK_DYNAMIC_SLOTS: Record<string, AssetSlotConfig> = {};
+
+/** 全局动态注册贴图/图集槽位，供 Wave 1/2 插件零冲突挂载新资源 */
+export function registerDynamicSlot(key: string, cfg: AssetSlotConfig): void {
+    sharedDynamicSlots()[key] = cfg;
+}
+
+export function unregisterDynamicSlot(key: string): void {
+    delete sharedDynamicSlots()[key];
+}
+
 export class AssetSlotHost {
     private container: Node.Type;
     private sprites: Record<string, Sprite.Type> = {};
     private unavailable: Record<string, boolean> = {};
     private visibleLastFrame: Record<string, Sprite.Type> = {};
     private visibleThisFrame: Record<string, Sprite.Type> = {};
+    private localSlots: Record<string, AssetSlotConfig> = {};
 
     constructor(parent: Node.Type, order: number) {
         this.container = Node();
@@ -140,22 +177,64 @@ export class AssetSlotHost {
         this.container.addTo(parent);
     }
 
+    /** 在当前宿主实例上注册动态资源槽（也可使用顶层 registerDynamicSlot 全局注册） */
+    registerDynamicSlot(key: string, cfg: AssetSlotConfig): void {
+        this.localSlots[key] = cfg;
+    }
+
     beginFrame(): void {
         this.visibleThisFrame = {};
     }
 
     tryPlace(
-        slotKey: AssetSlotKey,
+        slotKey: AssetSlotKey | string,
         instanceKey: string,
         x: number, y: number, targetW: number, targetH: number,
         options: SpritePlacement = {},
     ): boolean {
-        const cfg = ASSET_SLOTS[slotKey];
-        if (cfg === undefined || targetW <= 0 || targetH <= 0) {
+        const staticSlots = ASSET_SLOTS as Record<string, AssetSlotConfig | undefined>;
+        const cfg = staticSlots[slotKey] ?? this.localSlots[slotKey] ?? sharedDynamicSlots()[slotKey];
+        if (cfg === undefined || cfg.paths.length === 0 || targetW <= 0 || targetH <= 0) {
             return false;
         }
-        const frame = (options.frame ?? 0) % cfg.paths.length;
+        const frame = Math.abs(Math.floor(options.frame ?? 0)) % cfg.paths.length;
         const path = cfg.paths[frame];
+        return this.placeResolvedPath(path, cfg.anchorY, cfg.preserveAspect, cfg.smooth === true, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    /** 按具体资源路径或 clip 帧路径直接放置精灵，缺失时静默返回 false */
+    tryPlacePath(
+        path: string,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        options: PathPlacementOptions = {},
+    ): boolean {
+        if (path === "" || targetW <= 0 || targetH <= 0) {
+            return false;
+        }
+        return this.placeResolvedPath(
+            path,
+            options.anchorY ?? 0.5,
+            options.preserveAspect ?? false,
+            options.smooth === true,
+            instanceKey,
+            x,
+            y,
+            targetW,
+            targetH,
+            options,
+        );
+    }
+
+    private placeResolvedPath(
+        path: string,
+        anchorY: number,
+        preserveAspect: boolean,
+        smooth: boolean,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        options: SpritePlacement,
+    ): boolean {
         const key = instanceKey + ":" + path;
         let sprite = this.sprites[key];
         if (sprite === undefined) {
@@ -169,15 +248,15 @@ export class AssetSlotHost {
                 this.unavailable[path] = true;
                 return false;
             }
-            loaded.anchor = Vec2(0.5, cfg.anchorY);
-            loaded.filter = cfg.smooth ? TextureFilter.Anisotropic : TextureFilter.Point;
+            loaded.anchor = Vec2(0.5, anchorY);
+            loaded.filter = smooth ? TextureFilter.Anisotropic : TextureFilter.Point;
             loaded.addTo(this.container);
             this.sprites[key] = loaded;
             sprite = loaded;
         }
 
         const scaleY = targetH / Math.max(1, sprite.height);
-        const scaleX = cfg.preserveAspect ? scaleY : targetW / Math.max(1, sprite.width);
+        const scaleX = preserveAspect ? scaleY : targetW / Math.max(1, sprite.width);
         sprite.position = Vec2(Math.round(x), Math.round(y));
         sprite.scaleX = (options.facing ?? 1) < 0 ? -scaleX : scaleX;
         sprite.scaleY = options.flipY ? -scaleY : scaleY;
