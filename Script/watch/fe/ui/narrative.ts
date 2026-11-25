@@ -2,12 +2,12 @@
  * 《向西守望》宋明清雅水墨叙事与高光演出层（V2 · 《饿殍》风流婉转之美）：
  * - 底部柔边烟黛字幕幕 + 上沿霜月游丝与海棠菱花微结（霞鹜新致宋清雅排印，零红方印干扰）；
  * - 切场烟岚流云章名横幅（龙藏体瘦逸行书 + 菱花点隔开）；
- * - 演出 1：城门「数到一百」—— 龙藏体中文大写数字（零、壹……玖拾玖、壹佰）渗墨浮现；
+ * - 演出 1：城门「数到二十」—— 龙藏体中文大写数字（壹、贰……拾玖、贰拾）渗墨浮现；
  * - 演出 2：北塔尾声「登记簿末页」—— 640×440 高清宋明冷素宣纸页 + 明版朱丝栏 + 新致宋焦墨字 + 文人孤印「守望」。
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { Play } from "Script/watch/play";
+import { GATE_COUNT_END, gateCountAtTick, Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import {
@@ -81,9 +81,9 @@ export class NarrativeRenderer {
             uiInkDraw.drawSegment(Vec2(0, barH), Vec2(w, barH), 0.7, toColor(PALETTE.silkDim, 70 * this.letterbox));
         }
 
-        // 2. 城门「数到一百」清雅水墨暗角与龙藏体中文大写计数
+        // 2. 城门「数到二十」清雅水墨暗角与龙藏体中文大写计数
         if (p.room.key === "gate" && p.phase === "gate-count") {
-            this.drawGateCountOverlay(uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h);
+            this.drawGateCountOverlay(uiDraw, uiInkDraw, art, texts, p, w, h);
         }
 
         // 3. 北塔尾声「登记簿末页」高清冷素宣纸页
@@ -182,10 +182,10 @@ export class NarrativeRenderer {
         }
 
         if (key === "gate" && p.phase === "gate-count") {
-            if (p.countTick >= 1440) {
+            if (p.countTick >= GATE_COUNT_END) {
                 return {
                     cue: "",
-                    text: p.countPrevMove > 0 ? "先松开方向键，再按下 [D] —— 由她迈出第一步" : "数到一百了，没有人来。按下 [D]，继续向北走",
+                    text: "……二十了。我往北去了。",
                     urgent: false,
                 };
             }
@@ -316,15 +316,14 @@ export class NarrativeRenderer {
     private drawGateCountOverlay(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
-        uiGlow: DrawNode.Type,
         art: AssetSlotHost,
         texts: TextPool,
         p: Play,
         w: number,
         h: number,
     ): void {
-        const frac = Math.min(1, p.countTick / 1440);
-        const countNum = Math.min(100, Math.floor(frac * 100));
+        const frac = Math.min(1, p.countTick / GATE_COUNT_END);
+        const countNum = gateCountAtTick(p.countTick);
         uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 15, Math.round(78 + frac * 116)));
 
         const cy = h * 0.56;
@@ -336,17 +335,9 @@ export class NarrativeRenderer {
         const numZh = toChineseUpper(countNum);
         texts.put("title", numZh, w * 0.5, cy + 8, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 12, 0.42 + frac * 0.56, 0.10);
         drawHairline(uiInkDraw, art, "gate_count_div", w * 0.5, cy - 34, 240, PALETTE.silkDim, 0.62, true, 2);
-        texts.put("sm", "城外静候 · 默数至百", w * 0.5, cy - 58, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 3.4, 0.84, 0.08);
+        texts.put("sm", "城外静候 · 默数至二十", w * 0.5, cy - 58, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 3.4, 0.84, 0.08);
 
-        if (p.countTick >= 1440) {
-            const pulse = 0.72 + 0.28 * Math.sin(this.time * 3.4);
-            const py = cy - 114;
-            fillRadialGlow(uiGlow, w * 0.5, py, 120, 22, toColor(PALETTE.amber, 30 * pulse), Color(214, 186, 146, 0), 14);
-            drawSilkRibbon(uiDraw, art, "gate_go_rib", w * 0.5, py, 300, 38, PALETTE.rougeSoft, 0.46 * pulse, 1);
-            drawHairline(uiInkDraw, art, "gate_go_line", w * 0.5, py - 16, 210, PALETTE.silkLine, 0.48 * pulse, false, 2);
-            const prompt = p.countPrevMove > 0 ? "先松开方向键，再按 [D]" : "按 [D] · 独自向北";
-            texts.put("sm", prompt, w * 0.5, py, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 2.2, 1, 0.08);
-        }
+
     }
 
     /**
