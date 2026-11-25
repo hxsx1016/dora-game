@@ -247,9 +247,10 @@ check("失败重开回本段起点", p8.player.x <= p8.room.minX + 100, "x=" .. 
 check("失败清空装填盘", p8.reloadOpen == false, "open=" .. tostring(p8.reloadOpen))
 
 say("== 7. 北塔：男主团圆 ==")
-local rt = runmod.createRun(20261125)
+local rt = runmod.createRun(20261125, "official")
 rt.story.route = "soldier"
 rt.story.settled = true
+rt.story.segments["escort5"] = true
 rt.story.hp, rt.story.maxHp = 3, 3
 local pt = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, rt)
 check("塔里控周戍", pt.childMode == false, "childMode=" .. tostring(pt.childMode))
@@ -266,8 +267,11 @@ check("开塔门", pt.phase == "tower-given", "phase=" .. pt.phase)
 step(pt, it, 180)
 check("男主线结局团圆", pt.phase == "tower-end" and pt.run.story.ending == "reunion",
 	"phase=" .. pt.phase .. " ending=" .. pt.run.story.ending)
-check("男主线记通关", pt.run.archive.soldierCleared == true and pt.run.archive.childCleared == false,
+check("男主线正式记通关", pt.run.archive.soldierCleared == true and pt.run.archive.childCleared == false,
 	"soldier=" .. tostring(pt.run.archive.soldierCleared) .. " child=" .. tostring(pt.run.archive.childCleared))
+check("男主线单通不发神器", pt.run.archive.artifactOwned == false, "artifact=" .. tostring(pt.run.archive.artifactOwned))
+check("男主线登记簿两行", pt.endingLines[1] == "小满" and pt.endingLines[2] == "周戍",
+	"lines=" .. tostring(pt.endingLines[1]) .. "/" .. tostring(pt.endingLines[2]))
 check("落幕事件只一次", #pt.events >= 1 and pt.run.finished == true, "finished=" .. tostring(pt.run.finished))
 local endEvents = 0
 for _, ev in ipairs(pt.events) do if ev.name == "endingReached" then endEvents = endEvents + 1 end end
@@ -277,9 +281,10 @@ check("片尾 E 再玩回序章", pt.wantRoom == "prologue", "wantRoom=" .. pt.w
 check("再玩不改结局", pt.run.story.ending == "reunion", "ending=" .. pt.run.story.ending)
 
 say("== 8. 北塔：女主留灯 ==")
-local rc2 = runmod.createRun(20261125)
+local rc2 = runmod.createRun(20261125, "official")
 rc2.story.route = "child"
 rc2.story.settled = true
+rc2.story.countTick = 1440
 rc2.story.hp, rc2.story.maxHp = 2, 3
 local pc = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, rc2)
 check("女主线塔里控小满", pc.childMode == true, "childMode=" .. tostring(pc.childMode))
@@ -290,27 +295,54 @@ step(pc, it, 42)
 check("女主线开塔门", pc.phase == "tower-given", "phase=" .. pc.phase)
 step(pc, it, 180)
 check("女主线结局留灯", pc.run.story.ending == "lamp", "ending=" .. pc.run.story.ending)
-check("女主线记通关", pc.run.archive.childCleared == true and pc.run.archive.soldierCleared == false,
+check("女主线正式记通关", pc.run.archive.childCleared == true and pc.run.archive.soldierCleared == false,
 	"child=" .. tostring(pc.run.archive.childCleared))
+check("女主线单通不发神器", pc.run.archive.artifactOwned == false, "artifact=" .. tostring(pc.run.archive.artifactOwned))
+check("女主线第二行留白", pc.endingLines[1] == "小满" and pc.endingLines[2] == "",
+	"lines=" .. tostring(pc.endingLines[1]) .. "/" .. tostring(pc.endingLines[2]))
 local lampEvents = 0
 for _, ev in ipairs(pc.events) do if ev.name == "endingReached" then lampEvents = lampEvents + 1 end end
 check("留灯落幕一次", lampEvents == 1, "count=" .. lampEvents)
 
 say("== 9. 章节直达与试炼隔离 ==")
-local rj = runmod.createRun(20261125)
+local rj = runmod.createRun(20261125, "chapter")
 local pj = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, rj)
 check("章节直达默认儿童路线", pj.childMode == true and pj.storyRoute == "", "route=" .. pj.storyRoute)
 pj.player.x = pj.ox + 445
 tap(it, "interact"); step(pj, it)
 step(pj, it, 42)
 step(pj, it, 180)
-check("章节直达也能落幕", pj.run.story.ending == "lamp", "ending=" .. pj.run.story.ending)
+check("章节直达也能预览落幕", pj.run.story.ending == "lamp", "ending=" .. pj.run.story.ending)
+check("章节直达不记正式通关", pj.run.archive.childCleared == false and pj.run.archive.soldierCleared == false,
+	"child=" .. tostring(pj.run.archive.childCleared))
+local pjEvents = 0
+local pjOfficial = true
+for _, ev in ipairs(pj.events) do
+	if ev.name == "endingReached" then
+		pjEvents = pjEvents + 1
+		pjOfficial = ev.data.official == true
+	end
+end
+check("章节直达落幕事件标非正式", pjEvents == 1 and pjOfficial == false, "count=" .. pjEvents .. " official=" .. tostring(pjOfficial))
 local trialRun = runmod.createTrial(67543212)
 local ptrl = lualib.__TS__New(play.Play, rooms.S1_CROSSROAD, nil, trialRun)
 check("试炼不走正式结局字段", ptrl.run.story.ending == "", "ending=" .. ptrl.run.story.ending)
 check("试炼有种子", ptrl.run.seed == 67543212, "seed=" .. tostring(ptrl.run.seed))
 check("试炼开局三选一", ptrl.run.trial ~= nil and #ptrl.run.trial.offers == 3,
 	"offers=" .. tostring(ptrl.run.trial and #ptrl.run.trial.offers))
+
+local ra = runmod.createRun(20261125, "official")
+ra.story.route = "soldier"
+ra.story.settled = true
+ra.story.segments["escort5"] = true
+ra.archive.artifactOwned = true
+local pa = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, ra)
+pa.player.x = pa.ox + 445
+tap(it, "interact"); step(pa, it)
+step(pa, it, 42)
+step(pa, it, 180)
+check("已有真实神器保持 true", pa.run.archive.artifactOwned == true, "artifact=" .. tostring(pa.run.archive.artifactOwned))
+check("已有档案仍记通关", pa.run.archive.soldierCleared == true, "soldier=" .. tostring(pa.run.archive.soldierCleared))
 
 say("== 10. 同种子同输入复现 ==")
 local function runSame(seed)

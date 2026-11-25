@@ -40,41 +40,45 @@ function ____exports.createStory(hp, maxHp) -- 117
 		segments = {} -- 137
 	} -- 137
 end -- 117
-function ____exports.createRun(seed) -- 206
-	if seed == nil then -- 206
-		seed = 20261124 -- 206
-	end -- 206
-	return { -- 207
-		seed = seed, -- 208
-		ticks = 0, -- 209
-		roomTicks = {}, -- 210
-		roomEnterTick = 0, -- 211
-		route = "", -- 212
-		inventory = { -- 213
-			shield = 0, -- 213
-			wedge = 0, -- 213
-			ammo = 0, -- 213
-			pass = 0, -- 213
-			quickbelt = 0, -- 213
-			scrap = 0, -- 213
-			wood = 0, -- 213
-			bell = 0 -- 213
-		}, -- 213
-		props = {}, -- 214
-		taken = {}, -- 215
-		joined = false, -- 216
-		c1Latch = false, -- 217
-		c2Latch = false, -- 218
-		checkpoint = 0, -- 219
-		finished = false, -- 220
-		story = ____exports.createStory(), -- 221
-		archive = ____exports.createArchive(), -- 222
-		log = {} -- 223
-	} -- 223
-end -- 206
+function ____exports.createRun(seed, source) -- 211
+	if seed == nil then -- 211
+		seed = 20261124 -- 211
+	end -- 211
+	if source == nil then -- 211
+		source = "debug" -- 211
+	end -- 211
+	return { -- 212
+		source = source, -- 213
+		seed = seed, -- 214
+		ticks = 0, -- 215
+		roomTicks = {}, -- 216
+		roomEnterTick = 0, -- 217
+		route = "", -- 218
+		inventory = { -- 219
+			shield = 0, -- 219
+			wedge = 0, -- 219
+			ammo = 0, -- 219
+			pass = 0, -- 219
+			quickbelt = 0, -- 219
+			scrap = 0, -- 219
+			wood = 0, -- 219
+			bell = 0 -- 219
+		}, -- 219
+		props = {}, -- 220
+		taken = {}, -- 221
+		joined = false, -- 222
+		c1Latch = false, -- 223
+		c2Latch = false, -- 224
+		checkpoint = 0, -- 225
+		finished = false, -- 226
+		story = ____exports.createStory(), -- 227
+		archive = ____exports.createArchive(), -- 228
+		log = {} -- 229
+	} -- 229
+end -- 211
 ____exports.talentNames = {vitality = "厚甲·体力+1", reload = "熟铳·装填减6拍", guard = "护身·受击保护加12拍", craft = "巧手·制楔减6拍"} -- 142
 function ____exports.createTrial(seed) -- 155
-	local run = ____exports.createRun(seed) -- 156
+	local run = ____exports.createRun(seed, "trial") -- 156
 	run.trial = { -- 157
 		randomState = 1 + math.floor(math.abs(seed)) % 2147483646, -- 157
 		hp = 3, -- 157
@@ -100,13 +104,13 @@ function ____exports.draftRoom(trial, room) -- 162
 	end -- 170
 end -- 162
 --- 60 拍 = 1 秒；给 HUD 与交付记录用。
-function ____exports.seconds(ticks) -- 228
-	return math.floor(ticks / 60 * 10 + 0.5) / 10 -- 229
-end -- 228
-function ____exports.mmss(ticks) -- 232
-	local total = math.floor(ticks / 60) -- 233
-	local m = math.floor(total / 60) -- 234
-	local s = total % 60 -- 235
-	return ((((m < 10 and "0" or "") .. tostring(m)) .. ":") .. (s < 10 and "0" or "")) .. tostring(s) -- 236
-end -- 232
-return ____exports -- 232
+function ____exports.seconds(ticks) -- 234
+	return math.floor(ticks / 60 * 10 + 0.5) / 10 -- 235
+end -- 234
+function ____exports.mmss(ticks) -- 238
+	local total = math.floor(ticks / 60) -- 239
+	local m = math.floor(total / 60) -- 240
+	local s = total % 60 -- 241
+	return ((((m < 10 and "0" or "") .. tostring(m)) .. ":") .. (s < 10 and "0" or "")) .. tostring(s) -- 242
+end -- 238
+return ____exports -- 238

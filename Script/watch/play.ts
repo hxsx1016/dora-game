@@ -489,6 +489,8 @@ export class Play {
     readonly inventory: Inventory;
     /** 双通关档案引用：C 单读取的结局结果。 */
     readonly archive: ArchiveState;
+    /** 北塔登记簿两行：第一行一律小满，第二行团圆线周戍、单人线留白。 */
+    endingLines: string[] = ["", ""];
 
     // —— 第三段工台与武器 ——
     /** 已装备的武器 id；标准铳之外由工台改制。 */
@@ -2166,9 +2168,10 @@ export class Play {
             const soldier = this.storyRoute === "soldier";
             this.phaseTick += 1;
             if (this.phaseTick === 60) {
-                this.flashSet(soldier ? "守卒问名 · 第一行 周戍" : "登记簿第一行 · 只有一个人", 1.6);
+                this.endingLines = soldier ? ["小满", "周戍"] : ["小满", ""];
+                this.flashSet("登记簿 · 第一行 小满", 1.6);
             } else if (this.phaseTick === 120) {
-                this.flashSet(soldier ? "第二行 · 小满 · 两人同行" : "西窗留一盏灯 · 等他回来", 2.4);
+                this.flashSet(soldier ? "第二行 · 周戍 · 兄妹同行" : "第二行留白 · 西窗一盏灯", 2.4);
             } else if (this.phaseTick >= 180) {
                 this.phase = "tower-end";
                 this.phaseTick = 0;
@@ -2176,19 +2179,30 @@ export class Play {
                     this.run.finished = true;
                     const ending = soldier ? "reunion" : "lamp";
                     this.run.story.ending = ending;
-                    this.run.archive.artifactOwned = true;
-                    if (soldier) {
-                        this.run.archive.soldierCleared = true;
-                    } else {
-                        this.run.archive.childCleared = true;
+                    // 结局不发神器：井口拾取留给 C 单；已有档案里的真实拾取保持原值。
+                    // 只有正式开局、已过门锁线、且本线玩法进度真实走完，才写通关档案。
+                    const played = soldier
+                        ? this.run.story.segments["escort5"] === true
+                        : (this.countTick >= GATE_COUNT_END || this.run.story.countTick >= GATE_COUNT_END);
+                    const official = this.run.source === "official"
+                        && this.run.story.settled && this.storyRoute !== "" && played;
+                    if (official) {
+                        if (soldier) {
+                            this.run.archive.soldierCleared = true;
+                        } else {
+                            this.run.archive.childCleared = true;
+                        }
                     }
-                    this.log("结局 " + ending);
+                    this.log("结局 " + ending + (official ? " · 正式" : " · 预览"));
                     this.emit("endingReached", {
                         route: soldier ? "soldier" : "child",
                         ending: ending,
+                        official: official,
+                        source: this.run.source,
+                        lines: [this.endingLines[0], this.endingLines[1]],
                         childCleared: this.run.archive.childCleared,
                         soldierCleared: this.run.archive.soldierCleared,
-                        artifactOwned: true,
+                        artifactOwned: this.run.archive.artifactOwned,
                         equipped: this.equippedWeapon,
                     });
                     this.flashSet(soldier ? "北塔团圆 · 片尾" : "小满留灯 · 片尾", 3.0);

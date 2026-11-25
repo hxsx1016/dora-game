@@ -70,6 +70,10 @@ export interface FrameEvents {
     /** 北塔落幕：结局标识 reunion / lamp。 */
     endingReached: boolean;
     ending: string;
+    /** 是否正式通关（标题开局 + 合法路线 + 玩法进度）；章节预览为 false。 */
+    endingOfficial: boolean;
+    /** 登记簿两行：第一行小满，第二行团圆线周戍、单人线空串。 */
+    endingLines: string[];
 }
 
 export interface WorldPrompt {
@@ -189,6 +193,8 @@ export class PlayAdapter {
         let benchRejectReason = "";
         let endingReached = false;
         let ending = "";
+        let endingOfficial = false;
+        let endingLines: string[] = [];
         for (const event of events) {
             if (event.name === "knock") {
                 knockPulse = true;
@@ -259,6 +265,10 @@ export class PlayAdapter {
             } else if (event.name === "endingReached") {
                 endingReached = true;
                 ending = typeof event.data.ending === "string" ? event.data.ending : "";
+                endingOfficial = event.data.official === true;
+                endingLines = Array.isArray(event.data.lines)
+                    ? (event.data.lines as unknown[]).map((v) => (typeof v === "string" ? v : ""))
+                    : [];
             }
         }
 
@@ -331,6 +341,8 @@ export class PlayAdapter {
             benchRejectReason,
             endingReached,
             ending,
+            endingOfficial,
+            endingLines,
         };
     }
 }

@@ -153,7 +153,7 @@ export interface Trial {
 }
 
 export function createTrial(seed: number): RunState {
-    const run = createRun(seed);
+    const run = createRun(seed, "trial");
     run.trial = { randomState: 1 + Math.floor(Math.abs(seed)) % 2147483646, hp: 3, lost: false,
         ranks: { vitality: 0, reload: 0, guard: 0, craft: 0 }, offers: [], room: "" };
     return run;
@@ -171,8 +171,13 @@ export function draftRoom(trial: Trial, room: string): void {
     }
 }
 
+/** 本局从哪来：official=标题「新的旅程」，chapter=章节直达，debug=数字快跳/验收夹具，trial=标题试炼。 */
+export type RunSource = "official" | "chapter" | "debug" | "trial";
+
 export interface RunState {
     trial?: Trial;
+    /** 开局来源：只有 official 的结局写通关档案。 */
+    source: RunSource;
     seed: number;
     /** 有效玩法拍：只在本房处于可控玩法时累加，暂停与切换不累加。 */
     ticks: number;
@@ -203,8 +208,9 @@ export interface RunState {
     log: string[];
 }
 
-export function createRun(seed: number = 20261124): RunState {
+export function createRun(seed: number = 20261124, source: RunSource = "debug"): RunState {
     return {
+        source: source,
         seed: seed,
         ticks: 0,
         roomTicks: {},
