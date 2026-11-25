@@ -64,7 +64,7 @@ const CHILD_H = 64;
 const CHILD_CROUCH_H = 36;
 const CHILD_SPEED = 160;
 const CHILD_SLOW = 80;
-const CHILD_JUMP = 372;
+const CHILD_JUMP = 320;
 
 /** 周戍：高 88、速度 264、翻滚 0.35 秒约 97 单位。 */
 const SOLDIER_W = 30;
@@ -95,6 +95,8 @@ const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
 const FIRE_COOLDOWN = 150;
+/** 新版关卡火器手的装填周期：比基础值长，给握车柄的玩家留出看枪口、停手、再推的窗口。 */
+const CAMPAIGN_FIRE_COOLDOWN = 240;
 const ENEMY_RANGE = 760;
 /** 洞后墙根小路的尽头：走到这里才切村口（D4 扩图后不再是 388）。 */
 const WALL_ROAD_END = 1150;
@@ -422,6 +424,7 @@ export class Play {
     roomStartTick = 0;
     /** 推车时的暴露伤害节拍。 */
     cartHitT = 0;
+    cartExposed = false;
 
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
@@ -1564,6 +1567,18 @@ export class Play {
         if (this.reloadT > 0) {
             this.reloadT -= 1;
         }
+        // 残盾跟着人走：架起来后推车、退步都要护在身前，不能留在架设点。
+        if (this.bracedShield !== undefined) {
+            this.bracedShield.x = p.x + p.facing * 26;
+            this.bracedShield.y = p.y;
+            const shBox = this.boxes.find((b) => b.id === "braced_shield");
+            if (shBox !== undefined) {
+                shBox.x0 = this.bracedShield.x - 15;
+                shBox.x1 = this.bracedShield.x + 15;
+                shBox.y0 = this.bracedShield.y;
+                shBox.y1 = this.bracedShield.y + this.bracedShield.h;
+            }
+        }
         // S2 从布行侧进入：转到窗板线，小满先去后仓等。
         if (wr.key === "s2-drygoods" && this.run.route !== "drygoods"
             && p.x < wr.minX + 330 && p.depth <= -16) {
@@ -1626,6 +1641,8 @@ export class Play {
             this.boxes.push({
                 x0: this.bracedShield.x - 15, x1: this.bracedShield.x + 15,
                 y0: p.y, y1: p.y + 64, depth: { min: -46, max: 46 }, label: "架起的残盾", id: "braced_shield",
+                soft: true, // 只挡弹，不参与走位碰撞；否则盾会把架盾的人自己推走。
+
             });
             inv.shield -= 1;
             this.flashSet("架残盾 · 挡一发", 1.2);
@@ -1681,10 +1698,13 @@ export class Play {
                 return;
             }
             b.broken = true;
-            this.run.latchOpen = true;
             this.objectiveDone = true;
-            // 候检门前等着的两人，抬闩后重新同行。
+            // 两道门闩分开记：C1 抬闩恢复同行，C2 连杆只在车轮入窝后成立。
             if (wr.key === "c1-yard") {
+                this.run.c1Latch = true;
+                this.run.joined = true;
+            } else {
+                this.run.c2Latch = true;
                 this.run.joined = true;
             }
             this.run.props[b.id ?? "latch"] = { broken: true, hp: 0, wedge: false };
@@ -1705,7 +1725,7 @@ export class Play {
         const p = this.player;
         const handleX = this.cartAxle + c.handleOffset;
         if (!this.gripping) {
-            if (input.interact.pressed && Math.abs(p.x - handleX) <= CART_REACH
+            if (input.interact.pressed && !this.cartDocked && Math.abs(p.x - handleX) <= CART_REACH
                 && p.y <= c.baseY + (c.depth ?? 0) + 40 && !this.objectiveDone) {
                 this.gripping = true;
                 this.flashSet("握住车柄 · A/D 推", 1.0);
@@ -1720,6 +1740,23 @@ export class Play {
         if (!this.cartDocked) {
             if (input.moveX !== 0 && !this.stuckCart()) {
                 this.cartAxle = Math.max(c.startX, Math.min(c.endX, this.cartAxle + input.moveX * CART_SPEED * dt));
+            }
+            // 暴露轨段：车轮一进 1000–1200，棚尾火器手必打一枪。
+            // 这一枪不看蓄势计时，专门用来检验「空手吃弹 / 残盾挡下 / 木帘截断」。
+            if (!this.cartExposed && this.cartAxle >= wr.minX + 1240 && this.cartAxle <= wr.minX + 1360) {
+                this.cartExposed = true;
+                let gun: Enemy | undefined = undefined;
+                let gi = 0;
+                for (gi = 0; gi < this.enemies.length; gi++) {
+                    const e = this.enemies[gi];
+                    if (e.alive && e.kind === "gunner" && Math.abs((e.depth ?? 0) - p.depth) <= 44) {
+                        gun = e;
+                        break;
+                    }
+                }
+                if (gun !== undefined) {
+                    this.campaignEnemyFire(gun);
+                }
             }
             p.x = this.cartAxle + c.handleOffset;
             p.y = c.baseY + (c.depth ?? 0);
@@ -1759,7 +1796,7 @@ export class Play {
         if (c === undefined) {
             return;
         }
-        if (wr.key === "c2-granary" && this.cartDocked && this.run.latchOpen === true) {
+        if (wr.key === "c2-granary" && this.cartDocked && this.run.c2Latch === true) {
             this.objectiveDone = true;
         }
         if (c.goal === "reach_exit") {
@@ -1800,7 +1837,7 @@ export class Play {
             wait = true;
             targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
             targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
-        } else if (wr.key === "c1-yard" && !this.run.latchOpen) {
+        } else if (wr.key === "c1-yard" && !this.run.c1Latch) {
             wait = true;
             targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
             targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
@@ -1810,8 +1847,10 @@ export class Play {
             targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
         }
         if (this.partnerStuck > 0.3) {
-            // 撞在柱列 / 台角上：按 中 → 上 → 下 轮换一条能过的档，别再贴着玩家的档硬顶。
+            // 撞在柱列 / 台角上：退出障碍侧面，并直接换到 中 → 上 → 下 的下一条空档。
+            a.x -= a.facing * 30;
             this.partnerLaneIdx = (this.partnerLaneIdx + 1) % 3;
+            a.depth = this.partnerLaneIdx === 0 ? 0 : (this.partnerLaneIdx === 1 ? 32 : -32);
             this.partnerLaneHold = 1.1;
             this.partnerStuck = 0;
         }
@@ -1880,10 +1919,21 @@ export class Play {
             if (Math.abs(dx) > ENEMY_RANGE) {
                 continue;
             }
+            // 军粮棚的棚尾火器手只封暴露轨段：玩家退到连杆前（1510 之后）已经贴到棚尾，
+            // 不在它的射界里，抬闩与出门不再吃枪。
+            if (this.room.key === "c2-granary" && p.x > this.room.minX + 1450) {
+                continue;
+            }
             if (Math.abs((e.depth ?? 0) - p.depth) > 44) {
                 continue;
             }
             if (this.blockedShot(e, p)) {
+                // 目标躲回掩体后：这次举枪作废，重新等一个装填周期。
+                // 否则 warnT 会在遮挡期间冻结，玩家一探头就立刻挨枪，"看时机"没有意义。
+                if (e.warnT > 0) {
+                    e.warnT = 0;
+                    e.fireCd = CAMPAIGN_FIRE_COOLDOWN;
+                }
                 continue;
             }
             if (e.warnT > 0) {
@@ -1922,6 +1972,11 @@ export class Play {
             if (b.broken === true || b.passable === true) {
                 continue;
             }
+            // 残盾：留到 campaignEnemyFire 里判「挡下一发」，不在这里被当成普通掩体，
+            // 否则敌人永远不会扣扳机，盾也就永远不碎。
+            if (b.id === "braced_shield") {
+                continue;
+            }
             if (!overlapsDepth(e.depth ?? 0, b.depth, ACTOR_DEPTH_HALF)) {
                 continue;
             }
@@ -1935,13 +1990,17 @@ export class Play {
 
     private campaignEnemyFire(e: Enemy): void {
         const p = this.player;
-        e.fireCd = FIRE_COOLDOWN;
+        e.fireCd = CAMPAIGN_FIRE_COOLDOWN;
         if (this.bracedShield !== undefined && Math.abs(this.bracedShield.x - p.x) < 50) {
             this.bracedShield.hp -= 1;
             this.boxes = this.boxes.filter((b) => b.id !== "braced_shield");
             this.bracedShield = undefined;
             this.flashSet("残盾碎 · 挡下一发", 1.0);
             this.emit("coverBlocked", { entity: "残盾", enemyX: e.x, hp: this.hp });
+            return;
+        }
+        if (this.blockedShot(e, p)) {
+            this.emit("coverBlocked", { entity: "实体遮挡", enemyX: e.x, hp: this.hp });
             return;
         }
         const cover = this.blockedByCover(e, p);
@@ -1972,14 +2031,18 @@ export class Play {
         const p = this.player;
         const dx = p.x - e.x;
         const adx = Math.abs(dx);
+        // 军粮棚远侧的盾手守在上档：它只横向压过来，不跟玩家降档贴脸，
+        // 否则玩家握车柄推车时没有还手窗口，三种过法都会被同一个近身打断。
+        const guardLane = this.room.key === "c2-granary" && (e.depth ?? 0) >= 20;
+        const sameLane = Math.abs((e.depth ?? 0) - p.depth) <= 20;
         if (adx > 150) {
             const before = e.x;
             e.x += (dx > 0 ? 1 : -1) * 60 * dt;
-            if (Math.abs(e.x - before) < 0.3) {
+            if (!guardLane && Math.abs(e.x - before) < 0.3) {
                 // 被挡：尝试换更深/更浅一档绕行。
                 e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
             }
-        } else if (adx < 48 && (e.swingT ?? 0) <= 0) {
+        } else if (adx < 48 && sameLane && (e.swingT ?? 0) <= 0) {
             if (p.rollT <= 0 && this.invulnT <= 0) {
                 this.invulnT = 0.7;
                 this.hp -= 1;
@@ -1995,7 +2058,7 @@ export class Play {
         if ((e.swingT ?? 0) > 0) {
             e.swingT = (e.swingT ?? 0) - 1;
         }
-        if (Math.abs((e.depth ?? 0) - p.depth) > 20) {
+        if (!guardLane && Math.abs((e.depth ?? 0) - p.depth) > 20) {
             const dd = p.depth - (e.depth ?? 0);
             e.depth = (e.depth ?? 0) + (dd > 0 ? 1 : -1) * 30 * dt;
         }
@@ -2763,6 +2826,10 @@ export class Play {
         let bestBox: Box | undefined = undefined;
         for (const box of this.boxes) {
             if (box.broken === true || box.hidden === true) {
+                continue;
+            }
+            // 2.5D：不同纵深上的柱子不该挡住另一档的子弹。
+            if (ray.depth !== undefined && !overlapsDepth(ray.depth, box.depth, ACTOR_DEPTH_HALF)) {
                 continue;
             }
             const t = hitBox(ray, box);
