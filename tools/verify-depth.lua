@@ -91,7 +91,10 @@ do
     play.player.x, play.player.depth = 128, lanes.upper
     input.moveX, input.moveY = 0, 1
     advance(play, input, 40)
-    local stone = play.room.solids[#play.room.solids]
+    local stone
+    for _, s in ipairs(play.room.solids) do
+        if s.x == 110 then stone = s end
+    end
     local depthEdge = stone.depth.max + depth.ACTOR_DEPTH_HALF
     check("depth movement stops at the actual stone edge", near(play.player.depth, depthEdge))
     input.moveX = 1
@@ -208,7 +211,10 @@ end
 
 do
     local play = new(gameplay.Play, rooms.PROLOGUE_ROOM)
-    local stoneSpec = play.room.solids[#play.room.solids]
+    local stoneSpec
+    for _, s in ipairs(play.room.solids) do
+        if s.x == 110 then stoneSpec = s end
+    end
     local blocker = {x0=stoneSpec.x, x1=stoneSpec.x + stoneSpec.w, y0=0, y1=stoneSpec.h, depth=stoneSpec.depth}
     local occlusion = new(occlusionModule.DepthOcclusion)
     local input = new(Input)
