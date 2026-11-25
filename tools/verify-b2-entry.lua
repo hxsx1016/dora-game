@@ -28,6 +28,15 @@ Dora.Director.ui:addChild(root)
 -- 隔离档案：默认入口读的是本文件，不碰玩家正式档。
 local ENTRY_FILE = "watch-save/test-b2-entry.txt"
 save.setSaveFile(ENTRY_FILE)
+local function dropEntry(base)
+    local abs = Content.writablePath .. "/" .. base
+    Content:remove(abs)
+    for _, sfx in ipairs({ ".tmp", ".prev", ".corrupt", ".reset", ".unsupported" }) do
+        Content:remove(abs .. sfx)
+        for n = 2, 12 do Content:remove(abs .. sfx .. "." .. n) end
+    end
+end
+dropEntry(ENTRY_FILE)
 save.saveSave(save.emptySave())
 app.start(root, 1, "title")
 
