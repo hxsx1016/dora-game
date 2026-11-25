@@ -61,6 +61,7 @@ local bundle = require("lualib_bundle")
 local ____TS__New = bundle.__TS__New
 local game = require("Script.watch.play")
 local inputmod = require("Script.watch.input")
+local escortmod = require("Script.watch.escort")
 local rooms = require("Script.watch.rooms")
 local runmod = require("Script.watch.run")
 local clock = require("Script.watch.clock")
@@ -452,6 +453,180 @@ local rollFront = rollTrial(true)
 local rollBack = rollTrial(false)
 record("HIT", "HIT-04 翻滚抵消正面来击", 0, rollFront.hits, "盾手在前 + 持续翻滚")
 record("HIT", "HIT-04 翻滚不抵消背后来击", 1, rollBack.hits, "盾手在后 + 持续翻滚")
+
+
+-- ── ESC 组：同伴恐惧不叠加、满恐惧可救 ────────────────────────────────────
+print("")
+print("=== ESC 组：同一危险不叠加 / 满恐惧可救 ===")
+
+local function newEscort()
+    return ____TS__New(escortmod.Escort, 500, 30)
+end
+
+local esc1 = newEscort()
+for i = 1, 3 do
+    esc1:applyDanger(7, true, 100)
+end
+record("ESC", "ESC-01 同一危险三次只到 1", 1, esc1.fear, "dangerId=7 派发三次")
+
+local esc2 = newEscort()
+record("ESC", "ESC-01 未暴露的危险不结算", 0, esc2:applyDanger(7, false, 100), "exposed=false")
+
+local esc3 = newEscort()
+esc3:applyDanger(1, true, 100)
+esc3:applyDanger(2, true, 100)
+esc3:applyDanger(3, true, 100)
+record("ESC", "ESC-02 三格进入冻结", "frozen", esc3.state, "fear=" .. tostring(esc3.fear))
+
+local calmIn = newInput()
+calmIn.interact.pressed = true
+esc3:update(calmIn, 0, 1, 100, 65)
+record("ESC", "ESC-02 距离 65 不开安抚", "frozen", esc3.state, "distance=65 reach=64")
+
+esc3:update(calmIn, 0, 1, 100, 64)
+record("ESC", "ESC-02 距离 64 开始安抚", "calming", esc3.state, "distance=64")
+
+local tickIn = newInput()
+local fearAt36 = nil
+for i = 1, 36 do
+    esc3:update(tickIn, 0, 1, 100, 64)
+    if i == 36 then
+        fearAt36 = esc3.fear
+    end
+end
+record("ESC", "ESC-02 第 36 拍恐惧降到 1", 1, fearAt36, "calmTick=36")
+for i = 37, 60 do
+    esc3:update(tickIn, 0, 1, 100, 64)
+end
+record("ESC", "ESC-02 第 60 拍起身跟随", "follow", esc3.state, "calmTick=60")
+
+-- ── AI 组：错深度近战不命中，同深度才命中 ─────────────────────────────────
+print("")
+print("=== AI 组：近战纵深一致（同档命中 / 错档不命中）===")
+
+local function shieldMeleeTrial(shieldDepth)
+    local sim, ox = quietStage()
+    local sh = gunner(sim, ox + 1300 + 40, shieldDepth, { kind = "shield", shieldHp = 2 })
+    sim.enemies = { sh }
+    local hits = 0
+    for i = 1, 8 do
+        local inp = newInput()
+        sim:update(STEP, inp)
+        if firstEvent(drain(sim), "actorHit", function(d)
+                return d.target == "player"
+            end) then
+            hits = hits + 1
+        end
+    end
+    return { hits = hits, hp = sim.hp }
+end
+
+local meleeSame = shieldMeleeTrial(0)
+local meleeCross = shieldMeleeTrial(32)
+record("AI", "AI-02 同深度近战命中", 1, meleeSame.hits, "盾手 depth=0 / 玩家 depth=0")
+record("AI", "AI-02 错深度近战不命中", 0, meleeCross.hits, "盾手 depth=32 / 玩家 depth=0")
+record("AI", "AI-05 错层不捕获", 0, meleeCross.hits, "同上，纵深差 32 超过同档阈值")
+
+
+-- ── CRA / INV 组：制作闭环、加固多承一击、满包不吞物 ─────────────────────
+print("")
+print("=== CRA 组：废木料 → 木楔 → 加固 → 多承一击 ===")
+
+local function addWood(sim, ox, hp)
+    local b = {
+        x0 = ox + 1400, x1 = ox + 1440, y0 = 0, y1 = 140,
+        depth = { min = -7, max = 7 },
+        breakable = { kind = "thin_wood", hp = hp, wedgeHp = 1, wedgeable = true },
+        label = "试验薄木挡", id = "lab_wood"
+    }
+    sim.boxes[#sim.boxes + 1] = b
+    return b
+end
+
+-- 无楔：2 耐久，两下普通破坏就碎
+local simA, oxA = quietStage()
+local woodA = addWood(simA, oxA, 2)
+simA:damageProp(woodA, 1)
+record("CRA", "CRA-03 无楔第一击未碎", false, woodA.broken == true, "hp=" .. tostring(woodA.breakable.hp))
+simA:damageProp(woodA, 1)
+record("CRA", "CRA-03 无楔第二击碎", true, woodA.broken, "hp=" .. tostring(woodA.breakable.hp))
+
+-- 有楔：钉一件木楔后 2 → 3 耐久，第三下才碎
+local simB, oxB = quietStage()
+local woodB = addWood(simB, oxB, 2)
+placePlayer(simB, oxB + 1390, 0, 1)
+simB.run.inventory.wedge = 1
+local wedgeIn = newInput()
+wedgeIn.interact.pressed = true
+simB:update(STEP, wedgeIn)
+record("CRA", "CRA-03 钉楔后耐久 3", 3, woodB.breakable.hp, "2 + wedgeHp 1")
+record("CRA", "CRA-03 钉楔消耗一件", 0, simB.run.inventory.wedge, "wedge 1 -> 0")
+simB:damageProp(woodB, 1)
+simB:damageProp(woodB, 1)
+record("CRA", "CRA-03 有楔第二击未碎", false, woodB.broken == true, "hp=" .. tostring(woodB.breakable.hp))
+simB:damageProp(woodB, 1)
+record("CRA", "CRA-03 有楔第三击碎", true, woodB.broken, "hp=" .. tostring(woodB.breakable.hp))
+
+print("")
+print("=== CRA-01：按住 45 拍成一次，松手取消不产出 ===")
+
+local simC, oxC = quietStage()
+placePlayer(simC, oxC + 1300, 0, 1)
+simC.run.inventory.scrap = 1
+simC.run.inventory.wedge = 0
+local pressC = newInput()
+pressC.interact.pressed = true
+pressC.interact.held = true
+simC:update(STEP, pressC)
+record("CRA", "CRA-01 按下开始制作", 1, simC.craftT, "craftT=1")
+local holdC = newInput()
+holdC.interact.held = true
+for i = 2, 45 do
+    simC:update(STEP, holdC)
+end
+record("CRA", "CRA-01 45 拍制得木楔", 1, simC.run.inventory.wedge, "wedge=" .. simC.run.inventory.wedge)
+record("CRA", "CRA-01 原料被消耗", 0, simC.run.inventory.scrap, "scrap=" .. simC.run.inventory.scrap)
+for i = 1, 10 do
+    simC:update(STEP, newInput())
+end
+record("CRA", "CRA-01 完成后不复制", 1, simC.run.inventory.wedge, "再推 10 拍")
+
+local simD, oxD = quietStage()
+placePlayer(simD, oxD + 1300, 0, 1)
+simD.run.inventory.scrap = 1
+simD.run.inventory.wedge = 0
+local pressD = newInput()
+pressD.interact.pressed = true
+pressD.interact.held = true
+simD:update(STEP, pressD)
+local holdD = newInput()
+holdD.interact.held = true
+for i = 2, 20 do
+    simD:update(STEP, holdD)
+end
+simD:update(STEP, newInput())
+record("CRA", "CRA-01 松手取消不产出", 0, simD.run.inventory.wedge, "craftT=" .. tostring(simD.craftT))
+record("CRA", "CRA-01 取消后原料还在", 1, simD.run.inventory.scrap, "scrap=" .. simD.run.inventory.scrap)
+
+print("")
+print("=== INV-01：满包不吞物 ===")
+
+local simE, oxE = quietStage()
+placePlayer(simE, oxE + 1300, 0, 1)
+simE.run.inventory.wedge = 1
+simE.run.taken = {}
+simE.pickups = {
+    { id = "lab_wedge", kind = "wedge", x = oxE + 1300, y = 0, depth = 0, label = "试验木楔" }
+}
+simE:update(STEP, newInput())
+local evE = drain(simE)
+record("INV", "INV-01 满包不标记拾取", false, simE.run.taken["lab_wedge"] == true, "taken 应保持空")
+record("INV", "INV-01 满包数量不变", 1, simE.run.inventory.wedge, "wedge 仍 1")
+record("INV", "INV-01 满包发出拒绝事件", 1, countEvent(evE, "pickupRejected"), "pickupRejected")
+
+simE.run.inventory.wedge = 0
+simE:update(STEP, newInput())
+record("INV", "INV-01 腾出格位后能再捡", 1, simE.run.inventory.wedge, "wedge 0 -> 1")
 
 
 -- ── 汇总 ───────────────────────────────────────────────────────────────────
