@@ -102,6 +102,7 @@ export class ActorsRenderer {
         assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
+        suppressPartner: boolean = false,
     ): void {
         // 1. 翻滚冰青残影（最底层）
         this.drawAfterimages(fgGlow, cam);
@@ -122,8 +123,8 @@ export class ActorsRenderer {
             this.drawDog(fgDraw, fgGlow, assets, p, cam);
         }
 
-        // 5. 同伴（先画同伴，再画主角，确保主角层级最突出）
-        if (p.partner.alive) {
+        // 5. 同伴（先画同伴，再画主角，确保主角层级最突出；背负插件接管时一并跳过原生精灵与脚底阴影）
+        if (p.partner.alive && !suppressPartner) {
             const partnerIsChild = p.partner.w <= 28;
             if (partnerIsChild) {
                 this.drawXiaoman(fgDraw, fgGlow, assets, p.partner, p, cam, false);

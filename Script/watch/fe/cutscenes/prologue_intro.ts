@@ -20,6 +20,7 @@ import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { AudioDirector } from "Script/watch/fe/audio";
 import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
+import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import {
     PALETTE,
@@ -48,13 +49,13 @@ export type PrologueRehearsalMode =
     | "p04"
     | "sequence";
 
-/** 与 fe-01（P03/P05/G05）共享的明代青布补线袖口配色口径，确保四镜视觉同源 */
+/** 与 fe-01（P03/P05/G05）同源的明代青布补线袖口配色口径（直接取自 cuff_shots.CUFF_PALETTE，确保四镜视觉严格一致） */
 export const CUFF_SHARED_SPEC = {
-    indigoCloth: rgba(43, 62, 76, 255),
-    indigoTrim: rgba(74, 98, 112, 255),
-    mendStitch: rgba(214, 203, 184, 240),
-    armWrapCloth: rgba(110, 99, 84, 255),
-    stitchCount: 5,
+    indigoCloth: CUFF_PALETTE.indigoBase,
+    indigoTrim: CUFF_PALETTE.hemEdge,
+    mendStitch: CUFF_PALETTE.stitchThread,
+    armWrapCloth: CUFF_PALETTE.armWrapLinen,
+    stitchCount: 6,
 };
 
 export const PROLOGUE_TIMINGS = {

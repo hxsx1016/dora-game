@@ -13,6 +13,7 @@ import { Color, DrawNode, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
+import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
 import { depthOrder } from "Script/watch/fe/occlusion";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import { PALETTE, fillRadialGlow, toColor } from "Script/watch/fe/theme";
@@ -43,9 +44,9 @@ const CHILD_SPRITE_PATHS: readonly string[] = [
     "assets/art/sprites.clip|child_knock",
 ];
 
-/** 同一道青布补线袖口与明初小满红褐短袄色板（严格对齐 sprites.png 真实像素配色） */
-const CUFF_CLOTH = Color(44, 62, 78, 255);
-const CUFF_MEND = Color(218, 208, 188, 255);
+/** 同一道青布补线袖口（同源 cuff_shots.CUFF_PALETTE）与明初小满红褐短袄色板 */
+const CUFF_CLOTH = toColor(CUFF_PALETTE.indigoBase);
+const CUFF_MEND = toColor(CUFF_PALETTE.stitchThread);
 const CHILD_SLEEVE = Color(164, 78, 54, 255);
 const CHILD_SKIN = Color(236, 210, 182, 255);
 const CHILD_VEST = Color(146, 68, 48, 255);

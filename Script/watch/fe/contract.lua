@@ -268,928 +268,941 @@ local function deriveVisualMode(roomKey, phase, storyRoute, museumPhase, countPr
 		end -- 445
 		return "pixel" -- 447
 	end -- 447
-	if roomKey == "gatepath" or roomKey == "escort1" then -- 447
-		return "pixel" -- 450
-	end -- 450
-	if roomKey == "outside" or roomKey == "village" or roomKey == "forest" or roomKey == "tower" then -- 450
-		if storyRoute == "child" then -- 450
-			return "lowpoly" -- 454
-		end -- 454
-		return "pixel" -- 456
-	end -- 456
-	return "pixel" -- 458
+	if roomKey == "gatepath" or roomKey == "escort1" or roomKey == "escort2" or roomKey == "escort3" or roomKey == "escort4" or roomKey == "escort5" then -- 447
+		return "pixel" -- 451
+	end -- 451
+	if roomKey == "outside" or roomKey == "village" or roomKey == "forest" or roomKey == "tower" then -- 451
+		if storyRoute == "child" then -- 451
+			return "lowpoly" -- 455
+		end -- 455
+		return "pixel" -- 457
+	end -- 457
+	return "pixel" -- 459
 end -- 409
-____exports.DualRouteContract = __TS__Class() -- 461
-local DualRouteContract = ____exports.DualRouteContract -- 461
-DualRouteContract.name = "DualRouteContract" -- 461
-function DualRouteContract.prototype.____constructor(self) -- 461
-	self.source = "live" -- 462
-	self.assistHintsEnabled = false -- 465
-	self.livePendingCraftRequests = {} -- 467
-	self.liveReleasedAbortCount = 0 -- 469
-	self.liveReloadInvalidFlash = 0 -- 470
-	self.liveArchiveCache = createEmptyArchive() -- 471
-	self.intentLog = {} -- 472
-end -- 461
-function DualRouteContract.prototype.getDataSource(self) -- 476
-	return self.source -- 477
-end -- 476
-function DualRouteContract.prototype.isRehearsal(self) -- 481
-	return self.source == "rehearsal" and self.rehearsal ~= nil -- 482
-end -- 481
-function DualRouteContract.prototype.enterRehearsal(self, tag) -- 486
-	if tag == nil then -- 486
-		tag = "rehearsal" -- 486
-	end -- 486
-	self.source = "rehearsal" -- 487
-	if self.rehearsal == nil then -- 487
-		self.rehearsal = createInitialRehearsalState(tag) -- 489
-	else -- 489
-		self.rehearsal.tag = tag -- 491
-	end -- 491
-end -- 486
-function DualRouteContract.prototype.exitRehearsal(self) -- 496
-	self.source = "live" -- 497
-	self.rehearsal = nil -- 498
-end -- 496
-function DualRouteContract.prototype.ensureRehearsal(self, tag) -- 501
-	if tag == nil then -- 501
-		tag = "mock" -- 501
-	end -- 501
-	if self.source ~= "rehearsal" or self.rehearsal == nil then -- 501
-		self:enterRehearsal(tag) -- 503
-	end -- 503
-	return self.rehearsal -- 505
-end -- 501
-function DualRouteContract.prototype.isAssistHintsEnabled(self) -- 508
-	return self.assistHintsEnabled -- 509
-end -- 508
-function DualRouteContract.prototype.setAssistHintsEnabled(self, enabled) -- 512
-	self.assistHintsEnabled = enabled -- 513
-end -- 512
-function DualRouteContract.prototype.toggleAssistHints(self) -- 516
-	self.assistHintsEnabled = not self.assistHintsEnabled -- 517
-	return self.assistHintsEnabled -- 518
-end -- 516
-function DualRouteContract.prototype.getLastSnapshot(self) -- 521
-	return self.lastSnapshot -- 522
-end -- 521
-function DualRouteContract.prototype.peekSnapshot(self, p) -- 526
-	local neutralInput = {interact = {held = false, pressed = false, released = false}} -- 527
-	return self:sample(p, 0, neutralInput) -- 530
-end -- 526
-function DualRouteContract.prototype.getIntentLog(self) -- 533
-	return self.intentLog -- 534
-end -- 533
-function DualRouteContract.prototype.clearIntentLog(self) -- 537
-	self.intentLog = {} -- 538
-end -- 537
-function DualRouteContract.prototype.resetForRoom(self, p) -- 548
-	self.livePendingCraftRequests = {} -- 549
-	self.liveReleasedAbortCount = 0 -- 550
-	self.liveReloadInvalidFlash = 0 -- 551
-	self.liveArchiveCache = self:readLiveArchive(p) -- 552
-	if self.rehearsal ~= nil then -- 552
-		self.rehearsal.gateReunion = createEmptyGateReunion() -- 554
-		self.rehearsal.gateHoldArmed = true -- 555
-		self.rehearsal.gatePrevInteractHeld = false -- 556
-		self.rehearsal.reloadSession = createEmptyReloadSession() -- 557
-		self.rehearsal.craftBench.active = false -- 558
-		self.rehearsal.craftBench.justCraftedTimer = 0 -- 559
-		self.rehearsal.handledCraftRequestIds = {} -- 560
-		self.rehearsal.timeScaleOverride = nil -- 561
-	end -- 561
-end -- 548
-function DualRouteContract.prototype.sample(self, p, rawDt, input, events) -- 571
-	local dt = p.paused and 0 or math.max(0, rawDt) -- 572
-	local snap = self.source == "rehearsal" and self.rehearsal ~= nil and self:sampleRehearsal(p, dt, input, self.rehearsal) or self:sampleLive(p, dt, events) -- 573
-	self.lastSnapshot = snap -- 576
-	return snap -- 577
-end -- 571
-function DualRouteContract.prototype.submitIntent(self, p, intent) -- 585
-	local accepted = false -- 586
-	if self.source == "rehearsal" and self.rehearsal ~= nil then -- 586
-		accepted = self:applyRehearsalIntent(self.rehearsal, intent) -- 588
-	else -- 588
-		accepted = self:forwardLiveIntent(p, intent) -- 590
-	end -- 590
-	local ____self_intentLog_1 = self.intentLog -- 590
-	____self_intentLog_1[#____self_intentLog_1 + 1] = {tick = p.ticks, source = self.source, intent = intent, accepted = accepted} -- 592
-	if #self.intentLog > MAX_INTENT_LOG then -- 592
-		table.remove(self.intentLog, 1) -- 599
-	end -- 599
-	return accepted -- 601
-end -- 585
-function DualRouteContract.prototype.setMockRoute(self, route) -- 606
-	local st = self:ensureRehearsal("mock") -- 607
-	st.storyRoute = route -- 608
-end -- 606
-function DualRouteContract.prototype.setMockCountTick(self, tick, duration) -- 611
-	local st = self:ensureRehearsal("mock") -- 612
-	st.countTickOverride = tick -- 613
-	if duration ~= nil and duration > 0 then -- 613
-		st.countDurationOverride = duration -- 615
-	end -- 615
-end -- 611
-function DualRouteContract.prototype.setMockTimeScale(self, scale) -- 619
-	local st = self:ensureRehearsal("mock") -- 620
-	st.timeScaleOverride = scale -- 621
-end -- 619
-function DualRouteContract.prototype.setMockGateReunion(self, patch) -- 624
-	local st = self:ensureRehearsal("mock") -- 625
-	if patch.active ~= nil then -- 625
-		st.gateReunion.active = patch.active -- 626
-	end -- 626
-	if patch.knockHeard ~= nil then -- 626
-		st.gateReunion.knockHeard = patch.knockHeard -- 627
+____exports.DualRouteContract = __TS__Class() -- 462
+local DualRouteContract = ____exports.DualRouteContract -- 462
+DualRouteContract.name = "DualRouteContract" -- 462
+function DualRouteContract.prototype.____constructor(self) -- 462
+	self.source = "live" -- 463
+	self.assistHintsEnabled = false -- 466
+	self.livePendingCraftRequests = {} -- 468
+	self.liveReleasedAbortCount = 0 -- 470
+	self.liveReloadInvalidFlash = 0 -- 471
+	self.liveArchiveCache = createEmptyArchive() -- 472
+	self.intentLog = {} -- 473
+end -- 462
+function DualRouteContract.prototype.getDataSource(self) -- 477
+	return self.source -- 478
+end -- 477
+function DualRouteContract.prototype.isRehearsal(self) -- 482
+	return self.source == "rehearsal" and self.rehearsal ~= nil -- 483
+end -- 482
+function DualRouteContract.prototype.enterRehearsal(self, tag) -- 487
+	if tag == nil then -- 487
+		tag = "rehearsal" -- 487
+	end -- 487
+	self.source = "rehearsal" -- 488
+	if self.rehearsal == nil then -- 488
+		self.rehearsal = createInitialRehearsalState(tag) -- 490
+	else -- 490
+		self.rehearsal.tag = tag -- 492
+	end -- 492
+end -- 487
+function DualRouteContract.prototype.exitRehearsal(self) -- 497
+	self.source = "live" -- 498
+	self.rehearsal = nil -- 499
+end -- 497
+function DualRouteContract.prototype.ensureRehearsal(self, tag) -- 502
+	if tag == nil then -- 502
+		tag = "mock" -- 502
+	end -- 502
+	if self.source ~= "rehearsal" or self.rehearsal == nil then -- 502
+		self:enterRehearsal(tag) -- 504
+	end -- 504
+	return self.rehearsal -- 506
+end -- 502
+function DualRouteContract.prototype.isAssistHintsEnabled(self) -- 509
+	return self.assistHintsEnabled -- 510
+end -- 509
+function DualRouteContract.prototype.setAssistHintsEnabled(self, enabled) -- 513
+	self.assistHintsEnabled = enabled -- 514
+end -- 513
+function DualRouteContract.prototype.toggleAssistHints(self) -- 517
+	self.assistHintsEnabled = not self.assistHintsEnabled -- 518
+	return self.assistHintsEnabled -- 519
+end -- 517
+function DualRouteContract.prototype.getLastSnapshot(self) -- 522
+	return self.lastSnapshot -- 523
+end -- 522
+function DualRouteContract.prototype.peekSnapshot(self, p) -- 527
+	local neutralInput = {interact = {held = false, pressed = false, released = false}} -- 528
+	return self:sample(p, 0, neutralInput) -- 531
+end -- 527
+function DualRouteContract.prototype.getIntentLog(self) -- 534
+	return self.intentLog -- 535
+end -- 534
+function DualRouteContract.prototype.clearIntentLog(self) -- 538
+	self.intentLog = {} -- 539
+end -- 538
+function DualRouteContract.prototype.resetForRoom(self, p) -- 549
+	self.livePendingCraftRequests = {} -- 550
+	self.liveReleasedAbortCount = 0 -- 551
+	self.liveReloadInvalidFlash = 0 -- 552
+	self.liveArchiveCache = self:readLiveArchive(p) -- 553
+	if self.rehearsal ~= nil then -- 553
+		self.rehearsal.gateReunion = createEmptyGateReunion() -- 555
+		self.rehearsal.gateHoldArmed = true -- 556
+		self.rehearsal.gatePrevInteractHeld = false -- 557
+		self.rehearsal.reloadSession = createEmptyReloadSession() -- 558
+		self.rehearsal.craftBench.active = false -- 559
+		self.rehearsal.craftBench.justCraftedTimer = 0 -- 560
+		self.rehearsal.handledCraftRequestIds = {} -- 561
+		self.rehearsal.timeScaleOverride = nil -- 562
+	end -- 562
+end -- 549
+function DualRouteContract.prototype.sample(self, p, rawDt, input, events) -- 572
+	local dt = p.paused and 0 or math.max(0, rawDt) -- 573
+	local snap = self.source == "rehearsal" and self.rehearsal ~= nil and self:sampleRehearsal(p, dt, input, self.rehearsal) or self:sampleLive(p, dt, events) -- 574
+	self.lastSnapshot = snap -- 577
+	return snap -- 578
+end -- 572
+function DualRouteContract.prototype.submitIntent(self, p, intent) -- 586
+	local accepted = false -- 587
+	if self.source == "rehearsal" and self.rehearsal ~= nil then -- 587
+		accepted = self:applyRehearsalIntent(self.rehearsal, intent) -- 589
+	else -- 589
+		accepted = self:forwardLiveIntent(p, intent) -- 591
+	end -- 591
+	local ____self_intentLog_1 = self.intentLog -- 591
+	____self_intentLog_1[#____self_intentLog_1 + 1] = {tick = p.ticks, source = self.source, intent = intent, accepted = accepted} -- 593
+	if #self.intentLog > MAX_INTENT_LOG then -- 593
+		table.remove(self.intentLog, 1) -- 600
+	end -- 600
+	return accepted -- 602
+end -- 586
+function DualRouteContract.prototype.setMockRoute(self, route) -- 607
+	local st = self:ensureRehearsal("mock") -- 608
+	st.storyRoute = route -- 609
+end -- 607
+function DualRouteContract.prototype.setMockCountTick(self, tick, duration) -- 612
+	local st = self:ensureRehearsal("mock") -- 613
+	st.countTickOverride = tick -- 614
+	if duration ~= nil and duration > 0 then -- 614
+		st.countDurationOverride = duration -- 616
+	end -- 616
+end -- 612
+function DualRouteContract.prototype.setMockTimeScale(self, scale) -- 620
+	local st = self:ensureRehearsal("mock") -- 621
+	st.timeScaleOverride = scale -- 622
+end -- 620
+function DualRouteContract.prototype.setMockGateReunion(self, patch) -- 625
+	local st = self:ensureRehearsal("mock") -- 626
+	if patch.active ~= nil then -- 626
+		st.gateReunion.active = patch.active -- 627
 	end -- 627
-	if patch.holdProgress ~= nil then -- 627
-		st.gateReunion.holdProgress = math.max( -- 628
-			0, -- 628
-			math.min(1, patch.holdProgress) -- 628
-		) -- 628
+	if patch.knockHeard ~= nil then -- 627
+		st.gateReunion.knockHeard = patch.knockHeard -- 628
 	end -- 628
-	if patch.holding ~= nil then -- 628
-		st.gateReunion.holding = patch.holding -- 629
+	if patch.holdProgress ~= nil then -- 628
+		st.gateReunion.holdProgress = math.max( -- 629
+			0, -- 629
+			math.min(1, patch.holdProgress) -- 629
+		) -- 629
 	end -- 629
-	if patch.completed ~= nil then -- 629
-		st.gateReunion.completed = patch.completed -- 630
+	if patch.holding ~= nil then -- 629
+		st.gateReunion.holding = patch.holding -- 630
 	end -- 630
-	if patch.releasedAbortCount ~= nil then -- 630
-		st.gateReunion.releasedAbortCount = patch.releasedAbortCount -- 631
+	if patch.completed ~= nil then -- 630
+		st.gateReunion.completed = patch.completed -- 631
 	end -- 631
-end -- 624
-function DualRouteContract.prototype.setMockBackCarry(self, patch) -- 634
-	local st = self:ensureRehearsal("mock") -- 635
-	if patch.active ~= nil then -- 635
-		st.backCarry.active = patch.active -- 636
-	end -- 636
-	if patch.handInHand ~= nil then -- 636
-		st.backCarry.handInHand = patch.handInHand -- 637
+	if patch.releasedAbortCount ~= nil then -- 631
+		st.gateReunion.releasedAbortCount = patch.releasedAbortCount -- 632
+	end -- 632
+end -- 625
+function DualRouteContract.prototype.setMockBackCarry(self, patch) -- 635
+	local st = self:ensureRehearsal("mock") -- 636
+	if patch.active ~= nil then -- 636
+		st.backCarry.active = patch.active -- 637
 	end -- 637
-	if patch.mounting ~= nil then -- 637
-		st.backCarry.mounting = patch.mounting -- 638
+	if patch.handInHand ~= nil then -- 637
+		st.backCarry.handInHand = patch.handInHand -- 638
 	end -- 638
-	if patch.atBench ~= nil then -- 638
-		st.backCarry.atBench = patch.atBench -- 639
+	if patch.mounting ~= nil then -- 638
+		st.backCarry.mounting = patch.mounting -- 639
 	end -- 639
-end -- 634
-function DualRouteContract.prototype.triggerMockReload(self, active, options) -- 642
-	local st = self:ensureRehearsal("mock") -- 646
-	st.reloadSession.active = active -- 647
-	if active then -- 647
-		st.reloadSession.elapsed = 0 -- 649
-		st.reloadSession.duration = options and options.duration or DEFAULT_RELOAD_DURATION -- 650
-		st.reloadSession.path = {} -- 651
-		st.reloadSession.previewEffect = "normal" -- 652
-		st.reloadSession.invalidFlash = 0 -- 653
-		if (options and options.firstTime) ~= nil then -- 653
-			st.reloadSession.firstTime = options.firstTime -- 655
-		end -- 655
-		st.timeScaleOverride = options and options.slowTimeScale or DEFAULT_SLOW_TIME_SCALE -- 657
-	else -- 657
-		st.reloadSession.elapsed = 0 -- 659
-		st.reloadSession.path = {} -- 660
-		st.timeScaleOverride = nil -- 661
-	end -- 661
-end -- 642
-function DualRouteContract.prototype.triggerMockBench(self, active, options) -- 665
-	local st = self:ensureRehearsal("mock") -- 669
-	st.craftBench.active = active -- 670
-	st.backCarry.atBench = active -- 671
-	if (options and options.inventory) ~= nil then -- 671
-		st.craftBench.inventory = cloneRecordNum(options.inventory) -- 673
-	end -- 673
-	if (options and options.equippedWeapon) ~= nil then -- 673
-		st.craftBench.equippedWeapon = options.equippedWeapon -- 676
-	end -- 676
-end -- 665
-function DualRouteContract.prototype.setMockArchive(self, childCleared, soldierCleared, artifactOwned) -- 680
-	local st = self:ensureRehearsal("mock") -- 681
-	st.archive.childCleared = childCleared -- 682
-	st.archive.soldierCleared = soldierCleared -- 683
-	if artifactOwned ~= nil then -- 683
-		st.archive.artifactOwned = artifactOwned -- 685
-	end -- 685
-	if childCleared and soldierCleared and st.archive.museumPhase == "locked" then -- 685
-		st.archive.museumPhase = "well_open" -- 688
-	elseif (not childCleared or not soldierCleared) and st.archive.museumPhase == "well_open" then -- 688
-		st.archive.museumPhase = "locked" -- 690
-	end -- 690
-end -- 680
-function DualRouteContract.prototype.enterMockMuseum(self, phase) -- 694
-	local st = self:ensureRehearsal("mock") -- 695
-	st.archive.museumPhase = phase -- 696
-	if phase == "done" then -- 696
-		st.archive.museumSeen = true -- 698
-	end -- 698
-	if phase == "well_reflect" or phase == "hall_walk" or phase == "lamp_turn" or phase == "return_cabinet" or phase == "done" then -- 698
-		st.archive.artifactOwned = true -- 707
-	end -- 707
-end -- 694
-function DualRouteContract.prototype.sampleLive(self, p, dt, events) -- 713
-	local pRec = asRecord(p) -- 714
-	local runRec = asRecord(p.run) -- 715
-	local ____asRecord_13 = asRecord -- 716
-	local ____temp_12 -- 716
-	if runRec ~= nil then -- 716
-		____temp_12 = runRec.story -- 716
-	else -- 716
-		____temp_12 = nil -- 716
-	end -- 716
-	local storyRec = ____asRecord_13(____temp_12) -- 716
-	if dt > 0 and self.liveReloadInvalidFlash > 0 then -- 716
-		self.liveReloadInvalidFlash = math.max(0, self.liveReloadInvalidFlash - dt) -- 719
-	end -- 719
-	if events ~= nil and #events.rawEvents > 0 then -- 719
-		local ei = 0 -- 722
-		do -- 722
-			ei = 0 -- 723
-			while ei < #events.rawEvents do -- 723
-				local ename = events.rawEvents[ei + 1].name -- 724
-				if ename == "handRelease" then -- 724
-					self.liveReleasedAbortCount = self.liveReleasedAbortCount + 1 -- 726
-				elseif ename == "reloadInvalid" then -- 726
-					self.liveReloadInvalidFlash = 0.35 -- 728
-				end -- 728
-				ei = ei + 1 -- 723
-			end -- 723
-		end -- 723
-	end -- 723
-	local ____temp_16 -- 734
-	if pRec ~= nil and type(pRec.storyRoute) == "string" and pRec.storyRoute ~= "" then -- 734
-		____temp_16 = pRec.storyRoute -- 735
-	else -- 735
-		local ____temp_15 -- 736
-		if storyRec ~= nil and type(storyRec.route) == "string" and storyRec.route ~= "" then -- 736
-			____temp_15 = storyRec.route -- 737
-		else -- 737
-			local ____temp_14 -- 738
-			if runRec ~= nil then -- 738
-				____temp_14 = runRec.storyRoute -- 738
-			else -- 738
-				____temp_14 = nil -- 738
-			end -- 738
-			____temp_15 = ____temp_14 -- 738
-		end -- 738
-		____temp_16 = ____temp_15 -- 736
-	end -- 736
-	local rawRoute = ____temp_16 -- 734
-	local storyRoute = parseStoryRoute(rawRoute) -- 739
-	local countElapsedTicks = readNum(pRec, "countElapsedTicks") or p.countTick -- 742
-	local countDurationTicks = math.max( -- 743
-		1, -- 743
-		readNum(pRec, "countDurationTicks") or GATE_COUNT_END -- 743
-	) -- 743
-	local countNumber = gateCountAtTick(countElapsedTicks) -- 744
-	local countProgress = math.max( -- 745
-		0, -- 745
-		math.min(1, countElapsedTicks / countDurationTicks) -- 745
-	) -- 745
-	local ____asRecord_18 = asRecord -- 748
-	local ____temp_17 -- 748
-	if pRec ~= nil then -- 748
-		____temp_17 = pRec.gateReunion -- 748
-	else -- 748
-		____temp_17 = nil -- 748
-	end -- 748
-	local grRec = ____asRecord_18(____temp_17) -- 748
-	local flatHold = readNum(pRec, "gateHoldProgress") -- 749
-	local inGateWaitOrHand = p.room.key == "gate" and (p.phase == "gate-wait" or p.phase == "gate-hand") -- 750
-	local handTicks = readNum(pRec, "handTicks") or 0 -- 751
-	local handNeedTicks = math.max( -- 752
-		1, -- 752
-		readNum(pRec, "handNeedTicks") or 36 -- 752
-	) -- 752
-	local handTied = p.room.key == "gate" and p.phase == "gate-hand" -- 753
-	local derivedHoldProg = handTied and 1 or (inGateWaitOrHand and math.max( -- 754
-		0, -- 754
-		math.min(1, handTicks / handNeedTicks) -- 754
-	) or 0) -- 754
-	local ____readBool_result_19 = readBool(grRec, "active") -- 756
-	if ____readBool_result_19 == nil then -- 756
-		____readBool_result_19 = inGateWaitOrHand -- 756
-	end -- 756
-	local ____readBool_result_20 = readBool(grRec, "knockHeard") -- 757
-	if ____readBool_result_20 == nil then -- 757
-		____readBool_result_20 = inGateWaitOrHand and p.knocks >= 1 -- 757
+	if patch.atBench ~= nil then -- 639
+		st.backCarry.atBench = patch.atBench -- 640
+	end -- 640
+end -- 635
+function DualRouteContract.prototype.triggerMockReload(self, active, options) -- 643
+	local st = self:ensureRehearsal("mock") -- 647
+	st.reloadSession.active = active -- 648
+	if active then -- 648
+		st.reloadSession.elapsed = 0 -- 650
+		st.reloadSession.duration = options and options.duration or DEFAULT_RELOAD_DURATION -- 651
+		st.reloadSession.path = {} -- 652
+		st.reloadSession.previewEffect = "normal" -- 653
+		st.reloadSession.invalidFlash = 0 -- 654
+		if (options and options.firstTime) ~= nil then -- 654
+			st.reloadSession.firstTime = options.firstTime -- 656
+		end -- 656
+		st.timeScaleOverride = options and options.slowTimeScale or DEFAULT_SLOW_TIME_SCALE -- 658
+	else -- 658
+		st.reloadSession.elapsed = 0 -- 660
+		st.reloadSession.path = {} -- 661
+		st.timeScaleOverride = nil -- 662
+	end -- 662
+end -- 643
+function DualRouteContract.prototype.triggerMockBench(self, active, options) -- 666
+	local st = self:ensureRehearsal("mock") -- 670
+	st.craftBench.active = active -- 671
+	st.backCarry.atBench = active -- 672
+	if (options and options.inventory) ~= nil then -- 672
+		st.craftBench.inventory = cloneRecordNum(options.inventory) -- 674
+	end -- 674
+	if (options and options.equippedWeapon) ~= nil then -- 674
+		st.craftBench.equippedWeapon = options.equippedWeapon -- 677
+	end -- 677
+end -- 666
+function DualRouteContract.prototype.setMockArchive(self, childCleared, soldierCleared, artifactOwned) -- 681
+	local st = self:ensureRehearsal("mock") -- 682
+	st.archive.childCleared = childCleared -- 683
+	st.archive.soldierCleared = soldierCleared -- 684
+	if artifactOwned ~= nil then -- 684
+		st.archive.artifactOwned = artifactOwned -- 686
+	end -- 686
+	if childCleared and soldierCleared and st.archive.museumPhase == "locked" then -- 686
+		st.archive.museumPhase = "well_open" -- 689
+	elseif (not childCleared or not soldierCleared) and st.archive.museumPhase == "well_open" then -- 689
+		st.archive.museumPhase = "locked" -- 691
+	end -- 691
+end -- 681
+function DualRouteContract.prototype.enterMockMuseum(self, phase) -- 695
+	local st = self:ensureRehearsal("mock") -- 696
+	st.archive.museumPhase = phase -- 697
+	if phase == "done" then -- 697
+		st.archive.museumSeen = true -- 699
+	end -- 699
+	if phase == "well_reflect" or phase == "hall_walk" or phase == "lamp_turn" or phase == "return_cabinet" or phase == "done" then -- 699
+		st.archive.artifactOwned = true -- 708
+	end -- 708
+end -- 695
+function DualRouteContract.prototype.sampleLive(self, p, dt, events) -- 714
+	local pRec = asRecord(p) -- 715
+	local runRec = asRecord(p.run) -- 716
+	local ____asRecord_13 = asRecord -- 717
+	local ____temp_12 -- 717
+	if runRec ~= nil then -- 717
+		____temp_12 = runRec.story -- 717
+	else -- 717
+		____temp_12 = nil -- 717
+	end -- 717
+	local storyRec = ____asRecord_13(____temp_12) -- 717
+	if dt > 0 and self.liveReloadInvalidFlash > 0 then -- 717
+		self.liveReloadInvalidFlash = math.max(0, self.liveReloadInvalidFlash - dt) -- 720
+	end -- 720
+	if events ~= nil and #events.rawEvents > 0 then -- 720
+		local ei = 0 -- 723
+		do -- 723
+			ei = 0 -- 724
+			while ei < #events.rawEvents do -- 724
+				local ename = events.rawEvents[ei + 1].name -- 725
+				if ename == "handRelease" then -- 725
+					self.liveReleasedAbortCount = self.liveReleasedAbortCount + 1 -- 727
+				elseif ename == "reloadInvalid" then -- 727
+					self.liveReloadInvalidFlash = 0.35 -- 729
+				end -- 729
+				ei = ei + 1 -- 724
+			end -- 724
+		end -- 724
+	end -- 724
+	local ____temp_16 -- 735
+	if pRec ~= nil and type(pRec.storyRoute) == "string" and pRec.storyRoute ~= "" then -- 735
+		____temp_16 = pRec.storyRoute -- 736
+	else -- 736
+		local ____temp_15 -- 737
+		if storyRec ~= nil and type(storyRec.route) == "string" and storyRec.route ~= "" then -- 737
+			____temp_15 = storyRec.route -- 738
+		else -- 738
+			local ____temp_14 -- 739
+			if runRec ~= nil then -- 739
+				____temp_14 = runRec.storyRoute -- 739
+			else -- 739
+				____temp_14 = nil -- 739
+			end -- 739
+			____temp_15 = ____temp_14 -- 739
+		end -- 739
+		____temp_16 = ____temp_15 -- 737
+	end -- 737
+	local rawRoute = ____temp_16 -- 735
+	local storyRoute = parseStoryRoute(rawRoute) -- 740
+	local countElapsedTicks = readNum(pRec, "countElapsedTicks") or p.countTick -- 743
+	local countDurationTicks = math.max( -- 744
+		1, -- 744
+		readNum(pRec, "countDurationTicks") or GATE_COUNT_END -- 744
+	) -- 744
+	local countNumber = gateCountAtTick(countElapsedTicks) -- 745
+	local countProgress = math.max( -- 746
+		0, -- 746
+		math.min(1, countElapsedTicks / countDurationTicks) -- 746
+	) -- 746
+	local ____asRecord_18 = asRecord -- 749
+	local ____temp_17 -- 749
+	if pRec ~= nil then -- 749
+		____temp_17 = pRec.gateReunion -- 749
+	else -- 749
+		____temp_17 = nil -- 749
+	end -- 749
+	local grRec = ____asRecord_18(____temp_17) -- 749
+	local flatHold = readNum(pRec, "gateHoldProgress") -- 750
+	local inGateWaitOrHand = p.room.key == "gate" and (p.phase == "gate-wait" or p.phase == "gate-hand") -- 751
+	local handTicks = readNum(pRec, "handTicks") or 0 -- 752
+	local handNeedTicks = math.max( -- 753
+		1, -- 753
+		readNum(pRec, "handNeedTicks") or 36 -- 753
+	) -- 753
+	local handTied = p.room.key == "gate" and p.phase == "gate-hand" -- 754
+	local derivedHoldProg = handTied and 1 or (inGateWaitOrHand and math.max( -- 755
+		0, -- 755
+		math.min(1, handTicks / handNeedTicks) -- 755
+	) or 0) -- 755
+	local ____readBool_result_19 = readBool(grRec, "active") -- 757
+	if ____readBool_result_19 == nil then -- 757
+		____readBool_result_19 = inGateWaitOrHand -- 757
 	end -- 757
-	local ____math_max_result_23 = math.max( -- 758
-		0, -- 758
-		math.min( -- 758
-			1, -- 758
-			readNum(grRec, "holdProgress") or flatHold or derivedHoldProg -- 758
-		) -- 758
-	) -- 758
-	local ____readBool_result_21 = readBool(grRec, "holding") -- 759
-	if ____readBool_result_21 == nil then -- 759
-		____readBool_result_21 = inGateWaitOrHand and not handTied and handTicks > 0 -- 759
-	end -- 759
-	local ____readBool_result_22 = readBool(grRec, "completed") -- 760
-	if ____readBool_result_22 == nil then -- 760
-		____readBool_result_22 = handTied -- 760
+	local ____readBool_result_20 = readBool(grRec, "knockHeard") -- 758
+	if ____readBool_result_20 == nil then -- 758
+		____readBool_result_20 = inGateWaitOrHand and p.knocks >= 1 -- 758
+	end -- 758
+	local ____math_max_result_23 = math.max( -- 759
+		0, -- 759
+		math.min( -- 759
+			1, -- 759
+			readNum(grRec, "holdProgress") or flatHold or derivedHoldProg -- 759
+		) -- 759
+	) -- 759
+	local ____readBool_result_21 = readBool(grRec, "holding") -- 760
+	if ____readBool_result_21 == nil then -- 760
+		____readBool_result_21 = inGateWaitOrHand and not handTied and handTicks > 0 -- 760
 	end -- 760
-	local gateReunion = { -- 755
-		active = ____readBool_result_19, -- 756
-		knockHeard = ____readBool_result_20, -- 757
-		holdProgress = ____math_max_result_23, -- 758
-		holding = ____readBool_result_21, -- 759
-		completed = ____readBool_result_22, -- 760
-		releasedAbortCount = readNum(grRec, "releasedAbortCount") or self.liveReleasedAbortCount -- 761
-	} -- 761
-	local ____asRecord_25 = asRecord -- 765
-	local ____temp_24 -- 765
-	if pRec ~= nil then -- 765
-		____temp_24 = pRec.backCarry -- 765
-	else -- 765
-		____temp_24 = nil -- 765
-	end -- 765
-	local bcRec = ____asRecord_25(____temp_24) -- 765
-	local ____readBool_result_26 = readBool(pRec, "carryOn") -- 766
-	if ____readBool_result_26 == nil then -- 766
-		____readBool_result_26 = readBool(storyRec, "carry") -- 766
+	local ____readBool_result_22 = readBool(grRec, "completed") -- 761
+	if ____readBool_result_22 == nil then -- 761
+		____readBool_result_22 = handTied -- 761
+	end -- 761
+	local gateReunion = { -- 756
+		active = ____readBool_result_19, -- 757
+		knockHeard = ____readBool_result_20, -- 758
+		holdProgress = ____math_max_result_23, -- 759
+		holding = ____readBool_result_21, -- 760
+		completed = ____readBool_result_22, -- 761
+		releasedAbortCount = readNum(grRec, "releasedAbortCount") or self.liveReleasedAbortCount -- 762
+	} -- 762
+	local ____asRecord_25 = asRecord -- 766
+	local ____temp_24 -- 766
+	if pRec ~= nil then -- 766
+		____temp_24 = pRec.backCarry -- 766
+	else -- 766
+		____temp_24 = nil -- 766
 	end -- 766
-	local ____readBool_result_26_27 = ____readBool_result_26 -- 766
-	if ____readBool_result_26_27 == nil then -- 766
-		____readBool_result_26_27 = false -- 766
-	end -- 766
-	local carryOn = ____readBool_result_26_27 -- 766
-	local handInHandLive = handTied or p.room.key == "gatepath" and not carryOn -- 767
-	local ____readBool_result_28 = readBool(bcRec, "active") -- 769
-	if ____readBool_result_28 == nil then -- 769
-		____readBool_result_28 = carryOn -- 769
+	local bcRec = ____asRecord_25(____temp_24) -- 766
+	local ____asRecord_27 = asRecord -- 767
+	local ____temp_26 -- 767
+	if pRec ~= nil then -- 767
+		____temp_26 = pRec.craftBench -- 767
+	else -- 767
+		____temp_26 = nil -- 767
+	end -- 767
+	local cbRecEarly = ____asRecord_27(____temp_26) -- 767
+	local ____readBool_result_28 = readBool(cbRecEarly, "active") -- 768
+	if ____readBool_result_28 == nil then -- 768
+		____readBool_result_28 = false -- 768
+	end -- 768
+	local benchActiveLive = ____readBool_result_28 -- 768
+	local ____readBool_result_29 = readBool(pRec, "carryOn") -- 769
+	if ____readBool_result_29 == nil then -- 769
+		____readBool_result_29 = readBool(storyRec, "carry") -- 769
 	end -- 769
-	local ____readBool_result_29 = readBool(bcRec, "handInHand") -- 770
-	if ____readBool_result_29 == nil then -- 770
-		____readBool_result_29 = handInHandLive -- 770
-	end -- 770
-	local ____readBool_result_30 = readBool(bcRec, "mounting") -- 771
-	if ____readBool_result_30 == nil then -- 771
-		____readBool_result_30 = p.room.key == "gatepath" and carryOn -- 771
-	end -- 771
-	local ____readBool_result_31 = readBool(bcRec, "atBench") -- 772
+	local ____readBool_result_29_30 = ____readBool_result_29 -- 769
+	if ____readBool_result_29_30 == nil then -- 769
+		____readBool_result_29_30 = false -- 769
+	end -- 769
+	local carryOn = ____readBool_result_29_30 -- 769
+	local handInHandLive = handTied or p.room.key == "gatepath" and not carryOn -- 770
+	local ____readBool_result_31 = readBool(bcRec, "active") -- 772
 	if ____readBool_result_31 == nil then -- 772
-		____readBool_result_31 = false -- 772
+		____readBool_result_31 = carryOn -- 772
 	end -- 772
-	local backCarry = {active = ____readBool_result_28, handInHand = ____readBool_result_29, mounting = ____readBool_result_30, atBench = ____readBool_result_31} -- 768
-	local ____asRecord_33 = asRecord -- 776
-	local ____temp_32 -- 776
-	if pRec ~= nil then -- 776
-		____temp_32 = pRec.reloadSession -- 776
-	else -- 776
-		____temp_32 = nil -- 776
-	end -- 776
-	local rsRec = ____asRecord_33(____temp_32) -- 776
-	local ____readBool_result_34 = readBool(pRec, "reloadOpen") -- 777
-	if ____readBool_result_34 == nil then -- 777
-		____readBool_result_34 = false -- 777
-	end -- 777
-	local reloadOpenLive = ____readBool_result_34 -- 777
-	local ____readBool_result_35 = readBool(rsRec, "active") -- 778
-	if ____readBool_result_35 == nil then -- 778
-		____readBool_result_35 = reloadOpenLive -- 778
-	end -- 778
-	local reloadActive = ____readBool_result_35 -- 778
-	local reloadAnswerTicks = readNum(pRec, "reloadAnswerTicks") or 0 -- 779
-	local reloadTryCount = readNum(pRec, "reloadTryCount") or 0 -- 780
-	local livePath = readNumArray(rsRec, "path") or readNumArray(pRec, "reloadPath") or ({}) -- 781
-	local ____temp_38 -- 782
-	if rsRec ~= nil and rsRec.nextEffect ~= nil then -- 782
-		____temp_38 = rsRec.nextEffect -- 783
-	else -- 783
-		local ____temp_37 -- 784
-		if pRec ~= nil and pRec.reloadPendingEffect ~= nil then -- 784
-			____temp_37 = pRec.reloadPendingEffect -- 785
-		else -- 785
-			local ____temp_36 -- 786
-			if pRec ~= nil then -- 786
-				____temp_36 = pRec.nextEffect -- 786
-			else -- 786
-				____temp_36 = nil -- 786
-			end -- 786
-			____temp_37 = ____temp_36 -- 786
-		end -- 786
-		____temp_38 = ____temp_37 -- 784
-	end -- 784
-	local liveNextRaw = ____temp_38 -- 782
-	local livePreview = rsRec ~= nil and rsRec.previewEffect ~= nil and parseReloadEffect(rsRec.previewEffect) or (reloadActive and deriveReloadEffectFromPath(livePath) or "normal") -- 787
-	local ____readBool_result_39 = readBool(rsRec, "firstTime") -- 793
-	if ____readBool_result_39 == nil then -- 793
-		____readBool_result_39 = reloadTryCount <= 1 -- 793
-	end -- 793
-	local reloadSession = { -- 791
-		active = reloadActive, -- 792
-		firstTime = ____readBool_result_39, -- 793
-		elapsed = readNum(rsRec, "elapsed") or reloadAnswerTicks / 60, -- 794
-		duration = math.max( -- 795
-			0.01, -- 795
-			readNum(rsRec, "duration") or DEFAULT_RELOAD_DURATION -- 795
-		), -- 795
-		path = livePath, -- 796
-		previewEffect = livePreview, -- 797
-		nextEffect = parseReloadEffect(liveNextRaw), -- 798
-		invalidFlash = readNum(rsRec, "invalidFlash") or self.liveReloadInvalidFlash -- 799
-	} -- 799
-	local rawScale = readNum(pRec, "timeScale") or readNum(runRec, "timeScale") -- 802
-	local timeScale = rawScale ~= nil and rawScale >= 0 and rawScale or (reloadActive and DEFAULT_SLOW_TIME_SCALE or 1) -- 803
-	local ____asRecord_41 = asRecord -- 808
-	local ____temp_40 -- 808
-	if pRec ~= nil then -- 808
-		____temp_40 = pRec.craftBench -- 808
-	else -- 808
-		____temp_40 = nil -- 808
-	end -- 808
-	local cbRec = ____asRecord_41(____temp_40) -- 808
-	local craftBench = self:readLiveCraftBench(cbRec, pRec, runRec) -- 809
-	local archive = self:readLiveArchive(p) -- 812
-	self.liveArchiveCache = archive -- 813
-	local visualMode = deriveVisualMode( -- 815
-		p.room.key, -- 816
-		p.phase, -- 817
-		storyRoute, -- 818
-		archive.museumPhase, -- 819
-		countProgress, -- 820
-		gateReunion.completed -- 821
-	) -- 821
-	return { -- 824
-		storyRoute = storyRoute, -- 825
-		countElapsedTicks = countElapsedTicks, -- 826
-		countDurationTicks = countDurationTicks, -- 827
-		countNumber = countNumber, -- 828
-		countProgress = countProgress, -- 829
-		gateReunion = gateReunion, -- 830
-		backCarry = backCarry, -- 831
-		timeScale = timeScale, -- 832
-		reloadSession = reloadSession, -- 833
-		craftBench = craftBench, -- 834
-		archive = archive, -- 835
-		assistHintsEnabled = self.assistHintsEnabled, -- 836
-		visualMode = visualMode, -- 837
-		dataSource = "live", -- 838
-		isRehearsal = false, -- 839
-		rehearsalTag = "" -- 840
-	} -- 840
-end -- 713
-function DualRouteContract.prototype.readLiveCraftBench(self, cbRec, pRec, runRec) -- 844
-	local recipes = defaultRecipes() -- 849
-	if cbRec ~= nil and __TS__ArrayIsArray(cbRec.recipes) then -- 849
-		local rawList = cbRec.recipes -- 851
-		local parsed = {} -- 852
-		local i = 0 -- 853
-		do -- 853
-			i = 0 -- 854
-			while i < #rawList do -- 854
-				do -- 854
-					local item = asRecord(rawList[i + 1]) -- 855
-					if item == nil then -- 855
-						goto __continue126 -- 857
-					end -- 857
-					local id = readStr(item, "id") -- 859
-					local name = readStr(item, "name") -- 860
-					if id == nil or name == nil then -- 860
-						goto __continue126 -- 862
-					end -- 862
-					local ____id_43 = id -- 865
-					local ____name_44 = name -- 866
-					local ____temp_45 = readStr(item, "desc") or "" -- 867
-					local ____parseReloadEffect_result_46 = parseReloadEffect(item.enhancedEffect) -- 868
-					local ____temp_47 = readNumMap(item, "cost") or ({}) -- 869
-					local ____readBool_result_42 = readBool(item, "crafted") -- 870
-					if ____readBool_result_42 == nil then -- 870
-						____readBool_result_42 = false -- 870
-					end -- 870
-					parsed[#parsed + 1] = { -- 864
-						id = ____id_43, -- 865
-						name = ____name_44, -- 866
-						desc = ____temp_45, -- 867
-						enhancedEffect = ____parseReloadEffect_result_46, -- 868
-						cost = ____temp_47, -- 869
-						crafted = ____readBool_result_42 -- 870
-					} -- 870
-				end -- 870
-				::__continue126:: -- 870
-				i = i + 1 -- 854
-			end -- 854
-		end -- 854
-		if #parsed > 0 then -- 854
-			local ____readBool_result_48 = readBool(cbRec, "active") -- 875
-			if ____readBool_result_48 == nil then -- 875
-				____readBool_result_48 = false -- 875
-			end -- 875
-			local ____readBool_result_49 = readBool(cbRec, "firstCraftDone") -- 876
-			if ____readBool_result_49 == nil then -- 876
-				____readBool_result_49 = false -- 876
-			end -- 876
-			return { -- 874
-				active = ____readBool_result_48, -- 875
-				firstCraftDone = ____readBool_result_49, -- 876
-				justCraftedTimer = readNum(cbRec, "justCraftedTimer") or 0, -- 877
-				inventory = readNumMap(cbRec, "inventory") or readNumMap(pRec, "inventory") or ({}), -- 878
-				recipes = parsed, -- 879
-				equippedWeapon = readStr(cbRec, "equippedWeapon") or readStr(pRec, "equippedWeapon") or "standard_gun" -- 880
-			} -- 880
-		end -- 880
-	end -- 880
-	local ____readBool_result_50 = readBool(cbRec, "active") -- 885
-	if ____readBool_result_50 == nil then -- 885
-		____readBool_result_50 = false -- 885
-	end -- 885
-	local ____readBool_result_51 = readBool(cbRec, "firstCraftDone") -- 886
-	if ____readBool_result_51 == nil then -- 886
-		____readBool_result_51 = false -- 886
-	end -- 886
-	return { -- 884
-		active = ____readBool_result_50, -- 885
-		firstCraftDone = ____readBool_result_51, -- 886
-		justCraftedTimer = readNum(cbRec, "justCraftedTimer") or 0, -- 887
-		inventory = readNumMap(cbRec, "inventory") or readNumMap(pRec, "inventory") or readNumMap(runRec, "craftInventory") or ({}), -- 888
-		recipes = recipes, -- 889
-		equippedWeapon = readStr(cbRec, "equippedWeapon") or readStr(pRec, "equippedWeapon") or "standard_gun" -- 890
-	} -- 890
-end -- 844
-function DualRouteContract.prototype.readLiveArchive(self, p) -- 894
-	local pRec = asRecord(p) -- 895
-	local runRec = asRecord(p.run) -- 896
-	local ____asRecord_53 = asRecord -- 897
-	local ____temp_52 -- 897
-	if pRec ~= nil then -- 897
-		____temp_52 = pRec.archive -- 897
-	else -- 897
-		____temp_52 = nil -- 897
-	end -- 897
-	local ____asRecord_53_result_56 = ____asRecord_53(____temp_52) -- 897
-	if ____asRecord_53_result_56 == nil then -- 897
-		local ____asRecord_55 = asRecord -- 898
-		local ____temp_54 -- 898
-		if runRec ~= nil then -- 898
-			____temp_54 = runRec.archive -- 898
-		else -- 898
-			____temp_54 = nil -- 898
-		end -- 898
-		____asRecord_53_result_56 = ____asRecord_55(____temp_54) -- 897
-	end -- 897
-	local archRec = ____asRecord_53_result_56 -- 897
-	local ____readBool_result_57 = readBool(archRec, "childCleared") -- 900
-	if ____readBool_result_57 == nil then -- 900
-		____readBool_result_57 = readBool(pRec, "childCleared") -- 900
+	local ____readBool_result_32 = readBool(bcRec, "handInHand") -- 773
+	if ____readBool_result_32 == nil then -- 773
+		____readBool_result_32 = handInHandLive -- 773
+	end -- 773
+	local ____readBool_result_33 = readBool(bcRec, "mounting") -- 774
+	if ____readBool_result_33 == nil then -- 774
+		____readBool_result_33 = p.room.key == "gatepath" and carryOn -- 774
+	end -- 774
+	local ____readBool_result_34 = readBool(bcRec, "atBench") -- 775
+	if ____readBool_result_34 == nil then -- 775
+		____readBool_result_34 = benchActiveLive -- 775
+	end -- 775
+	local backCarry = {active = ____readBool_result_31, handInHand = ____readBool_result_32, mounting = ____readBool_result_33, atBench = ____readBool_result_34} -- 771
+	local ____asRecord_36 = asRecord -- 779
+	local ____temp_35 -- 779
+	if pRec ~= nil then -- 779
+		____temp_35 = pRec.reloadSession -- 779
+	else -- 779
+		____temp_35 = nil -- 779
+	end -- 779
+	local rsRec = ____asRecord_36(____temp_35) -- 779
+	local ____readBool_result_37 = readBool(pRec, "reloadOpen") -- 780
+	if ____readBool_result_37 == nil then -- 780
+		____readBool_result_37 = false -- 780
+	end -- 780
+	local reloadOpenLive = ____readBool_result_37 -- 780
+	local ____readBool_result_38 = readBool(rsRec, "active") -- 781
+	if ____readBool_result_38 == nil then -- 781
+		____readBool_result_38 = reloadOpenLive -- 781
+	end -- 781
+	local reloadActive = ____readBool_result_38 -- 781
+	local reloadAnswerTicks = readNum(pRec, "reloadAnswerTicks") or 0 -- 782
+	local reloadTryCount = readNum(pRec, "reloadTryCount") or 0 -- 783
+	local livePath = readNumArray(rsRec, "path") or readNumArray(pRec, "reloadPath") or ({}) -- 784
+	local ____temp_41 -- 785
+	if rsRec ~= nil and rsRec.nextEffect ~= nil then -- 785
+		____temp_41 = rsRec.nextEffect -- 786
+	else -- 786
+		local ____temp_40 -- 787
+		if pRec ~= nil and pRec.reloadPendingEffect ~= nil then -- 787
+			____temp_40 = pRec.reloadPendingEffect -- 788
+		else -- 788
+			local ____temp_39 -- 789
+			if pRec ~= nil then -- 789
+				____temp_39 = pRec.nextEffect -- 789
+			else -- 789
+				____temp_39 = nil -- 789
+			end -- 789
+			____temp_40 = ____temp_39 -- 789
+		end -- 789
+		____temp_41 = ____temp_40 -- 787
+	end -- 787
+	local liveNextRaw = ____temp_41 -- 785
+	local livePreview = rsRec ~= nil and rsRec.previewEffect ~= nil and parseReloadEffect(rsRec.previewEffect) or (reloadActive and deriveReloadEffectFromPath(livePath) or "normal") -- 790
+	local ____readBool_result_42 = readBool(rsRec, "firstTime") -- 796
+	if ____readBool_result_42 == nil then -- 796
+		____readBool_result_42 = reloadTryCount <= 1 -- 796
+	end -- 796
+	local reloadSession = { -- 794
+		active = reloadActive, -- 795
+		firstTime = ____readBool_result_42, -- 796
+		elapsed = readNum(rsRec, "elapsed") or reloadAnswerTicks / 60, -- 797
+		duration = math.max( -- 798
+			0.01, -- 798
+			readNum(rsRec, "duration") or DEFAULT_RELOAD_DURATION -- 798
+		), -- 798
+		path = livePath, -- 799
+		previewEffect = livePreview, -- 800
+		nextEffect = parseReloadEffect(liveNextRaw), -- 801
+		invalidFlash = readNum(rsRec, "invalidFlash") or self.liveReloadInvalidFlash -- 802
+	} -- 802
+	local rawScale = readNum(pRec, "timeScale") or readNum(runRec, "timeScale") -- 805
+	local timeScale = rawScale ~= nil and rawScale >= 0 and rawScale or (reloadActive and DEFAULT_SLOW_TIME_SCALE or 1) -- 806
+	local ____asRecord_44 = asRecord -- 811
+	local ____temp_43 -- 811
+	if pRec ~= nil then -- 811
+		____temp_43 = pRec.craftBench -- 811
+	else -- 811
+		____temp_43 = nil -- 811
+	end -- 811
+	local cbRec = ____asRecord_44(____temp_43) -- 811
+	local craftBench = self:readLiveCraftBench(cbRec, pRec, runRec) -- 812
+	local archive = self:readLiveArchive(p) -- 815
+	self.liveArchiveCache = archive -- 816
+	local visualMode = deriveVisualMode( -- 818
+		p.room.key, -- 819
+		p.phase, -- 820
+		storyRoute, -- 821
+		archive.museumPhase, -- 822
+		countProgress, -- 823
+		gateReunion.completed -- 824
+	) -- 824
+	return { -- 827
+		storyRoute = storyRoute, -- 828
+		countElapsedTicks = countElapsedTicks, -- 829
+		countDurationTicks = countDurationTicks, -- 830
+		countNumber = countNumber, -- 831
+		countProgress = countProgress, -- 832
+		gateReunion = gateReunion, -- 833
+		backCarry = backCarry, -- 834
+		timeScale = timeScale, -- 835
+		reloadSession = reloadSession, -- 836
+		craftBench = craftBench, -- 837
+		archive = archive, -- 838
+		assistHintsEnabled = self.assistHintsEnabled, -- 839
+		visualMode = visualMode, -- 840
+		dataSource = "live", -- 841
+		isRehearsal = false, -- 842
+		rehearsalTag = "" -- 843
+	} -- 843
+end -- 714
+function DualRouteContract.prototype.readLiveCraftBench(self, cbRec, pRec, runRec) -- 847
+	local recipes = defaultRecipes() -- 852
+	if cbRec ~= nil and __TS__ArrayIsArray(cbRec.recipes) then -- 852
+		local rawList = cbRec.recipes -- 854
+		local parsed = {} -- 855
+		local i = 0 -- 856
+		do -- 856
+			i = 0 -- 857
+			while i < #rawList do -- 857
+				do -- 857
+					local item = asRecord(rawList[i + 1]) -- 858
+					if item == nil then -- 858
+						goto __continue126 -- 860
+					end -- 860
+					local id = readStr(item, "id") -- 862
+					local name = readStr(item, "name") -- 863
+					if id == nil or name == nil then -- 863
+						goto __continue126 -- 865
+					end -- 865
+					local ____id_46 = id -- 868
+					local ____name_47 = name -- 869
+					local ____temp_48 = readStr(item, "desc") or "" -- 870
+					local ____parseReloadEffect_result_49 = parseReloadEffect(item.enhancedEffect) -- 871
+					local ____temp_50 = readNumMap(item, "cost") or ({}) -- 872
+					local ____readBool_result_45 = readBool(item, "crafted") -- 873
+					if ____readBool_result_45 == nil then -- 873
+						____readBool_result_45 = false -- 873
+					end -- 873
+					parsed[#parsed + 1] = { -- 867
+						id = ____id_46, -- 868
+						name = ____name_47, -- 869
+						desc = ____temp_48, -- 870
+						enhancedEffect = ____parseReloadEffect_result_49, -- 871
+						cost = ____temp_50, -- 872
+						crafted = ____readBool_result_45 -- 873
+					} -- 873
+				end -- 873
+				::__continue126:: -- 873
+				i = i + 1 -- 857
+			end -- 857
+		end -- 857
+		if #parsed > 0 then -- 857
+			local ____readBool_result_51 = readBool(cbRec, "active") -- 878
+			if ____readBool_result_51 == nil then -- 878
+				____readBool_result_51 = false -- 878
+			end -- 878
+			local ____readBool_result_52 = readBool(cbRec, "firstCraftDone") -- 879
+			if ____readBool_result_52 == nil then -- 879
+				____readBool_result_52 = false -- 879
+			end -- 879
+			return { -- 877
+				active = ____readBool_result_51, -- 878
+				firstCraftDone = ____readBool_result_52, -- 879
+				justCraftedTimer = readNum(cbRec, "justCraftedTimer") or 0, -- 880
+				inventory = readNumMap(cbRec, "inventory") or readNumMap(pRec, "inventory") or ({}), -- 881
+				recipes = parsed, -- 882
+				equippedWeapon = readStr(cbRec, "equippedWeapon") or readStr(pRec, "equippedWeapon") or "standard_gun" -- 883
+			} -- 883
+		end -- 883
+	end -- 883
+	local ____readBool_result_53 = readBool(cbRec, "active") -- 888
+	if ____readBool_result_53 == nil then -- 888
+		____readBool_result_53 = false -- 888
+	end -- 888
+	local ____readBool_result_54 = readBool(cbRec, "firstCraftDone") -- 889
+	if ____readBool_result_54 == nil then -- 889
+		____readBool_result_54 = false -- 889
+	end -- 889
+	return { -- 887
+		active = ____readBool_result_53, -- 888
+		firstCraftDone = ____readBool_result_54, -- 889
+		justCraftedTimer = readNum(cbRec, "justCraftedTimer") or 0, -- 890
+		inventory = readNumMap(cbRec, "inventory") or readNumMap(pRec, "inventory") or readNumMap(runRec, "craftInventory") or ({}), -- 891
+		recipes = recipes, -- 892
+		equippedWeapon = readStr(cbRec, "equippedWeapon") or readStr(pRec, "equippedWeapon") or "standard_gun" -- 893
+	} -- 893
+end -- 847
+function DualRouteContract.prototype.readLiveArchive(self, p) -- 897
+	local pRec = asRecord(p) -- 898
+	local runRec = asRecord(p.run) -- 899
+	local ____asRecord_56 = asRecord -- 900
+	local ____temp_55 -- 900
+	if pRec ~= nil then -- 900
+		____temp_55 = pRec.archive -- 900
+	else -- 900
+		____temp_55 = nil -- 900
 	end -- 900
-	local ____readBool_result_57_58 = ____readBool_result_57 -- 900
-	if ____readBool_result_57_58 == nil then -- 900
-		____readBool_result_57_58 = false -- 900
+	local ____asRecord_56_result_59 = ____asRecord_56(____temp_55) -- 900
+	if ____asRecord_56_result_59 == nil then -- 900
+		local ____asRecord_58 = asRecord -- 901
+		local ____temp_57 -- 901
+		if runRec ~= nil then -- 901
+			____temp_57 = runRec.archive -- 901
+		else -- 901
+			____temp_57 = nil -- 901
+		end -- 901
+		____asRecord_56_result_59 = ____asRecord_58(____temp_57) -- 900
 	end -- 900
-	local childCleared = ____readBool_result_57_58 -- 900
-	local ____readBool_result_59 = readBool(archRec, "soldierCleared") -- 901
-	if ____readBool_result_59 == nil then -- 901
-		____readBool_result_59 = readBool(pRec, "soldierCleared") -- 901
-	end -- 901
-	local ____readBool_result_59_60 = ____readBool_result_59 -- 901
-	if ____readBool_result_59_60 == nil then -- 901
-		____readBool_result_59_60 = false -- 901
-	end -- 901
-	local soldierCleared = ____readBool_result_59_60 -- 901
-	local ____readBool_result_61 = readBool(archRec, "artifactOwned") -- 902
-	if ____readBool_result_61 == nil then -- 902
-		____readBool_result_61 = readBool(pRec, "artifactOwned") -- 902
-	end -- 902
-	local ____readBool_result_61_62 = ____readBool_result_61 -- 902
-	if ____readBool_result_61_62 == nil then -- 902
-		____readBool_result_61_62 = false -- 902
-	end -- 902
-	local artifactOwned = ____readBool_result_61_62 -- 902
-	local ____temp_64 -- 903
-	if archRec ~= nil and archRec.museumPhase ~= nil then -- 903
-		____temp_64 = archRec.museumPhase -- 904
-	else -- 904
-		local ____temp_63 -- 905
-		if pRec ~= nil then -- 905
-			____temp_63 = pRec.museumPhase -- 905
-		else -- 905
-			____temp_63 = nil -- 905
-		end -- 905
-		____temp_64 = ____temp_63 -- 905
+	local archRec = ____asRecord_56_result_59 -- 900
+	local ____readBool_result_60 = readBool(archRec, "childCleared") -- 903
+	if ____readBool_result_60 == nil then -- 903
+		____readBool_result_60 = readBool(pRec, "childCleared") -- 903
+	end -- 903
+	local ____readBool_result_60_61 = ____readBool_result_60 -- 903
+	if ____readBool_result_60_61 == nil then -- 903
+		____readBool_result_60_61 = false -- 903
+	end -- 903
+	local childCleared = ____readBool_result_60_61 -- 903
+	local ____readBool_result_62 = readBool(archRec, "soldierCleared") -- 904
+	if ____readBool_result_62 == nil then -- 904
+		____readBool_result_62 = readBool(pRec, "soldierCleared") -- 904
+	end -- 904
+	local ____readBool_result_62_63 = ____readBool_result_62 -- 904
+	if ____readBool_result_62_63 == nil then -- 904
+		____readBool_result_62_63 = false -- 904
+	end -- 904
+	local soldierCleared = ____readBool_result_62_63 -- 904
+	local ____readBool_result_64 = readBool(archRec, "artifactOwned") -- 905
+	if ____readBool_result_64 == nil then -- 905
+		____readBool_result_64 = readBool(pRec, "artifactOwned") -- 905
 	end -- 905
-	local rawPhase = ____temp_64 -- 903
-	local museumPhase = parseMuseumPhase(rawPhase) -- 906
-	local ____readBool_result_65 = readBool(archRec, "museumSeen") -- 907
-	if ____readBool_result_65 == nil then -- 907
-		____readBool_result_65 = readBool(pRec, "museumSeen") -- 907
-	end -- 907
-	local ____readBool_result_65_66 = ____readBool_result_65 -- 907
-	if ____readBool_result_65_66 == nil then -- 907
-		____readBool_result_65_66 = false -- 907
-	end -- 907
-	local museumSeen = ____readBool_result_65_66 -- 907
-	return { -- 909
-		childCleared = childCleared, -- 910
-		soldierCleared = soldierCleared, -- 911
-		artifactOwned = artifactOwned, -- 912
-		museumPhase = museumPhase, -- 913
-		museumSeen = museumSeen -- 914
-	} -- 914
-end -- 894
-function DualRouteContract.prototype.forwardLiveIntent(self, p, intent) -- 918
-	if intent.kind == "craftSubmit" then -- 918
-		if self.livePendingCraftRequests[intent.requestId] == true then -- 918
-			return false -- 921
-		end -- 921
-		self.livePendingCraftRequests[intent.requestId] = true -- 923
-	end -- 923
-	local pRec = asRecord(p) -- 925
-	if pRec == nil then -- 925
-		return false -- 927
-	end -- 927
-	local handler = pRec.submitFeIntent -- 929
-	if type(handler) == "function" then -- 929
-		local result = handler(p, intent) -- 931
-		return result ~= false -- 932
-	end -- 932
-	local tapNode = pRec.reloadTapNode -- 935
-	if type(tapNode) == "function" then -- 935
-		local fn = tapNode -- 937
-		if intent.kind == "reloadTapNode" then -- 937
-			fn(p, intent.node) -- 939
-			return true -- 940
-		end -- 940
-		if intent.kind == "reloadPathCommit" and #intent.path > 0 then -- 940
-			local i = 0 -- 943
-			do -- 943
-				i = 0 -- 944
-				while i < #intent.path do -- 944
-					do -- 944
-						if i == 0 and intent.path[i + 1] == 0 then -- 944
-							goto __continue140 -- 946
-						end -- 946
-						fn(p, intent.path[i + 1]) -- 948
-					end -- 948
-					::__continue140:: -- 948
-					i = i + 1 -- 944
-				end -- 944
-			end -- 944
-			return true -- 950
-		end -- 950
-	end -- 950
-	return false -- 953
-end -- 918
-function DualRouteContract.prototype.sampleRehearsal(self, p, dt, input, st) -- 958
-	local countElapsedTicks = st.countTickOverride ~= nil and st.countTickOverride or p.countTick -- 959
-	local countDurationTicks = math.max(1, st.countDurationOverride or GATE_COUNT_END) -- 960
-	local countNumber = gateCountAtTick(countElapsedTicks) -- 961
-	local countProgress = math.max( -- 962
-		0, -- 962
-		math.min(1, countElapsedTicks / countDurationTicks) -- 962
-	) -- 962
-	if p.room.key == "gate" and p.phase == "gate-count" and st.storyRoute == "soldier" then -- 962
-		if countElapsedTicks < countDurationTicks then -- 962
-			st.gateReunion.active = false -- 967
-			st.gateReunion.knockHeard = false -- 968
-			st.gateReunion.holding = false -- 969
-			st.gateReunion.holdProgress = 0 -- 970
-			st.gateHoldArmed = not input.interact.held -- 971
-			st.gatePrevInteractHeld = input.interact.held -- 972
-		elseif not st.gateReunion.completed then -- 972
-			st.gateReunion.active = true -- 974
-			st.gateReunion.knockHeard = true -- 975
-			if not st.gateHoldArmed and not input.interact.held then -- 975
-				st.gateHoldArmed = true -- 977
-			end -- 977
-			if dt > 0 then -- 977
-				if st.gateHoldArmed and input.interact.held then -- 977
-					st.gateReunion.holding = true -- 981
-					st.gateReunion.holdProgress = math.min(1, st.gateReunion.holdProgress + dt / GATE_REUNION_HOLD_SECONDS) -- 982
-					if st.gateReunion.holdProgress >= 1 then -- 982
-						st.gateReunion.holdProgress = 1 -- 987
-						st.gateReunion.holding = false -- 988
-						st.gateReunion.completed = true -- 989
-						st.backCarry.handInHand = true -- 990
-					end -- 990
-				else -- 990
-					if st.gateReunion.holding and st.gateReunion.holdProgress > 0 and st.gateReunion.holdProgress < 1 then -- 990
-						local ____st_gateReunion_67, ____releasedAbortCount_68 = st.gateReunion, "releasedAbortCount" -- 990
-						____st_gateReunion_67[____releasedAbortCount_68] = ____st_gateReunion_67[____releasedAbortCount_68] + 1 -- 994
-					end -- 994
-					st.gateReunion.holding = false -- 996
-					st.gateReunion.holdProgress = 0 -- 997
-				end -- 997
-			end -- 997
-			st.gatePrevInteractHeld = input.interact.held -- 1000
-		end -- 1000
-	end -- 1000
-	if st.reloadSession.active and dt > 0 then -- 1000
-		local ____st_reloadSession_69, ____elapsed_70 = st.reloadSession, "elapsed" -- 1000
-		____st_reloadSession_69[____elapsed_70] = ____st_reloadSession_69[____elapsed_70] + dt -- 1006
-		if st.reloadSession.invalidFlash > 0 then -- 1006
-			st.reloadSession.invalidFlash = math.max(0, st.reloadSession.invalidFlash - dt) -- 1008
-		end -- 1008
-		if st.reloadSession.elapsed >= st.reloadSession.duration then -- 1008
-			st.reloadSession.active = false -- 1011
-			st.reloadSession.elapsed = 0 -- 1012
-			st.reloadSession.path = {} -- 1013
-			st.reloadSession.previewEffect = "normal" -- 1014
-			st.reloadSession.nextEffect = "normal" -- 1015
-			st.reloadSession.firstTime = false -- 1016
-			st.timeScaleOverride = nil -- 1017
-		end -- 1017
-	end -- 1017
-	if st.craftBench.justCraftedTimer > 0 and dt > 0 then -- 1017
-		st.craftBench.justCraftedTimer = math.max(0, st.craftBench.justCraftedTimer - dt) -- 1023
-	end -- 1023
-	local timeScale = st.timeScaleOverride ~= nil and math.max(0, st.timeScaleOverride) or (st.reloadSession.active and DEFAULT_SLOW_TIME_SCALE or 1) -- 1026
-	local visualMode = deriveVisualMode( -- 1030
-		p.room.key, -- 1031
-		p.phase, -- 1032
-		st.storyRoute, -- 1033
-		st.archive.museumPhase, -- 1034
-		countProgress, -- 1035
-		st.gateReunion.completed -- 1036
-	) -- 1036
-	return { -- 1039
-		storyRoute = st.storyRoute, -- 1040
-		countElapsedTicks = countElapsedTicks, -- 1041
-		countDurationTicks = countDurationTicks, -- 1042
-		countNumber = countNumber, -- 1043
-		countProgress = countProgress, -- 1044
-		gateReunion = { -- 1045
-			active = st.gateReunion.active, -- 1046
-			knockHeard = st.gateReunion.knockHeard, -- 1047
-			holdProgress = st.gateReunion.holdProgress, -- 1048
-			holding = st.gateReunion.holding, -- 1049
-			completed = st.gateReunion.completed, -- 1050
-			releasedAbortCount = st.gateReunion.releasedAbortCount -- 1051
-		}, -- 1051
-		backCarry = {active = st.backCarry.active, handInHand = st.backCarry.handInHand, mounting = st.backCarry.mounting, atBench = st.backCarry.atBench}, -- 1053
-		timeScale = timeScale, -- 1059
-		reloadSession = { -- 1060
-			active = st.reloadSession.active, -- 1061
-			firstTime = st.reloadSession.firstTime, -- 1062
-			elapsed = st.reloadSession.elapsed, -- 1063
-			duration = st.reloadSession.duration, -- 1064
-			path = __TS__ArraySlice(st.reloadSession.path), -- 1065
-			previewEffect = st.reloadSession.previewEffect, -- 1066
-			nextEffect = st.reloadSession.nextEffect, -- 1067
-			invalidFlash = st.reloadSession.invalidFlash -- 1068
-		}, -- 1068
-		craftBench = { -- 1070
-			active = st.craftBench.active, -- 1071
-			firstCraftDone = st.craftBench.firstCraftDone, -- 1072
-			justCraftedTimer = st.craftBench.justCraftedTimer, -- 1073
-			inventory = cloneRecordNum(st.craftBench.inventory), -- 1074
-			recipes = cloneRecipes(st.craftBench.recipes), -- 1075
-			equippedWeapon = st.craftBench.equippedWeapon -- 1076
-		}, -- 1076
-		archive = { -- 1078
-			childCleared = st.archive.childCleared, -- 1079
-			soldierCleared = st.archive.soldierCleared, -- 1080
-			artifactOwned = st.archive.artifactOwned, -- 1081
-			museumPhase = st.archive.museumPhase, -- 1082
-			museumSeen = st.archive.museumSeen -- 1083
-		}, -- 1083
-		assistHintsEnabled = self.assistHintsEnabled, -- 1085
-		visualMode = visualMode, -- 1086
-		dataSource = "rehearsal", -- 1087
-		isRehearsal = true, -- 1088
-		rehearsalTag = st.tag -- 1089
-	} -- 1089
-end -- 958
-function DualRouteContract.prototype.applyRehearsalIntent(self, st, intent) -- 1093
-	if intent.kind == "gateReunionHold" then -- 1093
-		if not st.gateReunion.active or st.gateReunion.completed then -- 1093
-			return false -- 1096
-		end -- 1096
-		if not intent.holding and st.gateReunion.holding and st.gateReunion.holdProgress > 0 and st.gateReunion.holdProgress < 1 then -- 1096
-			local ____st_gateReunion_71, ____releasedAbortCount_72 = st.gateReunion, "releasedAbortCount" -- 1096
-			____st_gateReunion_71[____releasedAbortCount_72] = ____st_gateReunion_71[____releasedAbortCount_72] + 1 -- 1099
-			st.gateReunion.holdProgress = 0 -- 1100
-		end -- 1100
-		st.gateReunion.holding = intent.holding -- 1102
-		return true -- 1103
-	end -- 1103
-	if intent.kind == "reloadOpen" then -- 1103
-		self:triggerMockReload(true) -- 1106
-		return true -- 1107
-	end -- 1107
-	if intent.kind == "reloadTapNode" then -- 1107
-		if not st.reloadSession.active then -- 1107
-			return false -- 1111
-		end -- 1111
-		if #st.reloadSession.path == 0 then -- 1111
-			local ____st_reloadSession_path_73 = st.reloadSession.path -- 1111
-			____st_reloadSession_path_73[#____st_reloadSession_path_73 + 1] = 0 -- 1114
+	local ____readBool_result_64_65 = ____readBool_result_64 -- 905
+	if ____readBool_result_64_65 == nil then -- 905
+		____readBool_result_64_65 = false -- 905
+	end -- 905
+	local artifactOwned = ____readBool_result_64_65 -- 905
+	local ____temp_67 -- 906
+	if archRec ~= nil and archRec.museumPhase ~= nil then -- 906
+		____temp_67 = archRec.museumPhase -- 907
+	else -- 907
+		local ____temp_66 -- 908
+		if pRec ~= nil then -- 908
+			____temp_66 = pRec.museumPhase -- 908
+		else -- 908
+			____temp_66 = nil -- 908
+		end -- 908
+		____temp_67 = ____temp_66 -- 908
+	end -- 908
+	local rawPhase = ____temp_67 -- 906
+	local museumPhase = parseMuseumPhase(rawPhase) -- 909
+	local ____readBool_result_68 = readBool(archRec, "museumSeen") -- 910
+	if ____readBool_result_68 == nil then -- 910
+		____readBool_result_68 = readBool(pRec, "museumSeen") -- 910
+	end -- 910
+	local ____readBool_result_68_69 = ____readBool_result_68 -- 910
+	if ____readBool_result_68_69 == nil then -- 910
+		____readBool_result_68_69 = false -- 910
+	end -- 910
+	local museumSeen = ____readBool_result_68_69 -- 910
+	return { -- 912
+		childCleared = childCleared, -- 913
+		soldierCleared = soldierCleared, -- 914
+		artifactOwned = artifactOwned, -- 915
+		museumPhase = museumPhase, -- 916
+		museumSeen = museumSeen -- 917
+	} -- 917
+end -- 897
+function DualRouteContract.prototype.forwardLiveIntent(self, p, intent) -- 921
+	if intent.kind == "craftSubmit" then -- 921
+		if self.livePendingCraftRequests[intent.requestId] == true then -- 921
+			return false -- 924
+		end -- 924
+		self.livePendingCraftRequests[intent.requestId] = true -- 926
+	end -- 926
+	local pRec = asRecord(p) -- 928
+	if pRec == nil then -- 928
+		return false -- 930
+	end -- 930
+	local handler = pRec.submitFeIntent -- 932
+	if type(handler) == "function" then -- 932
+		local result = handler(p, intent) -- 934
+		return result ~= false -- 935
+	end -- 935
+	local tapNode = pRec.reloadTapNode -- 938
+	if type(tapNode) == "function" then -- 938
+		local fn = tapNode -- 940
+		if intent.kind == "reloadTapNode" then -- 940
+			fn(p, intent.node) -- 942
+			return true -- 943
+		end -- 943
+		if intent.kind == "reloadPathCommit" and #intent.path > 0 then -- 943
+			local i = 0 -- 946
+			do -- 946
+				i = 0 -- 947
+				while i < #intent.path do -- 947
+					do -- 947
+						if i == 0 and intent.path[i + 1] == 0 then -- 947
+							goto __continue140 -- 949
+						end -- 949
+						fn(p, intent.path[i + 1]) -- 951
+					end -- 951
+					::__continue140:: -- 951
+					i = i + 1 -- 947
+				end -- 947
+			end -- 947
+			return true -- 953
+		end -- 953
+	end -- 953
+	return false -- 956
+end -- 921
+function DualRouteContract.prototype.sampleRehearsal(self, p, dt, input, st) -- 961
+	local countElapsedTicks = st.countTickOverride ~= nil and st.countTickOverride or p.countTick -- 962
+	local countDurationTicks = math.max(1, st.countDurationOverride or GATE_COUNT_END) -- 963
+	local countNumber = gateCountAtTick(countElapsedTicks) -- 964
+	local countProgress = math.max( -- 965
+		0, -- 965
+		math.min(1, countElapsedTicks / countDurationTicks) -- 965
+	) -- 965
+	if p.room.key == "gate" and p.phase == "gate-count" and st.storyRoute == "soldier" then -- 965
+		if countElapsedTicks < countDurationTicks then -- 965
+			st.gateReunion.active = false -- 970
+			st.gateReunion.knockHeard = false -- 971
+			st.gateReunion.holding = false -- 972
+			st.gateReunion.holdProgress = 0 -- 973
+			st.gateHoldArmed = not input.interact.held -- 974
+			st.gatePrevInteractHeld = input.interact.held -- 975
+		elseif not st.gateReunion.completed then -- 975
+			st.gateReunion.active = true -- 977
+			st.gateReunion.knockHeard = true -- 978
+			if not st.gateHoldArmed and not input.interact.held then -- 978
+				st.gateHoldArmed = true -- 980
+			end -- 980
+			if dt > 0 then -- 980
+				if st.gateHoldArmed and input.interact.held then -- 980
+					st.gateReunion.holding = true -- 984
+					st.gateReunion.holdProgress = math.min(1, st.gateReunion.holdProgress + dt / GATE_REUNION_HOLD_SECONDS) -- 985
+					if st.gateReunion.holdProgress >= 1 then -- 985
+						st.gateReunion.holdProgress = 1 -- 990
+						st.gateReunion.holding = false -- 991
+						st.gateReunion.completed = true -- 992
+						st.backCarry.handInHand = true -- 993
+					end -- 993
+				else -- 993
+					if st.gateReunion.holding and st.gateReunion.holdProgress > 0 and st.gateReunion.holdProgress < 1 then -- 993
+						local ____st_gateReunion_70, ____releasedAbortCount_71 = st.gateReunion, "releasedAbortCount" -- 993
+						____st_gateReunion_70[____releasedAbortCount_71] = ____st_gateReunion_70[____releasedAbortCount_71] + 1 -- 997
+					end -- 997
+					st.gateReunion.holding = false -- 999
+					st.gateReunion.holdProgress = 0 -- 1000
+				end -- 1000
+			end -- 1000
+			st.gatePrevInteractHeld = input.interact.held -- 1003
+		end -- 1003
+	end -- 1003
+	if st.reloadSession.active and dt > 0 then -- 1003
+		local ____st_reloadSession_72, ____elapsed_73 = st.reloadSession, "elapsed" -- 1003
+		____st_reloadSession_72[____elapsed_73] = ____st_reloadSession_72[____elapsed_73] + dt -- 1009
+		if st.reloadSession.invalidFlash > 0 then -- 1009
+			st.reloadSession.invalidFlash = math.max(0, st.reloadSession.invalidFlash - dt) -- 1011
+		end -- 1011
+		if st.reloadSession.elapsed >= st.reloadSession.duration then -- 1011
+			st.reloadSession.active = false -- 1014
+			st.reloadSession.elapsed = 0 -- 1015
+			st.reloadSession.path = {} -- 1016
+			st.reloadSession.previewEffect = "normal" -- 1017
+			st.reloadSession.nextEffect = "normal" -- 1018
+			st.reloadSession.firstTime = false -- 1019
+			st.timeScaleOverride = nil -- 1020
+		end -- 1020
+	end -- 1020
+	if st.craftBench.justCraftedTimer > 0 and dt > 0 then -- 1020
+		st.craftBench.justCraftedTimer = math.max(0, st.craftBench.justCraftedTimer - dt) -- 1026
+	end -- 1026
+	local timeScale = st.timeScaleOverride ~= nil and math.max(0, st.timeScaleOverride) or (st.reloadSession.active and DEFAULT_SLOW_TIME_SCALE or 1) -- 1029
+	local visualMode = deriveVisualMode( -- 1033
+		p.room.key, -- 1034
+		p.phase, -- 1035
+		st.storyRoute, -- 1036
+		st.archive.museumPhase, -- 1037
+		countProgress, -- 1038
+		st.gateReunion.completed -- 1039
+	) -- 1039
+	return { -- 1042
+		storyRoute = st.storyRoute, -- 1043
+		countElapsedTicks = countElapsedTicks, -- 1044
+		countDurationTicks = countDurationTicks, -- 1045
+		countNumber = countNumber, -- 1046
+		countProgress = countProgress, -- 1047
+		gateReunion = { -- 1048
+			active = st.gateReunion.active, -- 1049
+			knockHeard = st.gateReunion.knockHeard, -- 1050
+			holdProgress = st.gateReunion.holdProgress, -- 1051
+			holding = st.gateReunion.holding, -- 1052
+			completed = st.gateReunion.completed, -- 1053
+			releasedAbortCount = st.gateReunion.releasedAbortCount -- 1054
+		}, -- 1054
+		backCarry = {active = st.backCarry.active, handInHand = st.backCarry.handInHand, mounting = st.backCarry.mounting, atBench = st.backCarry.atBench}, -- 1056
+		timeScale = timeScale, -- 1062
+		reloadSession = { -- 1063
+			active = st.reloadSession.active, -- 1064
+			firstTime = st.reloadSession.firstTime, -- 1065
+			elapsed = st.reloadSession.elapsed, -- 1066
+			duration = st.reloadSession.duration, -- 1067
+			path = __TS__ArraySlice(st.reloadSession.path), -- 1068
+			previewEffect = st.reloadSession.previewEffect, -- 1069
+			nextEffect = st.reloadSession.nextEffect, -- 1070
+			invalidFlash = st.reloadSession.invalidFlash -- 1071
+		}, -- 1071
+		craftBench = { -- 1073
+			active = st.craftBench.active, -- 1074
+			firstCraftDone = st.craftBench.firstCraftDone, -- 1075
+			justCraftedTimer = st.craftBench.justCraftedTimer, -- 1076
+			inventory = cloneRecordNum(st.craftBench.inventory), -- 1077
+			recipes = cloneRecipes(st.craftBench.recipes), -- 1078
+			equippedWeapon = st.craftBench.equippedWeapon -- 1079
+		}, -- 1079
+		archive = { -- 1081
+			childCleared = st.archive.childCleared, -- 1082
+			soldierCleared = st.archive.soldierCleared, -- 1083
+			artifactOwned = st.archive.artifactOwned, -- 1084
+			museumPhase = st.archive.museumPhase, -- 1085
+			museumSeen = st.archive.museumSeen -- 1086
+		}, -- 1086
+		assistHintsEnabled = self.assistHintsEnabled, -- 1088
+		visualMode = visualMode, -- 1089
+		dataSource = "rehearsal", -- 1090
+		isRehearsal = true, -- 1091
+		rehearsalTag = st.tag -- 1092
+	} -- 1092
+end -- 961
+function DualRouteContract.prototype.applyRehearsalIntent(self, st, intent) -- 1096
+	if intent.kind == "gateReunionHold" then -- 1096
+		if not st.gateReunion.active or st.gateReunion.completed then -- 1096
+			return false -- 1099
+		end -- 1099
+		if not intent.holding and st.gateReunion.holding and st.gateReunion.holdProgress > 0 and st.gateReunion.holdProgress < 1 then -- 1099
+			local ____st_gateReunion_74, ____releasedAbortCount_75 = st.gateReunion, "releasedAbortCount" -- 1099
+			____st_gateReunion_74[____releasedAbortCount_75] = ____st_gateReunion_74[____releasedAbortCount_75] + 1 -- 1102
+			st.gateReunion.holdProgress = 0 -- 1103
+		end -- 1103
+		st.gateReunion.holding = intent.holding -- 1105
+		return true -- 1106
+	end -- 1106
+	if intent.kind == "reloadOpen" then -- 1106
+		self:triggerMockReload(true) -- 1109
+		return true -- 1110
+	end -- 1110
+	if intent.kind == "reloadTapNode" then -- 1110
+		if not st.reloadSession.active then -- 1110
+			return false -- 1114
 		end -- 1114
-		if __TS__ArrayIndexOf(st.reloadSession.path, intent.node) >= 0 then -- 1114
-			st.reloadSession.invalidFlash = 0.35 -- 1117
-			st.reloadSession.path = {0} -- 1118
-			st.reloadSession.previewEffect = "normal" -- 1119
-			return false -- 1120
-		end -- 1120
-		local ____st_reloadSession_path_74 = st.reloadSession.path -- 1120
-		____st_reloadSession_path_74[#____st_reloadSession_path_74 + 1] = intent.node -- 1122
-		st.reloadSession.previewEffect = deriveReloadEffectFromPath(st.reloadSession.path) -- 1123
-		if intent.node == 8 then -- 1123
-			st.reloadSession.nextEffect = st.reloadSession.previewEffect -- 1125
-			st.reloadSession.active = false -- 1126
-			st.reloadSession.elapsed = 0 -- 1127
-			st.reloadSession.path = {} -- 1128
-			st.reloadSession.firstTime = false -- 1129
-			st.timeScaleOverride = nil -- 1130
-		end -- 1130
-		return true -- 1132
-	end -- 1132
-	if intent.kind == "reloadPathPreview" then -- 1132
-		if not st.reloadSession.active then -- 1132
-			return false -- 1136
-		end -- 1136
-		st.reloadSession.path = __TS__ArraySlice(intent.path) -- 1138
-		st.reloadSession.previewEffect = deriveReloadEffectFromPath(intent.path) -- 1139
-		return true -- 1140
-	end -- 1140
-	if intent.kind == "reloadPathCommit" then -- 1140
-		if not st.reloadSession.active then -- 1140
-			return false -- 1144
-		end -- 1144
-		if #intent.path < 2 then -- 1144
-			st.reloadSession.invalidFlash = 0.35 -- 1147
-			st.reloadSession.path = {} -- 1148
-			st.reloadSession.previewEffect = "normal" -- 1149
-			return false -- 1150
-		end -- 1150
-		local effect = deriveReloadEffectFromPath(intent.path) -- 1152
-		st.reloadSession.nextEffect = effect -- 1153
-		st.reloadSession.previewEffect = effect -- 1154
-		st.reloadSession.path = {} -- 1155
-		st.reloadSession.active = false -- 1156
-		st.reloadSession.elapsed = 0 -- 1157
-		st.reloadSession.firstTime = false -- 1158
-		st.timeScaleOverride = nil -- 1159
-		return true -- 1160
-	end -- 1160
-	if intent.kind == "reloadCancel" then -- 1160
-		st.reloadSession.active = false -- 1163
-		st.reloadSession.elapsed = 0 -- 1164
-		st.reloadSession.path = {} -- 1165
-		st.reloadSession.previewEffect = "normal" -- 1166
-		st.timeScaleOverride = nil -- 1167
-		return true -- 1168
-	end -- 1168
-	if intent.kind == "craftSubmit" then -- 1168
-		if not st.craftBench.active or st.handledCraftRequestIds[intent.requestId] == true then -- 1168
-			return false -- 1172
-		end -- 1172
-		local target -- 1174
-		local i = 0 -- 1175
-		do -- 1175
-			i = 0 -- 1176
-			while i < #st.craftBench.recipes do -- 1176
-				if st.craftBench.recipes[i + 1].id == intent.recipeId then -- 1176
-					target = st.craftBench.recipes[i + 1] -- 1178
-					break -- 1179
-				end -- 1179
-				i = i + 1 -- 1176
-			end -- 1176
-		end -- 1176
-		if target == nil or target.crafted then -- 1176
-			return false -- 1183
-		end -- 1183
-		for mat in pairs(target.cost) do -- 1185
-			if (st.craftBench.inventory[mat] or 0) < target.cost[mat] then -- 1185
-				return false -- 1187
-			end -- 1187
-		end -- 1187
-		for mat in pairs(target.cost) do -- 1190
-			st.craftBench.inventory[mat] = (st.craftBench.inventory[mat] or 0) - target.cost[mat] -- 1191
-		end -- 1191
-		st.handledCraftRequestIds[intent.requestId] = true -- 1193
-		target.crafted = true -- 1194
-		st.craftBench.equippedWeapon = target.id -- 1195
-		st.craftBench.justCraftedTimer = st.craftBench.firstCraftDone and 0.45 or 1 -- 1196
-		st.craftBench.firstCraftDone = true -- 1197
-		return true -- 1198
-	end -- 1198
-	if intent.kind == "craftEquip" then -- 1198
-		st.craftBench.equippedWeapon = intent.weaponId -- 1201
-		return true -- 1202
-	end -- 1202
-	if intent.kind == "craftClose" then -- 1202
-		st.craftBench.active = false -- 1205
-		st.backCarry.atBench = false -- 1206
-		return true -- 1207
-	end -- 1207
-	if intent.kind == "museumInteract" then -- 1207
-		if intent.target == "well_pickup" and st.archive.museumPhase == "well_open" then -- 1207
-			st.archive.artifactOwned = true -- 1211
-			st.archive.museumPhase = "well_reflect" -- 1212
-			return true -- 1213
-		end -- 1213
-		if intent.target == "lamp_turn" and st.archive.museumPhase == "hall_walk" then -- 1213
-			st.archive.museumPhase = "lamp_turn" -- 1216
-			return true -- 1217
-		end -- 1217
-		if intent.target == "return_cabinet" then -- 1217
-			st.archive.museumPhase = "done" -- 1220
-			st.archive.museumSeen = true -- 1221
-			return true -- 1222
-		end -- 1222
-		return false -- 1224
-	end -- 1224
-	return false -- 1226
-end -- 1093
-return ____exports -- 1093
+		if #st.reloadSession.path == 0 then -- 1114
+			local ____st_reloadSession_path_76 = st.reloadSession.path -- 1114
+			____st_reloadSession_path_76[#____st_reloadSession_path_76 + 1] = 0 -- 1117
+		end -- 1117
+		if __TS__ArrayIndexOf(st.reloadSession.path, intent.node) >= 0 then -- 1117
+			st.reloadSession.invalidFlash = 0.35 -- 1120
+			st.reloadSession.path = {0} -- 1121
+			st.reloadSession.previewEffect = "normal" -- 1122
+			return false -- 1123
+		end -- 1123
+		local ____st_reloadSession_path_77 = st.reloadSession.path -- 1123
+		____st_reloadSession_path_77[#____st_reloadSession_path_77 + 1] = intent.node -- 1125
+		st.reloadSession.previewEffect = deriveReloadEffectFromPath(st.reloadSession.path) -- 1126
+		if intent.node == 8 then -- 1126
+			st.reloadSession.nextEffect = st.reloadSession.previewEffect -- 1128
+			st.reloadSession.active = false -- 1129
+			st.reloadSession.elapsed = 0 -- 1130
+			st.reloadSession.path = {} -- 1131
+			st.reloadSession.firstTime = false -- 1132
+			st.timeScaleOverride = nil -- 1133
+		end -- 1133
+		return true -- 1135
+	end -- 1135
+	if intent.kind == "reloadPathPreview" then -- 1135
+		if not st.reloadSession.active then -- 1135
+			return false -- 1139
+		end -- 1139
+		st.reloadSession.path = __TS__ArraySlice(intent.path) -- 1141
+		st.reloadSession.previewEffect = deriveReloadEffectFromPath(intent.path) -- 1142
+		return true -- 1143
+	end -- 1143
+	if intent.kind == "reloadPathCommit" then -- 1143
+		if not st.reloadSession.active then -- 1143
+			return false -- 1147
+		end -- 1147
+		if #intent.path < 2 then -- 1147
+			st.reloadSession.invalidFlash = 0.35 -- 1150
+			st.reloadSession.path = {} -- 1151
+			st.reloadSession.previewEffect = "normal" -- 1152
+			return false -- 1153
+		end -- 1153
+		local effect = deriveReloadEffectFromPath(intent.path) -- 1155
+		st.reloadSession.nextEffect = effect -- 1156
+		st.reloadSession.previewEffect = effect -- 1157
+		st.reloadSession.path = {} -- 1158
+		st.reloadSession.active = false -- 1159
+		st.reloadSession.elapsed = 0 -- 1160
+		st.reloadSession.firstTime = false -- 1161
+		st.timeScaleOverride = nil -- 1162
+		return true -- 1163
+	end -- 1163
+	if intent.kind == "reloadCancel" then -- 1163
+		st.reloadSession.active = false -- 1166
+		st.reloadSession.elapsed = 0 -- 1167
+		st.reloadSession.path = {} -- 1168
+		st.reloadSession.previewEffect = "normal" -- 1169
+		st.timeScaleOverride = nil -- 1170
+		return true -- 1171
+	end -- 1171
+	if intent.kind == "craftSubmit" then -- 1171
+		if not st.craftBench.active or st.handledCraftRequestIds[intent.requestId] == true then -- 1171
+			return false -- 1175
+		end -- 1175
+		local target -- 1177
+		local i = 0 -- 1178
+		do -- 1178
+			i = 0 -- 1179
+			while i < #st.craftBench.recipes do -- 1179
+				if st.craftBench.recipes[i + 1].id == intent.recipeId then -- 1179
+					target = st.craftBench.recipes[i + 1] -- 1181
+					break -- 1182
+				end -- 1182
+				i = i + 1 -- 1179
+			end -- 1179
+		end -- 1179
+		if target == nil or target.crafted then -- 1179
+			return false -- 1186
+		end -- 1186
+		for mat in pairs(target.cost) do -- 1188
+			if (st.craftBench.inventory[mat] or 0) < target.cost[mat] then -- 1188
+				return false -- 1190
+			end -- 1190
+		end -- 1190
+		for mat in pairs(target.cost) do -- 1193
+			st.craftBench.inventory[mat] = (st.craftBench.inventory[mat] or 0) - target.cost[mat] -- 1194
+		end -- 1194
+		st.handledCraftRequestIds[intent.requestId] = true -- 1196
+		target.crafted = true -- 1197
+		st.craftBench.equippedWeapon = target.id -- 1198
+		st.craftBench.justCraftedTimer = st.craftBench.firstCraftDone and 0.45 or 1 -- 1199
+		st.craftBench.firstCraftDone = true -- 1200
+		return true -- 1201
+	end -- 1201
+	if intent.kind == "craftEquip" then -- 1201
+		st.craftBench.equippedWeapon = intent.weaponId -- 1204
+		return true -- 1205
+	end -- 1205
+	if intent.kind == "craftClose" then -- 1205
+		st.craftBench.active = false -- 1208
+		st.backCarry.atBench = false -- 1209
+		return true -- 1210
+	end -- 1210
+	if intent.kind == "museumInteract" then -- 1210
+		if intent.target == "well_pickup" and st.archive.museumPhase == "well_open" then -- 1210
+			st.archive.artifactOwned = true -- 1214
+			st.archive.museumPhase = "well_reflect" -- 1215
+			return true -- 1216
+		end -- 1216
+		if intent.target == "lamp_turn" and st.archive.museumPhase == "hall_walk" then -- 1216
+			st.archive.museumPhase = "lamp_turn" -- 1219
+			return true -- 1220
+		end -- 1220
+		if intent.target == "return_cabinet" then -- 1220
+			st.archive.museumPhase = "done" -- 1223
+			st.archive.museumSeen = true -- 1224
+			return true -- 1225
+		end -- 1225
+		return false -- 1227
+	end -- 1227
+	return false -- 1229
+end -- 1096
+return ____exports -- 1096

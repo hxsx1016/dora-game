@@ -62,6 +62,10 @@ if [ -d "$ROOT/assets/font" ]; then
     mkdir -p "$OUT/assets/font"
     rsync -a "$ROOT/assets/font/" "$OUT/assets/font/"
 fi
+if [ -d "$ROOT/assets/audio" ]; then
+    mkdir -p "$OUT/assets/audio"
+    rsync -a "$ROOT/assets/audio/" "$OUT/assets/audio/"
+fi
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
 
 cat > "$OUT/启动.cmd" <<'CMD'

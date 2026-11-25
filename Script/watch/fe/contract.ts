@@ -446,7 +446,8 @@ function deriveVisualMode(
         }
         return "pixel";
     }
-    if (roomKey === "gatepath" || roomKey === "escort1") {
+    if (roomKey === "gatepath" || roomKey === "escort1" || roomKey === "escort2" || roomKey === "escort3"
+        || roomKey === "escort4" || roomKey === "escort5") {
         return "pixel";
     }
     if (roomKey === "outside" || roomKey === "village" || roomKey === "forest" || roomKey === "tower") {
@@ -761,15 +762,17 @@ export class DualRouteContract {
             releasedAbortCount: readNum(grRec, "releasedAbortCount") ?? this.liveReleasedAbortCount,
         };
 
-        // 4. 牵手与背负姿态（兼容嵌套 backCarry 与 B1后端 carryOn / run.story.carry / gatepath）
+        // 4. 牵手与背负姿态（兼容嵌套 backCarry、B1 carryOn 与 B2 第三段工台放下态 craftBench.active）
         const bcRec = asRecord(pRec !== undefined ? pRec["backCarry"] : undefined);
+        const cbRecEarly = asRecord(pRec !== undefined ? pRec["craftBench"] : undefined);
+        const benchActiveLive = readBool(cbRecEarly, "active") ?? false;
         const carryOn = readBool(pRec, "carryOn") ?? readBool(storyRec, "carry") ?? false;
         const handInHandLive = handTied || (p.room.key === "gatepath" && !carryOn);
         const backCarry: BackCarrySnapshot = {
             active: readBool(bcRec, "active") ?? carryOn,
             handInHand: readBool(bcRec, "handInHand") ?? handInHandLive,
             mounting: readBool(bcRec, "mounting") ?? (p.room.key === "gatepath" && carryOn),
-            atBench: readBool(bcRec, "atBench") ?? false,
+            atBench: readBool(bcRec, "atBench") ?? benchActiveLive,
         };
 
         // 5 & 6. 世界慢时与 3×3 换弹会话（兼容嵌套 reloadSession 与 B1后端 reloadOpen/reloadAnswerTicks/reloadPath/reloadPendingEffect）

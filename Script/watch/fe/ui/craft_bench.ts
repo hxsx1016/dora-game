@@ -25,6 +25,7 @@ import {
     ReloadEffectKind,
 } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
 import {
     RELOAD_GRID,
     drawReloadPatternGlyph,
@@ -982,7 +983,7 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         uiInkDraw.drawSegment(Vec2(childHandX - 11, childHandY + 4), Vec2(childHandX - 11, childHandY - 6), 2.0, Color(204, 174, 122, a245));
         uiInkDraw.drawEllipse(Vec2(childHandX, childHandY - 1), 6.2, 4.4, Color(238, 212, 182, a245));
 
-        // 右侧：周戍惯用手（暗靛青布宽袖 + 标志性浅米补线 + 握柄手掌）
+        // 右侧：周戍惯用手（与 fe-01 同源暗靛青布宽袖 + 标志性浅麻斜补线 + 握柄手掌）
         const solHandX = cx + 82 - Math.min(1, Math.max(0, (prog - 0.18) / 0.28)) * 42;
         const solHandY = cy - 4 + gripLift;
         uiInkDraw.drawPolygon([
@@ -990,10 +991,13 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             Vec2(cx + 154, cy - 1),
             Vec2(solHandX + 12, solHandY + 6),
             Vec2(solHandX + 12, solHandY - 7),
-        ], Color(44, 62, 78, a245), 1.0, Color(22, 30, 42, a245));
-        // 贯穿全作的青布袖口补线
-        uiInkDraw.drawSegment(Vec2(solHandX + 17, solHandY - 5), Vec2(solHandX + 20, solHandY + 5), 1.6, Color(220, 210, 190, a245));
-        uiInkDraw.drawEllipse(Vec2(solHandX, solHandY), 6.8, 5.0, Color(206, 168, 136, a245));
+        ], toColor(CUFF_PALETTE.indigoBase, a245), 1.0, toColor(CUFF_PALETTE.indigoShadow, a245));
+        // 贯穿全作的青布袖口斜补线（3 针清晰浅麻线，同源 CUFF_PALETTE）
+        const mendCol = toColor(CUFF_PALETTE.stitchThread, a245);
+        uiInkDraw.drawSegment(Vec2(solHandX + 16, solHandY - 5), Vec2(solHandX + 19, solHandY + 4), 1.5, mendCol);
+        uiInkDraw.drawSegment(Vec2(solHandX + 21, solHandY - 5), Vec2(solHandX + 24, solHandY + 4), 1.5, mendCol);
+        uiInkDraw.drawSegment(Vec2(solHandX + 26, solHandY - 5), Vec2(solHandX + 29, solHandY + 4), 1.5, mendCol);
+        uiInkDraw.drawEllipse(Vec2(solHandX, solHandY), 6.8, 5.0, toColor(CUFF_PALETTE.skinBase, a245));
 
         // 中央成品明式鸟铳（弧形木托 + 铜箍 + 暗铁细长铳管 + 对应灯匣/铜铃纹样）
         const gunX = prog < 0.38 ? childHandX + 14 : solHandX - 8;

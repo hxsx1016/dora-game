@@ -28,6 +28,13 @@ import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
 import { MenuAction, MenuRenderer, ScreenKind } from "Script/watch/fe/ui/menus";
 import { PALETTE, drawSilkVeil, themeOf, toColor } from "Script/watch/fe/theme";
+import { MingArtAuditPlugin } from "Script/watch/fe/renderer/ming_audit";
+import { GateTransitionPlugin } from "Script/watch/fe/scenes/gate_transition";
+import { CarryPosePlugin } from "Script/watch/fe/renderer/carry_pose";
+import { PrologueIntroPlugin } from "Script/watch/fe/cutscenes/prologue_intro";
+import { CuffShotsPlugin } from "Script/watch/fe/cutscenes/cuff_shots";
+import { ReloadWheelPlugin } from "Script/watch/fe/ui/reload_wheel";
+import { CraftBenchPlugin } from "Script/watch/fe/ui/craft_bench";
 
 export class WatchFrontend {
     private occlusion = new DepthOcclusion();
@@ -113,14 +120,31 @@ export class WatchFrontend {
         this.uiGlow.addTo(this.uiLayer);
 
         this.texts = new TextPool(this.uiLayer, 10);
+
+        // 合流点 M1：按渲染分层与依赖优先级统一注册 Wave 1 全部 7 枚前端插件
+        // 1. MingArtAuditPlugin（非八房明朝底图拦截 + 材质/灰度/红布校验）
+        // 2. GateTransitionPlugin（风台 24s 转景舞台与遮幅，必须先于 CuffShotsPlugin）
+        // 3. CarryPosePlugin（牵手 / 蹲背攀爬 / 背负 / 工台放下叠层）
+        // 4. PrologueIntroPlugin（共同序章 P01-P02 过场与 P04 墙根枪火）
+        // 5. CuffShotsPlugin（同一道补线袖口 P03 / P05 / G05，叠加在风台遮幅之上）
+        // 6. ReloadWheelPlugin（3×3 慢时连线换弹全速 UI 与水墨效果反馈）
+        // 7. CraftBenchPlugin（第三段安全工台与首次试握动画）
+        this.registerPlugin(new MingArtAuditPlugin());
+        this.registerPlugin(new GateTransitionPlugin());
+        this.registerPlugin(new CarryPosePlugin());
+        this.registerPlugin(new PrologueIntroPlugin());
+        this.registerPlugin(new CuffShotsPlugin());
+        this.registerPlugin(new ReloadWheelPlugin(this.contract));
+        this.registerPlugin(new CraftBenchPlugin(this.contract));
     }
 
-    /** 注册前端渲染插件（按 id 幂等覆盖），供 Wave 1 / Wave 2 并行模块零冲突挂载 */
+    /** 注册前端渲染插件（按 id 幂等覆盖并保持既有优先级槽位），供 Wave 1 / Wave 2 并行模块零冲突挂载 */
     registerPlugin(plugin: FeRenderPlugin): void {
         let i = 0;
         for (i = 0; i < this.plugins.length; i++) {
             if (this.plugins[i].id === plugin.id) {
                 this.plugins[i] = plugin;
+                this.syncRuntimeHooks();
                 if (this.boundPlay !== undefined && plugin.onBindPlay !== undefined) {
                     plugin.onBindPlay(this.boundPlay, this.contract.peekSnapshot(this.boundPlay));
                 }
@@ -128,6 +152,7 @@ export class WatchFrontend {
             }
         }
         this.plugins.push(plugin);
+        this.syncRuntimeHooks();
         if (this.boundPlay !== undefined && plugin.onBindPlay !== undefined) {
             plugin.onBindPlay(this.boundPlay, this.contract.peekSnapshot(this.boundPlay));
         }
@@ -144,6 +169,18 @@ export class WatchFrontend {
             }
         }
         this.plugins.length = w;
+        this.syncRuntimeHooks();
+    }
+
+    /** 按插件 id 查询当前已挂载实例 */
+    getPlugin(id: string): FeRenderPlugin | undefined {
+        let i = 0;
+        for (i = 0; i < this.plugins.length; i++) {
+            if (this.plugins[i].id === id) {
+                return this.plugins[i];
+            }
+        }
+        return undefined;
     }
 
     getPlugins(): readonly FeRenderPlugin[] {
@@ -153,7 +190,7 @@ export class WatchFrontend {
     /**
      * 零侵入同步调试钩子：
      * app.ts 在构造 WatchFrontend 之后才初始化 package.loaded["watch.fe"]，
-     * 此处惰性向已有表补挂 contract / audio / registerPlugin，避免修改 app.ts。
+     * 此处惰性向已有表补挂 contract / audio / registerPlugin 与 M1 全部插件实例，避免修改 app.ts。
      */
     private syncRuntimeHooks(): void {
         const g = globalThis as unknown as { package?: { loaded?: Record<string, unknown> } };
@@ -169,7 +206,15 @@ export class WatchFrontend {
                 watchFe["audio"] = this.audio;
                 watchFe["registerPlugin"] = (plugin: FeRenderPlugin) => this.registerPlugin(plugin);
                 watchFe["unregisterPlugin"] = (id: string) => this.unregisterPlugin(id);
+                watchFe["getPlugin"] = (id: string) => this.getPlugin(id);
             }
+            watchFe["mingAudit"] = this.getPlugin("fe03-ming-audit");
+            watchFe["gateTransition"] = this.getPlugin("fe-01-gate-transition");
+            watchFe["carryPose"] = this.getPlugin("fe-02-carry-pose");
+            watchFe["prologue"] = this.getPlugin("fe03-prologue-intro");
+            watchFe["cuffShots"] = this.getPlugin("fe-01-cuff-shots");
+            watchFe["reloadWheel"] = this.getPlugin("fe-02-reload-wheel");
+            watchFe["craftBench"] = this.getPlugin("fe-02-craft-bench");
         }
     }
 
@@ -379,8 +424,20 @@ export class WatchFrontend {
             this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
         }
 
-        // 4. 关节剪影角色与插件角色叠层（背负姿态、接触影、穿梭器残影等）
-        this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam);
+        // 4. 关节剪影角色与插件角色叠层（背负姿态接管小满时收净原生伴随阴影，杜绝重影与孤儿脚影）
+        const partnerFarInHand = view.backCarry.handInHand
+            && (!p.partner.alive
+                || Math.abs(p.partner.x - p.player.x) > 56
+                || Math.abs(p.partner.y - p.player.y) > 24);
+        const suppressPartner = view.visualMode === "pixel"
+            && !p.childMode
+            && p.player.alive
+            && (view.backCarry.active
+                || view.backCarry.mounting
+                || view.backCarry.atBench
+                || view.craftBench.active
+                || partnerFarInHand);
+        this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, suppressPartner);
         for (i = 0; i < this.plugins.length; i++) {
             const pl = this.plugins[i];
             if (pl.drawActorsOverlay !== undefined) {
@@ -415,22 +472,7 @@ export class WatchFrontend {
                 },
             );
         } else {
-            // 先绘状态 HUD（暂缓常规准星，待全速 UI 插件判定是否接管）
-            this.hud.draw(
-                this.uiDraw,
-                this.uiInkDraw,
-                this.uiArt,
-                this.uiGlow,
-                this.texts,
-                p,
-                this.cam,
-                this.vfx,
-                this.narrative.letterbox,
-                uiScale,
-                view.assistHintsEnabled,
-                true,
-            );
-
+            // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写
             let cutsceneHandled = false;
             for (i = 0; i < this.plugins.length; i++) {
                 const pl = this.plugins[i];
@@ -439,7 +481,22 @@ export class WatchFrontend {
                     cutsceneHandled = true;
                 }
             }
+
             if (!cutsceneHandled) {
+                this.hud.draw(
+                    this.uiDraw,
+                    this.uiInkDraw,
+                    this.uiArt,
+                    this.uiGlow,
+                    this.texts,
+                    p,
+                    this.cam,
+                    this.vfx,
+                    this.narrative.letterbox,
+                    uiScale,
+                    view.assistHintsEnabled,
+                    true,
+                );
                 this.narrative.draw(
                     this.uiDraw,
                     this.uiInkDraw,
@@ -453,7 +510,7 @@ export class WatchFrontend {
                 );
             }
 
-            let suppressReticle = view.reloadSession.active || view.craftBench.active;
+            let suppressReticle = cutsceneHandled || view.reloadSession.active || view.craftBench.active;
             for (i = 0; i < this.plugins.length; i++) {
                 const pl = this.plugins[i];
                 if (pl.drawFullSpeedUi !== undefined

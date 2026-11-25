@@ -375,13 +375,19 @@ export class AudioDirector {
             this.playOnce(key, "sfx", "assets/audio/child/cart_dock.wav", 0.88, "cart:docked", e.tick, e.seq);
             return;
         }
-        if (e.name === "craftDone") {
-            this.playOnce(key, "sfx", "assets/audio/combat/craft_done.wav", 0.88, "craft:done", e.tick, e.seq);
+        if (e.name === "craftDone" || (e.name as string) === "benchCraft") {
+            const recipeTag = typeof e.data.recipeId === "string"
+                ? (":" + e.data.recipeId)
+                : (typeof e.data.weapon === "string" ? (":" + e.data.weapon) : "");
+            this.playOnce(key, "sfx", "assets/audio/combat/craft_done.wav", 0.88, "craft:done" + recipeTag, e.tick, e.seq);
             return;
         }
-        // 兼容 A单 / B1 后端新增事件（story-b1-carry）：按事件名动态派发，零侵入 PlayEventName 静态联合
+        // 兼容 A单 / B1 / B2 后端新增事件（story-b1-carry / story-b2-escort）：按事件名动态派发，零侵入 PlayEventName 静态联合
         const name = e.name as string;
-        if (name === "handHeld") {
+        if (name === "benchRejected") {
+            const recipeTag = typeof e.data.recipeId === "string" ? (":" + e.data.recipeId) : "";
+            this.playOnce(key, "sfx", "assets/audio/combat/craft_insufficient.wav", 0.76, "craft:insufficient" + recipeTag, e.tick, e.seq);
+        } else if (name === "handHeld") {
             this.playOnce(key, "sfx", "assets/audio/gate/reunion_hold.wav", 0.9, "gate:hand_held", e.tick, e.seq);
         } else if (name === "handRelease") {
             this.playOnce(key, "sfx", "assets/audio/gate/reunion_release.wav", 0.7, "gate:hand_release", e.tick, e.seq);
