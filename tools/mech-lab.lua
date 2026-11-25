@@ -629,6 +629,195 @@ simE:update(STEP, newInput())
 record("INV", "INV-01 腾出格位后能再捡", 1, simE.run.inventory.wedge, "wedge 0 -> 1")
 
 
+-- ── FUN-01：同种子 / 同起点 / 同库存的三策略对照 ──────────────────────────
+print("")
+print("=== FUN-01：直接交火 / 避战 / 耗物辅助（seed 20261124，C2 车柄旁同起点）===")
+
+local function runPolicy(mode, maxTicks)
+    local sim = freshSim()
+    local minX = sim.room.minX
+    placePlayer(sim, minX + 1050, 0, 1)
+    sim.run.inventory = { shield = 1, wedge = 1, ammo = 1, pass = 0, quickbelt = 0, scrap = 0 }
+    sim.run.taken = {}
+    for i = 1, #sim.enemies do
+        sim.enemies[i].awake = true
+    end
+    local t = 0
+    local shotsFired = 0
+    local hits = 0
+    local enemyFires = 0
+    local coverBlocks = 0
+    local ammoUsed = 0
+    local shieldUsed = 0
+    local shotsReal = 0
+    local enemyHits = 0
+    while t < maxTicks do
+        t = t + 1
+        local p = sim.player
+        local c = sim.room.cart
+        local handleX = sim.cartAxle + c.handleOffset
+        local inp = newInput()
+        if not sim.gripping then
+            local d = handleX - p.x
+            if math.abs(d) > 6 then
+                inp.moveX = d > 0 and 1 or -1
+            else
+                inp.interact.pressed = true
+            end
+        else
+            inp.moveX = 1
+        end
+        local target = nil
+        local bestScore = 0
+        for i = 1, #sim.enemies do
+            local e = sim.enemies[i]
+            if e.alive then
+                -- 先打会扣血的：火器手优先，其次才按距离。
+                local score = math.abs(e.x - p.x) + (e.kind == "gunner" and 0 or 400)
+                if target == nil or score < bestScore then
+                    target = e
+                    bestScore = score
+                end
+            end
+        end
+        if mode == "naive" then
+            -- 什么都不做：只推车，不开枪、不换档、不用耗物。这是"没策略"的基线。
+        elseif mode == "avoid" then
+            if target ~= nil and math.abs(target.x - p.x) < 300 then
+                inp.moveY = p.depth > 0 and 1 or -1
+            end
+        elseif target ~= nil and math.abs(target.x - p.x) < 700 then
+            sim.worldMapper = function()
+                return { x = target.x, y = target.depth + target.h * 0.55 }
+            end
+            if sim.reloadT <= 0 then
+                inp.fire.pressed = true
+                shotsFired = shotsFired + 1
+            end
+            if mode == "tools" and sim.reloadT > 0 and sim.run.inventory.ammo > 0 and t % 20 == 0 then
+                inp.interact.pressed = true
+                ammoUsed = ammoUsed + 1
+            end
+            if mode == "tools" and sim.bracedShield == nil and sim.run.inventory.shield > 0
+                and t % 40 == 0 and p.x >= minX + 960 and p.x <= minX + 1320 then
+                inp.interact.pressed = true
+                shieldUsed = shieldUsed + 1
+            end
+        end
+        sim:update(STEP, inp)
+        local evs = drain(sim)
+        for i = 1, #evs do
+            local n = evs[i].name
+            if n == "shotResolved" then
+                shotsReal = shotsReal + 1
+            elseif n == "actorHit" then
+                hits = hits + 1
+                if evs[i].data ~= nil and evs[i].data.target == "enemy" then
+                    enemyHits = enemyHits + 1
+                end
+            elseif n == "coverBlocked" then
+                coverBlocks = coverBlocks + 1
+            end
+        end
+        if sim.cartAxle >= c.endX - 1 then
+            break
+        end
+    end
+    return {
+        ticks = t,
+        hp = sim.hp,
+        hits = hits, enemyFires = enemyFires, coverBlocks = coverBlocks,
+        shotsReal = shotsReal, enemyHits = enemyHits,
+        fear = sim.escort.fear,
+        axle = sim.cartAxle,
+        endX = sim.room.cart.endX,
+        docked = sim.cartAxle >= sim.room.cart.endX - 1,
+        shots = shotsFired,
+        ammo = sim.run.inventory.ammo,
+        shield = sim.run.inventory.shield,
+        braced = sim.bracedShield ~= nil,
+    }
+end
+
+print("")
+print("=== 诊断：C2 火器手在推车过程中的实际状态 ===")
+do
+    local simG = freshSim()
+    local minXG = simG.room.minX
+    placePlayer(simG, minXG + 1050, 0, 1)
+    for i = 1, #simG.enemies do
+                simG.enemies[i].awake = true
+    end
+    print(string.format("  敌人 %d 个：", #simG.enemies))
+    for i = 1, #simG.enemies do
+        local e = simG.enemies[i]
+        print(string.format("    [%d] %s kind=%s 局部x=%.0f depth=%s fireCd=%s warnT=%s",
+            i, tostring(e.label), tostring(e.kind), e.x - minXG, tostring(e.depth),
+            tostring(e.fireCd), tostring(e.warnT)))
+    end
+    local p0 = simG.player
+    local c0 = simG.room.cart
+    local marks = {}
+    for t = 1, 400 do
+        local inp = newInput()
+        local c = simG.room.cart
+        local handleX = simG.cartAxle + c.handleOffset
+        if not simG.gripping then
+            local d = handleX - simG.player.x
+            if math.abs(d) > 6 then
+                inp.moveX = d > 0 and 1 or -1
+            else
+                inp.interact.pressed = true
+            end
+        else
+            inp.moveX = 1
+        end
+        simG:update(STEP, inp)
+        if t % 60 == 0 then
+            local e = simG.enemies[1]
+            marks[#marks + 1] = string.format("t%d 玩家局部x=%.0f | e1 局部x=%.0f fireCd=%s warnT=%s alive=%s",
+                t, simG.player.x - minXG, e.x - minXG, tostring(e.fireCd), tostring(e.warnT), tostring(e.alive))
+        end
+    end
+    for i = 1, #marks do
+        print("    " .. marks[i])
+    end
+    print(string.format("  推完 400 拍：车轴局部 %.0f / 目标 %.0f，hp=%d", simG.cartAxle - minXG, c0.endX, simG.hp))
+end
+
+local rNaive = runPolicy("naive", 1400)
+local rFight = runPolicy("fight", 900)
+local rAvoid = runPolicy("avoid", 900)
+local rTools = runPolicy("tools", 900)
+
+local function show(tag, r)
+    print(string.format("  %-6s 用时 %4d 拍 | 损血 %d | 实开火 %2d (中敌 %2d) | 车轴 %4d/%d %s | 恐惧 %d | 弹包余 %d 残盾余 %d%s",
+        tag, r.ticks, 3 - r.hp, r.shotsReal, r.enemyHits, math.floor(r.axle), r.endX,
+        r.docked and "入窝" or "未到", r.fear, r.ammo, r.shield, r.braced and " 已架盾" or ""))
+end
+show("不动", rNaive)
+show("交火", rFight)
+show("避战", rAvoid)
+show("耗物", rTools)
+
+local function dominant(a, b)
+    return a.ticks <= b.ticks and a.hp >= b.hp
+        and (a.ammo >= b.ammo) and (a.shield >= b.shield) and a.fear <= b.fear
+end
+record("FUN", "FUN-01 纵深避战不比硬推更差", true, rAvoid.hp >= rNaive.hp,
+    string.format("避战 hp%d / 硬推 hp%d", rAvoid.hp, rNaive.hp))
+record("FUN", "FUN-01 直接交火不比硬推更差", true, rFight.hp >= rNaive.hp,
+    string.format("交火 hp%d / 硬推 hp%d", rFight.hp, rNaive.hp))
+record("FUN", "FUN-02 硬推基线确实会挨枪", true, rNaive.hp < 3,
+    string.format("硬推 hp%d hits=%d", rNaive.hp, rNaive.hits))
+record("FUN", "FUN-01 交火未全胜于避战", false, dominant(rFight, rAvoid),
+    string.format("交火 %d 拍 hp%d / 避战 %d 拍 hp%d", rFight.ticks, rFight.hp, rAvoid.ticks, rAvoid.hp))
+record("FUN", "FUN-01 避战未全胜于交火", false, dominant(rAvoid, rFight),
+    string.format("避战 %d 拍 hp%d / 交火 %d 拍 hp%d", rAvoid.ticks, rAvoid.hp, rFight.ticks, rFight.hp))
+record("FUN", "FUN-01 耗物未全胜于交火", false, dominant(rTools, rFight),
+    string.format("耗物 %d 拍 hp%d / 交火 %d 拍 hp%d", rTools.ticks, rTools.hp, rFight.ticks, rFight.hp))
+
+
 -- ── 汇总 ───────────────────────────────────────────────────────────────────
 print("")
 print(string.format("总计 %d 项，失败 %d 项", #results, failures))
