@@ -17,6 +17,8 @@ export interface Inventory {
     pass: number;
     /** 消耗：快装带，永久缩短装填。 */
     quickbelt: number;
+    /** 材料：废木料，制木楔的原料。不占消耗品格。 */
+    scrap: number;
 }
 
 export interface PropState {
@@ -63,7 +65,7 @@ export function createRun(seed: number = 20261124): RunState {
         roomTicks: {},
         roomEnterTick: 0,
         route: "",
-        inventory: { shield: 0, wedge: 0, ammo: 0, pass: 0, quickbelt: 0 },
+        inventory: { shield: 0, wedge: 0, ammo: 0, pass: 0, quickbelt: 0, scrap: 0 },
         props: {},
         taken: {},
         joined: false,

@@ -29,6 +29,8 @@ export interface BreakSpec {
     hp: number;
     /** 木楔加固后多承受的次数，每件只能加固一次。 */
     wedgeHp?: number;
+    /** 能不能钉木楔加固。缺省可以；写成 false 表示这件东西钉不上。 */
+    wedgeable?: boolean;
 }
 
 export interface InteractSpec {
@@ -40,7 +42,7 @@ export interface InteractSpec {
 
 export interface PickupSpec {
     id: string;
-    kind: "shield" | "wedge" | "ammo" | "pass" | "quickbelt";
+    kind: "shield" | "wedge" | "ammo" | "pass" | "quickbelt" | "scrap";
     x: number;
     y: number;
     depth?: number;
@@ -692,6 +694,10 @@ export const S2_DRYGOODS: RoomSpec = {
     height: 230,
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1800 }],
+    pickups: [
+        { id: "s2_scrap_1", kind: "scrap", x: 520, y: 0, depth: 0, label: "废木料 · 薄木摊挡脚下" },
+        { id: "s2_scrap_2", kind: "scrap", x: 760, y: 0, depth: 0, label: "废木料 · 装卸面旁" },
+    ],
     solids: [
         { x: 100, w: 24, h: 130, y: 0, label: "檐柱 100", lanes: ["middle"], art: "cover_wood" },
         { x: 240, w: 24, h: 130, y: 0, label: "檐柱 240", lanes: ["middle"], art: "cover_wood" },
@@ -839,7 +845,7 @@ export const C2_GRANARY: RoomSpec = {
     solids: [
         {
             x: 900, w: 120, h: 44, y: 0, label: "空筐围挡 900–1020 · 高 44", lanes: ["lower", "middle"],
-            art: "basket_wall", id: "c2_basket", breakable: { kind: "basket_wall", hp: 2 },
+            art: "basket_wall", id: "c2_basket", breakable: { kind: "basket_wall", hp: 2, wedgeable: false },
         },
         { x: 600, w: 300, h: 48, y: 0, label: "粮袋安全区 600–900 · 高 48", lanes: ["lower", "middle"] },
         { x: 980, w: 40, h: 24, y: 0, label: "棚口下轨台 980–1020 · 高 24", lanes: ["lower", "middle"] },

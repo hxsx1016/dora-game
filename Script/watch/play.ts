@@ -42,6 +42,9 @@ export type PlayEventName =
     | "gateRestart"
     | "cartDocked"
     | "fearChanged"
+    | "pickupRejected"
+    | "craftStart"
+    | "craftDone"
     | "roomChange"
     | "pickup"
     | "propBroken"
@@ -94,6 +97,11 @@ const CART_HALF = 24;
 const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
+/** 战具格与消耗品格各只放一件；满包时新东西留在原地，不吞物。 */
+const TOOL_CAP = 1;
+const CONSUMABLE_CAP = 1;
+/** 废木料制木楔要按住 E 的有效拍数。 */
+const CRAFT_TICKS = 45;
 /** 受伤后的保护拍数：t+41 仍在保护，t+42 可以再次扣血。 */
 const INVULN_HIT_TICKS = 42;
 /** 被击倒复活后的保护拍数（1.2 秒）。 */
@@ -312,6 +320,8 @@ export class Play {
     gateOpen = false;
     /** 本步 E 是否已经给安抚用掉，避免同一步又敲木板。 */
     calmConsumed = false;
+    /** 正在制作的已按拍数；0 表示没在制作。 */
+    craftT = 0;
     /** 危险事件的递增 id，同一 id 只结算一次。 */
     nextDangerId = 1;
     /** 要切到哪个房间；app 读走后置空。 */
@@ -1515,19 +1525,43 @@ export class Play {
     // ---------- 新版关卡 S1–C2 ----------
 
     /** 掉落与拾取都走同一张背包。 */
-    private addItem(kind: string): void {
+    private addItem(kind: string): boolean {
         const inv = this.run.inventory;
         if (kind === "shield") {
+            if (inv.shield >= TOOL_CAP) {
+                return false;
+            }
             inv.shield += 1;
-        } else if (kind === "wedge") {
-            inv.wedge += 1;
-        } else if (kind === "ammo") {
-            inv.ammo += 1;
-        } else if (kind === "pass") {
-            inv.pass += 1;
-        } else if (kind === "quickbelt") {
-            inv.quickbelt += 1;
+            return true;
         }
+        if (kind === "wedge") {
+            if (inv.wedge >= CONSUMABLE_CAP) {
+                return false;
+            }
+            inv.wedge += 1;
+            return true;
+        }
+        if (kind === "ammo") {
+            if (inv.ammo >= CONSUMABLE_CAP) {
+                return false;
+            }
+            inv.ammo += 1;
+            return true;
+        }
+        if (kind === "scrap") {
+            // 材料不占格，多捡几块不挤掉消耗品。
+            inv.scrap += 1;
+            return true;
+        }
+        if (kind === "pass") {
+            inv.pass += 1;
+            return true;
+        }
+        if (kind === "quickbelt") {
+            inv.quickbelt += 1;
+            return true;
+        }
+        return false;
     }
 
     private findBox(id: string): Box | undefined {
@@ -1538,6 +1572,64 @@ export class Play {
             }
         }
         return undefined;
+    }
+
+    /** 最近的可加固木件。由数据决定（breakable 且没写 wedgeable:false），不按房间特判。 */
+    private findWedgeTarget(): Box | undefined {
+        let best: Box | undefined = undefined;
+        let bestD = 0;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.breakable === undefined || b.broken === true || b.breakable.wedgeable === false) {
+                continue;
+            }
+            if (!this.nearBox(b, 26)) {
+                continue;
+            }
+            const d = Math.abs(b.x0 - this.player.x) + Math.abs(b.x1 - this.player.x);
+            if (best === undefined || d < bestD) {
+                best = b;
+                bestD = d;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * 废木料制木楔：按住 E 满 45 拍才成。松手、受伤、握车柄都会取消，
+     * 完成后只结算一次，取消不退还也不复制原料。
+     * @returns 本拍是否吃掉了 E。
+     */
+    private stepCraft(input: Input): boolean {
+        const inv = this.run.inventory;
+        if (this.craftT > 0) {
+            if (!input.interact.held || this.gripping || this.player.rollT > 0
+                || this.escort.state === "calming" || this.paused) {
+                this.craftT = 0;
+                this.flashSet("制作中断", 0.8);
+                return true;
+            }
+            this.craftT += 1;
+            if (this.craftT >= CRAFT_TICKS) {
+                if (inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP) {
+                    inv.scrap -= 1;
+                    inv.wedge += 1;
+                    this.flashSet("制得木楔", 1.2);
+                    this.log("制木楔");
+                    this.emit("craftDone", { item: "wedge", ticks: CRAFT_TICKS });
+                }
+                this.craftT = 0;
+            }
+            return true;
+        }
+        if (input.interact.pressed && inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP) {
+            this.craftT = 1;
+            this.flashSet("握住废木料 · 按住 E 削木楔", 1.0);
+            this.emit("craftStart", { item: "wedge", ticks: CRAFT_TICKS });
+            return true;
+        }
+        return false;
     }
 
     private nearBox(b: Box, reach: number): boolean {
@@ -1607,15 +1699,21 @@ export class Play {
             const sameDepth = overlapsDepth(p.depth, { min: (pk.depth ?? 0) - 10, max: (pk.depth ?? 0) + 10 }, 10);
             const dy = Math.abs((pk.y + (pk.depth ?? 0)) - (p.y + p.depth));
             if (Math.abs(pk.x - p.x) < 44 && dy < 60 && sameDepth) {
+                if (!this.addItem(pk.kind)) {
+                    // 满包不吞物：不记 taken、不清 id，东西还在原地，腾出格位后能再来捡。
+                    this.flashSet("背包满了 · " + pk.label + " 留在原地", 1.0);
+                    this.log("满包拒绝 " + pk.kind);
+                    this.emit("pickupRejected", { kind: pk.kind, x: pk.x, y: pk.y });
+                    continue;
+                }
                 this.run.taken[pk.id] = true;
-                this.addItem(pk.kind);
                 pk.id = "";
                 this.flashSet("拾取 " + pk.label, 1.0);
                 this.log("拾取 " + pk.kind + " " + pk.label);
                 this.emit("pickup", { kind: pk.kind, x: pk.x, y: pk.y, label: pk.label });
             }
         }
-        if (input.interact.pressed) {
+        if (!this.stepCraft(input) && input.interact.pressed) {
             this.campaignInteract();
         }
         this.stepCampaignCart(dt, input);
@@ -1631,15 +1729,16 @@ export class Play {
         }
         const inv = this.run.inventory;
         if (inv.wedge > 0) {
-            const w = this.findBox("s2_wood");
-            if (w !== undefined && w.broken !== true && this.nearBox(w, 26)) {
+            const w = this.findWedgeTarget();
+            if (w !== undefined) {
                 if (w.breakable !== undefined) {
                     w.breakable.hp += w.breakable.wedgeHp ?? 1;
                 }
                 inv.wedge -= 1;
-                this.run.props["s2_wood"] = { broken: false, hp: w.breakable === undefined ? 0 : w.breakable.hp, wedge: true };
-                this.flashSet("钉木楔 · 薄木挡多承一次", 1.2);
-                this.log("加固薄木挡");
+                this.run.props[w.id === undefined ? "wedge" : w.id]
+                    = { broken: w.broken === true, hp: w.breakable === undefined ? 0 : w.breakable.hp, wedge: true };
+                this.flashSet("钉木楔 · 多承一次", 1.2);
+                this.log("加固 " + (w.label === undefined ? "木件" : w.label));
                 this.emit("interactUsed", { kind: "wedge", x: w.x0 });
                 return;
             }
@@ -2033,6 +2132,7 @@ export class Play {
             return;
         }
         this.invulnT = INVULN_HIT_TICKS;
+        this.craftT = 0;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
         this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2064,6 +2164,7 @@ export class Play {
             const rollDodges = p.rollT > 0 && fromFront;
             if (!rollDodges && this.invulnT <= 0) {
                 this.invulnT = INVULN_HIT_TICKS;
+        this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("盾手近身 · " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2122,6 +2223,7 @@ export class Play {
                 this.damageProp(target, 2);
             } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
                 this.invulnT = INVULN_HIT_TICKS;
+        this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("破障手近身", 0.8);
