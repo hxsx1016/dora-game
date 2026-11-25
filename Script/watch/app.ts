@@ -305,6 +305,16 @@ function setMode(nextMode: number): void {
     clock.reset();
 }
 
+function roomIndexByKey(key: string): number {
+    let i = 0;
+    for (i = 0; i < ROOMS.length; i++) {
+        if (ROOMS[i].key === key) {
+            return i;
+        }
+    }
+    return 0;
+}
+
 function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false): void {
     current = idx;
     setMode(1);
@@ -621,7 +631,10 @@ function tickFrontend(frameDt: number): void {
         if (act.type === "trial") {
             startTrial();
         } else if (act.type === "start") {
-            enterPlayRoom(0, "official", true);
+            // 馆内中途退出过：从档案里的同一步续读；否则照常从序章起。
+            const mp = profile.museumPhase;
+            const inMuseum = mp === "well_reflect" || mp === "hall_walk" || mp === "lamp_turn" || mp === "return_cabinet";
+            enterPlayRoom(inMuseum ? roomIndexByKey("museum") : 0, "official", true);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
             enterPlayRoom(act.roomIndex, "chapter");
         } else if (act.type === "openChapters") {

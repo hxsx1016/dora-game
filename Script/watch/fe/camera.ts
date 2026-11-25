@@ -75,6 +75,9 @@ export class CameraDirector {
             } else if (p.phase === "gate-send") {
                 desiredZoom = 1.06;
             }
+        } else if (p.room.key === "museum") {
+            // 馆内单人、长走廊：略收近，柜前与末厅都看得清。
+            desiredZoom = p.phase === "museum-cabinet" ? 1.14 : 1.06;
         } else if (p.room.key === "outside") {
             // 上层拉车或钻拱附近保持能同时看见上层板车与下层拱洞
             desiredZoom = p.player.x < 560 ? 0.94 : 1.02;

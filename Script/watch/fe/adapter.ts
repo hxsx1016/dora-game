@@ -74,6 +74,10 @@ export interface FrameEvents {
     endingOfficial: boolean;
     /** 登记簿两行：第一行小满，第二行团圆线周戍、单人线空串。 */
     endingLines: string[];
+    /** 博物馆：一步推进（cabinet/hall/lamp/knock）与整段完成。 */
+    museumStep: boolean;
+    museumStepName: string;
+    museumDone: boolean;
 }
 
 export interface WorldPrompt {
@@ -192,6 +196,9 @@ export class PlayAdapter {
         let benchRejected = false;
         let benchRejectReason = "";
         let endingReached = false;
+        let museumStep = false;
+        let museumStepName = "";
+        let museumDone = false;
         let ending = "";
         let endingOfficial = false;
         let endingLines: string[] = [];
@@ -262,6 +269,11 @@ export class PlayAdapter {
             } else if (event.name === "benchRejected") {
                 benchRejected = true;
                 benchRejectReason = typeof event.data.reason === "string" ? event.data.reason : "";
+            } else if (event.name === "museumStep") {
+                museumStep = true;
+                museumStepName = typeof event.data.step === "string" ? event.data.step : "";
+            } else if (event.name === "museumDone") {
+                museumDone = true;
             } else if (event.name === "endingReached") {
                 endingReached = true;
                 ending = typeof event.data.ending === "string" ? event.data.ending : "";
@@ -343,6 +355,9 @@ export class PlayAdapter {
             ending,
             endingOfficial,
             endingLines,
+            museumStep,
+            museumStepName,
+            museumDone,
         };
     }
 }
@@ -471,6 +486,26 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
             x: (arch.x0 + arch.x1) * 0.5, y: arch.y + arch.h + 44,
             keyTag: "按住 Ctrl", label: room.key === "outside" ? "蹲着穿过拱洞" : "蹲着钻过桌下", urgent: false,
         };
+    }
+
+    const museum = room.story?.museum;
+    if (room.key === "museum" && museum !== undefined) {
+        if (p.phase === "museum-cabinet") {
+            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "玻璃柜前 · 收枪入袖", urgent: true };
+        }
+        if (p.phase === "museum-hall") {
+            return { x: museum.hallX, y: 120, keyTag: "走到", label: "西厅那头 · 孩子的脚步", urgent: false };
+        }
+        if (p.phase === "museum-lamp") {
+            return { x: museum.lampX, y: 120, keyTag: "E", label: "末厅 · 把灯转向西窗", urgent: true };
+        }
+        if (p.phase === "museum-return") {
+            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 两下轻叩", urgent: true };
+        }
+        if (p.phase === "museum-done") {
+            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 灯还亮着", urgent: false };
+        }
+        return undefined;
     }
 
     const tower = room.story?.tower;
