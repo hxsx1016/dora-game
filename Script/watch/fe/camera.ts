@@ -153,10 +153,10 @@ export class CameraDirector {
         return this.viewW * 0.5 + (wx - this.x) * this.ppu + this.shakeX;
     }
 
-    /** 世界 Y → 屏幕局部 Y（左下原点；y=0 落在 groundScreenY） */
-    sy(wy: number): number {
+    /** 高度与地面纵深投影到屏幕同一轴。 */
+    sy(wy: number, depth: number = 0): number {
         const yOffset = (this.y - 82) * 0.45;
-        return this.groundScreenY + (wy - yOffset) * this.ppu + this.shakeY;
+        return this.groundScreenY + (wy + depth - yOffset) * this.ppu + this.shakeY;
     }
 
     /** 世界长度 → 屏幕像素长度 */
@@ -164,7 +164,7 @@ export class CameraDirector {
         return worldLen * this.ppu;
     }
 
-    /** 屏幕局部坐标 → 世界坐标（sx/sy 的精确反函数） */
+    /** 屏幕局部坐标 → 世界投影坐标。返回的 y 包含高度与纵深。 */
     screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
         const yOffset = (this.y - 82) * 0.45;
         return {

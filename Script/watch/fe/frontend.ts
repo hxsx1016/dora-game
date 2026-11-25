@@ -14,6 +14,7 @@ import { Input } from "Script/watch/input";
 import { PlayAdapter } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
+import { DepthOcclusion } from "Script/watch/fe/occlusion";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
@@ -25,6 +26,7 @@ import { MenuAction, MenuRenderer, ScreenKind } from "Script/watch/fe/ui/menus";
 import { themeOf } from "Script/watch/fe/theme";
 
 export class WatchFrontend {
+    private occlusion = new DepthOcclusion();
     private layerRoot: Node.Type;
     private bgDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
@@ -125,6 +127,7 @@ export class WatchFrontend {
         this.cam.snap(p, w, h);
         this.adapter.reset(p);
         this.actors.reset(p);
+        this.occlusion.reset();
         this.vfx.reset();
         this.hud.reset(p);
         this.narrative.onEnterRoom(p.room.key);
@@ -208,10 +211,11 @@ export class WatchFrontend {
         this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
 
         // 2. 逻辑平面建筑与地面
-        this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
+        const fadeDt = p.paused ? 0 : safeDt;
+        this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, fadeDt);
 
         // 3. 互动道具（红布板车、村口瓶架/桌子/抛物线、区域与信标）
-        this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
+        this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, fadeDt);
 
         // 4. 关节剪影角色与翻滚冰青残影
         this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam);
@@ -223,7 +227,7 @@ export class WatchFrontend {
         this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
-        // 7. 水墨 HUD、旁白叙事与暂停卷轴
+        // 7. 水墨 HUD、旁白叙事与暂停垂纱
         const uiScale = this.resizeInterface(w, h);
         let action: MenuAction = { type: "none" };
         if (p.paused) {

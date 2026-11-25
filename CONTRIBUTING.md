@@ -2,7 +2,7 @@
 
 ## 接入项目
 
-在含 `init.ts` 与 `tsconfig.json` 的仓库根目录执行以下命令，确认检出包含 `Script/watch/`。Git 默认分支为 `main`。当前八房间版本集成在 `feature/watch-d1-graybox`，守望相关提交以该分支为基线和 PR 目标。`feature/day1-probe` 留作早期探针记录。
+在含 `init.ts` 与 `tsconfig.json` 的仓库根目录执行以下命令，确认检出包含 `Script/watch/`。Git 默认分支为 `main`。完整玩法、像素场景、水墨 UI 与角色已集成在 `feature/watch-integrated`，后续守望开发从该分支继续。`feature/watch-d1-graybox` 保留玩法开发历史，`feature/day1-probe` 留作早期探针记录。
 
 ```sh
 git fetch --all --prune
@@ -37,6 +37,10 @@ Dora cli run -p . --entry init.lua
 
 ```lua
 dofile("tools/verify-d6.lua")
+dofile("tools/verify-d7.lua")
+dofile("tools/verify-d8.lua")
+dofile("tools/verify-d9.lua")
+dofile("tools/verify-integration.lua")
 dofile("tools/replay-gate.lua")
 dofile("tools/replay-d5.lua")
 ```

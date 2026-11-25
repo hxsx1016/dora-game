@@ -4,7 +4,7 @@ export type AssetSlotKey =
     | "bgFar_prologue" | "bgFar_street" | "bgFar_checkpoint" | "bgFar_gate"
     | "bgFar_outside" | "bgFar_village" | "bgFar_forest" | "bgFar_tower"
     | "soldier_idle" | "soldier_run" | "soldier_roll" | "soldier_cover"
-    | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire"
+    | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire" | "soldier_fire_move"
     | "child_idle" | "child_run" | "child_crouch" | "child_fear" | "child_peek"
     | "child_pull" | "child_aim" | "child_throw" | "child_knock" | "child_offer"
     | "enemy_idle" | "enemy_aim" | "enemy_down" | "enemy_hit" | "scavenger" | "dog"
@@ -12,10 +12,10 @@ export type AssetSlotKey =
     | "prop_compass" | "prop_winch" | "wall" | "cover_wood" | "cover_stone" | "fence"
     | "slab" | "eaves" | "pine" | "grass" | "grass_low"
     | "stone_chips" | "ui_corner" | "ui_corner_c" | "ui_paper" | "title_backdrop"
-    | "ink_brush_wide" | "ink_brush_sym" | "ink_divider" | "ink_scroll_bar"
-    | "ink_wash_panel" | "ink_vbrush" | "ink_seal_solid" | "ink_seal_hollow"
-    | "ink_seal_oval" | "ink_dot" | "ink_ring" | "ink_splatter"
-    | "ink_hp_bar" | "ink_hp_slot" | "ink_paper_grain";
+    | "ink_ribbon_sweep" | "ink_mist_curve" | "ink_veil_strip" | "ink_hairline"
+    | "ink_bamboo_slip" | "ink_bamboo_slot" | "ink_frame_mask" | "ink_vstream"
+    | "ink_knot_ornament" | "ink_corner_fine" | "ink_seal_slender" | "ink_blossom_dot"
+    | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper";
 
 interface AssetSlotConfig {
     paths: string[];
@@ -71,6 +71,7 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     soldier_knock: actor(["soldier_cover", "soldier_knock"]),
     soldier_hit: actor("soldier_hit"),
     soldier_fire: actor("soldier_fire"),
+    soldier_fire_move: actor(["soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"]),
     child_idle: actor("child_idle"),
     child_run: actor(["child_run", "child_idle", "child_step", "child_idle"]),
     child_crouch: actor(["child_crouch", "child_crouch_step"]),
@@ -107,21 +108,21 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     ui_corner: clip("ui_corner"),
     ui_corner_c: clip("ui_corner", 0.5, false),
     ui_paper: clip("paper", 0.5),
-    ink_brush_wide: inkClip("ink_brush_wide"),
-    ink_brush_sym: inkClip("ink_brush_sym"),
-    ink_divider: inkClip("ink_divider"),
-    ink_scroll_bar: inkClip("ink_scroll_bar"),
-    ink_wash_panel: inkClip("ink_wash_panel"),
-    ink_vbrush: inkClip("ink_vbrush"),
-    ink_seal_solid: inkClip("ink_seal_solid"),
-    ink_seal_hollow: inkClip("ink_seal_hollow"),
-    ink_seal_oval: inkClip("ink_seal_oval"),
-    ink_dot: inkClip("ink_dot"),
-    ink_ring: inkClip("ink_ring"),
-    ink_splatter: inkClip("ink_splatter"),
-    ink_hp_bar: inkClip("ink_hp_bar"),
-    ink_hp_slot: inkClip("ink_hp_slot"),
-    ink_paper_grain: inkClip("ink_paper_grain"),
+    ink_ribbon_sweep: inkClip("ink_ribbon_sweep"),
+    ink_mist_curve: inkClip("ink_mist_curve"),
+    ink_veil_strip: inkClip("ink_veil_strip"),
+    ink_hairline: inkClip("ink_hairline"),
+    ink_bamboo_slip: inkClip("ink_bamboo_slip"),
+    ink_bamboo_slot: inkClip("ink_bamboo_slot"),
+    ink_frame_mask: inkClip("ink_frame_mask"),
+    ink_vstream: inkClip("ink_vstream"),
+    ink_knot_ornament: inkClip("ink_knot_ornament"),
+    ink_corner_fine: inkClip("ink_corner_fine"),
+    ink_seal_slender: inkClip("ink_seal_slender"),
+    ink_blossom_dot: inkClip("ink_blossom_dot"),
+    ink_enso_fine: inkClip("ink_enso_fine"),
+    ink_petal_mist: inkClip("ink_petal_mist"),
+    ink_song_paper: inkClip("ink_song_paper"),
 };
 
 const WHITE = Color(255, 255, 255, 255);
