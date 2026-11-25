@@ -257,7 +257,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         getFrontend: () => fe,
         // 验收钩子：按标题「新的旅程」的真实入口开一局（official 来源、全新 storyRun）。
         startStory: () => {
-            enterPlayRoom(0, "official", true);
+            enterPlayRoom(officialStartIndex(), "official", true);
             return play;
         },
         // 章节预览与菜单「章节」页的 jump 同一入口（chapter 来源，只演出不记档）。
@@ -324,6 +324,13 @@ function flushProfile(): boolean {
         cur.archiveDirty = true;
     }
     return ok;
+}
+
+/** 正式开局的落点：馆内中途退出过就从同一步续读，否则照常从序章起。 */
+function officialStartIndex(): number {
+    const mp = profile.museumPhase;
+    const inMuseum = mp === "well_reflect" || mp === "hall_walk" || mp === "lamp_turn" || mp === "return_cabinet";
+    return inMuseum ? roomIndexByKey("museum") : 0;
 }
 
 function roomIndexByKey(key: string): number {
@@ -654,9 +661,7 @@ function tickFrontend(frameDt: number): void {
             startTrial();
         } else if (act.type === "start") {
             // 馆内中途退出过：从档案里的同一步续读；否则照常从序章起。
-            const mp = profile.museumPhase;
-            const inMuseum = mp === "well_reflect" || mp === "hall_walk" || mp === "lamp_turn" || mp === "return_cabinet";
-            enterPlayRoom(inMuseum ? roomIndexByKey("museum") : 0, "official", true);
+            enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
             enterPlayRoom(act.roomIndex, "chapter");
         } else if (act.type === "openChapters") {

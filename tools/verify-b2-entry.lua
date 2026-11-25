@@ -7,6 +7,7 @@ Content:addSearchPath(Content.assetPath)
 package.path = package.path .. ";" .. Content.assetPath .. "/?.lua"
 
 local app = require("Script.watch.app")
+local save = require("Script.watch.save")
 local rooms = require("Script.watch.rooms")
 local play = require("Script.watch.play")
 local input = require("Script.watch.input")
@@ -24,6 +25,10 @@ root.size = Dora.Size(Dora.Vec2(Dora.View.size.width, Dora.View.size.height))
 root.anchor = Dora.Vec2(0, 0)
 root.position = Dora.Vec2(-Dora.View.size.width / 2, -Dora.View.size.height / 2)
 Dora.Director.ui:addChild(root)
+-- 隔离档案：默认入口读的是本文件，不碰玩家正式档。
+local ENTRY_FILE = "watch-save/test-b2-entry.txt"
+save.setSaveFile(ENTRY_FILE)
+save.saveSave(save.emptySave())
 app.start(root, 1, "title")
 
 local fe = package.loaded["watch.fe"]

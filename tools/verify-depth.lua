@@ -1,6 +1,6 @@
 -- Native Dora regression for ground-depth movement, interaction and occlusion.
 local Dora = require("Dora")
-local new = require("lualib_bundle").__TS__New
+local new = require("Script.Lib.lualib_bundle").__TS__New
 local rooms = require("Script.watch.rooms")
 local gameplay = require("Script.watch.play")
 local Input = require("Script.watch.input").Input
