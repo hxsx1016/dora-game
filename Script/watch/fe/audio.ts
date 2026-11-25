@@ -377,6 +377,28 @@ export class AudioDirector {
         }
         if (e.name === "craftDone") {
             this.playOnce(key, "sfx", "assets/audio/combat/craft_done.wav", 0.88, "craft:done", e.tick, e.seq);
+            return;
+        }
+        // 兼容 A单 / B1 后端新增事件（story-b1-carry）：按事件名动态派发，零侵入 PlayEventName 静态联合
+        const name = e.name as string;
+        if (name === "handHeld") {
+            this.playOnce(key, "sfx", "assets/audio/gate/reunion_hold.wav", 0.9, "gate:hand_held", e.tick, e.seq);
+        } else if (name === "handRelease") {
+            this.playOnce(key, "sfx", "assets/audio/gate/reunion_release.wav", 0.7, "gate:hand_release", e.tick, e.seq);
+        } else if (name === "carryStart") {
+            this.playOnce(key, "sfx", "assets/audio/combat/carry_start.wav", 0.82, "combat:carry_start", e.tick, e.seq);
+        } else if (name === "reloadOpen") {
+            this.playOnce(key, "sfx", "assets/audio/combat/reload_open.wav", 0.8, "reload:open", e.tick, e.seq);
+        } else if (name === "reloadNode") {
+            const nodeTag = typeof e.data.node === "number" ? ("" + e.data.node) : "0";
+            this.playOnce(key, "sfx", "assets/audio/combat/reload_node.wav", 0.78, "reload:node:" + nodeTag, e.tick, e.seq);
+        } else if (name === "reloadInvalid") {
+            this.playOnce(key, "sfx", "assets/audio/combat/reload_invalid.wav", 0.72, "reload:invalid", e.tick, e.seq);
+        } else if (name === "reloadSolved") {
+            const eff = typeof e.data.effect === "string" ? e.data.effect : "push";
+            this.playOnce(key, "sfx", "assets/audio/combat/reload_solved.wav", 0.9, "reload:solved:" + eff, e.tick, e.seq);
+        } else if (name === "reloadTimeout") {
+            this.playOnce(key, "sfx", "assets/audio/combat/reload_timeout.wav", 0.78, "reload:timeout", e.tick, e.seq);
         }
     }
 
