@@ -14,7 +14,7 @@ import {
     BreakSpec, CartSpec, DepthRange, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
 } from "Script/watch/rooms";
-import { createRun, mmss, RunState } from "Script/watch/run";
+import { createRun, draftRoom, mmss, RunState, talentNames } from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
@@ -589,6 +589,12 @@ export class Play {
         this.cam.y = y + CAM_LOOK_UP;
         this.phase = "run";
         this.hp = this.maxHp;
+        const trial = this.run.trial;
+        if (trial !== undefined) {
+            draftRoom(trial, wr.key);
+            this.maxHp += trial.ranks.vitality;
+            this.hp = trial.hp;
+        }
         this.buildEnemies();
         this.pickups = wr.pickups === undefined ? [] : wr.pickups.slice();
         let i = 0;
@@ -710,8 +716,27 @@ export class Play {
         this.eventSeq = this.events.length;
     }
 
-    /** 推进一帧。input 已在本帧刷新过。 */
+    chooseTalent(slot: number): void {
+        const trial = this.run.trial;
+        const talent = trial?.offers[slot];
+        if (trial === undefined || talent === undefined || trial.lost || this.run.finished) return;
+        trial.ranks[talent] += 1;
+        trial.offers = [];
+        if (talent === "vitality") {
+            this.maxHp += 1;
+            this.hp += 1;
+            trial.hp = this.hp;
+        }
+        this.flashSet(talentNames[talent], 1.2);
+    }
+
+    private reloadTicks(): number {
+        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * (this.run.trial?.ranks.reload ?? 0));
+    }
+
     update(dt: number, input: Input): void {
+        const trial = this.run.trial;
+        if (trial !== undefined && (trial.offers.length > 0 || trial.lost || this.run.finished)) return;
         if (input.pause.pressed) {
             this.paused = !this.paused;
         }
@@ -751,7 +776,8 @@ export class Play {
             this.stepCampaignPartner(dt);
         }
         // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
-        this.stepEnemies(dt, input);
+        if (trial === undefined || !this.run.finished) this.stepEnemies(dt, input);
+        if (trial !== undefined) trial.hp = this.hp;
         if (!this.isCampaign) {
             this.stepStory(dt, input);
             this.stepEscort(dt, input);
@@ -1603,6 +1629,7 @@ export class Play {
      */
     private stepCraft(input: Input): boolean {
         const inv = this.run.inventory;
+        const required = CRAFT_TICKS - 6 * (this.run.trial?.ranks.craft ?? 0);
         if (this.craftT > 0) {
             if (!input.interact.held || this.gripping || this.player.rollT > 0
                 || this.escort.state === "calming" || this.paused) {
@@ -1611,22 +1638,22 @@ export class Play {
                 return true;
             }
             this.craftT += 1;
-            if (this.craftT >= CRAFT_TICKS) {
+            if (this.craftT >= required) {
                 if (inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP) {
                     inv.scrap -= 1;
                     inv.wedge += 1;
                     this.flashSet("制得木楔", 1.2);
                     this.log("制木楔");
-                    this.emit("craftDone", { item: "wedge", ticks: CRAFT_TICKS });
+                    this.emit("craftDone", { item: "wedge", ticks: required });
                 }
                 this.craftT = 0;
             }
             return true;
         }
-        if (input.interact.pressed && inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP) {
+        if (input.interact.pressed && inv.scrap > 0 && inv.wedge < CONSUMABLE_CAP && this.findInteract() === undefined) {
             this.craftT = 1;
             this.flashSet("握住废木料 · 按住 E 削木楔", 1.0);
-            this.emit("craftStart", { item: "wedge", ticks: CRAFT_TICKS });
+            this.emit("craftStart", { item: "wedge", ticks: required });
             return true;
         }
         return false;
@@ -2009,6 +2036,7 @@ export class Play {
         const p = this.player;
         let i = 0;
         for (i = 0; i < this.enemies.length; i++) {
+            if (this.run.trial?.lost) return;
             const e = this.enemies[i];
             if (!e.alive) {
                 continue;
@@ -2142,7 +2170,7 @@ export class Play {
         if (this.invulnT > 0) {
             return;
         }
-        this.invulnT = INVULN_HIT_TICKS;
+        this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
         this.craftT = 0;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -2174,8 +2202,8 @@ export class Play {
             const fromFront = (e.x - p.x) * p.facing > 0;
             const rollDodges = p.rollT > 0 && fromFront;
             if (!rollDodges && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS;
-        this.craftT = 0;
+                this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+                this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("盾手近身 · " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2233,8 +2261,8 @@ export class Play {
             if (target !== undefined) {
                 this.damageProp(target, 2);
             } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS;
-        this.craftT = 0;
+                this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+                this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("破障手近身", 0.8);
@@ -2250,6 +2278,12 @@ export class Play {
     }
 
     private campaignFailed(): void {
+        if (this.run.trial !== undefined) {
+            this.run.trial.lost = true;
+            this.wantRoom = "";
+            this.emit("campaignFailed", { room: this.room.key, hp: 0, maxHp: this.maxHp });
+            return;
+        }
         const p = this.player;
         this.hp = this.maxHp;
         this.invulnT = INVULN_RESPAWN_TICKS;
@@ -2844,7 +2878,7 @@ export class Play {
                     hit: true, enemyIndex: i, enemyX: e.x, aimX: aim.x, aimY: aim.y,
                     impactX: ox + dx * t, impactY: oy + dy * t, shield: true,
                 });
-                this.reloadT = this.run.inventory.quickbelt > 0 ? 36 : 54;
+                this.reloadT = this.reloadTicks();
                 return;
             }
             e.alive = false;
@@ -2858,7 +2892,7 @@ export class Play {
             this.flashSet("打空", 0.35);
         }
         if (this.isCampaign) {
-            this.reloadT = this.run.inventory.quickbelt > 0 ? 36 : 54;
+            this.reloadT = this.reloadTicks();
         }
         this.emit("shotResolved", {
             hit: hit,

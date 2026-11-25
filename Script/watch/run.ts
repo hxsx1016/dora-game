@@ -31,7 +31,41 @@ export interface PropState {
 
 export type RouteTag = "outer" | "drygoods" | "";
 
+export type Talent = "vitality" | "reload" | "guard" | "craft";
+export const talentNames: Record<Talent, string> = {
+    vitality: "厚甲·体力+1", reload: "熟铳·装填减6拍", guard: "护身·受击保护加12拍", craft: "巧手·制楔减6拍",
+};
+
+export interface Trial {
+    randomState: number;
+    hp: number;
+    lost: boolean;
+    ranks: Record<Talent, number>;
+    offers: Talent[];
+    room: string;
+}
+
+export function createTrial(seed: number): RunState {
+    const run = createRun(seed);
+    run.trial = { randomState: 1 + Math.floor(Math.abs(seed)) % 2147483646, hp: 3, lost: false,
+        ranks: { vitality: 0, reload: 0, guard: 0, craft: 0 }, offers: [], room: "" };
+    return run;
+}
+
+export function draftRoom(trial: Trial, room: string): void {
+    if (trial.room === room) return;
+    trial.room = room;
+    const pool: Talent[] = ["vitality", "reload", "guard", "craft"];
+    trial.offers = [];
+    while (trial.offers.length < 3) {
+        trial.randomState = (trial.randomState * 48271) % 2147483647;
+        const index = Math.floor(trial.randomState / 2147483647 * pool.length);
+        trial.offers.push(pool.splice(index, 1)[0]);
+    }
+}
+
 export interface RunState {
+    trial?: Trial;
     seed: number;
     /** 有效玩法拍：只在本房处于可控玩法时累加，暂停与切换不累加。 */
     ticks: number;

@@ -65,7 +65,7 @@ local function propTarget(sim, key, local_x, route)
         if route == "outer" and local_x >= 430 and local_x < 525 then
             return "s2_wood"
         end
-        if route == "drygoods" and local_x >= 560 and local_x < 620 then
+        if route == "drygoods" and local_x >= 560 and not sim.run.joined then
             return "s2_board"
         end
     end
@@ -232,7 +232,12 @@ local function stepRoom(sim, inp, route, maxNs)
                 sim:aimAt((box.x0 + box.x1) / 2, 26)
                 inp.fire.pressed = sim.reloadT <= 0
             else
-                inp.moveX = p.x < box.x0 - 20 and 1 or 0
+                if p.x > box.x0 - 16 then
+                    inp.moveX = -1
+                else
+                    inp.moveX = p.x < box.x0 - 24 and 1 or 0
+                end
+                want = 32
                 inp.fire.pressed = false
                 if math.abs(p.x - box.x0) < 72 and math.abs(p.depth - 32) < 20 and interactCd == 0 then
                     pressInteract(sim, inp)
