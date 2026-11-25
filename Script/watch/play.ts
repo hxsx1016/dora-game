@@ -94,6 +94,10 @@ const CART_HALF = 24;
 const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
+/** 受伤后的保护拍数：t+41 仍在保护，t+42 可以再次扣血。 */
+const INVULN_HIT_TICKS = 42;
+/** 被击倒复活后的保护拍数（1.2 秒）。 */
+const INVULN_RESPAWN_TICKS = 72;
 const FIRE_COOLDOWN = 150;
 /** 新版关卡火器手的装填周期：比基础值长，给握车柄的玩家留出看枪口、停手、再推的窗口。 */
 const CAMPAIGN_FIRE_COOLDOWN = 240;
@@ -359,7 +363,11 @@ export class Play {
     /** 城门守点里周戍的血量；打空就回绞盘重来。 */
     hp = 3;
     maxHp = 3;
-    /** 受击后的短暂硬直保护：0.7 秒内不再扣血，避免近战连击秒杀。 */
+    /**
+     * 受击硬直保护：单位是「模拟拍」，不是秒。42 拍 = 0.7 秒。
+     * 这里必须用整数拍减法：用浮点秒减 dt 会在 t+42 处留下 ±1e-16 的残差，
+     * 同一发攻击在 t+41 / t+42 的判定就会随浮点符号漂移，回放不可复现。
+     */
     invulnT = 0;
     /** 小满撞墙后累计的时间：超过 0.3 秒就换一档绕行，别在柱前原地跳。 */
     partnerStuck = 0;
@@ -698,7 +706,7 @@ export class Play {
             this.paused = !this.paused;
         }
         if (this.invulnT > 0) {
-            this.invulnT -= dt;
+            this.invulnT -= 1;
         }
         if (this.flashT > 0) {
             this.flashT -= dt;
@@ -1954,17 +1962,25 @@ export class Play {
 
     /** 射线是否被实体或软遮挡挡在敌我之间。 */
     private blockedShot(e: Enemy, p: Actor): boolean {
+        const eDepth = e.depth ?? 0;
         const ex = e.x;
-        const ey = e.y + (e.depth ?? 0) + e.h * 0.62;
+        // 纯高度作 y 轴，纵深作独立轴：屏幕 y = 高度 + 纵深。
+        const ey = e.y + e.h * 0.62;
         const px = p.x;
-        const py = p.y + p.depth + p.h * 0.55;
+        const py = p.y + p.h * 0.55;
         const dx = px - ex;
-        const dy = py - ey;
-        const len = Math.sqrt(dx * dx + dy * dy);
+        const dyScreen = (py + p.depth) - (ey + eDepth);
+        const len = Math.sqrt(dx * dx + dyScreen * dyScreen);
         if (len < 0.01) {
             return false;
         }
-        const ray = { x: ex, y: ey, dx: dx / len, dy: dy / len };
+        // 敌我一致：射线自带起点档位和纵深变化率，交给 hitBox 做完整三轴求交。
+        // 只拿「敌人所在档」过滤掩体，会把射线末端真实挡住的远端挡物漏掉。
+        const ray = {
+            x: ex, y: ey,
+            dx: dx / len, dy: (py - ey) / len,
+            depth: eDepth, dDepth: (p.depth - eDepth) / len,
+        };
         let best = -1;
         let j = 0;
         for (j = 0; j < this.boxes.length; j++) {
@@ -1975,9 +1991,6 @@ export class Play {
             // 残盾：留到 campaignEnemyFire 里判「挡下一发」，不在这里被当成普通掩体，
             // 否则敌人永远不会扣扳机，盾也就永远不碎。
             if (b.id === "braced_shield") {
-                continue;
-            }
-            if (!overlapsDepth(e.depth ?? 0, b.depth, ACTOR_DEPTH_HALF)) {
                 continue;
             }
             const t = hitBox(ray, b);
@@ -2017,7 +2030,7 @@ export class Play {
         if (this.invulnT > 0) {
             return;
         }
-        this.invulnT = 0.7;
+        this.invulnT = INVULN_HIT_TICKS;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
         this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2044,7 +2057,7 @@ export class Play {
             }
         } else if (adx < 48 && sameLane && (e.swingT ?? 0) <= 0) {
             if (p.rollT <= 0 && this.invulnT <= 0) {
-                this.invulnT = 0.7;
+                this.invulnT = INVULN_HIT_TICKS;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("盾手近身 · " + Math.max(0, this.hp) + "/" + this.maxHp, 0.8);
@@ -2102,7 +2115,7 @@ export class Play {
             if (target !== undefined) {
                 this.damageProp(target, 2);
             } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
-                this.invulnT = 0.7;
+                this.invulnT = INVULN_HIT_TICKS;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
                 this.flashSet("破障手近身", 0.8);
@@ -2120,7 +2133,7 @@ export class Play {
     private campaignFailed(): void {
         const p = this.player;
         this.hp = this.maxHp;
-        this.invulnT = 1.2;
+        this.invulnT = INVULN_RESPAWN_TICKS;
         this.reloadT = 0;
         this.gripping = false;
         this.flashSet("被击倒 · 回到本段起点，破坏与拾取保留", 2.0);
@@ -2828,10 +2841,9 @@ export class Play {
             if (box.broken === true || box.hidden === true) {
                 continue;
             }
-            // 2.5D：不同纵深上的柱子不该挡住另一档的子弹。
-            if (ray.depth !== undefined && !overlapsDepth(ray.depth, box.depth, ACTOR_DEPTH_HALF)) {
-                continue;
-            }
+            // 2.5D：挡弹判定交给 hitBox 做完整三轴求交（含纵深区间）。
+            // 不能在这里只拿射线起点档位做前置过滤：射线从近侧档打向远侧档时，
+            // 起点与挡物档位不重叠、但射线末端真实穿过挡物，提前 continue 会漏挡。
             const t = hitBox(ray, box);
             if (t >= 0 && (best < 0 || t < best)) {
                 best = t;
