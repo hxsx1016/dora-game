@@ -152,8 +152,10 @@ local function c2Step(sim, inp, route, maxNs)
             elseif sim.cartDocked then
                 phase = "latch"
             else
-                inp.moveX = p.x < handle - 6 and 1 or (p.x > handle + 6 and -1 or 0)
-                inp.moveY = (lx < 1026 and (p.depth < 30 and -1 or 0)) or (p.depth > 4 and 1 or 0)
+                local want = (lx < 1064) and 30 or 0
+                local nearLane = math.abs(p.depth - want) <= 8
+                inp.moveX = (not nearLane) and 0 or (p.x < handle - 6 and 1 or (p.x > handle + 6 and -1 or 0))
+                inp.moveY = p.depth < want - 6 and -1 or (p.depth > want + 6 and 1 or 0)
                 if math.abs(p.x - handle) < 40 and math.abs(p.depth) < 16 and cd == 0 then
                     pressInteract(sim, inp); cd = 16
                 end
@@ -162,25 +164,26 @@ local function c2Step(sim, inp, route, maxNs)
             if sim.run.props["c2_latch"] ~= nil then
                 phase = "exit"
             else
-                inp.moveX = lx < 1560 and 1 or 0
-                inp.moveY = (lx < 1026 and (p.depth < 30 and -1 or 0)) or (math.abs(p.depth) < 16 and 0 or (p.depth > 0 and 1 or -1))
-                if lx >= 1530 and math.abs(p.depth) < 16 and cd == 0 then
+                local want = (lx < 1530) and 30 or 0
+                inp.moveX = lx < 1530 and 1 or 0
+                inp.moveY = p.depth < want - 6 and -1 or (p.depth > want + 6 and 1 or 0)
+                if lx >= 1524 and math.abs(p.depth) < 16 and cd == 0 then
                     pressInteract(sim, inp); cd = 16
                 end
             end
         elseif phase == "exit" then
             inp.moveX = lx < 1712 and 1 or 0
-            inp.moveY = (lx < 1026 and (p.depth < 30 and -1 or 0)) or (p.depth > 4 and 1 or 0)
+            inp.moveY = (lx < 1026) and (p.depth < 24 and -1 or 0) or (p.depth > 4 and 1 or 0)
         end
 
         -- 同档敌人靠近时先还击，别被顶着打进循环。
         local foe = nil
         for _, e in ipairs(sim.enemies) do
-            if e.alive and math.abs(e.depth - sim.player.depth) <= 44 and math.abs(e.x - sim.player.x) < 520 then
+            if e.alive and math.abs(e.depth - sim.player.depth) <= 44 and math.abs(e.x - sim.player.x) < 260 then
                 foe = e
             end
         end
-        if foe ~= nil and sim.reloadT <= 0 then
+        if foe ~= nil and sim.reloadT <= 0 and not sim.gripping then
             sim:aimAt(foe.x, foe.y + foe.depth + foe.h * 0.6)
             inp.fire.pressed = true
             inp.moveX = 0
@@ -191,7 +194,7 @@ local function c2Step(sim, inp, route, maxNs)
             return { ok = true, frames = i }
         end
         if (i % 600) == 0 then
-            print(string.format("[c2] %s %d x=%.0f d=%.0f hp=%d", phase, i, sim.player.x, sim.player.depth, sim.hp))
+            print(string.format("[c2] %s %d lx=%.0f d=%.0f hp=%d grip=%s axle=%.0f", phase, i, sim.player.x - minX, sim.player.depth, sim.hp, tostring(sim.gripping), sim.cartAxle))
         end
     end
     return { ok = false, frames = maxNs }
@@ -329,7 +332,7 @@ local function stepRoom(sim, inp, route, maxNs)
             return { ok = true, frames = i }
         end
         if (i % 600) == 0 then
-            print(string.format("[%s] %d x=%.0f d=%.0f hp=%d", key, i, sim.player.x, sim.player.depth, sim.hp))
+            print(string.format("[%s] %d x=%.0f d=%.0f hp=%d partner=%.0f pd=%.0f joined=%s", key, i, sim.player.x, sim.player.depth, sim.hp, sim.partner.x, sim.partner.depth, tostring(sim.run.joined)))
         end
     end
     return { ok = false, frames = maxNs }
@@ -371,4 +374,175 @@ local function run(route)
     return { ok = true, frames = results, total = total }
 end
 
-return { run = run, stepRoom = stepRoom, newSim = newSim, newInput = newInput }
+-- C2 单段实验：同一房间、同一入口，分别验证空手 / 先清火器手 / 架残盾 / 放木帘。
+-- mode: "empty" | "clear" | "shield" | "curtain"
+local function c2Trial(mode, seed)
+    local runState = Run.createRun(seed or 20261125)
+    runState.joined = true
+    runState.route = (mode == "curtain") and "drygoods" or "outer"
+    if mode == "shield" then
+        runState.inventory.shield = 1
+    end
+    local sim = newSim(R.CAMPAIGN_ROOMS[5], runState)
+    local inp = newInput()
+    local minX = sim.room.minX
+    local hits, frames, resets = 0, 0, 0
+    local evCount = {}
+    local lastHp = sim.hp
+    local function tick(mx, my, tap)
+        inp.moveX = mx or 0
+        inp.moveY = my or 0
+        inp.jump.pressed = false
+        inp.interact.pressed = false
+        inp.fire.pressed = false
+        if tap ~= nil then
+            tap()
+        end
+        sim:update(1/60, inp)
+        frames = frames + 1
+        if sim.events ~= nil then
+            for _, ev in ipairs(sim.events) do
+                evCount[ev.name] = (evCount[ev.name] or 0) + 1
+            end
+            sim.events = {}
+        end
+        if sim.hp < lastHp then
+            hits = hits + 1
+        elseif sim.hp > lastHp then
+            resets = resets + 1
+        end
+        lastHp = sim.hp
+    end
+    local function lx()
+        return sim.player.x - minX
+    end
+    local function gunner()
+        for _, e in ipairs(sim.enemies) do
+            if e.kind == "gunner" and e.alive then
+                return e
+            end
+        end
+        return nil
+    end
+    local function seek(x, guard)
+        local n = 0
+        while lx() < x and n < guard do
+            tick(1, sim.player.depth < 30 and -1 or 0)
+            n = n + 1
+        end
+        return n
+    end
+    local function lane(depth, guard)
+        local n = 0
+        while sim.player.depth > depth + 2 and n < guard do
+            tick(0, 1)
+            n = n + 1
+        end
+        while sim.player.depth < depth - 2 and n < guard do
+            tick(0, -1)
+            n = n + 1
+        end
+        return n
+    end
+    local function press(guard)
+        local n = 0
+        while n < guard do
+            tick(0, 0, function() inp.interact.pressed = true end)
+            n = n + 1
+            if sim.gripping or runState.props["c2_latch"] ~= nil then
+                return n
+            end
+        end
+        return n
+    end
+
+    -- 先上档绕过粮袋与空筐。
+    seek(1000, 900)
+    if mode == "curtain" then
+        -- 到远柱正面按 E 放帘。
+        seek(1170, 300)
+        press(60)
+        -- 放帘后退回车柄：者已在 1170，不能只靠前进的 seek。
+        local backCurtain = 0
+        while lx() > 1092 and backCurtain < 200 do
+            tick(-1, 0)
+            backCurtain = backCurtain + 1
+        end
+        lane(2, 200)
+    elseif mode == "clear" then
+        -- 下到中档，站在暴露轨段前把棚尾火器手打掉。
+        lane(2, 200)
+        seek(1085, 300)
+        local g = gunner()
+        local n = 0
+        while g ~= nil and g.alive and n < 900 do
+            tick(0, 0, function()
+                if sim.reloadT <= 0 then
+                    sim:aimAt(g.x, g.y + (g.depth or 0) + g.h * 0.6)
+                    inp.fire.pressed = true
+                end
+            end)
+            n = n + 1
+        end
+    end
+    -- 架盾要在车柄够不到的地方完成：站到 1000 按 E，避免同帧被车柄的握柄判定抢走。
+    if mode == "shield" then
+        seek(1000, 300)
+        press(40)
+        print(string.format("[c2] shield posed lx=%.1f d=%.1f braced=%s", lx(), sim.player.depth,
+            tostring(sim.bracedShield ~= nil)))
+        lane(2, 200)
+        print(string.format("[c2] shield lane lx=%.1f d=%.1f", lx(), sim.player.depth))
+        seek(1096, 300)
+        print(string.format("[c2] shield seek lx=%.1f d=%.1f", lx(), sim.player.depth))
+    end
+    -- 走到车柄并握柄：连贯推到底，中途不停。
+    if lx() < 1085 then
+        seek(1085, 400)
+    end
+    lane(2, 300)
+    seek(1096, 300)
+    press(120)
+    local n = 0
+    while sim.cartAxle < sim.room.cart.endX - 1 and n < 600 do
+        tick(1, 0)
+        n = n + 1
+    end
+    lane(0, 300)
+    local backN = 0
+    while lx() < 1512 and backN < 400 do
+        tick(1, 0)
+        backN = backN + 1
+    end
+    press(120)
+    print(string.format("[c2] %s latch=%s lx=%.1f d=%.1f docked=%s", mode,
+        tostring(runState.props["c2_latch"] ~= nil), lx(), sim.player.depth, tostring(sim.cartDocked)))
+    local exitN = 0
+    while not runState.finished and exitN < 600 do
+        tick(1, 0)
+        exitN = exitN + 1
+    end
+    print(string.format("[c2] %s exit lx=%.1f joined=%s partner=%.1f finished=%s",
+        mode, lx(), tostring(runState.joined), sim.partner.x - minX, tostring(runState.finished)))
+    return {
+        mode = mode,
+        seed = runState.seed,
+        ok = runState.finished,
+        hp = sim.hp,
+        hits = hits,
+        resets = resets,
+        frames = frames,
+        docked = sim.cartDocked,
+        latch = runState.props["c2_latch"] ~= nil,
+        curtain = runState.props["c2_curtain"] ~= nil,
+        events = evCount,
+    }
+end
+
+return {
+    run = run,
+    stepRoom = stepRoom,
+    c2Trial = c2Trial,
+    newSim = newSim,
+    newInput = newInput,
+}

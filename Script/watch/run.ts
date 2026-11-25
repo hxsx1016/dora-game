@@ -46,7 +46,8 @@ export interface RunState {
     /** 小满是否已经汇合（放板 / 抬闩 / 推车后）。 */
     joined: boolean;
     /** 侧门闩 / 棚尾连杆是否已抬。 */
-    latchOpen: boolean;
+    c1Latch: boolean;
+    c2Latch: boolean;
     /** 已提交的检查点序号。 */
     checkpoint: number;
     /** 本轮是否已经完成 C2 灰盒。 */
@@ -66,7 +67,8 @@ export function createRun(seed: number = 20261124): RunState {
         props: {},
         taken: {},
         joined: false,
-        latchOpen: false,
+        c1Latch: false,
+        c2Latch: false,
         checkpoint: 0,
         finished: false,
         log: [],
