@@ -1829,9 +1829,15 @@ export class Play {
     }
 
     /** 序章：走近递针套，60 拍后她开始跟随，两人一起出门。 */
-    /** 井口开放条件：两种结局都走过，且还没取到穿梭器。 */
+    /** 只有正式来源（标题「新的旅程」）才写跨局档案；章节直达/调试/试炼只预览。 */
+    canPersistProgress(): boolean {
+        return !this.isCampaign && this.run.source === "official";
+    }
+
+    /** 井口开放条件：正式局、两种结局都走过，且还没取到穿梭器。 */
     wellWindow(): boolean {
-        return !this.archive.artifactOwned && this.archive.childCleared && this.archive.soldierCleared;
+        return this.canPersistProgress()
+            && !this.archive.artifactOwned && this.archive.childCleared && this.archive.soldierCleared;
     }
 
     /** 玩家是否站在井沿旁（段内 x=430，前后 44）。 */
@@ -1863,7 +1869,7 @@ export class Play {
             this.museumReturn = false;
             this.phase = "prologue-wait";
             this.phaseTick = 0;
-            this.player.x = this.ox + this.wellX;
+            this.player.x = this.ox + 260;
             this.player.y = 0;
             this.player.depth = 0;
             this.flashSet("回到柜边 · 小满还在柜后", 1.6);
@@ -1880,8 +1886,10 @@ export class Play {
             // 拿到穿梭器后，再在井沿按一次，才进馆；不打断寻柜。
             if (!this.wellOpen && this.archive.artifactOwned && !this.archive.museumSeen
                 && this.nearWell() && input.interact.pressed) {
-                this.archive.museumPhase = "well_reflect";
-                this.archiveDirty = true;
+                if (this.canPersistProgress()) {
+                    this.archive.museumPhase = "well_reflect";
+                    this.archiveDirty = true;
+                }
                 this.requestRoom("museum", "初次使用 · 时间穿梭器");
                 return;
             }
@@ -2261,9 +2269,11 @@ export class Play {
             if (atCase && input.interact.pressed) {
                 this.phase = "museum-hall";
                 this.phaseTick = 0;
-                this.archive.museumPhase = "hall_walk";
-                this.archiveDirty = true;
-                this.emit("museumStep", { step: "cabinet", x: this.ox + mu.cabinetX });
+                if (this.canPersistProgress()) {
+                    this.archive.museumPhase = "hall_walk";
+                    this.archiveDirty = true;
+                }
+                this.emit("museumStep", { step: "cabinet", x: this.ox + mu.cabinetX, persisted: this.canPersistProgress() });
                 this.flashSet("玻璃柜前 · 收枪入袖", 1.8);
             }
             return;
@@ -2272,9 +2282,11 @@ export class Play {
             if (this.player.x >= this.ox + mu.hallX && input.interact.pressed) {
                 this.phase = "museum-lamp";
                 this.phaseTick = 0;
-                this.archive.museumPhase = "lamp_turn";
-                this.archiveDirty = true;
-                this.emit("museumStep", { step: "hall", x: this.ox + mu.hallX });
+                if (this.canPersistProgress()) {
+                    this.archive.museumPhase = "lamp_turn";
+                    this.archiveDirty = true;
+                }
+                this.emit("museumStep", { step: "hall", x: this.ox + mu.hallX, persisted: this.canPersistProgress() });
                 this.flashSet("孩子的脚步 · 从西窗那头", 1.8);
             }
             return;
@@ -2283,9 +2295,11 @@ export class Play {
             if (this.player.x >= this.ox + mu.lampX && input.interact.pressed) {
                 this.phase = "museum-return";
                 this.phaseTick = 0;
-                this.archive.museumPhase = "return_cabinet";
-                this.archiveDirty = true;
-                this.emit("museumStep", { step: "lamp", x: this.ox + mu.lampX });
+                if (this.canPersistProgress()) {
+                    this.archive.museumPhase = "return_cabinet";
+                    this.archiveDirty = true;
+                }
+                this.emit("museumStep", { step: "lamp", x: this.ox + mu.lampX, persisted: this.canPersistProgress() });
                 this.flashSet("灯 · 转向西窗", 1.8);
             }
             return;
@@ -2294,7 +2308,7 @@ export class Play {
             if (atCase && input.interact.pressed) {
                 this.phase = "museum-knock";
                 this.phaseTick = 0;
-                this.emit("museumStep", { step: "knock", count: 1, x: this.ox + mu.cabinetX });
+                this.emit("museumStep", { step: "knock", count: 1, x: this.ox + mu.cabinetX, persisted: this.canPersistProgress() });
                 this.flashSet("回柜边 · 第一下", 0.8);
             }
             return;
@@ -2302,15 +2316,17 @@ export class Play {
         if (this.phase === "museum-knock") {
             this.phaseTick += 1;
             if (this.phaseTick === 8) {
-                this.emit("museumStep", { step: "knock", count: 2, x: this.ox + mu.cabinetX });
+                this.emit("museumStep", { step: "knock", count: 2, x: this.ox + mu.cabinetX, persisted: this.canPersistProgress() });
                 this.flashSet("回柜边 · 第二下", 0.8);
             } else if (this.phaseTick >= 36) {
                 this.phase = "museum-done";
                 this.phaseTick = 0;
-                this.archive.museumSeen = true;
-                this.archive.museumPhase = "done";
-                this.archiveDirty = true;
-                this.emit("museumDone", { steps: 4, museumSeen: true });
+                if (this.canPersistProgress()) {
+                    this.archive.museumSeen = true;
+                    this.archive.museumPhase = "done";
+                    this.archiveDirty = true;
+                }
+                this.emit("museumDone", { steps: 4, museumSeen: this.archive.museumSeen, persisted: this.canPersistProgress() });
                 this.flashSet("回柜边 · 灯还亮着", 2.0);
                 this.log("博物馆 · 回柜边");
             }

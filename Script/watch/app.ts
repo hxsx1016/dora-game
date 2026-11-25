@@ -14,7 +14,8 @@ import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createTrial, mmss, RunSource, RunState, talentNames } from "Script/watch/run";
-import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile } from "Script/watch/save";
+import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
+    markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending } from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 declare function print(...args: string[]): void;
@@ -265,12 +266,15 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             return play;
         },
         getStoryRun: () => storyRun,
+        getProfilePending: () => profilePending(),
+        flushProfileNow: () => flushProfile(),
         // 档案验收：测试只切隔离文件，绝不覆盖正式 watch-save/archive.txt。
         getProfile: () => profile,
         getProfileStatus: () => profileStatus,
         getProfileDetail: () => profileDetail,
         useTestSave: (name: string) => {
             setSaveFile(name);
+            clearProfilePending();
             const loaded = loadSave();
             profile = loaded.state;
             profileStatus = loaded.status;
@@ -305,6 +309,23 @@ function setMode(nextMode: number): void {
     clock.reset();
 }
 
+/**
+ * 把档案变化落盘：Play 上的 dirty 只当「本次变化」的信号，登记到 save 模块后立刻清；
+ * 真正待写责任在 save 模块（与 app 同寿命），切房换 Play 实例不会丢。
+ */
+function flushProfile(): boolean {
+    const cur = play;
+    if (cur !== undefined && cur.archiveDirty) {
+        cur.archiveDirty = false;
+        markProfilePending(profile);
+    }
+    const ok = flushSaveProfile();
+    if (!ok && cur !== undefined) {
+        cur.archiveDirty = true;
+    }
+    return ok;
+}
+
 function roomIndexByKey(key: string): number {
     let i = 0;
     for (i = 0; i < ROOMS.length; i++) {
@@ -329,6 +350,7 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
         storyRun.source = source;
     }
     ensurePlay();
+    flushProfile();
 }
 
 function pickByIndex(idx: number, source: RunSource = "debug"): void {
@@ -724,6 +746,8 @@ function tickFrontend(frameDt: number): void {
         if (idx >= 0) {
             // 换实例前先取走旧队列，再接到新实例队首；前端下一帧仍能拿到切房这一条 roomChange。
             // adoptEvents 会丢掉旧房间的 knock，避免跨出口同拍按 E 时在新房重播旧房敲声。
+            // 切房同拍：旧实例的档案变化先落盘；失败则留 profileDirty，由后续帧重试。
+            flushProfile();
             const leaving = p.drainEvents();
             // 片尾回序章：重开一份局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
             if (p.restartStory) {
@@ -742,12 +766,7 @@ function tickFrontend(frameDt: number): void {
     }
 
     // 档案变化（正式通关、井口取器）在下一个渲染帧落盘；写失败保留旧文件，下次再试。
-    if (p.archiveDirty) {
-        p.archiveDirty = false;
-        if (!saveSave(profile)) {
-            p.archiveDirty = true;
-        }
-    }
+    flushProfile();
     fe.renderPlay(frameDt, p, input, viewW, viewH);
 }
 
