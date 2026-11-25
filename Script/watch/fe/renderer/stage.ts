@@ -841,18 +841,16 @@ export class StageRenderer {
             fgDraw.drawSegment(Vec2(x0, y0 + sh), Vec2(x0 + sw, y0 + sh), 1.4, toColor(theme.groundRim));
         }
 
-        // 战术后方贴掩体时，掩体侧沿亮起冰青全息护盾线
+        // 明初写实贴靠提示：克制木沿/砖沿微亮边线（M1 清理冰青全息护盾光晕，兼顾静音与灰度可读）
         if (!p.childMode && (p.coverHug || p.coverNear)) {
             const plx = p.player.x;
             const nearLeft = Math.abs(plx - s.x) < 42;
             const nearRight = Math.abs(plx - (s.x + s.w)) < 42;
             if (nearLeft || nearRight) {
-                const edgeX = nearLeft ? x0 - 2 : x0 + sw + 2;
-                const col = p.coverHug ? PALETTE.cyan : PALETTE.amber;
-                fgGlow.drawSegment(Vec2(edgeX, y0 + 4), Vec2(edgeX, y0 + sh + 4), p.coverHug ? 3.5 : 2, toColor(col, p.coverHug ? 220 : 140));
-                if (p.coverHug) {
-                    fillRadialGlow(fgGlow, edgeX, y0 + sh * 0.55, 22, sh * 0.7, toColor(PALETTE.cyan, 85), Color(72, 224, 255, 0), 14);
-                }
+                const edgeX = nearLeft ? x0 - 1.5 : x0 + sw + 1.5;
+                const isWood = slot === "cover_wood";
+                const col = p.coverHug ? (isWood ? PALETTE.amberCore : PALETTE.moonPale) : PALETTE.silkDim;
+                fgDraw.drawSegment(Vec2(edgeX, y0 + 4), Vec2(edgeX, y0 + sh + 2), p.coverHug ? 2.0 : 1.2, toColor(col, p.coverHug ? 205 : 120));
             }
         }
     }

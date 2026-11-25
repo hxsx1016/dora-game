@@ -64,7 +64,13 @@ local craftPlugin = craftMod.createCraftBenchPlugin(fe.contract)
 fe:registerPlugin(carryPlugin)
 fe:registerPlugin(reloadPlugin)
 fe:registerPlugin(craftPlugin)
-check("registered 3 fe-02 plugins", #fe:getPlugins() == 3)
+local hasCarry, hasReload, hasCraft = false, false, false
+for _, pl in ipairs(fe:getPlugins()) do
+	if pl.id == "fe-02-carry-pose" then hasCarry = true end
+	if pl.id == "fe-02-reload-wheel" then hasReload = true end
+	if pl.id == "fe-02-craft-bench" then hasCraft = true end
+end
+check("registered 3 fe-02 plugins", #fe:getPlugins() >= 3 and hasCarry and hasReload and hasCraft)
 check("default low guidance assistHintsEnabled=false", not fe.contract:isAssistHintsEnabled())
 
 local input = new(Input)

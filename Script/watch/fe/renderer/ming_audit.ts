@@ -61,7 +61,7 @@ export const CORE_MING_BACKDROPS: Record<string, AssetSlotKey> = {
     tower: "bgFar_tower",
 };
 
-/** 非八房战役/护送段到明朝像素底图的映射表（杜绝探照灯与工业钢架退化） */
+/** 非八房战役/护送段到明朝像素底图的映射表（杜绝探照灯与工业钢架退化；已覆盖 B2 escort2-5） */
 export const FALLBACK_MING_BACKDROPS: Record<string, AssetSlotKey> = {
     "s1-crossroad": "bgFar_street",
     "s2-drygoods": "bgFar_street",
@@ -70,6 +70,10 @@ export const FALLBACK_MING_BACKDROPS: Record<string, AssetSlotKey> = {
     "c2-granary": "bgFar_checkpoint",
     "gatepath": "bgFar_outside",
     "escort1": "bgFar_outside",
+    "escort2": "bgFar_checkpoint",
+    "escort3": "bgFar_checkpoint",
+    "escort4": "bgFar_forest",
+    "escort5": "bgFar_tower",
 };
 
 export interface LegacyRedlineFinding {
