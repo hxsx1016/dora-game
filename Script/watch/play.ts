@@ -1743,6 +1743,15 @@ export class Play {
                 return;
             }
         }
+        if (inv.ammo > 0 && this.reloadT > 0) {
+            // 备用弹包：立刻补满当前这一发，不缩短后续装填。
+            this.reloadT = 0;
+            inv.ammo -= 1;
+            this.flashSet("备用弹包 · 膛内补满", 1.0);
+            this.log("用备用弹包");
+            this.emit("interactUsed", { kind: "ammo", x: this.player.x });
+            return;
+        }
         if (inv.shield > 0 && this.bracedShield === undefined && this.room.key === "c2-granary"
             && this.player.x >= this.room.minX + 960 && this.player.x <= this.room.minX + 1320) {
             const p = this.player;
@@ -2086,7 +2095,7 @@ export class Play {
         let j = 0;
         for (j = 0; j < this.boxes.length; j++) {
             const b = this.boxes[j];
-            if (b.broken === true || b.passable === true) {
+            if (b.broken === true || b.passable === true || b.hidden === true) {
                 continue;
             }
             // 残盾：留到 campaignEnemyFire 里判「挡下一发」，不在这里被当成普通掩体，
@@ -2095,7 +2104,9 @@ export class Play {
                 continue;
             }
             const t = hitBox(ray, b);
-            if (t >= 0 && t < len - 2 && (best < 0 || t < best)) {
+            // t 太靠近起点说明射线是从这件东西内部出发的（比如火器手站在抬闩里），
+            // 那不是「挡在中间」，不该算遮挡。
+            if (t > 2 && t < len - 2 && (best < 0 || t < best)) {
                 best = t;
             }
         }
@@ -2953,7 +2964,8 @@ export class Play {
             // 不能在这里只拿射线起点档位做前置过滤：射线从近侧档打向远侧档时，
             // 起点与挡物档位不重叠、但射线末端真实穿过挡物，提前 continue 会漏挡。
             const t = hitBox(ray, box);
-            if (t >= 0 && (best < 0 || t < best)) {
+            // 起点已经落在挡物内部（贴身开火）不算遮挡，否则会把自己站的那块板当墙。
+            if (t > 2 && (best < 0 || t < best)) {
                 best = t;
                 bestBox = box;
             }
