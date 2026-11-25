@@ -817,7 +817,7 @@ export const ESCORT3_ROOM: RoomSpec = {
     solids: [
         { x: 0, w: 50, h: 160, y: 0, label: "工台口背影 0–50" },
         { x: 560, w: 120, h: 44, y: 0, label: "工台 560–680 · 高 44", lanes: ["lower", "middle"], art: "cover_wood", id: "e3_bench" },
-        { x: 700, w: 56, h: 52, y: 0, label: "试射薄掩体 700–756 · 高 52", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
+        { x: 700, w: 56, h: 80, y: 0, label: "试射薄掩体 700–756 · 高 80", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
         { x: 1050, w: 40, h: 140, y: 0, label: "出站门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1170, w: 30, h: 180, y: 0, label: "出站断墙 1170–1200 · 高 180" },
     ],
