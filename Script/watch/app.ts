@@ -242,6 +242,17 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         },
         getPlay: () => play,
         getFrontend: () => fe,
+        // 验收钩子：按标题「新的旅程」的真实入口开一局（official 来源、全新 storyRun）。
+        startStory: () => {
+            enterPlayRoom(0, "official", true);
+            return play;
+        },
+        // 章节预览与菜单「章节」页的 jump 同一入口（chapter 来源，只演出不记档）。
+        previewChapter: (idx: number) => {
+            enterPlayRoom(idx, "chapter");
+            return play;
+        },
+        getStoryRun: () => storyRun,
     };
 
     if (mode === 1 && startScreen === "play") {
