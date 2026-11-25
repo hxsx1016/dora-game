@@ -14,10 +14,12 @@
 ## 一、收口验收总清单（逐项打勾）
 
 ### 1. 代码整洁度与后端零侵入核查
-- [ ] `git diff --name-only origin/feature/watch-level-rework` 核对：确认 **0 处改动** 落在 `play.ts`、`run.ts`、`rooms.ts`、`depth.ts`、`escort.ts`、`input.ts`、`keys.ts`、`app.ts`、`init.ts` 及对应 `.lua`。
+- [ ] `git diff --name-only origin/feature/watch-level-rework...HEAD` 核对：确认 **0 处改动** 落在 `play.ts`、`run.ts`、`rooms.ts`、`depth.ts`、`escort.ts`、`input.ts`、`keys.ts`、`app.ts`、`init.ts` 及对应 `.lua`。
 - [ ] `Dora cli build -p . --lang ts` 零错误，所有新增/改动 `.ts` 与 `.lua` 成对更新。
 - [ ] `python3 tools/check-repo.py` 与 `git diff --cached --check` 全部通过；无密钥、无 `.agent/.cache/.build/.download/.upload` 泄漏。
 - [ ] 引擎自动化回归全绿：`verify-d6`、`verify-d7`、`verify-d8`、`verify-d9`、`verify-integration`、`verify-trial`、`replay-gate`、`replay-d5`。
+
+正式玩法验收从默认剧情入口进入，记录过门血量快照，分别用 79/100 与 80/100 的固定用例核对边界。换房、重试、恢复后仍按锁存路线演出。1439 拍预先按住的输入须释放再按，男主线另测重按 35/36 有效拍、提前松手与暂停。后端接口尚缺时交付标注「排演」的样片，对应正式流程记为「待联调」。
 
 ### 2. 字体缺字与分轨混音检查
 - [ ] 扫描 `Script/watch/fe/**` 中全部新增中文文案，对照 `assets/font/lxgw-neo-zhisong.ttf` 与 `assets/font/longcang-brush.ttf` 字库 cmap，确保 **0 缺字**。
@@ -39,6 +41,8 @@
   3. 首次背负 3×3 换弹连线。
 - [ ] 若 2 人在同一处误读，优先调整该处构图、角色小动作或环境音，再用新玩家复测并记录。
 
+成品时长按两条路线分别记录，每线至少三位首玩者从叫醒到结局，扣暂停、含实际重试。每线中位目标 85–95 分钟，两线相差目标 5 分钟以内。
+
 ### 5. Windows x64 离线包适配与实测
 - [ ] 更新 [tools/make-windows-pack.sh](../../tools/make-windows-pack.sh)：确保所有新增资源目录（如 `assets/audio/` 及新增贴图/资源目录）被完整复制到离线包 `dist/` 中。
 - [ ] 按 `720p`、`1080p`、`1440p` 及一次非 `16:9` 窗口验证离线包冷启动：中文完整、资源离线可读、缩放后准星与落点偏差 <= 1 美术像素。
@@ -56,7 +60,7 @@
    - 空村桌下截图与投瓶录屏、背负换弹录屏、军粮棚 vs 工台对照图；
    - 北塔双结局并排对比、双通关水井与博物馆三态演示（未开放 / 完整流程 / 中途续读）；
    - 3 人默认设置盲测记录摘要。
-4. **给后端的 `contract.ts` 对接总表**：逐条列出 8 个接口字段的精确类型、触发条件、样例值以及暂停/读档恢复预期，指出 tqym 合并后只需在 `Script/watch/fe/contract.ts` 接入对应真实字段即可全线切真数据。
+4. **给后端的 `contract.ts` 对接总表**：逐条列出 8 个接口字段的精确类型、触发条件、样例值以及暂停/读档恢复预期，标注输入意图由谁消费、哪个后端事件确认结果，以及录屏采用正式入口还是排演。
 
 ---
 
