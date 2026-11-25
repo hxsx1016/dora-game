@@ -14,7 +14,7 @@ import {
     BreakSpec, CartSpec, DepthRange, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
 } from "Script/watch/rooms";
-import { createRun, draftRoom, mmss, RunState, talentNames } from "Script/watch/run";
+import { createRun, draftRoom, mmss, RunState, StoryRoute, talentNames } from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
@@ -24,6 +24,10 @@ import { ACTOR_DEPTH_HALF, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } f
 export { STEP };
 export const GRAVITY = 1000;
 export const GATE_COUNT_END = 1440;
+/** 牵手：按住 E 的有效拍数，60 拍/秒 → 0.6 秒。 */
+export const GATE_HAND_TICKS = 36;
+/** 80% 门槛：100*hpAtGate >= 80*maxHpAtGate 走男主线。 */
+export const GATE_ROUTE_PERCENT = 80;
 
 export function gateCountAtTick(tick: number): number {
     if (tick >= GATE_COUNT_END) return 20;
@@ -59,7 +63,14 @@ export type PlayEventName =
     | "propBroken"
     | "interactUsed"
     | "campaignFailed"
-    | "objectiveDone";
+    | "objectiveDone"
+    | "storyRouteLocked"
+    | "gateCountDone"
+    | "handHeld"
+    | "handRelease"
+    | "storyLine"
+    | "storyExit"
+    | "gatePathEnd";
 
 export interface PlayEvent {
     /** 本局内递增；换房、R 重试、再玩都会新建 Play，序号从头开始。 */
@@ -287,6 +298,9 @@ function phaseOf(key: string): string {
     if (key === "gate") {
         return "gate-idle";
     }
+    if (key === "gatepath") {
+        return "gatepath-start";
+    }
     if (key === "forest") {
         return "forest-run";
     }
@@ -453,6 +467,28 @@ export class Play {
     cartHitT = 0;
     cartExposed = false;
 
+    // —— 正式剧情：跨房血量、过门锁线与风台演出 ——
+    /** 已锁定的结局路线："child" / "soldier" / 空串=还没锁线。前端直接读。 */
+    storyRoute: StoryRoute = "";
+    /** 小满已安全过门、血量已锁存。锁线后重试与续读都不重算。 */
+    storySettled = false;
+    /** 殿后最后一拍伤害结算后的血量锁存；-1=未锁。 */
+    hpAtGate = -1;
+    maxHpAtGate = -1;
+    /** 牵手长按已积累的有效拍；提前松手清零。 */
+    handTicks = 0;
+    /** 牵手需要的有效拍（只读，前端可用来画进度）。 */
+    readonly handNeedTicks = GATE_HAND_TICKS;
+    /** 数完那一刻已经按着 E 的不算「重新按住」，必须先松开。 */
+    handArmed = false;
+    /** 牵手已完成；台词只触发一次。 */
+    handDone = false;
+    lineSaid = false;
+    /** 牵手演出完成，同行段全程牵手。 */
+    tied = false;
+    /** 同行段已走到高石阶前（下一段入口）。 */
+    pathDone = false;
+
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
     ticks = 0;
@@ -513,6 +549,63 @@ export class Play {
                 this.cam.x = this.player.x;
                 this.cam.y = this.player.y + CAM_LOOK_UP;
             }
+        }
+        this.restoreStory();
+    }
+
+    /**
+     * 从跨房快照恢复正式剧情的血量、路线与演出阶段。
+     *
+     * 新房一律不得满血重算：run.story 里带着周戍的 hp/maxHp。
+     * 门房若已锁线，则按快照回到数数 / 等牵手 / 已牵手的对应拍，
+     * 让 R 重试与菜单续读都不必重打 45 秒守点。
+     */
+    private restoreStory(): void {
+        // 标题独立试炼有自己的跨房血量与路线，不走正式剧情的快照。
+        if (this.isCampaign) {
+            return;
+        }
+        const story = this.run.story;
+        if (story === undefined) {
+            return;
+        }
+        if (story.maxHp > 0) {
+            this.maxHp = story.maxHp;
+            this.hp = Math.max(1, Math.min(story.hp, story.maxHp));
+        }
+        this.storyRoute = story.route;
+        this.storySettled = story.settled;
+        this.hpAtGate = story.hpAtGate;
+        this.maxHpAtGate = story.maxHpAtGate;
+        this.handDone = story.handDone;
+        this.lineSaid = story.lineSaid;
+        this.tied = story.handDone;
+        if (this.room.key !== "gate" || !story.settled) {
+            return;
+        }
+        const g = this.room.story === undefined ? undefined : this.room.story.gate;
+        if (g === undefined) {
+            return;
+        }
+        // 锁线后重试/续读：只回到已经看过的演出拍，敌兵与守点不再重来。
+        this.gateTick = g.holdTicks;
+        this.gateSpawned = 4;
+        this.enemies = [];
+        if (story.phase === "gate-count" || story.phase === "gate-walk") {
+            this.phase = story.phase;
+            this.countTick = Math.max(story.countTick, 0);
+            this.swapToChild(g.doorX + 30);
+            this.countPrevMove = 0;
+            this.countArmed = false;
+            return;
+        }
+        if (story.phase === "gate-wait" || story.phase === "gate-hand") {
+            this.phase = story.phase;
+            this.countTick = GATE_COUNT_END;
+            this.phaseTick = story.phaseTick;
+            this.swapToChild(g.doorX + 30);
+            this.handTicks = story.handDone ? GATE_HAND_TICKS : Math.max(0, Math.min(GATE_HAND_TICKS, story.handTicks));
+            this.handArmed = false;
         }
     }
 
@@ -796,6 +889,8 @@ export class Play {
         }
         this.updateGate();
         this.updateCamera(dt);
+        // 本拍结束把血量与演出拍写回跨房快照：切房、R 重试、菜单续读都读它。
+        this.syncStory();
     }
 
     /**
@@ -1049,6 +1144,20 @@ export class Play {
         if (!a.alive) {
             return;
         }
+        if (this.room.key === "gatepath") {
+            // 同行段：全程牵着手，她贴着周戍的侧手位同起同落，不会掉队。
+            const p = this.player;
+            a.depth = p.depth;
+            a.facing = p.facing;
+            a.crouch = false;
+            a.h = CHILD_H;
+            a.x = p.x - p.facing * (CHILD_W / 2 + 8);
+            a.y = p.y;
+            a.vy = 0;
+            a.vx = p.vx;
+            a.onGround = p.onGround;
+            return;
+        }
         if (!this.escortOn()) {
             a.vx = 0;
             this.fallY(a, dt);
@@ -1100,6 +1209,9 @@ export class Play {
         if (this.room.key === "checkpoint") {
             return true;
         }
+        if (this.room.key === "gatepath") {
+            return true;
+        }
         if (this.room.key === "prologue") {
             return this.phase === "prologue-follow";
         }
@@ -1114,7 +1226,7 @@ export class Play {
         if (this.room.key === "prologue" && this.phase === "prologue-give") {
             return true;
         }
-        if (this.room.key === "gate" && this.phase === "gate-count") {
+        if (this.room.key === "gate" && (this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
             return true;
         }
         if (this.room.key === "tower" && this.phase !== "tower-wait") {
@@ -1152,6 +1264,8 @@ export class Play {
             this.stepStreet(dt, input);
         } else if (this.room.key === "gate") {
             this.stepGate(dt, input);
+        } else if (this.room.key === "gatepath") {
+            this.stepGatePath();
         } else if (this.room.key === "tower") {
             this.stepTower(dt, input);
         }
@@ -1277,6 +1391,8 @@ export class Play {
                 this.flashSet("门底压下来了", 1.0);
             }
             if (this.gateTick >= g.holdTicks) {
+                // 殿后最后一拍的伤害已由 stepEnemies 结算完，此刻锁存血量与路线。
+                this.settleRoute();
                 this.phase = "gate-send";
                 this.phaseTick = 0;
                 // 撤预警：敌兵冻结，让玩家走到门边。
@@ -1303,13 +1419,28 @@ export class Play {
             if (this.countTick === 360) {
                 this.flashSet("门关上", 0.9);
             } else if (this.countTick === GATE_COUNT_END) {
-                this.flashSet("数到二十", 2.2);
+                this.emit("gateCountDone", {
+                    route: this.storyRoute, countTick: this.countTick,
+                    hpAtGate: this.hpAtGate, maxHpAtGate: this.maxHpAtGate,
+                });
+                if (this.storyRoute === "soldier") {
+                    // 男主线：数完听见侧墙两下轻叩，风台待机一直安全。
+                    this.phase = "gate-wait";
+                    this.phaseTick = 0;
+                    this.knocks = 1;
+                    this.emit("knock", { count: 1, x: this.ox + g.doorX + 70, room: "gate" });
+                    // 数完还按着 E 的不算「重新按住」，必须先松开再按。
+                    this.handArmed = !input.interact.held;
+                    this.flashSet("两下轻叩 · 按住 E 牵起她", 2.4);
+                } else {
+                    this.flashSet("数到二十", 2.2);
+                }
             }
             // 24 秒之后才认「新按下」：上一拍没按、这一拍按下。
             // 1439 拍就按住不放的，没有上升沿，必须松开再按。
             const prevMove = this.countPrevMove;
             this.countPrevMove = input.moveX;
-            if (this.countTick >= GATE_COUNT_END) {
+            if (this.countTick >= GATE_COUNT_END && this.storyRoute !== "soldier") {
                 if (prevMove <= 0 && input.moveX > 0) {
                     this.countArmed = true;
                 }
@@ -1317,14 +1448,124 @@ export class Play {
                     this.phase = "gate-walk";
                     this.phaseTick = 0;
                     this.flashSet("她迈出第一步", 1.4);
+                    this.emit("storyExit", { route: "child", via: "walk", countTick: this.countTick, hp: this.hp, maxHp: this.maxHp });
                 }
             }
             return;
         }
+        if (this.phase === "gate-wait") {
+            // 风台待机：没有敌兵、不再扣血，玩家可以想按多久就按多久。
+            this.phaseTick += 1;
+            if (this.phaseTick === 12) {
+                this.knocks = 2;
+                this.emit("knock", { count: 2, x: this.ox + g.doorX + 70, room: "gate" });
+                this.flashSet("第二下 · 她抬手了", 1.6);
+            }
+            if (!input.interact.held) {
+                if (this.handTicks > 0) {
+                    this.emit("handRelease", { handTicks: this.handTicks, handNeedTicks: GATE_HAND_TICKS });
+                }
+                this.handTicks = 0;
+                this.handArmed = true;
+                return;
+            }
+            if (this.handArmed) {
+                this.handTicks += 1;
+                if (this.handTicks >= GATE_HAND_TICKS) {
+                    this.phase = "gate-hand";
+                    this.phaseTick = 0;
+                    this.handDone = true;
+                    this.tied = true;
+                    this.emit("handHeld", { handTicks: this.handTicks, handNeedTicks: GATE_HAND_TICKS });
+                    if (!this.lineSaid) {
+                        this.lineSaid = true;
+                        this.emit("storyLine", { who: "周戍", text: "我们走吧。" });
+                    }
+                    this.flashSet("我们走吧。", 3.0);
+                }
+            }
+            return;
+        }
+        if (this.phase === "gate-hand") {
+            // 牵手演出：袖口先入画，她抓住；演出结束后交回移动，进同行段。
+            this.phaseTick += 1;
+            if (this.phaseTick === 30) {
+                this.flashSet("袖口先入画 · 她抓住了", 1.8);
+            } else if (this.phaseTick >= 90) {
+                this.emit("storyExit", { route: "soldier", via: "hand", handTicks: this.handTicks, hp: this.hp, maxHp: this.maxHp });
+                this.requestRoom("gatepath", "牵手同行");
+            }
+            return;
+        }
         // gate-walk：她自己走，玩家可以控。
-        if (this.player.x >= g.exitX) {
-            this.requestRoom("outside", "走出城门");
-            this.flashSet("出城门 · 城外", 1.4);
+        if (this.phase === "gate-walk") {
+            if (this.player.x >= g.exitX) {
+                this.requestRoom("outside", "走出城门");
+                this.flashSet("出城门 · 城外", 1.4);
+            }
+        }
+    }
+
+    /** 锁存路线：只做一次；重试与续读都从快照恢复，不再重算。 */
+    private settleRoute(): void {
+        if (this.storySettled) {
+            return;
+        }
+        const maxHp = this.maxHp > 0 ? this.maxHp : 1;
+        this.hpAtGate = this.hp;
+        this.maxHpAtGate = this.maxHp;
+        this.storyRoute = 100 * this.hp >= GATE_ROUTE_PERCENT * maxHp ? "soldier" : "child";
+        this.storySettled = true;
+        this.emit("storyRouteLocked", {
+            route: this.storyRoute, hp: this.hp, maxHp: this.maxHp,
+            hpAtGate: this.hpAtGate, maxHpAtGate: this.maxHpAtGate,
+        });
+        this.flashSet(this.storyRoute === "soldier" ? "她还够得着你 · 牵手" : "她替你数完 · 出门", 2.4);
+    }
+
+    /** 把本房的血量与演出拍写回跨房快照；R 重试与切房续读都靠它。 */
+    private syncStory(): void {
+        if (this.isCampaign) {
+            return;
+        }
+        const s = this.run.story;
+        if (s === undefined) {
+            return;
+        }
+        s.hp = this.hp;
+        s.maxHp = this.maxHp;
+        s.route = this.storyRoute;
+        s.settled = this.storySettled;
+        s.hpAtGate = this.hpAtGate;
+        s.maxHpAtGate = this.maxHpAtGate;
+        s.handDone = this.handDone;
+        s.lineSaid = this.lineSaid;
+        s.tied = this.tied;
+        if (this.room.key === "gate") {
+            s.phase = this.phase;
+            s.countTick = this.countTick;
+            s.phaseTick = this.phaseTick;
+            s.handTicks = this.handTicks;
+        }
+    }
+
+    /** 同行段：牵手成对走，到高石阶前交下一段。 */
+    private stepGatePath(): void {
+        if (this.phase === "gatepath-start") {
+            if (this.player.x >= this.ox + 840 && this.player.onGround) {
+                this.phase = "gatepath-stair";
+                this.phaseTick = 0;
+                this.pathDone = true;
+                this.flashSet("高石阶 · 下一段入口", 2.6);
+                this.emit("gatePathEnd", { x: this.player.x, tied: this.tied, ticks: this.ticks });
+            }
+            return;
+        }
+        if (this.phase === "gatepath-stair") {
+            this.phaseTick += 1;
+            if (this.phaseTick >= 30) {
+                this.requestRoom("outside", "同行段收尾");
+            }
         }
     }
 

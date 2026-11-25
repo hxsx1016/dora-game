@@ -910,7 +910,7 @@ export class StageRenderer {
             closeFrac = 0.44;
         } else if (p.phase === "gate-count") {
             closeFrac = 0.44 + 0.56 * Math.min(1, p.countTick / 360);
-        } else if (p.phase === "gate-walk") {
+        } else if (p.phase === "gate-walk" || p.phase === "gate-wait" || p.phase === "gate-hand") {
             closeFrac = 1.0;
         }
         const gx0 = cam.sx(848);

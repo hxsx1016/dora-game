@@ -557,6 +557,55 @@ export const GATE_ROOM: RoomSpec = {
 };
 
 /**
+ * 城外巷路：男主线牵手成功后的可操控起步段。
+ *
+ * 侧向跟拍，两人先牵着手过一段平路（0–780），到高石阶 780–860 抬 48 后
+ * 进入下一段入口（860 平台）。上背与护送试炼发生在后续段，本房只交付
+ * 「交回移动」之后的同行控制。
+ */
+export const GATE_PATH_ROOM: RoomSpec = {
+    key: "gatepath",
+    originX: 0,
+    name: "城外巷路 · 兄妹同行",
+    caption: "牵着手沿平路往北；到高石阶前停住，下一段从这里接背上她",
+    minX: 0,
+    maxX: 1040,
+    height: 220,
+    floors: [
+        { y: 0, x0: 0, x1: 1040 },
+        { y: 48, x0: 860, x1: 1040 },
+    ],
+    solids: [
+        { x: 0, w: 60, h: 180, y: 0, label: "城门内墙背影 0–60" },
+        { x: 560, w: 44, h: 28, y: 0, label: "倒石 560 · 高 28" },
+        { x: 1000, w: 40, h: 200, y: 0, label: "巷尾石壁 1000" },
+    ],
+    zones: [
+        { x0: 860, x1: 1000, y: 48, h: 6, tint: 4, label: "高石阶平台 860–1000" },
+    ],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [
+        { x0: 780, x1: 860, y0: 0, y1: 48, steps: 3, label: "高石阶 0 / 16 / 32 / 48" },
+    ],
+    cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
+    spawns: [
+        { x: 120, y: 0, h: 88, label: "周戍 120" },
+        { x: 150, y: 0, h: 64, label: "小满 150" },
+    ],
+    marks: [
+        { x: 120, y: 0, kind: 1, label: "牵头起步 120" },
+        { x: 520, y: 0, kind: 3, label: "袖口红布 520" },
+        { x: 840, y: 0, kind: 0, label: "高石阶前 840" },
+        { x: 980, y: 48, kind: 0, label: "下一段入口 980" },
+    ],
+    dims: [
+        { x0: 0, x1: 560, text: "平路 560" },
+        { x0: 780, x1: 860, text: "高石阶 80 · 抬 48" },
+        { x0: 860, x1: 1000, text: "平台 140" },
+    ],
+};
+
+/**
  * 北塔森林：小满独自走。草后可以等，狗听见脚步会转耳朵、赶来、停一会儿再回线。
  * 最后一段从林缘自己选时机走到灯下门廊。
  */
@@ -897,6 +946,7 @@ export const ROOMS: RoomSpec[] = [
     STREET_ROOM,
     CHECKPOINT_ROOM,
     GATE_ROOM,
+    GATE_PATH_ROOM,
     OUTSIDE_ROOM,
     VILLAGE_ROOM,
     FOREST_ROOM,

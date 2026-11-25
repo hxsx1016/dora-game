@@ -264,6 +264,37 @@ export class HudRenderer {
         // 1. 城门 45 秒死守：细丝胭脂进度带
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
             const g = p.room.story.gate;
+            if (p.phase === "gate-wait" || p.phase === "gate-hand") {
+                // 风台待机：不再倒计时，只画长按牵手的有效拍进度；松手即回落。
+                const bw = 400;
+                const cx = w * 0.5;
+                const by = h - 64;
+                const tied = p.phase === "gate-hand";
+                const ratio = tied ? 1 : Math.max(0, Math.min(1, p.handTicks / Math.max(1, p.handNeedTicks)));
+                const label = tied ? "我们走吧。"
+                    : (p.handTicks > 0 ? "牵起小满 · " + p.handTicks + " / " + p.handNeedTicks
+                        : (p.handArmed ? "按住 E · 把手伸给她" : "松开 E 再按住 · 把手伸给她"));
+
+                drawSilkVeil(uiDraw, uiArt, "hud_hand_veil", cx, by + 18, bw + 90, 48, PALETTE.inkWash, 0.76 * alpha, -1);
+                drawHairline(uiInkDraw, uiArt, "hud_hand_top", cx, by + 39, bw - 20, PALETTE.amber, 0.55 * alpha, false, 2);
+                texts.put("xs", label, cx, by + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.8, alpha, 0.08);
+
+                const pbw = bw - 80;
+                const pbx = cx - pbw * 0.5;
+                const pby = by + 9;
+                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw, pby), 1.4, toColor(PALETTE.silkDim, 115 * alpha));
+                if (ratio > 0.002) {
+                    uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 2.8, toColor(PALETTE.amber, 230 * alpha));
+                    uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 1.0, toColor(PALETTE.amberCore, 165 * alpha));
+                }
+                // 两下轻叩的落点：数完第 1 拍与第 12 拍各一颗。
+                uiArt.tryPlace("ink_enso_fine", "hand_knock_1", pbx + pbw * 0.62, pby, 11, 11, {
+                    color: toColor(PALETTE.amber), opacity: (p.knocks >= 1 ? 0.9 : 0.45) * alpha, layer: 3,
+                });
+                uiArt.tryPlace("ink_enso_fine", "hand_knock_2", pbx + pbw * 0.72, pby, 11, 11, {
+                    color: toColor(PALETTE.amber), opacity: (p.knocks >= 2 ? 0.9 : 0.45) * alpha, layer: 3,
+                });
+            }
             if (p.phase === "gate-hold" || p.phase === "gate-idle") {
                 const bw = 400;
                 const cx = w * 0.5;
