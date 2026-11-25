@@ -123,9 +123,12 @@ end -- 128
 function CameraDirector.prototype.sx(self, wx) -- 152
 	return self.viewW * 0.5 + (wx - self.x) * self.ppu + self.shakeX -- 153
 end -- 152
-function CameraDirector.prototype.sy(self, wy) -- 157
+function CameraDirector.prototype.sy(self, wy, depth) -- 157
+	if depth == nil then -- 157
+		depth = 0 -- 157
+	end -- 157
 	local yOffset = (self.y - 82) * 0.45 -- 158
-	return self.groundScreenY + (wy - yOffset) * self.ppu + self.shakeY -- 159
+	return self.groundScreenY + (wy + depth - yOffset) * self.ppu + self.shakeY -- 159
 end -- 157
 function CameraDirector.prototype.len(self, worldLen) -- 163
 	return worldLen * self.ppu -- 164

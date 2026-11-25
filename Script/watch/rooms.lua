@@ -1,745 +1,797 @@
 -- [ts]: rooms.ts
 local ____lualib = require("lualib_bundle") -- 1
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign -- 1
 local __TS__ArrayMap = ____lualib.__TS__ArrayMap -- 1
 local ____exports = {} -- 1
+local ____depth = require("Script.watch.depth") -- 8
+local LANE_DEPTH = ____depth.LANE_DEPTH -- 8
+local LANE_ROAD = ____depth.LANE_ROAD -- 8
+local laneFootprints = ____depth.laneFootprints -- 8
 --- 检查站：周戍把车从 640 推到 768 落入 dock，再和小满一起走到出口。
-____exports.CHECKPOINT_ROOM = { -- 163
-	key = "checkpoint", -- 164
-	name = "检查站 · 候检区 640 + 原段 1000", -- 165
-	caption = "先翻过队栏进候检区，再带小满走到柜台与安全点；末段按住 E + D 推车 128 单位入窝", -- 166
-	originX = 640, -- 168
-	minX = -640, -- 169
-	maxX = 1000, -- 170
-	height = 210, -- 171
-	floors = {{y = 0, x0 = -640, x1 = 1000}}, -- 172
-	solids = {{ -- 173
-		x = -430, -- 175
-		w = 180, -- 175
-		h = 28, -- 175
-		y = 0, -- 175
-		label = "队栏 -430–-250 · 高 28" -- 175
-	}, { -- 175
-		x = 240, -- 177
-		w = 100, -- 177
-		h = 44, -- 177
-		y = 0, -- 177
-		label = "柜台 240–340 · 高 44" -- 177
-	}, { -- 177
-		x = 950, -- 178
-		w = 50, -- 178
-		h = 150, -- 178
-		y = 0, -- 178
-		label = "城门内侧" -- 178
-	}}, -- 178
-	zones = {{ -- 180
-		x0 = 380, -- 180
-		x1 = 560, -- 180
-		y = 0, -- 180
-		h = 120, -- 180
-		tint = 1, -- 180
-		label = "危险段 380–560" -- 180
-	}}, -- 180
-	arch = { -- 181
-		x0 = 0, -- 181
-		x1 = 0, -- 181
-		y = 0, -- 181
-		h = 0, -- 181
-		label = "" -- 181
-	}, -- 181
-	stairs = {}, -- 182
-	cart = { -- 183
-		startX = 640, -- 184
-		endX = 768, -- 185
-		baseY = 0, -- 186
-		bodyW = 48, -- 187
-		bodyH = 26, -- 188
-		wheelR = 12, -- 189
-		handleOffset = -40, -- 190
-		clothSide = -1 -- 191
-	}, -- 191
-	spawns = {{x = -600, y = 0, h = 64, label = "小满 -600（世界 40）"}, {x = -560, y = 0, h = 88, label = "周戍 -560（世界 80）"}}, -- 193
-	marks = {{x = 264, y = 0, kind = 1, label = "安全锚 264"}, {x = 768, y = 0, kind = 1, label = "dock 768"}, {x = 860, y = 0, kind = 2, label = "双人出口 792–928"}}, -- 197
-	dims = {{x0 = 240, x1 = 340, text = "柜台 100"}, {x0 = 640, x1 = 768, text = "推车 128 · 左柄 E+D"}, {x0 = 792, x1 = 928, text = "出口 136"}} -- 202
-} -- 202
+____exports.CHECKPOINT_ROOM = { -- 181
+	key = "checkpoint", -- 182
+	name = "检查站 · 候检区 640 + 原段 1000", -- 183
+	caption = "先翻过队栏进候检区，再带小满走到柜台与安全点；末段按住 E + D 推车 128 单位入窝", -- 184
+	originX = 640, -- 186
+	minX = -640, -- 187
+	maxX = 1000, -- 188
+	height = 210, -- 189
+	depth = LANE_ROAD, -- 190
+	floors = {{y = 0, x0 = -640, x1 = 1000}}, -- 191
+	solids = {{ -- 192
+		x = -430, -- 194
+		w = 180, -- 194
+		h = 28, -- 194
+		y = 0, -- 194
+		label = "队栏 -430–-250 · 高 28", -- 194
+		lanes = {"lower", "middle"} -- 194
+	}, { -- 194
+		x = 240, -- 196
+		w = 100, -- 196
+		h = 44, -- 196
+		y = 0, -- 196
+		label = "柜台 240–340 · 高 44", -- 196
+		lanes = {"lower", "middle"} -- 196
+	}, { -- 196
+		x = 890, -- 197
+		w = 36, -- 197
+		h = 122, -- 197
+		y = 0, -- 197
+		label = "检查站出口门柱", -- 197
+		lanes = {"lower", "upper"}, -- 197
+		art = "gate_post" -- 197
+	}}, -- 197
+	zones = {{ -- 199
+		x0 = 380, -- 199
+		x1 = 560, -- 199
+		y = 0, -- 199
+		h = 120, -- 199
+		tint = 1, -- 199
+		label = "危险段 380–560" -- 199
+	}}, -- 199
+	arch = { -- 200
+		x0 = 0, -- 200
+		x1 = 0, -- 200
+		y = 0, -- 200
+		h = 0, -- 200
+		label = "" -- 200
+	}, -- 200
+	stairs = {}, -- 201
+	cart = { -- 202
+		startX = 640, -- 203
+		endX = 768, -- 204
+		baseY = 0, -- 205
+		depth = LANE_DEPTH.middle, -- 206
+		bodyW = 48, -- 207
+		bodyH = 26, -- 208
+		wheelR = 12, -- 209
+		handleOffset = -40, -- 210
+		clothSide = -1 -- 211
+	}, -- 211
+	spawns = {{x = -600, y = 0, h = 64, label = "小满 -600（世界 40）"}, {x = -560, y = 0, h = 88, label = "周戍 -560（世界 80）"}}, -- 213
+	marks = {{x = 264, y = 0, kind = 1, label = "安全锚 264"}, {x = 768, y = 0, kind = 1, label = "dock 768"}, {x = 860, y = 0, kind = 2, label = "双人出口 792–928"}}, -- 217
+	dims = {{x0 = 240, x1 = 340, text = "柜台 100"}, {x0 = 640, x1 = 768, text = "推车 128 · 左柄 E+D"}, {x0 = 792, x1 = 928, text = "出口 136"}} -- 222
+} -- 222
 --- 城外：同一剖面里同时看上层手柄与下层拱口，这是 D1 要交的那张图。
-____exports.OUTSIDE_ROOM = { -- 210
-	key = "outside", -- 211
-	name = "城外 · 台面 y=96 / 墙根 1240", -- 212
-	caption = "从右柄按住 E+D 朝空窝拉 128 单位，轮子落窝后沿台面回左端跳下，蹲过 44 高的拱；洞后墙根小路走到底可看见塔灯", -- 213
-	originX = 0, -- 215
-	minX = 0, -- 216
-	maxX = 1240, -- 217
-	height = 230, -- 218
-	floors = {{y = 0, x0 = 0, x1 = 1240}, {y = 96, x0 = 128, x1 = 512}, {y = 64, x0 = 820, x1 = 940}}, -- 219
-	solids = {{ -- 224
-		x = 512, -- 226
-		w = 88, -- 226
-		h = 134, -- 226
-		y = 96, -- 226
-		label = "台面右端城墙 · 下层可通" -- 226
-	}, { -- 226
-		x = 0, -- 227
-		w = 40, -- 227
-		h = 96, -- 227
-		y = 0, -- 227
-		label = "街口" -- 227
-	}, { -- 227
-		x = 1200, -- 228
-		w = 40, -- 228
-		h = 140, -- 228
-		y = 0, -- 228
-		label = "墙根尽头" -- 228
-	}}, -- 228
-	zones = {}, -- 230
-	arch = { -- 231
-		x0 = 280, -- 231
-		x1 = 360, -- 231
-		y = 0, -- 231
-		h = 44, -- 231
-		label = "拱 280–360 · 净高 44" -- 231
-	}, -- 231
-	stairs = {{ -- 232
-		x0 = 40, -- 233
-		x1 = 128, -- 233
-		y0 = 0, -- 233
-		y1 = 96, -- 233
-		steps = 2, -- 233
-		label = "石阶 0 / 48 / 96" -- 233
-	}, { -- 233
-		x0 = 700, -- 234
-		x1 = 820, -- 234
-		y0 = 0, -- 234
-		y1 = 64, -- 234
-		steps = 3, -- 234
-		label = "墙根石阶 0 / 16 / 32 / 48 / 64" -- 234
-	}}, -- 234
-	cart = { -- 236
-		startX = 304, -- 237
-		endX = 432, -- 238
-		baseY = 96, -- 239
-		bodyW = 48, -- 240
-		bodyH = 26, -- 241
-		wheelR = 12, -- 242
-		handleOffset = 40, -- 243
-		clothSide = -1 -- 244
-	}, -- 244
-	spawns = {{x = 160, y = 96, h = 64, label = "小满 160"}}, -- 246
-	marks = { -- 247
-		{x = 432, y = 96, kind = 1, label = "空窝 432"}, -- 248
-		{x = 380, y = 0, kind = 0, label = "洞后检查点 380"}, -- 249
-		{x = 520, y = 96, kind = 3, label = "石阶光 · 回首红布"}, -- 250
-		{x = 820, y = 64, kind = 3, label = "墙根石阶顶 820"}, -- 251
-		{x = 1120, y = 64, kind = 6, label = "塔灯 1120"} -- 252
-	}, -- 252
-	dims = {{x0 = 304, x1 = 432, text = "拉车 128 · 右柄 E+D"}, {x0 = 128, x1 = 512, text = "台面 384"}, {x0 = 280, x1 = 360, text = "拱 80"}, {x0 = 600, x1 = 1240, text = "墙根 640"}} -- 254
-} -- 254
+____exports.OUTSIDE_ROOM = { -- 230
+	key = "outside", -- 231
+	name = "城外 · 台面 y=96 / 墙根 1240", -- 232
+	caption = "从右柄按住 E+D 朝空窝拉 128 单位，轮子落窝后沿台面回左端跳下，蹲过 44 高的拱；洞后墙根小路走到底可看见塔灯", -- 233
+	originX = 0, -- 235
+	minX = 0, -- 236
+	maxX = 1240, -- 237
+	height = 230, -- 238
+	floors = {{y = 0, x0 = 0, x1 = 1240}, {y = 96, x0 = 128, x1 = 512}, {y = 64, x0 = 820, x1 = 940}}, -- 239
+	solids = {{ -- 244
+		x = 512, -- 246
+		w = 88, -- 246
+		h = 134, -- 246
+		y = 96, -- 246
+		label = "台面右端城墙 · 下层可通" -- 246
+	}, { -- 246
+		x = 0, -- 247
+		w = 40, -- 247
+		h = 96, -- 247
+		y = 0, -- 247
+		label = "街口" -- 247
+	}, { -- 247
+		x = 1200, -- 248
+		w = 40, -- 248
+		h = 140, -- 248
+		y = 0, -- 248
+		label = "墙根尽头" -- 248
+	}}, -- 248
+	zones = {}, -- 250
+	arch = { -- 251
+		x0 = 280, -- 251
+		x1 = 360, -- 251
+		y = 0, -- 251
+		h = 44, -- 251
+		label = "拱 280–360 · 净高 44" -- 251
+	}, -- 251
+	stairs = {{ -- 252
+		x0 = 40, -- 253
+		x1 = 128, -- 253
+		y0 = 0, -- 253
+		y1 = 96, -- 253
+		steps = 2, -- 253
+		label = "石阶 0 / 48 / 96" -- 253
+	}, { -- 253
+		x0 = 700, -- 254
+		x1 = 820, -- 254
+		y0 = 0, -- 254
+		y1 = 64, -- 254
+		steps = 3, -- 254
+		label = "墙根石阶 0 / 16 / 32 / 48 / 64" -- 254
+	}}, -- 254
+	cart = { -- 256
+		startX = 304, -- 257
+		endX = 432, -- 258
+		baseY = 96, -- 259
+		bodyW = 48, -- 260
+		bodyH = 26, -- 261
+		wheelR = 12, -- 262
+		handleOffset = 40, -- 263
+		clothSide = -1 -- 264
+	}, -- 264
+	spawns = {{x = 160, y = 96, h = 64, label = "小满 160"}}, -- 266
+	marks = { -- 267
+		{x = 432, y = 96, kind = 1, label = "空窝 432"}, -- 268
+		{x = 380, y = 0, kind = 0, label = "洞后检查点 380"}, -- 269
+		{x = 520, y = 96, kind = 3, label = "石阶光 · 回首红布"}, -- 270
+		{x = 820, y = 64, kind = 3, label = "墙根石阶顶 820"}, -- 271
+		{x = 1120, y = 64, kind = 6, label = "塔灯 1120"} -- 272
+	}, -- 272
+	dims = {{x0 = 304, x1 = 432, text = "拉车 128 · 右柄 E+D"}, {x0 = 128, x1 = 512, text = "台面 384"}, {x0 = 280, x1 = 360, text = "拱 80"}, {x0 = 600, x1 = 1240, text = "墙根 640"}} -- 274
+} -- 274
 --- 村口：瓶架 112、观察位 160、桌下 304–416（净高 44）、第一院通行线 440、
 -- 软土 272（D5 完整）、砖地 608、拾荒者巡逻 464–512。
 -- 小满脚底中心 290 起必须蹲，超过 430 才站起；160→440 约 2.63 秒。
-____exports.VILLAGE_ROOM = { -- 267
-	key = "village", -- 268
-	originX = 0, -- 269
-	name = "村口 · 架、桌、砖地", -- 270
-	caption = "点 E 拾瓶，按住 F 瞄，松手投；砖地一响，拾荒者转身，趁他走开钻过桌下", -- 271
-	minX = 0, -- 272
-	maxX = 720, -- 273
-	height = 200, -- 274
-	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 275
-	solids = {{ -- 276
-		x = 96, -- 277
-		w = 32, -- 277
-		h = 64, -- 277
-		y = 0, -- 277
-		label = "瓶架" -- 277
-	}, { -- 277
-		x = 672, -- 279
-		w = 48, -- 279
-		h = 96, -- 279
-		y = 0, -- 279
-		label = "院墙" -- 279
-	}}, -- 279
-	zones = {{ -- 281
-		x0 = 256, -- 282
-		x1 = 288, -- 282
-		y = 0, -- 282
-		h = 6, -- 282
-		tint = 2, -- 282
-		label = "软土 272" -- 282
-	}, { -- 282
-		x0 = 440, -- 283
-		x1 = 448, -- 283
-		y = 0, -- 283
-		h = 120, -- 283
-		tint = 4, -- 283
-		label = "通行线 440" -- 283
-	}, { -- 283
-		x0 = 592, -- 284
-		x1 = 624, -- 284
-		y = 0, -- 284
-		h = 6, -- 284
-		tint = 3, -- 284
-		label = "砖地 608" -- 284
-	}}, -- 284
-	arch = { -- 286
-		x0 = 304, -- 286
-		x1 = 416, -- 286
-		y = 0, -- 286
-		h = 44, -- 286
-		label = "桌下 304–416 · 净高 44" -- 286
-	}, -- 286
-	stairs = {}, -- 287
-	cart = { -- 288
-		startX = 0, -- 288
-		endX = 0, -- 288
-		baseY = 0, -- 288
-		bodyW = 0, -- 288
-		bodyH = 0, -- 288
-		wheelR = 0, -- 288
-		handleOffset = 0, -- 288
-		clothSide = 1 -- 288
-	}, -- 288
-	spawns = {{x = 160, y = 0, h = 64, label = "小满 160"}}, -- 289
-	marks = {{x = 608, y = 0, kind = 5, label = "砖地落点 608"}, {x = 440, y = 0, kind = 4, label = "通行线 440"}}, -- 290
-	dims = {{x0 = 96, x1 = 128, text = "瓶架"}, {x0 = 304, x1 = 416, text = "桌下 112"}, {x0 = 464, x1 = 512, text = "巡逻 48"}}, -- 294
-	scavenger = { -- 299
-		x0 = 464, -- 300
-		x1 = 512, -- 301
+____exports.VILLAGE_ROOM = { -- 287
+	key = "village", -- 288
+	originX = 0, -- 289
+	name = "村口 · 架、桌、砖地", -- 290
+	caption = "点 E 拾瓶，按住 F 瞄，松手投；砖地一响，拾荒者转身，趁他走开钻过桌下", -- 291
+	minX = 0, -- 292
+	maxX = 720, -- 293
+	height = 200, -- 294
+	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 295
+	solids = {{ -- 296
+		x = 96, -- 297
+		w = 32, -- 297
+		h = 64, -- 297
+		y = 0, -- 297
+		label = "瓶架" -- 297
+	}, { -- 297
+		x = 672, -- 299
+		w = 48, -- 299
+		h = 96, -- 299
+		y = 0, -- 299
+		label = "院墙" -- 299
+	}}, -- 299
+	zones = {{ -- 301
+		x0 = 256, -- 302
+		x1 = 288, -- 302
 		y = 0, -- 302
-		h = 56, -- 303
-		patrolSpeed = 40, -- 304
-		approachSpeed = 64, -- 305
-		hearTicks = 18, -- 306
-		stallTicks = 120, -- 307
-		range = 480 -- 308
+		h = 6, -- 302
+		tint = 2, -- 302
+		label = "软土 272" -- 302
+	}, { -- 302
+		x0 = 440, -- 303
+		x1 = 448, -- 303
+		y = 0, -- 303
+		h = 120, -- 303
+		tint = 4, -- 303
+		label = "通行线 440" -- 303
+	}, { -- 303
+		x0 = 592, -- 304
+		x1 = 624, -- 304
+		y = 0, -- 304
+		h = 6, -- 304
+		tint = 3, -- 304
+		label = "砖地 608" -- 304
+	}}, -- 304
+	arch = { -- 306
+		x0 = 304, -- 306
+		x1 = 416, -- 306
+		y = 0, -- 306
+		h = 44, -- 306
+		label = "桌下 304–416 · 净高 44" -- 306
+	}, -- 306
+	stairs = {}, -- 307
+	cart = { -- 308
+		startX = 0, -- 308
+		endX = 0, -- 308
+		baseY = 0, -- 308
+		bodyW = 0, -- 308
+		bodyH = 0, -- 308
+		wheelR = 0, -- 308
+		handleOffset = 0, -- 308
+		clothSide = 1 -- 308
 	}, -- 308
-	bottle = {x = 112, y = 48}, -- 310
-	brickX = 608, -- 311
-	softX = 272, -- 312
-	passLine = 440 -- 313
-} -- 313
+	spawns = {{x = 160, y = 0, h = 64, label = "小满 160"}}, -- 309
+	marks = {{x = 608, y = 0, kind = 5, label = "砖地落点 608"}, {x = 440, y = 0, kind = 4, label = "通行线 440"}}, -- 310
+	dims = {{x0 = 96, x1 = 128, text = "瓶架"}, {x0 = 304, x1 = 416, text = "桌下 112"}, {x0 = 464, x1 = 512, text = "巡逻 48"}}, -- 314
+	scavenger = { -- 319
+		x0 = 464, -- 320
+		x1 = 512, -- 321
+		y = 0, -- 322
+		h = 56, -- 323
+		patrolSpeed = 40, -- 324
+		approachSpeed = 64, -- 325
+		hearTicks = 18, -- 326
+		stallTicks = 120, -- 327
+		range = 480 -- 328
+	}, -- 328
+	bottle = {x = 112, y = 48}, -- 330
+	brickX = 608, -- 331
+	softX = 272, -- 332
+	passLine = 440 -- 333
+} -- 333
 --- 剧本锚点跟着 originX 一起搬，判定仍读世界坐标。
-local function shiftStory(story, ox) -- 317
-	if story == nil then -- 317
-		return nil -- 319
-	end -- 319
-	if ox == 0 then -- 319
-		return story -- 322
-	end -- 322
-	local out = {} -- 324
-	if story.prologue ~= nil then -- 324
-		out.prologue = {giveReach = story.prologue.giveReach} -- 326
-	end -- 326
-	if story.gate ~= nil then -- 326
-		out.gate = { -- 329
-			winchX = story.gate.winchX + ox, -- 330
-			waitX = story.gate.waitX + ox, -- 331
-			doorX = story.gate.doorX + ox, -- 332
-			exitX = story.gate.exitX + ox, -- 333
-			holdTicks = story.gate.holdTicks -- 334
-		} -- 334
-	end -- 334
-	if story.dog ~= nil then -- 334
-		out.dog = {x0 = story.dog.x0 + ox, x1 = story.dog.x1 + ox, speed = story.dog.speed, range = story.dog.range} -- 338
-	end -- 338
-	if story.tower ~= nil then -- 338
-		out.tower = {doorX = story.tower.doorX + ox, knockTicks = story.tower.knockTicks} -- 341
-	end -- 341
-	return out -- 343
-end -- 317
+local function shiftStory(story, ox) -- 337
+	if story == nil then -- 337
+		return nil -- 339
+	end -- 339
+	if ox == 0 then -- 339
+		return story -- 342
+	end -- 342
+	local out = {} -- 344
+	if story.prologue ~= nil then -- 344
+		out.prologue = {giveReach = story.prologue.giveReach} -- 346
+	end -- 346
+	if story.gate ~= nil then -- 346
+		out.gate = { -- 349
+			winchX = story.gate.winchX + ox, -- 350
+			waitX = story.gate.waitX + ox, -- 351
+			doorX = story.gate.doorX + ox, -- 352
+			exitX = story.gate.exitX + ox, -- 353
+			holdTicks = story.gate.holdTicks -- 354
+		} -- 354
+	end -- 354
+	if story.dog ~= nil then -- 354
+		out.dog = {x0 = story.dog.x0 + ox, x1 = story.dog.x1 + ox, speed = story.dog.speed, range = story.dog.range} -- 358
+	end -- 358
+	if story.tower ~= nil then -- 358
+		out.tower = {doorX = story.tower.doorX + ox, knockTicks = story.tower.knockTicks} -- 361
+	end -- 361
+	return out -- 363
+end -- 337
 --- 序章：周戍在废墟里找到藏在倒柜后的小满，走近点 E 递出指南针（纸条夹在针套里）。
 -- 递完她开始跟随，两人一起走进街道。
-____exports.PROLOGUE_ROOM = { -- 350
-	key = "prologue", -- 351
-	originX = 0, -- 352
-	name = "序章 · 倒柜后", -- 353
-	caption = "周戍持针套，小满藏在倒柜后；走近点 E 递过去，纸条塞进针套，她开始跟随", -- 354
-	minX = 0, -- 355
-	maxX = 720, -- 356
-	height = 200, -- 357
-	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 358
-	solids = {{ -- 359
-		x = 150, -- 360
-		w = 100, -- 360
-		h = 32, -- 360
-		y = 0, -- 360
-		label = "倒柜 150–250 · 高 32" -- 360
-	}, { -- 360
-		x = 700, -- 361
-		w = 20, -- 361
-		h = 120, -- 361
-		y = 0, -- 361
-		label = "门框 700" -- 361
-	}}, -- 361
-	zones = {}, -- 363
-	arch = { -- 364
-		x0 = 0, -- 364
-		x1 = 0, -- 364
-		y = 0, -- 364
-		h = 0, -- 364
-		label = "" -- 364
-	}, -- 364
-	stairs = {}, -- 365
-	cart = { -- 366
-		startX = 0, -- 366
-		endX = 0, -- 366
-		baseY = 0, -- 366
-		bodyW = 0, -- 366
-		bodyH = 0, -- 366
-		wheelR = 0, -- 366
-		handleOffset = 0, -- 366
-		clothSide = 1 -- 366
-	}, -- 366
-	spawns = {{x = 80, y = 0, h = 88, label = "周戍 80"}, {x = 300, y = 0, h = 64, label = "小满 300 · 柜子后面"}}, -- 367
-	marks = {{x = 300, y = 0, kind = 1, label = "柜后 300"}, {x = 700, y = 0, kind = 0, label = "门口 700"}}, -- 371
-	dims = {{x0 = 150, x1 = 250, text = "倒柜 100"}, {x0 = 700, x1 = 720, text = "门 20"}}, -- 375
-	story = {prologue = {giveReach = 46}} -- 379
-} -- 379
+____exports.PROLOGUE_ROOM = { -- 370
+	key = "prologue", -- 371
+	originX = 0, -- 372
+	name = "序章 · 倒柜后", -- 373
+	caption = "周戍持针套，小满藏在倒柜后；走近点 E 递过去，纸条塞进针套，她开始跟随", -- 374
+	minX = 0, -- 375
+	maxX = 720, -- 376
+	height = 200, -- 377
+	depth = LANE_ROAD, -- 378
+	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 379
+	solids = {{ -- 380
+		x = 152, -- 381
+		w = 98, -- 381
+		h = 32, -- 381
+		y = 0, -- 381
+		label = "倒柜 152–250 · 高 32", -- 381
+		lanes = {"lower", "middle"} -- 381
+	}, { -- 381
+		x = 648, -- 382
+		w = 30, -- 382
+		h = 118, -- 382
+		y = 0, -- 382
+		label = "出口门柱", -- 382
+		lanes = {"lower", "upper"}, -- 382
+		art = "gate_post" -- 382
+	}, { -- 382
+		x = 110, -- 383
+		w = 38, -- 383
+		h = 84, -- 383
+		y = 0, -- 383
+		label = "石柱", -- 383
+		lanes = {"lower", "middle"}, -- 383
+		art = "wall" -- 383
+	}}, -- 383
+	zones = {}, -- 385
+	arch = { -- 386
+		x0 = 0, -- 386
+		x1 = 0, -- 386
+		y = 0, -- 386
+		h = 0, -- 386
+		label = "" -- 386
+	}, -- 386
+	stairs = {}, -- 387
+	cart = { -- 388
+		startX = 0, -- 388
+		endX = 0, -- 388
+		baseY = 0, -- 388
+		bodyW = 0, -- 388
+		bodyH = 0, -- 388
+		wheelR = 0, -- 388
+		handleOffset = 0, -- 388
+		clothSide = 1 -- 388
+	}, -- 388
+	spawns = {{x = 80, y = 0, h = 88, label = "周戍 80"}, {x = 300, y = 0, h = 64, label = "小满 300 · 柜子后面"}}, -- 389
+	marks = {{x = 300, y = 0, kind = 1, label = "柜后 300"}, {x = 660, y = 0, kind = 0, label = "门口中路 660"}}, -- 393
+	dims = {{x0 = 152, x1 = 250, text = "倒柜 98"}, {x0 = 648, x1 = 678, text = "门柱 30"}}, -- 397
+	story = {prologue = {giveReach = 46}} -- 401
+} -- 401
 --- 街道：两人已经同行，第一次交火在街心柜台后，打完把柜台敲两下算解除。
 -- 一路走到检查站入口，提交进度后进入检查站。
-____exports.STREET_ROOM = { -- 386
-	key = "street", -- 387
-	originX = 0, -- 388
-	name = "街道 · 柜台与交火", -- 389
-	caption = "小满跟着走；街心柜台后有两名敌兵，点鼠标射击，清掉后一起走到检查站入口", -- 390
-	minX = 0, -- 391
-	maxX = 1000, -- 392
-	height = 210, -- 393
-	floors = {{y = 0, x0 = 0, x1 = 1000}}, -- 394
-	solids = {{ -- 395
-		x = 300, -- 396
-		w = 100, -- 396
-		h = 44, -- 396
-		y = 0, -- 396
-		label = "街心柜台 300–400 · 高 44" -- 396
-	}, { -- 396
-		x = 620, -- 397
-		w = 60, -- 397
-		h = 36, -- 397
-		y = 0, -- 397
-		label = "街边矮墙 620" -- 397
-	}, { -- 397
-		x = 960, -- 398
-		w = 40, -- 398
-		h = 120, -- 398
-		y = 0, -- 398
-		label = "检查站门 960" -- 398
-	}}, -- 398
-	zones = {}, -- 400
-	arch = { -- 401
-		x0 = 0, -- 401
-		x1 = 0, -- 401
-		y = 0, -- 401
-		h = 0, -- 401
-		label = "" -- 401
-	}, -- 401
-	stairs = {}, -- 402
-	cart = { -- 403
-		startX = 0, -- 403
-		endX = 0, -- 403
-		baseY = 0, -- 403
-		bodyW = 0, -- 403
-		bodyH = 0, -- 403
-		wheelR = 0, -- 403
-		handleOffset = 0, -- 403
-		clothSide = 1 -- 403
-	}, -- 403
-	spawns = {{x = 100, y = 0, h = 88, label = "周戍 100"}, {x = 60, y = 0, h = 64, label = "小满 60"}}, -- 404
-	marks = {{x = 900, y = 0, kind = 0, label = "检查站入口 900"}, {x = 520, y = 0, kind = 3, label = "街心 520"}}, -- 408
-	dims = {{x0 = 300, x1 = 400, text = "柜台 100"}, {x0 = 900, x1 = 1000, text = "入口 100"}} -- 412
-} -- 412
+____exports.STREET_ROOM = { -- 408
+	key = "street", -- 409
+	originX = 0, -- 410
+	name = "街道 · 柜台与交火", -- 411
+	caption = "小满跟着走；街心柜台后有两名敌兵，点鼠标射击，清掉后一起走到检查站入口", -- 412
+	minX = 0, -- 413
+	maxX = 1000, -- 414
+	height = 210, -- 415
+	depth = LANE_ROAD, -- 416
+	floors = {{y = 0, x0 = 0, x1 = 1000}}, -- 417
+	solids = {{ -- 418
+		x = 300, -- 419
+		w = 100, -- 419
+		h = 44, -- 419
+		y = 0, -- 419
+		label = "街心柜台 300–400 · 高 44", -- 419
+		lanes = {"lower", "middle"} -- 419
+	}, { -- 419
+		x = 620, -- 420
+		w = 60, -- 420
+		h = 36, -- 420
+		y = 0, -- 420
+		label = "街边矮墙 620", -- 420
+		lanes = {"upper"} -- 420
+	}, { -- 420
+		x = 892, -- 421
+		w = 40, -- 421
+		h = 120, -- 421
+		y = 0, -- 421
+		label = "检查站门柱", -- 421
+		lanes = {"lower", "upper"}, -- 421
+		art = "gate_post" -- 421
+	}}, -- 421
+	zones = {}, -- 423
+	arch = { -- 424
+		x0 = 0, -- 424
+		x1 = 0, -- 424
+		y = 0, -- 424
+		h = 0, -- 424
+		label = "" -- 424
+	}, -- 424
+	stairs = {}, -- 425
+	cart = { -- 426
+		startX = 0, -- 426
+		endX = 0, -- 426
+		baseY = 0, -- 426
+		bodyW = 0, -- 426
+		bodyH = 0, -- 426
+		wheelR = 0, -- 426
+		handleOffset = 0, -- 426
+		clothSide = 1 -- 426
+	}, -- 426
+	spawns = {{x = 100, y = 0, h = 88, label = "周戍 100"}, {x = 60, y = 0, h = 64, label = "小满 60"}}, -- 427
+	marks = {{x = 900, y = 0, kind = 0, label = "检查站入口 900"}, {x = 520, y = 0, kind = 3, label = "街心 520"}}, -- 431
+	dims = {{x0 = 300, x1 = 400, text = "柜台 100"}, {x0 = 900, x1 = 1000, text = "入口 100"}} -- 435
+} -- 435
 --- 城门：周戍把小满送到门洞等待点，自己回到绞盘；两人就位后开始 45 秒守点。
 -- 守满后玩家走到门边按 E 送别，接着是数到一百与交权。
-____exports.GATE_ROOM = { -- 422
-	key = "gate", -- 423
-	originX = 0, -- 424
-	name = "城门 · 45 秒守点", -- 425
-	caption = "小满到门洞 960、周戍贴住绞盘 118，两人就位开始 45 秒；守满走到门边按 E 送她", -- 426
-	minX = 0, -- 427
-	maxX = 1200, -- 428
-	height = 240, -- 429
-	floors = {{y = 0, x0 = 0, x1 = 1200}}, -- 430
-	solids = {{ -- 431
-		x = 40, -- 432
-		w = 60, -- 432
-		h = 60, -- 432
-		y = 0, -- 432
-		label = "绞盘 40–100 · 高 60" -- 432
-	}, { -- 432
-		x = 520, -- 433
-		w = 80, -- 433
-		h = 44, -- 433
-		y = 0, -- 433
-		label = "街垒 520 · 高 44" -- 433
-	}, { -- 433
-		x = 1040, -- 434
-		w = 160, -- 434
-		h = 180, -- 434
-		y = 0, -- 434
-		label = "门洞右墙 1040" -- 434
-	}, { -- 434
-		x = 840, -- 435
-		w = 200, -- 435
-		h = 56, -- 435
-		y = 160, -- 435
-		label = "门楣 840–1040" -- 435
-	}}, -- 435
-	zones = {{ -- 437
-		x0 = 860, -- 438
-		x1 = 1000, -- 438
-		y = 0, -- 438
-		h = 8, -- 438
-		tint = 4, -- 438
-		label = "门洞 860–1000" -- 438
-	}}, -- 438
-	arch = { -- 440
-		x0 = 0, -- 440
-		x1 = 0, -- 440
-		y = 0, -- 440
-		h = 0, -- 440
-		label = "" -- 440
-	}, -- 440
-	stairs = {}, -- 441
-	cart = { -- 442
-		startX = 0, -- 442
-		endX = 0, -- 442
-		baseY = 0, -- 442
-		bodyW = 0, -- 442
-		bodyH = 0, -- 442
-		wheelR = 0, -- 442
-		handleOffset = 0, -- 442
-		clothSide = 1 -- 442
-	}, -- 442
-	spawns = {{x = 130, y = 0, h = 88, label = "周戍 130"}, {x = 150, y = 0, h = 64, label = "小满 150"}}, -- 443
-	marks = {{x = 118, y = 0, kind = 1, label = "绞盘站位 118"}, {x = 960, y = 0, kind = 1, label = "门洞等待点 960"}, {x = 860, y = 0, kind = 0, label = "门边 860"}, {x = 1020, y = 0, kind = 0, label = "出门 1020"}}, -- 447
-	dims = {{x0 = 40, x1 = 100, text = "绞盘 60"}, {x0 = 840, x1 = 1040, text = "门洞 200"}}, -- 453
-	story = {gate = { -- 458
-		winchX = 118, -- 458
-		waitX = 960, -- 458
-		doorX = 860, -- 458
-		exitX = 1020, -- 458
-		holdTicks = 2700 -- 458
-	}} -- 458
-} -- 458
+____exports.GATE_ROOM = { -- 445
+	key = "gate", -- 446
+	originX = 0, -- 447
+	name = "城门 · 45 秒守点", -- 448
+	caption = "小满到门洞 960、周戍贴住绞盘 118，两人就位开始 45 秒；守满走到门边按 E 送她", -- 449
+	minX = 0, -- 450
+	maxX = 1200, -- 451
+	height = 240, -- 452
+	depth = LANE_ROAD, -- 453
+	floors = {{y = 0, x0 = 0, x1 = 1200}}, -- 454
+	solids = { -- 455
+		{ -- 456
+			x = 40, -- 456
+			w = 60, -- 456
+			h = 60, -- 456
+			y = 0, -- 456
+			label = "绞盘 40–100 · 高 60" -- 456
+		}, -- 456
+		{ -- 457
+			x = 520, -- 457
+			w = 80, -- 457
+			h = 44, -- 457
+			y = 0, -- 457
+			label = "街垒 520 · 高 44", -- 457
+			lanes = {"middle", "upper"} -- 457
+		}, -- 457
+		{ -- 458
+			x = 970, -- 458
+			w = 34, -- 458
+			h = 100, -- 458
+			y = 0, -- 458
+			label = "城门门柱", -- 458
+			lanes = {"lower", "upper"}, -- 458
+			art = "gate_post" -- 458
+		}, -- 458
+		{ -- 459
+			x = 1040, -- 459
+			w = 160, -- 459
+			h = 180, -- 459
+			y = 0, -- 459
+			label = "门洞右墙 1040" -- 459
+		}, -- 459
+		{ -- 460
+			x = 840, -- 460
+			w = 200, -- 460
+			h = 56, -- 460
+			y = 160, -- 460
+			label = "门楣 840–1040" -- 460
+		} -- 460
+	}, -- 460
+	zones = {{ -- 462
+		x0 = 860, -- 463
+		x1 = 1000, -- 463
+		y = 0, -- 463
+		h = 8, -- 463
+		tint = 4, -- 463
+		label = "门洞 860–1000" -- 463
+	}}, -- 463
+	arch = { -- 465
+		x0 = 0, -- 465
+		x1 = 0, -- 465
+		y = 0, -- 465
+		h = 0, -- 465
+		label = "" -- 465
+	}, -- 465
+	stairs = {}, -- 466
+	cart = { -- 467
+		startX = 0, -- 467
+		endX = 0, -- 467
+		baseY = 0, -- 467
+		bodyW = 0, -- 467
+		bodyH = 0, -- 467
+		wheelR = 0, -- 467
+		handleOffset = 0, -- 467
+		clothSide = 1 -- 467
+	}, -- 467
+	spawns = {{x = 130, y = 0, h = 88, label = "周戍 130"}, {x = 150, y = 0, h = 64, label = "小满 150"}}, -- 468
+	marks = {{x = 118, y = 0, kind = 1, label = "绞盘站位 118"}, {x = 960, y = 0, kind = 1, label = "门洞等待点 960"}, {x = 860, y = 0, kind = 0, label = "门边 860"}, {x = 1020, y = 0, kind = 0, label = "出门 1020"}}, -- 472
+	dims = {{x0 = 40, x1 = 100, text = "绞盘 60"}, {x0 = 840, x1 = 1040, text = "门洞 200"}}, -- 478
+	story = {gate = { -- 483
+		winchX = 118, -- 483
+		waitX = 960, -- 483
+		doorX = 860, -- 483
+		exitX = 1020, -- 483
+		holdTicks = 2700 -- 483
+	}} -- 483
+} -- 483
 --- 北塔森林：小满独自走。草后可以等，狗听见脚步会转耳朵、赶来、停一会儿再回线。
 -- 最后一段从林缘自己选时机走到灯下门廊。
-____exports.FOREST_ROOM = { -- 465
-	key = "forest", -- 466
-	originX = 0, -- 467
-	name = "北塔森林 · 草与狗", -- 468
-	caption = "狗对动静比人快：草后等、Shift 慢走、蹲着过；林缘 1450 走到灯下门廊", -- 469
-	minX = 0, -- 470
-	maxX = 1600, -- 471
-	height = 200, -- 472
-	floors = {{y = 0, x0 = 0, x1 = 1600}}, -- 473
-	solids = {{ -- 474
-		x = 300, -- 475
-		w = 80, -- 475
-		h = 24, -- 475
-		y = 0, -- 475
-		label = "草丛 300–380 · 高 24", -- 475
-		passable = true -- 475
-	}, { -- 475
-		x = 700, -- 476
-		w = 90, -- 476
-		h = 24, -- 476
-		y = 0, -- 476
-		label = "草丛 700–790 · 高 24", -- 476
-		passable = true -- 476
-	}, { -- 476
-		x = 1150, -- 477
-		w = 90, -- 477
-		h = 24, -- 477
-		y = 0, -- 477
-		label = "草丛 1150–1240 · 高 24", -- 477
-		passable = true -- 477
-	}, { -- 477
-		x = 1560, -- 478
-		w = 40, -- 478
-		h = 160, -- 478
-		y = 0, -- 478
-		label = "林缘 1560" -- 478
-	}}, -- 478
-	zones = {{ -- 480
-		x0 = 1400, -- 481
-		x1 = 1470, -- 481
-		y = 0, -- 481
-		h = 6, -- 481
-		tint = 4, -- 481
-		label = "林边 1400–1470" -- 481
-	}}, -- 481
-	arch = { -- 483
-		x0 = 0, -- 483
-		x1 = 0, -- 483
-		y = 0, -- 483
-		h = 0, -- 483
-		label = "" -- 483
-	}, -- 483
-	stairs = {{ -- 484
-		x0 = 520, -- 485
-		x1 = 640, -- 485
-		y0 = 0, -- 485
-		y1 = 22, -- 485
-		steps = 1, -- 485
-		label = "矮台 520–640 · 高 22" -- 485
-	}, { -- 485
-		x0 = 980, -- 486
-		x1 = 1100, -- 486
-		y0 = 0, -- 486
-		y1 = 22, -- 486
-		steps = 1, -- 486
-		label = "矮台 980–1100 · 高 22" -- 486
-	}}, -- 486
-	cart = { -- 488
-		startX = 0, -- 488
-		endX = 0, -- 488
-		baseY = 0, -- 488
-		bodyW = 0, -- 488
-		bodyH = 0, -- 488
-		wheelR = 0, -- 488
-		handleOffset = 0, -- 488
-		clothSide = 1 -- 488
-	}, -- 488
-	spawns = {{x = 120, y = 0, h = 64, label = "小满 120"}}, -- 489
-	marks = {{x = 1450, y = 0, kind = 0, label = "林边安全点 1450"}, {x = 620, y = 0, kind = 3, label = "矮台 620"}}, -- 490
-	dims = {{x0 = 700, x1 = 790, text = "草 90"}, {x0 = 1400, x1 = 1470, text = "林边 70"}}, -- 494
-	story = {dog = {x0 = 620, x1 = 780, speed = 56, range = 300}} -- 498
-} -- 498
+____exports.FOREST_ROOM = { -- 490
+	key = "forest", -- 491
+	originX = 0, -- 492
+	name = "北塔森林 · 草与狗", -- 493
+	caption = "狗对动静比人快：草后等、Shift 慢走、蹲着过；林缘 1450 走到灯下门廊", -- 494
+	minX = 0, -- 495
+	maxX = 1600, -- 496
+	height = 200, -- 497
+	floors = {{y = 0, x0 = 0, x1 = 1600}}, -- 498
+	solids = {{ -- 499
+		x = 300, -- 500
+		w = 80, -- 500
+		h = 24, -- 500
+		y = 0, -- 500
+		label = "草丛 300–380 · 高 24", -- 500
+		passable = true -- 500
+	}, { -- 500
+		x = 700, -- 501
+		w = 90, -- 501
+		h = 24, -- 501
+		y = 0, -- 501
+		label = "草丛 700–790 · 高 24", -- 501
+		passable = true -- 501
+	}, { -- 501
+		x = 1150, -- 502
+		w = 90, -- 502
+		h = 24, -- 502
+		y = 0, -- 502
+		label = "草丛 1150–1240 · 高 24", -- 502
+		passable = true -- 502
+	}, { -- 502
+		x = 1560, -- 503
+		w = 40, -- 503
+		h = 160, -- 503
+		y = 0, -- 503
+		label = "林缘 1560" -- 503
+	}}, -- 503
+	zones = {{ -- 505
+		x0 = 1400, -- 506
+		x1 = 1470, -- 506
+		y = 0, -- 506
+		h = 6, -- 506
+		tint = 4, -- 506
+		label = "林边 1400–1470" -- 506
+	}}, -- 506
+	arch = { -- 508
+		x0 = 0, -- 508
+		x1 = 0, -- 508
+		y = 0, -- 508
+		h = 0, -- 508
+		label = "" -- 508
+	}, -- 508
+	stairs = {{ -- 509
+		x0 = 520, -- 510
+		x1 = 640, -- 510
+		y0 = 0, -- 510
+		y1 = 22, -- 510
+		steps = 1, -- 510
+		label = "矮台 520–640 · 高 22" -- 510
+	}, { -- 510
+		x0 = 980, -- 511
+		x1 = 1100, -- 511
+		y0 = 0, -- 511
+		y1 = 22, -- 511
+		steps = 1, -- 511
+		label = "矮台 980–1100 · 高 22" -- 511
+	}}, -- 511
+	cart = { -- 513
+		startX = 0, -- 513
+		endX = 0, -- 513
+		baseY = 0, -- 513
+		bodyW = 0, -- 513
+		bodyH = 0, -- 513
+		wheelR = 0, -- 513
+		handleOffset = 0, -- 513
+		clothSide = 1 -- 513
+	}, -- 513
+	spawns = {{x = 120, y = 0, h = 64, label = "小满 120"}}, -- 514
+	marks = {{x = 1450, y = 0, kind = 0, label = "林边安全点 1450"}, {x = 620, y = 0, kind = 3, label = "矮台 620"}}, -- 515
+	dims = {{x0 = 700, x1 = 790, text = "草 90"}, {x0 = 1400, x1 = 1470, text = "林边 70"}}, -- 519
+	story = {dog = {x0 = 620, x1 = 780, speed = 56, range = 300}} -- 523
+} -- 523
 --- 塔门与尾声：小满走到门前，按一次 E 敲两下；守卫开门接过针套和纸条，
 -- 在登记簿里给下一个人留出一行空白。片尾可以再玩。
-____exports.TOWER_ROOM = { -- 505
-	key = "tower", -- 506
-	originX = 0, -- 507
-	name = "北塔塔门 · 尾声", -- 508
-	caption = "走到门前点一次 E 敲两下；递出针套和纸条，看登记簿空行，片尾可再玩", -- 509
-	minX = 0, -- 510
-	maxX = 720, -- 511
-	height = 220, -- 512
-	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 513
-	solids = {{ -- 514
-		x = 180, -- 515
-		w = 220, -- 515
-		h = 200, -- 515
-		y = 0, -- 515
-		label = "塔身 180–400" -- 515
-	}, { -- 515
-		x = 490, -- 516
-		w = 230, -- 516
-		h = 200, -- 516
-		y = 0, -- 516
-		label = "塔身 490–720" -- 516
-	}, { -- 516
-		x = 400, -- 517
-		w = 90, -- 517
-		h = 30, -- 517
-		y = 110, -- 517
-		label = "门楣 400–490" -- 517
-	}}, -- 517
-	zones = {{ -- 519
-		x0 = 400, -- 520
-		x1 = 490, -- 520
-		y = 0, -- 520
-		h = 8, -- 520
-		tint = 4, -- 520
-		label = "门廊 400–490" -- 520
-	}}, -- 520
-	arch = { -- 522
-		x0 = 0, -- 522
-		x1 = 0, -- 522
-		y = 0, -- 522
-		h = 0, -- 522
-		label = "" -- 522
-	}, -- 522
-	stairs = {}, -- 523
-	cart = { -- 524
-		startX = 0, -- 524
-		endX = 0, -- 524
-		baseY = 0, -- 524
-		bodyW = 0, -- 524
-		bodyH = 0, -- 524
-		wheelR = 0, -- 524
-		handleOffset = 0, -- 524
-		clothSide = 1 -- 524
-	}, -- 524
-	spawns = {{x = 418, y = 0, h = 64, label = "小满 418 · 门廊里"}}, -- 525
-	marks = {{x = 445, y = 0, kind = 1, label = "门前 445"}}, -- 526
-	dims = {{x0 = 400, x1 = 490, text = "门 90"}}, -- 529
-	story = {tower = {doorX = 445, knockTicks = 36}} -- 532
-} -- 532
-____exports.ROOMS = { -- 535
-	____exports.PROLOGUE_ROOM, -- 535
-	____exports.STREET_ROOM, -- 535
-	____exports.CHECKPOINT_ROOM, -- 535
-	____exports.GATE_ROOM, -- 535
-	____exports.OUTSIDE_ROOM, -- 535
-	____exports.VILLAGE_ROOM, -- 535
-	____exports.FOREST_ROOM, -- 535
-	____exports.TOWER_ROOM -- 535
-} -- 535
+____exports.TOWER_ROOM = { -- 530
+	key = "tower", -- 531
+	originX = 0, -- 532
+	name = "北塔塔门 · 尾声", -- 533
+	caption = "走到门前点一次 E 敲两下；递出针套和纸条，看登记簿空行，片尾可再玩", -- 534
+	minX = 0, -- 535
+	maxX = 720, -- 536
+	height = 220, -- 537
+	floors = {{y = 0, x0 = 0, x1 = 720}}, -- 538
+	solids = {{ -- 539
+		x = 180, -- 540
+		w = 220, -- 540
+		h = 200, -- 540
+		y = 0, -- 540
+		label = "塔身 180–400" -- 540
+	}, { -- 540
+		x = 490, -- 541
+		w = 230, -- 541
+		h = 200, -- 541
+		y = 0, -- 541
+		label = "塔身 490–720" -- 541
+	}, { -- 541
+		x = 400, -- 542
+		w = 90, -- 542
+		h = 30, -- 542
+		y = 110, -- 542
+		label = "门楣 400–490" -- 542
+	}}, -- 542
+	zones = {{ -- 544
+		x0 = 400, -- 545
+		x1 = 490, -- 545
+		y = 0, -- 545
+		h = 8, -- 545
+		tint = 4, -- 545
+		label = "门廊 400–490" -- 545
+	}}, -- 545
+	arch = { -- 547
+		x0 = 0, -- 547
+		x1 = 0, -- 547
+		y = 0, -- 547
+		h = 0, -- 547
+		label = "" -- 547
+	}, -- 547
+	stairs = {}, -- 548
+	cart = { -- 549
+		startX = 0, -- 549
+		endX = 0, -- 549
+		baseY = 0, -- 549
+		bodyW = 0, -- 549
+		bodyH = 0, -- 549
+		wheelR = 0, -- 549
+		handleOffset = 0, -- 549
+		clothSide = 1 -- 549
+	}, -- 549
+	spawns = {{x = 418, y = 0, h = 64, label = "小满 418 · 门廊里"}}, -- 550
+	marks = {{x = 445, y = 0, kind = 1, label = "门前 445"}}, -- 551
+	dims = {{x0 = 400, x1 = 490, text = "门 90"}}, -- 554
+	story = {tower = {doorX = 445, knockTicks = 36}} -- 557
+} -- 557
+____exports.ROOMS = { -- 560
+	____exports.PROLOGUE_ROOM, -- 560
+	____exports.STREET_ROOM, -- 560
+	____exports.CHECKPOINT_ROOM, -- 560
+	____exports.GATE_ROOM, -- 560
+	____exports.OUTSIDE_ROOM, -- 560
+	____exports.VILLAGE_ROOM, -- 560
+	____exports.FOREST_ROOM, -- 560
+	____exports.TOWER_ROOM -- 560
+} -- 560
+local function placeSolids(room) -- 571
+	local blocks = {} -- 572
+	for ____, solid in ipairs(room.solids) do -- 573
+		local x = solid.x + room.originX -- 574
+		if room.depth ~= nil and solid.lanes ~= nil then -- 574
+			for ____, depth in ipairs(laneFootprints(solid.lanes)) do -- 576
+				blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x, depth = depth, lanes = nil}) -- 577
+			end -- 577
+		else -- 577
+			blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x}) -- 580
+		end -- 580
+	end -- 580
+	return blocks -- 583
+end -- 571
 --- 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
 -- 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
-function ____exports.withOrigin(room) -- 550
-	local ox = room.originX -- 551
-	if ox == 0 then -- 551
-		return room -- 553
-	end -- 553
-	local function shift(x) -- 555
-		return x + ox -- 555
-	end -- 555
-	local ____room_key_5 = room.key -- 557
-	local ____room_name_6 = room.name -- 558
-	local ____room_caption_7 = room.caption -- 559
-	local ____shift_result_8 = shift(room.minX) -- 561
-	local ____shift_result_9 = shift(room.maxX) -- 562
-	local ____room_height_10 = room.height -- 563
-	local ____TS__ArrayMap_result_11 = __TS__ArrayMap( -- 564
-		room.floors, -- 564
-		function(____, f) return { -- 564
-			y = f.y, -- 564
-			x0 = shift(f.x0), -- 564
-			x1 = shift(f.x1) -- 564
-		} end -- 564
-	) -- 564
-	local ____TS__ArrayMap_result_12 = __TS__ArrayMap( -- 565
-		room.solids, -- 565
-		function(____, s) return { -- 565
-			x = shift(s.x), -- 565
-			w = s.w, -- 565
-			h = s.h, -- 565
-			y = s.y, -- 565
-			label = s.label -- 565
-		} end -- 565
-	) -- 565
-	local ____TS__ArrayMap_result_13 = __TS__ArrayMap( -- 566
-		room.zones, -- 566
-		function(____, z) return { -- 566
-			x0 = shift(z.x0), -- 566
-			x1 = shift(z.x1), -- 566
-			y = z.y, -- 566
-			h = z.h, -- 566
-			tint = z.tint, -- 566
-			label = z.label -- 566
-		} end -- 566
-	) -- 566
-	local ____temp_14 = { -- 567
-		x0 = shift(room.arch.x0), -- 567
-		x1 = shift(room.arch.x1), -- 567
-		y = room.arch.y, -- 567
-		h = room.arch.h, -- 567
-		label = room.arch.label -- 567
-	} -- 567
-	local ____TS__ArrayMap_result_15 = __TS__ArrayMap( -- 568
-		room.stairs, -- 568
-		function(____, s) return { -- 568
-			x0 = shift(s.x0), -- 568
-			x1 = shift(s.x1), -- 568
-			y0 = s.y0, -- 568
-			y1 = s.y1, -- 568
-			steps = s.steps, -- 568
-			label = s.label -- 568
-		} end -- 568
-	) -- 568
-	local ____temp_16 = { -- 569
-		startX = shift(room.cart.startX), -- 570
-		endX = shift(room.cart.endX), -- 571
-		baseY = room.cart.baseY, -- 572
-		bodyW = room.cart.bodyW, -- 573
-		bodyH = room.cart.bodyH, -- 574
-		wheelR = room.cart.wheelR, -- 575
-		handleOffset = room.cart.handleOffset, -- 576
-		clothSide = room.cart.clothSide -- 577
-	} -- 577
-	local ____TS__ArrayMap_result_17 = __TS__ArrayMap( -- 579
-		room.spawns, -- 579
-		function(____, s) return { -- 579
-			x = shift(s.x), -- 579
-			y = s.y, -- 579
-			h = s.h, -- 579
-			label = s.label -- 579
-		} end -- 579
-	) -- 579
-	local ____TS__ArrayMap_result_18 = __TS__ArrayMap( -- 580
-		room.marks, -- 580
-		function(____, m) return { -- 580
-			x = shift(m.x), -- 580
-			y = m.y, -- 580
-			kind = m.kind, -- 580
-			label = m.label -- 580
-		} end -- 580
-	) -- 580
-	local ____TS__ArrayMap_result_19 = __TS__ArrayMap( -- 581
-		room.dims, -- 581
-		function(____, d) return { -- 581
-			x0 = shift(d.x0), -- 581
-			x1 = shift(d.x1), -- 581
-			text = d.text -- 581
-		} end -- 581
-	) -- 581
-	local ____temp_0 -- 582
-	if room.scavenger == nil then -- 582
-		____temp_0 = nil -- 582
-	else -- 582
-		____temp_0 = { -- 582
-			x0 = shift(room.scavenger.x0), -- 583
-			x1 = shift(room.scavenger.x1), -- 583
-			y = room.scavenger.y, -- 583
-			h = room.scavenger.h, -- 583
-			patrolSpeed = room.scavenger.patrolSpeed, -- 584
-			approachSpeed = room.scavenger.approachSpeed, -- 584
-			hearTicks = room.scavenger.hearTicks, -- 585
-			stallTicks = room.scavenger.stallTicks, -- 585
-			range = room.scavenger.range -- 585
-		} -- 585
-	end -- 585
-	local ____temp_1 -- 587
-	if room.bottle == nil then -- 587
-		____temp_1 = nil -- 587
-	else -- 587
-		____temp_1 = { -- 587
-			x = shift(room.bottle.x), -- 587
-			y = room.bottle.y -- 587
-		} -- 587
-	end -- 587
-	local ____temp_2 -- 588
-	if room.brickX == nil then -- 588
-		____temp_2 = nil -- 588
-	else -- 588
-		____temp_2 = shift(room.brickX) -- 588
-	end -- 588
-	local ____temp_3 -- 589
-	if room.softX == nil then -- 589
-		____temp_3 = nil -- 589
-	else -- 589
-		____temp_3 = shift(room.softX) -- 589
-	end -- 589
-	local ____temp_4 -- 590
-	if room.passLine == nil then -- 590
-		____temp_4 = nil -- 590
-	else -- 590
-		____temp_4 = shift(room.passLine) -- 590
-	end -- 590
-	return { -- 556
-		key = ____room_key_5, -- 557
-		name = ____room_name_6, -- 558
-		caption = ____room_caption_7, -- 559
-		originX = 0, -- 560
-		minX = ____shift_result_8, -- 561
-		maxX = ____shift_result_9, -- 562
-		height = ____room_height_10, -- 563
-		floors = ____TS__ArrayMap_result_11, -- 564
-		solids = ____TS__ArrayMap_result_12, -- 565
-		zones = ____TS__ArrayMap_result_13, -- 566
-		arch = ____temp_14, -- 567
-		stairs = ____TS__ArrayMap_result_15, -- 568
-		cart = ____temp_16, -- 569
-		spawns = ____TS__ArrayMap_result_17, -- 579
-		marks = ____TS__ArrayMap_result_18, -- 580
-		dims = ____TS__ArrayMap_result_19, -- 581
-		scavenger = ____temp_0, -- 582
-		bottle = ____temp_1, -- 587
-		brickX = ____temp_2, -- 588
-		softX = ____temp_3, -- 589
-		passLine = ____temp_4, -- 590
-		story = shiftStory(room.story, ox) -- 591
-	} -- 591
-end -- 550
-return ____exports -- 550
+function ____exports.withOrigin(room) -- 590
+	local ox = room.originX -- 591
+	if ox == 0 then -- 591
+		return room.depth == nil and room or __TS__ObjectAssign( -- 593
+			{}, -- 593
+			room, -- 593
+			{solids = placeSolids(room)} -- 593
+		) -- 593
+	end -- 593
+	local function shift(x) -- 595
+		return x + ox -- 595
+	end -- 595
+	local ____room_key_5 = room.key -- 597
+	local ____room_name_6 = room.name -- 598
+	local ____room_caption_7 = room.caption -- 599
+	local ____shift_result_8 = shift(room.minX) -- 601
+	local ____shift_result_9 = shift(room.maxX) -- 602
+	local ____room_height_10 = room.height -- 603
+	local ____room_depth_11 = room.depth -- 604
+	local ____TS__ArrayMap_result_12 = __TS__ArrayMap( -- 605
+		room.floors, -- 605
+		function(____, f) return { -- 605
+			y = f.y, -- 605
+			x0 = shift(f.x0), -- 605
+			x1 = shift(f.x1) -- 605
+		} end -- 605
+	) -- 605
+	local ____placeSolids_result_13 = placeSolids(room) -- 606
+	local ____TS__ArrayMap_result_14 = __TS__ArrayMap( -- 607
+		room.zones, -- 607
+		function(____, z) return { -- 607
+			x0 = shift(z.x0), -- 607
+			x1 = shift(z.x1), -- 607
+			y = z.y, -- 607
+			h = z.h, -- 607
+			tint = z.tint, -- 607
+			label = z.label -- 607
+		} end -- 607
+	) -- 607
+	local ____temp_15 = { -- 608
+		x0 = shift(room.arch.x0), -- 608
+		x1 = shift(room.arch.x1), -- 608
+		y = room.arch.y, -- 608
+		h = room.arch.h, -- 608
+		label = room.arch.label -- 608
+	} -- 608
+	local ____TS__ArrayMap_result_16 = __TS__ArrayMap( -- 609
+		room.stairs, -- 609
+		function(____, s) return { -- 609
+			x0 = shift(s.x0), -- 609
+			x1 = shift(s.x1), -- 609
+			y0 = s.y0, -- 609
+			y1 = s.y1, -- 609
+			steps = s.steps, -- 609
+			label = s.label -- 609
+		} end -- 609
+	) -- 609
+	local ____TS__ObjectAssign_result_17 = __TS__ObjectAssign( -- 610
+		{}, -- 610
+		room.cart, -- 611
+		{ -- 610
+			startX = shift(room.cart.startX), -- 612
+			endX = shift(room.cart.endX) -- 613
+		} -- 613
+	) -- 613
+	local ____TS__ArrayMap_result_18 = __TS__ArrayMap( -- 615
+		room.spawns, -- 615
+		function(____, s) return __TS__ObjectAssign( -- 615
+			{}, -- 615
+			s, -- 615
+			{x = shift(s.x)} -- 615
+		) end -- 615
+	) -- 615
+	local ____TS__ArrayMap_result_19 = __TS__ArrayMap( -- 616
+		room.marks, -- 616
+		function(____, m) return { -- 616
+			x = shift(m.x), -- 616
+			y = m.y, -- 616
+			kind = m.kind, -- 616
+			label = m.label -- 616
+		} end -- 616
+	) -- 616
+	local ____TS__ArrayMap_result_20 = __TS__ArrayMap( -- 617
+		room.dims, -- 617
+		function(____, d) return { -- 617
+			x0 = shift(d.x0), -- 617
+			x1 = shift(d.x1), -- 617
+			text = d.text -- 617
+		} end -- 617
+	) -- 617
+	local ____temp_0 -- 618
+	if room.scavenger == nil then -- 618
+		____temp_0 = nil -- 618
+	else -- 618
+		____temp_0 = { -- 618
+			x0 = shift(room.scavenger.x0), -- 619
+			x1 = shift(room.scavenger.x1), -- 619
+			y = room.scavenger.y, -- 619
+			h = room.scavenger.h, -- 619
+			patrolSpeed = room.scavenger.patrolSpeed, -- 620
+			approachSpeed = room.scavenger.approachSpeed, -- 620
+			hearTicks = room.scavenger.hearTicks, -- 621
+			stallTicks = room.scavenger.stallTicks, -- 621
+			range = room.scavenger.range -- 621
+		} -- 621
+	end -- 621
+	local ____temp_1 -- 623
+	if room.bottle == nil then -- 623
+		____temp_1 = nil -- 623
+	else -- 623
+		____temp_1 = { -- 623
+			x = shift(room.bottle.x), -- 623
+			y = room.bottle.y -- 623
+		} -- 623
+	end -- 623
+	local ____temp_2 -- 624
+	if room.brickX == nil then -- 624
+		____temp_2 = nil -- 624
+	else -- 624
+		____temp_2 = shift(room.brickX) -- 624
+	end -- 624
+	local ____temp_3 -- 625
+	if room.softX == nil then -- 625
+		____temp_3 = nil -- 625
+	else -- 625
+		____temp_3 = shift(room.softX) -- 625
+	end -- 625
+	local ____temp_4 -- 626
+	if room.passLine == nil then -- 626
+		____temp_4 = nil -- 626
+	else -- 626
+		____temp_4 = shift(room.passLine) -- 626
+	end -- 626
+	return { -- 596
+		key = ____room_key_5, -- 597
+		name = ____room_name_6, -- 598
+		caption = ____room_caption_7, -- 599
+		originX = 0, -- 600
+		minX = ____shift_result_8, -- 601
+		maxX = ____shift_result_9, -- 602
+		height = ____room_height_10, -- 603
+		depth = ____room_depth_11, -- 604
+		floors = ____TS__ArrayMap_result_12, -- 605
+		solids = ____placeSolids_result_13, -- 606
+		zones = ____TS__ArrayMap_result_14, -- 607
+		arch = ____temp_15, -- 608
+		stairs = ____TS__ArrayMap_result_16, -- 609
+		cart = ____TS__ObjectAssign_result_17, -- 610
+		spawns = ____TS__ArrayMap_result_18, -- 615
+		marks = ____TS__ArrayMap_result_19, -- 616
+		dims = ____TS__ArrayMap_result_20, -- 617
+		scavenger = ____temp_0, -- 618
+		bottle = ____temp_1, -- 623
+		brickX = ____temp_2, -- 624
+		softX = ____temp_3, -- 625
+		passLine = ____temp_4, -- 626
+		story = shiftStory(room.story, ox) -- 627
+	} -- 627
+end -- 590
+return ____exports -- 590
