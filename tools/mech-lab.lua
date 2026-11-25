@@ -356,6 +356,104 @@ record("HP", "HP-01b gap=42 受两次伤", 2, hp42.hitCount, hp42.detail)
 record("HP", "HP-01b gap=42 血量 1", 1, hp42.hp, hp42.detail)
 record("HP", "HP-01b gap=42 两次间隔 42 拍", 42, hp42.rel, hp42.detail)
 
+-- ── ACT 组：动作承诺与输入不囤积 ──────────────────────────────────────────
+local function countEvent(evs, name)
+    local n = 0
+    for i = 1, #evs do
+        if evs[i].name == name then
+            n = n + 1
+        end
+    end
+    return n
+end
+
+local function quietStage()
+    local sim = freshSim()
+    local ox = baseX(sim)
+    buildStage(sim, ox + 1200, ox + 1700, nil)
+    placePlayer(sim, ox + 1300, 0, 1)
+    sim.enemies = { gunner(sim, ox + 1500, 0) }
+    return sim, ox
+end
+
+print("")
+print("=== ACT 组：动作承诺（握持 / 只按一次 / 纵深与姿态独立）===")
+
+local simA1, oxA1 = quietStage()
+simA1.gripping = true
+do
+    local inp = newInput()
+    inp.fire.pressed = true
+    simA1:update(STEP, inp)
+end
+record("ACT", "ACT-01 握柄时开火被拒", 0, countEvent(drain(simA1), "shotResolved"), "gripping=true 且按下开火")
+
+local simA2 = quietStage()
+do
+    local inp = newInput()
+    inp.fire.pressed = false
+    inp.fire.held = true
+    simA2:update(STEP, inp)
+end
+record("ACT", "ACT-02 只按住不新按下不开火", 0, countEvent(drain(simA2), "shotResolved"), "held=true pressed=false")
+
+local simA3 = quietStage()
+local depth0 = simA3.player.depth
+local crouch0 = simA3.player.crouch
+local inpA3 = newInput()
+inpA3.moveY = 1
+for i = 1, 8 do
+    simA3:update(STEP, inpA3)
+end
+record("ACT", "ACT-03 纵向输入改变纵深", true, simA3.player.depth ~= depth0,
+    string.format("depth %s -> %s", tostring(depth0), tostring(simA3.player.depth)))
+record("ACT", "ACT-03 纵向输入不改姿态", crouch0, simA3.player.crouch,
+    "crouch=" .. tostring(simA3.player.crouch))
+
+print("")
+print("=== HP 组补充：残血反制与暂停冻结保护 ===")
+
+local simH, oxH = quietStage()
+simH.hp = 1
+playerShotOnce(simH, oxH + 1500, 46.2)
+record("HP", "HP-02 1HP 仍能反制开火", 1, countEvent(drain(simH), "shotResolved"), "hp=1")
+
+local simP = quietStage()
+simP.invulnT = 10
+simP.paused = true
+local inpP = newInput()
+for i = 1, 30 do
+    simP:update(STEP, inpP)
+end
+record("HP", "HP-03 暂停不消耗剩余保护", 10, simP.invulnT, "暂停中推进 30 拍")
+
+print("")
+print("=== HIT-04：翻滚不是全方向免疫 ===")
+
+local function rollTrial(front)
+    local sim, ox = quietStage()
+    local sh = gunner(sim, ox + 1300 + (front and 40 or -40), 0, { kind = "shield", shieldHp = 2 })
+    sim.enemies = { sh }
+    local hits = 0
+    for i = 1, 8 do
+        sim.player.rollT = 0.5
+        local inp = newInput()
+        sim:update(STEP, inp)
+        if firstEvent(drain(sim), "actorHit", function(d)
+                return d.target == "player"
+            end) then
+            hits = hits + 1
+        end
+    end
+    return { hits = hits, hp = sim.hp }
+end
+
+local rollFront = rollTrial(true)
+local rollBack = rollTrial(false)
+record("HIT", "HIT-04 翻滚抵消正面来击", 0, rollFront.hits, "盾手在前 + 持续翻滚")
+record("HIT", "HIT-04 翻滚不抵消背后来击", 1, rollBack.hits, "盾手在后 + 持续翻滚")
+
+
 -- ── 汇总 ───────────────────────────────────────────────────────────────────
 print("")
 print(string.format("总计 %d 项，失败 %d 项", #results, failures))

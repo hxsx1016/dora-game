@@ -705,9 +705,6 @@ export class Play {
         if (input.pause.pressed) {
             this.paused = !this.paused;
         }
-        if (this.invulnT > 0) {
-            this.invulnT -= 1;
-        }
         if (this.flashT > 0) {
             this.flashT -= dt;
             if (this.flashT <= 0) {
@@ -726,6 +723,11 @@ export class Play {
         }
 
         this.ticks += 1;
+        // 保护按「可控模拟拍」走，暂停期间不递减：从暂停里回来时，
+        // 剩余保护应当还是离开时那么多，而不是被墙钟吃掉。
+        if (this.invulnT > 0) {
+            this.invulnT -= 1;
+        }
         if (this.isCampaign) {
             this.run.ticks += 1;
             this.run.roomTicks[this.room.key] = (this.run.roomTicks[this.room.key] ?? 0) + 1;
@@ -2056,7 +2058,11 @@ export class Play {
                 e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
             }
         } else if (adx < 48 && sameLane && (e.swingT ?? 0) <= 0) {
-            if (p.rollT <= 0 && this.invulnT <= 0) {
+            // 翻滚只抵消正面来击：盾手在背后挥过来时，往前滚等于把后背送上去。
+            // 全向免疫会让翻滚变成无成本的万能键，也就没有"看时机再滚"可言。
+            const fromFront = (e.x - p.x) * p.facing > 0;
+            const rollDodges = p.rollT > 0 && fromFront;
+            if (!rollDodges && this.invulnT <= 0) {
                 this.invulnT = INVULN_HIT_TICKS;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
