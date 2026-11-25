@@ -44,6 +44,8 @@ let campaignDraw: DrawNode.Type | undefined;
 let campaignHud: Label.Type | undefined;
 let campaignSub: Label.Type | undefined;
 let run: RunState | undefined;
+/** 正式剧情的跨房状态；模式 1 整局一份，切房与 R 重试都复用它。 */
+let storyRun: RunState | undefined;
 let rulerLabel: Label.Type | undefined;
 let standLabel: Label.Type | undefined;
 let cartLabel: Label.Type | undefined;
@@ -274,6 +276,10 @@ function enterPlayRoom(idx: number): void {
         fe.screen = "play";
     }
     play = undefined;
+    // 从菜单「开始」进序章视为开新局；其它章节直达保留既有跨房状态。
+    if (idx === 0) {
+        storyRun = createRun();
+    }
     ensurePlay();
 }
 
@@ -380,7 +386,12 @@ function ensurePlay(resume?: { checkpoint: number }): void {
         }
         play = new Play(CAMPAIGN_ROOMS[current], undefined, run);
     } else {
-        play = new Play(ROOMS[current], resume);
+        // 正式剧情：整局只有一份跨房状态，血量、过门锁线与演出快照都在里面。
+        // 重试与切房都重建 Play，但不再满血重算。
+        if (storyRun === undefined) {
+            storyRun = createRun();
+        }
+        play = new Play(ROOMS[current], resume, storyRun);
     }
     registerPlay();
     clock.reset();

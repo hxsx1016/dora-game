@@ -1652,7 +1652,7 @@ function StageRenderer.prototype.drawGateShutter(self, fgDraw, fgGlow, assets, p
 		closeFrac = 0.44 -- 910
 	elseif p.phase == "gate-count" then -- 910
 		closeFrac = 0.44 + 0.56 * math.min(1, p.countTick / 360) -- 912
-	elseif p.phase == "gate-walk" then -- 912
+	elseif p.phase == "gate-walk" or p.phase == "gate-wait" or p.phase == "gate-hand" then -- 912
 		closeFrac = 1 -- 914
 	end -- 914
 	local gx0 = cam:sx(848) -- 916

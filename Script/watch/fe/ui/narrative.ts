@@ -49,7 +49,7 @@ export class NarrativeRenderer {
         }
         const wantCinema =
             (p.room.key === "prologue" && p.phase === "prologue-give")
-            || (p.room.key === "gate" && p.phase === "gate-count")
+            || (p.room.key === "gate" && (p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
             || (p.room.key === "tower" && p.phase !== "tower-wait");
         const target = wantCinema ? 1 : 0;
         this.letterbox += (target - this.letterbox) * Math.min(1, dt * 4.5);

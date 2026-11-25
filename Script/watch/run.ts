@@ -31,6 +31,62 @@ export interface PropState {
 
 export type RouteTag = "outer" | "drygoods" | "";
 
+/**
+ * 正式剧情的结局路线：与房内岔路 RouteTag 分开。
+ * child = 小满带伤送别后自己数完出城；soldier = 守住 80% 血量门槛后长按牵手。
+ * 空串表示还没过门锁线。
+ */
+export type StoryRoute = "child" | "soldier" | "";
+
+/**
+ * 正式剧情跨房状态：周戍血量与上限、过门锁存、风台演出快照。
+ *
+ * 只放必须在房间之间活下来的东西；房间几何与敌兵仍属房间数据。
+ * 演出快照（phase/countTick/phaseTick/handTicks）只在同名房间重试或续读时启用，
+ * 切到别的房间一律从新房间的默认阶段开始。
+ */
+export interface StoryState {
+    route: StoryRoute;
+    /** 周戍当前血量，跨房继承；新房不得满血重算。 */
+    hp: number;
+    /** 周戍血量上限，扩容后按比例判定门槛。 */
+    maxHp: number;
+    /** 殿后最后一拍伤害结算后的锁存血量；-1 表示还没锁线。 */
+    hpAtGate: number;
+    /** 锁存时点的上限；上限为正时 100*hpAtGate >= 80*maxHpAtGate 走 soldier。 */
+    maxHpAtGate: number;
+    /** 已锁线（小满已安全过门）。锁线后重试/切房都不重算。 */
+    settled: boolean;
+    /** 风台演出快照：所在阶段与计数拍。 */
+    phase: string;
+    countTick: number;
+    phaseTick: number;
+    handTicks: number;
+    /** 牵手已完成，台词只一次。 */
+    handDone: boolean;
+    lineSaid: boolean;
+    /** 牵手演出已完成后的同行段标记。 */
+    tied: boolean;
+}
+
+export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
+    return {
+        route: "",
+        hp: hp,
+        maxHp: maxHp,
+        hpAtGate: -1,
+        maxHpAtGate: -1,
+        settled: false,
+        phase: "",
+        countTick: 0,
+        phaseTick: 0,
+        handTicks: 0,
+        handDone: false,
+        lineSaid: false,
+        tied: false,
+    };
+}
+
 export type Talent = "vitality" | "reload" | "guard" | "craft";
 export const talentNames: Record<Talent, string> = {
     vitality: "厚甲·体力+1", reload: "熟铳·装填减6拍", guard: "护身·受击保护加12拍", craft: "巧手·制楔减6拍",
@@ -88,6 +144,8 @@ export interface RunState {
     checkpoint: number;
     /** 本轮是否已经完成 C2 灰盒。 */
     finished: boolean;
+    /** 正式剧情的跨房状态（血量、过门锁线、风台演出快照）。 */
+    story: StoryState;
     /** 试玩记录：每次进房、达成目标、拾取都留一行。 */
     log: string[];
 }
@@ -107,6 +165,7 @@ export function createRun(seed: number = 20261124): RunState {
         c2Latch: false,
         checkpoint: 0,
         finished: false,
+        story: createStory(),
         log: [],
     };
 }

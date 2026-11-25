@@ -53,88 +53,92 @@ function CameraDirector.prototype.update(self, dt, p, w, h) -- 56
 			desiredZoom = 0.88 -- 67
 		elseif p.phase == "gate-count" then -- 67
 			desiredZoom = 1.15 -- 69
-		elseif p.phase == "gate-send" then -- 69
-			desiredZoom = 1.06 -- 71
-		end -- 71
-	elseif p.room.key == "outside" then -- 71
-		desiredZoom = p.player.x < 560 and 0.94 or 1.02 -- 75
-	elseif p.room.key == "tower" and p.phase ~= "tower-wait" then -- 75
-		desiredZoom = 1.22 -- 77
-	end -- 77
-	local zk = math.min(1, dt * 3.8) -- 80
-	self.zoom = self.zoom + (desiredZoom - self.zoom) * zk -- 81
-	local lookAhead = p.player.facing * 48 -- 84
-	if not p.childMode and p.aimX > 0 and w > 0 then -- 84
-		local normMouse = (p.aimX / w - 0.5) * 2 -- 86
-		lookAhead = lookAhead + normMouse * 36 -- 87
-	end -- 87
-	if p.room.key == "outside" and p.player.x < 520 then -- 87
-		lookAhead = p.player.x < 280 and 96 or 18 -- 91
-	end -- 91
-	if p.room.key == "gate" and p.phase == "gate-hold" then -- 91
-		lookAhead = 120 -- 94
-	end -- 94
-	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 94
-		lookAhead = (p.partner.x - p.player.x) * 0.5 -- 97
-	end -- 97
-	local tx = p.player.x + lookAhead -- 100
-	local ty = self:targetCamY(p) -- 101
-	local followK = math.min(1, dt * 6.5) -- 102
-	self.x = self.x + (tx - self.x) * followK -- 103
-	self.y = self.y + (ty - self.y) * math.min(1, dt * 5) -- 104
-	if self.shakeAmp > 0.08 then -- 104
-		self.shakePhase = self.shakePhase + dt * 68 -- 108
-		self.shakeX = math.sin(self.shakePhase * 1.3) * self.shakeAmp -- 109
-		self.shakeY = math.cos(self.shakePhase * 1.7) * self.shakeAmp * 0.72 -- 110
-		self.shakeAmp = self.shakeAmp * math.max(0, 1 - dt * 11.5) -- 111
-	else -- 111
-		self.shakeAmp = 0 -- 113
-		self.shakeX = 0 -- 114
-		self.shakeY = 0 -- 115
-	end -- 115
-	self:recomputeMetrics(p, w, h) -- 118
+		elseif p.phase == "gate-wait" then -- 69
+			desiredZoom = 1.12 -- 72
+		elseif p.phase == "gate-hand" then -- 72
+			desiredZoom = 1.22 -- 74
+		elseif p.phase == "gate-send" then -- 74
+			desiredZoom = 1.06 -- 76
+		end -- 76
+	elseif p.room.key == "outside" then -- 76
+		desiredZoom = p.player.x < 560 and 0.94 or 1.02 -- 80
+	elseif p.room.key == "tower" and p.phase ~= "tower-wait" then -- 80
+		desiredZoom = 1.22 -- 82
+	end -- 82
+	local zk = math.min(1, dt * 3.8) -- 85
+	self.zoom = self.zoom + (desiredZoom - self.zoom) * zk -- 86
+	local lookAhead = p.player.facing * 48 -- 89
+	if not p.childMode and p.aimX > 0 and w > 0 then -- 89
+		local normMouse = (p.aimX / w - 0.5) * 2 -- 91
+		lookAhead = lookAhead + normMouse * 36 -- 92
+	end -- 92
+	if p.room.key == "outside" and p.player.x < 520 then -- 92
+		lookAhead = p.player.x < 280 and 96 or 18 -- 96
+	end -- 96
+	if p.room.key == "gate" and p.phase == "gate-hold" then -- 96
+		lookAhead = 120 -- 99
+	end -- 99
+	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 99
+		lookAhead = (p.partner.x - p.player.x) * 0.5 -- 102
+	end -- 102
+	local tx = p.player.x + lookAhead -- 105
+	local ty = self:targetCamY(p) -- 106
+	local followK = math.min(1, dt * 6.5) -- 107
+	self.x = self.x + (tx - self.x) * followK -- 108
+	self.y = self.y + (ty - self.y) * math.min(1, dt * 5) -- 109
+	if self.shakeAmp > 0.08 then -- 109
+		self.shakePhase = self.shakePhase + dt * 68 -- 113
+		self.shakeX = math.sin(self.shakePhase * 1.3) * self.shakeAmp -- 114
+		self.shakeY = math.cos(self.shakePhase * 1.7) * self.shakeAmp * 0.72 -- 115
+		self.shakeAmp = self.shakeAmp * math.max(0, 1 - dt * 11.5) -- 116
+	else -- 116
+		self.shakeAmp = 0 -- 118
+		self.shakeX = 0 -- 119
+		self.shakeY = 0 -- 120
+	end -- 120
+	self:recomputeMetrics(p, w, h) -- 123
 end -- 56
-function CameraDirector.prototype.targetCamY(self, p) -- 121
-	if p.room.key == "outside" and p.player.y >= 60 then -- 121
-		return 102 -- 123
-	end -- 123
-	return 82 + math.max(0, p.player.y - 36) * 0.35 -- 125
-end -- 121
-function CameraDirector.prototype.recomputeMetrics(self, p, w, h) -- 128
-	self.viewW = math.max(320, w) -- 129
-	self.viewH = math.max(180, h) -- 130
-	self.ppu = self.viewH / BASE_VIEW_UNITS_H * self.zoom -- 131
-	self.groundScreenY = self.viewH * GROUND_SCREEN_FRAC -- 132
-	local halfWorldW = self.viewW * 0.5 / self.ppu -- 135
-	local spanX = p.room.maxX - p.room.minX -- 136
-	if spanX <= halfWorldW * 2 then -- 136
-		self.x = (p.room.minX + p.room.maxX) * 0.5 -- 138
-	else -- 138
-		local minCam = p.room.minX + halfWorldW -- 140
-		local maxCam = p.room.maxX - halfWorldW -- 141
-		if self.x < minCam then -- 141
-			self.x = minCam -- 143
-		end -- 143
-		if self.x > maxCam then -- 143
-			self.x = maxCam -- 146
-		end -- 146
-	end -- 146
-end -- 128
-function CameraDirector.prototype.sx(self, wx) -- 152
-	return self.viewW * 0.5 + (wx - self.x) * self.ppu + self.shakeX -- 153
-end -- 152
-function CameraDirector.prototype.sy(self, wy, depth) -- 157
-	if depth == nil then -- 157
-		depth = 0 -- 157
-	end -- 157
-	local yOffset = (self.y - 82) * 0.45 -- 158
-	return self.groundScreenY + (wy + depth - yOffset) * self.ppu + self.shakeY -- 159
+function CameraDirector.prototype.targetCamY(self, p) -- 126
+	if p.room.key == "outside" and p.player.y >= 60 then -- 126
+		return 102 -- 128
+	end -- 128
+	return 82 + math.max(0, p.player.y - 36) * 0.35 -- 130
+end -- 126
+function CameraDirector.prototype.recomputeMetrics(self, p, w, h) -- 133
+	self.viewW = math.max(320, w) -- 134
+	self.viewH = math.max(180, h) -- 135
+	self.ppu = self.viewH / BASE_VIEW_UNITS_H * self.zoom -- 136
+	self.groundScreenY = self.viewH * GROUND_SCREEN_FRAC -- 137
+	local halfWorldW = self.viewW * 0.5 / self.ppu -- 140
+	local spanX = p.room.maxX - p.room.minX -- 141
+	if spanX <= halfWorldW * 2 then -- 141
+		self.x = (p.room.minX + p.room.maxX) * 0.5 -- 143
+	else -- 143
+		local minCam = p.room.minX + halfWorldW -- 145
+		local maxCam = p.room.maxX - halfWorldW -- 146
+		if self.x < minCam then -- 146
+			self.x = minCam -- 148
+		end -- 148
+		if self.x > maxCam then -- 148
+			self.x = maxCam -- 151
+		end -- 151
+	end -- 151
+end -- 133
+function CameraDirector.prototype.sx(self, wx) -- 157
+	return self.viewW * 0.5 + (wx - self.x) * self.ppu + self.shakeX -- 158
 end -- 157
-function CameraDirector.prototype.len(self, worldLen) -- 163
-	return worldLen * self.ppu -- 164
-end -- 163
-function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 168
-	local yOffset = (self.y - 82) * 0.45 -- 169
-	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 170
+function CameraDirector.prototype.sy(self, wy, depth) -- 162
+	if depth == nil then -- 162
+		depth = 0 -- 162
+	end -- 162
+	local yOffset = (self.y - 82) * 0.45 -- 163
+	return self.groundScreenY + (wy + depth - yOffset) * self.ppu + self.shakeY -- 164
+end -- 162
+function CameraDirector.prototype.len(self, worldLen) -- 168
+	return worldLen * self.ppu -- 169
 end -- 168
-return ____exports -- 168
+function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 173
+	local yOffset = (self.y - 82) * 0.45 -- 174
+	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 175
+end -- 173
+return ____exports -- 173

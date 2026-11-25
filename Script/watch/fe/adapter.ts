@@ -30,6 +30,21 @@ export interface FrameEvents {
     phaseChanged: boolean;
     roomChanged: boolean;
     gateWaveSpawned: boolean;
+    /** 守点末拍已锁存结局路线；storyRoute 为 "child" / "soldier"。 */
+    storyRouteLocked: boolean;
+    storyRoute: string;
+    /** 风台待机（两侧都安全），可长按牵手。 */
+    gateRested: boolean;
+    /** 牵手完成的那一拍。 */
+    handJustTied: boolean;
+    /** 牵手中途松手（进度清零）。 */
+    handReleased: boolean;
+    /** 一次性台词「我们走吧。」。 */
+    storyLine: boolean;
+    storyLineText: string;
+    /** 走出出口的那一拍：child=迈步出城，soldier=牵手转同行段。 */
+    storyExit: boolean;
+    storyExitRoute: string;
 }
 
 export interface WorldPrompt {
@@ -39,6 +54,8 @@ export interface WorldPrompt {
     keyTag: string;
     label: string;
     urgent: boolean;
+    /** 长按类提示的进度 0–1；没有进度的提示不填。 */
+    progress?: number;
 }
 
 export class PlayAdapter {
@@ -119,6 +136,14 @@ export class PlayAdapter {
         const phaseChanged = this.prevPhase !== "" && this.prevPhase !== p.phase;
         const gateWaveSpawned = p.gateSpawned > this.prevGateSpawned;
         let migratedRoomChange = false;
+        let storyRouteLocked = false;
+        let gateRested = false;
+        let handJustTied = false;
+        let handReleased = false;
+        let storyLine = false;
+        let storyLineText = "";
+        let storyExit = false;
+        let storyExitRoute = "";
         for (const event of events) {
             if (event.name === "knock") {
                 knockPulse = true;
@@ -142,6 +167,20 @@ export class PlayAdapter {
                 cartJustDocked = true;
             } else if (event.name === "roomChange") {
                 migratedRoomChange = true;
+            } else if (event.name === "storyRouteLocked") {
+                storyRouteLocked = true;
+            } else if (event.name === "gateCountDone" && p.storyRoute === "soldier") {
+                gateRested = true;
+            } else if (event.name === "handHeld") {
+                handJustTied = true;
+            } else if (event.name === "handRelease") {
+                handReleased = true;
+            } else if (event.name === "storyLine") {
+                storyLine = true;
+                storyLineText = typeof event.data.text === "string" ? event.data.text : "";
+            } else if (event.name === "storyExit") {
+                storyExit = true;
+                storyExitRoute = typeof event.data.route === "string" ? event.data.route : "";
             }
         }
 
@@ -185,6 +224,15 @@ export class PlayAdapter {
             phaseChanged,
             roomChanged: roomChanged || migratedRoomChange,
             gateWaveSpawned,
+            storyRouteLocked,
+            storyRoute: p.storyRoute,
+            gateRested,
+            handJustTied,
+            handReleased,
+            storyLine,
+            storyLineText,
+            storyExit,
+            storyExitRoute,
         };
     }
 }
@@ -221,6 +269,22 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
         }
         if (p.phase === "gate-send" && Math.abs(player.x - gate.doorX) <= 60 && inReachDepth(player.depth)) {
             return { x: gate.doorX, y: 98, keyTag: "E", label: "送小满出城", urgent: true };
+        }
+        if (p.phase === "gate-wait") {
+            // 风台待机：提示长按，进度随有效拍推进；松手即清零，可重试。
+            const ratio = Math.max(0, Math.min(1, p.handTicks / p.handNeedTicks));
+            return {
+                x: gate.doorX + 30, y: 96,
+                keyTag: p.handArmed ? "按住 E" : "松开再按住 E",
+                label: p.handTicks > 0 ? "牵起小满" : "把手伸给她",
+                urgent: p.handArmed, progress: ratio,
+            };
+        }
+        if (p.phase === "gate-hand") {
+            return { x: gate.doorX + 30, y: 96, keyTag: "E", label: "我们走吧。", urgent: false };
+        }
+        if (p.phase === "gate-walk") {
+            return { x: player.x, y: player.y + player.h + 22, keyTag: "→", label: "走向城外", urgent: false };
         }
     }
 

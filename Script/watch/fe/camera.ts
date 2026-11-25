@@ -67,6 +67,11 @@ export class CameraDirector {
                 desiredZoom = 0.88;
             } else if (p.phase === "gate-count") {
                 desiredZoom = 1.15;
+            } else if (p.phase === "gate-wait") {
+                // 风台待机：风一直吹，镜头留在门边等她伸手。
+                desiredZoom = 1.12;
+            } else if (p.phase === "gate-hand") {
+                desiredZoom = 1.22;
             } else if (p.phase === "gate-send") {
                 desiredZoom = 1.06;
             }
