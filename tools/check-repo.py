@@ -47,6 +47,8 @@ def main():
     modules = {ROOT / "init"}
     watch = ROOT / "Script" / "watch"
     for path in files:
+        if path == watch / "testdrive.lua":
+            continue
         if watch in path.parents and path.suffix in {".ts", ".lua"} and not path.name.endswith(".d.ts"):
             modules.add(path.parent / path.stem)
     for module in sorted(modules):
