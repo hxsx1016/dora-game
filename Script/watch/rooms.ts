@@ -513,7 +513,7 @@ export const STREET_ROOM: RoomSpec = {
 
 /**
  * 城门：周戍把小满送到门洞等待点，自己回到绞盘；两人就位后开始 45 秒守点。
- * 守满后玩家走到门边按 E 送别，接着是数到一百与交权。
+ * 守满后玩家走到门边按 E 送别，接着是数到二十与交权。
  */
 export const GATE_ROOM: RoomSpec = {
     key: "gate",

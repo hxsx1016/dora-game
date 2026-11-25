@@ -25,6 +25,19 @@ local function check(tag, cond, detail)
 	end
 end
 
+do
+	local previous = 1
+	local continuous = true
+	for tick = 0, play.GATE_COUNT_END do
+		local current = play.gateCountAtTick(tick)
+		continuous = continuous and current >= previous and current <= previous + 1
+		previous = current
+	end
+	check("风台连续数到二十", continuous and play.gateCountAtTick(0) == 1 and previous == 20)
+	check("十八贴门，十九停息", play.gateCountAtTick(1080) == 18 and play.gateCountAtTick(1260) == 19)
+	check("末拍才到二十", play.gateCountAtTick(1439) == 19 and play.gateCountAtTick(1500) == 20)
+end
+
 local function newInput()
 	local i = lualib.__TS__New(input.Input)
 	i.moveX = 0

@@ -279,7 +279,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         moonXFrac: 0.68,
         moonYFrac: 0.82,
         defaultZoom: 0.96,
-        introWhisper: "数到一百，门后再无应声。拉开车辙，伏身穿过石拱。",
+        introWhisper: "数到二十，门后再无应声。拉开车辙，伏身穿过石拱。",
     },
     village: {
         key: "village",

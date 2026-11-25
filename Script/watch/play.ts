@@ -23,6 +23,15 @@ import { ACTOR_DEPTH_HALF, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } f
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
 export const GRAVITY = 1000;
+export const GATE_COUNT_END = 1440;
+
+export function gateCountAtTick(tick: number): number {
+    if (tick >= GATE_COUNT_END) return 20;
+    if (tick >= 1260) return 19;
+    if (tick >= 1080) return 18;
+    if (tick >= 480) return 11 + Math.floor((tick - 480) * 7 / 600);
+    return 1 + Math.floor(Math.max(0, tick) / 48);
+}
 /** 投瓶的固定飞行时长（秒）：触地拍 = 松手拍 + 37 拍。 */
 const BOTTLE_FLY_TIME = 0.62;
 
@@ -362,7 +371,7 @@ export class Play {
     phaseTick = 0;
     /** 城门守点累计的可操作拍数；暂停不增。 */
     gateTick = 0;
-    /** 数到一百的拍数（24 秒 = 1440）。 */
+    /** 数到二十的拍数（24 秒 = 1440）。 */
     countTick = 0;
     /** 数数阶段必须先松开方向键，新按才算迈步。 */
     countArmed = false;
@@ -1196,7 +1205,7 @@ export class Play {
         }
     }
 
-    /** 城门：两人就位 → 45 秒守点 → 门边按 E 送别 → 关门数到一百 → 新按 D 迈步。 */
+    /** 城门：两人就位 → 45 秒守点 → 门边按 E 送别 → 关门数到二十 → 新按 D 迈步。 */
     private stepGate(dt: number, input: Input): void {
         const g = this.room.story === undefined ? undefined : this.room.story.gate;
         if (g === undefined) {
@@ -1293,14 +1302,14 @@ export class Play {
             this.countTick += 1;
             if (this.countTick === 360) {
                 this.flashSet("门关上", 0.9);
-            } else if (this.countTick === 1020) {
-                this.flashSet("数到一百", 2.2);
+            } else if (this.countTick === GATE_COUNT_END) {
+                this.flashSet("数到二十", 2.2);
             }
             // 24 秒之后才认「新按下」：上一拍没按、这一拍按下。
             // 1439 拍就按住不放的，没有上升沿，必须松开再按。
             const prevMove = this.countPrevMove;
             this.countPrevMove = input.moveX;
-            if (this.countTick >= 1440) {
+            if (this.countTick >= GATE_COUNT_END) {
                 if (prevMove <= 0 && input.moveX > 0) {
                     this.countArmed = true;
                 }
@@ -3518,10 +3527,10 @@ export class Play {
                     return "去门边 860 按 E 送别 · 她已经站在门口";
                 }
                 if (this.phase === "gate-count") {
-                    if (this.countTick >= 1440) {
+                    if (this.countTick >= GATE_COUNT_END) {
                         return this.countPrevMove > 0 ? "先松开方向键，再按 D" : "按 D · 让她迈出第一步";
                     }
-                    return "数到一百 " + this.countTick + " / 1440 拍 · 门正在关";
+                    return "数到二十 " + this.countTick + " / 1440 拍 · 门正在关";
                 }
                 return "她自己走 · 跟着出城门 1120";
             }

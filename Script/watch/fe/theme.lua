@@ -246,7 +246,7 @@ ____exports.ROOM_THEMES = { -- 138
 		moonXFrac = 0.68, -- 279
 		moonYFrac = 0.82, -- 280
 		defaultZoom = 0.96, -- 281
-		introWhisper = "数到一百，门后再无应声。拉开车辙，伏身穿过石拱。" -- 282
+		introWhisper = "数到二十，门后再无应声。拉开车辙，伏身穿过石拱。" -- 282
 	}, -- 282
 	village = { -- 284
 		key = "village", -- 285
