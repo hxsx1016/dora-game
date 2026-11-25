@@ -94,7 +94,8 @@ export type PlayEventName =
     | "benchClose"
     | "benchRejected"
     | "trialShot"
-    | "endingReached";
+    | "endingReached"
+    | "artifactFound";
 
 /** 工台视图：字段名与 fe/contract.ts 的 CraftBenchSnapshot 对齐。 */
 export interface CraftBenchView {
@@ -489,6 +490,16 @@ export class Play {
     readonly inventory: Inventory;
     /** 双通关档案引用：C 单读取的结局结果。 */
     readonly archive: ArchiveState;
+    /** 档案有变化、等 app 落盘；Play 本身不碰文件。 */
+    archiveDirty = false;
+    /** 片尾按 E 回序章：app 收到后新建局内状态，但共享同一份档案。 */
+    restartStory = false;
+    /** 序章旧井：双通关且尚未取到穿梭器时开放。 */
+    wellOpen = false;
+    /** 旧井的段内 x；前端按真实可见性画井光与声源。 */
+    readonly wellX = 430;
+    /** 本局已从井里取到穿梭器。 */
+    wellTaken = false;
     /** 北塔登记簿两行：第一行一律小满，第二行团圆线周戍、单人线留白。 */
     endingLines: string[] = ["", ""];
 
@@ -823,6 +834,9 @@ export class Play {
         if (kind === "craftClose") {
             this.closeCraftBench();
             return true;
+        }
+        if (kind === "wellPick") {
+            return this.pickWell();
         }
         return false;
     }
@@ -1792,11 +1806,44 @@ export class Play {
     }
 
     /** 序章：走近递针套，60 拍后她开始跟随，两人一起出门。 */
+    /** 井口开放条件：两种结局都走过，且还没取到穿梭器。 */
+    wellWindow(): boolean {
+        return !this.archive.artifactOwned && this.archive.childCleared && this.archive.soldierCleared;
+    }
+
+    /** 玩家是否站在井沿旁（段内 x=430，前后 44）。 */
+    private nearWell(): boolean {
+        return Math.abs(this.player.x - (this.ox + this.wellX)) <= 44
+            && this.player.y < 20 && inReachDepth(this.player.depth, 0);
+    }
+
+    /**
+     * 井口主动交互：只在等待段、双通关、未取过、站在井沿时成立。
+     * 返回 true 表示进入拾取演出；重复调用与窗口前后一律拒绝，不重复发。
+     */
+    pickWell(): boolean {
+        if (!this.wellWindow() || this.wellTaken || this.phase !== "prologue-wait" || !this.nearWell()) {
+            return false;
+        }
+        this.phase = "prologue-well";
+        this.phaseTick = 0;
+        this.wellOpen = false;
+        this.flashSet("井沿 · 伸手下去", 1.4);
+        this.log("旧井拾取");
+        return true;
+    }
+
     private stepPrologue(dt: number, input: Input): void {
         const child = this.partner;
+        // 井口只在「进屋寻小满、尚未靠柜特写」的等待段可见；拿到穿梭器就消失。
+        this.wellOpen = this.phase === "prologue-wait" && this.wellWindow() && !this.wellTaken;
         if (this.phase === "prologue-wait") {
             child.crouch = true;
             child.h = CHILD_CROUCH_H;
+            if (this.wellOpen && input.interact.pressed && this.nearWell()) {
+                this.pickWell();
+                return;
+            }
             const reach = this.room.story === undefined || this.room.story.prologue === undefined
                 ? 46 : this.room.story.prologue.giveReach;
             const near = Math.abs(this.player.x - child.x) <= reach && inReachDepth(this.player.depth, child.depth);
@@ -1804,6 +1851,27 @@ export class Play {
                 this.phase = "prologue-give";
                 this.phaseTick = 0;
                 this.flashSet("递出针套", 1.0);
+            }
+            return;
+        }
+        if (this.phase === "prologue-well") {
+            // 沿侧灶、后院走到旧井，伸手取「时间穿梭器」：只发一次、立刻记进档案。
+            this.phaseTick += 1;
+            if (this.phaseTick === 12) {
+                this.flashSet("井底有光 · 一截铁柄", 1.2);
+            } else if (this.phaseTick >= 30) {
+                this.phase = "prologue-wait";
+                this.phaseTick = 0;
+                this.wellTaken = true;
+                this.wellOpen = false;
+                this.run.archive.artifactOwned = true;
+                this.archiveDirty = true;
+                this.emit("artifactFound", {
+                    x: this.ox + this.wellX, y: 0, room: "prologue", once: true,
+                    source: this.run.source,
+                });
+                this.flashSet("时间穿梭器 · 收进袖口", 2.0);
+                this.log("井底取到时间穿梭器");
             }
             return;
         }
@@ -2196,6 +2264,7 @@ export class Play {
                         } else {
                             this.run.archive.childCleared = true;
                         }
+                        this.archiveDirty = true;
                     }
                     this.log("结局 " + ending + (official ? " · 正式" : " · 预览"));
                     this.emit("endingReached", {
@@ -2215,6 +2284,8 @@ export class Play {
             return;
         }
         if (input.interact.pressed || input.retry.pressed) {
+            // 回序章要重开一份局内状态（清路线、材料、拾取、检查点），但档案仍共享同一份。
+            this.restartStory = true;
             this.requestRoom("prologue", "片尾再玩");
             this.flashSet("回到序章", 1.4);
         }
