@@ -103,3 +103,14 @@
 适配结论：
 待询问用户：
 ```
+
+## 前端双线开发快捷入口（`feature/fe-dual-route`）
+
+本分支是前端团队基于 `feature/watch-level-rework@648ff43` 建立的前端总集成分支（后端零侵入，最终整条合好交付 tqym）。
+
+若用户在新对话中发出以下任一**快捷开工口令**，Agent 须立即阅读[前端双线开发总控与阶段任务书](docs/前端双线开发总控与阶段任务书.md)及对应阶段施工书，按规范切出独立任务 worktree 与分支后直接开工（严禁修改 `play.ts`/`run.ts`/`rooms.ts`/`depth.ts`/`app.ts` 等后端文件）：
+
+- `开工前端第零阶段` / `开工 fe-00` → [docs/fe-phases/00-foundation.md](docs/fe-phases/00-foundation.md)（串行必先完成，形成合流点 M0）
+- `开工前端01` / `开工前端02` / `开工前端03` → [docs/fe-phases/wave1-01-03.md](docs/fe-phases/wave1-01-03.md)（M0 后三路并行，完成后合流 M1）
+- `开工前端04` / `开工前端05` / `开工前端06` → [docs/fe-phases/wave2-04-06.md](docs/fe-phases/wave2-04-06.md)（M1 后三路并行，完成后合流 M2）
+- `开工前端收口阶段` / `开工 fe-07` → [docs/fe-phases/07-qa-pack.md](docs/fe-phases/07-qa-pack.md)（M2 后串行收口与离线包验收）

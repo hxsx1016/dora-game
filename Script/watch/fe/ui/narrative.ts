@@ -72,6 +72,7 @@ export class NarrativeRenderer {
         p: Play,
         w: number,
         h: number,
+        assistHintsEnabled: boolean = false,
     ): void {
         // 1. 电影遮幅（极轻霜丝边）
         if (this.letterbox > 0.01) {
@@ -90,12 +91,12 @@ export class NarrativeRenderer {
         // 3. 北塔尾声「登记簿末页」高清冷素宣纸页
         const showRegistry = p.room.key === "tower" && (p.phase === "tower-end" || (p.phase === "tower-given" && p.phaseTick >= 120));
         if (showRegistry) {
-            this.drawTowerRegistryCard(uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h);
+            this.drawTowerRegistryCard(uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled);
         }
 
         // 4. 底部《饿殍》风烟黛渐变旁白长幕 + 上沿霜月海棠结
         if (!p.paused && !showRegistry) {
-            this.drawSubtitleStrip(uiDraw, uiInkDraw, art, texts, p, w, h);
+            this.drawSubtitleStrip(uiDraw, uiInkDraw, art, texts, p, w, h, assistHintsEnabled);
         }
 
         // 5. 切场烟岚行书区域标题卡
@@ -122,8 +123,9 @@ export class NarrativeRenderer {
         p: Play,
         w: number,
         h: number,
+        assistHintsEnabled: boolean,
     ): void {
-        const line = this.composeNarrativeLine(p);
+        const line = this.composeNarrativeLine(p, assistHintsEnabled);
         if (line.text === "") {
             return;
         }
@@ -153,10 +155,64 @@ export class NarrativeRenderer {
         }
     }
 
-    /** 将后端状态译作清雅克制的古风旁白与动作短句（贴合明代火铳与最新交互指引） */
-    private composeNarrativeLine(p: Play): { cue: string; text: string; urgent: boolean } {
+    /** 将后端状态译作清雅克制的古风旁白；默认低引导下屏蔽按键教学与催促文案，开「按键辅助」后恢复 */
+    private composeNarrativeLine(p: Play, assistHintsEnabled: boolean): { cue: string; text: string; urgent: boolean } {
         const key = p.room.key;
         const theme = themeOf(key);
+
+        if (key === "gate" && p.phase === "gate-count") {
+            if (p.countTick >= GATE_COUNT_END) {
+                return {
+                    cue: "",
+                    text: "……二十了。我往北去了。",
+                    urgent: false,
+                };
+            }
+            return { cue: "", text: "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent: false };
+        }
+
+        if (!assistHintsEnabled) {
+            // 默认低引导：只保留纯剧情台词、状态事件与即时战斗结果反馈，彻底关闭 [W/S]/[SHIFT]/[E]/[CTRL]/[F] 操作引导
+            if (key === "prologue" && p.phase === "prologue-give") {
+                return { cue: "", text: "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent: false };
+            }
+            if (key === "checkpoint" && p.escort.state === "calming") {
+                return { cue: "", text: "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent: false };
+            }
+            if (key === "tower") {
+                if (p.phase === "tower-knock") {
+                    return { cue: "", text: "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent: false };
+                }
+                if (p.phase === "tower-given") {
+                    return { cue: "", text: "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent: false };
+                }
+            }
+            if (p.flash !== "" && p.flashT > 0) {
+                // 过滤后端 flash 里含显式按键指令的引导句（如「按 E」「按 F」「按 Shift」），仅留即时结果反馈
+                const hasKeyHint = p.flash.indexOf("按 E") >= 0
+                    || p.flash.indexOf("按 F") >= 0
+                    || p.flash.indexOf("按 Shift") >= 0
+                    || p.flash.indexOf("按 Ctrl") >= 0
+                    || p.flash.indexOf("E 再玩") >= 0;
+                if (!hasKeyHint) {
+                    const isDanger = p.flash.indexOf("中弹") >= 0 || p.flash.indexOf("被抓") >= 0 || p.flash.indexOf("击倒") >= 0 || p.flash.indexOf("看见") >= 0 || p.flash.indexOf("追") >= 0;
+                    let text = p.flash;
+                    let cue = isDanger ? "危" : (p.childMode ? "潜" : "战");
+                    if (key === "tower" || key === "prologue") {
+                        cue = "";
+                    }
+                    if (text === "命中") {
+                        text = "倭寇击倒";
+                    } else if (text === "打空") {
+                        text = "铅丸偏离或被掩体阻挡";
+                    } else if (text === "翻滚") {
+                        text = "伏身翻滚回避";
+                    }
+                    return { cue, text, urgent: isDanger };
+                }
+            }
+            return { cue: "", text: "", urgent: false };
+        }
 
         if (key === "gate" && p.phase === "gate-hold") {
             let threatened = false;
@@ -355,6 +411,7 @@ export class NarrativeRenderer {
         p: Play,
         w: number,
         h: number,
+        assistHintsEnabled: boolean,
     ): void {
         const cardW = 588;
         const cardH = 382;
@@ -414,7 +471,8 @@ export class NarrativeRenderer {
             drawLoneSeal(uiInkDraw, art, texts, "reg_lone_seal", midX + 86, signY, 22, 42, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.92, 4);
 
             drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 360, 32, PALETTE.inkWash, 0.72, 0);
-            texts.put("xs", "按 E 再次启程     ·     Esc 暂歇", midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
+            const endHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
+            texts.put("xs", endHint, midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
         }
     }
 

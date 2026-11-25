@@ -1,20 +1,24 @@
 /**
- * 《守望》像素贴图前端总控器。
+ * 《守望》像素贴图前端总控器（Phase 0 · 底座与插件扩展架构）。
  *
  * 职责边界：
  * - 统一管理 Dora SSR 渲染节点分层（远景 / 远景发光 / 外部 Sprite 槽位 / 前景 / 前景发光 / UI / UI 发光 / 文本池）；
- * - 接管标题菜单、章节直达、操作图鉴、局内渲染、动态镜头、VFX、HUD 与电影叙事演出；
- * - 后端零侵入：只读消费 Play 实例，并把高清 CameraDirector.screenToWorld 注入 Play.worldMapper；
- * - 挂出运行时验收钩子 package.loaded["watch.fe"]，便于自动化切场/演示状态与高清截帧验收。
+ * - 集成双模式契约（contract）、分轨防重播音频（audio）与零冲突渲染插件体系（plugins）；
+ * - 实现双时钟分离（worldDt = safeDt * view.timeScale，uiDt = safeDt；暂停全部归零冻结）；
+ * - 后端零侵入：只读消费 Play 实例并注入高清 CameraDirector.screenToWorld，
+ *   惰性向 package.loaded["watch.fe"] 挂载 contract/audio/registerPlugin 调试钩子（零改动 app.ts）。
  */
 
-import { BlendFunc, BlendOp, DrawNode, Node } from "Dora";
+import { BlendFunc, BlendOp, DrawNode, Node, TextAlign } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
-import { PlayAdapter } from "Script/watch/fe/adapter";
+import { FrameEvents, PlayAdapter } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
+import { AudioDirector } from "Script/watch/fe/audio";
 import { CameraDirector } from "Script/watch/fe/camera";
+import { DualRouteContract } from "Script/watch/fe/contract";
 import { DepthOcclusion } from "Script/watch/fe/occlusion";
+import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
@@ -23,7 +27,14 @@ import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
 import { MenuAction, MenuRenderer, ScreenKind } from "Script/watch/fe/ui/menus";
-import { themeOf } from "Script/watch/fe/theme";
+import { PALETTE, drawSilkVeil, themeOf, toColor } from "Script/watch/fe/theme";
+import { MingArtAuditPlugin } from "Script/watch/fe/renderer/ming_audit";
+import { GateTransitionPlugin } from "Script/watch/fe/scenes/gate_transition";
+import { CarryPosePlugin } from "Script/watch/fe/renderer/carry_pose";
+import { PrologueIntroPlugin } from "Script/watch/fe/cutscenes/prologue_intro";
+import { CuffShotsPlugin } from "Script/watch/fe/cutscenes/cuff_shots";
+import { ReloadWheelPlugin } from "Script/watch/fe/ui/reload_wheel";
+import { CraftBenchPlugin } from "Script/watch/fe/ui/craft_bench";
 
 export class WatchFrontend {
     private occlusion = new DepthOcclusion();
@@ -43,6 +54,8 @@ export class WatchFrontend {
 
     readonly cam = new CameraDirector();
     readonly adapter = new PlayAdapter();
+    readonly contract = new DualRouteContract();
+    readonly audio = new AudioDirector();
     readonly stage = new StageRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
@@ -50,6 +63,8 @@ export class WatchFrontend {
     readonly hud = new HudRenderer();
     readonly narrative = new NarrativeRenderer();
     readonly menus = new MenuRenderer();
+
+    private plugins: FeRenderPlugin[] = [];
 
     screen: ScreenKind = "title";
     private time = 0;
@@ -59,6 +74,8 @@ export class WatchFrontend {
         this.layerRoot = Node();
         this.layerRoot.order = 5;
         this.layerRoot.addTo(parent);
+
+        this.audio.attachHost(this.layerRoot);
 
         const additive = BlendFunc(BlendOp.SrcAlpha, BlendOp.One);
 
@@ -103,6 +120,102 @@ export class WatchFrontend {
         this.uiGlow.addTo(this.uiLayer);
 
         this.texts = new TextPool(this.uiLayer, 10);
+
+        // 合流点 M1：按渲染分层与依赖优先级统一注册 Wave 1 全部 7 枚前端插件
+        // 1. MingArtAuditPlugin（非八房明朝底图拦截 + 材质/灰度/红布校验）
+        // 2. GateTransitionPlugin（风台 24s 转景舞台与遮幅，必须先于 CuffShotsPlugin）
+        // 3. CarryPosePlugin（牵手 / 蹲背攀爬 / 背负 / 工台放下叠层）
+        // 4. PrologueIntroPlugin（共同序章 P01-P02 过场与 P04 墙根枪火）
+        // 5. CuffShotsPlugin（同一道补线袖口 P03 / P05 / G05，叠加在风台遮幅之上）
+        // 6. ReloadWheelPlugin（3×3 慢时连线换弹全速 UI 与水墨效果反馈）
+        // 7. CraftBenchPlugin（第三段安全工台与首次试握动画）
+        this.registerPlugin(new MingArtAuditPlugin());
+        this.registerPlugin(new GateTransitionPlugin());
+        this.registerPlugin(new CarryPosePlugin());
+        this.registerPlugin(new PrologueIntroPlugin());
+        this.registerPlugin(new CuffShotsPlugin());
+        this.registerPlugin(new ReloadWheelPlugin(this.contract));
+        this.registerPlugin(new CraftBenchPlugin(this.contract));
+    }
+
+    /** 注册前端渲染插件（按 id 幂等覆盖并保持既有优先级槽位），供 Wave 1 / Wave 2 并行模块零冲突挂载 */
+    registerPlugin(plugin: FeRenderPlugin): void {
+        let i = 0;
+        for (i = 0; i < this.plugins.length; i++) {
+            if (this.plugins[i].id === plugin.id) {
+                this.plugins[i] = plugin;
+                this.syncRuntimeHooks();
+                if (this.boundPlay !== undefined && plugin.onBindPlay !== undefined) {
+                    plugin.onBindPlay(this.boundPlay, this.contract.peekSnapshot(this.boundPlay));
+                }
+                return;
+            }
+        }
+        this.plugins.push(plugin);
+        this.syncRuntimeHooks();
+        if (this.boundPlay !== undefined && plugin.onBindPlay !== undefined) {
+            plugin.onBindPlay(this.boundPlay, this.contract.peekSnapshot(this.boundPlay));
+        }
+    }
+
+    /** 卸载指定 id 的渲染插件 */
+    unregisterPlugin(id: string): void {
+        let w = 0;
+        let i = 0;
+        for (i = 0; i < this.plugins.length; i++) {
+            if (this.plugins[i].id !== id) {
+                this.plugins[w] = this.plugins[i];
+                w += 1;
+            }
+        }
+        this.plugins.length = w;
+        this.syncRuntimeHooks();
+    }
+
+    /** 按插件 id 查询当前已挂载实例 */
+    getPlugin(id: string): FeRenderPlugin | undefined {
+        let i = 0;
+        for (i = 0; i < this.plugins.length; i++) {
+            if (this.plugins[i].id === id) {
+                return this.plugins[i];
+            }
+        }
+        return undefined;
+    }
+
+    getPlugins(): readonly FeRenderPlugin[] {
+        return this.plugins;
+    }
+
+    /**
+     * 零侵入同步调试钩子：
+     * app.ts 在构造 WatchFrontend 之后才初始化 package.loaded["watch.fe"]，
+     * 此处惰性向已有表补挂 contract / audio / registerPlugin 与 M1 全部插件实例，避免修改 app.ts。
+     */
+    private syncRuntimeHooks(): void {
+        const g = globalThis as unknown as { package?: { loaded?: Record<string, unknown> } };
+        const loaded = g.package !== undefined ? g.package.loaded : undefined;
+        if (loaded === undefined) {
+            return;
+        }
+        const rawFe = loaded["watch.fe"];
+        if (rawFe !== undefined && typeof rawFe === "object") {
+            const watchFe = rawFe as Record<string, unknown>;
+            if (watchFe["contract"] !== this.contract) {
+                watchFe["contract"] = this.contract;
+                watchFe["audio"] = this.audio;
+                watchFe["registerPlugin"] = (plugin: FeRenderPlugin) => this.registerPlugin(plugin);
+                watchFe["unregisterPlugin"] = (id: string) => this.unregisterPlugin(id);
+                watchFe["getPlugin"] = (id: string) => this.getPlugin(id);
+            }
+            watchFe["mingAudit"] = this.getPlugin("fe03-ming-audit");
+            watchFe["gateTransition"] = this.getPlugin("fe-01-gate-transition");
+            watchFe["carryPose"] = this.getPlugin("fe-02-carry-pose");
+            watchFe["prologue"] = this.getPlugin("fe03-prologue-intro");
+            watchFe["cuffShots"] = this.getPlugin("fe-01-cuff-shots");
+            watchFe["reloadWheel"] = this.getPlugin("fe-02-reload-wheel");
+            watchFe["craftBench"] = this.getPlugin("fe-02-craft-bench");
+        }
     }
 
     private resizeInterface(w: number, h: number): number {
@@ -122,15 +235,29 @@ export class WatchFrontend {
 
     /** 绑定新的 Play 实例（切房间或重试时调用），对齐镜头并挂接高清坐标反算 */
     bindPlay(p: Play, w: number, h: number): void {
+        this.syncRuntimeHooks();
         this.boundPlay = p;
         p.worldMapper = (sx: number, sy: number) => this.cam.screenToWorld(sx, sy);
         this.cam.snap(p, w, h);
         this.adapter.reset(p);
+        this.contract.resetForRoom(p);
+        this.audio.stopRoomTransient();
         this.actors.reset(p);
         this.occlusion.reset();
         this.vfx.reset();
         this.hud.reset(p);
         this.narrative.onEnterRoom(p.room.key);
+
+        if (this.plugins.length > 0) {
+            const initView = this.contract.peekSnapshot(p);
+            let i = 0;
+            for (i = 0; i < this.plugins.length; i++) {
+                const pl = this.plugins[i];
+                if (pl.onBindPlay !== undefined) {
+                    pl.onBindPlay(p, initView);
+                }
+            }
+        }
     }
 
     private clearAll(): void {
@@ -156,6 +283,7 @@ export class WatchFrontend {
 
     /** 菜单态每帧更新与渲染 */
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
+        this.syncRuntimeHooks();
         this.setVisible(true);
         this.clearAll();
         const uiScale = this.resizeInterface(w, h);
@@ -182,53 +310,149 @@ export class WatchFrontend {
 
     /** 局内试玩态每帧更新与渲染（返回暂停菜单动作，非暂停时返回 none） */
     renderPlay(dt: number, p: Play, input: Input, w: number, h: number): MenuAction {
+        this.syncRuntimeHooks();
         this.setVisible(true);
         if (this.boundPlay !== p) {
             this.bindPlay(p, w, h);
         }
         const safeDt = Math.min(0.05, Math.max(0.001, dt));
+        this.audio.setPaused(p.paused);
 
-        // 采样后端边沿事件 → 触发震屏/残影/粒子/顿帧
-        const ev = this.adapter.sample(p);
-        this.vfx.ingest(ev, p, this.cam);
+        let ev: FrameEvents;
+        let worldDt = 0;
+        let uiDt = 0;
 
         if (!p.paused) {
-            this.time += safeDt;
-            this.cam.update(safeDt, p, w, h);
-            this.actors.update(safeDt, p);
-            this.vfx.update(safeDt, themeOf(p.room.key).ambient);
-            this.hud.update(safeDt, p);
-            this.narrative.update(safeDt, p);
+            // 唯一 drainEvents() 消费入口 → 按 seq 顺序分发给 VFX 与分轨音频
+            ev = this.adapter.sample(p);
+            this.vfx.ingest(ev, p, this.cam);
+            this.audio.ingestEvents(ev, p);
         } else {
-            // 暂停时立即收净切场斜切幕布，避免遮挡暂停面板
+            // 暂停态不消费/不补播事件，并立即收净切场斜切幕布
+            ev = this.adapter.emptyFrame(p);
             this.narrative.wipeT = 0;
+        }
+
+        const view = this.contract.sample(p, p.paused ? 0 : safeDt, input, ev);
+        if (!p.paused) {
+            const clampedScale = Math.max(0, Math.min(2, view.timeScale));
+            uiDt = safeDt;
+            worldDt = safeDt * clampedScale;
+        }
+
+        const uiScale = this.resizeInterface(w, h);
+        const uiW = w / uiScale;
+        const uiH = h / uiScale;
+
+        const ctx: FePluginContext = {
+            p,
+            view,
+            events: ev,
+            input,
+            cam: this.cam,
+            audio: this.audio,
+            assets: this.worldArt,
+            backdropArt: this.backdropArt,
+            worldArt: this.worldArt,
+            uiArt: this.uiArt,
+            texts: this.texts,
+            worldDt,
+            uiDt,
+            w,
+            h,
+            uiW,
+            uiH,
+            uiScale,
+            paused: p.paused,
+        };
+
+        // 先执行插件 update（便于风台转景等插件在当帧设置 cam.setAnchorLock，避免首帧错位）
+        let i = 0;
+        for (i = 0; i < this.plugins.length; i++) {
+            const pl = this.plugins[i];
+            if (pl.update !== undefined) {
+                pl.update(ctx);
+            }
+        }
+
+        if (!p.paused) {
+            this.time += worldDt;
+            this.cam.update(worldDt, p, w, h);
+            this.actors.update(worldDt, p);
+            this.vfx.update(worldDt, themeOf(p.room.key).ambient);
+            this.hud.update(worldDt, p);
+            this.narrative.update(worldDt, p);
+        } else {
             this.cam.update(0, p, w, h);
         }
 
         this.clearAll();
 
-        // 1. 远景与中景视差舞台
-        this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
+        // 1. 远景与中景视差舞台（可由插件接管）
+        let backdropHandled = false;
+        for (i = 0; i < this.plugins.length; i++) {
+            const pl = this.plugins[i];
+            if (pl.drawBackdrop !== undefined && pl.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, ctx)) {
+                backdropHandled = true;
+            }
+        }
+        if (!backdropHandled) {
+            this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
+        }
 
-        // 2. 逻辑平面建筑与地面
-        const fadeDt = p.paused ? 0 : safeDt;
-        this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, fadeDt);
+        // 2. 逻辑平面建筑与地面（可由插件接管；淡化吃 worldDt）
+        let worldHandled = false;
+        for (i = 0; i < this.plugins.length; i++) {
+            const pl = this.plugins[i];
+            if (pl.drawWorld !== undefined && pl.drawWorld(this.fgDraw, this.fgGlow, this.worldArt, ctx)) {
+                worldHandled = true;
+            }
+        }
+        if (!worldHandled) {
+            this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+        }
 
-        // 3. 互动道具（红布板车、村口瓶架/桌子/抛物线、区域与信标）
-        this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, fadeDt);
+        // 3. 互动道具（可由插件接管）
+        let propsHandled = false;
+        for (i = 0; i < this.plugins.length; i++) {
+            const pl = this.plugins[i];
+            if (pl.drawPropsOverlay !== undefined && pl.drawPropsOverlay(this.fgDraw, this.fgGlow, this.worldArt, ctx)) {
+                propsHandled = true;
+            }
+        }
+        if (!propsHandled) {
+            this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+        }
 
-        // 4. 关节剪影角色与翻滚冰青残影
-        this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam);
+        // 4. 关节剪影角色与插件角色叠层（背负姿态接管小满时收净原生伴随阴影，杜绝重影与孤儿脚影）
+        const partnerFarInHand = view.backCarry.handInHand
+            && (!p.partner.alive
+                || Math.abs(p.partner.x - p.player.x) > 56
+                || Math.abs(p.partner.y - p.player.y) > 24);
+        const suppressPartner = view.visualMode === "pixel"
+            && !p.childMode
+            && p.player.alive
+            && (view.backCarry.active
+                || view.backCarry.mounting
+                || view.backCarry.atBench
+                || view.craftBench.active
+                || partnerFarInHand);
+        this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, suppressPartner);
+        for (i = 0; i < this.plugins.length; i++) {
+            const pl = this.plugins[i];
+            if (pl.drawActorsOverlay !== undefined) {
+                pl.drawActorsOverlay(this.fgDraw, this.fgGlow, this.worldArt, ctx);
+            }
+        }
 
-        // 5. 世界空间特效（霓虹曳光弹道、护盾格挡、声波环、火花）
+        // 5. 世界空间特效
         this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam);
 
         // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边
         this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
-        // 7. 水墨 HUD、旁白叙事与暂停垂纱
-        const uiScale = this.resizeInterface(w, h);
+        // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
         let action: MenuAction = { type: "none" };
         if (p.paused) {
             action = this.menus.updateAndDrawPause(
@@ -239,13 +463,80 @@ export class WatchFrontend {
                 this.uiArt,
                 this.uiGlow,
                 this.texts,
-                w / uiScale,
-                h / uiScale,
+                uiW,
+                uiH,
                 uiScale,
+                view.assistHintsEnabled,
+                () => {
+                    this.contract.toggleAssistHints();
+                },
             );
         } else {
-            this.hud.draw(this.uiDraw, this.uiInkDraw, this.uiArt, this.uiGlow, this.texts, p, this.cam, this.vfx, this.narrative.letterbox, uiScale);
-            this.narrative.draw(this.uiDraw, this.uiInkDraw, this.uiGlow, this.uiArt, this.texts, p, w / uiScale, h / uiScale);
+            // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写
+            let cutsceneHandled = false;
+            for (i = 0; i < this.plugins.length; i++) {
+                const pl = this.plugins[i];
+                if (pl.drawCutsceneOverlay !== undefined
+                    && pl.drawCutsceneOverlay(this.uiDraw, this.uiInkDraw, this.uiArt, this.uiGlow, ctx)) {
+                    cutsceneHandled = true;
+                }
+            }
+
+            if (!cutsceneHandled) {
+                this.hud.draw(
+                    this.uiDraw,
+                    this.uiInkDraw,
+                    this.uiArt,
+                    this.uiGlow,
+                    this.texts,
+                    p,
+                    this.cam,
+                    this.vfx,
+                    this.narrative.letterbox,
+                    uiScale,
+                    view.assistHintsEnabled,
+                    true,
+                );
+                this.narrative.draw(
+                    this.uiDraw,
+                    this.uiInkDraw,
+                    this.uiGlow,
+                    this.uiArt,
+                    this.texts,
+                    p,
+                    uiW,
+                    uiH,
+                    view.assistHintsEnabled,
+                );
+            }
+
+            let suppressReticle = cutsceneHandled || view.reloadSession.active || view.craftBench.active;
+            for (i = 0; i < this.plugins.length; i++) {
+                const pl = this.plugins[i];
+                if (pl.drawFullSpeedUi !== undefined
+                    && pl.drawFullSpeedUi(this.uiDraw, this.uiInkDraw, this.uiArt, this.uiGlow, ctx)) {
+                    suppressReticle = true;
+                }
+            }
+            if (!suppressReticle) {
+                this.hud.drawReticleOverlay(
+                    this.uiInkDraw,
+                    this.uiArt,
+                    this.uiGlow,
+                    p,
+                    this.cam,
+                    this.vfx,
+                    this.narrative.letterbox,
+                    uiScale,
+                );
+            }
+
+            // 排演态显式标注（对齐 64fc06f 录屏标注要求，避免排演样片与正式玩法混淆）
+            if (view.isRehearsal) {
+                const badgeText = view.rehearsalTag !== "" ? ("排演 · " + view.rehearsalTag) : "排演模式";
+                drawSilkVeil(this.uiDraw, this.uiArt, "rehearsal_tag_veil", uiW * 0.5, uiH - 22, 168, 26, PALETTE.inkWarm, 0.74, 8);
+                this.texts.put("xs", badgeText, uiW * 0.5, uiH - 22, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, 0.92, 0.08);
+            }
         }
 
         this.finishFrame();
