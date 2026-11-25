@@ -10,6 +10,8 @@ local __TS__ArrayConcat = ____lualib.__TS__ArrayConcat -- 1
 local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf -- 1
 local __TS__ArrayFind = ____lualib.__TS__ArrayFind -- 1
 local __TS__ArrayFilter = ____lualib.__TS__ArrayFilter -- 1
+local __TS__ObjectKeys = ____lualib.__TS__ObjectKeys -- 1
+local __TS__Delete = ____lualib.__TS__Delete -- 1
 local __TS__ArraySome = ____lualib.__TS__ArraySome -- 1
 local ____exports = {} -- 1
 local makeActor, drawFigure, rayInterval, hitBox, drawCartShape, CHILD_W, CHILD_H, SOLDIER_W, SOLDIER_H, INK, CART_FILL, CLOTH -- 1
@@ -52,164 +54,164 @@ local missingMaterials = ____craft.missingMaterials -- 29
 local payMaterials = ____craft.payMaterials -- 29
 local weaponEffectOf = ____craft.weaponEffectOf -- 29
 local weaponNameOf = ____craft.weaponNameOf -- 29
-function makeActor(room, index) -- 4916
-	local sp = room.spawns -- 4917
-	if index < 0 or index >= #sp then -- 4917
-		return { -- 4919
-			x = 0, -- 4919
-			y = 0, -- 4919
-			depth = 0, -- 4919
-			depthSpeed = 0, -- 4919
-			vx = 0, -- 4919
-			vy = 0, -- 4919
-			w = CHILD_W, -- 4919
-			h = CHILD_H, -- 4919
-			onGround = true, -- 4919
-			facing = 1, -- 4919
-			crouch = false, -- 4919
-			rollT = 0, -- 4919
-			covered = false, -- 4919
-			alive = false -- 4919
-		} -- 4919
-	end -- 4919
-	local s = sp[index + 1] -- 4921
-	local child = s.h <= CHILD_H -- 4922
-	local ground = room.depth -- 4923
-	local depth = ground == nil and 0 or math.max( -- 4924
-		ground.min, -- 4924
-		math.min(ground.max, s.depth or 0) -- 4924
-	) -- 4924
-	return { -- 4925
-		x = s.x, -- 4926
-		y = s.y, -- 4926
-		depth = depth, -- 4926
-		depthSpeed = 0, -- 4926
-		vx = 0, -- 4926
-		vy = 0, -- 4926
-		w = child and CHILD_W or SOLDIER_W, -- 4927
-		h = child and CHILD_H or SOLDIER_H, -- 4928
-		onGround = true, -- 4929
-		facing = 1, -- 4929
-		crouch = false, -- 4929
-		rollT = 0, -- 4929
-		covered = false, -- 4929
-		alive = true -- 4929
-	} -- 4929
-end -- 4929
-function drawFigure(draw, play, w, h, a, body, head) -- 4933
-	if not a.alive then -- 4933
-		return -- 4935
-	end -- 4935
-	local x0 = a.x - a.w / 2 -- 4937
-	local x1 = a.x + a.w / 2 -- 4938
-	local y0 = a.y + a.depth -- 4939
-	local y1 = y0 + a.h -- 4940
-	play:drawBox( -- 4941
-		draw, -- 4941
-		w, -- 4941
-		h, -- 4941
-		x0, -- 4941
-		x1, -- 4941
-		y0, -- 4941
-		y1 - a.h * 0.26, -- 4941
-		body -- 4941
-	) -- 4941
-	play:drawBox( -- 4942
-		draw, -- 4942
-		w, -- 4942
-		h, -- 4942
-		x0 + 2, -- 4942
-		x1 - 2, -- 4942
-		y1 - a.h * 0.26, -- 4942
-		y1, -- 4942
-		head -- 4942
-	) -- 4942
-	local eyeX = a.facing > 0 and a.x + a.w * 0.16 or a.x - a.w * 0.28 -- 4944
-	play:drawBox( -- 4945
-		draw, -- 4945
-		w, -- 4945
-		h, -- 4945
-		eyeX, -- 4945
-		eyeX + 4, -- 4945
-		y1 - a.h * 0.14, -- 4945
-		y1 - a.h * 0.08, -- 4945
-		INK -- 4945
-	) -- 4945
-end -- 4945
+function makeActor(room, index) -- 4992
+	local sp = room.spawns -- 4993
+	if index < 0 or index >= #sp then -- 4993
+		return { -- 4995
+			x = 0, -- 4995
+			y = 0, -- 4995
+			depth = 0, -- 4995
+			depthSpeed = 0, -- 4995
+			vx = 0, -- 4995
+			vy = 0, -- 4995
+			w = CHILD_W, -- 4995
+			h = CHILD_H, -- 4995
+			onGround = true, -- 4995
+			facing = 1, -- 4995
+			crouch = false, -- 4995
+			rollT = 0, -- 4995
+			covered = false, -- 4995
+			alive = false -- 4995
+		} -- 4995
+	end -- 4995
+	local s = sp[index + 1] -- 4997
+	local child = s.h <= CHILD_H -- 4998
+	local ground = room.depth -- 4999
+	local depth = ground == nil and 0 or math.max( -- 5000
+		ground.min, -- 5000
+		math.min(ground.max, s.depth or 0) -- 5000
+	) -- 5000
+	return { -- 5001
+		x = s.x, -- 5002
+		y = s.y, -- 5002
+		depth = depth, -- 5002
+		depthSpeed = 0, -- 5002
+		vx = 0, -- 5002
+		vy = 0, -- 5002
+		w = child and CHILD_W or SOLDIER_W, -- 5003
+		h = child and CHILD_H or SOLDIER_H, -- 5004
+		onGround = true, -- 5005
+		facing = 1, -- 5005
+		crouch = false, -- 5005
+		rollT = 0, -- 5005
+		covered = false, -- 5005
+		alive = true -- 5005
+	} -- 5005
+end -- 5005
+function drawFigure(draw, play, w, h, a, body, head) -- 5009
+	if not a.alive then -- 5009
+		return -- 5011
+	end -- 5011
+	local x0 = a.x - a.w / 2 -- 5013
+	local x1 = a.x + a.w / 2 -- 5014
+	local y0 = a.y + a.depth -- 5015
+	local y1 = y0 + a.h -- 5016
+	play:drawBox( -- 5017
+		draw, -- 5017
+		w, -- 5017
+		h, -- 5017
+		x0, -- 5017
+		x1, -- 5017
+		y0, -- 5017
+		y1 - a.h * 0.26, -- 5017
+		body -- 5017
+	) -- 5017
+	play:drawBox( -- 5018
+		draw, -- 5018
+		w, -- 5018
+		h, -- 5018
+		x0 + 2, -- 5018
+		x1 - 2, -- 5018
+		y1 - a.h * 0.26, -- 5018
+		y1, -- 5018
+		head -- 5018
+	) -- 5018
+	local eyeX = a.facing > 0 and a.x + a.w * 0.16 or a.x - a.w * 0.28 -- 5020
+	play:drawBox( -- 5021
+		draw, -- 5021
+		w, -- 5021
+		h, -- 5021
+		eyeX, -- 5021
+		eyeX + 4, -- 5021
+		y1 - a.h * 0.14, -- 5021
+		y1 - a.h * 0.08, -- 5021
+		INK -- 5021
+	) -- 5021
+end -- 5021
 --- 窗口坐标（局部、左下原点）→ 世界。用实际画面原点、显示倍数与相机反算。
-function ____exports.screenToWorld(sx, sy, cam, view) -- 4949
-	return {x = cam.x + ((sx - view.ox) / view.zoom - ____exports.LOGIC_W / 2) * ____exports.UNITS_PER_PX, y = cam.y + ((sy - view.oy) / view.zoom - ____exports.LOGIC_H / 2) * ____exports.UNITS_PER_PX} -- 4950
-end -- 4949
+function ____exports.screenToWorld(sx, sy, cam, view) -- 5025
+	return {x = cam.x + ((sx - view.ox) / view.zoom - ____exports.LOGIC_W / 2) * ____exports.UNITS_PER_PX, y = cam.y + ((sy - view.oy) / view.zoom - ____exports.LOGIC_H / 2) * ____exports.UNITS_PER_PX} -- 5026
+end -- 5025
 --- screenToWorld 的反函数：给回放和调试把世界坐标换成准星屏幕坐标。
-function ____exports.worldToScreen(wx, wy, cam, view) -- 4957
-	return {x = ((wx - cam.x) / ____exports.UNITS_PER_PX + ____exports.LOGIC_W / 2) * view.zoom + view.ox, y = ((wy - cam.y) / ____exports.UNITS_PER_PX + ____exports.LOGIC_H / 2) * view.zoom + view.oy} -- 4958
-end -- 4957
-function rayInterval(origin, direction, min, max) -- 4965
-	if direction == 0 then -- 4965
-		return (origin < min or origin > max) and ({min = 1, max = 0}) or ({min = -math.huge, max = math.huge}) -- 4967
-	end -- 4967
-	local a = (min - origin) / direction -- 4969
-	local b = (max - origin) / direction -- 4970
-	return { -- 4971
-		min = math.min(a, b), -- 4971
-		max = math.max(a, b) -- 4971
-	} -- 4971
-end -- 4971
-function hitBox(ray, box) -- 4975
-	local x = rayInterval(ray.x, ray.dx, box.x0, box.x1) -- 4976
-	local y = rayInterval(ray.y, ray.dy, box.y0, box.y1) -- 4977
-	local enter = math.max(0, x.min, y.min) -- 4978
-	local leave = math.min(99999, x.max, y.max) -- 4979
-	if box.depth ~= nil then -- 4979
-		local depth = rayInterval(ray.depth or 0, ray.dDepth or 0, box.depth.min, box.depth.max) -- 4981
-		enter = math.max(enter, depth.min) -- 4982
-		leave = math.min(leave, depth.max) -- 4983
-	end -- 4983
-	return leave >= enter and enter or -1 -- 4985
-end -- 4985
-function drawCartShape(draw, play, w, h, c, axleX) -- 4988
-	local half = c.bodyW / 2 -- 4989
-	local x0 = axleX - half -- 4990
-	local x1 = axleX + half -- 4991
-	local axleY = c.baseY + (c.depth or 0) + c.wheelR -- 4992
-	play:drawBox( -- 4993
-		draw, -- 4993
-		w, -- 4993
-		h, -- 4993
-		x0, -- 4993
-		x1, -- 4993
-		axleY, -- 4993
-		axleY + c.bodyH, -- 4993
-		CART_FILL -- 4993
-	) -- 4993
-	draw:drawCircle( -- 4994
-		Vec2( -- 4994
-			play:sx(x0 + c.bodyW * 0.28, w), -- 4994
-			play:sy(axleY, h) -- 4994
-		), -- 4994
-		play:px(c.wheelR / ____exports.UNITS_PER_PX), -- 4994
-		Color(52, 50, 48, 255) -- 4994
-	) -- 4994
-	draw:drawCircle( -- 4995
-		Vec2( -- 4995
-			play:sx(x1 - c.bodyW * 0.28, w), -- 4995
-			play:sy(axleY, h) -- 4995
-		), -- 4995
-		play:px(c.wheelR / ____exports.UNITS_PER_PX), -- 4995
-		Color(52, 50, 48, 255) -- 4995
-	) -- 4995
-	local cx = c.clothSide < 0 and x0 or x1 -- 4996
-	play:drawBox( -- 4997
-		draw, -- 4997
-		w, -- 4997
-		h, -- 4997
-		cx - 10, -- 4997
-		cx + 10, -- 4997
-		axleY + c.bodyH, -- 4997
-		axleY + c.bodyH + 18, -- 4997
-		CLOTH -- 4997
-	) -- 4997
-end -- 4997
+function ____exports.worldToScreen(wx, wy, cam, view) -- 5033
+	return {x = ((wx - cam.x) / ____exports.UNITS_PER_PX + ____exports.LOGIC_W / 2) * view.zoom + view.ox, y = ((wy - cam.y) / ____exports.UNITS_PER_PX + ____exports.LOGIC_H / 2) * view.zoom + view.oy} -- 5034
+end -- 5033
+function rayInterval(origin, direction, min, max) -- 5041
+	if direction == 0 then -- 5041
+		return (origin < min or origin > max) and ({min = 1, max = 0}) or ({min = -math.huge, max = math.huge}) -- 5043
+	end -- 5043
+	local a = (min - origin) / direction -- 5045
+	local b = (max - origin) / direction -- 5046
+	return { -- 5047
+		min = math.min(a, b), -- 5047
+		max = math.max(a, b) -- 5047
+	} -- 5047
+end -- 5047
+function hitBox(ray, box) -- 5051
+	local x = rayInterval(ray.x, ray.dx, box.x0, box.x1) -- 5052
+	local y = rayInterval(ray.y, ray.dy, box.y0, box.y1) -- 5053
+	local enter = math.max(0, x.min, y.min) -- 5054
+	local leave = math.min(99999, x.max, y.max) -- 5055
+	if box.depth ~= nil then -- 5055
+		local depth = rayInterval(ray.depth or 0, ray.dDepth or 0, box.depth.min, box.depth.max) -- 5057
+		enter = math.max(enter, depth.min) -- 5058
+		leave = math.min(leave, depth.max) -- 5059
+	end -- 5059
+	return leave >= enter and enter or -1 -- 5061
+end -- 5061
+function drawCartShape(draw, play, w, h, c, axleX) -- 5064
+	local half = c.bodyW / 2 -- 5065
+	local x0 = axleX - half -- 5066
+	local x1 = axleX + half -- 5067
+	local axleY = c.baseY + (c.depth or 0) + c.wheelR -- 5068
+	play:drawBox( -- 5069
+		draw, -- 5069
+		w, -- 5069
+		h, -- 5069
+		x0, -- 5069
+		x1, -- 5069
+		axleY, -- 5069
+		axleY + c.bodyH, -- 5069
+		CART_FILL -- 5069
+	) -- 5069
+	draw:drawCircle( -- 5070
+		Vec2( -- 5070
+			play:sx(x0 + c.bodyW * 0.28, w), -- 5070
+			play:sy(axleY, h) -- 5070
+		), -- 5070
+		play:px(c.wheelR / ____exports.UNITS_PER_PX), -- 5070
+		Color(52, 50, 48, 255) -- 5070
+	) -- 5070
+	draw:drawCircle( -- 5071
+		Vec2( -- 5071
+			play:sx(x1 - c.bodyW * 0.28, w), -- 5071
+			play:sy(axleY, h) -- 5071
+		), -- 5071
+		play:px(c.wheelR / ____exports.UNITS_PER_PX), -- 5071
+		Color(52, 50, 48, 255) -- 5071
+	) -- 5071
+	local cx = c.clothSide < 0 and x0 or x1 -- 5072
+	play:drawBox( -- 5073
+		draw, -- 5073
+		w, -- 5073
+		h, -- 5073
+		cx - 10, -- 5073
+		cx + 10, -- 5073
+		axleY + c.bodyH, -- 5073
+		axleY + c.bodyH + 18, -- 5073
+		CLOTH -- 5073
+	) -- 5073
+end -- 5073
 ____exports.STEP = STEP -- 33
 ____exports.GRAVITY = 1000 -- 34
 ____exports.GATE_COUNT_END = 1440 -- 35
@@ -3207,2258 +3209,2336 @@ function Play.prototype.campaignFailed(self) -- 3190
 		self:emit("campaignFailed", {room = self.room.key, hp = 0, maxHp = self.maxHp}) -- 3194
 		return -- 3195
 	end -- 3195
-	local p = self.player -- 3197
-	self.hp = self.maxHp -- 3198
-	self.invulnT = INVULN_RESPAWN_TICKS -- 3199
-	self.reloadT = 0 -- 3200
-	self:closeReloadPuzzle() -- 3201
-	self.gripping = false -- 3202
-	self:flashSet("被击倒 · 回到本段起点，破坏与拾取保留", 2) -- 3203
-	self:log("被击倒") -- 3204
-	p.x = self.room.minX + 90 -- 3205
-	p.y = 0 -- 3206
-	p.depth = 0 -- 3207
-	p.vx = 0 -- 3208
-	p.vy = 0 -- 3209
-	p.onGround = true -- 3210
-	p.rollT = 0 -- 3211
-	self.partner.x = p.x - 50 -- 3212
-	self.partner.y = 0 -- 3213
-	self.partner.depth = 0 -- 3214
-	self.cam.x = p.x -- 3215
-	local i = 0 -- 3216
-	do -- 3216
-		i = 0 -- 3217
-		while i < #self.enemies do -- 3217
-			do -- 3217
-				local e = self.enemies[i + 1] -- 3218
-				if not e.alive then -- 3218
-					goto __continue528 -- 3220
-				end -- 3220
-				e.x = e.homeX == nil and e.x or e.homeX -- 3222
-				e.warnT = 0 -- 3223
-				e.fireCd = 40 -- 3224
-				e.swingT = 0 -- 3225
-				e.awake = false -- 3226
-			end -- 3226
-			::__continue528:: -- 3226
-			i = i + 1 -- 3217
-		end -- 3217
-	end -- 3217
-	self:emit("campaignFailed", {room = self.room.key, hp = 0, maxHp = self.maxHp}) -- 3228
+	if self.isCampaign and self.storyRoute == "soldier" and self:isEscortRoom() then -- 3195
+		self:restartEscortFromDeath() -- 3200
+		return -- 3201
+	end -- 3201
+	local p = self.player -- 3203
+	self.hp = self.maxHp -- 3204
+	self.invulnT = INVULN_RESPAWN_TICKS -- 3205
+	self.reloadT = 0 -- 3206
+	self:closeReloadPuzzle() -- 3207
+	self.gripping = false -- 3208
+	self:flashSet("被击倒 · 回到本段起点，破坏与拾取保留", 2) -- 3209
+	self:log("被击倒") -- 3210
+	p.x = self.room.minX + 90 -- 3211
+	p.y = 0 -- 3212
+	p.depth = 0 -- 3213
+	p.vx = 0 -- 3214
+	p.vy = 0 -- 3215
+	p.onGround = true -- 3216
+	p.rollT = 0 -- 3217
+	self.partner.x = p.x - 50 -- 3218
+	self.partner.y = 0 -- 3219
+	self.partner.depth = 0 -- 3220
+	self.cam.x = p.x -- 3221
+	local i = 0 -- 3222
+	do -- 3222
+		i = 0 -- 3223
+		while i < #self.enemies do -- 3223
+			do -- 3223
+				local e = self.enemies[i + 1] -- 3224
+				if not e.alive then -- 3224
+					goto __continue529 -- 3226
+				end -- 3226
+				e.x = e.homeX == nil and e.x or e.homeX -- 3228
+				e.warnT = 0 -- 3229
+				e.fireCd = 40 -- 3230
+				e.swingT = 0 -- 3231
+				e.awake = false -- 3232
+			end -- 3232
+			::__continue529:: -- 3232
+			i = i + 1 -- 3223
+		end -- 3223
+	end -- 3223
+	self:emit("campaignFailed", {room = self.room.key, hp = 0, maxHp = self.maxHp}) -- 3234
 end -- 3190
-function Play.prototype.stepEnemies(self, dt, input) -- 3231
-	local i = 0 -- 3232
-	do -- 3232
-		i = 0 -- 3233
-		while i < #self.enemies do -- 3233
-			local e = self.enemies[i + 1] -- 3234
-			if e.hitT > 0 then -- 3234
-				e.hitT = e.hitT - dt -- 3236
-			end -- 3236
-			i = i + 1 -- 3233
-		end -- 3233
-	end -- 3233
-	if self.coveredFlash > 0 then -- 3233
-		self.coveredFlash = self.coveredFlash - dt -- 3240
-	end -- 3240
-	if self.isCampaign then -- 3240
-		self:stepCampaignEnemies(dt, input) -- 3243
-		return -- 3244
-	end -- 3244
-	if self.room.key ~= "gate" or self.phase ~= "gate-hold" then -- 3244
-		return -- 3248
-	end -- 3248
-	do -- 3248
-		i = 0 -- 3250
-		while i < #self.enemies do -- 3250
-			do -- 3250
-				local e = self.enemies[i + 1] -- 3251
-				if not e.alive then -- 3251
-					goto __continue538 -- 3253
-				end -- 3253
-				if e.warnT > 0 then -- 3253
-					e.warnT = e.warnT - 1 -- 3256
-					if e.warnT <= 0 then -- 3256
-						self:enemyFire(e, input) -- 3258
-					end -- 3258
-					goto __continue538 -- 3260
-				end -- 3260
-				if e.fireCd > 0 then -- 3260
-					e.fireCd = e.fireCd - 1 -- 3263
-					if e.fireCd <= 0 then -- 3263
-						e.warnT = WARN_TICKS -- 3265
-					end -- 3265
-				else -- 3265
-					e.warnT = WARN_TICKS -- 3269
-				end -- 3269
-			end -- 3269
-			::__continue538:: -- 3269
-			i = i + 1 -- 3250
-		end -- 3250
-	end -- 3250
-end -- 3231
-function Play.prototype.enemyFire(self, e, input) -- 3275
-	local p = self.player -- 3276
-	if math.abs(e.x - p.x) > ENEMY_RANGE then -- 3276
-		self:flashSet("枪声响在远处", 0.4) -- 3278
-		e.fireCd = FIRE_COOLDOWN -- 3279
-		return -- 3280
-	end -- 3280
-	local cover = self:blockedByCover(e, p) -- 3283
-	local hugging = cover ~= nil -- 3284
-	self.coverBlocking = hugging -- 3285
-	local covered = hugging and input.cover.held -- 3286
-	if covered then -- 3286
-		self.coveredFlash = 0.5 -- 3288
-		self:flashSet("掩体挡下", 0.5) -- 3289
-		self:emit("coverBlocked", {entity = cover.label == nil and "一人高实体" or cover.label, enemyX = e.x, hp = self.hp}) -- 3290
-		e.fireCd = FIRE_COOLDOWN -- 3295
-		return -- 3296
-	end -- 3296
-	self.hp = self.hp - 1 -- 3298
-	self:emit("actorHit", { -- 3299
-		target = "player", -- 3299
-		amount = 1, -- 3299
-		hp = self.hp, -- 3299
-		maxHp = self.maxHp, -- 3299
-		enemyX = e.x -- 3299
-	}) -- 3299
-	self:flashSet( -- 3300
-		(("中弹 " .. tostring(math.max(0, self.hp))) .. "/") .. tostring(self.maxHp), -- 3300
-		0.7 -- 3300
-	) -- 3300
-	e.fireCd = FIRE_COOLDOWN -- 3301
-	if self.hp <= 0 then -- 3301
-		self:gateFailed() -- 3303
-	end -- 3303
-end -- 3275
-function Play.prototype.blockedByCover(self, enemy, p) -- 3308
-	local b = self:coverAt(p) -- 3309
-	if b == nil then -- 3309
-		return nil -- 3311
-	end -- 3311
-	return self:coverGuardsFrom(b, p, enemy) and b or nil -- 3313
-end -- 3308
-function Play.prototype.gateFailed(self) -- 3317
-	local ____temp_56 -- 3318
-	if self.room.story == nil then -- 3318
-		____temp_56 = nil -- 3318
-	else -- 3318
-		____temp_56 = self.room.story.gate -- 3318
-	end -- 3318
-	local g = ____temp_56 -- 3318
-	self:flashSet("被击倒 · 回绞盘 118，重新就位再守", 2) -- 3319
-	self.hp = self.maxHp -- 3320
-	self.gateTick = 0 -- 3321
-	self.gateSpawned = 0 -- 3322
-	self.enemies = {} -- 3323
-	self.gateFailCount = self.gateFailCount + 1 -- 3324
-	self.player.x = self.ox + (g == nil and 118 or g.winchX) -- 3326
-	self.player.y = 0 -- 3327
-	self.player.vy = 0 -- 3328
-	self.player.depth = 0 -- 3329
-	self.player.depthSpeed = 0 -- 3330
-	self.player.onGround = true -- 3331
-	self.player.crouch = false -- 3332
-	self.player.h = SOLDIER_H -- 3333
-	self.partner.x = self.ox + (g == nil and 900 or g.waitX) -- 3334
-	self.partner.y = 0 -- 3335
-	self.partner.vy = 0 -- 3336
-	self.partner.depth = 0 -- 3337
-	self.partner.depthSpeed = 0 -- 3338
-	self.partner.onGround = true -- 3339
-	self.cam.x = self.player.x -- 3340
-	self.phase = "gate-idle" -- 3341
-	self.phaseTick = 0 -- 3342
-	self.coverHug = false -- 3343
-	self.coverBlocking = false -- 3344
-	self.coverEntity = "" -- 3345
-	self.gateNeedConfirm = true -- 3346
-	self.gateRestartArmed = false -- 3347
-	self:emit("gateFailed", {failCount = self.gateFailCount, hp = 0, maxHp = self.maxHp}) -- 3348
-end -- 3317
-function Play.prototype.stepInteract(self, dt, input) -- 3351
-	local p = self.player -- 3352
-	local calmUsed = self.calmConsumed -- 3353
-	self.calmConsumed = false -- 3354
-	local calming = self.escort.state == "calming" -- 3356
-	self.focusCart = false -- 3357
-	if self.room.key == "outside" then -- 3357
-		local c = self.room.cart -- 3359
-		local dx = p.x - (self.cartAxle + c.handleOffset) -- 3360
-		local dy = p.y - c.baseY -- 3361
-		self.focusCart = not calmUsed and not calming and dx * dx + dy * dy < ____exports.CART_REACH * ____exports.CART_REACH -- 3362
-	end -- 3362
-	if not calmUsed and not calming then -- 3362
-		self:stepCart(dt, input) -- 3366
-	end -- 3366
-	if calmUsed then -- 3366
-		self:flashSet("安抚 · 敲两下", 0.8) -- 3371
-	elseif not calming and input.interact.pressed and not self.gripping and self.room.key ~= "village" and self.room.key ~= "tower" and self.room.key ~= "prologue" and self.room.key ~= "gate" then -- 3371
-		if self.knockT > 0 then -- 3371
-			self.knocks = self.knocks + 1 -- 3375
-		else -- 3375
-			self.knocks = 1 -- 3377
-		end -- 3377
-		self:emit("knock", {count = self.knocks, x = p.x, room = self.room.key}) -- 3379
-		self.knockT = 1.2 -- 3380
-		if self.knocks >= 2 then -- 3380
-			self:flashSet("敲两下", 0.8) -- 3382
-			self.knocks = 0 -- 3383
-		else -- 3383
-			self:flashSet("敲一下", 0.5) -- 3385
-		end -- 3385
-	elseif self.knockT > 0 then -- 3385
-		self.knockT = self.knockT - dt -- 3388
-		if self.knockT <= 0 then -- 3388
-			self.knocks = 0 -- 3390
-		end -- 3390
-	end -- 3390
-	local i = 0 -- 3395
-	do -- 3395
-		i = 0 -- 3396
-		while i < #self.room.marks do -- 3396
-			do -- 3396
-				local m = self.room.marks[i + 1] -- 3397
-				if m.kind ~= 0 then -- 3397
-					goto __continue564 -- 3399
-				end -- 3399
-				local subjects = {self.partner, self.player} -- 3401
-				local k = 0 -- 3402
-				do -- 3402
-					k = 0 -- 3403
-					while k < #subjects do -- 3403
-						do -- 3403
-							local s = subjects[k + 1] -- 3404
-							if not s.alive then -- 3404
-								goto __continue567 -- 3406
-							end -- 3406
-							local dx = s.x - m.x -- 3408
-							local dy = s.y - m.y -- 3409
-							if dx * dx + dy * dy < 26 * 26 and self.checkpoint ~= m.x then -- 3409
-								self.checkpoint = m.x -- 3411
-								self.checkpointCartAxle = self.cartAxle -- 3412
-								if self.isCampaign then -- 3412
-									self:captureCheckpoint(m.x) -- 3415
-								end -- 3415
-								if self.cartDocked then -- 3415
-									self:flashSet("检查点 · 车已落窝", 1) -- 3418
-								else -- 3418
-									self:flashSet("检查点 · 车还没到位", 1) -- 3420
-								end -- 3420
-							end -- 3420
-						end -- 3420
-						::__continue567:: -- 3420
-						k = k + 1 -- 3403
-					end -- 3403
-				end -- 3403
-			end -- 3403
-			::__continue564:: -- 3403
-			i = i + 1 -- 3396
-		end -- 3396
-	end -- 3396
-	self:checkCarryGate() -- 3426
-end -- 3351
-function Play.prototype.stepVillage(self, dt, input) -- 3430
-	if self.room.key ~= "village" then -- 3430
-		return -- 3432
-	end -- 3432
-	local p = self.player -- 3434
-	local bottle = self.room.bottle -- 3435
-	local scav = self.room.scavenger -- 3436
-	if not self.hasBottle and bottle ~= nil then -- 3436
-		local dx = p.x - bottle.x -- 3440
-		local dy = p.y + p.h * 0.5 - bottle.y -- 3441
-		if dx * dx + dy * dy < 56 * 56 and input.interact.pressed then -- 3441
-			self.hasBottle = true -- 3443
-			self:flashSet("拾起瓶子", 0.8) -- 3444
-		end -- 3444
-	end -- 3444
-	if self.hasBottle then -- 3444
-		if input.aim.held then -- 3444
-			self.aimHold = self.aimHold + dt -- 3451
-			if self.aimHold > 1.2 then -- 3451
-				self.aimHold = 1.2 -- 3453
-			end -- 3453
-			local cached = self:bottleEnd() -- 3456
-			self.bottleAimX = cached.x -- 3457
-			self.bottleAimY = cached.y -- 3458
-		elseif input.aim.released then -- 3458
-			if self.aimHold < 0.12 then -- 3458
-				self:flashSet("按住 F 瞄一下再松手", 0.9) -- 3462
-				self.aimHold = 0 -- 3463
-			else -- 3463
-				local ____end = self.bottleAimX >= 0 and ({x = self.bottleAimX, y = self.bottleAimY}) or self:bottleEnd() -- 3465
-				self:throwBottle(____end.x, ____end.y) -- 3466
-				self.aimHold = 0 -- 3467
-			end -- 3467
-		end -- 3467
-	else -- 3467
-		self.aimHold = 0 -- 3471
-		self.bottleAimX = -1 -- 3472
-	end -- 3472
-	local fly = self.bottleFly -- 3477
-	if fly ~= nil then -- 3477
-		fly.t = fly.t + dt -- 3479
-		fly.x = fly.x0 + fly.vx * fly.t -- 3480
-		fly.y = fly.y0 + fly.vy * fly.t - 0.5 * ____exports.GRAVITY * fly.t * fly.t -- 3481
-		local falling = fly.vy - ____exports.GRAVITY * fly.t <= 0 -- 3482
-		if fly.t >= BOTTLE_FLY_TIME and falling then -- 3482
-			self:landBottle(fly) -- 3484
-		end -- 3484
-	end -- 3484
-	if self.bottleLandT > 0 then -- 3484
-		self.bottleLandT = self.bottleLandT - dt -- 3488
-	end -- 3488
-	if scav ~= nil then -- 3488
-		self:stepScav(dt, scav) -- 3492
-	end -- 3492
-	local line = self.room.passLine -- 3495
-	if line ~= nil and not self.passed and p.x >= line then -- 3495
-		self.passed = true -- 3497
-		self:flashSet("过了第一院 · 通行线 440", 1.4) -- 3498
-	end -- 3498
-	if self.passed and p.x >= self.ox + 640 then -- 3498
-		self:requestRoom("forest", "过第一院出院") -- 3502
-		self:flashSet("出院 · 北塔森林", 1.4) -- 3503
-	end -- 3503
-end -- 3430
-function Play.prototype.bottleEnd(self) -- 3508
-	local aim = self.worldMapper ~= nil and self.worldMapper(self.aimX, self.aimY) or ____exports.screenToWorld(self.aimX, self.aimY, self.cam, self.view) -- 3509
-	local g = self:groundAt(aim.x, aim.y + 240, 3) -- 3512
-	return {x = aim.x, y = g} -- 3513
-end -- 3508
-function Play.prototype.throwBottle(self, tx, ty) -- 3517
-	local p = self.player -- 3518
-	local dir = tx >= p.x and 1 or -1 -- 3520
-	p.facing = dir -- 3521
-	local x0 = p.x + dir * 10 -- 3522
-	local y0 = p.y + p.h * 0.7 -- 3523
-	self.bottleTargetX = tx -- 3524
-	self.bottleTargetY = ty -- 3525
-	self.bottleSurfaceY = ty -- 3526
-	local vx = (tx - x0) / BOTTLE_FLY_TIME -- 3527
-	local vy = (ty - y0 + 0.5 * ____exports.GRAVITY * BOTTLE_FLY_TIME * BOTTLE_FLY_TIME) / BOTTLE_FLY_TIME -- 3528
-	self.bottleFly = { -- 3529
-		x = x0, -- 3529
-		y = y0, -- 3529
-		x0 = x0, -- 3529
-		y0 = y0, -- 3529
-		vx = vx, -- 3529
-		vy = vy, -- 3529
-		t = 0 -- 3529
-	} -- 3529
-	self.hasBottle = false -- 3530
-	self:flashSet("投出", 0.4) -- 3531
-	self:emit( -- 3532
-		"bottleThrown", -- 3532
-		{ -- 3532
-			fromX = x0, -- 3533
-			fromY = y0, -- 3534
-			targetX = tx, -- 3535
-			targetY = ty, -- 3536
-			flightTicks = math.floor(BOTTLE_FLY_TIME * 60 + 0.5) -- 3537
-		} -- 3537
-	) -- 3537
-end -- 3517
-function Play.prototype.landBottle(self, fly) -- 3542
-	local x = self.bottleTargetX >= 0 and self.bottleTargetX or fly.x -- 3543
-	local y = self.bottleSurfaceY >= 0 and self.bottleSurfaceY or fly.y -- 3544
-	local s = self.room.scavenger -- 3545
-	local heard = s ~= nil and math.abs(x - self.scavX) <= s.range -- 3546
-	self.bottleFly = nil -- 3547
-	self.bottleTargetX = -1 -- 3548
-	self.bottleTargetY = 0 -- 3549
-	self.bottleSurfaceY = -1 -- 3550
-	self.bottleLandX = x -- 3551
-	self.bottleLandY = y -- 3552
-	self.bottleLandT = 0.9 -- 3553
-	self:emit("bottleLanded", {x = x, y = y, heard = heard, scavState = self.scavState}) -- 3554
-	self:hearBottle(x) -- 3555
-end -- 3542
-function Play.prototype.hearBottle(self, x) -- 3559
-	local s = self.room.scavenger -- 3560
-	if s == nil then -- 3560
-		return -- 3562
-	end -- 3562
-	if math.abs(x - self.scavX) > s.range then -- 3562
-		self:flashSet("落地 · 他没听见", 0.6) -- 3565
-		return -- 3566
-	end -- 3566
-	self.scavState = "turn" -- 3568
-	self.scavT = s.hearTicks -- 3569
-	self.scavTargetX = x -- 3570
-	self:flashSet("砖地一响 · 他转头", 0.9) -- 3571
-end -- 3559
-function Play.prototype.stepScav(self, dt, s) -- 3575
-	if self.scavState == "chase" then -- 3575
-		return -- 3578
+function Play.prototype.isEscortRoom(self) -- 3238
+	return (string.find(self.room.key, "escort", nil, true) or 0) - 1 == 0 -- 3239
+end -- 3238
+function Play.prototype.restartEscortFromDeath(self) -- 3247
+	local story = self.run.story -- 3248
+	local inv = self.run.inventory -- 3249
+	self.hp = self.maxHp -- 3250
+	story.hp = self.maxHp -- 3251
+	story.cp = nil -- 3252
+	self.checkpointSnap = nil -- 3253
+	story.carry = false -- 3254
+	self.carryOn = false -- 3255
+	story.craftedWeapon = "" -- 3256
+	self.equippedWeapon = "standard_gun" -- 3257
+	story.escortDone = false -- 3258
+	self.escortDone = false -- 3259
+	story.segments = {} -- 3260
+	inv.wood = 0 -- 3261
+	inv.bell = 0 -- 3262
+	inv.scrap = 0 -- 3263
+	inv.wedge = 0 -- 3264
+	inv.ammo = 0 -- 3265
+	inv.quickbelt = 0 -- 3266
+	inv.shield = 0 -- 3267
+	inv.pass = 0 -- 3268
+	local taken = self.run.taken -- 3269
+	local keys = __TS__ObjectKeys(taken) -- 3270
+	local i = 0 -- 3271
+	do -- 3271
+		i = 0 -- 3272
+		while i < #keys do -- 3272
+			if (string.find(keys[i + 1], "e2_", nil, true) or 0) - 1 == 0 or (string.find(keys[i + 1], "e3_", nil, true) or 0) - 1 == 0 then -- 3272
+				__TS__Delete(taken, keys[i + 1]) -- 3274
+			end -- 3274
+			i = i + 1 -- 3272
+		end -- 3272
+	end -- 3272
+	self.run.joined = true -- 3277
+	self.reloadT = 0 -- 3278
+	self:closeReloadPuzzle() -- 3279
+	self.gripping = false -- 3280
+	self:flashSet("被击倒 · 回男主入口重开", 2) -- 3281
+	self:log("男主线失败 · 回 escort1") -- 3282
+	self:emit("campaignFailed", { -- 3283
+		room = self.room.key, -- 3284
+		hp = 0, -- 3284
+		maxHp = self.maxHp, -- 3284
+		reset = true, -- 3285
+		to = "escort1", -- 3285
+		route = self.storyRoute -- 3285
+	}) -- 3285
+	self:requestRoom("escort1", "男主线失败重开") -- 3287
+end -- 3247
+function Play.prototype.blindNearby(self, center, radius, skipIndex) -- 3291
+	local i = 0 -- 3292
+	do -- 3292
+		i = 0 -- 3293
+		while i < #self.enemies do -- 3293
+			do -- 3293
+				if i == skipIndex then -- 3293
+					goto __continue538 -- 3295
+				end -- 3295
+				local e = self.enemies[i + 1] -- 3297
+				if not e.alive or math.abs(e.x - center.x) > radius then -- 3297
+					goto __continue538 -- 3299
+				end -- 3299
+				e.fireCd = 150 -- 3301
+				e.warnT = 0 -- 3302
+			end -- 3302
+			::__continue538:: -- 3302
+			i = i + 1 -- 3293
+		end -- 3293
+	end -- 3293
+end -- 3291
+function Play.prototype.stepEnemies(self, dt, input) -- 3306
+	local i = 0 -- 3307
+	do -- 3307
+		i = 0 -- 3308
+		while i < #self.enemies do -- 3308
+			local e = self.enemies[i + 1] -- 3309
+			if e.hitT > 0 then -- 3309
+				e.hitT = e.hitT - dt -- 3311
+			end -- 3311
+			i = i + 1 -- 3308
+		end -- 3308
+	end -- 3308
+	if self.coveredFlash > 0 then -- 3308
+		self.coveredFlash = self.coveredFlash - dt -- 3315
+	end -- 3315
+	if self.isCampaign then -- 3315
+		self:stepCampaignEnemies(dt, input) -- 3318
+		return -- 3319
+	end -- 3319
+	if self.room.key ~= "gate" or self.phase ~= "gate-hold" then -- 3319
+		return -- 3323
+	end -- 3323
+	do -- 3323
+		i = 0 -- 3325
+		while i < #self.enemies do -- 3325
+			do -- 3325
+				local e = self.enemies[i + 1] -- 3326
+				if not e.alive then -- 3326
+					goto __continue549 -- 3328
+				end -- 3328
+				if e.warnT > 0 then -- 3328
+					e.warnT = e.warnT - 1 -- 3331
+					if e.warnT <= 0 then -- 3331
+						self:enemyFire(e, input) -- 3333
+					end -- 3333
+					goto __continue549 -- 3335
+				end -- 3335
+				if e.fireCd > 0 then -- 3335
+					e.fireCd = e.fireCd - 1 -- 3338
+					if e.fireCd <= 0 then -- 3338
+						e.warnT = WARN_TICKS -- 3340
+					end -- 3340
+				else -- 3340
+					e.warnT = WARN_TICKS -- 3344
+				end -- 3344
+			end -- 3344
+			::__continue549:: -- 3344
+			i = i + 1 -- 3325
+		end -- 3325
+	end -- 3325
+end -- 3306
+function Play.prototype.enemyFire(self, e, input) -- 3350
+	local p = self.player -- 3351
+	if math.abs(e.x - p.x) > ENEMY_RANGE then -- 3351
+		self:flashSet("枪声响在远处", 0.4) -- 3353
+		e.fireCd = FIRE_COOLDOWN -- 3354
+		return -- 3355
+	end -- 3355
+	local cover = self:blockedByCover(e, p) -- 3358
+	local hugging = cover ~= nil -- 3359
+	self.coverBlocking = hugging -- 3360
+	local covered = hugging and input.cover.held -- 3361
+	if covered then -- 3361
+		self.coveredFlash = 0.5 -- 3363
+		self:flashSet("掩体挡下", 0.5) -- 3364
+		self:emit("coverBlocked", {entity = cover.label == nil and "一人高实体" or cover.label, enemyX = e.x, hp = self.hp}) -- 3365
+		e.fireCd = FIRE_COOLDOWN -- 3370
+		return -- 3371
+	end -- 3371
+	self.hp = self.hp - 1 -- 3373
+	self:emit("actorHit", { -- 3374
+		target = "player", -- 3374
+		amount = 1, -- 3374
+		hp = self.hp, -- 3374
+		maxHp = self.maxHp, -- 3374
+		enemyX = e.x -- 3374
+	}) -- 3374
+	self:flashSet( -- 3375
+		(("中弹 " .. tostring(math.max(0, self.hp))) .. "/") .. tostring(self.maxHp), -- 3375
+		0.7 -- 3375
+	) -- 3375
+	e.fireCd = FIRE_COOLDOWN -- 3376
+	if self.hp <= 0 then -- 3376
+		self:gateFailed() -- 3378
+	end -- 3378
+end -- 3350
+function Play.prototype.blockedByCover(self, enemy, p) -- 3383
+	local b = self:coverAt(p) -- 3384
+	if b == nil then -- 3384
+		return nil -- 3386
+	end -- 3386
+	return self:coverGuardsFrom(b, p, enemy) and b or nil -- 3388
+end -- 3383
+function Play.prototype.gateFailed(self) -- 3392
+	local ____temp_56 -- 3393
+	if self.room.story == nil then -- 3393
+		____temp_56 = nil -- 3393
+	else -- 3393
+		____temp_56 = self.room.story.gate -- 3393
+	end -- 3393
+	local g = ____temp_56 -- 3393
+	self:flashSet("被击倒 · 回绞盘 118，重新就位再守", 2) -- 3394
+	self.hp = self.maxHp -- 3395
+	self.gateTick = 0 -- 3396
+	self.gateSpawned = 0 -- 3397
+	self.enemies = {} -- 3398
+	self.gateFailCount = self.gateFailCount + 1 -- 3399
+	self.player.x = self.ox + (g == nil and 118 or g.winchX) -- 3401
+	self.player.y = 0 -- 3402
+	self.player.vy = 0 -- 3403
+	self.player.depth = 0 -- 3404
+	self.player.depthSpeed = 0 -- 3405
+	self.player.onGround = true -- 3406
+	self.player.crouch = false -- 3407
+	self.player.h = SOLDIER_H -- 3408
+	self.partner.x = self.ox + (g == nil and 900 or g.waitX) -- 3409
+	self.partner.y = 0 -- 3410
+	self.partner.vy = 0 -- 3411
+	self.partner.depth = 0 -- 3412
+	self.partner.depthSpeed = 0 -- 3413
+	self.partner.onGround = true -- 3414
+	self.cam.x = self.player.x -- 3415
+	self.phase = "gate-idle" -- 3416
+	self.phaseTick = 0 -- 3417
+	self.coverHug = false -- 3418
+	self.coverBlocking = false -- 3419
+	self.coverEntity = "" -- 3420
+	self.gateNeedConfirm = true -- 3421
+	self.gateRestartArmed = false -- 3422
+	self:emit("gateFailed", {failCount = self.gateFailCount, hp = 0, maxHp = self.maxHp}) -- 3423
+end -- 3392
+function Play.prototype.stepInteract(self, dt, input) -- 3426
+	local p = self.player -- 3427
+	local calmUsed = self.calmConsumed -- 3428
+	self.calmConsumed = false -- 3429
+	local calming = self.escort.state == "calming" -- 3431
+	self.focusCart = false -- 3432
+	if self.room.key == "outside" then -- 3432
+		local c = self.room.cart -- 3434
+		local dx = p.x - (self.cartAxle + c.handleOffset) -- 3435
+		local dy = p.y - c.baseY -- 3436
+		self.focusCart = not calmUsed and not calming and dx * dx + dy * dy < ____exports.CART_REACH * ____exports.CART_REACH -- 3437
+	end -- 3437
+	if not calmUsed and not calming then -- 3437
+		self:stepCart(dt, input) -- 3441
+	end -- 3441
+	if calmUsed then -- 3441
+		self:flashSet("安抚 · 敲两下", 0.8) -- 3446
+	elseif not calming and input.interact.pressed and not self.gripping and self.room.key ~= "village" and self.room.key ~= "tower" and self.room.key ~= "prologue" and self.room.key ~= "gate" then -- 3446
+		if self.knockT > 0 then -- 3446
+			self.knocks = self.knocks + 1 -- 3450
+		else -- 3450
+			self.knocks = 1 -- 3452
+		end -- 3452
+		self:emit("knock", {count = self.knocks, x = p.x, room = self.room.key}) -- 3454
+		self.knockT = 1.2 -- 3455
+		if self.knocks >= 2 then -- 3455
+			self:flashSet("敲两下", 0.8) -- 3457
+			self.knocks = 0 -- 3458
+		else -- 3458
+			self:flashSet("敲一下", 0.5) -- 3460
+		end -- 3460
+	elseif self.knockT > 0 then -- 3460
+		self.knockT = self.knockT - dt -- 3463
+		if self.knockT <= 0 then -- 3463
+			self.knocks = 0 -- 3465
+		end -- 3465
+	end -- 3465
+	local i = 0 -- 3470
+	do -- 3470
+		i = 0 -- 3471
+		while i < #self.room.marks do -- 3471
+			do -- 3471
+				local m = self.room.marks[i + 1] -- 3472
+				if m.kind ~= 0 then -- 3472
+					goto __continue575 -- 3474
+				end -- 3474
+				local subjects = {self.partner, self.player} -- 3476
+				local k = 0 -- 3477
+				do -- 3477
+					k = 0 -- 3478
+					while k < #subjects do -- 3478
+						do -- 3478
+							local s = subjects[k + 1] -- 3479
+							if not s.alive then -- 3479
+								goto __continue578 -- 3481
+							end -- 3481
+							local dx = s.x - m.x -- 3483
+							local dy = s.y - m.y -- 3484
+							if dx * dx + dy * dy < 26 * 26 and self.checkpoint ~= m.x then -- 3484
+								self.checkpoint = m.x -- 3486
+								self.checkpointCartAxle = self.cartAxle -- 3487
+								if self.isCampaign then -- 3487
+									self:captureCheckpoint(m.x) -- 3490
+								end -- 3490
+								if self.cartDocked then -- 3490
+									self:flashSet("检查点 · 车已落窝", 1) -- 3493
+								else -- 3493
+									self:flashSet("检查点 · 车还没到位", 1) -- 3495
+								end -- 3495
+							end -- 3495
+						end -- 3495
+						::__continue578:: -- 3495
+						k = k + 1 -- 3478
+					end -- 3478
+				end -- 3478
+			end -- 3478
+			::__continue575:: -- 3478
+			i = i + 1 -- 3471
+		end -- 3471
+	end -- 3471
+	self:checkCarryGate() -- 3501
+end -- 3426
+function Play.prototype.stepVillage(self, dt, input) -- 3505
+	if self.room.key ~= "village" then -- 3505
+		return -- 3507
+	end -- 3507
+	local p = self.player -- 3509
+	local bottle = self.room.bottle -- 3510
+	local scav = self.room.scavenger -- 3511
+	if not self.hasBottle and bottle ~= nil then -- 3511
+		local dx = p.x - bottle.x -- 3515
+		local dy = p.y + p.h * 0.5 - bottle.y -- 3516
+		if dx * dx + dy * dy < 56 * 56 and input.interact.pressed then -- 3516
+			self.hasBottle = true -- 3518
+			self:flashSet("拾起瓶子", 0.8) -- 3519
+		end -- 3519
+	end -- 3519
+	if self.hasBottle then -- 3519
+		if input.aim.held then -- 3519
+			self.aimHold = self.aimHold + dt -- 3526
+			if self.aimHold > 1.2 then -- 3526
+				self.aimHold = 1.2 -- 3528
+			end -- 3528
+			local cached = self:bottleEnd() -- 3531
+			self.bottleAimX = cached.x -- 3532
+			self.bottleAimY = cached.y -- 3533
+		elseif input.aim.released then -- 3533
+			if self.aimHold < 0.12 then -- 3533
+				self:flashSet("按住 F 瞄一下再松手", 0.9) -- 3537
+				self.aimHold = 0 -- 3538
+			else -- 3538
+				local ____end = self.bottleAimX >= 0 and ({x = self.bottleAimX, y = self.bottleAimY}) or self:bottleEnd() -- 3540
+				self:throwBottle(____end.x, ____end.y) -- 3541
+				self.aimHold = 0 -- 3542
+			end -- 3542
+		end -- 3542
+	else -- 3542
+		self.aimHold = 0 -- 3546
+		self.bottleAimX = -1 -- 3547
+	end -- 3547
+	local fly = self.bottleFly -- 3552
+	if fly ~= nil then -- 3552
+		fly.t = fly.t + dt -- 3554
+		fly.x = fly.x0 + fly.vx * fly.t -- 3555
+		fly.y = fly.y0 + fly.vy * fly.t - 0.5 * ____exports.GRAVITY * fly.t * fly.t -- 3556
+		local falling = fly.vy - ____exports.GRAVITY * fly.t <= 0 -- 3557
+		if fly.t >= BOTTLE_FLY_TIME and falling then -- 3557
+			self:landBottle(fly) -- 3559
+		end -- 3559
+	end -- 3559
+	if self.bottleLandT > 0 then -- 3559
+		self.bottleLandT = self.bottleLandT - dt -- 3563
+	end -- 3563
+	if scav ~= nil then -- 3563
+		self:stepScav(dt, scav) -- 3567
+	end -- 3567
+	local line = self.room.passLine -- 3570
+	if line ~= nil and not self.passed and p.x >= line then -- 3570
+		self.passed = true -- 3572
+		self:flashSet("过了第一院 · 通行线 440", 1.4) -- 3573
+	end -- 3573
+	if self.passed and p.x >= self.ox + 640 then -- 3573
+		self:requestRoom("forest", "过第一院出院") -- 3577
+		self:flashSet("出院 · 北塔森林", 1.4) -- 3578
 	end -- 3578
-	if self.scavState == "turn" then -- 3578
-		self.scavT = self.scavT - 1 -- 3581
-		if self.scavT <= 0 then -- 3581
-			self.scavState = "walk" -- 3583
-		end -- 3583
-		return -- 3585
-	end -- 3585
-	if self.scavState == "walk" then -- 3585
-		local d = self.scavTargetX - self.scavX -- 3588
-		if math.abs(d) < 4 then -- 3588
-			self.scavState = "stall" -- 3590
-			self.scavT = s.stallTicks -- 3591
-			return -- 3592
-		end -- 3592
-		self.scavX = self.scavX + (d > 0 and 1 or -1) * s.approachSpeed * dt -- 3594
-		return -- 3595
-	end -- 3595
-	if self.scavState == "stall" then -- 3595
-		self.scavT = self.scavT - 1 -- 3598
-		if self.scavT <= 0 then -- 3598
-			self.scavState = "back" -- 3600
-		end -- 3600
-		return -- 3602
-	end -- 3602
-	if self.scavState == "back" then -- 3602
-		local home = math.max( -- 3605
-			s.x0, -- 3605
-			math.min(s.x1, self.scavX) -- 3605
-		) -- 3605
-		if math.abs(home - self.scavX) < 2 then -- 3605
-			self.scavState = "patrol" -- 3607
-			return -- 3608
-		end -- 3608
-		self.scavX = self.scavX + (home > self.scavX and 1 or -1) * s.approachSpeed * dt -- 3610
-		return -- 3611
-	end -- 3611
-	self.scavX = self.scavX + self.scavDir * s.patrolSpeed * dt -- 3613
-	if self.scavX >= s.x1 then -- 3613
-		self.scavX = s.x1 -- 3615
-		self.scavDir = -1 -- 3616
-	elseif self.scavX <= s.x0 then -- 3616
-		self.scavX = s.x0 -- 3618
-		self.scavDir = 1 -- 3619
-	end -- 3619
-end -- 3575
-function Play.prototype.stepCart(self, dt, input) -- 3627
-	local p = self.player -- 3628
-	local c = self.room.cart -- 3629
-	if self.gripping then -- 3629
-		if not input.interact.held then -- 3629
-			self.gripping = false -- 3633
-			self:flashSet("松开车把", 0.4) -- 3634
-			return -- 3635
-		end -- 3635
-	else -- 3635
-		if not input.interact.pressed then -- 3635
-			return -- 3639
-		end -- 3639
-		if not self:cartHandleInReach(p) then -- 3639
-			return -- 3642
-		end -- 3642
-		local track = c.depth or 0 -- 3644
-		if self:limitDepth(p, track) ~= track then -- 3644
-			return -- 3646
-		end -- 3646
-		p.depth = track -- 3648
-		p.depthSpeed = 0 -- 3649
-		self.gripping = true -- 3650
-		self:flashSet("握住车把", 0.4) -- 3651
-		return -- 3652
-	end -- 3652
-	if self.cartDocked then -- 3652
-		return -- 3656
-	end -- 3656
-	local dir = input.moveX -- 3658
-	if dir == 0 then -- 3658
+end -- 3505
+function Play.prototype.bottleEnd(self) -- 3583
+	local aim = self.worldMapper ~= nil and self.worldMapper(self.aimX, self.aimY) or ____exports.screenToWorld(self.aimX, self.aimY, self.cam, self.view) -- 3584
+	local g = self:groundAt(aim.x, aim.y + 240, 3) -- 3587
+	return {x = aim.x, y = g} -- 3588
+end -- 3583
+function Play.prototype.throwBottle(self, tx, ty) -- 3592
+	local p = self.player -- 3593
+	local dir = tx >= p.x and 1 or -1 -- 3595
+	p.facing = dir -- 3596
+	local x0 = p.x + dir * 10 -- 3597
+	local y0 = p.y + p.h * 0.7 -- 3598
+	self.bottleTargetX = tx -- 3599
+	self.bottleTargetY = ty -- 3600
+	self.bottleSurfaceY = ty -- 3601
+	local vx = (tx - x0) / BOTTLE_FLY_TIME -- 3602
+	local vy = (ty - y0 + 0.5 * ____exports.GRAVITY * BOTTLE_FLY_TIME * BOTTLE_FLY_TIME) / BOTTLE_FLY_TIME -- 3603
+	self.bottleFly = { -- 3604
+		x = x0, -- 3604
+		y = y0, -- 3604
+		x0 = x0, -- 3604
+		y0 = y0, -- 3604
+		vx = vx, -- 3604
+		vy = vy, -- 3604
+		t = 0 -- 3604
+	} -- 3604
+	self.hasBottle = false -- 3605
+	self:flashSet("投出", 0.4) -- 3606
+	self:emit( -- 3607
+		"bottleThrown", -- 3607
+		{ -- 3607
+			fromX = x0, -- 3608
+			fromY = y0, -- 3609
+			targetX = tx, -- 3610
+			targetY = ty, -- 3611
+			flightTicks = math.floor(BOTTLE_FLY_TIME * 60 + 0.5) -- 3612
+		} -- 3612
+	) -- 3612
+end -- 3592
+function Play.prototype.landBottle(self, fly) -- 3617
+	local x = self.bottleTargetX >= 0 and self.bottleTargetX or fly.x -- 3618
+	local y = self.bottleSurfaceY >= 0 and self.bottleSurfaceY or fly.y -- 3619
+	local s = self.room.scavenger -- 3620
+	local heard = s ~= nil and math.abs(x - self.scavX) <= s.range -- 3621
+	self.bottleFly = nil -- 3622
+	self.bottleTargetX = -1 -- 3623
+	self.bottleTargetY = 0 -- 3624
+	self.bottleSurfaceY = -1 -- 3625
+	self.bottleLandX = x -- 3626
+	self.bottleLandY = y -- 3627
+	self.bottleLandT = 0.9 -- 3628
+	self:emit("bottleLanded", {x = x, y = y, heard = heard, scavState = self.scavState}) -- 3629
+	self:hearBottle(x) -- 3630
+end -- 3617
+function Play.prototype.hearBottle(self, x) -- 3634
+	local s = self.room.scavenger -- 3635
+	if s == nil then -- 3635
+		return -- 3637
+	end -- 3637
+	if math.abs(x - self.scavX) > s.range then -- 3637
+		self:flashSet("落地 · 他没听见", 0.6) -- 3640
+		return -- 3641
+	end -- 3641
+	self.scavState = "turn" -- 3643
+	self.scavT = s.hearTicks -- 3644
+	self.scavTargetX = x -- 3645
+	self:flashSet("砖地一响 · 他转头", 0.9) -- 3646
+end -- 3634
+function Play.prototype.stepScav(self, dt, s) -- 3650
+	if self.scavState == "chase" then -- 3650
+		return -- 3653
+	end -- 3653
+	if self.scavState == "turn" then -- 3653
+		self.scavT = self.scavT - 1 -- 3656
+		if self.scavT <= 0 then -- 3656
+			self.scavState = "walk" -- 3658
+		end -- 3658
 		return -- 3660
 	end -- 3660
-	local lo = math.min(c.startX, c.endX) -- 3662
-	local hi = math.max(c.startX, c.endX) -- 3663
-	local next = self.cartAxle + dir * CART_SPEED * dt -- 3664
-	if next < lo then -- 3664
-		next = lo -- 3666
-	end -- 3666
-	if next > hi then -- 3666
-		next = hi -- 3669
-	end -- 3669
-	local delta = next - self.cartAxle -- 3671
-	if delta == 0 then -- 3671
-		return -- 3673
-	end -- 3673
-	self.cartAxle = next -- 3675
-	p.x = p.x + delta -- 3676
-	p.facing = dir > 0 and 1 or -1 -- 3677
-	self:slideX(p, 0) -- 3678
-	if math.abs(p.x - (self.cartAxle + c.handleOffset)) > ____exports.CART_REACH then -- 3678
-		self.gripping = false -- 3680
-		self:flashSet("跟不上了，脱手", 0.6) -- 3681
-		return -- 3682
-	end -- 3682
-	if math.abs(self.cartAxle - c.endX) < 0.01 then -- 3682
-		self.cartDocked = true -- 3685
-		self.gripping = false -- 3686
-		self:emit("cartDocked", {axle = self.cartAxle, playerX = p.x, room = self.room.key}) -- 3687
-		self:flashSet("车轮落窝", 1.2) -- 3688
-	elseif math.abs(self.cartAxle - c.startX) < 0.01 then -- 3688
-		self:flashSet("车轮回到起点", 0.5) -- 3690
-	end -- 3690
-end -- 3627
-function Play.prototype.requestRoom(self, key, reason) -- 3698
-	if self.wantRoom ~= "" then -- 3698
-		return -- 3702
-	end -- 3702
-	self.wantRoom = key -- 3704
-	self:emit("roomChange", {from = self.room.key, to = key, reason = reason}) -- 3705
-end -- 3698
-function Play.prototype.checkCarryGate(self) -- 3712
-	if self.room.key == "checkpoint" then -- 3712
-		if self.gateOpen and self.player.x >= self.ox + 900 then -- 3712
-			self.carryCartAxle = self.cartAxle -- 3715
-			self.carryCartDocked = self.cartDocked -- 3716
-			self:requestRoom("gate", "检查站出口") -- 3717
-			self:flashSet("出检查站 · 城门", 1.2) -- 3718
-		end -- 3718
-		return -- 3720
-	end -- 3720
-	if self.room.key == "outside" then -- 3720
-		if self.checkpoint >= 380 and self.player.x >= WALL_ROAD_END then -- 3720
-			self.carryCartAxle = self.cartAxle -- 3726
-			self.carryCartDocked = self.cartDocked -- 3727
-			self:requestRoom("village", "墙根走完") -- 3728
-			self:flashSet("墙根走完 · 进村口", 1.2) -- 3729
-		end -- 3729
-	end -- 3729
-end -- 3712
-function Play.prototype.aimAt(self, wx, wy) -- 3736
-	local s = ____exports.worldToScreen(wx, wy, self.cam, self.view) -- 3737
-	self.aimX = s.x -- 3738
-	self.aimY = s.y -- 3739
-end -- 3736
-function Play.prototype.shoot(self, a) -- 3742
-	if self.isCampaign and self.reloadT > 0 then -- 3742
-		self:flashSet("装填中 · 等枪机复位", 0.35) -- 3744
-		return -- 3745
-	end -- 3745
-	local ox = a.x + a.facing * 8 -- 3747
-	local muzzleY = a.y + a.h * 0.72 -- 3748
-	local oy = muzzleY + a.depth -- 3749
-	local aim = self.worldMapper ~= nil and self.worldMapper(self.aimX, self.aimY) or ____exports.screenToWorld(self.aimX, self.aimY, self.cam, self.view) -- 3751
-	local dx = aim.x - ox -- 3754
-	local dy = aim.y - oy -- 3755
-	local len = math.sqrt(dx * dx + dy * dy) -- 3756
-	if len < 0.001 then -- 3756
-		dx = a.facing -- 3758
-		dy = 0 -- 3759
-	else -- 3759
-		dx = dx / len -- 3761
-		dy = dy / len -- 3762
-	end -- 3762
-	if dx ~= 0 then -- 3762
-		a.facing = dx > 0 and 1 or -1 -- 3765
+	if self.scavState == "walk" then -- 3660
+		local d = self.scavTargetX - self.scavX -- 3663
+		if math.abs(d) < 4 then -- 3663
+			self.scavState = "stall" -- 3665
+			self.scavT = s.stallTicks -- 3666
+			return -- 3667
+		end -- 3667
+		self.scavX = self.scavX + (d > 0 and 1 or -1) * s.approachSpeed * dt -- 3669
+		return -- 3670
+	end -- 3670
+	if self.scavState == "stall" then -- 3670
+		self.scavT = self.scavT - 1 -- 3673
+		if self.scavT <= 0 then -- 3673
+			self.scavState = "back" -- 3675
+		end -- 3675
+		return -- 3677
+	end -- 3677
+	if self.scavState == "back" then -- 3677
+		local home = math.max( -- 3680
+			s.x0, -- 3680
+			math.min(s.x1, self.scavX) -- 3680
+		) -- 3680
+		if math.abs(home - self.scavX) < 2 then -- 3680
+			self.scavState = "patrol" -- 3682
+			return -- 3683
+		end -- 3683
+		self.scavX = self.scavX + (home > self.scavX and 1 or -1) * s.approachSpeed * dt -- 3685
+		return -- 3686
+	end -- 3686
+	self.scavX = self.scavX + self.scavDir * s.patrolSpeed * dt -- 3688
+	if self.scavX >= s.x1 then -- 3688
+		self.scavX = s.x1 -- 3690
+		self.scavDir = -1 -- 3691
+	elseif self.scavX <= s.x0 then -- 3691
+		self.scavX = s.x0 -- 3693
+		self.scavDir = 1 -- 3694
+	end -- 3694
+end -- 3650
+function Play.prototype.stepCart(self, dt, input) -- 3702
+	local p = self.player -- 3703
+	local c = self.room.cart -- 3704
+	if self.gripping then -- 3704
+		if not input.interact.held then -- 3704
+			self.gripping = false -- 3708
+			self:flashSet("松开车把", 0.4) -- 3709
+			return -- 3710
+		end -- 3710
+	else -- 3710
+		if not input.interact.pressed then -- 3710
+			return -- 3714
+		end -- 3714
+		if not self:cartHandleInReach(p) then -- 3714
+			return -- 3717
+		end -- 3717
+		local track = c.depth or 0 -- 3719
+		if self:limitDepth(p, track) ~= track then -- 3719
+			return -- 3721
+		end -- 3721
+		p.depth = track -- 3723
+		p.depthSpeed = 0 -- 3724
+		self.gripping = true -- 3725
+		self:flashSet("握住车把", 0.4) -- 3726
+		return -- 3727
+	end -- 3727
+	if self.cartDocked then -- 3727
+		return -- 3731
+	end -- 3731
+	local dir = input.moveX -- 3733
+	if dir == 0 then -- 3733
+		return -- 3735
+	end -- 3735
+	local lo = math.min(c.startX, c.endX) -- 3737
+	local hi = math.max(c.startX, c.endX) -- 3738
+	local next = self.cartAxle + dir * CART_SPEED * dt -- 3739
+	if next < lo then -- 3739
+		next = lo -- 3741
+	end -- 3741
+	if next > hi then -- 3741
+		next = hi -- 3744
+	end -- 3744
+	local delta = next - self.cartAxle -- 3746
+	if delta == 0 then -- 3746
+		return -- 3748
+	end -- 3748
+	self.cartAxle = next -- 3750
+	p.x = p.x + delta -- 3751
+	p.facing = dir > 0 and 1 or -1 -- 3752
+	self:slideX(p, 0) -- 3753
+	if math.abs(p.x - (self.cartAxle + c.handleOffset)) > ____exports.CART_REACH then -- 3753
+		self.gripping = false -- 3755
+		self:flashSet("跟不上了，脱手", 0.6) -- 3756
+		return -- 3757
+	end -- 3757
+	if math.abs(self.cartAxle - c.endX) < 0.01 then -- 3757
+		self.cartDocked = true -- 3760
+		self.gripping = false -- 3761
+		self:emit("cartDocked", {axle = self.cartAxle, playerX = p.x, room = self.room.key}) -- 3762
+		self:flashSet("车轮落窝", 1.2) -- 3763
+	elseif math.abs(self.cartAxle - c.startX) < 0.01 then -- 3763
+		self:flashSet("车轮回到起点", 0.5) -- 3765
 	end -- 3765
-	local ray = {x = ox, y = oy, dx = dx, dy = dy} -- 3768
-	local hitEnemy = self:raycastEnemies(ray) -- 3769
-	local tEnemy = hitEnemy.t -- 3770
-	local targetDepth = tEnemy > 0.001 and (self.enemies[hitEnemy.index + 1].depth or 0) or a.depth -- 3771
-	local dDepth = tEnemy > 0.001 and (targetDepth - a.depth) / tEnemy or 0 -- 3772
-	local solid = self:raycastSolid(__TS__ObjectAssign({}, ray, {y = muzzleY, dy = dy - dDepth, depth = a.depth, dDepth = dDepth})) -- 3773
-	local tWall = solid.t -- 3774
-	local rawEffect = self:consumeReloadEffect() -- 3776
-	local weaponFx = weaponEffectOf(self.equippedWeapon) -- 3777
-	local reloadEffect = rawEffect -- 3778
-	if rawEffect == "light" and weaponFx ~= "light" then -- 3778
-		reloadEffect = "push" -- 3780
-	end -- 3780
-	local hit = tEnemy >= 0 and (tWall < 0 or tEnemy <= tWall or reloadEffect == "light" and weaponFx == "light") -- 3782
-	local t = hit and tEnemy or (tWall >= 0 and tWall or 700) -- 3783
-	self.trace = { -- 3785
-		x0 = ox, -- 3785
-		y0 = oy, -- 3785
-		x1 = ox + dx * t, -- 3785
-		y1 = oy + dy * t, -- 3785
-		hit = hit -- 3785
-	} -- 3785
-	self.traceT = 0.12 -- 3786
-	self:applyFireDanger(ox) -- 3787
-	local killed = false -- 3788
-	if hit then -- 3788
-		local i = hitEnemy.index -- 3790
-		local e = self.enemies[i + 1] -- 3791
-		local impactY = oy + dy * tEnemy -- 3792
-		local fromFront = a.x < e.x and dx > 0 or a.x > e.x and dx < 0 -- 3793
-		local shieldTop = e.y + (e.depth or 0) + 64 -- 3794
-		if e.kind == "shield" and (e.shieldHp or 0) > 0 and fromFront and impactY <= shieldTop then -- 3794
-			e.shieldHp = (e.shieldHp or 0) - 1 -- 3796
-			e.hitT = 0.3 -- 3797
-			self:flashSet( -- 3798
-				(("盾面挡下 · 盾 " .. tostring(e.shieldHp)) .. "/") .. tostring(e.shieldHpMax or 2), -- 3798
-				0.8 -- 3798
-			) -- 3798
-			self:emit("shotResolved", { -- 3799
-				hit = true, -- 3800
-				enemyIndex = i, -- 3800
-				enemyX = e.x, -- 3800
-				aimX = aim.x, -- 3800
-				aimY = aim.y, -- 3800
-				impactX = ox + dx * t, -- 3801
-				impactY = oy + dy * t, -- 3801
-				shield = true -- 3801
-			}) -- 3801
-			self:beginReload() -- 3803
-			return -- 3804
+end -- 3702
+function Play.prototype.requestRoom(self, key, reason) -- 3773
+	if self.wantRoom ~= "" then -- 3773
+		return -- 3777
+	end -- 3777
+	self.wantRoom = key -- 3779
+	self:emit("roomChange", {from = self.room.key, to = key, reason = reason}) -- 3780
+end -- 3773
+function Play.prototype.checkCarryGate(self) -- 3787
+	if self.room.key == "checkpoint" then -- 3787
+		if self.gateOpen and self.player.x >= self.ox + 900 then -- 3787
+			self.carryCartAxle = self.cartAxle -- 3790
+			self.carryCartDocked = self.cartDocked -- 3791
+			self:requestRoom("gate", "检查站出口") -- 3792
+			self:flashSet("出检查站 · 城门", 1.2) -- 3793
+		end -- 3793
+		return -- 3795
+	end -- 3795
+	if self.room.key == "outside" then -- 3795
+		if self.checkpoint >= 380 and self.player.x >= WALL_ROAD_END then -- 3795
+			self.carryCartAxle = self.cartAxle -- 3801
+			self.carryCartDocked = self.cartDocked -- 3802
+			self:requestRoom("village", "墙根走完") -- 3803
+			self:flashSet("墙根走完 · 进村口", 1.2) -- 3804
 		end -- 3804
-		e.alive = false -- 3806
-		e.hitT = 0.4 -- 3807
-		killed = true -- 3808
-		self:flashSet("命中", 0.6) -- 3809
-		self:dropFor(e) -- 3810
-		if reloadEffect == "push" then -- 3810
-			e.x = e.x + a.facing * 46 -- 3812
-			self:emit("reloadApplied", {effect = "push", weapon = self.equippedWeapon, enemyX = e.x}) -- 3813
-		elseif reloadEffect == "echo" then -- 3813
-			self:echoToSource(a, weaponFx == "echo" and 2 or 1) -- 3815
-			self:emit("reloadApplied", {effect = "echo", weapon = self.equippedWeapon, enemyX = e.x}) -- 3816
-		elseif reloadEffect == "light" then -- 3816
-			self:emit("reloadApplied", {effect = "light", weapon = self.equippedWeapon, enemyX = e.x}) -- 3818
-		end -- 3818
-	elseif solid.box ~= nil and solid.box.breakable ~= nil then -- 3818
-		self:damageProp(solid.box, 1) -- 3821
-	else -- 3821
-		self:flashSet("打空", 0.35) -- 3823
-	end -- 3823
-	if self.isCampaign then -- 3823
-		self:beginReload() -- 3826
-	end -- 3826
-	self:emit("shotResolved", { -- 3828
-		hit = hit, -- 3829
-		enemyIndex = hit and hitEnemy.index or -1, -- 3830
-		enemyX = hit and self.enemies[hitEnemy.index + 1].x or -1, -- 3831
-		aimX = aim.x, -- 3832
-		aimY = aim.y, -- 3833
-		impactX = ox + dx * t, -- 3834
-		impactY = oy + dy * t -- 3835
-	}) -- 3835
-end -- 3742
-function Play.prototype.applyFireDanger(self, shotX) -- 3840
-	if self.room.key ~= "checkpoint" or not self.partner.alive then -- 3840
-		return -- 3842
-	end -- 3842
-	local dangerX = shotX -- 3844
-	local best = -1 -- 3845
-	local bestD = 1000000000 -- 3846
-	local i = 0 -- 3847
-	do -- 3847
-		i = 0 -- 3848
-		while i < #self.enemies do -- 3848
-			do -- 3848
-				local e = self.enemies[i + 1] -- 3849
-				if not e.alive then -- 3849
-					goto __continue648 -- 3851
-				end -- 3851
-				local d = math.abs(e.x - self.partner.x) -- 3853
-				if d < bestD then -- 3853
-					bestD = d -- 3855
-					best = i -- 3856
-				end -- 3856
-			end -- 3856
-			::__continue648:: -- 3856
-			i = i + 1 -- 3848
-		end -- 3848
-	end -- 3848
-	if best >= 0 then -- 3848
-		dangerX = self.enemies[best + 1].x -- 3860
-	end -- 3860
-	local exposed = self:childExposed(dangerX) -- 3862
-	local before = self.escort.fear -- 3863
-	local dangerId = self.nextDangerId -- 3864
-	local after = self.escort:applyDanger(dangerId, exposed, self.partner.x) -- 3865
-	self.nextDangerId = self.nextDangerId + 1 -- 3866
-	self:emit("fearChanged", {fear = after, max = FEAR_MAX, exposed = exposed, dangerId = dangerId}) -- 3867
-	if after > before then -- 3867
-		self:flashSet( -- 3869
-			(("小满受惊 " .. tostring(after)) .. "/") .. tostring(FEAR_MAX), -- 3869
-			1 -- 3869
-		) -- 3869
-	elseif not exposed then -- 3869
-		self:flashSet("枪声没够到她", 0.5) -- 3871
-	end -- 3871
-end -- 3840
-function Play.prototype.childExposed(self, dangerX) -- 3876
-	local c = self.partner -- 3877
-	if not c.alive then -- 3877
-		return false -- 3879
-	end -- 3879
-	if c.x > self.ox + 240 and c.x < self.ox + 340 and __TS__ArraySome( -- 3879
-		self.boxes, -- 3882
-		function(____, b) return b.x0 == self.ox + 240 and overlapsDepth(c.depth, b.depth, ACTOR_DEPTH_HALF) end -- 3882
-	) then -- 3882
-		return false -- 3883
-	end -- 3883
-	if c.x < self.ox + 380 or c.x > self.ox + 560 then -- 3883
-		return false -- 3886
-	end -- 3886
-	local toDanger = dangerX - c.x -- 3888
-	local toPlayer = self.player.x - c.x -- 3889
-	if toDanger * toPlayer > 0 and math.abs(toPlayer) < math.abs(toDanger) and inReachDepth(self.player.depth, c.depth) then -- 3889
-		return false -- 3892
-	end -- 3892
-	return true -- 3894
-end -- 3876
-function Play.prototype.raycastEnemies(self, ray) -- 3898
-	local best = -1 -- 3899
-	local bestI = -1 -- 3900
-	do -- 3900
-		local i = 0 -- 3901
-		while i < #self.enemies do -- 3901
-			do -- 3901
-				local e = self.enemies[i + 1] -- 3902
-				if not e.alive then -- 3902
-					goto __continue662 -- 3904
-				end -- 3904
-				local y = e.y + (e.depth or 0) -- 3906
-				local t = hitBox(ray, {x0 = e.x - e.w / 2, x1 = e.x + e.w / 2, y0 = y, y1 = y + e.h}) -- 3907
-				if t >= 0 and (best < 0 or t < best) then -- 3907
-					best = t -- 3909
-					bestI = i -- 3910
-				end -- 3910
-			end -- 3910
-			::__continue662:: -- 3910
-			i = i + 1 -- 3901
-		end -- 3901
-	end -- 3901
-	return {t = best, index = bestI} -- 3913
-end -- 3898
-function Play.prototype.raycastWorld(self, ray) -- 3916
-	return self:raycastSolid(ray).t -- 3917
+	end -- 3804
+end -- 3787
+function Play.prototype.aimAt(self, wx, wy) -- 3811
+	local s = ____exports.worldToScreen(wx, wy, self.cam, self.view) -- 3812
+	self.aimX = s.x -- 3813
+	self.aimY = s.y -- 3814
+end -- 3811
+function Play.prototype.shoot(self, a) -- 3817
+	if self.isCampaign and self.reloadT > 0 then -- 3817
+		self:flashSet("装填中 · 等枪机复位", 0.35) -- 3819
+		return -- 3820
+	end -- 3820
+	local ox = a.x + a.facing * 8 -- 3822
+	local muzzleY = a.y + a.h * 0.72 -- 3823
+	local oy = muzzleY + a.depth -- 3824
+	local aim = self.worldMapper ~= nil and self.worldMapper(self.aimX, self.aimY) or ____exports.screenToWorld(self.aimX, self.aimY, self.cam, self.view) -- 3826
+	local dx = aim.x - ox -- 3829
+	local dy = aim.y - oy -- 3830
+	local len = math.sqrt(dx * dx + dy * dy) -- 3831
+	if len < 0.001 then -- 3831
+		dx = a.facing -- 3833
+		dy = 0 -- 3834
+	else -- 3834
+		dx = dx / len -- 3836
+		dy = dy / len -- 3837
+	end -- 3837
+	if dx ~= 0 then -- 3837
+		a.facing = dx > 0 and 1 or -1 -- 3840
+	end -- 3840
+	local ray = {x = ox, y = oy, dx = dx, dy = dy} -- 3843
+	local hitEnemy = self:raycastEnemies(ray) -- 3844
+	local tEnemy = hitEnemy.t -- 3845
+	local targetDepth = tEnemy > 0.001 and (self.enemies[hitEnemy.index + 1].depth or 0) or a.depth -- 3846
+	local dDepth = tEnemy > 0.001 and (targetDepth - a.depth) / tEnemy or 0 -- 3847
+	local solid = self:raycastSolid(__TS__ObjectAssign({}, ray, {y = muzzleY, dy = dy - dDepth, depth = a.depth, dDepth = dDepth})) -- 3848
+	local tWall = solid.t -- 3849
+	local rawEffect = self:consumeReloadEffect() -- 3851
+	local weaponFx = weaponEffectOf(self.equippedWeapon) -- 3852
+	local reloadEffect = rawEffect -- 3853
+	local hit = tEnemy >= 0 and (tWall < 0 or tEnemy <= tWall or reloadEffect == "light") -- 3855
+	local t = hit and tEnemy or (tWall >= 0 and tWall or 700) -- 3856
+	self.trace = { -- 3858
+		x0 = ox, -- 3858
+		y0 = oy, -- 3858
+		x1 = ox + dx * t, -- 3858
+		y1 = oy + dy * t, -- 3858
+		hit = hit -- 3858
+	} -- 3858
+	self.traceT = 0.12 -- 3859
+	self:applyFireDanger(ox) -- 3860
+	local killed = false -- 3861
+	if hit then -- 3861
+		local i = hitEnemy.index -- 3863
+		local e = self.enemies[i + 1] -- 3864
+		local impactY = oy + dy * tEnemy -- 3865
+		local fromFront = a.x < e.x and dx > 0 or a.x > e.x and dx < 0 -- 3866
+		local shieldTop = e.y + (e.depth or 0) + 64 -- 3867
+		if e.kind == "shield" and (e.shieldHp or 0) > 0 and fromFront and impactY <= shieldTop then -- 3867
+			e.shieldHp = (e.shieldHp or 0) - 1 -- 3869
+			e.hitT = 0.3 -- 3870
+			self:flashSet( -- 3871
+				(("盾面挡下 · 盾 " .. tostring(e.shieldHp)) .. "/") .. tostring(e.shieldHpMax or 2), -- 3871
+				0.8 -- 3871
+			) -- 3871
+			self:emit("shotResolved", { -- 3872
+				hit = true, -- 3873
+				enemyIndex = i, -- 3873
+				enemyX = e.x, -- 3873
+				aimX = aim.x, -- 3873
+				aimY = aim.y, -- 3873
+				impactX = ox + dx * t, -- 3874
+				impactY = oy + dy * t, -- 3874
+				shield = true -- 3874
+			}) -- 3874
+			self:beginReload() -- 3876
+			return -- 3877
+		end -- 3877
+		e.alive = false -- 3879
+		e.hitT = 0.4 -- 3880
+		killed = true -- 3881
+		self:flashSet("命中", 0.6) -- 3882
+		self:dropFor(e) -- 3883
+		if reloadEffect == "light" and weaponFx == "light" then -- 3883
+			self:blindNearby(e, 160, i) -- 3885
+		end -- 3885
+		if reloadEffect == "push" then -- 3885
+			e.x = e.x + a.facing * 46 -- 3888
+			self:emit("reloadApplied", {effect = "push", weapon = self.equippedWeapon, enemyX = e.x}) -- 3889
+		elseif reloadEffect == "echo" then -- 3889
+			self:echoToSource(a, weaponFx == "echo" and 2 or 1) -- 3891
+			self:emit("reloadApplied", {effect = "echo", weapon = self.equippedWeapon, enemyX = e.x}) -- 3892
+		elseif reloadEffect == "light" then -- 3892
+			self:emit("reloadApplied", {effect = "light", weapon = self.equippedWeapon, enemyX = e.x}) -- 3894
+		end -- 3894
+	elseif solid.box ~= nil and solid.box.breakable ~= nil then -- 3894
+		self:damageProp(solid.box, 1) -- 3897
+	else -- 3897
+		self:flashSet("打空", 0.35) -- 3899
+	end -- 3899
+	if self.isCampaign then -- 3899
+		self:beginReload() -- 3902
+	end -- 3902
+	self:emit("shotResolved", { -- 3904
+		hit = hit, -- 3905
+		enemyIndex = hit and hitEnemy.index or -1, -- 3906
+		enemyX = hit and self.enemies[hitEnemy.index + 1].x or -1, -- 3907
+		aimX = aim.x, -- 3908
+		aimY = aim.y, -- 3909
+		impactX = ox + dx * t, -- 3910
+		impactY = oy + dy * t -- 3911
+	}) -- 3911
+end -- 3817
+function Play.prototype.applyFireDanger(self, shotX) -- 3916
+	if self.room.key ~= "checkpoint" or not self.partner.alive then -- 3916
+		return -- 3918
+	end -- 3918
+	local dangerX = shotX -- 3920
+	local best = -1 -- 3921
+	local bestD = 1000000000 -- 3922
+	local i = 0 -- 3923
+	do -- 3923
+		i = 0 -- 3924
+		while i < #self.enemies do -- 3924
+			do -- 3924
+				local e = self.enemies[i + 1] -- 3925
+				if not e.alive then -- 3925
+					goto __continue659 -- 3927
+				end -- 3927
+				local d = math.abs(e.x - self.partner.x) -- 3929
+				if d < bestD then -- 3929
+					bestD = d -- 3931
+					best = i -- 3932
+				end -- 3932
+			end -- 3932
+			::__continue659:: -- 3932
+			i = i + 1 -- 3924
+		end -- 3924
+	end -- 3924
+	if best >= 0 then -- 3924
+		dangerX = self.enemies[best + 1].x -- 3936
+	end -- 3936
+	local exposed = self:childExposed(dangerX) -- 3938
+	local before = self.escort.fear -- 3939
+	local dangerId = self.nextDangerId -- 3940
+	local after = self.escort:applyDanger(dangerId, exposed, self.partner.x) -- 3941
+	self.nextDangerId = self.nextDangerId + 1 -- 3942
+	self:emit("fearChanged", {fear = after, max = FEAR_MAX, exposed = exposed, dangerId = dangerId}) -- 3943
+	if after > before then -- 3943
+		self:flashSet( -- 3945
+			(("小满受惊 " .. tostring(after)) .. "/") .. tostring(FEAR_MAX), -- 3945
+			1 -- 3945
+		) -- 3945
+	elseif not exposed then -- 3945
+		self:flashSet("枪声没够到她", 0.5) -- 3947
+	end -- 3947
 end -- 3916
-function Play.prototype.raycastSolid(self, ray) -- 3921
-	local best = -1 -- 3922
-	local bestBox = nil -- 3923
-	for ____, box in ipairs(self.boxes) do -- 3924
-		do -- 3924
-			if box.broken == true or box.hidden == true then -- 3924
-				goto __continue667 -- 3926
-			end -- 3926
-			local t = hitBox(ray, box) -- 3931
-			if t > 2 and (best < 0 or t < best) then -- 3931
-				best = t -- 3934
-				bestBox = box -- 3935
-			end -- 3935
-		end -- 3935
-		::__continue667:: -- 3935
-	end -- 3935
-	if ray.dy < 0 then -- 3935
-		local t = -ray.y / ray.dy -- 3939
-		if t >= 0 and (best < 0 or t < best) then -- 3939
-			best = t -- 3941
-			bestBox = nil -- 3942
-		end -- 3942
-	end -- 3942
-	return {t = best, box = bestBox} -- 3945
-end -- 3921
-function Play.prototype.dropFor(self, e) -- 3949
-	if not self.isCampaign or e.drop == nil or e.drop == "none" then -- 3949
-		return -- 3951
-	end -- 3951
-	if e.drop == "shield" and (e.shieldHp or 0) <= 0 then -- 3951
-		return -- 3954
-	end -- 3954
-	local label = e.drop == "shield" and "残盾" or (e.drop == "wedge" and "木楔" or (e.drop == "ammo" and "备用弹包" or e.drop)) -- 3956
-	local ____self_pickups_57 = self.pickups -- 3956
-	____self_pickups_57[#____self_pickups_57 + 1] = { -- 3957
-		id = (self.room.key .. "_drop_") .. tostring(e.squad or 0), -- 3958
-		kind = e.drop, -- 3958
-		x = e.x, -- 3958
-		y = e.y, -- 3958
-		depth = e.depth, -- 3959
-		label = label .. " ×1" -- 3959
-	} -- 3959
-	self:log("掉落 " .. label) -- 3961
-end -- 3949
-function Play.prototype.damageProp(self, b, amount) -- 3965
-	if b.breakable == nil or b.broken == true then -- 3965
-		return -- 3967
-	end -- 3967
-	local ____b_breakable_58, ____hp_59 = b.breakable, "hp" -- 3967
-	____b_breakable_58[____hp_59] = ____b_breakable_58[____hp_59] - amount -- 3969
-	if b.breakable.hp > 0 then -- 3969
-		self:flashSet(b.breakable.kind == "thin_wood" and "薄木挡裂开 · 再一下" or "围挡松了 · 再一下", 0.9) -- 3971
-		self:emit("propBroken", {id = b.id or "", phase = "crack", hp = b.breakable.hp, x = b.x0}) -- 3972
-		return -- 3973
-	end -- 3973
-	b.broken = true -- 3975
-	for ____, other in ipairs(self.boxes) do -- 3976
-		if other.id ~= nil and other.id == b.id then -- 3976
-			other.broken = true -- 3978
-		end -- 3978
-	end -- 3978
-	self.run.props[b.id or ""] = {broken = true, hp = 0, wedge = false} -- 3981
-	self:flashSet(b.breakable.kind == "thin_wood" and "薄木挡碎了 · 通路打开" or "空筐散了 · 短口打开", 1.2) -- 3982
-	self:log((("破坏 " .. (b.id or "")) .. " ") .. b.breakable.kind) -- 3983
-	self:emit("propBroken", {id = b.id or "", phase = "broken", hp = 0, x = b.x0}) -- 3984
-end -- 3965
-function Play.prototype.slideDepth(self, a, distance) -- 3988
-	a.depth = self:limitDepth(a, a.depth + distance) -- 3989
-end -- 3988
-function Play.prototype.limitDepth(self, a, target) -- 3992
-	local road = self.room.depth -- 3993
-	if road == nil or target == a.depth then -- 3993
-		return a.depth -- 3995
-	end -- 3995
-	local next = math.max( -- 3997
-		road.min, -- 3997
-		math.min(road.max, target) -- 3997
-	) -- 3997
-	local half = a.w / 2 -- 3998
-	for ____, b in ipairs(self.boxes) do -- 3999
-		do -- 3999
-			local footprint = b.depth -- 4000
-			if footprint == nil or b.passable == true or b.broken == true or b.hidden == true or b.soft == true or a.x + half <= b.x0 or a.x - half >= b.x1 or a.y + a.h <= b.y0 + 0.001 or a.y >= b.y1 - 0.001 then -- 4000
-				goto __continue685 -- 4005
-			end -- 4005
-			local front = footprint.min - ACTOR_DEPTH_HALF -- 4007
-			local back = footprint.max + ACTOR_DEPTH_HALF -- 4008
-			if a.depth <= front and next > front then -- 4008
-				next = front -- 4010
-			elseif a.depth >= back and next < back then -- 4010
-				next = back -- 4012
-			end -- 4012
-		end -- 4012
-		::__continue685:: -- 4012
-	end -- 4012
-	return next -- 4015
+function Play.prototype.childExposed(self, dangerX) -- 3952
+	local c = self.partner -- 3953
+	if not c.alive then -- 3953
+		return false -- 3955
+	end -- 3955
+	if c.x > self.ox + 240 and c.x < self.ox + 340 and __TS__ArraySome( -- 3955
+		self.boxes, -- 3958
+		function(____, b) return b.x0 == self.ox + 240 and overlapsDepth(c.depth, b.depth, ACTOR_DEPTH_HALF) end -- 3958
+	) then -- 3958
+		return false -- 3959
+	end -- 3959
+	if c.x < self.ox + 380 or c.x > self.ox + 560 then -- 3959
+		return false -- 3962
+	end -- 3962
+	local toDanger = dangerX - c.x -- 3964
+	local toPlayer = self.player.x - c.x -- 3965
+	if toDanger * toPlayer > 0 and math.abs(toPlayer) < math.abs(toDanger) and inReachDepth(self.player.depth, c.depth) then -- 3965
+		return false -- 3968
+	end -- 3968
+	return true -- 3970
+end -- 3952
+function Play.prototype.raycastEnemies(self, ray) -- 3974
+	local best = -1 -- 3975
+	local bestI = -1 -- 3976
+	do -- 3976
+		local i = 0 -- 3977
+		while i < #self.enemies do -- 3977
+			do -- 3977
+				local e = self.enemies[i + 1] -- 3978
+				if not e.alive then -- 3978
+					goto __continue673 -- 3980
+				end -- 3980
+				local y = e.y + (e.depth or 0) -- 3982
+				local t = hitBox(ray, {x0 = e.x - e.w / 2, x1 = e.x + e.w / 2, y0 = y, y1 = y + e.h}) -- 3983
+				if t >= 0 and (best < 0 or t < best) then -- 3983
+					best = t -- 3985
+					bestI = i -- 3986
+				end -- 3986
+			end -- 3986
+			::__continue673:: -- 3986
+			i = i + 1 -- 3977
+		end -- 3977
+	end -- 3977
+	return {t = best, index = bestI} -- 3989
+end -- 3974
+function Play.prototype.raycastWorld(self, ray) -- 3992
+	return self:raycastSolid(ray).t -- 3993
 end -- 3992
-function Play.prototype.slideX(self, a, dx) -- 4019
-	local nx = a.x + dx -- 4020
-	local half = a.w / 2 -- 4021
-	local room = self.room -- 4022
-	nx = math.max( -- 4023
-		room.minX + half, -- 4023
-		math.min(room.maxX - half, nx) -- 4023
-	) -- 4023
-	local i = 0 -- 4024
-	do -- 4024
-		i = 0 -- 4025
-		while i < #self.boxes do -- 4025
-			do -- 4025
-				local b = self.boxes[i + 1] -- 4026
-				if b.passable == true or b.broken == true or b.hidden == true or b.soft == true then -- 4026
-					goto __continue692 -- 4028
-				end -- 4028
-				if not overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF) then -- 4028
-					goto __continue692 -- 4031
-				end -- 4031
-				if a.y + a.h <= b.y0 + 0.001 or a.y >= b.y1 - 0.001 then -- 4031
-					goto __continue692 -- 4034
-				end -- 4034
-				if nx + half > b.x0 and nx - half < b.x1 then -- 4034
-					if a.x <= b.x0 then -- 4034
-						nx = b.x0 - half -- 4038
-					elseif a.x >= b.x1 then -- 4038
-						nx = b.x1 + half -- 4040
-					else -- 4040
-						nx = a.x -- 4042
-					end -- 4042
-				end -- 4042
-			end -- 4042
-			::__continue692:: -- 4042
-			i = i + 1 -- 4025
-		end -- 4025
-	end -- 4025
-	if self.room.key == "outside" and a.y < CART_CLEAR - 0.001 then -- 4025
-		local blocked = not self.cartDocked or a.y + a.h > CART_CLEAR + 0.001 -- 4050
-		local bx0 = self.cartAxle - CART_HALF -- 4051
-		local bx1 = self.cartAxle + CART_HALF -- 4052
-		if blocked and nx + half > bx0 and nx - half < bx1 then -- 4052
-			if a.x <= bx0 then -- 4052
-				nx = bx0 - half -- 4055
-			elseif a.x >= bx1 then -- 4055
-				nx = bx1 + half -- 4057
-			else -- 4057
-				nx = a.x -- 4059
-			end -- 4059
-		end -- 4059
-	end -- 4059
-	local arch = room.arch -- 4067
-	if arch.h > 0 and a.y < arch.y + arch.h - 0.001 and a.y + a.h > arch.y + arch.h + 0.001 then -- 4067
-		local insideNow = a.x > arch.x0 and a.x < arch.x1 -- 4069
-		if not insideNow and nx + half > arch.x0 and nx - half < arch.x1 then -- 4069
-			if a.x <= arch.x0 then -- 4069
-				nx = arch.x0 - half -- 4072
-			elseif a.x >= arch.x1 then -- 4072
-				nx = arch.x1 + half -- 4074
-			end -- 4074
-		end -- 4074
-	end -- 4074
-	a.x = nx -- 4078
-end -- 4019
-function Play.prototype.fallY(self, a, dt) -- 4082
-	a.vy = a.vy - ____exports.GRAVITY * dt -- 4083
-	if a.vy < -900 then -- 4083
-		a.vy = -900 -- 4085
-	end -- 4085
-	local ny = a.y + a.vy * dt -- 4087
-	local half = a.w / 2 -- 4088
-	if a.vy <= 0 then -- 4088
-		local reach = a.onGround and STEP_UP or 0 -- 4091
-		local ground = self:groundAt(a.x, a.y + 0.5 + reach, half, a.depth) -- 4092
-		if ny <= ground then -- 4092
-			ny = ground -- 4094
-			a.vy = 0 -- 4095
-			a.onGround = true -- 4096
-		else -- 4096
-			a.onGround = false -- 4098
-		end -- 4098
-	else -- 4098
-		a.onGround = false -- 4101
-		local i = 0 -- 4102
-		do -- 4102
-			i = 0 -- 4103
-			while i < #self.boxes do -- 4103
-				do -- 4103
-					local b = self.boxes[i + 1] -- 4104
-					if b.passable == true or b.broken == true or b.hidden == true or b.soft == true then -- 4104
-						goto __continue716 -- 4106
-					end -- 4106
-					if not overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF) then -- 4106
-						goto __continue716 -- 4109
-					end -- 4109
-					if a.x + half <= b.x0 or a.x - half >= b.x1 then -- 4109
-						goto __continue716 -- 4112
-					end -- 4112
-					if b.y0 >= a.y + a.h - 0.5 and ny + a.h > b.y0 then -- 4112
-						ny = b.y0 - a.h -- 4115
-						a.vy = 0 -- 4116
-					end -- 4116
-				end -- 4116
-				::__continue716:: -- 4116
-				i = i + 1 -- 4103
-			end -- 4103
-		end -- 4103
-	end -- 4103
-	a.y = ny -- 4120
-end -- 4082
-function Play.prototype.groundAt(self, x, ceiling, half, depth) -- 4124
-	if depth == nil then -- 4124
-		depth = 0 -- 4124
-	end -- 4124
-	local g = -9999 -- 4125
-	local i = 0 -- 4126
-	do -- 4126
-		i = 0 -- 4127
-		while i < #self.floors do -- 4127
-			local f = self.floors[i + 1] -- 4128
-			if x + half > f.x0 and x - half < f.x1 and f.y1 <= ceiling and f.y1 > g then -- 4128
-				g = f.y1 -- 4130
-			end -- 4130
-			i = i + 1 -- 4127
-		end -- 4127
-	end -- 4127
-	do -- 4127
-		i = 0 -- 4133
-		while i < #self.boxes do -- 4133
-			do -- 4133
-				local b = self.boxes[i + 1] -- 4134
-				if b.broken == true or b.hidden == true or b.soft == true then -- 4134
-					goto __continue726 -- 4136
-				end -- 4136
-				if x + half > b.x0 and x - half < b.x1 and b.y1 <= ceiling and b.y1 > g and overlapsDepth(depth, b.depth, ACTOR_DEPTH_HALF) then -- 4136
-					g = b.y1 -- 4140
-				end -- 4140
-			end -- 4140
-			::__continue726:: -- 4140
-			i = i + 1 -- 4133
-		end -- 4133
-	end -- 4133
-	return g -- 4143
-end -- 4124
-function Play.prototype.updateCamera(self, dt) -- 4146
-	local p = self.player -- 4147
-	local tx = p.x + p.facing * 30 -- 4148
-	local ty = p.y + CAM_LOOK_UP -- 4149
-	local k = math.min(1, CAM_FOLLOW * dt) -- 4150
-	self.cam.x = self.cam.x + (tx - self.cam.x) * k -- 4151
-	self.cam.y = self.cam.y + (ty - self.cam.y) * k -- 4152
-end -- 4146
-function Play.prototype.clampCamera(self, w, h) -- 4156
-	local room = self.room -- 4157
-	local halfW = ____exports.LOGIC_W * ____exports.UNITS_PER_PX / 2 -- 4158
-	local spanX = room.maxX - room.minX -- 4159
-	if spanX <= halfW * 2 then -- 4159
-		self.cam.x = (room.minX + room.maxX) / 2 -- 4161
-	else -- 4161
-		self.cam.x = math.max( -- 4163
-			room.minX + halfW, -- 4163
-			math.min(room.maxX - halfW, self.cam.x) -- 4163
-		) -- 4163
-	end -- 4163
-	local camY = (____exports.LOGIC_H / 2 - GROUND_PX) * ____exports.UNITS_PER_PX -- 4166
-	local spanY = room.height -- 4167
-	local halfH = ____exports.LOGIC_H * ____exports.UNITS_PER_PX / 2 -- 4168
-	if spanY <= halfH * 2 then -- 4168
-		self.cam.y = camY -- 4170
-	else -- 4170
-		self.cam.y = math.max( -- 4172
-			camY, -- 4172
-			math.min(camY + (spanY - halfH * 2), self.cam.y) -- 4172
-		) -- 4172
-	end -- 4172
-end -- 4156
-function Play.prototype.flashSet(self, text, t) -- 4176
-	self.flash = text -- 4177
-	self.flashT = t -- 4178
-end -- 4176
-function Play.prototype.statusText(self) -- 4182
-	local p = self.player -- 4183
-	local parts = {} -- 4184
-	local who = self.childMode and "小满" or "周戍" -- 4185
-	parts[#parts + 1] = (((who .. " x=") .. tostring(math.floor(p.x + 0.5))) .. " y=") .. tostring(math.floor(p.y + 0.5)) -- 4186
-	if self.room.key == "prologue" then -- 4186
-		parts[#parts + 1] = "小满 " .. tostring(math.floor(self.partner.x + 0.5)) -- 4189
-		if self.phase == "prologue-wait" then -- 4189
-			parts[#parts + 1] = "待递 " .. tostring(math.floor(math.abs(p.x - self.partner.x) + 0.5)) -- 4191
-		elseif self.phase == "prologue-give" then -- 4191
-			parts[#parts + 1] = ("递物 " .. tostring(self.phaseTick)) .. "/60" -- 4193
-		else -- 4193
-			parts[#parts + 1] = "跟随" -- 4195
-		end -- 4195
-		if self.paused then -- 4195
-			parts[#parts + 1] = "已暂停" -- 4198
-		end -- 4198
-		return table.concat(parts, " · ") -- 4200
+function Play.prototype.raycastSolid(self, ray) -- 3997
+	local best = -1 -- 3998
+	local bestBox = nil -- 3999
+	for ____, box in ipairs(self.boxes) do -- 4000
+		do -- 4000
+			if box.broken == true or box.hidden == true then -- 4000
+				goto __continue678 -- 4002
+			end -- 4002
+			local t = hitBox(ray, box) -- 4007
+			if t > 2 and (best < 0 or t < best) then -- 4007
+				best = t -- 4010
+				bestBox = box -- 4011
+			end -- 4011
+		end -- 4011
+		::__continue678:: -- 4011
+	end -- 4011
+	if ray.dy < 0 then -- 4011
+		local t = -ray.y / ray.dy -- 4015
+		if t >= 0 and (best < 0 or t < best) then -- 4015
+			best = t -- 4017
+			bestBox = nil -- 4018
+		end -- 4018
+	end -- 4018
+	return {t = best, box = bestBox} -- 4021
+end -- 3997
+function Play.prototype.dropFor(self, e) -- 4025
+	if not self.isCampaign or e.drop == nil or e.drop == "none" then -- 4025
+		return -- 4027
+	end -- 4027
+	if e.drop == "shield" and (e.shieldHp or 0) <= 0 then -- 4027
+		return -- 4030
+	end -- 4030
+	local label = e.drop == "shield" and "残盾" or (e.drop == "wedge" and "木楔" or (e.drop == "ammo" and "备用弹包" or e.drop)) -- 4032
+	local ____self_pickups_57 = self.pickups -- 4032
+	____self_pickups_57[#____self_pickups_57 + 1] = { -- 4033
+		id = (self.room.key .. "_drop_") .. tostring(e.squad or 0), -- 4034
+		kind = e.drop, -- 4034
+		x = e.x, -- 4034
+		y = e.y, -- 4034
+		depth = e.depth, -- 4035
+		label = label .. " ×1" -- 4035
+	} -- 4035
+	self:log("掉落 " .. label) -- 4037
+end -- 4025
+function Play.prototype.damageProp(self, b, amount) -- 4041
+	if b.breakable == nil or b.broken == true then -- 4041
+		return -- 4043
+	end -- 4043
+	local ____b_breakable_58, ____hp_59 = b.breakable, "hp" -- 4043
+	____b_breakable_58[____hp_59] = ____b_breakable_58[____hp_59] - amount -- 4045
+	if b.breakable.hp > 0 then -- 4045
+		self:flashSet(b.breakable.kind == "thin_wood" and "薄木挡裂开 · 再一下" or "围挡松了 · 再一下", 0.9) -- 4047
+		self:emit("propBroken", {id = b.id or "", phase = "crack", hp = b.breakable.hp, x = b.x0}) -- 4048
+		return -- 4049
+	end -- 4049
+	b.broken = true -- 4051
+	for ____, other in ipairs(self.boxes) do -- 4052
+		if other.id ~= nil and other.id == b.id then -- 4052
+			other.broken = true -- 4054
+		end -- 4054
+	end -- 4054
+	self.run.props[b.id or ""] = {broken = true, hp = 0, wedge = false} -- 4057
+	self:flashSet(b.breakable.kind == "thin_wood" and "薄木挡碎了 · 通路打开" or "空筐散了 · 短口打开", 1.2) -- 4058
+	self:log((("破坏 " .. (b.id or "")) .. " ") .. b.breakable.kind) -- 4059
+	self:emit("propBroken", {id = b.id or "", phase = "broken", hp = 0, x = b.x0}) -- 4060
+end -- 4041
+function Play.prototype.slideDepth(self, a, distance) -- 4064
+	a.depth = self:limitDepth(a, a.depth + distance) -- 4065
+end -- 4064
+function Play.prototype.limitDepth(self, a, target) -- 4068
+	local road = self.room.depth -- 4069
+	if road == nil or target == a.depth then -- 4069
+		return a.depth -- 4071
+	end -- 4071
+	local next = math.max( -- 4073
+		road.min, -- 4073
+		math.min(road.max, target) -- 4073
+	) -- 4073
+	local half = a.w / 2 -- 4074
+	for ____, b in ipairs(self.boxes) do -- 4075
+		do -- 4075
+			local footprint = b.depth -- 4076
+			if footprint == nil or b.passable == true or b.broken == true or b.hidden == true or b.soft == true or a.x + half <= b.x0 or a.x - half >= b.x1 or a.y + a.h <= b.y0 + 0.001 or a.y >= b.y1 - 0.001 then -- 4076
+				goto __continue696 -- 4081
+			end -- 4081
+			local front = footprint.min - ACTOR_DEPTH_HALF -- 4083
+			local back = footprint.max + ACTOR_DEPTH_HALF -- 4084
+			if a.depth <= front and next > front then -- 4084
+				next = front -- 4086
+			elseif a.depth >= back and next < back then -- 4086
+				next = back -- 4088
+			end -- 4088
+		end -- 4088
+		::__continue696:: -- 4088
+	end -- 4088
+	return next -- 4091
+end -- 4068
+function Play.prototype.slideX(self, a, dx) -- 4095
+	local nx = a.x + dx -- 4096
+	local half = a.w / 2 -- 4097
+	local room = self.room -- 4098
+	nx = math.max( -- 4099
+		room.minX + half, -- 4099
+		math.min(room.maxX - half, nx) -- 4099
+	) -- 4099
+	local i = 0 -- 4100
+	do -- 4100
+		i = 0 -- 4101
+		while i < #self.boxes do -- 4101
+			do -- 4101
+				local b = self.boxes[i + 1] -- 4102
+				if b.passable == true or b.broken == true or b.hidden == true or b.soft == true then -- 4102
+					goto __continue703 -- 4104
+				end -- 4104
+				if not overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF) then -- 4104
+					goto __continue703 -- 4107
+				end -- 4107
+				if a.y + a.h <= b.y0 + 0.001 or a.y >= b.y1 - 0.001 then -- 4107
+					goto __continue703 -- 4110
+				end -- 4110
+				if nx + half > b.x0 and nx - half < b.x1 then -- 4110
+					if a.x <= b.x0 then -- 4110
+						nx = b.x0 - half -- 4114
+					elseif a.x >= b.x1 then -- 4114
+						nx = b.x1 + half -- 4116
+					else -- 4116
+						nx = a.x -- 4118
+					end -- 4118
+				end -- 4118
+			end -- 4118
+			::__continue703:: -- 4118
+			i = i + 1 -- 4101
+		end -- 4101
+	end -- 4101
+	if self.room.key == "outside" and a.y < CART_CLEAR - 0.001 then -- 4101
+		local blocked = not self.cartDocked or a.y + a.h > CART_CLEAR + 0.001 -- 4126
+		local bx0 = self.cartAxle - CART_HALF -- 4127
+		local bx1 = self.cartAxle + CART_HALF -- 4128
+		if blocked and nx + half > bx0 and nx - half < bx1 then -- 4128
+			if a.x <= bx0 then -- 4128
+				nx = bx0 - half -- 4131
+			elseif a.x >= bx1 then -- 4131
+				nx = bx1 + half -- 4133
+			else -- 4133
+				nx = a.x -- 4135
+			end -- 4135
+		end -- 4135
+	end -- 4135
+	local arch = room.arch -- 4143
+	if arch.h > 0 and a.y < arch.y + arch.h - 0.001 and a.y + a.h > arch.y + arch.h + 0.001 then -- 4143
+		local insideNow = a.x > arch.x0 and a.x < arch.x1 -- 4145
+		if not insideNow and nx + half > arch.x0 and nx - half < arch.x1 then -- 4145
+			if a.x <= arch.x0 then -- 4145
+				nx = arch.x0 - half -- 4148
+			elseif a.x >= arch.x1 then -- 4148
+				nx = arch.x1 + half -- 4150
+			end -- 4150
+		end -- 4150
+	end -- 4150
+	a.x = nx -- 4154
+end -- 4095
+function Play.prototype.fallY(self, a, dt) -- 4158
+	a.vy = a.vy - ____exports.GRAVITY * dt -- 4159
+	if a.vy < -900 then -- 4159
+		a.vy = -900 -- 4161
+	end -- 4161
+	local ny = a.y + a.vy * dt -- 4163
+	local half = a.w / 2 -- 4164
+	if a.vy <= 0 then -- 4164
+		local reach = a.onGround and STEP_UP or 0 -- 4167
+		local ground = self:groundAt(a.x, a.y + 0.5 + reach, half, a.depth) -- 4168
+		if ny <= ground then -- 4168
+			ny = ground -- 4170
+			a.vy = 0 -- 4171
+			a.onGround = true -- 4172
+		else -- 4172
+			a.onGround = false -- 4174
+		end -- 4174
+	else -- 4174
+		a.onGround = false -- 4177
+		local i = 0 -- 4178
+		do -- 4178
+			i = 0 -- 4179
+			while i < #self.boxes do -- 4179
+				do -- 4179
+					local b = self.boxes[i + 1] -- 4180
+					if b.passable == true or b.broken == true or b.hidden == true or b.soft == true then -- 4180
+						goto __continue727 -- 4182
+					end -- 4182
+					if not overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF) then -- 4182
+						goto __continue727 -- 4185
+					end -- 4185
+					if a.x + half <= b.x0 or a.x - half >= b.x1 then -- 4185
+						goto __continue727 -- 4188
+					end -- 4188
+					if b.y0 >= a.y + a.h - 0.5 and ny + a.h > b.y0 then -- 4188
+						ny = b.y0 - a.h -- 4191
+						a.vy = 0 -- 4192
+					end -- 4192
+				end -- 4192
+				::__continue727:: -- 4192
+				i = i + 1 -- 4179
+			end -- 4179
+		end -- 4179
+	end -- 4179
+	a.y = ny -- 4196
+end -- 4158
+function Play.prototype.groundAt(self, x, ceiling, half, depth) -- 4200
+	if depth == nil then -- 4200
+		depth = 0 -- 4200
 	end -- 4200
-	if self.room.key == "street" then -- 4200
-		parts[#parts + 1] = (("敌 " .. tostring(self:aliveEnemies())) .. "/") .. tostring(#self.enemies) -- 4203
-		parts[#parts + 1] = "小满 " .. tostring(math.floor(self.partner.x + 0.5)) -- 4204
-		if self.paused then -- 4204
-			parts[#parts + 1] = "已暂停" -- 4206
-		end -- 4206
-		return table.concat(parts, " · ") -- 4208
-	end -- 4208
-	if self.room.key == "gate" then -- 4208
-		local ____temp_60 -- 4211
-		if self.room.story == nil then -- 4211
-			____temp_60 = nil -- 4211
-		else -- 4211
-			____temp_60 = self.room.story.gate -- 4211
-		end -- 4211
-		local g = ____temp_60 -- 4211
-		if g ~= nil then -- 4211
-			parts[#parts + 1] = self:gateLabel() -- 4213
-			parts[#parts + 1] = ((((("守点 " .. tostring(self.gateTick)) .. "/") .. tostring(g.holdTicks)) .. " · 剩 ") .. tostring(math.max( -- 4214
-				0, -- 4215
-				math.ceil((g.holdTicks - self.gateTick) / 60) -- 4215
-			))) .. " 秒" -- 4215
-			parts[#parts + 1] = "小满 " .. tostring(math.floor(self.partner.x + 0.5)) -- 4216
-			parts[#parts + 1] = (("敌 " .. tostring(self:aliveEnemies())) .. "/") .. tostring(#self.enemies) -- 4217
-			parts[#parts + 1] = (("血 " .. tostring(math.max(0, self.hp))) .. "/") .. tostring(self.maxHp) -- 4218
-			parts[#parts + 1] = self.coverHug and "掩体 已贴住" or (self.coverNear and "掩体 可贴·按 Shift" or "掩体 无") -- 4219
-			if self.gateFailCount > 0 then -- 4219
-				parts[#parts + 1] = "倒 " .. tostring(self.gateFailCount) -- 4221
-			end -- 4221
-			if self.flash ~= "" then -- 4221
-				parts[#parts + 1] = self.flash -- 4224
-			end -- 4224
-		end -- 4224
-		if self.paused then -- 4224
-			parts[#parts + 1] = "已暂停" -- 4228
-		end -- 4228
-		return table.concat(parts, " · ") -- 4230
-	end -- 4230
-	if self.room.key == "forest" then -- 4230
-		parts[#parts + 1] = p.crouch and "蹲" or "站" -- 4233
-		parts[#parts + 1] = (("狗 " .. self:dogLabel()) .. " @") .. tostring(math.floor(self.dogX + 0.5)) -- 4234
-		parts[#parts + 1] = "距 " .. tostring(math.floor(math.abs(p.x - self.dogX) + 0.5)) -- 4235
-		if self.caughtT > 0 then -- 4235
-			parts[#parts + 1] = "复位中" -- 4237
-		end -- 4237
-		if self.paused then -- 4237
-			parts[#parts + 1] = "已暂停" -- 4240
-		end -- 4240
-		return table.concat(parts, " · ") -- 4242
-	end -- 4242
-	if self.room.key == "tower" then -- 4242
-		if self.phase == "tower-wait" then -- 4242
-			parts[#parts + 1] = "门前 " .. tostring(math.floor(math.abs(p.x - self:doorXOf()) + 0.5)) -- 4246
-		elseif self.phase == "tower-knock" then -- 4246
-			parts[#parts + 1] = ("敲 " .. tostring(self.phaseTick)) .. " 拍" -- 4248
-		elseif self.phase == "tower-given" then -- 4248
-			parts[#parts + 1] = "递交 " .. tostring(self.phaseTick) -- 4250
-		else -- 4250
-			parts[#parts + 1] = "片尾" -- 4252
-		end -- 4252
-		if self.paused then -- 4252
-			parts[#parts + 1] = "已暂停" -- 4255
-		end -- 4255
-		return table.concat(parts, " · ") -- 4257
-	end -- 4257
-	if self.room.key == "village" then -- 4257
-		parts[#parts + 1] = p.crouch and "蹲" or "站" -- 4260
-		if self.hasBottle then -- 4260
-			parts[#parts + 1] = "有瓶" -- 4262
-		elseif self.bottleFly ~= nil then -- 4262
-			parts[#parts + 1] = "瓶在飞" -- 4264
-		else -- 4264
-			parts[#parts + 1] = "空手" -- 4266
-		end -- 4266
-		parts[#parts + 1] = (("拾荒者 " .. self:scavLabel()) .. " @") .. tostring(math.floor(self.scavX + 0.5)) -- 4268
-		if self.scavChase then -- 4268
-			parts[#parts + 1] = "追 " .. tostring(self.scavSee) -- 4270
-		end -- 4270
-		if self.passed then -- 4270
-			parts[#parts + 1] = "已过通行线" -- 4273
-		end -- 4273
-		if self.paused then -- 4273
-			parts[#parts + 1] = "已暂停" -- 4276
-		end -- 4276
-		return table.concat(parts, " · ") -- 4278
-	end -- 4278
-	local isChild = self.childMode -- 4281
-	if isChild then -- 4281
-		parts[#parts + 1] = p.crouch and "蹲" or "站" -- 4283
-		parts[#parts + 1] = "高 " .. tostring(math.floor(p.h + 0.5)) -- 4284
-		parts[#parts + 1] = "车轴 " .. tostring(math.floor(self.cartAxle + 0.5)) -- 4285
-	else -- 4285
-		parts[#parts + 1] = p.covered and "贴掩体" or "无掩体" -- 4287
-		if p.rollT > 0 then -- 4287
-			parts[#parts + 1] = "翻滚中" -- 4289
-		end -- 4289
-		parts[#parts + 1] = (("敌 " .. tostring(self:aliveEnemies())) .. "/") .. tostring(#self.enemies) -- 4291
-		parts[#parts + 1] = "车轴 " .. tostring(math.floor(self.cartAxle + 0.5)) -- 4292
-		parts[#parts + 1] = self.gateOpen and "出口开" or "出口关" -- 4293
-		parts[#parts + 1] = (("恐惧 " .. tostring(self.escort.fear)) .. "/") .. tostring(FEAR_MAX) -- 4294
-	end -- 4294
-	if self.checkpoint >= 0 then -- 4294
-		parts[#parts + 1] = "检查点 " .. tostring(math.floor(self.checkpoint + 0.5)) -- 4297
-	end -- 4297
-	if self.paused then -- 4297
-		parts[#parts + 1] = "已暂停" -- 4300
-	end -- 4300
-	return table.concat(parts, " · ") -- 4302
-end -- 4182
-function Play.prototype.aliveEnemies(self) -- 4306
-	local n = 0 -- 4307
-	local i = 0 -- 4308
-	do -- 4308
-		i = 0 -- 4309
-		while i < #self.enemies do -- 4309
-			if self.enemies[i + 1].alive then -- 4309
-				n = n + 1 -- 4311
-			end -- 4311
-			i = i + 1 -- 4309
-		end -- 4309
-	end -- 4309
-	return n -- 4314
-end -- 4306
-function Play.prototype.threatened(self) -- 4319
-	do -- 4319
-		local i = 0 -- 4320
-		while i < #self.enemies do -- 4320
-			local e = self.enemies[i + 1] -- 4321
-			if e.alive and e.warnT > 0 then -- 4321
-				return true -- 4323
-			end -- 4323
-			i = i + 1 -- 4320
-		end -- 4320
-	end -- 4320
-	return false -- 4326
-end -- 4319
-function Play.prototype.gateSecondsLeft(self) -- 4329
-	local ____temp_61 -- 4330
-	if self.room.story == nil then -- 4330
-		____temp_61 = nil -- 4330
-	else -- 4330
-		____temp_61 = self.room.story.gate -- 4330
-	end -- 4330
-	local g = ____temp_61 -- 4330
-	if g == nil then -- 4330
-		return 0 -- 4332
-	end -- 4332
-	return math.max( -- 4334
-		0, -- 4334
-		math.ceil((g.holdTicks - self.gateTick) / 60) -- 4334
-	) -- 4334
-end -- 4329
-function Play.prototype.gateLabel(self) -- 4337
-	if self.phase == "gate-idle" then -- 4337
-		return "待就位" -- 4339
-	end -- 4339
-	if self.phase == "gate-hold" then -- 4339
-		return "守点中" -- 4342
-	end -- 4342
-	if self.phase == "gate-send" then -- 4342
-		return "送别" -- 4345
-	end -- 4345
-	if self.phase == "gate-count" then -- 4345
-		return "数数 " .. tostring(self.countTick) -- 4348
-	end -- 4348
-	return "她走" -- 4350
-end -- 4337
-function Play.prototype.dogLabel(self) -- 4354
-	if self.dogState == "ear" then -- 4354
-		return "转耳" -- 4356
-	end -- 4356
-	if self.dogState == "chase" then -- 4356
-		return "追" -- 4359
-	end -- 4359
-	if self.dogState == "sniff" then -- 4359
-		return "停" -- 4362
-	end -- 4362
-	if self.dogState == "back" then -- 4362
-		return "回线" -- 4365
-	end -- 4365
-	return "巡逻" -- 4367
-end -- 4354
-function Play.prototype.doorXOf(self) -- 4370
-	local ____temp_62 -- 4371
-	if self.room.story == nil then -- 4371
-		____temp_62 = nil -- 4371
-	else -- 4371
-		____temp_62 = self.room.story.tower -- 4371
-	end -- 4371
-	local t = ____temp_62 -- 4371
-	return t == nil and 0 or t.doorX -- 4372
-end -- 4370
-function Play.prototype.scavLabel(self) -- 4376
-	if self.scavState == "chase" then -- 4376
-		return "追" -- 4378
-	end -- 4378
-	if self.scavState == "turn" then -- 4378
-		return "转头" -- 4381
-	end -- 4381
-	if self.scavState == "walk" then -- 4381
-		return "赶来" -- 4384
-	end -- 4384
-	if self.scavState == "stall" then -- 4384
-		return "停住" -- 4387
-	end -- 4387
-	if self.scavState == "back" then -- 4387
-		return "回位" -- 4390
-	end -- 4390
-	return "巡逻" -- 4392
-end -- 4376
-function Play.prototype.hintText(self) -- 4396
-	if self.paused then -- 4396
-		return "Esc 继续 · R 重置" -- 4398
-	end -- 4398
-	if self.room.key == "gate" and self.phase == "gate-hold" and not self.paused then -- 4398
-		if self:threatened() then -- 4398
-			return "敌兵举枪（红线）· 贴住街垒 520 按 Shift，或 F 打掉他" -- 4404
-		end -- 4404
-		if self.coverHug then -- 4404
-			return ("掩体中 · F 射击 · 守点剩 " .. tostring(self:gateSecondsLeft())) .. " 秒" -- 4407
-		end -- 4407
-		if self.coverNear then -- 4407
-			return "贴住了，按住 Shift 才挡枪 · F 射击" -- 4410
-		end -- 4410
-		return "到街垒左侧 505 贴住（空地挡不住）· F 射击 · 守满 45 秒" -- 4412
-	end -- 4412
-	if self.flash ~= "" then -- 4412
-		return self.flash -- 4415
+	local g = -9999 -- 4201
+	local i = 0 -- 4202
+	do -- 4202
+		i = 0 -- 4203
+		while i < #self.floors do -- 4203
+			local f = self.floors[i + 1] -- 4204
+			if x + half > f.x0 and x - half < f.x1 and f.y1 <= ceiling and f.y1 > g then -- 4204
+				g = f.y1 -- 4206
+			end -- 4206
+			i = i + 1 -- 4203
+		end -- 4203
+	end -- 4203
+	do -- 4203
+		i = 0 -- 4209
+		while i < #self.boxes do -- 4209
+			do -- 4209
+				local b = self.boxes[i + 1] -- 4210
+				if b.broken == true or b.hidden == true or b.soft == true then -- 4210
+					goto __continue737 -- 4212
+				end -- 4212
+				if x + half > b.x0 and x - half < b.x1 and b.y1 <= ceiling and b.y1 > g and overlapsDepth(depth, b.depth, ACTOR_DEPTH_HALF) then -- 4212
+					g = b.y1 -- 4216
+				end -- 4216
+			end -- 4216
+			::__continue737:: -- 4216
+			i = i + 1 -- 4209
+		end -- 4209
+	end -- 4209
+	return g -- 4219
+end -- 4200
+function Play.prototype.updateCamera(self, dt) -- 4222
+	local p = self.player -- 4223
+	local tx = p.x + p.facing * 30 -- 4224
+	local ty = p.y + CAM_LOOK_UP -- 4225
+	local k = math.min(1, CAM_FOLLOW * dt) -- 4226
+	self.cam.x = self.cam.x + (tx - self.cam.x) * k -- 4227
+	self.cam.y = self.cam.y + (ty - self.cam.y) * k -- 4228
+end -- 4222
+function Play.prototype.clampCamera(self, w, h) -- 4232
+	local room = self.room -- 4233
+	local halfW = ____exports.LOGIC_W * ____exports.UNITS_PER_PX / 2 -- 4234
+	local spanX = room.maxX - room.minX -- 4235
+	if spanX <= halfW * 2 then -- 4235
+		self.cam.x = (room.minX + room.maxX) / 2 -- 4237
+	else -- 4237
+		self.cam.x = math.max( -- 4239
+			room.minX + halfW, -- 4239
+			math.min(room.maxX - halfW, self.cam.x) -- 4239
+		) -- 4239
+	end -- 4239
+	local camY = (____exports.LOGIC_H / 2 - GROUND_PX) * ____exports.UNITS_PER_PX -- 4242
+	local spanY = room.height -- 4243
+	local halfH = ____exports.LOGIC_H * ____exports.UNITS_PER_PX / 2 -- 4244
+	if spanY <= halfH * 2 then -- 4244
+		self.cam.y = camY -- 4246
+	else -- 4246
+		self.cam.y = math.max( -- 4248
+			camY, -- 4248
+			math.min(camY + (spanY - halfH * 2), self.cam.y) -- 4248
+		) -- 4248
+	end -- 4248
+end -- 4232
+function Play.prototype.flashSet(self, text, t) -- 4252
+	self.flash = text -- 4253
+	self.flashT = t -- 4254
+end -- 4252
+function Play.prototype.statusText(self) -- 4258
+	local p = self.player -- 4259
+	local parts = {} -- 4260
+	local who = self.childMode and "小满" or "周戍" -- 4261
+	parts[#parts + 1] = (((who .. " x=") .. tostring(math.floor(p.x + 0.5))) .. " y=") .. tostring(math.floor(p.y + 0.5)) -- 4262
+	if self.room.key == "prologue" then -- 4262
+		parts[#parts + 1] = "小满 " .. tostring(math.floor(self.partner.x + 0.5)) -- 4265
+		if self.phase == "prologue-wait" then -- 4265
+			parts[#parts + 1] = "待递 " .. tostring(math.floor(math.abs(p.x - self.partner.x) + 0.5)) -- 4267
+		elseif self.phase == "prologue-give" then -- 4267
+			parts[#parts + 1] = ("递物 " .. tostring(self.phaseTick)) .. "/60" -- 4269
+		else -- 4269
+			parts[#parts + 1] = "跟随" -- 4271
+		end -- 4271
+		if self.paused then -- 4271
+			parts[#parts + 1] = "已暂停" -- 4274
+		end -- 4274
+		return table.concat(parts, " · ") -- 4276
+	end -- 4276
+	if self.room.key == "street" then -- 4276
+		parts[#parts + 1] = (("敌 " .. tostring(self:aliveEnemies())) .. "/") .. tostring(#self.enemies) -- 4279
+		parts[#parts + 1] = "小满 " .. tostring(math.floor(self.partner.x + 0.5)) -- 4280
+		if self.paused then -- 4280
+			parts[#parts + 1] = "已暂停" -- 4282
+		end -- 4282
+		return table.concat(parts, " · ") -- 4284
+	end -- 4284
+	if self.room.key == "gate" then -- 4284
+		local ____temp_60 -- 4287
+		if self.room.story == nil then -- 4287
+			____temp_60 = nil -- 4287
+		else -- 4287
+			____temp_60 = self.room.story.gate -- 4287
+		end -- 4287
+		local g = ____temp_60 -- 4287
+		if g ~= nil then -- 4287
+			parts[#parts + 1] = self:gateLabel() -- 4289
+			parts[#parts + 1] = ((((("守点 " .. tostring(self.gateTick)) .. "/") .. tostring(g.holdTicks)) .. " · 剩 ") .. tostring(math.max( -- 4290
+				0, -- 4291
+				math.ceil((g.holdTicks - self.gateTick) / 60) -- 4291
+			))) .. " 秒" -- 4291
+			parts[#parts + 1] = "小满 " .. tostring(math.floor(self.partner.x + 0.5)) -- 4292
+			parts[#parts + 1] = (("敌 " .. tostring(self:aliveEnemies())) .. "/") .. tostring(#self.enemies) -- 4293
+			parts[#parts + 1] = (("血 " .. tostring(math.max(0, self.hp))) .. "/") .. tostring(self.maxHp) -- 4294
+			parts[#parts + 1] = self.coverHug and "掩体 已贴住" or (self.coverNear and "掩体 可贴·按 Shift" or "掩体 无") -- 4295
+			if self.gateFailCount > 0 then -- 4295
+				parts[#parts + 1] = "倒 " .. tostring(self.gateFailCount) -- 4297
+			end -- 4297
+			if self.flash ~= "" then -- 4297
+				parts[#parts + 1] = self.flash -- 4300
+			end -- 4300
+		end -- 4300
+		if self.paused then -- 4300
+			parts[#parts + 1] = "已暂停" -- 4304
+		end -- 4304
+		return table.concat(parts, " · ") -- 4306
+	end -- 4306
+	if self.room.key == "forest" then -- 4306
+		parts[#parts + 1] = p.crouch and "蹲" or "站" -- 4309
+		parts[#parts + 1] = (("狗 " .. self:dogLabel()) .. " @") .. tostring(math.floor(self.dogX + 0.5)) -- 4310
+		parts[#parts + 1] = "距 " .. tostring(math.floor(math.abs(p.x - self.dogX) + 0.5)) -- 4311
+		if self.caughtT > 0 then -- 4311
+			parts[#parts + 1] = "复位中" -- 4313
+		end -- 4313
+		if self.paused then -- 4313
+			parts[#parts + 1] = "已暂停" -- 4316
+		end -- 4316
+		return table.concat(parts, " · ") -- 4318
+	end -- 4318
+	if self.room.key == "tower" then -- 4318
+		if self.phase == "tower-wait" then -- 4318
+			parts[#parts + 1] = "门前 " .. tostring(math.floor(math.abs(p.x - self:doorXOf()) + 0.5)) -- 4322
+		elseif self.phase == "tower-knock" then -- 4322
+			parts[#parts + 1] = ("敲 " .. tostring(self.phaseTick)) .. " 拍" -- 4324
+		elseif self.phase == "tower-given" then -- 4324
+			parts[#parts + 1] = "递交 " .. tostring(self.phaseTick) -- 4326
+		else -- 4326
+			parts[#parts + 1] = "片尾" -- 4328
+		end -- 4328
+		if self.paused then -- 4328
+			parts[#parts + 1] = "已暂停" -- 4331
+		end -- 4331
+		return table.concat(parts, " · ") -- 4333
+	end -- 4333
+	if self.room.key == "village" then -- 4333
+		parts[#parts + 1] = p.crouch and "蹲" or "站" -- 4336
+		if self.hasBottle then -- 4336
+			parts[#parts + 1] = "有瓶" -- 4338
+		elseif self.bottleFly ~= nil then -- 4338
+			parts[#parts + 1] = "瓶在飞" -- 4340
+		else -- 4340
+			parts[#parts + 1] = "空手" -- 4342
+		end -- 4342
+		parts[#parts + 1] = (("拾荒者 " .. self:scavLabel()) .. " @") .. tostring(math.floor(self.scavX + 0.5)) -- 4344
+		if self.scavChase then -- 4344
+			parts[#parts + 1] = "追 " .. tostring(self.scavSee) -- 4346
+		end -- 4346
+		if self.passed then -- 4346
+			parts[#parts + 1] = "已过通行线" -- 4349
+		end -- 4349
+		if self.paused then -- 4349
+			parts[#parts + 1] = "已暂停" -- 4352
+		end -- 4352
+		return table.concat(parts, " · ") -- 4354
+	end -- 4354
+	local isChild = self.childMode -- 4357
+	if isChild then -- 4357
+		parts[#parts + 1] = p.crouch and "蹲" or "站" -- 4359
+		parts[#parts + 1] = "高 " .. tostring(math.floor(p.h + 0.5)) -- 4360
+		parts[#parts + 1] = "车轴 " .. tostring(math.floor(self.cartAxle + 0.5)) -- 4361
+	else -- 4361
+		parts[#parts + 1] = p.covered and "贴掩体" or "无掩体" -- 4363
+		if p.rollT > 0 then -- 4363
+			parts[#parts + 1] = "翻滚中" -- 4365
+		end -- 4365
+		parts[#parts + 1] = (("敌 " .. tostring(self:aliveEnemies())) .. "/") .. tostring(#self.enemies) -- 4367
+		parts[#parts + 1] = "车轴 " .. tostring(math.floor(self.cartAxle + 0.5)) -- 4368
+		parts[#parts + 1] = self.gateOpen and "出口开" or "出口关" -- 4369
+		parts[#parts + 1] = (("恐惧 " .. tostring(self.escort.fear)) .. "/") .. tostring(FEAR_MAX) -- 4370
+	end -- 4370
+	if self.checkpoint >= 0 then -- 4370
+		parts[#parts + 1] = "检查点 " .. tostring(math.floor(self.checkpoint + 0.5)) -- 4373
+	end -- 4373
+	if self.paused then -- 4373
+		parts[#parts + 1] = "已暂停" -- 4376
+	end -- 4376
+	return table.concat(parts, " · ") -- 4378
+end -- 4258
+function Play.prototype.aliveEnemies(self) -- 4382
+	local n = 0 -- 4383
+	local i = 0 -- 4384
+	do -- 4384
+		i = 0 -- 4385
+		while i < #self.enemies do -- 4385
+			if self.enemies[i + 1].alive then -- 4385
+				n = n + 1 -- 4387
+			end -- 4387
+			i = i + 1 -- 4385
+		end -- 4385
+	end -- 4385
+	return n -- 4390
+end -- 4382
+function Play.prototype.threatened(self) -- 4395
+	do -- 4395
+		local i = 0 -- 4396
+		while i < #self.enemies do -- 4396
+			local e = self.enemies[i + 1] -- 4397
+			if e.alive and e.warnT > 0 then -- 4397
+				return true -- 4399
+			end -- 4399
+			i = i + 1 -- 4396
+		end -- 4396
+	end -- 4396
+	return false -- 4402
+end -- 4395
+function Play.prototype.gateSecondsLeft(self) -- 4405
+	local ____temp_61 -- 4406
+	if self.room.story == nil then -- 4406
+		____temp_61 = nil -- 4406
+	else -- 4406
+		____temp_61 = self.room.story.gate -- 4406
+	end -- 4406
+	local g = ____temp_61 -- 4406
+	if g == nil then -- 4406
+		return 0 -- 4408
+	end -- 4408
+	return math.max( -- 4410
+		0, -- 4410
+		math.ceil((g.holdTicks - self.gateTick) / 60) -- 4410
+	) -- 4410
+end -- 4405
+function Play.prototype.gateLabel(self) -- 4413
+	if self.phase == "gate-idle" then -- 4413
+		return "待就位" -- 4415
 	end -- 4415
-	if self.room.key == "prologue" then -- 4415
-		if self.phase == "prologue-wait" then -- 4415
-			local near = math.abs(self.player.x - self.partner.x) <= 46 -- 4419
-			return near and "点 E 递出针套 · 纸条一起塞进去" or "走到倒柜后的小满身边（x≈214）再点 E" -- 4420
-		end -- 4420
-		if self.phase == "prologue-give" then -- 4420
-			return ("递物 " .. tostring(self.phaseTick)) .. " / 60 拍 · 站着别动" -- 4423
-		end -- 4423
-		return "她跟着你了 · 两人一起走到门口 680" -- 4425
-	end -- 4425
-	if self.room.key == "street" then -- 4425
-		if self:aliveEnemies() > 0 then -- 4425
-			return "左键点射清街心敌兵 · A / D 走，空格贴柜台翻上去" -- 4429
-		end -- 4429
-		return "清完了 · 两人一起走到右边检查站入口 900" -- 4431
-	end -- 4431
-	if self.room.key == "gate" then -- 4431
-		local ____temp_63 -- 4434
-		if self.room.story == nil then -- 4434
-			____temp_63 = nil -- 4434
-		else -- 4434
-			____temp_63 = self.room.story.gate -- 4434
-		end -- 4434
-		local g = ____temp_63 -- 4434
-		if g ~= nil then -- 4434
-			if self.phase == "gate-idle" then -- 4434
-				if self.gateNeedConfirm then -- 4434
-					return "回到绞盘 118 按 E 重新就位 · 这一轮从 0 秒重算" -- 4438
-				end -- 4438
-				return "小满到门洞 960、周戍贴住绞盘 118，两人就位才开始守点" -- 4440
-			end -- 4440
-			if self.phase == "gate-hold" then -- 4440
-				if self.coveredFlash > 0 then -- 4440
-					return "掩体挡下了这一枪 · 别露头" -- 4444
-				end -- 4444
-				return "红灯是预警 · 贴住街垒/柜台再按 Shift 才挡枪 · F 射击 · 守满去门边 860 按 E" -- 4446
-			end -- 4446
-			if self.phase == "gate-send" then -- 4446
-				return "去门边 860 按 E 送别 · 她已经站在门口" -- 4449
-			end -- 4449
-			if self.phase == "gate-count" then -- 4449
-				if self.countTick >= ____exports.GATE_COUNT_END then -- 4449
-					return self.countPrevMove > 0 and "先松开方向键，再按 D" or "按 D · 让她迈出第一步" -- 4453
-				end -- 4453
-				return ("数到二十 " .. tostring(self.countTick)) .. " / 1440 拍 · 门正在关" -- 4455
-			end -- 4455
-			return "她自己走 · 跟着出城门 1120" -- 4457
-		end -- 4457
+	if self.phase == "gate-hold" then -- 4415
+		return "守点中" -- 4418
+	end -- 4418
+	if self.phase == "gate-send" then -- 4418
+		return "送别" -- 4421
+	end -- 4421
+	if self.phase == "gate-count" then -- 4421
+		return "数数 " .. tostring(self.countTick) -- 4424
+	end -- 4424
+	return "她走" -- 4426
+end -- 4413
+function Play.prototype.dogLabel(self) -- 4430
+	if self.dogState == "ear" then -- 4430
+		return "转耳" -- 4432
+	end -- 4432
+	if self.dogState == "chase" then -- 4432
+		return "追" -- 4435
+	end -- 4435
+	if self.dogState == "sniff" then -- 4435
+		return "停" -- 4438
+	end -- 4438
+	if self.dogState == "back" then -- 4438
+		return "回线" -- 4441
+	end -- 4441
+	return "巡逻" -- 4443
+end -- 4430
+function Play.prototype.doorXOf(self) -- 4446
+	local ____temp_62 -- 4447
+	if self.room.story == nil then -- 4447
+		____temp_62 = nil -- 4447
+	else -- 4447
+		____temp_62 = self.room.story.tower -- 4447
+	end -- 4447
+	local t = ____temp_62 -- 4447
+	return t == nil and 0 or t.doorX -- 4448
+end -- 4446
+function Play.prototype.scavLabel(self) -- 4452
+	if self.scavState == "chase" then -- 4452
+		return "追" -- 4454
+	end -- 4454
+	if self.scavState == "turn" then -- 4454
+		return "转头" -- 4457
 	end -- 4457
-	if self.room.key == "forest" then -- 4457
-		if self.dogState == "chase" then -- 4457
-			return "狗在追 · 蹲下或拉开距离，等它停下" -- 4462
-		end -- 4462
-		if self.dogState == "ear" then -- 4462
-			return "狗转耳朵了 · 停下或蹲下别出声" -- 4465
-		end -- 4465
-		return "草后等、Shift 慢走、Ctrl 蹲 · 林缘 1450 走到灯下" -- 4467
-	end -- 4467
-	if self.room.key == "tower" then -- 4467
-		if self.phase == "tower-wait" then -- 4467
-			return "走到门前 445 点一次 E 敲两下" -- 4471
-		end -- 4471
-		if self.phase == "tower-knock" then -- 4471
-			return "敲两下 · 等门开" -- 4474
-		end -- 4474
-		if self.phase == "tower-given" then -- 4474
-			return "递交针套和纸条 · 看登记簿最后一行" -- 4477
-		end -- 4477
-		return "片尾 · 点 E 再玩一次，回到序章" -- 4479
-	end -- 4479
-	if self.room.key == "village" then -- 4479
-		if self.bottleFly ~= nil then -- 4479
-			return "等瓶子落地 · 触地才发声" -- 4483
+	if self.scavState == "walk" then -- 4457
+		return "赶来" -- 4460
+	end -- 4460
+	if self.scavState == "stall" then -- 4460
+		return "停住" -- 4463
+	end -- 4463
+	if self.scavState == "back" then -- 4463
+		return "回位" -- 4466
+	end -- 4466
+	return "巡逻" -- 4468
+end -- 4452
+function Play.prototype.hintText(self) -- 4472
+	if self.paused then -- 4472
+		return "Esc 继续 · R 重置" -- 4474
+	end -- 4474
+	if self.room.key == "gate" and self.phase == "gate-hold" and not self.paused then -- 4474
+		if self:threatened() then -- 4474
+			return "敌兵举枪（红线）· 贴住街垒 520 按 Shift，或 F 打掉他" -- 4480
+		end -- 4480
+		if self.coverHug then -- 4480
+			return ("掩体中 · F 射击 · 守点剩 " .. tostring(self:gateSecondsLeft())) .. " 秒" -- 4483
 		end -- 4483
-		if self.hasBottle then -- 4483
-			return "按住 F 瞄，准星圈就是落点，松手投 · 往右投到砖地 608" -- 4486
+		if self.coverNear then -- 4483
+			return "贴住了，按住 Shift 才挡枪 · F 射击" -- 4486
 		end -- 4486
-		if self.passed then -- 4486
-			return "已过第一院 · R 重置可再来一遍" -- 4489
-		end -- 4489
-		return "走到瓶架旁点 E 拾瓶 · Ctrl 蹲下钻过桌下 44" -- 4491
+		return "到街垒左侧 505 贴住（空地挡不住）· F 射击 · 守满 45 秒" -- 4488
+	end -- 4488
+	if self.flash ~= "" then -- 4488
+		return self.flash -- 4491
 	end -- 4491
-	if self.room.key == "outside" then -- 4491
-		if self.focusCart then -- 4491
-			return "按住 E 抓住车把 · A / D 推拉 · 松手就停" -- 4495
-		end -- 4495
-		return "A / D 走 · Ctrl 蹲 · 空格跳 · 车要拉到 432 才让开拱洞" -- 4497
-	end -- 4497
-	if self.escort.state == "frozen" then -- 4497
-		if math.abs(self.player.x - self.partner.x) <= CALM_REACH then -- 4497
-			return "点 E 蹲下安抚 · 第 12 / 36 拍各敲一次，60 拍后她起身" -- 4501
-		end -- 4501
-		return "小满吓住了 · 走过去，靠近再点 E" -- 4503
-	end -- 4503
-	if self.escort.state == "calming" then -- 4503
-		return ("安抚中 " .. tostring(self.escort.calmTick)) .. " / 60 拍 · 别动" -- 4506
-	end -- 4506
-	return "A / D 移动 · 左键点射 · Shift 贴掩体 · 空格翻滚 · E 敲两下 · 两人到出口才开门" -- 4508
-end -- 4396
-function Play.prototype.draw(self, draw, w, h) -- 4513
-	self.viewW = w -- 4514
-	self.viewH = h -- 4515
-	self.view = ____exports.computeViewport(w, h) -- 4516
-	self:clampCamera(w, h) -- 4517
-	draw:clear() -- 4518
-	draw:drawRect( -- 4520
-		Rect(0, 0, w, h), -- 4520
-		BG_VOID -- 4520
-	) -- 4520
-	local box = self:canvasRect(w, h) -- 4521
-	draw:drawRect(box, BG_FAR) -- 4522
-	draw:drawRect( -- 4523
-		Rect(box.x, box.y + box.height * 0.38, box.width, box.height * 0.62), -- 4523
-		BG_MID -- 4523
-	) -- 4523
-	self:drawFloors(draw, w, h) -- 4525
-	self:drawSolids(draw, w, h) -- 4526
-	self:drawZones(draw, w, h) -- 4527
-	self:drawArch(draw, w, h) -- 4528
-	self:drawCart(draw, w, h) -- 4529
-	self:drawCampaignProps(draw, w, h) -- 4530
-	self:drawActors(draw, w, h) -- 4531
-	self:drawTrace(draw, w, h) -- 4532
-	self:drawAim(draw, w, h) -- 4533
-end -- 4513
-function Play.prototype.canvasRect(self, w, h) -- 4537
-	local v = self.view -- 4538
-	return Rect(v.ox, v.oy, ____exports.LOGIC_W * v.zoom, ____exports.LOGIC_H * v.zoom) -- 4539
-end -- 4537
-function Play.prototype.px(self, n) -- 4543
-	return n * self.view.zoom -- 4544
-end -- 4543
-function Play.prototype.sx(self, wx, w) -- 4548
-	local v = self.view -- 4549
-	local lx = math.floor((wx - self.cam.x) / ____exports.UNITS_PER_PX + ____exports.LOGIC_W / 2 + 0.5) -- 4550
-	return v.ox + lx * v.zoom -- 4551
-end -- 4548
-function Play.prototype.sy(self, wy, h) -- 4555
-	local v = self.view -- 4556
-	local ly = math.floor((wy - self.cam.y) / ____exports.UNITS_PER_PX + ____exports.LOGIC_H / 2 + 0.5) -- 4557
-	return v.oy + ly * v.zoom -- 4558
-end -- 4555
-function Play.prototype.drawBox(self, draw, w, h, x0, x1, y0, y1, color) -- 4561
-	local px0 = self:sx(x0, w) -- 4562
-	local px1 = self:sx(x1, w) -- 4563
-	local py0 = self:sy(y0, h) -- 4564
-	local py1 = self:sy(y1, h) -- 4565
-	if px1 <= px0 or py1 <= py0 then -- 4565
-		return -- 4567
+	if self.room.key == "prologue" then -- 4491
+		if self.phase == "prologue-wait" then -- 4491
+			local near = math.abs(self.player.x - self.partner.x) <= 46 -- 4495
+			return near and "点 E 递出针套 · 纸条一起塞进去" or "走到倒柜后的小满身边（x≈214）再点 E" -- 4496
+		end -- 4496
+		if self.phase == "prologue-give" then -- 4496
+			return ("递物 " .. tostring(self.phaseTick)) .. " / 60 拍 · 站着别动" -- 4499
+		end -- 4499
+		return "她跟着你了 · 两人一起走到门口 680" -- 4501
+	end -- 4501
+	if self.room.key == "street" then -- 4501
+		if self:aliveEnemies() > 0 then -- 4501
+			return "左键点射清街心敌兵 · A / D 走，空格贴柜台翻上去" -- 4505
+		end -- 4505
+		return "清完了 · 两人一起走到右边检查站入口 900" -- 4507
+	end -- 4507
+	if self.room.key == "gate" then -- 4507
+		local ____temp_63 -- 4510
+		if self.room.story == nil then -- 4510
+			____temp_63 = nil -- 4510
+		else -- 4510
+			____temp_63 = self.room.story.gate -- 4510
+		end -- 4510
+		local g = ____temp_63 -- 4510
+		if g ~= nil then -- 4510
+			if self.phase == "gate-idle" then -- 4510
+				if self.gateNeedConfirm then -- 4510
+					return "回到绞盘 118 按 E 重新就位 · 这一轮从 0 秒重算" -- 4514
+				end -- 4514
+				return "小满到门洞 960、周戍贴住绞盘 118，两人就位才开始守点" -- 4516
+			end -- 4516
+			if self.phase == "gate-hold" then -- 4516
+				if self.coveredFlash > 0 then -- 4516
+					return "掩体挡下了这一枪 · 别露头" -- 4520
+				end -- 4520
+				return "红灯是预警 · 贴住街垒/柜台再按 Shift 才挡枪 · F 射击 · 守满去门边 860 按 E" -- 4522
+			end -- 4522
+			if self.phase == "gate-send" then -- 4522
+				return "去门边 860 按 E 送别 · 她已经站在门口" -- 4525
+			end -- 4525
+			if self.phase == "gate-count" then -- 4525
+				if self.countTick >= ____exports.GATE_COUNT_END then -- 4525
+					return self.countPrevMove > 0 and "先松开方向键，再按 D" or "按 D · 让她迈出第一步" -- 4529
+				end -- 4529
+				return ("数到二十 " .. tostring(self.countTick)) .. " / 1440 拍 · 门正在关" -- 4531
+			end -- 4531
+			return "她自己走 · 跟着出城门 1120" -- 4533
+		end -- 4533
+	end -- 4533
+	if self.room.key == "forest" then -- 4533
+		if self.dogState == "chase" then -- 4533
+			return "狗在追 · 蹲下或拉开距离，等它停下" -- 4538
+		end -- 4538
+		if self.dogState == "ear" then -- 4538
+			return "狗转耳朵了 · 停下或蹲下别出声" -- 4541
+		end -- 4541
+		return "草后等、Shift 慢走、Ctrl 蹲 · 林缘 1450 走到灯下" -- 4543
+	end -- 4543
+	if self.room.key == "tower" then -- 4543
+		if self.phase == "tower-wait" then -- 4543
+			return "走到门前 445 点一次 E 敲两下" -- 4547
+		end -- 4547
+		if self.phase == "tower-knock" then -- 4547
+			return "敲两下 · 等门开" -- 4550
+		end -- 4550
+		if self.phase == "tower-given" then -- 4550
+			return "递交针套和纸条 · 看登记簿最后一行" -- 4553
+		end -- 4553
+		return "片尾 · 点 E 再玩一次，回到序章" -- 4555
+	end -- 4555
+	if self.room.key == "village" then -- 4555
+		if self.bottleFly ~= nil then -- 4555
+			return "等瓶子落地 · 触地才发声" -- 4559
+		end -- 4559
+		if self.hasBottle then -- 4559
+			return "按住 F 瞄，准星圈就是落点，松手投 · 往右投到砖地 608" -- 4562
+		end -- 4562
+		if self.passed then -- 4562
+			return "已过第一院 · R 重置可再来一遍" -- 4565
+		end -- 4565
+		return "走到瓶架旁点 E 拾瓶 · Ctrl 蹲下钻过桌下 44" -- 4567
 	end -- 4567
-	draw:drawRect( -- 4569
-		Rect(px0, py0, px1 - px0, py1 - py0), -- 4569
-		color -- 4569
-	) -- 4569
-end -- 4561
-function Play.prototype.drawFloors(self, draw, w, h) -- 4572
-	local i = 0 -- 4573
-	do -- 4573
-		i = 0 -- 4574
-		while i < #self.room.floors do -- 4574
-			local f = self.room.floors[i + 1] -- 4575
-			local ____temp_64 -- 4576
-			if f.y == 0 then -- 4576
-				____temp_64 = self.room.depth -- 4576
-			else -- 4576
-				____temp_64 = nil -- 4576
-			end -- 4576
-			local road = ____temp_64 -- 4576
-			local y = self:sy(f.y + (road and road.min or 0), h) -- 4577
-			local x0 = self:sx(f.x0, w) -- 4578
-			local x1 = self:sx(f.x1, w) -- 4579
-			local deck = self:px(5) -- 4580
-			if road ~= nil then -- 4580
-				local back = self:sy(f.y + road.max, h) -- 4582
-				draw:drawRect( -- 4583
-					Rect(x0, y, x1 - x0, back - y), -- 4583
-					FLOOR_DECK, -- 4583
-					self:px(1), -- 4583
-					SOLID_EDGE -- 4583
-				) -- 4583
-			end -- 4583
-			draw:drawRect( -- 4585
-				Rect(x0, y - deck, x1 - x0, deck), -- 4585
-				FLOOR_DECK -- 4585
-			) -- 4585
-			draw:drawSegment( -- 4586
-				Vec2(x0, y), -- 4586
-				Vec2(x1, y), -- 4586
-				self:px(1), -- 4586
-				GROUND -- 4586
-			) -- 4586
-			i = i + 1 -- 4574
-		end -- 4574
-	end -- 4574
-end -- 4572
-function Play.prototype.drawSolids(self, draw, w, h) -- 4590
-	local i = 0 -- 4591
-	do -- 4591
-		i = 0 -- 4592
-		while i < #self.boxes do -- 4592
-			do -- 4592
-				local b = self.boxes[i + 1] -- 4593
-				if b.id == "braced_shield" or b.hidden == true then -- 4593
-					goto __continue847 -- 4595
-				end -- 4595
-				if b.broken == true then -- 4595
-					if b.breakable ~= nil then -- 4595
-						local gy = self:sy(b.y0, h) -- 4600
-						local rgb = b.breakable.kind == "basket_wall" and Color(0.52, 0.42, 0.28, 1) or Color(0.46, 0.34, 0.22, 1) -- 4601
-						local k = 0 -- 4602
-						do -- 4602
-							k = 0 -- 4603
-							while k < 3 do -- 4603
-								local gx = self:sx(b.x0 + (b.x1 - b.x0) * (0.2 + k * 0.3), w) -- 4604
-								draw:drawSegment( -- 4605
-									Vec2( -- 4605
-										gx - self:px(4), -- 4605
-										gy + self:px(k % 2) -- 4605
-									), -- 4605
-									Vec2( -- 4605
-										gx + self:px(5), -- 4605
-										gy + self:px(k % 2) -- 4605
-									), -- 4605
-									self:px(1), -- 4605
-									rgb -- 4605
-								) -- 4605
-								k = k + 1 -- 4603
-							end -- 4603
-						end -- 4603
-					end -- 4603
-					goto __continue847 -- 4608
-				end -- 4608
-				local ____opt_67 = b.depth -- 4608
-				local front = ____opt_67 and ____opt_67.min or 0 -- 4610
-				local ____opt_69 = b.depth -- 4610
-				local back = ____opt_69 and ____opt_69.max or 0 -- 4611
-				local fill = SOLID_FILL -- 4612
-				local line = SOLID_EDGE -- 4613
-				if b.soft == true then -- 4613
-					fill = SOFT -- 4615
-					line = SOFT_LINE -- 4616
-				elseif b.breakable ~= nil then -- 4616
-					line = DANGER_LINE -- 4618
-					fill = Color(0.3, 0.24, 0.16, 1) -- 4619
-				elseif b.interact ~= nil then -- 4619
-					line = PASS_LINE -- 4621
-				end -- 4621
-				self:drawBox( -- 4623
-					draw, -- 4623
-					w, -- 4623
-					h, -- 4623
-					b.x0, -- 4623
-					b.x1, -- 4623
-					b.y0 + front, -- 4623
-					b.y1 + back, -- 4623
-					fill -- 4623
-				) -- 4623
-				draw:drawSegment( -- 4624
-					Vec2( -- 4624
-						self:sx(b.x0, w), -- 4624
-						self:sy(b.y1 + front, h) -- 4624
-					), -- 4624
-					Vec2( -- 4625
-						self:sx(b.x1, w), -- 4625
-						self:sy(b.y1 + front, h) -- 4625
-					), -- 4625
-					self:px(1), -- 4625
-					line -- 4625
-				) -- 4625
-				if b.breakable ~= nil then -- 4625
-					local cxp = self:sx((b.x0 + b.x1) / 2, w) -- 4628
-					local cyp = self:sy(b.y1 + front, h) -- 4629
-					draw:drawSegment( -- 4630
-						Vec2( -- 4630
-							cxp - self:px(4), -- 4630
-							cyp + self:px(1) -- 4630
-						), -- 4630
-						Vec2( -- 4630
-							cxp + self:px(3), -- 4630
-							cyp + self:px(5) -- 4630
-						), -- 4630
-						self:px(1), -- 4630
-						line -- 4630
-					) -- 4630
-				end -- 4630
-			end -- 4630
-			::__continue847:: -- 4630
-			i = i + 1 -- 4592
-		end -- 4592
-	end -- 4592
-end -- 4590
-function Play.prototype.drawCampaignProps(self, draw, w, h) -- 4636
-	local i = 0 -- 4637
-	do -- 4637
-		i = 0 -- 4638
-		while i < #self.pickups do -- 4638
-			do -- 4638
-				local pk = self.pickups[i + 1] -- 4639
-				if pk.id == "" then -- 4639
-					goto __continue859 -- 4641
-				end -- 4641
-				local gy = pk.y + (pk.depth or 0) -- 4643
-				local bob = math.sin((self.run.ticks + pk.x) * 0.12) * 2 -- 4644
-				draw:drawRect( -- 4645
-					Rect( -- 4645
-						self:sx(pk.x - 5, w), -- 4645
-						self:sy(gy + 12 + bob, h), -- 4645
-						self:px(10), -- 4645
-						self:px(10) -- 4645
-					), -- 4645
-					Color(0.84, 0.7, 0.3, 1) -- 4646
-				) -- 4646
-				draw:drawSegment( -- 4647
-					Vec2( -- 4647
-						self:sx(pk.x - 5, w), -- 4647
-						self:sy(gy + 12 + bob, h) -- 4647
-					), -- 4647
-					Vec2( -- 4648
-						self:sx(pk.x + 5, w), -- 4648
-						self:sy(gy + 12 + bob, h) -- 4648
-					), -- 4648
-					self:px(1), -- 4648
-					Color(0.95, 0.86, 0.52, 1) -- 4648
-				) -- 4648
-			end -- 4648
-			::__continue859:: -- 4648
-			i = i + 1 -- 4638
-		end -- 4638
-	end -- 4638
-	if self.bracedShield ~= nil then -- 4638
-		local sh = self.bracedShield -- 4651
-		draw:drawRect( -- 4652
-			Rect( -- 4652
-				self:sx(sh.x - sh.w / 2, w), -- 4652
-				self:sy(sh.y, h), -- 4652
-				self:px(sh.w), -- 4652
-				self:px(sh.h) -- 4652
-			), -- 4652
-			Color(0.42, 0.4, 0.34, 1) -- 4653
-		) -- 4653
-		draw:drawSegment( -- 4654
-			Vec2( -- 4654
-				self:sx(sh.x - sh.w / 2, w), -- 4654
-				self:sy(sh.y + sh.h, h) -- 4654
-			), -- 4654
-			Vec2( -- 4655
-				self:sx(sh.x + sh.w / 2, w), -- 4655
-				self:sy(sh.y + sh.h, h) -- 4655
-			), -- 4655
-			self:px(1), -- 4655
-			Color(0.74, 0.72, 0.62, 1) -- 4655
-		) -- 4655
-	end -- 4655
-end -- 4636
-function Play.prototype.drawZones(self, draw, w, h) -- 4659
-	local i = 0 -- 4660
-	do -- 4660
-		i = 0 -- 4661
-		while i < #self.room.zones do -- 4661
-			local z = self.room.zones[i + 1] -- 4662
-			local fill = DANGER -- 4663
-			local line = DANGER_LINE -- 4664
-			if z.tint == 2 then -- 4664
-				fill = SOFT -- 4666
-				line = SOFT_LINE -- 4667
-			elseif z.tint == 3 then -- 4667
-				fill = BRICK -- 4669
-				line = BRICK_LINE -- 4670
-			elseif z.tint == 4 then -- 4670
-				fill = PASS -- 4672
-				line = PASS_LINE -- 4673
-			end -- 4673
-			self:drawBox( -- 4675
-				draw, -- 4675
-				w, -- 4675
-				h, -- 4675
-				z.x0, -- 4675
-				z.x1, -- 4675
-				z.y, -- 4675
-				z.y + z.h, -- 4675
-				fill -- 4675
-			) -- 4675
-			draw:drawSegment( -- 4676
-				Vec2( -- 4676
-					self:sx(z.x0, w), -- 4676
-					self:sy(z.y, h) -- 4676
-				), -- 4676
-				Vec2( -- 4676
-					self:sx(z.x0, w), -- 4676
-					self:sy(z.y + z.h, h) -- 4676
-				), -- 4676
-				self:px(1), -- 4676
-				line -- 4676
-			) -- 4676
-			draw:drawSegment( -- 4677
-				Vec2( -- 4677
-					self:sx(z.x1, w), -- 4677
-					self:sy(z.y, h) -- 4677
-				), -- 4677
-				Vec2( -- 4677
-					self:sx(z.x1, w), -- 4677
-					self:sy(z.y + z.h, h) -- 4677
-				), -- 4677
-				self:px(1), -- 4677
-				line -- 4677
-			) -- 4677
-			i = i + 1 -- 4661
-		end -- 4661
-	end -- 4661
-end -- 4659
-function Play.prototype.drawArch(self, draw, w, h) -- 4681
-	local a = self.room.arch -- 4682
-	if a.h <= 0 then -- 4682
-		return -- 4684
-	end -- 4684
-	self:drawBox( -- 4686
-		draw, -- 4686
-		w, -- 4686
-		h, -- 4686
-		a.x0, -- 4686
-		a.x1, -- 4686
-		a.y, -- 4686
-		a.y + a.h, -- 4686
-		HOLE_FILL -- 4686
-	) -- 4686
-	draw:drawSegment( -- 4687
-		Vec2( -- 4687
-			self:sx(a.x0, w), -- 4687
-			self:sy(a.y + a.h, h) -- 4687
-		), -- 4687
-		Vec2( -- 4687
-			self:sx(a.x1, w), -- 4687
-			self:sy(a.y + a.h, h) -- 4687
-		), -- 4687
-		self:px(1), -- 4687
-		SOLID_EDGE -- 4687
-	) -- 4687
-	draw:drawSegment( -- 4688
-		Vec2( -- 4688
-			self:sx(a.x0, w), -- 4688
-			self:sy(a.y, h) -- 4688
-		), -- 4688
-		Vec2( -- 4688
-			self:sx(a.x0, w), -- 4688
-			self:sy(a.y + a.h, h) -- 4688
-		), -- 4688
-		self:px(1), -- 4688
-		SOLID_EDGE -- 4688
-	) -- 4688
-	draw:drawSegment( -- 4689
-		Vec2( -- 4689
-			self:sx(a.x1, w), -- 4689
-			self:sy(a.y, h) -- 4689
-		), -- 4689
-		Vec2( -- 4689
-			self:sx(a.x1, w), -- 4689
-			self:sy(a.y + a.h, h) -- 4689
-		), -- 4689
-		self:px(1), -- 4689
-		SOLID_EDGE -- 4689
-	) -- 4689
-end -- 4681
-function Play.prototype.drawCart(self, draw, w, h) -- 4692
-	local c = self.room.cart -- 4693
-	if c.bodyW <= 0 then -- 4693
-		return -- 4695
-	end -- 4695
-	drawCartShape( -- 4697
-		draw, -- 4697
-		self, -- 4697
-		w, -- 4697
-		h, -- 4697
-		c, -- 4697
-		self.cartAxle -- 4697
-	) -- 4697
-	draw:drawRect( -- 4698
-		Rect( -- 4698
-			self:sx(self.cartAxle + c.handleOffset, w) - self:px(1), -- 4698
-			self:sy(c.baseY + (c.depth or 0) + 40, h), -- 4698
-			self:px(2), -- 4698
-			self:px(40) -- 4698
-		), -- 4698
-		STAND -- 4698
-	) -- 4698
-end -- 4692
-function Play.prototype.drawActors(self, draw, w, h) -- 4701
-	local p = self.player -- 4702
-	local isChild = self.childMode -- 4703
-	local footY = p.y + p.depth -- 4704
-	if p.covered then -- 4704
-		local edge = p.x + p.facing * (p.w / 2 + 2) -- 4707
-		draw:drawSegment( -- 4708
-			Vec2( -- 4708
-				self:sx(edge, w), -- 4708
-				self:sy(footY + 8, h) -- 4708
-			), -- 4708
-			Vec2( -- 4708
-				self:sx(edge, w), -- 4708
-				self:sy(footY + p.h * 0.62, h) -- 4708
-			), -- 4708
-			self:px(2), -- 4708
-			STAND -- 4708
-		) -- 4708
-		draw:drawSegment( -- 4710
-			Vec2( -- 4710
-				self:sx(p.x - 8, w), -- 4710
-				self:sy(footY + p.h + 3, h) -- 4710
-			), -- 4710
-			Vec2( -- 4710
-				self:sx(p.x + 8, w), -- 4710
-				self:sy(footY + p.h + 3, h) -- 4710
-			), -- 4710
-			self:px(2), -- 4710
-			STAND -- 4710
-		) -- 4710
-	elseif self.coverNear and not isChild then -- 4710
-		draw:drawRect( -- 4713
-			Rect( -- 4713
-				self:sx(p.x - 3, w), -- 4713
-				self:sy(footY + 1, h), -- 4713
-				self:px(3), -- 4713
-				self:px(3) -- 4713
-			), -- 4713
-			STAND -- 4713
-		) -- 4713
-	end -- 4713
-	drawFigure( -- 4715
-		draw, -- 4715
-		self, -- 4715
-		w, -- 4715
-		h, -- 4715
-		p, -- 4715
-		isChild and CHILD_BODY or SOLDIER_BODY, -- 4715
-		isChild and CHILD_HEAD or SOLDIER_HEAD -- 4715
-	) -- 4715
-	local q = self.partner -- 4716
-	if q.alive then -- 4716
-		local childPartner = q.w == CHILD_W -- 4718
-		drawFigure( -- 4719
-			draw, -- 4719
-			self, -- 4719
-			w, -- 4719
-			h, -- 4719
-			q, -- 4719
-			childPartner and CHILD_BODY or SOLDIER_BODY, -- 4719
-			childPartner and CHILD_HEAD or SOLDIER_HEAD -- 4719
-		) -- 4719
-	end -- 4719
-	local i = 0 -- 4721
-	do -- 4721
-		i = 0 -- 4722
-		while i < #self.enemies do -- 4722
-			local e = self.enemies[i + 1] -- 4723
-			local col = e.alive and ENEMY_BODY or ENEMY_DEAD -- 4724
-			local enemyY = e.y + (e.depth or 0) -- 4725
-			self:drawBox( -- 4726
-				draw, -- 4726
-				w, -- 4726
-				h, -- 4726
-				e.x - e.w / 2, -- 4726
-				e.x + e.w / 2, -- 4726
-				enemyY, -- 4726
-				enemyY + e.h, -- 4726
-				col -- 4726
-			) -- 4726
-			if e.alive then -- 4726
-				local ef = p.x >= e.x and 1 or -1 -- 4728
-				if e.kind == "shield" then -- 4728
-					local sh = (e.shieldHp or 0) > 0 -- 4730
-					draw:drawRect( -- 4731
-						Rect( -- 4731
-							self:sx(e.x + ef * (e.w / 2 + 2) - 3, w), -- 4731
-							self:sy(enemyY, h), -- 4731
-							self:px(6), -- 4731
-							self:px(64) -- 4731
-						), -- 4731
-						sh and Color(0.46, 0.44, 0.38, 1) or Color(0.28, 0.26, 0.22, 1) -- 4732
-					) -- 4732
-				elseif e.kind == "breaker" then -- 4732
-					draw:drawSegment( -- 4734
-						Vec2( -- 4734
-							self:sx(e.x + ef * 12, w), -- 4734
-							self:sy(enemyY + 8, h) -- 4734
-						), -- 4734
-						Vec2( -- 4735
-							self:sx(e.x + ef * 22, w), -- 4735
-							self:sy(enemyY + 46, h) -- 4735
-						), -- 4735
-						self:px(3), -- 4735
-						Color(0.5, 0.36, 0.22, 1) -- 4735
-					) -- 4735
-				end -- 4735
-			end -- 4735
-			if e.alive and e.warnT > 0 then -- 4735
-				local gunX = self:sx(e.x, w) -- 4740
-				local gunY = self:sy(enemyY + e.h * 0.72, h) -- 4741
-				local aimX = self:sx(p.x, w) -- 4742
-				local aimY = self:sy(footY + p.h * 0.55, h) -- 4743
-				local seg = 8 -- 4744
-				local s = 0 -- 4745
-				do -- 4745
-					s = 0 -- 4746
-					while s < seg do -- 4746
-						local t0 = s / seg -- 4747
-						local t1 = (s + 1) / seg -- 4748
-						draw:drawSegment( -- 4749
-							Vec2(gunX + (aimX - gunX) * t0, gunY + (aimY - gunY) * t0), -- 4750
-							Vec2(gunX + (aimX - gunX) * t1, gunY + (aimY - gunY) * t1), -- 4751
-							self:px(1), -- 4752
-							DANGER -- 4752
-						) -- 4752
-						s = s + 2 -- 4746
-					end -- 4746
-				end -- 4746
-			end -- 4746
-			i = i + 1 -- 4722
-		end -- 4722
-	end -- 4722
-	local k = 0 -- 4757
-	do -- 4757
-		k = 0 -- 4758
-		while k < #self.room.marks do -- 4758
-			do -- 4758
-				local m = self.room.marks[k + 1] -- 4759
-				if m.kind ~= 0 then -- 4759
-					goto __continue885 -- 4761
-				end -- 4761
-				local on = self.checkpoint == m.x -- 4763
-				local x = self:sx(m.x, w) -- 4764
-				local y = self:sy(m.y, h) -- 4765
-				draw:drawSegment( -- 4766
-					Vec2(x, y), -- 4766
-					Vec2( -- 4766
-						x, -- 4766
-						y + self:px(35) -- 4766
-					), -- 4766
-					self:px(1), -- 4766
-					on and CHECK or INK_DIM -- 4766
-				) -- 4766
-				draw:drawDot( -- 4767
-					Vec2( -- 4767
-						x, -- 4767
-						y + self:px(35) -- 4767
-					), -- 4767
-					self:px(2), -- 4767
-					on and CHECK or INK_DIM -- 4767
-				) -- 4767
-			end -- 4767
-			::__continue885:: -- 4767
-			k = k + 1 -- 4758
-		end -- 4758
-	end -- 4758
-	local j = 0 -- 4771
-	do -- 4771
-		j = 0 -- 4772
-		while j < #self.room.marks do -- 4772
-			do -- 4772
-				local m = self.room.marks[j + 1] -- 4773
-				if m.kind ~= 1 and m.kind ~= 4 and m.kind ~= 5 then -- 4773
-					goto __continue888 -- 4775
-				end -- 4775
-				if m.kind == 1 and self.room.key ~= "checkpoint" and self.room.key ~= "prologue" and self.room.key ~= "gate" and self.room.key ~= "tower" then -- 4775
-					goto __continue888 -- 4779
-				end -- 4779
-				local col = STAND -- 4781
-				if m.kind == 4 then -- 4781
-					col = PASS_LINE -- 4783
-				elseif m.kind == 5 then -- 4783
-					col = BRICK_LINE -- 4785
-				end -- 4785
-				local mx = self:sx(m.x, w) -- 4787
-				local my = self:sy(m.y, h) -- 4788
-				draw:drawSegment( -- 4789
-					Vec2(mx, my), -- 4789
-					Vec2( -- 4789
-						mx, -- 4789
-						my + self:px(24) -- 4789
-					), -- 4789
-					self:px(1), -- 4789
-					col -- 4789
-				) -- 4789
-			end -- 4789
-			::__continue888:: -- 4789
-			j = j + 1 -- 4772
-		end -- 4772
-	end -- 4772
-	local t = 0 -- 4792
-	do -- 4792
-		t = 0 -- 4793
-		while t < #self.room.marks do -- 4793
-			do -- 4793
-				local m = self.room.marks[t + 1] -- 4794
-				if m.kind ~= 6 then -- 4794
-					goto __continue894 -- 4796
-				end -- 4796
-				local mx = self:sx(m.x, w) -- 4798
-				local my = self:sy(m.y, h) -- 4799
-				draw:drawSegment( -- 4800
-					Vec2(mx, my), -- 4800
-					Vec2( -- 4800
-						mx, -- 4800
-						my + self:px(30) -- 4800
-					), -- 4800
-					self:px(1), -- 4800
-					INK_DIM -- 4800
-				) -- 4800
-				self:drawBox( -- 4801
-					draw, -- 4801
-					w, -- 4801
-					h, -- 4801
-					m.x - 5, -- 4801
-					m.x + 5, -- 4801
-					m.y + 30, -- 4801
-					m.y + 40, -- 4801
-					CHECK -- 4801
-				) -- 4801
-			end -- 4801
-			::__continue894:: -- 4801
-			t = t + 1 -- 4793
-		end -- 4793
-	end -- 4793
-	if self.room.key == "village" then -- 4793
-		self:drawVillage(draw, w, h) -- 4804
-	end -- 4804
-	if self.room.key == "forest" then -- 4804
-		self:drawDog(draw, w, h) -- 4807
-	end -- 4807
-end -- 4701
-function Play.prototype.drawDog(self, draw, w, h) -- 4812
-	local x = self.dogX -- 4813
-	self:drawBox( -- 4814
-		draw, -- 4814
-		w, -- 4814
-		h, -- 4814
-		x - 14, -- 4814
-		x + 14, -- 4814
-		0, -- 4814
-		20, -- 4814
-		SCAV_BODY -- 4814
-	) -- 4814
-	self:drawBox( -- 4815
-		draw, -- 4815
-		w, -- 4815
-		h, -- 4815
-		x - 10, -- 4815
-		x - 2, -- 4815
-		20, -- 4815
-		30, -- 4815
-		SCAV_BODY -- 4815
-	) -- 4815
-	self:drawBox( -- 4816
-		draw, -- 4816
-		w, -- 4816
-		h, -- 4816
-		x + 2, -- 4816
-		x + 10, -- 4816
-		20, -- 4816
-		30, -- 4816
-		SCAV_HEAD -- 4816
-	) -- 4816
-	if self.dogState == "ear" or self.dogState == "chase" then -- 4816
-		draw:drawSegment( -- 4818
-			Vec2( -- 4818
-				self:sx(x, w), -- 4818
-				self:sy(30, h) -- 4818
-			), -- 4818
-			Vec2( -- 4819
-				self:sx(x, w), -- 4819
-				self:sy(40, h) -- 4819
-			), -- 4819
-			self:px(1), -- 4819
-			DANGER -- 4819
-		) -- 4819
-	end -- 4819
-end -- 4812
-function Play.prototype.drawVillage(self, draw, w, h) -- 4824
-	local bottle = self.room.bottle -- 4825
-	if bottle ~= nil then -- 4825
-		self:drawBox( -- 4827
-			draw, -- 4827
-			w, -- 4827
-			h, -- 4827
-			bottle.x - 14, -- 4827
-			bottle.x + 14, -- 4827
-			0, -- 4827
-			64, -- 4827
-			SOLID_FILL -- 4827
-		) -- 4827
-		if not self.hasBottle and self.bottleFly == nil and self.bottleLandT <= 0 then -- 4827
-			self:drawBottle( -- 4829
-				draw, -- 4829
-				w, -- 4829
-				h, -- 4829
-				bottle.x, -- 4829
-				64 -- 4829
-			) -- 4829
-		end -- 4829
-	end -- 4829
-	self:drawBox( -- 4833
-		draw, -- 4833
-		w, -- 4833
-		h, -- 4833
-		300, -- 4833
-		420, -- 4833
-		44, -- 4833
-		50, -- 4833
-		FLOOR_DECK -- 4833
-	) -- 4833
-	self:drawBox( -- 4834
-		draw, -- 4834
-		w, -- 4834
-		h, -- 4834
-		300, -- 4834
-		306, -- 4834
-		0, -- 4834
-		44, -- 4834
-		FLOOR_DECK -- 4834
-	) -- 4834
-	self:drawBox( -- 4835
-		draw, -- 4835
-		w, -- 4835
-		h, -- 4835
-		414, -- 4835
-		420, -- 4835
-		0, -- 4835
-		44, -- 4835
-		FLOOR_DECK -- 4835
-	) -- 4835
-	local s = self.room.scavenger -- 4837
-	if s ~= nil then -- 4837
-		local sx0 = self.scavX -- 4839
-		self:drawBox( -- 4840
-			draw, -- 4840
-			w, -- 4840
-			h, -- 4840
-			sx0 - 12, -- 4840
-			sx0 + 12, -- 4840
-			0, -- 4840
-			s.h - 14, -- 4840
-			SCAV_BODY -- 4840
-		) -- 4840
-		self:drawBox( -- 4841
-			draw, -- 4841
-			w, -- 4841
-			h, -- 4841
-			sx0 - 7, -- 4841
-			sx0 + 7, -- 4841
-			s.h - 14, -- 4841
-			s.h, -- 4841
-			SCAV_HEAD -- 4841
-		) -- 4841
-		if self.scavState == "turn" then -- 4841
-			local fx = sx0 + (self.scavDir > 0 and 12 or -12) -- 4843
-			draw:drawSegment( -- 4844
-				Vec2( -- 4844
-					self:sx(sx0, w), -- 4844
-					self:sy(s.h - 6, h) -- 4844
-				), -- 4844
-				Vec2( -- 4844
-					self:sx(fx, w), -- 4844
-					self:sy(s.h - 6, h) -- 4844
-				), -- 4844
-				self:px(1), -- 4844
-				INK -- 4844
-			) -- 4844
-		end -- 4844
-	end -- 4844
-	if self.hasBottle then -- 4844
-		local p = self.player -- 4849
-		self:drawBottle( -- 4850
-			draw, -- 4850
-			w, -- 4850
-			h, -- 4850
-			p.x + p.facing * 10, -- 4850
-			p.y + p.h * 0.62 -- 4850
-		) -- 4850
-	end -- 4850
-	if self.bottleFly ~= nil then -- 4850
-		self:drawBottle( -- 4853
-			draw, -- 4853
-			w, -- 4853
-			h, -- 4853
-			self.bottleFly.x, -- 4853
-			self.bottleFly.y -- 4853
-		) -- 4853
-	end -- 4853
-	if self.bottleLandT > 0 and self.bottleLandX >= 0 then -- 4853
-		local r = (1 - self.bottleLandT / 0.9) * 28 -- 4856
-		draw:drawCircle( -- 4857
-			Vec2( -- 4857
-				self:sx(self.bottleLandX, w), -- 4857
-				self:sy(0, h) -- 4857
-			), -- 4857
-			self:px(r / ____exports.UNITS_PER_PX), -- 4857
-			BRICK_LINE -- 4857
-		) -- 4857
-	end -- 4857
-end -- 4824
-function Play.prototype.drawBottle(self, draw, w, h, x, y) -- 4861
-	self:drawBox( -- 4862
-		draw, -- 4862
-		w, -- 4862
-		h, -- 4862
-		x - 3, -- 4862
-		x + 3, -- 4862
-		y - 10, -- 4862
-		y, -- 4862
-		BOTTLE -- 4862
-	) -- 4862
-end -- 4861
-function Play.prototype.drawTrace(self, draw, w, h) -- 4865
-	local t = self.trace -- 4866
-	if t == nil or self.traceT <= 0 then -- 4866
-		return -- 4868
-	end -- 4868
-	draw:drawSegment( -- 4870
-		Vec2( -- 4871
-			self:sx(t.x0, w), -- 4871
-			self:sy(t.y0, h) -- 4871
-		), -- 4871
-		Vec2( -- 4872
-			self:sx(t.x1, w), -- 4872
-			self:sy(t.y1, h) -- 4872
-		), -- 4872
-		self:px(1), -- 4873
-		t.hit and AIM_HIT or INK_DIM -- 4873
-	) -- 4873
-end -- 4865
-function Play.prototype.drawAim(self, draw, w, h) -- 4876
-	local v = self.view -- 4878
-	local gx = v.ox + math.floor((self.aimX - v.ox) / v.zoom + 0.5) * v.zoom -- 4879
-	local gy = v.oy + math.floor((self.aimY - v.oy) / v.zoom + 0.5) * v.zoom -- 4880
-	local dot = self:px(1) -- 4881
-	local arm = self:px(3) -- 4882
-	local gap = self:px(1) -- 4883
-	draw:drawSegment( -- 4884
-		Vec2(gx - arm - gap, gy), -- 4884
-		Vec2(gx - gap, gy), -- 4884
-		dot / 2, -- 4884
-		AIM -- 4884
-	) -- 4884
-	draw:drawSegment( -- 4885
-		Vec2(gx + gap, gy), -- 4885
-		Vec2(gx + arm + gap, gy), -- 4885
-		dot / 2, -- 4885
-		AIM -- 4885
-	) -- 4885
-	draw:drawSegment( -- 4886
-		Vec2(gx, gy - arm - gap), -- 4886
-		Vec2(gx, gy - gap), -- 4886
-		dot / 2, -- 4886
-		AIM -- 4886
-	) -- 4886
-	draw:drawSegment( -- 4887
-		Vec2(gx, gy + gap), -- 4887
-		Vec2(gx, gy + arm + gap), -- 4887
-		dot / 2, -- 4887
-		AIM -- 4887
-	) -- 4887
-	if self.room.key == "village" and self.hasBottle then -- 4887
-		local p = self.player -- 4891
-		local ____end = self.bottleAimX >= 0 and ({x = self.bottleAimX, y = self.bottleAimY}) or self:bottleEnd() -- 4893
-		local dir = ____end.x >= p.x and 1 or -1 -- 4894
-		local x0 = p.x + dir * 10 -- 4895
-		local y0 = p.y + p.h * 0.7 -- 4896
-		local T = BOTTLE_FLY_TIME -- 4897
-		local vx = (____end.x - x0) / T -- 4898
-		local vy = (____end.y - y0 + 0.5 * ____exports.GRAVITY * T * T) / T -- 4899
-		local pxr = x0 -- 4900
-		local pyr = y0 -- 4901
-		local t = 1 -- 4902
-		do -- 4902
-			t = 1 -- 4903
-			while t <= 12 do -- 4903
-				local tt = t / 12 * T -- 4904
-				local nx = x0 + vx * tt -- 4905
-				local ny = y0 + vy * tt - 0.5 * ____exports.GRAVITY * tt * tt -- 4906
-				draw:drawSegment( -- 4907
-					Vec2( -- 4907
-						self:sx(pxr, w), -- 4907
-						self:sy(pyr, h) -- 4907
-					), -- 4907
-					Vec2( -- 4907
-						self:sx(nx, w), -- 4907
-						self:sy(ny, h) -- 4907
-					), -- 4907
-					self:px(1) / 2, -- 4907
-					BOTTLE -- 4907
-				) -- 4907
-				pxr = nx -- 4908
-				pyr = ny -- 4909
-				t = t + 1 -- 4903
-			end -- 4903
-		end -- 4903
-		draw:drawCircle( -- 4911
-			Vec2( -- 4911
-				self:sx(____end.x, w), -- 4911
-				self:sy(____end.y + 2, h) -- 4911
-			), -- 4911
-			self:px(2), -- 4911
-			BOTTLE -- 4911
-		) -- 4911
-	end -- 4911
-end -- 4876
-return ____exports -- 4876
+	if self.room.key == "outside" then -- 4567
+		if self.focusCart then -- 4567
+			return "按住 E 抓住车把 · A / D 推拉 · 松手就停" -- 4571
+		end -- 4571
+		return "A / D 走 · Ctrl 蹲 · 空格跳 · 车要拉到 432 才让开拱洞" -- 4573
+	end -- 4573
+	if self.escort.state == "frozen" then -- 4573
+		if math.abs(self.player.x - self.partner.x) <= CALM_REACH then -- 4573
+			return "点 E 蹲下安抚 · 第 12 / 36 拍各敲一次，60 拍后她起身" -- 4577
+		end -- 4577
+		return "小满吓住了 · 走过去，靠近再点 E" -- 4579
+	end -- 4579
+	if self.escort.state == "calming" then -- 4579
+		return ("安抚中 " .. tostring(self.escort.calmTick)) .. " / 60 拍 · 别动" -- 4582
+	end -- 4582
+	return "A / D 移动 · 左键点射 · Shift 贴掩体 · 空格翻滚 · E 敲两下 · 两人到出口才开门" -- 4584
+end -- 4472
+function Play.prototype.draw(self, draw, w, h) -- 4589
+	self.viewW = w -- 4590
+	self.viewH = h -- 4591
+	self.view = ____exports.computeViewport(w, h) -- 4592
+	self:clampCamera(w, h) -- 4593
+	draw:clear() -- 4594
+	draw:drawRect( -- 4596
+		Rect(0, 0, w, h), -- 4596
+		BG_VOID -- 4596
+	) -- 4596
+	local box = self:canvasRect(w, h) -- 4597
+	draw:drawRect(box, BG_FAR) -- 4598
+	draw:drawRect( -- 4599
+		Rect(box.x, box.y + box.height * 0.38, box.width, box.height * 0.62), -- 4599
+		BG_MID -- 4599
+	) -- 4599
+	self:drawFloors(draw, w, h) -- 4601
+	self:drawSolids(draw, w, h) -- 4602
+	self:drawZones(draw, w, h) -- 4603
+	self:drawArch(draw, w, h) -- 4604
+	self:drawCart(draw, w, h) -- 4605
+	self:drawCampaignProps(draw, w, h) -- 4606
+	self:drawActors(draw, w, h) -- 4607
+	self:drawTrace(draw, w, h) -- 4608
+	self:drawAim(draw, w, h) -- 4609
+end -- 4589
+function Play.prototype.canvasRect(self, w, h) -- 4613
+	local v = self.view -- 4614
+	return Rect(v.ox, v.oy, ____exports.LOGIC_W * v.zoom, ____exports.LOGIC_H * v.zoom) -- 4615
+end -- 4613
+function Play.prototype.px(self, n) -- 4619
+	return n * self.view.zoom -- 4620
+end -- 4619
+function Play.prototype.sx(self, wx, w) -- 4624
+	local v = self.view -- 4625
+	local lx = math.floor((wx - self.cam.x) / ____exports.UNITS_PER_PX + ____exports.LOGIC_W / 2 + 0.5) -- 4626
+	return v.ox + lx * v.zoom -- 4627
+end -- 4624
+function Play.prototype.sy(self, wy, h) -- 4631
+	local v = self.view -- 4632
+	local ly = math.floor((wy - self.cam.y) / ____exports.UNITS_PER_PX + ____exports.LOGIC_H / 2 + 0.5) -- 4633
+	return v.oy + ly * v.zoom -- 4634
+end -- 4631
+function Play.prototype.drawBox(self, draw, w, h, x0, x1, y0, y1, color) -- 4637
+	local px0 = self:sx(x0, w) -- 4638
+	local px1 = self:sx(x1, w) -- 4639
+	local py0 = self:sy(y0, h) -- 4640
+	local py1 = self:sy(y1, h) -- 4641
+	if px1 <= px0 or py1 <= py0 then -- 4641
+		return -- 4643
+	end -- 4643
+	draw:drawRect( -- 4645
+		Rect(px0, py0, px1 - px0, py1 - py0), -- 4645
+		color -- 4645
+	) -- 4645
+end -- 4637
+function Play.prototype.drawFloors(self, draw, w, h) -- 4648
+	local i = 0 -- 4649
+	do -- 4649
+		i = 0 -- 4650
+		while i < #self.room.floors do -- 4650
+			local f = self.room.floors[i + 1] -- 4651
+			local ____temp_64 -- 4652
+			if f.y == 0 then -- 4652
+				____temp_64 = self.room.depth -- 4652
+			else -- 4652
+				____temp_64 = nil -- 4652
+			end -- 4652
+			local road = ____temp_64 -- 4652
+			local y = self:sy(f.y + (road and road.min or 0), h) -- 4653
+			local x0 = self:sx(f.x0, w) -- 4654
+			local x1 = self:sx(f.x1, w) -- 4655
+			local deck = self:px(5) -- 4656
+			if road ~= nil then -- 4656
+				local back = self:sy(f.y + road.max, h) -- 4658
+				draw:drawRect( -- 4659
+					Rect(x0, y, x1 - x0, back - y), -- 4659
+					FLOOR_DECK, -- 4659
+					self:px(1), -- 4659
+					SOLID_EDGE -- 4659
+				) -- 4659
+			end -- 4659
+			draw:drawRect( -- 4661
+				Rect(x0, y - deck, x1 - x0, deck), -- 4661
+				FLOOR_DECK -- 4661
+			) -- 4661
+			draw:drawSegment( -- 4662
+				Vec2(x0, y), -- 4662
+				Vec2(x1, y), -- 4662
+				self:px(1), -- 4662
+				GROUND -- 4662
+			) -- 4662
+			i = i + 1 -- 4650
+		end -- 4650
+	end -- 4650
+end -- 4648
+function Play.prototype.drawSolids(self, draw, w, h) -- 4666
+	local i = 0 -- 4667
+	do -- 4667
+		i = 0 -- 4668
+		while i < #self.boxes do -- 4668
+			do -- 4668
+				local b = self.boxes[i + 1] -- 4669
+				if b.id == "braced_shield" or b.hidden == true then -- 4669
+					goto __continue858 -- 4671
+				end -- 4671
+				if b.broken == true then -- 4671
+					if b.breakable ~= nil then -- 4671
+						local gy = self:sy(b.y0, h) -- 4676
+						local rgb = b.breakable.kind == "basket_wall" and Color(0.52, 0.42, 0.28, 1) or Color(0.46, 0.34, 0.22, 1) -- 4677
+						local k = 0 -- 4678
+						do -- 4678
+							k = 0 -- 4679
+							while k < 3 do -- 4679
+								local gx = self:sx(b.x0 + (b.x1 - b.x0) * (0.2 + k * 0.3), w) -- 4680
+								draw:drawSegment( -- 4681
+									Vec2( -- 4681
+										gx - self:px(4), -- 4681
+										gy + self:px(k % 2) -- 4681
+									), -- 4681
+									Vec2( -- 4681
+										gx + self:px(5), -- 4681
+										gy + self:px(k % 2) -- 4681
+									), -- 4681
+									self:px(1), -- 4681
+									rgb -- 4681
+								) -- 4681
+								k = k + 1 -- 4679
+							end -- 4679
+						end -- 4679
+					end -- 4679
+					goto __continue858 -- 4684
+				end -- 4684
+				local ____opt_67 = b.depth -- 4684
+				local front = ____opt_67 and ____opt_67.min or 0 -- 4686
+				local ____opt_69 = b.depth -- 4686
+				local back = ____opt_69 and ____opt_69.max or 0 -- 4687
+				local fill = SOLID_FILL -- 4688
+				local line = SOLID_EDGE -- 4689
+				if b.soft == true then -- 4689
+					fill = SOFT -- 4691
+					line = SOFT_LINE -- 4692
+				elseif b.breakable ~= nil then -- 4692
+					line = DANGER_LINE -- 4694
+					fill = Color(0.3, 0.24, 0.16, 1) -- 4695
+				elseif b.interact ~= nil then -- 4695
+					line = PASS_LINE -- 4697
+				end -- 4697
+				self:drawBox( -- 4699
+					draw, -- 4699
+					w, -- 4699
+					h, -- 4699
+					b.x0, -- 4699
+					b.x1, -- 4699
+					b.y0 + front, -- 4699
+					b.y1 + back, -- 4699
+					fill -- 4699
+				) -- 4699
+				draw:drawSegment( -- 4700
+					Vec2( -- 4700
+						self:sx(b.x0, w), -- 4700
+						self:sy(b.y1 + front, h) -- 4700
+					), -- 4700
+					Vec2( -- 4701
+						self:sx(b.x1, w), -- 4701
+						self:sy(b.y1 + front, h) -- 4701
+					), -- 4701
+					self:px(1), -- 4701
+					line -- 4701
+				) -- 4701
+				if b.breakable ~= nil then -- 4701
+					local cxp = self:sx((b.x0 + b.x1) / 2, w) -- 4704
+					local cyp = self:sy(b.y1 + front, h) -- 4705
+					draw:drawSegment( -- 4706
+						Vec2( -- 4706
+							cxp - self:px(4), -- 4706
+							cyp + self:px(1) -- 4706
+						), -- 4706
+						Vec2( -- 4706
+							cxp + self:px(3), -- 4706
+							cyp + self:px(5) -- 4706
+						), -- 4706
+						self:px(1), -- 4706
+						line -- 4706
+					) -- 4706
+				end -- 4706
+			end -- 4706
+			::__continue858:: -- 4706
+			i = i + 1 -- 4668
+		end -- 4668
+	end -- 4668
+end -- 4666
+function Play.prototype.drawCampaignProps(self, draw, w, h) -- 4712
+	local i = 0 -- 4713
+	do -- 4713
+		i = 0 -- 4714
+		while i < #self.pickups do -- 4714
+			do -- 4714
+				local pk = self.pickups[i + 1] -- 4715
+				if pk.id == "" then -- 4715
+					goto __continue870 -- 4717
+				end -- 4717
+				local gy = pk.y + (pk.depth or 0) -- 4719
+				local bob = math.sin((self.run.ticks + pk.x) * 0.12) * 2 -- 4720
+				draw:drawRect( -- 4721
+					Rect( -- 4721
+						self:sx(pk.x - 5, w), -- 4721
+						self:sy(gy + 12 + bob, h), -- 4721
+						self:px(10), -- 4721
+						self:px(10) -- 4721
+					), -- 4721
+					Color(0.84, 0.7, 0.3, 1) -- 4722
+				) -- 4722
+				draw:drawSegment( -- 4723
+					Vec2( -- 4723
+						self:sx(pk.x - 5, w), -- 4723
+						self:sy(gy + 12 + bob, h) -- 4723
+					), -- 4723
+					Vec2( -- 4724
+						self:sx(pk.x + 5, w), -- 4724
+						self:sy(gy + 12 + bob, h) -- 4724
+					), -- 4724
+					self:px(1), -- 4724
+					Color(0.95, 0.86, 0.52, 1) -- 4724
+				) -- 4724
+			end -- 4724
+			::__continue870:: -- 4724
+			i = i + 1 -- 4714
+		end -- 4714
+	end -- 4714
+	if self.bracedShield ~= nil then -- 4714
+		local sh = self.bracedShield -- 4727
+		draw:drawRect( -- 4728
+			Rect( -- 4728
+				self:sx(sh.x - sh.w / 2, w), -- 4728
+				self:sy(sh.y, h), -- 4728
+				self:px(sh.w), -- 4728
+				self:px(sh.h) -- 4728
+			), -- 4728
+			Color(0.42, 0.4, 0.34, 1) -- 4729
+		) -- 4729
+		draw:drawSegment( -- 4730
+			Vec2( -- 4730
+				self:sx(sh.x - sh.w / 2, w), -- 4730
+				self:sy(sh.y + sh.h, h) -- 4730
+			), -- 4730
+			Vec2( -- 4731
+				self:sx(sh.x + sh.w / 2, w), -- 4731
+				self:sy(sh.y + sh.h, h) -- 4731
+			), -- 4731
+			self:px(1), -- 4731
+			Color(0.74, 0.72, 0.62, 1) -- 4731
+		) -- 4731
+	end -- 4731
+end -- 4712
+function Play.prototype.drawZones(self, draw, w, h) -- 4735
+	local i = 0 -- 4736
+	do -- 4736
+		i = 0 -- 4737
+		while i < #self.room.zones do -- 4737
+			local z = self.room.zones[i + 1] -- 4738
+			local fill = DANGER -- 4739
+			local line = DANGER_LINE -- 4740
+			if z.tint == 2 then -- 4740
+				fill = SOFT -- 4742
+				line = SOFT_LINE -- 4743
+			elseif z.tint == 3 then -- 4743
+				fill = BRICK -- 4745
+				line = BRICK_LINE -- 4746
+			elseif z.tint == 4 then -- 4746
+				fill = PASS -- 4748
+				line = PASS_LINE -- 4749
+			end -- 4749
+			self:drawBox( -- 4751
+				draw, -- 4751
+				w, -- 4751
+				h, -- 4751
+				z.x0, -- 4751
+				z.x1, -- 4751
+				z.y, -- 4751
+				z.y + z.h, -- 4751
+				fill -- 4751
+			) -- 4751
+			draw:drawSegment( -- 4752
+				Vec2( -- 4752
+					self:sx(z.x0, w), -- 4752
+					self:sy(z.y, h) -- 4752
+				), -- 4752
+				Vec2( -- 4752
+					self:sx(z.x0, w), -- 4752
+					self:sy(z.y + z.h, h) -- 4752
+				), -- 4752
+				self:px(1), -- 4752
+				line -- 4752
+			) -- 4752
+			draw:drawSegment( -- 4753
+				Vec2( -- 4753
+					self:sx(z.x1, w), -- 4753
+					self:sy(z.y, h) -- 4753
+				), -- 4753
+				Vec2( -- 4753
+					self:sx(z.x1, w), -- 4753
+					self:sy(z.y + z.h, h) -- 4753
+				), -- 4753
+				self:px(1), -- 4753
+				line -- 4753
+			) -- 4753
+			i = i + 1 -- 4737
+		end -- 4737
+	end -- 4737
+end -- 4735
+function Play.prototype.drawArch(self, draw, w, h) -- 4757
+	local a = self.room.arch -- 4758
+	if a.h <= 0 then -- 4758
+		return -- 4760
+	end -- 4760
+	self:drawBox( -- 4762
+		draw, -- 4762
+		w, -- 4762
+		h, -- 4762
+		a.x0, -- 4762
+		a.x1, -- 4762
+		a.y, -- 4762
+		a.y + a.h, -- 4762
+		HOLE_FILL -- 4762
+	) -- 4762
+	draw:drawSegment( -- 4763
+		Vec2( -- 4763
+			self:sx(a.x0, w), -- 4763
+			self:sy(a.y + a.h, h) -- 4763
+		), -- 4763
+		Vec2( -- 4763
+			self:sx(a.x1, w), -- 4763
+			self:sy(a.y + a.h, h) -- 4763
+		), -- 4763
+		self:px(1), -- 4763
+		SOLID_EDGE -- 4763
+	) -- 4763
+	draw:drawSegment( -- 4764
+		Vec2( -- 4764
+			self:sx(a.x0, w), -- 4764
+			self:sy(a.y, h) -- 4764
+		), -- 4764
+		Vec2( -- 4764
+			self:sx(a.x0, w), -- 4764
+			self:sy(a.y + a.h, h) -- 4764
+		), -- 4764
+		self:px(1), -- 4764
+		SOLID_EDGE -- 4764
+	) -- 4764
+	draw:drawSegment( -- 4765
+		Vec2( -- 4765
+			self:sx(a.x1, w), -- 4765
+			self:sy(a.y, h) -- 4765
+		), -- 4765
+		Vec2( -- 4765
+			self:sx(a.x1, w), -- 4765
+			self:sy(a.y + a.h, h) -- 4765
+		), -- 4765
+		self:px(1), -- 4765
+		SOLID_EDGE -- 4765
+	) -- 4765
+end -- 4757
+function Play.prototype.drawCart(self, draw, w, h) -- 4768
+	local c = self.room.cart -- 4769
+	if c.bodyW <= 0 then -- 4769
+		return -- 4771
+	end -- 4771
+	drawCartShape( -- 4773
+		draw, -- 4773
+		self, -- 4773
+		w, -- 4773
+		h, -- 4773
+		c, -- 4773
+		self.cartAxle -- 4773
+	) -- 4773
+	draw:drawRect( -- 4774
+		Rect( -- 4774
+			self:sx(self.cartAxle + c.handleOffset, w) - self:px(1), -- 4774
+			self:sy(c.baseY + (c.depth or 0) + 40, h), -- 4774
+			self:px(2), -- 4774
+			self:px(40) -- 4774
+		), -- 4774
+		STAND -- 4774
+	) -- 4774
+end -- 4768
+function Play.prototype.drawActors(self, draw, w, h) -- 4777
+	local p = self.player -- 4778
+	local isChild = self.childMode -- 4779
+	local footY = p.y + p.depth -- 4780
+	if p.covered then -- 4780
+		local edge = p.x + p.facing * (p.w / 2 + 2) -- 4783
+		draw:drawSegment( -- 4784
+			Vec2( -- 4784
+				self:sx(edge, w), -- 4784
+				self:sy(footY + 8, h) -- 4784
+			), -- 4784
+			Vec2( -- 4784
+				self:sx(edge, w), -- 4784
+				self:sy(footY + p.h * 0.62, h) -- 4784
+			), -- 4784
+			self:px(2), -- 4784
+			STAND -- 4784
+		) -- 4784
+		draw:drawSegment( -- 4786
+			Vec2( -- 4786
+				self:sx(p.x - 8, w), -- 4786
+				self:sy(footY + p.h + 3, h) -- 4786
+			), -- 4786
+			Vec2( -- 4786
+				self:sx(p.x + 8, w), -- 4786
+				self:sy(footY + p.h + 3, h) -- 4786
+			), -- 4786
+			self:px(2), -- 4786
+			STAND -- 4786
+		) -- 4786
+	elseif self.coverNear and not isChild then -- 4786
+		draw:drawRect( -- 4789
+			Rect( -- 4789
+				self:sx(p.x - 3, w), -- 4789
+				self:sy(footY + 1, h), -- 4789
+				self:px(3), -- 4789
+				self:px(3) -- 4789
+			), -- 4789
+			STAND -- 4789
+		) -- 4789
+	end -- 4789
+	drawFigure( -- 4791
+		draw, -- 4791
+		self, -- 4791
+		w, -- 4791
+		h, -- 4791
+		p, -- 4791
+		isChild and CHILD_BODY or SOLDIER_BODY, -- 4791
+		isChild and CHILD_HEAD or SOLDIER_HEAD -- 4791
+	) -- 4791
+	local q = self.partner -- 4792
+	if q.alive then -- 4792
+		local childPartner = q.w == CHILD_W -- 4794
+		drawFigure( -- 4795
+			draw, -- 4795
+			self, -- 4795
+			w, -- 4795
+			h, -- 4795
+			q, -- 4795
+			childPartner and CHILD_BODY or SOLDIER_BODY, -- 4795
+			childPartner and CHILD_HEAD or SOLDIER_HEAD -- 4795
+		) -- 4795
+	end -- 4795
+	local i = 0 -- 4797
+	do -- 4797
+		i = 0 -- 4798
+		while i < #self.enemies do -- 4798
+			local e = self.enemies[i + 1] -- 4799
+			local col = e.alive and ENEMY_BODY or ENEMY_DEAD -- 4800
+			local enemyY = e.y + (e.depth or 0) -- 4801
+			self:drawBox( -- 4802
+				draw, -- 4802
+				w, -- 4802
+				h, -- 4802
+				e.x - e.w / 2, -- 4802
+				e.x + e.w / 2, -- 4802
+				enemyY, -- 4802
+				enemyY + e.h, -- 4802
+				col -- 4802
+			) -- 4802
+			if e.alive then -- 4802
+				local ef = p.x >= e.x and 1 or -1 -- 4804
+				if e.kind == "shield" then -- 4804
+					local sh = (e.shieldHp or 0) > 0 -- 4806
+					draw:drawRect( -- 4807
+						Rect( -- 4807
+							self:sx(e.x + ef * (e.w / 2 + 2) - 3, w), -- 4807
+							self:sy(enemyY, h), -- 4807
+							self:px(6), -- 4807
+							self:px(64) -- 4807
+						), -- 4807
+						sh and Color(0.46, 0.44, 0.38, 1) or Color(0.28, 0.26, 0.22, 1) -- 4808
+					) -- 4808
+				elseif e.kind == "breaker" then -- 4808
+					draw:drawSegment( -- 4810
+						Vec2( -- 4810
+							self:sx(e.x + ef * 12, w), -- 4810
+							self:sy(enemyY + 8, h) -- 4810
+						), -- 4810
+						Vec2( -- 4811
+							self:sx(e.x + ef * 22, w), -- 4811
+							self:sy(enemyY + 46, h) -- 4811
+						), -- 4811
+						self:px(3), -- 4811
+						Color(0.5, 0.36, 0.22, 1) -- 4811
+					) -- 4811
+				end -- 4811
+			end -- 4811
+			if e.alive and e.warnT > 0 then -- 4811
+				local gunX = self:sx(e.x, w) -- 4816
+				local gunY = self:sy(enemyY + e.h * 0.72, h) -- 4817
+				local aimX = self:sx(p.x, w) -- 4818
+				local aimY = self:sy(footY + p.h * 0.55, h) -- 4819
+				local seg = 8 -- 4820
+				local s = 0 -- 4821
+				do -- 4821
+					s = 0 -- 4822
+					while s < seg do -- 4822
+						local t0 = s / seg -- 4823
+						local t1 = (s + 1) / seg -- 4824
+						draw:drawSegment( -- 4825
+							Vec2(gunX + (aimX - gunX) * t0, gunY + (aimY - gunY) * t0), -- 4826
+							Vec2(gunX + (aimX - gunX) * t1, gunY + (aimY - gunY) * t1), -- 4827
+							self:px(1), -- 4828
+							DANGER -- 4828
+						) -- 4828
+						s = s + 2 -- 4822
+					end -- 4822
+				end -- 4822
+			end -- 4822
+			i = i + 1 -- 4798
+		end -- 4798
+	end -- 4798
+	local k = 0 -- 4833
+	do -- 4833
+		k = 0 -- 4834
+		while k < #self.room.marks do -- 4834
+			do -- 4834
+				local m = self.room.marks[k + 1] -- 4835
+				if m.kind ~= 0 then -- 4835
+					goto __continue896 -- 4837
+				end -- 4837
+				local on = self.checkpoint == m.x -- 4839
+				local x = self:sx(m.x, w) -- 4840
+				local y = self:sy(m.y, h) -- 4841
+				draw:drawSegment( -- 4842
+					Vec2(x, y), -- 4842
+					Vec2( -- 4842
+						x, -- 4842
+						y + self:px(35) -- 4842
+					), -- 4842
+					self:px(1), -- 4842
+					on and CHECK or INK_DIM -- 4842
+				) -- 4842
+				draw:drawDot( -- 4843
+					Vec2( -- 4843
+						x, -- 4843
+						y + self:px(35) -- 4843
+					), -- 4843
+					self:px(2), -- 4843
+					on and CHECK or INK_DIM -- 4843
+				) -- 4843
+			end -- 4843
+			::__continue896:: -- 4843
+			k = k + 1 -- 4834
+		end -- 4834
+	end -- 4834
+	local j = 0 -- 4847
+	do -- 4847
+		j = 0 -- 4848
+		while j < #self.room.marks do -- 4848
+			do -- 4848
+				local m = self.room.marks[j + 1] -- 4849
+				if m.kind ~= 1 and m.kind ~= 4 and m.kind ~= 5 then -- 4849
+					goto __continue899 -- 4851
+				end -- 4851
+				if m.kind == 1 and self.room.key ~= "checkpoint" and self.room.key ~= "prologue" and self.room.key ~= "gate" and self.room.key ~= "tower" then -- 4851
+					goto __continue899 -- 4855
+				end -- 4855
+				local col = STAND -- 4857
+				if m.kind == 4 then -- 4857
+					col = PASS_LINE -- 4859
+				elseif m.kind == 5 then -- 4859
+					col = BRICK_LINE -- 4861
+				end -- 4861
+				local mx = self:sx(m.x, w) -- 4863
+				local my = self:sy(m.y, h) -- 4864
+				draw:drawSegment( -- 4865
+					Vec2(mx, my), -- 4865
+					Vec2( -- 4865
+						mx, -- 4865
+						my + self:px(24) -- 4865
+					), -- 4865
+					self:px(1), -- 4865
+					col -- 4865
+				) -- 4865
+			end -- 4865
+			::__continue899:: -- 4865
+			j = j + 1 -- 4848
+		end -- 4848
+	end -- 4848
+	local t = 0 -- 4868
+	do -- 4868
+		t = 0 -- 4869
+		while t < #self.room.marks do -- 4869
+			do -- 4869
+				local m = self.room.marks[t + 1] -- 4870
+				if m.kind ~= 6 then -- 4870
+					goto __continue905 -- 4872
+				end -- 4872
+				local mx = self:sx(m.x, w) -- 4874
+				local my = self:sy(m.y, h) -- 4875
+				draw:drawSegment( -- 4876
+					Vec2(mx, my), -- 4876
+					Vec2( -- 4876
+						mx, -- 4876
+						my + self:px(30) -- 4876
+					), -- 4876
+					self:px(1), -- 4876
+					INK_DIM -- 4876
+				) -- 4876
+				self:drawBox( -- 4877
+					draw, -- 4877
+					w, -- 4877
+					h, -- 4877
+					m.x - 5, -- 4877
+					m.x + 5, -- 4877
+					m.y + 30, -- 4877
+					m.y + 40, -- 4877
+					CHECK -- 4877
+				) -- 4877
+			end -- 4877
+			::__continue905:: -- 4877
+			t = t + 1 -- 4869
+		end -- 4869
+	end -- 4869
+	if self.room.key == "village" then -- 4869
+		self:drawVillage(draw, w, h) -- 4880
+	end -- 4880
+	if self.room.key == "forest" then -- 4880
+		self:drawDog(draw, w, h) -- 4883
+	end -- 4883
+end -- 4777
+function Play.prototype.drawDog(self, draw, w, h) -- 4888
+	local x = self.dogX -- 4889
+	self:drawBox( -- 4890
+		draw, -- 4890
+		w, -- 4890
+		h, -- 4890
+		x - 14, -- 4890
+		x + 14, -- 4890
+		0, -- 4890
+		20, -- 4890
+		SCAV_BODY -- 4890
+	) -- 4890
+	self:drawBox( -- 4891
+		draw, -- 4891
+		w, -- 4891
+		h, -- 4891
+		x - 10, -- 4891
+		x - 2, -- 4891
+		20, -- 4891
+		30, -- 4891
+		SCAV_BODY -- 4891
+	) -- 4891
+	self:drawBox( -- 4892
+		draw, -- 4892
+		w, -- 4892
+		h, -- 4892
+		x + 2, -- 4892
+		x + 10, -- 4892
+		20, -- 4892
+		30, -- 4892
+		SCAV_HEAD -- 4892
+	) -- 4892
+	if self.dogState == "ear" or self.dogState == "chase" then -- 4892
+		draw:drawSegment( -- 4894
+			Vec2( -- 4894
+				self:sx(x, w), -- 4894
+				self:sy(30, h) -- 4894
+			), -- 4894
+			Vec2( -- 4895
+				self:sx(x, w), -- 4895
+				self:sy(40, h) -- 4895
+			), -- 4895
+			self:px(1), -- 4895
+			DANGER -- 4895
+		) -- 4895
+	end -- 4895
+end -- 4888
+function Play.prototype.drawVillage(self, draw, w, h) -- 4900
+	local bottle = self.room.bottle -- 4901
+	if bottle ~= nil then -- 4901
+		self:drawBox( -- 4903
+			draw, -- 4903
+			w, -- 4903
+			h, -- 4903
+			bottle.x - 14, -- 4903
+			bottle.x + 14, -- 4903
+			0, -- 4903
+			64, -- 4903
+			SOLID_FILL -- 4903
+		) -- 4903
+		if not self.hasBottle and self.bottleFly == nil and self.bottleLandT <= 0 then -- 4903
+			self:drawBottle( -- 4905
+				draw, -- 4905
+				w, -- 4905
+				h, -- 4905
+				bottle.x, -- 4905
+				64 -- 4905
+			) -- 4905
+		end -- 4905
+	end -- 4905
+	self:drawBox( -- 4909
+		draw, -- 4909
+		w, -- 4909
+		h, -- 4909
+		300, -- 4909
+		420, -- 4909
+		44, -- 4909
+		50, -- 4909
+		FLOOR_DECK -- 4909
+	) -- 4909
+	self:drawBox( -- 4910
+		draw, -- 4910
+		w, -- 4910
+		h, -- 4910
+		300, -- 4910
+		306, -- 4910
+		0, -- 4910
+		44, -- 4910
+		FLOOR_DECK -- 4910
+	) -- 4910
+	self:drawBox( -- 4911
+		draw, -- 4911
+		w, -- 4911
+		h, -- 4911
+		414, -- 4911
+		420, -- 4911
+		0, -- 4911
+		44, -- 4911
+		FLOOR_DECK -- 4911
+	) -- 4911
+	local s = self.room.scavenger -- 4913
+	if s ~= nil then -- 4913
+		local sx0 = self.scavX -- 4915
+		self:drawBox( -- 4916
+			draw, -- 4916
+			w, -- 4916
+			h, -- 4916
+			sx0 - 12, -- 4916
+			sx0 + 12, -- 4916
+			0, -- 4916
+			s.h - 14, -- 4916
+			SCAV_BODY -- 4916
+		) -- 4916
+		self:drawBox( -- 4917
+			draw, -- 4917
+			w, -- 4917
+			h, -- 4917
+			sx0 - 7, -- 4917
+			sx0 + 7, -- 4917
+			s.h - 14, -- 4917
+			s.h, -- 4917
+			SCAV_HEAD -- 4917
+		) -- 4917
+		if self.scavState == "turn" then -- 4917
+			local fx = sx0 + (self.scavDir > 0 and 12 or -12) -- 4919
+			draw:drawSegment( -- 4920
+				Vec2( -- 4920
+					self:sx(sx0, w), -- 4920
+					self:sy(s.h - 6, h) -- 4920
+				), -- 4920
+				Vec2( -- 4920
+					self:sx(fx, w), -- 4920
+					self:sy(s.h - 6, h) -- 4920
+				), -- 4920
+				self:px(1), -- 4920
+				INK -- 4920
+			) -- 4920
+		end -- 4920
+	end -- 4920
+	if self.hasBottle then -- 4920
+		local p = self.player -- 4925
+		self:drawBottle( -- 4926
+			draw, -- 4926
+			w, -- 4926
+			h, -- 4926
+			p.x + p.facing * 10, -- 4926
+			p.y + p.h * 0.62 -- 4926
+		) -- 4926
+	end -- 4926
+	if self.bottleFly ~= nil then -- 4926
+		self:drawBottle( -- 4929
+			draw, -- 4929
+			w, -- 4929
+			h, -- 4929
+			self.bottleFly.x, -- 4929
+			self.bottleFly.y -- 4929
+		) -- 4929
+	end -- 4929
+	if self.bottleLandT > 0 and self.bottleLandX >= 0 then -- 4929
+		local r = (1 - self.bottleLandT / 0.9) * 28 -- 4932
+		draw:drawCircle( -- 4933
+			Vec2( -- 4933
+				self:sx(self.bottleLandX, w), -- 4933
+				self:sy(0, h) -- 4933
+			), -- 4933
+			self:px(r / ____exports.UNITS_PER_PX), -- 4933
+			BRICK_LINE -- 4933
+		) -- 4933
+	end -- 4933
+end -- 4900
+function Play.prototype.drawBottle(self, draw, w, h, x, y) -- 4937
+	self:drawBox( -- 4938
+		draw, -- 4938
+		w, -- 4938
+		h, -- 4938
+		x - 3, -- 4938
+		x + 3, -- 4938
+		y - 10, -- 4938
+		y, -- 4938
+		BOTTLE -- 4938
+	) -- 4938
+end -- 4937
+function Play.prototype.drawTrace(self, draw, w, h) -- 4941
+	local t = self.trace -- 4942
+	if t == nil or self.traceT <= 0 then -- 4942
+		return -- 4944
+	end -- 4944
+	draw:drawSegment( -- 4946
+		Vec2( -- 4947
+			self:sx(t.x0, w), -- 4947
+			self:sy(t.y0, h) -- 4947
+		), -- 4947
+		Vec2( -- 4948
+			self:sx(t.x1, w), -- 4948
+			self:sy(t.y1, h) -- 4948
+		), -- 4948
+		self:px(1), -- 4949
+		t.hit and AIM_HIT or INK_DIM -- 4949
+	) -- 4949
+end -- 4941
+function Play.prototype.drawAim(self, draw, w, h) -- 4952
+	local v = self.view -- 4954
+	local gx = v.ox + math.floor((self.aimX - v.ox) / v.zoom + 0.5) * v.zoom -- 4955
+	local gy = v.oy + math.floor((self.aimY - v.oy) / v.zoom + 0.5) * v.zoom -- 4956
+	local dot = self:px(1) -- 4957
+	local arm = self:px(3) -- 4958
+	local gap = self:px(1) -- 4959
+	draw:drawSegment( -- 4960
+		Vec2(gx - arm - gap, gy), -- 4960
+		Vec2(gx - gap, gy), -- 4960
+		dot / 2, -- 4960
+		AIM -- 4960
+	) -- 4960
+	draw:drawSegment( -- 4961
+		Vec2(gx + gap, gy), -- 4961
+		Vec2(gx + arm + gap, gy), -- 4961
+		dot / 2, -- 4961
+		AIM -- 4961
+	) -- 4961
+	draw:drawSegment( -- 4962
+		Vec2(gx, gy - arm - gap), -- 4962
+		Vec2(gx, gy - gap), -- 4962
+		dot / 2, -- 4962
+		AIM -- 4962
+	) -- 4962
+	draw:drawSegment( -- 4963
+		Vec2(gx, gy + gap), -- 4963
+		Vec2(gx, gy + arm + gap), -- 4963
+		dot / 2, -- 4963
+		AIM -- 4963
+	) -- 4963
+	if self.room.key == "village" and self.hasBottle then -- 4963
+		local p = self.player -- 4967
+		local ____end = self.bottleAimX >= 0 and ({x = self.bottleAimX, y = self.bottleAimY}) or self:bottleEnd() -- 4969
+		local dir = ____end.x >= p.x and 1 or -1 -- 4970
+		local x0 = p.x + dir * 10 -- 4971
+		local y0 = p.y + p.h * 0.7 -- 4972
+		local T = BOTTLE_FLY_TIME -- 4973
+		local vx = (____end.x - x0) / T -- 4974
+		local vy = (____end.y - y0 + 0.5 * ____exports.GRAVITY * T * T) / T -- 4975
+		local pxr = x0 -- 4976
+		local pyr = y0 -- 4977
+		local t = 1 -- 4978
+		do -- 4978
+			t = 1 -- 4979
+			while t <= 12 do -- 4979
+				local tt = t / 12 * T -- 4980
+				local nx = x0 + vx * tt -- 4981
+				local ny = y0 + vy * tt - 0.5 * ____exports.GRAVITY * tt * tt -- 4982
+				draw:drawSegment( -- 4983
+					Vec2( -- 4983
+						self:sx(pxr, w), -- 4983
+						self:sy(pyr, h) -- 4983
+					), -- 4983
+					Vec2( -- 4983
+						self:sx(nx, w), -- 4983
+						self:sy(ny, h) -- 4983
+					), -- 4983
+					self:px(1) / 2, -- 4983
+					BOTTLE -- 4983
+				) -- 4983
+				pxr = nx -- 4984
+				pyr = ny -- 4985
+				t = t + 1 -- 4979
+			end -- 4979
+		end -- 4979
+		draw:drawCircle( -- 4987
+			Vec2( -- 4987
+				self:sx(____end.x, w), -- 4987
+				self:sy(____end.y + 2, h) -- 4987
+			), -- 4987
+			self:px(2), -- 4987
+			BOTTLE -- 4987
+		) -- 4987
+	end -- 4987
+end -- 4952
+return ____exports -- 4952

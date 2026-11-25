@@ -153,36 +153,74 @@ check("制前恢复未改制", p3d.equippedWeapon == "standard_gun", "equipped="
 check("制前恢复两木一铃", p3d.run.inventory.wood == 2 and p3d.run.inventory.bell == 1,
 	"wood=" .. p3d.run.inventory.wood .. " bell=" .. p3d.run.inventory.bell)
 
-say("== 4. 试射：灯铳穿掩体、回声惊两处 ==")
-local p4 = lualib.__TS__New(play.Play, rooms.ESCORT3_ROOM, nil, r3c)
-p4.equippedWeapon = "guide_lantern_gun"
-p4:openCraftBench()
-p4.craftBench.active = false
--- 站 700 前，掩体 700–756，靶 820：普通枪被掩体挡，灯纹盘照透。
-p4.player.x = 690; p4.player.y = 0
-p4:aimAt(820, 60)
-p4.reloadPendingEffect = "light"
-local i4 = newInput()
-p4:shoot(p4.player)
-check("灯纹一枪穿掩体命中", p4.enemies[1].hitT > 0,
-	"hitT=" .. p4.enemies[1].hitT .. " alive=" .. tostring(p4.enemies[1].alive))
-check("灯纹效果已消费", p4.reloadPendingEffect == "", "pending=" .. p4.reloadPendingEffect)
--- 第二发普通：掩体挡下
-step(p4, i4, 60)
-p4:aimAt(820, 60)
-p4:shoot(p4.player)
-check("第二发普通被掩体挡", p4.enemies[1].alive == false or p4.enemies[1].hitT <= 0,
-	"alive=" .. tostring(p4.enemies[1].alive))
--- 回声铳：两处声源
-local p5 = lualib.__TS__New(play.Play, rooms.ESCORT4_ROOM, nil, runmod.createRun(20261125))
-p5.equippedWeapon = "echo_gun"
-p5.reloadPendingEffect = "echo"
-p5.player.x = 620
-p5:aimAt(840, 60)
-p5:shoot(p5.player)
-local woke = 0
-for _, e in ipairs(p5.enemies) do if e.awake then woke = woke + 1 end end
-check("回声铳惊起两处声源", woke >= 2, "awake=" .. woke)
+say("== 4. 试射对照：基础枪 / 改制枪 ==")
+-- 掩体 700–756 高 52；靶 820、940 都是新鲜存活目标（新 Play，alive=true、fireCd=40）。
+local function freshEscort3()
+	return lualib.__TS__New(play.Play, rooms.ESCORT3_ROOM, nil, runmod.createRun(20261125, "official"))
+end
+
+-- A. 标准枪、无盘效果：普通弹被同一掩体挡下。
+local pa = freshEscort3()
+pa.equippedWeapon = "standard_gun"
+pa.reloadPendingEffect = ""
+pa.player.x = 690; pa.player.y = 0
+pa:aimAt(820, 60)
+pa:shoot(pa.player)
+check("普通弹被掩体挡下", pa.enemies[1].hitT <= 0 and pa.enemies[1].alive == true,
+	"hitT=" .. pa.enemies[1].hitT .. " alive=" .. tostring(pa.enemies[1].alive))
+
+-- B. 标准枪 + 基础灯纹（B1 已有）：照透掩体，第二人不受光晕影响。
+local pb = freshEscort3()
+pb.equippedWeapon = "standard_gun"
+pb.reloadPendingEffect = "light"
+pb.player.x = 690; pb.player.y = 0
+pb:aimAt(820, 60)
+pb:shoot(pb.player)
+check("基础灯纹穿掩体命中", pb.enemies[1].hitT > 0, "hitT=" .. pb.enemies[1].hitT)
+check("基础灯纹不镇第二人", pb.enemies[2].fireCd == 40, "fireCd=" .. pb.enemies[2].fireCd)
+
+-- C. 灯铳 + 灯纹：同样穿掩体，且光晕把旁边第二人的下一发推远。
+local pc3 = freshEscort3()
+pc3.equippedWeapon = "guide_lantern_gun"
+pc3.reloadPendingEffect = "light"
+pc3.player.x = 690; pc3.player.y = 0
+pc3:aimAt(820, 60)
+pc3:shoot(pc3.player)
+check("灯铳灯纹穿掩体命中", pc3.enemies[1].hitT > 0, "hitT=" .. pc3.enemies[1].hitT)
+check("灯铳光晕镇第二人", pc3.enemies[2].fireCd == 150, "fireCd=" .. pc3.enemies[2].fireCd)
+check("灯铳效果已消费一次", pc3.reloadPendingEffect == "", "pending=" .. pc3.reloadPendingEffect)
+-- 同一目标第二发普通：仍被掩体挡（清零上一发的受击计时再验）。
+pc3.enemies[1].hitT = 0
+pc3.reloadPendingEffect = ""
+pc3:aimAt(820, 60)
+pc3:shoot(pc3.player)
+check("灯铳第二发普通被掩体挡", pc3.enemies[1].hitT == 0, "hitT=" .. pc3.enemies[1].hitT)
+
+-- D. 回声：同一目标、三名敌兵；标准枪惊一人、回声铳惊两人。
+local function freshEscort2()
+	return lualib.__TS__New(play.Play, rooms.ESCORT2_ROOM, nil, runmod.createRun(20261125, "official"))
+end
+local pd = freshEscort2()
+pd.equippedWeapon = "standard_gun"
+pd.reloadPendingEffect = "echo"
+pd.player.x = 600
+pd:aimAt(700, 60)
+pd:shoot(pd.player)
+check("基础回声命中声源目标", pd.enemies[1].hitT > 0, "hitT=" .. pd.enemies[1].hitT)
+local wokeBase = 0
+for _, e in ipairs(pd.enemies) do if e.awake then wokeBase = wokeBase + 1 end end
+check("基础回声只惊一人", wokeBase == 1, "awake=" .. wokeBase)
+
+local pe = freshEscort2()
+pe.equippedWeapon = "echo_gun"
+pe.reloadPendingEffect = "echo"
+pe.player.x = 600
+pe:aimAt(700, 60)
+pe:shoot(pe.player)
+check("回声铳命中声源目标", pe.enemies[1].hitT > 0, "hitT=" .. pe.enemies[1].hitT)
+local wokeEcho = 0
+for _, e in ipairs(pe.enemies) do if e.awake then wokeEcho = wokeEcho + 1 end end
+check("回声铳惊起两处声源", wokeEcho >= 2, "awake=" .. wokeEcho)
 
 say("== 5. 四段、五段：换弹盘、脱身、塔门 ==")
 local r6 = runmod.createRun(20261125)
@@ -240,11 +278,49 @@ p8.hp = 3
 p8.invulnT = 0
 step(p8, i8, 3)
 check("背负时受击掉血", p8.hp < 3, "hp=" .. p8.hp)
+-- 预置一些局内进度，确认死亡重开会清掉。
+p8.run.inventory.wood = 2
+p8.run.inventory.bell = 1
+p8.run.story.craftedWeapon = "guide_lantern_gun"
+p8.equippedWeapon = "guide_lantern_gun"
+p8.run.story.segments["escort1"] = true
+p8.run.story.segments["escort2"] = true
+p8.propBroken = true
+local p8enemies = #p8.enemies
 p8.hp = 0
 p8:campaignFailed()
 check("失败重开仍是 soldier", p8.run.story.route == "soldier", "route=" .. p8.run.story.route)
-check("失败重开回本段起点", p8.player.x <= p8.room.minX + 100, "x=" .. string.format("%.1f", p8.player.x))
-check("失败清空装填盘", p8.reloadOpen == false, "open=" .. tostring(p8.reloadOpen))
+check("失败重开回男主入口", p8.wantRoom == "escort1", "want=" .. tostring(p8.wantRoom))
+check("失败回入口时清材料", p8.run.inventory.wood == 0 and p8.run.inventory.bell == 0,
+	"wood=" .. tostring(p8.run.inventory.wood) .. " bell=" .. tostring(p8.run.inventory.bell))
+check("失败回入口清改制武器", p8.run.story.craftedWeapon == "" and p8.equippedWeapon == "standard_gun",
+	"weapon=" .. tostring(p8.run.story.craftedWeapon) .. " equipped=" .. p8.equippedWeapon)
+check("失败回入口清分段", next(p8.run.story.segments) == nil, "segments 未清")
+check("失败回入口清背负", p8.carryOn == false and p8.run.story.carry == false,
+	"carry=" .. tostring(p8.carryOn))
+check("失败回入口保留通关档案", p8.run.archive.soldierCleared == false, "soldier=" .. tostring(p8.run.archive.soldierCleared))
+
+-- 第四段死亡同样回男主入口，而不是回第四段起点。
+local r9 = runmod.createRun(20261125, "official")
+r9.story.route = "soldier"
+r9.story.settled = true
+r9.story.segments["escort1"] = true
+r9.story.segments["escort2"] = true
+r9.story.segments["escort3"] = true
+r9.inventory.wood = 1
+r9.story.craftedWeapon = "echo_gun"
+local p9 = lualib.__TS__New(play.Play, rooms.ESCORT4_ROOM, nil, r9)
+p9.storyRoute = "soldier"
+p9.storySettled = true
+p9.equippedWeapon = "echo_gun"
+p9.carryOn = true
+p9.hp = 0
+p9:campaignFailed()
+check("四段死亡也回男主入口", p9.wantRoom == "escort1", "want=" .. tostring(p9.wantRoom) .. " room=" .. p9.room.key)
+check("四段死亡清分段到四之前", p9.run.story.segments["escort4"] == nil and p9.run.story.segments["escort5"] == nil,
+	"seg4=" .. tostring(p9.run.story.segments["escort4"]))
+check("四段死亡清材料与改制", p9.run.inventory.wood == 0 and p9.run.story.craftedWeapon == "",
+	"wood=" .. tostring(p9.run.inventory.wood))
 
 say("== 7. 北塔：男主团圆 ==")
 local rt = runmod.createRun(20261125, "official")

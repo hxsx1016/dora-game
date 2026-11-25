@@ -3194,6 +3194,12 @@ export class Play {
             this.emit("campaignFailed", { room: this.room.key, hp: 0, maxHp: this.maxHp });
             return;
         }
+        // 正式男主线五段护送：战斗死亡回男主入口（首场 escort1），不是本段起点。
+        // 检查点主动重试（app 的 R）仍按快照回本段，与死亡回入口分开。
+        if (this.isCampaign && this.storyRoute === "soldier" && this.isEscortRoom()) {
+            this.restartEscortFromDeath();
+            return;
+        }
         const p = this.player;
         this.hp = this.maxHp;
         this.invulnT = INVULN_RESPAWN_TICKS;
@@ -3226,6 +3232,75 @@ export class Play {
             e.awake = false;
         }
         this.emit("campaignFailed", { room: this.room.key, hp: 0, maxHp: this.maxHp });
+    }
+
+    /** 当前房是否是男主五段护送的一段。 */
+    private isEscortRoom(): boolean {
+        return this.room.key.indexOf("escort") === 0;
+    }
+
+    /**
+     * 男主线战斗死亡：回 escort1 重开本局护送。
+     * 清材料、武器改制、已拾取物、分段完成标记与检查点快照；
+     * 保留 soldier 路线、过门背景与跨局通关档案。
+     */
+    private restartEscortFromDeath(): void {
+        const story = this.run.story;
+        const inv = this.run.inventory;
+        this.hp = this.maxHp;
+        story.hp = this.maxHp;
+        story.cp = undefined;
+        this.checkpointSnap = undefined;
+        story.carry = false;
+        this.carryOn = false;
+        story.craftedWeapon = "";
+        this.equippedWeapon = "standard_gun";
+        story.escortDone = false;
+        this.escortDone = false;
+        story.segments = {};
+        inv.wood = 0;
+        inv.bell = 0;
+        inv.scrap = 0;
+        inv.wedge = 0;
+        inv.ammo = 0;
+        inv.quickbelt = 0;
+        inv.shield = 0;
+        inv.pass = 0;
+        const taken = this.run.taken;
+        const keys = Object.keys(taken);
+        let i = 0;
+        for (i = 0; i < keys.length; i++) {
+            if (keys[i].indexOf("e2_") === 0 || keys[i].indexOf("e3_") === 0) {
+                delete taken[keys[i]];
+            }
+        }
+        this.run.joined = true;
+        this.reloadT = 0;
+        this.closeReloadPuzzle();
+        this.gripping = false;
+        this.flashSet("被击倒 · 回男主入口重开", 2.0);
+        this.log("男主线失败 · 回 escort1");
+        this.emit("campaignFailed", {
+            room: this.room.key, hp: 0, maxHp: this.maxHp,
+            reset: true, to: "escort1", route: this.storyRoute,
+        });
+        this.requestRoom("escort1", "男主线失败重开");
+    }
+
+    /** 引路灯铳的光晕：把命中点附近第二人镇住，推远下一发。 */
+    private blindNearby(center: Enemy, radius: number, skipIndex: number): void {
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            if (i === skipIndex) {
+                continue;
+            }
+            const e = this.enemies[i];
+            if (!e.alive || Math.abs(e.x - center.x) > radius) {
+                continue;
+            }
+            e.fireCd = 150;
+            e.warnT = 0;
+        }
     }
 
     private stepEnemies(dt: number, input: Input): void {
@@ -3775,11 +3850,9 @@ export class Play {
         // 画盘效果 + 已装备武器：只有引路灯铳能把线照透，只有回声铳能惊起两处声源。
         const rawEffect = this.consumeReloadEffect();
         const weaponFx = weaponEffectOf(this.equippedWeapon);
-        let reloadEffect: ReloadEffect = rawEffect;
-        if (rawEffect === "light" && weaponFx !== "light") {
-            reloadEffect = "push";
-        }
-        const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall || (reloadEffect === "light" && weaponFx === "light"));
+        const reloadEffect: ReloadEffect = rawEffect;
+        // 基础灯纹（任意枪）都能把线照透掩体；引路灯铳在此基础上多一圈光晕，镇住旁边的第二人。
+        const hit = tEnemy >= 0 && (tWall < 0 || tEnemy <= tWall || reloadEffect === "light");
         const t = hit ? tEnemy : (tWall >= 0 ? tWall : 700);
 
         this.trace = { x0: ox, y0: oy, x1: ox + dx * t, y1: oy + dy * t, hit: hit };
@@ -3808,6 +3881,9 @@ export class Play {
             killed = true;
             this.flashSet("命中", 0.6);
             this.dropFor(e);
+            if (reloadEffect === "light" && weaponFx === "light") {
+                this.blindNearby(e, 160, i);
+            }
             if (reloadEffect === "push") {
                 e.x += a.facing * 46;
                 this.emit("reloadApplied", { effect: "push", weapon: this.equippedWeapon, enemyX: e.x });
