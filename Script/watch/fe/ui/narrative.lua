@@ -43,7 +43,7 @@ function NarrativeRenderer.prototype.update(self, dt, p) -- 45
 	if self.lastRoomKey ~= p.room.key then -- 46
 		self:onEnterRoom(p.room.key) -- 48
 	end -- 48
-	local wantCinema = p.room.key == "prologue" and p.phase == "prologue-give" or p.room.key == "gate" and (p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or p.reloadOpen or p.room.key == "tower" and p.phase ~= "tower-wait" -- 50
+	local wantCinema = p.room.key == "prologue" and p.phase == "prologue-give" or p.room.key == "gate" and (p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or p.reloadOpen or (p.room.key == "tower" or p.room.key == "museum") and p.phase ~= "tower-wait" -- 50
 	local target = wantCinema and 1 or 0 -- 55
 	self.letterbox = self.letterbox + (target - self.letterbox) * math.min(1, dt * 4.5) -- 56
 	if self.bannerT > 0 then -- 56

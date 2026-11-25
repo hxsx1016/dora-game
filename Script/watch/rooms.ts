@@ -208,6 +208,8 @@ export interface GatePathSpec {
 }
 
 /** 剧本段数据：与房间尺寸无关，只放这一段需要的锚点。 */
+export interface MuseumSpec { cabinetX: number; hallX: number; lampX: number; exitX: number; }
+
 export interface StorySpec {
     /** 序章：小满藏在柜后的位置与可以递交的距离。 */
     prologue?: { giveReach: number };
@@ -219,6 +221,8 @@ export interface StorySpec {
     dog?: { x0: number; x1: number; speed: number; range: number };
     /** 塔门：门前交互点与敲两下用的拍数。 */
     tower?: { doorX: number; knockTicks: number };
+    /** 博物馆：玻璃柜、走廊、末厅与出口的位置。 */
+    museum?: MuseumSpec;
 }
 
 export interface RoomSpec {
@@ -450,6 +454,14 @@ function shiftStory(story: StorySpec | undefined, ox: number): StorySpec | undef
     }
     if (story.dog !== undefined) {
         out.dog = { x0: story.dog.x0 + ox, x1: story.dog.x1 + ox, speed: story.dog.speed, range: story.dog.range };
+    }
+    if (story.museum !== undefined) {
+        out.museum = {
+            cabinetX: story.museum.cabinetX + ox,
+            hallX: story.museum.hallX + ox,
+            lampX: story.museum.lampX + ox,
+            exitX: story.museum.exitX + ox,
+        };
     }
     if (story.tower !== undefined) {
         out.tower = { doorX: story.tower.doorX + ox, knockTicks: story.tower.knockTicks };
@@ -709,6 +721,46 @@ export const TOWER_ROOM: RoomSpec = {
 
 const NO_CART: CartSpec = {
     startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: -1,
+};
+
+
+/**
+ * C2 博物馆返场：一次「时间穿梭器」的虚构现代纪念厅。
+ * 玩家单人（周戍）走完柜前、走廊、末厅、回柜边四步，每步一个输入边沿。
+ */
+export const MUSEUM_ROOM: RoomSpec = {
+    key: "museum",
+    name: "博物馆 · 西厅",
+    caption: "虚构 · 现代纪念厅",
+    originX: 0, minX: 0, maxX: 1400, height: 240,
+    floors: [{ y: 0, x0: 0, x1: 1400 }],
+    solids: [
+        { x: 180, w: 80, h: 64, y: 0, label: "玻璃柜 180–260 · 高 64", id: "museum_case" },
+        { x: 540, w: 60, h: 140, y: 0, label: "展墙 540–600 · 高 140" },
+        { x: 1180, w: 40, h: 160, y: 0, label: "末厅门柱 1180–1220 · 高 160", lanes: ["middle", "upper"] },
+        { x: 1300, w: 60, h: 8, y: 120, label: "西窗 1300–1360 · 高 8", decorative: true },
+        { x: 1360, w: 40, h: 200, y: 0, label: "馆尾 1360–1400 · 高 200" },
+    ],
+    zones: [
+        { x0: 160, x1: 300, y: 0, h: 16, tint: 1, label: "玻璃柜前" },
+        { x0: 860, x1: 980, y: 0, h: 16, tint: 2, label: "走廊 · 孩子脚步" },
+        { x0: 1210, x1: 1320, y: 0, h: 16, tint: 3, label: "末厅 · 西窗" },
+    ],
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
+    stairs: [],
+    cart: NO_CART,
+    spawns: [{ x: 80, y: 0, h: 88, label: "周戍 80 · 展厅入口" }],
+    marks: [
+        { x: 200, y: 0, kind: 4, label: "玻璃柜 200" },
+        { x: 900, y: 0, kind: 4, label: "走廊 900" },
+        { x: 1250, y: 0, kind: 6, label: "末厅 1250" },
+        { x: 1360, y: 0, kind: 0, label: "出口 1360" },
+    ],
+    dims: [
+        { x0: 160, x1: 300, text: "柜 80" },
+        { x0: 1180, x1: 1220, text: "门 40" },
+    ],
+    story: { museum: { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 } },
 };
 
 /**
@@ -1205,6 +1257,7 @@ export const ROOMS: RoomSpec[] = [
     VILLAGE_ROOM,
     FOREST_ROOM,
     TOWER_ROOM,
+    MUSEUM_ROOM,
 ];
 
 function placeSolids(room: RoomSpec): SolidSpec[] {

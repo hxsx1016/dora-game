@@ -95,7 +95,9 @@ export type PlayEventName =
     | "benchRejected"
     | "trialShot"
     | "endingReached"
-    | "artifactFound";
+    | "artifactFound"
+    | "museumStep"
+    | "museumDone";
 
 /** 工台视图：字段名与 fe/contract.ts 的 CraftBenchSnapshot 对齐。 */
 export interface CraftBenchView {
@@ -342,6 +344,9 @@ function phaseOf(key: string): string {
     if (key === "tower") {
         return "tower-wait";
     }
+    if (key === "museum") {
+        return "museum-cabinet";
+    }
     return "run";
 }
 
@@ -500,6 +505,8 @@ export class Play {
     readonly wellX = 430;
     /** 本局已从井里取到穿梭器。 */
     wellTaken = false;
+    /** 从博物馆回柜边：下一次序章刷新把人放回井沿，不跳过寻柜。 */
+    museumReturn = false;
     /** 北塔登记簿两行：第一行一律小满，第二行团圆线周戍、单人线留白。 */
     endingLines: string[] = ["", ""];
 
@@ -612,11 +619,20 @@ export class Play {
         const soldierRoom = (wr.key === "outside" || wr.key === "tower") && lockedRoute === "soldier";
         this.childMode = !soldierRoom
             && (wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower");
+        const soloRoom = wr.key === "museum";
         const playerIdx = wr.key === "checkpoint" ? 1 : 0;
-        const partnerIdx = wr.key === "checkpoint" ? 0 : (this.childMode ? -1 : 1);
+        const partnerIdx = soloRoom ? -1 : (wr.key === "checkpoint" ? 0 : (this.childMode ? -1 : 1));
         this.player = makeActor(wr, playerIdx);
         this.partner = makeActor(wr, partnerIdx);
         this.phase = phaseOf(wr.key);
+        if (soloRoom) {
+            // 馆内进度随档案走：退出应用后从同一步续读。
+            const mp = this.archive.museumPhase;
+            this.phase = mp === "hall_walk" ? "museum-hall"
+                : mp === "lamp_turn" ? "museum-lamp"
+                    : mp === "return_cabinet" ? "museum-return"
+                        : mp === "done" ? "museum-done" : "museum-cabinet";
+        }
         if (wr.story !== undefined) {
             this.dogX = wr.story.dog === undefined ? 0 : wr.story.dog.x0;
         }
@@ -908,6 +924,8 @@ export class Play {
         this.lineSaid = story.lineSaid;
         this.tied = story.handDone;
         this.carryOn = story.carry || (story.route === "soldier" && this.room.key === "escort1");
+        this.museumReturn = story.museumReturn;
+        story.museumReturn = false;
         this.escortDone = story.escortDone;
         this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
         this.syncCraftBench();
@@ -1762,6 +1780,9 @@ export class Play {
         if (this.room.key === "tower" && this.phase !== "tower-wait") {
             return true;
         }
+        if (this.room.key === "museum" && this.phase === "museum-knock") {
+            return true;
+        }
         // 工台面板打开时玩家站着选配方，世界不再推进（面板自己按 ui 拍走）。
         if (this.craftBench.active) {
             return true;
@@ -1802,6 +1823,8 @@ export class Play {
             this.stepGatePath();
         } else if (this.room.key === "tower") {
             this.stepTower(dt, input);
+        } else if (this.room.key === "museum") {
+            this.stepMuseum(dt, input);
         }
     }
 
@@ -1835,6 +1858,16 @@ export class Play {
 
     private stepPrologue(dt: number, input: Input): void {
         const child = this.partner;
+        if (this.museumReturn) {
+            // 从馆里回柜边：站回井沿，仍要递针套、仍要跟到门口。
+            this.museumReturn = false;
+            this.phase = "prologue-wait";
+            this.phaseTick = 0;
+            this.player.x = this.ox + this.wellX;
+            this.player.y = 0;
+            this.player.depth = 0;
+            this.flashSet("回到柜边 · 小满还在柜后", 1.6);
+        }
         // 井口只在「进屋寻小满、尚未靠柜特写」的等待段可见；拿到穿梭器就消失。
         this.wellOpen = this.phase === "prologue-wait" && this.wellWindow() && !this.wellTaken;
         if (this.phase === "prologue-wait") {
@@ -1842,6 +1875,14 @@ export class Play {
             child.h = CHILD_CROUCH_H;
             if (this.wellOpen && input.interact.pressed && this.nearWell()) {
                 this.pickWell();
+                return;
+            }
+            // 拿到穿梭器后，再在井沿按一次，才进馆；不打断寻柜。
+            if (!this.wellOpen && this.archive.artifactOwned && !this.archive.museumSeen
+                && this.nearWell() && input.interact.pressed) {
+                this.archive.museumPhase = "well_reflect";
+                this.archiveDirty = true;
+                this.requestRoom("museum", "初次使用 · 时间穿梭器");
                 return;
             }
             const reach = this.room.story === undefined || this.room.story.prologue === undefined
@@ -2146,6 +2187,7 @@ export class Play {
         s.lineSaid = this.lineSaid;
         s.tied = this.tied;
         s.carry = this.carryOn;
+        s.museumReturn = this.museumReturn;
         s.escortDone = this.escortDone;
         s.craftedWeapon = this.run.story.craftedWeapon;
         s.ending = this.run.story.ending;
@@ -2205,6 +2247,81 @@ export class Play {
     }
 
     /** 塔门与尾声：按一次 E 敲两下，递针套，看空行，片尾再玩。 */
+    /**
+     * C2 博物馆：柜前收枪 → 走廊听见脚步 → 末厅转灯 → 回柜边两下轻叩。
+     * 每步只吃一次交互边沿；进度写进档案，重启从同一步续读。
+     */
+    private stepMuseum(dt: number, input: Input): void {
+        this.partner.alive = false;
+        const mu = this.room.story === undefined || this.room.story.museum === undefined
+            ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
+            : this.room.story.museum;
+        const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
+        if (this.phase === "museum-cabinet") {
+            if (atCase && input.interact.pressed) {
+                this.phase = "museum-hall";
+                this.phaseTick = 0;
+                this.archive.museumPhase = "hall_walk";
+                this.archiveDirty = true;
+                this.emit("museumStep", { step: "cabinet", x: this.ox + mu.cabinetX });
+                this.flashSet("玻璃柜前 · 收枪入袖", 1.8);
+            }
+            return;
+        }
+        if (this.phase === "museum-hall") {
+            if (this.player.x >= this.ox + mu.hallX && input.interact.pressed) {
+                this.phase = "museum-lamp";
+                this.phaseTick = 0;
+                this.archive.museumPhase = "lamp_turn";
+                this.archiveDirty = true;
+                this.emit("museumStep", { step: "hall", x: this.ox + mu.hallX });
+                this.flashSet("孩子的脚步 · 从西窗那头", 1.8);
+            }
+            return;
+        }
+        if (this.phase === "museum-lamp") {
+            if (this.player.x >= this.ox + mu.lampX && input.interact.pressed) {
+                this.phase = "museum-return";
+                this.phaseTick = 0;
+                this.archive.museumPhase = "return_cabinet";
+                this.archiveDirty = true;
+                this.emit("museumStep", { step: "lamp", x: this.ox + mu.lampX });
+                this.flashSet("灯 · 转向西窗", 1.8);
+            }
+            return;
+        }
+        if (this.phase === "museum-return") {
+            if (atCase && input.interact.pressed) {
+                this.phase = "museum-knock";
+                this.phaseTick = 0;
+                this.emit("museumStep", { step: "knock", count: 1, x: this.ox + mu.cabinetX });
+                this.flashSet("回柜边 · 第一下", 0.8);
+            }
+            return;
+        }
+        if (this.phase === "museum-knock") {
+            this.phaseTick += 1;
+            if (this.phaseTick === 8) {
+                this.emit("museumStep", { step: "knock", count: 2, x: this.ox + mu.cabinetX });
+                this.flashSet("回柜边 · 第二下", 0.8);
+            } else if (this.phaseTick >= 36) {
+                this.phase = "museum-done";
+                this.phaseTick = 0;
+                this.archive.museumSeen = true;
+                this.archive.museumPhase = "done";
+                this.archiveDirty = true;
+                this.emit("museumDone", { steps: 4, museumSeen: true });
+                this.flashSet("回柜边 · 灯还亮着", 2.0);
+                this.log("博物馆 · 回柜边");
+            }
+            return;
+        }
+        if (input.interact.pressed) {
+            this.museumReturn = true;
+            this.requestRoom("prologue", "回柜边");
+        }
+    }
+
     private stepTower(dt: number, input: Input): void {
         const t = this.room.story === undefined ? undefined : this.room.story.tower;
         if (t === undefined) {
@@ -3520,7 +3637,7 @@ export class Play {
         if (calmUsed) {
             this.flashSet("安抚 · 敲两下", 0.8);
         } else if (!calming && input.interact.pressed && !this.gripping
-            && this.room.key !== "village" && this.room.key !== "tower" && this.room.key !== "prologue" && this.room.key !== "gate") {
+            && this.room.key !== "village" && this.room.key !== "tower" && this.room.key !== "prologue" && this.room.key !== "gate" && this.room.key !== "museum") {
             if (this.knockT > 0) {
                 this.knocks += 1;
             } else {

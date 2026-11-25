@@ -118,6 +118,8 @@ export interface StoryState {
     carry: boolean;
     /** 第一段护送房已走到安全出口。 */
     escortDone: boolean;
+    /** 从博物馆回柜边的一次性标记：跨房传递后由序章消费。 */
+    museumReturn: boolean;
     /** 已在第三段工台做出的武器 id；空串表示还没做。 */
     craftedWeapon: string;
     /** 结局：reunion=北塔团圆；lamp=小满留灯；空串表示还没落幕。 */
@@ -144,6 +146,7 @@ export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
         lineSaid: false,
         tied: false,
         carry: false,
+        museumReturn: false,
         escortDone: false,
         craftedWeapon: "",
         ending: "",
