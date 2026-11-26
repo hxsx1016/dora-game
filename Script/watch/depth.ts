@@ -3,6 +3,8 @@ import type { DepthRange } from "Script/watch/rooms";
 /** 角色脚下在前后方向占据的半宽。 */
 export const ACTOR_DEPTH_HALF = 7;
 export const INTERACT_DEPTH_REACH = 18;
+/** 2.5D 地面纵深投影到屏幕 Y 轴的透视压扁系数（避免 1:1 映射把路面画成竖墙、把矮柜顶盖拉高 56 单位）。 */
+export const DEPTH_Y_SCALE = 0.42;
 const LANE_SPACING = 32;
 const LANE_MARGIN = 12;
 

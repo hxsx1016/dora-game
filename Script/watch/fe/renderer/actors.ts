@@ -168,6 +168,30 @@ export class ActorsRenderer {
         }
     }
 
+    /** 计算角色脚下最近的支撑面高度，滞空阴影落在脚下平台而非穿底掉回 y=0。 */
+    private supportGroundY(p: Play, a: Actor): number {
+        const half = a.w * 0.5;
+        let g = 0;
+        let i = 0;
+        for (i = 0; i < p.room.floors.length; i++) {
+            const f = p.room.floors[i];
+            if (a.x + half > f.x0 && a.x - half < f.x1 && f.y <= a.y + 0.5 && f.y > g) {
+                g = f.y;
+            }
+        }
+        for (i = 0; i < p.boxes.length; i++) {
+            const b = p.boxes[i];
+            if (b.broken === true || b.hidden === true || b.soft === true) {
+                continue;
+            }
+            if (a.x + half > b.x0 && a.x - half < b.x1 && b.y1 <= a.y + 0.5 && b.y1 > g &&
+                overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
+                g = b.y1;
+            }
+        }
+        return g;
+    }
+
     /** 周戍。动作贴图以脚底对齐，缺失时绘制守军轮廓。 */
     private drawZhouShu(
         fgDraw: DrawNode.Type,
@@ -181,7 +205,7 @@ export class ActorsRenderer {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
         const depthEnabled = p.room.depth !== undefined;
-        const shadowY = depthEnabled && !a.onGround ? cam.sy(0, a.depth) : by;
+        const shadowY = !a.onGround ? cam.sy(this.supportGroundY(p, a), a.depth) : by;
         const H = cam.len(a.h);
         const W = cam.len(a.w);
         const f = a.facing;
@@ -354,7 +378,7 @@ export class ActorsRenderer {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
         const depthEnabled = p.room.depth !== undefined;
-        const shadowY = depthEnabled && !a.onGround ? cam.sy(0, a.depth) : by;
+        const shadowY = !a.onGround ? cam.sy(this.supportGroundY(p, a), a.depth) : by;
         const H = cam.len(a.h);
         const W = cam.len(a.w);
         const f = a.facing;
@@ -688,8 +712,8 @@ export class ActorsRenderer {
         const cx = cam.sx(p.dogX);
         const by = cam.sy(0);
         const f = p.dogState === "chase" ? (p.player.x >= p.dogX ? 1 : -1) : p.dogDir;
-        const W = cam.len(34);
-        const H = cam.len(28);
+        const W = cam.len(42);
+        const H = cam.len(34);
 
         let frame = 0;
         if (p.dogState === "ear") {

@@ -52,7 +52,7 @@ import {
     toColor,
 } from "Script/watch/fe/theme";
 
-export const WELL_WORLD_X = 34;
+export const WELL_WORLD_X = 430;
 export const WELL_INTERACT_REACH = 46;
 export const MATCH_CUT_ANCHOR_NX = 0.50;
 export const MATCH_CUT_ANCHOR_NY = 0.54;
@@ -1487,10 +1487,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 uiDraw.drawSegment(Vec2(bx - 28, floorY + 132), Vec2(bx + 24, floorY + 132), 1.2, Color(108, 116, 126, 115));
             }
 
-            // 中央独立玻璃展柜（内放明初旧铜指南针与素笺说明牌）
+            // 中央独立玻璃展柜（内放明初旧铜指南针与素笺说明牌，与全尺寸周戍 192px 保持真实博物馆尺度）
             const pedW = 148;
-            const pedH = 88;
-            const glassH = 148;
+            const pedH = 92;
+            const glassH = 128;
             // 深灰底座
             uiDraw.drawRect(
                 Rect(caseSx - pedW * 0.5, floorY, pedW, pedH),
@@ -1532,10 +1532,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             : 0;
 
         if (winSx > -260 && winSx < w + 260) {
-            const winW = 196;
-            const winH = 292;
+            const winW = 204;
+            const winH = 312;
             const winX = winSx - winW * 0.5;
-            const winY = floorY + 46;
+            const winY = floorY + 38;
             // 西窗破晓天色（微蓝天光，转灯后染入柔和暖光）
             fillVGradRect(
                 uiDraw,
@@ -1581,12 +1581,12 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             uiInkDraw.drawSegment(Vec2(winSx, winY), Vec2(winSx, winY + winH), 2.0, Color(68, 76, 88, 235));
             uiInkDraw.drawSegment(Vec2(winX, winY + winH * 0.56), Vec2(winX + winW, winY + winH * 0.56), 2.0, Color(68, 76, 88, 235));
 
-            // 窗前石质底座与可转动西窗展灯（lampSx）
+            // 窗前石质底座与可转动西窗展灯（lampSx，高度齐周戍胸肩便于抬手转灯）
             const standW = 34;
-            const standH = 74;
+            const standH = 96;
             uiDraw.drawRect(Rect(lampSx - standW * 0.5, floorY, standW, standH), Color(34, 39, 48, 250), 1.1, Color(108, 118, 130, 190));
             // 金属灯柱与旋轴
-            const pivotY = floorY + standH + 40;
+            const pivotY = floorY + standH + 44;
             uiInkDraw.drawSegment(Vec2(lampSx, floorY + standH), Vec2(lampSx, pivotY), 3.2, Color(136, 144, 154, 240));
             uiInkDraw.drawCircle(Vec2(lampSx, pivotY), 5.5, Color(196, 178, 142, 245));
             // 灯头随 lampTurnProg 从略朝内侧（左偏）平缓转向西窗（右指）
@@ -1612,24 +1612,24 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             fillRadialGlow(uiGlow, headX, headY, 34, 34, Color(246, 228, 186, 78), Color(224, 194, 140, 0), 14);
         }
 
-        // 5. 自由步行的周戍（沿用真实明初像素立绘；走到玻璃柜前自动收械静立）
+        // 5. 自由步行的周戍（沿用真实明初像素立绘，与常规世界场景同尺度 ~192px，不再腰斩缩水）
         const playerSx = toScreenX(this.hallWalkX);
         const moving = !inLampTurn && (this.hallMoving || Math.abs(ctx.input.moveX) > 0.05);
         const slot = moving ? "soldier_run" : "soldier_idle";
         const frame = moving ? Math.floor(this.hallWalkAnim) : 0;
-        const charH = 114;
-        const charW = 54;
+        const charH = Math.round(192 * Math.max(0.75, Math.min(1.25, h / 720)));
+        const charW = Math.round(charH * 0.45);
         // 脚底接地微影与磨石反光影
-        uiDraw.drawEllipse(Vec2(playerSx, floorY + 2), 26, 5.5, Color(6, 8, 12, 178));
-        uiDraw.drawEllipse(Vec2(playerSx, floorY - 12), 18, 4.0, Color(16, 20, 28, 62));
+        uiDraw.drawEllipse(Vec2(playerSx, floorY + 2), 34, 6.5, Color(6, 8, 12, 178));
+        uiDraw.drawEllipse(Vec2(playerSx, floorY - 14), 24, 4.5, Color(16, 20, 28, 62));
         if (!uiArt.tryPlace(slot, "fe06_museum_zhoushu", playerSx, floorY + 2, charW, charH, {
             facing: this.hallFacing,
             frame,
             layer: 3,
         })) {
             // 无贴图兜底剪影
-            uiDraw.drawRect(Rect(playerSx - 14, floorY + 2, 28, charH * 0.84), toColor(CUFF_PALETTE.indigoBase));
-            uiDraw.drawCircle(Vec2(playerSx, floorY + charH * 0.92), 12, Color(66, 73, 76, 255));
+            uiDraw.drawRect(Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), toColor(CUFF_PALETTE.indigoBase));
+            uiDraw.drawCircle(Vec2(playerSx, floorY + charH * 0.92), 16, Color(66, 73, 76, 255));
         }
 
         // 玻璃柜前收械后的克制状态轻反馈（无大弹窗，短促微印）
@@ -1639,7 +1639,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 "xs",
                 "已收起随身器物",
                 caseSx,
-                floorY + 286,
+                floorY + 252,
                 toColor(PALETTE.textMid),
                 0.5,
                 0.5,

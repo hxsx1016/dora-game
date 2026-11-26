@@ -1289,7 +1289,7 @@ export function buildOutsideJettyLowpoly(
         });
     }
 
-    // 4. 城墙实体块
+    // 4. 城墙实体块（对悬空城墙 y > 0 在后景 z=34..72 增补落地砖拱墩，消除悬浮灰块感且不挡底层通行）
     for (i = 0; i < room.solids.length; i++) {
         const s = room.solids[i];
         scene.addBox({
@@ -1303,6 +1303,32 @@ export function buildOutsideJettyLowpoly(
             bucket: LP_BUCKET.MIDGROUND,
             highlightTopEdge: true,
         });
+        if (s.y > 10) {
+            scene.addBox({
+                x0: s.x,
+                x1: s.x + 18,
+                y0: 0,
+                y1: s.y,
+                z0: 32,
+                z1: 72,
+                material: MING_MATERIALS.mingBrickDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                sortBias: -0.08,
+                edgeWidth: 0.7,
+            });
+            scene.addBox({
+                x0: s.x + s.w - 18,
+                x1: s.x + s.w,
+                y0: 0,
+                y1: s.y,
+                z0: 32,
+                z1: 72,
+                material: MING_MATERIALS.mingBrickDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                sortBias: -0.08,
+                edgeWidth: 0.7,
+            });
+        }
     }
 
     // 5. 下层矮石拱洞（保留 44 世界单位真实净空，不加垂布遮挡）

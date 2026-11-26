@@ -71,7 +71,7 @@ export const FALLBACK_MING_BACKDROPS: Record<string, AssetSlotKey> = {
     "gatepath": "bgFar_outside",
     "escort1": "bgFar_outside",
     "escort2": "bgFar_checkpoint",
-    "escort3": "bgFar_checkpoint",
+    "escort3": "bgFar_forest",
     "escort4": "bgFar_forest",
     "escort5": "bgFar_tower",
 };
