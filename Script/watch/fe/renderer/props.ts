@@ -213,14 +213,19 @@ export class PropsRenderer {
             this.drawWheel(fgDraw, wxB, wy, wr, wheelSpin);
         }
 
-        // 外侧推拉手柄
+        // 外侧推拉手柄（有精灵贴图时仅从车身外沿引出短柄至握持位，不压过贴图车身）
         const hx = cam.sx(axleX + c.handleOffset);
-        const hTop = bodyY1 + cam.len(9);
-        const edge = c.handleOffset < 0 ? x0 : x1;
-        fgDraw.drawSegment(Vec2(edge, bodyY0 + bh * 0.55), Vec2(hx, hTop - cam.len(4)),
-            Math.max(2, cam.len(3)), toColor(PALETTE.cartWood, 255 * opacity));
-        fgDraw.drawSegment(Vec2(hx, hTop - cam.len(6)), Vec2(hx, hTop),
-            Math.max(2, cam.len(4)), Color(126, 91, 61, 255 * opacity));
+        const hTop = bodyY1 + cam.len(7);
+        const edge = painted
+            ? (c.handleOffset < 0 ? cx - cam.len(artWidth * 0.42) : cx + cam.len(artWidth * 0.42))
+            : (c.handleOffset < 0 ? x0 : x1);
+        const handleSpan = Math.abs(hx - edge);
+        if (!painted || handleSpan > cam.len(4)) {
+            fgDraw.drawSegment(Vec2(edge, bodyY0 + bh * 0.52), Vec2(hx, hTop - cam.len(4)),
+                Math.max(1.8, cam.len(2.4)), toColor(PALETTE.cartWood, 245 * opacity));
+            fgDraw.drawSegment(Vec2(hx, hTop - cam.len(5.5)), Vec2(hx, hTop),
+                Math.max(2.2, cam.len(3.2)), Color(126, 91, 61, 245 * opacity));
+        }
 
         if (painted) {
             return;
@@ -271,23 +276,23 @@ export class PropsRenderer {
         cam: CameraDirector,
         time: number,
     ): void {
-        // 1. 瓶架与架上玻璃瓶
+        // 1. 瓶架与架上玻璃瓶（与 rooms.ts h=52 严格对齐）
         const bottle = p.room.bottle;
         if (bottle !== undefined) {
             const bx0 = cam.sx(bottle.x - 16);
             const bx1 = cam.sx(bottle.x + 16);
             const by0 = cam.sy(0);
-            const by1 = cam.sy(64);
-            const beam = cam.len(3.4);
+            const by1 = cam.sy(52);
+            const beam = cam.len(3.2);
             const side = Color(78, 57, 41, 255);
             fgDraw.drawRect(Rect(bx0, by0, beam, by1 - by0), side);
             fgDraw.drawRect(Rect(bx1 - beam, by0, beam, by1 - by0), side);
-            for (const shelfY of [by0 + (by1 - by0) * 0.45, by1 - beam]) {
+            for (const shelfY of [by0 + (by1 - by0) * 0.46, by1 - beam]) {
                 fgDraw.drawRect(Rect(bx0 - beam * 0.25, shelfY, bx1 - bx0 + beam * 0.5, beam),
                     Color(106, 78, 56, 255), 1, Color(56, 42, 34, 240));
             }
             if (!p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0) {
-                this.drawBottleSprite(fgDraw, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(70), cam.ppu, 0);
+                this.drawBottleSprite(fgDraw, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(56), cam.ppu, 0);
             }
         }
 
@@ -296,7 +301,7 @@ export class PropsRenderer {
         const tx1 = cam.sx(arch.x1 + 4);
         const ty0 = cam.sy(arch.y);
         const tyBot = cam.sy(arch.y + arch.h);
-        const tyTop = cam.sy(arch.y + arch.h + 7);
+        const tyTop = cam.sy(arch.y + arch.h + 6);
         fillVGradRect(fgDraw, tx0 + 6, ty0, tx1 - tx0 - 12, tyBot - ty0,
             Color(9, 10, 15, 165), Color(9, 10, 15, 100));
         if (!assets.tryPlace("prop_table", "village_table", (tx0 + tx1) * 0.5, ty0,
@@ -306,10 +311,10 @@ export class PropsRenderer {
             fgDraw.drawRect(Rect(tx1 - 9, ty0, 7, tyBot - ty0), toColor(PALETTE.cartWood));
         }
 
-        // 3. 手上持瓶 / 飞行中瓶子
-        if (p.hasBottle) {
+        // 3. 手上持瓶 / 飞行中瓶子（瞄准时 child_aim 精灵手里已有瓶子，避免一人双瓶）
+        if (p.hasBottle && p.aimHold <= 0) {
             const pl = p.player;
-            this.drawBottleSprite(fgDraw, assets, "bottle_held", cam.sx(pl.x + pl.facing * 12), cam.sy(pl.y + pl.h * 0.56), cam.ppu, pl.facing * 0.2);
+            this.drawBottleSprite(fgDraw, assets, "bottle_held", cam.sx(pl.x + pl.facing * 10), cam.sy(pl.y + pl.h * 0.52), cam.ppu, pl.facing * 0.2);
         }
         if (p.bottleFly !== undefined) {
             this.drawBottleSprite(fgDraw, assets, "bottle_air", cam.sx(p.bottleFly.x), cam.sy(p.bottleFly.y), cam.ppu, time * 14);
@@ -367,7 +372,7 @@ export class PropsRenderer {
         cx: number, cy: number, ppu: number,
         tilt: number,
     ): void {
-        const height = Math.max(12, ppu * 13);
+        const height = Math.max(10, ppu * 10.5);
         if (!assets.tryPlace("prop_bottle", id, cx, cy, height, height, {
             angle: tilt * 180 / Math.PI, layer: 6,
         })) {

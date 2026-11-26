@@ -526,6 +526,39 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             });
         }
 
+        // 2b. 板车未入窝前，车底连杆挡木垂直探入下层拱口，直观呈现「拉车开拱」的物理阻挡因果；
+        //     车轮一旦落窝（cartDocked），挡木收回，拱口与底层完全畅通。
+        if (!p.cartDocked && p.room.arch.h > 0) {
+            const bx0 = Math.max(p.room.arch.x0 + 4, p.cartAxle - 18);
+            const bx1 = Math.min(p.room.arch.x1 - 4, p.cartAxle + 18);
+            if (bx1 > bx0 + 4) {
+                scene.addBox({
+                    x0: bx0,
+                    x1: bx1,
+                    y0: 2,
+                    y1: p.room.arch.h,
+                    z0: -6,
+                    z1: 8,
+                    material: MING_MATERIALS.mingTimberDark,
+                    bucket: LP_BUCKET.PROP,
+                    highlightTopEdge: true,
+                    edgeWidth: 0.9,
+                });
+                // 连至上层板车底梁的铁链/拉杆
+                scene.addBox({
+                    x0: (bx0 + bx1) * 0.5 - 3,
+                    x1: (bx0 + bx1) * 0.5 + 3,
+                    y0: p.room.arch.h,
+                    y1: p.room.cart.baseY,
+                    z0: -3,
+                    z1: 5,
+                    material: MING_MATERIALS.mingIron,
+                    bucket: LP_BUCKET.PROP,
+                    edgeWidth: 0.6,
+                });
+            }
+        }
+
         // 3. 下层水门检修廊背景墙与盐碱高水线（位于 z = 44..72，不侵占拱洞净空）
         scene.addBox({
             x0: ox + 128,
@@ -623,13 +656,13 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             highlightTopEdge: true,
         });
 
-        // 2. 塔身左右厚重砖石墙体（严格贴合 rooms.ts solids 180..400, 490..720）
+        // 2. 塔身左右厚重砖石墙体（拉齐至 z0 = -8 与步行面和石门框严密贴合，消除视觉退后导致的空气墙感）
         scene.addBox({
             x0: ox + 180,
             x1: ox + 400,
             y0: 0,
             y1: 215,
-            z0: 8,
+            z0: -8,
             z1: 96,
             material: MING_MATERIALS.mingBrick,
             bucket: LP_BUCKET.MIDGROUND,
@@ -640,7 +673,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             x1: ox + 720,
             y0: 0,
             y1: 215,
-            z0: 8,
+            z0: -8,
             z1: 96,
             material: MING_MATERIALS.mingBrick,
             bucket: LP_BUCKET.MIDGROUND,
@@ -679,12 +712,12 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             );
         }
 
-        // 5. 西窗狭长暖窗（左塔壁朝西，呼应“朝西那盏灯，能留着吗”）
+        // 5. 西窗狭长暖窗（贴合拉齐后的左塔壁前立面 z = -9，呼应“朝西那盏灯，能留着吗”）
         scene.addQuad3D(
-            vec3(ox + 286, 118, 6),
-            vec3(ox + 306, 118, 6),
-            vec3(ox + 306, 158, 6),
-            vec3(ox + 286, 158, 6),
+            vec3(ox + 286, 118, -9),
+            vec3(ox + 306, 118, -9),
+            vec3(ox + 306, 158, -9),
+            vec3(ox + 286, 158, -9),
             { base: rgba(244, 204, 134, 255) },
             { bucket: LP_BUCKET.PROP, unlit: true, edgeColor: rgba(82, 68, 52, 255), edgeWidth: 1.4 },
         );
@@ -719,11 +752,11 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         );
         fgDraw.drawCircle(Vec2(lampP.x, lampP.y), 4.2, Color(255, 240, 202, 245));
 
-        const winP = projectWorld3D(ox + 296, 138, 6, cam, this.towerProj);
+        const winP = projectWorld3D(ox + 296, 138, -9, cam, this.towerProj);
         fillRadialGlow(fgGlow, winP.x, winP.y, cam.len(38), cam.len(42), Color(246, 206, 132, Math.round(78 * pulse)), Color(232, 174, 82, 0), 14);
         // 西窗明代木窗格（十字棂条）与塔壁青砖水平灰缝
-        const wBL = projectWorld3D(ox + 286, 118, 6, cam, this.towerProj);
-        const wTR = projectWorld3D(ox + 306, 158, 6, cam, this.towerProj);
+        const wBL = projectWorld3D(ox + 286, 118, -9, cam, this.towerProj);
+        const wTR = projectWorld3D(ox + 306, 158, -9, cam, this.towerProj);
         const wMidX = (wBL.x + wTR.x) * 0.5;
         const wMidY = (wBL.y + wTR.y) * 0.5;
         fgDraw.drawSegment(Vec2(wMidX, wBL.y), Vec2(wMidX, wTR.y), 1.4, Color(68, 52, 38, 225));
@@ -731,11 +764,11 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         let tr = 1;
         for (tr = 1; tr <= 6; tr++) {
             const ty = tr * 30;
-            const tl0 = projectWorld3D(ox + 182, ty, 8, cam, this.towerProj);
-            const tl1 = projectWorld3D(ox + 398, ty, 8, cam, this.towerProj);
+            const tl0 = projectWorld3D(ox + 182, ty, -8, cam, this.towerProj);
+            const tl1 = projectWorld3D(ox + 398, ty, -8, cam, this.towerProj);
             fgDraw.drawSegment(Vec2(tl0.x, tl0.y), Vec2(tl1.x, tl1.y), 0.8, Color(34, 38, 48, 135));
-            const tr0 = projectWorld3D(ox + 492, ty, 8, cam, this.towerProj);
-            const tr1 = projectWorld3D(ox + 718, ty, 8, cam, this.towerProj);
+            const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
+            const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
             fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
         }
 

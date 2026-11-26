@@ -118,7 +118,7 @@ ____exports.FALLBACK_MING_BACKDROPS = { -- 65
 	gatepath = "bgFar_outside", -- 71
 	escort1 = "bgFar_outside", -- 72
 	escort2 = "bgFar_checkpoint", -- 73
-	escort3 = "bgFar_checkpoint", -- 74
+	escort3 = "bgFar_forest", -- 74
 	escort4 = "bgFar_forest", -- 75
 	escort5 = "bgFar_tower" -- 76
 } -- 76
