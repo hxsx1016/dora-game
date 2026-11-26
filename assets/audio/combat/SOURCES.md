@@ -15,3 +15,6 @@
 | `reload_timeout.wav` | `sfx` | 0.26s | 4 秒作答超时收为普通装填（`reloadTimeout`） |
 | `craft_done.wav` | `sfx` | 0.44s | 第三段工台确认制成落器与试握声（`craftDone`） |
 | `craft_insufficient.wav` | `sfx` | 0.18s | 工台库存不足高亮缺项时的空木轻叩反馈 |
+| `shot.wav` | `sfx` | 0.42s | 周戍与敌兵明式火铳击发黑火药脆响与街巷低频余震（`shotResolved`） |
+| `cover_block.wav` | `sfx` | 0.24s | 铅丸击中木柜/石垒掩体的闷击与碎屑弹响（`coverBlocked`） |
+| `actor_hit.wav` | `sfx` | 0.30s | 人物或敌兵受击时的低频沉闷撞击声（`actorHit` / `gateFailed`） |

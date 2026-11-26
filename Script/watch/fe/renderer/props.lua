@@ -69,7 +69,7 @@ function PropsRenderer.prototype.drawCraftMaterials(self, assets, p, cam) -- 51
 	for ____, pickup in ipairs(p.pickups) do -- 52
 		do -- 52
 			local kind = pickup.kind -- 54
-			if pickup.id == "" or kind ~= "wood" and kind ~= "bell" then -- 54
+			if pickup.id == "" or p.run.taken[pickup.id] or kind ~= "wood" and kind ~= "bell" then -- 54
 				goto __continue7 -- 56
 			end -- 56
 			local depth = pickup.depth or 0 -- 58

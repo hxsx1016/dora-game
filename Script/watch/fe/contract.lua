@@ -720,7 +720,7 @@ function DualRouteContract.prototype.sampleLive(self, p, dt, events) -- 715
 		p.room.key, -- 820
 		p.phase, -- 821
 		storyRoute, -- 822
-		archive.museumPhase, -- 823
+		"locked", -- 823
 		countProgress, -- 824
 		gateReunion.completed -- 825
 	) -- 825

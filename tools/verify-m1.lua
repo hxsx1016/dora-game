@@ -268,6 +268,7 @@ do
 	local craftPl = fe:getPlugin("fe-02-craft-bench")
 
 	-- 5.1 模拟 B2 后端 craftBench.active=true 且无独立 backCarry 字段 -> 契约自动推导 atBench=true
+	local originalBench = p.craftBench
 	p.craftBench = {
 		active = true,
 		firstCraftDone = false,
@@ -298,7 +299,7 @@ do
 	local craftRejCnt, craftRejBe = countCue(fe.audio, "craft:insufficient:echo_gun")
 	check("5.2 B2 benchCraft/benchRejected 音频分轨命中 WAV",
 		craftDoneCnt == 1 and craftDoneBe == 1 and craftRejCnt == 1 and craftRejBe == 1)
-	p.craftBench = nil
+	p.craftBench = originalBench
 
 	-- 5.3 排演背负 + 3×3 换弹慢时（灯纹照明）+ 暂停双冻 + 收盘恢复 1x
 	fe.contract:enterRehearsal("m1-reload-smoke")
