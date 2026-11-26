@@ -152,7 +152,7 @@ do
 	fe.contract:exitRehearsal()
 	fe:bindPlay(pFresh, 1280, 720)
 	fe.audio:clearPlayLog()
-	pFresh.player.x = wellMod.WELL_WORLD_X
+	pFresh.player.x = pFresh.ox + 430
 	inp.interact.pressed = true
 	fe:renderPlay(DT, pFresh, inp, 1280, 720)
 	inp.interact.pressed = false
@@ -174,7 +174,7 @@ do
 	pChildOnly.archive = { childCleared = true, soldierCleared = false, artifactOwned = true, museumPhase = "well_open", museumSeen = false }
 	fe:bindPlay(pChildOnly, 1280, 720)
 	fe.audio:clearPlayLog()
-	pChildOnly.player.x = wellMod.WELL_WORLD_X
+	pChildOnly.player.x = pChildOnly.ox + 430
 	inp.interact.pressed = true
 	fe:renderPlay(DT, pChildOnly, inp, 1280, 720)
 	inp.interact.pressed = false
@@ -188,7 +188,7 @@ do
 	pSoldOnly.archive = { childCleared = false, soldierCleared = true, artifactOwned = true, museumPhase = "well_open", museumSeen = false }
 	fe:bindPlay(pSoldOnly, 1280, 720)
 	fe.audio:clearPlayLog()
-	pSoldOnly.player.x = wellMod.WELL_WORLD_X
+	pSoldOnly.player.x = pSoldOnly.ox + 430
 	fe:renderPlay(DT, pSoldOnly, inp, 1280, 720)
 	local stSold = wellPl:getDebugState()
 	check("2.4 仅男主单通关严格封闭井口",
@@ -261,7 +261,7 @@ do
 	fe.contract:setAssistHintsEnabled(false)
 	fe:bindPlay(p, 1280, 720)
 	fe.audio:clearPlayLog()
-	p.player.x = wellMod.WELL_WORLD_X + 6
+	p.player.x = p.ox + 430 + 6
 	fe:renderPlay(DT, p, inp, 1280, 720)
 	local textsNoAssist = collectVisibleTexts(root)
 	local dripCnt, dripBe = countCue(fe.audio, "loop:fe06_well_drip")
@@ -439,7 +439,7 @@ do
 
 	-- ---------------------------------------------------------------- 6. 两次进井幂等验证（神器计数恒为 1）
 	local pickupBeforeRevisit = countCue(fe.audio, "museum:e01:artifact_pickup")
-	pResume.player.x = wellMod.WELL_WORLD_X
+	pResume.player.x = pResume.ox + 430
 	for _ = 1, 2 do
 		inp.interact.pressed = true
 		fe:renderPlay(DT, pResume, inp, 1280, 720)
