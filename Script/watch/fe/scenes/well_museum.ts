@@ -296,6 +296,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     private gateOpen = false;
     private gateBlockedReason = "locked";
     private wellWorldX = WELL_WORLD_X;
+    private caseX = MUSEUM_CASE_X;
+    private lampX = MUSEUM_LAMP_X;
     private nearWell = false;
     private revisitCalmTimer = 0;
     private revisitCalmCount = 0;
@@ -447,7 +449,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.hallCamX = this.hallWalkX;
         if (holstered !== undefined) {
             this.holstered = holstered;
-        } else if (this.hallWalkX >= MUSEUM_CASE_X - 85) {
+        } else if (this.hallWalkX >= this.caseX - 85) {
             this.holstered = true;
         }
         this.savedResume = this.exportResumeState();
@@ -524,6 +526,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.savedResume = undefined;
         }
         this.rehearsal = view.isRehearsal;
+        const museum = view.isRehearsal ? undefined : p.room.story?.museum;
+        this.caseX = museum === undefined ? MUSEUM_CASE_X : museum.cabinetX - p.ox;
+        this.lampX = museum === undefined ? MUSEUM_LAMP_X : museum.lampX - p.ox;
         this.animTime = 0;
         this.revisitCalmTimer = 0;
         this.childEchoVisualT = 0;
@@ -542,7 +547,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.lastVisualMode = view.visualMode;
 
         // 读取可选后端井口坐标（兼容 C 单 segment-relative Play.wellX = 430）
-        const pRec = view.isRehearsal ? undefined : asRecord(p);
+        // 排练态也可能绑定真实 Play（fe06 演示档），此时仍以 Play.wellX 为准；仅在无 Play 数据时回落 WELL_WORLD_X。
+        const pRec = asRecord(p);
         const backendWellX = readNum(pRec, "wellX");
         this.wellWorldX = backendWellX !== undefined ? (p.ox + backendWellX) : (p.ox + WELL_WORLD_X);
         this.hallMoving = false;
@@ -617,13 +623,13 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.hallCamX = this.hallWalkX;
             this.hallFacing = 1;
             this.hallIntroElapsed = backendWalkX !== undefined && backendWalkX > 260 ? 5.0 : 0;
-            this.holstered = backendHolstered ?? (this.hallWalkX >= MUSEUM_CASE_X - 85);
-            this.childEchoPlayed = backendChildEcho ?? (this.hallWalkX >= MUSEUM_CASE_X + 120);
+            this.holstered = backendHolstered ?? (this.hallWalkX >= this.caseX - 85);
+            this.childEchoPlayed = backendChildEcho ?? (this.hallWalkX >= this.caseX + 120);
             this.childEchoCountdown = -1;
             return;
         }
         if (phase === "lamp_turn") {
-            this.hallWalkX = backendWalkX !== undefined ? clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90) : MUSEUM_LAMP_X - 36;
+            this.hallWalkX = backendWalkX !== undefined ? clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90) : this.lampX - 36;
             this.hallCamX = this.hallWalkX;
             this.hallFacing = 1;
             this.holstered = true;
@@ -888,7 +894,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.hallCamX += (this.hallWalkX - this.hallCamX) * camFollow;
 
             // 走到玻璃展柜前：自动收起武器 + 稍后远方传来孩子轻脚步回响
-            if (!this.holstered && this.hallWalkX >= MUSEUM_CASE_X - 85) {
+            if (!this.holstered && this.hallWalkX >= this.caseX - 85) {
                 this.holstered = true;
                 ctx.audio.playOnce(
                     "fe06:e02:holster:" + this.roomSessionId,
@@ -920,7 +926,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 }
             }
 
-            this.nearLamp = Math.abs(this.hallWalkX - MUSEUM_LAMP_X) <= 72;
+            this.nearLamp = view.isRehearsal
+                ? Math.abs(this.hallWalkX - this.lampX) <= 72
+                : p.phase === "museum-lamp" && p.player.x >= this.lampX + p.ox;
             this.savedResume = this.exportResumeState();
 
             if (this.nearLamp && interactPressed) {
@@ -1474,7 +1482,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 3. 中厅抗战史料挂板与玻璃展柜（x = 600）
-        const caseSx = toScreenX(MUSEUM_CASE_X);
+        const caseSx = toScreenX(this.caseX);
         if (caseSx > -260 && caseSx < w + 260) {
             // 两侧素雅历史展板
             const boardOffsets = [-210, 210];
@@ -1525,8 +1533,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 4. 末厅西窗与可转动展灯（x = 1140..1280）
-        const lampSx = toScreenX(MUSEUM_LAMP_X);
-        const winSx = toScreenX(MUSEUM_LAMP_X + 108);
+        const lampSx = toScreenX(this.lampX);
+        const winSx = toScreenX(this.lampX + 108);
         const reflectK = inLampTurn
             ? smoothstep(MUSEUM_TIMINGS.lampReflectStart, 2.35, this.lampElapsed)
             : 0;
@@ -1633,8 +1641,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 玻璃柜前收械后的克制状态轻反馈（无大弹窗，短促微印）
-        if (this.holstered && !inLampTurn && Math.abs(this.hallWalkX - MUSEUM_CASE_X) <= 130) {
-            const subA = clamp01(1 - Math.abs(this.hallWalkX - MUSEUM_CASE_X) / 145) * 0.86;
+        if (this.holstered && !inLampTurn && Math.abs(this.hallWalkX - this.caseX) <= 130) {
+            const subA = clamp01(1 - Math.abs(this.hallWalkX - this.caseX) / 145) * 0.86;
             ctx.texts.put(
                 "xs",
                 "已收起随身器物",
@@ -1652,7 +1660,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         // 远方童声脚步回响（静音/灰度可读的细微远景声纹，位于右侧末厅方向）
         if (this.childEchoVisualT > 0) {
             const echoK = 1 - clamp01(this.childEchoVisualT / 2.1);
-            const ex = Math.min(w - 110, toScreenX(MUSEUM_CASE_X + 310));
+            const ex = Math.min(w - 110, toScreenX(this.caseX + 310));
             const ey = floorY + 32;
             const ea = Math.round(Math.sin(echoK * Math.PI) * 165);
             drawCircleRing(uiInkDraw, ex, ey, 14 + echoK * 46, Color(0, 0, 0, 0), 1.1, Color(224, 214, 194, ea), 28);

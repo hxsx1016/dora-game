@@ -26,7 +26,7 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { Play } from "Script/watch/play";
+import { Play, TOWER_CONFIRM_TICKS } from "Script/watch/play";
 import { Input } from "Script/watch/input";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
@@ -96,7 +96,7 @@ export const TOWER_ENDING_TIMINGS: TowerEndingTimings = {
     pivotStartSec: 3.40,
     pivotEndSec: 4.20,
     divergeEndSec: 6.80,
-    holdReadySec: 8.00,
+    holdReadySec: TOWER_CONFIRM_TICKS / 60,
 };
 
 const TOWER_AUDIO_ROOT = "assets/audio/tower/";
