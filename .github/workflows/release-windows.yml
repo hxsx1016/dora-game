@@ -276,7 +276,7 @@ jobs:
 
           ## 便携提示
 
-          - 默认存档自动隔离于 \`%APPDATA%\Dora\DoraGame-7a9d4e21c8f34b6ea1d05c83b2f69e41\watch-save\archive.txt\`；
+          - 默认存档自动隔离于 \`%APPDATA%\IppClub\DoraGame-7a9d4e21c8f34b6ea1d05c83b2f69e41\watch-save\archive.txt\`；
           - 若希望将存档随身保存在游戏目录内，在 \`${EXE_NAME}.exe\` 同级新建空文件夹 \`save\` 即可。
           - 全屏切换快捷键：\`F11\` 或 \`Alt+Enter\`；标题页与暂停菜单均提供「退出游戏」。
           EOF

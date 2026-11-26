@@ -31,7 +31,7 @@
 ## 三、存档与绿色便携模式
 
 - **默认存档位置**：为防止覆写升级时丢失进度以及避免只读目录权限问题，跨局通关档案默认隔离保存在：
-  `%APPDATA%\Dora\DoraGame-7a9d4e21c8f34b6ea1d05c83b2f69e41\watch-save\archive.txt`
+  `%APPDATA%\IppClub\DoraGame-7a9d4e21c8f34b6ea1d05c83b2f69e41\watch-save\archive.txt`
 - **纯绿色便携存档（可选）**：如需随 U 盘携带存档或一键重置全新档案，只需在 `WestwardWatch.exe` 同级目录新建一个空的 `save` 文件夹，游戏会自动将存档读写定向至该 `save/` 目录。
 - **正常退出**：可通过标题页或暂停菜单的「退出游戏」安全落盘并退出，直接关闭窗口也会自动保存待落盘进度。
 
