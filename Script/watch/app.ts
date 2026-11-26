@@ -357,6 +357,11 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
         storyRun.source = source;
     }
     ensurePlay();
+    // 标题「开始游戏」是正式新局：首帧从 P01「叫醒」起播，章节直达/快跳不播。
+    const firstPlay = play as Play | undefined;
+    if (fresh && source === "official" && firstPlay !== undefined && ROOMS[current].key === "prologue") {
+        firstPlay.phase = "prologue-wake";
+    }
     flushProfile();
 }
 
@@ -373,6 +378,10 @@ function pickByIndex(idx: number, source: RunSource = "debug"): void {
     }
     if (idx < 0 || idx >= ROOMS.length) {
         return;
+    }
+    flushProfile();
+    if (storyRun !== undefined) {
+        storyRun.source = source;
     }
     current = idx;
     dirty = true;
@@ -689,7 +698,8 @@ function tickFrontend(frameDt: number): void {
     }
     const p = play;
 
-    if (input.retry.pressed) {
+    const inTowerEnding = p.room.key === "tower" && p.phase !== "tower-wait";
+    if (input.retry.pressed && !inTowerEnding) {
         input.consumeEdges();
         // 重试保留检查点，并重新绑定前端相机与运行态验收钩子。
         ensurePlay({ checkpoint: p.checkpoint });
@@ -699,6 +709,11 @@ function tickFrontend(frameDt: number): void {
     p.aimX = input.mx;
     p.aimY = input.my;
 
+    if (!p.paused && p.craftBench.active && input.pause.pressed) {
+        p.closeCraftBench();
+        input.consumeEdges();
+        return;
+    }
     if (!p.paused && input.pause.pressed) {
         p.paused = true;
         p.aimHold = 0;

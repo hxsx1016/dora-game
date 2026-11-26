@@ -7,6 +7,8 @@ local ____Dora = require("Dora") -- 28
 local Color = ____Dora.Color -- 28
 local Rect = ____Dora.Rect -- 28
 local Vec2 = ____Dora.Vec2 -- 28
+local ____play = require("Script.watch.play") -- 29
+local TOWER_CONFIRM_TICKS = ____play.TOWER_CONFIRM_TICKS -- 29
 local ____cuff_shots = require("Script.watch.fe.cutscenes.cuff_shots") -- 34
 local CUFF_PALETTE = ____cuff_shots.CUFF_PALETTE -- 34
 local drawPatchedCuff = ____cuff_shots.drawPatchedCuff -- 34
@@ -41,7 +43,7 @@ ____exports.TOWER_ENDING_TIMINGS = { -- 87
 	pivotStartSec = 3.4, -- 96
 	pivotEndSec = 4.2, -- 97
 	divergeEndSec = 6.8, -- 98
-	holdReadySec = 8 -- 99
+	holdReadySec = TOWER_CONFIRM_TICKS / 60 -- 99
 } -- 99
 local TOWER_AUDIO_ROOT = "assets/audio/tower/" -- 102
 ____exports.TOWER_AUDIO_FILES = { -- 104

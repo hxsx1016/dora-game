@@ -324,8 +324,8 @@ do
 	fe.contract:triggerMockBench(false, { equippedWeapon = "time_shuttler" })
 	fe:bindPlay(pP, 1280, 720)
 	fe.audio:clearPlayLog()
-	-- 排练（isRehearsal）下 FE07 忽略后端 wellX，井位回到 WELL_WORLD_X；live 仍读 Play.wellX=430
-	pP.player.x = pP.ox + wellMod.WELL_WORLD_X
+	-- 排练态若绑定真实 Play，井位仍取 Play.wellX=430（与 fe06 一致）；无 Play 数据时才回落 WELL_WORLD_X。
+	pP.player.x = pP.ox + 430 + 6
 	fe:renderPlay(DT, pP, inp, 1280, 720)
 	local dripCnt, dripBe = countCue(fe.audio, "loop:fe06_well_drip")
 
@@ -418,19 +418,7 @@ do
 		and wellPickCalled == true)
 
 	-- 模拟后端 C 单独立 MUSEUM_ROOM（room.key = "museum"）与 artifactFound / museumStep 事件
-	local pM = new(play.Play, rooms.PROLOGUE_ROOM)
-	pM.room = {
-		key = "museum",
-		name = "博物馆 · 西厅",
-		caption = "虚构 · 现代纪念厅",
-		originX = 0, minX = 0, maxX = 1400, height = 240,
-		floors = { { y = 0, x0 = 0, x1 = 1400 } },
-		solids = {},
-		stairs = {},
-		arch = { x0 = 0, x1 = 0, h = 0 },
-		cart = { bodyW = 0, bodyH = 0, wheelR = 0, baseY = 0, startX = 0, endX = 0, handleOffset = 0, clothSide = -1 },
-		spawns = { { x = 180, y = 0 } },
-	}
+	local pM = new(play.Play, rooms.MUSEUM_ROOM)
 	pM.phase = "museum-hall"
 	pM.player.x = 640
 	pM.archive = { childCleared = true, soldierCleared = true, artifactOwned = true, museumPhase = "hall_walk", museumSeen = false }
@@ -465,7 +453,19 @@ do
 		and k2Cnt == 1 and k2Be == 1)
 
 	-- 切回普通街道后彻底清净
+	pM.phase = "museum-lamp"
+	pM.player.x = wellPl.lampX + pM.ox
+	fe:renderPlay(DT, pM, inp, 1280, 720)
+	check("正式灯位显示交互提示", wellPl:getDebugState().nearLamp)
+	inp.interact.pressed = true
+	pM:update(play.STEP, inp)
+	check("在绘制的灯位转灯", pM.phase == "museum-return")
+	pM.player.x = wellPl.caseX + pM.ox
+	pM:update(play.STEP, inp)
+	inp.interact.pressed = false
+	check("在绘制的玻璃柜回柜", pM.phase == "museum-knock")
 	local pClean = new(play.Play, rooms.STREET_ROOM)
+	pClean.archive.museumPhase = "hall_walk"
 	fe:bindPlay(pClean, 1280, 720)
 	fe:renderPlay(DT, pClean, inp, 1280, 720)
 	check("5.3 退出排演并切回普通像素房间后全部 11 插件零残留",
@@ -525,10 +525,11 @@ do
 	fe:renderPlay(DT, p, inp, 1280, 720)
 	local wood = fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/ui_ink.clip|ink_bamboo_slip"]
 	local bell = fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/sprites.clip|compass"]
-	p.pickups[1].id = ""
+	p.player.x, p.player.y, p.player.depth = 380, 0, 0
+	p:update(play.STEP, inp)
 	fe:renderPlay(DT, p, inp, 1280, 720)
 	check("7.5 粮棚材料可见，拾取后从场景撤下",
-		wood and bell and not wood.visible and bell.visible)
+		p.run.taken.qa_wood and wood and bell and not wood.visible and bell.visible)
 end
 
 root:cleanup()
