@@ -820,7 +820,7 @@ export class DualRouteContract {
             p.room.key,
             p.phase,
             storyRoute,
-            archive.museumPhase,
+            "locked", // 正式展厅由当前房间决定，档案里的续读点不改变章节预览。
             countProgress,
             gateReunion.completed,
         );

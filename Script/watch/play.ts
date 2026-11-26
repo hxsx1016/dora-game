@@ -37,6 +37,20 @@ export const GATE_COUNT_END = 1440;
 export const GATE_HAND_TICKS = 36;
 /** 80% 门槛：100*hpAtGate >= 80*maxHpAtGate 走男主线。 */
 export const GATE_ROUTE_PERCENT = 80;
+export const TOWER_CONFIRM_TICKS = 480;
+const TOWER_REGISTER_TICKS = 180;
+
+// —— 共同序章：P01 叫醒 → P02 墙影 → 限时逃柜 → 入柜 → P03 递针套 ——
+/** P01 黑场听父亲唤「小满」到睁眼落稳：4 秒 = 240 拍。 */
+export const PROLOGUE_WAKE_TICKS = 240;
+/** P02 门槛内墙上人影与瓷碗滚到脚边：2 秒 = 120 拍。 */
+export const PROLOGUE_SHADOW_TICKS = 120;
+/** 限时逃柜：7.5 秒 = 450 拍；超时退回门口重来，不扣血。 */
+export const PROLOGUE_ESCAPE_TICKS = 450;
+/** 入柜后红晕收尽、柜外脚步渐远：0.85 秒 = 51 拍。 */
+export const PROLOGUE_HIDE_TICKS = 51;
+/** 小满贴住倒柜左缘（段内 x，柜体从 152 起；玩家半宽 14）即拉门入柜。 */
+export const PROLOGUE_CABINET_X = 132;
 
 export function gateCountAtTick(tick: number): number {
     if (tick >= GATE_COUNT_END) return 20;
@@ -96,6 +110,7 @@ export type PlayEventName =
     | "trialShot"
     | "endingReached"
     | "artifactFound"
+    | "prologueBeat"
     | "museumStep"
     | "museumDone";
 
@@ -327,6 +342,8 @@ interface Ray {
 /** 每个房间进入时的剧情初态。 */
 function phaseOf(key: string): string {
     if (key === "prologue") {
+        // 默认仍是可玩的等待段；标题「开始游戏」由 app 把首帧切到 prologue-wake，
+        // 让正式入口从 P01「叫醒」起播，而章节直达/调试/验收夹具保持旧行为。
         return "prologue-wait";
     }
     if (key === "street") {
@@ -569,6 +586,16 @@ export class Play {
     carryOn = false;
     /** 第一段护送房已走到安全出口，交给下一段。 */
     escortDone = false;
+
+    // —— 共同序章：P01/P02 与限时逃柜 ——
+    /** 逃柜限时（秒）；前端按它算红晕与心跳。 */
+    readonly escapeDuration = PROLOGUE_ESCAPE_TICKS / 60;
+    /** 逃柜剩余时间（秒）；前端直接读，每拍由后端递减。 */
+    escapeRemaining = 0;
+    /** 逃柜失败次数；只影响演出重来，不写档案。 */
+    escapeRetryCount = 0;
+    /** 序章演出自己的拍计数器（wake/shadow/hide 各段）。 */
+    private introTick = 0;
 
     // —— 慢时连线换弹 ——
     /** 3×3 线盘开着：世界降到 1/4 速，只有每 4 个作答拍推进 1 个世界拍。 */
@@ -937,6 +964,32 @@ export class Play {
         if (this.room.key === "tower" && story.route === "soldier") {
             this.carryOn = false;
             this.run.story.carry = false;
+        }
+        // 序章：从正式入口重开时重播 P01/P02；已递针套/已跟随的续读直接从对应段起。
+        if (this.room.key === "prologue") {
+            const ph = story.phase;
+            if (ph === "prologue-wait" || ph === "prologue-give" || ph === "prologue-follow") {
+                this.phase = ph;
+                this.phaseTick = story.phaseTick;
+                this.player.x = this.ox + (ph === "prologue-follow" ? 620 : 260);
+                this.player.y = 0;
+                this.player.depth = 0;
+                this.player.vx = 0;
+                this.partner.x = this.ox + 300;
+                this.partner.y = 0;
+                this.partner.depth = 0;
+                this.partner.vx = 0;
+                this.partner.alive = true;
+                if (ph === "prologue-follow") {
+                    this.partner.crouch = false;
+                    this.partner.h = CHILD_H;
+                } else {
+                    this.partner.crouch = true;
+                    this.partner.h = CHILD_CROUCH_H;
+                }
+                this.cam.x = this.player.x;
+            }
+            return;
         }
         if (this.room.key !== "gate") {
             return;
@@ -1337,6 +1390,10 @@ export class Play {
         this.syncCraftBench();
         const trial = this.run.trial;
         if (trial !== undefined && (trial.offers.length > 0 || trial.lost || this.run.finished)) return;
+        if (!this.paused && this.craftBench.active && input.pause.pressed) {
+            this.closeCraftBench();
+            return;
+        }
         if (input.pause.pressed) {
             this.paused = !this.paused;
         }
@@ -1357,11 +1414,8 @@ export class Play {
             return;
         }
         // 工台面板打开：世界停在开面板那一拍，玩家不推进、敌兵不动；
-        // 面板里按 E 或 Esc 收起，重新背起小满再走。
+        // 面板用 E 确认配方，制作和装备由前端提交。
         if (this.craftBench.active) {
-            if (input.interact.pressed || input.pause.pressed) {
-                this.closeCraftBench();
-            }
             this.updateCamera(dt);
             return;
         }
@@ -1628,7 +1682,9 @@ export class Play {
         // 握车把时人由车带着走，自己按方向键不再叠加位移。
         const handsBusy = this.gripping || gripIntent;
         const dir = this.gripping ? 0 : input.moveX;
-        const depthDir = this.room.depth !== undefined && !isChild && !handsBusy ? -input.moveY : 0;
+        // 逃柜段控制权在小满身上，但仍要允许她切里道绕过石柱；其余 childMode 段保持原行为。
+        const depthDir = this.room.depth !== undefined && !handsBusy
+            && (!isChild || this.phase === "prologue-escape") ? -input.moveY : 0;
         const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
@@ -1765,6 +1821,10 @@ export class Play {
         if (this.caughtT > 0) {
             return true;
         }
+        if (this.room.key === "prologue"
+            && (this.phase === "prologue-wake" || this.phase === "prologue-shadow" || this.phase === "prologue-hide")) {
+            return true;
+        }
         if (this.room.key === "prologue" && this.phase === "prologue-give") {
             return true;
         }
@@ -1802,6 +1862,36 @@ export class Play {
         this.player.h = CHILD_H;
         this.player.facing = 1;
         this.partner.alive = true;
+        this.cam.x = this.player.x;
+    }
+
+    /** 序章逃柜收尾：把控制权交回周戍，小满留在倒柜边（蹲着等他递针套）。 */
+    private swapToSoldier(x: number, childX: number): void {
+        const tmp = this.player;
+        this.player = this.partner;
+        this.partner = tmp;
+        this.childMode = false;
+        this.player.alive = true;
+        this.player.x = this.ox + x;
+        this.player.y = 0;
+        this.player.depth = 0;
+        this.player.depthSpeed = 0;
+        this.player.vy = 0;
+        this.player.vx = 0;
+        this.player.onGround = true;
+        this.player.crouch = false;
+        this.player.h = SOLDIER_H;
+        this.player.facing = 1;
+        this.partner.alive = true;
+        this.partner.x = this.ox + childX;
+        this.partner.y = 0;
+        this.partner.depth = 0;
+        this.partner.depthSpeed = 0;
+        this.partner.vx = 0;
+        this.partner.vy = 0;
+        this.partner.onGround = true;
+        this.partner.crouch = true;
+        this.partner.h = CHILD_CROUCH_H;
         this.cam.x = this.player.x;
     }
 
@@ -1867,6 +1957,80 @@ export class Play {
             this.player.y = 0;
             this.player.depth = 0;
             this.flashSet("回到柜边 · 小满还在柜后", 1.6);
+        }
+        // P01 叫醒：黑场听父亲唤「小满」，睁眼后门缝里的影子压过来。演出期间锁控。
+        if (this.phase === "prologue-wake") {
+            this.introTick += 1;
+            if (this.introTick === 60) {
+                this.flashSet("门外有人唤 · 小满", 1.2);
+            }
+            if (this.introTick >= PROLOGUE_WAKE_TICKS) {
+                this.phase = "prologue-shadow";
+                this.introTick = 0;
+                this.flashSet("门缝里两道影子", 1.2);
+                this.emit("prologueBeat", { beat: "wake", ticks: PROLOGUE_WAKE_TICKS });
+            }
+            return;
+        }
+        if (this.phase === "prologue-shadow") {
+            this.introTick += 1;
+            if (this.introTick >= PROLOGUE_SHADOW_TICKS) {
+                // 瓷碗滚到脚边，同拍起表限时逃柜：控制权交给门口的小满。
+                this.phase = "prologue-escape";
+                this.introTick = 0;
+                this.escapeRemaining = this.escapeDuration;
+                this.escapeRetryCount = 0;
+                this.swapToChild(100);
+                this.flashSet("逃进倒柜 · 限时 " + this.escapeDuration.toFixed(1) + " 秒", 1.6);
+                this.emit("prologueBeat", {
+                    beat: "escape", ticks: PROLOGUE_SHADOW_TICKS, duration: this.escapeDuration,
+                });
+            }
+            return;
+        }
+        if (this.phase === "prologue-escape") {
+            this.escapeRemaining = Math.max(0, this.escapeRemaining - STEP);
+            if (this.player.x >= this.ox + PROLOGUE_CABINET_X) {
+                // 贴到柜边：拉门入柜，红晕收尽，柜外脚步渐远。
+                this.phase = "prologue-hide";
+                this.introTick = 0;
+                this.player.vx = 0;
+                this.player.crouch = true;
+                this.player.h = CHILD_CROUCH_H;
+                this.flashSet("柜门合上 · 屏住呼吸", 1.4);
+                this.emit("prologueBeat", {
+                    beat: "hide", x: this.player.x,
+                    delay: this.escapeDuration - this.escapeRemaining,
+                });
+                return;
+            }
+            if (this.escapeRemaining <= 0) {
+                // 超时退回门口重来：不扣血、不写档案。
+                this.escapeRetryCount += 1;
+                this.player.x = this.ox + 100;
+                this.player.y = 0;
+                this.player.depth = 0;
+                this.player.vx = 0;
+                this.player.vy = 0;
+                this.escapeRemaining = this.escapeDuration;
+                this.flashSet("再快一点 · 退回门口", 1.4);
+                this.emit("prologueBeat", { beat: "escapeRetry", attempt: this.escapeRetryCount });
+                return;
+            }
+            return;
+        }
+        if (this.phase === "prologue-hide") {
+            this.introTick += 1;
+            if (this.introTick >= PROLOGUE_HIDE_TICKS) {
+                // 柜内留半拍静默，切回周戍视角：他蹲到柜边递针套。
+                this.phase = "prologue-wait";
+                this.phaseTick = 0;
+                this.introTick = 0;
+                this.swapToSoldier(260, 300);
+                this.flashSet("周戍蹲到柜边 · 点 E 递针套", 1.6);
+                this.emit("prologueBeat", { beat: "wait", ticks: PROLOGUE_HIDE_TICKS });
+            }
+            return;
         }
         // 井口只在「进屋寻小满、尚未靠柜特写」的等待段可见；拿到穿梭器就消失。
         this.wellOpen = this.phase === "prologue-wait" && this.wellWindow() && !this.wellTaken;
@@ -2199,6 +2363,13 @@ export class Play {
             s.phaseTick = this.phaseTick;
             s.handTicks = this.handTicks;
         }
+        if (this.room.key === "prologue") {
+            // 序章只记可续读的段（递针套/跟随）；P01/P02 每次重开都重播。
+            if (this.phase === "prologue-wait" || this.phase === "prologue-give" || this.phase === "prologue-follow") {
+                s.phase = this.phase;
+                s.phaseTick = this.phaseTick;
+            }
+        }
     }
 
     /** 同行段：牵手走到高石阶，蹲下把她背起来，再走进第一间护送房。 */
@@ -2371,7 +2542,7 @@ export class Play {
                 this.flashSet("登记簿 · 第一行 小满", 1.6);
             } else if (this.phaseTick === 120) {
                 this.flashSet(soldier ? "第二行 · 周戍 · 兄妹同行" : "第二行留白 · 西窗一盏灯", 2.4);
-            } else if (this.phaseTick >= 180) {
+            } else if (this.phaseTick >= TOWER_REGISTER_TICKS) {
                 this.phase = "tower-end";
                 this.phaseTick = 0;
                 if (!this.run.finished) {
@@ -2410,7 +2581,9 @@ export class Play {
             }
             return;
         }
-        if (input.interact.pressed || input.retry.pressed) {
+        this.phaseTick += 1;
+        const endingTicks = t.knockTicks + TOWER_REGISTER_TICKS + this.phaseTick;
+        if (endingTicks >= TOWER_CONFIRM_TICKS && (input.interact.pressed || input.retry.pressed)) {
             // 回序章要重开一份局内状态（清路线、材料、拾取、检查点），但档案仍共享同一份。
             this.restartStory = true;
             this.requestRoom("prologue", "片尾再玩");
@@ -2774,15 +2947,11 @@ export class Play {
             this.flashSet("转布行线 · 小满到窗板后等", 1.3);
             this.log("转布行线");
         }
-        // 第三段安全工台：靠近工台按 E 开面板；面板里按 Esc 或再按 E 收起。
+        // 第三段安全工台：靠近工台按 E 开面板。
         if (wr.key === "escort3") {
             const benchX = wr.minX + 560;
             const nearBench = Math.abs(p.x - benchX) <= this.benchReach + 40 && p.y < 60;
-            if (this.craftBench.active) {
-                if (input.interact.pressed || input.pause.pressed) {
-                    this.closeCraftBench();
-                }
-            } else if (nearBench && input.interact.pressed) {
+            if (nearBench && input.interact.pressed) {
                 this.openCraftBench();
             }
         }
@@ -4464,7 +4633,15 @@ export class Play {
 
         if (this.room.key === "prologue") {
             parts.push("小满 " + Math.round(this.partner.x));
-            if (this.phase === "prologue-wait") {
+            if (this.phase === "prologue-wake") {
+                parts.push("叫醒 " + this.introTick + "/" + PROLOGUE_WAKE_TICKS);
+            } else if (this.phase === "prologue-shadow") {
+                parts.push("墙影 " + this.introTick + "/" + PROLOGUE_SHADOW_TICKS);
+            } else if (this.phase === "prologue-escape") {
+                parts.push("逃柜 剩 " + this.escapeRemaining.toFixed(1) + "s");
+            } else if (this.phase === "prologue-hide") {
+                parts.push("入柜 " + this.introTick + "/" + PROLOGUE_HIDE_TICKS);
+            } else if (this.phase === "prologue-wait") {
                 parts.push("待递 " + Math.round(Math.abs(p.x - this.partner.x)));
             } else if (this.phase === "prologue-give") {
                 parts.push("递物 " + this.phaseTick + "/60");
@@ -4692,6 +4869,18 @@ export class Play {
             return this.flash;
         }
         if (this.room.key === "prologue") {
+            if (this.phase === "prologue-wake") {
+                return "父亲在门外唤 · 小满睁眼";
+            }
+            if (this.phase === "prologue-shadow") {
+                return "墙上两道人影 · 碗滚到脚边";
+            }
+            if (this.phase === "prologue-escape") {
+                return "按 ↑ 贴里道、再按 D 跑向倒柜 · 剩 " + this.escapeRemaining.toFixed(1) + " 秒";
+            }
+            if (this.phase === "prologue-hide") {
+                return "柜门合上 · 屏住呼吸";
+            }
             if (this.phase === "prologue-wait") {
                 const near = Math.abs(this.player.x - this.partner.x) <= 46;
                 return near ? "点 E 递出针套 · 纸条一起塞进去" : "走到倒柜后的小满身边（x≈214）再点 E";
