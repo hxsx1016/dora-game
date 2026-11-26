@@ -322,7 +322,7 @@ do
 	fe.contract:triggerMockBench(false, { equippedWeapon = "time_shuttler" })
 	fe:bindPlay(pP, 1280, 720)
 	fe.audio:clearPlayLog()
-	pP.player.x = wellMod.WELL_WORLD_X
+	pP.player.x = pP.ox + 430 -- 后端 C 单井口段内 x=430（Play.wellX）
 	fe:renderPlay(DT, pP, inp, 1280, 720)
 	local dripCnt, dripBe = countCue(fe.audio, "loop:fe06_well_drip")
 
@@ -368,6 +368,10 @@ do
 
 	check("4.1 序章 P02 严格隔离井口且双通关井口滴水真循环",
 		blockedInP02 and dripCnt == 1 and dripBe == 1)
+		tostring(fe.contract:isRehearsal()),
+		tostring(package.loaded["watch.fe"].contract == fe.contract),
+		tostring(fe.contract:getLastSnapshot().archive.museumPhase),
+		tostring(stHall.museumPhase), tostring(afterHiddenInMuseum)))
 	check("4.2 E01-E02 闭环、展厅底噪真循环、残影零漏入且意图全受",
 		stHall.museumPhase == "hall_walk"
 		and hallAmbCnt == 1 and hallAmbBe == 1
