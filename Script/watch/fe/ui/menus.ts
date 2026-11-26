@@ -8,7 +8,7 @@
  * 键鼠输入逻辑承接 watch-controls：切页重置旧按键边沿、鼠标未移动时不抢占键盘高亮、仅窗口内按下触发点击。
  */
 
-import { Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora";
+import { App, Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora";
 import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { TextPool } from "Script/watch/fe/ui/textpool";
@@ -35,7 +35,7 @@ import {
 export type ScreenKind = "title" | "chapters" | "controls" | "play";
 
 export interface MenuAction {
-    type: "none" | "start" | "trial" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause";
+    type: "none" | "start" | "trial" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause" | "toggleFullscreen" | "quit";
     roomIndex?: number;
 }
 
@@ -44,6 +44,7 @@ const TITLE_ITEMS = [
     { id: "chapters", zh: "选择章节" },
     { id: "controls", zh: "操作说明" },
     { id: "trial", zh: "护送试炼 · 肉鸽" },
+    { id: "quit", zh: "退出游戏" },
 ];
 
 // 博物馆由双通关后的井口进入，章节菜单保留公开关卡原有的房间索引。
@@ -55,8 +56,10 @@ const PAUSE_ITEMS = [
     { id: "retry", zh: "重试检查点" },
     { id: "controls", zh: "操作说明" },
     { id: "assist", zh: "按键辅助：关" },
+    { id: "fullscreen", zh: "显示：窗口" },
     { id: "chapters", zh: "选择章节" },
     { id: "title", zh: "返回标题" },
+    { id: "quit", zh: "退出游戏" },
 ];
 
 const VERTICAL_TITLE = ["向", "西", "守", "望"];
@@ -309,9 +312,9 @@ export class MenuRenderer {
         // 无盒清雅宋体菜单（水袖游丝飞白 + 菱花微星，键盘与鼠标移动仲裁防抢焦）
         const menuX = 112;
         const btnW = 280;
-        const btnH = 44;
-        const gap = 12;
-        const startY = 252;
+        const btnH = 40;
+        const gap = 8;
+        const startY = 264;
         const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < TITLE_ITEMS.length; i++) {
@@ -362,6 +365,9 @@ export class MenuRenderer {
             }
             if (id === "chapters") {
                 return { type: "openChapters" };
+            }
+            if (id === "quit") {
+                return { type: "quit" };
             }
             return { type: "openControls" };
         }
@@ -647,6 +653,7 @@ export class MenuRenderer {
         // 左下返回按钮
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 110, 24, "ESC / ENTER", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
         texts.put("sm", backLabel, backX + 122, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
+        texts.put("xs", "F11 / Alt+Enter 切换全屏", w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.78, 0.08);
 
         return { type: "none" };
     }
@@ -707,19 +714,21 @@ export class MenuRenderer {
         const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < PAUSE_ITEMS.length; i++) {
-            boxes.push(Rect(menuX - 10, h - 270 - i * 52, 270, 42));
+            boxes.push(Rect(menuX - 10, h - 266 - i * 46, 270, 38));
         }
         this.pauseSelected = this.verticalSelection(this.pauseSelected, boxes, frame);
 
         for (i = 0; i < PAUSE_ITEMS.length; i++) {
             const iy = boxes[i].y;
             const active = this.pauseSelected === i;
-            const cy = iy + 21;
+            const cy = iy + 19;
             const shiftX = active ? 10 : 0;
             const item = PAUSE_ITEMS[i];
             const label = item.id === "assist"
                 ? (assistHintsEnabled ? "按键辅助：开" : "按键辅助：关")
-                : item.zh;
+                : (item.id === "fullscreen"
+                    ? (App.fullScreen ? "显示：全屏" : "显示：窗口")
+                    : item.zh);
 
             if (active) {
                 const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.4);
@@ -764,6 +773,10 @@ export class MenuRenderer {
                 this.resetInput();
                 return { type: "none" };
             }
+            if (id === "fullscreen") {
+                this.resetInput();
+                return { type: "toggleFullscreen" };
+            }
             this.pauseShowControls = false;
             if (id === "resume") {
                 return { type: "resume" };
@@ -773,6 +786,9 @@ export class MenuRenderer {
             }
             if (id === "chapters") {
                 return { type: "openChapters" };
+            }
+            if (id === "quit") {
+                return { type: "quit" };
             }
             return { type: "toTitle" };
         }

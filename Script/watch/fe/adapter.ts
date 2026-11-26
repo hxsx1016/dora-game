@@ -615,7 +615,7 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
             return { x: museum.lampX, y: 120, keyTag: "E", label: "末厅 · 把灯转向西窗", urgent: true };
         }
         if (p.phase === "museum-return") {
-            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 两下轻叩", urgent: true };
+            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 轻敲两下", urgent: true };
         }
         if (p.phase === "museum-done") {
             return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 灯还亮着", urgent: false };
