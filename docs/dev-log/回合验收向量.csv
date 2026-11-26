@@ -1,0 +1,35 @@
+case_id,room,commands,phase,body_xy,recorded_landings,play_ticks,echo_xy,open_groups,last_result
+T01,1,Confirm,REC,1:0,-,0,-,-,empty
+T02,1,L L,REC,0:0,0:0,0,-,-,outside
+T03,1,R R,REC,2:0,2:0,0,-,-,closed_A
+T04,1,W W W W W W,PLAY,1:0,1:0|1:0|1:0|1:0|1:0|1:0,0,1:0,-,auto_confirmed
+T05,1,L Confirm Confirm,PLAY,1:0,0:0,0,1:0,-,inactive
+T06,1,L Confirm R,PLAY,2:0,0:0,1,0:0,A,ok
+T07,1,L Confirm R R R,WON,4:0,0:0,3,0:0,A,won
+T08,1,L Confirm R R R R,WON,4:0,0:0,3,0:0,A,inactive
+T09,1,W Confirm R R,PLAY,2:0,1:0,1,1:0,-,closed_A
+T10,1,L Confirm L,PLAY,0:0,0:0,1,0:0,A,ok
+T11,1,L Confirm L R,PLAY,1:0,0:0,2,0:0,A,ok
+T12,2,L L Confirm R R,PLAY,3:0,1:0|0:0,1,1:0,A,closed_A
+T13,2,W L L Confirm R R,PLAY,4:0,2:0|1:0|0:0,2,1:0,A,ok
+T14,2,W L L Confirm R R R,PLAY,5:0,2:0|1:0|0:0,3,0:0,B,ok
+T15,2,W L L Confirm R R R R,WON,6:0,2:0|1:0|0:0,4,0:0,B,won
+T16,2,W L L Confirm R R W,PLAY,4:0,2:0|1:0|0:0,3,0:0,B,ok
+T17,2,W L L Confirm R R W W R R,WON,6:0,2:0|1:0|0:0,6,0:0,B,won
+T18,2,W L L Confirm W R R,PLAY,3:0,2:0|1:0|0:0,2,1:0,A,closed_A
+T19,2,W L L Confirm W R R Retry,PLAY,2:0,2:0|1:0|0:0,0,2:0,-,retried
+T20,2,W L L Confirm W R R Retry R R R R,WON,6:0,2:0|1:0|0:0,4,0:0,B,won
+T21,2,W L L Confirm R R Rerecord,REC,2:0,-,0,-,-,rerecorded
+T22,2,W L L Confirm R R Rerecord L,REC,1:0,1:0,0,-,-,ok
+T23,3,U,REC,2:2,-,0,-,-,wall
+T24,3,L L R L Confirm R R R U,PLAY,5:1,1:2|0:2|1:2|0:2,4,0:2,A,ok
+T25,3,L L R L Confirm R R R U U,WON,5:0,1:2|0:2|1:2|0:2,5,0:2,A,won
+T26,3,L L R Confirm R R R U,PLAY,5:2,1:2|0:2|1:2,3,1:2,B,closed_A
+T27,body,W Confirm R R,PLAY,2:0,0:0,2,0:0,-,ok
+T28,body,W Confirm R R R,WON,3:0,0:0,3,0:0,-,won
+T29,1,R L Confirm R L,PLAY,1:0,2:0|1:0,2,1:0,-,ok
+T30,2,L L Confirm L W,PLAY,1:0,1:0|0:0,2,0:0,AB,ok
+T31,2,L L Confirm L W U,PLAY,1:0,1:0|0:0,2,0:0,AB,outside
+T32,1,L W W W W L,REC,0:0,0:0|0:0|0:0|0:0|0:0,0,-,-,outside
+T33,1,L W W W W L R,PLAY,1:0,0:0|0:0|0:0|0:0|0:0|1:0,0,1:0,-,auto_confirmed
+T34,1,R L Confirm W R,PLAY,2:0,2:0|1:0,2,1:0,-,ok
