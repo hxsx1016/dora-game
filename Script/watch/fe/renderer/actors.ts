@@ -143,30 +143,27 @@ export class ActorsRenderer {
         }
     }
 
+    /** M2（MING-06 清理）：周戍翻滚改为明代写实扬尘步烟，将人物残影视觉专属留给 fe-06 时间穿梭器彩蛋 */
     private drawAfterimages(fgGlow: DrawNode.Type, cam: CameraDirector): void {
         let i = 0;
         for (i = 0; i < this.ghosts.length; i++) {
             const g = this.ghosts[i];
-            const k = g.life / g.maxLife;
+            const k = Math.max(0, Math.min(1, g.life / g.maxLife));
+            const spread = 1 - k;
             const cx = cam.sx(g.x);
             const by = cam.sy(g.y);
-            const h = cam.len(g.h * 0.68);
-            const w = cam.len(28);
             const f = g.facing;
-            // 低伏冲刺流线剪影
-            fgGlow.drawPolygon([
-                Vec2(cx - f * w * 0.9, by + 4),
-                Vec2(cx + f * w * 0.55, by + 6),
-                Vec2(cx + f * w * 0.85, by + h * 0.72),
-                Vec2(cx - f * w * 0.15, by + h),
-                Vec2(cx - f * w * 0.85, by + h * 0.58),
-            ], toColor(PALETTE.cyan, 115 * k));
-            // 高亮残影尾光条
-            fgGlow.drawSegment(
-                Vec2(cx - f * w * 1.15, by + h * 0.62),
-                Vec2(cx + f * w * 0.72, by + h * 0.76),
-                2.2 * k,
-                toColor(PALETTE.cyanCore, 165 * k),
+            const rBase = cam.len(6 + spread * 9);
+            // 贴地翻滚扬起的暖灰尘烟（非冰青科幻残影）
+            fgGlow.drawCircle(
+                Vec2(cx - f * cam.len(6 + spread * 10), by + cam.len(4 + spread * 5)),
+                rBase,
+                Color(156, 144, 124, Math.round(78 * k)),
+            );
+            fgGlow.drawCircle(
+                Vec2(cx - f * cam.len(14 + spread * 14), by + cam.len(8 + spread * 8)),
+                rBase * 0.72,
+                Color(186, 174, 152, Math.round(54 * k)),
             );
         }
     }

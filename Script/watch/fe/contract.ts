@@ -415,6 +415,7 @@ function deriveVisualMode(
     reunionCompleted: boolean,
 ): VisualStyleMode {
     if (
+        roomKey === "museum" ||
         museumPhase === "well_reflect" ||
         museumPhase === "hall_walk" ||
         museumPhase === "lamp_turn" ||
@@ -906,8 +907,34 @@ export class DualRouteContract {
         const rawPhase = archRec !== undefined && archRec["museumPhase"] !== undefined
             ? archRec["museumPhase"]
             : (pRec !== undefined ? pRec["museumPhase"] : undefined);
-        const museumPhase = parseMuseumPhase(rawPhase);
+        let museumPhase = parseMuseumPhase(rawPhase);
         const museumSeen = readBool(archRec, "museumSeen") ?? readBool(pRec, "museumSeen") ?? false;
+
+        // 兼容后端 C 单（story-c-archive）：
+        // 1. 序章双通关后后端通过 p.wellOpen=true / phase="prologue-well" 开放井口，此时 archive.museumPhase 仍为 "locked"；
+        // 2. 进入独立 MUSEUM_ROOM（room.key === "museum"）后由后端 phase 驱动四步返场：
+        //    - museum-cabinet（首次进馆保留 well_reflect 匹配剪辑，之后进 hall_walk）
+        //    - museum-hall / museum-lamp（自由步行走过玻璃柜与末厅）
+        //    - museum-return（已转西窗灯，步行回柜边）
+        //    - museum-knock / museum-done（两声轻敲 + 补线袖口回柜）
+        const livePhase = p.phase as string;
+        if (p.room.key === "museum") {
+            if (livePhase === "museum-cabinet") {
+                museumPhase = museumPhase === "well_reflect" ? "well_reflect" : "hall_walk";
+            } else if (livePhase === "museum-hall" || livePhase === "museum-lamp") {
+                museumPhase = "hall_walk";
+            } else if (livePhase === "museum-return") {
+                museumPhase = "lamp_turn";
+            } else if (livePhase === "museum-knock" || livePhase === "museum-done") {
+                museumPhase = "return_cabinet";
+            }
+        } else if (p.room.key === "prologue" && museumPhase === "locked" && childCleared && soldierCleared && !museumSeen) {
+            const backendWellOpen = readBool(pRec, "wellOpen") === true;
+            const hasBackendWell = readNum(pRec, "wellX") !== undefined;
+            if (backendWellOpen || livePhase === "prologue-well" || (artifactOwned && hasBackendWell)) {
+                museumPhase = "well_open";
+            }
+        }
 
         return {
             childCleared,
@@ -931,8 +958,17 @@ export class DualRouteContract {
         }
         const handler = pRec["submitFeIntent"];
         if (typeof handler === "function") {
-            const result = (handler as (self: Play, req: FrontendIntent) => unknown)(p, intent);
-            return result !== false;
+            const fn = handler as (self: Play, req: Record<string, unknown>) => unknown;
+            const result = fn(p, intent as unknown as Record<string, unknown>);
+            if (result !== false) {
+                return true;
+            }
+            // 兼容后端 C 单（story-c-archive）submitFeIntent({ kind: "wellPick" })
+            if (intent.kind === "museumInteract" && intent.target === "well_pickup") {
+                const wellRes = fn(p, { kind: "wellPick" });
+                return wellRes !== false;
+            }
+            return false;
         }
         // 兼容 B1 后端已落地的 reloadTapNode(node) 入口
         const tapNode = pRec["reloadTapNode"];
@@ -1215,8 +1251,16 @@ export class DualRouteContract {
                 st.archive.museumPhase = "well_reflect";
                 return true;
             }
+            if (intent.target === "enter_hall" && st.archive.museumPhase === "well_reflect") {
+                st.archive.museumPhase = "hall_walk";
+                return true;
+            }
             if (intent.target === "lamp_turn" && st.archive.museumPhase === "hall_walk") {
                 st.archive.museumPhase = "lamp_turn";
+                return true;
+            }
+            if (intent.target === "begin_return_cabinet" && st.archive.museumPhase === "lamp_turn") {
+                st.archive.museumPhase = "return_cabinet";
                 return true;
             }
             if (intent.target === "return_cabinet") {
