@@ -268,7 +268,12 @@ function isPrologueIntroBlocking(): boolean {
         return false;
     }
     const snap = asRecord((fn as (self: unknown) => unknown)(prologue));
-    return readBool(snap, "blocksPlayerControl") === true;
+    if (readBool(snap, "blocksPlayerControl") === true) {
+        return true;
+    }
+    // P02 逃柜与入柜阶段同样属于小满独自避难窗口，绝不提前露出周戍井院入口
+    const stage = snap !== undefined && typeof snap["stage"] === "string" ? (snap["stage"] as string) : "idle";
+    return stage === "p02_escape" || stage === "p02_hidden";
 }
 
 function isActiveMuseumPhase(phase: MuseumPhase): boolean {
@@ -307,6 +312,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     private hallCamX = MUSEUM_ENTRY_X;
     private hallFacing = 1;
     private hallWalkAnim = 0;
+    private hallMoving = false;
     private hallFootstepTimer = 0;
     private hallIntroElapsed = 0;
     private holstered = false;
@@ -337,6 +343,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     private lastPaused = false;
     private wellDripPlaying = false;
     private hallAmbiencePlaying = false;
+    private liveReflectDoneInMuseumRoom = false;
     private simInput: SimulatedMuseumInput | undefined;
 
     constructor(contract?: DualRouteContract) {
@@ -522,16 +529,18 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.enterHallSubmitted = false;
         this.beginReturnSubmitted = false;
         this.returnCompleteSubmitted = false;
+        this.liveReflectDoneInMuseumRoom = false;
         this.simInput = undefined;
 
         const phase = view.archive.museumPhase;
         this.prevPhase = phase;
         this.lastVisualMode = view.visualMode;
 
-        // 读取可选后端井口坐标
+        // 读取可选后端井口坐标（兼容 C 单 segment-relative Play.wellX = 430）
         const pRec = asRecord(p);
         const backendWellX = readNum(pRec, "wellX");
-        this.wellWorldX = backendWellX !== undefined ? backendWellX : (p.ox + WELL_WORLD_X);
+        this.wellWorldX = backendWellX !== undefined ? (p.ox + backendWellX) : (p.ox + WELL_WORLD_X);
+        this.hallMoving = false;
 
         // 根据双通关档案校准神器计数（双通关且已持有神器时至少为 1；未持则归 0）
         if (view.archive.childCleared && view.archive.soldierCleared && view.archive.artifactOwned) {
@@ -634,7 +643,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         if (p.room.key !== "prologue") {
             return { open: false, reason: "not_prologue" };
         }
-        if (p.phase !== "prologue-wait") {
+        if (p.phase !== "prologue-wait" && (p.phase as string) !== "prologue-well") {
             return { open: false, reason: "after_cabinet_window" };
         }
         if (isPrologueIntroBlocking()) {
@@ -778,7 +787,11 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 2. E01：井底俯身 + 拾取「时间穿梭器」 + 同坐标反光匹配剪辑（well_reflect）
-        if (phase === "well_reflect") {
+        const effectivePhase: MuseumPhase = (p.room.key === "museum" && phase === "well_reflect" && this.liveReflectDoneInMuseumRoom)
+            ? "hall_walk"
+            : phase;
+
+        if (effectivePhase === "well_reflect") {
             const dripVol = clamp(0.44 * (1 - smoothstep(MUSEUM_TIMINGS.wellMatchCutStart, MUSEUM_TIMINGS.wellReflectDuration, this.reflectElapsed)), 0, 0.44);
             this.syncLoops(ctx, dripVol > 0.03, dripVol, false);
 
@@ -811,6 +824,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.savedResume = this.exportResumeState();
             if (this.reflectElapsed >= MUSEUM_TIMINGS.wellReflectDuration && !this.enterHallSubmitted) {
                 this.enterHallSubmitted = true;
+                if (p.room.key === "museum") {
+                    this.liveReflectDoneInMuseumRoom = true;
+                }
                 this.submitMuseumIntent(p, "enter_hall");
                 const contract = resolveRuntimeContract(this.injectedContract);
                 if (contract !== undefined && contract.isRehearsal()) {
@@ -821,24 +837,30 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 3. E02：现代抗日主题博物馆自由步行展厅（hall_walk）
-        if (phase === "hall_walk") {
+        if (effectivePhase === "hall_walk") {
             this.syncLoops(ctx, false, 0, true);
             this.hallIntroElapsed += udt;
 
-            // 若后端在正式模式下驱动 museumWalkX，优先同步；否则由自由步行输入平滑推进
+            // 若后端在正式模式下驱动 museumWalkX 或独立 MUSEUM_ROOM（room.key === "museum"）的 player.x，优先同步；
+            // 否则由自由步行输入平滑推进
             const pRec = asRecord(p);
-            const backendWalkX = readNum(pRec, "museumWalkX");
+            const backendWalkX = readNum(pRec, "museumWalkX")
+                ?? (p.room.key === "museum" ? (p.player.x - p.ox) : undefined);
+            this.hallMoving = false;
             if (backendWalkX !== undefined) {
-                const delta = backendWalkX - this.hallWalkX;
+                const targetX = clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90);
+                const delta = targetX - this.hallWalkX;
                 if (Math.abs(delta) > 0.25) {
                     this.hallFacing = delta >= 0 ? 1 : -1;
                     this.hallWalkAnim += udt * 8.5;
+                    this.hallMoving = true;
                 }
-                this.hallWalkX = clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90);
+                this.hallWalkX = targetX;
             } else if (udt > 0 && Math.abs(moveX) > 0.05) {
                 this.hallFacing = moveX > 0 ? 1 : -1;
                 this.hallWalkX = clamp(this.hallWalkX + moveX * MUSEUM_WALK_SPEED * udt, 90, MUSEUM_HALL_WIDTH - 90);
                 this.hallWalkAnim += udt * 8.5;
+                this.hallMoving = true;
                 this.hallFootstepTimer += udt;
                 if (this.hallFootstepTimer >= 0.46) {
                     this.hallFootstepTimer = 0;
@@ -902,10 +924,22 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 4. E02：亲手转动西窗之灯 → 窗映宁村所井庭 → 「小满，外头天亮了。」→ 展厅第一声轻叩（lamp_turn）
-        if (phase === "lamp_turn") {
+        if (effectivePhase === "lamp_turn") {
             this.syncLoops(ctx, false, 0, true);
             if (wdt > 0) {
                 this.lampElapsed += wdt;
+            }
+            // 后端 C 独立 MUSEUM_ROOM 的 museum-return 阶段允许玩家在转灯后自由步行回玻璃柜
+            if (p.room.key === "museum") {
+                const targetX = clamp(p.player.x - p.ox, 90, MUSEUM_HALL_WIDTH - 90);
+                const delta = targetX - this.hallWalkX;
+                this.hallMoving = Math.abs(delta) > 0.25;
+                if (this.hallMoving) {
+                    this.hallFacing = delta >= 0 ? 1 : -1;
+                    this.hallWalkAnim += udt * 8.5;
+                }
+                this.hallWalkX = targetX;
+                this.hallCamX += (this.hallWalkX - this.hallCamX) * Math.min(1, udt * 5.2);
             }
             ctx.audio.playOnce(
                 "fe06:e02:lamp_turn:" + this.roomSessionId,
@@ -1148,20 +1182,24 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         const w = ctx.uiW;
         const h = ctx.uiH;
 
-        if (phase === "well_reflect") {
+        const effectivePhase: MuseumPhase = (ctx.p.room.key === "museum" && phase === "well_reflect" && this.liveReflectDoneInMuseumRoom)
+            ? "hall_walk"
+            : phase;
+
+        if (effectivePhase === "well_reflect") {
             this.renderE01WellReflectMatchCut(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h);
             return true;
         }
-        if (phase === "hall_walk") {
+        if (effectivePhase === "hall_walk") {
             this.renderE02MuseumHall(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, 0, false);
             return true;
         }
-        if (phase === "lamp_turn") {
+        if (effectivePhase === "lamp_turn") {
             const turnProg = smoothstep(0, 1.15, this.lampElapsed);
             this.renderE02MuseumHall(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, turnProg, true);
             return true;
         }
-        if (phase === "return_cabinet") {
+        if (effectivePhase === "return_cabinet") {
             this.renderE02ReturnCabinet(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h);
             return true;
         }
@@ -1570,8 +1608,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
 
         // 5. 自由步行的周戍（沿用真实明初像素立绘；走到玻璃柜前自动收械静立）
         const playerSx = toScreenX(this.hallWalkX);
-        const moving = !inLampTurn && Math.abs(ctx.input.moveX) > 0.05;
-        const slot = moving ? "soldier_run" : (this.holstered ? "soldier_idle" : "soldier_idle");
+        const moving = !inLampTurn && (this.hallMoving || Math.abs(ctx.input.moveX) > 0.05);
+        const slot = moving ? "soldier_run" : "soldier_idle";
         const frame = moving ? Math.floor(this.hallWalkAnim) : 0;
         const charH = 114;
         const charW = 54;

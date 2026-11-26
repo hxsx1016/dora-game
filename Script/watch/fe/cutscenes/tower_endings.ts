@@ -580,9 +580,25 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         };
     }
 
+    private syncRuntimeHook(): void {
+        const g = globalThis as unknown as { package?: { loaded?: Record<string, unknown> } };
+        const loaded = g.package !== undefined ? g.package.loaded : undefined;
+        if (loaded === undefined) {
+            return;
+        }
+        const rawFe = loaded["watch.fe"];
+        if (rawFe !== undefined && typeof rawFe === "object") {
+            const watchFe = rawFe as Record<string, unknown>;
+            if (watchFe["towerEndings"] !== this) {
+                watchFe["towerEndings"] = this;
+            }
+        }
+    }
+
     // ==================== FeRenderPlugin 生命周期 ====================
 
     onBindPlay(p: Play, view: DualRouteSnapshot): void {
+        this.syncRuntimeHook();
         this.sessionId += 1;
         this.loopsActive = false;
         this.prevPhase = p.phase;
@@ -631,6 +647,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
     }
 
     update(ctx: FePluginContext): void {
+        this.syncRuntimeHook();
         this.lastUiW = ctx.uiW;
         this.lastUiH = ctx.uiH;
         const p = ctx.p;

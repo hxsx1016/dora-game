@@ -503,7 +503,10 @@ export class VillageUndertableScene {
             this.softHits += 1;
             this.rings.push({ x, y: Math.max(2, y), age: 0, duration: 0.36, maxRadius: 24, kind: "soft" });
             this.spawnShards(x, Math.max(2, y), "soft", 6);
-            if (explicitSurface !== "soft") {
+            // M2 起 audio.ts 已按落点坐标原生分轨播放 bottle_soft.wav（cueId="bottle:soft"），
+            // 此处仅在无 audio.ts 分轨（如排演直接注入且未经过 ingestEvents）时兜底，避免重复播两声软土音
+            const audioKey = "r" + ctx.events.roomSessionId + ":cp" + ctx.events.checkpoint + ":t" + ev.tick + ":s" + ev.seq + ":bottleLanded";
+            if (!ctx.audio.hasPlayed(audioKey)) {
                 const key = "fe04:village:soft_thud:" + ctx.events.roomSessionId + ":" + ev.tick + ":" + ev.seq;
                 ctx.audio.playOnce(
                     key,

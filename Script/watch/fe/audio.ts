@@ -34,17 +34,30 @@ interface ActiveLoop {
     path: string;
     volume: number;
     source: AudioSource.Type | undefined;
+    handler: number | undefined;
 }
 
 const ALL_TRACKS: AudioTrack[] = ["voice", "wind", "water", "ambience", "sfx"];
 const MAX_PLAY_LOG = 256;
+/** 空村铁盆段内 X（与 village_undertable.ts VILLAGE_BASIN_OFFSET_X = 548 保持单一真源对齐） */
+const VILLAGE_BASIN_OFFSET_X = 548;
+const VILLAGE_BASIN_HIT_RADIUS = 24;
+const VILLAGE_SOFT_HIT_RADIUS = 34;
 
 function clamp01(v: number): number {
     return Math.max(0, Math.min(1, v));
 }
 
+/**
+ * Dora SSR Lua 运行时中，AudioBus / AudioSource 为带 __call 元表的可调用表（type 为 "table" 而非 "function"）。
+ * 统一以 isCallableCtor 判定，避免 5 条逻辑音轨总线与循环声源在实机下退化失效。
+ */
+function isCallableCtor(ctor: unknown): boolean {
+    return ctor !== undefined && (typeof ctor === "function" || typeof ctor === "object");
+}
+
 function safeCreateBus(): AudioBus.Type | undefined {
-    if (typeof AudioBus === "function") {
+    if (isCallableCtor(AudioBus)) {
         return AudioBus();
     }
     return undefined;
@@ -166,15 +179,18 @@ export class AudioDirector {
             this.dedupeSet[dedupeKey] = true;
         }
 
-        const effectiveVol = clamp01(volume) * (this.trackMuted[track] ? 0 : this.trackVolumes[track]);
+        const cueVol = clamp01(volume);
+        const trackGain = this.trackMuted[track] ? 0 : this.trackVolumes[track];
+        const effectiveVol = cueVol * trackGain;
         let playedBackend = false;
 
         if (path !== "" && Content.exist(path)) {
             this.pruneStoppedSources();
             const bus = this.buses[track];
-            const src = typeof AudioSource === "function" ? AudioSource(path, false, bus) : undefined;
+            const src = isCallableCtor(AudioSource) ? AudioSource(path, false, bus) : undefined;
             if (src !== undefined) {
-                src.volume = effectiveVol;
+                // 挂载了独立 AudioBus 时由总线负责分轨增益与静音，声源自身只吃单条 cue 音量，避免重复乘方
+                src.volume = bus !== undefined ? cueVol : effectiveVol;
                 src.looping = false;
                 if (this.hostNode !== undefined) {
                     src.addTo(this.hostNode);
@@ -218,10 +234,12 @@ export class AudioDirector {
     ): boolean {
         const prev = this.activeLoops[loopId];
         const clampedVol = clamp01(volume);
+        const bus = this.buses[track];
+        const trackGain = this.trackMuted[track] ? 0 : this.trackVolumes[track];
         if (prev !== undefined && prev.path === path && prev.track === track) {
             prev.volume = clampedVol;
             if (prev.source !== undefined) {
-                prev.source.volume = clampedVol * (this.trackMuted[track] ? 0 : this.trackVolumes[track]);
+                prev.source.volume = bus !== undefined ? clampedVol : clampedVol * trackGain;
             }
             return false;
         }
@@ -230,18 +248,29 @@ export class AudioDirector {
         }
 
         let source: AudioSource.Type | undefined;
+        let handler: number | undefined;
         let playedBackend = false;
         if (path !== "" && Content.exist(path)) {
-            const bus = this.buses[track];
-            const created = typeof AudioSource === "function" ? AudioSource(path, false, bus) : undefined;
+            const created = isCallableCtor(AudioSource) ? AudioSource(path, false, bus) : undefined;
             if (created !== undefined) {
                 created.looping = true;
-                created.volume = clampedVol * (this.trackMuted[track] ? 0 : this.trackVolumes[track]);
+                created.volume = bus !== undefined ? clampedVol : clampedVol * trackGain;
                 if (this.hostNode !== undefined) {
                     created.addTo(this.hostNode);
                 }
                 playedBackend = created.play();
-                source = created;
+                if (playedBackend) {
+                    source = created;
+                } else {
+                    created.removeFromParent(true);
+                }
+            }
+            if (!playedBackend && typeof Audio !== "undefined" && typeof Audio.play === "function") {
+                const h = Audio.play(path, true);
+                if (h > 0) {
+                    handler = h;
+                    playedBackend = true;
+                }
             }
         }
 
@@ -250,6 +279,7 @@ export class AudioDirector {
             path,
             volume: clampedVol,
             source,
+            handler,
         };
         this.recordLog({
             tick,
@@ -273,6 +303,9 @@ export class AudioDirector {
         if (entry.source !== undefined) {
             entry.source.stop(fadeTime);
             entry.source.removeFromParent(true);
+        }
+        if (entry.handler !== undefined && typeof Audio !== "undefined" && typeof Audio.stop === "function") {
+            Audio.stop(entry.handler);
         }
         delete this.activeLoops[loopId];
     }
@@ -364,7 +397,17 @@ export class AudioDirector {
             return;
         }
         if (e.name === "bottleLanded") {
-            const surface = typeof e.data.surface === "string" ? e.data.surface : "brick";
+            let surface = "brick";
+            if (typeof e.data.surface === "string") {
+                surface = e.data.surface;
+            } else if (p.room.key === "village") {
+                const landX = typeof e.data.x === "number" ? e.data.x : p.bottleLandX;
+                if (Math.abs(landX - (p.ox + VILLAGE_BASIN_OFFSET_X)) <= VILLAGE_BASIN_HIT_RADIUS) {
+                    surface = "iron";
+                } else if (p.room.softX !== undefined && Math.abs(landX - p.room.softX) <= VILLAGE_SOFT_HIT_RADIUS) {
+                    surface = "soft";
+                }
+            }
             const path = surface === "iron"
                 ? "assets/audio/child/bottle_iron.wav"
                 : (surface === "soft" ? "assets/audio/child/bottle_soft.wav" : "assets/audio/child/bottle_brick.wav");
@@ -405,6 +448,25 @@ export class AudioDirector {
             this.playOnce(key, "sfx", "assets/audio/combat/reload_solved.wav", 0.9, "reload:solved:" + eff, e.tick, e.seq);
         } else if (name === "reloadTimeout") {
             this.playOnce(key, "sfx", "assets/audio/combat/reload_timeout.wav", 0.78, "reload:timeout", e.tick, e.seq);
+        } else if (name === "artifactFound") {
+            this.playOnce(key, "sfx", "assets/audio/museum/artifact_pickup.wav", 0.88, "museum:artifact_found", e.tick, e.seq);
+        } else if (name === "museumStep") {
+            const step = typeof e.data.step === "string" ? e.data.step : "";
+            const cnt = typeof e.data.count === "number" ? e.data.count : 1;
+            if (step === "cabinet") {
+                this.playOnce(key, "sfx", "assets/audio/museum/weapon_holster.wav", 0.78, "museum:step:cabinet", e.tick, e.seq);
+            } else if (step === "hall") {
+                this.playOnce(key, "sfx", "assets/audio/museum/child_steps_echo.wav", 0.76, "museum:step:hall", e.tick, e.seq);
+            } else if (step === "lamp") {
+                this.playOnce(key, "sfx", "assets/audio/museum/lamp_turn.wav", 0.82, "museum:step:lamp", e.tick, e.seq);
+            } else if (step === "knock") {
+                const knockPath = cnt >= 2
+                    ? "assets/audio/museum/knock_cabinet_second.wav"
+                    : "assets/audio/museum/knock_hall_first.wav";
+                this.playOnce(key, "sfx", knockPath, 0.90, "museum:step:knock:" + cnt, e.tick, e.seq);
+            }
+        } else if (name === "museumDone") {
+            this.playOnce(key, "voice", "assets/audio/museum/line_dawn.wav", 0.88, "museum:done", e.tick, e.seq);
         }
     }
 

@@ -104,17 +104,19 @@ local inp = newInput()
 print("==== FE-05 北塔双结局同机位配对演出验收开始 ====")
 
 -- ---------------------------------------------------------------- 1. 零冲突挂载与 tower-wait 不抢占
+local beforeCount = #fe:getPlugins()
 local plugin = towerMod.attachTowerEndingsPlugin(fe)
 do
 	local list = fe:getPlugins()
-	check("1.1 在 M1 7 插件基础上零冲突挂载 fe-05",
-		#list == 8 and fe:getPlugin("fe-05-tower-endings") == plugin,
+	check("1.1 在默认插件栈基础上零冲突挂载 fe-05",
+		#list >= 8 and #list <= beforeCount + 1 and fe:getPlugin("fe-05-tower-endings") == plugin,
 		"plugins=" .. tostring(#list))
 	-- 幂等重复挂载不产生重复实例
+	local afterFirst = #list
 	local plugin2 = towerMod.attachTowerEndingsPlugin(fe)
 	plugin = plugin2
 	check("1.2 重复 attachTowerEndingsPlugin 幂等覆盖",
-		#fe:getPlugins() == 8 and fe:getPlugin("fe-05-tower-endings") == plugin)
+		#fe:getPlugins() == afterFirst and fe:getPlugin("fe-05-tower-endings") == plugin)
 
 	local pTower = new(play.Play, rooms.TOWER_ROOM)
 	fe:bindPlay(pTower, 1280, 720)

@@ -108,15 +108,14 @@ do
 		"fe-02-reload-wheel",
 		"fe-02-craft-bench",
 	}
-	local orderOk = (#list == #expectedIds)
-	if orderOk then
-		for idx, eid in ipairs(expectedIds) do
-			if list[idx].id ~= eid then
-				orderOk = false
-				break
-			end
+	-- 兼容 M2+ 追加插件：验证全部 7 枚 M1 插件存在且严格保持原有分层相对顺序
+	local cursor = 1
+	for _, pl in ipairs(list) do
+		if cursor <= #expectedIds and pl.id == expectedIds[cursor] then
+			cursor = cursor + 1
 		end
 	end
+	local orderOk = (#list >= #expectedIds and cursor == #expectedIds + 1)
 	check("1.1 默认构造按优先级注册 7 枚 M1 插件", orderOk, "count=" .. tostring(#list))
 	check("1.2 默认低引导关闭", not fe.contract:isAssistHintsEnabled() and not fe.contract:isRehearsal())
 
