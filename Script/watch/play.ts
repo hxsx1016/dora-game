@@ -111,6 +111,7 @@ export type PlayEventName =
     | "endingReached"
     | "artifactFound"
     | "prologueBeat"
+    | "storyBeat"
     | "museumStep"
     | "museumDone";
 
@@ -424,6 +425,16 @@ export class Play {
     bottleLandT = 0;
     /** 按住 F 的时长（只用于提示与动作反馈，不改变投掷参数）。 */
     aimHold = 0;
+    /** 城外补丁红布车是否已拉开（石阶口露出）。 */
+    private redCartPulled = false;
+    /** 桌下脚步提示的节流拍数。 */
+    private footHintT = 0;
+    /** 是否已提示过暗渠口。 */
+    private ditchHinted = false;
+    /** 入林先走了哪条路：树根窄洞 / 旧渠 / 还没选。 */
+    private forestPath: "burrow" | "ditch" | "" = "";
+    /** 溪湾水里灯是否已看见。 */
+    private waterSeen = false;
     /** 拾荒者位置与状态机。 */
     scavX = 0;
     scavDir = 1;
@@ -956,6 +967,18 @@ export class Play {
         this.escortDone = story.escortDone;
         this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
         this.syncCraftBench();
+        // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口敞开。
+        if (story.segments["outside_cart"] === true) {
+            this.redCartPulled = true;
+            const redBox = this.boxes.find((b) => b.id === "outside_red_cart");
+            if (redBox !== undefined) {
+                redBox.x0 = 300;
+                redBox.x1 = 344;
+            }
+        }
+        this.forestPath = story.segments["forest_burrow"] === true ? "burrow"
+            : story.segments["forest_ditch"] === true ? "ditch" : "";
+        this.waterSeen = story.segments["water_lantern"] === true;
         // 检查点恢复：制前 / 制后各自的库存、装备与背负整份回滚。
         if (this.checkpoint > 0 && story.cp !== undefined && story.cp.id === this.checkpoint) {
             this.applyCheckpointSnap(this.checkpoint);
@@ -2603,6 +2626,7 @@ export class Play {
         if (this.room.key === "village") {
             this.stepScavChase();
         } else if (this.room.key === "forest") {
+            this.stepForestRoute();
             this.stepDog(dt);
             // 走到林缘（1450）就进北塔门口。
             if (this.player.x >= this.ox + 1450) {
@@ -2728,6 +2752,31 @@ export class Play {
         if (Math.abs(this.dogX - dog.x0) < 2) {
             this.dogX = dog.x0;
             this.dogState = "patrol";
+        }
+    }
+
+    /** 入林两路：蹲着进树根窄洞，站着跑旧渠；第一次进入记一条路，之后沿林路走到溪湾。 */
+    private stepForestRoute(): void {
+        const p = this.player;
+        const ox = this.ox;
+        if (this.forestPath === "") {
+            if (p.crouch && p.x >= ox + 300 && p.x <= ox + 380) {
+                this.forestPath = "burrow";
+                this.run.story.segments["forest_burrow"] = true;
+                this.flashSet("树根窄洞 · 蹲着钻过去", 1.5);
+                this.emit("storyBeat", { beat: "path_burrow", x: p.x, room: "forest" });
+            } else if (!p.crouch && p.x >= ox + 700 && p.x <= ox + 790) {
+                this.forestPath = "ditch";
+                this.run.story.segments["forest_ditch"] = true;
+                this.flashSet("旧渠 · 顺着渠底跑", 1.5);
+                this.emit("storyBeat", { beat: "path_ditch", x: p.x, room: "forest" });
+            }
+        }
+        if (!this.waterSeen && p.x >= ox + 1180 && p.x <= ox + 1260) {
+            this.waterSeen = true;
+            this.run.story.segments["water_lantern"] = true;
+            this.flashSet("溪湾 · 水里那盏灯，和塔上一个方向", 1.8);
+            this.emit("storyBeat", { beat: "water_lantern", x: p.x, room: "forest" });
         }
     }
 
@@ -3793,8 +3842,40 @@ export class Play {
         this.emit("gateFailed", { failCount: this.gateFailCount, hp: 0, maxHp: this.maxHp });
     }
 
+    /** 城外：补丁红布车斜停在石阶口，点一次 E 把它拉开，台面到石阶的路才通。 */
+    private stepRedCart(input: Input): void {
+        if (this.room.key !== "outside" || this.redCartPulled) {
+            return;
+        }
+        const box = this.boxes.find((b) => b.id === "outside_red_cart");
+        if (box === undefined) {
+            this.redCartPulled = true;
+            return;
+        }
+        const cx = (box.x0 + box.x1) * 0.5;
+        const p = this.player;
+        if (Math.abs(p.x - cx) > 70 || Math.abs(p.y - 96) > 26) {
+            return;
+        }
+        if (!input.interact.pressed) {
+            return;
+        }
+        box.x0 = 430;
+        box.x1 = 474;
+        // 这辆车原本也堵着台面下的墙根小路：拉开后整辆车挪到空窝，下层一起放开。
+        this.cartAxle = this.room.cart.endX;
+        this.cartDocked = true;
+        this.redCartPulled = true;
+        if (this.run.story !== undefined) {
+            this.run.story.segments["outside_cart"] = true;
+        }
+        this.flashSet("拉开红布车 · 石阶口露出来", 1.6);
+        this.emit("storyBeat", { beat: "red_cart", x: p.x, room: "outside" });
+    }
+
     private stepInteract(dt: number, input: Input): void {
         const p = this.player;
+        this.stepRedCart(input);
         const calmUsed = this.calmConsumed;
         this.calmConsumed = false;
         // 安抚从进入到第 59 拍占用动作：期间 E/D 不抓车、不推车、不转通用敲击。
@@ -3942,10 +4023,31 @@ export class Play {
             this.passed = true;
             this.flashSet("过了第一院 · 通行线 440", 1.4);
         }
+        // 桌下听脚步：蹲在桌板下时，拾荒者的脚步会随距离变近或变远。
+        const underTable = p.crouch && p.x >= this.ox + 304 && p.x <= this.ox + 416;
+        if (underTable) {
+            this.footHintT -= 1;
+            if (this.footHintT <= 0) {
+                this.footHintT = 90;
+                const scavX = this.scavX;
+                const near = Math.abs(scavX - p.x) < 120;
+                const heard = near || this.scavState === "walk" || this.scavState === "chase";
+                this.flashSet(heard ? "桌下 · 脚步近了，别出声" : "桌下 · 脚步远了，趁现在钻", 1.2);
+                this.emit("storyBeat", { beat: near ? "footstep_near" : "footstep_far", x: p.x, room: "village" });
+            }
+        } else {
+            this.footHintT = 0;
+        }
+        // 暗渠口：过了第一院、走到 560 就先给蹲下的提示，再钻出到林边。
+        if (this.passed && !this.ditchHinted && p.x >= this.ox + 560) {
+            this.ditchHinted = true;
+            this.flashSet("暗渠口 · 蹲下钻过去", 1.4);
+            this.emit("storyBeat", { beat: "ditch", x: p.x, room: "village" });
+        }
         // 过了第一院、走到院墙前就进北塔森林。
         if (this.passed && p.x >= this.ox + 640) {
             this.requestRoom("forest", "过第一院出院");
-            this.flashSet("出院 · 北塔森林", 1.4);
+            this.flashSet("钻出暗渠 · 北塔森林", 1.4);
         }
     }
 

@@ -333,6 +333,8 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { y: 64, x0: 820, x1: 940 },
     ],
     solids: [
+        // 补丁红布车：原本斜停在石阶口，挡住台面下行的路；点一次 E 拉开后石阶口才露出来。
+        { x: 96, w: 44, h: 34, y: 96, id: "outside_red_cart", label: "补丁红布车 · 挡住石阶口" },
         // 城墙基座：只占 96 以上，挡住台面上的玩家；下层 0–96 是通的，墙根小路就从下面穿过去。
         { x: 512, w: 88, h: 134, y: 96, label: "台面右端城墙 · 下层可通" },
         { x: 0, w: 40, h: 96, y: 0, label: "街口" },
@@ -363,7 +365,8 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { x: 1120, y: 64, kind: 6, label: "塔灯 1120" },
     ],
     dims: [
-        { x0: 304, x1: 432, text: "拉车 128 · 右柄 E+D" },
+        { x0: 96, x1: 140, text: "红布车 · E 拉开" },
+        { x0: 304, x1: 432, text: "空窝 128 · 右柄 E+D" },
         { x0: 128, x1: 512, text: "台面 384" },
         { x0: 280, x1: 360, text: "拱 80" },
         { x0: 600, x1: 1240, text: "墙根 640" },
@@ -393,6 +396,7 @@ export const VILLAGE_ROOM: RoomSpec = {
         { x0: 256, x1: 288, y: 0, h: 6, tint: 2, label: "软土 272" },
         { x0: 440, x1: 448, y: 0, h: 120, tint: 4, label: "通行线 440" },
         { x0: 592, x1: 624, y: 0, h: 6, tint: 3, label: "砖地 608" },
+        { x0: 560, x1: 640, y: 0, h: 6, tint: 1, label: "暗渠口 560–640 · 蹲下钻" },
     ],
     arch: { x0: 304, x1: 416, y: 0, h: 44, label: "桌下 304–416 · 净高 44" },
     stairs: [],
@@ -401,11 +405,13 @@ export const VILLAGE_ROOM: RoomSpec = {
     marks: [
         { x: 608, y: 0, kind: 5, label: "砖地落点 608" },
         { x: 440, y: 0, kind: 4, label: "通行线 440" },
+        { x: 600, y: 0, kind: 1, label: "暗渠口 600" },
     ],
     dims: [
         { x0: 96, x1: 128, text: "瓶架" },
         { x0: 304, x1: 416, text: "桌下 112" },
         { x0: 464, x1: 512, text: "巡逻 48" },
+        { x0: 560, x1: 640, text: "暗渠 80" },
     ],
     scavenger: {
         x0: 464,
@@ -665,6 +671,9 @@ export const FOREST_ROOM: RoomSpec = {
         { x: 1560, w: 40, h: 160, y: 0, label: "林缘 1560" },
     ],
     zones: [
+        { x0: 300, x1: 380, y: 0, h: 6, tint: 2, label: "树根窄洞 300–380 · 蹲行" },
+        { x0: 700, x1: 790, y: 0, h: 6, tint: 3, label: "旧渠 700–790 · 可跑" },
+        { x0: 1180, x1: 1260, y: 0, h: 6, tint: 1, label: "溪湾 1180–1260 · 水里灯" },
         { x0: 1400, x1: 1470, y: 0, h: 6, tint: 4, label: "林边 1400–1470" },
     ],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -677,9 +686,12 @@ export const FOREST_ROOM: RoomSpec = {
     marks: [
         { x: 1450, y: 0, kind: 0, label: "林边安全点 1450" },
         { x: 620, y: 0, kind: 3, label: "矮台 620" },
+        { x: 1220, y: 0, kind: 6, label: "溪湾水里灯 1220" },
     ],
     dims: [
-        { x0: 700, x1: 790, text: "草 90" },
+        { x0: 300, x1: 380, text: "窄洞 80 · 蹲" },
+        { x0: 700, x1: 790, text: "旧渠 90 · 跑" },
+        { x0: 1180, x1: 1260, text: "溪湾 80" },
         { x0: 1400, x1: 1470, text: "林边 70" },
     ],
     story: { dog: { x0: 620, x1: 780, speed: 56, range: 300 } },
