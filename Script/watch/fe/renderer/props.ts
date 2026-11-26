@@ -52,7 +52,7 @@ export class PropsRenderer {
         for (const pickup of p.pickups) {
             // 兼容包含 B2 工台材料的游戏分支。
             const kind: string = pickup.kind;
-            if (pickup.id === "" || (kind !== "wood" && kind !== "bell")) {
+            if (pickup.id === "" || p.run.taken[pickup.id] || (kind !== "wood" && kind !== "bell")) {
                 continue;
             }
             const depth = pickup.depth ?? 0;

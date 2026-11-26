@@ -149,6 +149,11 @@ r6.story.cp = { id = 0 }
 r6.inventory.wood = 2; r6.taken["e2_wood_a"] = true; r6.finished = true
 local towerEnd = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, r6)
 towerEnd.phase = "tower-end"
+tap(i1, "interact"); towerEnd:update(play.STEP, i1); i1.interact.pressed = false
+check("片尾尚未播完时 E 不切房", towerEnd.wantRoom == "")
+for _ = 1, play.TOWER_CONFIRM_TICKS do towerEnd:update(play.STEP, i1) end
+check("片尾长按不会自动再玩", towerEnd.wantRoom == "")
+i1.interact.held = false
 tap(i1, "interact"); towerEnd:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false
 check("片尾按 E 请求回序章", towerEnd.wantRoom == "prologue", "want=" .. towerEnd.wantRoom)
 check("片尾标记重开局内", towerEnd.restartStory == true)

@@ -356,6 +356,7 @@ check("落幕事件只一次", #pt.events >= 1 and pt.run.finished == true, "fin
 local endEvents = 0
 for _, ev in ipairs(pt.events) do if ev.name == "endingReached" then endEvents = endEvents + 1 end end
 check("endingReached 恰一次", endEvents == 1, "count=" .. endEvents)
+step(pt, it, play.TOWER_CONFIRM_TICKS - (12 + 30 + 180) - 1)
 tap(it, "interact"); step(pt, it)
 check("片尾 E 再玩回序章", pt.wantRoom == "prologue", "wantRoom=" .. pt.wantRoom)
 check("再玩不改结局", pt.run.story.ending == "reunion", "ending=" .. pt.run.story.ending)

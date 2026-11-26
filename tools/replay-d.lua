@@ -193,6 +193,14 @@ local function clearFoes(p)
 end
 
 -- 正式入口：标题「开始游戏」调用的同一入口函数 watch.fe.startStory()
+-- 回放全程用隔离档案：绝不读写玩家 watch-save/archive.txt。
+do
+	local wf = package.loaded["watch.fe"]
+	if wf ~= nil and wf.useTestSave ~= nil then
+		wf.useTestSave("watch-save/test-replay-d.txt")
+	end
+end
+
 local function officialEntry(tag)
 	local wf = package.loaded["watch.fe"]
 	if wf == nil or wf.startStory == nil then
@@ -207,19 +215,42 @@ end
 -- 序章 → 街口：真实按方向键绕过石柱，走近小满按 E 递针套，再跟到门口。
 local function prologueOut(p, i, tag)
 	print(string.format("[%s 序章] phase=%s 控=%s", tag, p.phase, p.childMode and "小满" or "周戍"))
-	toDepth(p, i, 32, 40)          -- 切 upper 绕石柱（110 w38 h84）与倒柜（152-250）
-	print(string.format("  [序章] 切道后 depth=%.1f x=%.1f y=%.1f", p.player.depth, p.player.x, p.player.y))
-	walkTo(p, i, p.ox + 285, 300)  -- 先走过倒柜右缘（250）
-	print(string.format("  [序章] 过倒柜后 depth=%.1f x=%.1f", p.player.depth, p.player.x))
-	toDepth(p, i, 0, 60)           -- 离开倒柜 x 范围后回到 middle，才能同深度交互
-	walkTo(p, i, p.ox + 285, 120)
-	print(string.format("  [序章] 交互前 x=%.1f 小满=%.1f depth=%.1f/%.1f phase=%s",
-		p.player.x, p.partner.x, p.player.depth, p.partner.depth, p.phase))
-	tap(i.interact)
-	step(p, i)
-	rel(i.interact)
-	steps(p, i, 70)                -- prologue-give 12/36 闪、60 拍转 follow
-	print(string.format("[%s 序章] 递针套后 phase=%s", tag, p.phase))
+	-- P01 叫醒 4s + P02 墙影 2s：演出锁控，等它自己过去。
+	if p.phase == "prologue-wake" or p.phase == "prologue-shadow" then
+		local guard = 0
+		while (p.phase == "prologue-wake" or p.phase == "prologue-shadow") and guard < 420 do
+			step(p, i); guard = guard + 1
+		end
+		print(string.format("  [序章] 演出后 phase=%s", p.phase))
+	end
+	-- 限时逃柜：控制权已交给门口的小满，按右跑到倒柜左缘。
+	if p.phase == "prologue-escape" then
+		toDepth(p, i, 32, 40)        -- 贴里道绕石柱（110-148 高 84 只挡 lower/middle）
+		i.moveX = 1
+		local guard = 0
+		while p.phase == "prologue-escape" and guard < 480 do
+			step(p, i); guard = guard + 1
+		end
+		i.moveX = 0
+		print(string.format("  [序章] 逃柜后 phase=%s x=%.1f 剩=%.1f 重试=%d",
+			p.phase, p.player.x, p.escapeRemaining, p.escapeRetryCount))
+	end
+	if p.phase == "prologue-hide" then
+		steps(p, i, 60)            -- 0.85s 收红晕/脚步，随后切回周戍
+		print(string.format("  [序章] 入柜后 phase=%s 控=%s 小满=%.1f",
+			p.phase, p.childMode and "小满" or "周戍", p.partner.x))
+	end
+	if p.phase == "prologue-wait" then
+		walkTo(p, i, p.ox + 285, 120)
+		toDepth(p, i, 0, 40)
+		print(string.format("  [序章] 交互前 x=%.1f 小满=%.1f depth=%.1f/%.1f",
+			p.player.x, p.partner.x, p.player.depth, p.partner.depth))
+		tap(i.interact)
+		step(p, i)
+		rel(i.interact)
+		steps(p, i, 70)            -- prologue-give 12/36 闪、60 拍转 follow
+		print(string.format("[%s 序章] 递针套后 phase=%s", tag, p.phase))
+	end
 	walkTo(p, i, p.ox + 700, 400)
 	steps(p, i, 30)
 	if p.wantRoom ~= "" then
