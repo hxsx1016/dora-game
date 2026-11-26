@@ -39,6 +39,10 @@ export const GATE_HAND_TICKS = 36;
 export const GATE_ROUTE_PERCENT = 80;
 export const TOWER_CONFIRM_TICKS = 480;
 const TOWER_REGISTER_TICKS = 180;
+/** 值夜室桌前长按 E 的生效拍数（0.6 秒，与城门牵手同节奏）。 */
+const TOWER_HANDOVER_TICKS = 36;
+/** 跨过门槛的段内 x（门廊 400–490、值夜室 490–700）。 */
+const TOWER_THRESHOLD_X = 500;
 
 // —— 共同序章：P01 叫醒 → P02 墙影 → 限时逃柜 → 入柜 → P03 递针套 ——
 /** P01 黑场听父亲唤「小满」到睁眼落稳：4 秒 = 240 拍。 */
@@ -537,6 +541,10 @@ export class Play {
     museumReturn = false;
     /** 北塔登记簿两行：第一行一律小满，第二行团圆线周戍、单人线留白。 */
     endingLines: string[] = ["", ""];
+    /** 北塔门廊：守卒回叩后门板让开；跨门槛 → 值夜室桌前长按 E 交物。 */
+    towerDoorOpen = false;
+    towerHanded = false;
+    deskHold = 0;
 
     // —— 第三段工台与武器 ——
     /** 已装备的武器 id；标准铳之外由工台改制。 */
@@ -987,6 +995,22 @@ export class Play {
         if (this.room.key === "tower" && story.route === "soldier") {
             this.carryOn = false;
             this.run.story.carry = false;
+        }
+        // 北塔门廊/值夜室：门开、交物与中途阶段可续读。
+        if (this.room.key === "tower") {
+            if (story.segments["tower_door"] === true) {
+                this.openTowerDoor();
+            }
+            this.towerHanded = story.segments["tower_handover"] === true;
+            this.deskHold = 0;
+            if (story.phase === "tower-enter" || story.phase === "tower-desk" || story.phase === "tower-given") {
+                this.phase = story.phase;
+                this.phaseTick = 0;
+                if (story.phase === "tower-desk" || story.phase === "tower-given") {
+                    this.player.x = this.ox + 605;
+                    this.player.y = 0;
+                }
+            }
         }
         // 序章：从正式入口重开时重播 P01/P02；已递针套/已跟随的续读直接从对应段起。
         if (this.room.key === "prologue") {
@@ -1854,7 +1878,7 @@ export class Play {
         if (this.room.key === "gate" && (this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
             return true;
         }
-        if (this.room.key === "tower" && this.phase !== "tower-wait") {
+        if (this.room.key === "tower" && (this.phase === "tower-knock" || this.phase === "tower-given")) {
             return true;
         }
         if (this.room.key === "museum" && this.phase === "museum-knock") {
@@ -2393,6 +2417,13 @@ export class Play {
                 s.phaseTick = this.phaseTick;
             }
         }
+        if (this.room.key === "tower") {
+            // 北塔：门廊/值夜室的中途阶段可续读；片尾不写，避免重进直接跳结局。
+            if (this.phase === "tower-enter" || this.phase === "tower-desk" || this.phase === "tower-given") {
+                s.phase = this.phase;
+                s.phaseTick = this.phaseTick;
+            }
+        }
     }
 
     /** 同行段：牵手走到高石阶，蹲下把她背起来，再走进第一间护送房。 */
@@ -2526,6 +2557,16 @@ export class Play {
         }
     }
 
+    private openTowerDoor(): void {
+        this.towerDoorOpen = true;
+        for (let i = 0; i < this.boxes.length; i++) {
+            if (this.boxes[i].id === "tower_door") {
+                this.boxes[i].hidden = true;
+            }
+        }
+        this.run.story.segments["tower_door"] = true;
+    }
+
     private stepTower(dt: number, input: Input): void {
         const t = this.room.story === undefined ? undefined : this.room.story.tower;
         if (t === undefined) {
@@ -2538,7 +2579,7 @@ export class Play {
                 this.phaseTick = 0;
                 this.knocks = 1;
                 this.emit("knock", { count: 1, x: this.player.x, room: "tower" });
-                this.flashSet("敲一下", 0.6);
+                this.flashSet("叩两下 · 第一声", 0.6);
             }
             return;
         }
@@ -2547,11 +2588,49 @@ export class Play {
             if (this.phaseTick === 12) {
                 this.knocks = 2;
                 this.emit("knock", { count: 2, x: this.player.x, room: "tower" });
-                this.flashSet("敲两下 · 第二声", 1.0);
+                this.flashSet("门里回叩两下 · 守卒应门", 1.2);
             } else if (this.phaseTick >= t.knockTicks) {
+                this.openTowerDoor();
+                this.phase = "tower-enter";
+                this.phaseTick = 0;
+                this.emit("storyBeat", { beat: "tower_door", x: this.player.x, item: "" });
+                this.flashSet("门开了 · 跨过门槛", 1.4);
+            }
+            return;
+        }
+        if (this.phase === "tower-enter") {
+            if (this.player.x >= this.ox + TOWER_THRESHOLD_X) {
+                this.phase = "tower-desk";
+                this.phaseTick = 0;
+                this.emit("storyBeat", { beat: "tower_threshold", x: this.player.x, item: "" });
+                this.flashSet("跨过门槛 · 值夜室", 1.2);
+            }
+            return;
+        }
+        if (this.phase === "tower-desk") {
+            const deskX = this.ox + 605;
+            const near = Math.abs(this.player.x - deskX) <= 80 && this.player.y < 20;
+            if (!near || !input.interact.held) {
+                this.deskHold = 0;
+                return;
+            }
+            this.deskHold += 1;
+            if (this.deskHold === 12) {
+                this.flashSet("针套 · 放在桌上", 1.0);
+            } else if (this.deskHold === 24) {
+                this.flashSet("指南针 · 压住纸条", 1.0);
+            } else if (this.deskHold >= TOWER_HANDOVER_TICKS) {
+                this.towerHanded = true;
+                this.deskHold = 0;
+                this.run.story.segments["tower_handover"] = true;
                 this.phase = "tower-given";
                 this.phaseTick = 0;
-                this.flashSet("门开了 · 提灯", 1.4);
+                this.emit("storyBeat", {
+                    beat: "tower_handover",
+                    x: this.player.x,
+                    item: "针套、指南针、纸条",
+                });
+                this.flashSet("三样都放在桌上 · 看登记簿", 1.6);
             }
             return;
         }
@@ -2605,8 +2684,7 @@ export class Play {
             return;
         }
         this.phaseTick += 1;
-        const endingTicks = t.knockTicks + TOWER_REGISTER_TICKS + this.phaseTick;
-        if (endingTicks >= TOWER_CONFIRM_TICKS && (input.interact.pressed || input.retry.pressed)) {
+        if (input.interact.pressed || input.retry.pressed) {
             // 回序章要重开一份局内状态（清路线、材料、拾取、检查点），但档案仍共享同一份。
             this.restartStory = true;
             this.requestRoom("prologue", "片尾再玩");
@@ -4802,6 +4880,10 @@ export class Play {
                 parts.push("门前 " + Math.round(Math.abs(p.x - this.doorXOf())));
             } else if (this.phase === "tower-knock") {
                 parts.push("敲 " + this.phaseTick + " 拍");
+            } else if (this.phase === "tower-enter") {
+                parts.push("跨门槛 " + Math.round(p.x - (this.ox + TOWER_THRESHOLD_X)));
+            } else if (this.phase === "tower-desk") {
+                parts.push("交物 " + this.deskHold + "/" + TOWER_HANDOVER_TICKS);
             } else if (this.phase === "tower-given") {
                 parts.push("递交 " + this.phaseTick);
             } else {

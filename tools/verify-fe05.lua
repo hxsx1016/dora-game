@@ -173,15 +173,25 @@ do
 	check("3.2 Live tower-knock 第 12 拍精确对齐 knock2",
 		stK2.knockCount == 2 and k2Cnt == 1 and k2Be == 1)
 
-	-- 推进完 tower-knock (剩余 24 拍) 进入 tower-given，门内回叩两声与开门声各响 1 次
+	-- 推进完 tower-knock (剩余 24 拍)：门内回叩两声与开门声各响 1 次，进入跨门槛阶段
 	stepFrames(25, DT, p, inp, fe, true)
 	local stOpen = plugin:getDebugState()
 	local r1Cnt, r1Be = countCue(fe.audio, "tower:reply:1")
 	local r2Cnt, r2Be = countCue(fe.audio, "tower:reply:2")
 	local openCnt, openBe = countCue(fe.audio, "tower:door_open")
-	check("3.3 门内回叩两声与开门对齐 tower-given 起点",
-		p.phase == "tower-given" and stOpen.doorOpened
+	check("3.3 门内回叩两声与开门对齐 tower-enter 起点",
+		p.phase == "tower-enter" and stOpen.doorOpened
 		and r1Cnt == 1 and r1Be == 1 and r2Cnt == 1 and r2Be == 1 and openCnt == 1 and openBe == 1)
+
+	-- 跨过门槛、走到值夜桌前长按 E 交出针套/指南针/纸条，进入 tower-given
+	p.player.x = p.ox + 605
+	p.player.y = 0
+	inp.interact.held = true
+	stepFrames(1, DT, p, inp, fe, true)
+	stepFrames(36, DT, p, inp, fe, true)
+	inp.interact.held = false
+	check("3.3b 桌前长按交物进入 tower-given", p.phase == "tower-given" and p.towerHanded == true,
+		"phase=" .. p.phase .. " handed=" .. tostring(p.towerHanded))
 
 	-- 松开敲门旧按键后继续推进至 tower-end (180 拍后)，确认演出无缝延续至 8 秒而不截断
 	inp.interact.held = false

@@ -158,12 +158,21 @@ moveTo(t, i, t.ox + 420, 40)
 tap(i, "interact")
 step(t, i, 4)
 check("6.1 塔门敲两下", t.knocks >= 1 or t.phase == "tower-knock", string.format("phase=%s knocks=%d", t.phase, t.knocks))
-for _ = 1, 240 do
+rel(i, "interact")
+step(t, i, 40)
+check("6.2 门开 · 跨过门槛", (t.phase == "tower-enter" or t.phase == "tower-desk") and t.towerDoorOpen,
+	string.format("phase=%s open=%s", t.phase, tostring(t.towerDoorOpen)))
+moveTo(t, i, t.ox + 605, 240)
+print(string.format("[dbg tower] x=%.1f phase=%s open=%s", t.player.x - t.ox, t.phase, tostring(t.towerDoorOpen)))
+i.interact.held = true
+step(t, i, 36)
+i.interact.held = false
+for _ = 1, 220 do
 	t:update(play.STEP, i)
 	for _, k in ipairs({ "jump", "crouch", "interact", "aim", "fire" }) do i[k].pressed = false; i[k].released = false end
 	if t.phase == "tower-end" then break end
 end
-check("6.2 小满单人线落下留灯结局", t.phase == "tower-end" and t.endingLines[1] == "小满" and t.endingLines[2] == "",
+check("6.3 小满单人线落下留灯结局", t.phase == "tower-end" and t.endingLines[1] == "小满" and t.endingLines[2] == "",
 	string.format("phase=%s lines=%s/%s", t.phase, t.endingLines[1], t.endingLines[2]))
 
 print(string.format("小满单人线走位：%d 通过 / %d 失败", pass, fail))

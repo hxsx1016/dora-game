@@ -654,19 +654,47 @@ function ____exports.deriveWorldPrompt(p) -- 481
 			x = tower.doorX, -- 628
 			y = 96, -- 628
 			keyTag = "E", -- 628
-			label = "敲门", -- 628
+			label = "敲两下 · 守卒应门", -- 628
 			urgent = false -- 628
 		} -- 628
 	end -- 628
-	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 628
-		return { -- 633
-			x = player.x, -- 634
-			y = player.y + player.depth + player.h + 25, -- 634
-			keyTag = "按住 Shift", -- 635
-			label = "贴靠掩体", -- 635
-			urgent = gate ~= nil -- 635
-		} -- 635
-	end -- 635
-	return nil -- 638
+	if p.phase == "tower-enter" then -- 628
+		return { -- 631
+			x = 605, -- 631
+			y = 64, -- 631
+			keyTag = "→", -- 631
+			label = "跨过门槛 · 走到值夜桌前", -- 631
+			urgent = false -- 631
+		} -- 631
+	end -- 631
+	if p.phase == "tower-desk" then -- 631
+		return { -- 634
+			x = 605, -- 635
+			y = 64, -- 635
+			keyTag = "按住 E", -- 635
+			label = "交出针套、指南针和纸条", -- 635
+			progress = p.deskHold / 36, -- 636
+			urgent = true -- 636
+		} -- 636
+	end -- 636
+	if p.phase == "tower-given" then -- 636
+		return { -- 640
+			x = 605, -- 640
+			y = 64, -- 640
+			keyTag = "", -- 640
+			label = "看登记簿 · 西窗的灯", -- 640
+			urgent = false -- 640
+		} -- 640
+	end -- 640
+	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 640
+		return { -- 645
+			x = player.x, -- 646
+			y = player.y + player.depth + player.h + 25, -- 646
+			keyTag = "按住 Shift", -- 647
+			label = "贴靠掩体", -- 647
+			urgent = gate ~= nil -- 647
+		} -- 647
+	end -- 647
+	return nil -- 650
 end -- 481
 return ____exports -- 481

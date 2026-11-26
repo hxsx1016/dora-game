@@ -625,7 +625,19 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
 
     const tower = room.story?.tower;
     if (p.phase === "tower-wait" && tower !== undefined && Math.abs(player.x - tower.doorX) <= 50) {
-        return { x: tower.doorX, y: 96, keyTag: "E", label: "敲门", urgent: false };
+        return { x: tower.doorX, y: 96, keyTag: "E", label: "敲两下 · 守卒应门", urgent: false };
+    }
+    if (p.phase === "tower-enter") {
+        return { x: 605, y: 64, keyTag: "→", label: "跨过门槛 · 走到值夜桌前", urgent: false };
+    }
+    if (p.phase === "tower-desk") {
+        return {
+            x: 605, y: 64, keyTag: "按住 E", label: "交出针套、指南针和纸条",
+            progress: p.deskHold / 36, urgent: true,
+        };
+    }
+    if (p.phase === "tower-given") {
+        return { x: 605, y: 64, keyTag: "", label: "看登记簿 · 西窗的灯", urgent: false };
     }
 
     if (room.key !== "prologue" && !p.childMode && p.coverNear && !p.coverHug && !p.gripping &&
