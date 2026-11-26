@@ -529,7 +529,7 @@ export class Play {
     /** 检查点快照：制前 / 制后各自恢复库存、装备与背负。 */
     private checkpointSnap: CheckpointSnap | undefined;
     /** 本段地上的掉落物（房间自带 + 敌人掉落）。 */
-    pickups: PickupSpec[] = [];
+    pickups: Readonly<PickupSpec>[] = [];
     /** 装填剩余拍；>0 时不能开火。 */
     reloadT = 0;
     /** 架在暴露轨段的残盾。 */
@@ -1107,12 +1107,6 @@ export class Play {
             if (this.run.props["c2_cart"] !== undefined && this.run.props["c2_cart"].broken) {
                 this.cartAxle = wr.cart.endX;
                 this.cartDocked = true;
-            }
-        }
-        for (i = 0; i < this.pickups.length; i++) {
-            const pk = this.pickups[i];
-            if (this.run.taken[pk.id] === true) {
-                pk.id = "";
             }
         }
         this.log("进入 " + wr.name + " · " + this.run.route);
@@ -2796,21 +2790,20 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.pickups.length; i++) {
             const pk = this.pickups[i];
-            if (pk.id === "" || this.run.taken[pk.id] === true) {
+            if (this.run.taken[pk.id] === true) {
                 continue;
             }
             const sameDepth = overlapsDepth(p.depth, { min: (pk.depth ?? 0) - 10, max: (pk.depth ?? 0) + 10 }, 10);
             const dy = Math.abs((pk.y + (pk.depth ?? 0)) - (p.y + p.depth));
             if (Math.abs(pk.x - p.x) < 44 && dy < 60 && sameDepth) {
                 if (!this.addItem(pk.kind)) {
-                    // 满包不吞物：不记 taken、不清 id，东西还在原地，腾出格位后能再来捡。
+                    // 满包时保留拾取机会，腾出格位后能再来捡。
                     this.flashSet("背包满了 · " + pk.label + " 留在原地", 1.0);
                     this.log("满包拒绝 " + pk.kind);
                     this.emit("pickupRejected", { kind: pk.kind, x: pk.x, y: pk.y });
                     continue;
                 }
                 this.run.taken[pk.id] = true;
-                pk.id = "";
                 this.flashSet("拾取 " + pk.label, 1.0);
                 this.log("拾取 " + pk.kind + " " + pk.label);
                 this.emit("pickup", { kind: pk.kind, x: pk.x, y: pk.y, label: pk.label });
@@ -4921,7 +4914,7 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.pickups.length; i++) {
             const pk = this.pickups[i];
-            if (pk.id === "") {
+            if (this.run.taken[pk.id] === true) {
                 continue;
             }
             const gy = pk.y + (pk.depth ?? 0);
