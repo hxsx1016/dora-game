@@ -506,7 +506,10 @@ export class NarrativeRenderer {
         const sep = " · ";
         const idx = theme.titleZh.indexOf(sep);
         const dotCol = roomKey === "gate" ? PALETTE.rouge : PALETTE.silkLine;
-        if (idx > 0) {
+        if (theme.backdropKey !== undefined) {
+            texts.put("lg", theme.titleZh, cx, cy + 14, toColor(PALETTE.textBright),
+                0.5, 0.5, TextAlign.Center, 1.0, alpha, 0.10);
+        } else if (idx > 0) {
             const leftPart = theme.titleZh.slice(0, idx);
             const rightPart = theme.titleZh.slice(idx + sep.length);
             const lw = visualTextWidth(leftPart, 42);
