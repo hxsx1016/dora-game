@@ -327,10 +327,15 @@ do
 		stepOne(p, inp, fe)
 	end
 	local vstSoft = lpPl:getDebugState(p).village
-	local softCnt, softBe = countCue(fe.audio, "fe04:bottle:soft_thud")
-	check("5.4 砸软土(272)触发消音浮尘与音频",
-		vstSoft.lastSurface == "soft" and vstSoft.softHits == 1 and softCnt == 1 and softBe == 1,
-		string.format("softHits=%d softAudio=%d", vstSoft.softHits, softCnt))
+	local softCnt, softBe = countCue(fe.audio, "bottle:soft")
+	local softFbCnt, softFbBe = countCue(fe.audio, "fe04:bottle:soft_thud")
+	local totalSoft = softCnt + softFbCnt
+	local totalSoftBe = softBe + softFbBe
+	local brickAfterSoft = countCue(fe.audio, "bottle:brick")
+	check("5.4 砸软土(272)触发消音浮尘与音频(不误播砖响)",
+		vstSoft.lastSurface == "soft" and vstSoft.softHits == 1
+		and totalSoft == 1 and totalSoftBe == 1 and brickAfterSoft == 1,
+		string.format("softHits=%d softAudio=%d brickAfter=%d", vstSoft.softHits, totalSoft, brickAfterSoft))
 
 	-- 验证玩家在余振期间可自由蹲伏钻出桌下过暗渠通行线(440)，绝不受动画锁控
 	inp.crouch.held = true
