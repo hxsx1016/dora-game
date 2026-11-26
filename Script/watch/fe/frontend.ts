@@ -300,6 +300,10 @@ export class WatchFrontend {
     /** 菜单态每帧更新与渲染 */
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
+        if (this.screen === "title" && this.boundPlay !== undefined) {
+            this.audio.stopRoomTransient();
+            this.boundPlay = undefined;
+        }
         this.setVisible(true);
         this.clearAll();
         const uiScale = this.resizeInterface(w, h);

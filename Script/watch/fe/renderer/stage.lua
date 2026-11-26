@@ -14,55 +14,55 @@ local depthOrder = ____occlusion.depthOrder -- 9
 local occlusionTint = ____occlusion.occlusionTint -- 9
 local ____theme = require("Script.watch.fe.theme") -- 10
 local PALETTE = ____theme.PALETTE -- 11
-local fillChamferBox = ____theme.fillChamferBox -- 14
-local fillRadialGlow = ____theme.fillRadialGlow -- 16
-local fillVGradRect = ____theme.fillVGradRect -- 17
-local lerpRGBA = ____theme.lerpRGBA -- 18
-local themeOf = ____theme.themeOf -- 19
-local toColor = ____theme.toColor -- 20
+local fillRadialGlow = ____theme.fillRadialGlow -- 15
+local fillVGradRect = ____theme.fillVGradRect -- 16
+local lerpRGBA = ____theme.lerpRGBA -- 17
+local themeOf = ____theme.themeOf -- 18
+local toColor = ____theme.toColor -- 19
 --- 确定性伪随机（避免跨帧闪烁）
-local function hash01(seed) -- 24
-	local x = math.sin(seed * 127.1 + 311.7) * 43758.5453 -- 25
-	return x - math.floor(x) -- 26
-end -- 24
+local function hash01(seed) -- 23
+	local x = math.sin(seed * 127.1 + 311.7) * 43758.5453 -- 24
+	return x - math.floor(x) -- 25
+end -- 23
 --- 根据房间名取一个稳定数值种子
-local function roomSeed(key) -- 30
-	local h = 17 -- 31
-	local i = 0 -- 32
-	do -- 32
-		i = 0 -- 33
-		while i < #key do -- 33
-			h = (h * 31 + __TS__StringCharCodeAt(key, i)) % 9973 -- 34
-			i = i + 1 -- 33
-		end -- 33
-	end -- 33
-	return h -- 36
-end -- 30
-local function coverArt(solid) -- 39
-	if solid.art == "gate_post" or solid.art == "wall" or solid.art == "latch" then -- 39
-		return "wall" -- 41
-	end -- 41
-	if solid.art == "thin_wood" or solid.art == "board" or solid.art == "cover_wood" then -- 41
-		return "cover_wood" -- 44
-	end -- 44
-	if solid.art == "fence" then -- 44
-		return "fence" -- 47
-	end -- 47
-	return ((string.find(solid.label, "柜", nil, true) or 0) - 1 >= 0 or (string.find(solid.label, "货", nil, true) or 0) - 1 >= 0) and "cover_wood" or "cover_stone" -- 49
-end -- 39
-____exports.StageRenderer = __TS__Class() -- 52
-local StageRenderer = ____exports.StageRenderer -- 52
-StageRenderer.name = "StageRenderer" -- 52
-function StageRenderer.prototype.____constructor(self) -- 52
-end -- 52
-function StageRenderer.prototype.drawBackdrop(self, bgDraw, bgGlow, assets, p, cam, time) -- 54
-	local w = cam.viewW -- 62
-	local h = cam.viewH -- 63
-	local theme = themeOf(p.room.key) -- 64
-	local seed = roomSeed(p.room.key) -- 65
-	local span = math.max(1, p.room.maxX - p.room.minX) -- 67
-	local progress = (cam.x - p.room.minX) / span - 0.5 -- 68
-	local farSlot = "bgFar_" .. p.room.key -- 69
+local function roomSeed(key) -- 29
+	local h = 17 -- 30
+	local i = 0 -- 31
+	do -- 31
+		i = 0 -- 32
+		while i < #key do -- 32
+			h = (h * 31 + __TS__StringCharCodeAt(key, i)) % 9973 -- 33
+			i = i + 1 -- 32
+		end -- 32
+	end -- 32
+	return h -- 35
+end -- 29
+local function coverArt(solid) -- 38
+	if solid.art == "gate_post" or solid.art == "wall" or solid.art == "latch" then -- 38
+		return "wall" -- 40
+	end -- 40
+	if solid.art == "thin_wood" or solid.art == "board" or solid.art == "cover_wood" then -- 40
+		return "cover_wood" -- 43
+	end -- 43
+	if solid.art == "fence" then -- 43
+		return "fence" -- 46
+	end -- 46
+	return ((string.find(solid.label, "柜", nil, true) or 0) - 1 >= 0 or (string.find(solid.label, "货", nil, true) or 0) - 1 >= 0) and "cover_wood" or "cover_stone" -- 48
+end -- 38
+____exports.StageRenderer = __TS__Class() -- 51
+local StageRenderer = ____exports.StageRenderer -- 51
+StageRenderer.name = "StageRenderer" -- 51
+function StageRenderer.prototype.____constructor(self) -- 51
+end -- 51
+function StageRenderer.prototype.drawBackdrop(self, bgDraw, bgGlow, assets, p, cam, time) -- 53
+	local w = cam.viewW -- 61
+	local h = cam.viewH -- 62
+	local theme = themeOf(p.room.key) -- 63
+	local seed = roomSeed(p.room.key) -- 64
+	local span = math.max(1, p.room.maxX - p.room.minX) -- 66
+	local progress = (cam.x - p.room.minX) / span - 0.5 -- 67
+	local backdropKey = theme.backdropKey or p.room.key -- 68
+	local farSlot = "bgFar_" .. backdropKey -- 69
 	local artW = math.max(w, h * 16 / 9) + w * 0.12 -- 70
 	local artH = artW * 9 / 16 -- 71
 	if assets:tryPlace( -- 71
@@ -73,7 +73,7 @@ function StageRenderer.prototype.drawBackdrop(self, bgDraw, bgGlow, assets, p, c
 		artW, -- 72
 		artH -- 72
 	) then -- 72
-		self:drawDressing(assets, p, cam, progress) -- 73
+		self:drawDressing(assets, backdropKey, cam, progress) -- 73
 		local y = cam.groundScreenY -- 74
 		fillVGradRect( -- 75
 			bgDraw, -- 75
@@ -221,12 +221,12 @@ function StageRenderer.prototype.drawBackdrop(self, bgDraw, bgGlow, assets, p, c
 		toColor(theme.fogBottom), -- 119
 		Color(theme.fogBottom.r, theme.fogBottom.g, theme.fogBottom.b, 0) -- 120
 	) -- 120
-end -- 54
-function StageRenderer.prototype.drawDressing(self, assets, p, cam, progress) -- 124
+end -- 53
+function StageRenderer.prototype.drawDressing(self, assets, backdropKey, cam, progress) -- 124
 	local w = cam.viewW -- 125
 	local ground = cam.groundScreenY -- 126
 	local x = w * (0.75 - progress * 0.29) -- 127
-	if p.room.key == "forest" or p.room.key == "outside" or p.room.key == "tower" then -- 127
+	if backdropKey == "forest" or backdropKey == "outside" or backdropKey == "tower" then -- 127
 		assets:tryPlace( -- 129
 			"pine", -- 129
 			"mid_pine", -- 129
@@ -236,7 +236,7 @@ function StageRenderer.prototype.drawDressing(self, assets, p, cam, progress) --
 			cam:len(138), -- 129
 			{layer = 1, opacity = 0.52} -- 130
 		) -- 130
-	elseif p.room.key == "prologue" or p.room.key == "village" or p.room.key == "checkpoint" then -- 130
+	elseif backdropKey == "prologue" or backdropKey == "village" or backdropKey == "checkpoint" then -- 130
 		assets:tryPlace( -- 132
 			"eaves", -- 132
 			"mid_eaves", -- 132
@@ -257,7 +257,7 @@ function StageRenderer.prototype.drawDressing(self, assets, p, cam, progress) --
 			{layer = 1, opacity = 0.46} -- 136
 		) -- 136
 	end -- 136
-	if p.room.key == "street" or p.room.key == "checkpoint" or p.room.key == "prologue" then -- 136
+	if backdropKey == "street" or backdropKey == "checkpoint" or backdropKey == "prologue" then -- 136
 		assets:tryPlace( -- 139
 			"prop_lantern", -- 139
 			"mid_lantern", -- 139
@@ -624,13 +624,7 @@ function StageRenderer.prototype.drawPlayableWorld(self, fgDraw, fgGlow, assets,
 			time -- 292
 		) -- 292
 	end -- 292
-	self:drawArch( -- 294
-		fgDraw, -- 294
-		fgGlow, -- 294
-		p, -- 294
-		cam, -- 294
-		theme -- 294
-	) -- 294
+	self:drawArch(fgDraw, p, cam) -- 294
 end -- 277
 function StageRenderer.prototype.drawForegroundFraming(self, fgDraw, w, h, p, cam) -- 298
 	local seed = roomSeed(p.room.key) -- 305
@@ -1304,646 +1298,655 @@ function StageRenderer.prototype.drawSolids(self, fgDraw, fgGlow, assets, p, cam
 				if (string.find(s.label, "绞盘", nil, true) or 0) - 1 >= 0 then -- 739
 					self:drawWinch( -- 744
 						fgDraw, -- 744
-						fgGlow, -- 744
+						assets, -- 744
 						x0, -- 744
 						y0, -- 744
 						sw, -- 744
 						sh, -- 744
-						p, -- 744
-						time -- 744
+						p -- 744
 					) -- 744
-					assets:tryPlace( -- 745
-						"prop_winch", -- 745
-						"gate_winch", -- 745
-						(x0 + x1) * 0.5, -- 745
-						y0 + sh * 0.55, -- 745
-						sw, -- 745
-						sh * 0.78, -- 745
-						{layer = 2} -- 746
-					) -- 746
-					goto __continue81 -- 747
-				end -- 747
-				if p.room.key == "tower" then -- 747
-					self:drawTowerStructure( -- 752
-						fgDraw, -- 752
-						fgGlow, -- 752
-						assets, -- 752
-						x0, -- 752
-						y0, -- 752
-						sw, -- 752
-						sh, -- 752
-						s, -- 752
-						p, -- 752
-						time -- 752
-					) -- 752
-					goto __continue81 -- 753
-				end -- 753
-				if s.h <= 64 and s.y <= 2 then -- 753
-					self:drawCoverBlock( -- 758
-						fgDraw, -- 758
-						fgGlow, -- 758
-						assets, -- 758
-						x0, -- 758
-						y0, -- 758
-						sw, -- 758
-						sh, -- 758
-						s, -- 758
-						p, -- 758
-						theme -- 758
-					) -- 758
-					goto __continue81 -- 759
-				end -- 759
-				fillVGradRect( -- 762
-					fgDraw, -- 762
-					x0, -- 762
-					y0, -- 762
-					sw, -- 762
-					sh, -- 762
-					toColor(PALETTE.steelDark), -- 762
-					toColor(PALETTE.steelMid) -- 762
-				) -- 762
-				self:tileMasonry( -- 763
-					assets, -- 763
-					s, -- 763
-					x0, -- 763
-					y0, -- 763
-					sw, -- 763
-					sh -- 763
-				) -- 763
-			end -- 763
-			::__continue81:: -- 763
+					goto __continue81 -- 745
+				end -- 745
+				if p.room.key == "tower" then -- 745
+					self:drawTowerStructure( -- 750
+						fgDraw, -- 750
+						fgGlow, -- 750
+						assets, -- 750
+						x0, -- 750
+						y0, -- 750
+						sw, -- 750
+						sh, -- 750
+						s, -- 750
+						p, -- 750
+						time -- 750
+					) -- 750
+					goto __continue81 -- 751
+				end -- 751
+				if s.h <= 64 and s.y <= 2 then -- 751
+					self:drawCoverBlock( -- 756
+						fgDraw, -- 756
+						fgGlow, -- 756
+						assets, -- 756
+						x0, -- 756
+						y0, -- 756
+						sw, -- 756
+						sh, -- 756
+						s, -- 756
+						p, -- 756
+						theme -- 756
+					) -- 756
+					goto __continue81 -- 757
+				end -- 757
+				fillVGradRect( -- 760
+					fgDraw, -- 760
+					x0, -- 760
+					y0, -- 760
+					sw, -- 760
+					sh, -- 760
+					toColor(PALETTE.steelDark), -- 760
+					toColor(PALETTE.steelMid) -- 760
+				) -- 760
+				self:tileMasonry( -- 761
+					assets, -- 761
+					s, -- 761
+					x0, -- 761
+					y0, -- 761
+					sw, -- 761
+					sh -- 761
+				) -- 761
+			end -- 761
+			::__continue81:: -- 761
 			i = i + 1 -- 711
 		end -- 711
 	end -- 711
 end -- 699
-function StageRenderer.prototype.drawDepthSolid(self, draw, assets, solid, depth, left, right, cam, theme, opacity) -- 767
-	local width = right - left -- 771
-	local base = cam:sy(solid.y, depth.min) -- 772
-	local top = cam:sy(solid.y + solid.h, depth.min) -- 773
-	local rear = cam:sy(solid.y + solid.h, depth.max) -- 774
-	local slot = coverArt(solid) -- 775
-	local layer = depthOrder(depth.min, 1) -- 776
-	local key = (("depth_solid_" .. tostring(solid.x)) .. "_") .. tostring(depth.min) -- 777
-	local capHeight = rear - top -- 778
-	local center = (left + right) * 0.5 -- 779
-	if solid.art == "gate_post" and depth.min > LANE_DEPTH.middle then -- 779
-		assets:tryPlace( -- 781
-			"slab", -- 781
-			"gate_sill_" .. tostring(solid.x), -- 781
-			center, -- 781
-			cam:sy(solid.y, LANE_DEPTH.middle - 6), -- 781
-			width + cam:len(34), -- 782
-			cam:len(12), -- 782
-			{ -- 782
-				layer = 1, -- 782
-				color = Color(180, 169, 150, 255) -- 782
-			} -- 782
-		) -- 782
-	end -- 782
-	draw:drawEllipse( -- 784
-		Vec2( -- 784
-			center, -- 784
-			base + cam:len(3) -- 784
-		), -- 784
-		width * 0.52, -- 784
-		cam:len(3.5), -- 785
-		Color(13, 12, 16, 123 * opacity) -- 785
-	) -- 785
-	if slot ~= "fence" and capHeight > 1 then -- 785
-		local timber = slot == "cover_wood" -- 787
-		draw:drawRect( -- 788
-			Rect(left, top, width, capHeight), -- 788
-			occlusionTint( -- 788
-				opacity, -- 788
-				timber and Color(79, 63, 50, 239 * opacity) or Color(76, 78, 85, 239 * opacity) -- 789
-			) -- 789
-		) -- 789
-		assets:tryPlace( -- 790
-			timber and "slab" or "wall", -- 790
-			key .. "_top", -- 790
-			center, -- 790
-			top, -- 790
-			width, -- 790
-			capHeight, -- 790
-			{ -- 790
-				layer = layer - 1, -- 791
-				opacity = opacity * 0.92, -- 792
-				color = occlusionTint( -- 793
-					opacity, -- 793
-					timber and Color(162, 126, 96, 255) or Color(158, 157, 156, 255) -- 793
-				) -- 793
-			} -- 793
-		) -- 793
-	end -- 793
-	local rows = slot == "wall" and math.max( -- 796
-		1, -- 796
-		math.ceil(solid.h * 1.25 / solid.w) -- 796
-	) or 1 -- 796
-	local rowHeight = (top - base) / rows -- 797
-	local masonryColor = slot == "wall" and Color(181, 176, 167, 255) or nil -- 798
-	local color = occlusionTint(opacity, masonryColor) -- 799
-	do -- 799
-		local row = 0 -- 800
-		while row < rows do -- 800
-			do -- 800
-				local tileKey = row == 0 and key or (key .. "_row_") .. tostring(row) -- 801
-				if assets:tryPlace( -- 801
-					slot, -- 802
-					tileKey, -- 802
-					center, -- 802
-					base + row * rowHeight, -- 802
-					width, -- 802
-					rowHeight, -- 802
-					{layer = layer, opacity = opacity, color = color, facing = row % 2 == 0 and 1 or -1} -- 802
-				) then -- 802
-					goto __continue94 -- 805
-				end -- 805
-				draw:drawRect( -- 807
-					Rect(left, base, width, top - base), -- 807
-					occlusionTint( -- 808
-						opacity, -- 808
-						toColor(PALETTE.steelMid, 255 * opacity) -- 808
-					), -- 808
-					1, -- 809
-					toColor(theme.groundRim, 150 * opacity) -- 809
-				) -- 809
-				break -- 810
-			end -- 810
-			::__continue94:: -- 810
-			row = row + 1 -- 800
-		end -- 800
-	end -- 800
-end -- 767
-function StageRenderer.prototype.tileMasonry(self, assets, s, x, y, width, height) -- 814
-	local columns = math.max( -- 818
-		1, -- 818
-		math.ceil(s.w / 154) -- 818
-	) -- 818
-	local rows = math.max( -- 819
-		1, -- 819
-		math.ceil(s.h / 100) -- 819
-	) -- 819
-	local tileW = width / columns -- 820
-	local tileH = height / rows -- 821
-	do -- 821
-		local row = 0 -- 822
-		while row < rows do -- 822
-			do -- 822
-				local column = 0 -- 823
-				while column < columns do -- 823
-					assets:tryPlace( -- 824
-						"wall", -- 824
-						(((((("masonry_" .. tostring(s.x)) .. "_") .. tostring(s.y)) .. "_") .. tostring(row)) .. "_") .. tostring(column), -- 824
-						x + (column + 0.5) * tileW, -- 825
-						y + row * tileH, -- 825
-						tileW + 0.5, -- 825
-						tileH + 0.5, -- 825
-						{opacity = 0.86, facing = (row + column) % 2 == 0 and 1 or -1} -- 826
-					) -- 826
-					column = column + 1 -- 823
-				end -- 823
-			end -- 823
-			row = row + 1 -- 822
-		end -- 822
-	end -- 822
-end -- 814
-function StageRenderer.prototype.drawCoverBlock(self, fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, theme) -- 831
-	local slot = coverArt(s) -- 838
-	if not assets:tryPlace( -- 838
-		slot, -- 839
-		"cover_" .. tostring(s.x), -- 839
-		x0 + sw * 0.5, -- 839
-		y0, -- 839
-		sw, -- 839
-		sh, -- 839
-		{layer = 1} -- 839
-	) then -- 839
-		fillVGradRect( -- 840
-			fgDraw, -- 840
-			x0, -- 840
-			y0, -- 840
-			sw, -- 840
-			sh, -- 840
-			toColor(PALETTE.steelDark), -- 840
-			toColor(PALETTE.steelMid) -- 840
-		) -- 840
-		fgDraw:drawSegment( -- 841
-			Vec2(x0, y0 + sh), -- 841
-			Vec2(x0 + sw, y0 + sh), -- 841
-			1.4, -- 841
-			toColor(theme.groundRim) -- 841
-		) -- 841
-	end -- 841
-	if not p.childMode and (p.coverHug or p.coverNear) then -- 841
-		local plx = p.player.x -- 846
-		local nearLeft = math.abs(plx - s.x) < 42 -- 847
-		local nearRight = math.abs(plx - (s.x + s.w)) < 42 -- 848
-		if nearLeft or nearRight then -- 848
-			local edgeX = nearLeft and x0 - 1.5 or x0 + sw + 1.5 -- 850
-			local isWood = slot == "cover_wood" -- 851
-			local col = p.coverHug and (isWood and PALETTE.amberCore or PALETTE.moonPale) or PALETTE.silkDim -- 852
-			fgDraw:drawSegment( -- 853
-				Vec2(edgeX, y0 + 4), -- 853
-				Vec2(edgeX, y0 + sh + 2), -- 853
-				p.coverHug and 2 or 1.2, -- 853
-				toColor(col, p.coverHug and 205 or 120) -- 853
-			) -- 853
-		end -- 853
-	end -- 853
-end -- 831
-function StageRenderer.prototype.drawWinch(self, fgDraw, fgGlow, x0, y0, sw, sh, p, time) -- 858
-	fillChamferBox( -- 864
-		fgDraw, -- 864
-		x0, -- 864
-		y0, -- 864
-		sw, -- 864
-		sh, -- 864
-		8, -- 864
-		toColor(PALETTE.steelMid), -- 864
-		1.5, -- 864
-		toColor(PALETTE.rimSilver, 180) -- 864
-	) -- 864
-	local cx = x0 + sw * 0.5 -- 866
-	local cy = y0 + sh * 0.55 -- 867
-	local r = math.min(sw, sh) * 0.34 -- 868
-	local spin = p.phase == "gate-hold" and time * 1.4 or 0 -- 869
-	fgDraw:drawRing( -- 870
-		Vec2(cx, cy), -- 870
-		r * 0.62, -- 870
-		r, -- 870
-		toColor(PALETTE.steelDark), -- 870
-		1.5, -- 870
-		toColor(PALETTE.rimSilver, 210) -- 870
+function StageRenderer.prototype.drawDepthSolid(self, draw, assets, solid, depth, left, right, cam, theme, opacity) -- 765
+	local width = right - left -- 769
+	local base = cam:sy(solid.y, depth.min) -- 770
+	local top = cam:sy(solid.y + solid.h, depth.min) -- 771
+	local rear = cam:sy(solid.y + solid.h, depth.max) -- 772
+	local slot = coverArt(solid) -- 773
+	local layer = depthOrder(depth.min, 1) -- 774
+	local key = (("depth_solid_" .. tostring(solid.x)) .. "_") .. tostring(depth.min) -- 775
+	local capHeight = rear - top -- 776
+	local center = (left + right) * 0.5 -- 777
+	if solid.art == "gate_post" and depth.min > LANE_DEPTH.middle then -- 777
+		assets:tryPlace( -- 779
+			"slab", -- 779
+			"gate_sill_" .. tostring(solid.x), -- 779
+			center, -- 779
+			cam:sy(solid.y, LANE_DEPTH.middle - 6), -- 779
+			width + cam:len(34), -- 780
+			cam:len(12), -- 780
+			{ -- 780
+				layer = 1, -- 780
+				color = Color(180, 169, 150, 255) -- 780
+			} -- 780
+		) -- 780
+	end -- 780
+	draw:drawEllipse( -- 782
+		Vec2( -- 782
+			center, -- 782
+			base + cam:len(3) -- 782
+		), -- 782
+		width * 0.52, -- 782
+		cam:len(3.5), -- 783
+		Color(13, 12, 16, 123 * opacity) -- 783
+	) -- 783
+	if slot ~= "fence" and capHeight > 1 then -- 783
+		local timber = slot == "cover_wood" -- 785
+		draw:drawRect( -- 786
+			Rect(left, top, width, capHeight), -- 786
+			occlusionTint( -- 786
+				opacity, -- 786
+				timber and Color(79, 63, 50, 239 * opacity) or Color(76, 78, 85, 239 * opacity) -- 787
+			) -- 787
+		) -- 787
+		assets:tryPlace( -- 788
+			timber and "slab" or "wall", -- 788
+			key .. "_top", -- 788
+			center, -- 788
+			top, -- 788
+			width, -- 788
+			capHeight, -- 788
+			{ -- 788
+				layer = layer - 1, -- 789
+				opacity = opacity * 0.92, -- 790
+				color = occlusionTint( -- 791
+					opacity, -- 791
+					timber and Color(162, 126, 96, 255) or Color(158, 157, 156, 255) -- 791
+				) -- 791
+			} -- 791
+		) -- 791
+	end -- 791
+	local rows = slot == "wall" and math.max( -- 794
+		1, -- 794
+		math.ceil(solid.h * 1.25 / solid.w) -- 794
+	) or 1 -- 794
+	local rowHeight = (top - base) / rows -- 795
+	local masonryColor = slot == "wall" and Color(181, 176, 167, 255) or nil -- 796
+	local color = occlusionTint(opacity, masonryColor) -- 797
+	do -- 797
+		local row = 0 -- 798
+		while row < rows do -- 798
+			do -- 798
+				local tileKey = row == 0 and key or (key .. "_row_") .. tostring(row) -- 799
+				if assets:tryPlace( -- 799
+					slot, -- 800
+					tileKey, -- 800
+					center, -- 800
+					base + row * rowHeight, -- 800
+					width, -- 800
+					rowHeight, -- 800
+					{layer = layer, opacity = opacity, color = color, facing = row % 2 == 0 and 1 or -1} -- 800
+				) then -- 800
+					goto __continue94 -- 803
+				end -- 803
+				draw:drawRect( -- 805
+					Rect(left, base, width, top - base), -- 805
+					occlusionTint( -- 806
+						opacity, -- 806
+						toColor(PALETTE.steelMid, 255 * opacity) -- 806
+					), -- 806
+					1, -- 807
+					toColor(theme.groundRim, 150 * opacity) -- 807
+				) -- 807
+				break -- 808
+			end -- 808
+			::__continue94:: -- 808
+			row = row + 1 -- 798
+		end -- 798
+	end -- 798
+end -- 765
+function StageRenderer.prototype.tileMasonry(self, assets, s, x, y, width, height) -- 812
+	local columns = math.max( -- 816
+		1, -- 816
+		math.ceil(s.w / 154) -- 816
+	) -- 816
+	local rows = math.max( -- 817
+		1, -- 817
+		math.ceil(s.h / 100) -- 817
+	) -- 817
+	local tileW = width / columns -- 818
+	local tileH = height / rows -- 819
+	do -- 819
+		local row = 0 -- 820
+		while row < rows do -- 820
+			do -- 820
+				local column = 0 -- 821
+				while column < columns do -- 821
+					assets:tryPlace( -- 822
+						"wall", -- 822
+						(((((("masonry_" .. tostring(s.x)) .. "_") .. tostring(s.y)) .. "_") .. tostring(row)) .. "_") .. tostring(column), -- 822
+						x + (column + 0.5) * tileW, -- 823
+						y + row * tileH, -- 823
+						tileW + 0.5, -- 823
+						tileH + 0.5, -- 823
+						{opacity = 0.86, facing = (row + column) % 2 == 0 and 1 or -1} -- 824
+					) -- 824
+					column = column + 1 -- 821
+				end -- 821
+			end -- 821
+			row = row + 1 -- 820
+		end -- 820
+	end -- 820
+end -- 812
+function StageRenderer.prototype.drawCoverBlock(self, fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, theme) -- 829
+	local slot = coverArt(s) -- 836
+	if not assets:tryPlace( -- 836
+		slot, -- 837
+		"cover_" .. tostring(s.x), -- 837
+		x0 + sw * 0.5, -- 837
+		y0, -- 837
+		sw, -- 837
+		sh, -- 837
+		{layer = 1} -- 837
+	) then -- 837
+		fillVGradRect( -- 838
+			fgDraw, -- 838
+			x0, -- 838
+			y0, -- 838
+			sw, -- 838
+			sh, -- 838
+			toColor(PALETTE.steelDark), -- 838
+			toColor(PALETTE.steelMid) -- 838
+		) -- 838
+		fgDraw:drawSegment( -- 839
+			Vec2(x0, y0 + sh), -- 839
+			Vec2(x0 + sw, y0 + sh), -- 839
+			1.4, -- 839
+			toColor(theme.groundRim) -- 839
+		) -- 839
+	end -- 839
+	if not p.childMode and (p.coverHug or p.coverNear) then -- 839
+		local plx = p.player.x -- 844
+		local nearLeft = math.abs(plx - s.x) < 42 -- 845
+		local nearRight = math.abs(plx - (s.x + s.w)) < 42 -- 846
+		if nearLeft or nearRight then -- 846
+			local edgeX = nearLeft and x0 - 1.5 or x0 + sw + 1.5 -- 848
+			local isWood = slot == "cover_wood" -- 849
+			local col = p.coverHug and (isWood and PALETTE.amberCore or PALETTE.moonPale) or PALETTE.silkDim -- 850
+			fgDraw:drawSegment( -- 851
+				Vec2(edgeX, y0 + 4), -- 851
+				Vec2(edgeX, y0 + sh + 2), -- 851
+				p.coverHug and 2 or 1.2, -- 851
+				toColor(col, p.coverHug and 205 or 120) -- 851
+			) -- 851
+		end -- 851
+	end -- 851
+end -- 829
+function StageRenderer.prototype.drawWinch(self, draw, assets, x0, y0, sw, sh, p) -- 856
+	local cx = x0 + sw * 0.5 -- 862
+	local cy = y0 + sh * 0.55 -- 863
+	local ropeWidth = math.max(1, sw * 0.023) -- 864
+	local ropeTop = Vec2(cx + sw * 0.16, y0 + sh * 2.45) -- 865
+	local drum = Vec2(cx + sw * 0.12, cy + sh * 0.18) -- 866
+	local slack = p.phase == "gate-idle" and sw * 0.09 or 0 -- 867
+	local bend = Vec2((drum.x + ropeTop.x) * 0.5 + slack, (drum.y + ropeTop.y) * 0.5) -- 868
+	draw:drawEllipse( -- 869
+		Vec2(cx, y0), -- 869
+		sw * 0.53, -- 869
+		sh * 0.07, -- 869
+		Color(10, 8, 9, 150) -- 869
+	) -- 869
+	draw:drawSegment( -- 870
+		drum, -- 870
+		bend, -- 870
+		ropeWidth, -- 870
+		Color(111, 86, 57, 239) -- 870
 	) -- 870
-	local k = 0 -- 871
-	do -- 871
-		k = 0 -- 872
-		while k < 6 do -- 872
-			local a = spin + k * math.pi / 3 -- 873
-			fgDraw:drawSegment( -- 874
-				Vec2( -- 875
-					cx + math.cos(a) * r * 0.25, -- 875
-					cy + math.sin(a) * r * 0.25 -- 875
-				), -- 875
-				Vec2( -- 876
-					cx + math.cos(a) * r * 1.05, -- 876
-					cy + math.sin(a) * r * 1.05 -- 876
-				), -- 876
-				2, -- 877
-				toColor(PALETTE.rimSilver, 210) -- 878
-			) -- 878
-			k = k + 1 -- 872
-		end -- 872
-	end -- 872
-	fgDraw:drawSegment( -- 882
-		Vec2(cx, cy + r), -- 882
-		Vec2(cx, y0 + sh + 220), -- 882
-		1.6, -- 882
-		toColor(PALETTE.steelLight, 175) -- 882
-	) -- 882
-	local active = p.phase == "gate-hold" or p.phase == "gate-send" -- 884
-	local lampCol = active and PALETTE.cyan or PALETTE.amber -- 885
-	local pulse = 0.7 + 0.3 * math.sin(time * 5) -- 886
-	fgGlow:drawDot( -- 887
-		Vec2(x0 + sw - 10, y0 + sh - 10), -- 887
-		4, -- 887
-		toColor(lampCol, 240 * pulse) -- 887
-	) -- 887
-	fillRadialGlow( -- 888
-		fgGlow, -- 888
-		x0 + sw - 10, -- 888
-		y0 + sh - 10, -- 888
-		22, -- 888
-		22, -- 888
-		toColor(lampCol, 95 * pulse), -- 888
-		Color(lampCol.r, lampCol.g, lampCol.b, 0), -- 888
-		12 -- 888
-	) -- 888
-end -- 858
-function StageRenderer.prototype.drawGateShutter(self, fgDraw, fgGlow, assets, p, cam, time) -- 891
-	local ____temp_3 -- 899
-	if p.room.story ~= nil then -- 899
-		____temp_3 = p.room.story.gate -- 899
-	else -- 899
-		____temp_3 = nil -- 899
-	end -- 899
-	local g = ____temp_3 -- 899
-	if g == nil then -- 899
-		return -- 901
-	end -- 901
-	local closeFrac = 0.08 -- 904
-	if p.phase == "gate-hold" then -- 904
-		closeFrac = 0.08 + 0.36 * math.min( -- 906
-			1, -- 906
-			p.gateTick / math.max(1, g.holdTicks) -- 906
-		) -- 906
-	elseif p.phase == "gate-send" then -- 906
-		closeFrac = 0.44 -- 908
-	elseif p.phase == "gate-count" then -- 908
-		closeFrac = 0.44 + 0.56 * math.min(1, p.countTick / 360) -- 910
-	elseif p.phase == "gate-walk" then -- 910
-		closeFrac = 1 -- 912
-	end -- 912
-	local gx0 = cam:sx(848) -- 914
-	local gx1 = cam:sx(1032) -- 915
-	local topY = cam:sy(160) -- 916
-	local botY = cam:sy(160 * (1 - closeFrac)) -- 917
-	if topY > botY + 2 then -- 917
-		fillVGradRect( -- 919
-			fgDraw, -- 919
-			gx0, -- 919
-			botY, -- 919
-			gx1 - gx0, -- 919
-			topY - botY, -- 919
-			toColor(PALETTE.steelDark), -- 919
-			toColor(PALETTE.steelMid) -- 919
-		) -- 919
-		assets:tryPlace( -- 920
-			"cover_wood", -- 920
-			"gate_shutter", -- 920
-			(gx0 + gx1) * 0.5, -- 920
-			botY, -- 920
-			gx1 - gx0, -- 921
-			topY - botY, -- 921
-			{layer = 6} -- 921
-		) -- 921
-	end -- 921
-	if closeFrac < 0.98 then -- 921
-		local gapH = math.max( -- 925
-			8, -- 925
-			botY - cam:sy(0) -- 925
-		) -- 925
-		local pulse = 0.8 + 0.2 * math.sin(time * 2.5) -- 926
-		fillVGradRect( -- 927
-			fgGlow, -- 927
-			gx0, -- 927
-			cam:sy(0), -- 927
-			gx1 - gx0, -- 927
-			gapH, -- 927
-			Color( -- 927
-				140, -- 927
-				210, -- 927
-				255, -- 927
-				math.floor(52 * pulse + 0.5) -- 927
-			), -- 927
-			Color(80, 160, 230, 0) -- 927
-		) -- 927
-	end -- 927
-end -- 891
-function StageRenderer.prototype.drawTowerStructure(self, fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, time) -- 931
-	fillVGradRect( -- 938
-		fgDraw, -- 938
-		x0, -- 938
-		y0, -- 938
-		sw, -- 938
-		sh, -- 938
-		Color(15, 21, 34, 255), -- 938
-		Color(32, 44, 66, 255) -- 938
-	) -- 938
-	fgDraw:drawRect( -- 939
-		Rect(x0, y0, sw, sh), -- 939
-		Color(0, 0, 0, 0), -- 939
-		1.4, -- 939
-		toColor(PALETTE.rimSilver, 165) -- 939
-	) -- 939
-	if (string.find(s.label, "塔身", nil, true) or 0) - 1 >= 0 then -- 939
-		self:tileMasonry( -- 942
-			assets, -- 942
-			s, -- 942
-			x0, -- 942
-			y0, -- 942
-			sw, -- 942
-			sh -- 942
-		) -- 942
-		local ribs = 4 -- 944
-		local r = 1 -- 945
-		do -- 945
-			r = 1 -- 946
-			while r < ribs do -- 946
-				local rx = x0 + sw * r / ribs -- 947
-				fgDraw:drawSegment( -- 948
-					Vec2(rx, y0), -- 948
-					Vec2(rx, y0 + sh), -- 948
-					2, -- 948
-					Color(10, 15, 24, 210) -- 948
-				) -- 948
-				fgDraw:drawSegment( -- 949
-					Vec2(rx + 2, y0), -- 949
-					Vec2(rx + 2, y0 + sh), -- 949
-					1, -- 949
-					Color(68, 86, 114, 130) -- 949
-				) -- 949
-				r = r + 1 -- 946
-			end -- 946
-		end -- 946
-		local bands = 4 -- 952
-		local b = 1 -- 953
-		do -- 953
-			b = 1 -- 954
-			while b < bands do -- 954
-				local by = y0 + sh * b / bands -- 955
-				fgDraw:drawSegment( -- 956
-					Vec2(x0 + 4, by), -- 956
-					Vec2(x0 + sw - 4, by), -- 956
-					1.2, -- 956
-					Color(52, 68, 92, 135) -- 956
-				) -- 956
-				b = b + 1 -- 954
-			end -- 954
-		end -- 954
-		local slitX = s.x < 400 and x0 + sw * 0.62 or x0 + sw * 0.34 -- 959
-		local slitY = y0 + sh * 0.56 -- 960
-		local slitH = sh * 0.22 -- 961
-		fgDraw:drawRect( -- 962
-			Rect(slitX - 5, slitY, 10, slitH), -- 962
-			Color(8, 12, 20, 245), -- 962
-			1.2, -- 962
-			toColor(PALETTE.amberDim, 190) -- 962
-		) -- 962
-		fgGlow:drawRect( -- 963
-			Rect(slitX - 2, slitY + 4, 4, slitH - 8), -- 963
-			toColor(PALETTE.amber, 190) -- 963
-		) -- 963
-		fillRadialGlow( -- 964
-			fgGlow, -- 964
-			slitX, -- 964
-			slitY + slitH * 0.5, -- 964
-			44, -- 964
-			slitH * 0.7, -- 964
-			Color(255, 206, 128, 52), -- 964
-			Color(255, 180, 86, 0), -- 964
-			14 -- 964
-		) -- 964
-	end -- 964
-	if (string.find(s.label, "门楣", nil, true) or 0) - 1 >= 0 then -- 964
-		local opened = p.phase == "tower-given" or p.phase == "tower-end" -- 969
-		local cx = x0 + sw * 0.5 -- 970
-		local lampY = y0 - 8 -- 971
-		local doorHeight = y0 - math.max(0, y0 - sh * 3.8) -- 972
-		if not opened then -- 972
-			assets:tryPlace( -- 974
-				"prop_tower_door", -- 974
-				"tower_door", -- 974
-				cx, -- 974
-				y0 - doorHeight, -- 974
-				sw, -- 974
-				doorHeight, -- 974
-				{layer = 2} -- 974
-			) -- 974
-		end -- 974
-		assets:tryPlace( -- 976
-			"prop_lantern", -- 976
-			"tower_lantern", -- 976
-			cx + sw * 0.43, -- 976
-			lampY - sh * 0.36, -- 976
-			sw * 0.17, -- 977
-			sh * 0.84, -- 977
-			{layer = 3} -- 977
-		) -- 977
-		local pulse = 0.85 + 0.15 * math.sin(time * 3) -- 978
-		local alpha = opened and 155 or 88 -- 979
-		fgDraw:drawSegment( -- 981
-			Vec2(x0 + 4, y0), -- 981
-			Vec2(x0 + 4, y0 - sh * 3.8), -- 981
-			4, -- 981
-			Color(42, 52, 70, 255) -- 981
-		) -- 981
-		fgDraw:drawSegment( -- 982
-			Vec2(x0 + sw - 4, y0), -- 982
-			Vec2(x0 + sw - 4, y0 - sh * 3.8), -- 982
-			4, -- 982
-			Color(42, 52, 70, 255) -- 982
-		) -- 982
-		fgDraw:drawSegment( -- 983
-			Vec2(x0, y0), -- 983
-			Vec2(x0 + sw, y0), -- 983
-			2.5, -- 983
-			toColor(PALETTE.amber, 210) -- 983
-		) -- 983
-		fillVGradRect( -- 985
-			fgGlow, -- 986
-			x0 + 6, -- 987
-			y0 - sh * 3.8, -- 988
-			sw - 12, -- 989
-			sh * 3.8, -- 990
+	draw:drawSegment( -- 871
+		bend, -- 871
+		ropeTop, -- 871
+		ropeWidth, -- 871
+		Color(111, 86, 57, 239) -- 871
+	) -- 871
+	if assets:tryPlace( -- 871
+		"prop_winch", -- 872
+		"gate_winch", -- 872
+		cx, -- 872
+		y0 + sh * 0.5, -- 872
+		sw, -- 872
+		sh, -- 872
+		{layer = 2} -- 872
+	) then -- 872
+		return -- 873
+	end -- 873
+	local timber = Color(75, 51, 34, 255) -- 875
+	draw:drawSegment( -- 876
+		Vec2(x0 + sw * 0.15, y0 + sh * 0.07), -- 876
+		Vec2(cx, y0 + sh * 0.86), -- 876
+		sw * 0.06, -- 876
+		timber -- 876
+	) -- 876
+	draw:drawSegment( -- 877
+		Vec2(x0 + sw * 0.85, y0 + sh * 0.07), -- 877
+		Vec2(cx, y0 + sh * 0.86), -- 877
+		sw * 0.06, -- 877
+		timber -- 877
+	) -- 877
+	draw:drawRect( -- 878
+		Rect(x0, y0, sw, sh * 0.12), -- 878
+		timber -- 878
+	) -- 878
+	local radius = math.min(sw, sh) * 0.21 -- 879
+	draw:drawCircle( -- 880
+		Vec2(cx, cy), -- 880
+		radius, -- 880
+		Color(48, 41, 37, 255) -- 880
+	) -- 880
+	do -- 880
+		local i = -2 -- 881
+		while i <= 2 do -- 881
+			local x = cx + i * radius * 0.28 -- 882
+			draw:drawSegment( -- 883
+				Vec2(x, cy - radius * 0.62), -- 883
+				Vec2(x, cy + radius * 0.62), -- 883
+				ropeWidth, -- 883
+				Color(135, 103, 68, 240) -- 884
+			) -- 884
+			i = i + 1 -- 881
+		end -- 881
+	end -- 881
+end -- 856
+function StageRenderer.prototype.drawGateShutter(self, fgDraw, fgGlow, assets, p, cam, time) -- 888
+	local ____temp_3 -- 896
+	if p.room.story ~= nil then -- 896
+		____temp_3 = p.room.story.gate -- 896
+	else -- 896
+		____temp_3 = nil -- 896
+	end -- 896
+	local g = ____temp_3 -- 896
+	if g == nil then -- 896
+		return -- 898
+	end -- 898
+	local closeFrac = 0.08 -- 901
+	if p.phase == "gate-hold" then -- 901
+		closeFrac = 0.08 + 0.36 * math.min( -- 903
+			1, -- 903
+			p.gateTick / math.max(1, g.holdTicks) -- 903
+		) -- 903
+	elseif p.phase == "gate-send" then -- 903
+		closeFrac = 0.44 -- 905
+	elseif p.phase == "gate-count" then -- 905
+		closeFrac = 0.44 + 0.56 * math.min(1, p.countTick / 360) -- 907
+	elseif p.phase == "gate-walk" then -- 907
+		closeFrac = 1 -- 909
+	end -- 909
+	local gx0 = cam:sx(848) -- 911
+	local gx1 = cam:sx(1032) -- 912
+	local topY = cam:sy(160) -- 913
+	local botY = cam:sy(160 * (1 - closeFrac)) -- 914
+	if topY > botY + 2 then -- 914
+		fillVGradRect( -- 916
+			fgDraw, -- 916
+			gx0, -- 916
+			botY, -- 916
+			gx1 - gx0, -- 916
+			topY - botY, -- 916
+			toColor(PALETTE.steelDark), -- 916
+			toColor(PALETTE.steelMid) -- 916
+		) -- 916
+		assets:tryPlace( -- 917
+			"cover_wood", -- 917
+			"gate_shutter", -- 917
+			(gx0 + gx1) * 0.5, -- 917
+			botY, -- 917
+			gx1 - gx0, -- 918
+			topY - botY, -- 918
+			{layer = 6} -- 918
+		) -- 918
+	end -- 918
+	if closeFrac < 0.98 then -- 918
+		local gapH = math.max( -- 922
+			8, -- 922
+			botY - cam:sy(0) -- 922
+		) -- 922
+		local pulse = 0.8 + 0.2 * math.sin(time * 2.5) -- 923
+		fillVGradRect( -- 924
+			fgGlow, -- 924
+			gx0, -- 924
+			cam:sy(0), -- 924
+			gx1 - gx0, -- 924
+			gapH, -- 924
+			Color( -- 924
+				140, -- 924
+				210, -- 924
+				255, -- 924
+				math.floor(52 * pulse + 0.5) -- 924
+			), -- 924
+			Color(80, 160, 230, 0) -- 924
+		) -- 924
+	end -- 924
+end -- 888
+function StageRenderer.prototype.drawTowerStructure(self, fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, time) -- 928
+	fillVGradRect( -- 935
+		fgDraw, -- 935
+		x0, -- 935
+		y0, -- 935
+		sw, -- 935
+		sh, -- 935
+		Color(15, 21, 34, 255), -- 935
+		Color(32, 44, 66, 255) -- 935
+	) -- 935
+	fgDraw:drawRect( -- 936
+		Rect(x0, y0, sw, sh), -- 936
+		Color(0, 0, 0, 0), -- 936
+		1.4, -- 936
+		toColor(PALETTE.rimSilver, 165) -- 936
+	) -- 936
+	if (string.find(s.label, "塔身", nil, true) or 0) - 1 >= 0 then -- 936
+		self:tileMasonry( -- 939
+			assets, -- 939
+			s, -- 939
+			x0, -- 939
+			y0, -- 939
+			sw, -- 939
+			sh -- 939
+		) -- 939
+		local ribs = 4 -- 941
+		local r = 1 -- 942
+		do -- 942
+			r = 1 -- 943
+			while r < ribs do -- 943
+				local rx = x0 + sw * r / ribs -- 944
+				fgDraw:drawSegment( -- 945
+					Vec2(rx, y0), -- 945
+					Vec2(rx, y0 + sh), -- 945
+					2, -- 945
+					Color(10, 15, 24, 210) -- 945
+				) -- 945
+				fgDraw:drawSegment( -- 946
+					Vec2(rx + 2, y0), -- 946
+					Vec2(rx + 2, y0 + sh), -- 946
+					1, -- 946
+					Color(68, 86, 114, 130) -- 946
+				) -- 946
+				r = r + 1 -- 943
+			end -- 943
+		end -- 943
+		local bands = 4 -- 949
+		local b = 1 -- 950
+		do -- 950
+			b = 1 -- 951
+			while b < bands do -- 951
+				local by = y0 + sh * b / bands -- 952
+				fgDraw:drawSegment( -- 953
+					Vec2(x0 + 4, by), -- 953
+					Vec2(x0 + sw - 4, by), -- 953
+					1.2, -- 953
+					Color(52, 68, 92, 135) -- 953
+				) -- 953
+				b = b + 1 -- 951
+			end -- 951
+		end -- 951
+		local slitX = s.x < 400 and x0 + sw * 0.62 or x0 + sw * 0.34 -- 956
+		local slitY = y0 + sh * 0.56 -- 957
+		local slitH = sh * 0.22 -- 958
+		fgDraw:drawRect( -- 959
+			Rect(slitX - 5, slitY, 10, slitH), -- 959
+			Color(8, 12, 20, 245), -- 959
+			1.2, -- 959
+			toColor(PALETTE.amberDim, 190) -- 959
+		) -- 959
+		fgGlow:drawRect( -- 960
+			Rect(slitX - 2, slitY + 4, 4, slitH - 8), -- 960
+			toColor(PALETTE.amber, 190) -- 960
+		) -- 960
+		fillRadialGlow( -- 961
+			fgGlow, -- 961
+			slitX, -- 961
+			slitY + slitH * 0.5, -- 961
+			44, -- 961
+			slitH * 0.7, -- 961
+			Color(255, 206, 128, 52), -- 961
+			Color(255, 180, 86, 0), -- 961
+			14 -- 961
+		) -- 961
+	end -- 961
+	if (string.find(s.label, "门楣", nil, true) or 0) - 1 >= 0 then -- 961
+		local opened = p.phase == "tower-given" or p.phase == "tower-end" -- 966
+		local cx = x0 + sw * 0.5 -- 967
+		local lampY = y0 - 8 -- 968
+		local doorHeight = y0 - math.max(0, y0 - sh * 3.8) -- 969
+		if not opened then -- 969
+			assets:tryPlace( -- 971
+				"prop_tower_door", -- 971
+				"tower_door", -- 971
+				cx, -- 971
+				y0 - doorHeight, -- 971
+				sw, -- 971
+				doorHeight, -- 971
+				{layer = 2} -- 971
+			) -- 971
+		end -- 971
+		assets:tryPlace( -- 973
+			"prop_lantern", -- 973
+			"tower_lantern", -- 973
+			cx + sw * 0.43, -- 973
+			lampY - sh * 0.36, -- 973
+			sw * 0.17, -- 974
+			sh * 0.84, -- 974
+			{layer = 3} -- 974
+		) -- 974
+		local pulse = 0.85 + 0.15 * math.sin(time * 3) -- 975
+		local alpha = opened and 155 or 88 -- 976
+		fgDraw:drawSegment( -- 978
+			Vec2(x0 + 4, y0), -- 978
+			Vec2(x0 + 4, y0 - sh * 3.8), -- 978
+			4, -- 978
+			Color(42, 52, 70, 255) -- 978
+		) -- 978
+		fgDraw:drawSegment( -- 979
+			Vec2(x0 + sw - 4, y0), -- 979
+			Vec2(x0 + sw - 4, y0 - sh * 3.8), -- 979
+			4, -- 979
+			Color(42, 52, 70, 255) -- 979
+		) -- 979
+		fgDraw:drawSegment( -- 980
+			Vec2(x0, y0), -- 980
+			Vec2(x0 + sw, y0), -- 980
+			2.5, -- 980
+			toColor(PALETTE.amber, 210) -- 980
+		) -- 980
+		fillVGradRect( -- 982
+			fgGlow, -- 983
+			x0 + 6, -- 984
+			y0 - sh * 3.8, -- 985
+			sw - 12, -- 986
+			sh * 3.8, -- 987
+			Color( -- 988
+				255, -- 988
+				206, -- 988
+				128, -- 988
+				math.floor((opened and alpha or alpha * 0.25) * pulse + 0.5) -- 988
+			), -- 988
+			Color(255, 224, 168, opened and 180 or 62) -- 989
+		) -- 989
+		fillRadialGlow( -- 991
+			fgGlow, -- 991
+			cx, -- 991
+			lampY, -- 991
+			opened and 105 or 58, -- 991
+			opened and 105 or 58, -- 991
 			Color( -- 991
 				255, -- 991
-				206, -- 991
-				128, -- 991
-				math.floor((opened and alpha or alpha * 0.25) * pulse + 0.5) -- 991
+				232, -- 991
+				178, -- 991
+				math.floor(170 * pulse + 0.5) -- 991
 			), -- 991
-			Color(255, 224, 168, opened and 180 or 62) -- 992
+			Color(255, 180, 86, 0), -- 991
+			18 -- 991
+		) -- 991
+		fgDraw:drawCircle( -- 992
+			Vec2(cx, lampY), -- 992
+			5.5, -- 992
+			toColor(PALETTE.amberCore) -- 992
 		) -- 992
-		fillRadialGlow( -- 994
-			fgGlow, -- 994
-			cx, -- 994
-			lampY, -- 994
-			opened and 105 or 58, -- 994
-			opened and 105 or 58, -- 994
-			Color( -- 994
-				255, -- 994
-				232, -- 994
-				178, -- 994
-				math.floor(170 * pulse + 0.5) -- 994
-			), -- 994
-			Color(255, 180, 86, 0), -- 994
-			18 -- 994
-		) -- 994
-		fgDraw:drawCircle( -- 995
-			Vec2(cx, lampY), -- 995
-			5.5, -- 995
-			toColor(PALETTE.amberCore) -- 995
-		) -- 995
-	end -- 995
-end -- 931
-function StageRenderer.prototype.drawGrassCluster(self, fgDraw, fgGlow, x0, y0, sw, sh, playerX, centerWorldX, time) -- 999
-	local blades = math.max( -- 1006
-		12, -- 1006
-		math.floor(sw / 8) -- 1006
-	) -- 1006
-	local nearPlayer = math.abs(playerX - centerWorldX) < 62 -- 1007
-	local k = 0 -- 1008
-	do -- 1008
-		k = 0 -- 1009
-		while k < blades do -- 1009
-			local t = (k + 0.5) / blades -- 1010
-			local bx = x0 + sw * t -- 1011
-			local hRatio = 0.78 + 0.52 * hash01(k * 17.3 + x0 * 0.01) -- 1012
-			local bh = sh * hRatio * 1.95 -- 1013
-			local sway = math.sin(time * 2.1 + k * 0.8) * 6 + (nearPlayer and (t < 0.5 and -9 or 9) or 0) -- 1014
-			local col = k & 1 == 0 and Color(20, 58, 54, 235) or Color(34, 88, 76, 240) -- 1015
-			fgDraw:drawPolygon( -- 1016
-				{ -- 1016
-					Vec2(bx - 7, y0), -- 1017
-					Vec2(bx + 7, y0), -- 1018
-					Vec2(bx + sway, y0 + bh) -- 1019
-				}, -- 1019
-				col -- 1020
-			) -- 1020
-			k = k + 1 -- 1009
-		end -- 1009
-	end -- 1009
-	if nearPlayer then -- 1009
-		fgGlow:drawSegment( -- 1023
-			Vec2(x0, y0 + 2), -- 1023
-			Vec2(x0 + sw, y0 + 2), -- 1023
-			2, -- 1023
-			toColor(PALETTE.emerald, 145) -- 1023
-		) -- 1023
-	end -- 1023
-end -- 999
-function StageRenderer.prototype.drawArch(self, fgDraw, fgGlow, p, cam, theme) -- 1027
-	local a = p.room.arch -- 1034
-	if a.h <= 0 or a.x1 <= a.x0 then -- 1034
-		return -- 1036
-	end -- 1036
-	local x0 = cam:sx(a.x0) -- 1038
-	local x1 = cam:sx(a.x1) -- 1039
-	local y0 = cam:sy(a.y) -- 1040
-	local y1 = cam:sy(a.y + a.h) -- 1041
-	local aw = x1 - x0 -- 1042
-	local ah = y1 - y0 -- 1043
-	fgDraw:drawRect( -- 1046
-		Rect(x0, y0, aw, ah), -- 1046
-		Color(5, 7, 11, 245) -- 1046
-	) -- 1046
-	fgDraw:drawSegment( -- 1048
-		Vec2(x0, y0), -- 1048
-		Vec2(x0, y1), -- 1048
-		3, -- 1048
-		toColor(PALETTE.rimSilver, 215) -- 1048
-	) -- 1048
-	fgDraw:drawSegment( -- 1049
-		Vec2(x1, y0), -- 1049
-		Vec2(x1, y1), -- 1049
-		3, -- 1049
-		toColor(PALETTE.rimSilver, 215) -- 1049
-	) -- 1049
-	fgDraw:drawSegment( -- 1050
-		Vec2(x0 - 4, y1), -- 1050
-		Vec2(x1 + 4, y1), -- 1050
-		3.2, -- 1050
-		toColor(PALETTE.rimSilver, 235) -- 1050
-	) -- 1050
-	if p.room.key == "outside" then -- 1050
-		local arcR = math.min(aw * 0.46, ah * 0.72) -- 1053
-		fgDraw:drawArc( -- 1054
-			Vec2((x0 + x1) * 0.5, y1 - arcR - 2), -- 1054
-			arcR, -- 1054
-			0, -- 1054
-			180, -- 1054
-			2.2, -- 1054
-			toColor(theme.accent, 195) -- 1054
-		) -- 1054
-		fillVGradRect( -- 1055
-			fgGlow, -- 1055
-			x0 + 6, -- 1055
-			y0, -- 1055
-			aw - 12, -- 1055
-			ah * 0.65, -- 1055
-			Color(86, 186, 236, 52), -- 1055
-			Color(86, 186, 236, 0) -- 1055
-		) -- 1055
-	end -- 1055
-end -- 1027
-return ____exports -- 1027
+	end -- 992
+end -- 928
+function StageRenderer.prototype.drawGrassCluster(self, fgDraw, fgGlow, x0, y0, sw, sh, playerX, centerWorldX, time) -- 996
+	local blades = math.max( -- 1003
+		12, -- 1003
+		math.floor(sw / 8) -- 1003
+	) -- 1003
+	local nearPlayer = math.abs(playerX - centerWorldX) < 62 -- 1004
+	local k = 0 -- 1005
+	do -- 1005
+		k = 0 -- 1006
+		while k < blades do -- 1006
+			local t = (k + 0.5) / blades -- 1007
+			local bx = x0 + sw * t -- 1008
+			local hRatio = 0.78 + 0.52 * hash01(k * 17.3 + x0 * 0.01) -- 1009
+			local bh = sh * hRatio * 1.95 -- 1010
+			local sway = math.sin(time * 2.1 + k * 0.8) * 6 + (nearPlayer and (t < 0.5 and -9 or 9) or 0) -- 1011
+			local col = k & 1 == 0 and Color(20, 58, 54, 235) or Color(34, 88, 76, 240) -- 1012
+			fgDraw:drawPolygon( -- 1013
+				{ -- 1013
+					Vec2(bx - 7, y0), -- 1014
+					Vec2(bx + 7, y0), -- 1015
+					Vec2(bx + sway, y0 + bh) -- 1016
+				}, -- 1016
+				col -- 1017
+			) -- 1017
+			k = k + 1 -- 1006
+		end -- 1006
+	end -- 1006
+	if nearPlayer then -- 1006
+		fgGlow:drawSegment( -- 1020
+			Vec2(x0, y0 + 2), -- 1020
+			Vec2(x0 + sw, y0 + 2), -- 1020
+			2, -- 1020
+			toColor(PALETTE.emerald, 145) -- 1020
+		) -- 1020
+	end -- 1020
+end -- 996
+function StageRenderer.prototype.drawArch(self, draw, p, cam) -- 1024
+	local a = p.room.arch -- 1029
+	if p.room.key ~= "outside" or a.h <= 0 or a.x1 <= a.x0 then -- 1029
+		return -- 1031
+	end -- 1031
+	local x0 = cam:sx(a.x0) -- 1033
+	local x1 = cam:sx(a.x1) -- 1034
+	local y0 = cam:sy(a.y) -- 1035
+	local y1 = cam:sy(a.y + a.h) -- 1036
+	local cx = (x0 + x1) * 0.5 -- 1037
+	local rx = (x1 - x0) * 0.5 -- 1038
+	local rise = cam:len(9) -- 1039
+	local rim = cam:len(7) -- 1040
+	local slices = 9 -- 1041
+	local mortar = Color(31, 32, 35, 255) -- 1042
+	local function point(i, edge) -- 1043
+		local angle = math.pi * i / slices -- 1044
+		return Vec2( -- 1045
+			cx + math.cos(angle) * (rx + edge), -- 1045
+			y1 + math.sin(angle) * (rise + edge) -- 1045
+		) -- 1045
+	end -- 1043
+	local opening = { -- 1047
+		Vec2(x0, y0), -- 1047
+		Vec2(x1, y0) -- 1047
+	} -- 1047
+	do -- 1047
+		local i = 0 -- 1048
+		while i <= slices do -- 1048
+			opening[#opening + 1] = point(i, 0) -- 1049
+			i = i + 1 -- 1048
+		end -- 1048
+	end -- 1048
+	draw:drawPolygon( -- 1051
+		opening, -- 1051
+		Color(13, 15, 20, 248) -- 1051
+	) -- 1051
+	draw:drawRect( -- 1052
+		Rect(x0 - rim, y0, rim, y1 - y0), -- 1052
+		Color(62, 63, 67, 255), -- 1052
+		1, -- 1052
+		mortar -- 1052
+	) -- 1052
+	draw:drawRect( -- 1053
+		Rect(x1, y0, rim, y1 - y0), -- 1053
+		Color(72, 72, 74, 255), -- 1053
+		1, -- 1053
+		mortar -- 1053
+	) -- 1053
+	do -- 1053
+		local i = 0 -- 1054
+		while i < slices do -- 1054
+			local shade = 77 + i % 3 * 8 -- 1055
+			draw:drawPolygon( -- 1056
+				{ -- 1056
+					point(i, 0), -- 1056
+					point(i, rim), -- 1056
+					point(i + 1, rim), -- 1056
+					point(i + 1, 0) -- 1056
+				}, -- 1056
+				Color(shade, shade, shade + 1, 255), -- 1057
+				1, -- 1057
+				mortar -- 1057
+			) -- 1057
+			i = i + 1 -- 1054
+		end -- 1054
+	end -- 1054
+end -- 1024
+return ____exports -- 1024

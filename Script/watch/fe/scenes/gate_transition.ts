@@ -120,6 +120,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
     private lastCountTick = -1;
     private lastTriggeredCount = 0;
     private countCueAge = 99;
+    private pendingBreath19 = false;
     private activeCountZh = "";
     private g04LineAge = -1;
     private g04LineTriggered = false;
@@ -155,6 +156,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
         this.lastCountTick = -1;
         this.lastTriggeredCount = 0;
         this.countCueAge = 99;
+        this.pendingBreath19 = false;
         this.activeCountZh = "";
         this.g04LineAge = -1;
         this.g04LineTriggered = false;
@@ -333,6 +335,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                 this.g04LineAge = 0.5;
             }
         } else if (jumped) {
+            this.pendingBreath19 = false;
             this.lastTriggeredCount = countNum;
             this.activeCountZh = COUNT_ZH[countNum] ?? "";
             this.countCueAge = 0.35;
@@ -348,6 +351,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                 this.lastTriggeredCount = countNum;
                 this.activeCountZh = COUNT_ZH[countNum] ?? "";
                 this.countCueAge = 0;
+                this.pendingBreath19 = countNum === 19;
                 this.subtitleCountShown += 1;
                 const dedupeKey = "gate:count:" + ctx.events.roomSessionId + ":" + countNum;
                 ctx.audio.playOnce(
@@ -358,22 +362,23 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                     "gate:count:" + countNum,
                     tick,
                 );
-                // 第 19 声后插入轻呼吸停顿，准备清晰落下第 20 声
-                if (countNum === 19) {
-                    ctx.audio.playOnce(
-                        "gate:breath19:" + ctx.events.roomSessionId,
-                        "voice",
-                        GATE_AUDIO_ROOT + "breath_soft.wav",
-                        0.48,
-                        "gate:breath_19",
-                        tick,
-                    );
-                }
             }
             if (stage !== this.lastGestureStage) {
                 this.lastGestureStage = stage;
                 this.gestureChangeCount += 1;
             }
+        }
+
+        if (this.pendingBreath19 && this.countCueAge >= 0.78 && !ctx.paused && p.phase === "gate-count") {
+            this.pendingBreath19 = false;
+            ctx.audio.playOnce(
+                "gate:breath19:" + ctx.events.roomSessionId,
+                "voice",
+                GATE_AUDIO_ROOT + "breath_soft.wav",
+                0.48,
+                "gate:breath_19",
+                tick,
+            );
         }
 
         // G04 女主线数满二十后的留白台词与风/水/呼吸循环
@@ -416,9 +421,10 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             }
         }
 
-        // 分轨环境音循环（风声与外壕水声独立调平；18..20 拍适度闪避突出最后两声数数）
+        // 最后三声和轻呼吸进入时让出声音空间，句间让风水自然回来。
         if (!ctx.paused) {
-            const voiceDuck = (p.phase === "gate-count" && tick >= 1200 && tick <= 1480) ? 0.52 : 1.0;
+            const voiceDuck = p.phase === "gate-count" && countNum >= 18
+                ? 0.32 + 0.68 * smoothstep(0.95, 1.55, this.countCueAge) : 1.0;
             const reunionCalm = reunionDone ? (1 - this.reunionPixelReturn * 0.55) : 1.0;
             const windVol = (0.18 + 0.46 * this.effectiveMorph) * voiceDuck * reunionCalm;
             const waterVol = (0.28 + 0.24 * this.effectiveMorph) * voiceDuck;

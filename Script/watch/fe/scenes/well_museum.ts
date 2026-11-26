@@ -290,6 +290,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     private animTime = 0;
     private prevPhase: MuseumPhase = "locked";
     private roomSessionId = 0;
+    private rehearsal = false;
 
     // 门控与井口世界引导
     private gateOpen = false;
@@ -519,6 +520,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
 
     onBindPlay(p: Play, view: DualRouteSnapshot): void {
         this.syncRuntimeHook();
+        if (view.isRehearsal !== this.rehearsal) {
+            this.savedResume = undefined;
+        }
+        this.rehearsal = view.isRehearsal;
         this.animTime = 0;
         this.revisitCalmTimer = 0;
         this.childEchoVisualT = 0;
@@ -537,7 +542,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.lastVisualMode = view.visualMode;
 
         // 读取可选后端井口坐标（兼容 C 单 segment-relative Play.wellX = 430）
-        const pRec = asRecord(p);
+        const pRec = view.isRehearsal ? undefined : asRecord(p);
         const backendWellX = readNum(pRec, "wellX");
         this.wellWorldX = backendWellX !== undefined ? (p.ox + backendWellX) : (p.ox + WELL_WORLD_X);
         this.hallMoving = false;
@@ -553,7 +558,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
 
         // 中途退出续读恢复：当读档/重绑定后仍处于馆内任一活跃阶段时，恢复精确展厅位置与阶段进度
         if (isActiveMuseumPhase(phase)) {
-            const runRec = asRecord(p.run);
+            const runRec = view.isRehearsal ? undefined : asRecord(p.run);
             const archRec = asRecord(pRec !== undefined ? pRec["archive"] : undefined)
                 ?? asRecord(runRec !== undefined ? runRec["archive"] : undefined);
             const backendWalkX = readNum(archRec, "museumWalkX") ?? readNum(pRec, "museumWalkX");
@@ -691,6 +696,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         const p = ctx.p;
         const view = ctx.view;
         const phase = view.archive.museumPhase;
+        if (view.isRehearsal !== this.rehearsal) {
+            this.syncLoops(ctx, false, 0, false);
+            this.onBindPlay(p, view);
+        }
         this.roomSessionId = ctx.events.roomSessionId;
         this.lastVisualMode = view.visualMode;
         this.lastPaused = ctx.paused;
@@ -843,22 +852,19 @@ export class WellMuseumPlugin implements FeRenderPlugin {
 
             // 若后端在正式模式下驱动 museumWalkX 或独立 MUSEUM_ROOM（room.key === "museum"）的 player.x，优先同步；
             // 否则由自由步行输入平滑推进
-            const pRec = asRecord(p);
+            const pRec = view.isRehearsal ? undefined : asRecord(p);
             const backendWalkX = readNum(pRec, "museumWalkX")
-                ?? (p.room.key === "museum" ? (p.player.x - p.ox) : undefined);
+                ?? (!view.isRehearsal && p.room.key === "museum" ? (p.player.x - p.ox) : undefined);
             this.hallMoving = false;
+            const previousX = this.hallWalkX;
             if (backendWalkX !== undefined) {
-                const targetX = clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90);
-                const delta = targetX - this.hallWalkX;
-                if (Math.abs(delta) > 0.25) {
-                    this.hallFacing = delta >= 0 ? 1 : -1;
-                    this.hallWalkAnim += udt * 8.5;
-                    this.hallMoving = true;
-                }
-                this.hallWalkX = targetX;
+                this.hallWalkX = clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90);
             } else if (udt > 0 && Math.abs(moveX) > 0.05) {
-                this.hallFacing = moveX > 0 ? 1 : -1;
                 this.hallWalkX = clamp(this.hallWalkX + moveX * MUSEUM_WALK_SPEED * udt, 90, MUSEUM_HALL_WIDTH - 90);
+            }
+            const delta = this.hallWalkX - previousX;
+            if (Math.abs(delta) > 0.01) {
+                this.hallFacing = delta >= 0 ? 1 : -1;
                 this.hallWalkAnim += udt * 8.5;
                 this.hallMoving = true;
                 this.hallFootstepTimer += udt;

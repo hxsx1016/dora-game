@@ -21,6 +21,7 @@ local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local cuffShots = require("Script.watch.fe.cutscenes.cuff_shots")
 local prologueMod = require("Script.watch.fe.cutscenes.prologue_intro")
 local wellMod = require("Script.watch.fe.scenes.well_museum")
+local theme = require("Script.watch.fe.theme")
 
 local pass = 0
 local fail = 0
@@ -309,6 +310,7 @@ do
 	fe.contract:triggerMockBench(false, { equippedWeapon = "time_shuttler" })
 
 	local pP = new(play.Play, rooms.PROLOGUE_ROOM)
+	pP.wellX = 430 -- 模拟已接入正式井口坐标的玩法版本。
 	fe:bindPlay(pP, 1280, 720)
 	-- 4.1 序章 P02 逃柜进行中必须压制井院入口，避免提前暴露周戍侧灶深井
 	prologuePl:startRehearsal("p02_escape", 6.0)
@@ -472,6 +474,60 @@ do
 		and lpPl:getDebugState(pClean).active == false
 		and fe:getPlugin("fe-05-tower-endings"):getDebugState().active == false
 		and fe:getPlugin("fe-06-afterimage-artifact"):getDebugState().active == false)
+end
+
+-- 回主界面要停掉本房音频，包括暂停中的循环声。
+do
+	local p = new(play.Play, rooms.GATE_ROOM)
+	fe:bindPlay(p, 1280, 720)
+	fe.audio:playLoop("m2-title-audio-check", "wind", "assets/audio/gate/wind_loop.wav")
+	fe.audio:setPaused(true)
+	fe.screen = "title"
+	fe:renderMenu(DT, inp, 1280, 720)
+	check("7.1 返回主界面停止房间循环并解除暂停", next(fe.audio.activeLoops) == nil and not fe.audio:isPaused())
+end
+
+-- 正式整合会增加章节，选章始终返回原房间索引，且井后隐藏关不在列表内。
+do
+	local publicRooms = {}
+	for index, room in ipairs(rooms.ROOMS) do
+		if room.key ~= "museum" then publicRooms[#publicRooms + 1] = index - 1 end
+	end
+	fe.screen = "chapters"
+	fe.menus:openChapters()
+	fe.menus:onKeyEvent("Left")
+	fe.menus:onKeyEvent("Return")
+	local last = fe:renderMenu(DT, inp, 1280, 720)
+	check("7.2 选章循环跳过隐藏展厅", last.type == "jump" and last.roomIndex == publicRooms[#publicRooms])
+	if #publicRooms > 8 then
+		fe.menus:openChapters()
+		fe.menus:onKeyEvent("Down")
+		fe.menus:onKeyEvent("Return")
+		local lower = fe:renderMenu(DT, inp, 1280, 720)
+		check("7.3 下移一行保留原房间索引", lower.type == "jump"
+			and lower.roomIndex == publicRooms[math.ceil(#publicRooms / 2) + 1])
+	end
+	check("7.4 粮棚与工台使用各自标题和场景",
+		theme.themeOf("escort2").shortNameZh == "粮棚取材"
+		and theme.themeOf("escort3").shortNameZh == "山腰工台"
+		and theme.themeOf("escort3").backdropKey == "forest")
+end
+
+do
+	local p = new(play.Play, rooms.ESCORT2_ROOM or rooms.CHECKPOINT_ROOM)
+	p.pickups = {
+		{ id = "qa_wood", kind = "wood", x = 380, y = 0, label = "木纹筹" },
+		{ id = "qa_bell", kind = "bell", x = 560, y = 0, label = "铃纹筹" },
+	}
+	fe.screen = "play"
+	fe:bindPlay(p, 1280, 720)
+	fe:renderPlay(DT, p, inp, 1280, 720)
+	local wood = fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/ui_ink.clip|ink_bamboo_slip"]
+	local bell = fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/sprites.clip|compass"]
+	p.pickups[1].id = ""
+	fe:renderPlay(DT, p, inp, 1280, 720)
+	check("7.5 粮棚材料可见，拾取后从场景撤下",
+		wood and bell and not wood.visible and bell.visible)
 end
 
 root:cleanup()
