@@ -290,330 +290,334 @@ function WatchFrontend.prototype.finishFrame(self) -- 293
 end -- 293
 function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 301
 	self:syncRuntimeHooks() -- 302
-	self:setVisible(true) -- 303
-	self:clearAll() -- 304
-	local uiScale = self:resizeInterface(w, h) -- 305
-	local act = self.menus:updateAndDrawScreen( -- 306
-		dt, -- 307
-		self.screen, -- 308
-		input, -- 309
-		self.stage, -- 310
-		self.bgDraw, -- 311
-		self.bgGlow, -- 312
-		self.backdropArt, -- 313
-		self.uiArt, -- 314
-		self.uiDraw, -- 315
-		self.uiInkDraw, -- 316
-		self.uiGlow, -- 317
-		self.texts, -- 318
-		w, -- 319
-		h, -- 320
-		uiScale -- 321
-	) -- 321
-	self:finishFrame() -- 323
-	return act -- 324
+	if self.screen == "title" and self.boundPlay ~= nil then -- 302
+		self.audio:stopRoomTransient() -- 304
+		self.boundPlay = nil -- 305
+	end -- 305
+	self:setVisible(true) -- 307
+	self:clearAll() -- 308
+	local uiScale = self:resizeInterface(w, h) -- 309
+	local act = self.menus:updateAndDrawScreen( -- 310
+		dt, -- 311
+		self.screen, -- 312
+		input, -- 313
+		self.stage, -- 314
+		self.bgDraw, -- 315
+		self.bgGlow, -- 316
+		self.backdropArt, -- 317
+		self.uiArt, -- 318
+		self.uiDraw, -- 319
+		self.uiInkDraw, -- 320
+		self.uiGlow, -- 321
+		self.texts, -- 322
+		w, -- 323
+		h, -- 324
+		uiScale -- 325
+	) -- 325
+	self:finishFrame() -- 327
+	return act -- 328
 end -- 301
-function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 328
-	self:syncRuntimeHooks() -- 329
-	self:setVisible(true) -- 330
-	if self.boundPlay ~= p then -- 330
-		self:bindPlay(p, w, h) -- 332
-	end -- 332
-	local safeDt = math.min( -- 334
-		0.05, -- 334
-		math.max(0.001, dt) -- 334
-	) -- 334
-	self.audio:setPaused(p.paused) -- 335
-	local ev -- 337
-	local worldDt = 0 -- 338
-	local uiDt = 0 -- 339
-	if not p.paused then -- 339
-		ev = self.adapter:sample(p) -- 343
-		self.vfx:ingest(ev, p, self.cam) -- 344
-		self.audio:ingestEvents(ev, p) -- 345
-	else -- 345
-		ev = self.adapter:emptyFrame(p) -- 348
-		self.narrative.wipeT = 0 -- 349
-	end -- 349
-	local view = self.contract:sample(p, p.paused and 0 or safeDt, input, ev) -- 352
-	if not p.paused then -- 352
-		local clampedScale = math.max( -- 354
-			0, -- 354
-			math.min(2, view.timeScale) -- 354
-		) -- 354
-		uiDt = safeDt -- 355
-		worldDt = safeDt * clampedScale -- 356
-	end -- 356
-	local uiScale = self:resizeInterface(w, h) -- 359
-	local uiW = w / uiScale -- 360
-	local uiH = h / uiScale -- 361
-	local ctx = { -- 363
-		p = p, -- 364
-		view = view, -- 365
-		events = ev, -- 366
-		input = input, -- 367
-		cam = self.cam, -- 368
-		audio = self.audio, -- 369
-		assets = self.worldArt, -- 370
-		backdropArt = self.backdropArt, -- 371
-		worldArt = self.worldArt, -- 372
-		uiArt = self.uiArt, -- 373
-		texts = self.texts, -- 374
-		worldDt = worldDt, -- 375
-		uiDt = uiDt, -- 376
-		w = w, -- 377
-		h = h, -- 378
-		uiW = uiW, -- 379
-		uiH = uiH, -- 380
-		uiScale = uiScale, -- 381
-		paused = p.paused -- 382
-	} -- 382
-	local i = 0 -- 386
-	do -- 386
-		i = 0 -- 387
-		while i < #self.plugins do -- 387
-			local pl = self.plugins[i + 1] -- 388
-			if pl.update ~= nil then -- 388
-				pl:update(ctx) -- 390
-			end -- 390
-			i = i + 1 -- 387
-		end -- 387
-	end -- 387
-	if not p.paused then -- 387
-		self.time = self.time + worldDt -- 395
-		self.cam:update(worldDt, p, w, h) -- 396
-		self.actors:update(worldDt, p) -- 397
-		self.vfx:update( -- 398
-			worldDt, -- 398
-			themeOf(p.room.key).ambient -- 398
-		) -- 398
-		self.hud:update(worldDt, p) -- 399
-		self.narrative:update(worldDt, p) -- 400
-	else -- 400
-		self.cam:update(0, p, w, h) -- 402
-	end -- 402
-	self:clearAll() -- 405
-	local backdropHandled = false -- 408
-	do -- 408
-		i = 0 -- 409
-		while i < #self.plugins do -- 409
-			local pl = self.plugins[i + 1] -- 410
-			if pl.drawBackdrop ~= nil and pl:drawBackdrop(self.bgDraw, self.bgGlow, self.backdropArt, ctx) then -- 410
-				backdropHandled = true -- 412
-			end -- 412
-			i = i + 1 -- 409
-		end -- 409
-	end -- 409
-	if not backdropHandled then -- 409
-		self.stage:drawBackdrop( -- 416
-			self.bgDraw, -- 416
-			self.bgGlow, -- 416
-			self.backdropArt, -- 416
-			p, -- 416
-			self.cam, -- 416
-			self.time -- 416
-		) -- 416
-	end -- 416
-	local worldHandled = false -- 420
-	do -- 420
-		i = 0 -- 421
-		while i < #self.plugins do -- 421
-			local pl = self.plugins[i + 1] -- 422
-			if pl.drawWorld ~= nil and pl:drawWorld(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 422
-				worldHandled = true -- 424
-			end -- 424
-			i = i + 1 -- 421
-		end -- 421
-	end -- 421
-	if not worldHandled then -- 421
-		self.stage:drawPlayableWorld( -- 428
-			self.fgDraw, -- 428
-			self.fgGlow, -- 428
-			self.worldArt, -- 428
-			p, -- 428
-			self.cam, -- 428
-			self.time, -- 428
-			self.occlusion, -- 428
-			worldDt -- 428
-		) -- 428
-	end -- 428
-	local propsHandled = false -- 432
-	do -- 432
-		i = 0 -- 433
-		while i < #self.plugins do -- 433
-			local pl = self.plugins[i + 1] -- 434
-			if pl.drawPropsOverlay ~= nil and pl:drawPropsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 434
-				propsHandled = true -- 436
-			end -- 436
-			i = i + 1 -- 433
-		end -- 433
-	end -- 433
-	if not propsHandled then -- 433
-		self.props:drawAll( -- 440
-			self.fgDraw, -- 440
-			self.fgGlow, -- 440
-			self.worldArt, -- 440
-			p, -- 440
-			self.cam, -- 440
-			self.time, -- 440
-			self.occlusion, -- 440
-			worldDt -- 440
-		) -- 440
-	end -- 440
-	local suppressAllActors = view.visualMode == "museum" -- 444
-	local partnerFarInHand = view.backCarry.handInHand and (not p.partner.alive or math.abs(p.partner.x - p.player.x) > 56 or math.abs(p.partner.y - p.player.y) > 24) -- 445
-	local suppressPartner = view.visualMode == "pixel" and not p.childMode and p.player.alive and (view.backCarry.active or view.backCarry.mounting or view.backCarry.atBench or view.craftBench.active or partnerFarInHand) -- 449
-	if not suppressAllActors then -- 449
-		self.actors:drawAll( -- 458
-			self.fgDraw, -- 458
-			self.fgGlow, -- 458
-			self.worldArt, -- 458
-			p, -- 458
-			self.cam, -- 458
-			suppressPartner -- 458
-		) -- 458
-	end -- 458
-	do -- 458
-		i = 0 -- 460
-		while i < #self.plugins do -- 460
-			local pl = self.plugins[i + 1] -- 461
-			if pl.drawActorsOverlay ~= nil then -- 461
-				pl:drawActorsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) -- 463
-			end -- 463
-			i = i + 1 -- 460
-		end -- 460
-	end -- 460
-	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 468
-	self.stage:drawForegroundFraming( -- 471
-		self.fgDraw, -- 471
-		w, -- 471
-		h, -- 471
-		p, -- 471
-		self.cam -- 471
-	) -- 471
-	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 472
-	local action = {type = "none"} -- 475
-	if p.paused then -- 475
-		action = self.menus:updateAndDrawPause( -- 477
-			safeDt, -- 478
-			input, -- 479
-			self.uiDraw, -- 480
-			self.uiInkDraw, -- 481
-			self.uiArt, -- 482
-			self.uiGlow, -- 483
-			self.texts, -- 484
-			uiW, -- 485
-			uiH, -- 486
-			uiScale, -- 487
-			view.assistHintsEnabled, -- 488
-			function() -- 489
-				self.contract:toggleAssistHints() -- 490
-			end -- 489
-		) -- 489
-	else -- 489
-		local cutsceneHandled = false -- 495
-		do -- 495
-			i = 0 -- 496
-			while i < #self.plugins do -- 496
-				local pl = self.plugins[i + 1] -- 497
-				if pl.drawCutsceneOverlay ~= nil and pl:drawCutsceneOverlay( -- 497
-					self.uiDraw, -- 499
-					self.uiInkDraw, -- 499
-					self.uiArt, -- 499
-					self.uiGlow, -- 499
-					ctx -- 499
-				) then -- 499
-					cutsceneHandled = true -- 500
-				end -- 500
-				i = i + 1 -- 496
-			end -- 496
-		end -- 496
-		if not cutsceneHandled then -- 496
-			self.hud:draw( -- 505
-				self.uiDraw, -- 506
-				self.uiInkDraw, -- 507
-				self.uiArt, -- 508
-				self.uiGlow, -- 509
-				self.texts, -- 510
-				p, -- 511
-				self.cam, -- 512
-				self.vfx, -- 513
-				self.narrative.letterbox, -- 514
-				uiScale, -- 515
-				view.assistHintsEnabled, -- 516
-				true -- 517
-			) -- 517
-			self.narrative:draw( -- 519
-				self.uiDraw, -- 520
-				self.uiInkDraw, -- 521
-				self.uiGlow, -- 522
-				self.uiArt, -- 523
-				self.texts, -- 524
-				p, -- 525
-				uiW, -- 526
-				uiH, -- 527
-				view.assistHintsEnabled -- 528
-			) -- 528
-		end -- 528
-		local suppressReticle = cutsceneHandled or view.reloadSession.active or view.craftBench.active -- 532
-		do -- 532
-			i = 0 -- 533
-			while i < #self.plugins do -- 533
-				local pl = self.plugins[i + 1] -- 534
-				if pl.drawFullSpeedUi ~= nil and pl:drawFullSpeedUi( -- 534
-					self.uiDraw, -- 536
-					self.uiInkDraw, -- 536
-					self.uiArt, -- 536
-					self.uiGlow, -- 536
-					ctx -- 536
-				) then -- 536
-					suppressReticle = true -- 537
-				end -- 537
-				i = i + 1 -- 533
-			end -- 533
-		end -- 533
-		if not suppressReticle then -- 533
-			self.hud:drawReticleOverlay( -- 541
-				self.uiInkDraw, -- 542
-				self.uiArt, -- 543
-				self.uiGlow, -- 544
-				p, -- 545
-				self.cam, -- 546
-				self.vfx, -- 547
-				self.narrative.letterbox, -- 548
-				uiScale -- 549
-			) -- 549
-		end -- 549
-		if view.isRehearsal then -- 549
-			local badgeText = view.rehearsalTag ~= "" and "排演 · " .. view.rehearsalTag or "排演模式" -- 555
-			drawSilkVeil( -- 556
-				self.uiDraw, -- 556
-				self.uiArt, -- 556
-				"rehearsal_tag_veil", -- 556
-				uiW * 0.5, -- 556
-				uiH - 22, -- 556
-				168, -- 556
-				26, -- 556
-				PALETTE.inkWarm, -- 556
-				0.74, -- 556
-				8 -- 556
-			) -- 556
-			self.texts:put( -- 557
-				"xs", -- 557
-				badgeText, -- 557
-				uiW * 0.5, -- 557
-				uiH - 22, -- 557
-				toColor(PALETTE.amberCore), -- 557
-				0.5, -- 557
-				0.5, -- 557
-				"Center", -- 557
-				1.2, -- 557
-				0.92, -- 557
-				0.08 -- 557
-			) -- 557
-		end -- 557
-	end -- 557
-	self:finishFrame() -- 561
-	return action -- 562
-end -- 328
-return ____exports -- 328
+function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 332
+	self:syncRuntimeHooks() -- 333
+	self:setVisible(true) -- 334
+	if self.boundPlay ~= p then -- 334
+		self:bindPlay(p, w, h) -- 336
+	end -- 336
+	local safeDt = math.min( -- 338
+		0.05, -- 338
+		math.max(0.001, dt) -- 338
+	) -- 338
+	self.audio:setPaused(p.paused) -- 339
+	local ev -- 341
+	local worldDt = 0 -- 342
+	local uiDt = 0 -- 343
+	if not p.paused then -- 343
+		ev = self.adapter:sample(p) -- 347
+		self.vfx:ingest(ev, p, self.cam) -- 348
+		self.audio:ingestEvents(ev, p) -- 349
+	else -- 349
+		ev = self.adapter:emptyFrame(p) -- 352
+		self.narrative.wipeT = 0 -- 353
+	end -- 353
+	local view = self.contract:sample(p, p.paused and 0 or safeDt, input, ev) -- 356
+	if not p.paused then -- 356
+		local clampedScale = math.max( -- 358
+			0, -- 358
+			math.min(2, view.timeScale) -- 358
+		) -- 358
+		uiDt = safeDt -- 359
+		worldDt = safeDt * clampedScale -- 360
+	end -- 360
+	local uiScale = self:resizeInterface(w, h) -- 363
+	local uiW = w / uiScale -- 364
+	local uiH = h / uiScale -- 365
+	local ctx = { -- 367
+		p = p, -- 368
+		view = view, -- 369
+		events = ev, -- 370
+		input = input, -- 371
+		cam = self.cam, -- 372
+		audio = self.audio, -- 373
+		assets = self.worldArt, -- 374
+		backdropArt = self.backdropArt, -- 375
+		worldArt = self.worldArt, -- 376
+		uiArt = self.uiArt, -- 377
+		texts = self.texts, -- 378
+		worldDt = worldDt, -- 379
+		uiDt = uiDt, -- 380
+		w = w, -- 381
+		h = h, -- 382
+		uiW = uiW, -- 383
+		uiH = uiH, -- 384
+		uiScale = uiScale, -- 385
+		paused = p.paused -- 386
+	} -- 386
+	local i = 0 -- 390
+	do -- 390
+		i = 0 -- 391
+		while i < #self.plugins do -- 391
+			local pl = self.plugins[i + 1] -- 392
+			if pl.update ~= nil then -- 392
+				pl:update(ctx) -- 394
+			end -- 394
+			i = i + 1 -- 391
+		end -- 391
+	end -- 391
+	if not p.paused then -- 391
+		self.time = self.time + worldDt -- 399
+		self.cam:update(worldDt, p, w, h) -- 400
+		self.actors:update(worldDt, p) -- 401
+		self.vfx:update( -- 402
+			worldDt, -- 402
+			themeOf(p.room.key).ambient -- 402
+		) -- 402
+		self.hud:update(worldDt, p) -- 403
+		self.narrative:update(worldDt, p) -- 404
+	else -- 404
+		self.cam:update(0, p, w, h) -- 406
+	end -- 406
+	self:clearAll() -- 409
+	local backdropHandled = false -- 412
+	do -- 412
+		i = 0 -- 413
+		while i < #self.plugins do -- 413
+			local pl = self.plugins[i + 1] -- 414
+			if pl.drawBackdrop ~= nil and pl:drawBackdrop(self.bgDraw, self.bgGlow, self.backdropArt, ctx) then -- 414
+				backdropHandled = true -- 416
+			end -- 416
+			i = i + 1 -- 413
+		end -- 413
+	end -- 413
+	if not backdropHandled then -- 413
+		self.stage:drawBackdrop( -- 420
+			self.bgDraw, -- 420
+			self.bgGlow, -- 420
+			self.backdropArt, -- 420
+			p, -- 420
+			self.cam, -- 420
+			self.time -- 420
+		) -- 420
+	end -- 420
+	local worldHandled = false -- 424
+	do -- 424
+		i = 0 -- 425
+		while i < #self.plugins do -- 425
+			local pl = self.plugins[i + 1] -- 426
+			if pl.drawWorld ~= nil and pl:drawWorld(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 426
+				worldHandled = true -- 428
+			end -- 428
+			i = i + 1 -- 425
+		end -- 425
+	end -- 425
+	if not worldHandled then -- 425
+		self.stage:drawPlayableWorld( -- 432
+			self.fgDraw, -- 432
+			self.fgGlow, -- 432
+			self.worldArt, -- 432
+			p, -- 432
+			self.cam, -- 432
+			self.time, -- 432
+			self.occlusion, -- 432
+			worldDt -- 432
+		) -- 432
+	end -- 432
+	local propsHandled = false -- 436
+	do -- 436
+		i = 0 -- 437
+		while i < #self.plugins do -- 437
+			local pl = self.plugins[i + 1] -- 438
+			if pl.drawPropsOverlay ~= nil and pl:drawPropsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 438
+				propsHandled = true -- 440
+			end -- 440
+			i = i + 1 -- 437
+		end -- 437
+	end -- 437
+	if not propsHandled then -- 437
+		self.props:drawAll( -- 444
+			self.fgDraw, -- 444
+			self.fgGlow, -- 444
+			self.worldArt, -- 444
+			p, -- 444
+			self.cam, -- 444
+			self.time, -- 444
+			self.occlusion, -- 444
+			worldDt -- 444
+		) -- 444
+	end -- 444
+	local suppressAllActors = view.visualMode == "museum" -- 448
+	local partnerFarInHand = view.backCarry.handInHand and (not p.partner.alive or math.abs(p.partner.x - p.player.x) > 56 or math.abs(p.partner.y - p.player.y) > 24) -- 449
+	local suppressPartner = view.visualMode == "pixel" and not p.childMode and p.player.alive and (view.backCarry.active or view.backCarry.mounting or view.backCarry.atBench or view.craftBench.active or partnerFarInHand) -- 453
+	if not suppressAllActors then -- 453
+		self.actors:drawAll( -- 462
+			self.fgDraw, -- 462
+			self.fgGlow, -- 462
+			self.worldArt, -- 462
+			p, -- 462
+			self.cam, -- 462
+			suppressPartner -- 462
+		) -- 462
+	end -- 462
+	do -- 462
+		i = 0 -- 464
+		while i < #self.plugins do -- 464
+			local pl = self.plugins[i + 1] -- 465
+			if pl.drawActorsOverlay ~= nil then -- 465
+				pl:drawActorsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) -- 467
+			end -- 467
+			i = i + 1 -- 464
+		end -- 464
+	end -- 464
+	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 472
+	self.stage:drawForegroundFraming( -- 475
+		self.fgDraw, -- 475
+		w, -- 475
+		h, -- 475
+		p, -- 475
+		self.cam -- 475
+	) -- 475
+	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 476
+	local action = {type = "none"} -- 479
+	if p.paused then -- 479
+		action = self.menus:updateAndDrawPause( -- 481
+			safeDt, -- 482
+			input, -- 483
+			self.uiDraw, -- 484
+			self.uiInkDraw, -- 485
+			self.uiArt, -- 486
+			self.uiGlow, -- 487
+			self.texts, -- 488
+			uiW, -- 489
+			uiH, -- 490
+			uiScale, -- 491
+			view.assistHintsEnabled, -- 492
+			function() -- 493
+				self.contract:toggleAssistHints() -- 494
+			end -- 493
+		) -- 493
+	else -- 493
+		local cutsceneHandled = false -- 499
+		do -- 499
+			i = 0 -- 500
+			while i < #self.plugins do -- 500
+				local pl = self.plugins[i + 1] -- 501
+				if pl.drawCutsceneOverlay ~= nil and pl:drawCutsceneOverlay( -- 501
+					self.uiDraw, -- 503
+					self.uiInkDraw, -- 503
+					self.uiArt, -- 503
+					self.uiGlow, -- 503
+					ctx -- 503
+				) then -- 503
+					cutsceneHandled = true -- 504
+				end -- 504
+				i = i + 1 -- 500
+			end -- 500
+		end -- 500
+		if not cutsceneHandled then -- 500
+			self.hud:draw( -- 509
+				self.uiDraw, -- 510
+				self.uiInkDraw, -- 511
+				self.uiArt, -- 512
+				self.uiGlow, -- 513
+				self.texts, -- 514
+				p, -- 515
+				self.cam, -- 516
+				self.vfx, -- 517
+				self.narrative.letterbox, -- 518
+				uiScale, -- 519
+				view.assistHintsEnabled, -- 520
+				true -- 521
+			) -- 521
+			self.narrative:draw( -- 523
+				self.uiDraw, -- 524
+				self.uiInkDraw, -- 525
+				self.uiGlow, -- 526
+				self.uiArt, -- 527
+				self.texts, -- 528
+				p, -- 529
+				uiW, -- 530
+				uiH, -- 531
+				view.assistHintsEnabled -- 532
+			) -- 532
+		end -- 532
+		local suppressReticle = cutsceneHandled or view.reloadSession.active or view.craftBench.active -- 536
+		do -- 536
+			i = 0 -- 537
+			while i < #self.plugins do -- 537
+				local pl = self.plugins[i + 1] -- 538
+				if pl.drawFullSpeedUi ~= nil and pl:drawFullSpeedUi( -- 538
+					self.uiDraw, -- 540
+					self.uiInkDraw, -- 540
+					self.uiArt, -- 540
+					self.uiGlow, -- 540
+					ctx -- 540
+				) then -- 540
+					suppressReticle = true -- 541
+				end -- 541
+				i = i + 1 -- 537
+			end -- 537
+		end -- 537
+		if not suppressReticle then -- 537
+			self.hud:drawReticleOverlay( -- 545
+				self.uiInkDraw, -- 546
+				self.uiArt, -- 547
+				self.uiGlow, -- 548
+				p, -- 549
+				self.cam, -- 550
+				self.vfx, -- 551
+				self.narrative.letterbox, -- 552
+				uiScale -- 553
+			) -- 553
+		end -- 553
+		if view.isRehearsal then -- 553
+			local badgeText = view.rehearsalTag ~= "" and "排演 · " .. view.rehearsalTag or "排演模式" -- 559
+			drawSilkVeil( -- 560
+				self.uiDraw, -- 560
+				self.uiArt, -- 560
+				"rehearsal_tag_veil", -- 560
+				uiW * 0.5, -- 560
+				uiH - 22, -- 560
+				168, -- 560
+				26, -- 560
+				PALETTE.inkWarm, -- 560
+				0.74, -- 560
+				8 -- 560
+			) -- 560
+			self.texts:put( -- 561
+				"xs", -- 561
+				badgeText, -- 561
+				uiW * 0.5, -- 561
+				uiH - 22, -- 561
+				toColor(PALETTE.amberCore), -- 561
+				0.5, -- 561
+				0.5, -- 561
+				"Center", -- 561
+				1.2, -- 561
+				0.92, -- 561
+				0.08 -- 561
+			) -- 561
+		end -- 561
+	end -- 561
+	self:finishFrame() -- 565
+	return action -- 566
+end -- 332
+return ____exports -- 332

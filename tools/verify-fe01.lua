@@ -104,7 +104,7 @@ end
 -- ---------------------------------------------------------------- 2. lowpoly.ts 数学不变量与多分辨率验证
 do
 	local p = new(play.Play, rooms.OUTSIDE_ROOM)
-	local resolutions = { { 1280, 720 }, { 1920, 1080 }, { 1680, 720 } }
+	local resolutions = { { 1280, 720 }, { 1920, 1080 }, { 2560, 1440 }, { 1680, 720 } }
 	local morphs = { 0, 0.25, 0.5, 0.75, 1.0 }
 	local maxFwdErr = 0
 	local maxInvErr = 0
@@ -238,6 +238,7 @@ end
 -- ---------------------------------------------------------------- 5. 连续 1440 拍单次播音 + 中段暂停续播 + G04 女主迈步
 do
 	local p = new(play.Play, rooms.GATE_ROOM)
+	p.hp = 2 -- 正式分线以 2/3 血量进入小满线。
 	local input = newInput()
 	fe:bindPlay(p, 1280, 720)
 	fe.audio:clearPlayLog()
@@ -292,6 +293,13 @@ do
 	end
 	local breathCnt = countCue(fe.audio, "gate:breath_19")
 	check("5.4 1..20 数声与 19 拍呼吸各精确响一次", allOnce and breathCnt == 1)
+	local tickByCue = {}
+	for _, entry in ipairs(fe.audio:getPlayLog()) do
+		tickByCue[entry.cueId] = entry.tick
+	end
+	local count19, breath, count20 = tickByCue["gate:count:19"], tickByCue["gate:breath_19"], tickByCue["gate:count:20"]
+	check("5.4a 呼吸在十九出声至少 46 拍后、二十出声前播放",
+		count19 and breath and count20 and breath - count19 >= 46 and breath < count20)
 
 	-- 松开再按 D 迈步进入 gate-walk 并解除锚定锁
 	input.moveX = 0

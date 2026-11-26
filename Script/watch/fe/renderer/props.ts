@@ -1,9 +1,9 @@
 /**
  * 场景核心叙事与互动道具渲染器：
- * - 跨房间共用「红布板车」（旋转辐条轮、金属车架、迎风摆动红布、发光停靠窝）
- * - 战术区域（危险扫描区、软土、砖地、通行线、双人出口区）
+ * - 跨房间共用「红布板车」（木轮、旧红布与停车挡槽）
+ * - 战场与村口地面（暴露地面、软土、砖地）
  * - 村口道具（瓶架、桌体、玻璃瓶、抛物线能量轨迹与砖地/软土落点声波预测）
- * - 检查点信标、安全锚地标、北塔灯柱
+ * - 北塔前的木架提灯
  */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
@@ -14,8 +14,6 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DepthOcclusion, depthOrder, occlusionTint } from "Script/watch/fe/occlusion";
 import {
     PALETTE,
-    drawDiamond,
-    fillGradQuad,
     fillRadialGlow,
     fillVGradRect,
     toColor,
@@ -34,9 +32,10 @@ export class PropsRenderer {
         occlusion: DepthOcclusion,
         fadeDt: number,
     ): void {
-        this.drawZones(fgDraw, fgGlow, p, cam, time);
-        this.drawMarks(fgDraw, fgGlow, p, cam, time);
-        this.drawCart(fgDraw, fgGlow, assets, p, cam, time, occlusion, fadeDt);
+        this.drawZones(fgDraw, p, cam);
+        this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
+        this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
+        this.drawCraftMaterials(assets, p, cam);
         if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
             const x = (p.player.x + p.partner.x) * 0.5;
             const y = p.partner.y + p.partner.h * 0.62;
@@ -49,12 +48,33 @@ export class PropsRenderer {
         }
     }
 
+    private drawCraftMaterials(assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
+        for (const pickup of p.pickups) {
+            // 兼容包含 B2 工台材料的游戏分支。
+            const kind: string = pickup.kind;
+            if (pickup.id === "" || (kind !== "wood" && kind !== "bell")) {
+                continue;
+            }
+            const depth = pickup.depth ?? 0;
+            const isWood = kind === "wood";
+            assets.tryPlace(
+                isWood ? "ink_bamboo_slip" : "prop_compass",
+                "pickup_" + pickup.id,
+                cam.sx(pickup.x), cam.sy(pickup.y + 9, depth),
+                cam.len(18), cam.len(isWood ? 7 : 16),
+                {
+                    angle: isWood ? 65 : 0,
+                    color: isWood ? toColor(PALETTE.amber) : toColor(PALETTE.amberCore),
+                    layer: p.room.depth === undefined ? 3 : depthOrder(depth, 1),
+                },
+            );
+        }
+    }
+
     private drawZones(
         fgDraw: DrawNode.Type,
-        fgGlow: DrawNode.Type,
         p: Play,
         cam: CameraDirector,
-        time: number,
     ): void {
         let i = 0;
         for (i = 0; i < p.room.zones.length; i++) {
@@ -62,25 +82,13 @@ export class PropsRenderer {
             const x0 = cam.sx(z.x0);
             const x1 = cam.sx(z.x1);
             const y0 = cam.sy(z.y);
-            const y1 = cam.sy(z.y + z.h);
             const zw = x1 - x0;
-            const zh = Math.max(6, y1 - y0);
 
             if (z.tint === 1) {
                 const road = p.room.depth;
-                if (road !== undefined) {
-                    const front = cam.sy(z.y, road.min);
-                    const back = cam.sy(z.y, road.max);
-                    fgGlow.drawRect(Rect(x0, front, zw, back - front), Color(141, 56, 64, 24),
-                        1, Color(166, 75, 75, 57));
-                    continue;
-                }
-                // 危险火力封锁区：艾希风赤红低透明扫描栅格 + 扫描线
-                fillVGradRect(fgGlow, x0, y0, zw, zh, Color(255, 36, 70, 42), Color(255, 36, 70, 6));
-                fgGlow.drawSegment(Vec2(x0, y0), Vec2(x0, y1), 1.4, toColor(PALETTE.crimson, 145));
-                fgGlow.drawSegment(Vec2(x1, y0), Vec2(x1, y1), 1.4, toColor(PALETTE.crimson, 145));
-                const scanY = y0 + ((time * 48) % zh);
-                fgGlow.drawSegment(Vec2(x0, scanY), Vec2(x1, scanY), 1.2, toColor(PALETTE.crimson, 95));
+                const front = cam.sy(z.y, road?.min ?? -3);
+                const back = cam.sy(z.y, road?.max ?? 1);
+                fgDraw.drawRect(Rect(x0, front, zw, back - front), Color(50, 35, 29, 48));
             } else if (z.tint === 2) {
                 // 软土（消音落点）：深褐暗纹，无高光
                 fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
@@ -94,69 +102,45 @@ export class PropsRenderer {
                     const bx = x0 + (zw * b) / bricks;
                     fgDraw.drawSegment(Vec2(bx, y0 - 4), Vec2(bx, y0 + 5), 1, Color(42, 46, 56, 220));
                 }
-                const pulse = 0.65 + 0.35 * Math.sin(time * 3.2);
-                fgGlow.drawSegment(Vec2(x0, y0 + 5), Vec2(x1, y0 + 5), 1.8, toColor(PALETTE.amber, 165 * pulse));
-            } else if (z.tint === 4) {
-                // 通行线 / 门洞等待区 / 林边安全区：翡翠冰青光带
-                fillVGradRect(fgGlow, x0, y0, zw, Math.min(85, Math.max(24, zh)), Color(84, 232, 168, 48), Color(84, 232, 168, 0));
-                fgGlow.drawSegment(Vec2(x0, y0 + 1), Vec2(x1, y0 + 1), 2, toColor(PALETTE.emerald, 190));
+                fgDraw.drawSegment(Vec2(x0, y0 + 4), Vec2(x1, y0 + 4), 1.1, Color(168, 151, 127, 130));
             }
-        }
-
-        // 检查站双人出口区域地面全息门标（792..928）
-        if (p.room.key === "checkpoint") {
-            const ex0 = cam.sx(p.ox + 792);
-            const ex1 = cam.sx(p.ox + 928);
-            const ey = cam.sy(0);
-            const col = p.gateOpen ? PALETTE.emerald : PALETTE.cyanDim;
-            fillVGradRect(fgGlow, ex0, ey, ex1 - ex0, 74, toColor(col, p.gateOpen ? 68 : 26), Color(col.r, col.g, col.b, 0));
-            fgGlow.drawSegment(Vec2(ex0, ey + 2), Vec2(ex1, ey + 2), 2.4, toColor(col, p.gateOpen ? 235 : 130));
         }
     }
 
     private drawMarks(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
         time: number,
     ): void {
-        let i = 0;
-        for (i = 0; i < p.room.marks.length; i++) {
-            const m = p.room.marks[i];
+        for (const m of p.room.marks) {
+            if (m.kind !== 6) {
+                continue;
+            }
             const mx = cam.sx(m.x);
             const my = cam.sy(m.y);
-            const pulse = 0.72 + 0.28 * Math.sin(time * 3.4 + i);
-
-            if (m.kind === 0) {
-                // 检查点：纤细全息柱 + 菱形悬浮节点
-                const on = p.checkpoint === m.x;
-                const col = on ? PALETTE.emerald : PALETTE.cyanDim;
-                fgDraw.drawSegment(Vec2(mx, my), Vec2(mx, my + 48), 1.4, toColor(col, on ? 220 : 120));
-                drawDiamond(fgGlow, mx, my + 54, 7, 10, toColor(col, on ? 220 : 120), 1.2, toColor(PALETTE.cyanCore, on ? 220 : 90));
-                if (on) {
-                    fillRadialGlow(fgGlow, mx, my + 54, 30, 30, toColor(PALETTE.emerald, 95), Color(84, 232, 168, 0), 14);
-                }
-            } else if (m.kind === 1) {
-                // 安全锚 / 停靠点 / 关键站位：贴地全息三角信标（不干扰画面主体）
-                const col = PALETTE.amber;
-                fgGlow.drawSegment(Vec2(mx - 14, my + 2), Vec2(mx + 14, my + 2), 1.8, toColor(col, 165 * pulse));
-                drawDiamond(fgGlow, mx, my + 12, 4.5, 4.5, toColor(col, 185 * pulse));
-            } else if (m.kind === 6) {
-                // 城外墙根尽头：北塔指路灯柱
-                const topY = my + cam.len(42);
-                fgDraw.drawSegment(Vec2(mx, my), Vec2(mx, topY), 2.5, toColor(PALETTE.steelLight));
-                fgDraw.drawRect(Rect(mx - 7, topY, 14, 16), toColor(PALETTE.steelDark), 1.4, toColor(PALETTE.amber, 220));
-                fgGlow.drawDot(Vec2(mx, topY + 8), 4.2, toColor(PALETTE.amberCore));
-                fillRadialGlow(fgGlow, mx, topY + 8, 54 * pulse, 54 * pulse, Color(255, 222, 142, 115), Color(255, 180, 82, 0), 18);
-                fillRadialGlow(fgGlow, mx, my + 4, 48, 12, Color(255, 210, 128, 65), Color(255, 180, 82, 0), 14);
+            const hookY = my + cam.len(52);
+            const armX = mx + cam.len(13);
+            const lampY = hookY - cam.len(12);
+            const wood = Color(82, 58, 40, 245);
+            const joint = Math.max(1, cam.len(2));
+            fgDraw.drawSegment(Vec2(mx, my), Vec2(mx, hookY), joint, wood);
+            fgDraw.drawSegment(Vec2(mx, hookY), Vec2(armX, hookY), joint, wood);
+            fgDraw.drawSegment(Vec2(mx, hookY - cam.len(7)), Vec2(armX - joint, hookY), joint * 0.7, wood);
+            if (!assets.tryPlace("prop_lantern", "path_lamp_" + m.x, armX, lampY, cam.len(16), cam.len(20), { layer: 1 })) {
+                fgDraw.drawRect(Rect(armX - cam.len(4), lampY - cam.len(7), cam.len(8), cam.len(14)),
+                    Color(192, 136, 64, 240), 1.4, wood);
             }
+            const flame = 0.91 + Math.sin(time * 3.1) * 0.09;
+            fillRadialGlow(fgGlow, armX, lampY, cam.len(23), cam.len(27), Color(239, 182, 106, 46 * flame),
+                Color(231, 164, 91, 0), 16);
         }
     }
 
     private drawCart(
         fgDraw: DrawNode.Type,
-        fgGlow: DrawNode.Type,
         assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
@@ -178,12 +162,12 @@ export class PropsRenderer {
             const rx0 = cam.sx(lo);
             const rx1 = cam.sx(hi);
             const ry = cam.sy(c.baseY, depth);
-            fgDraw.drawSegment(Vec2(rx0, ry + 2), Vec2(rx1, ry + 2), 1.2, toColor(PALETTE.steelLight, 140));
+            fgDraw.drawSegment(Vec2(rx0, ry + 1), Vec2(rx1, ry + 1), 1.2, Color(86, 65, 47, 150));
             const dockX = cam.sx(c.endX);
-            const dockCol = p.cartDocked ? PALETTE.emerald : PALETTE.amber;
-            fgDraw.drawRect(Rect(dockX - cam.len(12), ry - 4, cam.len(24), 5), toColor(PALETTE.voidDark));
-            fgGlow.drawSegment(Vec2(dockX - cam.len(14), ry + 1), Vec2(dockX + cam.len(14), ry + 1), 2.4, toColor(dockCol, 220));
-            drawDiamond(fgGlow, dockX, ry + 12, 5, 5, toColor(dockCol, p.cartDocked ? 235 : 140));
+            const width = cam.len(24);
+            const lip = cam.len(3);
+            fgDraw.drawRect(Rect(dockX - width * 0.5, ry, width, lip), Color(51, 37, 26, 230));
+            fgDraw.drawRect(Rect(dockX + width * 0.5 - lip, ry, lip, lip * 2), Color(107, 77, 51, 230));
         }
 
         const axleX = p.cartAxle;
@@ -232,17 +216,11 @@ export class PropsRenderer {
         // 外侧推拉手柄
         const hx = cam.sx(axleX + c.handleOffset);
         const hTop = bodyY1 + cam.len(9);
-        const gripReady = p.gripping || p.focusCart || p.cartHandleInReach();
-        const handleCol = p.gripping ? PALETTE.cyan : (gripReady ? PALETTE.amber : PALETTE.cartMetal);
         const edge = c.handleOffset < 0 ? x0 : x1;
         fgDraw.drawSegment(Vec2(edge, bodyY0 + bh * 0.55), Vec2(hx, hTop - cam.len(4)),
             Math.max(2, cam.len(3)), toColor(PALETTE.cartWood, 255 * opacity));
         fgDraw.drawSegment(Vec2(hx, hTop - cam.len(6)), Vec2(hx, hTop),
-            Math.max(2, cam.len(4)), toColor(handleCol, 255 * opacity));
-        fgGlow.drawDot(Vec2(hx, hTop), gripReady ? 4.8 : 3.2, toColor(handleCol, gripReady ? 245 : 160 * opacity));
-        if (gripReady && !p.cartDocked) {
-            fillRadialGlow(fgGlow, hx, hTop, 22, 22, toColor(handleCol, 95), Color(handleCol.r, handleCol.g, handleCol.b, 0), 12);
-        }
+            Math.max(2, cam.len(4)), Color(126, 91, 61, 255 * opacity));
 
         if (painted) {
             return;
@@ -267,7 +245,6 @@ export class PropsRenderer {
             1.6,
             toColor(PALETTE.clothRedHighlight, 220),
         );
-        fillRadialGlow(fgGlow, clothAnchorX, bodyY1 - clothH * 0.35, 32, 32, Color(235, 42, 62, 54), Color(235, 42, 62, 0), 14);
     }
 
     private drawWheel(draw: DrawNode.Type, cx: number, cy: number, r: number, spin: number): void {
@@ -301,14 +278,16 @@ export class PropsRenderer {
             const bx1 = cam.sx(bottle.x + 16);
             const by0 = cam.sy(0);
             const by1 = cam.sy(64);
-            fgDraw.drawRect(Rect(bx0, by0, bx1 - bx0, by1 - by0), Color(32, 36, 46, 235), 1.2, toColor(PALETTE.steelLight, 180));
-            // 两层木板隔层
-            fgDraw.drawSegment(Vec2(bx0 + 2, by0 + (by1 - by0) * 0.48), Vec2(bx1 - 2, by0 + (by1 - by0) * 0.48), 2, toColor(PALETTE.cartWood));
-            assets.tryPlace("cover_wood", "village_shelf", (bx0 + bx1) * 0.5, by0,
-                bx1 - bx0, by1 - by0, { layer: 1, opacity: 0.85 });
-            fgDraw.drawSegment(Vec2(bx0, by1), Vec2(bx1, by1), 1.3, toColor(PALETTE.rimSilver, 175));
+            const beam = cam.len(3.4);
+            const side = Color(78, 57, 41, 255);
+            fgDraw.drawRect(Rect(bx0, by0, beam, by1 - by0), side);
+            fgDraw.drawRect(Rect(bx1 - beam, by0, beam, by1 - by0), side);
+            for (const shelfY of [by0 + (by1 - by0) * 0.45, by1 - beam]) {
+                fgDraw.drawRect(Rect(bx0 - beam * 0.25, shelfY, bx1 - bx0 + beam * 0.5, beam),
+                    Color(106, 78, 56, 255), 1, Color(56, 42, 34, 240));
+            }
             if (!p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0) {
-                this.drawBottleSprite(fgDraw, fgGlow, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(65), cam.ppu, 0, true, time);
+                this.drawBottleSprite(fgDraw, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(70), cam.ppu, 0);
             }
         }
 
@@ -330,10 +309,10 @@ export class PropsRenderer {
         // 3. 手上持瓶 / 飞行中瓶子
         if (p.hasBottle) {
             const pl = p.player;
-            this.drawBottleSprite(fgDraw, fgGlow, assets, "bottle_held", cam.sx(pl.x + pl.facing * 12), cam.sy(pl.y + pl.h * 0.56), cam.ppu, pl.facing * 0.2, false, time);
+            this.drawBottleSprite(fgDraw, assets, "bottle_held", cam.sx(pl.x + pl.facing * 12), cam.sy(pl.y + pl.h * 0.56), cam.ppu, pl.facing * 0.2);
         }
         if (p.bottleFly !== undefined) {
-            this.drawBottleSprite(fgDraw, fgGlow, assets, "bottle_air", cam.sx(p.bottleFly.x), cam.sy(p.bottleFly.y), cam.ppu, time * 14, true, time);
+            this.drawBottleSprite(fgDraw, assets, "bottle_air", cam.sx(p.bottleFly.x), cam.sy(p.bottleFly.y), cam.ppu, time * 14);
         }
 
         // 4. 持瓶抛物线预览（与后端 bottleAimX/Y 100% 同参数，精准预测落点声响）
@@ -383,11 +362,10 @@ export class PropsRenderer {
 
     private drawBottleSprite(
         fgDraw: DrawNode.Type,
-        fgGlow: DrawNode.Type,
         assets: AssetSlotHost,
         id: string,
         cx: number, cy: number, ppu: number,
-        tilt: number, highlight: boolean, time: number,
+        tilt: number,
     ): void {
         const height = Math.max(12, ppu * 13);
         if (!assets.tryPlace("prop_bottle", id, cx, cy, height, height, {
@@ -397,10 +375,6 @@ export class PropsRenderer {
             const dy = Math.cos(tilt) * height * 0.5;
             fgDraw.drawSegment(Vec2(cx - dx, cy - dy), Vec2(cx + dx, cy + dy), height * 0.32,
                 toColor(PALETTE.amber, 225));
-        }
-        if (highlight) {
-            const p = 0.7 + 0.3 * Math.sin(time * 4.5);
-            fillRadialGlow(fgGlow, cx, cy, 18 * p, 18 * p, toColor(PALETTE.emerald, 85 * p), Color(84, 232, 168, 0), 12);
         }
     }
 }

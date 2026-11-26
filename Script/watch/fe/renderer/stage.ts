@@ -11,7 +11,6 @@ import {
     PALETTE,
     RoomTheme,
     drawHazardStripes,
-    fillChamferBox,
     fillGradQuad,
     fillRadialGlow,
     fillVGradRect,
@@ -66,11 +65,12 @@ export class StageRenderer {
 
         const span = Math.max(1, p.room.maxX - p.room.minX);
         const progress = (cam.x - p.room.minX) / span - 0.5;
-        const farSlot = ("bgFar_" + p.room.key) as AssetSlotKey;
+        const backdropKey = theme.backdropKey ?? p.room.key;
+        const farSlot = ("bgFar_" + backdropKey) as AssetSlotKey;
         const artW = Math.max(w, h * 16 / 9) + w * 0.12;
         const artH = artW * 9 / 16;
         if (assets.tryPlace(farSlot, "scene", w * (0.5 - progress * 0.09), (h - artH) * 0.5, artW, artH)) {
-            this.drawDressing(assets, p, cam, progress);
+            this.drawDressing(assets, backdropKey, cam, progress);
             const y = cam.groundScreenY;
             fillVGradRect(bgDraw, 0, 0, w, h, toColor(PALETTE.voidDark), toColor(theme.skyMid));
             fillVGradRect(bgGlow, 0, y - 1, w, h * 0.14, Color(43, 49, 63, 15), Color(43, 49, 63, 0));
@@ -121,21 +121,21 @@ export class StageRenderer {
         );
     }
 
-    private drawDressing(assets: AssetSlotHost, p: Play, cam: CameraDirector, progress: number): void {
+    private drawDressing(assets: AssetSlotHost, backdropKey: string, cam: CameraDirector, progress: number): void {
         const w = cam.viewW;
         const ground = cam.groundScreenY;
         const x = w * (0.75 - progress * 0.29);
-        if (p.room.key === "forest" || p.room.key === "outside" || p.room.key === "tower") {
+        if (backdropKey === "forest" || backdropKey === "outside" || backdropKey === "tower") {
             assets.tryPlace("pine", "mid_pine", x, ground - cam.len(12), cam.len(124), cam.len(138),
                 { layer: 1, opacity: 0.52 });
-        } else if (p.room.key === "prologue" || p.room.key === "village" || p.room.key === "checkpoint") {
+        } else if (backdropKey === "prologue" || backdropKey === "village" || backdropKey === "checkpoint") {
             assets.tryPlace("eaves", "mid_eaves", x, ground - cam.len(8), cam.len(186), cam.len(104),
                 { layer: 1, opacity: 0.46 });
         } else {
             assets.tryPlace("cover_stone", "mid_ruin", x, ground - cam.len(8), cam.len(140), cam.len(48),
                 { layer: 1, opacity: 0.46 });
         }
-        if (p.room.key === "street" || p.room.key === "checkpoint" || p.room.key === "prologue") {
+        if (backdropKey === "street" || backdropKey === "checkpoint" || backdropKey === "prologue") {
             assets.tryPlace("prop_lantern", "mid_lantern", w * (0.27 - progress * 0.21),
                 ground + cam.len(92), cam.len(22), cam.len(30), { layer: 2, opacity: 0.82 });
         }
@@ -291,7 +291,7 @@ export class StageRenderer {
         if (p.room.key === "gate") {
             this.drawGateShutter(fgDraw, fgGlow, assets, p, cam, time);
         }
-        this.drawArch(fgDraw, fgGlow, p, cam, theme);
+        this.drawArch(fgDraw, p, cam);
     }
 
     /** 绘制近景压边与电影暗角（绘制在角色和特效之后、HUD 之前） */
@@ -741,9 +741,7 @@ export class StageRenderer {
 
             // 2) 城门绞盘
             if (s.label.indexOf("绞盘") >= 0) {
-                this.drawWinch(fgDraw, fgGlow, x0, y0, sw, sh, p, time);
-                assets.tryPlace("prop_winch", "gate_winch", (x0 + x1) * 0.5, y0 + sh * 0.55, sw, sh * 0.78,
-                    { layer: 2 });
+                this.drawWinch(fgDraw, assets, x0, y0, sw, sh, p);
                 continue;
             }
 
@@ -856,36 +854,35 @@ export class StageRenderer {
     }
 
     private drawWinch(
-        fgDraw: DrawNode.Type,
-        fgGlow: DrawNode.Type,
+        draw: DrawNode.Type,
+        assets: AssetSlotHost,
         x0: number, y0: number, sw: number, sh: number,
-        p: Play, time: number,
+        p: Play,
     ): void {
-        fillChamferBox(fgDraw, x0, y0, sw, sh, 8, toColor(PALETTE.steelMid), 1.5, toColor(PALETTE.rimSilver, 180));
-        // 旋转绞盘齿轮
         const cx = x0 + sw * 0.5;
         const cy = y0 + sh * 0.55;
-        const r = Math.min(sw, sh) * 0.34;
-        const spin = p.phase === "gate-hold" ? time * 1.4 : 0;
-        fgDraw.drawRing(Vec2(cx, cy), r * 0.62, r, toColor(PALETTE.steelDark), 1.5, toColor(PALETTE.rimSilver, 210));
-        let k = 0;
-        for (k = 0; k < 6; k++) {
-            const a = spin + (k * Math.PI) / 3;
-            fgDraw.drawSegment(
-                Vec2(cx + Math.cos(a) * r * 0.25, cy + Math.sin(a) * r * 0.25),
-                Vec2(cx + Math.cos(a) * r * 1.05, cy + Math.sin(a) * r * 1.05),
-                2,
-                toColor(PALETTE.rimSilver, 210),
-            );
+        const ropeWidth = Math.max(1, sw * 0.023);
+        const ropeTop = Vec2(cx + sw * 0.16, y0 + sh * 2.45);
+        const drum = Vec2(cx + sw * 0.12, cy + sh * 0.18);
+        const slack = p.phase === "gate-idle" ? sw * 0.09 : 0;
+        const bend = Vec2((drum.x + ropeTop.x) * 0.5 + slack, (drum.y + ropeTop.y) * 0.5);
+        draw.drawEllipse(Vec2(cx, y0), sw * 0.53, sh * 0.07, Color(10, 8, 9, 150));
+        draw.drawSegment(drum, bend, ropeWidth, Color(111, 86, 57, 239));
+        draw.drawSegment(bend, ropeTop, ropeWidth, Color(111, 86, 57, 239));
+        if (assets.tryPlace("prop_winch", "gate_winch", cx, y0 + sh * 0.5, sw, sh, { layer: 2 })) {
+            return;
         }
-        // 拉向门楣的张力钢缆
-        fgDraw.drawSegment(Vec2(cx, cy + r), Vec2(cx, y0 + sh + 220), 1.6, toColor(PALETTE.steelLight, 175));
-        // 绞盘状态灯
-        const active = p.phase === "gate-hold" || p.phase === "gate-send";
-        const lampCol = active ? PALETTE.cyan : PALETTE.amber;
-        const pulse = 0.7 + 0.3 * Math.sin(time * 5);
-        fgGlow.drawDot(Vec2(x0 + sw - 10, y0 + sh - 10), 4, toColor(lampCol, 240 * pulse));
-        fillRadialGlow(fgGlow, x0 + sw - 10, y0 + sh - 10, 22, 22, toColor(lampCol, 95 * pulse), Color(lampCol.r, lampCol.g, lampCol.b, 0), 12);
+        const timber = Color(75, 51, 34, 255);
+        draw.drawSegment(Vec2(x0 + sw * 0.15, y0 + sh * 0.07), Vec2(cx, y0 + sh * 0.86), sw * 0.06, timber);
+        draw.drawSegment(Vec2(x0 + sw * 0.85, y0 + sh * 0.07), Vec2(cx, y0 + sh * 0.86), sw * 0.06, timber);
+        draw.drawRect(Rect(x0, y0, sw, sh * 0.12), timber);
+        const radius = Math.min(sw, sh) * 0.21;
+        draw.drawCircle(Vec2(cx, cy), radius, Color(48, 41, 37, 255));
+        for (let i = -2; i <= 2; i++) {
+            const x = cx + i * radius * 0.28;
+            draw.drawSegment(Vec2(x, cy - radius * 0.62), Vec2(x, cy + radius * 0.62), ropeWidth,
+                Color(135, 103, 68, 240));
+        }
     }
 
     private drawGateShutter(
@@ -1025,34 +1022,39 @@ export class StageRenderer {
     }
 
     private drawArch(
-        fgDraw: DrawNode.Type,
-        fgGlow: DrawNode.Type,
+        draw: DrawNode.Type,
         p: Play,
         cam: CameraDirector,
-        theme: RoomTheme,
     ): void {
         const a = p.room.arch;
-        if (a.h <= 0 || a.x1 <= a.x0) {
+        if (p.room.key !== "outside" || a.h <= 0 || a.x1 <= a.x0) {
             return;
         }
         const x0 = cam.sx(a.x0);
         const x1 = cam.sx(a.x1);
         const y0 = cam.sy(a.y);
         const y1 = cam.sy(a.y + a.h);
-        const aw = x1 - x0;
-        const ah = y1 - y0;
-
-        // 拱洞内部深黑通道
-        fgDraw.drawRect(Rect(x0, y0, aw, ah), Color(5, 7, 11, 245));
-        // 拱券顶边框 + 左右厚石框
-        fgDraw.drawSegment(Vec2(x0, y0), Vec2(x0, y1), 3, toColor(PALETTE.rimSilver, 215));
-        fgDraw.drawSegment(Vec2(x1, y0), Vec2(x1, y1), 3, toColor(PALETTE.rimSilver, 215));
-        fgDraw.drawSegment(Vec2(x0 - 4, y1), Vec2(x1 + 4, y1), 3.2, toColor(PALETTE.rimSilver, 235));
-        // 城外拱洞内嵌石拱肋（严格约束在洞框内部，绝不顶穿上沿）
-        if (p.room.key === "outside") {
-            const arcR = Math.min(aw * 0.46, ah * 0.72);
-            fgDraw.drawArc(Vec2((x0 + x1) * 0.5, y1 - arcR - 2), arcR, 0, 180, 2.2, toColor(theme.accent, 195));
-            fillVGradRect(fgGlow, x0 + 6, y0, aw - 12, ah * 0.65, Color(86, 186, 236, 52), Color(86, 186, 236, 0));
+        const cx = (x0 + x1) * 0.5;
+        const rx = (x1 - x0) * 0.5;
+        const rise = cam.len(9);
+        const rim = cam.len(7);
+        const slices = 9;
+        const mortar = Color(31, 32, 35, 255);
+        const point = (i: number, edge: number): Vec2.Type => {
+            const angle = Math.PI * i / slices;
+            return Vec2(cx + Math.cos(angle) * (rx + edge), y1 + Math.sin(angle) * (rise + edge));
+        };
+        const opening = [Vec2(x0, y0), Vec2(x1, y0)];
+        for (let i = 0; i <= slices; i++) {
+            opening.push(point(i, 0));
+        }
+        draw.drawPolygon(opening, Color(13, 15, 20, 248));
+        draw.drawRect(Rect(x0 - rim, y0, rim, y1 - y0), Color(62, 63, 67, 255), 1, mortar);
+        draw.drawRect(Rect(x1, y0, rim, y1 - y0), Color(72, 72, 74, 255), 1, mortar);
+        for (let i = 0; i < slices; i++) {
+            const shade = 77 + (i % 3) * 8;
+            draw.drawPolygon([point(i, 0), point(i, rim), point(i + 1, rim), point(i + 1, 0)],
+                Color(shade, shade, shade + 1, 255), 1, mortar);
         }
     }
 }

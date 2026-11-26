@@ -8,14 +8,14 @@
 
 | 文件 | 逻辑音轨 | 默认增益 | 触发位置 / 去重键 | 说明 |
 | --- | --- | --- | --- | --- |
-| `wind_loop.wav` | `wind` | `0.18 → 0.64`（18–20 拍闪避至 `0.52×`） | `loop:gate_wind` | 宁村所外城海风无缝循环 |
-| `water_moat_loop.wav` | `water` | `0.28 → 0.52`（18–20 拍闪避至 `0.52×`） | `loop:gate_water` | 城外护城河水声无缝循环（落门后保留） |
+| `wind_loop.wav` | `wind` | `0.18 → 0.64`（数十八至二十的每声起点降至 `0.32×`，随后渐回） | `loop:gate_wind` | 宁村所外城海风无缝循环 |
+| `water_moat_loop.wav` | `water` | `0.28 → 0.52`（同风轨降音与恢复） | `loop:gate_water` | 城外护城河水声无缝循环（落门后保留） |
 | `cloth_wipe_wood.wav` | `sfx` | `0.86` | `cuff:p03:wipe:<sid>` | `P03` 补线袖口拂去柜沿碎瓷的布擦木声 |
 | `gate_slam.wav` | `sfx` | `0.92` | `cuff:p05:slam:<sid>` | `P05` 厚木城门落闩合拢声 |
 | `knock_wall.wav` | `sfx` | `0.88 / 0.92` | `gate:rehearsal:knock:1\|2:<sid>` | `G05` 侧墙两下轻叩（正式模式复用后端 `knock` 事件） |
 | `reunion_hold.wav` | `sfx` | `0.88` | `cuff:g05:clasp:<sid>` / 后端 `handHeld` | `G05` 满 0.6s 握稳掌心反馈音 |
 | `reunion_release.wav` | `sfx` | `0.72` | `cuff:g05:release:<sid>:<n>` / 后端 `handRelease` | `G05` 中途松手袖口退回画边轻响 |
-| `breath_soft.wav` | `voice` / `ambience` | `0.48`（19 拍）/ `0.24`（`G04` 循环） | `gate:breath19:<sid>` / `loop:gate_breath` | 第 19 声后轻呼吸与 `G04` 静候呼吸 |
+| `breath_soft.wav` | `voice` / `ambience` | `0.48`（第 19 声后 0.78 秒）/ `0.24`（`G04` 循环） | `gate:breath19:<sid>` / `loop:gate_breath` | 第 19 声后轻呼吸与 `G04` 静候呼吸 |
 
 ## 2. 人声占位轨（`PLACEHOLDER_VOICE` · 待后期替换为真人干声）
 

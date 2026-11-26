@@ -29,10 +29,16 @@ if [ ! -f "$ROOT/init.lua" ] || [ ! -f "$ROOT/Script/watch/fe/frontend.lua" ]; t
     exit 1
 fi
 
-if [ ! -f "$ROOT/assets/art/sprites.clip" ] || [ ! -f "$ROOT/assets/art/title.png" ]; then
-    echo "缺少正式游戏素材，请检查 assets/art/。" >&2
-    exit 1
-fi
+for asset in \
+    art/sprites.clip art/title.png \
+    font/lxgw-neo-zhisong.ttf font/longcang-brush.ttf \
+    audio/gate/count_20.wav audio/combat/carry_start.wav audio/child/bottle_brick.wav \
+    audio/tower/book_open.wav audio/museum/hall_ambience_loop.wav; do
+    if [ ! -s "$ROOT/assets/$asset" ]; then
+        echo "缺少离线资源 assets/$asset" >&2
+        exit 1
+    fi
+done
 
 echo "== 组装 $OUT"
 rm -rf "$OUT"
@@ -56,23 +62,15 @@ cp "$ROOT/tools/windows-boot.lua" "$OUT/Script/init.lua"
 cp "$ROOT/init.lua" "$OUT/Script/main.lua"
 mkdir -p "$OUT/Script/watch"
 rsync -a --include='*/' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
-mkdir -p "$OUT/assets/art"
-rsync -a "$ROOT/assets/art/" "$OUT/assets/art/"
-if [ -d "$ROOT/assets/font" ]; then
-    mkdir -p "$OUT/assets/font"
-    rsync -a "$ROOT/assets/font/" "$OUT/assets/font/"
-fi
-if [ -d "$ROOT/assets/audio" ]; then
-    mkdir -p "$OUT/assets/audio"
-    rsync -a "$ROOT/assets/audio/" "$OUT/assets/audio/"
-fi
+# 递归复制运行时素材，保留新增的音轨、场景资源及字体许可。
+mkdir -p "$OUT/assets"
+rsync -a --exclude '.DS_Store' "$ROOT/assets/" "$OUT/assets/"
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
 
 cat > "$OUT/启动.cmd" <<'CMD'
 @echo off
 rem 向西守望 · Windows 试玩包
-rem 双击本文件或 Dora.exe 都可以。若系统提示“已保护你的电脑”，
-rem 点“更多信息 -> 仍要运行”。
+rem 双击本文件或 Dora.exe 启动游戏。
 cd /d "%~dp0"
 start "" "Dora.exe"
 CMD
