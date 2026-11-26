@@ -1,7 +1,7 @@
 /**
  * 《向西守望》宋明清雅水墨菜单体系（V2 视觉 × 改进键鼠输入状态机）：
  * - 标题页：龙藏体瘦逸竖排主标题「向西守望」+ 唯一文人孤印「守望」+ 右起错落古画竖排题诗 + 无盒新致宋菜单与水袖飞白；
- * - 选章页：「千里驿道长卷」+ 单幅月窗大图画笺（柔和烟边、诗意引语、8 驿站游丝时间轴，支持从暂停往返保留进度）；
+ * - 选章页：关卡预览与可分行的驿站时间轴，支持从暂停往返保留进度；
  * - 操作说明：极简通透「双栏素笺」（去滚轴去方盒，一缕竖烟丝与海棠结轻分周戍/小满）；
  * - 局内暂停：左侧通天垂落「烟黛纱幔」（保留右侧月夜实景，支持 Esc 续行与切页不串键）。
  *
@@ -45,6 +45,10 @@ const TITLE_ITEMS = [
     { id: "controls", zh: "操作说明" },
     { id: "trial", zh: "护送试炼 · 肉鸽" },
 ];
+
+// 博物馆由双通关后的井口进入，章节菜单保留公开关卡原有的房间索引。
+const CHAPTERS = ROOMS.map((room, roomIndex) => ({ room, roomIndex }))
+    .filter(chapter => chapter.room.key !== "museum");
 
 const PAUSE_ITEMS = [
     { id: "resume", zh: "继续游戏" },
@@ -112,7 +116,7 @@ export class MenuRenderer {
 
     openChapters(roomIndex?: number): void {
         this.chaptersFromPause = roomIndex !== undefined;
-        this.chapterSelected = roomIndex ?? 0;
+        this.chapterSelected = Math.max(0, CHAPTERS.findIndex(chapter => chapter.roomIndex === roomIndex));
         this.pauseShowControls = false;
         this.resetInput();
     }
@@ -384,25 +388,33 @@ export class MenuRenderer {
         }
 
         const marginX = 96;
-        const trackY = 148;
+        const splitTrack = CHAPTERS.length > 8;
+        const perRow = splitTrack ? Math.ceil(CHAPTERS.length / 2) : CHAPTERS.length;
+        const trackY = splitTrack ? 195 : 148;
+        const rowGap = 84;
         const trackX0 = marginX + 34;
         const trackX1 = w - marginX - 34;
-        const stepX = (trackX1 - trackX0) / (ROOMS.length - 1);
+        const stepX = (trackX1 - trackX0) / Math.max(1, perRow - 1);
 
         const stationBoxes: Rect.Type[] = [];
         let s = 0;
-        for (s = 0; s < ROOMS.length; s++) {
-            const sx = trackX0 + s * stepX;
-            stationBoxes.push(Rect(sx - stepX * 0.45, trackY - 46, stepX * 0.9, 92));
+        for (s = 0; s < CHAPTERS.length; s++) {
+            const sx = trackX0 + (s % perRow) * stepX;
+            const sy = trackY - Math.floor(s / perRow) * rowGap;
+            stationBoxes.push(Rect(sx - stepX * 0.45, sy - 37, stepX * 0.9, 74));
         }
 
         const hitStation = hitIndex(stationBoxes, frame.pointer, frame.inside);
         const keys = frame.keys;
         if (frame.click && hitStation >= 0) {
             this.chapterSelected = hitStation;
-        } else if (keys.left || keys.right || keys.up || keys.down) {
+        } else if (keys.left || keys.right || (!splitTrack && (keys.up || keys.down))) {
             const step = keys.left ? -1 : keys.right ? 1 : 4;
-            this.chapterSelected = (this.chapterSelected + step + ROOMS.length) % ROOMS.length;
+            this.chapterSelected = (this.chapterSelected + step + CHAPTERS.length) % CHAPTERS.length;
+        } else if (keys.down && this.chapterSelected < perRow) {
+            this.chapterSelected = Math.min(CHAPTERS.length - 1, this.chapterSelected + perRow);
+        } else if (keys.up && this.chapterSelected >= perRow) {
+            this.chapterSelected -= perRow;
         } else if (frame.pointerMoved && hitStation >= 0 && !keys.confirm) {
             this.chapterSelected = hitStation;
         }
@@ -411,12 +423,11 @@ export class MenuRenderer {
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 198));
 
         // 顶部清雅眉题（无红方块，一缕霜月游丝配海棠结）
-        texts.put("banner", "千里行纪", marginX, h - 66, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
-        texts.put("xs", "双线八驿 · 择章重历", marginX + 196, h - 70, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.85, 0.08);
+        texts.put("banner", "选择章节", marginX, h - 66, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
         drawHairline(uiInkDraw, uiArt, "chap_top_line", w * 0.5, h - 100, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
         // -------- 1. 上方主视区：单幅月窗画笺 + 右侧诗意章目 --------
-        const activeRoom = ROOMS[this.chapterSelected];
+        const activeRoom = CHAPTERS[this.chapterSelected].room;
         const theme = themeOf(activeRoom.key);
         const winX = marginX;
         const winY = 266;
@@ -429,7 +440,7 @@ export class MenuRenderer {
         uiArt.tryPlace("ink_frame_mask", "chap_win_shadow", winX + winW * 0.5, winY + winH * 0.5, winW + 40, winH + 34, {
             color: toColor(PALETTE.inkVoid), opacity: 0.88, layer: -2,
         });
-        const bgSlot = ("bgFar_" + activeRoom.key) as AssetSlotKey;
+        const bgSlot = ("bgFar_" + (theme.backdropKey ?? activeRoom.key)) as AssetSlotKey;
         uiArt.tryPlace(bgSlot, "chap_win_art", winX + winW * 0.5, winY + 4, winW - 8, winH - 8, {
             opacity: 0.92, layer: -1,
         });
@@ -453,11 +464,13 @@ export class MenuRenderer {
         const volCol = this.chapterSelected < 4 ? PALETTE.cyan : PALETTE.amber;
         texts.put("xs", theme.volumeTagZh, infoX, winY + winH - 44, toColor(volCol), 0, 0.5, TextAlign.Left, 2.8, 0.92, 0.08);
 
-        // 龙藏体大章名（中点以精致菱花点衔接，避开行书缺间隔号）
+        // 新增关卡名有龙藏体未收录的字，使用覆盖完整的正文宋体。
         const sep = " · ";
         const sIdx = theme.titleZh.indexOf(sep);
         const titleY = winY + winH - 98;
-        if (sIdx > 0) {
+        if (theme.backdropKey !== undefined) {
+            texts.put("lg", theme.titleZh, infoX, titleY, toColor(PALETTE.textBright));
+        } else if (sIdx > 0) {
             const leftPart = theme.titleZh.slice(0, sIdx);
             const rightPart = theme.titleZh.slice(sIdx + sep.length);
             const lw = visualTextWidth(leftPart, 40);
@@ -487,39 +500,47 @@ export class MenuRenderer {
         texts.put("md", "入此卷章", goX + 34, goY + 21, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 3.8, 1, 0.10);
         texts.put("xs", "Enter", goX + 156, goY + 21, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.82, 0.08);
 
-        // -------- 2. 下方「千里驿道」八驿游丝长卷轴 --------
+        // -------- 2. 下方章节时间轴 --------
         drawSilkVeil(uiDraw, uiArt, "chap_track_veil", w * 0.5, trackY + 6, w - marginX * 1.1, 126, PALETTE.inkWash, 0.72, -2);
         drawMistCurve(uiArt, "chap_track_mist", w * 0.5, trackY, trackX1 - trackX0 + 160, 74, PALETTE.inkMist, 0.62, -1);
         uiInkDraw.drawSegment(Vec2(trackX0, trackY), Vec2(trackX1, trackY), 0.9, toColor(PALETTE.silkDim, 145));
 
-        // 上下卷分界微刻（第 4 驿与第 5 驿之间）
-        const midDivX = trackX0 + stepX * 3.5;
-        uiInkDraw.drawSegment(Vec2(midDivX, trackY - 12), Vec2(midDivX, trackY + 12), 0.8, toColor(PALETTE.silkDim, 120));
-        texts.put("xs", "上卷 · 孤城护童", trackX0 + stepX * 1.5, trackY + 52, toColor(PALETTE.cyan), 0.5, 0.5, TextAlign.Center, 2.2, 0.88, 0.08);
-        texts.put("xs", "下卷 · 独赴北塔", trackX0 + stepX * 5.5, trackY + 52, toColor(PALETTE.amber), 0.5, 0.5, TextAlign.Center, 2.2, 0.88, 0.08);
+        if (splitTrack) {
+            const lastX = trackX0 + (CHAPTERS.length - perRow - 1) * stepX;
+            uiInkDraw.drawSegment(Vec2(trackX0, trackY - rowGap), Vec2(lastX, trackY - rowGap), 0.9, toColor(PALETTE.silkDim, 145));
+        } else {
+            const midDivX = trackX0 + stepX * 3.5;
+            uiInkDraw.drawSegment(Vec2(midDivX, trackY - 12), Vec2(midDivX, trackY + 12), 0.8, toColor(PALETTE.silkDim, 120));
+            texts.put("xs", "上卷 · 孤城护童", trackX0 + stepX * 1.5, trackY + 52, toColor(PALETTE.cyan), 0.5, 0.5, TextAlign.Center, 2.2, 0.88, 0.08);
+            texts.put("xs", "下卷 · 独赴北塔", trackX0 + stepX * 5.5, trackY + 52, toColor(PALETTE.amber), 0.5, 0.5, TextAlign.Center, 2.2, 0.88, 0.08);
+        }
 
         let i = 0;
-        for (i = 0; i < ROOMS.length; i++) {
-            const sx = trackX0 + i * stepX;
-            const rt = themeOf(ROOMS[i].key);
+        for (i = 0; i < CHAPTERS.length; i++) {
+            const box = stationBoxes[i];
+            const sx = box.x + box.width * 0.5;
+            const sy = box.y + box.height * 0.5;
+            const rt = themeOf(CHAPTERS[i].room.key);
             const active = this.chapterSelected === i;
             const nodeCol = active ? PALETTE.rouge : (i < 4 ? PALETTE.cyan : PALETTE.amber);
 
             if (active) {
-                fillRadialGlow(uiGlow, sx, trackY, 26, 26, toColor(PALETTE.rouge, 36 * breathe), Color(182, 58, 56, 0), 12);
-                uiArt.tryPlace("ink_enso_fine", "chap_st_ring_" + i, sx, trackY, 32, 32, {
+                fillRadialGlow(uiGlow, sx, sy, 26, 26, toColor(PALETTE.rouge, 36 * breathe), Color(182, 58, 56, 0), 12);
+                uiArt.tryPlace("ink_enso_fine", "chap_st_ring_" + i, sx, sy, 32, 32, {
                     color: toColor(PALETTE.silkLine), opacity: 0.78, angle: this.time * 18, layer: 3,
                 });
-                drawBlossomDot(uiInkDraw, uiArt, "chap_st_dot_" + i, sx, trackY, 17, PALETTE.rouge, 0.98, 4);
+                drawBlossomDot(uiInkDraw, uiArt, "chap_st_dot_" + i, sx, sy, 17, PALETTE.rouge, 0.98, 4);
             } else {
-                uiArt.tryPlace("ink_enso_fine", "chap_st_ring_" + i, sx, trackY, 16, 16, {
+                uiArt.tryPlace("ink_enso_fine", "chap_st_ring_" + i, sx, sy, 16, 16, {
                     color: toColor(nodeCol), opacity: 0.62, layer: 3,
                 });
-                drawBlossomDot(uiInkDraw, uiArt, "chap_st_dot_" + i, sx, trackY, 7, PALETTE.silkLine, 0.72, 4);
+                drawBlossomDot(uiInkDraw, uiArt, "chap_st_dot_" + i, sx, sy, 7, PALETTE.silkLine, 0.72, 4);
             }
 
-            texts.put("xs", rt.numeralZh, sx, trackY + 25, toColor(active ? PALETTE.crimsonCore : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0, active ? 1 : 0.88, 0.08);
-            texts.put("xs", rt.shortNameZh, sx, trackY - 26, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, active ? 1 : 0.84, 0.08);
+            if (!splitTrack) {
+                texts.put("xs", rt.numeralZh, sx, sy + 25, toColor(active ? PALETTE.crimsonCore : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0, active ? 1 : 0.88, 0.08);
+            }
+            texts.put("xs", rt.shortNameZh, sx, sy - 26, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, active ? 1 : 0.84, 0.08);
         }
 
         // 左下返回按钮（由暂停进入时返回暂停，不丢失场景进度）
@@ -529,13 +550,13 @@ export class MenuRenderer {
         const backHover = frame.inside && backBox.containsPoint(frame.pointer);
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 44, 24, "ESC", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
         texts.put("sm", this.chaptersFromPause ? "返回暂停" : "返回标题", backX + 56, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
-        texts.put("xs", "← / → 沿驿道阅览   ·   Enter 或点选入章", w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
+        texts.put("xs", "方向键选择   ·   回车或点击进入", w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
 
         if (frame.click && backHover) {
             return back;
         }
         if (keys.confirm || (frame.click && (hitStation >= 0 || winHover || goHover))) {
-            return { type: "jump", roomIndex: this.chapterSelected };
+            return { type: "jump", roomIndex: CHAPTERS[this.chapterSelected].roomIndex };
         }
         return { type: "none" };
     }

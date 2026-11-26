@@ -107,6 +107,7 @@ export type AmbientKind = "ash" | "drizzle" | "spores" | "motes";
 
 export interface RoomTheme {
     key: string;
+    backdropKey?: string;
     numeralZh: string;
     actCode: string;
     titleZh: string;
@@ -369,6 +370,34 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         introWhisper: "孤灯犹明。走到北塔门前，照他教过的节奏，轻敲两下。",
     },
 };
+
+const ROOM_VARIANTS: Record<string, [string, string, string]> = {
+    "s1-crossroad": ["street", "街道 · 十字街", "十字街"],
+    "s2-drygoods": ["street", "街道 · 布行", "布行"],
+    "s3-archway": ["street", "街道 · 牌楼后巷", "牌楼后巷"],
+    "c1-yard": ["checkpoint", "检查站 · 候检院", "候检院"],
+    "c2-granary": ["checkpoint", "检查站 · 军粮棚", "军粮棚"],
+    gatepath: ["outside", "城外 · 兄妹同行", "兄妹同行"],
+    escort1: ["outside", "城外巷路 · 第一段护送", "护送巷路"],
+    escort2: ["checkpoint", "粮棚 · 第二段取材", "粮棚取材"],
+    escort3: ["forest", "山腰工台 · 第三段改制", "山腰工台"],
+    escort4: ["forest", "山道 · 第四段脱身", "山道脱身"],
+    escort5: ["tower", "塔前山道 · 第五段", "塔前山道"],
+    museum: ["prologue", "博物馆 · 西厅", "西厅"],
+};
+
+for (const key in ROOM_VARIANTS) {
+    const [backdropKey, titleZh, shortNameZh] = ROOM_VARIANTS[key];
+    const base = ROOM_THEMES[backdropKey];
+    const soldierPath = key === "gatepath" || key.startsWith("escort");
+    ROOM_THEMES[key] = {
+        ...base, key, backdropKey, titleZh, shortNameZh, introWhisper: "",
+        numeralZh: soldierPath ? ROOM_THEMES.outside.numeralZh : base.numeralZh,
+        actCode: soldierPath ? ROOM_THEMES.outside.actCode : base.actCode,
+        lineTag: soldierPath ? "周戍" : base.lineTag,
+        volumeTagZh: soldierPath ? "周戍线 · 护送" : base.volumeTagZh,
+    };
+}
 
 export function themeOf(key: string): RoomTheme {
     const t = ROOM_THEMES[key];

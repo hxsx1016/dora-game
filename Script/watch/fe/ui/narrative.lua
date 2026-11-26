@@ -799,79 +799,93 @@ function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art
 	local sep = " · " -- 505
 	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 506
 	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 507
-	if idx > 0 then -- 507
-		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 509
-		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 510
-		local lw = visualTextWidth(leftPart, 42) -- 511
-		local rw = visualTextWidth(rightPart, 42) -- 512
-		local dotGap = 28 -- 513
-		local totalW = lw + rw + dotGap -- 514
-		local leftEdge = cx - totalW * 0.5 -- 515
-		local dotX = leftEdge + lw + dotGap * 0.5 -- 516
-		texts:put( -- 518
-			"banner", -- 518
-			leftPart, -- 518
-			leftEdge, -- 518
-			cy + 14, -- 518
-			toColor(PALETTE.textBright), -- 518
-			0, -- 518
-			0.5, -- 518
-			"Left", -- 518
-			2, -- 518
-			alpha, -- 518
-			0.1 -- 518
-		) -- 518
-		drawBlossomDot( -- 519
-			uiInkDraw, -- 519
-			art, -- 519
-			"banner_mid_dot", -- 519
-			dotX, -- 519
-			cy + 12, -- 519
-			11, -- 519
-			dotCol, -- 519
-			0.92 * alpha, -- 519
-			4 -- 519
-		) -- 519
-		texts:put( -- 520
-			"banner", -- 520
-			rightPart, -- 520
-			dotX + dotGap * 0.5, -- 520
-			cy + 14, -- 520
-			toColor(PALETTE.textBright), -- 520
-			0, -- 520
-			0.5, -- 520
-			"Left", -- 520
-			2, -- 520
-			alpha, -- 520
-			0.1 -- 520
-		) -- 520
-	else -- 520
-		texts:put( -- 522
-			"banner", -- 522
-			theme.titleZh, -- 522
-			cx, -- 522
-			cy + 14, -- 522
-			toColor(PALETTE.textBright), -- 522
-			0.5, -- 522
-			0.5, -- 522
-			"Center", -- 522
-			3, -- 522
-			alpha, -- 522
-			0.1 -- 522
+	if theme.backdropKey ~= nil then -- 507
+		texts:put( -- 509
+			"lg", -- 509
+			theme.titleZh, -- 509
+			cx, -- 509
+			cy + 14, -- 509
+			toColor(PALETTE.textBright), -- 509
+			0.5, -- 510
+			0.5, -- 510
+			"Center", -- 510
+			1, -- 510
+			alpha, -- 510
+			0.1 -- 510
+		) -- 510
+	elseif idx > 0 then -- 510
+		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 512
+		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 513
+		local lw = visualTextWidth(leftPart, 42) -- 514
+		local rw = visualTextWidth(rightPart, 42) -- 515
+		local dotGap = 28 -- 516
+		local totalW = lw + rw + dotGap -- 517
+		local leftEdge = cx - totalW * 0.5 -- 518
+		local dotX = leftEdge + lw + dotGap * 0.5 -- 519
+		texts:put( -- 521
+			"banner", -- 521
+			leftPart, -- 521
+			leftEdge, -- 521
+			cy + 14, -- 521
+			toColor(PALETTE.textBright), -- 521
+			0, -- 521
+			0.5, -- 521
+			"Left", -- 521
+			2, -- 521
+			alpha, -- 521
+			0.1 -- 521
+		) -- 521
+		drawBlossomDot( -- 522
+			uiInkDraw, -- 522
+			art, -- 522
+			"banner_mid_dot", -- 522
+			dotX, -- 522
+			cy + 12, -- 522
+			11, -- 522
+			dotCol, -- 522
+			0.92 * alpha, -- 522
+			4 -- 522
 		) -- 522
-	end -- 522
-	texts:put( -- 524
-		"xs", -- 524
-		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 524
-		cx, -- 524
-		cy - 34, -- 524
-		toColor(PALETTE.textMid), -- 524
-		0.5, -- 524
-		0.5, -- 524
-		"Center", -- 524
-		2.2, -- 524
-		0.82 * alpha, -- 524
-		0.08 -- 524
-	) -- 524
+		texts:put( -- 523
+			"banner", -- 523
+			rightPart, -- 523
+			dotX + dotGap * 0.5, -- 523
+			cy + 14, -- 523
+			toColor(PALETTE.textBright), -- 523
+			0, -- 523
+			0.5, -- 523
+			"Left", -- 523
+			2, -- 523
+			alpha, -- 523
+			0.1 -- 523
+		) -- 523
+	else -- 523
+		texts:put( -- 525
+			"banner", -- 525
+			theme.titleZh, -- 525
+			cx, -- 525
+			cy + 14, -- 525
+			toColor(PALETTE.textBright), -- 525
+			0.5, -- 525
+			0.5, -- 525
+			"Center", -- 525
+			3, -- 525
+			alpha, -- 525
+			0.1 -- 525
+		) -- 525
+	end -- 525
+	texts:put( -- 527
+		"xs", -- 527
+		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 527
+		cx, -- 527
+		cy - 34, -- 527
+		toColor(PALETTE.textMid), -- 527
+		0.5, -- 527
+		0.5, -- 527
+		"Center", -- 527
+		2.2, -- 527
+		0.82 * alpha, -- 527
+		0.08 -- 527
+	) -- 527
 end -- 478
 return ____exports -- 478
