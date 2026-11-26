@@ -30,9 +30,13 @@ import { MenuAction, MenuRenderer, ScreenKind } from "Script/watch/fe/ui/menus";
 import { PALETTE, drawSilkVeil, themeOf, toColor } from "Script/watch/fe/theme";
 import { MingArtAuditPlugin } from "Script/watch/fe/renderer/ming_audit";
 import { GateTransitionPlugin } from "Script/watch/fe/scenes/gate_transition";
+import { LowpolyWorldPlugin } from "Script/watch/fe/scenes/lowpoly_world";
+import { AfterimageArtifactPlugin } from "Script/watch/fe/renderer/afterimage_artifact";
 import { CarryPosePlugin } from "Script/watch/fe/renderer/carry_pose";
 import { PrologueIntroPlugin } from "Script/watch/fe/cutscenes/prologue_intro";
 import { CuffShotsPlugin } from "Script/watch/fe/cutscenes/cuff_shots";
+import { TowerEndingsPlugin } from "Script/watch/fe/cutscenes/tower_endings";
+import { WellMuseumPlugin } from "Script/watch/fe/scenes/well_museum";
 import { ReloadWheelPlugin } from "Script/watch/fe/ui/reload_wheel";
 import { CraftBenchPlugin } from "Script/watch/fe/ui/craft_bench";
 
@@ -121,19 +125,27 @@ export class WatchFrontend {
 
         this.texts = new TextPool(this.uiLayer, 10);
 
-        // 合流点 M1：按渲染分层与依赖优先级统一注册 Wave 1 全部 7 枚前端插件
-        // 1. MingArtAuditPlugin（非八房明朝底图拦截 + 材质/灰度/红布校验）
+        // 合流点 M2：按渲染分层与依赖优先级统一注册 Wave 1 + Wave 2 全部 11 枚前端插件
+        // 1. MingArtAuditPlugin（非八房明朝底图拦截 + 材质/灰度/红布校验；lowpoly/museum 态自动礼让）
         // 2. GateTransitionPlugin（风台 24s 转景舞台与遮幅，必须先于 CuffShotsPlugin）
-        // 3. CarryPosePlugin（牵手 / 蹲背攀爬 / 背负 / 工台放下叠层）
-        // 4. PrologueIntroPlugin（共同序章 P01-P02 过场与 P04 墙根枪火）
-        // 5. CuffShotsPlugin（同一道补线袖口 P03 / P05 / G05，叠加在风台遮幅之上）
-        // 6. ReloadWheelPlugin（3×3 慢时连线换弹全速 UI 与水墨效果反馈）
-        // 7. CraftBenchPlugin（第三段安全工台与首次试握动画）
+        // 3. LowpolyWorldPlugin（Wave 2 fe-04 小满单人线四房低模舞台与前景，礼让 TowerEndingsPlugin）
+        // 4. AfterimageArtifactPlugin（Wave 2 fe-06 时间穿梭器冷白/微金轨迹残影，位于背负叠层之下）
+        // 5. CarryPosePlugin（牵手 / 蹲背攀爬 / 背负 / 工台放下叠层）
+        // 6. PrologueIntroPlugin（共同序章 P01-P02 过场与 P04 墙根枪火）
+        // 7. CuffShotsPlugin（同一道补线袖口 P03 / P05 / G05，叠加在风台遮幅之上）
+        // 8. TowerEndingsPlugin（Wave 2 fe-05 北塔双结局同机位配对演出 F03 / M03）
+        // 9. WellMuseumPlugin（Wave 2 fe-06 双通关后院深井与现代抗日主题博物馆 E01-E02）
+        // 10. ReloadWheelPlugin（3×3 慢时连线换弹全速 UI 与水墨效果反馈）
+        // 11. CraftBenchPlugin（第三段安全工台与首次试握动画）
         this.registerPlugin(new MingArtAuditPlugin());
         this.registerPlugin(new GateTransitionPlugin());
+        this.registerPlugin(new LowpolyWorldPlugin());
+        this.registerPlugin(new AfterimageArtifactPlugin());
         this.registerPlugin(new CarryPosePlugin());
         this.registerPlugin(new PrologueIntroPlugin());
         this.registerPlugin(new CuffShotsPlugin());
+        this.registerPlugin(new TowerEndingsPlugin());
+        this.registerPlugin(new WellMuseumPlugin(this.contract));
         this.registerPlugin(new ReloadWheelPlugin(this.contract));
         this.registerPlugin(new CraftBenchPlugin(this.contract));
     }
@@ -210,9 +222,13 @@ export class WatchFrontend {
             }
             watchFe["mingAudit"] = this.getPlugin("fe03-ming-audit");
             watchFe["gateTransition"] = this.getPlugin("fe-01-gate-transition");
+            watchFe["lowpolyWorld"] = this.getPlugin("fe-04-child-lowpoly");
+            watchFe["afterimageArtifact"] = this.getPlugin("fe-06-afterimage-artifact");
             watchFe["carryPose"] = this.getPlugin("fe-02-carry-pose");
             watchFe["prologue"] = this.getPlugin("fe03-prologue-intro");
             watchFe["cuffShots"] = this.getPlugin("fe-01-cuff-shots");
+            watchFe["towerEndings"] = this.getPlugin("fe-05-tower-endings");
+            watchFe["wellMuseum"] = this.getPlugin("fe-06-well-museum");
             watchFe["reloadWheel"] = this.getPlugin("fe-02-reload-wheel");
             watchFe["craftBench"] = this.getPlugin("fe-02-craft-bench");
         }
@@ -424,7 +440,8 @@ export class WatchFrontend {
             this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
         }
 
-        // 4. 关节剪影角色与插件角色叠层（背负姿态接管小满时收净原生伴随阴影，杜绝重影与孤儿脚影）
+        // 4. 关节剪影角色与插件角色叠层（博物馆态由 WellMuseumPlugin 全权绘制，防止暂停垂纱下透出明初序章精灵；背负态收净原生同伴孤儿脚影）
+        const suppressAllActors = view.visualMode === "museum";
         const partnerFarInHand = view.backCarry.handInHand
             && (!p.partner.alive
                 || Math.abs(p.partner.x - p.player.x) > 56
@@ -437,7 +454,9 @@ export class WatchFrontend {
                 || view.backCarry.atBench
                 || view.craftBench.active
                 || partnerFarInHand);
-        this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, suppressPartner);
+        if (!suppressAllActors) {
+            this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, suppressPartner);
+        }
         for (i = 0; i < this.plugins.length; i++) {
             const pl = this.plugins[i];
             if (pl.drawActorsOverlay !== undefined) {
