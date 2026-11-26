@@ -5,7 +5,7 @@
  *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
  */
 
-import { App, Color, DrawNode, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
+import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, PlatformType, Rect, Size, Vec2, View } from "Dora";
 import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
@@ -69,6 +69,43 @@ let input: Input | undefined;
 let play: Play | undefined;
 let fe: WatchFrontend | undefined;
 const clock = new StepClock();
+
+interface ReleaseConfig {
+    isRelease?: boolean;
+    version?: string;
+    portableSave?: boolean;
+}
+
+function getReleaseConfig(): ReleaseConfig | undefined {
+    const reg = (globalThis as unknown as { package?: { loaded?: Record<string, unknown> } }).package?.loaded;
+    const cfg = reg !== undefined ? reg["watch.release"] : undefined;
+    if (cfg !== undefined && typeof cfg === "object") {
+        return cfg as ReleaseConfig;
+    }
+    return undefined;
+}
+
+function isReleaseBuild(): boolean {
+    return getReleaseConfig()?.isRelease === true;
+}
+
+function toggleFullscreen(): boolean {
+    const plat = App.platform;
+    if (plat !== PlatformType.Windows && plat !== PlatformType.macOS && plat !== PlatformType.Linux) {
+        return false;
+    }
+    const next = !App.fullScreen;
+    App.fullScreen = next;
+    return next;
+}
+
+function quitGame(): void {
+    flushProfile();
+    if (fe !== undefined) {
+        fe.audio.stopRoomTransient();
+    }
+    App.shutdown();
+}
 
 function makeGrayboxLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
     if (grayboxLayer === undefined) {
@@ -168,8 +205,20 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
 
     input = new Input();
 
+    // 窗口关闭、退出或切后台前确保待落盘档案安全写入，防止丢失双通关进度。
+    parent.gslot("AppEvent", (eventType: string) => {
+        if (eventType === "Quit" || eventType === "Shutdown" || eventType === "WillEnterBackground") {
+            flushProfile();
+        }
+    });
+
     // 开发与验收快捷键 + 瞬时按键边沿锁存（防止低帧率下短按 E / Space / Esc / 菜单方向键被轮询漏掉）
     parent.onKeyDown((key: KeyName) => {
+        if (key === KeyName.F11
+            || (key === KeyName.Return && (Keyboard.isKeyPressed(KeyName.LAlt) || Keyboard.isKeyPressed(KeyName.RAlt)))) {
+            toggleFullscreen();
+            return;
+        }
         if (fe !== undefined && mode === 1 && (fe.screen !== "play" || (play !== undefined && play.paused))) {
             fe.menus.onKeyEvent(key);
         }
@@ -185,6 +234,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             }
         }
         if (mode === 2 && run?.trial !== undefined) return;
+        if (isReleaseBuild()) return;
         if (key === KeyName.F1) {
             if (mode === 2) {
                 current = 0;
@@ -282,6 +332,10 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         },
         saveNow: () => saveSave(profile),
         getSaveFile,
+        isRelease: () => isReleaseBuild(),
+        getReleaseVersion: () => getReleaseConfig()?.version ?? "dev",
+        toggleFullscreen: () => toggleFullscreen(),
+        quitGame: () => quitGame(),
     };
 
     if (mode === 1 && startScreen === "play") {
@@ -421,24 +475,30 @@ function tick(frameDt: number): void {
         return;
     }
 
-    // G 键切换灰盒调试视图 / 高清前端
-    if (input.toggleView.pressed) {
+    if (isReleaseBuild()) {
         input.toggleView.pressed = false;
-        setMode(mode === 0 ? 1 : (mode === 1 ? 2 : 0));
-        if (mode === 1 && fe !== undefined && fe.screen === "play" && play === undefined) {
-            ensurePlay();
-        }
-    }
-
-    // 1/2/3 与 Tab 轮询快跳
-    if (input.pickRoom !== 0) {
-        const idx = input.pickRoom - 1;
         input.pickRoom = 0;
-        pickByIndex(idx);
-    } else if (input.tab.pressed) {
         input.tab.pressed = false;
-        if (mode === 0 || (fe?.screen === "play" && !play?.paused)) {
-            pickByIndex((current + 1) % ROOMS.length);
+    } else {
+        // G 键切换灰盒调试视图 / 高清前端
+        if (input.toggleView.pressed) {
+            input.toggleView.pressed = false;
+            setMode(mode === 0 ? 1 : (mode === 1 ? 2 : 0));
+            if (mode === 1 && fe !== undefined && fe.screen === "play" && play === undefined) {
+                ensurePlay();
+            }
+        }
+
+        // 1/2/3 与 Tab 轮询快跳
+        if (input.pickRoom !== 0) {
+            const idx = input.pickRoom - 1;
+            input.pickRoom = 0;
+            pickByIndex(idx);
+        } else if (input.tab.pressed) {
+            input.tab.pressed = false;
+            if (mode === 0 || (fe?.screen === "play" && !play?.paused)) {
+                pickByIndex((current + 1) % ROOMS.length);
+            }
         }
     }
 
@@ -685,6 +745,8 @@ function tickFrontend(frameDt: number): void {
         } else if (act.type === "backPause") {
             fe.menus.resetInput();
             fe.screen = "play";
+        } else if (act.type === "quit") {
+            quitGame();
         }
         return;
     }
@@ -734,6 +796,10 @@ function tickFrontend(frameDt: number): void {
         } else if (pauseAct.type === "openChapters") {
             fe.menus.openChapters(current);
             fe.screen = "chapters";
+        } else if (pauseAct.type === "toggleFullscreen") {
+            toggleFullscreen();
+        } else if (pauseAct.type === "quit") {
+            quitGame();
         } else if (pauseAct.type === "toTitle") {
             fe.menus.resetInput();
             fe.screen = "title";
