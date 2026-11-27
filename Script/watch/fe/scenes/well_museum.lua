@@ -1467,902 +1467,1027 @@ function WellMuseumPlugin.prototype.renderE01WellReflectMatchCut(self, uiDraw, u
 			caseY + 6, -- 1383
 			Color(224, 236, 248, 0) -- 1383
 		) -- 1383
-		uiArt:tryPlace( -- 1386
-			"prop_compass", -- 1386
-			"fe06_match_compass", -- 1386
+		if not uiArt:tryPlace( -- 1386
+			"sh_museum_compass_relic", -- 1386
+			"fe06_match_compass_relic", -- 1386
 			self.glassAnchorX, -- 1386
-			caseY + 72, -- 1386
-			46, -- 1386
-			46, -- 1386
-			{opacity = matchK * 0.85, layer = 3} -- 1386
-		) -- 1386
-	end -- 1386
-	local flashPeak = math.sin(matchK * math.pi) -- 1393
-	local coreR = 8 + flashPeak * 18 -- 1394
-	uiInkDraw:drawCircle( -- 1395
-		Vec2(ax, ay), -- 1395
-		coreR * 0.55, -- 1395
-		Color(248, 252, 255, 248) -- 1395
-	) -- 1395
-	fillRadialGlow( -- 1396
-		uiGlow, -- 1397
-		ax, -- 1398
-		ay, -- 1399
-		52 + flashPeak * 145, -- 1400
-		46 + flashPeak * 115, -- 1401
-		Color( -- 1402
-			238, -- 1402
-			246, -- 1402
-			255, -- 1402
-			math.floor(145 + flashPeak * 95 + 0.5) -- 1402
-		), -- 1402
-		Color(174, 204, 238, 0), -- 1403
-		20 -- 1404
-	) -- 1404
-	if flashPeak > 0.05 then -- 1407
-		local rayW = 70 + flashPeak * 260 -- 1408
-		fillHGradRect( -- 1409
-			uiGlow, -- 1409
-			ax - rayW, -- 1409
-			ay - 2, -- 1409
-			rayW, -- 1409
-			4, -- 1409
-			Color(224, 238, 252, 0), -- 1409
-			Color( -- 1409
-				242, -- 1409
-				248, -- 1409
-				255, -- 1409
-				math.floor(160 * flashPeak + 0.5) -- 1409
-			) -- 1409
-		) -- 1409
-		fillHGradRect( -- 1410
-			uiGlow, -- 1410
-			ax, -- 1410
-			ay - 2, -- 1410
-			rayW, -- 1410
-			4, -- 1410
-			Color( -- 1410
-				242, -- 1410
-				248, -- 1410
-				255, -- 1410
-				math.floor(160 * flashPeak + 0.5) -- 1410
-			), -- 1410
-			Color(224, 238, 252, 0) -- 1410
-		) -- 1410
-	end -- 1410
-	self:drawLetterbox( -- 1413
-		uiInkDraw, -- 1413
-		w, -- 1413
-		h, -- 1413
-		42, -- 1413
-		0.92 -- 1413
-	) -- 1413
+			caseY + 76, -- 1386
+			128, -- 1386
+			86, -- 1386
+			{opacity = matchK * 0.92, layer = 3} -- 1386
+		) then -- 1386
+			uiArt:tryPlace( -- 1390
+				"prop_compass", -- 1390
+				"fe06_match_compass", -- 1390
+				self.glassAnchorX, -- 1390
+				caseY + 72, -- 1390
+				46, -- 1390
+				46, -- 1390
+				{opacity = matchK * 0.85, layer = 3} -- 1390
+			) -- 1390
+		end -- 1390
+	end -- 1390
+	local flashPeak = math.sin(matchK * math.pi) -- 1398
+	local coreR = 8 + flashPeak * 18 -- 1399
+	uiInkDraw:drawCircle( -- 1400
+		Vec2(ax, ay), -- 1400
+		coreR * 0.55, -- 1400
+		Color(248, 252, 255, 248) -- 1400
+	) -- 1400
+	fillRadialGlow( -- 1401
+		uiGlow, -- 1402
+		ax, -- 1403
+		ay, -- 1404
+		52 + flashPeak * 145, -- 1405
+		46 + flashPeak * 115, -- 1406
+		Color( -- 1407
+			238, -- 1407
+			246, -- 1407
+			255, -- 1407
+			math.floor(145 + flashPeak * 95 + 0.5) -- 1407
+		), -- 1407
+		Color(174, 204, 238, 0), -- 1408
+		20 -- 1409
+	) -- 1409
+	if flashPeak > 0.05 then -- 1412
+		local rayW = 70 + flashPeak * 260 -- 1413
+		fillHGradRect( -- 1414
+			uiGlow, -- 1414
+			ax - rayW, -- 1414
+			ay - 2, -- 1414
+			rayW, -- 1414
+			4, -- 1414
+			Color(224, 238, 252, 0), -- 1414
+			Color( -- 1414
+				242, -- 1414
+				248, -- 1414
+				255, -- 1414
+				math.floor(160 * flashPeak + 0.5) -- 1414
+			) -- 1414
+		) -- 1414
+		fillHGradRect( -- 1415
+			uiGlow, -- 1415
+			ax, -- 1415
+			ay - 2, -- 1415
+			rayW, -- 1415
+			4, -- 1415
+			Color( -- 1415
+				242, -- 1415
+				248, -- 1415
+				255, -- 1415
+				math.floor(160 * flashPeak + 0.5) -- 1415
+			), -- 1415
+			Color(224, 238, 252, 0) -- 1415
+		) -- 1415
+	end -- 1415
+	self:drawLetterbox( -- 1418
+		uiInkDraw, -- 1418
+		w, -- 1418
+		h, -- 1418
+		42, -- 1418
+		0.92 -- 1418
+	) -- 1418
 end -- 1236
-function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, lampTurnProg, inLampTurn) -- 1419
-	local floorY = 148 -- 1430
-	local wallTopY = h - 86 -- 1431
-	local halfW = w * 0.5 -- 1432
-	local camMin = math.min(____exports.MUSEUM_HALL_WIDTH * 0.5, halfW - 40) -- 1433
-	local camMax = math.max(____exports.MUSEUM_HALL_WIDTH * 0.5, ____exports.MUSEUM_HALL_WIDTH - halfW + 40) -- 1434
-	local camX = clamp(self.hallCamX, camMin, camMax) -- 1435
-	local function toScreenX(hx) -- 1436
-		return halfW + (hx - camX) -- 1436
-	end -- 1436
-	fillVGradRect( -- 1439
-		uiDraw, -- 1439
-		0, -- 1439
-		floorY, -- 1439
-		w, -- 1439
-		h - floorY, -- 1439
-		Color(26, 31, 38, 255), -- 1439
-		Color(16, 20, 26, 255) -- 1439
-	) -- 1439
-	uiDraw:drawRect( -- 1441
-		Rect(0, wallTopY, w, h - wallTopY), -- 1441
-		Color(11, 14, 19, 255) -- 1441
-	) -- 1441
-	local px = 0 -- 1443
-	do -- 1443
-		px = 40 -- 1444
-		while px <= ____exports.MUSEUM_HALL_WIDTH do -- 1444
-			local sx = toScreenX(px) -- 1445
-			if sx >= -20 and sx <= w + 20 then -- 1446
-				uiDraw:drawSegment( -- 1447
-					Vec2(sx, floorY), -- 1447
-					Vec2(sx, wallTopY), -- 1447
-					1, -- 1447
-					Color(38, 45, 54, 130) -- 1447
-				) -- 1447
-			end -- 1447
-			px = px + 140 -- 1444
-		end -- 1444
-	end -- 1444
-	fillVGradRect( -- 1451
-		uiDraw, -- 1451
-		0, -- 1451
-		0, -- 1451
-		w, -- 1451
-		floorY, -- 1451
-		Color(14, 17, 22, 255), -- 1451
-		Color(32, 37, 45, 255) -- 1451
-	) -- 1451
-	uiDraw:drawSegment( -- 1452
-		Vec2(0, floorY), -- 1452
-		Vec2(w, floorY), -- 1452
-		2, -- 1452
-		Color(76, 86, 98, 220) -- 1452
-	) -- 1452
-	uiDraw:drawRect( -- 1453
-		Rect(0, floorY, w, 12), -- 1453
-		Color(20, 24, 31, 240) -- 1453
-	) -- 1453
-	local plaqueWorldX = self.caseX <= 260 and 108 or 180 -- 1456
-	local plaqueX = toScreenX(plaqueWorldX) -- 1457
-	if plaqueX > -240 and plaqueX < w + 240 then -- 1458
-		local pw = 290 -- 1459
-		local ph = 132 -- 1460
-		local py = floorY + 135 -- 1461
-		uiDraw:drawRect( -- 1462
-			Rect(plaqueX - pw * 0.5, py, pw, ph), -- 1463
-			Color(18, 22, 28, 238), -- 1464
-			1.2, -- 1465
-			Color(118, 128, 140, 170) -- 1466
-		) -- 1466
-		fillRadialGlow( -- 1468
-			uiGlow, -- 1468
-			plaqueX, -- 1468
-			wallTopY - 8, -- 1468
-			150, -- 1468
-			120, -- 1468
-			Color(224, 232, 240, 42), -- 1468
-			Color(180, 196, 214, 0), -- 1468
-			14 -- 1468
-		) -- 1468
-		ctx.texts:put( -- 1469
-			"sm", -- 1470
-			"海防抗战纪念展厅", -- 1471
-			plaqueX, -- 1472
-			py + 82, -- 1473
-			toColor(PALETTE.textBright), -- 1474
-			0.5, -- 1475
-			0.5, -- 1476
-			"Center", -- 1477
-			2, -- 1478
-			0.88 -- 1479
-		) -- 1479
-		ctx.texts:put( -- 1481
-			"xs", -- 1482
-			"温州宁村 · 守望史迹陈列", -- 1483
-			plaqueX, -- 1484
-			py + 46, -- 1485
-			toColor(PALETTE.textDim), -- 1486
-			0.5, -- 1487
-			0.5, -- 1488
-			"Center", -- 1489
-			1, -- 1490
-			0.78 -- 1491
+function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, lampTurnProg, inLampTurn) -- 1424
+	local floorY = 148 -- 1435
+	local wallTopY = h - 86 -- 1436
+	local halfW = w * 0.5 -- 1437
+	local camMin = math.min(____exports.MUSEUM_HALL_WIDTH * 0.5, halfW - 40) -- 1438
+	local camMax = math.max(____exports.MUSEUM_HALL_WIDTH * 0.5, ____exports.MUSEUM_HALL_WIDTH - halfW + 40) -- 1439
+	local camX = clamp(self.hallCamX, camMin, camMax) -- 1440
+	local function toScreenX(hx) -- 1441
+		return halfW + (hx - camX) -- 1441
+	end -- 1441
+	fillVGradRect( -- 1444
+		uiDraw, -- 1444
+		0, -- 1444
+		floorY, -- 1444
+		w, -- 1444
+		h - floorY, -- 1444
+		Color(28, 33, 41, 255), -- 1444
+		Color(18, 23, 30, 255) -- 1444
+	) -- 1444
+	uiDraw:drawRect( -- 1446
+		Rect(0, wallTopY, w, h - wallTopY), -- 1446
+		Color(12, 15, 21, 255) -- 1446
+	) -- 1446
+	do -- 1446
+		local sk = 180 -- 1447
+		while sk <= ____exports.MUSEUM_HALL_WIDTH - 120 do -- 1447
+			local skX = toScreenX(sk) -- 1448
+			if skX >= -180 and skX <= w + 180 then -- 1449
+				uiDraw:drawRect( -- 1450
+					Rect(skX - 68, wallTopY + 2, 136, 12), -- 1450
+					Color(182, 198, 216, 44) -- 1450
+				) -- 1450
+				fillGradQuad( -- 1451
+					uiGlow, -- 1452
+					skX - 64, -- 1453
+					wallTopY + 2, -- 1453
+					Color(206, 220, 236, 32), -- 1453
+					skX + 64, -- 1454
+					wallTopY + 2, -- 1454
+					Color(206, 220, 236, 32), -- 1454
+					skX + 116, -- 1455
+					floorY, -- 1455
+					Color(188, 206, 226, 0), -- 1455
+					skX - 116, -- 1456
+					floorY, -- 1456
+					Color(188, 206, 226, 0) -- 1456
+				) -- 1456
+			end -- 1456
+			sk = sk + 360 -- 1447
+		end -- 1447
+	end -- 1447
+	local px = 0 -- 1461
+	do -- 1461
+		px = 40 -- 1462
+		while px <= ____exports.MUSEUM_HALL_WIDTH do -- 1462
+			local sx = toScreenX(px) -- 1463
+			if sx >= -20 and sx <= w + 20 then -- 1464
+				uiDraw:drawSegment( -- 1465
+					Vec2(sx, floorY), -- 1465
+					Vec2(sx, wallTopY), -- 1465
+					1, -- 1465
+					Color(42, 49, 58, 128) -- 1465
+				) -- 1465
+			end -- 1465
+			px = px + 140 -- 1462
+		end -- 1462
+	end -- 1462
+	fillVGradRect( -- 1469
+		uiDraw, -- 1469
+		0, -- 1469
+		0, -- 1469
+		w, -- 1469
+		floorY, -- 1469
+		Color(15, 19, 25, 255), -- 1469
+		Color(36, 42, 51, 255) -- 1469
+	) -- 1469
+	uiDraw:drawSegment( -- 1470
+		Vec2(0, floorY), -- 1470
+		Vec2(w, floorY), -- 1470
+		2, -- 1470
+		Color(86, 98, 112, 225) -- 1470
+	) -- 1470
+	uiDraw:drawRect( -- 1471
+		Rect(0, floorY, w, 12), -- 1471
+		Color(20, 24, 31, 240) -- 1471
+	) -- 1471
+	local plaqueWorldX = self.caseX <= 260 and 112 or 162 -- 1474
+	local plaqueX = toScreenX(plaqueWorldX) -- 1475
+	local pw = 224 -- 1476
+	if plaqueX - pw * 0.5 >= 14 and plaqueX + pw * 0.5 <= w - 14 then -- 1477
+		local ph = 136 -- 1478
+		local py = floorY + 135 -- 1479
+		uiDraw:drawRect( -- 1480
+			Rect(plaqueX - pw * 0.5, py, pw, ph), -- 1481
+			Color(20, 24, 31, 242), -- 1482
+			1.2, -- 1483
+			Color(126, 136, 148, 180) -- 1484
+		) -- 1484
+		uiDraw:drawRect( -- 1487
+			Rect(plaqueX - pw * 0.5 + 6, py + 6, pw - 12, ph - 12), -- 1488
+			Color(0, 0, 0, 0), -- 1489
+			0.7, -- 1490
+			Color(168, 126, 92, 92) -- 1491
 		) -- 1491
-	end -- 1491
-	local caseSx = toScreenX(self.caseX) -- 1496
-	if caseSx > -260 and caseSx < w + 260 then -- 1497
-		local boardOffsets = self.caseX <= 260 and ({180, 390}) or ({-210, 210}) -- 1499
-		local bi = 0 -- 1500
-		do -- 1500
-			bi = 0 -- 1501
-			while bi < #boardOffsets do -- 1501
-				local bx = caseSx + boardOffsets[bi + 1] -- 1502
-				uiDraw:drawRect( -- 1503
-					Rect(bx - 56, floorY + 112, 112, 154), -- 1503
-					Color(20, 24, 30, 235), -- 1503
-					1, -- 1503
-					Color(88, 98, 110, 155) -- 1503
-				) -- 1503
-				uiDraw:drawRect( -- 1504
-					Rect(bx - 42, floorY + 168, 84, 78), -- 1504
-					Color(34, 40, 48, 220) -- 1504
-				) -- 1504
-				uiDraw:drawSegment( -- 1505
-					Vec2(bx - 36, floorY + 146), -- 1505
-					Vec2(bx + 36, floorY + 146), -- 1505
-					1.6, -- 1505
-					Color(138, 146, 156, 140) -- 1505
-				) -- 1505
-				uiDraw:drawSegment( -- 1506
-					Vec2(bx - 28, floorY + 132), -- 1506
-					Vec2(bx + 24, floorY + 132), -- 1506
-					1.2, -- 1506
-					Color(108, 116, 126, 115) -- 1506
-				) -- 1506
-				bi = bi + 1 -- 1501
-			end -- 1501
-		end -- 1501
-		local pedW = 148 -- 1510
-		local pedH = 92 -- 1511
-		local glassH = 128 -- 1512
-		uiDraw:drawRect( -- 1514
-			Rect(caseSx - pedW * 0.5, floorY, pedW, pedH), -- 1515
-			Color(22, 26, 33, 252), -- 1516
-			1.2, -- 1517
-			Color(96, 106, 118, 185) -- 1518
-		) -- 1518
-		uiDraw:drawRect( -- 1521
-			Rect(caseSx - pedW * 0.46, floorY + pedH, pedW * 0.92, glassH), -- 1522
-			Color(16, 22, 30, 165), -- 1523
-			1.4, -- 1524
-			Color(180, 196, 214, 195) -- 1525
-		) -- 1525
-		uiArt:tryPlace( -- 1528
-			"prop_compass", -- 1528
-			"fe06_hall_compass", -- 1528
-			caseSx, -- 1528
-			floorY + pedH + 34, -- 1528
-			34, -- 1528
-			34, -- 1528
-			{opacity = 0.94, layer = 3} -- 1528
-		) -- 1528
-		uiDraw:drawRect( -- 1532
-			Rect(caseSx - 30, floorY + pedH + 6, 60, 12), -- 1532
-			Color(214, 212, 204, 190) -- 1532
-		) -- 1532
-		fillGradQuad( -- 1534
-			uiInkDraw, -- 1535
-			caseSx - 28, -- 1536
-			floorY + pedH + glassH - 4, -- 1536
-			Color(230, 240, 252, 42), -- 1536
-			caseSx + 12, -- 1537
-			floorY + pedH + glassH - 4, -- 1537
-			Color(242, 248, 255, 72), -- 1537
-			caseSx - 12, -- 1538
-			floorY + pedH + 4, -- 1538
-			Color(230, 240, 252, 18), -- 1538
-			caseSx - 48, -- 1539
-			floorY + pedH + 4, -- 1539
-			Color(230, 240, 252, 0) -- 1539
-		) -- 1539
-		fillRadialGlow( -- 1541
-			uiGlow, -- 1541
-			caseSx, -- 1541
-			floorY + pedH + glassH - 12, -- 1541
-			86, -- 1541
-			128, -- 1541
-			Color(224, 236, 250, 56), -- 1541
-			Color(168, 192, 220, 0), -- 1541
-			16 -- 1541
-		) -- 1541
-		fillVGradRect( -- 1543
-			uiDraw, -- 1543
-			caseSx - pedW * 0.45, -- 1543
-			floorY - 36, -- 1543
-			pedW * 0.9, -- 1543
-			36, -- 1543
-			Color(168, 186, 206, 0), -- 1543
-			Color(168, 186, 206, 28) -- 1543
-		) -- 1543
-	end -- 1543
-	local lampSx = toScreenX(self.lampX) -- 1547
-	local winSx = toScreenX(self.lampX + 108) -- 1548
-	local reflectK = inLampTurn and smoothstep(____exports.MUSEUM_TIMINGS.lampReflectStart, 2.35, self.lampElapsed) or 0 -- 1549
-	if winSx > -260 and winSx < w + 260 then -- 1553
-		local winW = 204 -- 1554
-		local winH = 312 -- 1555
-		local winX = winSx - winW * 0.5 -- 1556
-		local winY = floorY + 38 -- 1557
-		fillVGradRect( -- 1559
-			uiDraw, -- 1560
-			winX, -- 1561
-			winY, -- 1562
-			winW, -- 1563
-			winH, -- 1564
-			Color( -- 1565
-				math.floor(54 + 46 * reflectK + 0.5), -- 1566
-				math.floor(68 + 42 * reflectK + 0.5), -- 1567
-				math.floor(92 + 24 * reflectK + 0.5), -- 1568
-				255 -- 1569
-			), -- 1569
-			Color( -- 1571
-				math.floor(30 + 28 * reflectK + 0.5), -- 1572
-				math.floor(44 + 34 * reflectK + 0.5), -- 1573
-				math.floor(70 + 30 * reflectK + 0.5), -- 1574
-				255 -- 1575
-			) -- 1575
-		) -- 1575
-		if reflectK > 0.02 then -- 1580
-			uiArt:tryPlace( -- 1581
-				"bgFar_prologue", -- 1581
-				"fe06_window_courtyard", -- 1581
-				winSx, -- 1581
-				winY + 26, -- 1581
-				winW - 8, -- 1581
-				winH - 52, -- 1581
-				{ -- 1581
-					opacity = reflectK * 0.48, -- 1582
-					color = Color(238, 218, 186, 255), -- 1583
-					layer = 1 -- 1584
-				} -- 1584
-			) -- 1584
-			local cy = winY + 34 -- 1587
-			local silA = math.floor(188 * reflectK + 0.5) -- 1588
-			uiInkDraw:drawRect( -- 1589
-				Rect(winX + 12, cy, 42, 118), -- 1589
-				Color(24, 28, 36, silA) -- 1589
-			) -- 1589
-			uiInkDraw:drawRect( -- 1590
-				Rect(winX + winW - 56, cy, 44, 134), -- 1590
-				Color(24, 28, 36, silA) -- 1590
-			) -- 1590
-			uiInkDraw:drawRect( -- 1592
-				Rect(winSx - 24, cy + 4, 48, 28), -- 1592
-				Color( -- 1592
-					46, -- 1592
-					44, -- 1592
-					42, -- 1592
-					math.floor(215 * reflectK + 0.5) -- 1592
-				), -- 1592
-				1, -- 1592
-				Color( -- 1592
-					214, -- 1592
-					186, -- 1592
-					138, -- 1592
-					math.floor(170 * reflectK + 0.5) -- 1592
-				) -- 1592
-			) -- 1592
-			uiInkDraw:drawEllipse( -- 1593
-				Vec2(winSx, cy + 32), -- 1593
-				26, -- 1593
-				7, -- 1593
-				Color( -- 1593
-					218, -- 1593
-					194, -- 1593
-					148, -- 1593
-					math.floor(175 * reflectK + 0.5) -- 1593
-				) -- 1593
-			) -- 1593
-			fillRadialGlow( -- 1595
-				uiGlow, -- 1595
-				winSx, -- 1595
-				winY + winH * 0.48, -- 1595
-				116, -- 1595
-				128, -- 1595
-				Color( -- 1595
-					246, -- 1595
-					218, -- 1595
-					168, -- 1595
-					math.floor(92 * reflectK + 0.5) -- 1595
-				), -- 1595
-				Color(214, 174, 112, 0), -- 1595
-				18 -- 1595
-			) -- 1595
-		end -- 1595
-		uiInkDraw:drawRect( -- 1599
-			Rect(winX, winY, winW, winH), -- 1599
-			Color(0, 0, 0, 0), -- 1599
-			3, -- 1599
-			Color(68, 76, 88, 245) -- 1599
-		) -- 1599
-		uiInkDraw:drawSegment( -- 1600
-			Vec2(winSx, winY), -- 1600
-			Vec2(winSx, winY + winH), -- 1600
-			2, -- 1600
-			Color(68, 76, 88, 235) -- 1600
-		) -- 1600
-		uiInkDraw:drawSegment( -- 1601
-			Vec2(winX, winY + winH * 0.56), -- 1601
-			Vec2(winX + winW, winY + winH * 0.56), -- 1601
-			2, -- 1601
-			Color(68, 76, 88, 235) -- 1601
-		) -- 1601
-		local standW = 34 -- 1604
-		local standH = 96 -- 1605
-		uiDraw:drawRect( -- 1606
-			Rect(lampSx - standW * 0.5, floorY, standW, standH), -- 1606
-			Color(34, 39, 48, 250), -- 1606
-			1.1, -- 1606
-			Color(108, 118, 130, 190) -- 1606
-		) -- 1606
-		local pivotY = floorY + standH + 44 -- 1608
-		uiInkDraw:drawSegment( -- 1609
-			Vec2(lampSx, floorY + standH), -- 1609
-			Vec2(lampSx, pivotY), -- 1609
-			3.2, -- 1609
-			Color(136, 144, 154, 240) -- 1609
-		) -- 1609
-		uiInkDraw:drawCircle( -- 1610
-			Vec2(lampSx, pivotY), -- 1610
-			5.5, -- 1610
-			Color(196, 178, 142, 245) -- 1610
-		) -- 1610
-		local aimDir = -0.65 + lampTurnProg * 1.48 -- 1612
-		local headX = lampSx + math.sin(aimDir) * 20 -- 1613
-		local headY = pivotY + math.cos(aimDir) * 14 -- 1614
-		uiInkDraw:drawSegment( -- 1615
-			Vec2(lampSx, pivotY), -- 1615
-			Vec2(headX, headY), -- 1615
-			6.2, -- 1615
-			Color(188, 166, 126, 245) -- 1615
-		) -- 1615
-		uiInkDraw:drawCircle( -- 1616
-			Vec2(headX, headY), -- 1616
-			5.2, -- 1616
-			Color(248, 234, 198, 248) -- 1616
-		) -- 1616
-		local beamLen = 132 + lampTurnProg * 76 -- 1619
-		local bxEnd = headX + math.sin(aimDir) * beamLen -- 1620
-		local byEnd = headY + math.cos(aimDir) * 28 -- 1621
-		local perpX = -math.cos(aimDir) * 18 -- 1622
-		local perpY = math.sin(aimDir) * 34 -- 1623
-		fillGradQuad( -- 1624
-			uiGlow, -- 1625
-			headX, -- 1626
-			headY - 4, -- 1626
-			Color( -- 1626
-				246, -- 1626
-				224, -- 1626
-				178, -- 1626
-				math.floor(68 + 44 * lampTurnProg + 0.5) -- 1626
-			), -- 1626
-			headX, -- 1627
-			headY + 4, -- 1627
-			Color( -- 1627
-				246, -- 1627
-				224, -- 1627
-				178, -- 1627
-				math.floor(68 + 44 * lampTurnProg + 0.5) -- 1627
-			), -- 1627
-			bxEnd + perpX, -- 1628
-			byEnd + perpY + 34, -- 1628
-			Color(238, 206, 148, 0), -- 1628
-			bxEnd - perpX, -- 1629
-			byEnd - perpY - 22, -- 1629
-			Color(238, 206, 148, 0) -- 1629
-		) -- 1629
-		fillRadialGlow( -- 1631
-			uiGlow, -- 1631
-			headX, -- 1631
-			headY, -- 1631
-			34, -- 1631
-			34, -- 1631
-			Color(246, 228, 186, 78), -- 1631
-			Color(224, 194, 140, 0), -- 1631
-			14 -- 1631
-		) -- 1631
-	end -- 1631
-	local playerSx = toScreenX(self.hallWalkX) -- 1635
-	local moving = not inLampTurn and (self.hallMoving or math.abs(ctx.input.moveX) > 0.05) -- 1636
-	local slot = moving and "soldier_run" or "soldier_idle" -- 1637
-	local frame = moving and math.floor(self.hallWalkAnim) or 0 -- 1638
-	local charH = math.floor(192 * math.max( -- 1639
-		0.75, -- 1639
-		math.min(1.25, h / 720) -- 1639
-	) + 0.5) -- 1639
-	local charW = math.floor(charH * 0.45 + 0.5) -- 1640
-	uiDraw:drawEllipse( -- 1642
-		Vec2(playerSx, floorY + 2), -- 1642
-		34, -- 1642
-		6.5, -- 1642
-		Color(6, 8, 12, 178) -- 1642
-	) -- 1642
-	uiDraw:drawEllipse( -- 1643
-		Vec2(playerSx, floorY - 14), -- 1643
-		24, -- 1643
-		4.5, -- 1643
-		Color(16, 20, 28, 62) -- 1643
-	) -- 1643
-	if not uiArt:tryPlace( -- 1644
-		slot, -- 1644
-		"fe06_museum_zhoushu", -- 1644
-		playerSx, -- 1644
-		floorY + 2, -- 1644
-		charW, -- 1644
-		charH, -- 1644
-		{facing = self.hallFacing, frame = frame, layer = 3} -- 1644
-	) then -- 1644
-		uiDraw:drawRect( -- 1650
-			Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), -- 1650
-			toColor(CUFF_PALETTE.indigoBase) -- 1650
+		fillRadialGlow( -- 1493
+			uiGlow, -- 1493
+			plaqueX, -- 1493
+			wallTopY - 8, -- 1493
+			150, -- 1493
+			120, -- 1493
+			Color(224, 232, 240, 42), -- 1493
+			Color(180, 196, 214, 0), -- 1493
+			14 -- 1493
+		) -- 1493
+		ctx.texts:put( -- 1494
+			"sm", -- 1495
+			"海防抗战纪念展厅", -- 1496
+			plaqueX, -- 1497
+			py + 84, -- 1498
+			toColor(PALETTE.textBright), -- 1499
+			0.5, -- 1500
+			0.5, -- 1501
+			"Center", -- 1502
+			2, -- 1503
+			0.9 -- 1504
+		) -- 1504
+		ctx.texts:put( -- 1506
+			"xs", -- 1507
+			"温州宁村 · 守望史迹陈列", -- 1508
+			plaqueX, -- 1509
+			py + 46, -- 1510
+			toColor(PALETTE.textDim), -- 1511
+			0.5, -- 1512
+			0.5, -- 1513
+			"Center", -- 1514
+			1, -- 1515
+			0.8 -- 1516
+		) -- 1516
+	end -- 1516
+	local caseSx = toScreenX(self.caseX) -- 1521
+	if caseSx > -280 and caseSx < w + 280 then -- 1522
+		local boardOffsets = self.caseX <= 260 and ({205, 435}) or ({-206, 206}) -- 1524
+		local plateSlots = {"sh_museum_plate_wall", "sh_museum_plate_lamp"} -- 1525
+		local plateCaptions = {"洪武筑城 · 汤和巡海", "宁村夜灯 · 守望信俗"} -- 1526
+		local bi = 0 -- 1527
+		do -- 1527
+			bi = 0 -- 1528
+			while bi < #boardOffsets do -- 1528
+				local bx = caseSx + boardOffsets[bi + 1] -- 1529
+				local frameW = 140 -- 1530
+				local frameH = 188 -- 1531
+				local frameY = floorY + 108 -- 1532
+				uiDraw:drawRect( -- 1534
+					Rect(bx - frameW * 0.5 - 5, frameY - 5, frameW + 10, frameH + 10), -- 1534
+					Color(24, 22, 22, 244), -- 1534
+					1.4, -- 1534
+					Color(118, 108, 96, 175) -- 1534
+				) -- 1534
+				uiDraw:drawRect( -- 1535
+					Rect(bx - frameW * 0.5, frameY, frameW, frameH), -- 1535
+					Color(224, 218, 206, 236) -- 1535
+				) -- 1535
+				local placedPlate = uiArt:tryPlace( -- 1537
+					plateSlots[bi + 1], -- 1537
+					"fe06_hall_plate_" .. tostring(bi), -- 1537
+					bx, -- 1537
+					frameY + frameH * 0.52, -- 1537
+					frameW - 14, -- 1537
+					frameH - 34, -- 1537
+					{opacity = 0.96, layer = 2} -- 1537
+				) -- 1537
+				if not placedPlate then -- 1541
+					uiDraw:drawRect( -- 1542
+						Rect(bx - 52, frameY + 46, 104, 118), -- 1542
+						Color(34, 40, 48, 220) -- 1542
+					) -- 1542
+				end -- 1542
+				fillRadialGlow( -- 1545
+					uiGlow, -- 1545
+					bx, -- 1545
+					frameY + frameH + 14, -- 1545
+					84, -- 1545
+					96, -- 1545
+					Color(242, 234, 216, 46), -- 1545
+					Color(220, 212, 196, 0), -- 1545
+					14 -- 1545
+				) -- 1545
+				ctx.texts:put( -- 1546
+					"xs", -- 1546
+					plateCaptions[bi + 1], -- 1546
+					bx, -- 1546
+					frameY - 18, -- 1546
+					toColor(PALETTE.textDim), -- 1546
+					0.5, -- 1546
+					0.5, -- 1546
+					"Center", -- 1546
+					0.8, -- 1546
+					0.78 -- 1546
+				) -- 1546
+				bi = bi + 1 -- 1528
+			end -- 1528
+		end -- 1528
+		local pedW = 164 -- 1550
+		local pedH = 92 -- 1551
+		local glassH = 136 -- 1552
+		uiDraw:drawRect( -- 1554
+			Rect(caseSx - pedW * 0.5, floorY, pedW, pedH), -- 1555
+			Color(22, 26, 33, 252), -- 1556
+			1.2, -- 1557
+			Color(102, 114, 128, 190) -- 1558
+		) -- 1558
+		uiDraw:drawRect( -- 1561
+			Rect(caseSx - pedW * 0.46, floorY + pedH, pedW * 0.92, glassH), -- 1562
+			Color(14, 19, 27, 178), -- 1563
+			1.4, -- 1564
+			Color(186, 202, 220, 200) -- 1565
+		) -- 1565
+		if not uiArt:tryPlace( -- 1568
+			"sh_museum_compass_relic", -- 1568
+			"fe06_hall_compass_relic", -- 1568
+			caseSx, -- 1568
+			floorY + pedH + 54, -- 1568
+			118, -- 1568
+			76, -- 1568
+			{opacity = 0.96, layer = 3} -- 1568
+		) then -- 1568
+			uiArt:tryPlace( -- 1572
+				"prop_compass", -- 1572
+				"fe06_hall_compass", -- 1572
+				caseSx, -- 1572
+				floorY + pedH + 34, -- 1572
+				34, -- 1572
+				34, -- 1572
+				{opacity = 0.94, layer = 3} -- 1572
+			) -- 1572
+		end -- 1572
+		local nearCaseK = clamp01(1 - math.abs(self.hallWalkX - self.caseX) / 115) -- 1578
+		if nearCaseK > 0.04 then -- 1579
+			fillRadialGlow( -- 1580
+				uiGlow, -- 1580
+				caseSx + (self.hallWalkX - self.caseX) * 0.35, -- 1580
+				floorY + pedH + 62, -- 1580
+				48, -- 1581
+				62, -- 1581
+				Color( -- 1581
+					168, -- 1581
+					196, -- 1581
+					226, -- 1581
+					math.floor(34 * nearCaseK + 0.5) -- 1581
+				), -- 1581
+				Color(168, 196, 226, 0), -- 1581
+				12 -- 1581
+			) -- 1581
+		end -- 1581
+		fillGradQuad( -- 1584
+			uiInkDraw, -- 1585
+			caseSx - 32, -- 1586
+			floorY + pedH + glassH - 4, -- 1586
+			Color(230, 240, 252, 44), -- 1586
+			caseSx + 14, -- 1587
+			floorY + pedH + glassH - 4, -- 1587
+			Color(242, 248, 255, 76), -- 1587
+			caseSx - 12, -- 1588
+			floorY + pedH + 4, -- 1588
+			Color(230, 240, 252, 18), -- 1588
+			caseSx - 54, -- 1589
+			floorY + pedH + 4, -- 1589
+			Color(230, 240, 252, 0) -- 1589
+		) -- 1589
+		fillRadialGlow( -- 1591
+			uiGlow, -- 1591
+			caseSx, -- 1591
+			floorY + pedH + glassH - 12, -- 1591
+			92, -- 1591
+			138, -- 1591
+			Color(238, 242, 250, 62), -- 1591
+			Color(168, 192, 220, 0), -- 1591
+			16 -- 1591
+		) -- 1591
+		fillVGradRect( -- 1593
+			uiDraw, -- 1593
+			caseSx - pedW * 0.45, -- 1593
+			floorY - 42, -- 1593
+			pedW * 0.9, -- 1593
+			42, -- 1593
+			Color(168, 186, 206, 0), -- 1593
+			Color(168, 186, 206, 34) -- 1593
+		) -- 1593
+	end -- 1593
+	local lampSx = toScreenX(self.lampX) -- 1597
+	local winSx = toScreenX(self.lampX + 108) -- 1598
+	local reflectK = inLampTurn and smoothstep(____exports.MUSEUM_TIMINGS.lampReflectStart, 2.35, self.lampElapsed) or 0 -- 1599
+	if winSx > -260 and winSx < w + 260 then -- 1603
+		local winW = 204 -- 1604
+		local winH = 312 -- 1605
+		local winX = winSx - winW * 0.5 -- 1606
+		local winY = floorY + 38 -- 1607
+		fillVGradRect( -- 1609
+			uiDraw, -- 1610
+			winX, -- 1611
+			winY, -- 1612
+			winW, -- 1613
+			winH, -- 1614
+			Color( -- 1615
+				math.floor(54 + 46 * reflectK + 0.5), -- 1616
+				math.floor(68 + 42 * reflectK + 0.5), -- 1617
+				math.floor(92 + 24 * reflectK + 0.5), -- 1618
+				255 -- 1619
+			), -- 1619
+			Color( -- 1621
+				math.floor(30 + 28 * reflectK + 0.5), -- 1622
+				math.floor(44 + 34 * reflectK + 0.5), -- 1623
+				math.floor(70 + 30 * reflectK + 0.5), -- 1624
+				255 -- 1625
+			) -- 1625
+		) -- 1625
+		if reflectK > 0.02 then -- 1630
+			uiArt:tryPlace( -- 1631
+				"bgFar_prologue", -- 1631
+				"fe06_window_courtyard", -- 1631
+				winSx, -- 1631
+				winY + 26, -- 1631
+				winW - 8, -- 1631
+				winH - 52, -- 1631
+				{ -- 1631
+					opacity = reflectK * 0.48, -- 1632
+					color = Color(238, 218, 186, 255), -- 1633
+					layer = 1 -- 1634
+				} -- 1634
+			) -- 1634
+			local cy = winY + 34 -- 1637
+			local silA = math.floor(188 * reflectK + 0.5) -- 1638
+			uiInkDraw:drawRect( -- 1639
+				Rect(winX + 12, cy, 42, 118), -- 1639
+				Color(24, 28, 36, silA) -- 1639
+			) -- 1639
+			uiInkDraw:drawRect( -- 1640
+				Rect(winX + winW - 56, cy, 44, 134), -- 1640
+				Color(24, 28, 36, silA) -- 1640
+			) -- 1640
+			uiInkDraw:drawRect( -- 1642
+				Rect(winSx - 24, cy + 4, 48, 28), -- 1642
+				Color( -- 1642
+					46, -- 1642
+					44, -- 1642
+					42, -- 1642
+					math.floor(215 * reflectK + 0.5) -- 1642
+				), -- 1642
+				1, -- 1642
+				Color( -- 1642
+					214, -- 1642
+					186, -- 1642
+					138, -- 1642
+					math.floor(170 * reflectK + 0.5) -- 1642
+				) -- 1642
+			) -- 1642
+			uiInkDraw:drawEllipse( -- 1643
+				Vec2(winSx, cy + 32), -- 1643
+				26, -- 1643
+				7, -- 1643
+				Color( -- 1643
+					218, -- 1643
+					194, -- 1643
+					148, -- 1643
+					math.floor(175 * reflectK + 0.5) -- 1643
+				) -- 1643
+			) -- 1643
+			fillRadialGlow( -- 1645
+				uiGlow, -- 1645
+				winSx, -- 1645
+				winY + winH * 0.48, -- 1645
+				116, -- 1645
+				128, -- 1645
+				Color( -- 1645
+					246, -- 1645
+					218, -- 1645
+					168, -- 1645
+					math.floor(92 * reflectK + 0.5) -- 1645
+				), -- 1645
+				Color(214, 174, 112, 0), -- 1645
+				18 -- 1645
+			) -- 1645
+		end -- 1645
+		uiInkDraw:drawRect( -- 1649
+			Rect(winX, winY, winW, winH), -- 1649
+			Color(0, 0, 0, 0), -- 1649
+			3, -- 1649
+			Color(68, 76, 88, 245) -- 1649
+		) -- 1649
+		uiInkDraw:drawSegment( -- 1650
+			Vec2(winSx, winY), -- 1650
+			Vec2(winSx, winY + winH), -- 1650
+			2, -- 1650
+			Color(68, 76, 88, 235) -- 1650
 		) -- 1650
-		uiDraw:drawCircle( -- 1651
-			Vec2(playerSx, floorY + charH * 0.92), -- 1651
-			16, -- 1651
-			Color(66, 73, 76, 255) -- 1651
+		uiInkDraw:drawSegment( -- 1651
+			Vec2(winX, winY + winH * 0.56), -- 1651
+			Vec2(winX + winW, winY + winH * 0.56), -- 1651
+			2, -- 1651
+			Color(68, 76, 88, 235) -- 1651
 		) -- 1651
-	end -- 1651
-	if self.holstered and not inLampTurn and math.abs(self.hallWalkX - self.caseX) <= 130 then -- 1655
-		local subA = clamp01(1 - math.abs(self.hallWalkX - self.caseX) / 145) * 0.86 -- 1656
-		ctx.texts:put( -- 1657
-			"xs", -- 1658
-			"已收起随身器物", -- 1659
-			caseSx, -- 1660
-			floorY + 252, -- 1661
-			toColor(PALETTE.textMid), -- 1662
-			0.5, -- 1663
-			0.5, -- 1664
-			"Center", -- 1665
-			0.9, -- 1666
-			subA -- 1667
-		) -- 1667
-	end -- 1667
-	if self.childEchoVisualT > 0 then -- 1672
-		local echoK = 1 - clamp01(self.childEchoVisualT / 2.1) -- 1673
-		local ex = math.min( -- 1674
-			w - 110, -- 1674
-			toScreenX(self.caseX + 310) -- 1674
-		) -- 1674
-		local ey = floorY + 32 -- 1675
-		local ea = math.floor(math.sin(echoK * math.pi) * 165 + 0.5) -- 1676
-		drawCircleRing( -- 1677
-			uiInkDraw, -- 1677
-			ex, -- 1677
-			ey, -- 1677
-			14 + echoK * 46, -- 1677
-			Color(0, 0, 0, 0), -- 1677
-			1.1, -- 1677
-			Color(224, 214, 194, ea), -- 1677
-			28 -- 1677
-		) -- 1677
-		drawCircleRing( -- 1678
-			uiInkDraw, -- 1678
-			ex, -- 1678
-			ey, -- 1678
-			8 + echoK * 28, -- 1678
-			Color(0, 0, 0, 0), -- 1678
-			0.9, -- 1678
-			Color( -- 1678
-				224, -- 1678
-				214, -- 1678
-				194, -- 1678
-				math.floor(ea * 0.7 + 0.5) -- 1678
-			), -- 1678
-			24 -- 1678
-		) -- 1678
-		ctx.texts:put( -- 1679
-			"xs", -- 1680
-			"（远方传来轻快的孩童脚步声）", -- 1681
-			w * 0.5, -- 1682
-			84, -- 1683
-			toColor(PALETTE.textMid), -- 1684
-			0.5, -- 1685
-			0.5, -- 1686
-			"Center", -- 1687
-			1, -- 1688
-			math.sin(echoK * math.pi) * 0.85 -- 1689
-		) -- 1689
-	end -- 1689
-	if not inLampTurn then -- 1694
-		local fadeIn = smoothstep(0, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn, self.hallIntroElapsed) -- 1695
-		local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold + ____exports.MUSEUM_TIMINGS.hallIntroFadeOut, self.hallIntroElapsed) -- 1696
-		local introA = fadeIn * fadeOut -- 1701
-		if introA > 0.02 then -- 1702
-			drawSilkVeil( -- 1703
-				uiDraw, -- 1703
-				uiArt, -- 1703
-				"fe06_hall_intro_veil", -- 1703
-				w * 0.5, -- 1703
-				h - 104, -- 1703
-				480, -- 1703
-				74, -- 1703
-				PALETTE.inkVoid, -- 1703
-				0.78 * introA, -- 1703
-				1 -- 1703
-			) -- 1703
-			drawHairline( -- 1704
-				uiInkDraw, -- 1704
-				uiArt, -- 1704
-				"fe06_hall_intro_line", -- 1704
-				w * 0.5, -- 1704
-				h - 106, -- 1704
-				260, -- 1704
-				PALETTE.silkLine, -- 1704
-				0.45 * introA, -- 1704
-				false, -- 1704
-				4 -- 1704
-			) -- 1704
-			ctx.texts:put( -- 1705
-				"md", -- 1705
-				____exports.MUSEUM_HALL_TITLE, -- 1705
-				w * 0.5, -- 1705
-				h - 88, -- 1705
-				toColor(PALETTE.textBright), -- 1705
-				0.5, -- 1705
-				0.5, -- 1705
-				"Center", -- 1705
-				1.8, -- 1705
-				introA -- 1705
-			) -- 1705
-			ctx.texts:put( -- 1706
-				"xs", -- 1706
-				____exports.MUSEUM_HALL_SUBTITLE, -- 1706
-				w * 0.5, -- 1706
-				h - 122, -- 1706
-				toColor(PALETTE.amberCore), -- 1706
-				0.5, -- 1706
-				0.5, -- 1706
-				"Center", -- 1706
-				1.2, -- 1706
-				introA * 0.88 -- 1706
-			) -- 1706
-		end -- 1706
-		if self.nearLamp and ctx.view.assistHintsEnabled then -- 1710
-			drawSilkVeil( -- 1711
-				uiDraw, -- 1711
-				uiArt, -- 1711
-				"fe06_lamp_hint_veil", -- 1711
-				lampSx, -- 1711
-				floorY + 158, -- 1711
-				146, -- 1711
-				28, -- 1711
-				PALETTE.panelBg, -- 1711
-				0.84, -- 1711
-				1 -- 1711
-			) -- 1711
-			ctx.texts:put( -- 1712
-				"xs", -- 1713
-				adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1714
-				lampSx, -- 1715
-				floorY + 158, -- 1716
-				toColor(PALETTE.textBright), -- 1717
-				0.5, -- 1718
-				0.5, -- 1719
-				"Center", -- 1720
-				0.6, -- 1721
-				0.94 -- 1722
-			) -- 1722
-		end -- 1722
-	end -- 1722
-	if inLampTurn and self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 1728
-		local lineA = smoothstep(____exports.MUSEUM_TIMINGS.lampLineAt, ____exports.MUSEUM_TIMINGS.lampLineAt + 0.45, self.lampElapsed) * (1 - smoothstep(____exports.MUSEUM_TIMINGS.lampTurnDuration - 0.35, ____exports.MUSEUM_TIMINGS.lampTurnDuration, self.lampElapsed)) -- 1729
-		if lineA > 0.02 then -- 1731
-			drawSilkVeil( -- 1732
-				uiDraw, -- 1732
-				uiArt, -- 1732
-				"fe06_dawn_line_veil", -- 1732
-				w * 0.5, -- 1732
-				86, -- 1732
-				440, -- 1732
-				50, -- 1732
-				PALETTE.inkVoid, -- 1732
-				0.84 * lineA, -- 1732
-				1 -- 1732
-			) -- 1732
-			ctx.texts:put( -- 1733
-				"md", -- 1734
-				____exports.MUSEUM_LINE_DAWN, -- 1734
-				w * 0.5, -- 1736
-				86, -- 1737
-				toColor(PALETTE.amberCore), -- 1738
-				0.5, -- 1739
-				0.5, -- 1740
-				"Center", -- 1741
-				1.6, -- 1742
-				lineA -- 1743
-			) -- 1743
-		end -- 1743
-	end -- 1743
-	if self.knock1VisualT > 0 then -- 1748
-		local k1 = 1 - clamp01(self.knock1VisualT / 0.85) -- 1749
-		local k1A = math.floor((1 - k1) * 205 + 0.5) -- 1750
-		drawCircleRing( -- 1751
-			uiInkDraw, -- 1751
-			winSx, -- 1751
-			floorY + 148, -- 1751
-			12 + k1 * 64, -- 1751
-			Color(0, 0, 0, 0), -- 1751
-			1.6, -- 1751
-			Color(242, 232, 206, k1A), -- 1751
-			28 -- 1751
-		) -- 1751
-		drawCircleRing( -- 1752
-			uiInkDraw, -- 1752
-			winSx, -- 1752
-			floorY + 148, -- 1752
-			6 + k1 * 34, -- 1752
-			Color(0, 0, 0, 0), -- 1752
-			1.1, -- 1752
-			Color( -- 1752
-				242, -- 1752
-				232, -- 1752
-				206, -- 1752
-				math.floor(k1A * 0.72 + 0.5) -- 1752
-			), -- 1752
-			24 -- 1752
-		) -- 1752
-	end -- 1752
-	self:drawLetterbox( -- 1755
-		uiInkDraw, -- 1755
-		w, -- 1755
-		h, -- 1755
-		38, -- 1755
-		0.9 -- 1755
-	) -- 1755
-end -- 1419
-function WellMuseumPlugin.prototype.renderE02ReturnCabinet(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1761
-	local t = self.returnElapsed -- 1770
-	local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.returnFadeOutAt, ____exports.MUSEUM_TIMINGS.returnCabinetDuration, t) -- 1771
-	uiDraw:drawRect( -- 1774
-		Rect(0, 0, w, h), -- 1774
-		Color( -- 1774
-			7, -- 1774
-			9, -- 1774
-			13, -- 1774
-			math.floor(252 * fadeOut + 0.5) -- 1774
-		) -- 1774
-	) -- 1774
-	if t < ____exports.MUSEUM_TIMINGS.returnKnock2At then -- 1776
-		self:drawLetterbox( -- 1777
-			uiInkDraw, -- 1777
-			w, -- 1777
-			h, -- 1777
-			42, -- 1777
-			0.95 * fadeOut -- 1777
-		) -- 1777
-		return -- 1778
-	end -- 1778
-	local revealK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut -- 1782
-	local boxW = math.min(w - 140, 820) -- 1783
-	local boxH = math.min(h - 190, 390) -- 1784
-	local bx = (w - boxW) * 0.5 -- 1785
-	local by = (h - boxH) * 0.5 + 10 -- 1786
-	fillVGradRect( -- 1789
-		uiDraw, -- 1790
-		bx, -- 1791
-		by, -- 1792
-		boxW, -- 1793
-		boxH, -- 1794
-		Color( -- 1795
-			13, -- 1795
-			12, -- 1795
-			16, -- 1795
-			math.floor(248 * revealK + 0.5) -- 1795
-		), -- 1795
-		Color( -- 1796
-			24, -- 1796
-			24, -- 1796
-			30, -- 1796
-			math.floor(248 * revealK + 0.5) -- 1796
-		) -- 1796
-	) -- 1796
-	local cabEdgeX = bx + boxW * 0.58 -- 1799
-	uiDraw:drawRect( -- 1800
-		Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), -- 1800
-		Color( -- 1800
-			42, -- 1800
-			31, -- 1800
-			24, -- 1800
-			math.floor(246 * revealK + 0.5) -- 1800
-		) -- 1800
-	) -- 1800
-	uiDraw:drawSegment( -- 1801
-		Vec2(cabEdgeX, by), -- 1801
-		Vec2(cabEdgeX, by + boxH), -- 1801
-		2.4, -- 1801
-		Color( -- 1801
-			116, -- 1801
-			92, -- 1801
-			68, -- 1801
-			math.floor(220 * revealK + 0.5) -- 1801
-		) -- 1801
-	) -- 1801
-	local gi = 0 -- 1803
-	do -- 1803
-		gi = 0 -- 1804
-		while gi < 5 do -- 1804
-			local gx = cabEdgeX + 26 + gi * 44 -- 1805
-			if gx < bx + boxW - 10 then -- 1806
-				uiDraw:drawSegment( -- 1807
-					Vec2(gx, by + 12), -- 1807
-					Vec2(gx, by + boxH - 12), -- 1807
-					1, -- 1807
-					Color( -- 1807
-						28, -- 1807
-						20, -- 1807
-						15, -- 1807
-						math.floor(140 * revealK + 0.5) -- 1807
-					) -- 1807
-				) -- 1807
-			end -- 1807
-			gi = gi + 1 -- 1804
-		end -- 1804
-	end -- 1804
-	fillHGradRect( -- 1811
-		uiGlow, -- 1812
-		cabEdgeX - 58, -- 1813
-		by + 24, -- 1814
-		58, -- 1815
-		boxH - 48, -- 1816
-		Color(168, 188, 210, 0), -- 1817
-		Color( -- 1818
-			186, -- 1818
-			206, -- 1818
-			226, -- 1818
-			math.floor(42 * revealK + 0.5) -- 1818
-		) -- 1818
-	) -- 1818
-	if self.knock2VisualT > 0 then -- 1822
-		local k2 = 1 - clamp01(self.knock2VisualT / 0.9) -- 1823
-		local k2A = math.floor((1 - k2) * 215 * fadeOut + 0.5) -- 1824
-		drawCircleRing( -- 1825
-			uiInkDraw, -- 1825
-			cabEdgeX + 8, -- 1825
-			by + boxH * 0.5, -- 1825
-			10 + k2 * 56, -- 1825
-			Color(0, 0, 0, 0), -- 1825
-			1.6, -- 1825
-			Color(232, 220, 196, k2A), -- 1825
-			28 -- 1825
-		) -- 1825
-	end -- 1825
-	local extendK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.08, ____exports.MUSEUM_TIMINGS.returnKnock2At + 1.05, t) -- 1829
-	local wristX = bx + 115 + extendK * (cabEdgeX - bx - 168) -- 1830
-	local wristY = by + boxH * 0.5 -- 1831
-	drawPatchedCuff(uiInkDraw, uiGlow, { -- 1832
-		wristX = wristX, -- 1833
-		wristY = wristY, -- 1834
-		angleRad = -0.04 * (1 - extendK), -- 1835
-		scale = 1.02, -- 1836
-		pose = "reach", -- 1837
-		opacity = revealK, -- 1838
-		stitchHighlight = 0.48 + 0.22 * extendK, -- 1839
-		cuffPullBack = 0.06, -- 1840
-		warmth = 0.16 -- 1841
-	}) -- 1841
-	uiInkDraw:drawRect( -- 1845
-		Rect(bx, by, boxW, boxH), -- 1845
-		Color(0, 0, 0, 0), -- 1845
-		1.2, -- 1845
-		toColor( -- 1845
-			PALETTE.silkDim, -- 1845
-			math.floor(160 * revealK + 0.5) -- 1845
-		) -- 1845
-	) -- 1845
-	local tipA = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.45, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut -- 1846
-	if tipA > 0.03 then -- 1847
-		drawSilkVeil( -- 1848
-			uiDraw, -- 1848
-			uiArt, -- 1848
-			"fe06_return_veil", -- 1848
-			w * 0.5, -- 1848
-			by - 30, -- 1848
-			320, -- 1848
-			32, -- 1848
-			PALETTE.inkVoid, -- 1848
-			0.72 * tipA, -- 1848
-			1 -- 1848
-		) -- 1848
-		ctx.texts:put( -- 1849
-			"xs", -- 1850
-			"两声轻敲落回柜板 · 寻回小满", -- 1851
-			w * 0.5, -- 1852
-			by - 30, -- 1853
-			toColor(PALETTE.textMid), -- 1854
-			0.5, -- 1855
-			0.5, -- 1856
-			"Center", -- 1857
-			1.2, -- 1858
-			tipA * 0.9 -- 1859
+		local standW = 34 -- 1654
+		local standH = 96 -- 1655
+		uiDraw:drawRect( -- 1656
+			Rect(lampSx - standW * 0.5, floorY, standW, standH), -- 1656
+			Color(34, 39, 48, 250), -- 1656
+			1.1, -- 1656
+			Color(108, 118, 130, 190) -- 1656
+		) -- 1656
+		local pivotY = floorY + standH + 44 -- 1658
+		uiInkDraw:drawSegment( -- 1659
+			Vec2(lampSx, floorY + standH), -- 1659
+			Vec2(lampSx, pivotY), -- 1659
+			3.2, -- 1659
+			Color(136, 144, 154, 240) -- 1659
+		) -- 1659
+		uiInkDraw:drawCircle( -- 1660
+			Vec2(lampSx, pivotY), -- 1660
+			5.5, -- 1660
+			Color(196, 178, 142, 245) -- 1660
+		) -- 1660
+		local aimDir = -0.65 + lampTurnProg * 1.48 -- 1662
+		local headX = lampSx + math.sin(aimDir) * 20 -- 1663
+		local headY = pivotY + math.cos(aimDir) * 14 -- 1664
+		uiInkDraw:drawSegment( -- 1665
+			Vec2(lampSx, pivotY), -- 1665
+			Vec2(headX, headY), -- 1665
+			6.2, -- 1665
+			Color(188, 166, 126, 245) -- 1665
+		) -- 1665
+		uiInkDraw:drawCircle( -- 1666
+			Vec2(headX, headY), -- 1666
+			5.2, -- 1666
+			Color(248, 234, 198, 248) -- 1666
+		) -- 1666
+		local beamLen = 132 + lampTurnProg * 76 -- 1669
+		local bxEnd = headX + math.sin(aimDir) * beamLen -- 1670
+		local byEnd = headY + math.cos(aimDir) * 28 -- 1671
+		local perpX = -math.cos(aimDir) * 18 -- 1672
+		local perpY = math.sin(aimDir) * 34 -- 1673
+		fillGradQuad( -- 1674
+			uiGlow, -- 1675
+			headX, -- 1676
+			headY - 4, -- 1676
+			Color( -- 1676
+				246, -- 1676
+				224, -- 1676
+				178, -- 1676
+				math.floor(68 + 44 * lampTurnProg + 0.5) -- 1676
+			), -- 1676
+			headX, -- 1677
+			headY + 4, -- 1677
+			Color( -- 1677
+				246, -- 1677
+				224, -- 1677
+				178, -- 1677
+				math.floor(68 + 44 * lampTurnProg + 0.5) -- 1677
+			), -- 1677
+			bxEnd + perpX, -- 1678
+			byEnd + perpY + 34, -- 1678
+			Color(238, 206, 148, 0), -- 1678
+			bxEnd - perpX, -- 1679
+			byEnd - perpY - 22, -- 1679
+			Color(238, 206, 148, 0) -- 1679
+		) -- 1679
+		fillRadialGlow( -- 1681
+			uiGlow, -- 1681
+			headX, -- 1681
+			headY, -- 1681
+			34, -- 1681
+			34, -- 1681
+			Color(246, 228, 186, 78), -- 1681
+			Color(224, 194, 140, 0), -- 1681
+			14 -- 1681
+		) -- 1681
+	end -- 1681
+	local playerSx = toScreenX(self.hallWalkX) -- 1685
+	local moving = not inLampTurn and (self.hallMoving or math.abs(ctx.input.moveX) > 0.05) -- 1686
+	local slot = moving and "soldier_run" or "soldier_idle" -- 1687
+	local frame = moving and math.floor(self.hallWalkAnim) or 0 -- 1688
+	local charH = math.floor(192 * math.max( -- 1689
+		0.75, -- 1689
+		math.min(1.25, h / 720) -- 1689
+	) + 0.5) -- 1689
+	local charW = math.floor(charH * 0.45 + 0.5) -- 1690
+	uiDraw:drawEllipse( -- 1692
+		Vec2(playerSx, floorY + 2), -- 1692
+		34, -- 1692
+		6.5, -- 1692
+		Color(6, 8, 12, 178) -- 1692
+	) -- 1692
+	uiDraw:drawEllipse( -- 1693
+		Vec2(playerSx, floorY - 14), -- 1693
+		24, -- 1693
+		4.5, -- 1693
+		Color(16, 20, 28, 62) -- 1693
+	) -- 1693
+	if not uiArt:tryPlace( -- 1694
+		slot, -- 1694
+		"fe06_museum_zhoushu", -- 1694
+		playerSx, -- 1694
+		floorY + 2, -- 1694
+		charW, -- 1694
+		charH, -- 1694
+		{facing = self.hallFacing, frame = frame, layer = 3} -- 1694
+	) then -- 1694
+		uiDraw:drawRect( -- 1700
+			Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), -- 1700
+			toColor(CUFF_PALETTE.indigoBase) -- 1700
+		) -- 1700
+		uiDraw:drawCircle( -- 1701
+			Vec2(playerSx, floorY + charH * 0.92), -- 1701
+			16, -- 1701
+			Color(66, 73, 76, 255) -- 1701
+		) -- 1701
+	end -- 1701
+	if self.holstered and not inLampTurn and math.abs(self.hallWalkX - self.caseX) <= 130 then -- 1705
+		local subA = clamp01(1 - math.abs(self.hallWalkX - self.caseX) / 145) * 0.86 -- 1706
+		ctx.texts:put( -- 1707
+			"xs", -- 1708
+			"已收起随身器物", -- 1709
+			caseSx, -- 1710
+			floorY + 252, -- 1711
+			toColor(PALETTE.textMid), -- 1712
+			0.5, -- 1713
+			0.5, -- 1714
+			"Center", -- 1715
+			0.9, -- 1716
+			subA -- 1717
+		) -- 1717
+	end -- 1717
+	if self.childEchoVisualT > 0 then -- 1722
+		local echoK = 1 - clamp01(self.childEchoVisualT / 2.1) -- 1723
+		local ex = math.min( -- 1724
+			w - 110, -- 1724
+			toScreenX(self.caseX + 310) -- 1724
+		) -- 1724
+		local ey = floorY + 20 -- 1725
+		local ea = math.floor(math.sin(echoK * math.pi) * 165 + 0.5) -- 1726
+		do -- 1726
+			local step = 0 -- 1727
+			while step < 3 do -- 1727
+				local stFade = clamp01(echoK * 2.2 - step * 0.35) * (1 - clamp01(echoK * 1.4 - 0.55 - step * 0.12)) -- 1728
+				if stFade > 0.02 then -- 1729
+					local fx = ex - 60 + step * 44 -- 1730
+					local fy = floorY - 12 - step % 2 * 8 -- 1731
+					fillRadialGlow( -- 1732
+						uiGlow, -- 1732
+						fx, -- 1732
+						fy, -- 1732
+						16, -- 1732
+						6, -- 1732
+						Color( -- 1732
+							238, -- 1732
+							224, -- 1732
+							194, -- 1732
+							math.floor(92 * stFade + 0.5) -- 1732
+						), -- 1732
+						Color(238, 224, 194, 0), -- 1732
+						10 -- 1732
+					) -- 1732
+					uiInkDraw:drawEllipse( -- 1733
+						Vec2(fx, fy), -- 1733
+						6.5, -- 1733
+						2.6, -- 1733
+						Color( -- 1733
+							236, -- 1733
+							224, -- 1733
+							198, -- 1733
+							math.floor(145 * stFade + 0.5) -- 1733
+						) -- 1733
+					) -- 1733
+				end -- 1733
+				step = step + 1 -- 1727
+			end -- 1727
+		end -- 1727
+		drawCircleRing( -- 1736
+			uiInkDraw, -- 1736
+			ex, -- 1736
+			ey, -- 1736
+			14 + echoK * 38, -- 1736
+			Color(0, 0, 0, 0), -- 1736
+			1, -- 1736
+			Color( -- 1736
+				224, -- 1736
+				214, -- 1736
+				194, -- 1736
+				math.floor(ea * 0.72 + 0.5) -- 1736
+			), -- 1736
+			26 -- 1736
+		) -- 1736
+		ctx.texts:put( -- 1737
+			"xs", -- 1738
+			"（远方传来轻快的孩童脚步声）", -- 1739
+			w * 0.5, -- 1740
+			84, -- 1741
+			toColor(PALETTE.textMid), -- 1742
+			0.5, -- 1743
+			0.5, -- 1744
+			"Center", -- 1745
+			1, -- 1746
+			math.sin(echoK * math.pi) * 0.85 -- 1747
+		) -- 1747
+	end -- 1747
+	if not inLampTurn then -- 1752
+		local fadeIn = smoothstep(0, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn, self.hallIntroElapsed) -- 1753
+		local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold + ____exports.MUSEUM_TIMINGS.hallIntroFadeOut, self.hallIntroElapsed) -- 1754
+		local introA = fadeIn * fadeOut -- 1759
+		if introA > 0.02 then -- 1760
+			drawSilkVeil( -- 1761
+				uiDraw, -- 1761
+				uiArt, -- 1761
+				"fe06_hall_intro_veil", -- 1761
+				w * 0.5, -- 1761
+				h - 104, -- 1761
+				480, -- 1761
+				74, -- 1761
+				PALETTE.inkVoid, -- 1761
+				0.78 * introA, -- 1761
+				1 -- 1761
+			) -- 1761
+			drawHairline( -- 1762
+				uiInkDraw, -- 1762
+				uiArt, -- 1762
+				"fe06_hall_intro_line", -- 1762
+				w * 0.5, -- 1762
+				h - 106, -- 1762
+				260, -- 1762
+				PALETTE.silkLine, -- 1762
+				0.45 * introA, -- 1762
+				false, -- 1762
+				4 -- 1762
+			) -- 1762
+			ctx.texts:put( -- 1763
+				"md", -- 1763
+				____exports.MUSEUM_HALL_TITLE, -- 1763
+				w * 0.5, -- 1763
+				h - 88, -- 1763
+				toColor(PALETTE.textBright), -- 1763
+				0.5, -- 1763
+				0.5, -- 1763
+				"Center", -- 1763
+				1.8, -- 1763
+				introA -- 1763
+			) -- 1763
+			ctx.texts:put( -- 1764
+				"xs", -- 1764
+				____exports.MUSEUM_HALL_SUBTITLE, -- 1764
+				w * 0.5, -- 1764
+				h - 122, -- 1764
+				toColor(PALETTE.amberCore), -- 1764
+				0.5, -- 1764
+				0.5, -- 1764
+				"Center", -- 1764
+				1.2, -- 1764
+				introA * 0.88 -- 1764
+			) -- 1764
+		end -- 1764
+		if self.nearLamp and ctx.view.assistHintsEnabled then -- 1768
+			drawSilkVeil( -- 1769
+				uiDraw, -- 1769
+				uiArt, -- 1769
+				"fe06_lamp_hint_veil", -- 1769
+				lampSx, -- 1769
+				floorY + 158, -- 1769
+				146, -- 1769
+				28, -- 1769
+				PALETTE.panelBg, -- 1769
+				0.84, -- 1769
+				1 -- 1769
+			) -- 1769
+			ctx.texts:put( -- 1770
+				"xs", -- 1771
+				adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1772
+				lampSx, -- 1773
+				floorY + 158, -- 1774
+				toColor(PALETTE.textBright), -- 1775
+				0.5, -- 1776
+				0.5, -- 1777
+				"Center", -- 1778
+				0.6, -- 1779
+				0.94 -- 1780
+			) -- 1780
+		end -- 1780
+	end -- 1780
+	if inLampTurn and self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 1786
+		local lineA = smoothstep(____exports.MUSEUM_TIMINGS.lampLineAt, ____exports.MUSEUM_TIMINGS.lampLineAt + 0.45, self.lampElapsed) * (1 - smoothstep(____exports.MUSEUM_TIMINGS.lampTurnDuration - 0.35, ____exports.MUSEUM_TIMINGS.lampTurnDuration, self.lampElapsed)) -- 1787
+		if lineA > 0.02 then -- 1789
+			drawSilkVeil( -- 1790
+				uiDraw, -- 1790
+				uiArt, -- 1790
+				"fe06_dawn_line_veil", -- 1790
+				w * 0.5, -- 1790
+				86, -- 1790
+				440, -- 1790
+				50, -- 1790
+				PALETTE.inkVoid, -- 1790
+				0.84 * lineA, -- 1790
+				1 -- 1790
+			) -- 1790
+			ctx.texts:put( -- 1791
+				"md", -- 1792
+				____exports.MUSEUM_LINE_DAWN, -- 1792
+				w * 0.5, -- 1794
+				86, -- 1795
+				toColor(PALETTE.amberCore), -- 1796
+				0.5, -- 1797
+				0.5, -- 1798
+				"Center", -- 1799
+				1.6, -- 1800
+				lineA -- 1801
+			) -- 1801
+		end -- 1801
+	end -- 1801
+	if self.knock1VisualT > 0 then -- 1806
+		local k1 = 1 - clamp01(self.knock1VisualT / 0.85) -- 1807
+		local k1A = math.floor((1 - k1) * 205 + 0.5) -- 1808
+		drawCircleRing( -- 1809
+			uiInkDraw, -- 1809
+			winSx, -- 1809
+			floorY + 148, -- 1809
+			12 + k1 * 64, -- 1809
+			Color(0, 0, 0, 0), -- 1809
+			1.6, -- 1809
+			Color(242, 232, 206, k1A), -- 1809
+			28 -- 1809
+		) -- 1809
+		drawCircleRing( -- 1810
+			uiInkDraw, -- 1810
+			winSx, -- 1810
+			floorY + 148, -- 1810
+			6 + k1 * 34, -- 1810
+			Color(0, 0, 0, 0), -- 1810
+			1.1, -- 1810
+			Color( -- 1810
+				242, -- 1810
+				232, -- 1810
+				206, -- 1810
+				math.floor(k1A * 0.72 + 0.5) -- 1810
+			), -- 1810
+			24 -- 1810
+		) -- 1810
+	end -- 1810
+	self:drawLetterbox( -- 1813
+		uiInkDraw, -- 1813
+		w, -- 1813
+		h, -- 1813
+		38, -- 1813
+		0.9 -- 1813
+	) -- 1813
+end -- 1424
+function WellMuseumPlugin.prototype.renderE02ReturnCabinet(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1819
+	local t = self.returnElapsed -- 1828
+	local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.returnFadeOutAt, ____exports.MUSEUM_TIMINGS.returnCabinetDuration, t) -- 1829
+	uiDraw:drawRect( -- 1832
+		Rect(0, 0, w, h), -- 1832
+		Color( -- 1832
+			7, -- 1832
+			9, -- 1832
+			13, -- 1832
+			math.floor(252 * fadeOut + 0.5) -- 1832
+		) -- 1832
+	) -- 1832
+	if t < ____exports.MUSEUM_TIMINGS.returnKnock2At then -- 1834
+		self:drawLetterbox( -- 1835
+			uiInkDraw, -- 1835
+			w, -- 1835
+			h, -- 1835
+			42, -- 1835
+			0.95 * fadeOut -- 1835
+		) -- 1835
+		return -- 1836
+	end -- 1836
+	local revealK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut -- 1840
+	local boxW = math.min(w - 140, 820) -- 1841
+	local boxH = math.min(h - 190, 390) -- 1842
+	local bx = (w - boxW) * 0.5 -- 1843
+	local by = (h - boxH) * 0.5 + 10 -- 1844
+	fillVGradRect( -- 1847
+		uiDraw, -- 1848
+		bx, -- 1849
+		by, -- 1850
+		boxW, -- 1851
+		boxH, -- 1852
+		Color( -- 1853
+			13, -- 1853
+			12, -- 1853
+			16, -- 1853
+			math.floor(248 * revealK + 0.5) -- 1853
+		), -- 1853
+		Color( -- 1854
+			24, -- 1854
+			24, -- 1854
+			30, -- 1854
+			math.floor(248 * revealK + 0.5) -- 1854
+		) -- 1854
+	) -- 1854
+	local cabEdgeX = bx + boxW * 0.58 -- 1857
+	uiDraw:drawRect( -- 1858
+		Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), -- 1858
+		Color( -- 1858
+			42, -- 1858
+			31, -- 1858
+			24, -- 1858
+			math.floor(246 * revealK + 0.5) -- 1858
+		) -- 1858
+	) -- 1858
+	uiDraw:drawSegment( -- 1859
+		Vec2(cabEdgeX, by), -- 1859
+		Vec2(cabEdgeX, by + boxH), -- 1859
+		2.4, -- 1859
+		Color( -- 1859
+			116, -- 1859
+			92, -- 1859
+			68, -- 1859
+			math.floor(220 * revealK + 0.5) -- 1859
 		) -- 1859
-	end -- 1859
-	self:drawLetterbox( -- 1863
-		uiInkDraw, -- 1863
-		w, -- 1863
-		h, -- 1863
-		42, -- 1863
-		0.95 * fadeOut -- 1863
-	) -- 1863
-end -- 1761
-function WellMuseumPlugin.prototype.drawLetterbox(self, draw, w, h, barH, opacity) -- 1866
-	local a = math.floor(244 * clamp01(opacity) + 0.5) -- 1867
-	if a <= 2 then -- 1868
-		return -- 1869
-	end -- 1869
-	draw:drawRect( -- 1871
-		Rect(0, 0, w, barH), -- 1871
-		Color(6, 8, 12, a) -- 1871
-	) -- 1871
-	draw:drawRect( -- 1872
-		Rect(0, h - barH, w, barH), -- 1872
-		Color(6, 8, 12, a) -- 1872
-	) -- 1872
-end -- 1866
-function ____exports.createWellMuseumPlugin(contract) -- 1876
-	return __TS__New(____exports.WellMuseumPlugin, contract) -- 1877
-end -- 1876
-return ____exports -- 1876
+	) -- 1859
+	local gi = 0 -- 1861
+	do -- 1861
+		gi = 0 -- 1862
+		while gi < 5 do -- 1862
+			local gx = cabEdgeX + 26 + gi * 44 -- 1863
+			if gx < bx + boxW - 10 then -- 1864
+				uiDraw:drawSegment( -- 1865
+					Vec2(gx, by + 12), -- 1865
+					Vec2(gx, by + boxH - 12), -- 1865
+					1, -- 1865
+					Color( -- 1865
+						28, -- 1865
+						20, -- 1865
+						15, -- 1865
+						math.floor(140 * revealK + 0.5) -- 1865
+					) -- 1865
+				) -- 1865
+			end -- 1865
+			gi = gi + 1 -- 1862
+		end -- 1862
+	end -- 1862
+	fillHGradRect( -- 1869
+		uiGlow, -- 1870
+		cabEdgeX - 58, -- 1871
+		by + 24, -- 1872
+		58, -- 1873
+		boxH - 48, -- 1874
+		Color(168, 188, 210, 0), -- 1875
+		Color( -- 1876
+			186, -- 1876
+			206, -- 1876
+			226, -- 1876
+			math.floor(42 * revealK + 0.5) -- 1876
+		) -- 1876
+	) -- 1876
+	if self.knock2VisualT > 0 then -- 1880
+		local k2 = 1 - clamp01(self.knock2VisualT / 0.9) -- 1881
+		local k2A = math.floor((1 - k2) * 215 * fadeOut + 0.5) -- 1882
+		drawCircleRing( -- 1883
+			uiInkDraw, -- 1883
+			cabEdgeX + 8, -- 1883
+			by + boxH * 0.5, -- 1883
+			10 + k2 * 56, -- 1883
+			Color(0, 0, 0, 0), -- 1883
+			1.6, -- 1883
+			Color(232, 220, 196, k2A), -- 1883
+			28 -- 1883
+		) -- 1883
+	end -- 1883
+	local extendK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.08, ____exports.MUSEUM_TIMINGS.returnKnock2At + 1.05, t) -- 1887
+	local wristX = bx + 115 + extendK * (cabEdgeX - bx - 168) -- 1888
+	local wristY = by + boxH * 0.5 -- 1889
+	drawPatchedCuff(uiInkDraw, uiGlow, { -- 1890
+		wristX = wristX, -- 1891
+		wristY = wristY, -- 1892
+		angleRad = -0.04 * (1 - extendK), -- 1893
+		scale = 1.02, -- 1894
+		pose = "reach", -- 1895
+		opacity = revealK, -- 1896
+		stitchHighlight = 0.48 + 0.22 * extendK, -- 1897
+		cuffPullBack = 0.06, -- 1898
+		warmth = 0.16 -- 1899
+	}) -- 1899
+	uiInkDraw:drawRect( -- 1903
+		Rect(bx, by, boxW, boxH), -- 1903
+		Color(0, 0, 0, 0), -- 1903
+		1.2, -- 1903
+		toColor( -- 1903
+			PALETTE.silkDim, -- 1903
+			math.floor(160 * revealK + 0.5) -- 1903
+		) -- 1903
+	) -- 1903
+	local tipA = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.45, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut -- 1904
+	if tipA > 0.03 then -- 1905
+		drawSilkVeil( -- 1906
+			uiDraw, -- 1906
+			uiArt, -- 1906
+			"fe06_return_veil", -- 1906
+			w * 0.5, -- 1906
+			by - 30, -- 1906
+			320, -- 1906
+			32, -- 1906
+			PALETTE.inkVoid, -- 1906
+			0.72 * tipA, -- 1906
+			1 -- 1906
+		) -- 1906
+		ctx.texts:put( -- 1907
+			"xs", -- 1908
+			"两声轻敲落回柜板 · 寻回小满", -- 1909
+			w * 0.5, -- 1910
+			by - 30, -- 1911
+			toColor(PALETTE.textMid), -- 1912
+			0.5, -- 1913
+			0.5, -- 1914
+			"Center", -- 1915
+			1.2, -- 1916
+			tipA * 0.9 -- 1917
+		) -- 1917
+	end -- 1917
+	self:drawLetterbox( -- 1921
+		uiInkDraw, -- 1921
+		w, -- 1921
+		h, -- 1921
+		42, -- 1921
+		0.95 * fadeOut -- 1921
+	) -- 1921
+end -- 1819
+function WellMuseumPlugin.prototype.drawLetterbox(self, draw, w, h, barH, opacity) -- 1924
+	local a = math.floor(244 * clamp01(opacity) + 0.5) -- 1925
+	if a <= 2 then -- 1926
+		return -- 1927
+	end -- 1927
+	draw:drawRect( -- 1929
+		Rect(0, 0, w, barH), -- 1929
+		Color(6, 8, 12, a) -- 1929
+	) -- 1929
+	draw:drawRect( -- 1930
+		Rect(0, h - barH, w, barH), -- 1930
+		Color(6, 8, 12, a) -- 1930
+	) -- 1930
+end -- 1924
+function ____exports.createWellMuseumPlugin(contract) -- 1934
+	return __TS__New(____exports.WellMuseumPlugin, contract) -- 1935
+end -- 1934
+return ____exports -- 1934

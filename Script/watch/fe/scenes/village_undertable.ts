@@ -555,124 +555,71 @@ export class VillageUndertableScene {
     drawBackdrop(
         bgDraw: DrawNode.Type,
         bgGlow: DrawNode.Type,
-        _backdropArt: AssetSlotHost,
+        backdropArt: AssetSlotHost,
         ctx: FePluginContext,
     ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const w = cam.viewW;
         const h = cam.viewH;
+        const ox = p.ox;
 
-        // 1. 深夜冷村天穹（压低亮度，把高反差留给桌下侧光、鞋底与两种落点）
+        // 1. 恢复绝美手绘明代雨村原画 bgFar_village 作 L0 远景天幕（压暗幽蓝以突出前景巨物桌下明暗对照）
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const artW = Math.max(w, (h * 16) / 9) * 1.24;
+        const artH = (artW * 9) / 16;
+        const artY = Math.min(0, Math.max(h - artH, cam.groundScreenY - artH * 0.24));
+        const hasPainted = backdropArt.tryPlace("bgFar_village", "lp_bg_village", w * (0.5 - progress * 0.08), artY, artW, artH, {
+            color: Color(138, 152, 176, 255),
+            opacity: 0.88,
+            layer: 0,
+        });
+
         const splitY = h * 0.50;
         fillVGradRect(bgDraw, 0, splitY, w, h - splitY, Color(14, 18, 26, 255), Color(7, 9, 15, 255));
         fillVGradRect(bgDraw, 0, 0, w, splitY, Color(24, 28, 38, 255), Color(14, 18, 26, 255));
 
-        const scene = new LowpolyScene(cam, this.proj, VILLAGE_UNDERTABLE_LIGHT);
-        const ox = p.ox;
+        if (!hasPainted) {
+            const scene = new LowpolyScene(cam, this.proj, VILLAGE_UNDERTABLE_LIGHT);
+            scene.addDistantRidge(
+                [
+                    { x: ox - 140, y: 120 },
+                    { x: ox + 120, y: 162 },
+                    { x: ox + 360, y: 138 },
+                    { x: ox + 590, y: 176 },
+                    { x: ox + 860, y: 132 },
+                ],
+                -20,
+                420,
+                MING_MATERIALS.distantHill,
+                { bucket: LP_BUCKET.BACKDROP },
+            );
+            scene.flush(bgDraw, bgGlow);
+        }
 
-        // 2. 远景村落青瓦屋脊与远山雾幕
-        scene.addDistantRidge(
-            [
-                { x: ox - 140, y: 120 },
-                { x: ox + 120, y: 162 },
-                { x: ox + 360, y: 138 },
-                { x: ox + 590, y: 176 },
-                { x: ox + 860, y: 132 },
-            ],
-            -20,
-            420,
-            MING_MATERIALS.distantHill,
-            { bucket: LP_BUCKET.BACKDROP },
-        );
-
-        // 远景民居白灰残墙与歇山屋檐轮廓
-        scene.addBox({
-            x0: ox + 460,
-            x1: ox + 690,
-            y0: 0,
-            y1: 118,
-            z0: 210,
-            z1: 260,
-            material: MING_MATERIALS.distantWall,
-            bucket: LP_BUCKET.BACKDROP,
-            edgeWidth: 0,
-        });
-        scene.addTri3D(
-            vec3(ox + 446, 118, 206),
-            vec3(ox + 704, 118, 206),
-            vec3(ox + 575, 162, 232),
-            MING_MATERIALS.mingTile,
-            { bucket: LP_BUCKET.BACKDROP, sortBias: 0.04 },
-        );
-
-        // 远景冷灶室内后壁（左半室，x = 0..438，z = 110..150，构成门内与院外强明暗分界）
-        scene.addBox({
-            x0: ox - 60,
-            x1: ox + 436,
-            y0: 0,
-            y1: 196,
-            z0: 112,
-            z1: 152,
-            material: MING_MATERIALS.mingBrickDark,
-            bucket: LP_BUCKET.BACKDROP,
-            edgeWidth: 0.6,
+        // 院落湿冷夜雾飘带（L0.5）
+        const mistShift = ((this.animTime * 9 + cam.x * 0.12) % (w + 420)) - 210;
+        backdropArt.tryPlace("ink_mist_curve", "lp_village_mist", mistShift, h * 0.30, 580, 114, {
+            color: Color(128, 148, 174, 255),
+            opacity: 0.20,
+            layer: 4,
         });
 
-        // 门内土灶与烟道（低模明代村舍灶台剪影，无现代杂物）
-        scene.addBox({
-            x0: ox + 150,
-            x1: ox + 258,
-            y0: 0,
-            y1: 42,
-            z0: 76,
-            z1: 112,
-            material: MAT_CLAY_STOVE,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-        });
-        scene.addBox({
-            x0: ox + 178,
-            x1: ox + 228,
-            y0: 42,
-            y1: 156,
-            z0: 94,
-            z1: 114,
-            material: MAT_CLAY_STOVE,
-            bucket: LP_BUCKET.MIDGROUND,
-            edgeWidth: 0.5,
-        });
+        // 灶屋左半部压暗过渡幕，保留屋内暗影 vs 院坪冷月的强明暗分界
+        const doorSx = cam.sx(ox + 436);
+        if (doorSx > 0) {
+            bgGlow.drawRect(Rect(0, 0, Math.min(w, doorSx), h), Color(6, 8, 14, 72));
+        }
 
-        // 院内远景石井栏（V2 晒谷院叙事细部，z = 128..166）
-        scene.addBox({
-            x0: ox + 486,
-            x1: ox + 536,
-            y0: 0,
-            y1: 34,
-            z0: 126,
-            z1: 162,
-            material: MING_MATERIALS.mingStoneStep,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-        });
-
-        // 院落夜雾与远方北塔一豆极微暖灯（指明去向但不抢夺桌下焦点）
-        scene.addFogBand(ox - 120, ox + 840, -10, 140, 260, rgba(24, 30, 42, 255), 0.62, 0.05, {
-            bucket: LP_BUCKET.BACKDROP,
-        });
-
-        scene.flush(bgDraw, bgGlow);
-
-        // 右上冷月微光（侧光光源方向依据）
+        // 右上冷月微光与远山北塔一豆灯火
         const mx = w * 0.80;
         const my = h * 0.84;
-        fillRadialGlow(bgGlow, mx, my, 96, 96, Color(188, 206, 224, 24), Color(24, 32, 46, 0), 16);
-        bgDraw.drawCircle(Vec2(mx, my), 14, Color(214, 224, 236, 130));
+        fillRadialGlow(bgGlow, mx, my, 108, 108, Color(188, 206, 224, 30), Color(24, 32, 46, 0), 16);
 
-        // 远景北塔极淡一豆灯火
         const towerPt = projectWorld3D(ox + 668, 152, 410, cam, this.proj);
-        fillRadialGlow(bgGlow, towerPt.x, towerPt.y, 20, 20, Color(238, 198, 132, 54), Color(238, 198, 132, 0), 12);
-        bgGlow.drawDot(Vec2(towerPt.x, towerPt.y), 2.0, Color(252, 232, 186, 185));
+        fillRadialGlow(bgGlow, towerPt.x, towerPt.y, 24, 24, Color(238, 198, 132, 62), Color(238, 198, 132, 0), 12);
+        bgGlow.drawDot(Vec2(towerPt.x, towerPt.y), 2.2, Color(252, 232, 186, 205));
 
         return true;
     }
@@ -680,7 +627,7 @@ export class VillageUndertableScene {
     drawWorld(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: AssetSlotHost,
+        worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): boolean {
         const p = ctx.p;
@@ -714,11 +661,11 @@ export class VillageUndertableScene {
             edgeWidth: 0.8,
         });
 
-        // 2. 院门门框（位于 x = 428..452 附近，把灶屋暗影与月光院坪劈出强烈明暗交界）
-        scene.addBeveledFrame(ox + 416, ox + 462, 0, 128, 16, 22, 16, 112, MING_MATERIALS.mingTimberDark, {
+        // 2. 院门木框（温润深褐明代木门柱，替代厚重纯黑门块，自然融入雨夜水墨古村）
+        scene.addBeveledFrame(ox + 424, ox + 452, 0, 116, 10, 16, 18, 96, MAT_TABLE_WOOD, {
             bucket: LP_BUCKET.MIDGROUND,
-            innerRimLight: rgba(206, 214, 222, 255),
-            innerRimStrength: 0.42,
+            innerRimLight: rgba(196, 188, 174, 255),
+            innerRimStrength: 0.28,
         });
 
         // 3. 瓶架（rooms.ts solid: x=96..128, h=52，镂空木架结构）与院墙（x=672..720, h=96）
@@ -857,9 +804,39 @@ export class VillageUndertableScene {
         const brickX = this.getBrickWorldX(p);
         this.buildHardBrickPatch(scene, brickX);
 
-        //    6c. 铁盆落点（basinX = 548，低模多面体敲打铁盆 + 受击高频颤动 + 侧光亮沿）
+        //    6c. 铁盆落点（basinX = 548：优先使用精细像素青石破铁盆，带受击高频颤动倾斜，告别白线框梯形！）
         const basinX = this.getBasinWorldX(p);
-        this.buildIronBasin(scene, basinX);
+        const basinShakeDeg = (this.basinShakeAngle * 180) / Math.PI * 0.65;
+        const hasBasinArt = worldArt.tryPlace(
+            "sh_iron_basin",
+            "fe04_village_iron_basin",
+            cam.sx(basinX + Math.sin(this.basinShakeAngle * 1.4) * 2.5),
+            cam.sy(0) - cam.len(4),
+            cam.len(44),
+            cam.len(28),
+            { layer: 3, angle: basinShakeDeg },
+        );
+        if (!hasBasinArt) {
+            this.buildIronBasin(scene, basinX);
+        }
+        // 软土堆补一簇深潮杂草，让「软土 vs 铁盆 vs 青砖」零文字一眼秒分
+        worldArt.tryPlace("grass_low", "fe04_village_soft_grass", cam.sx(softX), cam.sy(0) - cam.len(2), cam.len(46), cam.len(14), {
+            layer: 2,
+            color: Color(108, 114, 96, 255),
+            opacity: 0.78,
+        });
+
+        // V3 排水暗渠格栅口 + V4 织房后院暖油灯微光（右端 x = 570..710，衔接 D27–D29 与林边过渡）
+        const grateX0 = cam.sx(ox + 566);
+        const grateX1 = cam.sx(ox + 642);
+        const gY = cam.sy(0);
+        const weaverPulse = 0.86 + 0.14 * Math.sin(this.animTime * 2.4);
+        fillRadialGlow(fgGlow, cam.sx(ox + 678), cam.sy(64), cam.len(56), cam.len(48),
+            Color(246, 194, 116, Math.round(62 * weaverPulse)), Color(246, 174, 82, 0), 14);
+        for (let gb = 0; gb < 5; gb++) {
+            const gx = grateX0 + ((grateX1 - grateX0) * (gb + 0.5)) / 5;
+            fgGlow.drawSegment(Vec2(gx, gY + cam.len(38)), Vec2(gx - cam.len(10), gY + 2), 1.6, Color(172, 196, 218, 42));
+        }
 
         // 7. 院门斜射月光体积光束（自屏幕顶部无缝倾泻，恰好擦过铁盆沿、拾荒者鞋底与硬砖拼缝）
         scene.addLightShaft(
@@ -886,7 +863,7 @@ export class VillageUndertableScene {
     }
 
     private buildCulvertEntrance(scene: LowpolyScene, cx: number): void {
-        // 凹陷暗渠石框（x = cx-15..cx+15，y = -10..18，z = 12..48，不挡地面碰撞但清晰标明下穿口）
+        // 凹陷暗渠石框（柔化暗青石边缘，告别刺眼白线框 CAD 立方体）
         scene.addBox({
             x0: cx - 18,
             x1: cx + 18,
@@ -896,29 +873,30 @@ export class VillageUndertableScene {
             z1: 42,
             material: MAT_CULVERT_STONE,
             bucket: LP_BUCKET.WALK_DECK,
-            highlightTopEdge: true,
-            edgeWidth: 1.0,
+            highlightTopEdge: false,
+            edgeWidth: 0.45,
         });
-        // 暗渠黑洞内口（纯暗，与上方亮石沿形成高灰度对比）
+        // 暗渠黑洞内口（深暗槽口配克制潮石冷沿）
         scene.addQuad3D(
             vec3(cx - 12, 1, 22),
             vec3(cx + 12, 1, 22),
-            vec3(cx + 10, 26, 22),
-            vec3(cx - 10, 26, 22),
-            { base: rgba(6, 9, 14, 255) },
-            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: 0.35, edgeColor: rgba(186, 204, 222, 185), edgeWidth: 1.2 },
+            vec3(cx + 10, 24, 22),
+            vec3(cx - 10, 24, 22),
+            { base: rgba(8, 11, 16, 248) },
+            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: 0.35, edgeColor: rgba(112, 128, 146, 78), edgeWidth: 0.65 },
         );
         // 掀开一角的木翻板与暗铁格栅条
         scene.addBox({
             x0: cx - 15,
             x1: cx - 11,
             y0: 2,
-            y1: 24,
+            y1: 22,
             z0: 14,
             z1: 22,
             material: MING_MATERIALS.mingTimber,
             bucket: LP_BUCKET.PROP,
-            highlightTopEdge: true,
+            highlightTopEdge: false,
+            edgeWidth: 0.4,
         });
         let gi = 0;
         for (gi = 0; gi < 3; gi++) {
@@ -1422,14 +1400,25 @@ export class VillageUndertableScene {
         const bowlTL = projectWorld3D(arch.x0 + 22, tableTopY + 6.5, -5, cam, this.proj);
         drawUiQuad(uiDraw, bowlBL, bowlBR, bowlTR, bowlTL, Color(72, 68, 62, 244), Color(118, 114, 106, 246), inv, Color(172, 166, 156, 175), 0.8);
 
-        // 6. 左角克制短粗布桌角垂布（仅下垂 7 单位，不遮挡桌下净空与小满身影）
-        const clothL = projectWorld3D(xLeft + 2, tableBotY - 7, zFront, cam, this.proj);
-        const clothR = projectWorld3D(xLeft + 26, tableBotY - 1, zFront, cam, this.proj);
+        // 6. 左角克制短粗布桌角垂布（随拾荒者逼近的步频微颤，强化桌下压迫窒息感而不遮挡净空）
+        const scavNear = p.room.scavenger !== undefined ? clamp01(1 - Math.abs(p.scavX - (arch.x0 + 56)) / 220) : 0;
+        const clothSway = Math.sin(this.scavStridePhase * 1.4 + this.animTime * 1.8) * (1.2 + scavNear * 2.8);
+        const clothL = projectWorld3D(xLeft + 2 + clothSway, tableBotY - 9, zFront, cam, this.proj);
+        const clothR = projectWorld3D(xLeft + 28 + clothSway * 0.4, tableBotY - 1, zFront, cam, this.proj);
         uiDraw.drawVertices([
-            [Vec2(bNearL.x * inv, bNearL.y * inv), Color(28, 22, 19, 224)],
-            [Vec2(clothL.x * inv, clothL.y * inv), Color(36, 29, 25, 212)],
-            [Vec2(clothR.x * inv, clothR.y * inv), Color(26, 21, 18, 198)],
+            [Vec2(bNearL.x * inv, bNearL.y * inv), Color(32, 25, 21, 228)],
+            [Vec2(clothL.x * inv, clothL.y * inv), Color(44, 35, 29, 218)],
+            [Vec2(clothR.x * inv, clothR.y * inv), Color(28, 22, 19, 204)],
         ]);
+        // 桌沿实木横纹细刻（消除纯色扁平感）
+        for (let g = 1; g <= 3; g++) {
+            const frac = g / 4;
+            const gx0 = bNearL.x * inv + (fTopL.x - bNearL.x) * inv * frac;
+            const gy0 = bNearL.y * inv + (fTopL.y - bNearL.y) * inv * frac;
+            const gx1 = bNearR.x * inv + (fTopR.x - bNearR.x) * inv * frac;
+            const gy1 = bNearR.y * inv + (fTopR.y - bNearR.y) * inv * frac;
+            uiDraw.drawSegment(Vec2(gx0, gy0), Vec2(gx1, gy1), 0.7, Color(24, 17, 13, 128));
+        }
 
         // 7. 蹲伏在桌下（304..416）时顶部极克制木梁压顶暗边，强化《小小梦魇》桌下压迫层次（绝不遮挡鞋底与投瓶）
         if (p.player.crouch && p.player.x >= arch.x0 - 16 && p.player.x <= arch.x1 + 16) {

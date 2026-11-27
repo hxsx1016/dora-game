@@ -556,8 +556,11 @@ export class ActorsRenderer {
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
 
-        // 试射靶（escort3 工台靶位）：绘作明代草束木靶架，不画成活体倭寇士兵
+        // 试射靶（escort3 工台靶位）：优先由 EscortWorldRenderer 精绘青铜鸣锣与草靶架；无图集时回落草靶
         if (e.kind === "target") {
+            if (p.room.key === "escort3") {
+                return;
+            }
             const lean = !e.alive ? f * cam.len(16) : (e.hitT > 0 ? f * cam.len(8) : 0);
             const postTopY = by + H * (e.alive ? 0.78 : 0.42);
             fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.52, 3.6, Color(12, 11, 13, 140));

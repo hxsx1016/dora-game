@@ -7,7 +7,6 @@ local ____exports = {} -- 1
 local ____Dora = require("Dora") -- 18
 local Color = ____Dora.Color -- 18
 local Content = ____Dora.Content -- 18
-local Rect = ____Dora.Rect -- 18
 local Vec2 = ____Dora.Vec2 -- 18
 local ____lowpoly = require("Script.watch.fe.renderer.lowpoly") -- 23
 local FOREST_CREEK_LIGHT = ____lowpoly.FOREST_CREEK_LIGHT -- 24
@@ -348,850 +347,786 @@ function ForestCreekScene.prototype.triggerTwigSnap(self, ctx, worldX, listenDir
 		end -- 405
 	end -- 405
 end -- 390
-function ForestCreekScene.prototype.drawBackdrop(self, bgDraw, bgGlow, _backdropArt, ctx) -- 420
+function ForestCreekScene.prototype.drawBackdrop(self, bgDraw, bgGlow, backdropArt, ctx) -- 420
 	local p = ctx.p -- 426
 	local cam = ctx.cam -- 427
 	local ox = p.ox -- 428
 	local w = cam.viewW -- 429
 	local h = cam.viewH -- 430
-	local dawn = smoothstep(ox + 1120, ox + 1460, p.player.x) -- 433
-	local skyTop = lerpRGBA( -- 434
-		rgba(8, 14, 18, 255), -- 434
-		rgba(16, 26, 38, 255), -- 434
-		dawn -- 434
-	) -- 434
-	local skyMid = lerpRGBA( -- 435
-		rgba(16, 28, 32, 255), -- 435
-		rgba(32, 46, 62, 255), -- 435
-		dawn -- 435
-	) -- 435
-	local skyHor = lerpRGBA( -- 436
-		rgba(28, 44, 48, 255), -- 436
-		rgba(62, 78, 94, 255), -- 436
-		dawn -- 436
-	) -- 436
-	local splitY = h * 0.46 -- 437
-	fillVGradRect( -- 438
-		bgDraw, -- 438
-		0, -- 438
-		splitY, -- 438
-		w, -- 438
-		h - splitY, -- 438
-		toColor(skyMid), -- 438
-		toColor(skyTop) -- 438
-	) -- 438
-	fillVGradRect( -- 439
-		bgDraw, -- 439
+	local dawn = smoothstep(ox + 1120, ox + 1460, p.player.x) -- 434
+	local span = math.max(1, p.room.maxX - p.room.minX) -- 435
+	local progress = (cam.x - p.room.minX) / span - 0.5 -- 436
+	local artW = math.max(w, h * 16 / 9) * 1.24 -- 437
+	local artH = artW * 9 / 16 -- 438
+	local artY = math.min( -- 439
 		0, -- 439
-		0, -- 439
-		w, -- 439
-		splitY, -- 439
-		toColor(skyHor), -- 439
-		toColor(skyMid) -- 439
+		math.max(h - artH, cam.groundScreenY - artH * 0.24) -- 439
 	) -- 439
-	local scene = __TS__New(LowpolyScene, cam, self.proj, FOREST_CREEK_LIGHT) -- 441
-	scene:addDistantRidge( -- 444
-		{ -- 445
-			{x = ox - 180, y = 128}, -- 446
-			{x = ox + 220, y = 186}, -- 447
-			{x = ox + 620, y = 152}, -- 448
-			{x = ox + 1040, y = 204}, -- 449
-			{x = ox + 1420, y = 168}, -- 450
-			{x = ox + 1780, y = 196} -- 451
-		}, -- 451
-		-40, -- 453
-		460, -- 454
-		MING_MATERIALS.distantHill, -- 455
-		{bucket = LP_BUCKET.BACKDROP} -- 456
-	) -- 456
-	local treeXs = { -- 460
-		80, -- 460
-		210, -- 460
-		360, -- 460
-		510, -- 460
-		670, -- 460
-		840, -- 460
-		1010, -- 460
-		1180, -- 460
-		1290 -- 460
-	} -- 460
-	local i = 0 -- 461
-	do -- 461
-		i = 0 -- 462
-		while i < #treeXs do -- 462
-			local tx = ox + treeXs[i + 1] -- 463
-			local tz = 185 + i % 3 * 42 -- 464
-			local tw = 12 + i % 2 * 5 -- 465
-			scene:addBox({ -- 466
-				x0 = tx - tw * 0.5, -- 467
-				x1 = tx + tw * 0.5, -- 468
-				y0 = -20, -- 469
-				y1 = 185 + i % 2 * 20, -- 470
-				z0 = tz, -- 471
-				z1 = tz + 16, -- 472
-				material = MING_MATERIALS.distantWall, -- 473
-				bucket = LP_BUCKET.BACKDROP, -- 474
-				edgeWidth = 0 -- 475
-			}) -- 475
-			local lean = (i % 3 - 1) * 7 -- 478
-			local baseH = 92 + i % 2 * 14 -- 479
-			local tier = 0 -- 480
-			do -- 480
-				tier = 0 -- 481
-				while tier < 3 do -- 481
-					local ty0 = baseH + tier * 32 -- 482
-					local ty1 = ty0 + 52 - tier * 6 -- 483
-					local half = 50 - tier * 11 -- 484
-					local colShift = tier * 4 -- 485
-					scene:addTri3D( -- 486
-						vec3(tx - half + lean * 0.4, ty0, tz - 4 - tier * 2), -- 487
-						vec3(tx + half + lean * 0.4, ty0 + 4, tz - 4 - tier * 2), -- 488
-						vec3(tx + lean, ty1, tz + 4), -- 489
-						{base = rgba(18 + colShift, 30 + colShift, 32 + colShift, 255)}, -- 490
-						{bucket = LP_BUCKET.BACKDROP, sortBias = 0.04 + tier * 0.01} -- 491
-					) -- 491
-					tier = tier + 1 -- 481
-				end -- 481
-			end -- 481
-			i = i + 1 -- 462
-		end -- 462
-	end -- 462
-	local towerX = ox + 1525 -- 497
-	scene:addBox({ -- 498
-		x0 = towerX - 24, -- 499
-		x1 = towerX + 24, -- 500
-		y0 = 44, -- 501
-		y1 = 174, -- 502
-		z0 = 332, -- 503
-		z1 = 356, -- 504
-		material = MING_MATERIALS.distantWall, -- 505
-		bucket = LP_BUCKET.BACKDROP, -- 506
-		sortBias = 0.12, -- 507
-		edgeWidth = 0 -- 508
-	}) -- 508
-	scene:addTri3D( -- 511
-		vec3(towerX - 34, 174, 330), -- 512
-		vec3(towerX + 34, 174, 330), -- 513
-		vec3(towerX, 200, 344), -- 514
-		MING_MATERIALS.mingTile, -- 515
-		{bucket = LP_BUCKET.BACKDROP, sortBias = 0.14} -- 516
-	) -- 516
-	scene:addFogBand( -- 520
-		ox - 160, -- 520
-		ox + 1780, -- 520
-		-30, -- 520
-		148, -- 520
-		250, -- 520
-		rgba(28, 42, 48, 255), -- 520
-		0.62, -- 520
-		0.06, -- 520
-		{bucket = LP_BUCKET.BACKDROP} -- 520
-	) -- 520
-	scene:flush(bgDraw, bgGlow) -- 524
-	local lampPulse = 0.84 + 0.16 * math.sin(self.animTime * 2.3) -- 527
-	local lampPt = projectWorld3D( -- 528
-		towerX - 4, -- 528
-		146, -- 528
-		330, -- 528
-		cam, -- 528
-		self.proj -- 528
-	) -- 528
-	fillRadialGlow( -- 529
-		bgGlow, -- 530
-		lampPt.x, -- 531
-		lampPt.y, -- 532
-		42 * lampPulse, -- 533
-		42 * lampPulse, -- 534
-		Color( -- 535
-			246, -- 535
-			208, -- 535
-			134, -- 535
-			math.floor(115 * lampPulse + 0.5) -- 535
-		), -- 535
-		Color(232, 176, 86, 0), -- 536
-		16 -- 537
-	) -- 537
-	bgDraw:drawRect( -- 539
-		Rect(lampPt.x - 3.5, lampPt.y - 5.5, 7, 11), -- 539
-		Color(255, 232, 174, 240) -- 539
-	) -- 539
-	bgGlow:drawDot( -- 540
-		Vec2(lampPt.x, lampPt.y), -- 540
-		3.4, -- 540
-		Color(255, 246, 218, 250) -- 540
-	) -- 540
-	return true -- 542
+	local tintR = math.floor(138 + dawn * 58 + 0.5) -- 440
+	local tintG = math.floor(158 + dawn * 46 + 0.5) -- 441
+	local tintB = math.floor(176 + dawn * 38 + 0.5) -- 442
+	local hasPainted = backdropArt:tryPlace( -- 443
+		"bgFar_forest", -- 443
+		"lp_bg_forest", -- 443
+		w * (0.5 - progress * 0.08), -- 443
+		artY, -- 443
+		artW, -- 443
+		artH, -- 443
+		{ -- 443
+			color = Color(tintR, tintG, tintB, 255), -- 444
+			opacity = 0.9, -- 445
+			layer = 0 -- 446
+		} -- 446
+	) -- 446
+	local skyTop = lerpRGBA( -- 449
+		rgba(8, 14, 18, 255), -- 449
+		rgba(16, 26, 38, 255), -- 449
+		dawn -- 449
+	) -- 449
+	local skyMid = lerpRGBA( -- 450
+		rgba(16, 28, 32, 255), -- 450
+		rgba(32, 46, 62, 255), -- 450
+		dawn -- 450
+	) -- 450
+	local skyHor = lerpRGBA( -- 451
+		rgba(28, 44, 48, 255), -- 451
+		rgba(62, 78, 94, 255), -- 451
+		dawn -- 451
+	) -- 451
+	local splitY = h * 0.46 -- 452
+	fillVGradRect( -- 453
+		bgDraw, -- 453
+		0, -- 453
+		splitY, -- 453
+		w, -- 453
+		h - splitY, -- 453
+		toColor(skyMid), -- 453
+		toColor(skyTop) -- 453
+	) -- 453
+	fillVGradRect( -- 454
+		bgDraw, -- 454
+		0, -- 454
+		0, -- 454
+		w, -- 454
+		splitY, -- 454
+		toColor(skyHor), -- 454
+		toColor(skyMid) -- 454
+	) -- 454
+	if not hasPainted then -- 456
+		local scene = __TS__New(LowpolyScene, cam, self.proj, FOREST_CREEK_LIGHT) -- 457
+		scene:addDistantRidge( -- 458
+			{ -- 459
+				{x = ox - 180, y = 128}, -- 460
+				{x = ox + 220, y = 186}, -- 461
+				{x = ox + 620, y = 152}, -- 462
+				{x = ox + 1040, y = 204}, -- 463
+				{x = ox + 1420, y = 168}, -- 464
+				{x = ox + 1780, y = 196} -- 465
+			}, -- 465
+			-40, -- 467
+			460, -- 468
+			MING_MATERIALS.distantHill, -- 469
+			{bucket = LP_BUCKET.BACKDROP} -- 470
+		) -- 470
+		scene:flush(bgDraw, bgGlow) -- 472
+	end -- 472
+	local mistShift = (self.animTime * 10 + cam.x * 0.14) % (w + 460) - 230 -- 476
+	backdropArt:tryPlace( -- 477
+		"ink_mist_curve", -- 477
+		"lp_forest_mist_a", -- 477
+		mistShift, -- 477
+		h * 0.34, -- 477
+		620, -- 477
+		124, -- 477
+		{ -- 477
+			color = Color(142, 174, 182, 255), -- 478
+			opacity = 0.24, -- 479
+			layer = 4 -- 480
+		} -- 480
+	) -- 480
+	backdropArt:tryPlace( -- 482
+		"ink_mist_curve", -- 482
+		"lp_forest_mist_b", -- 482
+		(mistShift + w * 0.5) % (w + 460) - 230, -- 482
+		h * 0.48, -- 482
+		520, -- 482
+		96, -- 482
+		{ -- 482
+			color = Color(120, 152, 166, 255), -- 483
+			opacity = 0.17, -- 484
+			layer = 4, -- 485
+			facing = -1 -- 486
+		} -- 486
+	) -- 486
+	local towerX = ox + 1525 -- 490
+	local lampPulse = 0.84 + 0.16 * math.sin(self.animTime * 2.3) -- 491
+	local lampPt = projectWorld3D( -- 492
+		towerX - 4, -- 492
+		146, -- 492
+		330, -- 492
+		cam, -- 492
+		self.proj -- 492
+	) -- 492
+	if dawn > 0.05 then -- 493
+		fillRadialGlow( -- 494
+			bgGlow, -- 494
+			lampPt.x, -- 494
+			lampPt.y - 18, -- 494
+			240, -- 494
+			120, -- 494
+			Color( -- 495
+				226, -- 495
+				186, -- 495
+				134, -- 495
+				math.floor(52 * dawn * lampPulse + 0.5) -- 495
+			), -- 495
+			Color(226, 186, 134, 0), -- 495
+			16 -- 495
+		) -- 495
+	end -- 495
+	fillRadialGlow( -- 498
+		bgGlow, -- 499
+		lampPt.x, -- 500
+		lampPt.y, -- 501
+		48 * lampPulse, -- 502
+		48 * lampPulse, -- 503
+		Color( -- 504
+			248, -- 504
+			212, -- 504
+			138, -- 504
+			math.floor(135 * lampPulse + 0.5) -- 504
+		), -- 504
+		Color(232, 176, 86, 0), -- 505
+		16 -- 506
+	) -- 506
+	bgGlow:drawDot( -- 508
+		Vec2(lampPt.x, lampPt.y), -- 508
+		4, -- 508
+		Color(255, 246, 218, 252) -- 508
+	) -- 508
+	return true -- 510
 end -- 420
-function ForestCreekScene.prototype.drawWorld(self, fgDraw, fgGlow, _worldArt, ctx) -- 545
-	local p = ctx.p -- 551
-	local cam = ctx.cam -- 552
-	local ox = p.ox -- 553
-	local scene = __TS__New(LowpolyScene, cam, self.proj, FOREST_CREEK_LIGHT) -- 554
-	scene:addBox({ -- 557
-		x0 = ox - 40, -- 558
-		x1 = ox + 1190, -- 559
-		y0 = -52, -- 560
-		y1 = 0, -- 561
-		z0 = -26, -- 562
-		z1 = 92, -- 563
-		material = MAT_MOSS_GROUND, -- 564
-		bucket = LP_BUCKET.MIDGROUND, -- 565
-		highlightTopEdge = true, -- 566
-		edgeWidth = 0.7 -- 567
-	}) -- 567
-	scene:addBox({ -- 570
-		x0 = ox + 1180, -- 571
-		x1 = ox + 1620, -- 572
-		y0 = -14, -- 573
-		y1 = 0, -- 574
-		z0 = -10, -- 575
-		z1 = 24, -- 576
-		material = MING_MATERIALS.mingStoneStep, -- 577
-		bucket = LP_BUCKET.WALK_DECK, -- 578
-		highlightTopEdge = true, -- 579
-		edgeWidth = 0.9 -- 580
-	}) -- 580
-	scene:addQuad3D( -- 583
-		vec3(ox + 1170, -6, -44), -- 584
-		vec3(ox + 1640, -6, -44), -- 585
-		vec3(ox + 1640, -2, -10), -- 586
-		vec3(ox + 1170, -2, -10), -- 587
-		MAT_CREEK_WATER, -- 588
-		{bucket = LP_BUCKET.WALK_DECK, sortBias = 0.08, edgeWidth = 0} -- 589
-	) -- 589
-	scene:addQuad3D( -- 591
-		vec3(ox + 1170, -2, 24), -- 592
-		vec3(ox + 1660, -2, 24), -- 593
-		vec3(ox + 1660, 4, 196), -- 594
-		vec3(ox + 1170, 4, 196), -- 595
-		MAT_CREEK_WATER, -- 596
-		{bucket = LP_BUCKET.MIDGROUND, sortBias = 0.04, edgeWidth = 0} -- 597
-	) -- 597
-	local midTrunks = { -- 601
-		150, -- 601
-		415, -- 601
-		650, -- 601
-		910, -- 601
-		1255 -- 601
-	} -- 601
-	local i = 0 -- 602
-	do -- 602
-		i = 0 -- 603
-		while i < #midTrunks do -- 603
-			local tx = ox + midTrunks[i + 1] -- 604
-			local tz = 38 + i % 2 * 18 -- 605
-			local halfW = 10 + i % 2 * 2 -- 606
-			local topW = halfW * 0.62 -- 607
-			scene:addQuad3D( -- 609
-				vec3(tx - halfW, -10, tz), -- 610
-				vec3(tx + halfW, -10, tz), -- 611
-				vec3(tx + topW, 205, tz), -- 612
-				vec3(tx - topW, 205, tz), -- 613
-				MAT_PINE_TRUNK, -- 614
-				{bucket = LP_BUCKET.MIDGROUND, edgeWidth = 0.7} -- 615
-			) -- 615
-			local bDir = i % 2 == 0 and 1 or -1 -- 618
-			scene:addTri3D( -- 619
-				vec3(tx - topW * 0.5, 118, tz - 2), -- 620
-				vec3(tx + bDir * 56, 108, tz - 4), -- 621
-				vec3(tx + bDir * 12, 142, tz - 2), -- 622
-				MAT_PINE_NEEDLE, -- 623
-				{bucket = LP_BUCKET.MIDGROUND, sortBias = 0.08, edgeWidth = 0.6} -- 624
-			) -- 624
-			scene:addTri3D( -- 626
-				vec3(tx - bDir * 44, 146, tz - 2), -- 627
-				vec3(tx + bDir * 48, 152, tz - 3), -- 628
-				vec3(tx, 198, tz - 2), -- 629
-				MAT_PINE_NEEDLE, -- 630
-				{bucket = LP_BUCKET.MIDGROUND, sortBias = 0.1, edgeWidth = 0.6} -- 631
-			) -- 631
-			i = i + 1 -- 603
-		end -- 603
-	end -- 603
-	do -- 603
-		i = 0 -- 636
-		while i < #p.room.stairs do -- 636
-			local st = p.room.stairs[i + 1] -- 637
-			scene:addBox({ -- 638
-				x0 = st.x0, -- 639
-				x1 = st.x1, -- 640
-				y0 = 0, -- 641
-				y1 = st.y1, -- 642
-				z0 = -14, -- 643
-				z1 = 42, -- 644
-				material = i == 1 and MAT_ROOT_ARCH or MING_MATERIALS.mingStoneStep, -- 645
-				bucket = LP_BUCKET.WALK_DECK, -- 646
-				highlightTopEdge = true, -- 647
-				edgeWidth = 0.9 -- 648
-			}) -- 648
-			i = i + 1 -- 636
-		end -- 636
-	end -- 636
-	scene:addTri3D( -- 654
-		vec3(ox + 286, 0, 12), -- 655
-		vec3(ox + 318, 12, 12), -- 656
-		vec3(ox + 306, 76, 22), -- 657
-		MAT_ROOT_ARCH, -- 658
-		{bucket = LP_BUCKET.MIDGROUND, edgeWidth = 0.9} -- 659
-	) -- 659
-	scene:addTri3D( -- 661
-		vec3(ox + 372, 12, 12), -- 662
-		vec3(ox + 412, 0, 12), -- 663
-		vec3(ox + 382, 78, 22), -- 664
-		MAT_ROOT_ARCH, -- 665
-		{bucket = LP_BUCKET.MIDGROUND, edgeWidth = 0.9} -- 666
-	) -- 666
-	scene:addQuad3D( -- 668
-		vec3(ox + 298, 48, 14), -- 669
-		vec3(ox + 394, 52, 14), -- 670
-		vec3(ox + 384, 86, 36), -- 671
-		vec3(ox + 306, 82, 36), -- 672
-		MAT_ROOT_ARCH, -- 673
-		{bucket = LP_BUCKET.MIDGROUND, sortBias = 0.1, edgeWidth = 1} -- 674
-	) -- 674
-	scene:addQuad3D( -- 677
-		vec3(ox + 306, 0, 34), -- 678
-		vec3(ox + 382, 0, 34), -- 679
-		vec3(ox + 376, 48, 34), -- 680
-		vec3(ox + 312, 48, 34), -- 681
-		{ -- 682
-			base = rgba(10, 16, 18, 215), -- 682
-			edge = rgba(164, 192, 188, 130) -- 682
-		}, -- 682
-		{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = -0.05, edgeWidth = 1} -- 683
+function ForestCreekScene.prototype.drawWorld(self, fgDraw, fgGlow, worldArt, ctx) -- 513
+	local p = ctx.p -- 519
+	local cam = ctx.cam -- 520
+	local ox = p.ox -- 521
+	local scene = __TS__New(LowpolyScene, cam, self.proj, FOREST_CREEK_LIGHT) -- 522
+	scene:addBox({ -- 525
+		x0 = ox - 40, -- 526
+		x1 = ox + 1190, -- 527
+		y0 = -52, -- 528
+		y1 = 0, -- 529
+		z0 = -26, -- 530
+		z1 = 92, -- 531
+		material = MAT_MOSS_GROUND, -- 532
+		bucket = LP_BUCKET.MIDGROUND, -- 533
+		highlightTopEdge = true, -- 534
+		edgeWidth = 0.7 -- 535
+	}) -- 535
+	scene:addBox({ -- 538
+		x0 = ox + 1180, -- 539
+		x1 = ox + 1620, -- 540
+		y0 = -14, -- 541
+		y1 = 0, -- 542
+		z0 = -10, -- 543
+		z1 = 24, -- 544
+		material = MING_MATERIALS.mingStoneStep, -- 545
+		bucket = LP_BUCKET.WALK_DECK, -- 546
+		highlightTopEdge = true, -- 547
+		edgeWidth = 0.9 -- 548
+	}) -- 548
+	scene:addQuad3D( -- 551
+		vec3(ox + 1170, -6, -44), -- 552
+		vec3(ox + 1640, -6, -44), -- 553
+		vec3(ox + 1640, -2, -10), -- 554
+		vec3(ox + 1170, -2, -10), -- 555
+		MAT_CREEK_WATER, -- 556
+		{bucket = LP_BUCKET.WALK_DECK, sortBias = 0.08, edgeWidth = 0} -- 557
+	) -- 557
+	scene:addQuad3D( -- 559
+		vec3(ox + 1170, -2, 24), -- 560
+		vec3(ox + 1660, -2, 24), -- 561
+		vec3(ox + 1660, 4, 196), -- 562
+		vec3(ox + 1170, 4, 196), -- 563
+		MAT_CREEK_WATER, -- 564
+		{bucket = LP_BUCKET.MIDGROUND, sortBias = 0.04, edgeWidth = 0} -- 565
+	) -- 565
+	local midTrunks = { -- 569
+		150, -- 569
+		445, -- 569
+		655, -- 569
+		920, -- 569
+		1235 -- 569
+	} -- 569
+	local i = 0 -- 570
+	do -- 570
+		i = 0 -- 571
+		while i < #midTrunks do -- 571
+			local tx = ox + midTrunks[i + 1] -- 572
+			local groundY = cam:sy(0) -- 573
+			worldArt:tryPlace( -- 574
+				"pine", -- 574
+				"fe04_forest_mid_pine_" .. tostring(i), -- 574
+				cam:sx(tx), -- 574
+				groundY - cam:len(4), -- 574
+				cam:len(164), -- 574
+				cam:len(148), -- 574
+				{ -- 574
+					layer = -2, -- 575
+					facing = i % 2 == 0 and 1 or -1, -- 576
+					color = Color(118, 142, 148, 255), -- 577
+					opacity = 0.78 -- 578
+				} -- 578
+			) -- 578
+			i = i + 1 -- 571
+		end -- 571
+	end -- 571
+	do -- 571
+		i = 0 -- 583
+		while i < #p.room.stairs do -- 583
+			local st = p.room.stairs[i + 1] -- 584
+			scene:addBox({ -- 585
+				x0 = st.x0, -- 586
+				x1 = st.x1, -- 587
+				y0 = 0, -- 588
+				y1 = st.y1, -- 589
+				z0 = -14, -- 590
+				z1 = 42, -- 591
+				material = i == 1 and MAT_ROOT_ARCH or MING_MATERIALS.mingStoneStep, -- 592
+				bucket = LP_BUCKET.WALK_DECK, -- 593
+				highlightTopEdge = true, -- 594
+				edgeWidth = 0.6 -- 595
+			}) -- 595
+			i = i + 1 -- 583
+		end -- 583
+	end -- 583
+	local hasRootArt = worldArt:tryPlace( -- 601
+		"sh_root_burrow", -- 602
+		"fe04_forest_root_burrow", -- 603
+		cam:sx(ox + 346), -- 604
+		cam:sy(0) - cam:len(4), -- 605
+		cam:len(138), -- 606
+		cam:len(96), -- 607
+		{layer = 1, opacity = 0.96} -- 608
+	) -- 608
+	if not hasRootArt then -- 610
+		scene:addTri3D( -- 611
+			vec3(ox + 286, 0, 12), -- 612
+			vec3(ox + 318, 12, 12), -- 613
+			vec3(ox + 306, 76, 22), -- 614
+			MAT_ROOT_ARCH, -- 615
+			{bucket = LP_BUCKET.MIDGROUND, edgeWidth = 0.7} -- 616
+		) -- 616
+		scene:addTri3D( -- 618
+			vec3(ox + 372, 12, 12), -- 619
+			vec3(ox + 412, 0, 12), -- 620
+			vec3(ox + 382, 78, 22), -- 621
+			MAT_ROOT_ARCH, -- 622
+			{bucket = LP_BUCKET.MIDGROUND, edgeWidth = 0.7} -- 623
+		) -- 623
+	end -- 623
+	scene:addBox({ -- 627
+		x0 = ox + 690, -- 628
+		x1 = ox + 810, -- 629
+		y0 = -10, -- 630
+		y1 = 5, -- 631
+		z0 = 26, -- 632
+		z1 = 60, -- 633
+		material = MAT_CANAL_STONE, -- 634
+		bucket = LP_BUCKET.MIDGROUND, -- 635
+		highlightTopEdge = true, -- 636
+		edgeWidth = 0.6 -- 637
+	}) -- 637
+	scene:addQuad3D( -- 639
+		vec3(ox + 695, -0.5, -6), -- 640
+		vec3(ox + 1125, -0.5, -6), -- 641
+		vec3(ox + 1125, 0.5, 20), -- 642
+		vec3(ox + 695, 0.5, 20), -- 643
+		{base = rgba(24, 42, 54, 185)}, -- 644
+		{bucket = LP_BUCKET.WALK_DECK, unlit = true, sortBias = 0.14, edgeWidth = 0} -- 645
+	) -- 645
+	do -- 645
+		i = 0 -- 649
+		while i < #p.room.solids do -- 649
+			local s = p.room.solids[i + 1] -- 650
+			if s.passable == true then -- 651
+				self:buildGrassCluster( -- 652
+					scene, -- 652
+					s.x, -- 652
+					s.x + s.w, -- 652
+					s.y, -- 652
+					s.h, -- 652
+					8 -- 652
+				) -- 652
+			elseif s.x >= ox + 1500 then -- 653
+				worldArt:tryPlace( -- 655
+					"pine", -- 655
+					"fe04_forest_creek_edge_pine", -- 655
+					cam:sx(s.x + s.w * 0.5), -- 655
+					cam:sy(0) - cam:len(6), -- 655
+					cam:len(165), -- 655
+					cam:len(168), -- 655
+					{ -- 655
+						layer = 2, -- 656
+						color = Color(76, 98, 104, 255), -- 657
+						opacity = 0.92 -- 658
+					} -- 658
+				) -- 658
+			end -- 658
+			i = i + 1 -- 649
+		end -- 649
+	end -- 649
+	do -- 649
+		i = 0 -- 664
+		while i < #TWIG_OFFSETS do -- 664
+			local tx = ox + TWIG_OFFSETS[i + 1] -- 665
+			scene:addTri3D( -- 666
+				vec3(tx - 12, 0.8, -5), -- 667
+				vec3(tx + 12, 0.8, -3), -- 668
+				vec3(tx + 3, 6.2, 2), -- 669
+				MAT_TWIG, -- 670
+				{bucket = LP_BUCKET.PROP, sortBias = 0.15, edgeWidth = 1} -- 671
+			) -- 671
+			scene:addTri3D( -- 673
+				vec3(tx - 8, 0.8, 3), -- 674
+				vec3(tx + 14, 0.8, 5), -- 675
+				vec3(tx - 2, 5.2, -2), -- 676
+				MAT_TWIG, -- 677
+				{bucket = LP_BUCKET.PROP, sortBias = 0.16, edgeWidth = 0.9} -- 678
+			) -- 678
+			i = i + 1 -- 664
+		end -- 664
+	end -- 664
+	scene:addContactShadow( -- 683
+		p.player.x, -- 683
+		p.player.y, -- 683
+		14, -- 683
+		10, -- 683
+		0.8, -- 683
+		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 683
 	) -- 683
-	scene:addBox({ -- 686
-		x0 = ox + 690, -- 687
-		x1 = ox + 810, -- 688
-		y0 = -10, -- 689
-		y1 = 5, -- 690
-		z0 = 26, -- 691
-		z1 = 60, -- 692
-		material = MAT_CANAL_STONE, -- 693
-		bucket = LP_BUCKET.MIDGROUND, -- 694
-		highlightTopEdge = true, -- 695
-		edgeWidth = 0.9 -- 696
-	}) -- 696
-	scene:addQuad3D( -- 698
-		vec3(ox + 706, 5, 28), -- 699
-		vec3(ox + 742, 5, 28), -- 700
-		vec3(ox + 736, 20, 44), -- 701
-		vec3(ox + 700, 18, 44), -- 702
-		MAT_CANAL_STONE, -- 703
-		{bucket = LP_BUCKET.MIDGROUND, sortBias = 0.22, edgeWidth = 1} -- 704
-	) -- 704
-	do -- 704
-		i = 0 -- 708
-		while i < #p.room.solids do -- 708
-			local s = p.room.solids[i + 1] -- 709
-			if s.passable == true then -- 710
-				self:buildGrassCluster( -- 711
-					scene, -- 711
-					s.x, -- 711
-					s.x + s.w, -- 711
-					s.y, -- 711
-					s.h, -- 711
-					8 -- 711
-				) -- 711
-			elseif s.x >= ox + 1500 then -- 712
-				scene:addBox({ -- 714
-					x0 = s.x, -- 715
-					x1 = s.x + s.w, -- 716
-					y0 = s.y, -- 717
-					y1 = s.y + s.h, -- 718
-					z0 = 10, -- 719
-					z1 = 72, -- 720
-					material = MING_MATERIALS.mingBrickDark, -- 721
-					bucket = LP_BUCKET.MIDGROUND, -- 722
-					highlightTopEdge = true -- 723
-				}) -- 723
-			end -- 723
-			i = i + 1 -- 708
-		end -- 708
-	end -- 708
+	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 684
+		scene:addContactShadow( -- 685
+			p.dogX, -- 685
+			0, -- 685
+			18, -- 685
+			11, -- 685
+			0.82, -- 685
+			{bucket = LP_BUCKET.PROP, sortBias = 0.44} -- 685
+		) -- 685
+	end -- 685
+	scene:flush(fgDraw, fgGlow) -- 688
+	self:drawCreekWaterReflection(fgDraw, fgGlow, p, cam) -- 691
+	do -- 691
+		i = 0 -- 694
+		while i < #self.splinters do -- 694
+			local sp = self.splinters[i + 1] -- 695
+			local a = clamp01(sp.life / sp.maxLife) -- 696
+			local sx = cam:sx(sp.x) -- 697
+			local sy = cam:sy(sp.y) -- 698
+			fgDraw:drawSegment( -- 699
+				Vec2(sx - sp.len, sy - 1), -- 699
+				Vec2(sx + sp.len, sy + 2), -- 699
+				1.3, -- 699
+				Color( -- 699
+					204, -- 699
+					182, -- 699
+					146, -- 699
+					math.floor(235 * a + 0.5) -- 699
+				) -- 699
+			) -- 699
+			i = i + 1 -- 694
+		end -- 694
+	end -- 694
+	return true -- 702
+end -- 513
+function ForestCreekScene.prototype.buildGrassCluster(self, scene, x0, x1, y0, h, z) -- 705
+	local count = math.max( -- 706
+		7, -- 706
+		math.floor((x1 - x0) / 10) -- 706
+	) -- 706
+	local span = (x1 - x0) / count -- 707
+	local k = 0 -- 708
 	do -- 708
-		i = 0 -- 729
-		while i < #TWIG_OFFSETS do -- 729
-			local tx = ox + TWIG_OFFSETS[i + 1] -- 730
-			scene:addTri3D( -- 731
-				vec3(tx - 12, 0.8, -5), -- 732
-				vec3(tx + 12, 0.8, -3), -- 733
-				vec3(tx + 3, 6.2, 2), -- 734
-				MAT_TWIG, -- 735
-				{bucket = LP_BUCKET.PROP, sortBias = 0.15, edgeWidth = 1} -- 736
-			) -- 736
-			scene:addTri3D( -- 738
-				vec3(tx - 8, 0.8, 3), -- 739
-				vec3(tx + 14, 0.8, 5), -- 740
-				vec3(tx - 2, 5.2, -2), -- 741
-				MAT_TWIG, -- 742
-				{bucket = LP_BUCKET.PROP, sortBias = 0.16, edgeWidth = 0.9} -- 743
+		k = 0 -- 709
+		while k < count do -- 709
+			local bx = x0 + (k + 0.5) * span -- 710
+			local lean = (k * 29 % 11 - 5) * 1.3 -- 711
+			local sway = math.sin(self.animTime * 1.9 + bx * 0.06) * 2.8 + lean -- 712
+			local tipH = h * (0.58 + k * 37 % 10 * 0.048) -- 713
+			scene:addTri3D( -- 714
+				vec3(bx - span * 0.42, y0, z), -- 715
+				vec3(bx + span * 0.42, y0, z), -- 716
+				vec3(bx + sway, y0 + tipH, z - 2), -- 717
+				MAT_GRASS_BACK, -- 718
+				{bucket = LP_BUCKET.PROP, sortBias = 0.1 + k * 0.005, edgeWidth = 0.45} -- 719
+			) -- 719
+			k = k + 1 -- 709
+		end -- 709
+	end -- 709
+end -- 705
+function ForestCreekScene.prototype.drawCreekWaterReflection(self, fgDraw, fgGlow, p, cam) -- 724
+	local ox = p.ox -- 730
+	if cam:sx(ox + 1230) > cam.viewW + 120 then -- 731
+		return -- 732
+	end -- 732
+	local lampPulse = 0.84 + 0.16 * math.sin(self.animTime * 2.3) -- 734
+	local reflCenterX = ox + 1438 -- 735
+	local r = 0 -- 738
+	do -- 738
+		r = 0 -- 739
+		while r < 14 do -- 739
+			local z = r < 6 and -36 + r * 4.5 or 28 + (r - 6) * 20 -- 740
+			local wx = ox + 1255 + r * 26 + math.sin(self.ripplePhase * 0.72 + r * 1.25) * 16 -- 741
+			local spanW = 24 + r % 3 * 12 -- 742
+			local pL = projectWorld3D( -- 743
+				wx - spanW, -- 743
+				-3, -- 743
+				z, -- 743
+				cam, -- 743
+				self.proj -- 743
 			) -- 743
-			i = i + 1 -- 729
-		end -- 729
-	end -- 729
-	scene:addContactShadow( -- 748
-		p.player.x, -- 748
-		p.player.y, -- 748
-		14, -- 748
-		10, -- 748
-		0.8, -- 748
-		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 748
-	) -- 748
-	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 749
-		scene:addContactShadow( -- 750
-			p.dogX, -- 750
-			0, -- 750
-			18, -- 750
-			11, -- 750
-			0.82, -- 750
-			{bucket = LP_BUCKET.PROP, sortBias = 0.44} -- 750
-		) -- 750
+			local pR = projectWorld3D( -- 744
+				wx + spanW, -- 744
+				-3, -- 744
+				z, -- 744
+				cam, -- 744
+				self.proj -- 744
+			) -- 744
+			fgGlow:drawSegment( -- 745
+				Vec2(pL.x, pL.y), -- 745
+				Vec2(pR.x, pR.y), -- 745
+				1.3, -- 745
+				Color(148, 184, 208, 64) -- 745
+			) -- 745
+			r = r + 1 -- 739
+		end -- 739
+	end -- 739
+	local bands = 16 -- 749
+	do -- 749
+		r = 0 -- 750
+		while r < bands do -- 750
+			local frac = r / (bands - 1) -- 751
+			local z = -36 + frac * 62 -- 752
+			local drift = math.sin(self.ripplePhase * (1.2 + frac * 0.45) + r * 1.15) * (5 + frac * 11) -- 753
+			local halfW = (24 - frac * 11) * (0.72 + 0.28 * math.cos(self.ripplePhase * 1.65 + r)) -- 754
+			local wy = -4.5 + frac * 3.2 -- 755
+			local pL = projectWorld3D( -- 756
+				reflCenterX + drift - halfW, -- 756
+				wy, -- 756
+				z, -- 756
+				cam, -- 756
+				self.proj -- 756
+			) -- 756
+			local pR = projectWorld3D( -- 757
+				reflCenterX + drift + halfW, -- 757
+				wy, -- 757
+				z, -- 757
+				cam, -- 757
+				self.proj -- 757
+			) -- 757
+			local a = (0.36 + 0.56 * (1 - frac * 0.75)) * lampPulse -- 758
+			fgDraw:drawSegment( -- 759
+				Vec2(pL.x, pL.y), -- 759
+				Vec2(pR.x, pR.y), -- 759
+				1.9 - frac * 0.6, -- 759
+				Color( -- 759
+					242, -- 759
+					198, -- 759
+					118, -- 759
+					math.floor(178 * a + 0.5) -- 759
+				) -- 759
+			) -- 759
+			fgGlow:drawSegment( -- 760
+				Vec2(pL.x, pL.y), -- 760
+				Vec2(pR.x, pR.y), -- 760
+				4.2 - frac * 1.4, -- 760
+				Color( -- 760
+					248, -- 760
+					214, -- 760
+					140, -- 760
+					math.floor(128 * a + 0.5) -- 760
+				) -- 760
+			) -- 760
+			r = r + 1 -- 750
+		end -- 750
 	end -- 750
-	scene:flush(fgDraw, fgGlow) -- 753
-	self:drawCreekWaterReflection(fgDraw, fgGlow, p, cam) -- 756
-	do -- 756
-		i = 0 -- 759
-		while i < #self.splinters do -- 759
-			local sp = self.splinters[i + 1] -- 760
-			local a = clamp01(sp.life / sp.maxLife) -- 761
-			local sx = cam:sx(sp.x) -- 762
-			local sy = cam:sy(sp.y) -- 763
-			fgDraw:drawSegment( -- 764
-				Vec2(sx - sp.len, sy - 1), -- 764
-				Vec2(sx + sp.len, sy + 2), -- 764
-				1.3, -- 764
-				Color( -- 764
-					204, -- 764
-					182, -- 764
-					146, -- 764
-					math.floor(235 * a + 0.5) -- 764
-				) -- 764
-			) -- 764
-			i = i + 1 -- 759
-		end -- 759
-	end -- 759
-	return true -- 767
-end -- 545
-function ForestCreekScene.prototype.buildGrassCluster(self, scene, x0, x1, y0, h, z) -- 770
-	local count = math.max( -- 771
-		7, -- 771
-		math.floor((x1 - x0) / 10) -- 771
-	) -- 771
-	local span = (x1 - x0) / count -- 772
-	local k = 0 -- 773
-	do -- 773
-		k = 0 -- 774
-		while k < count do -- 774
-			local bx = x0 + (k + 0.5) * span -- 775
-			local lean = (k * 29 % 11 - 5) * 1.3 -- 776
-			local sway = math.sin(self.animTime * 1.9 + bx * 0.06) * 2.8 + lean -- 777
-			local tipH = h * (0.58 + k * 37 % 10 * 0.048) -- 778
-			scene:addTri3D( -- 779
-				vec3(bx - span * 0.42, y0, z), -- 780
-				vec3(bx + span * 0.42, y0, z), -- 781
-				vec3(bx + sway, y0 + tipH, z - 2), -- 782
-				MAT_GRASS_BACK, -- 783
-				{bucket = LP_BUCKET.PROP, sortBias = 0.1 + k * 0.005, edgeWidth = 0.45} -- 784
-			) -- 784
-			k = k + 1 -- 774
-		end -- 774
-	end -- 774
-end -- 770
-function ForestCreekScene.prototype.drawCreekWaterReflection(self, fgDraw, fgGlow, p, cam) -- 789
-	local ox = p.ox -- 795
-	if cam:sx(ox + 1230) > cam.viewW + 120 then -- 796
-		return -- 797
-	end -- 797
-	local lampPulse = 0.84 + 0.16 * math.sin(self.animTime * 2.3) -- 799
-	local reflCenterX = ox + 1438 -- 800
-	local r = 0 -- 803
-	do -- 803
-		r = 0 -- 804
-		while r < 10 do -- 804
-			local z = r < 4 and -34 + r * 6 or 32 + (r - 4) * 24 -- 805
-			local wx = ox + 1295 + r * 32 + math.sin(self.ripplePhase * 0.75 + r * 1.4) * 14 -- 806
-			local pL = projectWorld3D( -- 807
-				wx - 26, -- 807
-				-3, -- 807
-				z, -- 807
-				cam, -- 807
-				self.proj -- 807
-			) -- 807
-			local pR = projectWorld3D( -- 808
-				wx + 26, -- 808
-				-3, -- 808
-				z, -- 808
-				cam, -- 808
-				self.proj -- 808
-			) -- 808
-			fgGlow:drawSegment( -- 809
-				Vec2(pL.x, pL.y), -- 809
-				Vec2(pR.x, pR.y), -- 809
-				1.1, -- 809
-				Color(146, 178, 198, 72) -- 809
-			) -- 809
-			r = r + 1 -- 804
-		end -- 804
-	end -- 804
-	local bands = 9 -- 813
-	do -- 813
-		r = 0 -- 814
-		while r < bands do -- 814
-			local frac = r / (bands - 1) -- 815
-			local z = -34 + frac * 22 -- 816
-			local drift = math.sin(self.ripplePhase * (1.25 + frac * 0.4) + r * 1.35) * (6 + frac * 9) -- 817
-			local halfW = (18 - frac * 8) * (0.75 + 0.25 * math.cos(self.ripplePhase * 1.7 + r)) -- 818
-			local wy = -4.5 + frac * 2.5 -- 819
-			local pL = projectWorld3D( -- 820
-				reflCenterX + drift - halfW, -- 820
-				wy, -- 820
-				z, -- 820
-				cam, -- 820
-				self.proj -- 820
-			) -- 820
-			local pR = projectWorld3D( -- 821
-				reflCenterX + drift + halfW, -- 821
-				wy, -- 821
-				z, -- 821
-				cam, -- 821
-				self.proj -- 821
-			) -- 821
-			local a = (0.42 + 0.5 * (1 - frac)) * lampPulse -- 822
-			fgDraw:drawSegment( -- 823
-				Vec2(pL.x, pL.y), -- 823
-				Vec2(pR.x, pR.y), -- 823
-				2.1 - frac * 0.7, -- 823
-				Color( -- 823
-					242, -- 823
-					198, -- 823
-					118, -- 823
-					math.floor(190 * a + 0.5) -- 823
-				) -- 823
+	local poolP = projectWorld3D( -- 763
+		reflCenterX + 14, -- 763
+		0, -- 763
+		48, -- 763
+		cam, -- 763
+		self.proj -- 763
+	) -- 763
+	fillRadialGlow( -- 764
+		fgGlow, -- 765
+		poolP.x, -- 766
+		poolP.y, -- 767
+		82 * lampPulse, -- 768
+		24 * lampPulse, -- 769
+		Color( -- 770
+			246, -- 770
+			206, -- 770
+			128, -- 770
+			math.floor(98 * lampPulse + 0.5) -- 770
+		), -- 770
+		Color(232, 174, 88, 0), -- 771
+		18 -- 772
+	) -- 772
+end -- 724
+function ForestCreekScene.prototype.drawPropsOverlay(self, _fgDraw, _fgGlow, _worldArt, _ctx) -- 777
+	return true -- 783
+end -- 777
+function ForestCreekScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 787
+	local p = ctx.p -- 793
+	local cam = ctx.cam -- 794
+	local px = cam:sx(p.player.x) -- 797
+	local pTopY = cam:sy(p.player.y + p.player.h) -- 798
+	local fDir = p.player.facing >= 0 and 1 or -1 -- 799
+	local shY = pTopY - cam:len(16.5) -- 800
+	fgDraw:drawSegment( -- 801
+		Vec2( -- 802
+			px - fDir * cam:len(7.5), -- 802
+			shY - cam:len(4) -- 802
+		), -- 802
+		Vec2( -- 803
+			px - fDir * cam:len(5.5), -- 803
+			shY + cam:len(3.5) -- 803
+		), -- 803
+		1.3, -- 804
+		Color(196, 212, 220, 145) -- 805
+	) -- 805
+	fgDraw:drawSegment( -- 807
+		Vec2( -- 808
+			px - fDir * cam:len(5.5), -- 808
+			shY + cam:len(3.5) -- 808
+		), -- 808
+		Vec2( -- 809
+			px + fDir * cam:len(3.5), -- 809
+			shY + cam:len(5.2) -- 809
+		), -- 809
+		1.2, -- 810
+		Color(206, 220, 228, 135) -- 811
+	) -- 811
+	if self.xiaomanListenTimer > 0 then -- 815
+		local k = smoothstep(0, 0.12, self.xiaomanListenTimer) * clamp01(self.xiaomanListenTimer / 0.52) -- 816
+		local earX = px + self.xiaomanListenDir * cam:len(8) -- 817
+		local earY = pTopY - cam:len(10) -- 818
+		local r1 = cam:len(6.5 + (1 - k) * 8) -- 819
+		local r2 = cam:len(11.5 + (1 - k) * 11) -- 820
+		local startAng = self.xiaomanListenDir > 0 and -34 or 146 -- 821
+		local endAng = self.xiaomanListenDir > 0 and 34 or 214 -- 822
+		fgDraw:drawArc( -- 823
+			Vec2(earX, earY), -- 823
+			r1, -- 823
+			startAng, -- 823
+			endAng, -- 823
+			1.3, -- 823
+			Color( -- 823
+				224, -- 823
+				218, -- 823
+				198, -- 823
+				math.floor(185 * k + 0.5) -- 823
 			) -- 823
-			fgGlow:drawSegment( -- 824
-				Vec2(pL.x, pL.y), -- 824
-				Vec2(pR.x, pR.y), -- 824
-				3.6 - frac * 1.1, -- 824
-				Color( -- 824
-					248, -- 824
-					214, -- 824
-					140, -- 824
-					math.floor(135 * a + 0.5) -- 824
-				) -- 824
+		) -- 823
+		fgGlow:drawArc( -- 824
+			Vec2(earX, earY), -- 824
+			r2, -- 824
+			startAng, -- 824
+			endAng, -- 824
+			1.1, -- 824
+			Color( -- 824
+				204, -- 824
+				218, -- 824
+				224, -- 824
+				math.floor(135 * k + 0.5) -- 824
 			) -- 824
-			r = r + 1 -- 814
-		end -- 814
-	end -- 814
-	local poolP = projectWorld3D( -- 827
-		reflCenterX + 22, -- 827
-		0, -- 827
-		56, -- 827
-		cam, -- 827
-		self.proj -- 827
-	) -- 827
-	fillRadialGlow( -- 828
-		fgGlow, -- 829
-		poolP.x, -- 830
-		poolP.y, -- 831
-		58 * lampPulse, -- 832
-		18 * lampPulse, -- 833
-		Color( -- 834
-			246, -- 834
-			206, -- 834
-			128, -- 834
-			math.floor(92 * lampPulse + 0.5) -- 834
-		), -- 834
-		Color(232, 174, 88, 0), -- 835
-		16 -- 836
-	) -- 836
-end -- 789
-function ForestCreekScene.prototype.drawPropsOverlay(self, _fgDraw, _fgGlow, _worldArt, _ctx) -- 841
-	return true -- 847
-end -- 841
-function ForestCreekScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 851
-	local p = ctx.p -- 857
-	local cam = ctx.cam -- 858
-	local px = cam:sx(p.player.x) -- 861
-	local pTopY = cam:sy(p.player.y + p.player.h) -- 862
-	local fDir = p.player.facing >= 0 and 1 or -1 -- 863
-	local shY = pTopY - cam:len(16.5) -- 864
-	fgDraw:drawSegment( -- 865
-		Vec2( -- 866
-			px - fDir * cam:len(7.5), -- 866
-			shY - cam:len(4) -- 866
-		), -- 866
-		Vec2( -- 867
-			px - fDir * cam:len(5.5), -- 867
-			shY + cam:len(3.5) -- 867
-		), -- 867
-		1.3, -- 868
-		Color(196, 212, 220, 145) -- 869
-	) -- 869
-	fgDraw:drawSegment( -- 871
-		Vec2( -- 872
-			px - fDir * cam:len(5.5), -- 872
-			shY + cam:len(3.5) -- 872
-		), -- 872
-		Vec2( -- 873
-			px + fDir * cam:len(3.5), -- 873
-			shY + cam:len(5.2) -- 873
-		), -- 873
-		1.2, -- 874
-		Color(206, 220, 228, 135) -- 875
-	) -- 875
-	if self.xiaomanListenTimer > 0 then -- 879
-		local k = smoothstep(0, 0.12, self.xiaomanListenTimer) * clamp01(self.xiaomanListenTimer / 0.52) -- 880
-		local earX = px + self.xiaomanListenDir * cam:len(8) -- 881
-		local earY = pTopY - cam:len(10) -- 882
-		local r1 = cam:len(6.5 + (1 - k) * 8) -- 883
-		local r2 = cam:len(11.5 + (1 - k) * 11) -- 884
-		local startAng = self.xiaomanListenDir > 0 and -34 or 146 -- 885
-		local endAng = self.xiaomanListenDir > 0 and 34 or 214 -- 886
-		fgDraw:drawArc( -- 887
-			Vec2(earX, earY), -- 887
-			r1, -- 887
-			startAng, -- 887
-			endAng, -- 887
-			1.3, -- 887
-			Color( -- 887
-				224, -- 887
-				218, -- 887
-				198, -- 887
-				math.floor(185 * k + 0.5) -- 887
-			) -- 887
-		) -- 887
-		fgGlow:drawArc( -- 888
-			Vec2(earX, earY), -- 888
-			r2, -- 888
-			startAng, -- 888
-			endAng, -- 888
-			1.1, -- 888
-			Color( -- 888
-				204, -- 888
-				218, -- 888
-				224, -- 888
-				math.floor(135 * k + 0.5) -- 888
-			) -- 888
-		) -- 888
-	end -- 888
-	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 892
-		local alert = p.dogState == "ear" or p.dogState == "chase" -- 893
-		local f = p.dogState == "chase" and (p.player.x >= p.dogX and 1 or -1) or p.dogDir -- 894
-		local headX = cam:sx(p.dogX + f * 11) -- 895
-		local headY = cam:sy(23.5) -- 896
-		local earH = cam:len(alert and 7.6 or 4.8) -- 897
-		local earCol = alert and Color(224, 222, 212, 220) or Color(176, 194, 202, 170) -- 898
-		fgDraw:drawPolygon( -- 899
-			{ -- 899
-				Vec2(headX - f * 3.4, headY), -- 900
-				Vec2(headX - f * 0.8, headY + earH), -- 901
-				Vec2(headX + f * 2.4, headY + 0.8) -- 902
-			}, -- 902
-			Color(38, 36, 34, 235), -- 903
-			1.1, -- 903
-			earCol -- 903
-		) -- 903
-		if alert then -- 904
-			local waveR = cam:len(8 + self.animTime * 20 % 13) -- 905
-			fgGlow:drawArc( -- 906
-				Vec2(headX, headY + earH * 0.75), -- 906
-				waveR, -- 906
-				42, -- 906
-				138, -- 906
-				1.2, -- 906
-				Color(226, 208, 174, 145) -- 906
-			) -- 906
-		end -- 906
-	end -- 906
-	if ctx.paused then -- 911
-		local pX = cam.viewW * (0.78 + self.creekReveal * 0.24) -- 912
-		worldArt:tryPlace( -- 913
-			"pine", -- 913
-			"fe04_pause_creek_branch", -- 913
-			pX, -- 913
-			cam.viewH * 0.42, -- 913
-			cam.viewW * 0.48, -- 913
-			cam.viewH * 0.62, -- 913
-			{ -- 913
-				color = Color(14, 20, 22, 255), -- 914
-				opacity = 0.9 * (1 - self.creekReveal * 0.7), -- 915
-				layer = 5300 -- 916
-			} -- 916
-		) -- 916
-	end -- 916
-end -- 851
-function ForestCreekScene.prototype.drawForegroundOverlay(self, uiDraw, _uiInkDraw, _uiArt, _uiGlow, ctx) -- 927
-	local p = ctx.p -- 934
-	local cam = ctx.cam -- 935
-	local ox = p.ox -- 936
-	local inv = 1 / math.max(0.25, ctx.uiScale) -- 937
-	local i = 0 -- 940
-	do -- 940
-		i = 0 -- 941
-		while i < #p.room.solids do -- 941
-			do -- 941
-				local s = p.room.solids[i + 1] -- 942
-				if s.passable ~= true then -- 943
-					goto __continue66 -- 944
-				end -- 944
-				local blades = math.max( -- 946
-					7, -- 946
-					math.floor(s.w / 10) -- 946
-				) -- 946
-				local span = s.w / blades -- 947
-				local k = 0 -- 948
-				do -- 948
-					k = 0 -- 949
-					while k < blades do -- 949
-						local bx = s.x + (k + 0.5) * span -- 950
-						local lean = (k * 23 % 9 - 4) * 1.6 -- 951
-						local sway = math.sin(self.animTime * 2.1 + bx * 0.06) * 2.6 + lean -- 952
-						local tipH = math.min(18, s.h * (0.48 + k * 19 % 7 * 0.048)) -- 953
-						local pL = projectWorld3D( -- 954
-							bx - span * 0.36, -- 954
-							s.y - 2, -- 954
-							-18, -- 954
-							cam, -- 954
-							self.proj -- 954
-						) -- 954
-						local pR = projectWorld3D( -- 955
-							bx + span * 0.36, -- 955
-							s.y - 2, -- 955
-							-18, -- 955
-							cam, -- 955
-							self.proj -- 955
-						) -- 955
-						local pT = projectWorld3D( -- 956
-							bx + sway, -- 956
-							s.y + tipH, -- 956
-							-20, -- 956
-							cam, -- 956
-							self.proj -- 956
-						) -- 956
-						drawUiTri( -- 957
-							uiDraw, -- 957
-							pL, -- 957
-							pR, -- 957
-							pT, -- 957
-							Color(11, 18, 17, 232), -- 957
-							Color(14, 22, 20, 232), -- 957
-							Color(32, 50, 44, 218), -- 957
-							inv -- 957
-						) -- 957
-						k = k + 1 -- 949
-					end -- 949
-				end -- 949
-			end -- 949
-			::__continue66:: -- 949
-			i = i + 1 -- 941
-		end -- 941
-	end -- 941
-	local nearCreek = smoothstep(ox + 1060, ox + 1240, p.player.x) -- 963
-	if nearCreek > 0.02 then -- 964
-		local w = cam.viewW -- 965
-		local h = cam.viewH -- 966
-		local partShift = self.creekReveal * w * 0.38 -- 967
-		local liftShift = self.creekReveal * h * 0.16 -- 968
-		local canopyAlpha = math.floor(244 * nearCreek * (1 - self.creekReveal * 0.28) + 0.5) -- 969
-		local cTrunk = Color(14, 18, 18, canopyAlpha) -- 970
-		local cDark = Color(11, 20, 20, canopyAlpha) -- 971
-		local cLeaf = Color( -- 972
-			22, -- 972
-			36, -- 972
-			33, -- 972
-			math.floor(canopyAlpha * 0.94 + 0.5) -- 972
-		) -- 972
-		local sway = math.sin(self.animTime * 1.45) * 5 -- 973
-		drawUiQuad( -- 976
-			uiDraw, -- 977
-			{x = w * 0.56 + partShift + sway * 0.4, y = h * 0.67 + liftShift}, -- 978
-			{x = w * 1.06 + partShift, y = h * 0.84 + liftShift}, -- 979
-			{x = w * 1.06 + partShift, y = h * 0.96 + liftShift}, -- 980
-			{x = w * 0.54 + partShift + sway * 0.4, y = h * 0.74 + liftShift}, -- 981
-			cTrunk, -- 982
-			cDark, -- 983
-			inv -- 984
-		) -- 984
-		local clusters = { -- 987
-			{ -- 988
-				fx = 0.56, -- 988
-				fy = 0.66, -- 988
-				rw = 118, -- 988
-				rh = 92, -- 988
-				drop = 112 -- 988
-			}, -- 988
-			{ -- 989
-				fx = 0.68, -- 989
-				fy = 0.62, -- 989
-				rw = 138, -- 989
-				rh = 108, -- 989
-				drop = 134 -- 989
-			}, -- 989
-			{ -- 990
-				fx = 0.81, -- 990
-				fy = 0.64, -- 990
-				rw = 146, -- 990
-				rh = 112, -- 990
-				drop = 124 -- 990
-			}, -- 990
-			{ -- 991
-				fx = 0.94, -- 991
-				fy = 0.7, -- 991
-				rw = 142, -- 991
-				rh = 118, -- 991
-				drop = 116 -- 991
-			}, -- 991
-			{ -- 992
-				fx = 0.74, -- 992
-				fy = 0.78, -- 992
-				rw = 165, -- 992
-				rh = 110, -- 992
-				drop = 92 -- 992
-			} -- 992
-		} -- 992
-		local ci = 0 -- 994
-		do -- 994
-			ci = 0 -- 995
-			while ci < #clusters do -- 995
-				local cl = clusters[ci + 1] -- 996
-				local bx = w * cl.fx + partShift + sway * (0.5 + ci * 0.12) -- 997
-				local by = h * cl.fy + liftShift -- 998
-				drawUiTri( -- 999
-					uiDraw, -- 1000
-					{x = bx - cl.rw * 0.65, y = by + cl.rh * 0.85}, -- 1001
-					{x = bx + cl.rw * 0.72, y = by + cl.rh * 0.62}, -- 1002
-					{x = bx - cl.rw * 0.12 + sway * 0.6, y = by - cl.drop * 0.68}, -- 1003
-					cDark, -- 1004
-					cDark, -- 1005
-					cLeaf, -- 1006
-					inv -- 1007
-				) -- 1007
-				drawUiTri( -- 1009
-					uiDraw, -- 1010
-					{x = bx - cl.rw * 0.28, y = by + cl.rh * 0.92}, -- 1011
-					{x = bx + cl.rw * 0.88, y = by + cl.rh * 0.82}, -- 1012
-					{x = bx + cl.rw * 0.24 + sway * 0.8, y = by - cl.drop * 0.54}, -- 1013
-					cDark, -- 1014
-					cTrunk, -- 1015
-					cLeaf, -- 1016
-					inv -- 1017
-				) -- 1017
-				ci = ci + 1 -- 995
-			end -- 995
-		end -- 995
-		local lShift = self.creekReveal * w * 0.22 -- 1022
-		drawUiTri( -- 1023
-			uiDraw, -- 1024
-			{x = -30 - lShift, y = h + 16}, -- 1025
-			{x = w * 0.3 - lShift, y = h + 16}, -- 1026
-			{x = w * 0.12 - lShift - sway * 0.5, y = h * 0.68 + liftShift * 0.5}, -- 1027
-			cDark, -- 1028
-			cDark, -- 1029
-			cLeaf, -- 1030
-			inv -- 1031
-		) -- 1031
-	end -- 1031
-	return false -- 1035
-end -- 927
-return ____exports -- 927
+		) -- 824
+	end -- 824
+	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 828
+		local alert = p.dogState == "ear" or p.dogState == "chase" -- 829
+		local f = p.dogState == "chase" and (p.player.x >= p.dogX and 1 or -1) or p.dogDir -- 830
+		local headX = cam:sx(p.dogX + f * 11) -- 831
+		local headY = cam:sy(23.5) -- 832
+		local earH = cam:len(alert and 7.6 or 4.8) -- 833
+		local earCol = alert and Color(224, 222, 212, 220) or Color(176, 194, 202, 170) -- 834
+		fgDraw:drawPolygon( -- 835
+			{ -- 835
+				Vec2(headX - f * 3.4, headY), -- 836
+				Vec2(headX - f * 0.8, headY + earH), -- 837
+				Vec2(headX + f * 2.4, headY + 0.8) -- 838
+			}, -- 838
+			Color(38, 36, 34, 235), -- 839
+			1.1, -- 839
+			earCol -- 839
+		) -- 839
+		if alert then -- 840
+			local waveR = cam:len(8 + self.animTime * 20 % 13) -- 841
+			fgGlow:drawArc( -- 842
+				Vec2(headX, headY + earH * 0.75), -- 842
+				waveR, -- 842
+				42, -- 842
+				138, -- 842
+				1.2, -- 842
+				Color(226, 208, 174, 145) -- 842
+			) -- 842
+		end -- 842
+	end -- 842
+	if ctx.paused then -- 847
+		local pX = cam.viewW * (0.78 + self.creekReveal * 0.24) -- 848
+		worldArt:tryPlace( -- 849
+			"pine", -- 849
+			"fe04_pause_creek_branch", -- 849
+			pX, -- 849
+			cam.viewH * 0.42, -- 849
+			cam.viewW * 0.48, -- 849
+			cam.viewH * 0.62, -- 849
+			{ -- 849
+				color = Color(14, 20, 22, 255), -- 850
+				opacity = 0.9 * (1 - self.creekReveal * 0.7), -- 851
+				layer = 5300 -- 852
+			} -- 852
+		) -- 852
+	end -- 852
+end -- 787
+function ForestCreekScene.prototype.drawForegroundOverlay(self, uiDraw, _uiInkDraw, uiArt, _uiGlow, ctx) -- 863
+	local p = ctx.p -- 870
+	local cam = ctx.cam -- 871
+	local ox = p.ox -- 872
+	local inv = 1 / math.max(0.25, ctx.uiScale) -- 873
+	local i = 0 -- 876
+	do -- 876
+		i = 0 -- 877
+		while i < #p.room.solids do -- 877
+			do -- 877
+				local s = p.room.solids[i + 1] -- 878
+				if s.passable ~= true then -- 879
+					goto __continue65 -- 880
+				end -- 880
+				local blades = math.max( -- 882
+					7, -- 882
+					math.floor(s.w / 10) -- 882
+				) -- 882
+				local span = s.w / blades -- 883
+				local k = 0 -- 884
+				do -- 884
+					k = 0 -- 885
+					while k < blades do -- 885
+						local bx = s.x + (k + 0.5) * span -- 886
+						local lean = (k * 23 % 9 - 4) * 1.6 -- 887
+						local sway = math.sin(self.animTime * 2.1 + bx * 0.06) * 2.6 + lean -- 888
+						local tipH = math.min(18, s.h * (0.48 + k * 19 % 7 * 0.048)) -- 889
+						local pL = projectWorld3D( -- 890
+							bx - span * 0.36, -- 890
+							s.y - 2, -- 890
+							-18, -- 890
+							cam, -- 890
+							self.proj -- 890
+						) -- 890
+						local pR = projectWorld3D( -- 891
+							bx + span * 0.36, -- 891
+							s.y - 2, -- 891
+							-18, -- 891
+							cam, -- 891
+							self.proj -- 891
+						) -- 891
+						local pT = projectWorld3D( -- 892
+							bx + sway, -- 892
+							s.y + tipH, -- 892
+							-20, -- 892
+							cam, -- 892
+							self.proj -- 892
+						) -- 892
+						drawUiTri( -- 893
+							uiDraw, -- 893
+							pL, -- 893
+							pR, -- 893
+							pT, -- 893
+							Color(11, 18, 17, 232), -- 893
+							Color(14, 22, 20, 232), -- 893
+							Color(32, 50, 44, 218), -- 893
+							inv -- 893
+						) -- 893
+						k = k + 1 -- 885
+					end -- 885
+				end -- 885
+			end -- 885
+			::__continue65:: -- 885
+			i = i + 1 -- 877
+		end -- 877
+	end -- 877
+	if p.player.crouch and p.player.x >= ox + 292 and p.player.x <= ox + 468 then -- 898
+		local vw = ctx.uiW -- 899
+		local vh = ctx.uiH -- 900
+		fillVGradRect( -- 901
+			uiDraw, -- 901
+			0, -- 901
+			vh - vh * 0.18, -- 901
+			vw, -- 901
+			vh * 0.18, -- 901
+			Color(8, 12, 11, 0), -- 901
+			Color(8, 12, 11, 152) -- 901
+		) -- 901
+		fillVGradRect( -- 902
+			uiDraw, -- 902
+			0, -- 902
+			0, -- 902
+			vw, -- 902
+			vh * 0.1, -- 902
+			Color(8, 12, 11, 128), -- 902
+			Color(8, 12, 11, 0) -- 902
+		) -- 902
+	end -- 902
+	local nearCreek = smoothstep(ox + 1060, ox + 1240, p.player.x) -- 906
+	if nearCreek > 0.02 then -- 907
+		local w = ctx.uiW -- 908
+		local h = ctx.uiH -- 909
+		local partShift = self.creekReveal * w * 0.36 -- 910
+		local liftShift = self.creekReveal * h * 0.14 -- 911
+		local sway = math.sin(self.animTime * 1.45) * 4 -- 912
+		local op = nearCreek * (0.92 - self.creekReveal * 0.42) -- 913
+		uiArt:tryPlace( -- 915
+			"pine", -- 915
+			"fe04_creek_fg_pine_r1", -- 915
+			w * 0.84 + partShift + sway * 0.5, -- 915
+			h * 0.12 + liftShift, -- 915
+			w * 0.42, -- 915
+			h * 0.78, -- 915
+			{ -- 915
+				color = Color(12, 20, 22, 255), -- 916
+				opacity = op, -- 917
+				layer = 3, -- 918
+				facing = -1 -- 919
+			} -- 919
+		) -- 919
+		uiArt:tryPlace( -- 921
+			"pine", -- 921
+			"fe04_creek_fg_pine_r2", -- 921
+			w * 0.68 + partShift * 1.15 + sway * 0.35, -- 921
+			h * 0.24 + liftShift * 1.1, -- 921
+			w * 0.32, -- 921
+			h * 0.64, -- 921
+			{ -- 921
+				color = Color(16, 28, 28, 255), -- 922
+				opacity = op * 0.85, -- 923
+				layer = 2 -- 924
+			} -- 924
+		) -- 924
+		local lShift = self.creekReveal * w * 0.24 -- 927
+		uiArt:tryPlace( -- 928
+			"pine", -- 928
+			"fe04_creek_fg_pine_l", -- 928
+			w * 0.06 - lShift - sway * 0.4, -- 928
+			h * 0.16 + liftShift * 0.5, -- 928
+			w * 0.34, -- 928
+			h * 0.72, -- 928
+			{ -- 928
+				color = Color(12, 20, 22, 255), -- 929
+				opacity = op * 0.82, -- 930
+				layer = 2 -- 931
+			} -- 931
+		) -- 931
+	end -- 931
+	return false -- 935
+end -- 863
+return ____exports -- 863

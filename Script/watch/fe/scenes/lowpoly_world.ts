@@ -351,105 +351,145 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawBackdrop(bgDraw, bgGlow, backdropArt, ctx);
         }
         if (key === "outside") {
-            return this.drawOutsideBackdrop(bgDraw, bgGlow, ctx);
+            return this.drawOutsideBackdrop(bgDraw, bgGlow, backdropArt, ctx);
         }
         if (key === "tower") {
-            return this.drawTowerBackdrop(bgDraw, bgGlow, ctx);
+            return this.drawTowerBackdrop(bgDraw, bgGlow, backdropArt, ctx);
         }
         return false;
     }
 
-    private drawOutsideBackdrop(bgDraw: DrawNode.Type, bgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawOutsideBackdrop(
+        bgDraw: DrawNode.Type,
+        bgGlow: DrawNode.Type,
+        backdropArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const w = cam.viewW;
         const h = cam.viewH;
         const ox = p.ox;
 
-        // 宁村所外城冷夜海风天穹
+        // 1. 保留手绘明代宁村外城原画（bgFar_outside）作 L0 远景天幕，压低亮度并柔雾化，彻底告别黑底灰盒
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const artW = Math.max(w, (h * 16) / 9) * 1.24;
+        const artH = (artW * 9) / 16;
+        const artY = Math.min(0, Math.max(h - artH, cam.groundScreenY - artH * 0.24));
+        const hasPainted = backdropArt.tryPlace("bgFar_outside", "lp_bg_outside", w * (0.5 - progress * 0.08), artY, artW, artH, {
+            color: Color(156, 172, 198, 255),
+            opacity: 0.90,
+            layer: 0,
+        });
+
+        // 兜底夜空与流动海雾水墨带（即使贴图缺失仍有饱满纵深）
         const splitY = h * 0.48;
         fillVGradRect(bgDraw, 0, splitY, w, h - splitY, Color(16, 25, 38, 255), Color(8, 13, 22, 255));
-        fillVGradRect(bgDraw, 0, 0, w, splitY, Color(30, 44, 62, 255), Color(16, 25, 38, 255));
+        fillVGradRect(bgDraw, 0, 0, w, splitY, Color(28, 42, 60, 255), Color(16, 25, 38, 255));
 
-        const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
-        // 远景外城砖墙垛口与护城河海雾
-        scene.addBox({
-            x0: ox - 160,
-            x1: ox + 1360,
-            y0: -48,
-            y1: 112,
-            z0: 230,
-            z1: 274,
-            material: MING_MATERIALS.distantWall,
-            bucket: LP_BUCKET.BACKDROP,
-            edgeWidth: 0,
-        });
-        let mx = ox - 80;
-        let mi = 0;
-        for (mi = 0; mi < 18; mi++) {
+        if (!hasPainted) {
+            const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
             scene.addBox({
-                x0: mx,
-                x1: mx + 32,
-                y0: 112,
-                y1: 128,
+                x0: ox - 160,
+                x1: ox + 1360,
+                y0: -48,
+                y1: 112,
                 z0: 230,
-                z1: 256,
+                z1: 274,
                 material: MING_MATERIALS.distantWall,
                 bucket: LP_BUCKET.BACKDROP,
-                sortBias: 0.04,
                 edgeWidth: 0,
             });
-            mx += 78;
+            scene.addFogBand(ox - 180, ox + 1420, -34, 152, 180, rgba(28, 42, 60, 255), 0.58, 0.06, {
+                bucket: LP_BUCKET.BACKDROP,
+            });
+            scene.flush(bgDraw, bgGlow);
         }
-        scene.addFogBand(ox - 180, ox + 1420, -34, 152, 180, rgba(28, 42, 60, 255), 0.58, 0.06, {
-            bucket: LP_BUCKET.BACKDROP,
-        });
-        scene.flush(bgDraw, bgGlow);
 
-        // 冷月与远山北塔一豆暖灯（引导尽头 x ≈ 1120，无任务光柱）
-        const moonX = w * 0.76;
-        const moonY = h * 0.83;
-        fillRadialGlow(bgGlow, moonX, moonY, 82, 82, Color(172, 206, 232, 28), Color(24, 42, 68, 0), 16);
-        bgDraw.drawCircle(Vec2(moonX, moonY), 14, Color(218, 232, 246, 165));
+        // 流动海雾带（L0.5 视差呼吸，柔和隔开原画与 2.5D 前景）
+        const mistShift = ((this.animTime * 11 + cam.x * 0.14) % (w + 460)) - 230;
+        backdropArt.tryPlace("ink_mist_curve", "lp_outside_mist_a", mistShift, h * 0.32, 640, 128, {
+            color: Color(148, 174, 198, 255),
+            opacity: 0.22,
+            layer: 4,
+        });
+        backdropArt.tryPlace("ink_mist_curve", "lp_outside_mist_b", ((mistShift + w * 0.54) % (w + 460)) - 230, h * 0.44, 540, 108, {
+            color: Color(118, 146, 176, 255),
+            opacity: 0.16,
+            layer: 4,
+            facing: -1,
+        });
+
+        // 冷月微辉与远山北塔一豆暖灯（引导尽头 x ≈ 1120，无任务光柱）
+        const moonX = w * 0.80;
+        const moonY = h * 0.84;
+        fillRadialGlow(bgGlow, moonX, moonY, 88, 88, Color(172, 206, 232, 30), Color(24, 42, 68, 0), 16);
 
         const beaconP = projectWorld3D(ox + 1140, 154, 410, cam, this.outsideProj);
         const pulse = 0.84 + 0.16 * Math.sin(this.animTime * 2.2);
-        fillRadialGlow(bgGlow, beaconP.x, beaconP.y, 32 * pulse, 32 * pulse, Color(246, 208, 138, Math.round(92 * pulse)), Color(232, 176, 86, 0), 14);
-        bgGlow.drawDot(Vec2(beaconP.x, beaconP.y), 2.5, Color(255, 244, 212, 235));
+        fillRadialGlow(bgGlow, beaconP.x, beaconP.y, 38 * pulse, 38 * pulse, Color(246, 208, 138, Math.round(108 * pulse)), Color(232, 176, 86, 0), 14);
+        bgGlow.drawDot(Vec2(beaconP.x, beaconP.y), 2.8, Color(255, 244, 212, 245));
 
         return true;
     }
 
-    private drawTowerBackdrop(bgDraw: DrawNode.Type, bgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawTowerBackdrop(
+        bgDraw: DrawNode.Type,
+        bgGlow: DrawNode.Type,
+        backdropArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const cam = ctx.cam;
         const p = ctx.p;
         const ox = p.ox;
         const w = cam.viewW;
         const h = cam.viewH;
 
-        // 拂晓前微暖山风天际
+        // 1. 唤醒绝美手绘原画 bgFar_tower（破晓冷青群山、松崖海雾与孤塔钟亭）作为 L0 远景天幕
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const artW = Math.max(w, (h * 16) / 9) * 1.22;
+        const artH = (artW * 9) / 16;
+        const artY = Math.min(0, Math.max(h - artH, cam.groundScreenY - artH * 0.24));
+        const hasPainted = backdropArt.tryPlace("bgFar_tower", "lp_bg_tower", w * (0.5 - progress * 0.06), artY, artW, artH, {
+            color: Color(182, 190, 208, 255),
+            opacity: 0.92,
+            layer: 0,
+        });
+
         const splitY = h * 0.46;
         fillVGradRect(bgDraw, 0, splitY, w, h - splitY, Color(24, 34, 52, 255), Color(12, 18, 30, 255));
         fillVGradRect(bgDraw, 0, 0, w, splitY, Color(46, 54, 70, 255), Color(24, 34, 52, 255));
 
-        const scene = new LowpolyScene(cam, this.towerProj, TOWER_WEST_LAMP_LIGHT);
-        scene.addDistantRidge(
-            [
-                { x: ox - 180, y: 118 },
-                { x: ox + 90, y: 172 },
-                { x: ox + 360, y: 146 },
-                { x: ox + 640, y: 184 },
-                { x: ox + 920, y: 132 },
-            ],
-            -40,
-            420,
-            MING_MATERIALS.distantHill,
-            { bucket: LP_BUCKET.BACKDROP },
-        );
-        scene.addFogBand(ox - 160, ox + 900, -24, 150, 260, rgba(36, 42, 58, 255), 0.56, 0.06, {
-            bucket: LP_BUCKET.BACKDROP,
+        if (!hasPainted) {
+            const scene = new LowpolyScene(cam, this.towerProj, TOWER_WEST_LAMP_LIGHT);
+            scene.addDistantRidge(
+                [
+                    { x: ox - 180, y: 118 },
+                    { x: ox + 90, y: 172 },
+                    { x: ox + 360, y: 146 },
+                    { x: ox + 640, y: 184 },
+                    { x: ox + 920, y: 132 },
+                ],
+                -40,
+                420,
+                MING_MATERIALS.distantHill,
+                { bucket: LP_BUCKET.BACKDROP },
+            );
+            scene.flush(bgDraw, bgGlow);
+        }
+
+        // 山巅破晓流雾与微曦暖辉
+        const mistX = ((this.animTime * 8) % (w + 420)) - 210;
+        backdropArt.tryPlace("ink_mist_curve", "lp_tower_mist", mistX, h * 0.28, 600, 120, {
+            color: Color(168, 178, 198, 255),
+            opacity: 0.20,
+            layer: 4,
         });
-        scene.flush(bgDraw, bgGlow);
+        const dawnPulse = 0.90 + 0.10 * Math.sin(this.animTime * 1.6);
+        fillRadialGlow(bgGlow, w * 0.42, h * 0.62, w * 0.36, h * 0.22,
+            Color(232, 192, 138, Math.round(34 * dawnPulse)), Color(232, 192, 138, 0), 16);
 
         return true;
     }
@@ -471,47 +511,49 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawWorld(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "outside") {
-            return this.drawOutsideWorld(fgDraw, fgGlow, ctx);
+            return this.drawOutsideWorld(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "tower") {
-            return this.drawTowerWorld(fgDraw, fgGlow, ctx);
+            return this.drawTowerWorld(fgDraw, fgGlow, worldArt, ctx);
         }
         return false;
     }
 
-    private drawOutsideWorld(fgDraw: DrawNode.Type, fgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawOutsideWorld(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
         const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
 
-        // 1. 复用 fe-01 核心低模栈台构建器（floors / stairs / solids / 无垂布低拱 / 左端红布投影 / 脚底接触影）
-        buildOutsideJettyLowpoly(scene, p.room, p.player.x, p.player.y, p.cartAxle, this.animTime);
+        // 1. 复用 fe-01 核心低模栈台构建器（skipBackdrop=true 让手绘宁村外城原画 bgFar_outside 完整通透可见）
+        buildOutsideJettyLowpoly(scene, p.room, p.player.x, p.player.y, p.cartAxle, this.animTime, true);
 
-        // 1b. 挡住石阶口的补丁红布独轮车（实时跟随后端 outside_red_cart 坐标，避免画成灰砖墙与高墩）
+        // 1b. 挡住石阶口的补丁红布独轮车（实时跟随后端 outside_red_cart 坐标，带真实木轮与红布）
         const redBox = p.boxes.find((b) => b.id === "outside_red_cart");
         if (redBox !== undefined && redBox.broken !== true && redBox.hidden !== true) {
-            scene.addBox({
-                x0: redBox.x0 + 2,
-                x1: redBox.x1 - 2,
-                y0: redBox.y0 + 10,
-                y1: redBox.y1,
-                z0: -10,
-                z1: 12,
-                material: MING_MATERIALS.mingTimber,
-                bucket: LP_BUCKET.PROP,
-                highlightTopEdge: true,
-                edgeWidth: 0.9,
-            });
-            // 车沿系着的旧补丁红布
-            const rSway = Math.sin(this.animTime * 2.9) * 4.5;
-            scene.addTri3D(
-                vec3(redBox.x0 + 4, redBox.y1, -11),
-                vec3(redBox.x0 + 18, redBox.y1, -10),
-                vec3(redBox.x0 - 2 + rSway, redBox.y0 + 10, -12),
-                MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.26, edgeWidth: 0.8 },
-            );
+            const rcx = cam.sx((redBox.x0 + redBox.x1) * 0.5);
+            const rby = cam.sy(redBox.y0);
+            const rw = cam.len(Math.max(46, (redBox.x1 - redBox.x0) * 1.25));
+            const rh = cam.len(Math.max(26, (redBox.y1 - redBox.y0) * 0.95));
+            if (!worldArt.tryPlace("prop_cart", "lp_outside_red_cart_prop", rcx, rby, rw, rh, { layer: 4 })) {
+                scene.addBox({
+                    x0: redBox.x0 + 2,
+                    x1: redBox.x1 - 2,
+                    y0: redBox.y0 + 10,
+                    y1: redBox.y1,
+                    z0: -10,
+                    z1: 12,
+                    material: MING_MATERIALS.mingTimber,
+                    bucket: LP_BUCKET.PROP,
+                    highlightTopEdge: true,
+                    edgeWidth: 0.7,
+                });
+            }
         }
 
         // 2. 增补城外细部：上层木轮车辙与空窝物理凹槽（x = 432）、下层廊顶铁格栅条影与盐碱高水线
@@ -613,17 +655,49 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: -0.10 },
         );
 
-        // 4. 墙根尽头远望北塔侧光束（x ≈ 1080..1180）
-        scene.addLightShaft(
-            ox + 1110, ox + 1180, 170,
-            ox + 1040, ox + 1140, 0,
-            34,
-            rgba(234, 198, 138, 255),
-            0.14,
-            0.03,
+        // 4. 补全剧本 O3 盐埂后半段（x = 620..1200）：月映盐池水畦 + 沿海晒盐苇席棚与贝壳风铃（可选发现 03）
+        scene.addQuad3D(
+            vec3(ox + 635, -1.5, 22),
+            vec3(ox + 1150, -1.5, 22),
+            vec3(ox + 1150, 1.5, 92),
+            vec3(ox + 635, 1.5, 92),
+            { base: rgba(24, 38, 56, 210) },
+            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: -0.05, edgeWidth: 0 },
         );
 
         scene.flush(fgDraw, fgGlow);
+
+        // O3 盐埂实景：竹架晒盐苇席棚置于石阶台面右侧开阔盐埂（ox + 1025，彻底避开 y=64 平台避免小满悬空错觉）
+        const hutX = cam.sx(ox + 1025);
+        const hutY = cam.sy(0);
+        worldArt.tryPlace("sh_salt_hut", "lp_outside_salt_hut", hutX, hutY - cam.len(2), cam.len(128), cam.len(96), {
+            layer: 1,
+            opacity: 0.94,
+        });
+        // 墙根尽头柔和暖灯远望光晕（取代生硬灰色梯形光束）
+        const endGlowPulse = 0.85 + 0.15 * Math.sin(this.animTime * 2.1);
+        fillRadialGlow(fgGlow, cam.sx(ox + 1135), cam.sy(68), cam.len(96), cam.len(88),
+            Color(238, 200, 138, Math.round(44 * endGlowPulse)), Color(238, 200, 138, 0), 16);
+        // 贝壳风铃在海风中极淡银色微闪（可选发现 03 视觉暗示，无浮签）
+        const chimePulse = 0.65 + 0.35 * Math.sin(this.animTime * 2.8);
+        fillRadialGlow(fgGlow, hutX - cam.len(42), hutY + cam.len(48), cam.len(16), cam.len(16),
+            Color(218, 232, 244, Math.round(52 * chimePulse)), Color(218, 232, 244, 0), 10);
+        // 盐池月光水平微澜（650..1120）
+        for (let sr = 0; sr < 7; sr++) {
+            const wx = ox + 680 + sr * 64 + Math.sin(this.animTime * 1.4 + sr * 1.3) * 10;
+            const pL = projectWorld3D(wx - 22, -0.5, 42 + (sr % 2) * 18, cam, this.outsideProj);
+            const pR = projectWorld3D(wx + 22, -0.5, 42 + (sr % 2) * 18, cam, this.outsideProj);
+            fgGlow.drawSegment(Vec2(pL.x, pL.y), Vec2(pR.x, pR.y), 1.2, Color(172, 204, 228, 66));
+        }
+        // O3 盐埂芦苇簇与低矮岸石（打破 x=600..1240 单调平地）
+        const reedXs = [655, 765, 955, 1145];
+        for (let ri = 0; ri < reedXs.length; ri++) {
+            worldArt.tryPlace("grass_low", "lp_outside_reed_" + ri, cam.sx(ox + reedXs[ri]), hutY - cam.len(2), cam.len(54), cam.len(18), {
+                layer: 3,
+                color: Color(128, 152, 168, 255),
+                opacity: 0.82,
+            });
+        }
 
         // 下层水门廊道头顶格栅条影（细微环境层次）
         let gi = 0;
@@ -654,7 +728,12 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         return true;
     }
 
-    private drawTowerWorld(fgDraw: DrawNode.Type, fgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawTowerWorld(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
@@ -691,7 +770,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             highlightTopEdge: true,
         });
 
-        // 2. 塔身左右厚重砖石墙体（拉齐至 z0 = -8 与步行面和石门框严密贴合，消除视觉退后导致的空气墙感）
+        // 2. 塔身左侧厚重砖石墙体（180..400）
         scene.addBox({
             x0: ox + 180,
             x1: ox + 400,
@@ -703,17 +782,73 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             bucket: LP_BUCKET.MIDGROUND,
             highlightTopEdge: true,
         });
-        scene.addBox({
-            x0: ox + 490,
-            x1: ox + 720,
-            y0: 0,
-            y1: 215,
-            z0: -8,
-            z1: 96,
-            material: MING_MATERIALS.mingBrick,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-        });
+
+        // 2b. 关键修复（BUG-02 建筑剖面掀幕）：
+        //     未开门前绘制右侧完整石塔外墙；一旦开门（tower-enter/tower-desk），外立面自动切开退隐，
+        //     展露温暖狭小的明代木构值夜室内景（彻底消除实心砖外墙死死压住室内与守卒的恶性穿帮！）
+        if (!opened) {
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 720,
+                y0: 0,
+                y1: 215,
+                z0: -8,
+                z1: 96,
+                material: MING_MATERIALS.mingBrick,
+                bucket: LP_BUCKET.MIDGROUND,
+                highlightTopEdge: true,
+            });
+        } else {
+            // 值夜室深胡桃木后壁（z = 36..88，位于小满与值夜桌后方！）
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 704,
+                y0: 0,
+                y1: 158,
+                z0: 36,
+                z1: 88,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                sortBias: -0.15,
+                edgeWidth: 0.5,
+            });
+            // 值夜室上方石砌屋顶檐壁（y = 158..215）与右侧厚外墙剖面（704..726）
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 726,
+                y0: 158,
+                y1: 215,
+                z0: -8,
+                z1: 96,
+                material: MING_MATERIALS.mingBrick,
+                bucket: LP_BUCKET.MIDGROUND,
+                highlightTopEdge: true,
+            });
+            scene.addBox({
+                x0: ox + 704,
+                x1: ox + 726,
+                y0: 0,
+                y1: 158,
+                z0: -8,
+                z1: 96,
+                material: MING_MATERIALS.mingBrick,
+                bucket: LP_BUCKET.MIDGROUND,
+                edgeWidth: 0.7,
+            });
+            // 值夜室温暖木地板（490..704）
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 704,
+                y0: -4,
+                y1: 1.5,
+                z0: -12,
+                z1: 36,
+                material: MING_MATERIALS.mingTimber,
+                bucket: LP_BUCKET.WALK_DECK,
+                sortBias: 0.12,
+                edgeWidth: 0.4,
+            });
+        }
 
         // 3. 门廊石拱门楣（400..490, y = 110..144）
         scene.addBeveledFrame(ox + 400, ox + 490, 0, 110, 14, 34, -8, 68, MING_MATERIALS.mingStoneStep, {
@@ -734,7 +869,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 material: MING_MATERIALS.mingTimberDark,
                 bucket: LP_BUCKET.MIDGROUND,
                 sortBias: 0.10,
-                edgeWidth: 0.9,
+                edgeWidth: 0.7,
             });
         } else {
             scene.addQuad3D(
@@ -742,12 +877,12 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 vec3(ox + 486, 2, 24),
                 vec3(ox + 486, 109, 24),
                 vec3(ox + 404, 109, 24),
-                { base: rgba(112, 78, 42, 255) },
+                { base: rgba(74, 50, 30, 220) },
                 { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: 0.08 },
             );
         }
 
-        // 5. 西窗狭长暖窗（贴合拉齐后的左塔壁前立面 z = -9，呼应“朝西那盏灯，能留着吗”）
+        // 5. 西窗狭长暖窗（左塔壁 z = -9，呼应“朝西那盏灯，能留着吗”）
         scene.addQuad3D(
             vec3(ox + 286, 118, -9),
             vec3(ox + 306, 118, -9),
@@ -764,8 +899,8 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             ox + 382, ox + 506, 0,
             6,
             rgba(246, 208, 138, 255),
-            (opened ? 0.34 : 0.08) * pulse,
-            (opened ? 0.16 : 0.04) * pulse,
+            (opened ? 0.32 : 0.08) * pulse,
+            (opened ? 0.14 : 0.04) * pulse,
         );
 
         // 7. 小满脚底接触影
@@ -773,38 +908,62 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
         scene.flush(fgDraw, fgGlow);
 
-        // 门廊悬灯暖点与西窗微晕
+        // 门廊悬灯（使用真实明代风灯贴图 + 暖光）
         const lampP = projectWorld3D(ox + 445, 102, 2, cam, this.towerProj);
+        worldArt.tryPlace("prop_lantern", "lp_tower_porch_lantern", lampP.x, lampP.y, cam.len(18), cam.len(22), { layer: 4 });
         fillRadialGlow(
             fgGlow,
             lampP.x,
             lampP.y,
-            cam.len(opened ? 64 : 34) * pulse,
-            cam.len(opened ? 64 : 34) * pulse,
-            Color(248, 214, 146, Math.round((opened ? 132 : 76) * pulse)),
+            cam.len(opened ? 64 : 38) * pulse,
+            cam.len(opened ? 64 : 38) * pulse,
+            Color(248, 214, 146, Math.round((opened ? 128 : 82) * pulse)),
             Color(232, 174, 82, 0),
             16,
         );
-        fgDraw.drawCircle(Vec2(lampP.x, lampP.y), 4.2, Color(255, 240, 202, 245));
 
         const winP = projectWorld3D(ox + 296, 138, -9, cam, this.towerProj);
-        fillRadialGlow(fgGlow, winP.x, winP.y, cam.len(38), cam.len(42), Color(246, 206, 132, Math.round(78 * pulse)), Color(232, 174, 82, 0), 14);
-        // 西窗明代木窗格（十字棂条）与塔壁青砖水平灰缝
+        fillRadialGlow(fgGlow, winP.x, winP.y, cam.len(42), cam.len(46), Color(246, 206, 132, Math.round(84 * pulse)), Color(232, 174, 82, 0), 14);
+        // 西窗明代木窗格（十字棂条）与左塔壁青砖水平灰缝
         const wBL = projectWorld3D(ox + 286, 118, -9, cam, this.towerProj);
         const wTR = projectWorld3D(ox + 306, 158, -9, cam, this.towerProj);
         const wMidX = (wBL.x + wTR.x) * 0.5;
         const wMidY = (wBL.y + wTR.y) * 0.5;
         fgDraw.drawSegment(Vec2(wMidX, wBL.y), Vec2(wMidX, wTR.y), 1.4, Color(68, 52, 38, 225));
         fgDraw.drawSegment(Vec2(wBL.x, wMidY), Vec2(wTR.x, wMidY), 1.4, Color(68, 52, 38, 225));
-        let tr = 1;
-        for (tr = 1; tr <= 6; tr++) {
+        for (let tr = 1; tr <= 6; tr++) {
             const ty = tr * 30;
             const tl0 = projectWorld3D(ox + 182, ty, -8, cam, this.towerProj);
             const tl1 = projectWorld3D(ox + 398, ty, -8, cam, this.towerProj);
             fgDraw.drawSegment(Vec2(tl0.x, tl0.y), Vec2(tl1.x, tl1.y), 0.8, Color(34, 38, 48, 135));
-            const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
-            const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
+            if (!opened) {
+                const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
+                const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
+                fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
+            }
+        }
+
+        // 值夜室剖面打开后的室内细部：木壁竖拼缝 + 朝西木棂内窗（映出窗外山影与暖灯）
+        if (opened) {
+            const roomL = cam.sx(ox + 492);
+            const roomR = cam.sx(ox + 702);
+            const groundY = cam.sy(0);
+            const ceilY = cam.sy(152);
+            for (let b = 1; b <= 5; b++) {
+                const bx = roomL + ((roomR - roomL) * b) / 6;
+                fgDraw.drawSegment(Vec2(bx, groundY), Vec2(bx, ceilY), 0.9, Color(26, 18, 14, 145));
+            }
+            const inWinL = cam.sx(ox + 648);
+            const inWinY = cam.sy(76);
+            const inWinW = cam.len(42);
+            const inWinH = cam.len(48);
+            fillVGradRect(fgDraw, inWinL, inWinY, inWinW, inWinH, Color(36, 48, 70, 245), Color(74, 86, 108, 245));
+            fgDraw.drawRect(Rect(inWinL, inWinY, inWinW, inWinH), Color(0, 0, 0, 0), 2.0, Color(82, 58, 38, 255));
+            fgDraw.drawSegment(Vec2(inWinL + inWinW * 0.5, inWinY), Vec2(inWinL + inWinW * 0.5, inWinY + inWinH), 1.4, Color(82, 58, 38, 245));
+            fgDraw.drawSegment(Vec2(inWinL, inWinY + inWinH * 0.5), Vec2(inWinL + inWinW, inWinY + inWinH * 0.5), 1.4, Color(82, 58, 38, 245));
+            // 窗台油灯微晕
+            fillRadialGlow(fgGlow, inWinL + inWinW * 0.35, inWinY + cam.len(10), cam.len(38), cam.len(34),
+                Color(255, 206, 126, Math.round(92 * pulse)), Color(255, 178, 86, 0), 14);
         }
 
         return true;
@@ -836,28 +995,31 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 const cam = ctx.cam;
                 const deskCx = cam.sx(p.ox + 605);
                 const groundY = cam.sy(0);
-                const deskW = cam.len(84);
-                const deskH = cam.len(34);
-                const deskTop = groundY + deskH;
+                const deskTop = groundY + cam.len(34);
                 const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
-                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(28), cam.len(120), cam.len(88),
-                    Color(255, 198, 114, Math.round(74 * pulse)), Color(255, 168, 72, 0), 16);
-                // 低模值夜室守卒轮廓与实木值夜桌
-                const guardX = deskCx + cam.len(26);
-                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(28, 34, 44, 240));
-                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(36, 44, 56, 245));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
-                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(102, 68, 42, 255), 1, Color(146, 106, 66, 220));
-                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(230, 220, 196, 245));
-                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(166, 126, 62, 245));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26), cam.len(138), cam.len(98),
+                    Color(255, 198, 114, Math.round(86 * pulse)), Color(255, 168, 72, 0), 16);
+                // 精细像素明初棉甲老守卒（替代原先简陋方块火柴人，略抬脚底收在木案之后）
+                const guardX = deskCx + cam.len(30);
+                fgDraw.drawEllipse(Vec2(deskCx, groundY + cam.len(1)), cam.len(48), cam.len(5), Color(10, 8, 6, 138));
+                if (!worldArt.tryPlace("sh_old_watchman", "lp_tower_guard_man", guardX, groundY + cam.len(6), cam.len(48), cam.len(84), { layer: 2 })) {
+                    fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(28, 34, 44, 240));
+                    fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(36, 44, 56, 245));
+                }
+                // 精细像素胡桃木值夜案（含登记簿、端砚、油灯与热米汤碗）
+                if (!worldArt.tryPlace("sh_guard_desk", "lp_tower_guard_desk", deskCx, groundY - cam.len(4), cam.len(98), cam.len(56), { layer: 4 })) {
+                    const deskW = cam.len(84);
+                    const deskH = cam.len(34);
+                    fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
+                    fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
+                    fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(102, 68, 42, 255));
+                }
                 if (p.deskHold >= 12 || p.towerHanded) {
-                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(26), deskTop + cam.len(4), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
                 }
                 if (p.deskHold >= 24 || p.towerHanded) {
-                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
-                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(7)), cam.len(4.5), Color(224, 186, 98, 255));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(4), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
                 }
             }
             return true;

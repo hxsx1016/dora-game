@@ -1,6 +1,7 @@
 -- [ts]: narrative.ts
 local ____lualib = require("lualib_bundle") -- 1
 local __TS__Class = ____lualib.__TS__Class -- 1
+local __TS__ArraySome = ____lualib.__TS__ArraySome -- 1
 local __TS__StringSlice = ____lualib.__TS__StringSlice -- 1
 local ____exports = {} -- 1
 local ____Dora = require("Dora") -- 9
@@ -269,999 +270,1054 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 		self:triggerOnce("g06_north", {"G06A", "G06B", "D51", "D52"}) -- 263
 		return -- 264
 	end -- 264
-	if key == "village" then -- 267
-		if p.passed and px >= ox + 550 and px <= ox + 690 then -- 269
-			self:triggerOnce("v3_grate_ask", {"D27"}) -- 270
-			if interactPressed and self.triggeredBeats.v3_grate_ask then -- 271
-				self:triggerOnce("v3_grate_reply", {"D28", "D29"}, true) -- 272
-			end -- 272
-		end -- 272
-		return -- 275
-	end -- 275
-	if key == "tower" then -- 278
-		if p.phase == "tower-wait" and interactPressed and px >= ox + 300 and px <= ox + 385 then -- 280
-			self:triggerOnce("opt_lantern", {"OPT_LANTERN"}, true) -- 281
-		elseif p.phase == "tower-knock" then -- 282
-			self:triggerOnce("t2_knock", {"D14", "D15"}, true) -- 283
-		elseif p.phase == "tower-enter" or p.phase == "tower-desk" then -- 284
-			if p.storyRoute == "soldier" then -- 285
-				self:triggerOnce("t3_soldier_talk", { -- 286
-					"D53", -- 286
-					"D54", -- 286
-					"D16", -- 286
-					"D17", -- 286
-					"D63", -- 286
-					"D64" -- 286
-				}, true) -- 286
-			else -- 286
-				self:triggerOnce("t3_child_talk", { -- 288
-					"D16", -- 288
-					"D17", -- 288
-					"D63", -- 288
-					"D64", -- 288
-					"D18", -- 288
-					"D19" -- 288
-				}, true) -- 288
-			end -- 288
-		elseif p.phase == "tower-end" and p.storyRoute == "soldier" then -- 290
-			self:triggerOnce("t3_reunion_end", {"D55", "D56", "D65"}, true) -- 291
-		end -- 291
-	end -- 291
-end -- 120
-function NarrativeRenderer.prototype.update(self, dt, p, events, interactPressed) -- 296
-	if interactPressed == nil then -- 296
-		interactPressed = false -- 296
+	if key == "escort1" then -- 268
+		if px >= ox + 170 and px <= ox + 460 then -- 269
+			self:triggerOnce("e1_start", {"E1A", "E1B"}) -- 270
+		end -- 270
+		return -- 272
+	end -- 272
+	if key == "escort2" then -- 275
+		if px >= ox + 220 and px <= ox + 520 then -- 276
+			self:triggerOnce("e2_granary", {"E2A", "E2B"}) -- 277
+		end -- 277
+		return -- 279
+	end -- 279
+	if key == "escort3" then -- 282
+		if px >= ox + 440 and px <= ox + 710 then -- 283
+			self:triggerOnce("e3_bench_rest", {"E3A", "E3B"}) -- 284
+		end -- 284
+		if events ~= nil and events.benchCrafted then -- 286
+			self:triggerOnce("e3_bench_crafted", {"E3C"}, true) -- 287
+		end -- 287
+		return -- 289
+	end -- 289
+	if key == "escort4" then -- 292
+		if px >= ox + 190 and px <= ox + 460 then -- 293
+			self:triggerOnce("e4_cliff", {"E4A", "E4B"}) -- 294
+		end -- 294
+		return -- 296
 	end -- 296
-	self.time = self.time + dt -- 297
-	if self.lastRoomKey ~= p.room.key then -- 298
-		self:onEnterRoom(p.room.key) -- 299
-	end -- 299
-	if self.muteCaptionT > 0 then -- 301
-		self.muteCaptionT = math.max(0, self.muteCaptionT - dt) -- 302
-	end -- 302
-	if self.activeLine ~= nil then -- 304
-		self.activeLineT = self.activeLineT - dt -- 305
-		if self.activeLineT <= 0 then -- 306
-			local next = table.remove(self.queuedLines, 1) -- 307
-			self.activeLine = next -- 308
-			self.activeLineT = next ~= nil and next.duration or 0 -- 309
+	if key == "escort5" then -- 299
+		if px >= ox + 180 and px <= ox + 420 then -- 300
+			self:triggerOnce("e5_dawn", {"E5A", "E5B"}) -- 301
+		end -- 301
+		return -- 303
+	end -- 303
+	if key == "outside" then -- 306
+		if px >= ox + 760 and px <= ox + 1020 then -- 308
+			self:triggerOnce("o3_salt_wind", {"O3_WIND"}) -- 309
 		end -- 309
-	end -- 309
-	self:stepScriptedBeats(p, events, interactPressed) -- 312
-	local wantCinema = p.room.key == "prologue" and p.phase == "prologue-give" or p.room.key == "gate" and (p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or p.reloadOpen or (p.room.key == "tower" or p.room.key == "museum") and p.phase ~= "tower-wait" -- 314
-	local target = wantCinema and 1 or 0 -- 319
-	self.letterbox = self.letterbox + (target - self.letterbox) * math.min(1, dt * 4.5) -- 320
-	if self.bannerT > 0 then -- 322
-		self.bannerT = math.max(0, self.bannerT - dt) -- 323
-	end -- 323
-	if self.wipeT > 0 then -- 325
-		self.wipeT = math.max(0, self.wipeT - dt * 2.4) -- 326
-	end -- 326
-end -- 296
-function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 330
-	if assistHintsEnabled == nil then -- 339
-		assistHintsEnabled = false -- 339
-	end -- 339
-	if inputMode == nil then -- 340
-		inputMode = "kbm" -- 340
-	end -- 340
-	if gamepadLayout == nil then -- 341
-		gamepadLayout = "xbox" -- 341
-	end -- 341
-	if safe == nil then -- 342
-		safe = ZERO_SAFE_INSETS -- 342
-	end -- 342
-	if self.letterbox > 0.01 then -- 345
-		local barH = math.floor(70 * self.letterbox + 0.5) -- 346
-		uiDraw:drawRect( -- 347
-			Rect(0, h - barH, w, barH), -- 347
-			Color(8, 10, 16, 242) -- 347
-		) -- 347
-		uiDraw:drawRect( -- 348
-			Rect(0, 0, w, barH), -- 348
-			Color(8, 10, 16, 242) -- 348
-		) -- 348
-		uiInkDraw:drawSegment( -- 349
-			Vec2(0, h - barH), -- 349
-			Vec2(w, h - barH), -- 349
-			0.7, -- 349
-			toColor(PALETTE.silkDim, 70 * self.letterbox) -- 349
-		) -- 349
-		uiInkDraw:drawSegment( -- 350
-			Vec2(0, barH), -- 350
-			Vec2(w, barH), -- 350
-			0.7, -- 350
-			toColor(PALETTE.silkDim, 70 * self.letterbox) -- 350
-		) -- 350
-	end -- 350
-	if p.room.key == "gate" and p.phase == "gate-count" then -- 354
-		self:drawGateCountOverlay( -- 355
-			uiDraw, -- 355
-			uiInkDraw, -- 355
-			art, -- 355
-			texts, -- 355
-			p, -- 355
-			w, -- 355
-			h -- 355
-		) -- 355
-	end -- 355
-	local showRegistry = p.room.key == "tower" and (p.phase == "tower-end" or p.phase == "tower-given" and p.phaseTick >= 120) -- 359
-	if showRegistry then -- 360
-		self:drawTowerRegistryCard( -- 361
-			uiDraw, -- 361
-			uiInkDraw, -- 361
-			uiGlow, -- 361
-			art, -- 361
-			texts, -- 361
-			p, -- 361
-			w, -- 361
-			h, -- 361
-			assistHintsEnabled, -- 361
-			inputMode, -- 361
-			gamepadLayout -- 361
-		) -- 361
+		if interactPressed and px >= ox + 830 and px <= ox + 950 and math.abs(p.player.y) < 20 then -- 311
+			self:triggerOnce("opt_shell", {"OPT_SHELL"}, true) -- 312
+		end -- 312
+		return -- 314
+	end -- 314
+	if key == "village" then -- 317
+		if p.passed and px >= ox + 550 and px <= ox + 690 then -- 319
+			self:triggerOnce("v3_grate_ask", {"D27"}) -- 320
+			if interactPressed and self.triggeredBeats.v3_grate_ask then -- 321
+				self:triggerOnce("v3_grate_reply", {"D28", "D29"}, true) -- 322
+			end -- 322
+		end -- 322
+		return -- 325
+	end -- 325
+	if key == "forest" then -- 328
+		local waterBeat = events ~= nil and __TS__ArraySome( -- 330
+			events.storyBeats, -- 330
+			function(____, b) return b.beat == "water_lantern" end -- 330
+		) -- 330
+		if waterBeat or px >= ox + 1190 then -- 331
+			self:triggerOnce("f4_creek_lamp", {"F4_CREEK"}) -- 332
+		end -- 332
+		if interactPressed and px >= ox + 300 and px <= ox + 400 and p.player.crouch then -- 334
+			self:triggerOnce("opt_hollow", {"OPT_HOLLOW"}, true) -- 335
+		end -- 335
+		return -- 337
+	end -- 337
+	if key == "tower" then -- 340
+		if p.phase == "tower-wait" and interactPressed and px >= ox + 300 and px <= ox + 385 then -- 342
+			self:triggerOnce("opt_lantern", {"OPT_LANTERN"}, true) -- 343
+		elseif p.phase == "tower-knock" then -- 344
+			self:triggerOnce("t2_knock", {"D14", "D15"}, true) -- 345
+		elseif p.phase == "tower-enter" or p.phase == "tower-desk" then -- 346
+			if p.storyRoute == "soldier" then -- 347
+				self:triggerOnce("t3_soldier_talk", { -- 348
+					"D53", -- 348
+					"D54", -- 348
+					"D16", -- 348
+					"D17", -- 348
+					"D63", -- 348
+					"D64" -- 348
+				}, true) -- 348
+			else -- 348
+				self:triggerOnce("t3_child_talk", { -- 350
+					"D16", -- 350
+					"D17", -- 350
+					"D63", -- 350
+					"D64", -- 350
+					"D18", -- 350
+					"D19" -- 350
+				}, true) -- 350
+			end -- 350
+		elseif p.phase == "tower-end" and p.storyRoute == "soldier" then -- 352
+			self:triggerOnce("t3_reunion_end", {"D55", "D56", "D65"}, true) -- 353
+		end -- 353
+	end -- 353
+end -- 120
+function NarrativeRenderer.prototype.update(self, dt, p, events, interactPressed) -- 358
+	if interactPressed == nil then -- 358
+		interactPressed = false -- 358
+	end -- 358
+	self.time = self.time + dt -- 359
+	if self.lastRoomKey ~= p.room.key then -- 360
+		self:onEnterRoom(p.room.key) -- 361
 	end -- 361
-	if not p.paused and not showRegistry then -- 365
-		self:drawSubtitleStrip( -- 366
-			uiDraw, -- 366
-			uiInkDraw, -- 366
-			art, -- 366
-			texts, -- 366
-			p, -- 366
-			w, -- 366
-			h, -- 366
-			assistHintsEnabled, -- 366
-			inputMode, -- 366
-			gamepadLayout, -- 366
-			safe -- 366
-		) -- 366
-	end -- 366
-	if self.bannerT > 0 and not p.paused then -- 370
-		self:drawAreaBanner( -- 371
-			uiDraw, -- 371
-			uiInkDraw, -- 371
-			art, -- 371
-			texts, -- 371
-			p.room.key, -- 371
-			w, -- 371
-			h -- 371
-		) -- 371
+	if self.muteCaptionT > 0 then -- 363
+		self.muteCaptionT = math.max(0, self.muteCaptionT - dt) -- 364
+	end -- 364
+	if self.activeLine ~= nil then -- 366
+		self.activeLineT = self.activeLineT - dt -- 367
+		if self.activeLineT <= 0 then -- 368
+			local next = table.remove(self.queuedLines, 1) -- 369
+			self.activeLine = next -- 370
+			self.activeLineT = next ~= nil and next.duration or 0 -- 371
+		end -- 371
 	end -- 371
-	if self.wipeT > 0.01 then -- 375
-		local k = math.min(1, self.wipeT * 1.15) -- 376
-		local a = math.floor(255 * k * k + 0.5) -- 377
-		uiDraw:drawRect( -- 378
-			Rect(0, 0, w, h), -- 378
-			Color(9, 11, 17, a) -- 378
-		) -- 378
-		art:tryPlace( -- 379
-			"ink_petal_mist", -- 379
-			"wipe_mist", -- 379
-			w * 0.5, -- 379
-			h * 0.5, -- 379
-			w * 0.65, -- 379
-			h * 0.65, -- 379
-			{ -- 379
-				color = toColor(PALETTE.inkMist), -- 380
-				opacity = 0.2 * self.wipeT, -- 380
-				layer = 5 -- 380
-			} -- 380
-		) -- 380
-	end -- 380
-end -- 330
-function NarrativeRenderer.prototype.drawSubtitleStrip(self, uiDraw, uiInkDraw, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 385
-	local cx = w * 0.5 -- 398
-	local touchLift = inputMode == "touch" and self.letterbox <= 0.4 and 22 or 0 -- 399
-	local cy = (self.letterbox > 0.4 and 36 or 42) + touchLift + safe.bottom * 0.5 -- 400
-	if self.muteCaptionT > 0 and self.muteCaption ~= "" then -- 403
-		local capAlpha = math.min(1, self.muteCaptionT * 2.5) -- 404
-		local capY = cy + 44 -- 405
-		drawSilkVeil( -- 406
-			uiDraw, -- 406
-			art, -- 406
-			"mute_sfx_veil", -- 406
-			cx, -- 406
-			capY, -- 406
-			172, -- 406
-			26, -- 406
-			PALETTE.inkWarm, -- 406
-			0.76 * capAlpha, -- 406
-			0 -- 406
-		) -- 406
-		texts:put( -- 407
-			"xs", -- 407
-			self.muteCaption, -- 407
-			cx, -- 407
-			capY, -- 407
-			toColor(PALETTE.amberCore), -- 407
-			0.5, -- 407
-			0.5, -- 407
-			"Center", -- 407
-			1.4, -- 407
-			0.94 * capAlpha, -- 407
-			0.08 -- 407
-		) -- 407
-	end -- 407
-	local rawLine = self:composeNarrativeLine(p, assistHintsEnabled) -- 410
-	if rawLine.text == "" then -- 411
-		return -- 412
+	self:stepScriptedBeats(p, events, interactPressed) -- 374
+	local wantCinema = p.room.key == "prologue" and p.phase == "prologue-give" or p.room.key == "gate" and (p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or p.reloadOpen or (p.room.key == "tower" or p.room.key == "museum") and p.phase ~= "tower-wait" -- 376
+	local target = wantCinema and 1 or 0 -- 381
+	self.letterbox = self.letterbox + (target - self.letterbox) * math.min(1, dt * 4.5) -- 382
+	if self.bannerT > 0 then -- 384
+		self.bannerT = math.max(0, self.bannerT - dt) -- 385
+	end -- 385
+	if self.wipeT > 0 then -- 387
+		self.wipeT = math.max(0, self.wipeT - dt * 2.4) -- 388
+	end -- 388
+end -- 358
+function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 392
+	if assistHintsEnabled == nil then -- 401
+		assistHintsEnabled = false -- 401
+	end -- 401
+	if inputMode == nil then -- 402
+		inputMode = "kbm" -- 402
+	end -- 402
+	if gamepadLayout == nil then -- 403
+		gamepadLayout = "xbox" -- 403
+	end -- 403
+	if safe == nil then -- 404
+		safe = ZERO_SAFE_INSETS -- 404
+	end -- 404
+	if self.letterbox > 0.01 then -- 407
+		local barH = math.floor(70 * self.letterbox + 0.5) -- 408
+		uiDraw:drawRect( -- 409
+			Rect(0, h - barH, w, barH), -- 409
+			Color(8, 10, 16, 242) -- 409
+		) -- 409
+		uiDraw:drawRect( -- 410
+			Rect(0, 0, w, barH), -- 410
+			Color(8, 10, 16, 242) -- 410
+		) -- 410
+		uiInkDraw:drawSegment( -- 411
+			Vec2(0, h - barH), -- 411
+			Vec2(w, h - barH), -- 411
+			0.7, -- 411
+			toColor(PALETTE.silkDim, 70 * self.letterbox) -- 411
+		) -- 411
+		uiInkDraw:drawSegment( -- 412
+			Vec2(0, barH), -- 412
+			Vec2(w, barH), -- 412
+			0.7, -- 412
+			toColor(PALETTE.silkDim, 70 * self.letterbox) -- 412
+		) -- 412
 	end -- 412
-	local line = { -- 414
-		cue = rawLine.cue, -- 415
-		text = assistHintsEnabled and adaptHintSentence(rawLine.text, inputMode, gamepadLayout) or rawLine.text, -- 416
-		urgent = rawLine.urgent -- 417
-	} -- 417
-	local hasCue = line.cue ~= "" -- 419
-	local textW = visualTextWidth(line.text, 18) -- 420
-	local contentW = textW + (hasCue and 48 or 0) -- 421
-	local stripW = math.min( -- 422
-		w - 72 - safe.left - safe.right, -- 422
-		math.max(540, contentW + 210) -- 422
-	) -- 422
-	local stripH = 54 -- 423
-	drawSilkVeil( -- 426
-		uiDraw, -- 426
-		art, -- 426
-		"sub_veil", -- 426
-		cx, -- 426
-		cy, -- 426
-		stripW, -- 426
-		stripH, -- 426
-		line.urgent and PALETTE.inkWarm or PALETTE.inkWash, -- 426
-		0.84, -- 426
-		-1 -- 426
-	) -- 426
-	local railCol = line.urgent and PALETTE.rouge or PALETTE.silkDim -- 428
-	drawHairline( -- 429
-		uiInkDraw, -- 429
-		art, -- 429
-		"sub_top_line", -- 429
-		cx, -- 429
-		cy + 23, -- 429
-		stripW * 0.72, -- 429
-		railCol, -- 429
-		line.urgent and 0.72 or 0.52, -- 429
-		true, -- 429
-		2 -- 429
-	) -- 429
-	if hasCue then -- 431
-		local startX = cx - contentW * 0.5 -- 432
-		local cueCol = line.urgent and PALETTE.rouge or (p.childMode and PALETTE.amber or PALETTE.cyan) -- 433
-		drawBlossomDot( -- 434
-			uiInkDraw, -- 434
-			art, -- 434
-			"sub_cue_dot", -- 434
-			startX + 6, -- 434
-			cy - 1, -- 434
-			10, -- 434
-			cueCol, -- 434
-			0.94, -- 434
-			4 -- 434
-		) -- 434
-		texts:put( -- 435
-			"xs", -- 435
-			line.cue, -- 435
-			startX + 24, -- 435
-			cy - 1, -- 435
-			toColor(line.urgent and PALETTE.crimsonCore or cueCol), -- 435
-			0.5, -- 435
-			0.5, -- 435
-			"Center", -- 435
-			0, -- 435
-			0.96, -- 435
-			0.08 -- 435
-		) -- 435
-		uiInkDraw:drawSegment( -- 436
-			Vec2(startX + 38, cy - 8), -- 436
-			Vec2(startX + 38, cy + 6), -- 436
-			0.75, -- 436
-			toColor(PALETTE.silkDim, 115) -- 436
-		) -- 436
-		texts:put( -- 437
-			"sm", -- 437
-			line.text, -- 437
-			startX + 48, -- 437
-			cy - 1, -- 437
-			toColor(line.urgent and PALETTE.crimsonCore or PALETTE.textBright), -- 437
-			0, -- 437
-			0.5, -- 437
-			"Left", -- 437
-			0.9, -- 437
-			0.98, -- 437
-			0.08 -- 437
-		) -- 437
-	else -- 437
-		texts:put( -- 439
-			"sm", -- 439
-			line.text, -- 439
-			cx, -- 439
-			cy - 1, -- 439
-			toColor(PALETTE.textBright), -- 439
-			0.5, -- 439
-			0.5, -- 439
-			"Center", -- 439
-			1, -- 439
-			0.98, -- 439
-			0.08 -- 439
-		) -- 439
-	end -- 439
-end -- 385
-function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEnabled) -- 444
-	local key = p.room.key -- 445
-	local theme = themeOf(key) -- 446
-	if key == "gate" and p.phase == "gate-count" then -- 448
-		if p.countTick >= GATE_COUNT_END then -- 449
-			return {cue = "", text = "……二十了。我往北去了。", urgent = false} -- 450
-		end -- 450
-		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 456
-	end -- 456
-	if not assistHintsEnabled then -- 459
-		if self.activeLine ~= nil then -- 461
-			local spoken = self.activeLine.who ~= "" and ((self.activeLine.who .. "：「") .. self.activeLine.text) .. "」" or self.activeLine.text -- 462
-			local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 465
-			return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 467
-		end -- 467
-		if key == "prologue" and p.phase == "prologue-give" then -- 469
-			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 470
-		end -- 470
-		if key == "checkpoint" and p.escort.state == "calming" then -- 472
-			return {cue = "", text = "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent = false} -- 473
-		end -- 473
-		if key == "tower" then -- 475
-			if p.phase == "tower-knock" then -- 476
-				return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 477
-			end -- 477
-			if p.phase == "tower-given" then -- 479
-				return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 480
-			end -- 480
-		end -- 480
-		if p.flash ~= "" and p.flashT > 0 then -- 483
-			local fl = p.flash -- 485
-			local hasKeyHint = (string.find(fl, "按 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "点 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按住 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 F", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按住 F", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 Shift", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 Ctrl", nil, true) or 0) - 1 >= 0 or (string.find(fl, "A/D", nil, true) or 0) - 1 >= 0 or (string.find(fl, "限时", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 再玩", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 拉开", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 敲", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 递", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 送", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 交", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 拿", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 开", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 1", nil, true) or 0) - 1 >= 0 -- 486
-			if not hasKeyHint then -- 504
-				local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 505
-				local text = p.flash -- 506
-				local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 507
-				if key == "tower" or key == "prologue" then -- 508
-					cue = "" -- 509
-				end -- 509
-				if text == "命中" then -- 511
-					text = "倭寇击倒" -- 512
-				elseif text == "打空" then -- 513
-					text = "铅丸偏离或被掩体阻挡" -- 514
-				elseif text == "翻滚" then -- 515
-					text = "伏身翻滚回避" -- 516
-				end -- 516
-				return {cue = cue, text = text, urgent = isDanger} -- 518
-			end -- 518
-		end -- 518
-		return {cue = "", text = "", urgent = false} -- 521
-	end -- 521
-	if key == "gate" and p.phase == "gate-hold" then -- 524
-		local threatened = false -- 525
-		local hasAliveEnemy = false -- 526
-		local i = 0 -- 527
-		do -- 527
-			i = 0 -- 528
-			while i < #p.enemies do -- 528
-				if p.enemies[i + 1].alive then -- 529
-					hasAliveEnemy = true -- 530
-					if p.enemies[i + 1].warnT > 0 then -- 531
-						threatened = true -- 532
-					end -- 532
-				end -- 532
-				i = i + 1 -- 528
-			end -- 528
-		end -- 528
-		if threatened then -- 536
-			return {cue = "警", text = "倭寇举铳瞄准 —— 贴住街垒按住 [SHIFT] 挡下，或左键先手击倒", urgent = true} -- 537
-		end -- 537
-		if p.coverHug then -- 539
-			if hasAliveEnemy and not p.coverBlocking then -- 540
-				return {cue = "警", text = "此侧背向来敌，无法挡弹 —— 贴靠街垒左侧按住 [SHIFT]", urgent = true} -- 541
-			end -- 541
-			return {cue = "掩", text = "已贴靠掩体。左键发射火铳压制来敌，守满四十五秒", urgent = false} -- 543
-		end -- 543
-		return {cue = "守", text = "靠近街垒按住 [SHIFT] 贴掩体，左键发铳守住城门", urgent = false} -- 545
-	end -- 545
-	if key == "gate" and p.phase == "gate-count" then -- 548
-		if p.countTick >= GATE_COUNT_END then -- 549
-			return {cue = "", text = "……二十了。我往北去了。", urgent = false} -- 550
-		end -- 550
-		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 556
-	end -- 556
-	if self.activeLine ~= nil then -- 559
-		local spoken = self.activeLine.who ~= "" and ((self.activeLine.who .. "：「") .. self.activeLine.text) .. "」" or self.activeLine.text -- 560
-		local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 563
-		return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 565
-	end -- 565
-	if p.flash ~= "" and p.flashT > 0 then -- 568
-		local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 569
-		local text = p.flash -- 570
-		local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 571
-		if key == "tower" or key == "prologue" then -- 572
-			cue = "" -- 573
-		end -- 573
-		if text == "命中" then -- 575
-			text = "倭寇击倒 —— 继续推进并留意掩体" -- 576
-		elseif text == "打空" then -- 577
-			text = "铅丸偏离或被掩体阻挡" -- 578
-		elseif text == "翻滚" then -- 579
-			text = "伏身翻滚回避" -- 580
+	if p.room.key == "gate" and p.phase == "gate-count" then -- 416
+		self:drawGateCountOverlay( -- 417
+			uiDraw, -- 417
+			uiInkDraw, -- 417
+			art, -- 417
+			texts, -- 417
+			p, -- 417
+			w, -- 417
+			h -- 417
+		) -- 417
+	end -- 417
+	local showRegistry = p.room.key == "tower" and (p.phase == "tower-end" or p.phase == "tower-given" and p.phaseTick >= 120) -- 421
+	if showRegistry then -- 422
+		self:drawTowerRegistryCard( -- 423
+			uiDraw, -- 423
+			uiInkDraw, -- 423
+			uiGlow, -- 423
+			art, -- 423
+			texts, -- 423
+			p, -- 423
+			w, -- 423
+			h, -- 423
+			assistHintsEnabled, -- 423
+			inputMode, -- 423
+			gamepadLayout -- 423
+		) -- 423
+	end -- 423
+	if not p.paused and not showRegistry then -- 427
+		self:drawSubtitleStrip( -- 428
+			uiDraw, -- 428
+			uiInkDraw, -- 428
+			art, -- 428
+			texts, -- 428
+			p, -- 428
+			w, -- 428
+			h, -- 428
+			assistHintsEnabled, -- 428
+			inputMode, -- 428
+			gamepadLayout, -- 428
+			safe -- 428
+		) -- 428
+	end -- 428
+	if self.bannerT > 0 and not p.paused then -- 432
+		self:drawAreaBanner( -- 433
+			uiDraw, -- 433
+			uiInkDraw, -- 433
+			art, -- 433
+			texts, -- 433
+			p.room.key, -- 433
+			w, -- 433
+			h -- 433
+		) -- 433
+	end -- 433
+	if self.wipeT > 0.01 then -- 437
+		local k = math.min(1, self.wipeT * 1.15) -- 438
+		local a = math.floor(255 * k * k + 0.5) -- 439
+		uiDraw:drawRect( -- 440
+			Rect(0, 0, w, h), -- 440
+			Color(9, 11, 17, a) -- 440
+		) -- 440
+		art:tryPlace( -- 441
+			"ink_petal_mist", -- 441
+			"wipe_mist", -- 441
+			w * 0.5, -- 441
+			h * 0.5, -- 441
+			w * 0.65, -- 441
+			h * 0.65, -- 441
+			{ -- 441
+				color = toColor(PALETTE.inkMist), -- 442
+				opacity = 0.2 * self.wipeT, -- 442
+				layer = 5 -- 442
+			} -- 442
+		) -- 442
+	end -- 442
+end -- 392
+function NarrativeRenderer.prototype.drawSubtitleStrip(self, uiDraw, uiInkDraw, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 447
+	local cx = w * 0.5 -- 460
+	local touchLift = inputMode == "touch" and self.letterbox <= 0.4 and 22 or 0 -- 461
+	local cy = (self.letterbox > 0.4 and 36 or 42) + touchLift + safe.bottom * 0.5 -- 462
+	if self.muteCaptionT > 0 and self.muteCaption ~= "" then -- 465
+		local capAlpha = math.min(1, self.muteCaptionT * 2.5) -- 466
+		local capY = cy + 44 -- 467
+		drawSilkVeil( -- 468
+			uiDraw, -- 468
+			art, -- 468
+			"mute_sfx_veil", -- 468
+			cx, -- 468
+			capY, -- 468
+			172, -- 468
+			26, -- 468
+			PALETTE.inkWarm, -- 468
+			0.76 * capAlpha, -- 468
+			0 -- 468
+		) -- 468
+		texts:put( -- 469
+			"xs", -- 469
+			self.muteCaption, -- 469
+			cx, -- 469
+			capY, -- 469
+			toColor(PALETTE.amberCore), -- 469
+			0.5, -- 469
+			0.5, -- 469
+			"Center", -- 469
+			1.4, -- 469
+			0.94 * capAlpha, -- 469
+			0.08 -- 469
+		) -- 469
+	end -- 469
+	local rawLine = self:composeNarrativeLine(p, assistHintsEnabled) -- 472
+	if rawLine.text == "" then -- 473
+		return -- 474
+	end -- 474
+	local line = { -- 476
+		cue = rawLine.cue, -- 477
+		text = assistHintsEnabled and adaptHintSentence(rawLine.text, inputMode, gamepadLayout) or rawLine.text, -- 478
+		urgent = rawLine.urgent -- 479
+	} -- 479
+	local hasCue = line.cue ~= "" -- 481
+	local textW = visualTextWidth(line.text, 18) -- 482
+	local contentW = textW + (hasCue and 48 or 0) -- 483
+	local stripW = math.min( -- 484
+		w - 72 - safe.left - safe.right, -- 484
+		math.max(540, contentW + 210) -- 484
+	) -- 484
+	local stripH = 54 -- 485
+	drawSilkVeil( -- 488
+		uiDraw, -- 488
+		art, -- 488
+		"sub_veil", -- 488
+		cx, -- 488
+		cy, -- 488
+		stripW, -- 488
+		stripH, -- 488
+		line.urgent and PALETTE.inkWarm or PALETTE.inkWash, -- 488
+		0.84, -- 488
+		-1 -- 488
+	) -- 488
+	local railCol = line.urgent and PALETTE.rouge or PALETTE.silkDim -- 490
+	drawHairline( -- 491
+		uiInkDraw, -- 491
+		art, -- 491
+		"sub_top_line", -- 491
+		cx, -- 491
+		cy + 23, -- 491
+		stripW * 0.72, -- 491
+		railCol, -- 491
+		line.urgent and 0.72 or 0.52, -- 491
+		true, -- 491
+		2 -- 491
+	) -- 491
+	if hasCue then -- 493
+		local startX = cx - contentW * 0.5 -- 494
+		local cueCol = line.urgent and PALETTE.rouge or (p.childMode and PALETTE.amber or PALETTE.cyan) -- 495
+		drawBlossomDot( -- 496
+			uiInkDraw, -- 496
+			art, -- 496
+			"sub_cue_dot", -- 496
+			startX + 6, -- 496
+			cy - 1, -- 496
+			10, -- 496
+			cueCol, -- 496
+			0.94, -- 496
+			4 -- 496
+		) -- 496
+		texts:put( -- 497
+			"xs", -- 497
+			line.cue, -- 497
+			startX + 24, -- 497
+			cy - 1, -- 497
+			toColor(line.urgent and PALETTE.crimsonCore or cueCol), -- 497
+			0.5, -- 497
+			0.5, -- 497
+			"Center", -- 497
+			0, -- 497
+			0.96, -- 497
+			0.08 -- 497
+		) -- 497
+		uiInkDraw:drawSegment( -- 498
+			Vec2(startX + 38, cy - 8), -- 498
+			Vec2(startX + 38, cy + 6), -- 498
+			0.75, -- 498
+			toColor(PALETTE.silkDim, 115) -- 498
+		) -- 498
+		texts:put( -- 499
+			"sm", -- 499
+			line.text, -- 499
+			startX + 48, -- 499
+			cy - 1, -- 499
+			toColor(line.urgent and PALETTE.crimsonCore or PALETTE.textBright), -- 499
+			0, -- 499
+			0.5, -- 499
+			"Left", -- 499
+			0.9, -- 499
+			0.98, -- 499
+			0.08 -- 499
+		) -- 499
+	else -- 499
+		texts:put( -- 501
+			"sm", -- 501
+			line.text, -- 501
+			cx, -- 501
+			cy - 1, -- 501
+			toColor(PALETTE.textBright), -- 501
+			0.5, -- 501
+			0.5, -- 501
+			"Center", -- 501
+			1, -- 501
+			0.98, -- 501
+			0.08 -- 501
+		) -- 501
+	end -- 501
+end -- 447
+function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEnabled) -- 506
+	local key = p.room.key -- 507
+	local theme = themeOf(key) -- 508
+	if key == "gate" and p.phase == "gate-count" then -- 510
+		if p.countTick >= GATE_COUNT_END then -- 511
+			return {cue = "", text = "……二十了。我往北去了。", urgent = false} -- 512
+		end -- 512
+		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 518
+	end -- 518
+	if not assistHintsEnabled then -- 521
+		if self.activeLine ~= nil then -- 523
+			local spoken = self.activeLine.who ~= "" and ((self.activeLine.who .. "：「") .. self.activeLine.text) .. "」" or self.activeLine.text -- 524
+			local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 527
+			return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 529
+		end -- 529
+		if key == "prologue" and p.phase == "prologue-give" then -- 531
+			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 532
+		end -- 532
+		if key == "checkpoint" and p.escort.state == "calming" then -- 534
+			return {cue = "", text = "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent = false} -- 535
+		end -- 535
+		if key == "tower" then -- 537
+			if p.phase == "tower-knock" then -- 538
+				return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 539
+			end -- 539
+			if p.phase == "tower-given" then -- 541
+				return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 542
+			end -- 542
+		end -- 542
+		if p.flash ~= "" and p.flashT > 0 then -- 545
+			local fl = p.flash -- 547
+			local hasKeyHint = (string.find(fl, "按 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "点 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按住 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 F", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按住 F", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 Shift", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 Ctrl", nil, true) or 0) - 1 >= 0 or (string.find(fl, "A/D", nil, true) or 0) - 1 >= 0 or (string.find(fl, "限时", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 再玩", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 拉开", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 敲", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 递", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 送", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 交", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 拿", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 开", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 1", nil, true) or 0) - 1 >= 0 -- 548
+			if not hasKeyHint then -- 566
+				local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 567
+				local text = p.flash -- 568
+				local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 569
+				if key == "tower" or key == "prologue" then -- 570
+					cue = "" -- 571
+				end -- 571
+				if text == "命中" then -- 573
+					text = "倭寇击倒" -- 574
+				elseif text == "打空" then -- 575
+					text = "铅丸偏离或被掩体阻挡" -- 576
+				elseif text == "翻滚" then -- 577
+					text = "伏身翻滚回避" -- 578
+				end -- 578
+				return {cue = cue, text = text, urgent = isDanger} -- 580
+			end -- 580
 		end -- 580
-		return {cue = cue, text = text, urgent = isDanger} -- 582
-	end -- 582
-	if key == "prologue" then -- 585
-		if p.phase == "prologue-wait" then -- 586
-			return {cue = "", text = "按住 [W] 向里走，绕过石柱和倒柜，再用 [S] 靠近小满", urgent = false} -- 587
-		end -- 587
-		if p.phase == "prologue-give" then -- 589
-			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 590
+		return {cue = "", text = "", urgent = false} -- 583
+	end -- 583
+	if key == "gate" and p.phase == "gate-hold" then -- 586
+		local threatened = false -- 587
+		local hasAliveEnemy = false -- 588
+		local i = 0 -- 589
+		do -- 589
+			i = 0 -- 590
+			while i < #p.enemies do -- 590
+				if p.enemies[i + 1].alive then -- 591
+					hasAliveEnemy = true -- 592
+					if p.enemies[i + 1].warnT > 0 then -- 593
+						threatened = true -- 594
+					end -- 594
+				end -- 594
+				i = i + 1 -- 590
+			end -- 590
 		end -- 590
-		return {cue = "", text = "带小满往右，从两根门柱之间穿过", urgent = false} -- 592
-	end -- 592
-	if key == "street" then -- 595
-		local alive = 0 -- 596
-		local i = 0 -- 597
-		do -- 597
-			i = 0 -- 598
-			while i < #p.enemies do -- 598
-				if p.enemies[i + 1].alive then -- 599
-					alive = alive + 1 -- 599
-				end -- 599
-				i = i + 1 -- 598
-			end -- 598
-		end -- 598
-		if alive > 0 then -- 601
-			return {cue = "战", text = "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent = false} -- 602
-		end -- 602
-		return {cue = "", text = "带小满穿过右侧门洞，进入检查站", urgent = false} -- 604
-	end -- 604
-	if key == "checkpoint" then -- 607
-		if p.escort.state == "frozen" then -- 608
-			return {cue = "危", text = "铳声吓住了小满，她蹲在原地不走了 —— 走近按 [E] 敲两下安抚她", urgent = true} -- 609
-		end -- 609
-		if p.escort.state == "calming" then -- 611
-			return {cue = "", text = "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent = false} -- 612
+		if threatened then -- 598
+			return {cue = "警", text = "倭寇举铳瞄准 —— 贴住街垒按住 [SHIFT] 挡下，或左键先手击倒", urgent = true} -- 599
+		end -- 599
+		if p.coverHug then -- 601
+			if hasAliveEnemy and not p.coverBlocking then -- 602
+				return {cue = "警", text = "此侧背向来敌，无法挡弹 —— 贴靠街垒左侧按住 [SHIFT]", urgent = true} -- 603
+			end -- 603
+			return {cue = "掩", text = "已贴靠掩体。左键发射火铳压制来敌，守满四十五秒", urgent = false} -- 605
+		end -- 605
+		return {cue = "守", text = "靠近街垒按住 [SHIFT] 贴掩体，左键发铳守住城门", urgent = false} -- 607
+	end -- 607
+	if key == "gate" and p.phase == "gate-count" then -- 610
+		if p.countTick >= GATE_COUNT_END then -- 611
+			return {cue = "", text = "……二十了。我往北去了。", urgent = false} -- 612
 		end -- 612
-		if not p.cartDocked then -- 614
-			return {cue = "机", text = "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent = false} -- 615
-		end -- 615
-		return {cue = "归", text = "车轮落窝了。带小满从右侧门洞出去", urgent = false} -- 617
-	end -- 617
-	if key == "gate" then -- 620
-		if p.phase == "gate-idle" then -- 621
-			return {cue = p.gateNeedConfirm and "警" or "", text = p.gateNeedConfirm and "倒地后已退回绞盘。按 [E] 确认重新就位，再守四十五秒" or "小满正走向门洞等待点。走到左侧绞盘就位，守住最后四十五秒", urgent = p.gateNeedConfirm} -- 622
-		end -- 622
-		if p.phase == "gate-send" then -- 628
-			return {cue = "", text = "四十五秒守满了。走到右侧城门边，按 [E] 把小满送出城去", urgent = false} -- 629
-		end -- 629
-		return {cue = "", text = "她迈出了第一步。沿着门外小道向前，离开这座沦陷的城", urgent = false} -- 631
-	end -- 631
-	if key == "outside" then -- 634
-		if not p.cartDocked then -- 635
-			return {cue = "", text = "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent = false} -- 636
-		end -- 636
-		if p.checkpoint < p.room.arch.x1 then -- 638
-			return {cue = "潜", text = "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent = false} -- 639
-		end -- 639
-		return {cue = "", text = "穿过矮拱，沿墙根小路向北塔灯火前行", urgent = false} -- 641
-	end -- 641
-	if key == "village" then -- 644
-		if p.scavChase then -- 645
-			return {cue = "危", text = "拾荒者追上来了！按住 [CTRL] 钻进桌底甩开视线", urgent = true} -- 646
-		end -- 646
-		if p.passed then -- 648
-			return {cue = "", text = "越过了第一院。继续向右，走进通往北塔的森林", urgent = false} -- 649
+		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 618
+	end -- 618
+	if self.activeLine ~= nil then -- 621
+		local spoken = self.activeLine.who ~= "" and ((self.activeLine.who .. "：「") .. self.activeLine.text) .. "」" or self.activeLine.text -- 622
+		local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 625
+		return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 627
+	end -- 627
+	if p.flash ~= "" and p.flashT > 0 then -- 630
+		local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 631
+		local text = p.flash -- 632
+		local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 633
+		if key == "tower" or key == "prologue" then -- 634
+			cue = "" -- 635
+		end -- 635
+		if text == "命中" then -- 637
+			text = "倭寇击倒 —— 继续推进并留意掩体" -- 638
+		elseif text == "打空" then -- 639
+			text = "铅丸偏离或被掩体阻挡" -- 640
+		elseif text == "翻滚" then -- 641
+			text = "伏身翻滚回避" -- 642
+		end -- 642
+		return {cue = cue, text = text, urgent = isDanger} -- 644
+	end -- 644
+	if key == "prologue" then -- 647
+		if p.phase == "prologue-wait" then -- 648
+			return {cue = "", text = "按住 [W] 向里走，绕过石柱和倒柜，再用 [S] 靠近小满", urgent = false} -- 649
 		end -- 649
-		if p.hasBottle then -- 651
-			return {cue = "诱", text = "按住 [F] 瞄准右侧砖地，松开投瓶 —— 引开拾荒者后按 [CTRL] 钻过桌下", urgent = false} -- 652
+		if p.phase == "prologue-give" then -- 651
+			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 652
 		end -- 652
-		if p.bottleFly ~= nil then -- 654
-			return {cue = "潜", text = "瓶子正落向砖地，屏息等拾荒者被声响引开", urgent = false} -- 655
-		end -- 655
-		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 657
-			return {cue = "潜", text = "拾荒者循声走开了 —— 趁隙按住 [CTRL] 钻过桌下", urgent = false} -- 658
-		end -- 658
-		return {cue = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 660
-	end -- 660
-	if key == "forest" then -- 663
-		if p.dogState == "chase" then -- 664
-			return {cue = "危", text = "猎犬追上来了 —— 速按 [CTRL] 蹲进草丛匿迹！", urgent = true} -- 665
-		end -- 665
-		if p.dogState == "ear" then -- 667
-			return {cue = "警", text = "猎犬竖起了耳朵 —— 立刻按住 [CTRL] 蹲下别出声！", urgent = true} -- 668
-		end -- 668
-		return {cue = "", text = "林间有猎犬巡逻。按住 [SHIFT] 轻步慢走或 [CTRL] 伏低，绕开猎犬抵达北塔", urgent = false} -- 670
-	end -- 670
-	if key == "tower" then -- 673
-		if p.phase == "tower-wait" then -- 674
-			return {cue = "", text = "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent = false} -- 675
-		end -- 675
-		if p.phase == "tower-knock" then -- 677
-			return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 678
-		end -- 678
-		if p.phase == "tower-given" then -- 680
-			return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 681
-		end -- 681
-		return {cue = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 683
-	end -- 683
-	return {cue = "", text = theme.introWhisper, urgent = false} -- 686
-end -- 444
-function NarrativeRenderer.prototype.drawGateCountOverlay(self, uiDraw, uiInkDraw, art, texts, p, w, h) -- 689
-	local frac = math.min(1, p.countTick / GATE_COUNT_END) -- 698
-	local countNum = gateCountAtTick(p.countTick) -- 699
-	uiDraw:drawRect( -- 700
-		Rect(0, 0, w, h), -- 700
-		Color( -- 700
-			7, -- 700
-			9, -- 700
-			15, -- 700
-			math.floor(78 + frac * 116 + 0.5) -- 700
-		) -- 700
-	) -- 700
-	local cy = h * 0.56 -- 702
-	art:tryPlace( -- 703
-		"ink_petal_mist", -- 703
-		"gate_count_mist", -- 703
-		w * 0.5, -- 703
-		cy, -- 703
-		290, -- 703
-		220, -- 703
-		{ -- 703
-			color = toColor(PALETTE.inkMist), -- 704
-			opacity = 0.34 + frac * 0.2, -- 704
-			layer = 0 -- 704
-		} -- 704
-	) -- 704
-	drawMistCurve( -- 706
-		art, -- 706
-		"gate_count_wisp", -- 706
-		w * 0.5, -- 706
-		cy - 8, -- 706
-		420, -- 706
-		76, -- 706
-		PALETTE.jadeMist, -- 706
-		0.22, -- 706
-		0 -- 706
-	) -- 706
-	local numZh = toChineseUpper(countNum) -- 708
-	texts:put( -- 709
-		"title", -- 709
-		numZh, -- 709
-		w * 0.5, -- 709
-		cy + 8, -- 709
-		toColor(PALETTE.textBright), -- 709
-		0.5, -- 709
-		0.5, -- 709
-		"Center", -- 709
-		12, -- 709
-		0.42 + frac * 0.56, -- 709
-		0.1 -- 709
-	) -- 709
-	drawHairline( -- 710
-		uiInkDraw, -- 710
-		art, -- 710
-		"gate_count_div", -- 710
-		w * 0.5, -- 710
-		cy - 34, -- 710
-		240, -- 710
-		PALETTE.silkDim, -- 710
-		0.62, -- 710
-		true, -- 710
-		2 -- 710
-	) -- 710
-	texts:put( -- 711
-		"sm", -- 711
-		"城外静候 · 默数至二十", -- 711
-		w * 0.5, -- 711
-		cy - 58, -- 711
-		toColor(PALETTE.textMid), -- 711
-		0.5, -- 711
-		0.5, -- 711
-		"Center", -- 711
-		3.4, -- 711
-		0.84, -- 711
-		0.08 -- 711
-	) -- 711
-end -- 689
-function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout) -- 721
-	local cardW = 588 -- 734
-	local cardH = 382 -- 735
-	local cx = (w - cardW) * 0.5 -- 736
-	local cy = (h - cardH) * 0.5 + 10 -- 737
-	local midX = w * 0.5 -- 738
-	local midY = cy + cardH * 0.5 -- 739
-	uiDraw:drawRect( -- 742
-		Rect(0, 0, w, h), -- 742
-		Color(7, 9, 15, 174) -- 742
-	) -- 742
-	art:tryPlace( -- 743
-		"ink_frame_mask", -- 743
-		"reg_shadow", -- 743
-		midX, -- 743
-		midY - 6, -- 743
-		cardW + 58, -- 743
-		cardH + 50, -- 743
-		{ -- 743
-			color = toColor(PALETTE.voidDark), -- 744
-			opacity = 0.82, -- 744
-			layer = -1 -- 744
-		} -- 744
-	) -- 744
-	if not art:tryPlace( -- 748
-		"ink_song_paper", -- 748
-		"registry_song_paper", -- 748
-		midX, -- 748
-		midY, -- 748
-		cardW, -- 748
-		cardH, -- 748
-		{opacity = 0.98, layer = 1} -- 748
-	) then -- 748
-		uiDraw:drawRect( -- 749
-			Rect(cx, cy, cardW, cardH), -- 749
-			toColor(PALETTE.xuanPaper, 246), -- 749
-			1, -- 749
-			toColor(PALETTE.silkDim, 180) -- 749
-		) -- 749
-	end -- 749
-	fillRadialGlow( -- 751
-		uiGlow, -- 751
-		midX, -- 751
-		midY + 46, -- 751
-		240, -- 751
-		130, -- 751
-		Color(235, 224, 202, 14), -- 751
-		Color(235, 224, 202, 0), -- 751
-		14 -- 751
-	) -- 751
-	local padX = 46 -- 754
-	local padY = 36 -- 755
-	local inX = cx + padX -- 756
-	local inY = cy + padY -- 757
-	local inW = cardW - padX * 2 -- 758
-	local inH = cardH - padY * 2 -- 759
-	local redSilk = toColor(PALETTE.rouge, 118) -- 760
-	local redSilkFaint = toColor(PALETTE.rouge, 64) -- 761
-	uiInkDraw:drawRect( -- 763
-		Rect(inX, inY, inW, inH), -- 763
-		Color(0, 0, 0, 0), -- 763
-		0.9, -- 763
-		redSilk -- 763
-	) -- 763
-	uiInkDraw:drawRect( -- 764
-		Rect(inX + 4, inY + 4, inW - 8, inH - 8), -- 764
-		Color(0, 0, 0, 0), -- 764
-		0.55, -- 764
-		redSilkFaint -- 764
-	) -- 764
-	local headY = inY + inH - 28 -- 767
-	texts:put( -- 768
-		"md", -- 768
-		"北塔入塔登记簿 · 末页", -- 768
-		inX + 20, -- 768
-		headY, -- 768
-		toColor(PALETTE.xuanInk), -- 768
-		0, -- 768
-		0.5, -- 768
-		"Left", -- 768
-		2.4, -- 768
-		0.94, -- 768
+		return {cue = "", text = "带小满往右，从两根门柱之间穿过", urgent = false} -- 654
+	end -- 654
+	if key == "street" then -- 657
+		local alive = 0 -- 658
+		local i = 0 -- 659
+		do -- 659
+			i = 0 -- 660
+			while i < #p.enemies do -- 660
+				if p.enemies[i + 1].alive then -- 661
+					alive = alive + 1 -- 661
+				end -- 661
+				i = i + 1 -- 660
+			end -- 660
+		end -- 660
+		if alive > 0 then -- 663
+			return {cue = "战", text = "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent = false} -- 664
+		end -- 664
+		return {cue = "", text = "带小满穿过右侧门洞，进入检查站", urgent = false} -- 666
+	end -- 666
+	if key == "checkpoint" then -- 669
+		if p.escort.state == "frozen" then -- 670
+			return {cue = "危", text = "铳声吓住了小满，她蹲在原地不走了 —— 走近按 [E] 敲两下安抚她", urgent = true} -- 671
+		end -- 671
+		if p.escort.state == "calming" then -- 673
+			return {cue = "", text = "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent = false} -- 674
+		end -- 674
+		if not p.cartDocked then -- 676
+			return {cue = "机", text = "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent = false} -- 677
+		end -- 677
+		return {cue = "归", text = "车轮落窝了。带小满从右侧门洞出去", urgent = false} -- 679
+	end -- 679
+	if key == "gate" then -- 682
+		if p.phase == "gate-idle" then -- 683
+			return {cue = p.gateNeedConfirm and "警" or "", text = p.gateNeedConfirm and "倒地后已退回绞盘。按 [E] 确认重新就位，再守四十五秒" or "小满正走向门洞等待点。走到左侧绞盘就位，守住最后四十五秒", urgent = p.gateNeedConfirm} -- 684
+		end -- 684
+		if p.phase == "gate-send" then -- 690
+			return {cue = "", text = "四十五秒守满了。走到右侧城门边，按 [E] 把小满送出城去", urgent = false} -- 691
+		end -- 691
+		return {cue = "", text = "她迈出了第一步。沿着门外小道向前，离开这座沦陷的城", urgent = false} -- 693
+	end -- 693
+	if key == "outside" then -- 696
+		if not p.cartDocked then -- 697
+			return {cue = "", text = "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent = false} -- 698
+		end -- 698
+		if p.checkpoint < p.room.arch.x1 then -- 700
+			return {cue = "潜", text = "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent = false} -- 701
+		end -- 701
+		return {cue = "", text = "穿过矮拱，沿墙根小路向北塔灯火前行", urgent = false} -- 703
+	end -- 703
+	if key == "village" then -- 706
+		if p.scavChase then -- 707
+			return {cue = "危", text = "拾荒者追上来了！按住 [CTRL] 钻进桌底甩开视线", urgent = true} -- 708
+		end -- 708
+		if p.passed then -- 710
+			return {cue = "", text = "越过了第一院。继续向右，走进通往北塔的森林", urgent = false} -- 711
+		end -- 711
+		if p.hasBottle then -- 713
+			return {cue = "诱", text = "按住 [F] 瞄准右侧砖地，松开投瓶 —— 引开拾荒者后按 [CTRL] 钻过桌下", urgent = false} -- 714
+		end -- 714
+		if p.bottleFly ~= nil then -- 716
+			return {cue = "潜", text = "瓶子正落向砖地，屏息等拾荒者被声响引开", urgent = false} -- 717
+		end -- 717
+		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 719
+			return {cue = "潜", text = "拾荒者循声走开了 —— 趁隙按住 [CTRL] 钻过桌下", urgent = false} -- 720
+		end -- 720
+		return {cue = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 722
+	end -- 722
+	if key == "forest" then -- 725
+		if p.dogState == "chase" then -- 726
+			return {cue = "危", text = "猎犬追上来了 —— 速按 [CTRL] 蹲进草丛匿迹！", urgent = true} -- 727
+		end -- 727
+		if p.dogState == "ear" then -- 729
+			return {cue = "警", text = "猎犬竖起了耳朵 —— 立刻按住 [CTRL] 蹲下别出声！", urgent = true} -- 730
+		end -- 730
+		return {cue = "", text = "林间有猎犬巡逻。按住 [SHIFT] 轻步慢走或 [CTRL] 伏低，绕开猎犬抵达北塔", urgent = false} -- 732
+	end -- 732
+	if key == "tower" then -- 735
+		if p.phase == "tower-wait" then -- 736
+			return {cue = "", text = "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent = false} -- 737
+		end -- 737
+		if p.phase == "tower-knock" then -- 739
+			return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 740
+		end -- 740
+		if p.phase == "tower-given" then -- 742
+			return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 743
+		end -- 743
+		return {cue = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 745
+	end -- 745
+	return {cue = "", text = theme.introWhisper, urgent = false} -- 748
+end -- 506
+function NarrativeRenderer.prototype.drawGateCountOverlay(self, uiDraw, uiInkDraw, art, texts, p, w, h) -- 751
+	local frac = math.min(1, p.countTick / GATE_COUNT_END) -- 760
+	local countNum = gateCountAtTick(p.countTick) -- 761
+	uiDraw:drawRect( -- 762
+		Rect(0, 0, w, h), -- 762
+		Color( -- 762
+			7, -- 762
+			9, -- 762
+			15, -- 762
+			math.floor(78 + frac * 116 + 0.5) -- 762
+		) -- 762
+	) -- 762
+	local cy = h * 0.56 -- 764
+	art:tryPlace( -- 765
+		"ink_petal_mist", -- 765
+		"gate_count_mist", -- 765
+		w * 0.5, -- 765
+		cy, -- 765
+		290, -- 765
+		220, -- 765
+		{ -- 765
+			color = toColor(PALETTE.inkMist), -- 766
+			opacity = 0.34 + frac * 0.2, -- 766
+			layer = 0 -- 766
+		} -- 766
+	) -- 766
+	drawMistCurve( -- 768
+		art, -- 768
+		"gate_count_wisp", -- 768
+		w * 0.5, -- 768
+		cy - 8, -- 768
+		420, -- 768
+		76, -- 768
+		PALETTE.jadeMist, -- 768
+		0.22, -- 768
 		0 -- 768
 	) -- 768
-	texts:put( -- 769
-		"xs", -- 769
-		"守望行记", -- 769
-		inX + inW - 20, -- 769
-		headY, -- 769
-		toColor(PALETTE.xuanInkSub), -- 769
-		1, -- 769
-		0.5, -- 769
-		"Right", -- 769
-		2, -- 769
-		0.78, -- 769
-		0 -- 769
-	) -- 769
-	uiInkDraw:drawSegment( -- 770
-		Vec2(inX + 14, headY - 22), -- 770
-		Vec2(inX + inW - 14, headY - 22), -- 770
-		0.85, -- 770
-		redSilk -- 770
-	) -- 770
-	local reunion = #p.endingLines >= 2 and p.endingLines[2] ~= "" or p.storyRoute == "soldier" -- 773
-	local row1Y = headY - 56 -- 774
-	texts:put( -- 775
-		"sm", -- 775
-		"肆拾壹   小满 · 持黄铜指南针与纸条 · 已入塔", -- 775
-		inX + 20, -- 775
-		row1Y, -- 775
-		toColor(PALETTE.xuanInk), -- 775
-		0, -- 775
-		0.5, -- 775
-		"Left", -- 775
-		0.8, -- 775
-		0.94, -- 775
-		0 -- 775
-	) -- 775
-	texts:put( -- 776
-		"xs", -- 777
-		reunion and "附注：兄妹并肩抵塔；怀铜针、手书一纸。" or (("附注：" .. NEEDLE_NOTE_LINES[1]) .. " —— ") .. NEEDLE_NOTE_LINES[2], -- 778
-		inX + 20, -- 779
-		row1Y - 28, -- 780
-		toColor(PALETTE.xuanInkSub), -- 781
-		0, -- 782
-		0.5, -- 783
-		"Left", -- 784
-		0.6, -- 785
-		0.88, -- 786
-		0 -- 787
-	) -- 787
-	uiInkDraw:drawSegment( -- 789
-		Vec2(inX + 16, row1Y - 48), -- 789
-		Vec2(inX + inW - 16, row1Y - 48), -- 789
-		0.65, -- 789
-		redSilkFaint -- 789
-	) -- 789
-	local blankY = row1Y - 80 -- 792
-	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.2) -- 793
-	if reunion then -- 794
-		texts:put( -- 795
-			"sm", -- 795
-			"肆拾贰   周戍 · 兄妹同行 · 已入塔", -- 795
-			inX + 20, -- 795
-			blankY, -- 795
-			toColor(PALETTE.xuanInk), -- 795
-			0, -- 795
-			0.5, -- 795
-			"Left", -- 795
-			0.8, -- 795
-			0.94, -- 795
-			0 -- 795
-		) -- 795
-		texts:put( -- 796
-			"xs", -- 796
-			"附注：门内断后脱身，同抵北塔值夜室。", -- 796
-			inX + 20, -- 796
-			blankY - 26, -- 796
-			toColor(PALETTE.xuanInkSub), -- 796
-			0, -- 796
-			0.5, -- 796
-			"Left", -- 796
-			0.6, -- 796
-			0.86, -- 796
-			0 -- 796
-		) -- 796
-	else -- 796
-		texts:put( -- 798
-			"sm", -- 798
-			"肆拾贰", -- 798
-			inX + 20, -- 798
-			blankY, -- 798
-			toColor(PALETTE.rouge), -- 798
-			0, -- 798
-			0.5, -- 798
-			"Left", -- 798
-			1, -- 798
-			0.92, -- 798
-			0 -- 798
-		) -- 798
-		uiInkDraw:drawSegment( -- 799
-			Vec2(inX + 94, blankY - 7), -- 799
-			Vec2(inX + inW - 116, blankY - 7), -- 799
-			0.95, -- 799
-			toColor(PALETTE.xuanInkSub, 155 * pulse) -- 799
-		) -- 799
-		texts:put( -- 800
-			"xs", -- 800
-			"（空行留待）", -- 800
-			inX + inW - 104, -- 800
-			blankY, -- 800
-			toColor(PALETTE.xuanInkSub), -- 800
-			0, -- 800
-			0.5, -- 800
-			"Left", -- 800
-			1, -- 800
-			0.82 * pulse, -- 800
-			0 -- 800
-		) -- 800
-	end -- 800
-	if p.phase == "tower-end" then -- 804
-		local signY = inY + 46 -- 805
-		texts:put( -- 806
-			"banner", -- 806
-			"向西守望", -- 806
-			midX - 18, -- 806
-			signY, -- 806
-			toColor(PALETTE.xuanInk), -- 806
-			0.5, -- 806
-			0.5, -- 806
-			"Center", -- 806
-			6.5, -- 806
-			0.92, -- 806
-			0 -- 806
-		) -- 806
-		drawLoneSeal( -- 807
-			uiInkDraw, -- 807
-			art, -- 807
-			texts, -- 807
-			"reg_lone_seal", -- 807
-			midX + 86, -- 807
-			signY, -- 807
-			22, -- 807
-			42, -- 807
-			"守", -- 807
-			"望", -- 807
-			PALETTE.sealRed, -- 807
-			PALETTE.sealText, -- 807
-			0.92, -- 807
-			4 -- 807
-		) -- 807
-		drawSilkVeil( -- 809
-			uiDraw, -- 809
-			art, -- 809
-			"reg_hint_veil", -- 809
-			midX, -- 809
-			cy - 28, -- 809
-			360, -- 809
-			32, -- 809
-			PALETTE.inkWash, -- 809
-			0.72, -- 809
-			0 -- 809
-		) -- 809
-		local rawEndHint = assistHintsEnabled and "按 E 再次启程     ·     Esc 暂歇" or "Esc 暂歇" -- 810
-		local endHint = adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 811
-		texts:put( -- 812
-			"xs", -- 812
-			endHint, -- 812
-			midX, -- 812
-			cy - 28, -- 812
-			toColor(PALETTE.textMid), -- 812
-			0.5, -- 812
-			0.5, -- 812
-			"Center", -- 812
-			1.6, -- 812
-			0.92, -- 812
-			0.08 -- 812
-		) -- 812
-	end -- 812
-end -- 721
-function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 816
-	local theme = themeOf(roomKey) -- 825
-	local t = self.bannerT / self.bannerMax -- 826
-	local alpha = 1 -- 827
-	if t > 0.82 then -- 828
-		alpha = (1 - t) / 0.18 -- 829
-	elseif t < 0.28 then -- 830
-		alpha = t / 0.28 -- 831
-	end -- 831
-	local cx = w * 0.5 -- 833
-	local cy = h * 0.77 -- 834
-	local spread = math.min(1, alpha * 1.15) -- 835
-	drawSilkVeil( -- 838
-		uiDraw, -- 838
-		art, -- 838
-		"banner_veil", -- 838
-		cx, -- 838
-		cy - 2, -- 838
-		480 * spread + 100, -- 838
-		92, -- 838
-		PALETTE.inkWash, -- 838
-		0.76 * alpha, -- 838
-		-1 -- 838
-	) -- 838
-	drawMistCurve( -- 839
-		art, -- 839
-		"banner_mist", -- 839
-		cx, -- 839
-		cy + 4, -- 839
-		460 * spread, -- 839
-		72, -- 839
-		theme.accent, -- 839
-		0.28 * alpha, -- 839
-		0 -- 839
-	) -- 839
-	drawHairline( -- 840
-		uiInkDraw, -- 840
-		art, -- 840
-		"banner_line", -- 840
-		cx, -- 840
-		cy - 16, -- 840
-		320 * spread, -- 840
-		PALETTE.silkLine, -- 840
-		0.64 * alpha, -- 840
-		false, -- 840
-		2 -- 840
-	) -- 840
-	local sep = " · " -- 843
-	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 844
-	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 845
-	if theme.backdropKey ~= nil then -- 846
-		texts:put( -- 847
-			"lg", -- 847
-			theme.titleZh, -- 847
-			cx, -- 847
-			cy + 14, -- 847
-			toColor(PALETTE.textBright), -- 847
-			0.5, -- 848
-			0.5, -- 848
-			"Center", -- 848
-			1, -- 848
-			alpha, -- 848
-			0.1 -- 848
-		) -- 848
-	elseif idx > 0 then -- 849
-		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 850
-		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 851
-		local lw = visualTextWidth(leftPart, 42) -- 852
-		local rw = visualTextWidth(rightPart, 42) -- 853
-		local dotGap = 28 -- 854
-		local totalW = lw + rw + dotGap -- 855
-		local leftEdge = cx - totalW * 0.5 -- 856
-		local dotX = leftEdge + lw + dotGap * 0.5 -- 857
-		texts:put( -- 859
-			"banner", -- 859
-			leftPart, -- 859
-			leftEdge, -- 859
-			cy + 14, -- 859
-			toColor(PALETTE.textBright), -- 859
-			0, -- 859
-			0.5, -- 859
-			"Left", -- 859
-			2, -- 859
-			alpha, -- 859
-			0.1 -- 859
-		) -- 859
-		drawBlossomDot( -- 860
-			uiInkDraw, -- 860
-			art, -- 860
-			"banner_mid_dot", -- 860
-			dotX, -- 860
-			cy + 12, -- 860
-			11, -- 860
-			dotCol, -- 860
-			0.92 * alpha, -- 860
-			4 -- 860
+	local numZh = toChineseUpper(countNum) -- 770
+	texts:put( -- 771
+		"title", -- 771
+		numZh, -- 771
+		w * 0.5, -- 771
+		cy + 8, -- 771
+		toColor(PALETTE.textBright), -- 771
+		0.5, -- 771
+		0.5, -- 771
+		"Center", -- 771
+		12, -- 771
+		0.42 + frac * 0.56, -- 771
+		0.1 -- 771
+	) -- 771
+	drawHairline( -- 772
+		uiInkDraw, -- 772
+		art, -- 772
+		"gate_count_div", -- 772
+		w * 0.5, -- 772
+		cy - 34, -- 772
+		240, -- 772
+		PALETTE.silkDim, -- 772
+		0.62, -- 772
+		true, -- 772
+		2 -- 772
+	) -- 772
+	texts:put( -- 773
+		"sm", -- 773
+		"城外静候 · 默数至二十", -- 773
+		w * 0.5, -- 773
+		cy - 58, -- 773
+		toColor(PALETTE.textMid), -- 773
+		0.5, -- 773
+		0.5, -- 773
+		"Center", -- 773
+		3.4, -- 773
+		0.84, -- 773
+		0.08 -- 773
+	) -- 773
+end -- 751
+function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout) -- 783
+	local cardW = 588 -- 796
+	local cardH = 382 -- 797
+	local cx = (w - cardW) * 0.5 -- 798
+	local cy = (h - cardH) * 0.5 + 10 -- 799
+	local midX = w * 0.5 -- 800
+	local midY = cy + cardH * 0.5 -- 801
+	uiDraw:drawRect( -- 804
+		Rect(0, 0, w, h), -- 804
+		Color(7, 9, 15, 174) -- 804
+	) -- 804
+	art:tryPlace( -- 805
+		"ink_frame_mask", -- 805
+		"reg_shadow", -- 805
+		midX, -- 805
+		midY - 6, -- 805
+		cardW + 58, -- 805
+		cardH + 50, -- 805
+		{ -- 805
+			color = toColor(PALETTE.voidDark), -- 806
+			opacity = 0.82, -- 806
+			layer = -1 -- 806
+		} -- 806
+	) -- 806
+	if not art:tryPlace( -- 810
+		"ink_song_paper", -- 810
+		"registry_song_paper", -- 810
+		midX, -- 810
+		midY, -- 810
+		cardW, -- 810
+		cardH, -- 810
+		{opacity = 0.98, layer = 1} -- 810
+	) then -- 810
+		uiDraw:drawRect( -- 811
+			Rect(cx, cy, cardW, cardH), -- 811
+			toColor(PALETTE.xuanPaper, 246), -- 811
+			1, -- 811
+			toColor(PALETTE.silkDim, 180) -- 811
+		) -- 811
+	end -- 811
+	fillRadialGlow( -- 813
+		uiGlow, -- 813
+		midX, -- 813
+		midY + 46, -- 813
+		240, -- 813
+		130, -- 813
+		Color(235, 224, 202, 14), -- 813
+		Color(235, 224, 202, 0), -- 813
+		14 -- 813
+	) -- 813
+	local padX = 46 -- 816
+	local padY = 36 -- 817
+	local inX = cx + padX -- 818
+	local inY = cy + padY -- 819
+	local inW = cardW - padX * 2 -- 820
+	local inH = cardH - padY * 2 -- 821
+	local redSilk = toColor(PALETTE.rouge, 118) -- 822
+	local redSilkFaint = toColor(PALETTE.rouge, 64) -- 823
+	uiInkDraw:drawRect( -- 825
+		Rect(inX, inY, inW, inH), -- 825
+		Color(0, 0, 0, 0), -- 825
+		0.9, -- 825
+		redSilk -- 825
+	) -- 825
+	uiInkDraw:drawRect( -- 826
+		Rect(inX + 4, inY + 4, inW - 8, inH - 8), -- 826
+		Color(0, 0, 0, 0), -- 826
+		0.55, -- 826
+		redSilkFaint -- 826
+	) -- 826
+	local headY = inY + inH - 28 -- 829
+	texts:put( -- 830
+		"md", -- 830
+		"北塔入塔登记簿 · 末页", -- 830
+		inX + 20, -- 830
+		headY, -- 830
+		toColor(PALETTE.xuanInk), -- 830
+		0, -- 830
+		0.5, -- 830
+		"Left", -- 830
+		2.4, -- 830
+		0.94, -- 830
+		0 -- 830
+	) -- 830
+	texts:put( -- 831
+		"xs", -- 831
+		"守望行记", -- 831
+		inX + inW - 20, -- 831
+		headY, -- 831
+		toColor(PALETTE.xuanInkSub), -- 831
+		1, -- 831
+		0.5, -- 831
+		"Right", -- 831
+		2, -- 831
+		0.78, -- 831
+		0 -- 831
+	) -- 831
+	uiInkDraw:drawSegment( -- 832
+		Vec2(inX + 14, headY - 22), -- 832
+		Vec2(inX + inW - 14, headY - 22), -- 832
+		0.85, -- 832
+		redSilk -- 832
+	) -- 832
+	local reunion = #p.endingLines >= 2 and p.endingLines[2] ~= "" or p.storyRoute == "soldier" -- 835
+	local row1Y = headY - 56 -- 836
+	texts:put( -- 837
+		"sm", -- 837
+		"肆拾壹   小满 · 持黄铜指南针与纸条 · 已入塔", -- 837
+		inX + 20, -- 837
+		row1Y, -- 837
+		toColor(PALETTE.xuanInk), -- 837
+		0, -- 837
+		0.5, -- 837
+		"Left", -- 837
+		0.8, -- 837
+		0.94, -- 837
+		0 -- 837
+	) -- 837
+	texts:put( -- 838
+		"xs", -- 839
+		reunion and "附注：兄妹并肩抵塔；怀铜针、手书一纸。" or (("附注：" .. NEEDLE_NOTE_LINES[1]) .. " —— ") .. NEEDLE_NOTE_LINES[2], -- 840
+		inX + 20, -- 841
+		row1Y - 28, -- 842
+		toColor(PALETTE.xuanInkSub), -- 843
+		0, -- 844
+		0.5, -- 845
+		"Left", -- 846
+		0.6, -- 847
+		0.88, -- 848
+		0 -- 849
+	) -- 849
+	uiInkDraw:drawSegment( -- 851
+		Vec2(inX + 16, row1Y - 48), -- 851
+		Vec2(inX + inW - 16, row1Y - 48), -- 851
+		0.65, -- 851
+		redSilkFaint -- 851
+	) -- 851
+	local blankY = row1Y - 80 -- 854
+	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.2) -- 855
+	if reunion then -- 856
+		texts:put( -- 857
+			"sm", -- 857
+			"肆拾贰   周戍 · 兄妹同行 · 已入塔", -- 857
+			inX + 20, -- 857
+			blankY, -- 857
+			toColor(PALETTE.xuanInk), -- 857
+			0, -- 857
+			0.5, -- 857
+			"Left", -- 857
+			0.8, -- 857
+			0.94, -- 857
+			0 -- 857
+		) -- 857
+		texts:put( -- 858
+			"xs", -- 858
+			"附注：门内断后脱身，同抵北塔值夜室。", -- 858
+			inX + 20, -- 858
+			blankY - 26, -- 858
+			toColor(PALETTE.xuanInkSub), -- 858
+			0, -- 858
+			0.5, -- 858
+			"Left", -- 858
+			0.6, -- 858
+			0.86, -- 858
+			0 -- 858
+		) -- 858
+	else -- 858
+		texts:put( -- 860
+			"sm", -- 860
+			"肆拾贰", -- 860
+			inX + 20, -- 860
+			blankY, -- 860
+			toColor(PALETTE.rouge), -- 860
+			0, -- 860
+			0.5, -- 860
+			"Left", -- 860
+			1, -- 860
+			0.92, -- 860
+			0 -- 860
 		) -- 860
-		texts:put( -- 861
-			"banner", -- 861
-			rightPart, -- 861
-			dotX + dotGap * 0.5, -- 861
-			cy + 14, -- 861
-			toColor(PALETTE.textBright), -- 861
-			0, -- 861
-			0.5, -- 861
-			"Left", -- 861
-			2, -- 861
-			alpha, -- 861
-			0.1 -- 861
+		uiInkDraw:drawSegment( -- 861
+			Vec2(inX + 94, blankY - 7), -- 861
+			Vec2(inX + inW - 116, blankY - 7), -- 861
+			0.95, -- 861
+			toColor(PALETTE.xuanInkSub, 155 * pulse) -- 861
 		) -- 861
-	else -- 861
-		texts:put( -- 863
-			"banner", -- 863
-			theme.titleZh, -- 863
-			cx, -- 863
-			cy + 14, -- 863
-			toColor(PALETTE.textBright), -- 863
-			0.5, -- 863
-			0.5, -- 863
-			"Center", -- 863
-			3, -- 863
-			alpha, -- 863
-			0.1 -- 863
-		) -- 863
-	end -- 863
-	texts:put( -- 865
-		"xs", -- 865
-		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 865
-		cx, -- 865
-		cy - 34, -- 865
-		toColor(PALETTE.textMid), -- 865
-		0.5, -- 865
-		0.5, -- 865
-		"Center", -- 865
-		2.2, -- 865
-		0.82 * alpha, -- 865
-		0.08 -- 865
-	) -- 865
-end -- 816
-return ____exports -- 816
+		texts:put( -- 862
+			"xs", -- 862
+			"（空行留待）", -- 862
+			inX + inW - 104, -- 862
+			blankY, -- 862
+			toColor(PALETTE.xuanInkSub), -- 862
+			0, -- 862
+			0.5, -- 862
+			"Left", -- 862
+			1, -- 862
+			0.82 * pulse, -- 862
+			0 -- 862
+		) -- 862
+	end -- 862
+	if p.phase == "tower-end" then -- 866
+		local signY = inY + 46 -- 867
+		texts:put( -- 868
+			"banner", -- 868
+			"向西守望", -- 868
+			midX - 18, -- 868
+			signY, -- 868
+			toColor(PALETTE.xuanInk), -- 868
+			0.5, -- 868
+			0.5, -- 868
+			"Center", -- 868
+			6.5, -- 868
+			0.92, -- 868
+			0 -- 868
+		) -- 868
+		drawLoneSeal( -- 869
+			uiInkDraw, -- 869
+			art, -- 869
+			texts, -- 869
+			"reg_lone_seal", -- 869
+			midX + 86, -- 869
+			signY, -- 869
+			22, -- 869
+			42, -- 869
+			"守", -- 869
+			"望", -- 869
+			PALETTE.sealRed, -- 869
+			PALETTE.sealText, -- 869
+			0.92, -- 869
+			4 -- 869
+		) -- 869
+		drawSilkVeil( -- 871
+			uiDraw, -- 871
+			art, -- 871
+			"reg_hint_veil", -- 871
+			midX, -- 871
+			cy - 28, -- 871
+			360, -- 871
+			32, -- 871
+			PALETTE.inkWash, -- 871
+			0.72, -- 871
+			0 -- 871
+		) -- 871
+		local rawEndHint = assistHintsEnabled and "按 E 再次启程     ·     Esc 暂歇" or "Esc 暂歇" -- 872
+		local endHint = adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 873
+		texts:put( -- 874
+			"xs", -- 874
+			endHint, -- 874
+			midX, -- 874
+			cy - 28, -- 874
+			toColor(PALETTE.textMid), -- 874
+			0.5, -- 874
+			0.5, -- 874
+			"Center", -- 874
+			1.6, -- 874
+			0.92, -- 874
+			0.08 -- 874
+		) -- 874
+	end -- 874
+end -- 783
+function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 878
+	local theme = themeOf(roomKey) -- 887
+	local t = self.bannerT / self.bannerMax -- 888
+	local alpha = 1 -- 889
+	if t > 0.82 then -- 890
+		alpha = (1 - t) / 0.18 -- 891
+	elseif t < 0.28 then -- 892
+		alpha = t / 0.28 -- 893
+	end -- 893
+	local cx = w * 0.5 -- 895
+	local cy = h * 0.77 -- 896
+	local spread = math.min(1, alpha * 1.15) -- 897
+	drawSilkVeil( -- 900
+		uiDraw, -- 900
+		art, -- 900
+		"banner_veil", -- 900
+		cx, -- 900
+		cy - 2, -- 900
+		480 * spread + 100, -- 900
+		92, -- 900
+		PALETTE.inkWash, -- 900
+		0.76 * alpha, -- 900
+		-1 -- 900
+	) -- 900
+	drawMistCurve( -- 901
+		art, -- 901
+		"banner_mist", -- 901
+		cx, -- 901
+		cy + 4, -- 901
+		460 * spread, -- 901
+		72, -- 901
+		theme.accent, -- 901
+		0.28 * alpha, -- 901
+		0 -- 901
+	) -- 901
+	drawHairline( -- 902
+		uiInkDraw, -- 902
+		art, -- 902
+		"banner_line", -- 902
+		cx, -- 902
+		cy - 16, -- 902
+		320 * spread, -- 902
+		PALETTE.silkLine, -- 902
+		0.64 * alpha, -- 902
+		false, -- 902
+		2 -- 902
+	) -- 902
+	local sep = " · " -- 905
+	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 906
+	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 907
+	if theme.backdropKey ~= nil then -- 908
+		texts:put( -- 909
+			"lg", -- 909
+			theme.titleZh, -- 909
+			cx, -- 909
+			cy + 14, -- 909
+			toColor(PALETTE.textBright), -- 909
+			0.5, -- 910
+			0.5, -- 910
+			"Center", -- 910
+			1, -- 910
+			alpha, -- 910
+			0.1 -- 910
+		) -- 910
+	elseif idx > 0 then -- 911
+		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 912
+		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 913
+		local lw = visualTextWidth(leftPart, 42) -- 914
+		local rw = visualTextWidth(rightPart, 42) -- 915
+		local dotGap = 28 -- 916
+		local totalW = lw + rw + dotGap -- 917
+		local leftEdge = cx - totalW * 0.5 -- 918
+		local dotX = leftEdge + lw + dotGap * 0.5 -- 919
+		texts:put( -- 921
+			"banner", -- 921
+			leftPart, -- 921
+			leftEdge, -- 921
+			cy + 14, -- 921
+			toColor(PALETTE.textBright), -- 921
+			0, -- 921
+			0.5, -- 921
+			"Left", -- 921
+			2, -- 921
+			alpha, -- 921
+			0.1 -- 921
+		) -- 921
+		drawBlossomDot( -- 922
+			uiInkDraw, -- 922
+			art, -- 922
+			"banner_mid_dot", -- 922
+			dotX, -- 922
+			cy + 12, -- 922
+			11, -- 922
+			dotCol, -- 922
+			0.92 * alpha, -- 922
+			4 -- 922
+		) -- 922
+		texts:put( -- 923
+			"banner", -- 923
+			rightPart, -- 923
+			dotX + dotGap * 0.5, -- 923
+			cy + 14, -- 923
+			toColor(PALETTE.textBright), -- 923
+			0, -- 923
+			0.5, -- 923
+			"Left", -- 923
+			2, -- 923
+			alpha, -- 923
+			0.1 -- 923
+		) -- 923
+	else -- 923
+		texts:put( -- 925
+			"banner", -- 925
+			theme.titleZh, -- 925
+			cx, -- 925
+			cy + 14, -- 925
+			toColor(PALETTE.textBright), -- 925
+			0.5, -- 925
+			0.5, -- 925
+			"Center", -- 925
+			3, -- 925
+			alpha, -- 925
+			0.1 -- 925
+		) -- 925
+	end -- 925
+	texts:put( -- 927
+		"xs", -- 927
+		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 927
+		cx, -- 927
+		cy - 34, -- 927
+		toColor(PALETTE.textMid), -- 927
+		0.5, -- 927
+		0.5, -- 927
+		"Center", -- 927
+		2.2, -- 927
+		0.82 * alpha, -- 927
+		0.08 -- 927
+	) -- 927
+end -- 878
+return ____exports -- 878

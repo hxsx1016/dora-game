@@ -25,6 +25,8 @@ import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
+import { EscortWorldRenderer } from "Script/watch/fe/scenes/escort_world";
+import { ensureSecondHalfAssetsRegistered } from "Script/watch/fe/scenes/second_half_assets";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
@@ -64,6 +66,7 @@ export class WatchFrontend {
     readonly audio = new AudioDirector();
     readonly soundscape = new SoundscapeDirector();
     readonly stage = new StageRenderer();
+    readonly escortWorld = new EscortWorldRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
     readonly vfx = new VfxSystem();
@@ -84,6 +87,7 @@ export class WatchFrontend {
         this.layerRoot = Node();
         this.layerRoot.order = 5;
         this.layerRoot.addTo(parent);
+        ensureSecondHalfAssetsRegistered();
 
         this.audio.attachHost(this.layerRoot);
         this.menus.onUiSound = (kind: UiSoundKind) => {
@@ -543,6 +547,7 @@ export class WatchFrontend {
         if (!p.paused) {
             this.time += worldDt;
             this.cam.update(worldDt, p, w, h);
+            this.escortWorld.update(worldDt, p, ev.carryStarted);
             this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
             this.soundscape.updatePlay(worldDt, p, view, this.audio);
             this.actors.update(worldDt, p);
@@ -565,6 +570,9 @@ export class WatchFrontend {
         }
         if (!backdropHandled) {
             this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
+        }
+        if (view.visualMode === "pixel") {
+            this.escortWorld.drawBackdropOverlay(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
         }
 
         // 2. 逻辑平面建筑与地面（可由插件接管；淡化吃 worldDt）
@@ -589,6 +597,9 @@ export class WatchFrontend {
         }
         if (!propsHandled) {
             this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+        }
+        if (view.visualMode === "pixel") {
+            this.escortWorld.drawWorldSetpieces(this.fgDraw, this.fgGlow, this.worldArt, p, view, this.cam, this.time);
         }
 
         // 4. 关节剪影角色与插件角色叠层（博物馆态由 WellMuseumPlugin 全权绘制，防止暂停垂纱下透出明初序章精灵；背负态收净原生同伴孤儿脚影）
@@ -621,6 +632,7 @@ export class WatchFrontend {
         // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边（低模与现代博物馆自有前景压边，不叠绘像素暗块）
         if (view.visualMode === "pixel") {
             this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
+            this.escortWorld.drawForegroundFraming(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
         }
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 

@@ -264,6 +264,56 @@ export class NarrativeRenderer {
             return;
         }
 
+        // 男主线五段护送（escort1..5）：非阻塞背上耳语与工台歇息，终结长达五关的叙事静默
+        if (key === "escort1") {
+            if (px >= ox + 170 && px <= ox + 460) {
+                this.triggerOnce("e1_start", ["E1A", "E1B"]);
+            }
+            return;
+        }
+
+        if (key === "escort2") {
+            if (px >= ox + 220 && px <= ox + 520) {
+                this.triggerOnce("e2_granary", ["E2A", "E2B"]);
+            }
+            return;
+        }
+
+        if (key === "escort3") {
+            if (px >= ox + 440 && px <= ox + 710) {
+                this.triggerOnce("e3_bench_rest", ["E3A", "E3B"]);
+            }
+            if (events !== undefined && events.benchCrafted) {
+                this.triggerOnce("e3_bench_crafted", ["E3C"], true);
+            }
+            return;
+        }
+
+        if (key === "escort4") {
+            if (px >= ox + 190 && px <= ox + 460) {
+                this.triggerOnce("e4_cliff", ["E4A", "E4B"]);
+            }
+            return;
+        }
+
+        if (key === "escort5") {
+            if (px >= ox + 180 && px <= ox + 420) {
+                this.triggerOnce("e5_dawn", ["E5A", "E5B"]);
+            }
+            return;
+        }
+
+        if (key === "outside") {
+            // O3 盐埂风中核对指南针 + 可选发现 03（盐棚檐角贝壳风铃 x=840..940）
+            if (px >= ox + 760 && px <= ox + 1020) {
+                this.triggerOnce("o3_salt_wind", ["O3_WIND"]);
+            }
+            if (interactPressed && px >= ox + 830 && px <= ox + 950 && Math.abs(p.player.y) < 20) {
+                this.triggerOnce("opt_shell", ["OPT_SHELL"], true);
+            }
+            return;
+        }
+
         if (key === "village") {
             // V3 排水暗渠石栅安全凹位（ox+550..690）：拾荒者隔栅喝问 D27，按 E 可选回应 D28–D29
             if (p.passed && px >= ox + 550 && px <= ox + 690) {
@@ -271,6 +321,18 @@ export class NarrativeRenderer {
                 if (interactPressed && this.triggeredBeats["v3_grate_ask"]) {
                     this.triggerOnce("v3_grate_reply", ["D28", "D29"], true);
                 }
+            }
+            return;
+        }
+
+        if (key === "forest") {
+            // F4 溪湾水中见灯（绑定后端 water_lantern 节拍或进入溪湾 x>=1180）+ 可选发现 05（树根洞口拨叶）
+            const waterBeat = events !== undefined && events.storyBeats.some((b) => b.beat === "water_lantern");
+            if (waterBeat || px >= ox + 1190) {
+                this.triggerOnce("f4_creek_lamp", ["F4_CREEK"]);
+            }
+            if (interactPressed && px >= ox + 300 && px <= ox + 400 && p.player.crouch) {
+                this.triggerOnce("opt_hollow", ["OPT_HOLLOW"], true);
             }
             return;
         }

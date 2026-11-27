@@ -370,967 +370,985 @@ function roomIndexByKey(key) -- 774
 	end -- 776
 	return 0 -- 781
 end -- 781
-function enterPlayRoom(idx, source, fresh) -- 784
-	if source == nil then -- 784
-		source = "debug" -- 784
-	end -- 784
-	if fresh == nil then -- 784
-		fresh = false -- 784
-	end -- 784
-	current = idx -- 785
-	setMode(1) -- 786
-	if fe ~= nil then -- 787
-		fe.screen = "play" -- 788
-	end -- 788
-	play = nil -- 790
-	if fresh or source == "chapter" or storyRun == nil then -- 792
-		storyRun = createRun(20261124, source, profile) -- 793
-	else -- 793
-		storyRun.source = source -- 795
-	end -- 795
-	ensurePlay() -- 797
-	local firstPlay = play -- 799
-	if fresh and source == "official" and firstPlay ~= nil and ROOMS[current + 1].key == "prologue" then -- 800
-		firstPlay.phase = "prologue-wake" -- 801
-	end -- 801
-	flushProfile() -- 803
-end -- 803
-function pickByIndex(idx, source) -- 806
-	if source == nil then -- 806
-		source = "debug" -- 806
-	end -- 806
-	if mode == 2 then -- 807
-		if idx < 0 or idx >= #CAMPAIGN_ROOMS then -- 808
-			return -- 809
-		end -- 809
-		current = idx -- 811
-		play = nil -- 812
-		clock:reset() -- 813
-		ensurePlay() -- 814
-		return -- 815
-	end -- 815
-	if idx < 0 or idx >= #ROOMS then -- 817
-		return -- 818
-	end -- 818
-	flushProfile() -- 820
-	if storyRun ~= nil then -- 821
-		storyRun.source = source -- 822
-	end -- 822
-	current = idx -- 824
-	dirty = true -- 825
-	play = nil -- 826
-	clock:reset() -- 827
-	if mode == 1 then -- 828
-		if fe ~= nil then -- 829
-			fe.screen = "play" -- 830
-		end -- 830
-		ensurePlay() -- 832
-	end -- 832
-end -- 832
-function applySize() -- 836
-	if root == nil then -- 837
-		return -- 838
-	end -- 838
-	root.size = Size(viewW, viewH) -- 840
-	root.position = Vec2(-viewW / 2, -viewH / 2) -- 841
-	stageVp = computeStageViewport(viewW, viewH) -- 842
-	if input ~= nil then -- 843
-		input:setStageViewport(stageVp) -- 844
-	end -- 844
-	if fe ~= nil then -- 846
-		fe:setStagePlacement(stageVp) -- 847
-	end -- 847
-	if campaignLayer ~= nil then -- 849
-		campaignLayer.position = Vec2(stageVp.stageX, stageVp.stageY) -- 850
-	end -- 850
-	if grayboxLayer ~= nil then -- 852
-		grayboxLayer.position = Vec2(0, 0) -- 853
-	end -- 853
-end -- 853
-function syncFrameAdapters(frameDt) -- 857
-	if input == nil then -- 858
-		return -- 859
-	end -- 859
-	local p = play -- 861
-	local isPlayMode = mode == 1 and fe ~= nil and fe.screen == "play" and p ~= nil -- 862
-	local isTrialMode = mode == 2 and p ~= nil -- 863
-	local gameplayActive = isPlayMode or isTrialMode -- 864
-	local storyTalentBoxes = isPlayMode and fe ~= nil and p ~= nil and not p.paused and not p.craftBench.active and not p.reloadOpen and fe:getStoryTalentBoxes( -- 866
-		p, -- 868
-		stageVp.stageW, -- 868
-		stageVp.stageH, -- 868
-		input:isTouchMode() -- 868
-	) or ({}) -- 869
-	if touchControls ~= nil and touchRouter ~= nil then -- 871
-		local isFs = false -- 872
-		if canToggleFullscreen() then -- 873
-			do -- 873
-				local function ____catch() -- 873
-					isFs = false -- 877
-				end -- 877
-				local ____try = pcall(function() -- 877
-					isFs = App.fullScreen -- 875
-				end) -- 875
-				if not ____try then -- 875
-					____catch() -- 875
-				end -- 875
-			end -- 875
-		end -- 875
-		local ____touchControls_55 = touchControls -- 880
-		local ____touchControls_syncContext_56 = touchControls.syncContext -- 880
-		local ____stageVp_48 = stageVp -- 881
-		local ____mode_49 = mode -- 882
-		local ____temp_50 = fe ~= nil and fe.screen or "title" -- 883
-		local ____run_51 = run -- 885
-		local ____temp_52 = fe ~= nil and fe.cam or nil -- 886
-		local ____input_53 = input -- 887
-		local ____touchRouter_54 = touchRouter -- 888
-		local ____temp_46 -- 889
-		if fe ~= nil then -- 889
-			____temp_46 = fe.contract:isAssistHintsEnabled() -- 889
-		else -- 889
-			____temp_46 = false -- 889
-		end -- 889
-		local ____temp_47 -- 890
-		if fe ~= nil then -- 890
-			____temp_47 = fe.audio:isAllMuted() -- 890
-		else -- 890
-			____temp_47 = false -- 890
-		end -- 890
-		____touchControls_syncContext_56(____touchControls_55, { -- 880
-			viewport = ____stageVp_48, -- 881
-			mode = ____mode_49, -- 882
-			screen = ____temp_50, -- 883
-			play = p, -- 884
-			run = ____run_51, -- 885
-			cam = ____temp_52, -- 886
-			input = ____input_53, -- 887
-			router = ____touchRouter_54, -- 888
-			assistHintsEnabled = ____temp_46, -- 889
-			isMuted = ____temp_47, -- 890
-			isFullscreen = isFs, -- 891
-			storyTalentBoxes = storyTalentBoxes, -- 892
-			dt = frameDt -- 893
-		}) -- 893
-	end -- 893
-	if gamepadRouter ~= nil then -- 897
-		local trial = run and run.trial -- 898
-		local trialEnded = isTrialMode and trial ~= nil and (trial.lost or (run and run.finished) == true) -- 899
-		local trialHasOffers = isTrialMode and trial ~= nil and #trial.offers > 0 and p ~= nil and not p.paused and not trialEnded -- 900
-		local modal = not gameplayActive or isPlayMode and p ~= nil and (p.paused or p.reloadOpen or p.craftBench.active) or isTrialMode and p ~= nil and (p.paused or trialEnded) -- 901
-		local reloadActive = isPlayMode and p ~= nil and not p.paused and p.reloadOpen -- 904
-		local craftActive = isPlayMode and p ~= nil and not p.paused and p.craftBench.active -- 905
-		local talentOfferCount = isPlayMode and p ~= nil and not p.paused and not p.craftBench.active and not p.reloadOpen and #p:getStoryTalentOffers() or (trialHasOffers and trial ~= nil and #trial.offers or 0) -- 906
-		local ____temp_61 -- 909
-		if isPlayMode and p ~= nil then -- 909
-			____temp_61 = isCutsceneBlockingPlay(p) -- 909
+--- 章节直达后半段时按目标房间预置独立预览路线（不改正式档、不污染通关档案）。
+function ____exports.applyChapterPreviewRoute(run, targetKey) -- 785
+	if targetKey == "outside" or targetKey == "village" or targetKey == "forest" or targetKey == "tower" then -- 786
+		run.story.route = "child" -- 787
+		run.story.settled = true -- 788
+	elseif targetKey == "gatepath" or (string.find(targetKey, "escort", nil, true) or 0) - 1 == 0 then -- 789
+		run.story.route = "soldier" -- 790
+		run.story.settled = true -- 791
+		run.joined = true -- 792
+		if (string.find(targetKey, "escort", nil, true) or 0) - 1 == 0 then -- 793
+			run.story.carry = true -- 794
+		end -- 794
+	end -- 794
+end -- 785
+function enterPlayRoom(idx, source, fresh) -- 799
+	if source == nil then -- 799
+		source = "debug" -- 799
+	end -- 799
+	if fresh == nil then -- 799
+		fresh = false -- 799
+	end -- 799
+	current = idx -- 800
+	setMode(1) -- 801
+	if fe ~= nil then -- 802
+		fe.screen = "play" -- 803
+	end -- 803
+	play = nil -- 805
+	if fresh or source == "chapter" or storyRun == nil then -- 807
+		storyRun = createRun(20261124, source, profile) -- 808
+		if source == "chapter" then -- 809
+			local targetKey = ROOMS[current + 1] ~= nil and ROOMS[current + 1].key or "" -- 810
+			____exports.applyChapterPreviewRoute(storyRun, targetKey) -- 811
+		end -- 811
+	else -- 811
+		storyRun.source = source -- 814
+	end -- 814
+	ensurePlay() -- 816
+	local firstPlay = play -- 818
+	if fresh and source == "official" and firstPlay ~= nil and ROOMS[current + 1].key == "prologue" then -- 819
+		firstPlay.phase = "prologue-wake" -- 820
+	end -- 820
+	flushProfile() -- 822
+end -- 822
+function pickByIndex(idx, source) -- 825
+	if source == nil then -- 825
+		source = "debug" -- 825
+	end -- 825
+	if mode == 2 then -- 826
+		if idx < 0 or idx >= #CAMPAIGN_ROOMS then -- 827
+			return -- 828
+		end -- 828
+		current = idx -- 830
+		play = nil -- 831
+		clock:reset() -- 832
+		ensurePlay() -- 833
+		return -- 834
+	end -- 834
+	if idx < 0 or idx >= #ROOMS then -- 836
+		return -- 837
+	end -- 837
+	flushProfile() -- 839
+	if storyRun ~= nil then -- 840
+		storyRun.source = source -- 841
+	end -- 841
+	current = idx -- 843
+	dirty = true -- 844
+	play = nil -- 845
+	clock:reset() -- 846
+	if mode == 1 then -- 847
+		if fe ~= nil then -- 848
+			fe.screen = "play" -- 849
+		end -- 849
+		ensurePlay() -- 851
+	end -- 851
+end -- 851
+function applySize() -- 855
+	if root == nil then -- 856
+		return -- 857
+	end -- 857
+	root.size = Size(viewW, viewH) -- 859
+	root.position = Vec2(-viewW / 2, -viewH / 2) -- 860
+	stageVp = computeStageViewport(viewW, viewH) -- 861
+	if input ~= nil then -- 862
+		input:setStageViewport(stageVp) -- 863
+	end -- 863
+	if fe ~= nil then -- 865
+		fe:setStagePlacement(stageVp) -- 866
+	end -- 866
+	if campaignLayer ~= nil then -- 868
+		campaignLayer.position = Vec2(stageVp.stageX, stageVp.stageY) -- 869
+	end -- 869
+	if grayboxLayer ~= nil then -- 871
+		grayboxLayer.position = Vec2(0, 0) -- 872
+	end -- 872
+end -- 872
+function syncFrameAdapters(frameDt) -- 876
+	if input == nil then -- 877
+		return -- 878
+	end -- 878
+	local p = play -- 880
+	local isPlayMode = mode == 1 and fe ~= nil and fe.screen == "play" and p ~= nil -- 881
+	local isTrialMode = mode == 2 and p ~= nil -- 882
+	local gameplayActive = isPlayMode or isTrialMode -- 883
+	local storyTalentBoxes = isPlayMode and fe ~= nil and p ~= nil and not p.paused and not p.craftBench.active and not p.reloadOpen and fe:getStoryTalentBoxes( -- 885
+		p, -- 887
+		stageVp.stageW, -- 887
+		stageVp.stageH, -- 887
+		input:isTouchMode() -- 887
+	) or ({}) -- 888
+	if touchControls ~= nil and touchRouter ~= nil then -- 890
+		local isFs = false -- 891
+		if canToggleFullscreen() then -- 892
+			do -- 892
+				local function ____catch() -- 892
+					isFs = false -- 896
+				end -- 896
+				local ____try = pcall(function() -- 896
+					isFs = App.fullScreen -- 894
+				end) -- 894
+				if not ____try then -- 894
+					____catch() -- 894
+				end -- 894
+			end -- 894
+		end -- 894
+		local ____touchControls_55 = touchControls -- 899
+		local ____touchControls_syncContext_56 = touchControls.syncContext -- 899
+		local ____stageVp_48 = stageVp -- 900
+		local ____mode_49 = mode -- 901
+		local ____temp_50 = fe ~= nil and fe.screen or "title" -- 902
+		local ____run_51 = run -- 904
+		local ____temp_52 = fe ~= nil and fe.cam or nil -- 905
+		local ____input_53 = input -- 906
+		local ____touchRouter_54 = touchRouter -- 907
+		local ____temp_46 -- 908
+		if fe ~= nil then -- 908
+			____temp_46 = fe.contract:isAssistHintsEnabled() -- 908
+		else -- 908
+			____temp_46 = false -- 908
+		end -- 908
+		local ____temp_47 -- 909
+		if fe ~= nil then -- 909
+			____temp_47 = fe.audio:isAllMuted() -- 909
 		else -- 909
-			____temp_61 = false -- 909
+			____temp_47 = false -- 909
 		end -- 909
-		local cutsceneBlocking = ____temp_61 -- 909
-		local allowDepth = p ~= nil and p.room.depth ~= nil and (not p.childMode or p.phase == "prologue-escape") -- 910
-		local peacefulRoom = p ~= nil and (p.room.key == "museum" or p.room.key == "tower") -- 912
-		local canShoot = gameplayActive and p ~= nil and not p.childMode and not peacefulRoom and not p.gripping and not modal and not cutsceneBlocking and not trialHasOffers and p.escort.state ~= "calming" -- 913
-		local canBottleAim = isPlayMode and p ~= nil and p.childMode and p.room.key == "village" and p.hasBottle and not p.passed and not modal and not cutsceneBlocking -- 915
-		local inLowArch = p ~= nil and p.room.arch.h > 0 and p.player.x >= p.room.arch.x0 - 10 and p.player.x <= p.room.arch.x1 + 10 and p.player.y <= p.room.arch.y + p.room.arch.h -- 917
-		local inTowerEnd = isPlayMode and p ~= nil and p.room.key == "tower" and p.phase == "tower-end" -- 920
-		local playerScreenX = stageVp.stageW * 0.5 -- 922
-		local playerScreenY = stageVp.stageH * 0.38 -- 923
-		if p ~= nil then -- 924
-			if isPlayMode and fe ~= nil then -- 925
-				playerScreenX = fe.cam:sx(p.player.x + p.player.facing * 8) -- 926
-				playerScreenY = fe.cam:sy(p.player.y + p.player.h * 0.72, p.player.depth) -- 927
-			else -- 927
-				local vz = p.view.zoom > 0 and p.view.zoom or 1 -- 930
-				playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz -- 931
-				playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz -- 932
-			end -- 932
-		end -- 932
-		local enemyTargets = canShoot and p ~= nil and (isPlayMode and fe ~= nil and collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH) or collectTrialAimTargets(p, stageVp.stageW, stageVp.stageH)) or ({}) -- 936
-		local gpCtx = { -- 942
-			stageW = stageVp.stageW, -- 943
-			stageH = stageVp.stageH, -- 944
-			uiScale = stageVp.uiScale, -- 945
-			modal = modal, -- 946
-			gameplayActive = gameplayActive, -- 947
-			reloadActive = reloadActive, -- 948
-			craftActive = craftActive, -- 949
-			talentOfferCount = talentOfferCount, -- 950
-			childMode = p ~= nil and p.childMode, -- 951
-			allowDepth = allowDepth, -- 952
-			canShoot = canShoot, -- 953
-			canBottleAim = canBottleAim, -- 954
-			playerRolling = p ~= nil and p.player.rollT > 0, -- 955
-			inLowArch = inLowArch, -- 956
-			inTowerEnd = inTowerEnd, -- 957
-			playerFacing = p ~= nil and p.player.facing or 1, -- 958
-			playerScreenX = playerScreenX, -- 959
-			playerScreenY = playerScreenY, -- 960
-			enemyTargets = enemyTargets -- 961
-		} -- 961
-		gamepadRouter:setFrameContext(gpCtx, frameDt) -- 963
-	end -- 963
-end -- 963
-function renderTouchOverlay() -- 967
-	if touchControls ~= nil and touchRouter ~= nil then -- 968
-		touchControls:render(touchRouter) -- 969
-	end -- 969
-end -- 969
-function tick(frameDt) -- 973
-	appClock = appClock + math.min( -- 974
-		0.05, -- 974
-		math.max(0, frameDt) -- 974
-	) -- 974
-	local w = testViewportOverride ~= nil and testViewportOverride.w or View.size.width -- 975
-	local h = testViewportOverride ~= nil and testViewportOverride.h or View.size.height -- 976
-	if w ~= viewW or h ~= viewH then -- 977
-		viewW = w -- 978
-		viewH = h -- 979
-		applySize() -- 980
-		dirty = true -- 981
-	end -- 981
-	if input == nil then -- 983
-		return -- 984
-	end -- 984
-	syncFrameAdapters(frameDt) -- 986
-	input:update() -- 987
-	if input.userInteracted then -- 989
-		onFirstUserGesture() -- 990
-	end -- 990
-	if input.muteTogglePressed and fe ~= nil then -- 992
-		input.muteTogglePressed = false -- 993
-		fe.audio:toggleAllMuted() -- 994
-	end -- 994
-	if input.fullscreenTogglePressed then -- 996
-		input.fullscreenTogglePressed = false -- 997
-		toggleFullscreen() -- 998
-	end -- 998
-	if input.artifactTogglePressed and mode == 1 and fe ~= nil and fe.screen == "play" and play ~= nil and not play.paused then -- 1000
-		input.artifactTogglePressed = false -- 1001
-		play:toggleArtifactWeapon() -- 1002
-	end -- 1002
-	if input.bottleCanceled and play ~= nil then -- 1004
-		input.bottleCanceled = false -- 1005
-		play.aimHold = 0 -- 1006
-		play.bottleAimX = -1 -- 1007
-	end -- 1007
-	if mode == 2 and (run and run.trial) ~= nil then -- 1010
-		tickCampaign(frameDt) -- 1011
-		renderTouchOverlay() -- 1012
-		return -- 1013
+		____touchControls_syncContext_56(____touchControls_55, { -- 899
+			viewport = ____stageVp_48, -- 900
+			mode = ____mode_49, -- 901
+			screen = ____temp_50, -- 902
+			play = p, -- 903
+			run = ____run_51, -- 904
+			cam = ____temp_52, -- 905
+			input = ____input_53, -- 906
+			router = ____touchRouter_54, -- 907
+			assistHintsEnabled = ____temp_46, -- 908
+			isMuted = ____temp_47, -- 909
+			isFullscreen = isFs, -- 910
+			storyTalentBoxes = storyTalentBoxes, -- 911
+			dt = frameDt -- 912
+		}) -- 912
+	end -- 912
+	if gamepadRouter ~= nil then -- 916
+		local trial = run and run.trial -- 917
+		local trialEnded = isTrialMode and trial ~= nil and (trial.lost or (run and run.finished) == true) -- 918
+		local trialHasOffers = isTrialMode and trial ~= nil and #trial.offers > 0 and p ~= nil and not p.paused and not trialEnded -- 919
+		local modal = not gameplayActive or isPlayMode and p ~= nil and (p.paused or p.reloadOpen or p.craftBench.active) or isTrialMode and p ~= nil and (p.paused or trialEnded) -- 920
+		local reloadActive = isPlayMode and p ~= nil and not p.paused and p.reloadOpen -- 923
+		local craftActive = isPlayMode and p ~= nil and not p.paused and p.craftBench.active -- 924
+		local talentOfferCount = isPlayMode and p ~= nil and not p.paused and not p.craftBench.active and not p.reloadOpen and #p:getStoryTalentOffers() or (trialHasOffers and trial ~= nil and #trial.offers or 0) -- 925
+		local ____temp_61 -- 928
+		if isPlayMode and p ~= nil then -- 928
+			____temp_61 = isCutsceneBlockingPlay(p) -- 928
+		else -- 928
+			____temp_61 = false -- 928
+		end -- 928
+		local cutsceneBlocking = ____temp_61 -- 928
+		local allowDepth = p ~= nil and p.room.depth ~= nil and (not p.childMode or p.phase == "prologue-escape") -- 929
+		local peacefulRoom = p ~= nil and (p.room.key == "museum" or p.room.key == "tower") -- 931
+		local canShoot = gameplayActive and p ~= nil and not p.childMode and not peacefulRoom and not p.gripping and not modal and not cutsceneBlocking and not trialHasOffers and p.escort.state ~= "calming" -- 932
+		local canBottleAim = isPlayMode and p ~= nil and p.childMode and p.room.key == "village" and p.hasBottle and not p.passed and not modal and not cutsceneBlocking -- 934
+		local inLowArch = p ~= nil and p.room.arch.h > 0 and p.player.x >= p.room.arch.x0 - 10 and p.player.x <= p.room.arch.x1 + 10 and p.player.y <= p.room.arch.y + p.room.arch.h -- 936
+		local inTowerEnd = isPlayMode and p ~= nil and p.room.key == "tower" and p.phase == "tower-end" -- 939
+		local playerScreenX = stageVp.stageW * 0.5 -- 941
+		local playerScreenY = stageVp.stageH * 0.38 -- 942
+		if p ~= nil then -- 943
+			if isPlayMode and fe ~= nil then -- 944
+				playerScreenX = fe.cam:sx(p.player.x + p.player.facing * 8) -- 945
+				playerScreenY = fe.cam:sy(p.player.y + p.player.h * 0.72, p.player.depth) -- 946
+			else -- 946
+				local vz = p.view.zoom > 0 and p.view.zoom or 1 -- 949
+				playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz -- 950
+				playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz -- 951
+			end -- 951
+		end -- 951
+		local enemyTargets = canShoot and p ~= nil and (isPlayMode and fe ~= nil and collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH) or collectTrialAimTargets(p, stageVp.stageW, stageVp.stageH)) or ({}) -- 955
+		local gpCtx = { -- 961
+			stageW = stageVp.stageW, -- 962
+			stageH = stageVp.stageH, -- 963
+			uiScale = stageVp.uiScale, -- 964
+			modal = modal, -- 965
+			gameplayActive = gameplayActive, -- 966
+			reloadActive = reloadActive, -- 967
+			craftActive = craftActive, -- 968
+			talentOfferCount = talentOfferCount, -- 969
+			childMode = p ~= nil and p.childMode, -- 970
+			allowDepth = allowDepth, -- 971
+			canShoot = canShoot, -- 972
+			canBottleAim = canBottleAim, -- 973
+			playerRolling = p ~= nil and p.player.rollT > 0, -- 974
+			inLowArch = inLowArch, -- 975
+			inTowerEnd = inTowerEnd, -- 976
+			playerFacing = p ~= nil and p.player.facing or 1, -- 977
+			playerScreenX = playerScreenX, -- 978
+			playerScreenY = playerScreenY, -- 979
+			enemyTargets = enemyTargets -- 980
+		} -- 980
+		gamepadRouter:setFrameContext(gpCtx, frameDt) -- 982
+	end -- 982
+end -- 982
+function renderTouchOverlay() -- 986
+	if touchControls ~= nil and touchRouter ~= nil then -- 987
+		touchControls:render(touchRouter) -- 988
+	end -- 988
+end -- 988
+function tick(frameDt) -- 992
+	appClock = appClock + math.min( -- 993
+		0.05, -- 993
+		math.max(0, frameDt) -- 993
+	) -- 993
+	local w = testViewportOverride ~= nil and testViewportOverride.w or View.size.width -- 994
+	local h = testViewportOverride ~= nil and testViewportOverride.h or View.size.height -- 995
+	if w ~= viewW or h ~= viewH then -- 996
+		viewW = w -- 997
+		viewH = h -- 998
+		applySize() -- 999
+		dirty = true -- 1000
+	end -- 1000
+	if input == nil then -- 1002
+		return -- 1003
+	end -- 1003
+	syncFrameAdapters(frameDt) -- 1005
+	input:update() -- 1006
+	if input.userInteracted then -- 1008
+		onFirstUserGesture() -- 1009
+	end -- 1009
+	if input.muteTogglePressed and fe ~= nil then -- 1011
+		input.muteTogglePressed = false -- 1012
+		fe.audio:toggleAllMuted() -- 1013
 	end -- 1013
-	if mode == 1 and fe ~= nil and fe.screen == "play" and play ~= nil and not play.paused and not play.craftBench.active and #play:getStoryTalentOffers() > 0 and input.pickRoom >= 1 and input.pickRoom <= 3 then -- 1016
-		play:chooseTalent(input.pickRoom - 1) -- 1019
-		input.pickRoom = 0 -- 1020
-	end -- 1020
-	if isReleaseBuild() then -- 1023
-		input.toggleView.pressed = false -- 1024
-		input.pickRoom = 0 -- 1025
-		input.tab.pressed = false -- 1026
-	else -- 1026
-		if input.toggleView.pressed then -- 1029
-			input.toggleView.pressed = false -- 1030
-			setMode(mode == 0 and 1 or (mode == 1 and 2 or 0)) -- 1031
-			if mode == 1 and fe ~= nil and fe.screen == "play" and play == nil then -- 1032
-				ensurePlay() -- 1033
-			end -- 1033
-		end -- 1033
-		if input.pickRoom ~= 0 then -- 1038
-			local idx = input.pickRoom - 1 -- 1039
-			input.pickRoom = 0 -- 1040
-			pickByIndex(idx) -- 1041
-		elseif input.tab.pressed then -- 1042
-			input.tab.pressed = false -- 1043
-			if mode == 0 or (fe and fe.screen) == "play" and not (play and play.paused) then -- 1044
-				pickByIndex((current + 1) % #ROOMS) -- 1045
-			end -- 1045
-		end -- 1045
-	end -- 1045
-	if mode == 2 then -- 1050
-		tickCampaign(frameDt) -- 1051
-	elseif mode == 1 then -- 1052
-		tickFrontend(frameDt) -- 1053
-	elseif dirty then -- 1054
-		redrawGraybox() -- 1055
-		dirty = false -- 1056
-	end -- 1056
-	renderTouchOverlay() -- 1058
-end -- 1058
-function registerPlay() -- 1062
-	local reg = _G.package.loaded -- 1063
-	reg["watch.play"] = play -- 1064
-	local rooms = mode == 2 and CAMPAIGN_ROOMS or ROOMS -- 1065
-	reg["watch.room"] = rooms[current + 1].key -- 1066
-end -- 1066
-function ensurePlay(resume) -- 1070
-	if mode == 2 then -- 1071
-		if run == nil then -- 1072
-			run = createRun() -- 1073
-		end -- 1073
-		play = __TS__New(Play, CAMPAIGN_ROOMS[current + 1], nil, run) -- 1075
-	else -- 1075
-		if storyRun == nil then -- 1079
-			storyRun = createRun(20261124, "debug", profile) -- 1080
-		end -- 1080
-		play = __TS__New(Play, ROOMS[current + 1], resume, storyRun) -- 1082
-	end -- 1082
-	registerPlay() -- 1084
-	clock:reset() -- 1085
-	if fe ~= nil and mode == 1 then -- 1086
-		fe:bindPlay(play, stageVp.stageW, stageVp.stageH) -- 1087
-	elseif fe ~= nil and mode == 2 then -- 1088
-		fe:resetTrialAudio(play) -- 1089
-	end -- 1089
-end -- 1089
-function startTrial() -- 1093
-	current = 0 -- 1094
-	trialTalentSelected = 0 -- 1095
-	run = createTrial(App.rand) -- 1096
-	setMode(2) -- 1097
-	ensurePlay() -- 1098
-end -- 1098
-function tickCampaign(frameDt) -- 1101
-	if input == nil then -- 1102
-		return -- 1103
-	end -- 1103
-	if play == nil then -- 1105
-		ensurePlay() -- 1106
-	end -- 1106
-	if play == nil then -- 1108
-		return -- 1109
-	end -- 1109
-	local p = play -- 1111
-	p.aimX = input.mx -- 1112
-	p.aimY = input.my -- 1113
-	local zoneTap = input.touchZoneTap -- 1115
-	input.touchZoneTap = "" -- 1116
-	local trial = run and run.trial -- 1118
-	if trial ~= nil then -- 1119
-		local ended = trial.lost or (run and run.finished) == true -- 1120
-		local pick = input.pickRoom -- 1121
-		input.pickRoom = 0 -- 1122
-		if zoneTap == "trial:resume" and p.paused and not ended then -- 1124
-			p.paused = false -- 1125
-			clock:reset() -- 1126
-			input:consumeEdges() -- 1127
-			drawCampaign(p) -- 1128
-			return -- 1129
-		end -- 1129
-		if zoneTap == "trial:retry" then -- 1131
-			input:consumeEdges() -- 1132
-			startTrial() -- 1133
-			return -- 1134
-		end -- 1134
-		if zoneTap == "trial:title" then -- 1136
-			input:consumeEdges() -- 1137
-			current = 0 -- 1138
-			play = nil -- 1139
-			run = nil -- 1140
-			setMode(1) -- 1141
-			if fe ~= nil then -- 1142
-				fe.audio:stopRoomTransient() -- 1143
-				fe.screen = "title" -- 1144
-				fe.menus:resetInput() -- 1145
-			end -- 1145
-			return -- 1147
-		end -- 1147
-		if ended and (input.pause.pressed or input.navBack) or p.paused and input.interact.pressed then -- 1150
+	if input.fullscreenTogglePressed then -- 1015
+		input.fullscreenTogglePressed = false -- 1016
+		toggleFullscreen() -- 1017
+	end -- 1017
+	if input.artifactTogglePressed and mode == 1 and fe ~= nil and fe.screen == "play" and play ~= nil and not play.paused then -- 1019
+		input.artifactTogglePressed = false -- 1020
+		play:toggleArtifactWeapon() -- 1021
+	end -- 1021
+	if input.bottleCanceled and play ~= nil then -- 1023
+		input.bottleCanceled = false -- 1024
+		play.aimHold = 0 -- 1025
+		play.bottleAimX = -1 -- 1026
+	end -- 1026
+	if mode == 2 and (run and run.trial) ~= nil then -- 1029
+		tickCampaign(frameDt) -- 1030
+		renderTouchOverlay() -- 1031
+		return -- 1032
+	end -- 1032
+	if mode == 1 and fe ~= nil and fe.screen == "play" and play ~= nil and not play.paused and not play.craftBench.active and #play:getStoryTalentOffers() > 0 and input.pickRoom >= 1 and input.pickRoom <= 3 then -- 1035
+		play:chooseTalent(input.pickRoom - 1) -- 1038
+		input.pickRoom = 0 -- 1039
+	end -- 1039
+	if isReleaseBuild() then -- 1042
+		input.toggleView.pressed = false -- 1043
+		input.pickRoom = 0 -- 1044
+		input.tab.pressed = false -- 1045
+	else -- 1045
+		if input.toggleView.pressed then -- 1048
+			input.toggleView.pressed = false -- 1049
+			setMode(mode == 0 and 1 or (mode == 1 and 2 or 0)) -- 1050
+			if mode == 1 and fe ~= nil and fe.screen == "play" and play == nil then -- 1051
+				ensurePlay() -- 1052
+			end -- 1052
+		end -- 1052
+		if input.pickRoom ~= 0 then -- 1057
+			local idx = input.pickRoom - 1 -- 1058
+			input.pickRoom = 0 -- 1059
+			pickByIndex(idx) -- 1060
+		elseif input.tab.pressed then -- 1061
+			input.tab.pressed = false -- 1062
+			if mode == 0 or (fe and fe.screen) == "play" and not (play and play.paused) then -- 1063
+				pickByIndex((current + 1) % #ROOMS) -- 1064
+			end -- 1064
+		end -- 1064
+	end -- 1064
+	if mode == 2 then -- 1069
+		tickCampaign(frameDt) -- 1070
+	elseif mode == 1 then -- 1071
+		tickFrontend(frameDt) -- 1072
+	elseif dirty then -- 1073
+		redrawGraybox() -- 1074
+		dirty = false -- 1075
+	end -- 1075
+	renderTouchOverlay() -- 1077
+end -- 1077
+function registerPlay() -- 1081
+	local reg = _G.package.loaded -- 1082
+	reg["watch.play"] = play -- 1083
+	local rooms = mode == 2 and CAMPAIGN_ROOMS or ROOMS -- 1084
+	reg["watch.room"] = rooms[current + 1].key -- 1085
+end -- 1085
+function ensurePlay(resume) -- 1089
+	if mode == 2 then -- 1090
+		if run == nil then -- 1091
+			run = createRun() -- 1092
+		end -- 1092
+		play = __TS__New(Play, CAMPAIGN_ROOMS[current + 1], nil, run) -- 1094
+	else -- 1094
+		if storyRun == nil then -- 1098
+			storyRun = createRun(20261124, "debug", profile) -- 1099
+		end -- 1099
+		play = __TS__New(Play, ROOMS[current + 1], resume, storyRun) -- 1101
+	end -- 1101
+	registerPlay() -- 1103
+	clock:reset() -- 1104
+	if fe ~= nil and mode == 1 then -- 1105
+		fe:bindPlay(play, stageVp.stageW, stageVp.stageH) -- 1106
+	elseif fe ~= nil and mode == 2 then -- 1107
+		fe:resetTrialAudio(play) -- 1108
+	end -- 1108
+end -- 1108
+function startTrial() -- 1112
+	current = 0 -- 1113
+	trialTalentSelected = 0 -- 1114
+	run = createTrial(App.rand) -- 1115
+	setMode(2) -- 1116
+	ensurePlay() -- 1117
+end -- 1117
+function tickCampaign(frameDt) -- 1120
+	if input == nil then -- 1121
+		return -- 1122
+	end -- 1122
+	if play == nil then -- 1124
+		ensurePlay() -- 1125
+	end -- 1125
+	if play == nil then -- 1127
+		return -- 1128
+	end -- 1128
+	local p = play -- 1130
+	p.aimX = input.mx -- 1131
+	p.aimY = input.my -- 1132
+	local zoneTap = input.touchZoneTap -- 1134
+	input.touchZoneTap = "" -- 1135
+	local trial = run and run.trial -- 1137
+	if trial ~= nil then -- 1138
+		local ended = trial.lost or (run and run.finished) == true -- 1139
+		local pick = input.pickRoom -- 1140
+		input.pickRoom = 0 -- 1141
+		if zoneTap == "trial:resume" and p.paused and not ended then -- 1143
+			p.paused = false -- 1144
+			clock:reset() -- 1145
+			input:consumeEdges() -- 1146
+			drawCampaign(p) -- 1147
+			return -- 1148
+		end -- 1148
+		if zoneTap == "trial:retry" then -- 1150
 			input:consumeEdges() -- 1151
-			current = 0 -- 1152
-			play = nil -- 1153
-			run = nil -- 1154
-			setMode(1) -- 1155
-			if fe ~= nil then -- 1156
-				fe.audio:stopRoomTransient() -- 1157
-				fe.screen = "title" -- 1158
-				fe.menus:resetInput() -- 1159
-			end -- 1159
-			return -- 1161
-		end -- 1161
-		if ended or p.paused and input.retry.pressed then -- 1163
-			local restart = input.retry.pressed or ended and input.navConfirm -- 1164
-			input:consumeEdges() -- 1165
-			if restart then -- 1166
-				startTrial() -- 1166
-			else -- 1166
-				drawCampaign(p) -- 1167
-			end -- 1167
-			return -- 1168
-		end -- 1168
-		input.retry.pressed = false -- 1170
-		if #trial.offers > 0 and not p.paused and not input.pause.pressed then -- 1171
-			if trialTalentSelected >= #trial.offers then -- 1172
-				trialTalentSelected = 0 -- 1173
-			end -- 1173
-			if (string.find(zoneTap, "talent:", nil, true) or 0) - 1 == 0 then -- 1175
-				local idx = __TS__ParseInt( -- 1176
-					string.sub(zoneTap, 8), -- 1176
-					10 -- 1176
-				) -- 1176
-				if idx >= 0 and idx < #trial.offers then -- 1177
-					p:chooseTalent(idx) -- 1178
-				end -- 1178
-			elseif pick > 0 then -- 1180
-				p:chooseTalent(pick - 1) -- 1181
-			else -- 1181
-				local delta = input.talentDelta + ((input.navRight or input.navNextTab) and 1 or 0) - ((input.navLeft or input.navPrevTab) and 1 or 0) -- 1183
-				if delta ~= 0 then -- 1186
-					trialTalentSelected = (trialTalentSelected + delta + #trial.offers) % #trial.offers -- 1187
-				end -- 1187
-				if input.talentConfirm or input.navConfirm then -- 1189
-					p:chooseTalent(trialTalentSelected) -- 1190
-				end -- 1190
-			end -- 1190
-			input:consumeEdges() -- 1193
-			clock:reset() -- 1194
-			if fe ~= nil then -- 1195
-				fe:syncTrialAudio(frameDt, p, #trial.offers) -- 1195
-			end -- 1195
-			drawCampaign(p) -- 1196
-			return -- 1197
-		end -- 1197
-	end -- 1197
-	if input.retry.pressed then -- 1201
-		input.retry.pressed = false -- 1202
-		input:consumeEdges() -- 1203
-		play = nil -- 1205
-		ensurePlay() -- 1206
-		return -- 1207
-	end -- 1207
-	if input.pause.pressed or p.paused and input.navBack then -- 1209
-		input.pause.pressed = false -- 1210
-		p.paused = not p.paused -- 1211
-		if fe ~= nil then -- 1212
-			fe.audio:playUi(p.paused and "ui:pause_open" or "ui:pause_close", p.paused and "assets/audio/ui/pause_open.wav" or "assets/audio/ui/pause_close.wav", 0.66, 0.08) -- 1212
-		end -- 1212
-		clock:reset() -- 1213
-		input:consumeEdges() -- 1214
-	end -- 1214
-	if p.paused then -- 1216
-		if fe ~= nil then -- 1217
-			fe:syncTrialAudio(frameDt, p, trial and #trial.offers or 0) -- 1217
-		end -- 1217
-		drawCampaign(p) -- 1218
-		return -- 1219
-	end -- 1219
-	local steps = clock:advance(frameDt) -- 1222
-	local i = 0 -- 1223
-	do -- 1223
-		i = 0 -- 1224
-		while i < steps do -- 1224
-			input:beginStep(i == 0) -- 1225
-			p:update(STEP, input) -- 1226
-			input:endStep() -- 1227
-			if p.wantRoom ~= "" or trial and trial.lost or trial ~= nil and (run and run.finished) then -- 1228
-				break -- 1229
-			end -- 1229
-			i = i + 1 -- 1224
-		end -- 1224
-	end -- 1224
-	if fe ~= nil then -- 1232
-		fe:syncTrialAudio(frameDt, p, trial and #trial.offers or 0) -- 1232
-	end -- 1232
-	if p.wantRoom ~= "" then -- 1234
-		local key = p.wantRoom -- 1235
-		p.wantRoom = "" -- 1236
-		local idx = -1 -- 1237
-		local j = 0 -- 1238
-		do -- 1238
-			j = 0 -- 1239
-			while j < #CAMPAIGN_ROOMS do -- 1239
-				if CAMPAIGN_ROOMS[j + 1].key == key then -- 1240
-					idx = j -- 1241
-				end -- 1241
-				j = j + 1 -- 1239
-			end -- 1239
-		end -- 1239
-		if idx >= 0 then -- 1244
-			current = idx -- 1245
-			play = nil -- 1246
-			ensurePlay() -- 1247
-		end -- 1247
-		return -- 1249
-	end -- 1249
-	drawCampaign(p) -- 1251
-end -- 1251
-function goalLabel(goal) -- 1254
-	if goal == "dock_cart" then -- 1255
-		return "推车入窝并抬闩" -- 1256
-	end -- 1256
-	if goal == "raise_latch" then -- 1258
-		return "抬闩开侧门" -- 1259
-	end -- 1259
-	return "到段出口" -- 1261
-end -- 1261
-function drawCampaign(p) -- 1264
-	if campaignDraw == nil then -- 1265
-		return -- 1266
-	end -- 1266
-	local w = stageVp.stageW -- 1268
-	local h = stageVp.stageH -- 1269
-	local safeL = stageVp.safeUi.left * stageVp.uiScale -- 1270
-	local safeT = stageVp.safeUi.top * stageVp.uiScale -- 1271
-	p:draw(campaignDraw, w, h) -- 1272
-	local room = CAMPAIGN_ROOMS[current + 1] -- 1273
-	local c = room.campaign -- 1274
-	local r = run -- 1275
-	local line = room.name -- 1276
-	if c ~= nil then -- 1277
-		line = ((((((((line .. "  ") .. c.chapter) .. tostring(c.act)) .. " · 目标 ") .. goalLabel(c.goal)) .. " · 本段 ") .. mmss(r == nil and 0 or (r.roomTicks[room.key] or 0))) .. " / 预算 ") .. mmss(c.budget * 60) -- 1278
+			startTrial() -- 1152
+			return -- 1153
+		end -- 1153
+		if zoneTap == "trial:title" then -- 1155
+			input:consumeEdges() -- 1156
+			current = 0 -- 1157
+			play = nil -- 1158
+			run = nil -- 1159
+			setMode(1) -- 1160
+			if fe ~= nil then -- 1161
+				fe.audio:stopRoomTransient() -- 1162
+				fe.screen = "title" -- 1163
+				fe.menus:resetInput() -- 1164
+			end -- 1164
+			return -- 1166
+		end -- 1166
+		if ended and (input.pause.pressed or input.navBack) or p.paused and input.interact.pressed then -- 1169
+			input:consumeEdges() -- 1170
+			current = 0 -- 1171
+			play = nil -- 1172
+			run = nil -- 1173
+			setMode(1) -- 1174
+			if fe ~= nil then -- 1175
+				fe.audio:stopRoomTransient() -- 1176
+				fe.screen = "title" -- 1177
+				fe.menus:resetInput() -- 1178
+			end -- 1178
+			return -- 1180
+		end -- 1180
+		if ended or p.paused and input.retry.pressed then -- 1182
+			local restart = input.retry.pressed or ended and input.navConfirm -- 1183
+			input:consumeEdges() -- 1184
+			if restart then -- 1185
+				startTrial() -- 1185
+			else -- 1185
+				drawCampaign(p) -- 1186
+			end -- 1186
+			return -- 1187
+		end -- 1187
+		input.retry.pressed = false -- 1189
+		if #trial.offers > 0 and not p.paused and not input.pause.pressed then -- 1190
+			if trialTalentSelected >= #trial.offers then -- 1191
+				trialTalentSelected = 0 -- 1192
+			end -- 1192
+			if (string.find(zoneTap, "talent:", nil, true) or 0) - 1 == 0 then -- 1194
+				local idx = __TS__ParseInt( -- 1195
+					string.sub(zoneTap, 8), -- 1195
+					10 -- 1195
+				) -- 1195
+				if idx >= 0 and idx < #trial.offers then -- 1196
+					p:chooseTalent(idx) -- 1197
+				end -- 1197
+			elseif pick > 0 then -- 1199
+				p:chooseTalent(pick - 1) -- 1200
+			else -- 1200
+				local delta = input.talentDelta + ((input.navRight or input.navNextTab) and 1 or 0) - ((input.navLeft or input.navPrevTab) and 1 or 0) -- 1202
+				if delta ~= 0 then -- 1205
+					trialTalentSelected = (trialTalentSelected + delta + #trial.offers) % #trial.offers -- 1206
+				end -- 1206
+				if input.talentConfirm or input.navConfirm then -- 1208
+					p:chooseTalent(trialTalentSelected) -- 1209
+				end -- 1209
+			end -- 1209
+			input:consumeEdges() -- 1212
+			clock:reset() -- 1213
+			if fe ~= nil then -- 1214
+				fe:syncTrialAudio(frameDt, p, #trial.offers) -- 1214
+			end -- 1214
+			drawCampaign(p) -- 1215
+			return -- 1216
+		end -- 1216
+	end -- 1216
+	if input.retry.pressed then -- 1220
+		input.retry.pressed = false -- 1221
+		input:consumeEdges() -- 1222
+		play = nil -- 1224
+		ensurePlay() -- 1225
+		return -- 1226
+	end -- 1226
+	if input.pause.pressed or p.paused and input.navBack then -- 1228
+		input.pause.pressed = false -- 1229
+		p.paused = not p.paused -- 1230
+		if fe ~= nil then -- 1231
+			fe.audio:playUi(p.paused and "ui:pause_open" or "ui:pause_close", p.paused and "assets/audio/ui/pause_open.wav" or "assets/audio/ui/pause_close.wav", 0.66, 0.08) -- 1231
+		end -- 1231
+		clock:reset() -- 1232
+		input:consumeEdges() -- 1233
+	end -- 1233
+	if p.paused then -- 1235
+		if fe ~= nil then -- 1236
+			fe:syncTrialAudio(frameDt, p, trial and #trial.offers or 0) -- 1236
+		end -- 1236
+		drawCampaign(p) -- 1237
+		return -- 1238
+	end -- 1238
+	local steps = clock:advance(frameDt) -- 1241
+	local i = 0 -- 1242
+	do -- 1242
+		i = 0 -- 1243
+		while i < steps do -- 1243
+			input:beginStep(i == 0) -- 1244
+			p:update(STEP, input) -- 1245
+			input:endStep() -- 1246
+			if p.wantRoom ~= "" or trial and trial.lost or trial ~= nil and (run and run.finished) then -- 1247
+				break -- 1248
+			end -- 1248
+			i = i + 1 -- 1243
+		end -- 1243
+	end -- 1243
+	if fe ~= nil then -- 1251
+		fe:syncTrialAudio(frameDt, p, trial and #trial.offers or 0) -- 1251
+	end -- 1251
+	if p.wantRoom ~= "" then -- 1253
+		local key = p.wantRoom -- 1254
+		p.wantRoom = "" -- 1255
+		local idx = -1 -- 1256
+		local j = 0 -- 1257
+		do -- 1257
+			j = 0 -- 1258
+			while j < #CAMPAIGN_ROOMS do -- 1258
+				if CAMPAIGN_ROOMS[j + 1].key == key then -- 1259
+					idx = j -- 1260
+				end -- 1260
+				j = j + 1 -- 1258
+			end -- 1258
+		end -- 1258
+		if idx >= 0 then -- 1263
+			current = idx -- 1264
+			play = nil -- 1265
+			ensurePlay() -- 1266
+		end -- 1266
+		return -- 1268
+	end -- 1268
+	drawCampaign(p) -- 1270
+end -- 1270
+function goalLabel(goal) -- 1273
+	if goal == "dock_cart" then -- 1274
+		return "推车入窝并抬闩" -- 1275
+	end -- 1275
+	if goal == "raise_latch" then -- 1277
+		return "抬闩开侧门" -- 1278
 	end -- 1278
-	if p.paused then -- 1281
-		line = line .. "  · 已暂停 Esc 继续" -- 1282
-	end -- 1282
-	local trial = r and r.trial -- 1284
-	if trial ~= nil and r ~= nil then -- 1285
-		line = (((((("护送试炼 · " .. room.name) .. " · 体力 ") .. tostring(p.hp)) .. "/") .. tostring(p.maxHp)) .. " · ") .. mmss(r.ticks) -- 1286
-		if p.paused then -- 1287
-			line = line .. " · 暂停" -- 1287
-		elseif trial.lost then -- 1288
-			line = line .. " · 护送失败" -- 1288
-		elseif r.finished then -- 1289
-			line = line .. " · 护送完成" -- 1289
-		elseif #trial.offers > 0 then -- 1290
-			line = line .. " · 选择本段本领" -- 1290
-		elseif c ~= nil then -- 1291
-			line = line .. " · " .. goalLabel(c.goal) -- 1291
-		end -- 1291
-	end -- 1291
-	if campaignHud ~= nil then -- 1293
-		campaignHud.text = line -- 1294
-		campaignHud.position = Vec2(24 + safeL, h - 14 - safeT) -- 1295
-		campaignHud.visible = true -- 1296
-	end -- 1296
-	if campaignSub ~= nil then -- 1298
-		local sub = "总 " .. mmss(r == nil and 0 or r.ticks) -- 1299
-		if r ~= nil then -- 1300
-			local route = r.route == "drygoods" and "布行" or (r.route == "outer" and "外檐" or "未定") -- 1301
-			sub = (((((((((((((sub .. " · 路线 ") .. route) .. " · 盾") .. tostring(r.inventory.shield)) .. " 楔") .. tostring(r.inventory.wedge)) .. " 弹") .. tostring(r.inventory.ammo)) .. " 牌") .. tostring(r.inventory.pass)) .. " 带") .. tostring(r.inventory.quickbelt)) .. " · ") .. (r.joined and "小满跟随" or "小满等待") -- 1302
-		end -- 1302
-		if p.flash ~= "" then -- 1307
-			sub = (sub .. " · ") .. p.flash -- 1308
-		end -- 1308
-		if trial ~= nil and r ~= nil then -- 1310
-			local gpMode = input ~= nil and input:isGamepadMode() -- 1311
-			local touchMode = input ~= nil and input:isTouchMode() -- 1312
-			if trial.lost or r.finished then -- 1313
-				sub = ("种子 " .. tostring(r.seed)) .. (gpMode and " · A 再开一局 · START 返回标题" or (touchMode and " · 点下方按钮再开或返回标题" or " · R 再开一局 · Esc 返回标题")) -- 1314
-			elseif p.paused then -- 1315
-				sub = ("种子 " .. tostring(r.seed)) .. (gpMode and " · START 继续 · 长按BACK 重开 · Y 返回标题" or (touchMode and " · 点下方按钮继续/重开/返回标题" or " · Esc 继续 · R 重新开局 · E 返回标题")) -- 1316
-			elseif #trial.offers > 0 then -- 1317
-				sub = table.concat( -- 1318
-					__TS__ArrayMap( -- 1318
-						trial.offers, -- 1318
-						function(____, talent, index) -- 1318
-							local mark = gpMode and index == trialTalentSelected and "▶ " or "" -- 1319
-							return ((mark .. tostring(index + 1)) .. " ") .. talentNames[talent] -- 1320
-						end -- 1318
-					), -- 1318
-					"　" -- 1321
-				) -- 1321
-			else -- 1321
-				sub = (((((((("厚甲" .. tostring(trial.ranks.vitality)) .. " 熟铳") .. tostring(trial.ranks.reload)) .. " 护身") .. tostring(trial.ranks.guard)) .. " 巧手") .. tostring(trial.ranks.craft)) .. " · ") .. (p.flash ~= "" and p.flash or (r.joined and "小满跟随" or "小满等待")) -- 1323
-			end -- 1323
-		end -- 1323
-		campaignSub.text = sub -- 1326
-		campaignSub.position = Vec2(24 + safeL, h - 44 - safeT) -- 1327
-		campaignSub.visible = true -- 1328
-	end -- 1328
-end -- 1328
-function tickFrontend(frameDt) -- 1332
-	if fe == nil or input == nil then -- 1333
-		return -- 1334
-	end -- 1334
-	if fe.screen ~= "play" then -- 1338
-		local act = fe:renderMenu(frameDt, input, stageVp.stageW, stageVp.stageH) -- 1339
-		input:consumeEdges() -- 1340
-		if act.type == "splashDone" then -- 1341
-			fe.menus:resetInput() -- 1342
-			fe.screen = "title" -- 1343
-		elseif act.type == "trial" then -- 1344
-			startTrial() -- 1345
-		elseif act.type == "continue" then -- 1346
-			if continueOfficialStory() == nil then -- 1347
-				enterPlayRoom( -- 1348
-					officialStartIndex(), -- 1348
-					"official", -- 1348
-					true -- 1348
-				) -- 1348
-			end -- 1348
-		elseif act.type == "start" then -- 1350
-			clearSession() -- 1352
-			refreshTitleSessionFlag() -- 1353
-			enterPlayRoom( -- 1354
-				officialStartIndex(), -- 1354
-				"official", -- 1354
-				true -- 1354
-			) -- 1354
-		elseif act.type == "jump" and act.roomIndex ~= nil then -- 1355
-			enterPlayRoom(act.roomIndex, "chapter") -- 1356
-		elseif act.type == "openChapters" then -- 1357
-			fe.menus:openChapters() -- 1358
-			fe.screen = "chapters" -- 1359
-		elseif act.type == "openControls" then -- 1360
+	return "到段出口" -- 1280
+end -- 1280
+function drawCampaign(p) -- 1283
+	if campaignDraw == nil then -- 1284
+		return -- 1285
+	end -- 1285
+	local w = stageVp.stageW -- 1287
+	local h = stageVp.stageH -- 1288
+	local safeL = stageVp.safeUi.left * stageVp.uiScale -- 1289
+	local safeT = stageVp.safeUi.top * stageVp.uiScale -- 1290
+	p:draw(campaignDraw, w, h) -- 1291
+	local room = CAMPAIGN_ROOMS[current + 1] -- 1292
+	local c = room.campaign -- 1293
+	local r = run -- 1294
+	local line = room.name -- 1295
+	if c ~= nil then -- 1296
+		line = ((((((((line .. "  ") .. c.chapter) .. tostring(c.act)) .. " · 目标 ") .. goalLabel(c.goal)) .. " · 本段 ") .. mmss(r == nil and 0 or (r.roomTicks[room.key] or 0))) .. " / 预算 ") .. mmss(c.budget * 60) -- 1297
+	end -- 1297
+	if p.paused then -- 1300
+		line = line .. "  · 已暂停 Esc 继续" -- 1301
+	end -- 1301
+	local trial = r and r.trial -- 1303
+	if trial ~= nil and r ~= nil then -- 1304
+		line = (((((("护送试炼 · " .. room.name) .. " · 体力 ") .. tostring(p.hp)) .. "/") .. tostring(p.maxHp)) .. " · ") .. mmss(r.ticks) -- 1305
+		if p.paused then -- 1306
+			line = line .. " · 暂停" -- 1306
+		elseif trial.lost then -- 1307
+			line = line .. " · 护送失败" -- 1307
+		elseif r.finished then -- 1308
+			line = line .. " · 护送完成" -- 1308
+		elseif #trial.offers > 0 then -- 1309
+			line = line .. " · 选择本段本领" -- 1309
+		elseif c ~= nil then -- 1310
+			line = line .. " · " .. goalLabel(c.goal) -- 1310
+		end -- 1310
+	end -- 1310
+	if campaignHud ~= nil then -- 1312
+		campaignHud.text = line -- 1313
+		campaignHud.position = Vec2(24 + safeL, h - 14 - safeT) -- 1314
+		campaignHud.visible = true -- 1315
+	end -- 1315
+	if campaignSub ~= nil then -- 1317
+		local sub = "总 " .. mmss(r == nil and 0 or r.ticks) -- 1318
+		if r ~= nil then -- 1319
+			local route = r.route == "drygoods" and "布行" or (r.route == "outer" and "外檐" or "未定") -- 1320
+			sub = (((((((((((((sub .. " · 路线 ") .. route) .. " · 盾") .. tostring(r.inventory.shield)) .. " 楔") .. tostring(r.inventory.wedge)) .. " 弹") .. tostring(r.inventory.ammo)) .. " 牌") .. tostring(r.inventory.pass)) .. " 带") .. tostring(r.inventory.quickbelt)) .. " · ") .. (r.joined and "小满跟随" or "小满等待") -- 1321
+		end -- 1321
+		if p.flash ~= "" then -- 1326
+			sub = (sub .. " · ") .. p.flash -- 1327
+		end -- 1327
+		if trial ~= nil and r ~= nil then -- 1329
+			local gpMode = input ~= nil and input:isGamepadMode() -- 1330
+			local touchMode = input ~= nil and input:isTouchMode() -- 1331
+			if trial.lost or r.finished then -- 1332
+				sub = ("种子 " .. tostring(r.seed)) .. (gpMode and " · A 再开一局 · START 返回标题" or (touchMode and " · 点下方按钮再开或返回标题" or " · R 再开一局 · Esc 返回标题")) -- 1333
+			elseif p.paused then -- 1334
+				sub = ("种子 " .. tostring(r.seed)) .. (gpMode and " · START 继续 · 长按BACK 重开 · Y 返回标题" or (touchMode and " · 点下方按钮继续/重开/返回标题" or " · Esc 继续 · R 重新开局 · E 返回标题")) -- 1335
+			elseif #trial.offers > 0 then -- 1336
+				sub = table.concat( -- 1337
+					__TS__ArrayMap( -- 1337
+						trial.offers, -- 1337
+						function(____, talent, index) -- 1337
+							local mark = gpMode and index == trialTalentSelected and "▶ " or "" -- 1338
+							return ((mark .. tostring(index + 1)) .. " ") .. talentNames[talent] -- 1339
+						end -- 1337
+					), -- 1337
+					"　" -- 1340
+				) -- 1340
+			else -- 1340
+				sub = (((((((("厚甲" .. tostring(trial.ranks.vitality)) .. " 熟铳") .. tostring(trial.ranks.reload)) .. " 护身") .. tostring(trial.ranks.guard)) .. " 巧手") .. tostring(trial.ranks.craft)) .. " · ") .. (p.flash ~= "" and p.flash or (r.joined and "小满跟随" or "小满等待")) -- 1342
+			end -- 1342
+		end -- 1342
+		campaignSub.text = sub -- 1345
+		campaignSub.position = Vec2(24 + safeL, h - 44 - safeT) -- 1346
+		campaignSub.visible = true -- 1347
+	end -- 1347
+end -- 1347
+function tickFrontend(frameDt) -- 1351
+	if fe == nil or input == nil then -- 1352
+		return -- 1353
+	end -- 1353
+	if fe.screen ~= "play" then -- 1357
+		local act = fe:renderMenu(frameDt, input, stageVp.stageW, stageVp.stageH) -- 1358
+		input:consumeEdges() -- 1359
+		if act.type == "splashDone" then -- 1360
 			fe.menus:resetInput() -- 1361
-			fe.screen = "controls" -- 1362
-		elseif act.type == "openHistory" then -- 1363
-			fe.menus:openHistory(true) -- 1364
-			fe.screen = "history" -- 1365
-		elseif act.type == "backEpilogue" then -- 1366
-			fe.menus:resetInput() -- 1367
-			fe.screen = "epilogue" -- 1368
-		elseif act.type == "replayStory" then -- 1369
-			clearSession() -- 1370
-			refreshTitleSessionFlag() -- 1371
-			enterPlayRoom( -- 1372
-				officialStartIndex(), -- 1372
-				"official", -- 1372
-				true -- 1372
-			) -- 1372
-		elseif act.type == "backTitle" then -- 1373
-			fe.menus:resetInput() -- 1374
-			fe.screen = "title" -- 1375
-		elseif act.type == "backPause" then -- 1376
-			fe.menus:resetInput() -- 1377
-			fe.screen = "play" -- 1378
-		elseif act.type == "quit" then -- 1379
-			quitGame() -- 1380
-		end -- 1380
-		return -- 1382
-	end -- 1382
-	if play == nil then -- 1386
-		ensurePlay() -- 1387
-	end -- 1387
-	if play == nil then -- 1389
-		return -- 1390
-	end -- 1390
-	local p = play -- 1392
-	p.aimX = input.mx -- 1394
-	p.aimY = input.my -- 1395
-	local zoneTap = input.touchZoneTap -- 1397
-	input.touchZoneTap = "" -- 1398
-	local offers = p:getStoryTalentOffers() -- 1400
-	if not p.paused and not p.craftBench.active and not p.reloadOpen and #offers > 0 then -- 1401
-		if fe.hud.talentSelected >= #offers then -- 1402
-			fe.hud.talentSelected = 0 -- 1403
-		end -- 1403
-		if (string.find(zoneTap, "talent:", nil, true) or 0) - 1 == 0 then -- 1405
-			local idx = __TS__ParseInt( -- 1406
-				string.sub(zoneTap, 8), -- 1406
-				10 -- 1406
-			) -- 1406
-			if idx >= 0 and idx < #offers and p:chooseTalent(idx) then -- 1407
-				input.fire.pressed = false -- 1408
-			end -- 1408
-		else -- 1408
-			if input.talentDelta ~= 0 then -- 1411
-				fe.hud.talentSelected = (fe.hud.talentSelected + input.talentDelta + #offers) % #offers -- 1412
-				input.talentDelta = 0 -- 1413
-			end -- 1413
-			if input.talentConfirm then -- 1415
-				p:chooseTalent(fe.hud.talentSelected) -- 1416
-				input.talentConfirm = false -- 1417
-				input.fire.pressed = false -- 1418
-			elseif (input.uiPressed or input.inputMode ~= "gamepad" and input.fire.pressed) and fe:tryPickTalentAtPointer(p, input, stageVp.stageW, stageVp.stageH) then -- 1419
-				input.fire.pressed = false -- 1421
-			end -- 1421
-		end -- 1421
-	end -- 1421
-	if not p.paused and p.room.key == "tower" and p.phase == "tower-end" then -- 1427
-		if input.navConfirm then -- 1428
-			input.interact.pressed = true -- 1429
-		end -- 1429
-		if p:towerEndReady() and (input.interact.pressed or input.retry.pressed) then -- 1431
-			flushProfile() -- 1432
-			if p.run.source == "official" and hasSessionSave() then -- 1433
-				clearSession() -- 1434
-				refreshTitleSessionFlag() -- 1435
-			end -- 1435
-			fe.audio:stopRoomTransient() -- 1437
-			fe.menus:openEpilogue(p.storyRoute == "soldier" and "reunion" or "lamp", profile.childCleared and profile.soldierCleared) -- 1438
-			fe.screen = "epilogue" -- 1442
-			input:clearTransient(true) -- 1443
-			input:consumeEdges() -- 1444
-			return -- 1445
-		end -- 1445
-	end -- 1445
-	if not p.paused and p.craftBench.active and input.pause.pressed then -- 1449
-		p:closeCraftBench() -- 1450
-		input:consumeEdges() -- 1451
-		return -- 1452
-	end -- 1452
-	if not p.paused and input.pause.pressed then -- 1454
-		p.paused = true -- 1455
-		p.aimHold = 0 -- 1456
-		p.bottleAimX = -1 -- 1457
-		saveCurrentSession() -- 1458
-		fe.menus:openPause() -- 1459
-		fe.audio:playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08) -- 1460
-		input:clearTransient(true) -- 1461
-		input:consumeEdges() -- 1462
-	end -- 1462
-	if p.paused then -- 1465
-		clock:reset() -- 1467
-		local pauseAct = fe:renderPlay( -- 1468
-			frameDt, -- 1468
-			p, -- 1468
-			input, -- 1468
-			stageVp.stageW, -- 1468
-			stageVp.stageH -- 1468
-		) -- 1468
-		input:consumeEdges() -- 1469
-		if pauseAct.type == "resume" then -- 1470
-			p.paused = false -- 1471
-		elseif pauseAct.type == "retry" then -- 1472
-			ensurePlay({checkpoint = p.checkpoint}) -- 1473
-		elseif pauseAct.type == "openChapters" then -- 1474
-			fe.audio:stopRoomTransient() -- 1475
-			fe.audio:setPaused(false) -- 1476
-			fe.menus:openChapters(current) -- 1477
-			fe.screen = "chapters" -- 1478
-		elseif pauseAct.type == "toggleFullscreen" then -- 1479
-			toggleFullscreen() -- 1480
-		elseif pauseAct.type == "quit" then -- 1481
-			quitGame() -- 1482
-		elseif pauseAct.type == "toTitle" then -- 1483
-			saveCurrentSession() -- 1484
-			refreshTitleSessionFlag() -- 1485
-			fe.menus:resetInput() -- 1486
-			fe.screen = "title" -- 1487
-		end -- 1487
-		return -- 1489
-	end -- 1489
-	local inTowerEnding = p.room.key == "tower" and p.phase ~= "tower-wait" -- 1492
-	local inPrologueIntro = p.room.key == "prologue" and (p.phase == "prologue-wake" or p.phase == "prologue-shadow" or p.phase == "prologue-escape" or p.phase == "prologue-hide") -- 1493
-	if input.retry.pressed and not inTowerEnding and not inPrologueIntro and not p.craftBench.active and not p.reloadOpen then -- 1495
-		input:consumeEdges() -- 1496
-		ensurePlay({checkpoint = p.checkpoint}) -- 1498
-		return -- 1499
-	end -- 1499
-	local steps = clock:advance(frameDt) -- 1502
-	local i = 0 -- 1503
-	do -- 1503
-		i = 0 -- 1504
-		while i < steps do -- 1504
-			input:beginStep(i == 0) -- 1505
-			p:update(STEP, input) -- 1506
-			input:endStep() -- 1507
-			if p.wantRoom ~= "" then -- 1508
-				break -- 1509
-			end -- 1509
-			i = i + 1 -- 1504
-		end -- 1504
-	end -- 1504
-	if p.wantRoom ~= "" then -- 1514
-		local key = p.wantRoom -- 1515
-		p.wantRoom = "" -- 1516
-		local idx = -1 -- 1517
-		local j = 0 -- 1518
-		do -- 1518
-			j = 0 -- 1519
-			while j < #ROOMS do -- 1519
-				if ROOMS[j + 1].key == key then -- 1520
-					idx = j -- 1521
-				end -- 1521
-				j = j + 1 -- 1519
-			end -- 1519
-		end -- 1519
-		if idx >= 0 then -- 1524
-			flushProfile() -- 1528
-			local leaving = p:drainEvents() -- 1529
-			if p.restartStory then -- 1531
-				if storyRun ~= nil and storyRun.source == "official" then -- 1532
-					clearSession() -- 1533
-					refreshTitleSessionFlag() -- 1534
-				end -- 1534
-				local nextSource = storyRun ~= nil and storyRun.source == "debug" and "debug" or "official" -- 1536
-				storyRun = createRun(20261124, nextSource, profile) -- 1537
-			end -- 1537
-			current = idx -- 1539
-			ensurePlay() -- 1540
-			local fresh = play -- 1541
-			if fresh ~= nil then -- 1542
-				if p.restartStory and ROOMS[current + 1].key == "prologue" and (storyRun and storyRun.source) == "official" then -- 1543
-					fresh.phase = "prologue-wake" -- 1544
-				end -- 1544
-				fresh:adoptEvents(leaving) -- 1546
-			end -- 1546
-			if not p.restartStory then -- 1548
-				saveCurrentSession() -- 1549
-			end -- 1549
-			clock:reset() -- 1551
-			dirty = true -- 1552
-		end -- 1552
-		return -- 1554
-	end -- 1554
-	flushProfile() -- 1558
-	if p.run.finished and p.run.source == "official" and hasSessionSave() then -- 1559
-		clearSession() -- 1560
-		refreshTitleSessionFlag() -- 1561
-	elseif p.sessionDirty then -- 1562
-		saveCurrentSession() -- 1563
-	end -- 1563
-	fe:renderPlay( -- 1565
-		frameDt, -- 1565
-		p, -- 1565
-		input, -- 1565
-		stageVp.stageW, -- 1565
-		stageVp.stageH -- 1565
-	) -- 1565
-end -- 1565
-function redrawGraybox() -- 1569
-	if draw == nil then -- 1570
-		return -- 1571
-	end -- 1571
-	local w = viewW -- 1573
-	local h = viewH -- 1574
-	local room = ROOMS[current + 1] -- 1575
-	draw:clear() -- 1577
-	draw:drawRect( -- 1578
-		Rect(0, h - TOP_H, w, TOP_H), -- 1578
-		C_BG -- 1578
-	) -- 1578
-	draw:drawRect( -- 1579
-		Rect(0, 0, w, BOTTOM_H), -- 1579
-		C_BG -- 1579
-	) -- 1579
-	draw:drawSegment( -- 1580
-		Vec2(0, h - TOP_H), -- 1580
-		Vec2(w, h - TOP_H), -- 1580
-		1, -- 1580
-		Color(52, 54, 54, 255) -- 1580
-	) -- 1580
-	draw:drawSegment( -- 1581
-		Vec2(0, BOTTOM_H), -- 1581
-		Vec2(w, BOTTOM_H), -- 1581
-		1, -- 1581
-		Color(52, 54, 54, 255) -- 1581
-	) -- 1581
-	local v = computeView(room, w, h) -- 1583
-	renderWorld( -- 1584
-		draw, -- 1584
-		room, -- 1584
-		v, -- 1584
-		w, -- 1584
-		h -- 1584
+			fe.screen = "title" -- 1362
+		elseif act.type == "trial" then -- 1363
+			startTrial() -- 1364
+		elseif act.type == "continue" then -- 1365
+			if continueOfficialStory() == nil then -- 1366
+				enterPlayRoom( -- 1367
+					officialStartIndex(), -- 1367
+					"official", -- 1367
+					true -- 1367
+				) -- 1367
+			end -- 1367
+		elseif act.type == "start" then -- 1369
+			clearSession() -- 1371
+			refreshTitleSessionFlag() -- 1372
+			enterPlayRoom( -- 1373
+				officialStartIndex(), -- 1373
+				"official", -- 1373
+				true -- 1373
+			) -- 1373
+		elseif act.type == "jump" and act.roomIndex ~= nil then -- 1374
+			enterPlayRoom(act.roomIndex, "chapter") -- 1375
+		elseif act.type == "openChapters" then -- 1376
+			fe.menus:openChapters() -- 1377
+			fe.screen = "chapters" -- 1378
+		elseif act.type == "openControls" then -- 1379
+			fe.menus:resetInput() -- 1380
+			fe.screen = "controls" -- 1381
+		elseif act.type == "openHistory" then -- 1382
+			fe.menus:openHistory(true) -- 1383
+			fe.screen = "history" -- 1384
+		elseif act.type == "backEpilogue" then -- 1385
+			fe.menus:resetInput() -- 1386
+			fe.screen = "epilogue" -- 1387
+		elseif act.type == "replayStory" then -- 1388
+			clearSession() -- 1389
+			refreshTitleSessionFlag() -- 1390
+			enterPlayRoom( -- 1391
+				officialStartIndex(), -- 1391
+				"official", -- 1391
+				true -- 1391
+			) -- 1391
+		elseif act.type == "backTitle" then -- 1392
+			fe.menus:resetInput() -- 1393
+			fe.screen = "title" -- 1394
+		elseif act.type == "backPause" then -- 1395
+			fe.menus:resetInput() -- 1396
+			fe.screen = "play" -- 1397
+		elseif act.type == "quit" then -- 1398
+			quitGame() -- 1399
+		end -- 1399
+		return -- 1401
+	end -- 1401
+	if play == nil then -- 1405
+		ensurePlay() -- 1406
+	end -- 1406
+	if play == nil then -- 1408
+		return -- 1409
+	end -- 1409
+	local p = play -- 1411
+	p.aimX = input.mx -- 1413
+	p.aimY = input.my -- 1414
+	local zoneTap = input.touchZoneTap -- 1416
+	input.touchZoneTap = "" -- 1417
+	local offers = p:getStoryTalentOffers() -- 1419
+	if not p.paused and not p.craftBench.active and not p.reloadOpen and #offers > 0 then -- 1420
+		if fe.hud.talentSelected >= #offers then -- 1421
+			fe.hud.talentSelected = 0 -- 1422
+		end -- 1422
+		if (string.find(zoneTap, "talent:", nil, true) or 0) - 1 == 0 then -- 1424
+			local idx = __TS__ParseInt( -- 1425
+				string.sub(zoneTap, 8), -- 1425
+				10 -- 1425
+			) -- 1425
+			if idx >= 0 and idx < #offers and p:chooseTalent(idx) then -- 1426
+				input.fire.pressed = false -- 1427
+			end -- 1427
+		else -- 1427
+			if input.talentDelta ~= 0 then -- 1430
+				fe.hud.talentSelected = (fe.hud.talentSelected + input.talentDelta + #offers) % #offers -- 1431
+				input.talentDelta = 0 -- 1432
+			end -- 1432
+			if input.talentConfirm then -- 1434
+				p:chooseTalent(fe.hud.talentSelected) -- 1435
+				input.talentConfirm = false -- 1436
+				input.fire.pressed = false -- 1437
+			elseif (input.uiPressed or input.inputMode ~= "gamepad" and input.fire.pressed) and fe:tryPickTalentAtPointer(p, input, stageVp.stageW, stageVp.stageH) then -- 1438
+				input.fire.pressed = false -- 1440
+			end -- 1440
+		end -- 1440
+	end -- 1440
+	if not p.paused and p.room.key == "tower" and p.phase == "tower-end" then -- 1446
+		if input.navConfirm then -- 1447
+			input.interact.pressed = true -- 1448
+		end -- 1448
+		if p:towerEndReady() and (input.interact.pressed or input.retry.pressed) then -- 1450
+			flushProfile() -- 1451
+			if p.run.source == "official" and hasSessionSave() then -- 1452
+				clearSession() -- 1453
+				refreshTitleSessionFlag() -- 1454
+			end -- 1454
+			fe.audio:stopRoomTransient() -- 1456
+			fe.menus:openEpilogue(p.storyRoute == "soldier" and "reunion" or "lamp", profile.childCleared and profile.soldierCleared) -- 1457
+			fe.screen = "epilogue" -- 1461
+			input:clearTransient(true) -- 1462
+			input:consumeEdges() -- 1463
+			return -- 1464
+		end -- 1464
+	end -- 1464
+	if not p.paused and p.craftBench.active and input.pause.pressed then -- 1468
+		p:closeCraftBench() -- 1469
+		input:consumeEdges() -- 1470
+		return -- 1471
+	end -- 1471
+	if not p.paused and input.pause.pressed then -- 1473
+		p.paused = true -- 1474
+		p.aimHold = 0 -- 1475
+		p.bottleAimX = -1 -- 1476
+		saveCurrentSession() -- 1477
+		fe.menus:openPause() -- 1478
+		fe.audio:playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08) -- 1479
+		input:clearTransient(true) -- 1480
+		input:consumeEdges() -- 1481
+	end -- 1481
+	if p.paused then -- 1484
+		clock:reset() -- 1486
+		local pauseAct = fe:renderPlay( -- 1487
+			frameDt, -- 1487
+			p, -- 1487
+			input, -- 1487
+			stageVp.stageW, -- 1487
+			stageVp.stageH -- 1487
+		) -- 1487
+		input:consumeEdges() -- 1488
+		if pauseAct.type == "resume" then -- 1489
+			p.paused = false -- 1490
+		elseif pauseAct.type == "retry" then -- 1491
+			ensurePlay({checkpoint = p.checkpoint}) -- 1492
+		elseif pauseAct.type == "openChapters" then -- 1493
+			fe.audio:stopRoomTransient() -- 1494
+			fe.audio:setPaused(false) -- 1495
+			fe.menus:openChapters(current) -- 1496
+			fe.screen = "chapters" -- 1497
+		elseif pauseAct.type == "toggleFullscreen" then -- 1498
+			toggleFullscreen() -- 1499
+		elseif pauseAct.type == "quit" then -- 1500
+			quitGame() -- 1501
+		elseif pauseAct.type == "toTitle" then -- 1502
+			saveCurrentSession() -- 1503
+			refreshTitleSessionFlag() -- 1504
+			fe.menus:resetInput() -- 1505
+			fe.screen = "title" -- 1506
+		end -- 1506
+		return -- 1508
+	end -- 1508
+	local inTowerEnding = p.room.key == "tower" and p.phase ~= "tower-wait" -- 1511
+	local inPrologueIntro = p.room.key == "prologue" and (p.phase == "prologue-wake" or p.phase == "prologue-shadow" or p.phase == "prologue-escape" or p.phase == "prologue-hide") -- 1512
+	if input.retry.pressed and not inTowerEnding and not inPrologueIntro and not p.craftBench.active and not p.reloadOpen then -- 1514
+		input:consumeEdges() -- 1515
+		ensurePlay({checkpoint = p.checkpoint}) -- 1517
+		return -- 1518
+	end -- 1518
+	local steps = clock:advance(frameDt) -- 1521
+	local i = 0 -- 1522
+	do -- 1522
+		i = 0 -- 1523
+		while i < steps do -- 1523
+			input:beginStep(i == 0) -- 1524
+			p:update(STEP, input) -- 1525
+			input:endStep() -- 1526
+			if p.wantRoom ~= "" then -- 1527
+				break -- 1528
+			end -- 1528
+			i = i + 1 -- 1523
+		end -- 1523
+	end -- 1523
+	if p.wantRoom ~= "" then -- 1533
+		local key = p.wantRoom -- 1534
+		p.wantRoom = "" -- 1535
+		local idx = -1 -- 1536
+		local j = 0 -- 1537
+		do -- 1537
+			j = 0 -- 1538
+			while j < #ROOMS do -- 1538
+				if ROOMS[j + 1].key == key then -- 1539
+					idx = j -- 1540
+				end -- 1540
+				j = j + 1 -- 1538
+			end -- 1538
+		end -- 1538
+		if idx >= 0 then -- 1543
+			flushProfile() -- 1547
+			local leaving = p:drainEvents() -- 1548
+			if p.restartStory then -- 1550
+				if storyRun ~= nil and storyRun.source == "official" then -- 1551
+					clearSession() -- 1552
+					refreshTitleSessionFlag() -- 1553
+				end -- 1553
+				local nextSource = storyRun ~= nil and storyRun.source == "debug" and "debug" or "official" -- 1555
+				storyRun = createRun(20261124, nextSource, profile) -- 1556
+			end -- 1556
+			current = idx -- 1558
+			ensurePlay() -- 1559
+			local fresh = play -- 1560
+			if fresh ~= nil then -- 1561
+				if p.restartStory and ROOMS[current + 1].key == "prologue" and (storyRun and storyRun.source) == "official" then -- 1562
+					fresh.phase = "prologue-wake" -- 1563
+				end -- 1563
+				fresh:adoptEvents(leaving) -- 1565
+			end -- 1565
+			if not p.restartStory then -- 1567
+				saveCurrentSession() -- 1568
+			end -- 1568
+			clock:reset() -- 1570
+			dirty = true -- 1571
+		end -- 1571
+		return -- 1573
+	end -- 1573
+	flushProfile() -- 1577
+	if p.run.finished and p.run.source == "official" and hasSessionSave() then -- 1578
+		clearSession() -- 1579
+		refreshTitleSessionFlag() -- 1580
+	elseif p.sessionDirty then -- 1581
+		saveCurrentSession() -- 1582
+	end -- 1582
+	fe:renderPlay( -- 1584
+		frameDt, -- 1584
+		p, -- 1584
+		input, -- 1584
+		stageVp.stageW, -- 1584
+		stageVp.stageH -- 1584
 	) -- 1584
-	local roomTop = v.groundPx + room.height * v.scale -- 1586
-	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 1587
-	place( -- 1589
-		titleLabel, -- 1589
-		48, -- 1589
-		h - 40, -- 1589
-		0, -- 1589
-		1 -- 1589
-	) -- 1589
-	place( -- 1590
-		roomLabel, -- 1590
-		48, -- 1590
-		h - 96, -- 1590
-		0, -- 1590
-		1 -- 1590
-	) -- 1590
-	place( -- 1591
-		captionLabel, -- 1591
-		48, -- 1591
-		h - 140, -- 1591
-		0, -- 1591
-		1 -- 1591
-	) -- 1591
-	place( -- 1593
-		switchLabel, -- 1593
-		48, -- 1593
-		40, -- 1593
-		0, -- 1593
-		0 -- 1593
-	) -- 1593
-	place( -- 1594
-		hintLabel, -- 1594
-		48, -- 1594
-		84, -- 1594
-		0, -- 1594
-		0 -- 1594
-	) -- 1594
-	place( -- 1595
-		rulerLabel, -- 1595
-		w - 216, -- 1595
-		roomTop + 36 + v.scale * 0.5 - 14, -- 1595
-		1, -- 1595
-		0 -- 1595
-	) -- 1595
-	place( -- 1596
-		standLabel, -- 1596
-		48, -- 1596
-		roomTop + 40, -- 1596
-		0, -- 1596
-		0 -- 1596
-	) -- 1596
-	place( -- 1597
-		cartLabel, -- 1597
-		48, -- 1597
-		roomTop + 92, -- 1597
-		0, -- 1597
-		0 -- 1597
+end -- 1584
+function redrawGraybox() -- 1588
+	if draw == nil then -- 1589
+		return -- 1590
+	end -- 1590
+	local w = viewW -- 1592
+	local h = viewH -- 1593
+	local room = ROOMS[current + 1] -- 1594
+	draw:clear() -- 1596
+	draw:drawRect( -- 1597
+		Rect(0, h - TOP_H, w, TOP_H), -- 1597
+		C_BG -- 1597
 	) -- 1597
-	if roomLabel ~= nil then -- 1599
-		roomLabel.text = room.name -- 1600
-	end -- 1600
-	if captionLabel ~= nil then -- 1602
-		captionLabel.text = room.caption -- 1603
-	end -- 1603
-	if hintLabel ~= nil then -- 1605
-		local hintIdx = math.min(current, #HINTS - 1) -- 1606
-		local lines = HINTS[hintIdx + 1] -- 1607
-		local merged = lines[1] -- 1608
-		do -- 1608
-			local i = 1 -- 1609
-			while i < #lines do -- 1609
-				merged = (merged .. "    ") .. lines[i + 1] -- 1610
-				i = i + 1 -- 1609
-			end -- 1609
-		end -- 1609
-		hintLabel.text = merged -- 1612
-	end -- 1612
-	local specs = collectLabels(room, v, w) -- 1615
-	local body = {} -- 1616
-	local small = {} -- 1617
-	do -- 1617
-		local i = 0 -- 1618
-		while i < #specs do -- 1618
-			local s = specs[i + 1] -- 1619
-			if s.size >= 24 then -- 1620
-				body[#body + 1] = s -- 1621
-			else -- 1621
-				small[#small + 1] = s -- 1623
-			end -- 1623
-			i = i + 1 -- 1618
-		end -- 1618
-	end -- 1618
-	applyPool(body, poolBody) -- 1626
-	applyPool(small, poolSmall) -- 1627
-	if LAYOUT_AUDIT then -- 1629
-		print((("AUDIT|" .. room.key) .. "|") .. tostring(#specs)) -- 1630
-	end -- 1630
-end -- 1630
-function applyPool(specs, pool) -- 1634
-	do -- 1634
-		local i = 0 -- 1635
-		while i < #pool do -- 1635
-			local lb = pool[i + 1] -- 1636
-			if i < #specs then -- 1637
-				local s = specs[i + 1] -- 1638
-				lb.text = s.text -- 1639
-				lb.position = Vec2(s.x, s.y) -- 1640
-				lb.anchor = Vec2(s.ax, s.ay) -- 1641
-				lb.color = s.color -- 1642
-				lb.visible = true -- 1643
-			else -- 1643
-				lb.visible = false -- 1645
-			end -- 1645
-			i = i + 1 -- 1635
-		end -- 1635
-	end -- 1635
-end -- 1635
+	draw:drawRect( -- 1598
+		Rect(0, 0, w, BOTTOM_H), -- 1598
+		C_BG -- 1598
+	) -- 1598
+	draw:drawSegment( -- 1599
+		Vec2(0, h - TOP_H), -- 1599
+		Vec2(w, h - TOP_H), -- 1599
+		1, -- 1599
+		Color(52, 54, 54, 255) -- 1599
+	) -- 1599
+	draw:drawSegment( -- 1600
+		Vec2(0, BOTTOM_H), -- 1600
+		Vec2(w, BOTTOM_H), -- 1600
+		1, -- 1600
+		Color(52, 54, 54, 255) -- 1600
+	) -- 1600
+	local v = computeView(room, w, h) -- 1602
+	renderWorld( -- 1603
+		draw, -- 1603
+		room, -- 1603
+		v, -- 1603
+		w, -- 1603
+		h -- 1603
+	) -- 1603
+	local roomTop = v.groundPx + room.height * v.scale -- 1605
+	drawScaleRuler(draw, w - 192, roomTop + 36, v.scale) -- 1606
+	place( -- 1608
+		titleLabel, -- 1608
+		48, -- 1608
+		h - 40, -- 1608
+		0, -- 1608
+		1 -- 1608
+	) -- 1608
+	place( -- 1609
+		roomLabel, -- 1609
+		48, -- 1609
+		h - 96, -- 1609
+		0, -- 1609
+		1 -- 1609
+	) -- 1609
+	place( -- 1610
+		captionLabel, -- 1610
+		48, -- 1610
+		h - 140, -- 1610
+		0, -- 1610
+		1 -- 1610
+	) -- 1610
+	place( -- 1612
+		switchLabel, -- 1612
+		48, -- 1612
+		40, -- 1612
+		0, -- 1612
+		0 -- 1612
+	) -- 1612
+	place( -- 1613
+		hintLabel, -- 1613
+		48, -- 1613
+		84, -- 1613
+		0, -- 1613
+		0 -- 1613
+	) -- 1613
+	place( -- 1614
+		rulerLabel, -- 1614
+		w - 216, -- 1614
+		roomTop + 36 + v.scale * 0.5 - 14, -- 1614
+		1, -- 1614
+		0 -- 1614
+	) -- 1614
+	place( -- 1615
+		standLabel, -- 1615
+		48, -- 1615
+		roomTop + 40, -- 1615
+		0, -- 1615
+		0 -- 1615
+	) -- 1615
+	place( -- 1616
+		cartLabel, -- 1616
+		48, -- 1616
+		roomTop + 92, -- 1616
+		0, -- 1616
+		0 -- 1616
+	) -- 1616
+	if roomLabel ~= nil then -- 1618
+		roomLabel.text = room.name -- 1619
+	end -- 1619
+	if captionLabel ~= nil then -- 1621
+		captionLabel.text = room.caption -- 1622
+	end -- 1622
+	if hintLabel ~= nil then -- 1624
+		local hintIdx = math.min(current, #HINTS - 1) -- 1625
+		local lines = HINTS[hintIdx + 1] -- 1626
+		local merged = lines[1] -- 1627
+		do -- 1627
+			local i = 1 -- 1628
+			while i < #lines do -- 1628
+				merged = (merged .. "    ") .. lines[i + 1] -- 1629
+				i = i + 1 -- 1628
+			end -- 1628
+		end -- 1628
+		hintLabel.text = merged -- 1631
+	end -- 1631
+	local specs = collectLabels(room, v, w) -- 1634
+	local body = {} -- 1635
+	local small = {} -- 1636
+	do -- 1636
+		local i = 0 -- 1637
+		while i < #specs do -- 1637
+			local s = specs[i + 1] -- 1638
+			if s.size >= 24 then -- 1639
+				body[#body + 1] = s -- 1640
+			else -- 1640
+				small[#small + 1] = s -- 1642
+			end -- 1642
+			i = i + 1 -- 1637
+		end -- 1637
+	end -- 1637
+	applyPool(body, poolBody) -- 1645
+	applyPool(small, poolSmall) -- 1646
+	if LAYOUT_AUDIT then -- 1648
+		print((("AUDIT|" .. room.key) .. "|") .. tostring(#specs)) -- 1649
+	end -- 1649
+end -- 1649
+function applyPool(specs, pool) -- 1653
+	do -- 1653
+		local i = 0 -- 1654
+		while i < #pool do -- 1654
+			local lb = pool[i + 1] -- 1655
+			if i < #specs then -- 1656
+				local s = specs[i + 1] -- 1657
+				lb.text = s.text -- 1658
+				lb.position = Vec2(s.x, s.y) -- 1659
+				lb.anchor = Vec2(s.ax, s.ay) -- 1660
+				lb.color = s.color -- 1661
+				lb.visible = true -- 1662
+			else -- 1662
+				lb.visible = false -- 1664
+			end -- 1664
+			i = i + 1 -- 1654
+		end -- 1654
+	end -- 1654
+end -- 1654
 local FONT = "sarasa-mono-sc-regular" -- 39
 LAYOUT_AUDIT = false -- 40
 local C_TEXT = Color(236, 236, 232, 255) -- 42

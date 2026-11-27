@@ -71,74 +71,74 @@ local function scaleRGBA(c, k, alphaMul) -- 197
 		a = clampByte(c.a * alphaMul) -- 202
 	} -- 202
 end -- 197
---- 明初温州宁村所海防卫城低模材质预设（高灰度区分度、禁现代/仙侠荧光）
+--- 明初温州宁村所海防卫城低模材质预设（高灰度区分度、去刺眼白线框 CAD 观感、禁现代/仙侠荧光）
 ____exports.MING_MATERIALS = { -- 207
 	mingBrick = { -- 208
-		base = rgba(96, 102, 112, 255), -- 209
-		edge = rgba(154, 162, 174, 155), -- 210
+		base = rgba(88, 95, 108, 255), -- 209
+		edge = rgba(128, 138, 152, 72), -- 210
 		minShade = 0.3, -- 211
 		rimBoost = 0.24, -- 212
-		bottomAo = 0.28 -- 213
+		bottomAo = 0.3 -- 213
 	}, -- 213
 	mingBrickDark = { -- 215
-		base = rgba(54, 60, 72, 255), -- 216
-		edge = rgba(108, 118, 134, 135), -- 217
+		base = rgba(46, 53, 66, 255), -- 216
+		edge = rgba(88, 98, 114, 58), -- 217
 		minShade = 0.24, -- 218
 		rimBoost = 0.18, -- 219
-		bottomAo = 0.34 -- 220
+		bottomAo = 0.36 -- 220
 	}, -- 220
 	mingTimber = { -- 222
-		base = rgba(114, 84, 62, 255), -- 223
-		edge = rgba(168, 134, 104, 160), -- 224
+		base = rgba(108, 78, 56, 255), -- 223
+		edge = rgba(146, 114, 86, 78), -- 224
 		minShade = 0.26, -- 225
 		rimBoost = 0.22, -- 226
-		bottomAo = 0.3 -- 227
+		bottomAo = 0.32 -- 227
 	}, -- 227
 	mingTimberDark = { -- 229
-		base = rgba(68, 50, 38, 255), -- 230
-		edge = rgba(122, 96, 76, 145), -- 231
+		base = rgba(60, 44, 33, 255), -- 230
+		edge = rgba(102, 78, 60, 66), -- 231
 		minShade = 0.2, -- 232
 		rimBoost = 0.16, -- 233
-		bottomAo = 0.36 -- 234
+		bottomAo = 0.38 -- 234
 	}, -- 234
 	mingStoneStep = { -- 236
-		base = rgba(118, 122, 128, 255), -- 237
-		edge = rgba(188, 194, 200, 185), -- 238
+		base = rgba(108, 114, 124, 255), -- 237
+		edge = rgba(168, 178, 190, 96), -- 238
 		minShade = 0.28, -- 239
 		rimBoost = 0.26, -- 240
 		bottomAo = 0.26 -- 241
 	}, -- 241
 	mingIron = { -- 243
-		base = rgba(46, 52, 62, 255), -- 244
-		edge = rgba(136, 146, 158, 165), -- 245
+		base = rgba(44, 50, 60, 255), -- 244
+		edge = rgba(122, 132, 146, 86), -- 245
 		minShade = 0.22, -- 246
 		rimBoost = 0.28, -- 247
 		bottomAo = 0.25 -- 248
 	}, -- 248
 	mingTile = { -- 250
-		base = rgba(44, 52, 66, 255), -- 251
-		edge = rgba(102, 116, 136, 140), -- 252
+		base = rgba(40, 48, 62, 255), -- 251
+		edge = rgba(88, 102, 122, 64), -- 252
 		minShade = 0.24, -- 253
 		rimBoost = 0.18, -- 254
-		bottomAo = 0.24 -- 255
+		bottomAo = 0.26 -- 255
 	}, -- 255
 	mingRedCloth = { -- 257
 		base = rgba(176, 52, 48, 255), -- 258
-		edge = rgba(224, 116, 102, 195), -- 259
+		edge = rgba(218, 108, 94, 128), -- 259
 		minShade = 0.36, -- 260
 		rimBoost = 0.24, -- 261
 		bottomAo = 0.18 -- 262
 	}, -- 262
 	distantWall = { -- 264
-		base = rgba(42, 52, 68, 255), -- 265
-		edge = rgba(98, 114, 136, 115), -- 266
+		base = rgba(38, 48, 64, 255), -- 265
+		edge = rgba(82, 98, 118, 48), -- 266
 		minShade = 0.35, -- 267
 		rimBoost = 0.14, -- 268
 		bottomAo = 0.22 -- 269
 	}, -- 269
 	distantHill = { -- 271
-		base = rgba(28, 38, 54, 255), -- 272
-		edge = rgba(74, 92, 116, 90), -- 273
+		base = rgba(24, 34, 50, 255), -- 272
+		edge = rgba(64, 82, 106, 38), -- 273
 		minShade = 0.38, -- 274
 		rimBoost = 0.12, -- 275
 		bottomAo = 0.2 -- 276
@@ -1090,175 +1090,180 @@ end -- 1147
 --- 复用级低模栈台构建器（同时服务 M1 城外栈台小幅侧移验收 与 Wave 2 fe-04 `outside` 房间）：
 -- 直接读取 RoomSpec 的 floors / stairs / solids / arch 真实世界坐标生成 3D 几何体，
 -- 保证木板前后遮挡、踏步侧面、拱洞内壁与 wz = 0 碰撞/车柄落点严丝合缝。
-function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartAxle, time) -- 1232
-	scene:addDistantRidge( -- 1241
-		{ -- 1242
-			{x = room.minX - 180, y = 125}, -- 1243
-			{x = room.minX + 120, y = 196}, -- 1244
-			{x = room.minX + 420, y = 162}, -- 1245
-			{x = room.minX + 760, y = 224}, -- 1246
-			{x = room.maxX + 220, y = 150} -- 1247
-		}, -- 1247
-		-40, -- 1249
-		420, -- 1250
-		____exports.MING_MATERIALS.distantHill, -- 1251
-		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1252
-	) -- 1252
-	scene:addFogBand( -- 1254
-		room.minX - 240, -- 1254
-		room.maxX + 240, -- 1254
-		-30, -- 1254
-		175, -- 1254
-		290, -- 1254
-		scene.light.fogColor, -- 1254
-		0.56, -- 1254
-		0.04, -- 1254
-		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1254
-	) -- 1254
-	local i = 0 -- 1259
-	do -- 1259
-		i = 0 -- 1260
-		while i < #room.floors do -- 1260
-			local fl = room.floors[i + 1] -- 1261
-			local isMain = fl.y <= 0.1 -- 1262
-			if isMain then -- 1263
-				scene:addBox({ -- 1264
-					x0 = fl.x0, -- 1265
-					x1 = fl.x1, -- 1266
-					y0 = -48, -- 1267
-					y1 = fl.y, -- 1268
-					z0 = -26, -- 1269
-					z1 = 88, -- 1270
-					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1271
-					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1272
-					highlightTopEdge = true -- 1273
-				}) -- 1273
-			else -- 1273
-				scene:addPlankDeck( -- 1277
-					fl.x0, -- 1277
-					fl.x1, -- 1277
-					fl.y, -- 1277
-					-24, -- 1277
-					52, -- 1277
-					5, -- 1277
-					11, -- 1277
-					____exports.MING_MATERIALS.mingTimber, -- 1277
-					{bucket = ____exports.LP_BUCKET.WALK_DECK, withPosts = true, postBottomY = 0} -- 1277
-				) -- 1277
-			end -- 1277
-			i = i + 1 -- 1260
-		end -- 1260
-	end -- 1260
-	do -- 1260
-		i = 0 -- 1286
-		while i < #room.stairs do -- 1286
-			scene:addStairFlight( -- 1287
-				room.stairs[i + 1], -- 1287
-				14, -- 1287
-				76, -- 1287
-				____exports.MING_MATERIALS.mingStoneStep, -- 1287
-				{bucket = ____exports.LP_BUCKET.MIDGROUND, baseY = 0} -- 1287
-			) -- 1287
-			i = i + 1 -- 1286
-		end -- 1286
-	end -- 1286
-	do -- 1286
-		i = 0 -- 1294
-		while i < #room.solids do -- 1294
-			do -- 1294
-				local s = room.solids[i + 1] -- 1295
-				if s.id == "outside_red_cart" then -- 1296
-					goto __continue92 -- 1297
-				end -- 1297
-				scene:addBox({ -- 1299
-					x0 = s.x, -- 1300
-					x1 = s.x + s.w, -- 1301
-					y0 = s.y, -- 1302
-					y1 = s.y + s.h, -- 1303
-					z0 = -8, -- 1304
-					z1 = 72, -- 1305
-					material = ____exports.MING_MATERIALS.mingBrick, -- 1306
-					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1307
-					highlightTopEdge = true -- 1308
-				}) -- 1308
-				if s.y > 10 then -- 1310
-					scene:addBox({ -- 1311
-						x0 = s.x, -- 1312
-						x1 = s.x + 18, -- 1313
-						y0 = 0, -- 1314
-						y1 = s.y, -- 1315
-						z0 = 32, -- 1316
-						z1 = 72, -- 1317
-						material = ____exports.MING_MATERIALS.mingBrickDark, -- 1318
-						bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1319
-						sortBias = -0.08, -- 1320
-						edgeWidth = 0.7 -- 1321
-					}) -- 1321
-					scene:addBox({ -- 1323
-						x0 = s.x + s.w - 18, -- 1324
-						x1 = s.x + s.w, -- 1325
-						y0 = 0, -- 1326
-						y1 = s.y, -- 1327
-						z0 = 32, -- 1328
-						z1 = 72, -- 1329
-						material = ____exports.MING_MATERIALS.mingBrickDark, -- 1330
-						bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1331
-						sortBias = -0.08, -- 1332
-						edgeWidth = 0.7 -- 1333
-					}) -- 1333
-				end -- 1333
-			end -- 1333
-			::__continue92:: -- 1333
-			i = i + 1 -- 1294
-		end -- 1294
-	end -- 1294
-	local arch = room.arch -- 1339
-	if arch.h > 0 and arch.x1 > arch.x0 then -- 1340
-		scene:addBeveledFrame( -- 1341
-			arch.x0, -- 1341
-			arch.x1, -- 1341
-			arch.y, -- 1341
-			arch.y + arch.h, -- 1341
-			22, -- 1341
-			18, -- 1341
-			-10, -- 1341
-			64, -- 1341
-			____exports.MING_MATERIALS.mingStoneStep, -- 1341
-			{ -- 1341
-				bucket = ____exports.LP_BUCKET.WALK_DECK, -- 1342
-				innerRimLight = rgba(176, 206, 228, 255), -- 1343
-				innerRimStrength = 0.45 -- 1344
-			} -- 1344
-		) -- 1344
-	end -- 1344
-	local c = room.cart -- 1349
-	if c.bodyW > 0 then -- 1350
-		scene:addContactShadow( -- 1351
-			cartAxle, -- 1351
-			c.baseY, -- 1351
-			c.bodyW * 0.62, -- 1351
-			14, -- 1351
-			0.7, -- 1351
-			{bucket = ____exports.LP_BUCKET.PROP} -- 1351
-		) -- 1351
-		local clothX = cartAxle - c.bodyW * 0.5 -- 1352
-		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1353
-		local sway = math.sin(time * 3.1) * 5.5 -- 1354
-		scene:addTri3D( -- 1355
-			____exports.vec3(clothX, clothTop, -4), -- 1356
-			____exports.vec3(clothX + 9, clothTop, -4), -- 1357
-			____exports.vec3(clothX - 5 + sway, clothTop - 22, -6), -- 1358
-			____exports.MING_MATERIALS.mingRedCloth, -- 1359
-			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, edgeWidth = 0.9} -- 1360
-		) -- 1360
-	end -- 1360
-	scene:addContactShadow( -- 1365
-		actorX, -- 1365
-		actorY, -- 1365
-		15, -- 1365
-		11, -- 1365
-		0.78, -- 1365
-		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1365
-	) -- 1365
+function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartAxle, time, skipBackdrop) -- 1232
+	if skipBackdrop == nil then -- 1239
+		skipBackdrop = false -- 1239
+	end -- 1239
+	if not skipBackdrop then -- 1242
+		scene:addDistantRidge( -- 1243
+			{ -- 1244
+				{x = room.minX - 180, y = 125}, -- 1245
+				{x = room.minX + 120, y = 196}, -- 1246
+				{x = room.minX + 420, y = 162}, -- 1247
+				{x = room.minX + 760, y = 224}, -- 1248
+				{x = room.maxX + 220, y = 150} -- 1249
+			}, -- 1249
+			-40, -- 1251
+			420, -- 1252
+			____exports.MING_MATERIALS.distantHill, -- 1253
+			{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1254
+		) -- 1254
+		scene:addFogBand( -- 1256
+			room.minX - 240, -- 1256
+			room.maxX + 240, -- 1256
+			-30, -- 1256
+			175, -- 1256
+			290, -- 1256
+			scene.light.fogColor, -- 1256
+			0.56, -- 1256
+			0.04, -- 1256
+			{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1256
+		) -- 1256
+	end -- 1256
+	local i = 0 -- 1262
+	do -- 1262
+		i = 0 -- 1263
+		while i < #room.floors do -- 1263
+			local fl = room.floors[i + 1] -- 1264
+			local isMain = fl.y <= 0.1 -- 1265
+			if isMain then -- 1266
+				scene:addBox({ -- 1267
+					x0 = fl.x0, -- 1268
+					x1 = fl.x1, -- 1269
+					y0 = -48, -- 1270
+					y1 = fl.y, -- 1271
+					z0 = -26, -- 1272
+					z1 = 88, -- 1273
+					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1274
+					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1275
+					highlightTopEdge = true -- 1276
+				}) -- 1276
+			else -- 1276
+				scene:addPlankDeck( -- 1280
+					fl.x0, -- 1280
+					fl.x1, -- 1280
+					fl.y, -- 1280
+					-24, -- 1280
+					52, -- 1280
+					5, -- 1280
+					11, -- 1280
+					____exports.MING_MATERIALS.mingTimber, -- 1280
+					{bucket = ____exports.LP_BUCKET.WALK_DECK, withPosts = true, postBottomY = 0} -- 1280
+				) -- 1280
+			end -- 1280
+			i = i + 1 -- 1263
+		end -- 1263
+	end -- 1263
+	do -- 1263
+		i = 0 -- 1289
+		while i < #room.stairs do -- 1289
+			scene:addStairFlight( -- 1290
+				room.stairs[i + 1], -- 1290
+				14, -- 1290
+				76, -- 1290
+				____exports.MING_MATERIALS.mingStoneStep, -- 1290
+				{bucket = ____exports.LP_BUCKET.MIDGROUND, baseY = 0} -- 1290
+			) -- 1290
+			i = i + 1 -- 1289
+		end -- 1289
+	end -- 1289
+	do -- 1289
+		i = 0 -- 1297
+		while i < #room.solids do -- 1297
+			do -- 1297
+				local s = room.solids[i + 1] -- 1298
+				if s.id == "outside_red_cart" then -- 1299
+					goto __continue93 -- 1300
+				end -- 1300
+				scene:addBox({ -- 1302
+					x0 = s.x, -- 1303
+					x1 = s.x + s.w, -- 1304
+					y0 = s.y, -- 1305
+					y1 = s.y + s.h, -- 1306
+					z0 = -8, -- 1307
+					z1 = 72, -- 1308
+					material = ____exports.MING_MATERIALS.mingBrick, -- 1309
+					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1310
+					highlightTopEdge = true -- 1311
+				}) -- 1311
+				if s.y > 10 then -- 1313
+					scene:addBox({ -- 1314
+						x0 = s.x, -- 1315
+						x1 = s.x + 18, -- 1316
+						y0 = 0, -- 1317
+						y1 = s.y, -- 1318
+						z0 = 32, -- 1319
+						z1 = 72, -- 1320
+						material = ____exports.MING_MATERIALS.mingBrickDark, -- 1321
+						bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1322
+						sortBias = -0.08, -- 1323
+						edgeWidth = 0.7 -- 1324
+					}) -- 1324
+					scene:addBox({ -- 1326
+						x0 = s.x + s.w - 18, -- 1327
+						x1 = s.x + s.w, -- 1328
+						y0 = 0, -- 1329
+						y1 = s.y, -- 1330
+						z0 = 32, -- 1331
+						z1 = 72, -- 1332
+						material = ____exports.MING_MATERIALS.mingBrickDark, -- 1333
+						bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1334
+						sortBias = -0.08, -- 1335
+						edgeWidth = 0.7 -- 1336
+					}) -- 1336
+				end -- 1336
+			end -- 1336
+			::__continue93:: -- 1336
+			i = i + 1 -- 1297
+		end -- 1297
+	end -- 1297
+	local arch = room.arch -- 1342
+	if arch.h > 0 and arch.x1 > arch.x0 then -- 1343
+		scene:addBeveledFrame( -- 1344
+			arch.x0, -- 1344
+			arch.x1, -- 1344
+			arch.y, -- 1344
+			arch.y + arch.h, -- 1344
+			22, -- 1344
+			18, -- 1344
+			-10, -- 1344
+			64, -- 1344
+			____exports.MING_MATERIALS.mingStoneStep, -- 1344
+			{ -- 1344
+				bucket = ____exports.LP_BUCKET.WALK_DECK, -- 1345
+				innerRimLight = rgba(176, 206, 228, 255), -- 1346
+				innerRimStrength = 0.45 -- 1347
+			} -- 1347
+		) -- 1347
+	end -- 1347
+	local c = room.cart -- 1352
+	if c.bodyW > 0 then -- 1353
+		scene:addContactShadow( -- 1354
+			cartAxle, -- 1354
+			c.baseY, -- 1354
+			c.bodyW * 0.62, -- 1354
+			14, -- 1354
+			0.7, -- 1354
+			{bucket = ____exports.LP_BUCKET.PROP} -- 1354
+		) -- 1354
+		local clothX = cartAxle - c.bodyW * 0.5 -- 1355
+		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1356
+		local sway = math.sin(time * 3.1) * 5.5 -- 1357
+		scene:addTri3D( -- 1358
+			____exports.vec3(clothX, clothTop, -4), -- 1359
+			____exports.vec3(clothX + 9, clothTop, -4), -- 1360
+			____exports.vec3(clothX - 5 + sway, clothTop - 22, -6), -- 1361
+			____exports.MING_MATERIALS.mingRedCloth, -- 1362
+			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, edgeWidth = 0.9} -- 1363
+		) -- 1363
+	end -- 1363
+	scene:addContactShadow( -- 1368
+		actorX, -- 1368
+		actorY, -- 1368
+		15, -- 1368
+		11, -- 1368
+		0.78, -- 1368
+		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1368
+	) -- 1368
 end -- 1232
 return ____exports -- 1232

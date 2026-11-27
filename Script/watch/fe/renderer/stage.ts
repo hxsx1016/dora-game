@@ -814,6 +814,22 @@ export class StageRenderer {
         const capHeight = rear - top;
         const center = (left + right) * 0.5;
 
+        // 特例 0：军粮棚粗麻粮袋（替代原先误退化为 cover_stone 的硬石块，不画灰底盖板）
+        if (solid.art === "grain_sack") {
+            draw.drawEllipse(Vec2(center, base + cam.len(2)), width * 0.52,
+                Math.max(2, cam.len(3.0)), Color(10, 10, 14, 145 * opacity));
+            if (assets.tryPlace("sh_grain_sacks", key, center, base - cam.len(2), width * 1.24, frontH * 1.44, {
+                layer, opacity, color: occlusionTint(opacity),
+            })) {
+                return;
+            }
+        }
+
+        // 特例 0b：第三段山腰工台由 EscortWorldRenderer 精绘木构工棚与羊角风灯，不画任何底框/顶盖
+        if (solid.id === "e3_bench") {
+            return;
+        }
+
         // 地面真实占位投影框（与碰撞盒 [depth.min, depth.max] 严格一致，消除边界空气墙错觉）
         if (solid.y <= 2 && rearBase > base + 1) {
             draw.drawRect(
@@ -1053,6 +1069,10 @@ export class StageRenderer {
         x0: number, y0: number, sw: number, sh: number,
         s: SolidSpec, p: Play, cam: CameraDirector, time: number,
     ): void {
+        // 过滤 tower_desk 实体盒自身，防止在木案与值夜室内景上叠绘一层灰蓝钢盒
+        if (s.id === "tower_desk") {
+            return;
+        }
         fillVGradRect(fgDraw, x0, y0, sw, sh, Color(15, 21, 34, 255), Color(32, 44, 66, 255));
         fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.4, toColor(PALETTE.rimSilver, 165));
 
@@ -1116,35 +1136,57 @@ export class StageRenderer {
             fillRadialGlow(fgGlow, cx, lampY, opened ? 105 : 58, opened ? 105 : 58, Color(255, 232, 178, Math.round(170 * pulse)), Color(255, 180, 86, 0), 18);
             fgDraw.drawCircle(Vec2(cx, lampY), 5.5, toColor(PALETTE.amberCore));
 
-            // 门开后渲染值夜室木案、守卒剪影、油灯、登记簿与渐进交物（针套 / 指南针 / 纸条）
+            // 门开后渲染温暖明代木构值夜室剖面内景：实木墙板、朝西木棂窗、像素老守卒与胡桃木值夜案
             if (opened) {
-                const deskCx = cam.sx(p.ox + 605);
+                const roomL = cam.sx(p.ox + 490);
+                const roomR = cam.sx(p.ox + 700);
                 const groundY = cam.sy(0);
-                const deskW = cam.len(84);
-                const deskH = cam.len(34);
-                const deskTop = groundY + deskH;
+                const roomTop = cam.sy(148);
+                const roomW = roomR - roomL;
+                const roomH = roomTop - groundY;
+                // 温暖深胡桃木值夜室内壁与木梁
+                fillVGradRect(fgDraw, roomL, groundY, roomW, roomH, Color(36, 26, 20, 242), Color(54, 38, 28, 242));
+                fgDraw.drawRect(Rect(roomL, roomTop - cam.len(10), roomW, cam.len(10)), Color(46, 32, 22, 255));
+                for (let px = 1; px < 5; px++) {
+                    const bx = roomL + (roomW * px) / 5;
+                    fgDraw.drawSegment(Vec2(bx, groundY), Vec2(bx, roomTop - cam.len(10)), 1.0, Color(26, 18, 14, 150));
+                }
+                // 值夜室朝西木棂小窗（透出窗外微晓山色与窗台暖灯）
+                const winX = cam.sx(p.ox + 648);
+                const winY = cam.sy(76);
+                const winW = cam.len(38);
+                const winH = cam.len(42);
+                fillVGradRect(fgDraw, winX, winY, winW, winH, Color(42, 54, 78, 245), Color(78, 86, 108, 245));
+                fgDraw.drawRect(Rect(winX, winY, winW, winH), Color(0, 0, 0, 0), 2.0, Color(76, 54, 36, 255));
+                fgDraw.drawSegment(Vec2(winX + winW * 0.5, winY), Vec2(winX + winW * 0.5, winY + winH), 1.4, Color(76, 54, 36, 245));
+                fgDraw.drawSegment(Vec2(winX, winY + winH * 0.5), Vec2(winX + winW, winY + winH * 0.5), 1.4, Color(76, 54, 36, 245));
+
+                const deskCx = cam.sx(p.ox + 605);
+                const deskW = cam.len(96);
+                const deskH = cam.len(54);
+                const deskTop = groundY + cam.len(34);
                 // 值夜室暖光背景
-                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(32), cam.len(115), cam.len(90),
-                    Color(255, 198, 114, Math.round(68 * pulse)), Color(255, 168, 72, 0), 16);
-                // 守卒半身剪影（立于木案右后方）
-                const guardX = deskCx + cam.len(26);
-                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(34, 42, 54, 240));
-                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(42, 50, 62, 245));
-                // 木案本体与案面
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
-                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(108, 74, 46, 255), 1, Color(148, 108, 68, 220));
-                // 案头摊开的收籍薄册与油灯
-                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(232, 222, 198, 245));
-                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(168, 128, 64, 245));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26), cam.len(135), cam.len(96),
+                    Color(255, 198, 114, Math.round(78 * pulse)), Color(255, 168, 72, 0), 16);
+                // 精细像素老守卒立于案后右侧（彻底告别方块火柴人）
+                const guardX = deskCx + cam.len(30);
+                if (!assets.tryPlace("sh_old_watchman", "tower_guard_pixel", guardX, groundY, cam.len(48), cam.len(84), { layer: 2 })) {
+                    fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(34, 42, 54, 240));
+                    fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(42, 50, 62, 245));
+                }
+                // 精细像素胡桃木值夜案（含宣纸簿册、端砚、油灯与热米汤碗）
+                if (!assets.tryPlace("sh_guard_desk", "tower_desk_pixel", deskCx, groundY - cam.len(4), deskW, deskH, { layer: 4 })) {
+                    fgDraw.drawRect(Rect(deskCx - deskW * 0.45, groundY, cam.len(6), cam.len(34)), Color(78, 52, 34, 255));
+                    fgDraw.drawRect(Rect(deskCx + deskW * 0.45 - cam.len(6), groundY, cam.len(6), cam.len(34)), Color(78, 52, 34, 255));
+                    fgDraw.drawRect(Rect(deskCx - deskW * 0.48, deskTop - cam.len(6), deskW * 0.96, cam.len(8)), Color(108, 74, 46, 255), 1, Color(148, 108, 68, 220));
+                }
                 // 渐进交物视觉（12 拍针套、24 拍指南针与纸条）
                 if (p.deskHold >= 12 || p.towerHanded) {
-                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(4), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
                 }
                 if (p.deskHold >= 24 || p.towerHanded) {
-                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
-                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(7)), cam.len(4.5), Color(224, 186, 98, 255));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(4), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
                 }
             }
         }

@@ -272,6 +272,8 @@ function collectGameFiles() {
         "Script/watch/fe/ui/control_prompts.lua",
         "Script/watch/fe/ui/touch_controls.lua",
         "assets/art/title.png",
+        "assets/art/props_second_half.clip",
+        "assets/art/props_second_half.png",
         "assets/art/brand/app_icon.png",
         "assets/art/brand/game_logo_h.png",
         "assets/art/brand/game_logo_v.png",

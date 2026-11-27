@@ -1,0 +1,19 @@
+<A A="props_second_half.png">
+  <B A="museum_plate_lamp" B="6,6,196,256" />
+  <B A="museum_plate_wall" B="208,6,196,256" />
+  <B A="ending_bowl_hands" B="410,6,186,196" />
+  <B A="craft_workbench" B="602,6,152,152" />
+  <B A="ending_cuff_hand" B="6,268,289,140" />
+  <B A="salt_hut" B="301,268,156,132" />
+  <B A="old_watchman" B="463,268,65,128" />
+  <B A="root_burrow" B="534,268,176,128" />
+  <B A="museum_compass_relic" B="716,268,200,121" />
+  <B A="guard_desk" B="6,414,168,120" />
+  <B A="stele_banner" B="180,414,104,112" />
+  <B A="gong_target" B="290,414,160,108" />
+  <B A="grain_sacks" B="456,414,121,86" />
+  <B A="wood_tally" B="583,414,46,72" />
+  <B A="bell_tally" B="635,414,60,66" />
+  <B A="iron_basin" B="701,414,108,65" />
+  <B A="straw_mat" B="815,414,116,55" />
+</A>

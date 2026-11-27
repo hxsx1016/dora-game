@@ -1382,11 +1382,16 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 this.glassAnchorX - 18, caseY + 6, Color(224, 236, 248, Math.round(24 * matchK)),
                 this.glassAnchorX - 82, caseY + 6, Color(224, 236, 248, 0),
             );
-            // 展柜内部陈列铜指南针剪影
-            uiArt.tryPlace("prop_compass", "fe06_match_compass", this.glassAnchorX, caseY + 72, 46, 46, {
-                opacity: matchK * 0.85,
+            // 展柜内部陈列：丝绒托座上的百年氧化明初铜指南针与泛黄折纸（优先使用精细工笔切片）
+            if (!uiArt.tryPlace("sh_museum_compass_relic", "fe06_match_compass_relic", this.glassAnchorX, caseY + 76, 128, 86, {
+                opacity: matchK * 0.92,
                 layer: 3,
-            });
+            })) {
+                uiArt.tryPlace("prop_compass", "fe06_match_compass", this.glassAnchorX, caseY + 72, 46, 46, {
+                    opacity: matchK * 0.85,
+                    layer: 3,
+                });
+            }
         }
 
         // 3. 贯通整段匹配剪辑的「同一点冷白反光」核心锚点（wellAnchor === glassAnchor）
@@ -1435,48 +1440,68 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         const camX = clamp(this.hallCamX, camMin, camMax);
         const toScreenX = (hx: number): number => halfW + (hx - camX);
 
-        // 1. 展厅背景墙与天顶（庄重冷青灰石材、克制建筑比例）
-        fillVGradRect(uiDraw, 0, floorY, w, h - floorY, Color(26, 31, 38, 255), Color(16, 20, 26, 255));
-        // 顶部暗槽天顶
-        uiDraw.drawRect(Rect(0, wallTopY, w, h - wallTopY), Color(11, 14, 19, 255));
-        // 建筑石板竖向接缝（增强行走视差与现代馆舍空间感）
+        // 1. 现代极简清水混凝土与深橡木格栅纪念展厅（告别素灰扁平盒子，营造清晨天光与建筑纵深）
+        fillVGradRect(uiDraw, 0, floorY, w, h - floorY, Color(28, 33, 41, 255), Color(18, 23, 30, 255));
+        // 顶部采光天窗暗槽与清晨柔和天光倾泻
+        uiDraw.drawRect(Rect(0, wallTopY, w, h - wallTopY), Color(12, 15, 21, 255));
+        for (let sk = 180; sk <= MUSEUM_HALL_WIDTH - 120; sk += 360) {
+            const skX = toScreenX(sk);
+            if (skX >= -180 && skX <= w + 180) {
+                uiDraw.drawRect(Rect(skX - 68, wallTopY + 2, 136, 12), Color(182, 198, 216, 44));
+                fillGradQuad(
+                    uiGlow,
+                    skX - 64, wallTopY + 2, Color(206, 220, 236, 32),
+                    skX + 64, wallTopY + 2, Color(206, 220, 236, 32),
+                    skX + 116, floorY, Color(188, 206, 226, 0),
+                    skX - 116, floorY, Color(188, 206, 226, 0),
+                );
+            }
+        }
+        // 建筑石板接缝与局部深橡木垂直格栅装饰带
         let px = 0;
         for (px = 40; px <= MUSEUM_HALL_WIDTH; px += 140) {
             const sx = toScreenX(px);
             if (sx >= -20 && sx <= w + 20) {
-                uiDraw.drawSegment(Vec2(sx, floorY), Vec2(sx, wallTopY), 1.0, Color(38, 45, 54, 130));
+                uiDraw.drawSegment(Vec2(sx, floorY), Vec2(sx, wallTopY), 1.0, Color(42, 49, 58, 128));
             }
         }
-        // 踢脚线与浅磨石地面
-        fillVGradRect(uiDraw, 0, 0, w, floorY, Color(14, 17, 22, 255), Color(32, 37, 45, 255));
-        uiDraw.drawSegment(Vec2(0, floorY), Vec2(w, floorY), 2.0, Color(76, 86, 98, 220));
+        // 踢脚线、磨光水磨石地面与天光柔反射
+        fillVGradRect(uiDraw, 0, 0, w, floorY, Color(15, 19, 25, 255), Color(36, 42, 51, 255));
+        uiDraw.drawSegment(Vec2(0, floorY), Vec2(w, floorY), 2.0, Color(86, 98, 112, 225));
         uiDraw.drawRect(Rect(0, floorY, w, 12), Color(20, 24, 31, 240));
 
-        // 2. 入口序厅纪念铭墙（避开独立展厅 x = 200 玻璃展柜）
-        const plaqueWorldX = this.caseX <= 260 ? 108 : 180;
+        // 2. 入口序厅纪念铭墙（左缘防裁切 + 与首幅宋明版画展板留出 44px 馆藏呼吸间距，彻底杜绝叠框！）
+        const plaqueWorldX = this.caseX <= 260 ? 112 : 162;
         const plaqueX = toScreenX(plaqueWorldX);
-        if (plaqueX > -240 && plaqueX < w + 240) {
-            const pw = 290;
-            const ph = 132;
+        const pw = 224;
+        if (plaqueX - pw * 0.5 >= 14 && plaqueX + pw * 0.5 <= w - 14) {
+            const ph = 136;
             const py = floorY + 135;
             uiDraw.drawRect(
                 Rect(plaqueX - pw * 0.5, py, pw, ph),
-                Color(18, 22, 28, 238),
+                Color(20, 24, 31, 242),
                 1.2,
-                Color(118, 128, 140, 170),
+                Color(126, 136, 148, 180),
+            );
+            // 铭墙内朱丝暗边与细眉线
+            uiDraw.drawRect(
+                Rect(plaqueX - pw * 0.5 + 6, py + 6, pw - 12, ph - 12),
+                Color(0, 0, 0, 0),
+                0.7,
+                Color(168, 126, 92, 92),
             );
             fillRadialGlow(uiGlow, plaqueX, wallTopY - 8, 150, 120, Color(224, 232, 240, 42), Color(180, 196, 214, 0), 14);
             ctx.texts.put(
                 "sm",
                 "海防抗战纪念展厅",
                 plaqueX,
-                py + 82,
+                py + 84,
                 toColor(PALETTE.textBright),
                 0.5,
                 0.5,
                 TextAlign.Center,
                 2.0,
-                0.88,
+                0.90,
             );
             ctx.texts.put(
                 "xs",
@@ -1488,59 +1513,84 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 0.5,
                 TextAlign.Center,
                 1.0,
-                0.78,
+                0.80,
             );
         }
 
-        // 3. 中厅抗战史料挂板与玻璃展柜（x = 600）
+        // 3. 中厅宋明水墨考据挂板与独立玻璃展柜（x = 600）
         const caseSx = toScreenX(this.caseX);
-        if (caseSx > -260 && caseSx < w + 260) {
-            // 两侧素雅历史展板（当 caseX 贴近左缘时不越出房间左边界）
-            const boardOffsets = this.caseX <= 260 ? [180, 390] : [-210, 210];
+        if (caseSx > -280 && caseSx < w + 280) {
+            // 两侧真正有灵魂的宋明版画/水墨历史展板（左：洪武筑城·汤和巡海 / 右：宁村夜灯·守望信俗）
+            const boardOffsets = this.caseX <= 260 ? [205, 435] : [-206, 206];
+            const plateSlots = ["sh_museum_plate_wall", "sh_museum_plate_lamp"];
+            const plateCaptions = ["洪武筑城 · 汤和巡海", "宁村夜灯 · 守望信俗"];
             let bi = 0;
             for (bi = 0; bi < boardOffsets.length; bi++) {
                 const bx = caseSx + boardOffsets[bi];
-                uiDraw.drawRect(Rect(bx - 56, floorY + 112, 112, 154), Color(20, 24, 30, 235), 1.0, Color(88, 98, 110, 155));
-                uiDraw.drawRect(Rect(bx - 42, floorY + 168, 84, 78), Color(34, 40, 48, 220));
-                uiDraw.drawSegment(Vec2(bx - 36, floorY + 146), Vec2(bx + 36, floorY + 146), 1.6, Color(138, 146, 156, 140));
-                uiDraw.drawSegment(Vec2(bx - 28, floorY + 132), Vec2(bx + 24, floorY + 132), 1.2, Color(108, 116, 126, 115));
+                const frameW = 140;
+                const frameH = 188;
+                const frameY = floorY + 108;
+                // 馆藏级深胡桃木外框与冷素内衬
+                uiDraw.drawRect(Rect(bx - frameW * 0.5 - 5, frameY - 5, frameW + 10, frameH + 10), Color(24, 22, 22, 244), 1.4, Color(118, 108, 96, 175));
+                uiDraw.drawRect(Rect(bx - frameW * 0.5, frameY, frameW, frameH), Color(224, 218, 206, 236));
+                // 嵌入宋明水墨版画原图
+                const placedPlate = uiArt.tryPlace(plateSlots[bi], "fe06_hall_plate_" + bi, bx, frameY + frameH * 0.52, frameW - 14, frameH - 34, {
+                    opacity: 0.96,
+                    layer: 2,
+                });
+                if (!placedPlate) {
+                    uiDraw.drawRect(Rect(bx - 52, frameY + 46, 104, 118), Color(34, 40, 48, 220));
+                }
+                // 展板下方微距题签与顶部柔和画廊射灯
+                fillRadialGlow(uiGlow, bx, frameY + frameH + 14, 84, 96, Color(242, 234, 216, 46), Color(220, 212, 196, 0), 14);
+                ctx.texts.put("xs", plateCaptions[bi], bx, frameY - 18, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 0.8, 0.78);
             }
 
-            // 中央独立玻璃展柜（内放明初旧铜指南针与素笺说明牌，与全尺寸周戍 192px 保持真实博物馆尺度）
-            const pedW = 148;
+            // 中央独立玻璃展柜（内陈丝绒托座、百年氧化明初黄铜指南针与泛黄残纸）
+            const pedW = 164;
             const pedH = 92;
-            const glassH = 128;
-            // 深灰底座
+            const glassH = 136;
+            // 深灰大理石底座
             uiDraw.drawRect(
                 Rect(caseSx - pedW * 0.5, floorY, pedW, pedH),
                 Color(22, 26, 33, 252),
                 1.2,
-                Color(96, 106, 118, 185),
+                Color(102, 114, 128, 190),
             );
             // 玻璃柜体背衬
             uiDraw.drawRect(
                 Rect(caseSx - pedW * 0.46, floorY + pedH, pedW * 0.92, glassH),
-                Color(16, 22, 30, 165),
+                Color(14, 19, 27, 178),
                 1.4,
-                Color(180, 196, 214, 195),
+                Color(186, 202, 220, 200),
             );
-            // 陈列品：黄铜指南针与小展签
-            uiArt.tryPlace("prop_compass", "fe06_hall_compass", caseSx, floorY + pedH + 34, 34, 34, {
-                opacity: 0.94,
+            // 馆藏核心文物：丝绒托座黄铜指南针与泛黄手书残纸
+            if (!uiArt.tryPlace("sh_museum_compass_relic", "fe06_hall_compass_relic", caseSx, floorY + pedH + 54, 118, 76, {
+                opacity: 0.96,
                 layer: 3,
-            });
-            uiDraw.drawRect(Rect(caseSx - 30, floorY + pedH + 6, 60, 12), Color(214, 212, 204, 190));
-            // 展柜玻璃高光与顶部清冷射灯
+            })) {
+                uiArt.tryPlace("prop_compass", "fe06_hall_compass", caseSx, floorY + pedH + 34, 34, 34, {
+                    opacity: 0.94,
+                    layer: 3,
+                });
+            }
+            // 古今重影微效：当周戍缓步走过玻璃柜前，玻璃上极淡地映出青布虚影
+            const nearCaseK = clamp01(1 - Math.abs(this.hallWalkX - this.caseX) / 115);
+            if (nearCaseK > 0.04) {
+                fillRadialGlow(uiGlow, caseSx + (this.hallWalkX - this.caseX) * 0.35, floorY + pedH + 62,
+                    48, 62, Color(168, 196, 226, Math.round(34 * nearCaseK)), Color(168, 196, 226, 0), 12);
+            }
+            // 展柜玻璃斜向高光与顶部高显色柔白射灯
             fillGradQuad(
                 uiInkDraw,
-                caseSx - 28, floorY + pedH + glassH - 4, Color(230, 240, 252, 42),
-                caseSx + 12, floorY + pedH + glassH - 4, Color(242, 248, 255, 72),
+                caseSx - 32, floorY + pedH + glassH - 4, Color(230, 240, 252, 44),
+                caseSx + 14, floorY + pedH + glassH - 4, Color(242, 248, 255, 76),
                 caseSx - 12, floorY + pedH + 4, Color(230, 240, 252, 18),
-                caseSx - 48, floorY + pedH + 4, Color(230, 240, 252, 0),
+                caseSx - 54, floorY + pedH + 4, Color(230, 240, 252, 0),
             );
-            fillRadialGlow(uiGlow, caseSx, floorY + pedH + glassH - 12, 86, 128, Color(224, 236, 250, 56), Color(168, 192, 220, 0), 16);
-            // 地面微弱倒影
-            fillVGradRect(uiDraw, caseSx - pedW * 0.45, floorY - 36, pedW * 0.9, 36, Color(168, 186, 206, 0), Color(168, 186, 206, 28));
+            fillRadialGlow(uiGlow, caseSx, floorY + pedH + glassH - 12, 92, 138, Color(238, 242, 250, 62), Color(168, 192, 220, 0), 16);
+            // 磨石地面展柜柔倒影
+            fillVGradRect(uiDraw, caseSx - pedW * 0.45, floorY - 42, pedW * 0.9, 42, Color(168, 186, 206, 0), Color(168, 186, 206, 34));
         }
 
         // 4. 末厅西窗与可转动展灯（x = 1140..1280）
@@ -1668,14 +1718,22 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             );
         }
 
-        // 远方童声脚步回响（静音/灰度可读的细微远景声纹，位于右侧末厅方向）
+        // 远方童声脚步回响（磨石地面依次浮现指向西窗的轻盈微光脚印 + 柔和远景声纹，告别生硬白圈）
         if (this.childEchoVisualT > 0) {
             const echoK = 1 - clamp01(this.childEchoVisualT / 2.1);
             const ex = Math.min(w - 110, toScreenX(this.caseX + 310));
-            const ey = floorY + 32;
+            const ey = floorY + 20;
             const ea = Math.round(Math.sin(echoK * Math.PI) * 165);
-            drawCircleRing(uiInkDraw, ex, ey, 14 + echoK * 46, Color(0, 0, 0, 0), 1.1, Color(224, 214, 194, ea), 28);
-            drawCircleRing(uiInkDraw, ex, ey, 8 + echoK * 28, Color(0, 0, 0, 0), 0.9, Color(224, 214, 194, Math.round(ea * 0.7)), 24);
+            for (let step = 0; step < 3; step++) {
+                const stFade = clamp01(echoK * 2.2 - step * 0.35) * (1 - clamp01(echoK * 1.4 - 0.55 - step * 0.12));
+                if (stFade > 0.02) {
+                    const fx = ex - 60 + step * 44;
+                    const fy = floorY - 12 - (step % 2) * 8;
+                    fillRadialGlow(uiGlow, fx, fy, 16, 6, Color(238, 224, 194, Math.round(92 * stFade)), Color(238, 224, 194, 0), 10);
+                    uiInkDraw.drawEllipse(Vec2(fx, fy), 6.5, 2.6, Color(236, 224, 198, Math.round(145 * stFade)));
+                }
+            }
+            drawCircleRing(uiInkDraw, ex, ey, 14 + echoK * 38, Color(0, 0, 0, 0), 1.0, Color(224, 214, 194, Math.round(ea * 0.72)), 26);
             ctx.texts.put(
                 "xs",
                 "（远方传来轻快的孩童脚步声）",

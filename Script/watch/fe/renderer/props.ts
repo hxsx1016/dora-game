@@ -78,18 +78,27 @@ export class PropsRenderer {
             if (!isWood && !isMetal) {
                 continue;
             }
+            const layer = p.room.depth === undefined ? 3 : depthOrder(depth, 1);
+            const sx = cam.sx(pickup.x);
+            const sy = cam.sy(pickup.y + 4, depth);
+            if (kind === "wood" && assets.tryPlace("sh_wood_tally", "pickup_" + pickup.id, sx, sy, cam.len(18), cam.len(24), { layer })) {
+                continue;
+            }
+            if (kind === "bell" && assets.tryPlace("sh_bell_tally", "pickup_" + pickup.id, sx, sy, cam.len(20), cam.len(24), { layer })) {
+                continue;
+            }
             const tint = kind === "wood" || kind === "scrap"
                 ? PALETTE.amber
                 : (kind === "wedge" ? PALETTE.emerald : (kind === "shield" || kind === "ammo" ? PALETTE.cyan : PALETTE.amberCore));
             assets.tryPlace(
                 isWood ? "ink_bamboo_slip" : "prop_compass",
                 "pickup_" + pickup.id,
-                cam.sx(pickup.x), cam.sy(pickup.y + 9, depth),
+                sx, cam.sy(pickup.y + 9, depth),
                 cam.len(18), cam.len(isWood ? 7 : 16),
                 {
                     angle: isWood ? 65 : 0,
                     color: toColor(tint),
-                    layer: p.room.depth === undefined ? 3 : depthOrder(depth, 1),
+                    layer,
                 },
             );
         }
@@ -334,6 +343,11 @@ export class PropsRenderer {
             fgDraw.drawRect(Rect(tx0 + 2, ty0, 7, tyBot - ty0), toColor(PALETTE.cartWood));
             fgDraw.drawRect(Rect(tx1 - 9, ty0, 7, tyBot - ty0), toColor(PALETTE.cartWood));
         }
+
+        // 2b. 破铁盆（basinX = 548，像素回退模式下同样清晰呈现月下铁盆反光）
+        const basinX = cam.sx(p.ox + 548);
+        const basinY = cam.sy(0);
+        assets.tryPlace("sh_iron_basin", "village_iron_basin_px", basinX, basinY - cam.len(3), cam.len(38), cam.len(24), { layer: 4 });
 
         // 3. 手上持瓶 / 飞行中瓶子（瞄准时 child_aim 精灵手里已有瓶子，避免一人双瓶）
         if (p.hasBottle && p.aimHold <= 0) {

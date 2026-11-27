@@ -549,8 +549,10 @@ do
 	fe.screen = "play"
 	fe:bindPlay(p, 1280, 720)
 	fe:renderPlay(DT, p, inp, 1280, 720)
-	local wood = fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/ui_ink.clip|ink_bamboo_slip"]
-	local bell = fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/sprites.clip|compass"]
+	local wood = fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/props_second_half.clip|wood_tally"]
+		or fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/ui_ink.clip|ink_bamboo_slip"]
+	local bell = fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/props_second_half.clip|bell_tally"]
+		or fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/sprites.clip|compass"]
 	p.player.x, p.player.y, p.player.depth = 380, 0, 0
 	p:update(play.STEP, inp)
 	fe:renderPlay(DT, p, inp, 1280, 720)

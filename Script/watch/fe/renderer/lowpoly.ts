@@ -203,74 +203,74 @@ function scaleRGBA(c: RGBA, k: number, alphaMul: number = 1): RGBA {
     };
 }
 
-/** 明初温州宁村所海防卫城低模材质预设（高灰度区分度、禁现代/仙侠荧光） */
+/** 明初温州宁村所海防卫城低模材质预设（高灰度区分度、去刺眼白线框 CAD 观感、禁现代/仙侠荧光） */
 export const MING_MATERIALS: Record<string, LowpolyMaterial> = {
     mingBrick: {
-        base: rgba(96, 102, 112, 255),
-        edge: rgba(154, 162, 174, 155),
+        base: rgba(88, 95, 108, 255),
+        edge: rgba(128, 138, 152, 72),
         minShade: 0.30,
         rimBoost: 0.24,
-        bottomAo: 0.28,
-    },
-    mingBrickDark: {
-        base: rgba(54, 60, 72, 255),
-        edge: rgba(108, 118, 134, 135),
-        minShade: 0.24,
-        rimBoost: 0.18,
-        bottomAo: 0.34,
-    },
-    mingTimber: {
-        base: rgba(114, 84, 62, 255),
-        edge: rgba(168, 134, 104, 160),
-        minShade: 0.26,
-        rimBoost: 0.22,
         bottomAo: 0.30,
     },
-    mingTimberDark: {
-        base: rgba(68, 50, 38, 255),
-        edge: rgba(122, 96, 76, 145),
-        minShade: 0.20,
-        rimBoost: 0.16,
+    mingBrickDark: {
+        base: rgba(46, 53, 66, 255),
+        edge: rgba(88, 98, 114, 58),
+        minShade: 0.24,
+        rimBoost: 0.18,
         bottomAo: 0.36,
     },
+    mingTimber: {
+        base: rgba(108, 78, 56, 255),
+        edge: rgba(146, 114, 86, 78),
+        minShade: 0.26,
+        rimBoost: 0.22,
+        bottomAo: 0.32,
+    },
+    mingTimberDark: {
+        base: rgba(60, 44, 33, 255),
+        edge: rgba(102, 78, 60, 66),
+        minShade: 0.20,
+        rimBoost: 0.16,
+        bottomAo: 0.38,
+    },
     mingStoneStep: {
-        base: rgba(118, 122, 128, 255),
-        edge: rgba(188, 194, 200, 185),
+        base: rgba(108, 114, 124, 255),
+        edge: rgba(168, 178, 190, 96),
         minShade: 0.28,
         rimBoost: 0.26,
         bottomAo: 0.26,
     },
     mingIron: {
-        base: rgba(46, 52, 62, 255),
-        edge: rgba(136, 146, 158, 165),
+        base: rgba(44, 50, 60, 255),
+        edge: rgba(122, 132, 146, 86),
         minShade: 0.22,
         rimBoost: 0.28,
         bottomAo: 0.25,
     },
     mingTile: {
-        base: rgba(44, 52, 66, 255),
-        edge: rgba(102, 116, 136, 140),
+        base: rgba(40, 48, 62, 255),
+        edge: rgba(88, 102, 122, 64),
         minShade: 0.24,
         rimBoost: 0.18,
-        bottomAo: 0.24,
+        bottomAo: 0.26,
     },
     mingRedCloth: {
         base: rgba(176, 52, 48, 255),
-        edge: rgba(224, 116, 102, 195),
+        edge: rgba(218, 108, 94, 128),
         minShade: 0.36,
         rimBoost: 0.24,
         bottomAo: 0.18,
     },
     distantWall: {
-        base: rgba(42, 52, 68, 255),
-        edge: rgba(98, 114, 136, 115),
+        base: rgba(38, 48, 64, 255),
+        edge: rgba(82, 98, 118, 48),
         minShade: 0.35,
         rimBoost: 0.14,
         bottomAo: 0.22,
     },
     distantHill: {
-        base: rgba(28, 38, 54, 255),
-        edge: rgba(74, 92, 116, 90),
+        base: rgba(24, 34, 50, 255),
+        edge: rgba(64, 82, 106, 38),
         minShade: 0.38,
         rimBoost: 0.12,
         bottomAo: 0.20,
@@ -1236,24 +1236,27 @@ export function buildOutsideJettyLowpoly(
     actorY: number,
     cartAxle: number,
     time: number,
+    skipBackdrop: boolean = false,
 ): void {
-    // 1. 远景海滨山脊与宁村所外城墙轮廓
-    scene.addDistantRidge(
-        [
-            { x: room.minX - 180, y: 125 },
-            { x: room.minX + 120, y: 196 },
-            { x: room.minX + 420, y: 162 },
-            { x: room.minX + 760, y: 224 },
-            { x: room.maxX + 220, y: 150 },
-        ],
-        -40,
-        420,
-        MING_MATERIALS.distantHill,
-        { bucket: LP_BUCKET.BACKDROP },
-    );
-    scene.addFogBand(room.minX - 240, room.maxX + 240, -30, 175, 290, scene.light.fogColor, 0.56, 0.04, {
-        bucket: LP_BUCKET.BACKDROP,
-    });
+    // 1. 远景海滨山脊与宁村所外城墙轮廓（有手绘明代原画 bgFar_outside 时跳过，避免暗色低模山脊遮挡手绘城楼）
+    if (!skipBackdrop) {
+        scene.addDistantRidge(
+            [
+                { x: room.minX - 180, y: 125 },
+                { x: room.minX + 120, y: 196 },
+                { x: room.minX + 420, y: 162 },
+                { x: room.minX + 760, y: 224 },
+                { x: room.maxX + 220, y: 150 },
+            ],
+            -40,
+            420,
+            MING_MATERIALS.distantHill,
+            { bucket: LP_BUCKET.BACKDROP },
+        );
+        scene.addFogBand(room.minX - 240, room.maxX + 240, -30, 175, 290, scene.light.fogColor, 0.56, 0.04, {
+            bucket: LP_BUCKET.BACKDROP,
+        });
+    }
 
     // 2. 底层主走面与城墙外立面
     let i = 0;
