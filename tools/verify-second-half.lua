@@ -162,7 +162,7 @@ do
 	check("escort2_grain_sack_tagged", hasGrainSack, "e2_grain_sacks=" .. tostring(hasGrainSack))
 
 	local escortRooms = {
-		rooms.GATEPATH_ROOM,
+		rooms.GATE_PATH_ROOM,
 		rooms.ESCORT1_ROOM,
 		rooms.ESCORT2_ROOM,
 		rooms.ESCORT3_ROOM,
@@ -177,6 +177,23 @@ do
 		pe.escort.joined = true
 		pe.escort.carry = true
 		fe:bindPlay(pe, 1280, 720)
+		if r.key == "escort1" then
+			local drawTower = fe.escortWorld.drawDistantNorthTower
+			local bodyLayer, lampLayer
+			fe.escortWorld.drawDistantNorthTower = function(renderer, body, lamp, ...)
+				bodyLayer, lampLayer = body, lamp
+				return drawTower(renderer, body, lamp, ...)
+			end
+			stepFrames(pe, inp, fe, 1)
+			fe.escortWorld.drawDistantNorthTower = drawTower
+			local bg
+			for key, sprite in pairs(fe.backdropArt.sprites) do
+				if key:match("^ming_fallback_scene:") then bg = sprite end
+			end
+			check("escort1_tower_above_backdrop_below_lamp", bg and bg.visible and bodyLayer and lampLayer
+				and bg.parent.parent == bodyLayer.parent and bodyLayer.parent == lampLayer.parent
+				and bg.parent.order < bodyLayer.order and bodyLayer.order < lampLayer.order)
+		end
 		stepFrames(pe, inp, fe, 6)
 		if not escortWorldMod.isEscortWorldRoom(pe.room.key) then
 			allActive = false

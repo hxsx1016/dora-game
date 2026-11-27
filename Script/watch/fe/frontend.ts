@@ -48,6 +48,7 @@ export class WatchFrontend {
     private occlusion = new DepthOcclusion();
     private layerRoot: Node.Type;
     private bgDraw: DrawNode.Type;
+    private escortTowerDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
     private backdropArt: AssetSlotHost;
     private worldArt: AssetSlotHost;
@@ -102,6 +103,11 @@ export class WatchFrontend {
         this.bgDraw = DrawNode();
         this.bgDraw.order = 10;
         this.bgDraw.addTo(this.layerRoot);
+
+        // 首房城外整幅底图在 12 层，北塔剪影须位于底图与 15 层灯光之间。
+        this.escortTowerDraw = DrawNode();
+        this.escortTowerDraw.order = 13;
+        this.escortTowerDraw.addTo(this.layerRoot);
 
         this.bgGlow = DrawNode();
         this.bgGlow.order = 15;
@@ -296,6 +302,7 @@ export class WatchFrontend {
 
     private clearAll(): void {
         this.bgDraw.clear();
+        this.escortTowerDraw.clear();
         this.bgGlow.clear();
         this.fgDraw.clear();
         this.fgGlow.clear();
@@ -572,7 +579,7 @@ export class WatchFrontend {
             this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
         }
         if (view.visualMode === "pixel") {
-            this.escortWorld.drawBackdropOverlay(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
+            this.escortWorld.drawBackdropOverlay(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time, this.escortTowerDraw);
         }
 
         // 2. 逻辑平面建筑与地面（可由插件接管；淡化吃 worldDt）

@@ -118,6 +118,7 @@ export class EscortWorldRenderer {
         p: Play,
         cam: CameraDirector,
         time: number,
+        towerDraw: DrawNode.Type = bgDraw,
     ): void {
         const key = p.room.key;
         if (!isEscortWorldRoom(key)) {
@@ -160,7 +161,7 @@ export class EscortWorldRenderer {
         }
 
         // 2. 贯穿全线的远景「宁村北塔与西窗暖灯」（escort2 透窗见灯，其余五段直映山脊）
-        this.drawDistantNorthTower(bgDraw, bgGlow, w, h, cam.x, time, spec, dynamicDawn, key === "escort2");
+        this.drawDistantNorthTower(key === "escort1" ? towerDraw : bgDraw, bgGlow, w, h, cam.x, time, spec, dynamicDawn, key === "escort2");
 
         // 3. 流动海雾/山岚水墨带（柔和低透明度，消除平板背景感）
         const mistShift = ((time * 12 + cam.x * 0.16) % (w + 460)) - 230;
