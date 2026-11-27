@@ -792,11 +792,15 @@ export class DualRouteContract {
             ? parseReloadEffect(rsRec["previewEffect"])
             : (reloadActive ? deriveReloadEffectFromPath(livePath) : "normal");
 
+        const needTicksFn = pRec !== undefined ? pRec["reloadNeedTicks"] : undefined;
+        const liveReloadDuration = typeof needTicksFn === "function"
+            ? Math.max(0.5, (needTicksFn as (self: Play) => number)(p) / 60)
+            : DEFAULT_RELOAD_DURATION;
         const reloadSession: ReloadSessionSnapshot = {
             active: reloadActive,
             firstTime: readBool(rsRec, "firstTime") ?? (reloadTryCount <= 1),
             elapsed: readNum(rsRec, "elapsed") ?? (reloadAnswerTicks / 60),
-            duration: Math.max(0.01, readNum(rsRec, "duration") ?? DEFAULT_RELOAD_DURATION),
+            duration: Math.max(0.01, readNum(rsRec, "duration") ?? liveReloadDuration),
             path: livePath,
             previewEffect: livePreview,
             nextEffect: parseReloadEffect(liveNextRaw),

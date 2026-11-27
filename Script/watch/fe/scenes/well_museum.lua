@@ -576,8 +576,8 @@ function WellMuseumPlugin.prototype.resetPhaseTimersForEntry(self, phase, backen
 	end -- 647
 end -- 611
 function WellMuseumPlugin.prototype.evaluateGate(self, p, view) -- 651
-	if p.run.trial ~= nil then -- 652
-		return {open = false, reason = "trial_mode"} -- 653
+	if p.run.source == "chapter" then -- 652
+		return {open = false, reason = "chapter_preview"} -- 653
 	end -- 653
 	if p.room.key ~= "prologue" then -- 655
 		return {open = false, reason = "not_prologue"} -- 656

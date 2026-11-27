@@ -807,6 +807,7 @@ export const ESCORT1_ROOM: RoomSpec = {
     solids: [
         { x: 0, w: 50, h: 150, y: 0, label: "巷口背影 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 380, w: 96, h: 44, y: 0, label: "塌墙 380–476 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e1_wall" },
+        { x: 620, w: 24, h: 50, y: 0, label: "薄木护板 620 · 高 50", lanes: ["upper"], art: "cover_wood", id: "e1_wood", breakable: { hp: 2, kind: "thin_wood", wedgeable: true } },
         { x: 700, w: 40, h: 28, y: 0, label: "倒石 700 · 高 28", lanes: ["lower"] },
         { x: 980, w: 160, h: 36, y: 0, label: "石台 980–1140 · 高 36（可跳）", lanes: ["lower"], art: "cover_wood" },
         { x: 1300, w: 40, h: 140, y: 0, label: "巷尾门柱 1300", lanes: ["lower", "upper"], art: "gate_post" },
@@ -943,6 +944,7 @@ export const ESCORT4_ROOM: RoomSpec = {
     solids: [
         { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 380, w: 80, h: 40, y: 0, label: "塌方 380–460 · 高 40", lanes: ["lower", "middle"], art: "cover_stone", id: "e4_fall" },
+        { x: 680, w: 24, h: 50, y: 0, label: "薄木护板 680 · 高 50", lanes: ["upper"], art: "cover_wood", id: "e4_wood", breakable: { hp: 2, kind: "thin_wood", wedgeable: true } },
         { x: 900, w: 60, h: 36, y: 0, label: "断口 900–960 · 高 36（可跳）", lanes: ["lower", "middle"] },
         { x: 1120, w: 40, h: 32, y: 0, label: "倒石 1120 · 高 32", lanes: ["lower"] },
         { x: 1350, w: 50, h: 200, y: 0, label: "山道尾壁 1350–1400 · 高 200", depth: LANE_ROAD, art: "wall" },
@@ -1009,6 +1011,73 @@ export const ESCORT5_ROOM: RoomSpec = {
         { x0: 700, x1: 860, text: "石台 160" },
     ],
     campaign: { chapter: "O", act: 5, budget: 240, goal: "reach_exit", exitX: 1320, next: "tower", checkpoint: 1, reloadPuzzle: true },
+};
+
+/**
+ * 男主线五段护送（escort1 / escort2 / escort4 / escort5）的种子驱动遭遇变体池：
+ * - 变体 0 与房间默认 spawns 完全一致（兼容基准回放与调试夹具）；
+ * - 变体 1 / 变体 2 在正式与章节男主线按 (seed, attempt, roomKey) 确定性切换敌兵编组与掉落，
+ *   让每轮护送与倒地重开具备真正的局内战术变化。
+ */
+export const ESCORT_VARIANTS: Record<string, readonly (readonly SpawnSpec[])[]> = {
+    escort1: [
+        ESCORT1_ROOM.spawns,
+        [
+            { x: 760, y: 0, h: 84, depth: 28, label: "火器手 760 · 上档", kind: "gunner", drop: "ammo" },
+            { x: 940, y: 0, h: 84, depth: 0, label: "破障手 940 · 中档", kind: "breaker", drop: "wedge" },
+            { x: 1140, y: 0, h: 84, depth: -24, label: "火器手 1140 · 浅档", kind: "gunner", drop: "ammo" },
+            { x: 1260, y: 0, h: 84, depth: 24, label: "破障手 1260 · 上档", kind: "breaker", drop: "wedge" },
+        ],
+        [
+            { x: 800, y: 0, h: 84, depth: 0, label: "持盾手 800 · 中档", kind: "shield", drop: "shield" },
+            { x: 1020, y: 0, h: 84, depth: 32, label: "火器手 1020 · 上档", kind: "gunner", drop: "ammo" },
+            { x: 1180, y: 0, h: 84, depth: -28, label: "火器手 1180 · 浅档", kind: "gunner", drop: "ammo" },
+        ],
+    ],
+    escort2: [
+        ESCORT2_ROOM.spawns,
+        [
+            { x: 680, y: 0, h: 84, depth: -24, label: "破障手 680 · 浅档", kind: "breaker", drop: "wedge" },
+            { x: 920, y: 0, h: 84, depth: 32, label: "火器手 920 · 上档", kind: "gunner", drop: "ammo" },
+            { x: 1140, y: 0, h: 84, depth: 20, label: "破障手 1140 · 上档", kind: "breaker", drop: "wedge" },
+            { x: 1260, y: 0, h: 84, depth: -20, label: "火器手 1260 · 浅档", kind: "gunner", drop: "ammo" },
+        ],
+        [
+            { x: 640, y: 0, h: 84, depth: 32, label: "火器手 640 · 上档", kind: "gunner", drop: "ammo" },
+            { x: 880, y: 0, h: 84, depth: 0, label: "持盾手 880 · 中档", kind: "shield", drop: "shield" },
+            { x: 1140, y: 0, h: 84, depth: -28, label: "火器手 1140 · 浅档", kind: "gunner", drop: "ammo" },
+        ],
+    ],
+    escort4: [
+        ESCORT4_ROOM.spawns,
+        [
+            { x: 580, y: 0, h: 84, depth: -24, label: "火器手 580 · 浅档", kind: "gunner", drop: "ammo" },
+            { x: 780, y: 0, h: 84, depth: 16, label: "破障手 780 · 中档", kind: "breaker", drop: "wedge" },
+            { x: 980, y: 0, h: 84, depth: -16, label: "持盾手 980 · 浅档", kind: "shield", drop: "shield" },
+            { x: 1140, y: 0, h: 84, depth: 28, label: "火器手 1140 · 上档", kind: "gunner", drop: "ammo" },
+        ],
+        [
+            { x: 640, y: 0, h: 84, depth: 16, label: "持盾手 640 · 中档", kind: "shield", drop: "shield" },
+            { x: 820, y: 0, h: 84, depth: -28, label: "火器手 820 · 浅档", kind: "gunner", drop: "ammo" },
+            { x: 1020, y: 0, h: 84, depth: 0, label: "破障手 1020 · 中档", kind: "breaker", drop: "wedge" },
+            { x: 1180, y: 0, h: 84, depth: 28, label: "火器手 1180 · 上档", kind: "gunner", drop: "ammo" },
+        ],
+    ],
+    escort5: [
+        ESCORT5_ROOM.spawns,
+        [
+            { x: 520, y: 0, h: 84, depth: -24, label: "火器手 520 · 浅档", kind: "gunner", drop: "ammo" },
+            { x: 740, y: 0, h: 84, depth: 16, label: "持盾手 740 · 中档", kind: "shield", drop: "shield" },
+            { x: 920, y: 0, h: 84, depth: -20, label: "破障手 920 · 浅档", kind: "breaker", drop: "wedge" },
+            { x: 1100, y: 0, h: 84, depth: 28, label: "火器手 1100 · 上档", kind: "gunner", drop: "ammo" },
+        ],
+        [
+            { x: 580, y: 0, h: 84, depth: 0, label: "持盾手 580 · 中档", kind: "shield", drop: "shield" },
+            { x: 760, y: 0, h: 84, depth: 32, label: "火器手 760 · 上档", kind: "gunner", drop: "ammo" },
+            { x: 940, y: 0, h: 84, depth: -28, label: "火器手 940 · 浅档", kind: "gunner", drop: "ammo" },
+            { x: 1100, y: 0, h: 84, depth: 16, label: "持盾手 1100 · 中档", kind: "shield", drop: "shield" },
+        ],
+    ],
 };
 
 /**

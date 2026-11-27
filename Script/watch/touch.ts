@@ -879,7 +879,43 @@ export class TouchRouter {
 
         const stage = viewToStage(viewX, viewY, vp);
 
-        // 2b. 模态界面（标题 / 选章 / 说明 / 暂停 / 3×3 换弹盘 / 工台）：统一单指舞台 UI 指针
+        // 2b. 局内直点矩形热区优先于模态指针（折笺本领卡 / 折戟小结按钮 / 世界交互气泡，手柄混用触屏同样可用）
+        if (this.ctx.gameplayActive && this.ctx.rectZones.length > 0) {
+            const zone = this.hitTestRectZones(ov.x, ov.y);
+            if (zone !== undefined) {
+                this.qHadUiTouch = true;
+                this.fingers[id] = {
+                    id,
+                    fromMouse: false,
+                    kind: "zone",
+                    zoneId: zone.id,
+                    startViewX: viewX,
+                    startViewY: viewY,
+                    curViewX: viewX,
+                    curViewY: viewY,
+                    startOvX: ov.x,
+                    startOvY: ov.y,
+                    curOvX: ov.x,
+                    curOvY: ov.y,
+                    movedDistOv: 0,
+                };
+                if (zone.id === "pause") {
+                    this.qPausePressed = true;
+                    this.vibrate(0.015);
+                } else if (zone.id === "retry") {
+                    this.qRetryPressed = true;
+                    this.vibrate(0.015);
+                } else if (zone.id === "worldPrompt") {
+                    this.triggerInteractAction(id);
+                } else {
+                    this.qZoneTap = zone.id;
+                    this.vibrate(0.015);
+                }
+                return;
+            }
+        }
+
+        // 2c. 模态界面（标题 / 选章 / 说明 / 暂停 / 3×3 换弹盘 / 工台 / 折笺 / 折戟小结）：统一单指舞台 UI 指针
         if (this.ctx.modal || !this.ctx.gameplayActive) {
             this.qHadUiTouch = true;
             if (this.modalFingerId < 0 && (!vp.isPortrait || stage.inside)) {
@@ -904,40 +940,6 @@ export class TouchRouter {
                     curOvY: ov.y,
                     movedDistOv: 0,
                 };
-            }
-            return;
-        }
-
-        // 2c. 顶部与特殊矩形热区（本领卡 / 世界交互气泡 / 试炼弹窗钮；手柄混用触屏时同样直接可用）
-        const zone = this.hitTestRectZones(ov.x, ov.y);
-        if (zone !== undefined) {
-            this.qHadUiTouch = true;
-            this.fingers[id] = {
-                id,
-                fromMouse: false,
-                kind: "zone",
-                zoneId: zone.id,
-                startViewX: viewX,
-                startViewY: viewY,
-                curViewX: viewX,
-                curViewY: viewY,
-                startOvX: ov.x,
-                startOvY: ov.y,
-                curOvX: ov.x,
-                curOvY: ov.y,
-                movedDistOv: 0,
-            };
-            if (zone.id === "pause") {
-                this.qPausePressed = true;
-                this.vibrate(0.015);
-            } else if (zone.id === "retry") {
-                this.qRetryPressed = true;
-                this.vibrate(0.015);
-            } else if (zone.id === "worldPrompt") {
-                this.triggerInteractAction(id);
-            } else {
-                this.qZoneTap = zone.id;
-                this.vibrate(0.015);
             }
             return;
         }

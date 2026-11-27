@@ -5,8 +5,7 @@
  * 自动兼容横屏全屏、KTR 3:2 / 4:3 以及竖屏上方 16:9 舞台。
  */
 
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
-import { Play, worldToScreen } from "Script/watch/play";
+import { Play } from "Script/watch/play";
 import { CameraDirector } from "Script/watch/fe/camera";
 
 export interface AimTargetCandidate {
@@ -45,27 +44,6 @@ export function collectPlayAimTargets(
         const sy = cam.sy(aimWorldY, e.depth ?? 0);
         if (sx >= -64 && sx <= stageW + 64 && sy >= -48 && sy <= stageH + 48) {
             out.push({ sx, sy, shield: isShield });
-        }
-    }
-    return out;
-}
-
-/** 从护送试炼（mode === 2）采集敌兵舞台坐标候选点。 */
-export function collectTrialAimTargets(
-    p: Play,
-    stageW: number,
-    stageH: number,
-): AimTargetCandidate[] {
-    const out: AimTargetCandidate[] = [];
-    let i = 0;
-    for (i = 0; i < p.enemies.length; i++) {
-        const e = p.enemies[i];
-        if (!e.alive) continue;
-        const isShield = e.kind === "shield" && (e.shieldHp ?? 0) > 0;
-        const aimWorldY = e.y + e.h * (isShield ? 0.88 : 0.60);
-        const pt = worldToScreen(e.x, aimWorldY + (e.depth ?? 0) * DEPTH_Y_SCALE, p.cam, p.view);
-        if (pt.x >= -64 && pt.x <= stageW + 64 && pt.y >= -48 && pt.y <= stageH + 48) {
-            out.push({ sx: pt.x, sy: pt.y, shield: isShield });
         }
     }
     return out;

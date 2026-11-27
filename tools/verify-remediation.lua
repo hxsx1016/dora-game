@@ -75,11 +75,11 @@ do
 	Content:save(fullPath, "GARBAGE_NOT_A_VALID_SAVE\n")
 	local loaded = savemod.loadSave()
 	check("1.1 损坏存档返回 corrupt 并保留备份",
-		loaded.status == "corrupt" and loaded.protectedPath ~= nil and loaded.protectedPath ~= "",
-		"status=" .. tostring(loaded.status))
+		loaded.status == "corrupt" and loaded.backup ~= nil and loaded.backup ~= "",
+		"status=" .. tostring(loaded.status) .. " backup=" .. tostring(loaded.backup))
 	pcall(function() Content:remove(fullPath) end)
-	if loaded.protectedPath and loaded.protectedPath ~= "" then
-		pcall(function() Content:remove(loaded.protectedPath) end)
+	if loaded.backup and loaded.backup ~= "" then
+		pcall(function() Content:remove(loaded.backup) end)
 	end
 	savemod.setSaveFile(oldFile)
 end
@@ -152,14 +152,16 @@ do
 	check("4.2 S1 十字街支持近身 E 两下轻敲安抚小满",
 		ps1.escort.state == "calming", "state=" .. tostring(ps1.escort.state))
 
-	local shifted = rooms.withOrigin(rooms.S1_CROSSROAD, 1000)
+	local shifted = rooms.withOrigin(rooms.S2_DRYGOODS)
 	check("4.3 withOrigin 正确平移 companion.waitX/joinX",
-		shifted.companion ~= nil and shifted.companion.waitX == rooms.S1_CROSSROAD.companion.waitX + 1000)
+		shifted.companion ~= nil
+		and shifted.companion.waitX == rooms.S2_DRYGOODS.companion.waitX + rooms.S2_DRYGOODS.originX
+		and shifted.companion.joinX == rooms.S2_DRYGOODS.companion.joinX + rooms.S2_DRYGOODS.originX)
 end
 
 -- ---------------------------------------------------------------- 5. Q 手动开换弹、移动冻结、time_shuttler 光效
 do
-	check("5.1 time_shuttler 提供有效 light 武器加成", craftmod.weaponBonus("time_shuttler") == "light")
+	check("5.1 time_shuttler 提供有效 light 武器加成", craftmod.weaponEffectOf("time_shuttler") == "light")
 	local r = runmod.createRun(20261127, "official", runmod.createArchive())
 	r.story.route = "soldier"; r.story.settled = true
 	local pe1 = new(playmod.Play, rooms.ESCORT1_ROOM, nil, r)
@@ -189,11 +191,11 @@ do
 	check("6.2 CameraDirector 含纵深投影 worldToScreen/screenToWorld 0 误差",
 		math.abs(back.x - (p.player.x + 80)) < 0.05 and math.abs(back.y - expectedY) < 0.05,
 		string.format("errX=%.4f errY=%.4f", math.abs(back.x - (p.player.x + 80)), math.abs(back.y - expectedY)))
-	local align = lowpoly.verifyWalkPlaneAlignment(p.player.x, 0, fe.cam, {
-		morph = 1, focal = 410, vpFracX = 0.5, vpFracY = 0.5, vpOffsetX = 0, vpOffsetY = 0, baseDepth = 0,
-	}, -20)
-	check("6.3 lowpoly.verifyWalkPlaneAlignment(depth=-20) 0 误差", align.errorPx < 0.01,
-		string.format("err=%.4f", align.errorPx))
+	local align = lowpoly.verifyWalkPlaneAlignment(fe.cam, {
+		morph = 1, focal = 410, vpFracX = 0.5, vpFracY = 0.5, vpOffsetX = 0, vpOffsetY = 0, baseDepth = -20,
+	}, p.player.x, 0)
+	check("6.3 lowpoly.verifyWalkPlaneAlignment(depth=-20) 0 误差", align.forwardErrPx < 0.01,
+		string.format("err=%.4f", align.forwardErrPx))
 end
 
 -- ---------------------------------------------------------------- 7. 换弹盘逐格点击连线 + 拖线早松退回
@@ -203,18 +205,19 @@ do
 	local pe1 = new(playmod.Play, rooms.ESCORT1_ROOM, nil, r)
 	pe1.enemies = {}
 	fe:bindPlay(pe1, 1280, 720)
+	if #pe1:getStoryTalentOffers() > 0 then pe1:chooseTalent(0) end
 	local rw = fe:getPlugin("fe-02-reload-wheel")
 	local inp = makeInput()
 	inp.flare.pressed = true
 	pe1:update(DT, inp)
 	clearEdges(inp)
 	fe:renderPlay(DT, pe1, inp, 1280, 720)
-	local st0 = rw:getDebugState()
+	local st0 = rw:getState()
 	check("7.1 换弹盘激活且起点为格 0", st0.active and #st0.path == 1 and st0.path[1] == 0)
-	-- 逐格点击：1 -> 4 -> 7（每次按下再松手，不拖到其他格）
-	local seq = { 2, 5, 8 } -- 1-based index into nodes (node ids 1, 4, 7)
-	for _, idx in ipairs(seq) do
-		local node = st0.nodes[idx]
+	-- 逐格点击：1 -> 4 -> 8（每次按下再松手，不拖到其他格）
+	local seq = { 1, 4, 8 }
+	for _, nodeId in ipairs(seq) do
+		local node = rw:getNodeUiPos(nodeId)
 		inp.uiInside = true; inp.uiX = node.x; inp.uiY = node.y
 		inp.uiPressed = true; inp.uiHeld = true
 		fe:renderPlay(DT, pe1, inp, 1280, 720)
@@ -224,9 +227,9 @@ do
 		pe1:update(DT, inp)
 		clearEdges(inp)
 	end
-	check("7.2 鼠标准确逐格点击 0->1->4->7 完成换弹解算",
-		pe1.reloadOpen == false and pe1.reloadEffect == "pierce",
-		string.format("open=%s eff=%s", tostring(pe1.reloadOpen), tostring(pe1.reloadEffect)))
+	check("7.2 鼠标准确逐格点击 0->1->4->8 完成换弹解算",
+		pe1.reloadOpen == false and pe1.reloadPendingEffect == "echo",
+		string.format("open=%s eff=%s", tostring(pe1.reloadOpen), tostring(pe1.reloadPendingEffect)))
 end
 
 -- ---------------------------------------------------------------- 8. 剧情对白 D01–D65、兄妹口径、静音字幕与低引导
@@ -258,7 +261,7 @@ do
 	-- 验证 gatepath 自动触发 G06 非阻塞对白
 	local r = runmod.createRun(20261127, "official", runmod.createArchive())
 	r.story.route = "soldier"; r.story.settled = true
-	local pgp = new(playmod.Play, rooms.GATEPATH_ROOM, nil, r)
+	local pgp = new(playmod.Play, rooms.GATE_PATH_ROOM, nil, r)
 	fe:bindPlay(pgp, 1280, 720)
 	local inp = makeInput()
 	fe:renderPlay(DT, pgp, inp, 1280, 720)

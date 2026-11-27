@@ -20,7 +20,7 @@
 | --- | --- | --- | --- | --- |
 | Dora SSR（桌面 / Android / Web 运行时） | v1.10.2 | MIT License | 跨平台开源游戏引擎，提供 Windows x64（D3D12/OpenGL）、Android APK 模板（`dora-ssr-v1.10.2-android.zip`）与 Web Player WASM（`web-ide-files.zip`）独立运行时 | `https://github.com/IppClub/Dora-SSR` |
 | TypeScriptToLua（内置于 Dora SSR Web IDE） | 随 Dora SSR v1.10.2 | MIT License | 将 `init.ts` 与 `Script/watch/**/*.ts` 编译为 Lua | 随引擎提供 |
-| 引擎内置 `sarasa-mono-sc-regular` | 随 Dora SSR v1.10.2 | SIL OFL 1.1 | 灰盒调试与护送试炼等宽字体 | 随引擎提供（详见包内 `LICENSES`） |
+| 引擎内置 `sarasa-mono-sc-regular` | 随 Dora SSR v1.10.2 | SIL OFL 1.1 | 灰盒调试视图等宽字体 | 随引擎提供（详见包内 `LICENSES`） |
 | MuseScore General SoundFont (`MuseScore_General.sf3`) | v0.2 | MIT License | 离线渲染原创配乐分轨（弦乐、洞箫、大管、竖琴、钢琴），不随游戏包分发 | `https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/` |
 | FluidSynth（离线渲染工具） | v2.4.8 | LGPL-2.1 | 仅用于开发期离线将原创 MIDI 乐谱渲染为音频，不随游戏包分发 | `https://github.com/FluidSynth/fluidsynth` |
 | Xiph.org `vorbis-tools` (`oggenc`) | v1.4.3 | BSD / GPL | 仅用于开发期离线编码 48 kHz OGG Vorbis 音频文件 | `https://xiph.org/vorbis/` |

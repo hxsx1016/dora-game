@@ -8,12 +8,11 @@
 import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
 import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
-import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
+import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
-import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
+import { collectPlayAimTargets } from "Script/watch/aim_assist";
 import { InputMode, InputModePref } from "Script/watch/controls_config";
 import { GamepadFrameContext, GamepadRawState, GamepadRouter } from "Script/watch/gamepad";
 import {
@@ -26,7 +25,7 @@ import {
 } from "Script/watch/platform";
 import { TouchRouter } from "Script/watch/touch";
 import { WatchFrontend } from "Script/watch/fe/frontend";
-import { createRun, createStoryTalents, createTrial, mmss, RunSource, RunState, Talent, talentNames } from "Script/watch/run";
+import { createRun, createStoryTalents, normalizeLegacyTalent, RunSource, RunState, Talent } from "Script/watch/run";
 import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
     markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
     SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
@@ -57,12 +56,7 @@ let roomLabel: Label.Type | undefined;
 let captionLabel: Label.Type | undefined;
 let hintLabel: Label.Type | undefined;
 let switchLabel: Label.Type | undefined;
-let campaignLayer: Node.Type | undefined;
-let campaignDraw: DrawNode.Type | undefined;
-let campaignHud: Label.Type | undefined;
-let campaignSub: Label.Type | undefined;
-let run: RunState | undefined;
-/** 正式剧情的跨房状态；模式 1 整局一份，切房与 R 重试都复用它。 */
+/** 正式剧情的跨房状态；模式 1 整局一份，切房与重试都复用它。 */
 let storyRun: RunState | undefined;
 /** 跨局档案：正式通关与神器只写在这里，与每局的 RunState 分开。 */
 let profile: SaveState = emptySave();
@@ -93,7 +87,10 @@ let testViewportOverride: { w: number; h: number } | undefined;
 let audioUnlocked = false;
 let appClock = 0;
 let lastBackPressClock = -10;
-let trialTalentSelected = 0;
+
+function randomRunSeed(): number {
+    return Math.max(1, Math.floor(Math.abs(App.rand)) % 2147483646);
+}
 
 function isReleaseBuild(): boolean {
     return isReleaseMode();
@@ -131,7 +128,6 @@ function quitGame(): void {
         // Web / Dora Go 源码模式不允许停死宿主进程：安全回退到标题页
         current = 0;
         play = undefined;
-        run = undefined;
         setMode(1);
         if (fe !== undefined) {
             fe.audio.stopRoomTransient();
@@ -146,26 +142,6 @@ function quitGame(): void {
 function handleBackButton(): void {
     if (mode === 0) {
         setMode(1);
-        return;
-    }
-    if (mode === 2 && play !== undefined) {
-        const trial = run?.trial;
-        if (trial !== undefined && (trial.lost || run?.finished === true)) {
-            current = 0;
-            play = undefined;
-            run = undefined;
-            setMode(1);
-            if (fe !== undefined) {
-                fe.audio.stopRoomTransient();
-                fe.screen = "title";
-                fe.menus.resetInput();
-            }
-            return;
-        }
-        play.paused = !play.paused;
-        fe?.audio.playUi(play.paused ? "ui:pause_open" : "ui:pause_close", play.paused ? "assets/audio/ui/pause_open.wav" : "assets/audio/ui/pause_close.wav", 0.66, 0.08);
-        clock.reset();
-        input?.clearTransient(true);
         return;
     }
     if (fe === undefined) {
@@ -195,6 +171,13 @@ function handleBackButton(): void {
         return;
     }
     if (fe.screen === "play" && play !== undefined) {
+        if (play.escortFailed) {
+            fe.audio.stopRoomTransient();
+            fe.menus.resetInput();
+            fe.screen = "title";
+            input?.clearTransient(true);
+            return;
+        }
         if (play.paused) {
             fe.menus.triggerBack();
             return;
@@ -316,16 +299,35 @@ function continueOfficialStory(): Play | undefined {
     if (s.talentSeed !== undefined && s.talentSeed > 0) {
         stTalents.randomState = s.talentSeed;
     }
+    if (s.escortAttempt !== undefined && s.escortAttempt >= 1) {
+        stTalents.attempt = s.escortAttempt;
+    }
+    if (s.escortVariant !== undefined && s.escortVariant >= 0) {
+        stTalents.variant = s.escortVariant;
+    }
+    stTalents.deferred = s.talentDeferred === true;
     stTalents.room = s.talentRoom ?? "";
-    stTalents.ranks.vitality = s.talentVitality ?? 0;
-    stTalents.ranks.reload = s.talentReload ?? 0;
-    stTalents.ranks.guard = s.talentGuard ?? 0;
-    stTalents.ranks.craft = s.talentCraft ?? 0;
+    if (s.talentRanks !== undefined && s.talentRanks.length > 0) {
+        for (k = 0; k < s.talentRanks.length; k++) {
+            const parts = s.talentRanks[k].split(":");
+            const norm = parts[0] !== undefined ? normalizeLegacyTalent(parts[0]) : undefined;
+            const rk = parts[1] !== undefined ? (tonumber(parts[1]) ?? 0) : 0;
+            if (norm !== undefined && rk > 0) {
+                stTalents.ranks[norm] = (stTalents.ranks[norm] ?? 0) + Math.floor(rk);
+            }
+        }
+    } else {
+        // 兼容旧版 4 本领字段迁移
+        stTalents.ranks.vitality = s.talentVitality ?? 0;
+        stTalents.ranks.focus = s.talentReload ?? 0;
+        stTalents.ranks.guard = s.talentGuard ?? 0;
+        stTalents.ranks.salvage = s.talentCraft ?? 0;
+    }
     if (s.talentOffers !== undefined) {
         for (k = 0; k < s.talentOffers.length; k++) {
-            const t = s.talentOffers[k];
-            if (t === "vitality" || t === "reload" || t === "guard" || t === "craft") {
-                stTalents.offers.push(t as Talent);
+            const norm = normalizeLegacyTalent(s.talentOffers[k]);
+            if (norm !== undefined) {
+                stTalents.offers.push(norm);
             }
         }
     }
@@ -397,28 +399,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     draw = DrawNode();
     draw.addTo(grayboxLayer);
 
-    // 新版关卡试玩层：直接画 Play，HUD 只有两行读数。
-    campaignLayer = Node();
-    campaignLayer.order = 3;
-    campaignLayer.addTo(parent);
-    campaignDraw = DrawNode();
-    campaignDraw.addTo(campaignLayer);
-    campaignHud = Label(FONT, 24);
-    if (campaignHud !== undefined) {
-        campaignHud.color = C_TEXT;
-        campaignHud.anchor = Vec2(0, 1);
-        campaignHud.addTo(campaignLayer);
-        campaignHud.visible = true;
-    }
-    campaignSub = Label(FONT, 20);
-    if (campaignSub !== undefined) {
-        campaignSub.color = C_ACCENT;
-        campaignSub.anchor = Vec2(0, 1);
-        campaignSub.addTo(campaignLayer);
-        campaignSub.visible = true;
-    }
-    campaignLayer.visible = mode === 2;
-
     titleLabel = makeGrayboxLabel(TITLE, 40, C_TEXT);
     roomLabel = makeGrayboxLabel("", 26, C_ACCENT);
     captionLabel = makeGrayboxLabel("", 22, C_DIM);
@@ -457,9 +437,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     refreshTitleSessionFlag();
     grayboxLayer.visible = mode === 0;
     fe.setVisible(mode === 1);
-    if (campaignLayer !== undefined) {
-        campaignLayer.visible = mode === 2;
-    }
 
     input = new Input();
     fe.audio.applyUserVolumes(input.settings);
@@ -489,13 +466,11 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             flushProfile();
             saveCurrentSession();
             input?.clearTransient(true);
-            if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused) {
+            if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && !play.escortFailed) {
                 play.paused = true;
                 play.aimHold = 0;
                 play.bottleAimX = -1;
                 fe.menus.openPause();
-            } else if (mode === 2 && play !== undefined && !play.paused) {
-                play.paused = true;
             }
             if (fe !== undefined) {
                 fe.audio.setPaused(true);
@@ -504,8 +479,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         }
         if (eventType === "DidEnterForeground" || eventType === "WindowFocusGained") {
             if (fe !== undefined) {
-                const paused = play !== undefined && play.paused
-                    && ((mode === 1 && fe.screen === "play") || mode === 2);
+                const paused = play !== undefined && play.paused && mode === 1 && fe.screen === "play";
                 fe.audio.setPaused(paused);
             }
         }
@@ -520,25 +494,80 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             toggleFullscreen();
             return;
         }
-        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && key === KeyName.T) {
-            play.toggleArtifactWeapon();
-            return;
-        }
-        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
-            && !play.craftBench.active && !play.reloadOpen && play.getStoryTalentOffers().length > 0) {
-            if (key === KeyName.Num1) {
-                play.chooseTalent(0);
-                input?.consumePickRoom();
+        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused) {
+            if (play.escortFailed) {
+                if (key === KeyName.Left || key === KeyName.A) {
+                    fe.talentDraft.deathSelected = 0;
+                    return;
+                }
+                if (key === KeyName.Right || key === KeyName.D) {
+                    fe.talentDraft.deathSelected = 1;
+                    return;
+                }
+                if (key === KeyName.Escape) {
+                    fe.audio.stopRoomTransient();
+                    fe.menus.resetInput();
+                    fe.screen = "title";
+                    input?.clearTransient(true);
+                    return;
+                }
+                if ((key === KeyName.Return || key === KeyName.Space) && play.escortFailedTicks >= 24) {
+                    if (fe.talentDraft.deathSelected === 0) {
+                        play.confirmEscortRestart();
+                        applyRoomTransition(play);
+                    } else {
+                        fe.audio.stopRoomTransient();
+                        fe.menus.resetInput();
+                        fe.screen = "title";
+                        input?.clearTransient(true);
+                    }
+                    return;
+                }
+                if (key === KeyName.R && play.escortFailedTicks >= 24) {
+                    play.confirmEscortRestart();
+                    applyRoomTransition(play);
+                    return;
+                }
                 return;
             }
-            if (key === KeyName.Num2) {
-                play.chooseTalent(1);
-                input?.consumePickRoom();
-                return;
+            if (!play.craftBench.active && !play.reloadOpen) {
+                const offers = play.getStoryTalentOffers();
+                if (offers.length > 0) {
+                    if (key === KeyName.Num1) {
+                        play.chooseTalent(0);
+                        input?.consumePickRoom();
+                        return;
+                    }
+                    if (key === KeyName.Num2) {
+                        play.chooseTalent(1);
+                        input?.consumePickRoom();
+                        return;
+                    }
+                    if (key === KeyName.Num3) {
+                        play.chooseTalent(2);
+                        input?.consumePickRoom();
+                        return;
+                    }
+                    if (play.talentModalActive) {
+                        if (key === KeyName.Left || key === KeyName.A) {
+                            fe.talentDraft.selected = (fe.talentDraft.selected + offers.length - 1) % offers.length;
+                            fe.hud.talentSelected = fe.talentDraft.selected;
+                            return;
+                        }
+                        if (key === KeyName.Right || key === KeyName.D) {
+                            fe.talentDraft.selected = (fe.talentDraft.selected + 1) % offers.length;
+                            fe.hud.talentSelected = fe.talentDraft.selected;
+                            return;
+                        }
+                        if (key === KeyName.Return || key === KeyName.Space) {
+                            play.chooseTalent(fe.talentDraft.selected);
+                            return;
+                        }
+                    }
+                }
             }
-            if (key === KeyName.Num3) {
-                play.chooseTalent(2);
-                input?.consumePickRoom();
+            if (key === KeyName.T && !(play.talentModalActive && play.getStoryTalentOffers().length > 0)) {
+                play.toggleArtifactWeapon();
                 return;
             }
         }
@@ -546,27 +575,20 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         if (fe !== undefined && mode === 1 && (fe.screen !== "play" || inPausedPlay)) {
             fe.menus.onKeyEvent(key);
         }
-        if (input !== undefined && ((mode === 1 && fe !== undefined && fe.screen === "play" && !inPausedPlay) || mode === 2)) {
+        if (input !== undefined && mode === 1 && fe !== undefined && fe.screen === "play" && !inPausedPlay) {
             if (key === KeyName.E) {
                 input.interact.pressed = true;
             } else if (key === KeyName.Space) {
                 input.jump.pressed = true;
             } else if (key === KeyName.Escape) {
                 input.pause.pressed = true;
-            } else if (key === KeyName.R && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
+            } else if (key === KeyName.R && (play === undefined || (!play.craftBench.active && !play.reloadOpen && !play.talentModalActive))) {
                 input.retry.pressed = true;
             }
         }
-        if (mode === 2 && run?.trial !== undefined) return;
         if (isReleaseBuild()) return;
         if (key === KeyName.F1) {
-            if (mode === 2) {
-                current = 0;
-                play = undefined;
-                ensurePlay();
-            } else {
-                enterPlayRoom(current, storyRun === undefined ? "debug" : storyRun.source);
-            }
+            enterPlayRoom(current, storyRun === undefined ? "debug" : storyRun.source);
         } else if (key === KeyName.F2) {
             setMode(0);
         } else if (key === KeyName.Num1) {
@@ -640,14 +662,14 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         },
         getPlay: () => play,
         getFrontend: () => fe,
-        // 验收钩子：按标题「新的旅程」的真实入口开一局（official 来源、全新 storyRun）。
-        startStory: () => {
-            enterPlayRoom(officialStartIndex(), "official", true);
+        // 验收钩子：按标题「新的旅程」的真实入口开一局（official 来源、全新 storyRun，可传固定 seed 便于回放复现）。
+        startStory: (seed?: number) => {
+            enterPlayRoom(officialStartIndex(), "official", true, seed);
             return play;
         },
         // 章节预览与菜单「章节」页的 jump 同一入口（chapter 来源，只演出不记档）。
-        previewChapter: (idx: number) => {
-            enterPlayRoom(idx, "chapter");
+        previewChapter: (idx: number, seed?: number) => {
+            enterPlayRoom(idx, "chapter", false, seed);
             return play;
         },
         getStoryRun: () => storyRun,
@@ -686,7 +708,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         getReleaseVersion: () => getReleaseConfig()?.version ?? "dev",
         toggleFullscreen: () => toggleFullscreen(),
         quitGame: () => quitGame(),
-        startTrial: () => startTrial(),
         handleBackButton: () => handleBackButton(),
         getViewport: () => stageVp,
         getTouchController: () => touchControls,
@@ -733,15 +754,12 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
 }
 
 function setMode(nextMode: number): void {
-    mode = nextMode;
+    mode = nextMode === 0 ? 0 : 1;
     if (grayboxLayer !== undefined) {
         grayboxLayer.visible = mode === 0;
     }
     if (fe !== undefined) {
         fe.setVisible(mode === 1);
-    }
-    if (campaignLayer !== undefined) {
-        campaignLayer.visible = mode === 2;
     }
     dirty = true;
     clock.reset();
@@ -781,7 +799,7 @@ function roomIndexByKey(key: string): number {
     return 0;
 }
 
-function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false): void {
+function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, seedOverride?: number): void {
     current = idx;
     setMode(1);
     if (fe !== undefined) {
@@ -790,7 +808,34 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
     play = undefined;
     // 标题「新的旅程」进序章视为正式开新局；章节直达始终起干净独立预览局，不泄漏或污染正式局状态。
     if (fresh || source === "chapter" || storyRun === undefined) {
-        storyRun = createRun(20261124, source, profile);
+        const seed = seedOverride !== undefined
+            ? seedOverride
+            : ((source === "official" || source === "chapter") ? randomRunSeed() : 20261124);
+        storyRun = createRun(seed, source, profile);
+        if (source === "chapter") {
+            const targetKey = ROOMS[idx].key;
+            if (targetKey === "gatepath" || targetKey === "escort1" || targetKey === "escort2"
+                || targetKey === "escort3" || targetKey === "escort4" || targetKey === "escort5") {
+                storyRun.story.route = "soldier";
+                storyRun.story.settled = true;
+                storyRun.story.hp = 3;
+                storyRun.story.maxHp = 3;
+                storyRun.story.hpAtGate = 3;
+                storyRun.story.maxHpAtGate = 3;
+                storyRun.story.handDone = true;
+                storyRun.story.tied = true;
+                storyRun.story.carry = targetKey !== "gatepath";
+                storyRun.joined = true;
+                if (targetKey === "escort3" || targetKey === "escort4" || targetKey === "escort5") {
+                    storyRun.inventory.wood = 2;
+                    storyRun.inventory.bell = 1;
+                }
+            } else if (targetKey === "outside" || targetKey === "village" || targetKey === "forest") {
+                storyRun.story.route = "child";
+                storyRun.story.settled = true;
+                storyRun.story.countTick = 1440;
+            }
+        }
     } else {
         storyRun.source = source;
     }
@@ -804,16 +849,6 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
 }
 
 function pickByIndex(idx: number, source: RunSource = "debug"): void {
-    if (mode === 2) {
-        if (idx < 0 || idx >= CAMPAIGN_ROOMS.length) {
-            return;
-        }
-        current = idx;
-        play = undefined;
-        clock.reset();
-        ensurePlay();
-        return;
-    }
     if (idx < 0 || idx >= ROOMS.length) {
         return;
     }
@@ -846,9 +881,6 @@ function applySize(): void {
     if (fe !== undefined) {
         fe.setStagePlacement(stageVp);
     }
-    if (campaignLayer !== undefined) {
-        campaignLayer.position = Vec2(stageVp.stageX, stageVp.stageY);
-    }
     if (grayboxLayer !== undefined) {
         grayboxLayer.position = Vec2(0, 0);
     }
@@ -860,13 +892,16 @@ function syncFrameAdapters(frameDt: number): void {
     }
     const p = play;
     const isPlayMode = mode === 1 && fe !== undefined && fe.screen === "play" && p !== undefined;
-    const isTrialMode = mode === 2 && p !== undefined;
-    const gameplayActive = isPlayMode || isTrialMode;
+    const gameplayActive = isPlayMode;
 
     const storyTalentBoxes = isPlayMode && fe !== undefined && p !== undefined
-        && !p.paused && !p.craftBench.active && !p.reloadOpen
+        && !p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed
         ? fe.getStoryTalentBoxes(p, stageVp.stageW, stageVp.stageH, input.isTouchMode())
         : [];
+    const escortDeathBoxes = isPlayMode && fe !== undefined && p !== undefined
+        && !p.paused && p.escortFailed
+        ? fe.getEscortDeathBoxes(p, stageVp.stageW, stageVp.stageH)
+        : undefined;
 
     if (touchControls !== undefined && touchRouter !== undefined) {
         let isFs = false;
@@ -882,7 +917,7 @@ function syncFrameAdapters(frameDt: number): void {
             mode,
             screen: fe !== undefined ? fe.screen : "title",
             play: p,
-            run,
+            run: storyRun,
             cam: fe !== undefined ? fe.cam : undefined,
             input,
             router: touchRouter,
@@ -890,28 +925,26 @@ function syncFrameAdapters(frameDt: number): void {
             isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
             isFullscreen: isFs,
             storyTalentBoxes,
+            escortDeathBoxes,
             dt: frameDt,
         });
     }
 
     if (gamepadRouter !== undefined) {
-        const trial = run?.trial;
-        const trialEnded = isTrialMode && trial !== undefined && (trial.lost || run?.finished === true);
-        const trialHasOffers = isTrialMode && trial !== undefined && trial.offers.length > 0 && p !== undefined && !p.paused && !trialEnded;
+        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed
+            ? p.getStoryTalentOffers().length
+            : 0;
+        const talentBlocking = isPlayMode && p !== undefined && p.talentModalActive && talentOfferCount > 0;
         const modal = !gameplayActive
-            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active))
-            || (isTrialMode && p !== undefined && (p.paused || trialEnded));
+            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active || p.escortFailed || talentBlocking));
         const reloadActive = isPlayMode && p !== undefined && !p.paused && p.reloadOpen;
         const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
-        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen
-            ? p.getStoryTalentOffers().length
-            : (trialHasOffers && trial !== undefined ? trial.offers.length : 0);
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
         const allowDepth = p !== undefined && p.room.depth !== undefined
             && (!p.childMode || p.phase === "prologue-escape");
         const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
         const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
-            && !modal && !cutsceneBlocking && !trialHasOffers && p.escort.state !== "calming";
+            && !modal && !cutsceneBlocking && p.escort.state !== "calming";
         const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village"
             && p.hasBottle && !p.passed && !modal && !cutsceneBlocking;
         const inLowArch = p !== undefined && p.room.arch.h > 0
@@ -921,22 +954,13 @@ function syncFrameAdapters(frameDt: number): void {
 
         let playerScreenX = stageVp.stageW * 0.5;
         let playerScreenY = stageVp.stageH * 0.38;
-        if (p !== undefined) {
-            if (isPlayMode && fe !== undefined) {
-                playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
-                playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-            } else {
-                // 护送试炼（mode === 2）按 Play.view 精确投影主角屏幕位置，保证手柄方向锥磁吸准心不偏心
-                const vz = p.view.zoom > 0 ? p.view.zoom : 1;
-                playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
-                playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
-            }
+        if (p !== undefined && isPlayMode && fe !== undefined) {
+            playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
+            playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
         }
 
-        const enemyTargets = canShoot && p !== undefined
-            ? (isPlayMode && fe !== undefined
-                ? collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
-                : collectTrialAimTargets(p, stageVp.stageW, stageVp.stageH))
+        const enemyTargets = canShoot && p !== undefined && isPlayMode && fe !== undefined
+            ? collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
             : [];
 
         const gpCtx: GamepadFrameContext = {
@@ -997,7 +1021,7 @@ function tick(frameDt: number): void {
         input.fullscreenTogglePressed = false;
         toggleFullscreen();
     }
-    if (input.artifactTogglePressed && mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused) {
+    if (input.artifactTogglePressed && mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && !play.escortFailed) {
         input.artifactTogglePressed = false;
         play.toggleArtifactWeapon();
     }
@@ -1007,14 +1031,8 @@ function tick(frameDt: number): void {
         play.bottleAimX = -1;
     }
 
-    if (mode === 2 && run?.trial !== undefined) {
-        tickCampaign(frameDt);
-        renderTouchOverlay();
-        return;
-    }
-
     if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
-        && !play.craftBench.active && play.getStoryTalentOffers().length > 0
+        && !play.craftBench.active && !play.reloadOpen && !play.escortFailed && play.getStoryTalentOffers().length > 0
         && input.pickRoom >= 1 && input.pickRoom <= 3) {
         play.chooseTalent(input.pickRoom - 1);
         input.pickRoom = 0;
@@ -1028,7 +1046,7 @@ function tick(frameDt: number): void {
         // G 键切换灰盒调试视图 / 高清前端
         if (input.toggleView.pressed) {
             input.toggleView.pressed = false;
-            setMode(mode === 0 ? 1 : (mode === 1 ? 2 : 0));
+            setMode(mode === 0 ? 1 : 0);
             if (mode === 1 && fe !== undefined && fe.screen === "play" && play === undefined) {
                 ensurePlay();
             }
@@ -1047,9 +1065,7 @@ function tick(frameDt: number): void {
         }
     }
 
-    if (mode === 2) {
-        tickCampaign(frameDt);
-    } else if (mode === 1) {
+    if (mode === 1) {
         tickFrontend(frameDt);
     } else if (dirty) {
         redrawGraybox();
@@ -1062,271 +1078,71 @@ function tick(frameDt: number): void {
 function registerPlay(): void {
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.play"] = play;
-    const rooms = mode === 2 ? CAMPAIGN_ROOMS : ROOMS;
-    reg["watch.room"] = rooms[current].key;
+    reg["watch.room"] = ROOMS[current].key;
 }
 
 /** 试玩模式下按当前房间建运行时；切房间时重建。 */
 function ensurePlay(resume?: { checkpoint: number }): void {
-    if (mode === 2) {
-        if (run === undefined) {
-            run = createRun();
-        }
-        play = new Play(CAMPAIGN_ROOMS[current], undefined, run);
-    } else {
-        // 正式剧情：整局只有一份跨房状态，血量、过门锁线与演出快照都在里面。
-        // 重试与切房都重建 Play，但不再满血重算。
-        if (storyRun === undefined) {
-            storyRun = createRun(20261124, "debug", profile);
-        }
-        play = new Play(ROOMS[current], resume, storyRun);
+    // 正式剧情：整局只有一份跨房状态，血量、过门锁线与演出快照都在里面。
+    // 重试与切房都重建 Play，但不再满血重算。
+    if (storyRun === undefined) {
+        storyRun = createRun(20261124, "debug", profile);
     }
+    play = new Play(ROOMS[current], resume, storyRun);
     registerPlay();
     clock.reset();
     if (fe !== undefined && mode === 1) {
         fe.bindPlay(play, stageVp.stageW, stageVp.stageH);
-    } else if (fe !== undefined && mode === 2) {
-        fe.resetTrialAudio(play);
     }
 }
 
-function startTrial(): void {
-    current = 0;
-    trialTalentSelected = 0;
-    run = createTrial(App.rand);
-    setMode(2);
+/** 处理后端 wantRoom 切房、男主线护送倒地/重开回第一段以及片尾重开。 */
+function applyRoomTransition(p: Play): boolean {
+    if (p.wantRoom === "") {
+        return false;
+    }
+    const key = p.wantRoom;
+    p.wantRoom = "";
+    let idx = -1;
+    let j = 0;
+    for (j = 0; j < ROOMS.length; j++) {
+        if (ROOMS[j].key === key) {
+            idx = j;
+        }
+    }
+    if (idx < 0) {
+        return false;
+    }
+    // 换实例前先取走旧队列，再接到新实例队首；前端下一帧仍能拿到切房这一条 roomChange。
+    // adoptEvents 会丢掉旧房间的 knock，避免跨出口同拍按 E 时在新房重播旧房敲声。
+    // 切房同拍：旧实例的档案变化先落盘；失败则留 profileDirty，由后续帧重试。
+    flushProfile();
+    const leaving = p.drainEvents();
+    // 片尾回序章：重开一份正式局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
+    if (p.restartStory) {
+        if (storyRun !== undefined && storyRun.source === "official") {
+            clearSession();
+            refreshTitleSessionFlag();
+        }
+        const nextSource: RunSource = (storyRun !== undefined && storyRun.source === "debug") ? "debug" : "official";
+        const nextSeed = nextSource === "official" ? randomRunSeed() : 20261124;
+        storyRun = createRun(nextSeed, nextSource, profile);
+    }
+    current = idx;
     ensurePlay();
-}
-
-function tickCampaign(frameDt: number): void {
-    if (input === undefined) {
-        return;
-    }
-    if (play === undefined) {
-        ensurePlay();
-    }
-    if (play === undefined) {
-        return;
-    }
-    const p = play;
-    p.aimX = input.mx;
-    p.aimY = input.my;
-
-    const zoneTap = input.touchZoneTap;
-    input.touchZoneTap = "";
-
-    const trial = run?.trial;
-    if (trial !== undefined) {
-        const ended = trial.lost || run?.finished === true;
-        const pick = input.pickRoom;
-        input.pickRoom = 0;
-
-        if (zoneTap === "trial:resume" && p.paused && !ended) {
-            p.paused = false;
-            clock.reset();
-            input.consumeEdges();
-            drawCampaign(p);
-            return;
+    const fresh = play;
+    if (fresh !== undefined) {
+        if (p.restartStory && ROOMS[current].key === "prologue" && storyRun?.source === "official") {
+            fresh.phase = "prologue-wake";
         }
-        if (zoneTap === "trial:retry") {
-            input.consumeEdges();
-            startTrial();
-            return;
-        }
-        if (zoneTap === "trial:title") {
-            input.consumeEdges();
-            current = 0;
-            play = undefined;
-            run = undefined;
-            setMode(1);
-            if (fe !== undefined) {
-                fe.audio.stopRoomTransient();
-                fe.screen = "title";
-                fe.menus.resetInput();
-            }
-            return;
-        }
-
-        if ((ended && (input.pause.pressed || input.navBack)) || (p.paused && input.interact.pressed)) {
-            input.consumeEdges();
-            current = 0;
-            play = undefined;
-            run = undefined;
-            setMode(1);
-            if (fe !== undefined) {
-                fe.audio.stopRoomTransient();
-                fe.screen = "title";
-                fe.menus.resetInput();
-            }
-            return;
-        }
-        if (ended || (p.paused && input.retry.pressed)) {
-            const restart = input.retry.pressed || (ended && input.navConfirm);
-            input.consumeEdges();
-            if (restart) startTrial();
-            else drawCampaign(p);
-            return;
-        }
-        input.retry.pressed = false;
-        if (trial.offers.length > 0 && !p.paused && !input.pause.pressed) {
-            if (trialTalentSelected >= trial.offers.length) {
-                trialTalentSelected = 0;
-            }
-            if (zoneTap.indexOf("talent:") === 0) {
-                const idx = parseInt(zoneTap.slice(7), 10);
-                if (idx >= 0 && idx < trial.offers.length) {
-                    p.chooseTalent(idx);
-                }
-            } else if (pick > 0) {
-                p.chooseTalent(pick - 1);
-            } else {
-                const delta = input.talentDelta
-                    + ((input.navRight || input.navNextTab) ? 1 : 0)
-                    - ((input.navLeft || input.navPrevTab) ? 1 : 0);
-                if (delta !== 0) {
-                    trialTalentSelected = (trialTalentSelected + delta + trial.offers.length) % trial.offers.length;
-                }
-                if (input.talentConfirm || input.navConfirm) {
-                    p.chooseTalent(trialTalentSelected);
-                }
-            }
-            input.consumeEdges();
-            clock.reset();
-            fe?.syncTrialAudio(frameDt, p, trial.offers.length);
-            drawCampaign(p);
-            return;
-        }
+        fresh.adoptEvents(leaving);
     }
-
-    if (input.retry.pressed) {
-        input.retry.pressed = false;
-        input.consumeEdges();
-        // R 重开本段：保留已取物资与破坏，只把人送回起点。
-        play = undefined;
-        ensurePlay();
-        return;
+    if (!p.restartStory) {
+        saveCurrentSession();
     }
-    if (input.pause.pressed || (p.paused && input.navBack)) {
-        input.pause.pressed = false;
-        p.paused = !p.paused;
-        fe?.audio.playUi(p.paused ? "ui:pause_open" : "ui:pause_close", p.paused ? "assets/audio/ui/pause_open.wav" : "assets/audio/ui/pause_close.wav", 0.66, 0.08);
-        clock.reset();
-        input.consumeEdges();
-    }
-    if (p.paused) {
-        fe?.syncTrialAudio(frameDt, p, trial?.offers.length ?? 0);
-        drawCampaign(p);
-        return;
-    }
-
-    const steps = clock.advance(frameDt);
-    let i = 0;
-    for (i = 0; i < steps; i++) {
-        input.beginStep(i === 0);
-        p.update(STEP, input);
-        input.endStep();
-        if (p.wantRoom !== "" || trial?.lost || (trial !== undefined && run?.finished)) {
-            break;
-        }
-    }
-    fe?.syncTrialAudio(frameDt, p, trial?.offers.length ?? 0);
-
-    if (p.wantRoom !== "") {
-        const key = p.wantRoom;
-        p.wantRoom = "";
-        let idx = -1;
-        let j = 0;
-        for (j = 0; j < CAMPAIGN_ROOMS.length; j++) {
-            if (CAMPAIGN_ROOMS[j].key === key) {
-                idx = j;
-            }
-        }
-        if (idx >= 0) {
-            current = idx;
-            play = undefined;
-            ensurePlay();
-        }
-        return;
-    }
-    drawCampaign(p);
-}
-
-function goalLabel(goal: string): string {
-    if (goal === "dock_cart") {
-        return "推车入窝并抬闩";
-    }
-    if (goal === "raise_latch") {
-        return "抬闩开侧门";
-    }
-    return "到段出口";
-}
-
-function drawCampaign(p: Play): void {
-    if (campaignDraw === undefined) {
-        return;
-    }
-    const w = stageVp.stageW;
-    const h = stageVp.stageH;
-    const safeL = stageVp.safeUi.left * stageVp.uiScale;
-    const safeT = stageVp.safeUi.top * stageVp.uiScale;
-    p.draw(campaignDraw, w, h);
-    const room = CAMPAIGN_ROOMS[current];
-    const c = room.campaign;
-    const r = run;
-    let line = room.name;
-    if (c !== undefined) {
-        line = line + "  " + c.chapter + c.act + " · 目标 " + goalLabel(c.goal)
-            + " · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0)) + " / 预算 " + mmss(c.budget * 60);
-    }
-    if (p.paused) {
-        line = line + "  · 已暂停 Esc 继续";
-    }
-    const trial = r?.trial;
-    if (trial !== undefined && r !== undefined) {
-        line = "护送试炼 · " + room.name + " · 体力 " + p.hp + "/" + p.maxHp + " · " + mmss(r.ticks);
-        if (p.paused) line += " · 暂停";
-        else if (trial.lost) line += " · 护送失败";
-        else if (r.finished) line += " · 护送完成";
-        else if (trial.offers.length > 0) line += " · 选择本段本领";
-        else if (c !== undefined) line += " · " + goalLabel(c.goal);
-    }
-    if (campaignHud !== undefined) {
-        campaignHud.text = line;
-        campaignHud.position = Vec2(24 + safeL, h - 14 - safeT);
-        campaignHud.visible = true;
-    }
-    if (campaignSub !== undefined) {
-        let sub = "总 " + mmss(r === undefined ? 0 : r.ticks);
-        if (r !== undefined) {
-            const route = r.route === "drygoods" ? "布行" : (r.route === "outer" ? "外檐" : "未定");
-            sub = sub + " · 路线 " + route
-                + " · 盾" + r.inventory.shield + " 楔" + r.inventory.wedge + " 弹" + r.inventory.ammo
-                + " 牌" + r.inventory.pass + " 带" + r.inventory.quickbelt
-                + " · " + (r.joined ? "小满跟随" : "小满等待");
-        }
-        if (p.flash !== "") {
-            sub = sub + " · " + p.flash;
-        }
-        if (trial !== undefined && r !== undefined) {
-            const gpMode = input !== undefined && input.isGamepadMode();
-            const touchMode = input !== undefined && input.isTouchMode();
-            if (trial.lost || r.finished) {
-                sub = "种子 " + r.seed + (gpMode ? " · A 再开一局 · START 返回标题" : (touchMode ? " · 点下方按钮再开或返回标题" : " · R 再开一局 · Esc 返回标题"));
-            } else if (p.paused) {
-                sub = "种子 " + r.seed + (gpMode ? " · START 继续 · 长按BACK 重开 · Y 返回标题" : (touchMode ? " · 点下方按钮继续/重开/返回标题" : " · Esc 继续 · R 重新开局 · E 返回标题"));
-            } else if (trial.offers.length > 0) {
-                sub = trial.offers.map((talent, index) => {
-                    const mark = gpMode && index === trialTalentSelected ? "▶ " : "";
-                    return mark + (index + 1) + " " + talentNames[talent];
-                }).join("　");
-            } else {
-                sub = "厚甲" + trial.ranks.vitality + " 熟铳" + trial.ranks.reload + " 护身" + trial.ranks.guard + " 巧手" + trial.ranks.craft + " · " + (p.flash !== "" ? p.flash : (r.joined ? "小满跟随" : "小满等待"));
-            }
-        }
-        campaignSub.text = sub;
-        campaignSub.position = Vec2(24 + safeL, h - 44 - safeT);
-        campaignSub.visible = true;
-    }
+    clock.reset();
+    dirty = true;
+    return true;
 }
 
 function tickFrontend(frameDt: number): void {
@@ -1341,8 +1157,6 @@ function tickFrontend(frameDt: number): void {
         if (act.type === "splashDone") {
             fe.menus.resetInput();
             fe.screen = "title";
-        } else if (act.type === "trial") {
-            startTrial();
         } else if (act.type === "continue") {
             if (continueOfficialStory() === undefined) {
                 enterPlayRoom(officialStartIndex(), "official", true);
@@ -1397,23 +1211,74 @@ function tickFrontend(frameDt: number): void {
     const zoneTap = input.touchZoneTap;
     input.touchZoneTap = "";
 
-    const offers = p.getStoryTalentOffers();
-    if (!p.paused && !p.craftBench.active && !p.reloadOpen && offers.length > 0) {
-        if (fe.hud.talentSelected >= offers.length) {
-            fe.hud.talentSelected = 0;
+    // 男主线肉鸽护送倒地：轮回小结页（折戟山道 → 重整再赴 / 返回标题）
+    if (!p.paused && p.escortFailed) {
+        let deathAction: "retry" | "title" | "" = "";
+        if (zoneTap === "escort:retry" && p.escortFailedTicks >= 12) {
+            deathAction = "retry";
+        } else if (zoneTap === "escort:title") {
+            deathAction = "title";
+        } else {
+            if (input.navLeft || input.navPrevTab) {
+                fe.talentDraft.deathSelected = 0;
+            } else if (input.navRight || input.navNextTab) {
+                fe.talentDraft.deathSelected = 1;
+            }
+            if (input.pause.pressed || input.navBack) {
+                deathAction = "title";
+            } else if (p.escortFailedTicks >= 24 && input.retry.pressed) {
+                deathAction = "retry";
+            } else if (p.escortFailedTicks >= 24 && input.navConfirm) {
+                deathAction = fe.talentDraft.deathSelected === 0 ? "retry" : "title";
+            } else if (p.escortFailedTicks >= 12
+                && (input.uiPressed || (input.inputMode !== "gamepad" && input.fire.pressed))) {
+                deathAction = fe.tryPickEscortDeathAtPointer(p, input, stageVp.stageW, stageVp.stageH);
+            }
         }
+        if (deathAction === "retry") {
+            input.consumeEdges();
+            p.confirmEscortRestart();
+            applyRoomTransition(p);
+            return;
+        }
+        if (deathAction === "title") {
+            input.consumeEdges();
+            fe.audio.stopRoomTransient();
+            fe.menus.resetInput();
+            fe.screen = "title";
+            input.clearTransient(true);
+            return;
+        }
+        input.pause.pressed = false;
+        input.retry.pressed = false;
+        input.fire.pressed = false;
+    }
+
+    const offers = p.getStoryTalentOffers();
+    if (!p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed && offers.length > 0) {
+        if (fe.talentDraft.selected >= offers.length) {
+            fe.talentDraft.selected = 0;
+        }
+        fe.hud.talentSelected = fe.talentDraft.selected;
         if (zoneTap.indexOf("talent:") === 0) {
             const idx = parseInt(zoneTap.slice(7), 10);
             if (idx >= 0 && idx < offers.length && p.chooseTalent(idx)) {
+                fe.talentDraft.selected = idx;
+                fe.hud.talentSelected = idx;
                 input.fire.pressed = false;
             }
         } else {
-            if (input.talentDelta !== 0) {
-                fe.hud.talentSelected = (fe.hud.talentSelected + input.talentDelta + offers.length) % offers.length;
+            const navDelta = p.talentModalActive
+                ? ((input.navRight || input.navNextTab ? 1 : 0) - (input.navLeft || input.navPrevTab ? 1 : 0))
+                : 0;
+            const totalDelta = input.talentDelta + navDelta;
+            if (totalDelta !== 0) {
+                fe.talentDraft.selected = (fe.talentDraft.selected + totalDelta + offers.length) % offers.length;
+                fe.hud.talentSelected = fe.talentDraft.selected;
                 input.talentDelta = 0;
             }
-            if (input.talentConfirm) {
-                p.chooseTalent(fe.hud.talentSelected);
+            if (input.talentConfirm || (p.talentModalActive && input.navConfirm)) {
+                p.chooseTalent(fe.talentDraft.selected);
                 input.talentConfirm = false;
                 input.fire.pressed = false;
             } else if ((input.uiPressed || (input.inputMode !== "gamepad" && input.fire.pressed))
@@ -1451,7 +1316,7 @@ function tickFrontend(frameDt: number): void {
         input.consumeEdges();
         return;
     }
-    if (!p.paused && input.pause.pressed) {
+    if (!p.paused && !p.escortFailed && input.pause.pressed) {
         p.paused = true;
         p.aimHold = 0;
         p.bottleAimX = -1;
@@ -1470,7 +1335,12 @@ function tickFrontend(frameDt: number): void {
         if (pauseAct.type === "resume") {
             p.paused = false;
         } else if (pauseAct.type === "retry") {
-            ensurePlay({ checkpoint: p.checkpoint });
+            if (p.run.source === "official" && p.storyRoute === "soldier" && p.isEscortRoom()) {
+                p.restartEscortRun();
+                applyRoomTransition(p);
+            } else {
+                ensurePlay({ checkpoint: p.checkpoint });
+            }
         } else if (pauseAct.type === "openChapters") {
             fe.audio.stopRoomTransient();
             fe.audio.setPaused(false);
@@ -1492,10 +1362,16 @@ function tickFrontend(frameDt: number): void {
     const inTowerEnding = p.room.key === "tower" && p.phase !== "tower-wait";
     const inPrologueIntro = p.room.key === "prologue"
         && (p.phase === "prologue-wake" || p.phase === "prologue-shadow" || p.phase === "prologue-escape" || p.phase === "prologue-hide");
-    if (input.retry.pressed && !inTowerEnding && !inPrologueIntro && !p.craftBench.active && !p.reloadOpen) {
+    if (input.retry.pressed && !inTowerEnding && !inPrologueIntro && !p.craftBench.active && !p.reloadOpen && !p.escortFailed && !p.talentModalActive) {
         input.consumeEdges();
-        // 重试保留检查点，并重新绑定前端相机与运行态验收钩子。
-        ensurePlay({ checkpoint: p.checkpoint });
+        if (p.run.source === "official" && p.storyRoute === "soldier" && p.isEscortRoom()) {
+            // 正式男主线肉鸽关闭单段 S/L：重开推进轮次派生新种子回第一段
+            p.restartEscortRun();
+            applyRoomTransition(p);
+        } else {
+            // 非肉鸽段落或调试/章节模式：重试保留检查点，并重新绑定前端相机与运行态验收钩子。
+            ensurePlay({ checkpoint: p.checkpoint });
+        }
         return;
     }
 
@@ -1511,46 +1387,7 @@ function tickFrontend(frameDt: number): void {
     }
 
     // 切场由后端 wantRoom 触发，前端无缝接管
-    if (p.wantRoom !== "") {
-        const key = p.wantRoom;
-        p.wantRoom = "";
-        let idx = -1;
-        let j = 0;
-        for (j = 0; j < ROOMS.length; j++) {
-            if (ROOMS[j].key === key) {
-                idx = j;
-            }
-        }
-        if (idx >= 0) {
-            // 换实例前先取走旧队列，再接到新实例队首；前端下一帧仍能拿到切房这一条 roomChange。
-            // adoptEvents 会丢掉旧房间的 knock，避免跨出口同拍按 E 时在新房重播旧房敲声。
-            // 切房同拍：旧实例的档案变化先落盘；失败则留 profileDirty，由后续帧重试。
-            flushProfile();
-            const leaving = p.drainEvents();
-            // 片尾回序章：重开一份正式局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
-            if (p.restartStory) {
-                if (storyRun !== undefined && storyRun.source === "official") {
-                    clearSession();
-                    refreshTitleSessionFlag();
-                }
-                const nextSource: RunSource = (storyRun !== undefined && storyRun.source === "debug") ? "debug" : "official";
-                storyRun = createRun(20261124, nextSource, profile);
-            }
-            current = idx;
-            ensurePlay();
-            const fresh = play;
-            if (fresh !== undefined) {
-                if (p.restartStory && ROOMS[current].key === "prologue" && storyRun?.source === "official") {
-                    fresh.phase = "prologue-wake";
-                }
-                fresh.adoptEvents(leaving);
-            }
-            if (!p.restartStory) {
-                saveCurrentSession();
-            }
-            clock.reset();
-            dirty = true;
-        }
+    if (applyRoomTransition(p)) {
         return;
     }
 
