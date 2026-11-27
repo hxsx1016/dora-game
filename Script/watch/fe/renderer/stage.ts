@@ -742,6 +742,10 @@ export class StageRenderer {
             this.drawWinch(draw, assets, left, base, width, frontH, p, layer);
             return;
         }
+        // 第三段山腰工台由 EscortWorldRenderer 精绘木构修铳工棚与羊角风灯，避免叠画普通木盒
+        if (solid.id === "e3_bench") {
+            return;
+        }
 
         if (solid.art === "gate_post" && depth.min > LANE_DEPTH.middle) {
             assets.tryPlace("slab", "gate_sill_" + solid.x, center, cam.sy(solid.y, LANE_DEPTH.middle - 6),

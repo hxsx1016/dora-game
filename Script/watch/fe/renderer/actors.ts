@@ -547,8 +547,11 @@ export class ActorsRenderer {
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
 
-        // 试射靶（escort3 工台靶位）：采用 props_ming.clip|target_dummy 明代草束木靶精灵，零线段拼接
+        // 试射靶（escort3 工台靶位由 EscortWorldRenderer 精绘带声波环青铜鸣锣+草靶；其余关卡用 props_ming.clip|target_dummy）
         if (e.kind === "target") {
+            if (p.room.key === "escort3") {
+                return;
+            }
             const targetLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
             fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.56, 3.6, Color(12, 11, 13, 140));
             const angle = !e.alive ? f * 62 : (e.hitT > 0 ? f * 18 : 0);

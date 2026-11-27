@@ -717,6 +717,11 @@ function roomIndexByKey(key: string): number {
     return 0;
 }
 
+/** 章节直达后半段时按目标房间预置独立预览路线（兼容 verify-second-half.lua 验收入口）。 */
+export function applyChapterPreviewRoute(targetRun: RunState, roomKey: string, routeOverride?: "child" | "soldier"): void {
+    applyChapterPreviewContext(targetRun, roomKey, routeOverride);
+}
+
 function applyChapterPreviewContext(targetRun: RunState, roomKey: string, routeOverride?: "child" | "soldier"): void {
     // 章节直达按对应路线预置独立预览上下文（绝不污染正式档或通关档案），
     // 防止 storyRoute 落回 undecided 导致小满四房低模、周戍护送背负、工台试握与北塔双结局失活。

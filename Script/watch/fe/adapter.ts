@@ -79,6 +79,8 @@ export interface FrameEvents {
     museumStep: boolean;
     museumStepName: string;
     museumDone: boolean;
+    /** 后端发射的叙事节拍（red_cart / water_lantern / talent_picked 等） */
+    storyBeats: { beat: string; x: number; room: string; item: string }[];
     /** 肉鸽成长与战备交互事件（零侵入增量字段，供 RoguelikeUiPlugin 消费）。 */
     talentPicked: boolean;
     talentPickedId: string;
@@ -165,6 +167,7 @@ export function createEmptyFrameEvents(
         museumStep: false,
         museumStepName: "",
         museumDone: false,
+        storyBeats: [],
         talentPicked: false,
         talentPickedId: "",
         talentPickedRank: 0,
@@ -332,6 +335,7 @@ export class PlayAdapter {
         let ending = "";
         let endingOfficial = false;
         let endingLines: string[] = [];
+        const storyBeats: { beat: string; x: number; room: string; item: string }[] = [];
         let talentPicked = false;
         let talentPickedId = "";
         let talentPickedRank = 0;
@@ -428,10 +432,18 @@ export class PlayAdapter {
                 endingLines = Array.isArray(event.data.lines)
                     ? (event.data.lines as unknown[]).map((v) => (typeof v === "string" ? v : ""))
                     : [];
-            } else if (event.name === "storyBeat" && event.data.beat === "talent_picked") {
-                talentPicked = true;
-                talentPickedId = typeof event.data.talent === "string" ? event.data.talent : "";
-                talentPickedRank = typeof event.data.rank === "number" ? event.data.rank : 1;
+            } else if (event.name === "storyBeat") {
+                storyBeats.push({
+                    beat: typeof event.data.beat === "string" ? event.data.beat : "",
+                    x: typeof event.data.x === "number" ? event.data.x : p.player.x,
+                    room: typeof event.data.room === "string" ? event.data.room : p.room.key,
+                    item: typeof event.data.item === "string" ? event.data.item : "",
+                });
+                if (event.data.beat === "talent_picked") {
+                    talentPicked = true;
+                    talentPickedId = typeof event.data.talent === "string" ? event.data.talent : "";
+                    talentPickedRank = typeof event.data.rank === "number" ? event.data.rank : 1;
+                }
             } else if (event.name === "campaignFailed" && event.data.reset === true) {
                 campaignFailedReset = true;
                 fallenBuild = event.data.fallenBuild as FrameEvents["fallenBuild"];
@@ -525,6 +537,7 @@ export class PlayAdapter {
             museumStep,
             museumStepName,
             museumDone,
+            storyBeats,
             talentPicked,
             talentPickedId,
             talentPickedRank,

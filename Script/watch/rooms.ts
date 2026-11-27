@@ -856,7 +856,7 @@ export const ESCORT2_ROOM: RoomSpec = {
         { x: 0, w: 50, h: 160, y: 0, label: "棚口背影 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 300, w: 24, h: 64, y: 0, label: "棚架柱 300", lanes: ["lower"], art: "gate_post" },
         { x: 300, w: 600, h: 8, y: 64, label: "棚架梁 300–900 · 高 64", depth: { min: -40, max: -8 }, passable: true, art: "cover_wood" },
-        { x: 640, w: 60, h: 32, y: 0, label: "倒粮袋 640 · 高 32", lanes: ["lower"] },
+        { x: 640, w: 60, h: 32, y: 0, label: "倒粮袋 640 · 高 32", lanes: ["lower"], art: "grain_sack", id: "e2_grain_sacks" },
         { x: 980, w: 140, h: 48, y: 0, label: "粮台 980–1120 · 高 48", lanes: ["lower", "middle"], art: "cover_wood" },
         { x: 1460, w: 40, h: 180, y: 0, label: "棚尾断墙 1460–1500 · 高 180", depth: LANE_ROAD, art: "wall" },
     ],
