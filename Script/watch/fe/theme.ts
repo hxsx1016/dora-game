@@ -386,9 +386,25 @@ const ROOM_VARIANTS: Record<string, [string, string, string, string, string, str
     museum: ["prologue", "博物馆 · 西厅", "西厅", "玻璃柜静立晨光之中，那枚青布针套仍在等待回响。", "番", "番外"],
 };
 
+const VARIANT_BACKDROPS: Record<string, string> = {
+    "s1-crossroad": "crossroad_drygoods",
+    "s2-drygoods": "crossroad_drygoods",
+    "s3-archway": "archway_yard",
+    "c1-yard": "archway_yard",
+    "c2-granary": "granary",
+    gatepath: "escort_ridge",
+    escort1: "escort_ridge",
+    escort2: "granary",
+    escort3: "forest",
+    escort4: "escort_ridge",
+    escort5: "tower",
+    museum: "museum",
+};
+
 for (const key in ROOM_VARIANTS) {
-    const [backdropKey, titleZh, shortNameZh, introWhisper, numZh, actZh] = ROOM_VARIANTS[key];
-    const base = ROOM_THEMES[backdropKey];
+    const [baseKey, titleZh, shortNameZh, introWhisper, numZh, actZh] = ROOM_VARIANTS[key];
+    const base = ROOM_THEMES[baseKey];
+    const backdropKey = VARIANT_BACKDROPS[key] ?? baseKey;
     const soldierPath = key === "gatepath" || key.startsWith("escort");
     ROOM_THEMES[key] = {
         ...base, key, backdropKey, titleZh, shortNameZh, introWhisper,

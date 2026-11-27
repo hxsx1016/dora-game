@@ -17,8 +17,9 @@
 import { Color, DrawNode, Vec2 } from "Dora";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
-import { AssetSlotHost } from "Script/watch/fe/assets";
+import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
+import { depthOrder } from "Script/watch/fe/occlusion";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 
 export const ARTIFACT_WEAPON_IDS: readonly string[] = [
@@ -44,11 +45,15 @@ interface TrajectoryGhost {
     x: number;
     y: number;
     depth: number;
+    w: number;
     h: number;
     facing: number;
     crouched: boolean;
     rolling: boolean;
     carrying: boolean;
+    slot: AssetSlotKey;
+    frame: number;
+    heightScale: number;
     life: number;
     maxLife: number;
 }
@@ -125,6 +130,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
 
     private ghosts: TrajectoryGhost[] = [];
     private sampleTimer = 0;
+    private animTime = 0;
     private hasLastSample = false;
     private lastSampleX = 0;
     private lastSampleY = 0;
@@ -243,6 +249,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
 
         const dt = ctx.worldDt;
         this.lastWorldDt = dt;
+        this.animTime += dt;
 
         // 1. 衰减并回收既有残影
         let write = 0;
@@ -257,7 +264,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
         }
         this.ghosts.length = write;
 
-        // 2. 采样周戍真实移动轨迹（静止时不堆叠残影）
+        // 2. 采样周戍真实移动轨迹与当前动作精灵帧（静止时不堆叠残影）
         const a = p.player;
         const speed = Math.sqrt(a.vx * a.vx + a.vy * a.vy + a.depthSpeed * a.depthSpeed);
         if (!this.hasLastSample) {
@@ -275,15 +282,37 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
 
         if ((dist >= MIN_STEP_DIST_PX && this.sampleTimer >= SAMPLE_INTERVAL_SEC * 0.65)
             || (speed > 28 && dist >= 4.5 && this.sampleTimer >= SAMPLE_INTERVAL_SEC)) {
+            const step = Math.floor(this.animTime * 10);
+            let slot: AssetSlotKey = "soldier_idle";
+            let frame = 0;
+            let heightScale = 1.0;
+            if (a.rollT > 0) {
+                slot = "soldier_roll";
+                heightScale = 0.60;
+            } else if (p.gripping) {
+                slot = "soldier_push";
+                frame = speed > 6 ? step : 0;
+                heightScale = 0.91;
+            } else if (a.covered) {
+                slot = "soldier_cover";
+                heightScale = 0.77;
+            } else if (speed > 8) {
+                slot = "soldier_run";
+                frame = step;
+            }
             this.ghosts.push({
                 x: this.lastSampleX,
                 y: this.lastSampleY,
                 depth: this.lastSampleDepth,
+                w: a.w,
                 h: a.h,
                 facing: a.facing >= 0 ? 1 : -1,
                 crouched: a.covered || a.crouch,
                 rolling: a.rollT > 0,
                 carrying: view.backCarry.active,
+                slot,
+                frame,
+                heightScale,
                 life: GHOST_MAX_LIFE_SEC,
                 maxLife: GHOST_MAX_LIFE_SEC,
             });
@@ -302,7 +331,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: AssetSlotHost,
+        worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): void {
         if (!this.active || this.ghosts.length === 0) {
@@ -312,6 +341,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
 
         const p = ctx.p;
         const cam = ctx.cam;
+        const depthEnabled = p.room.depth !== undefined;
         let peakAlpha = 0;
         let prevTrailX = 0;
         let prevTrailY = 0;
@@ -339,61 +369,78 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
             const cx = cam.sx(g.x);
             const by = cam.sy(g.y, g.depth);
             const fullH = cam.len(g.h);
-            const bodyH = g.rolling ? fullH * 0.62 : (g.crouched ? fullH * 0.80 : fullH);
-            const halfW = fullH * 0.14;
+            const W = cam.len(g.w);
+            const spriteH = fullH * g.heightScale;
             const f = g.facing;
+            const baseLayer = depthEnabled ? depthOrder(g.depth, 1) : 2;
 
-            const whiteAlpha = Math.round(normAlpha * 255);
-            const goldAlpha = Math.round(normAlpha * 0.82 * 255);
-            const coldWhite = Color(224, 232, 240, whiteAlpha);
-            const coldFill = Color(210, 222, 236, Math.round(whiteAlpha * 0.28));
-            const paleGold = Color(218, 190, 128, goldAlpha);
+            const goldAlpha = Math.round(normAlpha * 0.72 * 255);
+            const paleGold = Color(224, 196, 134, goldAlpha);
 
-            // 1. 极克制冷白明初守卒剪影（笠形铁盔 + 斜襟短袄 + 摆角步姿，不遮挡判定与预警线）
-            const hipY = by + bodyH * 0.44;
-            const shY = by + bodyH * 0.78;
-            const headY = by + bodyH * 0.90;
-            const headR = fullH * 0.075;
-            const lean = f * fullH * 0.05;
-
-            // 短袄与斜摆剪影（与周戍奔跑侧影呼应）
-            fgDraw.drawPolygon([
-                Vec2(cx - halfW * 1.15 - f * 4, hipY - bodyH * 0.10),
-                Vec2(cx + halfW * 0.78 + lean, hipY + 2),
-                Vec2(cx + halfW * 0.96 + lean, shY),
-                Vec2(cx - halfW * 0.88 + lean * 0.5, shY),
-            ], coldFill, 1.05, coldWhite);
-
-            // 步态前后腿轻迹
-            fgDraw.drawSegment(Vec2(cx - halfW * 0.25, hipY), Vec2(cx - f * halfW * 1.05, by + 2), 1.4, coldWhite);
-            fgDraw.drawSegment(Vec2(cx + halfW * 0.25, hipY), Vec2(cx + f * halfW * 0.85, by + 2), 1.4, coldWhite);
-
-            // 明代素铁笠盔尖轮廓（区别于圆球，更具明初守卒辨识度）
-            fgDraw.drawPolygon([
-                Vec2(cx + lean - headR * 1.55, headY + headR * 0.15),
-                Vec2(cx + lean + headR * 1.55, headY + headR * 0.15),
-                Vec2(cx + lean + f * 1.5, headY + headR * 1.25),
-            ], coldFill, 1.0, coldWhite);
-
-            // 2. 微金斜襟余韵（呼应黄铜指南针/时间穿梭器材质，仅作一缕细线）
-            fgGlow.drawSegment(
-                Vec2(cx - halfW * 0.55 + lean * 0.5, shY - 2),
-                Vec2(cx + halfW * 0.48 + lean * 0.6, hipY + 4),
-                1.3,
-                paleGold,
+            // 1. 真实周戍像素精灵双重时间余影（微金底层偏影 + 霜月冷白主影，彻底告别线框多边形假人）
+            const goldRimPlaced = worldArt.tryPlace(
+                g.slot,
+                "artifact_ghost_rim_" + i,
+                cx - f * 2.2,
+                by + 0.6,
+                W,
+                spriteH,
+                {
+                    facing: f,
+                    frame: g.frame,
+                    layer: baseLayer,
+                    color: Color(238, 206, 146, 255),
+                    opacity: normAlpha * 0.58,
+                },
+            );
+            const spritePlaced = worldArt.tryPlace(
+                g.slot,
+                "artifact_ghost_main_" + i,
+                cx,
+                by,
+                W,
+                spriteH,
+                {
+                    facing: f,
+                    frame: g.frame,
+                    layer: baseLayer + 1,
+                    color: Color(198, 224, 242, 255),
+                    opacity: normAlpha,
+                },
             );
 
-            // 3. 脚底微弱时间刻度椭圆
-            drawEllipseOutline(fgDraw, cx, by + 1, halfW * 1.05, 2.4, Color(0, 0, 0, 0), 0.9, paleGold, 16);
+            // 仅在极端无贴图环境下退化为极淡冷白投影，不画线框火柴人
+            if (!spritePlaced && !goldRimPlaced) {
+                const halfW = fullH * 0.14;
+                fgDraw.drawEllipse(
+                    Vec2(cx, by + spriteH * 0.48),
+                    halfW,
+                    spriteH * 0.44,
+                    Color(210, 226, 240, Math.round(normAlpha * 140)),
+                );
+            }
 
-            // 4. 轻柔连接上一点轨迹的微金虚丝（仅在连续两点间，不跨屏拉长线）
-            const midY = by + bodyH * 0.56;
+            // 2. 脚底微弱黄铜时间刻度椭圆（与指南针表盘材质呼应）
+            drawEllipseOutline(
+                fgDraw,
+                cx,
+                by + 1,
+                Math.max(6, W * 0.52),
+                2.4,
+                Color(18, 26, 38, Math.round(normAlpha * 95)),
+                0.85,
+                paleGold,
+                16,
+            );
+
+            // 3. 轻柔连接上一点轨迹的微金虚丝（仅在连续两点间，不跨屏拉长线）
+            const midY = by + spriteH * 0.52;
             if (hasPrevTrail && Math.abs(cx - prevTrailX) < cam.len(72)) {
                 fgGlow.drawSegment(
                     Vec2(prevTrailX, prevTrailY),
                     Vec2(cx, midY),
-                    1.0,
-                    Color(220, 198, 146, Math.round(goldAlpha * 0.55)),
+                    0.95,
+                    Color(220, 198, 146, Math.round(goldAlpha * 0.48)),
                 );
             }
             prevTrailX = cx;

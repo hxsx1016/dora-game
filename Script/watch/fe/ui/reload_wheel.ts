@@ -1063,7 +1063,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
 
         // 7. 小满手指落位 / 走线 / 沿已选纹样收回表现（零文字教程）
-        this.drawChildFinger(uiInkDraw, uiGlow, active, activePath, shakeX, appear);
+        this.drawChildFinger(uiInkDraw, uiArt, uiGlow, active, activePath, shakeX, appear);
 
         // 8. 底缘 4 秒全速作答进度条（世界 60 拍 = 作答 240 拍）
         const barW = pw - 52;
@@ -1246,9 +1246,10 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
     }
 
-    /** 小满手指落位提示（起点 0 微叩指引；拖线中随笔尖；结算后沿已选纹样收回） */
+    /** 小满手指落位提示（起点 0 微叩指引；拖线中随笔尖；结算后沿已选纹样收回；Phase 3 采用手绘红褐短袄指路小手） */
     private drawChildFinger(
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         active: boolean,
         path: readonly number[],
@@ -1262,8 +1263,8 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             const tipNode = path.length > 0 ? path[path.length - 1] : RELOAD_START_NODE;
             const pos = this.getNodeUiPos(tipNode);
             const tapPulse = path.length <= 1 ? Math.sin(this.animTime * 4.8) * 3.5 : 0;
-            fx = pos.x + shakeX - 6 - tapPulse * 0.4;
-            fy = pos.y - 6 - tapPulse;
+            fx = pos.x + shakeX + 4 + tapPulse * 0.35;
+            fy = pos.y - 4 - tapPulse;
             if (path.length <= 1) {
                 // 仅起点处加一圈极淡呼吸墨环表示“可从此落笔”，完全不用文字
                 const ringR = 17 + Math.sin(this.animTime * 4.2) * 2.5;
@@ -1278,13 +1279,25 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             const frac = revFloat - idxA;
             const pA = this.getNodeUiPos(path[idxA]);
             const pB = this.getNodeUiPos(path[idxB]);
-            fx = pA.x + (pB.x - pA.x) * frac + shakeX - prog * 28;
+            fx = pA.x + (pB.x - pA.x) * frac + shakeX + prog * 28;
             fy = pA.y + (pB.y - pA.y) * frac - prog * 22;
         } else {
             return;
         }
 
-        // 绘制小满袖口与纤细食指（对齐明初红褐短袄袖口 + 针套麻绳 + 素墨描边小手）
+        uiGlow.drawDot(Vec2(fx, fy), 3.6, toColor(PALETTE.amberCore, 88 * appear));
+        if (uiArt.tryPlacePath("assets/art/vfx_craft_art.clip|reload_child_finger", "rw_child_finger", fx, fy, 64, 56, {
+            anchorX: 0.04,
+            anchorY: 0.96,
+            preserveAspect: true,
+            smooth: true,
+            opacity: 0.96 * appear,
+            layer: 6,
+        })) {
+            return;
+        }
+
+        // 无图集时的极简兜底
         const a255 = Math.round(240 * appear);
         const inkCol = toColor(PALETTE.xuanInk, 180 * appear);
         uiInkDraw.drawPolygon([
@@ -1293,13 +1306,10 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             Vec2(fx - 11, fy - 14),
             Vec2(fx - 17, fy - 9),
         ], Color(164, 78, 54, a255), 1.0, inkCol);
-        // 腕上指南针布套麻绳
         uiInkDraw.drawSegment(Vec2(fx - 16, fy - 10), Vec2(fx - 11, fy - 15), 2.0, Color(204, 174, 122, a255));
-        // 小手掌与前伸食指
         uiInkDraw.drawCircle(Vec2(fx - 9, fy - 8), 4.8, Color(238, 212, 182, a255));
         uiInkDraw.drawSegment(Vec2(fx - 7, fy - 6), Vec2(fx, fy), 2.5, Color(244, 222, 196, a255));
         uiInkDraw.drawRing(Vec2(fx, fy), 2.0, 3.0, Color(0, 0, 0, 0), 0.9, inkCol);
-        uiGlow.drawDot(Vec2(fx, fy), 3.4, toColor(PALETTE.amberCore, 80 * appear));
     }
 
     /** 下次射击已上势时的极简左下角纹样微章（不占视野、灰度可辨） */

@@ -1,0 +1,14 @@
+<A A="actors_extra.png">
+  <B A="enemy_shield_idle" B="4,4,95,136" />
+  <B A="enemy_breaker_aim" B="103,4,124,136" />
+  <B A="enemy_leader_idle" B="231,4,126,136" />
+  <B A="tower_guard_lantern" B="361,4,94,136" />
+  <B A="tower_guard_write" B="459,4,71,136" />
+  <B A="duo_hand_walk" B="534,4,134,136" />
+  <B A="duo_carry_idle" B="672,4,64,136" />
+  <B A="duo_carry_run" B="740,4,96,136" />
+  <B A="enemy_leader_aim" B="840,4,136,132" />
+  <B A="enemy_shield_aim" B="4,144,136,131" />
+  <B A="duo_carry_fire" B="144,144,136,126" />
+  <B A="enemy_breaker_idle" B="284,144,136,115" />
+</A>

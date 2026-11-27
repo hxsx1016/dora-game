@@ -1,0 +1,18 @@
+<A A="props_ming.png">
+  <B A="window_board" B="4,4,88,144" />
+  <B A="braced_shield" B="96,4,130,144" />
+  <B A="bottle_rack" B="230,4,126,144" />
+  <B A="target_dummy" B="360,4,110,144" />
+  <B A="curtain" B="474,4,144,126" />
+  <B A="well_curb" B="622,4,144,120" />
+  <B A="basket_wall" B="770,4,144,90" />
+  <B A="grain_sack" B="4,152,144,74" />
+  <B A="pickup_bell" B="152,152,49,64" />
+  <B A="pickup_shield" B="205,152,64,64" />
+  <B A="pickup_pass" B="273,152,41,64" />
+  <B A="pickup_ammo" B="318,152,64,60" />
+  <B A="pickup_wedge" B="386,152,64,46" />
+  <B A="pickup_wood" B="454,152,64,42" />
+  <B A="pickup_scrap" B="522,152,64,42" />
+  <B A="pickup_quickbelt" B="590,152,64,41" />
+</A>

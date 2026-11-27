@@ -24,7 +24,10 @@ import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { RoomSpec, StairSpec } from "Script/watch/rooms";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
+import { DioramaLayerHost, DioramaWaveSpec } from "Script/watch/fe/renderer/diorama_grid";
 import { RGBA, lerpRGBA, rgba, toColor } from "Script/watch/fe/theme";
+
+export const DIORAMA_TEX_CLIP = "assets/art/tex_diorama_ming.clip|";
 
 export interface Vec3 {
     x: number;
@@ -84,6 +87,29 @@ export interface LowpolyMaterial {
     rimBoost?: number;
     /** 底部环境光遮蔽压暗比例 (0..0.6) */
     bottomAo?: number;
+    /** 绑定的 Dora Grid 表面纹理（clip 帧路径），有值时由 DioramaLayerHost 贴图渲染 */
+    texture?: string;
+    /** 贴图受光基底色（贴图自带固有色，用较亮的基底色避免乘算过暗） */
+    textureTint?: RGBA;
+    /** 透视细分格数（默认 2×2，长墙/宽水面可提高以消除仿射扭曲） */
+    subdivX?: number;
+    subdivY?: number;
+}
+
+export interface LowpolyCutoutOptions {
+    bucket?: LowpolyBucket;
+    sortBias?: number;
+    anchorX?: number;
+    anchorY?: number;
+    facing?: number;
+    flipY?: boolean;
+    angle?: number;
+    opacity?: number;
+    tint?: RGBA;
+    color?: RGBA;
+    unlit?: boolean;
+    smooth?: boolean;
+    additive?: boolean;
 }
 
 export type LowpolyBucket = 0 | 1 | 2 | 3 | 4;
@@ -143,6 +169,31 @@ interface QueuedFace {
     edgeCol: Color.Type | undefined;
     edgeWidth: number;
     topHighlight: [ProjectedPoint, ProjectedPoint, Color.Type] | undefined;
+    worldQuad?: [Vec3, Vec3, Vec3, Vec3];
+    texture?: string;
+    texTint?: Color.Type;
+    texBottomShade?: number;
+    texOpacity?: number;
+    subdivX?: number;
+    subdivY?: number;
+    wave?: DioramaWaveSpec;
+    additive?: boolean;
+    cutout?: {
+        clipStr: string;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        anchorX: number;
+        anchorY: number;
+        facing: number;
+        flipY: boolean;
+        angle: number;
+        color: Color.Type;
+        opacity: number;
+        smooth: boolean;
+        additive: boolean;
+    };
 }
 
 interface QueuedGlowQuad {
@@ -203,74 +254,143 @@ function scaleRGBA(c: RGBA, k: number, alphaMul: number = 1): RGBA {
     };
 }
 
-/** 明初温州宁村所海防卫城低模材质预设（高灰度区分度、禁现代/仙侠荧光） */
+/** 明初温州宁村所海防卫城 2.5D 微缩剧场材质预设（全量接入 tex_diorama_ming 纹理 + 高灰度区分度） */
 export const MING_MATERIALS: Record<string, LowpolyMaterial> = {
     mingBrick: {
         base: rgba(96, 102, 112, 255),
-        edge: rgba(154, 162, 174, 155),
-        minShade: 0.30,
+        edge: rgba(154, 162, 174, 120),
+        minShade: 0.34,
         rimBoost: 0.24,
-        bottomAo: 0.28,
+        bottomAo: 0.26,
+        texture: DIORAMA_TEX_CLIP + "ming_brick",
+        textureTint: rgba(212, 218, 228, 255),
+        subdivX: 3,
+        subdivY: 2,
     },
     mingBrickDark: {
         base: rgba(54, 60, 72, 255),
-        edge: rgba(108, 118, 134, 135),
-        minShade: 0.24,
+        edge: rgba(108, 118, 134, 100),
+        minShade: 0.28,
         rimBoost: 0.18,
-        bottomAo: 0.34,
+        bottomAo: 0.32,
+        texture: DIORAMA_TEX_CLIP + "ming_brick",
+        textureTint: rgba(146, 154, 168, 255),
+        subdivX: 3,
+        subdivY: 2,
     },
     mingTimber: {
         base: rgba(114, 84, 62, 255),
-        edge: rgba(168, 134, 104, 160),
-        minShade: 0.26,
+        edge: rgba(168, 134, 104, 120),
+        minShade: 0.30,
         rimBoost: 0.22,
-        bottomAo: 0.30,
+        bottomAo: 0.26,
+        texture: DIORAMA_TEX_CLIP + "ming_timber",
+        textureTint: rgba(224, 206, 186, 255),
+        subdivX: 3,
+        subdivY: 2,
     },
     mingTimberDark: {
         base: rgba(68, 50, 38, 255),
-        edge: rgba(122, 96, 76, 145),
-        minShade: 0.20,
+        edge: rgba(122, 96, 76, 105),
+        minShade: 0.24,
         rimBoost: 0.16,
-        bottomAo: 0.36,
+        bottomAo: 0.34,
+        texture: DIORAMA_TEX_CLIP + "ming_timber",
+        textureTint: rgba(148, 132, 118, 255),
+        subdivX: 2,
+        subdivY: 2,
     },
     mingStoneStep: {
         base: rgba(118, 122, 128, 255),
-        edge: rgba(188, 194, 200, 185),
-        minShade: 0.28,
+        edge: rgba(188, 194, 200, 140),
+        minShade: 0.32,
         rimBoost: 0.26,
-        bottomAo: 0.26,
+        bottomAo: 0.24,
+        texture: DIORAMA_TEX_CLIP + "ming_stone",
+        textureTint: rgba(210, 216, 224, 255),
+        subdivX: 2,
+        subdivY: 2,
+    },
+    mingPlaster: {
+        base: rgba(116, 110, 100, 255),
+        edge: rgba(164, 156, 144, 100),
+        minShade: 0.28,
+        rimBoost: 0.18,
+        bottomAo: 0.32,
+        texture: DIORAMA_TEX_CLIP + "ming_plaster",
+        textureTint: rgba(196, 192, 182, 255),
+        subdivX: 3,
+        subdivY: 2,
     },
     mingIron: {
         base: rgba(46, 52, 62, 255),
-        edge: rgba(136, 146, 158, 165),
-        minShade: 0.22,
-        rimBoost: 0.28,
-        bottomAo: 0.25,
+        edge: rgba(136, 146, 158, 130),
+        minShade: 0.28,
+        rimBoost: 0.30,
+        bottomAo: 0.24,
+        texture: DIORAMA_TEX_CLIP + "ming_iron",
+        textureTint: rgba(178, 186, 198, 255),
+        subdivX: 2,
+        subdivY: 2,
     },
     mingTile: {
         base: rgba(44, 52, 66, 255),
-        edge: rgba(102, 116, 136, 140),
-        minShade: 0.24,
-        rimBoost: 0.18,
-        bottomAo: 0.24,
+        edge: rgba(102, 116, 136, 110),
+        minShade: 0.28,
+        rimBoost: 0.20,
+        bottomAo: 0.22,
+        texture: DIORAMA_TEX_CLIP + "ming_tile",
+        textureTint: rgba(176, 188, 206, 255),
+        subdivX: 3,
+        subdivY: 2,
     },
     mingRedCloth: {
         base: rgba(176, 52, 48, 255),
-        edge: rgba(224, 116, 102, 195),
-        minShade: 0.36,
+        edge: rgba(224, 116, 102, 140),
+        minShade: 0.42,
         rimBoost: 0.24,
-        bottomAo: 0.18,
+        bottomAo: 0.16,
+        texture: DIORAMA_TEX_CLIP + "ming_cloth",
+        textureTint: rgba(218, 68, 60, 255),
+        subdivX: 3,
+        subdivY: 3,
+    },
+    mingHempCloth: {
+        base: rgba(136, 128, 114, 255),
+        edge: rgba(182, 174, 158, 110),
+        minShade: 0.26,
+        rimBoost: 0.18,
+        bottomAo: 0.28,
+        texture: DIORAMA_TEX_CLIP + "ming_cloth",
+        textureTint: rgba(172, 166, 152, 255),
+        subdivX: 3,
+        subdivY: 3,
+    },
+    mingWater: {
+        base: rgba(28, 44, 56, 255),
+        edge: rgba(124, 156, 174, 90),
+        minShade: 0.42,
+        rimBoost: 0.22,
+        bottomAo: 0.10,
+        texture: DIORAMA_TEX_CLIP + "ming_water",
+        textureTint: rgba(182, 208, 220, 255),
+        subdivX: 6,
+        subdivY: 3,
     },
     distantWall: {
         base: rgba(42, 52, 68, 255),
-        edge: rgba(98, 114, 136, 115),
-        minShade: 0.35,
+        edge: rgba(98, 114, 136, 85),
+        minShade: 0.38,
         rimBoost: 0.14,
-        bottomAo: 0.22,
+        bottomAo: 0.20,
+        texture: DIORAMA_TEX_CLIP + "ming_brick",
+        textureTint: rgba(126, 140, 162, 255),
+        subdivX: 2,
+        subdivY: 1,
     },
     distantHill: {
         base: rgba(28, 38, 54, 255),
-        edge: rgba(74, 92, 116, 90),
+        edge: rgba(74, 92, 116, 70),
         minShade: 0.38,
         rimBoost: 0.12,
         bottomAo: 0.20,
@@ -499,7 +619,7 @@ export class LowpolyScene {
         v2: Vec3,
         v3: Vec3,
         mat: LowpolyMaterial,
-        opts: LowpolyFaceOptions = {},
+        opts: LowpolyFaceOptions & { wave?: DioramaWaveSpec; additive?: boolean; subdivX?: number; subdivY?: number } = {},
     ): void {
         const opacity = opts.opacity ?? 1;
         if (opacity <= 0.01) {
@@ -521,20 +641,34 @@ export class LowpolyScene {
 
         const avgZ = opts.sortZOverride !== undefined ? opts.sortZOverride : (v0.z + v1.z + v2.z + v3.z) * 0.25;
         let topRgba: RGBA;
+        let texTint: Color.Type | undefined;
+        const hasTex = mat.texture !== undefined && mat.texture !== "";
         if (opts.unlit === true) {
             topRgba = scaleRGBA(mat.base, 1, opacity);
+            if (hasTex) {
+                const tb = mat.textureTint ?? rgba(235, 238, 244, 255);
+                texTint = toColor(tb, 255);
+            }
         } else {
             const n = cross3(sub3(v1, v0), sub3(v3, v0));
             topRgba = shadeSurface(mat.base, n, avgZ, this.proj.morph, this.light, mat, opacity);
+            if (hasTex) {
+                // 贴图自身携带明代砖木固有色，以高明度基底计算受光与雾效乘数，避免乘算过暗
+                const tb = mat.textureTint ?? rgba(224, 228, 236, 255);
+                const litTex = shadeSurface(tb, n, avgZ, this.proj.morph, this.light, mat, 1);
+                texTint = toColor(litTex, 255);
+            }
         }
 
         const ao = opts.bottomAo !== undefined ? opts.bottomAo : (mat.bottomAo ?? 0.22);
-        const botRgba = ao > 0.005 ? scaleRGBA(topRgba, Math.max(0.35, 1 - ao * (0.45 + 0.55 * this.proj.morph)), 1) : topRgba;
+        const bottomShade = ao > 0.005 ? Math.max(0.35, 1 - ao * (0.45 + 0.55 * this.proj.morph)) : 1;
+        const botRgba = scaleRGBA(topRgba, bottomShade);
         const cBot = toColor(botRgba);
         const cTop = toColor(topRgba);
 
+        // 贴图面彻底禁用 CAD 线框全周描边，只保留无贴图面在显式请求时的细边
         const edgeRgba = opts.edgeColor ?? mat.edge;
-        const edgeW = opts.edgeWidth ?? 0;
+        const edgeW = hasTex ? 0 : (opts.edgeWidth ?? 0);
         const edgeCol = edgeRgba !== undefined && edgeW > 0
             ? toColor(edgeRgba, Math.round(edgeRgba.a * opacity))
             : undefined;
@@ -548,6 +682,94 @@ export class LowpolyScene {
             edgeCol,
             edgeWidth: edgeW,
             topHighlight: undefined,
+            worldQuad: hasTex ? [v0, v1, v2, v3] : undefined,
+            texture: hasTex ? mat.texture : undefined,
+            texTint,
+            texBottomShade: bottomShade,
+            texOpacity: opacity,
+            subdivX: opts.subdivX ?? mat.subdivX ?? 2,
+            subdivY: opts.subdivY ?? mat.subdivY ?? 2,
+            wave: opts.wave,
+            additive: opts.additive,
+        });
+    }
+
+    /** 添加可实时波动变形的 3D 纹理面（用于风中红布、垂落桌布、溪湾动态水波） */
+    addWavingQuad3D(
+        v0: Vec3,
+        v1: Vec3,
+        v2: Vec3,
+        v3: Vec3,
+        mat: LowpolyMaterial,
+        wave: DioramaWaveSpec,
+        opts: LowpolyFaceOptions & { additive?: boolean; subdivX?: number; subdivY?: number } = {},
+    ): void {
+        this.addQuad3D(v0, v1, v2, v3, mat, {
+            ...opts,
+            wave,
+            subdivX: opts.subdivX ?? mat.subdivX ?? 4,
+            subdivY: opts.subdivY ?? mat.subdivY ?? 3,
+        });
+    }
+
+    /**
+     * 在同一深度排序队列中放置一张 3D 空间手绘立体剪纸卡（古松、飞檐、桌裙、铁盆、树根、远塔）：
+     * 按 (wx, wy, wz) 透视投影与缩放，自动吃景深雾与环境色温，与 Grid 建筑面真 3D 穿插排序。
+     */
+    addCutout3D(
+        clipStr: string,
+        wx: number,
+        wy: number,
+        wz: number,
+        worldW: number,
+        worldH: number,
+        opts: LowpolyCutoutOptions = {},
+    ): void {
+        const opacity = opts.opacity ?? 1;
+        if (opacity <= 0.01 || worldW <= 0.5 || worldH <= 0.5) {
+            return;
+        }
+        const pt = this.project(wx, wy, wz);
+        const screenW = this.cam.len(worldW) * pt.scale;
+        const screenH = this.cam.len(worldH) * pt.scale;
+        if (screenW < 1 || screenH < 1) {
+            return;
+        }
+        const baseTint = opts.tint ?? opts.color ?? rgba(240, 244, 248, 255);
+        let finalRgba = baseTint;
+        if (opts.unlit !== true) {
+            const m = clamp01(this.proj.morph);
+            if (wz > this.light.fogStartZ && m > 0.01) {
+                const span = Math.max(1, this.light.fogEndZ - this.light.fogStartZ);
+                const fogT = clamp01((wz - this.light.fogStartZ) / span) * this.light.fogMaxAlpha * 0.72 * m;
+                finalRgba = lerpRGBA(baseTint, this.light.fogColor, fogT);
+            }
+        }
+        this.faces.push({
+            bucket: opts.bucket ?? LP_BUCKET.MIDGROUND,
+            sortZ: wz,
+            sortBias: opts.sortBias ?? 0,
+            pts: [],
+            cols: [],
+            edgeCol: undefined,
+            edgeWidth: 0,
+            topHighlight: undefined,
+            cutout: {
+                clipStr,
+                x: pt.x,
+                y: pt.y,
+                w: screenW,
+                h: screenH,
+                anchorX: opts.anchorX ?? 0.5,
+                anchorY: opts.anchorY ?? 0,
+                facing: opts.facing ?? 1,
+                flipY: opts.flipY === true,
+                angle: opts.angle ?? 0,
+                color: toColor(finalRgba, 255),
+                opacity,
+                smooth: opts.smooth !== false,
+                additive: opts.additive === true,
+            },
         });
     }
 
@@ -615,7 +837,8 @@ export class LowpolyScene {
 
         const bucket = spec.bucket ?? LP_BUCKET.MIDGROUND;
         const bias = spec.sortBias ?? 0;
-        const edgeW = spec.edgeWidth ?? 0.85;
+        const hasTex = spec.material.texture !== undefined && spec.material.texture !== "";
+        const edgeW = hasTex ? 0 : (spec.edgeWidth ?? 0);
         const midZ = (z0 + z1) * 0.5;
         const vp = this.vanishingPointScreen();
         const m = clamp01(this.proj.morph);
@@ -685,11 +908,13 @@ export class LowpolyScene {
             );
             if (spec.highlightTopEdge === true && this.faces.length > beforeLen) {
                 const face = this.faces[this.faces.length - 1];
-                const rimCol = spec.material.edge ?? rgba(198, 206, 214, 180);
+                const rimCol = spec.material.edge ?? rgba(198, 206, 214, 110);
+                // 纹理面仅留极克制月光棱线（无 CAD 亮框感，同时守住灰度走面可读性）
+                const rimAlpha = Math.round(Math.min(hasTex ? 96 : 165, rimCol.a * (hasTex ? 0.62 : 0.95)) * opacity);
                 face.topHighlight = [
                     face.pts[3],
                     face.pts[2],
-                    toColor(rimCol, Math.round(Math.min(245, rimCol.a * 1.15) * opacity)),
+                    toColor(rimCol, rimAlpha),
                 ];
             }
         }
@@ -887,6 +1112,10 @@ export class LowpolyScene {
                     minShade: mat.minShade,
                     rimBoost: mat.rimBoost,
                     bottomAo: mat.bottomAo,
+                    texture: mat.texture,
+                    textureTint: mat.textureTint !== undefined ? scaleRGBA(mat.textureTint, 0.90) : undefined,
+                    subdivX: mat.subdivX,
+                    subdivY: mat.subdivY,
                 };
             this.addBox({
                 x0,
@@ -1143,8 +1372,51 @@ export class LowpolyScene {
         );
     }
 
-    /** 按真深度顺序刷出全部低模面与方向体积光 */
-    flush(draw: DrawNode.Type, glowDraw?: DrawNode.Type): void {
+    /** 将单条无纹理几何面绘入目标 DrawNode */
+    private drawFaceToNode(target: DrawNode.Type, f: QueuedFace): void {
+        if (f.pts.length === 3) {
+            target.drawVertices([
+                [Vec2(f.pts[0].x, f.pts[0].y), f.cols[0]],
+                [Vec2(f.pts[1].x, f.pts[1].y), f.cols[1]],
+                [Vec2(f.pts[2].x, f.pts[2].y), f.cols[2]],
+            ]);
+        } else if (f.pts.length === 4) {
+            const v0 = Vec2(f.pts[0].x, f.pts[0].y);
+            const v1 = Vec2(f.pts[1].x, f.pts[1].y);
+            const v2 = Vec2(f.pts[2].x, f.pts[2].y);
+            const v3 = Vec2(f.pts[3].x, f.pts[3].y);
+            target.drawVertices([
+                [v0, f.cols[0]],
+                [v1, f.cols[1]],
+                [v2, f.cols[2]],
+            ]);
+            target.drawVertices([
+                [v0, f.cols[0]],
+                [v2, f.cols[2]],
+                [v3, f.cols[3]],
+            ]);
+        }
+        if (f.edgeCol !== undefined && f.edgeWidth > 0) {
+            const count = f.pts.length;
+            let k = 0;
+            for (k = 0; k < count; k++) {
+                const a = f.pts[k];
+                const b = f.pts[(k + 1) % count];
+                target.drawSegment(Vec2(a.x, a.y), Vec2(b.x, b.y), f.edgeWidth * 0.5, f.edgeCol);
+            }
+        }
+        if (f.topHighlight !== undefined) {
+            const hl = f.topHighlight;
+            target.drawSegment(Vec2(hl[0].x, hl[0].y), Vec2(hl[1].x, hl[1].y), 0.9, hl[2]);
+        }
+    }
+
+    /**
+     * 按真深度顺序刷出全部微缩剧场元素（Grid 纹理面、立体剪纸卡、雾幕、接触影与体积光）：
+     * - 提供 dioramaHost 时，所有面按严格 painter's order 交错写入 dioramaHost（零深度倒挂）；
+     * - 省略 dioramaHost 时（如无头单测）平滑回退到无边框 DrawNode 渲染。
+     */
+    flush(draw: DrawNode.Type, glowDraw?: DrawNode.Type, dioramaHost?: DioramaLayerHost): void {
         if (this.faces.length > 1) {
             this.faces.sort((a, b) => {
                 if (a.bucket !== b.bucket) {
@@ -1157,43 +1429,76 @@ export class LowpolyScene {
             });
         }
 
+        let runDraw: DrawNode.Type | undefined;
+
         let i = 0;
         for (i = 0; i < this.faces.length; i++) {
             const f = this.faces[i];
-            if (f.pts.length === 3) {
-                draw.drawVertices([
-                    [Vec2(f.pts[0].x, f.pts[0].y), f.cols[0]],
-                    [Vec2(f.pts[1].x, f.pts[1].y), f.cols[1]],
-                    [Vec2(f.pts[2].x, f.pts[2].y), f.cols[2]],
-                ]);
-            } else if (f.pts.length === 4) {
-                const v0 = Vec2(f.pts[0].x, f.pts[0].y);
-                const v1 = Vec2(f.pts[1].x, f.pts[1].y);
-                const v2 = Vec2(f.pts[2].x, f.pts[2].y);
-                const v3 = Vec2(f.pts[3].x, f.pts[3].y);
-                draw.drawVertices([
-                    [v0, f.cols[0]],
-                    [v1, f.cols[1]],
-                    [v2, f.cols[2]],
-                ]);
-                draw.drawVertices([
-                    [v0, f.cols[0]],
-                    [v2, f.cols[2]],
-                    [v3, f.cols[3]],
-                ]);
-            }
-            if (f.edgeCol !== undefined && f.edgeWidth > 0) {
-                const count = f.pts.length;
-                let k = 0;
-                for (k = 0; k < count; k++) {
-                    const a = f.pts[k];
-                    const b = f.pts[(k + 1) % count];
-                    draw.drawSegment(Vec2(a.x, a.y), Vec2(b.x, b.y), f.edgeWidth * 0.5, f.edgeCol);
+            if (dioramaHost !== undefined) {
+                // 1) 3D 空间手绘立体剪纸卡
+                if (f.cutout !== undefined) {
+                    runDraw = undefined;
+                    const c = f.cutout;
+                    dioramaHost.placeCutoutCard({
+                        clipStr: c.clipStr,
+                        x: c.x,
+                        y: c.y,
+                        targetW: c.w,
+                        targetH: c.h,
+                        order: dioramaHost.nextOrder(),
+                        anchorX: c.anchorX,
+                        anchorY: c.anchorY,
+                        facing: c.facing,
+                        flipY: c.flipY,
+                        angle: c.angle,
+                        color: c.color,
+                        opacity: c.opacity,
+                        smooth: c.smooth,
+                        additive: c.additive,
+                    });
+                    continue;
                 }
-            }
-            if (f.topHighlight !== undefined) {
-                const hl = f.topHighlight;
-                draw.drawSegment(Vec2(hl[0].x, hl[0].y), Vec2(hl[1].x, hl[1].y), 1.15, hl[2]);
+                // 2) Dora Grid 透视细分纹理面
+                if (f.texture !== undefined && f.worldQuad !== undefined) {
+                    const order = dioramaHost.nextOrder();
+                    const placed = dioramaHost.placeTexturedQuad({
+                        clipStr: f.texture,
+                        v0: f.worldQuad[0],
+                        v1: f.worldQuad[1],
+                        v2: f.worldQuad[2],
+                        v3: f.worldQuad[3],
+                        segX: f.subdivX ?? 2,
+                        segY: f.subdivY ?? 2,
+                        projector: this,
+                        bottomShade: f.texBottomShade ?? 1,
+                        tintColor: f.texTint ?? f.cols[2] ?? Color(255, 255, 255, 255),
+                        opacity: f.texOpacity ?? 1,
+                        order,
+                        additive: f.additive,
+                        wave: f.wave,
+                    });
+                    if (placed) {
+                        runDraw = undefined;
+                        // 仅在需要走面月光高光棱线时补一条柔和边缘细光
+                        if (f.topHighlight !== undefined) {
+                            const rimNode = dioramaHost.acquireDrawRun(dioramaHost.nextOrder());
+                            const hl = f.topHighlight;
+                            rimNode.drawSegment(Vec2(hl[0].x, hl[0].y), Vec2(hl[1].x, hl[1].y), 0.85, hl[2]);
+                            runDraw = rimNode;
+                        }
+                        continue;
+                    }
+                }
+                // 3) 无纹理几何面（远山剪影、雾幕、接触影等）合批进交错 DrawNode
+                if (runDraw === undefined) {
+                    runDraw = dioramaHost.acquireDrawRun(dioramaHost.nextOrder());
+                }
+                this.drawFaceToNode(runDraw, f);
+            } else {
+                if (f.cutout !== undefined) {
+                    continue;
+                }
+                this.drawFaceToNode(draw, f);
             }
         }
 
@@ -1345,19 +1650,20 @@ export function buildOutsideJettyLowpoly(
         });
     }
 
-    // 6. 栈台红布车投影底座影与随风飘动的左端旧红布（固定在车身左端，不翻面）
+    // 6. 栈台红布车投影底座影与随风波浪飘动的左端旧红布（固定在车身左端，不翻面）
     const c = room.cart;
     if (c.bodyW > 0) {
         scene.addContactShadow(cartAxle, c.baseY, c.bodyW * 0.62, 14, 0.70, { bucket: LP_BUCKET.PROP });
         const clothX = cartAxle - c.bodyW * 0.5;
         const clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH;
-        const sway = Math.sin(time * 3.1) * 5.5;
-        scene.addTri3D(
-            vec3(clothX, clothTop, -4),
-            vec3(clothX + 9, clothTop, -4),
-            vec3(clothX - 5 + sway, clothTop - 22, -6),
+        scene.addWavingQuad3D(
+            vec3(clothX - 11, clothTop - 22, -6),
+            vec3(clothX + 5, clothTop - 20, -5),
+            vec3(clothX + 8, clothTop, -4),
+            vec3(clothX - 2, clothTop, -4),
             MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.4, edgeWidth: 0.9 },
+            { ampX: 6.0, ampY: 2.2, phase: time * 3.1, freqU: 1.8, freqV: 2.6, pin: "top" },
+            { bucket: LP_BUCKET.PROP, sortBias: 0.4, subdivX: 3, subdivY: 4 },
         );
     }
 

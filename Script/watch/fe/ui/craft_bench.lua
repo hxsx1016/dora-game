@@ -701,698 +701,807 @@ function CraftBenchPlugin.prototype.drawWoodenBenchBody(self, uiDraw, uiInkDraw,
 		1.4, -- 691
 		toColor(PALETTE.amberDim, 190 * appear) -- 691
 	) -- 691
-	uiDraw:drawRect( -- 693
-		Rect(bx - 8, by + bh - 10, bw + 16, 14), -- 693
-		Color( -- 693
-			WOOD_TOP.r, -- 693
-			WOOD_TOP.g, -- 693
-			WOOD_TOP.b, -- 693
-			math.floor(250 * appear + 0.5) -- 693
-		), -- 693
-		1, -- 693
-		WOOD_EDGE -- 693
-	) -- 693
-	uiInkDraw:drawSegment( -- 694
-		Vec2(bx - 6, by + bh + 3), -- 694
-		Vec2(bx + bw + 6, by + bh + 3), -- 694
-		1.2, -- 694
-		toColor(PALETTE.amberCore, 115 * appear) -- 694
-	) -- 694
-	uiDraw:drawRect( -- 696
-		Rect(bx + 18, by - 26, 22, 26), -- 696
-		Color( -- 696
-			WOOD_DARK.r, -- 696
-			WOOD_DARK.g, -- 696
-			WOOD_DARK.b, -- 696
-			math.floor(235 * appear + 0.5) -- 696
-		) -- 696
-	) -- 696
-	uiDraw:drawRect( -- 697
-		Rect(bx + bw - 40, by - 26, 22, 26), -- 697
-		Color( -- 697
-			WOOD_DARK.r, -- 697
-			WOOD_DARK.g, -- 697
-			WOOD_DARK.b, -- 697
-			math.floor(235 * appear + 0.5) -- 697
-		) -- 697
-	) -- 697
-	local g = 1 -- 700
-	do -- 700
-		g = 1 -- 701
-		while g <= 4 do -- 701
-			local gy = by + (bh - 50) * (g / 5) -- 702
-			uiDraw:drawSegment( -- 703
-				Vec2(bx + 10, gy), -- 703
-				Vec2(bx + bw - 10, gy), -- 703
-				0.75, -- 703
-				Color( -- 703
-					34, -- 703
-					23, -- 703
-					18, -- 703
-					math.floor(110 * appear + 0.5) -- 703
-				) -- 703
-			) -- 703
-			g = g + 1 -- 701
-		end -- 701
-	end -- 701
-	local lx = bx + 28 -- 707
-	local ly = by + bh - 24 -- 708
-	uiArt:tryPlace( -- 709
-		"prop_lantern", -- 709
-		"cb_lantern", -- 709
-		lx, -- 709
-		ly, -- 709
-		20, -- 709
-		26, -- 709
-		{opacity = 0.94 * appear, layer = 4} -- 709
-	) -- 709
-	local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 710
-	fillRadialGlow( -- 711
-		uiGlow, -- 712
-		lx + 10, -- 713
-		ly - 10, -- 714
-		260 * pulse, -- 715
-		180 * pulse, -- 716
-		Color( -- 717
-			238, -- 717
-			198, -- 717
-			128, -- 717
-			math.floor(38 * appear + 0.5) -- 717
-		), -- 717
-		Color(238, 180, 92, 0), -- 718
-		16 -- 719
-	) -- 719
+	uiArt:tryPlacePath( -- 692
+		"assets/art/tex_diorama_ming.clip|ming_timber", -- 692
+		"cb_wood_tex", -- 692
+		bx + bw * 0.5, -- 692
+		by + bh * 0.5, -- 692
+		bw - 4, -- 692
+		bh - 12, -- 692
+		{ -- 692
+			anchorX = 0.5, -- 693
+			anchorY = 0.5, -- 694
+			color = Color(172, 132, 98, 255), -- 695
+			opacity = 0.34 * appear, -- 696
+			smooth = true, -- 697
+			layer = 0 -- 698
+		} -- 698
+	) -- 698
+	uiDraw:drawRect( -- 701
+		Rect(bx - 8, by + bh - 10, bw + 16, 14), -- 701
+		Color( -- 701
+			WOOD_TOP.r, -- 701
+			WOOD_TOP.g, -- 701
+			WOOD_TOP.b, -- 701
+			math.floor(250 * appear + 0.5) -- 701
+		), -- 701
+		1, -- 701
+		WOOD_EDGE -- 701
+	) -- 701
+	uiInkDraw:drawSegment( -- 702
+		Vec2(bx - 6, by + bh + 3), -- 702
+		Vec2(bx + bw + 6, by + bh + 3), -- 702
+		1.2, -- 702
+		toColor(PALETTE.amberCore, 115 * appear) -- 702
+	) -- 702
+	uiDraw:drawRect( -- 704
+		Rect(bx + 18, by - 26, 22, 26), -- 704
+		Color( -- 704
+			WOOD_DARK.r, -- 704
+			WOOD_DARK.g, -- 704
+			WOOD_DARK.b, -- 704
+			math.floor(235 * appear + 0.5) -- 704
+		) -- 704
+	) -- 704
+	uiDraw:drawRect( -- 705
+		Rect(bx + bw - 40, by - 26, 22, 26), -- 705
+		Color( -- 705
+			WOOD_DARK.r, -- 705
+			WOOD_DARK.g, -- 705
+			WOOD_DARK.b, -- 705
+			math.floor(235 * appear + 0.5) -- 705
+		) -- 705
+	) -- 705
+	local g = 1 -- 708
+	do -- 708
+		g = 1 -- 709
+		while g <= 4 do -- 709
+			local gy = by + (bh - 50) * (g / 5) -- 710
+			uiDraw:drawSegment( -- 711
+				Vec2(bx + 10, gy), -- 711
+				Vec2(bx + bw - 10, gy), -- 711
+				0.75, -- 711
+				Color( -- 711
+					34, -- 711
+					23, -- 711
+					18, -- 711
+					math.floor(92 * appear + 0.5) -- 711
+				) -- 711
+			) -- 711
+			g = g + 1 -- 709
+		end -- 709
+	end -- 709
+	local lx = bx + 28 -- 715
+	local ly = by + bh - 24 -- 716
+	uiArt:tryPlace( -- 717
+		"prop_lantern", -- 717
+		"cb_lantern", -- 717
+		lx, -- 717
+		ly, -- 717
+		20, -- 717
+		26, -- 717
+		{opacity = 0.94 * appear, layer = 4} -- 717
+	) -- 717
+	local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 718
+	fillRadialGlow( -- 719
+		uiGlow, -- 720
+		lx + 10, -- 721
+		ly - 10, -- 722
+		260 * pulse, -- 723
+		180 * pulse, -- 724
+		Color( -- 725
+			238, -- 725
+			198, -- 725
+			128, -- 725
+			math.floor(38 * appear + 0.5) -- 725
+		), -- 725
+		Color(238, 180, 92, 0), -- 726
+		16 -- 727
+	) -- 727
 end -- 679
-function CraftBenchPlugin.prototype.drawTableMaterials(self, uiDraw, uiInkDraw, uiArt, ctx, bench, x, y, w, h, appear) -- 723
-	uiDraw:drawRect( -- 735
-		Rect(x, y, w, h), -- 735
-		Color( -- 735
-			26, -- 735
-			20, -- 735
-			17, -- 735
-			math.floor(188 * appear + 0.5) -- 735
-		), -- 735
-		0.9, -- 735
-		toColor(PALETTE.amberDim, 130 * appear) -- 735
-	) -- 735
-	drawFiligreeCorners( -- 736
-		uiInkDraw, -- 736
-		uiArt, -- 736
-		"cb_mat_frame", -- 736
-		x + 3, -- 736
-		y + 3, -- 736
-		w - 6, -- 736
-		h - 6, -- 736
-		PALETTE.amberDim, -- 736
-		0.48 * appear, -- 736
-		16, -- 736
-		false, -- 736
-		2 -- 736
-	) -- 736
-	ctx.texts:put( -- 738
-		"xs", -- 738
-		"案边持有", -- 738
-		x + 12, -- 738
-		y + h - 18, -- 738
-		toColor(PALETTE.amberCore), -- 738
-		0, -- 738
-		0.5, -- 738
-		"Left", -- 738
-		1.4, -- 738
-		0.92 * appear, -- 738
-		0.06 -- 738
-	) -- 738
-	uiInkDraw:drawSegment( -- 739
-		Vec2(x + 10, y + h - 32), -- 739
-		Vec2(x + w - 10, y + h - 32), -- 739
-		0.75, -- 739
-		toColor(PALETTE.amberDim, 115 * appear) -- 739
-	) -- 739
-	local keys = sortedMaterialKeys(bench.inventory, bench.recipes) -- 741
-	local i = 0 -- 742
-	do -- 742
-		i = 0 -- 743
-		while i < #keys and i < 4 do -- 743
-			local mat = keys[i + 1] -- 744
-			local count = bench.inventory[mat] or 0 -- 745
-			local isMissing = self.missingFlashT > 0.02 and __TS__ArrayIndexOf(self.missingList, mat) >= 0 -- 746
-			local shake = isMissing and math.sin(self.animTime * 54) * 3.5 or 0 -- 747
-			local rowY = y + h - 62 - i * 48 -- 748
-			if isMissing then -- 750
-				uiDraw:drawRect( -- 751
-					Rect(x + 6 + shake, rowY - 18, w - 12, 38), -- 751
-					toColor(PALETTE.rougeSoft, 145 * appear), -- 751
-					1, -- 751
-					toColor(PALETTE.crimsonCore, 220 * appear) -- 751
-				) -- 751
-			end -- 751
-			local shown = math.max( -- 755
-				1, -- 755
-				math.min(4, count) -- 755
-			) -- 755
-			local t = 0 -- 756
-			do -- 756
-				t = 0 -- 757
-				while t < shown do -- 757
-					local tx = x + 22 + t * 14 + shake -- 758
-					local filled = t < count -- 759
-					if mat == "bell_tally" or mat == "bell" then -- 760
-						drawReloadPatternGlyph( -- 761
-							uiInkDraw, -- 762
-							tx, -- 763
-							rowY, -- 764
-							7.5, -- 765
-							"echo", -- 766
-							filled and PALETTE.amberCore or PALETTE.silkDim, -- 767
-							(filled and 0.96 or 0.38) * appear -- 768
-						) -- 768
-					else -- 768
-						local col = filled and PALETTE.amber or PALETTE.silkDim -- 771
-						uiInkDraw:drawRect( -- 772
-							Rect(tx - 4, rowY - 10, 8, 20), -- 773
-							filled and toColor(col, 195 * appear) or Color(0, 0, 0, 0), -- 774
-							1, -- 775
-							toColor(filled and PALETTE.amberCore or PALETTE.silkDim, (filled and 230 or 120) * appear) -- 776
-						) -- 776
-						if filled then -- 778
-							uiInkDraw:drawSegment( -- 779
-								Vec2(tx - 2, rowY + 3), -- 779
-								Vec2(tx + 2, rowY + 3), -- 779
-								0.9, -- 779
-								toColor(PALETTE.xuanInk, 185 * appear) -- 779
-							) -- 779
-							uiInkDraw:drawSegment( -- 780
-								Vec2(tx - 2, rowY - 3), -- 780
-								Vec2(tx + 2, rowY - 3), -- 780
-								0.9, -- 780
-								toColor(PALETTE.xuanInk, 185 * appear) -- 780
-							) -- 780
-						end -- 780
-					end -- 780
-					t = t + 1 -- 757
-				end -- 757
-			end -- 757
-			ctx.texts:put( -- 785
-				"xs", -- 786
-				materialLabel(mat), -- 787
-				x + 86 + shake, -- 788
-				rowY + 5, -- 789
-				toColor(isMissing and PALETTE.crimsonCore or PALETTE.textBright), -- 790
-				0, -- 791
-				0.5, -- 792
-				"Left", -- 793
-				0.8, -- 794
-				0.95 * appear, -- 795
-				0.06 -- 796
-			) -- 796
-			ctx.texts:put( -- 798
-				"xs", -- 799
-				"存 " .. tostring(count), -- 800
-				x + 86 + shake, -- 801
-				rowY - 11, -- 802
-				toColor(isMissing and PALETTE.crimsonCore or (count > 0 and PALETTE.amberCore or PALETTE.textDim)), -- 803
-				0, -- 804
-				0.5, -- 805
-				"Left", -- 806
-				0.8, -- 807
-				0.88 * appear, -- 808
-				0.06 -- 809
-			) -- 809
-			i = i + 1 -- 743
-		end -- 743
-	end -- 743
-	local eqName = self:resolveWeaponName(bench, bench.equippedWeapon) -- 814
-	uiInkDraw:drawSegment( -- 815
-		Vec2(x + 10, y + 32), -- 815
-		Vec2(x + w - 10, y + 32), -- 815
-		0.75, -- 815
-		toColor(PALETTE.amberDim, 105 * appear) -- 815
-	) -- 815
-	ctx.texts:put( -- 816
-		"xs", -- 816
-		"现佩：" .. eqName, -- 816
-		x + 12, -- 816
-		y + 16, -- 816
-		toColor(PALETTE.textMid), -- 816
-		0, -- 816
-		0.5, -- 816
-		"Left", -- 816
-		0.8, -- 816
-		0.9 * appear, -- 816
-		0.06 -- 816
-	) -- 816
-end -- 723
-function CraftBenchPlugin.prototype.resolveWeaponName(self, bench, weaponId) -- 819
-	local i = 0 -- 820
-	do -- 820
-		i = 0 -- 821
-		while i < #bench.recipes do -- 821
-			if bench.recipes[i + 1].id == weaponId then -- 822
-				return bench.recipes[i + 1].name -- 823
-			end -- 823
-			i = i + 1 -- 821
-		end -- 821
-	end -- 821
-	return "旧制鸟铳" -- 826
-end -- 819
-function CraftBenchPlugin.prototype.drawRecipeCard(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, bench, recipe, box, selected, appear) -- 829
-	local missing = collectMissingMaterials(recipe, bench.inventory) -- 841
-	local canCraft = not recipe.crafted and #missing == 0 -- 842
-	local equipped = bench.equippedWeapon == recipe.id -- 843
-	local isPending = self.pendingRecipeId == recipe.id -- 844
-	local highlightMissing = selected and self.missingFlashT > 0.02 and #missing > 0 -- 845
-	if not uiArt:tryPlace( -- 848
-		"ink_song_paper", -- 848
-		"cb_card_" .. recipe.id, -- 848
-		box.x + box.width * 0.5, -- 848
-		box.y + box.height * 0.5, -- 848
-		box.width, -- 848
-		box.height, -- 848
-		{opacity = (selected and 0.96 or 0.84) * appear, layer = 1} -- 848
-	) then -- 848
-		uiDraw:drawRect( -- 849
-			box, -- 849
-			toColor(PALETTE.xuanPaper, (selected and 242 or 212) * appear) -- 849
-		) -- 849
-	end -- 849
-	local borderCol = highlightMissing and PALETTE.rouge or (selected and PALETTE.xuanInk or PALETTE.xuanInkSub) -- 852
-	drawFiligreeCorners( -- 855
-		uiInkDraw, -- 855
-		uiArt, -- 855
-		"cb_cf_" .. recipe.id, -- 855
-		box.x + 5, -- 855
-		box.y + 5, -- 855
-		box.width - 10, -- 855
-		box.height - 10, -- 855
-		borderCol, -- 855
-		(selected and 0.88 or 0.46) * appear, -- 855
-		18, -- 855
-		true, -- 855
-		2 -- 855
-	) -- 855
-	if selected then -- 857
-		drawSilkRibbon( -- 858
-			uiDraw, -- 858
-			uiArt, -- 858
-			"cb_sel_rib_" .. recipe.id, -- 858
-			box.x + box.width * 0.5, -- 858
-			box.y + box.height - 26, -- 858
-			box.width - 14, -- 858
-			30, -- 858
-			PALETTE.amberDim, -- 858
-			0.24 * appear, -- 858
-			2 -- 858
-		) -- 858
-	end -- 858
-	local topY = box.y + box.height - 26 -- 862
-	drawBlossomDot( -- 863
-		uiInkDraw, -- 863
-		uiArt, -- 863
-		"cb_dot_" .. recipe.id, -- 863
-		box.x + 18, -- 863
-		topY, -- 863
-		selected and 11 or 7, -- 863
-		selected and PALETTE.rouge or PALETTE.xuanInkSub, -- 863
-		0.92 * appear, -- 863
-		3 -- 863
-	) -- 863
-	ctx.texts:put( -- 864
-		"md", -- 864
-		recipe.name, -- 864
-		box.x + 30, -- 864
-		topY, -- 864
-		toColor(PALETTE.xuanInk), -- 864
-		0, -- 864
-		0.5, -- 864
-		"Left", -- 864
-		1.6, -- 864
-		0.98 * appear, -- 864
-		0 -- 864
-	) -- 864
-	local badge = equipped and "已携" or (recipe.crafted and "已制" or (canCraft and "可制" or "缺料")) -- 866
-	local badgeCol = equipped and PALETTE.rouge or (canCraft and PALETTE.xuanInk or PALETTE.rougeSoft) -- 867
-	ctx.texts:put( -- 868
-		"xs", -- 868
-		badge, -- 868
-		box.x + box.width - 14, -- 868
-		topY, -- 868
-		toColor(badgeCol), -- 868
-		1, -- 868
-		0.5, -- 868
-		"Right", -- 868
-		1, -- 868
-		0.94 * appear, -- 868
-		0 -- 868
-	) -- 868
-	local narrow = box.width < 195 -- 871
-	local miniCx = box.x + (narrow and 36 or 46) -- 872
-	local miniCy = box.y + box.height - 96 -- 873
-	self:drawMiniReloadPreview( -- 874
-		uiInkDraw, -- 874
-		uiGlow, -- 874
-		miniCx, -- 874
-		miniCy, -- 874
-		recipe.enhancedEffect, -- 874
-		appear -- 874
-	) -- 874
-	local infoX = box.x + (narrow and 72 or 90) -- 877
-	local effTitle = recipe.enhancedEffect == "light" and "增强 · 灯纹照亮" or (recipe.enhancedEffect == "echo" and "增强 · 铃纹回声" or "增强 · 推退") -- 878
-	ctx.texts:put( -- 879
-		"xs", -- 879
-		effTitle, -- 879
-		infoX, -- 879
-		box.y + box.height - 64, -- 879
-		toColor(PALETTE.rouge), -- 879
-		0, -- 879
-		0.5, -- 879
-		"Left", -- 879
-		narrow and 0.3 or 0.8, -- 879
-		0.95 * appear, -- 879
-		0 -- 879
-	) -- 879
-	local row = 0 -- 881
-	for mat in pairs(recipe.cost) do -- 882
-		local need = recipe.cost[mat] -- 883
-		local have = bench.inventory[mat] or 0 -- 884
-		local lack = not recipe.crafted and have < need -- 885
-		local ry = box.y + box.height - 90 - row * 22 -- 886
-		local col = lack and PALETTE.rouge or PALETTE.xuanInkSub -- 887
-		local text = ((((materialLabel(mat) .. " ") .. tostring(have)) .. "/") .. tostring(need)) .. (lack and "（缺）" or "") -- 888
-		ctx.texts:put( -- 889
-			"xs", -- 889
-			text, -- 889
-			infoX, -- 889
-			ry, -- 889
-			toColor(col), -- 889
-			0, -- 889
-			0.5, -- 889
-			"Left", -- 889
-			0.6, -- 889
-			0.94 * appear, -- 889
-			0 -- 889
-		) -- 889
-		row = row + 1 -- 890
-	end -- 890
-	local btnRect = Rect(box.x + 14, box.y + 14, box.width - 28, 34) -- 894
-	local btnLabel = equipped and "已佩此铳" or (recipe.crafted and "改佩此铳" or (isPending and "制器中……" or (canCraft and "制成并试握" or "材料不足"))) -- 895
-	local btnBg = equipped and Color( -- 898
-		168, -- 899
-		46, -- 899
-		44, -- 899
-		math.floor(32 * appear + 0.5) -- 899
-	) or (selected and (canCraft or recipe.crafted) and Color( -- 900
-		32, -- 901
-		30, -- 901
-		32, -- 901
-		math.floor(218 * appear + 0.5) -- 901
-	) or Color( -- 902
-		32, -- 902
-		30, -- 902
-		32, -- 902
-		math.floor((highlightMissing and 42 or 24) * appear + 0.5) -- 902
-	)) -- 902
-	local btnTextCol = selected and (canCraft or recipe.crafted) and not equipped and PALETTE.xuanPaper or (highlightMissing and PALETTE.rouge or PALETTE.xuanInk) -- 903
-	uiInkDraw:drawRect( -- 906
-		btnRect, -- 906
-		btnBg, -- 906
-		0.9, -- 906
-		toColor(highlightMissing and PALETTE.rouge or PALETTE.xuanInkSub, 175 * appear) -- 906
-	) -- 906
-	ctx.texts:put( -- 907
-		"sm", -- 908
-		btnLabel, -- 909
-		btnRect.x + btnRect.width * 0.5, -- 910
-		btnRect.y + btnRect.height * 0.5, -- 911
-		toColor(btnTextCol), -- 912
-		0.5, -- 913
-		0.5, -- 914
-		"Center", -- 915
-		1.6, -- 916
-		0.96 * appear, -- 917
-		0 -- 918
-	) -- 918
-end -- 829
-function CraftBenchPlugin.prototype.drawMiniReloadPreview(self, uiInkDraw, uiGlow, cx, cy, effect, appear) -- 923
-	local step = 20 -- 931
-	local samplePath = effect == "light" and ({ -- 932
-		0, -- 932
-		1, -- 932
-		2, -- 932
-		5, -- 932
-		8 -- 932
-	}) or (effect == "echo" and ({ -- 932
-		0, -- 932
-		1, -- 932
-		4, -- 932
-		5, -- 932
-		8 -- 932
-	}) or ({ -- 932
-		0, -- 932
-		3, -- 932
-		6, -- 932
-		7, -- 932
-		8 -- 932
-	})) -- 932
-	local accent = effect == "echo" and PALETTE.rouge or (effect == "light" and PALETTE.amberDim or PALETTE.xuanInk) -- 933
-	uiInkDraw:drawRect( -- 936
-		Rect(cx - 32, cy - 32, 64, 64), -- 936
-		Color( -- 936
-			224, -- 936
-			218, -- 936
-			206, -- 936
-			math.floor(145 * appear + 0.5) -- 936
-		), -- 936
-		0.8, -- 936
-		toColor(PALETTE.xuanInkSub, 120 * appear) -- 936
-	) -- 936
-	local i = 0 -- 937
-	do -- 937
-		i = 0 -- 938
-		while i < #RELOAD_GRID do -- 938
-			local g = RELOAD_GRID[i + 1] -- 939
-			local nx = cx + (g.col - 1) * step -- 940
-			local ny = cy + (g.row - 1) * step -- 941
-			uiInkDraw:drawDot( -- 942
-				Vec2(nx, ny), -- 942
-				1.8, -- 942
-				toColor(PALETTE.xuanInkSub, 130 * appear) -- 942
-			) -- 942
-			i = i + 1 -- 938
-		end -- 938
-	end -- 938
-	do -- 938
-		i = 0 -- 946
-		while i < #samplePath - 1 do -- 946
-			local a = RELOAD_GRID[samplePath[i + 1] + 1] -- 947
-			local b = RELOAD_GRID[samplePath[i + 1 + 1] + 1] -- 948
-			uiInkDraw:drawSegment( -- 949
-				Vec2(cx + (a.col - 1) * step, cy + (a.row - 1) * step), -- 950
-				Vec2(cx + (b.col - 1) * step, cy + (b.row - 1) * step), -- 951
-				1.8, -- 952
-				toColor(accent, 220 * appear) -- 953
-			) -- 953
-			i = i + 1 -- 946
-		end -- 946
-	end -- 946
-	local keyNode = effect == "light" and RELOAD_GRID[3] or (effect == "echo" and RELOAD_GRID[5] or RELOAD_GRID[9]) -- 958
-	local kx = cx + (keyNode.col - 1) * step -- 959
-	local ky = cy + (keyNode.row - 1) * step -- 960
-	drawReloadPatternGlyph( -- 961
-		uiInkDraw, -- 961
-		kx, -- 961
-		ky, -- 961
-		7.5, -- 961
-		effect, -- 961
-		accent, -- 961
-		appear -- 961
-	) -- 961
-	fillRadialGlow( -- 962
-		uiGlow, -- 962
-		kx, -- 962
-		ky, -- 962
-		14, -- 962
-		14, -- 962
-		toColor(PALETTE.amberCore, 45 * appear), -- 962
-		Color(244, 234, 214, 0), -- 962
-		10 -- 962
-	) -- 962
-end -- 923
-function CraftBenchPlugin.prototype.drawHandoverOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 966
-	local prog = math.max( -- 973
-		0, -- 973
-		math.min( -- 973
-			1, -- 973
-			1 - self.handoverRemaining / math.max(0.01, self.handoverDuration) -- 973
-		) -- 973
-	) -- 973
-	local fade = prog < 0.14 and prog / 0.14 or (prog > 0.84 and (1 - prog) / 0.16 or 1) -- 974
-	local cx = ctx.uiW * 0.5 -- 975
-	local cy = ctx.uiH * 0.68 -- 976
-	local w = 440 -- 977
-	local h = 112 -- 978
-	drawSilkVeil( -- 980
-		uiDraw, -- 980
-		uiArt, -- 980
-		"cb_handover_veil", -- 980
-		cx, -- 980
-		cy, -- 980
-		w + 80, -- 980
-		h + 28, -- 980
-		PALETTE.inkWash, -- 980
-		0.84 * fade, -- 980
-		0 -- 980
-	) -- 980
-	drawHairline( -- 981
-		uiInkDraw, -- 981
-		uiArt, -- 981
-		"cb_handover_top", -- 981
-		cx, -- 981
-		cy + h * 0.48, -- 981
-		w - 30, -- 981
-		PALETTE.amber, -- 981
-		0.58 * fade, -- 981
-		true, -- 981
-		2 -- 981
-	) -- 981
-	local passK = math.min(1, prog / 0.38) -- 984
-	local gripLift = prog >= 0.38 and prog < 0.74 and math.sin((prog - 0.38) / 0.36 * math.pi) * 9 or 0 -- 985
-	local releaseK = prog >= 0.74 and (prog - 0.74) / 0.26 or 0 -- 986
-	local a245 = math.floor(245 * fade + 0.5) -- 987
-	local a235 = math.floor(235 * fade + 0.5) -- 988
-	local childHandX = cx - 78 + passK * 42 - releaseK * 38 -- 991
-	local childHandY = cy - 4 + gripLift * 0.2 -- 992
-	uiInkDraw:drawPolygon( -- 993
-		{ -- 993
-			Vec2(cx - 148, cy - 22), -- 994
-			Vec2(cx - 146, cy - 8), -- 995
-			Vec2(childHandX - 10, childHandY + 4), -- 996
-			Vec2(childHandX - 10, childHandY - 6) -- 997
-		}, -- 997
-		Color(164, 78, 54, a235), -- 998
-		1, -- 998
-		Color(52, 28, 22, a235) -- 998
-	) -- 998
-	uiInkDraw:drawSegment( -- 999
-		Vec2(childHandX - 11, childHandY + 4), -- 999
-		Vec2(childHandX - 11, childHandY - 6), -- 999
-		2, -- 999
-		Color(204, 174, 122, a245) -- 999
+function CraftBenchPlugin.prototype.drawTableMaterials(self, uiDraw, uiInkDraw, uiArt, ctx, bench, x, y, w, h, appear) -- 731
+	uiDraw:drawRect( -- 743
+		Rect(x, y, w, h), -- 743
+		Color( -- 743
+			26, -- 743
+			20, -- 743
+			17, -- 743
+			math.floor(188 * appear + 0.5) -- 743
+		), -- 743
+		0.9, -- 743
+		toColor(PALETTE.amberDim, 130 * appear) -- 743
+	) -- 743
+	drawFiligreeCorners( -- 744
+		uiInkDraw, -- 744
+		uiArt, -- 744
+		"cb_mat_frame", -- 744
+		x + 3, -- 744
+		y + 3, -- 744
+		w - 6, -- 744
+		h - 6, -- 744
+		PALETTE.amberDim, -- 744
+		0.48 * appear, -- 744
+		16, -- 744
+		false, -- 744
+		2 -- 744
+	) -- 744
+	ctx.texts:put( -- 746
+		"xs", -- 746
+		"案边持有", -- 746
+		x + 12, -- 746
+		y + h - 18, -- 746
+		toColor(PALETTE.amberCore), -- 746
+		0, -- 746
+		0.5, -- 746
+		"Left", -- 746
+		1.4, -- 746
+		0.92 * appear, -- 746
+		0.06 -- 746
+	) -- 746
+	uiInkDraw:drawSegment( -- 747
+		Vec2(x + 10, y + h - 32), -- 747
+		Vec2(x + w - 10, y + h - 32), -- 747
+		0.75, -- 747
+		toColor(PALETTE.amberDim, 115 * appear) -- 747
+	) -- 747
+	local keys = sortedMaterialKeys(bench.inventory, bench.recipes) -- 749
+	local i = 0 -- 750
+	do -- 750
+		i = 0 -- 751
+		while i < #keys and i < 4 do -- 751
+			local mat = keys[i + 1] -- 752
+			local count = bench.inventory[mat] or 0 -- 753
+			local isMissing = self.missingFlashT > 0.02 and __TS__ArrayIndexOf(self.missingList, mat) >= 0 -- 754
+			local shake = isMissing and math.sin(self.animTime * 54) * 3.5 or 0 -- 755
+			local rowY = y + h - 62 - i * 48 -- 756
+			if isMissing then -- 758
+				uiDraw:drawRect( -- 759
+					Rect(x + 6 + shake, rowY - 18, w - 12, 38), -- 759
+					toColor(PALETTE.rougeSoft, 145 * appear), -- 759
+					1, -- 759
+					toColor(PALETTE.crimsonCore, 220 * appear) -- 759
+				) -- 759
+			end -- 759
+			local matClip = (mat == "bell_tally" or mat == "bell") and "pickup_bell" or (mat == "scrap" and "pickup_scrap" or (mat == "wedge" and "pickup_wedge" or (mat == "ammo" and "pickup_ammo" or "pickup_wood"))) -- 763
+			local shown = math.max( -- 768
+				1, -- 768
+				math.min(3, count) -- 768
+			) -- 768
+			local t = 0 -- 769
+			do -- 769
+				t = 0 -- 770
+				while t < shown do -- 770
+					do -- 770
+						local tx = x + 22 + t * 19 + shake -- 771
+						local filled = t < count -- 772
+						if uiArt:tryPlacePath( -- 773
+							"assets/art/props_ming.clip|" .. matClip, -- 773
+							(("cb_mat_" .. mat) .. "_") .. tostring(t), -- 773
+							tx, -- 773
+							rowY, -- 773
+							20, -- 773
+							20, -- 773
+							{ -- 773
+								anchorX = 0.5, -- 774
+								anchorY = 0.5, -- 775
+								preserveAspect = true, -- 776
+								color = filled and Color(255, 255, 255, 255) or Color(138, 134, 128, 255), -- 777
+								opacity = (filled and 0.96 or 0.34) * appear, -- 778
+								layer = 3 -- 779
+							} -- 779
+						) then -- 779
+							goto __continue104 -- 781
+						end -- 781
+						if mat == "bell_tally" or mat == "bell" then -- 783
+							drawReloadPatternGlyph( -- 784
+								uiInkDraw, -- 785
+								tx, -- 786
+								rowY, -- 787
+								7.5, -- 788
+								"echo", -- 789
+								filled and PALETTE.amberCore or PALETTE.silkDim, -- 790
+								(filled and 0.96 or 0.38) * appear -- 791
+							) -- 791
+						else -- 791
+							local col = filled and PALETTE.amber or PALETTE.silkDim -- 794
+							uiInkDraw:drawRect( -- 795
+								Rect(tx - 4, rowY - 10, 8, 20), -- 796
+								filled and toColor(col, 195 * appear) or Color(0, 0, 0, 0), -- 797
+								1, -- 798
+								toColor(filled and PALETTE.amberCore or PALETTE.silkDim, (filled and 230 or 120) * appear) -- 799
+							) -- 799
+							if filled then -- 801
+								uiInkDraw:drawSegment( -- 802
+									Vec2(tx - 2, rowY + 3), -- 802
+									Vec2(tx + 2, rowY + 3), -- 802
+									0.9, -- 802
+									toColor(PALETTE.xuanInk, 185 * appear) -- 802
+								) -- 802
+								uiInkDraw:drawSegment( -- 803
+									Vec2(tx - 2, rowY - 3), -- 803
+									Vec2(tx + 2, rowY - 3), -- 803
+									0.9, -- 803
+									toColor(PALETTE.xuanInk, 185 * appear) -- 803
+								) -- 803
+							end -- 803
+						end -- 803
+					end -- 803
+					::__continue104:: -- 803
+					t = t + 1 -- 770
+				end -- 770
+			end -- 770
+			ctx.texts:put( -- 808
+				"xs", -- 809
+				materialLabel(mat), -- 810
+				x + 86 + shake, -- 811
+				rowY + 5, -- 812
+				toColor(isMissing and PALETTE.crimsonCore or PALETTE.textBright), -- 813
+				0, -- 814
+				0.5, -- 815
+				"Left", -- 816
+				0.8, -- 817
+				0.95 * appear, -- 818
+				0.06 -- 819
+			) -- 819
+			ctx.texts:put( -- 821
+				"xs", -- 822
+				"存 " .. tostring(count), -- 823
+				x + 86 + shake, -- 824
+				rowY - 11, -- 825
+				toColor(isMissing and PALETTE.crimsonCore or (count > 0 and PALETTE.amberCore or PALETTE.textDim)), -- 826
+				0, -- 827
+				0.5, -- 828
+				"Left", -- 829
+				0.8, -- 830
+				0.88 * appear, -- 831
+				0.06 -- 832
+			) -- 832
+			i = i + 1 -- 751
+		end -- 751
+	end -- 751
+	local eqName = self:resolveWeaponName(bench, bench.equippedWeapon) -- 837
+	uiInkDraw:drawSegment( -- 838
+		Vec2(x + 10, y + 32), -- 838
+		Vec2(x + w - 10, y + 32), -- 838
+		0.75, -- 838
+		toColor(PALETTE.amberDim, 105 * appear) -- 838
+	) -- 838
+	ctx.texts:put( -- 839
+		"xs", -- 839
+		"现佩：" .. eqName, -- 839
+		x + 12, -- 839
+		y + 16, -- 839
+		toColor(PALETTE.textMid), -- 839
+		0, -- 839
+		0.5, -- 839
+		"Left", -- 839
+		0.8, -- 839
+		0.9 * appear, -- 839
+		0.06 -- 839
+	) -- 839
+end -- 731
+function CraftBenchPlugin.prototype.resolveWeaponName(self, bench, weaponId) -- 842
+	local i = 0 -- 843
+	do -- 843
+		i = 0 -- 844
+		while i < #bench.recipes do -- 844
+			if bench.recipes[i + 1].id == weaponId then -- 845
+				return bench.recipes[i + 1].name -- 846
+			end -- 846
+			i = i + 1 -- 844
+		end -- 844
+	end -- 844
+	return "旧制鸟铳" -- 849
+end -- 842
+function CraftBenchPlugin.prototype.drawRecipeCard(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, bench, recipe, box, selected, appear) -- 852
+	local missing = collectMissingMaterials(recipe, bench.inventory) -- 864
+	local canCraft = not recipe.crafted and #missing == 0 -- 865
+	local equipped = bench.equippedWeapon == recipe.id -- 866
+	local isPending = self.pendingRecipeId == recipe.id -- 867
+	local highlightMissing = selected and self.missingFlashT > 0.02 and #missing > 0 -- 868
+	if not uiArt:tryPlace( -- 871
+		"ink_song_paper", -- 871
+		"cb_card_" .. recipe.id, -- 871
+		box.x + box.width * 0.5, -- 871
+		box.y + box.height * 0.5, -- 871
+		box.width, -- 871
+		box.height, -- 871
+		{opacity = (selected and 0.96 or 0.84) * appear, layer = 1} -- 871
+	) then -- 871
+		uiDraw:drawRect( -- 872
+			box, -- 872
+			toColor(PALETTE.xuanPaper, (selected and 242 or 212) * appear) -- 872
+		) -- 872
+	end -- 872
+	local borderCol = highlightMissing and PALETTE.rouge or (selected and PALETTE.xuanInk or PALETTE.xuanInkSub) -- 875
+	drawFiligreeCorners( -- 878
+		uiInkDraw, -- 878
+		uiArt, -- 878
+		"cb_cf_" .. recipe.id, -- 878
+		box.x + 5, -- 878
+		box.y + 5, -- 878
+		box.width - 10, -- 878
+		box.height - 10, -- 878
+		borderCol, -- 878
+		(selected and 0.88 or 0.46) * appear, -- 878
+		18, -- 878
+		true, -- 878
+		2 -- 878
+	) -- 878
+	if selected then -- 880
+		drawSilkRibbon( -- 881
+			uiDraw, -- 881
+			uiArt, -- 881
+			"cb_sel_rib_" .. recipe.id, -- 881
+			box.x + box.width * 0.5, -- 881
+			box.y + box.height - 26, -- 881
+			box.width - 14, -- 881
+			30, -- 881
+			PALETTE.amberDim, -- 881
+			0.24 * appear, -- 881
+			2 -- 881
+		) -- 881
+	end -- 881
+	local topY = box.y + box.height - 26 -- 885
+	drawBlossomDot( -- 886
+		uiInkDraw, -- 886
+		uiArt, -- 886
+		"cb_dot_" .. recipe.id, -- 886
+		box.x + 18, -- 886
+		topY, -- 886
+		selected and 11 or 7, -- 886
+		selected and PALETTE.rouge or PALETTE.xuanInkSub, -- 886
+		0.92 * appear, -- 886
+		3 -- 886
+	) -- 886
+	ctx.texts:put( -- 887
+		"md", -- 887
+		recipe.name, -- 887
+		box.x + 30, -- 887
+		topY, -- 887
+		toColor(PALETTE.xuanInk), -- 887
+		0, -- 887
+		0.5, -- 887
+		"Left", -- 887
+		1.6, -- 887
+		0.98 * appear, -- 887
+		0 -- 887
+	) -- 887
+	local badge = equipped and "已携" or (recipe.crafted and "已制" or (canCraft and "可制" or "缺料")) -- 889
+	local badgeCol = equipped and PALETTE.rouge or (canCraft and PALETTE.xuanInk or PALETTE.rougeSoft) -- 890
+	ctx.texts:put( -- 891
+		"xs", -- 891
+		badge, -- 891
+		box.x + box.width - 14, -- 891
+		topY, -- 891
+		toColor(badgeCol), -- 891
+		1, -- 891
+		0.5, -- 891
+		"Right", -- 891
+		1, -- 891
+		0.94 * appear, -- 891
+		0 -- 891
+	) -- 891
+	local narrow = box.width < 195 -- 894
+	local miniCx = box.x + (narrow and 36 or 46) -- 895
+	local miniCy = box.y + box.height - 96 -- 896
+	self:drawMiniReloadPreview( -- 897
+		uiInkDraw, -- 897
+		uiGlow, -- 897
+		miniCx, -- 897
+		miniCy, -- 897
+		recipe.enhancedEffect, -- 897
+		appear -- 897
+	) -- 897
+	local infoX = box.x + (narrow and 72 or 90) -- 900
+	local effTitle = recipe.enhancedEffect == "light" and "增强 · 灯纹照亮" or (recipe.enhancedEffect == "echo" and "增强 · 铃纹回声" or "增强 · 推退") -- 901
+	ctx.texts:put( -- 902
+		"xs", -- 902
+		effTitle, -- 902
+		infoX, -- 902
+		box.y + box.height - 64, -- 902
+		toColor(PALETTE.rouge), -- 902
+		0, -- 902
+		0.5, -- 902
+		"Left", -- 902
+		narrow and 0.3 or 0.8, -- 902
+		0.95 * appear, -- 902
+		0 -- 902
+	) -- 902
+	local row = 0 -- 904
+	for mat in pairs(recipe.cost) do -- 905
+		local need = recipe.cost[mat] -- 906
+		local have = bench.inventory[mat] or 0 -- 907
+		local lack = not recipe.crafted and have < need -- 908
+		local ry = box.y + box.height - 90 - row * 22 -- 909
+		local col = lack and PALETTE.rouge or PALETTE.xuanInkSub -- 910
+		local text = ((((materialLabel(mat) .. " ") .. tostring(have)) .. "/") .. tostring(need)) .. (lack and "（缺）" or "") -- 911
+		ctx.texts:put( -- 912
+			"xs", -- 912
+			text, -- 912
+			infoX, -- 912
+			ry, -- 912
+			toColor(col), -- 912
+			0, -- 912
+			0.5, -- 912
+			"Left", -- 912
+			0.6, -- 912
+			0.94 * appear, -- 912
+			0 -- 912
+		) -- 912
+		row = row + 1 -- 913
+	end -- 913
+	local weaponArtPath = recipe.enhancedEffect == "echo" and "assets/art/vfx_craft_art.clip|craft_echo_gun" or (recipe.enhancedEffect == "light" and "assets/art/vfx_craft_art.clip|craft_lantern_gun" or "assets/art/props_ming.clip|pickup_quickbelt") -- 917
+	uiArt:tryPlacePath( -- 922
+		weaponArtPath, -- 922
+		"cb_wpn_art_" .. recipe.id, -- 922
+		box.x + box.width * 0.5, -- 922
+		box.y + 68, -- 922
+		math.min(box.width - 36, 126), -- 922
+		34, -- 922
+		{ -- 922
+			anchorX = 0.5, -- 923
+			anchorY = 0.5, -- 924
+			preserveAspect = true, -- 925
+			smooth = true, -- 926
+			opacity = (selected and 0.96 or 0.78) * appear, -- 927
+			layer = 3 -- 928
+		} -- 928
+	) -- 928
+	local btnRect = Rect(box.x + 14, box.y + 14, box.width - 28, 34) -- 932
+	local btnLabel = equipped and "已佩此铳" or (recipe.crafted and "改佩此铳" or (isPending and "制器中……" or (canCraft and "制成并试握" or "材料不足"))) -- 933
+	local btnBg = equipped and Color( -- 936
+		168, -- 937
+		46, -- 937
+		44, -- 937
+		math.floor(32 * appear + 0.5) -- 937
+	) or (selected and (canCraft or recipe.crafted) and Color( -- 938
+		32, -- 939
+		30, -- 939
+		32, -- 939
+		math.floor(218 * appear + 0.5) -- 939
+	) or Color( -- 940
+		32, -- 940
+		30, -- 940
+		32, -- 940
+		math.floor((highlightMissing and 42 or 24) * appear + 0.5) -- 940
+	)) -- 940
+	local btnTextCol = selected and (canCraft or recipe.crafted) and not equipped and PALETTE.xuanPaper or (highlightMissing and PALETTE.rouge or PALETTE.xuanInk) -- 941
+	uiInkDraw:drawRect( -- 944
+		btnRect, -- 944
+		btnBg, -- 944
+		0.9, -- 944
+		toColor(highlightMissing and PALETTE.rouge or PALETTE.xuanInkSub, 175 * appear) -- 944
+	) -- 944
+	ctx.texts:put( -- 945
+		"sm", -- 946
+		btnLabel, -- 947
+		btnRect.x + btnRect.width * 0.5, -- 948
+		btnRect.y + btnRect.height * 0.5, -- 949
+		toColor(btnTextCol), -- 950
+		0.5, -- 951
+		0.5, -- 952
+		"Center", -- 953
+		1.6, -- 954
+		0.96 * appear, -- 955
+		0 -- 956
+	) -- 956
+end -- 852
+function CraftBenchPlugin.prototype.drawMiniReloadPreview(self, uiInkDraw, uiGlow, cx, cy, effect, appear) -- 961
+	local step = 20 -- 969
+	local samplePath = effect == "light" and ({ -- 970
+		0, -- 970
+		1, -- 970
+		2, -- 970
+		5, -- 970
+		8 -- 970
+	}) or (effect == "echo" and ({ -- 970
+		0, -- 970
+		1, -- 970
+		4, -- 970
+		5, -- 970
+		8 -- 970
+	}) or ({ -- 970
+		0, -- 970
+		3, -- 970
+		6, -- 970
+		7, -- 970
+		8 -- 970
+	})) -- 970
+	local accent = effect == "echo" and PALETTE.rouge or (effect == "light" and PALETTE.amberDim or PALETTE.xuanInk) -- 971
+	uiInkDraw:drawRect( -- 974
+		Rect(cx - 32, cy - 32, 64, 64), -- 974
+		Color( -- 974
+			224, -- 974
+			218, -- 974
+			206, -- 974
+			math.floor(145 * appear + 0.5) -- 974
+		), -- 974
+		0.8, -- 974
+		toColor(PALETTE.xuanInkSub, 120 * appear) -- 974
+	) -- 974
+	local i = 0 -- 975
+	do -- 975
+		i = 0 -- 976
+		while i < #RELOAD_GRID do -- 976
+			local g = RELOAD_GRID[i + 1] -- 977
+			local nx = cx + (g.col - 1) * step -- 978
+			local ny = cy + (g.row - 1) * step -- 979
+			uiInkDraw:drawDot( -- 980
+				Vec2(nx, ny), -- 980
+				1.8, -- 980
+				toColor(PALETTE.xuanInkSub, 130 * appear) -- 980
+			) -- 980
+			i = i + 1 -- 976
+		end -- 976
+	end -- 976
+	do -- 976
+		i = 0 -- 984
+		while i < #samplePath - 1 do -- 984
+			local a = RELOAD_GRID[samplePath[i + 1] + 1] -- 985
+			local b = RELOAD_GRID[samplePath[i + 1 + 1] + 1] -- 986
+			uiInkDraw:drawSegment( -- 987
+				Vec2(cx + (a.col - 1) * step, cy + (a.row - 1) * step), -- 988
+				Vec2(cx + (b.col - 1) * step, cy + (b.row - 1) * step), -- 989
+				1.8, -- 990
+				toColor(accent, 220 * appear) -- 991
+			) -- 991
+			i = i + 1 -- 984
+		end -- 984
+	end -- 984
+	local keyNode = effect == "light" and RELOAD_GRID[3] or (effect == "echo" and RELOAD_GRID[5] or RELOAD_GRID[9]) -- 996
+	local kx = cx + (keyNode.col - 1) * step -- 997
+	local ky = cy + (keyNode.row - 1) * step -- 998
+	drawReloadPatternGlyph( -- 999
+		uiInkDraw, -- 999
+		kx, -- 999
+		ky, -- 999
+		7.5, -- 999
+		effect, -- 999
+		accent, -- 999
+		appear -- 999
 	) -- 999
-	uiInkDraw:drawEllipse( -- 1000
-		Vec2(childHandX, childHandY - 1), -- 1000
-		6.2, -- 1000
-		4.4, -- 1000
-		Color(238, 212, 182, a245) -- 1000
+	fillRadialGlow( -- 1000
+		uiGlow, -- 1000
+		kx, -- 1000
+		ky, -- 1000
+		14, -- 1000
+		14, -- 1000
+		toColor(PALETTE.amberCore, 45 * appear), -- 1000
+		Color(244, 234, 214, 0), -- 1000
+		10 -- 1000
 	) -- 1000
-	local solHandX = cx + 82 - math.min( -- 1003
-		1, -- 1003
-		math.max(0, (prog - 0.18) / 0.28) -- 1003
-	) * 42 -- 1003
-	local solHandY = cy - 4 + gripLift -- 1004
-	uiInkDraw:drawPolygon( -- 1005
-		{ -- 1005
-			Vec2(cx + 154, cy - 18), -- 1006
-			Vec2(cx + 154, cy - 1), -- 1007
-			Vec2(solHandX + 12, solHandY + 6), -- 1008
-			Vec2(solHandX + 12, solHandY - 7) -- 1009
-		}, -- 1009
-		toColor(CUFF_PALETTE.indigoBase, a245), -- 1010
-		1, -- 1010
-		toColor(CUFF_PALETTE.indigoShadow, a245) -- 1010
-	) -- 1010
-	local mendCol = toColor(CUFF_PALETTE.stitchThread, a245) -- 1012
-	uiInkDraw:drawSegment( -- 1013
-		Vec2(solHandX + 16, solHandY - 5), -- 1013
-		Vec2(solHandX + 19, solHandY + 4), -- 1013
-		1.5, -- 1013
-		mendCol -- 1013
-	) -- 1013
-	uiInkDraw:drawSegment( -- 1014
-		Vec2(solHandX + 21, solHandY - 5), -- 1014
-		Vec2(solHandX + 24, solHandY + 4), -- 1014
-		1.5, -- 1014
-		mendCol -- 1014
-	) -- 1014
-	uiInkDraw:drawSegment( -- 1015
-		Vec2(solHandX + 26, solHandY - 5), -- 1015
-		Vec2(solHandX + 29, solHandY + 4), -- 1015
-		1.5, -- 1015
-		mendCol -- 1015
-	) -- 1015
-	uiInkDraw:drawEllipse( -- 1016
-		Vec2(solHandX, solHandY), -- 1016
-		6.8, -- 1016
-		5, -- 1016
-		toColor(CUFF_PALETTE.skinBase, a245) -- 1016
-	) -- 1016
-	local gunX = prog < 0.38 and childHandX + 14 or solHandX - 8 -- 1019
-	local gunY = cy + 3 + gripLift -- 1020
-	uiInkDraw:drawPolygon( -- 1022
-		{ -- 1022
-			Vec2(gunX - 42, gunY - 8), -- 1023
-			Vec2(gunX - 12, gunY - 3), -- 1024
-			Vec2(gunX + 16, gunY + 1), -- 1025
-			Vec2(gunX + 16, gunY + 6), -- 1026
-			Vec2(gunX - 16, gunY + 3), -- 1027
-			Vec2(gunX - 40, gunY + 1) -- 1028
-		}, -- 1028
-		Color(108, 72, 48, a245), -- 1029
-		1, -- 1029
-		Color(46, 30, 20, a245) -- 1029
-	) -- 1029
-	uiInkDraw:drawSegment( -- 1031
-		Vec2(gunX - 6, gunY + 4), -- 1031
-		Vec2(gunX + 56, gunY + 8), -- 1031
-		2.8, -- 1031
-		Color(152, 148, 138, a245) -- 1031
-	) -- 1031
-	uiInkDraw:drawSegment( -- 1032
-		Vec2(gunX + 14, gunY + 1), -- 1032
-		Vec2(gunX + 14, gunY + 8), -- 1032
-		2, -- 1032
-		Color(198, 166, 112, a245) -- 1032
-	) -- 1032
-	uiInkDraw:drawSegment( -- 1033
-		Vec2(gunX + 36, gunY + 3), -- 1033
-		Vec2(gunX + 36, gunY + 9), -- 1033
-		1.6, -- 1033
-		Color(198, 166, 112, a245) -- 1033
-	) -- 1033
-	drawReloadPatternGlyph( -- 1034
-		uiInkDraw, -- 1034
-		gunX + 2, -- 1034
-		gunY + 21, -- 1034
-		8.5, -- 1034
-		self.handoverEffect, -- 1034
-		PALETTE.amberCore, -- 1034
-		fade -- 1034
-	) -- 1034
-	fillRadialGlow( -- 1035
-		uiGlow, -- 1035
-		gunX + 4, -- 1035
-		gunY + 4, -- 1035
-		48, -- 1035
-		22, -- 1035
-		toColor(PALETTE.amberCore, 52 * fade), -- 1035
-		Color(244, 234, 214, 0), -- 1035
-		12 -- 1035
-	) -- 1035
-	local caption = self.handoverDuration >= 0.8 and self.handoverWeaponName .. " 已成 · 周戍试握上手" or self.handoverWeaponName .. " 已交接佩用" -- 1037
-	ctx.texts:put( -- 1040
-		"xs", -- 1040
-		caption, -- 1040
-		cx, -- 1040
-		cy - 34, -- 1040
-		toColor(PALETTE.amberCore), -- 1040
-		0.5, -- 1040
-		0.5, -- 1040
-		"Center", -- 1040
-		1.4, -- 1040
-		0.94 * fade, -- 1040
-		0.08 -- 1040
-	) -- 1040
-end -- 966
-function ____exports.createCraftBenchPlugin(contract) -- 1044
-	return __TS__New(____exports.CraftBenchPlugin, contract) -- 1045
-end -- 1044
-return ____exports -- 1044
+end -- 961
+function CraftBenchPlugin.prototype.drawHandoverOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1004
+	local prog = math.max( -- 1011
+		0, -- 1011
+		math.min( -- 1011
+			1, -- 1011
+			1 - self.handoverRemaining / math.max(0.01, self.handoverDuration) -- 1011
+		) -- 1011
+	) -- 1011
+	local fade = prog < 0.14 and prog / 0.14 or (prog > 0.84 and (1 - prog) / 0.16 or 1) -- 1012
+	local cx = ctx.uiW * 0.5 -- 1013
+	local cy = ctx.uiH * 0.68 -- 1014
+	local w = 440 -- 1015
+	local h = 112 -- 1016
+	drawSilkVeil( -- 1018
+		uiDraw, -- 1018
+		uiArt, -- 1018
+		"cb_handover_veil", -- 1018
+		cx, -- 1018
+		cy, -- 1018
+		w + 80, -- 1018
+		h + 28, -- 1018
+		PALETTE.inkWash, -- 1018
+		0.84 * fade, -- 1018
+		0 -- 1018
+	) -- 1018
+	drawHairline( -- 1019
+		uiInkDraw, -- 1019
+		uiArt, -- 1019
+		"cb_handover_top", -- 1019
+		cx, -- 1019
+		cy + h * 0.48, -- 1019
+		w - 30, -- 1019
+		PALETTE.amber, -- 1019
+		0.58 * fade, -- 1019
+		true, -- 1019
+		2 -- 1019
+	) -- 1019
+	local passK = math.min(1, prog / 0.38) -- 1022
+	local gripLift = prog >= 0.38 and prog < 0.74 and math.sin((prog - 0.38) / 0.36 * math.pi) * 9 or 0 -- 1023
+	local releaseK = prog >= 0.74 and (prog - 0.74) / 0.26 or 0 -- 1024
+	local a245 = math.floor(245 * fade + 0.5) -- 1025
+	local a235 = math.floor(235 * fade + 0.5) -- 1026
+	local childHandX = cx - 78 + passK * 42 - releaseK * 38 -- 1029
+	local childHandY = cy - 4 + gripLift * 0.2 -- 1030
+	local solHandX = cx + 82 - math.min( -- 1031
+		1, -- 1031
+		math.max(0, (prog - 0.18) / 0.28) -- 1031
+	) * 42 -- 1031
+	local solHandY = cy - 4 + gripLift -- 1032
+	local gunX = prog < 0.38 and childHandX + 14 or solHandX - 8 -- 1033
+	local gunY = cy + 6 + gripLift -- 1034
+	local childPlaced = uiArt:tryPlacePath( -- 1036
+		"assets/art/cutscene_cuff_rig.clip|cuff_xiaoman_reach", -- 1036
+		"cb_ho_child", -- 1036
+		childHandX, -- 1036
+		childHandY - 6, -- 1036
+		154, -- 1036
+		68, -- 1036
+		{ -- 1036
+			anchorX = 0.43, -- 1037
+			anchorY = 0.52, -- 1038
+			facing = -1, -- 1039
+			smooth = true, -- 1040
+			opacity = 0.94 * fade, -- 1041
+			layer = 3 -- 1042
+		} -- 1042
+	) -- 1042
+	if not childPlaced then -- 1044
+		uiInkDraw:drawPolygon( -- 1045
+			{ -- 1045
+				Vec2(cx - 148, cy - 22), -- 1046
+				Vec2(cx - 146, cy - 8), -- 1047
+				Vec2(childHandX - 10, childHandY + 4), -- 1048
+				Vec2(childHandX - 10, childHandY - 6) -- 1049
+			}, -- 1049
+			Color(164, 78, 54, a235), -- 1050
+			1, -- 1050
+			Color(52, 28, 22, a235) -- 1050
+		) -- 1050
+		uiInkDraw:drawSegment( -- 1051
+			Vec2(childHandX - 11, childHandY + 4), -- 1051
+			Vec2(childHandX - 11, childHandY - 6), -- 1051
+			2, -- 1051
+			Color(204, 174, 122, a245) -- 1051
+		) -- 1051
+		uiInkDraw:drawEllipse( -- 1052
+			Vec2(childHandX, childHandY - 1), -- 1052
+			6.2, -- 1052
+			4.4, -- 1052
+			Color(238, 212, 182, a245) -- 1052
+		) -- 1052
+	end -- 1052
+	local solPlaced = uiArt:tryPlacePath( -- 1055
+		"assets/art/cutscene_cuff_rig.clip|cuff_zhou_clasp", -- 1055
+		"cb_ho_zhou", -- 1055
+		solHandX, -- 1055
+		solHandY - 4, -- 1055
+		168, -- 1055
+		78, -- 1055
+		{ -- 1055
+			anchorX = 0.57, -- 1056
+			anchorY = 0.5, -- 1057
+			facing = -1, -- 1058
+			smooth = true, -- 1059
+			opacity = 0.96 * fade, -- 1060
+			layer = 4 -- 1061
+		} -- 1061
+	) -- 1061
+	if not solPlaced then -- 1063
+		uiInkDraw:drawPolygon( -- 1064
+			{ -- 1064
+				Vec2(cx + 154, cy - 18), -- 1065
+				Vec2(cx + 154, cy - 1), -- 1066
+				Vec2(solHandX + 12, solHandY + 6), -- 1067
+				Vec2(solHandX + 12, solHandY - 7) -- 1068
+			}, -- 1068
+			toColor(CUFF_PALETTE.indigoBase, a245), -- 1069
+			1, -- 1069
+			toColor(CUFF_PALETTE.indigoShadow, a245) -- 1069
+		) -- 1069
+		local mendCol = toColor(CUFF_PALETTE.stitchThread, a245) -- 1070
+		uiInkDraw:drawSegment( -- 1071
+			Vec2(solHandX + 16, solHandY - 5), -- 1071
+			Vec2(solHandX + 19, solHandY + 4), -- 1071
+			1.5, -- 1071
+			mendCol -- 1071
+		) -- 1071
+		uiInkDraw:drawSegment( -- 1072
+			Vec2(solHandX + 21, solHandY - 5), -- 1072
+			Vec2(solHandX + 24, solHandY + 4), -- 1072
+			1.5, -- 1072
+			mendCol -- 1072
+		) -- 1072
+		uiInkDraw:drawSegment( -- 1073
+			Vec2(solHandX + 26, solHandY - 5), -- 1073
+			Vec2(solHandX + 29, solHandY + 4), -- 1073
+			1.5, -- 1073
+			mendCol -- 1073
+		) -- 1073
+		uiInkDraw:drawEllipse( -- 1074
+			Vec2(solHandX, solHandY), -- 1074
+			6.8, -- 1074
+			5, -- 1074
+			toColor(CUFF_PALETTE.skinBase, a245) -- 1074
+		) -- 1074
+	end -- 1074
+	local gunClip = self.handoverEffect == "echo" and "craft_echo_gun" or "craft_lantern_gun" -- 1077
+	if not uiArt:tryPlacePath( -- 1078
+		"assets/art/vfx_craft_art.clip|" .. gunClip, -- 1078
+		"cb_ho_gun", -- 1078
+		gunX, -- 1078
+		gunY, -- 1078
+		170, -- 1078
+		52, -- 1078
+		{ -- 1078
+			anchorX = 0.5, -- 1079
+			anchorY = 0.5, -- 1080
+			preserveAspect = true, -- 1081
+			smooth = true, -- 1082
+			opacity = 0.98 * fade, -- 1083
+			layer = 5 -- 1084
+		} -- 1084
+	) then -- 1084
+		uiInkDraw:drawPolygon( -- 1086
+			{ -- 1086
+				Vec2(gunX - 42, gunY - 8), -- 1087
+				Vec2(gunX - 12, gunY - 3), -- 1088
+				Vec2(gunX + 16, gunY + 1), -- 1089
+				Vec2(gunX + 16, gunY + 6), -- 1090
+				Vec2(gunX - 16, gunY + 3), -- 1091
+				Vec2(gunX - 40, gunY + 1) -- 1092
+			}, -- 1092
+			Color(108, 72, 48, a245), -- 1093
+			1, -- 1093
+			Color(46, 30, 20, a245) -- 1093
+		) -- 1093
+		uiInkDraw:drawSegment( -- 1094
+			Vec2(gunX - 6, gunY + 4), -- 1094
+			Vec2(gunX + 56, gunY + 8), -- 1094
+			2.8, -- 1094
+			Color(152, 148, 138, a245) -- 1094
+		) -- 1094
+		uiInkDraw:drawSegment( -- 1095
+			Vec2(gunX + 14, gunY + 1), -- 1095
+			Vec2(gunX + 14, gunY + 8), -- 1095
+			2, -- 1095
+			Color(198, 166, 112, a245) -- 1095
+		) -- 1095
+		uiInkDraw:drawSegment( -- 1096
+			Vec2(gunX + 36, gunY + 3), -- 1096
+			Vec2(gunX + 36, gunY + 9), -- 1096
+			1.6, -- 1096
+			Color(198, 166, 112, a245) -- 1096
+		) -- 1096
+	end -- 1096
+	drawReloadPatternGlyph( -- 1098
+		uiInkDraw, -- 1098
+		gunX + 2, -- 1098
+		gunY + 26, -- 1098
+		8.5, -- 1098
+		self.handoverEffect, -- 1098
+		PALETTE.amberCore, -- 1098
+		fade -- 1098
+	) -- 1098
+	fillRadialGlow( -- 1099
+		uiGlow, -- 1099
+		gunX + 4, -- 1099
+		gunY + 4, -- 1099
+		48, -- 1099
+		22, -- 1099
+		toColor(PALETTE.amberCore, 52 * fade), -- 1099
+		Color(244, 234, 214, 0), -- 1099
+		12 -- 1099
+	) -- 1099
+	local caption = self.handoverDuration >= 0.8 and self.handoverWeaponName .. " 已成 · 周戍试握上手" or self.handoverWeaponName .. " 已交接佩用" -- 1101
+	ctx.texts:put( -- 1104
+		"xs", -- 1104
+		caption, -- 1104
+		cx, -- 1104
+		cy - 34, -- 1104
+		toColor(PALETTE.amberCore), -- 1104
+		0.5, -- 1104
+		0.5, -- 1104
+		"Center", -- 1104
+		1.4, -- 1104
+		0.94 * fade, -- 1104
+		0.08 -- 1104
+	) -- 1104
+end -- 1004
+function ____exports.createCraftBenchPlugin(contract) -- 1108
+	return __TS__New(____exports.CraftBenchPlugin, contract) -- 1109
+end -- 1108
+return ____exports -- 1108

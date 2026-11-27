@@ -3,6 +3,7 @@ import { Color, Content, Node, Sprite, TextureFilter, Vec2 } from "Dora";
 export type AssetSlotKey =
     | "bgFar_prologue" | "bgFar_street" | "bgFar_checkpoint" | "bgFar_gate"
     | "bgFar_outside" | "bgFar_village" | "bgFar_forest" | "bgFar_tower"
+    | "bgFar_crossroad_drygoods" | "bgFar_archway_yard" | "bgFar_granary" | "bgFar_escort_ridge" | "bgFar_museum"
     | "soldier_idle" | "soldier_run" | "soldier_roll" | "soldier_cover"
     | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire" | "soldier_fire_move"
     | "child_idle" | "child_run" | "child_crouch" | "child_fear" | "child_peek"
@@ -43,8 +44,10 @@ export interface PathPlacementOptions extends SpritePlacement {
     smooth?: boolean;
 }
 
-function backdrop(name: string): AssetSlotConfig {
-    return { paths: ["assets/art/" + name + ".png"], anchorY: 0, preserveAspect: false };
+function backdrop(name: string, smooth: boolean = false): AssetSlotConfig {
+    return smooth
+        ? { paths: ["assets/art/" + name + ".png"], anchorY: 0, preserveAspect: false, smooth: true }
+        : { paths: ["assets/art/" + name + ".png"], anchorY: 0, preserveAspect: false };
 }
 
 function clip(
@@ -74,6 +77,11 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     bgFar_village: backdrop("village"),
     bgFar_forest: backdrop("forest"),
     bgFar_tower: backdrop("tower"),
+    bgFar_crossroad_drygoods: backdrop("bg_crossroad_drygoods", true),
+    bgFar_archway_yard: backdrop("bg_archway_yard", true),
+    bgFar_granary: backdrop("bg_granary", true),
+    bgFar_escort_ridge: backdrop("bg_escort_ridge", true),
+    bgFar_museum: backdrop("bg_museum_hall", true),
     title_backdrop: backdrop("title"),
     soldier_idle: actor("soldier_idle"),
     soldier_run: actor(["soldier_run", "soldier_idle", "soldier_step", "soldier_idle"], [0.54, 0.50, 0.45, 0.50]),
@@ -179,6 +187,7 @@ export class AssetSlotHost {
     private container: Node.Type;
     private sprites: Record<string, Sprite.Type> = {};
     private unavailable: Record<string, boolean> = {};
+    private lastPlacement: Record<string, Sprite.Type> = {};
     private visibleLastFrame: Record<string, Sprite.Type> = {};
     private visibleThisFrame: Record<string, Sprite.Type> = {};
     private localSlots: Record<string, AssetSlotConfig> = {};
@@ -192,6 +201,14 @@ export class AssetSlotHost {
     /** 在当前宿主实例上注册动态资源槽（也可使用顶层 registerDynamicSlot 全局注册） */
     registerDynamicSlot(key: string, cfg: AssetSlotConfig): void {
         this.localSlots[key] = cfg;
+    }
+
+    /** 隐藏此实例最近放置的帧；下一次正常放置会重新显示。 */
+    hideLastPlacement(instanceKey: string): void {
+        const sprite = this.lastPlacement[instanceKey];
+        if (sprite !== undefined) {
+            sprite.visible = false;
+        }
     }
 
     beginFrame(): void {
@@ -286,6 +303,7 @@ export class AssetSlotHost {
         sprite.opacity = Math.max(0, Math.min(1, baseA * op));
         sprite.visible = true;
         this.visibleThisFrame[key] = sprite;
+        this.lastPlacement[instanceKey] = sprite;
         return true;
     }
 

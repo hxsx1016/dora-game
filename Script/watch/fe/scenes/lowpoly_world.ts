@@ -401,10 +401,36 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             });
             mx += 78;
         }
+        // 远景城垣残檐与远山北塔实景手绘立牌（与远方一豆暖灯呼应去向）
+        scene.addCutout3D("assets/art/diorama_cutouts.clip|ming_eave_ruin", ox + 280, 96, 224, 152, 100, {
+            bucket: LP_BUCKET.BACKDROP,
+            anchorX: 0.5,
+            anchorY: 0,
+            color: rgba(114, 134, 156, 255),
+            opacity: 0.84,
+            sortBias: 0.05,
+        });
+        scene.addCutout3D("assets/art/diorama_cutouts.clip|ming_eave_ruin", ox + 810, 96, 226, 148, 98, {
+            bucket: LP_BUCKET.BACKDROP,
+            facing: -1,
+            anchorX: 0.5,
+            anchorY: 0,
+            color: rgba(108, 128, 152, 255),
+            opacity: 0.80,
+            sortBias: 0.05,
+        });
+        scene.addCutout3D("assets/art/diorama_cutouts.clip|north_tower_distant", ox + 1140, 48, 405, 118, 150, {
+            bucket: LP_BUCKET.BACKDROP,
+            anchorX: 0.5,
+            anchorY: 0,
+            color: rgba(136, 156, 178, 255),
+            opacity: 0.90,
+            sortBias: 0.08,
+        });
         scene.addFogBand(ox - 180, ox + 1420, -34, 152, 180, rgba(28, 42, 60, 255), 0.58, 0.06, {
             bucket: LP_BUCKET.BACKDROP,
         });
-        scene.flush(bgDraw, bgGlow);
+        scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
 
         // 冷月与远山北塔一豆暖灯（引导尽头 x ≈ 1120，无任务光柱）
         const moonX = w * 0.76;
@@ -449,7 +475,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         scene.addFogBand(ox - 160, ox + 900, -24, 150, 260, rgba(36, 42, 58, 255), 0.56, 0.06, {
             bucket: LP_BUCKET.BACKDROP,
         });
-        scene.flush(bgDraw, bgGlow);
+        scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
 
         return true;
     }
@@ -503,14 +529,15 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 highlightTopEdge: true,
                 edgeWidth: 0.9,
             });
-            // 车沿系着的旧补丁红布
-            const rSway = Math.sin(this.animTime * 2.9) * 4.5;
-            scene.addTri3D(
-                vec3(redBox.x0 + 4, redBox.y1, -11),
+            // 车沿系着的旧补丁红布（Grid 织纹波浪飘动）
+            scene.addWavingQuad3D(
+                vec3(redBox.x0 - 4, redBox.y0 + 10, -12),
+                vec3(redBox.x0 + 14, redBox.y0 + 12, -11),
                 vec3(redBox.x0 + 18, redBox.y1, -10),
-                vec3(redBox.x0 - 2 + rSway, redBox.y0 + 10, -12),
+                vec3(redBox.x0 + 4, redBox.y1, -11),
                 MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.26, edgeWidth: 0.8 },
+                { ampX: 4.5, ampY: 1.8, phase: this.animTime * 2.9, freqU: 1.8, freqV: 2.4, pin: "top" },
+                { bucket: LP_BUCKET.PROP, sortBias: 0.26, subdivX: 3, subdivY: 3 },
             );
         }
 
@@ -623,7 +650,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             0.03,
         );
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 下层水门廊道头顶格栅条影（细微环境层次）
         let gi = 0;
@@ -632,23 +659,6 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             const p0 = projectWorld3D(gx, 0.5, -14, cam, this.outsideProj);
             const p1 = projectWorld3D(gx + 10, 0.5, 22, cam, this.outsideProj);
             fgDraw.drawSegment(Vec2(p0.x, p0.y), Vec2(p1.x, p1.y), 3.0, Color(8, 12, 18, 76));
-        }
-
-        // 右侧明代砖城墙水平灰缝与垛口檐线（打破大灰块的素面感，凸显宁村所海防砖墙）
-        let row = 0;
-        for (row = 1; row <= 6; row++) {
-            const wy = 96 + row * 19;
-            const bL = projectWorld3D(ox + 513, wy, -8, cam, this.outsideProj);
-            const bR = projectWorld3D(ox + 599, wy, -8, cam, this.outsideProj);
-            fgDraw.drawSegment(Vec2(bL.x, bL.y), Vec2(bR.x, bR.y), 0.9, Color(34, 40, 50, 185));
-            const off = (row % 2) * 18;
-            let colX = ox + 528 + off;
-            while (colX < ox + 594) {
-                const v0 = projectWorld3D(colX, wy - 19, -8, cam, this.outsideProj);
-                const v1 = projectWorld3D(colX, wy, -8, cam, this.outsideProj);
-                fgDraw.drawSegment(Vec2(v0.x, v0.y), Vec2(v1.x, v1.y), 0.8, Color(32, 38, 48, 150));
-                colX += 34;
-            }
         }
 
         return true;
@@ -828,19 +838,25 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             innerRimStrength: opened ? 0.78 : 0.32,
         });
 
-        // 4. 厚木门扇（未开门时合拢微漏底缝暖光，开门后敞露温暖值夜室灯火）
+        // 3b. 北塔重檐飞角剪影
+        scene.addCutout3D("assets/art/diorama_cutouts.clip|ming_eave_ruin", ox + 445, 206, 18, 240, 142, {
+            bucket: LP_BUCKET.MIDGROUND,
+            anchorX: 0.5,
+            anchorY: 0,
+            color: rgba(154, 168, 184, 255),
+            opacity: 0.92,
+            sortBias: 0.08,
+        });
+
+        // 4. 厚木门扇（未开门时使用手绘明代铁铺首厚木塔门立牌，开门后敞露温暖值夜室灯火）
         if (!opened) {
-            scene.addBox({
-                x0: ox + 404,
-                x1: ox + 486,
-                y0: 4,
-                y1: 109,
-                z0: 14,
-                z1: 26,
-                material: MING_MATERIALS.mingTimberDark,
+            scene.addCutout3D("assets/art/cutscene_story_parts.clip|tower_porch_door", ox + 445, 2, 14, 84, 108, {
                 bucket: LP_BUCKET.MIDGROUND,
-                sortBias: 0.10,
-                edgeWidth: 0.9,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(186, 182, 176, 255),
+                opacity: 0.98,
+                sortBias: 0.14,
             });
         } else {
             scene.addQuad3D(
@@ -877,7 +893,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         // 7. 小满脚底接触影
         scene.addContactShadow(p.player.x, p.player.y, 15, 11, 0.78, { bucket: LP_BUCKET.PROP, sortBias: 0.45 });
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 门廊悬灯暖点与西窗微晕
         const lampP = projectWorld3D(ox + 445, 102, 2, cam, this.towerProj);
@@ -895,25 +911,13 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
         const winP = projectWorld3D(ox + 296, 138, -9, cam, this.towerProj);
         fillRadialGlow(fgGlow, winP.x, winP.y, cam.len(38), cam.len(42), Color(246, 206, 132, Math.round(78 * pulse)), Color(232, 174, 82, 0), 14);
-        // 西窗明代木窗格（十字棂条）与塔壁青砖水平灰缝
+        // 西窗明代木窗格（十字棂条；塔身已由真实青砖 Grid 纹理承载）
         const wBL = projectWorld3D(ox + 286, 118, -9, cam, this.towerProj);
         const wTR = projectWorld3D(ox + 306, 158, -9, cam, this.towerProj);
         const wMidX = (wBL.x + wTR.x) * 0.5;
         const wMidY = (wBL.y + wTR.y) * 0.5;
         fgDraw.drawSegment(Vec2(wMidX, wBL.y), Vec2(wMidX, wTR.y), 1.4, Color(68, 52, 38, 225));
         fgDraw.drawSegment(Vec2(wBL.x, wMidY), Vec2(wTR.x, wMidY), 1.4, Color(68, 52, 38, 225));
-        let tr = 1;
-        for (tr = 1; tr <= 6; tr++) {
-            const ty = tr * 30;
-            const tl0 = projectWorld3D(ox + 182, ty, -8, cam, this.towerProj);
-            const tl1 = projectWorld3D(ox + 398, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tl0.x, tl0.y), Vec2(tl1.x, tl1.y), 0.8, Color(34, 38, 48, 135));
-            if (!opened || ty >= 150) {
-                const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
-                const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
-                fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
-            }
-        }
 
         return true;
     }
@@ -951,19 +955,48 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
                 fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26) * s, cam.len(132) * s, cam.len(96) * s,
                     Color(255, 198, 114, Math.round(82 * pulse)), Color(255, 168, 72, 0), 16);
-                // 低模值夜室守卒轮廓（位于 3D 实木值夜长桌后方）
-                fgDraw.drawRect(Rect(guardBaseP.x - cam.len(11) * gs, guardBaseP.y, cam.len(22) * gs, cam.len(68) * gs), Color(28, 34, 44, 242));
-                fgDraw.drawCircle(Vec2(guardBaseP.x, guardBaseP.y + cam.len(76) * gs), cam.len(9.5) * gs, Color(36, 44, 56, 248));
-                // 3D 桌面上摊开的宣纸登记簿与铜盏暖灯（与 drawTowerWorld 低模长桌严密贴合）
+                // 值夜室守卒手绘精灵（立于 3D 实木值夜长桌后方，提灯值夜 / 伏案记簿切换）
+                const writing = p.deskHold >= 24 || p.towerHanded;
+                const guardClip = writing
+                    ? "assets/art/actors_extra.clip|tower_guard_write"
+                    : "assets/art/actors_extra.clip|tower_guard_lantern";
+                if (!worldArt.tryPlacePath(guardClip, "fe04_tower_guard_npc", guardBaseP.x, guardBaseP.y, cam.len(54) * gs, cam.len(82) * gs, {
+                    anchorX: 0.44,
+                    anchorY: 0,
+                    preserveAspect: true,
+                    facing: -1,
+                    opacity: 0.96,
+                    layer: 3600,
+                })) {
+                    fgDraw.drawRect(Rect(guardBaseP.x - cam.len(11) * gs, guardBaseP.y, cam.len(22) * gs, cam.len(68) * gs), Color(28, 34, 44, 242));
+                    fgDraw.drawCircle(Vec2(guardBaseP.x, guardBaseP.y + cam.len(76) * gs), cam.len(9.5) * gs, Color(36, 44, 56, 248));
+                }
+                // 3D 桌面上摊开的宣纸登记簿、铜盏暖灯与布包针套（严密贴合 drawTowerWorld 3D 实木长桌）
                 fgDraw.drawRect(Rect(deskCx + cam.len(4) * s, deskTop + cam.len(1) * s, cam.len(24) * s, cam.len(5) * s), Color(230, 220, 196, 245));
-                fgDraw.drawRect(Rect(deskCx + cam.len(30) * s, deskTop + cam.len(1) * s, cam.len(8) * s, cam.len(12) * s), Color(166, 126, 62, 245));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(34) * s, deskTop + cam.len(15) * s), cam.len(5.5) * s, Color(255, 224, 152, Math.round(220 * pulse)));
+                if (writing) {
+                    if (!worldArt.tryPlace("prop_lantern", "fe04_tower_desk_lamp", deskCx + cam.len(34) * s, deskTop + cam.len(10) * s, cam.len(14) * s, cam.len(20) * s, {
+                        opacity: 0.96,
+                        layer: 3700,
+                    })) {
+                        fgDraw.drawRect(Rect(deskCx + cam.len(30) * s, deskTop + cam.len(1) * s, cam.len(8) * s, cam.len(12) * s), Color(166, 126, 62, 245));
+                    }
+                    fillRadialGlow(fgGlow, deskCx + cam.len(34) * s, deskTop + cam.len(14) * s, cam.len(26) * s, cam.len(22) * s, Color(255, 214, 134, Math.round(92 * pulse)), Color(255, 180, 86, 0), 12);
+                } else {
+                    fillRadialGlow(fgGlow, deskCx + cam.len(6) * s, deskTop + cam.len(18) * s, cam.len(28) * s, cam.len(26) * s, Color(255, 214, 134, Math.round(78 * pulse)), Color(255, 180, 86, 0), 12);
+                }
                 if (p.deskHold >= 12 || p.towerHanded) {
-                    fgDraw.drawRect(Rect(deskCx - cam.len(26) * s, deskTop + cam.len(1) * s, cam.len(14) * s, cam.len(6) * s), Color(156, 62, 48, 245));
+                    if (!worldArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|needle_pouch_compass", "fe04_tower_desk_pouch", deskCx - cam.len(18) * s, deskTop + cam.len(8) * s, cam.len(18) * s, cam.len(18) * s, {
+                        anchorX: 0.5,
+                        anchorY: 0.5,
+                        opacity: 0.95,
+                        smooth: true,
+                        layer: 3710,
+                    })) {
+                        fgDraw.drawRect(Rect(deskCx - cam.len(26) * s, deskTop + cam.len(1) * s, cam.len(14) * s, cam.len(6) * s), Color(156, 62, 48, 245));
+                    }
                 }
                 if (p.deskHold >= 24 || p.towerHanded) {
-                    fgDraw.drawCircle(Vec2(deskCx - cam.len(7) * s, deskTop + cam.len(4) * s), cam.len(4.5) * s, Color(224, 186, 98, 255));
-                    fgDraw.drawRect(Rect(deskCx - cam.len(15) * s, deskTop + cam.len(1) * s, cam.len(10) * s, cam.len(3) * s), Color(236, 228, 206, 240));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(4) * s, deskTop + cam.len(1) * s, cam.len(10) * s, cam.len(3) * s), Color(236, 228, 206, 240));
                 }
             }
             return true;
@@ -1038,27 +1071,20 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             highlightTopEdge: true,
         });
 
-        // 2. 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，自然垂扬可一眼认出，绝不随小满转向翻面！）
+        // 2. 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，Grid 粗麻织纹随风自然垂扬，绝不随小满转向翻面！）
         const clothX = axleX - halfW;
         const clothTop = bodyTop + 1;
-        const sway = Math.sin(this.animTime * 3.1) * 5.8;
-        const sway2 = Math.cos(this.animTime * 2.6) * 3.6;
-        scene.addTri3D(
+        scene.addWavingQuad3D(
+            vec3(clothX - 15, clothTop - 23, -14),
+            vec3(clothX + 2, clothTop - 21, -12),
+            vec3(clothX + 11, clothTop, -11),
             vec3(clothX - 2, clothTop + 1, -12),
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 16 + sway, clothTop - 22, -14),
             MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.28, edgeWidth: 0.9 },
-        );
-        scene.addTri3D(
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 16 + sway, clothTop - 22, -14),
-            vec3(clothX - 1 + sway2, clothTop - 24, -12),
-            MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.29, edgeWidth: 0.6 },
+            { ampX: 6.2, ampY: 2.4, phase: this.animTime * 3.1, freqU: 1.7, freqV: 2.6, pin: "top" },
+            { bucket: LP_BUCKET.PROP, sortBias: 0.28, subdivX: 3, subdivY: 4 },
         );
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 3. 旋转木辐条双轮（贴合 wz = 0，随 cartAxle 真实转动）
         const wheelXs = [axleX - halfW * 0.56, axleX + halfW * 0.56];
@@ -1126,7 +1152,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawForegroundOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
         }
         if (key === "outside") {
-            this.drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiGlow, ctx);
+            this.drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
             return false;
         }
         return false;
@@ -1134,11 +1160,12 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
     /**
      * 城外栈台首次握车柄回忆（约 0.54s，不锁移动、保留小满手部位置作为视觉锚心）：
-     * 叠出暖灯下家人双指替她缝红布补丁拉紧最后一针的瞬间，再平滑落回车柄。
+     * 以柔和暖雾羽化浮现手绘 f01_mother_stitch（暖灯下母亲缝红布补丁拉紧最后一针），彻底去除旧几何红方块与黑椭圆框。
      */
     private drawOutsideSewingMemoryOverlay(
         uiDraw: DrawNode.Type,
-        uiInkDraw: DrawNode.Type,
+        _uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): void {
@@ -1146,71 +1173,42 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const prog = clamp01(this.memoryTimer / SEWING_MEMORY_DURATION);
-        // 0..0.22 迅速浮现，0.22..0.74 稳拉最后一针，0.74..1.0 柔淡落回车柄
         const alpha = smoothstep(0, 0.20, prog) * (1 - smoothstep(0.72, 1.0, prog));
         if (alpha <= 0.01) {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
         const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
-        // 锚在握柄手位偏上方，既保留小满握车拉行的可见身形，又自然接住拇指按入红布补丁的触感联想
-        const cx = Math.max(160, Math.min(ctx.uiW - 160, handPt.x * inv - 24));
-        const cy = Math.max(150, Math.min(ctx.uiH - 130, handPt.y * inv + 96));
-        const rx = 122;
-        const ry = 74;
-
-        // 柔和羽化暖灯回忆雾晕（多层柔晕无生硬卡通蛋框，保留周围实景与持续拉车）
-        fillRadialGlow(uiGlow, cx, cy, rx * 1.55, ry * 1.55, Color(238, 190, 122, Math.round(92 * alpha)), Color(218, 162, 92, 0), 22);
-        uiDraw.drawEllipse(Vec2(cx, cy), rx * 1.12, ry * 1.12, Color(36, 26, 20, Math.round(128 * alpha)));
-        uiDraw.drawEllipse(Vec2(cx, cy), rx * 0.96, ry * 0.96, Color(32, 22, 16, Math.round(206 * alpha)));
-
-        // 旧红布块 + 补丁方布
-        uiDraw.drawPolygon([
-            Vec2(cx - 72, cy - 34),
-            Vec2(cx + 62, cy - 28),
-            Vec2(cx + 70, cy + 32),
-            Vec2(cx - 64, cy + 28),
-        ], Color(148, 44, 40, Math.round(230 * alpha)));
-        uiDraw.drawPolygon([
-            Vec2(cx - 28, cy - 18),
-            Vec2(cx + 26, cy - 14),
-            Vec2(cx + 22, cy + 20),
-            Vec2(cx - 24, cy + 16),
-        ], Color(172, 62, 54, Math.round(238 * alpha)), 1.0, Color(224, 210, 184, Math.round(170 * alpha)));
-
-        // 已缝好的细密补丁针脚
-        let si = 0;
-        for (si = 0; si < 4; si++) {
-            const sx = cx - 18 + si * 11;
-            uiInkDraw.drawSegment(Vec2(sx, cy - 15), Vec2(sx + 4, cy - 9), 1.3, Color(236, 224, 198, Math.round(235 * alpha)));
-        }
-
-        // 家人拇指与食指拉紧最后一针（随 prog 0.15 → 0.85 从布角向上向右轻拉绷直）
+        const cx = Math.max(190, Math.min(ctx.uiW - 190, handPt.x * inv - 20));
+        const cy = Math.max(170, Math.min(ctx.uiH - 150, handPt.y * inv + 104));
         const pullT = smoothstep(0.14, 0.82, prog);
-        const stitchAnchorX = cx + 22;
-        const stitchAnchorY = cy - 12;
-        const handX = cx + 32 + pullT * 34;
-        const handY = cy + 6 + pullT * 26;
+        const zoom = 0.94 + pullT * 0.09;
 
-        // 绷直的浅麻丝线（初段微弯、末段绷直）
-        const midX = (stitchAnchorX + handX) * 0.5 + (1 - pullT) * 10;
-        const midY = (stitchAnchorY + handY) * 0.5 - (1 - pullT) * 12;
-        uiInkDraw.drawSegment(Vec2(stitchAnchorX, stitchAnchorY), Vec2(midX, midY), 1.2, Color(242, 234, 214, Math.round(240 * alpha)));
-        uiInkDraw.drawSegment(Vec2(midX, midY), Vec2(handX - 6, handY - 2), 1.2, Color(242, 234, 214, Math.round(240 * alpha)));
-
-        // 缝衣银针微闪
-        uiInkDraw.drawSegment(Vec2(handX - 16, handY - 8), Vec2(handX + 2, handY + 4), 1.1, Color(230, 236, 242, Math.round(225 * alpha)));
-
-        // 家人温暖手部剪影（捻线双指）
-        uiDraw.drawPolygon([
-            Vec2(handX - 8, handY - 6),
-            Vec2(handX + 18, handY + 2),
-            Vec2(handX + 24, handY + 14),
-            Vec2(handX + 4, handY + 14),
-            Vec2(handX - 10, handY + 4),
-        ], Color(214, 174, 142, Math.round(225 * alpha)), 1.0, Color(142, 102, 78, Math.round(180 * alpha)));
-        // 左手按布拇指（落回小满拇指按压补丁的同一视觉位置）
-        uiDraw.drawEllipse(Vec2(cx - 20, cy + 4), 16, 9, Color(204, 164, 134, Math.round(220 * alpha)));
+        // 柔和暖灯回忆云晕（无生硬蛋形/矩形边框，自然浮于冷月夜空之上）
+        fillRadialGlow(uiGlow, cx, cy, 215 * zoom, 152 * zoom, Color(238, 186, 114, Math.round(88 * alpha)), Color(214, 152, 82, 0), 22);
+        uiArt.tryPlace("ink_petal_mist", "fe04_f01_memory_mist", cx, cy, 380 * zoom, 260 * zoom, {
+            color: Color(36, 24, 18, 255),
+            opacity: 0.72 * alpha,
+            layer: 3,
+        });
+        if (!uiArt.tryPlacePath(
+            "assets/art/cutscene_story_parts.clip|f01_mother_stitch",
+            "fe04_f01_mother_stitch",
+            cx + pullT * 6,
+            cy + pullT * 4,
+            296 * zoom,
+            218 * zoom,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                color: Color(246, 224, 196, 255),
+                opacity: 0.96 * alpha,
+                smooth: true,
+                layer: 4,
+            },
+        )) {
+            uiDraw.drawEllipse(Vec2(cx, cy), 116, 70, Color(32, 22, 16, Math.round(196 * alpha)));
+        }
     }
 }
 

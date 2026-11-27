@@ -1,0 +1,7 @@
+<A A="cutscene_cuff_rig.png">
+  <B A="cuff_zhou_clasp" B="4,4,480,223" />
+  <B A="cuff_zhou_open" B="488,4,480,213" />
+  <B A="cuff_xiaoman_reach" B="4,231,480,212" />
+  <B A="needle_pouch_compass" B="488,231,202,207" />
+  <B A="cuff_xiaoman_peek" B="694,231,173,199" />
+</A>

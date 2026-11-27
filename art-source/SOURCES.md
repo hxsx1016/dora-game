@@ -131,3 +131,25 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
 - **游戏运行时透明资产（`assets/art/brand/`）**：
   - `game_logo_h.png`、`game_logo_v.png`、`team_logo_dark.png`、`team_badge.png`（真 Alpha 透明通道，经 `assets.ts` 各向异性过滤加载，用于开机 Splash 与标题页）
   - `team_logo_light.png`、`app_icon.png`（512 × 512 运行时/跨端通用图标）
+
+## 灰盒美术重制与全场景资产升级（Phase 1–3）
+
+围绕明代沿海海防写实基调，全面淘汰早期纯色灰盒、线框几何块与占位符号，采用 AI 图像生成辅助初稿并经离线像素去底、连通域杂点清理、脚底基线对齐及 Dora `.clip` 图集打包产出以下三阶段运行时资产（全部存放于 `assets/art/`，遵循本项目原创视觉规范，零第三方商用素材）：
+
+### Phase 1：2.5D 微缩场景 PBR-Lite 材质图集
+- `tex_diorama_ming.png`（1024 × 512）+ `tex_diorama_ming.clip`：8 类无缝可平铺明代材质瓦片（青砖 `ming_brick`、夯土/湿石板 `ming_stone`、风化旧木 `ming_timber`、灰瓦屋脊 `ming_tile`、斑驳白灰墙 `ming_plaster`、深潭水面 `ming_water`、草苔溪岸 `ming_earth`、铁木城闸 `ming_iron_wood`），配合 Dora 原生 `Grid` 透视细分网格渲染。
+
+### Phase 2：五大微缩场景手绘立牌与三大过场全幅 CG
+- `diorama_cutouts.png` + `diorama_cutouts.clip`：村口桌底/铁盆/瓦砾/酒坛/破门、松树冠/林溪树桩/芦苇丛、北塔门檐/城门铁环等透视立牌组件。
+- `cutscene_cuff_rig.png` + `cutscene_cuff_rig.clip`：贯穿 P03 / P05 / G05 / E02 / M03 的同源青布斜补线袖口与小满手部组件（`hand_zhoushu_reach`、`hand_xiaoman_reach`、`hand_zhoushu_cup`、`needle_pouch_compass`、`cuff_stitch_closeup`）。
+- `cutscene_story_parts.png` + `cutscene_story_parts.clip`：共同序章 P01–P04 与北塔结局 F03/M03 组件（窗纸、父掌、滚碗、门栓、暖汤碗、登记簿、毛笔、柜门等）。
+- `cutscene_well_museum.png` + `cutscene_well_museum.clip`：双通关水井反光（E01）与现代纪念展厅玻璃柜/黄铜西窗灯/指南针展品（E02）。
+- `cg_g05_reunion.png`（960 × 540）：城门风台 G05 周戍脱险归来特写全幅 CG。
+- `cg_tower_desk_cold.png` / `cg_tower_desk_warm.png`（960 × 540）：北塔值夜室 F03 寒窗空行 / M03 暖灯团圆成对全幅 CG。
+- `bg_museum_hall.png`（1024 × 576）：现代海防纪念馆西厅高顶晨光全幅背景。
+
+### Phase 3：2.5D 玩法道具、拓展角色帧、战斗特效与四大战役场景底图
+- `props_ming.png`（1024 × 240）+ `props_ming.clip`：8 类明代场景道具（窗板 `window_board`、架设残盾 `braced_shield`、村口瓶架 `bottle_rack`、草束试射靶 `target_dummy`、卷落木帘 `curtain`、石井栏 `well_curb`、竹筐墙 `basket_wall`、军粮麻袋 `grain_sack`）与 8 类拾取图标（`pickup_wood` / `bell` / `scrap` / `wedge` / `ammo` / `shield` / `pass` / `quickbelt`）。
+- `actors_extra.png`（1024 × 288）+ `actors_extra.clip`：三类精英倭寇正反态（藤盾手 `enemy_shield_*`、破障斧手 `enemy_breaker_*`、朱缨头领 `enemy_leader_*`）、北塔值夜守卒（`tower_guard_lantern` / `tower_guard_write`）以及周戍与小满合体精灵（牵手 `duo_hand_walk`、背负待机/奔跑/持铳射 `duo_carry_idle` / `run` / `fire`）。
+- `vfx_craft_art.png`（1024 × 480）+ `vfx_craft_art.clip`：黑火药枪口爆焰 `vfx_muzzle_blast`、火药硝烟 `vfx_smoke_plume`、木石碎屑爆裂 `vfx_debris_burst`、安全工台改制鸟铳插画（`craft_lantern_gun` / `craft_echo_gun`）及换弹连线小满指路手 `reload_child_finger`。
+- 四幅 640 × 360 专属战役场景底图：`bg_crossroad_drygoods.png`（十字街与布行）、`bg_archway_yard.png`（石牌楼与候检院）、`bg_granary.png`（军粮棚）、`bg_escort_ridge.png`（城外护送山道与远方北塔）。
