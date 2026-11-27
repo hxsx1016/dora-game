@@ -235,6 +235,21 @@ do
 		and #offersAfterBench == 3 and pE3.talentModalActive == true and pA.run.story.talents.deferred == false,
 		"e3Offers=" .. table.concat(offersAfterBench, ","))
 
+	pE3:chooseTalent(0)
+	assert(pE3:equipWeapon("standard_gun"))
+	local st = pA.run.story.talents
+	st.randomState = 12345
+	local function nextCards(weapon)
+		local draft = { randomState = st.randomState, ranks = st.ranks }
+		runmod.draftTalentOffers(draft, "escort4", weapon)
+		return table.concat(draft.offers, ",")
+	end
+	local standard, echo = nextCards("standard_gun"), nextCards("echo_gun")
+	local pE4 = new(playmod.Play, rooms.ESCORT4_ROOM, nil, pA.run)
+	check("2.4b 制成回声铳后换回标准铳，下一段按标准铳加权",
+		pA.run.story.craftedWeapon == "echo_gun" and standard ~= echo
+		and table.concat(pE4:getStoryTalentOffers(), ",") == standard, standard)
+
 	-- 2.5 全部 8 项本领真实战斗效果验证 + 便携木盾/随地布楔
 	local rEff = runmod.createRun(20261127, "official")
 	rEff.story.route = "soldier"
@@ -344,7 +359,7 @@ do
 	fe:renderPlay(playmod.STEP, pEff, inp, 1280, 720)
 	pEff:confirmEscortRestart()
 	local resetRanks = rEff.story.talents.ranks
-	check("2.6 折返山道小结延迟重开，确认后推进轮次、派生新种子并清净本轮掉落与本领",
+	check("2.6 阵亡结算新轮次，确认后进入第一段并清净本轮掉落与本领",
 		summaryShown == true and pEff.wantRoom == "escort1"
 		and rEff.story.talents.attempt == attemptBefore + 1
 		and rEff.story.talents.randomState ~= seedBefore
@@ -424,6 +439,25 @@ do
 		pCont.wantRoom == "escort1" and rCont.story.talents.attempt == attBeforeReset + 1
 		and rCont.story.talents.ranks.focus == 0 and rCont.story.maxHp == 3,
 		string.format("want=%s attempt=%d", tostring(pCont.wantRoom), rCont.story.talents.attempt))
+
+	hook.jumpRoom("escort4")
+	local fallen = hook.getPlay()
+	fallen.run.source = "official"
+	fallen.run.story.talents.ranks.focus = 2
+	fallen.run.story.segments.escort3 = true
+	fallen.player.x = fallen.room.maxX - 80
+	local oldAttempt = fallen.run.story.talents.attempt
+	assert(hook.saveSessionNow())
+	fallen:campaignFailed()
+	local summary = fallen.escortSummary
+	assert(fallen.sessionDirty and hook.saveSessionNow())
+	hook.handleBackButton()
+	local resumed = hook.continueStory()
+	check("3.4b 护送四段阵亡回标题，续读新轮第一段",
+		summary.roomKey == "escort4" and summary.attempt == oldAttempt and summary.ranks.focus == 2
+		and resumed.room.key == "escort1" and resumed.player.x == resumed.room.minX + 60
+		and resumed.run.story.talents.attempt == oldAttempt + 1
+		and resumed.run.story.talents.ranks.focus == 0 and not resumed.run.story.segments.escort3)
 
 	-- 旧版 4 本领字段兼容迁移（talentReload -> focus，talentCraft -> salvage）
 	local legacyText = savemod.formatSession({

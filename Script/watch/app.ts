@@ -218,13 +218,20 @@ function saveCurrentSession(): boolean {
     if (!canSaveSession() || play === undefined) {
         return false;
     }
-    play.sessionDirty = false;
     const ok = saveSession(play.exportSession());
+    play.sessionDirty = !ok;
     refreshTitleSessionFlag();
     return ok;
 }
 
 function continueOfficialStory(): Play | undefined {
+    if (play?.escortFailed && play.run.source === "official" && play.sessionDirty) {
+        // 落盘失败时仍可从内存进入已结算的新一轮，切房会再次尝试保存。
+        play.confirmEscortRestart();
+        applyRoomTransition(play);
+        if (fe !== undefined) fe.screen = "play";
+        return play;
+    }
     const res = loadSession();
     if (res.status !== "ok" || res.state === undefined) {
         refreshTitleSessionFlag();

@@ -692,7 +692,15 @@ export class Play {
         this.run = run ?? createRun();
         this.inventory = this.run.inventory;
         this.archive = this.run.archive;
-        this.equippedWeapon = this.run.story.craftedWeapon === "" ? "standard_gun" : this.run.story.craftedWeapon;
+        const story = this.run.story;
+        const savedEq = story.equippedWeapon;
+        if (savedEq === ARTIFACT_WEAPON_ID && this.archive.artifactOwned) {
+            this.equippedWeapon = ARTIFACT_WEAPON_ID;
+        } else if (savedEq === "standard_gun" || (savedEq !== "" && savedEq === story.craftedWeapon)) {
+            this.equippedWeapon = savedEq;
+        } else {
+            this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        }
         this.isCampaign = wr.campaign !== undefined;
         this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
@@ -983,8 +991,9 @@ export class Play {
             }
         }
         return {
-            roomKey: this.room.key,
-            checkpoint: this.checkpoint,
+            // 小结停在倒地房间，续读从新一轮 escort1 的默认出生点开始。
+            roomKey: this.escortFailed ? "escort1" : this.room.key,
+            checkpoint: this.escortFailed ? 0 : this.checkpoint,
             seed: this.run.seed,
             route: story.route,
             hp: story.hp,
@@ -1031,9 +1040,9 @@ export class Play {
             talentGuard: story.talents !== undefined ? story.talents.ranks.guard : 0,
             talentCraft: story.talents !== undefined ? story.talents.ranks.salvage : 0,
             props,
-            playerX: this.player.x,
-            playerY: this.player.y,
-            playerDepth: this.player.depth,
+            playerX: this.escortFailed ? undefined : this.player.x,
+            playerY: this.escortFailed ? undefined : this.player.y,
+            playerDepth: this.escortFailed ? undefined : this.player.depth,
             gateTick: this.gateTick,
             hasBottle: this.hasBottle,
             villagePassed: this.passed,
@@ -1251,14 +1260,6 @@ export class Play {
         this.museumReturn = story.museumReturn;
         story.museumReturn = false;
         this.escortDone = story.escortDone;
-        const savedEq = story.equippedWeapon;
-        if (savedEq === ARTIFACT_WEAPON_ID && this.archive.artifactOwned) {
-            this.equippedWeapon = ARTIFACT_WEAPON_ID;
-        } else if (savedEq === "standard_gun" || (savedEq !== "" && savedEq === story.craftedWeapon)) {
-            this.equippedWeapon = savedEq;
-        } else {
-            this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
-        }
         this.syncCraftBench();
         // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口与下层水路敞开。
         if (story.segments["outside_cart"] === true) {
@@ -3992,7 +3993,7 @@ export class Play {
     private stepCampaignEnemies(dt: number, input: Input): void {
         const p = this.player;
         let i = 0;
-        for (i = 0; i < this.enemies.length; i++) {
+        for (i = 0; i < this.enemies.length && !this.escortFailed; i++) {
             const e = this.enemies[i];
             if (e.kind === "target") {
                 // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来（必须在 !e.alive 之前检查，避免永久倒靶）。
@@ -4280,7 +4281,8 @@ export class Play {
         // 挂载高清前端时先展示宋明水墨「折戟重整」小结页，再由玩家确认重开或回标题；
         // 独立无头测试（useEscortDeathSummary === false）立即执行重置并置 wantRoom = "escort1"。
         if (this.isCampaign && this.storyRoute === "soldier" && this.isEscortRoom()) {
-            if (this.useEscortDeathSummary && !this.escortFailed) {
+            if (this.escortFailed) return;
+            if (this.useEscortDeathSummary) {
                 const story = this.run.story;
                 const st = story.talents;
                 const ranksCopy: Record<Talent, number> = {
@@ -4316,6 +4318,7 @@ export class Play {
                     segmentsCleared: cleared,
                     ranks: ranksCopy,
                 };
+                this.resetEscortAttempt();
                 this.flashSet("折返山道 · 重整再赴", 2.0);
                 this.log("男主线折返 · 展示小结");
                 this.emit("campaignFailed", {
@@ -4324,7 +4327,7 @@ export class Play {
                 });
                 return;
             }
-            this.restartEscortFromDeath();
+            this.restartEscortRun();
             return;
         }
         const p = this.player;
@@ -4366,18 +4369,19 @@ export class Play {
         return this.room.key.indexOf("escort") === 0;
     }
 
-    /** 玩家在折戟小结页点击「重整再赴」后调用：推进轮次、派生新种子并回到 escort1。 */
+    /** 阵亡时已结算新轮次，小结确认后只切回第一段。 */
     confirmEscortRestart(): boolean {
         if (!this.escortFailed) {
             return false;
         }
-        this.restartEscortFromDeath();
+        this.requestRoom("escort1", "男主线失败重开");
         return true;
     }
 
     /** 主动重开本轮男主线肉鸽护送（供正式男主线 R / 暂停重开调用，关闭单段 S/L 刷血漏洞）。 */
     restartEscortRun(): void {
-        this.restartEscortFromDeath();
+        this.resetEscortAttempt();
+        this.requestRoom("escort1", "男主线失败重开");
     }
 
     /**
@@ -4385,7 +4389,7 @@ export class Play {
      * 递增轮次并按基础种子派生新一轮随机种子；清材料、武器改制、已拾取物（含敌兵掉落）、
      * 护送破坏记录、分段完成标记与检查点快照；保留 soldier 路线、过门锁存与跨局通关档案。
      */
-    private restartEscortFromDeath(): void {
+    private resetEscortAttempt(): void {
         const story = this.run.story;
         const inv = this.run.inventory;
         const prevAttempt = story.talents !== undefined ? Math.max(1, story.talents.attempt) : 1;
@@ -4434,9 +4438,6 @@ export class Play {
             }
         }
         this.bracedShield = undefined;
-        this.escortFailed = false;
-        this.escortFailedTicks = 0;
-        this.escortSummary = undefined;
         this.talentModalActive = false;
         this.run.joined = true;
         this.reloadT = 0;
@@ -4451,7 +4452,6 @@ export class Play {
                 reset: true, to: "escort1", route: this.storyRoute, attempt: nextAttempt,
             });
         }
-        this.requestRoom("escort1", "男主线失败重开");
     }
 
     /** 引路灯铳的光晕：把命中点附近第二人镇住，推远下一发。 */
