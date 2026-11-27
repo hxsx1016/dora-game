@@ -248,6 +248,10 @@ for required in \
     "Script/watch/targets/windows/index.lua" \
     "Script/watch/input/kbm_core.lua" \
     "Script/watch/fe/frontend.lua" \
+    "assets/xiaoman3d/outside.glb" \
+    "assets/xiaoman3d/village.glb" \
+    "assets/xiaoman3d/forest.glb" \
+    "assets/xiaoman3d/tower.glb" \
     "assets/art/title.png" \
     "assets/art/brand/game_logo_h.png" \
     "assets/art/brand/game_logo_v.png" \

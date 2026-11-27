@@ -303,7 +303,8 @@ end -- 347
 ____exports.AssetSlotHost = __TS__Class() -- 351
 local AssetSlotHost = ____exports.AssetSlotHost -- 351
 AssetSlotHost.name = "AssetSlotHost" -- 351
-function AssetSlotHost.prototype.____constructor(self, parent, order) -- 360
+function AssetSlotHost.prototype.____constructor(self, parent, order, placeInScene) -- 360
+	self.placeInScene = placeInScene -- 360
 	self.sprites = {} -- 353
 	self.unavailable = {} -- 354
 	self.lastPlacement = {} -- 355
@@ -541,14 +542,23 @@ function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY,
 	sprite.visible = true -- 542
 	self.visibleThisFrame[key] = sprite -- 543
 	self.lastPlacement[instanceKey] = sprite -- 544
-	return true -- 545
+	if self.placeInScene ~= nil then -- 544
+		self.placeInScene( -- 546
+			sprite, -- 546
+			key, -- 546
+			instanceKey, -- 546
+			x, -- 546
+			y -- 546
+		) -- 546
+	end -- 546
+	return true -- 548
 end -- 491
-function AssetSlotHost.prototype.endFrame(self) -- 548
-	for key in pairs(self.visibleLastFrame) do -- 549
-		if self.visibleThisFrame[key] == nil then -- 549
-			self.visibleLastFrame[key].visible = false -- 551
-		end -- 551
-	end -- 551
-	self.visibleLastFrame = self.visibleThisFrame -- 554
-end -- 548
-return ____exports -- 548
+function AssetSlotHost.prototype.endFrame(self) -- 551
+	for key in pairs(self.visibleLastFrame) do -- 552
+		if self.visibleThisFrame[key] == nil then -- 552
+			self.visibleLastFrame[key].visible = false -- 554
+		end -- 554
+	end -- 554
+	self.visibleLastFrame = self.visibleThisFrame -- 557
+end -- 551
+return ____exports -- 551

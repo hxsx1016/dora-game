@@ -27,7 +27,13 @@ export interface CameraAnchorLock {
     zoomOverride?: number;
 }
 
+export interface WorldProjection {
+    worldToScreen(x: number, y: number, depth: number): { x: number; y: number };
+    screenToWorld(x: number, y: number): { x: number; y: number };
+}
+
 export class CameraDirector {
+    projection: WorldProjection | undefined;
     /** 当前镜头中心（世界单位） */
     x = 0;
     y = 85;
@@ -250,6 +256,9 @@ export class CameraDirector {
 
     /** 世界坐标 → 屏幕局部坐标（与 screenToWorld 严格互逆） */
     worldToScreen(wx: number, wy: number, depth: number = 0): { x: number; y: number } {
+        if (this.projection !== undefined) {
+            return this.projection.worldToScreen(wx, wy, depth);
+        }
         return {
             x: this.sx(wx),
             y: this.sy(wy, depth),
@@ -258,6 +267,9 @@ export class CameraDirector {
 
     /** 屏幕局部坐标 → 世界投影坐标。返回的 y 包含高度与纵深。 */
     screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
+        if (this.projection !== undefined) {
+            return this.projection.screenToWorld(screenX, screenY);
+        }
         const yOffset = (this.y - 82) * 0.45;
         return {
             x: this.x + (screenX - this.shakeX - this.viewW * 0.5) / this.ppu,

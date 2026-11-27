@@ -412,8 +412,9 @@ export class TouchControls {
                 const labelW = visualTextWidth(prompt.label, 15);
                 const pillW = keyW + labelW + 24;
                 const padX = Math.max(115, pillW * 0.5 + 24);
-                const sxUi = Math.max(padX + vp.safeUi.left, Math.min(vp.uiW - padX - vp.safeUi.right, params.cam.sx(prompt.x) / vp.uiScale));
-                const syUi = Math.max(96 + vp.safeUi.bottom, Math.min(vp.uiH - 110 - vp.safeUi.top, params.cam.sy(prompt.y) / vp.uiScale));
+                const point = params.cam.worldToScreen(prompt.x, prompt.y);
+                const sxUi = Math.max(padX + vp.safeUi.left, Math.min(vp.uiW - padX - vp.safeUi.right, point.x / vp.uiScale));
+                const syUi = Math.max(96 + vp.safeUi.bottom, Math.min(vp.uiH - 110 - vp.safeUi.top, point.y / vp.uiScale));
                 const vx = vp.stageX + (sxUi - pillW * 0.5 - 12) * vp.uiScale;
                 const vy = vp.stageY + (syUi - 22) * vp.uiScale;
                 rectZones.push({

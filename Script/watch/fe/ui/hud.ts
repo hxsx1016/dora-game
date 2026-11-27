@@ -564,8 +564,9 @@ export class HudRenderer {
             const labelW = visualTextWidth(pr.label, 15);
             const pillW = keyW + labelW + 24;
             const padX = Math.max(115, pillW * 0.5 + 24);
-            const sx = Math.max(padX + safe.left, Math.min(viewW - padX - safe.right, cam.sx(pr.x) / uiScale));
-            const sy = Math.max(96 + safe.bottom, Math.min(viewH - 110 - safe.top, cam.sy(pr.y) / uiScale + bob));
+            const point = cam.worldToScreen(pr.x, pr.y);
+            const sx = Math.max(padX + safe.left, Math.min(viewW - padX - safe.right, point.x / uiScale));
+            const sy = Math.max(96 + safe.bottom, Math.min(viewH - 110 - safe.top, point.y / uiScale + bob));
             const accent = pr.urgent ? PALETTE.rouge : PALETTE.silkLine;
 
             uiInkDraw.drawSegment(Vec2(sx, sy - 14), Vec2(sx, sy - 27), 0.8, toColor(accent, 135 * alpha));
