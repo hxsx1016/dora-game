@@ -201,7 +201,7 @@ jobs:
               exit 1
             fi
             XMLTREE="$("$AAPT2" dump xmltree "$apk" --file AndroidManifest.xml)"
-            echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0xa|10([^0-9a-fA-F]|$))"
+            echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0xd|13([^0-9a-fA-F]|$))"
             "$ZIPALIGN" -c -P 16 -v 4 "$apk" >/dev/null
             "$APKSIGNER" verify --verbose "$apk"
             # 检查 .so ELF LOAD 段对齐情况（记录 16KB 页对齐兼容性）

@@ -909,13 +909,18 @@ export class TouchControls {
         const enemyTargets = canShoot && p !== undefined
             ? (isPlayMode && params.cam !== undefined
                 ? collectPlayAimTargets(p, params.cam, vp.stageW, vp.stageH)
-                : collectTrialAimTargets(p, vp.stageW, vp.stageH))
+                : (params.cam !== undefined
+                    ? collectTrialAimTargets(p, params.cam, vp.stageW, vp.stageH)
+                    : []))
             : [];
 
         let playerScreenX = vp.stageW * 0.5;
         let playerScreenY = vp.stageH * 0.38;
         if (p !== undefined) {
             if (isPlayMode && params.cam !== undefined) {
+                playerScreenX = params.cam.sx(p.player.x + p.player.facing * 8);
+                playerScreenY = params.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
+            } else if (params.cam !== undefined) {
                 playerScreenX = params.cam.sx(p.player.x + p.player.facing * 8);
                 playerScreenY = params.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
             } else {

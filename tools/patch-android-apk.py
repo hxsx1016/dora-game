@@ -48,7 +48,7 @@ ATTR_SCREEN_ORIENTATION_RES_ID = 0x0101001E
 ORIENTATION_VALUES = {
     "unspecified": -1,
     "sensorLandscape": 6,
-    "fullUser": 10,
+    "fullUser": 13,  # SCREEN_ORIENTATION_FULL_USER（10 是 FULL_SENSOR）
 }
 ANDROID_NS_URI = "http://schemas.android.com/apk/res/android"
 
