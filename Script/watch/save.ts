@@ -9,7 +9,7 @@
  * 自动测试用 `setSaveFile` 指向隔离文件，损坏备份也按该路径派生，绝不碰玩家档案。
  */
 import { Content } from "Dora";
-import { MuseumPhase, isMuseumPhase } from "Script/watch/run";
+import { MuseumPhase, StoryRoute, isMuseumPhase } from "Script/watch/run";
 
 export const SAVE_VERSION = 1;
 export const SAVE_DIR = "watch-save";
@@ -558,4 +558,342 @@ export function saveSignature(state: SaveState): string {
         state.museumPhase,
         state.museumSeen ? "1" : "0",
     ].join("|");
+}
+
+// ==================== 局中存档（Session Checkpoint Save） ====================
+// 独立于跨局双通关档案 watch-save/archive.txt，避免影响既有关闭/损坏隔离测试。
+// 仅正式剧情（source === "official"）写盘，复用 .tmp -> .prev -> 回读校验的原子落盘协议。
+
+export const SESSION_VERSION = 1;
+export const SESSION_FILE = "watch-save/session.txt";
+
+export interface SessionSave {
+    roomKey: string;
+    checkpoint: number;
+    seed: number;
+    route: StoryRoute;
+    hp: number;
+    maxHp: number;
+    hpAtGate: number;
+    maxHpAtGate: number;
+    settled: boolean;
+    phase: string;
+    countTick: number;
+    phaseTick: number;
+    handTicks: number;
+    handDone: boolean;
+    lineSaid: boolean;
+    tied: boolean;
+    carry: boolean;
+    escortDone: boolean;
+    craftedWeapon: string;
+    equippedWeapon: string;
+    wood: number;
+    bell: number;
+    scrap: number;
+    wedge: number;
+    ammo: number;
+    shield: number;
+    pass: number;
+    quickbelt: number;
+    taken: string[];
+    segments: string[];
+    cartAxle: number;
+    cartDocked: boolean;
+}
+
+export interface SessionLoadResult {
+    state: SessionSave | undefined;
+    status: LoadStatus;
+    detail: string;
+    recovered: boolean;
+    backup: string;
+}
+
+let currentSessionFile = SESSION_FILE;
+
+export function setSessionFile(path: string): void {
+    currentSessionFile = path === "" ? SESSION_FILE : path;
+}
+
+export function getSessionFile(): string {
+    return currentSessionFile;
+}
+
+function parseBoolField(raw: string | undefined, fallback: boolean): boolean | undefined {
+    if (raw === undefined) {
+        return fallback;
+    }
+    if (raw === "true" || raw === "1") {
+        return true;
+    }
+    if (raw === "false" || raw === "0") {
+        return false;
+    }
+    return undefined;
+}
+
+function parseListField(raw: string | undefined): string[] {
+    if (raw === undefined || raw === "") {
+        return [];
+    }
+    const parts = raw.split(",");
+    const out: string[] = [];
+    let i = 0;
+    for (i = 0; i < parts.length; i++) {
+        const item = parts[i].trim();
+        if (item !== "") {
+            out.push(item);
+        }
+    }
+    return out;
+}
+
+function formatSession(s: SessionSave): string {
+    return [
+        "version=" + SESSION_VERSION,
+        "roomKey=" + s.roomKey,
+        "checkpoint=" + Math.round(s.checkpoint),
+        "seed=" + Math.round(s.seed),
+        "route=" + s.route,
+        "hp=" + Math.round(s.hp),
+        "maxHp=" + Math.round(s.maxHp),
+        "hpAtGate=" + Math.round(s.hpAtGate),
+        "maxHpAtGate=" + Math.round(s.maxHpAtGate),
+        "settled=" + (s.settled ? "true" : "false"),
+        "phase=" + s.phase,
+        "countTick=" + Math.round(s.countTick),
+        "phaseTick=" + Math.round(s.phaseTick),
+        "handTicks=" + Math.round(s.handTicks),
+        "handDone=" + (s.handDone ? "true" : "false"),
+        "lineSaid=" + (s.lineSaid ? "true" : "false"),
+        "tied=" + (s.tied ? "true" : "false"),
+        "carry=" + (s.carry ? "true" : "false"),
+        "escortDone=" + (s.escortDone ? "true" : "false"),
+        "craftedWeapon=" + s.craftedWeapon,
+        "equippedWeapon=" + s.equippedWeapon,
+        "wood=" + Math.round(s.wood),
+        "bell=" + Math.round(s.bell),
+        "scrap=" + Math.round(s.scrap),
+        "wedge=" + Math.round(s.wedge),
+        "ammo=" + Math.round(s.ammo),
+        "shield=" + Math.round(s.shield),
+        "pass=" + Math.round(s.pass),
+        "quickbelt=" + Math.round(s.quickbelt),
+        "taken=" + s.taken.join(","),
+        "segments=" + s.segments.join(","),
+        "cartAxle=" + Math.round(s.cartAxle),
+        "cartDocked=" + (s.cartDocked ? "true" : "false"),
+        "",
+    ].join("\n");
+}
+
+function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: string; state?: SessionSave } {
+    if (text.length === 0) {
+        return { ok: false, status: "corrupt", reason: "局中存档为空" };
+    }
+    const verRaw = lineValue(text, "version");
+    if (verRaw === undefined) {
+        return { ok: false, status: "corrupt", reason: "缺少 version 行" };
+    }
+    const ver = intOf(verRaw, -1);
+    if (ver < 0) {
+        return { ok: false, status: "corrupt", reason: "version 非法" };
+    }
+    if (ver > SESSION_VERSION) {
+        return { ok: false, status: "unsupported", reason: "局中存档版本 " + ver + " 高于当前 " + SESSION_VERSION };
+    }
+    const roomKey = lineValue(text, "roomKey");
+    if (roomKey === undefined || roomKey === "") {
+        return { ok: false, status: "corrupt", reason: "缺少 roomKey" };
+    }
+    const routeRaw = lineValue(text, "route") ?? "";
+    if (routeRaw !== "" && routeRaw !== "child" && routeRaw !== "soldier") {
+        return { ok: false, status: "corrupt", reason: "route 取值非法" };
+    }
+    const settled = parseBoolField(lineValue(text, "settled"), false);
+    const handDone = parseBoolField(lineValue(text, "handDone"), false);
+    const lineSaid = parseBoolField(lineValue(text, "lineSaid"), false);
+    const tied = parseBoolField(lineValue(text, "tied"), false);
+    const carry = parseBoolField(lineValue(text, "carry"), false);
+    const escortDone = parseBoolField(lineValue(text, "escortDone"), false);
+    const cartDocked = parseBoolField(lineValue(text, "cartDocked"), false);
+    if (settled === undefined || handDone === undefined || lineSaid === undefined
+        || tied === undefined || carry === undefined || escortDone === undefined || cartDocked === undefined) {
+        return { ok: false, status: "corrupt", reason: "布尔字段非法" };
+    }
+    const hp = intOf(lineValue(text, "hp") ?? "3", -1);
+    const maxHp = intOf(lineValue(text, "maxHp") ?? "3", -1);
+    if (hp < 0 || maxHp <= 0) {
+        return { ok: false, status: "corrupt", reason: "血量字段非法" };
+    }
+    return {
+        ok: true,
+        status: "ok",
+        reason: "ok",
+        state: {
+            roomKey,
+            checkpoint: intOf(lineValue(text, "checkpoint") ?? "0", 0),
+            seed: intOf(lineValue(text, "seed") ?? "20261124", 20261124),
+            route: routeRaw as StoryRoute,
+            hp,
+            maxHp,
+            hpAtGate: intOf(lineValue(text, "hpAtGate") ?? "-1", -1),
+            maxHpAtGate: intOf(lineValue(text, "maxHpAtGate") ?? "-1", -1),
+            settled,
+            phase: lineValue(text, "phase") ?? "",
+            countTick: Math.max(0, intOf(lineValue(text, "countTick") ?? "0", 0)),
+            phaseTick: Math.max(0, intOf(lineValue(text, "phaseTick") ?? "0", 0)),
+            handTicks: Math.max(0, intOf(lineValue(text, "handTicks") ?? "0", 0)),
+            handDone,
+            lineSaid,
+            tied,
+            carry,
+            escortDone,
+            craftedWeapon: lineValue(text, "craftedWeapon") ?? "",
+            equippedWeapon: lineValue(text, "equippedWeapon") ?? "",
+            wood: Math.max(0, intOf(lineValue(text, "wood") ?? "0", 0)),
+            bell: Math.max(0, intOf(lineValue(text, "bell") ?? "0", 0)),
+            scrap: Math.max(0, intOf(lineValue(text, "scrap") ?? "0", 0)),
+            wedge: Math.max(0, intOf(lineValue(text, "wedge") ?? "0", 0)),
+            ammo: Math.max(0, intOf(lineValue(text, "ammo") ?? "0", 0)),
+            shield: Math.max(0, intOf(lineValue(text, "shield") ?? "0", 0)),
+            pass: Math.max(0, intOf(lineValue(text, "pass") ?? "0", 0)),
+            quickbelt: Math.max(0, intOf(lineValue(text, "quickbelt") ?? "0", 0)),
+            taken: parseListField(lineValue(text, "taken")),
+            segments: parseListField(lineValue(text, "segments")),
+            cartAxle: intOf(lineValue(text, "cartAxle") ?? "0", 0),
+            cartDocked,
+        },
+    };
+}
+
+function usableSessionBackup(path: string): boolean {
+    if (!ops.exist(path)) {
+        return false;
+    }
+    return parseSession(loadText(path)).ok;
+}
+
+function restoreSessionFrom(candidate: string, target: string, keepCandidate: boolean): boolean {
+    if (!usableSessionBackup(candidate)) {
+        return false;
+    }
+    if (!ops.copy(candidate, target)) {
+        return false;
+    }
+    if (!sameContent(candidate, target)) {
+        return false;
+    }
+    if (!keepCandidate) {
+        ops.remove(candidate);
+    }
+    return true;
+}
+
+export function hasSessionSave(): boolean {
+    const target = absPath(currentSessionFile);
+    if (usableSessionBackup(target)) {
+        return true;
+    }
+    return usableSessionBackup(target + ".tmp") || usableSessionBackup(target + ".prev");
+}
+
+export function loadSession(): SessionLoadResult {
+    const target = absPath(currentSessionFile);
+    const tmp = target + ".tmp";
+    const prev = target + ".prev";
+    if (!ops.exist(target)) {
+        if (restoreSessionFrom(tmp, target, false)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "由 .tmp 恢复局中存档", recovered: true, backup: "" };
+        }
+        if (restoreSessionFrom(prev, target, true)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "由 .prev 恢复局中存档", recovered: true, backup: "" };
+        }
+        return { state: undefined, status: "missing", detail: "无局中存档", recovered: false, backup: "" };
+    }
+    const parsed = parseSession(loadText(target));
+    if (parsed.ok && parsed.state !== undefined) {
+        if (ops.exist(tmp)) {
+            ops.remove(tmp);
+        }
+        return { state: parsed.state, status: "ok", detail: "局中存档读取成功", recovered: false, backup: "" };
+    }
+    if (parsed.status === "corrupt") {
+        const broken = backupCorrupt(target, ".corrupt");
+        if (restoreSessionFrom(tmp, target, false)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .tmp 恢复", recovered: true, backup: broken };
+        }
+        if (restoreSessionFrom(prev, target, true)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .prev 恢复", recovered: true, backup: broken };
+        }
+        return { state: undefined, status: "corrupt", detail: parsed.reason, recovered: false, backup: broken };
+    }
+    const backup = backupCorrupt(target, ".unsupported");
+    return { state: undefined, status: "unsupported", detail: parsed.reason, recovered: false, backup };
+}
+
+export function saveSession(state: SessionSave): boolean {
+    const target = absPath(currentSessionFile);
+    const dir = dirOf(target);
+    if (dir !== "" && !ops.isdir(dir)) {
+        ops.mkdir(dir);
+    }
+    const tmp = target + ".tmp";
+    const prev = target + ".prev";
+    const text = formatSession(state);
+    if (!ops.save(tmp, text)) {
+        ops.remove(tmp);
+        return false;
+    }
+    const written = ops.load(tmp);
+    if (written === undefined || normalize(written) !== normalize(text)) {
+        ops.remove(tmp);
+        return false;
+    }
+    const existed = ops.exist(target);
+    let backedUp = false;
+    if (existed) {
+        backedUp = ops.copy(target, prev);
+        if (!backedUp || !usableSessionBackup(prev)) {
+            ops.remove(tmp);
+            return false;
+        }
+    }
+    if (!ops.copy(tmp, target)) {
+        if (existed && backedUp && !sameContent(target, prev)) {
+            ops.copy(prev, target);
+        }
+        return false;
+    }
+    const check = ops.load(target);
+    if (check === undefined || normalize(check) !== normalize(text)) {
+        if (existed && backedUp && ops.copy(prev, target) && usableSessionBackup(target)) {
+            ops.remove(tmp);
+        }
+        return false;
+    }
+    ops.remove(tmp);
+    return true;
+}
+
+export function clearSession(): boolean {
+    const target = absPath(currentSessionFile);
+    const tmp = target + ".tmp";
+    const prev = target + ".prev";
+    let ok = true;
+    if (ops.exist(target)) {
+        ok = ops.remove(target) && ok;
+    }
+    if (ops.exist(tmp)) {
+        ops.remove(tmp);
+    }
+    if (ops.exist(prev)) {
+        ops.remove(prev);
+    }
+    return ok;
 }

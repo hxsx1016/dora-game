@@ -502,6 +502,29 @@ export class AudioDirector {
             }
         } else if (name === "museumDone") {
             this.playOnce(key, "voice", "assets/audio/museum/line_dawn.wav", 0.88, "museum:done", e.tick, e.seq);
+        } else if (name === "storyBeat") {
+            const beat = typeof e.data.beat === "string" ? e.data.beat : "";
+            if (beat === "red_cart") {
+                this.playOnce(key, "sfx", "assets/audio/child/cart_dock.wav", 0.84, "story:red_cart", e.tick, e.seq);
+            } else if (beat === "red_cart_memory") {
+                this.playOnce(key, "sfx", "assets/audio/child/sewing_memory.wav", 0.86, "story:red_cart_memory", e.tick, e.seq);
+            } else if (beat === "footstep_near") {
+                this.playOnce(key, "sfx", "assets/audio/museum/hall_footstep.wav", 0.72, "story:footstep_near", e.tick, e.seq);
+            } else if (beat === "footstep_far") {
+                this.playOnce(key, "sfx", "assets/audio/museum/hall_footstep.wav", 0.34, "story:footstep_far", e.tick, e.seq);
+            } else if (beat === "ditch" || beat === "path_burrow") {
+                this.playOnce(key, "sfx", "assets/audio/child/twig_snap.wav", 0.76, "story:" + beat, e.tick, e.seq);
+            } else if (beat === "path_ditch") {
+                this.playOnce(key, "sfx", "assets/audio/child/dog_step.wav", 0.78, "story:path_ditch", e.tick, e.seq);
+            } else if (beat === "water_lantern") {
+                this.playOnce(key, "sfx", "assets/audio/tower/lamp_move.wav", 0.74, "story:water_lantern", e.tick, e.seq);
+            } else if (beat === "tower_door") {
+                this.playOnce(key, "sfx", "assets/audio/tower/door_open.wav", 0.78, "story:tower_door", e.tick, e.seq);
+            } else if (beat === "tower_threshold") {
+                this.playOnce(key, "sfx", "assets/audio/museum/hall_footstep.wav", 0.68, "story:tower_threshold", e.tick, e.seq);
+            } else if (beat === "tower_handover") {
+                this.playOnce(key, "sfx", "assets/audio/tower/needle_case_place.wav", 0.86, "story:tower_handover", e.tick, e.seq);
+            }
         }
     }
 

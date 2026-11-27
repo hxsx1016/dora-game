@@ -35,7 +35,7 @@ import {
 export type ScreenKind = "title" | "chapters" | "controls" | "play";
 
 export interface MenuAction {
-    type: "none" | "start" | "trial" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause" | "toggleFullscreen" | "quit";
+    type: "none" | "continue" | "start" | "trial" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause" | "toggleFullscreen" | "quit";
     roomIndex?: number;
 }
 
@@ -105,6 +105,8 @@ export class MenuRenderer {
     selected = 0;
     chapterSelected = 0;
     pauseSelected = 0;
+    /** 存在有效局中存档时，标题页首项显示「继续游戏」，无存档时保持原 5 项索引不变。 */
+    hasSession = false;
     private chaptersFromPause = false;
     /** 暂停态原地展开双栏素笺操作说明（零侵入 app.ts） */
     private pauseShowControls = false;
@@ -310,19 +312,25 @@ export class MenuRenderer {
         }
 
         // 无盒清雅宋体菜单（水袖游丝飞白 + 菱花微星，键盘与鼠标移动仲裁防抢焦）
+        const items = this.hasSession
+            ? [{ id: "continue", zh: "继续游戏" }, ...TITLE_ITEMS]
+            : TITLE_ITEMS;
+        if (this.selected >= items.length) {
+            this.selected = 0;
+        }
         const menuX = 112;
         const btnW = 280;
         const btnH = 40;
-        const gap = 8;
-        const startY = 264;
+        const gap = this.hasSession ? 6 : 8;
+        const startY = this.hasSession ? 294 : 264;
         const boxes: Rect.Type[] = [];
         let i = 0;
-        for (i = 0; i < TITLE_ITEMS.length; i++) {
+        for (i = 0; i < items.length; i++) {
             boxes.push(Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH));
         }
         this.selected = this.verticalSelection(this.selected, boxes, frame);
 
-        for (i = 0; i < TITLE_ITEMS.length; i++) {
+        for (i = 0; i < items.length; i++) {
             const by = boxes[i].y;
             const active = this.selected === i;
             const cy = by + btnH * 0.5;
@@ -340,7 +348,7 @@ export class MenuRenderer {
 
             texts.put(
                 "md",
-                TITLE_ITEMS[i].zh,
+                items[i].zh,
                 menuX + 34 + shiftX,
                 cy,
                 toColor(active ? PALETTE.textBright : PALETTE.textMid),
@@ -358,7 +366,10 @@ export class MenuRenderer {
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.selected;
-            const id = TITLE_ITEMS[idx].id;
+            const id = items[idx].id;
+            if (id === "continue") {
+                return { type: "continue" };
+            }
             if (id === "trial") return { type: "trial" };
             if (id === "start") {
                 return { type: "start" };

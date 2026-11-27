@@ -251,6 +251,9 @@ local function prologueOut(p, i, tag)
 		steps(p, i, 70)            -- prologue-give 12/36 闪、60 拍转 follow
 		print(string.format("[%s 序章] 递针套后 phase=%s", tag, p.phase))
 	end
+	toDepth(p, i, 32, 40)        -- 绕开 x=344 中下道石柱，沿上道前行
+	walkTo(p, i, p.ox + 420, 220)
+	toDepth(p, i, 0, 40)         -- 切回中道穿出 x=648 门洞
 	walkTo(p, i, p.ox + 700, 400)
 	steps(p, i, 30)
 	if p.wantRoom ~= "" then
@@ -452,7 +455,13 @@ local function towerEnd(p, i, tag)
 	tap(i.interact)
 	step(p, i)
 	rel(i.interact)
-	steps(p, i, 220)
+	-- 等 36 拍守卒回叩开门（进入 tower-enter），跨过门槛到值夜桌前长按 E 交物（36 拍）
+	steps(p, i, 42)
+	walkTo(p, i, p.ox + 545, 240)
+	i.interact.held = true
+	steps(p, i, 38)
+	i.interact.held = false
+	steps(p, i, 200)
 	print(string.format("[%s 北塔] phase=%s ending=%s officialLines=%s/%s archive={child=%s soldier=%s artifact=%s}",
 		tag, p.phase, tostring(p.run.story.ending), tostring(p.endingLines[1]), tostring(p.endingLines[2]),
 		tostring(p.archive.childCleared), tostring(p.archive.soldierCleared), tostring(p.archive.artifactOwned)))

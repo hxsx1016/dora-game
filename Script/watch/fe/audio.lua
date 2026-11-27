@@ -652,49 +652,152 @@ function AudioDirector.prototype.dispatchSingleEvent(self, e, roomSessionId, che
 			e.tick, -- 504
 			e.seq -- 504
 		) -- 504
-	end -- 504
+	elseif name == "storyBeat" then -- 504
+		local beat = type(e.data.beat) == "string" and e.data.beat or "" -- 506
+		if beat == "red_cart" then -- 506
+			self:playOnce( -- 508
+				key, -- 508
+				"sfx", -- 508
+				"assets/audio/child/cart_dock.wav", -- 508
+				0.84, -- 508
+				"story:red_cart", -- 508
+				e.tick, -- 508
+				e.seq -- 508
+			) -- 508
+		elseif beat == "red_cart_memory" then -- 508
+			self:playOnce( -- 510
+				key, -- 510
+				"sfx", -- 510
+				"assets/audio/child/sewing_memory.wav", -- 510
+				0.86, -- 510
+				"story:red_cart_memory", -- 510
+				e.tick, -- 510
+				e.seq -- 510
+			) -- 510
+		elseif beat == "footstep_near" then -- 510
+			self:playOnce( -- 512
+				key, -- 512
+				"sfx", -- 512
+				"assets/audio/museum/hall_footstep.wav", -- 512
+				0.72, -- 512
+				"story:footstep_near", -- 512
+				e.tick, -- 512
+				e.seq -- 512
+			) -- 512
+		elseif beat == "footstep_far" then -- 512
+			self:playOnce( -- 514
+				key, -- 514
+				"sfx", -- 514
+				"assets/audio/museum/hall_footstep.wav", -- 514
+				0.34, -- 514
+				"story:footstep_far", -- 514
+				e.tick, -- 514
+				e.seq -- 514
+			) -- 514
+		elseif beat == "ditch" or beat == "path_burrow" then -- 514
+			self:playOnce( -- 516
+				key, -- 516
+				"sfx", -- 516
+				"assets/audio/child/twig_snap.wav", -- 516
+				0.76, -- 516
+				"story:" .. beat, -- 516
+				e.tick, -- 516
+				e.seq -- 516
+			) -- 516
+		elseif beat == "path_ditch" then -- 516
+			self:playOnce( -- 518
+				key, -- 518
+				"sfx", -- 518
+				"assets/audio/child/dog_step.wav", -- 518
+				0.78, -- 518
+				"story:path_ditch", -- 518
+				e.tick, -- 518
+				e.seq -- 518
+			) -- 518
+		elseif beat == "water_lantern" then -- 518
+			self:playOnce( -- 520
+				key, -- 520
+				"sfx", -- 520
+				"assets/audio/tower/lamp_move.wav", -- 520
+				0.74, -- 520
+				"story:water_lantern", -- 520
+				e.tick, -- 520
+				e.seq -- 520
+			) -- 520
+		elseif beat == "tower_door" then -- 520
+			self:playOnce( -- 522
+				key, -- 522
+				"sfx", -- 522
+				"assets/audio/tower/door_open.wav", -- 522
+				0.78, -- 522
+				"story:tower_door", -- 522
+				e.tick, -- 522
+				e.seq -- 522
+			) -- 522
+		elseif beat == "tower_threshold" then -- 522
+			self:playOnce( -- 524
+				key, -- 524
+				"sfx", -- 524
+				"assets/audio/museum/hall_footstep.wav", -- 524
+				0.68, -- 524
+				"story:tower_threshold", -- 524
+				e.tick, -- 524
+				e.seq -- 524
+			) -- 524
+		elseif beat == "tower_handover" then -- 524
+			self:playOnce( -- 526
+				key, -- 526
+				"sfx", -- 526
+				"assets/audio/tower/needle_case_place.wav", -- 526
+				0.86, -- 526
+				"story:tower_handover", -- 526
+				e.tick, -- 526
+				e.seq -- 526
+			) -- 526
+		end -- 526
+	end -- 526
 end -- 408
-function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 508
-	return self.dedupeSet[dedupeKey] == true -- 509
-end -- 508
-function AudioDirector.prototype.getPlayLog(self) -- 512
-	return self.playLog -- 513
-end -- 512
-function AudioDirector.prototype.getLastEntry(self) -- 516
-	if #self.playLog == 0 then -- 516
-		return nil -- 518
-	end -- 518
-	return self.playLog[#self.playLog] -- 520
-end -- 516
-function AudioDirector.prototype.clearPlayLog(self) -- 523
-	self.playLog = {} -- 524
-end -- 523
-function AudioDirector.prototype.getTrackList(self) -- 527
-	return ALL_TRACKS -- 528
-end -- 527
-function AudioDirector.prototype.pruneStoppedSources(self) -- 531
-	local w = 0 -- 532
-	local i = 0 -- 533
-	do -- 533
-		i = 0 -- 534
-		while i < #self.activeSources do -- 534
-			local src = self.activeSources[i + 1] -- 535
-			if src.playing then -- 535
-				self.activeSources[w + 1] = src -- 537
-				w = w + 1 -- 538
-			else -- 538
-				src:removeFromParent(true) -- 540
-			end -- 540
-			i = i + 1 -- 534
-		end -- 534
-	end -- 534
-	__TS__ArraySetLength(self.activeSources, w) -- 534
+function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 531
+	return self.dedupeSet[dedupeKey] == true -- 532
 end -- 531
-function AudioDirector.prototype.recordLog(self, entry) -- 546
-	local ____self_playLog_2 = self.playLog -- 546
-	____self_playLog_2[#____self_playLog_2 + 1] = entry -- 547
-	if #self.playLog > MAX_PLAY_LOG then -- 547
-		table.remove(self.playLog, 1) -- 549
-	end -- 549
+function AudioDirector.prototype.getPlayLog(self) -- 535
+	return self.playLog -- 536
+end -- 535
+function AudioDirector.prototype.getLastEntry(self) -- 539
+	if #self.playLog == 0 then -- 539
+		return nil -- 541
+	end -- 541
+	return self.playLog[#self.playLog] -- 543
+end -- 539
+function AudioDirector.prototype.clearPlayLog(self) -- 546
+	self.playLog = {} -- 547
 end -- 546
-return ____exports -- 546
+function AudioDirector.prototype.getTrackList(self) -- 550
+	return ALL_TRACKS -- 551
+end -- 550
+function AudioDirector.prototype.pruneStoppedSources(self) -- 554
+	local w = 0 -- 555
+	local i = 0 -- 556
+	do -- 556
+		i = 0 -- 557
+		while i < #self.activeSources do -- 557
+			local src = self.activeSources[i + 1] -- 558
+			if src.playing then -- 558
+				self.activeSources[w + 1] = src -- 560
+				w = w + 1 -- 561
+			else -- 561
+				src:removeFromParent(true) -- 563
+			end -- 563
+			i = i + 1 -- 557
+		end -- 557
+	end -- 557
+	__TS__ArraySetLength(self.activeSources, w) -- 557
+end -- 554
+function AudioDirector.prototype.recordLog(self, entry) -- 569
+	local ____self_playLog_2 = self.playLog -- 569
+	____self_playLog_2[#____self_playLog_2 + 1] = entry -- 570
+	if #self.playLog > MAX_PLAY_LOG then -- 570
+		table.remove(self.playLog, 1) -- 572
+	end -- 572
+end -- 569
+return ____exports -- 569

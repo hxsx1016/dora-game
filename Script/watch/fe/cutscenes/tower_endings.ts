@@ -609,7 +609,12 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         const route = this.resolveRoute(p, view);
         const isTower = p.room.key === "tower";
-        const alreadyIndoorPhase = isTower && (p.phase === "tower-given" || p.phase === "tower-end");
+        const alreadyIndoorPhase = isTower && (
+            p.phase === "tower-enter"
+            || p.phase === "tower-desk"
+            || p.phase === "tower-given"
+            || p.phase === "tower-end"
+        );
         const sameRunIndoorRetry = isTower
             && this.lastRoomKey === "tower"
             && this.doorOpened
@@ -672,7 +677,9 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         }
 
         if (!this.active) {
-            if (this.loopsActive) {
+            const inInteractiveHall = !this.rehearsalActive && p.room.key === "tower"
+                && (p.phase === "tower-enter" || p.phase === "tower-desk");
+            if (this.loopsActive && !inInteractiveHall) {
                 ctx.audio.stopLoop("tower_wind_cold", 0.15);
                 ctx.audio.stopLoop("tower_room_warm", 0.15);
                 this.loopsActive = false;
@@ -699,6 +706,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const p = ctx.p;
         const phase = p.phase;
         const justEnteredKnock = this.prevPhase !== "tower-knock" && phase === "tower-knock";
+        const justEnteredEnter = this.prevPhase !== "tower-enter" && phase === "tower-enter";
         const justEnteredGiven = this.prevPhase !== "tower-given" && phase === "tower-given";
         const justEnteredEnd = this.prevPhase !== "tower-end" && phase === "tower-end";
         this.prevPhase = phase;
@@ -706,6 +714,22 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         if (phase === "tower-wait") {
             // 门廊自由步行阶段交由基础/低模世界层处理（与 fe-04 零冲突），若曾室内重试则不关门
             this.active = false;
+            return;
+        }
+
+        if (phase === "tower-enter" || phase === "tower-desk") {
+            // 门开后让回画面控制权，玩家亲自跨门槛并在值夜桌长按交物，不让全屏过场遮挡操作。
+            this.doorOpened = true;
+            this.replyKnockCount = Math.max(2, this.replyKnockCount);
+            if (justEnteredEnter && this.indoorRetryCount === 0 && !ctx.paused) {
+                const tick = p.ticks;
+                this.playTowerOnce(ctx.audio, "reply1", "sfx", TOWER_AUDIO_FILES.reply1, 0.78, "tower:reply:1", tick);
+                this.playTowerOnce(ctx.audio, "reply2", "sfx", TOWER_AUDIO_FILES.reply2, 0.80, "tower:reply:2", tick);
+                this.playTowerOnce(ctx.audio, "door_open", "sfx", TOWER_AUDIO_FILES.doorOpen, 0.84, "tower:door_open", tick);
+            }
+            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.doorOpenSec);
+            this.active = false;
+            this.syncDerivedMilestones(this.seqElapsed, route);
             return;
         }
 
@@ -722,7 +746,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             this.confirmReady = false;
         } else if (justEnteredGiven) {
             this.doorOpened = true;
-            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.doorOpenSec);
+            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.indoorCutSec);
         } else if (justEnteredEnd) {
             this.doorOpened = true;
             // 无缝延续 8 秒演出，不因 play.ts 在 3.6s 切入 tower-end 而跳切
