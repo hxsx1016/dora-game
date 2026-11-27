@@ -319,19 +319,28 @@ export class VfxSystem {
             fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 3.2 * k, toColor(outerCol, 88 * k));
             fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 1.3 * k, toColor(PALETTE.amberCore, 195 * k));
 
-            // 枪口火药暖焰（去冰青激光十字）
+            // 枪口像素火药暖焰（3 帧像素火焰精灵，告别十字矢量线条）
             if (k > 0.55) {
                 const mk = (k - 0.55) / 0.45;
-                fillRadialGlow(fgGlow, x0, y0, 18 * mk, 14 * mk, toColor(PALETTE.amberCore, 138 * mk), Color(186, 126, 62, 0), 12);
-                fgGlow.drawSegment(Vec2(x0 - 10 * mk, y0), Vec2(x0 + 10 * mk, y0), 1.2, toColor(PALETTE.amberCore, 165 * mk));
-                fgGlow.drawSegment(Vec2(x0, y0 - 7 * mk), Vec2(x0, y0 + 7 * mk), 1.0, toColor(PALETTE.amber, 145 * mk));
+                fillRadialGlow(fgGlow, x0, y0, 18 * mk, 14 * mk, toColor(PALETTE.amberCore, 128 * mk), Color(186, 126, 62, 0), 12);
+                const mSz = Math.max(14, cam.len(20 + (1 - mk) * 8));
+                assets.tryPlace("fe_vfx_muzzle", "vfx_muzzle_" + i, x0, y0, mSz, mSz * 0.78, {
+                    frame: Math.min(2, Math.floor((1 - mk) * 3)),
+                    facing: x1 >= x0 ? 1 : -1,
+                    opacity: mk,
+                    layer: 9,
+                });
             }
-            // 命中暗朱星芒与火药微闪（避免花瓣贴图误入弹着点）
+            // 命中像素火星迸射（3 帧像素溅花精灵，告别交叉 X 线段）
             if (tr.hit) {
                 const s = 16 * (1.15 - k * 0.45);
-                fillRadialGlow(fgGlow, x1, y1, s * 1.15, s * 0.9, toColor(PALETTE.sealRedBright, 130 * k), Color(168, 46, 44, 0), 12);
-                fgGlow.drawSegment(Vec2(x1 - s, y1 - s * 0.55), Vec2(x1 + s, y1 + s * 0.55), 1.6 * k, toColor(PALETTE.crimsonCore, 185 * k));
-                fgGlow.drawSegment(Vec2(x1 - s * 0.45, y1 + s * 0.7), Vec2(x1 + s * 0.45, y1 - s * 0.7), 1.2 * k, toColor(PALETTE.sealRedBright, 160 * k));
+                fillRadialGlow(fgGlow, x1, y1, s * 1.1, s * 0.85, toColor(PALETTE.sealRedBright, 118 * k), Color(168, 46, 44, 0), 12);
+                const hSz = Math.max(14, cam.len(22 + (1 - k) * 10));
+                assets.tryPlace("fe_vfx_hit_spark", "vfx_hit_" + i, x1, y1, hSz, hSz, {
+                    frame: Math.min(2, Math.floor((1 - k) * 3)),
+                    opacity: k,
+                    layer: 9,
+                });
             }
         }
 

@@ -21,17 +21,12 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { FePluginContext } from "Script/watch/fe/plugins";
 import {
-    FOREST_CREEK_LIGHT,
-    LP_BUCKET,
-    LowpolyMaterial,
     LowpolyProjection,
-    LowpolyScene,
-    MING_MATERIALS,
     clamp01,
     projectWorld3D,
     smoothstep,
-    vec3,
 } from "Script/watch/fe/renderer/lowpoly";
+import { drawChildColdMoonGrade } from "Script/watch/fe/renderer/slideshow";
 import {
     fillRadialGlow,
     fillVGradRect,
@@ -66,113 +61,6 @@ export interface ForestCreekDebugState {
     trueLampVisible: boolean;
     reflectionVisible: boolean;
     creekWaterVol: number;
-}
-
-const MAT_MOSS_GROUND: LowpolyMaterial = {
-    base: rgba(44, 58, 52, 255),
-    edge: rgba(108, 134, 122, 145),
-    minShade: 0.24,
-    rimBoost: 0.20,
-    bottomAo: 0.34,
-};
-
-const MAT_PINE_TRUNK: LowpolyMaterial = {
-    base: rgba(46, 38, 34, 255),
-    edge: rgba(98, 92, 86, 130),
-    minShade: 0.20,
-    rimBoost: 0.16,
-    bottomAo: 0.40,
-};
-
-const MAT_PINE_NEEDLE: LowpolyMaterial = {
-    base: rgba(24, 42, 38, 255),
-    edge: rgba(78, 108, 98, 135),
-    minShade: 0.22,
-    rimBoost: 0.18,
-    bottomAo: 0.36,
-};
-
-const MAT_ROOT_ARCH: LowpolyMaterial = {
-    base: rgba(58, 46, 38, 255),
-    edge: rgba(146, 134, 116, 170),
-    minShade: 0.22,
-    rimBoost: 0.24,
-    bottomAo: 0.36,
-};
-
-const MAT_CANAL_STONE: LowpolyMaterial = {
-    base: rgba(68, 78, 86, 255),
-    edge: rgba(164, 186, 198, 190),
-    minShade: 0.26,
-    rimBoost: 0.28,
-    bottomAo: 0.30,
-};
-
-const MAT_GRASS_BACK: LowpolyMaterial = {
-    base: rgba(36, 56, 50, 255),
-    edge: rgba(96, 128, 116, 135),
-    minShade: 0.28,
-    rimBoost: 0.16,
-    bottomAo: 0.32,
-};
-
-const MAT_CREEK_WATER: LowpolyMaterial = {
-    base: rgba(24, 38, 48, 255),
-    edge: rgba(120, 152, 168, 110),
-    minShade: 0.35,
-    rimBoost: 0.22,
-    bottomAo: 0.12,
-};
-
-const MAT_TWIG: LowpolyMaterial = {
-    base: rgba(114, 92, 68, 255),
-    edge: rgba(188, 166, 134, 190),
-    minShade: 0.30,
-    rimBoost: 0.26,
-    bottomAo: 0.20,
-};
-
-function drawUiTri(
-    uiDraw: DrawNode.Type,
-    p0: { x: number; y: number },
-    p1: { x: number; y: number },
-    p2: { x: number; y: number },
-    c0: Color.Type,
-    c1: Color.Type,
-    c2: Color.Type,
-    invScale: number,
-): void {
-    uiDraw.drawVertices([
-        [Vec2(p0.x * invScale, p0.y * invScale), c0],
-        [Vec2(p1.x * invScale, p1.y * invScale), c1],
-        [Vec2(p2.x * invScale, p2.y * invScale), c2],
-    ]);
-}
-
-function drawUiQuad(
-    uiDraw: DrawNode.Type,
-    p0: { x: number; y: number },
-    p1: { x: number; y: number },
-    p2: { x: number; y: number },
-    p3: { x: number; y: number },
-    cBot: Color.Type,
-    cTop: Color.Type,
-    invScale: number,
-): void {
-    const v0 = Vec2(p0.x * invScale, p0.y * invScale);
-    const v1 = Vec2(p1.x * invScale, p1.y * invScale);
-    const v2 = Vec2(p2.x * invScale, p2.y * invScale);
-    const v3 = Vec2(p3.x * invScale, p3.y * invScale);
-    uiDraw.drawVertices([
-        [v0, cBot],
-        [v1, cBot],
-        [v2, cTop],
-    ]);
-    uiDraw.drawVertices([
-        [v0, cBot],
-        [v2, cTop],
-        [v3, cTop],
-    ]);
 }
 
 export class ForestCreekScene {
@@ -420,7 +308,7 @@ export class ForestCreekScene {
     drawBackdrop(
         bgDraw: DrawNode.Type,
         bgGlow: DrawNode.Type,
-        _backdropArt: AssetSlotHost,
+        backdropArt: AssetSlotHost,
         ctx: FePluginContext,
     ): boolean {
         const p = ctx.p;
@@ -429,101 +317,26 @@ export class ForestCreekScene {
         const w = cam.viewW;
         const h = cam.viewH;
 
-        // 随走近溪湾（x: 1120 -> 1460），夜空由深松林冷墨青微转为将晓鱼肚浅灰蓝
+        // 随走近溪湾（x: 1120 -> 1460），像素松林远景由深墨青微转为将晓浅蓝灰
         const dawn = smoothstep(ox + 1120, ox + 1460, p.player.x);
         const skyTop = lerpRGBA(rgba(8, 14, 18, 255), rgba(16, 26, 38, 255), dawn);
-        const skyMid = lerpRGBA(rgba(16, 28, 32, 255), rgba(32, 46, 62, 255), dawn);
-        const skyHor = lerpRGBA(rgba(28, 44, 48, 255), rgba(62, 78, 94, 255), dawn);
-        const splitY = h * 0.46;
-        fillVGradRect(bgDraw, 0, splitY, w, h - splitY, toColor(skyMid), toColor(skyTop));
-        fillVGradRect(bgDraw, 0, 0, w, splitY, toColor(skyHor), toColor(skyMid));
+        const skyHor = lerpRGBA(rgba(22, 36, 40, 255), rgba(52, 68, 86, 255), dawn);
+        fillVGradRect(bgDraw, 0, 0, w, h, toColor(skyHor), toColor(skyTop));
 
-        const scene = new LowpolyScene(cam, this.proj, FOREST_CREEK_LIGHT);
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const artW = Math.max(w, (h * 16) / 9) * 1.24;
+        const artH = (artW * 9) / 16;
+        const artY = Math.min(0, Math.max(h - artH, cam.groundScreenY - artH * 0.24));
+        const bgTint = toColor(lerpRGBA(rgba(138, 170, 180, 255), rgba(194, 210, 232, 255), dawn));
+        backdropArt.tryPlace("bgFar_forest", "fe04_bg_forest", w * (0.5 - progress * 0.08), artY, artW, artH, {
+            color: bgTint,
+            layer: 0,
+        });
+        fillVGradRect(bgGlow, 0, cam.groundScreenY - 2, w, h * 0.16, Color(24, 40, 44, 26), Color(12, 20, 24, 0));
 
-        // 1. 远山脊线（z = 460）
-        scene.addDistantRidge(
-            [
-                { x: ox - 180, y: 128 },
-                { x: ox + 220, y: 186 },
-                { x: ox + 620, y: 152 },
-                { x: ox + 1040, y: 204 },
-                { x: ox + 1420, y: 168 },
-                { x: ox + 1780, y: 196 },
-            ],
-            -40,
-            460,
-            MING_MATERIALS.distantHill,
-            { bucket: LP_BUCKET.BACKDROP },
-        );
-
-        // 2. 远景密林多层古松（三层交错低模松冠 + 渐细树干，杜绝单调单三角几何感）
-        const treeXs = [80, 210, 360, 510, 670, 840, 1010, 1180, 1290];
-        let i = 0;
-        for (i = 0; i < treeXs.length; i++) {
-            const tx = ox + treeXs[i];
-            const tz = 185 + (i % 3) * 42;
-            const tw = 12 + (i % 2) * 5;
-            scene.addBox({
-                x0: tx - tw * 0.5,
-                x1: tx + tw * 0.5,
-                y0: -20,
-                y1: 185 + (i % 2) * 20,
-                z0: tz,
-                z1: tz + 16,
-                material: MING_MATERIALS.distantWall,
-                bucket: LP_BUCKET.BACKDROP,
-                edgeWidth: 0,
-            });
-            // 三层错落低模松冠（下宽上收、略带风偏）
-            const lean = ((i % 3) - 1) * 7;
-            const baseH = 92 + (i % 2) * 14;
-            let tier = 0;
-            for (tier = 0; tier < 3; tier++) {
-                const ty0 = baseH + tier * 32;
-                const ty1 = ty0 + 52 - tier * 6;
-                const half = 50 - tier * 11;
-                const colShift = tier * 4;
-                scene.addTri3D(
-                    vec3(tx - half + lean * 0.4, ty0, tz - 4 - tier * 2),
-                    vec3(tx + half + lean * 0.4, ty0 + 4, tz - 4 - tier * 2),
-                    vec3(tx + lean, ty1, tz + 4),
-                    { base: rgba(18 + colShift, 30 + colShift, 32 + colShift, 255) },
-                    { bucket: LP_BUCKET.BACKDROP, sortBias: 0.04 + tier * 0.01 },
-                );
-            }
-        }
-
-        // 3. 远山北塔实景剪影（位于溪湾尽头右上方 x = 1525, z = 340；进入溪湾前被前景垂枝遮挡，步上溪岸才露真灯！）
+        // 远山北塔真灯（前期被前景像素松枝遮住，走上溪岸后拨枝显露！）
         const towerX = ox + 1525;
-        scene.addBox({
-            x0: towerX - 24,
-            x1: towerX + 24,
-            y0: 44,
-            y1: 174,
-            z0: 332,
-            z1: 356,
-            material: MING_MATERIALS.distantWall,
-            bucket: LP_BUCKET.BACKDROP,
-            sortBias: 0.12,
-            edgeWidth: 0,
-        });
-        // 明代望塔重檐屋顶
-        scene.addTri3D(
-            vec3(towerX - 34, 174, 330),
-            vec3(towerX + 34, 174, 330),
-            vec3(towerX, 200, 344),
-            MING_MATERIALS.mingTile,
-            { bucket: LP_BUCKET.BACKDROP, sortBias: 0.14 },
-        );
-
-        // 4. 山谷冷雾带
-        scene.addFogBand(ox - 160, ox + 1780, -30, 148, 250, rgba(28, 42, 48, 255), 0.62, 0.06, {
-            bucket: LP_BUCKET.BACKDROP,
-        });
-
-        scene.flush(bgDraw, bgGlow);
-
-        // 5. 真北塔西窗暖灯（随与水面倒影完全同拍呼吸，前期被前景枝叶自然遮住）
         const lampPulse = 0.84 + 0.16 * Math.sin(this.animTime * 2.3);
         const lampPt = projectWorld3D(towerX - 4, 146, 330, cam, this.proj);
         fillRadialGlow(
@@ -545,215 +358,145 @@ export class ForestCreekScene {
     drawWorld(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: AssetSlotHost,
+        worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
-        const scene = new LowpolyScene(cam, this.proj, FOREST_CREEK_LIGHT);
+        const groundY = cam.sy(0);
+        const deckH = cam.len(26);
 
-        // 1. 密林厚苔土路（x = 0..1180）+ 溪湾岸石与水面（x = 1170..1620，对齐后端 water_lantern 1180..1260 与林缘 1450）
-        scene.addBox({
-            x0: ox - 40,
-            x1: ox + 1190,
-            y0: -52,
-            y1: 0,
-            z0: -26,
-            z1: 92,
-            material: MAT_MOSS_GROUND,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-            edgeWidth: 0.7,
-        });
-        // 溪湾岸石走面（1180..1620，wz = 0 保持平实落脚，近侧与远侧展露清冷水湾）
-        scene.addBox({
-            x0: ox + 1180,
-            x1: ox + 1620,
-            y0: -14,
-            y1: 0,
-            z0: -10,
-            z1: 24,
-            material: MING_MATERIALS.mingStoneStep,
-            bucket: LP_BUCKET.WALK_DECK,
-            highlightTopEdge: true,
-            edgeWidth: 0.9,
-        });
-        // 溪湾宽阔水面（近岸前水 z = -44..-10 与远岸主水湾 z = 24..196，自 1170 延展至尽头）
-        scene.addQuad3D(
-            vec3(ox + 1170, -6, -44),
-            vec3(ox + 1640, -6, -44),
-            vec3(ox + 1640, -2, -10),
-            vec3(ox + 1170, -2, -10),
-            MAT_CREEK_WATER,
-            { bucket: LP_BUCKET.WALK_DECK, sortBias: 0.08, edgeWidth: 0 },
-        );
-        scene.addQuad3D(
-            vec3(ox + 1170, -2, 24),
-            vec3(ox + 1660, -2, 24),
-            vec3(ox + 1660, 4, 196),
-            vec3(ox + 1170, 4, 196),
-            MAT_CREEK_WATER,
-            { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.04, edgeWidth: 0 },
-        );
-
-        // 2. 中景古松树干与分层松冠（z = 36..82，带自然锥形树干、斜枝与多层墨绿针叶冠，摆脱黑方柱观感）
-        const midTrunks = [150, 415, 650, 910, 1255];
-        let i = 0;
-        for (i = 0; i < midTrunks.length; i++) {
-            const tx = ox + midTrunks[i];
-            const tz = 38 + (i % 2) * 18;
-            const halfW = 10 + (i % 2) * 2;
-            const topW = halfW * 0.62;
-            // 微收分古松树干
-            scene.addQuad3D(
-                vec3(tx - halfW, -10, tz),
-                vec3(tx + halfW, -10, tz),
-                vec3(tx + topW, 205, tz),
-                vec3(tx - topW, 205, tz),
-                MAT_PINE_TRUNK,
-                { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.7 },
-            );
-            // 侧向低垂古松枝与两层冷绿松针冠
-            const bDir = i % 2 === 0 ? 1 : -1;
-            scene.addTri3D(
-                vec3(tx - topW * 0.5, 118, tz - 2),
-                vec3(tx + bDir * 56, 108, tz - 4),
-                vec3(tx + bDir * 12, 142, tz - 2),
-                MAT_PINE_NEEDLE,
-                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.08, edgeWidth: 0.6 },
-            );
-            scene.addTri3D(
-                vec3(tx - bDir * 44, 146, tz - 2),
-                vec3(tx + bDir * 48, 152, tz - 3),
-                vec3(tx, 198, tz - 2),
-                MAT_PINE_NEEDLE,
-                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 0.6 },
-            );
+        // 1. 密林厚苔土路（0..1190）+ 溪湾石岸与冷水湾（1180..1620）
+        const xForest0 = cam.sx(ox - 40);
+        const xCreek0 = cam.sx(ox + 1185);
+        const xCreek1 = cam.sx(ox + 1640);
+        if (groundY - deckH > 0) {
+            fillVGradRect(fgDraw, xForest0, 0, xCreek0 - xForest0, groundY - deckH + 1, Color(8, 14, 14, 255), Color(18, 28, 26, 255));
+            // 溪湾前岸清冷水池底色
+            fillVGradRect(fgDraw, xCreek0, 0, xCreek1 - xCreek0, groundY - cam.len(6), Color(12, 22, 32, 255), Color(24, 42, 54, 255));
         }
-
-        // 3. 严格贴合 rooms.ts 两处矮台（520..640 / 980..1100，高 22）的盘结树根与青石坎
-        for (i = 0; i < p.room.stairs.length; i++) {
-            const st = p.room.stairs[i];
-            scene.addBox({
-                x0: st.x0,
-                x1: st.x1,
-                y0: 0,
-                y1: st.y1,
-                z0: -14,
-                z1: 42,
-                material: i === 1 ? MAT_ROOT_ARCH : MING_MATERIALS.mingStoneStep,
-                bucket: LP_BUCKET.WALK_DECK,
-                highlightTopEdge: true,
-                edgeWidth: 0.9,
+        const tileSpan = Math.max(24, cam.len(74));
+        let j = 0;
+        for (j = 0; xForest0 + j * tileSpan < Math.min(xCreek0, cam.viewW + 40); j++) {
+            const tx = xForest0 + j * tileSpan;
+            const tw = Math.min(tileSpan, xCreek0 - tx);
+            if (tx + tw < -40) {
+                continue;
+            }
+            worldArt.tryPlace("fe_ground_soft", "fe04_for_moss_" + j, tx + tw * 0.5, groundY - deckH, tw + 2.0, deckH, {
+                color: Color(118, 148, 134, 255),
+                layer: 1,
+            });
+        }
+        for (j = 0; xCreek0 + j * tileSpan < Math.min(xCreek1, cam.viewW + 40); j++) {
+            const tx = xCreek0 + j * tileSpan;
+            const tw = Math.min(tileSpan, xCreek1 - tx);
+            if (tx + tw < -40) {
+                continue;
+            }
+            worldArt.tryPlace("fe_road_stone", "fe04_for_bank_" + j, tx + tw * 0.5, groundY - cam.len(14), tw + 0.5, cam.len(14), {
+                color: Color(162, 184, 204, 255),
+                layer: 2,
             });
         }
 
-        // 4. 双岔路自然形体辨识（严格对齐 FOREST_ROOM 与 play.ts 判定区，不摆路牌、不画灯带）：
-        //    4a. 树根窄洞（严格对齐后端 300..380 / 300..460 蹲行隐蔽段，盘结有机树根低拱，仅容小满伏身钻过、犬挤不进）
-        scene.addTri3D(
-            vec3(ox + 286, 0, 12),
-            vec3(ox + 318, 12, 12),
-            vec3(ox + 306, 76, 22),
-            MAT_ROOT_ARCH,
-            { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.9 },
-        );
-        scene.addTri3D(
-            vec3(ox + 372, 12, 12),
-            vec3(ox + 412, 0, 12),
-            vec3(ox + 382, 78, 22),
-            MAT_ROOT_ARCH,
-            { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.9 },
-        );
-        scene.addQuad3D(
-            vec3(ox + 298, 48, 14),
-            vec3(ox + 394, 52, 14),
-            vec3(ox + 384, 86, 36),
-            vec3(ox + 306, 82, 36),
-            MAT_ROOT_ARCH,
-            { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 1.0 },
-        );
-        // 树根洞内暗影与冷月微光缝（纯自然形体提示可蹲钻）
-        scene.addQuad3D(
-            vec3(ox + 306, 0, 34),
-            vec3(ox + 382, 0, 34),
-            vec3(ox + 376, 48, 34),
-            vec3(ox + 312, 48, 34),
-            { base: rgba(10, 16, 18, 215), edge: rgba(164, 192, 188, 130) },
-            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: -0.05, edgeWidth: 1.0 },
-        );
-        //    4b. 旧渠（严格对齐后端 700..790 站跑快行段：后排凹陷青石盖板与掀角石板，以冷月湿石反光自然区分）
-        scene.addBox({
-            x0: ox + 690,
-            x1: ox + 810,
-            y0: -10,
-            y1: 5,
-            z0: 26,
-            z1: 60,
-            material: MAT_CANAL_STONE,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-            edgeWidth: 0.9,
-        });
-        scene.addQuad3D(
-            vec3(ox + 706, 5, 28),
-            vec3(ox + 742, 5, 28),
-            vec3(ox + 736, 20, 44),
-            vec3(ox + 700, 18, 44),
-            MAT_CANAL_STONE,
-            { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.22, edgeWidth: 1.0 },
-        );
+        // 2. 中景像素古松剪影（摆脱低模黑方柱与三角块）
+        const midTrunks = [150, 415, 650, 910, 1255];
+        let i = 0;
+        for (i = 0; i < midTrunks.length; i++) {
+            const sx = cam.sx(ox + midTrunks[i]);
+            if (sx < -160 || sx > cam.viewW + 160) {
+                continue;
+            }
+            worldArt.tryPlace("pine", "fe04_for_pine_" + i, sx, groundY - cam.len(4), cam.len(122 + (i % 2) * 18), cam.len(196 + (i % 2) * 24), {
+                color: Color(108, 136, 134, 255),
+                opacity: 0.78,
+                facing: i % 2 === 0 ? 1 : -1,
+                layer: 0,
+            });
+        }
 
-        // 5. 三处可穿透草丛的后排草叶（严格对应 rooms.ts solids 300..380 / 700..790 / 1150..1240, h=24）
+        // 3. 两处矮台（520..640 / 980..1100，h=22）
+        for (i = 0; i < p.room.stairs.length; i++) {
+            const st = p.room.stairs[i];
+            const sx0 = cam.sx(st.x0);
+            const sx1 = cam.sx(st.x1);
+            const sy1 = cam.sy(st.y1);
+            worldArt.tryPlace(i === 1 ? "cover_wood" : "cover_stone", "fe04_for_ledge_" + i, (sx0 + sx1) * 0.5, groundY, sx1 - sx0, sy1 - groundY, {
+                color: Color(148, 168, 174, 255),
+                layer: 2,
+            });
+            worldArt.tryPlace("slab", "fe04_for_ledge_top_" + i, (sx0 + sx1) * 0.5, sy1 - cam.len(4), sx1 - sx0, cam.len(4.5), {
+                color: Color(172, 192, 202, 255),
+                layer: 2,
+            });
+        }
+
+        // 4. 双岔路像素自然地貌：
+        //    4a. 盘结树根低拱（300..380 蹲行隐蔽段）
+        worldArt.tryPlace("fe_root_arch", "fe04_for_root_arch", cam.sx(ox + 348), groundY, cam.len(134), cam.len(92), {
+            color: Color(176, 194, 198, 255),
+            layer: 3,
+        });
+        //    4b. 湿润青石旧渠（700..790 站跑快行段）
+        worldArt.tryPlace("fe_ground_brick", "fe04_for_canal_a", cam.sx(ox + 720), groundY - cam.len(4), cam.len(62), cam.len(18), {
+            color: Color(176, 198, 214, 255),
+            layer: 2,
+        });
+        worldArt.tryPlace("fe_ground_brick", "fe04_for_canal_b", cam.sx(ox + 780), groundY - cam.len(4), cam.len(62), cam.len(18), {
+            color: Color(176, 198, 214, 255),
+            facing: -1,
+            layer: 2,
+        });
+
+        // 5. 三处可穿透草丛后排像素草丛 + 林缘山岩
         for (i = 0; i < p.room.solids.length; i++) {
             const s = p.room.solids[i];
+            const sx0 = cam.sx(s.x);
+            const sx1 = cam.sx(s.x + s.w);
+            if (sx1 < -40 || sx0 > cam.viewW + 40) {
+                continue;
+            }
             if (s.passable === true) {
-                this.buildGrassCluster(scene, s.x, s.x + s.w, s.y, s.h, 8);
-            } else if (s.x >= ox + 1500) {
-                // 林缘界石（1560..1600）塑为溪岸山岩
-                scene.addBox({
-                    x0: s.x,
-                    x1: s.x + s.w,
-                    y0: s.y,
-                    y1: s.y + s.h,
-                    z0: 10,
-                    z1: 72,
-                    material: MING_MATERIALS.mingBrickDark,
-                    bucket: LP_BUCKET.MIDGROUND,
-                    highlightTopEdge: true,
+                worldArt.tryPlace("grass", "fe04_for_grass_bg_" + i, (sx0 + sx1) * 0.5, cam.sy(s.y), sx1 - sx0, cam.len(s.h * 1.15), {
+                    color: Color(128, 162, 152, 255),
+                    opacity: 0.88,
+                    layer: 2,
                 });
+            } else if (s.x >= ox + 1500) {
+                const bw = sx1 - sx0;
+                const bh = cam.len(s.h);
+                const rows = Math.max(1, Math.min(8, Math.round(s.h / 36)));
+                const rowH = bh / rows;
+                let r = 0;
+                for (r = 0; r < rows; r++) {
+                    worldArt.tryPlace("wall", "fe04_for_bound_" + i + "_" + r, (sx0 + sx1) * 0.5, cam.sy(s.y) + r * rowH, bw + 0.5, rowH + 0.5, {
+                        color: Color(128, 146, 162, 255),
+                        facing: r % 2 === 0 ? 1 : -1,
+                        layer: 2,
+                    });
+                }
             }
         }
 
-        // 6. 林径枯枝堆（视觉可提前预判脚下脆枝，静音亦可读）
+        // 6. 林径枯枝堆（像素碎枝与木片，静音可读）
         for (i = 0; i < TWIG_OFFSETS.length; i++) {
-            const tx = ox + TWIG_OFFSETS[i];
-            scene.addTri3D(
-                vec3(tx - 12, 0.8, -5),
-                vec3(tx + 12, 0.8, -3),
-                vec3(tx + 3, 6.2, 2),
-                MAT_TWIG,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.15, edgeWidth: 1.0 },
-            );
-            scene.addTri3D(
-                vec3(tx - 8, 0.8, 3),
-                vec3(tx + 14, 0.8, 5),
-                vec3(tx - 2, 5.2, -2),
-                MAT_TWIG,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.16, edgeWidth: 0.9 },
-            );
+            const tx = cam.sx(ox + TWIG_OFFSETS[i]);
+            worldArt.tryPlace("stone_chips", "fe04_for_twig_" + i, tx, groundY + cam.len(4), cam.len(22), cam.len(12), {
+                color: Color(188, 154, 114, 255),
+                layer: 3,
+            });
         }
 
-        // 7. 2D 角色脚底接触影（小满与林犬，严格贴合 wz = 0）
-        scene.addContactShadow(p.player.x, p.player.y, 14, 10, 0.80, { bucket: LP_BUCKET.PROP, sortBias: 0.45 });
+        // 7. 2D 角色脚底接触影
+        fgDraw.drawEllipse(Vec2(cam.sx(p.player.x), cam.sy(p.player.y) + 1), cam.len(14), 3.4, Color(8, 12, 14, 155));
         if (p.room.story !== undefined && p.room.story.dog !== undefined) {
-            scene.addContactShadow(p.dogX, 0, 18, 11, 0.82, { bucket: LP_BUCKET.PROP, sortBias: 0.44 });
+            fgDraw.drawEllipse(Vec2(cam.sx(p.dogX), groundY + 1), cam.len(18), 3.8, Color(8, 12, 14, 165));
         }
 
-        scene.flush(fgDraw, fgGlow);
-
-        // 8. 溪湾脚边水面涟漪与揉碎的北塔灯影（停步持续流动，先见水里灯、上岸才见真灯！）
-        this.drawCreekWaterReflection(fgDraw, fgGlow, p, cam);
+        // 8. 溪湾脚边水面像素涟漪与揉碎北塔灯影（停步持续流动，暂停冻结）
+        this.drawCreekWaterReflection(fgDraw, fgGlow, worldArt, p, cam);
 
         // 9. 枯枝断裂溅屑
         for (i = 0; i < this.splinters.length; i++) {
@@ -767,28 +510,10 @@ export class ForestCreekScene {
         return true;
     }
 
-    private buildGrassCluster(scene: LowpolyScene, x0: number, x1: number, y0: number, h: number, z: number): void {
-        const count = Math.max(7, Math.floor((x1 - x0) / 10));
-        const span = (x1 - x0) / count;
-        let k = 0;
-        for (k = 0; k < count; k++) {
-            const bx = x0 + (k + 0.5) * span;
-            const lean = (((k * 29) % 11) - 5) * 1.3;
-            const sway = Math.sin(this.animTime * 1.9 + bx * 0.06) * 2.8 + lean;
-            const tipH = h * (0.58 + ((k * 37) % 10) * 0.048);
-            scene.addTri3D(
-                vec3(bx - span * 0.42, y0, z),
-                vec3(bx + span * 0.42, y0, z),
-                vec3(bx + sway, y0 + tipH, z - 2),
-                MAT_GRASS_BACK,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.10 + k * 0.005, edgeWidth: 0.45 },
-            );
-        }
-    }
-
     private drawCreekWaterReflection(
-        fgDraw: DrawNode.Type,
+        _fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
     ): void {
@@ -798,39 +523,33 @@ export class ForestCreekScene {
         }
         const lampPulse = 0.84 + 0.16 * Math.sin(this.animTime * 2.3);
         const reflCenterX = ox + 1438;
+        const groundY = cam.sy(0);
 
-        // 1. 远近水面冷月水平波纹（停步持续向右下方荡漾）
-        let r = 0;
-        for (r = 0; r < 10; r++) {
-            const z = r < 4 ? (-34 + r * 6) : (32 + (r - 4) * 24);
-            const wx = ox + 1295 + r * 32 + Math.sin(this.ripplePhase * 0.75 + r * 1.4) * 14;
-            const pL = projectWorld3D(wx - 26, -3, z, cam, this.proj);
-            const pR = projectWorld3D(wx + 26, -3, z, cam, this.proj);
-            fgGlow.drawSegment(Vec2(pL.x, pL.y), Vec2(pR.x, pR.y), 1.1, Color(146, 178, 198, 72));
-        }
+        // 3 帧像素溪水涟漪与碎灯倒影（严格由 this.ripplePhase 驱动，停步流动、暂停冻结）
+        const frameA = Math.floor(this.ripplePhase * 2.2) % 3;
+        const frameB = (frameA + 1) % 3;
+        const driftA = Math.sin(this.ripplePhase * 1.15) * cam.len(8);
+        const driftB = Math.cos(this.ripplePhase * 1.45) * cam.len(6);
+        const rx = cam.sx(reflCenterX);
 
-        // 2. 被涟漪揉碎的北塔暖灯倒影（先落在脚边前水与近湾水面，随 ripplePhase 持续错动明灭）
-        const bands = 9;
-        for (r = 0; r < bands; r++) {
-            const frac = r / (bands - 1);
-            const z = -34 + frac * 22;
-            const drift = Math.sin(this.ripplePhase * (1.25 + frac * 0.4) + r * 1.35) * (6 + frac * 9);
-            const halfW = (18 - frac * 8) * (0.75 + 0.25 * Math.cos(this.ripplePhase * 1.7 + r));
-            const wy = -4.5 + frac * 2.5;
-            const pL = projectWorld3D(reflCenterX + drift - halfW, wy, z, cam, this.proj);
-            const pR = projectWorld3D(reflCenterX + drift + halfW, wy, z, cam, this.proj);
-            const a = (0.42 + 0.50 * (1 - frac)) * lampPulse;
-            fgDraw.drawSegment(Vec2(pL.x, pL.y), Vec2(pR.x, pR.y), 2.1 - frac * 0.7, Color(242, 198, 118, Math.round(190 * a)));
-            fgGlow.drawSegment(Vec2(pL.x, pL.y), Vec2(pR.x, pR.y), 3.6 - frac * 1.1, Color(248, 214, 140, Math.round(135 * a)));
-        }
-        // 主水面上的灯影晕
-        const poolP = projectWorld3D(reflCenterX + 22, 0, 56, cam, this.proj);
+        worldArt.tryPlace("fe_vfx_creek_reflect", "fe04_creek_refl_near", rx + driftA, groundY - cam.len(18), cam.len(96), cam.len(24), {
+            frame: frameA,
+            opacity: 0.88 * lampPulse,
+            layer: 3,
+        });
+        worldArt.tryPlace("fe_vfx_creek_reflect", "fe04_creek_refl_far", rx + cam.len(22) + driftB, groundY - cam.len(34), cam.len(78), cam.len(18), {
+            frame: frameB,
+            opacity: 0.72 * lampPulse,
+            facing: -1,
+            layer: 3,
+        });
+
         fillRadialGlow(
             fgGlow,
-            poolP.x,
-            poolP.y,
-            58 * lampPulse,
-            18 * lampPulse,
+            rx + cam.len(8),
+            groundY - cam.len(22),
+            cam.len(62) * lampPulse,
+            cam.len(22) * lampPulse,
             Color(246, 206, 128, Math.round(92 * lampPulse)),
             Color(232, 174, 88, 0),
             16,
@@ -847,7 +566,7 @@ export class ForestCreekScene {
         return true;
     }
 
-    /** 在角色之上绘制草后犬耳、小满肩线冷月轮廓分离及枯枝微顿侧耳听声动作 */
+    /** 在角色之上绘制极克制冷月边缘分离、听声细弧与犬警觉声波（去生硬几何三角耳补丁） */
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
@@ -857,25 +576,10 @@ export class ForestCreekScene {
         const p = ctx.p;
         const cam = ctx.cam;
 
-        // 1. 小满肩背极克制冷月边缘分离（贴合肩线而非头顶光环，草丛前景与暗林阴影里清晰分离）
         const px = cam.sx(p.player.x);
         const pTopY = cam.sy(p.player.y + p.player.h);
-        const fDir = p.player.facing >= 0 ? 1 : -1;
-        const shY = pTopY - cam.len(16.5);
-        fgDraw.drawSegment(
-            Vec2(px - fDir * cam.len(7.5), shY - cam.len(4)),
-            Vec2(px - fDir * cam.len(5.5), shY + cam.len(3.5)),
-            1.3,
-            Color(196, 212, 220, 145),
-        );
-        fgDraw.drawSegment(
-            Vec2(px - fDir * cam.len(5.5), shY + cam.len(3.5)),
-            Vec2(px + fDir * cam.len(3.5), shY + cam.len(5.2)),
-            1.2,
-            Color(206, 220, 228, 135),
-        );
 
-        // 2. 踩枯枝 / 听见动静时的小满微顿侧耳听声视觉反馈（克制听觉细弧，非阻塞）
+        // 1. 踩枯枝 / 听见动静时的小满微顿侧耳听声视觉反馈（克制听觉细弧，非阻塞）
         if (this.xiaomanListenTimer > 0) {
             const k = smoothstep(0, 0.12, this.xiaomanListenTimer) * clamp01(this.xiaomanListenTimer / 0.52);
             const earX = px + this.xiaomanListenDir * cam.len(8);
@@ -888,149 +592,96 @@ export class ForestCreekScene {
             fgGlow.drawArc(Vec2(earX, earY), r2, startAng, endAng, 1.1, Color(204, 218, 224, Math.round(135 * k)));
         }
 
-        // 3. 林犬竖耳与鼻尖冷月轮廓（暗耳体 + 细冷月描边，草后自然且灰度高可读）
+        // 2. 林犬警觉微声弧（保留像素犬本体，不叠贴硬多边形三角耳）
         if (p.room.story !== undefined && p.room.story.dog !== undefined) {
             const alert = p.dogState === "ear" || p.dogState === "chase";
-            const f = p.dogState === "chase" ? (p.player.x >= p.dogX ? 1 : -1) : p.dogDir;
-            const headX = cam.sx(p.dogX + f * 11);
-            const headY = cam.sy(23.5);
-            const earH = cam.len(alert ? 7.6 : 4.8);
-            const earCol = alert ? Color(224, 222, 212, 220) : Color(176, 194, 202, 170);
-            fgDraw.drawPolygon([
-                Vec2(headX - f * 3.4, headY),
-                Vec2(headX - f * 0.8, headY + earH),
-                Vec2(headX + f * 2.4, headY + 0.8),
-            ], Color(38, 36, 34, 235), 1.1, earCol);
             if (alert) {
+                const f = p.dogState === "chase" ? (p.player.x >= p.dogX ? 1 : -1) : p.dogDir;
+                const headX = cam.sx(p.dogX + f * 11);
+                const headY = cam.sy(29);
                 const waveR = cam.len(8 + (this.animTime * 20) % 13);
-                fgGlow.drawArc(Vec2(headX, headY + earH * 0.75), waveR, 42, 138, 1.2, Color(226, 208, 174, 145));
+                fgGlow.drawArc(Vec2(headX, headY), waveR, 42, 138, 1.2, Color(226, 208, 174, 155));
             }
         }
 
         // 暂停态前景枝叶兜底
         if (ctx.paused) {
-            const pX = cam.viewW * (0.78 + this.creekReveal * 0.24);
-            worldArt.tryPlace("pine", "fe04_pause_creek_branch", pX, cam.viewH * 0.42, cam.viewW * 0.48, cam.viewH * 0.62, {
-                color: Color(14, 20, 22, 255),
-                opacity: 0.90 * (1 - this.creekReveal * 0.7),
+            const pX = cam.viewW * (0.98 + this.creekReveal * 0.24);
+            worldArt.tryPlace("fe_fg_pine_bough", "fe04_pause_creek_branch", pX, cam.viewH, cam.viewW * 0.56, cam.viewH * 0.48, {
+                opacity: 0.90 * (1 - this.creekReveal * 0.65),
                 layer: 5300,
             });
         }
     }
 
     /**
-     * 在 uiDraw 前景层（严格在角色 sprites 之前、HUD 之后）绘制：
-     * 1. 草丛前景低垂草叶（高度严格压在 y <= 20，留出上方犬耳与小满肩线清晰剪影）；
-     * 2. 溪湾前景垂枝（随玩家步上溪岸 reveal 0→1 自然向左右让开，显露远山真北塔灯火）；
+     * 像素前景低草 + 溪湾拨枝松叶 + 冷月电影调色：
      * 固定返回 false。
      */
     drawForegroundOverlay(
         uiDraw: DrawNode.Type,
         _uiInkDraw: DrawNode.Type,
-        _uiArt: AssetSlotHost,
-        _uiGlow: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
         const inv = 1 / Math.max(0.25, ctx.uiScale);
+        const dawn = smoothstep(ox + 1120, ox + 1460, p.player.x);
 
-        // 1. 三处草丛前景自然倾倒草叶（z = -18，高度压在 y <= 18，保证上方犬耳与小满肩线清晰分离）
+        // 1. 三处草丛前景低矮像素草丛（高度严格压在 17 单位，保证上方犬耳与小满肩线清晰分离）
         let i = 0;
         for (i = 0; i < p.room.solids.length; i++) {
             const s = p.room.solids[i];
             if (s.passable !== true) {
                 continue;
             }
-            const blades = Math.max(7, Math.floor(s.w / 10));
-            const span = s.w / blades;
-            let k = 0;
-            for (k = 0; k < blades; k++) {
-                const bx = s.x + (k + 0.5) * span;
-                const lean = (((k * 23) % 9) - 4) * 1.6;
-                const sway = Math.sin(this.animTime * 2.1 + bx * 0.06) * 2.6 + lean;
-                const tipH = Math.min(18.0, s.h * (0.48 + ((k * 19) % 7) * 0.048));
-                const pL = projectWorld3D(bx - span * 0.36, s.y - 2, -18, cam, this.proj);
-                const pR = projectWorld3D(bx + span * 0.36, s.y - 2, -18, cam, this.proj);
-                const pT = projectWorld3D(bx + sway, s.y + tipH, -20, cam, this.proj);
-                drawUiTri(uiDraw, pL, pR, pT, Color(11, 18, 17, 232), Color(14, 22, 20, 232), Color(32, 50, 44, 218), inv);
+            const sx0 = cam.sx(s.x) * inv;
+            const sx1 = cam.sx(s.x + s.w) * inv;
+            if (sx1 < -20 || sx0 > ctx.uiW + 20) {
+                continue;
             }
+            const sy = cam.sy(s.y - 2) * inv;
+            uiArt.tryPlace("grass_low", "fe04_fg_grass_" + i, (sx0 + sx1) * 0.5, sy, sx1 - sx0 + 8, Math.max(10, cam.len(17) * inv), {
+                color: Color(76, 108, 98, 255),
+                opacity: 0.92,
+                layer: 2,
+            });
         }
 
-        // 2. 溪湾前景垂枝（粗枝干 + 错落垂叶群，初入溪湾自然遮挡真塔灯、只见脚边水面碎影；
-        //    随玩家走上溪岸 reveal 0 -> 1 自然向两侧拨开，露出真北塔灯火！）
+        // 2. 溪湾前景像素松枝垂叶（初入自然遮挡远山真北塔，走上溪岸随 creekReveal 0 -> 1 平滑拨开！）
         const nearCreek = smoothstep(ox + 1060, ox + 1240, p.player.x);
         if (nearCreek > 0.02) {
-            const w = cam.viewW;
-            const h = cam.viewH;
-            const partShift = this.creekReveal * w * 0.38;
-            const liftShift = this.creekReveal * h * 0.16;
-            const canopyAlpha = Math.round(244 * nearCreek * (1 - this.creekReveal * 0.28));
-            const cTrunk = Color(14, 18, 18, canopyAlpha);
-            const cDark = Color(11, 20, 20, canopyAlpha);
-            const cLeaf = Color(22, 36, 33, Math.round(canopyAlpha * 0.94));
+            const uiW = ctx.uiW;
+            const uiH = ctx.uiH;
+            const partShift = this.creekReveal * uiW * 0.40;
+            const liftShift = this.creekReveal * uiH * 0.16;
             const sway = Math.sin(this.animTime * 1.45) * 5;
+            const canopyOp = nearCreek * (1 - this.creekReveal * 0.28);
 
-            // 斜探的粗松枝干（自右上角自然伸展至中右上方）
-            drawUiQuad(
-                uiDraw,
-                { x: w * 0.56 + partShift + sway * 0.4, y: h * 0.67 + liftShift },
-                { x: w * 1.06 + partShift, y: h * 0.84 + liftShift },
-                { x: w * 1.06 + partShift, y: h * 0.96 + liftShift },
-                { x: w * 0.54 + partShift + sway * 0.4, y: h * 0.74 + liftShift },
-                cTrunk,
-                cDark,
-                inv,
-            );
-            // 错落有机垂叶簇（覆盖 0.50w..1.05w 上方，去规整方块与等腰三角）
-            const clusters = [
-                { fx: 0.56, fy: 0.66, rw: 118, rh: 92, drop: 112 },
-                { fx: 0.68, fy: 0.62, rw: 138, rh: 108, drop: 134 },
-                { fx: 0.81, fy: 0.64, rw: 146, rh: 112, drop: 124 },
-                { fx: 0.94, fy: 0.70, rw: 142, rh: 118, drop: 116 },
-                { fx: 0.74, fy: 0.78, rw: 165, rh: 110, drop: 92 },
-            ];
-            let ci = 0;
-            for (ci = 0; ci < clusters.length; ci++) {
-                const cl = clusters[ci];
-                const bx = w * cl.fx + partShift + sway * (0.5 + ci * 0.12);
-                const by = h * cl.fy + liftShift;
-                drawUiTri(
-                    uiDraw,
-                    { x: bx - cl.rw * 0.65, y: by + cl.rh * 0.85 },
-                    { x: bx + cl.rw * 0.72, y: by + cl.rh * 0.62 },
-                    { x: bx - cl.rw * 0.12 + sway * 0.6, y: by - cl.drop * 0.68 },
-                    cDark,
-                    cDark,
-                    cLeaf,
-                    inv,
-                );
-                drawUiTri(
-                    uiDraw,
-                    { x: bx - cl.rw * 0.28, y: by + cl.rh * 0.92 },
-                    { x: bx + cl.rw * 0.88, y: by + cl.rh * 0.82 },
-                    { x: bx + cl.rw * 0.24 + sway * 0.8, y: by - cl.drop * 0.54 },
-                    cDark,
-                    cTrunk,
-                    cLeaf,
-                    inv,
-                );
-            }
-
-            // 左侧平衡垂枝（随步行向左轻微让开）
-            const lShift = this.creekReveal * w * 0.22;
-            drawUiTri(
-                uiDraw,
-                { x: -30 - lShift, y: h + 16 },
-                { x: w * 0.30 - lShift, y: h + 16 },
-                { x: w * 0.12 - lShift - sway * 0.5, y: h * 0.68 + liftShift * 0.5 },
-                cDark,
-                cDark,
-                cLeaf,
-                inv,
-            );
+            // 右上主松枝垂叶（anchorX=1, anchorY=1）
+            uiArt.tryPlace("fe_fg_pine_bough", "fe04_fg_creek_r1", uiW + 18 + partShift + sway * 0.5, uiH + 14 + liftShift, uiW * 0.58, uiH * 0.44, {
+                opacity: 0.96 * canopyOp,
+                layer: 4,
+            });
+            uiArt.tryPlace("fe_fg_pine_bough", "fe04_fg_creek_r2", uiW * 0.86 + partShift + sway * 0.8, uiH + 18 + liftShift * 0.8, uiW * 0.44, uiH * 0.36, {
+                color: Color(196, 212, 208, 255),
+                opacity: 0.88 * canopyOp,
+                layer: 3,
+            });
+            // 左上平衡松枝（镜像，随步行向左微让）
+            const lShift = this.creekReveal * uiW * 0.24;
+            uiArt.tryPlace("fe_fg_pine_bough", "fe04_fg_creek_l", -14 - lShift - sway * 0.4, uiH + 12 + liftShift * 0.5, uiW * 0.36, uiH * 0.32, {
+                facing: -1,
+                opacity: 0.90 * canopyOp,
+                layer: 4,
+            });
         }
+
+        // 3. 冷月像素电影调色（走近溪湾拂晓微暖）
+        drawChildColdMoonGrade(uiDraw, uiGlow, ctx.uiW, ctx.uiH, 0.78 * (1 - dawn * 0.24), dawn * 0.55);
 
         return false;
     }

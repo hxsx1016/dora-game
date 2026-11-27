@@ -21,7 +21,7 @@ PropsRenderer.name = "PropsRenderer" -- 24
 function PropsRenderer.prototype.____constructor(self) -- 24
 end -- 24
 function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, time, occlusion, fadeDt) -- 25
-	self:drawZones(fgDraw, p, cam) -- 35
+	self:drawZones(fgDraw, assets, p, cam) -- 35
 	self:drawMarks( -- 36
 		fgDraw, -- 36
 		fgGlow, -- 36
@@ -39,9 +39,9 @@ function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, t
 		occlusion, -- 37
 		fadeDt -- 37
 	) -- 37
-	self:drawBracedShield(fgDraw, p, cam) -- 38
+	self:drawBracedShield(fgDraw, assets, p, cam) -- 38
 	self:drawCraftMaterials(assets, p, cam) -- 39
-	if p.phase == "prologue-give" and p.phaseTick >= 12 and p.phaseTick < 36 then -- 40
+	if p.phase == "prologue-give" and p.phaseTick >= 12 and p.phaseTick < 36 then -- 39
 		local x = (p.player.x + p.partner.x) * 0.5 -- 41
 		local y = p.partner.y + p.partner.h * 0.62 -- 42
 		local depth = (p.player.depth + p.partner.depth) * 0.5 -- 43
@@ -55,7 +55,7 @@ function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, t
 			{layer = p.room.depth == nil and 6 or depthOrder(depth, 6)} -- 45
 		) -- 45
 	end -- 45
-	if p.room.key == "village" then -- 47
+	if p.room.key == "village" then -- 45
 		self:drawVillageProps( -- 48
 			fgDraw, -- 48
 			fgGlow, -- 48
@@ -66,9 +66,9 @@ function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, t
 		) -- 48
 	end -- 48
 end -- 25
-function PropsRenderer.prototype.drawBracedShield(self, fgDraw, p, cam) -- 53
+function PropsRenderer.prototype.drawBracedShield(self, fgDraw, assets, p, cam) -- 53
 	local sh = p.bracedShield -- 54
-	if sh == nil or sh.hp <= 0 then -- 55
+	if sh == nil or sh.hp <= 0 then -- 54
 		return -- 56
 	end -- 56
 	local cx = cam:sx(sh.x) -- 58
@@ -84,596 +84,588 @@ function PropsRenderer.prototype.drawBracedShield(self, fgDraw, p, cam) -- 53
 		3.2, -- 62
 		Color(8, 10, 14, 150) -- 62
 	) -- 62
-	fgDraw:drawSegment( -- 63
-		Vec2(cx - w * 0.65, by), -- 63
-		Vec2(cx - w * 0.15, by + h * 0.55), -- 63
-		2.2, -- 63
-		Color(84, 58, 38, 255) -- 63
-	) -- 63
-	fgDraw:drawRect( -- 64
-		Rect(cx - w * 0.5, by + 2, w, h - 2), -- 64
-		Color(104, 72, 46, 248), -- 64
-		1.4, -- 64
-		Color(172, 178, 184, 235) -- 64
-	) -- 64
-	fgDraw:drawCircle( -- 65
-		Vec2(cx, by + h * 0.52), -- 65
-		math.max( -- 65
-			2.5, -- 65
-			cam:len(4) -- 65
-		), -- 65
-		Color(148, 154, 160, 245) -- 65
-	) -- 65
+	if not assets:tryPlace( -- 62
+		"fe_braced_shield", -- 63
+		"braced_shield", -- 63
+		cx, -- 63
+		by, -- 63
+		cam:len(26), -- 63
+		h * 1.05, -- 63
+		{layer = p.room.depth == nil and 4 or depthOrder(p.player.depth, 4)} -- 63
+	) then -- 63
+		fgDraw:drawRect( -- 66
+			Rect(cx - w * 0.5, by + 2, w, h - 2), -- 66
+			Color(104, 72, 46, 248), -- 66
+			1.4, -- 66
+			Color(172, 178, 184, 235) -- 66
+		) -- 66
+	end -- 66
 end -- 53
-function PropsRenderer.prototype.drawCraftMaterials(self, assets, p, cam) -- 68
-	for ____, pickup in ipairs(p.pickups) do -- 69
-		do -- 69
-			local kind = pickup.kind -- 71
-			if pickup.id == "" or p.run.taken[pickup.id] then -- 72
-				goto __continue9 -- 73
-			end -- 73
-			local depth = pickup.depth or 0 -- 75
-			local isWood = kind == "wood" or kind == "scrap" or kind == "wedge" -- 76
-			local isMetal = kind == "bell" or kind == "shield" or kind == "ammo" or kind == "pass" or kind == "quickbelt" -- 77
-			if not isWood and not isMetal then -- 78
-				goto __continue9 -- 79
-			end -- 79
-			local tint = (kind == "wood" or kind == "scrap") and PALETTE.amber or (kind == "wedge" and PALETTE.emerald or ((kind == "shield" or kind == "ammo") and PALETTE.cyan or PALETTE.amberCore)) -- 81
-			assets:tryPlace( -- 84
-				isWood and "ink_bamboo_slip" or "prop_compass", -- 85
-				"pickup_" .. pickup.id, -- 86
-				cam:sx(pickup.x), -- 87
-				cam:sy(pickup.y + 9, depth), -- 87
-				cam:len(18), -- 88
-				cam:len(isWood and 7 or 16), -- 88
-				{ -- 89
-					angle = isWood and 65 or 0, -- 90
-					color = toColor(tint), -- 91
-					layer = p.room.depth == nil and 3 or depthOrder(depth, 1) -- 92
-				} -- 92
-			) -- 92
-		end -- 92
-		::__continue9:: -- 92
-	end -- 92
-end -- 68
-function PropsRenderer.prototype.drawZones(self, fgDraw, p, cam) -- 98
-	local i = 0 -- 103
-	do -- 103
-		i = 0 -- 104
-		while i < #p.room.zones do -- 104
-			local z = p.room.zones[i + 1] -- 105
-			local x0 = cam:sx(z.x0) -- 106
-			local x1 = cam:sx(z.x1) -- 107
-			local y0 = cam:sy(z.y) -- 108
-			local zw = x1 - x0 -- 109
-			if z.tint == 1 then -- 111
-				local road = p.room.depth -- 112
-				local front = cam:sy(z.y, road and road.min or -3) -- 113
-				local back = cam:sy(z.y, road and road.max or 1) -- 114
-				fgDraw:drawRect( -- 115
-					Rect(x0, front, zw, back - front), -- 115
-					Color(50, 35, 29, 48) -- 115
-				) -- 115
-			elseif z.tint == 2 then -- 116
+function PropsRenderer.prototype.drawCraftMaterials(self, assets, p, cam) -- 70
+	for ____, pickup in ipairs(p.pickups) do -- 71
+		do -- 71
+			local kind = pickup.kind -- 73
+			if pickup.id == "" or p.run.taken[pickup.id] then -- 73
+				goto __continue10 -- 75
+			end -- 75
+			local depth = pickup.depth or 0 -- 77
+			local isWood = kind == "wood" or kind == "scrap" or kind == "wedge" -- 78
+			local isMetal = kind == "bell" or kind == "shield" or kind == "ammo" or kind == "pass" or kind == "quickbelt" -- 79
+			if not isWood and not isMetal then -- 79
+				goto __continue10 -- 81
+			end -- 81
+			local tint = (kind == "wood" or kind == "scrap") and PALETTE.amber or (kind == "wedge" and PALETTE.emerald or ((kind == "shield" or kind == "ammo") and PALETTE.cyan or PALETTE.amberCore)) -- 83
+			assets:tryPlace( -- 86
+				isWood and "ink_bamboo_slip" or "prop_compass", -- 87
+				"pickup_" .. pickup.id, -- 88
+				cam:sx(pickup.x), -- 89
+				cam:sy(pickup.y + 9, depth), -- 89
+				cam:len(18), -- 90
+				cam:len(isWood and 7 or 16), -- 90
+				{ -- 91
+					angle = isWood and 65 or 0, -- 92
+					color = toColor(tint), -- 93
+					layer = p.room.depth == nil and 3 or depthOrder(depth, 1) -- 94
+				} -- 94
+			) -- 94
+		end -- 94
+		::__continue10:: -- 94
+	end -- 94
+end -- 70
+function PropsRenderer.prototype.drawZones(self, fgDraw, assets, p, cam) -- 100
+	local i = 0 -- 106
+	do -- 106
+		i = 0 -- 107
+		while i < #p.room.zones do -- 107
+			local z = p.room.zones[i + 1] -- 108
+			local x0 = cam:sx(z.x0) -- 109
+			local x1 = cam:sx(z.x1) -- 110
+			local y0 = cam:sy(z.y) -- 111
+			local zw = x1 - x0 -- 112
+			if z.tint == 1 then -- 112
+				local road = p.room.depth -- 115
+				local front = cam:sy(z.y, road and road.min or -3) -- 116
+				local back = cam:sy(z.y, road and road.max or 1) -- 117
 				fgDraw:drawRect( -- 118
-					Rect(x0, y0 - 4, zw, 8), -- 118
-					Color(74, 58, 44, 220) -- 118
+					Rect(x0, front, zw, back - front), -- 118
+					Color(50, 35, 29, 48) -- 118
 				) -- 118
-				fgDraw:drawSegment( -- 119
-					Vec2(x0, y0 + 2), -- 119
-					Vec2(x1, y0 + 2), -- 119
-					1.4, -- 119
-					Color(128, 98, 72, 190) -- 119
-				) -- 119
-			elseif z.tint == 3 then -- 120
-				fgDraw:drawRect( -- 122
-					Rect(x0, y0 - 4, zw, 9), -- 122
-					Color(118, 122, 130, 235) -- 122
-				) -- 122
-				local bricks = 4 -- 123
-				local b = 1 -- 124
-				do -- 124
-					b = 1 -- 125
-					while b < bricks do -- 125
-						local bx = x0 + zw * b / bricks -- 126
-						fgDraw:drawSegment( -- 127
-							Vec2(bx, y0 - 4), -- 127
-							Vec2(bx, y0 + 5), -- 127
-							1, -- 127
-							Color(42, 46, 56, 220) -- 127
-						) -- 127
-						b = b + 1 -- 125
-					end -- 125
+			elseif z.tint == 2 then -- 118
+				if not assets:tryPlace( -- 118
+					"fe_ground_soft", -- 120
+					"zone_soft_" .. tostring(i), -- 120
+					(x0 + x1) * 0.5, -- 120
+					y0 - cam:len(4), -- 120
+					zw, -- 120
+					cam:len(14), -- 120
+					{layer = 1} -- 120
+				) then -- 120
+					fgDraw:drawRect( -- 121
+						Rect(x0, y0 - 4, zw, 8), -- 121
+						Color(74, 58, 44, 220) -- 121
+					) -- 121
+				end -- 121
+			elseif z.tint == 3 then -- 121
+				if not assets:tryPlace( -- 121
+					"fe_ground_brick", -- 124
+					"zone_brick_" .. tostring(i), -- 124
+					(x0 + x1) * 0.5, -- 124
+					y0 - cam:len(4), -- 124
+					zw, -- 124
+					cam:len(14), -- 124
+					{layer = 1} -- 124
+				) then -- 124
+					fgDraw:drawRect( -- 125
+						Rect(x0, y0 - 4, zw, 9), -- 125
+						Color(118, 122, 130, 235) -- 125
+					) -- 125
 				end -- 125
-				fgDraw:drawSegment( -- 129
-					Vec2(x0, y0 + 4), -- 129
-					Vec2(x1, y0 + 4), -- 129
-					1.1, -- 129
-					Color(168, 151, 127, 130) -- 129
-				) -- 129
-			end -- 129
-			i = i + 1 -- 104
-		end -- 104
-	end -- 104
-end -- 98
-function PropsRenderer.prototype.drawMarks(self, fgDraw, fgGlow, assets, p, cam, time) -- 134
-	for ____, m in ipairs(p.room.marks) do -- 142
-		do -- 142
-			if m.kind ~= 6 then -- 143
-				goto __continue22 -- 144
-			end -- 144
-			local mx = cam:sx(m.x) -- 146
-			local my = cam:sy(m.y) -- 147
-			local hookY = my + cam:len(52) -- 148
-			local armX = mx + cam:len(13) -- 149
-			local lampY = hookY - cam:len(12) -- 150
-			local wood = Color(82, 58, 40, 245) -- 151
-			local joint = math.max( -- 152
-				1, -- 152
-				cam:len(2) -- 152
-			) -- 152
-			fgDraw:drawSegment( -- 153
-				Vec2(mx, my), -- 153
-				Vec2(mx, hookY), -- 153
-				joint, -- 153
-				wood -- 153
-			) -- 153
-			fgDraw:drawSegment( -- 154
-				Vec2(mx, hookY), -- 154
-				Vec2(armX, hookY), -- 154
-				joint, -- 154
-				wood -- 154
-			) -- 154
-			fgDraw:drawSegment( -- 155
-				Vec2( -- 155
-					mx, -- 155
-					hookY - cam:len(7) -- 155
-				), -- 155
-				Vec2(armX - joint, hookY), -- 155
-				joint * 0.7, -- 155
-				wood -- 155
-			) -- 155
-			if not assets:tryPlace( -- 156
-				"prop_lantern", -- 156
-				"path_lamp_" .. tostring(m.x), -- 156
-				armX, -- 156
-				lampY, -- 156
-				cam:len(16), -- 156
-				cam:len(20), -- 156
-				{layer = 1} -- 156
-			) then -- 156
-				fgDraw:drawRect( -- 157
-					Rect( -- 157
-						armX - cam:len(4), -- 157
-						lampY - cam:len(7), -- 157
-						cam:len(8), -- 157
-						cam:len(14) -- 157
-					), -- 157
-					Color(192, 136, 64, 240), -- 158
-					1.4, -- 158
-					wood -- 158
-				) -- 158
-			end -- 158
-			local flame = 0.91 + math.sin(time * 3.1) * 0.09 -- 160
-			fillRadialGlow( -- 161
-				fgGlow, -- 161
-				armX, -- 161
-				lampY, -- 161
-				cam:len(23), -- 161
-				cam:len(27), -- 161
-				Color(239, 182, 106, 46 * flame), -- 161
-				Color(231, 164, 91, 0), -- 162
-				16 -- 162
-			) -- 162
-		end -- 162
-		::__continue22:: -- 162
-	end -- 162
-end -- 134
-function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, occlusion, fadeDt) -- 166
-	local c = p.room.cart -- 175
-	if c.bodyW <= 0 then -- 176
-		return -- 177
-	end -- 177
-	local depth = c.depth or 0 -- 179
-	local raised = p.room.depth ~= nil -- 180
-	local lo = math.min(c.startX, c.endX) -- 183
-	local hi = math.max(c.startX, c.endX) -- 184
-	if hi - lo > 4 then -- 185
-		local rx0 = cam:sx(lo) -- 186
-		local rx1 = cam:sx(hi) -- 187
-		local ry = cam:sy(c.baseY, depth) -- 188
-		fgDraw:drawSegment( -- 189
-			Vec2(rx0, ry + 1), -- 189
-			Vec2(rx1, ry + 1), -- 189
-			1.2, -- 189
-			Color(86, 65, 47, 150) -- 189
-		) -- 189
-		local dockX = cam:sx(c.endX) -- 190
-		local width = cam:len(24) -- 191
-		local lip = cam:len(3) -- 192
-		fgDraw:drawRect( -- 193
-			Rect(dockX - width * 0.5, ry, width, lip), -- 193
-			Color(51, 37, 26, 230) -- 193
-		) -- 193
-		fgDraw:drawRect( -- 194
-			Rect(dockX + width * 0.5 - lip, ry, lip, lip * 2), -- 194
-			Color(107, 77, 51, 230) -- 194
-		) -- 194
-	end -- 194
-	local axleX = p.cartAxle -- 197
-	local cx = cam:sx(axleX) -- 198
-	local baseY = cam:sy(c.baseY, depth) -- 199
-	local bw = cam:len(c.bodyW) -- 200
-	local bh = cam:len(c.bodyH) -- 201
-	local wr = cam:len(c.wheelR) -- 202
-	local x0 = cx - bw * 0.5 -- 204
-	local x1 = cx + bw * 0.5 -- 205
-	local bodyY0 = baseY + wr * 1.05 -- 206
-	local bodyY1 = bodyY0 + bh -- 207
-	local artWidth = c.bodyW * 1.36 -- 210
-	local artHeight = (c.wheelR * 2 + c.bodyH) * 0.88 -- 211
-	local opacity = raised and occlusion:update("cart", { -- 212
-		x0 = axleX - artWidth * 0.5, -- 213
-		x1 = axleX + artWidth * 0.5, -- 213
-		y0 = c.baseY, -- 214
-		y1 = c.baseY + artHeight, -- 214
-		depth = {min = depth, max = depth + 8}, -- 215
-		passThrough = true -- 215
-	}, p, fadeDt) or 1 -- 216
-	fgDraw:drawEllipse( -- 217
-		Vec2(cx, baseY + 2), -- 217
-		bw * 0.62, -- 217
-		5, -- 217
-		Color(4, 6, 10, 150 * opacity) -- 217
-	) -- 217
-	local painted = assets:tryPlace( -- 219
-		"prop_cart", -- 219
-		"cart", -- 219
-		cx, -- 219
-		baseY, -- 219
-		cam:len(artWidth), -- 219
-		cam:len(artHeight), -- 219
-		{ -- 219
-			layer = raised and depthOrder(depth, 2) or 2, -- 220
-			opacity = opacity, -- 220
-			color = occlusionTint(opacity) -- 220
-		} -- 220
-	) -- 220
-	if not painted then -- 222
-		fillVGradRect( -- 224
-			fgDraw, -- 224
-			x0, -- 224
-			bodyY0, -- 224
-			bw, -- 224
-			bh, -- 224
-			Color(48, 32, 28, 255), -- 224
-			toColor(PALETTE.cartWood) -- 224
-		) -- 224
-		fgDraw:drawRect( -- 225
-			Rect(x0, bodyY0, bw, bh), -- 225
-			Color(0, 0, 0, 0), -- 225
-			1.6, -- 225
-			toColor(PALETTE.cartMetal, 220) -- 225
+			end -- 125
+			i = i + 1 -- 107
+		end -- 107
+	end -- 107
+end -- 100
+function PropsRenderer.prototype.drawMarks(self, fgDraw, fgGlow, assets, p, cam, time) -- 131
+	for ____, m in ipairs(p.room.marks) do -- 139
+		do -- 139
+			if m.kind ~= 6 then -- 139
+				goto __continue23 -- 141
+			end -- 141
+			local mx = cam:sx(m.x) -- 143
+			local my = cam:sy(m.y) -- 144
+			local hookY = my + cam:len(52) -- 145
+			local armX = mx + cam:len(13) -- 146
+			local lampY = hookY - cam:len(12) -- 147
+			if not assets:tryPlace( -- 147
+				"fe_lamp_bracket", -- 148
+				"lamp_bracket_" .. tostring(m.x), -- 148
+				mx + cam:len(6), -- 148
+				my, -- 148
+				cam:len(26), -- 148
+				cam:len(54), -- 148
+				{layer = 1} -- 148
+			) then -- 148
+				local wood = Color(82, 58, 40, 245) -- 149
+				local joint = math.max( -- 150
+					1, -- 150
+					cam:len(2) -- 150
+				) -- 150
+				fgDraw:drawSegment( -- 151
+					Vec2(mx, my), -- 151
+					Vec2(mx, hookY), -- 151
+					joint, -- 151
+					wood -- 151
+				) -- 151
+				fgDraw:drawSegment( -- 152
+					Vec2(mx, hookY), -- 152
+					Vec2(armX, hookY), -- 152
+					joint, -- 152
+					wood -- 152
+				) -- 152
+			end -- 152
+			if not assets:tryPlace( -- 152
+				"prop_lantern", -- 154
+				"path_lamp_" .. tostring(m.x), -- 154
+				armX, -- 154
+				lampY, -- 154
+				cam:len(16), -- 154
+				cam:len(20), -- 154
+				{layer = 2} -- 154
+			) then -- 154
+				fgDraw:drawRect( -- 155
+					Rect( -- 155
+						armX - cam:len(4), -- 155
+						lampY - cam:len(7), -- 155
+						cam:len(8), -- 155
+						cam:len(14) -- 155
+					), -- 155
+					Color(192, 136, 64, 240), -- 156
+					1.4, -- 156
+					Color(82, 58, 40, 245) -- 156
+				) -- 156
+			end -- 156
+			local flame = 0.91 + math.sin(time * 3.1) * 0.09 -- 158
+			fillRadialGlow( -- 159
+				fgGlow, -- 159
+				armX, -- 159
+				lampY, -- 159
+				cam:len(23), -- 159
+				cam:len(27), -- 159
+				Color(239, 182, 106, 46 * flame), -- 159
+				Color(231, 164, 91, 0), -- 160
+				16 -- 160
+			) -- 160
+		end -- 160
+		::__continue23:: -- 160
+	end -- 160
+end -- 131
+function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, occlusion, fadeDt) -- 164
+	local c = p.room.cart -- 173
+	if c.bodyW <= 0 then -- 173
+		return -- 175
+	end -- 175
+	local depth = c.depth or 0 -- 177
+	local raised = p.room.depth ~= nil -- 178
+	local lo = math.min(c.startX, c.endX) -- 181
+	local hi = math.max(c.startX, c.endX) -- 182
+	if hi - lo > 4 then -- 182
+		local rx0 = cam:sx(lo) -- 184
+		local rx1 = cam:sx(hi) -- 185
+		local ry = cam:sy(c.baseY, depth) -- 186
+		fgDraw:drawSegment( -- 187
+			Vec2(rx0, ry + 1), -- 187
+			Vec2(rx1, ry + 1), -- 187
+			1.2, -- 187
+			Color(86, 65, 47, 150) -- 187
+		) -- 187
+		local dockX = cam:sx(c.endX) -- 188
+		local width = cam:len(24) -- 189
+		local lip = cam:len(3) -- 190
+		fgDraw:drawRect( -- 191
+			Rect(dockX - width * 0.5, ry, width, lip), -- 191
+			Color(51, 37, 26, 230) -- 191
+		) -- 191
+		fgDraw:drawRect( -- 192
+			Rect(dockX + width * 0.5 - lip, ry, lip, lip * 2), -- 192
+			Color(107, 77, 51, 230) -- 192
+		) -- 192
+	end -- 192
+	local axleX = p.cartAxle -- 195
+	local cx = cam:sx(axleX) -- 196
+	local baseY = cam:sy(c.baseY, depth) -- 197
+	local bw = cam:len(c.bodyW) -- 198
+	local bh = cam:len(c.bodyH) -- 199
+	local wr = cam:len(c.wheelR) -- 200
+	local x0 = cx - bw * 0.5 -- 202
+	local x1 = cx + bw * 0.5 -- 203
+	local bodyY0 = baseY + wr * 1.05 -- 204
+	local bodyY1 = bodyY0 + bh -- 205
+	local artWidth = c.bodyW * 1.36 -- 208
+	local artHeight = (c.wheelR * 2 + c.bodyH) * 0.88 -- 209
+	local opacity = raised and occlusion:update("cart", { -- 210
+		x0 = axleX - artWidth * 0.5, -- 211
+		x1 = axleX + artWidth * 0.5, -- 211
+		y0 = c.baseY, -- 212
+		y1 = c.baseY + artHeight, -- 212
+		depth = {min = depth, max = depth + 8}, -- 213
+		passThrough = true -- 213
+	}, p, fadeDt) or 1 -- 213
+	fgDraw:drawEllipse( -- 215
+		Vec2(cx, baseY + 2), -- 215
+		bw * 0.62, -- 215
+		5, -- 215
+		Color(4, 6, 10, 150 * opacity) -- 215
+	) -- 215
+	local painted = assets:tryPlace( -- 217
+		"prop_cart", -- 217
+		"cart", -- 217
+		cx, -- 217
+		baseY, -- 217
+		cam:len(artWidth), -- 217
+		cam:len(artHeight), -- 217
+		{ -- 217
+			layer = raised and depthOrder(depth, 2) or 2, -- 218
+			opacity = opacity, -- 218
+			color = occlusionTint(opacity) -- 218
+		} -- 218
+	) -- 218
+	if not painted then -- 218
+		fillVGradRect( -- 222
+			fgDraw, -- 222
+			x0, -- 222
+			bodyY0, -- 222
+			bw, -- 222
+			bh, -- 222
+			Color(48, 32, 28, 255), -- 222
+			toColor(PALETTE.cartWood) -- 222
+		) -- 222
+		fgDraw:drawRect( -- 223
+			Rect(x0, bodyY0, bw, bh), -- 223
+			Color(0, 0, 0, 0), -- 223
+			1.6, -- 223
+			toColor(PALETTE.cartMetal, 220) -- 223
+		) -- 223
+		fgDraw:drawSegment( -- 225
+			Vec2(x0 + bw * 0.33, bodyY0), -- 225
+			Vec2(x0 + bw * 0.33, bodyY1), -- 225
+			1.4, -- 225
+			toColor(PALETTE.cartMetal, 180) -- 225
 		) -- 225
+		fgDraw:drawSegment( -- 226
+			Vec2(x0 + bw * 0.67, bodyY0), -- 226
+			Vec2(x0 + bw * 0.67, bodyY1), -- 226
+			1.4, -- 226
+			toColor(PALETTE.cartMetal, 180) -- 226
+		) -- 226
 		fgDraw:drawSegment( -- 227
-			Vec2(x0 + bw * 0.33, bodyY0), -- 227
-			Vec2(x0 + bw * 0.33, bodyY1), -- 227
-			1.4, -- 227
-			toColor(PALETTE.cartMetal, 180) -- 227
+			Vec2(x0 - 2, bodyY1), -- 227
+			Vec2(x1 + 2, bodyY1), -- 227
+			2.2, -- 227
+			toColor(PALETTE.rimSilver, 220) -- 227
 		) -- 227
-		fgDraw:drawSegment( -- 228
-			Vec2(x0 + bw * 0.67, bodyY0), -- 228
-			Vec2(x0 + bw * 0.67, bodyY1), -- 228
-			1.4, -- 228
-			toColor(PALETTE.cartMetal, 180) -- 228
-		) -- 228
-		fgDraw:drawSegment( -- 229
-			Vec2(x0 - 2, bodyY1), -- 229
-			Vec2(x1 + 2, bodyY1), -- 229
-			2.2, -- 229
-			toColor(PALETTE.rimSilver, 220) -- 229
-		) -- 229
-		local wheelSpin = -(axleX - c.startX) / math.max(1, c.wheelR) -- 232
-		local wxA = x0 + bw * 0.24 -- 233
-		local wxB = x1 - bw * 0.24 -- 234
-		local wy = baseY + wr -- 235
-		self:drawWheel( -- 236
-			fgDraw, -- 236
-			wxA, -- 236
-			wy, -- 236
-			wr, -- 236
-			wheelSpin -- 236
-		) -- 236
-		self:drawWheel( -- 237
-			fgDraw, -- 237
-			wxB, -- 237
-			wy, -- 237
-			wr, -- 237
-			wheelSpin -- 237
-		) -- 237
-	end -- 237
-	local hx = cam:sx(axleX + c.handleOffset) -- 241
-	local hTop = bodyY1 + cam:len(7) -- 242
-	local edge = painted and (c.handleOffset < 0 and cx - cam:len(artWidth * 0.42) or cx + cam:len(artWidth * 0.42)) or (c.handleOffset < 0 and x0 or x1) -- 243
-	local handleSpan = math.abs(hx - edge) -- 246
-	if not painted or handleSpan > cam:len(4) then -- 247
+		local wheelSpin = -(axleX - c.startX) / math.max(1, c.wheelR) -- 230
+		local wxA = x0 + bw * 0.24 -- 231
+		local wxB = x1 - bw * 0.24 -- 232
+		local wy = baseY + wr -- 233
+		self:drawWheel( -- 234
+			fgDraw, -- 234
+			wxA, -- 234
+			wy, -- 234
+			wr, -- 234
+			wheelSpin -- 234
+		) -- 234
+		self:drawWheel( -- 235
+			fgDraw, -- 235
+			wxB, -- 235
+			wy, -- 235
+			wr, -- 235
+			wheelSpin -- 235
+		) -- 235
+	end -- 235
+	local hx = cam:sx(axleX + c.handleOffset) -- 239
+	local hTop = bodyY1 + cam:len(7) -- 240
+	local edge = painted and (c.handleOffset < 0 and cx - cam:len(artWidth * 0.42) or cx + cam:len(artWidth * 0.42)) or (c.handleOffset < 0 and x0 or x1) -- 241
+	local handleSpan = math.abs(hx - edge) -- 244
+	if not painted or handleSpan > cam:len(4) then -- 244
+		fgDraw:drawSegment( -- 246
+			Vec2(edge, bodyY0 + bh * 0.52), -- 246
+			Vec2( -- 246
+				hx, -- 246
+				hTop - cam:len(4) -- 246
+			), -- 246
+			math.max( -- 247
+				1.8, -- 247
+				cam:len(2.4) -- 247
+			), -- 247
+			toColor(PALETTE.cartWood, 245 * opacity) -- 247
+		) -- 247
 		fgDraw:drawSegment( -- 248
-			Vec2(edge, bodyY0 + bh * 0.52), -- 248
 			Vec2( -- 248
 				hx, -- 248
-				hTop - cam:len(4) -- 248
+				hTop - cam:len(5.5) -- 248
 			), -- 248
+			Vec2(hx, hTop), -- 248
 			math.max( -- 249
-				1.8, -- 249
-				cam:len(2.4) -- 249
+				2.2, -- 249
+				cam:len(3.2) -- 249
 			), -- 249
-			toColor(PALETTE.cartWood, 245 * opacity) -- 249
+			Color(126, 91, 61, 245 * opacity) -- 249
 		) -- 249
-		fgDraw:drawSegment( -- 250
-			Vec2( -- 250
-				hx, -- 250
-				hTop - cam:len(5.5) -- 250
-			), -- 250
-			Vec2(hx, hTop), -- 250
-			math.max( -- 251
-				2.2, -- 251
-				cam:len(3.2) -- 251
-			), -- 251
-			Color(126, 91, 61, 245 * opacity) -- 251
-		) -- 251
-	end -- 251
-	if painted then -- 254
-		return -- 255
-	end -- 255
-	local clothAnchorX = c.clothSide < 0 and x0 + 3 or x1 - 3 -- 258
-	local wave = math.sin(time * 3.4) * 5 + (p.gripping and -p.player.facing * 6 or 0) -- 259
-	local wave2 = math.cos(time * 2.8) * 3.5 -- 260
-	local clothH = cam:len(26) -- 261
-	local clothW = cam:len(14) -- 262
-	fgDraw:drawPolygon( -- 263
-		{ -- 263
-			Vec2(clothAnchorX - 3, bodyY1 + 2), -- 264
-			Vec2(clothAnchorX + clothW * 0.65, bodyY1 + 2), -- 265
-			Vec2(clothAnchorX + clothW * 0.45 + wave2, bodyY1 - clothH * 0.55), -- 266
-			Vec2(clothAnchorX - clothW * 0.35 + wave, bodyY1 - clothH), -- 267
-			Vec2(clothAnchorX - clothW * 0.72 + wave * 0.7, bodyY1 - clothH * 0.62) -- 268
-		}, -- 268
-		toColor(PALETTE.clothRed) -- 269
-	) -- 269
-	fgDraw:drawSegment( -- 271
-		Vec2(clothAnchorX - 2, bodyY1 + 1), -- 272
-		Vec2(clothAnchorX - clothW * 0.35 + wave, bodyY1 - clothH), -- 273
-		1.6, -- 274
-		toColor(PALETTE.clothRedHighlight, 220) -- 275
-	) -- 275
-end -- 166
-function PropsRenderer.prototype.drawWheel(self, draw, cx, cy, r, spin) -- 279
-	draw:drawCircle( -- 280
-		Vec2(cx, cy), -- 280
-		r, -- 280
-		Color(24, 28, 36, 255) -- 280
-	) -- 280
-	draw:drawRing( -- 281
-		Vec2(cx, cy), -- 281
-		r * 0.72, -- 281
-		r, -- 281
-		Color(0, 0, 0, 0), -- 281
-		1.6, -- 281
-		toColor(PALETTE.cartMetal) -- 281
-	) -- 281
-	local k = 0 -- 282
-	do -- 282
-		k = 0 -- 283
-		while k < 4 do -- 283
-			local a = spin + k * math.pi / 4 -- 284
-			draw:drawSegment( -- 285
-				Vec2( -- 286
-					cx - math.cos(a) * r * 0.72, -- 286
-					cy - math.sin(a) * r * 0.72 -- 286
-				), -- 286
-				Vec2( -- 287
-					cx + math.cos(a) * r * 0.72, -- 287
-					cy + math.sin(a) * r * 0.72 -- 287
-				), -- 287
-				1.2, -- 288
-				toColor(PALETTE.steelLight, 190) -- 289
-			) -- 289
-			k = k + 1 -- 283
-		end -- 283
-	end -- 283
-	draw:drawDot( -- 292
-		Vec2(cx, cy), -- 292
-		math.max(2.2, r * 0.18), -- 292
-		toColor(PALETTE.rimSilver) -- 292
-	) -- 292
-end -- 279
-function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, p, cam, time) -- 295
-	local bottle = p.room.bottle -- 304
-	if bottle ~= nil then -- 305
-		local bx0 = cam:sx(bottle.x - 16) -- 306
-		local bx1 = cam:sx(bottle.x + 16) -- 307
-		local by0 = cam:sy(0) -- 308
-		local by1 = cam:sy(52) -- 309
-		local beam = cam:len(3.2) -- 310
-		local side = Color(78, 57, 41, 255) -- 311
-		fgDraw:drawRect( -- 312
-			Rect(bx0, by0, beam, by1 - by0), -- 312
-			side -- 312
-		) -- 312
-		fgDraw:drawRect( -- 313
-			Rect(bx1 - beam, by0, beam, by1 - by0), -- 313
-			side -- 313
-		) -- 313
-		for ____, shelfY in ipairs({by0 + (by1 - by0) * 0.46, by1 - beam}) do -- 314
-			fgDraw:drawRect( -- 315
-				Rect(bx0 - beam * 0.25, shelfY, bx1 - bx0 + beam * 0.5, beam), -- 315
-				Color(106, 78, 56, 255), -- 316
-				1, -- 316
-				Color(56, 42, 34, 240) -- 316
-			) -- 316
-		end -- 316
-		if not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 318
-			self:drawBottleSprite( -- 319
-				fgDraw, -- 319
-				assets, -- 319
-				"bottle_shelf", -- 319
-				cam:sx(bottle.x), -- 319
-				cam:sy(56), -- 319
-				cam.ppu, -- 319
-				0 -- 319
-			) -- 319
-		end -- 319
-	end -- 319
-	local arch = p.room.arch -- 323
-	local tx0 = cam:sx(arch.x0 - 4) -- 324
-	local tx1 = cam:sx(arch.x1 + 4) -- 325
-	local ty0 = cam:sy(arch.y) -- 326
-	local tyBot = cam:sy(arch.y + arch.h) -- 327
-	local tyTop = cam:sy(arch.y + arch.h + 6) -- 328
-	fillVGradRect( -- 329
-		fgDraw, -- 329
-		tx0 + 6, -- 329
-		ty0, -- 329
-		tx1 - tx0 - 12, -- 329
-		tyBot - ty0, -- 329
-		Color(9, 10, 15, 165), -- 330
-		Color(9, 10, 15, 100) -- 330
-	) -- 330
-	if not assets:tryPlace( -- 331
-		"prop_table", -- 331
-		"village_table", -- 331
-		(tx0 + tx1) * 0.5, -- 331
-		ty0, -- 331
-		tx1 - tx0, -- 332
-		tyTop - ty0, -- 332
-		{layer = 6} -- 332
-	) then -- 332
-		fgDraw:drawRect( -- 333
-			Rect(tx0, tyBot, tx1 - tx0, tyTop - tyBot), -- 333
-			toColor(PALETTE.cartWood) -- 333
-		) -- 333
-		fgDraw:drawRect( -- 334
-			Rect(tx0 + 2, ty0, 7, tyBot - ty0), -- 334
-			toColor(PALETTE.cartWood) -- 334
-		) -- 334
-		fgDraw:drawRect( -- 335
-			Rect(tx1 - 9, ty0, 7, tyBot - ty0), -- 335
-			toColor(PALETTE.cartWood) -- 335
-		) -- 335
-	end -- 335
-	if p.hasBottle and p.aimHold <= 0 then -- 339
-		local pl = p.player -- 340
-		self:drawBottleSprite( -- 341
-			fgDraw, -- 341
-			assets, -- 341
-			"bottle_held", -- 341
-			cam:sx(pl.x + pl.facing * 10), -- 341
-			cam:sy(pl.y + pl.h * 0.52), -- 341
-			cam.ppu, -- 341
-			pl.facing * 0.2 -- 341
-		) -- 341
-	end -- 341
-	if p.bottleFly ~= nil then -- 343
-		self:drawBottleSprite( -- 344
-			fgDraw, -- 344
-			assets, -- 344
-			"bottle_air", -- 344
-			cam:sx(p.bottleFly.x), -- 344
-			cam:sy(p.bottleFly.y), -- 344
-			cam.ppu, -- 344
-			time * 14 -- 344
-		) -- 344
-	end -- 344
-	if p.hasBottle and p.aimHold > 0 then -- 348
-		local pl = p.player -- 349
-		local endX = p.bottleAimX -- 350
-		local endY = p.bottleAimY -- 351
-		if endX < 0 then -- 352
-			local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 353
-			endX = wAim.x -- 354
-			endY = 0 -- 355
-		end -- 355
-		local dir = endX >= pl.x and 1 or -1 -- 357
-		local x0 = pl.x + dir * 10 -- 358
-		local y0 = pl.y + pl.h * 0.7 -- 359
-		local T = 0.62 -- 360
-		local vx = (endX - x0) / T -- 361
-		local vy = (endY - y0 + 0.5 * GRAVITY * T * T) / T -- 362
-		local isBrick = p.room.brickX ~= nil and math.abs(endX - p.room.brickX) <= 34 -- 364
-		local isSoft = p.room.softX ~= nil and math.abs(endX - p.room.softX) <= 34 -- 365
-		local arcCol = isBrick and PALETTE.amber or (isSoft and PALETTE.textDim or PALETTE.emerald) -- 366
-		local activeAim = p.aimHold > 0.01 -- 367
-		local steps = 18 -- 369
-		local k = 1 -- 370
-		do -- 370
-			k = 1 -- 371
-			while k <= steps do -- 371
-				local tt = k / steps * T -- 372
-				local wx = x0 + vx * tt -- 373
-				local wy = y0 + vy * tt - 0.5 * GRAVITY * tt * tt -- 374
-				local sx = cam:sx(wx) -- 375
-				local sy = cam:sy(wy) -- 376
-				local alpha = (activeAim and 225 or 135) * (0.45 + 0.55 * (k / steps)) -- 377
-				fgGlow:drawDot( -- 378
-					Vec2(sx, sy), -- 378
-					activeAim and 3.2 or 2.2, -- 378
-					toColor(arcCol, alpha) -- 378
-				) -- 378
-				k = k + 1 -- 371
-			end -- 371
-		end -- 371
-		local lx = cam:sx(endX) -- 381
-		local ly = cam:sy(endY + 2) -- 382
-		local pulse = 0.85 + 0.15 * math.sin(time * 6) -- 383
-		fgGlow:drawRing( -- 384
-			Vec2(lx, ly), -- 384
-			8, -- 384
-			11, -- 384
-			Color(0, 0, 0, 0), -- 384
-			1.6, -- 384
-			toColor(arcCol, activeAim and 245 or 165) -- 384
-		) -- 384
-		if isBrick then -- 385
-			fgGlow:drawRing( -- 386
-				Vec2(lx, ly), -- 386
-				28 * pulse, -- 386
-				30 * pulse, -- 386
-				Color(0, 0, 0, 0), -- 386
-				1.2, -- 386
-				toColor(PALETTE.amber, activeAim and 175 or 95) -- 386
-			) -- 386
-			fillRadialGlow( -- 387
-				fgGlow, -- 387
-				lx, -- 387
-				ly, -- 387
-				36, -- 387
-				14, -- 387
-				Color(242, 188, 96, activeAim and 95 or 48), -- 387
-				Color(242, 188, 96, 0), -- 387
-				14 -- 387
-			) -- 387
-		end -- 387
-	end -- 387
-end -- 295
-function PropsRenderer.prototype.drawBottleSprite(self, fgDraw, assets, id, cx, cy, ppu, tilt) -- 392
-	local height = math.max(10, ppu * 10.5) -- 399
-	if not assets:tryPlace( -- 400
-		"prop_bottle", -- 400
-		id, -- 400
-		cx, -- 400
-		cy, -- 400
-		height, -- 400
-		height, -- 400
-		{angle = tilt * 180 / math.pi, layer = 6} -- 400
-	) then -- 400
-		local dx = math.sin(tilt) * height * 0.4 -- 403
-		local dy = math.cos(tilt) * height * 0.5 -- 404
-		fgDraw:drawSegment( -- 405
-			Vec2(cx - dx, cy - dy), -- 405
-			Vec2(cx + dx, cy + dy), -- 405
-			height * 0.32, -- 405
-			toColor(PALETTE.amber, 225) -- 406
-		) -- 406
-	end -- 406
-end -- 392
-return ____exports -- 392
+	end -- 249
+	if painted then -- 249
+		return -- 253
+	end -- 253
+	local clothAnchorX = c.clothSide < 0 and x0 + 3 or x1 - 3 -- 256
+	local wave = math.sin(time * 3.4) * 5 + (p.gripping and -p.player.facing * 6 or 0) -- 257
+	local wave2 = math.cos(time * 2.8) * 3.5 -- 258
+	local clothH = cam:len(26) -- 259
+	local clothW = cam:len(14) -- 260
+	fgDraw:drawPolygon( -- 261
+		{ -- 261
+			Vec2(clothAnchorX - 3, bodyY1 + 2), -- 262
+			Vec2(clothAnchorX + clothW * 0.65, bodyY1 + 2), -- 263
+			Vec2(clothAnchorX + clothW * 0.45 + wave2, bodyY1 - clothH * 0.55), -- 264
+			Vec2(clothAnchorX - clothW * 0.35 + wave, bodyY1 - clothH), -- 265
+			Vec2(clothAnchorX - clothW * 0.72 + wave * 0.7, bodyY1 - clothH * 0.62) -- 266
+		}, -- 266
+		toColor(PALETTE.clothRed) -- 267
+	) -- 267
+	fgDraw:drawSegment( -- 269
+		Vec2(clothAnchorX - 2, bodyY1 + 1), -- 270
+		Vec2(clothAnchorX - clothW * 0.35 + wave, bodyY1 - clothH), -- 271
+		1.6, -- 272
+		toColor(PALETTE.clothRedHighlight, 220) -- 273
+	) -- 273
+end -- 164
+function PropsRenderer.prototype.drawWheel(self, draw, cx, cy, r, spin) -- 277
+	draw:drawCircle( -- 278
+		Vec2(cx, cy), -- 278
+		r, -- 278
+		Color(24, 28, 36, 255) -- 278
+	) -- 278
+	draw:drawRing( -- 279
+		Vec2(cx, cy), -- 279
+		r * 0.72, -- 279
+		r, -- 279
+		Color(0, 0, 0, 0), -- 279
+		1.6, -- 279
+		toColor(PALETTE.cartMetal) -- 279
+	) -- 279
+	local k = 0 -- 280
+	do -- 280
+		k = 0 -- 281
+		while k < 4 do -- 281
+			local a = spin + k * math.pi / 4 -- 282
+			draw:drawSegment( -- 283
+				Vec2( -- 284
+					cx - math.cos(a) * r * 0.72, -- 284
+					cy - math.sin(a) * r * 0.72 -- 284
+				), -- 284
+				Vec2( -- 285
+					cx + math.cos(a) * r * 0.72, -- 285
+					cy + math.sin(a) * r * 0.72 -- 285
+				), -- 285
+				1.2, -- 286
+				toColor(PALETTE.steelLight, 190) -- 287
+			) -- 287
+			k = k + 1 -- 281
+		end -- 281
+	end -- 281
+	draw:drawDot( -- 290
+		Vec2(cx, cy), -- 290
+		math.max(2.2, r * 0.18), -- 290
+		toColor(PALETTE.rimSilver) -- 290
+	) -- 290
+end -- 277
+function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, p, cam, time) -- 293
+	local bottle = p.room.bottle -- 302
+	if bottle ~= nil then -- 302
+		local by0 = cam:sy(0) -- 304
+		local by1 = cam:sy(52) -- 305
+		if not assets:tryPlace( -- 305
+			"fe_bottle_rack", -- 306
+			"village_bottle_rack", -- 306
+			cam:sx(bottle.x), -- 306
+			by0, -- 306
+			cam:len(38), -- 306
+			by1 - by0 + cam:len(2), -- 306
+			{layer = 2} -- 306
+		) then -- 306
+			local bx0 = cam:sx(bottle.x - 16) -- 307
+			local bx1 = cam:sx(bottle.x + 16) -- 308
+			local beam = cam:len(3.2) -- 309
+			local side = Color(78, 57, 41, 255) -- 310
+			fgDraw:drawRect( -- 311
+				Rect(bx0, by0, beam, by1 - by0), -- 311
+				side -- 311
+			) -- 311
+			fgDraw:drawRect( -- 312
+				Rect(bx1 - beam, by0, beam, by1 - by0), -- 312
+				side -- 312
+			) -- 312
+		end -- 312
+		if not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 312
+			self:drawBottleSprite( -- 315
+				fgDraw, -- 315
+				assets, -- 315
+				"bottle_shelf", -- 315
+				cam:sx(bottle.x), -- 315
+				cam:sy(56), -- 315
+				cam.ppu, -- 315
+				0 -- 315
+			) -- 315
+		end -- 315
+	end -- 315
+	local arch = p.room.arch -- 319
+	local tx0 = cam:sx(arch.x0 - 4) -- 320
+	local tx1 = cam:sx(arch.x1 + 4) -- 321
+	local ty0 = cam:sy(arch.y) -- 322
+	local tyBot = cam:sy(arch.y + arch.h) -- 323
+	local tyTop = cam:sy(arch.y + arch.h + 6) -- 324
+	fillVGradRect( -- 325
+		fgDraw, -- 325
+		tx0 + 6, -- 325
+		ty0, -- 325
+		tx1 - tx0 - 12, -- 325
+		tyBot - ty0, -- 325
+		Color(9, 10, 15, 165), -- 326
+		Color(9, 10, 15, 100) -- 326
+	) -- 326
+	if not assets:tryPlace( -- 326
+		"prop_table", -- 327
+		"village_table", -- 327
+		(tx0 + tx1) * 0.5, -- 327
+		ty0, -- 327
+		tx1 - tx0, -- 328
+		tyTop - ty0, -- 328
+		{layer = 6} -- 328
+	) then -- 328
+		fgDraw:drawRect( -- 329
+			Rect(tx0, tyBot, tx1 - tx0, tyTop - tyBot), -- 329
+			toColor(PALETTE.cartWood) -- 329
+		) -- 329
+		fgDraw:drawRect( -- 330
+			Rect(tx0 + 2, ty0, 7, tyBot - ty0), -- 330
+			toColor(PALETTE.cartWood) -- 330
+		) -- 330
+		fgDraw:drawRect( -- 331
+			Rect(tx1 - 9, ty0, 7, tyBot - ty0), -- 331
+			toColor(PALETTE.cartWood) -- 331
+		) -- 331
+	end -- 331
+	if p.hasBottle and p.aimHold <= 0 then -- 331
+		local pl = p.player -- 336
+		self:drawBottleSprite( -- 337
+			fgDraw, -- 337
+			assets, -- 337
+			"bottle_held", -- 337
+			cam:sx(pl.x + pl.facing * 10), -- 337
+			cam:sy(pl.y + pl.h * 0.52), -- 337
+			cam.ppu, -- 337
+			pl.facing * 0.2 -- 337
+		) -- 337
+	end -- 337
+	if p.bottleFly ~= nil then -- 337
+		self:drawBottleSprite( -- 340
+			fgDraw, -- 340
+			assets, -- 340
+			"bottle_air", -- 340
+			cam:sx(p.bottleFly.x), -- 340
+			cam:sy(p.bottleFly.y), -- 340
+			cam.ppu, -- 340
+			time * 14 -- 340
+		) -- 340
+	end -- 340
+	if p.hasBottle and p.aimHold > 0 then -- 340
+		local pl = p.player -- 345
+		local endX = p.bottleAimX -- 346
+		local endY = p.bottleAimY -- 347
+		if endX < 0 then -- 347
+			local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 349
+			endX = wAim.x -- 350
+			endY = 0 -- 351
+		end -- 351
+		local dir = endX >= pl.x and 1 or -1 -- 353
+		local x0 = pl.x + dir * 10 -- 354
+		local y0 = pl.y + pl.h * 0.7 -- 355
+		local T = 0.62 -- 356
+		local vx = (endX - x0) / T -- 357
+		local vy = (endY - y0 + 0.5 * GRAVITY * T * T) / T -- 358
+		local isBrick = p.room.brickX ~= nil and math.abs(endX - p.room.brickX) <= 34 -- 360
+		local isSoft = p.room.softX ~= nil and math.abs(endX - p.room.softX) <= 34 -- 361
+		local arcCol = isBrick and PALETTE.amber or (isSoft and PALETTE.textDim or PALETTE.emerald) -- 362
+		local activeAim = p.aimHold > 0.01 -- 363
+		local steps = 18 -- 365
+		local k = 1 -- 366
+		do -- 366
+			k = 1 -- 367
+			while k <= steps do -- 367
+				local tt = k / steps * T -- 368
+				local wx = x0 + vx * tt -- 369
+				local wy = y0 + vy * tt - 0.5 * GRAVITY * tt * tt -- 370
+				local sx = cam:sx(wx) -- 371
+				local sy = cam:sy(wy) -- 372
+				local alpha = (activeAim and 225 or 135) * (0.45 + 0.55 * (k / steps)) -- 373
+				fgGlow:drawDot( -- 374
+					Vec2(sx, sy), -- 374
+					activeAim and 3.2 or 2.2, -- 374
+					toColor(arcCol, alpha) -- 374
+				) -- 374
+				k = k + 1 -- 367
+			end -- 367
+		end -- 367
+		local lx = cam:sx(endX) -- 377
+		local ly = cam:sy(endY + 2) -- 378
+		local pulse = 0.85 + 0.15 * math.sin(time * 6) -- 379
+		fgGlow:drawRing( -- 380
+			Vec2(lx, ly), -- 380
+			8, -- 380
+			11, -- 380
+			Color(0, 0, 0, 0), -- 380
+			1.6, -- 380
+			toColor(arcCol, activeAim and 245 or 165) -- 380
+		) -- 380
+		if isBrick then -- 380
+			fgGlow:drawRing( -- 382
+				Vec2(lx, ly), -- 382
+				28 * pulse, -- 382
+				30 * pulse, -- 382
+				Color(0, 0, 0, 0), -- 382
+				1.2, -- 382
+				toColor(PALETTE.amber, activeAim and 175 or 95) -- 382
+			) -- 382
+			fillRadialGlow( -- 383
+				fgGlow, -- 383
+				lx, -- 383
+				ly, -- 383
+				36, -- 383
+				14, -- 383
+				Color(242, 188, 96, activeAim and 95 or 48), -- 383
+				Color(242, 188, 96, 0), -- 383
+				14 -- 383
+			) -- 383
+		end -- 383
+	end -- 383
+end -- 293
+function PropsRenderer.prototype.drawBottleSprite(self, fgDraw, assets, id, cx, cy, ppu, tilt) -- 388
+	local height = math.max(10, ppu * 10.5) -- 395
+	if not assets:tryPlace( -- 395
+		"prop_bottle", -- 396
+		id, -- 396
+		cx, -- 396
+		cy, -- 396
+		height, -- 396
+		height, -- 396
+		{angle = tilt * 180 / math.pi, layer = 6} -- 396
+	) then -- 396
+		local dx = math.sin(tilt) * height * 0.4 -- 399
+		local dy = math.cos(tilt) * height * 0.5 -- 400
+		fgDraw:drawSegment( -- 401
+			Vec2(cx - dx, cy - dy), -- 401
+			Vec2(cx + dx, cy + dy), -- 401
+			height * 0.32, -- 401
+			toColor(PALETTE.amber, 225) -- 402
+		) -- 402
+	end -- 402
+end -- 388
+return ____exports -- 388

@@ -6,33 +6,32 @@ local ____exports = {} -- 1
 local ____Dora = require("Dora") -- 12
 local Color = ____Dora.Color -- 12
 local Vec2 = ____Dora.Vec2 -- 12
-local ____cuff_shots = require("Script.watch.fe.cutscenes.cuff_shots") -- 16
-local CUFF_PALETTE = ____cuff_shots.CUFF_PALETTE -- 16
-local ____occlusion = require("Script.watch.fe.occlusion") -- 17
-local depthOrder = ____occlusion.depthOrder -- 17
-local ____theme = require("Script.watch.fe.theme") -- 19
-local PALETTE = ____theme.PALETTE -- 19
-local fillRadialGlow = ____theme.fillRadialGlow -- 19
-local toColor = ____theme.toColor -- 19
---- 原生 actors.ts 在护送/背负模式下可能激活的 actor_child 精灵帧（同 instanceKey 原地压隐防重影）
-local CHILD_SPRITE_PATHS = { -- 35
-	"assets/art/sprites.clip|child_idle", -- 36
-	"assets/art/sprites.clip|child_run", -- 37
-	"assets/art/sprites.clip|child_step", -- 38
-	"assets/art/sprites.clip|child_crouch", -- 39
-	"assets/art/sprites.clip|child_crouch_step", -- 40
-	"assets/art/sprites.clip|child_fear", -- 41
-	"assets/art/sprites.clip|child_peek", -- 42
-	"assets/art/sprites.clip|child_offer", -- 43
-	"assets/art/sprites.clip|child_knock" -- 44
-} -- 44
---- 同一道青布补线袖口（同源 cuff_shots.CUFF_PALETTE）与明初小满红褐短袄色板
-local CUFF_CLOTH = toColor(CUFF_PALETTE.indigoBase) -- 48
-local CUFF_MEND = toColor(CUFF_PALETTE.stitchThread) -- 49
-local CHILD_SLEEVE = Color(164, 78, 54, 255) -- 50
-local CHILD_SKIN = Color(236, 210, 182, 255) -- 51
-local CHILD_VEST = Color(146, 68, 48, 255) -- 52
-local NEEDLE_CORD = Color(198, 166, 114, 240) -- 53
+local ____occlusion = require("Script.watch.fe.occlusion") -- 16
+local depthOrder = ____occlusion.depthOrder -- 16
+local ____theme = require("Script.watch.fe.theme") -- 18
+local PALETTE = ____theme.PALETTE -- 18
+local fillRadialGlow = ____theme.fillRadialGlow -- 18
+local toColor = ____theme.toColor -- 18
+--- 原生 actors.ts 在护送/背负模式下可能激活的 actor_child / actor_soldier 精灵帧（原地压隐防重影）
+local CHILD_SPRITE_PATHS = { -- 34
+	"assets/art/sprites.clip|child_idle", -- 35
+	"assets/art/sprites.clip|child_run", -- 36
+	"assets/art/sprites.clip|child_step", -- 37
+	"assets/art/sprites.clip|child_crouch", -- 38
+	"assets/art/sprites.clip|child_crouch_step", -- 39
+	"assets/art/sprites.clip|child_fear", -- 40
+	"assets/art/sprites.clip|child_peek", -- 41
+	"assets/art/sprites.clip|child_offer", -- 42
+	"assets/art/sprites.clip|child_knock" -- 43
+} -- 43
+local SOLDIER_SPRITE_PATHS = { -- 46
+	"assets/art/sprites.clip|soldier_idle", -- 47
+	"assets/art/sprites.clip|soldier_run", -- 48
+	"assets/art/sprites.clip|soldier_step", -- 49
+	"assets/art/sprites.clip|soldier_cover", -- 50
+	"assets/art/sprites.clip|soldier_hold", -- 51
+	"assets/art/sprites.clip|soldier_offer" -- 52
+} -- 52
 local function clamp01(v) -- 55
 	return math.max( -- 56
 		0, -- 56
@@ -61,544 +60,431 @@ local function suppressOriginalChild(worldArt) -- 64
 		end -- 66
 	end -- 66
 end -- 64
-____exports.CarryPosePlugin = __TS__Class() -- 79
-local CarryPosePlugin = ____exports.CarryPosePlugin -- 79
-CarryPosePlugin.name = "CarryPosePlugin" -- 79
-function CarryPosePlugin.prototype.____constructor(self) -- 79
-	self.id = "fe-02-carry-pose" -- 80
-	self.animTime = 0 -- 82
-	self.smoothedFacing = 1 -- 83
-	self.mountT = 0 -- 84
-	self.benchDropT = 0 -- 85
-	self.reachT = 0 -- 86
-	self.mode = "none" -- 87
-	self.childAnchorX = 0 -- 88
-	self.childAnchorY = 0 -- 89
-	self.handoverActive = false -- 90
-	self.carryAudioRoomSession = -1 -- 91
+local function suppressOriginalSoldier(worldArt) -- 79
+	local i = 0 -- 80
+	do -- 80
+		i = 0 -- 81
+		while i < #SOLDIER_SPRITE_PATHS do -- 81
+			worldArt:tryPlacePath( -- 82
+				SOLDIER_SPRITE_PATHS[i + 1], -- 83
+				"actor_soldier", -- 84
+				-9999, -- 84
+				-9999, -- 84
+				1, -- 87
+				1, -- 88
+				{anchorY = 0, preserveAspect = true, opacity = 0, layer = -99} -- 89
+			) -- 89
+			i = i + 1 -- 81
+		end -- 81
+	end -- 81
 end -- 79
-function CarryPosePlugin.prototype.getPoseState(self) -- 93
-	return { -- 94
-		mode = self.mode, -- 95
-		smoothedFacing = self.smoothedFacing, -- 96
-		mountT = self.mountT, -- 97
-		benchDropT = self.benchDropT, -- 98
-		reachT = self.reachT, -- 99
-		childAnchorX = self.childAnchorX, -- 100
-		childAnchorY = self.childAnchorY, -- 101
-		handoverActive = self.handoverActive -- 102
-	} -- 102
-end -- 93
-function CarryPosePlugin.prototype.onBindPlay(self, p, view) -- 106
-	self.animTime = 0 -- 107
-	self.smoothedFacing = p.player.facing >= 0 and 1 or -1 -- 108
-	self.mountT = view.backCarry.active and not view.backCarry.mounting and 1 or 0 -- 109
-	self.benchDropT = view.backCarry.atBench and 1 or 0 -- 110
-	self.reachT = 0 -- 111
-	self.mode = self:resolveMode(view) -- 112
-	self.childAnchorX = p.player.x -- 113
-	self.childAnchorY = p.player.y -- 114
-	self.handoverActive = false -- 115
-	self.carryAudioRoomSession = -1 -- 116
-end -- 106
-function CarryPosePlugin.prototype.resolveMode(self, view) -- 119
-	local bc = view.backCarry -- 120
-	if bc.atBench or view.craftBench.active then -- 120
-		return "atBench" -- 122
-	end -- 122
-	if bc.mounting then -- 122
-		return "mounting" -- 125
-	end -- 125
-	if bc.active then -- 125
-		return "carrying" -- 128
-	end -- 128
-	if bc.handInHand then -- 128
-		return "handInHand" -- 131
-	end -- 131
-	return "none" -- 133
-end -- 119
-function CarryPosePlugin.prototype.update(self, ctx) -- 136
-	local view = ctx.view -- 137
-	local p = ctx.p -- 138
-	self.mode = self:resolveMode(view) -- 139
-	self.handoverActive = view.craftBench.justCraftedTimer > 0 -- 140
-	if view.visualMode ~= "pixel" or p.childMode or not p.player.alive then -- 140
-		return -- 143
+____exports.CarryPosePlugin = __TS__Class() -- 94
+local CarryPosePlugin = ____exports.CarryPosePlugin -- 94
+CarryPosePlugin.name = "CarryPosePlugin" -- 94
+function CarryPosePlugin.prototype.____constructor(self) -- 94
+	self.id = "fe-02-carry-pose" -- 95
+	self.animTime = 0 -- 97
+	self.smoothedFacing = 1 -- 98
+	self.mountT = 0 -- 99
+	self.benchDropT = 0 -- 100
+	self.reachT = 0 -- 101
+	self.mode = "none" -- 102
+	self.childAnchorX = 0 -- 103
+	self.childAnchorY = 0 -- 104
+	self.handoverActive = false -- 105
+	self.carryAudioRoomSession = -1 -- 106
+end -- 94
+function CarryPosePlugin.prototype.getPoseState(self) -- 108
+	return { -- 109
+		mode = self.mode, -- 110
+		smoothedFacing = self.smoothedFacing, -- 111
+		mountT = self.mountT, -- 112
+		benchDropT = self.benchDropT, -- 113
+		reachT = self.reachT, -- 114
+		childAnchorX = self.childAnchorX, -- 115
+		childAnchorY = self.childAnchorY, -- 116
+		handoverActive = self.handoverActive -- 117
+	} -- 117
+end -- 108
+function CarryPosePlugin.prototype.onBindPlay(self, p, view) -- 121
+	self.animTime = 0 -- 122
+	self.smoothedFacing = p.player.facing >= 0 and 1 or -1 -- 123
+	self.mountT = view.backCarry.active and not view.backCarry.mounting and 1 or 0 -- 124
+	self.benchDropT = view.backCarry.atBench and 1 or 0 -- 125
+	self.reachT = 0 -- 126
+	self.mode = self:resolveMode(view) -- 127
+	self.childAnchorX = p.player.x -- 128
+	self.childAnchorY = p.player.y -- 129
+	self.handoverActive = false -- 130
+	self.carryAudioRoomSession = -1 -- 131
+end -- 121
+function CarryPosePlugin.prototype.resolveMode(self, view) -- 134
+	local bc = view.backCarry -- 135
+	if bc.atBench or view.craftBench.active then -- 135
+		return "atBench" -- 137
+	end -- 137
+	if bc.mounting then -- 137
+		return "mounting" -- 140
+	end -- 140
+	if bc.active then -- 140
+		return "carrying" -- 143
 	end -- 143
-	if ctx.paused then -- 143
-		return -- 146
+	if bc.handInHand then -- 143
+		return "handInHand" -- 146
 	end -- 146
-	local wdt = math.max(0, ctx.worldDt) -- 149
-	local udt = math.max(0, ctx.uiDt) -- 150
-	if wdt > 0 then -- 150
-		self.animTime = self.animTime + wdt -- 153
-		local targetF = p.player.facing >= 0 and 1 or -1 -- 156
-		local turnK = math.min(1, wdt * 15) -- 157
-		self.smoothedFacing = self.smoothedFacing + (targetF - self.smoothedFacing) * turnK -- 158
-		if math.abs(targetF - self.smoothedFacing) < 0.005 then -- 158
-			self.smoothedFacing = targetF -- 160
-		end -- 160
-		if self.mode == "mounting" then -- 160
-			self.mountT = clamp01(self.mountT + wdt / 0.45) -- 165
-		elseif self.mode == "carrying" then -- 165
-			self.mountT = clamp01(self.mountT + wdt / 0.22) -- 167
-		elseif self.mode == "handInHand" or self.mode == "none" then -- 167
-			self.mountT = clamp01(self.mountT - wdt / 0.28) -- 169
-		end -- 169
-		local dropTarget = self.mode == "atBench" and 1 or 0 -- 173
-		self.benchDropT = self.benchDropT + (dropTarget - self.benchDropT) * math.min(1, wdt * 11) -- 174
-		if math.abs(dropTarget - self.benchDropT) < 0.005 then -- 174
-			self.benchDropT = dropTarget -- 176
-		end -- 176
-	end -- 176
-	if udt > 0 then -- 176
-		local reachTarget = view.reloadSession.active and 1 or 0 -- 182
-		local speed = view.reloadSession.active and (view.reloadSession.firstTime and 4.4 or 9.2) or 5.5 -- 183
-		self.reachT = self.reachT + (reachTarget - self.reachT) * math.min(1, udt * speed) -- 186
-		if math.abs(reachTarget - self.reachT) < 0.005 then -- 186
-			self.reachT = reachTarget -- 188
-		end -- 188
-	end -- 188
-	if (self.mode == "mounting" or self.mode == "carrying") and self.carryAudioRoomSession ~= ctx.events.roomSessionId then -- 188
-		local hasBackendEvent = false -- 195
-		local i = 0 -- 196
-		do -- 196
-			i = 0 -- 197
-			while i < #ctx.events.rawEvents do -- 197
-				if ctx.events.rawEvents[i + 1].name == "carryStart" then -- 197
-					hasBackendEvent = true -- 199
-					break -- 200
-				end -- 200
-				i = i + 1 -- 197
-			end -- 197
-		end -- 197
-		self.carryAudioRoomSession = ctx.events.roomSessionId -- 203
-		if not hasBackendEvent then -- 203
-			ctx.audio:playOnce( -- 205
-				"fe02:carry_start:r" .. tostring(ctx.events.roomSessionId), -- 206
-				"sfx", -- 207
-				"assets/audio/combat/carry_start.wav", -- 208
-				0.82, -- 209
-				"combat:carry_start", -- 210
-				p.ticks -- 211
-			) -- 211
-		end -- 211
-	end -- 211
-end -- 136
-function CarryPosePlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 217
-	local view = ctx.view -- 223
-	local p = ctx.p -- 224
-	if view.visualMode ~= "pixel" or p.childMode or not p.player.alive then -- 224
-		return -- 226
+	return "none" -- 148
+end -- 134
+function CarryPosePlugin.prototype.update(self, ctx) -- 151
+	local view = ctx.view -- 152
+	local p = ctx.p -- 153
+	self.mode = self:resolveMode(view) -- 154
+	self.handoverActive = view.craftBench.justCraftedTimer > 0 -- 155
+	if view.visualMode ~= "pixel" or p.childMode or not p.player.alive then -- 155
+		return -- 158
+	end -- 158
+	if ctx.paused then -- 158
+		return -- 161
+	end -- 161
+	local wdt = math.max(0, ctx.worldDt) -- 164
+	local udt = math.max(0, ctx.uiDt) -- 165
+	if wdt > 0 then -- 165
+		self.animTime = self.animTime + wdt -- 168
+		local targetF = p.player.facing >= 0 and 1 or -1 -- 171
+		local turnK = math.min(1, wdt * 15) -- 172
+		self.smoothedFacing = self.smoothedFacing + (targetF - self.smoothedFacing) * turnK -- 173
+		if math.abs(targetF - self.smoothedFacing) < 0.005 then -- 173
+			self.smoothedFacing = targetF -- 175
+		end -- 175
+		if self.mode == "mounting" then -- 175
+			self.mountT = clamp01(self.mountT + wdt / 0.45) -- 180
+		elseif self.mode == "carrying" then -- 180
+			self.mountT = clamp01(self.mountT + wdt / 0.22) -- 182
+		elseif self.mode == "handInHand" or self.mode == "none" then -- 182
+			self.mountT = clamp01(self.mountT - wdt / 0.28) -- 184
+		end -- 184
+		local dropTarget = self.mode == "atBench" and 1 or 0 -- 188
+		self.benchDropT = self.benchDropT + (dropTarget - self.benchDropT) * math.min(1, wdt * 11) -- 189
+		if math.abs(dropTarget - self.benchDropT) < 0.005 then -- 189
+			self.benchDropT = dropTarget -- 191
+		end -- 191
+	end -- 191
+	if udt > 0 then -- 191
+		local reachTarget = view.reloadSession.active and 1 or 0 -- 197
+		local speed = view.reloadSession.active and (view.reloadSession.firstTime and 4.4 or 9.2) or 5.5 -- 198
+		self.reachT = self.reachT + (reachTarget - self.reachT) * math.min(1, udt * speed) -- 201
+		if math.abs(reachTarget - self.reachT) < 0.005 then -- 201
+			self.reachT = reachTarget -- 203
+		end -- 203
+	end -- 203
+	if (self.mode == "mounting" or self.mode == "carrying") and self.carryAudioRoomSession ~= ctx.events.roomSessionId then -- 203
+		local hasBackendEvent = false -- 210
+		local i = 0 -- 211
+		do -- 211
+			i = 0 -- 212
+			while i < #ctx.events.rawEvents do -- 212
+				if ctx.events.rawEvents[i + 1].name == "carryStart" then -- 212
+					hasBackendEvent = true -- 214
+					break -- 215
+				end -- 215
+				i = i + 1 -- 212
+			end -- 212
+		end -- 212
+		self.carryAudioRoomSession = ctx.events.roomSessionId -- 218
+		if not hasBackendEvent then -- 218
+			ctx.audio:playOnce( -- 220
+				"fe02:carry_start:r" .. tostring(ctx.events.roomSessionId), -- 221
+				"sfx", -- 222
+				"assets/audio/combat/carry_start.wav", -- 223
+				0.82, -- 224
+				"combat:carry_start", -- 225
+				p.ticks -- 226
+			) -- 226
+		end -- 226
 	end -- 226
-	if self.mode == "none" and self.mountT <= 0.01 and self.benchDropT <= 0.01 then -- 226
-		return -- 229
-	end -- 229
-	if self.mode == "handInHand" then -- 229
-		self:drawHandInHand(fgDraw, fgGlow, worldArt, ctx) -- 233
-		return -- 234
-	end -- 234
-	suppressOriginalChild(worldArt) -- 238
-	if self.mode == "atBench" or self.benchDropT > 0.5 then -- 238
-		self:drawAtBench(fgDraw, fgGlow, worldArt, ctx) -- 241
-		return -- 242
-	end -- 242
-	self:drawCarriedOrMounting(fgDraw, fgGlow, worldArt, ctx) -- 245
-end -- 217
-function CarryPosePlugin.prototype.drawHandInHand(self, fgDraw, fgGlow, worldArt, ctx) -- 249
-	local p = ctx.p -- 255
-	local cam = ctx.cam -- 256
-	local soldier = p.player -- 257
-	local partner = p.partner -- 258
-	local depthEnabled = p.room.depth ~= nil -- 259
-	local f = soldier.facing >= 0 and 1 or -1 -- 260
-	local speed = math.max( -- 261
-		math.abs(soldier.vx), -- 261
-		math.abs(soldier.depthSpeed) -- 261
-	) -- 261
-	local nearPartner = partner.alive and math.abs(partner.x - soldier.x) <= 56 and math.abs(partner.y - soldier.y) <= 24 -- 264
-	local childWX = partner.x -- 265
-	local childWY = partner.y -- 266
-	local childDepth = partner.depth -- 267
-	if not nearPartner then -- 267
-		suppressOriginalChild(worldArt) -- 270
-		local lag = speed > 8 and math.sin(self.animTime * 13.5) * 2.4 or 0 -- 272
-		childWX = soldier.x - f * 26 + lag -- 273
-		childWY = soldier.y -- 274
-		childDepth = soldier.depth -- 275
-		local childStep = math.floor(self.animTime * 13) -- 277
-		local slot = speed > 8 and "child_run" or "child_idle" -- 278
-		local scx = cam:sx(childWX) -- 279
-		local scy = cam:sy(childWY, childDepth) -- 280
-		local cW = cam:len(22) -- 281
-		local cH = cam:len(64) -- 282
-		worldArt:tryPlace( -- 283
-			slot, -- 283
-			"carry_child_walk", -- 283
-			scx, -- 283
-			scy, -- 283
-			cW, -- 283
-			cH, -- 283
-			{ -- 283
-				facing = f, -- 284
-				frame = speed > 8 and childStep or 0, -- 285
-				layer = depthEnabled and depthOrder(childDepth, 4) or 4 -- 286
-			} -- 286
-		) -- 286
-		fgDraw:drawEllipse( -- 288
-			Vec2(scx, scy + 1), -- 288
-			cW * 0.46, -- 288
-			3.2, -- 288
-			Color(10, 10, 12, 130) -- 288
-		) -- 288
-	end -- 288
-	self.childAnchorX = childWX -- 291
-	self.childAnchorY = childWY -- 292
-	local sHandX = cam:sx(soldier.x - f * 8) -- 295
-	local sHandY = cam:sy(soldier.y + soldier.h * 0.46, soldier.depth) -- 296
-	local cHandX = cam:sx(childWX + f * 7) -- 297
-	local cHandY = cam:sy(childWY + 36, childDepth) -- 298
-	local swayY = speed > 8 and math.sin(self.animTime * 10.5) * cam:len(2.4) or math.sin(self.animTime * 2.2) * cam:len(0.8) -- 299
-	local claspX = (sHandX + cHandX) * 0.5 -- 300
-	local claspY = (sHandY + cHandY) * 0.5 + swayY -- 301
-	fgDraw:drawSegment( -- 304
-		Vec2( -- 304
-			sHandX, -- 304
-			sHandY + cam:len(5) -- 304
-		), -- 304
-		Vec2(claspX, claspY), -- 304
-		math.max( -- 304
-			2.6, -- 304
-			cam:len(3) -- 304
-		), -- 304
-		CUFF_CLOTH -- 304
-	) -- 304
-	local mendX = sHandX + (claspX - sHandX) * 0.72 -- 305
-	local mendY = sHandY + cam:len(5) + (claspY - (sHandY + cam:len(5))) * 0.72 -- 306
-	fgDraw:drawSegment( -- 307
-		Vec2(mendX - f * 2, mendY - 1.5), -- 307
-		Vec2(mendX + f * 2, mendY + 1.5), -- 307
-		1.3, -- 307
-		CUFF_MEND -- 307
-	) -- 307
-	fgDraw:drawSegment( -- 310
-		Vec2(cHandX, cHandY), -- 310
-		Vec2(claspX, claspY), -- 310
-		math.max( -- 310
-			2, -- 310
-			cam:len(2.2) -- 310
-		), -- 310
-		CHILD_SLEEVE -- 310
-	) -- 310
-	fgDraw:drawDot( -- 311
-		Vec2(claspX - f * 2.5, claspY + 1), -- 311
-		math.max( -- 311
-			1.8, -- 311
-			cam:len(1.4) -- 311
-		), -- 311
-		NEEDLE_CORD -- 311
-	) -- 311
-	fgDraw:drawCircle( -- 314
-		Vec2(claspX, claspY), -- 314
-		math.max( -- 314
-			2.8, -- 314
-			cam:len(2.4) -- 314
-		), -- 314
-		CHILD_SKIN -- 314
-	) -- 314
-	fgGlow:drawDot( -- 315
-		Vec2(claspX, claspY), -- 315
-		math.max( -- 315
-			2.2, -- 315
-			cam:len(1.8) -- 315
-		), -- 315
-		toColor(PALETTE.amberCore, 155) -- 315
-	) -- 315
-end -- 249
-function CarryPosePlugin.prototype.drawCarriedOrMounting(self, fgDraw, fgGlow, worldArt, ctx) -- 319
-	local p = ctx.p -- 325
-	local cam = ctx.cam -- 326
-	local soldier = p.player -- 327
-	local depthEnabled = p.room.depth ~= nil -- 328
-	local sf = self.smoothedFacing -- 329
-	local faceSign = sf >= 0 and 1 or -1 -- 330
-	local speed = math.max( -- 331
-		math.abs(soldier.vx), -- 331
-		math.abs(soldier.depthSpeed) -- 331
+end -- 151
+function CarryPosePlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 232
+	local view = ctx.view -- 238
+	local p = ctx.p -- 239
+	if view.visualMode ~= "pixel" or p.childMode or not p.player.alive then -- 239
+		return -- 241
+	end -- 241
+	if self.mode == "none" and self.mountT <= 0.01 and self.benchDropT <= 0.01 then -- 241
+		return -- 244
+	end -- 244
+	if self.mode == "handInHand" then -- 244
+		self:drawHandInHand(fgDraw, fgGlow, worldArt, ctx) -- 248
+		return -- 249
+	end -- 249
+	suppressOriginalChild(worldArt) -- 253
+	if self.mode == "atBench" or self.benchDropT > 0.5 then -- 253
+		self:drawAtBench(fgDraw, fgGlow, worldArt, ctx) -- 256
+		return -- 257
+	end -- 257
+	self:drawCarriedOrMounting(fgDraw, fgGlow, worldArt, ctx) -- 260
+end -- 232
+function CarryPosePlugin.prototype.drawHandInHand(self, fgDraw, fgGlow, worldArt, ctx) -- 264
+	local p = ctx.p -- 270
+	local cam = ctx.cam -- 271
+	local soldier = p.player -- 272
+	local partner = p.partner -- 273
+	local depthEnabled = p.room.depth ~= nil -- 274
+	local f = soldier.facing >= 0 and 1 or -1 -- 275
+	local speed = math.max( -- 276
+		math.abs(soldier.vx), -- 276
+		math.abs(soldier.depthSpeed) -- 276
+	) -- 276
+	local nearPartner = partner.alive and math.abs(partner.x - soldier.x) <= 56 and math.abs(partner.y - soldier.y) <= 24 -- 279
+	local childWX = partner.x -- 280
+	local childWY = partner.y -- 281
+	local childDepth = partner.depth -- 282
+	if not nearPartner then -- 282
+		suppressOriginalChild(worldArt) -- 285
+		local lag = speed > 8 and math.sin(self.animTime * 13.5) * 2.4 or 0 -- 287
+		childWX = soldier.x - f * 26 + lag -- 288
+		childWY = soldier.y -- 289
+		childDepth = soldier.depth -- 290
+		local childStep = math.floor(self.animTime * 13) -- 292
+		local slot = speed > 8 and "child_run" or "child_idle" -- 293
+		local scx = cam:sx(childWX) -- 294
+		local scy = cam:sy(childWY, childDepth) -- 295
+		local cW = cam:len(22) -- 296
+		local cH = cam:len(64) -- 297
+		worldArt:tryPlace( -- 298
+			slot, -- 298
+			"carry_child_walk", -- 298
+			scx, -- 298
+			scy, -- 298
+			cW, -- 298
+			cH, -- 298
+			{ -- 298
+				facing = f, -- 299
+				frame = speed > 8 and childStep or 0, -- 300
+				layer = depthEnabled and depthOrder(childDepth, 4) or 4 -- 301
+			} -- 301
+		) -- 301
+		fgDraw:drawEllipse( -- 303
+			Vec2(scx, scy + 1), -- 303
+			cW * 0.46, -- 303
+			3.2, -- 303
+			Color(10, 10, 12, 130) -- 303
+		) -- 303
+	end -- 303
+	self.childAnchorX = childWX -- 306
+	self.childAnchorY = childWY -- 307
+	if speed <= 8 and soldier.rollT <= 0 then -- 307
+		suppressOriginalSoldier(worldArt) -- 311
+		worldArt:tryPlace( -- 312
+			"fe_soldier_hand_hold", -- 313
+			"carry_soldier_hold", -- 314
+			cam:sx(soldier.x), -- 315
+			cam:sy(soldier.y, soldier.depth), -- 316
+			cam:len(36), -- 317
+			cam:len(soldier.h), -- 318
+			{ -- 319
+				facing = f, -- 320
+				layer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 321
+			} -- 321
+		) -- 321
+	end -- 321
+	local sHandX = cam:sx(soldier.x - f * 8) -- 325
+	local sHandY = cam:sy(soldier.y + soldier.h * 0.46, soldier.depth) -- 326
+	local cHandX = cam:sx(childWX + f * 7) -- 327
+	local cHandY = cam:sy(childWY + 36, childDepth) -- 328
+	local claspX = (sHandX + cHandX) * 0.5 -- 329
+	local claspY = (sHandY + cHandY) * 0.5 -- 330
+	fillRadialGlow( -- 331
+		fgGlow, -- 331
+		claspX, -- 331
+		claspY, -- 331
+		cam:len(10), -- 331
+		cam:len(8), -- 331
+		toColor(PALETTE.amberCore, 76), -- 331
+		Color(244, 234, 214, 0), -- 331
+		10 -- 331
 	) -- 331
-	local kMount = self.mode == "mounting" and smoothStep(self.mountT) or 1 -- 334
-	local crouchDip = self.mode == "mounting" and math.sin(kMount * math.pi) * 14 or ((soldier.covered or p.coverHug) and 10 or (soldier.rollT > 0 and 18 or 0)) -- 335
-	local walking = speed > 8 and soldier.onGround -- 340
-	local bob = walking and math.abs(math.sin(self.animTime * 10.5)) * 2.3 or math.sin(self.animTime * 2.5) * 0.9 -- 341
-	local targetBackX = soldier.x - sf * 13 -- 346
-	local targetBackY = soldier.y + 30 - crouchDip + bob -- 347
-	local startGroundX = soldier.x - sf * 24 -- 350
-	local startGroundY = soldier.y -- 351
-	local arcLift = self.mode == "mounting" and math.sin(kMount * math.pi) * 8 or 0 -- 352
-	local childWX = startGroundX + (targetBackX - startGroundX) * kMount -- 354
-	local childWY = startGroundY + (targetBackY - startGroundY) * kMount + arcLift -- 355
-	self.childAnchorX = childWX -- 356
-	self.childAnchorY = childWY -- 357
-	local cx = cam:sx(childWX) -- 359
-	local cy = cam:sy(childWY, soldier.depth) -- 360
-	local childW = cam:len(22) -- 361
-	local childH = cam:len(42 + (1 - kMount) * 18) -- 362
-	if self.mode == "mounting" and kMount < 0.72 then -- 362
-		local scx = cam:sx(soldier.x) -- 366
-		local scy = cam:sy(soldier.y, soldier.depth) -- 367
-		fgDraw:drawEllipse( -- 368
-			Vec2( -- 368
-				scx - sf * cam:len(6), -- 368
-				scy + 1 -- 368
-			), -- 368
-			cam:len(22), -- 368
-			4.2, -- 368
-			Color(10, 10, 12, 110) -- 368
-		) -- 368
-	end -- 368
-	local backSlot = kMount < 0.45 and "child_crouch" or "child_peek" -- 372
-	local tilt = -sf * (walking and 5.5 or 2.2) -- 373
-	local childLayer = depthEnabled and depthOrder(soldier.depth, 3) or 3 -- 374
-	local placed = worldArt:tryPlace( -- 375
-		backSlot, -- 375
-		"carry_child", -- 375
-		cx, -- 375
-		cy, -- 375
-		childW, -- 375
-		childH, -- 375
-		{facing = faceSign, angle = tilt, layer = childLayer} -- 375
-	) -- 375
-	if not placed then -- 375
-		fgDraw:drawPolygon( -- 383
-			{ -- 383
-				Vec2(cx - childW * 0.4, cy + childH * 0.1), -- 384
-				Vec2(cx + childW * 0.4, cy + childH * 0.1), -- 385
-				Vec2(cx + childW * 0.3, cy + childH * 0.72), -- 386
-				Vec2(cx - childW * 0.35, cy + childH * 0.72) -- 387
-			}, -- 387
-			CHILD_VEST, -- 388
-			1, -- 388
-			toColor(PALETTE.amberCore, 165) -- 388
-		) -- 388
-		fgDraw:drawCircle( -- 389
-			Vec2(cx + sf * childW * 0.12, cy + childH * 0.84), -- 389
-			childW * 0.32, -- 389
-			CHILD_SKIN -- 389
-		) -- 389
-	end -- 389
-	local shoulderX = cam:sx(soldier.x + sf * 3) -- 393
-	local shoulderY = cam:sy(soldier.y + soldier.h * 0.72 - crouchDip + bob * 0.7, soldier.depth) -- 394
-	local childShoulderX = cam:sx(childWX + sf * 5) -- 395
-	local childShoulderY = cam:sy(childWY + 26, soldier.depth) -- 396
-	local hipSupportX = cam:sx(soldier.x - sf * 10) -- 399
-	local hipSupportY = cam:sy(soldier.y + 30 - crouchDip + bob * 0.6, soldier.depth) -- 400
-	fgDraw:drawSegment( -- 401
-		Vec2( -- 402
-			cam:sx(soldier.x - sf * 2), -- 402
-			cam:sy(soldier.y + 42 - crouchDip, soldier.depth) -- 402
-		), -- 402
-		Vec2(hipSupportX, hipSupportY), -- 403
-		math.max( -- 404
-			2.4, -- 404
-			cam:len(2.8) -- 404
-		), -- 404
-		CUFF_CLOTH -- 405
-	) -- 405
-	fgDraw:drawSegment( -- 407
-		Vec2(hipSupportX - sf * 2, hipSupportY + 1), -- 408
-		Vec2(hipSupportX + sf * 3, hipSupportY + 1), -- 409
-		1.2, -- 410
-		CUFF_MEND -- 411
-	) -- 411
-	if self.reachT > 0.05 and kMount > 0.7 then -- 411
-		local reachFrac = smoothStep(self.reachT) -- 416
-		local elbowX = shoulderX + sf * cam:len(4 + reachFrac * 5) -- 417
-		local elbowY = shoulderY + cam:len(1 + reachFrac * 3) -- 418
-		local handEndX = elbowX + sf * cam:len(5 + reachFrac * 11) -- 419
-		local handEndY = elbowY + cam:len(2 + reachFrac * 5) -- 420
-		fgDraw:drawSegment( -- 421
-			Vec2(childShoulderX, childShoulderY), -- 421
-			Vec2(elbowX, elbowY), -- 421
-			math.max( -- 421
-				2, -- 421
-				cam:len(2.1) -- 421
-			), -- 421
-			CHILD_SLEEVE -- 421
-		) -- 421
-		fgDraw:drawSegment( -- 422
-			Vec2(elbowX, elbowY), -- 422
-			Vec2( -- 422
-				handEndX - sf * cam:len(3), -- 422
-				handEndY - cam:len(1) -- 422
-			), -- 422
-			math.max( -- 422
-				1.7, -- 422
-				cam:len(1.8) -- 422
-			), -- 422
-			CHILD_SLEEVE -- 422
-		) -- 422
-		fgDraw:drawDot( -- 424
-			Vec2( -- 424
-				handEndX - sf * cam:len(3.2), -- 424
-				handEndY - cam:len(0.8) -- 424
-			), -- 424
-			math.max( -- 424
-				1.5, -- 424
-				cam:len(1.2) -- 424
-			), -- 424
-			NEEDLE_CORD -- 424
-		) -- 424
-		fgDraw:drawCircle( -- 425
-			Vec2(handEndX, handEndY), -- 425
-			math.max( -- 425
-				2.1, -- 425
-				cam:len(1.8) -- 425
-			), -- 425
-			CHILD_SKIN -- 425
-		) -- 425
-		fgDraw:drawSegment( -- 426
-			Vec2(handEndX, handEndY), -- 426
-			Vec2( -- 426
-				handEndX + sf * cam:len(3.5), -- 426
-				handEndY + cam:len(1.2) -- 426
-			), -- 426
-			math.max( -- 426
-				1.1, -- 426
-				cam:len(1) -- 426
-			), -- 426
-			CHILD_SKIN -- 426
-		) -- 426
-		fillRadialGlow( -- 427
-			fgGlow, -- 428
-			handEndX + sf * cam:len(3), -- 429
-			handEndY + cam:len(1), -- 430
-			cam:len(7 * reachFrac), -- 431
-			cam:len(7 * reachFrac), -- 432
-			toColor(PALETTE.amberCore, 72 * reachFrac), -- 433
-			Color(244, 234, 214, 0), -- 434
-			10 -- 435
-		) -- 435
-	elseif kMount > 0.35 then -- 435
-		local armAlpha = clamp01((kMount - 0.35) / 0.65) -- 438
-		local gripX = shoulderX + sf * cam:len(4) -- 439
-		local gripY = shoulderY - cam:len(2) -- 440
-		fgDraw:drawSegment( -- 441
-			Vec2(childShoulderX, childShoulderY), -- 442
-			Vec2(gripX, gripY), -- 443
-			math.max( -- 444
-				1.8, -- 444
-				cam:len(2) -- 444
-			), -- 444
-			Color( -- 445
-				164, -- 445
-				78, -- 445
-				54, -- 445
-				math.floor(255 * armAlpha + 0.5) -- 445
-			) -- 445
-		) -- 445
-		fgDraw:drawDot( -- 447
-			Vec2(gripX - sf * 2, gripY), -- 447
-			math.max( -- 447
-				1.5, -- 447
-				cam:len(1.2) -- 447
-			), -- 447
-			Color( -- 447
-				198, -- 447
-				166, -- 447
-				114, -- 447
-				math.floor(235 * armAlpha + 0.5) -- 447
-			) -- 447
-		) -- 447
-		fgDraw:drawCircle( -- 448
-			Vec2(gripX, gripY), -- 448
-			math.max( -- 448
-				2, -- 448
-				cam:len(1.7) -- 448
-			), -- 448
-			Color( -- 448
-				236, -- 448
-				210, -- 448
-				182, -- 448
-				math.floor(255 * armAlpha + 0.5) -- 448
-			) -- 448
-		) -- 448
-	end -- 448
-end -- 319
-function CarryPosePlugin.prototype.drawAtBench(self, fgDraw, fgGlow, worldArt, ctx) -- 453
-	local p = ctx.p -- 459
-	local cam = ctx.cam -- 460
-	local soldier = p.player -- 461
-	local depthEnabled = p.room.depth ~= nil -- 462
-	local f = soldier.facing >= 0 and 1 or -1 -- 463
-	local dropK = smoothStep(self.benchDropT) -- 464
-	local startX = soldier.x - f * 12 -- 467
-	local startY = soldier.y + 26 -- 468
-	local standX = soldier.x + f * 30 -- 469
-	local standY = soldier.y -- 470
-	local childWX = startX + (standX - startX) * dropK -- 471
-	local childWY = startY + (standY - startY) * dropK -- 472
-	self.childAnchorX = childWX -- 473
-	self.childAnchorY = childWY -- 474
-	local cx = cam:sx(childWX) -- 476
-	local cy = cam:sy(childWY, soldier.depth) -- 477
-	local cW = cam:len(22) -- 478
-	local cH = cam:len(64) -- 479
-	local handing = ctx.view.craftBench.justCraftedTimer > 0 -- 481
-	local slot = handing and "child_offer" or "child_idle" -- 482
-	worldArt:tryPlace( -- 484
-		slot, -- 484
-		"carry_child_bench", -- 484
-		cx, -- 484
-		cy, -- 484
-		cW, -- 484
-		cH, -- 484
-		{ -- 484
-			facing = -f, -- 485
-			layer = depthEnabled and depthOrder(soldier.depth, 5) or 5 -- 486
-		} -- 486
-	) -- 486
-	fgDraw:drawEllipse( -- 488
-		Vec2( -- 488
-			cx, -- 488
-			cam:sy(soldier.y, soldier.depth) + 1 -- 488
-		), -- 488
-		cW * 0.48 * dropK, -- 488
-		3.2, -- 488
-		Color(10, 10, 12, 130) -- 488
-	) -- 488
-	if handing then -- 488
-		local prog = clamp01(1 - ctx.view.craftBench.justCraftedTimer) -- 492
-		local midX = cam:sx(soldier.x + f * (22 - prog * 10)) -- 493
-		local midY = cam:sy( -- 494
-			soldier.y + 44 + math.sin(prog * math.pi) * 5, -- 494
-			soldier.depth -- 494
-		) -- 494
-		local gunLen = cam:len(22) -- 495
-		fgDraw:drawSegment( -- 496
-			Vec2(midX - f * gunLen * 0.4, midY - 2), -- 496
-			Vec2(midX + f * gunLen * 0.25, midY + 1), -- 496
-			3.2, -- 496
-			Color(108, 74, 52, 255) -- 496
-		) -- 496
-		fgDraw:drawSegment( -- 497
-			Vec2(midX + f * gunLen * 0.1, midY + 1), -- 497
-			Vec2(midX + f * gunLen * 0.65, midY + 3), -- 497
-			1.8, -- 497
-			Color(148, 144, 134, 245) -- 497
-		) -- 497
-		fillRadialGlow( -- 498
-			fgGlow, -- 498
-			midX, -- 498
-			midY, -- 498
-			cam:len(14), -- 498
-			cam:len(10), -- 498
-			toColor(PALETTE.amberCore, 72), -- 498
-			Color(244, 234, 214, 0), -- 498
-			10 -- 498
-		) -- 498
-	end -- 498
-end -- 453
-function ____exports.createCarryPosePlugin() -- 503
-	return __TS__New(____exports.CarryPosePlugin) -- 504
-end -- 503
-return ____exports -- 503
+end -- 264
+function CarryPosePlugin.prototype.drawCarriedOrMounting(self, fgDraw, fgGlow, worldArt, ctx) -- 335
+	local p = ctx.p -- 341
+	local cam = ctx.cam -- 342
+	local soldier = p.player -- 343
+	local depthEnabled = p.room.depth ~= nil -- 344
+	local sf = self.smoothedFacing -- 345
+	local faceSign = sf >= 0 and 1 or -1 -- 346
+	local speed = math.max( -- 347
+		math.abs(soldier.vx), -- 347
+		math.abs(soldier.depthSpeed) -- 347
+	) -- 347
+	local kMount = self.mode == "mounting" and smoothStep(self.mountT) or 1 -- 350
+	local crouchDip = self.mode == "mounting" and math.sin(kMount * math.pi) * 14 or ((soldier.covered or p.coverHug) and 10 or (soldier.rollT > 0 and 18 or 0)) -- 351
+	local walking = speed > 8 and soldier.onGround -- 355
+	local bob = walking and math.abs(math.sin(self.animTime * 10.5)) * 2 or math.sin(self.animTime * 2.5) * 0.8 -- 356
+	local targetBackX = soldier.x - sf * 13 -- 361
+	local targetBackY = soldier.y + 30 - crouchDip + bob -- 362
+	local startGroundX = soldier.x - sf * 24 -- 363
+	local startGroundY = soldier.y -- 364
+	local arcLift = self.mode == "mounting" and math.sin(kMount * math.pi) * 8 or 0 -- 365
+	local childWX = startGroundX + (targetBackX - startGroundX) * kMount -- 367
+	local childWY = startGroundY + (targetBackY - startGroundY) * kMount + arcLift -- 368
+	self.childAnchorX = childWX -- 369
+	self.childAnchorY = childWY -- 370
+	local scx = cam:sx(soldier.x) -- 372
+	local scy = cam:sy(soldier.y, soldier.depth) -- 373
+	local baseLayer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 374
+	if self.mode == "mounting" and kMount < 0.72 then -- 374
+		suppressOriginalSoldier(worldArt) -- 378
+		fgDraw:drawEllipse( -- 379
+			Vec2( -- 379
+				scx - sf * cam:len(4), -- 379
+				scy + 1 -- 379
+			), -- 379
+			cam:len(22), -- 379
+			4, -- 379
+			Color(10, 10, 12, 118) -- 379
+		) -- 379
+		worldArt:tryPlace( -- 380
+			"fe_soldier_kneel_mount", -- 380
+			"carry_soldier_kneel", -- 380
+			scx, -- 380
+			scy, -- 380
+			cam:len(42), -- 380
+			cam:len(soldier.h * 0.9), -- 380
+			{facing = faceSign, layer = baseLayer} -- 380
+		) -- 380
+		local cx = cam:sx(childWX) -- 384
+		local cy = cam:sy(childWY, soldier.depth) -- 385
+		worldArt:tryPlace( -- 386
+			kMount < 0.45 and "child_crouch" or "child_peek", -- 386
+			"carry_child", -- 386
+			cx, -- 386
+			cy, -- 386
+			cam:len(22), -- 386
+			cam:len(42 + (1 - kMount) * 18), -- 386
+			{facing = faceSign, layer = baseLayer + 1} -- 386
+		) -- 386
+		return -- 390
+	end -- 390
+	if soldier.rollT <= 0 then -- 390
+		local carrySlot = self.reachT > 0.08 and "fe_carry_reload" or (walking and "fe_carry_walk" or "fe_carry_idle") -- 395
+		local frame = carrySlot == "fe_carry_walk" and math.floor(self.animTime * 10) or 0 -- 398
+		local carryH = cam:len(soldier.h * (crouchDip > 4 and 0.88 or 1.04)) -- 399
+		if worldArt:tryPlace( -- 399
+			carrySlot, -- 400
+			"carry_pair_sprite", -- 400
+			scx, -- 400
+			scy, -- 400
+			cam:len(48), -- 400
+			carryH, -- 400
+			{facing = faceSign, frame = frame, layer = baseLayer} -- 400
+		) then -- 400
+			suppressOriginalSoldier(worldArt) -- 405
+			if self.reachT > 0.12 then -- 405
+				local reachFrac = smoothStep(self.reachT) -- 407
+				local handGlowX = cam:sx(soldier.x + sf * (14 + reachFrac * 10)) -- 408
+				local handGlowY = cam:sy(soldier.y + soldier.h * 0.72 - crouchDip, soldier.depth) -- 409
+				fillRadialGlow( -- 410
+					fgGlow, -- 410
+					handGlowX, -- 410
+					handGlowY, -- 410
+					cam:len(9 * reachFrac), -- 410
+					cam:len(9 * reachFrac), -- 410
+					toColor(PALETTE.amberCore, 72 * reachFrac), -- 410
+					Color(244, 234, 214, 0), -- 410
+					10 -- 410
+				) -- 410
+			end -- 410
+			return -- 412
+		end -- 412
+	end -- 412
+	local cx = cam:sx(childWX) -- 417
+	local cy = cam:sy(childWY, soldier.depth) -- 418
+	worldArt:tryPlace( -- 419
+		"child_peek", -- 419
+		"carry_child", -- 419
+		cx, -- 419
+		cy, -- 419
+		cam:len(22), -- 419
+		cam:len(40), -- 419
+		{ -- 419
+			facing = faceSign, -- 420
+			layer = depthEnabled and depthOrder(soldier.depth, 3) or 3 -- 421
+		} -- 421
+	) -- 421
+end -- 335
+function CarryPosePlugin.prototype.drawAtBench(self, fgDraw, fgGlow, worldArt, ctx) -- 426
+	local p = ctx.p -- 432
+	local cam = ctx.cam -- 433
+	local soldier = p.player -- 434
+	local depthEnabled = p.room.depth ~= nil -- 435
+	local f = soldier.facing >= 0 and 1 or -1 -- 436
+	local dropK = smoothStep(self.benchDropT) -- 437
+	local startX = soldier.x - f * 12 -- 440
+	local startY = soldier.y + 26 -- 441
+	local standX = soldier.x + f * 30 -- 442
+	local standY = soldier.y -- 443
+	local childWX = startX + (standX - startX) * dropK -- 444
+	local childWY = startY + (standY - startY) * dropK -- 445
+	self.childAnchorX = childWX -- 446
+	self.childAnchorY = childWY -- 447
+	local cx = cam:sx(childWX) -- 449
+	local cy = cam:sy(childWY, soldier.depth) -- 450
+	local cW = cam:len(22) -- 451
+	local cH = cam:len(64) -- 452
+	local handing = ctx.view.craftBench.justCraftedTimer > 0 -- 454
+	local slot = handing and "child_offer" or "child_idle" -- 455
+	worldArt:tryPlace( -- 456
+		slot, -- 456
+		"carry_child_bench", -- 456
+		cx, -- 456
+		cy, -- 456
+		cW, -- 456
+		cH, -- 456
+		{ -- 456
+			facing = -f, -- 457
+			layer = depthEnabled and depthOrder(soldier.depth, 5) or 5 -- 458
+		} -- 458
+	) -- 458
+	fgDraw:drawEllipse( -- 460
+		Vec2( -- 460
+			cx, -- 460
+			cam:sy(soldier.y, soldier.depth) + 1 -- 460
+		), -- 460
+		cW * 0.48 * dropK, -- 460
+		3.2, -- 460
+		Color(10, 10, 12, 130) -- 460
+	) -- 460
+	if handing then -- 460
+		local prog = clamp01(1 - ctx.view.craftBench.justCraftedTimer) -- 464
+		local midX = cam:sx(soldier.x + f * (22 - prog * 10)) -- 465
+		local midY = cam:sy( -- 466
+			soldier.y + 44 + math.sin(prog * math.pi) * 5, -- 466
+			soldier.depth -- 466
+		) -- 466
+		local isEcho = (string.find(ctx.view.craftBench.equippedWeapon, "echo", nil, true) or 0) - 1 >= 0 -- 467
+		worldArt:tryPlace( -- 468
+			isEcho and "fe_weapon_echo_gun" or "fe_weapon_lantern_gun", -- 468
+			"carry_bench_gun", -- 468
+			midX, -- 468
+			midY, -- 468
+			cam:len(34), -- 468
+			cam:len(16), -- 468
+			{ -- 468
+				facing = f, -- 469
+				layer = depthEnabled and depthOrder(soldier.depth, 6) or 6 -- 470
+			} -- 470
+		) -- 470
+		fillRadialGlow( -- 472
+			fgGlow, -- 472
+			midX, -- 472
+			midY, -- 472
+			cam:len(15), -- 472
+			cam:len(11), -- 472
+			toColor(PALETTE.amberCore, 72), -- 472
+			Color(244, 234, 214, 0), -- 472
+			10 -- 472
+		) -- 472
+	end -- 472
+end -- 426
+function ____exports.createCarryPosePlugin() -- 477
+	return __TS__New(____exports.CarryPosePlugin) -- 478
+end -- 477
+return ____exports -- 477

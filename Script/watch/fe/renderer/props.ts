@@ -32,10 +32,10 @@ export class PropsRenderer {
         occlusion: DepthOcclusion,
         fadeDt: number,
     ): void {
-        this.drawZones(fgDraw, p, cam);
+        this.drawZones(fgDraw, assets, p, cam);
         this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
         this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
-        this.drawBracedShield(fgDraw, p, cam);
+        this.drawBracedShield(fgDraw, assets, p, cam);
         this.drawCraftMaterials(assets, p, cam);
         if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
             const x = (p.player.x + p.partner.x) * 0.5;
@@ -49,8 +49,8 @@ export class PropsRenderer {
         }
     }
 
-    /** 绘制 C2 军粮棚架设的木制残盾（与后端 p.bracedShield 同步出现与破碎） */
-    private drawBracedShield(fgDraw: DrawNode.Type, p: Play, cam: CameraDirector): void {
+    /** 绘制 C2 军粮棚架设的像素木制残盾（与后端 p.bracedShield 同步出现与破碎） */
+    private drawBracedShield(fgDraw: DrawNode.Type, assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
         const sh = p.bracedShield;
         if (sh === undefined || sh.hp <= 0) {
             return;
@@ -60,9 +60,11 @@ export class PropsRenderer {
         const w = Math.max(8, cam.len(12));
         const h = cam.len(sh.h);
         fgDraw.drawEllipse(Vec2(cx, by + 1), w * 0.9, 3.2, Color(8, 10, 14, 150));
-        fgDraw.drawSegment(Vec2(cx - w * 0.65, by), Vec2(cx - w * 0.15, by + h * 0.55), 2.2, Color(84, 58, 38, 255));
-        fgDraw.drawRect(Rect(cx - w * 0.5, by + 2, w, h - 2), Color(104, 72, 46, 248), 1.4, Color(172, 178, 184, 235));
-        fgDraw.drawCircle(Vec2(cx, by + h * 0.52), Math.max(2.5, cam.len(4)), Color(148, 154, 160, 245));
+        if (!assets.tryPlace("fe_braced_shield", "braced_shield", cx, by, cam.len(26), h * 1.05, {
+            layer: p.room.depth === undefined ? 4 : depthOrder(p.player.depth, 4),
+        })) {
+            fgDraw.drawRect(Rect(cx - w * 0.5, by + 2, w, h - 2), Color(104, 72, 46, 248), 1.4, Color(172, 178, 184, 235));
+        }
     }
 
     private drawCraftMaterials(assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
@@ -97,6 +99,7 @@ export class PropsRenderer {
 
     private drawZones(
         fgDraw: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
     ): void {
@@ -114,19 +117,13 @@ export class PropsRenderer {
                 const back = cam.sy(z.y, road?.max ?? 1);
                 fgDraw.drawRect(Rect(x0, front, zw, back - front), Color(50, 35, 29, 48));
             } else if (z.tint === 2) {
-                // 软土（消音落点）：深褐暗纹，无高光
-                fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
-                fgDraw.drawSegment(Vec2(x0, y0 + 2), Vec2(x1, y0 + 2), 1.4, Color(128, 98, 72, 190));
-            } else if (z.tint === 3) {
-                // 砖地（清脆发声落点）：清晰冷灰砖缝 + 微弱琥珀反光提示可引敌
-                fgDraw.drawRect(Rect(x0, y0 - 4, zw, 9), Color(118, 122, 130, 235));
-                const bricks = 4;
-                let b = 1;
-                for (b = 1; b < bricks; b++) {
-                    const bx = x0 + (zw * b) / bricks;
-                    fgDraw.drawSegment(Vec2(bx, y0 - 4), Vec2(bx, y0 + 5), 1, Color(42, 46, 56, 220));
+                if (!assets.tryPlace("fe_ground_soft", "zone_soft_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 1 })) {
+                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
                 }
-                fgDraw.drawSegment(Vec2(x0, y0 + 4), Vec2(x1, y0 + 4), 1.1, Color(168, 151, 127, 130));
+            } else if (z.tint === 3) {
+                if (!assets.tryPlace("fe_ground_brick", "zone_brick_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 1 })) {
+                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 9), Color(118, 122, 130, 235));
+                }
             }
         }
     }
@@ -148,14 +145,15 @@ export class PropsRenderer {
             const hookY = my + cam.len(52);
             const armX = mx + cam.len(13);
             const lampY = hookY - cam.len(12);
-            const wood = Color(82, 58, 40, 245);
-            const joint = Math.max(1, cam.len(2));
-            fgDraw.drawSegment(Vec2(mx, my), Vec2(mx, hookY), joint, wood);
-            fgDraw.drawSegment(Vec2(mx, hookY), Vec2(armX, hookY), joint, wood);
-            fgDraw.drawSegment(Vec2(mx, hookY - cam.len(7)), Vec2(armX - joint, hookY), joint * 0.7, wood);
-            if (!assets.tryPlace("prop_lantern", "path_lamp_" + m.x, armX, lampY, cam.len(16), cam.len(20), { layer: 1 })) {
+            if (!assets.tryPlace("fe_lamp_bracket", "lamp_bracket_" + m.x, mx + cam.len(6), my, cam.len(26), cam.len(54), { layer: 1 })) {
+                const wood = Color(82, 58, 40, 245);
+                const joint = Math.max(1, cam.len(2));
+                fgDraw.drawSegment(Vec2(mx, my), Vec2(mx, hookY), joint, wood);
+                fgDraw.drawSegment(Vec2(mx, hookY), Vec2(armX, hookY), joint, wood);
+            }
+            if (!assets.tryPlace("prop_lantern", "path_lamp_" + m.x, armX, lampY, cam.len(16), cam.len(20), { layer: 2 })) {
                 fgDraw.drawRect(Rect(armX - cam.len(4), lampY - cam.len(7), cam.len(8), cam.len(14)),
-                    Color(192, 136, 64, 240), 1.4, wood);
+                    Color(192, 136, 64, 240), 1.4, Color(82, 58, 40, 245));
             }
             const flame = 0.91 + Math.sin(time * 3.1) * 0.09;
             fillRadialGlow(fgGlow, armX, lampY, cam.len(23), cam.len(27), Color(239, 182, 106, 46 * flame),
@@ -300,20 +298,18 @@ export class PropsRenderer {
         cam: CameraDirector,
         time: number,
     ): void {
-        // 1. 瓶架与架上玻璃瓶（与 rooms.ts h=52 严格对齐）
+        // 1. 瓶架与架上陶瓶（像素镂空木架精灵，与 rooms.ts h=52 严格对齐）
         const bottle = p.room.bottle;
         if (bottle !== undefined) {
-            const bx0 = cam.sx(bottle.x - 16);
-            const bx1 = cam.sx(bottle.x + 16);
             const by0 = cam.sy(0);
             const by1 = cam.sy(52);
-            const beam = cam.len(3.2);
-            const side = Color(78, 57, 41, 255);
-            fgDraw.drawRect(Rect(bx0, by0, beam, by1 - by0), side);
-            fgDraw.drawRect(Rect(bx1 - beam, by0, beam, by1 - by0), side);
-            for (const shelfY of [by0 + (by1 - by0) * 0.46, by1 - beam]) {
-                fgDraw.drawRect(Rect(bx0 - beam * 0.25, shelfY, bx1 - bx0 + beam * 0.5, beam),
-                    Color(106, 78, 56, 255), 1, Color(56, 42, 34, 240));
+            if (!assets.tryPlace("fe_bottle_rack", "village_bottle_rack", cam.sx(bottle.x), by0, cam.len(38), by1 - by0 + cam.len(2), { layer: 2 })) {
+                const bx0 = cam.sx(bottle.x - 16);
+                const bx1 = cam.sx(bottle.x + 16);
+                const beam = cam.len(3.2);
+                const side = Color(78, 57, 41, 255);
+                fgDraw.drawRect(Rect(bx0, by0, beam, by1 - by0), side);
+                fgDraw.drawRect(Rect(bx1 - beam, by0, beam, by1 - by0), side);
             }
             if (!p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0) {
                 this.drawBottleSprite(fgDraw, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(56), cam.ppu, 0);

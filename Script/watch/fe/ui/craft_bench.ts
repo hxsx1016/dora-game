@@ -27,7 +27,10 @@ import {
     ReloadEffectKind,
 } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
+import {
+    drawPixelSlidePlate,
+    drawSlideFrameChrome,
+} from "Script/watch/fe/renderer/slideshow";
 import {
     RELOAD_GRID,
     drawReloadPatternGlyph,
@@ -712,21 +715,14 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         bh: number,
         appear: number,
     ): void {
-        // 木案主体（与序章军粮棚木柜同色温，非现代战术板）
-        uiDraw.drawRect(Rect(bx, by, bw, bh), Color(WOOD_BODY.r, WOOD_BODY.g, WOOD_BODY.b, Math.round(244 * appear)), 1.4, toColor(PALETTE.amberDim, 190 * appear));
-        // 上沿厚木台板与磨亮边线
-        uiDraw.drawRect(Rect(bx - 8, by + bh - 10, bw + 16, 14), Color(WOOD_TOP.r, WOOD_TOP.g, WOOD_TOP.b, Math.round(250 * appear)), 1.0, WOOD_EDGE);
-        uiInkDraw.drawSegment(Vec2(bx - 6, by + bh + 3), Vec2(bx + bw + 6, by + bh + 3), 1.2, toColor(PALETTE.amberCore, 115 * appear));
-        // 底部木案桌腿暗影
-        uiDraw.drawRect(Rect(bx + 18, by - 26, 22, 26), Color(WOOD_DARK.r, WOOD_DARK.g, WOOD_DARK.b, Math.round(235 * appear)));
-        uiDraw.drawRect(Rect(bx + bw - 40, by - 26, 22, 26), Color(WOOD_DARK.r, WOOD_DARK.g, WOOD_DARK.b, Math.round(235 * appear)));
-
-        // 木纹细线画在 uiDraw 底层（在宣纸方案笺 uiArt 之下，绝不压过文字）
-        let g = 1;
-        for (g = 1; g <= 4; g++) {
-            const gy = by + (bh - 50) * (g / 5);
-            uiDraw.drawSegment(Vec2(bx + 10, gy), Vec2(bx + bw - 10, gy), 0.75, Color(34, 23, 18, Math.round(110 * appear)));
-        }
+        // 像素木案台面贴图（与军粮棚木作同色温，彻底替代平涂矢量方框）
+        uiDraw.drawRect(Rect(bx, by, bw, bh), Color(WOOD_BODY.r, WOOD_BODY.g, WOOD_BODY.b, Math.round(230 * appear)), 1.2, toColor(PALETTE.amberDim, 175 * appear));
+        uiArt.tryPlace("fe_workbench", "cb_bench_wood", bx + bw * 0.5, by - 4, bw + 18, bh + 16, {
+            color: Color(216, 198, 180, 255),
+            opacity: 0.92 * appear,
+            layer: 0,
+        });
+        uiInkDraw.drawSegment(Vec2(bx - 6, by + bh + 2), Vec2(bx + bw + 6, by + bh + 2), 1.2, toColor(PALETTE.amberCore, 115 * appear));
 
         // 左上角明式提灯与军粮棚同色温暖黄侧光
         const lx = bx + 28;
@@ -776,34 +772,20 @@ export class CraftBenchPlugin implements FeRenderPlugin {
                 uiDraw.drawRect(Rect(x + 6 + shake, rowY - 18, w - 12, 38), toColor(PALETTE.rougeSoft, 145 * appear), 1.0, toColor(PALETTE.crimsonCore, 220 * appear));
             }
 
-            // 实物筹码排布（木纹筹画竹木简条，铃纹筹画铜铃牌，灰度形状一眼区分）
+            // 像素实物筹码排布（木纹筹 fe_icon_wood_tally，铃纹筹 fe_icon_bell_tally，灰度形状一眼区分）
             const shown = Math.max(1, Math.min(4, count));
             let t = 0;
             for (t = 0; t < shown; t++) {
-                const tx = x + 22 + t * 14 + shake;
+                const tx = x + 22 + t * 15 + shake;
                 const filled = t < count;
-                if (mat === "bell_tally" || mat === "bell") {
-                    drawReloadPatternGlyph(
-                        uiInkDraw,
-                        tx,
-                        rowY,
-                        7.5,
-                        "echo",
-                        filled ? PALETTE.amberCore : PALETTE.silkDim,
-                        (filled ? 0.96 : 0.38) * appear,
-                    );
-                } else {
-                    const col = filled ? PALETTE.amber : PALETTE.silkDim;
-                    uiInkDraw.drawRect(
-                        Rect(tx - 4, rowY - 10, 8, 20),
-                        filled ? toColor(col, 195 * appear) : Color(0, 0, 0, 0),
-                        1.0,
-                        toColor(filled ? PALETTE.amberCore : PALETTE.silkDim, (filled ? 230 : 120) * appear),
-                    );
-                    if (filled) {
-                        uiInkDraw.drawSegment(Vec2(tx - 2, rowY + 3), Vec2(tx + 2, rowY + 3), 0.9, toColor(PALETTE.xuanInk, 185 * appear));
-                        uiInkDraw.drawSegment(Vec2(tx - 2, rowY - 3), Vec2(tx + 2, rowY - 3), 0.9, toColor(PALETTE.xuanInk, 185 * appear));
-                    }
+                const isBell = mat === "bell_tally" || mat === "bell";
+                const iconSlot = isBell ? "fe_icon_bell_tally" : "fe_icon_wood_tally";
+                if (!uiArt.tryPlace(iconSlot, "cb_mat_" + mat + "_" + t, Math.round(tx), Math.round(rowY), 18, 22, {
+                    color: filled ? Color(255, 255, 255, 255) : Color(142, 138, 132, 255),
+                    opacity: (filled ? 0.98 : 0.34) * appear,
+                    layer: 3,
+                })) {
+                    drawReloadPatternGlyph(uiInkDraw, tx, rowY, 7.5, isBell ? "echo" : "knockback", filled ? PALETTE.amberCore : PALETTE.silkDim, (filled ? 0.96 : 0.38) * appear);
                 }
             }
 
@@ -892,11 +874,11 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const badgeCol = equipped ? PALETTE.rouge : (canCraft ? PALETTE.xuanInk : PALETTE.rougeSoft);
         ctx.texts.put("xs", badge, box.x + box.width - 14, topY, toColor(badgeCol), 1, 0.5, TextAlign.Right, 1.0, 0.94 * appear, 0);
 
-        // 中部左：迷你 3×3 连线强化效果预览（直接复用 reload_wheel 同源几何坐标与纹样）
+        // 中部左：迷你 3×3 连线强化效果预览（直接复用 reload_wheel 同源几何坐标与像素纹章）
         const narrow = box.width < 195;
         const miniCx = box.x + (narrow ? 36 : 46);
         const miniCy = box.y + box.height - 96;
-        this.drawMiniReloadPreview(uiInkDraw, uiGlow, miniCx, miniCy, recipe.enhancedEffect, appear);
+        this.drawMiniReloadPreview(uiInkDraw, uiArt, uiGlow, recipe.id, miniCx, miniCy, recipe.enhancedEffect, appear);
 
         // 中部右：强化要点 + 所需材料逐项状态（留足右侧呼吸边距）
         const infoX = box.x + (narrow ? 72 : 90);
@@ -947,7 +929,9 @@ export class CraftBenchPlugin implements FeRenderPlugin {
     /** 方案卡上的迷你 3×3 连线强化示意（灯纹 0→1→2→5→8 / 铃纹 0→1→4→5→8） */
     private drawMiniReloadPreview(
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
+        recipeId: string,
         cx: number,
         cy: number,
         effect: ReloadEffectKind,
@@ -979,15 +963,15 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             );
         }
 
-        // 高亮目标纹样点
+        // 高亮目标像素纹章点
         const keyNode = effect === "light" ? RELOAD_GRID[2] : (effect === "echo" ? RELOAD_GRID[4] : RELOAD_GRID[8]);
         const kx = cx + (keyNode.col - 1) * step;
         const ky = cy + (keyNode.row - 1) * step;
-        drawReloadPatternGlyph(uiInkDraw, kx, ky, 7.5, effect, accent, appear);
+        drawReloadPatternGlyph(uiInkDraw, kx, ky, 8.0, effect, accent, appear, uiArt, "cb_mini_" + recipeId, 4);
         fillRadialGlow(uiGlow, kx, ky, 14, 14, toColor(PALETTE.amberCore, 45 * appear), Color(244, 234, 214, 0), 10);
     }
 
-    /** 首次制成 1 秒试握演出 / 后续 0.45 秒短递交动作（小满递至惯用手一侧 → 周戍试握 → 小满松手） */
+    /** 首次制成 1 秒试握像素绘卷特写 / 后续 0.45 秒短递交动作（彻底告别矢量袖口与线棍鸟铳） */
     private drawHandoverOverlay(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
@@ -997,72 +981,35 @@ export class CraftBenchPlugin implements FeRenderPlugin {
     ): void {
         const prog = Math.max(0, Math.min(1, 1 - this.handoverRemaining / Math.max(0.01, this.handoverDuration)));
         const fade = prog < 0.14 ? prog / 0.14 : (prog > 0.84 ? (1 - prog) / 0.16 : 1);
-        const cx = ctx.uiW * 0.5;
-        const cy = ctx.uiH * 0.68;
-        const w = 440;
-        const h = 112;
+        const cx = Math.round(ctx.uiW * 0.5);
+        const cy = Math.round(ctx.uiH * 0.60);
+        const cardW = Math.min(448, Math.round(ctx.uiW - 120));
+        const cardH = Math.round((cardW * 9) / 16);
+        const gripLift = prog >= 0.32 && prog < 0.78 ? Math.sin(((prog - 0.32) / 0.46) * Math.PI) * 5 : 0;
+        const rect = {
+            x: Math.round(cx - cardW * 0.5),
+            y: Math.round(cy - cardH * 0.5 + gripLift),
+            w: cardW,
+            h: cardH,
+        };
 
-        drawSilkVeil(uiDraw, uiArt, "cb_handover_veil", cx, cy, w + 80, h + 28, PALETTE.inkWash, 0.84 * fade, 0);
-        drawHairline(uiInkDraw, uiArt, "cb_handover_top", cx, cy + h * 0.48, w - 30, PALETTE.amber, 0.58 * fade, true, 2);
+        const slideSlot = this.handoverEffect === "echo" ? "slide_m02_echo_gun" : "slide_m02_lantern_gun";
+        fillRadialGlow(uiGlow, cx, cy, cardW * 0.72, cardH * 0.88, toColor(PALETTE.amberCore, 58 * fade), Color(244, 234, 214, 0), 16);
+        drawPixelSlidePlate(uiDraw, uiInkDraw, uiArt, slideSlot, "cb_handover_slide", rect, 0.98 * fade, 5, 0, 0, 1.0 + prog * 0.032);
+        drawSlideFrameChrome(uiDraw, uiInkDraw, uiArt, rect, ctx.uiW, ctx.uiH, {
+            frameOpacity: 0.90,
+            letterboxH: 0,
+            opacity: fade,
+            layer: 5,
+            instancePrefix: "cb_ho",
+        });
 
-        // 三段动作节奏：0..0.38 递出，0.38..0.74 试握微抬，0.74..1.0 小满松手退步
-        const passK = Math.min(1, prog / 0.38);
-        const gripLift = prog >= 0.38 && prog < 0.74 ? Math.sin(((prog - 0.38) / 0.36) * Math.PI) * 9 : 0;
-        const releaseK = prog >= 0.74 ? (prog - 0.74) / 0.26 : 0;
-        const a245 = Math.round(245 * fade);
-        const a235 = Math.round(235 * fade);
-
-        // 左侧：小满红褐短袄袖管 + 针套腕绳 + 双手托举递出 → 松手退回
-        const childHandX = cx - 78 + passK * 42 - releaseK * 38;
-        const childHandY = cy - 4 + gripLift * 0.2;
-        uiInkDraw.drawPolygon([
-            Vec2(cx - 148, cy - 22),
-            Vec2(cx - 146, cy - 8),
-            Vec2(childHandX - 10, childHandY + 4),
-            Vec2(childHandX - 10, childHandY - 6),
-        ], Color(164, 78, 54, a235), 1.0, Color(52, 28, 22, a235));
-        uiInkDraw.drawSegment(Vec2(childHandX - 11, childHandY + 4), Vec2(childHandX - 11, childHandY - 6), 2.0, Color(204, 174, 122, a245));
-        uiInkDraw.drawEllipse(Vec2(childHandX, childHandY - 1), 6.2, 4.4, Color(238, 212, 182, a245));
-
-        // 右侧：周戍惯用手（与 fe-01 同源暗靛青布宽袖 + 标志性浅麻斜补线 + 握柄手掌）
-        const solHandX = cx + 82 - Math.min(1, Math.max(0, (prog - 0.18) / 0.28)) * 42;
-        const solHandY = cy - 4 + gripLift;
-        uiInkDraw.drawPolygon([
-            Vec2(cx + 154, cy - 18),
-            Vec2(cx + 154, cy - 1),
-            Vec2(solHandX + 12, solHandY + 6),
-            Vec2(solHandX + 12, solHandY - 7),
-        ], toColor(CUFF_PALETTE.indigoBase, a245), 1.0, toColor(CUFF_PALETTE.indigoShadow, a245));
-        // 贯穿全作的青布袖口斜补线（3 针清晰浅麻线，同源 CUFF_PALETTE）
-        const mendCol = toColor(CUFF_PALETTE.stitchThread, a245);
-        uiInkDraw.drawSegment(Vec2(solHandX + 16, solHandY - 5), Vec2(solHandX + 19, solHandY + 4), 1.5, mendCol);
-        uiInkDraw.drawSegment(Vec2(solHandX + 21, solHandY - 5), Vec2(solHandX + 24, solHandY + 4), 1.5, mendCol);
-        uiInkDraw.drawSegment(Vec2(solHandX + 26, solHandY - 5), Vec2(solHandX + 29, solHandY + 4), 1.5, mendCol);
-        uiInkDraw.drawEllipse(Vec2(solHandX, solHandY), 6.8, 5.0, toColor(CUFF_PALETTE.skinBase, a245));
-
-        // 中央成品明式鸟铳（弧形木托 + 铜箍 + 暗铁细长铳管 + 对应灯匣/铜铃纹样）
-        const gunX = prog < 0.38 ? childHandX + 14 : solHandX - 8;
-        const gunY = cy + 3 + gripLift;
-        // 木托尾
-        uiInkDraw.drawPolygon([
-            Vec2(gunX - 42, gunY - 8),
-            Vec2(gunX - 12, gunY - 3),
-            Vec2(gunX + 16, gunY + 1),
-            Vec2(gunX + 16, gunY + 6),
-            Vec2(gunX - 16, gunY + 3),
-            Vec2(gunX - 40, gunY + 1),
-        ], Color(108, 72, 48, a245), 1.0, Color(46, 30, 20, a245));
-        // 暗铁长管与铜箍
-        uiInkDraw.drawSegment(Vec2(gunX - 6, gunY + 4), Vec2(gunX + 56, gunY + 8), 2.8, Color(152, 148, 138, a245));
-        uiInkDraw.drawSegment(Vec2(gunX + 14, gunY + 1), Vec2(gunX + 14, gunY + 8), 2.0, Color(198, 166, 112, a245));
-        uiInkDraw.drawSegment(Vec2(gunX + 36, gunY + 3), Vec2(gunX + 36, gunY + 9), 1.6, Color(198, 166, 112, a245));
-        drawReloadPatternGlyph(uiInkDraw, gunX + 2, gunY + 21, 8.5, this.handoverEffect, PALETTE.amberCore, fade);
-        fillRadialGlow(uiGlow, gunX + 4, gunY + 4, 48, 22, toColor(PALETTE.amberCore, 52 * fade), Color(244, 234, 214, 0), 12);
-
+        const capY = rect.y - 24;
         const caption = this.handoverDuration >= 0.8
             ? (this.handoverWeaponName + " 已成 · 周戍试握上手")
             : (this.handoverWeaponName + " 已交接佩用");
-        ctx.texts.put("xs", caption, cx, cy - 34, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.94 * fade, 0.08);
+        drawSilkVeil(uiDraw, uiArt, "cb_handover_cap_veil", cx, capY, 310, 32, PALETTE.inkWash, 0.82 * fade, 6);
+        ctx.texts.put("xs", caption, cx, capY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * fade, 0.08);
     }
 }
 

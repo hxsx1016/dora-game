@@ -106,8 +106,8 @@ export class ActorsRenderer {
         cam: CameraDirector,
         suppressPartner: boolean = false,
     ): void {
-        // 1. 翻滚冰青残影（最底层）
-        this.drawAfterimages(fgGlow, cam);
+        // 1. 翻滚像素扬尘步烟（最底层）
+        this.drawAfterimages(fgGlow, assets, cam);
 
         // 倭寇举铳时显示收紧的预警虚线。
         let i = 0;
@@ -145,8 +145,8 @@ export class ActorsRenderer {
         }
     }
 
-    /** M2（MING-06 清理）：周戍翻滚改为明代写实扬尘步烟，将人物残影视觉专属留给 fe-06 时间穿梭器彩蛋 */
-    private drawAfterimages(fgGlow: DrawNode.Type, cam: CameraDirector): void {
+    /** M2（MING-06 清理）：周戍翻滚改为明代像素扬尘步烟，将人物残影视觉专属留给 fe-06 时间穿梭器彩蛋 */
+    private drawAfterimages(fgGlow: DrawNode.Type, assets: AssetSlotHost, cam: CameraDirector): void {
         let i = 0;
         for (i = 0; i < this.ghosts.length; i++) {
             const g = this.ghosts[i];
@@ -155,18 +155,24 @@ export class ActorsRenderer {
             const cx = cam.sx(g.x);
             const by = cam.sy(g.y, g.depth);
             const f = g.facing;
-            const rBase = cam.len(6 + spread * 9);
-            // 贴地翻滚扬起的暖灰尘烟（非冰青科幻残影）
-            fgGlow.drawCircle(
-                Vec2(cx - f * cam.len(6 + spread * 10), by + cam.len(4 + spread * 5)),
-                rBase,
-                Color(156, 144, 124, Math.round(78 * k)),
-            );
-            fgGlow.drawCircle(
-                Vec2(cx - f * cam.len(14 + spread * 14), by + cam.len(8 + spread * 8)),
-                rBase * 0.72,
-                Color(186, 174, 152, Math.round(54 * k)),
-            );
+            const sz = cam.len(16 + spread * 16);
+            if (!assets.tryPlace(
+                "fe_vfx_smoke",
+                "roll_dust_" + i,
+                cx - f * cam.len(7 + spread * 12),
+                by + cam.len(6 + spread * 6),
+                sz,
+                sz,
+                {
+                    frame: Math.min(3, Math.floor(spread * 4)),
+                    color: Color(218, 206, 186, 255),
+                    opacity: 0.70 * k,
+                    layer: 2,
+                },
+            )) {
+                const rBase = cam.len(6 + spread * 9);
+                fgGlow.drawCircle(Vec2(cx - f * cam.len(6 + spread * 10), by + cam.len(4 + spread * 5)), rBase, Color(156, 144, 124, Math.round(78 * k)));
+            }
         }
     }
 
@@ -556,22 +562,20 @@ export class ActorsRenderer {
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
 
-        // 试射靶（escort3 工台靶位）：绘作明代草束木靶架，不画成活体倭寇士兵
+        // 试射靶（escort3 工台靶位）：使用专属像素明代草束靶架精灵
         if (e.kind === "target") {
-            const lean = !e.alive ? f * cam.len(16) : (e.hitT > 0 ? f * cam.len(8) : 0);
-            const postTopY = by + H * (e.alive ? 0.78 : 0.42);
-            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.52, 3.6, Color(12, 11, 13, 140));
-            // 交叉木桩架
-            fgDraw.drawSegment(Vec2(cx - cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(92, 64, 42, 255));
-            fgDraw.drawSegment(Vec2(cx + cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(76, 52, 34, 255));
-            // 圆草靶面与朱砂靶心
-            const discX = cx + lean;
-            const discY = by + H * (e.alive ? 0.56 : 0.30);
-            const discR = Math.max(7, cam.len(13));
+            const lean = !e.alive ? f * cam.len(12) : (e.hitT > 0 ? f * cam.len(5) : 0);
             const hitTint = e.hitT > 0 || !e.alive;
-            fgDraw.drawCircle(Vec2(discX, discY), discR, hitTint ? Color(214, 152, 116, 245) : Color(196, 174, 134, 250));
-            fgDraw.drawRing(Vec2(discX, discY), discR * 0.62, discR * 0.76, Color(0, 0, 0, 0), 1.4, Color(62, 46, 34, 230));
-            fgDraw.drawCircle(Vec2(discX, discY), discR * 0.30, toColor(PALETTE.rouge, hitTint ? 255 : 220));
+            const targetLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
+            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.52, 3.6, Color(12, 11, 13, 140));
+            if (!assets.tryPlace("fe_straw_target", "actor_target_" + index, cx + lean * 0.4, by, cam.len(40), H * (e.alive ? 0.94 : 0.66), {
+                angle: !e.alive ? f * 48 : (e.hitT > 0 ? f * 12 : 0),
+                color: hitTint ? Color(242, 188, 156, 255) : Color(255, 255, 255, 255),
+                layer: targetLayer,
+            })) {
+                const discR = Math.max(7, cam.len(13));
+                fgDraw.drawCircle(Vec2(cx + lean, by + H * 0.56), discR, Color(196, 174, 134, 250));
+            }
             return;
         }
 
@@ -584,11 +588,12 @@ export class ActorsRenderer {
             slot = "enemy_aim";
         }
         const height = e.alive ? H : H * 0.24;
+        const enemyLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
         if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W, height, {
-            facing: f, opacity: e.alive ? 1 : 0.78, layer: p.room.depth === undefined ? 3 : depthOrder(depth, 3),
+            facing: f, opacity: e.alive ? 1 : 0.78, layer: enemyLayer,
         })) {
             if (e.alive) {
-                this.drawEnemyArchetypeGear(fgDraw, fgGlow, e, cx, by, H, f, cam);
+                this.drawEnemyArchetypeGear(fgDraw, fgGlow, assets, e, index, cx, by, H, f, cam, enemyLayer + 1);
                 if (e.warnT > 0) {
                     this.drawEnemyWarning(fgGlow, e, p, cam, f);
                 }
@@ -647,37 +652,39 @@ export class ActorsRenderer {
         const gunX = cx + f * H * 0.34;
         const gunY = by + H * 0.69;
         fgDraw.drawSegment(Vec2(cx - f * 6, gunY - 2), Vec2(gunX, gunY), 2.8, Color(118, 87, 61, 255));
-        this.drawEnemyArchetypeGear(fgDraw, fgGlow, e, cx, by, H, f, cam);
+        this.drawEnemyArchetypeGear(fgDraw, fgGlow, assets, e, index, cx, by, H, f, cam, enemyLayer + 1);
         if (e.warnT > 0) {
             this.drawEnemyWarning(fgGlow, e, p, cam, f);
         }
     }
 
-    /** 区分盾手 / 破障手 / 带队者的明初冷兵器轮廓（灰度与实战均一眼可辨） */
+    /** 区分盾手 / 破障手 / 带队者的明初冷兵器轮廓（像素藤盾精灵，灰度与实战均一眼可辨） */
     private drawEnemyArchetypeGear(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
         e: Enemy,
+        index: number,
         cx: number,
         by: number,
         H: number,
         f: number,
         cam: CameraDirector,
+        layer: number,
     ): void {
         if (e.kind === "shield" && (e.shieldHp ?? 0) > 0) {
             const shX = cx + f * cam.len(13);
-            const shW = Math.max(5, cam.len(8));
-            const shH = H * 0.72;
             const cracked = (e.shieldHp ?? 2) <= 1;
-            fgDraw.drawRect(
-                Rect(shX - shW * 0.5, by + H * 0.08, shW, shH),
-                cracked ? Color(122, 82, 52, 245) : Color(96, 66, 42, 250),
-                1.3,
-                Color(168, 174, 180, 230),
-            );
-            fgDraw.drawCircle(Vec2(shX, by + H * 0.44), Math.max(2.2, cam.len(3.5)), Color(142, 148, 154, 240));
+            if (!assets.tryPlace("fe_gear_rattan_shield", "enemy_shield_" + index, shX, by + H * 0.44, cam.len(22), H * 0.64, {
+                facing: f,
+                color: cracked ? Color(224, 178, 146, 255) : Color(255, 255, 255, 255),
+                layer,
+            })) {
+                const shW = Math.max(5, cam.len(8));
+                fgDraw.drawRect(Rect(shX - shW * 0.5, by + H * 0.08, shW, H * 0.72), Color(96, 66, 42, 250), 1.3, Color(168, 174, 180, 230));
+            }
             if (cracked) {
-                fgDraw.drawSegment(Vec2(shX - shW * 0.4, by + H * 0.28), Vec2(shX + shW * 0.4, by + H * 0.58), 1.4, Color(24, 18, 16, 235));
+                fgDraw.drawSegment(Vec2(shX - cam.len(4), by + H * 0.30), Vec2(shX + cam.len(4), by + H * 0.56), 1.4, Color(24, 18, 16, 235));
             }
         } else if (e.kind === "breaker") {
             const swing = (e.swingT ?? 0) > 0;

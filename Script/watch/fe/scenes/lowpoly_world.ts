@@ -18,22 +18,19 @@
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
-import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import {
-    LP_BUCKET,
     LowpolyProjection,
-    LowpolyScene,
-    MING_MATERIALS,
-    OUTSIDE_JETTY_LIGHT,
-    TOWER_WEST_LAMP_LIGHT,
-    buildOutsideJettyLowpoly,
     clamp01,
     projectWorld3D,
     smoothstep,
-    vec3,
 } from "Script/watch/fe/renderer/lowpoly";
+import {
+    drawChildColdMoonGrade,
+    drawPixelSlidePlate,
+    drawSlideFrameChrome,
+} from "Script/watch/fe/renderer/slideshow";
 import {
     VillageSurfaceKind,
     VillageUndertableDebugState,
@@ -46,8 +43,6 @@ import {
 import {
     fillRadialGlow,
     fillVGradRect,
-    rgba,
-    toColor,
 } from "Script/watch/fe/theme";
 
 const CHILD_AUDIO_ROOT = "assets/audio/child/";
@@ -351,105 +346,73 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawBackdrop(bgDraw, bgGlow, backdropArt, ctx);
         }
         if (key === "outside") {
-            return this.drawOutsideBackdrop(bgDraw, bgGlow, ctx);
+            return this.drawOutsideBackdrop(bgDraw, bgGlow, backdropArt, ctx);
         }
         if (key === "tower") {
-            return this.drawTowerBackdrop(bgDraw, bgGlow, ctx);
+            return this.drawTowerBackdrop(bgDraw, bgGlow, backdropArt, ctx);
         }
         return false;
     }
 
-    private drawOutsideBackdrop(bgDraw: DrawNode.Type, bgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawOutsideBackdrop(
+        bgDraw: DrawNode.Type,
+        bgGlow: DrawNode.Type,
+        backdropArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const w = cam.viewW;
         const h = cam.viewH;
         const ox = p.ox;
 
-        // 宁村所外城冷夜海风天穹
-        const splitY = h * 0.48;
-        fillVGradRect(bgDraw, 0, splitY, w, h - splitY, Color(16, 25, 38, 255), Color(8, 13, 22, 255));
-        fillVGradRect(bgDraw, 0, 0, w, splitY, Color(30, 44, 62, 255), Color(16, 25, 38, 255));
+        // 冷月海风底天（作为像素远景图的兜底）
+        fillVGradRect(bgDraw, 0, 0, w, h, Color(24, 34, 52, 255), Color(8, 13, 22, 255));
 
-        const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
-        // 远景外城砖墙垛口与护城河海雾
-        scene.addBox({
-            x0: ox - 160,
-            x1: ox + 1360,
-            y0: -48,
-            y1: 112,
-            z0: 230,
-            z1: 274,
-            material: MING_MATERIALS.distantWall,
-            bucket: LP_BUCKET.BACKDROP,
-            edgeWidth: 0,
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const artW = Math.max(w, (h * 16) / 9) * 1.24;
+        const artH = (artW * 9) / 16;
+        const artY = Math.min(0, Math.max(h - artH, cam.groundScreenY - artH * 0.24));
+        backdropArt.tryPlace("bgFar_outside", "fe04_bg_outside", w * (0.5 - progress * 0.08), artY, artW, artH, {
+            color: Color(172, 194, 224, 255),
+            layer: 0,
         });
-        let mx = ox - 80;
-        let mi = 0;
-        for (mi = 0; mi < 18; mi++) {
-            scene.addBox({
-                x0: mx,
-                x1: mx + 32,
-                y0: 112,
-                y1: 128,
-                z0: 230,
-                z1: 256,
-                material: MING_MATERIALS.distantWall,
-                bucket: LP_BUCKET.BACKDROP,
-                sortBias: 0.04,
-                edgeWidth: 0,
-            });
-            mx += 78;
-        }
-        scene.addFogBand(ox - 180, ox + 1420, -34, 152, 180, rgba(28, 42, 60, 255), 0.58, 0.06, {
-            bucket: LP_BUCKET.BACKDROP,
-        });
-        scene.flush(bgDraw, bgGlow);
 
-        // 冷月与远山北塔一豆暖灯（引导尽头 x ≈ 1120，无任务光柱）
-        const moonX = w * 0.76;
-        const moonY = h * 0.83;
-        fillRadialGlow(bgGlow, moonX, moonY, 82, 82, Color(172, 206, 232, 28), Color(24, 42, 68, 0), 16);
-        bgDraw.drawCircle(Vec2(moonX, moonY), 14, Color(218, 232, 246, 165));
+        // 远景冷月微晕与远山北塔一豆暖灯（引导尽头 x ≈ 1120，无任务光柱）
+        const y = cam.groundScreenY;
+        fillVGradRect(bgGlow, 0, y - 2, w, h * 0.16, Color(34, 48, 70, 26), Color(16, 26, 42, 0));
 
         const beaconP = projectWorld3D(ox + 1140, 154, 410, cam, this.outsideProj);
         const pulse = 0.84 + 0.16 * Math.sin(this.animTime * 2.2);
-        fillRadialGlow(bgGlow, beaconP.x, beaconP.y, 32 * pulse, 32 * pulse, Color(246, 208, 138, Math.round(92 * pulse)), Color(232, 176, 86, 0), 14);
-        bgGlow.drawDot(Vec2(beaconP.x, beaconP.y), 2.5, Color(255, 244, 212, 235));
+        fillRadialGlow(bgGlow, beaconP.x, beaconP.y, 30 * pulse, 30 * pulse, Color(246, 208, 138, Math.round(84 * pulse)), Color(232, 176, 86, 0), 14);
+        bgGlow.drawDot(Vec2(beaconP.x, beaconP.y), 2.3, Color(255, 244, 212, 230));
 
         return true;
     }
 
-    private drawTowerBackdrop(bgDraw: DrawNode.Type, bgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawTowerBackdrop(
+        bgDraw: DrawNode.Type,
+        bgGlow: DrawNode.Type,
+        backdropArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const cam = ctx.cam;
         const p = ctx.p;
-        const ox = p.ox;
         const w = cam.viewW;
         const h = cam.viewH;
 
-        // 拂晓前微暖山风天际
-        const splitY = h * 0.46;
-        fillVGradRect(bgDraw, 0, splitY, w, h - splitY, Color(24, 34, 52, 255), Color(12, 18, 30, 255));
-        fillVGradRect(bgDraw, 0, 0, w, splitY, Color(46, 54, 70, 255), Color(24, 34, 52, 255));
-
-        const scene = new LowpolyScene(cam, this.towerProj, TOWER_WEST_LAMP_LIGHT);
-        scene.addDistantRidge(
-            [
-                { x: ox - 180, y: 118 },
-                { x: ox + 90, y: 172 },
-                { x: ox + 360, y: 146 },
-                { x: ox + 640, y: 184 },
-                { x: ox + 920, y: 132 },
-            ],
-            -40,
-            420,
-            MING_MATERIALS.distantHill,
-            { bucket: LP_BUCKET.BACKDROP },
-        );
-        scene.addFogBand(ox - 160, ox + 900, -24, 150, 260, rgba(36, 42, 58, 255), 0.56, 0.06, {
-            bucket: LP_BUCKET.BACKDROP,
+        fillVGradRect(bgDraw, 0, 0, w, h, Color(34, 42, 58, 255), Color(12, 18, 30, 255));
+        const span = Math.max(1, p.room.maxX - p.room.minX);
+        const progress = (cam.x - p.room.minX) / span - 0.5;
+        const artW = Math.max(w, (h * 16) / 9) * 1.24;
+        const artH = (artW * 9) / 16;
+        const artY = Math.min(0, Math.max(h - artH, cam.groundScreenY - artH * 0.24));
+        backdropArt.tryPlace("bgFar_tower", "fe04_bg_tower", w * (0.5 - progress * 0.08), artY, artW, artH, {
+            color: Color(184, 198, 222, 255),
+            layer: 0,
         });
-        scene.flush(bgDraw, bgGlow);
+        fillVGradRect(bgGlow, 0, cam.groundScreenY - 2, w, h * 0.14, Color(44, 50, 66, 20), Color(20, 26, 38, 0));
 
         return true;
     }
@@ -471,190 +434,204 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawWorld(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "outside") {
-            return this.drawOutsideWorld(fgDraw, fgGlow, ctx);
+            return this.drawOutsideWorld(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "tower") {
-            return this.drawTowerWorld(fgDraw, fgGlow, ctx);
+            return this.drawTowerWorld(fgDraw, fgGlow, worldArt, ctx);
         }
         return false;
     }
 
-    private drawOutsideWorld(fgDraw: DrawNode.Type, fgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawOutsideWorld(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
-        const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
+        const coldStone = Color(168, 186, 210, 255);
+        const coldWall = Color(156, 174, 198, 255);
 
-        // 1. 复用 fe-01 核心低模栈台构建器（floors / stairs / solids / 无垂布低拱 / 左端红布投影 / 脚底接触影）
-        buildOutsideJettyLowpoly(scene, p.room, p.player.x, p.player.y, p.cartAxle, this.animTime);
+        // 1. 地面与上层栈台（全部使用像素石砖地坪，彻底移除伪3D色块盒子）
+        let fi = 0;
+        for (fi = 0; fi < p.room.floors.length; fi++) {
+            const fl = p.room.floors[fi];
+            const left = cam.sx(fl.x0);
+            const right = cam.sx(fl.x1);
+            const top = cam.sy(fl.y);
+            const isMain = fl.y <= 0.1;
+            const deckH = cam.len(isMain ? 26 : 14);
+            const bot = top - deckH;
+            if (isMain && bot > 0) {
+                fillVGradRect(fgDraw, left, 0, right - left, bot + 1, Color(10, 14, 22, 255), Color(24, 32, 46, 255));
+            }
+            const step = Math.max(24, cam.len(76));
+            const start = Math.max(0, Math.floor(-left / step));
+            let j = start;
+            for (j = start; left + j * step < Math.min(right, cam.viewW + 40); j++) {
+                const tx = left + j * step;
+                const tw = Math.min(step, right - tx);
+                if (tw <= 2) {
+                    continue;
+                }
+                worldArt.tryPlace(isMain ? "fe_road_stone" : "slab", "fe04_out_fl_" + fi + "_" + j, tx + tw * 0.5, bot, tw + 0.5, deckH, {
+                    color: coldStone,
+                    layer: 1,
+                });
+            }
+            fgDraw.drawSegment(Vec2(left, top), Vec2(right, top), 1.1, Color(142, 166, 192, 125));
+        }
 
-        // 1b. 挡住石阶口的补丁红布独轮车（实时跟随后端 outside_red_cart 坐标，避免画成灰砖墙与高墩）
+        // 2. 下层水门暗廊背景墙与低拱石洞（严格无垂布遮挡净空）
+        const a = p.room.arch;
+        if (a.h > 0 && a.x1 > a.x0) {
+            const ax0 = cam.sx(a.x0);
+            const ax1 = cam.sx(a.x1);
+            const ay0 = cam.sy(a.y);
+            const ay1 = cam.sy(a.y + a.h);
+            const aw = ax1 - ax0;
+            const ah = ay1 - ay0;
+            fgDraw.drawRect(Rect(ax0, ay0, aw, ah + cam.len(10)), Color(10, 14, 22, 232));
+            worldArt.tryPlace("fe_outside_arch", "fe04_out_arch", (ax0 + ax1) * 0.5, ay0, aw + cam.len(26), ah + cam.len(24), {
+                color: coldStone,
+                layer: 2,
+            });
+            // 板车未入窝前，车底木栓探入拱口，直观呈现「拉车开拱」因果
+            if (!p.cartDocked) {
+                const bx0 = Math.max(a.x0 + 4, p.cartAxle - 18);
+                const bx1 = Math.min(a.x1 - 4, p.cartAxle + 18);
+                if (bx1 > bx0 + 4) {
+                    const sbx0 = cam.sx(bx0);
+                    const sbx1 = cam.sx(bx1);
+                    const deckY = cam.sy(p.room.cart.baseY);
+                    worldArt.tryPlace("fe_pillar_wood", "fe04_arch_bolt", (sbx0 + sbx1) * 0.5, ay0 + 2, sbx1 - sbx0, ah - 2, {
+                        color: Color(172, 182, 198, 255),
+                        layer: 3,
+                    });
+                    fgDraw.drawSegment(Vec2((sbx0 + sbx1) * 0.5, ay1), Vec2((sbx0 + sbx1) * 0.5, deckY), Math.max(2, cam.len(2.4)), Color(96, 108, 124, 225));
+                }
+            }
+        }
+
+        // 3. 石阶（像素砖石平铺）
+        let si = 0;
+        for (si = 0; si < p.room.stairs.length; si++) {
+            const st = p.room.stairs[si];
+            const n = Math.max(1, st.steps + 1);
+            const stepW = (st.x1 - st.x0) / n;
+            const flatTop = Math.abs(st.y1 - st.y0) < 0.01;
+            const baseWY = flatTop ? 0 : Math.max(0, st.y0);
+            let k = 0;
+            for (k = 0; k < n; k++) {
+                const wy = n <= 1 ? st.y1 : (st.y0 + ((st.y1 - st.y0) * k) / (n - 1));
+                const x0 = cam.sx(st.x0 + stepW * k);
+                const x1 = cam.sx(st.x0 + stepW * (k + 1));
+                if (x1 < -20 || x0 > cam.viewW + 20) {
+                    continue;
+                }
+                const y0 = cam.sy(baseWY);
+                const y1 = cam.sy(wy);
+                if (y1 > y0 + 2) {
+                    worldArt.tryPlace("wall", "fe04_st_" + si + "_" + k, (x0 + x1) * 0.5, y0, x1 - x0 + 0.5, y1 - y0, {
+                        color: coldWall,
+                        opacity: 0.90,
+                        layer: 1,
+                    });
+                    worldArt.tryPlace("slab", "fe04_st_top_" + si + "_" + k, (x0 + x1) * 0.5, y1 - cam.len(4), x1 - x0 + 0.5, cam.len(4.5), {
+                        color: coldStone,
+                        layer: 2,
+                    });
+                }
+            }
+        }
+
+        // 4. 城墙与石墩实体（像素砖墙等比平铺，跳过红布车）
+        for (si = 0; si < p.room.solids.length; si++) {
+            const s = p.room.solids[si];
+            if (s.decorative === true || s.id === "outside_red_cart") {
+                continue;
+            }
+            const x0 = cam.sx(s.x);
+            const x1 = cam.sx(s.x + s.w);
+            const y0 = cam.sy(s.y);
+            const y1 = cam.sy(s.y + s.h);
+            const sw = x1 - x0;
+            const sh = y1 - y0;
+            if (sw <= 1 || sh <= 1 || x1 < -20 || x0 > cam.viewW + 20) {
+                continue;
+            }
+            if (s.y > 10) {
+                const gy = cam.sy(0);
+                const pierW = cam.len(18);
+                worldArt.tryPlace("wall", "fe04_pier_l_" + si, x0 + pierW * 0.5, gy, pierW, y0 - gy, { color: Color(122, 138, 162, 255), layer: 1 });
+                worldArt.tryPlace("wall", "fe04_pier_r_" + si, x1 - pierW * 0.5, gy, pierW, y0 - gy, { color: Color(122, 138, 162, 255), layer: 1 });
+            }
+            const cols = Math.max(1, Math.min(8, Math.round(s.w / 58)));
+            const rows = Math.max(1, Math.min(8, Math.round(s.h / 38)));
+            const tw = sw / cols;
+            const th = sh / rows;
+            let r = 0;
+            let col = 0;
+            for (r = 0; r < rows; r++) {
+                for (col = 0; col < cols; col++) {
+                    worldArt.tryPlace("wall", "fe04_wall_" + si + "_" + r + "_" + col, x0 + (col + 0.5) * tw, y0 + r * th, tw + 0.5, th + 0.5, {
+                        color: coldWall,
+                        facing: (r + col) % 2 === 0 ? 1 : -1,
+                        layer: 2,
+                    });
+                }
+            }
+        }
+
+        // 5. 挡住石阶口的补丁红布独轮车（像素车体 + 左端动画红布）
         const redBox = p.boxes.find((b) => b.id === "outside_red_cart");
         if (redBox !== undefined && redBox.broken !== true && redBox.hidden !== true) {
-            scene.addBox({
-                x0: redBox.x0 + 2,
-                x1: redBox.x1 - 2,
-                y0: redBox.y0 + 10,
-                y1: redBox.y1,
-                z0: -10,
-                z1: 12,
-                material: MING_MATERIALS.mingTimber,
-                bucket: LP_BUCKET.PROP,
-                highlightTopEdge: true,
-                edgeWidth: 0.9,
+            const rx0 = cam.sx(redBox.x0);
+            const rx1 = cam.sx(redBox.x1);
+            const ry0 = cam.sy(redBox.y0);
+            const ry1 = cam.sy(redBox.y1);
+            const rw = rx1 - rx0;
+            const rh = ry1 - ry0;
+            worldArt.tryPlace("prop_cart", "fe04_out_red_box", (rx0 + rx1) * 0.5, ry0, rw * 1.15, rh * 1.05, {
+                color: Color(192, 206, 224, 255),
+                layer: 3,
             });
-            // 车沿系着的旧补丁红布
-            const rSway = Math.sin(this.animTime * 2.9) * 4.5;
-            scene.addTri3D(
-                vec3(redBox.x0 + 4, redBox.y1, -11),
-                vec3(redBox.x0 + 18, redBox.y1, -10),
-                vec3(redBox.x0 - 2 + rSway, redBox.y0 + 10, -12),
-                MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.26, edgeWidth: 0.8 },
-            );
+            const clothFrame = Math.floor(this.animTime * 4.2) % 3;
+            worldArt.tryPlace("fe_red_cloth", "fe04_out_red_box_cloth", rx0 + cam.len(6), ry1 - cam.len(4), cam.len(20), cam.len(20), {
+                frame: clothFrame,
+                layer: 4,
+            });
         }
 
-        // 2. 增补城外细部：上层木轮车辙与空窝物理凹槽（x = 432）、下层廊顶铁格栅条影与盐碱高水线
+        // 6. 上层栈台木轮车辙与停靠铁窝（c.endX）
         const c = p.room.cart;
         if (c.bodyW > 0) {
-            // 物理轮窝凹槽（无发光箭头/全息柱，纯木槽与暗铁限位块）
-            scene.addBox({
-                x0: c.endX - 18,
-                x1: c.endX + 18,
-                y0: c.baseY - 4,
-                y1: c.baseY + 2,
-                z0: -12,
-                z1: 14,
-                material: MING_MATERIALS.mingIron,
-                bucket: LP_BUCKET.WALK_DECK,
-                sortBias: 0.35,
-                highlightTopEdge: true,
-            });
-            // 上层栈台双道木轮车辙槽
-            scene.addBox({
-                x0: ox + 258,
-                x1: ox + 474,
-                y0: c.baseY - 1.5,
-                y1: c.baseY + 0.4,
-                z0: -11,
-                z1: -7,
-                material: MING_MATERIALS.mingTimberDark,
-                bucket: LP_BUCKET.WALK_DECK,
-                sortBias: 0.30,
-                edgeWidth: 0,
-            });
-            scene.addBox({
-                x0: ox + 258,
-                x1: ox + 474,
-                y0: c.baseY - 1.5,
-                y1: c.baseY + 0.4,
-                z0: 7,
-                z1: 11,
-                material: MING_MATERIALS.mingTimberDark,
-                bucket: LP_BUCKET.WALK_DECK,
-                sortBias: 0.30,
-                edgeWidth: 0,
+            const deckY = cam.sy(c.baseY);
+            fgDraw.drawSegment(Vec2(cam.sx(ox + 258), deckY + 1), Vec2(cam.sx(ox + 474), deckY + 1), 1.4, Color(62, 74, 92, 165));
+            const dockX = cam.sx(c.endX);
+            worldArt.tryPlace("slab", "fe04_cart_dock", dockX, deckY - cam.len(4), cam.len(34), cam.len(6), {
+                color: Color(86, 98, 118, 255),
+                layer: 2,
             });
         }
 
-        // 2b. 板车未入窝前，车底连杆挡木垂直探入下层拱口，直观呈现「拉车开拱」的物理阻挡因果；
-        //     车轮一旦落窝（cartDocked），挡木收回，拱口与底层完全畅通。
-        if (!p.cartDocked && p.room.arch.h > 0) {
-            const bx0 = Math.max(p.room.arch.x0 + 4, p.cartAxle - 18);
-            const bx1 = Math.min(p.room.arch.x1 - 4, p.cartAxle + 18);
-            if (bx1 > bx0 + 4) {
-                scene.addBox({
-                    x0: bx0,
-                    x1: bx1,
-                    y0: 2,
-                    y1: p.room.arch.h,
-                    z0: -6,
-                    z1: 8,
-                    material: MING_MATERIALS.mingTimberDark,
-                    bucket: LP_BUCKET.PROP,
-                    highlightTopEdge: true,
-                    edgeWidth: 0.9,
-                });
-                // 连至上层板车底梁的铁链/拉杆
-                scene.addBox({
-                    x0: (bx0 + bx1) * 0.5 - 3,
-                    x1: (bx0 + bx1) * 0.5 + 3,
-                    y0: p.room.arch.h,
-                    y1: p.room.cart.baseY,
-                    z0: -3,
-                    z1: 5,
-                    material: MING_MATERIALS.mingIron,
-                    bucket: LP_BUCKET.PROP,
-                    edgeWidth: 0.6,
-                });
-            }
-        }
-
-        // 3. 下层水门检修廊背景墙与盐碱高水线（位于 z = 44..72，不侵占拱洞净空）
-        scene.addBox({
-            x0: ox + 128,
-            x1: ox + 598,
-            y0: 0,
-            y1: 92,
-            z0: 44,
-            z1: 72,
-            material: MING_MATERIALS.mingBrickDark,
-            bucket: LP_BUCKET.MIDGROUND,
-            sortBias: -0.20,
-            edgeWidth: 0.5,
-        });
-        // 旧年高水线浅灰盐碱带
-        scene.addQuad3D(
-            vec3(ox + 132, 26, 43),
-            vec3(ox + 592, 26, 43),
-            vec3(ox + 592, 31, 43),
-            vec3(ox + 132, 31, 43),
-            { base: rgba(138, 148, 158, 92) },
-            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: -0.10 },
-        );
-
-        // 4. 墙根尽头远望北塔侧光束（x ≈ 1080..1180）
-        scene.addLightShaft(
-            ox + 1110, ox + 1180, 170,
-            ox + 1040, ox + 1140, 0,
-            34,
-            rgba(234, 198, 138, 255),
-            0.14,
-            0.03,
-        );
-
-        scene.flush(fgDraw, fgGlow);
-
-        // 下层水门廊道头顶格栅条影（细微环境层次）
-        let gi = 0;
-        for (gi = 0; gi < 6; gi++) {
-            const gx = ox + 165 + gi * 56;
-            const p0 = projectWorld3D(gx, 0.5, -14, cam, this.outsideProj);
-            const p1 = projectWorld3D(gx + 10, 0.5, 22, cam, this.outsideProj);
-            fgDraw.drawSegment(Vec2(p0.x, p0.y), Vec2(p1.x, p1.y), 3.0, Color(8, 12, 18, 76));
-        }
-
-        // 右侧明代砖城墙水平灰缝与垛口檐线（打破大灰块的素面感，凸显宁村所海防砖墙）
-        let row = 0;
-        for (row = 1; row <= 6; row++) {
-            const wy = 96 + row * 19;
-            const bL = projectWorld3D(ox + 513, wy, -8, cam, this.outsideProj);
-            const bR = projectWorld3D(ox + 599, wy, -8, cam, this.outsideProj);
-            fgDraw.drawSegment(Vec2(bL.x, bL.y), Vec2(bR.x, bR.y), 0.9, Color(34, 40, 50, 185));
-            const off = (row % 2) * 18;
-            let colX = ox + 528 + off;
-            while (colX < ox + 594) {
-                const v0 = projectWorld3D(colX, wy - 19, -8, cam, this.outsideProj);
-                const v1 = projectWorld3D(colX, wy, -8, cam, this.outsideProj);
-                fgDraw.drawSegment(Vec2(v0.x, v0.y), Vec2(v1.x, v1.y), 0.8, Color(32, 38, 48, 150));
-                colX += 34;
-            }
-        }
+        // 7. 墙根尽头远望北塔微暖侧光与小满脚底接触影
+        const endGlowX = cam.sx(ox + 1120);
+        const endGlowY = cam.sy(76);
+        fillRadialGlow(fgGlow, endGlowX, endGlowY, cam.len(96), cam.len(118), Color(234, 198, 138, 34), Color(234, 198, 138, 0), 14);
+        fgDraw.drawEllipse(Vec2(cam.sx(p.player.x), cam.sy(p.player.y) + 1), cam.len(14), 3.4, Color(8, 12, 18, 150));
 
         return true;
     }
 
-    private drawTowerWorld(fgDraw: DrawNode.Type, fgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawTowerWorld(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
@@ -663,149 +640,101 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             || p.phase === "tower-desk"
             || p.phase === "tower-given"
             || p.phase === "tower-end";
-        const scene = new LowpolyScene(cam, this.towerProj, TOWER_WEST_LAMP_LIGHT);
+        const towerTint = Color(172, 188, 210, 255);
+        const groundY = cam.sy(0);
 
-        // 1. 山顶青石走面与塔基石阶
-        scene.addBox({
-            x0: ox - 40,
-            x1: ox + 760,
-            y0: -52,
-            y1: 0,
-            z0: -26,
-            z1: 96,
-            material: MING_MATERIALS.mingBrickDark,
-            bucket: LP_BUCKET.WALK_DECK,
-            highlightTopEdge: true,
-        });
-        // 门廊青石门槛（doorX = 445）
-        scene.addBox({
-            x0: ox + 398,
-            x1: ox + 492,
-            y0: -4,
-            y1: 2.5,
-            z0: -16,
-            z1: 26,
-            material: MING_MATERIALS.mingStoneStep,
-            bucket: LP_BUCKET.WALK_DECK,
-            sortBias: 0.15,
-            highlightTopEdge: true,
+        // 1. 山顶青石走面与门廊石阶
+        const gLeft = cam.sx(ox - 40);
+        const gRight = cam.sx(ox + 760);
+        const deckH = cam.len(26);
+        if (groundY - deckH > 0) {
+            fillVGradRect(fgDraw, gLeft, 0, gRight - gLeft, groundY - deckH + 1, Color(10, 14, 22, 255), Color(24, 30, 42, 255));
+        }
+        const step = Math.max(24, cam.len(76));
+        let j = 0;
+        for (j = 0; gLeft + j * step < gRight; j++) {
+            const tx = gLeft + j * step;
+            const tw = Math.min(step, gRight - tx);
+            worldArt.tryPlace("fe_road_stone", "fe04_tw_floor_" + j, tx + tw * 0.5, groundY - deckH, tw + 0.5, deckH, {
+                color: towerTint,
+                layer: 1,
+            });
+        }
+        worldArt.tryPlace("slab", "fe04_tw_sill", cam.sx(ox + 445), groundY - cam.len(3), cam.len(94), cam.len(6), {
+            color: Color(196, 206, 220, 255),
+            layer: 2,
         });
 
-        // 2. 塔身左右厚重砖石墙体（拉齐至 z0 = -8 与步行面和石门框严密贴合，消除视觉退后导致的空气墙感）
-        scene.addBox({
-            x0: ox + 180,
-            x1: ox + 400,
-            y0: 0,
-            y1: 215,
-            z0: -8,
-            z1: 96,
-            material: MING_MATERIALS.mingBrick,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-        });
-        scene.addBox({
-            x0: ox + 490,
-            x1: ox + 720,
-            y0: 0,
-            y1: 215,
-            z0: -8,
-            z1: 96,
-            material: MING_MATERIALS.mingBrick,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-        });
+        // 2. 塔身左右厚重青砖墙（像素砖墙等比平铺）
+        const tileWallBlock = (prefix: string, wx0: number, wx1: number, wy0: number, wy1: number): void => {
+            const x0 = cam.sx(wx0);
+            const x1 = cam.sx(wx1);
+            const y0 = cam.sy(wy0);
+            const y1 = cam.sy(wy1);
+            const cols = Math.max(1, Math.round((wx1 - wx0) / 56));
+            const rows = Math.max(1, Math.round((wy1 - wy0) / 38));
+            const tw = (x1 - x0) / cols;
+            const th = (y1 - y0) / rows;
+            let r = 0;
+            let c = 0;
+            for (r = 0; r < rows; r++) {
+                for (c = 0; c < cols; c++) {
+                    worldArt.tryPlace("wall", prefix + "_" + r + "_" + c, x0 + (c + 0.5) * tw, y0 + r * th, tw + 0.5, th + 0.5, {
+                        color: towerTint,
+                        facing: (r + c) % 2 === 0 ? 1 : -1,
+                        layer: 1,
+                    });
+                }
+            }
+        };
+        tileWallBlock("fe04_tw_wl", ox + 180, ox + 400, 0, 215);
+        tileWallBlock("fe04_tw_wr", ox + 490, ox + 720, 0, 215);
+        // 门楣砖石
+        tileWallBlock("fe04_tw_lintel", ox + 398, ox + 492, 110, 152);
 
-        // 3. 门廊石拱门楣（400..490, y = 110..144）
-        scene.addBeveledFrame(ox + 400, ox + 490, 0, 110, 14, 34, -8, 68, MING_MATERIALS.mingStoneStep, {
-            bucket: LP_BUCKET.MIDGROUND,
-            innerRimLight: rgba(244, 206, 140, 255),
-            innerRimStrength: opened ? 0.78 : 0.32,
-        });
-
-        // 4. 厚木门扇（未开门时合拢微漏底缝暖光，开门后敞露温暖值夜室灯火）
+        // 3. 厚木门扇 vs 开门后实景值夜室（像素室内画面，彻底告别纯色方块人/方块桌）
+        const doorCx = cam.sx(ox + 445);
+        const doorW = cam.len(90);
+        const doorH = cam.len(110);
+        const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
         if (!opened) {
-            scene.addBox({
-                x0: ox + 404,
-                x1: ox + 486,
-                y0: 4,
-                y1: 109,
-                z0: 14,
-                z1: 26,
-                material: MING_MATERIALS.mingTimberDark,
-                bucket: LP_BUCKET.MIDGROUND,
-                sortBias: 0.10,
-                edgeWidth: 0.9,
+            worldArt.tryPlace("prop_tower_door", "fe04_tw_door", doorCx, groundY, doorW, doorH, {
+                color: Color(204, 212, 224, 255),
+                layer: 2,
             });
         } else {
-            scene.addQuad3D(
-                vec3(ox + 404, 2, 24),
-                vec3(ox + 486, 2, 24),
-                vec3(ox + 486, 109, 24),
-                vec3(ox + 404, 109, 24),
-                { base: rgba(112, 78, 42, 255) },
-                { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: 0.08 },
-            );
+            fillVGradRect(fgGlow, doorCx - doorW * 0.46, groundY, doorW * 0.92, doorH, Color(246, 204, 132, Math.round(92 * pulse)), Color(255, 226, 166, 155));
+            const roomX0 = cam.sx(ox + 492);
+            const roomX1 = cam.sx(ox + 724);
+            worldArt.tryPlace("slide_tower_interior_live", "fe04_tw_room_live", (roomX0 + roomX1) * 0.5, groundY, roomX1 - roomX0, cam.len(172), {
+                layer: 2,
+            });
         }
 
-        // 5. 西窗狭长暖窗（贴合拉齐后的左塔壁前立面 z = -9，呼应“朝西那盏灯，能留着吗”）
-        scene.addQuad3D(
-            vec3(ox + 286, 118, -9),
-            vec3(ox + 306, 118, -9),
-            vec3(ox + 306, 158, -9),
-            vec3(ox + 286, 158, -9),
-            { base: rgba(244, 204, 134, 255) },
-            { bucket: LP_BUCKET.PROP, unlit: true, edgeColor: rgba(82, 68, 52, 255), edgeWidth: 1.4 },
-        );
-
-        // 6. 门内暖光溢出与提灯光晕
-        const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
-        scene.addLightShaft(
-            ox + 412, ox + 478, 106,
-            ox + 382, ox + 506, 0,
-            6,
-            rgba(246, 208, 138, 255),
-            (opened ? 0.34 : 0.08) * pulse,
-            (opened ? 0.16 : 0.04) * pulse,
-        );
-
-        // 7. 小满脚底接触影
-        scene.addContactShadow(p.player.x, p.player.y, 15, 11, 0.78, { bucket: LP_BUCKET.PROP, sortBias: 0.45 });
-
-        scene.flush(fgDraw, fgGlow);
-
-        // 门廊悬灯暖点与西窗微晕
-        const lampP = projectWorld3D(ox + 445, 102, 2, cam, this.towerProj);
+        // 4. 门廊悬灯与西窗暖灯（呼应「朝西那盏灯，能留着吗」）
+        const lampX = doorCx;
+        const lampY = cam.sy(102);
+        worldArt.tryPlace("prop_lantern", "fe04_tw_lamp", lampX, lampY, cam.len(16), cam.len(22), { layer: 3 });
         fillRadialGlow(
             fgGlow,
-            lampP.x,
-            lampP.y,
-            cam.len(opened ? 64 : 34) * pulse,
-            cam.len(opened ? 64 : 34) * pulse,
-            Color(248, 214, 146, Math.round((opened ? 132 : 76) * pulse)),
+            lampX,
+            lampY,
+            cam.len(opened ? 68 : 38) * pulse,
+            cam.len(opened ? 68 : 38) * pulse,
+            Color(248, 214, 146, Math.round((opened ? 132 : 78) * pulse)),
             Color(232, 174, 82, 0),
             16,
         );
-        fgDraw.drawCircle(Vec2(lampP.x, lampP.y), 4.2, Color(255, 240, 202, 245));
 
-        const winP = projectWorld3D(ox + 296, 138, -9, cam, this.towerProj);
-        fillRadialGlow(fgGlow, winP.x, winP.y, cam.len(38), cam.len(42), Color(246, 206, 132, Math.round(78 * pulse)), Color(232, 174, 82, 0), 14);
-        // 西窗明代木窗格（十字棂条）与塔壁青砖水平灰缝
-        const wBL = projectWorld3D(ox + 286, 118, -9, cam, this.towerProj);
-        const wTR = projectWorld3D(ox + 306, 158, -9, cam, this.towerProj);
-        const wMidX = (wBL.x + wTR.x) * 0.5;
-        const wMidY = (wBL.y + wTR.y) * 0.5;
-        fgDraw.drawSegment(Vec2(wMidX, wBL.y), Vec2(wMidX, wTR.y), 1.4, Color(68, 52, 38, 225));
-        fgDraw.drawSegment(Vec2(wBL.x, wMidY), Vec2(wTR.x, wMidY), 1.4, Color(68, 52, 38, 225));
-        let tr = 1;
-        for (tr = 1; tr <= 6; tr++) {
-            const ty = tr * 30;
-            const tl0 = projectWorld3D(ox + 182, ty, -8, cam, this.towerProj);
-            const tl1 = projectWorld3D(ox + 398, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tl0.x, tl0.y), Vec2(tl1.x, tl1.y), 0.8, Color(34, 38, 48, 135));
-            const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
-            const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
-        }
+        const winX = cam.sx(ox + 296);
+        const winY = cam.sy(138);
+        fgDraw.drawRect(Rect(winX - cam.len(10), winY - cam.len(18), cam.len(20), cam.len(36)), Color(242, 198, 126, 235), 1.4, Color(68, 52, 38, 235));
+        fgDraw.drawSegment(Vec2(winX, winY - cam.len(18)), Vec2(winX, winY + cam.len(18)), 1.3, Color(68, 52, 38, 225));
+        fgDraw.drawSegment(Vec2(winX - cam.len(10), winY), Vec2(winX + cam.len(10), winY), 1.3, Color(68, 52, 38, 225));
+        fillRadialGlow(fgGlow, winX, winY, cam.len(40), cam.len(44), Color(246, 206, 132, Math.round(78 * pulse)), Color(232, 174, 82, 0), 14);
+
+        // 5. 小满脚底接触影
+        fgDraw.drawEllipse(Vec2(cam.sx(p.player.x), cam.sy(p.player.y) + 1), cam.len(14), 3.4, Color(8, 12, 18, 145));
 
         return true;
     }
@@ -827,7 +756,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "outside") {
-            return this.drawOutsideCartLowpoly(fgDraw, fgGlow, ctx);
+            return this.drawOutsideCartLowpoly(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "tower") {
             const p = ctx.p;
@@ -836,28 +765,27 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 const cam = ctx.cam;
                 const deskCx = cam.sx(p.ox + 605);
                 const groundY = cam.sy(0);
-                const deskW = cam.len(84);
-                const deskH = cam.len(34);
+                const deskW = cam.len(88);
+                const deskH = cam.len(38);
                 const deskTop = groundY + deskH;
                 const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
-                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(28), cam.len(120), cam.len(88),
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(28), cam.len(124), cam.len(90),
                     Color(255, 198, 114, Math.round(74 * pulse)), Color(255, 168, 72, 0), 16);
-                // 低模值夜室守卒轮廓与实木值夜桌
-                const guardX = deskCx + cam.len(26);
-                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(28, 34, 44, 240));
-                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(36, 44, 56, 245));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
-                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(102, 68, 42, 255), 1, Color(146, 106, 66, 220));
-                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(230, 220, 196, 245));
-                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(166, 126, 62, 245));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                // 像素守卒提灯与实木值夜桌
+                worldArt.tryPlace("fe_tower_guard_lantern", "fe04_tw_guard", deskCx + cam.len(32), groundY, cam.len(54), cam.len(82), {
+                    layer: 4,
+                });
+                worldArt.tryPlace("fe_workbench", "fe04_tw_desk", deskCx, groundY, deskW, deskH, {
+                    color: Color(238, 218, 196, 255),
+                    layer: 5,
+                });
+                worldArt.tryPlace("fe_tower_lantern_detail", "fe04_tw_desk_lamp", deskCx + cam.len(30), deskTop - cam.len(2), cam.len(18), cam.len(24), {
+                    layer: 6,
+                });
                 if (p.deskHold >= 12 || p.towerHanded) {
-                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
-                }
-                if (p.deskHold >= 24 || p.towerHanded) {
-                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
-                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                    worldArt.tryPlace("fe_tower_pouch_note", "fe04_tw_handover", deskCx - cam.len(14), deskTop + cam.len(6), cam.len(30), cam.len(18), {
+                        layer: 6,
+                    });
                 }
             }
             return true;
@@ -865,118 +793,40 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         return false;
     }
 
-    /** 城外低模红布检修车（右柄抓握、左端旧红布绝不随小满转向翻面、木轮真实滚动、零黄球/全息标） */
-    private drawOutsideCartLowpoly(fgDraw: DrawNode.Type, fgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    /** 城外像素红布检修车（右柄抓握、左端旧红布绝不随小满转向翻面、木轮真实滚动、零黄球/全息标） */
+    private drawOutsideCartLowpoly(
+        fgDraw: DrawNode.Type,
+        _fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const c = p.room.cart;
         if (c.bodyW <= 0) {
             return true;
         }
-        const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
         const halfW = c.bodyW * 0.5;
         const axleX = p.cartAxle;
-        const axleY = c.baseY + c.wheelR;
-        const bodyBot = axleY + 2;
-        const bodyTop = bodyBot + c.bodyH;
+        const baseY = cam.sy(c.baseY);
+        const bodyTopY = cam.sy(c.baseY + c.wheelR + c.bodyH);
+        const cx = cam.sx(axleX);
+        const artW = cam.len(c.bodyW * 1.38);
+        const artH = cam.len((c.wheelR * 2 + c.bodyH) * 0.94);
 
-        // 1. 立体木车厢本体（z = -12..14）
-        scene.addBox({
-            x0: axleX - halfW,
-            x1: axleX + halfW,
-            y0: bodyBot,
-            y1: bodyTop,
-            z0: -12,
-            z1: 14,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            highlightTopEdge: true,
-            edgeWidth: 1.0,
-        });
-        // 车厢暗铁包角横箍
-        scene.addBox({
-            x0: axleX - halfW - 1,
-            x1: axleX + halfW + 1,
-            y0: bodyBot + 4,
-            y1: bodyBot + 8,
-            z0: -13,
-            z1: 15,
-            material: MING_MATERIALS.mingIron,
-            bucket: LP_BUCKET.PROP,
-            sortBias: 0.08,
-        });
-        // 右侧双木拉柄（小满抓右柄 handleOffset = +40，自然木色无发光黄球）
-        const handleX = axleX + c.handleOffset;
-        scene.addBox({
-            x0: axleX + halfW - 2,
-            x1: handleX,
-            y0: bodyTop - 6,
-            y1: bodyTop - 1,
-            z0: -10,
-            z1: -4,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            sortBias: 0.12,
-            highlightTopEdge: true,
-        });
-        scene.addBox({
-            x0: handleX - 3,
-            x1: handleX + 3,
-            y0: bodyTop - 8,
-            y1: bodyTop + 2,
-            z0: -11,
-            z1: 9,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            sortBias: 0.14,
-            highlightTopEdge: true,
+        fgDraw.drawEllipse(Vec2(cx, baseY + 1), cam.len(c.bodyW * 0.62), 4.0, Color(6, 10, 16, 155));
+        worldArt.tryPlace("prop_cart", "fe04_outside_cart", cx, baseY, artW, artH, {
+            color: Color(196, 210, 228, 255),
+            layer: 5,
         });
 
-        // 2. 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，自然垂扬可一眼认出，绝不随小满转向翻面！）
+        // 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，绝不随小满转向翻面！）
         const clothX = axleX - halfW;
-        const clothTop = bodyTop + 1;
-        const sway = Math.sin(this.animTime * 3.1) * 5.8;
-        const sway2 = Math.cos(this.animTime * 2.6) * 3.6;
-        scene.addTri3D(
-            vec3(clothX - 2, clothTop + 1, -12),
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 16 + sway, clothTop - 22, -14),
-            MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.28, edgeWidth: 0.9 },
-        );
-        scene.addTri3D(
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 16 + sway, clothTop - 22, -14),
-            vec3(clothX - 1 + sway2, clothTop - 24, -12),
-            MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.29, edgeWidth: 0.6 },
-        );
-
-        scene.flush(fgDraw, fgGlow);
-
-        // 3. 旋转木辐条双轮（贴合 wz = 0，随 cartAxle 真实转动）
-        const wheelXs = [axleX - halfW * 0.56, axleX + halfW * 0.56];
-        const wheelR = cam.len(c.wheelR);
-        const rollAngle = -axleX / Math.max(1, c.wheelR);
-        let wi = 0;
-        for (wi = 0; wi < wheelXs.length; wi++) {
-            const wp = projectWorld3D(wheelXs[wi], axleY, -10, cam, this.outsideProj);
-            fgDraw.drawCircle(Vec2(wp.x, wp.y), wheelR, Color(52, 40, 32, 255));
-            fgDraw.drawRing(Vec2(wp.x, wp.y), Math.max(1, wheelR - 2.6), wheelR, Color(0, 0, 0, 0), 1.4, Color(148, 126, 102, 220));
-            let sp = 0;
-            for (sp = 0; sp < 4; sp++) {
-                const a = rollAngle + (sp * Math.PI) / 4;
-                const dx = Math.cos(a) * (wheelR - 2);
-                const dy = Math.sin(a) * (wheelR - 2);
-                fgDraw.drawSegment(Vec2(wp.x - dx, wp.y - dy), Vec2(wp.x + dx, wp.y + dy), 1.0, Color(118, 92, 70, 210));
-            }
-            fgDraw.drawDot(Vec2(wp.x, wp.y), 2.4, Color(172, 160, 144, 230));
-        }
-
-        // 左端旧红布上的浅麻补丁细针脚（与回忆里缝的补丁前后呼应）
-        const patchP = projectWorld3D(clothX + 1, clothTop - 7, -13, cam, this.outsideProj);
-        fgDraw.drawSegment(Vec2(patchP.x - 3, patchP.y), Vec2(patchP.x + 3, patchP.y - 2), 1.0, Color(224, 212, 188, 215));
-        fgDraw.drawSegment(Vec2(patchP.x - 2, patchP.y - 4), Vec2(patchP.x + 2, patchP.y - 5), 0.9, Color(224, 212, 188, 195));
+        const clothFrame = Math.floor(this.animTime * (this.cartWheelVol > 0.05 ? 6.5 : 3.8)) % 3;
+        worldArt.tryPlace("fe_red_cloth", "fe04_outside_cart_cloth", cam.sx(clothX + 2), bodyTopY - cam.len(2), cam.len(24), cam.len(24), {
+            frame: clothFrame,
+            layer: 6,
+        });
 
         return true;
     }
@@ -999,7 +849,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
     }
 
     /**
-     * 前景遮挡与城外 0.5 秒缝布回忆：
+     * 前景遮挡、冷月电影调色与城外 0.5 秒缝布回忆：
      * 始终返回 false（绝不压隐 HUD、字幕、准星或 fe-05 北塔登记簿演出）。
      */
     drawCutsceneOverlay(
@@ -1020,19 +870,24 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawForegroundOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
         }
         if (key === "outside") {
-            this.drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiGlow, ctx);
+            drawChildColdMoonGrade(uiDraw, uiGlow, ctx.uiW, ctx.uiH, 0.72, 0);
+            this.drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
             return false;
+        }
+        if (key === "tower") {
+            drawChildColdMoonGrade(uiDraw, uiGlow, ctx.uiW, ctx.uiH, 0.44, 0.45);
         }
         return false;
     }
 
     /**
      * 城外栈台首次握车柄回忆（约 0.54s，不锁移动、保留小满手部位置作为视觉锚心）：
-     * 叠出暖灯下家人双指替她缝红布补丁拉紧最后一针的瞬间，再平滑落回车柄。
+     * 叠出像素绘卷特写（暖灯下家人双指替她缝红布补丁拉紧最后一针），再平滑落回车柄。
      */
     private drawOutsideSewingMemoryOverlay(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): void {
@@ -1040,71 +895,29 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const prog = clamp01(this.memoryTimer / SEWING_MEMORY_DURATION);
-        // 0..0.22 迅速浮现，0.22..0.74 稳拉最后一针，0.74..1.0 柔淡落回车柄
+        // 0..0.20 迅速浮现，0.20..0.72 稳拉最后一针，0.72..1.0 柔淡落回车柄
         const alpha = smoothstep(0, 0.20, prog) * (1 - smoothstep(0.72, 1.0, prog));
         if (alpha <= 0.01) {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
         const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
-        // 锚在握柄手位偏上方，既保留小满握车拉行的可见身形，又自然接住拇指按入红布补丁的触感联想
-        const cx = Math.max(160, Math.min(ctx.uiW - 160, handPt.x * inv - 24));
-        const cy = Math.max(150, Math.min(ctx.uiH - 130, handPt.y * inv + 96));
-        const rx = 122;
-        const ry = 74;
+        const cardW = 264;
+        const cardH = 148;
+        const cx = Math.max(cardW * 0.5 + 24, Math.min(ctx.uiW - cardW * 0.5 - 24, handPt.x * inv - 16));
+        const cy = Math.max(cardH * 0.5 + 32, Math.min(ctx.uiH - cardH * 0.5 - 32, handPt.y * inv + 102));
+        const rect = { x: Math.round(cx - cardW * 0.5), y: Math.round(cy - cardH * 0.5), w: cardW, h: cardH };
 
-        // 柔和羽化暖灯回忆雾晕（多层柔晕无生硬卡通蛋框，保留周围实景与持续拉车）
-        fillRadialGlow(uiGlow, cx, cy, rx * 1.55, ry * 1.55, Color(238, 190, 122, Math.round(92 * alpha)), Color(218, 162, 92, 0), 22);
-        uiDraw.drawEllipse(Vec2(cx, cy), rx * 1.12, ry * 1.12, Color(36, 26, 20, Math.round(128 * alpha)));
-        uiDraw.drawEllipse(Vec2(cx, cy), rx * 0.96, ry * 0.96, Color(32, 22, 16, Math.round(206 * alpha)));
-
-        // 旧红布块 + 补丁方布
-        uiDraw.drawPolygon([
-            Vec2(cx - 72, cy - 34),
-            Vec2(cx + 62, cy - 28),
-            Vec2(cx + 70, cy + 32),
-            Vec2(cx - 64, cy + 28),
-        ], Color(148, 44, 40, Math.round(230 * alpha)));
-        uiDraw.drawPolygon([
-            Vec2(cx - 28, cy - 18),
-            Vec2(cx + 26, cy - 14),
-            Vec2(cx + 22, cy + 20),
-            Vec2(cx - 24, cy + 16),
-        ], Color(172, 62, 54, Math.round(238 * alpha)), 1.0, Color(224, 210, 184, Math.round(170 * alpha)));
-
-        // 已缝好的细密补丁针脚
-        let si = 0;
-        for (si = 0; si < 4; si++) {
-            const sx = cx - 18 + si * 11;
-            uiInkDraw.drawSegment(Vec2(sx, cy - 15), Vec2(sx + 4, cy - 9), 1.3, Color(236, 224, 198, Math.round(235 * alpha)));
-        }
-
-        // 家人拇指与食指拉紧最后一针（随 prog 0.15 → 0.85 从布角向上向右轻拉绷直）
-        const pullT = smoothstep(0.14, 0.82, prog);
-        const stitchAnchorX = cx + 22;
-        const stitchAnchorY = cy - 12;
-        const handX = cx + 32 + pullT * 34;
-        const handY = cy + 6 + pullT * 26;
-
-        // 绷直的浅麻丝线（初段微弯、末段绷直）
-        const midX = (stitchAnchorX + handX) * 0.5 + (1 - pullT) * 10;
-        const midY = (stitchAnchorY + handY) * 0.5 - (1 - pullT) * 12;
-        uiInkDraw.drawSegment(Vec2(stitchAnchorX, stitchAnchorY), Vec2(midX, midY), 1.2, Color(242, 234, 214, Math.round(240 * alpha)));
-        uiInkDraw.drawSegment(Vec2(midX, midY), Vec2(handX - 6, handY - 2), 1.2, Color(242, 234, 214, Math.round(240 * alpha)));
-
-        // 缝衣银针微闪
-        uiInkDraw.drawSegment(Vec2(handX - 16, handY - 8), Vec2(handX + 2, handY + 4), 1.1, Color(230, 236, 242, Math.round(225 * alpha)));
-
-        // 家人温暖手部剪影（捻线双指）
-        uiDraw.drawPolygon([
-            Vec2(handX - 8, handY - 6),
-            Vec2(handX + 18, handY + 2),
-            Vec2(handX + 24, handY + 14),
-            Vec2(handX + 4, handY + 14),
-            Vec2(handX - 10, handY + 4),
-        ], Color(214, 174, 142, Math.round(225 * alpha)), 1.0, Color(142, 102, 78, Math.round(180 * alpha)));
-        // 左手按布拇指（落回小满拇指按压补丁的同一视觉位置）
-        uiDraw.drawEllipse(Vec2(cx - 20, cy + 4), 16, 9, Color(204, 164, 134, Math.round(220 * alpha)));
+        fillRadialGlow(uiGlow, cx, cy, cardW * 0.82, cardH * 0.92, Color(238, 190, 122, Math.round(88 * alpha)), Color(218, 162, 92, 0), 20);
+        const zoom = 1.0 + prog * 0.036;
+        drawPixelSlidePlate(uiDraw, uiInkDraw, uiArt, "slide_f01_sewing", "fe04_sewing_mem", rect, alpha * 0.96, 3, 0, 0, zoom);
+        drawSlideFrameChrome(uiDraw, uiInkDraw, uiArt, rect, ctx.uiW, ctx.uiH, {
+            frameOpacity: 0.78,
+            letterboxH: 0,
+            opacity: alpha,
+            layer: 3,
+            instancePrefix: "fe04_sew",
+        });
     }
 }
 
