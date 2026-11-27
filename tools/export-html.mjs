@@ -321,6 +321,8 @@ function collectGameFiles() {
         "assets/art/props_second_half.png",
         "assets/art/scene_dark_pixel.clip",
         "assets/art/scene_dark_pixel.png",
+        "assets/art/cutscenes/p02/p02_01_shadows.png",
+        "assets/art/cutscenes/p02/p02_07_bowl_smash.png",
         "assets/art/brand/app_icon.png",
         "assets/art/brand/game_logo_h.png",
         "assets/art/brand/game_logo_v.png",

@@ -48,12 +48,12 @@ const TOWER_THRESHOLD_X = 500;
 // —— 共同序章：P01 叫醒 → P02 墙影 → 限时逃柜 → 入柜 → P03 递针套 ——
 /** P01 黑场听父亲唤「小满」到睁眼落稳：4 秒 = 240 拍。 */
 export const PROLOGUE_WAKE_TICKS = 240;
-/** P02 门槛内墙上人影与瓷碗滚到脚边：2 秒 = 120 拍。 */
-export const PROLOGUE_SHADOW_TICKS = 120;
+/** P02 门槛内墙上人影截断与瓷碗滚撞门槛（硬核漫画逐帧舒展节奏）：4.5 秒 = 270 拍。 */
+export const PROLOGUE_SHADOW_TICKS = 270;
 /** 限时逃柜：7.5 秒 = 450 拍；超时退回门口重来，不扣血。 */
 export const PROLOGUE_ESCAPE_TICKS = 450;
-/** 入柜后红晕收尽、柜外脚步渐远：0.85 秒 = 51 拍。 */
-export const PROLOGUE_HIDE_TICKS = 51;
+/** 入柜后红晕收尽、门缝三阶合拢与柜外脚步渐远：1.8 秒 = 108 拍。 */
+export const PROLOGUE_HIDE_TICKS = 108;
 /** 序章 P03 柜边递针套特写时长：3.0 秒 = 180 拍（对齐分镜稿与 D01 对白节拍）。 */
 export const PROLOGUE_GIVE_TICKS = 180;
 /** 城门 P05 送别嘱咐独立演出时长：约 3.67 秒 = 220 拍（演完再切入 24 秒数到二十，零叠字叠音）。 */

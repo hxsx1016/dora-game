@@ -183,3 +183,14 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
 - **扩展像素精灵图集（`assets/art/sprites_fe.png` + `assets/art/sprites_fe.clip`，1024 × 256，62 帧，零修改原 `sprites.clip` 58 帧与 `ui_ink.clip` 15 帧）**：
   - 角色与过场部件：背负合体（`carry_idle`、`carry_walk_a/b`、`carry_reload`）、单膝蹲背（`soldier_kneel_mount`）、门后听声（`child_listen_door`）、牵手伸臂（`soldier_hand_hold`）、北塔提灯守卒（`tower_guard_lantern`）、执笔手（`tower_brush_hand`）、换弹手势（`reload_hand_tap/trace`）、桌上袖口/热汤碗/针套指南针/提灯特写
   - 场景道具与像素特效/地皮/前景：铁盆平放与倾斜、古井石栏、城外砖拱、稻草试射靶、明式木工案、木瓶架、木制残盾、引路灯铳与回声铳、灯柱木架、木纹筹/铃纹筹、藤盾、密林树根拱、暗渠石栅、3 帧风吹红布、枪口焰、命中火星、火药烟尘、热气、溪水倒影、3 枚换弹像素印章、砖地/软土/木柱/木梁/青石板地砖及桌下木沿/桌腿/垂松枝前景剪影。
+
+## 硬核明代木刻暗黑漫画过场动画（`feature/dev-261127-cutscene-anim` · 第 0 批先导落地）
+
+为全面替代过场中的几何多边形拼贴与低帧率淡化幻灯片，围绕「硬核明代木刻暗黑漫画（极重浓墨块面 + 锋利枯笔墨线 + 零重影步进硬切 + 单帧黑白赤墨冲击帧）」定调风格母版，使用 AI 图像生成辅助绘制并经人工质检去噪、门缝无痕合成、960×540 自适应 256 色锐利量化输出运行时资源（`smooth: true` 各向异性过滤）：
+
+- **风格圣经母版（`art-source/comic_cutscenes/style_master_bible.png`）**：锁定周戍、小满、核心图腾暗靛补线袖口与明代真器物（指南针布套、粗陶油灯盏、木骨素纸提灯、缺口粗瓷碗，彻底修正旧图西式煤油灯穿帮）。
+- **P02「墙影截断 → 滚碗撞槛 → 入柜合缝」（`assets/art/cutscenes/p02/`，10 帧 960×540，合计 3.29 MB）**：
+  - `p02_01_shadows.png`、`p02_02a_door_intrude.png`、`p02_03_impact_cut.png`（单帧黑白赤墨木刻冲击帧）、`p02_04_shadows_fall.png`
+  - `p02_05_bowl_roll1.png`、`p02_06_bowl_roll2.png`、`p02_07_bowl_smash.png`（撞槛白爆定格与背景厨柜微启）
+  - `p02_08a_cabinet_slit.png`、`p02_08m_cabinet_narrowing.png`、`p02_08b_cabinet_shut.png`（入柜三阶合缝至一线冷月）
+- **P05 城门送别首帧锚点源图（`art-source/comic_cutscenes/p05/p05_01_clutch_cuff.png`）**：已落盘，待后续批次补全 P01 / P03 / P05 / G05 / G01–G04 / F01 / M02 / F03 / M03 / E01 / E02 全序列。

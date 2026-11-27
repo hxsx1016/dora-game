@@ -505,4 +505,384 @@ function ____exports.drawChildColdMoonGrade(draw, glow, w, h, intensity, warmShi
 		) -- 403
 	end -- 403
 end -- 373
-return ____exports -- 373
+--- 绘制全屏硬核木刻暗黑漫画逐帧序列（确定性时间轴，暂停即刻冻结）
+function ____exports.drawComicSequence(uiDraw, uiInkDraw, uiArt, keyframes, t, uiW, uiH, opts) -- 459
+	if #keyframes == 0 then -- 459
+		return -1 -- 470
+	end -- 470
+	local baseOp = clamp01(opts.opacity or 1) -- 472
+	if baseOp <= 0.004 then -- 472
+		return -1 -- 474
+	end -- 474
+	local baseLayer = opts.layer or 2 -- 476
+	local barH = opts.letterboxH or math.floor(uiH * 0.068 + 0.5) -- 477
+	uiDraw:drawRect( -- 480
+		Rect(0, 0, uiW, uiH), -- 480
+		Color( -- 480
+			6, -- 480
+			7, -- 480
+			10, -- 480
+			math.floor(255 * baseOp + 0.5) -- 480
+		) -- 480
+	) -- 480
+	local activeIdx = #keyframes - 1 -- 482
+	local i = 0 -- 483
+	do -- 483
+		i = 0 -- 484
+		while i < #keyframes do -- 484
+			if t < keyframes[i + 1]["end"] or i == #keyframes - 1 then -- 484
+				activeIdx = i -- 486
+				break -- 487
+			end -- 487
+			i = i + 1 -- 484
+		end -- 484
+	end -- 484
+	local kf = keyframes[activeIdx + 1] -- 491
+	local span = math.max(0.0001, kf["end"] - kf.start) -- 492
+	local localT = math.max(0, t - kf.start) -- 493
+	local localU = clamp01(localT / span) -- 494
+	local easedU = smooth(localU) -- 495
+	local panX = (kf.panFromX or 0) + ((kf.panToX or 0) - (kf.panFromX or 0)) * easedU -- 497
+	local panY = (kf.panFromY or 0) + ((kf.panToY or 0) - (kf.panFromY or 0)) * easedU -- 498
+	local zoom = (kf.zoomFrom or 1) + ((kf.zoomTo or 1) - (kf.zoomFrom or 1)) * easedU -- 499
+	local shakeX = 0 -- 502
+	local shakeY = 0 -- 503
+	local amp = kf.shakeAmp or 0 -- 504
+	if amp > 0.05 then -- 504
+		local decay = math.exp(-localT * 13.5) -- 506
+		if decay > 0.02 then -- 506
+			local freq = kf.shakeFreq or 58 -- 508
+			local steppedT = math.floor(localT * 24) / 24 -- 510
+			shakeX = math.floor(math.sin(steppedT * freq + 0.6) * amp * decay + 0.5) -- 511
+			shakeY = math.floor(math.cos(steppedT * freq * 1.17) * amp * 0.68 * decay + 0.5) -- 512
+		end -- 512
+	end -- 512
+	local coverRect = ____exports.computeFullscreenSlideRect(uiW, uiH) -- 516
+	local shiftedRect = {x = coverRect.x + shakeX, y = coverRect.y + shakeY, w = coverRect.w, h = coverRect.h} -- 517
+	local trans = kf.transition or "cut" -- 524
+	local transDur = math.max(0.001, kf.transitionDur or 0.1) -- 525
+	if activeIdx > 0 and localT < transDur and trans == "slash_cut" then -- 525
+		local prev = keyframes[activeIdx] -- 529
+		local k = clamp01(localT / transDur) -- 530
+		if k < 0.42 then -- 530
+			____exports.drawPixelSlidePlate( -- 532
+				uiDraw, -- 533
+				uiInkDraw, -- 533
+				uiArt, -- 533
+				prev.slot, -- 534
+				(opts.instancePrefix .. "_prev_") .. tostring(activeIdx - 1), -- 534
+				coverRect, -- 535
+				baseOp, -- 535
+				baseLayer, -- 535
+				prev.panToX or 0, -- 536
+				prev.panToY or 0, -- 536
+				prev.zoomTo or 1, -- 536
+				prev.tint -- 536
+			) -- 536
+		else -- 536
+			____exports.drawPixelSlidePlate( -- 539
+				uiDraw, -- 540
+				uiInkDraw, -- 540
+				uiArt, -- 540
+				kf.slot, -- 541
+				(opts.instancePrefix .. "_cur_") .. tostring(activeIdx), -- 541
+				shiftedRect, -- 542
+				baseOp, -- 542
+				baseLayer, -- 542
+				panX, -- 543
+				panY, -- 543
+				zoom, -- 543
+				kf.tint -- 543
+			) -- 543
+		end -- 543
+		local slashAlpha = math.sin(k * math.pi) -- 547
+		uiInkDraw:drawRect( -- 548
+			Rect(0, 0, uiW, uiH), -- 548
+			Color( -- 548
+				6, -- 548
+				7, -- 548
+				10, -- 548
+				math.floor(230 * slashAlpha * baseOp + 0.5) -- 548
+			) -- 548
+		) -- 548
+		local sx0 = uiW * (0.86 - k * 0.14) -- 549
+		local sx1 = uiW * (0.18 - k * 0.14) -- 550
+		uiInkDraw:drawSegment( -- 551
+			Vec2(sx0, uiH), -- 551
+			Vec2(sx1, 0), -- 551
+			5.5, -- 551
+			Color( -- 551
+				242, -- 551
+				234, -- 551
+				218, -- 551
+				math.floor(240 * slashAlpha * baseOp + 0.5) -- 551
+			) -- 551
+		) -- 551
+		uiInkDraw:drawSegment( -- 552
+			Vec2(sx0 + 7, uiH), -- 552
+			Vec2(sx1 + 7, 0), -- 552
+			3, -- 552
+			Color( -- 552
+				196, -- 552
+				44, -- 552
+				44, -- 552
+				math.floor(235 * slashAlpha * baseOp + 0.5) -- 552
+			) -- 552
+		) -- 552
+	elseif activeIdx > 0 and localT < transDur and trans == "crossfade" then -- 552
+		local prev = keyframes[activeIdx] -- 554
+		local k = smooth(localT / transDur) -- 555
+		____exports.drawPixelSlidePlate( -- 556
+			uiDraw, -- 557
+			uiInkDraw, -- 557
+			uiArt, -- 557
+			prev.slot, -- 558
+			(opts.instancePrefix .. "_prev_") .. tostring(activeIdx - 1), -- 558
+			coverRect, -- 559
+			baseOp * (1 - k * 0.65), -- 559
+			baseLayer, -- 559
+			prev.panToX or 0, -- 560
+			prev.panToY or 0, -- 560
+			prev.zoomTo or 1, -- 560
+			prev.tint -- 560
+		) -- 560
+		____exports.drawPixelSlidePlate( -- 562
+			uiDraw, -- 563
+			uiInkDraw, -- 563
+			uiArt, -- 563
+			kf.slot, -- 564
+			(opts.instancePrefix .. "_cur_") .. tostring(activeIdx), -- 564
+			shiftedRect, -- 565
+			baseOp * k, -- 565
+			baseLayer + 1, -- 565
+			panX, -- 566
+			panY, -- 566
+			zoom, -- 566
+			kf.tint -- 566
+		) -- 566
+	elseif activeIdx > 0 and localT < transDur and trans == "dark_dip" then -- 566
+		local prev = keyframes[activeIdx] -- 569
+		local k = clamp01(localT / transDur) -- 570
+		local dip = math.sin(k * math.pi) -- 571
+		if k < 0.5 then -- 571
+			____exports.drawPixelSlidePlate( -- 573
+				uiDraw, -- 574
+				uiInkDraw, -- 574
+				uiArt, -- 574
+				prev.slot, -- 575
+				(opts.instancePrefix .. "_prev_") .. tostring(activeIdx - 1), -- 575
+				coverRect, -- 576
+				baseOp * (1 - dip), -- 576
+				baseLayer, -- 576
+				prev.panToX or 0, -- 577
+				prev.panToY or 0, -- 577
+				prev.zoomTo or 1, -- 577
+				prev.tint -- 577
+			) -- 577
+		else -- 577
+			____exports.drawPixelSlidePlate( -- 580
+				uiDraw, -- 581
+				uiInkDraw, -- 581
+				uiArt, -- 581
+				kf.slot, -- 582
+				(opts.instancePrefix .. "_cur_") .. tostring(activeIdx), -- 582
+				shiftedRect, -- 583
+				baseOp * (1 - dip), -- 583
+				baseLayer, -- 583
+				panX, -- 584
+				panY, -- 584
+				zoom, -- 584
+				kf.tint -- 584
+			) -- 584
+		end -- 584
+		uiInkDraw:drawRect( -- 587
+			Rect(0, 0, uiW, uiH), -- 587
+			Color( -- 587
+				6, -- 587
+				7, -- 587
+				10, -- 587
+				math.floor(245 * dip * baseOp + 0.5) -- 587
+			) -- 587
+		) -- 587
+	else -- 587
+		____exports.drawPixelSlidePlate( -- 589
+			uiDraw, -- 590
+			uiInkDraw, -- 590
+			uiArt, -- 590
+			kf.slot, -- 591
+			(opts.instancePrefix .. "_cur_") .. tostring(activeIdx), -- 591
+			shiftedRect, -- 592
+			baseOp, -- 592
+			baseLayer, -- 592
+			panX, -- 593
+			panY, -- 593
+			zoom, -- 593
+			kf.tint -- 593
+		) -- 593
+	end -- 593
+	if kf.impactFlash == true then -- 593
+		local impDur = kf.impactDur or math.min(0.22, span) -- 599
+		if localT <= impDur then -- 599
+			local impK = 1 - clamp01(localT / math.max(0.01, impDur)) -- 601
+			local borderA = math.floor((165 + 85 * impK) * baseOp + 0.5) -- 602
+			local insetY = barH -- 603
+			local boxH = math.max(40, uiH - insetY * 2) -- 604
+			uiInkDraw:drawRect( -- 605
+				Rect(2, insetY + 1, uiW - 4, boxH - 2), -- 606
+				Color(0, 0, 0, 0), -- 607
+				3.2, -- 608
+				Color(204, 42, 42, borderA) -- 609
+			) -- 609
+			uiInkDraw:drawRect( -- 611
+				Rect(6, insetY + 5, uiW - 12, boxH - 10), -- 612
+				Color(0, 0, 0, 0), -- 613
+				1.2, -- 614
+				Color( -- 615
+					246, -- 615
+					240, -- 615
+					226, -- 615
+					math.floor(140 * impK * baseOp + 0.5) -- 615
+				) -- 615
+			) -- 615
+		end -- 615
+	end -- 615
+	if barH > 0 then -- 615
+		local barA = math.floor(252 * baseOp + 0.5) -- 622
+		uiInkDraw:drawRect( -- 623
+			Rect(0, uiH - barH, uiW, barH), -- 623
+			Color(6, 7, 10, barA) -- 623
+		) -- 623
+		uiInkDraw:drawRect( -- 624
+			Rect(0, 0, uiW, barH), -- 624
+			Color(6, 7, 10, barA) -- 624
+		) -- 624
+		if opts.accentBorder ~= false then -- 624
+			local lineCol = kf.impactFlash == true and Color( -- 626
+				204, -- 627
+				46, -- 627
+				46, -- 627
+				math.floor(180 * baseOp + 0.5) -- 627
+			) or toColor( -- 627
+				PALETTE.silkDim, -- 628
+				math.floor(84 * baseOp + 0.5) -- 628
+			) -- 628
+			uiInkDraw:drawSegment( -- 629
+				Vec2(0, uiH - barH), -- 629
+				Vec2(uiW, uiH - barH), -- 629
+				1, -- 629
+				lineCol -- 629
+			) -- 629
+			uiInkDraw:drawSegment( -- 630
+				Vec2(0, barH), -- 630
+				Vec2(uiW, barH), -- 630
+				1, -- 630
+				lineCol -- 630
+			) -- 630
+		end -- 630
+	end -- 630
+	return activeIdx -- 634
+end -- 459
+--- 绘制非阻塞漫画插格（供 F01 缝衣闪回、M02 工台试握等在实机画面上炸出的高张力漫画格）。
+-- 具备硬黑底衬、骨白内框与暗朱角线，绝不阻断输入或遮盖主操作区。
+function ____exports.drawComicInsertPanel(uiDraw, uiInkDraw, uiArt, keyframes, t, rect, opacity, instancePrefix, layer) -- 641
+	if layer == nil then -- 641
+		layer = 4 -- 650
+	end -- 650
+	local op = clamp01(opacity) -- 652
+	if #keyframes == 0 or op <= 0.01 then -- 652
+		return -1 -- 654
+	end -- 654
+	local activeIdx = #keyframes - 1 -- 656
+	local i = 0 -- 657
+	do -- 657
+		i = 0 -- 658
+		while i < #keyframes do -- 658
+			if t < keyframes[i + 1]["end"] or i == #keyframes - 1 then -- 658
+				activeIdx = i -- 660
+				break -- 661
+			end -- 661
+			i = i + 1 -- 658
+		end -- 658
+	end -- 658
+	local kf = keyframes[activeIdx + 1] -- 664
+	local span = math.max(0.0001, kf["end"] - kf.start) -- 665
+	local localU = clamp01((t - kf.start) / span) -- 666
+	local zoom = (kf.zoomFrom or 1) + ((kf.zoomTo or 1) - (kf.zoomFrom or 1)) * smooth(localU) -- 667
+	local pad = 6 -- 670
+	uiDraw:drawRect( -- 671
+		Rect(rect.x - pad + 5, rect.y - pad - 5, rect.w + pad * 2, rect.h + pad * 2), -- 672
+		Color( -- 673
+			5, -- 673
+			6, -- 673
+			9, -- 673
+			math.floor(230 * op + 0.5) -- 673
+		) -- 673
+	) -- 673
+	uiDraw:drawRect( -- 675
+		Rect(rect.x - pad, rect.y - pad, rect.w + pad * 2, rect.h + pad * 2), -- 676
+		Color( -- 677
+			8, -- 677
+			9, -- 677
+			13, -- 677
+			math.floor(248 * op + 0.5) -- 677
+		) -- 677
+	) -- 677
+	____exports.drawPixelSlidePlate( -- 679
+		uiDraw, -- 680
+		uiInkDraw, -- 680
+		uiArt, -- 680
+		kf.slot, -- 681
+		(instancePrefix .. "_ins_") .. tostring(activeIdx), -- 681
+		rect, -- 682
+		op, -- 682
+		layer, -- 682
+		0, -- 683
+		0, -- 683
+		zoom, -- 683
+		kf.tint -- 683
+	) -- 683
+	uiInkDraw:drawRect( -- 685
+		Rect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2), -- 686
+		Color(0, 0, 0, 0), -- 687
+		2, -- 688
+		Color( -- 689
+			232, -- 689
+			224, -- 689
+			208, -- 689
+			math.floor(220 * op + 0.5) -- 689
+		) -- 689
+	) -- 689
+	local corner = 24 -- 692
+	local red = Color( -- 693
+		192, -- 693
+		48, -- 693
+		46, -- 693
+		math.floor(235 * op + 0.5) -- 693
+	) -- 693
+	uiInkDraw:drawSegment( -- 694
+		Vec2(rect.x - 4, rect.y + rect.h + 4), -- 694
+		Vec2(rect.x + corner, rect.y + rect.h + 4), -- 694
+		2.4, -- 694
+		red -- 694
+	) -- 694
+	uiInkDraw:drawSegment( -- 695
+		Vec2(rect.x - 4, rect.y + rect.h + 4), -- 695
+		Vec2(rect.x - 4, rect.y + rect.h - corner), -- 695
+		2.4, -- 695
+		red -- 695
+	) -- 695
+	uiInkDraw:drawSegment( -- 696
+		Vec2(rect.x + rect.w + 4, rect.y - 4), -- 696
+		Vec2(rect.x + rect.w - corner, rect.y - 4), -- 696
+		2.4, -- 696
+		red -- 696
+	) -- 696
+	uiInkDraw:drawSegment( -- 697
+		Vec2(rect.x + rect.w + 4, rect.y - 4), -- 697
+		Vec2(rect.x + rect.w + 4, rect.y + corner), -- 697
+		2.4, -- 697
+		red -- 697
+	) -- 697
+	return activeIdx -- 698
+end -- 641
+return ____exports -- 641

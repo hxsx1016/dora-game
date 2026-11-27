@@ -32,6 +32,10 @@ export type AssetSlotKey =
     | "slide_e01_well" | "slide_e01_compass" | "slide_e01_vitrine"
     | "slide_e02_museum_hall" | "slide_e02_window_dawn" | "slide_e02_return_cabinet"
     | "slide_f01_sewing" | "slide_m02_lantern_gun" | "slide_m02_echo_gun"
+    // ── 硬核明代木刻暗黑漫画过场原画（assets/art/cutscenes/**/*.png，960×540，smooth: true） ──
+    | "comic_p02_01_shadows" | "comic_p02_02a_door_intrude" | "comic_p02_03_impact_cut" | "comic_p02_04_shadows_fall"
+    | "comic_p02_05_bowl_roll1" | "comic_p02_06_bowl_roll2" | "comic_p02_07_bowl_smash"
+    | "comic_p02_08a_cabinet_slit" | "comic_p02_08m_cabinet_narrowing" | "comic_p02_08b_cabinet_shut"
     // ── 扩展像素精灵图集（assets/art/sprites_fe.clip，零改动旧图集） ──
     | "fe_carry_idle" | "fe_carry_walk" | "fe_carry_reload"
     | "fe_soldier_kneel_mount" | "fe_child_listen_door" | "fe_soldier_hand_hold" | "fe_tower_guard_lantern"
@@ -99,6 +103,10 @@ function actor(names: string | string[], anchorX?: number | number[]): AssetSlot
 
 function slide(name: string): AssetSlotConfig {
     return { paths: ["assets/art/slides/" + name + ".png"], anchorY: 0.5, preserveAspect: false };
+}
+
+function comicCutscene(rel: string): AssetSlotConfig {
+    return { paths: ["assets/art/cutscenes/" + rel + ".png"], anchorY: 0.5, preserveAspect: false, smooth: true };
 }
 
 function feClip(
@@ -265,6 +273,17 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     slide_f01_sewing: slide("f01_sewing_memory"),
     slide_m02_lantern_gun: slide("m02_handover_lantern"),
     slide_m02_echo_gun: slide("m02_handover_echo"),
+    // ── 硬核明代木刻暗黑漫画过场原画 ──
+    comic_p02_01_shadows: comicCutscene("p02/p02_01_shadows"),
+    comic_p02_02a_door_intrude: comicCutscene("p02/p02_02a_door_intrude"),
+    comic_p02_03_impact_cut: comicCutscene("p02/p02_03_impact_cut"),
+    comic_p02_04_shadows_fall: comicCutscene("p02/p02_04_shadows_fall"),
+    comic_p02_05_bowl_roll1: comicCutscene("p02/p02_05_bowl_roll1"),
+    comic_p02_06_bowl_roll2: comicCutscene("p02/p02_06_bowl_roll2"),
+    comic_p02_07_bowl_smash: comicCutscene("p02/p02_07_bowl_smash"),
+    comic_p02_08a_cabinet_slit: comicCutscene("p02/p02_08a_cabinet_slit"),
+    comic_p02_08m_cabinet_narrowing: comicCutscene("p02/p02_08m_cabinet_narrowing"),
+    comic_p02_08b_cabinet_shut: comicCutscene("p02/p02_08b_cabinet_shut"),
     // ── 扩展像素精灵图集（sprites_fe.clip） ──
     fe_carry_idle: feClip("carry_idle", 0, true, 0.50),
     fe_carry_walk: feClip(["carry_walk_a", "carry_idle", "carry_walk_b", "carry_idle"], 0, true, [0.50, 0.50, 0.50, 0.50]),

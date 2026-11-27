@@ -18,537 +18,550 @@ local Rect = ____Dora.Rect -- 1
 local Size = ____Dora.Size -- 1
 local Sprite = ____Dora.Sprite -- 1
 local Vec2 = ____Dora.Vec2 -- 1
-local function backdrop(name, smooth) -- 76
-	if smooth == nil then -- 76
-		smooth = false -- 76
-	end -- 76
-	return smooth and ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false, smooth = true}) or ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false}) -- 77
-end -- 76
-local function clip(names, anchorY, preserveAspect, anchorX) -- 82
-	if anchorY == nil then -- 82
-		anchorY = 0 -- 84
-	end -- 84
-	if preserveAspect == nil then -- 84
-		preserveAspect = false -- 85
-	end -- 85
-	local frames = type(names) == "string" and ({names}) or names -- 88
-	return { -- 89
-		paths = __TS__ArrayMap( -- 89
-			frames, -- 89
-			function(____, name) return "assets/art/sprites.clip|" .. name end -- 89
-		), -- 89
-		anchorX = anchorX, -- 89
-		anchorY = anchorY, -- 89
-		preserveAspect = preserveAspect -- 89
-	} -- 89
-end -- 82
-local function inkClip(name, preserveAspect) -- 92
-	if preserveAspect == nil then -- 92
-		preserveAspect = false -- 92
-	end -- 92
-	return {paths = {"assets/art/ui_ink.clip|" .. name}, anchorY = 0.5, preserveAspect = preserveAspect, smooth = true} -- 93
-end -- 92
-local function actor(names, anchorX) -- 96
-	return clip(names, 0, true, anchorX) -- 97
+local function backdrop(name, smooth) -- 80
+	if smooth == nil then -- 80
+		smooth = false -- 80
+	end -- 80
+	return smooth and ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false, smooth = true}) or ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false}) -- 81
+end -- 80
+local function clip(names, anchorY, preserveAspect, anchorX) -- 86
+	if anchorY == nil then -- 86
+		anchorY = 0 -- 88
+	end -- 88
+	if preserveAspect == nil then -- 88
+		preserveAspect = false -- 89
+	end -- 89
+	local frames = type(names) == "string" and ({names}) or names -- 92
+	return { -- 93
+		paths = __TS__ArrayMap( -- 93
+			frames, -- 93
+			function(____, name) return "assets/art/sprites.clip|" .. name end -- 93
+		), -- 93
+		anchorX = anchorX, -- 93
+		anchorY = anchorY, -- 93
+		preserveAspect = preserveAspect -- 93
+	} -- 93
+end -- 86
+local function inkClip(name, preserveAspect) -- 96
+	if preserveAspect == nil then -- 96
+		preserveAspect = false -- 96
+	end -- 96
+	return {paths = {"assets/art/ui_ink.clip|" .. name}, anchorY = 0.5, preserveAspect = preserveAspect, smooth = true} -- 97
 end -- 96
-local function slide(name) -- 100
-	return {paths = {("assets/art/slides/" .. name) .. ".png"}, anchorY = 0.5, preserveAspect = false} -- 101
+local function actor(names, anchorX) -- 100
+	return clip(names, 0, true, anchorX) -- 101
 end -- 100
-local function feClip(names, anchorY, preserveAspect, anchorX) -- 104
-	if anchorY == nil then -- 104
-		anchorY = 0.5 -- 106
-	end -- 106
-	if preserveAspect == nil then -- 106
-		preserveAspect = true -- 107
-	end -- 107
-	local frames = type(names) == "string" and ({names}) or names -- 110
-	return { -- 111
-		paths = __TS__ArrayMap( -- 111
-			frames, -- 111
-			function(____, name) return "assets/art/sprites_fe.clip|" .. name end -- 111
-		), -- 111
-		anchorX = anchorX, -- 111
-		anchorY = anchorY, -- 111
-		preserveAspect = preserveAspect -- 111
-	} -- 111
+local function slide(name) -- 104
+	return {paths = {("assets/art/slides/" .. name) .. ".png"}, anchorY = 0.5, preserveAspect = false} -- 105
 end -- 104
-local function character(names) -- 114
-	local frames = type(names) == "string" and ({names}) or names -- 115
-	return { -- 116
-		paths = __TS__ArrayMap( -- 116
-			frames, -- 116
-			function(____, name) return "assets/art/actors-hd.clip|" .. name end -- 116
-		), -- 116
-		anchorY = 0, -- 116
-		preserveAspect = true -- 116
-	} -- 116
-end -- 114
-____exports.RUN_FRAME_COUNT = 160 -- 119
-____exports.RUN_TRANSITION_PHASES = 8 -- 120
-____exports.RUN_TRANSITION_LEVELS = 12 -- 121
-____exports.SLIDE_FRAME_COUNT = 64 -- 122
-local ATLAS_GUTTER = 2 -- 123
-local RUN_ATLASES = {soldier = {path = "assets/art/zhoushu-run.png", width = 180, height = 200, columns = 10}, child = {path = "assets/art/xiaoman-run.png", width = 144, height = 164, columns = 10}} -- 132
-local RUN_TRANSITIONS = { -- 136
-	soldier = __TS__ObjectAssign({}, RUN_ATLASES.soldier, {path = "assets/art/zhoushu-run-transition.png", columns = ____exports.RUN_TRANSITION_PHASES}), -- 137
-	child = __TS__ObjectAssign({}, RUN_ATLASES.child, {path = "assets/art/xiaoman-run-transition.png", columns = ____exports.RUN_TRANSITION_PHASES}) -- 138
-} -- 138
-local SLIDE_ATLAS = {path = "assets/art/zhoushu-slide.png", width = 300, height = 198, columns = 8} -- 140
-____exports.ASSET_SLOTS = { -- 144
-	bgFar_prologue = backdrop("prologue"), -- 145
-	bgFar_street = backdrop("street"), -- 146
-	bgFar_checkpoint = backdrop("checkpoint"), -- 147
-	bgFar_gate = backdrop("gate"), -- 148
-	bgFar_outside = backdrop("outside"), -- 149
-	bgFar_village = backdrop("village"), -- 150
-	bgFar_forest = backdrop("forest"), -- 151
-	bgFar_tower = backdrop("tower"), -- 152
-	bgFar_crossroad_drygoods = backdrop("bg_crossroad_drygoods"), -- 153
-	bgFar_archway_yard = backdrop("bg_archway_yard"), -- 154
-	bgFar_granary = backdrop("bg_granary"), -- 155
-	bgFar_escort_ridge = backdrop("bg_escort_ridge"), -- 156
-	bgFar_museum = backdrop("bg_museum_hall", true), -- 157
-	title_backdrop = backdrop("title"), -- 158
-	soldier_idle = character("soldier_idle"), -- 159
-	soldier_run = character({"soldier_run", "soldier_step"}), -- 160
-	soldier_roll = character("soldier_roll"), -- 161
-	soldier_slide = character({"soldier_slide_0", "soldier_slide_1", "soldier_slide_2", "soldier_slide_3"}), -- 162
-	soldier_cover = character("soldier_cover"), -- 163
-	soldier_push = character({"soldier_push", "soldier_push_step"}), -- 164
-	soldier_hold = character("soldier_hold"), -- 165
-	soldier_offer = character("soldier_offer"), -- 166
-	soldier_knock = character({"soldier_cover", "soldier_knock"}), -- 167
-	soldier_hit = character("soldier_hit"), -- 168
-	soldier_fire = character("soldier_fire"), -- 169
-	soldier_fire_move = character({"soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"}), -- 170
-	child_idle = character("child_idle"), -- 171
-	child_run = character({"child_run", "child_step"}), -- 172
-	child_crouch = character({"child_crouch", "child_crouch_step"}), -- 173
-	child_fear = character("child_fear"), -- 174
-	child_peek = character("child_peek"), -- 175
-	child_pull = character({"child_pull", "child_pull_step"}), -- 176
-	child_aim = character("child_aim"), -- 177
-	child_throw = character("child_throw"), -- 178
-	child_knock = character("child_knock"), -- 179
-	child_offer = character("child_offer"), -- 180
-	enemy_idle = actor("enemy_idle", 0.5), -- 181
-	enemy_aim = actor("enemy_aim", 0.51), -- 182
-	enemy_down = actor("enemy_down"), -- 183
-	enemy_hit = actor("enemy_hit", 0.48), -- 184
-	scavenger = actor({"scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"}, {0.52, 0.52, 0.48, 0.52}), -- 185
-	dog = actor({"dog_idle", "dog_alert", "dog_run", "dog_sniff"}, {0.5, 0.5, 0.54, 0.58}), -- 186
-	prop_cart = clip("cart", 0, false, 0.44), -- 187
-	prop_bottle = clip("bottle", 0.5, true), -- 188
-	prop_tower_door = clip("door"), -- 189
-	prop_lantern = clip("lantern", 0.5, true), -- 190
-	prop_table = clip("table"), -- 191
-	prop_compass = clip("compass", 0.5, true), -- 192
-	prop_winch = clip("winch", 0.5, true), -- 193
-	wall = clip("wall"), -- 194
-	cover_wood = clip("cover_wood"), -- 195
-	cover_stone = clip("cover_stone"), -- 196
-	fence = clip("fence"), -- 197
-	slab = clip("slab"), -- 198
-	eaves = clip("eaves"), -- 199
-	pine = clip("pine"), -- 200
-	grass = clip("grass"), -- 201
-	grass_low = clip("grass_low"), -- 202
-	stone_chips = clip("stone_chips", 0.5, true), -- 203
-	ui_corner = clip("ui_corner"), -- 204
-	ui_corner_c = clip("ui_corner", 0.5, false), -- 205
-	ui_paper = clip("paper", 0.5), -- 206
-	ink_ribbon_sweep = inkClip("ink_ribbon_sweep"), -- 207
-	ink_mist_curve = inkClip("ink_mist_curve"), -- 208
-	ink_veil_strip = inkClip("ink_veil_strip"), -- 209
-	ink_hairline = inkClip("ink_hairline"), -- 210
-	ink_bamboo_slip = inkClip("ink_bamboo_slip"), -- 211
-	ink_bamboo_slot = inkClip("ink_bamboo_slot"), -- 212
-	ink_frame_mask = inkClip("ink_frame_mask"), -- 213
-	ink_vstream = inkClip("ink_vstream"), -- 214
-	ink_knot_ornament = inkClip("ink_knot_ornament"), -- 215
-	ink_corner_fine = inkClip("ink_corner_fine"), -- 216
-	ink_seal_slender = inkClip("ink_seal_slender"), -- 217
-	ink_blossom_dot = inkClip("ink_blossom_dot"), -- 218
-	ink_enso_fine = inkClip("ink_enso_fine"), -- 219
-	ink_petal_mist = inkClip("ink_petal_mist"), -- 220
-	ink_song_paper = inkClip("ink_song_paper"), -- 221
-	brand_game_logo_h = {paths = {"assets/art/brand/game_logo_h.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 222
-	brand_game_logo_v = {paths = {"assets/art/brand/game_logo_v.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 223
-	brand_team_logo = {paths = {"assets/art/brand/team_logo_dark.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 224
-	brand_team_badge = {paths = {"assets/art/brand/team_badge.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 225
-	slide_p01_01 = slide("p01_01_curtain"), -- 227
-	slide_p01_02 = slide("p01_02_hand"), -- 228
-	slide_p01_03 = slide("p01_03_door"), -- 229
-	slide_p02_01 = slide("p02_01_shadows"), -- 230
-	slide_p02_02 = slide("p02_02_cut"), -- 231
-	slide_p02_03 = slide("p02_03_bowl_roll"), -- 232
-	slide_p02_04 = slide("p02_04_bowl_stop"), -- 233
-	slide_p02_05 = slide("p02_05_cabinet"), -- 234
-	slide_cuff_p03_01 = slide("cuff_p03_01"), -- 235
-	slide_cuff_p03_02 = slide("cuff_p03_02"), -- 236
-	slide_cuff_p03_03 = slide("cuff_p03_03"), -- 237
-	slide_cuff_p03_04 = slide("cuff_p03_04"), -- 238
-	slide_cuff_p05_01 = slide("cuff_p05_01"), -- 239
-	slide_cuff_p05_02 = slide("cuff_p05_02"), -- 240
-	slide_cuff_p05_03 = slide("cuff_p05_03"), -- 241
-	slide_cuff_p05_04 = slide("cuff_p05_04"), -- 242
-	slide_cuff_g05_01 = slide("cuff_g05_01"), -- 243
-	slide_cuff_g05_02 = slide("cuff_g05_02"), -- 244
-	slide_cuff_g05_03 = slide("cuff_g05_03"), -- 245
-	slide_cuff_g05_04 = slide("cuff_g05_04"), -- 246
-	slide_gate_01 = {paths = {"assets/art/slides/gate_stage_01.png"}, anchorY = 0, preserveAspect = false}, -- 247
-	slide_gate_02 = {paths = {"assets/art/slides/gate_stage_02.png"}, anchorY = 0, preserveAspect = false}, -- 248
-	slide_gate_03 = {paths = {"assets/art/slides/gate_stage_03.png"}, anchorY = 0, preserveAspect = false}, -- 249
-	slide_gate_04 = {paths = {"assets/art/slides/gate_stage_04.png"}, anchorY = 0, preserveAspect = false}, -- 250
-	slide_tower_porch_f03_closed = slide("tower_porch_f03_closed"), -- 251
-	slide_tower_porch_f03_open = slide("tower_porch_f03_open"), -- 252
-	slide_tower_porch_m03_closed = slide("tower_porch_m03_closed"), -- 253
-	slide_tower_porch_m03_open = slide("tower_porch_m03_open"), -- 254
-	slide_tower_room_f03_cold = slide("tower_room_f03_cold"), -- 255
-	slide_tower_room_f03_lit = slide("tower_room_f03_lit"), -- 256
-	slide_tower_room_m03_warm = slide("tower_room_m03_warm"), -- 257
-	slide_tower_interior_live = {paths = {"assets/art/slides/tower_interior_live.png"}, anchorY = 0, preserveAspect = false}, -- 258
-	slide_e01_well = slide("e01_01_well"), -- 259
-	slide_e01_compass = slide("e01_02_compass"), -- 260
-	slide_e01_vitrine = slide("e01_03_vitrine"), -- 261
-	slide_e02_museum_hall = {paths = {"assets/art/slides/e02_museum_hall.png"}, anchorY = 0, preserveAspect = false}, -- 262
-	slide_e02_window_dawn = slide("e02_window_dawn"), -- 263
-	slide_e02_return_cabinet = slide("e02_return_cabinet"), -- 264
-	slide_f01_sewing = slide("f01_sewing_memory"), -- 265
-	slide_m02_lantern_gun = slide("m02_handover_lantern"), -- 266
-	slide_m02_echo_gun = slide("m02_handover_echo"), -- 267
-	fe_carry_idle = feClip("carry_idle", 0, true, 0.5), -- 269
-	fe_carry_walk = feClip({"carry_walk_a", "carry_idle", "carry_walk_b", "carry_idle"}, 0, true, {0.5, 0.5, 0.5, 0.5}), -- 270
-	fe_carry_reload = feClip("carry_reload", 0, true, 0.48), -- 271
-	fe_soldier_kneel_mount = feClip("soldier_kneel_mount", 0, true, 0.5), -- 272
-	fe_child_listen_door = feClip("child_listen_door", 0, true, 0.5), -- 273
-	fe_soldier_hand_hold = feClip("soldier_hand_hold", 0, true, 0.5), -- 274
-	fe_tower_guard_lantern = feClip("tower_guard_lantern", 0, true, 0.5), -- 275
-	fe_tower_brush_hand = feClip("tower_brush_hand", 0.08, true, 0.06), -- 276
-	fe_reload_hand_tap = feClip("reload_hand_tap", 0.9, true, 0.14), -- 277
-	fe_reload_hand_trace = feClip("reload_hand_trace", 0.58, true, 0.92), -- 278
-	fe_tower_cuff_rest = feClip("tower_cuff_rest", 0.5, true, 0.05), -- 279
-	fe_tower_bowl_solo = feClip("tower_bowl_solo", 0.25, true, 0.5), -- 280
-	fe_tower_bowl_hands = feClip("tower_bowl_hands", 0.4, true, 0.5), -- 281
-	fe_tower_pouch_note = feClip("tower_pouch_note", 0.42, true, 0.5), -- 282
-	fe_tower_lantern_detail = feClip("tower_lantern_detail", 0.14, true, 0.5), -- 283
-	fe_basin_flat = feClip("prop_basin_flat", 0, true, 0.5), -- 284
-	fe_basin_tilt = feClip("prop_basin_tilt", 0, true, 0.5), -- 285
-	fe_well_rim = feClip("prop_well_rim", 0, true, 0.5), -- 286
-	fe_outside_arch = feClip("prop_outside_arch", 0, false, 0.5), -- 287
-	fe_straw_target = feClip("prop_straw_target", 0, true, 0.5), -- 288
-	fe_workbench = feClip("prop_workbench", 0, false, 0.5), -- 289
-	fe_bottle_rack = feClip("prop_bottle_rack", 0, true, 0.5), -- 290
-	fe_braced_shield = feClip("prop_braced_shield", 0, true, 0.5), -- 291
-	fe_weapon_lantern_gun = feClip("weapon_lantern_gun", 0.5, true, 0.5), -- 292
-	fe_weapon_echo_gun = feClip("weapon_echo_gun", 0.5, true, 0.5), -- 293
-	fe_lamp_bracket = feClip("prop_lamp_bracket", 0, true, 0.5), -- 294
-	fe_icon_wood_tally = feClip("icon_wood_tally", 0.5, true, 0.5), -- 295
-	fe_icon_bell_tally = feClip("icon_bell_tally", 0.5, true, 0.5), -- 296
-	fe_gear_rattan_shield = feClip("gear_rattan_shield", 0.5, true, 0.5), -- 297
-	fe_root_arch = feClip("prop_root_arch", 0, false, 0.5), -- 298
-	fe_culvert_grate = feClip("prop_culvert_grate", 0, false, 0.5), -- 299
-	fe_red_cloth = feClip({"prop_red_cloth_01", "prop_red_cloth_02", "prop_red_cloth_03"}, 0.5, true, 0.9), -- 300
-	fe_vfx_muzzle = feClip({"vfx_muzzle_01", "vfx_muzzle_02", "vfx_muzzle_03"}, 0.5, true, 0.12), -- 301
-	fe_vfx_hit_spark = feClip({"vfx_hit_spark_01", "vfx_hit_spark_02", "vfx_hit_spark_03"}, 0.5, true, 0.5), -- 302
-	fe_vfx_smoke = feClip({"vfx_smoke_01", "vfx_smoke_02", "vfx_smoke_03", "vfx_smoke_04"}, 0.5, true, 0.5), -- 303
-	fe_vfx_steam = feClip({"vfx_steam_01", "vfx_steam_02", "vfx_steam_03"}, 0, true, 0.5), -- 304
-	fe_vfx_creek_reflect = feClip({"vfx_creek_reflect_01", "vfx_creek_reflect_02", "vfx_creek_reflect_03"}, 0.5, false, 0.5), -- 305
-	fe_glyph_bell = feClip("glyph_bell", 0.5, true, 0.5), -- 306
-	fe_glyph_lamp = feClip("glyph_lamp", 0.5, true, 0.5), -- 307
-	fe_glyph_push = feClip("glyph_push", 0.5, true, 0.5), -- 308
-	fe_ground_brick = feClip("ground_brick_patch", 0, false, 0.5), -- 309
-	fe_ground_soft = feClip("ground_soft_patch", 0, false, 0.5), -- 310
-	fe_pillar_wood = feClip("pillar_wood", 0, false, 0.5), -- 311
-	fe_beam_wood = feClip("beam_wood", 0, false, 0.5), -- 312
-	fe_road_stone = feClip("road_stone", 0, false, 0.5), -- 313
-	fe_fg_table_top = feClip("fg_table_top", 1, false, 0.5), -- 314
-	fe_fg_table_leg = feClip("fg_table_leg", 1, false, 0.5), -- 315
-	fe_fg_pine_bough = feClip("fg_pine_bough", 1, false, 1) -- 316
-} -- 316
-local WHITE = Color(255, 255, 255, 255) -- 319
+local function comicCutscene(rel) -- 108
+	return {paths = {("assets/art/cutscenes/" .. rel) .. ".png"}, anchorY = 0.5, preserveAspect = false, smooth = true} -- 109
+end -- 108
+local function feClip(names, anchorY, preserveAspect, anchorX) -- 112
+	if anchorY == nil then -- 112
+		anchorY = 0.5 -- 114
+	end -- 114
+	if preserveAspect == nil then -- 114
+		preserveAspect = true -- 115
+	end -- 115
+	local frames = type(names) == "string" and ({names}) or names -- 118
+	return { -- 119
+		paths = __TS__ArrayMap( -- 119
+			frames, -- 119
+			function(____, name) return "assets/art/sprites_fe.clip|" .. name end -- 119
+		), -- 119
+		anchorX = anchorX, -- 119
+		anchorY = anchorY, -- 119
+		preserveAspect = preserveAspect -- 119
+	} -- 119
+end -- 112
+local function character(names) -- 122
+	local frames = type(names) == "string" and ({names}) or names -- 123
+	return { -- 124
+		paths = __TS__ArrayMap( -- 124
+			frames, -- 124
+			function(____, name) return "assets/art/actors-hd.clip|" .. name end -- 124
+		), -- 124
+		anchorY = 0, -- 124
+		preserveAspect = true -- 124
+	} -- 124
+end -- 122
+____exports.RUN_FRAME_COUNT = 160 -- 127
+____exports.RUN_TRANSITION_PHASES = 8 -- 128
+____exports.RUN_TRANSITION_LEVELS = 12 -- 129
+____exports.SLIDE_FRAME_COUNT = 64 -- 130
+local ATLAS_GUTTER = 2 -- 131
+local RUN_ATLASES = {soldier = {path = "assets/art/zhoushu-run.png", width = 180, height = 200, columns = 10}, child = {path = "assets/art/xiaoman-run.png", width = 144, height = 164, columns = 10}} -- 140
+local RUN_TRANSITIONS = { -- 144
+	soldier = __TS__ObjectAssign({}, RUN_ATLASES.soldier, {path = "assets/art/zhoushu-run-transition.png", columns = ____exports.RUN_TRANSITION_PHASES}), -- 145
+	child = __TS__ObjectAssign({}, RUN_ATLASES.child, {path = "assets/art/xiaoman-run-transition.png", columns = ____exports.RUN_TRANSITION_PHASES}) -- 146
+} -- 146
+local SLIDE_ATLAS = {path = "assets/art/zhoushu-slide.png", width = 300, height = 198, columns = 8} -- 148
+____exports.ASSET_SLOTS = { -- 152
+	bgFar_prologue = backdrop("prologue"), -- 153
+	bgFar_street = backdrop("street"), -- 154
+	bgFar_checkpoint = backdrop("checkpoint"), -- 155
+	bgFar_gate = backdrop("gate"), -- 156
+	bgFar_outside = backdrop("outside"), -- 157
+	bgFar_village = backdrop("village"), -- 158
+	bgFar_forest = backdrop("forest"), -- 159
+	bgFar_tower = backdrop("tower"), -- 160
+	bgFar_crossroad_drygoods = backdrop("bg_crossroad_drygoods"), -- 161
+	bgFar_archway_yard = backdrop("bg_archway_yard"), -- 162
+	bgFar_granary = backdrop("bg_granary"), -- 163
+	bgFar_escort_ridge = backdrop("bg_escort_ridge"), -- 164
+	bgFar_museum = backdrop("bg_museum_hall", true), -- 165
+	title_backdrop = backdrop("title"), -- 166
+	soldier_idle = character("soldier_idle"), -- 167
+	soldier_run = character({"soldier_run", "soldier_step"}), -- 168
+	soldier_roll = character("soldier_roll"), -- 169
+	soldier_slide = character({"soldier_slide_0", "soldier_slide_1", "soldier_slide_2", "soldier_slide_3"}), -- 170
+	soldier_cover = character("soldier_cover"), -- 171
+	soldier_push = character({"soldier_push", "soldier_push_step"}), -- 172
+	soldier_hold = character("soldier_hold"), -- 173
+	soldier_offer = character("soldier_offer"), -- 174
+	soldier_knock = character({"soldier_cover", "soldier_knock"}), -- 175
+	soldier_hit = character("soldier_hit"), -- 176
+	soldier_fire = character("soldier_fire"), -- 177
+	soldier_fire_move = character({"soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"}), -- 178
+	child_idle = character("child_idle"), -- 179
+	child_run = character({"child_run", "child_step"}), -- 180
+	child_crouch = character({"child_crouch", "child_crouch_step"}), -- 181
+	child_fear = character("child_fear"), -- 182
+	child_peek = character("child_peek"), -- 183
+	child_pull = character({"child_pull", "child_pull_step"}), -- 184
+	child_aim = character("child_aim"), -- 185
+	child_throw = character("child_throw"), -- 186
+	child_knock = character("child_knock"), -- 187
+	child_offer = character("child_offer"), -- 188
+	enemy_idle = actor("enemy_idle", 0.5), -- 189
+	enemy_aim = actor("enemy_aim", 0.51), -- 190
+	enemy_down = actor("enemy_down"), -- 191
+	enemy_hit = actor("enemy_hit", 0.48), -- 192
+	scavenger = actor({"scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"}, {0.52, 0.52, 0.48, 0.52}), -- 193
+	dog = actor({"dog_idle", "dog_alert", "dog_run", "dog_sniff"}, {0.5, 0.5, 0.54, 0.58}), -- 194
+	prop_cart = clip("cart", 0, false, 0.44), -- 195
+	prop_bottle = clip("bottle", 0.5, true), -- 196
+	prop_tower_door = clip("door"), -- 197
+	prop_lantern = clip("lantern", 0.5, true), -- 198
+	prop_table = clip("table"), -- 199
+	prop_compass = clip("compass", 0.5, true), -- 200
+	prop_winch = clip("winch", 0.5, true), -- 201
+	wall = clip("wall"), -- 202
+	cover_wood = clip("cover_wood"), -- 203
+	cover_stone = clip("cover_stone"), -- 204
+	fence = clip("fence"), -- 205
+	slab = clip("slab"), -- 206
+	eaves = clip("eaves"), -- 207
+	pine = clip("pine"), -- 208
+	grass = clip("grass"), -- 209
+	grass_low = clip("grass_low"), -- 210
+	stone_chips = clip("stone_chips", 0.5, true), -- 211
+	ui_corner = clip("ui_corner"), -- 212
+	ui_corner_c = clip("ui_corner", 0.5, false), -- 213
+	ui_paper = clip("paper", 0.5), -- 214
+	ink_ribbon_sweep = inkClip("ink_ribbon_sweep"), -- 215
+	ink_mist_curve = inkClip("ink_mist_curve"), -- 216
+	ink_veil_strip = inkClip("ink_veil_strip"), -- 217
+	ink_hairline = inkClip("ink_hairline"), -- 218
+	ink_bamboo_slip = inkClip("ink_bamboo_slip"), -- 219
+	ink_bamboo_slot = inkClip("ink_bamboo_slot"), -- 220
+	ink_frame_mask = inkClip("ink_frame_mask"), -- 221
+	ink_vstream = inkClip("ink_vstream"), -- 222
+	ink_knot_ornament = inkClip("ink_knot_ornament"), -- 223
+	ink_corner_fine = inkClip("ink_corner_fine"), -- 224
+	ink_seal_slender = inkClip("ink_seal_slender"), -- 225
+	ink_blossom_dot = inkClip("ink_blossom_dot"), -- 226
+	ink_enso_fine = inkClip("ink_enso_fine"), -- 227
+	ink_petal_mist = inkClip("ink_petal_mist"), -- 228
+	ink_song_paper = inkClip("ink_song_paper"), -- 229
+	brand_game_logo_h = {paths = {"assets/art/brand/game_logo_h.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 230
+	brand_game_logo_v = {paths = {"assets/art/brand/game_logo_v.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 231
+	brand_team_logo = {paths = {"assets/art/brand/team_logo_dark.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 232
+	brand_team_badge = {paths = {"assets/art/brand/team_badge.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 233
+	slide_p01_01 = slide("p01_01_curtain"), -- 235
+	slide_p01_02 = slide("p01_02_hand"), -- 236
+	slide_p01_03 = slide("p01_03_door"), -- 237
+	slide_p02_01 = slide("p02_01_shadows"), -- 238
+	slide_p02_02 = slide("p02_02_cut"), -- 239
+	slide_p02_03 = slide("p02_03_bowl_roll"), -- 240
+	slide_p02_04 = slide("p02_04_bowl_stop"), -- 241
+	slide_p02_05 = slide("p02_05_cabinet"), -- 242
+	slide_cuff_p03_01 = slide("cuff_p03_01"), -- 243
+	slide_cuff_p03_02 = slide("cuff_p03_02"), -- 244
+	slide_cuff_p03_03 = slide("cuff_p03_03"), -- 245
+	slide_cuff_p03_04 = slide("cuff_p03_04"), -- 246
+	slide_cuff_p05_01 = slide("cuff_p05_01"), -- 247
+	slide_cuff_p05_02 = slide("cuff_p05_02"), -- 248
+	slide_cuff_p05_03 = slide("cuff_p05_03"), -- 249
+	slide_cuff_p05_04 = slide("cuff_p05_04"), -- 250
+	slide_cuff_g05_01 = slide("cuff_g05_01"), -- 251
+	slide_cuff_g05_02 = slide("cuff_g05_02"), -- 252
+	slide_cuff_g05_03 = slide("cuff_g05_03"), -- 253
+	slide_cuff_g05_04 = slide("cuff_g05_04"), -- 254
+	slide_gate_01 = {paths = {"assets/art/slides/gate_stage_01.png"}, anchorY = 0, preserveAspect = false}, -- 255
+	slide_gate_02 = {paths = {"assets/art/slides/gate_stage_02.png"}, anchorY = 0, preserveAspect = false}, -- 256
+	slide_gate_03 = {paths = {"assets/art/slides/gate_stage_03.png"}, anchorY = 0, preserveAspect = false}, -- 257
+	slide_gate_04 = {paths = {"assets/art/slides/gate_stage_04.png"}, anchorY = 0, preserveAspect = false}, -- 258
+	slide_tower_porch_f03_closed = slide("tower_porch_f03_closed"), -- 259
+	slide_tower_porch_f03_open = slide("tower_porch_f03_open"), -- 260
+	slide_tower_porch_m03_closed = slide("tower_porch_m03_closed"), -- 261
+	slide_tower_porch_m03_open = slide("tower_porch_m03_open"), -- 262
+	slide_tower_room_f03_cold = slide("tower_room_f03_cold"), -- 263
+	slide_tower_room_f03_lit = slide("tower_room_f03_lit"), -- 264
+	slide_tower_room_m03_warm = slide("tower_room_m03_warm"), -- 265
+	slide_tower_interior_live = {paths = {"assets/art/slides/tower_interior_live.png"}, anchorY = 0, preserveAspect = false}, -- 266
+	slide_e01_well = slide("e01_01_well"), -- 267
+	slide_e01_compass = slide("e01_02_compass"), -- 268
+	slide_e01_vitrine = slide("e01_03_vitrine"), -- 269
+	slide_e02_museum_hall = {paths = {"assets/art/slides/e02_museum_hall.png"}, anchorY = 0, preserveAspect = false}, -- 270
+	slide_e02_window_dawn = slide("e02_window_dawn"), -- 271
+	slide_e02_return_cabinet = slide("e02_return_cabinet"), -- 272
+	slide_f01_sewing = slide("f01_sewing_memory"), -- 273
+	slide_m02_lantern_gun = slide("m02_handover_lantern"), -- 274
+	slide_m02_echo_gun = slide("m02_handover_echo"), -- 275
+	comic_p02_01_shadows = comicCutscene("p02/p02_01_shadows"), -- 277
+	comic_p02_02a_door_intrude = comicCutscene("p02/p02_02a_door_intrude"), -- 278
+	comic_p02_03_impact_cut = comicCutscene("p02/p02_03_impact_cut"), -- 279
+	comic_p02_04_shadows_fall = comicCutscene("p02/p02_04_shadows_fall"), -- 280
+	comic_p02_05_bowl_roll1 = comicCutscene("p02/p02_05_bowl_roll1"), -- 281
+	comic_p02_06_bowl_roll2 = comicCutscene("p02/p02_06_bowl_roll2"), -- 282
+	comic_p02_07_bowl_smash = comicCutscene("p02/p02_07_bowl_smash"), -- 283
+	comic_p02_08a_cabinet_slit = comicCutscene("p02/p02_08a_cabinet_slit"), -- 284
+	comic_p02_08m_cabinet_narrowing = comicCutscene("p02/p02_08m_cabinet_narrowing"), -- 285
+	comic_p02_08b_cabinet_shut = comicCutscene("p02/p02_08b_cabinet_shut"), -- 286
+	fe_carry_idle = feClip("carry_idle", 0, true, 0.5), -- 288
+	fe_carry_walk = feClip({"carry_walk_a", "carry_idle", "carry_walk_b", "carry_idle"}, 0, true, {0.5, 0.5, 0.5, 0.5}), -- 289
+	fe_carry_reload = feClip("carry_reload", 0, true, 0.48), -- 290
+	fe_soldier_kneel_mount = feClip("soldier_kneel_mount", 0, true, 0.5), -- 291
+	fe_child_listen_door = feClip("child_listen_door", 0, true, 0.5), -- 292
+	fe_soldier_hand_hold = feClip("soldier_hand_hold", 0, true, 0.5), -- 293
+	fe_tower_guard_lantern = feClip("tower_guard_lantern", 0, true, 0.5), -- 294
+	fe_tower_brush_hand = feClip("tower_brush_hand", 0.08, true, 0.06), -- 295
+	fe_reload_hand_tap = feClip("reload_hand_tap", 0.9, true, 0.14), -- 296
+	fe_reload_hand_trace = feClip("reload_hand_trace", 0.58, true, 0.92), -- 297
+	fe_tower_cuff_rest = feClip("tower_cuff_rest", 0.5, true, 0.05), -- 298
+	fe_tower_bowl_solo = feClip("tower_bowl_solo", 0.25, true, 0.5), -- 299
+	fe_tower_bowl_hands = feClip("tower_bowl_hands", 0.4, true, 0.5), -- 300
+	fe_tower_pouch_note = feClip("tower_pouch_note", 0.42, true, 0.5), -- 301
+	fe_tower_lantern_detail = feClip("tower_lantern_detail", 0.14, true, 0.5), -- 302
+	fe_basin_flat = feClip("prop_basin_flat", 0, true, 0.5), -- 303
+	fe_basin_tilt = feClip("prop_basin_tilt", 0, true, 0.5), -- 304
+	fe_well_rim = feClip("prop_well_rim", 0, true, 0.5), -- 305
+	fe_outside_arch = feClip("prop_outside_arch", 0, false, 0.5), -- 306
+	fe_straw_target = feClip("prop_straw_target", 0, true, 0.5), -- 307
+	fe_workbench = feClip("prop_workbench", 0, false, 0.5), -- 308
+	fe_bottle_rack = feClip("prop_bottle_rack", 0, true, 0.5), -- 309
+	fe_braced_shield = feClip("prop_braced_shield", 0, true, 0.5), -- 310
+	fe_weapon_lantern_gun = feClip("weapon_lantern_gun", 0.5, true, 0.5), -- 311
+	fe_weapon_echo_gun = feClip("weapon_echo_gun", 0.5, true, 0.5), -- 312
+	fe_lamp_bracket = feClip("prop_lamp_bracket", 0, true, 0.5), -- 313
+	fe_icon_wood_tally = feClip("icon_wood_tally", 0.5, true, 0.5), -- 314
+	fe_icon_bell_tally = feClip("icon_bell_tally", 0.5, true, 0.5), -- 315
+	fe_gear_rattan_shield = feClip("gear_rattan_shield", 0.5, true, 0.5), -- 316
+	fe_root_arch = feClip("prop_root_arch", 0, false, 0.5), -- 317
+	fe_culvert_grate = feClip("prop_culvert_grate", 0, false, 0.5), -- 318
+	fe_red_cloth = feClip({"prop_red_cloth_01", "prop_red_cloth_02", "prop_red_cloth_03"}, 0.5, true, 0.9), -- 319
+	fe_vfx_muzzle = feClip({"vfx_muzzle_01", "vfx_muzzle_02", "vfx_muzzle_03"}, 0.5, true, 0.12), -- 320
+	fe_vfx_hit_spark = feClip({"vfx_hit_spark_01", "vfx_hit_spark_02", "vfx_hit_spark_03"}, 0.5, true, 0.5), -- 321
+	fe_vfx_smoke = feClip({"vfx_smoke_01", "vfx_smoke_02", "vfx_smoke_03", "vfx_smoke_04"}, 0.5, true, 0.5), -- 322
+	fe_vfx_steam = feClip({"vfx_steam_01", "vfx_steam_02", "vfx_steam_03"}, 0, true, 0.5), -- 323
+	fe_vfx_creek_reflect = feClip({"vfx_creek_reflect_01", "vfx_creek_reflect_02", "vfx_creek_reflect_03"}, 0.5, false, 0.5), -- 324
+	fe_glyph_bell = feClip("glyph_bell", 0.5, true, 0.5), -- 325
+	fe_glyph_lamp = feClip("glyph_lamp", 0.5, true, 0.5), -- 326
+	fe_glyph_push = feClip("glyph_push", 0.5, true, 0.5), -- 327
+	fe_ground_brick = feClip("ground_brick_patch", 0, false, 0.5), -- 328
+	fe_ground_soft = feClip("ground_soft_patch", 0, false, 0.5), -- 329
+	fe_pillar_wood = feClip("pillar_wood", 0, false, 0.5), -- 330
+	fe_beam_wood = feClip("beam_wood", 0, false, 0.5), -- 331
+	fe_road_stone = feClip("road_stone", 0, false, 0.5), -- 332
+	fe_fg_table_top = feClip("fg_table_top", 1, false, 0.5), -- 333
+	fe_fg_table_leg = feClip("fg_table_leg", 1, false, 0.5), -- 334
+	fe_fg_pine_bough = feClip("fg_pine_bough", 1, false, 1) -- 335
+} -- 335
+local WHITE = Color(255, 255, 255, 255) -- 338
 --- 并行分支动态注册资源槽（与静态 ASSET_SLOTS 隔离，不破坏 verify-integration 全量槽位断言）。
 -- 挂在 package.loaded 共享表上，避免不同 Dora 编译版本以 "Script.watch.*" 与 "watch.*" 双路径加载时产生双份表。
-local function sharedDynamicSlots() -- 325
-	local g = _G -- 326
-	local ____temp_0 -- 327
-	if g.package ~= nil then -- 327
-		____temp_0 = g.package.loaded -- 327
-	else -- 327
-		____temp_0 = nil -- 327
-	end -- 327
-	local loaded = ____temp_0 -- 327
-	if loaded ~= nil then -- 327
-		local existing = loaded["watch.fe.dynamic_slots"] -- 329
-		if existing ~= nil and type(existing) == "table" then -- 329
-			return existing -- 331
-		end -- 331
-		local created = {} -- 333
-		loaded["watch.fe.dynamic_slots"] = created -- 334
-		return created -- 335
-	end -- 335
-	return FALLBACK_DYNAMIC_SLOTS -- 337
-end -- 325
-FALLBACK_DYNAMIC_SLOTS = {} -- 340
+local function sharedDynamicSlots() -- 344
+	local g = _G -- 345
+	local ____temp_0 -- 346
+	if g.package ~= nil then -- 346
+		____temp_0 = g.package.loaded -- 346
+	else -- 346
+		____temp_0 = nil -- 346
+	end -- 346
+	local loaded = ____temp_0 -- 346
+	if loaded ~= nil then -- 346
+		local existing = loaded["watch.fe.dynamic_slots"] -- 348
+		if existing ~= nil and type(existing) == "table" then -- 348
+			return existing -- 350
+		end -- 350
+		local created = {} -- 352
+		loaded["watch.fe.dynamic_slots"] = created -- 353
+		return created -- 354
+	end -- 354
+	return FALLBACK_DYNAMIC_SLOTS -- 356
+end -- 344
+FALLBACK_DYNAMIC_SLOTS = {} -- 359
 --- 全局动态注册贴图/图集槽位，供 Wave 1/2 插件零冲突挂载新资源
-function ____exports.registerDynamicSlot(key, cfg) -- 343
-	sharedDynamicSlots()[key] = cfg -- 344
-end -- 343
-function ____exports.unregisterDynamicSlot(key) -- 347
-	__TS__Delete( -- 348
-		sharedDynamicSlots(), -- 348
-		key -- 348
-	) -- 348
-end -- 347
-____exports.AssetSlotHost = __TS__Class() -- 351
-local AssetSlotHost = ____exports.AssetSlotHost -- 351
-AssetSlotHost.name = "AssetSlotHost" -- 351
-function AssetSlotHost.prototype.____constructor(self, parent, order) -- 360
-	self.sprites = {} -- 353
-	self.unavailable = {} -- 354
-	self.lastPlacement = {} -- 355
-	self.visibleLastFrame = {} -- 356
-	self.visibleThisFrame = {} -- 357
-	self.localSlots = {} -- 358
-	self.container = Node() -- 361
-	self.container.order = order -- 362
-	self.container:addTo(parent) -- 363
-end -- 360
-function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 367
-	self.localSlots[key] = cfg -- 368
-end -- 367
-function AssetSlotHost.prototype.currentSprite(self, instanceKey, path) -- 372
-	return self.visibleThisFrame[(instanceKey .. ":") .. path] -- 373
-end -- 372
-function AssetSlotHost.prototype.hideLastPlacement(self, instanceKey) -- 377
-	local sprite = self.lastPlacement[instanceKey] -- 378
-	if sprite ~= nil then -- 378
-		sprite.visible = false -- 380
-	end -- 380
-end -- 377
-function AssetSlotHost.prototype.beginFrame(self) -- 384
-	self.visibleThisFrame = {} -- 385
-end -- 384
-function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 388
-	if options == nil then -- 388
-		options = {} -- 392
-	end -- 392
-	local staticSlots = ____exports.ASSET_SLOTS -- 394
-	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 395
-	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 395
-		return false -- 397
-	end -- 397
-	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 399
-	local path = cfg.paths[frame + 1] -- 400
-	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 401
-	return self:placeResolvedPath( -- 404
-		path, -- 404
-		anchorX, -- 404
-		cfg.anchorY, -- 404
-		cfg.preserveAspect, -- 404
-		cfg.smooth == true, -- 404
-		instanceKey, -- 404
-		x, -- 404
-		y, -- 404
-		targetW, -- 404
-		targetH, -- 404
-		options -- 404
-	) -- 404
-end -- 388
-function AssetSlotHost.prototype.tryPlaceRun(self, actor, instanceKey, x, y, targetW, targetH, cycles, options, effort) -- 409
-	if options == nil then -- 409
-		options = {} -- 414
-	end -- 414
-	if effort == nil then -- 414
-		effort = 1 -- 415
-	end -- 415
-	if effort < 1 and self:tryPlaceRunTransition( -- 415
-		actor, -- 417
-		instanceKey, -- 417
-		x, -- 417
-		y, -- 417
-		targetW, -- 417
-		targetH, -- 417
-		cycles, -- 417
-		effort, -- 417
-		options -- 417
-	) then -- 417
-		return true -- 418
-	end -- 418
-	local frame = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_FRAME_COUNT) -- 420
-	return self:tryPlaceMotionFrame( -- 421
-		RUN_ATLASES[actor], -- 421
-		frame, -- 421
-		instanceKey, -- 421
-		x, -- 421
-		y, -- 421
-		targetW, -- 421
-		targetH, -- 421
-		options -- 421
-	) -- 421
-end -- 409
-function AssetSlotHost.prototype.tryPlaceRunTransition(self, actor, instanceKey, x, y, targetW, targetH, cycles, effort, options) -- 425
-	if options == nil then -- 425
-		options = {} -- 430
-	end -- 430
-	local phase = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_TRANSITION_PHASES + 0.5) % ____exports.RUN_TRANSITION_PHASES -- 432
-	local level = math.max( -- 433
-		0, -- 433
-		math.min( -- 433
-			____exports.RUN_TRANSITION_LEVELS - 1, -- 433
-			math.floor(effort * (____exports.RUN_TRANSITION_LEVELS + 1) + 0.5) - 1 -- 433
-		) -- 433
-	) -- 433
-	return self:tryPlaceMotionFrame( -- 434
-		RUN_TRANSITIONS[actor], -- 434
-		level * ____exports.RUN_TRANSITION_PHASES + phase, -- 434
-		instanceKey, -- 435
-		x, -- 435
-		y, -- 435
-		targetW, -- 435
-		targetH, -- 435
-		options -- 435
-	) -- 435
-end -- 425
-function AssetSlotHost.prototype.tryPlaceSlide(self, instanceKey, x, y, targetW, targetH, progress, options) -- 438
-	if options == nil then -- 438
-		options = {} -- 442
-	end -- 442
-	local frame = math.max( -- 444
-		0, -- 444
-		math.min( -- 444
-			____exports.SLIDE_FRAME_COUNT - 1, -- 444
-			math.floor(progress * ____exports.SLIDE_FRAME_COUNT) -- 444
-		) -- 444
-	) -- 444
-	return self:tryPlaceMotionFrame( -- 445
-		SLIDE_ATLAS, -- 445
-		frame, -- 445
-		instanceKey, -- 445
-		x, -- 445
-		y, -- 445
-		targetW, -- 445
-		targetH, -- 445
-		options -- 445
-	) -- 445
-end -- 438
-function AssetSlotHost.prototype.tryPlaceMotionFrame(self, atlas, frame, instanceKey, x, y, targetW, targetH, options) -- 448
-	if targetW <= 0 or targetH <= 0 then -- 448
-		return false -- 456
-	end -- 456
-	local ____atlas_1 = atlas -- 458
-	local path = ____atlas_1.path -- 458
-	local width = ____atlas_1.width -- 458
-	local height = ____atlas_1.height -- 458
-	local columns = ____atlas_1.columns -- 458
-	local col = frame % columns -- 459
-	local row = math.floor(frame / columns) -- 460
-	local rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height) -- 461
-	return self:placeResolvedPath( -- 463
-		path, -- 463
-		0.5, -- 463
+function ____exports.registerDynamicSlot(key, cfg) -- 362
+	sharedDynamicSlots()[key] = cfg -- 363
+end -- 362
+function ____exports.unregisterDynamicSlot(key) -- 366
+	__TS__Delete( -- 367
+		sharedDynamicSlots(), -- 367
+		key -- 367
+	) -- 367
+end -- 366
+____exports.AssetSlotHost = __TS__Class() -- 370
+local AssetSlotHost = ____exports.AssetSlotHost -- 370
+AssetSlotHost.name = "AssetSlotHost" -- 370
+function AssetSlotHost.prototype.____constructor(self, parent, order) -- 379
+	self.sprites = {} -- 372
+	self.unavailable = {} -- 373
+	self.lastPlacement = {} -- 374
+	self.visibleLastFrame = {} -- 375
+	self.visibleThisFrame = {} -- 376
+	self.localSlots = {} -- 377
+	self.container = Node() -- 380
+	self.container.order = order -- 381
+	self.container:addTo(parent) -- 382
+end -- 379
+function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 386
+	self.localSlots[key] = cfg -- 387
+end -- 386
+function AssetSlotHost.prototype.currentSprite(self, instanceKey, path) -- 391
+	return self.visibleThisFrame[(instanceKey .. ":") .. path] -- 392
+end -- 391
+function AssetSlotHost.prototype.hideLastPlacement(self, instanceKey) -- 396
+	local sprite = self.lastPlacement[instanceKey] -- 397
+	if sprite ~= nil then -- 397
+		sprite.visible = false -- 399
+	end -- 399
+end -- 396
+function AssetSlotHost.prototype.beginFrame(self) -- 403
+	self.visibleThisFrame = {} -- 404
+end -- 403
+function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 407
+	if options == nil then -- 407
+		options = {} -- 411
+	end -- 411
+	local staticSlots = ____exports.ASSET_SLOTS -- 413
+	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 414
+	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 414
+		return false -- 416
+	end -- 416
+	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 418
+	local path = cfg.paths[frame + 1] -- 419
+	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 420
+	return self:placeResolvedPath( -- 423
+		path, -- 423
+		anchorX, -- 423
+		cfg.anchorY, -- 423
+		cfg.preserveAspect, -- 423
+		cfg.smooth == true, -- 423
+		instanceKey, -- 423
+		x, -- 423
+		y, -- 423
+		targetW, -- 423
+		targetH, -- 423
+		options -- 423
+	) -- 423
+end -- 407
+function AssetSlotHost.prototype.tryPlaceRun(self, actor, instanceKey, x, y, targetW, targetH, cycles, options, effort) -- 428
+	if options == nil then -- 428
+		options = {} -- 433
+	end -- 433
+	if effort == nil then -- 433
+		effort = 1 -- 434
+	end -- 434
+	if effort < 1 and self:tryPlaceRunTransition( -- 434
+		actor, -- 436
+		instanceKey, -- 436
+		x, -- 436
+		y, -- 436
+		targetW, -- 436
+		targetH, -- 436
+		cycles, -- 436
+		effort, -- 436
+		options -- 436
+	) then -- 436
+		return true -- 437
+	end -- 437
+	local frame = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_FRAME_COUNT) -- 439
+	return self:tryPlaceMotionFrame( -- 440
+		RUN_ATLASES[actor], -- 440
+		frame, -- 440
+		instanceKey, -- 440
+		x, -- 440
+		y, -- 440
+		targetW, -- 440
+		targetH, -- 440
+		options -- 440
+	) -- 440
+end -- 428
+function AssetSlotHost.prototype.tryPlaceRunTransition(self, actor, instanceKey, x, y, targetW, targetH, cycles, effort, options) -- 444
+	if options == nil then -- 444
+		options = {} -- 449
+	end -- 449
+	local phase = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_TRANSITION_PHASES + 0.5) % ____exports.RUN_TRANSITION_PHASES -- 451
+	local level = math.max( -- 452
+		0, -- 452
+		math.min( -- 452
+			____exports.RUN_TRANSITION_LEVELS - 1, -- 452
+			math.floor(effort * (____exports.RUN_TRANSITION_LEVELS + 1) + 0.5) - 1 -- 452
+		) -- 452
+	) -- 452
+	return self:tryPlaceMotionFrame( -- 453
+		RUN_TRANSITIONS[actor], -- 453
+		level * ____exports.RUN_TRANSITION_PHASES + phase, -- 453
+		instanceKey, -- 454
+		x, -- 454
+		y, -- 454
+		targetW, -- 454
+		targetH, -- 454
+		options -- 454
+	) -- 454
+end -- 444
+function AssetSlotHost.prototype.tryPlaceSlide(self, instanceKey, x, y, targetW, targetH, progress, options) -- 457
+	if options == nil then -- 457
+		options = {} -- 461
+	end -- 461
+	local frame = math.max( -- 463
 		0, -- 463
-		true, -- 463
-		false, -- 463
-		instanceKey, -- 463
-		x, -- 463
-		y, -- 463
-		targetW, -- 463
-		targetH, -- 463
-		options, -- 463
-		rect -- 463
+		math.min( -- 463
+			____exports.SLIDE_FRAME_COUNT - 1, -- 463
+			math.floor(progress * ____exports.SLIDE_FRAME_COUNT) -- 463
+		) -- 463
 	) -- 463
-end -- 448
-function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 467
-	if options == nil then -- 467
-		options = {} -- 471
-	end -- 471
-	if path == "" or targetW <= 0 or targetH <= 0 then -- 471
-		return false -- 474
-	end -- 474
-	local ____self_placeResolvedPath_4 = self.placeResolvedPath -- 476
-	local ____array_3 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 476
-	local ____options_preserveAspect_2 = options.preserveAspect -- 480
-	if ____options_preserveAspect_2 == nil then -- 480
-		____options_preserveAspect_2 = false -- 480
-	end -- 480
-	__TS__SparseArrayPush( -- 480
-		____array_3, -- 480
-		____options_preserveAspect_2, -- 480
-		options.smooth == true, -- 481
+	return self:tryPlaceMotionFrame( -- 464
+		SLIDE_ATLAS, -- 464
+		frame, -- 464
+		instanceKey, -- 464
+		x, -- 464
+		y, -- 464
+		targetW, -- 464
+		targetH, -- 464
+		options -- 464
+	) -- 464
+end -- 457
+function AssetSlotHost.prototype.tryPlaceMotionFrame(self, atlas, frame, instanceKey, x, y, targetW, targetH, options) -- 467
+	if targetW <= 0 or targetH <= 0 then -- 467
+		return false -- 475
+	end -- 475
+	local ____atlas_1 = atlas -- 477
+	local path = ____atlas_1.path -- 477
+	local width = ____atlas_1.width -- 477
+	local height = ____atlas_1.height -- 477
+	local columns = ____atlas_1.columns -- 477
+	local col = frame % columns -- 478
+	local row = math.floor(frame / columns) -- 479
+	local rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height) -- 480
+	return self:placeResolvedPath( -- 482
+		path, -- 482
+		0.5, -- 482
+		0, -- 482
+		true, -- 482
+		false, -- 482
 		instanceKey, -- 482
-		x, -- 483
-		y, -- 484
-		targetW, -- 485
-		targetH, -- 486
-		options -- 487
-	) -- 487
-	return ____self_placeResolvedPath_4( -- 476
-		self, -- 476
-		__TS__SparseArraySpread(____array_3) -- 476
-	) -- 476
+		x, -- 482
+		y, -- 482
+		targetW, -- 482
+		targetH, -- 482
+		options, -- 482
+		rect -- 482
+	) -- 482
 end -- 467
-function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options, textureRect) -- 491
-	local key = (instanceKey .. ":") .. path -- 502
-	local sprite = self.sprites[key] -- 503
-	if sprite == nil then -- 503
-		if self.unavailable[path] then -- 503
-			return false -- 506
-		end -- 506
-		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 508
-		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 509
-		local ____Content_exist_result_5 -- 510
-		if Content:exist(file) then -- 510
-			____Content_exist_result_5 = Sprite(path) -- 510
-		else -- 510
-			____Content_exist_result_5 = nil -- 510
-		end -- 510
-		local loaded = ____Content_exist_result_5 -- 510
-		if loaded == nil then -- 510
-			self.unavailable[path] = true -- 512
-			return false -- 513
-		end -- 513
-		if textureRect ~= nil then -- 513
-			loaded.size = Size(textureRect.width, textureRect.height) -- 517
-		end -- 517
-		loaded.filter = smooth and "Anisotropic" or "Point" -- 520
-		loaded:addTo(self.container) -- 521
-		self.sprites[key] = loaded -- 522
-		sprite = loaded -- 523
-	end -- 523
-	if textureRect ~= nil then -- 523
-		sprite.textureRect = textureRect -- 527
-	end -- 527
-	local scaleY = targetH / math.max(1, textureRect and textureRect.height or sprite.height) -- 529
-	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 530
-	sprite.anchor = Vec2(anchorX, anchorY) -- 531
-	sprite.position = textureRect == nil and Vec2( -- 532
-		math.floor(x + 0.5), -- 532
-		math.floor(y + 0.5) -- 532
-	) or Vec2(x, y) -- 532
-	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 533
-	sprite.scaleY = options.flipY and -scaleY or scaleY -- 534
-	sprite.angle = options.angle or 0 -- 535
-	sprite.order = options.layer or 0 -- 536
-	local col = options.color or WHITE -- 537
-	sprite.color = col -- 538
-	local baseA = col.a / 255 -- 539
-	local op = options.opacity or 1 -- 540
-	sprite.opacity = math.max( -- 541
-		0, -- 541
-		math.min(1, baseA * op) -- 541
-	) -- 541
-	sprite.visible = true -- 542
-	self.visibleThisFrame[key] = sprite -- 543
-	self.lastPlacement[instanceKey] = sprite -- 544
-	return true -- 545
-end -- 491
-function AssetSlotHost.prototype.endFrame(self) -- 548
-	for key in pairs(self.visibleLastFrame) do -- 549
-		if self.visibleThisFrame[key] == nil then -- 549
-			self.visibleLastFrame[key].visible = false -- 551
-		end -- 551
-	end -- 551
-	self.visibleLastFrame = self.visibleThisFrame -- 554
-end -- 548
-return ____exports -- 548
+function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 486
+	if options == nil then -- 486
+		options = {} -- 490
+	end -- 490
+	if path == "" or targetW <= 0 or targetH <= 0 then -- 490
+		return false -- 493
+	end -- 493
+	local ____self_placeResolvedPath_4 = self.placeResolvedPath -- 495
+	local ____array_3 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 495
+	local ____options_preserveAspect_2 = options.preserveAspect -- 499
+	if ____options_preserveAspect_2 == nil then -- 499
+		____options_preserveAspect_2 = false -- 499
+	end -- 499
+	__TS__SparseArrayPush( -- 499
+		____array_3, -- 499
+		____options_preserveAspect_2, -- 499
+		options.smooth == true, -- 500
+		instanceKey, -- 501
+		x, -- 502
+		y, -- 503
+		targetW, -- 504
+		targetH, -- 505
+		options -- 506
+	) -- 506
+	return ____self_placeResolvedPath_4( -- 495
+		self, -- 495
+		__TS__SparseArraySpread(____array_3) -- 495
+	) -- 495
+end -- 486
+function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options, textureRect) -- 510
+	local key = (instanceKey .. ":") .. path -- 521
+	local sprite = self.sprites[key] -- 522
+	if sprite == nil then -- 522
+		if self.unavailable[path] then -- 522
+			return false -- 525
+		end -- 525
+		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 527
+		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 528
+		local ____Content_exist_result_5 -- 529
+		if Content:exist(file) then -- 529
+			____Content_exist_result_5 = Sprite(path) -- 529
+		else -- 529
+			____Content_exist_result_5 = nil -- 529
+		end -- 529
+		local loaded = ____Content_exist_result_5 -- 529
+		if loaded == nil then -- 529
+			self.unavailable[path] = true -- 531
+			return false -- 532
+		end -- 532
+		if textureRect ~= nil then -- 532
+			loaded.size = Size(textureRect.width, textureRect.height) -- 536
+		end -- 536
+		loaded.filter = smooth and "Anisotropic" or "Point" -- 539
+		loaded:addTo(self.container) -- 540
+		self.sprites[key] = loaded -- 541
+		sprite = loaded -- 542
+	end -- 542
+	if textureRect ~= nil then -- 542
+		sprite.textureRect = textureRect -- 546
+	end -- 546
+	local scaleY = targetH / math.max(1, textureRect and textureRect.height or sprite.height) -- 548
+	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 549
+	sprite.anchor = Vec2(anchorX, anchorY) -- 550
+	sprite.position = textureRect == nil and Vec2( -- 551
+		math.floor(x + 0.5), -- 551
+		math.floor(y + 0.5) -- 551
+	) or Vec2(x, y) -- 551
+	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 552
+	sprite.scaleY = options.flipY and -scaleY or scaleY -- 553
+	sprite.angle = options.angle or 0 -- 554
+	sprite.order = options.layer or 0 -- 555
+	local col = options.color or WHITE -- 556
+	sprite.color = col -- 557
+	local baseA = col.a / 255 -- 558
+	local op = options.opacity or 1 -- 559
+	sprite.opacity = math.max( -- 560
+		0, -- 560
+		math.min(1, baseA * op) -- 560
+	) -- 560
+	sprite.visible = true -- 561
+	self.visibleThisFrame[key] = sprite -- 562
+	self.lastPlacement[instanceKey] = sprite -- 563
+	return true -- 564
+end -- 510
+function AssetSlotHost.prototype.endFrame(self) -- 567
+	for key in pairs(self.visibleLastFrame) do -- 568
+		if self.visibleThisFrame[key] == nil then -- 568
+			self.visibleLastFrame[key].visible = false -- 570
+		end -- 570
+	end -- 570
+	self.visibleLastFrame = self.visibleThisFrame -- 573
+end -- 567
+return ____exports -- 567
