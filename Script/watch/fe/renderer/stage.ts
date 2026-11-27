@@ -819,7 +819,7 @@ export class StageRenderer {
 
             // 3) 北塔塔身与门楣
             if (p.room.key === "tower") {
-                this.drawTowerStructure(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, time);
+                this.drawTowerStructure(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, cam, time);
                 continue;
             }
 
@@ -1087,7 +1087,7 @@ export class StageRenderer {
         fgGlow: DrawNode.Type,
         assets: AssetSlotHost,
         x0: number, y0: number, sw: number, sh: number,
-        s: SolidSpec, p: Play, time: number,
+        s: SolidSpec, p: Play, cam: CameraDirector, time: number,
     ): void {
         fillVGradRect(fgDraw, x0, y0, sw, sh, Color(15, 21, 34, 255), Color(32, 44, 66, 255));
         fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.4, toColor(PALETTE.rimSilver, 165));
@@ -1120,7 +1120,11 @@ export class StageRenderer {
 
         // 门楣下方温暖圣殿灯火（开门时灯光骤然敞开铺满门廊！）
         if (s.label.indexOf("门楣") >= 0) {
-            const opened = p.phase === "tower-given" || p.phase === "tower-end";
+            const opened = p.towerDoorOpen
+                || p.phase === "tower-enter"
+                || p.phase === "tower-desk"
+                || p.phase === "tower-given"
+                || p.phase === "tower-end";
             const cx = x0 + sw * 0.5;
             const lampY = y0 - 8;
             const doorHeight = y0 - Math.max(0, y0 - sh * 3.8);
@@ -1147,6 +1151,38 @@ export class StageRenderer {
             );
             fillRadialGlow(fgGlow, cx, lampY, opened ? 105 : 58, opened ? 105 : 58, Color(255, 232, 178, Math.round(170 * pulse)), Color(255, 180, 86, 0), 18);
             fgDraw.drawCircle(Vec2(cx, lampY), 5.5, toColor(PALETTE.amberCore));
+
+            // 门开后渲染值夜室木案、守卒剪影、油灯、登记簿与渐进交物（针套 / 指南针 / 纸条）
+            if (opened) {
+                const deskCx = cam.sx(p.ox + 605);
+                const groundY = cam.sy(0);
+                const deskW = cam.len(84);
+                const deskH = cam.len(34);
+                const deskTop = groundY + deskH;
+                // 值夜室暖光背景
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(32), cam.len(115), cam.len(90),
+                    Color(255, 198, 114, Math.round(68 * pulse)), Color(255, 168, 72, 0), 16);
+                // 守卒半身剪影（立于木案右后方）
+                const guardX = deskCx + cam.len(26);
+                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(34, 42, 54, 240));
+                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(42, 50, 62, 245));
+                // 木案本体与案面
+                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
+                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
+                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(108, 74, 46, 255), 1, Color(148, 108, 68, 220));
+                // 案头摊开的收籍薄册与油灯
+                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(232, 222, 198, 245));
+                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(168, 128, 64, 245));
+                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                // 渐进交物视觉（12 拍针套、24 拍指南针与纸条）
+                if (p.deskHold >= 12 || p.towerHanded) {
+                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                }
+                if (p.deskHold >= 24 || p.towerHanded) {
+                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                }
+            }
         }
     }
 

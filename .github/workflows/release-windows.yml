@@ -160,11 +160,11 @@ jobs:
           $dest = Join-Path $env:RUNNER_TEMP "verify-opengl"
           Expand-Archive -Path $zip -DestinationPath $dest -Force
           $root = Join-Path $dest "${env:EXE_NAME}-${ver}-windows-x64-opengl"
-          foreach ($req in @("${env:EXE_NAME}.exe", "${env:EXE_NAME}.ico", "dora-game-id", "Script\init.lua", "Script\main.lua", "assets\art\title.png", "assets\art\brand\game_logo_h.png", "assets\art\brand\team_logo_dark.png", "assets\art\brand\app_icon.png", "assets\audio\combat\shot.wav", "SHA256SUMS")) {
+          foreach ($req in @("${env:EXE_NAME}.exe", "${env:EXE_NAME}.ico", "LICENSE", "dora-game-id", "Script\init.lua", "Script\main.lua", "assets\art\title.png", "assets\art\brand\game_logo_h.png", "assets\art\brand\team_logo_dark.png", "assets\art\brand\app_icon.png", "assets\audio\combat\shot.wav", "SHA256SUMS")) {
             $p = Join-Path $root $req
             if (-not (Test-Path $p)) { throw "Missing required file in OpenGL pack: $req" }
           }
-          foreach ($bad in @("www", "Doc", "dora-wa", "dora_godot.dll", "wa.dll", "Script\Dev", "Script\Tools")) {
+          foreach ($bad in @("www", "Doc", "dora-wa", "dora_godot.dll", "wa.dll", "Script\Dev", "Script\Tools", "Script\watch\testdrive.lua")) {
             if (Test-Path (Join-Path $root $bad)) { throw "Forbidden dev file present in OpenGL pack: $bad" }
           }
           Write-Host "OpenGL package structure verified cleanly."
@@ -282,16 +282,19 @@ jobs:
           - 全屏切换快捷键：\`F11\` 或 \`Alt+Enter\`；标题页与暂停菜单均提供「退出游戏」。
           EOF
 
+          # 保留已有 Release Notes（避免覆盖 Android/Web 并发写入的说明）；仅在创建或尚未含多端说明时更新
           if gh release view "${VER}" >/dev/null 2>&1; then
             gh release upload "${VER}" "$RUNNER_TEMP/bundles/"* --clobber
-            gh release edit "${VER}" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
             PRERELEASE_FLAG=""
             if [[ "${VER}" == *-* ]]; then
               PRERELEASE_FLAG="--prerelease"
             fi
-            gh release create "${VER}" "$RUNNER_TEMP/bundles/"* \
+            if ! gh release create "${VER}" "$RUNNER_TEMP/bundles/"* \
               --title "《向西守望》${VER}" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
-              ${PRERELEASE_FLAG}
+              ${PRERELEASE_FLAG}; then
+              # 并发 tag 发布竞态兜底：另一工作流刚建完 Release，直接追加上传资产
+              gh release upload "${VER}" "$RUNNER_TEMP/bundles/"* --clobber
+            fi
           fi

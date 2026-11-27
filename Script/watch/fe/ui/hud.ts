@@ -413,80 +413,8 @@ export class HudRenderer {
             }
         }
 
-        if (p.craftBench.active) {
-            const bw = 470;
-            const cx = w * 0.5;
-            const top = h * 0.32;
-            drawSilkVeil(uiDraw, uiArt, "hud_bench_veil", cx, top + 118, bw + 64, 208, PALETTE.inkWash, 0.86 * alpha, -1);
-            texts.put("xs", "工台 · 放她下来做一件", cx, top - 6, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.7, alpha, 0.08);
-            const inv = p.craftBench.inventory;
-            const wood = inv["wood"] ?? 0;
-            const bell = inv["bell"] ?? 0;
-            const scrap = inv["scrap"] ?? 0;
-            texts.put("xs", "木纹筹 " + wood + " · 铃纹筹 " + bell + " · 碎片 " + scrap, cx, top + 24,
-                toColor(PALETTE.silkDim), 0.5, 0.5, TextAlign.Center, 1.5, alpha, 0.08);
-            const recipes = p.craftBench.recipes;
-            for (let i = 0; i < recipes.length; i++) {
-                const r = recipes[i];
-                let costText = "";
-                let afford = true;
-                const costWood = r.cost["wood"] ?? 0;
-                const costBell = r.cost["bell"] ?? 0;
-                if (costWood > 0) {
-                    costText = costText + (costText !== "" ? " + " : "") + "木 " + costWood;
-                    if (wood < costWood) afford = false;
-                }
-                if (costBell > 0) {
-                    costText = costText + (costText !== "" ? " + " : "") + "铃 " + costBell;
-                    if (bell < costBell) afford = false;
-                }
-                const equipped = p.craftBench.equippedWeapon === r.id;
-                const state = r.crafted ? "已做成" : (afford ? "可制作" : "缺料");
-                const mark = equipped ? " ◈" : "";
-                texts.put("xs", r.name + " · " + costText + " · " + state + mark, cx, top + 56 + i * 26,
-                    toColor(equipped ? PALETTE.cyanCore : (r.crafted ? PALETTE.silkDim : PALETTE.textBright)),
-                    0.5, 0.5, TextAlign.Center, 1.6, alpha, 0.08);
-            }
-            const firstMade = p.craftBench.firstCraftDone ? " · 首制完成" : "";
-            texts.put("xs", "E 制作 · Q 装备 · Esc 离开" + firstMade, cx, top + 128,
-                toColor(PALETTE.amber), 0.5, 0.5, TextAlign.Center, 1.5, alpha, 0.06);
-        }
-
-        if (p.reloadOpen) {
-            const bw = 400;
-            const cx = w * 0.5;
-            const by = h - 64 - safe.top;
-            const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / 240));
-            const effect = p.reloadPendingEffect;
-            const label = effect !== ""
-                ? "枪机复位 · " + (effect === "push" ? "推退" : (effect === "echo" ? "回声引声源" : "照明照遮蔽"))
-                : "连线换弹 · " + Math.min(9, p.reloadPath.length) + " / 9";
-            drawSilkVeil(uiDraw, uiArt, "hud_reload_veil", cx, by + 18, bw + 90, 48, PALETTE.inkWash, 0.76 * alpha, -1);
-            drawHairline(uiInkDraw, uiArt, "hud_reload_top", cx, by + 39, bw - 20, PALETTE.cyan, 0.55 * alpha, false, 2);
-            texts.put("xs", label, cx, by + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.8, alpha, 0.08);
-
-            for (let n = 0; n < 9; n++) {
-                const col = n % 3;
-                const row = Math.floor(n / 3);
-                const nx = cx + (col - 1) * 13;
-                const ny = by + 50 + row * 12;
-                const inPath = p.reloadPath.indexOf(n) >= 0;
-                const isEnd = n === 8;
-                uiArt.tryPlace("ink_enso_fine", "reload_node_" + n, nx, ny, isEnd ? 10 : 6, isEnd ? 10 : 6, {
-                    color: toColor(isEnd ? PALETTE.cyanCore : (inPath ? PALETTE.amber : PALETTE.silkDim)),
-                    opacity: (isEnd || inPath ? 0.92 : 0.4) * alpha, layer: 3,
-                });
-            }
-
-            const pbw = bw - 80;
-            const pbx = cx - pbw * 0.5;
-            const pby = by + 9;
-            uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw, pby), 1.4, toColor(PALETTE.silkDim, 115 * alpha));
-            if (ratio > 0.002) {
-                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 2.8, toColor(PALETTE.cyan, 220 * alpha));
-                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 1.0, toColor(PALETTE.cyanCore, 160 * alpha));
-            }
-        }
+        // 工台与 3×3 慢时换弹界面已分别由 CraftBenchPlugin / ReloadWheelPlugin 全速层接管，
+        // 此处不再叠绘旧版灰盒工台与顶部换弹条，避免新旧双层 UI 互相遮挡与错位键位提示。
 
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
             const g = p.room.story.gate;

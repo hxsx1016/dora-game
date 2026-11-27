@@ -610,11 +610,11 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         const route = this.resolveRoute(p, view);
         const isTower = p.room.key === "tower";
+        const alreadyCutscenePhase = isTower && (p.phase === "tower-given" || p.phase === "tower-end");
         const alreadyIndoorPhase = isTower && (
             p.phase === "tower-enter"
             || p.phase === "tower-desk"
-            || p.phase === "tower-given"
-            || p.phase === "tower-end"
+            || alreadyCutscenePhase
         );
         const sameRunIndoorRetry = isTower
             && this.lastRoomKey === "tower"
@@ -634,7 +634,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             return;
         }
 
-        if (sameRunIndoorRetry || alreadyIndoorPhase) {
+        if (sameRunIndoorRetry || alreadyCutscenePhase) {
             // 室内重试边界：塔门保持已开，不重关门，不重播敲门，不重复追加登记行
             this.indoorRetryCount += 1;
             this.doorClosedAfterRetry = false;
@@ -643,6 +643,15 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
                 this.seqElapsed = TOWER_ENDING_TIMINGS.divergeEndSec;
                 this.syncDerivedMilestones(this.seqElapsed, route);
             }
+            return;
+        }
+
+        if (p.phase === "tower-enter" || p.phase === "tower-desk") {
+            // 读档恢复到门廊/值夜室交互段：保持门开但让出画面给真实走位，不误增 indoorRetryCount
+            this.clearSequenceState(false);
+            this.doorOpened = true;
+            this.replyKnockCount = 2;
+            this.active = false;
             return;
         }
 

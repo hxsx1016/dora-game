@@ -312,20 +312,23 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const uiH = ctx.uiH;
         const safe = ctx.safeUi ?? ZERO_SAFE_INSETS;
         const touchMode = ctx.input.isTouchMode();
-        const benchW = Math.min(uiW - 88 - safe.left - safe.right, 692);
+        const count = Math.max(1, recipeCount);
+        const wantW = count >= 3 ? 840 : 692;
+        const benchW = Math.min(uiW - 44 - safe.left - safe.right, wantW);
         const benchH = 290;
         // 智能侧向停靠：避让画面中的周戍与落地小满，保持人物与木案同尺度同框可见
         const soldierUiX = ctx.cam.sx(ctx.p.player.x) / ctx.uiScale;
-        const minX = 36 + safe.left;
-        const maxX = Math.max(minX, uiW - benchW - 44 - safe.right);
-        const benchX = soldierUiX < uiW * 0.52 ? maxX : minX;
+        const minX = 24 + safe.left;
+        const maxX = Math.max(minX, uiW - benchW - 24 - safe.right);
+        const benchX = count >= 3
+            ? Math.max(minX, (uiW - benchW) * 0.5)
+            : (soldierUiX < uiW * 0.52 ? maxX : minX);
         const benchY = Math.max(46 + safe.bottom, Math.min(uiH * 0.10 + safe.bottom, 66 + safe.bottom));
-        const matW = 196;
+        const matW = count >= 3 ? 168 : 196;
 
-        const cardsAreaX = benchX + matW + 18;
-        const cardsAreaW = benchW - matW - 34;
-        const count = Math.max(1, recipeCount);
-        const gap = 14;
+        const cardsAreaX = benchX + matW + 16;
+        const cardsAreaW = benchW - matW - 30;
+        const gap = count >= 3 ? 10 : 14;
         const cardW = (cardsAreaW - gap * (count - 1)) / count;
         const cardH = benchH - 72;
         const cardY = benchY + 20;
@@ -889,14 +892,15 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         ctx.texts.put("xs", badge, box.x + box.width - 14, topY, toColor(badgeCol), 1, 0.5, TextAlign.Right, 1.0, 0.94 * appear, 0);
 
         // 中部左：迷你 3×3 连线强化效果预览（直接复用 reload_wheel 同源几何坐标与纹样）
-        const miniCx = box.x + 46;
+        const narrow = box.width < 195;
+        const miniCx = box.x + (narrow ? 36 : 46);
         const miniCy = box.y + box.height - 96;
         this.drawMiniReloadPreview(uiInkDraw, uiGlow, miniCx, miniCy, recipe.enhancedEffect, appear);
 
         // 中部右：强化要点 + 所需材料逐项状态（留足右侧呼吸边距）
-        const infoX = box.x + 90;
+        const infoX = box.x + (narrow ? 72 : 90);
         const effTitle = recipe.enhancedEffect === "light" ? "增强 · 灯纹照亮" : (recipe.enhancedEffect === "echo" ? "增强 · 铃纹回声" : "增强 · 推退");
-        ctx.texts.put("xs", effTitle, infoX, box.y + box.height - 64, toColor(PALETTE.rouge), 0, 0.5, TextAlign.Left, 0.8, 0.95 * appear, 0);
+        ctx.texts.put("xs", effTitle, infoX, box.y + box.height - 64, toColor(PALETTE.rouge), 0, 0.5, TextAlign.Left, narrow ? 0.3 : 0.8, 0.95 * appear, 0);
 
         let row = 0;
         for (const mat in recipe.cost) {

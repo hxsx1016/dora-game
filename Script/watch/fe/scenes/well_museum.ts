@@ -716,10 +716,12 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.glassAnchorX = ctx.uiW * MATCH_CUT_ANCHOR_NX;
         this.glassAnchorY = ctx.uiH * MATCH_CUT_ANCHOR_NY;
 
-        // 消费一次性模拟输入
+        // 消费一次性模拟输入（同时读取 input.frameInteractPressed，避免模拟步 endStep() 提前清掉边沿）
         const sim = this.simInput;
         this.simInput = undefined;
-        const interactPressed = ctx.input.interact.pressed || (sim !== undefined && sim.interact === true);
+        const interactPressed = ctx.input.interact.pressed
+            || ctx.input.frameInteractPressed
+            || (sim !== undefined && sim.interact === true);
         const moveX = sim !== undefined && sim.moveX !== undefined ? sim.moveX : ctx.input.moveX;
 
         // 阶段变更时初始化对应子阶段
@@ -787,10 +789,15 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.syncLoops(ctx, wantDrip, dripVol, false);
 
             if (gate.open && this.nearWell && interactPressed) {
-                const alreadyAwarded = view.archive.museumSeen
-                    || phase === "done"
-                    || (view.archive.artifactOwned && this.artifactGrantCount >= 1);
-                if (phase === "well_open" && !alreadyAwarded) {
+                const liveNeedsSecondEnter = !view.isRehearsal
+                    && p.room.key === "prologue"
+                    && view.archive.artifactOwned
+                    && !view.archive.museumSeen;
+                const alreadyAwarded = !liveNeedsSecondEnter
+                    && (view.archive.museumSeen
+                        || phase === "done"
+                        || (view.archive.artifactOwned && this.artifactGrantCount >= 1));
+                if ((phase === "well_open" || liveNeedsSecondEnter) && !alreadyAwarded) {
                     this.submitMuseumIntent(p, "well_pickup");
                 } else {
                     // 离馆后回井复查：仅呈平静水纹，不重复发奖也不强制再次传送
@@ -894,7 +901,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.hallCamX += (this.hallWalkX - this.hallCamX) * camFollow;
 
             // 走到玻璃展柜前：自动收起武器 + 稍后远方传来孩子轻脚步回响
-            if (!this.holstered && this.hallWalkX >= this.caseX - 85) {
+            const holsterThreshold = p.room.key === "museum" ? this.caseX + 12 : this.caseX - 85;
+            if (!this.holstered && this.hallWalkX >= holsterThreshold) {
                 this.holstered = true;
                 ctx.audio.playOnce(
                     "fe06:e02:holster:" + this.roomSessionId,
@@ -928,7 +936,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
 
             this.nearLamp = view.isRehearsal
                 ? Math.abs(this.hallWalkX - this.lampX) <= 72
-                : p.phase === "museum-lamp" && p.player.x >= this.lampX + p.ox;
+                : ((p.phase === "museum-hall" || p.phase === "museum-lamp")
+                    && Math.abs(p.player.x - (this.lampX + p.ox)) <= 72);
             this.savedResume = this.exportResumeState();
 
             if (this.nearLamp && interactPressed) {
@@ -1442,8 +1451,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         uiDraw.drawSegment(Vec2(0, floorY), Vec2(w, floorY), 2.0, Color(76, 86, 98, 220));
         uiDraw.drawRect(Rect(0, floorY, w, 12), Color(20, 24, 31, 240));
 
-        // 2. 入口序厅纪念铭墙（x = 180）
-        const plaqueX = toScreenX(180);
+        // 2. 入口序厅纪念铭墙（避开独立展厅 x = 200 玻璃展柜）
+        const plaqueWorldX = this.caseX <= 260 ? 108 : 180;
+        const plaqueX = toScreenX(plaqueWorldX);
         if (plaqueX > -240 && plaqueX < w + 240) {
             const pw = 290;
             const ph = 132;
@@ -1484,8 +1494,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         // 3. 中厅抗战史料挂板与玻璃展柜（x = 600）
         const caseSx = toScreenX(this.caseX);
         if (caseSx > -260 && caseSx < w + 260) {
-            // 两侧素雅历史展板
-            const boardOffsets = [-210, 210];
+            // 两侧素雅历史展板（当 caseX 贴近左缘时不越出房间左边界）
+            const boardOffsets = this.caseX <= 260 ? [180, 390] : [-210, 210];
             let bi = 0;
             for (bi = 0; bi < boardOffsets.length; bi++) {
                 const bx = caseSx + boardOffsets[bi];

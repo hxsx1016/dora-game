@@ -158,13 +158,15 @@ r6.story.cp = { id = 0 }
 r6.inventory.wood = 2; r6.taken["e2_wood_a"] = true; r6.finished = true
 local towerEnd = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, r6)
 towerEnd.phase = "tower-end"
+towerEnd.phaseTick = 0
 tap(i1, "interact"); towerEnd:update(play.STEP, i1); i1.interact.pressed = false
-check("片尾 E 立即回序章", towerEnd.wantRoom == "prologue")
+check("片尾满 8 秒前 E 不误跳", towerEnd.wantRoom == "", "want=" .. tostring(towerEnd.wantRoom))
 for _ = 1, play.TOWER_CONFIRM_TICKS do towerEnd:update(play.STEP, i1) end
-check("片尾长按不重复切房", towerEnd.wantRoom == "prologue")
+check("片尾长按不自动再玩", towerEnd.wantRoom == "", "want=" .. tostring(towerEnd.wantRoom))
 i1.interact.held = false
+towerEnd:update(play.STEP, i1)
 tap(i1, "interact"); towerEnd:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false
-check("片尾按 E 请求回序章", towerEnd.wantRoom == "prologue", "want=" .. towerEnd.wantRoom)
+check("片尾满 8 秒后新按 E 请求回序章", towerEnd.wantRoom == "prologue", "want=" .. towerEnd.wantRoom)
 check("片尾标记重开局内", towerEnd.restartStory == true)
 
 say("== C1-10. 调试直达不写正式通关 ==")

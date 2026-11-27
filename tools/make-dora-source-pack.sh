@@ -62,7 +62,8 @@ rsync -a \
     --exclude '.git' --exclude '.agent' --exclude '.cache' --exclude '.build' \
     --exclude '.download' --exclude '.upload' --exclude 'dist' --exclude 'API' \
     --exclude 'watch-save' --exclude 'tmp-*' --exclude '*.tmp' \
-    init.ts init.lua tsconfig.json Script assets tools README.md AGENTS.md CONTRIBUTING.md .gitattributes \
+    --exclude 'Script/core' --exclude 'Script/game' --exclude 'Script/watch/testdrive.lua' \
+    init.ts init.lua tsconfig.json LICENSE Script assets tools README.md AGENTS.md CONTRIBUTING.md .gitattributes \
     "$STAGE/"
 
 cat > "$STAGE/Dora平台运行说明.md" <<MD

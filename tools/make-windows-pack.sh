@@ -160,13 +160,16 @@ printf '%s' "$GAME_ID" > "$OUT/dora-game-id"
     printf 'commit=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 } > "$OUT/VERSION.txt"
 
-# 5. 注入启动引导、游戏 Lua 模块、完整运行时素材与 Windows 图标
+# 5. 注入启动引导、游戏 Lua 模块、完整运行时素材、开源许可与 Windows 图标
 cp "$ROOT/tools/windows-boot.lua" "$OUT/Script/init.lua"
 cp "$ROOT/init.lua" "$OUT/Script/main.lua"
 mkdir -p "$OUT/Script/watch"
-rsync -a --include='*/' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
-rsync -a --exclude '.DS_Store' --exclude '._*' "$ROOT/assets/" "$OUT/assets/"
+rsync -a --include='*/' --exclude='testdrive.lua' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
+rsync -a --exclude '.DS_Store' --exclude '._*' --exclude '*.md' "$ROOT/assets/" "$OUT/assets/"
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
+if [ -f "$ROOT/LICENSE" ]; then
+    cp "$ROOT/LICENSE" "$OUT/LICENSE"
+fi
 if [ -f "$ROOT/art-source/brand/icons/WestwardWatch.ico" ]; then
     cp "$ROOT/art-source/brand/icons/WestwardWatch.ico" "$OUT/${EXE_NAME}.ico"
     if [ -n "${RCEDIT_BIN:-}" ] && [ -x "${RCEDIT_BIN}" ]; then
@@ -174,18 +177,18 @@ if [ -f "$ROOT/art-source/brand/icons/WestwardWatch.ico" ]; then
     fi
 fi
 
-# 6. 中文友好启动脚本（UTF-8 代码页 + 支持中文与空格路径）
-cat > "$OUT/启动-向西守望.cmd" <<CMD
-@echo off
-chcp 65001 >nul
-rem 《向西守望》Windows x64 便携包（${BACKEND_LABEL}）
-rem 请先完整解压 ZIP，再双击本文件或 ${EXE_NAME}.exe 启动游戏。
-cd /d "%~dp0"
-start "" "${EXE_NAME}.exe"
-CMD
+# 6. 中文友好启动脚本（CRLF 换行 + UTF-8 代码页 + 支持中文与空格路径）
+printf '%s\r\n' \
+    '@echo off' \
+    'chcp 65001 >nul' \
+    "rem 《向西守望》Windows x64 便携包（${BACKEND_LABEL}）" \
+    "rem 请先完整解压 ZIP，再双击本文件或 ${EXE_NAME}.exe 启动游戏。" \
+    'cd /d "%~dp0"' \
+    "start \"\" \"${EXE_NAME}.exe\"" \
+    > "$OUT/启动-向西守望.cmd"
 
 echo "== 3/4 自校验包内结构与生成 SHA256SUMS"
-for forbidden in www Doc dora-wa dora_godot.dll wa.dll Script/Dev Script/Tools; do
+for forbidden in www Doc dora-wa dora_godot.dll wa.dll Script/Dev Script/Tools Script/watch/testdrive.lua assets/audio/gate/MANIFEST.md; do
     if [ -e "$OUT/$forbidden" ]; then
         echo "打包自检失败：发现不应包含的冗余文件/目录 $forbidden" >&2
         exit 1
@@ -194,6 +197,7 @@ done
 for required in \
     "${EXE_NAME}.exe" \
     "${EXE_NAME}.ico" \
+    "LICENSE" \
     "dora-game-id" \
     "VERSION.txt" \
     "Script/init.lua" \

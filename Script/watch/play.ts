@@ -557,6 +557,17 @@ export class Play {
     towerDoorOpen = false;
     towerHanded = false;
     deskHold = 0;
+    /** 片尾 8 秒定格前若持续按着交互/重开键，须先松开再新按。 */
+    private towerEndMustRelease = false;
+
+    /** 片尾登记簿是否已定格满 8 秒且允许新按确认收页。 */
+    towerEndReady(): boolean {
+        const waitTicks = Math.max(0, TOWER_CONFIRM_TICKS - TOWER_REGISTER_TICKS);
+        return this.room.key === "tower"
+            && this.phase === "tower-end"
+            && this.phaseTick >= waitTicks
+            && !this.towerEndMustRelease;
+    }
 
     // —— 第三段工台与武器 ——
     /** 已装备的武器 id；标准铳之外由工台改制。 */
@@ -673,7 +684,7 @@ export class Play {
         // 周戍段（序章/街道/检查站/城门）操控周戍；其余路段操控小满。
         // 男主线背着妹妹进城外时仍控周戍：出入口同一间房，操控权按已锁路线分。
         const lockedRoute = this.run.story === undefined ? "" : this.run.story.route;
-        // 男主线进塔仍是周戍；女主线单人抵塔时控小满。城外/空村/森林同按路线分。
+        // 男主线背着妹妹进城外与北塔时仍控周戍；北塔团圆线小满作为 partner 站立身侧。
         const soldierRoom = (wr.key === "outside" || wr.key === "tower") && lockedRoute === "soldier";
         this.childMode = !soldierRoom
             && (wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower");
@@ -902,6 +913,19 @@ export class Play {
                 segments.push(k);
             }
         }
+        const props: string[] = [];
+        for (const k in this.run.props) {
+            const st = this.run.props[k];
+            if (st !== undefined) {
+                props.push(
+                    k
+                    + ":" + (st.broken ? "1" : "0")
+                    + ":" + Math.round(st.hp)
+                    + ":" + (st.wedge ? "1" : "0")
+                    + ":" + (st.revealed === true ? "1" : "0"),
+                );
+            }
+        }
         return {
             roomKey: this.room.key,
             checkpoint: this.checkpoint,
@@ -946,6 +970,13 @@ export class Play {
             talentReload: story.talents !== undefined ? story.talents.ranks.reload : 0,
             talentGuard: story.talents !== undefined ? story.talents.ranks.guard : 0,
             talentCraft: story.talents !== undefined ? story.talents.ranks.craft : 0,
+            props,
+            playerX: this.player.x,
+            playerY: this.player.y,
+            playerDepth: this.player.depth,
+            gateTick: this.gateTick,
+            hasBottle: this.hasBottle,
+            villagePassed: this.passed,
         };
     }
 
@@ -1051,27 +1082,41 @@ export class Play {
         return false;
     }
 
-    /** 结构化意图推进博物馆单步交互（与实体 E 键共享同一套校验与写档逻辑）。 */
+    /** 结构化意图推进博物馆单步交互（与实体 E 键共享同一套校验与写档逻辑，并同时兼容前端 E01/E02 别名）。 */
     private triggerMuseumIntent(target: string): boolean {
         const mu = this.room.story === undefined || this.room.story.museum === undefined
             ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
             : this.room.story.museum;
         const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
-        if (this.phase === "museum-cabinet" && (target === "" || target === "cabinet" || target === "weapon_case") && atCase) {
-            this.pendingMuseumIntentTarget = "cabinet";
-            return true;
+        const nearLamp = this.player.x >= this.ox + mu.lampX - 72;
+        if (this.phase === "museum-cabinet") {
+            if (target === "enter_hall" || ((target === "" || target === "cabinet" || target === "weapon_case") && atCase)) {
+                this.pendingMuseumIntentTarget = "cabinet";
+                return true;
+            }
         }
-        if (this.phase === "museum-hall" && (target === "" || target === "hall" || target === "corridor") && this.player.x >= this.ox + mu.hallX) {
-            this.pendingMuseumIntentTarget = "hall";
-            return true;
+        if (this.phase === "museum-hall") {
+            if ((target === "lamp_turn" || target === "lamp" || target === "west_lamp") && nearLamp) {
+                this.pendingMuseumIntentTarget = "lamp_direct";
+                return true;
+            }
+            if ((target === "" || target === "hall" || target === "corridor") && this.player.x >= this.ox + mu.hallX) {
+                this.pendingMuseumIntentTarget = "hall";
+                return true;
+            }
         }
-        if (this.phase === "museum-lamp" && (target === "" || target === "lamp" || target === "west_lamp") && this.player.x >= this.ox + mu.lampX) {
+        if (this.phase === "museum-lamp"
+            && (target === "" || target === "lamp" || target === "west_lamp" || target === "lamp_turn")
+            && nearLamp) {
             this.pendingMuseumIntentTarget = "lamp";
             return true;
         }
-        if (this.phase === "museum-return" && (target === "" || target === "return_cabinet" || target === "cabinet" || target === "return") && atCase) {
-            this.pendingMuseumIntentTarget = "return_cabinet";
-            return true;
+        if (this.phase === "museum-return") {
+            if (target === "begin_return_cabinet"
+                || ((target === "" || target === "return_cabinet" || target === "cabinet" || target === "return") && atCase)) {
+                this.pendingMuseumIntentTarget = "return_cabinet";
+                return true;
+            }
         }
         if (this.phase === "museum-done" && (target === "" || target === "return_cabinet" || target === "return")) {
             this.pendingMuseumIntentTarget = "done";
@@ -1118,6 +1163,7 @@ export class Play {
         inv.quickbelt = snap.quickbelt;
         this.run.story.craftedWeapon = snap.crafted;
         this.equippedWeapon = snap.equipped;
+        this.run.story.equippedWeapon = snap.equipped;
         this.carryOn = snap.carry;
         this.run.story.carry = snap.carry;
         this.craftBench.active = false;
@@ -1179,19 +1225,22 @@ export class Play {
         if (this.checkpoint > 0 && story.cp !== undefined && story.cp.id === this.checkpoint) {
             this.applyCheckpointSnap(this.checkpoint);
         }
-        // 北塔：男主背着妹妹到门前，放到地上并肩同行；女主单人抵塔。
+        // 北塔：男主背着妹妹到门前，放下小满并肩同行（player=周戍，partner=小满，均在左塔墙 180..400 外侧）。
         if (this.room.key === "tower" && story.route === "soldier") {
             this.carryOn = false;
             this.run.story.carry = false;
+            this.player.w = SOLDIER_W;
+            this.player.h = SOLDIER_H;
+            this.player.x = Math.max(this.ox + 422, this.player.x);
             this.partner = {
-                x: Math.max(this.room.minX + 40, this.player.x - 36),
+                x: Math.max(this.ox + 408, this.player.x - 24),
                 y: 0,
                 depth: 0,
                 depthSpeed: 0,
                 vx: 0,
                 vy: 0,
-                w: SOLDIER_W,
-                h: SOLDIER_H,
+                w: CHILD_W,
+                h: CHILD_H,
                 onGround: true,
                 facing: 1,
                 crouch: false,
@@ -1971,7 +2020,8 @@ export class Play {
             return;
         }
 
-        if (!isChild && !this.gripping && !gripIntent && input.jump.pressed && a.onGround) {
+        const peacefulRoom = this.room.key === "museum" || this.room.key === "tower";
+        if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && input.jump.pressed && a.onGround) {
             if (input.moveX !== 0) {
                 a.facing = input.moveX > 0 ? 1 : -1;
             }
@@ -2029,8 +2079,8 @@ export class Play {
         this.slideX(a, a.vx * dt);
         this.fallY(a, dt);
 
-        // 点射：周戍按住左键，朝准星打一条线；两手握车时不能开枪。
-        if (!isChild && !this.gripping && !gripIntent && input.fire.pressed) {
+        // 点射：周戍按住左键，朝准星打一条线；两手握车或在博物馆/北塔静默室内不能开枪。
+        if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && input.fire.pressed) {
             this.shoot(a);
         }
     }
@@ -2365,13 +2415,11 @@ export class Play {
                 this.pickWell();
                 return;
             }
-            // 拿到穿梭器后，再在井沿按一次，才进馆；不打断寻柜。
-            if (!this.wellOpen && this.archive.artifactOwned && !this.archive.museumSeen
+            // 拿到穿梭器后，仅正式进度在井沿再按一次进馆；章节/调试预览不泄漏进馆。
+            if (!this.wellOpen && this.canPersistProgress() && this.archive.artifactOwned && !this.archive.museumSeen
                 && this.nearWell() && input.interact.pressed) {
-                if (this.canPersistProgress()) {
-                    this.archive.museumPhase = "well_reflect";
-                    this.archiveDirty = true;
-                }
+                this.archive.museumPhase = "well_reflect";
+                this.archiveDirty = true;
                 this.requestRoom("museum", "初次使用 · 时间穿梭器");
                 return;
             }
@@ -2421,10 +2469,11 @@ export class Play {
             }
             return;
         }
-        // 跟随段：两人一起到门口。
+        // 跟随段：两人一起到门口（正式/选章直入 S1 十字街，消除双重街道；调试模式保留 street 兼容旧单房验证）。
         if (this.player.x >= this.ox + 660 && child.x >= this.ox + 620) {
-            this.requestRoom("street", "序章跟到门口");
-            this.flashSet("进街道", 1.2);
+            const next = this.run.source === "debug" ? "street" : "s1-crossroad";
+            this.requestRoom(next, "序章跟到门口");
+            this.flashSet(next === "s1-crossroad" ? "进十字街" : "进街道", 1.2);
         }
     }
 
@@ -2506,9 +2555,9 @@ export class Play {
                 this.flashSet("敌兵出现 · 第 " + (idx + 1) + " 批", 0.9);
             }
             if (this.gateTick === 900) {
-                this.flashSet("灯灭了", 1.0);
+                this.flashSet("棚布落下", 1.0);
             } else if (this.gateTick === 2100) {
-                this.flashSet("门底压下来了", 1.0);
+                this.flashSet("门底透进冷光了", 1.0);
             }
             if (this.gateTick >= g.holdTicks) {
                 // 殿后最后一拍的伤害已由 stepEnemies 结算完，此刻只取血。
@@ -2552,8 +2601,8 @@ export class Play {
                     this.phaseTick = 0;
                     this.knocks = 1;
                     this.emit("knock", { count: 1, x: this.ox + g.doorX + 70, room: "gate" });
-                    // 数完还按着 E 的不算「重新按住」，必须先松开再按。
-                    this.handArmed = !input.interact.held;
+                    // 数完还按着 E 或前端长按意图的不算「重新按住」，必须先松开再按。
+                    this.handArmed = !input.interact.held && !this.intentGateReunionHold;
                     this.flashSet("两下轻叩 · 按住 E 牵起她", 2.4);
                 } else {
                     this.flashSet("数到二十", 2.2);
@@ -2654,6 +2703,7 @@ export class Play {
         this.maxHpAtGate = this.maxHpAtGate > 0 ? this.maxHpAtGate : this.maxHp;
         this.storyRoute = 100 * hp >= GATE_ROUTE_PERCENT * maxHp ? "soldier" : "child";
         this.storySettled = true;
+        this.sessionDirty = true;
         this.emit("storyRouteLocked", {
             route: this.storyRoute, hp: this.hp, maxHp: this.maxHp,
             hpAtGate: this.hpAtGate, maxHpAtGate: this.maxHpAtGate,
@@ -2683,6 +2733,7 @@ export class Play {
         s.museumReturn = this.museumReturn;
         s.escortDone = this.escortDone;
         s.craftedWeapon = this.run.story.craftedWeapon;
+        s.equippedWeapon = this.equippedWeapon;
         s.ending = this.run.story.ending;
         if (this.room.key === "gate") {
             s.phase = this.phase;
@@ -2764,11 +2815,12 @@ export class Play {
             ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
             : this.room.story.museum;
         const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
+        const nearLamp = this.player.x >= this.ox + mu.lampX - 72;
         const intentTarget = this.pendingMuseumIntentTarget;
         this.pendingMuseumIntentTarget = "";
         const interactHit = input.interact.pressed || intentTarget !== "";
         if (this.phase === "museum-cabinet") {
-            if (atCase && interactHit) {
+            if ((atCase && interactHit) || intentTarget === "cabinet") {
                 this.phase = "museum-hall";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2781,6 +2833,18 @@ export class Play {
             return;
         }
         if (this.phase === "museum-hall") {
+            if (intentTarget === "lamp_direct" && nearLamp) {
+                this.emit("museumStep", { step: "hall", x: this.ox + mu.hallX, persisted: this.canPersistProgress() });
+                this.phase = "museum-return";
+                this.phaseTick = 0;
+                if (this.canPersistProgress()) {
+                    this.archive.museumPhase = "return_cabinet";
+                    this.archiveDirty = true;
+                }
+                this.emit("museumStep", { step: "lamp", x: this.ox + mu.lampX, persisted: this.canPersistProgress() });
+                this.flashSet("灯 · 转向西窗", 1.8);
+                return;
+            }
             if (this.player.x >= this.ox + mu.hallX && interactHit) {
                 this.phase = "museum-lamp";
                 this.phaseTick = 0;
@@ -2794,7 +2858,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-lamp") {
-            if (this.player.x >= this.ox + mu.lampX && interactHit) {
+            if (nearLamp && interactHit) {
                 this.phase = "museum-return";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2807,7 +2871,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-return") {
-            if (atCase && interactHit) {
+            if ((atCase && interactHit) || intentTarget === "return_cabinet") {
                 this.phase = "museum-knock";
                 this.phaseTick = 0;
                 this.emit("museumStep", { step: "knock", count: 1, x: this.ox + mu.cabinetX, persisted: this.canPersistProgress() });
@@ -2855,9 +2919,9 @@ export class Play {
         if (t === undefined) {
             return;
         }
-        // 团圆线：周戍站在小满身侧随行跨过门槛、共立值夜室案前。
+        // 团圆线：周戍站在小满身侧随行跨过门槛、共立值夜室案前（避免穿入左塔墙 180..400）。
         if (this.storyRoute === "soldier" && this.partner.alive) {
-            const targetX = Math.max(this.room.minX + 40, this.player.x - 36);
+            const targetX = Math.max(this.ox + 408, this.player.x - 28);
             const gap = targetX - this.partner.x;
             if (Math.abs(gap) > 2) {
                 const dir = gap > 0 ? 1 : -1;
@@ -2945,6 +3009,7 @@ export class Play {
             } else if (this.phaseTick >= TOWER_REGISTER_TICKS) {
                 this.phase = "tower-end";
                 this.phaseTick = 0;
+                this.towerEndMustRelease = input.interact.held || input.retry.held;
                 if (!this.run.finished) {
                     this.run.finished = true;
                     const ending = soldier ? "reunion" : "lamp";
@@ -2982,6 +3047,20 @@ export class Play {
             return;
         }
         this.phaseTick += 1;
+        const held = input.interact.held || input.retry.held;
+        if (this.towerEndMustRelease) {
+            if (!held) {
+                this.towerEndMustRelease = false;
+            }
+            return;
+        }
+        const waitTicks = Math.max(0, TOWER_CONFIRM_TICKS - TOWER_REGISTER_TICKS);
+        if (this.phaseTick < waitTicks) {
+            if (input.interact.pressed || input.retry.pressed) {
+                this.towerEndMustRelease = held;
+            }
+            return;
+        }
         if (input.interact.pressed || input.retry.pressed) {
             // 回序章要重开一份局内状态（清路线、材料、拾取、检查点），但档案仍共享同一份。
             this.restartStory = true;
@@ -3046,14 +3125,7 @@ export class Play {
             }
             return;
         }
-        // 追逐：以 96 单位/秒靠近，接触即被抓。
-        const dir = p.x > this.scavX ? 1 : -1;
-        this.scavX += dir * 96 / 60;
-        if (Math.abs(p.x - this.scavX) < 18 && Math.abs(p.y - s.y) < 40) {
-            this.caught();
-            return;
-        }
-        // 蹲下或钻桌后甩掉视线 60 拍，回到巡逻。
+        // 蹲下或钻桌后立刻安全遮蔽（不可隔桌捕人），60 拍甩掉视线回到巡逻。
         if (hidden) {
             this.scavSee = 0;
             this.scavT = this.scavT > 0 ? this.scavT : 60;
@@ -3063,6 +3135,14 @@ export class Play {
                 this.scavState = "patrol";
                 this.flashSet("他失去了目标", 1.0);
             }
+            return;
+        }
+        // 追逐：以 96 单位/秒靠近，接触即被抓。
+        const dir = p.x > this.scavX ? 1 : -1;
+        this.scavX += dir * 96 / 60;
+        if (Math.abs(p.x - this.scavX) < 18 && Math.abs(p.y - s.y) < 40) {
+            this.caught();
+            return;
         }
     }
 
@@ -3124,7 +3204,7 @@ export class Play {
                 this.caught();
                 this.dogState = "sniff";
                 this.dogT = 60;
-            } else if (dist > effectiveRange * 1.5 || p.crouch || sheltered) {
+            } else if (dist > effectiveRange * 1.5 || sheltered) {
                 this.dogState = "sniff";
                 this.dogT = 60;
                 this.flashSet(inBurrowCover ? "树根窄洞遮住身形 · 狗停下了" : "狗停下了", 0.9);
@@ -3729,7 +3809,8 @@ export class Play {
             targetDepth = this.partnerLaneIdx === 0 ? 0 : (this.partnerLaneIdx === 1 ? 32 : -32);
         }
         const dx = targetX - a.x;
-        if (!wait && Math.abs(dx) > 74) {
+        const stopTol = wait ? 18 : 74;
+        if (Math.abs(dx) > stopTol) {
             const speed = Math.abs(dx) > 260 ? CHILD_SPEED * 1.4 : CHILD_SPEED;
             const before = a.x;
             a.vx = dx > 0 ? speed : -speed;
@@ -3763,18 +3844,24 @@ export class Play {
         for (i = 0; i < this.enemies.length; i++) {
             if (this.run.trial?.lost) return;
             const e = this.enemies[i];
+            if (e.kind === "target") {
+                // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来（必须在 !e.alive 之前检查，避免永久倒靶）。
+                if (!e.alive) {
+                    if (e.hitT > 0) {
+                        e.hitT -= dt;
+                    }
+                    if (e.hitT <= 0) {
+                        e.alive = true;
+                        e.hitT = 0;
+                    }
+                }
+                continue;
+            }
             if (!e.alive) {
                 continue;
             }
             if (e.hitT > 0) {
                 e.hitT -= dt;
-            }
-            if (e.kind === "target") {
-                // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来。
-                if (!e.alive && e.hitT <= 0) {
-                    e.alive = true;
-                }
-                continue;
             }
             if (e.kind === "breaker") {
                 this.stepBreaker(e, dt);
@@ -3839,7 +3926,7 @@ export class Play {
         const px = p.x;
         const py = p.y + p.h * 0.55;
         const dx = px - ex;
-        const dyScreen = (py + p.depth) - (ey + eDepth);
+        const dyScreen = (py + p.depth * DEPTH_Y_SCALE) - (ey + eDepth * DEPTH_Y_SCALE);
         const len = Math.sqrt(dx * dx + dyScreen * dyScreen);
         if (len < 0.01) {
             return false;
@@ -3921,14 +4008,18 @@ export class Play {
         // 否则玩家握车柄推车时没有还手窗口，三种过法都会被同一个近身打断。
         const guardLane = this.room.key === "c2-granary" && (e.depth ?? 0) >= 20;
         const sameLane = Math.abs((e.depth ?? 0) - p.depth) <= 20;
-        if (adx > 150) {
+        if (adx > 44) {
             const before = e.x;
-            e.x += (dx > 0 ? 1 : -1) * 60 * dt;
+            const stepX = (dx > 0 ? 1 : -1) * 60 * dt;
+            const nextX = Math.max(this.room.minX + 16, Math.min(this.room.maxX - 16, e.x + stepX));
+            if (!this.enemyBlockedAtX(e, nextX)) {
+                e.x = nextX;
+            }
             if (!guardLane && Math.abs(e.x - before) < 0.3) {
                 // 被挡：尝试换更深/更浅一档绕行。
-                e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
+                e.depth = Math.max(-32, Math.min(32, (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16)));
             }
-        } else if (adx < 48 && sameLane && (e.swingT ?? 0) <= 0) {
+        } else if (adx <= 48 && sameLane && (e.swingT ?? 0) <= 0) {
             // 翻滚只抵消正面来击：盾手在背后挥过来时，往前滚等于把后背送上去。
             // 全向免疫会让翻滚变成无成本的万能键，也就没有"看时机再滚"可言。
             const fromFront = (e.x - p.x) * p.facing > 0;
@@ -3984,15 +4075,18 @@ export class Play {
         const reach = target === undefined ? 46 : (target.x1 - target.x0) / 2 + 40;
         if (Math.abs(dx) > reach) {
             const before = e.x;
-            e.x += (dx > 0 ? 1 : -1) * 48 * dt;
+            const nextX = Math.max(this.room.minX + 16, Math.min(this.room.maxX - 16, e.x + (dx > 0 ? 1 : -1) * 48 * dt));
+            if (!this.enemyBlockedAtX(e, nextX)) {
+                e.x = nextX;
+            }
             if (Math.abs(e.x - before) < 0.3) {
-                e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
+                e.depth = Math.max(-32, Math.min(32, (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16)));
             }
         } else if ((e.swingT ?? 0) <= 0) {
             e.swingT = 64;
             if (target !== undefined) {
                 this.damageProp(target, 2);
-            } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
+            } else if (Math.abs(p.x - e.x) < 60 && Math.abs((e.depth ?? 0) - p.depth) <= 26 && this.invulnT <= 0) {
                 this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
@@ -4007,6 +4101,26 @@ export class Play {
         if ((e.swingT ?? 0) > 0) {
             e.swingT = (e.swingT ?? 0) - 1;
         }
+    }
+
+    /** 判定敌兵横向移动到 nextX 是否会撞上同层实体墙体（避免盾手/破障手穿墙）。 */
+    private enemyBlockedAtX(e: Enemy, nextX: number): boolean {
+        const half = e.w * 0.5;
+        const d = e.depth ?? 0;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.broken === true || b.passable === true || b.soft === true || b.hidden === true || b.y0 >= e.y + e.h || b.y1 <= e.y + 4) {
+                continue;
+            }
+            if (b.depth !== undefined && (d < b.depth.min - 8 || d > b.depth.max + 8)) {
+                continue;
+            }
+            if (nextX + half > b.x0 && nextX - half < b.x1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private campaignFailed(): void {
@@ -4083,6 +4197,7 @@ export class Play {
         this.carryOn = false;
         story.craftedWeapon = "";
         this.equippedWeapon = "standard_gun";
+        story.equippedWeapon = "standard_gun";
         story.escortDone = false;
         this.escortDone = false;
         story.segments = {};
@@ -4182,6 +4297,11 @@ export class Play {
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
+        if (this.blockedShot(e, p)) {
+            this.emit("coverBlocked", { entity: "实体遮挡", enemyX: e.x, hp: this.hp });
+            e.fireCd = FIRE_COOLDOWN;
+            return;
+        }
         // 贴靠实体 + 来向 + 主动按 Shift，三件事同时成立才挡；站绞盘空地按 Shift 照吃。
         const cover = this.blockedByCover(e, p);
         const hugging = cover !== undefined;
@@ -4198,6 +4318,11 @@ export class Play {
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
+        if (this.invulnT > 0) {
+            e.fireCd = FIRE_COOLDOWN;
+            return;
+        }
+        this.invulnT = INVULN_HIT_TICKS;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
         this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.7);
@@ -4447,9 +4572,10 @@ export class Play {
                 this.footHintT = 90;
                 const scavX = this.scavX;
                 const near = Math.abs(scavX - p.x) < 120;
-                const heard = near || this.scavState === "walk" || this.scavState === "chase";
+                const walkingAway = this.scavState === "walk" && Math.abs(this.scavTargetX - p.x) >= 120;
+                const heard = this.scavState === "chase" || (near && !walkingAway);
                 this.flashSet(heard ? "桌下 · 脚步近了，别出声" : "桌下 · 脚步远了，趁现在钻", 1.2);
-                this.emit("storyBeat", { beat: near ? "footstep_near" : "footstep_far", x: p.x, room: "village" });
+                this.emit("storyBeat", { beat: heard ? "footstep_near" : "footstep_far", x: p.x, room: "village" });
             }
         } else {
             this.footHintT = 0;
@@ -4467,13 +4593,14 @@ export class Play {
         }
     }
 
-    /** 准星点的世界坐标换算成「实际落点」：横向就是准星 x，纵向取该处地面。 */
+    /** 准星点的世界坐标换算成「实际落点」：横向钳位在房间内（防投出屏外负坐标），纵向取该处地面。 */
     private bottleEnd(): { x: number; y: number } {
         const aim = this.worldMapper !== undefined
             ? this.worldMapper(this.aimX, this.aimY)
             : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
-        const g = this.groundAt(aim.x, aim.y + 240, 3);
-        return { x: aim.x, y: g };
+        const clampedX = Math.max(this.room.minX + 12, Math.min(this.room.maxX - 12, aim.x));
+        const g = this.groundAt(clampedX, aim.y + 240, 3);
+        return { x: clampedX, y: g };
     }
 
     /** 固定飞行时间反解初速；终点就是准星指定的落点，预览与触地用同一套参数。 */

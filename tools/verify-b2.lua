@@ -361,8 +361,11 @@ check("落幕事件只一次", #pt.events >= 1 and pt.run.finished == true, "fin
 local endEvents = 0
 for _, ev in ipairs(pt.events) do if ev.name == "endingReached" then endEvents = endEvents + 1 end end
 check("endingReached 恰一次", endEvents == 1, "count=" .. endEvents)
-tap(it, "interact"); step(pt, it)
-check("片尾 E 再玩回序章", pt.wantRoom == "prologue", "wantRoom=" .. pt.wantRoom)
+tap(it, "interact"); step(pt, it); rel(it, "interact")
+check("片尾 8 秒阅读期内提前按 E 不中断落幕", pt.wantRoom == "", "wantRoom=" .. pt.wantRoom)
+step(pt, it, 305)
+tap(it, "interact"); step(pt, it); rel(it, "interact")
+check("片尾满 8 秒后 E 再玩回序章", pt.wantRoom == "prologue", "wantRoom=" .. pt.wantRoom)
 check("再玩不改结局", pt.run.story.ending == "reunion", "ending=" .. pt.run.story.ending)
 
 say("== 8. 北塔：女主留灯 ==")

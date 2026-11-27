@@ -52,8 +52,32 @@ export function getControlSettingsFile(): string {
     return customControlsFile !== "" ? customControlsFile : DEFAULT_CONTROLS_FILE;
 }
 
+function isAbsolutePath(p: string): boolean {
+    if (p.length === 0) return false;
+    if (p.charAt(0) === "/" || p.charAt(0) === "\\") return true;
+    return p.length >= 2 && p.charAt(1) === ":";
+}
+
 function resolvePath(rel: string): string {
-    return Content.writablePath + "/" + rel;
+    if (isAbsolutePath(rel)) {
+        return rel;
+    }
+    const base = Content.writablePath;
+    const sep = base.indexOf("\\") >= 0 && base.indexOf("/") < 0 ? "\\" : "/";
+    const normRel = sep === "\\" ? rel.split("/").join("\\") : rel;
+    const trimmed = (base.endsWith("/") || base.endsWith("\\")) ? base.slice(0, -1) : base;
+    return trimmed + sep + normRel;
+}
+
+function parentDirOf(p: string): string {
+    let i = p.length - 1;
+    for (; i >= 0; i--) {
+        const ch = p.charAt(i);
+        if (ch === "/" || ch === "\\") {
+            return p.slice(0, i);
+        }
+    }
+    return "";
 }
 
 export function defaultControlSettings(): ControlSettings {
@@ -143,8 +167,9 @@ export function loadControlSettings(): ControlSettings {
 
 export function saveControlSettings(s: ControlSettings): void {
     try {
-        const dir = Content.writablePath + "/watch-save";
-        if (!Content.exist(dir)) {
+        const target = resolvePath(getControlSettingsFile());
+        const dir = parentDirOf(target);
+        if (dir !== "" && !Content.exist(dir)) {
             Content.mkdir(dir);
         }
         const text =
@@ -157,7 +182,7 @@ export function saveControlSettings(s: ControlSettings): void {
             + "touchOpacity=" + s.touchOpacity.toFixed(2) + "\n"
             + "touchScale=" + s.touchScale.toFixed(2) + "\n"
             + "haptics=" + (s.haptics ? "1" : "0") + "\n";
-        Content.save(resolvePath(getControlSettingsFile()), text);
+        Content.save(target, text);
     } catch {
         // 只读环境下静默忽略落盘失败
     }

@@ -1139,8 +1139,8 @@ export class TouchRouter {
             this.aimX = smart.x;
             this.aimY = smart.y;
             this.hasAim = true;
-            this.qFirePressed = true;
-            if (!fromMouse) this.vibrate(0.016);
+            // 不在按下瞬间误射：统一在松手时发射一发（短按智能快射 / 拖动 ≥阈值 360° 精瞄松手发射）
+            if (!fromMouse) this.vibrate(0.012);
         } else if (btn.id === "bottle") {
             this.bottleFingerId = id;
             this.bottleOriginOvX = btn.x;
@@ -1318,7 +1318,7 @@ export class TouchRouter {
         }
 
         if (f.kind === "btn" && f.btnId === "fire" && this.fireFingerId === id) {
-            if (f.firedOnDrag && this.ctx.canShoot) {
+            if (this.ctx.canShoot) {
                 this.qFirePressed = true;
                 if (!fromMouse) this.vibrate(0.016);
             }

@@ -374,10 +374,13 @@ export class WatchFrontend {
         return act;
     }
 
-    /** 局内试玩态：检测点击是否命中男主线护送段的三选一本领卡（命中后直接习得并吞掉当拍开火） */
+    /** 局内试玩态：检测点击是否命中男主线护送段的三选一本领卡（仅消费真实指针点击，不误吃手柄右摇杆枪口准星） */
     tryPickTalentAtPointer(p: Play, input: Input, w: number, h: number): boolean {
         const offers = p.getStoryTalentOffers();
         if (offers.length === 0) {
+            return false;
+        }
+        if (input.inputMode === "gamepad" && !input.uiPressed) {
             return false;
         }
         const useUiPtr = input.uiInside || input.uiPressed;
@@ -489,8 +492,8 @@ export class WatchFrontend {
             this.cam.update(worldDt, p, w, h);
             this.actors.update(worldDt, p);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
-            this.hud.update(worldDt, p);
-            this.narrative.update(worldDt, p);
+            this.hud.update(safeDt, p);
+            this.narrative.update(safeDt, p);
         } else {
             this.cam.update(0, p, w, h);
         }
@@ -560,8 +563,10 @@ export class WatchFrontend {
         // 5. 世界空间特效
         this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam);
 
-        // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边
-        this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
+        // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边（低模与现代博物馆自有前景压边，不叠绘像素暗块）
+        if (view.visualMode === "pixel") {
+            this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
+        }
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱

@@ -627,7 +627,11 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         const p = ctx.p;
         const cam = ctx.cam;
         const ox = p.ox;
-        const opened = p.phase === "tower-given" || p.phase === "tower-end";
+        const opened = p.towerDoorOpen
+            || p.phase === "tower-enter"
+            || p.phase === "tower-desk"
+            || p.phase === "tower-given"
+            || p.phase === "tower-end";
         const scene = new LowpolyScene(cam, this.towerProj, TOWER_WEST_LAMP_LIGHT);
 
         // 1. 山顶青石走面与塔基石阶
@@ -795,6 +799,36 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.drawOutsideCartLowpoly(fgDraw, fgGlow, ctx);
         }
         if (key === "tower") {
+            const p = ctx.p;
+            const opened = p.towerDoorOpen || p.phase === "tower-enter" || p.phase === "tower-desk";
+            if (opened) {
+                const cam = ctx.cam;
+                const deskCx = cam.sx(p.ox + 605);
+                const groundY = cam.sy(0);
+                const deskW = cam.len(84);
+                const deskH = cam.len(34);
+                const deskTop = groundY + deskH;
+                const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(28), cam.len(120), cam.len(88),
+                    Color(255, 198, 114, Math.round(74 * pulse)), Color(255, 168, 72, 0), 16);
+                // 低模值夜室守卒轮廓与实木值夜桌
+                const guardX = deskCx + cam.len(26);
+                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(28, 34, 44, 240));
+                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(36, 44, 56, 245));
+                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
+                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
+                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(102, 68, 42, 255), 1, Color(146, 106, 66, 220));
+                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(230, 220, 196, 245));
+                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(166, 126, 62, 245));
+                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                if (p.deskHold >= 12 || p.towerHanded) {
+                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                }
+                if (p.deskHold >= 24 || p.towerHanded) {
+                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                }
+            }
             return true;
         }
         return false;
