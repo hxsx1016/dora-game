@@ -10,7 +10,7 @@ function ____exports.isCutsceneBlockingPlay(p) -- 8
 		return true -- 14
 	end -- 14
 	if rk == "gate" then -- 14
-		if ph == "gate-hand" then -- 14
+		if ph == "gate-farewell" or ph == "gate-hand" then -- 14
 			return true -- 17
 		end -- 17
 		if ph == "gate-count" and p.countTick < GATE_COUNT_END then -- 17

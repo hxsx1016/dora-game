@@ -161,7 +161,16 @@ export class EscortWorldRenderer {
         }
 
         // 2. 贯穿全线的远景「宁村北塔与西窗暖灯」（escort2 透窗见灯，其余五段直映山脊）
-        this.drawDistantNorthTower(towerDraw, bgGlow, w, h, cam.x, time, spec, dynamicDawn, key === "escort2");
+        const ridgePath = "assets/art/bg_escort_ridge.png";
+        const ridge = backdropArt.currentSprite("ming_fallback_scene", ridgePath) ?? backdropArt.currentSprite("scene", ridgePath);
+        let paintedWindow: Vec2.Type | undefined;
+        if (ridge !== undefined && ridge.visible && ridge.opacity > 0) {
+            // 西窗在 640×360 底图的 (568, 51)，图片坐标从左上起算。
+            const x = ridge.x + (568 / 640 - ridge.anchor.x) * ridge.width * ridge.scaleX;
+            const y = ridge.y + (1 - 51 / 360 - ridge.anchor.y) * ridge.height * ridge.scaleY;
+            if (x >= 0 && x <= w && y >= 0 && y <= h) paintedWindow = Vec2(x, y);
+        }
+        this.drawDistantNorthTower(towerDraw, bgGlow, w, h, cam.x, time, spec, dynamicDawn, key === "escort2", paintedWindow);
 
         // 3. 流动海雾/山岚水墨带（柔和低透明度，消除平板背景感）
         const mistShift = ((time * 12 + cam.x * 0.16) % (w + 460)) - 230;
@@ -298,6 +307,7 @@ export class EscortWorldRenderer {
         spec: TowerStageSpec,
         dawnWarmth: number,
         behindWindow: boolean,
+        paintedWindow?: Vec2.Type,
     ): void {
         const s = spec.scale;
         const tx = w * spec.screenXFrac - camX * 0.045;
@@ -305,56 +315,58 @@ export class EscortWorldRenderer {
         const pulse = 0.86 + 0.14 * Math.sin(time * 2.5);
         const alphaMul = behindWindow ? 0.62 : 1.0;
 
-        // 远山脊底座
-        const ridgeW = 190 * s + 95;
-        const ridgeH = 44 * s + 22;
-        const ridgeCol = Color(
-            Math.round(20 + dawnWarmth * 16),
-            Math.round(26 + dawnWarmth * 14),
-            Math.round(38 + dawnWarmth * 8),
-            Math.round(188 * alphaMul),
-        );
-        bgDraw.drawPolygon([
-            Vec2(tx - ridgeW, ty - ridgeH),
-            Vec2(tx + ridgeW * 0.72, ty - ridgeH),
-            Vec2(tx + ridgeW * 0.16, ty + 6 * s),
-            Vec2(tx - ridgeW * 0.32, ty + 2 * s),
-        ], ridgeCol);
-
-        // 明代石砌塔身（微收分梯形）
-        const baseW = 44 * s;
         const topW = 34 * s;
         const bodyH = 62 * s;
-        const towerCol = Color(
-            Math.round(24 + dawnWarmth * 14),
-            Math.round(30 + dawnWarmth * 12),
-            Math.round(42 + dawnWarmth * 8),
-            Math.round(225 * alphaMul),
-        );
-        const rimCol = Color(138, 148, 166, Math.round(68 * alphaMul));
-        bgDraw.drawPolygon([
-            Vec2(tx - baseW * 0.5, ty - 4 * s),
-            Vec2(tx + baseW * 0.5, ty - 4 * s),
-            Vec2(tx + topW * 0.5, ty + bodyH),
-            Vec2(tx - topW * 0.5, ty + bodyH),
-        ], towerCol, 0.8, rimCol);
+        if (paintedWindow === undefined) {
+            // 远山脊底座
+            const ridgeW = 190 * s + 95;
+            const ridgeH = 44 * s + 22;
+            const ridgeCol = Color(
+                Math.round(20 + dawnWarmth * 16),
+                Math.round(26 + dawnWarmth * 14),
+                Math.round(38 + dawnWarmth * 8),
+                Math.round(188 * alphaMul),
+            );
+            bgDraw.drawPolygon([
+                Vec2(tx - ridgeW, ty - ridgeH),
+                Vec2(tx + ridgeW * 0.72, ty - ridgeH),
+                Vec2(tx + ridgeW * 0.16, ty + 6 * s),
+                Vec2(tx - ridgeW * 0.32, ty + 2 * s),
+            ], ridgeCol);
 
-        // 塔顶歇山钟亭柱与飞檐
-        const pavH = 18 * s;
-        const eaveY = ty + bodyH + pavH;
-        const eaveW = 54 * s;
-        bgDraw.drawRect(Rect(tx - topW * 0.38, ty + bodyH, 3 * s, pavH), towerCol);
-        bgDraw.drawRect(Rect(tx + topW * 0.38 - 3 * s, ty + bodyH, 3 * s, pavH), towerCol);
-        bgDraw.drawPolygon([
-            Vec2(tx - eaveW * 0.54, eaveY - 2 * s),
-            Vec2(tx + eaveW * 0.54, eaveY - 2 * s),
-            Vec2(tx + eaveW * 0.24, eaveY + 13 * s),
-            Vec2(tx - eaveW * 0.24, eaveY + 13 * s),
-        ], Color(18, 22, 32, Math.round(238 * alphaMul)), 0.8, rimCol);
+            // 明代石砌塔身（微收分梯形）
+            const baseW = 44 * s;
+            const towerCol = Color(
+                Math.round(24 + dawnWarmth * 14),
+                Math.round(30 + dawnWarmth * 12),
+                Math.round(42 + dawnWarmth * 8),
+                Math.round(225 * alphaMul),
+            );
+            const rimCol = Color(138, 148, 166, Math.round(68 * alphaMul));
+            bgDraw.drawPolygon([
+                Vec2(tx - baseW * 0.5, ty - 4 * s),
+                Vec2(tx + baseW * 0.5, ty - 4 * s),
+                Vec2(tx + topW * 0.5, ty + bodyH),
+                Vec2(tx - topW * 0.5, ty + bodyH),
+            ], towerCol, 0.8, rimCol);
+
+            // 塔顶歇山钟亭柱与飞檐
+            const pavH = 18 * s;
+            const eaveY = ty + bodyH + pavH;
+            const eaveW = 54 * s;
+            bgDraw.drawRect(Rect(tx - topW * 0.38, ty + bodyH, 3 * s, pavH), towerCol);
+            bgDraw.drawRect(Rect(tx + topW * 0.38 - 3 * s, ty + bodyH, 3 * s, pavH), towerCol);
+            bgDraw.drawPolygon([
+                Vec2(tx - eaveW * 0.54, eaveY - 2 * s),
+                Vec2(tx + eaveW * 0.54, eaveY - 2 * s),
+                Vec2(tx + eaveW * 0.24, eaveY + 13 * s),
+                Vec2(tx - eaveW * 0.24, eaveY + 13 * s),
+            ], Color(18, 22, 32, Math.round(238 * alphaMul)), 0.8, rimCol);
+        }
 
         // 西窗一点不灭暖琥珀灯火（视觉核心锚点！）
-        const lampX = tx - topW * 0.14;
-        const lampY = ty + bodyH * 0.64;
+        const lampX = paintedWindow?.x ?? (tx - topW * 0.14);
+        const lampY = paintedWindow?.y ?? (ty + bodyH * 0.64);
         const glowR = spec.beaconR * pulse;
         fillRadialGlow(bgGlow, lampX, lampY, glowR * 1.35, glowR,
             Color(255, 206, 122, Math.round(92 * pulse * alphaMul)),

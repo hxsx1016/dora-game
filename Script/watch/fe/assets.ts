@@ -368,6 +368,11 @@ export class AssetSlotHost {
         this.localSlots[key] = cfg;
     }
 
+    /** 仅返回本帧通过对应路径放置的精灵。 */
+    currentSprite(instanceKey: string, path: string): Sprite.Type | undefined {
+        return this.visibleThisFrame[instanceKey + ":" + path];
+    }
+
     /** 隐藏此实例最近放置的帧；下一次正常放置会重新显示。 */
     hideLastPlacement(instanceKey: string): void {
         const sprite = this.lastPlacement[instanceKey];

@@ -14,7 +14,7 @@ export function isCutsceneBlockingPlay(p: Play): boolean {
         return true;
     }
     if (rk === "gate") {
-        if (ph === "gate-hand") return true;
+        if (ph === "gate-farewell" || ph === "gate-hand") return true;
         if (ph === "gate-count" && p.countTick < GATE_COUNT_END) return true;
     }
     if (rk === "tower" && (ph === "tower-knock" || ph === "tower-given" || ph === "tower-end")) {

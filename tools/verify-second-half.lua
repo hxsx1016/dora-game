@@ -179,20 +179,41 @@ do
 		fe:bindPlay(pe, 1280, 720)
 		if r.key == "escort1" then
 			local drawTower = fe.escortWorld.drawDistantNorthTower
-			local bodyLayer, lampLayer
-			fe.escortWorld.drawDistantNorthTower = function(renderer, body, lamp, ...)
-				bodyLayer, lampLayer = body, lamp
-				return drawTower(renderer, body, lamp, ...)
+			local place = fe.backdropArt.tryPlace
+			local bodyLayer, lampLayer, painted
+			local polygons, lampX, lampY
+			fe.escortWorld.drawDistantNorthTower = function(renderer, body, lamp, w, h, camX, time, spec, dawn, behind, window)
+				bodyLayer, lampLayer, painted = body, lamp, window
+				polygons = 0
+				local bodyProbe = {
+					drawPolygon = function(_, ...) polygons = polygons + 1; body:drawPolygon(...) end,
+					drawRect = function(_, ...) body:drawRect(...) end,
+				}
+				local lampProbe = setmetatable({
+					drawDot = function(_, pos, ...) lampX, lampY = pos.x, pos.y; lamp:drawDot(pos, ...) end,
+				}, {__index = function(_, method) return function(_, ...) lamp[method](lamp, ...) end end})
+				return drawTower(renderer, bodyProbe, lampProbe, w, h, camX, time, spec, dawn, behind, window)
 			end
 			stepFrames(pe, inp, fe, 1)
-			fe.escortWorld.drawDistantNorthTower = drawTower
-			local bg
-			for key, sprite in pairs(fe.backdropArt.sprites) do
-				if key:match("^ming_fallback_scene:") then bg = sprite end
+			local ridge = fe.backdropArt.sprites["ming_fallback_scene:assets/art/bg_escort_ridge.png"]
+			check("escort1_painted_window_no_second_tower", ridge and ridge.visible and painted and polygons == 0
+				and math.abs(lampX - (ridge.x + (568/640 - ridge.anchor.x)*ridge.width*ridge.scaleX)) < 0.01
+				and math.abs(lampY - (ridge.y + (309/360 - ridge.anchor.y)*ridge.height*ridge.scaleY)) < 0.01)
+			check("escort1_tower_above_backdrop_below_lamp", ridge and ridge.parent.parent == bodyLayer.parent
+				and bodyLayer.parent == lampLayer.parent and ridge.parent.order < bodyLayer.order and bodyLayer.order < lampLayer.order)
+			for _, fallback in ipairs({"outside", "missing"}) do
+				fe.backdropArt.tryPlace = function(host, slot, id, ...)
+					if slot == "bgFar_escort_ridge" then
+						if fallback == "missing" then return false end
+						slot = "bgFar_outside"
+					end
+					return place(host, slot, id, ...)
+				end
+				stepFrames(pe, inp, fe, 1)
+				check("escort1_procedural_tower_" .. fallback, painted == nil and polygons > 0 and bodyLayer.order == 13)
 			end
-			check("escort1_tower_above_backdrop_below_lamp", bg and bg.visible and bodyLayer and lampLayer
-				and bg.parent.parent == bodyLayer.parent and bodyLayer.parent == lampLayer.parent
-				and bg.parent.order < bodyLayer.order and bodyLayer.order < lampLayer.order)
+			fe.backdropArt.tryPlace = place
+			fe.escortWorld.drawDistantNorthTower = drawTower
 		end
 		stepFrames(pe, inp, fe, 6)
 		if r.key == "escort3" then

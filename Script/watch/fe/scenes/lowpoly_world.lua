@@ -753,538 +753,672 @@ function LowpolyWorldPlugin.prototype.drawTowerWorld(self, fgDraw, fgGlow, ctx) 
 		bucket = LP_BUCKET.MIDGROUND, -- 713
 		highlightTopEdge = true -- 714
 	}) -- 714
-	scene:addBox({ -- 716
-		x0 = ox + 490, -- 717
-		x1 = ox + 720, -- 718
-		y0 = 0, -- 719
-		y1 = 215, -- 720
-		z0 = -8, -- 721
-		z1 = 96, -- 722
-		material = MING_MATERIALS.mingBrick, -- 723
-		bucket = LP_BUCKET.MIDGROUND, -- 724
-		highlightTopEdge = true -- 725
-	}) -- 725
-	scene:addBeveledFrame( -- 729
-		ox + 400, -- 729
-		ox + 490, -- 729
-		0, -- 729
-		110, -- 729
-		14, -- 729
-		34, -- 729
-		-8, -- 729
-		68, -- 729
-		MING_MATERIALS.mingStoneStep, -- 729
-		{ -- 729
-			bucket = LP_BUCKET.MIDGROUND, -- 730
-			innerRimLight = rgba(244, 206, 140, 255), -- 731
-			innerRimStrength = opened and 0.78 or 0.32 -- 732
-		} -- 732
-	) -- 732
-	scene:addCutout3D( -- 736
-		"assets/art/diorama_cutouts.clip|ming_eave_ruin", -- 736
-		ox + 445, -- 736
-		206, -- 736
-		18, -- 736
-		240, -- 736
-		142, -- 736
-		{ -- 736
-			bucket = LP_BUCKET.MIDGROUND, -- 737
-			anchorX = 0.5, -- 738
-			anchorY = 0, -- 739
-			color = rgba(154, 168, 184, 255), -- 740
-			opacity = 0.92, -- 741
-			sortBias = 0.08 -- 742
-		} -- 742
-	) -- 742
-	if not opened then -- 742
-		scene:addCutout3D( -- 747
-			"assets/art/cutscene_story_parts.clip|tower_porch_door", -- 747
-			ox + 445, -- 747
-			2, -- 747
-			14, -- 747
-			84, -- 747
-			108, -- 747
-			{ -- 747
-				bucket = LP_BUCKET.MIDGROUND, -- 748
-				anchorX = 0.5, -- 749
-				anchorY = 0, -- 750
-				color = rgba(186, 182, 176, 255), -- 751
-				opacity = 0.98, -- 752
-				sortBias = 0.14 -- 753
-			} -- 753
-		) -- 753
-	else -- 753
-		scene:addQuad3D( -- 756
-			vec3(ox + 404, 2, 24), -- 757
-			vec3(ox + 486, 2, 24), -- 758
-			vec3(ox + 486, 109, 24), -- 759
-			vec3(ox + 404, 109, 24), -- 760
-			{base = rgba(112, 78, 42, 255)}, -- 761
-			{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = 0.08} -- 762
-		) -- 762
-	end -- 762
-	scene:addQuad3D( -- 767
-		vec3(ox + 286, 118, -9), -- 768
-		vec3(ox + 306, 118, -9), -- 769
-		vec3(ox + 306, 158, -9), -- 770
-		vec3(ox + 286, 158, -9), -- 771
-		{base = rgba(244, 204, 134, 255)}, -- 772
-		{ -- 773
-			bucket = LP_BUCKET.PROP, -- 773
-			unlit = true, -- 773
-			edgeColor = rgba(82, 68, 52, 255), -- 773
-			edgeWidth = 1.4 -- 773
-		} -- 773
-	) -- 773
-	local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 777
-	scene:addLightShaft( -- 778
-		ox + 412, -- 779
-		ox + 478, -- 779
-		106, -- 779
-		ox + 382, -- 780
-		ox + 506, -- 780
-		0, -- 780
-		6, -- 781
-		rgba(246, 208, 138, 255), -- 782
-		(opened and 0.34 or 0.08) * pulse, -- 783
-		(opened and 0.16 or 0.04) * pulse -- 784
-	) -- 784
-	scene:addContactShadow( -- 788
-		p.player.x, -- 788
-		p.player.y, -- 788
-		15, -- 788
-		11, -- 788
-		0.78, -- 788
-		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 788
-	) -- 788
-	scene:flush(fgDraw, fgGlow, ctx.dioramaWorld) -- 790
-	local lampP = projectWorld3D( -- 793
-		ox + 445, -- 793
-		102, -- 793
-		2, -- 793
-		cam, -- 793
-		self.towerProj -- 793
-	) -- 793
-	fillRadialGlow( -- 794
-		fgGlow, -- 795
-		lampP.x, -- 796
-		lampP.y, -- 797
-		cam:len(opened and 64 or 34) * pulse, -- 798
-		cam:len(opened and 64 or 34) * pulse, -- 799
-		Color( -- 800
-			248, -- 800
-			214, -- 800
-			146, -- 800
-			math.floor((opened and 132 or 76) * pulse + 0.5) -- 800
-		), -- 800
-		Color(232, 174, 82, 0), -- 801
-		16 -- 802
-	) -- 802
-	fgDraw:drawCircle( -- 804
-		Vec2(lampP.x, lampP.y), -- 804
-		4.2, -- 804
-		Color(255, 240, 202, 245) -- 804
-	) -- 804
-	local winP = projectWorld3D( -- 806
-		ox + 296, -- 806
-		138, -- 806
-		-9, -- 806
-		cam, -- 806
-		self.towerProj -- 806
-	) -- 806
-	fillRadialGlow( -- 807
-		fgGlow, -- 807
-		winP.x, -- 807
-		winP.y, -- 807
-		cam:len(38), -- 807
-		cam:len(42), -- 807
-		Color( -- 807
-			246, -- 807
-			206, -- 807
-			132, -- 807
-			math.floor(78 * pulse + 0.5) -- 807
-		), -- 807
-		Color(232, 174, 82, 0), -- 807
-		14 -- 807
-	) -- 807
-	local wBL = projectWorld3D( -- 809
-		ox + 286, -- 809
-		118, -- 809
-		-9, -- 809
-		cam, -- 809
-		self.towerProj -- 809
-	) -- 809
-	local wTR = projectWorld3D( -- 810
-		ox + 306, -- 810
-		158, -- 810
-		-9, -- 810
-		cam, -- 810
-		self.towerProj -- 810
-	) -- 810
-	local wMidX = (wBL.x + wTR.x) * 0.5 -- 811
-	local wMidY = (wBL.y + wTR.y) * 0.5 -- 812
-	fgDraw:drawSegment( -- 813
-		Vec2(wMidX, wBL.y), -- 813
-		Vec2(wMidX, wTR.y), -- 813
-		1.4, -- 813
-		Color(68, 52, 38, 225) -- 813
-	) -- 813
-	fgDraw:drawSegment( -- 814
-		Vec2(wBL.x, wMidY), -- 814
-		Vec2(wTR.x, wMidY), -- 814
-		1.4, -- 814
-		Color(68, 52, 38, 225) -- 814
-	) -- 814
-	return true -- 816
-end -- 667
-function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 819
-	if not self.active then -- 819
-		return false -- 826
-	end -- 826
-	local key = ctx.p.room.key -- 828
-	if key == "village" then -- 828
-		return self.village:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 830
+	if not opened then -- 714
+		scene:addBox({ -- 717
+			x0 = ox + 490, -- 718
+			x1 = ox + 720, -- 719
+			y0 = 0, -- 720
+			y1 = 215, -- 721
+			z0 = -8, -- 722
+			z1 = 96, -- 723
+			material = MING_MATERIALS.mingBrick, -- 724
+			bucket = LP_BUCKET.MIDGROUND, -- 725
+			highlightTopEdge = true -- 726
+		}) -- 726
+	else -- 726
+		scene:addBox({ -- 730
+			x0 = ox + 490, -- 731
+			x1 = ox + 706, -- 732
+			y0 = 0, -- 733
+			y1 = 146, -- 734
+			z0 = 46, -- 735
+			z1 = 96, -- 736
+			material = MING_MATERIALS.mingTimberDark, -- 737
+			bucket = LP_BUCKET.BACKDROP, -- 738
+			edgeWidth = 0.8 -- 739
+		}) -- 739
+		scene:addBox({ -- 741
+			x0 = ox + 490, -- 742
+			x1 = ox + 706, -- 743
+			y0 = -3, -- 744
+			y1 = 2, -- 745
+			z0 = -18, -- 746
+			z1 = 48, -- 747
+			material = MING_MATERIALS.mingTimber, -- 748
+			bucket = LP_BUCKET.WALK_DECK, -- 749
+			sortBias = 0.12, -- 750
+			highlightTopEdge = true -- 751
+		}) -- 751
+		scene:addBox({ -- 754
+			x0 = ox + 490, -- 755
+			x1 = ox + 720, -- 756
+			y0 = 144, -- 757
+			y1 = 215, -- 758
+			z0 = -8, -- 759
+			z1 = 96, -- 760
+			material = MING_MATERIALS.mingBrick, -- 761
+			bucket = LP_BUCKET.MIDGROUND, -- 762
+			highlightTopEdge = true -- 763
+		}) -- 763
+		scene:addBox({ -- 765
+			x0 = ox + 490, -- 766
+			x1 = ox + 704, -- 767
+			y0 = 132, -- 768
+			y1 = 145, -- 769
+			z0 = -4, -- 770
+			z1 = 48, -- 771
+			material = MING_MATERIALS.mingTimberDark, -- 772
+			bucket = LP_BUCKET.MIDGROUND, -- 773
+			sortBias = 0.08 -- 774
+		}) -- 774
+		scene:addBox({ -- 777
+			x0 = ox + 702, -- 778
+			x1 = ox + 724, -- 779
+			y0 = 0, -- 780
+			y1 = 146, -- 781
+			z0 = -8, -- 782
+			z1 = 96, -- 783
+			material = MING_MATERIALS.mingBrickDark, -- 784
+			bucket = LP_BUCKET.MIDGROUND, -- 785
+			highlightTopEdge = true -- 786
+		}) -- 786
+		scene:addQuad3D( -- 789
+			vec3(ox + 544, 52, 45), -- 790
+			vec3(ox + 662, 52, 45), -- 791
+			vec3(ox + 662, 118, 45), -- 792
+			vec3(ox + 544, 118, 45), -- 793
+			{base = rgba(88, 62, 38, 255)}, -- 794
+			{ -- 795
+				bucket = LP_BUCKET.BACKDROP, -- 795
+				unlit = true, -- 795
+				sortBias = 0.12, -- 795
+				edgeColor = rgba(132, 98, 62, 210), -- 795
+				edgeWidth = 1 -- 795
+			} -- 795
+		) -- 795
+		scene:addBox({ -- 798
+			x0 = ox + 564, -- 799
+			x1 = ox + 646, -- 800
+			y0 = 28, -- 801
+			y1 = 35, -- 802
+			z0 = 10, -- 803
+			z1 = 36, -- 804
+			material = MING_MATERIALS.mingTimber, -- 805
+			bucket = LP_BUCKET.PROP, -- 806
+			sortBias = 0.12, -- 807
+			highlightTopEdge = true -- 808
+		}) -- 808
+		scene:addBox({ -- 810
+			x0 = ox + 568, -- 811
+			x1 = ox + 576, -- 812
+			y0 = 0, -- 813
+			y1 = 28, -- 814
+			z0 = 12, -- 815
+			z1 = 32, -- 816
+			material = MING_MATERIALS.mingTimberDark, -- 817
+			bucket = LP_BUCKET.PROP, -- 818
+			sortBias = 0.06 -- 819
+		}) -- 819
+		scene:addBox({ -- 821
+			x0 = ox + 634, -- 822
+			x1 = ox + 642, -- 823
+			y0 = 0, -- 824
+			y1 = 28, -- 825
+			z0 = 12, -- 826
+			z1 = 32, -- 827
+			material = MING_MATERIALS.mingTimberDark, -- 828
+			bucket = LP_BUCKET.PROP, -- 829
+			sortBias = 0.06 -- 830
+		}) -- 830
 	end -- 830
-	if key == "forest" then -- 830
-		return self.forest:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 833
-	end -- 833
-	if key == "outside" then -- 833
-		return self:drawOutsideCartLowpoly(fgDraw, fgGlow, worldArt, ctx) -- 836
-	end -- 836
-	if key == "tower" then -- 836
-		local p = ctx.p -- 839
-		local opened = p.towerDoorOpen or p.phase == "tower-enter" or p.phase == "tower-desk" -- 840
-		if opened then -- 840
-			local cam = ctx.cam -- 842
-			local deskCx = cam:sx(p.ox + 605) -- 843
-			local groundY = cam:sy(0) -- 844
-			local deskW = cam:len(84) -- 845
-			local deskH = cam:len(34) -- 846
-			local deskTop = groundY + deskH -- 847
-			local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 848
-			fillRadialGlow( -- 849
-				fgGlow, -- 849
-				deskCx, -- 849
-				deskTop + cam:len(28), -- 849
-				cam:len(120), -- 849
-				cam:len(88), -- 849
-				Color( -- 850
-					255, -- 850
-					198, -- 850
-					114, -- 850
-					math.floor(74 * pulse + 0.5) -- 850
-				), -- 850
-				Color(255, 168, 72, 0), -- 850
-				16 -- 850
-			) -- 850
-			local guardX = deskCx + cam:len(26) -- 852
-			local writing = p.deskHold >= 24 or p.towerHanded -- 853
-			local guardClip = writing and "assets/art/actors_extra.clip|tower_guard_write" or "assets/art/actors_extra.clip|tower_guard_lantern" -- 854
-			if not worldArt:tryPlacePath( -- 854
-				guardClip, -- 857
-				"fe04_tower_guard_npc", -- 857
-				guardX, -- 857
-				groundY, -- 857
-				cam:len(54), -- 857
-				cam:len(82), -- 857
-				{ -- 857
-					anchorX = 0.44, -- 858
-					anchorY = 0, -- 859
-					preserveAspect = true, -- 860
-					facing = -1, -- 861
-					opacity = 0.96, -- 862
-					layer = 3600 -- 863
-				} -- 863
-			) then -- 863
-				fgDraw:drawRect( -- 865
-					Rect( -- 865
-						guardX - cam:len(11), -- 865
-						groundY, -- 865
-						cam:len(22), -- 865
-						cam:len(68) -- 865
-					), -- 865
-					Color(28, 34, 44, 240) -- 865
-				) -- 865
-			end -- 865
-			worldArt:tryPlace( -- 867
-				"prop_table", -- 867
-				"fe04_tower_desk_prop", -- 867
-				deskCx, -- 867
-				groundY, -- 867
-				deskW * 1.06, -- 867
-				deskH * 1.04, -- 867
-				{ -- 867
-					color = Color(206, 180, 150, 255), -- 868
-					opacity = 0.98, -- 869
-					layer = 3650 -- 870
-				} -- 870
-			) -- 870
-			if writing then -- 870
-				worldArt:tryPlace( -- 873
-					"prop_lantern", -- 873
-					"fe04_tower_desk_lamp", -- 873
-					deskCx + cam:len(34), -- 873
-					deskTop + cam:len(10), -- 873
-					cam:len(14), -- 873
-					cam:len(20), -- 873
-					{opacity = 0.96, layer = 3700} -- 873
-				) -- 873
-				fillRadialGlow( -- 877
-					fgGlow, -- 877
-					deskCx + cam:len(34), -- 877
-					deskTop + cam:len(12), -- 877
-					cam:len(24), -- 877
-					cam:len(22), -- 877
-					Color( -- 877
-						255, -- 877
-						214, -- 877
-						134, -- 877
-						math.floor(84 * pulse + 0.5) -- 877
-					), -- 877
-					Color(255, 180, 86, 0), -- 877
-					12 -- 877
-				) -- 877
-			else -- 877
-				fillRadialGlow( -- 879
-					fgGlow, -- 879
-					deskCx + cam:len(3), -- 879
-					deskTop + cam:len(18), -- 879
-					cam:len(28), -- 879
-					cam:len(26), -- 879
-					Color( -- 879
-						255, -- 879
-						214, -- 879
-						134, -- 879
-						math.floor(74 * pulse + 0.5) -- 879
-					), -- 879
-					Color(255, 180, 86, 0), -- 879
-					12 -- 879
-				) -- 879
-			end -- 879
-			fgDraw:drawRect( -- 881
-				Rect( -- 881
-					deskCx + cam:len(2), -- 881
-					deskTop + cam:len(1), -- 881
-					cam:len(22), -- 881
-					cam:len(4) -- 881
-				), -- 881
-				Color(230, 220, 196, 235) -- 881
-			) -- 881
-			if p.deskHold >= 12 or p.towerHanded then -- 881
-				worldArt:tryPlacePath( -- 883
-					"assets/art/cutscene_cuff_rig.clip|needle_pouch_compass", -- 883
-					"fe04_tower_desk_pouch", -- 883
-					deskCx - cam:len(18), -- 883
-					deskTop + cam:len(8), -- 883
-					cam:len(18), -- 883
-					cam:len(18), -- 883
-					{ -- 883
-						anchorX = 0.5, -- 884
-						anchorY = 0.5, -- 885
-						opacity = 0.95, -- 886
-						smooth = true, -- 887
-						layer = 3710 -- 888
-					} -- 888
-				) -- 888
-			end -- 888
-			if p.deskHold >= 24 or p.towerHanded then -- 888
-				fgDraw:drawRect( -- 892
-					Rect( -- 892
-						deskCx - cam:len(4), -- 892
-						deskTop + cam:len(1), -- 892
-						cam:len(10), -- 892
-						cam:len(3) -- 892
-					), -- 892
-					Color(236, 228, 206, 240) -- 892
-				) -- 892
-			end -- 892
-		end -- 892
-		return true -- 895
-	end -- 895
-	return false -- 897
-end -- 819
-function LowpolyWorldPlugin.prototype.drawOutsideCartLowpoly(self, fgDraw, _fgGlow, worldArt, ctx) -- 901
-	local p = ctx.p -- 907
-	local cam = ctx.cam -- 908
-	local c = p.room.cart -- 909
-	if c.bodyW <= 0 then -- 909
-		return true -- 911
-	end -- 911
-	local halfW = c.bodyW * 0.5 -- 913
-	local axleX = p.cartAxle -- 914
-	local baseY = cam:sy(c.baseY) -- 915
-	local bodyTopY = cam:sy(c.baseY + c.wheelR + c.bodyH) -- 916
-	local cx = cam:sx(axleX) -- 917
-	local artW = cam:len(c.bodyW * 1.38) -- 918
-	local artH = cam:len((c.wheelR * 2 + c.bodyH) * 0.94) -- 919
-	fgDraw:drawEllipse( -- 921
-		Vec2(cx, baseY + 1), -- 921
-		cam:len(c.bodyW * 0.62), -- 921
-		4, -- 921
-		Color(6, 10, 16, 155) -- 921
-	) -- 921
-	worldArt:tryPlace( -- 922
-		"prop_cart", -- 922
-		"fe04_outside_cart", -- 922
-		cx, -- 922
-		baseY, -- 922
-		artW, -- 922
-		artH, -- 922
-		{ -- 922
-			color = Color(196, 210, 228, 255), -- 923
-			layer = 5 -- 924
-		} -- 924
-	) -- 924
-	local clothX = axleX - halfW -- 928
-	local clothFrame = math.floor(self.animTime * (self.cartWheelVol > 0.05 and 6.5 or 3.8)) % 3 -- 929
-	worldArt:tryPlace( -- 930
-		"fe_red_cloth", -- 930
-		"fe04_outside_cart_cloth", -- 930
-		cam:sx(clothX + 2), -- 930
-		bodyTopY - cam:len(2), -- 930
-		cam:len(24), -- 930
-		cam:len(24), -- 930
-		{frame = clothFrame, layer = 6} -- 930
-	) -- 930
-	return true -- 935
-end -- 901
-function LowpolyWorldPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 938
-	if not self.active then -- 938
-		return -- 945
-	end -- 945
-	local key = ctx.p.room.key -- 947
-	if key == "village" then -- 947
-		self.village:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 949
-	elseif key == "forest" then -- 949
-		self.forest:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 951
-	end -- 951
-end -- 938
-function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 959
-	if not self.active then -- 959
-		return false -- 967
-	end -- 967
-	local key = ctx.p.room.key -- 969
-	if key == "village" then -- 969
-		return self.village:drawForegroundOverlay( -- 971
-			uiDraw, -- 971
-			uiInkDraw, -- 971
-			uiArt, -- 971
-			uiGlow, -- 971
-			ctx -- 971
-		) -- 971
-	end -- 971
-	if key == "forest" then -- 971
-		return self.forest:drawForegroundOverlay( -- 974
-			uiDraw, -- 974
-			uiInkDraw, -- 974
-			uiArt, -- 974
-			uiGlow, -- 974
-			ctx -- 974
-		) -- 974
-	end -- 974
-	if key == "outside" then -- 974
-		self:drawOutsideSewingMemoryOverlay( -- 977
-			uiDraw, -- 977
-			uiInkDraw, -- 977
-			uiArt, -- 977
-			uiGlow, -- 977
-			ctx -- 977
-		) -- 977
-		return false -- 978
-	end -- 978
-	return false -- 980
-end -- 959
-function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDraw, _uiInkDraw, uiArt, uiGlow, ctx) -- 987
-	if self.memoryTimer < 0 or self.memoryTimer >= SEWING_MEMORY_DURATION then -- 987
-		return -- 995
-	end -- 995
-	local prog = clamp01(self.memoryTimer / SEWING_MEMORY_DURATION) -- 997
-	local alpha = smoothstep(0, 0.2, prog) * (1 - smoothstep(0.72, 1, prog)) -- 998
-	if alpha <= 0.01 then -- 998
-		return -- 1000
-	end -- 1000
-	local inv = 1 / math.max(0.25, ctx.uiScale) -- 1002
-	local handPt = projectWorld3D( -- 1003
-		self.memoryAnchorWorldX, -- 1003
-		self.memoryAnchorWorldY, -- 1003
-		0, -- 1003
-		ctx.cam, -- 1003
-		self.outsideProj -- 1003
-	) -- 1003
-	local cx = math.max( -- 1004
-		190, -- 1004
-		math.min(ctx.uiW - 190, handPt.x * inv - 20) -- 1004
-	) -- 1004
-	local cy = math.max( -- 1005
-		170, -- 1005
-		math.min(ctx.uiH - 150, handPt.y * inv + 104) -- 1005
-	) -- 1005
-	local pullT = smoothstep(0.14, 0.82, prog) -- 1006
-	local zoom = 0.94 + pullT * 0.09 -- 1007
-	fillRadialGlow( -- 1010
-		uiGlow, -- 1010
-		cx, -- 1010
-		cy, -- 1010
-		215 * zoom, -- 1010
-		152 * zoom, -- 1010
-		Color( -- 1010
-			238, -- 1010
-			186, -- 1010
-			114, -- 1010
-			math.floor(88 * alpha + 0.5) -- 1010
-		), -- 1010
-		Color(214, 152, 82, 0), -- 1010
-		22 -- 1010
-	) -- 1010
-	uiArt:tryPlace( -- 1011
-		"ink_petal_mist", -- 1011
-		"fe04_f01_memory_mist", -- 1011
-		cx, -- 1011
-		cy, -- 1011
-		380 * zoom, -- 1011
-		260 * zoom, -- 1011
-		{ -- 1011
-			color = Color(36, 24, 18, 255), -- 1012
-			opacity = 0.72 * alpha, -- 1013
-			layer = 3 -- 1014
-		} -- 1014
-	) -- 1014
-	if not uiArt:tryPlacePath( -- 1014
-		"assets/art/cutscene_story_parts.clip|f01_mother_stitch", -- 1017
-		"fe04_f01_mother_stitch", -- 1018
-		cx + pullT * 6, -- 1019
-		cy + pullT * 4, -- 1020
-		296 * zoom, -- 1021
-		218 * zoom, -- 1022
-		{ -- 1023
-			anchorX = 0.5, -- 1024
-			anchorY = 0.5, -- 1025
-			color = Color(246, 224, 196, 255), -- 1026
-			opacity = 0.96 * alpha, -- 1027
-			smooth = true, -- 1028
-			layer = 4 -- 1029
-		} -- 1029
-	) then -- 1029
-		uiDraw:drawEllipse( -- 1032
-			Vec2(cx, cy), -- 1032
-			116, -- 1032
-			70, -- 1032
-			Color( -- 1032
-				32, -- 1032
-				22, -- 1032
-				16, -- 1032
-				math.floor(196 * alpha + 0.5) -- 1032
-			) -- 1032
-		) -- 1032
-	end -- 1032
-end -- 987
-function ____exports.createLowpolyWorldPlugin() -- 1037
-	return __TS__New(____exports.LowpolyWorldPlugin) -- 1038
-end -- 1037
+	scene:addBeveledFrame( -- 835
+		ox + 400, -- 835
+		ox + 490, -- 835
+		0, -- 835
+		110, -- 835
+		14, -- 835
+		34, -- 835
+		-8, -- 835
+		68, -- 835
+		MING_MATERIALS.mingStoneStep, -- 835
+		{ -- 835
+			bucket = LP_BUCKET.MIDGROUND, -- 836
+			innerRimLight = rgba(244, 206, 140, 255), -- 837
+			innerRimStrength = opened and 0.78 or 0.32 -- 838
+		} -- 838
+	) -- 838
+	scene:addCutout3D( -- 842
+		"assets/art/diorama_cutouts.clip|ming_eave_ruin", -- 842
+		ox + 445, -- 842
+		206, -- 842
+		18, -- 842
+		240, -- 842
+		142, -- 842
+		{ -- 842
+			bucket = LP_BUCKET.MIDGROUND, -- 843
+			anchorX = 0.5, -- 844
+			anchorY = 0, -- 845
+			color = rgba(154, 168, 184, 255), -- 846
+			opacity = 0.92, -- 847
+			sortBias = 0.08 -- 848
+		} -- 848
+	) -- 848
+	if not opened then -- 848
+		scene:addCutout3D( -- 853
+			"assets/art/cutscene_story_parts.clip|tower_porch_door", -- 853
+			ox + 445, -- 853
+			2, -- 853
+			14, -- 853
+			84, -- 853
+			108, -- 853
+			{ -- 853
+				bucket = LP_BUCKET.MIDGROUND, -- 854
+				anchorX = 0.5, -- 855
+				anchorY = 0, -- 856
+				color = rgba(186, 182, 176, 255), -- 857
+				opacity = 0.98, -- 858
+				sortBias = 0.14 -- 859
+			} -- 859
+		) -- 859
+	else -- 859
+		scene:addQuad3D( -- 862
+			vec3(ox + 404, 2, 24), -- 863
+			vec3(ox + 486, 2, 24), -- 864
+			vec3(ox + 486, 109, 24), -- 865
+			vec3(ox + 404, 109, 24), -- 866
+			{base = rgba(112, 78, 42, 255)}, -- 867
+			{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = 0.08} -- 868
+		) -- 868
+	end -- 868
+	scene:addQuad3D( -- 873
+		vec3(ox + 286, 118, -9), -- 874
+		vec3(ox + 306, 118, -9), -- 875
+		vec3(ox + 306, 158, -9), -- 876
+		vec3(ox + 286, 158, -9), -- 877
+		{base = rgba(244, 204, 134, 255)}, -- 878
+		{ -- 879
+			bucket = LP_BUCKET.PROP, -- 879
+			unlit = true, -- 879
+			edgeColor = rgba(82, 68, 52, 255), -- 879
+			edgeWidth = 1.4 -- 879
+		} -- 879
+	) -- 879
+	local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 883
+	scene:addLightShaft( -- 884
+		ox + 412, -- 885
+		ox + 478, -- 885
+		106, -- 885
+		ox + 382, -- 886
+		ox + 506, -- 886
+		0, -- 886
+		6, -- 887
+		rgba(246, 208, 138, 255), -- 888
+		(opened and 0.34 or 0.08) * pulse, -- 889
+		(opened and 0.16 or 0.04) * pulse -- 890
+	) -- 890
+	scene:addContactShadow( -- 894
+		p.player.x, -- 894
+		p.player.y, -- 894
+		15, -- 894
+		11, -- 894
+		0.78, -- 894
+		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 894
+	) -- 894
+	scene:flush(fgDraw, fgGlow, ctx.dioramaWorld) -- 896
+	local lampP = projectWorld3D( -- 899
+		ox + 445, -- 899
+		102, -- 899
+		2, -- 899
+		cam, -- 899
+		self.towerProj -- 899
+	) -- 899
+	fillRadialGlow( -- 900
+		fgGlow, -- 901
+		lampP.x, -- 902
+		lampP.y, -- 903
+		cam:len(opened and 64 or 34) * pulse, -- 904
+		cam:len(opened and 64 or 34) * pulse, -- 905
+		Color( -- 906
+			248, -- 906
+			214, -- 906
+			146, -- 906
+			math.floor((opened and 132 or 76) * pulse + 0.5) -- 906
+		), -- 906
+		Color(232, 174, 82, 0), -- 907
+		16 -- 908
+	) -- 908
+	fgDraw:drawCircle( -- 910
+		Vec2(lampP.x, lampP.y), -- 910
+		4.2, -- 910
+		Color(255, 240, 202, 245) -- 910
+	) -- 910
+	local winP = projectWorld3D( -- 912
+		ox + 296, -- 912
+		138, -- 912
+		-9, -- 912
+		cam, -- 912
+		self.towerProj -- 912
+	) -- 912
+	fillRadialGlow( -- 913
+		fgGlow, -- 913
+		winP.x, -- 913
+		winP.y, -- 913
+		cam:len(38), -- 913
+		cam:len(42), -- 913
+		Color( -- 913
+			246, -- 913
+			206, -- 913
+			132, -- 913
+			math.floor(78 * pulse + 0.5) -- 913
+		), -- 913
+		Color(232, 174, 82, 0), -- 913
+		14 -- 913
+	) -- 913
+	local wBL = projectWorld3D( -- 915
+		ox + 286, -- 915
+		118, -- 915
+		-9, -- 915
+		cam, -- 915
+		self.towerProj -- 915
+	) -- 915
+	local wTR = projectWorld3D( -- 916
+		ox + 306, -- 916
+		158, -- 916
+		-9, -- 916
+		cam, -- 916
+		self.towerProj -- 916
+	) -- 916
+	local wMidX = (wBL.x + wTR.x) * 0.5 -- 917
+	local wMidY = (wBL.y + wTR.y) * 0.5 -- 918
+	fgDraw:drawSegment( -- 919
+		Vec2(wMidX, wBL.y), -- 919
+		Vec2(wMidX, wTR.y), -- 919
+		1.4, -- 919
+		Color(68, 52, 38, 225) -- 919
+	) -- 919
+	fgDraw:drawSegment( -- 920
+		Vec2(wBL.x, wMidY), -- 920
+		Vec2(wTR.x, wMidY), -- 920
+		1.4, -- 920
+		Color(68, 52, 38, 225) -- 920
+	) -- 920
+	return true -- 922
+end -- 667
+function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 925
+	if not self.active then -- 925
+		return false -- 932
+	end -- 932
+	local key = ctx.p.room.key -- 934
+	if key == "village" then -- 934
+		return self.village:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 936
+	end -- 936
+	if key == "forest" then -- 936
+		return self.forest:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 939
+	end -- 939
+	if key == "outside" then -- 939
+		return self:drawOutsideCartLowpoly(fgDraw, fgGlow, worldArt, ctx) -- 942
+	end -- 942
+	if key == "tower" then -- 942
+		local p = ctx.p -- 945
+		local opened = p.towerDoorOpen or p.phase == "tower-enter" or p.phase == "tower-desk" -- 946
+		if opened then -- 946
+			local cam = ctx.cam -- 948
+			local deskTopP = projectWorld3D( -- 949
+				p.ox + 605, -- 949
+				35, -- 949
+				22, -- 949
+				cam, -- 949
+				self.towerProj -- 949
+			) -- 949
+			local guardBaseP = projectWorld3D( -- 950
+				p.ox + 626, -- 950
+				0, -- 950
+				38, -- 950
+				cam, -- 950
+				self.towerProj -- 950
+			) -- 950
+			local deskCx = deskTopP.x -- 951
+			local deskTop = deskTopP.y -- 952
+			local s = deskTopP.scale -- 953
+			local gs = guardBaseP.scale -- 954
+			local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 955
+			fillRadialGlow( -- 956
+				fgGlow, -- 956
+				deskCx, -- 956
+				deskTop + cam:len(26) * s, -- 956
+				cam:len(132) * s, -- 956
+				cam:len(96) * s, -- 956
+				Color( -- 957
+					255, -- 957
+					198, -- 957
+					114, -- 957
+					math.floor(82 * pulse + 0.5) -- 957
+				), -- 957
+				Color(255, 168, 72, 0), -- 957
+				16 -- 957
+			) -- 957
+			local writing = p.deskHold >= 24 or p.towerHanded -- 959
+			local guardClip = writing and "assets/art/actors_extra.clip|tower_guard_write" or "assets/art/actors_extra.clip|tower_guard_lantern" -- 960
+			if not worldArt:tryPlacePath( -- 960
+				guardClip, -- 963
+				"fe04_tower_guard_npc", -- 963
+				guardBaseP.x, -- 963
+				guardBaseP.y, -- 963
+				cam:len(54) * gs, -- 963
+				cam:len(82) * gs, -- 963
+				{ -- 963
+					anchorX = 0.44, -- 964
+					anchorY = 0, -- 965
+					preserveAspect = true, -- 966
+					facing = -1, -- 967
+					opacity = 0.96, -- 968
+					layer = 3600 -- 969
+				} -- 969
+			) then -- 969
+				fgDraw:drawRect( -- 971
+					Rect( -- 971
+						guardBaseP.x - cam:len(11) * gs, -- 971
+						guardBaseP.y, -- 971
+						cam:len(22) * gs, -- 971
+						cam:len(68) * gs -- 971
+					), -- 971
+					Color(28, 34, 44, 242) -- 971
+				) -- 971
+				fgDraw:drawCircle( -- 972
+					Vec2( -- 972
+						guardBaseP.x, -- 972
+						guardBaseP.y + cam:len(76) * gs -- 972
+					), -- 972
+					cam:len(9.5) * gs, -- 972
+					Color(36, 44, 56, 248) -- 972
+				) -- 972
+			end -- 972
+			fgDraw:drawRect( -- 975
+				Rect( -- 975
+					deskCx + cam:len(4) * s, -- 975
+					deskTop + cam:len(1) * s, -- 975
+					cam:len(24) * s, -- 975
+					cam:len(5) * s -- 975
+				), -- 975
+				Color(230, 220, 196, 245) -- 975
+			) -- 975
+			if writing then -- 975
+				if not worldArt:tryPlace( -- 975
+					"prop_lantern", -- 977
+					"fe04_tower_desk_lamp", -- 977
+					deskCx + cam:len(34) * s, -- 977
+					deskTop + cam:len(10) * s, -- 977
+					cam:len(14) * s, -- 977
+					cam:len(20) * s, -- 977
+					{opacity = 0.96, layer = 3700} -- 977
+				) then -- 977
+					fgDraw:drawRect( -- 981
+						Rect( -- 981
+							deskCx + cam:len(30) * s, -- 981
+							deskTop + cam:len(1) * s, -- 981
+							cam:len(8) * s, -- 981
+							cam:len(12) * s -- 981
+						), -- 981
+						Color(166, 126, 62, 245) -- 981
+					) -- 981
+				end -- 981
+				fillRadialGlow( -- 983
+					fgGlow, -- 983
+					deskCx + cam:len(34) * s, -- 983
+					deskTop + cam:len(14) * s, -- 983
+					cam:len(26) * s, -- 983
+					cam:len(22) * s, -- 983
+					Color( -- 983
+						255, -- 983
+						214, -- 983
+						134, -- 983
+						math.floor(92 * pulse + 0.5) -- 983
+					), -- 983
+					Color(255, 180, 86, 0), -- 983
+					12 -- 983
+				) -- 983
+			else -- 983
+				fillRadialGlow( -- 985
+					fgGlow, -- 985
+					deskCx + cam:len(6) * s, -- 985
+					deskTop + cam:len(18) * s, -- 985
+					cam:len(28) * s, -- 985
+					cam:len(26) * s, -- 985
+					Color( -- 985
+						255, -- 985
+						214, -- 985
+						134, -- 985
+						math.floor(78 * pulse + 0.5) -- 985
+					), -- 985
+					Color(255, 180, 86, 0), -- 985
+					12 -- 985
+				) -- 985
+			end -- 985
+			if p.deskHold >= 12 or p.towerHanded then -- 985
+				if not worldArt:tryPlacePath( -- 985
+					"assets/art/cutscene_cuff_rig.clip|needle_pouch_compass", -- 988
+					"fe04_tower_desk_pouch", -- 988
+					deskCx - cam:len(18) * s, -- 988
+					deskTop + cam:len(8) * s, -- 988
+					cam:len(18) * s, -- 988
+					cam:len(18) * s, -- 988
+					{ -- 988
+						anchorX = 0.5, -- 989
+						anchorY = 0.5, -- 990
+						opacity = 0.95, -- 991
+						smooth = true, -- 992
+						layer = 3710 -- 993
+					} -- 993
+				) then -- 993
+					fgDraw:drawRect( -- 995
+						Rect( -- 995
+							deskCx - cam:len(26) * s, -- 995
+							deskTop + cam:len(1) * s, -- 995
+							cam:len(14) * s, -- 995
+							cam:len(6) * s -- 995
+						), -- 995
+						Color(156, 62, 48, 245) -- 995
+					) -- 995
+				end -- 995
+			end -- 995
+			if p.deskHold >= 24 or p.towerHanded then -- 995
+				fgDraw:drawRect( -- 999
+					Rect( -- 999
+						deskCx - cam:len(4) * s, -- 999
+						deskTop + cam:len(1) * s, -- 999
+						cam:len(10) * s, -- 999
+						cam:len(3) * s -- 999
+					), -- 999
+					Color(236, 228, 206, 240) -- 999
+				) -- 999
+			end -- 999
+		end -- 999
+		return true -- 1002
+	end -- 1002
+	return false -- 1004
+end -- 925
+function LowpolyWorldPlugin.prototype.drawOutsideCartLowpoly(self, fgDraw, _fgGlow, worldArt, ctx) -- 1008
+	local p = ctx.p -- 1014
+	local cam = ctx.cam -- 1015
+	local c = p.room.cart -- 1016
+	if c.bodyW <= 0 then -- 1016
+		return true -- 1018
+	end -- 1018
+	local halfW = c.bodyW * 0.5 -- 1020
+	local axleX = p.cartAxle -- 1021
+	local baseY = cam:sy(c.baseY) -- 1022
+	local bodyTopY = cam:sy(c.baseY + c.wheelR + c.bodyH) -- 1023
+	local cx = cam:sx(axleX) -- 1024
+	local artW = cam:len(c.bodyW * 1.38) -- 1025
+	local artH = cam:len((c.wheelR * 2 + c.bodyH) * 0.94) -- 1026
+	fgDraw:drawEllipse( -- 1028
+		Vec2(cx, baseY + 1), -- 1028
+		cam:len(c.bodyW * 0.62), -- 1028
+		4, -- 1028
+		Color(6, 10, 16, 155) -- 1028
+	) -- 1028
+	worldArt:tryPlace( -- 1029
+		"prop_cart", -- 1029
+		"fe04_outside_cart", -- 1029
+		cx, -- 1029
+		baseY, -- 1029
+		artW, -- 1029
+		artH, -- 1029
+		{ -- 1029
+			color = Color(196, 210, 228, 255), -- 1030
+			layer = 5 -- 1031
+		} -- 1031
+	) -- 1031
+	local clothX = axleX - halfW -- 1035
+	local clothFrame = math.floor(self.animTime * (self.cartWheelVol > 0.05 and 6.5 or 3.8)) % 3 -- 1036
+	worldArt:tryPlace( -- 1037
+		"fe_red_cloth", -- 1037
+		"fe04_outside_cart_cloth", -- 1037
+		cam:sx(clothX + 2), -- 1037
+		bodyTopY - cam:len(2), -- 1037
+		cam:len(24), -- 1037
+		cam:len(24), -- 1037
+		{frame = clothFrame, layer = 6} -- 1037
+	) -- 1037
+	return true -- 1042
+end -- 1008
+function LowpolyWorldPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 1045
+	if not self.active then -- 1045
+		return -- 1052
+	end -- 1052
+	local key = ctx.p.room.key -- 1054
+	if key == "village" then -- 1054
+		self.village:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 1056
+	elseif key == "forest" then -- 1056
+		self.forest:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 1058
+	end -- 1058
+end -- 1045
+function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1066
+	if not self.active then -- 1066
+		return false -- 1074
+	end -- 1074
+	local key = ctx.p.room.key -- 1076
+	if key == "village" then -- 1076
+		return self.village:drawForegroundOverlay( -- 1078
+			uiDraw, -- 1078
+			uiInkDraw, -- 1078
+			uiArt, -- 1078
+			uiGlow, -- 1078
+			ctx -- 1078
+		) -- 1078
+	end -- 1078
+	if key == "forest" then -- 1078
+		return self.forest:drawForegroundOverlay( -- 1081
+			uiDraw, -- 1081
+			uiInkDraw, -- 1081
+			uiArt, -- 1081
+			uiGlow, -- 1081
+			ctx -- 1081
+		) -- 1081
+	end -- 1081
+	if key == "outside" then -- 1081
+		self:drawOutsideSewingMemoryOverlay( -- 1084
+			uiDraw, -- 1084
+			uiInkDraw, -- 1084
+			uiArt, -- 1084
+			uiGlow, -- 1084
+			ctx -- 1084
+		) -- 1084
+		return false -- 1085
+	end -- 1085
+	return false -- 1087
+end -- 1066
+function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDraw, _uiInkDraw, uiArt, uiGlow, ctx) -- 1094
+	if self.memoryTimer < 0 or self.memoryTimer >= SEWING_MEMORY_DURATION then -- 1094
+		return -- 1102
+	end -- 1102
+	local prog = clamp01(self.memoryTimer / SEWING_MEMORY_DURATION) -- 1104
+	local alpha = smoothstep(0, 0.2, prog) * (1 - smoothstep(0.72, 1, prog)) -- 1105
+	if alpha <= 0.01 then -- 1105
+		return -- 1107
+	end -- 1107
+	local inv = 1 / math.max(0.25, ctx.uiScale) -- 1109
+	local handPt = projectWorld3D( -- 1110
+		self.memoryAnchorWorldX, -- 1110
+		self.memoryAnchorWorldY, -- 1110
+		0, -- 1110
+		ctx.cam, -- 1110
+		self.outsideProj -- 1110
+	) -- 1110
+	local cx = math.max( -- 1111
+		190, -- 1111
+		math.min(ctx.uiW - 190, handPt.x * inv - 20) -- 1111
+	) -- 1111
+	local cy = math.max( -- 1112
+		170, -- 1112
+		math.min(ctx.uiH - 150, handPt.y * inv + 104) -- 1112
+	) -- 1112
+	local pullT = smoothstep(0.14, 0.82, prog) -- 1113
+	local zoom = 0.94 + pullT * 0.09 -- 1114
+	fillRadialGlow( -- 1117
+		uiGlow, -- 1117
+		cx, -- 1117
+		cy, -- 1117
+		215 * zoom, -- 1117
+		152 * zoom, -- 1117
+		Color( -- 1117
+			238, -- 1117
+			186, -- 1117
+			114, -- 1117
+			math.floor(88 * alpha + 0.5) -- 1117
+		), -- 1117
+		Color(214, 152, 82, 0), -- 1117
+		22 -- 1117
+	) -- 1117
+	uiArt:tryPlace( -- 1118
+		"ink_petal_mist", -- 1118
+		"fe04_f01_memory_mist", -- 1118
+		cx, -- 1118
+		cy, -- 1118
+		380 * zoom, -- 1118
+		260 * zoom, -- 1118
+		{ -- 1118
+			color = Color(36, 24, 18, 255), -- 1119
+			opacity = 0.72 * alpha, -- 1120
+			layer = 3 -- 1121
+		} -- 1121
+	) -- 1121
+	if not uiArt:tryPlacePath( -- 1121
+		"assets/art/cutscene_story_parts.clip|f01_mother_stitch", -- 1124
+		"fe04_f01_mother_stitch", -- 1125
+		cx + pullT * 6, -- 1126
+		cy + pullT * 4, -- 1127
+		296 * zoom, -- 1128
+		218 * zoom, -- 1129
+		{ -- 1130
+			anchorX = 0.5, -- 1131
+			anchorY = 0.5, -- 1132
+			color = Color(246, 224, 196, 255), -- 1133
+			opacity = 0.96 * alpha, -- 1134
+			smooth = true, -- 1135
+			layer = 4 -- 1136
+		} -- 1136
+	) then -- 1136
+		uiDraw:drawEllipse( -- 1139
+			Vec2(cx, cy), -- 1139
+			116, -- 1139
+			70, -- 1139
+			Color( -- 1139
+				32, -- 1139
+				22, -- 1139
+				16, -- 1139
+				math.floor(196 * alpha + 0.5) -- 1139
+			) -- 1139
+		) -- 1139
+	end -- 1139
+end -- 1094
+function ____exports.createLowpolyWorldPlugin() -- 1144
+	return __TS__New(____exports.LowpolyWorldPlugin) -- 1145
+end -- 1144
 --- 零冲突注册辅助：供 M2 合流接线与 verify-fe04.lua 独立测试调用（避免循环 require）
-function ____exports.registerFe04Plugins(fe) -- 1042
-	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1045
-	fe:registerPlugin(lowpolyWorld) -- 1046
-	return {lowpolyWorld = lowpolyWorld} -- 1047
-end -- 1042
-return ____exports -- 1042
+function ____exports.registerFe04Plugins(fe) -- 1149
+	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1152
+	fe:registerPlugin(lowpolyWorld) -- 1153
+	return {lowpolyWorld = lowpolyWorld} -- 1154
+end -- 1149
+return ____exports -- 1149

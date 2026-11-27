@@ -12,7 +12,7 @@
  */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
-import { ALL_TALENTS, TALENT_CATALOG, talentNames } from "Script/watch/run";
+import { TALENT_CATALOG, talentNames } from "Script/watch/run";
 import { ReloadEffectKind, RoguelikeSnapshot } from "Script/watch/fe/contract";
 import { drawReloadPatternGlyph } from "Script/watch/fe/ui/reload_wheel";
 import {
@@ -82,22 +82,110 @@ export function registerTalentVisual(meta: TalentVisualMeta): void {
     TALENT_REGISTRY[meta.id] = meta;
 }
 
-for (const id of ALL_TALENTS) {
-    const meta = TALENT_CATALOG[id];
-    const body = meta.branch === "body";
-    registerTalentVisual({
-        id, title: meta.title, category: meta.branchZh,
-        accent: body ? PALETTE.cyan : PALETTE.amber,
-        accentCore: body ? PALETTE.moonPale : PALETTE.amberCore,
-        whisper: meta.detailDesc,
-        absorbTarget: id === "vitality" ? "hp" : body ? "shoulder" : meta.branch === "wheel" ? "gun" : "satchel",
-        shortEffect: () => meta.shortDesc,
-        subEffect: (_snap, rank) => rankChinese(rank) + " → " + rankChinese(rank + 1) + " 阶",
-        ledgerLine: (_snap, rank) => meta.shortDesc + "（" + rankChinese(rank) + " 阶）",
-    });
-}
+registerTalentVisual({
+    id: "vitality",
+    title: TALENT_CATALOG.vitality.title,
+    category: TALENT_CATALOG.vitality.branchZh,
+    accent: PALETTE.cyan,
+    accentCore: PALETTE.moonPale,
+    whisper: "「再重些，背上的人便稳些。」",
+    absorbTarget: "hp",
+    shortEffect: (snap) => "体力上限 " + snap.maxHp + " → " + (snap.maxHp + 1),
+    subEffect: () => "并即刻回气 +1",
+    ledgerLine: (snap, rank) => "体力上限 +" + rank + "（现 " + snap.hp + "/" + snap.maxHp + "）",
+});
 
-/** 解析任意本领 ID 的视觉元数据；未知未来 ID 自动回退至明代军筹通用模板。 */
+registerTalentVisual({
+    id: "guard",
+    title: TALENT_CATALOG.guard.title,
+    category: TALENT_CATALOG.guard.branchZh,
+    accent: PALETTE.emerald,
+    accentCore: PALETTE.moonPale,
+    whisper: "「挨了这一记，步子不能乱。」",
+    absorbTarget: "shoulder",
+    shortEffect: (snap) => "护身 " + snap.invulnTicksNow + " → " + (snap.invulnTicksNow + 15) + " 拍",
+    subEffect: () => "受击多得喘息窗 (+15 拍) · 翻滚避近战",
+    ledgerLine: (snap, rank) => "受击保护 " + snap.invulnTicksNow + " 拍（加 " + (rank * 15) + " 拍）",
+});
+
+registerTalentVisual({
+    id: "stride",
+    title: TALENT_CATALOG.stride.title,
+    category: TALENT_CATALOG.stride.branchZh,
+    accent: PALETTE.cyan,
+    accentCore: PALETTE.cyanCore,
+    whisper: "「步子稳且快，早些见着北塔灯。」",
+    absorbTarget: "shoulder",
+    shortEffect: (_snap, curRank) => "背负步速 +" + ((curRank + 1) * 10) + "%",
+    subEffect: () => "翻滚突围更疾 · 与回声铳相合",
+    ledgerLine: (_snap, rank) => "背负步速 +" + (rank * 10) + "% · 翻滚 +" + (rank * 8) + "%",
+});
+
+registerTalentVisual({
+    id: "focus",
+    title: TALENT_CATALOG.focus.title,
+    category: TALENT_CATALOG.focus.branchZh,
+    accent: PALETTE.amber,
+    accentCore: PALETTE.amberCore,
+    whisper: "「稳住气息，慢时连线从容不迫。」",
+    absorbTarget: "gun",
+    shortEffect: (_snap, curRank) => "慢时换弹线盘 +" + (curRank + 1) + " 秒",
+    subEffect: () => "连线窗口 +60 拍 · 与引路灯铳相合",
+    ledgerLine: (_snap, rank) => "换弹连线窗口 +" + rank + " 秒（+" + (rank * 60) + " 拍）",
+});
+
+registerTalentVisual({
+    id: "push_force",
+    title: TALENT_CATALOG.push_force.title,
+    category: TALENT_CATALOG.push_force.branchZh,
+    accent: PALETTE.rouge,
+    accentCore: PALETTE.amberCore,
+    whisper: "「一铳破盾，逼退围拢之敌。」",
+    absorbTarget: "gun",
+    shortEffect: (_snap, curRank) => "破盾加伤 · 邻近震退（" + rankChinese(curRank + 1) + "重）",
+    subEffect: () => "推退连线重挫盾面并压缓举铳",
+    ledgerLine: (_snap, rank) => "推退破盾与震退强化（" + rankChinese(rank) + "阶）",
+});
+
+registerTalentVisual({
+    id: "echo_wide",
+    title: TALENT_CATALOG.echo_wide.title,
+    category: TALENT_CATALOG.echo_wide.branchZh,
+    accent: PALETTE.cyan,
+    accentCore: PALETTE.cyanCore,
+    whisper: "「铜铃传巷远，群寇皆回首。」",
+    absorbTarget: "gun",
+    shortEffect: (_snap, curRank) => "回声多惊 +" + (curRank + 1) + " 敌 · 延后开火",
+    subEffect: () => "铃纹连线扩域 · 与回声铳共鸣",
+    ledgerLine: (_snap, rank) => "回声多惊 +" + rank + " 敌 · 延缓举铳 +" + (rank * 30) + " 拍",
+});
+
+registerTalentVisual({
+    id: "lantern_pierce",
+    title: TALENT_CATALOG.lantern_pierce.title,
+    category: TALENT_CATALOG.lantern_pierce.branchZh,
+    accent: PALETTE.amberCore,
+    accentCore: PALETTE.textBright,
+    whisper: "「灯火一明，夜巷尽收眼底。」",
+    absorbTarget: "gun",
+    shortEffect: (_snap, curRank) => "灯纹必起光晕 · 照域 +" + ((curRank + 1) * 50),
+    subEffect: () => "镇住旁侧敌兵 · 与引路灯铳共鸣",
+    ledgerLine: (_snap, rank) => "灯纹光晕镇敌 · 半径 +" + (rank * 50),
+});
+
+registerTalentVisual({
+    id: "salvage",
+    title: TALENT_CATALOG.salvage.title,
+    category: TALENT_CATALOG.salvage.branchZh,
+    accent: PALETTE.amber,
+    accentCore: PALETTE.amberCore,
+    whisper: "「沿途收齐筹料，盾楔多撑一记。」",
+    absorbTarget: "satchel",
+    shortEffect: () => "即得紧缺筹料 +1 · 盾楔加厚",
+    subEffect: () => "便携残盾与野战木楔耐受增强",
+    ledgerLine: (_snap, rank) => "拾料补筹 · 架盾与立楔多承 +" + rank + " 击",
+});
+
 export function resolveTalentVisual(id: string, snap?: RoguelikeSnapshot): TalentVisualMeta {
     const reg = TALENT_REGISTRY[id];
     if (reg !== undefined) {
@@ -198,9 +286,13 @@ export function pickupMetaOf(kind: string): PickupDisplayMeta {
 /** 按当前已习本领、所持火铳与战备派生纯前端「行军雅号」（零后端侵入）。 */
 export function deriveMarchTitle(snap: RoguelikeSnapshot): MarchTitleMeta {
     const vit = snap.ranks["vitality"] ?? 0;
-    const rel = snap.ranks["focus"] ?? 0;
+    const rel = (snap.ranks["reload"] ?? 0) + (snap.ranks["focus"] ?? 0);
     const grd = snap.ranks["guard"] ?? 0;
-    const crf = snap.ranks["salvage"] ?? 0;
+    const str = snap.ranks["stride"] ?? 0;
+    const psh = snap.ranks["push_force"] ?? 0;
+    const ech = snap.ranks["echo_wide"] ?? 0;
+    const lnt = snap.ranks["lantern_pierce"] ?? 0;
+    const crf = (snap.ranks["craft"] ?? 0) + (snap.ranks["salvage"] ?? 0);
     const total = snap.totalRanks;
     const weapon = snap.equippedWeapon;
     const wedge = snap.supplies["wedge"] ?? 0;
@@ -208,10 +300,10 @@ export function deriveMarchTitle(snap: RoguelikeSnapshot): MarchTitleMeta {
     if (total <= 0) {
         return { title: "初启北行", sealTop: "守", sealBot: "望", subtitle: "行囊初整，孤灯在前", accent: PALETTE.silkLine };
     }
-    if (rel >= 2 && weapon === "guide_lantern_gun") {
+    if ((rel >= 2 || lnt >= 2) && weapon === "guide_lantern_gun") {
         return { title: "明火疾铳", sealTop: "明", sealBot: "火", subtitle: "灯影破夜，火绳如电", accent: PALETTE.amberCore };
     }
-    if (rel >= 2 && weapon === "echo_gun") {
+    if ((rel >= 2 || ech >= 2) && weapon === "echo_gun") {
         return { title: "惊铃连响", sealTop: "惊", sealBot: "铃", subtitle: "铜铃惑敌，连发不断", accent: PALETTE.cyanCore };
     }
     if (vit + grd >= 3 && vit >= 1 && grd >= 1) {
@@ -219,6 +311,18 @@ export function deriveMarchTitle(snap: RoguelikeSnapshot): MarchTitleMeta {
     }
     if (crf >= 2 || (crf >= 1 && wedge >= 1)) {
         return { title: "巧楔筑垒", sealTop: "巧", sealBot: "楔", subtitle: "削木固掩，以巧破险", accent: PALETTE.emerald };
+    }
+    if (lnt >= 2) {
+        return { title: "镇雾孤灯", sealTop: "明", sealBot: "灯", subtitle: "余明破暗，镇敌于前", accent: PALETTE.amberCore };
+    }
+    if (psh >= 2) {
+        return { title: "破盾劲铳", sealTop: "劲", sealBot: "推", subtitle: "一铳撼盾，寸步不让", accent: PALETTE.rouge };
+    }
+    if (ech >= 2) {
+        return { title: "广音惑寇", sealTop: "广", sealBot: "音", subtitle: "铃声远扬，步步生机", accent: PALETTE.cyanCore };
+    }
+    if (str >= 2) {
+        return { title: "踏风负行", sealTop: "疾", sealBot: "步", subtitle: "肩背疾行，直趋北塔", accent: PALETTE.cyan };
     }
     if (rel >= 2) {
         return { title: "疾火连铳", sealTop: "疾", sealBot: "铳", subtitle: "熟手快装，火线不绝", accent: PALETTE.amber };
@@ -308,22 +412,52 @@ export function drawTalentGlyph(
         return;
     }
 
-    if (talentId === "focus") {
-        // 明式鸟铳铳身斜杆 + 护木
+    if (talentId === "reload" || talentId === "focus") {
+        // 明式鸟铳铳身斜杆 + 护木 + 凝神龙头火绳弯钩
         draw.drawSegment(Vec2(cx - r * 0.82, cy - r * 0.54), Vec2(cx + r * 0.82, cy + r * 0.34), lw * 1.45, stroke);
         draw.drawSegment(Vec2(cx - r * 0.76, cy - r * 0.68), Vec2(cx + r * 0.22, cy - r * 0.14), lw * 1.0, faint);
-        // 龙头 S 形火绳弯钩（明代火绳铳最独特特征）
         draw.drawSegment(Vec2(cx - r * 0.16, cy - r * 0.20), Vec2(cx - r * 0.26, cy + r * 0.32), lw * 1.15, core);
         draw.drawSegment(Vec2(cx - r * 0.26, cy + r * 0.32), Vec2(cx + r * 0.16, cy + r * 0.56), lw * 1.15, core);
         draw.drawSegment(Vec2(cx + r * 0.16, cy + r * 0.56), Vec2(cx + r * 0.38, cy + r * 0.36), lw * 1.05, core);
-        // 药池与四向火绳火星
         const sx = cx + r * 0.44;
         const sy = cy + r * 0.34;
         drawDiamond(draw, sx, sy, r * 0.17, r * 0.17, core);
         draw.drawSegment(Vec2(sx - r * 0.28, sy), Vec2(sx + r * 0.28, sy), lw * 0.75, core);
         draw.drawSegment(Vec2(sx, sy - r * 0.28), Vec2(sx, sy + r * 0.28), lw * 0.75, core);
-        // 铳托尾端微弯
         draw.drawSegment(Vec2(cx - r * 0.82, cy - r * 0.54), Vec2(cx - r * 0.90, cy - r * 0.76), lw * 1.2, stroke);
+        return;
+    }
+
+    if (talentId === "stride") {
+        // 疾步：明式轻履破风双羽燕尾纹
+        draw.drawSegment(Vec2(cx - r * 0.78, cy + r * 0.38), Vec2(cx + r * 0.24, cy + r * 0.38), lw * 1.35, stroke);
+        draw.drawSegment(Vec2(cx - r * 0.18, cy + r * 0.70), Vec2(cx + r * 0.32, cy + r * 0.38), lw * 1.25, core);
+        draw.drawSegment(Vec2(cx - r * 0.48, cy - r * 0.12), Vec2(cx + r * 0.78, cy - r * 0.12), lw * 1.45, stroke);
+        draw.drawSegment(Vec2(cx + r * 0.24, cy + r * 0.20), Vec2(cx + r * 0.80, cy - r * 0.12), lw * 1.3, core);
+        draw.drawSegment(Vec2(cx + r * 0.24, cy - r * 0.44), Vec2(cx + r * 0.80, cy - r * 0.12), lw * 1.3, core);
+        draw.drawSegment(Vec2(cx - r * 0.76, cy - r * 0.48), Vec2(cx - r * 0.08, cy - r * 0.48), lw * 0.9, faint);
+        return;
+    }
+
+    if (talentId === "push_force") {
+        // 劲推：破盾冲击棱 + 双道震退折波
+        drawReloadPatternGlyph(draw, cx, cy, r * 0.95, "knockback", col, alpha);
+        drawBrushArc(draw, cx - r * 0.10, cy, r * 0.72, r * 0.68, -Math.PI * 0.36, Math.PI * 0.36, lw * 1.15, core, 10);
+        return;
+    }
+
+    if (talentId === "echo_wide") {
+        // 广音：明式铜铃 + 双圈回响声波
+        drawReloadPatternGlyph(draw, cx, cy, r * 0.95, "echo", col, alpha);
+        drawBrushArc(draw, cx, cy, r * 0.82, r * 0.82, -Math.PI * 0.22, Math.PI * 0.22, lw * 0.95, core, 8);
+        drawBrushArc(draw, cx, cy, r * 0.82, r * 0.82, Math.PI * 0.78, Math.PI * 1.22, lw * 0.95, core, 8);
+        return;
+    }
+
+    if (talentId === "lantern_pierce") {
+        // 明灯：六角风灯 + 破雾穿行芒线
+        drawReloadPatternGlyph(draw, cx, cy, r * 0.95, "light", col, alpha);
+        draw.drawRing(Vec2(cx, cy), r * 0.74, r * 0.82, Color(0, 0, 0, 0), lw * 0.85, core);
         return;
     }
 
@@ -341,7 +475,7 @@ export function drawTalentGlyph(
         return;
     }
 
-    if (talentId === "salvage") {
+    if (talentId === "craft" || talentId === "salvage") {
         // 梯形竹木楔（左侧立面 + 契口刻线）
         draw.drawPolygon([
             Vec2(cx - r * 0.68, cy - r * 0.56),
