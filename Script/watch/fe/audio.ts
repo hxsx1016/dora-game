@@ -165,6 +165,74 @@ export class AudioDirector {
         this.syncBusGain(track);
     }
 
+    /** 是否已全局静音（所有 5 条逻辑音轨均静音） */
+    isAllMuted(): boolean {
+        let i = 0;
+        for (i = 0; i < ALL_TRACKS.length; i++) {
+            if (!this.trackMuted[ALL_TRACKS[i]]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 一键切换全局静音（供 Web/触屏顶部静音按钮使用） */
+    toggleAllMuted(): boolean {
+        const next = !this.isAllMuted();
+        let i = 0;
+        for (i = 0; i < ALL_TRACKS.length; i++) {
+            this.setTrackMuted(ALL_TRACKS[i], next);
+        }
+        return next;
+    }
+
+    /**
+     * Web 浏览器首手势解锁后补同步循环音轨与总线增益：
+     * - 浏览器在首次点击/触摸前会挂起 AudioContext，若此前启动的循环环境音未能拉起底层声源，此处无重播副作用地补拉一次；
+     * - 已在播放的循环音只同步音量，绝不重头播放。
+     */
+    unlockAndResyncAfterGesture(): void {
+        let i = 0;
+        for (i = 0; i < ALL_TRACKS.length; i++) {
+            this.syncBusGain(ALL_TRACKS[i]);
+        }
+        if (this.paused) {
+            return;
+        }
+        for (const loopId in this.activeLoops) {
+            const entry = this.activeLoops[loopId];
+            const bus = this.buses[entry.track];
+            const trackGain = this.trackMuted[entry.track] ? 0 : this.trackVolumes[entry.track];
+            const stillPlaying = entry.source !== undefined && entry.source.playing;
+            if (stillPlaying || entry.handler !== undefined) {
+                if (entry.source !== undefined) {
+                    entry.source.volume = bus !== undefined ? entry.volume : entry.volume * trackGain;
+                }
+                continue;
+            }
+            if (entry.path !== "" && Content.exist(entry.path)) {
+                const created = safeCreateSource(entry.path, false, bus);
+                if (created !== undefined) {
+                    created.looping = true;
+                    created.volume = bus !== undefined ? entry.volume : entry.volume * trackGain;
+                    if (this.hostNode !== undefined) {
+                        created.addTo(this.hostNode);
+                    }
+                    if (created.play()) {
+                        entry.source = created;
+                    } else {
+                        created.removeFromParent(true);
+                    }
+                } else {
+                    const h = safeAudioPlay(entry.path, true);
+                    if (h > 0) {
+                        entry.handler = h;
+                    }
+                }
+            }
+        }
+    }
+
     /** 调整世界音轨播放速率（如换弹慢时同步微调环境音速，保留 voice 清晰） */
     setWorldPlaySpeed(speed: number): void {
         const next = Math.max(0.25, Math.min(2.0, speed));

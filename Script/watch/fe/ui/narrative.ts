@@ -8,7 +8,10 @@
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { GATE_COUNT_END, gateCountAtTick, Play } from "Script/watch/play";
+import { GamepadLayout, InputMode } from "Script/watch/controls_config";
+import { SafeInsets, ZERO_SAFE_INSETS } from "Script/watch/platform";
 import { AssetSlotHost } from "Script/watch/fe/assets";
+import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import {
     PALETTE,
@@ -73,6 +76,9 @@ export class NarrativeRenderer {
         w: number,
         h: number,
         assistHintsEnabled: boolean = false,
+        inputMode: InputMode = "kbm",
+        gamepadLayout: GamepadLayout = "xbox",
+        safe: SafeInsets = ZERO_SAFE_INSETS,
     ): void {
         // 1. 电影遮幅（极轻霜丝边）
         if (this.letterbox > 0.01) {
@@ -91,12 +97,12 @@ export class NarrativeRenderer {
         // 3. 北塔尾声「登记簿末页」高清冷素宣纸页
         const showRegistry = p.room.key === "tower" && (p.phase === "tower-end" || (p.phase === "tower-given" && p.phaseTick >= 120));
         if (showRegistry) {
-            this.drawTowerRegistryCard(uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled);
+            this.drawTowerRegistryCard(uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout);
         }
 
         // 4. 底部《饿殍》风烟黛渐变旁白长幕 + 上沿霜月海棠结
         if (!p.paused && !showRegistry) {
-            this.drawSubtitleStrip(uiDraw, uiInkDraw, art, texts, p, w, h, assistHintsEnabled);
+            this.drawSubtitleStrip(uiDraw, uiInkDraw, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe);
         }
 
         // 5. 切场烟岚行书区域标题卡
@@ -124,18 +130,26 @@ export class NarrativeRenderer {
         w: number,
         h: number,
         assistHintsEnabled: boolean,
+        inputMode: InputMode,
+        gamepadLayout: GamepadLayout,
+        safe: SafeInsets,
     ): void {
-        const line = this.composeNarrativeLine(p, assistHintsEnabled);
-        if (line.text === "") {
+        const rawLine = this.composeNarrativeLine(p, assistHintsEnabled);
+        if (rawLine.text === "") {
             return;
         }
+        const line = {
+            cue: rawLine.cue,
+            text: assistHintsEnabled ? adaptHintSentence(rawLine.text, inputMode, gamepadLayout) : rawLine.text,
+            urgent: rawLine.urgent,
+        };
         const hasCue = line.cue !== "";
         const textW = visualTextWidth(line.text, 18);
         const contentW = textW + (hasCue ? 48 : 0);
-        const stripW = Math.min(w - 72, Math.max(540, contentW + 210));
+        const stripW = Math.min(w - 72 - safe.left - safe.right, Math.max(540, contentW + 210));
         const stripH = 54;
         const cx = w * 0.5;
-        const cy = this.letterbox > 0.4 ? 36 : 42;
+        const cy = (this.letterbox > 0.4 ? 36 : 42) + safe.bottom * 0.5;
 
         // 丝绒般柔边烟黛长幕
         drawSilkVeil(uiDraw, art, "sub_veil", cx, cy, stripW, stripH, line.urgent ? PALETTE.inkWarm : PALETTE.inkWash, 0.84, -1);
@@ -412,6 +426,8 @@ export class NarrativeRenderer {
         w: number,
         h: number,
         assistHintsEnabled: boolean,
+        inputMode: InputMode,
+        gamepadLayout: GamepadLayout,
     ): void {
         const cardW = 588;
         const cardH = 382;
@@ -471,7 +487,8 @@ export class NarrativeRenderer {
             drawLoneSeal(uiInkDraw, art, texts, "reg_lone_seal", midX + 86, signY, 22, 42, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.92, 4);
 
             drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 360, 32, PALETTE.inkWash, 0.72, 0);
-            const endHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
+            const rawEndHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
+            const endHint = adaptHintSentence(rawEndHint, inputMode, gamepadLayout);
             texts.put("xs", endHint, midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
         }
     }

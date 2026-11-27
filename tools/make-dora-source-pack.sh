@@ -68,10 +68,11 @@ rsync -a \
 cat > "$STAGE/Dora平台运行说明.md" <<MD
 # 《向西守望》Dora SSR 兼容源码包（${VERSION}）
 
-- 适用引擎：**Dora SSR v1.10.2**（支持 Windows / macOS / Linux / Android 等 Dora 平台）
+- 适用引擎：**Dora SSR v1.10.2**（支持 Windows / macOS / Linux / Android / Web / KTR 掌机等全平台）
 - 入口文件：\`init.lua\`（源码 \`init.ts\`，已附完整预编译 Lua，无需二次编译即可直接运行）
+- 输入与多端适配：全平台统一支持 **键鼠 / 触屏 / 手柄** 三种操作模式（默认自动切换，亦可于暂停菜单「操控设置」中随时切换），自适应 16:9、3:2（KTR1/R2）、4:3 与竖屏掌机布局
 - 运行方式：
-  1. 在 Dora SSR 客户端 / Web IDE 中导入本目录，直接运行 \`init.lua\`；
+  1. 在 Dora SSR 客户端 / Web IDE（含 KTR 掌机端 Dora SSR Android 客户端）中导入本目录，直接运行 \`init.lua\`；
   2. 或命令行执行：\`Dora cli run -p . --entry init.lua\`。
 - 若希望在 Windows 10/11 免装引擎双击即玩，请下载同版本 Release 中的 \`${BASE_NAME}-${VERSION}-windows-x64.zip\`（或 \`-opengl.zip\`）。
 MD
