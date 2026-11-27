@@ -1,13 +1,11 @@
 /**
  * 《守望》入口装配器：
- * - 正常启动进入 WatchFrontend 的标题页与八个房间；
- * - 保留 G / F2 切回 D1 灰盒调试视图（graybox.ts），保留 1..8 / Tab / F1 开发快跳与
- *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
+ * - 正式启动进入 WatchFrontend 的标题页与八章剧情，不再保留灰盒调试视图；
+ * - 只保留运行态验收钩子（package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"]），
+ *   供离线回放与自动验收读取真实运行态。
  */
 
 import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
-import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
-import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
@@ -37,28 +35,12 @@ import { isCutsceneBlockingPlay } from "Script/watch/fe/ui/control_prompts";
 declare function print(...args: string[]): void;
 
 const FONT = "sarasa-mono-sc-regular";
-const LAYOUT_AUDIT = false;
 
 const C_TEXT = Color(236, 236, 232, 255);
-const C_DIM = Color(150, 154, 152, 255);
 const C_ACCENT = Color(226, 186, 84, 255);
-const C_BG = Color(17, 18, 19, 255);
-
-const POOL_BODY = 30;
-const POOL_SMALL = 44;
-const TOP_H = 208;
-const BOTTOM_H = 216;
 
 let root: Node.Type | undefined;
-let grayboxLayer: Node.Type | undefined;
-let draw: DrawNode.Type | undefined;
-let titleLabel: Label.Type | undefined;
-let roomLabel: Label.Type | undefined;
-let captionLabel: Label.Type | undefined;
-let hintLabel: Label.Type | undefined;
-let switchLabel: Label.Type | undefined;
 let campaignLayer: Node.Type | undefined;
-let campaignDraw: DrawNode.Type | undefined;
 let campaignHud: Label.Type | undefined;
 let campaignSub: Label.Type | undefined;
 let run: RunState | undefined;
@@ -68,18 +50,12 @@ let storyRun: RunState | undefined;
 let profile: SaveState = emptySave();
 let profileStatus = "missing";
 let profileDetail = "";
-let rulerLabel: Label.Type | undefined;
-let standLabel: Label.Type | undefined;
-let cartLabel: Label.Type | undefined;
-
-const poolBody: Label.Type[] = [];
-const poolSmall: Label.Type[] = [];
 
 let current = 0;
 let viewW = 0;
 let viewH = 0;
 let dirty = true;
-/** 0 = 灰盒调试视图，1 = 游戏前端。 */
+/** 1 = 正式游戏前端，2 = 独立护送试炼。 */
 let mode = 1;
 let input: Input | undefined;
 let touchRouter: TouchRouter | undefined;
@@ -144,10 +120,6 @@ function quitGame(): void {
 }
 
 function handleBackButton(): void {
-    if (mode === 0) {
-        setMode(1);
-        return;
-    }
     if (mode === 2 && play !== undefined) {
         const trial = run?.trial;
         if (trial !== undefined && (trial.lost || run?.finished === true)) {
@@ -361,48 +333,14 @@ function continueOfficialStory(): Play | undefined {
     return play;
 }
 
-function makeGrayboxLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
-    if (grayboxLayer === undefined) {
-        return undefined;
-    }
-    const lb = Label(FONT, size);
-    if (lb === undefined) {
-        return undefined;
-    }
-    lb.text = text;
-    lb.color = color;
-    lb.addTo(grayboxLayer);
-    lb.visible = true;
-    return lb;
-}
-
-function place(lb: Label.Type | undefined, x: number, y: number, ax: number, ay: number): void {
-    if (lb === undefined) {
-        return;
-    }
-    lb.position = Vec2(x, y);
-    lb.anchor = Vec2(ax, ay);
-    lb.visible = true;
-}
-
 export function start(parent: Node.Type, initialMode: number = 1, startScreen: ScreenKind = "title"): void {
     root = parent;
     mode = initialMode;
-
-    // 1. 保留 D1 灰盒调试层（G / F2 按需切入）
-    grayboxLayer = Node();
-    grayboxLayer.order = 2;
-    grayboxLayer.addTo(parent);
-
-    draw = DrawNode();
-    draw.addTo(grayboxLayer);
 
     // 新版关卡试玩层：直接画 Play，HUD 只有两行读数。
     campaignLayer = Node();
     campaignLayer.order = 3;
     campaignLayer.addTo(parent);
-    campaignDraw = DrawNode();
-    campaignDraw.addTo(campaignLayer);
     campaignHud = Label(FONT, 24);
     if (campaignHud !== undefined) {
         campaignHud.color = C_TEXT;
@@ -419,28 +357,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     }
     campaignLayer.visible = mode === 2;
 
-    titleLabel = makeGrayboxLabel(TITLE, 40, C_TEXT);
-    roomLabel = makeGrayboxLabel("", 26, C_ACCENT);
-    captionLabel = makeGrayboxLabel("", 22, C_DIM);
-    switchLabel = makeGrayboxLabel(SWITCH_HINT, 22, C_DIM);
-    hintLabel = makeGrayboxLabel("", 22, C_TEXT);
-    rulerLabel = makeGrayboxLabel(RULER_TEXT, 22, C_DIM);
-    standLabel = makeGrayboxLabel(STAND_NOTE, 24, C_DIM);
-    cartLabel = makeGrayboxLabel(CART_NOTE, 24, C_ACCENT);
-
-    for (let i = 0; i < POOL_BODY; i++) {
-        const lb = makeGrayboxLabel("", 24, C_TEXT);
-        if (lb !== undefined) {
-            poolBody.push(lb);
-        }
-    }
-    for (let i = 0; i < POOL_SMALL; i++) {
-        const lb = makeGrayboxLabel("", 22, C_DIM);
-        if (lb !== undefined) {
-            poolSmall.push(lb);
-        }
-    }
-
     // 挂载菜单与游戏前端。
     // 读档：缺文件按新档起局；损坏/版本不支持时保留原文件并报告，仍可继续玩。
     if (mode === 1) {
@@ -455,7 +371,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         fe.menus.resetSplash();
     }
     refreshTitleSessionFlag();
-    grayboxLayer.visible = mode === 0;
     fe.setVisible(mode === 1);
     if (campaignLayer !== undefined) {
         campaignLayer.visible = mode === 2;
@@ -556,35 +471,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             } else if (key === KeyName.R && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
                 input.retry.pressed = true;
             }
-        }
-        if (mode === 2 && run?.trial !== undefined) return;
-        if (isReleaseBuild()) return;
-        if (key === KeyName.F1) {
-            if (mode === 2) {
-                current = 0;
-                play = undefined;
-                ensurePlay();
-            } else {
-                enterPlayRoom(current, storyRun === undefined ? "debug" : storyRun.source);
-            }
-        } else if (key === KeyName.F2) {
-            setMode(0);
-        } else if (key === KeyName.Num1) {
-            pickByIndex(0);
-        } else if (key === KeyName.Num2) {
-            pickByIndex(1);
-        } else if (key === KeyName.Num3) {
-            pickByIndex(2);
-        } else if (key === KeyName.Num4) {
-            pickByIndex(3);
-        } else if (key === KeyName.Num5) {
-            pickByIndex(4);
-        } else if (key === KeyName.Num6) {
-            pickByIndex(5);
-        } else if (key === KeyName.Num7) {
-            pickByIndex(6);
-        } else if (key === KeyName.Num8) {
-            pickByIndex(7);
         }
     });
 
@@ -734,9 +620,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
 
 function setMode(nextMode: number): void {
     mode = nextMode;
-    if (grayboxLayer !== undefined) {
-        grayboxLayer.visible = mode === 0;
-    }
     if (fe !== undefined) {
         fe.setVisible(mode === 1);
     }
@@ -848,9 +731,6 @@ function applySize(): void {
     }
     if (campaignLayer !== undefined) {
         campaignLayer.position = Vec2(stageVp.stageX, stageVp.stageY);
-    }
-    if (grayboxLayer !== undefined) {
-        grayboxLayer.position = Vec2(0, 0);
     }
 }
 
@@ -1020,40 +900,15 @@ function tick(frameDt: number): void {
         input.pickRoom = 0;
     }
 
-    if (isReleaseBuild()) {
-        input.toggleView.pressed = false;
-        input.pickRoom = 0;
-        input.tab.pressed = false;
-    } else {
-        // G 键切换灰盒调试视图 / 高清前端
-        if (input.toggleView.pressed) {
-            input.toggleView.pressed = false;
-            setMode(mode === 0 ? 1 : (mode === 1 ? 2 : 0));
-            if (mode === 1 && fe !== undefined && fe.screen === "play" && play === undefined) {
-                ensurePlay();
-            }
-        }
-
-        // 1/2/3 与 Tab 轮询快跳
-        if (input.pickRoom !== 0) {
-            const idx = input.pickRoom - 1;
-            input.pickRoom = 0;
-            pickByIndex(idx);
-        } else if (input.tab.pressed) {
-            input.tab.pressed = false;
-            if (mode === 0 || (fe?.screen === "play" && !play?.paused)) {
-                pickByIndex((current + 1) % ROOMS.length);
-            }
-        }
-    }
+    // 旧版灰盒视图与开发快跳（G / Tab / 数字键）已移除，这里只清输入边界，避免残留状态。
+    input.toggleView.pressed = false;
+    input.pickRoom = 0;
+    input.tab.pressed = false;
 
     if (mode === 2) {
         tickCampaign(frameDt);
     } else if (mode === 1) {
         tickFrontend(frameDt);
-    } else if (dirty) {
-        redrawGraybox();
-        dirty = false;
     }
     renderTouchOverlay();
 }
@@ -1083,10 +938,12 @@ function ensurePlay(resume?: { checkpoint: number }): void {
     }
     registerPlay();
     clock.reset();
-    if (fe !== undefined && mode === 1) {
+    if (fe !== undefined) {
+        // 正式剧情与护送试炼都用同一套正式场景/角色渲染。
         fe.bindPlay(play, stageVp.stageW, stageVp.stageH);
-    } else if (fe !== undefined && mode === 2) {
-        fe.resetTrialAudio(play);
+        if (mode === 2) {
+            fe.resetTrialAudio(play);
+        }
     }
 }
 
@@ -1125,7 +982,7 @@ function tickCampaign(frameDt: number): void {
             p.paused = false;
             clock.reset();
             input.consumeEdges();
-            drawCampaign(p);
+            renderCampaign(frameDt, p);
             return;
         }
         if (zoneTap === "trial:retry") {
@@ -1164,7 +1021,7 @@ function tickCampaign(frameDt: number): void {
             const restart = input.retry.pressed || (ended && input.navConfirm);
             input.consumeEdges();
             if (restart) startTrial();
-            else drawCampaign(p);
+            else renderCampaign(frameDt, p);
             return;
         }
         input.retry.pressed = false;
@@ -1192,8 +1049,7 @@ function tickCampaign(frameDt: number): void {
             }
             input.consumeEdges();
             clock.reset();
-            fe?.syncTrialAudio(frameDt, p, trial.offers.length);
-            drawCampaign(p);
+            renderCampaign(frameDt, p);
             return;
         }
     }
@@ -1214,8 +1070,7 @@ function tickCampaign(frameDt: number): void {
         input.consumeEdges();
     }
     if (p.paused) {
-        fe?.syncTrialAudio(frameDt, p, trial?.offers.length ?? 0);
-        drawCampaign(p);
+        renderCampaign(frameDt, p);
         return;
     }
 
@@ -1229,7 +1084,6 @@ function tickCampaign(frameDt: number): void {
             break;
         }
     }
-    fe?.syncTrialAudio(frameDt, p, trial?.offers.length ?? 0);
 
     if (p.wantRoom !== "") {
         const key = p.wantRoom;
@@ -1248,7 +1102,7 @@ function tickCampaign(frameDt: number): void {
         }
         return;
     }
-    drawCampaign(p);
+    renderCampaign(frameDt, p);
 }
 
 function goalLabel(goal: string): string {
@@ -1261,72 +1115,72 @@ function goalLabel(goal: string): string {
     return "到段出口";
 }
 
-function drawCampaign(p: Play): void {
-    if (campaignDraw === undefined) {
-        return;
+/** 试炼每帧：正式前端负责场景与角色，HUD 仍用试炼自己的两行读数。 */
+function renderCampaign(frameDt: number, p: Play): void {
+    if (fe !== undefined && input !== undefined) {
+        // 试炼一帧只取一次事件队列：同一份事件同时给命中特效与分轨音效。
+        const offers = run?.trial?.offers.length ?? 0;
+        const ev = p.paused ? undefined : fe.adapter.sample(p);
+        fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH, true, ev);
+        fe.syncTrialAudio(frameDt, p, offers, ev);
     }
-    const w = stageVp.stageW;
+    drawCampaignHud(p);
+}
+
+/** 试炼 HUD：世界与角色走正式前端渲染，这里只叠段名/体力两行与操作提示。 */
+function drawCampaignHud(p: Play): void {
     const h = stageVp.stageH;
     const safeL = stageVp.safeUi.left * stageVp.uiScale;
     const safeT = stageVp.safeUi.top * stageVp.uiScale;
-    p.draw(campaignDraw, w, h);
     const room = CAMPAIGN_ROOMS[current];
     const c = room.campaign;
     const r = run;
-    let line = room.name;
-    if (c !== undefined) {
-        line = line + "  " + c.chapter + c.act + " · 目标 " + goalLabel(c.goal)
-            + " · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0)) + " / 预算 " + mmss(c.budget * 60);
-    }
-    if (p.paused) {
-        line = line + "  · 已暂停 Esc 继续";
-    }
     const trial = r?.trial;
-    if (trial !== undefined && r !== undefined) {
-        line = "护送试炼 · " + room.name + " · 体力 " + p.hp + "/" + p.maxHp + " · " + mmss(r.ticks);
-        if (p.paused) line += " · 暂停";
-        else if (trial.lost) line += " · 护送失败";
-        else if (r.finished) line += " · 护送完成";
-        else if (trial.offers.length > 0) line += " · 选择本段本领";
-        else if (c !== undefined) line += " · " + goalLabel(c.goal);
+    const gpMode = input !== undefined && input.isGamepadMode();
+    const touchMode = input !== undefined && input.isTouchMode();
+
+    // 只在玩家真需要读的两行：段名/目标/体力，以及操作提示或当前反馈。
+    let line = room.name;
+    if (trial === undefined) {
+        if (c !== undefined) {
+            line = line + "  · 目标 " + goalLabel(c.goal) + "  · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0));
+        }
+        if (p.paused) line += "  · 已暂停";
+    } else {
+        line = "护送试炼 · " + room.name + "  · 体力 " + p.hp + "/" + p.maxHp + "  · " + mmss(r === undefined ? 0 : r.ticks);
+        if (p.paused) line += "  · 暂停";
+        else if (trial.lost) line += "  · 护送失败";
+        else if (r !== undefined && r.finished) line += "  · 护送完成";
+        else if (trial.offers.length > 0) line += "  · 选择本段本领";
+        else if (c !== undefined) line += "  · " + goalLabel(c.goal);
     }
     if (campaignHud !== undefined) {
         campaignHud.text = line;
         campaignHud.position = Vec2(24 + safeL, h - 14 - safeT);
         campaignHud.visible = true;
     }
-    if (campaignSub !== undefined) {
-        let sub = "总 " + mmss(r === undefined ? 0 : r.ticks);
-        if (r !== undefined) {
-            const route = r.route === "drygoods" ? "布行" : (r.route === "outer" ? "外檐" : "未定");
-            sub = sub + " · 路线 " + route
-                + " · 盾" + r.inventory.shield + " 楔" + r.inventory.wedge + " 弹" + r.inventory.ammo
-                + " 牌" + r.inventory.pass + " 带" + r.inventory.quickbelt
-                + " · " + (r.joined ? "小满跟随" : "小满等待");
-        }
-        if (p.flash !== "") {
-            sub = sub + " · " + p.flash;
-        }
-        if (trial !== undefined && r !== undefined) {
-            const gpMode = input !== undefined && input.isGamepadMode();
-            const touchMode = input !== undefined && input.isTouchMode();
-            if (trial.lost || r.finished) {
-                sub = "种子 " + r.seed + (gpMode ? " · A 再开一局 · START 返回标题" : (touchMode ? " · 点下方按钮再开或返回标题" : " · R 再开一局 · Esc 返回标题"));
-            } else if (p.paused) {
-                sub = "种子 " + r.seed + (gpMode ? " · START 继续 · 长按BACK 重开 · Y 返回标题" : (touchMode ? " · 点下方按钮继续/重开/返回标题" : " · Esc 继续 · R 重新开局 · E 返回标题"));
-            } else if (trial.offers.length > 0) {
-                sub = trial.offers.map((talent, index) => {
-                    const mark = gpMode && index === trialTalentSelected ? "▶ " : "";
-                    return mark + (index + 1) + " " + talentNames[talent];
-                }).join("　");
-            } else {
-                sub = "厚甲" + trial.ranks.vitality + " 熟铳" + trial.ranks.reload + " 护身" + trial.ranks.guard + " 巧手" + trial.ranks.craft + " · " + (p.flash !== "" ? p.flash : (r.joined ? "小满跟随" : "小满等待"));
-            }
-        }
-        campaignSub.text = sub;
-        campaignSub.position = Vec2(24 + safeL, h - 44 - safeT);
-        campaignSub.visible = true;
+
+    if (campaignSub === undefined) {
+        return;
     }
+    let sub = p.flash;
+    if (trial !== undefined) {
+        if (trial.lost || (r !== undefined && r.finished)) {
+            sub = gpMode ? "A 再开一局 · START 返回标题" : (touchMode ? "点下方按钮再开或返回标题" : "R 再开一局 · Esc 返回标题");
+        } else if (p.paused) {
+            sub = gpMode ? "START 继续 · 长按 BACK 重开 · Y 返回标题" : (touchMode ? "点下方按钮继续 / 重开 / 返回标题" : "Esc 继续 · R 重新开局");
+        } else if (trial.offers.length > 0) {
+            sub = trial.offers.map((talent, index) => {
+                const mark = gpMode && index === trialTalentSelected ? "▶ " : "";
+                return mark + (index + 1) + " " + talentNames[talent];
+            }).join("　");
+        } else if (sub === "" && r !== undefined) {
+            sub = r.joined ? "小满跟随" : "小满等待";
+        }
+    }
+    campaignSub.text = sub;
+    campaignSub.position = Vec2(24 + safeL, h - 44 - safeT);
+    campaignSub.visible = sub !== "";
 }
 
 function tickFrontend(frameDt: number): void {
@@ -1563,86 +1417,4 @@ function tickFrontend(frameDt: number): void {
         saveCurrentSession();
     }
     fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH);
-}
-
-/** D1 灰盒调试视图（按 G / F2 切入） */
-function redrawGraybox(): void {
-    if (draw === undefined) {
-        return;
-    }
-    const w = viewW;
-    const h = viewH;
-    const room = ROOMS[current];
-
-    draw.clear();
-    draw.drawRect(Rect(0, h - TOP_H, w, TOP_H), C_BG);
-    draw.drawRect(Rect(0, 0, w, BOTTOM_H), C_BG);
-    draw.drawSegment(Vec2(0, h - TOP_H), Vec2(w, h - TOP_H), 1, Color(52, 54, 54, 255));
-    draw.drawSegment(Vec2(0, BOTTOM_H), Vec2(w, BOTTOM_H), 1, Color(52, 54, 54, 255));
-
-    const v = computeView(room, w, h);
-    renderWorld(draw, room, v, w, h);
-
-    const roomTop = v.groundPx + room.height * v.scale;
-    drawScaleRuler(draw, w - 192, roomTop + 36, v.scale);
-
-    place(titleLabel, 48, h - 40, 0, 1);
-    place(roomLabel, 48, h - 96, 0, 1);
-    place(captionLabel, 48, h - 140, 0, 1);
-
-    place(switchLabel, 48, 40, 0, 0);
-    place(hintLabel, 48, 84, 0, 0);
-    place(rulerLabel, w - 216, roomTop + 36 + v.scale * 0.5 - 14, 1, 0);
-    place(standLabel, 48, roomTop + 40, 0, 0);
-    place(cartLabel, 48, roomTop + 92, 0, 0);
-
-    if (roomLabel !== undefined) {
-        roomLabel.text = room.name;
-    }
-    if (captionLabel !== undefined) {
-        captionLabel.text = room.caption;
-    }
-    if (hintLabel !== undefined) {
-        const hintIdx = Math.min(current, HINTS.length - 1);
-        const lines = HINTS[hintIdx];
-        let merged = lines[0];
-        for (let i = 1; i < lines.length; i++) {
-            merged = merged + "    " + lines[i];
-        }
-        hintLabel.text = merged;
-    }
-
-    const specs = collectLabels(room, v, w);
-    const body: LabelSpec[] = [];
-    const small: LabelSpec[] = [];
-    for (let i = 0; i < specs.length; i++) {
-        const s = specs[i];
-        if (s.size >= 24) {
-            body.push(s);
-        } else {
-            small.push(s);
-        }
-    }
-    applyPool(body, poolBody);
-    applyPool(small, poolSmall);
-
-    if (LAYOUT_AUDIT) {
-        print("AUDIT|" + room.key + "|" + specs.length);
-    }
-}
-
-function applyPool(specs: LabelSpec[], pool: Label.Type[]): void {
-    for (let i = 0; i < pool.length; i++) {
-        const lb = pool[i];
-        if (i < specs.length) {
-            const s = specs[i];
-            lb.text = s.text;
-            lb.position = Vec2(s.x, s.y);
-            lb.anchor = Vec2(s.ax, s.ay);
-            lb.color = s.color;
-            lb.visible = true;
-        } else {
-            lb.visible = false;
-        }
-    }
 }

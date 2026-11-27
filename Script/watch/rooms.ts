@@ -90,7 +90,8 @@ export interface SolidSpec {
     breakable?: BreakSpec;
     interact?: InteractSpec;
     art?: "cover_wood" | "cover_stone" | "fence" | "wall" | "gate_post"
-        | "thin_wood" | "basket_wall" | "curtain" | "board" | "latch" | "grain_sack" | "well";
+        | "thin_wood" | "basket_wall" | "curtain" | "board" | "latch" | "grain_sack" | "well"
+        | "red_cart";
     /** 低矮植被等：只挡撞头不做水平阻挡，蹲行与走过都能穿过。 */
     passable?: boolean;
     /** 布帘、窗纸一类：挡视线与子弹，但不挡人、车和碎屑。 */
@@ -338,7 +339,7 @@ export const OUTSIDE_ROOM: RoomSpec = {
     ],
     solids: [
         // 补丁红布车：原本斜停在石阶口，挡住台面下行的路；点一次 E 拉开后石阶口才露出来。
-        { x: 96, w: 44, h: 34, y: 96, id: "outside_red_cart", label: "补丁红布车 · 挡住石阶口" },
+        { x: 96, w: 44, h: 34, y: 96, id: "outside_red_cart", art: "red_cart", label: "补丁红布车 · 挡住石阶口" },
         // 城墙基座：只占 96 以上，挡住台面上的玩家；下层 0–96 是通的，墙根小路就从下面穿过去。
         { x: 512, w: 88, h: 134, y: 96, label: "台面右端城墙 · 下层可通" },
         { x: 0, w: 40, h: 96, y: 0, label: "街口" },
@@ -722,7 +723,7 @@ export const TOWER_ROOM: RoomSpec = {
         { x: 430, w: 40, h: 120, y: 0, id: "tower_door", label: "塔门 430–470 · E 叩两下" },
         { x: 700, w: 20, h: 220, y: 0, label: "塔身右墙 700–720" },
         { x: 400, w: 90, h: 30, y: 110, label: "门楣 400–490" },
-        { x: 560, w: 90, h: 32, y: 0, id: "tower_desk", label: "值夜桌 560–650 · 长按 E 交物" },
+        { x: 560, w: 90, h: 32, y: 0, id: "tower_desk", art: "cover_wood", label: "值夜桌 560–650 · 长按 E 交物" },
         { x: 660, w: 40, h: 8, y: 120, decorative: true, label: "西窗 660–700" },
     ],
     zones: [

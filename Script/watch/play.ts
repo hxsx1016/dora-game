@@ -1,5 +1,5 @@
 /**
- * D2 试玩层：把 D1 的灰盒数值变成能走、能跳、能蹲、能打的一段。
+ * 玩法层：一段能走、能跳、能蹲、能打，并能进入护送试炼与正式剧情。
  *
  * 世界坐标：x 左右，y 为离地高度，depth 为地面前后位置；角色位置是脚底中心。
  * 绘制坐标：Dora DrawNode 局部坐标，左下原点、y 向上；Rect(x, y, w, h) 以 (x, y)
@@ -3794,8 +3794,8 @@ export class Play {
             this.flashSet("出军粮棚 · 城门", 1.4);
         } else if (!this.run.finished) {
             this.run.finished = true;
-            this.flashSet("C2 灰盒完成 · " + mmss(this.run.roomTicks[wr.key] ?? 0), 2.0);
-            this.log("C2 灰盒完成");
+            this.flashSet("军粮棚清完 · 回城门 · " + mmss(this.run.roomTicks[wr.key] ?? 0), 2.0);
+            this.log("军粮棚清完 · 回城门");
             this.emit("objectiveDone", { goal: "dock_cart", room: wr.key });
         }
     }

@@ -374,14 +374,14 @@ export class WatchFrontend {
     }
 
     /** 护送试炼肉鸽（mode 2）每帧消费事件队列与声景拟音 */
-    syncTrialAudio(dt: number, p: Play, offerCount: number): void {
+    syncTrialAudio(dt: number, p: Play, offerCount: number, ev?: FrameEvents): void {
         const safeDt = Math.min(0.05, Math.max(0.001, dt));
         this.audio.setPaused(p.paused);
         this.audio.setCameraRef(p.player.x, 960);
         this.audio.update(safeDt);
         if (!p.paused) {
-            const ev = this.adapter.sample(p);
-            this.audio.ingestEvents(ev, p);
+            const frame = ev !== undefined ? ev : this.adapter.sample(p);
+            this.audio.ingestEvents(frame, p);
             this.soundscape.updateTrial(safeDt, p, this.audio, offerCount);
         }
     }
@@ -456,7 +456,7 @@ export class WatchFrontend {
     }
 
     /** 局内试玩态每帧更新与渲染（返回暂停菜单动作，非暂停时返回 none） */
-    renderPlay(dt: number, p: Play, input: Input, w: number, h: number): MenuAction {
+    renderPlay(dt: number, p: Play, input: Input, w: number, h: number, trialMode: boolean = false, evIn?: FrameEvents): MenuAction {
         this.syncRuntimeHooks();
         this.setVisible(true);
         if (this.boundPlay !== p) {
@@ -466,9 +466,11 @@ export class WatchFrontend {
         if (this.toastTimer > 0) {
             this.toastTimer = Math.max(0, this.toastTimer - safeDt);
         }
-        this.audio.setPaused(p.paused);
-        this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
-        this.audio.update(safeDt);
+        if (!trialMode) {
+            this.audio.setPaused(p.paused);
+            this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+            this.audio.update(safeDt);
+        }
 
         let ev: FrameEvents;
         let worldDt = 0;
@@ -476,9 +478,11 @@ export class WatchFrontend {
 
         if (!p.paused) {
             // 唯一 drainEvents() 消费入口 → 按 seq 顺序分发给 VFX 与分轨音频
-            ev = this.adapter.sample(p);
+            ev = evIn !== undefined ? evIn : this.adapter.sample(p);
             this.vfx.ingest(ev, p, this.cam);
-            this.audio.ingestEvents(ev, p);
+            if (!trialMode) {
+                this.audio.ingestEvents(ev, p);
+            }
             const touch = input.getTouch();
             if (touch !== undefined) {
                 if (ev.playerHit) {
@@ -543,8 +547,10 @@ export class WatchFrontend {
         if (!p.paused) {
             this.time += worldDt;
             this.cam.update(worldDt, p, w, h);
-            this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
-            this.soundscape.updatePlay(worldDt, p, view, this.audio);
+            if (!trialMode) {
+                this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+                this.soundscape.updatePlay(worldDt, p, view, this.audio);
+            }
             this.actors.update(worldDt, p);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
             this.hud.update(safeDt, p);
@@ -627,7 +633,8 @@ export class WatchFrontend {
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
         let action: MenuAction = { type: "none" };
         if (p.paused) {
-            action = this.menus.updateAndDrawPause(
+            // 试炼有自己的暂停与选卡面板，这里不再画剧情暂停菜单，也不消费其输入。
+            action = trialMode ? { type: "none" } : this.menus.updateAndDrawPause(
                 safeDt,
                 input,
                 this.uiDraw,

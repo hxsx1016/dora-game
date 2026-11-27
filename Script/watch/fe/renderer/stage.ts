@@ -787,6 +787,12 @@ export class StageRenderer {
                 continue;
             }
 
+            // 4) 补丁红布车（像素路线；低模路线由 lowpoly_world 插件画同一实体，不叠）
+            if (s.art === "red_cart") {
+                this.drawRedCartPixel(fgDraw, x0, y0, sw, sh, cam);
+                continue;
+            }
+
             // 4) 矮掩体（柜台 / 街垒 / 倒柜 / 矮墙 / 队栏）
             if (s.h <= 64 && s.y <= 2) {
                 this.drawCoverBlock(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, theme);
@@ -814,16 +820,6 @@ export class StageRenderer {
         const capHeight = rear - top;
         const center = (left + right) * 0.5;
 
-        // 地面真实占位投影框（与碰撞盒 [depth.min, depth.max] 严格一致，消除边界空气墙错觉）
-        if (solid.y <= 2 && rearBase > base + 1) {
-            draw.drawRect(
-                Rect(left, base, width, rearBase - base),
-                Color(9, 10, 14, Math.round(86 * opacity)),
-                0.8,
-                toColor(theme.groundRim, Math.round(58 * opacity)),
-            );
-        }
-
         // 城门绞盘（带 middle 纵深）
         if (solid.label.indexOf("绞盘") >= 0) {
             this.drawWinch(draw, assets, left, base, width, frontH, p, layer);
@@ -839,20 +835,21 @@ export class StageRenderer {
 
         const timber = slot === "cover_wood" || solid.art === "thin_wood" || solid.art === "board" || solid.art === "curtain";
 
-        // 透视压扁后的顶盖（采用材质化纯色与拼缝线，不再暴力拉伸 slab/wall 贴图）
+        // 透视压扁后的顶面：沿用该实体自身材质贴图（柜沿/砖沿同纹），不再铺一整块带描边的纯色矩形
         if (slot !== "fence" && capHeight > 1) {
-            const capFill = occlusionTint(opacity, timber
-                ? Color(88, 68, 52, Math.round(240 * opacity))
-                : Color(86, 90, 98, Math.round(240 * opacity)));
-            const capEdge = occlusionTint(opacity, timber
-                ? Color(148, 118, 90, Math.round(185 * opacity))
-                : Color(146, 152, 160, Math.round(175 * opacity)));
-            draw.drawRect(Rect(left, top, width, capHeight), capFill, 0.9, capEdge);
-            draw.drawSegment(Vec2(left + 1, top + 0.5), Vec2(right - 1, top + 0.5), 1.1, capEdge);
-            if (capHeight > 8) {
-                const midY = top + capHeight * 0.5;
-                draw.drawSegment(Vec2(left + 2, midY), Vec2(right - 2, midY), 0.7, Color(24, 22, 22, Math.round(90 * opacity)));
+            const capTop = top + capHeight;
+            if (!assets.tryPlace(slot, "cap_" + solid.x, center, top, width, capHeight,
+                { opacity: Math.min(1, opacity), layer: layer })) {
+                const capFill = occlusionTint(opacity, timber
+                    ? Color(74, 56, 42, Math.round(232 * opacity))
+                    : Color(74, 78, 86, Math.round(232 * opacity)));
+                fillVGradRect(draw, left, top, width, capHeight,
+                    capFill, occlusionTint(opacity, Color(44, 46, 52, Math.round(220 * opacity))));
             }
+            draw.drawSegment(Vec2(left + width * 0.04, capTop - 0.5), Vec2(right - width * 0.04, capTop - 0.5),
+                0.9, occlusionTint(opacity, timber
+                    ? Color(122, 96, 72, Math.round(150 * opacity))
+                    : Color(118, 124, 132, Math.round(140 * opacity))));
         }
 
         // 特例 1：细长竖木柱（檐柱/棚柱等 h > w*1.6 的木构）——绘制真实木柱，不再把横木柜竖拉 13.65×
@@ -964,6 +961,31 @@ export class StageRenderer {
                 fgDraw.drawSegment(Vec2(edgeX, y0 + 4), Vec2(edgeX, y0 + sh + 2), p.coverHug ? 2.0 : 1.2, toColor(col, p.coverHug ? 205 : 120));
             }
         }
+    }
+
+
+
+
+    /** 补丁红布车（像素路线）：木车板、红布补丁、车柄与木轮。 */
+    private drawRedCartPixel(
+        draw: DrawNode.Type, x0: number, y0: number, sw: number, sh: number, cam: CameraDirector,
+    ): void {
+        const bodyH = Math.max(6, sh * 0.62);
+        const bodyY = y0 + sh - bodyH;
+        draw.drawRect(Rect(x0, bodyY, sw, bodyH), Color(92, 70, 52, 248), 1.0, Color(150, 118, 86, 215));
+        draw.drawRect(Rect(x0 - cam.len(3), bodyY + cam.len(1), sw + cam.len(8), bodyH * 0.92),
+            toColor(PALETTE.clothRed), 1.0, toColor(PALETTE.clothRedHighlight));
+        draw.drawRect(Rect(x0 + sw * 0.16, bodyY + bodyH * 0.36, sw * 0.24, bodyH * 0.32),
+            Color(214, 206, 188, 215));
+        draw.drawRect(Rect(x0 + sw * 0.58, bodyY + bodyH * 0.52, sw * 0.18, bodyH * 0.22),
+            Color(196, 188, 172, 200));
+        draw.drawSegment(Vec2(x0 + sw - cam.len(2), bodyY + bodyH * 0.72),
+            Vec2(x0 + sw + cam.len(26), bodyY + bodyH * 1.36),
+            Math.max(2, cam.len(2.6)), Color(126, 98, 68, 240));
+        draw.drawEllipse(Vec2(x0 + sw * 0.26, y0 + sh - cam.len(1)), cam.len(5.2), cam.len(5.2),
+            Color(40, 34, 30, 235));
+        draw.drawEllipse(Vec2(x0 + sw * 0.26, y0 + sh - cam.len(1)), cam.len(2.1), cam.len(2.1),
+            Color(150, 126, 92, 220));
     }
 
     private drawWinch(
