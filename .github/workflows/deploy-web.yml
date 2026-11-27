@@ -50,7 +50,7 @@ concurrency:
 
 env:
   DORA_VERSION: v1.10.2
-  DORA_WEB_IDE_SHA256: 644e4fc0def8da2ccf0cdc5e7bff301c89fa72b5771d38fcaa7e63d5b860d124
+  DORA_WEB_IDE_SHA256: c1a9ab069c0694a009a5942bb758496b03f43a6d96380a3f7bce6b0618608ce6
 
 jobs:
   build:
