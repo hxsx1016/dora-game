@@ -9,7 +9,7 @@
  *   惰性向 package.loaded["watch.fe"] 挂载 contract/audio/registerPlugin 调试钩子（零改动 app.ts）。
  */
 
-import { BlendFunc, BlendOp, DrawNode, Node, TextAlign } from "Dora";
+import { BlendFunc, BlendOp, DrawNode, Node, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
 import { FrameEvents, PlayAdapter } from "Script/watch/fe/adapter";
@@ -326,6 +326,26 @@ export class WatchFrontend {
         );
         this.finishFrame();
         return act;
+    }
+
+    /** 局内试玩态：检测点击是否命中男主线护送段的三选一本领卡（命中后直接习得并吞掉当拍开火） */
+    tryPickTalentAtPointer(p: Play, input: Input, w: number, h: number): boolean {
+        const offers = p.getStoryTalentOffers();
+        if (offers.length === 0 || !input.inside) {
+            return false;
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        const uiW = w / uiScale;
+        const uiH = h / uiScale;
+        const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
+        const boxes = this.hud.talentCardRects(uiW, uiH, offers.length);
+        let i = 0;
+        for (i = 0; i < boxes.length; i++) {
+            if (boxes[i].containsPoint(pointer)) {
+                return p.chooseTalent(i);
+            }
+        }
+        return false;
     }
 
     /** 局内试玩态每帧更新与渲染（返回暂停菜单动作，非暂停时返回 none） */

@@ -478,7 +478,7 @@ export class MenuRenderer {
         drawMistCurve(uiArt, "chap_info_mist", infoX + 210, infoCenterY + 36, 420, 88, theme.accent, 0.22, -1);
 
         // 卷次眉注
-        const volCol = this.chapterSelected < 4 ? PALETTE.cyan : PALETTE.amber;
+        const volCol = theme.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber;
         texts.put("xs", theme.volumeTagZh, infoX, winY + winH - 44, toColor(volCol), 0, 0.5, TextAlign.Left, 2.8, 0.92, 0.08);
 
         // 新增关卡名有龙藏体未收录的字，使用覆盖完整的正文宋体。
@@ -539,7 +539,7 @@ export class MenuRenderer {
             const sy = box.y + box.height * 0.5;
             const rt = themeOf(CHAPTERS[i].room.key);
             const active = this.chapterSelected === i;
-            const nodeCol = active ? PALETTE.rouge : (i < 4 ? PALETTE.cyan : PALETTE.amber);
+            const nodeCol = active ? PALETTE.rouge : (rt.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber);
 
             if (active) {
                 fillRadialGlow(uiGlow, sx, sy, 26, 26, toColor(PALETTE.rouge, 36 * breathe), Color(182, 58, 56, 0), 12);

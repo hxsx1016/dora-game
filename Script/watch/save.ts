@@ -9,7 +9,7 @@
  * 自动测试用 `setSaveFile` 指向隔离文件，损坏备份也按该路径派生，绝不碰玩家档案。
  */
 import { Content } from "Dora";
-import { MuseumPhase, StoryRoute, isMuseumPhase } from "Script/watch/run";
+import { MuseumPhase, RouteTag, StoryRoute, isMuseumPhase } from "Script/watch/run";
 
 export const SAVE_VERSION = 1;
 export const SAVE_DIR = "watch-save";
@@ -600,6 +600,19 @@ export interface SessionSave {
     segments: string[];
     cartAxle: number;
     cartDocked: boolean;
+    /** S1..C2 正式接入后的岔路与机关进度（向后兼容旧版 session.txt）。 */
+    campaignRoute?: RouteTag;
+    joined?: boolean;
+    c1Latch?: boolean;
+    c2Latch?: boolean;
+    /** 男主线 escort1..5 肉鸽三选一天赋状态（向后兼容旧版 session.txt）。 */
+    talentSeed?: number;
+    talentRoom?: string;
+    talentOffers?: string[];
+    talentVitality?: number;
+    talentReload?: number;
+    talentGuard?: number;
+    talentCraft?: number;
 }
 
 export interface SessionLoadResult {
@@ -684,6 +697,17 @@ function formatSession(s: SessionSave): string {
         "segments=" + s.segments.join(","),
         "cartAxle=" + Math.round(s.cartAxle),
         "cartDocked=" + (s.cartDocked ? "true" : "false"),
+        "campaignRoute=" + (s.campaignRoute ?? ""),
+        "joined=" + (s.joined === true ? "true" : "false"),
+        "c1Latch=" + (s.c1Latch === true ? "true" : "false"),
+        "c2Latch=" + (s.c2Latch === true ? "true" : "false"),
+        "talentSeed=" + Math.round(s.talentSeed ?? 0),
+        "talentRoom=" + (s.talentRoom ?? ""),
+        "talentOffers=" + (s.talentOffers === undefined ? "" : s.talentOffers.join(",")),
+        "talentVitality=" + Math.round(s.talentVitality ?? 0),
+        "talentReload=" + Math.round(s.talentReload ?? 0),
+        "talentGuard=" + Math.round(s.talentGuard ?? 0),
+        "talentCraft=" + Math.round(s.talentCraft ?? 0),
         "",
     ].join("\n");
 }
@@ -718,9 +742,17 @@ function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: 
     const carry = parseBoolField(lineValue(text, "carry"), false);
     const escortDone = parseBoolField(lineValue(text, "escortDone"), false);
     const cartDocked = parseBoolField(lineValue(text, "cartDocked"), false);
+    const joined = parseBoolField(lineValue(text, "joined"), false);
+    const c1Latch = parseBoolField(lineValue(text, "c1Latch"), false);
+    const c2Latch = parseBoolField(lineValue(text, "c2Latch"), false);
     if (settled === undefined || handDone === undefined || lineSaid === undefined
-        || tied === undefined || carry === undefined || escortDone === undefined || cartDocked === undefined) {
+        || tied === undefined || carry === undefined || escortDone === undefined || cartDocked === undefined
+        || joined === undefined || c1Latch === undefined || c2Latch === undefined) {
         return { ok: false, status: "corrupt", reason: "布尔字段非法" };
+    }
+    const campRouteRaw = lineValue(text, "campaignRoute") ?? "";
+    if (campRouteRaw !== "" && campRouteRaw !== "outer" && campRouteRaw !== "drygoods") {
+        return { ok: false, status: "corrupt", reason: "campaignRoute 取值非法" };
     }
     const hp = intOf(lineValue(text, "hp") ?? "3", -1);
     const maxHp = intOf(lineValue(text, "maxHp") ?? "3", -1);
@@ -764,6 +796,17 @@ function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: 
             segments: parseListField(lineValue(text, "segments")),
             cartAxle: intOf(lineValue(text, "cartAxle") ?? "0", 0),
             cartDocked,
+            campaignRoute: campRouteRaw as RouteTag,
+            joined,
+            c1Latch,
+            c2Latch,
+            talentSeed: Math.max(0, intOf(lineValue(text, "talentSeed") ?? "0", 0)),
+            talentRoom: lineValue(text, "talentRoom") ?? "",
+            talentOffers: parseListField(lineValue(text, "talentOffers")),
+            talentVitality: Math.max(0, intOf(lineValue(text, "talentVitality") ?? "0", 0)),
+            talentReload: Math.max(0, intOf(lineValue(text, "talentReload") ?? "0", 0)),
+            talentGuard: Math.max(0, intOf(lineValue(text, "talentGuard") ?? "0", 0)),
+            talentCraft: Math.max(0, intOf(lineValue(text, "talentCraft") ?? "0", 0)),
         },
     };
 }

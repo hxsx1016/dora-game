@@ -9,6 +9,7 @@ local ____escort = require("Script.watch.escort") -- 9
 local CALM_REACH = ____escort.CALM_REACH -- 9
 local ____depth = require("Script.watch.depth") -- 10
 local inReachDepth = ____depth.inReachDepth -- 10
+local overlapsDepth = ____depth.overlapsDepth -- 10
 function ____exports.createEmptyFrameEvents(roomSessionId, eventSeq, checkpoint) -- 94
 	return { -- 99
 		shotFired = false, -- 100
@@ -535,166 +536,195 @@ function ____exports.deriveWorldPrompt(p) -- 481
 		} -- 555
 	end -- 555
 	local cart = room.cart -- 558
-	if (room.key == "checkpoint" or room.key == "outside") and not p.cartDocked and cart.bodyW > 0 then -- 558
+	if (room.key == "checkpoint" or room.key == "outside" or room.key == "c2-granary") and not p.cartDocked and cart.bodyW > 0 then -- 558
 		local handleX = p.cartAxle + cart.handleOffset -- 560
 		if p.gripping or p:cartHandleInReach() then -- 560
 			return { -- 562
 				x = handleX, -- 563
 				y = cart.baseY + (cart.depth or 0) + cart.wheelR + cart.bodyH + 46, -- 564
-				keyTag = "按住 E + D", -- 565
-				label = room.key == "checkpoint" and "向前推车" or "向前拉车", -- 566
+				keyTag = room.key == "c2-granary" and "E 握柄 + D" or "按住 E + D", -- 565
+				label = room.key == "outside" and "向前拉车" or "向前推车", -- 566
 				urgent = false -- 567
 			} -- 567
 		end -- 567
 	end -- 567
-	if room.key == "village" and p.scavChase then -- 567
-		local ____player_crouch_13 -- 573
-		if player.crouch then -- 573
-			____player_crouch_13 = nil -- 573
-		else -- 573
-			____player_crouch_13 = { -- 573
-				x = player.x, -- 574
-				y = player.y + player.h + 22, -- 574
-				keyTag = "按住 Ctrl", -- 574
-				label = "蹲下躲避", -- 574
-				urgent = true -- 574
-			} -- 574
+	if p.isCampaign then -- 567
+		local bi = 0 -- 573
+		do -- 573
+			bi = 0 -- 574
+			while bi < #p.boxes do -- 574
+				do -- 574
+					local b = p.boxes[bi + 1] -- 575
+					if b.broken == true or b.hidden == true or b.interact == nil then -- 575
+						goto __continue74 -- 577
+					end -- 577
+					local cx = (b.x0 + b.x1) * 0.5 -- 579
+					local reach = b.interact.reach or 46 -- 580
+					if math.abs(player.x - cx) <= reach + 16 and overlapsDepth(player.depth, b.depth, 16) then -- 580
+						local kind = b.interact.kind -- 582
+						local label = kind == "open_board" and "放下窗板" or (kind == "lower_curtain" and "放下木帘" or "抬起门锁") -- 583
+						return { -- 585
+							x = cx, -- 585
+							y = b.y1 + 24, -- 585
+							keyTag = "E", -- 585
+							label = label, -- 585
+							urgent = true -- 585
+						} -- 585
+					end -- 585
+				end -- 585
+				::__continue74:: -- 585
+				bi = bi + 1 -- 574
+			end -- 574
 		end -- 574
-		return ____player_crouch_13 -- 573
-	end -- 573
-	if room.key == "village" and not p.passed then -- 573
-		local bottle = room.bottle -- 579
-		if p.hasBottle then -- 579
-			return { -- 581
-				x = player.x, -- 582
-				y = player.y + player.h + 26, -- 582
-				keyTag = p.aimHold >= 0.12 and "松开 F" or "按住 F", -- 583
-				label = p.aimHold >= 0.12 and "投瓶" or "瞄准砖地", -- 584
-				urgent = false -- 584
-			} -- 584
-		end -- 584
-		if p.bottleFly == nil and bottle ~= nil then -- 584
-			local dx = player.x - bottle.x -- 588
-			local dy = player.y + player.h * 0.5 - bottle.y -- 589
-			if dx * dx + dy * dy < 56 * 56 then -- 589
-				return { -- 591
-					x = bottle.x, -- 591
-					y = bottle.y + 36, -- 591
-					keyTag = "E", -- 591
-					label = "拾起瓶子", -- 591
-					urgent = false -- 591
-				} -- 591
-			end -- 591
-		end -- 591
+	end -- 574
+	if room.key == "village" and p.scavChase then -- 574
+		local ____player_crouch_13 -- 591
+		if player.crouch then -- 591
+			____player_crouch_13 = nil -- 591
+		else -- 591
+			____player_crouch_13 = { -- 591
+				x = player.x, -- 592
+				y = player.y + player.h + 22, -- 592
+				keyTag = "按住 Ctrl", -- 592
+				label = "蹲下躲避", -- 592
+				urgent = true -- 592
+			} -- 592
+		end -- 592
+		return ____player_crouch_13 -- 591
 	end -- 591
-	local arch = room.arch -- 596
-	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 596
-		return { -- 600
-			x = (arch.x0 + arch.x1) * 0.5, -- 601
-			y = arch.y + arch.h + 44, -- 601
-			keyTag = "按住 Ctrl", -- 602
-			label = room.key == "outside" and "蹲着穿过拱洞" or "蹲着钻过桌下", -- 602
-			urgent = false -- 602
-		} -- 602
-	end -- 602
-	local ____opt_14 = room.story -- 602
-	local museum = ____opt_14 and ____opt_14.museum -- 606
-	if room.key == "museum" and museum ~= nil then -- 606
-		if p.phase == "museum-cabinet" then -- 606
-			return { -- 609
-				x = museum.cabinetX, -- 609
-				y = 64 + 44, -- 609
-				keyTag = "E", -- 609
-				label = "玻璃柜前 · 收枪入袖", -- 609
-				urgent = true -- 609
-			} -- 609
+	if room.key == "village" and not p.passed then -- 591
+		local bottle = room.bottle -- 597
+		if p.hasBottle then -- 597
+			return { -- 599
+				x = player.x, -- 600
+				y = player.y + player.h + 26, -- 600
+				keyTag = p.aimHold >= 0.12 and "松开 F" or "按住 F", -- 601
+				label = p.aimHold >= 0.12 and "投瓶" or "瞄准砖地", -- 602
+				urgent = false -- 602
+			} -- 602
+		end -- 602
+		if p.bottleFly == nil and bottle ~= nil then -- 602
+			local dx = player.x - bottle.x -- 606
+			local dy = player.y + player.h * 0.5 - bottle.y -- 607
+			if dx * dx + dy * dy < 56 * 56 then -- 607
+				return { -- 609
+					x = bottle.x, -- 609
+					y = bottle.y + 36, -- 609
+					keyTag = "E", -- 609
+					label = "拾起瓶子", -- 609
+					urgent = false -- 609
+				} -- 609
+			end -- 609
 		end -- 609
-		if p.phase == "museum-hall" then -- 609
-			return { -- 612
-				x = museum.hallX, -- 612
-				y = 120, -- 612
-				keyTag = "走到", -- 612
-				label = "西厅那头 · 孩子的脚步", -- 612
-				urgent = false -- 612
-			} -- 612
-		end -- 612
-		if p.phase == "museum-lamp" then -- 612
-			return { -- 615
-				x = museum.lampX, -- 615
-				y = 120, -- 615
-				keyTag = "E", -- 615
-				label = "末厅 · 把灯转向西窗", -- 615
-				urgent = true -- 615
-			} -- 615
-		end -- 615
-		if p.phase == "museum-return" then -- 615
-			return { -- 618
-				x = museum.cabinetX, -- 618
-				y = 64 + 44, -- 618
-				keyTag = "E", -- 618
-				label = "回柜边 · 轻敲两下", -- 618
-				urgent = true -- 618
-			} -- 618
-		end -- 618
-		if p.phase == "museum-done" then -- 618
-			return { -- 621
-				x = museum.cabinetX, -- 621
-				y = 64 + 44, -- 621
-				keyTag = "E", -- 621
-				label = "回柜边 · 灯还亮着", -- 621
-				urgent = false -- 621
-			} -- 621
-		end -- 621
-		return nil -- 623
-	end -- 623
-	local ____opt_16 = room.story -- 623
-	local tower = ____opt_16 and ____opt_16.tower -- 626
-	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 626
-		return { -- 628
-			x = tower.doorX, -- 628
-			y = 96, -- 628
-			keyTag = "E", -- 628
-			label = "敲两下 · 守卒应门", -- 628
-			urgent = false -- 628
-		} -- 628
-	end -- 628
-	if p.phase == "tower-enter" then -- 628
-		return { -- 631
-			x = 605, -- 631
-			y = 64, -- 631
-			keyTag = "→", -- 631
-			label = "跨过门槛 · 走到值夜桌前", -- 631
-			urgent = false -- 631
-		} -- 631
-	end -- 631
-	if p.phase == "tower-desk" then -- 631
-		return { -- 634
-			x = 605, -- 635
-			y = 64, -- 635
-			keyTag = "按住 E", -- 635
-			label = "交出针套、指南针和纸条", -- 635
-			progress = p.deskHold / 36, -- 636
-			urgent = true -- 636
-		} -- 636
-	end -- 636
-	if p.phase == "tower-given" then -- 636
-		return { -- 640
-			x = 605, -- 640
-			y = 64, -- 640
-			keyTag = "", -- 640
-			label = "看登记簿 · 西窗的灯", -- 640
-			urgent = false -- 640
-		} -- 640
-	end -- 640
-	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 640
-		return { -- 645
-			x = player.x, -- 646
-			y = player.y + player.depth + player.h + 25, -- 646
-			keyTag = "按住 Shift", -- 647
-			label = "贴靠掩体", -- 647
-			urgent = gate ~= nil -- 647
-		} -- 647
-	end -- 647
-	return nil -- 650
+	end -- 609
+	local arch = room.arch -- 614
+	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 614
+		return { -- 618
+			x = (arch.x0 + arch.x1) * 0.5, -- 619
+			y = arch.y + arch.h + 44, -- 619
+			keyTag = "按住 Ctrl", -- 620
+			label = room.key == "outside" and "蹲着穿过拱洞" or "蹲着钻过桌下", -- 620
+			urgent = false -- 620
+		} -- 620
+	end -- 620
+	local ____opt_14 = room.story -- 620
+	local museum = ____opt_14 and ____opt_14.museum -- 624
+	if room.key == "museum" and museum ~= nil then -- 624
+		if p.phase == "museum-cabinet" then -- 624
+			return { -- 627
+				x = museum.cabinetX, -- 627
+				y = 64 + 44, -- 627
+				keyTag = "E", -- 627
+				label = "玻璃柜前 · 收枪入袖", -- 627
+				urgent = true -- 627
+			} -- 627
+		end -- 627
+		if p.phase == "museum-hall" then -- 627
+			return { -- 630
+				x = museum.hallX, -- 630
+				y = 120, -- 630
+				keyTag = "走到", -- 630
+				label = "西厅那头 · 孩子的脚步", -- 630
+				urgent = false -- 630
+			} -- 630
+		end -- 630
+		if p.phase == "museum-lamp" then -- 630
+			return { -- 633
+				x = museum.lampX, -- 633
+				y = 120, -- 633
+				keyTag = "E", -- 633
+				label = "末厅 · 把灯转向西窗", -- 633
+				urgent = true -- 633
+			} -- 633
+		end -- 633
+		if p.phase == "museum-return" then -- 633
+			return { -- 636
+				x = museum.cabinetX, -- 636
+				y = 64 + 44, -- 636
+				keyTag = "E", -- 636
+				label = "回柜边 · 轻敲两下", -- 636
+				urgent = true -- 636
+			} -- 636
+		end -- 636
+		if p.phase == "museum-done" then -- 636
+			return { -- 639
+				x = museum.cabinetX, -- 639
+				y = 64 + 44, -- 639
+				keyTag = "E", -- 639
+				label = "回柜边 · 灯还亮着", -- 639
+				urgent = false -- 639
+			} -- 639
+		end -- 639
+		return nil -- 641
+	end -- 641
+	local ____opt_16 = room.story -- 641
+	local tower = ____opt_16 and ____opt_16.tower -- 644
+	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 644
+		return { -- 646
+			x = tower.doorX, -- 646
+			y = 96, -- 646
+			keyTag = "E", -- 646
+			label = "敲两下 · 守卒应门", -- 646
+			urgent = false -- 646
+		} -- 646
+	end -- 646
+	if p.phase == "tower-enter" then -- 646
+		return { -- 649
+			x = 605, -- 649
+			y = 64, -- 649
+			keyTag = "→", -- 649
+			label = "跨过门槛 · 走到值夜桌前", -- 649
+			urgent = false -- 649
+		} -- 649
+	end -- 649
+	if p.phase == "tower-desk" then -- 649
+		return { -- 652
+			x = 605, -- 653
+			y = 64, -- 653
+			keyTag = "按住 E", -- 653
+			label = "交出针套、指南针和纸条", -- 653
+			progress = p.deskHold / 36, -- 654
+			urgent = true -- 654
+		} -- 654
+	end -- 654
+	if p.phase == "tower-given" then -- 654
+		return { -- 658
+			x = 605, -- 658
+			y = 64, -- 658
+			keyTag = "", -- 658
+			label = "看登记簿 · 西窗的灯", -- 658
+			urgent = false -- 658
+		} -- 658
+	end -- 658
+	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 658
+		return { -- 663
+			x = player.x, -- 664
+			y = player.y + player.depth + player.h + 25, -- 664
+			keyTag = "按住 Shift", -- 665
+			label = "贴靠掩体", -- 665
+			urgent = gate ~= nil -- 665
+		} -- 665
+	end -- 665
+	return nil -- 668
 end -- 481
 return ____exports -- 481

@@ -50,13 +50,20 @@ export class PropsRenderer {
 
     private drawCraftMaterials(assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
         for (const pickup of p.pickups) {
-            // 兼容包含 B2 工台材料的游戏分支。
+            // 兼容 B2 工台材料与 S1..C2 战役物资掉落（wood / bell / scrap / wedge / ammo / shield / pass / quickbelt）。
             const kind: string = pickup.kind;
-            if (pickup.id === "" || p.run.taken[pickup.id] || (kind !== "wood" && kind !== "bell")) {
+            if (pickup.id === "" || p.run.taken[pickup.id]) {
                 continue;
             }
             const depth = pickup.depth ?? 0;
-            const isWood = kind === "wood";
+            const isWood = kind === "wood" || kind === "scrap" || kind === "wedge";
+            const isMetal = kind === "bell" || kind === "shield" || kind === "ammo" || kind === "pass" || kind === "quickbelt";
+            if (!isWood && !isMetal) {
+                continue;
+            }
+            const tint = kind === "wood" || kind === "scrap"
+                ? PALETTE.amber
+                : (kind === "wedge" ? PALETTE.emerald : (kind === "shield" || kind === "ammo" ? PALETTE.cyan : PALETTE.amberCore));
             assets.tryPlace(
                 isWood ? "ink_bamboo_slip" : "prop_compass",
                 "pickup_" + pickup.id,
@@ -64,7 +71,7 @@ export class PropsRenderer {
                 cam.len(18), cam.len(isWood ? 7 : 16),
                 {
                     angle: isWood ? 65 : 0,
-                    color: isWood ? toColor(PALETTE.amber) : toColor(PALETTE.amberCore),
+                    color: toColor(tint),
                     layer: p.room.depth === undefined ? 3 : depthOrder(depth, 1),
                 },
             );

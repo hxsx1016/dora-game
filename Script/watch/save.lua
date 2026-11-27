@@ -500,445 +500,513 @@ function ____exports.saveSignature(state) -- 553
 end -- 553
 ____exports.SESSION_VERSION = 1 -- 567
 ____exports.SESSION_FILE = "watch-save/session.txt" -- 568
-local currentSessionFile = ____exports.SESSION_FILE -- 613
-function ____exports.setSessionFile(path) -- 615
-	currentSessionFile = path == "" and ____exports.SESSION_FILE or path -- 616
-end -- 615
-function ____exports.getSessionFile() -- 619
-	return currentSessionFile -- 620
-end -- 619
-local function parseBoolField(raw, fallback) -- 623
-	if raw == nil then -- 623
-		return fallback -- 625
-	end -- 625
-	if raw == "true" or raw == "1" then -- 625
-		return true -- 628
-	end -- 628
-	if raw == "false" or raw == "0" then -- 628
-		return false -- 631
-	end -- 631
-	return nil -- 633
-end -- 623
-local function parseListField(raw) -- 636
-	if raw == nil or raw == "" then -- 636
-		return {} -- 638
+local currentSessionFile = ____exports.SESSION_FILE -- 626
+function ____exports.setSessionFile(path) -- 628
+	currentSessionFile = path == "" and ____exports.SESSION_FILE or path -- 629
+end -- 628
+function ____exports.getSessionFile() -- 632
+	return currentSessionFile -- 633
+end -- 632
+local function parseBoolField(raw, fallback) -- 636
+	if raw == nil then -- 636
+		return fallback -- 638
 	end -- 638
-	local parts = __TS__StringSplit(raw, ",") -- 640
-	local out = {} -- 641
-	local i = 0 -- 642
-	do -- 642
-		i = 0 -- 643
-		while i < #parts do -- 643
-			local item = __TS__StringTrim(parts[i + 1]) -- 644
-			if item ~= "" then -- 644
-				out[#out + 1] = item -- 646
-			end -- 646
-			i = i + 1 -- 643
-		end -- 643
-	end -- 643
-	return out -- 649
+	if raw == "true" or raw == "1" then -- 638
+		return true -- 641
+	end -- 641
+	if raw == "false" or raw == "0" then -- 641
+		return false -- 644
+	end -- 644
+	return nil -- 646
 end -- 636
-local function formatSession(s) -- 652
-	return table.concat( -- 653
-		{ -- 653
-			"version=" .. tostring(____exports.SESSION_VERSION), -- 654
-			"roomKey=" .. s.roomKey, -- 655
-			"checkpoint=" .. tostring(math.floor(s.checkpoint + 0.5)), -- 656
-			"seed=" .. tostring(math.floor(s.seed + 0.5)), -- 657
-			"route=" .. s.route, -- 658
-			"hp=" .. tostring(math.floor(s.hp + 0.5)), -- 659
-			"maxHp=" .. tostring(math.floor(s.maxHp + 0.5)), -- 660
-			"hpAtGate=" .. tostring(math.floor(s.hpAtGate + 0.5)), -- 661
-			"maxHpAtGate=" .. tostring(math.floor(s.maxHpAtGate + 0.5)), -- 662
-			"settled=" .. (s.settled and "true" or "false"), -- 663
-			"phase=" .. s.phase, -- 664
-			"countTick=" .. tostring(math.floor(s.countTick + 0.5)), -- 665
-			"phaseTick=" .. tostring(math.floor(s.phaseTick + 0.5)), -- 666
-			"handTicks=" .. tostring(math.floor(s.handTicks + 0.5)), -- 667
-			"handDone=" .. (s.handDone and "true" or "false"), -- 668
-			"lineSaid=" .. (s.lineSaid and "true" or "false"), -- 669
-			"tied=" .. (s.tied and "true" or "false"), -- 670
-			"carry=" .. (s.carry and "true" or "false"), -- 671
-			"escortDone=" .. (s.escortDone and "true" or "false"), -- 672
-			"craftedWeapon=" .. s.craftedWeapon, -- 673
-			"equippedWeapon=" .. s.equippedWeapon, -- 674
-			"wood=" .. tostring(math.floor(s.wood + 0.5)), -- 675
-			"bell=" .. tostring(math.floor(s.bell + 0.5)), -- 676
-			"scrap=" .. tostring(math.floor(s.scrap + 0.5)), -- 677
-			"wedge=" .. tostring(math.floor(s.wedge + 0.5)), -- 678
-			"ammo=" .. tostring(math.floor(s.ammo + 0.5)), -- 679
-			"shield=" .. tostring(math.floor(s.shield + 0.5)), -- 680
-			"pass=" .. tostring(math.floor(s.pass + 0.5)), -- 681
-			"quickbelt=" .. tostring(math.floor(s.quickbelt + 0.5)), -- 682
-			"taken=" .. table.concat(s.taken, ","), -- 683
-			"segments=" .. table.concat(s.segments, ","), -- 684
-			"cartAxle=" .. tostring(math.floor(s.cartAxle + 0.5)), -- 685
-			"cartDocked=" .. (s.cartDocked and "true" or "false"), -- 686
-			"" -- 687
-		}, -- 687
-		"\n" -- 688
-	) -- 688
-end -- 652
-local function parseSession(text) -- 691
-	if #text == 0 then -- 691
-		return {ok = false, status = "corrupt", reason = "局中存档为空"} -- 693
-	end -- 693
-	local verRaw = lineValue(text, "version") -- 695
-	if verRaw == nil then -- 695
-		return {ok = false, status = "corrupt", reason = "缺少 version 行"} -- 697
-	end -- 697
-	local ver = intOf(verRaw, -1) -- 699
-	if ver < 0 then -- 699
-		return {ok = false, status = "corrupt", reason = "version 非法"} -- 701
-	end -- 701
-	if ver > ____exports.SESSION_VERSION then -- 701
-		return { -- 704
-			ok = false, -- 704
-			status = "unsupported", -- 704
-			reason = (("局中存档版本 " .. tostring(ver)) .. " 高于当前 ") .. tostring(____exports.SESSION_VERSION) -- 704
-		} -- 704
-	end -- 704
-	local roomKey = lineValue(text, "roomKey") -- 706
-	if roomKey == nil or roomKey == "" then -- 706
-		return {ok = false, status = "corrupt", reason = "缺少 roomKey"} -- 708
-	end -- 708
-	local routeRaw = lineValue(text, "route") or "" -- 710
-	if routeRaw ~= "" and routeRaw ~= "child" and routeRaw ~= "soldier" then -- 710
-		return {ok = false, status = "corrupt", reason = "route 取值非法"} -- 712
-	end -- 712
-	local settled = parseBoolField( -- 714
-		lineValue(text, "settled"), -- 714
-		false -- 714
-	) -- 714
-	local handDone = parseBoolField( -- 715
-		lineValue(text, "handDone"), -- 715
-		false -- 715
-	) -- 715
-	local lineSaid = parseBoolField( -- 716
-		lineValue(text, "lineSaid"), -- 716
-		false -- 716
-	) -- 716
-	local tied = parseBoolField( -- 717
-		lineValue(text, "tied"), -- 717
-		false -- 717
-	) -- 717
-	local carry = parseBoolField( -- 718
-		lineValue(text, "carry"), -- 718
-		false -- 718
-	) -- 718
-	local escortDone = parseBoolField( -- 719
-		lineValue(text, "escortDone"), -- 719
-		false -- 719
-	) -- 719
-	local cartDocked = parseBoolField( -- 720
-		lineValue(text, "cartDocked"), -- 720
-		false -- 720
-	) -- 720
-	if settled == nil or handDone == nil or lineSaid == nil or tied == nil or carry == nil or escortDone == nil or cartDocked == nil then -- 720
-		return {ok = false, status = "corrupt", reason = "布尔字段非法"} -- 723
-	end -- 723
-	local hp = intOf( -- 725
-		lineValue(text, "hp") or "3", -- 725
-		-1 -- 725
-	) -- 725
-	local maxHp = intOf( -- 726
-		lineValue(text, "maxHp") or "3", -- 726
-		-1 -- 726
-	) -- 726
-	if hp < 0 or maxHp <= 0 then -- 726
-		return {ok = false, status = "corrupt", reason = "血量字段非法"} -- 728
+local function parseListField(raw) -- 649
+	if raw == nil or raw == "" then -- 649
+		return {} -- 651
+	end -- 651
+	local parts = __TS__StringSplit(raw, ",") -- 653
+	local out = {} -- 654
+	local i = 0 -- 655
+	do -- 655
+		i = 0 -- 656
+		while i < #parts do -- 656
+			local item = __TS__StringTrim(parts[i + 1]) -- 657
+			if item ~= "" then -- 657
+				out[#out + 1] = item -- 659
+			end -- 659
+			i = i + 1 -- 656
+		end -- 656
+	end -- 656
+	return out -- 662
+end -- 649
+local function formatSession(s) -- 665
+	return table.concat( -- 666
+		{ -- 666
+			"version=" .. tostring(____exports.SESSION_VERSION), -- 667
+			"roomKey=" .. s.roomKey, -- 668
+			"checkpoint=" .. tostring(math.floor(s.checkpoint + 0.5)), -- 669
+			"seed=" .. tostring(math.floor(s.seed + 0.5)), -- 670
+			"route=" .. s.route, -- 671
+			"hp=" .. tostring(math.floor(s.hp + 0.5)), -- 672
+			"maxHp=" .. tostring(math.floor(s.maxHp + 0.5)), -- 673
+			"hpAtGate=" .. tostring(math.floor(s.hpAtGate + 0.5)), -- 674
+			"maxHpAtGate=" .. tostring(math.floor(s.maxHpAtGate + 0.5)), -- 675
+			"settled=" .. (s.settled and "true" or "false"), -- 676
+			"phase=" .. s.phase, -- 677
+			"countTick=" .. tostring(math.floor(s.countTick + 0.5)), -- 678
+			"phaseTick=" .. tostring(math.floor(s.phaseTick + 0.5)), -- 679
+			"handTicks=" .. tostring(math.floor(s.handTicks + 0.5)), -- 680
+			"handDone=" .. (s.handDone and "true" or "false"), -- 681
+			"lineSaid=" .. (s.lineSaid and "true" or "false"), -- 682
+			"tied=" .. (s.tied and "true" or "false"), -- 683
+			"carry=" .. (s.carry and "true" or "false"), -- 684
+			"escortDone=" .. (s.escortDone and "true" or "false"), -- 685
+			"craftedWeapon=" .. s.craftedWeapon, -- 686
+			"equippedWeapon=" .. s.equippedWeapon, -- 687
+			"wood=" .. tostring(math.floor(s.wood + 0.5)), -- 688
+			"bell=" .. tostring(math.floor(s.bell + 0.5)), -- 689
+			"scrap=" .. tostring(math.floor(s.scrap + 0.5)), -- 690
+			"wedge=" .. tostring(math.floor(s.wedge + 0.5)), -- 691
+			"ammo=" .. tostring(math.floor(s.ammo + 0.5)), -- 692
+			"shield=" .. tostring(math.floor(s.shield + 0.5)), -- 693
+			"pass=" .. tostring(math.floor(s.pass + 0.5)), -- 694
+			"quickbelt=" .. tostring(math.floor(s.quickbelt + 0.5)), -- 695
+			"taken=" .. table.concat(s.taken, ","), -- 696
+			"segments=" .. table.concat(s.segments, ","), -- 697
+			"cartAxle=" .. tostring(math.floor(s.cartAxle + 0.5)), -- 698
+			"cartDocked=" .. (s.cartDocked and "true" or "false"), -- 699
+			"campaignRoute=" .. (s.campaignRoute or ""), -- 700
+			"joined=" .. (s.joined == true and "true" or "false"), -- 701
+			"c1Latch=" .. (s.c1Latch == true and "true" or "false"), -- 702
+			"c2Latch=" .. (s.c2Latch == true and "true" or "false"), -- 703
+			"talentSeed=" .. tostring(math.floor((s.talentSeed or 0) + 0.5)), -- 704
+			"talentRoom=" .. (s.talentRoom or ""), -- 705
+			"talentOffers=" .. (s.talentOffers == nil and "" or table.concat(s.talentOffers, ",")), -- 706
+			"talentVitality=" .. tostring(math.floor((s.talentVitality or 0) + 0.5)), -- 707
+			"talentReload=" .. tostring(math.floor((s.talentReload or 0) + 0.5)), -- 708
+			"talentGuard=" .. tostring(math.floor((s.talentGuard or 0) + 0.5)), -- 709
+			"talentCraft=" .. tostring(math.floor((s.talentCraft or 0) + 0.5)), -- 710
+			"" -- 711
+		}, -- 711
+		"\n" -- 712
+	) -- 712
+end -- 665
+local function parseSession(text) -- 715
+	if #text == 0 then -- 715
+		return {ok = false, status = "corrupt", reason = "局中存档为空"} -- 717
+	end -- 717
+	local verRaw = lineValue(text, "version") -- 719
+	if verRaw == nil then -- 719
+		return {ok = false, status = "corrupt", reason = "缺少 version 行"} -- 721
+	end -- 721
+	local ver = intOf(verRaw, -1) -- 723
+	if ver < 0 then -- 723
+		return {ok = false, status = "corrupt", reason = "version 非法"} -- 725
+	end -- 725
+	if ver > ____exports.SESSION_VERSION then -- 725
+		return { -- 728
+			ok = false, -- 728
+			status = "unsupported", -- 728
+			reason = (("局中存档版本 " .. tostring(ver)) .. " 高于当前 ") .. tostring(____exports.SESSION_VERSION) -- 728
+		} -- 728
 	end -- 728
-	return { -- 730
-		ok = true, -- 731
-		status = "ok", -- 732
-		reason = "ok", -- 733
-		state = { -- 734
-			roomKey = roomKey, -- 735
-			checkpoint = intOf( -- 736
-				lineValue(text, "checkpoint") or "0", -- 736
-				0 -- 736
-			), -- 736
-			seed = intOf( -- 737
-				lineValue(text, "seed") or "20261124", -- 737
-				20261124 -- 737
-			), -- 737
-			route = routeRaw, -- 738
-			hp = hp, -- 739
-			maxHp = maxHp, -- 740
-			hpAtGate = intOf( -- 741
-				lineValue(text, "hpAtGate") or "-1", -- 741
-				-1 -- 741
-			), -- 741
-			maxHpAtGate = intOf( -- 742
-				lineValue(text, "maxHpAtGate") or "-1", -- 742
-				-1 -- 742
-			), -- 742
-			settled = settled, -- 743
-			phase = lineValue(text, "phase") or "", -- 744
-			countTick = math.max( -- 745
-				0, -- 745
-				intOf( -- 745
-					lineValue(text, "countTick") or "0", -- 745
-					0 -- 745
-				) -- 745
-			), -- 745
-			phaseTick = math.max( -- 746
-				0, -- 746
-				intOf( -- 746
-					lineValue(text, "phaseTick") or "0", -- 746
-					0 -- 746
-				) -- 746
-			), -- 746
-			handTicks = math.max( -- 747
-				0, -- 747
-				intOf( -- 747
-					lineValue(text, "handTicks") or "0", -- 747
-					0 -- 747
-				) -- 747
-			), -- 747
-			handDone = handDone, -- 748
-			lineSaid = lineSaid, -- 749
-			tied = tied, -- 750
-			carry = carry, -- 751
-			escortDone = escortDone, -- 752
-			craftedWeapon = lineValue(text, "craftedWeapon") or "", -- 753
-			equippedWeapon = lineValue(text, "equippedWeapon") or "", -- 754
-			wood = math.max( -- 755
-				0, -- 755
-				intOf( -- 755
-					lineValue(text, "wood") or "0", -- 755
-					0 -- 755
-				) -- 755
-			), -- 755
-			bell = math.max( -- 756
-				0, -- 756
-				intOf( -- 756
-					lineValue(text, "bell") or "0", -- 756
-					0 -- 756
-				) -- 756
-			), -- 756
-			scrap = math.max( -- 757
-				0, -- 757
-				intOf( -- 757
-					lineValue(text, "scrap") or "0", -- 757
-					0 -- 757
-				) -- 757
-			), -- 757
-			wedge = math.max( -- 758
-				0, -- 758
-				intOf( -- 758
-					lineValue(text, "wedge") or "0", -- 758
-					0 -- 758
-				) -- 758
-			), -- 758
-			ammo = math.max( -- 759
-				0, -- 759
-				intOf( -- 759
-					lineValue(text, "ammo") or "0", -- 759
-					0 -- 759
-				) -- 759
-			), -- 759
-			shield = math.max( -- 760
-				0, -- 760
-				intOf( -- 760
-					lineValue(text, "shield") or "0", -- 760
-					0 -- 760
-				) -- 760
-			), -- 760
-			pass = math.max( -- 761
-				0, -- 761
-				intOf( -- 761
-					lineValue(text, "pass") or "0", -- 761
-					0 -- 761
-				) -- 761
-			), -- 761
-			quickbelt = math.max( -- 762
-				0, -- 762
-				intOf( -- 762
-					lineValue(text, "quickbelt") or "0", -- 762
-					0 -- 762
-				) -- 762
-			), -- 762
-			taken = parseListField(lineValue(text, "taken")), -- 763
-			segments = parseListField(lineValue(text, "segments")), -- 764
-			cartAxle = intOf( -- 765
-				lineValue(text, "cartAxle") or "0", -- 765
-				0 -- 765
-			), -- 765
-			cartDocked = cartDocked -- 766
-		} -- 766
-	} -- 766
-end -- 691
-local function usableSessionBackup(path) -- 771
-	if not ops:exist(path) then -- 771
-		return false -- 773
-	end -- 773
-	return parseSession(loadText(path)).ok -- 775
-end -- 771
-local function restoreSessionFrom(candidate, target, keepCandidate) -- 778
-	if not usableSessionBackup(candidate) then -- 778
-		return false -- 780
-	end -- 780
-	if not ops:copy(candidate, target) then -- 780
-		return false -- 783
-	end -- 783
-	if not sameContent(candidate, target) then -- 783
-		return false -- 786
-	end -- 786
-	if not keepCandidate then -- 786
-		ops:remove(candidate) -- 789
-	end -- 789
-	return true -- 791
-end -- 778
-function ____exports.hasSessionSave() -- 794
-	local target = absPath(currentSessionFile) -- 795
-	if usableSessionBackup(target) then -- 795
-		return true -- 797
-	end -- 797
-	return usableSessionBackup(target .. ".tmp") or usableSessionBackup(target .. ".prev") -- 799
-end -- 794
-function ____exports.loadSession() -- 802
-	local target = absPath(currentSessionFile) -- 803
-	local tmp = target .. ".tmp" -- 804
-	local prev = target .. ".prev" -- 805
-	if not ops:exist(target) then -- 805
-		if restoreSessionFrom(tmp, target, false) then -- 805
-			local p = parseSession(loadText(target)) -- 808
-			return { -- 809
-				state = p.state, -- 809
-				status = "ok", -- 809
-				detail = "由 .tmp 恢复局中存档", -- 809
-				recovered = true, -- 809
-				backup = "" -- 809
-			} -- 809
-		end -- 809
-		if restoreSessionFrom(prev, target, true) then -- 809
-			local p = parseSession(loadText(target)) -- 812
-			return { -- 813
-				state = p.state, -- 813
-				status = "ok", -- 813
-				detail = "由 .prev 恢复局中存档", -- 813
-				recovered = true, -- 813
-				backup = "" -- 813
-			} -- 813
-		end -- 813
-		return { -- 815
-			state = nil, -- 815
-			status = "missing", -- 815
-			detail = "无局中存档", -- 815
-			recovered = false, -- 815
-			backup = "" -- 815
-		} -- 815
-	end -- 815
-	local parsed = parseSession(loadText(target)) -- 817
-	if parsed.ok and parsed.state ~= nil then -- 817
-		if ops:exist(tmp) then -- 817
-			ops:remove(tmp) -- 820
-		end -- 820
-		return { -- 822
-			state = parsed.state, -- 822
-			status = "ok", -- 822
-			detail = "局中存档读取成功", -- 822
-			recovered = false, -- 822
-			backup = "" -- 822
-		} -- 822
-	end -- 822
-	if parsed.status == "corrupt" then -- 822
-		local broken = backupCorrupt(target, ".corrupt") -- 825
-		if restoreSessionFrom(tmp, target, false) then -- 825
-			local p = parseSession(loadText(target)) -- 827
-			return { -- 828
-				state = p.state, -- 828
-				status = "ok", -- 828
-				detail = "原局中存档损坏，已用 .tmp 恢复", -- 828
-				recovered = true, -- 828
-				backup = broken -- 828
-			} -- 828
-		end -- 828
-		if restoreSessionFrom(prev, target, true) then -- 828
-			local p = parseSession(loadText(target)) -- 831
-			return { -- 832
-				state = p.state, -- 832
-				status = "ok", -- 832
-				detail = "原局中存档损坏，已用 .prev 恢复", -- 832
-				recovered = true, -- 832
-				backup = broken -- 832
-			} -- 832
-		end -- 832
-		return { -- 834
-			state = nil, -- 834
-			status = "corrupt", -- 834
-			detail = parsed.reason, -- 834
-			recovered = false, -- 834
-			backup = broken -- 834
-		} -- 834
-	end -- 834
-	local backup = backupCorrupt(target, ".unsupported") -- 836
-	return { -- 837
-		state = nil, -- 837
-		status = "unsupported", -- 837
-		detail = parsed.reason, -- 837
-		recovered = false, -- 837
-		backup = backup -- 837
-	} -- 837
-end -- 802
-function ____exports.saveSession(state) -- 840
-	local target = absPath(currentSessionFile) -- 841
-	local dir = dirOf(target) -- 842
-	if dir ~= "" and not ops:isdir(dir) then -- 842
-		ops:mkdir(dir) -- 844
-	end -- 844
-	local tmp = target .. ".tmp" -- 846
-	local prev = target .. ".prev" -- 847
-	local text = formatSession(state) -- 848
-	if not ops:save(tmp, text) then -- 848
-		ops:remove(tmp) -- 850
-		return false -- 851
-	end -- 851
-	local written = ops:load(tmp) -- 853
-	if written == nil or normalize(written) ~= normalize(text) then -- 853
-		ops:remove(tmp) -- 855
-		return false -- 856
-	end -- 856
-	local existed = ops:exist(target) -- 858
-	local backedUp = false -- 859
-	if existed then -- 859
-		backedUp = ops:copy(target, prev) -- 861
-		if not backedUp or not usableSessionBackup(prev) then -- 861
+	local roomKey = lineValue(text, "roomKey") -- 730
+	if roomKey == nil or roomKey == "" then -- 730
+		return {ok = false, status = "corrupt", reason = "缺少 roomKey"} -- 732
+	end -- 732
+	local routeRaw = lineValue(text, "route") or "" -- 734
+	if routeRaw ~= "" and routeRaw ~= "child" and routeRaw ~= "soldier" then -- 734
+		return {ok = false, status = "corrupt", reason = "route 取值非法"} -- 736
+	end -- 736
+	local settled = parseBoolField( -- 738
+		lineValue(text, "settled"), -- 738
+		false -- 738
+	) -- 738
+	local handDone = parseBoolField( -- 739
+		lineValue(text, "handDone"), -- 739
+		false -- 739
+	) -- 739
+	local lineSaid = parseBoolField( -- 740
+		lineValue(text, "lineSaid"), -- 740
+		false -- 740
+	) -- 740
+	local tied = parseBoolField( -- 741
+		lineValue(text, "tied"), -- 741
+		false -- 741
+	) -- 741
+	local carry = parseBoolField( -- 742
+		lineValue(text, "carry"), -- 742
+		false -- 742
+	) -- 742
+	local escortDone = parseBoolField( -- 743
+		lineValue(text, "escortDone"), -- 743
+		false -- 743
+	) -- 743
+	local cartDocked = parseBoolField( -- 744
+		lineValue(text, "cartDocked"), -- 744
+		false -- 744
+	) -- 744
+	local joined = parseBoolField( -- 745
+		lineValue(text, "joined"), -- 745
+		false -- 745
+	) -- 745
+	local c1Latch = parseBoolField( -- 746
+		lineValue(text, "c1Latch"), -- 746
+		false -- 746
+	) -- 746
+	local c2Latch = parseBoolField( -- 747
+		lineValue(text, "c2Latch"), -- 747
+		false -- 747
+	) -- 747
+	if settled == nil or handDone == nil or lineSaid == nil or tied == nil or carry == nil or escortDone == nil or cartDocked == nil or joined == nil or c1Latch == nil or c2Latch == nil then -- 747
+		return {ok = false, status = "corrupt", reason = "布尔字段非法"} -- 751
+	end -- 751
+	local campRouteRaw = lineValue(text, "campaignRoute") or "" -- 753
+	if campRouteRaw ~= "" and campRouteRaw ~= "outer" and campRouteRaw ~= "drygoods" then -- 753
+		return {ok = false, status = "corrupt", reason = "campaignRoute 取值非法"} -- 755
+	end -- 755
+	local hp = intOf( -- 757
+		lineValue(text, "hp") or "3", -- 757
+		-1 -- 757
+	) -- 757
+	local maxHp = intOf( -- 758
+		lineValue(text, "maxHp") or "3", -- 758
+		-1 -- 758
+	) -- 758
+	if hp < 0 or maxHp <= 0 then -- 758
+		return {ok = false, status = "corrupt", reason = "血量字段非法"} -- 760
+	end -- 760
+	return { -- 762
+		ok = true, -- 763
+		status = "ok", -- 764
+		reason = "ok", -- 765
+		state = { -- 766
+			roomKey = roomKey, -- 767
+			checkpoint = intOf( -- 768
+				lineValue(text, "checkpoint") or "0", -- 768
+				0 -- 768
+			), -- 768
+			seed = intOf( -- 769
+				lineValue(text, "seed") or "20261124", -- 769
+				20261124 -- 769
+			), -- 769
+			route = routeRaw, -- 770
+			hp = hp, -- 771
+			maxHp = maxHp, -- 772
+			hpAtGate = intOf( -- 773
+				lineValue(text, "hpAtGate") or "-1", -- 773
+				-1 -- 773
+			), -- 773
+			maxHpAtGate = intOf( -- 774
+				lineValue(text, "maxHpAtGate") or "-1", -- 774
+				-1 -- 774
+			), -- 774
+			settled = settled, -- 775
+			phase = lineValue(text, "phase") or "", -- 776
+			countTick = math.max( -- 777
+				0, -- 777
+				intOf( -- 777
+					lineValue(text, "countTick") or "0", -- 777
+					0 -- 777
+				) -- 777
+			), -- 777
+			phaseTick = math.max( -- 778
+				0, -- 778
+				intOf( -- 778
+					lineValue(text, "phaseTick") or "0", -- 778
+					0 -- 778
+				) -- 778
+			), -- 778
+			handTicks = math.max( -- 779
+				0, -- 779
+				intOf( -- 779
+					lineValue(text, "handTicks") or "0", -- 779
+					0 -- 779
+				) -- 779
+			), -- 779
+			handDone = handDone, -- 780
+			lineSaid = lineSaid, -- 781
+			tied = tied, -- 782
+			carry = carry, -- 783
+			escortDone = escortDone, -- 784
+			craftedWeapon = lineValue(text, "craftedWeapon") or "", -- 785
+			equippedWeapon = lineValue(text, "equippedWeapon") or "", -- 786
+			wood = math.max( -- 787
+				0, -- 787
+				intOf( -- 787
+					lineValue(text, "wood") or "0", -- 787
+					0 -- 787
+				) -- 787
+			), -- 787
+			bell = math.max( -- 788
+				0, -- 788
+				intOf( -- 788
+					lineValue(text, "bell") or "0", -- 788
+					0 -- 788
+				) -- 788
+			), -- 788
+			scrap = math.max( -- 789
+				0, -- 789
+				intOf( -- 789
+					lineValue(text, "scrap") or "0", -- 789
+					0 -- 789
+				) -- 789
+			), -- 789
+			wedge = math.max( -- 790
+				0, -- 790
+				intOf( -- 790
+					lineValue(text, "wedge") or "0", -- 790
+					0 -- 790
+				) -- 790
+			), -- 790
+			ammo = math.max( -- 791
+				0, -- 791
+				intOf( -- 791
+					lineValue(text, "ammo") or "0", -- 791
+					0 -- 791
+				) -- 791
+			), -- 791
+			shield = math.max( -- 792
+				0, -- 792
+				intOf( -- 792
+					lineValue(text, "shield") or "0", -- 792
+					0 -- 792
+				) -- 792
+			), -- 792
+			pass = math.max( -- 793
+				0, -- 793
+				intOf( -- 793
+					lineValue(text, "pass") or "0", -- 793
+					0 -- 793
+				) -- 793
+			), -- 793
+			quickbelt = math.max( -- 794
+				0, -- 794
+				intOf( -- 794
+					lineValue(text, "quickbelt") or "0", -- 794
+					0 -- 794
+				) -- 794
+			), -- 794
+			taken = parseListField(lineValue(text, "taken")), -- 795
+			segments = parseListField(lineValue(text, "segments")), -- 796
+			cartAxle = intOf( -- 797
+				lineValue(text, "cartAxle") or "0", -- 797
+				0 -- 797
+			), -- 797
+			cartDocked = cartDocked, -- 798
+			campaignRoute = campRouteRaw, -- 799
+			joined = joined, -- 800
+			c1Latch = c1Latch, -- 801
+			c2Latch = c2Latch, -- 802
+			talentSeed = math.max( -- 803
+				0, -- 803
+				intOf( -- 803
+					lineValue(text, "talentSeed") or "0", -- 803
+					0 -- 803
+				) -- 803
+			), -- 803
+			talentRoom = lineValue(text, "talentRoom") or "", -- 804
+			talentOffers = parseListField(lineValue(text, "talentOffers")), -- 805
+			talentVitality = math.max( -- 806
+				0, -- 806
+				intOf( -- 806
+					lineValue(text, "talentVitality") or "0", -- 806
+					0 -- 806
+				) -- 806
+			), -- 806
+			talentReload = math.max( -- 807
+				0, -- 807
+				intOf( -- 807
+					lineValue(text, "talentReload") or "0", -- 807
+					0 -- 807
+				) -- 807
+			), -- 807
+			talentGuard = math.max( -- 808
+				0, -- 808
+				intOf( -- 808
+					lineValue(text, "talentGuard") or "0", -- 808
+					0 -- 808
+				) -- 808
+			), -- 808
+			talentCraft = math.max( -- 809
+				0, -- 809
+				intOf( -- 809
+					lineValue(text, "talentCraft") or "0", -- 809
+					0 -- 809
+				) -- 809
+			) -- 809
+		} -- 809
+	} -- 809
+end -- 715
+local function usableSessionBackup(path) -- 814
+	if not ops:exist(path) then -- 814
+		return false -- 816
+	end -- 816
+	return parseSession(loadText(path)).ok -- 818
+end -- 814
+local function restoreSessionFrom(candidate, target, keepCandidate) -- 821
+	if not usableSessionBackup(candidate) then -- 821
+		return false -- 823
+	end -- 823
+	if not ops:copy(candidate, target) then -- 823
+		return false -- 826
+	end -- 826
+	if not sameContent(candidate, target) then -- 826
+		return false -- 829
+	end -- 829
+	if not keepCandidate then -- 829
+		ops:remove(candidate) -- 832
+	end -- 832
+	return true -- 834
+end -- 821
+function ____exports.hasSessionSave() -- 837
+	local target = absPath(currentSessionFile) -- 838
+	if usableSessionBackup(target) then -- 838
+		return true -- 840
+	end -- 840
+	return usableSessionBackup(target .. ".tmp") or usableSessionBackup(target .. ".prev") -- 842
+end -- 837
+function ____exports.loadSession() -- 845
+	local target = absPath(currentSessionFile) -- 846
+	local tmp = target .. ".tmp" -- 847
+	local prev = target .. ".prev" -- 848
+	if not ops:exist(target) then -- 848
+		if restoreSessionFrom(tmp, target, false) then -- 848
+			local p = parseSession(loadText(target)) -- 851
+			return { -- 852
+				state = p.state, -- 852
+				status = "ok", -- 852
+				detail = "由 .tmp 恢复局中存档", -- 852
+				recovered = true, -- 852
+				backup = "" -- 852
+			} -- 852
+		end -- 852
+		if restoreSessionFrom(prev, target, true) then -- 852
+			local p = parseSession(loadText(target)) -- 855
+			return { -- 856
+				state = p.state, -- 856
+				status = "ok", -- 856
+				detail = "由 .prev 恢复局中存档", -- 856
+				recovered = true, -- 856
+				backup = "" -- 856
+			} -- 856
+		end -- 856
+		return { -- 858
+			state = nil, -- 858
+			status = "missing", -- 858
+			detail = "无局中存档", -- 858
+			recovered = false, -- 858
+			backup = "" -- 858
+		} -- 858
+	end -- 858
+	local parsed = parseSession(loadText(target)) -- 860
+	if parsed.ok and parsed.state ~= nil then -- 860
+		if ops:exist(tmp) then -- 860
 			ops:remove(tmp) -- 863
-			return false -- 864
-		end -- 864
-	end -- 864
-	if not ops:copy(tmp, target) then -- 864
-		if existed and backedUp and not sameContent(target, prev) then -- 864
-			ops:copy(prev, target) -- 869
-		end -- 869
-		return false -- 871
-	end -- 871
-	local check = ops:load(target) -- 873
-	if check == nil or normalize(check) ~= normalize(text) then -- 873
-		if existed and backedUp and ops:copy(prev, target) and usableSessionBackup(target) then -- 873
-			ops:remove(tmp) -- 876
-		end -- 876
-		return false -- 878
-	end -- 878
-	ops:remove(tmp) -- 880
-	return true -- 881
-end -- 840
-function ____exports.clearSession() -- 884
-	local target = absPath(currentSessionFile) -- 885
-	local tmp = target .. ".tmp" -- 886
-	local prev = target .. ".prev" -- 887
-	local ok = true -- 888
-	if ops:exist(target) then -- 888
-		ok = ops:remove(target) and ok -- 890
-	end -- 890
-	if ops:exist(tmp) then -- 890
+		end -- 863
+		return { -- 865
+			state = parsed.state, -- 865
+			status = "ok", -- 865
+			detail = "局中存档读取成功", -- 865
+			recovered = false, -- 865
+			backup = "" -- 865
+		} -- 865
+	end -- 865
+	if parsed.status == "corrupt" then -- 865
+		local broken = backupCorrupt(target, ".corrupt") -- 868
+		if restoreSessionFrom(tmp, target, false) then -- 868
+			local p = parseSession(loadText(target)) -- 870
+			return { -- 871
+				state = p.state, -- 871
+				status = "ok", -- 871
+				detail = "原局中存档损坏，已用 .tmp 恢复", -- 871
+				recovered = true, -- 871
+				backup = broken -- 871
+			} -- 871
+		end -- 871
+		if restoreSessionFrom(prev, target, true) then -- 871
+			local p = parseSession(loadText(target)) -- 874
+			return { -- 875
+				state = p.state, -- 875
+				status = "ok", -- 875
+				detail = "原局中存档损坏，已用 .prev 恢复", -- 875
+				recovered = true, -- 875
+				backup = broken -- 875
+			} -- 875
+		end -- 875
+		return { -- 877
+			state = nil, -- 877
+			status = "corrupt", -- 877
+			detail = parsed.reason, -- 877
+			recovered = false, -- 877
+			backup = broken -- 877
+		} -- 877
+	end -- 877
+	local backup = backupCorrupt(target, ".unsupported") -- 879
+	return { -- 880
+		state = nil, -- 880
+		status = "unsupported", -- 880
+		detail = parsed.reason, -- 880
+		recovered = false, -- 880
+		backup = backup -- 880
+	} -- 880
+end -- 845
+function ____exports.saveSession(state) -- 883
+	local target = absPath(currentSessionFile) -- 884
+	local dir = dirOf(target) -- 885
+	if dir ~= "" and not ops:isdir(dir) then -- 885
+		ops:mkdir(dir) -- 887
+	end -- 887
+	local tmp = target .. ".tmp" -- 889
+	local prev = target .. ".prev" -- 890
+	local text = formatSession(state) -- 891
+	if not ops:save(tmp, text) then -- 891
 		ops:remove(tmp) -- 893
-	end -- 893
-	if ops:exist(prev) then -- 893
-		ops:remove(prev) -- 896
-	end -- 896
-	return ok -- 898
-end -- 884
-return ____exports -- 884
+		return false -- 894
+	end -- 894
+	local written = ops:load(tmp) -- 896
+	if written == nil or normalize(written) ~= normalize(text) then -- 896
+		ops:remove(tmp) -- 898
+		return false -- 899
+	end -- 899
+	local existed = ops:exist(target) -- 901
+	local backedUp = false -- 902
+	if existed then -- 902
+		backedUp = ops:copy(target, prev) -- 904
+		if not backedUp or not usableSessionBackup(prev) then -- 904
+			ops:remove(tmp) -- 906
+			return false -- 907
+		end -- 907
+	end -- 907
+	if not ops:copy(tmp, target) then -- 907
+		if existed and backedUp and not sameContent(target, prev) then -- 907
+			ops:copy(prev, target) -- 912
+		end -- 912
+		return false -- 914
+	end -- 914
+	local check = ops:load(target) -- 916
+	if check == nil or normalize(check) ~= normalize(text) then -- 916
+		if existed and backedUp and ops:copy(prev, target) and usableSessionBackup(target) then -- 916
+			ops:remove(tmp) -- 919
+		end -- 919
+		return false -- 921
+	end -- 921
+	ops:remove(tmp) -- 923
+	return true -- 924
+end -- 883
+function ____exports.clearSession() -- 927
+	local target = absPath(currentSessionFile) -- 928
+	local tmp = target .. ".tmp" -- 929
+	local prev = target .. ".prev" -- 930
+	local ok = true -- 931
+	if ops:exist(target) then -- 931
+		ok = ops:remove(target) and ok -- 933
+	end -- 933
+	if ops:exist(tmp) then -- 933
+		ops:remove(tmp) -- 936
+	end -- 936
+	if ops:exist(prev) then -- 936
+		ops:remove(prev) -- 939
+	end -- 939
+	return ok -- 941
+end -- 927
+return ____exports -- 927

@@ -709,7 +709,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 		0.22, -- 478
 		-1 -- 478
 	) -- 478
-	local volCol = self.chapterSelected < 4 and PALETTE.cyan or PALETTE.amber -- 481
+	local volCol = theme.lineTag == "周戍" and PALETTE.cyan or PALETTE.amber -- 481
 	texts:put( -- 482
 		"xs", -- 482
 		theme.volumeTagZh, -- 482
@@ -964,7 +964,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 			local sy = box.y + box.height * 0.5 -- 539
 			local rt = themeOf(CHAPTERS[i + 1].room.key) -- 540
 			local active = self.chapterSelected == i -- 541
-			local nodeCol = active and PALETTE.rouge or (i < 4 and PALETTE.cyan or PALETTE.amber) -- 542
+			local nodeCol = active and PALETTE.rouge or (rt.lineTag == "周戍" and PALETTE.cyan or PALETTE.amber) -- 542
 			if active then -- 542
 				fillRadialGlow( -- 545
 					uiGlow, -- 545

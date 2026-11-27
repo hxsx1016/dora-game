@@ -339,21 +339,21 @@ ____exports.ROOM_THEMES = { -- 139
 	} -- 370
 } -- 370
 local ROOM_VARIANTS = { -- 374
-	["s1-crossroad"] = {"street", "街道 · 十字街", "十字街"}, -- 375
-	["s2-drygoods"] = {"street", "街道 · 布行", "布行"}, -- 376
-	["s3-archway"] = {"street", "街道 · 牌楼后巷", "牌楼后巷"}, -- 377
-	["c1-yard"] = {"checkpoint", "检查站 · 候检院", "候检院"}, -- 378
-	["c2-granary"] = {"checkpoint", "检查站 · 军粮棚", "军粮棚"}, -- 379
-	gatepath = {"outside", "城外 · 兄妹同行", "兄妹同行"}, -- 380
-	escort1 = {"outside", "城外巷路 · 第一段护送", "护送巷路"}, -- 381
-	escort2 = {"checkpoint", "粮棚 · 第二段取材", "粮棚取材"}, -- 382
-	escort3 = {"forest", "山腰工台 · 第三段改制", "山腰工台"}, -- 383
-	escort4 = {"forest", "山道 · 第四段脱身", "山道脱身"}, -- 384
-	escort5 = {"tower", "塔前山道 · 第五段", "塔前山道"}, -- 385
-	museum = {"prologue", "博物馆 · 西厅", "西厅"} -- 386
+	["s1-crossroad"] = {"street", "街道 · 十字街", "十字街", "井背可退，转角火器压近。从街口选外街或布行继续北上。"}, -- 375
+	["s2-drygoods"] = {"street", "街道 · 布行", "布行", "外街短跨或入布行放窗板，两路穿过敌阵同通牌楼。"}, -- 376
+	["s3-archway"] = {"street", "街道 · 牌楼后巷", "牌楼后巷", "登装卸坡探清火线，或沿墙脚绕行，候检门前再汇合。"}, -- 377
+	["c1-yard"] = {"checkpoint", "检查站 · 候检院", "候检院", "队栏与查验台层层挡路，转到门背抬起横锁方能带她过院。"}, -- 378
+	["c2-granary"] = {"checkpoint", "检查站 · 军粮棚", "军粮棚", "先落木帘或架残盾，将红布车推入轮窝并抬起连杆锁。"}, -- 379
+	gatepath = {"outside", "城外 · 兄妹同行", "兄妹同行", "城门未隔断二人。牵起她的手，沿平路往高石阶走去。"}, -- 380
+	escort1 = {"outside", "城外巷路 · 第一段护送", "护送巷路", "背起受伤的小满穿过巷口火线，借慢时换弹突出重围。"}, -- 381
+	escort2 = {"checkpoint", "粮棚 · 第二段取材", "粮棚取材", "高低两路暗藏木纹筹与铃纹筹，沿途收齐好在工台改制。"}, -- 382
+	escort3 = {"forest", "山腰工台 · 第三段改制", "山腰工台", "暂放小满，择引路灯铳或回声铳改制试射，再背起前行。"}, -- 383
+	escort4 = {"forest", "山道 · 第四段脱身", "山道脱身", "窄道追兵紧逼，在慢时连线与伏身翻滚间夺出一条生路。"}, -- 384
+	escort5 = {"tower", "塔前山道 · 第五段", "塔前山道", "北塔孤灯已在前方。带着改制火铳护她走完最后一段山路。"}, -- 385
+	museum = {"prologue", "博物馆 · 西厅", "西厅", "玻璃柜静立晨光之中，那枚青布针套仍在等待回响。"} -- 386
 } -- 386
 for key in pairs(ROOM_VARIANTS) do -- 389
-	local backdropKey, titleZh, shortNameZh = table.unpack(ROOM_VARIANTS[key], 1, 3) -- 390
+	local backdropKey, titleZh, shortNameZh, introWhisper = table.unpack(ROOM_VARIANTS[key], 1, 4) -- 390
 	local base = ____exports.ROOM_THEMES[backdropKey] -- 391
 	local soldierPath = key == "gatepath" or __TS__StringStartsWith(key, "escort") -- 392
 	____exports.ROOM_THEMES[key] = __TS__ObjectAssign({}, base, { -- 393
@@ -361,7 +361,7 @@ for key in pairs(ROOM_VARIANTS) do -- 389
 		backdropKey = backdropKey, -- 394
 		titleZh = titleZh, -- 394
 		shortNameZh = shortNameZh, -- 394
-		introWhisper = "", -- 394
+		introWhisper = introWhisper, -- 394
 		numeralZh = soldierPath and ____exports.ROOM_THEMES.outside.numeralZh or base.numeralZh, -- 395
 		actCode = soldierPath and ____exports.ROOM_THEMES.outside.actCode or base.actCode, -- 396
 		lineTag = soldierPath and "周戍" or base.lineTag, -- 397

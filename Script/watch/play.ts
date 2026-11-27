@@ -15,7 +15,8 @@ import {
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
 } from "Script/watch/rooms";
 import {
-    ArchiveState, CheckpointSnap, createRun, draftRoom, Inventory, mmss, RunState, StoryRoute, talentNames,
+    ArchiveState, CheckpointSnap, createRun, createStoryTalents, draftRoom, draftTalentOffers,
+    Inventory, mmss, RunState, StoryRoute, Talent, talentNames,
 } from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
@@ -934,6 +935,17 @@ export class Play {
             segments,
             cartAxle: this.cartAxle,
             cartDocked: this.cartDocked,
+            campaignRoute: this.run.route,
+            joined: this.run.joined,
+            c1Latch: this.run.c1Latch,
+            c2Latch: this.run.c2Latch,
+            talentSeed: story.talents !== undefined ? story.talents.randomState : 0,
+            talentRoom: story.talents !== undefined ? story.talents.room : "",
+            talentOffers: story.talents !== undefined ? story.talents.offers.slice() : [],
+            talentVitality: story.talents !== undefined ? story.talents.ranks.vitality : 0,
+            talentReload: story.talents !== undefined ? story.talents.ranks.reload : 0,
+            talentGuard: story.talents !== undefined ? story.talents.ranks.guard : 0,
+            talentCraft: story.talents !== undefined ? story.talents.ranks.craft : 0,
         };
     }
 
@@ -1015,6 +1027,13 @@ export class Play {
         if (kind === "craftClose") {
             this.closeCraftBench();
             return true;
+        }
+        if (kind === "chooseTalent") {
+            const slot = intent.slot;
+            if (typeof slot === "number") {
+                return this.chooseTalent(slot);
+            }
+            return false;
         }
         if (kind === "wellPick") {
             return this.pickWell();
@@ -1344,8 +1363,10 @@ export class Play {
             || wr.key === "escort4" || wr.key === "escort5") {
             this.run.joined = true;
         } else if (wr.companion !== undefined && wr.companion.followAfter !== undefined) {
-            // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则两人都在门前停。
-            this.run.joined = wr.key === "s2-drygoods" ? this.run.route !== "drygoods" : false;
+            // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则抬闩后保持同行（支持续读）。
+            this.run.joined = wr.key === "s2-drygoods"
+                ? (this.run.route !== "drygoods" || this.run.props["s2_board"]?.broken === true)
+                : (wr.key === "c1-yard" && this.run.c1Latch);
         }
         let x = wr.minX + 60;
         let y = 0;
@@ -1375,6 +1396,12 @@ export class Play {
             draftRoom(trial, wr.key);
             this.maxHp += trial.ranks.vitality;
             this.hp = trial.hp;
+        } else if (this.isEscortRoom() && this.run.story.route === "soldier") {
+            // 正式男主线五段护送：每进一段按 seed 确定性抽 3 选 1 本领（非阻塞 HUD 卡，不影响既有脚本）。
+            if (this.run.story.talents === undefined) {
+                this.run.story.talents = createStoryTalents(this.run.seed);
+            }
+            draftTalentOffers(this.run.story.talents, wr.key);
         }
         this.buildEnemies();
         this.pickups = wr.pickups === undefined ? [] : wr.pickups.slice();
@@ -1491,18 +1518,68 @@ export class Play {
         this.eventSeq = this.events.length;
     }
 
-    chooseTalent(slot: number): void {
+    private talentRank(talent: Talent): number {
+        if (this.run.trial !== undefined) {
+            return this.run.trial.ranks[talent];
+        }
+        if (this.storyRoute === "soldier" && this.isEscortRoom() && this.run.story.talents !== undefined) {
+            return this.run.story.talents.ranks[talent];
+        }
+        return 0;
+    }
+
+    /** 正式男主线护送段当前可三选一的本领列表（非男主线或已选完时为空）。 */
+    getStoryTalentOffers(): Talent[] {
+        if (this.run.trial !== undefined || this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
+            return [];
+        }
+        const st = this.run.story.talents;
+        return st !== undefined && st.room === this.room.key ? st.offers : [];
+    }
+
+    /** 正式男主线护送段已习得的本领等级表。 */
+    getStoryTalentRanks(): Record<Talent, number> | undefined {
+        if (this.run.trial !== undefined || this.storyRoute !== "soldier" || !this.isEscortRoom()) {
+            return undefined;
+        }
+        return this.run.story.talents !== undefined ? this.run.story.talents.ranks : undefined;
+    }
+
+    chooseTalent(slot: number): boolean {
         const trial = this.run.trial;
-        const talent = trial?.offers[slot];
-        if (trial === undefined || talent === undefined || trial.lost || this.run.finished) return;
-        trial.ranks[talent] += 1;
-        trial.offers = [];
+        if (trial !== undefined) {
+            const talent = trial.offers[slot];
+            if (talent === undefined || trial.lost || this.run.finished) return false;
+            trial.ranks[talent] += 1;
+            trial.offers = [];
+            if (talent === "vitality") {
+                this.maxHp += 1;
+                this.hp += 1;
+                trial.hp = this.hp;
+            }
+            this.flashSet(talentNames[talent], 1.2);
+            return true;
+        }
+        if (this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
+            return false;
+        }
+        const st = this.run.story.talents;
+        const talent = st !== undefined ? st.offers[slot] : undefined;
+        if (st === undefined || talent === undefined) {
+            return false;
+        }
+        st.ranks[talent] += 1;
+        st.offers = [];
         if (talent === "vitality") {
             this.maxHp += 1;
             this.hp += 1;
-            trial.hp = this.hp;
+            this.run.story.maxHp = this.maxHp;
+            this.run.story.hp = this.hp;
         }
-        this.flashSet(talentNames[talent], 1.2);
+        this.sessionDirty = true;
+        this.flashSet("本领 · " + talentNames[talent], 1.4);
+        this.emit("storyBeat", { beat: "talent_picked", talent: talent, rank: st.ranks[talent], room: this.room.key });
+        return true;
     }
 
     /**
@@ -1625,7 +1702,7 @@ export class Play {
     }
 
     private reloadTicks(): number {
-        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * (this.run.trial?.ranks.reload ?? 0));
+        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * this.talentRank("reload"));
     }
 
     update(dt: number, input: Input): void {
@@ -2351,13 +2428,14 @@ export class Play {
         }
     }
 
-    /** 街道：清完两个敌兵后两人走到检查站入口。 */
+    /** 街道：清完两个敌兵后两人走到街尾出口（正式/选章进 S1 十字街，调试单房保留回退 checkpoint）。 */
     private stepStreet(dt: number, input: Input): void {
         const p = this.player;
         const c = this.partner;
         if (p.x >= this.ox + 900 && c.x >= this.ox + 860) {
-            this.requestRoom("checkpoint", "两人都到街尾");
-            this.flashSet("到检查站", 1.2);
+            const next = this.run.source === "debug" ? "checkpoint" : "s1-crossroad";
+            this.requestRoom(next, "两人都到街尾");
+            this.flashSet(next === "s1-crossroad" ? "进十字街" : "到检查站", 1.2);
         }
     }
 
@@ -3223,7 +3301,7 @@ export class Play {
      */
     private stepCraft(input: Input): boolean {
         const inv = this.run.inventory;
-        const required = CRAFT_TICKS - 6 * (this.run.trial?.ranks.craft ?? 0);
+        const required = Math.max(6, CRAFT_TICKS - 6 * this.talentRank("craft"));
         if (this.craftT > 0) {
             if (!input.interact.held || this.gripping || this.player.rollT > 0
                 || this.escort.state === "calming" || this.paused) {
@@ -3596,6 +3674,10 @@ export class Play {
         if (c.next !== undefined && c.next !== "") {
             this.requestRoom(c.next, "段出口 " + wr.key);
             this.flashSet("过关 · " + c.next, 1.2);
+        } else if (wr.key === "c2-granary" && this.run.trial === undefined
+            && (this.run.source === "official" || this.run.source === "chapter")) {
+            this.requestRoom("gate", "军粮棚出口");
+            this.flashSet("出军粮棚 · 城门", 1.4);
         } else if (!this.run.finished) {
             this.run.finished = true;
             this.flashSet("C2 灰盒完成 · " + mmss(this.run.roomTicks[wr.key] ?? 0), 2.0);
@@ -3820,7 +3902,7 @@ export class Play {
         if (this.invulnT > 0) {
             return;
         }
-        this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+        this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
         this.craftT = 0;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -3852,7 +3934,7 @@ export class Play {
             const fromFront = (e.x - p.x) * p.facing > 0;
             const rollDodges = p.rollT > 0 && fromFront;
             if (!rollDodges && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+                this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -3911,7 +3993,7 @@ export class Play {
             if (target !== undefined) {
                 this.damageProp(target, 2);
             } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+                this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -3987,6 +4069,12 @@ export class Play {
     private restartEscortFromDeath(): void {
         const story = this.run.story;
         const inv = this.run.inventory;
+        const vitBonus = story.talents !== undefined ? story.talents.ranks.vitality : 0;
+        if (vitBonus > 0) {
+            this.maxHp = Math.max(3, this.maxHp - vitBonus);
+            story.maxHp = this.maxHp;
+        }
+        story.talents = createStoryTalents(this.run.seed);
         this.hp = this.maxHp;
         story.hp = this.maxHp;
         story.cp = undefined;

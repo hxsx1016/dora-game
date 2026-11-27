@@ -7,7 +7,7 @@
 
 import { Play, PlayEvent, Trace } from "Script/watch/play";
 import { CALM_REACH } from "Script/watch/escort";
-import { inReachDepth } from "Script/watch/depth";
+import { inReachDepth, overlapsDepth } from "Script/watch/depth";
 
 export interface FrameEvents {
     shotFired: boolean;
@@ -556,16 +556,34 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     }
 
     const cart = room.cart;
-    if ((room.key === "checkpoint" || room.key === "outside") && !p.cartDocked && cart.bodyW > 0) {
+    if ((room.key === "checkpoint" || room.key === "outside" || room.key === "c2-granary") && !p.cartDocked && cart.bodyW > 0) {
         const handleX = p.cartAxle + cart.handleOffset;
         if (p.gripping || p.cartHandleInReach()) {
             return {
                 x: handleX,
                 y: cart.baseY + (cart.depth ?? 0) + cart.wheelR + cart.bodyH + 46,
-                keyTag: "按住 E + D",
-                label: room.key === "checkpoint" ? "向前推车" : "向前拉车",
+                keyTag: room.key === "c2-granary" ? "E 握柄 + D" : "按住 E + D",
+                label: room.key === "outside" ? "向前拉车" : "向前推车",
                 urgent: false,
             };
+        }
+    }
+
+    if (p.isCampaign) {
+        let bi = 0;
+        for (bi = 0; bi < p.boxes.length; bi++) {
+            const b = p.boxes[bi];
+            if (b.broken === true || b.hidden === true || b.interact === undefined) {
+                continue;
+            }
+            const cx = (b.x0 + b.x1) * 0.5;
+            const reach = b.interact.reach ?? 46;
+            if (Math.abs(player.x - cx) <= reach + 16 && overlapsDepth(player.depth, b.depth, 16)) {
+                const kind = b.interact.kind;
+                const label = kind === "open_board" ? "放下窗板"
+                    : (kind === "lower_curtain" ? "放下木帘" : "抬起门锁");
+                return { x: cx, y: b.y1 + 24, keyTag: "E", label, urgent: true };
+            }
         }
     }
 

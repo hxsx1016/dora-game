@@ -524,6 +524,8 @@ export class AudioDirector {
                 this.playOnce(key, "sfx", "assets/audio/museum/hall_footstep.wav", 0.68, "story:tower_threshold", e.tick, e.seq);
             } else if (beat === "tower_handover") {
                 this.playOnce(key, "sfx", "assets/audio/tower/needle_case_place.wav", 0.86, "story:tower_handover", e.tick, e.seq);
+            } else if (beat === "talent_picked") {
+                this.playOnce(key, "sfx", "assets/audio/combat/reload_solved.wav", 0.80, "story:talent_picked", e.tick, e.seq);
             }
         }
     }
