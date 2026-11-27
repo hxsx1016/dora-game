@@ -12,10 +12,12 @@
 
 import { Color, DrawNode, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
+import { LANE_DEPTH, LANE_ROAD } from "Script/watch/depth";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
-import { PALETTE, RGBA, fillGradQuad, fillRadialGlow, fillVGradRect, themeOf, toColor } from "Script/watch/fe/theme";
+import { depthOrder } from "Script/watch/fe/occlusion";
+import { isEscortWorldRoom } from "Script/watch/fe/scenes/escort_world";
+import { PALETTE, RGBA, fillGradQuad, fillRadialGlow, themeOf, toColor } from "Script/watch/fe/theme";
 
 export type WeatherKind = "embers" | "rain" | "forest" | "sanctuary" | "siege";
 
@@ -214,47 +216,52 @@ function lightShaftsForRoom(roomKey: string): LightShaftSpec[] {
 }
 
 function roomAnchors(roomKey: string): WorldAnchor[] {
+    const roadBack = LANE_ROAD.max;
+    const escortBack = LANE_DEPTH.upper + 14;
     if (roomKey === "street" || roomKey === "s1-crossroad" || roomKey === "s2-drygoods") {
         return [
-            { offsetX: 168, y: 0, depth: 24, kind: "brazier" },
-            { offsetX: 465, y: 92, depth: 26, kind: "banner", facing: 1 },
-            { offsetX: 790, y: 0, depth: 24, kind: "brazier" },
-            { offsetX: 1030, y: 90, depth: 26, kind: "banner", facing: 1 },
+            { offsetX: 168, y: 0, depth: roadBack, kind: "brazier" },
+            { offsetX: 465, y: 92, depth: roadBack, kind: "banner", facing: 1 },
+            { offsetX: 790, y: 0, depth: roadBack, kind: "brazier" },
+            { offsetX: 1030, y: 90, depth: roadBack, kind: "banner", facing: 1 },
         ];
     }
     if (roomKey === "s3-archway" || roomKey === "checkpoint" || roomKey === "c1-yard") {
         return [
-            { offsetX: 210, y: 0, depth: 24, kind: "brazier" },
-            { offsetX: 540, y: 94, depth: 26, kind: "banner", facing: 1 },
-            { offsetX: 880, y: 0, depth: 24, kind: "brazier" },
+            { offsetX: 210, y: 0, depth: roadBack, kind: "brazier" },
+            { offsetX: 540, y: 94, depth: roadBack, kind: "banner", facing: 1 },
+            { offsetX: 880, y: 0, depth: roadBack, kind: "brazier" },
         ];
     }
     if (roomKey === "gate") {
         return [
-            { offsetX: 170, y: 0, depth: 22, kind: "brazier" },
-            { offsetX: 468, y: 0, depth: 22, kind: "brazier" },
-            { offsetX: 785, y: 0, depth: 22, kind: "brazier" },
-            { offsetX: 340, y: 76, depth: 24, kind: "banner", facing: 1 },
-            { offsetX: 715, y: 80, depth: 24, kind: "banner", facing: 1 },
+            { offsetX: 170, y: 0, depth: roadBack, kind: "brazier" },
+            { offsetX: 468, y: 0, depth: roadBack, kind: "brazier" },
+            { offsetX: 785, y: 0, depth: roadBack, kind: "brazier" },
+            { offsetX: 340, y: 76, depth: roadBack, kind: "banner", facing: 1 },
+            { offsetX: 715, y: 80, depth: roadBack, kind: "banner", facing: 1 },
         ];
     }
     if (roomKey === "gatepath") {
+        // gatepath 已升级 2.5D 窄巷（depth -28..28），锚定至后缘并错开 escort_world 路碑（108 / 520）
         return [
-            { offsetX: 118, y: 62, depth: 18, kind: "banner", facing: 1 },
-            { offsetX: 542, y: 56, depth: 18, kind: "banner", facing: 1 },
+            { offsetX: 164, y: 62, depth: 28, kind: "banner", facing: 1 },
+            { offsetX: 576, y: 56, depth: 28, kind: "banner", facing: 1 },
         ];
     }
     if (roomKey === "escort1") {
+        // 火盆与 escort_world 后缘深度完全对齐（46），统一用 dp_brazier + 4 帧像素火焰渲染，消除双份火盆
         return [
-            { offsetX: 285, y: 0, depth: 28, kind: "brazier" },
-            { offsetX: 860, y: 0, depth: 28, kind: "brazier" },
-            { offsetX: 615, y: 74, depth: 26, kind: "banner", facing: 1 },
+            { offsetX: 285, y: 0, depth: escortBack, kind: "brazier" },
+            { offsetX: 860, y: 0, depth: escortBack, kind: "brazier" },
+            { offsetX: 615, y: 74, depth: escortBack, kind: "banner", facing: 1 },
         ];
     }
     if (roomKey === "escort5") {
+        // 错开 escort_world 路碑（x=215）并贴齐后缘
         return [
-            { offsetX: 238, y: 68, depth: 26, kind: "banner", facing: 1 },
-            { offsetX: 920, y: 0, depth: 26, kind: "brazier" },
+            { offsetX: 268, y: 68, depth: escortBack, kind: "banner", facing: 1 },
+            { offsetX: 920, y: 0, depth: escortBack, kind: "brazier" },
         ];
     }
     return [];
@@ -479,7 +486,7 @@ export class SceneFxSystem {
                 }
                 this.brazierEmbers.push({
                     wx: wx + (this.rand() - 0.5) * 12,
-                    wy: an.y + 18,
+                    wy: an.y + 24,
                     depth: an.depth,
                     vx: -wind * 18 + (this.rand() - 0.5) * 18,
                     vy: 28 + this.rand() * 34,
@@ -554,12 +561,15 @@ export class SceneFxSystem {
             });
         }
 
-        // 2. 失守城池方向远火映红 & 偶尔远炮闪光（Dead Cells 暗黑高对比氛围）
+        // 2. 失守城池方向远火映红 & 偶尔远炮闪光（gatepath/escort1 已有 escort_world 基底红辉，仅补远炮闪光避免叠加过曝）
+        const backRoadY = cam.sy(0, p.room.depth !== undefined ? p.room.depth.max : 0);
         if (hasWarHorizon(key)) {
-            const firePulse = 0.78 + 0.22 * Math.sin(t * 2.6 + Math.sin(t * 1.1));
-            const glowA = key === "gate" ? 48 : 30;
-            fillRadialGlow(bgGlow, w * 0.16, h * 0.28, w * 0.38, h * 0.34,
-                Color(186, 62, 34, Math.round(glowA * firePulse)), Color(160, 44, 24, 0), 16);
+            if (key !== "gatepath" && key !== "escort1") {
+                const firePulse = 0.78 + 0.22 * Math.sin(t * 2.6 + Math.sin(t * 1.1));
+                const glowA = key === "gate" ? 48 : 30;
+                fillRadialGlow(bgGlow, w * 0.16, h * 0.28, w * 0.38, h * 0.34,
+                    Color(186, 62, 34, Math.round(glowA * firePulse)), Color(160, 44, 24, 0), 16);
+            }
             if (this.farFlash > 0.02) {
                 const fa = Math.round(36 * this.farFlash);
                 fillRadialGlow(bgGlow, w * 0.24, h * 0.46, w * 0.48, h * 0.42,
@@ -567,22 +577,24 @@ export class SceneFxSystem {
             }
         }
 
-        // 3. 贴地双层流动夜雾 / 山岚（平滑衔接底图与 2.5D 地面，消除平板贴纸感）
-        const mistSpeed = 10 + wind * 12;
-        const m1 = ((t * mistSpeed + cam.x * 0.14) % (w + 640)) - 320;
-        const m2 = ((t * mistSpeed * 0.65 + cam.x * 0.08 + w * 0.52) % (w + 640)) - 320;
-        const mistTint = key === "gate" ? Color(94, 52, 54, 255)
-            : (key === "forest" ? Color(68, 108, 102, 255)
-                : (key === "tower" || key === "escort3" ? Color(148, 126, 98, 255) : Color(66, 86, 112, 255)));
-        const mistOp = key === "forest" || key === "outside" || key === "village" ? 0.20 : 0.14;
-        backdropArt.tryPlace("ink_mist_curve", "sfx_ground_mist_1", w - m1, cam.groundScreenY + h * 0.08, 660, 124, {
-            color: mistTint, opacity: mistOp, layer: 7,
-        });
-        backdropArt.tryPlace("ink_mist_curve", "sfx_ground_mist_2", w - m2, cam.groundScreenY + h * 0.14, 580, 108, {
-            color: mistTint, opacity: mistOp * 0.80, layer: 7, facing: -1,
-        });
+        // 3. 贴地双层流动夜雾 / 山岚（锚定 2.5D 路面后缘 backRoadY；护送线已由 escort_world 绘制专属海雾，避免四层叠雾发灰）
+        if (!isEscortWorldRoom(key)) {
+            const mistSpeed = 10 + wind * 12;
+            const m1 = ((t * mistSpeed + cam.x * 0.14) % (w + 640)) - 320;
+            const m2 = ((t * mistSpeed * 0.65 + cam.x * 0.08 + w * 0.52) % (w + 640)) - 320;
+            const mistTint = key === "gate" ? Color(94, 52, 54, 255)
+                : (key === "forest" ? Color(68, 108, 102, 255)
+                    : (key === "tower" ? Color(148, 126, 98, 255) : Color(66, 86, 112, 255)));
+            const mistOp = key === "forest" || key === "outside" || key === "village" ? 0.20 : 0.14;
+            backdropArt.tryPlace("ink_mist_curve", "sfx_ground_mist_1", w - m1, backRoadY + h * 0.06, 660, 124, {
+                color: mistTint, opacity: mistOp, layer: 7,
+            });
+            backdropArt.tryPlace("ink_mist_curve", "sfx_ground_mist_2", w - m2, backRoadY + h * 0.12, 580, 108, {
+                color: mistTint, opacity: mistOp * 0.80, layer: 7, facing: -1,
+            });
+        }
 
-        // 4. 丁达尔体积光束 + 光柱内漂浮像素尘埃
+        // 4. 丁达尔体积光束 + 光柱内漂浮像素尘埃（底端锁定 backRoadY 贴合暗黑底图石基）
         const shafts = lightShaftsForRoom(key);
         for (let i = 0; i < shafts.length; i++) {
             const sh = shafts[i];
@@ -596,7 +608,7 @@ export class SceneFxSystem {
             const bw = cam.len(sh.botW) * 0.5;
             const yTop = h + 16;
             const yMid = h * 0.54;
-            const yBot = cam.groundScreenY - 4;
+            const yBot = backRoadY - 4;
             const midX = (topX + botX) * 0.5;
             const mw = (tw + bw) * 0.5;
             const col = sh.color;
@@ -640,8 +652,9 @@ export class SceneFxSystem {
         const t = this.time;
         const wind = this.windAt(t, key);
         const w = cam.viewW;
+        const depthEnabled = p.room.depth !== undefined;
 
-        // 1. 房间专属世界锚点：火盆烈焰 + 暖光倒影、风吹暗红残旗
+        // 1. 房间专属世界锚点：暗黑像素铁火盆 + 4 帧烈焰 + 暖光倒影、风吹暗红残旗（全部按 2.5D depthOrder 严格深度排序）
         const anchors = roomAnchors(key);
         const flameFrame = Math.floor(t * 11) % 4;
         const flagFrame = Math.floor(t * (5.5 + wind * 3.5)) % 4;
@@ -653,58 +666,71 @@ export class SceneFxSystem {
             if (sx < -120 || sx > w + 120) {
                 continue;
             }
-            const depth = p.room.depth !== undefined ? an.depth : 0;
+            const depth = depthEnabled ? an.depth : 0;
+            const dScale = cam.depthScale(depth, depthEnabled);
             const sy = cam.sy(an.y, depth);
 
             if (an.kind === "brazier") {
                 const pulse = 0.84 + 0.16 * Math.sin(t * 8.4 + i * 2.1);
-                const fSize = cam.len(26);
-                // 铁火盆暗影盆体（简洁明代三足铁盆轮廓，不压主战场）
-                fgDraw.drawPolygon([
-                    Vec2(sx - cam.len(11), sy + cam.len(13)),
-                    Vec2(sx + cam.len(11), sy + cam.len(13)),
-                    Vec2(sx + cam.len(7), sy + cam.len(4)),
-                    Vec2(sx - cam.len(7), sy + cam.len(4)),
-                ], Color(26, 22, 24, 245), 1.0, Color(84, 58, 46, 175));
-                fgDraw.drawSegment(Vec2(sx - cam.len(8), sy), Vec2(sx - cam.len(5), sy + cam.len(5)), 1.8, Color(24, 20, 22, 240));
-                fgDraw.drawSegment(Vec2(sx + cam.len(8), sy), Vec2(sx + cam.len(5), sy + cam.len(5)), 1.8, Color(24, 20, 22, 240));
+                const potLayer = depthEnabled ? depthOrder(depth, -1) : 2;
+                const potW = cam.len(26) * dScale;
+                const potH = cam.len(30) * dScale;
+                const fSize = cam.len(24) * dScale;
 
-                // 4 帧手绘像素火焰
+                // 统一使用暗黑像素铁火盆精灵 dp_brazier + worldArt 接触影（彻底清除多边形梯形灰模）
+                worldArt.tryPlace("dp_shadow_contact", "sfx_brazier_sh_" + i, sx, sy + 1, potW, cam.len(7) * dScale, {
+                    layer: potLayer - 1, opacity: 0.76,
+                });
+                if (!worldArt.tryPlace("dp_brazier", "sfx_brazier_pot_" + i, sx, sy, potW, potH, {
+                    layer: potLayer,
+                })) {
+                    fgDraw.drawPolygon([
+                        Vec2(sx - cam.len(11) * dScale, sy + cam.len(13) * dScale),
+                        Vec2(sx + cam.len(11) * dScale, sy + cam.len(13) * dScale),
+                        Vec2(sx + cam.len(7) * dScale, sy + cam.len(4) * dScale),
+                        Vec2(sx - cam.len(7) * dScale, sy + cam.len(4) * dScale),
+                    ], Color(26, 22, 24, 245), 1.0, Color(84, 58, 46, 175));
+                }
+
+                // 4 帧手绘像素火焰（紧贴盆口位于 potLayer + 1，绝不被盆体或远墙遮盖）
                 if (!worldArt.tryPlacePath(
                     SFX_FLAME_CLIPS[(flameFrame + i) % 4],
                     "sfx_brazier_flame_" + i,
                     sx,
-                    sy + cam.len(10),
+                    sy + cam.len(16) * dScale,
                     fSize,
                     fSize * 1.15,
-                    { anchorX: 0.5, anchorY: 0, preserveAspect: true, layer: 2 },
+                    { anchorX: 0.5, anchorY: 0, preserveAspect: true, layer: potLayer + 1 },
                 )) {
-                    fgGlow.drawEllipse(Vec2(sx, sy + cam.len(16)), cam.len(6), cam.len(10 * pulse), Color(246, 132, 46, 195));
+                    fgGlow.drawEllipse(Vec2(sx, sy + cam.len(22) * dScale), cam.len(6) * dScale, cam.len(10 * pulse) * dScale, Color(246, 132, 46, 195));
                 }
 
                 // Dead Cells 式高对比暖光池 + 地面湿石暖色反光
-                fillRadialGlow(fgGlow, sx, sy + cam.len(22), cam.len(68 * pulse), cam.len(52 * pulse),
-                    Color(238, 126, 48, Math.round(74 * pulse)), Color(210, 76, 26, 0), 16);
-                fillRadialGlow(fgGlow, sx, sy + cam.len(2), cam.len(46 * pulse), cam.len(12 * pulse),
-                    Color(246, 152, 72, Math.round(48 * pulse)), Color(220, 96, 36, 0), 14);
+                fillRadialGlow(fgGlow, sx, sy + cam.len(24) * dScale, cam.len(64 * pulse), cam.len(48 * pulse),
+                    Color(238, 126, 48, Math.round(70 * pulse)), Color(210, 76, 26, 0), 16);
+                fillRadialGlow(fgGlow, sx, sy + cam.len(2), cam.len(44 * pulse), cam.len(11 * pulse),
+                    Color(246, 152, 72, Math.round(44 * pulse)), Color(220, 96, 36, 0), 14);
             } else if (an.kind === "banner") {
-                // 4 帧风吹破损明代战旗（含铁矛枪尖与立杆）
+                // 4 帧风吹破损明代战旗（含铁矛枪尖与立杆，深度排序与后墙对齐）
                 const poleBot = cam.sy(0, depth);
-                const poleTop = sy + cam.len(16);
-                fgDraw.drawEllipse(Vec2(sx, poleBot + 1), cam.len(6), 2.2, Color(10, 10, 14, 120));
-                fgDraw.drawSegment(Vec2(sx, poleBot), Vec2(sx, poleTop), Math.max(1.5, cam.len(2.0)), Color(48, 38, 32, 230));
+                const poleTop = sy + cam.len(16) * dScale;
+                const bannerLayer = depthEnabled ? depthOrder(depth, 0) : 2;
+                worldArt.tryPlace("dp_shadow_contact", "sfx_banner_sh_" + i, sx, poleBot + 1, cam.len(14) * dScale, cam.len(5) * dScale, {
+                    layer: bannerLayer - 1, opacity: 0.68,
+                });
+                fgDraw.drawSegment(Vec2(sx, poleBot), Vec2(sx, poleTop), Math.max(1.5, cam.len(2.0) * dScale), Color(48, 38, 32, 230));
                 fgDraw.drawPolygon([
-                    Vec2(sx - cam.len(1.8), poleTop),
-                    Vec2(sx + cam.len(1.8), poleTop),
-                    Vec2(sx, poleTop + cam.len(6)),
+                    Vec2(sx - cam.len(1.8) * dScale, poleTop),
+                    Vec2(sx + cam.len(1.8) * dScale, poleTop),
+                    Vec2(sx, poleTop + cam.len(6) * dScale),
                 ], Color(136, 146, 158, 225));
                 worldArt.tryPlacePath(
                     SFX_FLAG_CLIPS[(flagFrame + i) % 4],
                     "sfx_banner_" + i,
-                    sx + cam.len(0.8),
-                    sy + cam.len(9),
-                    cam.len(34),
-                    cam.len(22),
+                    sx + cam.len(0.8) * dScale,
+                    sy + cam.len(9) * dScale,
+                    cam.len(34) * dScale,
+                    cam.len(22) * dScale,
                     {
                         anchorX: 0.08,
                         anchorY: 0.5,
@@ -712,7 +738,7 @@ export class SceneFxSystem {
                         facing: an.facing ?? 1,
                         angle: Math.sin(t * 2.8 + i) * wind * 2.8,
                         opacity: 0.90,
-                        layer: 2,
+                        layer: bannerLayer,
                     },
                 );
             }
@@ -720,6 +746,7 @@ export class SceneFxSystem {
 
         // 2. 路灯/挂灯（marks kind=6）增强摇曳烛火与地面暖色光池
         const lanternFrame = Math.floor(t * 7.5) % 2;
+        const markLayer = depthEnabled ? depthOrder(0, 6) : 6;
         for (let i = 0; i < p.room.marks.length; i++) {
             const m = p.room.marks[i];
             if (m.kind !== 6) {
@@ -739,7 +766,7 @@ export class SceneFxSystem {
                 my,
                 cam.len(16),
                 cam.len(18),
-                { anchorX: 0.5, anchorY: 0.5, preserveAspect: true, opacity: 0.88 * flicker, layer: 6 },
+                { anchorX: 0.5, anchorY: 0.5, preserveAspect: true, opacity: 0.88 * flicker, layer: markLayer },
             );
             // 路灯下青石地面的湿润暖光倒影
             const gy = cam.sy(m.y);
@@ -752,7 +779,7 @@ export class SceneFxSystem {
             const em = this.brazierEmbers[i];
             const k = 1 - em.age / em.maxAge;
             const ex = cam.sx(em.wx);
-            const ey = cam.sy(em.wy, p.room.depth !== undefined ? em.depth : 0);
+            const ey = cam.sy(em.wy, depthEnabled ? em.depth : 0);
             fgGlow.drawDot(Vec2(ex, ey), em.size * k, Color(255, 168, 76, Math.round(230 * k)));
             fgGlow.drawDot(Vec2(ex, ey), em.size * 2.4 * k, Color(228, 92, 36, Math.round(72 * k)));
         }
@@ -791,8 +818,9 @@ export class SceneFxSystem {
             const lf = this.leaves[i];
             const k = 1 - lf.age / lf.maxAge;
             const lx = cam.sx(lf.wx);
-            const ly = cam.sy(lf.wy, p.room.depth !== undefined ? lf.depth : 0);
-            const sz = cam.len(9);
+            const ly = cam.sy(lf.wy, depthEnabled ? lf.depth : 0);
+            const sz = cam.len(9) * cam.depthScale(lf.depth, depthEnabled);
+            const leafLayer = depthEnabled ? depthOrder(lf.depth, 5) : 7;
             if (!worldArt.tryPlacePath(
                 SFX_LEAF_CLIPS[lf.frame % 2],
                 "sfx_leaf_" + i,
@@ -800,13 +828,13 @@ export class SceneFxSystem {
                 ly,
                 sz,
                 sz,
-                { anchorX: 0.5, anchorY: 0.5, angle: lf.spin * 45, opacity: Math.min(1, k * 1.8) * 0.85, layer: 7 },
+                { anchorX: 0.5, anchorY: 0.5, angle: lf.spin * 45, opacity: Math.min(1, k * 1.8) * 0.85, layer: leafLayer },
             )) {
                 fgDraw.drawEllipse(Vec2(lx, ly), 2.8, 1.3, Color(76, 118, 92, Math.round(185 * k)));
             }
         }
 
-        // 6. 地面雨滴水花溅射（4 帧像素水花）
+        // 6. 地面雨滴水花溅射（像素水花，按 2.5D 纵深排序）
         for (let i = 0; i < this.splashes.length; i++) {
             const sp = this.splashes[i];
             const prog = clamp01(sp.age / sp.maxAge);
@@ -814,9 +842,10 @@ export class SceneFxSystem {
             if (sx < -20 || sx > w + 20) {
                 continue;
             }
-            const sy = cam.sy(sp.wy + 1, p.room.depth !== undefined ? sp.depth : 0);
-            const sz = cam.len(10 * sp.scale);
+            const sy = cam.sy(sp.wy + 1, depthEnabled ? sp.depth : 0);
+            const sz = cam.len(10 * sp.scale) * cam.depthScale(sp.depth, depthEnabled);
             const frame = Math.min(1, Math.floor(prog * 2));
+            const splashLayer = depthEnabled ? depthOrder(sp.depth, 1) : 7;
             if (!worldArt.tryPlacePath(
                 SFX_RAIN_SPLASH_CLIPS[frame],
                 "sfx_rain_splash_" + i,
@@ -824,7 +853,7 @@ export class SceneFxSystem {
                 sy,
                 sz,
                 sz * 0.65,
-                { anchorX: 0.5, anchorY: 0, preserveAspect: true, opacity: (1 - prog) * 0.62, layer: 7 },
+                { anchorX: 0.5, anchorY: 0, preserveAspect: true, opacity: (1 - prog) * 0.62, layer: splashLayer },
             )) {
                 const r = cam.len(3 + prog * 5) * sp.scale;
                 fgGlow.drawEllipse(Vec2(sx, sy), r, r * 0.28, Color(168, 196, 218, Math.round(110 * (1 - prog))));

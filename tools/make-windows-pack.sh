@@ -250,6 +250,7 @@ for required in \
     "Script/watch/fe/frontend.lua" \
     "Script/watch/fe/renderer/anim_controller.lua" \
     "Script/watch/fe/renderer/scene_fx.lua" \
+    "Script/watch/fe/scenes/dark_pixel_assets.lua" \
     "assets/art/title.png" \
     "assets/art/brand/game_logo_h.png" \
     "assets/art/brand/game_logo_v.png" \
@@ -275,6 +276,8 @@ for required in \
     "assets/art/bg_escort_ridge.png" \
     "assets/art/props_second_half.clip" \
     "assets/art/props_second_half.png" \
+    "assets/art/scene_dark_pixel.clip" \
+    "assets/art/scene_dark_pixel.png" \
     "assets/art/actors-hd.clip" \
     "assets/art/actors-hd.png" \
     "assets/art/actors_zhoushu_anim.clip" \

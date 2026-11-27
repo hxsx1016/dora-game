@@ -9,7 +9,7 @@ local Color = ____Dora.Color -- 8
 local Rect = ____Dora.Rect -- 8
 local Vec2 = ____Dora.Vec2 -- 8
 function ____exports.drawDiamond(draw, cx, cy, rx, ry, fill, borderW, borderCol) -- 732
-	if borderW == nil then -- 732
+	if borderW == nil then -- 735
 		borderW = 0 -- 735
 	end -- 735
 	local pts = { -- 737
@@ -18,7 +18,7 @@ function ____exports.drawDiamond(draw, cx, cy, rx, ry, fill, borderW, borderCol)
 		Vec2(cx, cy - ry), -- 740
 		Vec2(cx - rx, cy) -- 741
 	} -- 741
-	if borderW > 0 and borderCol ~= nil then -- 741
+	if borderW > 0 and borderCol ~= nil then -- 743
 		draw:drawPolygon(pts, fill, borderW, borderCol) -- 744
 	else -- 744
 		draw:drawPolygon(pts, fill) -- 746
@@ -209,7 +209,7 @@ ____exports.ROOM_THEMES = { -- 139
 		fogBottom = ____exports.rgba(118, 42, 42, 62), -- 241
 		groundTop = ____exports.rgba(54, 48, 52, 255), -- 242
 		groundBody = ____exports.rgba(18, 16, 21, 255), -- 243
-		groundRim = ____exports.rgba(188, 68, 64, 195), -- 244
+		groundRim = ____exports.rgba(116, 76, 72, 168), -- 244
 		accent = ____exports.PALETTE.rouge, -- 245
 		beamColor = ____exports.rgba(196, 76, 62, 38), -- 246
 		ambient = "ash", -- 247
@@ -492,10 +492,10 @@ function ____exports.toChineseUpper(n) -- 426
 			math.floor(n) -- 427
 		) -- 427
 	) -- 427
-	if v == 100 then -- 427
+	if v == 100 then -- 428
 		return "壹佰" -- 429
 	end -- 429
-	if v < 10 then -- 429
+	if v < 10 then -- 431
 		return UPPER_DIGITS[v + 1] -- 432
 	end -- 432
 	local tens = math.floor(v / 10) -- 434
@@ -556,10 +556,10 @@ function ____exports.fillHGradRect(draw, x, y, w, h, leftCol, rightCol) -- 474
 end -- 474
 --- 径向柔和光晕
 function ____exports.fillRadialGlow(draw, cx, cy, rx, ry, innerCol, outerCol, segments) -- 489
-	if segments == nil then -- 489
+	if segments == nil then -- 493
 		segments = 18 -- 493
 	end -- 493
-	if rx <= 0.5 or ry <= 0.5 then -- 493
+	if rx <= 0.5 or ry <= 0.5 then -- 495
 		return -- 496
 	end -- 496
 	local center = Vec2(cx, cy) -- 498
@@ -593,16 +593,16 @@ function ____exports.fillRadialGlow(draw, cx, cy, rx, ry, innerCol, outerCol, se
 end -- 489
 --- 烟黛渐变轻幕（《饿殍》柔边字幕幕 / 顶部轻带，四周自然消融无硬框）
 function ____exports.drawSilkVeil(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 515
-	if opacity == nil then -- 515
+	if opacity == nil then -- 520
 		opacity = 0.84 -- 520
 	end -- 520
-	if layer == nil then -- 520
+	if layer == nil then -- 521
 		layer = -1 -- 521
 	end -- 521
-	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 521
+	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 523
 		return -- 524
 	end -- 524
-	if art:tryPlace( -- 524
+	if art:tryPlace( -- 526
 		"ink_veil_strip", -- 526
 		id, -- 526
 		cx, -- 526
@@ -655,16 +655,16 @@ function ____exports.drawSilkVeil(fallbackDraw, art, id, cx, cy, w, h, tint, opa
 end -- 515
 --- 水袖游丝飞白飘带（用于菜单选中态轻拂高光，柔美弧线非粗重墨块）
 function ____exports.drawSilkRibbon(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 542
-	if opacity == nil then -- 542
+	if opacity == nil then -- 547
 		opacity = 0.65 -- 547
 	end -- 547
-	if layer == nil then -- 547
+	if layer == nil then -- 548
 		layer = 0 -- 548
 	end -- 548
-	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 548
+	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 550
 		return -- 551
 	end -- 551
-	if art:tryPlace( -- 551
+	if art:tryPlace( -- 553
 		"ink_ribbon_sweep", -- 553
 		id, -- 553
 		cx, -- 553
@@ -696,16 +696,16 @@ function ____exports.drawSilkRibbon(fallbackDraw, art, id, cx, cy, w, h, tint, o
 end -- 542
 --- 婉转烟岚流云曲线（赋予标题、驿道长卷、章名以轻盈流动感）
 function ____exports.drawMistCurve(art, id, cx, cy, w, h, tint, opacity, layer, facing) -- 564
-	if opacity == nil then -- 564
+	if opacity == nil then -- 568
 		opacity = 0.36 -- 568
 	end -- 568
-	if layer == nil then -- 568
+	if layer == nil then -- 569
 		layer = -1 -- 569
 	end -- 569
-	if facing == nil then -- 569
+	if facing == nil then -- 570
 		facing = 1 -- 570
 	end -- 570
-	if w <= 4 or h <= 4 or opacity <= 0.01 then -- 570
+	if w <= 4 or h <= 4 or opacity <= 0.01 then -- 572
 		return -- 573
 	end -- 573
 	art:tryPlace( -- 575
@@ -725,19 +725,19 @@ function ____exports.drawMistCurve(art, id, cx, cy, w, h, tint, opacity, layer, 
 end -- 564
 --- 霜月游丝细线（可选在中点缀一枚极精巧的宋明海棠菱花微结）
 function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, withKnot, layer) -- 581
-	if alpha == nil then -- 581
+	if alpha == nil then -- 586
 		alpha = 0.72 -- 586
 	end -- 586
-	if withKnot == nil then -- 586
+	if withKnot == nil then -- 587
 		withKnot = false -- 587
 	end -- 587
-	if layer == nil then -- 587
+	if layer == nil then -- 588
 		layer = 2 -- 588
 	end -- 588
-	if w <= 4 or alpha <= 0.01 then -- 588
+	if w <= 4 or alpha <= 0.01 then -- 590
 		return -- 591
 	end -- 591
-	if not art:tryPlace( -- 591
+	if not art:tryPlace( -- 593
 		"ink_hairline", -- 593
 		id, -- 593
 		cx, -- 593
@@ -770,7 +770,7 @@ function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, w
 			Color(col.r, col.g, col.b, 0) -- 596
 		) -- 596
 	end -- 596
-	if withKnot then -- 596
+	if withKnot then -- 598
 		art:tryPlace( -- 599
 			"ink_knot_ornament", -- 599
 			id .. "_knot", -- 599
@@ -788,22 +788,22 @@ function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, w
 end -- 581
 --- 宋明纤细海棠折角（取代笨重双线铁框与像素铜角，带留白呼吸感）
 function ____exports.drawFiligreeCorners(overlayDraw, art, id, x, y, w, h, col, alpha, cornerSize, withHairBorder, layer) -- 606
-	if alpha == nil then -- 606
+	if alpha == nil then -- 611
 		alpha = 0.78 -- 611
 	end -- 611
-	if cornerSize == nil then -- 611
+	if cornerSize == nil then -- 612
 		cornerSize = 34 -- 612
 	end -- 612
-	if withHairBorder == nil then -- 612
+	if withHairBorder == nil then -- 613
 		withHairBorder = true -- 613
 	end -- 613
-	if layer == nil then -- 613
+	if layer == nil then -- 614
 		layer = 2 -- 614
 	end -- 614
-	if alpha <= 0.01 then -- 614
+	if alpha <= 0.01 then -- 616
 		return -- 617
 	end -- 617
-	if withHairBorder then -- 617
+	if withHairBorder then -- 619
 		overlayDraw:drawRect( -- 620
 			Rect(x, y, w, h), -- 620
 			Color(0, 0, 0, 0), -- 620
@@ -859,16 +859,16 @@ function ____exports.drawFiligreeCorners(overlayDraw, art, id, x, y, w, h, col, 
 end -- 606
 --- 文人孤印（全屏仅用于主标题落款与北塔登记簿落款，清瘦精致不泛滥）
 function ____exports.drawLoneSeal(overlayDraw, art, texts, id, cx, cy, w, h, topChar, botChar, stampCol, textCol, alpha, layer) -- 634
-	if alpha == nil then -- 634
+	if alpha == nil then -- 642
 		alpha = 0.94 -- 642
 	end -- 642
-	if layer == nil then -- 642
+	if layer == nil then -- 643
 		layer = 4 -- 643
 	end -- 643
-	if alpha <= 0.01 then -- 643
+	if alpha <= 0.01 then -- 645
 		return -- 646
 	end -- 646
-	if not art:tryPlace( -- 646
+	if not art:tryPlace( -- 648
 		"ink_seal_slender", -- 648
 		id, -- 648
 		cx, -- 648
@@ -915,16 +915,16 @@ function ____exports.drawLoneSeal(overlayDraw, art, texts, id, cx, cy, w, h, top
 end -- 634
 --- 纤巧菱花花蕊点（替换笨重圆点与方印焦点）
 function ____exports.drawBlossomDot(overlayDraw, art, id, cx, cy, size, col, alpha, layer) -- 656
-	if alpha == nil then -- 656
+	if alpha == nil then -- 661
 		alpha = 0.92 -- 661
 	end -- 661
-	if layer == nil then -- 661
+	if layer == nil then -- 662
 		layer = 4 -- 662
 	end -- 662
-	if alpha <= 0.01 then -- 662
+	if alpha <= 0.01 then -- 664
 		return -- 665
 	end -- 665
-	if not art:tryPlace( -- 665
+	if not art:tryPlace( -- 667
 		"ink_blossom_dot", -- 667
 		id, -- 667
 		cx, -- 667
@@ -949,10 +949,10 @@ function ____exports.drawBlossomDot(overlayDraw, art, id, cx, cy, size, col, alp
 end -- 656
 --- 清雅霜银发丝微框键位（去土黄、去厚底）
 function ____exports.drawSilkKeycap(overlayDraw, texts, x, y, w, h, keyText, accent, alpha, urgent) -- 673
-	if alpha == nil then -- 673
+	if alpha == nil then -- 679
 		alpha = 1 -- 679
 	end -- 679
-	if urgent == nil then -- 679
+	if urgent == nil then -- 680
 		urgent = false -- 680
 	end -- 680
 	local bg = urgent and ____exports.toColor(____exports.PALETTE.rougeSoft, 200 * alpha) or Color( -- 682
@@ -985,10 +985,10 @@ function ____exports.drawSilkKeycap(overlayDraw, texts, x, y, w, h, keyText, acc
 end -- 673
 --- 以下四项仅为 stage/props/actors 既有调用保留兼容，新 UI 一律使用上述清雅水墨原语
 function ____exports.fillSkewRect(draw, x, y, w, h, skew, fill, borderW, borderCol) -- 690
-	if borderW == nil then -- 690
+	if borderW == nil then -- 693
 		borderW = 0 -- 693
 	end -- 693
-	if w <= 0 or h <= 0 then -- 693
+	if w <= 0 or h <= 0 then -- 695
 		return -- 696
 	end -- 696
 	local pts = { -- 698
@@ -997,14 +997,14 @@ function ____exports.fillSkewRect(draw, x, y, w, h, skew, fill, borderW, borderC
 		Vec2(x + w + skew, y + h), -- 701
 		Vec2(x + skew, y + h) -- 702
 	} -- 702
-	if borderW > 0 and borderCol ~= nil then -- 702
+	if borderW > 0 and borderCol ~= nil then -- 704
 		draw:drawPolygon(pts, fill, borderW, borderCol) -- 705
 	else -- 705
 		draw:drawPolygon(pts, fill) -- 707
 	end -- 707
 end -- 690
 function ____exports.fillChamferBox(draw, x, y, w, h, cut, fill, borderW, borderCol) -- 711
-	if borderW == nil then -- 711
+	if borderW == nil then -- 714
 		borderW = 0 -- 714
 	end -- 714
 	local c = math.min(cut, w * 0.3, h * 0.3) -- 716
@@ -1016,7 +1016,7 @@ function ____exports.fillChamferBox(draw, x, y, w, h, cut, fill, borderW, border
 		Vec2(x + c, y + h), -- 722
 		Vec2(x, y + h - c) -- 723
 	} -- 723
-	if borderW > 0 and borderCol ~= nil then -- 723
+	if borderW > 0 and borderCol ~= nil then -- 725
 		draw:drawPolygon(pts, fill, borderW, borderCol) -- 726
 	else -- 726
 		draw:drawPolygon(pts, fill) -- 728
@@ -1029,9 +1029,9 @@ function ____exports.visualTextWidth(text, fontSize) -- 750
 		i = 0 -- 753
 		while i < #text do -- 753
 			local b = __TS__StringCharCodeAt(text, i) -- 754
-			if b < 128 then -- 754
+			if b < 128 then -- 755
 				units = units + 0.56 -- 756
-			elseif b >= 192 then -- 756
+			elseif b >= 192 then -- 757
 				units = units + 1.02 -- 758
 			end -- 758
 			i = i + 1 -- 753
@@ -1042,12 +1042,12 @@ end -- 750
 function ____exports.drawHazardStripes(draw, x, y, w, h, pitch, col) -- 764
 	local sw = pitch * 0.45 -- 769
 	local cur = x - h -- 770
-	while cur < x + w do -- 770
+	while cur < x + w do -- 771
 		local x0 = math.max(x, cur) -- 772
 		local x1 = math.min(x + w, cur + sw) -- 773
 		local tx0 = math.max(x, cur + h) -- 774
 		local tx1 = math.min(x + w, cur + h + sw) -- 775
-		if x1 > x0 and tx1 > tx0 then -- 775
+		if x1 > x0 and tx1 > tx0 then -- 776
 			draw:drawPolygon( -- 777
 				{ -- 777
 					Vec2(x0, y), -- 778

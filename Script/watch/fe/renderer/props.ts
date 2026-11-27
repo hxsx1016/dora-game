@@ -31,8 +31,9 @@ export class PropsRenderer {
         time: number,
         occlusion: DepthOcclusion,
         fadeDt: number,
+        groundArt?: AssetSlotHost,
     ): void {
-        this.drawZones(fgDraw, assets, p, cam);
+        this.drawZones(fgDraw, groundArt ?? assets, p, cam);
         this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
         this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
         this.drawBracedShield(fgDraw, assets, p, cam);
@@ -56,16 +57,22 @@ export class PropsRenderer {
             return;
         }
         const cx = cam.sx(sh.x);
+        const depthEnabled = p.room.depth !== undefined;
+        const dScale = cam.depthScale(p.player.depth, depthEnabled);
         const by = cam.sy(sh.y, p.player.depth);
-        const w = Math.max(8, cam.len(12));
-        const h = cam.len(sh.h);
-        fgDraw.drawEllipse(Vec2(cx, by + 1), Math.max(w * 0.9, h * 0.42), 3.4, Color(8, 10, 14, 150));
+        const w = Math.max(8, cam.len(12) * dScale);
+        const h = cam.len(sh.h) * dScale;
+        const shieldLayer = depthEnabled ? depthOrder(p.player.depth, 2) : 3;
+        assets.tryPlace("dp_shadow_contact", "braced_shield_shadow", cx, by + 1, Math.max(w * 2.2, h * 0.92), cam.len(7.5) * dScale, {
+            layer: shieldLayer - 1,
+            opacity: 0.78,
+        });
         if (assets.tryPlacePath("assets/art/props_ming.clip|braced_shield", "braced_shield_prop", cx, by, h * 0.95, h * 1.04, {
             anchorX: 0.5,
             anchorY: 0,
             preserveAspect: true,
             color: sh.hp <= 1 ? Color(218, 178, 154, 255) : Color(255, 255, 255, 255),
-            layer: p.room.depth === undefined ? 3 : depthOrder(p.player.depth, 2),
+            layer: shieldLayer,
         })) {
             return;
         }
@@ -118,12 +125,18 @@ export class PropsRenderer {
                 continue;
             }
             const depth = pickup.depth ?? 0;
+            const depthEnabled = p.room.depth !== undefined;
+            const dScale = cam.depthScale(depth, depthEnabled);
             const sx = cam.sx(pickup.x);
             const groundY = cam.sy(pickup.y, depth);
             const bob = Math.sin(time * 3.1 + pickup.x * 0.03) * cam.len(2.4);
             const sy = cam.sy(pickup.y + 11, depth) + bob;
-            const iconSize = cam.len(20);
-            fgDraw.drawEllipse(Vec2(sx, groundY + 1), cam.len(9.5), 2.6, Color(10, 10, 14, 130));
+            const iconSize = cam.len(20) * dScale;
+            const itemLayer = depthEnabled ? depthOrder(depth, 2) : 3;
+            assets.tryPlace("dp_shadow_contact", "pickup_shadow_" + pickup.id, sx, groundY + 1, cam.len(20) * dScale, cam.len(6.5) * dScale, {
+                layer: itemLayer - 1,
+                opacity: 0.72,
+            });
             fillRadialGlow(fgGlow, sx, sy, cam.len(14), cam.len(12), toColor(glowCol, 42), Color(glowCol.r, glowCol.g, glowCol.b, 0), 10);
             assets.tryPlacePath(
                 "assets/art/props_ming.clip|" + clipName,
@@ -136,7 +149,7 @@ export class PropsRenderer {
                     anchorX: 0.5,
                     anchorY: 0.5,
                     preserveAspect: true,
-                    layer: p.room.depth === undefined ? 3 : depthOrder(depth, 1),
+                    layer: itemLayer,
                 },
             );
         }
@@ -144,7 +157,7 @@ export class PropsRenderer {
 
     private drawZones(
         fgDraw: DrawNode.Type,
-        assets: AssetSlotHost,
+        groundArt: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
     ): void {
@@ -157,17 +170,43 @@ export class PropsRenderer {
             const zw = x1 - x0;
 
             if (z.tint === 1) {
+                // 以暗黑地表焦痕与零星炭火贴图替代昔日褐红纯色大矩形（去灰模色块）
                 const road = p.room.depth;
                 const front = cam.sy(z.y, road?.min ?? -3);
                 const back = cam.sy(z.y, road?.max ?? 1);
-                fgDraw.drawRect(Rect(x0, front, zw, back - front), Color(50, 35, 29, 48));
-            } else if (z.tint === 2) {
-                if (!assets.tryPlace("fe_ground_soft", "zone_soft_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 1 })) {
-                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
+                const zh = Math.max(8, back - front);
+                const tileW = Math.max(72, cam.len(110));
+                const cols = Math.max(1, Math.ceil(zw / tileW));
+                const segW = zw / cols;
+                for (let c = 0; c < cols; c++) {
+                    groundArt.tryPlace("dp_scorch_zone", "zone_scorch_" + i + "_" + c, x0 + (c + 0.5) * segW, front, segW + 1, zh, {
+                        layer: 8,
+                        opacity: 0.72,
+                    });
                 }
-            } else if (z.tint === 3) {
-                if (!assets.tryPlace("fe_ground_brick", "zone_brick_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 1 })) {
-                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 9), Color(118, 122, 130, 235));
+            } else if (z.tint === 2 || z.tint === 3) {
+                const slot = z.tint === 2 ? "fe_ground_soft" : "fe_ground_brick";
+                const prefix = z.tint === 2 ? "zone_soft_" : "zone_brick_";
+                if (p.room.depth !== undefined) {
+                    // 2.5D 暗黑石路采用横向分段平铺与低明度压色，避免单张浅灰条带拉扁发白截断路面
+                    const tileW = Math.max(48, cam.len(64));
+                    const cols = Math.max(1, Math.ceil(zw / tileW));
+                    const segW = zw / cols;
+                    const bandH = cam.len(15);
+                    const tint = z.tint === 2 ? Color(148, 138, 124, 255) : Color(124, 134, 150, 255);
+                    const op = z.tint === 2 ? 0.46 : 0.36;
+                    for (let c = 0; c < cols; c++) {
+                        groundArt.tryPlace(slot, prefix + i + "_" + c, x0 + (c + 0.5) * segW, y0 - cam.len(5), segW + 0.6, bandH, {
+                            layer: 6,
+                            opacity: op,
+                            color: tint,
+                        });
+                    }
+                } else if (!groundArt.tryPlace(slot, prefix + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 6 })) {
+                    fgDraw.drawRect(
+                        Rect(x0, y0 - 4, zw, z.tint === 2 ? 8 : 9),
+                        z.tint === 2 ? Color(74, 58, 44, 220) : Color(118, 122, 130, 235),
+                    );
                 }
             }
         }
@@ -251,18 +290,23 @@ export class PropsRenderer {
         // 车底暗影
         const artWidth = c.bodyW * 1.36;
         const artHeight = (c.wheelR * 2 + c.bodyH) * 0.88;
+        const dScale = cam.depthScale(depth, raised);
         const opacity = raised ? occlusion.update("cart", {
             x0: axleX - artWidth * 0.5, x1: axleX + artWidth * 0.5,
             y0: c.baseY, y1: c.baseY + artHeight,
             depth: { min: depth, max: depth + 8 }, passThrough: true,
         }, p, fadeDt) : 1;
-        fgDraw.drawEllipse(Vec2(cx, baseY + 2), bw * 0.62, 5, Color(4, 6, 10, 150 * opacity));
+        const cartLayer = raised ? depthOrder(depth, 2) : 2;
+        assets.tryPlace("dp_shadow_contact", "cart_shadow", cx, baseY + 1, bw * 1.48 * dScale, cam.len(11) * dScale, {
+            layer: cartLayer - 1,
+            opacity: 0.85 * opacity,
+        });
 
         const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
         const moved = Math.abs(axleX - c.startX) > 0.25;
-        const rollJitter = moved ? Math.abs(Math.sin(wheelSpin * 2)) * cam.len(0.85) : 0;
-        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY + rollJitter, cam.len(artWidth), cam.len(artHeight), {
-            layer: raised ? depthOrder(depth, 2) : 2, opacity, color: occlusionTint(opacity),
+        const rollJitter = moved ? Math.abs(Math.sin(wheelSpin * 2)) * cam.len(0.85) * dScale : 0;
+        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY + rollJitter, cam.len(artWidth) * dScale, cam.len(artHeight) * dScale, {
+            layer: cartLayer, opacity, color: occlusionTint(opacity),
         });
         if (!painted) {
             // 车身木钢复合车斗

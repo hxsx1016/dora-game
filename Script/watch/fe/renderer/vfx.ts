@@ -13,6 +13,7 @@ import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/dep
 import { FrameEvents } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
+import { depthOrder } from "Script/watch/fe/occlusion";
 import { FootstepCue } from "Script/watch/fe/renderer/anim_controller";
 import {
     AmbientKind,
@@ -435,8 +436,19 @@ export class VfxSystem {
         }
     }
 
-    /** 绘制世界空间特效（冷月火药弹道、暗朱墨烟溅星、枯笔声波环） */
-    drawWorldVfx(fgGlow: DrawNode.Type, assets: AssetSlotHost, cam: CameraDirector): void {
+    /** 绘制世界空间特效（冷月火药弹道、暗朱墨烟溅星、脚步扬尘、枯笔声波环） */
+    drawWorldVfx(
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        cam: CameraDirector,
+        depthEnabled: boolean = false,
+    ): void {
+        const muzzleLayer = depthEnabled ? 5100 : 9;
+        const smokeLayer = depthEnabled ? 5090 : 8;
+        const impactLayer = depthEnabled ? 5100 : 9;
+        const deflectLayer = depthEnabled ? 5090 : 8;
+        const ringLayer = depthEnabled ? 5085 : 7;
+
         // 1. 冷月火药曳光弹道（去赛博宽青光）
         let i = 0;
         for (i = 0; i < this.tracers.length; i++) {
@@ -465,7 +477,7 @@ export class VfxSystem {
                     preserveAspect: true,
                     angle: shotAngle,
                     opacity: Math.min(1, mk * 1.2),
-                    layer: 9,
+                    layer: muzzleLayer,
                 }) && !assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_muzzle_blast", "vfx_muzzle_" + i, x0, y0, blastH * 1.7, blastH, {
                     anchorX: 0.14,
                     anchorY: 0.42,
@@ -473,7 +485,7 @@ export class VfxSystem {
                     angle: shotAngle,
                     opacity: Math.min(1, mk * 1.15),
                     smooth: true,
-                    layer: 9,
+                    layer: muzzleLayer,
                 })) {
                     fgGlow.drawSegment(Vec2(x0 - 10 * mk, y0), Vec2(x0 + 10 * mk, y0), 1.2, toColor(PALETTE.amberCore, 165 * mk));
                     fgGlow.drawSegment(Vec2(x0, y0 - 7 * mk), Vec2(x0, y0 + 7 * mk), 1.0, toColor(PALETTE.amber, 145 * mk));
@@ -501,7 +513,7 @@ export class VfxSystem {
                 preserveAspect: true,
                 facing: pl.dir,
                 opacity: k * 0.72,
-                layer: 8,
+                layer: smokeLayer,
             })) {
                 assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_smoke_plume", "vfx_smoke_" + i, cam.sx(pl.x), cam.sy(pl.y), size, size, {
                     anchorX: 0.5,
@@ -510,7 +522,7 @@ export class VfxSystem {
                     facing: pl.dir,
                     opacity: k * 0.68,
                     smooth: true,
-                    layer: 8,
+                    layer: smokeLayer,
                 });
             }
         }
@@ -526,7 +538,7 @@ export class VfxSystem {
                 anchorY: 0.5,
                 preserveAspect: true,
                 opacity: k * 0.92,
-                layer: 9,
+                layer: impactLayer,
             })) {
                 assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_debris_burst", "vfx_impact_" + i, cam.sx(bu.x), cam.sy(bu.y), size, size, {
                     anchorX: 0.5,
@@ -535,7 +547,7 @@ export class VfxSystem {
                     color: bu.hit ? Color(246, 174, 152, 255) : Color(235, 224, 206, 255),
                     opacity: k * 0.88,
                     smooth: true,
-                    layer: 9,
+                    layer: impactLayer,
                 });
             }
         }
@@ -549,10 +561,10 @@ export class VfxSystem {
                 anchorY: 0.5,
                 preserveAspect: true,
                 opacity: k * 0.94,
-                layer: 8,
+                layer: deflectLayer,
             })) {
                 assets.tryPlace("stone_chips", "blocked", cam.sx(this.deflectX), dy, height, height, {
-                    opacity: k, layer: 8,
+                    opacity: k, layer: deflectLayer,
                 });
             }
         }
@@ -562,9 +574,10 @@ export class VfxSystem {
             const sd = this.stepDusts[i];
             const k = sd.life / sd.maxLife;
             const prog = 1 - k;
+            const dScale = cam.depthScale(sd.depth, depthEnabled);
             const sx = cam.sx(sd.x - sd.facing * prog * 9);
             const sy = cam.sy(sd.y + prog * 1.5, sd.depth);
-            const size = cam.len((11 + prog * 14) * sd.scale);
+            const size = cam.len((11 + prog * 14) * sd.scale) * dScale;
             const clip = STEP_DUST_CLIPS[sd.wide || prog > 0.45 ? 1 : 0];
             if (!assets.tryPlacePath(clip, "vfx_step_dust_" + i, sx, sy, size * 1.3, size, {
                 anchorX: 0.5,
@@ -572,7 +585,7 @@ export class VfxSystem {
                 preserveAspect: true,
                 facing: sd.facing,
                 opacity: k * 0.72,
-                layer: 6,
+                layer: depthEnabled ? depthOrder(sd.depth, 5) : 6,
             })) {
                 fgGlow.drawEllipse(Vec2(sx, sy + 1), size * 0.42, size * 0.14, Color(166, 154, 138, Math.round(110 * k)));
             }
@@ -587,7 +600,7 @@ export class VfxSystem {
             const rx = cam.sx(rg.x);
             const ry = cam.sy(rg.y);
             if (!assets.tryPlace("ink_enso_fine", "vfx_ring_" + i, rx, ry, r * 2.35, r * 2.35, {
-                color: toColor(rg.color), opacity: alpha, angle: prog * 24, layer: 7,
+                color: toColor(rg.color), opacity: alpha, angle: prog * 24, layer: ringLayer,
             })) {
                 fgGlow.drawRing(Vec2(rx, ry), Math.max(1, r - 1.8), r, Color(0, 0, 0, 0), 1.2, toColor(rg.color, alpha * 230));
             }

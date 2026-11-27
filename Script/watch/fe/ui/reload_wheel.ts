@@ -903,6 +903,9 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             return;
         }
         const cam = ctx.cam;
+        const depthEnabled = ctx.p.room.depth !== undefined;
+        const vfxSmokeLayer = depthEnabled ? 5090 : 8;
+        const vfxFlareLayer = depthEnabled ? 5100 : 9;
         let i = 0;
         for (i = 0; i < this.appliedVfx.length; i++) {
             const fx = this.appliedVfx[i];
@@ -924,7 +927,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
                 worldArt.tryPlace("fe_vfx_smoke", "rw_kb_smoke_" + i, tx - fx.facing * cam.len(4 + prog * 10), ty, smokeSz, smokeSz, {
                     frame: Math.min(3, Math.floor(prog * 4)),
                     opacity: 0.78 * k,
-                    layer: 8,
+                    layer: vfxSmokeLayer,
                 });
             } else if (fx.effect === "echo") {
                 // 回声铜铃枯笔水墨圆环
@@ -934,7 +937,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
                     color: toColor(PALETTE.amber),
                     opacity: 0.85 * k,
                     angle: prog * 28,
-                    layer: 8,
+                    layer: vfxSmokeLayer,
                 })) {
                     fgGlow.drawRing(Vec2(tx, ty), Math.max(1, r1 - 1.6), r1, Color(0, 0, 0, 0), 1.3, toColor(PALETTE.amber, 210 * k));
                 }
@@ -948,7 +951,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
                     frame: Math.min(2, Math.floor(prog * 3)),
                     facing: fx.facing,
                     opacity: 0.90 * k,
-                    layer: 9,
+                    layer: vfxFlareLayer,
                 });
                 fillRadialGlow(fgGlow, tx, ty, cam.len(42 * (0.6 + prog * 0.4)), cam.len(34), toColor(PALETTE.amberCore, 118 * k), Color(244, 234, 214, 0), 16);
             }

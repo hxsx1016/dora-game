@@ -193,17 +193,54 @@ end -- 241
 function CameraDirector.prototype.len(self, worldLen) -- 247
 	return worldLen * self.ppu -- 248
 end -- 247
-function CameraDirector.prototype.worldToScreen(self, wx, wy, depth) -- 252
-	if depth == nil then -- 252
-		depth = 0 -- 252
-	end -- 252
-	return { -- 253
-		x = self:sx(wx), -- 254
-		y = self:sy(wy, depth) -- 255
-	} -- 255
-end -- 252
-function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 260
-	local yOffset = (self.y - 82) * 0.45 -- 261
-	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 262
-end -- 260
-return ____exports -- 260
+function CameraDirector.prototype.depthScale(self, depth, enabled) -- 256
+	if enabled == nil then -- 256
+		enabled = true -- 256
+	end -- 256
+	if not enabled then -- 256
+		return 1 -- 258
+	end -- 258
+	local s = 1 - depth / 44 * 0.08 -- 260
+	return math.max( -- 261
+		0.88, -- 261
+		math.min(1.08, s) -- 261
+	) -- 261
+end -- 256
+function CameraDirector.prototype.depthShade(self, depth, enabled) -- 268
+	if enabled == nil then -- 268
+		enabled = true -- 268
+	end -- 268
+	if not enabled then -- 268
+		return 1 -- 270
+	end -- 270
+	local t = math.max( -- 272
+		0, -- 272
+		math.min(1, (depth + 44) / 88) -- 272
+	) -- 272
+	return 1 - t * 0.19 -- 273
+end -- 268
+function CameraDirector.prototype.perspectiveX(self, screenX, depth, enabled) -- 280
+	if enabled == nil then -- 280
+		enabled = true -- 280
+	end -- 280
+	if not enabled then -- 280
+		return screenX -- 282
+	end -- 282
+	local cx = self.viewW * 0.5 -- 284
+	local scale = self:depthScale(depth, true) -- 285
+	return cx + (screenX - cx) * scale -- 286
+end -- 280
+function CameraDirector.prototype.worldToScreen(self, wx, wy, depth) -- 290
+	if depth == nil then -- 290
+		depth = 0 -- 290
+	end -- 290
+	return { -- 291
+		x = self:sx(wx), -- 292
+		y = self:sy(wy, depth) -- 293
+	} -- 293
+end -- 290
+function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 298
+	local yOffset = (self.y - 82) * 0.45 -- 299
+	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 300
+end -- 298
+return ____exports -- 298

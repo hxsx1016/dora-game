@@ -9,7 +9,7 @@ local __TS__SparseArrayPush = ____lualib.__TS__SparseArrayPush -- 1
 local __TS__SparseArraySpread = ____lualib.__TS__SparseArraySpread -- 1
 local __TS__StringSlice = ____lualib.__TS__StringSlice -- 1
 local ____exports = {} -- 1
-local FALLBACK_DYNAMIC_SLOTS -- 1
+local FALLBACK_DYNAMIC_SLOTS -- 343
 local ____Dora = require("Dora") -- 1
 local Color = ____Dora.Color -- 1
 local Content = ____Dora.Content -- 1
@@ -25,10 +25,10 @@ local function backdrop(name, smooth) -- 79
 	return smooth and ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false, smooth = true}) or ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false}) -- 80
 end -- 79
 local function clip(names, anchorY, preserveAspect, anchorX) -- 85
-	if anchorY == nil then -- 85
+	if anchorY == nil then -- 87
 		anchorY = 0 -- 87
 	end -- 87
-	if preserveAspect == nil then -- 87
+	if preserveAspect == nil then -- 88
 		preserveAspect = false -- 88
 	end -- 88
 	local frames = type(names) == "string" and ({names}) or names -- 91
@@ -55,10 +55,10 @@ local function slide(name) -- 103
 	return {paths = {("assets/art/slides/" .. name) .. ".png"}, anchorY = 0.5, preserveAspect = false} -- 104
 end -- 103
 local function feClip(names, anchorY, preserveAspect, anchorX) -- 107
-	if anchorY == nil then -- 107
+	if anchorY == nil then -- 109
 		anchorY = 0.5 -- 109
 	end -- 109
-	if preserveAspect == nil then -- 109
+	if preserveAspect == nil then -- 110
 		preserveAspect = true -- 110
 	end -- 110
 	local frames = type(names) == "string" and ({names}) or names -- 113
@@ -103,10 +103,10 @@ ____exports.ASSET_SLOTS = { -- 147
 	bgFar_village = backdrop("village"), -- 153
 	bgFar_forest = backdrop("forest"), -- 154
 	bgFar_tower = backdrop("tower"), -- 155
-	bgFar_crossroad_drygoods = backdrop("bg_crossroad_drygoods", true), -- 156
-	bgFar_archway_yard = backdrop("bg_archway_yard", true), -- 157
-	bgFar_granary = backdrop("bg_granary", true), -- 158
-	bgFar_escort_ridge = backdrop("bg_escort_ridge", true), -- 159
+	bgFar_crossroad_drygoods = backdrop("bg_crossroad_drygoods"), -- 156
+	bgFar_archway_yard = backdrop("bg_archway_yard"), -- 157
+	bgFar_granary = backdrop("bg_granary"), -- 158
+	bgFar_escort_ridge = backdrop("bg_escort_ridge"), -- 159
 	bgFar_museum = backdrop("bg_museum_hall", true), -- 160
 	title_backdrop = backdrop("title"), -- 161
 	soldier_idle = character("soldier_idle"), -- 162
@@ -278,9 +278,9 @@ local function sharedDynamicSlots() -- 328
 		____temp_0 = nil -- 330
 	end -- 330
 	local loaded = ____temp_0 -- 330
-	if loaded ~= nil then -- 330
+	if loaded ~= nil then -- 331
 		local existing = loaded["watch.fe.dynamic_slots"] -- 332
-		if existing ~= nil and type(existing) == "table" then -- 332
+		if existing ~= nil and type(existing) == "table" then -- 333
 			return existing -- 334
 		end -- 334
 		local created = {} -- 336
@@ -322,7 +322,7 @@ function AssetSlotHost.prototype.currentSprite(self, instanceKey, path) -- 375
 end -- 375
 function AssetSlotHost.prototype.hideLastPlacement(self, instanceKey) -- 380
 	local sprite = self.lastPlacement[instanceKey] -- 381
-	if sprite ~= nil then -- 381
+	if sprite ~= nil then -- 382
 		sprite.visible = false -- 383
 	end -- 383
 end -- 380
@@ -330,12 +330,12 @@ function AssetSlotHost.prototype.beginFrame(self) -- 387
 	self.visibleThisFrame = {} -- 388
 end -- 387
 function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 391
-	if options == nil then -- 391
+	if options == nil then -- 395
 		options = {} -- 395
 	end -- 395
 	local staticSlots = ____exports.ASSET_SLOTS -- 397
 	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 398
-	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 398
+	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 399
 		return false -- 400
 	end -- 400
 	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 402
@@ -356,13 +356,13 @@ function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targ
 	) -- 407
 end -- 391
 function AssetSlotHost.prototype.tryPlaceRun(self, actor, instanceKey, x, y, targetW, targetH, cycles, options, effort) -- 412
-	if options == nil then -- 412
+	if options == nil then -- 417
 		options = {} -- 417
 	end -- 417
-	if effort == nil then -- 417
+	if effort == nil then -- 418
 		effort = 1 -- 418
 	end -- 418
-	if effort < 1 and self:tryPlaceRunTransition( -- 418
+	if effort < 1 and self:tryPlaceRunTransition( -- 420
 		actor, -- 420
 		instanceKey, -- 420
 		x, -- 420
@@ -388,7 +388,7 @@ function AssetSlotHost.prototype.tryPlaceRun(self, actor, instanceKey, x, y, tar
 	) -- 424
 end -- 412
 function AssetSlotHost.prototype.tryPlaceRunTransition(self, actor, instanceKey, x, y, targetW, targetH, cycles, effort, options) -- 428
-	if options == nil then -- 428
+	if options == nil then -- 433
 		options = {} -- 433
 	end -- 433
 	local phase = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_TRANSITION_PHASES + 0.5) % ____exports.RUN_TRANSITION_PHASES -- 435
@@ -411,7 +411,7 @@ function AssetSlotHost.prototype.tryPlaceRunTransition(self, actor, instanceKey,
 	) -- 438
 end -- 428
 function AssetSlotHost.prototype.tryPlaceSlide(self, instanceKey, x, y, targetW, targetH, progress, options) -- 441
-	if options == nil then -- 441
+	if options == nil then -- 445
 		options = {} -- 445
 	end -- 445
 	local frame = math.max( -- 447
@@ -433,7 +433,7 @@ function AssetSlotHost.prototype.tryPlaceSlide(self, instanceKey, x, y, targetW,
 	) -- 448
 end -- 441
 function AssetSlotHost.prototype.tryPlaceMotionFrame(self, atlas, frame, instanceKey, x, y, targetW, targetH, options) -- 451
-	if targetW <= 0 or targetH <= 0 then -- 451
+	if targetW <= 0 or targetH <= 0 then -- 458
 		return false -- 459
 	end -- 459
 	local ____atlas_1 = atlas -- 461
@@ -460,14 +460,14 @@ function AssetSlotHost.prototype.tryPlaceMotionFrame(self, atlas, frame, instanc
 	) -- 466
 end -- 451
 function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 470
-	if options == nil then -- 470
+	if options == nil then -- 474
 		options = {} -- 474
 	end -- 474
-	if path == "" or targetW <= 0 or targetH <= 0 then -- 474
+	if path == "" or targetW <= 0 or targetH <= 0 then -- 476
 		return false -- 477
 	end -- 477
 	local ____self_placeResolvedPath_4 = self.placeResolvedPath -- 479
-	local ____array_3 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 479
+	local ____array_3 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 480
 	local ____options_preserveAspect_2 = options.preserveAspect -- 483
 	if ____options_preserveAspect_2 == nil then -- 483
 		____options_preserveAspect_2 = false -- 483
@@ -491,8 +491,8 @@ end -- 470
 function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options, textureRect) -- 494
 	local key = (instanceKey .. ":") .. path -- 505
 	local sprite = self.sprites[key] -- 506
-	if sprite == nil then -- 506
-		if self.unavailable[path] then -- 506
+	if sprite == nil then -- 507
+		if self.unavailable[path] then -- 508
 			return false -- 509
 		end -- 509
 		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 511
@@ -504,11 +504,11 @@ function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY,
 			____Content_exist_result_5 = nil -- 513
 		end -- 513
 		local loaded = ____Content_exist_result_5 -- 513
-		if loaded == nil then -- 513
+		if loaded == nil then -- 514
 			self.unavailable[path] = true -- 515
 			return false -- 516
 		end -- 516
-		if textureRect ~= nil then -- 516
+		if textureRect ~= nil then -- 518
 			loaded.size = Size(textureRect.width, textureRect.height) -- 520
 		end -- 520
 		loaded.filter = smooth and "Anisotropic" or "Point" -- 523
@@ -516,7 +516,7 @@ function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY,
 		self.sprites[key] = loaded -- 525
 		sprite = loaded -- 526
 	end -- 526
-	if textureRect ~= nil then -- 526
+	if textureRect ~= nil then -- 529
 		sprite.textureRect = textureRect -- 530
 	end -- 530
 	local baseScaleY = targetH / math.max(1, textureRect and textureRect.height or sprite.height) -- 532
@@ -547,7 +547,7 @@ function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY,
 end -- 494
 function AssetSlotHost.prototype.endFrame(self) -- 553
 	for key in pairs(self.visibleLastFrame) do -- 554
-		if self.visibleThisFrame[key] == nil then -- 554
+		if self.visibleThisFrame[key] == nil then -- 555
 			self.visibleLastFrame[key].visible = false -- 556
 		end -- 556
 	end -- 556
