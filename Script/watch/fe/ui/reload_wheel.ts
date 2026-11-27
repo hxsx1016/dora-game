@@ -16,9 +16,12 @@
  *    - 盘面智能停靠侧方，画内同时可见周戍、背上探手的小满与远处敌人。
  */
 
-import { Color, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { Color, Content, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
+import { ZERO_SAFE_INSETS } from "Script/watch/platform";
 import { AssetSlotHost } from "Script/watch/fe/assets";
+import { keyTagFor } from "Script/watch/fe/ui/control_prompts";
 import {
     DualRouteContract,
     DualRouteSnapshot,
@@ -312,6 +315,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
     // 双输入物理边沿状态（防 app.ts clearEdges 丢边沿）
     private kbCursor = RELOAD_START_NODE;
     private dragging = false;
+    private dragAdvanced = false;
     private pointerActive = false;
     private prevLeft = false;
     private prevRight = false;
@@ -332,6 +336,9 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
     private readonly panelH = 316;
     private readonly cellStep = 66;
     private readonly hitRadius = 25;
+    private resetBox: Rect.Type = Rect(0, 0, 0, 0);
+    private lastUiPtrX = 0;
+    private lastUiPtrY = 0;
 
     // 双时钟读数（世界 60 拍 = 作答 240 拍验收）
     private answerTicksAccum = 0;
@@ -407,9 +414,9 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         this.resetInputEdges();
     }
 
-    private resetInputEdges(): void {
-        this.prevLeft = typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
-        this.prevRight = typeof Mouse !== "undefined" ? Mouse.rightButtonPressed : false;
+    private resetInputEdges(touchMode: boolean = false): void {
+        this.prevLeft = !touchMode && typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
+        this.prevRight = !touchMode && typeof Mouse !== "undefined" ? Mouse.rightButtonPressed : false;
         if (typeof Keyboard !== "undefined") {
             this.prevUp = Keyboard.isKeyPressed(KeyName.W) || Keyboard.isKeyPressed(KeyName.Up);
             this.prevDown = Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down);
@@ -429,14 +436,20 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
     }
 
     private computePanelPlacement(ctx: FePluginContext): void {
+        const safe = ctx.safeUi ?? ZERO_SAFE_INSETS;
         const soldierUiX = ctx.cam.sx(ctx.p.player.x) / ctx.uiScale;
         const marginX = this.panelW * 0.5 + 34;
+        const minCx = marginX + safe.left;
+        const maxCx = Math.max(minCx, ctx.uiW - marginX - safe.right);
         if (soldierUiX < ctx.uiW * 0.56) {
-            this.panelCx = Math.min(ctx.uiW - marginX, Math.max(ctx.uiW * 0.70, soldierUiX + 230));
+            this.panelCx = Math.min(maxCx, Math.max(minCx, Math.max(ctx.uiW * 0.70, soldierUiX + 230)));
         } else {
-            this.panelCx = Math.max(marginX, Math.min(ctx.uiW * 0.30, soldierUiX - 230));
+            this.panelCx = Math.max(minCx, Math.min(maxCx, Math.min(ctx.uiW * 0.30, soldierUiX - 230)));
         }
-        this.panelCy = Math.max(this.panelH * 0.5 + 78, Math.min(ctx.uiH - this.panelH * 0.5 - 66, ctx.uiH * 0.52));
+        const minCy = this.panelH * 0.5 + 78 + safe.bottom;
+        const maxCy = Math.max(minCy, ctx.uiH - this.panelH * 0.5 - 66 - safe.top);
+        this.panelCy = Math.max(minCy, Math.min(maxCy, ctx.uiH * 0.52));
+        this.resetBox = Rect(this.panelCx + 56, this.panelCy + this.panelH * 0.5 - 45, 72, 26);
     }
 
     update(ctx: FePluginContext): void {
@@ -451,7 +464,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
 
         // 暂停态严格冻结全部倒计时、收尾动画、VFX 与输入状态，不丢路径
         if (ctx.paused) {
-            this.resetInputEdges();
+            this.resetInputEdges(ctx.input.isTouchMode());
             return;
         }
 
@@ -528,7 +541,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         this.lastKnownPath = rs.path.length > 0 ? rs.path.slice() : [RELOAD_START_NODE];
         this.answerTicksAccum = 0;
         this.worldTicksAccum = 0;
-        this.resetInputEdges();
+        this.resetInputEdges(ctx.input.isTouchMode());
 
         let hasBackendOpen = false;
         let i = 0;
@@ -605,45 +618,76 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         const sim = this.pendingSimInput;
         this.pendingSimInput = undefined;
 
-        const ptrX = sim?.pointerX !== undefined ? sim.pointerX : (ctx.input.mx / ctx.uiScale);
-        const ptrY = sim?.pointerY !== undefined ? sim.pointerY : (ctx.input.my / ctx.uiScale);
-        const inside = sim?.pointerX !== undefined ? true : ctx.input.inside;
-        const leftHeld = sim?.leftHeld !== undefined ? sim.leftHeld : (ctx.input.fire.held || (typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
-        const rightHeld = sim?.rightHeld !== undefined ? sim.rightHeld : (typeof Mouse !== "undefined" && Mouse.rightButtonPressed);
+        const touchMode = ctx.input.isTouchMode();
+        const useUiPtr = sim?.pointerX === undefined
+            && (ctx.input.uiHeld || ctx.input.uiPressed || ctx.input.uiReleased || (touchMode && ctx.input.uiInside));
+        const ptrX = sim?.pointerX !== undefined
+            ? sim.pointerX
+            : ((useUiPtr ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale);
+        const ptrY = sim?.pointerY !== undefined
+            ? sim.pointerY
+            : ((useUiPtr ? ctx.input.uiY : ctx.input.my) / ctx.uiScale);
+        const inside = sim?.pointerX !== undefined
+            ? true
+            : (useUiPtr ? ctx.input.uiInside : ctx.input.inside);
+        const kbmMode = ctx.input.inputMode === "kbm";
+        const leftHeld = sim?.leftHeld !== undefined
+            ? sim.leftHeld
+            : (ctx.input.uiHeld || ctx.input.fire.held || (kbmMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
+        const rightHeld = sim?.rightHeld !== undefined
+            ? sim.rightHeld
+            : (ctx.input.uiRightPressed || (kbmMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
 
-        const leftPressed = leftHeld && !this.prevLeft;
-        const leftReleased = !leftHeld && this.prevLeft;
-        const rightPressed = rightHeld && !this.prevRight;
+        const leftPressed = sim?.leftHeld !== undefined
+            ? (leftHeld && !this.prevLeft)
+            : (ctx.input.uiPressed || (leftHeld && !this.prevLeft));
+        const leftReleased = sim?.leftHeld !== undefined
+            ? (!leftHeld && this.prevLeft)
+            : (ctx.input.uiReleased || (!leftHeld && this.prevLeft));
+        const rightPressed = sim?.rightHeld !== undefined
+            ? (rightHeld && !this.prevRight)
+            : (ctx.input.uiRightPressed || (rightHeld && !this.prevRight));
         this.prevLeft = leftHeld;
         this.prevRight = rightHeld;
+        this.lastUiPtrX = ptrX;
+        this.lastUiPtrY = ptrY;
 
+        const rawDx = useUiPtr ? ctx.input.uiDx : ctx.input.mdx;
+        const rawDy = useUiPtr ? ctx.input.uiDy : ctx.input.mdy;
         const pointerMoved = sim?.pointerX !== undefined
-            || (inside && Math.abs(ctx.input.mdx) + Math.abs(ctx.input.mdy) >= ctx.uiScale);
-        if (pointerMoved) {
+            || (inside && Math.abs(rawDx) + Math.abs(rawDy) >= ctx.uiScale);
+        if (pointerMoved || leftPressed) {
             this.pointerActive = true;
         }
 
         const lastNode = activePath[activePath.length - 1];
-        const hitNode = inside ? this.hitTestNode(ptrX, ptrY) : -1;
+        const useTouchHit = touchMode || ctx.input.uiHeld || ctx.input.uiPressed;
+        const activeHitR = useTouchHit ? 38 : this.hitRadius;
+        const hitNode = inside ? this.hitTestNode(ptrX, ptrY, activeHitR) : -1;
 
-        // 1. 鼠标右键主动清空重画（不重计倒计时）
-        if (rightPressed && activePath.length > 1) {
+        // 1. 右键或点击「重画」按钮主动清空重画（不重计倒计时）
+        const hitResetBtn = inside && (touchMode || activePath.length > 1) && this.resetBox.containsPoint(Vec2(ptrX, ptrY));
+        if ((rightPressed || (leftPressed && hitResetBtn)) && activePath.length > 1) {
             this.dragging = false;
+            this.dragAdvanced = false;
             this.triggerInvalidReset(ctx, activePath, false);
             return;
         }
 
-        // 2. 鼠标拖线 / 点选
+        // 2. 鼠标 / 触屏一笔拖线或逐格点选（逐格点选松手不清盘；拖线半途松手清回 [0]）
         if (leftPressed) {
             if (hitNode === RELOAD_START_NODE || hitNode === lastNode) {
                 this.dragging = true;
+                this.dragAdvanced = false;
                 this.kbCursor = lastNode;
             } else if (hitNode >= 0) {
                 if (activePath.indexOf(hitNode) < 0 && isAdjacentNode(lastNode, hitNode)) {
                     this.dragging = true;
+                    this.dragAdvanced = false;
                     this.commitNodeStep(ctx, hitNode, activePath);
                 } else {
                     this.dragging = false;
+                    this.dragAdvanced = false;
                     this.triggerInvalidReset(ctx, activePath, true);
                 }
                 return;
@@ -651,55 +695,73 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         } else if (this.dragging && leftHeld) {
             if (hitNode >= 0 && hitNode !== lastNode) {
                 if (activePath.indexOf(hitNode) < 0 && isAdjacentNode(lastNode, hitNode)) {
+                    this.dragAdvanced = true;
                     this.commitNodeStep(ctx, hitNode, activePath);
                 } else {
                     // 仅当拖入已访问旧节点（且不是刚离开的当前末点）或非法跳格点时判无效重画
                     this.dragging = false;
+                    this.dragAdvanced = false;
                     this.triggerInvalidReset(ctx, activePath, true);
                 }
                 return;
             }
         } else if (leftReleased && this.dragging) {
+            const wasDragStroke = this.dragAdvanced;
             this.dragging = false;
-            // 未连到终点 8 即松手：清回起点可立刻重画，不重计 4 秒
-            if (lastNode !== RELOAD_TARGET_NODE && activePath.length > 1) {
+            this.dragAdvanced = false;
+            // 仅一笔拖线中途未到终点 8 即松手时清回起点重画；逐格单击相邻点保留路径
+            if (wasDragStroke && lastNode !== RELOAD_TARGET_NODE && activePath.length > 1) {
                 this.triggerInvalidReset(ctx, activePath, true);
                 return;
             }
         }
 
-        // 3. 键盘方向与相邻选点（与鼠标走同一 commitNodeStep / triggerInvalidReset 入口）
+        // 3. 键盘与手柄 8 向选点（与鼠标/触屏走同一 commitNodeStep / triggerInvalidReset 入口）
         let dCol = 0;
         let dRow = 0;
         let confirmPressed = false;
         let resetPressed = false;
+        let gpAutoCommit = false;
 
         if (sim !== undefined && (sim.moveCol !== undefined || sim.moveRow !== undefined || sim.confirm !== undefined || sim.reset !== undefined)) {
             dCol = sim.moveCol ?? 0;
             dRow = sim.moveRow ?? 0;
             confirmPressed = sim.confirm === true;
             resetPressed = sim.reset === true;
-        } else if (typeof Keyboard !== "undefined") {
-            const up = Keyboard.isKeyPressed(KeyName.W) || Keyboard.isKeyPressed(KeyName.Up);
-            const down = Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down);
-            const lk = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
-            const rk = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
-            const confirm = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
-            const reset = Keyboard.isKeyPressed(KeyName.BackSpace);
+        } else {
+            if (typeof Keyboard !== "undefined") {
+                const up = Keyboard.isKeyPressed(KeyName.W) || Keyboard.isKeyPressed(KeyName.Up);
+                const down = Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down);
+                const lk = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
+                const rk = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
+                const confirm = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
+                const reset = Keyboard.isKeyPressed(KeyName.BackSpace);
 
-            if (up && !this.prevUp) { dRow += 1; }
-            if (down && !this.prevDown) { dRow -= 1; }
-            if (rk && !this.prevRightKey) { dCol += 1; }
-            if (lk && !this.prevLeftKey) { dCol -= 1; }
-            confirmPressed = confirm && !this.prevConfirm;
-            resetPressed = reset && !this.prevReset;
+                if (up && !this.prevUp) { dRow += 1; }
+                if (down && !this.prevDown) { dRow -= 1; }
+                if (rk && !this.prevRightKey) { dCol += 1; }
+                if (lk && !this.prevLeftKey) { dCol -= 1; }
+                confirmPressed = confirm && !this.prevConfirm;
+                resetPressed = reset && !this.prevReset;
 
-            this.prevUp = up;
-            this.prevDown = down;
-            this.prevLeftKey = lk;
-            this.prevRightKey = rk;
-            this.prevConfirm = confirm;
-            this.prevReset = reset;
+                this.prevUp = up;
+                this.prevDown = down;
+                this.prevLeftKey = lk;
+                this.prevRightKey = rk;
+                this.prevConfirm = confirm;
+                this.prevReset = reset;
+            }
+            if (ctx.input.reloadReset) {
+                resetPressed = true;
+            }
+            if (ctx.input.reloadConfirm) {
+                confirmPressed = true;
+            }
+            if (dCol === 0 && dRow === 0 && ctx.input.reloadStepEdge) {
+                dCol = ctx.input.reloadDirCol;
+                dRow = ctx.input.reloadDirRow;
+                gpAutoCommit = ctx.input.reloadAutoStep;
+            }
         }
 
         if (resetPressed && activePath.length > 1) {
@@ -709,10 +771,16 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
 
         if (dCol !== 0 || dRow !== 0) {
             this.pointerActive = false;
-            const cur = RELOAD_GRID[this.kbCursor] ?? RELOAD_GRID[0];
+            const baseIdx = gpAutoCommit ? lastNode : this.kbCursor;
+            const cur = RELOAD_GRID[baseIdx] ?? RELOAD_GRID[0];
             const nextCol = Math.max(0, Math.min(2, cur.col + dCol));
             const nextRow = Math.max(0, Math.min(2, cur.row + dRow));
-            this.kbCursor = nextRow * 3 + nextCol;
+            const nextIdx = nextRow * 3 + nextCol;
+            this.kbCursor = nextIdx;
+            if (gpAutoCommit && nextIdx !== lastNode && activePath.indexOf(nextIdx) < 0 && isAdjacentNode(lastNode, nextIdx)) {
+                this.commitNodeStep(ctx, nextIdx, activePath);
+                return;
+            }
         }
 
         if (confirmPressed) {
@@ -738,10 +806,13 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
         // 仅在实际连入节点时亮起并按步数发声（排演或非 live 补播）
         this.nodePulseSeq += 1;
+        const stepIdx = Math.max(1, Math.min(6, this.lastKnownPath.length));
+        const pitched = "assets/audio/combat/reload_node_" + stepIdx + ".wav";
+        const nodePath = Content.exist(pitched) ? pitched : "assets/audio/combat/reload_node.wav";
         ctx.audio.playOnce(
             "fe02:reload_node:r" + ctx.events.roomSessionId + ":n" + this.nodePulseSeq + ":" + node,
             "sfx",
-            "assets/audio/combat/reload_node.wav",
+            nodePath,
             0.78,
             "reload:node:" + node,
             ctx.p.ticks,
@@ -771,8 +842,8 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
     }
 
-    private hitTestNode(uiX: number, uiY: number): number {
-        const r2 = this.hitRadius * this.hitRadius;
+    private hitTestNode(uiX: number, uiY: number, hitR: number = this.hitRadius): number {
+        const r2 = hitR * hitR;
         let i = 0;
         for (i = 0; i < RELOAD_GRID.length; i++) {
             const pos = this.getNodeUiPos(i);
@@ -810,8 +881,8 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
 
     private spawnAppliedVfx(effect: ReloadEffectKind, p: Play, targetX: number): void {
         const originX = p.player.x + p.player.facing * 18;
-        const originY = p.player.y + p.player.depth + p.player.h * 0.62;
-        const targetY = p.player.y + p.player.depth + 46;
+        const originY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.62;
+        const targetY = p.player.y + p.player.depth * DEPTH_Y_SCALE + 46;
         const maxLife = effect === "light" ? 0.42 : (effect === "echo" ? 0.56 : 0.34);
         this.appliedVfx.push({
             effect,
@@ -965,6 +1036,29 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             0.96 * appear,
             0,
         );
+        if (active && (ctx.input.isTouchMode() || activePath.length > 1)) {
+            const canReset = activePath.length > 1;
+            const rb = Rect(this.resetBox.x + shakeX, this.resetBox.y, this.resetBox.width, this.resetBox.height);
+            uiInkDraw.drawRect(
+                rb,
+                Color(32, 30, 32, Math.round((canReset ? 32 : 12) * appear)),
+                0.85,
+                toColor(canReset ? PALETTE.rouge : PALETTE.xuanInkSub, (canReset ? 185 : 95) * appear),
+            );
+            ctx.texts.put(
+                "xs",
+                "重画",
+                rb.x + rb.width * 0.5,
+                rb.y + rb.height * 0.5,
+                toColor(canReset ? PALETTE.rouge : PALETTE.xuanInkSub),
+                0.5,
+                0.5,
+                TextAlign.Center,
+                1.0,
+                (canReset ? 0.94 : 0.52) * appear,
+                0,
+            );
+        }
         drawHairline(uiInkDraw, uiArt, "rw_head_line", px, headY - 18, pw - 42, PALETTE.xuanInkSub, 0.45 * appear, false, 2);
 
         // 4. 3×3 九宫格淡墨经纬底线
@@ -983,11 +1077,11 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             this.drawPathStrokes(uiInkDraw, uiGlow, activePath, previewEffect, effAccent, shakeX, appear);
         }
 
-        // 鼠标拖线动态墨丝（从末点拉向当前全速光标）
+        // 鼠标 / 触屏拖线动态墨丝（从末点拉向当前全速光标）
         if (active && this.dragging && activePath.length >= 1) {
             const tail = this.getNodeUiPos(activePath[activePath.length - 1]);
-            const mx = ctx.input.mx / ctx.uiScale;
-            const my = ctx.input.my / ctx.uiScale;
+            const mx = ctx.input.uiHeld ? (ctx.input.uiX / ctx.uiScale) : this.lastUiPtrX;
+            const my = ctx.input.uiHeld ? (ctx.input.uiY / ctx.uiScale) : this.lastUiPtrY;
             uiInkDraw.drawSegment(Vec2(tail.x + shakeX, tail.y), Vec2(mx, my), 1.4, toColor(effAccent, 150 * appear));
             uiInkDraw.drawDot(Vec2(mx, my), 3.0, toColor(effAccent, 210 * appear));
         }
@@ -1030,9 +1124,15 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
 
         // 默认低引导不显示按键教学；仅玩家主动打开「按键辅助」时在盘底给一行极淡说明
         if (active && ctx.view.assistHintsEnabled) {
+            const mode = ctx.input.inputMode;
+            const hint = mode === "gamepad"
+                ? ("左摇杆八向直连至右上 · " + keyTagFor("back", "gamepad", ctx.input.gamepadLayout) + " 重画")
+                : (mode === "touch"
+                    ? "单指一笔滑连至右上 · 点重画清空"
+                    : "拖线或方向+回车连至右上");
             ctx.texts.put(
                 "xs",
-                "拖线或方向+回车连至右上",
+                hint,
                 px,
                 y0 + 13,
                 toColor(PALETTE.xuanInkSub),
@@ -1247,8 +1347,9 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         ctx: FePluginContext,
         effect: ReloadEffectKind,
     ): void {
-        const bx = 46;
-        const by = ctx.uiH - 112;
+        const safe = ctx.safeUi ?? ZERO_SAFE_INSETS;
+        const bx = 46 + safe.left;
+        const by = ctx.uiH - 134 - safe.top;
         const col = effect === "echo" ? PALETTE.rouge : (effect === "light" ? PALETTE.amberCore : PALETTE.cyanCore);
         drawSilkVeil(uiDraw, uiArt, "rw_armed_veil", bx + 54, by, 142, 30, PALETTE.inkWash, 0.72, -1);
         drawReloadPatternGlyph(uiInkDraw, bx + 12, by, 9, effect, col, 0.96);

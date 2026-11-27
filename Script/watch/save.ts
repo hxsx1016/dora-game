@@ -9,7 +9,7 @@
  * 自动测试用 `setSaveFile` 指向隔离文件，损坏备份也按该路径派生，绝不碰玩家档案。
  */
 import { Content } from "Dora";
-import { MuseumPhase, isMuseumPhase } from "Script/watch/run";
+import { MuseumPhase, RouteTag, StoryRoute, isMuseumPhase } from "Script/watch/run";
 
 export const SAVE_VERSION = 1;
 export const SAVE_DIR = "watch-save";
@@ -88,12 +88,19 @@ let pending: { state: SaveState; file: string } | undefined = undefined;
 /** 读到未知版本原件后置位：该路径的普通写档一律拒绝，切走再切回仍受保护。 */
 let protectedPath = "";
 
-/** 引擎的 `exist/load/copy/remove` 只认绝对路径；相对写入会落到 writablePath 但读不回来。 */
+/** 引擎的 `exist/load/copy/remove` 只认绝对路径；兼容 Unix `/` 与 Windows 盘符 `C:\...`。 */
 function absPath(path: string): string {
-    if (path.length > 0 && path.charAt(0) === "/") {
+    if (path.length > 0 && (path.charAt(0) === "/" || path.charAt(0) === "\\")) {
         return path;
     }
-    return Content.writablePath + "/" + path;
+    if (path.length >= 2 && path.charAt(1) === ":") {
+        return path;
+    }
+    const base = Content.writablePath;
+    const sep = base.indexOf("\\") >= 0 && base.indexOf("/") < 0 ? "\\" : "/";
+    const norm = sep === "\\" ? path.split("/").join("\\") : path;
+    const trimmed = (base.endsWith("/") || base.endsWith("\\")) ? base.slice(0, -1) : base;
+    return trimmed + sep + norm;
 }
 
 /** 测试用：切到隔离档案文件；传空则回正式档案。不清保护位（保护位按路径绑定）。 */
@@ -445,11 +452,12 @@ export function loadSave(): LoadResult {
     };
 }
 
-/** 目标文件的目录部分；没有目录就写根。 */
+/** 目标文件的目录部分；兼容 `/` 与 `\`，没有目录就写根。 */
 function dirOf(path: string): string {
     let i = path.length - 1;
     for (; i >= 0; i--) {
-        if (path.charAt(i) === "/") {
+        const ch = path.charAt(i);
+        if (ch === "/" || ch === "\\") {
             return path.substring(0, i);
         }
     }
@@ -493,11 +501,16 @@ export function saveSave(state: SaveState): boolean {
     const existed = ops.exist(target);
     let backedUp = false;
     if (existed) {
-        backedUp = ops.copy(target, prev);
-        if (!backedUp || !usableBackup(prev)) {
-            // 备份不可用：绝不覆盖唯一有效旧档。
-            ops.remove(tmp);
-            return false;
+        if (usableBackup(target)) {
+            backedUp = ops.copy(target, prev);
+            if (!backedUp || !usableBackup(prev)) {
+                // 备份不可用：绝不覆盖唯一有效旧档。
+                ops.remove(tmp);
+                return false;
+            }
+        } else {
+            // 原目标已损坏（非受保护高版本）：先隔离保留坏文件副本再允许写入新档，解除永久写死锁。
+            backupCorrupt(target, ".corrupt");
         }
     }
 
@@ -558,4 +571,411 @@ export function saveSignature(state: SaveState): string {
         state.museumPhase,
         state.museumSeen ? "1" : "0",
     ].join("|");
+}
+
+// ==================== 局中存档（Session Checkpoint Save） ====================
+// 独立于跨局双通关档案 watch-save/archive.txt，避免影响既有关闭/损坏隔离测试。
+// 仅正式剧情（source === "official"）写盘，复用 .tmp -> .prev -> 回读校验的原子落盘协议。
+
+export const SESSION_VERSION = 1;
+export const SESSION_FILE = "watch-save/session.txt";
+
+export interface SessionSave {
+    roomKey: string;
+    checkpoint: number;
+    seed: number;
+    route: StoryRoute;
+    hp: number;
+    maxHp: number;
+    hpAtGate: number;
+    maxHpAtGate: number;
+    settled: boolean;
+    phase: string;
+    countTick: number;
+    phaseTick: number;
+    handTicks: number;
+    handDone: boolean;
+    lineSaid: boolean;
+    tied: boolean;
+    carry: boolean;
+    escortDone: boolean;
+    craftedWeapon: string;
+    equippedWeapon: string;
+    wood: number;
+    bell: number;
+    scrap: number;
+    wedge: number;
+    ammo: number;
+    shield: number;
+    pass: number;
+    quickbelt: number;
+    taken: string[];
+    segments: string[];
+    cartAxle: number;
+    cartDocked: boolean;
+    /** S1..C2 正式接入后的岔路与机关进度（向后兼容旧版 session.txt）。 */
+    campaignRoute?: RouteTag;
+    joined?: boolean;
+    c1Latch?: boolean;
+    c2Latch?: boolean;
+    /** 男主线 escort1..5 肉鸽三选一天赋状态（向后兼容旧版 session.txt）。 */
+    talentSeed?: number;
+    talentRoom?: string;
+    talentOffers?: string[];
+    talentVitality?: number;
+    talentReload?: number;
+    talentGuard?: number;
+    talentCraft?: number;
+    /** 房内机关/破损道具、精确角色位置与城门/空村状态（向后兼容旧版 session.txt）。 */
+    props?: string[];
+    playerX?: number;
+    playerY?: number;
+    playerDepth?: number;
+    gateTick?: number;
+    hasBottle?: boolean;
+    villagePassed?: boolean;
+}
+
+export interface SessionLoadResult {
+    state: SessionSave | undefined;
+    status: LoadStatus;
+    detail: string;
+    recovered: boolean;
+    backup: string;
+}
+
+let currentSessionFile = SESSION_FILE;
+
+export function setSessionFile(path: string): void {
+    currentSessionFile = path === "" ? SESSION_FILE : path;
+}
+
+export function getSessionFile(): string {
+    return currentSessionFile;
+}
+
+function parseBoolField(raw: string | undefined, fallback: boolean): boolean | undefined {
+    if (raw === undefined) {
+        return fallback;
+    }
+    if (raw === "true" || raw === "1") {
+        return true;
+    }
+    if (raw === "false" || raw === "0") {
+        return false;
+    }
+    return undefined;
+}
+
+function parseListField(raw: string | undefined): string[] {
+    if (raw === undefined || raw === "") {
+        return [];
+    }
+    const parts = raw.split(",");
+    const out: string[] = [];
+    let i = 0;
+    for (i = 0; i < parts.length; i++) {
+        const item = parts[i].trim();
+        if (item !== "") {
+            out.push(item);
+        }
+    }
+    return out;
+}
+
+function formatSession(s: SessionSave): string {
+    return [
+        "version=" + SESSION_VERSION,
+        "roomKey=" + s.roomKey,
+        "checkpoint=" + Math.round(s.checkpoint),
+        "seed=" + Math.round(s.seed),
+        "route=" + s.route,
+        "hp=" + Math.round(s.hp),
+        "maxHp=" + Math.round(s.maxHp),
+        "hpAtGate=" + Math.round(s.hpAtGate),
+        "maxHpAtGate=" + Math.round(s.maxHpAtGate),
+        "settled=" + (s.settled ? "true" : "false"),
+        "phase=" + s.phase,
+        "countTick=" + Math.round(s.countTick),
+        "phaseTick=" + Math.round(s.phaseTick),
+        "handTicks=" + Math.round(s.handTicks),
+        "handDone=" + (s.handDone ? "true" : "false"),
+        "lineSaid=" + (s.lineSaid ? "true" : "false"),
+        "tied=" + (s.tied ? "true" : "false"),
+        "carry=" + (s.carry ? "true" : "false"),
+        "escortDone=" + (s.escortDone ? "true" : "false"),
+        "craftedWeapon=" + s.craftedWeapon,
+        "equippedWeapon=" + s.equippedWeapon,
+        "wood=" + Math.round(s.wood),
+        "bell=" + Math.round(s.bell),
+        "scrap=" + Math.round(s.scrap),
+        "wedge=" + Math.round(s.wedge),
+        "ammo=" + Math.round(s.ammo),
+        "shield=" + Math.round(s.shield),
+        "pass=" + Math.round(s.pass),
+        "quickbelt=" + Math.round(s.quickbelt),
+        "taken=" + s.taken.join(","),
+        "segments=" + s.segments.join(","),
+        "cartAxle=" + Math.round(s.cartAxle),
+        "cartDocked=" + (s.cartDocked ? "true" : "false"),
+        "campaignRoute=" + (s.campaignRoute ?? ""),
+        "joined=" + (s.joined === true ? "true" : "false"),
+        "c1Latch=" + (s.c1Latch === true ? "true" : "false"),
+        "c2Latch=" + (s.c2Latch === true ? "true" : "false"),
+        "talentSeed=" + Math.round(s.talentSeed ?? 0),
+        "talentRoom=" + (s.talentRoom ?? ""),
+        "talentOffers=" + (s.talentOffers === undefined ? "" : s.talentOffers.join(",")),
+        "talentVitality=" + Math.round(s.talentVitality ?? 0),
+        "talentReload=" + Math.round(s.talentReload ?? 0),
+        "talentGuard=" + Math.round(s.talentGuard ?? 0),
+        "talentCraft=" + Math.round(s.talentCraft ?? 0),
+        "props=" + (s.props === undefined ? "" : s.props.join(",")),
+        "playerX=" + (s.playerX === undefined ? -1 : Math.round(s.playerX)),
+        "playerY=" + (s.playerY === undefined ? 0 : Math.round(s.playerY)),
+        "playerDepth=" + (s.playerDepth === undefined ? 0 : Math.round(s.playerDepth)),
+        "gateTick=" + Math.round(s.gateTick ?? 0),
+        "hasBottle=" + (s.hasBottle === true ? "true" : "false"),
+        "villagePassed=" + (s.villagePassed === true ? "true" : "false"),
+        "",
+    ].join("\n");
+}
+
+function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: string; state?: SessionSave } {
+    if (text.length === 0) {
+        return { ok: false, status: "corrupt", reason: "局中存档为空" };
+    }
+    const verRaw = lineValue(text, "version");
+    if (verRaw === undefined) {
+        return { ok: false, status: "corrupt", reason: "缺少 version 行" };
+    }
+    const ver = intOf(verRaw, -1);
+    if (ver < 0) {
+        return { ok: false, status: "corrupt", reason: "version 非法" };
+    }
+    if (ver > SESSION_VERSION) {
+        return { ok: false, status: "unsupported", reason: "局中存档版本 " + ver + " 高于当前 " + SESSION_VERSION };
+    }
+    const roomKey = lineValue(text, "roomKey");
+    if (roomKey === undefined || roomKey === "") {
+        return { ok: false, status: "corrupt", reason: "缺少 roomKey" };
+    }
+    const routeRaw = lineValue(text, "route") ?? "";
+    if (routeRaw !== "" && routeRaw !== "child" && routeRaw !== "soldier") {
+        return { ok: false, status: "corrupt", reason: "route 取值非法" };
+    }
+    const settled = parseBoolField(lineValue(text, "settled"), false);
+    const handDone = parseBoolField(lineValue(text, "handDone"), false);
+    const lineSaid = parseBoolField(lineValue(text, "lineSaid"), false);
+    const tied = parseBoolField(lineValue(text, "tied"), false);
+    const carry = parseBoolField(lineValue(text, "carry"), false);
+    const escortDone = parseBoolField(lineValue(text, "escortDone"), false);
+    const cartDocked = parseBoolField(lineValue(text, "cartDocked"), false);
+    const joined = parseBoolField(lineValue(text, "joined"), false);
+    const c1Latch = parseBoolField(lineValue(text, "c1Latch"), false);
+    const c2Latch = parseBoolField(lineValue(text, "c2Latch"), false);
+    if (settled === undefined || handDone === undefined || lineSaid === undefined
+        || tied === undefined || carry === undefined || escortDone === undefined || cartDocked === undefined
+        || joined === undefined || c1Latch === undefined || c2Latch === undefined) {
+        return { ok: false, status: "corrupt", reason: "布尔字段非法" };
+    }
+    const campRouteRaw = lineValue(text, "campaignRoute") ?? "";
+    if (campRouteRaw !== "" && campRouteRaw !== "outer" && campRouteRaw !== "drygoods") {
+        return { ok: false, status: "corrupt", reason: "campaignRoute 取值非法" };
+    }
+    const hp = intOf(lineValue(text, "hp") ?? "3", -1);
+    const maxHp = intOf(lineValue(text, "maxHp") ?? "3", -1);
+    if (hp < 0 || maxHp <= 0) {
+        return { ok: false, status: "corrupt", reason: "血量字段非法" };
+    }
+    return {
+        ok: true,
+        status: "ok",
+        reason: "ok",
+        state: {
+            roomKey,
+            checkpoint: intOf(lineValue(text, "checkpoint") ?? "0", 0),
+            seed: intOf(lineValue(text, "seed") ?? "20261124", 20261124),
+            route: routeRaw as StoryRoute,
+            hp,
+            maxHp,
+            hpAtGate: intOf(lineValue(text, "hpAtGate") ?? "-1", -1),
+            maxHpAtGate: intOf(lineValue(text, "maxHpAtGate") ?? "-1", -1),
+            settled,
+            phase: lineValue(text, "phase") ?? "",
+            countTick: Math.max(0, intOf(lineValue(text, "countTick") ?? "0", 0)),
+            phaseTick: Math.max(0, intOf(lineValue(text, "phaseTick") ?? "0", 0)),
+            handTicks: Math.max(0, intOf(lineValue(text, "handTicks") ?? "0", 0)),
+            handDone,
+            lineSaid,
+            tied,
+            carry,
+            escortDone,
+            craftedWeapon: lineValue(text, "craftedWeapon") ?? "",
+            equippedWeapon: lineValue(text, "equippedWeapon") ?? "",
+            wood: Math.max(0, intOf(lineValue(text, "wood") ?? "0", 0)),
+            bell: Math.max(0, intOf(lineValue(text, "bell") ?? "0", 0)),
+            scrap: Math.max(0, intOf(lineValue(text, "scrap") ?? "0", 0)),
+            wedge: Math.max(0, intOf(lineValue(text, "wedge") ?? "0", 0)),
+            ammo: Math.max(0, intOf(lineValue(text, "ammo") ?? "0", 0)),
+            shield: Math.max(0, intOf(lineValue(text, "shield") ?? "0", 0)),
+            pass: Math.max(0, intOf(lineValue(text, "pass") ?? "0", 0)),
+            quickbelt: Math.max(0, intOf(lineValue(text, "quickbelt") ?? "0", 0)),
+            taken: parseListField(lineValue(text, "taken")),
+            segments: parseListField(lineValue(text, "segments")),
+            cartAxle: intOf(lineValue(text, "cartAxle") ?? "0", 0),
+            cartDocked,
+            campaignRoute: campRouteRaw as RouteTag,
+            joined,
+            c1Latch,
+            c2Latch,
+            talentSeed: Math.max(0, intOf(lineValue(text, "talentSeed") ?? "0", 0)),
+            talentRoom: lineValue(text, "talentRoom") ?? "",
+            talentOffers: parseListField(lineValue(text, "talentOffers")),
+            talentVitality: Math.max(0, intOf(lineValue(text, "talentVitality") ?? "0", 0)),
+            talentReload: Math.max(0, intOf(lineValue(text, "talentReload") ?? "0", 0)),
+            talentGuard: Math.max(0, intOf(lineValue(text, "talentGuard") ?? "0", 0)),
+            talentCraft: Math.max(0, intOf(lineValue(text, "talentCraft") ?? "0", 0)),
+            props: parseListField(lineValue(text, "props")),
+            playerX: intOf(lineValue(text, "playerX") ?? "-1", -1),
+            playerY: intOf(lineValue(text, "playerY") ?? "0", 0),
+            playerDepth: intOf(lineValue(text, "playerDepth") ?? "0", 0),
+            gateTick: Math.max(0, intOf(lineValue(text, "gateTick") ?? "0", 0)),
+            hasBottle: parseBoolField(lineValue(text, "hasBottle"), false) === true,
+            villagePassed: parseBoolField(lineValue(text, "villagePassed"), false) === true,
+        },
+    };
+}
+
+function usableSessionBackup(path: string): boolean {
+    if (!ops.exist(path)) {
+        return false;
+    }
+    return parseSession(loadText(path)).ok;
+}
+
+function restoreSessionFrom(candidate: string, target: string, keepCandidate: boolean): boolean {
+    if (!usableSessionBackup(candidate)) {
+        return false;
+    }
+    if (!ops.copy(candidate, target)) {
+        return false;
+    }
+    if (!sameContent(candidate, target)) {
+        return false;
+    }
+    if (!keepCandidate) {
+        ops.remove(candidate);
+    }
+    return true;
+}
+
+export function hasSessionSave(): boolean {
+    const target = absPath(currentSessionFile);
+    if (usableSessionBackup(target)) {
+        return true;
+    }
+    return usableSessionBackup(target + ".tmp") || usableSessionBackup(target + ".prev");
+}
+
+export function loadSession(): SessionLoadResult {
+    const target = absPath(currentSessionFile);
+    const tmp = target + ".tmp";
+    const prev = target + ".prev";
+    if (!ops.exist(target)) {
+        if (restoreSessionFrom(tmp, target, false)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "由 .tmp 恢复局中存档", recovered: true, backup: "" };
+        }
+        if (restoreSessionFrom(prev, target, true)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "由 .prev 恢复局中存档", recovered: true, backup: "" };
+        }
+        return { state: undefined, status: "missing", detail: "无局中存档", recovered: false, backup: "" };
+    }
+    const parsed = parseSession(loadText(target));
+    if (parsed.ok && parsed.state !== undefined) {
+        if (ops.exist(tmp) && sameContent(tmp, target)) {
+            ops.remove(tmp);
+        }
+        return { state: parsed.state, status: "ok", detail: "局中存档读取成功", recovered: false, backup: "" };
+    }
+    if (parsed.status === "corrupt") {
+        const broken = backupCorrupt(target, ".corrupt");
+        if (restoreSessionFrom(tmp, target, false)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .tmp 恢复", recovered: true, backup: broken };
+        }
+        if (restoreSessionFrom(prev, target, true)) {
+            const p = parseSession(loadText(target));
+            return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .prev 恢复", recovered: true, backup: broken };
+        }
+        return { state: undefined, status: "corrupt", detail: parsed.reason, recovered: false, backup: broken };
+    }
+    const backup = backupCorrupt(target, ".unsupported");
+    return { state: undefined, status: "unsupported", detail: parsed.reason, recovered: false, backup };
+}
+
+export function saveSession(state: SessionSave): boolean {
+    const target = absPath(currentSessionFile);
+    const dir = dirOf(target);
+    if (dir !== "" && !ops.isdir(dir)) {
+        ops.mkdir(dir);
+    }
+    const tmp = target + ".tmp";
+    const prev = target + ".prev";
+    const text = formatSession(state);
+    if (!ops.save(tmp, text)) {
+        ops.remove(tmp);
+        return false;
+    }
+    const written = ops.load(tmp);
+    if (written === undefined || normalize(written) !== normalize(text)) {
+        ops.remove(tmp);
+        return false;
+    }
+    const existed = ops.exist(target);
+    let backedUp = false;
+    if (existed) {
+        if (usableSessionBackup(target)) {
+            backedUp = ops.copy(target, prev);
+            if (!backedUp || !usableSessionBackup(prev)) {
+                ops.remove(tmp);
+                return false;
+            }
+        } else {
+            backupCorrupt(target, ".corrupt");
+        }
+    }
+    if (!ops.copy(tmp, target)) {
+        if (existed && backedUp && !sameContent(target, prev)) {
+            ops.copy(prev, target);
+        }
+        return false;
+    }
+    const check = ops.load(target);
+    if (check === undefined || normalize(check) !== normalize(text)) {
+        if (existed && backedUp && ops.copy(prev, target) && usableSessionBackup(target)) {
+            ops.remove(tmp);
+        }
+        return false;
+    }
+    ops.remove(tmp);
+    return true;
+}
+
+export function clearSession(): boolean {
+    const target = absPath(currentSessionFile);
+    const tmp = target + ".tmp";
+    const prev = target + ".prev";
+    let ok = true;
+    if (ops.exist(target)) {
+        ok = ops.remove(target) && ok;
+    }
+    if (ops.exist(tmp)) {
+        ops.remove(tmp);
+    }
+    if (ops.exist(prev)) {
+        ops.remove(prev);
+    }
+    return ok;
 }

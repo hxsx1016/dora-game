@@ -15,19 +15,21 @@ import {
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
 } from "Script/watch/rooms";
 import {
-    ArchiveState, CheckpointSnap, createRun, draftRoom, Inventory, mmss, RunState, StoryRoute, talentNames,
+    ArchiveState, CheckpointSnap, createRun, createStoryTalents, draftRoom, draftTalentOffers,
+    Inventory, mmss, RunState, StoryRoute, Talent, talentNames,
 } from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
-import { ACTOR_DEPTH_HALF, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
 import {
     RELOAD_ANSWER_PER_WORLD, RELOAD_ANSWER_TICKS, RELOAD_START, RELOAD_TARGET, ReloadEffect,
     reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
 } from "Script/watch/reload";
 import {
-    CRAFT_RECIPES, RecipeSpec, findRecipe, missingMaterials, payMaterials, weaponEffectOf, weaponNameOf,
+    ARTIFACT_WEAPON_ID, CRAFT_RECIPES, RecipeSpec, findRecipe, missingMaterials, payMaterials, weaponEffectOf, weaponNameOf,
 } from "Script/watch/craft";
+import { SessionSave } from "Script/watch/save";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
@@ -37,6 +39,24 @@ export const GATE_COUNT_END = 1440;
 export const GATE_HAND_TICKS = 36;
 /** 80% 门槛：100*hpAtGate >= 80*maxHpAtGate 走男主线。 */
 export const GATE_ROUTE_PERCENT = 80;
+export const TOWER_CONFIRM_TICKS = 480;
+const TOWER_REGISTER_TICKS = 180;
+/** 值夜室桌前长按 E 的生效拍数（0.6 秒，与城门牵手同节奏）。 */
+const TOWER_HANDOVER_TICKS = 36;
+/** 跨过门槛的段内 x（门廊 400–490、值夜室 490–700）。 */
+const TOWER_THRESHOLD_X = 500;
+
+// —— 共同序章：P01 叫醒 → P02 墙影 → 限时逃柜 → 入柜 → P03 递针套 ——
+/** P01 黑场听父亲唤「小满」到睁眼落稳：4 秒 = 240 拍。 */
+export const PROLOGUE_WAKE_TICKS = 240;
+/** P02 门槛内墙上人影与瓷碗滚到脚边：2 秒 = 120 拍。 */
+export const PROLOGUE_SHADOW_TICKS = 120;
+/** 限时逃柜：7.5 秒 = 450 拍；超时退回门口重来，不扣血。 */
+export const PROLOGUE_ESCAPE_TICKS = 450;
+/** 入柜后红晕收尽、柜外脚步渐远：0.85 秒 = 51 拍。 */
+export const PROLOGUE_HIDE_TICKS = 51;
+/** 小满贴住倒柜左缘（段内 x，柜体从 152 起；玩家半宽 14）即拉门入柜。 */
+export const PROLOGUE_CABINET_X = 132;
 
 export function gateCountAtTick(tick: number): number {
     if (tick >= GATE_COUNT_END) return 20;
@@ -96,6 +116,8 @@ export type PlayEventName =
     | "trialShot"
     | "endingReached"
     | "artifactFound"
+    | "prologueBeat"
+    | "storyBeat"
     | "museumStep"
     | "museumDone";
 
@@ -118,10 +140,10 @@ export interface PlayEvent {
     data: Record<string, unknown>;
 }
 
-/** 小满：高 64、蹲 36、走 160、慢走 80、跳初速 320（顶点 51）。 */
+/** 小满：高 56、蹲 34、走 160、慢走 80、跳初速 320（顶点 51）。 */
 const CHILD_W = 28;
-const CHILD_H = 64;
-const CHILD_CROUCH_H = 36;
+const CHILD_H = 56;
+const CHILD_CROUCH_H = 34;
 const CHILD_SPEED = 160;
 const CHILD_SLOW = 80;
 const CHILD_JUMP = 320;
@@ -327,6 +349,8 @@ interface Ray {
 /** 每个房间进入时的剧情初态。 */
 function phaseOf(key: string): string {
     if (key === "prologue") {
+        // 默认仍是可玩的等待段；标题「开始游戏」由 app 把首帧切到 prologue-wake，
+        // 让正式入口从 P01「叫醒」起播，而章节直达/调试/验收夹具保持旧行为。
         return "prologue-wait";
     }
     if (key === "street") {
@@ -407,6 +431,24 @@ export class Play {
     bottleLandT = 0;
     /** 按住 F 的时长（只用于提示与动作反馈，不改变投掷参数）。 */
     aimHold = 0;
+    /** 城外补丁红布车是否已拉开（石阶口露出）。 */
+    private redCartPulled = false;
+    /** F01 补丁红布车半秒家庭回忆计时（拍）。 */
+    redCartMemoryT = 0;
+    /** 桌下脚步提示的节流拍数。 */
+    private footHintT = 0;
+    /** 是否已提示过暗渠口。 */
+    private ditchHinted = false;
+    /** 入林先走了哪条路：树根窄洞 / 旧渠 / 还没选。 */
+    private forestPath: "burrow" | "ditch" | "" = "";
+    /** 溪湾水里灯是否已看见。 */
+    private waterSeen = false;
+    /** 铁盆命中给拾荒者叠加的额外驻留拍数（砖地=0，铁盆=90）。 */
+    private scavStallBonus = 0;
+    /** 前端结构化意图：风台长按牵手（兼容触屏/手柄与 contract.submitIntent）。 */
+    private intentGateReunionHold = false;
+    /** 前端结构化意图：博物馆一步交互请求。 */
+    private pendingMuseumIntentTarget = "";
     /** 拾荒者位置与状态机。 */
     scavX = 0;
     scavDir = 1;
@@ -497,6 +539,8 @@ export class Play {
     readonly archive: ArchiveState;
     /** 档案有变化、等 app 落盘；Play 本身不碰文件。 */
     archiveDirty = false;
+    /** 局中进度有变化、等 app 写局中存档；只对正式剧情生效。 */
+    sessionDirty = false;
     /** 片尾按 E 回序章：app 收到后新建局内状态，但共享同一份档案。 */
     restartStory = false;
     /** 序章旧井：双通关且尚未取到穿梭器时开放。 */
@@ -509,6 +553,21 @@ export class Play {
     museumReturn = false;
     /** 北塔登记簿两行：第一行一律小满，第二行团圆线周戍、单人线留白。 */
     endingLines: string[] = ["", ""];
+    /** 北塔门廊：守卒回叩后门板让开；跨门槛 → 值夜室桌前长按 E 交物。 */
+    towerDoorOpen = false;
+    towerHanded = false;
+    deskHold = 0;
+    /** 片尾 8 秒定格前若持续按着交互/重开键，须先松开再新按。 */
+    private towerEndMustRelease = false;
+
+    /** 片尾登记簿是否已定格满 8 秒且允许新按确认收页。 */
+    towerEndReady(): boolean {
+        const waitTicks = Math.max(0, TOWER_CONFIRM_TICKS - TOWER_REGISTER_TICKS);
+        return this.room.key === "tower"
+            && this.phase === "tower-end"
+            && this.phaseTick >= waitTicks
+            && !this.towerEndMustRelease;
+    }
 
     // —— 第三段工台与武器 ——
     /** 已装备的武器 id；标准铳之外由工台改制。 */
@@ -529,7 +588,7 @@ export class Play {
     /** 检查点快照：制前 / 制后各自恢复库存、装备与背负。 */
     private checkpointSnap: CheckpointSnap | undefined;
     /** 本段地上的掉落物（房间自带 + 敌人掉落）。 */
-    pickups: PickupSpec[] = [];
+    pickups: Readonly<PickupSpec>[] = [];
     /** 装填剩余拍；>0 时不能开火。 */
     reloadT = 0;
     /** 架在暴露轨段的残盾。 */
@@ -569,6 +628,16 @@ export class Play {
     carryOn = false;
     /** 第一段护送房已走到安全出口，交给下一段。 */
     escortDone = false;
+
+    // —— 共同序章：P01/P02 与限时逃柜 ——
+    /** 逃柜限时（秒）；前端按它算红晕与心跳。 */
+    readonly escapeDuration = PROLOGUE_ESCAPE_TICKS / 60;
+    /** 逃柜剩余时间（秒）；前端直接读，每拍由后端递减。 */
+    escapeRemaining = 0;
+    /** 逃柜失败次数；只影响演出重来，不写档案。 */
+    escapeRetryCount = 0;
+    /** 序章演出自己的拍计数器（wake/shadow/hide 各段）。 */
+    private introTick = 0;
 
     // —— 慢时连线换弹 ——
     /** 3×3 线盘开着：世界降到 1/4 速，只有每 4 个作答拍推进 1 个世界拍。 */
@@ -615,7 +684,7 @@ export class Play {
         // 周戍段（序章/街道/检查站/城门）操控周戍；其余路段操控小满。
         // 男主线背着妹妹进城外时仍控周戍：出入口同一间房，操控权按已锁路线分。
         const lockedRoute = this.run.story === undefined ? "" : this.run.story.route;
-        // 男主线进塔仍是周戍；女主线单人抵塔时控小满。城外/空村/森林同按路线分。
+        // 男主线背着妹妹进城外与北塔时仍控周戍；北塔团圆线小满作为 partner 站立身侧。
         const soldierRoom = (wr.key === "outside" || wr.key === "tower") && lockedRoute === "soldier";
         this.childMode = !soldierRoom
             && (wr.key === "outside" || wr.key === "village" || wr.key === "forest" || wr.key === "tower");
@@ -696,6 +765,17 @@ export class Play {
                 crafted: this.run.story.craftedWeapon === r.id,
             });
         }
+        // 双通关井底取得「时间穿梭器」后，工台额外开放装备入口（零耗料、已持有），驱动男主线轨迹残影。
+        if (this.archive.artifactOwned) {
+            out.push({
+                id: ARTIFACT_WEAPON_ID,
+                name: weaponNameOf(ARTIFACT_WEAPON_ID),
+                desc: "井底拾取彩蛋 · 男主线移动留下冷白微金轨迹残影",
+                enhancedEffect: "light",
+                cost: {},
+                crafted: true,
+            });
+        }
         return out;
     }
 
@@ -770,7 +850,9 @@ export class Play {
         payMaterials(this.run.inventory, recipe);
         this.handledCraftRequests[requestId] = true;
         this.run.story.craftedWeapon = recipe.id;
+        this.run.story.equippedWeapon = recipe.id;
         this.equippedWeapon = recipe.id;
+        this.sessionDirty = true;
         this.craftBench.justCraftedTimer = this.craftBench.firstCraftDone ? 0.45 : 1.0;
         this.craftBench.firstCraftDone = true;
         this.syncCraftBench();
@@ -786,25 +868,151 @@ export class Play {
         return true;
     }
 
-    /** 换装：只允许已做过的武器与标准铳。 */
+    /** 换装：允许标准铳、工台已改制武器，以及双通关取得的时间穿梭器。 */
     equipWeapon(weaponId: string): boolean {
-        if (weaponId !== "standard_gun" && this.run.story.craftedWeapon !== weaponId) {
+        const artifactOk = weaponId === ARTIFACT_WEAPON_ID && this.archive.artifactOwned;
+        if (weaponId !== "standard_gun" && this.run.story.craftedWeapon !== weaponId && !artifactOk) {
             this.emit("benchRejected", { recipeId: weaponId, reason: "unknown" });
             return false;
         }
         this.equippedWeapon = weaponId;
+        this.run.story.equippedWeapon = weaponId;
+        this.sessionDirty = true;
         this.syncCraftBench();
         this.flashSet("已装备 " + weaponNameOf(weaponId), 1.0);
         this.emit("benchEquip", { weapon: weaponId });
         return true;
     }
 
+    /** 男主线快捷切换「时间穿梭器」彩蛋装备（需已从井底拾取）。 */
+    toggleArtifactWeapon(): boolean {
+        if (!this.archive.artifactOwned || this.childMode) {
+            return false;
+        }
+        if (this.equippedWeapon === ARTIFACT_WEAPON_ID) {
+            const fallback = this.run.story.craftedWeapon !== "" ? this.run.story.craftedWeapon : "standard_gun";
+            return this.equipWeapon(fallback);
+        }
+        return this.equipWeapon(ARTIFACT_WEAPON_ID);
+    }
+
+    /** 导出当前局中存档快照（供 app.ts 写入 watch-save/session.txt）。 */
+    exportSession(): SessionSave {
+        this.syncStory();
+        const story = this.run.story;
+        const inv = this.run.inventory;
+        const taken: string[] = [];
+        for (const k in this.run.taken) {
+            if (this.run.taken[k] === true) {
+                taken.push(k);
+            }
+        }
+        const segments: string[] = [];
+        for (const k in story.segments) {
+            if (story.segments[k] === true) {
+                segments.push(k);
+            }
+        }
+        const props: string[] = [];
+        for (const k in this.run.props) {
+            const st = this.run.props[k];
+            if (st !== undefined) {
+                props.push(
+                    k
+                    + ":" + (st.broken ? "1" : "0")
+                    + ":" + Math.round(st.hp)
+                    + ":" + (st.wedge ? "1" : "0")
+                    + ":" + (st.revealed === true ? "1" : "0"),
+                );
+            }
+        }
+        return {
+            roomKey: this.room.key,
+            checkpoint: this.checkpoint,
+            seed: this.run.seed,
+            route: story.route,
+            hp: story.hp,
+            maxHp: story.maxHp,
+            hpAtGate: story.hpAtGate,
+            maxHpAtGate: story.maxHpAtGate,
+            settled: story.settled,
+            phase: this.phase,
+            countTick: story.countTick,
+            phaseTick: story.phaseTick,
+            handTicks: story.handTicks,
+            handDone: story.handDone,
+            lineSaid: story.lineSaid,
+            tied: story.tied,
+            carry: story.carry,
+            escortDone: story.escortDone,
+            craftedWeapon: story.craftedWeapon,
+            equippedWeapon: this.equippedWeapon,
+            wood: inv.wood,
+            bell: inv.bell,
+            scrap: inv.scrap,
+            wedge: inv.wedge,
+            ammo: inv.ammo,
+            shield: inv.shield,
+            pass: inv.pass,
+            quickbelt: inv.quickbelt,
+            taken,
+            segments,
+            cartAxle: this.cartAxle,
+            cartDocked: this.cartDocked,
+            campaignRoute: this.run.route,
+            joined: this.run.joined,
+            c1Latch: this.run.c1Latch,
+            c2Latch: this.run.c2Latch,
+            talentSeed: story.talents !== undefined ? story.talents.randomState : 0,
+            talentRoom: story.talents !== undefined ? story.talents.room : "",
+            talentOffers: story.talents !== undefined ? story.talents.offers.slice() : [],
+            talentVitality: story.talents !== undefined ? story.talents.ranks.vitality : 0,
+            talentReload: story.talents !== undefined ? story.talents.ranks.reload : 0,
+            talentGuard: story.talents !== undefined ? story.talents.ranks.guard : 0,
+            talentCraft: story.talents !== undefined ? story.talents.ranks.craft : 0,
+            props,
+            playerX: this.player.x,
+            playerY: this.player.y,
+            playerDepth: this.player.depth,
+            gateTick: this.gateTick,
+            hasBottle: this.hasBottle,
+            villagePassed: this.passed,
+        };
+    }
+
     /**
-     * 前端结构化意图入口：换弹、工台制作/装备/关面板。
-     * fe/contract.ts 的 forwardLiveIntent 优先调用它；B1 的 reloadTapNode 仍可直接用。
+     * 前端结构化意图入口：换弹、工台制作/装备/关面板、风台牵手长按、水井与博物馆全步交互。
+     * fe/contract.ts 的 forwardLiveIntent 优先调用它；为键鼠/触屏/网页/安卓提供统一入口。
      */
     submitFeIntent(intent: { kind: string; [key: string]: unknown }): boolean {
         const kind = intent === undefined ? "" : intent.kind;
+        if (kind === "gateReunionHold") {
+            if (this.room.key !== "gate" || (this.phase !== "gate-wait" && this.phase !== "gate-count")) {
+                return false;
+            }
+            const holding = intent.holding === true;
+            this.intentGateReunionHold = holding;
+            if (!holding && this.phase === "gate-wait") {
+                if (this.handTicks > 0) {
+                    this.emit("handRelease", { handTicks: this.handTicks, handNeedTicks: GATE_HAND_TICKS });
+                }
+                this.handTicks = 0;
+                this.handArmed = true;
+            }
+            return true;
+        }
+        if (kind === "reloadOpen") {
+            const camp = this.room.campaign;
+            if (this.run.trial !== undefined || camp === undefined || camp.reloadPuzzle !== true || this.reloadOpen) {
+                return false;
+            }
+            this.beginReload();
+            return this.reloadOpen;
+        }
+        if (kind === "reloadPathPreview") {
+            const path = intent.path;
+            return typeof path === "object" && path !== undefined && Array.isArray(path);
+        }
         if (kind === "reloadTapNode") {
             const node = intent.node;
             if (typeof node === "number") {
@@ -851,8 +1059,68 @@ export class Play {
             this.closeCraftBench();
             return true;
         }
+        if (kind === "chooseTalent") {
+            const slot = intent.slot;
+            if (typeof slot === "number") {
+                return this.chooseTalent(slot);
+            }
+            return false;
+        }
         if (kind === "wellPick") {
             return this.pickWell();
+        }
+        if (kind === "museumInteract") {
+            const target = typeof intent.target === "string" ? intent.target : "";
+            if (target === "well_pickup" || target === "well") {
+                return this.pickWell();
+            }
+            if (this.room.key !== "museum") {
+                return false;
+            }
+            return this.triggerMuseumIntent(target);
+        }
+        return false;
+    }
+
+    /** 结构化意图推进博物馆单步交互（与实体 E 键共享同一套校验与写档逻辑，并同时兼容前端 E01/E02 别名）。 */
+    private triggerMuseumIntent(target: string): boolean {
+        const mu = this.room.story === undefined || this.room.story.museum === undefined
+            ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
+            : this.room.story.museum;
+        const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
+        const nearLamp = this.player.x >= this.ox + mu.lampX - 72;
+        if (this.phase === "museum-cabinet") {
+            if (target === "enter_hall" || ((target === "" || target === "cabinet" || target === "weapon_case") && atCase)) {
+                this.pendingMuseumIntentTarget = "cabinet";
+                return true;
+            }
+        }
+        if (this.phase === "museum-hall") {
+            if ((target === "lamp_turn" || target === "lamp" || target === "west_lamp") && nearLamp) {
+                this.pendingMuseumIntentTarget = "lamp_direct";
+                return true;
+            }
+            if ((target === "" || target === "hall" || target === "corridor") && this.player.x >= this.ox + mu.hallX) {
+                this.pendingMuseumIntentTarget = "hall";
+                return true;
+            }
+        }
+        if (this.phase === "museum-lamp"
+            && (target === "" || target === "lamp" || target === "west_lamp" || target === "lamp_turn")
+            && nearLamp) {
+            this.pendingMuseumIntentTarget = "lamp";
+            return true;
+        }
+        if (this.phase === "museum-return") {
+            if (target === "begin_return_cabinet"
+                || ((target === "" || target === "return_cabinet" || target === "cabinet" || target === "return") && atCase)) {
+                this.pendingMuseumIntentTarget = "return_cabinet";
+                return true;
+            }
+        }
+        if (this.phase === "museum-done" && (target === "" || target === "return_cabinet" || target === "return")) {
+            this.pendingMuseumIntentTarget = "done";
+            return true;
         }
         return false;
     }
@@ -895,6 +1163,7 @@ export class Play {
         inv.quickbelt = snap.quickbelt;
         this.run.story.craftedWeapon = snap.crafted;
         this.equippedWeapon = snap.equipped;
+        this.run.story.equippedWeapon = snap.equipped;
         this.carryOn = snap.carry;
         this.run.story.carry = snap.carry;
         this.craftBench.active = false;
@@ -927,16 +1196,105 @@ export class Play {
         this.museumReturn = story.museumReturn;
         story.museumReturn = false;
         this.escortDone = story.escortDone;
-        this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        const savedEq = story.equippedWeapon;
+        if (savedEq === ARTIFACT_WEAPON_ID && this.archive.artifactOwned) {
+            this.equippedWeapon = ARTIFACT_WEAPON_ID;
+        } else if (savedEq === "standard_gun" || (savedEq !== "" && savedEq === story.craftedWeapon)) {
+            this.equippedWeapon = savedEq;
+        } else {
+            this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        }
         this.syncCraftBench();
+        // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口与下层水路敞开。
+        if (story.segments["outside_cart"] === true) {
+            this.redCartPulled = true;
+            const redBox = this.boxes.find((b) => b.id === "outside_red_cart");
+            if (redBox !== undefined) {
+                redBox.x0 = 430;
+                redBox.x1 = 474;
+            }
+            if (this.room.key === "outside" && this.room.cart.bodyW > 0) {
+                this.cartAxle = this.room.cart.endX;
+                this.cartDocked = true;
+            }
+        }
+        this.forestPath = story.segments["forest_burrow"] === true ? "burrow"
+            : story.segments["forest_ditch"] === true ? "ditch" : "";
+        this.waterSeen = story.segments["water_lantern"] === true;
         // 检查点恢复：制前 / 制后各自的库存、装备与背负整份回滚。
         if (this.checkpoint > 0 && story.cp !== undefined && story.cp.id === this.checkpoint) {
             this.applyCheckpointSnap(this.checkpoint);
         }
-        // 北塔：男主背着妹妹到门前，放到地上再敲门；女主单人抵塔。
+        // 北塔：男主背着妹妹到门前，放下小满并肩同行（player=周戍，partner=小满，均在左塔墙 180..400 外侧）。
         if (this.room.key === "tower" && story.route === "soldier") {
             this.carryOn = false;
             this.run.story.carry = false;
+            this.player.w = SOLDIER_W;
+            this.player.h = SOLDIER_H;
+            this.player.x = Math.max(this.ox + 422, this.player.x);
+            this.partner = {
+                x: Math.max(this.ox + 408, this.player.x - 24),
+                y: 0,
+                depth: 0,
+                depthSpeed: 0,
+                vx: 0,
+                vy: 0,
+                w: CHILD_W,
+                h: CHILD_H,
+                onGround: true,
+                facing: 1,
+                crouch: false,
+                rollT: 0,
+                covered: false,
+                alive: true,
+            };
+        }
+        // 北塔门廊/值夜室：门开、交物与中途阶段可续读。
+        if (this.room.key === "tower") {
+            if (story.segments["tower_door"] === true) {
+                this.openTowerDoor();
+            }
+            this.towerHanded = story.segments["tower_handover"] === true;
+            this.deskHold = 0;
+            if (story.phase === "tower-enter" || story.phase === "tower-desk" || story.phase === "tower-given") {
+                this.phase = story.phase;
+                this.phaseTick = 0;
+                if (story.phase === "tower-desk" || story.phase === "tower-given") {
+                    this.player.x = this.ox + 605;
+                    this.player.y = 0;
+                    if (story.route === "soldier" && this.partner.alive) {
+                        this.partner.x = this.ox + 568;
+                        this.partner.y = 0;
+                        this.partner.facing = 1;
+                    }
+                }
+            }
+        }
+        // 序章：从正式入口重开时重播 P01/P02；已递针套/已跟随的续读直接从对应段起。
+        if (this.room.key === "prologue") {
+            const ph = story.phase;
+            if (ph === "prologue-wait" || ph === "prologue-give" || ph === "prologue-follow") {
+                this.phase = ph;
+                this.phaseTick = story.phaseTick;
+                this.player.x = this.ox + (ph === "prologue-follow" ? 620 : 260);
+                this.player.y = 0;
+                this.player.depth = 0;
+                this.player.vx = 0;
+                this.partner.x = this.ox + 300;
+                this.partner.y = 0;
+                this.partner.depth = 0;
+                this.partner.vx = 0;
+                this.partner.alive = true;
+                if (ph === "prologue-follow") {
+                    this.partner.crouch = false;
+                    this.partner.h = CHILD_H;
+                } else {
+                    this.partner.crouch = true;
+                    this.partner.h = CHILD_CROUCH_H;
+                }
+                this.cam.x = this.player.x;
+            }
+            return;
         }
         if (this.room.key !== "gate") {
             return;
@@ -1028,7 +1386,12 @@ export class Play {
                 const y = st.y0 + (st.y1 - st.y0) * k / (n - 1);
                 const x0 = st.x0 + stepW * k;
                 // 台阶做成单向平台：从台面下来能踩，从地面走过不会被挡住，也不会从下方撞头。
-                this.boxes.push({ x0: x0, x1: x0 + stepW, y0: -8, y1: y, passable: true });
+                // 2.5D 房间内台阶继承自身的纵深范围，避免其它空车道出现隐形悬空梯。
+                this.boxes.push({
+                    x0: x0, x1: x0 + stepW, y0: -8, y1: y,
+                    depth: room.depth === undefined ? undefined : st.depth,
+                    passable: true,
+                });
             }
         }
     }
@@ -1049,8 +1412,10 @@ export class Play {
             || wr.key === "escort4" || wr.key === "escort5") {
             this.run.joined = true;
         } else if (wr.companion !== undefined && wr.companion.followAfter !== undefined) {
-            // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则两人都在门前停。
-            this.run.joined = wr.key === "s2-drygoods" ? this.run.route !== "drygoods" : false;
+            // 布行线要在布行里等窗板放落；外檐线沿街一路同行。候检院则抬闩后保持同行（支持续读）。
+            this.run.joined = wr.key === "s2-drygoods"
+                ? (this.run.route !== "drygoods" || this.run.props["s2_board"]?.broken === true)
+                : (wr.key === "c1-yard" && this.run.c1Latch);
         }
         let x = wr.minX + 60;
         let y = 0;
@@ -1080,6 +1445,12 @@ export class Play {
             draftRoom(trial, wr.key);
             this.maxHp += trial.ranks.vitality;
             this.hp = trial.hp;
+        } else if (this.isEscortRoom() && this.run.story.route === "soldier") {
+            // 正式男主线五段护送：每进一段按 seed 确定性抽 3 选 1 本领（非阻塞 HUD 卡，不影响既有脚本）。
+            if (this.run.story.talents === undefined) {
+                this.run.story.talents = createStoryTalents(this.run.seed);
+            }
+            draftTalentOffers(this.run.story.talents, wr.key);
         }
         this.buildEnemies();
         this.pickups = wr.pickups === undefined ? [] : wr.pickups.slice();
@@ -1107,12 +1478,6 @@ export class Play {
             if (this.run.props["c2_cart"] !== undefined && this.run.props["c2_cart"].broken) {
                 this.cartAxle = wr.cart.endX;
                 this.cartDocked = true;
-            }
-        }
-        for (i = 0; i < this.pickups.length; i++) {
-            const pk = this.pickups[i];
-            if (this.run.taken[pk.id] === true) {
-                pk.id = "";
             }
         }
         this.log("进入 " + wr.name + " · " + this.run.route);
@@ -1202,18 +1567,68 @@ export class Play {
         this.eventSeq = this.events.length;
     }
 
-    chooseTalent(slot: number): void {
+    private talentRank(talent: Talent): number {
+        if (this.run.trial !== undefined) {
+            return this.run.trial.ranks[talent];
+        }
+        if (this.storyRoute === "soldier" && this.isEscortRoom() && this.run.story.talents !== undefined) {
+            return this.run.story.talents.ranks[talent];
+        }
+        return 0;
+    }
+
+    /** 正式男主线护送段当前可三选一的本领列表（非男主线或已选完时为空）。 */
+    getStoryTalentOffers(): Talent[] {
+        if (this.run.trial !== undefined || this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
+            return [];
+        }
+        const st = this.run.story.talents;
+        return st !== undefined && st.room === this.room.key ? st.offers : [];
+    }
+
+    /** 正式男主线护送段已习得的本领等级表。 */
+    getStoryTalentRanks(): Record<Talent, number> | undefined {
+        if (this.run.trial !== undefined || this.storyRoute !== "soldier" || !this.isEscortRoom()) {
+            return undefined;
+        }
+        return this.run.story.talents !== undefined ? this.run.story.talents.ranks : undefined;
+    }
+
+    chooseTalent(slot: number): boolean {
         const trial = this.run.trial;
-        const talent = trial?.offers[slot];
-        if (trial === undefined || talent === undefined || trial.lost || this.run.finished) return;
-        trial.ranks[talent] += 1;
-        trial.offers = [];
+        if (trial !== undefined) {
+            const talent = trial.offers[slot];
+            if (talent === undefined || trial.lost || this.run.finished) return false;
+            trial.ranks[talent] += 1;
+            trial.offers = [];
+            if (talent === "vitality") {
+                this.maxHp += 1;
+                this.hp += 1;
+                trial.hp = this.hp;
+            }
+            this.flashSet(talentNames[talent], 1.2);
+            return true;
+        }
+        if (this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
+            return false;
+        }
+        const st = this.run.story.talents;
+        const talent = st !== undefined ? st.offers[slot] : undefined;
+        if (st === undefined || talent === undefined) {
+            return false;
+        }
+        st.ranks[talent] += 1;
+        st.offers = [];
         if (talent === "vitality") {
             this.maxHp += 1;
             this.hp += 1;
-            trial.hp = this.hp;
+            this.run.story.maxHp = this.maxHp;
+            this.run.story.hp = this.hp;
         }
-        this.flashSet(talentNames[talent], 1.2);
+        this.sessionDirty = true;
+        this.flashSet("本领 · " + talentNames[talent], 1.4);
+        this.emit("storyBeat", { beat: "talent_picked", talent: talent, rank: st.ranks[talent], room: this.room.key });
+        return true;
     }
 
     /**
@@ -1277,6 +1692,7 @@ export class Play {
         }
         this.reloadPendingEffect = reloadEffectOf(path);
         this.reloadOpen = false;
+        this.reloadT = 0;
         this.emit("reloadSolved", {
             effect: this.reloadPendingEffect, answerTicks: this.reloadAnswerTicks, pathLength: path.length,
         });
@@ -1336,13 +1752,17 @@ export class Play {
     }
 
     private reloadTicks(): number {
-        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * (this.run.trial?.ranks.reload ?? 0));
+        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * this.talentRank("reload") - 3 * this.talentRank("craft"));
     }
 
     update(dt: number, input: Input): void {
         this.syncCraftBench();
         const trial = this.run.trial;
         if (trial !== undefined && (trial.offers.length > 0 || trial.lost || this.run.finished)) return;
+        if (!this.paused && this.craftBench.active && input.pause.pressed) {
+            this.closeCraftBench();
+            return;
+        }
         if (input.pause.pressed) {
             this.paused = !this.paused;
         }
@@ -1363,11 +1783,8 @@ export class Play {
             return;
         }
         // 工台面板打开：世界停在开面板那一拍，玩家不推进、敌兵不动；
-        // 面板里按 E 或 Esc 收起，重新背起小满再走。
+        // 面板用 E 确认配方，制作和装备由前端提交。
         if (this.craftBench.active) {
-            if (input.interact.pressed || input.pause.pressed) {
-                this.closeCraftBench();
-            }
             this.updateCamera(dt);
             return;
         }
@@ -1584,7 +2001,8 @@ export class Play {
             this.fallY(a, dt);
             return;
         }
-        a.crouch = isChild && (input.crouch.held || lowArch) && a.onGround;
+        const downCrouch = this.room.depth === undefined && input.moveY > 0;
+        a.crouch = isChild && (input.crouch.held || downCrouch || lowArch) && a.onGround;
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
         const nearCover = !isChild && this.nearCover(a);
         a.covered = nearCover && input.cover.held;
@@ -1603,7 +2021,8 @@ export class Play {
             return;
         }
 
-        if (!isChild && !this.gripping && !gripIntent && input.jump.pressed && a.onGround) {
+        const peacefulRoom = this.room.key === "museum" || this.room.key === "tower";
+        if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && input.jump.pressed && a.onGround) {
             if (input.moveX !== 0) {
                 a.facing = input.moveX > 0 ? 1 : -1;
             }
@@ -1626,15 +2045,21 @@ export class Play {
             }
             if (a.crouch) {
                 speed = CHILD_SLOW;
+            } else if (this.room.key === "forest" && this.forestPath === "ditch"
+                && a.x >= this.ox + 700 && a.x <= this.ox + 1140) {
+                // 旧渠路线差异化：顺着干渠底站跑提速 22%，换取更高警戒风险
+                speed = CHILD_SPEED * 1.22;
             }
         } else if (a.covered) {
             speed = SOLDIER_SPEED * 0.45;
         }
 
-        // 握车把时人由车带着走，自己按方向键不再叠加位移。
-        const handsBusy = this.gripping || gripIntent;
-        const dir = this.gripping ? 0 : input.moveX;
-        const depthDir = this.room.depth !== undefined && !isChild && !handsBusy ? -input.moveY : 0;
+        // 握车把或打开慢时换弹盘时，方向键归车/换弹盘使用，避免 W/A/S/D 同时带走人物。
+        const handsBusy = this.gripping || gripIntent || this.reloadOpen;
+        const dir = (this.gripping || this.reloadOpen) ? 0 : input.moveX;
+        // 逃柜段控制权在小满身上，但仍要允许她切里道绕过石柱；其余 childMode 段保持原行为。
+        const depthDir = this.room.depth !== undefined && !handsBusy
+            && (!isChild || this.phase === "prologue-escape") ? -input.moveY : 0;
         const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
@@ -1655,9 +2080,14 @@ export class Play {
         this.slideX(a, a.vx * dt);
         this.fallY(a, dt);
 
-        // 点射：周戍按住左键，朝准星打一条线；两手握车时不能开枪。
-        if (!isChild && !this.gripping && !gripIntent && input.fire.pressed) {
+        // 点射：周戍按住左键，朝准星打一条线；两手握车或在博物馆/北塔静默室内不能开枪。
+        if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && !this.reloadOpen && input.fire.pressed) {
             this.shoot(a);
+        }
+        // 手动起盘换弹（Q 键）：在支持慢时连线换弹的护送段允许随时主动调出 3×3 盘面。
+        if (!isChild && !peacefulRoom && !this.gripping && !this.reloadOpen && this.reloadPendingEffect === ""
+            && this.run.trial === undefined && this.room.campaign?.reloadPuzzle === true && input.flare.pressed) {
+            this.beginReload();
         }
     }
 
@@ -1771,13 +2201,17 @@ export class Play {
         if (this.caughtT > 0) {
             return true;
         }
+        if (this.room.key === "prologue"
+            && (this.phase === "prologue-wake" || this.phase === "prologue-shadow" || this.phase === "prologue-hide")) {
+            return true;
+        }
         if (this.room.key === "prologue" && this.phase === "prologue-give") {
             return true;
         }
         if (this.room.key === "gate" && (this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
             return true;
         }
-        if (this.room.key === "tower" && this.phase !== "tower-wait") {
+        if (this.room.key === "tower" && (this.phase === "tower-knock" || this.phase === "tower-given")) {
             return true;
         }
         if (this.room.key === "museum" && this.phase === "museum-knock") {
@@ -1808,6 +2242,36 @@ export class Play {
         this.player.h = CHILD_H;
         this.player.facing = 1;
         this.partner.alive = true;
+        this.cam.x = this.player.x;
+    }
+
+    /** 序章逃柜收尾：把控制权交回周戍，小满留在倒柜边（蹲着等他递针套）。 */
+    private swapToSoldier(x: number, childX: number): void {
+        const tmp = this.player;
+        this.player = this.partner;
+        this.partner = tmp;
+        this.childMode = false;
+        this.player.alive = true;
+        this.player.x = this.ox + x;
+        this.player.y = 0;
+        this.player.depth = 0;
+        this.player.depthSpeed = 0;
+        this.player.vy = 0;
+        this.player.vx = 0;
+        this.player.onGround = true;
+        this.player.crouch = false;
+        this.player.h = SOLDIER_H;
+        this.player.facing = 1;
+        this.partner.alive = true;
+        this.partner.x = this.ox + childX;
+        this.partner.y = 0;
+        this.partner.depth = 0;
+        this.partner.depthSpeed = 0;
+        this.partner.vx = 0;
+        this.partner.vy = 0;
+        this.partner.onGround = true;
+        this.partner.crouch = true;
+        this.partner.h = CHILD_CROUCH_H;
         this.cam.x = this.player.x;
     }
 
@@ -1874,6 +2338,80 @@ export class Play {
             this.player.depth = 0;
             this.flashSet("回到柜边 · 小满还在柜后", 1.6);
         }
+        // P01 叫醒：黑场听父亲唤「小满」，睁眼后门缝里的影子压过来。演出期间锁控。
+        if (this.phase === "prologue-wake") {
+            this.introTick += 1;
+            if (this.introTick === 60) {
+                this.flashSet("门外有人唤 · 小满", 1.2);
+            }
+            if (this.introTick >= PROLOGUE_WAKE_TICKS) {
+                this.phase = "prologue-shadow";
+                this.introTick = 0;
+                this.flashSet("门缝里两道影子", 1.2);
+                this.emit("prologueBeat", { beat: "wake", ticks: PROLOGUE_WAKE_TICKS });
+            }
+            return;
+        }
+        if (this.phase === "prologue-shadow") {
+            this.introTick += 1;
+            if (this.introTick >= PROLOGUE_SHADOW_TICKS) {
+                // 瓷碗滚到脚边，同拍起表限时逃柜：控制权交给门口的小满。
+                this.phase = "prologue-escape";
+                this.introTick = 0;
+                this.escapeRemaining = this.escapeDuration;
+                this.escapeRetryCount = 0;
+                this.swapToChild(100);
+                this.flashSet("逃进倒柜 · 限时 " + this.escapeDuration.toFixed(1) + " 秒", 1.6);
+                this.emit("prologueBeat", {
+                    beat: "escape", ticks: PROLOGUE_SHADOW_TICKS, duration: this.escapeDuration,
+                });
+            }
+            return;
+        }
+        if (this.phase === "prologue-escape") {
+            this.escapeRemaining = Math.max(0, this.escapeRemaining - STEP);
+            if (this.player.x >= this.ox + PROLOGUE_CABINET_X) {
+                // 贴到柜边：拉门入柜，红晕收尽，柜外脚步渐远。
+                this.phase = "prologue-hide";
+                this.introTick = 0;
+                this.player.vx = 0;
+                this.player.crouch = true;
+                this.player.h = CHILD_CROUCH_H;
+                this.flashSet("柜门合上 · 屏住呼吸", 1.4);
+                this.emit("prologueBeat", {
+                    beat: "hide", x: this.player.x,
+                    delay: this.escapeDuration - this.escapeRemaining,
+                });
+                return;
+            }
+            if (this.escapeRemaining <= 0) {
+                // 超时退回门口重来：不扣血、不写档案。
+                this.escapeRetryCount += 1;
+                this.player.x = this.ox + 100;
+                this.player.y = 0;
+                this.player.depth = 0;
+                this.player.vx = 0;
+                this.player.vy = 0;
+                this.escapeRemaining = this.escapeDuration;
+                this.flashSet("再快一点 · 退回门口", 1.4);
+                this.emit("prologueBeat", { beat: "escapeRetry", attempt: this.escapeRetryCount });
+                return;
+            }
+            return;
+        }
+        if (this.phase === "prologue-hide") {
+            this.introTick += 1;
+            if (this.introTick >= PROLOGUE_HIDE_TICKS) {
+                // 柜内留半拍静默，切回周戍视角：他蹲到柜边递针套。
+                this.phase = "prologue-wait";
+                this.phaseTick = 0;
+                this.introTick = 0;
+                this.swapToSoldier(260, 300);
+                this.flashSet("周戍蹲到柜边 · 点 E 递针套", 1.6);
+                this.emit("prologueBeat", { beat: "wait", ticks: PROLOGUE_HIDE_TICKS });
+            }
+            return;
+        }
         // 井口只在「进屋寻小满、尚未靠柜特写」的等待段可见；拿到穿梭器就消失。
         this.wellOpen = this.phase === "prologue-wait" && this.wellWindow() && !this.wellTaken;
         if (this.phase === "prologue-wait") {
@@ -1883,13 +2421,11 @@ export class Play {
                 this.pickWell();
                 return;
             }
-            // 拿到穿梭器后，再在井沿按一次，才进馆；不打断寻柜。
-            if (!this.wellOpen && this.archive.artifactOwned && !this.archive.museumSeen
+            // 拿到穿梭器后，仅正式进度在井沿再按一次进馆；章节/调试预览不泄漏进馆。
+            if (!this.wellOpen && this.canPersistProgress() && this.archive.artifactOwned && !this.archive.museumSeen
                 && this.nearWell() && input.interact.pressed) {
-                if (this.canPersistProgress()) {
-                    this.archive.museumPhase = "well_reflect";
-                    this.archiveDirty = true;
-                }
+                this.archive.museumPhase = "well_reflect";
+                this.archiveDirty = true;
                 this.requestRoom("museum", "初次使用 · 时间穿梭器");
                 return;
             }
@@ -1939,20 +2475,22 @@ export class Play {
             }
             return;
         }
-        // 跟随段：两人一起到门口。
+        // 跟随段：两人一起到门口（正式/选章直入 S1 十字街，消除双重街道；调试模式保留 street 兼容旧单房验证）。
         if (this.player.x >= this.ox + 660 && child.x >= this.ox + 620) {
-            this.requestRoom("street", "序章跟到门口");
-            this.flashSet("进街道", 1.2);
+            const next = this.run.source === "debug" ? "street" : "s1-crossroad";
+            this.requestRoom(next, "序章跟到门口");
+            this.flashSet(next === "s1-crossroad" ? "进十字街" : "进街道", 1.2);
         }
     }
 
-    /** 街道：清完两个敌兵后两人走到检查站入口。 */
+    /** 街道：清完两个敌兵后两人走到街尾出口（正式/选章进 S1 十字街，调试单房保留回退 checkpoint）。 */
     private stepStreet(dt: number, input: Input): void {
         const p = this.player;
         const c = this.partner;
         if (p.x >= this.ox + 900 && c.x >= this.ox + 860) {
-            this.requestRoom("checkpoint", "两人都到街尾");
-            this.flashSet("到检查站", 1.2);
+            const next = this.run.source === "debug" ? "checkpoint" : "s1-crossroad";
+            this.requestRoom(next, "两人都到街尾");
+            this.flashSet(next === "s1-crossroad" ? "进十字街" : "到检查站", 1.2);
         }
     }
 
@@ -2023,9 +2561,9 @@ export class Play {
                 this.flashSet("敌兵出现 · 第 " + (idx + 1) + " 批", 0.9);
             }
             if (this.gateTick === 900) {
-                this.flashSet("灯灭了", 1.0);
+                this.flashSet("棚布落下", 1.0);
             } else if (this.gateTick === 2100) {
-                this.flashSet("门底压下来了", 1.0);
+                this.flashSet("门底透进冷光了", 1.0);
             }
             if (this.gateTick >= g.holdTicks) {
                 // 殿后最后一拍的伤害已由 stepEnemies 结算完，此刻只取血。
@@ -2069,8 +2607,8 @@ export class Play {
                     this.phaseTick = 0;
                     this.knocks = 1;
                     this.emit("knock", { count: 1, x: this.ox + g.doorX + 70, room: "gate" });
-                    // 数完还按着 E 的不算「重新按住」，必须先松开再按。
-                    this.handArmed = !input.interact.held;
+                    // 数完还按着 E 或前端长按意图的不算「重新按住」，必须先松开再按。
+                    this.handArmed = !input.interact.held && !this.intentGateReunionHold;
                     this.flashSet("两下轻叩 · 按住 E 牵起她", 2.4);
                 } else {
                     this.flashSet("数到二十", 2.2);
@@ -2101,7 +2639,8 @@ export class Play {
                 this.emit("knock", { count: 2, x: this.ox + g.doorX + 70, room: "gate" });
                 this.flashSet("第二下 · 她抬手了", 1.6);
             }
-            if (!input.interact.held) {
+            const held = input.interact.held || this.intentGateReunionHold;
+            if (!held) {
                 if (this.handTicks > 0) {
                     this.emit("handRelease", { handTicks: this.handTicks, handNeedTicks: GATE_HAND_TICKS });
                 }
@@ -2112,6 +2651,7 @@ export class Play {
             if (this.handArmed) {
                 this.handTicks += 1;
                 if (this.handTicks >= GATE_HAND_TICKS) {
+                    this.intentGateReunionHold = false;
                     this.phase = "gate-hand";
                     this.phaseTick = 0;
                     this.handDone = true;
@@ -2169,6 +2709,7 @@ export class Play {
         this.maxHpAtGate = this.maxHpAtGate > 0 ? this.maxHpAtGate : this.maxHp;
         this.storyRoute = 100 * hp >= GATE_ROUTE_PERCENT * maxHp ? "soldier" : "child";
         this.storySettled = true;
+        this.sessionDirty = true;
         this.emit("storyRouteLocked", {
             route: this.storyRoute, hp: this.hp, maxHp: this.maxHp,
             hpAtGate: this.hpAtGate, maxHpAtGate: this.maxHpAtGate,
@@ -2198,12 +2739,27 @@ export class Play {
         s.museumReturn = this.museumReturn;
         s.escortDone = this.escortDone;
         s.craftedWeapon = this.run.story.craftedWeapon;
+        s.equippedWeapon = this.equippedWeapon;
         s.ending = this.run.story.ending;
         if (this.room.key === "gate") {
             s.phase = this.phase;
             s.countTick = this.countTick;
             s.phaseTick = this.phaseTick;
             s.handTicks = this.handTicks;
+        }
+        if (this.room.key === "prologue") {
+            // 序章只记可续读的段（递针套/跟随）；P01/P02 每次重开都重播。
+            if (this.phase === "prologue-wait" || this.phase === "prologue-give" || this.phase === "prologue-follow") {
+                s.phase = this.phase;
+                s.phaseTick = this.phaseTick;
+            }
+        }
+        if (this.room.key === "tower") {
+            // 北塔：门廊/值夜室的中途阶段可续读；片尾不写，避免重进直接跳结局。
+            if (this.phase === "tower-enter" || this.phase === "tower-desk" || this.phase === "tower-given") {
+                s.phase = this.phase;
+                s.phaseTick = this.phaseTick;
+            }
         }
     }
 
@@ -2265,8 +2821,12 @@ export class Play {
             ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
             : this.room.story.museum;
         const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
+        const nearLamp = this.player.x >= this.ox + mu.lampX - 72;
+        const intentTarget = this.pendingMuseumIntentTarget;
+        this.pendingMuseumIntentTarget = "";
+        const interactHit = input.interact.pressed || intentTarget !== "";
         if (this.phase === "museum-cabinet") {
-            if (atCase && input.interact.pressed) {
+            if ((atCase && interactHit) || intentTarget === "cabinet") {
                 this.phase = "museum-hall";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2279,7 +2839,19 @@ export class Play {
             return;
         }
         if (this.phase === "museum-hall") {
-            if (this.player.x >= this.ox + mu.hallX && input.interact.pressed) {
+            if (intentTarget === "lamp_direct" && nearLamp) {
+                this.emit("museumStep", { step: "hall", x: this.ox + mu.hallX, persisted: this.canPersistProgress() });
+                this.phase = "museum-return";
+                this.phaseTick = 0;
+                if (this.canPersistProgress()) {
+                    this.archive.museumPhase = "return_cabinet";
+                    this.archiveDirty = true;
+                }
+                this.emit("museumStep", { step: "lamp", x: this.ox + mu.lampX, persisted: this.canPersistProgress() });
+                this.flashSet("灯 · 转向西窗", 1.8);
+                return;
+            }
+            if (this.player.x >= this.ox + mu.hallX && interactHit) {
                 this.phase = "museum-lamp";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2292,7 +2864,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-lamp") {
-            if (this.player.x >= this.ox + mu.lampX && input.interact.pressed) {
+            if (nearLamp && interactHit) {
                 this.phase = "museum-return";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2305,7 +2877,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-return") {
-            if (atCase && input.interact.pressed) {
+            if ((atCase && interactHit) || intentTarget === "return_cabinet") {
                 this.phase = "museum-knock";
                 this.phaseTick = 0;
                 this.emit("museumStep", { step: "knock", count: 1, x: this.ox + mu.cabinetX, persisted: this.canPersistProgress() });
@@ -2332,16 +2904,41 @@ export class Play {
             }
             return;
         }
-        if (input.interact.pressed) {
+        if (interactHit) {
             this.museumReturn = true;
             this.requestRoom("prologue", "回柜边");
         }
+    }
+
+    private openTowerDoor(): void {
+        this.towerDoorOpen = true;
+        for (let i = 0; i < this.boxes.length; i++) {
+            if (this.boxes[i].id === "tower_door") {
+                this.boxes[i].hidden = true;
+            }
+        }
+        this.run.story.segments["tower_door"] = true;
     }
 
     private stepTower(dt: number, input: Input): void {
         const t = this.room.story === undefined ? undefined : this.room.story.tower;
         if (t === undefined) {
             return;
+        }
+        // 团圆线：周戍站在小满身侧随行跨过门槛、共立值夜室案前（避免穿入左塔墙 180..400）。
+        if (this.storyRoute === "soldier" && this.partner.alive) {
+            const targetX = Math.max(this.ox + 408, this.player.x - 28);
+            const gap = targetX - this.partner.x;
+            if (Math.abs(gap) > 2) {
+                const dir = gap > 0 ? 1 : -1;
+                const stepDist = Math.min(Math.abs(gap), SOLDIER_SPEED * dt);
+                this.partner.facing = dir;
+                this.partner.vx = dir * SOLDIER_SPEED;
+                this.partner.x += dir * stepDist;
+            } else {
+                this.partner.vx = 0;
+                this.partner.facing = 1;
+            }
         }
         if (this.phase === "tower-wait") {
             const near = Math.abs(this.player.x - t.doorX) <= 50;
@@ -2350,7 +2947,7 @@ export class Play {
                 this.phaseTick = 0;
                 this.knocks = 1;
                 this.emit("knock", { count: 1, x: this.player.x, room: "tower" });
-                this.flashSet("敲一下", 0.6);
+                this.flashSet("叩两下 · 第一声", 0.6);
             }
             return;
         }
@@ -2359,11 +2956,49 @@ export class Play {
             if (this.phaseTick === 12) {
                 this.knocks = 2;
                 this.emit("knock", { count: 2, x: this.player.x, room: "tower" });
-                this.flashSet("敲两下 · 第二声", 1.0);
+                this.flashSet("门里回叩两下 · 守卒应门", 1.2);
             } else if (this.phaseTick >= t.knockTicks) {
+                this.openTowerDoor();
+                this.phase = "tower-enter";
+                this.phaseTick = 0;
+                this.emit("storyBeat", { beat: "tower_door", x: this.player.x, item: "" });
+                this.flashSet("门开了 · 跨过门槛", 1.4);
+            }
+            return;
+        }
+        if (this.phase === "tower-enter") {
+            if (this.player.x >= this.ox + TOWER_THRESHOLD_X) {
+                this.phase = "tower-desk";
+                this.phaseTick = 0;
+                this.emit("storyBeat", { beat: "tower_threshold", x: this.player.x, item: "" });
+                this.flashSet("跨过门槛 · 值夜室", 1.2);
+            }
+            return;
+        }
+        if (this.phase === "tower-desk") {
+            const deskX = this.ox + 605;
+            const near = Math.abs(this.player.x - deskX) <= 80 && this.player.y < 20;
+            if (!near || !input.interact.held) {
+                this.deskHold = 0;
+                return;
+            }
+            this.deskHold += 1;
+            if (this.deskHold === 12) {
+                this.flashSet("针套 · 放在桌上", 1.0);
+            } else if (this.deskHold === 24) {
+                this.flashSet("指南针 · 压住纸条", 1.0);
+            } else if (this.deskHold >= TOWER_HANDOVER_TICKS) {
+                this.towerHanded = true;
+                this.deskHold = 0;
+                this.run.story.segments["tower_handover"] = true;
                 this.phase = "tower-given";
                 this.phaseTick = 0;
-                this.flashSet("门开了 · 提灯", 1.4);
+                this.emit("storyBeat", {
+                    beat: "tower_handover",
+                    x: this.player.x,
+                    item: "针套、指南针、纸条",
+                });
+                this.flashSet("三样都放在桌上 · 看登记簿", 1.6);
             }
             return;
         }
@@ -2377,9 +3012,10 @@ export class Play {
                 this.flashSet("登记簿 · 第一行 小满", 1.6);
             } else if (this.phaseTick === 120) {
                 this.flashSet(soldier ? "第二行 · 周戍 · 兄妹同行" : "第二行留白 · 西窗一盏灯", 2.4);
-            } else if (this.phaseTick >= 180) {
+            } else if (this.phaseTick >= TOWER_REGISTER_TICKS) {
                 this.phase = "tower-end";
                 this.phaseTick = 0;
+                this.towerEndMustRelease = input.interact.held || input.retry.held;
                 if (!this.run.finished) {
                     this.run.finished = true;
                     const ending = soldier ? "reunion" : "lamp";
@@ -2416,6 +3052,21 @@ export class Play {
             }
             return;
         }
+        this.phaseTick += 1;
+        const held = input.interact.held || input.retry.held;
+        if (this.towerEndMustRelease) {
+            if (!held) {
+                this.towerEndMustRelease = false;
+            }
+            return;
+        }
+        const waitTicks = Math.max(0, TOWER_CONFIRM_TICKS - TOWER_REGISTER_TICKS);
+        if (this.phaseTick < waitTicks) {
+            if (input.interact.pressed || input.retry.pressed) {
+                this.towerEndMustRelease = held;
+            }
+            return;
+        }
         if (input.interact.pressed || input.retry.pressed) {
             // 回序章要重开一份局内状态（清路线、材料、拾取、检查点），但档案仍共享同一份。
             this.restartStory = true;
@@ -2436,6 +3087,7 @@ export class Play {
         if (this.room.key === "village") {
             this.stepScavChase();
         } else if (this.room.key === "forest") {
+            this.stepForestRoute();
             this.stepDog(dt);
             // 走到林缘（1450）就进北塔门口。
             if (this.player.x >= this.ox + 1450) {
@@ -2479,14 +3131,7 @@ export class Play {
             }
             return;
         }
-        // 追逐：以 96 单位/秒靠近，接触即被抓。
-        const dir = p.x > this.scavX ? 1 : -1;
-        this.scavX += dir * 96 / 60;
-        if (Math.abs(p.x - this.scavX) < 18 && Math.abs(p.y - s.y) < 40) {
-            this.caught();
-            return;
-        }
-        // 蹲下或钻桌后甩掉视线 60 拍，回到巡逻。
+        // 蹲下或钻桌后立刻安全遮蔽（不可隔桌捕人），60 拍甩掉视线回到巡逻。
         if (hidden) {
             this.scavSee = 0;
             this.scavT = this.scavT > 0 ? this.scavT : 60;
@@ -2496,17 +3141,35 @@ export class Play {
                 this.scavState = "patrol";
                 this.flashSet("他失去了目标", 1.0);
             }
+            return;
+        }
+        // 追逐：以 96 单位/秒靠近，接触即被抓。
+        const dir = p.x > this.scavX ? 1 : -1;
+        this.scavX += dir * 96 / 60;
+        if (Math.abs(p.x - this.scavX) < 18 && Math.abs(p.y - s.y) < 40) {
+            this.caught();
+            return;
         }
     }
 
-    /** 森林的狗：先转耳朵，再追；蹲下或拉开距离就丢。 */
+    /** 森林的狗：先转耳朵，再追；树根窄洞与草丛蹲伏提供隐蔽庇护，旧渠奔跑提速但警戒更快。 */
     private stepDog(dt: number): void {
         const dog = this.room.story === undefined ? undefined : this.room.story.dog;
         if (dog === undefined) {
             return;
         }
         const p = this.player;
+        const ox = this.ox;
         const dist = Math.abs(p.x - this.dogX);
+        const inBurrowCover = p.crouch && p.x >= ox + 300 && p.x <= ox + 460;
+        const inBrushCover = p.crouch && (
+            (p.x >= ox + 700 && p.x <= ox + 790)
+            || (p.x >= ox + 1150 && p.x <= ox + 1240)
+        );
+        const sheltered = inBurrowCover || inBrushCover;
+        const inDitchSprint = !p.crouch && this.forestPath === "ditch" && p.x >= ox + 700 && p.x <= ox + 1140;
+        const effectiveRange = inDitchSprint ? dog.range * 1.25 : dog.range;
+        const earNeedTicks = inDitchSprint ? 12 : 18;
         if (this.dogState === "patrol") {
             this.dogX += this.dogDir * dog.speed * dt;
             if (this.dogX < dog.x0) {
@@ -2517,15 +3180,31 @@ export class Play {
                 this.dogDir = -1;
             }
             const moving = Math.abs(p.vx) > 1 || !p.onGround;
-            if (!p.crouch && moving && dist < dog.range) {
+            const twigOffsets = [235, 455, 865, 1115];
+            let nearTwig = false;
+            let ti = 0;
+            for (ti = 0; ti < twigOffsets.length; ti++) {
+                if (Math.abs(p.x - (ox + twigOffsets[ti])) <= 18 && p.y <= 8) {
+                    nearTwig = true;
+                    break;
+                }
+            }
+            const twigRange = nearTwig ? Math.max(effectiveRange, 400) : effectiveRange;
+            if (!sheltered && !p.crouch && moving && dist < twigRange) {
                 this.dogState = "ear";
-                this.dogT = 18;
+                this.dogT = nearTwig ? Math.min(earNeedTicks, 12) : earNeedTicks;
                 this.dogTargetX = p.x;
-                this.flashSet("狗转耳朵", 0.8);
+                this.flashSet(inDitchSprint ? "旧渠枯枝响 · 狗立刻转耳" : (nearTwig ? "踩断枯枝 · 狗立刻转耳" : "狗转耳朵"), 0.8);
             }
             return;
         }
         if (this.dogState === "ear") {
+            if (sheltered) {
+                this.dogState = "sniff";
+                this.dogT = 45;
+                this.flashSet("钻进遮蔽 · 狗顿住了", 0.9);
+                return;
+            }
             this.dogT -= 1;
             if (this.dogT <= 0) {
                 this.dogState = "chase";
@@ -2537,14 +3216,14 @@ export class Play {
         if (this.dogState === "chase") {
             const dir = p.x > this.dogX ? 1 : -1;
             this.dogX += dir * dog.speed * 1.4 * dt;
-            if (Math.abs(p.x - this.dogX) < 18 && Math.abs(p.y) < 40) {
+            if (!sheltered && Math.abs(p.x - this.dogX) < 18 && Math.abs(p.y) < 40) {
                 this.caught();
                 this.dogState = "sniff";
                 this.dogT = 60;
-            } else if (dist > dog.range * 1.5 || p.crouch) {
+            } else if (dist > effectiveRange * 1.5 || sheltered) {
                 this.dogState = "sniff";
                 this.dogT = 60;
-                this.flashSet("狗停下了", 0.9);
+                this.flashSet(inBurrowCover ? "树根窄洞遮住身形 · 狗停下了" : "狗停下了", 0.9);
             }
             return;
         }
@@ -2561,6 +3240,31 @@ export class Play {
         if (Math.abs(this.dogX - dog.x0) < 2) {
             this.dogX = dog.x0;
             this.dogState = "patrol";
+        }
+    }
+
+    /** 入林两路：蹲着进树根窄洞，站着跑旧渠；第一次进入记一条路，之后沿林路走到溪湾。 */
+    private stepForestRoute(): void {
+        const p = this.player;
+        const ox = this.ox;
+        if (this.forestPath === "") {
+            if (p.crouch && p.x >= ox + 300 && p.x <= ox + 380) {
+                this.forestPath = "burrow";
+                this.run.story.segments["forest_burrow"] = true;
+                this.flashSet("树根窄洞 · 蹲着钻过去", 1.5);
+                this.emit("storyBeat", { beat: "path_burrow", x: p.x, room: "forest" });
+            } else if (!p.crouch && p.x >= ox + 700 && p.x <= ox + 790) {
+                this.forestPath = "ditch";
+                this.run.story.segments["forest_ditch"] = true;
+                this.flashSet("旧渠 · 顺着渠底跑", 1.5);
+                this.emit("storyBeat", { beat: "path_ditch", x: p.x, room: "forest" });
+            }
+        }
+        if (!this.waterSeen && p.x >= ox + 1180 && p.x <= ox + 1260) {
+            this.waterSeen = true;
+            this.run.story.segments["water_lantern"] = true;
+            this.flashSet("溪湾 · 水里那盏灯，和塔上一个方向", 1.8);
+            this.emit("storyBeat", { beat: "water_lantern", x: p.x, room: "forest" });
         }
     }
 
@@ -2693,7 +3397,7 @@ export class Play {
      */
     private stepCraft(input: Input): boolean {
         const inv = this.run.inventory;
-        const required = CRAFT_TICKS - 6 * (this.run.trial?.ranks.craft ?? 0);
+        const required = Math.max(6, CRAFT_TICKS - 6 * this.talentRank("craft"));
         if (this.craftT > 0) {
             if (!input.interact.held || this.gripping || this.player.rollT > 0
                 || this.escort.state === "calming" || this.paused) {
@@ -2780,43 +3484,56 @@ export class Play {
             this.flashSet("转布行线 · 小满到窗板后等", 1.3);
             this.log("转布行线");
         }
-        // 第三段安全工台：靠近工台按 E 开面板；面板里按 Esc 或再按 E 收起。
+        // 第三段安全工台：靠近工台（含整张 560..680 台面与两侧接近日）按 E 开面板，不穿透到普通机关提示。
         if (wr.key === "escort3") {
-            const benchX = wr.minX + 560;
-            const nearBench = Math.abs(p.x - benchX) <= this.benchReach + 40 && p.y < 60;
-            if (this.craftBench.active) {
-                if (input.interact.pressed || input.pause.pressed) {
-                    this.closeCraftBench();
-                }
-            } else if (nearBench && input.interact.pressed) {
+            const nearBench = p.x >= wr.minX + 472 && p.x <= wr.minX + 710 && p.y < 60;
+            if (nearBench && input.interact.pressed) {
                 this.openCraftBench();
+                return;
             }
         }
         // 拾取：走到掉落物上自动进包。
         let i = 0;
         for (i = 0; i < this.pickups.length; i++) {
             const pk = this.pickups[i];
-            if (pk.id === "" || this.run.taken[pk.id] === true) {
+            if (this.run.taken[pk.id] === true) {
                 continue;
             }
             const sameDepth = overlapsDepth(p.depth, { min: (pk.depth ?? 0) - 10, max: (pk.depth ?? 0) + 10 }, 10);
             const dy = Math.abs((pk.y + (pk.depth ?? 0)) - (p.y + p.depth));
             if (Math.abs(pk.x - p.x) < 44 && dy < 60 && sameDepth) {
                 if (!this.addItem(pk.kind)) {
-                    // 满包不吞物：不记 taken、不清 id，东西还在原地，腾出格位后能再来捡。
+                    // 满包时保留拾取机会，腾出格位后能再来捡。
                     this.flashSet("背包满了 · " + pk.label + " 留在原地", 1.0);
                     this.log("满包拒绝 " + pk.kind);
                     this.emit("pickupRejected", { kind: pk.kind, x: pk.x, y: pk.y });
                     continue;
                 }
                 this.run.taken[pk.id] = true;
-                pk.id = "";
                 this.flashSet("拾取 " + pk.label, 1.0);
                 this.log("拾取 " + pk.kind + " " + pk.label);
                 this.emit("pickup", { kind: pk.kind, x: pk.x, y: pk.y, label: pk.label });
             }
         }
-        if (!this.stepCraft(input) && input.interact.pressed) {
+        // S1–C2 正式剧情中，若小满因近距交火受惊，允许周戍走近按 E 轻敲两下安抚。
+        this.calmConsumed = false;
+        if (this.run.trial === undefined && this.partner.alive && this.run.joined
+            && (this.room.campaign?.chapter === "S" || this.room.campaign?.chapter === "C")
+            && (this.escort.fear > 0 || this.escort.state === "frozen" || this.escort.state === "calming")) {
+            const dist = inReachDepth(p.depth, this.partner.depth) ? Math.abs(p.x - this.partner.x) : 1e9;
+            const hadK1 = this.escort.knock1;
+            const hadK2 = this.escort.knock2;
+            this.calmConsumed = this.escort.update(input, p.x, p.facing, this.partner.x, dist);
+            if (!hadK1 && this.escort.knock1) {
+                this.emit("knock", { count: 1, x: this.partner.x, room: this.room.key });
+            }
+            if (!hadK2 && this.escort.knock2) {
+                this.emit("knock", { count: 2, x: this.partner.x, room: this.room.key });
+            }
+            this.partner.crouch = this.escort.crouchPose;
+            this.partner.h = this.partner.crouch ? CHILD_CROUCH_H : CHILD_H;
+        }
+        if (!this.calmConsumed && !this.stepCraft(input) && input.interact.pressed) {
             this.campaignInteract();
         }
         this.stepCampaignCart(dt, input);
@@ -2944,6 +3661,12 @@ export class Play {
             if (wr.key === "c1-yard") {
                 this.run.c1Latch = true;
                 this.run.joined = true;
+                for (const door of this.boxes) {
+                    if (door.id === "c1_door") {
+                        door.broken = true;
+                    }
+                }
+                this.run.props["c1_door"] = { broken: true, hp: 0, wedge: false };
             } else {
                 this.run.c2Latch = true;
                 this.run.joined = true;
@@ -2967,7 +3690,7 @@ export class Play {
         const handleX = this.cartAxle + c.handleOffset;
         if (!this.gripping) {
             if (input.interact.pressed && !this.cartDocked && Math.abs(p.x - handleX) <= CART_REACH
-                && p.y <= c.baseY + (c.depth ?? 0) + 40 && !this.objectiveDone) {
+                && Math.abs(p.y - c.baseY) <= 40 && inReachDepth(p.depth, c.depth ?? 0) && !this.objectiveDone) {
                 this.gripping = true;
                 this.flashSet("握住车柄 · A/D 推", 1.0);
             }
@@ -3000,7 +3723,8 @@ export class Play {
                 }
             }
             p.x = this.cartAxle + c.handleOffset;
-            p.y = c.baseY + (c.depth ?? 0);
+            p.y = c.baseY;
+            p.depth = c.depth ?? 0;
             p.vx = 0;
             if (Math.abs(this.cartAxle - c.endX) < 0.5) {
                 this.cartAxle = c.endX;
@@ -3022,7 +3746,7 @@ export class Play {
             if (b.broken === true || b.breakable === undefined || b.soft === true) {
                 continue;
             }
-            const front = this.cartAxle + this.room.cart.handleOffset + this.room.cart.bodyW / 2;
+            const front = this.cartAxle + this.room.cart.bodyW / 2;
             if (b.y0 < 40 && b.x0 < front + 10 && b.x1 > front - 10) {
                 return true;
             }
@@ -3064,6 +3788,10 @@ export class Play {
         if (c.next !== undefined && c.next !== "") {
             this.requestRoom(c.next, "段出口 " + wr.key);
             this.flashSet("过关 · " + c.next, 1.2);
+        } else if (wr.key === "c2-granary" && this.run.trial === undefined
+            && (this.run.source === "official" || this.run.source === "chapter")) {
+            this.requestRoom("gate", "军粮棚出口");
+            this.flashSet("出军粮棚 · 城门", 1.4);
         } else if (!this.run.finished) {
             this.run.finished = true;
             this.flashSet("C2 灰盒完成 · " + mmss(this.run.roomTicks[wr.key] ?? 0), 2.0);
@@ -3115,7 +3843,8 @@ export class Play {
             targetDepth = this.partnerLaneIdx === 0 ? 0 : (this.partnerLaneIdx === 1 ? 32 : -32);
         }
         const dx = targetX - a.x;
-        if (!wait && Math.abs(dx) > 74) {
+        const stopTol = wait ? 18 : 74;
+        if (Math.abs(dx) > stopTol) {
             const speed = Math.abs(dx) > 260 ? CHILD_SPEED * 1.4 : CHILD_SPEED;
             const before = a.x;
             a.vx = dx > 0 ? speed : -speed;
@@ -3149,17 +3878,20 @@ export class Play {
         for (i = 0; i < this.enemies.length; i++) {
             if (this.run.trial?.lost) return;
             const e = this.enemies[i];
-            if (!e.alive) {
+            if (e.kind === "target") {
+                // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来（必须在 !e.alive 之前检查，避免永久倒靶）。
+                if (!e.alive) {
+                    if (e.hitT > 0) {
+                        e.hitT -= dt;
+                    }
+                    if (e.hitT <= 0) {
+                        e.alive = true;
+                        e.hitT = 0;
+                    }
+                }
                 continue;
             }
-            if (e.hitT > 0) {
-                e.hitT -= dt;
-            }
-            if (e.kind === "target") {
-                // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来。
-                if (!e.alive && e.hitT <= 0) {
-                    e.alive = true;
-                }
+            if (!e.alive) {
                 continue;
             }
             if (e.kind === "breaker") {
@@ -3225,7 +3957,7 @@ export class Play {
         const px = p.x;
         const py = p.y + p.h * 0.55;
         const dx = px - ex;
-        const dyScreen = (py + p.depth) - (ey + eDepth);
+        const dyScreen = (py + p.depth * DEPTH_Y_SCALE) - (ey + eDepth * DEPTH_Y_SCALE);
         const len = Math.sqrt(dx * dx + dyScreen * dyScreen);
         if (len < 0.01) {
             return false;
@@ -3288,7 +4020,7 @@ export class Play {
         if (this.invulnT > 0) {
             return;
         }
-        this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+        this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
         this.craftT = 0;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -3307,20 +4039,24 @@ export class Play {
         // 否则玩家握车柄推车时没有还手窗口，三种过法都会被同一个近身打断。
         const guardLane = this.room.key === "c2-granary" && (e.depth ?? 0) >= 20;
         const sameLane = Math.abs((e.depth ?? 0) - p.depth) <= 20;
-        if (adx > 150) {
+        if (adx > 44) {
             const before = e.x;
-            e.x += (dx > 0 ? 1 : -1) * 60 * dt;
+            const stepX = (dx > 0 ? 1 : -1) * 60 * dt;
+            const nextX = Math.max(this.room.minX + 16, Math.min(this.room.maxX - 16, e.x + stepX));
+            if (!this.enemyBlockedAtX(e, nextX)) {
+                e.x = nextX;
+            }
             if (!guardLane && Math.abs(e.x - before) < 0.3) {
                 // 被挡：尝试换更深/更浅一档绕行。
-                e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
+                e.depth = Math.max(-32, Math.min(32, (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16)));
             }
-        } else if (adx < 48 && sameLane && (e.swingT ?? 0) <= 0) {
+        } else if (adx <= 48 && sameLane && (e.swingT ?? 0) <= 0) {
             // 翻滚只抵消正面来击：盾手在背后挥过来时，往前滚等于把后背送上去。
             // 全向免疫会让翻滚变成无成本的万能键，也就没有"看时机再滚"可言。
             const fromFront = (e.x - p.x) * p.facing > 0;
             const rollDodges = p.rollT > 0 && fromFront;
             if (!rollDodges && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+                this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -3370,16 +4106,19 @@ export class Play {
         const reach = target === undefined ? 46 : (target.x1 - target.x0) / 2 + 40;
         if (Math.abs(dx) > reach) {
             const before = e.x;
-            e.x += (dx > 0 ? 1 : -1) * 48 * dt;
+            const nextX = Math.max(this.room.minX + 16, Math.min(this.room.maxX - 16, e.x + (dx > 0 ? 1 : -1) * 48 * dt));
+            if (!this.enemyBlockedAtX(e, nextX)) {
+                e.x = nextX;
+            }
             if (Math.abs(e.x - before) < 0.3) {
-                e.depth = (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16);
+                e.depth = Math.max(-32, Math.min(32, (e.depth ?? 0) + (p.depth >= (e.depth ?? 0) ? 16 : -16)));
             }
         } else if ((e.swingT ?? 0) <= 0) {
             e.swingT = 64;
             if (target !== undefined) {
                 this.damageProp(target, 2);
-            } else if (Math.abs(p.x - e.x) < 60 && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS + 12 * (this.run.trial?.ranks.guard ?? 0);
+            } else if (Math.abs(p.x - e.x) < 60 && Math.abs((e.depth ?? 0) - p.depth) <= 26 && this.invulnT <= 0) {
+                this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -3393,6 +4132,26 @@ export class Play {
         if ((e.swingT ?? 0) > 0) {
             e.swingT = (e.swingT ?? 0) - 1;
         }
+    }
+
+    /** 判定敌兵横向移动到 nextX 是否会撞上同层实体墙体（避免盾手/破障手穿墙）。 */
+    private enemyBlockedAtX(e: Enemy, nextX: number): boolean {
+        const half = e.w * 0.5;
+        const d = e.depth ?? 0;
+        let i = 0;
+        for (i = 0; i < this.boxes.length; i++) {
+            const b = this.boxes[i];
+            if (b.broken === true || b.passable === true || b.soft === true || b.hidden === true || b.y0 >= e.y + e.h || b.y1 <= e.y + 4) {
+                continue;
+            }
+            if (b.depth !== undefined && (d < b.depth.min - 8 || d > b.depth.max + 8)) {
+                continue;
+            }
+            if (nextX + half > b.x0 && nextX - half < b.x1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private campaignFailed(): void {
@@ -3455,6 +4214,12 @@ export class Play {
     private restartEscortFromDeath(): void {
         const story = this.run.story;
         const inv = this.run.inventory;
+        const vitBonus = story.talents !== undefined ? story.talents.ranks.vitality : 0;
+        if (vitBonus > 0) {
+            this.maxHp = Math.max(3, this.maxHp - vitBonus);
+            story.maxHp = this.maxHp;
+        }
+        story.talents = createStoryTalents(this.run.seed);
         this.hp = this.maxHp;
         story.hp = this.maxHp;
         story.cp = undefined;
@@ -3463,6 +4228,7 @@ export class Play {
         this.carryOn = false;
         story.craftedWeapon = "";
         this.equippedWeapon = "standard_gun";
+        story.equippedWeapon = "standard_gun";
         story.escortDone = false;
         this.escortDone = false;
         story.segments = {};
@@ -3562,6 +4328,11 @@ export class Play {
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
+        if (this.blockedShot(e, p)) {
+            this.emit("coverBlocked", { entity: "实体遮挡", enemyX: e.x, hp: this.hp });
+            e.fireCd = FIRE_COOLDOWN;
+            return;
+        }
         // 贴靠实体 + 来向 + 主动按 Shift，三件事同时成立才挡；站绞盘空地按 Shift 照吃。
         const cover = this.blockedByCover(e, p);
         const hugging = cover !== undefined;
@@ -3578,6 +4349,11 @@ export class Play {
             e.fireCd = FIRE_COOLDOWN;
             return;
         }
+        if (this.invulnT > 0) {
+            e.fireCd = FIRE_COOLDOWN;
+            return;
+        }
+        this.invulnT = INVULN_HIT_TICKS;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
         this.flashSet("中弹 " + Math.max(0, this.hp) + "/" + this.maxHp, 0.7);
@@ -3631,8 +4407,47 @@ export class Play {
         this.emit("gateFailed", { failCount: this.gateFailCount, hp: 0, maxHp: this.maxHp });
     }
 
+    /** 城外：补丁红布车斜停在石阶口，点一次 E 拉开并触发 F01 半秒缝布家庭回忆，台面到石阶的路才通。 */
+    private stepRedCart(input: Input): void {
+        if (this.redCartMemoryT > 0) {
+            this.redCartMemoryT -= 1;
+        }
+        if (this.room.key !== "outside" || this.redCartPulled) {
+            return;
+        }
+        const box = this.boxes.find((b) => b.id === "outside_red_cart");
+        if (box === undefined) {
+            this.redCartPulled = true;
+            return;
+        }
+        const cx = (box.x0 + box.x1) * 0.5;
+        const p = this.player;
+        if (Math.abs(p.x - cx) > 70 || Math.abs(p.y - 96) > 26) {
+            return;
+        }
+        if (!input.interact.pressed) {
+            return;
+        }
+        box.x0 = 430;
+        box.x1 = 474;
+        // 这辆车原本也堵着台面下的墙根小路：拉开后整辆车挪到空窝，下层一起放开。
+        this.cartAxle = this.room.cart.endX;
+        this.cartDocked = true;
+        this.redCartPulled = true;
+        this.redCartMemoryT = 30;
+        if (this.run.story !== undefined) {
+            this.run.story.segments["outside_cart"] = true;
+            this.run.story.segments["outside_memory"] = true;
+        }
+        this.sessionDirty = true;
+        this.flashSet("红布补丁 · 想起家里那一针 · 石阶口露出来", 1.8);
+        this.emit("storyBeat", { beat: "red_cart", x: p.x, room: "outside" });
+        this.emit("storyBeat", { beat: "red_cart_memory", x: p.x, room: "outside", durationTicks: 30 });
+    }
+
     private stepInteract(dt: number, input: Input): void {
         const p = this.player;
+        this.stepRedCart(input);
         const calmUsed = this.calmConsumed;
         this.calmConsumed = false;
         // 安抚从进入到第 59 拍占用动作：期间 E/D 不抓车、不推车、不转通用敲击。
@@ -3728,9 +4543,12 @@ export class Play {
             }
         }
 
-        // 按住 F 瞄，松手才投
+        // 按住 F 瞄，松手才投；右键/取消键清零放弃投掷
         if (this.hasBottle) {
-            if (input.aim.held) {
+            if (input.bottleCanceled) {
+                this.aimHold = 0;
+                this.bottleAimX = -1;
+            } else if (input.aim.held) {
                 this.aimHold += dt;
                 if (this.aimHold > 1.2) {
                     this.aimHold = 1.2;
@@ -3780,20 +4598,43 @@ export class Play {
             this.passed = true;
             this.flashSet("过了第一院 · 通行线 440", 1.4);
         }
+        // 桌下听脚步：蹲在桌板下时，拾荒者的脚步会随距离变近或变远。
+        const underTable = p.crouch && p.x >= this.ox + 304 && p.x <= this.ox + 416;
+        if (underTable) {
+            this.footHintT -= 1;
+            if (this.footHintT <= 0) {
+                this.footHintT = 90;
+                const scavX = this.scavX;
+                const near = Math.abs(scavX - p.x) < 120;
+                const walkingAway = this.scavState === "walk" && Math.abs(this.scavTargetX - p.x) >= 120;
+                const heard = this.scavState === "chase" || (near && !walkingAway);
+                this.flashSet(heard ? "桌下 · 脚步近了，别出声" : "桌下 · 脚步远了，趁现在钻", 1.2);
+                this.emit("storyBeat", { beat: heard ? "footstep_near" : "footstep_far", x: p.x, room: "village" });
+            }
+        } else {
+            this.footHintT = 0;
+        }
+        // 暗渠口：过了第一院、走到 560 就先给蹲下的提示，再钻出到林边。
+        if (this.passed && !this.ditchHinted && p.x >= this.ox + 560) {
+            this.ditchHinted = true;
+            this.flashSet("暗渠口 · 蹲下钻过去", 1.4);
+            this.emit("storyBeat", { beat: "ditch", x: p.x, room: "village" });
+        }
         // 过了第一院、走到院墙前就进北塔森林。
         if (this.passed && p.x >= this.ox + 640) {
             this.requestRoom("forest", "过第一院出院");
-            this.flashSet("出院 · 北塔森林", 1.4);
+            this.flashSet("钻出暗渠 · 北塔森林", 1.4);
         }
     }
 
-    /** 准星点的世界坐标换算成「实际落点」：横向就是准星 x，纵向取该处地面。 */
+    /** 准星点的世界坐标换算成「实际落点」：横向钳位在房间内（防投出屏外负坐标），纵向取该处地面。 */
     private bottleEnd(): { x: number; y: number } {
         const aim = this.worldMapper !== undefined
             ? this.worldMapper(this.aimX, this.aimY)
             : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
-        const g = this.groundAt(aim.x, aim.y + 240, 3);
-        return { x: aim.x, y: g };
+        const clampedX = Math.max(this.room.minX + 12, Math.min(this.room.maxX - 12, aim.x));
+        const g = this.groundAt(clampedX, aim.y + 240, 3);
+        return { x: clampedX, y: g };
     }
 
     /** 固定飞行时间反解初速；终点就是准星指定的落点，预览与触地用同一套参数。 */
@@ -3821,12 +4662,26 @@ export class Play {
         });
     }
 
-    /** 触地：只在这里派发一次声音事件，落点固定用预览缓存。 */
+    /** 空村三材质落点判定：软土消音 / 铁盆双响加长驻留 / 砖地常规单响。 */
+    private bottleSurfaceAt(x: number): "soft" | "iron" | "brick" {
+        if (this.room.softX !== undefined && Math.abs(x - this.room.softX) <= 34) {
+            return "soft";
+        }
+        if (this.room.basinX !== undefined && Math.abs(x - this.room.basinX) <= 24) {
+            return "iron";
+        }
+        return "brick";
+    }
+
+    /** 触地：只在这里派发一次声音事件，落点固定用预览缓存，并显式携带材质供前端分轨渲染。 */
     private landBottle(fly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number }): void {
         const x = this.bottleTargetX >= 0 ? this.bottleTargetX : fly.x;
         const y = this.bottleSurfaceY >= 0 ? this.bottleSurfaceY : fly.y;
         const s = this.room.scavenger;
-        const heard = s !== undefined && Math.abs(x - this.scavX) <= s.range;
+        const surface = this.bottleSurfaceAt(x);
+        const effRange = s === undefined ? 0 : (surface === "iron" ? s.range * 1.25 : s.range);
+        const heard = surface !== "soft" && s !== undefined && Math.abs(x - this.scavX) <= effRange;
+        const stallTicks = s === undefined ? 0 : (surface === "iron" ? s.stallTicks + 90 : s.stallTicks);
         this.bottleFly = undefined;
         this.bottleTargetX = -1;
         this.bottleTargetY = 0;
@@ -3834,27 +4689,41 @@ export class Play {
         this.bottleLandX = x;
         this.bottleLandY = y;
         this.bottleLandT = 0.9;
-        this.emit("bottleLanded", { x: x, y: y, heard: heard, scavState: this.scavState });
-        this.hearBottle(x);
+        this.emit("bottleLanded", {
+            x: x,
+            y: y,
+            surface: surface,
+            heard: heard,
+            resonance: surface === "iron",
+            stallTicks: heard ? stallTicks : 0,
+            scavState: this.scavState,
+        });
+        this.hearBottle(x, surface);
     }
 
-    /** 落地才结算听觉：射程内才转头。 */
-    private hearBottle(x: number): void {
+    /** 落地才结算听觉：软土消音不惊动，砖面单响常规驻留，铁盆余振两响加长驻留。 */
+    private hearBottle(x: number, surface: "soft" | "iron" | "brick" = "brick"): void {
         const s = this.room.scavenger;
         if (s === undefined) {
             return;
         }
-        if (Math.abs(x - this.scavX) > s.range) {
+        if (surface === "soft") {
+            this.flashSet("落在软土 · 没出声", 0.8);
+            return;
+        }
+        const effRange = surface === "iron" ? s.range * 1.25 : s.range;
+        if (Math.abs(x - this.scavX) > effRange) {
             this.flashSet("落地 · 他没听见", 0.6);
             return;
         }
         this.scavState = "turn";
         this.scavT = s.hearTicks;
-        this.scavTargetX = x;
-        this.flashSet("砖地一响 · 他转头", 0.9);
+        this.scavTargetX = surface === "iron" && this.room.basinX !== undefined ? this.room.basinX : x;
+        this.scavStallBonus = surface === "iron" ? 90 : 0;
+        this.flashSet(surface === "iron" ? "铁盆余振两响 · 他停下来细听" : "砖地一响 · 他转头", 1.1);
     }
 
-    /** 拾荒者：巡逻 → 转头 18 拍 → 赶到落点 → 停 120 拍 → 走回巡逻段。 */
+    /** 拾荒者：巡逻 → 转头 18 拍 → 赶到落点 → 停 120 拍（铁盆 210 拍） → 走回巡逻段。 */
     private stepScav(dt: number, s: ScavSpec): void {
         // 追逐由 stepScavChase 单独推进；这里只管巡查与「听见后过去看看」。
         if (this.scavState === "chase") {
@@ -3871,7 +4740,8 @@ export class Play {
             const d = this.scavTargetX - this.scavX;
             if (Math.abs(d) < 4) {
                 this.scavState = "stall";
-                this.scavT = s.stallTicks;
+                this.scavT = s.stallTicks + this.scavStallBonus;
+                this.scavStallBonus = 0;
                 return;
             }
             this.scavX += (d > 0 ? 1 : -1) * s.approachSpeed * dt;
@@ -4029,7 +4899,7 @@ export class Play {
         }
         const ox = a.x + a.facing * 8;
         const muzzleY = a.y + a.h * 0.72;
-        const oy = muzzleY + a.depth;
+        const oy = muzzleY + a.depth * DEPTH_Y_SCALE;
         // 先按准星可见的投影选择尝试命中的目标，再在场景中检测实体是否挡住这条线。
         const aim = this.worldMapper !== undefined
             ? this.worldMapper(this.aimX, this.aimY)
@@ -4053,7 +4923,7 @@ export class Play {
         const tEnemy = hitEnemy.t;
         const targetDepth = tEnemy > 0.001 ? (this.enemies[hitEnemy.index].depth ?? 0) : a.depth;
         const dDepth = tEnemy > 0.001 ? (targetDepth - a.depth) / tEnemy : 0;
-        const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth, depth: a.depth, dDepth });
+        const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth * DEPTH_Y_SCALE, depth: a.depth, dDepth });
         const tWall = solid.t;
         // 画盘效果 + 已装备武器：只有引路灯铳能把线照透，只有回声铳能惊起两处声源。
         const rawEffect = this.consumeReloadEffect();
@@ -4072,11 +4942,18 @@ export class Play {
             const e = this.enemies[i];
             const impactY = oy + dy * tEnemy;
             const fromFront = (a.x < e.x && dx > 0) || (a.x > e.x && dx < 0);
-            const shieldTop = e.y + (e.depth ?? 0) + 64;
+            const shieldTop = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE + 64;
             if (e.kind === "shield" && (e.shieldHp ?? 0) > 0 && fromFront && impactY <= shieldTop) {
-                e.shieldHp = (e.shieldHp ?? 0) - 1;
+                const dmg = reloadEffect === "push" ? 2 : 1;
+                e.shieldHp = Math.max(0, (e.shieldHp ?? 0) - dmg);
                 e.hitT = 0.3;
-                this.flashSet("盾面挡下 · 盾 " + e.shieldHp + "/" + (e.shieldHpMax ?? 2), 0.8);
+                if (reloadEffect === "push") {
+                    e.x = Math.max(this.room.minX + 20, Math.min(this.room.maxX - 20, e.x + a.facing * 46));
+                    this.emit("reloadApplied", { effect: "push", weapon: this.equippedWeapon, enemyX: e.x });
+                    this.flashSet(e.shieldHp <= 0 ? "推退破盾！" : "推退震退持盾手", 0.9);
+                } else {
+                    this.flashSet("盾面挡下 · 盾 " + e.shieldHp + "/" + (e.shieldHpMax ?? 2), 0.8);
+                }
                 this.emit("shotResolved", {
                     hit: true, enemyIndex: i, enemyX: e.x, aimX: aim.x, aimY: aim.y,
                     impactX: ox + dx * t, impactY: oy + dy * t, shield: true,
@@ -4122,7 +4999,9 @@ export class Play {
 
     /** 把一次开火派发成危险事件；是否真的吓到她由 childExposed 判。 */
     private applyFireDanger(shotX: number): void {
-        if (this.room.key !== "checkpoint" || !this.partner.alive) {
+        const isStorySc = this.isCampaign && this.run.trial === undefined && this.run.joined
+            && (this.room.campaign?.chapter === "S" || this.room.campaign?.chapter === "C");
+        if ((this.room.key !== "checkpoint" && !isStorySc) || !this.partner.alive) {
             return;
         }
         let dangerX = shotX;
@@ -4142,6 +5021,10 @@ export class Play {
         }
         if (best >= 0) {
             dangerX = this.enemies[best].x;
+        }
+        // S1–C2 战役房仅在近距交火波及小满身侧（<260）时累积惊惧，避免远距对射频繁打断节奏。
+        if (isStorySc && Math.abs(dangerX - this.partner.x) > 260) {
+            return;
         }
         const exposed = this.childExposed(dangerX);
         const before = this.escort.fear;
@@ -4187,7 +5070,7 @@ export class Play {
             if (!e.alive) {
                 continue;
             }
-            const y = e.y + (e.depth ?? 0);
+            const y = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE;
             const t = hitBox(ray, { x0: e.x - e.w / 2, x1: e.x + e.w / 2, y0: y, y1: y + e.h });
             if (t >= 0 && (best < 0 || t < best)) {
                 best = t;
@@ -4327,14 +5210,12 @@ export class Play {
                 }
             }
         }
-        // 城外：车身下缘在下层形成随车移动的阻挡（离地 0..44）。
-        // 车没落窝时封死整条通道（这就是「先把车拉走」的谜题）；
-        // 落窝后只挡站姿，蹲 36 能从车底钻过去——D4 的墙根小路在车之后。
-        if (this.room.key === "outside" && a.y < CART_CLEAR - 0.001) {
-            const blocked = !this.cartDocked || a.y + a.h > CART_CLEAR + 0.001;
-            const bx0 = this.cartAxle - CART_HALF;
-            const bx1 = this.cartAxle + CART_HALF;
-            if (blocked && nx + half > bx0 && nx - half < bx1) {
+        // 城外：未拉车入窝前，车底连杆挡栓封住下层拱口（arch.x0..arch.x1）；
+        // 车轮一旦落窝（cartDocked），挡栓收回，底层拱洞外平地彻底畅通，不再残留车底空气墙。
+        if (this.room.key === "outside" && !this.cartDocked && a.y < CART_CLEAR - 0.001) {
+            const bx0 = Math.max(room.arch.x0, this.cartAxle - CART_HALF);
+            const bx1 = Math.min(room.arch.x1, this.cartAxle + CART_HALF);
+            if (bx1 > bx0 && nx + half > bx0 && nx - half < bx1) {
                 if (a.x <= bx0) {
                     nx = bx0 - half;
                 } else if (a.x >= bx1) {
@@ -4371,8 +5252,8 @@ export class Play {
         let ny = a.y + a.vy * dt;
         const half = a.w / 2;
         if (a.vy <= 0) {
-            // 站在地上时多探 24 单位：矮台阶（每级 16–22）直接走上去，柜台 44、台面 96 仍要跳。
-            const reach = a.onGround ? STEP_UP : 0;
+            // 站在地上且未下蹲时多探 24 单位：矮台阶（每级 16–22）直接走上去，下蹲穿行不误爬单向梯，柜台 44/台面 96 仍要跳。
+            const reach = a.onGround && !a.crouch ? STEP_UP : 0;
             const ground = this.groundAt(a.x, a.y + 0.5 + reach, half, a.depth);
             if (ny <= ground) {
                 ny = ground;
@@ -4471,7 +5352,15 @@ export class Play {
 
         if (this.room.key === "prologue") {
             parts.push("小满 " + Math.round(this.partner.x));
-            if (this.phase === "prologue-wait") {
+            if (this.phase === "prologue-wake") {
+                parts.push("叫醒 " + this.introTick + "/" + PROLOGUE_WAKE_TICKS);
+            } else if (this.phase === "prologue-shadow") {
+                parts.push("墙影 " + this.introTick + "/" + PROLOGUE_SHADOW_TICKS);
+            } else if (this.phase === "prologue-escape") {
+                parts.push("逃柜 剩 " + this.escapeRemaining.toFixed(1) + "s");
+            } else if (this.phase === "prologue-hide") {
+                parts.push("入柜 " + this.introTick + "/" + PROLOGUE_HIDE_TICKS);
+            } else if (this.phase === "prologue-wait") {
                 parts.push("待递 " + Math.round(Math.abs(p.x - this.partner.x)));
             } else if (this.phase === "prologue-give") {
                 parts.push("递物 " + this.phaseTick + "/60");
@@ -4530,6 +5419,10 @@ export class Play {
                 parts.push("门前 " + Math.round(Math.abs(p.x - this.doorXOf())));
             } else if (this.phase === "tower-knock") {
                 parts.push("敲 " + this.phaseTick + " 拍");
+            } else if (this.phase === "tower-enter") {
+                parts.push("跨门槛 " + Math.round(p.x - (this.ox + TOWER_THRESHOLD_X)));
+            } else if (this.phase === "tower-desk") {
+                parts.push("交物 " + this.deskHold + "/" + TOWER_HANDOVER_TICKS);
             } else if (this.phase === "tower-given") {
                 parts.push("递交 " + this.phaseTick);
             } else {
@@ -4699,6 +5592,18 @@ export class Play {
             return this.flash;
         }
         if (this.room.key === "prologue") {
+            if (this.phase === "prologue-wake") {
+                return "父亲在门外唤 · 小满睁眼";
+            }
+            if (this.phase === "prologue-shadow") {
+                return "墙上两道人影 · 碗滚到脚边";
+            }
+            if (this.phase === "prologue-escape") {
+                return "按 ↑ 贴里道、再按 D 跑向倒柜 · 剩 " + this.escapeRemaining.toFixed(1) + " 秒";
+            }
+            if (this.phase === "prologue-hide") {
+                return "柜门合上 · 屏住呼吸";
+            }
             if (this.phase === "prologue-wait") {
                 const near = Math.abs(this.player.x - this.partner.x) <= 46;
                 return near ? "点 E 递出针套 · 纸条一起塞进去" : "走到倒柜后的小满身边（x≈214）再点 E";
@@ -4921,7 +5826,7 @@ export class Play {
         let i = 0;
         for (i = 0; i < this.pickups.length; i++) {
             const pk = this.pickups[i];
-            if (pk.id === "") {
+            if (this.run.taken[pk.id] === true) {
                 continue;
             }
             const gy = pk.y + (pk.depth ?? 0);
@@ -5203,7 +6108,7 @@ function makeActor(room: RoomSpec, index: number): Actor {
         return { x: 0, y: 0, depth: 0, depthSpeed: 0, vx: 0, vy: 0, w: CHILD_W, h: CHILD_H, onGround: true, facing: 1, crouch: false, rollT: 0, covered: false, alive: false };
     }
     const s = sp[index];
-    const child = s.h <= CHILD_H;
+    const child = s.h < SOLDIER_H;
     const ground = room.depth;
     const depth = ground === undefined ? 0 : Math.max(ground.min, Math.min(ground.max, s.depth ?? 0));
     return {
@@ -5220,7 +6125,7 @@ function drawFigure(draw: DrawNode.Type, play: Play, w: number, h: number, a: Ac
     }
     const x0 = a.x - a.w / 2;
     const x1 = a.x + a.w / 2;
-    const y0 = a.y + a.depth;
+    const y0 = a.y + a.depth * DEPTH_Y_SCALE;
     const y1 = y0 + a.h;
     play.drawBox(draw, w, h, x0, x1, y0, y1 - a.h * 0.26, body);
     play.drawBox(draw, w, h, x0 + 2, x1 - 2, y1 - a.h * 0.26, y1, head);
@@ -5273,7 +6178,7 @@ function drawCartShape(draw: DrawNode.Type, play: Play, w: number, h: number, c:
     const half = c.bodyW / 2;
     const x0 = axleX - half;
     const x1 = axleX + half;
-    const axleY = c.baseY + (c.depth ?? 0) + c.wheelR;
+    const axleY = c.baseY + (c.depth ?? 0) * DEPTH_Y_SCALE + c.wheelR;
     play.drawBox(draw, w, h, x0, x1, axleY, axleY + c.bodyH, CART_FILL);
     draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
     draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));

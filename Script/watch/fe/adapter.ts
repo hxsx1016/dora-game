@@ -7,7 +7,7 @@
 
 import { Play, PlayEvent, Trace } from "Script/watch/play";
 import { CALM_REACH } from "Script/watch/escort";
-import { inReachDepth } from "Script/watch/depth";
+import { DEPTH_Y_SCALE, inReachDepth, overlapsDepth } from "Script/watch/depth";
 
 export interface FrameEvents {
     shotFired: boolean;
@@ -250,7 +250,7 @@ export class PlayAdapter {
             const wasAlive = i < this.prevAliveMask.length ? this.prevAliveMask[i] : true;
             if (wasAlive && !p.enemies[i].alive) {
                 enemyKilledX = p.enemies[i].x;
-                enemyKilledY = p.enemies[i].y + (p.enemies[i].depth ?? 0) + p.enemies[i].h * 0.55;
+                enemyKilledY = p.enemies[i].y + (p.enemies[i].depth ?? 0) * DEPTH_Y_SCALE + p.enemies[i].h * 0.55;
             }
         }
 
@@ -261,7 +261,7 @@ export class PlayAdapter {
         // 敲击只消费模拟队列，避免重试、换房或补跑多步时重复/漏播。
         let knockPulse = false;
         let knockX = p.player.x;
-        let knockY = p.player.y + p.player.depth + p.player.h * 0.5;
+        let knockY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.5;
 
         let bottleLanded = p.bottleLandT > this.prevBottleLandT + 0.1 && p.bottleLandX >= 0;
         let bottleLandX = p.bottleLandX;
@@ -315,7 +315,8 @@ export class PlayAdapter {
                 const x = event.data.x;
                 knockX = typeof x === "number" ? x : p.player.x;
                 knockY = p.escort.state === "calming"
-                    ? p.partner.y + p.partner.depth + 28 : p.player.y + p.player.depth + p.player.h * 0.55;
+                    ? p.partner.y + p.partner.depth * DEPTH_Y_SCALE + 28
+                    : p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.55;
             } else if (event.name === "actorHit" || event.name === "gateFailed") {
                 playerHit = true;
             } else if (event.name === "coverBlocked") {
@@ -488,14 +489,14 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     if (room.key === "prologue" && p.phase === "prologue-wait") {
         const reach = room.story?.prologue?.giveReach ?? 46;
         if (Math.abs(player.x - p.partner.x) <= reach && inReachDepth(player.depth, p.partner.depth)) {
-            return { x: p.partner.x, y: p.partner.y + p.partner.depth + p.partner.h + 22, keyTag: "E", label: "递出指南针", urgent: false };
+            return { x: p.partner.x, y: p.partner.y + p.partner.depth * DEPTH_Y_SCALE + p.partner.h + 22, keyTag: "E", label: "递出指南针", urgent: false };
         }
         return undefined;
     }
 
     if (!p.childMode && p.escort.state === "frozen") {
         if (Math.abs(player.x - p.partner.x) <= CALM_REACH && inReachDepth(player.depth, p.partner.depth)) {
-            return { x: p.partner.x, y: p.partner.y + p.partner.depth + p.partner.h + 22, keyTag: "E", label: "安抚小满", urgent: true };
+            return { x: p.partner.x, y: p.partner.y + p.partner.depth * DEPTH_Y_SCALE + p.partner.h + 22, keyTag: "E", label: "安抚小满", urgent: true };
         }
         return undefined;
     }
@@ -528,18 +529,18 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
         }
     }
 
-    // 慢时换弹：盘开着时只提示连线；已画好的枪机在下一枪前提示按住 F。
+    // 慢时换弹：盘开着时只提示连线；已画好的枪机在下一枪前提示左键发射。
     if (p.reloadOpen) {
         const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / 240));
         return {
-            x: player.x, y: player.y + player.depth + player.h + 34,
+            x: player.x, y: player.y + player.depth * DEPTH_Y_SCALE + player.h + 34,
             keyTag: "连线", label: "画到枪机复位", urgent: p.reloadAnswerTicks > 168, progress: ratio,
         };
     }
     if (p.reloadPendingEffect !== "") {
         return {
-            x: player.x, y: player.y + player.depth + player.h + 34,
-            keyTag: "F", label: "枪机已上势 · 打下一枪", urgent: false,
+            x: player.x, y: player.y + player.depth * DEPTH_Y_SCALE + player.h + 34,
+            keyTag: "左键", label: "枪机已上势 · 打下一枪", urgent: false,
         };
     }
     if (room.key === "gatepath" && !p.carryOn) {
@@ -556,16 +557,34 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     }
 
     const cart = room.cart;
-    if ((room.key === "checkpoint" || room.key === "outside") && !p.cartDocked && cart.bodyW > 0) {
+    if ((room.key === "checkpoint" || room.key === "outside" || room.key === "c2-granary") && !p.cartDocked && cart.bodyW > 0) {
         const handleX = p.cartAxle + cart.handleOffset;
         if (p.gripping || p.cartHandleInReach()) {
             return {
                 x: handleX,
-                y: cart.baseY + (cart.depth ?? 0) + cart.wheelR + cart.bodyH + 46,
-                keyTag: "按住 E + D",
-                label: room.key === "checkpoint" ? "向前推车" : "向前拉车",
+                y: cart.baseY + (cart.depth ?? 0) * DEPTH_Y_SCALE + cart.wheelR + cart.bodyH + 46,
+                keyTag: room.key === "c2-granary" ? "E 握柄 + D" : "按住 E + D",
+                label: room.key === "outside" ? "向前拉车" : "向前推车",
                 urgent: false,
             };
+        }
+    }
+
+    if (p.isCampaign) {
+        let bi = 0;
+        for (bi = 0; bi < p.boxes.length; bi++) {
+            const b = p.boxes[bi];
+            if (b.broken === true || b.hidden === true || b.interact === undefined) {
+                continue;
+            }
+            const cx = (b.x0 + b.x1) * 0.5;
+            const reach = b.interact.reach ?? 46;
+            if (Math.abs(player.x - cx) <= reach + 16 && overlapsDepth(player.depth, b.depth, 16)) {
+                const kind = b.interact.kind;
+                const label = kind === "open_board" ? "放下窗板"
+                    : (kind === "lower_curtain" ? "放下木帘" : "抬起门锁");
+                return { x: cx, y: b.y1 + 24, keyTag: "E", label, urgent: true };
+            }
         }
     }
 
@@ -615,7 +634,7 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
             return { x: museum.lampX, y: 120, keyTag: "E", label: "末厅 · 把灯转向西窗", urgent: true };
         }
         if (p.phase === "museum-return") {
-            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 两下轻叩", urgent: true };
+            return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 轻敲两下", urgent: true };
         }
         if (p.phase === "museum-done") {
             return { x: museum.cabinetX, y: 64 + 44, keyTag: "E", label: "回柜边 · 灯还亮着", urgent: false };
@@ -625,13 +644,25 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
 
     const tower = room.story?.tower;
     if (p.phase === "tower-wait" && tower !== undefined && Math.abs(player.x - tower.doorX) <= 50) {
-        return { x: tower.doorX, y: 96, keyTag: "E", label: "敲门", urgent: false };
+        return { x: tower.doorX, y: 96, keyTag: "E", label: "敲两下 · 守卒应门", urgent: false };
+    }
+    if (p.phase === "tower-enter") {
+        return { x: 605, y: 64, keyTag: "→", label: "跨过门槛 · 走到值夜桌前", urgent: false };
+    }
+    if (p.phase === "tower-desk") {
+        return {
+            x: 605, y: 64, keyTag: "按住 E", label: "交出针套、指南针和纸条",
+            progress: p.deskHold / 36, urgent: true,
+        };
+    }
+    if (p.phase === "tower-given") {
+        return { x: 605, y: 64, keyTag: "", label: "看登记簿 · 西窗的灯", urgent: false };
     }
 
     if (room.key !== "prologue" && !p.childMode && p.coverNear && !p.coverHug && !p.gripping &&
         p.escort.state !== "calming" && (gate === undefined || p.phase === "gate-hold")) {
         return {
-            x: player.x, y: player.y + player.depth + player.h + 25,
+            x: player.x, y: player.y + player.depth * DEPTH_Y_SCALE + player.h + 25,
             keyTag: "按住 Shift", label: "贴靠掩体", urgent: gate !== undefined,
         };
     }

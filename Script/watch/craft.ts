@@ -8,7 +8,9 @@
 
 import { Inventory } from "Script/watch/run";
 
-export type WeaponId = "standard_gun" | "guide_lantern_gun" | "echo_gun";
+export const ARTIFACT_WEAPON_ID = "time_shuttler";
+
+export type WeaponId = "standard_gun" | "guide_lantern_gun" | "echo_gun" | "time_shuttler";
 
 /** 改制武器在射击结算里的增益类别；空串表示标准铳。 */
 export type WeaponEffect = "light" | "echo" | "";
@@ -76,7 +78,7 @@ export function payMaterials(inv: Inventory, recipe: RecipeSpec): boolean {
 }
 
 export function weaponEffectOf(weapon: string): WeaponEffect {
-    if (weapon === "guide_lantern_gun") {
+    if (weapon === "guide_lantern_gun" || weapon === ARTIFACT_WEAPON_ID) {
         return "light";
     }
     if (weapon === "echo_gun") {
@@ -86,6 +88,9 @@ export function weaponEffectOf(weapon: string): WeaponEffect {
 }
 
 export function weaponNameOf(weapon: string): string {
+    if (weapon === ARTIFACT_WEAPON_ID) {
+        return "时间穿梭器";
+    }
     const recipe = findRecipe(weapon);
     return recipe === undefined ? "标准铳" : recipe.name;
 }

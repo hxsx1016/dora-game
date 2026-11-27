@@ -40,6 +40,7 @@ import {
     drawPatchedCuff,
 } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
 import {
     PALETTE,
     drawHairline,
@@ -52,7 +53,7 @@ import {
     toColor,
 } from "Script/watch/fe/theme";
 
-export const WELL_WORLD_X = 34;
+export const WELL_WORLD_X = 430;
 export const WELL_INTERACT_REACH = 46;
 export const MATCH_CUT_ANCHOR_NX = 0.50;
 export const MATCH_CUT_ANCHOR_NY = 0.54;
@@ -296,6 +297,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     private gateOpen = false;
     private gateBlockedReason = "locked";
     private wellWorldX = WELL_WORLD_X;
+    private caseX = MUSEUM_CASE_X;
+    private lampX = MUSEUM_LAMP_X;
     private nearWell = false;
     private revisitCalmTimer = 0;
     private revisitCalmCount = 0;
@@ -447,7 +450,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.hallCamX = this.hallWalkX;
         if (holstered !== undefined) {
             this.holstered = holstered;
-        } else if (this.hallWalkX >= MUSEUM_CASE_X - 85) {
+        } else if (this.hallWalkX >= this.caseX - 85) {
             this.holstered = true;
         }
         this.savedResume = this.exportResumeState();
@@ -524,6 +527,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.savedResume = undefined;
         }
         this.rehearsal = view.isRehearsal;
+        const museum = view.isRehearsal ? undefined : p.room.story?.museum;
+        this.caseX = museum === undefined ? MUSEUM_CASE_X : museum.cabinetX - p.ox;
+        this.lampX = museum === undefined ? MUSEUM_LAMP_X : museum.lampX - p.ox;
         this.animTime = 0;
         this.revisitCalmTimer = 0;
         this.childEchoVisualT = 0;
@@ -542,7 +548,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.lastVisualMode = view.visualMode;
 
         // 读取可选后端井口坐标（兼容 C 单 segment-relative Play.wellX = 430）
-        const pRec = view.isRehearsal ? undefined : asRecord(p);
+        // 排练态也可能绑定真实 Play（fe06 演示档），此时仍以 Play.wellX 为准；仅在无 Play 数据时回落 WELL_WORLD_X。
+        const pRec = asRecord(p);
         const backendWellX = readNum(pRec, "wellX");
         this.wellWorldX = backendWellX !== undefined ? (p.ox + backendWellX) : (p.ox + WELL_WORLD_X);
         this.hallMoving = false;
@@ -617,13 +624,13 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.hallCamX = this.hallWalkX;
             this.hallFacing = 1;
             this.hallIntroElapsed = backendWalkX !== undefined && backendWalkX > 260 ? 5.0 : 0;
-            this.holstered = backendHolstered ?? (this.hallWalkX >= MUSEUM_CASE_X - 85);
-            this.childEchoPlayed = backendChildEcho ?? (this.hallWalkX >= MUSEUM_CASE_X + 120);
+            this.holstered = backendHolstered ?? (this.hallWalkX >= this.caseX - 85);
+            this.childEchoPlayed = backendChildEcho ?? (this.hallWalkX >= this.caseX + 120);
             this.childEchoCountdown = -1;
             return;
         }
         if (phase === "lamp_turn") {
-            this.hallWalkX = backendWalkX !== undefined ? clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90) : MUSEUM_LAMP_X - 36;
+            this.hallWalkX = backendWalkX !== undefined ? clamp(backendWalkX, 90, MUSEUM_HALL_WIDTH - 90) : this.lampX - 36;
             this.hallCamX = this.hallWalkX;
             this.hallFacing = 1;
             this.holstered = true;
@@ -710,10 +717,12 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         this.glassAnchorX = ctx.uiW * MATCH_CUT_ANCHOR_NX;
         this.glassAnchorY = ctx.uiH * MATCH_CUT_ANCHOR_NY;
 
-        // 消费一次性模拟输入
+        // 消费一次性模拟输入（同时读取 input.frameInteractPressed，避免模拟步 endStep() 提前清掉边沿）
         const sim = this.simInput;
         this.simInput = undefined;
-        const interactPressed = ctx.input.interact.pressed || (sim !== undefined && sim.interact === true);
+        const interactPressed = ctx.input.interact.pressed
+            || ctx.input.frameInteractPressed
+            || (sim !== undefined && sim.interact === true);
         const moveX = sim !== undefined && sim.moveX !== undefined ? sim.moveX : ctx.input.moveX;
 
         // 阶段变更时初始化对应子阶段
@@ -781,10 +790,15 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.syncLoops(ctx, wantDrip, dripVol, false);
 
             if (gate.open && this.nearWell && interactPressed) {
-                const alreadyAwarded = view.archive.museumSeen
-                    || phase === "done"
-                    || (view.archive.artifactOwned && this.artifactGrantCount >= 1);
-                if (phase === "well_open" && !alreadyAwarded) {
+                const liveNeedsSecondEnter = !view.isRehearsal
+                    && p.room.key === "prologue"
+                    && view.archive.artifactOwned
+                    && !view.archive.museumSeen;
+                const alreadyAwarded = !liveNeedsSecondEnter
+                    && (view.archive.museumSeen
+                        || phase === "done"
+                        || (view.archive.artifactOwned && this.artifactGrantCount >= 1));
+                if ((phase === "well_open" || liveNeedsSecondEnter) && !alreadyAwarded) {
                     this.submitMuseumIntent(p, "well_pickup");
                 } else {
                     // 离馆后回井复查：仅呈平静水纹，不重复发奖也不强制再次传送
@@ -888,7 +902,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             this.hallCamX += (this.hallWalkX - this.hallCamX) * camFollow;
 
             // 走到玻璃展柜前：自动收起武器 + 稍后远方传来孩子轻脚步回响
-            if (!this.holstered && this.hallWalkX >= MUSEUM_CASE_X - 85) {
+            const holsterThreshold = p.room.key === "museum" ? this.caseX + 12 : this.caseX - 85;
+            if (!this.holstered && this.hallWalkX >= holsterThreshold) {
                 this.holstered = true;
                 ctx.audio.playOnce(
                     "fe06:e02:holster:" + this.roomSessionId,
@@ -920,7 +935,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 }
             }
 
-            this.nearLamp = Math.abs(this.hallWalkX - MUSEUM_LAMP_X) <= 72;
+            this.nearLamp = view.isRehearsal
+                ? Math.abs(this.hallWalkX - this.lampX) <= 72
+                : ((p.phase === "museum-hall" || p.phase === "museum-lamp")
+                    && Math.abs(p.player.x - (this.lampX + p.ox)) <= 72);
             this.savedResume = this.exportResumeState();
 
             if (this.nearLamp && interactPressed) {
@@ -1171,7 +1189,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "fe06_well_hint_veil", sx, sy, 132, 26, PALETTE.panelBg, 0.82, 1);
                 ctx.texts.put(
                     "xs",
-                    "[E] 俯身看井",
+                    adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout),
                     sx,
                     sy,
                     toColor(PALETTE.textBright),
@@ -1434,8 +1452,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         uiDraw.drawSegment(Vec2(0, floorY), Vec2(w, floorY), 2.0, Color(76, 86, 98, 220));
         uiDraw.drawRect(Rect(0, floorY, w, 12), Color(20, 24, 31, 240));
 
-        // 2. 入口序厅纪念铭墙（x = 180）
-        const plaqueX = toScreenX(180);
+        // 2. 入口序厅纪念铭墙（避开独立展厅 x = 200 玻璃展柜）
+        const plaqueWorldX = this.caseX <= 260 ? 108 : 180;
+        const plaqueX = toScreenX(plaqueWorldX);
         if (plaqueX > -240 && plaqueX < w + 240) {
             const pw = 290;
             const ph = 132;
@@ -1474,10 +1493,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 3. 中厅抗战史料挂板与玻璃展柜（x = 600）
-        const caseSx = toScreenX(MUSEUM_CASE_X);
+        const caseSx = toScreenX(this.caseX);
         if (caseSx > -260 && caseSx < w + 260) {
-            // 两侧素雅历史展板
-            const boardOffsets = [-210, 210];
+            // 两侧素雅历史展板（当 caseX 贴近左缘时不越出房间左边界）
+            const boardOffsets = this.caseX <= 260 ? [180, 390] : [-210, 210];
             let bi = 0;
             for (bi = 0; bi < boardOffsets.length; bi++) {
                 const bx = caseSx + boardOffsets[bi];
@@ -1487,10 +1506,10 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 uiDraw.drawSegment(Vec2(bx - 28, floorY + 132), Vec2(bx + 24, floorY + 132), 1.2, Color(108, 116, 126, 115));
             }
 
-            // 中央独立玻璃展柜（内放明初旧铜指南针与素笺说明牌）
+            // 中央独立玻璃展柜（内放明初旧铜指南针与素笺说明牌，与全尺寸周戍 192px 保持真实博物馆尺度）
             const pedW = 148;
-            const pedH = 88;
-            const glassH = 148;
+            const pedH = 92;
+            const glassH = 128;
             // 深灰底座
             uiDraw.drawRect(
                 Rect(caseSx - pedW * 0.5, floorY, pedW, pedH),
@@ -1525,17 +1544,17 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         }
 
         // 4. 末厅西窗与可转动展灯（x = 1140..1280）
-        const lampSx = toScreenX(MUSEUM_LAMP_X);
-        const winSx = toScreenX(MUSEUM_LAMP_X + 108);
+        const lampSx = toScreenX(this.lampX);
+        const winSx = toScreenX(this.lampX + 108);
         const reflectK = inLampTurn
             ? smoothstep(MUSEUM_TIMINGS.lampReflectStart, 2.35, this.lampElapsed)
             : 0;
 
         if (winSx > -260 && winSx < w + 260) {
-            const winW = 196;
-            const winH = 292;
+            const winW = 204;
+            const winH = 312;
             const winX = winSx - winW * 0.5;
-            const winY = floorY + 46;
+            const winY = floorY + 38;
             // 西窗破晓天色（微蓝天光，转灯后染入柔和暖光）
             fillVGradRect(
                 uiDraw,
@@ -1581,12 +1600,12 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             uiInkDraw.drawSegment(Vec2(winSx, winY), Vec2(winSx, winY + winH), 2.0, Color(68, 76, 88, 235));
             uiInkDraw.drawSegment(Vec2(winX, winY + winH * 0.56), Vec2(winX + winW, winY + winH * 0.56), 2.0, Color(68, 76, 88, 235));
 
-            // 窗前石质底座与可转动西窗展灯（lampSx）
+            // 窗前石质底座与可转动西窗展灯（lampSx，高度齐周戍胸肩便于抬手转灯）
             const standW = 34;
-            const standH = 74;
+            const standH = 96;
             uiDraw.drawRect(Rect(lampSx - standW * 0.5, floorY, standW, standH), Color(34, 39, 48, 250), 1.1, Color(108, 118, 130, 190));
             // 金属灯柱与旋轴
-            const pivotY = floorY + standH + 40;
+            const pivotY = floorY + standH + 44;
             uiInkDraw.drawSegment(Vec2(lampSx, floorY + standH), Vec2(lampSx, pivotY), 3.2, Color(136, 144, 154, 240));
             uiInkDraw.drawCircle(Vec2(lampSx, pivotY), 5.5, Color(196, 178, 142, 245));
             // 灯头随 lampTurnProg 从略朝内侧（左偏）平缓转向西窗（右指）
@@ -1612,34 +1631,34 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             fillRadialGlow(uiGlow, headX, headY, 34, 34, Color(246, 228, 186, 78), Color(224, 194, 140, 0), 14);
         }
 
-        // 5. 自由步行的周戍（沿用真实明初像素立绘；走到玻璃柜前自动收械静立）
+        // 5. 自由步行的周戍（沿用真实明初像素立绘，与常规世界场景同尺度 ~192px，不再腰斩缩水）
         const playerSx = toScreenX(this.hallWalkX);
         const moving = !inLampTurn && (this.hallMoving || Math.abs(ctx.input.moveX) > 0.05);
         const slot = moving ? "soldier_run" : "soldier_idle";
         const frame = moving ? Math.floor(this.hallWalkAnim) : 0;
-        const charH = 114;
-        const charW = 54;
+        const charH = Math.round(192 * Math.max(0.75, Math.min(1.25, h / 720)));
+        const charW = Math.round(charH * 0.45);
         // 脚底接地微影与磨石反光影
-        uiDraw.drawEllipse(Vec2(playerSx, floorY + 2), 26, 5.5, Color(6, 8, 12, 178));
-        uiDraw.drawEllipse(Vec2(playerSx, floorY - 12), 18, 4.0, Color(16, 20, 28, 62));
+        uiDraw.drawEllipse(Vec2(playerSx, floorY + 2), 34, 6.5, Color(6, 8, 12, 178));
+        uiDraw.drawEllipse(Vec2(playerSx, floorY - 14), 24, 4.5, Color(16, 20, 28, 62));
         if (!uiArt.tryPlace(slot, "fe06_museum_zhoushu", playerSx, floorY + 2, charW, charH, {
             facing: this.hallFacing,
             frame,
             layer: 3,
         })) {
             // 无贴图兜底剪影
-            uiDraw.drawRect(Rect(playerSx - 14, floorY + 2, 28, charH * 0.84), toColor(CUFF_PALETTE.indigoBase));
-            uiDraw.drawCircle(Vec2(playerSx, floorY + charH * 0.92), 12, Color(66, 73, 76, 255));
+            uiDraw.drawRect(Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), toColor(CUFF_PALETTE.indigoBase));
+            uiDraw.drawCircle(Vec2(playerSx, floorY + charH * 0.92), 16, Color(66, 73, 76, 255));
         }
 
         // 玻璃柜前收械后的克制状态轻反馈（无大弹窗，短促微印）
-        if (this.holstered && !inLampTurn && Math.abs(this.hallWalkX - MUSEUM_CASE_X) <= 130) {
-            const subA = clamp01(1 - Math.abs(this.hallWalkX - MUSEUM_CASE_X) / 145) * 0.86;
+        if (this.holstered && !inLampTurn && Math.abs(this.hallWalkX - this.caseX) <= 130) {
+            const subA = clamp01(1 - Math.abs(this.hallWalkX - this.caseX) / 145) * 0.86;
             ctx.texts.put(
                 "xs",
                 "已收起随身器物",
                 caseSx,
-                floorY + 286,
+                floorY + 252,
                 toColor(PALETTE.textMid),
                 0.5,
                 0.5,
@@ -1652,7 +1671,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         // 远方童声脚步回响（静音/灰度可读的细微远景声纹，位于右侧末厅方向）
         if (this.childEchoVisualT > 0) {
             const echoK = 1 - clamp01(this.childEchoVisualT / 2.1);
-            const ex = Math.min(w - 110, toScreenX(MUSEUM_CASE_X + 310));
+            const ex = Math.min(w - 110, toScreenX(this.caseX + 310));
             const ey = floorY + 32;
             const ea = Math.round(Math.sin(echoK * Math.PI) * 165);
             drawCircleRing(uiInkDraw, ex, ey, 14 + echoK * 46, Color(0, 0, 0, 0), 1.1, Color(224, 214, 194, ea), 28);
@@ -1690,7 +1709,18 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             // 默认零浮签；仅当开启「按键辅助」且走近西窗灯时才出现轻量提示
             if (this.nearLamp && ctx.view.assistHintsEnabled) {
                 drawSilkVeil(uiDraw, uiArt, "fe06_lamp_hint_veil", lampSx, floorY + 158, 146, 28, PALETTE.panelBg, 0.84, 1);
-                ctx.texts.put("xs", "[E] 转动西窗灯", lampSx, floorY + 158, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.6, 0.94);
+                ctx.texts.put(
+                    "xs",
+                    adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    lampSx,
+                    floorY + 158,
+                    toColor(PALETTE.textBright),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    0.6,
+                    0.94,
+                );
             }
         }
 

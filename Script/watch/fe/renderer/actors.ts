@@ -1,9 +1,9 @@
 /** 角色像素帧随玩法姿态切换，脚底与当前相机共用世界坐标。 */
 
-import { Color, DrawNode, Vec2 } from "Dora";
+import { Color, DrawNode, Rect, Vec2 } from "Dora";
 import { Actor, Enemy, Play, Trace } from "Script/watch/play";
 import { FEAR_MAX } from "Script/watch/escort";
-import { ACTOR_DEPTH_HALF, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/depth";
 import { depthOrder } from "Script/watch/fe/occlusion";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
@@ -12,6 +12,7 @@ import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/t
 interface Afterimage {
     x: number;
     y: number;
+    depth: number;
     h: number;
     facing: number;
     life: number;
@@ -63,13 +64,14 @@ export class ActorsRenderer {
         this.previousHp = p.hp;
         this.previousBottle = p.hasBottle;
         this.previousTrace = p.trace;
-        // 周戍翻滚期间高频采样冰青残影（复刻《艾希》冲刺残影手感）
+        // 周戍翻滚期间高频采样贴地扬尘步烟
         if (!p.childMode && p.player.rollT > 0) {
             this.ghostCooldown -= dt;
             if (this.ghostCooldown <= 0) {
                 this.ghosts.push({
                     x: p.player.x,
-                    y: p.player.y + p.player.depth,
+                    y: p.player.y,
+                    depth: p.player.depth,
                     h: p.player.h,
                     facing: p.player.facing,
                     life: 0.28,
@@ -151,7 +153,7 @@ export class ActorsRenderer {
             const k = Math.max(0, Math.min(1, g.life / g.maxLife));
             const spread = 1 - k;
             const cx = cam.sx(g.x);
-            const by = cam.sy(g.y);
+            const by = cam.sy(g.y, g.depth);
             const f = g.facing;
             const rBase = cam.len(6 + spread * 9);
             // 贴地翻滚扬起的暖灰尘烟（非冰青科幻残影）
@@ -168,6 +170,30 @@ export class ActorsRenderer {
         }
     }
 
+    /** 计算角色脚下最近的支撑面高度，滞空阴影落在脚下平台而非穿底掉回 y=0。 */
+    private supportGroundY(p: Play, a: Actor): number {
+        const half = a.w * 0.5;
+        let g = 0;
+        let i = 0;
+        for (i = 0; i < p.room.floors.length; i++) {
+            const f = p.room.floors[i];
+            if (a.x + half > f.x0 && a.x - half < f.x1 && f.y <= a.y + 0.5 && f.y > g) {
+                g = f.y;
+            }
+        }
+        for (i = 0; i < p.boxes.length; i++) {
+            const b = p.boxes[i];
+            if (b.broken === true || b.hidden === true || b.soft === true) {
+                continue;
+            }
+            if (a.x + half > b.x0 && a.x - half < b.x1 && b.y1 <= a.y + 0.5 && b.y1 > g &&
+                overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF)) {
+                g = b.y1;
+            }
+        }
+        return g;
+    }
+
     /** 周戍。动作贴图以脚底对齐，缺失时绘制守军轮廓。 */
     private drawZhouShu(
         fgDraw: DrawNode.Type,
@@ -181,7 +207,7 @@ export class ActorsRenderer {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
         const depthEnabled = p.room.depth !== undefined;
-        const shadowY = depthEnabled && !a.onGround ? cam.sy(0, a.depth) : by;
+        const shadowY = !a.onGround ? cam.sy(this.supportGroundY(p, a), a.depth) : by;
         const H = cam.len(a.h);
         const W = cam.len(a.w);
         const f = a.facing;
@@ -354,7 +380,7 @@ export class ActorsRenderer {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
         const depthEnabled = p.room.depth !== undefined;
-        const shadowY = depthEnabled && !a.onGround ? cam.sy(0, a.depth) : by;
+        const shadowY = !a.onGround ? cam.sy(this.supportGroundY(p, a), a.depth) : by;
         const H = cam.len(a.h);
         const W = cam.len(a.w);
         const f = a.facing;
@@ -530,6 +556,25 @@ export class ActorsRenderer {
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
 
+        // 试射靶（escort3 工台靶位）：绘作明代草束木靶架，不画成活体倭寇士兵
+        if (e.kind === "target") {
+            const lean = !e.alive ? f * cam.len(16) : (e.hitT > 0 ? f * cam.len(8) : 0);
+            const postTopY = by + H * (e.alive ? 0.78 : 0.42);
+            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.52, 3.6, Color(12, 11, 13, 140));
+            // 交叉木桩架
+            fgDraw.drawSegment(Vec2(cx - cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(92, 64, 42, 255));
+            fgDraw.drawSegment(Vec2(cx + cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(76, 52, 34, 255));
+            // 圆草靶面与朱砂靶心
+            const discX = cx + lean;
+            const discY = by + H * (e.alive ? 0.56 : 0.30);
+            const discR = Math.max(7, cam.len(13));
+            const hitTint = e.hitT > 0 || !e.alive;
+            fgDraw.drawCircle(Vec2(discX, discY), discR, hitTint ? Color(214, 152, 116, 245) : Color(196, 174, 134, 250));
+            fgDraw.drawRing(Vec2(discX, discY), discR * 0.62, discR * 0.76, Color(0, 0, 0, 0), 1.4, Color(62, 46, 34, 230));
+            fgDraw.drawCircle(Vec2(discX, discY), discR * 0.30, toColor(PALETTE.rouge, hitTint ? 255 : 220));
+            return;
+        }
+
         let slot: AssetSlotKey = "enemy_idle";
         if (!e.alive) {
             slot = "enemy_down";
@@ -542,8 +587,11 @@ export class ActorsRenderer {
         if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W, height, {
             facing: f, opacity: e.alive ? 1 : 0.78, layer: p.room.depth === undefined ? 3 : depthOrder(depth, 3),
         })) {
-            if (e.alive && e.warnT > 0) {
-                this.drawEnemyWarning(fgGlow, e, p, cam, f);
+            if (e.alive) {
+                this.drawEnemyArchetypeGear(fgDraw, fgGlow, e, cx, by, H, f, cam);
+                if (e.warnT > 0) {
+                    this.drawEnemyWarning(fgGlow, e, p, cam, f);
+                }
             }
             return;
         }
@@ -599,8 +647,59 @@ export class ActorsRenderer {
         const gunX = cx + f * H * 0.34;
         const gunY = by + H * 0.69;
         fgDraw.drawSegment(Vec2(cx - f * 6, gunY - 2), Vec2(gunX, gunY), 2.8, Color(118, 87, 61, 255));
+        this.drawEnemyArchetypeGear(fgDraw, fgGlow, e, cx, by, H, f, cam);
         if (e.warnT > 0) {
             this.drawEnemyWarning(fgGlow, e, p, cam, f);
+        }
+    }
+
+    /** 区分盾手 / 破障手 / 带队者的明初冷兵器轮廓（灰度与实战均一眼可辨） */
+    private drawEnemyArchetypeGear(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        e: Enemy,
+        cx: number,
+        by: number,
+        H: number,
+        f: number,
+        cam: CameraDirector,
+    ): void {
+        if (e.kind === "shield" && (e.shieldHp ?? 0) > 0) {
+            const shX = cx + f * cam.len(13);
+            const shW = Math.max(5, cam.len(8));
+            const shH = H * 0.72;
+            const cracked = (e.shieldHp ?? 2) <= 1;
+            fgDraw.drawRect(
+                Rect(shX - shW * 0.5, by + H * 0.08, shW, shH),
+                cracked ? Color(122, 82, 52, 245) : Color(96, 66, 42, 250),
+                1.3,
+                Color(168, 174, 180, 230),
+            );
+            fgDraw.drawCircle(Vec2(shX, by + H * 0.44), Math.max(2.2, cam.len(3.5)), Color(142, 148, 154, 240));
+            if (cracked) {
+                fgDraw.drawSegment(Vec2(shX - shW * 0.4, by + H * 0.28), Vec2(shX + shW * 0.4, by + H * 0.58), 1.4, Color(24, 18, 16, 235));
+            }
+        } else if (e.kind === "breaker") {
+            const swing = (e.swingT ?? 0) > 0;
+            const handleX0 = cx - f * cam.len(4);
+            const handleY0 = by + H * 0.44;
+            const tipX = cx + f * cam.len(swing ? 26 : 19);
+            const tipY = by + H * (swing ? 0.46 : 0.78);
+            fgDraw.drawSegment(Vec2(handleX0, handleY0), Vec2(tipX, tipY), Math.max(2.2, cam.len(3.0)), Color(98, 66, 44, 255));
+            fgDraw.drawPolygon([
+                Vec2(tipX - f * cam.len(3), tipY - cam.len(4)),
+                Vec2(tipX + f * cam.len(9), tipY - cam.len(1)),
+                Vec2(tipX + f * cam.len(7), tipY + cam.len(9)),
+                Vec2(tipX - f * cam.len(2), tipY + cam.len(6)),
+            ], Color(148, 154, 162, 250), 1.0, Color(224, 228, 232, 220));
+            if (swing) {
+                fgGlow.drawArc(Vec2(cx + f * cam.len(10), by + H * 0.56), cam.len(18), f > 0 ? -40 : 140, f > 0 ? 50 : 230, 1.8, toColor(PALETTE.rouge, 195));
+            }
+        } else if (e.kind === "leader") {
+            // 侧线带队者：笠顶朱缨与肩带辨识
+            const topY = by + H * 1.02;
+            fgDraw.drawSegment(Vec2(cx, topY), Vec2(cx - f * cam.len(10), topY + cam.len(9)), 2.2, toColor(PALETTE.rouge, 240));
+            fgDraw.drawDot(Vec2(cx - f * cam.len(10), topY + cam.len(9)), 2.6, toColor(PALETTE.crimsonCore, 235));
         }
     }
 
@@ -688,8 +787,8 @@ export class ActorsRenderer {
         const cx = cam.sx(p.dogX);
         const by = cam.sy(0);
         const f = p.dogState === "chase" ? (p.player.x >= p.dogX ? 1 : -1) : p.dogDir;
-        const W = cam.len(34);
-        const H = cam.len(28);
+        const W = cam.len(42);
+        const H = cam.len(34);
 
         let frame = 0;
         if (p.dogState === "ear") {

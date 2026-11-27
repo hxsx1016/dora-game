@@ -1,0 +1,300 @@
+name: Release Windows Portable Packages
+
+on:
+  pull_request:
+    paths:
+      - 'init.ts'
+      - 'init.lua'
+      - 'Script/**'
+      - 'assets/**'
+      - 'art-source/brand/icons/**'
+      - 'tools/make-windows-pack.sh'
+      - 'tools/make-dora-source-pack.sh'
+      - 'tools/windows-boot.lua'
+      - 'tools/windows-game-id'
+      - 'tools/windows-pack-README.md'
+      - 'tools/audit-assets.py'
+      - '.github/workflows/release-windows.yml'
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本标识（如 v0.1.0-rc1；留空默认取 tag 或短 commit）'
+        required: false
+        default: ''
+        type: string
+      publish_release:
+        description: '是否同时发布 GitHub Release（仅手动触发时生效；tag 触发默认发布）'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  DORA_VERSION: v1.10.2
+  EXE_NAME: WestwardWatch
+
+jobs:
+  package:
+    name: Build Windows (D3D12 + OpenGL) & Dora Source Packages
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Resolve package version
+        id: meta
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VER="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VER="${GITHUB_REF#refs/tags/}"
+          else
+            VER="dev-${GITHUB_SHA::7}"
+          fi
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "Packaging version: ${VER}"
+
+      - name: Run repository and asset audits
+        run: |
+          python3 tools/check-repo.py
+          python3 tools/audit-assets.py
+
+      - name: Download and verify official Dora SSR Windows runtime packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dora-engine" "$RUNNER_TEMP/win-d3d12" "$RUNNER_TEMP/win-opengl"
+          gh release download "${DORA_VERSION}" --repo IppClub/Dora-SSR --dir "$RUNNER_TEMP/dora-engine" \
+            --pattern "dora-ssr-${DORA_VERSION}-windows-x64.zip" \
+            --pattern "dora-ssr-${DORA_VERSION}-windows-x64-opengl.zip" \
+            --pattern "SHA256SUMS"
+          (
+            cd "$RUNNER_TEMP/dora-engine"
+            grep -E "dora-ssr-${DORA_VERSION}-windows-x64(-opengl)?\.zip$" SHA256SUMS | sha256sum -c -
+          )
+          unzip -q "$RUNNER_TEMP/dora-engine/dora-ssr-${DORA_VERSION}-windows-x64.zip" -d "$RUNNER_TEMP/win-d3d12"
+          unzip -q "$RUNNER_TEMP/dora-engine/dora-ssr-${DORA_VERSION}-windows-x64-opengl.zip" -d "$RUNNER_TEMP/win-opengl"
+
+      - name: Assemble portable ZIP bundles
+        run: |
+          D3D12_DIR="$(dirname "$(find "$RUNNER_TEMP/win-d3d12" -maxdepth 2 -name Dora.exe | head -n 1)")"
+          OPENGL_DIR="$(dirname "$(find "$RUNNER_TEMP/win-opengl" -maxdepth 2 -name Dora.exe | head -n 1)")"
+          mkdir -p "$RUNNER_TEMP/release-out"
+
+          bash tools/make-windows-pack.sh \
+            --backend d3d12 \
+            --engine-dir "$D3D12_DIR" \
+            --out-dir "$RUNNER_TEMP/release-out" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --exe-name "${EXE_NAME}"
+
+          bash tools/make-windows-pack.sh \
+            --backend opengl \
+            --engine-dir "$OPENGL_DIR" \
+            --out-dir "$RUNNER_TEMP/release-out" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --exe-name "${EXE_NAME}"
+
+          bash tools/make-dora-source-pack.sh \
+            --out-dir "$RUNNER_TEMP/release-out" \
+            --version "${{ steps.meta.outputs.version }}"
+
+          (
+            cd "$RUNNER_TEMP/release-out"
+            sha256sum ./*.zip | sed 's| \./|  |' > SHA256SUMS.txt
+            cat SHA256SUMS.txt
+          )
+
+      - name: Upload release bundle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundles
+          path: |
+            ${{ runner.temp }}/release-out/*.zip
+            ${{ runner.temp }}/release-out/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-windows:
+    name: Windows Cold-Start Smoke Test (Chinese Path + Portable/Isolated Save)
+    needs: package
+    runs-on: windows-latest
+    steps:
+      - name: Download release bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundles
+          path: ${{ runner.temp }}\bundles
+
+      - name: Verify ZIP checksums on Windows
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "bundles"
+          $lines = Get-Content (Join-Path $dir "SHA256SUMS.txt")
+          foreach ($line in $lines) {
+            if ($line -match '^([0-9a-fA-F]{64})\s+(.+)$') {
+              $expected = $matches[1].ToLower()
+              $file = Join-Path $dir $matches[2].Trim()
+              $actual = (Get-FileHash -Algorithm SHA256 -Path $file).Hash.ToLower()
+              if ($actual -ne $expected) {
+                throw "SHA256 mismatch for ${file}: expected $expected got $actual"
+              }
+              Write-Host "SHA256 OK: $($matches[2].Trim())"
+            }
+          }
+
+      - name: Verify OpenGL compatibility package structure and internal manifest
+        shell: pwsh
+        run: |
+          $ver = "${{ needs.package.outputs.version }}"
+          $zip = Join-Path $env:RUNNER_TEMP "bundles\${env:EXE_NAME}-${ver}-windows-x64-opengl.zip"
+          $dest = Join-Path $env:RUNNER_TEMP "verify-opengl"
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          $root = Join-Path $dest "${env:EXE_NAME}-${ver}-windows-x64-opengl"
+          foreach ($req in @("${env:EXE_NAME}.exe", "${env:EXE_NAME}.ico", "LICENSE", "dora-game-id", "Script\init.lua", "Script\main.lua", "assets\art\title.png", "assets\art\brand\game_logo_h.png", "assets\art\brand\team_logo_dark.png", "assets\art\brand\app_icon.png", "assets\audio\combat\shot.wav", "SHA256SUMS")) {
+            $p = Join-Path $root $req
+            if (-not (Test-Path $p)) { throw "Missing required file in OpenGL pack: $req" }
+          }
+          foreach ($bad in @("www", "Doc", "dora-wa", "dora_godot.dll", "wa.dll", "Script\Dev", "Script\Tools", "Script\watch\testdrive.lua")) {
+            if (Test-Path (Join-Path $root $bad)) { throw "Forbidden dev file present in OpenGL pack: $bad" }
+          }
+          Write-Host "OpenGL package structure verified cleanly."
+
+      - name: Run D3D12 portable cold-start smoke test in Chinese + space directory
+        shell: pwsh
+        run: |
+          $ver = "${{ needs.package.outputs.version }}"
+          $zip = Join-Path $env:RUNNER_TEMP "bundles\${env:EXE_NAME}-${ver}-windows-x64.zip"
+          $cnBase = Join-Path $env:RUNNER_TEMP "向西守望 便携验收测试"
+          New-Item -ItemType Directory -Path $cnBase -Force | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $cnBase -Force
+          $packDir = Join-Path $cnBase "${env:EXE_NAME}-${ver}-windows-x64"
+          $exe = Join-Path $packDir "${env:EXE_NAME}.exe"
+          $gameId = (Get-Content (Join-Path $packDir "dora-game-id") -Raw).Trim()
+          $appdataLog = Join-Path $env:APPDATA "IppClub\DoraGame-$gameId\log.txt"
+
+          function Dump-DoraLogs($label) {
+            Write-Host "=== Diagnostic logs ($label) ==="
+            foreach ($cand in @($appdataLog, (Join-Path $env:APPDATA "Dora\DoraGame-$gameId\log.txt"), (Join-Path $packDir "save\log.txt"))) {
+              if (Test-Path $cand) {
+                Write-Host "--- $cand ---"
+                Get-Content $cand -Tail 60
+              }
+            }
+          }
+
+          # Round 1: default isolated %APPDATA% save mode (cwd deliberately != exe dir to prove dora-game-id assetPath anchor)
+          Set-Content -Path (Join-Path $packDir ".ci-smoke-test") -Value "1" -Encoding ascii
+          $proc = Start-Process -FilePath $exe -WorkingDirectory $env:RUNNER_TEMP -PassThru
+          if (-not $proc.WaitForExit(45000)) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            Dump-DoraLogs "round1-timeout"
+            throw "Smoke round 1 timed out after 45s"
+          }
+          $resultFile = Join-Path $packDir ".ci-smoke-result.txt"
+          if (-not (Test-Path $resultFile)) {
+            Dump-DoraLogs "round1-missing-result"
+            throw "Smoke round 1 did not produce .ci-smoke-result.txt (exit=$($proc.ExitCode))"
+          }
+          $res1 = Get-Content $resultFile -Raw
+          Write-Host "=== Smoke Round 1 (D3D12, Isolated Save, cwd != exe dir) ==="
+          Write-Host $res1
+          if ($res1 -notmatch "SMOKE_OK" -or $res1 -match "FAIL " -or $res1 -notmatch "portableSave=false") {
+            Dump-DoraLogs "round1-failed"
+            throw "Smoke round 1 failed verification"
+          }
+          if ($proc.ExitCode -ne 0) {
+            Dump-DoraLogs "round1-exit"
+            throw "Smoke round 1 exited with non-zero code: $($proc.ExitCode)"
+          }
+
+          # Round 2: true portable save/ mode
+          Remove-Item $resultFile -Force
+          New-Item -ItemType Directory -Path (Join-Path $packDir "save") -Force | Out-Null
+          $proc2 = Start-Process -FilePath $exe -WorkingDirectory $packDir -PassThru
+          if (-not $proc2.WaitForExit(45000)) {
+            Stop-Process -Id $proc2.Id -Force -ErrorAction SilentlyContinue
+            Dump-DoraLogs "round2-timeout"
+            throw "Smoke round 2 timed out after 45s"
+          }
+          if (-not (Test-Path $resultFile)) {
+            Dump-DoraLogs "round2-missing-result"
+            throw "Smoke round 2 did not produce .ci-smoke-result.txt (exit=$($proc2.ExitCode))"
+          }
+          $res2 = Get-Content $resultFile -Raw
+          Write-Host "=== Smoke Round 2 (D3D12, Portable save/ Mode) ==="
+          Write-Host $res2
+          if ($res2 -notmatch "SMOKE_OK" -or $res2 -match "FAIL " -or $res2 -notmatch "portableSave=true") {
+            Dump-DoraLogs "round2-failed"
+            throw "Smoke round 2 failed verification"
+          }
+          if ($proc2.ExitCode -ne 0) {
+            Dump-DoraLogs "round2-exit"
+            throw "Smoke round 2 exited with non-zero code: $($proc2.ExitCode)"
+          }
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [package, smoke-windows]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download release bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundles
+          path: ${{ runner.temp }}/bundles
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ needs.package.outputs.version }}"
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          # 《向西守望》${VER} 便携发行版
+
+          本版本已通过仓库结构校验、静态资产与中文字库审计，以及 Windows CI 中文路径冷启动自动化冒烟验收。
+
+          ## 下载说明（免安装、免配置环境）
+
+          | 文件 | 适用场景 |
+          | --- | --- |
+          | \`${EXE_NAME}-${VER}-windows-x64.zip\` | **推荐（Windows 10/11 标准版）**：Direct3D 12 后端，完整解压后双击 \`${EXE_NAME}.exe\` 或 \`启动-向西守望.cmd\` 即玩 |
+          | \`${EXE_NAME}-${VER}-windows-x64-opengl.zip\` | **兼容版（Windows 10/11 OpenGL）**：老旧显卡或虚拟机若提示 Direct3D 12 初始化失败请下载此版本 |
+          | \`${EXE_NAME}-${VER}-dora-source.zip\` | **Dora SSR v1.10.2 兼容源码包**：供 Dora 开源社区奖审核及跨平台 Dora 客户端直接运行 |
+          | \`SHA256SUMS.txt\` | 发行包 SHA-256 校验清单 |
+
+          ## 便携提示
+
+          - 默认存档自动隔离于 \`%APPDATA%\IppClub\DoraGame-7a9d4e21c8f34b6ea1d05c83b2f69e41\watch-save\archive.txt\`；
+          - 若希望将存档随身保存在游戏目录内，在 \`${EXE_NAME}.exe\` 同级新建空文件夹 \`save\` 即可。
+          - 全屏切换快捷键：\`F11\` 或 \`Alt+Enter\`；标题页与暂停菜单均提供「退出游戏」。
+          EOF
+
+          # 保留已有 Release Notes（避免覆盖 Android/Web 并发写入的说明）；仅在创建或尚未含多端说明时更新
+          if gh release view "${VER}" >/dev/null 2>&1; then
+            gh release upload "${VER}" "$RUNNER_TEMP/bundles/"* --clobber
+          else
+            PRERELEASE_FLAG=""
+            if [[ "${VER}" == *-* ]]; then
+              PRERELEASE_FLAG="--prerelease"
+            fi
+            if ! gh release create "${VER}" "$RUNNER_TEMP/bundles/"* \
+              --title "《向西守望》${VER}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              ${PRERELEASE_FLAG}; then
+              # 并发 tag 发布竞态兜底：另一工作流刚建完 Release，直接追加上传资产
+              gh release upload "${VER}" "$RUNNER_TEMP/bundles/"* --clobber
+            fi
+          fi

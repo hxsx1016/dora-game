@@ -274,7 +274,8 @@ export class VillageUndertableScene {
     }
 
     getCulvertWorldX(p: Play): number {
-        return p.room.passLine ?? (p.ox + 440);
+        // 对齐 VILLAGE_ROOM 后端暗渠口（560..640，中心 600；passLine=440 为院门通行线而非暗渠）
+        return p.ox + 600;
     }
 
     /** 判定落点材质：优先消费后端 e.data.surface，缺失时按真实世界坐标 x 分类 */
@@ -416,9 +417,9 @@ export class VillageUndertableScene {
             this.underTableFocus = targetFocus;
         }
 
-        // 桌下低机位锚定（与 screenToWorld 严格互逆，单屏完整框住桌下、暗渠、鞋底、铁盆与硬砖）
-        const focusAnchorX = Math.max(p.ox + 344, Math.min(p.ox + 408, p.ox + 362 + (p.player.x - (p.ox + 320)) * 0.14));
-        const zoom = 0.90 + (1 - this.underTableFocus) * 0.04;
+        // 桌下低机位锚定（与 screenToWorld 严格互逆，同时保持人物与木桌自然体量比例）
+        const focusAnchorX = Math.max(p.ox + 305, Math.min(p.ox + 455, p.ox + 355 + (p.player.x - (p.ox + 320)) * 0.28));
+        const zoom = 1.04 + (1 - this.underTableFocus) * 0.04;
         ctx.cam.setAnchorLock({
             footWorldX: focusAnchorX,
             footWorldY: 0,
@@ -480,19 +481,17 @@ export class VillageUndertableScene {
             this.rings.push({ x: bx, y: 12, age: -0.28, duration: 1.32, maxRadius: 136, kind: "iron" });
             this.spawnShards(bx, 12, "iron", 7);
 
-            // 若后端尚未下发 surface="iron"，由本插件叠加铁盆金属余振（后端补齐后自动避让不重播）
-            if (explicitSurface !== "iron") {
-                const key = "fe04:village:iron_ring:" + ctx.events.roomSessionId + ":" + ev.tick + ":" + ev.seq;
-                ctx.audio.playOnce(
-                    key,
-                    "sfx",
-                    CHILD_AUDIO_ROOT + "bottle_iron_ring.wav",
-                    0.82,
-                    "fe04:bottle:iron_ring",
-                    ev.tick,
-                    ev.seq,
-                );
-            }
+            // 叠加铁盆第二声金属余振（与 audio.ts 主撞击音 bottle_iron.wav 形成双响层次）
+            const key = "fe04:village:iron_ring:" + ctx.events.roomSessionId + ":" + ev.tick + ":" + ev.seq;
+            ctx.audio.playOnce(
+                key,
+                "sfx",
+                CHILD_AUDIO_ROOT + "bottle_iron_ring.wav",
+                0.82,
+                "fe04:bottle:iron_ring",
+                ev.tick,
+                ev.seq,
+            );
         } else if (surface === "brick") {
             this.brickHits += 1;
             // 砸硬砖：拾荒者鞋尖先微顿约 0.14s，再果断转向调查方向
@@ -722,30 +721,51 @@ export class VillageUndertableScene {
             innerRimStrength: 0.42,
         });
 
-        // 3. 瓶架（rooms.ts solid: x=96..128, h=64）与院墙（x=672..720, h=96）
+        // 3. 瓶架（rooms.ts solid: x=96..128, h=52，镂空木架结构）与院墙（x=672..720, h=96）
         scene.addBox({
             x0: ox + 96,
-            x1: ox + 128,
+            x1: ox + 101,
             y0: 0,
-            y1: 64,
-            z0: -8,
-            z1: 36,
+            y1: 52,
+            z0: -6,
+            z1: 24,
             material: MAT_TABLE_WOOD,
             bucket: LP_BUCKET.WALK_DECK,
-            highlightTopEdge: true,
-            edgeWidth: 0.9,
+            edgeWidth: 0.8,
         });
-        // 瓶架隔板横条
         scene.addBox({
-            x0: ox + 94,
-            x1: ox + 130,
-            y0: 32,
-            y1: 36,
-            z0: -10,
-            z1: 34,
+            x0: ox + 123,
+            x1: ox + 128,
+            y0: 0,
+            y1: 52,
+            z0: -6,
+            z1: 24,
+            material: MAT_TABLE_WOOD,
+            bucket: LP_BUCKET.WALK_DECK,
+            edgeWidth: 0.8,
+        });
+        scene.addBox({
+            x0: ox + 95,
+            x1: ox + 129,
+            y0: 24,
+            y1: 28,
+            z0: -8,
+            z1: 26,
             material: MING_MATERIALS.mingTimber,
             bucket: LP_BUCKET.WALK_DECK,
             sortBias: 0.05,
+        });
+        scene.addBox({
+            x0: ox + 94,
+            x1: ox + 130,
+            y0: 48,
+            y1: 52,
+            z0: -8,
+            z1: 26,
+            material: MING_MATERIALS.mingTimber,
+            bucket: LP_BUCKET.WALK_DECK,
+            highlightTopEdge: true,
+            sortBias: 0.06,
         });
         // 院墙（x = 672..720, h = 96）+ 青瓦墙帽
         scene.addBox({
@@ -772,55 +792,56 @@ export class VillageUndertableScene {
             sortBias: 0.08,
         });
 
-        // 4. 矮木桌中后部（严格贴合 arch = 304..416, y = 0..44；后桌腿在 z > 0，桌面在 y = 44..54）
+        // 4. 唯一明式木桌后半部（严格贴合 arch = 304..416, y = 0..44；后桌腿与后档横枨在 z > 0，
+        //    前半部桌面、前桌腿与粗瓷碗在 drawForegroundOverlay 中绘制，杜绝双桌叠加）
         const arch = p.room.arch;
         // 左后桌腿与右后桌腿
         scene.addBox({
-            x0: arch.x0 - 2,
-            x1: arch.x0 + 10,
+            x0: arch.x0 - 1,
+            x1: arch.x0 + 7,
             y0: 0,
             y1: arch.h,
-            z0: 14,
-            z1: 28,
+            z0: 12,
+            z1: 22,
             material: MAT_TABLE_WOOD,
             bucket: LP_BUCKET.MIDGROUND,
             edgeWidth: 0.8,
         });
         scene.addBox({
-            x0: arch.x1 - 10,
-            x1: arch.x1 + 2,
+            x0: arch.x1 - 7,
+            x1: arch.x1 + 1,
             y0: 0,
             y1: arch.h,
-            z0: 14,
-            z1: 28,
+            z0: 12,
+            z1: 22,
             material: MAT_TABLE_WOOD,
             bucket: LP_BUCKET.MIDGROUND,
             edgeWidth: 0.8,
         });
-        // 桌面本体（净空底部严守 y = 44，绝不侵占蹲伏高度 36）
+        // 后侧横枨（贴桌底 y = 39..44，强化真实木桌结构）
         scene.addBox({
-            x0: arch.x0 - 12,
-            x1: arch.x1 + 12,
+            x0: arch.x0 + 7,
+            x1: arch.x1 - 7,
+            y0: arch.h - 5,
+            y1: arch.h,
+            z0: 14,
+            z1: 20,
+            material: MAT_TABLE_WOOD,
+            bucket: LP_BUCKET.MIDGROUND,
+            edgeWidth: 0.6,
+        });
+        // 桌面后半部（y = 44..52，与前景桌沿无缝拼接为同一张木桌）
+        scene.addBox({
+            x0: arch.x0 - 8,
+            x1: arch.x1 + 8,
             y0: arch.h,
-            y1: arch.h + 11,
-            z0: -16,
-            z1: 36,
+            y1: arch.h + 8,
+            z0: 4,
+            z1: 28,
             material: MAT_TABLE_WOOD,
             bucket: LP_BUCKET.WALK_DECK,
             highlightTopEdge: true,
-            edgeWidth: 0.9,
-        });
-        // 桌面上粗瓷碗剪影（叙事细部，位于 y = 55 之上不挡净空）
-        scene.addBox({
-            x0: arch.x0 + 28,
-            x1: arch.x0 + 44,
-            y0: arch.h + 11,
-            y1: arch.h + 18,
-            z0: 4,
-            z1: 18,
-            material: MING_MATERIALS.mingStoneStep,
-            bucket: LP_BUCKET.PROP,
-            highlightTopEdge: true,
+            edgeWidth: 0.8,
         });
 
         // 5. 暗渠入口（位于 passLine = 440，阴影里凭冷月石沿与深暗格栅清晰可读）
@@ -1137,22 +1158,22 @@ export class VillageUndertableScene {
         const p = ctx.p;
         const cam = ctx.cam;
 
-        // 1. 瓶架上未拾取陶瓶
+        // 1. 瓶架上未拾取陶瓶（稳稳立在 h=52 瓶架顶板上）
         const bottle = p.room.bottle;
         if (bottle !== undefined && !p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0) {
-            this.drawCeramicBottle(fgDraw, fgGlow, worldArt, "fe04_bottle_shelf", cam.sx(bottle.x), cam.sy(67), cam.ppu, 0, true);
+            this.drawCeramicBottle(fgDraw, fgGlow, worldArt, "fe04_bottle_shelf", cam.sx(bottle.x), cam.sy(56), cam.ppu, 0, true);
         }
 
-        // 2. 手上持瓶与飞行中陶瓶
-        if (p.hasBottle) {
+        // 2. 手上持瓶与飞行中陶瓶（瞄准时 child_aim 精灵手里已有瓶子，不重复叠画第二只）
+        if (p.hasBottle && p.aimHold <= 0) {
             const pl = p.player;
             this.drawCeramicBottle(
                 fgDraw,
                 fgGlow,
                 worldArt,
                 "fe04_bottle_held",
-                cam.sx(pl.x + pl.facing * 11),
-                cam.sy(pl.y + pl.h * 0.56),
+                cam.sx(pl.x + pl.facing * 10),
+                cam.sy(pl.y + pl.h * 0.52),
                 cam.ppu,
                 pl.facing * 0.22,
                 false,
@@ -1231,7 +1252,7 @@ export class VillageUndertableScene {
         tilt: number,
         shelfGlint: boolean,
     ): void {
-        const size = Math.max(12, ppu * 13);
+        const size = Math.max(10, ppu * 10.5);
         if (!worldArt.tryPlace("prop_bottle", id, cx, cy, size, size, {
             angle: (tilt * 180) / Math.PI,
             layer: 8,
@@ -1257,30 +1278,30 @@ export class VillageUndertableScene {
             this.drawScavengerShoeOverlay(fgDraw, fgGlow, p, cam);
         }
 
-        // 暂停态下 uiDraw 不运行，使用 worldArt 高层木柱与顶梁兜底保持前景桌腿压迫构图不跳闪
+        // 暂停态下 uiDraw 不运行，使用 worldArt 贴合同一木桌真实尺度兜底，绝不弹出巨型黑块
         if (ctx.paused) {
             const arch = p.room.arch;
-            const pTopL = projectWorld3D(arch.x0 - 160, arch.h + 18, -68, cam, this.proj);
-            const pTopR = projectWorld3D(arch.x1 + 95, arch.h + 18, -68, cam, this.proj);
+            const pTopBL = projectWorld3D(arch.x0 - 8, arch.h, -15, cam, this.proj);
+            const pTopTR = projectWorld3D(arch.x1 + 8, arch.h + 8, -15, cam, this.proj);
             worldArt.tryPlace(
                 "cover_wood",
                 "fe04_pause_table_top",
-                (pTopL.x + pTopR.x) * 0.5,
-                pTopL.y,
-                Math.max(20, Math.abs(pTopR.x - pTopL.x)),
-                Math.max(40, cam.viewH - pTopL.y + 40),
-                { color: Color(24, 18, 15, 255), opacity: 0.96, layer: 5300 },
+                (pTopBL.x + pTopTR.x) * 0.5,
+                pTopBL.y,
+                Math.max(20, Math.abs(pTopTR.x - pTopBL.x)),
+                Math.max(8, Math.abs(pTopTR.y - pTopBL.y)),
+                { color: Color(46, 35, 27, 255), opacity: 0.96, layer: 5300 },
             );
-            const legBL = projectWorld3D(arch.x1 - 8, -28, -66, cam, this.proj);
-            const legTR = projectWorld3D(arch.x1 + 14, arch.h + 24, -66, cam, this.proj);
+            const legBL = projectWorld3D(arch.x1 - 6, 0, -15, cam, this.proj);
+            const legTR = projectWorld3D(arch.x1 + 1, arch.h, -15, cam, this.proj);
             worldArt.tryPlace(
                 "cover_wood",
                 "fe04_pause_table_leg",
                 (legBL.x + legTR.x) * 0.5,
                 legBL.y,
-                Math.max(12, Math.abs(legTR.x - legBL.x)),
-                Math.max(40, Math.abs(legTR.y - legBL.y)),
-                { color: Color(22, 16, 13, 255), opacity: 0.96, layer: 5310 },
+                Math.max(6, Math.abs(legTR.x - legBL.x)),
+                Math.max(16, Math.abs(legTR.y - legBL.y)),
+                { color: Color(34, 25, 19, 255), opacity: 0.96, layer: 5310 },
             );
         }
     }
@@ -1335,10 +1356,11 @@ export class VillageUndertableScene {
     }
 
     /**
-     * 在 uiDraw 层（严格位于 2D 角色精灵 worldArt 之前、HUD 文本之后）绘制 3D 透视前景压迫遮挡：
-     * - 压在画面上部的厚重木桌沿与桌围；
-     * - 遮住半边院门的前景粗木桌腿；
-     * 固定返回 false，绝不压隐 HUD、字幕或投瓶准星。
+     * 在 uiDraw 层（严格位于 2D 角色精灵 worldArt 之前、HUD 文本之后）绘制与 drawWorld
+     * 严格 1:1 对齐的唯一明式木桌前景部分（前桌腿 + 桌面沿 + 粗瓷碗）：
+     * - 彻底消除旧版「巨型前景桌压在小桌上」的双桌畸变，保证桌高 44、宽 128 与人物尺度严密契合；
+     * - 小满从前后桌腿之间、桌面之下穿行时呈现自然真实的前后遮挡层次；
+     * - 固定返回 false，绝不压隐 HUD、字幕或投瓶准星。
      */
     drawForegroundOverlay(
         uiDraw: DrawNode.Type,
@@ -1352,111 +1374,76 @@ export class VillageUndertableScene {
         const inv = 1 / Math.max(0.25, ctx.uiScale);
         const arch = p.room.arch;
 
-        // 1. 画面上部压迫木桌沿（wz = -76..-20）：保留厚重桌沿 + 桌下横梁 + 上沿桌面透视与冷灶瓦檐微景，
-        //    避免整块死黑方盒占满左半屏，呈现真正《小小梦魇》风巨型木桌纵深感
-        const tableBottomY = arch.h + 18 + (1 - this.underTableFocus) * 12;
-        const slabThick = 24;
-        const apronTopY = tableBottomY + slabThick;
-        const xLeft = p.ox - 80;
-        const xRight = arch.x1 + 52;
+        const xLeft = arch.x0 - 8;
+        const xRight = arch.x1 + 8;
+        const tableBotY = arch.h;
+        const tableTopY = arch.h + 8;
+        const zFront = -15;
+        const zMid = 4;
 
-        // 桌底暗面（从桌下仰视可见的厚重木桌底面与横撑，z = -18..-74）
-        const bFarL = projectWorld3D(xLeft, tableBottomY - 4, -18, cam, this.proj);
-        const bFarR = projectWorld3D(xRight, tableBottomY - 4, -18, cam, this.proj);
-        const bNearR = projectWorld3D(xRight, tableBottomY + 4, -74, cam, this.proj);
-        const bNearL = projectWorld3D(xLeft, tableBottomY + 4, -74, cam, this.proj);
-        drawUiQuad(uiDraw, bFarL, bFarR, bNearR, bNearL, Color(16, 12, 10, 242), Color(32, 24, 19, 248), inv, Color(88, 68, 52, 125), 1.0);
-        // 桌底纵向木撑条纹
-        let beamIdx = 0;
-        for (beamIdx = 0; beamIdx < 4; beamIdx++) {
-            const bx = xLeft + 110 + beamIdx * 105;
-            const p0 = projectWorld3D(bx, tableBottomY - 3, -18, cam, this.proj);
-            const p1 = projectWorld3D(bx, tableBottomY + 3, -74, cam, this.proj);
-            uiDraw.drawSegment(Vec2(p0.x * inv, p0.y * inv), Vec2(p1.x * inv, p1.y * inv), 1.2, Color(56, 42, 32, 155));
-        }
+        // 1. 两侧前桌腿（宽 7 单位，严守 y = 0..44，站在地面上绝不穿地）
+        const drawFrontLeg = (lx0: number, lx1: number): void => {
+            const mBL = projectWorld3D(lx0, 0, zFront, cam, this.proj);
+            const mBR = projectWorld3D(lx1, 0, zFront, cam, this.proj);
+            const mTR = projectWorld3D(lx1, tableBotY, zFront, cam, this.proj);
+            const mTL = projectWorld3D(lx0, tableBotY, zFront, cam, this.proj);
+            drawUiQuad(uiDraw, mBL, mBR, mTR, mTL, Color(26, 20, 15, 250), Color(38, 29, 22, 252), inv, Color(88, 70, 54, 145), 0.9);
+            // 桌腿受院门冷月侧光擦亮的右侧面
+            const sBR = projectWorld3D(lx1, 0, zFront + 7, cam, this.proj);
+            const sTR = projectWorld3D(lx1, tableBotY, zFront + 7, cam, this.proj);
+            drawUiQuad(uiDraw, mBR, sBR, sTR, mTR, Color(44, 34, 26, 248), Color(66, 52, 40, 250), inv, Color(138, 120, 102, 155), 0.8);
+        };
+        drawFrontLeg(arch.x0 - 1, arch.x0 + 6);
+        drawFrontLeg(arch.x1 - 6, arch.x1 + 1);
 
-        // 厚重明代杉木桌沿正面（厚 24 单位，带两道木板接缝与侧光木棱）
-        const fBotL = bNearL;
-        const fBotR = bNearR;
-        const fTopR = projectWorld3D(xRight, apronTopY, -74, cam, this.proj);
-        const fTopL = projectWorld3D(xLeft, apronTopY, -74, cam, this.proj);
-        drawUiQuad(uiDraw, fBotL, fBotR, fTopR, fTopL, Color(34, 25, 19, 252), Color(54, 40, 30, 254), inv, Color(118, 94, 72, 145), 1.1);
-        const fMidL = projectWorld3D(xLeft, tableBottomY + slabThick * 0.52, -74, cam, this.proj);
-        const fMidR = projectWorld3D(xRight, tableBottomY + slabThick * 0.52, -74, cam, this.proj);
-        uiDraw.drawSegment(Vec2(fMidL.x * inv, fMidL.y * inv), Vec2(fMidR.x * inv, fMidR.y * inv), 0.9, Color(18, 13, 10, 195));
-        // 桌沿下边缘受院门冷月侧光擦亮一条温润木棱
-        uiDraw.drawSegment(
-            Vec2(fBotL.x * inv, fBotL.y * inv),
-            Vec2(fBotR.x * inv, fBotR.y * inv),
-            1.6,
-            Color(148, 126, 104, 185),
-        );
+        // 2. 桌下前景暗影底面（z = zFront..zMid，y = arch.h，保留清晰 44 单位净空）
+        const bFarL = projectWorld3D(xLeft, tableBotY, zMid, cam, this.proj);
+        const bFarR = projectWorld3D(xRight, tableBotY, zMid, cam, this.proj);
+        const bNearR = projectWorld3D(xRight, tableBotY, zFront, cam, this.proj);
+        const bNearL = projectWorld3D(xLeft, tableBotY, zFront, cam, this.proj);
+        drawUiQuad(uiDraw, bFarL, bFarR, bNearR, bNearL, Color(18, 14, 11, 236), Color(28, 21, 16, 242), inv, Color(76, 58, 44, 115), 0.8);
 
-        // 桌面上方暗影压顶屋梁（顶部约 20% 柔暗屋檐，留出桌面以上透气深空与灶烟层次）
-        const roofBotY = apronTopY + 56;
-        const roofTopY = apronTopY + 150;
-        const rBL = projectWorld3D(xLeft, roofBotY, -74, cam, this.proj);
-        const rBR = projectWorld3D(xRight, roofBotY, -74, cam, this.proj);
-        const rTR = projectWorld3D(xRight, roofTopY, -74, cam, this.proj);
-        const rTL = projectWorld3D(xLeft, roofTopY, -74, cam, this.proj);
-        drawUiQuad(uiDraw, rBL, rBR, rTR, rTL, Color(10, 9, 12, 165), Color(7, 7, 10, 248), inv);
-        // 桌面顶沿微暗收光（与上方冷室空间拉开层次）
-        const topBackL = projectWorld3D(xLeft, apronTopY + 12, -24, cam, this.proj);
-        const topBackR = projectWorld3D(xRight, apronTopY + 12, -24, cam, this.proj);
-        drawUiQuad(uiDraw, fTopL, fTopR, topBackR, topBackL, Color(44, 34, 26, 238), Color(22, 18, 16, 224), inv, Color(128, 108, 88, 130), 0.9);
-        // 桌面上前景粗瓷冷碗与旧木筷剪影（增添生活尺度感）
-        const bowlBL = projectWorld3D(arch.x0 + 4, apronTopY + 2, -56, cam, this.proj);
-        const bowlBR = projectWorld3D(arch.x0 + 34, apronTopY + 2, -56, cam, this.proj);
-        const bowlTR = projectWorld3D(arch.x0 + 38, apronTopY + 16, -56, cam, this.proj);
-        const bowlTL = projectWorld3D(arch.x0, apronTopY + 16, -56, cam, this.proj);
-        drawUiQuad(uiDraw, bowlBL, bowlBR, bowlTR, bowlTL, Color(62, 58, 54, 242), Color(108, 104, 98, 244), inv, Color(168, 162, 152, 170), 0.9);
+        // 3. 杉木桌面正沿（厚 8 单位，y = 44..52）
+        const fTopR = projectWorld3D(xRight, tableTopY, zFront, cam, this.proj);
+        const fTopL = projectWorld3D(xLeft, tableTopY, zFront, cam, this.proj);
+        drawUiQuad(uiDraw, bNearL, bNearR, fTopR, fTopL, Color(38, 28, 21, 252), Color(56, 42, 32, 254), inv, Color(124, 98, 76, 155), 1.0);
+        // 桌沿下边缘温润木棱
+        uiDraw.drawSegment(Vec2(bNearL.x * inv, bNearL.y * inv), Vec2(bNearR.x * inv, bNearR.y * inv), 1.2, Color(142, 122, 100, 175));
 
-        // 粗布桌围自然垂角（左侧轻垂、右侧高收，绝不挡住暗渠与拾荒者鞋底！）
-        const clothDropL = projectWorld3D(arch.x0 - 20, tableBottomY - 12, -70, cam, this.proj);
-        const clothDropMid = projectWorld3D(arch.x0 + 48, tableBottomY - 4, -70, cam, this.proj);
+        // 4. 桌面顶面透视（与 drawWorld 后半桌面无缝衔接）
+        const topBackL = projectWorld3D(xLeft, tableTopY, zMid, cam, this.proj);
+        const topBackR = projectWorld3D(xRight, tableTopY, zMid, cam, this.proj);
+        drawUiQuad(uiDraw, fTopL, fTopR, topBackR, topBackL, Color(52, 40, 30, 244), Color(32, 24, 19, 236), inv, Color(132, 110, 88, 130), 0.8);
+
+        // 5. 桌上真实比例粗瓷冷碗（14×6 世界单位 ≈ 28cm×12cm，绝非巨碗）
+        const bowlBL = projectWorld3D(arch.x0 + 24, tableTopY + 0.5, -5, cam, this.proj);
+        const bowlBR = projectWorld3D(arch.x0 + 38, tableTopY + 0.5, -5, cam, this.proj);
+        const bowlTR = projectWorld3D(arch.x0 + 40, tableTopY + 6.5, -5, cam, this.proj);
+        const bowlTL = projectWorld3D(arch.x0 + 22, tableTopY + 6.5, -5, cam, this.proj);
+        drawUiQuad(uiDraw, bowlBL, bowlBR, bowlTR, bowlTL, Color(72, 68, 62, 244), Color(118, 114, 106, 246), inv, Color(172, 166, 156, 175), 0.8);
+
+        // 6. 左角克制短粗布桌角垂布（仅下垂 7 单位，不遮挡桌下净空与小满身影）
+        const clothL = projectWorld3D(xLeft + 2, tableBotY - 7, zFront, cam, this.proj);
+        const clothR = projectWorld3D(xLeft + 26, tableBotY - 1, zFront, cam, this.proj);
         uiDraw.drawVertices([
-            [Vec2(bNearL.x * inv, bNearL.y * inv), Color(22, 18, 17, 228)],
-            [Vec2(clothDropL.x * inv, clothDropL.y * inv), Color(32, 26, 24, 214)],
-            [Vec2(clothDropMid.x * inv, clothDropMid.y * inv), Color(24, 20, 18, 205)],
+            [Vec2(bNearL.x * inv, bNearL.y * inv), Color(28, 22, 19, 224)],
+            [Vec2(clothL.x * inv, clothL.y * inv), Color(36, 29, 25, 212)],
+            [Vec2(clothR.x * inv, clothR.y * inv), Color(26, 21, 18, 198)],
         ]);
 
-        // 2. 前景一条粗重木桌腿（遮住半边院门，x = arch.x1 - 2 .. arch.x1 + 12，wz = -72..-52）
-        const legX0 = arch.x1 - 2;
-        const legX1 = arch.x1 + 12;
-        const legBotY = -36;
-        const legTopY = apronTopY;
-
-        // 桌腿迎月光的右侧立体斜面（形成厚实 3D 体积感与暖木质感）
-        const sBL = projectWorld3D(legX1, legBotY, -72, cam, this.proj);
-        const sBR = projectWorld3D(legX1, legBotY, -50, cam, this.proj);
-        const sTR = projectWorld3D(legX1, legTopY, -50, cam, this.proj);
-        const sTL = projectWorld3D(legX1, legTopY, -72, cam, this.proj);
-        drawUiQuad(uiDraw, sBL, sBR, sTR, sTL, Color(42, 32, 24, 250), Color(68, 52, 38, 252), inv, Color(142, 122, 102, 165), 1.0);
-
-        // 桌腿正面暗木块 + 竖向木纹
-        const mBL = projectWorld3D(legX0, legBotY, -72, cam, this.proj);
-        const mBR = sBL;
-        const mTR = sTL;
-        const mTL = projectWorld3D(legX0, legTopY, -72, cam, this.proj);
-        drawUiQuad(uiDraw, mBL, mBR, mTR, mTL, Color(18, 14, 11, 254), Color(30, 23, 18, 254), inv, Color(76, 58, 44, 125), 0.9);
-        const grainB = projectWorld3D((legX0 + legX1) * 0.5, legBotY, -72, cam, this.proj);
-        const grainT = projectWorld3D((legX0 + legX1) * 0.5, legTopY, -72, cam, this.proj);
-        uiDraw.drawSegment(Vec2(grainB.x * inv, grainB.y * inv), Vec2(grainT.x * inv, grainT.y * inv), 0.8, Color(46, 35, 26, 130));
-
-        // 桌腿右侧温润冷月木棱（不再是刺眼纯白竖条）
-        uiDraw.drawSegment(
-            Vec2(sBR.x * inv, sBR.y * inv),
-            Vec2(sTR.x * inv, sTR.y * inv),
-            1.1,
-            Color(172, 166, 158, 165),
-        );
-
-        // 3. 左侧极暗前景桌腿边缘压角（呼应右侧桌腿，不挡瓶架与小满）
-        const lLegBL = projectWorld3D(p.ox + 64, -36, -82, cam, this.proj);
-        const lLegBR = projectWorld3D(p.ox + 78, -36, -82, cam, this.proj);
-        const lLegTR = projectWorld3D(p.ox + 78, apronTopY, -82, cam, this.proj);
-        const lLegTL = projectWorld3D(p.ox + 64, apronTopY, -82, cam, this.proj);
-        drawUiQuad(uiDraw, lLegBL, lLegBR, lLegTR, lLegTL, Color(12, 10, 10, 232), Color(20, 16, 14, 238), inv);
+        // 7. 蹲伏在桌下（304..416）时顶部极克制木梁压顶暗边，强化《小小梦魇》桌下压迫层次（绝不遮挡鞋底与投瓶）
+        if (p.player.crouch && p.player.x >= arch.x0 - 16 && p.player.x <= arch.x1 + 16) {
+            const topBandH = ctx.uiH * 0.14;
+            fillVGradRect(
+                uiDraw,
+                0,
+                ctx.uiH - topBandH,
+                ctx.uiW,
+                topBandH,
+                Color(12, 10, 9, 0),
+                Color(12, 10, 9, 138),
+            );
+        }
 
         // 绝不压隐常规 HUD 与准星
         return false;

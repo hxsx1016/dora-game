@@ -9,12 +9,14 @@
  *   惰性向 package.loaded["watch.fe"] 挂载 contract/audio/registerPlugin 调试钩子（零改动 app.ts）。
  */
 
-import { BlendFunc, BlendOp, DrawNode, Node, TextAlign } from "Dora";
+import { BlendFunc, BlendOp, DrawNode, Node, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
+import { StageViewport, computeStageViewport } from "Script/watch/platform";
 import { FrameEvents, PlayAdapter } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
+import { SoundscapeDirector } from "Script/watch/fe/bgm";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteContract } from "Script/watch/fe/contract";
 import { DepthOcclusion } from "Script/watch/fe/occlusion";
@@ -26,7 +28,7 @@ import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
-import { MenuAction, MenuRenderer, ScreenKind } from "Script/watch/fe/ui/menus";
+import { MenuAction, MenuRenderer, ScreenKind, UiSoundKind } from "Script/watch/fe/ui/menus";
 import { PALETTE, drawSilkVeil, themeOf, toColor } from "Script/watch/fe/theme";
 import { MingArtAuditPlugin } from "Script/watch/fe/renderer/ming_audit";
 import { GateTransitionPlugin } from "Script/watch/fe/scenes/gate_transition";
@@ -60,6 +62,7 @@ export class WatchFrontend {
     readonly adapter = new PlayAdapter();
     readonly contract = new DualRouteContract();
     readonly audio = new AudioDirector();
+    readonly soundscape = new SoundscapeDirector();
     readonly stage = new StageRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
@@ -73,6 +76,9 @@ export class WatchFrontend {
     screen: ScreenKind = "title";
     private time = 0;
     private boundPlay: Play | undefined;
+    private stageVp: StageViewport = computeStageViewport(1280, 720);
+    private toastText = "";
+    private toastTimer = 0;
 
     constructor(parent: Node.Type) {
         this.layerRoot = Node();
@@ -80,6 +86,12 @@ export class WatchFrontend {
         this.layerRoot.addTo(parent);
 
         this.audio.attachHost(this.layerRoot);
+        this.menus.onUiSound = (kind: UiSoundKind) => {
+            this.playMenuUiSound(kind);
+        };
+        this.menus.onAudioSettingsChanged = (inp: Input) => {
+            this.audio.applyUserVolumes(inp.settings);
+        };
 
         const additive = BlendFunc(BlendOp.SrcAlpha, BlendOp.One);
 
@@ -216,6 +228,7 @@ export class WatchFrontend {
             if (watchFe["contract"] !== this.contract) {
                 watchFe["contract"] = this.contract;
                 watchFe["audio"] = this.audio;
+                watchFe["soundscape"] = this.soundscape;
                 watchFe["registerPlugin"] = (plugin: FeRenderPlugin) => this.registerPlugin(plugin);
                 watchFe["unregisterPlugin"] = (id: string) => this.unregisterPlugin(id);
                 watchFe["getPlugin"] = (id: string) => this.getPlugin(id);
@@ -258,6 +271,7 @@ export class WatchFrontend {
         this.adapter.reset(p);
         this.contract.resetForRoom(p);
         this.audio.stopRoomTransient();
+        this.soundscape.resetForRoom(p);
         this.actors.reset(p);
         this.occlusion.reset();
         this.vfx.reset();
@@ -297,13 +311,94 @@ export class WatchFrontend {
         this.texts.endFrame();
     }
 
+    /** 同步主舞台视口与偏移（横屏原点 0,0；竖屏自动抬升至上半屏 16:9 舞台）。 */
+    setStagePlacement(vp: StageViewport): void {
+        this.stageVp = vp;
+        this.layerRoot.position = Vec2(vp.stageX, vp.stageY);
+    }
+
+    /** 底部轻量水墨提示条（供 Android 双击返回退出等系统提示）。 */
+    showToast(text: string, duration: number = 1.8): void {
+        this.toastText = text;
+        this.toastTimer = duration;
+    }
+
+    getToastText(): string {
+        return this.toastTimer > 0 ? this.toastText : "";
+    }
+
+    private drawToast(uiW: number): void {
+        if (this.toastTimer <= 0 || this.toastText === "") {
+            return;
+        }
+        const alpha = Math.min(1, this.toastTimer * 2.4);
+        const cx = uiW * 0.5;
+        const cy = 82 + this.stageVp.safeUi.bottom * 0.6;
+        drawSilkVeil(this.uiDraw, this.uiArt, "fe_toast_veil", cx, cy, 340, 38, PALETTE.inkWarm, 0.86 * alpha, 9);
+        this.texts.put("sm", this.toastText, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * alpha, 0.08);
+    }
+
+    /** 计算男主线三选一本领卡的舞台 UI 坐标矩形，供 TouchControls 同步直点热区。 */
+    getStoryTalentBoxes(p: Play, w: number, h: number, touchMode: boolean): Rect.Type[] {
+        const offers = p.getStoryTalentOffers();
+        if (offers.length === 0) {
+            return [];
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        return this.hud.talentCardRects(w / uiScale, h / uiScale, offers.length, touchMode, this.stageVp.safeUi.top);
+    }
+
+    private playMenuUiSound(kind: UiSoundKind): void {
+        if (kind === "hover") {
+            this.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.50, 0.045);
+        } else if (kind === "confirm") {
+            this.audio.playUi("ui:confirm", "assets/audio/ui/menu_confirm.wav", 0.72, 0.05);
+        } else if (kind === "back") {
+            this.audio.playUi("ui:back", "assets/audio/ui/menu_back.wav", 0.66, 0.05);
+        } else if (kind === "start") {
+            this.audio.playUi("ui:start", "assets/audio/ui/game_start.wav", 0.82, 0.08);
+        } else if (kind === "pauseOpen") {
+            this.audio.playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08);
+        } else if (kind === "pauseClose") {
+            this.audio.playUi("ui:pause_close", "assets/audio/ui/pause_close.wav", 0.66, 0.08);
+        } else if (kind === "toggle") {
+            this.audio.playUi("ui:toggle", "assets/audio/ui/setting_toggle.wav", 0.64, 0.04);
+        }
+    }
+
+    /** 护送试炼肉鸽（mode 2）切换段落时重置试炼音频态 */
+    resetTrialAudio(p: Play): void {
+        this.adapter.reset(p);
+        this.audio.stopRoomTransient();
+        this.soundscape.resetForRoom(p);
+    }
+
+    /** 护送试炼肉鸽（mode 2）每帧消费事件队列与声景拟音 */
+    syncTrialAudio(dt: number, p: Play, offerCount: number): void {
+        const safeDt = Math.min(0.05, Math.max(0.001, dt));
+        this.audio.setPaused(p.paused);
+        this.audio.setCameraRef(p.player.x, 960);
+        this.audio.update(safeDt);
+        if (!p.paused) {
+            const ev = this.adapter.sample(p);
+            this.audio.ingestEvents(ev, p);
+            this.soundscape.updateTrial(safeDt, p, this.audio, offerCount);
+        }
+    }
+
     /** 菜单态每帧更新与渲染 */
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
+        const safeDt = Math.min(0.05, Math.max(0, dt));
+        if (this.toastTimer > 0) {
+            this.toastTimer = Math.max(0, this.toastTimer - safeDt);
+        }
         if (this.screen === "title" && this.boundPlay !== undefined) {
             this.audio.stopRoomTransient();
             this.boundPlay = undefined;
         }
+        this.audio.update(safeDt);
+        this.soundscape.updateMenu(this.screen, this.audio);
         this.setVisible(true);
         this.clearAll();
         const uiScale = this.resizeInterface(w, h);
@@ -323,9 +418,41 @@ export class WatchFrontend {
             w,
             h,
             uiScale,
+            this.stageVp.safeUi,
         );
+        this.drawToast(w / uiScale);
         this.finishFrame();
         return act;
+    }
+
+    /** 局内试玩态：检测点击是否命中男主线护送段的三选一本领卡（仅消费真实指针点击，不误吃手柄右摇杆枪口准星） */
+    tryPickTalentAtPointer(p: Play, input: Input, w: number, h: number): boolean {
+        const offers = p.getStoryTalentOffers();
+        if (offers.length === 0) {
+            return false;
+        }
+        if (input.inputMode === "gamepad" && !input.uiPressed) {
+            return false;
+        }
+        const useUiPtr = input.uiInside || input.uiPressed;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        if (!inside) {
+            return false;
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        const uiW = w / uiScale;
+        const uiH = h / uiScale;
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const pointer = Vec2(rawX / uiScale, rawY / uiScale);
+        const boxes = this.hud.talentCardRects(uiW, uiH, offers.length, input.isTouchMode(), this.stageVp.safeUi.top);
+        let i = 0;
+        for (i = 0; i < boxes.length; i++) {
+            if (boxes[i].containsPoint(pointer)) {
+                return p.chooseTalent(i);
+            }
+        }
+        return false;
     }
 
     /** 局内试玩态每帧更新与渲染（返回暂停菜单动作，非暂停时返回 none） */
@@ -336,7 +463,12 @@ export class WatchFrontend {
             this.bindPlay(p, w, h);
         }
         const safeDt = Math.min(0.05, Math.max(0.001, dt));
+        if (this.toastTimer > 0) {
+            this.toastTimer = Math.max(0, this.toastTimer - safeDt);
+        }
         this.audio.setPaused(p.paused);
+        this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+        this.audio.update(safeDt);
 
         let ev: FrameEvents;
         let worldDt = 0;
@@ -347,6 +479,18 @@ export class WatchFrontend {
             ev = this.adapter.sample(p);
             this.vfx.ingest(ev, p, this.cam);
             this.audio.ingestEvents(ev, p);
+            const touch = input.getTouch();
+            if (touch !== undefined) {
+                if (ev.playerHit) {
+                    touch.vibrate(0.036);
+                } else if (ev.reloadSolved || ev.benchCrafted || ev.handJustTied || ev.cartJustDocked) {
+                    touch.vibrate(0.024);
+                } else if (ev.coverDeflect) {
+                    touch.vibrate(0.018);
+                } else if (ev.knockPulse) {
+                    touch.vibrate(0.014);
+                }
+            }
         } else {
             // 暂停态不消费/不补播事件，并立即收净切场斜切幕布
             ev = this.adapter.emptyFrame(p);
@@ -383,6 +527,7 @@ export class WatchFrontend {
             uiW,
             uiH,
             uiScale,
+            safeUi: this.stageVp.safeUi,
             paused: p.paused,
         };
 
@@ -398,10 +543,12 @@ export class WatchFrontend {
         if (!p.paused) {
             this.time += worldDt;
             this.cam.update(worldDt, p, w, h);
+            this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+            this.soundscape.updatePlay(worldDt, p, view, this.audio);
             this.actors.update(worldDt, p);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
-            this.hud.update(worldDt, p);
-            this.narrative.update(worldDt, p);
+            this.hud.update(safeDt, p);
+            this.narrative.update(safeDt, p, ev, input.frameInteractPressed);
         } else {
             this.cam.update(0, p, w, h);
         }
@@ -471,8 +618,10 @@ export class WatchFrontend {
         // 5. 世界空间特效
         this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam);
 
-        // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边
-        this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
+        // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边（低模与现代博物馆自有前景压边，不叠绘像素暗块）
+        if (view.visualMode === "pixel") {
+            this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
+        }
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
@@ -493,6 +642,7 @@ export class WatchFrontend {
                 () => {
                     this.contract.toggleAssistHints();
                 },
+                this.stageVp.safeUi,
             );
         } else {
             // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写
@@ -506,6 +656,7 @@ export class WatchFrontend {
             }
 
             if (!cutsceneHandled) {
+                const touchOverlayVisible = input.shouldShowTouchControls() && !this.stageVp.isPortrait;
                 this.hud.draw(
                     this.uiDraw,
                     this.uiInkDraw,
@@ -519,6 +670,11 @@ export class WatchFrontend {
                     uiScale,
                     view.assistHintsEnabled,
                     true,
+                    input.inputMode,
+                    input.gamepadLayout,
+                    this.stageVp.safeUi,
+                    input.retryHoldProgress,
+                    touchOverlayVisible,
                 );
                 this.narrative.draw(
                     this.uiDraw,
@@ -530,6 +686,9 @@ export class WatchFrontend {
                     uiW,
                     uiH,
                     view.assistHintsEnabled,
+                    input.inputMode,
+                    input.gamepadLayout,
+                    this.stageVp.safeUi,
                 );
             }
 
@@ -551,17 +710,19 @@ export class WatchFrontend {
                     this.vfx,
                     this.narrative.letterbox,
                     uiScale,
+                    input.isTouchMode(),
                 );
             }
 
             // 排演态显式标注（对齐 64fc06f 录屏标注要求，避免排演样片与正式玩法混淆）
             if (view.isRehearsal) {
                 const badgeText = view.rehearsalTag !== "" ? ("排演 · " + view.rehearsalTag) : "排演模式";
-                drawSilkVeil(this.uiDraw, this.uiArt, "rehearsal_tag_veil", uiW * 0.5, uiH - 22, 168, 26, PALETTE.inkWarm, 0.74, 8);
-                this.texts.put("xs", badgeText, uiW * 0.5, uiH - 22, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, 0.92, 0.08);
+                drawSilkVeil(this.uiDraw, this.uiArt, "rehearsal_tag_veil", uiW * 0.5, uiH - 22 - this.stageVp.safeUi.top, 168, 26, PALETTE.inkWarm, 0.74, 8);
+                this.texts.put("xs", badgeText, uiW * 0.5, uiH - 22 - this.stageVp.safeUi.top, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, 0.92, 0.08);
             }
         }
 
+        this.drawToast(uiW);
         this.finishFrame();
         return action;
     }

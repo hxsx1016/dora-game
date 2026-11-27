@@ -123,6 +123,8 @@ export interface StairSpec {
     y1: number;
     steps: number;
     label: string;
+    lanes?: DepthLane[];
+    depth?: DepthRange;
 }
 
 export interface CartSpec {
@@ -254,6 +256,8 @@ export interface RoomSpec {
     bottle?: { x: number; y: number };
     /** 村口：砖地落点。 */
     brickX?: number;
+    /** 村口：铁盆落点。 */
+    basinX?: number;
     /** 村口：软土落点。 */
     softX?: number;
     /** 村口：第一院通行线。 */
@@ -282,7 +286,7 @@ export const CHECKPOINT_ROOM: RoomSpec = {
     floors: [{ y: 0, x0: -640, x1: 1000 }],
     solids: [
         // 候检区队栏：28 高，周戍空格翻过去，小满跟随会自己跳。缺口留在 330–390（世界）。
-        { x: -430, w: 180, h: 28, y: 0, label: "队栏 -430–-250 · 高 28", lanes: ["lower", "middle"] },
+        { x: -430, w: 180, h: 28, y: 0, label: "队栏 -430–-250 · 高 28", lanes: ["lower", "middle"], art: "fence" },
         // 高 44：两人跳得上去（小满 51、周戍 58），也能在柜台后蹲下躲子弹。
         { x: 240, w: 100, h: 44, y: 0, label: "柜台 240–340 · 高 44", lanes: ["lower", "middle"] },
         { x: 890, w: 36, h: 122, y: 0, label: "检查站出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
@@ -302,7 +306,7 @@ export const CHECKPOINT_ROOM: RoomSpec = {
         clothSide: -1,
     },
     spawns: [
-        { x: -600, y: 0, h: 64, label: "小满 -600（世界 40）" },
+        { x: -600, y: 0, h: 56, label: "小满 -600（世界 40）" },
         { x: -560, y: 0, h: 88, label: "周戍 -560（世界 80）" },
     ],
     marks: [
@@ -333,6 +337,8 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { y: 64, x0: 820, x1: 940 },
     ],
     solids: [
+        // 补丁红布车：原本斜停在石阶口，挡住台面下行的路；点一次 E 拉开后石阶口才露出来。
+        { x: 96, w: 44, h: 34, y: 96, id: "outside_red_cart", label: "补丁红布车 · 挡住石阶口" },
         // 城墙基座：只占 96 以上，挡住台面上的玩家；下层 0–96 是通的，墙根小路就从下面穿过去。
         { x: 512, w: 88, h: 134, y: 96, label: "台面右端城墙 · 下层可通" },
         { x: 0, w: 40, h: 96, y: 0, label: "街口" },
@@ -341,7 +347,7 @@ export const OUTSIDE_ROOM: RoomSpec = {
     zones: [],
     arch: { x0: 280, x1: 360, y: 0, h: 44, label: "拱 280–360 · 净高 44" },
     stairs: [
-        { x0: 40, x1: 128, y0: 0, y1: 96, steps: 2, label: "石阶 0 / 48 / 96" },
+        { x0: 56, x1: 128, y0: 0, y1: 96, steps: 5, label: "石阶 0–96（每级 19.2 可直走）" },
         { x0: 700, x1: 820, y0: 0, y1: 64, steps: 3, label: "墙根石阶 0 / 16 / 32 / 48 / 64" },
     ],
     cart: {
@@ -354,7 +360,7 @@ export const OUTSIDE_ROOM: RoomSpec = {
         handleOffset: 40,
         clothSide: -1,
     },
-    spawns: [{ x: 160, y: 96, h: 64, label: "小满 160" }],
+    spawns: [{ x: 160, y: 96, h: 56, label: "小满 160" }],
     marks: [
         { x: 432, y: 96, kind: 1, label: "空窝 432" },
         { x: 380, y: 0, kind: 0, label: "洞后检查点 380" },
@@ -363,7 +369,8 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { x: 1120, y: 64, kind: 6, label: "塔灯 1120" },
     ],
     dims: [
-        { x0: 304, x1: 432, text: "拉车 128 · 右柄 E+D" },
+        { x0: 96, x1: 140, text: "红布车 · E 拉开" },
+        { x0: 304, x1: 432, text: "空窝 128 · 右柄 E+D" },
         { x0: 128, x1: 512, text: "台面 384" },
         { x0: 280, x1: 360, text: "拱 80" },
         { x0: 600, x1: 1240, text: "墙根 640" },
@@ -385,33 +392,38 @@ export const VILLAGE_ROOM: RoomSpec = {
     height: 200,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
-        { x: 96, w: 32, h: 64, y: 0, label: "瓶架" },
-        // 桌腿只是视觉（drawVillage 补画），碰撞交给 arch：站 64 进不去、蹲 36 能过。
+        { x: 96, w: 32, h: 52, y: 0, label: "瓶架", art: "cover_wood" },
+        // 桌腿只是视觉（drawVillage 补画），碰撞交给 arch：站 56 进不去、蹲 34 能过。
         { x: 672, w: 48, h: 96, y: 0, label: "院墙" },
     ],
     zones: [
         { x0: 256, x1: 288, y: 0, h: 6, tint: 2, label: "软土 272" },
         { x0: 440, x1: 448, y: 0, h: 120, tint: 4, label: "通行线 440" },
+        { x0: 532, x1: 564, y: 0, h: 6, tint: 4, label: "铁盆 548" },
         { x0: 592, x1: 624, y: 0, h: 6, tint: 3, label: "砖地 608" },
+        { x0: 560, x1: 640, y: 0, h: 6, tint: 1, label: "暗渠口 560–640 · 蹲下钻" },
     ],
     arch: { x0: 304, x1: 416, y: 0, h: 44, label: "桌下 304–416 · 净高 44" },
     stairs: [],
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
-    spawns: [{ x: 160, y: 0, h: 64, label: "小满 160" }],
+    spawns: [{ x: 160, y: 0, h: 56, label: "小满 160" }],
     marks: [
+        { x: 548, y: 0, kind: 5, label: "铁盆落点 548" },
         { x: 608, y: 0, kind: 5, label: "砖地落点 608" },
         { x: 440, y: 0, kind: 4, label: "通行线 440" },
+        { x: 600, y: 0, kind: 1, label: "暗渠口 600" },
     ],
     dims: [
         { x0: 96, x1: 128, text: "瓶架" },
         { x0: 304, x1: 416, text: "桌下 112" },
         { x0: 464, x1: 512, text: "巡逻 48" },
+        { x0: 560, x1: 640, text: "暗渠 80" },
     ],
     scavenger: {
         x0: 464,
         x1: 512,
         y: 0,
-        h: 56,
+        h: 82,
         patrolSpeed: 40,
         approachSpeed: 64,
         hearTicks: 18,
@@ -420,6 +432,7 @@ export const VILLAGE_ROOM: RoomSpec = {
     },
     bottle: { x: 112, y: 48 },
     brickX: 608,
+    basinX: 548,
     softX: 272,
     passLine: 440,
 };
@@ -486,10 +499,10 @@ export const PROLOGUE_ROOM: RoomSpec = {
     solids: [
         { x: 152, w: 98, h: 32, y: 0, label: "倒柜 152–250 · 高 32", lanes: ["lower", "middle"] },
         { x: 648, w: 30, h: 118, y: 0, label: "出口门柱", lanes: ["lower", "upper"], art: "gate_post" },
-        { x: 110, w: 38, h: 84, y: 0, label: "石柱", lanes: ["lower", "middle"], art: "wall" },
+        { x: 344, w: 32, h: 78, y: 0, label: "石柱", lanes: ["lower", "middle"], art: "wall" },
         { x: 56, w: 44, h: 18, y: 0, label: "侧灶 56–100 · 高 18", decorative: true },
         { x: 396, w: 34, h: 12, y: 0, label: "井沿 396–430 · 高 12", decorative: true },
-        { x: 470, w: 40, h: 26, y: 0, label: "后院矮墙 470–510 · 高 26" },
+        { x: 470, w: 40, h: 26, y: 0, label: "后院矮墙 470–510 · 高 26", lanes: ["lower"] },
     ],
     zones: [
         { x0: 380, x1: 470, y: 0, h: 6, tint: 2, label: "后院旧井 380–470" },
@@ -499,7 +512,7 @@ export const PROLOGUE_ROOM: RoomSpec = {
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
     spawns: [
         { x: 80, y: 0, h: 88, label: "周戍 80" },
-        { x: 300, y: 0, h: 64, label: "小满 300 · 柜子后面" },
+        { x: 300, y: 0, h: 56, label: "小满 300 · 柜子后面" },
     ],
     marks: [
         { x: 300, y: 0, kind: 1, label: "柜后 300" },
@@ -538,7 +551,7 @@ export const STREET_ROOM: RoomSpec = {
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
     spawns: [
         { x: 100, y: 0, h: 88, label: "周戍 100" },
-        { x: 60, y: 0, h: 64, label: "小满 60" },
+        { x: 60, y: 0, h: 56, label: "小满 60" },
     ],
     marks: [
         { x: 900, y: 0, kind: 0, label: "检查站入口 900" },
@@ -565,11 +578,11 @@ export const GATE_ROOM: RoomSpec = {
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1200 }],
     solids: [
-        { x: 40, w: 60, h: 60, y: 0, label: "绞盘 40–100 · 高 60" },
+        { x: 40, w: 60, h: 60, y: 0, label: "绞盘 40–100 · 高 60", lanes: ["middle"] },
         { x: 520, w: 80, h: 44, y: 0, label: "街垒 520 · 高 44", lanes: ["middle", "upper"] },
         { x: 970, w: 34, h: 100, y: 0, label: "城门门柱", lanes: ["lower", "upper"], art: "gate_post" },
-        { x: 1040, w: 160, h: 180, y: 0, label: "门洞右墙 1040" },
-        { x: 840, w: 200, h: 56, y: 160, label: "门楣 840–1040" },
+        { x: 1040, w: 160, h: 180, y: 0, label: "门洞右墙 1040", depth: LANE_ROAD, art: "wall" },
+        { x: 840, w: 200, h: 56, y: 160, label: "门楣 840–1040", depth: LANE_ROAD, art: "wall" },
     ],
     zones: [
         { x0: 860, x1: 1000, y: 0, h: 8, tint: 4, label: "门洞 860–1000" },
@@ -579,7 +592,7 @@ export const GATE_ROOM: RoomSpec = {
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
     spawns: [
         { x: 130, y: 0, h: 88, label: "周戍 130" },
-        { x: 150, y: 0, h: 64, label: "小满 150" },
+        { x: 150, y: 0, h: 56, label: "小满 150" },
     ],
     marks: [
         { x: 118, y: 0, kind: 1, label: "绞盘站位 118" },
@@ -629,7 +642,7 @@ export const GATE_PATH_ROOM: RoomSpec = {
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
     spawns: [
         { x: 120, y: 0, h: 88, label: "周戍 120" },
-        { x: 150, y: 0, h: 64, label: "小满 150" },
+        { x: 150, y: 0, h: 56, label: "小满 150" },
     ],
     marks: [
         { x: 120, y: 0, kind: 1, label: "牵头起步 120" },
@@ -665,21 +678,27 @@ export const FOREST_ROOM: RoomSpec = {
         { x: 1560, w: 40, h: 160, y: 0, label: "林缘 1560" },
     ],
     zones: [
+        { x0: 300, x1: 380, y: 0, h: 6, tint: 2, label: "树根窄洞 300–380 · 蹲行" },
+        { x0: 700, x1: 790, y: 0, h: 6, tint: 3, label: "旧渠 700–790 · 可跑" },
+        { x0: 1180, x1: 1260, y: 0, h: 6, tint: 1, label: "溪湾 1180–1260 · 水里灯" },
         { x0: 1400, x1: 1470, y: 0, h: 6, tint: 4, label: "林边 1400–1470" },
     ],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
     stairs: [
-        { x0: 520, x1: 640, y0: 0, y1: 22, steps: 1, label: "矮台 520–640 · 高 22" },
-        { x0: 980, x1: 1100, y0: 0, y1: 22, steps: 1, label: "矮台 980–1100 · 高 22" },
+        { x0: 520, x1: 640, y0: 22, y1: 22, steps: 1, label: "矮台 520–640 · 高 22" },
+        { x0: 980, x1: 1100, y0: 22, y1: 22, steps: 1, label: "矮台 980–1100 · 高 22" },
     ],
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
-    spawns: [{ x: 120, y: 0, h: 64, label: "小满 120" }],
+    spawns: [{ x: 120, y: 0, h: 56, label: "小满 120" }],
     marks: [
         { x: 1450, y: 0, kind: 0, label: "林边安全点 1450" },
         { x: 620, y: 0, kind: 3, label: "矮台 620" },
+        { x: 1220, y: 0, kind: 6, label: "溪湾水里灯 1220" },
     ],
     dims: [
-        { x0: 700, x1: 790, text: "草 90" },
+        { x0: 300, x1: 380, text: "窄洞 80 · 蹲" },
+        { x0: 700, x1: 790, text: "旧渠 90 · 跑" },
+        { x0: 1180, x1: 1260, text: "溪湾 80" },
         { x0: 1400, x1: 1470, text: "林边 70" },
     ],
     story: { dog: { x0: 620, x1: 780, speed: 56, range: 300 } },
@@ -692,29 +711,37 @@ export const FOREST_ROOM: RoomSpec = {
 export const TOWER_ROOM: RoomSpec = {
     key: "tower",
     originX: 0,
-    name: "北塔塔门 · 尾声",
-    caption: "走到门前点一次 E 敲两下；递出针套和纸条，看登记簿空行，片尾可再玩",
+    name: "北塔塔门与值夜室 · 尾声",
+    caption: "门前点 E 叩两下；守卒回叩开门后跨过门槛，到桌前长按 E 交针套、指南针和纸条",
     minX: 0,
     maxX: 720,
     height: 220,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
-        { x: 180, w: 220, h: 200, y: 0, label: "塔身 180–400" },
-        { x: 490, w: 230, h: 200, y: 0, label: "塔身 490–720" },
+        { x: 180, w: 220, h: 200, y: 0, label: "塔身左 180–400" },
+        { x: 430, w: 40, h: 120, y: 0, id: "tower_door", label: "塔门 430–470 · E 叩两下" },
+        { x: 700, w: 20, h: 220, y: 0, label: "塔身右墙 700–720" },
         { x: 400, w: 90, h: 30, y: 110, label: "门楣 400–490" },
+        { x: 560, w: 90, h: 32, y: 0, id: "tower_desk", label: "值夜桌 560–650 · 长按 E 交物" },
+        { x: 660, w: 40, h: 8, y: 120, decorative: true, label: "西窗 660–700" },
     ],
     zones: [
         { x0: 400, x1: 490, y: 0, h: 8, tint: 4, label: "门廊 400–490" },
+        { x0: 490, x1: 700, y: 0, h: 8, tint: 3, label: "值夜室 490–700" },
     ],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
     stairs: [],
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
-    spawns: [{ x: 418, y: 0, h: 64, label: "小满 418 · 门廊里" }],
+    spawns: [{ x: 400, y: 0, h: 56, label: "小满 400 · 门廊里" }],
     marks: [
         { x: 445, y: 0, kind: 1, label: "门前 445" },
+        { x: 520, y: 0, kind: 3, label: "门槛 520" },
+        { x: 605, y: 0, kind: 3, label: "值夜桌 605" },
+        { x: 680, y: 0, kind: 6, label: "西窗 680" },
     ],
     dims: [
         { x0: 400, x1: 490, text: "门 90" },
+        { x0: 560, x1: 650, text: "桌 90" },
     ],
     story: { tower: { doorX: 445, knockTicks: 36 } },
 };
@@ -732,14 +759,14 @@ export const MUSEUM_ROOM: RoomSpec = {
     key: "museum",
     name: "博物馆 · 西厅",
     caption: "虚构 · 现代纪念厅",
-    originX: 0, minX: 0, maxX: 1400, height: 240, depth: LANE_ROAD,
+    originX: 0, minX: 0, maxX: 1400, height: 240,
     floors: [{ y: 0, x0: 0, x1: 1400 }],
     solids: [
-        { x: 180, w: 80, h: 64, y: 0, label: "玻璃柜 180–260 · 高 64", lanes: ["middle"], id: "museum_case" },
-        { x: 540, w: 60, h: 140, y: 0, label: "展墙 540–600 · 高 140", lanes: ["middle"] },
-        { x: 1180, w: 40, h: 160, y: 0, label: "末厅门柱 1180–1220 · 高 160", lanes: ["middle"] },
+        { x: 180, w: 80, h: 64, y: 0, label: "玻璃柜 180–260 · 高 64", decorative: true, id: "museum_case" },
+        { x: 540, w: 60, h: 140, y: 0, label: "展墙 540–600 · 高 140", decorative: true },
+        { x: 1180, w: 40, h: 160, y: 0, label: "末厅门柱 1180–1220 · 高 160", decorative: true },
         { x: 1300, w: 60, h: 8, y: 120, label: "西窗 1300–1360 · 高 8", decorative: true },
-        { x: 1360, w: 40, h: 200, y: 0, label: "馆尾 1360–1400 · 高 200", lanes: ["middle"] },
+        { x: 1360, w: 40, h: 200, y: 0, label: "馆尾 1360–1400 · 高 200" },
     ],
     zones: [
         { x0: 160, x1: 300, y: 0, h: 16, tint: 1, label: "玻璃柜前" },
@@ -778,16 +805,16 @@ export const ESCORT1_ROOM: RoomSpec = {
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1600 }],
     solids: [
-        { x: 0, w: 50, h: 150, y: 0, label: "巷口背影 0–50" },
+        { x: 0, w: 50, h: 150, y: 0, label: "巷口背影 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 380, w: 96, h: 44, y: 0, label: "塌墙 380–476 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e1_wall" },
         { x: 700, w: 40, h: 28, y: 0, label: "倒石 700 · 高 28", lanes: ["lower"] },
         { x: 980, w: 160, h: 36, y: 0, label: "石台 980–1140 · 高 36（可跳）", lanes: ["lower"], art: "cover_wood" },
         { x: 1300, w: 40, h: 140, y: 0, label: "巷尾门柱 1300", lanes: ["lower", "upper"], art: "gate_post" },
-        { x: 1560, w: 40, h: 180, y: 0, label: "巷尾断墙 1560–1600 · 高 180" },
+        { x: 1560, w: 40, h: 180, y: 0, label: "巷尾断墙 1560–1600 · 高 180", depth: LANE_ROAD, art: "wall" },
     ],
     zones: [{ x0: 560, x1: 900, y: 0, h: 150, tint: 1, label: "交火 560–900" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
-    stairs: [{ x0: 1140, x1: 1300, y0: 0, y1: 40, steps: 3, label: "石台斜走 1140–1300" }],
+    stairs: [{ x0: 1140, x1: 1300, y0: 0, y1: 40, steps: 3, label: "石台斜走 1140–1300", lanes: ["lower", "middle"] }],
     cart: NO_CART,
     spawns: [
         { x: 820, y: 0, h: 84, depth: 32, label: "火器手 820 · 中档", kind: "gunner", drop: "ammo" },
@@ -817,23 +844,23 @@ export const ESCORT2_ROOM: RoomSpec = {
     key: "escort2",
     originX: 0,
     name: "粮棚 · 第二段取材",
-    caption: "棚架与地面各走一趟：木纹筹三枚、铃纹筹一枚，够在工台二选一",
+    caption: "棚架与地面沿途收集：木纹筹两枚、铃纹筹一枚，够在工台二选一",
     minX: 0,
     maxX: 1500,
     height: 220,
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1500 }],
     solids: [
-        { x: 0, w: 50, h: 160, y: 0, label: "棚口背影 0–50" },
+        { x: 0, w: 50, h: 160, y: 0, label: "棚口背影 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 300, w: 24, h: 64, y: 0, label: "棚架柱 300", lanes: ["lower"], art: "gate_post" },
-        { x: 300, w: 600, h: 8, y: 64, label: "棚架梁 300–900 · 高 64", depth: { min: -40, max: -8 } },
+        { x: 300, w: 600, h: 8, y: 64, label: "棚架梁 300–900 · 高 64", depth: { min: -40, max: -8 }, passable: true, art: "cover_wood" },
         { x: 640, w: 60, h: 32, y: 0, label: "倒粮袋 640 · 高 32", lanes: ["lower"] },
         { x: 980, w: 140, h: 48, y: 0, label: "粮台 980–1120 · 高 48", lanes: ["lower", "middle"], art: "cover_wood" },
-        { x: 1460, w: 40, h: 180, y: 0, label: "棚尾断墙 1460–1500 · 高 180" },
+        { x: 1460, w: 40, h: 180, y: 0, label: "棚尾断墙 1460–1500 · 高 180", depth: LANE_ROAD, art: "wall" },
     ],
     zones: [{ x0: 520, x1: 900, y: 0, h: 150, tint: 1, label: "取材 520–900" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
-    stairs: [{ x0: 780, x1: 900, y0: 0, y1: 64, steps: 3, label: "棚架斜梯 780–900" }],
+    stairs: [{ x0: 780, x1: 900, y0: 0, y1: 64, steps: 3, label: "棚架斜梯 780–900", lanes: ["lower", "middle"] }],
     cart: NO_CART,
     spawns: [
         { x: 700, y: 0, h: 84, depth: 32, label: "火器手 700 · 中档", kind: "gunner", drop: "ammo" },
@@ -873,11 +900,11 @@ export const ESCORT3_ROOM: RoomSpec = {
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1200 }],
     solids: [
-        { x: 0, w: 50, h: 160, y: 0, label: "工台口背影 0–50" },
+        { x: 0, w: 50, h: 160, y: 0, label: "工台口背影 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 560, w: 120, h: 44, y: 0, label: "工台 560–680 · 高 44", lanes: ["lower", "middle"], art: "cover_wood", id: "e3_bench" },
-        { x: 700, w: 56, h: 52, y: 0, label: "试射薄掩体 700–756 · 高 52", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
+        { x: 720, w: 48, h: 52, y: 0, label: "试射薄掩体 720–768 · 高 52", lanes: ["lower", "middle"], art: "cover_stone", id: "e3_cover" },
         { x: 1050, w: 40, h: 140, y: 0, label: "出站门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
-        { x: 1170, w: 30, h: 180, y: 0, label: "出站断墙 1170–1200 · 高 180" },
+        { x: 1170, w: 30, h: 180, y: 0, label: "出站断墙 1170–1200 · 高 180", depth: LANE_ROAD, art: "wall" },
     ],
     zones: [{ x0: 560, x1: 960, y: 0, h: 120, tint: 3, label: "工台安全区 560–960" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
@@ -895,7 +922,7 @@ export const ESCORT3_ROOM: RoomSpec = {
     ],
     dims: [
         { x0: 560, x1: 680, text: "工台 120" },
-        { x0: 700, x1: 756, text: "掩体 56" },
+        { x0: 720, x1: 768, text: "掩体 48" },
     ],
     campaign: { chapter: "O", act: 3, budget: 240, goal: "reach_exit", exitX: 1150, next: "escort4", checkpoint: 1, reloadPuzzle: true },
 };
@@ -914,14 +941,14 @@ export const ESCORT4_ROOM: RoomSpec = {
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1400 }],
     solids: [
-        { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50" },
+        { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 380, w: 80, h: 40, y: 0, label: "塌方 380–460 · 高 40", lanes: ["lower", "middle"], art: "cover_stone", id: "e4_fall" },
         { x: 900, w: 60, h: 36, y: 0, label: "断口 900–960 · 高 36（可跳）", lanes: ["lower", "middle"] },
         { x: 1120, w: 40, h: 32, y: 0, label: "倒石 1120 · 高 32", lanes: ["lower"] },
-        { x: 1350, w: 50, h: 200, y: 0, label: "山道尾壁 1350–1400 · 高 200" },
+        { x: 1350, w: 50, h: 200, y: 0, label: "山道尾壁 1350–1400 · 高 200", depth: LANE_ROAD, art: "wall" },
     ],
     zones: [{ x0: 500, x1: 900, y: 0, h: 160, tint: 2, label: "窄道 500–900" }],
-    arch: { x0: 900, x1: 960, y: 0, h: 36, label: "山道断口 36" },
+    arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
     stairs: [],
     cart: NO_CART,
     spawns: [
@@ -956,15 +983,15 @@ export const ESCORT5_ROOM: RoomSpec = {
     depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1400 }],
     solids: [
-        { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50" },
+        { x: 0, w: 50, h: 170, y: 0, label: "山道口 0–50", depth: LANE_ROAD, art: "wall" },
         { x: 320, w: 96, h: 44, y: 0, label: "石阶塌墙 320–416 · 高 44", lanes: ["lower", "middle"], art: "cover_stone", id: "e5_wall" },
         { x: 700, w: 160, h: 36, y: 0, label: "石台 700–860 · 高 36（可跳）", lanes: ["lower"], art: "cover_wood" },
         { x: 1050, w: 40, h: 140, y: 0, label: "塔前门柱 1050", lanes: ["lower", "upper"], art: "gate_post" },
-        { x: 1370, w: 30, h: 200, y: 0, label: "塔前壁 1370–1400 · 高 200" },
+        { x: 1370, w: 30, h: 200, y: 0, label: "塔前壁 1370–1400 · 高 200", depth: LANE_ROAD, art: "wall" },
     ],
     zones: [{ x0: 600, x1: 960, y: 0, h: 160, tint: 4, label: "塔前 600–960" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
-    stairs: [{ x0: 860, x1: 980, y0: 0, y1: 40, steps: 3, label: "石台斜走 860–980" }],
+    stairs: [{ x0: 860, x1: 980, y0: 0, y1: 40, steps: 3, label: "石台斜走 860–980", lanes: ["lower", "middle"] }],
     cart: NO_CART,
     spawns: [
         { x: 560, y: 0, h: 84, depth: 32, label: "火器手 560 · 中档", kind: "gunner", drop: "ammo" },
@@ -1009,7 +1036,7 @@ export const S1_CROSSROAD: RoomSpec = {
     ],
     zones: [{ x0: 700, x1: 960, y: 0, h: 150, tint: 1, label: "街角交火 700–960" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
-    stairs: [{ x0: 900, x1: 1040, y0: 0, y1: 40, steps: 4, label: "石基斜走 900–1040 · 高 40" }],
+    stairs: [{ x0: 900, x1: 1040, y0: 0, y1: 40, steps: 4, label: "石基斜走 900–1040 · 高 40", lanes: ["lower", "middle"] }],
     cart: NO_CART,
     spawns: [
         { x: 760, y: 0, h: 84, depth: 32, label: "单方向火器手 760", kind: "gunner", drop: "ammo" },
@@ -1055,7 +1082,7 @@ export const S2_DRYGOODS: RoomSpec = {
             x: 460, w: 100, h: 48, y: 0, label: "薄木摊挡 460–560 · 高 48", lanes: ["middle", "upper"],
             art: "thin_wood", id: "s2_wood", breakable: { kind: "thin_wood", hp: 2, wedgeHp: 1 },
         },
-        { x: 620, w: 40, h: 130, y: 0, label: "永久石柱 620–660", lanes: ["upper"], art: "cover_stone" },
+        { x: 560, w: 36, h: 130, y: 0, label: "永久石柱 560–596", lanes: ["upper"], art: "cover_stone" },
         { x: 700, w: 120, h: 32, y: 0, label: "转角装卸面 700–820 · 高 32", lanes: ["middle"] },
         { x: 340, w: 120, h: 44, y: 0, label: "布行柜台 340–460 · 高 44", lanes: ["upper"], art: "cover_wood" },
         {
@@ -1064,7 +1091,7 @@ export const S2_DRYGOODS: RoomSpec = {
         },
         {
             x: 600, w: 80, h: 40, y: 0, label: "放下的窗板 600–680", lanes: ["lower"],
-            art: "board", id: "s2_board_cover", soft: true,
+            art: "board", id: "s2_board_cover", soft: true, hidden: true,
         },
         { x: 1560, w: 30, h: 150, y: 0, label: "牌楼左柱", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1700, w: 30, h: 150, y: 0, label: "牌楼右柱", lanes: ["lower", "upper"], art: "gate_post" },
@@ -1116,8 +1143,8 @@ export const S3_ARCHWAY: RoomSpec = {
     zones: [{ x0: 780, x1: 1060, y: 0, h: 150, tint: 1, label: "后巷交火 780–1060" }],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
     stairs: [
-        { x0: 140, x1: 200, y0: 0, y1: 32, steps: 3, label: "进口台阶" },
-        { x0: 260, x1: 380, y0: 0, y1: 64, steps: 4, label: "装卸坡 260–380 · 高 64" },
+        { x0: 140, x1: 200, y0: 0, y1: 32, steps: 3, label: "进口台阶", lanes: ["upper"] },
+        { x0: 260, x1: 380, y0: 0, y1: 64, steps: 4, label: "装卸坡 260–380 · 高 64", lanes: ["upper"] },
     ],
     cart: NO_CART,
     spawns: [
@@ -1154,10 +1181,10 @@ export const C1_YARD: RoomSpec = {
         { x: 1100, w: 40, h: 150, y: 0, label: "棚柱 1100–1140", lanes: ["lower", "middle"], art: "cover_wood" },
         { x: 1240, w: 40, h: 150, y: 0, label: "棚柱 1240–1280", lanes: ["lower", "middle"], art: "cover_wood" },
         { x: 1600, w: 160, h: 48, y: 0, label: "粮棚袋堆 1600–1760 · 高 48", lanes: ["lower", "middle"] },
-        { x: 1780, w: 50, h: 150, y: 0, label: "侧门 1780–1830", lanes: ["lower", "middle"], art: "wall", id: "c1_door" },
+        { x: 1780, w: 50, h: 150, y: 0, label: "侧门 1780–1830", depth: LANE_ROAD, art: "wall", id: "c1_door" },
         {
-            x: 1810, w: 30, h: 24, y: 40, label: "侧门横闩（门背）", lanes: ["upper"],
-            art: "latch", id: "c1_latch", interact: { kind: "raise_latch", reach: 52 },
+            x: 1755, w: 30, h: 24, y: 40, label: "侧门横闩（门框上侧）", lanes: ["upper"],
+            art: "latch", id: "c1_latch", interact: { kind: "raise_latch", reach: 56 },
         },
     ],
     zones: [{ x0: 760, x1: 1080, y: 0, h: 150, tint: 1, label: "查验台截断 820–1000" }],
@@ -1194,7 +1221,7 @@ export const C2_GRANARY: RoomSpec = {
     floors: [{ y: 0, x0: 0, x1: 1800 }],
     solids: [
         {
-            x: 900, w: 120, h: 44, y: 0, label: "空筐围挡 900–1020 · 高 44", lanes: ["lower", "middle"],
+            x: 900, w: 76, h: 44, y: 0, label: "空筐围挡 900–976 · 高 44", lanes: ["lower", "middle"],
             art: "basket_wall", id: "c2_basket", breakable: { kind: "basket_wall", hp: 2, wedgeable: false },
         },
         { x: 600, w: 300, h: 48, y: 0, label: "粮袋安全区 600–900 · 高 48", lanes: ["lower", "middle"] },
@@ -1245,6 +1272,11 @@ export const CAMPAIGN_ROOMS: RoomSpec[] = [
 export const ROOMS: RoomSpec[] = [
     PROLOGUE_ROOM,
     STREET_ROOM,
+    S1_CROSSROAD,
+    S2_DRYGOODS,
+    S3_ARCHWAY,
+    C1_YARD,
+    C2_GRANARY,
     CHECKPOINT_ROOM,
     GATE_ROOM,
     GATE_PATH_ROOM,
@@ -1275,6 +1307,22 @@ function placeSolids(room: RoomSpec): SolidSpec[] {
     return blocks;
 }
 
+function placeStairs(room: RoomSpec): StairSpec[] {
+    const out: StairSpec[] = [];
+    for (const stair of room.stairs) {
+        const x0 = stair.x0 + room.originX;
+        const x1 = stair.x1 + room.originX;
+        if (room.depth !== undefined && stair.lanes !== undefined) {
+            for (const depth of laneFootprints(stair.lanes)) {
+                out.push({ ...stair, x0, x1, depth, lanes: undefined });
+            }
+        } else {
+            out.push({ ...stair, x0, x1 });
+        }
+    }
+    return out;
+}
+
 /**
  * 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
  * 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
@@ -1282,7 +1330,7 @@ function placeSolids(room: RoomSpec): SolidSpec[] {
 export function withOrigin(room: RoomSpec): RoomSpec {
     const ox = room.originX;
     if (ox === 0) {
-        return room.depth === undefined ? room : { ...room, solids: placeSolids(room) };
+        return room.depth === undefined ? room : { ...room, solids: placeSolids(room), stairs: placeStairs(room) };
     }
     const shift = (x: number): number => x + ox;
     return {
@@ -1298,7 +1346,7 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         solids: placeSolids(room),
         zones: room.zones.map((z) => ({ x0: shift(z.x0), x1: shift(z.x1), y: z.y, h: z.h, tint: z.tint, label: z.label })),
         arch: { x0: shift(room.arch.x0), x1: shift(room.arch.x1), y: room.arch.y, h: room.arch.h, label: room.arch.label },
-        stairs: room.stairs.map((s) => ({ x0: shift(s.x0), x1: shift(s.x1), y0: s.y0, y1: s.y1, steps: s.steps, label: s.label })),
+        stairs: placeStairs(room),
         cart: {
             ...room.cart,
             startX: shift(room.cart.startX),
@@ -1314,11 +1362,16 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         },
         bottle: room.bottle === undefined ? undefined : { x: shift(room.bottle.x), y: room.bottle.y },
         brickX: room.brickX === undefined ? undefined : shift(room.brickX),
+        basinX: room.basinX === undefined ? undefined : shift(room.basinX),
         softX: room.softX === undefined ? undefined : shift(room.softX),
         passLine: room.passLine === undefined ? undefined : shift(room.passLine),
         campaign: room.campaign === undefined ? undefined : { ...room.campaign, exitX: shift(room.campaign.exitX) },
         pickups: room.pickups === undefined ? undefined : room.pickups.map((p) => ({ ...p, x: shift(p.x) })),
-        companion: room.companion,
+        companion: room.companion === undefined ? undefined : {
+            ...room.companion,
+            waitX: room.companion.waitX === undefined ? undefined : shift(room.companion.waitX),
+            joinX: room.companion.joinX === undefined ? undefined : shift(room.companion.joinX),
+        },
         story: shiftStory(room.story, ox),
     };
 }

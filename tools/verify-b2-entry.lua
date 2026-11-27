@@ -60,8 +60,14 @@ tp.enemies = {}
 local i = lualib.__TS__New(input.Input)
 local function tap(k) local ks = i[k]; ks.held = true; ks.pressed = true end
 local function rel(k) local ks = i[k]; ks.held = false; ks.pressed = false; ks.released = false end
+tp.player.x = tp.ox + 445
 tap("interact"); tp:update(play.STEP, i); i.interact.pressed = false; i.interact.held = false
-for _ = 1, 240 do tp:update(play.STEP, i); i.interact.pressed = false; i.interact.held = false end
+for _ = 1, 40 do tp:update(play.STEP, i) end
+tp.player.x = tp.ox + 605; tp.player.y = 0
+i.interact.held = true
+for _ = 1, 40 do tp:update(play.STEP, i); i.interact.pressed = false end
+i.interact.held = false
+for _ = 1, 220 do tp:update(play.STEP, i); i.interact.pressed = false end
 check("男主默认入口团圆", r.story.ending == "reunion" and r.finished == true,
 	"ending=" .. tostring(r.story.ending))
 check("正式结局记档 soldier", r.archive.soldierCleared == true and r.archive.childCleared == false,

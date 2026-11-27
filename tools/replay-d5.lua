@@ -440,6 +440,7 @@ for _ = 1, 200 do
 	p:update(STEP, i)
 end
 print(string.format("T3 片尾 phase=%s", p.phase))
+for _ = 241, play.TOWER_CONFIRM_TICKS do p:update(STEP, i) end
 tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)

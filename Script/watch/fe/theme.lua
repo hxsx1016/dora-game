@@ -9,7 +9,7 @@ local Color = ____Dora.Color -- 8
 local Rect = ____Dora.Rect -- 8
 local Vec2 = ____Dora.Vec2 -- 8
 function ____exports.drawDiamond(draw, cx, cy, rx, ry, fill, borderW, borderCol) -- 716
-	if borderW == nil then -- 716
+	if borderW == nil then -- 719
 		borderW = 0 -- 719
 	end -- 719
 	local pts = { -- 721
@@ -18,7 +18,7 @@ function ____exports.drawDiamond(draw, cx, cy, rx, ry, fill, borderW, borderCol)
 		Vec2(cx, cy - ry), -- 724
 		Vec2(cx - rx, cy) -- 725
 	} -- 725
-	if borderW > 0 and borderCol ~= nil then -- 725
+	if borderW > 0 and borderCol ~= nil then -- 727
 		draw:drawPolygon(pts, fill, borderW, borderCol) -- 728
 	else -- 728
 		draw:drawPolygon(pts, fill) -- 730
@@ -339,21 +339,105 @@ ____exports.ROOM_THEMES = { -- 139
 	} -- 370
 } -- 370
 local ROOM_VARIANTS = { -- 374
-	["s1-crossroad"] = {"street", "街道 · 十字街", "十字街"}, -- 375
-	["s2-drygoods"] = {"street", "街道 · 布行", "布行"}, -- 376
-	["s3-archway"] = {"street", "街道 · 牌楼后巷", "牌楼后巷"}, -- 377
-	["c1-yard"] = {"checkpoint", "检查站 · 候检院", "候检院"}, -- 378
-	["c2-granary"] = {"checkpoint", "检查站 · 军粮棚", "军粮棚"}, -- 379
-	gatepath = {"outside", "城外 · 兄妹同行", "兄妹同行"}, -- 380
-	escort1 = {"outside", "城外巷路 · 第一段护送", "护送巷路"}, -- 381
-	escort2 = {"checkpoint", "粮棚 · 第二段取材", "粮棚取材"}, -- 382
-	escort3 = {"forest", "山腰工台 · 第三段改制", "山腰工台"}, -- 383
-	escort4 = {"forest", "山道 · 第四段脱身", "山道脱身"}, -- 384
-	escort5 = {"tower", "塔前山道 · 第五段", "塔前山道"}, -- 385
-	museum = {"prologue", "博物馆 · 西厅", "西厅"} -- 386
+	["s1-crossroad"] = { -- 375
+		"street", -- 375
+		"街道 · 十字街", -- 375
+		"十字街", -- 375
+		"井背可退，转角火器压近。从街口选外街或布行继续北上。", -- 375
+		"贰", -- 375
+		"第贰章" -- 375
+	}, -- 375
+	["s2-drygoods"] = { -- 376
+		"street", -- 376
+		"街道 · 布行", -- 376
+		"布行", -- 376
+		"外街短跨或入布行放窗板，两路穿过敌阵同通牌楼。", -- 376
+		"贰", -- 376
+		"第贰章" -- 376
+	}, -- 376
+	["s3-archway"] = { -- 377
+		"street", -- 377
+		"街道 · 牌楼后巷", -- 377
+		"牌楼后巷", -- 377
+		"登装卸坡探清火线，或沿墙脚绕行，候检门前再汇合。", -- 377
+		"贰", -- 377
+		"第贰章" -- 377
+	}, -- 377
+	["c1-yard"] = { -- 378
+		"checkpoint", -- 378
+		"检查站 · 候检院", -- 378
+		"候检院", -- 378
+		"队栏与查验台层层挡路，转到门背抬起横锁方能带她过院。", -- 378
+		"叁", -- 378
+		"第叁章" -- 378
+	}, -- 378
+	["c2-granary"] = { -- 379
+		"checkpoint", -- 379
+		"检查站 · 军粮棚", -- 379
+		"军粮棚", -- 379
+		"先落木帘或架残盾，将红布车推入轮窝并抬起连杆锁。", -- 379
+		"叁", -- 379
+		"第叁章" -- 379
+	}, -- 379
+	gatepath = { -- 380
+		"outside", -- 380
+		"城外 · 兄妹同行", -- 380
+		"兄妹同行", -- 380
+		"城门未隔断二人。牵起她的手，沿平路往高石阶走去。", -- 380
+		"伍", -- 380
+		"第伍章" -- 380
+	}, -- 380
+	escort1 = { -- 381
+		"outside", -- 381
+		"城外巷路 · 第一段护送", -- 381
+		"护送巷路", -- 381
+		"背起受伤的小满穿过巷口火线，借慢时换弹突出重围。", -- 381
+		"伍", -- 381
+		"第伍章" -- 381
+	}, -- 381
+	escort2 = { -- 382
+		"checkpoint", -- 382
+		"粮棚 · 第二段取材", -- 382
+		"粮棚取材", -- 382
+		"高低两路暗藏木纹筹与铃纹筹，沿途收齐好在工台改制。", -- 382
+		"陆", -- 382
+		"第陆章" -- 382
+	}, -- 382
+	escort3 = { -- 383
+		"forest", -- 383
+		"山腰工台 · 第三段改制", -- 383
+		"山腰工台", -- 383
+		"暂放小满，择引路灯铳或回声铳改制试射，再背起前行。", -- 383
+		"陆", -- 383
+		"第陆章" -- 383
+	}, -- 383
+	escort4 = { -- 384
+		"forest", -- 384
+		"山道 · 第四段脱身", -- 384
+		"山道脱身", -- 384
+		"窄道追兵紧逼，在慢时连线与伏身翻滚间夺出一条生路。", -- 384
+		"柒", -- 384
+		"第柒章" -- 384
+	}, -- 384
+	escort5 = { -- 385
+		"tower", -- 385
+		"塔前山道 · 第五段", -- 385
+		"塔前山道", -- 385
+		"北塔孤灯已在前方。带着改制火铳护她走完最后一段山路。", -- 385
+		"柒", -- 385
+		"第柒章" -- 385
+	}, -- 385
+	museum = { -- 386
+		"prologue", -- 386
+		"博物馆 · 西厅", -- 386
+		"西厅", -- 386
+		"玻璃柜静立晨光之中，那枚青布针套仍在等待回响。", -- 386
+		"番", -- 386
+		"番外" -- 386
+	} -- 386
 } -- 386
 for key in pairs(ROOM_VARIANTS) do -- 389
-	local backdropKey, titleZh, shortNameZh = table.unpack(ROOM_VARIANTS[key], 1, 3) -- 390
+	local backdropKey, titleZh, shortNameZh, introWhisper, numZh, actZh = table.unpack(ROOM_VARIANTS[key], 1, 6) -- 390
 	local base = ____exports.ROOM_THEMES[backdropKey] -- 391
 	local soldierPath = key == "gatepath" or __TS__StringStartsWith(key, "escort") -- 392
 	____exports.ROOM_THEMES[key] = __TS__ObjectAssign({}, base, { -- 393
@@ -361,9 +445,9 @@ for key in pairs(ROOM_VARIANTS) do -- 389
 		backdropKey = backdropKey, -- 394
 		titleZh = titleZh, -- 394
 		shortNameZh = shortNameZh, -- 394
-		introWhisper = "", -- 394
-		numeralZh = soldierPath and ____exports.ROOM_THEMES.outside.numeralZh or base.numeralZh, -- 395
-		actCode = soldierPath and ____exports.ROOM_THEMES.outside.actCode or base.actCode, -- 396
+		introWhisper = introWhisper, -- 394
+		numeralZh = numZh or (soldierPath and ____exports.ROOM_THEMES.outside.numeralZh or base.numeralZh), -- 395
+		actCode = actZh or (soldierPath and ____exports.ROOM_THEMES.outside.actCode or base.actCode), -- 396
 		lineTag = soldierPath and "周戍" or base.lineTag, -- 397
 		volumeTagZh = soldierPath and "周戍线 · 护送" or base.volumeTagZh -- 398
 	}) -- 398
@@ -393,10 +477,10 @@ function ____exports.toChineseUpper(n) -- 410
 			math.floor(n) -- 411
 		) -- 411
 	) -- 411
-	if v == 100 then -- 411
+	if v == 100 then -- 412
 		return "壹佰" -- 413
 	end -- 413
-	if v < 10 then -- 413
+	if v < 10 then -- 415
 		return UPPER_DIGITS[v + 1] -- 416
 	end -- 416
 	local tens = math.floor(v / 10) -- 418
@@ -457,10 +541,10 @@ function ____exports.fillHGradRect(draw, x, y, w, h, leftCol, rightCol) -- 458
 end -- 458
 --- 径向柔和光晕
 function ____exports.fillRadialGlow(draw, cx, cy, rx, ry, innerCol, outerCol, segments) -- 473
-	if segments == nil then -- 473
+	if segments == nil then -- 477
 		segments = 18 -- 477
 	end -- 477
-	if rx <= 0.5 or ry <= 0.5 then -- 477
+	if rx <= 0.5 or ry <= 0.5 then -- 479
 		return -- 480
 	end -- 480
 	local center = Vec2(cx, cy) -- 482
@@ -494,16 +578,16 @@ function ____exports.fillRadialGlow(draw, cx, cy, rx, ry, innerCol, outerCol, se
 end -- 473
 --- 烟黛渐变轻幕（《饿殍》柔边字幕幕 / 顶部轻带，四周自然消融无硬框）
 function ____exports.drawSilkVeil(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 499
-	if opacity == nil then -- 499
+	if opacity == nil then -- 504
 		opacity = 0.84 -- 504
 	end -- 504
-	if layer == nil then -- 504
+	if layer == nil then -- 505
 		layer = -1 -- 505
 	end -- 505
-	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 505
+	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 507
 		return -- 508
 	end -- 508
-	if art:tryPlace( -- 508
+	if art:tryPlace( -- 510
 		"ink_veil_strip", -- 510
 		id, -- 510
 		cx, -- 510
@@ -556,16 +640,16 @@ function ____exports.drawSilkVeil(fallbackDraw, art, id, cx, cy, w, h, tint, opa
 end -- 499
 --- 水袖游丝飞白飘带（用于菜单选中态轻拂高光，柔美弧线非粗重墨块）
 function ____exports.drawSilkRibbon(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 526
-	if opacity == nil then -- 526
+	if opacity == nil then -- 531
 		opacity = 0.65 -- 531
 	end -- 531
-	if layer == nil then -- 531
+	if layer == nil then -- 532
 		layer = 0 -- 532
 	end -- 532
-	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 532
+	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 534
 		return -- 535
 	end -- 535
-	if art:tryPlace( -- 535
+	if art:tryPlace( -- 537
 		"ink_ribbon_sweep", -- 537
 		id, -- 537
 		cx, -- 537
@@ -597,16 +681,16 @@ function ____exports.drawSilkRibbon(fallbackDraw, art, id, cx, cy, w, h, tint, o
 end -- 526
 --- 婉转烟岚流云曲线（赋予标题、驿道长卷、章名以轻盈流动感）
 function ____exports.drawMistCurve(art, id, cx, cy, w, h, tint, opacity, layer, facing) -- 548
-	if opacity == nil then -- 548
+	if opacity == nil then -- 552
 		opacity = 0.36 -- 552
 	end -- 552
-	if layer == nil then -- 552
+	if layer == nil then -- 553
 		layer = -1 -- 553
 	end -- 553
-	if facing == nil then -- 553
+	if facing == nil then -- 554
 		facing = 1 -- 554
 	end -- 554
-	if w <= 4 or h <= 4 or opacity <= 0.01 then -- 554
+	if w <= 4 or h <= 4 or opacity <= 0.01 then -- 556
 		return -- 557
 	end -- 557
 	art:tryPlace( -- 559
@@ -626,19 +710,19 @@ function ____exports.drawMistCurve(art, id, cx, cy, w, h, tint, opacity, layer, 
 end -- 548
 --- 霜月游丝细线（可选在中点缀一枚极精巧的宋明海棠菱花微结）
 function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, withKnot, layer) -- 565
-	if alpha == nil then -- 565
+	if alpha == nil then -- 570
 		alpha = 0.72 -- 570
 	end -- 570
-	if withKnot == nil then -- 570
+	if withKnot == nil then -- 571
 		withKnot = false -- 571
 	end -- 571
-	if layer == nil then -- 571
+	if layer == nil then -- 572
 		layer = 2 -- 572
 	end -- 572
-	if w <= 4 or alpha <= 0.01 then -- 572
+	if w <= 4 or alpha <= 0.01 then -- 574
 		return -- 575
 	end -- 575
-	if not art:tryPlace( -- 575
+	if not art:tryPlace( -- 577
 		"ink_hairline", -- 577
 		id, -- 577
 		cx, -- 577
@@ -671,7 +755,7 @@ function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, w
 			Color(col.r, col.g, col.b, 0) -- 580
 		) -- 580
 	end -- 580
-	if withKnot then -- 580
+	if withKnot then -- 582
 		art:tryPlace( -- 583
 			"ink_knot_ornament", -- 583
 			id .. "_knot", -- 583
@@ -689,22 +773,22 @@ function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, w
 end -- 565
 --- 宋明纤细海棠折角（取代笨重双线铁框与像素铜角，带留白呼吸感）
 function ____exports.drawFiligreeCorners(overlayDraw, art, id, x, y, w, h, col, alpha, cornerSize, withHairBorder, layer) -- 590
-	if alpha == nil then -- 590
+	if alpha == nil then -- 595
 		alpha = 0.78 -- 595
 	end -- 595
-	if cornerSize == nil then -- 595
+	if cornerSize == nil then -- 596
 		cornerSize = 34 -- 596
 	end -- 596
-	if withHairBorder == nil then -- 596
+	if withHairBorder == nil then -- 597
 		withHairBorder = true -- 597
 	end -- 597
-	if layer == nil then -- 597
+	if layer == nil then -- 598
 		layer = 2 -- 598
 	end -- 598
-	if alpha <= 0.01 then -- 598
+	if alpha <= 0.01 then -- 600
 		return -- 601
 	end -- 601
-	if withHairBorder then -- 601
+	if withHairBorder then -- 603
 		overlayDraw:drawRect( -- 604
 			Rect(x, y, w, h), -- 604
 			Color(0, 0, 0, 0), -- 604
@@ -760,16 +844,16 @@ function ____exports.drawFiligreeCorners(overlayDraw, art, id, x, y, w, h, col, 
 end -- 590
 --- 文人孤印（全屏仅用于主标题落款与北塔登记簿落款，清瘦精致不泛滥）
 function ____exports.drawLoneSeal(overlayDraw, art, texts, id, cx, cy, w, h, topChar, botChar, stampCol, textCol, alpha, layer) -- 618
-	if alpha == nil then -- 618
+	if alpha == nil then -- 626
 		alpha = 0.94 -- 626
 	end -- 626
-	if layer == nil then -- 626
+	if layer == nil then -- 627
 		layer = 4 -- 627
 	end -- 627
-	if alpha <= 0.01 then -- 627
+	if alpha <= 0.01 then -- 629
 		return -- 630
 	end -- 630
-	if not art:tryPlace( -- 630
+	if not art:tryPlace( -- 632
 		"ink_seal_slender", -- 632
 		id, -- 632
 		cx, -- 632
@@ -816,16 +900,16 @@ function ____exports.drawLoneSeal(overlayDraw, art, texts, id, cx, cy, w, h, top
 end -- 618
 --- 纤巧菱花花蕊点（替换笨重圆点与方印焦点）
 function ____exports.drawBlossomDot(overlayDraw, art, id, cx, cy, size, col, alpha, layer) -- 640
-	if alpha == nil then -- 640
+	if alpha == nil then -- 645
 		alpha = 0.92 -- 645
 	end -- 645
-	if layer == nil then -- 645
+	if layer == nil then -- 646
 		layer = 4 -- 646
 	end -- 646
-	if alpha <= 0.01 then -- 646
+	if alpha <= 0.01 then -- 648
 		return -- 649
 	end -- 649
-	if not art:tryPlace( -- 649
+	if not art:tryPlace( -- 651
 		"ink_blossom_dot", -- 651
 		id, -- 651
 		cx, -- 651
@@ -850,10 +934,10 @@ function ____exports.drawBlossomDot(overlayDraw, art, id, cx, cy, size, col, alp
 end -- 640
 --- 清雅霜银发丝微框键位（去土黄、去厚底）
 function ____exports.drawSilkKeycap(overlayDraw, texts, x, y, w, h, keyText, accent, alpha, urgent) -- 657
-	if alpha == nil then -- 657
+	if alpha == nil then -- 663
 		alpha = 1 -- 663
 	end -- 663
-	if urgent == nil then -- 663
+	if urgent == nil then -- 664
 		urgent = false -- 664
 	end -- 664
 	local bg = urgent and ____exports.toColor(____exports.PALETTE.rougeSoft, 200 * alpha) or Color( -- 666
@@ -886,10 +970,10 @@ function ____exports.drawSilkKeycap(overlayDraw, texts, x, y, w, h, keyText, acc
 end -- 657
 --- 以下四项仅为 stage/props/actors 既有调用保留兼容，新 UI 一律使用上述清雅水墨原语
 function ____exports.fillSkewRect(draw, x, y, w, h, skew, fill, borderW, borderCol) -- 674
-	if borderW == nil then -- 674
+	if borderW == nil then -- 677
 		borderW = 0 -- 677
 	end -- 677
-	if w <= 0 or h <= 0 then -- 677
+	if w <= 0 or h <= 0 then -- 679
 		return -- 680
 	end -- 680
 	local pts = { -- 682
@@ -898,14 +982,14 @@ function ____exports.fillSkewRect(draw, x, y, w, h, skew, fill, borderW, borderC
 		Vec2(x + w + skew, y + h), -- 685
 		Vec2(x + skew, y + h) -- 686
 	} -- 686
-	if borderW > 0 and borderCol ~= nil then -- 686
+	if borderW > 0 and borderCol ~= nil then -- 688
 		draw:drawPolygon(pts, fill, borderW, borderCol) -- 689
 	else -- 689
 		draw:drawPolygon(pts, fill) -- 691
 	end -- 691
 end -- 674
 function ____exports.fillChamferBox(draw, x, y, w, h, cut, fill, borderW, borderCol) -- 695
-	if borderW == nil then -- 695
+	if borderW == nil then -- 698
 		borderW = 0 -- 698
 	end -- 698
 	local c = math.min(cut, w * 0.3, h * 0.3) -- 700
@@ -917,7 +1001,7 @@ function ____exports.fillChamferBox(draw, x, y, w, h, cut, fill, borderW, border
 		Vec2(x + c, y + h), -- 706
 		Vec2(x, y + h - c) -- 707
 	} -- 707
-	if borderW > 0 and borderCol ~= nil then -- 707
+	if borderW > 0 and borderCol ~= nil then -- 709
 		draw:drawPolygon(pts, fill, borderW, borderCol) -- 710
 	else -- 710
 		draw:drawPolygon(pts, fill) -- 712
@@ -930,9 +1014,9 @@ function ____exports.visualTextWidth(text, fontSize) -- 734
 		i = 0 -- 737
 		while i < #text do -- 737
 			local b = __TS__StringCharCodeAt(text, i) -- 738
-			if b < 128 then -- 738
+			if b < 128 then -- 739
 				units = units + 0.56 -- 740
-			elseif b >= 192 then -- 740
+			elseif b >= 192 then -- 741
 				units = units + 1.02 -- 742
 			end -- 742
 			i = i + 1 -- 737
@@ -943,12 +1027,12 @@ end -- 734
 function ____exports.drawHazardStripes(draw, x, y, w, h, pitch, col) -- 748
 	local sw = pitch * 0.45 -- 753
 	local cur = x - h -- 754
-	while cur < x + w do -- 754
+	while cur < x + w do -- 755
 		local x0 = math.max(x, cur) -- 756
 		local x1 = math.min(x + w, cur + sw) -- 757
 		local tx0 = math.max(x, cur + h) -- 758
 		local tx1 = math.min(x + w, cur + h + sw) -- 759
-		if x1 > x0 and tx1 > tx0 then -- 759
+		if x1 > x0 and tx1 > tx0 then -- 760
 			draw:drawPolygon( -- 761
 				{ -- 761
 					Vec2(x0, y), -- 762

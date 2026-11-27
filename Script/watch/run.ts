@@ -122,15 +122,35 @@ export interface StoryState {
     museumReturn: boolean;
     /** 已在第三段工台做出的武器 id；空串表示还没做。 */
     craftedWeapon: string;
+    /** 当前装备的武器 id（支持标准铳、工台改制武器及双通关时间穿梭器）。 */
+    equippedWeapon: string;
     /** 结局：reunion=北塔团圆；lamp=小满留灯；空串表示还没落幕。 */
     ending: string;
     /** 最近一次检查点快照；切房/重试时随 run 一起带走。 */
     cp?: CheckpointSnap;
     /** 已走出的段出口：每段只结算一次，重试/回访不重复记。 */
     segments: Record<string, boolean>;
+    /** 正式男主线五段护送（escort1..5）的肉鸽三选一天赋状态（按 seed 确定性抽卡）。 */
+    talents?: StoryTalents;
 }
 
-export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
+export interface StoryTalents {
+    randomState: number;
+    ranks: Record<Talent, number>;
+    offers: Talent[];
+    room: string;
+}
+
+export function createStoryTalents(seed: number = 20261124): StoryTalents {
+    return {
+        randomState: 1 + Math.floor(Math.abs(seed)) % 2147483646,
+        ranks: { vitality: 0, reload: 0, guard: 0, craft: 0 },
+        offers: [],
+        room: "",
+    };
+}
+
+export function createStory(hp: number = 3, maxHp: number = 3, seed: number = 20261124): StoryState {
     return {
         route: "",
         hp: hp,
@@ -149,9 +169,11 @@ export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
         museumReturn: false,
         escortDone: false,
         craftedWeapon: "",
+        equippedWeapon: "",
         ending: "",
         cp: undefined,
         segments: {},
+        talents: createStoryTalents(seed),
     };
 }
 
@@ -176,16 +198,20 @@ export function createTrial(seed: number): RunState {
     return run;
 }
 
-export function draftRoom(trial: Trial, room: string): void {
-    if (trial.room === room) return;
-    trial.room = room;
+export function draftTalentOffers(target: { randomState: number; offers: Talent[]; room: string }, room: string): void {
+    if (target.room === room) return;
+    target.room = room;
     const pool: Talent[] = ["vitality", "reload", "guard", "craft"];
-    trial.offers = [];
-    while (trial.offers.length < 3) {
-        trial.randomState = (trial.randomState * 48271) % 2147483647;
-        const index = Math.floor(trial.randomState / 2147483647 * pool.length);
-        trial.offers.push(pool.splice(index, 1)[0]);
+    target.offers = [];
+    while (target.offers.length < 3) {
+        target.randomState = (target.randomState * 48271) % 2147483647;
+        const index = Math.floor(target.randomState / 2147483647 * pool.length);
+        target.offers.push(pool.splice(index, 1)[0]);
     }
+}
+
+export function draftRoom(trial: Trial, room: string): void {
+    draftTalentOffers(trial, room);
 }
 
 /** 本局从哪来：official=标题「新的旅程」，chapter=章节直达，debug=数字快跳/验收夹具，trial=标题试炼。 */
@@ -246,7 +272,7 @@ export function createRun(seed: number = 20261124, source: RunSource = "debug",
         c2Latch: false,
         checkpoint: 0,
         finished: false,
-        story: createStory(),
+        story: createStory(3, 3, seed),
         archive: archive,
         log: [],
     };

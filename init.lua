@@ -32,5 +32,5 @@ root.size = Size(W, H) -- 29
 root.anchor = Vec2(0, 0) -- 30
 root.position = Vec2(-W / 2, -H / 2) -- 31
 Director.ui:addChild(root) -- 32
-start(root, 1) -- 34
+start(root, 1, "splash") -- 34
 return ____exports -- 34

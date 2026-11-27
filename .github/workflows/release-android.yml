@@ -1,0 +1,306 @@
+name: Release Android APK Packages
+
+on:
+  pull_request:
+    paths:
+      - 'init.ts'
+      - 'init.lua'
+      - 'Script/**'
+      - 'assets/**'
+      - 'art-source/brand/icons/android/**'
+      - 'tools/android-boot.lua'
+      - 'tools/patch-android-apk.py'
+      - 'tools/make-android-pack.sh'
+      - 'tools/audit-assets.py'
+      - '.github/workflows/release-android.yml'
+  push:
+    branches:
+      - 'main'
+      - 'exp/multi-device-adapt'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本标识（如 v0.2.0-android；留空默认取 tag 或短 commit）'
+        required: false
+        default: ''
+        type: string
+      publish_release:
+        description: '是否同时发布/追加至 GitHub Release（仅手动触发时生效；tag 触发默认发布）'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  DORA_VERSION: v1.10.2
+  PACKAGE_NAME: com.hxsx1016.westwardwatch
+  APP_TITLE: 向西守望
+
+jobs:
+  build-android:
+    name: Build, Align (16KB), Sign & Verify Android APKs
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      signed_mode: ${{ steps.sign.outputs.signed_mode }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK build-tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;35.0.0'
+
+      - name: Resolve version & versionCode
+        id: meta
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VER="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VER="${GITHUB_REF#refs/tags/}"
+          else
+            VER="dev-${GITHUB_SHA::7}"
+          fi
+          VCODE="$(git rev-list --count HEAD)"
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VCODE}" >> "$GITHUB_OUTPUT"
+          echo "Android packaging version=${VER}, versionCode=${VCODE}"
+
+      - name: Run repository and asset audits
+        run: |
+          python3 tools/check-repo.py
+          python3 tools/audit-assets.py
+
+      - name: Download and verify official Dora SSR Android runtime APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dora-android" "$RUNNER_TEMP/dora-unpacked"
+          gh release download "${DORA_VERSION}" --repo IppClub/Dora-SSR --dir "$RUNNER_TEMP/dora-android" \
+            --pattern "dora-ssr-${DORA_VERSION}-android.zip" \
+            --pattern "SHA256SUMS"
+          (
+            cd "$RUNNER_TEMP/dora-android"
+            grep -E "dora-ssr-${DORA_VERSION}-android\.zip$" SHA256SUMS | sha256sum -c -
+          )
+          unzip -q "$RUNNER_TEMP/dora-android/dora-ssr-${DORA_VERSION}-android.zip" -d "$RUNNER_TEMP/dora-unpacked"
+
+      - name: Prepare signing keystore (Secrets or PR debug fallback)
+        id: sign
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KS_PATH="$RUNNER_TEMP/release-signing.p12"
+          if [ -n "${ANDROID_KEYSTORE_B64:-}" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_B64" | base64 -d > "$KS_PATH"
+            chmod 600 "$KS_PATH"
+            echo "signed_mode=release" >> "$GITHUB_OUTPUT"
+            echo "ks_path=$KS_PATH" >> "$GITHUB_OUTPUT"
+            echo "Using repository release signing keystore."
+          else
+            keytool -genkeypair -keystore "$KS_PATH" -storetype PKCS12 \
+              -storepass debugpass -keypass debugpass \
+              -alias debugkey -keyalg RSA -keysize 2048 -validity 30 \
+              -dname "CN=Westward Watch CI Debug, O=CI, C=CN" >/dev/null 2>&1
+            echo "signed_mode=ephemeral-debug" >> "$GITHUB_OUTPUT"
+            echo "ks_path=$KS_PATH" >> "$GITHUB_OUTPUT"
+            echo "Repository signing secrets unavailable in this context; using ephemeral debug keystore."
+          fi
+
+      - name: Build & Sign arm64-v8a and universal APKs
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          TEMPLATE_APK="$(find "$RUNNER_TEMP/dora-unpacked" -name '*.apk' | head -n 1)"
+          OUT_DIR="$RUNNER_TEMP/android-out"
+          mkdir -p "$OUT_DIR"
+
+          if [ "${{ steps.sign.outputs.signed_mode }}" = "release" ]; then
+            KS_PASS="$ANDROID_KEYSTORE_PASSWORD"
+            KS_ALIAS="$ANDROID_KEY_ALIAS"
+            KEY_PASS="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
+          else
+            KS_PASS="debugpass"
+            KS_ALIAS="debugkey"
+            KEY_PASS="debugpass"
+          fi
+
+          bash tools/make-android-pack.sh \
+            --template-apk "$TEMPLATE_APK" \
+            --abis "arm64-v8a" \
+            --orientation "fullUser" \
+            --suffix "android-arm64" \
+            --out-dir "$OUT_DIR" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --version-code "${{ steps.meta.outputs.version_code }}" \
+            --package "${PACKAGE_NAME}" \
+            --title "${APP_TITLE}" \
+            --keystore "${{ steps.sign.outputs.ks_path }}" \
+            --ks-pass "$KS_PASS" \
+            --ks-alias "$KS_ALIAS" \
+            --key-pass "$KEY_PASS" \
+            --skip-audit
+
+          bash tools/make-android-pack.sh \
+            --template-apk "$TEMPLATE_APK" \
+            --abis "arm64-v8a,armeabi-v7a" \
+            --orientation "fullUser" \
+            --suffix "android-universal" \
+            --out-dir "$OUT_DIR" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --version-code "${{ steps.meta.outputs.version_code }}" \
+            --package "${PACKAGE_NAME}" \
+            --title "${APP_TITLE}" \
+            --keystore "${{ steps.sign.outputs.ks_path }}" \
+            --ks-pass "$KS_PASS" \
+            --ks-alias "$KS_ALIAS" \
+            --key-pass "$KEY_PASS" \
+            --skip-audit
+
+          (
+            cd "$OUT_DIR"
+            sha256sum ./*.apk | sed 's| \./|  |' > SHA256SUMS-android.txt
+            cat SHA256SUMS-android.txt
+          )
+
+      - name: Verify APK metadata, fullUser rotation, 16KB alignment, permissions & unified assets
+        run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          AAPT2="$BUILD_TOOLS/aapt2"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          OUT_DIR="$RUNNER_TEMP/android-out"
+
+          for apk in "$OUT_DIR"/*.apk; do
+            echo "=== Inspecting $(basename "$apk") ==="
+            BADGING="$("$AAPT2" dump badging "$apk")"
+            echo "$BADGING" | head -n 30
+            echo "$BADGING" | grep -q "package: name='${PACKAGE_NAME}'"
+            echo "$BADGING" | grep -q "application-label:'${APP_TITLE}'"
+            if echo "$BADGING" | grep -q "REQUEST_INSTALL_PACKAGES\|RECORD_AUDIO"; then
+              echo "Forbidden permission still present in APK!" >&2
+              exit 1
+            fi
+            XMLTREE="$("$AAPT2" dump xmltree "$apk" --file AndroidManifest.xml)"
+            echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0xa|10([^0-9a-fA-F]|$))"
+            "$ZIPALIGN" -c -P 16 -v 4 "$apk" >/dev/null
+            "$APKSIGNER" verify --verbose "$apk"
+            # 检查 .so ELF LOAD 段对齐情况（记录 16KB 页对齐兼容性）
+            if command -v readelf >/dev/null 2>&1; then
+              TMP_SO="$RUNNER_TEMP/so-check-$(basename "$apk" .apk)"
+              rm -rf "$TMP_SO" && mkdir -p "$TMP_SO"
+              unzip -q -j "$apk" "lib/arm64-v8a/*.so" -d "$TMP_SO" || true
+              for so in "$TMP_SO"/*.so; do
+                [ -f "$so" ] || continue
+                echo "[ELF LOAD align] $(basename "$so"):"
+                readelf -l "$so" | awk '/LOAD/ {print "  " $0}'
+              done
+              rm -rf "$TMP_SO"
+            fi
+            python3 - "$apk" <<'PY'
+          import sys, zipfile
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              names = set(z.namelist())
+              for req in (
+                  "assets/Script/init.lua",
+                  "assets/Script/main.lua",
+                  "assets/Script/watch/app.lua",
+                  "assets/Script/watch/platform.lua",
+                  "assets/Script/watch/controls_config.lua",
+                  "assets/Script/watch/aim_assist.lua",
+                  "assets/Script/watch/gamepad.lua",
+                  "assets/Script/watch/touch.lua",
+                  "assets/Script/watch/fe/ui/control_prompts.lua",
+                  "assets/Script/watch/fe/ui/touch_controls.lua",
+                  "assets/assets/art/title.png",
+                  "assets/assets/art/brand/app_icon.png",
+                  "assets/assets/art/brand/game_logo_h.png",
+                  "assets/assets/art/brand/game_logo_v.png",
+                  "assets/assets/art/brand/team_logo_dark.png",
+                  "assets/assets/font/lxgw-neo-zhisong.ttf",
+                  "assets/assets/audio/combat/shot.wav",
+              ):
+                  assert req in names, f"Missing required APK asset: {req}"
+              for bad in ("assets/www/index.html", "assets/Audio/GeneralUserGS.sf3"):
+                  assert bad not in names, f"Forbidden dev file present: {bad}"
+              for n in names:
+                  assert not n.endswith("libgodot_android.so") and not n.endswith("libgojni.so"), f"Bloated lib present: {n}"
+                  if n.endswith(".so"):
+                      assert z.getinfo(n).compress_type == zipfile.ZIP_STORED, f"Native lib not STORED: {n}"
+          print("APK internal structure, unified brand assets & uncompressed .so check PASSED.")
+          PY
+          done
+
+      - name: Cleanup keystore file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-signing.p12"
+
+      - name: Upload Android APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-android-apks
+          path: |
+            ${{ runner.temp }}/android-out/*.apk
+            ${{ runner.temp }}/android-out/SHA256SUMS-android.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-android-release:
+    name: Publish Android APKs to GitHub Release
+    needs: [build-android]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Enforce release keystore for public releases
+        run: |
+          if [ "${{ needs.build-android.outputs.signed_mode }}" != "release" ]; then
+            echo "拒绝发布：当前 APK 使用临时 30 天调试签名（signed_mode=${{ needs.build-android.outputs.signed_mode }}），请先在仓库 Secrets 配置 ANDROID_KEYSTORE_B64 / PASSWORD / ALIAS。" >&2
+            exit 1
+          fi
+
+      - name: Download Android APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-android-apks
+          path: ${{ runner.temp }}/android-out
+
+      - name: Upload Android APKs to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ needs.build-android.outputs.version }}"
+          if gh release view "${VER}" >/dev/null 2>&1; then
+            gh release upload "${VER}" "$RUNNER_TEMP/android-out/"* --clobber
+          else
+            PRERELEASE_FLAG=""
+            if [[ "${VER}" == *-* ]]; then
+              PRERELEASE_FLAG="--prerelease"
+            fi
+            if ! gh release create "${VER}" "$RUNNER_TEMP/android-out/"* \
+              --title "《向西守望》${VER}" \
+              --notes "《向西守望》${VER} 多端发行版（含 Windows 便携包、Dora 源码包、Android 正式签名 APK 与 Web 发行包）。" \
+              ${PRERELEASE_FLAG}; then
+              gh release upload "${VER}" "$RUNNER_TEMP/android-out/"* --clobber
+            fi
+          fi

@@ -70,7 +70,7 @@ local MAT_CULVERT_STONE = { -- 135
 	bottomAo = 0.34 -- 140
 } -- 140
 local function drawEllipseRing(draw, cx, cy, rx, ry, lineW, col, segs) -- 143
-	if segs == nil then -- 143
+	if segs == nil then -- 151
 		segs = 22 -- 151
 	end -- 151
 	local pts = {} -- 153
@@ -94,7 +94,7 @@ local function drawEllipseRing(draw, cx, cy, rx, ry, lineW, col, segs) -- 143
 	) -- 159
 end -- 143
 local function drawUiQuad(uiDraw, p0, p1, p2, p3, cBot, cTop, invScale, edgeCol, edgeW) -- 162
-	if edgeW == nil then -- 162
+	if edgeW == nil then -- 172
 		edgeW = 0 -- 172
 	end -- 172
 	local v0 = Vec2(p0.x * invScale, p0.y * invScale) -- 174
@@ -103,7 +103,7 @@ local function drawUiQuad(uiDraw, p0, p1, p2, p3, cBot, cTop, invScale, edgeCol,
 	local v3 = Vec2(p3.x * invScale, p3.y * invScale) -- 177
 	uiDraw:drawVertices({{v0, cBot}, {v1, cBot}, {v2, cTop}}) -- 178
 	uiDraw:drawVertices({{v0, cBot}, {v2, cTop}, {v3, cTop}}) -- 183
-	if edgeCol ~= nil and edgeW > 0 then -- 183
+	if edgeCol ~= nil and edgeW > 0 then -- 188
 		local half = edgeW * 0.5 -- 189
 		uiDraw:drawSegment(v0, v1, half, edgeCol) -- 190
 		uiDraw:drawSegment(v1, v2, half, edgeCol) -- 191
@@ -182,1805 +182,1685 @@ function VillageUndertableScene.prototype.getSoftWorldX(self, p) -- 272
 	return p.room.softX or p.ox + 272 -- 273
 end -- 272
 function VillageUndertableScene.prototype.getCulvertWorldX(self, p) -- 276
-	return p.room.passLine or p.ox + 440 -- 277
+	return p.ox + 600 -- 278
 end -- 276
-function VillageUndertableScene.prototype.classifyLandingSurface(self, p, x, explicitSurface) -- 281
-	if explicitSurface == "iron" or explicitSurface == "basin" then -- 281
-		return "iron" -- 283
-	end -- 283
-	if explicitSurface == "soft" or explicitSurface == "dirt" then -- 283
-		return "soft" -- 286
-	end -- 286
-	if explicitSurface == "brick" then -- 286
-		return "brick" -- 289
-	end -- 289
-	local basinX = self:getBasinWorldX(p) -- 291
-	if math.abs(x - basinX) <= ____exports.VILLAGE_BASIN_HIT_RADIUS then -- 291
-		return "iron" -- 293
-	end -- 293
-	local softX = self:getSoftWorldX(p) -- 295
-	if math.abs(x - softX) <= ____exports.VILLAGE_SURFACE_HIT_RADIUS then -- 295
-		return "soft" -- 297
-	end -- 297
-	return "brick" -- 299
-end -- 281
-function VillageUndertableScene.prototype.getDebugState(self, p) -- 302
-	return { -- 303
-		active = self.active, -- 304
-		basinWorldX = p ~= nil and self:getBasinWorldX(p) or ____exports.VILLAGE_BASIN_OFFSET_X, -- 305
-		brickWorldX = p ~= nil and self:getBrickWorldX(p) or 608, -- 306
-		softWorldX = p ~= nil and self:getSoftWorldX(p) or 272, -- 307
-		culvertWorldX = p ~= nil and self:getCulvertWorldX(p) or 440, -- 308
-		lastSurface = self.lastSurface, -- 309
-		brickHits = self.brickHits, -- 310
-		ironHits = self.ironHits, -- 311
-		softHits = self.softHits, -- 312
-		basinShakeTimer = self.basinShakeTimer, -- 313
-		basinShakeAngle = self.basinShakeAngle, -- 314
-		shoeToePauseTimer = self.shoeToePauseTimer, -- 315
-		shoeFacing = self.shoeFacing, -- 316
-		scavTargetX = p ~= nil and p.scavTargetX or 0, -- 317
-		underTableFocus = self.underTableFocus, -- 318
-		lastLandX = self.lastLandX -- 319
-	} -- 319
-end -- 302
-function VillageUndertableScene.prototype.update(self, ctx) -- 323
-	local p = ctx.p -- 324
-	self.active = true -- 325
-	local arch = p.room.arch -- 328
-	local nearTable = p.player.x >= arch.x0 - 80 and p.player.x <= arch.x1 + 30 -- 329
-	local targetFocus = (p.player.crouch or nearTable) and 1 or 0.72 -- 330
-	if not ctx.paused and ctx.worldDt > 0 then -- 330
-		local dt = ctx.worldDt -- 332
-		self.animTime = self.animTime + dt -- 333
-		self.underTableFocus = self.underTableFocus + (targetFocus - self.underTableFocus) * math.min(1, dt * 4.5) -- 334
-		if self.basinShakeTimer > 0 then -- 334
-			self.basinShakeTimer = math.max(0, self.basinShakeTimer - dt) -- 338
-			local elapsed = self.basinShakeMax - self.basinShakeTimer -- 339
-			self.basinShakeAngle = math.sin(elapsed * 38) * math.exp(-elapsed * 3.1) * 0.24 -- 340
-		else -- 340
-			self.basinShakeAngle = 0 -- 342
-		end -- 342
-		if self.shoeToePauseTimer > 0 then -- 342
-			self.shoeToePauseTimer = math.max(0, self.shoeToePauseTimer - dt) -- 347
-		end -- 347
-		local scavDx = p.scavX - self.prevScavX -- 349
-		if math.abs(scavDx) > 0.02 then -- 349
-			self.scavStridePhase = self.scavStridePhase + math.abs(scavDx) * 0.16 -- 351
-		elseif p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" then -- 351
-			self.scavStridePhase = self.scavStridePhase + dt * (p.scavState == "chase" and 11.5 or 6.2) -- 353
-		end -- 353
-		self.prevScavX = p.scavX -- 355
-		local desiredFacing = self:computeDesiredShoeFacing(p) -- 358
-		if self.shoeToePauseTimer <= 0 then -- 358
-			self.shoeFacing = desiredFacing -- 360
-			self.shoeTurnBlend = math.min(1, self.shoeTurnBlend + dt * 6) -- 361
-		end -- 361
-		local i = 0 -- 365
-		do -- 365
-			i = 0 -- 366
-			while i < #ctx.events.rawEvents do -- 366
-				local ev = ctx.events.rawEvents[i + 1] -- 367
-				if ev.name == "bottleLanded" then -- 367
-					self:onBottleLanded(ctx, ev) -- 369
-				end -- 369
-				i = i + 1 -- 366
-			end -- 366
-		end -- 366
-		if p.scavState == "turn" and self.prevScavState ~= "turn" then -- 366
-			if self.lastSurface == "brick" and self.shoeToePauseTimer <= 0 then -- 366
-				self.shoeToePauseTimer = 0.14 -- 376
-			end -- 376
-		end -- 376
-		self.prevScavState = p.scavState -- 379
-		local w = 0 -- 382
-		do -- 382
-			i = 0 -- 383
-			while i < #self.shards do -- 383
-				local sp = self.shards[i + 1] -- 384
-				sp.life = sp.life - dt -- 385
-				if sp.life > 0 then -- 385
-					sp.vy = sp.vy - (sp.kind == "soft" and 180 or 420) * dt -- 387
-					sp.x = sp.x + sp.vx * dt -- 388
-					sp.y = sp.y + sp.vy * dt -- 389
-					if sp.y < 0 then -- 389
-						sp.y = 0 -- 391
-						sp.vy = -sp.vy * 0.28 -- 392
-						sp.vx = sp.vx * 0.62 -- 393
-					end -- 393
-					self.shards[w + 1] = sp -- 395
-					w = w + 1 -- 396
-				end -- 396
-				i = i + 1 -- 383
-			end -- 383
-		end -- 383
-		__TS__ArraySetLength(self.shards, w) -- 383
-		w = 0 -- 402
-		do -- 402
-			i = 0 -- 403
-			while i < #self.rings do -- 403
-				local rg = self.rings[i + 1] -- 404
-				rg.age = rg.age + dt -- 405
-				if rg.age < rg.duration then -- 405
-					self.rings[w + 1] = rg -- 407
-					w = w + 1 -- 408
-				end -- 408
-				i = i + 1 -- 403
-			end -- 403
-		end -- 403
-		__TS__ArraySetLength(self.rings, w) -- 403
-		ctx.audio:playLoop( -- 414
-			"fe04_village_night", -- 414
-			"ambience", -- 414
-			CHILD_AUDIO_ROOT .. "village_night_loop.wav", -- 414
-			0.24, -- 414
-			p.ticks -- 414
-		) -- 414
-	elseif self.underTableFocus == 0 then -- 414
-		self.underTableFocus = targetFocus -- 416
-	end -- 416
-	local focusAnchorX = math.max( -- 420
-		p.ox + 344, -- 420
-		math.min(p.ox + 408, p.ox + 362 + (p.player.x - (p.ox + 320)) * 0.14) -- 420
-	) -- 420
-	local zoom = 0.9 + (1 - self.underTableFocus) * 0.04 -- 421
-	ctx.cam:setAnchorLock({ -- 422
-		footWorldX = focusAnchorX, -- 423
-		footWorldY = 0, -- 424
-		footDepth = 0, -- 425
-		thresholdWorldX = p.ox + 440, -- 426
-		screenFootFracX = 0.5, -- 427
-		screenFootFracY = 0.235, -- 428
-		zoomOverride = zoom -- 429
-	}) -- 429
-	self.proj = { -- 432
-		morph = 1, -- 433
-		focal = 390, -- 434
-		vpFracX = 0.54, -- 435
-		vpFracY = 0.43 - self.underTableFocus * 0.03, -- 436
-		vpOffsetX = math.sin(self.animTime * 0.65) * 1.4, -- 437
-		vpOffsetY = math.cos(self.animTime * 0.85) * 1, -- 438
-		baseDepth = 0 -- 439
-	} -- 439
-end -- 323
-function VillageUndertableScene.prototype.computeDesiredShoeFacing(self, p) -- 443
-	if p.scavState == "chase" then -- 443
-		return p.player.x >= p.scavX and 1 or -1 -- 445
-	end -- 445
-	if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 445
-		if math.abs(p.scavTargetX - p.scavX) > 2 then -- 445
-			return p.scavTargetX >= p.scavX and 1 or -1 -- 449
-		end -- 449
-	end -- 449
-	if p.scavState == "back" and p.room.scavenger ~= nil then -- 449
-		local home = math.max( -- 453
-			p.room.scavenger.x0, -- 453
-			math.min(p.room.scavenger.x1, p.scavX) -- 453
-		) -- 453
-		if math.abs(home - p.scavX) > 2 then -- 453
-			return home > p.scavX and 1 or -1 -- 455
-		end -- 455
-	end -- 455
-	return p.scavDir >= 0 and 1 or -1 -- 458
-end -- 443
-function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 461
-	local p = ctx.p -- 462
-	local x = type(ev.data.x) == "number" and ev.data.x or p.bottleLandX -- 463
-	local y = type(ev.data.y) == "number" and ev.data.y or math.max(0, p.bottleLandY) -- 464
-	local explicitSurface = type(ev.data.surface) == "string" and ev.data.surface or nil -- 465
-	local surface = self:classifyLandingSurface(p, x, explicitSurface) -- 466
-	self.lastSurface = surface -- 468
-	self.lastLandX = x -- 469
-	if surface == "iron" then -- 469
-		self.ironHits = self.ironHits + 1 -- 472
-		self.basinShakeTimer = self.basinShakeMax -- 473
-		self.shoeToePauseTimer = 0 -- 474
-		self.shoeTurnBlend = 0.25 -- 475
-		local bx = self:getBasinWorldX(p) -- 476
-		local ____self_rings_0 = self.rings -- 476
-		____self_rings_0[#____self_rings_0 + 1] = { -- 478
-			x = bx, -- 478
-			y = 12, -- 478
-			age = 0, -- 478
-			duration = 1.05, -- 478
-			maxRadius = 84, -- 478
-			kind = "iron" -- 478
-		} -- 478
-		local ____self_rings_1 = self.rings -- 478
-		____self_rings_1[#____self_rings_1 + 1] = { -- 479
+function VillageUndertableScene.prototype.classifyLandingSurface(self, p, x, explicitSurface) -- 282
+	if explicitSurface == "iron" or explicitSurface == "basin" then -- 283
+		return "iron" -- 284
+	end -- 284
+	if explicitSurface == "soft" or explicitSurface == "dirt" then -- 286
+		return "soft" -- 287
+	end -- 287
+	if explicitSurface == "brick" then -- 289
+		return "brick" -- 290
+	end -- 290
+	local basinX = self:getBasinWorldX(p) -- 292
+	if math.abs(x - basinX) <= ____exports.VILLAGE_BASIN_HIT_RADIUS then -- 293
+		return "iron" -- 294
+	end -- 294
+	local softX = self:getSoftWorldX(p) -- 296
+	if math.abs(x - softX) <= ____exports.VILLAGE_SURFACE_HIT_RADIUS then -- 297
+		return "soft" -- 298
+	end -- 298
+	return "brick" -- 300
+end -- 282
+function VillageUndertableScene.prototype.getDebugState(self, p) -- 303
+	return { -- 304
+		active = self.active, -- 305
+		basinWorldX = p ~= nil and self:getBasinWorldX(p) or ____exports.VILLAGE_BASIN_OFFSET_X, -- 306
+		brickWorldX = p ~= nil and self:getBrickWorldX(p) or 608, -- 307
+		softWorldX = p ~= nil and self:getSoftWorldX(p) or 272, -- 308
+		culvertWorldX = p ~= nil and self:getCulvertWorldX(p) or 440, -- 309
+		lastSurface = self.lastSurface, -- 310
+		brickHits = self.brickHits, -- 311
+		ironHits = self.ironHits, -- 312
+		softHits = self.softHits, -- 313
+		basinShakeTimer = self.basinShakeTimer, -- 314
+		basinShakeAngle = self.basinShakeAngle, -- 315
+		shoeToePauseTimer = self.shoeToePauseTimer, -- 316
+		shoeFacing = self.shoeFacing, -- 317
+		scavTargetX = p ~= nil and p.scavTargetX or 0, -- 318
+		underTableFocus = self.underTableFocus, -- 319
+		lastLandX = self.lastLandX -- 320
+	} -- 320
+end -- 303
+function VillageUndertableScene.prototype.update(self, ctx) -- 324
+	local p = ctx.p -- 325
+	self.active = true -- 326
+	local arch = p.room.arch -- 329
+	local nearTable = p.player.x >= arch.x0 - 80 and p.player.x <= arch.x1 + 30 -- 330
+	local targetFocus = (p.player.crouch or nearTable) and 1 or 0.72 -- 331
+	if not ctx.paused and ctx.worldDt > 0 then -- 332
+		local dt = ctx.worldDt -- 333
+		self.animTime = self.animTime + dt -- 334
+		self.underTableFocus = self.underTableFocus + (targetFocus - self.underTableFocus) * math.min(1, dt * 4.5) -- 335
+		if self.basinShakeTimer > 0 then -- 338
+			self.basinShakeTimer = math.max(0, self.basinShakeTimer - dt) -- 339
+			local elapsed = self.basinShakeMax - self.basinShakeTimer -- 340
+			self.basinShakeAngle = math.sin(elapsed * 38) * math.exp(-elapsed * 3.1) * 0.24 -- 341
+		else -- 341
+			self.basinShakeAngle = 0 -- 343
+		end -- 343
+		if self.shoeToePauseTimer > 0 then -- 347
+			self.shoeToePauseTimer = math.max(0, self.shoeToePauseTimer - dt) -- 348
+		end -- 348
+		local scavDx = p.scavX - self.prevScavX -- 350
+		if math.abs(scavDx) > 0.02 then -- 351
+			self.scavStridePhase = self.scavStridePhase + math.abs(scavDx) * 0.16 -- 352
+		elseif p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" then -- 353
+			self.scavStridePhase = self.scavStridePhase + dt * (p.scavState == "chase" and 11.5 or 6.2) -- 354
+		end -- 354
+		self.prevScavX = p.scavX -- 356
+		local desiredFacing = self:computeDesiredShoeFacing(p) -- 359
+		if self.shoeToePauseTimer <= 0 then -- 360
+			self.shoeFacing = desiredFacing -- 361
+			self.shoeTurnBlend = math.min(1, self.shoeTurnBlend + dt * 6) -- 362
+		end -- 362
+		local i = 0 -- 366
+		do -- 366
+			i = 0 -- 367
+			while i < #ctx.events.rawEvents do -- 367
+				local ev = ctx.events.rawEvents[i + 1] -- 368
+				if ev.name == "bottleLanded" then -- 369
+					self:onBottleLanded(ctx, ev) -- 370
+				end -- 370
+				i = i + 1 -- 367
+			end -- 367
+		end -- 367
+		if p.scavState == "turn" and self.prevScavState ~= "turn" then -- 375
+			if self.lastSurface == "brick" and self.shoeToePauseTimer <= 0 then -- 376
+				self.shoeToePauseTimer = 0.14 -- 377
+			end -- 377
+		end -- 377
+		self.prevScavState = p.scavState -- 380
+		local w = 0 -- 383
+		do -- 383
+			i = 0 -- 384
+			while i < #self.shards do -- 384
+				local sp = self.shards[i + 1] -- 385
+				sp.life = sp.life - dt -- 386
+				if sp.life > 0 then -- 387
+					sp.vy = sp.vy - (sp.kind == "soft" and 180 or 420) * dt -- 388
+					sp.x = sp.x + sp.vx * dt -- 389
+					sp.y = sp.y + sp.vy * dt -- 390
+					if sp.y < 0 then -- 391
+						sp.y = 0 -- 392
+						sp.vy = -sp.vy * 0.28 -- 393
+						sp.vx = sp.vx * 0.62 -- 394
+					end -- 394
+					self.shards[w + 1] = sp -- 396
+					w = w + 1 -- 397
+				end -- 397
+				i = i + 1 -- 384
+			end -- 384
+		end -- 384
+		__TS__ArraySetLength(self.shards, w) -- 400
+		w = 0 -- 403
+		do -- 403
+			i = 0 -- 404
+			while i < #self.rings do -- 404
+				local rg = self.rings[i + 1] -- 405
+				rg.age = rg.age + dt -- 406
+				if rg.age < rg.duration then -- 407
+					self.rings[w + 1] = rg -- 408
+					w = w + 1 -- 409
+				end -- 409
+				i = i + 1 -- 404
+			end -- 404
+		end -- 404
+		__TS__ArraySetLength(self.rings, w) -- 412
+		ctx.audio:playLoop( -- 415
+			"fe04_village_night", -- 415
+			"ambience", -- 415
+			CHILD_AUDIO_ROOT .. "village_night_loop.wav", -- 415
+			0.24, -- 415
+			p.ticks -- 415
+		) -- 415
+	elseif self.underTableFocus == 0 then -- 416
+		self.underTableFocus = targetFocus -- 417
+	end -- 417
+	local focusAnchorX = math.max( -- 421
+		p.ox + 305, -- 421
+		math.min(p.ox + 455, p.ox + 355 + (p.player.x - (p.ox + 320)) * 0.28) -- 421
+	) -- 421
+	local zoom = 1.04 + (1 - self.underTableFocus) * 0.04 -- 422
+	ctx.cam:setAnchorLock({ -- 423
+		footWorldX = focusAnchorX, -- 424
+		footWorldY = 0, -- 425
+		footDepth = 0, -- 426
+		thresholdWorldX = p.ox + 440, -- 427
+		screenFootFracX = 0.5, -- 428
+		screenFootFracY = 0.235, -- 429
+		zoomOverride = zoom -- 430
+	}) -- 430
+	self.proj = { -- 433
+		morph = 1, -- 434
+		focal = 390, -- 435
+		vpFracX = 0.54, -- 436
+		vpFracY = 0.43 - self.underTableFocus * 0.03, -- 437
+		vpOffsetX = math.sin(self.animTime * 0.65) * 1.4, -- 438
+		vpOffsetY = math.cos(self.animTime * 0.85) * 1, -- 439
+		baseDepth = 0 -- 440
+	} -- 440
+end -- 324
+function VillageUndertableScene.prototype.computeDesiredShoeFacing(self, p) -- 444
+	if p.scavState == "chase" then -- 445
+		return p.player.x >= p.scavX and 1 or -1 -- 446
+	end -- 446
+	if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 448
+		if math.abs(p.scavTargetX - p.scavX) > 2 then -- 449
+			return p.scavTargetX >= p.scavX and 1 or -1 -- 450
+		end -- 450
+	end -- 450
+	if p.scavState == "back" and p.room.scavenger ~= nil then -- 453
+		local home = math.max( -- 454
+			p.room.scavenger.x0, -- 454
+			math.min(p.room.scavenger.x1, p.scavX) -- 454
+		) -- 454
+		if math.abs(home - p.scavX) > 2 then -- 455
+			return home > p.scavX and 1 or -1 -- 456
+		end -- 456
+	end -- 456
+	return p.scavDir >= 0 and 1 or -1 -- 459
+end -- 444
+function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
+	local p = ctx.p -- 463
+	local x = type(ev.data.x) == "number" and ev.data.x or p.bottleLandX -- 464
+	local y = type(ev.data.y) == "number" and ev.data.y or math.max(0, p.bottleLandY) -- 465
+	local explicitSurface = type(ev.data.surface) == "string" and ev.data.surface or nil -- 466
+	local surface = self:classifyLandingSurface(p, x, explicitSurface) -- 467
+	self.lastSurface = surface -- 469
+	self.lastLandX = x -- 470
+	if surface == "iron" then -- 472
+		self.ironHits = self.ironHits + 1 -- 473
+		self.basinShakeTimer = self.basinShakeMax -- 474
+		self.shoeToePauseTimer = 0 -- 475
+		self.shoeTurnBlend = 0.25 -- 476
+		local bx = self:getBasinWorldX(p) -- 477
+		local ____self_rings_0 = self.rings -- 479
+		____self_rings_0[#____self_rings_0 + 1] = { -- 479
 			x = bx, -- 479
 			y = 12, -- 479
-			age = -0.14, -- 479
-			duration = 1.2, -- 479
-			maxRadius = 112, -- 479
+			age = 0, -- 479
+			duration = 1.05, -- 479
+			maxRadius = 84, -- 479
 			kind = "iron" -- 479
 		} -- 479
-		local ____self_rings_2 = self.rings -- 479
-		____self_rings_2[#____self_rings_2 + 1] = { -- 480
+		local ____self_rings_1 = self.rings -- 480
+		____self_rings_1[#____self_rings_1 + 1] = { -- 480
 			x = bx, -- 480
 			y = 12, -- 480
-			age = -0.28, -- 480
-			duration = 1.32, -- 480
-			maxRadius = 136, -- 480
+			age = -0.14, -- 480
+			duration = 1.2, -- 480
+			maxRadius = 112, -- 480
 			kind = "iron" -- 480
 		} -- 480
-		self:spawnShards(bx, 12, "iron", 7) -- 481
-		if explicitSurface ~= "iron" then -- 481
-			local key = (((("fe04:village:iron_ring:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(ev.tick)) .. ":") .. tostring(ev.seq) -- 485
-			ctx.audio:playOnce( -- 486
-				key, -- 487
-				"sfx", -- 488
-				CHILD_AUDIO_ROOT .. "bottle_iron_ring.wav", -- 489
-				0.82, -- 490
-				"fe04:bottle:iron_ring", -- 491
-				ev.tick, -- 492
-				ev.seq -- 493
-			) -- 493
-		end -- 493
-	elseif surface == "brick" then -- 493
-		self.brickHits = self.brickHits + 1 -- 497
-		self.shoeToePauseTimer = 0.14 -- 499
+		local ____self_rings_2 = self.rings -- 481
+		____self_rings_2[#____self_rings_2 + 1] = { -- 481
+			x = bx, -- 481
+			y = 12, -- 481
+			age = -0.28, -- 481
+			duration = 1.32, -- 481
+			maxRadius = 136, -- 481
+			kind = "iron" -- 481
+		} -- 481
+		self:spawnShards(bx, 12, "iron", 7) -- 482
+		local key = (((("fe04:village:iron_ring:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(ev.tick)) .. ":") .. tostring(ev.seq) -- 485
+		ctx.audio:playOnce( -- 486
+			key, -- 487
+			"sfx", -- 488
+			CHILD_AUDIO_ROOT .. "bottle_iron_ring.wav", -- 489
+			0.82, -- 490
+			"fe04:bottle:iron_ring", -- 491
+			ev.tick, -- 492
+			ev.seq -- 493
+		) -- 493
+	elseif surface == "brick" then -- 495
+		self.brickHits = self.brickHits + 1 -- 496
+		self.shoeToePauseTimer = 0.14 -- 498
 		local ____self_rings_3 = self.rings -- 499
-		____self_rings_3[#____self_rings_3 + 1] = { -- 500
-			x = x, -- 500
-			y = math.max(2, y), -- 500
-			age = 0, -- 500
-			duration = 0.44, -- 500
-			maxRadius = 58, -- 500
-			kind = "brick" -- 500
-		} -- 500
-		self:spawnShards( -- 501
-			x, -- 501
-			math.max(2, y), -- 501
-			"brick", -- 501
-			9 -- 501
-		) -- 501
-	else -- 501
-		self.softHits = self.softHits + 1 -- 503
+		____self_rings_3[#____self_rings_3 + 1] = { -- 499
+			x = x, -- 499
+			y = math.max(2, y), -- 499
+			age = 0, -- 499
+			duration = 0.44, -- 499
+			maxRadius = 58, -- 499
+			kind = "brick" -- 499
+		} -- 499
+		self:spawnShards( -- 500
+			x, -- 500
+			math.max(2, y), -- 500
+			"brick", -- 500
+			9 -- 500
+		) -- 500
+	else -- 500
+		self.softHits = self.softHits + 1 -- 502
 		local ____self_rings_4 = self.rings -- 503
-		____self_rings_4[#____self_rings_4 + 1] = { -- 504
-			x = x, -- 504
-			y = math.max(2, y), -- 504
-			age = 0, -- 504
-			duration = 0.36, -- 504
-			maxRadius = 24, -- 504
-			kind = "soft" -- 504
-		} -- 504
-		self:spawnShards( -- 505
-			x, -- 505
-			math.max(2, y), -- 505
-			"soft", -- 505
-			6 -- 505
-		) -- 505
-		local audioKey = ((((((("r" .. tostring(ctx.events.roomSessionId)) .. ":cp") .. tostring(ctx.events.checkpoint)) .. ":t") .. tostring(ev.tick)) .. ":s") .. tostring(ev.seq)) .. ":bottleLanded" -- 508
+		____self_rings_4[#____self_rings_4 + 1] = { -- 503
+			x = x, -- 503
+			y = math.max(2, y), -- 503
+			age = 0, -- 503
+			duration = 0.36, -- 503
+			maxRadius = 24, -- 503
+			kind = "soft" -- 503
+		} -- 503
+		self:spawnShards( -- 504
+			x, -- 504
+			math.max(2, y), -- 504
+			"soft", -- 504
+			6 -- 504
+		) -- 504
+		local audioKey = ((((((("r" .. tostring(ctx.events.roomSessionId)) .. ":cp") .. tostring(ctx.events.checkpoint)) .. ":t") .. tostring(ev.tick)) .. ":s") .. tostring(ev.seq)) .. ":bottleLanded" -- 507
 		if not ctx.audio:hasPlayed(audioKey) then -- 508
-			local key = (((("fe04:village:soft_thud:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(ev.tick)) .. ":") .. tostring(ev.seq) -- 510
-			ctx.audio:playOnce( -- 511
-				key, -- 512
-				"sfx", -- 513
-				CHILD_AUDIO_ROOT .. "bottle_soft.wav", -- 514
-				0.76, -- 515
-				"fe04:bottle:soft_thud", -- 516
-				ev.tick, -- 517
-				ev.seq -- 518
-			) -- 518
-		end -- 518
-	end -- 518
-end -- 461
-function VillageUndertableScene.prototype.spawnShards(self, x, y, kind, count) -- 524
-	local i = 0 -- 525
-	do -- 525
-		i = 0 -- 526
-		while i < count do -- 526
-			local ang = (0.18 + self:rand() * 0.64) * math.pi -- 527
-			local spd = (kind == "soft" and 28 or 65) + self:rand() * (kind == "soft" and 36 or 95) -- 528
+			local key = (((("fe04:village:soft_thud:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(ev.tick)) .. ":") .. tostring(ev.seq) -- 509
+			ctx.audio:playOnce( -- 510
+				key, -- 511
+				"sfx", -- 512
+				CHILD_AUDIO_ROOT .. "bottle_soft.wav", -- 513
+				0.76, -- 514
+				"fe04:bottle:soft_thud", -- 515
+				ev.tick, -- 516
+				ev.seq -- 517
+			) -- 517
+		end -- 517
+	end -- 517
+end -- 462
+function VillageUndertableScene.prototype.spawnShards(self, x, y, kind, count) -- 523
+	local i = 0 -- 524
+	do -- 524
+		i = 0 -- 525
+		while i < count do -- 525
+			local ang = (0.18 + self:rand() * 0.64) * math.pi -- 526
+			local spd = (kind == "soft" and 28 or 65) + self:rand() * (kind == "soft" and 36 or 95) -- 527
 			local ____self_shards_5 = self.shards -- 528
-			____self_shards_5[#____self_shards_5 + 1] = { -- 529
-				x = x + (self:rand() - 0.5) * 10, -- 530
-				y = y + 2, -- 531
-				vx = math.cos(ang) * spd * (self:rand() > 0.5 and 1 or -1), -- 532
-				vy = math.sin(ang) * spd, -- 533
-				size = kind == "soft" and 2.2 + self:rand() * 2.4 or 1.8 + self:rand() * 2.2, -- 534
-				life = (kind == "soft" and 0.34 or 0.48) + self:rand() * 0.22, -- 535
-				maxLife = 0.65, -- 536
-				kind = kind -- 537
-			} -- 537
-			i = i + 1 -- 526
-		end -- 526
-	end -- 526
-end -- 524
-function VillageUndertableScene.prototype.triggerRehearsalImpact(self, ctx, surface) -- 543
-	local p = ctx.p -- 544
-	local x = surface == "iron" and self:getBasinWorldX(p) or (surface == "soft" and self:getSoftWorldX(p) or self:getBrickWorldX(p)) -- 545
-	self:onBottleLanded(ctx, {seq = 9000 + self.brickHits + self.ironHits + self.softHits, tick = p.ticks, name = "bottleLanded", data = {x = x, y = 0, surface = surface, heard = true}}) -- 548
-end -- 543
-function VillageUndertableScene.prototype.drawBackdrop(self, bgDraw, bgGlow, _backdropArt, ctx) -- 556
-	local p = ctx.p -- 562
-	local cam = ctx.cam -- 563
-	local w = cam.viewW -- 564
-	local h = cam.viewH -- 565
-	local splitY = h * 0.5 -- 568
+			____self_shards_5[#____self_shards_5 + 1] = { -- 528
+				x = x + (self:rand() - 0.5) * 10, -- 529
+				y = y + 2, -- 530
+				vx = math.cos(ang) * spd * (self:rand() > 0.5 and 1 or -1), -- 531
+				vy = math.sin(ang) * spd, -- 532
+				size = kind == "soft" and 2.2 + self:rand() * 2.4 or 1.8 + self:rand() * 2.2, -- 533
+				life = (kind == "soft" and 0.34 or 0.48) + self:rand() * 0.22, -- 534
+				maxLife = 0.65, -- 535
+				kind = kind -- 536
+			} -- 536
+			i = i + 1 -- 525
+		end -- 525
+	end -- 525
+end -- 523
+function VillageUndertableScene.prototype.triggerRehearsalImpact(self, ctx, surface) -- 542
+	local p = ctx.p -- 543
+	local x = surface == "iron" and self:getBasinWorldX(p) or (surface == "soft" and self:getSoftWorldX(p) or self:getBrickWorldX(p)) -- 544
+	self:onBottleLanded(ctx, {seq = 9000 + self.brickHits + self.ironHits + self.softHits, tick = p.ticks, name = "bottleLanded", data = {x = x, y = 0, surface = surface, heard = true}}) -- 547
+end -- 542
+function VillageUndertableScene.prototype.drawBackdrop(self, bgDraw, bgGlow, _backdropArt, ctx) -- 555
+	local p = ctx.p -- 561
+	local cam = ctx.cam -- 562
+	local w = cam.viewW -- 563
+	local h = cam.viewH -- 564
+	local splitY = h * 0.5 -- 567
+	fillVGradRect( -- 568
+		bgDraw, -- 568
+		0, -- 568
+		splitY, -- 568
+		w, -- 568
+		h - splitY, -- 568
+		Color(14, 18, 26, 255), -- 568
+		Color(7, 9, 15, 255) -- 568
+	) -- 568
 	fillVGradRect( -- 569
 		bgDraw, -- 569
 		0, -- 569
-		splitY, -- 569
+		0, -- 569
 		w, -- 569
-		h - splitY, -- 569
-		Color(14, 18, 26, 255), -- 569
-		Color(7, 9, 15, 255) -- 569
+		splitY, -- 569
+		Color(24, 28, 38, 255), -- 569
+		Color(14, 18, 26, 255) -- 569
 	) -- 569
-	fillVGradRect( -- 570
-		bgDraw, -- 570
-		0, -- 570
-		0, -- 570
-		w, -- 570
-		splitY, -- 570
-		Color(24, 28, 38, 255), -- 570
-		Color(14, 18, 26, 255) -- 570
-	) -- 570
-	local scene = __TS__New(LowpolyScene, cam, self.proj, VILLAGE_UNDERTABLE_LIGHT) -- 572
-	local ox = p.ox -- 573
-	scene:addDistantRidge( -- 576
-		{ -- 577
-			{x = ox - 140, y = 120}, -- 578
-			{x = ox + 120, y = 162}, -- 579
-			{x = ox + 360, y = 138}, -- 580
-			{x = ox + 590, y = 176}, -- 581
-			{x = ox + 860, y = 132} -- 582
-		}, -- 582
-		-20, -- 582
-		420, -- 585
-		MING_MATERIALS.distantHill, -- 586
-		{bucket = LP_BUCKET.BACKDROP} -- 587
-	) -- 587
-	scene:addBox({ -- 591
-		x0 = ox + 460, -- 592
-		x1 = ox + 690, -- 593
-		y0 = 0, -- 594
-		y1 = 118, -- 595
-		z0 = 210, -- 596
-		z1 = 260, -- 597
-		material = MING_MATERIALS.distantWall, -- 598
-		bucket = LP_BUCKET.BACKDROP, -- 599
-		edgeWidth = 0 -- 600
-	}) -- 600
-	scene:addTri3D( -- 602
-		vec3(ox + 446, 118, 206), -- 603
-		vec3(ox + 704, 118, 206), -- 604
-		vec3(ox + 575, 162, 232), -- 605
-		MING_MATERIALS.mingTile, -- 606
-		{bucket = LP_BUCKET.BACKDROP, sortBias = 0.04} -- 607
-	) -- 607
-	scene:addBox({ -- 611
-		x0 = ox - 60, -- 612
-		x1 = ox + 436, -- 613
-		y0 = 0, -- 614
-		y1 = 196, -- 615
-		z0 = 112, -- 616
-		z1 = 152, -- 617
-		material = MING_MATERIALS.mingBrickDark, -- 618
-		bucket = LP_BUCKET.BACKDROP, -- 619
-		edgeWidth = 0.6 -- 620
-	}) -- 620
-	scene:addBox({ -- 624
-		x0 = ox + 150, -- 625
-		x1 = ox + 258, -- 626
-		y0 = 0, -- 627
-		y1 = 42, -- 628
-		z0 = 76, -- 629
-		z1 = 112, -- 630
-		material = MAT_CLAY_STOVE, -- 631
-		bucket = LP_BUCKET.MIDGROUND, -- 632
-		highlightTopEdge = true -- 633
-	}) -- 633
-	scene:addBox({ -- 635
-		x0 = ox + 178, -- 636
-		x1 = ox + 228, -- 637
-		y0 = 42, -- 638
-		y1 = 156, -- 639
-		z0 = 94, -- 640
-		z1 = 114, -- 641
-		material = MAT_CLAY_STOVE, -- 642
-		bucket = LP_BUCKET.MIDGROUND, -- 643
-		edgeWidth = 0.5 -- 644
-	}) -- 644
-	scene:addBox({ -- 648
-		x0 = ox + 486, -- 649
-		x1 = ox + 536, -- 650
-		y0 = 0, -- 651
-		y1 = 34, -- 652
-		z0 = 126, -- 653
-		z1 = 162, -- 654
-		material = MING_MATERIALS.mingStoneStep, -- 655
-		bucket = LP_BUCKET.MIDGROUND, -- 656
-		highlightTopEdge = true -- 657
-	}) -- 657
-	scene:addFogBand( -- 661
-		ox - 120, -- 661
-		ox + 840, -- 661
-		-10, -- 661
-		140, -- 661
-		260, -- 661
-		rgba(24, 30, 42, 255), -- 661
-		0.62, -- 661
-		0.05, -- 661
-		{bucket = LP_BUCKET.BACKDROP} -- 661
-	) -- 661
-	scene:flush(bgDraw, bgGlow) -- 665
-	local mx = w * 0.8 -- 668
-	local my = h * 0.84 -- 669
-	fillRadialGlow( -- 670
-		bgGlow, -- 670
-		mx, -- 670
-		my, -- 670
-		96, -- 670
-		96, -- 670
-		Color(188, 206, 224, 24), -- 670
-		Color(24, 32, 46, 0), -- 670
-		16 -- 670
+	local scene = __TS__New(LowpolyScene, cam, self.proj, VILLAGE_UNDERTABLE_LIGHT) -- 571
+	local ox = p.ox -- 572
+	scene:addDistantRidge( -- 575
+		{ -- 576
+			{x = ox - 140, y = 120}, -- 577
+			{x = ox + 120, y = 162}, -- 578
+			{x = ox + 360, y = 138}, -- 579
+			{x = ox + 590, y = 176}, -- 580
+			{x = ox + 860, y = 132} -- 581
+		}, -- 581
+		-20, -- 583
+		420, -- 584
+		MING_MATERIALS.distantHill, -- 585
+		{bucket = LP_BUCKET.BACKDROP} -- 586
+	) -- 586
+	scene:addBox({ -- 590
+		x0 = ox + 460, -- 591
+		x1 = ox + 690, -- 592
+		y0 = 0, -- 593
+		y1 = 118, -- 594
+		z0 = 210, -- 595
+		z1 = 260, -- 596
+		material = MING_MATERIALS.distantWall, -- 597
+		bucket = LP_BUCKET.BACKDROP, -- 598
+		edgeWidth = 0 -- 599
+	}) -- 599
+	scene:addTri3D( -- 601
+		vec3(ox + 446, 118, 206), -- 602
+		vec3(ox + 704, 118, 206), -- 603
+		vec3(ox + 575, 162, 232), -- 604
+		MING_MATERIALS.mingTile, -- 605
+		{bucket = LP_BUCKET.BACKDROP, sortBias = 0.04} -- 606
+	) -- 606
+	scene:addBox({ -- 610
+		x0 = ox - 60, -- 611
+		x1 = ox + 436, -- 612
+		y0 = 0, -- 613
+		y1 = 196, -- 614
+		z0 = 112, -- 615
+		z1 = 152, -- 616
+		material = MING_MATERIALS.mingBrickDark, -- 617
+		bucket = LP_BUCKET.BACKDROP, -- 618
+		edgeWidth = 0.6 -- 619
+	}) -- 619
+	scene:addBox({ -- 623
+		x0 = ox + 150, -- 624
+		x1 = ox + 258, -- 625
+		y0 = 0, -- 626
+		y1 = 42, -- 627
+		z0 = 76, -- 628
+		z1 = 112, -- 629
+		material = MAT_CLAY_STOVE, -- 630
+		bucket = LP_BUCKET.MIDGROUND, -- 631
+		highlightTopEdge = true -- 632
+	}) -- 632
+	scene:addBox({ -- 634
+		x0 = ox + 178, -- 635
+		x1 = ox + 228, -- 636
+		y0 = 42, -- 637
+		y1 = 156, -- 638
+		z0 = 94, -- 639
+		z1 = 114, -- 640
+		material = MAT_CLAY_STOVE, -- 641
+		bucket = LP_BUCKET.MIDGROUND, -- 642
+		edgeWidth = 0.5 -- 643
+	}) -- 643
+	scene:addBox({ -- 647
+		x0 = ox + 486, -- 648
+		x1 = ox + 536, -- 649
+		y0 = 0, -- 650
+		y1 = 34, -- 651
+		z0 = 126, -- 652
+		z1 = 162, -- 653
+		material = MING_MATERIALS.mingStoneStep, -- 654
+		bucket = LP_BUCKET.MIDGROUND, -- 655
+		highlightTopEdge = true -- 656
+	}) -- 656
+	scene:addFogBand( -- 660
+		ox - 120, -- 660
+		ox + 840, -- 660
+		-10, -- 660
+		140, -- 660
+		260, -- 660
+		rgba(24, 30, 42, 255), -- 660
+		0.62, -- 660
+		0.05, -- 660
+		{bucket = LP_BUCKET.BACKDROP} -- 660
+	) -- 660
+	scene:flush(bgDraw, bgGlow) -- 664
+	local mx = w * 0.8 -- 667
+	local my = h * 0.84 -- 668
+	fillRadialGlow( -- 669
+		bgGlow, -- 669
+		mx, -- 669
+		my, -- 669
+		96, -- 669
+		96, -- 669
+		Color(188, 206, 224, 24), -- 669
+		Color(24, 32, 46, 0), -- 669
+		16 -- 669
+	) -- 669
+	bgDraw:drawCircle( -- 670
+		Vec2(mx, my), -- 670
+		14, -- 670
+		Color(214, 224, 236, 130) -- 670
 	) -- 670
-	bgDraw:drawCircle( -- 671
-		Vec2(mx, my), -- 671
-		14, -- 671
-		Color(214, 224, 236, 130) -- 671
-	) -- 671
-	local towerPt = projectWorld3D( -- 674
-		ox + 668, -- 674
-		152, -- 674
-		410, -- 674
-		cam, -- 674
-		self.proj -- 674
+	local towerPt = projectWorld3D( -- 673
+		ox + 668, -- 673
+		152, -- 673
+		410, -- 673
+		cam, -- 673
+		self.proj -- 673
+	) -- 673
+	fillRadialGlow( -- 674
+		bgGlow, -- 674
+		towerPt.x, -- 674
+		towerPt.y, -- 674
+		20, -- 674
+		20, -- 674
+		Color(238, 198, 132, 54), -- 674
+		Color(238, 198, 132, 0), -- 674
+		12 -- 674
 	) -- 674
-	fillRadialGlow( -- 675
-		bgGlow, -- 675
-		towerPt.x, -- 675
-		towerPt.y, -- 675
-		20, -- 675
-		20, -- 675
-		Color(238, 198, 132, 54), -- 675
-		Color(238, 198, 132, 0), -- 675
-		12 -- 675
+	bgGlow:drawDot( -- 675
+		Vec2(towerPt.x, towerPt.y), -- 675
+		2, -- 675
+		Color(252, 232, 186, 185) -- 675
 	) -- 675
-	bgGlow:drawDot( -- 676
-		Vec2(towerPt.x, towerPt.y), -- 676
-		2, -- 676
-		Color(252, 232, 186, 185) -- 676
-	) -- 676
-	return true -- 678
-end -- 556
-function VillageUndertableScene.prototype.drawWorld(self, fgDraw, fgGlow, _worldArt, ctx) -- 681
-	local p = ctx.p -- 687
-	local cam = ctx.cam -- 688
-	local ox = p.ox -- 689
-	local scene = __TS__New(LowpolyScene, cam, self.proj, VILLAGE_UNDERTABLE_LIGHT) -- 690
-	scene:addBox({ -- 693
-		x0 = ox - 40, -- 694
-		x1 = ox + 436, -- 695
-		y0 = -52, -- 696
-		y1 = 0, -- 697
-		z0 = -32, -- 698
-		z1 = 112, -- 699
-		material = MING_MATERIALS.mingTimberDark, -- 700
-		bucket = LP_BUCKET.MIDGROUND, -- 701
-		highlightTopEdge = true, -- 702
-		edgeWidth = 0.7 -- 703
-	}) -- 703
-	scene:addBox({ -- 705
-		x0 = ox + 436, -- 706
-		x1 = ox + 760, -- 707
-		y0 = -52, -- 708
-		y1 = 0, -- 709
-		z0 = -32, -- 710
-		z1 = 126, -- 711
-		material = MING_MATERIALS.mingBrickDark, -- 712
-		bucket = LP_BUCKET.MIDGROUND, -- 713
-		highlightTopEdge = true, -- 714
-		edgeWidth = 0.8 -- 715
-	}) -- 715
-	scene:addBeveledFrame( -- 719
-		ox + 416, -- 719
-		ox + 462, -- 719
-		0, -- 719
-		128, -- 719
-		16, -- 719
-		22, -- 719
-		16, -- 719
-		112, -- 719
-		MING_MATERIALS.mingTimberDark, -- 719
-		{ -- 719
-			bucket = LP_BUCKET.MIDGROUND, -- 720
-			innerRimLight = rgba(206, 214, 222, 255), -- 721
-			innerRimStrength = 0.42 -- 722
-		} -- 722
-	) -- 722
-	scene:addBox({ -- 726
-		x0 = ox + 96, -- 727
-		x1 = ox + 128, -- 728
-		y0 = 0, -- 729
-		y1 = 64, -- 730
-		z0 = -8, -- 731
-		z1 = 36, -- 732
-		material = MAT_TABLE_WOOD, -- 733
-		bucket = LP_BUCKET.WALK_DECK, -- 734
-		highlightTopEdge = true, -- 735
-		edgeWidth = 0.9 -- 736
-	}) -- 736
-	scene:addBox({ -- 739
-		x0 = ox + 94, -- 740
-		x1 = ox + 130, -- 741
-		y0 = 32, -- 742
-		y1 = 36, -- 743
-		z0 = -10, -- 744
-		z1 = 34, -- 745
-		material = MING_MATERIALS.mingTimber, -- 746
-		bucket = LP_BUCKET.WALK_DECK, -- 747
-		sortBias = 0.05 -- 748
-	}) -- 748
-	scene:addBox({ -- 751
-		x0 = ox + 672, -- 752
-		x1 = ox + 720, -- 753
-		y0 = 0, -- 754
-		y1 = 96, -- 755
-		z0 = -14, -- 756
-		z1 = 96, -- 757
-		material = MING_MATERIALS.mingBrick, -- 758
-		bucket = LP_BUCKET.MIDGROUND, -- 759
-		highlightTopEdge = true, -- 760
-		edgeWidth = 0.9 -- 761
-	}) -- 761
-	scene:addBox({ -- 763
-		x0 = ox + 666, -- 764
-		x1 = ox + 726, -- 765
-		y0 = 96, -- 766
-		y1 = 106, -- 767
-		z0 = -18, -- 768
-		z1 = 100, -- 769
-		material = MING_MATERIALS.mingTile, -- 770
-		bucket = LP_BUCKET.MIDGROUND, -- 771
-		sortBias = 0.08 -- 772
-	}) -- 772
-	local arch = p.room.arch -- 776
-	scene:addBox({ -- 778
-		x0 = arch.x0 - 2, -- 779
-		x1 = arch.x0 + 10, -- 780
-		y0 = 0, -- 781
-		y1 = arch.h, -- 782
-		z0 = 14, -- 783
-		z1 = 28, -- 784
-		material = MAT_TABLE_WOOD, -- 785
-		bucket = LP_BUCKET.MIDGROUND, -- 786
-		edgeWidth = 0.8 -- 787
-	}) -- 787
-	scene:addBox({ -- 789
-		x0 = arch.x1 - 10, -- 790
-		x1 = arch.x1 + 2, -- 791
-		y0 = 0, -- 792
-		y1 = arch.h, -- 793
-		z0 = 14, -- 794
-		z1 = 28, -- 795
-		material = MAT_TABLE_WOOD, -- 796
-		bucket = LP_BUCKET.MIDGROUND, -- 797
-		edgeWidth = 0.8 -- 798
-	}) -- 798
-	scene:addBox({ -- 801
-		x0 = arch.x0 - 12, -- 802
-		x1 = arch.x1 + 12, -- 803
-		y0 = arch.h, -- 804
-		y1 = arch.h + 11, -- 805
-		z0 = -16, -- 806
-		z1 = 36, -- 807
-		material = MAT_TABLE_WOOD, -- 808
-		bucket = LP_BUCKET.WALK_DECK, -- 809
-		highlightTopEdge = true, -- 810
-		edgeWidth = 0.9 -- 811
-	}) -- 811
-	scene:addBox({ -- 814
-		x0 = arch.x0 + 28, -- 815
-		x1 = arch.x0 + 44, -- 816
-		y0 = arch.h + 11, -- 817
-		y1 = arch.h + 18, -- 818
-		z0 = 4, -- 819
-		z1 = 18, -- 820
-		material = MING_MATERIALS.mingStoneStep, -- 821
-		bucket = LP_BUCKET.PROP, -- 822
-		highlightTopEdge = true -- 823
-	}) -- 823
-	local culvertX = self:getCulvertWorldX(p) -- 827
-	self:buildCulvertEntrance(scene, culvertX) -- 828
-	local softX = self:getSoftWorldX(p) -- 832
-	self:buildSoftDirtPatch(scene, softX) -- 833
-	local brickX = self:getBrickWorldX(p) -- 836
-	self:buildHardBrickPatch(scene, brickX) -- 837
-	local basinX = self:getBasinWorldX(p) -- 840
-	self:buildIronBasin(scene, basinX) -- 841
-	scene:addLightShaft( -- 844
-		ox + 570, -- 845
-		ox + 710, -- 845
-		290, -- 845
-		ox + 446, -- 846
-		ox + 642, -- 846
-		0, -- 846
-		24, -- 847
-		rgba(218, 226, 218, 255), -- 848
-		0.13, -- 849
-		0.04 -- 850
-	) -- 850
-	scene:addContactShadow( -- 854
-		p.player.x, -- 854
-		p.player.y, -- 854
-		14, -- 854
-		10, -- 854
-		0.8, -- 854
-		{bucket = LP_BUCKET.PROP, sortBias = 0.4} -- 854
-	) -- 854
-	if p.room.scavenger ~= nil then -- 854
-		scene:addContactShadow( -- 856
-			p.scavX, -- 856
-			p.room.scavenger.y, -- 856
-			19, -- 856
-			13, -- 856
-			0.84, -- 856
-			{bucket = LP_BUCKET.PROP, sortBias = 0.42} -- 856
-		) -- 856
-	end -- 856
-	scene:flush(fgDraw, fgGlow) -- 859
-	self:drawSurfaceReadabilityDetails( -- 862
-		fgDraw, -- 862
-		fgGlow, -- 862
-		p, -- 862
-		cam, -- 862
-		softX, -- 862
-		culvertX, -- 862
-		basinX, -- 862
-		brickX -- 862
-	) -- 862
-	return true -- 864
-end -- 681
-function VillageUndertableScene.prototype.buildCulvertEntrance(self, scene, cx) -- 867
-	scene:addBox({ -- 869
-		x0 = cx - 18, -- 870
-		x1 = cx + 18, -- 871
-		y0 = -12, -- 872
-		y1 = 2, -- 873
-		z0 = -6, -- 874
-		z1 = 42, -- 875
-		material = MAT_CULVERT_STONE, -- 876
-		bucket = LP_BUCKET.WALK_DECK, -- 877
-		highlightTopEdge = true, -- 878
-		edgeWidth = 1 -- 879
-	}) -- 879
-	scene:addQuad3D( -- 882
-		vec3(cx - 12, 1, 22), -- 883
-		vec3(cx + 12, 1, 22), -- 884
-		vec3(cx + 10, 26, 22), -- 885
-		vec3(cx - 10, 26, 22), -- 886
-		{base = rgba(6, 9, 14, 255)}, -- 887
-		{ -- 888
-			bucket = LP_BUCKET.MIDGROUND, -- 888
-			unlit = true, -- 888
-			sortBias = 0.35, -- 888
-			edgeColor = rgba(186, 204, 222, 185), -- 888
-			edgeWidth = 1.2 -- 888
-		} -- 888
-	) -- 888
-	scene:addBox({ -- 891
-		x0 = cx - 15, -- 892
-		x1 = cx - 11, -- 893
-		y0 = 2, -- 894
-		y1 = 24, -- 895
-		z0 = 14, -- 896
-		z1 = 22, -- 897
-		material = MING_MATERIALS.mingTimber, -- 898
-		bucket = LP_BUCKET.PROP, -- 899
-		highlightTopEdge = true -- 900
+	return true -- 677
+end -- 555
+function VillageUndertableScene.prototype.drawWorld(self, fgDraw, fgGlow, _worldArt, ctx) -- 680
+	local p = ctx.p -- 686
+	local cam = ctx.cam -- 687
+	local ox = p.ox -- 688
+	local scene = __TS__New(LowpolyScene, cam, self.proj, VILLAGE_UNDERTABLE_LIGHT) -- 689
+	scene:addBox({ -- 692
+		x0 = ox - 40, -- 693
+		x1 = ox + 436, -- 694
+		y0 = -52, -- 695
+		y1 = 0, -- 696
+		z0 = -32, -- 697
+		z1 = 112, -- 698
+		material = MING_MATERIALS.mingTimberDark, -- 699
+		bucket = LP_BUCKET.MIDGROUND, -- 700
+		highlightTopEdge = true, -- 701
+		edgeWidth = 0.7 -- 702
+	}) -- 702
+	scene:addBox({ -- 704
+		x0 = ox + 436, -- 705
+		x1 = ox + 760, -- 706
+		y0 = -52, -- 707
+		y1 = 0, -- 708
+		z0 = -32, -- 709
+		z1 = 126, -- 710
+		material = MING_MATERIALS.mingBrickDark, -- 711
+		bucket = LP_BUCKET.MIDGROUND, -- 712
+		highlightTopEdge = true, -- 713
+		edgeWidth = 0.8 -- 714
+	}) -- 714
+	scene:addBeveledFrame( -- 718
+		ox + 416, -- 718
+		ox + 462, -- 718
+		0, -- 718
+		128, -- 718
+		16, -- 718
+		22, -- 718
+		16, -- 718
+		112, -- 718
+		MING_MATERIALS.mingTimberDark, -- 718
+		{ -- 718
+			bucket = LP_BUCKET.MIDGROUND, -- 719
+			innerRimLight = rgba(206, 214, 222, 255), -- 720
+			innerRimStrength = 0.42 -- 721
+		} -- 721
+	) -- 721
+	scene:addBox({ -- 725
+		x0 = ox + 96, -- 726
+		x1 = ox + 101, -- 727
+		y0 = 0, -- 728
+		y1 = 52, -- 729
+		z0 = -6, -- 730
+		z1 = 24, -- 731
+		material = MAT_TABLE_WOOD, -- 732
+		bucket = LP_BUCKET.WALK_DECK, -- 733
+		edgeWidth = 0.8 -- 734
+	}) -- 734
+	scene:addBox({ -- 736
+		x0 = ox + 123, -- 737
+		x1 = ox + 128, -- 738
+		y0 = 0, -- 739
+		y1 = 52, -- 740
+		z0 = -6, -- 741
+		z1 = 24, -- 742
+		material = MAT_TABLE_WOOD, -- 743
+		bucket = LP_BUCKET.WALK_DECK, -- 744
+		edgeWidth = 0.8 -- 745
+	}) -- 745
+	scene:addBox({ -- 747
+		x0 = ox + 95, -- 748
+		x1 = ox + 129, -- 749
+		y0 = 24, -- 750
+		y1 = 28, -- 751
+		z0 = -8, -- 752
+		z1 = 26, -- 753
+		material = MING_MATERIALS.mingTimber, -- 754
+		bucket = LP_BUCKET.WALK_DECK, -- 755
+		sortBias = 0.05 -- 756
+	}) -- 756
+	scene:addBox({ -- 758
+		x0 = ox + 94, -- 759
+		x1 = ox + 130, -- 760
+		y0 = 48, -- 761
+		y1 = 52, -- 762
+		z0 = -8, -- 763
+		z1 = 26, -- 764
+		material = MING_MATERIALS.mingTimber, -- 765
+		bucket = LP_BUCKET.WALK_DECK, -- 766
+		highlightTopEdge = true, -- 767
+		sortBias = 0.06 -- 768
+	}) -- 768
+	scene:addBox({ -- 771
+		x0 = ox + 672, -- 772
+		x1 = ox + 720, -- 773
+		y0 = 0, -- 774
+		y1 = 96, -- 775
+		z0 = -14, -- 776
+		z1 = 96, -- 777
+		material = MING_MATERIALS.mingBrick, -- 778
+		bucket = LP_BUCKET.MIDGROUND, -- 779
+		highlightTopEdge = true, -- 780
+		edgeWidth = 0.9 -- 781
+	}) -- 781
+	scene:addBox({ -- 783
+		x0 = ox + 666, -- 784
+		x1 = ox + 726, -- 785
+		y0 = 96, -- 786
+		y1 = 106, -- 787
+		z0 = -18, -- 788
+		z1 = 100, -- 789
+		material = MING_MATERIALS.mingTile, -- 790
+		bucket = LP_BUCKET.MIDGROUND, -- 791
+		sortBias = 0.08 -- 792
+	}) -- 792
+	local arch = p.room.arch -- 797
+	scene:addBox({ -- 799
+		x0 = arch.x0 - 1, -- 800
+		x1 = arch.x0 + 7, -- 801
+		y0 = 0, -- 802
+		y1 = arch.h, -- 803
+		z0 = 12, -- 804
+		z1 = 22, -- 805
+		material = MAT_TABLE_WOOD, -- 806
+		bucket = LP_BUCKET.MIDGROUND, -- 807
+		edgeWidth = 0.8 -- 808
+	}) -- 808
+	scene:addBox({ -- 810
+		x0 = arch.x1 - 7, -- 811
+		x1 = arch.x1 + 1, -- 812
+		y0 = 0, -- 813
+		y1 = arch.h, -- 814
+		z0 = 12, -- 815
+		z1 = 22, -- 816
+		material = MAT_TABLE_WOOD, -- 817
+		bucket = LP_BUCKET.MIDGROUND, -- 818
+		edgeWidth = 0.8 -- 819
+	}) -- 819
+	scene:addBox({ -- 822
+		x0 = arch.x0 + 7, -- 823
+		x1 = arch.x1 - 7, -- 824
+		y0 = arch.h - 5, -- 825
+		y1 = arch.h, -- 826
+		z0 = 14, -- 827
+		z1 = 20, -- 828
+		material = MAT_TABLE_WOOD, -- 829
+		bucket = LP_BUCKET.MIDGROUND, -- 830
+		edgeWidth = 0.6 -- 831
+	}) -- 831
+	scene:addBox({ -- 834
+		x0 = arch.x0 - 8, -- 835
+		x1 = arch.x1 + 8, -- 836
+		y0 = arch.h, -- 837
+		y1 = arch.h + 8, -- 838
+		z0 = 4, -- 839
+		z1 = 28, -- 840
+		material = MAT_TABLE_WOOD, -- 841
+		bucket = LP_BUCKET.WALK_DECK, -- 842
+		highlightTopEdge = true, -- 843
+		edgeWidth = 0.8 -- 844
+	}) -- 844
+	local culvertX = self:getCulvertWorldX(p) -- 848
+	self:buildCulvertEntrance(scene, culvertX) -- 849
+	local softX = self:getSoftWorldX(p) -- 853
+	self:buildSoftDirtPatch(scene, softX) -- 854
+	local brickX = self:getBrickWorldX(p) -- 857
+	self:buildHardBrickPatch(scene, brickX) -- 858
+	local basinX = self:getBasinWorldX(p) -- 861
+	self:buildIronBasin(scene, basinX) -- 862
+	scene:addLightShaft( -- 865
+		ox + 570, -- 866
+		ox + 710, -- 866
+		290, -- 866
+		ox + 446, -- 867
+		ox + 642, -- 867
+		0, -- 867
+		24, -- 868
+		rgba(218, 226, 218, 255), -- 869
+		0.13, -- 870
+		0.04 -- 871
+	) -- 871
+	scene:addContactShadow( -- 875
+		p.player.x, -- 875
+		p.player.y, -- 875
+		14, -- 875
+		10, -- 875
+		0.8, -- 875
+		{bucket = LP_BUCKET.PROP, sortBias = 0.4} -- 875
+	) -- 875
+	if p.room.scavenger ~= nil then -- 876
+		scene:addContactShadow( -- 877
+			p.scavX, -- 877
+			p.room.scavenger.y, -- 877
+			19, -- 877
+			13, -- 877
+			0.84, -- 877
+			{bucket = LP_BUCKET.PROP, sortBias = 0.42} -- 877
+		) -- 877
+	end -- 877
+	scene:flush(fgDraw, fgGlow) -- 880
+	self:drawSurfaceReadabilityDetails( -- 883
+		fgDraw, -- 883
+		fgGlow, -- 883
+		p, -- 883
+		cam, -- 883
+		softX, -- 883
+		culvertX, -- 883
+		basinX, -- 883
+		brickX -- 883
+	) -- 883
+	return true -- 885
+end -- 680
+function VillageUndertableScene.prototype.buildCulvertEntrance(self, scene, cx) -- 888
+	scene:addBox({ -- 890
+		x0 = cx - 18, -- 891
+		x1 = cx + 18, -- 892
+		y0 = -12, -- 893
+		y1 = 2, -- 894
+		z0 = -6, -- 895
+		z1 = 42, -- 896
+		material = MAT_CULVERT_STONE, -- 897
+		bucket = LP_BUCKET.WALK_DECK, -- 898
+		highlightTopEdge = true, -- 899
+		edgeWidth = 1 -- 900
 	}) -- 900
-	local gi = 0 -- 902
-	do -- 902
-		gi = 0 -- 903
-		while gi < 3 do -- 903
-			local gx = cx - 6 + gi * 6 -- 904
-			scene:addBox({ -- 905
-				x0 = gx - 1, -- 906
-				x1 = gx + 1, -- 907
-				y0 = 2, -- 908
-				y1 = 24, -- 909
-				z0 = 18, -- 910
-				z1 = 21, -- 911
-				material = MING_MATERIALS.mingIron, -- 912
-				bucket = LP_BUCKET.PROP, -- 913
-				sortBias = 0.1 -- 914
-			}) -- 914
-			gi = gi + 1 -- 903
-		end -- 903
-	end -- 903
-end -- 867
-function VillageUndertableScene.prototype.buildSoftDirtPatch(self, scene, softX) -- 919
-	scene:addBox({ -- 920
-		x0 = softX - 24, -- 921
-		x1 = softX + 24, -- 922
-		y0 = -4, -- 923
-		y1 = 1.5, -- 924
-		z0 = -16, -- 925
-		z1 = 28, -- 926
-		material = MAT_SOFT_EARTH, -- 927
-		bucket = LP_BUCKET.WALK_DECK, -- 928
-		sortBias = 0.15, -- 929
-		edgeWidth = 0.4 -- 930
-	}) -- 930
-end -- 919
-function VillageUndertableScene.prototype.buildHardBrickPatch(self, scene, brickX) -- 934
-	local col = 0 -- 936
-	do -- 936
-		col = 0 -- 937
-		while col < 3 do -- 937
-			local bx0 = brickX - 24 + col * 16 -- 938
-			local bx1 = bx0 + 14.5 -- 939
-			scene:addBox({ -- 940
-				x0 = bx0, -- 941
-				x1 = bx1, -- 942
-				y0 = -4, -- 943
-				y1 = 3.2, -- 944
-				z0 = -14, -- 945
-				z1 = 6, -- 946
-				material = MAT_HARD_BRICK, -- 947
-				bucket = LP_BUCKET.WALK_DECK, -- 948
-				sortBias = 0.2 + col * 0.01, -- 949
-				highlightTopEdge = true, -- 950
-				edgeWidth = 1 -- 951
-			}) -- 951
-			scene:addBox({ -- 953
-				x0 = bx0 + 4, -- 954
-				x1 = bx1 + 4, -- 955
-				y0 = -4, -- 956
-				y1 = 2.8, -- 957
-				z0 = 8, -- 958
-				z1 = 26, -- 959
-				material = MAT_HARD_BRICK, -- 960
-				bucket = LP_BUCKET.WALK_DECK, -- 961
-				sortBias = 0.18 + col * 0.01, -- 962
-				highlightTopEdge = true, -- 963
-				edgeWidth = 0.9 -- 964
-			}) -- 964
-			col = col + 1 -- 937
-		end -- 937
-	end -- 937
-end -- 934
-function VillageUndertableScene.prototype.buildIronBasin(self, scene, basinX) -- 969
-	scene:addBox({ -- 971
-		x0 = basinX - 14, -- 972
-		x1 = basinX + 14, -- 973
-		y0 = -2, -- 974
-		y1 = 3, -- 975
-		z0 = -10, -- 976
-		z1 = 14, -- 977
-		material = MING_MATERIALS.mingBrickDark, -- 978
-		bucket = LP_BUCKET.PROP, -- 979
-		sortBias = 0.02 -- 980
-	}) -- 980
-	local tilt = self.basinShakeAngle -- 983
-	local liftL = math.sin(tilt) * 14 -- 984
-	local liftR = -liftL -- 985
-	local shiftX = math.sin(tilt * 1.4) * 2.5 -- 986
-	local baseY = 3 -- 987
-	local topY = 14.5 -- 988
-	local bx = basinX + shiftX -- 989
-	scene:addQuad3D( -- 992
-		vec3( -- 993
-			bx - 11, -- 993
-			baseY + math.max(0, liftL * 0.4), -- 993
-			-8 -- 993
-		), -- 993
-		vec3( -- 994
-			bx + 11, -- 994
-			baseY + math.max(0, liftR * 0.4), -- 994
-			-8 -- 994
-		), -- 994
-		vec3(bx + 16, topY + liftR, -12), -- 995
-		vec3(bx - 16, topY + liftL, -12), -- 996
-		MAT_IRON_BASIN, -- 997
-		{bucket = LP_BUCKET.PROP, sortBias = 0.25, edgeWidth = 1.2} -- 998
-	) -- 998
-	scene:addQuad3D( -- 1001
-		vec3( -- 1002
-			bx - 11, -- 1002
-			baseY + math.max(0, liftL * 0.4), -- 1002
-			10 -- 1002
-		), -- 1002
-		vec3( -- 1003
-			bx - 11, -- 1003
-			baseY + math.max(0, liftL * 0.4), -- 1003
-			-8 -- 1003
-		), -- 1003
-		vec3(bx - 16, topY + liftL, -12), -- 1004
-		vec3(bx - 16, topY + liftL, 14), -- 1005
-		MAT_IRON_BASIN, -- 1006
-		{bucket = LP_BUCKET.PROP, sortBias = 0.22, edgeWidth = 1} -- 1007
-	) -- 1007
-	scene:addQuad3D( -- 1009
-		vec3( -- 1010
-			bx + 11, -- 1010
-			baseY + math.max(0, liftR * 0.4), -- 1010
-			-8 -- 1010
-		), -- 1010
-		vec3( -- 1011
-			bx + 11, -- 1011
-			baseY + math.max(0, liftR * 0.4), -- 1011
-			10 -- 1011
-		), -- 1011
-		vec3(bx + 16, topY + liftR, 14), -- 1012
-		vec3(bx + 16, topY + liftR, -12), -- 1013
-		MAT_IRON_BASIN, -- 1014
-		{bucket = LP_BUCKET.PROP, sortBias = 0.22, edgeWidth = 1} -- 1015
-	) -- 1015
-	scene:addQuad3D( -- 1018
-		vec3(bx - 14, topY - 1 + liftL, -10), -- 1019
-		vec3(bx + 14, topY - 1 + liftR, -10), -- 1020
-		vec3(bx + 14, topY - 1 + liftR, 12), -- 1021
-		vec3(bx - 14, topY - 1 + liftL, 12), -- 1022
-		{ -- 1023
-			base = rgba(24, 30, 40, 255), -- 1023
-			edge = rgba(232, 238, 246, 235) -- 1023
-		}, -- 1023
-		{bucket = LP_BUCKET.PROP, sortBias = 0.28, edgeWidth = 1.5} -- 1024
-	) -- 1024
-end -- 969
-function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fgDraw, fgGlow, p, cam, softX, culvertX, basinX, brickX) -- 1028
-	local y0 = cam:sy(0) -- 1038
-	local sx0 = cam:sx(softX - 20) -- 1041
-	local sx1 = cam:sx(softX + 20) -- 1042
-	local d = 0 -- 1043
-	do -- 1043
-		d = 0 -- 1044
-		while d < 9 do -- 1044
-			local dx = sx0 + (sx1 - sx0) * (d + 0.5) / 9 -- 1045
-			local dy = y0 - 2.5 + (d % 3 - 1) * 1.8 -- 1046
-			fgDraw:drawDot( -- 1047
-				Vec2(dx, dy), -- 1047
-				1.3, -- 1047
-				Color(116, 98, 78, 175) -- 1047
-			) -- 1047
-			d = d + 1 -- 1044
-		end -- 1044
-	end -- 1044
-	fgDraw:drawEllipse( -- 1049
-		Vec2( -- 1049
-			cam:sx(softX - 7), -- 1049
-			y0 - 1.5 -- 1049
-		), -- 1049
-		cam:len(4.2), -- 1049
-		1.6, -- 1049
-		Color(38, 30, 24, 185) -- 1049
-	) -- 1049
-	fgDraw:drawEllipse( -- 1050
-		Vec2( -- 1050
-			cam:sx(softX + 8), -- 1050
-			y0 - 2 -- 1050
-		), -- 1050
-		cam:len(4.2), -- 1050
-		1.6, -- 1050
-		Color(38, 30, 24, 185) -- 1050
-	) -- 1050
-	local cL = cam:sx(culvertX - 11) -- 1053
-	local cR = cam:sx(culvertX + 11) -- 1054
-	local cTop = cam:sy(25) -- 1055
-	fgDraw:drawSegment( -- 1056
-		Vec2(cL, cTop), -- 1056
-		Vec2(cR, cTop), -- 1056
-		1.6, -- 1056
-		Color(196, 210, 224, 210) -- 1056
-	) -- 1056
-	local rippleShift = math.sin(self.animTime * 2.3) * 3 -- 1057
-	fgGlow:drawSegment( -- 1058
-		Vec2(cL + 3 + rippleShift, y0 + 2), -- 1058
-		Vec2(cR - 4 + rippleShift, y0 + 2), -- 1058
-		1.1, -- 1058
-		Color(164, 192, 214, 105) -- 1058
-	) -- 1058
-	local bPtL = projectWorld3D( -- 1061
-		basinX - 16, -- 1061
-		14.5 + math.sin(self.basinShakeAngle) * 14, -- 1061
-		-12, -- 1061
-		cam, -- 1061
-		self.proj -- 1061
-	) -- 1061
-	local bPtR = projectWorld3D( -- 1062
-		basinX + 16, -- 1062
-		14.5 - math.sin(self.basinShakeAngle) * 14, -- 1062
-		-12, -- 1062
-		cam, -- 1062
-		self.proj -- 1062
-	) -- 1062
-	local shakeBoost = self.basinShakeTimer > 0 and clamp01(self.basinShakeTimer / self.basinShakeMax) or 0 -- 1063
-	local rimAlpha = math.floor(205 + 48 * shakeBoost + 0.5) -- 1064
-	fgDraw:drawSegment( -- 1065
-		Vec2(bPtL.x, bPtL.y), -- 1065
-		Vec2(bPtR.x, bPtR.y), -- 1065
-		2.1 + shakeBoost * 1.1, -- 1065
-		Color(230, 236, 242, rimAlpha) -- 1065
-	) -- 1065
-	fillRadialGlow( -- 1066
-		fgGlow, -- 1067
-		(bPtL.x + bPtR.x) * 0.5, -- 1068
-		(bPtL.y + bPtR.y) * 0.5, -- 1069
-		cam:len(22 + shakeBoost * 18), -- 1070
-		cam:len(10 + shakeBoost * 8), -- 1071
-		Color( -- 1072
-			216, -- 1072
-			226, -- 1072
-			236, -- 1072
-			math.floor(48 + 95 * shakeBoost + 0.5) -- 1072
-		), -- 1072
-		Color(186, 202, 220, 0), -- 1073
-		14 -- 1074
-	) -- 1074
-	local brL = cam:sx(brickX - 24) -- 1078
-	local brR = cam:sx(brickX + 24) -- 1079
-	local brTop = cam:sy(3.2) -- 1080
-	fgDraw:drawSegment( -- 1081
-		Vec2(brL, brTop), -- 1081
-		Vec2(brR, brTop), -- 1081
-		1.8, -- 1081
-		Color(224, 228, 234, 225) -- 1081
-	) -- 1081
-	local k = 1 -- 1082
-	do -- 1082
-		k = 1 -- 1083
-		while k <= 2 do -- 1083
-			local seamX = brL + (brR - brL) * k / 3 -- 1084
-			fgDraw:drawSegment( -- 1085
-				Vec2(seamX, y0 - 3), -- 1085
-				Vec2(seamX, brTop + 1), -- 1085
-				1.5, -- 1085
-				Color(20, 24, 32, 240) -- 1085
-			) -- 1085
-			fgDraw:drawSegment( -- 1086
-				Vec2(seamX + 1.8, y0 - 2), -- 1086
-				Vec2(seamX + 1.8, brTop), -- 1086
-				0.9, -- 1086
-				Color(214, 218, 224, 175) -- 1086
-			) -- 1086
-			k = k + 1 -- 1083
-		end -- 1083
-	end -- 1083
-	local i = 0 -- 1090
-	do -- 1090
-		i = 0 -- 1091
-		while i < #self.rings do -- 1091
-			do -- 1091
-				local rg = self.rings[i + 1] -- 1092
-				if rg.age < 0 then -- 1092
-					goto __continue76 -- 1094
-				end -- 1094
-				local t = clamp01(rg.age / rg.duration) -- 1096
-				local r = math.max( -- 1097
-					4, -- 1097
-					cam:len(rg.maxRadius) * (0.14 + 0.86 * t) -- 1097
-				) -- 1097
-				local alpha = (1 - t) * (rg.kind == "iron" and 0.88 or (rg.kind == "brick" and 0.82 or 0.4)) -- 1098
-				local rx = cam:sx(rg.x) -- 1099
-				local ry = cam:sy(rg.y) -- 1100
-				local ringCol = rg.kind == "iron" and Color( -- 1101
-					220, -- 1102
-					234, -- 1102
-					246, -- 1102
-					math.floor(235 * alpha + 0.5) -- 1102
-				) or (rg.kind == "brick" and Color( -- 1102
-					236, -- 1104
-					216, -- 1104
-					178, -- 1104
-					math.floor(225 * alpha + 0.5) -- 1104
-				) or Color( -- 1104
-					148, -- 1105
-					134, -- 1105
-					114, -- 1105
-					math.floor(165 * alpha + 0.5) -- 1105
-				)) -- 1105
-				drawEllipseRing( -- 1106
-					fgGlow, -- 1106
-					rx, -- 1106
-					ry, -- 1106
-					r, -- 1106
-					r * 0.34, -- 1106
-					rg.kind == "iron" and 1.8 or 1.4, -- 1106
-					ringCol, -- 1106
-					22 -- 1106
-				) -- 1106
-				if rg.kind == "iron" then -- 1106
-					drawEllipseRing( -- 1108
-						fgDraw, -- 1108
-						rx, -- 1108
-						ry, -- 1108
-						r * 0.96, -- 1108
-						r * 0.32, -- 1108
-						1.1, -- 1108
-						Color( -- 1108
-							214, -- 1108
-							224, -- 1108
-							236, -- 1108
-							math.floor(150 * alpha + 0.5) -- 1108
-						), -- 1108
-						22 -- 1108
-					) -- 1108
-				end -- 1108
-			end -- 1108
-			::__continue76:: -- 1108
-			i = i + 1 -- 1091
-		end -- 1091
-	end -- 1091
-	do -- 1091
-		i = 0 -- 1111
-		while i < #self.shards do -- 1111
-			local sp = self.shards[i + 1] -- 1112
-			local a = clamp01(sp.life / sp.maxLife) -- 1113
-			local col = sp.kind == "soft" and Color( -- 1114
-				138, -- 1115
-				120, -- 1115
-				98, -- 1115
-				math.floor(170 * a + 0.5) -- 1115
-			) or (sp.kind == "iron" and Color( -- 1115
-				224, -- 1117
-				232, -- 1117
-				242, -- 1117
-				math.floor(225 * a + 0.5) -- 1117
-			) or Color( -- 1117
-				216, -- 1118
-				198, -- 1118
-				174, -- 1118
-				math.floor(220 * a + 0.5) -- 1118
-			)) -- 1118
-			fgDraw:drawDot( -- 1119
-				Vec2( -- 1119
-					cam:sx(sp.x), -- 1119
-					cam:sy(sp.y) -- 1119
-				), -- 1119
-				sp.size, -- 1119
-				col -- 1119
-			) -- 1119
-			i = i + 1 -- 1111
-		end -- 1111
-	end -- 1111
-	if p.bottleLandT > 0 and p.bottleLandX >= 0 and #self.rings == 0 then -- 1111
-		local rx = cam:sx(p.bottleLandX) -- 1124
-		local ry = cam:sy(math.max(1, p.bottleLandY)) -- 1125
-		fgDraw:drawDot( -- 1126
-			Vec2(rx, ry), -- 1126
-			2.5, -- 1126
-			Color(216, 206, 186, 150) -- 1126
-		) -- 1126
-	end -- 1126
-end -- 1028
-function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 1131
-	local p = ctx.p -- 1137
-	local cam = ctx.cam -- 1138
-	local bottle = p.room.bottle -- 1141
-	if bottle ~= nil and not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 1141
-		self:drawCeramicBottle( -- 1143
-			fgDraw, -- 1143
-			fgGlow, -- 1143
-			worldArt, -- 1143
-			"fe04_bottle_shelf", -- 1143
-			cam:sx(bottle.x), -- 1143
-			cam:sy(67), -- 1143
-			cam.ppu, -- 1143
-			0, -- 1143
-			true -- 1143
-		) -- 1143
-	end -- 1143
-	if p.hasBottle then -- 1143
-		local pl = p.player -- 1148
-		self:drawCeramicBottle( -- 1149
-			fgDraw, -- 1150
-			fgGlow, -- 1151
-			worldArt, -- 1152
-			"fe04_bottle_held", -- 1153
-			cam:sx(pl.x + pl.facing * 11), -- 1154
-			cam:sy(pl.y + pl.h * 0.56), -- 1155
-			cam.ppu, -- 1156
-			pl.facing * 0.22, -- 1157
-			false -- 1158
-		) -- 1158
-	end -- 1158
-	if p.bottleFly ~= nil then -- 1158
-		self:drawCeramicBottle( -- 1162
-			fgDraw, -- 1163
+	scene:addQuad3D( -- 903
+		vec3(cx - 12, 1, 22), -- 904
+		vec3(cx + 12, 1, 22), -- 905
+		vec3(cx + 10, 26, 22), -- 906
+		vec3(cx - 10, 26, 22), -- 907
+		{base = rgba(6, 9, 14, 255)}, -- 908
+		{ -- 909
+			bucket = LP_BUCKET.MIDGROUND, -- 909
+			unlit = true, -- 909
+			sortBias = 0.35, -- 909
+			edgeColor = rgba(186, 204, 222, 185), -- 909
+			edgeWidth = 1.2 -- 909
+		} -- 909
+	) -- 909
+	scene:addBox({ -- 912
+		x0 = cx - 15, -- 913
+		x1 = cx - 11, -- 914
+		y0 = 2, -- 915
+		y1 = 24, -- 916
+		z0 = 14, -- 917
+		z1 = 22, -- 918
+		material = MING_MATERIALS.mingTimber, -- 919
+		bucket = LP_BUCKET.PROP, -- 920
+		highlightTopEdge = true -- 921
+	}) -- 921
+	local gi = 0 -- 923
+	do -- 923
+		gi = 0 -- 924
+		while gi < 3 do -- 924
+			local gx = cx - 6 + gi * 6 -- 925
+			scene:addBox({ -- 926
+				x0 = gx - 1, -- 927
+				x1 = gx + 1, -- 928
+				y0 = 2, -- 929
+				y1 = 24, -- 930
+				z0 = 18, -- 931
+				z1 = 21, -- 932
+				material = MING_MATERIALS.mingIron, -- 933
+				bucket = LP_BUCKET.PROP, -- 934
+				sortBias = 0.1 -- 935
+			}) -- 935
+			gi = gi + 1 -- 924
+		end -- 924
+	end -- 924
+end -- 888
+function VillageUndertableScene.prototype.buildSoftDirtPatch(self, scene, softX) -- 940
+	scene:addBox({ -- 941
+		x0 = softX - 24, -- 942
+		x1 = softX + 24, -- 943
+		y0 = -4, -- 944
+		y1 = 1.5, -- 945
+		z0 = -16, -- 946
+		z1 = 28, -- 947
+		material = MAT_SOFT_EARTH, -- 948
+		bucket = LP_BUCKET.WALK_DECK, -- 949
+		sortBias = 0.15, -- 950
+		edgeWidth = 0.4 -- 951
+	}) -- 951
+end -- 940
+function VillageUndertableScene.prototype.buildHardBrickPatch(self, scene, brickX) -- 955
+	local col = 0 -- 957
+	do -- 957
+		col = 0 -- 958
+		while col < 3 do -- 958
+			local bx0 = brickX - 24 + col * 16 -- 959
+			local bx1 = bx0 + 14.5 -- 960
+			scene:addBox({ -- 961
+				x0 = bx0, -- 962
+				x1 = bx1, -- 963
+				y0 = -4, -- 964
+				y1 = 3.2, -- 965
+				z0 = -14, -- 966
+				z1 = 6, -- 967
+				material = MAT_HARD_BRICK, -- 968
+				bucket = LP_BUCKET.WALK_DECK, -- 969
+				sortBias = 0.2 + col * 0.01, -- 970
+				highlightTopEdge = true, -- 971
+				edgeWidth = 1 -- 972
+			}) -- 972
+			scene:addBox({ -- 974
+				x0 = bx0 + 4, -- 975
+				x1 = bx1 + 4, -- 976
+				y0 = -4, -- 977
+				y1 = 2.8, -- 978
+				z0 = 8, -- 979
+				z1 = 26, -- 980
+				material = MAT_HARD_BRICK, -- 981
+				bucket = LP_BUCKET.WALK_DECK, -- 982
+				sortBias = 0.18 + col * 0.01, -- 983
+				highlightTopEdge = true, -- 984
+				edgeWidth = 0.9 -- 985
+			}) -- 985
+			col = col + 1 -- 958
+		end -- 958
+	end -- 958
+end -- 955
+function VillageUndertableScene.prototype.buildIronBasin(self, scene, basinX) -- 990
+	scene:addBox({ -- 992
+		x0 = basinX - 14, -- 993
+		x1 = basinX + 14, -- 994
+		y0 = -2, -- 995
+		y1 = 3, -- 996
+		z0 = -10, -- 997
+		z1 = 14, -- 998
+		material = MING_MATERIALS.mingBrickDark, -- 999
+		bucket = LP_BUCKET.PROP, -- 1000
+		sortBias = 0.02 -- 1001
+	}) -- 1001
+	local tilt = self.basinShakeAngle -- 1004
+	local liftL = math.sin(tilt) * 14 -- 1005
+	local liftR = -liftL -- 1006
+	local shiftX = math.sin(tilt * 1.4) * 2.5 -- 1007
+	local baseY = 3 -- 1008
+	local topY = 14.5 -- 1009
+	local bx = basinX + shiftX -- 1010
+	scene:addQuad3D( -- 1013
+		vec3( -- 1014
+			bx - 11, -- 1014
+			baseY + math.max(0, liftL * 0.4), -- 1014
+			-8 -- 1014
+		), -- 1014
+		vec3( -- 1015
+			bx + 11, -- 1015
+			baseY + math.max(0, liftR * 0.4), -- 1015
+			-8 -- 1015
+		), -- 1015
+		vec3(bx + 16, topY + liftR, -12), -- 1016
+		vec3(bx - 16, topY + liftL, -12), -- 1017
+		MAT_IRON_BASIN, -- 1018
+		{bucket = LP_BUCKET.PROP, sortBias = 0.25, edgeWidth = 1.2} -- 1019
+	) -- 1019
+	scene:addQuad3D( -- 1022
+		vec3( -- 1023
+			bx - 11, -- 1023
+			baseY + math.max(0, liftL * 0.4), -- 1023
+			10 -- 1023
+		), -- 1023
+		vec3( -- 1024
+			bx - 11, -- 1024
+			baseY + math.max(0, liftL * 0.4), -- 1024
+			-8 -- 1024
+		), -- 1024
+		vec3(bx - 16, topY + liftL, -12), -- 1025
+		vec3(bx - 16, topY + liftL, 14), -- 1026
+		MAT_IRON_BASIN, -- 1027
+		{bucket = LP_BUCKET.PROP, sortBias = 0.22, edgeWidth = 1} -- 1028
+	) -- 1028
+	scene:addQuad3D( -- 1030
+		vec3( -- 1031
+			bx + 11, -- 1031
+			baseY + math.max(0, liftR * 0.4), -- 1031
+			-8 -- 1031
+		), -- 1031
+		vec3( -- 1032
+			bx + 11, -- 1032
+			baseY + math.max(0, liftR * 0.4), -- 1032
+			10 -- 1032
+		), -- 1032
+		vec3(bx + 16, topY + liftR, 14), -- 1033
+		vec3(bx + 16, topY + liftR, -12), -- 1034
+		MAT_IRON_BASIN, -- 1035
+		{bucket = LP_BUCKET.PROP, sortBias = 0.22, edgeWidth = 1} -- 1036
+	) -- 1036
+	scene:addQuad3D( -- 1039
+		vec3(bx - 14, topY - 1 + liftL, -10), -- 1040
+		vec3(bx + 14, topY - 1 + liftR, -10), -- 1041
+		vec3(bx + 14, topY - 1 + liftR, 12), -- 1042
+		vec3(bx - 14, topY - 1 + liftL, 12), -- 1043
+		{ -- 1044
+			base = rgba(24, 30, 40, 255), -- 1044
+			edge = rgba(232, 238, 246, 235) -- 1044
+		}, -- 1044
+		{bucket = LP_BUCKET.PROP, sortBias = 0.28, edgeWidth = 1.5} -- 1045
+	) -- 1045
+end -- 990
+function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fgDraw, fgGlow, p, cam, softX, culvertX, basinX, brickX) -- 1049
+	local y0 = cam:sy(0) -- 1059
+	local sx0 = cam:sx(softX - 20) -- 1062
+	local sx1 = cam:sx(softX + 20) -- 1063
+	local d = 0 -- 1064
+	do -- 1064
+		d = 0 -- 1065
+		while d < 9 do -- 1065
+			local dx = sx0 + (sx1 - sx0) * (d + 0.5) / 9 -- 1066
+			local dy = y0 - 2.5 + (d % 3 - 1) * 1.8 -- 1067
+			fgDraw:drawDot( -- 1068
+				Vec2(dx, dy), -- 1068
+				1.3, -- 1068
+				Color(116, 98, 78, 175) -- 1068
+			) -- 1068
+			d = d + 1 -- 1065
+		end -- 1065
+	end -- 1065
+	fgDraw:drawEllipse( -- 1070
+		Vec2( -- 1070
+			cam:sx(softX - 7), -- 1070
+			y0 - 1.5 -- 1070
+		), -- 1070
+		cam:len(4.2), -- 1070
+		1.6, -- 1070
+		Color(38, 30, 24, 185) -- 1070
+	) -- 1070
+	fgDraw:drawEllipse( -- 1071
+		Vec2( -- 1071
+			cam:sx(softX + 8), -- 1071
+			y0 - 2 -- 1071
+		), -- 1071
+		cam:len(4.2), -- 1071
+		1.6, -- 1071
+		Color(38, 30, 24, 185) -- 1071
+	) -- 1071
+	local cL = cam:sx(culvertX - 11) -- 1074
+	local cR = cam:sx(culvertX + 11) -- 1075
+	local cTop = cam:sy(25) -- 1076
+	fgDraw:drawSegment( -- 1077
+		Vec2(cL, cTop), -- 1077
+		Vec2(cR, cTop), -- 1077
+		1.6, -- 1077
+		Color(196, 210, 224, 210) -- 1077
+	) -- 1077
+	local rippleShift = math.sin(self.animTime * 2.3) * 3 -- 1078
+	fgGlow:drawSegment( -- 1079
+		Vec2(cL + 3 + rippleShift, y0 + 2), -- 1079
+		Vec2(cR - 4 + rippleShift, y0 + 2), -- 1079
+		1.1, -- 1079
+		Color(164, 192, 214, 105) -- 1079
+	) -- 1079
+	local bPtL = projectWorld3D( -- 1082
+		basinX - 16, -- 1082
+		14.5 + math.sin(self.basinShakeAngle) * 14, -- 1082
+		-12, -- 1082
+		cam, -- 1082
+		self.proj -- 1082
+	) -- 1082
+	local bPtR = projectWorld3D( -- 1083
+		basinX + 16, -- 1083
+		14.5 - math.sin(self.basinShakeAngle) * 14, -- 1083
+		-12, -- 1083
+		cam, -- 1083
+		self.proj -- 1083
+	) -- 1083
+	local shakeBoost = self.basinShakeTimer > 0 and clamp01(self.basinShakeTimer / self.basinShakeMax) or 0 -- 1084
+	local rimAlpha = math.floor(205 + 48 * shakeBoost + 0.5) -- 1085
+	fgDraw:drawSegment( -- 1086
+		Vec2(bPtL.x, bPtL.y), -- 1086
+		Vec2(bPtR.x, bPtR.y), -- 1086
+		2.1 + shakeBoost * 1.1, -- 1086
+		Color(230, 236, 242, rimAlpha) -- 1086
+	) -- 1086
+	fillRadialGlow( -- 1087
+		fgGlow, -- 1088
+		(bPtL.x + bPtR.x) * 0.5, -- 1089
+		(bPtL.y + bPtR.y) * 0.5, -- 1090
+		cam:len(22 + shakeBoost * 18), -- 1091
+		cam:len(10 + shakeBoost * 8), -- 1092
+		Color( -- 1093
+			216, -- 1093
+			226, -- 1093
+			236, -- 1093
+			math.floor(48 + 95 * shakeBoost + 0.5) -- 1093
+		), -- 1093
+		Color(186, 202, 220, 0), -- 1094
+		14 -- 1095
+	) -- 1095
+	local brL = cam:sx(brickX - 24) -- 1099
+	local brR = cam:sx(brickX + 24) -- 1100
+	local brTop = cam:sy(3.2) -- 1101
+	fgDraw:drawSegment( -- 1102
+		Vec2(brL, brTop), -- 1102
+		Vec2(brR, brTop), -- 1102
+		1.8, -- 1102
+		Color(224, 228, 234, 225) -- 1102
+	) -- 1102
+	local k = 1 -- 1103
+	do -- 1103
+		k = 1 -- 1104
+		while k <= 2 do -- 1104
+			local seamX = brL + (brR - brL) * k / 3 -- 1105
+			fgDraw:drawSegment( -- 1106
+				Vec2(seamX, y0 - 3), -- 1106
+				Vec2(seamX, brTop + 1), -- 1106
+				1.5, -- 1106
+				Color(20, 24, 32, 240) -- 1106
+			) -- 1106
+			fgDraw:drawSegment( -- 1107
+				Vec2(seamX + 1.8, y0 - 2), -- 1107
+				Vec2(seamX + 1.8, brTop), -- 1107
+				0.9, -- 1107
+				Color(214, 218, 224, 175) -- 1107
+			) -- 1107
+			k = k + 1 -- 1104
+		end -- 1104
+	end -- 1104
+	local i = 0 -- 1111
+	do -- 1111
+		i = 0 -- 1112
+		while i < #self.rings do -- 1112
+			do -- 1112
+				local rg = self.rings[i + 1] -- 1113
+				if rg.age < 0 then -- 1114
+					goto __continue75 -- 1115
+				end -- 1115
+				local t = clamp01(rg.age / rg.duration) -- 1117
+				local r = math.max( -- 1118
+					4, -- 1118
+					cam:len(rg.maxRadius) * (0.14 + 0.86 * t) -- 1118
+				) -- 1118
+				local alpha = (1 - t) * (rg.kind == "iron" and 0.88 or (rg.kind == "brick" and 0.82 or 0.4)) -- 1119
+				local rx = cam:sx(rg.x) -- 1120
+				local ry = cam:sy(rg.y) -- 1121
+				local ringCol = rg.kind == "iron" and Color( -- 1122
+					220, -- 1123
+					234, -- 1123
+					246, -- 1123
+					math.floor(235 * alpha + 0.5) -- 1123
+				) or (rg.kind == "brick" and Color( -- 1124
+					236, -- 1125
+					216, -- 1125
+					178, -- 1125
+					math.floor(225 * alpha + 0.5) -- 1125
+				) or Color( -- 1126
+					148, -- 1126
+					134, -- 1126
+					114, -- 1126
+					math.floor(165 * alpha + 0.5) -- 1126
+				)) -- 1126
+				drawEllipseRing( -- 1127
+					fgGlow, -- 1127
+					rx, -- 1127
+					ry, -- 1127
+					r, -- 1127
+					r * 0.34, -- 1127
+					rg.kind == "iron" and 1.8 or 1.4, -- 1127
+					ringCol, -- 1127
+					22 -- 1127
+				) -- 1127
+				if rg.kind == "iron" then -- 1128
+					drawEllipseRing( -- 1129
+						fgDraw, -- 1129
+						rx, -- 1129
+						ry, -- 1129
+						r * 0.96, -- 1129
+						r * 0.32, -- 1129
+						1.1, -- 1129
+						Color( -- 1129
+							214, -- 1129
+							224, -- 1129
+							236, -- 1129
+							math.floor(150 * alpha + 0.5) -- 1129
+						), -- 1129
+						22 -- 1129
+					) -- 1129
+				end -- 1129
+			end -- 1129
+			::__continue75:: -- 1129
+			i = i + 1 -- 1112
+		end -- 1112
+	end -- 1112
+	do -- 1112
+		i = 0 -- 1132
+		while i < #self.shards do -- 1132
+			local sp = self.shards[i + 1] -- 1133
+			local a = clamp01(sp.life / sp.maxLife) -- 1134
+			local col = sp.kind == "soft" and Color( -- 1135
+				138, -- 1136
+				120, -- 1136
+				98, -- 1136
+				math.floor(170 * a + 0.5) -- 1136
+			) or (sp.kind == "iron" and Color( -- 1137
+				224, -- 1138
+				232, -- 1138
+				242, -- 1138
+				math.floor(225 * a + 0.5) -- 1138
+			) or Color( -- 1139
+				216, -- 1139
+				198, -- 1139
+				174, -- 1139
+				math.floor(220 * a + 0.5) -- 1139
+			)) -- 1139
+			fgDraw:drawDot( -- 1140
+				Vec2( -- 1140
+					cam:sx(sp.x), -- 1140
+					cam:sy(sp.y) -- 1140
+				), -- 1140
+				sp.size, -- 1140
+				col -- 1140
+			) -- 1140
+			i = i + 1 -- 1132
+		end -- 1132
+	end -- 1132
+	if p.bottleLandT > 0 and p.bottleLandX >= 0 and #self.rings == 0 then -- 1144
+		local rx = cam:sx(p.bottleLandX) -- 1145
+		local ry = cam:sy(math.max(1, p.bottleLandY)) -- 1146
+		fgDraw:drawDot( -- 1147
+			Vec2(rx, ry), -- 1147
+			2.5, -- 1147
+			Color(216, 206, 186, 150) -- 1147
+		) -- 1147
+	end -- 1147
+end -- 1049
+function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 1152
+	local p = ctx.p -- 1158
+	local cam = ctx.cam -- 1159
+	local bottle = p.room.bottle -- 1162
+	if bottle ~= nil and not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 1163
+		self:drawCeramicBottle( -- 1164
+			fgDraw, -- 1164
 			fgGlow, -- 1164
-			worldArt, -- 1165
-			"fe04_bottle_air", -- 1166
-			cam:sx(p.bottleFly.x), -- 1167
-			cam:sy(p.bottleFly.y), -- 1168
-			cam.ppu, -- 1169
-			self.animTime * 13.5, -- 1170
-			false -- 1171
-		) -- 1171
-	end -- 1171
-	if p.hasBottle and p.aimHold > 0 then -- 1171
-		local pl = p.player -- 1177
-		local endX = p.bottleAimX -- 1178
-		local endY = p.bottleAimY -- 1179
-		if endX < 0 then -- 1179
-			local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 1181
-			endX = wAim.x -- 1182
-			endY = 0 -- 1183
-		end -- 1183
-		local dir = endX >= pl.x and 1 or -1 -- 1185
-		local x0 = pl.x + dir * 10 -- 1186
-		local y0 = pl.y + pl.h * 0.7 -- 1187
-		local vx = (endX - x0) / BOTTLE_FLY_T -- 1188
-		local vy = (endY - y0 + 0.5 * GRAVITY * BOTTLE_FLY_T * BOTTLE_FLY_T) / BOTTLE_FLY_T -- 1189
-		local previewSurface = self:classifyLandingSurface(p, endX) -- 1191
-		local arcRgb = previewSurface == "iron" and rgba(214, 228, 242, 255) or (previewSurface == "brick" and rgba(232, 206, 152, 255) or rgba(154, 142, 126, 255)) -- 1192
-		local steps = 18 -- 1198
-		local k = 1 -- 1199
-		do -- 1199
-			k = 1 -- 1200
-			while k <= steps do -- 1200
-				local tt = k / steps * BOTTLE_FLY_T -- 1201
-				local wx = x0 + vx * tt -- 1202
-				local wy = y0 + vy * tt - 0.5 * GRAVITY * tt * tt -- 1203
-				local alpha = 195 * (0.4 + 0.6 * (k / steps)) -- 1204
-				fgDraw:drawDot( -- 1205
-					Vec2( -- 1205
-						cam:sx(wx), -- 1205
-						cam:sy(wy) -- 1205
-					), -- 1205
-					2.5, -- 1205
-					toColor(arcRgb, alpha) -- 1205
-				) -- 1205
-				fgGlow:drawDot( -- 1206
-					Vec2( -- 1206
-						cam:sx(wx), -- 1206
-						cam:sy(wy) -- 1206
-					), -- 1206
-					3.2, -- 1206
-					toColor(arcRgb, alpha * 0.55) -- 1206
-				) -- 1206
-				k = k + 1 -- 1200
-			end -- 1200
-		end -- 1200
-		local lx = cam:sx(endX) -- 1209
-		local ly = cam:sy(endY + 2) -- 1210
-		local pulse = 0.88 + 0.12 * math.sin(self.animTime * 5.2) -- 1211
-		drawEllipseRing( -- 1212
-			fgDraw, -- 1212
-			lx, -- 1212
-			ly, -- 1212
-			11 * pulse, -- 1212
-			4.2 * pulse, -- 1212
-			1.6, -- 1212
-			toColor(arcRgb, 235), -- 1212
-			20 -- 1212
-		) -- 1212
-		if previewSurface == "iron" then -- 1212
-			drawEllipseRing( -- 1214
-				fgGlow, -- 1214
-				lx, -- 1214
-				ly, -- 1214
-				24 * pulse, -- 1214
-				9.2 * pulse, -- 1214
-				1.3, -- 1214
-				toColor(arcRgb, 195), -- 1214
-				22 -- 1214
-			) -- 1214
-		elseif previewSurface == "brick" then -- 1214
-			drawEllipseRing( -- 1216
-				fgGlow, -- 1216
-				lx, -- 1216
-				ly, -- 1216
-				18 * pulse, -- 1216
-				7 * pulse, -- 1216
-				1.2, -- 1216
-				toColor(arcRgb, 165), -- 1216
-				20 -- 1216
-			) -- 1216
-		end -- 1216
-	end -- 1216
-	return true -- 1220
-end -- 1131
-function VillageUndertableScene.prototype.drawCeramicBottle(self, fgDraw, fgGlow, worldArt, id, cx, cy, ppu, tilt, shelfGlint) -- 1223
-	local size = math.max(12, ppu * 13) -- 1234
-	if not worldArt:tryPlace( -- 1234
-		"prop_bottle", -- 1235
-		id, -- 1235
-		cx, -- 1235
-		cy, -- 1235
-		size, -- 1235
-		size, -- 1235
-		{angle = tilt * 180 / math.pi, layer = 8} -- 1235
-	) then -- 1235
-		fgDraw:drawCircle( -- 1239
-			Vec2(cx, cy), -- 1239
-			size * 0.36, -- 1239
-			Color(172, 138, 102, 245) -- 1239
-		) -- 1239
-	end -- 1239
-	if shelfGlint then -- 1239
-		local p = 0.72 + 0.28 * math.sin(self.animTime * 3) -- 1242
-		fillRadialGlow( -- 1243
-			fgGlow, -- 1243
-			cx, -- 1243
-			cy + 2, -- 1243
-			14 * p, -- 1243
-			14 * p, -- 1243
-			Color( -- 1243
-				224, -- 1243
-				214, -- 1243
-				190, -- 1243
-				math.floor(62 * p + 0.5) -- 1243
-			), -- 1243
-			Color(224, 214, 190, 0), -- 1243
-			12 -- 1243
-		) -- 1243
-	end -- 1243
-end -- 1223
-function VillageUndertableScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 1248
-	local p = ctx.p -- 1254
-	local cam = ctx.cam -- 1255
-	if p.room.scavenger ~= nil then -- 1255
-		self:drawScavengerShoeOverlay(fgDraw, fgGlow, p, cam) -- 1257
-	end -- 1257
-	if ctx.paused then -- 1257
-		local arch = p.room.arch -- 1262
-		local pTopL = projectWorld3D( -- 1263
-			arch.x0 - 160, -- 1263
-			arch.h + 18, -- 1263
-			-68, -- 1263
-			cam, -- 1263
-			self.proj -- 1263
-		) -- 1263
-		local pTopR = projectWorld3D( -- 1264
-			arch.x1 + 95, -- 1264
-			arch.h + 18, -- 1264
-			-68, -- 1264
-			cam, -- 1264
-			self.proj -- 1264
+			worldArt, -- 1164
+			"fe04_bottle_shelf", -- 1164
+			cam:sx(bottle.x), -- 1164
+			cam:sy(56), -- 1164
+			cam.ppu, -- 1164
+			0, -- 1164
+			true -- 1164
+		) -- 1164
+	end -- 1164
+	if p.hasBottle and p.aimHold <= 0 then -- 1168
+		local pl = p.player -- 1169
+		self:drawCeramicBottle( -- 1170
+			fgDraw, -- 1171
+			fgGlow, -- 1172
+			worldArt, -- 1173
+			"fe04_bottle_held", -- 1174
+			cam:sx(pl.x + pl.facing * 10), -- 1175
+			cam:sy(pl.y + pl.h * 0.52), -- 1176
+			cam.ppu, -- 1177
+			pl.facing * 0.22, -- 1178
+			false -- 1179
+		) -- 1179
+	end -- 1179
+	if p.bottleFly ~= nil then -- 1182
+		self:drawCeramicBottle( -- 1183
+			fgDraw, -- 1184
+			fgGlow, -- 1185
+			worldArt, -- 1186
+			"fe04_bottle_air", -- 1187
+			cam:sx(p.bottleFly.x), -- 1188
+			cam:sy(p.bottleFly.y), -- 1189
+			cam.ppu, -- 1190
+			self.animTime * 13.5, -- 1191
+			false -- 1192
+		) -- 1192
+	end -- 1192
+	if p.hasBottle and p.aimHold > 0 then -- 1197
+		local pl = p.player -- 1198
+		local endX = p.bottleAimX -- 1199
+		local endY = p.bottleAimY -- 1200
+		if endX < 0 then -- 1201
+			local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 1202
+			endX = wAim.x -- 1203
+			endY = 0 -- 1204
+		end -- 1204
+		local dir = endX >= pl.x and 1 or -1 -- 1206
+		local x0 = pl.x + dir * 10 -- 1207
+		local y0 = pl.y + pl.h * 0.7 -- 1208
+		local vx = (endX - x0) / BOTTLE_FLY_T -- 1209
+		local vy = (endY - y0 + 0.5 * GRAVITY * BOTTLE_FLY_T * BOTTLE_FLY_T) / BOTTLE_FLY_T -- 1210
+		local previewSurface = self:classifyLandingSurface(p, endX) -- 1212
+		local arcRgb = previewSurface == "iron" and rgba(214, 228, 242, 255) or (previewSurface == "brick" and rgba(232, 206, 152, 255) or rgba(154, 142, 126, 255)) -- 1213
+		local steps = 18 -- 1219
+		local k = 1 -- 1220
+		do -- 1220
+			k = 1 -- 1221
+			while k <= steps do -- 1221
+				local tt = k / steps * BOTTLE_FLY_T -- 1222
+				local wx = x0 + vx * tt -- 1223
+				local wy = y0 + vy * tt - 0.5 * GRAVITY * tt * tt -- 1224
+				local alpha = 195 * (0.4 + 0.6 * (k / steps)) -- 1225
+				fgDraw:drawDot( -- 1226
+					Vec2( -- 1226
+						cam:sx(wx), -- 1226
+						cam:sy(wy) -- 1226
+					), -- 1226
+					2.5, -- 1226
+					toColor(arcRgb, alpha) -- 1226
+				) -- 1226
+				fgGlow:drawDot( -- 1227
+					Vec2( -- 1227
+						cam:sx(wx), -- 1227
+						cam:sy(wy) -- 1227
+					), -- 1227
+					3.2, -- 1227
+					toColor(arcRgb, alpha * 0.55) -- 1227
+				) -- 1227
+				k = k + 1 -- 1221
+			end -- 1221
+		end -- 1221
+		local lx = cam:sx(endX) -- 1230
+		local ly = cam:sy(endY + 2) -- 1231
+		local pulse = 0.88 + 0.12 * math.sin(self.animTime * 5.2) -- 1232
+		drawEllipseRing( -- 1233
+			fgDraw, -- 1233
+			lx, -- 1233
+			ly, -- 1233
+			11 * pulse, -- 1233
+			4.2 * pulse, -- 1233
+			1.6, -- 1233
+			toColor(arcRgb, 235), -- 1233
+			20 -- 1233
+		) -- 1233
+		if previewSurface == "iron" then -- 1234
+			drawEllipseRing( -- 1235
+				fgGlow, -- 1235
+				lx, -- 1235
+				ly, -- 1235
+				24 * pulse, -- 1235
+				9.2 * pulse, -- 1235
+				1.3, -- 1235
+				toColor(arcRgb, 195), -- 1235
+				22 -- 1235
+			) -- 1235
+		elseif previewSurface == "brick" then -- 1236
+			drawEllipseRing( -- 1237
+				fgGlow, -- 1237
+				lx, -- 1237
+				ly, -- 1237
+				18 * pulse, -- 1237
+				7 * pulse, -- 1237
+				1.2, -- 1237
+				toColor(arcRgb, 165), -- 1237
+				20 -- 1237
+			) -- 1237
+		end -- 1237
+	end -- 1237
+	return true -- 1241
+end -- 1152
+function VillageUndertableScene.prototype.drawCeramicBottle(self, fgDraw, fgGlow, worldArt, id, cx, cy, ppu, tilt, shelfGlint) -- 1244
+	local size = math.max(10, ppu * 10.5) -- 1255
+	if not worldArt:tryPlace( -- 1256
+		"prop_bottle", -- 1256
+		id, -- 1256
+		cx, -- 1256
+		cy, -- 1256
+		size, -- 1256
+		size, -- 1256
+		{angle = tilt * 180 / math.pi, layer = 8} -- 1256
+	) then -- 1256
+		fgDraw:drawCircle( -- 1260
+			Vec2(cx, cy), -- 1260
+			size * 0.36, -- 1260
+			Color(172, 138, 102, 245) -- 1260
+		) -- 1260
+	end -- 1260
+	if shelfGlint then -- 1262
+		local p = 0.72 + 0.28 * math.sin(self.animTime * 3) -- 1263
+		fillRadialGlow( -- 1264
+			fgGlow, -- 1264
+			cx, -- 1264
+			cy + 2, -- 1264
+			14 * p, -- 1264
+			14 * p, -- 1264
+			Color( -- 1264
+				224, -- 1264
+				214, -- 1264
+				190, -- 1264
+				math.floor(62 * p + 0.5) -- 1264
+			), -- 1264
+			Color(224, 214, 190, 0), -- 1264
+			12 -- 1264
 		) -- 1264
-		worldArt:tryPlace( -- 1265
-			"cover_wood", -- 1266
-			"fe04_pause_table_top", -- 1267
-			(pTopL.x + pTopR.x) * 0.5, -- 1268
-			pTopL.y, -- 1269
-			math.max( -- 1270
-				20, -- 1270
-				math.abs(pTopR.x - pTopL.x) -- 1270
-			), -- 1270
-			math.max(40, cam.viewH - pTopL.y + 40), -- 1271
-			{ -- 1272
-				color = Color(24, 18, 15, 255), -- 1272
-				opacity = 0.96, -- 1272
-				layer = 5300 -- 1272
-			} -- 1272
-		) -- 1272
-		local legBL = projectWorld3D( -- 1274
-			arch.x1 - 8, -- 1274
-			-28, -- 1274
-			-66, -- 1274
-			cam, -- 1274
-			self.proj -- 1274
-		) -- 1274
-		local legTR = projectWorld3D( -- 1275
-			arch.x1 + 14, -- 1275
-			arch.h + 24, -- 1275
-			-66, -- 1275
-			cam, -- 1275
-			self.proj -- 1275
-		) -- 1275
-		worldArt:tryPlace( -- 1276
-			"cover_wood", -- 1277
-			"fe04_pause_table_leg", -- 1278
-			(legBL.x + legTR.x) * 0.5, -- 1279
-			legBL.y, -- 1280
-			math.max( -- 1281
-				12, -- 1281
-				math.abs(legTR.x - legBL.x) -- 1281
-			), -- 1281
-			math.max( -- 1282
-				40, -- 1282
-				math.abs(legTR.y - legBL.y) -- 1282
-			), -- 1282
-			{ -- 1283
-				color = Color(22, 16, 13, 255), -- 1283
-				opacity = 0.96, -- 1283
-				layer = 5310 -- 1283
-			} -- 1283
-		) -- 1283
-	end -- 1283
-end -- 1248
-function VillageUndertableScene.prototype.drawScavengerShoeOverlay(self, fgDraw, fgGlow, p, cam) -- 1288
-	local cx = cam:sx(p.scavX) -- 1294
-	local by = cam:sy(p.room.scavenger ~= nil and p.room.scavenger.y or 0) -- 1295
-	local f = self.shoeFacing >= 0 and 1 or -1 -- 1296
-	local moving = p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" -- 1297
-	local stride = moving and math.sin(self.scavStridePhase) * cam:len(7.2) or 0 -- 1298
-	local pausedToe = self.shoeToePauseTimer > 0 -- 1299
-	fillRadialGlow( -- 1302
-		fgGlow, -- 1302
-		cx + f * cam:len(4), -- 1302
-		by + 2, -- 1302
-		cam:len(32), -- 1302
-		cam:len(8), -- 1302
-		Color(196, 208, 220, 48), -- 1302
-		Color(156, 172, 190, 0), -- 1302
-		14 -- 1302
-	) -- 1302
-	fgDraw:drawEllipse( -- 1303
-		Vec2( -- 1303
-			cx + f * cam:len(2), -- 1303
-			by + 1 -- 1303
-		), -- 1303
-		cam:len(19), -- 1303
-		cam:len(3.4), -- 1303
-		Color(92, 102, 114, 72) -- 1303
-	) -- 1303
-	local function drawSingleShoe(footX, liftY, isFront) -- 1306
-		local heelX = footX - f * cam:len(4.8) -- 1307
-		local midX = footX + f * cam:len(1.8) -- 1308
-		local toeX = footX + f * cam:len(7.6) -- 1309
-		local soleY = by + 0.8 + liftY -- 1310
-		local shoeH = cam:len(4.4) -- 1311
-		fgDraw:drawPolygon( -- 1313
-			{ -- 1313
-				Vec2(heelX, soleY), -- 1314
-				Vec2(toeX, soleY), -- 1315
-				Vec2( -- 1316
-					toeX - f * cam:len(1), -- 1316
-					soleY + shoeH * 0.56 -- 1316
-				), -- 1316
-				Vec2(midX, soleY + shoeH * 0.96), -- 1317
-				Vec2( -- 1318
-					heelX + f * cam:len(0.6), -- 1318
-					soleY + shoeH * 0.86 -- 1318
-				) -- 1318
-			}, -- 1318
-			isFront and Color(68, 58, 48, 250) or Color(46, 40, 34, 240) -- 1319
-		) -- 1319
-		local soleCol = isFront and Color(198, 192, 178, 232) or Color(148, 144, 134, 195) -- 1321
-		fgDraw:drawSegment( -- 1322
-			Vec2(heelX, soleY + 0.6), -- 1322
-			Vec2(toeX, soleY + 0.6), -- 1322
-			1.5, -- 1322
-			soleCol -- 1322
-		) -- 1322
-		fgDraw:drawSegment( -- 1324
-			Vec2( -- 1324
-				toeX - f * cam:len(1.2), -- 1324
-				soleY + 0.8 -- 1324
-			), -- 1324
-			Vec2( -- 1324
-				toeX - f * cam:len(1.4), -- 1324
-				soleY + shoeH * 0.56 -- 1324
-			), -- 1324
-			1.3, -- 1324
-			Color(214, 210, 198, isFront and 220 or 165) -- 1324
-		) -- 1324
-		if isFront and pausedToe then -- 1324
-			fgGlow:drawDot( -- 1327
-				Vec2(toeX, soleY + 1.5), -- 1327
-				3, -- 1327
-				Color(236, 218, 178, 155) -- 1327
-			) -- 1327
-		end -- 1327
-	end -- 1306
-	local backLift = moving and math.max( -- 1331
-		0, -- 1331
-		-math.sin(self.scavStridePhase) -- 1331
-	) * cam:len(2.4) or 0 -- 1331
-	local frontLift = moving and math.max( -- 1332
-		0, -- 1332
-		math.sin(self.scavStridePhase) -- 1332
-	) * cam:len(2.8) or 0 -- 1332
-	drawSingleShoe( -- 1333
-		cx - stride - f * cam:len(3.5), -- 1333
-		backLift, -- 1333
-		false -- 1333
-	) -- 1333
-	drawSingleShoe( -- 1334
-		cx + stride + f * cam:len(4), -- 1334
-		frontLift, -- 1334
-		true -- 1334
-	) -- 1334
-end -- 1288
-function VillageUndertableScene.prototype.drawForegroundOverlay(self, uiDraw, _uiInkDraw, _uiArt, _uiGlow, ctx) -- 1343
-	local p = ctx.p -- 1350
-	local cam = ctx.cam -- 1351
-	local inv = 1 / math.max(0.25, ctx.uiScale) -- 1352
-	local arch = p.room.arch -- 1353
-	local tableBottomY = arch.h + 18 + (1 - self.underTableFocus) * 12 -- 1357
-	local slabThick = 24 -- 1358
-	local apronTopY = tableBottomY + slabThick -- 1359
-	local xLeft = p.ox - 80 -- 1360
-	local xRight = arch.x1 + 52 -- 1361
-	local bFarL = projectWorld3D( -- 1364
-		xLeft, -- 1364
-		tableBottomY - 4, -- 1364
-		-18, -- 1364
-		cam, -- 1364
-		self.proj -- 1364
-	) -- 1364
-	local bFarR = projectWorld3D( -- 1365
-		xRight, -- 1365
-		tableBottomY - 4, -- 1365
-		-18, -- 1365
-		cam, -- 1365
-		self.proj -- 1365
-	) -- 1365
-	local bNearR = projectWorld3D( -- 1366
-		xRight, -- 1366
-		tableBottomY + 4, -- 1366
-		-74, -- 1366
-		cam, -- 1366
-		self.proj -- 1366
-	) -- 1366
-	local bNearL = projectWorld3D( -- 1367
-		xLeft, -- 1367
-		tableBottomY + 4, -- 1367
-		-74, -- 1367
-		cam, -- 1367
-		self.proj -- 1367
-	) -- 1367
-	drawUiQuad( -- 1368
-		uiDraw, -- 1368
-		bFarL, -- 1368
-		bFarR, -- 1368
-		bNearR, -- 1368
-		bNearL, -- 1368
-		Color(16, 12, 10, 242), -- 1368
-		Color(32, 24, 19, 248), -- 1368
-		inv, -- 1368
-		Color(88, 68, 52, 125), -- 1368
-		1 -- 1368
-	) -- 1368
-	local beamIdx = 0 -- 1370
-	do -- 1370
-		beamIdx = 0 -- 1371
-		while beamIdx < 4 do -- 1371
-			local bx = xLeft + 110 + beamIdx * 105 -- 1372
-			local p0 = projectWorld3D( -- 1373
-				bx, -- 1373
-				tableBottomY - 3, -- 1373
-				-18, -- 1373
-				cam, -- 1373
-				self.proj -- 1373
-			) -- 1373
-			local p1 = projectWorld3D( -- 1374
-				bx, -- 1374
-				tableBottomY + 3, -- 1374
-				-74, -- 1374
-				cam, -- 1374
-				self.proj -- 1374
-			) -- 1374
-			uiDraw:drawSegment( -- 1375
-				Vec2(p0.x * inv, p0.y * inv), -- 1375
-				Vec2(p1.x * inv, p1.y * inv), -- 1375
-				1.2, -- 1375
-				Color(56, 42, 32, 155) -- 1375
-			) -- 1375
-			beamIdx = beamIdx + 1 -- 1371
-		end -- 1371
-	end -- 1371
-	local fBotL = bNearL -- 1379
-	local fBotR = bNearR -- 1380
-	local fTopR = projectWorld3D( -- 1381
-		xRight, -- 1381
-		apronTopY, -- 1381
-		-74, -- 1381
-		cam, -- 1381
-		self.proj -- 1381
-	) -- 1381
-	local fTopL = projectWorld3D( -- 1382
-		xLeft, -- 1382
-		apronTopY, -- 1382
-		-74, -- 1382
-		cam, -- 1382
-		self.proj -- 1382
-	) -- 1382
-	drawUiQuad( -- 1383
-		uiDraw, -- 1383
-		fBotL, -- 1383
-		fBotR, -- 1383
-		fTopR, -- 1383
-		fTopL, -- 1383
-		Color(34, 25, 19, 252), -- 1383
-		Color(54, 40, 30, 254), -- 1383
-		inv, -- 1383
-		Color(118, 94, 72, 145), -- 1383
-		1.1 -- 1383
-	) -- 1383
-	local fMidL = projectWorld3D( -- 1384
-		xLeft, -- 1384
-		tableBottomY + slabThick * 0.52, -- 1384
-		-74, -- 1384
-		cam, -- 1384
-		self.proj -- 1384
-	) -- 1384
-	local fMidR = projectWorld3D( -- 1385
-		xRight, -- 1385
-		tableBottomY + slabThick * 0.52, -- 1385
-		-74, -- 1385
-		cam, -- 1385
-		self.proj -- 1385
-	) -- 1385
-	uiDraw:drawSegment( -- 1386
-		Vec2(fMidL.x * inv, fMidL.y * inv), -- 1386
-		Vec2(fMidR.x * inv, fMidR.y * inv), -- 1386
-		0.9, -- 1386
-		Color(18, 13, 10, 195) -- 1386
-	) -- 1386
-	uiDraw:drawSegment( -- 1388
-		Vec2(fBotL.x * inv, fBotL.y * inv), -- 1389
-		Vec2(fBotR.x * inv, fBotR.y * inv), -- 1390
-		1.6, -- 1391
-		Color(148, 126, 104, 185) -- 1392
-	) -- 1392
-	local roofBotY = apronTopY + 56 -- 1396
-	local roofTopY = apronTopY + 150 -- 1397
-	local rBL = projectWorld3D( -- 1398
-		xLeft, -- 1398
-		roofBotY, -- 1398
-		-74, -- 1398
-		cam, -- 1398
-		self.proj -- 1398
-	) -- 1398
-	local rBR = projectWorld3D( -- 1399
-		xRight, -- 1399
-		roofBotY, -- 1399
-		-74, -- 1399
-		cam, -- 1399
-		self.proj -- 1399
-	) -- 1399
-	local rTR = projectWorld3D( -- 1400
-		xRight, -- 1400
-		roofTopY, -- 1400
-		-74, -- 1400
+	end -- 1264
+end -- 1244
+function VillageUndertableScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 1269
+	local p = ctx.p -- 1275
+	local cam = ctx.cam -- 1276
+	if p.room.scavenger ~= nil then -- 1277
+		self:drawScavengerShoeOverlay(fgDraw, fgGlow, p, cam) -- 1278
+	end -- 1278
+	if ctx.paused then -- 1282
+		local arch = p.room.arch -- 1283
+		local pTopBL = projectWorld3D( -- 1284
+			arch.x0 - 8, -- 1284
+			arch.h, -- 1284
+			-15, -- 1284
+			cam, -- 1284
+			self.proj -- 1284
+		) -- 1284
+		local pTopTR = projectWorld3D( -- 1285
+			arch.x1 + 8, -- 1285
+			arch.h + 8, -- 1285
+			-15, -- 1285
+			cam, -- 1285
+			self.proj -- 1285
+		) -- 1285
+		worldArt:tryPlace( -- 1286
+			"cover_wood", -- 1287
+			"fe04_pause_table_top", -- 1288
+			(pTopBL.x + pTopTR.x) * 0.5, -- 1289
+			pTopBL.y, -- 1290
+			math.max( -- 1291
+				20, -- 1291
+				math.abs(pTopTR.x - pTopBL.x) -- 1291
+			), -- 1291
+			math.max( -- 1292
+				8, -- 1292
+				math.abs(pTopTR.y - pTopBL.y) -- 1292
+			), -- 1292
+			{ -- 1293
+				color = Color(46, 35, 27, 255), -- 1293
+				opacity = 0.96, -- 1293
+				layer = 5300 -- 1293
+			} -- 1293
+		) -- 1293
+		local legBL = projectWorld3D( -- 1295
+			arch.x1 - 6, -- 1295
+			0, -- 1295
+			-15, -- 1295
+			cam, -- 1295
+			self.proj -- 1295
+		) -- 1295
+		local legTR = projectWorld3D( -- 1296
+			arch.x1 + 1, -- 1296
+			arch.h, -- 1296
+			-15, -- 1296
+			cam, -- 1296
+			self.proj -- 1296
+		) -- 1296
+		worldArt:tryPlace( -- 1297
+			"cover_wood", -- 1298
+			"fe04_pause_table_leg", -- 1299
+			(legBL.x + legTR.x) * 0.5, -- 1300
+			legBL.y, -- 1301
+			math.max( -- 1302
+				6, -- 1302
+				math.abs(legTR.x - legBL.x) -- 1302
+			), -- 1302
+			math.max( -- 1303
+				16, -- 1303
+				math.abs(legTR.y - legBL.y) -- 1303
+			), -- 1303
+			{ -- 1304
+				color = Color(34, 25, 19, 255), -- 1304
+				opacity = 0.96, -- 1304
+				layer = 5310 -- 1304
+			} -- 1304
+		) -- 1304
+	end -- 1304
+end -- 1269
+function VillageUndertableScene.prototype.drawScavengerShoeOverlay(self, fgDraw, fgGlow, p, cam) -- 1309
+	local cx = cam:sx(p.scavX) -- 1315
+	local by = cam:sy(p.room.scavenger ~= nil and p.room.scavenger.y or 0) -- 1316
+	local f = self.shoeFacing >= 0 and 1 or -1 -- 1317
+	local moving = p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" -- 1318
+	local stride = moving and math.sin(self.scavStridePhase) * cam:len(7.2) or 0 -- 1319
+	local pausedToe = self.shoeToePauseTimer > 0 -- 1320
+	fillRadialGlow( -- 1323
+		fgGlow, -- 1323
+		cx + f * cam:len(4), -- 1323
+		by + 2, -- 1323
+		cam:len(32), -- 1323
+		cam:len(8), -- 1323
+		Color(196, 208, 220, 48), -- 1323
+		Color(156, 172, 190, 0), -- 1323
+		14 -- 1323
+	) -- 1323
+	fgDraw:drawEllipse( -- 1324
+		Vec2( -- 1324
+			cx + f * cam:len(2), -- 1324
+			by + 1 -- 1324
+		), -- 1324
+		cam:len(19), -- 1324
+		cam:len(3.4), -- 1324
+		Color(92, 102, 114, 72) -- 1324
+	) -- 1324
+	local function drawSingleShoe(footX, liftY, isFront) -- 1327
+		local heelX = footX - f * cam:len(4.8) -- 1328
+		local midX = footX + f * cam:len(1.8) -- 1329
+		local toeX = footX + f * cam:len(7.6) -- 1330
+		local soleY = by + 0.8 + liftY -- 1331
+		local shoeH = cam:len(4.4) -- 1332
+		fgDraw:drawPolygon( -- 1334
+			{ -- 1334
+				Vec2(heelX, soleY), -- 1335
+				Vec2(toeX, soleY), -- 1336
+				Vec2( -- 1337
+					toeX - f * cam:len(1), -- 1337
+					soleY + shoeH * 0.56 -- 1337
+				), -- 1337
+				Vec2(midX, soleY + shoeH * 0.96), -- 1338
+				Vec2( -- 1339
+					heelX + f * cam:len(0.6), -- 1339
+					soleY + shoeH * 0.86 -- 1339
+				) -- 1339
+			}, -- 1339
+			isFront and Color(68, 58, 48, 250) or Color(46, 40, 34, 240) -- 1340
+		) -- 1340
+		local soleCol = isFront and Color(198, 192, 178, 232) or Color(148, 144, 134, 195) -- 1342
+		fgDraw:drawSegment( -- 1343
+			Vec2(heelX, soleY + 0.6), -- 1343
+			Vec2(toeX, soleY + 0.6), -- 1343
+			1.5, -- 1343
+			soleCol -- 1343
+		) -- 1343
+		fgDraw:drawSegment( -- 1345
+			Vec2( -- 1345
+				toeX - f * cam:len(1.2), -- 1345
+				soleY + 0.8 -- 1345
+			), -- 1345
+			Vec2( -- 1345
+				toeX - f * cam:len(1.4), -- 1345
+				soleY + shoeH * 0.56 -- 1345
+			), -- 1345
+			1.3, -- 1345
+			Color(214, 210, 198, isFront and 220 or 165) -- 1345
+		) -- 1345
+		if isFront and pausedToe then -- 1347
+			fgGlow:drawDot( -- 1348
+				Vec2(toeX, soleY + 1.5), -- 1348
+				3, -- 1348
+				Color(236, 218, 178, 155) -- 1348
+			) -- 1348
+		end -- 1348
+	end -- 1327
+	local backLift = moving and math.max( -- 1352
+		0, -- 1352
+		-math.sin(self.scavStridePhase) -- 1352
+	) * cam:len(2.4) or 0 -- 1352
+	local frontLift = moving and math.max( -- 1353
+		0, -- 1353
+		math.sin(self.scavStridePhase) -- 1353
+	) * cam:len(2.8) or 0 -- 1353
+	drawSingleShoe( -- 1354
+		cx - stride - f * cam:len(3.5), -- 1354
+		backLift, -- 1354
+		false -- 1354
+	) -- 1354
+	drawSingleShoe( -- 1355
+		cx + stride + f * cam:len(4), -- 1355
+		frontLift, -- 1355
+		true -- 1355
+	) -- 1355
+end -- 1309
+function VillageUndertableScene.prototype.drawForegroundOverlay(self, uiDraw, _uiInkDraw, _uiArt, _uiGlow, ctx) -- 1365
+	local p = ctx.p -- 1372
+	local cam = ctx.cam -- 1373
+	local inv = 1 / math.max(0.25, ctx.uiScale) -- 1374
+	local arch = p.room.arch -- 1375
+	local xLeft = arch.x0 - 8 -- 1377
+	local xRight = arch.x1 + 8 -- 1378
+	local tableBotY = arch.h -- 1379
+	local tableTopY = arch.h + 8 -- 1380
+	local zFront = -15 -- 1381
+	local zMid = 4 -- 1382
+	local function drawFrontLeg(lx0, lx1) -- 1385
+		local mBL = projectWorld3D( -- 1386
+			lx0, -- 1386
+			0, -- 1386
+			zFront, -- 1386
+			cam, -- 1386
+			self.proj -- 1386
+		) -- 1386
+		local mBR = projectWorld3D( -- 1387
+			lx1, -- 1387
+			0, -- 1387
+			zFront, -- 1387
+			cam, -- 1387
+			self.proj -- 1387
+		) -- 1387
+		local mTR = projectWorld3D( -- 1388
+			lx1, -- 1388
+			tableBotY, -- 1388
+			zFront, -- 1388
+			cam, -- 1388
+			self.proj -- 1388
+		) -- 1388
+		local mTL = projectWorld3D( -- 1389
+			lx0, -- 1389
+			tableBotY, -- 1389
+			zFront, -- 1389
+			cam, -- 1389
+			self.proj -- 1389
+		) -- 1389
+		drawUiQuad( -- 1390
+			uiDraw, -- 1390
+			mBL, -- 1390
+			mBR, -- 1390
+			mTR, -- 1390
+			mTL, -- 1390
+			Color(26, 20, 15, 250), -- 1390
+			Color(38, 29, 22, 252), -- 1390
+			inv, -- 1390
+			Color(88, 70, 54, 145), -- 1390
+			0.9 -- 1390
+		) -- 1390
+		local sBR = projectWorld3D( -- 1392
+			lx1, -- 1392
+			0, -- 1392
+			zFront + 7, -- 1392
+			cam, -- 1392
+			self.proj -- 1392
+		) -- 1392
+		local sTR = projectWorld3D( -- 1393
+			lx1, -- 1393
+			tableBotY, -- 1393
+			zFront + 7, -- 1393
+			cam, -- 1393
+			self.proj -- 1393
+		) -- 1393
+		drawUiQuad( -- 1394
+			uiDraw, -- 1394
+			mBR, -- 1394
+			sBR, -- 1394
+			sTR, -- 1394
+			mTR, -- 1394
+			Color(44, 34, 26, 248), -- 1394
+			Color(66, 52, 40, 250), -- 1394
+			inv, -- 1394
+			Color(138, 120, 102, 155), -- 1394
+			0.8 -- 1394
+		) -- 1394
+	end -- 1385
+	drawFrontLeg(arch.x0 - 1, arch.x0 + 6) -- 1396
+	drawFrontLeg(arch.x1 - 6, arch.x1 + 1) -- 1397
+	local bFarL = projectWorld3D( -- 1400
+		xLeft, -- 1400
+		tableBotY, -- 1400
+		zMid, -- 1400
 		cam, -- 1400
 		self.proj -- 1400
 	) -- 1400
-	local rTL = projectWorld3D( -- 1401
-		xLeft, -- 1401
-		roofTopY, -- 1401
-		-74, -- 1401
+	local bFarR = projectWorld3D( -- 1401
+		xRight, -- 1401
+		tableBotY, -- 1401
+		zMid, -- 1401
 		cam, -- 1401
 		self.proj -- 1401
 	) -- 1401
-	drawUiQuad( -- 1402
-		uiDraw, -- 1402
-		rBL, -- 1402
-		rBR, -- 1402
-		rTR, -- 1402
-		rTL, -- 1402
-		Color(10, 9, 12, 165), -- 1402
-		Color(7, 7, 10, 248), -- 1402
-		inv -- 1402
+	local bNearR = projectWorld3D( -- 1402
+		xRight, -- 1402
+		tableBotY, -- 1402
+		zFront, -- 1402
+		cam, -- 1402
+		self.proj -- 1402
 	) -- 1402
-	local topBackL = projectWorld3D( -- 1404
-		xLeft, -- 1404
-		apronTopY + 12, -- 1404
-		-24, -- 1404
-		cam, -- 1404
-		self.proj -- 1404
+	local bNearL = projectWorld3D( -- 1403
+		xLeft, -- 1403
+		tableBotY, -- 1403
+		zFront, -- 1403
+		cam, -- 1403
+		self.proj -- 1403
+	) -- 1403
+	drawUiQuad( -- 1404
+		uiDraw, -- 1404
+		bFarL, -- 1404
+		bFarR, -- 1404
+		bNearR, -- 1404
+		bNearL, -- 1404
+		Color(18, 14, 11, 236), -- 1404
+		Color(28, 21, 16, 242), -- 1404
+		inv, -- 1404
+		Color(76, 58, 44, 115), -- 1404
+		0.8 -- 1404
 	) -- 1404
-	local topBackR = projectWorld3D( -- 1405
-		xRight, -- 1405
-		apronTopY + 12, -- 1405
-		-24, -- 1405
-		cam, -- 1405
-		self.proj -- 1405
-	) -- 1405
-	drawUiQuad( -- 1406
-		uiDraw, -- 1406
-		fTopL, -- 1406
-		fTopR, -- 1406
-		topBackR, -- 1406
-		topBackL, -- 1406
-		Color(44, 34, 26, 238), -- 1406
-		Color(22, 18, 16, 224), -- 1406
-		inv, -- 1406
-		Color(128, 108, 88, 130), -- 1406
-		0.9 -- 1406
-	) -- 1406
-	local bowlBL = projectWorld3D( -- 1408
-		arch.x0 + 4, -- 1408
-		apronTopY + 2, -- 1408
-		-56, -- 1408
+	local fTopR = projectWorld3D( -- 1407
+		xRight, -- 1407
+		tableTopY, -- 1407
+		zFront, -- 1407
+		cam, -- 1407
+		self.proj -- 1407
+	) -- 1407
+	local fTopL = projectWorld3D( -- 1408
+		xLeft, -- 1408
+		tableTopY, -- 1408
+		zFront, -- 1408
 		cam, -- 1408
 		self.proj -- 1408
 	) -- 1408
-	local bowlBR = projectWorld3D( -- 1409
-		arch.x0 + 34, -- 1409
-		apronTopY + 2, -- 1409
-		-56, -- 1409
-		cam, -- 1409
-		self.proj -- 1409
+	drawUiQuad( -- 1409
+		uiDraw, -- 1409
+		bNearL, -- 1409
+		bNearR, -- 1409
+		fTopR, -- 1409
+		fTopL, -- 1409
+		Color(38, 28, 21, 252), -- 1409
+		Color(56, 42, 32, 254), -- 1409
+		inv, -- 1409
+		Color(124, 98, 76, 155), -- 1409
+		1 -- 1409
 	) -- 1409
-	local bowlTR = projectWorld3D( -- 1410
-		arch.x0 + 38, -- 1410
-		apronTopY + 16, -- 1410
-		-56, -- 1410
-		cam, -- 1410
-		self.proj -- 1410
-	) -- 1410
-	local bowlTL = projectWorld3D( -- 1411
-		arch.x0, -- 1411
-		apronTopY + 16, -- 1411
-		-56, -- 1411
-		cam, -- 1411
-		self.proj -- 1411
+	uiDraw:drawSegment( -- 1411
+		Vec2(bNearL.x * inv, bNearL.y * inv), -- 1411
+		Vec2(bNearR.x * inv, bNearR.y * inv), -- 1411
+		1.2, -- 1411
+		Color(142, 122, 100, 175) -- 1411
 	) -- 1411
-	drawUiQuad( -- 1412
-		uiDraw, -- 1412
-		bowlBL, -- 1412
-		bowlBR, -- 1412
-		bowlTR, -- 1412
-		bowlTL, -- 1412
-		Color(62, 58, 54, 242), -- 1412
-		Color(108, 104, 98, 244), -- 1412
-		inv, -- 1412
-		Color(168, 162, 152, 170), -- 1412
-		0.9 -- 1412
-	) -- 1412
-	local clothDropL = projectWorld3D( -- 1415
-		arch.x0 - 20, -- 1415
-		tableBottomY - 12, -- 1415
-		-70, -- 1415
+	local topBackL = projectWorld3D( -- 1414
+		xLeft, -- 1414
+		tableTopY, -- 1414
+		zMid, -- 1414
+		cam, -- 1414
+		self.proj -- 1414
+	) -- 1414
+	local topBackR = projectWorld3D( -- 1415
+		xRight, -- 1415
+		tableTopY, -- 1415
+		zMid, -- 1415
 		cam, -- 1415
 		self.proj -- 1415
 	) -- 1415
-	local clothDropMid = projectWorld3D( -- 1416
-		arch.x0 + 48, -- 1416
-		tableBottomY - 4, -- 1416
-		-70, -- 1416
-		cam, -- 1416
-		self.proj -- 1416
+	drawUiQuad( -- 1416
+		uiDraw, -- 1416
+		fTopL, -- 1416
+		fTopR, -- 1416
+		topBackR, -- 1416
+		topBackL, -- 1416
+		Color(52, 40, 30, 244), -- 1416
+		Color(32, 24, 19, 236), -- 1416
+		inv, -- 1416
+		Color(132, 110, 88, 130), -- 1416
+		0.8 -- 1416
 	) -- 1416
-	uiDraw:drawVertices({ -- 1417
-		{ -- 1418
-			Vec2(bNearL.x * inv, bNearL.y * inv), -- 1418
-			Color(22, 18, 17, 228) -- 1418
-		}, -- 1418
-		{ -- 1419
-			Vec2(clothDropL.x * inv, clothDropL.y * inv), -- 1419
-			Color(32, 26, 24, 214) -- 1419
-		}, -- 1419
-		{ -- 1420
-			Vec2(clothDropMid.x * inv, clothDropMid.y * inv), -- 1420
-			Color(24, 20, 18, 205) -- 1420
-		} -- 1420
-	}) -- 1420
-	local legX0 = arch.x1 - 2 -- 1424
-	local legX1 = arch.x1 + 12 -- 1425
-	local legBotY = -36 -- 1426
-	local legTopY = apronTopY -- 1427
-	local sBL = projectWorld3D( -- 1430
-		legX1, -- 1430
-		legBotY, -- 1430
-		-72, -- 1430
-		cam, -- 1430
-		self.proj -- 1430
-	) -- 1430
-	local sBR = projectWorld3D( -- 1431
-		legX1, -- 1431
-		legBotY, -- 1431
-		-50, -- 1431
-		cam, -- 1431
-		self.proj -- 1431
-	) -- 1431
-	local sTR = projectWorld3D( -- 1432
-		legX1, -- 1432
-		legTopY, -- 1432
-		-50, -- 1432
-		cam, -- 1432
-		self.proj -- 1432
-	) -- 1432
-	local sTL = projectWorld3D( -- 1433
-		legX1, -- 1433
-		legTopY, -- 1433
-		-72, -- 1433
-		cam, -- 1433
-		self.proj -- 1433
-	) -- 1433
-	drawUiQuad( -- 1434
-		uiDraw, -- 1434
-		sBL, -- 1434
-		sBR, -- 1434
-		sTR, -- 1434
-		sTL, -- 1434
-		Color(42, 32, 24, 250), -- 1434
-		Color(68, 52, 38, 252), -- 1434
-		inv, -- 1434
-		Color(142, 122, 102, 165), -- 1434
-		1 -- 1434
-	) -- 1434
-	local mBL = projectWorld3D( -- 1437
-		legX0, -- 1437
-		legBotY, -- 1437
-		-72, -- 1437
-		cam, -- 1437
-		self.proj -- 1437
-	) -- 1437
-	local mBR = sBL -- 1438
-	local mTR = sTL -- 1439
-	local mTL = projectWorld3D( -- 1440
-		legX0, -- 1440
-		legTopY, -- 1440
-		-72, -- 1440
-		cam, -- 1440
-		self.proj -- 1440
-	) -- 1440
-	drawUiQuad( -- 1441
-		uiDraw, -- 1441
-		mBL, -- 1441
-		mBR, -- 1441
-		mTR, -- 1441
-		mTL, -- 1441
-		Color(18, 14, 11, 254), -- 1441
-		Color(30, 23, 18, 254), -- 1441
-		inv, -- 1441
-		Color(76, 58, 44, 125), -- 1441
-		0.9 -- 1441
-	) -- 1441
-	local grainB = projectWorld3D( -- 1442
-		(legX0 + legX1) * 0.5, -- 1442
-		legBotY, -- 1442
-		-72, -- 1442
-		cam, -- 1442
-		self.proj -- 1442
-	) -- 1442
-	local grainT = projectWorld3D( -- 1443
-		(legX0 + legX1) * 0.5, -- 1443
-		legTopY, -- 1443
-		-72, -- 1443
-		cam, -- 1443
-		self.proj -- 1443
-	) -- 1443
-	uiDraw:drawSegment( -- 1444
-		Vec2(grainB.x * inv, grainB.y * inv), -- 1444
-		Vec2(grainT.x * inv, grainT.y * inv), -- 1444
-		0.8, -- 1444
-		Color(46, 35, 26, 130) -- 1444
-	) -- 1444
-	uiDraw:drawSegment( -- 1447
-		Vec2(sBR.x * inv, sBR.y * inv), -- 1448
-		Vec2(sTR.x * inv, sTR.y * inv), -- 1449
-		1.1, -- 1450
-		Color(172, 166, 158, 165) -- 1451
-	) -- 1451
-	local lLegBL = projectWorld3D( -- 1455
-		p.ox + 64, -- 1455
-		-36, -- 1455
-		-82, -- 1455
-		cam, -- 1455
-		self.proj -- 1455
-	) -- 1455
-	local lLegBR = projectWorld3D( -- 1456
-		p.ox + 78, -- 1456
-		-36, -- 1456
-		-82, -- 1456
-		cam, -- 1456
-		self.proj -- 1456
-	) -- 1456
-	local lLegTR = projectWorld3D( -- 1457
-		p.ox + 78, -- 1457
-		apronTopY, -- 1457
-		-82, -- 1457
-		cam, -- 1457
-		self.proj -- 1457
-	) -- 1457
-	local lLegTL = projectWorld3D( -- 1458
-		p.ox + 64, -- 1458
-		apronTopY, -- 1458
-		-82, -- 1458
-		cam, -- 1458
-		self.proj -- 1458
-	) -- 1458
-	drawUiQuad( -- 1459
-		uiDraw, -- 1459
-		lLegBL, -- 1459
-		lLegBR, -- 1459
-		lLegTR, -- 1459
-		lLegTL, -- 1459
-		Color(12, 10, 10, 232), -- 1459
-		Color(20, 16, 14, 238), -- 1459
-		inv -- 1459
-	) -- 1459
-	return false -- 1462
-end -- 1343
-return ____exports -- 1343
+	local bowlBL = projectWorld3D( -- 1419
+		arch.x0 + 24, -- 1419
+		tableTopY + 0.5, -- 1419
+		-5, -- 1419
+		cam, -- 1419
+		self.proj -- 1419
+	) -- 1419
+	local bowlBR = projectWorld3D( -- 1420
+		arch.x0 + 38, -- 1420
+		tableTopY + 0.5, -- 1420
+		-5, -- 1420
+		cam, -- 1420
+		self.proj -- 1420
+	) -- 1420
+	local bowlTR = projectWorld3D( -- 1421
+		arch.x0 + 40, -- 1421
+		tableTopY + 6.5, -- 1421
+		-5, -- 1421
+		cam, -- 1421
+		self.proj -- 1421
+	) -- 1421
+	local bowlTL = projectWorld3D( -- 1422
+		arch.x0 + 22, -- 1422
+		tableTopY + 6.5, -- 1422
+		-5, -- 1422
+		cam, -- 1422
+		self.proj -- 1422
+	) -- 1422
+	drawUiQuad( -- 1423
+		uiDraw, -- 1423
+		bowlBL, -- 1423
+		bowlBR, -- 1423
+		bowlTR, -- 1423
+		bowlTL, -- 1423
+		Color(72, 68, 62, 244), -- 1423
+		Color(118, 114, 106, 246), -- 1423
+		inv, -- 1423
+		Color(172, 166, 156, 175), -- 1423
+		0.8 -- 1423
+	) -- 1423
+	local clothL = projectWorld3D( -- 1426
+		xLeft + 2, -- 1426
+		tableBotY - 7, -- 1426
+		zFront, -- 1426
+		cam, -- 1426
+		self.proj -- 1426
+	) -- 1426
+	local clothR = projectWorld3D( -- 1427
+		xLeft + 26, -- 1427
+		tableBotY - 1, -- 1427
+		zFront, -- 1427
+		cam, -- 1427
+		self.proj -- 1427
+	) -- 1427
+	uiDraw:drawVertices({ -- 1428
+		{ -- 1429
+			Vec2(bNearL.x * inv, bNearL.y * inv), -- 1429
+			Color(28, 22, 19, 224) -- 1429
+		}, -- 1429
+		{ -- 1430
+			Vec2(clothL.x * inv, clothL.y * inv), -- 1430
+			Color(36, 29, 25, 212) -- 1430
+		}, -- 1430
+		{ -- 1431
+			Vec2(clothR.x * inv, clothR.y * inv), -- 1431
+			Color(26, 21, 18, 198) -- 1431
+		} -- 1431
+	}) -- 1431
+	if p.player.crouch and p.player.x >= arch.x0 - 16 and p.player.x <= arch.x1 + 16 then -- 1435
+		local topBandH = ctx.uiH * 0.14 -- 1436
+		fillVGradRect( -- 1437
+			uiDraw, -- 1438
+			0, -- 1439
+			ctx.uiH - topBandH, -- 1440
+			ctx.uiW, -- 1441
+			topBandH, -- 1442
+			Color(12, 10, 9, 0), -- 1443
+			Color(12, 10, 9, 138) -- 1444
+		) -- 1444
+	end -- 1444
+	return false -- 1449
+end -- 1365
+return ____exports -- 1365

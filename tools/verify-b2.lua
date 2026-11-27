@@ -343,7 +343,12 @@ check("敲门第一下", pt.knocks == 1, "knocks=" .. pt.knocks)
 step(pt, it, 12)
 check("敲门第二下", pt.knocks == 2, "knocks=" .. pt.knocks)
 step(pt, it, 30)
-check("开塔门", pt.phase == "tower-given", "phase=" .. pt.phase)
+check("开塔门", pt.phase == "tower-enter" and pt.towerDoorOpen, "phase=" .. pt.phase)
+pt.player.x = pt.ox + 605; pt.player.y = 0
+it.interact.held = true
+step(pt, it, 40)
+it.interact.held = false
+check("桌前长按交物", pt.phase == "tower-given" and pt.towerHanded, "phase=" .. pt.phase)
 step(pt, it, 180)
 check("男主线结局团圆", pt.phase == "tower-end" and pt.run.story.ending == "reunion",
 	"phase=" .. pt.phase .. " ending=" .. pt.run.story.ending)
@@ -356,8 +361,11 @@ check("落幕事件只一次", #pt.events >= 1 and pt.run.finished == true, "fin
 local endEvents = 0
 for _, ev in ipairs(pt.events) do if ev.name == "endingReached" then endEvents = endEvents + 1 end end
 check("endingReached 恰一次", endEvents == 1, "count=" .. endEvents)
-tap(it, "interact"); step(pt, it)
-check("片尾 E 再玩回序章", pt.wantRoom == "prologue", "wantRoom=" .. pt.wantRoom)
+tap(it, "interact"); step(pt, it); rel(it, "interact")
+check("片尾 8 秒阅读期内提前按 E 不中断落幕", pt.wantRoom == "", "wantRoom=" .. pt.wantRoom)
+step(pt, it, 305)
+tap(it, "interact"); step(pt, it); rel(it, "interact")
+check("片尾满 8 秒后 E 再玩回序章", pt.wantRoom == "prologue", "wantRoom=" .. pt.wantRoom)
 check("再玩不改结局", pt.run.story.ending == "reunion", "ending=" .. pt.run.story.ending)
 
 say("== 8. 北塔：女主留灯 ==")
@@ -372,7 +380,12 @@ check("女主线路线 child", pc.storyRoute == "child", "route=" .. pc.storyRou
 pc.player.x = pc.ox + 445
 tap(it, "interact"); step(pc, it)
 step(pc, it, 42)
-check("女主线开塔门", pc.phase == "tower-given", "phase=" .. pc.phase)
+check("女主线开塔门", pc.phase == "tower-enter" and pc.towerDoorOpen, "phase=" .. pc.phase)
+pc.player.x = pc.ox + 605; pc.player.y = 0
+it.interact.held = true
+step(pc, it, 40)
+it.interact.held = false
+check("女主线桌前交物", pc.phase == "tower-given" and pc.towerHanded, "phase=" .. pc.phase)
 step(pc, it, 180)
 check("女主线结局留灯", pc.run.story.ending == "lamp", "ending=" .. pc.run.story.ending)
 check("女主线正式记通关", pc.run.archive.childCleared == true and pc.run.archive.soldierCleared == false,
@@ -391,6 +404,10 @@ check("章节直达默认儿童路线", pj.childMode == true and pj.storyRoute =
 pj.player.x = pj.ox + 445
 tap(it, "interact"); step(pj, it)
 step(pj, it, 42)
+pj.player.x = pj.ox + 605; pj.player.y = 0
+it.interact.held = true
+step(pj, it, 40)
+it.interact.held = false
 step(pj, it, 180)
 check("章节直达也能预览落幕", pj.run.story.ending == "lamp", "ending=" .. pj.run.story.ending)
 check("章节直达不记正式通关", pj.run.archive.childCleared == false and pj.run.archive.soldierCleared == false,
@@ -420,6 +437,10 @@ local pa = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, ra)
 pa.player.x = pa.ox + 445
 tap(it, "interact"); step(pa, it)
 step(pa, it, 42)
+pa.player.x = pa.ox + 605; pa.player.y = 0
+it.interact.held = true
+step(pa, it, 40)
+it.interact.held = false
 step(pa, it, 180)
 check("已有真实神器保持 true", pa.run.archive.artifactOwned == true, "artifact=" .. tostring(pa.run.archive.artifactOwned))
 check("已有档案仍记通关", pa.run.archive.soldierCleared == true, "soldier=" .. tostring(pa.run.archive.soldierCleared))

@@ -1,16 +1,40 @@
 /**
- * 《向西守望》宋明清雅水墨菜单体系（V2 视觉 × 改进键鼠输入状态机）：
- * - 标题页：龙藏体瘦逸竖排主标题「向西守望」+ 唯一文人孤印「守望」+ 右起错落古画竖排题诗 + 无盒新致宋菜单与水袖飞白；
- * - 选章页：关卡预览与可分行的驿站时间轴，支持从暂停往返保留进度；
- * - 操作说明：极简通透「双栏素笺」（去滚轴去方盒，一缕竖烟丝与海棠结轻分周戍/小满）；
- * - 局内暂停：左侧通天垂落「烟黛纱幔」（保留右侧月夜实景，支持 Esc 续行与切页不串键）。
- *
- * 键鼠输入逻辑承接 watch-controls：切页重置旧按键边沿、鼠标未移动时不抢占键盘高亮、仅窗口内按下触发点击。
+ * 《向西守望》宋明清雅水墨菜单体系（全平台 × 三模统一解耦版）：
+ * - 开机序幕（splash）：4.65s 局外人团队标 → 向西守望主标 → 柔化进入标题页，0.25s 后键鼠/手柄/触屏/返回键任意跳过；
+ * - 标题页：竖版品牌主标（缺图自动回退龙藏体 + 朱砂孤印）+ 右下角团队微光角标 + 按平台能力过滤「退出游戏」；
+ * - 选章页：千里驿道长卷，支持安全区内缩、3:2/4:3 纵向舒展与触屏两段防误触确认；
+ * - 执器要诀：键鼠 / 手柄 / 触屏三页统一说明（左右 / LB / RB / 点击自由切换）；
+ * - 局内暂停：桌面严格保持原 0..7 索引零回归（4=fullscreen，7=quit），末尾追加「操控设置」原地二级页，
+ *   让所有平台都能随时选择操作模式（自动/键鼠/触屏/手柄）及共享磁吸、手柄布局与触控参数。
  */
 
-import { Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora";
+import { App, Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora";
 import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
+import {
+    GamepadLayout,
+    InputMode,
+    TOUCH_OPACITY_STEPS,
+    TOUCH_SCALE_STEPS,
+    VOLUME_STEPS,
+    inputModeLabelOf,
+    layoutLabelOf,
+    modePrefLabelOf,
+    nextStepValue,
+    opacityLabelOf,
+    saveControlSettings,
+    scaleLabelOf,
+    volumeLabelOf,
+} from "Script/watch/controls_config";
+import {
+    SafeInsets,
+    ZERO_SAFE_INSETS,
+    canQuitApp,
+    canToggleFullscreen,
+    getPlatformCaps,
+} from "Script/watch/platform";
+import { controlsGuideRows, keyTagFor } from "Script/watch/fe/ui/control_prompts";
+import { HISTORY_CARDS } from "Script/watch/dialogues";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
@@ -32,10 +56,30 @@ import {
     visualTextWidth,
 } from "Script/watch/fe/theme";
 
-export type ScreenKind = "title" | "chapters" | "controls" | "play";
+export type ScreenKind = "splash" | "title" | "chapters" | "controls" | "epilogue" | "history" | "play";
+
+export type UiSoundKind = "hover" | "confirm" | "back" | "start" | "pauseOpen" | "pauseClose" | "toggle";
 
 export interface MenuAction {
-    type: "none" | "start" | "trial" | "jump" | "resume" | "retry" | "toTitle" | "openChapters" | "openControls" | "backTitle" | "backPause";
+    type:
+        | "none"
+        | "splashDone"
+        | "continue"
+        | "start"
+        | "replayStory"
+        | "trial"
+        | "jump"
+        | "resume"
+        | "retry"
+        | "toTitle"
+        | "openChapters"
+        | "openControls"
+        | "openHistory"
+        | "backTitle"
+        | "backEpilogue"
+        | "backPause"
+        | "toggleFullscreen"
+        | "quit";
     roomIndex?: number;
 }
 
@@ -44,23 +88,43 @@ const TITLE_ITEMS = [
     { id: "chapters", zh: "选择章节" },
     { id: "controls", zh: "操作说明" },
     { id: "trial", zh: "护送试炼 · 肉鸽" },
+    { id: "quit", zh: "退出游戏" },
 ];
 
-// 博物馆由双通关后的井口进入，章节菜单保留公开关卡原有的房间索引。
+// 博物馆由双通关后的井口进入；旧版灰盒 street/checkpoint 仅保留给 debug 回归，不暴露在正式选章里。
 const CHAPTERS = ROOMS.map((room, roomIndex) => ({ room, roomIndex }))
-    .filter(chapter => chapter.room.key !== "museum");
+    .filter(chapter => chapter.room.key !== "museum" && chapter.room.key !== "street" && chapter.room.key !== "checkpoint");
 
+// 桌面端严格保持 0..7 既有顺序（4 = fullscreen，7 = quit），第 8 项追加「操控设置」二级页。
 const PAUSE_ITEMS = [
     { id: "resume", zh: "继续游戏" },
     { id: "retry", zh: "重试检查点" },
     { id: "controls", zh: "操作说明" },
     { id: "assist", zh: "按键辅助：关" },
+    { id: "fullscreen", zh: "显示：窗口" },
     { id: "chapters", zh: "选择章节" },
     { id: "title", zh: "返回标题" },
+    { id: "quit", zh: "退出游戏" },
+    { id: "settings", zh: "操控设置" },
+];
+
+// 索引 0..6 保持既有操控设置项零回归，7..10 追加四通道音量调节，11 为返回。
+const SETTINGS_ROWS = [
+    { id: "modePref", title: "操作模式" },
+    { id: "aimAssist", title: "瞄准磁吸" },
+    { id: "gpLayout", title: "手柄确认键" },
+    { id: "crouchMode", title: "手柄蹲伏方式" },
+    { id: "touchOpacity", title: "触控按键透度" },
+    { id: "touchScale", title: "触控按键大小" },
+    { id: "haptics", title: "触觉震动反馈" },
+    { id: "masterVol", title: "主音量" },
+    { id: "bgmVol", title: "音乐音量" },
+    { id: "sfxVol", title: "音效与环境" },
+    { id: "voiceVol", title: "人声音量" },
+    { id: "back", title: "返回暂歇菜单" },
 ];
 
 const VERTICAL_TITLE = ["向", "西", "守", "望"];
-// 古画题跋：右列先读、左列错落低两格，去现代标点改用呼吸留空
 const EPIGRAPH_RIGHT = ["城", "破", "那", "天", "", "他", "留", "下", "断", "后"];
 const EPIGRAPH_LEFT = ["她", "独", "自", "走", "向", "北", "塔"];
 
@@ -75,10 +139,16 @@ interface MenuKeys {
 interface MenuFrame {
     keys: MenuKeys;
     back: boolean;
+    prevTab: boolean;
+    nextTab: boolean;
+    skipInput: boolean;
     pointer: Vec2.Type;
     inside: boolean;
     click: boolean;
     pointerMoved: boolean;
+    mode: InputMode;
+    layout: GamepadLayout;
+    safe: SafeInsets;
 }
 
 function pressedKeys(): MenuKeys {
@@ -102,29 +172,90 @@ export class MenuRenderer {
     selected = 0;
     chapterSelected = 0;
     pauseSelected = 0;
+    settingsSelected = 0;
+    epilogueSelected = 0;
+    epilogueEnding: "lamp" | "reunion" = "lamp";
+    epilogueBothCleared = false;
+    historyCardIndex = 0;
+    private historyFromEpilogue = false;
+    /** 存在有效局中存档时，标题页首项显示「继续游戏」，无存档时保持原 5 项索引不变。 */
+    hasSession = false;
+    /** 操作说明页当前分页（自动随最近输入模式同步，支持左右 / LB / RB / 点击切换） */
+    controlsTab: InputMode = "kbm";
+    /** 可选水墨 UI 交互音效回调（由 WatchFrontend 挂载，测试直调零耦合） */
+    onUiSound?: (kind: UiSoundKind) => void;
+    /** 音量设置项实时变化回调 */
+    onAudioSettingsChanged?: (input: Input) => void;
+
+    private emitSound(kind: UiSoundKind): void {
+        if (this.onUiSound !== undefined) {
+            this.onUiSound(kind);
+        }
+    }
+
     private chaptersFromPause = false;
-    /** 暂停态原地展开双栏素笺操作说明（零侵入 app.ts） */
     private pauseShowControls = false;
+    private pauseShowSettings = false;
+    private controlsTabManual = false;
     private previousKeys: Partial<MenuKeys> = {};
     private queuedKeys: Partial<MenuKeys> = {};
     private queuedBack = false;
+    private queuedSkip = false;
+    private splashTime = 0;
     private time = 0;
+
+    resetSplash(): void {
+        this.splashTime = 0;
+        this.queuedSkip = false;
+        this.resetInput();
+    }
 
     isShowingPauseControls(): boolean {
         return this.pauseShowControls;
+    }
+
+    isShowingPauseSettings(): boolean {
+        return this.pauseShowSettings;
+    }
+
+    openPauseSettings(): void {
+        this.pauseShowControls = false;
+        this.pauseShowSettings = true;
+        this.settingsSelected = 0;
+        this.resetInput();
     }
 
     openChapters(roomIndex?: number): void {
         this.chaptersFromPause = roomIndex !== undefined;
         this.chapterSelected = Math.max(0, CHAPTERS.findIndex(chapter => chapter.roomIndex === roomIndex));
         this.pauseShowControls = false;
+        this.pauseShowSettings = false;
         this.resetInput();
     }
 
     openPause(): void {
         this.pauseSelected = 0;
         this.pauseShowControls = false;
+        this.pauseShowSettings = false;
         this.resetInput();
+    }
+
+    openEpilogue(ending: "lamp" | "reunion" = "lamp", bothCleared: boolean = false): void {
+        this.epilogueEnding = ending;
+        this.epilogueBothCleared = bothCleared;
+        this.epilogueSelected = 0;
+        this.resetInput();
+    }
+
+    openHistory(fromEpilogue: boolean = true): void {
+        this.historyFromEpilogue = fromEpilogue;
+        this.historyCardIndex = 0;
+        this.resetInput();
+    }
+
+    /** 外部注入返回边沿（供 Android 系统返回键 BackButton 调用）。 */
+    triggerBack(): void {
+        this.queuedBack = true;
     }
 
     /** 页面切换后，把仍按住的键视为旧输入，避免切页串键。 */
@@ -132,10 +263,13 @@ export class MenuRenderer {
         this.previousKeys = pressedKeys();
         this.queuedKeys = {};
         this.queuedBack = false;
+        this.queuedSkip = false;
+        this.controlsTabManual = false;
     }
 
     /** 锁存两个渲染帧之间的短按。方向键轮询也保留同一份按下边沿。 */
     onKeyEvent(key: KeyName): void {
+        this.queuedSkip = true;
         if (key === KeyName.Up || key === KeyName.W) {
             this.queuedKeys.up = true;
         } else if (key === KeyName.Down || key === KeyName.S) {
@@ -151,27 +285,45 @@ export class MenuRenderer {
         }
     }
 
-    private readFrame(input: Input, scale: number): MenuFrame {
+    private readFrame(input: Input, scale: number, safe: SafeInsets): MenuFrame {
         const held = pressedKeys();
         const prev = this.previousKeys;
         const queued = this.queuedKeys;
+
+        // 优先使用规范化渲染帧 UI 指针；保留直接写 input.mx/fire.pressed 的验收脚本兼容
+        const useUiPtr = input.uiInside || input.uiPressed;
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const rawDx = useUiPtr ? input.uiDx : input.mdx;
+        const rawDy = useUiPtr ? input.uiDy : input.mdy;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        const click = useUiPtr ? (input.uiInside && input.uiPressed) : (input.inside && input.fire.pressed);
+        const touchMode = input.isTouchMode();
+
         const frame: MenuFrame = {
             keys: {
-                up: queued.up === true || (held.up && !prev.up),
-                down: queued.down === true || (held.down && !prev.down),
-                left: queued.left === true || (held.left && !prev.left),
-                right: queued.right === true || (held.right && !prev.right),
-                confirm: queued.confirm === true || (held.confirm && !prev.confirm),
+                up: queued.up === true || (held.up && !prev.up) || input.navUp,
+                down: queued.down === true || (held.down && !prev.down) || input.navDown,
+                left: queued.left === true || (held.left && !prev.left) || input.navLeft,
+                right: queued.right === true || (held.right && !prev.right) || input.navRight,
+                confirm: queued.confirm === true || (held.confirm && !prev.confirm) || input.navConfirm,
             },
-            back: this.queuedBack || input.pause.pressed,
-            pointer: Vec2(input.mx / scale, input.my / scale),
-            inside: input.inside,
-            click: input.inside && input.fire.pressed,
-            pointerMoved: input.inside && Math.abs(input.mdx) + Math.abs(input.mdy) >= scale,
+            back: this.queuedBack || input.pause.pressed || input.navBack,
+            prevTab: input.navPrevTab,
+            nextTab: input.navNextTab,
+            skipInput: this.queuedSkip || input.splashSkipPressed,
+            pointer: Vec2(rawX / scale, rawY / scale),
+            inside,
+            click,
+            pointerMoved: !touchMode && inside && Math.abs(rawDx) + Math.abs(rawDy) >= scale,
+            mode: input.inputMode,
+            layout: input.gamepadLayout,
+            safe,
         };
         this.previousKeys = held;
         this.queuedKeys = {};
         this.queuedBack = false;
+        this.queuedSkip = false;
         return frame;
     }
 
@@ -205,25 +357,113 @@ export class MenuRenderer {
         w: number,
         h: number,
         uiScale: number,
+        safeUi: SafeInsets = ZERO_SAFE_INSETS,
     ): MenuAction {
         this.time += dt;
-        const artW = Math.max(w, h * 16 / 9);
-        const artH = artW * 9 / 16;
-        if (!backdropArt.tryPlace("title_backdrop", "menu_landscape", w * 0.5, (h - artH) * 0.5, artW, artH)) {
-            stage.drawMenuBackdrop(bgDraw, bgGlow, w, h, this.time);
+        const splashDissolving = screen === "splash" && this.splashTime >= 4.15;
+        if (screen !== "splash" || splashDissolving) {
+            const artW = Math.max(w, h * 16 / 9);
+            const artH = artW * 9 / 16;
+            if (!backdropArt.tryPlace("title_backdrop", "menu_landscape", w * 0.5, (h - artH) * 0.5, artW, artH)) {
+                stage.drawMenuBackdrop(bgDraw, bgGlow, w, h, this.time);
+            }
         }
 
-        const frame = this.readFrame(input, uiScale);
+        const frame = this.readFrame(input, uiScale, safeUi);
         w /= uiScale;
         h /= uiScale;
 
+        if (screen === "splash") {
+            return this.drawSplash(dt, frame, uiDraw, uiArt, texts, w, h);
+        }
         if (screen === "title") {
             return this.drawTitle(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
         }
         if (screen === "chapters") {
             return this.drawChapters(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
         }
+        if (screen === "epilogue") {
+            return this.drawEpilogue(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+        }
+        if (screen === "history") {
+            return this.drawHistory(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+        }
         return this.drawControls(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+    }
+
+    /**
+     * 开机品牌序幕（4.65s，支持 0.25s 后键鼠、手柄、触屏或返回键任意跳过）：
+     * - 0.00–2.20s：团队「局外人」Logo（T2 六边暖灯）+ Powered by Dora SSR
+     * - 2.20–4.20s：游戏主标《向西守望》（G2 水墨题签）
+     * - 4.20–4.65s：鸦青轻幕柔化淡出，无缝衔接标题页
+     */
+    private drawSplash(
+        dt: number,
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        texts: TextPool,
+        w: number,
+        h: number,
+    ): MenuAction {
+        const safeDt = Math.min(0.1, Math.max(0, dt));
+        this.splashTime += safeDt;
+        const t = this.splashTime;
+
+        const wantSkip = t >= 0.25 && (frame.skipInput || frame.click || frame.keys.confirm || frame.back);
+        if (wantSkip || t >= 4.65) {
+            this.splashTime = 0;
+            return { type: "splashDone" };
+        }
+
+        const fadeOutCurtain = t >= 4.20 ? Math.max(0, 1 - (t - 4.20) / 0.45) : 1;
+        const bgR = t < 2.20 ? 13 : 11;
+        const bgG = t < 2.20 ? 16 : 13;
+        const bgB = t < 2.20 ? 24 : 19;
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(bgR, bgG, bgB, Math.round(255 * fadeOutCurtain)));
+
+        const smoothEnvelope = (localT: number, fadeIn: number, holdEnd: number, endT: number): number => {
+            if (localT <= 0 || localT >= endT) return 0;
+            if (localT < fadeIn) {
+                const u = localT / fadeIn;
+                return u * u * (3 - 2 * u);
+            }
+            if (localT <= holdEnd) return 1;
+            const u = (localT - holdEnd) / Math.max(0.01, endT - holdEnd);
+            return 1 - u * u * (3 - 2 * u);
+        };
+
+        if (t < 2.20) {
+            const alpha = smoothEnvelope(t, 0.42, 1.72, 2.20);
+            const scaleBreath = 0.985 + 0.03 * (t / 2.20);
+            const logoH = Math.min(384, h * 0.54) * scaleBreath;
+            if (!uiArt.tryPlace("brand_team_logo", "splash_team_logo", w * 0.5, h * 0.54, logoH * 2, logoH, { opacity: alpha, layer: 2 })) {
+                texts.put("banner", "OUTSIDER", w * 0.5, h * 0.52, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 6.0, alpha, 0);
+            }
+            texts.put("xs", "Powered by Dora SSR", w * 0.5, 58 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.8, alpha * 0.62, 0);
+        } else if (t < 4.25) {
+            const localT = t - 2.20;
+            const alpha = smoothEnvelope(localT, 0.45, 1.60, 2.05);
+            const sway = Math.sin(localT * 1.1) * 8;
+            drawMistCurve(uiArt, "splash_game_mist", w * 0.5 + sway, h * 0.46, 560, 110, PALETTE.jadeMist, 0.16 * alpha, 1);
+            const scaleBreath = 0.985 + 0.028 * (localT / 2.05);
+            const logoH = Math.min(310, h * 0.44) * scaleBreath;
+            if (!uiArt.tryPlace("brand_game_logo_h", "splash_game_logo", w * 0.5, h * 0.52, logoH * 2.4, logoH, { opacity: alpha, layer: 2 })) {
+                texts.put("title", "向西守望", w * 0.5, h * 0.52, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 8.0, alpha, 0);
+            }
+        }
+
+        if (t >= 0.35 && t < 4.15) {
+            const hintA = Math.min(1, (t - 0.35) / 0.35) * 0.52;
+            const skipText = frame.mode === "touch"
+                ? "轻触跳过"
+                : (frame.mode === "gamepad"
+                    ? (keyTagFor("confirm", "gamepad", frame.layout) + " / START  跳过")
+                    : "ESC / SPACE  SKIP");
+            texts.put("xs", skipText, w - 48 - frame.safe.right * 0.6, 36 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.4, hintA, 0);
+        }
+
+        return { type: "none" };
     }
 
     private drawTitle(
@@ -236,64 +476,66 @@ export class MenuRenderer {
         w: number,
         h: number,
     ): MenuAction {
-        // 左侧轻透鸦青烟纱，右侧完整让出冷月、松影、红布板车、明代人物与北塔暖灯
-        fillHGradRect(uiDraw, 0, 0, w * 0.22, h, Color(9, 11, 18, 192), Color(9, 11, 18, 116));
-        fillHGradRect(uiDraw, w * 0.22, 0, w * 0.28, h, Color(9, 11, 18, 116), Color(9, 11, 18, 0));
+        fillHGradRect(uiDraw, 0, 0, w * 0.22 + frame.safe.left * 0.5, h, Color(9, 11, 18, 192), Color(9, 11, 18, 116));
+        fillHGradRect(uiDraw, w * 0.22 + frame.safe.left * 0.5, 0, w * 0.28, h, Color(9, 11, 18, 116), Color(9, 11, 18, 0));
         fillVGradRect(uiDraw, 0, 0, w, 78, Color(8, 10, 16, 138), Color(8, 10, 16, 0));
 
-        // 标题后一缕婉转淡烟流云 + 左侧纤细竖烟丝
-        const titleX = 148;
-        const topY = h - 104;
+        const extraH = Math.max(0, h - 720);
+        const titleX = 148 + frame.safe.left * 0.6;
+        const topY = h - 104 - frame.safe.top * 0.4;
         const charStep = 66;
         const sway = Math.sin(this.time * 0.7) * 5;
         drawMistCurve(uiArt, "title_mist_wisp", titleX + 86 + sway, topY - 122, 340, 82, PALETTE.jadeMist, 0.20, -1);
         uiArt.tryPlace("ink_petal_mist", "title_petals", titleX + 12, topY - 102, 230, 210, {
             color: toColor(PALETTE.inkMist), opacity: 0.40, layer: -1,
         });
-        uiArt.tryPlace("ink_vstream", "title_vstream", titleX - 48, topY - 100, 34, 290, {
-            color: toColor(PALETTE.silkDim), opacity: 0.48, layer: 1,
-        });
 
-        // 龙藏体瘦逸竖排主标题「向西守望」
-        let c = 0;
-        for (c = 0; c < VERTICAL_TITLE.length; c++) {
-            texts.put(
-                "title",
-                VERTICAL_TITLE[c],
-                titleX,
-                topY - c * charStep,
-                toColor(PALETTE.textBright),
-                0.5,
-                0.5,
-                TextAlign.Center,
-                0,
-                0.98,
-                0.10,
-                Color(8, 10, 16, 210),
+        // 主标题区：优先使用定稿竖版水墨题签主标，缺失时回退至龙藏体逐字竖排 + 朱砂孤印
+        const placedBrandTitle = uiArt.tryPlace("brand_game_logo_v", "title_brand_v", titleX + 22, topY - 106, 240, 304, {
+            opacity: 0.98, layer: 3,
+        });
+        if (!placedBrandTitle) {
+            uiArt.tryPlace("ink_vstream", "title_vstream", titleX - 48, topY - 100, 34, 290, {
+                color: toColor(PALETTE.silkDim), opacity: 0.48, layer: 1,
+            });
+            let c = 0;
+            for (c = 0; c < VERTICAL_TITLE.length; c++) {
+                texts.put(
+                    "title",
+                    VERTICAL_TITLE[c],
+                    titleX,
+                    topY - c * charStep,
+                    toColor(PALETTE.textBright),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    0,
+                    0.98,
+                    0.10,
+                    Color(8, 10, 16, 210),
+                );
+            }
+            drawLoneSeal(
+                uiInkDraw,
+                uiArt,
+                texts,
+                "title_lone_seal",
+                titleX + 46,
+                topY - 3 * charStep + 8,
+                26,
+                52,
+                "守",
+                "望",
+                PALETTE.sealRed,
+                PALETTE.sealText,
+                0.94,
+                4,
             );
         }
 
-        // 全屏唯一一枚文人朱砂孤印「守望」
-        drawLoneSeal(
-            uiInkDraw,
-            uiArt,
-            texts,
-            "title_lone_seal",
-            titleX + 46,
-            topY - 3 * charStep + 8,
-            26,
-            52,
-            "守",
-            "望",
-            PALETTE.sealRed,
-            PALETTE.sealText,
-            0.94,
-            4,
-        );
-
-        // 古画错落竖排题跋（传统右起先读，疏朗留白，不压右侧人物与北塔）
-        const colRightX = titleX + 132;
-        const colLeftX = titleX + 102;
+        // 古画错落竖排题跋
+        const colRightX = placedBrandTitle ? titleX + 190 : titleX + 132;
+        const colLeftX = placedBrandTitle ? titleX + 160 : titleX + 102;
         const poemStep = 22;
         let p = 0;
         for (p = 0; p < EPIGRAPH_RIGHT.length; p++) {
@@ -306,20 +548,33 @@ export class MenuRenderer {
             texts.put("xs", EPIGRAPH_LEFT[p], colLeftX, topY - 68 - p * poemStep, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0, 0.90, 0.08);
         }
 
-        // 无盒清雅宋体菜单（水袖游丝飞白 + 菱花微星，键盘与鼠标移动仲裁防抢焦）
-        const menuX = 112;
+        // 按平台能力决定是否显示「退出游戏」（桌面原生与独立 Android APK 显示，Web / Dora Go 隐藏）
+        const baseItems = canQuitApp()
+            ? TITLE_ITEMS
+            : TITLE_ITEMS.filter(it => it.id !== "quit");
+        const items = this.hasSession
+            ? [{ id: "continue", zh: "继续游戏" }, ...baseItems]
+            : baseItems;
+        if (this.selected >= items.length) {
+            this.selected = 0;
+        }
+        const menuX = 112 + frame.safe.left * 0.6;
         const btnW = 280;
-        const btnH = 44;
-        const gap = 12;
-        const startY = 252;
+        const btnH = frame.mode === "touch" ? 44 : 40;
+        const gap = this.hasSession ? 6 : 8;
+        const startY = (this.hasSession ? 298 : 268) + extraH * 0.35;
         const boxes: Rect.Type[] = [];
         let i = 0;
-        for (i = 0; i < TITLE_ITEMS.length; i++) {
+        for (i = 0; i < items.length; i++) {
             boxes.push(Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH));
         }
+        const prevTitleSel = this.selected;
         this.selected = this.verticalSelection(this.selected, boxes, frame);
+        if (this.selected !== prevTitleSel) {
+            this.emitSound("hover");
+        }
 
-        for (i = 0; i < TITLE_ITEMS.length; i++) {
+        for (i = 0; i < items.length; i++) {
             const by = boxes[i].y;
             const active = this.selected === i;
             const cy = by + btnH * 0.5;
@@ -327,7 +582,7 @@ export class MenuRenderer {
 
             if (active) {
                 const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.2);
-                drawSilkRibbon(uiDraw, uiArt, "title_rib_red_" + i, menuX + 124, cy, 290, 40, PALETTE.rougeSoft, 0.52 * breathe, 0);
+                drawSilkRibbon(uiDraw, uiArt, "title_rib_red_" + i, menuX + 124, cy, 290, btnH, PALETTE.rougeSoft, 0.52 * breathe, 0);
                 drawHairline(uiInkDraw, uiArt, "title_rib_line_" + i, menuX + 114, by + 4, 230, PALETTE.silkLine, 0.42 * breathe, false, 2);
                 drawBlossomDot(uiInkDraw, uiArt, "title_dot_" + i, menuX + 14, cy, 16, PALETTE.rouge, 0.96, 4);
                 fillRadialGlow(uiGlow, menuX + 14, cy, 22, 16, toColor(PALETTE.rouge, 28 * breathe), Color(182, 58, 56, 0), 10);
@@ -337,7 +592,7 @@ export class MenuRenderer {
 
             texts.put(
                 "md",
-                TITLE_ITEMS[i].zh,
+                items[i].zh,
                 menuX + 34 + shiftX,
                 cy,
                 toColor(active ? PALETTE.textBright : PALETTE.textMid),
@@ -350,28 +605,38 @@ export class MenuRenderer {
             );
         }
 
-        texts.put("xs", "上下择项   ·   回车或点选启程", menuX + 12, 42, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
+        const titleHint = frame.mode === "gamepad"
+            ? ("左摇杆 / 十字键择项   ·   " + keyTagFor("confirm", "gamepad", frame.layout) + " 或点选启程")
+            : (frame.mode === "touch"
+                ? (getPlatformCaps().hasBackButton && canQuitApp()
+                    ? "轻触择项启程   ·   双击返回键退出"
+                    : "轻触择项启程   ·   支持键鼠与手柄")
+                : "上下择项   ·   回车或点选启程");
+        texts.put("xs", titleHint, menuX + 12, 42 + frame.safe.bottom * 0.45, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
+
+        // 右下角克制团队落款（局外人 T2 微光角标）
+        const badgeRight = w - frame.safe.right * 0.5;
+        const badgeY = 42 + frame.safe.bottom * 0.4;
+        fillHGradRect(uiDraw, badgeRight - 270, 0, 270 + frame.safe.right * 0.5, 86, Color(8, 10, 16, 0), Color(8, 10, 16, 204));
+        uiArt.tryPlace("brand_team_badge", "title_team_badge", badgeRight - 118, badgeY, 168, 54, {
+            opacity: 0.95, layer: 3,
+        });
 
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.selected;
-            const id = TITLE_ITEMS[idx].id;
-            if (id === "trial") return { type: "trial" };
-            if (id === "start") {
-                return { type: "start" };
-            }
-            if (id === "chapters") {
-                return { type: "openChapters" };
-            }
+            const id = items[idx].id;
+            if (id === "continue") { this.emitSound("start"); return { type: "continue" }; }
+            if (id === "trial") { this.emitSound("start"); return { type: "trial" }; }
+            if (id === "start") { this.emitSound("start"); return { type: "start" }; }
+            if (id === "chapters") { this.emitSound("confirm"); return { type: "openChapters" }; }
+            if (id === "quit") { this.emitSound("back"); return { type: "quit" }; }
+            this.emitSound("confirm");
             return { type: "openControls" };
         }
         return { type: "none" };
     }
 
-    /**
-     * 选章页 V2：「千里驿道长卷 + 单幅月窗大图画笺」
-     * 保留水墨长卷布局，接入 watch-controls 方向键/鼠标防抢焦与从暂停往返逻辑。
-     */
     private drawChapters(
         frame: MenuFrame,
         uiDraw: DrawNode.Type,
@@ -384,14 +649,16 @@ export class MenuRenderer {
     ): MenuAction {
         const back: MenuAction = { type: this.chaptersFromPause ? "backPause" : "backTitle" };
         if (frame.back) {
+            this.emitSound("back");
             return back;
         }
 
-        const marginX = 96;
+        const extraH = Math.max(0, h - 720);
+        const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
         const splitTrack = CHAPTERS.length > 8;
         const perRow = splitTrack ? Math.ceil(CHAPTERS.length / 2) : CHAPTERS.length;
-        const trackY = splitTrack ? 195 : 148;
-        const rowGap = 84;
+        const trackY = (splitTrack ? 210 : 148) + extraH * 0.25;
+        const rowGap = 68;
         const trackX0 = marginX + 34;
         const trackX1 = w - marginX - 34;
         const stepX = (trackX1 - trackX0) / Math.max(1, perRow - 1);
@@ -401,9 +668,10 @@ export class MenuRenderer {
         for (s = 0; s < CHAPTERS.length; s++) {
             const sx = trackX0 + (s % perRow) * stepX;
             const sy = trackY - Math.floor(s / perRow) * rowGap;
-            stationBoxes.push(Rect(sx - stepX * 0.45, sy - 37, stepX * 0.9, 74));
+            stationBoxes.push(Rect(sx - stepX * 0.45, sy - 29, stepX * 0.9, 58));
         }
 
+        const prevSelected = this.chapterSelected;
         const hitStation = hitIndex(stationBoxes, frame.pointer, frame.inside);
         const keys = frame.keys;
         if (frame.click && hitStation >= 0) {
@@ -418,25 +686,25 @@ export class MenuRenderer {
         } else if (frame.pointerMoved && hitStation >= 0 && !keys.confirm) {
             this.chapterSelected = hitStation;
         }
+        if (this.chapterSelected !== prevSelected) {
+            this.emitSound("hover");
+        }
 
-        // 清冷鸦青全屏轻幕
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 198));
 
-        // 顶部清雅眉题（无红方块，一缕霜月游丝配海棠结）
-        texts.put("banner", "选择章节", marginX, h - 66, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
-        drawHairline(uiInkDraw, uiArt, "chap_top_line", w * 0.5, h - 100, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
+        const topHeadY = h - 66 - frame.safe.top * 0.35;
+        texts.put("banner", "选择章节", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
+        drawHairline(uiInkDraw, uiArt, "chap_top_line", w * 0.5, topHeadY - 34, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
-        // -------- 1. 上方主视区：单幅月窗画笺 + 右侧诗意章目 --------
         const activeRoom = CHAPTERS[this.chapterSelected].room;
         const theme = themeOf(activeRoom.key);
         const winX = marginX;
-        const winY = 266;
-        const winW = 548;
-        const winH = 300;
+        const winY = 266 + extraH * 0.44;
+        const winW = Math.min(520, Math.max(360, (w - marginX * 2) * 0.46));
+        const winH = 296;
         const winBox = Rect(winX, winY, winW, winH);
         const winHover = frame.inside && winBox.containsPoint(frame.pointer);
 
-        // 柔和墨云底 + 房间画卷实景
         uiArt.tryPlace("ink_frame_mask", "chap_win_shadow", winX + winW * 0.5, winY + winH * 0.5, winW + 40, winH + 34, {
             color: toColor(PALETTE.inkVoid), opacity: 0.88, layer: -2,
         });
@@ -444,27 +712,22 @@ export class MenuRenderer {
         uiArt.tryPlace(bgSlot, "chap_win_art", winX + winW * 0.5, winY + 4, winW - 8, winH - 8, {
             opacity: 0.92, layer: -1,
         });
-        // 四周极柔烟边羽化，让像素画卷自然融进夜色
         fillVGradRect(uiInkDraw, winX, winY, winW, 56, Color(10, 12, 19, 200), Color(10, 12, 19, 0));
         fillVGradRect(uiInkDraw, winX, winY + winH - 36, winW, 36, Color(10, 12, 19, 0), Color(10, 12, 19, 130));
         fillHGradRect(uiInkDraw, winX, winY, 34, winH, Color(10, 12, 19, 135), Color(10, 12, 19, 0));
         fillHGradRect(uiInkDraw, winX + winW - 34, winY, 34, winH, Color(10, 12, 19, 0), Color(10, 12, 19, 135));
-        // 纤细宋明海棠云肩折角
         drawFiligreeCorners(uiInkDraw, uiArt, "chap_win_frame", winX, winY, winW, winH, winHover ? PALETTE.textBright : PALETTE.silkLine, winHover ? 0.92 : 0.72, 34, true, 3);
 
-        // 画窗左下角静谧章序小注
         texts.put("xs", theme.actCode + "  ·  " + theme.lineTag, winX + 20, winY + 22, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
 
-        // 右侧诗意赏析与启程入口
-        const infoX = winX + winW + 46;
+        const infoX = winX + winW + 40;
+        const infoW = Math.max(240, w - marginX - infoX);
         const infoCenterY = winY + winH * 0.5;
-        drawMistCurve(uiArt, "chap_info_mist", infoX + 210, infoCenterY + 36, 420, 88, theme.accent, 0.22, -1);
+        drawMistCurve(uiArt, "chap_info_mist", infoX + infoW * 0.5, infoCenterY + 36, Math.min(420, infoW + 24), 88, theme.accent, 0.22, -1);
 
-        // 卷次眉注
-        const volCol = this.chapterSelected < 4 ? PALETTE.cyan : PALETTE.amber;
+        const volCol = theme.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber;
         texts.put("xs", theme.volumeTagZh, infoX, winY + winH - 44, toColor(volCol), 0, 0.5, TextAlign.Left, 2.8, 0.92, 0.08);
 
-        // 新增关卡名有龙藏体未收录的字，使用覆盖完整的正文宋体。
         const sep = " · ";
         const sIdx = theme.titleZh.indexOf(sep);
         const titleY = winY + winH - 98;
@@ -481,12 +744,9 @@ export class MenuRenderer {
             texts.put("banner", theme.titleZh, infoX, titleY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.4, 1, 0.10);
         }
 
-        drawHairline(uiInkDraw, uiArt, "chap_info_line", infoX + 185, titleY - 36, 370, PALETTE.silkDim, 0.58, false, 2);
-
-        // 章节诗意引语
+        drawHairline(uiInkDraw, uiArt, "chap_info_line", infoX + Math.min(185, infoW * 0.5), titleY - 36, Math.min(370, infoW), PALETTE.silkDim, 0.58, false, 2);
         texts.put("sm", theme.introWhisper, infoX, titleY - 72, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.8, 0.94, 0.08);
 
-        // 启程按钮（纤细水袖飘带 + 菱花微星）
         const goX = infoX;
         const goY = winY + 26;
         const goW = 220;
@@ -498,10 +758,14 @@ export class MenuRenderer {
         drawHairline(uiInkDraw, uiArt, "chap_go_line", goX + 94, goY + 3, 196, PALETTE.silkLine, goHover ? 0.68 : 0.40, false, 2);
         drawBlossomDot(uiInkDraw, uiArt, "chap_go_dot", goX + 14, goY + 21, 14, PALETTE.rouge, 0.96, 4);
         texts.put("md", "入此卷章", goX + 34, goY + 21, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 3.8, 1, 0.10);
-        texts.put("xs", "Enter", goX + 156, goY + 21, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.82, 0.08);
+        const chapConfirmTag = frame.mode === "gamepad"
+            ? keyTagFor("confirm", "gamepad", frame.layout)
+            : (frame.mode === "touch" ? "点选" : "Enter");
+        texts.put("xs", chapConfirmTag, goX + 156, goY + 21, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.82, 0.08);
 
-        // -------- 2. 下方章节时间轴 --------
-        drawSilkVeil(uiDraw, uiArt, "chap_track_veil", w * 0.5, trackY + 6, w - marginX * 1.1, 126, PALETTE.inkWash, 0.72, -2);
+        const veilCenterY = splitTrack ? (trackY - rowGap * 0.5) : (trackY + 6);
+        const veilH = splitTrack ? 156 : 126;
+        drawSilkVeil(uiDraw, uiArt, "chap_track_veil", w * 0.5, veilCenterY, w - marginX * 1.1, veilH, PALETTE.inkWash, 0.72, -2);
         drawMistCurve(uiArt, "chap_track_mist", w * 0.5, trackY, trackX1 - trackX0 + 160, 74, PALETTE.inkMist, 0.62, -1);
         uiInkDraw.drawSegment(Vec2(trackX0, trackY), Vec2(trackX1, trackY), 0.9, toColor(PALETTE.silkDim, 145));
 
@@ -522,7 +786,7 @@ export class MenuRenderer {
             const sy = box.y + box.height * 0.5;
             const rt = themeOf(CHAPTERS[i].room.key);
             const active = this.chapterSelected === i;
-            const nodeCol = active ? PALETTE.rouge : (i < 4 ? PALETTE.cyan : PALETTE.amber);
+            const nodeCol = active ? PALETTE.rouge : (rt.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber);
 
             if (active) {
                 fillRadialGlow(uiGlow, sx, sy, 26, 26, toColor(PALETTE.rouge, 36 * breathe), Color(182, 58, 56, 0), 12);
@@ -543,27 +807,38 @@ export class MenuRenderer {
             texts.put("xs", rt.shortNameZh, sx, sy - 26, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, active ? 1 : 0.84, 0.08);
         }
 
-        // 左下返回按钮（由暂停进入时返回暂停，不丢失场景进度）
         const backX = marginX;
-        const backY = 40;
-        const backBox = Rect(backX, backY, 190, 34);
+        const backY = 40 + frame.safe.bottom * 0.45;
+        const backBox = Rect(backX - 6, backY - 6, 210, 46);
         const backHover = frame.inside && backBox.containsPoint(frame.pointer);
-        drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 44, 24, "ESC", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
-        texts.put("sm", this.chaptersFromPause ? "返回暂停" : "返回标题", backX + 56, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
-        texts.put("xs", "方向键选择   ·   回车或点击进入", w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
+        const chapBackTag = frame.mode === "gamepad"
+            ? keyTagFor("back", "gamepad", frame.layout)
+            : (frame.mode === "touch" ? "返回" : "ESC");
+        const chapFooter = frame.mode === "gamepad"
+            ? ("摇杆/十字键选择   ·   " + chapConfirmTag + " 或点选进入")
+            : (frame.mode === "touch"
+                ? "轻触驿站预览   ·   再点或轻触入此卷章"
+                : "方向键选择   ·   回车或点击进入");
+        drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 48, 24, chapBackTag, backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
+        texts.put("sm", this.chaptersFromPause ? "返回暂停" : "返回标题", backX + 60, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
+        texts.put("xs", chapFooter, w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
 
         if (frame.click && backHover) {
+            this.emitSound("back");
             return back;
         }
-        if (keys.confirm || (frame.click && (hitStation >= 0 || winHover || goHover))) {
+        // 触屏无悬停：首次轻触未选驿站仅预览，再次点击同一驿站或点击画窗/入此卷章进关
+        const stationConfirmed = frame.mode === "touch"
+            ? (hitStation >= 0 && hitStation === prevSelected)
+            : (hitStation >= 0);
+        if (keys.confirm || (frame.click && (stationConfirmed || winHover || goHover))) {
+            this.emitSound("start");
             return { type: "jump", roomIndex: CHAPTERS[this.chapterSelected].roomIndex };
         }
         return { type: "none" };
     }
 
-    /**
-     * 操作说明 V2：「极简通透双栏素笺」（去拟物木滚轴与厚黑盒，一缕竖烟丝轻分周戍与小满）
-     */
+    /** 操作说明 V3：「极简通透双栏素笺」× 键鼠 / 手柄 / 触屏三页统一切换 */
     private drawControls(
         frame: MenuFrame,
         uiDraw: DrawNode.Type,
@@ -575,85 +850,336 @@ export class MenuRenderer {
         h: number,
         backLabel: string = "返回标题",
     ): MenuAction {
-        const marginX = 96;
+        if (!this.controlsTabManual) {
+            this.controlsTab = frame.mode;
+        }
+        const tabOrder: InputMode[] = ["kbm", "gamepad", "touch"];
+        const tabLabels = ["键鼠", "手柄", "触屏"];
+        const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
+        const tabW = 92;
+        const tabH = 28;
+        const tabGap = 10;
+        const tabStartX = w - marginX - (tabW * 3 + tabGap * 2);
+        const tabY = h - 82 - frame.safe.top * 0.35;
+        const tabBoxes: Rect.Type[] = [
+            Rect(tabStartX, tabY, tabW, tabH),
+            Rect(tabStartX + tabW + tabGap, tabY, tabW, tabH),
+            Rect(tabStartX + (tabW + tabGap) * 2, tabY, tabW, tabH),
+        ];
+
+        const hitTab = hitIndex(tabBoxes, frame.pointer, frame.inside);
+        if (frame.click && hitTab >= 0) {
+            if (this.controlsTab !== tabOrder[hitTab]) {
+                this.emitSound("toggle");
+            }
+            this.controlsTab = tabOrder[hitTab];
+            this.controlsTabManual = true;
+        } else if (frame.keys.left || frame.prevTab) {
+            const cur = tabOrder.indexOf(this.controlsTab);
+            this.controlsTab = tabOrder[(cur + tabOrder.length - 1) % tabOrder.length];
+            this.controlsTabManual = true;
+            this.emitSound("toggle");
+        } else if (frame.keys.right || frame.nextTab) {
+            const cur = tabOrder.indexOf(this.controlsTab);
+            this.controlsTab = tabOrder[(cur + 1) % tabOrder.length];
+            this.controlsTabManual = true;
+            this.emitSound("toggle");
+        }
+
         const backX = marginX;
-        const backY = 40;
-        const backBox = Rect(backX, backY, 230, 34);
+        const backY = 40 + frame.safe.bottom * 0.45;
+        const backBox = Rect(backX - 6, backY - 6, 250, 46);
         const backHover = frame.inside && backBox.containsPoint(frame.pointer);
-        if (frame.back || frame.keys.confirm || (frame.click && backHover)) {
+        if (frame.back || (frame.keys.confirm && !(frame.click && hitTab >= 0)) || (frame.click && backHover)) {
+            this.emitSound("back");
             return { type: "backTitle" };
         }
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 204));
 
-        texts.put("banner", "执器要诀", marginX, h - 66, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
-        texts.put("xs", "键鼠操作说明", marginX + 196, h - 70, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.85, 0.08);
-        drawHairline(uiInkDraw, uiArt, "ctrl_top_line", w * 0.5, h - 100, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
+        const guide = controlsGuideRows(this.controlsTab);
+        const topHeadY = h - 66 - frame.safe.top * 0.35;
+        texts.put("banner", "执器要诀", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
+        texts.put("xs", guide.subtitle, marginX + 196, topHeadY - 4, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.8, 0.85, 0.08);
+        drawHairline(uiInkDraw, uiArt, "ctrl_top_line", w * 0.5, topHeadY - 34, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
-        // 开放式清雅画框（仅四角纤细海棠折角，无封闭粗框、无木滚轴）
-        const areaY = 114;
-        const areaH = h - 244;
+        let ti = 0;
+        for (ti = 0; ti < tabBoxes.length; ti++) {
+            const tb = tabBoxes[ti];
+            const activeTab = this.controlsTab === tabOrder[ti];
+            const hoverTab = hitTab === ti;
+            uiInkDraw.drawRect(
+                tb,
+                activeTab ? toColor(PALETTE.rougeSoft, 150) : Color(14, 17, 25, hoverTab ? 185 : 130),
+                0.9,
+                toColor(activeTab ? PALETTE.rouge : (hoverTab ? PALETTE.textBright : PALETTE.silkDim), activeTab ? 225 : 155),
+            );
+            texts.put(
+                "xs",
+                tabLabels[ti],
+                tb.x + tb.width * 0.5,
+                tb.y + tb.height * 0.5,
+                toColor(activeTab ? PALETTE.textBright : PALETTE.textMid),
+                0.5,
+                0.5,
+                TextAlign.Center,
+                0.8,
+                activeTab ? 0.98 : 0.82,
+                0.08,
+            );
+        }
+
+        const extraH = Math.max(0, h - 720);
+        const areaY = 114 + frame.safe.bottom * 0.4;
+        const areaH = h - 244 - frame.safe.top * 0.35 - frame.safe.bottom * 0.4;
         drawFiligreeCorners(uiInkDraw, uiArt, "ctrl_outer", marginX, areaY, w - marginX * 2, areaH, PALETTE.silkDim, 0.52, 34, false, 2);
 
-        // 中央一缕纤细竖烟丝 + 菱花微星优雅分栏
         const midX = w * 0.5;
         uiArt.tryPlace("ink_vstream", "ctrl_mid_stream", midX, areaY + areaH * 0.5, 32, areaH - 18, {
             color: toColor(PALETTE.silkDim), opacity: 0.52, layer: 1,
         });
         drawBlossomDot(uiInkDraw, uiArt, "ctrl_mid_dot", midX, areaY + areaH * 0.5, 11, PALETTE.silkLine, 0.62, 3);
 
-        // 左栏：周戍
         const leftColX = marginX + 34;
         const colW = midX - leftColX - 42;
         const headY = areaY + areaH - 34;
+        const rowStep = 52 + extraH * 0.08;
+
         drawBlossomDot(uiInkDraw, uiArt, "ctrl_l_dot", leftColX + 8, headY, 12, PALETTE.cyan, 0.88, 3);
         texts.put("md", "周戍 · 护送与交锋", leftColX + 26, headY, toColor(PALETTE.cyanCore), 0, 0.5, TextAlign.Left, 2.4, 0.98, 0.08);
         drawHairline(uiInkDraw, uiArt, "ctrl_l_line", leftColX + colW * 0.5, headY - 24, colW, PALETTE.cyanDim, 0.58, false, 2);
 
-        const sRows: [string, string][] = [
-            ["WASD / 方向键", "左右、前后自由移动"],
-            ["鼠标 + 左键", "瞄准与发射火铳"],
-            ["按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"],
-            ["SPACE", "平地翻滚 / 靠近矮柜翻越"],
-            ["E", "递物 / 轻敲安抚 / 按住+D 推车"],
-            ["ESC / R", "暂歇菜单 / 重试检查点"],
-        ];
         let i = 0;
-        for (i = 0; i < sRows.length; i++) {
-            const ry = headY - 66 - i * 52;
-            drawSilkKeycap(uiInkDraw, texts, leftColX + 2, ry - 13, 132, 26, sRows[i][0], PALETTE.cyan, 0.92, false);
-            texts.put("sm", sRows[i][1], leftColX + 150, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
+        const keycapW = 160;
+        for (i = 0; i < guide.soldierRows.length; i++) {
+            const ry = headY - 66 - i * rowStep;
+            drawSilkKeycap(uiInkDraw, texts, leftColX + 2, ry - 13, keycapW, 26, guide.soldierRows[i][0], PALETTE.cyan, 0.92, false);
+            texts.put("sm", guide.soldierRows[i][1], leftColX + keycapW + 16, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
         }
 
-        // 右栏：小满
         const rightColX = midX + 44;
         drawBlossomDot(uiInkDraw, uiArt, "ctrl_r_dot", rightColX + 8, headY, 12, PALETTE.amber, 0.88, 3);
         texts.put("md", "小满 · 潜行与寻路", rightColX + 26, headY, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 2.4, 0.98, 0.08);
         drawHairline(uiInkDraw, uiArt, "ctrl_r_line", rightColX + colW * 0.5, headY - 24, colW, PALETTE.amberDim, 0.58, false, 2);
 
-        const cRows: [string, string][] = [
-            ["A / D · ← / →", "左右潜行"],
-            ["按住 SHIFT", "轻步慢走（压低脚步声）"],
-            ["按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
-            ["SPACE", "跳跃攀上石阶与矮台"],
-            ["E", "拾瓶 / 敲塔门 / 按住+D 拉车"],
-            ["F 按住→松开", "瞄准砖地，投瓶引开拾荒者"],
-        ];
-        for (i = 0; i < cRows.length; i++) {
-            const ry = headY - 66 - i * 52;
-            drawSilkKeycap(uiInkDraw, texts, rightColX + 2, ry - 13, 132, 26, cRows[i][0], PALETTE.amber, 0.92, false);
-            texts.put("sm", cRows[i][1], rightColX + 150, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
+        for (i = 0; i < guide.childRows.length; i++) {
+            const ry = headY - 66 - i * rowStep;
+            drawSilkKeycap(uiInkDraw, texts, rightColX + 2, ry - 13, keycapW, 26, guide.childRows[i][0], PALETTE.amber, 0.92, false);
+            texts.put("sm", guide.childRows[i][1], rightColX + keycapW + 16, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
         }
 
-        // 左下返回按钮
-        drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 110, 24, "ESC / ENTER", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
-        texts.put("sm", backLabel, backX + 122, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
+        const ctrlBackKey = frame.mode === "gamepad"
+            ? (keyTagFor("back", "gamepad", frame.layout) + " / " + keyTagFor("confirm", "gamepad", frame.layout))
+            : (frame.mode === "touch" ? "返回" : "ESC / ENTER");
+        const ctrlRightHint = frame.mode === "gamepad"
+            ? "LB / RB 或左右切换键位图"
+            : (frame.mode === "touch"
+                ? "轻触右上页签切图 · 暂歇菜单可调操控设置"
+                : (canToggleFullscreen() ? "←/→ 切页   ·   F11 / Alt+Enter 全屏" : "←/→ 切页   ·   暂歇菜单可调操控设置"));
+        const keyW = frame.mode === "touch" ? 76 : 110;
+        drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, keyW, 24, ctrlBackKey, backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
+        texts.put("sm", backLabel, backX + keyW + 12, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
+        texts.put("xs", ctrlRightHint, w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.78, 0.08);
 
         return { type: "none" };
     }
 
+    /** 暂停内原地「操控设置」二级页：所有平台统一选择操作模式（自动/键鼠/触屏/手柄）与触控/手柄参数。 */
+    private drawPauseSettings(
+        frame: MenuFrame,
+        input: Input,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        texts: TextPool,
+        w: number,
+        h: number,
+    ): boolean {
+        if (frame.back) {
+            this.emitSound("back");
+            return true;
+        }
+
+        const caps = getPlatformCaps();
+        const s = input.settings;
+
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 206));
+
+        const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
+        const topHeadY = h - 56 - frame.safe.top * 0.35;
+        texts.put("banner", "操控与声音", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.0, 0.96, 0.10);
+        const curSummary = "当前模式：" + inputModeLabelOf(input.inputMode) + " · 操控与四通道音量实时生效";
+        texts.put("xs", curSummary, marginX + 224, topHeadY - 4, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
+        drawHairline(uiInkDraw, uiArt, "set_top_line", w * 0.5, topHeadY - 30, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
+
+        const panelW = Math.min(760, w - marginX * 2);
+        const panelX = (w - panelW) * 0.5;
+        const rowH = 34;
+        const rowStep = 39;
+        const firstY = topHeadY - 76;
+
+        const boxes: Rect.Type[] = [];
+        let i = 0;
+        for (i = 0; i < SETTINGS_ROWS.length; i++) {
+            boxes.push(Rect(panelX, firstY - i * rowStep, panelW, rowH));
+        }
+        const prevSetSel = this.settingsSelected;
+        this.settingsSelected = this.verticalSelection(this.settingsSelected, boxes, frame);
+        if (this.settingsSelected !== prevSetSel) {
+            this.emitSound("hover");
+        }
+
+        const applyDelta = (rowId: string, delta: number): boolean => {
+            if (rowId === "back") {
+                this.emitSound("back");
+                return true;
+            }
+            let audioChanged = false;
+            if (rowId === "modePref") {
+                input.cycleModePref(delta);
+            } else if (rowId === "aimAssist") {
+                s.aimAssist = !s.aimAssist;
+                saveControlSettings(s);
+            } else if (rowId === "gpLayout") {
+                s.gamepadLayout = s.gamepadLayout === "xbox" ? "nintendo" : "xbox";
+                input.gamepadLayout = s.gamepadLayout;
+                saveControlSettings(s);
+            } else if (rowId === "crouchMode") {
+                s.crouchToggle = !s.crouchToggle;
+                saveControlSettings(s);
+            } else if (rowId === "touchOpacity") {
+                s.touchOpacity = nextStepValue(s.touchOpacity, TOUCH_OPACITY_STEPS, delta);
+                saveControlSettings(s);
+            } else if (rowId === "touchScale") {
+                s.touchScale = nextStepValue(s.touchScale, TOUCH_SCALE_STEPS, delta);
+                saveControlSettings(s);
+            } else if (rowId === "haptics") {
+                s.haptics = !s.haptics;
+                saveControlSettings(s);
+                if (s.haptics) {
+                    input.getTouch()?.vibrate(0.018);
+                }
+            } else if (rowId === "masterVol") {
+                s.masterVol = nextStepValue(s.masterVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            } else if (rowId === "bgmVol") {
+                s.bgmVol = nextStepValue(s.bgmVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            } else if (rowId === "sfxVol") {
+                s.sfxVol = nextStepValue(s.sfxVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            } else if (rowId === "voiceVol") {
+                s.voiceVol = nextStepValue(s.voiceVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            }
+            if (audioChanged && this.onAudioSettingsChanged !== undefined) {
+                this.onAudioSettingsChanged(input);
+            }
+            this.emitSound("toggle");
+            return false;
+        };
+
+        const valueTextOf = (rowId: string): string => {
+            if (rowId === "modePref") {
+                return s.modePref === "auto"
+                    ? ("自动切换（" + inputModeLabelOf(input.inputMode) + "）")
+                    : ("锁定 · " + modePrefLabelOf(s.modePref));
+            }
+            if (rowId === "aimAssist") return s.aimAssist ? "开（触屏与手柄共用）" : "关";
+            if (rowId === "gpLayout") return layoutLabelOf(s.gamepadLayout);
+            if (rowId === "crouchMode") return s.crouchToggle ? "点按切换" : "持续按住";
+            if (rowId === "touchOpacity") return opacityLabelOf(s.touchOpacity);
+            if (rowId === "touchScale") return scaleLabelOf(s.touchScale);
+            if (rowId === "haptics") return caps.supportsHaptics ? (s.haptics ? "开" : "关") : (s.haptics ? "开（仅移动端生效）" : "关");
+            if (rowId === "masterVol") return volumeLabelOf(s.masterVol);
+            if (rowId === "bgmVol") return volumeLabelOf(s.bgmVol);
+            if (rowId === "sfxVol") return volumeLabelOf(s.sfxVol);
+            if (rowId === "voiceVol") return volumeLabelOf(s.voiceVol);
+            return "";
+        };
+
+        for (i = 0; i < SETTINGS_ROWS.length; i++) {
+            const row = SETTINGS_ROWS[i];
+            const box = boxes[i];
+            const cy = box.y + box.height * 0.5;
+            const active = this.settingsSelected === i;
+
+            if (active) {
+                const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.4);
+                drawSilkRibbon(uiDraw, uiArt, "set_rib_" + i, panelX + panelW * 0.5, cy, panelW + 24, rowH, PALETTE.rougeSoft, 0.48 * breathe, 0);
+                drawHairline(uiInkDraw, uiArt, "set_line_" + i, panelX + panelW * 0.5, box.y + 3, panelW - 24, PALETTE.silkLine, 0.42 * breathe, false, 2);
+                drawBlossomDot(uiInkDraw, uiArt, "set_dot_" + i, panelX + 18, cy, 14, PALETTE.rouge, 0.96, 4);
+                fillRadialGlow(uiGlow, panelX + 18, cy, 20, 14, toColor(PALETTE.rouge, 24 * breathe), Color(182, 58, 56, 0), 10);
+            } else {
+                drawBlossomDot(uiInkDraw, uiArt, "set_dot_" + i, panelX + 18, cy, 7, PALETTE.silkDim, 0.42, 3);
+            }
+
+            texts.put(
+                "sm",
+                row.title,
+                panelX + 42,
+                cy,
+                toColor(active ? PALETTE.textBright : PALETTE.textMid),
+                0,
+                0.5,
+                TextAlign.Left,
+                active ? 2.4 : 1.6,
+                active ? 1.0 : 0.88,
+                0.08,
+            );
+
+            const val = valueTextOf(row.id);
+            if (val !== "") {
+                const valCol = active ? PALETTE.amberCore : PALETTE.cyanCore;
+                const decorated = active ? ("‹  " + val + "  ›") : val;
+                texts.put("sm", decorated, panelX + panelW - 24, cy, toColor(valCol), 1, 0.5, TextAlign.Right, 1.0, active ? 1.0 : 0.86, 0.08);
+            }
+        }
+
+        const backY = 40 + frame.safe.bottom * 0.45;
+        const hint = frame.mode === "gamepad"
+            ? ("左右或 " + keyTagFor("confirm", "gamepad", frame.layout) + " 切换   ·   " + keyTagFor("back", "gamepad", frame.layout) + " 返回暂停")
+            : (frame.mode === "touch"
+                ? "轻触任意条目切换   ·   设置自动保存"
+                : "←/→ 或回车/点击切换   ·   Esc 返回暂停");
+        texts.put("xs", hint, w * 0.5, backY + 14, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.84, 0.08);
+
+        const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
+        if (hit >= 0) {
+            this.settingsSelected = hit;
+            if (applyDelta(SETTINGS_ROWS[hit].id, 1)) {
+                return true;
+            }
+            this.resetInput();
+            return false;
+        }
+        if (frame.keys.left || frame.prevTab) {
+            const id = SETTINGS_ROWS[this.settingsSelected].id;
+            if (id !== "back") {
+                applyDelta(id, -1);
+                this.resetInput();
+            }
+            return false;
+        }
+        if (frame.keys.right || frame.nextTab || frame.keys.confirm) {
+            const id = SETTINGS_ROWS[this.settingsSelected].id;
+            if (applyDelta(id, 1)) {
+                return true;
+            }
+            this.resetInput();
+            return false;
+        }
+        return false;
+    }
+
     /**
-     * 局内暂停 V2：「左侧通天烟黛垂纱」（保留右侧月夜实景 + watch-controls 独占帧输入）
-     * 支持原地切换「操作说明」双栏素笺与「按键辅助：关/开」，零侵入 app.ts。
+     * 局内暂停 V3：「左侧通天烟黛垂纱」
+     * - 桌面端保留原 0..7 索引（4=fullscreen，7=quit）并在第 8 项追加「操控设置」；
+     * - Web / 移动平台按 PlatformCaps 自动过滤不适用项，支持原地切「操作说明」与「操控设置」。
      */
     updateAndDrawPause(
         dt: number,
@@ -668,11 +1194,11 @@ export class MenuRenderer {
         uiScale: number,
         assistHintsEnabled: boolean = false,
         onToggleAssist?: () => void,
+        safeUi: SafeInsets = ZERO_SAFE_INSETS,
     ): MenuAction {
         this.time += dt;
-        const frame = this.readFrame(input, uiScale);
+        const frame = this.readFrame(input, uiScale, safeUi);
 
-        // 原地渲染双栏素笺操作说明：按 Esc / 确认 / 点击返回按钮仅切回暂停菜单列表，绝不串键。
         if (this.pauseShowControls) {
             const ctrlAct = this.drawControls(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, "返回暂停");
             if (ctrlAct.type === "backTitle") {
@@ -682,48 +1208,78 @@ export class MenuRenderer {
             return { type: "none" };
         }
 
+        if (this.pauseShowSettings) {
+            if (this.drawPauseSettings(frame, input, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h)) {
+                this.pauseShowSettings = false;
+                this.resetInput();
+            }
+            return { type: "none" };
+        }
+
         if (frame.back) {
             this.pauseShowControls = false;
+            this.pauseShowSettings = false;
+            this.emitSound("pauseClose");
             return { type: "resume" };
         }
 
-        // 右侧轻压暗留出月夜定格，左侧垂落通天烟黛半透明纱幔
-        uiDraw.drawRect(Rect(0, 0, w, h), Color(8, 10, 16, 102));
-        fillHGradRect(uiDraw, 0, 0, w * 0.27, h, Color(9, 11, 18, 232), Color(10, 13, 21, 198));
-        fillHGradRect(uiDraw, w * 0.27, 0, w * 0.21, h, Color(10, 13, 21, 198), Color(10, 13, 21, 0));
+        const allowFs = canToggleFullscreen();
+        const allowQuit = canQuitApp();
+        const pauseItems = PAUSE_ITEMS.filter(item =>
+            (item.id !== "fullscreen" || allowFs) && (item.id !== "quit" || allowQuit),
+        );
+        if (this.pauseSelected >= pauseItems.length) {
+            this.pauseSelected = 0;
+        }
 
-        // 纱幔内一缕通高细烟丝 + 淡墨云纹
-        const menuX = 110;
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(8, 10, 16, 102));
+        fillHGradRect(uiDraw, 0, 0, w * 0.27 + frame.safe.left, h, Color(9, 11, 18, 232), Color(10, 13, 21, 198));
+        fillHGradRect(uiDraw, w * 0.27 + frame.safe.left, 0, w * 0.21, h, Color(10, 13, 21, 198), Color(10, 13, 21, 0));
+
+        const menuX = 110 + frame.safe.left * 0.6;
+        const compact = pauseItems.length > 8;
+        const headY = (compact ? h - 122 : h - 146) - frame.safe.top * 0.35;
         uiArt.tryPlace("ink_vstream", "pause_vstream", menuX - 32, h * 0.5, 34, h * 0.78, {
             color: toColor(PALETTE.silkDim), opacity: 0.48, layer: 1,
         });
-        drawMistCurve(uiArt, "pause_mist", menuX + 118, h - 154, 290, 72, PALETTE.jadeMist, 0.20, -1);
+        drawMistCurve(uiArt, "pause_mist", menuX + 118, headY - 8, 290, 72, PALETTE.jadeMist, 0.20, -1);
 
-        // 龙藏体清雅「暂歇」+ 霜月游丝海棠结
-        texts.put("banner", "暂歇", menuX + 16, h - 146, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 10.0, 0.98, 0.10);
-        texts.put("xs", "月夜暂驻 · 卷页留痕", menuX + 18, h - 184, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.80, 0.08);
-        drawHairline(uiInkDraw, uiArt, "pause_div", menuX + 124, h - 210, 240, PALETTE.silkDim, 0.58, true, 2);
+        texts.put("banner", "暂歇", menuX + 16, headY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 10.0, 0.98, 0.10);
+        texts.put("xs", "月夜暂驻 · 卷页留痕", menuX + 18, headY - 36, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.80, 0.08);
+        drawHairline(uiInkDraw, uiArt, "pause_div", menuX + 124, headY - 60, 240, PALETTE.silkDim, 0.58, true, 2);
 
+        const rowStep = compact ? 42 : 46;
+        const rowH = compact ? 36 : 38;
+        const firstY = compact ? (headY - 112) : (headY - 120);
         const boxes: Rect.Type[] = [];
         let i = 0;
-        for (i = 0; i < PAUSE_ITEMS.length; i++) {
-            boxes.push(Rect(menuX - 10, h - 270 - i * 52, 270, 42));
+        for (i = 0; i < pauseItems.length; i++) {
+            boxes.push(Rect(menuX - 10, firstY - i * rowStep, 286, rowH));
         }
+        const prevPauseSel = this.pauseSelected;
         this.pauseSelected = this.verticalSelection(this.pauseSelected, boxes, frame);
+        if (this.pauseSelected !== prevPauseSel) {
+            this.emitSound("hover");
+        }
 
-        for (i = 0; i < PAUSE_ITEMS.length; i++) {
+        for (i = 0; i < pauseItems.length; i++) {
             const iy = boxes[i].y;
             const active = this.pauseSelected === i;
-            const cy = iy + 21;
+            const cy = iy + rowH * 0.5;
             const shiftX = active ? 10 : 0;
-            const item = PAUSE_ITEMS[i];
-            const label = item.id === "assist"
-                ? (assistHintsEnabled ? "按键辅助：开" : "按键辅助：关")
-                : item.zh;
+            const item = pauseItems[i];
+            let label = item.zh;
+            if (item.id === "assist") {
+                label = assistHintsEnabled ? "按键辅助：开" : "按键辅助：关";
+            } else if (item.id === "fullscreen") {
+                label = App.fullScreen ? "显示：全屏" : "显示：窗口";
+            } else if (item.id === "settings") {
+                label = "操控设置 · " + modePrefLabelOf(input.settings.modePref);
+            }
 
             if (active) {
                 const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.4);
-                drawSilkRibbon(uiDraw, uiArt, "pause_rib_" + i, menuX + 116, cy, 276, 38, PALETTE.rougeSoft, 0.54 * breathe, 0);
+                drawSilkRibbon(uiDraw, uiArt, "pause_rib_" + i, menuX + 116, cy, 282, rowH, PALETTE.rougeSoft, 0.54 * breathe, 0);
                 drawHairline(uiInkDraw, uiArt, "pause_line_" + i, menuX + 106, iy + 3, 210, PALETTE.silkLine, 0.42 * breathe, false, 2);
                 drawBlossomDot(uiInkDraw, uiArt, "pause_dot_" + i, menuX + 12, cy, 15, PALETTE.rouge, 0.96, 4);
                 fillRadialGlow(uiGlow, menuX + 12, cy, 22, 16, toColor(PALETTE.rouge, 26 * breathe), Color(182, 58, 56, 0), 10);
@@ -732,7 +1288,7 @@ export class MenuRenderer {
             }
 
             texts.put(
-                "md",
+                compact ? "sm" : "md",
                 label,
                 menuX + 32 + shiftX,
                 cy,
@@ -740,41 +1296,298 @@ export class MenuRenderer {
                 0,
                 0.5,
                 TextAlign.Left,
-                active ? 3.8 : 2.4,
+                active ? 3.4 : 2.2,
                 active ? 1.0 : 0.88,
                 0.10,
             );
         }
 
-        texts.put("xs", "Esc 续行   ·   Enter 或点击确认", menuX + 12, 56, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.2, 0.86, 0.08);
+        const pauseFooter = frame.mode === "gamepad"
+            ? (keyTagFor("back", "gamepad", frame.layout) + " / START 续行   ·   " + keyTagFor("confirm", "gamepad", frame.layout) + " 确认")
+            : (frame.mode === "touch"
+                ? "轻触确认   ·   点「继续游戏」续行"
+                : "Esc 续行   ·   Enter 或点击确认");
+        texts.put("xs", pauseFooter, menuX + 12, 38 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.2, 0.86, 0.08);
 
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.pauseSelected;
-            const id = PAUSE_ITEMS[idx].id;
+            const id = pauseItems[idx].id;
             if (id === "controls") {
                 this.pauseShowControls = true;
+                this.emitSound("confirm");
                 this.resetInput();
+                return { type: "none" };
+            }
+            if (id === "settings") {
+                this.openPauseSettings();
+                this.emitSound("confirm");
                 return { type: "none" };
             }
             if (id === "assist") {
                 if (onToggleAssist !== undefined) {
                     onToggleAssist();
                 }
+                this.emitSound("toggle");
                 this.resetInput();
                 return { type: "none" };
             }
+            if (id === "fullscreen") {
+                this.emitSound("toggle");
+                this.resetInput();
+                return { type: "toggleFullscreen" };
+            }
             this.pauseShowControls = false;
-            if (id === "resume") {
-                return { type: "resume" };
-            }
-            if (id === "retry") {
-                return { type: "retry" };
-            }
-            if (id === "chapters") {
-                return { type: "openChapters" };
-            }
+            this.pauseShowSettings = false;
+            if (id === "resume") { this.emitSound("pauseClose"); return { type: "resume" }; }
+            if (id === "retry") { this.emitSound("confirm"); return { type: "retry" }; }
+            if (id === "chapters") { this.emitSound("confirm"); return { type: "openChapters" }; }
+            if (id === "quit") { this.emitSound("back"); return { type: "quit" }; }
+            this.emitSound("back");
             return { type: "toTitle" };
+        }
+        return { type: "none" };
+    }
+
+    /**
+     * 片尾落款页（《向西守望》正篇收束）：
+     * 严格按剧本「片尾操作与落款」提供「返回标题」「再走一遍」「了解历史」三项入口。
+     */
+    private drawEpilogue(
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        texts: TextPool,
+        w: number,
+        h: number,
+    ): MenuAction {
+        if (frame.back) {
+            return { type: "backTitle" };
+        }
+
+        // 深宵鸦青水墨幕 + 居中微光烟岚
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 15, 214));
+        const cx = w * 0.5;
+        const reunion = this.epilogueEnding === "reunion";
+        const accentCol = reunion ? PALETTE.amber : PALETTE.cyan;
+        drawMistCurve(uiArt, "ep_mist", cx, h * 0.62, 620, 120, accentCol, 0.20, 0);
+        fillRadialGlow(uiGlow, cx, h * 0.68, 220, 140, toColor(accentCol, 28), Color(10, 14, 22, 0), 18);
+
+        // 水墨片名《向西守望》与孤印「守望」
+        const titleY = h * 0.72;
+        texts.put("title", "向西守望", cx - 18, titleY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 12.0, 0.98, 0.12);
+        drawLoneSeal(uiInkDraw, uiArt, texts, "ep_seal", cx + 148, titleY - 2, 24, 46, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.94, 4);
+        drawHairline(uiInkDraw, uiArt, "ep_div", cx, titleY - 46, 360, PALETTE.silkDim, 0.62, true, 2);
+
+        const endingTitle = reunion ? "终章 · 兄妹团圆" : "终章 · 西窗留灯";
+        const verse = reunion
+            ? "簿页两行落墨，西窗灯火犹明。山海未静，此行终归同路。"
+            : "西窗长灯未熄，簿页末行仍空——留给城门那头仍可能走来的人。";
+        texts.put("md", endingTitle, cx, titleY - 76, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 3.2, 0.96, 0.08);
+        texts.put("sm", verse, cx, titleY - 114, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, 0.92, 0.08);
+
+        if (this.epilogueBothCleared) {
+            drawSilkVeil(uiDraw, uiArt, "ep_well_veil", cx, titleY - 152, 560, 30, PALETTE.inkWarm, 0.68, 0);
+            texts.put("xs", "双结局已通 · 回到序章寻柜之前，后院深井似有冷白微光", cx, titleY - 152, toColor(PALETTE.cyanCore), 0.5, 0.5, TextAlign.Center, 1.0, 0.90, 0.08);
+        }
+
+        const items = [
+            { id: "history", zh: "了解历史 · 片尾史话" },
+            { id: "replay", zh: "再走一遍" },
+            { id: "title", zh: "返回标题" },
+        ];
+        const btnW = 286;
+        const btnH = 44;
+        const gap = 14;
+        const baseY = Math.max(150, h * 0.34);
+        const boxes: Rect.Type[] = [];
+        let i = 0;
+        for (i = 0; i < items.length; i++) {
+            boxes.push(Rect(cx - btnW * 0.5, baseY - i * (btnH + gap), btnW, btnH));
+        }
+        this.epilogueSelected = this.verticalSelection(this.epilogueSelected, boxes, frame);
+
+        for (i = 0; i < items.length; i++) {
+            const box = boxes[i];
+            const active = this.epilogueSelected === i;
+            const cy = box.y + box.height * 0.5;
+            if (active) {
+                const breathe = 0.86 + 0.14 * Math.sin(this.time * 2.4);
+                drawSilkRibbon(uiDraw, uiArt, "ep_rib_" + i, cx, cy, btnW + 24, btnH, PALETTE.rougeSoft, 0.62 * breathe, 0);
+                drawHairline(uiInkDraw, uiArt, "ep_line_" + i, cx, box.y + 3, btnW - 44, PALETTE.silkLine, 0.48 * breathe, false, 2);
+                drawBlossomDot(uiInkDraw, uiArt, "ep_dot_" + i, box.x + 22, cy, 13, PALETTE.rouge, 0.96, 4);
+            } else {
+                drawSilkVeil(uiDraw, uiArt, "ep_idle_" + i, cx, cy, btnW, btnH - 2, PALETTE.inkWash, 0.58, 0);
+                drawBlossomDot(uiInkDraw, uiArt, "ep_dot_" + i, box.x + 22, cy, 8, PALETTE.silkDim, 0.42, 3);
+            }
+            texts.put(
+                "sm",
+                items[i].zh,
+                cx + 6,
+                cy,
+                toColor(active ? PALETTE.textBright : PALETTE.textMid),
+                0.5,
+                0.5,
+                TextAlign.Center,
+                active ? 2.6 : 1.6,
+                active ? 1.0 : 0.88,
+                0.08,
+            );
+        }
+
+        const footer = frame.mode === "gamepad"
+            ? (keyTagFor("confirm", "gamepad", frame.layout) + " 确认   ·   " + keyTagFor("back", "gamepad", frame.layout) + " 返回标题")
+            : (frame.mode === "touch" ? "轻触任一入口继续" : "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题");
+        texts.put("xs", footer, cx, 38 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.84, 0.08);
+
+        const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
+        if (hit >= 0 || frame.keys.confirm) {
+            const idx = hit >= 0 ? hit : this.epilogueSelected;
+            const id = items[idx].id;
+            if (id === "history") return { type: "openHistory" };
+            if (id === "replay") return { type: "replayStory" };
+            return { type: "backTitle" };
+        }
+        return { type: "none" };
+    }
+
+    /**
+     * 片尾史话（三张可选史话卡片：海隅筑城 / 井边烟火 / 长灯不绝）：
+     * 采用冷素宣纸书页与明版朱丝栏排印，支持左右翻页、手柄 LB/RB 与触屏直点。
+     */
+    private drawHistory(
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        texts: TextPool,
+        w: number,
+        h: number,
+    ): MenuAction {
+        if (frame.back) {
+            return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
+        }
+
+        const total = HISTORY_CARDS.length;
+        if (frame.keys.left || frame.prevTab) {
+            this.historyCardIndex = (this.historyCardIndex + total - 1) % total;
+        } else if (frame.keys.right || frame.nextTab) {
+            this.historyCardIndex = (this.historyCardIndex + 1) % total;
+        }
+        const card = HISTORY_CARDS[this.historyCardIndex];
+
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 15, 206));
+        const cx = w * 0.5;
+        const pageW = Math.min(w - 110 - frame.safe.left - frame.safe.right, 860);
+        const pageH = Math.min(h - 140 - frame.safe.top - frame.safe.bottom, 500);
+        const px = cx - pageW * 0.5;
+        const py = (h - pageH) * 0.5 + 14;
+        const midY = py + pageH * 0.5;
+
+        uiArt.tryPlace("ink_frame_mask", "hist_shadow", cx, midY - 6, pageW + 52, pageH + 46, {
+            color: toColor(PALETTE.voidDark), opacity: 0.84, layer: -1,
+        });
+        if (!uiArt.tryPlace("ink_song_paper", "hist_paper", cx, midY, pageW, pageH, { opacity: 0.98, layer: 1 })) {
+            uiDraw.drawRect(Rect(px, py, pageW, pageH), toColor(PALETTE.xuanPaper, 248), 1.0, toColor(PALETTE.silkDim, 180));
+        }
+        fillRadialGlow(uiGlow, cx, midY + 40, 260, 140, Color(236, 224, 202, 16), Color(236, 224, 202, 0), 14);
+
+        // 明版朱丝栏
+        const inX = px + 42;
+        const inY = py + 32;
+        const inW = pageW - 84;
+        const inH = pageH - 64;
+        const redSilk = toColor(PALETTE.rouge, 118);
+        const redSilkFaint = toColor(PALETTE.rouge, 58);
+        uiInkDraw.drawRect(Rect(inX, inY, inW, inH), Color(0, 0, 0, 0), 0.95, redSilk);
+        uiInkDraw.drawRect(Rect(inX + 4, inY + 4, inW - 8, inH - 8), Color(0, 0, 0, 0), 0.55, redSilkFaint);
+
+        // 天头：片尾史话 + 页码
+        const headY = inY + inH - 30;
+        texts.put("md", "片尾史话  ·  " + card.indexZh + " · " + card.title, inX + 20, headY, toColor(PALETTE.xuanInk), 0, 0.5, TextAlign.Left, 2.0, 0.96, 0);
+        texts.put("xs", (this.historyCardIndex + 1) + " / " + total, inX + inW - 20, headY, toColor(PALETTE.rouge), 1, 0.5, TextAlign.Right, 1.8, 0.88, 0);
+        uiInkDraw.drawSegment(Vec2(inX + 14, headY - 22), Vec2(inX + inW - 14, headY - 22), 0.85, redSilk);
+
+        // 副题
+        texts.put("xs", card.subtitle, inX + 20, headY - 42, toColor(PALETTE.xuanInkSub), 0, 0.5, TextAlign.Left, 1.4, 0.86, 0);
+
+        // 正文按 UTF-8 字符边界与视觉宽度自动折行（TSTL Lua 字节索引安全，绝不截断多字节汉字）
+        const wrapZh = (src: string, maxUnits: number): string[] => {
+            const out: string[] = [];
+            let buf = "";
+            let units = 0;
+            let ci = 0;
+            while (ci < src.length) {
+                const b = src.charCodeAt(ci);
+                const step = b < 128 ? 1 : (b < 224 ? 2 : (b < 240 ? 3 : 4));
+                const ch = src.slice(ci, ci + step);
+                const u = b < 128 ? 0.56 : 1.02;
+                if (units + u > maxUnits && buf !== "") {
+                    out.push(buf);
+                    buf = ch;
+                    units = u;
+                } else {
+                    buf += ch;
+                    units += u;
+                }
+                ci += step;
+            }
+            if (buf !== "") {
+                out.push(buf);
+            }
+            return out;
+        };
+
+        const charsPerLine = Math.max(24, Math.floor((inW - 44) / 20));
+        let cursorY = headY - 76;
+        let pi = 0;
+        for (pi = 0; pi < card.paragraphs.length; pi++) {
+            const lines = wrapZh("　　" + card.paragraphs[pi], charsPerLine);
+            let li = 0;
+            for (li = 0; li < lines.length; li++) {
+                texts.put("sm", lines[li], inX + 22, cursorY, toColor(PALETTE.xuanInk), 0, 0.5, TextAlign.Left, 0.6, 0.94, 0);
+                cursorY -= 30;
+            }
+            cursorY -= 12;
+        }
+
+        // 页底小注
+        const footY = inY + 26;
+        uiInkDraw.drawSegment(Vec2(inX + 14, footY + 20), Vec2(inX + inW - 14, footY + 20), 0.6, redSilkFaint);
+        texts.put("xs", card.footnote, inX + 20, footY, toColor(PALETTE.xuanInkSub), 0, 0.5, TextAlign.Left, 0.4, 0.84, 0);
+
+        // 底部导航按钮：上一页 / 卡片标签 / 下一页 / 返回
+        const navY = Math.max(30, py - 48);
+        const prevBox = Rect(cx - 290, navY, 132, 34);
+        const nextBox = Rect(cx + 158, navY, 132, 34);
+        const backBox = Rect(cx - 88, navY, 176, 34);
+
+        const drawNavBtn = (box: Rect.Type, tag: string, label: string): boolean => {
+            const hover = frame.inside && box.containsPoint(frame.pointer);
+            drawSilkVeil(uiDraw, uiArt, "hist_btn_" + tag, box.x + box.width * 0.5, box.y + box.height * 0.5, box.width, box.height, hover ? PALETTE.rougeSoft : PALETTE.inkWash, hover ? 0.86 : 0.72, 2);
+            texts.put("xs", label, box.x + box.width * 0.5, box.y + box.height * 0.5, toColor(hover ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.94, 0.08);
+            return hover && frame.click;
+        };
+
+        if (drawNavBtn(prevBox, "prev", "上一篇")) {
+            this.historyCardIndex = (this.historyCardIndex + total - 1) % total;
+        }
+        if (drawNavBtn(nextBox, "next", "下一篇")) {
+            this.historyCardIndex = (this.historyCardIndex + 1) % total;
+        }
+        if (drawNavBtn(backBox, "back", this.historyFromEpilogue ? "返回尾声" : "返回标题")) {
+            return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
+        }
+
+        if (frame.keys.confirm) {
+            if (this.historyCardIndex + 1 < total) {
+                this.historyCardIndex += 1;
+            } else {
+                return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
+            }
         }
         return { type: "none" };
     }

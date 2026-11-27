@@ -15,7 +15,7 @@
  *    - 停步时水面涟漪与碎灯倒影持续流动，暂停时立即冻结。
  */
 
-import { Color, DrawNode, Rect, Vec2 } from "Dora";
+import { Color, Content, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -82,6 +82,14 @@ const MAT_PINE_TRUNK: LowpolyMaterial = {
     minShade: 0.20,
     rimBoost: 0.16,
     bottomAo: 0.40,
+};
+
+const MAT_PINE_NEEDLE: LowpolyMaterial = {
+    base: rgba(24, 42, 38, 255),
+    edge: rgba(78, 108, 98, 135),
+    minShade: 0.22,
+    rimBoost: 0.18,
+    bottomAo: 0.36,
 };
 
 const MAT_ROOT_ARCH: LowpolyMaterial = {
@@ -289,16 +297,23 @@ export class ForestCreekScene {
                         0.82,
                         "fe04:forest:dog_alert",
                         p.ticks,
+                        -1,
+                        { pan: ctx.audio.panForWorldX(p.dogX) },
                     );
                 } else if (p.dogState === "chase" && this.prevDogState !== "chase") {
                     this.dogAlertCount += 1;
+                    const chasePath = Content.exist("assets/audio/foley/dog_chase_bark.wav")
+                        ? "assets/audio/foley/dog_chase_bark.wav"
+                        : (CHILD_AUDIO_ROOT + "dog_alert.wav");
                     ctx.audio.playOnce(
                         "fe04:forest:dog_chase:" + ctx.events.roomSessionId + ":" + this.dogAlertCount,
                         "sfx",
-                        CHILD_AUDIO_ROOT + "dog_alert.wav",
+                        chasePath,
                         0.90,
                         "fe04:forest:dog_chase",
                         p.ticks,
+                        -1,
+                        { pan: ctx.audio.panForWorldX(p.dogX) },
                     );
                 }
 
@@ -319,6 +334,8 @@ export class ForestCreekScene {
                                 vol,
                                 "fe04:forest:dog_step",
                                 p.ticks,
+                                -1,
+                                { pan: ctx.audio.panForWorldX(p.dogX) },
                             );
                         }
                     }
@@ -381,6 +398,8 @@ export class ForestCreekScene {
             0.84,
             "fe04:forest:twig_snap",
             ctx.p.ticks,
+            -1,
+            { pan: ctx.audio.panForWorldX(worldX) },
         );
         let i = 0;
         for (i = 0; i < 6; i++) {
@@ -534,10 +553,10 @@ export class ForestCreekScene {
         const ox = p.ox;
         const scene = new LowpolyScene(cam, this.proj, FOREST_CREEK_LIGHT);
 
-        // 1. 密林厚苔土路（x = 0..1310）+ 溪湾岸石与水面（x = 1280..1600）
+        // 1. 密林厚苔土路（x = 0..1180）+ 溪湾岸石与水面（x = 1170..1620，对齐后端 water_lantern 1180..1260 与林缘 1450）
         scene.addBox({
             x0: ox - 40,
-            x1: ox + 1320,
+            x1: ox + 1190,
             y0: -52,
             y1: 0,
             z0: -26,
@@ -547,9 +566,9 @@ export class ForestCreekScene {
             highlightTopEdge: true,
             edgeWidth: 0.7,
         });
-        // 溪湾岸石走面（1320..1600，wz = 0 保持平实落脚，近侧与远侧展露清冷水湾）
+        // 溪湾岸石走面（1180..1620，wz = 0 保持平实落脚，近侧与远侧展露清冷水湾）
         scene.addBox({
-            x0: ox + 1320,
+            x0: ox + 1180,
             x1: ox + 1620,
             y0: -14,
             y1: 0,
@@ -560,40 +579,57 @@ export class ForestCreekScene {
             highlightTopEdge: true,
             edgeWidth: 0.9,
         });
-        // 溪湾宽阔水面（近岸前水 z = -44..-10 与远岸主水湾 z = 24..185）
+        // 溪湾宽阔水面（近岸前水 z = -44..-10 与远岸主水湾 z = 24..196，自 1170 延展至尽头）
         scene.addQuad3D(
-            vec3(ox + 1250, -6, -44),
+            vec3(ox + 1170, -6, -44),
             vec3(ox + 1640, -6, -44),
             vec3(ox + 1640, -2, -10),
-            vec3(ox + 1250, -2, -10),
+            vec3(ox + 1170, -2, -10),
             MAT_CREEK_WATER,
             { bucket: LP_BUCKET.WALK_DECK, sortBias: 0.08, edgeWidth: 0 },
         );
         scene.addQuad3D(
-            vec3(ox + 1250, -2, 24),
+            vec3(ox + 1170, -2, 24),
             vec3(ox + 1660, -2, 24),
             vec3(ox + 1660, 4, 196),
-            vec3(ox + 1250, 4, 196),
+            vec3(ox + 1170, 4, 196),
             MAT_CREEK_WATER,
             { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.04, edgeWidth: 0 },
         );
 
-        // 2. 中景巨型古松树干（z = 36..82，营造《小小梦魇》小人穿巨林尺度）
+        // 2. 中景古松树干与分层松冠（z = 36..82，带自然锥形树干、斜枝与多层墨绿针叶冠，摆脱黑方柱观感）
         const midTrunks = [150, 415, 650, 910, 1255];
         let i = 0;
         for (i = 0; i < midTrunks.length; i++) {
             const tx = ox + midTrunks[i];
-            scene.addBox({
-                x0: tx - 14,
-                x1: tx + 14,
-                y0: -10,
-                y1: 210,
-                z0: 36 + (i % 2) * 18,
-                z1: 68 + (i % 2) * 18,
-                material: MAT_PINE_TRUNK,
-                bucket: LP_BUCKET.MIDGROUND,
-                edgeWidth: 0.7,
-            });
+            const tz = 38 + (i % 2) * 18;
+            const halfW = 10 + (i % 2) * 2;
+            const topW = halfW * 0.62;
+            // 微收分古松树干
+            scene.addQuad3D(
+                vec3(tx - halfW, -10, tz),
+                vec3(tx + halfW, -10, tz),
+                vec3(tx + topW, 205, tz),
+                vec3(tx - topW, 205, tz),
+                MAT_PINE_TRUNK,
+                { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.7 },
+            );
+            // 侧向低垂古松枝与两层冷绿松针冠
+            const bDir = i % 2 === 0 ? 1 : -1;
+            scene.addTri3D(
+                vec3(tx - topW * 0.5, 118, tz - 2),
+                vec3(tx + bDir * 56, 108, tz - 4),
+                vec3(tx + bDir * 12, 142, tz - 2),
+                MAT_PINE_NEEDLE,
+                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.08, edgeWidth: 0.6 },
+            );
+            scene.addTri3D(
+                vec3(tx - bDir * 44, 146, tz - 2),
+                vec3(tx + bDir * 48, 152, tz - 3),
+                vec3(tx, 198, tz - 2),
+                MAT_PINE_NEEDLE,
+                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 0.6 },
+            );
         }
 
         // 3. 严格贴合 rooms.ts 两处矮台（520..640 / 980..1100，高 22）的盘结树根与青石坎
@@ -613,44 +649,43 @@ export class ForestCreekScene {
             });
         }
 
-        // 4. 双岔路自然形体辨识（不摆路牌、不画灯带）：
-        //    4a. 树根窄洞（包覆第二处矮台 968..1122 的盘结有机树根低拱，仅容小满快穿、犬挤不进）
-        //        左粗树根柱 + 右斜根柱 + 拱形交叉盘根顶梁（去生硬方框感）
+        // 4. 双岔路自然形体辨识（严格对齐 FOREST_ROOM 与 play.ts 判定区，不摆路牌、不画灯带）：
+        //    4a. 树根窄洞（严格对齐后端 300..380 / 300..460 蹲行隐蔽段，盘结有机树根低拱，仅容小满伏身钻过、犬挤不进）
         scene.addTri3D(
-            vec3(ox + 958, 0, 12),
-            vec3(ox + 998, 22, 12),
-            vec3(ox + 986, 104, 22),
+            vec3(ox + 286, 0, 12),
+            vec3(ox + 318, 12, 12),
+            vec3(ox + 306, 76, 22),
             MAT_ROOT_ARCH,
             { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.9 },
         );
         scene.addTri3D(
-            vec3(ox + 1086, 22, 12),
-            vec3(ox + 1134, 0, 12),
-            vec3(ox + 1098, 106, 22),
+            vec3(ox + 372, 12, 12),
+            vec3(ox + 412, 0, 12),
+            vec3(ox + 382, 78, 22),
             MAT_ROOT_ARCH,
             { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.9 },
         );
         scene.addQuad3D(
-            vec3(ox + 972, 74, 14),
-            vec3(ox + 1110, 78, 14),
-            vec3(ox + 1094, 116, 36),
-            vec3(ox + 986, 112, 36),
+            vec3(ox + 298, 48, 14),
+            vec3(ox + 394, 52, 14),
+            vec3(ox + 384, 86, 36),
+            vec3(ox + 306, 82, 36),
             MAT_ROOT_ARCH,
             { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 1.0 },
         );
-        // 树根洞内暗影与冷月微光缝（纯自然形体提示可钻）
+        // 树根洞内暗影与冷月微光缝（纯自然形体提示可蹲钻）
         scene.addQuad3D(
-            vec3(ox + 992, 22, 34),
-            vec3(ox + 1088, 22, 34),
-            vec3(ox + 1080, 74, 34),
-            vec3(ox + 1000, 74, 34),
+            vec3(ox + 306, 0, 34),
+            vec3(ox + 382, 0, 34),
+            vec3(ox + 376, 48, 34),
+            vec3(ox + 312, 48, 34),
             { base: rgba(10, 16, 18, 215), edge: rgba(164, 192, 188, 130) },
             { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: -0.05, edgeWidth: 1.0 },
         );
-        //    4b. 旧渠（后排 z = 24..64 凹陷青石盖板与铁栅，以冷月湿石反光与石槽形体自然区分）
+        //    4b. 旧渠（严格对齐后端 700..790 站跑快行段：后排凹陷青石盖板与掀角石板，以冷月湿石反光自然区分）
         scene.addBox({
-            x0: ox + 830,
-            x1: ox + 1230,
+            x0: ox + 690,
+            x1: ox + 810,
             y0: -10,
             y1: 5,
             z0: 26,
@@ -660,12 +695,11 @@ export class ForestCreekScene {
             highlightTopEdge: true,
             edgeWidth: 0.9,
         });
-        // 掀开一角的旧渠石盖板（靠自然斜角与阴影识别，无箭头/光柱）
         scene.addQuad3D(
-            vec3(ox + 858, 5, 28),
-            vec3(ox + 894, 5, 28),
-            vec3(ox + 888, 20, 44),
-            vec3(ox + 852, 18, 44),
+            vec3(ox + 706, 5, 28),
+            vec3(ox + 742, 5, 28),
+            vec3(ox + 736, 20, 44),
+            vec3(ox + 700, 18, 44),
             MAT_CANAL_STONE,
             { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.22, edgeWidth: 1.0 },
         );

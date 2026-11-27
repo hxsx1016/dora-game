@@ -57,15 +57,16 @@ do
     local input = new(Input)
     input.moveX = 1
     advance(play, input, 40)
-    local stoneEdge = 110 - play.player.w / 2
-    check("stone is solid on the middle lane", near(play.player.x, stoneEdge))
+    -- 序章出生点 80 前方已清空贴脸石柱，先遇倒柜 152；石柱移至 344（小满之后、井院之前）
+    local cabinetEdge = 152 - play.player.w / 2
+    check("cabinet is solid on the middle lane", near(play.player.x, cabinetEdge))
 
     input.moveY = -1
     advance(play, input, 5)
-    check("a stone only blocks the movement component into its face",
-        near(play.player.x, stoneEdge) and play.player.depth > lanes.middle and play.player.depth < lanes.upper)
+    check("a solid only blocks the movement component into its face",
+        near(play.player.x, cabinetEdge) and play.player.depth > lanes.middle and play.player.depth < lanes.upper)
     advance(play, input, 15)
-    check("holding diagonal walks around the corner as soon as it clears", play.player.x > stoneEdge + 16)
+    check("holding diagonal walks around the corner as soon as it clears", play.player.x > cabinetEdge + 16)
     input.moveY = 0
     advance(play, input, 37)
     check("cabinet can be walked around without jumping", play.player.x > 280 and near(play.player.y, 0))
@@ -83,27 +84,25 @@ do
     check("interact works within depth reach", play.phase == "prologue-give")
 
     play = new(gameplay.Play, room)
-    play.player.depth = lanes.lower
+    play.player.x, play.player.depth = 310, lanes.lower
     input.moveX, input.moveY, input.interact.pressed = 1, 0, false
     advance(play, input, 40)
+    local stoneEdge = 344 - play.player.w / 2
     check("stone still blocks on the side nearest the screen", near(play.player.x, stoneEdge))
 
-    play.player.x, play.player.depth = 128, lanes.upper
+    play.player.x, play.player.depth = 358, lanes.upper
     input.moveX, input.moveY = 0, 1
     advance(play, input, 40)
     local stone
     for _, s in ipairs(play.room.solids) do
-        if s.x == 110 then stone = s end
+        if s.x == 344 then stone = s end
     end
     local depthEdge = stone.depth.max + depth.ACTOR_DEPTH_HALF
     check("depth movement stops at the actual stone edge", near(play.player.depth, depthEdge))
     input.moveX = 1
     advance(play, input, 24)
-    check("the actor slides along the obstacle while pressing into it",
-        play.player.x > 190 and near(play.player.depth, depthEdge))
-    advance(play, input, 31)
     check("depth movement resumes beyond the footprint without a new press",
-        play.player.x > 265 and play.player.depth < depthEdge and near(play.player.y, 0))
+        play.player.x > 390 and play.player.depth < depthEdge and near(play.player.y, 0))
 
     play.player.x = 195
     local cabinet = room.solids[1]
@@ -201,7 +200,7 @@ do
     input.fire.pressed = true
     advance(play, input, 1)
     check("aim hits across depths past a solid's footprint",
-        play.trace.hit and not play.enemies[1].alive and near(play.trace.y0, 38 + play.player.h * .72))
+        play.trace.hit and not play.enemies[1].alive and near(play.trace.y0, 38 * depth.DEPTH_Y_SCALE + play.player.h * .72))
     play.boxes[1].depth.max = 40
     play.enemies[1].alive = true
     advance(play, input, 1)
@@ -213,28 +212,28 @@ do
     local play = new(gameplay.Play, rooms.PROLOGUE_ROOM)
     local stoneSpec
     for _, s in ipairs(play.room.solids) do
-        if s.x == 110 then stoneSpec = s end
+        if s.x == 344 then stoneSpec = s end
     end
     local blocker = {x0=stoneSpec.x, x1=stoneSpec.x + stoneSpec.w, y0=0, y1=stoneSpec.h, depth=stoneSpec.depth}
     local occlusion = new(occlusionModule.DepthOcclusion)
     local input = new(Input)
-    play.player.x, play.player.depth = 128, 28.5
+    play.player.x, play.player.depth = 358, 28.5
     local alpha = occlusion:update("prop", blocker, play, 1 / 60)
     check("occluder fades gradually", alpha < 1 and alpha > obscuredOpacity)
     check("occluder retains a darker silhouette", near(occlusion:update("prop", blocker, play, .2), obscuredOpacity) and obscuredOpacity > .24)
     check("paused fade holds", near(occlusion:update("prop", blocker, play, 0), obscuredOpacity))
-    play.player.x = 95
+    play.player.x = 320
     check("occluder recovers opacity when overlap ends", near(occlusion:update("prop", blocker, play, .3), 1))
 
-    play.player.x = 128
+    play.player.x = 358
     frontend:bindPlay(play, 1280, 720)
     frontend.screen = "play"
     for _ = 1, 14 do frontend:renderPlay(1 / 60, play, input, 1280, 720) end
-    local stone = frontend.worldArt.visibleLastFrame["depth_solid_110_-44:assets/art/sprites.clip|wall"]
+    local stone = frontend.worldArt.visibleLastFrame["depth_solid_344_-44:assets/art/sprites.clip|wall"]
     local actor = frontend.worldArt.visibleLastFrame["actor_soldier:assets/art/sprites.clip|soldier_idle"]
     check("actual stone sprite is sorted, darkened and faded",
         stone and actor and stone.order > actor.order and near(stone.opacity, obscuredOpacity) and stone.color.r < 150)
-    play.player.x = 95
+    play.player.x = 320
     for _ = 1, 20 do frontend:renderPlay(1 / 60, play, input, 1280, 720) end
     check("stone sprite recovers opacity and tint after the actor leaves", near(stone.opacity, 1) and stone.color.r > 160)
 

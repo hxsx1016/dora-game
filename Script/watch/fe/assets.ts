@@ -15,10 +15,12 @@ export type AssetSlotKey =
     | "ink_ribbon_sweep" | "ink_mist_curve" | "ink_veil_strip" | "ink_hairline"
     | "ink_bamboo_slip" | "ink_bamboo_slot" | "ink_frame_mask" | "ink_vstream"
     | "ink_knot_ornament" | "ink_corner_fine" | "ink_seal_slender" | "ink_blossom_dot"
-    | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper";
+    | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper"
+    | "brand_game_logo_h" | "brand_game_logo_v" | "brand_team_logo" | "brand_team_badge";
 
 export interface AssetSlotConfig {
     paths: string[];
+    anchorX?: number | number[];
     anchorY: number;
     preserveAspect: boolean;
     smooth?: boolean;
@@ -35,6 +37,7 @@ export interface SpritePlacement {
 }
 
 export interface PathPlacementOptions extends SpritePlacement {
+    anchorX?: number;
     anchorY?: number;
     preserveAspect?: boolean;
     smooth?: boolean;
@@ -44,17 +47,22 @@ function backdrop(name: string): AssetSlotConfig {
     return { paths: ["assets/art/" + name + ".png"], anchorY: 0, preserveAspect: false };
 }
 
-function clip(names: string | string[], anchorY: number = 0, preserveAspect: boolean = false): AssetSlotConfig {
+function clip(
+    names: string | string[],
+    anchorY: number = 0,
+    preserveAspect: boolean = false,
+    anchorX?: number | number[],
+): AssetSlotConfig {
     const frames = typeof names === "string" ? [names] : names;
-    return { paths: frames.map(name => "assets/art/sprites.clip|" + name), anchorY, preserveAspect };
+    return { paths: frames.map(name => "assets/art/sprites.clip|" + name), anchorX, anchorY, preserveAspect };
 }
 
 function inkClip(name: string, preserveAspect: boolean = false): AssetSlotConfig {
     return { paths: ["assets/art/ui_ink.clip|" + name], anchorY: 0.5, preserveAspect, smooth: true };
 }
 
-function actor(names: string | string[]): AssetSlotConfig {
-    return clip(names, 0, true);
+function actor(names: string | string[], anchorX?: number | number[]): AssetSlotConfig {
+    return clip(names, 0, true, anchorX);
 }
 
 export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
@@ -68,33 +76,33 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     bgFar_tower: backdrop("tower"),
     title_backdrop: backdrop("title"),
     soldier_idle: actor("soldier_idle"),
-    soldier_run: actor(["soldier_run", "soldier_idle", "soldier_step", "soldier_idle"]),
-    soldier_roll: actor("soldier_roll"),
-    soldier_cover: actor("soldier_cover"),
-    soldier_push: actor(["soldier_push", "soldier_push_step"]),
+    soldier_run: actor(["soldier_run", "soldier_idle", "soldier_step", "soldier_idle"], [0.54, 0.50, 0.45, 0.50]),
+    soldier_roll: actor("soldier_roll", 0.47),
+    soldier_cover: actor("soldier_cover", 0.47),
+    soldier_push: actor(["soldier_push", "soldier_push_step"], [0.43, 0.46]),
     soldier_hold: actor("soldier_hold"),
-    soldier_offer: actor("soldier_offer"),
-    soldier_knock: actor(["soldier_cover", "soldier_knock"]),
-    soldier_hit: actor("soldier_hit"),
-    soldier_fire: actor("soldier_fire"),
-    soldier_fire_move: actor(["soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"]),
-    child_idle: actor("child_idle"),
-    child_run: actor(["child_run", "child_idle", "child_step", "child_idle"]),
-    child_crouch: actor(["child_crouch", "child_crouch_step"]),
-    child_fear: actor("child_fear"),
-    child_peek: actor("child_peek"),
-    child_pull: actor(["child_pull", "child_pull_step"]),
-    child_aim: actor("child_aim"),
-    child_throw: actor("child_throw"),
-    child_knock: actor("child_knock"),
-    child_offer: actor("child_offer"),
-    enemy_idle: actor("enemy_idle"),
-    enemy_aim: actor("enemy_aim"),
+    soldier_offer: actor("soldier_offer", 0.48),
+    soldier_knock: actor(["soldier_cover", "soldier_knock"], [0.47, 0.39]),
+    soldier_hit: actor("soldier_hit", 0.50),
+    soldier_fire: actor("soldier_fire", 0.51),
+    soldier_fire_move: actor(["soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"], [0.53, 0.51, 0.55, 0.51]),
+    child_idle: actor("child_idle", 0.48),
+    child_run: actor(["child_run", "child_idle", "child_step", "child_idle"], [0.54, 0.48, 0.51, 0.48]),
+    child_crouch: actor(["child_crouch", "child_crouch_step"], [0.44, 0.43]),
+    child_fear: actor("child_fear", 0.48),
+    child_peek: actor("child_peek", 0.50),
+    child_pull: actor(["child_pull", "child_pull_step"], [0.40, 0.44]),
+    child_aim: actor("child_aim", 0.47),
+    child_throw: actor("child_throw", 0.49),
+    child_knock: actor("child_knock", 0.50),
+    child_offer: actor("child_offer", 0.49),
+    enemy_idle: actor("enemy_idle", 0.50),
+    enemy_aim: actor("enemy_aim", 0.51),
     enemy_down: actor("enemy_down"),
-    enemy_hit: actor("enemy_hit"),
-    scavenger: actor(["scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"]),
-    dog: actor(["dog_idle", "dog_alert", "dog_run", "dog_sniff"]),
-    prop_cart: clip("cart"),
+    enemy_hit: actor("enemy_hit", 0.48),
+    scavenger: actor(["scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"], [0.52, 0.52, 0.48, 0.52]),
+    dog: actor(["dog_idle", "dog_alert", "dog_run", "dog_sniff"], [0.50, 0.50, 0.54, 0.58]),
+    prop_cart: clip("cart", 0, false, 0.44),
     prop_bottle: clip("bottle", 0.5, true),
     prop_tower_door: clip("door"),
     prop_lantern: clip("lantern", 0.5, true),
@@ -129,6 +137,10 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     ink_enso_fine: inkClip("ink_enso_fine"),
     ink_petal_mist: inkClip("ink_petal_mist"),
     ink_song_paper: inkClip("ink_song_paper"),
+    brand_game_logo_h: { paths: ["assets/art/brand/game_logo_h.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    brand_game_logo_v: { paths: ["assets/art/brand/game_logo_v.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    brand_team_logo: { paths: ["assets/art/brand/team_logo_dark.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    brand_team_badge: { paths: ["assets/art/brand/team_badge.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
 };
 
 const WHITE = Color(255, 255, 255, 255);
@@ -199,7 +211,10 @@ export class AssetSlotHost {
         }
         const frame = Math.abs(Math.floor(options.frame ?? 0)) % cfg.paths.length;
         const path = cfg.paths[frame];
-        return this.placeResolvedPath(path, cfg.anchorY, cfg.preserveAspect, cfg.smooth === true, instanceKey, x, y, targetW, targetH, options);
+        const anchorX = typeof cfg.anchorX === "number"
+            ? cfg.anchorX
+            : (cfg.anchorX !== undefined ? (cfg.anchorX[frame] ?? 0.5) : 0.5);
+        return this.placeResolvedPath(path, anchorX, cfg.anchorY, cfg.preserveAspect, cfg.smooth === true, instanceKey, x, y, targetW, targetH, options);
     }
 
     /** 按具体资源路径或 clip 帧路径直接放置精灵，缺失时静默返回 false */
@@ -214,6 +229,7 @@ export class AssetSlotHost {
         }
         return this.placeResolvedPath(
             path,
+            options.anchorX ?? 0.5,
             options.anchorY ?? 0.5,
             options.preserveAspect ?? false,
             options.smooth === true,
@@ -228,6 +244,7 @@ export class AssetSlotHost {
 
     private placeResolvedPath(
         path: string,
+        anchorX: number,
         anchorY: number,
         preserveAspect: boolean,
         smooth: boolean,
@@ -248,7 +265,7 @@ export class AssetSlotHost {
                 this.unavailable[path] = true;
                 return false;
             }
-            loaded.anchor = Vec2(0.5, anchorY);
+            loaded.anchor = Vec2(anchorX, anchorY);
             loaded.filter = smooth ? TextureFilter.Anisotropic : TextureFilter.Point;
             loaded.addTo(this.container);
             this.sprites[key] = loaded;

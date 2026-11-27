@@ -20,6 +20,7 @@
  */
 
 import { Color, DrawNode, Vec2 } from "Dora";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { RoomSpec, StairSpec } from "Script/watch/rooms";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -401,7 +402,7 @@ export function verifyWalkPlaneAlignment(
 
     const inv = cam.screenToWorld(p3.x, p3.y);
     const invDx = inv.x - wx;
-    const invDy = inv.y - (wy + (proj.baseDepth ?? 0));
+    const invDy = inv.y - (wy + (proj.baseDepth ?? 0) * DEPTH_Y_SCALE);
     const inverseErrWorld = Math.sqrt(invDx * invDx + invDy * invDy);
     return {
         forwardErrPx,
@@ -1289,9 +1290,12 @@ export function buildOutsideJettyLowpoly(
         });
     }
 
-    // 4. 城墙实体块
+    // 4. 城墙实体块（补丁红布车单独按木车绘制，绝不画成巨型砖墙+砖墩；悬空城墙补后景砖拱墩）
     for (i = 0; i < room.solids.length; i++) {
         const s = room.solids[i];
+        if (s.id === "outside_red_cart") {
+            continue;
+        }
         scene.addBox({
             x0: s.x,
             x1: s.x + s.w,
@@ -1303,6 +1307,32 @@ export function buildOutsideJettyLowpoly(
             bucket: LP_BUCKET.MIDGROUND,
             highlightTopEdge: true,
         });
+        if (s.y > 10) {
+            scene.addBox({
+                x0: s.x,
+                x1: s.x + 18,
+                y0: 0,
+                y1: s.y,
+                z0: 32,
+                z1: 72,
+                material: MING_MATERIALS.mingBrickDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                sortBias: -0.08,
+                edgeWidth: 0.7,
+            });
+            scene.addBox({
+                x0: s.x + s.w - 18,
+                x1: s.x + s.w,
+                y0: 0,
+                y1: s.y,
+                z0: 32,
+                z1: 72,
+                material: MING_MATERIALS.mingBrickDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                sortBias: -0.08,
+                edgeWidth: 0.7,
+            });
+        }
     }
 
     // 5. 下层矮石拱洞（保留 44 世界单位真实净空，不加垂布遮挡）

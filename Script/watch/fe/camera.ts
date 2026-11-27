@@ -6,6 +6,7 @@
  */
 
 import { Play } from "Script/watch/play";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { themeOf } from "Script/watch/fe/theme";
 
 /** 基础竖直世界视野高度（zoom=1 时屏幕纵向容纳约 304 世界单位，1280×720 下约 2.37 px/单位） */
@@ -113,6 +114,9 @@ export class CameraDirector {
         } else if (p.room.key === "outside") {
             // 上层拉车或钻拱附近保持能同时看见上层板车与下层拱洞
             desiredZoom = p.player.x < 560 ? 0.94 : 1.02;
+        } else if (p.room.key === "forest" && p.player.x >= p.ox + 1160 && p.player.x <= p.ox + 1350) {
+            // F02 溪湾初见：先微收聚焦水中塔灯倒影，临近林岸后再舒展抬头见真灯
+            desiredZoom = p.player.x < p.ox + 1280 ? 1.12 : 0.98;
         } else if (p.room.key === "tower" && p.phase !== "tower-wait") {
             desiredZoom = 1.22;
         }
@@ -198,12 +202,18 @@ export class CameraDirector {
             }
             const footDepth = lock.footDepth ?? 0;
             this.x = lock.footWorldX - ((lock.screenFootFracX - 0.5) * this.viewW) / this.ppu;
-            const desiredYOffset = lock.footWorldY + footDepth - (lock.screenFootFracY * this.viewH - this.groundScreenY) / this.ppu;
+            const desiredYOffset = lock.footWorldY + footDepth * DEPTH_Y_SCALE - (lock.screenFootFracY * this.viewH - this.groundScreenY) / this.ppu;
             this.y = 82 + desiredYOffset / 0.45;
             return;
         }
 
-        this.ppu = (this.viewH / BASE_VIEW_UNITS_H) * this.zoom;
+        // 非 16:9 紧凑掌机屏（如 KTR1/R2 3:2 1620×1080、KTR2 4:3 1280×960）适度回退纵向缩放，
+        // 避免枪战横向视野被截窄 20%–25%；16:9 及更宽屏幕保持 1.0 零变化。
+        const aspect = this.viewW / this.viewH;
+        const aspectComp = aspect < (16 / 9)
+            ? Math.max(0.82, Math.min(1.0, aspect / (16 / 9)))
+            : 1.0;
+        this.ppu = (this.viewH / BASE_VIEW_UNITS_H) * this.zoom * aspectComp;
 
         // 水平钳制在房间边界内，避免露出房间外黑洞
         const halfWorldW = (this.viewW * 0.5) / this.ppu;
@@ -227,10 +237,10 @@ export class CameraDirector {
         return this.viewW * 0.5 + (wx - this.x) * this.ppu + this.shakeX;
     }
 
-    /** 高度与地面纵深投影到屏幕同一轴。 */
+    /** 高度与地面纵深（经透视系数 DEPTH_Y_SCALE 压缩）投影到屏幕同一轴。 */
     sy(wy: number, depth: number = 0): number {
         const yOffset = (this.y - 82) * 0.45;
-        return this.groundScreenY + (wy + depth - yOffset) * this.ppu + this.shakeY;
+        return this.groundScreenY + (wy + depth * DEPTH_Y_SCALE - yOffset) * this.ppu + this.shakeY;
     }
 
     /** 世界长度 → 屏幕像素长度 */

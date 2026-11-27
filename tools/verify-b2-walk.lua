@@ -139,7 +139,9 @@ walkTo(p3, i3, 560, 500)
 tap(i3, "interact"); step(p3, i3); rel(i3, "interact")
 check("三段按 E 打开工台", p3.craftBench.active == true, "active=" .. tostring(p3.craftBench.active) .. " key=" .. p3.room.key .. " x=" .. string.format("%.1f", p3.player.x) .. " y=" .. string.format("%.1f", p3.player.y))
 tap(i3, "interact"); step(p3, i3); rel(i3, "interact")
-check("三段再按 E 收起工台", p3.craftBench.active == false, "active=" .. tostring(p3.craftBench.active))
+check("三段 E 留给面板确认", p3.craftBench.active == true)
+tap(i3, "pause"); step(p3, i3); rel(i3, "pause")
+check("三段 Esc 收起工台", not p3.craftBench.active and not p3.paused)
 walkTo(p3, i3, 1165, 700)
 steps(p3, i3, 120)
 check("三段走到出口", p3.wantRoom == "escort4", "want=" .. tostring(p3.wantRoom) .. " x=" .. string.format("%.1f", p3.player.x))
@@ -223,8 +225,13 @@ local pc4 = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, c4)
 local ic4 = newInput()
 walkTo(pc4, ic4, 445, 300)
 tap(ic4, "interact"); step(pc4, ic4); rel(ic4, "interact")
+for _ = 1, 40 do step(pc4, ic4) end
+walkTo(pc4, ic4, 545, 200)
+ic4.interact.held = true
+for _ = 1, 40 do step(pc4, ic4) end
+ic4.interact.held = false
 local evtC = {}
-for _ = 1, 240 do
+for _ = 1, 220 do
  step(pc4, ic4)
  for _, e in ipairs(pc4:drainEvents()) do evtC[e.name] = e end
 end

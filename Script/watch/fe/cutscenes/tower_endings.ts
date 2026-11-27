@@ -26,13 +26,15 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { Play } from "Script/watch/play";
+import { Play, TOWER_CONFIRM_TICKS } from "Script/watch/play";
 import { Input } from "Script/watch/input";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
 import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE, drawPatchedCuff } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { NEEDLE_NOTE_LINES } from "Script/watch/dialogues";
+import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     LightRig,
@@ -96,7 +98,7 @@ export const TOWER_ENDING_TIMINGS: TowerEndingTimings = {
     pivotStartSec: 3.40,
     pivotEndSec: 4.20,
     divergeEndSec: 6.80,
-    holdReadySec: 8.00,
+    holdReadySec: TOWER_CONFIRM_TICKS / 60,
 };
 
 const TOWER_AUDIO_ROOT = "assets/audio/tower/";
@@ -609,7 +611,12 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         const route = this.resolveRoute(p, view);
         const isTower = p.room.key === "tower";
-        const alreadyIndoorPhase = isTower && (p.phase === "tower-given" || p.phase === "tower-end");
+        const alreadyCutscenePhase = isTower && (p.phase === "tower-given" || p.phase === "tower-end");
+        const alreadyIndoorPhase = isTower && (
+            p.phase === "tower-enter"
+            || p.phase === "tower-desk"
+            || alreadyCutscenePhase
+        );
         const sameRunIndoorRetry = isTower
             && this.lastRoomKey === "tower"
             && this.doorOpened
@@ -628,7 +635,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             return;
         }
 
-        if (sameRunIndoorRetry || alreadyIndoorPhase) {
+        if (sameRunIndoorRetry || alreadyCutscenePhase) {
             // 室内重试边界：塔门保持已开，不重关门，不重播敲门，不重复追加登记行
             this.indoorRetryCount += 1;
             this.doorClosedAfterRetry = false;
@@ -637,6 +644,15 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
                 this.seqElapsed = TOWER_ENDING_TIMINGS.divergeEndSec;
                 this.syncDerivedMilestones(this.seqElapsed, route);
             }
+            return;
+        }
+
+        if (p.phase === "tower-enter" || p.phase === "tower-desk") {
+            // 读档恢复到门廊/值夜室交互段：保持门开但让出画面给真实走位，不误增 indoorRetryCount
+            this.clearSequenceState(false);
+            this.doorOpened = true;
+            this.replyKnockCount = 2;
+            this.active = false;
             return;
         }
 
@@ -672,7 +688,9 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         }
 
         if (!this.active) {
-            if (this.loopsActive) {
+            const inInteractiveHall = !this.rehearsalActive && p.room.key === "tower"
+                && (p.phase === "tower-enter" || p.phase === "tower-desk");
+            if (this.loopsActive && !inInteractiveHall) {
                 ctx.audio.stopLoop("tower_wind_cold", 0.15);
                 ctx.audio.stopLoop("tower_room_warm", 0.15);
                 this.loopsActive = false;
@@ -699,6 +717,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const p = ctx.p;
         const phase = p.phase;
         const justEnteredKnock = this.prevPhase !== "tower-knock" && phase === "tower-knock";
+        const justEnteredEnter = this.prevPhase !== "tower-enter" && phase === "tower-enter";
         const justEnteredGiven = this.prevPhase !== "tower-given" && phase === "tower-given";
         const justEnteredEnd = this.prevPhase !== "tower-end" && phase === "tower-end";
         this.prevPhase = phase;
@@ -706,6 +725,22 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         if (phase === "tower-wait") {
             // 门廊自由步行阶段交由基础/低模世界层处理（与 fe-04 零冲突），若曾室内重试则不关门
             this.active = false;
+            return;
+        }
+
+        if (phase === "tower-enter" || phase === "tower-desk") {
+            // 门开后让回画面控制权，玩家亲自跨门槛并在值夜桌长按交物，不让全屏过场遮挡操作。
+            this.doorOpened = true;
+            this.replyKnockCount = Math.max(2, this.replyKnockCount);
+            if (justEnteredEnter && this.indoorRetryCount === 0 && !ctx.paused) {
+                const tick = p.ticks;
+                this.playTowerOnce(ctx.audio, "reply1", "sfx", TOWER_AUDIO_FILES.reply1, 0.78, "tower:reply:1", tick);
+                this.playTowerOnce(ctx.audio, "reply2", "sfx", TOWER_AUDIO_FILES.reply2, 0.80, "tower:reply:2", tick);
+                this.playTowerOnce(ctx.audio, "door_open", "sfx", TOWER_AUDIO_FILES.doorOpen, 0.84, "tower:door_open", tick);
+            }
+            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.doorOpenSec);
+            this.active = false;
+            this.syncDerivedMilestones(this.seqElapsed, route);
             return;
         }
 
@@ -722,7 +757,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             this.confirmReady = false;
         } else if (justEnteredGiven) {
             this.doorOpened = true;
-            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.doorOpenSec);
+            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.indoorCutSec);
         } else if (justEnteredEnd) {
             this.doorOpened = true;
             // 无缝延续 8 秒演出，不因 play.ts 在 3.6s 切入 tower-end 而跳切
@@ -1398,7 +1433,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         }
 
         // 5. 桌上物件与同框热瓷碗沿（F03 孤碗 + 针套纸条；M03 解下针套轻放案上 + 小满双手端碗）
-        this.drawDeskPropsAndBowl(uiDraw, uiInkDraw, uiGlow, route, s, ox, oy);
+        this.drawDeskPropsAndBowl(uiDraw, uiInkDraw, uiGlow, ctx, route, s, ox, oy);
     }
 
     private drawF03LowpolyRoomAndWindow(
@@ -1782,6 +1817,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
+        ctx: FePluginContext,
         route: TowerEndingRoute,
         s: number,
         ox: number,
@@ -1794,10 +1830,23 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const bowlY = oy + TOWER_SHOT_LAYOUT.bowlRimY * s;
 
         if (route === "child") {
-            // F03：案左摊开小满交出的针套与托孤折纸（1.6s 起在案边可见）
+            // F03：案左摊开小满交出的针套与托孤折纸（1.6s 起在案边可见；1.65..4.15s 呈现纸条手书原词）
             const propA = smoothstep(1.55, 2.05, t);
             if (propA > 0.02) {
                 this.drawNeedleCaseOnDesk(uiInkDraw, ncX, ncY, s, propA, true);
+            }
+            const noteReadA = smoothstep(1.65, 2.10, t) * (1 - smoothstep(3.65, 4.15, t));
+            if (noteReadA > 0.02) {
+                const cardX = ncX + 18 * s;
+                const cardY = ncY + 84 * s;
+                uiInkDraw.drawRect(
+                    Rect(cardX - 118 * s, cardY - 30 * s, 236 * s, 60 * s),
+                    toColor(PALETTE.xuanPaper, Math.round(238 * noteReadA)),
+                    1.0,
+                    toColor(PALETTE.rouge, Math.round(110 * noteReadA)),
+                );
+                ctx.texts.put("xs", NEEDLE_NOTE_LINES[0], cardX, cardY + 10 * s, toColor(PALETTE.xuanInk), 0.5, 0.5, TextAlign.Center, 0.6, 0.94 * noteReadA, 0);
+                ctx.texts.put("xs", "—— " + NEEDLE_NOTE_LINES[1], cardX + 74 * s, cardY - 12 * s, toColor(PALETTE.xuanInkSub), 1, 0.5, TextAlign.Right, 0.8, 0.88 * noteReadA, 0);
             }
             // F03：4.35s 守卒将粗瓷热碗推至案沿，与空着的第二行同框定格
             const bowlK = smoothstep(4.35, 5.15, t);
@@ -2050,9 +2099,10 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         // 低引导规范：仅当玩家在暂停菜单主动打开「按键辅助」且定格读完解锁后，才在底遮幅极淡提示重开
         if (ctx.view.assistHintsEnabled && this.confirmReady) {
-            const hint = route === "child"
-                ? "按 E 再次启程   ·   Esc 暂歇"
-                : "团圆尾声   ·   按 E 再次启程   ·   Esc 暂歇";
+            const rawHint = route === "child"
+                ? "按 E 收页 · 尾声与史话   ·   Esc 暂歇"
+                : "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇";
+            const hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
             ctx.texts.put("xs", hint, ctx.uiW * 0.5, barH * 0.5, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.88, 0.08);
         }
     }

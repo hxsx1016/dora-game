@@ -8,6 +8,7 @@ local Color = ____Dora.Color -- 10
 local Vec2 = ____Dora.Vec2 -- 10
 local ____depth = require("Script.watch.depth") -- 12
 local ACTOR_DEPTH_HALF = ____depth.ACTOR_DEPTH_HALF -- 12
+local DEPTH_Y_SCALE = ____depth.DEPTH_Y_SCALE -- 12
 local overlapsDepth = ____depth.overlapsDepth -- 12
 local ____theme = require("Script.watch.fe.theme") -- 16
 local PALETTE = ____theme.PALETTE -- 18
@@ -106,7 +107,7 @@ function VfxSystem.prototype.ingest(self, ev, p, cam) -- 121
 	if ev.coverDeflect then -- 138
 		self.deflectFlash = 1 -- 142
 		self.deflectX = p.player.x + p.player.facing * 16 -- 143
-		self.deflectY = p.player.y + p.player.depth + p.player.h * 0.48 -- 144
+		self.deflectY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.48 -- 144
 		local nearest = 48 -- 145
 		for ____, solid in ipairs(p.room.solids) do -- 146
 			local edge = p.player.x < solid.x and solid.x or solid.x + solid.w -- 147
@@ -116,7 +117,7 @@ function VfxSystem.prototype.ingest(self, ev, p, cam) -- 121
 				self.deflectX = edge -- 152
 				local ____solid_y_4 = solid.y -- 153
 				local ____opt_2 = solid.depth -- 153
-				self.deflectY = ____solid_y_4 + (____opt_2 and ____opt_2.min or 0) + solid.h * 0.86 -- 153
+				self.deflectY = ____solid_y_4 + (____opt_2 and ____opt_2.min or 0) * DEPTH_Y_SCALE + solid.h * 0.86 -- 153
 			end -- 153
 		end -- 153
 		self:spawnBurst( -- 156
@@ -132,7 +133,7 @@ function VfxSystem.prototype.ingest(self, ev, p, cam) -- 121
 		self.hitVignette = 1 -- 161
 		self:spawnBurst( -- 162
 			p.player.x, -- 162
-			p.player.y + p.player.depth + p.player.h * 0.55, -- 162
+			p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.55, -- 162
 			14, -- 162
 			PALETTE.sealRedBright, -- 162
 			185 -- 162
@@ -143,7 +144,7 @@ function VfxSystem.prototype.ingest(self, ev, p, cam) -- 121
 	if ev.rollStarted then -- 164
 		self:spawnBurst( -- 168
 			p.player.x, -- 168
-			p.player.y + p.player.depth + 4, -- 168
+			p.player.y + p.player.depth * DEPTH_Y_SCALE + 4, -- 168
 			7, -- 168
 			PALETTE.textDim, -- 168
 			82 -- 168
@@ -202,7 +203,7 @@ function VfxSystem.prototype.ingest(self, ev, p, cam) -- 121
 	end -- 183
 	if ev.cartJustDocked then -- 183
 		local cx = p.cartAxle -- 187
-		local cy = p.room.cart.baseY + (p.room.cart.depth or 0) + 8 -- 188
+		local cy = p.room.cart.baseY + (p.room.cart.depth or 0) * DEPTH_Y_SCALE + 8 -- 188
 		local ____self_rings_9 = self.rings -- 188
 		____self_rings_9[#____self_rings_9 + 1] = { -- 189
 			x = cx, -- 189

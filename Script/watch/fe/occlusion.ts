@@ -1,5 +1,5 @@
 import { Color } from "Dora";
-import { ACTOR_DEPTH_HALF, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/depth";
 import { Actor, Play } from "Script/watch/play";
 import { DepthRange } from "Script/watch/rooms";
 
@@ -35,9 +35,9 @@ function hides(actor: Actor, prop: Occluder): boolean {
     if (actor.y >= prop.y1 && overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF)) {
         return false;
     }
-    const foot = actor.y + actor.depth;
+    const foot = actor.y + actor.depth * DEPTH_Y_SCALE;
     const height = actor.rollT > 0 ? actor.h * 0.6 : actor.h;
-    return foot < prop.y1 + prop.depth.max && foot + height > prop.y0 + prop.depth.min;
+    return foot < prop.y1 + prop.depth.max * DEPTH_Y_SCALE && foot + height > prop.y0 + prop.depth.min * DEPTH_Y_SCALE;
 }
 
 export class DepthOcclusion {

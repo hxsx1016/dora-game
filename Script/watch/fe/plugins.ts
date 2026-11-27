@@ -11,6 +11,7 @@
 import { DrawNode } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
+import { SafeInsets } from "Script/watch/platform";
 import { FrameEvents } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
@@ -42,6 +43,7 @@ export interface FePluginContext {
     uiW: number;
     uiH: number;
     uiScale: number;
+    safeUi?: SafeInsets;
     paused: boolean;
 }
 

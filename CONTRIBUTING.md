@@ -2,7 +2,7 @@
 
 ## 接入项目
 
-在含 `init.ts` 与 `tsconfig.json` 的仓库根目录执行以下命令，确认检出包含 `Script/watch/`。Git 默认分支为 `main`。关卡重制、全局机制与护送试炼的集成分支为 `feature/watch-level-rework`。
+在含 `init.ts`、`LICENSE`（Apache-2.0）与 `tsconfig.json` 的仓库根目录执行以下命令，确认检出包含 `Script/watch/`。Git 默认分支为 `main`，多端适配与全阶段整合基线为 `exp/multi-device-adapt`（音频并行线为 `feature/audio-overhaul`，角色动作并行线为 `codex/character-motion`）。
 
 ```sh
 git fetch --all --prune
@@ -31,26 +31,38 @@ Dora cli run -p . --entry init.lua
 
 ## 提交前验证
 
-1. 在仓库根目录运行 `python3 tools/check-repo.py`（Windows 也可用 `py -3`）。工具需要 Git 和 Python 3.8+，检查正式入口与模块配对、Markdown 相对文件链接，以及已被 Git 跟踪的忽略文件。推送和 PR 在 GitHub Actions 执行同一命令。
+1. 在仓库根目录运行 `python3 tools/check-repo.py` 与 `python3 tools/audit-assets.py`（Windows 也可用 `py -3`），检查正式入口与模块配对、静/动态资产与 `.clip` 图集帧、全仓字库 0 缺字、Lua `require` 规范以及 Markdown 相对文件链接。推送和 PR 在 GitHub Actions 执行同类检查。
 2. 改动 TypeScript 后执行上面的 Dora 构建。核对实际生成的 Lua 差异。纯类型或注释的修改可能只改变 TS。核验已提交产物时，在干净检出中构建，再运行 `git diff --exit-code -- init.lua Script/watch/`。
-3. 改玩法时，在引擎的项目上下文执行相关回放。`verify-d6.lua` 有断言，失败时抛错。另两份脚本打印逐拍结果，按需求中的期望读数核对。
+3. 改玩法、前端或剧本对白时，在引擎的项目上下文执行核心回归脚本（含综合回归 `verify-remediation.lua`）：
 
 ```lua
-dofile("tools/verify-d6.lua")
-dofile("tools/verify-d7.lua")
-dofile("tools/verify-d8.lua")
-dofile("tools/verify-d9.lua")
-dofile("tools/verify-integration.lua")
-dofile("tools/verify-trial.lua")
-dofile("tools/replay-gate.lua")
-dofile("tools/replay-d5.lua")
+dofile("tools/verify-remediation.lua")
+dofile("tools/verify-story-gate.lua")
+dofile("tools/verify-b1.lua")
+dofile("tools/verify-b2.lua")
+dofile("tools/verify-c1.lua")
+dofile("tools/verify-c-fix.lua")
+dofile("tools/verify-m2.lua")
+dofile("tools/verify-fe01.lua")
+dofile("tools/verify-fe05.lua")
+dofile("tools/verify-touch-input.lua")
 ```
 
 4. 改输入、渲染或打包时，另记真实设备、系统、分辨率和测试结果。提交说明写明已跑的命令及结果，Windows 冷启动以实际解压运行记录为准。
 5. 用 `git diff --cached --check` 和 `git diff --cached --stat` 复核暂存内容。提交信息沿用 `类型(范围): 变更摘要`，例如 `fix(watch): 修正城门重试计时`。远端协调按 [AGENTS.md](AGENTS.md) 执行。
 
-## Windows 交付
+## Windows 交付与自动发版
 
-把官方引擎包解压到 `.download/win/`，确认其中直接包含 `Dora.exe`。重新构建 TypeScript 后，在有 Bash、rsync 和 zip 的环境执行 `bash tools/make-windows-pack.sh`。成品为 `dist/watch-windows-x64.zip`。脚本将 `tools/windows-boot.lua` 复制成包内 `Script/init.lua`，将仓库 `init.lua` 复制成包内 `Script/main.lua`。
+仓库支持基于 Dora SSR v1.10.2 官方 Windows 运行时的免安装便携打包（Direct3D 12 标准版 + OpenGL 兼容版）与 Dora 源码包组装：
+
+1. 本地打包：将官方 `dora-ssr-v1.10.2-windows-x64.zip`（及可选 `-opengl.zip`）分别解压到 `.download/win/`（和 `.download/win-opengl/`），重新构建 TypeScript 后执行：
+   ```sh
+   python3 tools/audit-assets.py
+   bash tools/make-windows-pack.sh --backend d3d12 --version v0.1.0-rc1
+   bash tools/make-windows-pack.sh --backend opengl --version v0.1.0-rc1
+   bash tools/make-dora-source-pack.sh --version v0.1.0-rc1
+   ```
+   脚本采用白名单裁剪（排除 `Doc/`、`www/`、`dora-wa/`、`dora_godot.dll`、`wa.dll`、`GeneralUserGS.sf3` 等非运行时大文件），写入固定 `tools/windows-game-id` 以启用独立游戏模式（锚定资源路径、隔离单实例锁与 `%APPDATA%` 存档目录），将 `tools/windows-boot.lua` 复制为包内 `Script/init.lua`（注入发行标志禁用开发跳房热键，并支持根目录新建 `save/` 切换纯绿色便携存档），将 `init.lua` 复制为 `Script/main.lua`。
+2. 自动 CI 与冷启动冒烟：推送 `v*` Tag 或手动触发 `.github/workflows/release-windows.yml` 会自动拉取并校验官方引擎包哈希、组装三件套并在 `windows-latest` 中文路径下执行冷启动与退出冒烟验收。详见 [2026 开源游戏开发大赛发版与 AtomGit 同步指南](docs/2026开源游戏开发大赛-发版与AtomGit同步指南.md)。
 
 发行记录写入构建所用 Git 提交号、ZIP 的 SHA-256、断言结果及 Windows 真机状态。压缩包、引擎下载目录、类型声明与开发缓存留在本地。

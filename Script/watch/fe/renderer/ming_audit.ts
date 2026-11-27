@@ -18,7 +18,7 @@
 
 import { Color, Content, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
-import { ACTOR_DEPTH_HALF, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/depth";
 import { ASSET_SLOTS, AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
@@ -71,7 +71,7 @@ export const FALLBACK_MING_BACKDROPS: Record<string, AssetSlotKey> = {
     "gatepath": "bgFar_outside",
     "escort1": "bgFar_outside",
     "escort2": "bgFar_checkpoint",
-    "escort3": "bgFar_checkpoint",
+    "escort3": "bgFar_forest",
     "escort4": "bgFar_forest",
     "escort5": "bgFar_tower",
 };
@@ -367,13 +367,15 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
         const h = cam.viewH;
         const span = Math.max(1, ctx.p.room.maxX - ctx.p.room.minX);
         const progress = (cam.x - ctx.p.room.minX) / span - 0.5;
+        const ground = cam.groundScreenY;
         const artW = Math.max(w, (h * 16) / 9) + w * 0.12;
         const artH = (artW * 9) / 16;
+        // 与 stage.ts 地平线锚点一致（画面底边略低于地面基线，避免悬空或切腰）
+        const sceneY = Math.min((h - artH) * 0.5, ground - artH * 0.24);
 
-        if (backdropArt.tryPlace(slot, "ming_fallback_scene", w * (0.5 - progress * 0.09), (h - artH) * 0.5, artW, artH)) {
+        if (backdropArt.tryPlace(slot, "ming_fallback_scene", w * (0.5 - progress * 0.09), sceneY, artW, artH)) {
             this.fallbackInterceptCount += 1;
             const theme = themeOf(roomKey);
-            const ground = cam.groundScreenY;
             const dressSlot: AssetSlotKey = slot === "bgFar_outside" ? "pine" : "eaves";
             backdropArt.tryPlace(
                 dressSlot,
@@ -457,7 +459,7 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
 
     private spawnCoverMaterialDebris(p: Play): void {
         let hitX = p.player.x + p.player.facing * 16;
-        let hitY = p.player.y + p.player.depth + p.player.h * 0.5;
+        let hitY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.5;
         let isWood = false;
         let nearest = 56;
         let i = 0;
@@ -474,7 +476,7 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
             if (gap < nearest) {
                 nearest = gap;
                 hitX = edge;
-                hitY = s.y + (s.depth?.min ?? 0) + s.h * 0.85;
+                hitY = s.y + (s.depth?.min ?? 0) * DEPTH_Y_SCALE + s.h * 0.85;
                 isWood = isWoodCoverLabel(s.art, s.label);
             }
         }

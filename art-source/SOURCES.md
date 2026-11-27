@@ -5,6 +5,7 @@
 - `sprites.psd` 按角色、道具、场景图块、特效与界面分组。每帧有独立图层，图层名称与 `sprites.clip` 的条目对应。
 - `rooms.psd` 的八个场景分别位于独立图层。导出时只打开对应房间的图层，保留 320 × 180 尺寸，按图层名前缀命名。
 - `title.psd` 保存 960 × 540 的标题插画源文件。
+- `brand/` 保存《向西守望》× 制作团队「局外人（OUTSIDER）」定稿品牌母图、16:9 宣传封面及 Windows / Android / Web 全平台多尺寸图标包（详见文末「品牌标识与多端图标」）。
 - `frames.json` 记录 58 张图块在 1024 × 512 图集内的坐标。可把 `sprites.psd` 导出为同尺寸的透明 PNG，替换 `assets/art/sprites.png`。移动图块时同步更新 `sprites.clip` 的坐标。
 
 ## 素材来源
@@ -14,7 +15,8 @@
 ## 水墨界面贴图与开源字体（`feature/fe-ink-ui`）
 
 - `assets/art/ui_ink.png` + `assets/art/ui_ink.clip`：宋明清雅水墨界面图集（含水袖飞白飘带、婉转烟岚流云曲线、烟黛渐变幕、霜月游丝细线、海棠菱花微结、纤细云肩折角、文人纤长孤印、玉簪体力细痕、月窗柔边墨云及 640×440 高清冷素宣纸页）。
-- `assets/font/lxgw-neo-zhisong.ttf`：霞鹜新致宋（[lxgw/LxgwNeoZhiSong](https://github.com/lxgw/LxgwNeoZhiSong) v1.071），按 GB2312 一级字库与项目用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-LXGW-NeoZhiSong.txt`）。
+- `assets/font/lxgw-neo-zhisong.ttf`：霞鹜新致宋（[lxgw/LxgwNeoZhiSong](https://github.com/lxgw/LxgwNeoZhiSong) v1.071），按 GB2312 一级字库与全仓代码/剧本/UI 符号重新子集化（3,970 枚字形，全仓 0 缺字），采用 SIL Open Font License 1.1（见 `assets/font/OFL-LXGW-NeoZhiSong.txt`）。
+- 本项目源代码遵循根目录 `LICENSE`（Apache-2.0），美术与音频声明同步登记于 `docs/AI使用与素材声明.md`。
 - `assets/font/longcang-brush.ttf`：龙藏体（[Google Fonts Long Cang](https://github.com/google/fonts/tree/main/ofl/longcang)），按标题/章名/孤印/中文大写数字及常用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-LongCang.txt`）。
 
 ## 初版生成提示词
@@ -111,3 +113,21 @@ Use case: precise-object-edit. Asset type: existing landscape 16:9 pixel art tit
 ```text
 Use case: identity-preserve. New supplemental game animation cel sheet for the EXACT SAME original characters in the input art. Input 1 shows Ming soldier Zhou Shu, input 2 shows Ming girl Xiao Man. Reproduce each character identity, pixel texture, proportions, palette, fabrics, helmet or hair and garments very closely. Make a square EXACT 2 by 2 transparent RGBA sheet, four separate full body sprites with gutters, centers 25% and 75% horizontally and vertically. Absolutely clear transparency everywhere outside the figures, no ground shadows, grids, text, borders, lettering, sparks, decorative props, no sci-fi. Strict right-facing locked side view camera as both inputs. TOP LEFT: Zhou Shu with upper body and Ming matchlock held EXACTLY like the firing cel at row 3 column 3 of input 1, but in a running stride with FRONT-side right boot reaching forward, back boot further left off ground behind him. TOP RIGHT: same Zhou Shu firing with same upper torso, same weapon position and same right-facing angle, stride swapped with the far-side left boot ahead and the other boot lifted back. He is agile, the arms and old wooden weapon stable, upper body slightly leaning forward, no modern fittings. BOTTOM LEFT: exact same right-facing Xiao Man as input 2 in same two-handed cart grip pose as row 2 column 4, arms and hand positions unchanged, swapped walking leg positions, one sandal plainly stepping in front of other. BOTTOM RIGHT: same Xiao Man in side view partially crouching with face showing and one palm pressed down to rest on an imaginary cabinet edge forward of her belly, eyes peeking above it, her other hand protects her little pouch. Four fine-detailed authored pixel costumes; dark teal coat and red helmet cord on soldier, warm red cross collar and two little hair knots on girl. Actual full head and feet in every cel; feet anchored vertically at three-quarters of each cell, roomy padding.
 ```
+
+## 品牌标识与多端图标（`exp/brand-logo`）
+
+围绕宋明清雅水墨色板（鸦青 `#0B0D13`、霜月素白 `#F4F2EC`、冷月玉青 `#9AB2BC`、微杏淡金 `#D6BA92`、暗胭脂朱砂 `#B63A38`）定稿全套品牌资产，使用 AI 图像生成辅助初稿并经人工逐字质检、线性反混色透明通道抠底（保留暖灯柔和光晕与飞白笔触）及多分辨率派生：
+
+- **源图母版（`art-source/brand/`）**：
+  - `game_logo_g2.png`（1376 × 768）：《向西守望》横版水墨题签主标（G2，含「守望」白文朱砂孤印、`WESTWARD WATCH` 与烟岚北塔红丝）
+  - `game_logo_vertical.png`（896 × 1200）：《向西守望》竖版水墨题签主标（适配标题页左侧构图与竖版宣发）
+  - `team_logo_t2_dark.png` / `team_logo_t2_light.png`（1376 × 768）：制作团队「局外人（OUTSIDER）」六边留口暖灯标（T2，暗底开机版 + 冷素宣纸浅底版）
+  - `app_icon_i2_1024.png`（1024 × 1024）：无字 1:1 游戏应用图标母图（I2，暗夜明代北塔剪影 + 斜射西窗暖光 + 冷月红布）
+  - `promo_banner_16x9.png`（1376 × 768）：基于实机 `assets/art/title.png` 与 G2 + T2 合成的 16:9 宣传 / README / B 站封面
+- **多平台图标集（`art-source/brand/icons/`）**：
+  - Windows：`WestwardWatch.ico`（16 / 24 / 32 / 48 / 64 / 128 / 256 多尺寸）
+  - Android：`android/ic_launcher_512.png` 及 `mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher.png`
+  - Web：`web/favicon.ico`、`favicon-32x32.png`、`apple-touch-icon.png`、`icon-192.png`、`icon-512.png`
+- **游戏运行时透明资产（`assets/art/brand/`）**：
+  - `game_logo_h.png`、`game_logo_v.png`、`team_logo_dark.png`、`team_badge.png`（真 Alpha 透明通道，经 `assets.ts` 各向异性过滤加载，用于开机 Splash 与标题页）
+  - `team_logo_light.png`、`app_icon.png`（512 × 512 运行时/跨端通用图标）

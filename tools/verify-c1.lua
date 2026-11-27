@@ -18,6 +18,17 @@ local save = require("Script.watch.save")
 local lualib = package.loaded["Script.Lib.lualib_bundle"] or require("Script.Lib.lualib_bundle")
 
 local PASS, FAIL = 0, 0
+local function towerFinish(p, i)
+	p.player.x = p.ox + 445
+	i.interact.held = true; i.interact.pressed = true
+	p:update(play.STEP, i); i.interact.pressed = false; i.interact.held = false
+	for _ = 1, 40 do p:update(play.STEP, i) end
+	p.player.x = p.ox + 605; p.player.y = 0
+	i.interact.held = true
+	for _ = 1, 40 do p:update(play.STEP, i); i.interact.pressed = false end
+	i.interact.held = false
+	for _ = 1, 200 do p:update(play.STEP, i); i.interact.pressed = false end
+end
 local function say(s) print(s) end
 local function check(tag, cond, detail)
 	if cond then PASS = PASS + 1; say("  PASS " .. tag)
@@ -58,8 +69,7 @@ tower1.storySettled = true
 local i1 = lualib.__TS__New(input.Input)
 local function tap(i, k) local ks = i[k]; ks.held = true; ks.pressed = true end
 local function rel(i, k) local ks = i[k]; ks.held = false; ks.pressed = false; ks.released = false end
-tap(i1, "interact"); tower1:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false
-for _ = 1, 240 do tower1:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false end
+towerFinish(tower1, i1)
 check("单女通关记 child", miss.state.childCleared == true, "child=" .. tostring(miss.state.childCleared))
 check("单女不发神器", miss.state.artifactOwned == false, "artifact=" .. tostring(miss.state.artifactOwned))
 check("结局标脏待落盘", tower1.archiveDirty == true, "dirty=" .. tostring(tower1.archiveDirty))
@@ -83,8 +93,7 @@ r2.story.segments["escort5"] = true
 local tower2 = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, r2)
 tower2.storyRoute = "soldier"
 tower2.storySettled = true
-tap(i1, "interact"); tower2:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false
-for _ = 1, 240 do tower2:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false end
+towerFinish(tower2, i1)
 check("女后男双通", after1.state.childCleared == true and after1.state.soldierCleared == true,
 	"child=" .. tostring(after1.state.childCleared) .. " soldier=" .. tostring(after1.state.soldierCleared))
 check("双通仍不发神器", after1.state.artifactOwned == false)
@@ -149,8 +158,15 @@ r6.story.cp = { id = 0 }
 r6.inventory.wood = 2; r6.taken["e2_wood_a"] = true; r6.finished = true
 local towerEnd = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, r6)
 towerEnd.phase = "tower-end"
+towerEnd.phaseTick = 0
+tap(i1, "interact"); towerEnd:update(play.STEP, i1); i1.interact.pressed = false
+check("片尾满 8 秒前 E 不误跳", towerEnd.wantRoom == "", "want=" .. tostring(towerEnd.wantRoom))
+for _ = 1, play.TOWER_CONFIRM_TICKS do towerEnd:update(play.STEP, i1) end
+check("片尾长按不自动再玩", towerEnd.wantRoom == "", "want=" .. tostring(towerEnd.wantRoom))
+i1.interact.held = false
+towerEnd:update(play.STEP, i1)
 tap(i1, "interact"); towerEnd:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false
-check("片尾按 E 请求回序章", towerEnd.wantRoom == "prologue", "want=" .. towerEnd.wantRoom)
+check("片尾满 8 秒后新按 E 请求回序章", towerEnd.wantRoom == "prologue", "want=" .. towerEnd.wantRoom)
 check("片尾标记重开局内", towerEnd.restartStory == true)
 
 say("== C1-10. 调试直达不写正式通关 ==")
@@ -158,8 +174,7 @@ local dbg = runmod.createRun(20261125, "debug", after3.state)
 dbg.story.route = "soldier"; dbg.story.settled = true; dbg.story.segments["escort5"] = true
 local towerDbg = lualib.__TS__New(play.Play, rooms.TOWER_ROOM, nil, dbg)
 towerDbg.storyRoute = "soldier"; towerDbg.storySettled = true
-tap(i1, "interact"); towerDbg:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false
-for _ = 1, 240 do towerDbg:update(play.STEP, i1); i1.interact.pressed = false; i1.interact.held = false end
+towerFinish(towerDbg, i1)
 check("调试直达仍落幕", dbg.story.ending == "reunion", "ending=" .. tostring(dbg.story.ending))
 check("调试直达不标脏", towerDbg.archiveDirty == false)
 
@@ -169,7 +184,7 @@ save.setSaveFile(TEST_B)
 local bad = save.loadSave()
 check("损坏报告 corrupt", bad.status == "corrupt", "status=" .. bad.status)
 check("损坏回空档案", bad.state.childCleared == false)
-check("损坏保留备份", Content:exist(absOf("watch-save/archive.corrupt.txt")) == true)
+check("损坏保留备份", bad.backup ~= "" and Content:exist(bad.backup) == true, "backup=" .. tostring(bad.backup))
 Content:save(absOf(TEST_B), "version=9\nchildCleared=true\n")
 local future = save.loadSave()
 check("高版本报告 unsupported", future.status == "unsupported", "status=" .. future.status)
