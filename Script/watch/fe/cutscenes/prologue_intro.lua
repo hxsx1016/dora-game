@@ -926,17 +926,17 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 	end -- 971
 	local lidH = h * 0.52 * (1 - eyeOpen) -- 977
 	if lidH > 1 then -- 977
-		uiDraw:drawRect( -- 979
+		ctx.uiMask:drawRect( -- 979
 			Rect(0, h - lidH, w, lidH), -- 979
 			Color(5, 6, 9, 255) -- 979
 		) -- 979
-		uiDraw:drawRect( -- 980
+		ctx.uiMask:drawRect( -- 980
 			Rect(0, 0, w, lidH), -- 980
 			Color(5, 6, 9, 255) -- 980
 		) -- 980
 		local feather = math.min(46, h * 0.08) -- 981
 		fillVGradRect( -- 982
-			uiDraw, -- 982
+			ctx.uiMask, -- 982
 			0, -- 982
 			h - lidH - feather, -- 982
 			w, -- 982
@@ -945,7 +945,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 			Color(5, 6, 9, 235) -- 982
 		) -- 982
 		fillVGradRect( -- 983
-			uiDraw, -- 983
+			ctx.uiMask, -- 983
 			0, -- 983
 			lidH, -- 983
 			w, -- 983
