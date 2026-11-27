@@ -13,7 +13,7 @@
 import { BlendFunc, BlendOp, Color, DrawNode, Node, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { RunState, talentNames } from "Script/watch/run";
-import { AimTargetCandidate, collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/input/aim_assist";
+import { AimTargetCandidate, collectAimTargets, projectMuzzle } from "Script/watch/input/aim_assist";
 import {
     TouchAccent,
     TouchButtonSpec,
@@ -631,24 +631,14 @@ export class TouchControls {
         if (params.enemyTargets !== undefined) {
             enemyTargets = params.enemyTargets;
         } else if (canShoot && router.settings.aimAssist && p !== undefined) {
-            enemyTargets = isPlayMode && params.cam !== undefined
-                ? collectPlayAimTargets(p, params.cam, vp.stageW, vp.stageH)
-                : collectTrialAimTargets(p, vp.stageW, vp.stageH);
+            enemyTargets = collectAimTargets(p, params.cam, vp.stageW, vp.stageH);
         } else {
             enemyTargets = [];
         }
 
-        let playerScreenX = vp.stageW * 0.5;
-        let playerScreenY = vp.stageH * 0.38;
-        if (p !== undefined) {
-            if (isPlayMode && params.cam !== undefined) {
-                playerScreenX = params.cam.sx(p.player.x + p.player.facing * 8);
-                playerScreenY = params.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-            } else {
-                playerScreenX = vp.stageW * 0.45;
-                playerScreenY = vp.stageH * 0.36;
-            }
-        }
+        const muzzle = p !== undefined ? projectMuzzle(p, params.cam) : undefined;
+        const playerScreenX = muzzle?.x ?? vp.stageW * 0.5;
+        const playerScreenY = muzzle?.y ?? vp.stageH * 0.38;
 
         const ctx: TouchFrameContext = {
             viewport: vp,

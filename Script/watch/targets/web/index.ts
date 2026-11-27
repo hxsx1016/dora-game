@@ -6,8 +6,7 @@
  */
 
 import { App, Node } from "Dora";
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
-import { AimTargetCandidate, collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/input/aim_assist";
+import { AimTargetCandidate, collectAimTargets, projectMuzzle } from "Script/watch/input/aim_assist";
 import { GamepadFrameContext, GamepadRawState, GamepadRouter } from "Script/watch/input/gamepad_core";
 import { KbmPoller } from "Script/watch/input/kbm_core";
 import { TouchRouter } from "Script/watch/input/touch_core";
@@ -313,9 +312,7 @@ class WebInputDriver implements TargetInputDriver {
 
         // 单帧仅采集一次敌兵磁吸目标，供触屏与手柄复用
         const enemyTargets: AimTargetCandidate[] = canShoot && this.settings.aimAssist && p !== undefined
-            ? (isPlayMode && ctx.cam !== undefined
-                ? collectPlayAimTargets(p, ctx.cam, vp.stageW, vp.stageH)
-                : collectTrialAimTargets(p, vp.stageW, vp.stageH))
+            ? collectAimTargets(p, ctx.cam, vp.stageW, vp.stageH)
             : [];
 
         if (this.touchControls !== undefined) {
@@ -342,18 +339,9 @@ class WebInputDriver implements TargetInputDriver {
             });
         }
 
-        let playerScreenX = vp.stageW * 0.5;
-        let playerScreenY = vp.stageH * 0.38;
-        if (p !== undefined) {
-            if (isPlayMode && ctx.cam !== undefined) {
-                playerScreenX = ctx.cam.sx(p.player.x + p.player.facing * 8);
-                playerScreenY = ctx.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-            } else {
-                const vz = p.view.zoom > 0 ? p.view.zoom : 1;
-                playerScreenX = vp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
-                playerScreenY = vp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
-            }
-        }
+        const muzzle = p !== undefined ? projectMuzzle(p, ctx.cam) : undefined;
+        const playerScreenX = muzzle?.x ?? vp.stageW * 0.5;
+        const playerScreenY = muzzle?.y ?? vp.stageH * 0.38;
 
         const gpCtx: GamepadFrameContext = {
             stageW: vp.stageW,

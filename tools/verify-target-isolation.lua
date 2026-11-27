@@ -178,7 +178,13 @@ do
 	local t = switchTarget("handheld")
 	local root = Dora.Node()
 	local fe = new(Frontend, root)
+	local prefFile = Path(Content.writablePath, "verify-handheld-legacy-mode.txt")
+	assert(Content:save(prefFile, "modePref=kbm\n"))
+	controlsCfg.setControlSettingsFile(prefFile)
 	local inp = new(Input)
+	controlsCfg.setControlSettingsFile("")
+	Content:remove(prefFile)
+	check("handheld: saved keyboard preference falls back to auto", inp.settings.modePref == "auto")
 	inp:attach(root, {})
 
 	check("handheld: id and capability flags",
@@ -204,6 +210,14 @@ do
 	fe:setStagePlacement(vp32)
 	local p = new(playMod.Play, rooms.STREET_ROOM)
 	fe:bindPlay(p, 1620, 1080)
+	local aim = require("Script.watch.input.aim_assist")
+	local actor = p.player
+	actor.depth = 32
+	local mx, my = actor.x + actor.facing * 8, actor.y + actor.h * 0.72
+	local gray = playMod.worldToScreen(mx, my + actor.depth * require("Script.watch.depth").DEPTH_Y_SCALE, p.cam, p.view)
+	local trialMuzzle, storyMuzzle = aim.projectMuzzle(p, nil), aim.projectMuzzle(p, fe.cam)
+	check("trial muzzle follows Play.draw viewport", trialMuzzle.x == gray.x and trialMuzzle.y == gray.y)
+	check("story muzzle follows sprite camera", storyMuzzle.x == fe.cam:sx(mx) and storyMuzzle.y == fe.cam:sy(my, actor.depth))
 	fe.screen = "play"
 	inp:setModePref("auto")
 	inp:setInputMode("gamepad")

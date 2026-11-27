@@ -3,15 +3,14 @@
  *
  * 严格裁剪与性能优化：
  * - 零键盘/鼠标轮询、零 onKeyDown、零竖屏手机掌机台代码（touch_hud_portrait 不引入、不打包）；
- * - 触屏与手柄每帧共享单次 collectPlayAimTargets 投影（仅在开启磁吸且可射击时采集）；
+ * - 触屏与手柄每帧共享单次 collectAimTargets 投影（仅在开启磁吸且可射击时采集）；
  * - 手柄态自动隐藏横屏触控浮钮（dirty-clear 零空转开销），同时继续支持换弹盘/工台/本领卡/菜单混用触屏；
  * - 保留 Dora Go Back+Start 避让、KTR 3:2/4:3 视野补偿、Xbox/日系布局与 8 向换弹摇杆；
  * - 执器要诀仅含「手柄 / 触屏」两页签；操作模式仅循环「自动 / 手柄 / 触屏」。
  */
 
 import { App, Node } from "Dora";
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
-import { AimTargetCandidate, collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/input/aim_assist";
+import { AimTargetCandidate, collectAimTargets, projectMuzzle } from "Script/watch/input/aim_assist";
 import { GamepadFrameContext, GamepadRawState, GamepadRouter } from "Script/watch/input/gamepad_core";
 import { TouchRouter } from "Script/watch/input/touch_core";
 import { TouchControls } from "Script/watch/input/touch_hud_landscape";
@@ -289,9 +288,7 @@ class HandheldInputDriver implements TargetInputDriver {
 
         // 单帧仅采集一次敌兵磁吸目标，触屏与手柄共享同一数组
         const enemyTargets: AimTargetCandidate[] = canShoot && this.settings.aimAssist && p !== undefined
-            ? (isPlayMode && ctx.cam !== undefined
-                ? collectPlayAimTargets(p, ctx.cam, vp.stageW, vp.stageH)
-                : collectTrialAimTargets(p, vp.stageW, vp.stageH))
+            ? collectAimTargets(p, ctx.cam, vp.stageW, vp.stageH)
             : [];
 
         if (this.touchControls !== undefined) {
@@ -318,18 +315,9 @@ class HandheldInputDriver implements TargetInputDriver {
             });
         }
 
-        let playerScreenX = vp.stageW * 0.5;
-        let playerScreenY = vp.stageH * 0.38;
-        if (p !== undefined) {
-            if (isPlayMode && ctx.cam !== undefined) {
-                playerScreenX = ctx.cam.sx(p.player.x + p.player.facing * 8);
-                playerScreenY = ctx.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-            } else {
-                const vz = p.view.zoom > 0 ? p.view.zoom : 1;
-                playerScreenX = vp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
-                playerScreenY = vp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
-            }
-        }
+        const muzzle = p !== undefined ? projectMuzzle(p, ctx.cam) : undefined;
+        const playerScreenX = muzzle?.x ?? vp.stageW * 0.5;
+        const playerScreenY = muzzle?.y ?? vp.stageH * 0.38;
 
         const gpCtx: GamepadFrameContext = {
             stageW: vp.stageW,
@@ -696,7 +684,7 @@ export const TARGET: TargetRuntime = {
     },
 
     settingsPauseLabel(settings: ControlSettings): string {
-        const pref = settings.modePref === "kbm" ? "auto" : settings.modePref;
+        const pref = settings.modePref;
         return "操控设置 · " + modePrefLabelOf(pref);
     },
 
@@ -710,7 +698,7 @@ export const TARGET: TargetRuntime = {
 
     settingsValueText(rowId: string, settings: ControlSettings, activeMode: InputMode): string {
         if (rowId === "modePref") {
-            const pref = settings.modePref === "kbm" ? "auto" : settings.modePref;
+            const pref = settings.modePref;
             return pref === "auto"
                 ? ("自动切换（" + inputModeLabelOf(activeMode) + "）")
                 : ("锁定 · " + modePrefLabelOf(pref));

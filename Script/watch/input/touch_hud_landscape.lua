@@ -14,8 +14,8 @@ local Vec2 = ____Dora.Vec2 -- 13
 local ____run = require("Script.watch.run") -- 15
 local talentNames = ____run.talentNames -- 15
 local ____aim_assist = require("Script.watch.input.aim_assist") -- 16
-local collectPlayAimTargets = ____aim_assist.collectPlayAimTargets -- 16
-local collectTrialAimTargets = ____aim_assist.collectTrialAimTargets -- 16
+local collectAimTargets = ____aim_assist.collectAimTargets -- 16
+local projectMuzzle = ____aim_assist.projectMuzzle -- 16
 local ____touch_interact_meta = require("Script.watch.input.touch_interact_meta") -- 24
 local deriveInteractActionMeta = ____touch_interact_meta.deriveInteractActionMeta -- 24
 local ____adapter = require("Script.watch.fe.adapter") -- 26
@@ -39,40 +39,40 @@ local TWO_PI = math.pi * 2 -- 45
 local HALF_PI = math.pi * 0.5 -- 46
 local STICK_BASE_R_LANDSCAPE = 64 -- 47
 local function accentPalette(accent) -- 70
-	if accent == "cyan" then -- 71
+	if accent == "cyan" then -- 70
 		return PALETTE.cyan -- 71
 	end -- 71
-	if accent == "amber" then -- 72
+	if accent == "amber" then -- 71
 		return PALETTE.amber -- 72
 	end -- 72
-	if accent == "rouge" then -- 73
+	if accent == "rouge" then -- 72
 		return PALETTE.rouge -- 73
 	end -- 73
-	if accent == "emerald" then -- 74
+	if accent == "emerald" then -- 73
 		return PALETTE.emerald -- 74
 	end -- 74
 	return PALETTE.silkLine -- 75
 end -- 70
 local function accentCore(accent) -- 78
-	if accent == "cyan" then -- 79
+	if accent == "cyan" then -- 78
 		return PALETTE.cyanCore -- 79
 	end -- 79
-	if accent == "amber" then -- 80
+	if accent == "amber" then -- 79
 		return PALETTE.amberCore -- 80
 	end -- 80
-	if accent == "rouge" then -- 81
+	if accent == "rouge" then -- 80
 		return PALETTE.crimsonCore -- 81
 	end -- 81
-	if accent == "emerald" then -- 82
+	if accent == "emerald" then -- 81
 		return PALETTE.emerald -- 82
 	end -- 82
 	return PALETTE.textBright -- 83
 end -- 78
 local function drawRingArc(draw, cx, cy, r, startRad, sweepRad, thickness, color, segments) -- 86
-	if segments == nil then -- 95
+	if segments == nil then -- 86
 		segments = 28 -- 95
 	end -- 95
-	if r <= 1 or math.abs(sweepRad) <= 0.001 then -- 97
+	if r <= 1 or math.abs(sweepRad) <= 0.001 then -- 95
 		return -- 97
 	end -- 97
 	local n = math.max( -- 98
@@ -104,10 +104,10 @@ local function drawRingArc(draw, cx, cy, r, startRad, sweepRad, thickness, color
 	end -- 102
 end -- 86
 local function fillCirclePoly(draw, cx, cy, r, fill, borderWidth, borderColor, segments) -- 112
-	if borderWidth == nil then -- 118
+	if borderWidth == nil then -- 112
 		borderWidth = 0 -- 118
 	end -- 118
-	if segments == nil then -- 120
+	if segments == nil then -- 118
 		segments = 26 -- 120
 	end -- 120
 	local pts = {} -- 122
@@ -123,14 +123,14 @@ local function fillCirclePoly(draw, cx, cy, r, fill, borderWidth, borderColor, s
 			i = i + 1 -- 124
 		end -- 124
 	end -- 124
-	if borderWidth > 0 and borderColor ~= nil then -- 128
+	if borderWidth > 0 and borderColor ~= nil then -- 124
 		draw:drawPolygon(pts, fill, borderWidth, borderColor) -- 129
 	else -- 129
 		draw:drawPolygon(pts, fill) -- 131
 	end -- 131
 end -- 112
 local function isNearLowLedgeForButton(p) -- 135
-	if p.childMode then -- 136
+	if p.childMode then -- 135
 		return false -- 136
 	end -- 136
 	local a = p.player -- 137
@@ -141,11 +141,11 @@ local function isNearLowLedgeForButton(p) -- 135
 		while i < #p.boxes do -- 140
 			do -- 140
 				local b = p.boxes[i + 1] -- 141
-				if b.broken == true or b.hidden == true then -- 142
+				if b.broken == true or b.hidden == true then -- 141
 					goto __continue24 -- 142
 				end -- 142
 				local h = b.y1 - b.y0 -- 143
-				if h >= 24 and h <= 62 and probeX >= b.x0 - 16 and probeX <= b.x1 + 16 and math.abs(a.y - b.y0) <= 14 then -- 144
+				if h >= 24 and h <= 62 and probeX >= b.x0 - 16 and probeX <= b.x1 + 16 and math.abs(a.y - b.y0) <= 14 then -- 143
 					return true -- 146
 				end -- 146
 			end -- 146
@@ -157,7 +157,7 @@ local function isNearLowLedgeForButton(p) -- 135
 end -- 135
 local function isInLowArch(p) -- 152
 	local arch = p.room.arch -- 153
-	if arch.h <= 0 then -- 154
+	if arch.h <= 0 then -- 153
 		return false -- 154
 	end -- 154
 	return p.player.x >= arch.x0 - 10 and p.player.x <= arch.x1 + 10 and p.player.y <= arch.y + arch.h -- 155
@@ -174,7 +174,7 @@ function TouchControls.prototype.____constructor(self, parent, portraitDelegate)
 	self.overlayRoot = Node() -- 179
 	self.overlayRoot.order = 60 -- 180
 	self.overlayRoot:addTo(parent) -- 181
-	if portraitDelegate ~= nil then -- 183
+	if portraitDelegate ~= nil then -- 181
 		local deck = DrawNode() -- 184
 		deck.order = 0 -- 185
 		deck:addTo(self.overlayRoot) -- 186
@@ -200,7 +200,7 @@ end -- 210
 function TouchControls.prototype.getLayoutSummary(self, router) -- 214
 	local buttonIds = {} -- 224
 	local zoneIds = {} -- 225
-	if self.lastContext ~= nil then -- 226
+	if self.lastContext ~= nil then -- 225
 		local i = 0 -- 227
 		do -- 227
 			i = 0 -- 228
@@ -292,7 +292,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 	local isPlayMode = params.mode == 1 and params.screen == "play" and p ~= nil -- 270
 	local isTrialMode = params.mode == 2 and p ~= nil -- 271
 	local gameplayActive = isPlayMode or isTrialMode -- 272
-	local ____opt_8 = params.run -- 274
+	local ____opt_8 = params.run -- 272
 	local trial = ____opt_8 and ____opt_8.trial -- 274
 	local ____temp_13 = isTrialMode and trial ~= nil -- 275
 	if ____temp_13 then -- 275
@@ -327,15 +327,15 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 		safeL, -- 298
 		safeB, -- 298
 		sc -- 298
-	) or nil -- 299
+	) or nil -- 298
 	local stickMaxR = pGeom ~= nil and pGeom.stickMaxR or STICK_BASE_R_LANDSCAPE * sc -- 300
 	local stickDefaultX = pGeom ~= nil and pGeom.stickDefaultX or safeL + 126 * sc -- 301
 	local stickDefaultY = pGeom ~= nil and pGeom.stickDefaultY or safeB + 126 * sc -- 302
 	local stickZoneMaxX = pGeom ~= nil and pGeom.stickZoneMaxX or ovW * 0.46 -- 303
 	local stickZoneMaxY = pGeom ~= nil and pGeom.stickZoneMaxY or ovH - 110 -- 304
 	local bottleCancelCenter = {x = ovW - safeR - 106 * sc, y = safeB + 124 * sc, r = 44 * sc} -- 306
-	if overlayActive then -- 309
-		if isPortrait and pDel ~= nil then -- 310
+	if overlayActive then -- 306
+		if isPortrait and pDel ~= nil then -- 306
 			pDel:pushTopButtons( -- 311
 				buttons, -- 312
 				vp, -- 312
@@ -348,7 +348,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 				params.isFullscreen, -- 313
 				params.canToggleFullscreen -- 313
 			) -- 313
-		elseif isPlayMode and not modal then -- 315
+		elseif isPlayMode and not modal then -- 313
 			local px = ovW - safeR - 112 -- 316
 			local py = ovH - safeT - 66 -- 317
 			buttons[#buttons + 1] = { -- 318
@@ -365,7 +365,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 				progress = 0, -- 329
 				dimmed = false -- 330
 			} -- 330
-			if params.showWebTopPills then -- 332
+			if params.showWebTopPills then -- 330
 				local mw = 58 -- 333
 				local mx = px - mw - 10 -- 334
 				buttons[#buttons + 1] = { -- 335
@@ -382,7 +382,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 					progress = 0, -- 346
 					dimmed = false -- 347
 				} -- 347
-				if params.canToggleFullscreen then -- 349
+				if params.canToggleFullscreen then -- 347
 					local fw = 58 -- 350
 					local fx = mx - fw - 8 -- 351
 					buttons[#buttons + 1] = { -- 352
@@ -403,7 +403,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			end -- 364
 		end -- 364
 	end -- 364
-	if isPortrait and pDel ~= nil and overlayActive and params.screen ~= "splash" and (not gameplayActive or isPlayMode and p ~= nil and p.paused) then -- 372
+	if isPortrait and pDel ~= nil and overlayActive and params.screen ~= "splash" and (not gameplayActive or isPlayMode and p ~= nil and p.paused) then -- 364
 		pDel:pushMenuNavButtons( -- 374
 			buttons, -- 374
 			vp, -- 374
@@ -414,8 +414,8 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 		) -- 374
 	end -- 374
 	local prompt -- 378
-	if isPlayMode and p ~= nil and not modal and not cutsceneBlocking then -- 379
-		if #params.storyTalentBoxes > 0 then -- 380
+	if isPlayMode and p ~= nil and not modal and not cutsceneBlocking then -- 378
+		if #params.storyTalentBoxes > 0 then -- 378
 			local ti = 0 -- 381
 			do -- 381
 				ti = 0 -- 382
@@ -434,7 +434,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			end -- 382
 		end -- 382
 		prompt = deriveWorldPrompt(p) -- 400
-		if prompt ~= nil and (string.find(prompt.keyTag, "E", nil, true) or 0) - 1 >= 0 and params.cam ~= nil and params.assistHintsEnabled then -- 401
+		if prompt ~= nil and (string.find(prompt.keyTag, "E", nil, true) or 0) - 1 >= 0 and params.cam ~= nil and params.assistHintsEnabled then -- 400
 			local keyW = math.max( -- 403
 				24, -- 403
 				visualTextWidth(prompt.keyTag, 15) + 16 -- 403
@@ -464,7 +464,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			} -- 413
 		end -- 413
 	end -- 413
-	if isPlayMode and p ~= nil and not p.paused and overlayActive and not isPortrait and p.room.key == "tower" and p.phase == "tower-end" and p:towerEndReady() then -- 423
+	if isPlayMode and p ~= nil and not p.paused and overlayActive and not isPortrait and p.room.key == "tower" and p.phase == "tower-end" and p:towerEndReady() then -- 413
 		local cx = ovW * 0.5 -- 425
 		local cy = safeB + 46 -- 426
 		buttons[#buttons + 1] = { -- 427
@@ -482,14 +482,14 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			dimmed = false -- 439
 		} -- 439
 	end -- 439
-	if isTrialMode and p ~= nil and overlayActive then -- 443
-		if p.paused or trialEnded then -- 444
+	if isTrialMode and p ~= nil and overlayActive then -- 439
+		if p.paused or trialEnded then -- 439
 			local cx = ovW * 0.5 -- 445
 			local cy = isPortrait and math.max(safeB + 110, vp.deckH * 0.52) or ovH * 0.48 -- 446
 			local bw = isPortrait and math.min(220, ovW * 0.62) or 240 -- 447
 			local bh = isPortrait and 44 or 50 -- 448
 			local step = bh + 14 -- 449
-			if p.paused and not trialEnded then -- 450
+			if p.paused and not trialEnded then -- 449
 				rectZones[#rectZones + 1] = { -- 451
 					id = "trial:resume", -- 451
 					rect = Rect(cx - bw * 0.5, cy + step * 0.8, bw, bh) -- 451
@@ -503,7 +503,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 				id = "trial:title", -- 454
 				rect = Rect(cx - bw * 0.5, cy - step * 1.2, bw, bh) -- 454
 			} -- 454
-		elseif trialHasOffers and trial ~= nil then -- 455
+		elseif trialHasOffers and trial ~= nil then -- 454
 			local count = #trial.offers -- 456
 			local cardW = isPortrait and math.min( -- 457
 				114, -- 457
@@ -525,13 +525,13 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 					i = i + 1 -- 464
 				end -- 464
 			end -- 464
-			if not isPortrait then -- 470
+			if not isPortrait then -- 464
 				rectZones[#rectZones + 1] = { -- 471
 					id = "pause", -- 471
 					rect = Rect(ovW - safeR - 108, ovH - safeT - 64, 92, 46) -- 471
 				} -- 471
 			end -- 471
-		elseif not isPortrait then -- 473
+		elseif not isPortrait then -- 471
 			rectZones[#rectZones + 1] = { -- 474
 				id = "pause", -- 474
 				rect = Rect(ovW - safeR - 108, ovH - safeT - 64, 92, 46) -- 474
@@ -542,7 +542,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			} -- 475
 		end -- 475
 	end -- 475
-	if overlayActive and gameplayActive and p ~= nil and not modal and not cutsceneBlocking then -- 480
+	if overlayActive and gameplayActive and p ~= nil and not modal and not cutsceneBlocking then -- 475
 		local interactMeta = deriveInteractActionMeta( -- 481
 			p, -- 481
 			prompt or deriveWorldPrompt(p), -- 481
@@ -550,7 +550,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			router.cartGripLatched -- 481
 		) -- 481
 		local nearLedge = isNearLowLedgeForButton(p) -- 482
-		if isPortrait and pDel ~= nil and pGeom ~= nil then -- 484
+		if isPortrait and pDel ~= nil and pGeom ~= nil then -- 482
 			bottleCancelCenter = pDel:pushActionButtons( -- 485
 				buttons, -- 486
 				vp, -- 486
@@ -570,7 +570,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 			local rightX = ovW - safeR - 92 * sc -- 490
 			local bottomY = safeB + 110 * sc -- 491
 			bottleCancelCenter = {x = rightX - 186 * sc, y = bottomY + 126 * sc, r = 42 * sc} -- 492
-			if not p.childMode then -- 494
+			if not p.childMode then -- 492
 				buttons[#buttons + 1] = { -- 495
 					id = "fire", -- 496
 					x = rightX, -- 497
@@ -621,7 +621,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 					progress = interactMeta.progress, -- 542
 					dimmed = not interactMeta.available -- 543
 				} -- 543
-				if isPlayMode and p.archive.artifactOwned then -- 545
+				if isPlayMode and p.archive.artifactOwned then -- 543
 					local eq = p.equippedWeapon == "time_shuttler" -- 546
 					buttons[#buttons + 1] = { -- 547
 						id = "artifact", -- 548
@@ -686,7 +686,7 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 					progress = interactMeta.progress, -- 607
 					dimmed = not interactMeta.available -- 608
 				} -- 608
-				if canBottleAim then -- 610
+				if canBottleAim then -- 608
 					buttons[#buttons + 1] = { -- 611
 						id = "bottle", -- 612
 						x = rightX - 114 * sc, -- 613
@@ -705,604 +705,596 @@ function TouchControls.prototype.syncContext(self, params) -- 247
 		end -- 622
 	end -- 622
 	local enemyTargets -- 630
-	if params.enemyTargets ~= nil then -- 631
+	if params.enemyTargets ~= nil then -- 630
 		enemyTargets = params.enemyTargets -- 632
-	elseif canShoot and router.settings.aimAssist and p ~= nil then -- 633
-		enemyTargets = isPlayMode and params.cam ~= nil and collectPlayAimTargets(p, params.cam, vp.stageW, vp.stageH) or collectTrialAimTargets(p, vp.stageW, vp.stageH) -- 634
+	elseif canShoot and router.settings.aimAssist and p ~= nil then -- 632
+		enemyTargets = collectAimTargets(p, params.cam, vp.stageW, vp.stageH) -- 634
 	else -- 634
-		enemyTargets = {} -- 638
-	end -- 638
-	local playerScreenX = vp.stageW * 0.5 -- 641
-	local playerScreenY = vp.stageH * 0.38 -- 642
-	if p ~= nil then -- 643
-		if isPlayMode and params.cam ~= nil then -- 644
-			playerScreenX = params.cam:sx(p.player.x + p.player.facing * 8) -- 645
-			playerScreenY = params.cam:sy(p.player.y + p.player.h * 0.72, p.player.depth) -- 646
-		else -- 646
-			playerScreenX = vp.stageW * 0.45 -- 648
-			playerScreenY = vp.stageH * 0.36 -- 649
-		end -- 649
-	end -- 649
-	local ctx = { -- 653
-		viewport = vp, -- 654
-		overlayScale = overlayScale, -- 655
-		overlayActive = overlayActive, -- 656
-		allowAutoGameplayTouch = params.allowAutoGameplayTouch, -- 657
-		allowMouseOnOverlay = params.allowMouseOnOverlay, -- 658
-		modal = modal, -- 659
-		gameplayActive = gameplayActive, -- 660
-		cutsceneBlocking = cutsceneBlocking, -- 661
-		childMode = p ~= nil and p.childMode, -- 662
-		allowDepth = allowDepth, -- 663
-		canShoot = canShoot, -- 664
-		canBottleAim = canBottleAim, -- 665
-		cartNearby = cartNearby, -- 666
-		cartGripping = p ~= nil and p.gripping, -- 667
-		cartUsesToggle = p ~= nil and p.room.key == "c2-granary", -- 668
-		coverNear = p ~= nil and p.coverNear, -- 669
-		playerRolling = p ~= nil and p.player.rollT > 0, -- 670
-		inLowArch = p ~= nil and isInLowArch(p), -- 671
-		inTowerEnd = isPlayMode and p ~= nil and p.room.key == "tower" and p.phase == "tower-end", -- 672
-		playerFacing = p ~= nil and p.player.facing or 1, -- 673
-		playerScreenX = playerScreenX, -- 674
-		playerScreenY = playerScreenY, -- 675
-		enemyTargets = enemyTargets, -- 676
-		stickZoneMaxX = stickZoneMaxX, -- 677
-		stickZoneMaxY = stickZoneMaxY, -- 678
-		stickDefaultX = stickDefaultX, -- 679
-		stickDefaultY = stickDefaultY, -- 680
-		stickMaxR = stickMaxR, -- 681
-		stickFixedOrigin = isPortrait, -- 682
-		buttons = buttons, -- 683
-		rectZones = rectZones, -- 684
-		bottleCancelCenter = bottleCancelCenter -- 685
-	} -- 685
-	self.lastContext = ctx -- 688
-	router:setFrameContext(ctx, params.dt) -- 689
-	return ctx -- 690
+		enemyTargets = {} -- 636
+	end -- 636
+	local muzzle = p ~= nil and projectMuzzle(p, params.cam) or nil -- 639
+	local playerScreenX = muzzle and muzzle.x or vp.stageW * 0.5 -- 640
+	local playerScreenY = muzzle and muzzle.y or vp.stageH * 0.38 -- 641
+	local ctx = { -- 643
+		viewport = vp, -- 644
+		overlayScale = overlayScale, -- 645
+		overlayActive = overlayActive, -- 646
+		allowAutoGameplayTouch = params.allowAutoGameplayTouch, -- 647
+		allowMouseOnOverlay = params.allowMouseOnOverlay, -- 648
+		modal = modal, -- 649
+		gameplayActive = gameplayActive, -- 650
+		cutsceneBlocking = cutsceneBlocking, -- 651
+		childMode = p ~= nil and p.childMode, -- 652
+		allowDepth = allowDepth, -- 653
+		canShoot = canShoot, -- 654
+		canBottleAim = canBottleAim, -- 655
+		cartNearby = cartNearby, -- 656
+		cartGripping = p ~= nil and p.gripping, -- 657
+		cartUsesToggle = p ~= nil and p.room.key == "c2-granary", -- 658
+		coverNear = p ~= nil and p.coverNear, -- 659
+		playerRolling = p ~= nil and p.player.rollT > 0, -- 660
+		inLowArch = p ~= nil and isInLowArch(p), -- 661
+		inTowerEnd = isPlayMode and p ~= nil and p.room.key == "tower" and p.phase == "tower-end", -- 662
+		playerFacing = p ~= nil and p.player.facing or 1, -- 663
+		playerScreenX = playerScreenX, -- 664
+		playerScreenY = playerScreenY, -- 665
+		enemyTargets = enemyTargets, -- 666
+		stickZoneMaxX = stickZoneMaxX, -- 667
+		stickZoneMaxY = stickZoneMaxY, -- 668
+		stickDefaultX = stickDefaultX, -- 669
+		stickDefaultY = stickDefaultY, -- 670
+		stickMaxR = stickMaxR, -- 671
+		stickFixedOrigin = isPortrait, -- 672
+		buttons = buttons, -- 673
+		rectZones = rectZones, -- 674
+		bottleCancelCenter = bottleCancelCenter -- 675
+	} -- 675
+	self.lastContext = ctx -- 678
+	router:setFrameContext(ctx, params.dt) -- 679
+	return ctx -- 680
 end -- 247
-function TouchControls.prototype.render(self, router) -- 693
-	local ctx = self.lastContext -- 694
-	local pDel = self.portraitDelegate -- 695
-	local portraitVisible = pDel ~= nil and ctx ~= nil and ctx.viewport.isPortrait -- 696
-	local visible = ctx ~= nil and (ctx.overlayActive or portraitVisible) -- 697
-	if not visible then -- 699
-		if not self.hasDrawn then -- 700
-			return -- 701
-		end -- 701
-		local ____opt_15 = self.deckDraw -- 703
-		if ____opt_15 ~= nil then -- 703
-			____opt_15:clear() -- 703
-		end -- 703
-		self.padDraw:clear() -- 704
-		self.padInkDraw:clear() -- 705
-		self.padGlow:clear() -- 706
-		self.padArt:beginFrame() -- 707
-		self.padArt:endFrame() -- 708
-		self.texts:hideAll() -- 709
-		self.hasDrawn = false -- 710
-		return -- 711
-	end -- 711
-	self.hasDrawn = true -- 714
-	local ____opt_17 = self.deckDraw -- 715
-	if ____opt_17 ~= nil then -- 715
-		____opt_17:clear() -- 715
-	end -- 715
-	self.padDraw:clear() -- 716
-	self.padInkDraw:clear() -- 717
-	self.padGlow:clear() -- 718
-	self.padArt:beginFrame() -- 719
-	self.texts:beginFrame() -- 720
-	local vp = ctx.viewport -- 722
-	local sc = math.max(0.25, ctx.overlayScale) -- 723
-	self.overlayRoot.scaleX = sc -- 724
-	self.overlayRoot.scaleY = sc -- 725
-	local ovW = vp.fullW / sc -- 727
-	local ovH = vp.fullH / sc -- 728
-	local baseAlpha = router.settings.touchOpacity -- 729
-	if portraitVisible and pDel ~= nil and self.deckDraw ~= nil then -- 731
-		pDel:drawFrame( -- 732
-			self.deckDraw, -- 732
-			self.padInkDraw, -- 732
-			self.texts, -- 732
-			ctx, -- 732
-			self.lastPlay, -- 732
-			ovW, -- 732
-			ovH -- 732
-		) -- 732
-	end -- 732
-	if not ctx.overlayActive then -- 735
-		self.padArt:endFrame() -- 736
-		self.texts:endFrame() -- 737
-		return -- 738
-	end -- 738
-	if ctx.cutsceneBlocking and ctx.inTowerEnd and not ctx.modal then -- 741
-		local rx = ovW * 0.5 -- 742
-		local ry = portraitVisible and math.max(vp.safe.bottom + 54, vp.deckH * 0.5) or vp.safe.bottom / sc + 54 -- 743
-		drawSilkVeil( -- 744
-			self.padDraw, -- 744
-			self.padArt, -- 744
-			"touch_restart_veil", -- 744
-			rx, -- 744
-			ry, -- 744
-			230, -- 744
-			36, -- 744
-			PALETTE.inkWash, -- 744
-			0.78 * baseAlpha, -- 744
-			1 -- 744
-		) -- 744
-		drawHairline( -- 745
-			self.padInkDraw, -- 745
-			self.padArt, -- 745
-			"touch_restart_line", -- 745
-			rx, -- 745
-			ry + 16, -- 745
-			180, -- 745
-			PALETTE.amber, -- 745
-			0.52 * baseAlpha, -- 745
-			true, -- 745
-			2 -- 745
-		) -- 745
-		self.texts:put( -- 746
-			"xs", -- 746
-			"轻触屏幕再次启程", -- 746
-			rx, -- 746
-			ry, -- 746
-			toColor(PALETTE.amberCore), -- 746
-			0.5, -- 746
-			0.5, -- 746
-			"Center", -- 746
-			1.6, -- 746
-			0.94, -- 746
-			0.08 -- 746
-		) -- 746
-	end -- 746
-	if self.lastMode == 2 and self.lastPlay ~= nil then -- 749
-		self:drawTrialZones(ctx, baseAlpha) -- 750
-	end -- 750
-	if ctx.gameplayActive and not ctx.modal and not ctx.cutsceneBlocking then -- 753
-		self:drawStick(router, ctx, baseAlpha) -- 754
-	end -- 754
-	self:drawButtons(router, ctx, baseAlpha) -- 757
-	local bottleDrag = router:getBottleDragVisual() -- 759
-	if bottleDrag.active then -- 760
-		local cx = bottleDrag.cancelX -- 761
-		local cy = bottleDrag.cancelY -- 762
-		local cr = bottleDrag.cancelR -- 763
-		local hot = bottleDrag.cancelHover -- 764
-		fillCirclePoly( -- 765
-			self.padDraw, -- 766
-			cx, -- 767
-			cy, -- 768
-			cr, -- 769
-			toColor(hot and PALETTE.crimsonDeep or PALETTE.inkWash, hot and 225 or 175), -- 770
-			0, -- 771
-			nil, -- 772
-			22 -- 773
-		) -- 773
-		drawRingArc( -- 775
-			self.padInkDraw, -- 775
-			cx, -- 775
-			cy, -- 775
-			cr, -- 775
-			0, -- 775
-			TWO_PI, -- 775
-			hot and 2.2 or 1.3, -- 775
-			toColor(hot and PALETTE.crimsonCore or PALETTE.rouge, hot and 245 or 185), -- 775
-			22 -- 775
-		) -- 775
-		self.texts:put( -- 776
-			"xs", -- 776
-			hot and "松手取消" or "拖此取消", -- 776
-			cx, -- 776
-			cy, -- 776
-			toColor(hot and PALETTE.crimsonCore or PALETTE.textBright), -- 776
-			0.5, -- 776
-			0.5, -- 776
-			"Center", -- 776
-			0.8, -- 776
-			0.96, -- 776
-			0.08 -- 776
-		) -- 776
-	end -- 776
-	self.padArt:endFrame() -- 779
-	self.texts:endFrame() -- 780
-end -- 693
-function TouchControls.prototype.drawStick(self, router, ctx, baseAlpha) -- 783
-	local stick = router:getStickVisual() -- 784
-	local stickAlpha = stick.active and math.min(1, baseAlpha + 0.16) or (ctx.viewport.isPortrait and math.min(0.95, baseAlpha * 0.92) or baseAlpha * 0.72) -- 785
-	local ringCol = stick.active and PALETTE.textBright or PALETTE.silkDim -- 788
-	fillCirclePoly( -- 790
-		self.padDraw, -- 791
-		stick.originX, -- 792
-		stick.originY, -- 793
-		stick.radius, -- 794
-		toColor(PALETTE.inkWash, (stick.active and 118 or 78) * stickAlpha), -- 795
-		0, -- 796
-		nil, -- 797
-		28 -- 798
-	) -- 798
-	drawRingArc( -- 800
-		self.padInkDraw, -- 800
-		stick.originX, -- 800
-		stick.originY, -- 800
-		stick.radius, -- 800
-		0, -- 800
-		TWO_PI, -- 800
-		stick.active and 1.5 or 1, -- 800
-		toColor(ringCol, 168 * stickAlpha), -- 800
-		28 -- 800
-	) -- 800
-	if stick.allowDepth then -- 802
-		local dOff = stick.radius - 10 -- 803
-		self.padInkDraw:drawDot( -- 804
-			Vec2(stick.originX, stick.originY + dOff), -- 804
-			2.1, -- 804
-			toColor(PALETTE.cyan, 155 * stickAlpha) -- 804
-		) -- 804
-		self.padInkDraw:drawDot( -- 805
-			Vec2(stick.originX, stick.originY - dOff), -- 805
-			2.1, -- 805
-			toColor(PALETTE.cyan, 155 * stickAlpha) -- 805
-		) -- 805
-		self.padInkDraw:drawDot( -- 806
-			Vec2(stick.originX - dOff, stick.originY), -- 806
-			2.1, -- 806
-			toColor(PALETTE.silkLine, 145 * stickAlpha) -- 806
-		) -- 806
-		self.padInkDraw:drawDot( -- 807
-			Vec2(stick.originX + dOff, stick.originY), -- 807
-			2.1, -- 807
-			toColor(PALETTE.silkLine, 145 * stickAlpha) -- 807
-		) -- 807
-	elseif ctx.childMode then -- 808
-		drawRingArc( -- 809
-			self.padInkDraw, -- 810
-			stick.originX, -- 811
-			stick.originY, -- 812
-			stick.radius * 0.56, -- 813
-			0, -- 814
-			TWO_PI, -- 815
-			0.9, -- 816
-			toColor(stick.slowZone and PALETTE.emerald or PALETTE.silkDim, (stick.slowZone and 210 or 95) * stickAlpha), -- 817
-			20 -- 818
-		) -- 818
-	end -- 818
-	local knobR = math.max(16, stick.radius * 0.36) -- 822
-	local knobAccent = stick.slowZone and PALETTE.emerald or (ctx.childMode and PALETTE.amber or PALETTE.cyan) -- 823
-	if stick.active then -- 824
-		fillRadialGlow( -- 825
-			self.padGlow, -- 825
-			stick.knobX, -- 825
-			stick.knobY, -- 825
-			knobR * 1.45, -- 825
-			knobR * 1.45, -- 825
-			toColor(knobAccent, 48 * stickAlpha), -- 825
-			Color(0, 0, 0, 0), -- 825
-			12 -- 825
-		) -- 825
-	end -- 825
-	fillCirclePoly( -- 827
-		self.padDraw, -- 828
-		stick.knobX, -- 829
-		stick.knobY, -- 830
-		knobR, -- 831
-		toColor(PALETTE.panelBgDeep, (stick.active and 215 or 155) * stickAlpha), -- 832
-		1.3, -- 833
-		toColor(stick.active and knobAccent or PALETTE.silkLine, 210 * stickAlpha), -- 834
-		22 -- 835
-	) -- 835
-	drawBlossomDot( -- 837
-		self.padInkDraw, -- 837
-		self.padArt, -- 837
-		"touch_stick_dot", -- 837
-		stick.knobX, -- 837
-		stick.knobY, -- 837
-		stick.active and 11 or 7, -- 837
-		knobAccent, -- 837
-		0.85 * stickAlpha, -- 837
-		4 -- 837
-	) -- 837
-	if stick.slowZone then -- 838
-		self.texts:put( -- 839
-			"xs", -- 839
-			"轻步", -- 839
-			stick.originX, -- 839
-			stick.originY + stick.radius + 14, -- 839
-			toColor(PALETTE.emerald), -- 839
-			0.5, -- 839
-			0.5, -- 839
-			"Center", -- 839
-			1, -- 839
-			0.9, -- 839
-			0.08 -- 839
-		) -- 839
-	end -- 839
-end -- 783
-function TouchControls.prototype.drawButtons(self, router, ctx, baseAlpha) -- 843
-	local bottleDrag = router:getBottleDragVisual() -- 844
-	local fireStick = router:getFireStickVisual() -- 845
-	local fontKind = ctx.viewport.isPortrait and "xs" or "sm" -- 846
-	local i = 0 -- 848
-	do -- 848
-		i = 0 -- 849
-		while i < #ctx.buttons do -- 849
-			do -- 849
-				local b = ctx.buttons[i + 1] -- 850
-				local bAlpha = baseAlpha * (b.dimmed and 0.42 or ((b.active or b.highlighted) and 1 or 0.84)) -- 851
-				if bottleDrag.active and b.id ~= "bottle" and b.shape ~= "pill" then -- 852
-					bAlpha = bAlpha * 0.25 -- 853
-				end -- 853
-				local col = accentPalette(b.accent) -- 855
-				local core = accentCore(b.accent) -- 856
-				local breathe = b.highlighted and 0.86 + 0.14 * math.sin(self.time * 4.2) or 1 -- 857
-				if b.shape == "pill" and b.rect ~= nil then -- 859
-					local r = b.rect -- 860
-					local fillCol = b.active and toColor(col, 110 * bAlpha) or toColor(PALETTE.inkWash, 175 * bAlpha) -- 861
-					self.padDraw:drawRoundedRect( -- 864
-						r, -- 865
-						6, -- 866
-						fillCol, -- 867
-						b.active and 1.4 or 1, -- 868
-						toColor((b.active or b.highlighted) and col or PALETTE.silkLine, 200 * bAlpha) -- 869
-					) -- 869
-					if b.id == "pause" and not ctx.viewport.isPortrait then -- 871
-						local icX = r.x + 22 -- 872
-						local icY = r.y + r.height * 0.5 -- 873
-						drawRingArc( -- 874
-							self.padInkDraw, -- 874
-							icX, -- 874
-							icY, -- 874
-							9, -- 874
-							0, -- 874
-							TWO_PI, -- 874
-							1, -- 874
-							toColor(PALETTE.silkLine, 175 * bAlpha), -- 874
-							16 -- 874
-						) -- 874
-						self.padInkDraw:drawSegment( -- 875
-							Vec2(icX - 2.6, icY - 3.6), -- 875
-							Vec2(icX - 2.6, icY + 3.6), -- 875
-							1.5, -- 875
-							toColor(PALETTE.textBright, 225 * bAlpha) -- 875
-						) -- 875
-						self.padInkDraw:drawSegment( -- 876
-							Vec2(icX + 2.6, icY - 3.6), -- 876
-							Vec2(icX + 2.6, icY + 3.6), -- 876
-							1.5, -- 876
-							toColor(PALETTE.textBright, 225 * bAlpha) -- 876
-						) -- 876
-						self.texts:put( -- 877
-							"xs", -- 877
-							b.label, -- 877
-							r.x + r.width * 0.5 + 10, -- 877
-							icY, -- 877
-							toColor(PALETTE.textBright), -- 877
-							0.5, -- 877
-							0.5, -- 877
-							"Center", -- 877
-							1, -- 877
-							0.94 * bAlpha, -- 877
-							0.08 -- 877
-						) -- 877
-					else -- 877
-						if b.toggle and b.active then -- 879
-							drawDiamond( -- 880
-								self.padInkDraw, -- 880
-								r.x + 11, -- 880
-								r.y + r.height * 0.5, -- 880
-								3.8, -- 880
-								3.8, -- 880
-								toColor(col, 235) -- 880
-							) -- 880
-						end -- 880
-						self.texts:put( -- 882
-							"xs", -- 883
-							b.label, -- 884
-							r.x + r.width * 0.5 + (b.toggle and b.active and 4 or 0), -- 885
-							r.y + r.height * 0.5, -- 886
-							toColor(b.active and core or PALETTE.textBright), -- 887
-							0.5, -- 888
-							0.5, -- 889
-							"Center", -- 890
-							0.6, -- 891
-							math.min(1, bAlpha + 0.08), -- 892
-							0.08 -- 893
-						) -- 893
-					end -- 893
-					goto __continue88 -- 896
-				end -- 896
-				if b.active or b.highlighted then -- 899
-					fillRadialGlow( -- 900
-						self.padGlow, -- 901
-						b.x, -- 902
-						b.y, -- 903
-						b.r * 1.38, -- 904
-						b.r * 1.38, -- 905
-						toColor(col, (b.active and 64 or 36) * bAlpha * breathe), -- 906
-						Color(col.r, col.g, col.b, 0), -- 907
-						12 -- 908
-					) -- 908
-				end -- 908
-				fillCirclePoly( -- 912
-					self.padDraw, -- 913
+function TouchControls.prototype.render(self, router) -- 683
+	local ctx = self.lastContext -- 684
+	local pDel = self.portraitDelegate -- 685
+	local portraitVisible = pDel ~= nil and ctx ~= nil and ctx.viewport.isPortrait -- 686
+	local visible = ctx ~= nil and (ctx.overlayActive or portraitVisible) -- 687
+	if not visible then -- 687
+		if not self.hasDrawn then -- 687
+			return -- 691
+		end -- 691
+		local ____opt_19 = self.deckDraw -- 691
+		if ____opt_19 ~= nil then -- 691
+			____opt_19:clear() -- 693
+		end -- 693
+		self.padDraw:clear() -- 694
+		self.padInkDraw:clear() -- 695
+		self.padGlow:clear() -- 696
+		self.padArt:beginFrame() -- 697
+		self.padArt:endFrame() -- 698
+		self.texts:hideAll() -- 699
+		self.hasDrawn = false -- 700
+		return -- 701
+	end -- 701
+	self.hasDrawn = true -- 704
+	local ____opt_21 = self.deckDraw -- 704
+	if ____opt_21 ~= nil then -- 704
+		____opt_21:clear() -- 705
+	end -- 705
+	self.padDraw:clear() -- 706
+	self.padInkDraw:clear() -- 707
+	self.padGlow:clear() -- 708
+	self.padArt:beginFrame() -- 709
+	self.texts:beginFrame() -- 710
+	local vp = ctx.viewport -- 712
+	local sc = math.max(0.25, ctx.overlayScale) -- 713
+	self.overlayRoot.scaleX = sc -- 714
+	self.overlayRoot.scaleY = sc -- 715
+	local ovW = vp.fullW / sc -- 717
+	local ovH = vp.fullH / sc -- 718
+	local baseAlpha = router.settings.touchOpacity -- 719
+	if portraitVisible and pDel ~= nil and self.deckDraw ~= nil then -- 719
+		pDel:drawFrame( -- 722
+			self.deckDraw, -- 722
+			self.padInkDraw, -- 722
+			self.texts, -- 722
+			ctx, -- 722
+			self.lastPlay, -- 722
+			ovW, -- 722
+			ovH -- 722
+		) -- 722
+	end -- 722
+	if not ctx.overlayActive then -- 722
+		self.padArt:endFrame() -- 726
+		self.texts:endFrame() -- 727
+		return -- 728
+	end -- 728
+	if ctx.cutsceneBlocking and ctx.inTowerEnd and not ctx.modal then -- 728
+		local rx = ovW * 0.5 -- 732
+		local ry = portraitVisible and math.max(vp.safe.bottom + 54, vp.deckH * 0.5) or vp.safe.bottom / sc + 54 -- 733
+		drawSilkVeil( -- 734
+			self.padDraw, -- 734
+			self.padArt, -- 734
+			"touch_restart_veil", -- 734
+			rx, -- 734
+			ry, -- 734
+			230, -- 734
+			36, -- 734
+			PALETTE.inkWash, -- 734
+			0.78 * baseAlpha, -- 734
+			1 -- 734
+		) -- 734
+		drawHairline( -- 735
+			self.padInkDraw, -- 735
+			self.padArt, -- 735
+			"touch_restart_line", -- 735
+			rx, -- 735
+			ry + 16, -- 735
+			180, -- 735
+			PALETTE.amber, -- 735
+			0.52 * baseAlpha, -- 735
+			true, -- 735
+			2 -- 735
+		) -- 735
+		self.texts:put( -- 736
+			"xs", -- 736
+			"轻触屏幕再次启程", -- 736
+			rx, -- 736
+			ry, -- 736
+			toColor(PALETTE.amberCore), -- 736
+			0.5, -- 736
+			0.5, -- 736
+			"Center", -- 736
+			1.6, -- 736
+			0.94, -- 736
+			0.08 -- 736
+		) -- 736
+	end -- 736
+	if self.lastMode == 2 and self.lastPlay ~= nil then -- 736
+		self:drawTrialZones(ctx, baseAlpha) -- 740
+	end -- 740
+	if ctx.gameplayActive and not ctx.modal and not ctx.cutsceneBlocking then -- 740
+		self:drawStick(router, ctx, baseAlpha) -- 744
+	end -- 744
+	self:drawButtons(router, ctx, baseAlpha) -- 747
+	local bottleDrag = router:getBottleDragVisual() -- 749
+	if bottleDrag.active then -- 749
+		local cx = bottleDrag.cancelX -- 751
+		local cy = bottleDrag.cancelY -- 752
+		local cr = bottleDrag.cancelR -- 753
+		local hot = bottleDrag.cancelHover -- 754
+		fillCirclePoly( -- 755
+			self.padDraw, -- 756
+			cx, -- 757
+			cy, -- 758
+			cr, -- 759
+			toColor(hot and PALETTE.crimsonDeep or PALETTE.inkWash, hot and 225 or 175), -- 760
+			0, -- 761
+			nil, -- 762
+			22 -- 763
+		) -- 763
+		drawRingArc( -- 765
+			self.padInkDraw, -- 765
+			cx, -- 765
+			cy, -- 765
+			cr, -- 765
+			0, -- 765
+			TWO_PI, -- 765
+			hot and 2.2 or 1.3, -- 765
+			toColor(hot and PALETTE.crimsonCore or PALETTE.rouge, hot and 245 or 185), -- 765
+			22 -- 765
+		) -- 765
+		self.texts:put( -- 766
+			"xs", -- 766
+			hot and "松手取消" or "拖此取消", -- 766
+			cx, -- 766
+			cy, -- 766
+			toColor(hot and PALETTE.crimsonCore or PALETTE.textBright), -- 766
+			0.5, -- 766
+			0.5, -- 766
+			"Center", -- 766
+			0.8, -- 766
+			0.96, -- 766
+			0.08 -- 766
+		) -- 766
+	end -- 766
+	self.padArt:endFrame() -- 769
+	self.texts:endFrame() -- 770
+end -- 683
+function TouchControls.prototype.drawStick(self, router, ctx, baseAlpha) -- 773
+	local stick = router:getStickVisual() -- 774
+	local stickAlpha = stick.active and math.min(1, baseAlpha + 0.16) or (ctx.viewport.isPortrait and math.min(0.95, baseAlpha * 0.92) or baseAlpha * 0.72) -- 775
+	local ringCol = stick.active and PALETTE.textBright or PALETTE.silkDim -- 778
+	fillCirclePoly( -- 780
+		self.padDraw, -- 781
+		stick.originX, -- 782
+		stick.originY, -- 783
+		stick.radius, -- 784
+		toColor(PALETTE.inkWash, (stick.active and 118 or 78) * stickAlpha), -- 785
+		0, -- 786
+		nil, -- 787
+		28 -- 788
+	) -- 788
+	drawRingArc( -- 790
+		self.padInkDraw, -- 790
+		stick.originX, -- 790
+		stick.originY, -- 790
+		stick.radius, -- 790
+		0, -- 790
+		TWO_PI, -- 790
+		stick.active and 1.5 or 1, -- 790
+		toColor(ringCol, 168 * stickAlpha), -- 790
+		28 -- 790
+	) -- 790
+	if stick.allowDepth then -- 790
+		local dOff = stick.radius - 10 -- 793
+		self.padInkDraw:drawDot( -- 794
+			Vec2(stick.originX, stick.originY + dOff), -- 794
+			2.1, -- 794
+			toColor(PALETTE.cyan, 155 * stickAlpha) -- 794
+		) -- 794
+		self.padInkDraw:drawDot( -- 795
+			Vec2(stick.originX, stick.originY - dOff), -- 795
+			2.1, -- 795
+			toColor(PALETTE.cyan, 155 * stickAlpha) -- 795
+		) -- 795
+		self.padInkDraw:drawDot( -- 796
+			Vec2(stick.originX - dOff, stick.originY), -- 796
+			2.1, -- 796
+			toColor(PALETTE.silkLine, 145 * stickAlpha) -- 796
+		) -- 796
+		self.padInkDraw:drawDot( -- 797
+			Vec2(stick.originX + dOff, stick.originY), -- 797
+			2.1, -- 797
+			toColor(PALETTE.silkLine, 145 * stickAlpha) -- 797
+		) -- 797
+	elseif ctx.childMode then -- 797
+		drawRingArc( -- 799
+			self.padInkDraw, -- 800
+			stick.originX, -- 801
+			stick.originY, -- 802
+			stick.radius * 0.56, -- 803
+			0, -- 804
+			TWO_PI, -- 805
+			0.9, -- 806
+			toColor(stick.slowZone and PALETTE.emerald or PALETTE.silkDim, (stick.slowZone and 210 or 95) * stickAlpha), -- 807
+			20 -- 808
+		) -- 808
+	end -- 808
+	local knobR = math.max(16, stick.radius * 0.36) -- 812
+	local knobAccent = stick.slowZone and PALETTE.emerald or (ctx.childMode and PALETTE.amber or PALETTE.cyan) -- 813
+	if stick.active then -- 813
+		fillRadialGlow( -- 815
+			self.padGlow, -- 815
+			stick.knobX, -- 815
+			stick.knobY, -- 815
+			knobR * 1.45, -- 815
+			knobR * 1.45, -- 815
+			toColor(knobAccent, 48 * stickAlpha), -- 815
+			Color(0, 0, 0, 0), -- 815
+			12 -- 815
+		) -- 815
+	end -- 815
+	fillCirclePoly( -- 817
+		self.padDraw, -- 818
+		stick.knobX, -- 819
+		stick.knobY, -- 820
+		knobR, -- 821
+		toColor(PALETTE.panelBgDeep, (stick.active and 215 or 155) * stickAlpha), -- 822
+		1.3, -- 823
+		toColor(stick.active and knobAccent or PALETTE.silkLine, 210 * stickAlpha), -- 824
+		22 -- 825
+	) -- 825
+	drawBlossomDot( -- 827
+		self.padInkDraw, -- 827
+		self.padArt, -- 827
+		"touch_stick_dot", -- 827
+		stick.knobX, -- 827
+		stick.knobY, -- 827
+		stick.active and 11 or 7, -- 827
+		knobAccent, -- 827
+		0.85 * stickAlpha, -- 827
+		4 -- 827
+	) -- 827
+	if stick.slowZone then -- 827
+		self.texts:put( -- 829
+			"xs", -- 829
+			"轻步", -- 829
+			stick.originX, -- 829
+			stick.originY + stick.radius + 14, -- 829
+			toColor(PALETTE.emerald), -- 829
+			0.5, -- 829
+			0.5, -- 829
+			"Center", -- 829
+			1, -- 829
+			0.9, -- 829
+			0.08 -- 829
+		) -- 829
+	end -- 829
+end -- 773
+function TouchControls.prototype.drawButtons(self, router, ctx, baseAlpha) -- 833
+	local bottleDrag = router:getBottleDragVisual() -- 834
+	local fireStick = router:getFireStickVisual() -- 835
+	local fontKind = ctx.viewport.isPortrait and "xs" or "sm" -- 836
+	local i = 0 -- 838
+	do -- 838
+		i = 0 -- 839
+		while i < #ctx.buttons do -- 839
+			do -- 839
+				local b = ctx.buttons[i + 1] -- 840
+				local bAlpha = baseAlpha * (b.dimmed and 0.42 or ((b.active or b.highlighted) and 1 or 0.84)) -- 841
+				if bottleDrag.active and b.id ~= "bottle" and b.shape ~= "pill" then -- 841
+					bAlpha = bAlpha * 0.25 -- 843
+				end -- 843
+				local col = accentPalette(b.accent) -- 845
+				local core = accentCore(b.accent) -- 846
+				local breathe = b.highlighted and 0.86 + 0.14 * math.sin(self.time * 4.2) or 1 -- 847
+				if b.shape == "pill" and b.rect ~= nil then -- 847
+					local r = b.rect -- 850
+					local fillCol = b.active and toColor(col, 110 * bAlpha) or toColor(PALETTE.inkWash, 175 * bAlpha) -- 851
+					self.padDraw:drawRoundedRect( -- 854
+						r, -- 855
+						6, -- 856
+						fillCol, -- 857
+						b.active and 1.4 or 1, -- 858
+						toColor((b.active or b.highlighted) and col or PALETTE.silkLine, 200 * bAlpha) -- 859
+					) -- 859
+					if b.id == "pause" and not ctx.viewport.isPortrait then -- 859
+						local icX = r.x + 22 -- 862
+						local icY = r.y + r.height * 0.5 -- 863
+						drawRingArc( -- 864
+							self.padInkDraw, -- 864
+							icX, -- 864
+							icY, -- 864
+							9, -- 864
+							0, -- 864
+							TWO_PI, -- 864
+							1, -- 864
+							toColor(PALETTE.silkLine, 175 * bAlpha), -- 864
+							16 -- 864
+						) -- 864
+						self.padInkDraw:drawSegment( -- 865
+							Vec2(icX - 2.6, icY - 3.6), -- 865
+							Vec2(icX - 2.6, icY + 3.6), -- 865
+							1.5, -- 865
+							toColor(PALETTE.textBright, 225 * bAlpha) -- 865
+						) -- 865
+						self.padInkDraw:drawSegment( -- 866
+							Vec2(icX + 2.6, icY - 3.6), -- 866
+							Vec2(icX + 2.6, icY + 3.6), -- 866
+							1.5, -- 866
+							toColor(PALETTE.textBright, 225 * bAlpha) -- 866
+						) -- 866
+						self.texts:put( -- 867
+							"xs", -- 867
+							b.label, -- 867
+							r.x + r.width * 0.5 + 10, -- 867
+							icY, -- 867
+							toColor(PALETTE.textBright), -- 867
+							0.5, -- 867
+							0.5, -- 867
+							"Center", -- 867
+							1, -- 867
+							0.94 * bAlpha, -- 867
+							0.08 -- 867
+						) -- 867
+					else -- 867
+						if b.toggle and b.active then -- 867
+							drawDiamond( -- 870
+								self.padInkDraw, -- 870
+								r.x + 11, -- 870
+								r.y + r.height * 0.5, -- 870
+								3.8, -- 870
+								3.8, -- 870
+								toColor(col, 235) -- 870
+							) -- 870
+						end -- 870
+						self.texts:put( -- 872
+							"xs", -- 873
+							b.label, -- 874
+							r.x + r.width * 0.5 + (b.toggle and b.active and 4 or 0), -- 875
+							r.y + r.height * 0.5, -- 876
+							toColor(b.active and core or PALETTE.textBright), -- 877
+							0.5, -- 878
+							0.5, -- 879
+							"Center", -- 880
+							0.6, -- 881
+							math.min(1, bAlpha + 0.08), -- 882
+							0.08 -- 883
+						) -- 883
+					end -- 883
+					goto __continue85 -- 886
+				end -- 886
+				if b.active or b.highlighted then -- 886
+					fillRadialGlow( -- 890
+						self.padGlow, -- 891
+						b.x, -- 892
+						b.y, -- 893
+						b.r * 1.38, -- 894
+						b.r * 1.38, -- 895
+						toColor(col, (b.active and 64 or 36) * bAlpha * breathe), -- 896
+						Color(col.r, col.g, col.b, 0), -- 897
+						12 -- 898
+					) -- 898
+				end -- 898
+				fillCirclePoly( -- 902
+					self.padDraw, -- 903
+					b.x, -- 904
+					b.y, -- 905
+					b.r, -- 906
+					toColor(b.active and PALETTE.inkWarm or PALETTE.inkWash, (b.active and 195 or 142) * bAlpha), -- 907
+					0, -- 908
+					nil, -- 909
+					24 -- 910
+				) -- 910
+				drawRingArc( -- 912
+					self.padInkDraw, -- 913
 					b.x, -- 914
 					b.y, -- 915
 					b.r, -- 916
-					toColor(b.active and PALETTE.inkWarm or PALETTE.inkWash, (b.active and 195 or 142) * bAlpha), -- 917
-					0, -- 918
-					nil, -- 919
-					24 -- 920
-				) -- 920
-				drawRingArc( -- 922
-					self.padInkDraw, -- 923
-					b.x, -- 924
-					b.y, -- 925
-					b.r, -- 926
-					0, -- 927
-					TWO_PI, -- 928
-					b.active and 2 or (b.highlighted and 1.5 or 1.05), -- 929
-					toColor((b.active or b.highlighted) and col or PALETTE.silkDim, (b.active and 235 or 185) * bAlpha), -- 930
-					24 -- 931
-				) -- 931
-				drawRingArc( -- 933
-					self.padInkDraw, -- 934
-					b.x, -- 935
-					b.y, -- 936
-					b.r - 4.2, -- 937
-					0, -- 938
-					TWO_PI, -- 939
-					0.7, -- 940
-					toColor(PALETTE.silkLine, (b.active and 110 or 52) * bAlpha), -- 941
-					20 -- 942
-				) -- 942
-				if b.progress > 0.02 then -- 945
-					drawRingArc( -- 946
-						self.padInkDraw, -- 947
-						b.x, -- 948
-						b.y, -- 949
-						b.r + 4, -- 950
-						HALF_PI, -- 951
-						-TWO_PI * math.min(1, b.progress), -- 952
-						2.6, -- 953
-						toColor(PALETTE.amberCore, 240), -- 954
-						28 -- 955
-					) -- 955
-				end -- 955
-				local hasSub = b.subLabel ~= nil and b.subLabel ~= "" -- 959
-				self.texts:put( -- 960
-					fontKind, -- 961
-					b.label, -- 962
-					b.x, -- 963
-					hasSub and b.y + 6 or b.y, -- 964
-					toColor(b.active and core or (b.dimmed and PALETTE.textDim or PALETTE.textBright)), -- 965
-					0.5, -- 966
-					0.5, -- 967
-					"Center", -- 968
-					0.6, -- 969
-					bAlpha, -- 970
-					0.08 -- 971
-				) -- 971
-				if hasSub and b.subLabel ~= nil then -- 973
-					self.texts:put( -- 974
-						"xs", -- 975
-						b.subLabel, -- 976
-						b.x, -- 977
-						b.y - (ctx.viewport.isPortrait and 11 or 14), -- 978
-						toColor(b.active and core or PALETTE.textDim), -- 979
-						0.5, -- 980
-						0.5, -- 981
-						"Center", -- 982
-						0.4, -- 983
-						bAlpha * 0.85, -- 984
-						0.06 -- 985
-					) -- 985
-				end -- 985
-				if b.id == "fire" and fireStick.active and fireStick.dragging then -- 989
-					self.padInkDraw:drawSegment( -- 990
-						Vec2(fireStick.originX, fireStick.originY), -- 990
-						Vec2(fireStick.knobX, fireStick.knobY), -- 990
-						1.4, -- 990
-						toColor(PALETTE.rouge, 190) -- 990
-					) -- 990
-					fillCirclePoly( -- 991
-						self.padDraw, -- 991
-						fireStick.knobX, -- 991
-						fireStick.knobY, -- 991
-						12, -- 991
-						toColor(PALETTE.rouge, 210), -- 991
-						1.2, -- 991
-						toColor(PALETTE.crimsonCore, 240), -- 991
-						16 -- 991
-					) -- 991
-				end -- 991
-			end -- 991
-			::__continue88:: -- 991
-			i = i + 1 -- 849
-		end -- 849
-	end -- 849
-end -- 843
-function TouchControls.prototype.drawTrialZones(self, ctx, alpha) -- 996
-	local ____opt_19 = self.lastRun -- 997
-	local trial = ____opt_19 and ____opt_19.trial -- 997
-	local i = 0 -- 998
-	do -- 998
-		i = 0 -- 999
-		while i < #ctx.rectZones do -- 999
-			local z = ctx.rectZones[i + 1] -- 1000
-			local r = z.rect -- 1001
-			local cx = r.x + r.width * 0.5 -- 1002
-			local cy = r.y + r.height * 0.5 -- 1003
-			if z.id == "pause" or z.id == "retry" then -- 1004
+					0, -- 917
+					TWO_PI, -- 918
+					b.active and 2 or (b.highlighted and 1.5 or 1.05), -- 919
+					toColor((b.active or b.highlighted) and col or PALETTE.silkDim, (b.active and 235 or 185) * bAlpha), -- 920
+					24 -- 921
+				) -- 921
+				drawRingArc( -- 923
+					self.padInkDraw, -- 924
+					b.x, -- 925
+					b.y, -- 926
+					b.r - 4.2, -- 927
+					0, -- 928
+					TWO_PI, -- 929
+					0.7, -- 930
+					toColor(PALETTE.silkLine, (b.active and 110 or 52) * bAlpha), -- 931
+					20 -- 932
+				) -- 932
+				if b.progress > 0.02 then -- 932
+					drawRingArc( -- 936
+						self.padInkDraw, -- 937
+						b.x, -- 938
+						b.y, -- 939
+						b.r + 4, -- 940
+						HALF_PI, -- 941
+						-TWO_PI * math.min(1, b.progress), -- 942
+						2.6, -- 943
+						toColor(PALETTE.amberCore, 240), -- 944
+						28 -- 945
+					) -- 945
+				end -- 945
+				local hasSub = b.subLabel ~= nil and b.subLabel ~= "" -- 949
+				self.texts:put( -- 950
+					fontKind, -- 951
+					b.label, -- 952
+					b.x, -- 953
+					hasSub and b.y + 6 or b.y, -- 954
+					toColor(b.active and core or (b.dimmed and PALETTE.textDim or PALETTE.textBright)), -- 955
+					0.5, -- 956
+					0.5, -- 957
+					"Center", -- 958
+					0.6, -- 959
+					bAlpha, -- 960
+					0.08 -- 961
+				) -- 961
+				if hasSub and b.subLabel ~= nil then -- 961
+					self.texts:put( -- 964
+						"xs", -- 965
+						b.subLabel, -- 966
+						b.x, -- 967
+						b.y - (ctx.viewport.isPortrait and 11 or 14), -- 968
+						toColor(b.active and core or PALETTE.textDim), -- 969
+						0.5, -- 970
+						0.5, -- 971
+						"Center", -- 972
+						0.4, -- 973
+						bAlpha * 0.85, -- 974
+						0.06 -- 975
+					) -- 975
+				end -- 975
+				if b.id == "fire" and fireStick.active and fireStick.dragging then -- 975
+					self.padInkDraw:drawSegment( -- 980
+						Vec2(fireStick.originX, fireStick.originY), -- 980
+						Vec2(fireStick.knobX, fireStick.knobY), -- 980
+						1.4, -- 980
+						toColor(PALETTE.rouge, 190) -- 980
+					) -- 980
+					fillCirclePoly( -- 981
+						self.padDraw, -- 981
+						fireStick.knobX, -- 981
+						fireStick.knobY, -- 981
+						12, -- 981
+						toColor(PALETTE.rouge, 210), -- 981
+						1.2, -- 981
+						toColor(PALETTE.crimsonCore, 240), -- 981
+						16 -- 981
+					) -- 981
+				end -- 981
+			end -- 981
+			::__continue85:: -- 981
+			i = i + 1 -- 839
+		end -- 839
+	end -- 839
+end -- 833
+function TouchControls.prototype.drawTrialZones(self, ctx, alpha) -- 986
+	local ____opt_23 = self.lastRun -- 986
+	local trial = ____opt_23 and ____opt_23.trial -- 987
+	local i = 0 -- 988
+	do -- 988
+		i = 0 -- 989
+		while i < #ctx.rectZones do -- 989
+			local z = ctx.rectZones[i + 1] -- 990
+			local r = z.rect -- 991
+			local cx = r.x + r.width * 0.5 -- 992
+			local cy = r.y + r.height * 0.5 -- 993
+			if z.id == "pause" or z.id == "retry" then -- 993
+				self.padDraw:drawRoundedRect( -- 995
+					r, -- 995
+					6, -- 995
+					toColor(PALETTE.inkWash, 185 * alpha), -- 995
+					1.2, -- 995
+					toColor(PALETTE.silkLine, 175 * alpha) -- 995
+				) -- 995
+				self.texts:put( -- 996
+					"xs", -- 996
+					z.id == "pause" and "暂停" or "重开", -- 996
+					cx, -- 996
+					cy, -- 996
+					toColor(PALETTE.textBright), -- 996
+					0.5, -- 996
+					0.5, -- 996
+					"Center", -- 996
+					0.8, -- 996
+					0.94, -- 996
+					0.08 -- 996
+				) -- 996
+			elseif (string.find(z.id, "talent:", nil, true) or 0) - 1 == 0 and trial ~= nil then -- 996
+				local idx = __TS__Number(string.sub(z.id, 8)) -- 998
+				local tName = idx >= 0 and idx < #trial.offers and talentNames[trial.offers[idx + 1]] or "" -- 999
+				self.padDraw:drawRoundedRect( -- 1000
+					r, -- 1000
+					6, -- 1000
+					toColor(PALETTE.panelBgDeep, 235), -- 1000
+					1.6, -- 1000
+					toColor(PALETTE.amber, 225) -- 1000
+				) -- 1000
+				self.texts:put( -- 1001
+					"xs", -- 1001
+					(tostring(idx + 1) .. " · ") .. tName, -- 1001
+					cx, -- 1001
+					cy, -- 1001
+					toColor(PALETTE.amberCore), -- 1001
+					0.5, -- 1001
+					0.5, -- 1001
+					"Center", -- 1001
+					0.6, -- 1001
+					0.98, -- 1001
+					0.08 -- 1001
+				) -- 1001
+			elseif z.id == "trial:resume" or z.id == "trial:retry" or z.id == "trial:title" then -- 1001
+				local label = z.id == "trial:resume" and "继续试炼" or (z.id == "trial:retry" and "再开一局" or "返回标题") -- 1003
+				local border = z.id == "trial:resume" and PALETTE.amber or PALETTE.silkLine -- 1004
 				self.padDraw:drawRoundedRect( -- 1005
 					r, -- 1005
 					6, -- 1005
-					toColor(PALETTE.inkWash, 185 * alpha), -- 1005
-					1.2, -- 1005
-					toColor(PALETTE.silkLine, 175 * alpha) -- 1005
+					toColor(PALETTE.panelBgDeep, 235), -- 1005
+					1.5, -- 1005
+					toColor(border, 220) -- 1005
 				) -- 1005
 				self.texts:put( -- 1006
-					"xs", -- 1006
-					z.id == "pause" and "暂停" or "重开", -- 1006
+					"sm", -- 1006
+					label, -- 1006
 					cx, -- 1006
 					cy, -- 1006
 					toColor(PALETTE.textBright), -- 1006
 					0.5, -- 1006
 					0.5, -- 1006
 					"Center", -- 1006
-					0.8, -- 1006
-					0.94, -- 1006
+					1, -- 1006
+					0.98, -- 1006
 					0.08 -- 1006
 				) -- 1006
-			elseif (string.find(z.id, "talent:", nil, true) or 0) - 1 == 0 and trial ~= nil then -- 1007
-				local idx = __TS__Number(string.sub(z.id, 8)) -- 1008
-				local tName = idx >= 0 and idx < #trial.offers and talentNames[trial.offers[idx + 1]] or "" -- 1009
-				self.padDraw:drawRoundedRect( -- 1010
-					r, -- 1010
-					6, -- 1010
-					toColor(PALETTE.panelBgDeep, 235), -- 1010
-					1.6, -- 1010
-					toColor(PALETTE.amber, 225) -- 1010
-				) -- 1010
-				self.texts:put( -- 1011
-					"xs", -- 1011
-					(tostring(idx + 1) .. " · ") .. tName, -- 1011
-					cx, -- 1011
-					cy, -- 1011
-					toColor(PALETTE.amberCore), -- 1011
-					0.5, -- 1011
-					0.5, -- 1011
-					"Center", -- 1011
-					0.6, -- 1011
-					0.98, -- 1011
-					0.08 -- 1011
-				) -- 1011
-			elseif z.id == "trial:resume" or z.id == "trial:retry" or z.id == "trial:title" then -- 1012
-				local label = z.id == "trial:resume" and "继续试炼" or (z.id == "trial:retry" and "再开一局" or "返回标题") -- 1013
-				local border = z.id == "trial:resume" and PALETTE.amber or PALETTE.silkLine -- 1014
-				self.padDraw:drawRoundedRect( -- 1015
-					r, -- 1015
-					6, -- 1015
-					toColor(PALETTE.panelBgDeep, 235), -- 1015
-					1.5, -- 1015
-					toColor(border, 220) -- 1015
-				) -- 1015
-				self.texts:put( -- 1016
-					"sm", -- 1016
-					label, -- 1016
-					cx, -- 1016
-					cy, -- 1016
-					toColor(PALETTE.textBright), -- 1016
-					0.5, -- 1016
-					0.5, -- 1016
-					"Center", -- 1016
-					1, -- 1016
-					0.98, -- 1016
-					0.08 -- 1016
-				) -- 1016
-			end -- 1016
-			i = i + 1 -- 999
-		end -- 999
-	end -- 999
-end -- 996
-return ____exports -- 996
+			end -- 1006
+			i = i + 1 -- 989
+		end -- 989
+	end -- 989
+end -- 986
+return ____exports -- 986

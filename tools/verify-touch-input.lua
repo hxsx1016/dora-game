@@ -80,7 +80,7 @@ local function syncTouch(screen, p, modeNum, runObj, talentBoxes)
 		screen = screen,
 		play = p,
 		run = runObj,
-		cam = fe.cam,
+		cam = (modeNum or 1) == 1 and fe.cam or nil,
 		router = router,
 		overlayActive = true,
 		allowAutoGameplayTouch = true,

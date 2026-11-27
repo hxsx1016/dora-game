@@ -136,11 +136,14 @@ export class Input {
 
     constructor() {
         this.target = getActiveTarget();
+        if (this.settings.modePref !== "auto" && this.target.supportedModes.indexOf(this.settings.modePref) < 0) {
+            this.settings.modePref = "auto";
+        }
         this.driver = this.target.createDriver(this.settings);
         this.stageVp = this.target.computeStageViewport(1280, 720);
         this.gamepadLayout = this.settings.gamepadLayout;
         this.inputMode = this.driver.defaultMode;
-        if (this.settings.modePref !== "auto" && this.target.supportedModes.indexOf(this.settings.modePref) >= 0) {
+        if (this.settings.modePref !== "auto") {
             this.inputMode = this.settings.modePref;
         }
     }

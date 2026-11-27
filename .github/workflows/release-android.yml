@@ -224,10 +224,10 @@ jobs:
             XMLTREE="$("$AAPT2" dump xmltree "$apk" --file AndroidManifest.xml)"
             if [[ "$APK_BASE" == *-handheld-* ]]; then
               APK_PROFILE="handheld"
-              echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0x6|6([^0-9a-fA-F]|$))"
+              echo "$XMLTREE" | grep -E "screenOrientation.*=[[:space:]]*(\(type 0x10\))?(0x0*6|6)[[:space:]]*$"
             else
               APK_PROFILE="android"
-              echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0xa|10([^0-9a-fA-F]|$))"
+              echo "$XMLTREE" | grep -E "screenOrientation.*=[[:space:]]*(\(type 0x10\))?(0x0*d|13)[[:space:]]*$"
             fi
             "$ZIPALIGN" -c -P 16 -v 4 "$apk" >/dev/null
             "$APKSIGNER" verify --verbose "$apk"

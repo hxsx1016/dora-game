@@ -867,7 +867,8 @@ function syncFrameAdapters(frameDt: number): void {
         screen: fe !== undefined ? fe.screen : "title",
         play: p,
         run,
-        cam: fe !== undefined ? fe.cam : undefined,
+        // drawCampaign uses Play.draw; only the story renderer uses fe.cam.
+        cam: isPlayMode ? fe?.cam : undefined,
         input,
         assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
         isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,

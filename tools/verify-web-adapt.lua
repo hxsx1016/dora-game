@@ -110,7 +110,7 @@ local function sync(vp, screen, p, modeNum)
 		screen = screen,
 		play = p,
 		run = nil,
-		cam = fe.cam,
+		cam = (modeNum or 1) == 1 and fe.cam or nil,
 		router = router,
 		overlayActive = inp:shouldShowTouchControls(),
 		allowAutoGameplayTouch = inp.settings.modePref == "auto" or inp.settings.modePref == "touch",
