@@ -60,6 +60,7 @@ export class WatchFrontend {
     private uiDraw: DrawNode.Type;
     private uiInkDraw: DrawNode.Type;
     private uiGlow: DrawNode.Type;
+    private uiMask: DrawNode.Type;
     private texts: TextPool;
 
     readonly cam = new CameraDirector();
@@ -141,6 +142,10 @@ export class WatchFrontend {
         this.uiGlow.order = 6;
         this.uiGlow.blendFunc = additive;
         this.uiGlow.addTo(this.uiLayer);
+
+        this.uiMask = DrawNode();
+        this.uiMask.order = 8;
+        this.uiMask.addTo(this.uiLayer);
 
         this.texts = new TextPool(this.uiLayer, 10);
 
@@ -305,6 +310,7 @@ export class WatchFrontend {
         this.uiDraw.clear();
         this.uiInkDraw.clear();
         this.uiGlow.clear();
+        this.uiMask.clear();
         this.backdropArt.beginFrame();
         this.dioramaBg.beginFrame();
         this.dioramaWorld.beginFrame();
@@ -532,6 +538,7 @@ export class WatchFrontend {
             backdropArt: this.backdropArt,
             worldArt: this.worldArt,
             uiArt: this.uiArt,
+            uiMask: this.uiMask,
             dioramaBg: this.dioramaBg,
             dioramaWorld: this.dioramaWorld,
             dioramaFg: this.dioramaFg,
