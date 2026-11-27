@@ -176,8 +176,6 @@ const CART_SPEED = 64;
 /** 握把触发半径。 */
 export const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
-const CART_HALF = 24;
-const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
 /** 战具格与消耗品格各只放一件；满包时新东西留在原地，不吞物。 */
@@ -4835,10 +4833,11 @@ export class Play {
             this.flashSet("暗渠口 · 蹲下钻过去", 1.4);
             this.emit("storyBeat", { beat: "ditch", x: p.x, room: "village" });
         }
-        // 过了第一院、走到院墙前就进北塔森林。
-        if (this.passed && p.x >= this.ox + 640) {
-            this.requestRoom("forest", "过第一院出院");
-            this.flashSet("钻出暗渠 · 北塔森林", 1.4);
+        // 暗渠口 560–640：站着过不去（院墙前必须蹲下从渠口钻入），与 3D 渠口几何同源。
+        const inCulvert = p.x >= this.ox + 560 && p.x <= this.ox + 640;
+        if (this.passed && inCulvert && p.crouch && this.wantRoom === "") {
+            this.requestRoom("forest", "蹲下钻过暗渠");
+            this.flashSet("钻进暗渠 · 北塔森林", 1.4);
         }
     }
 
@@ -5427,6 +5426,16 @@ export class Play {
         return next;
     }
 
+    /** 城外低拱中仍被车底挡栓占据的世界矩形。车轮落窝后挡栓收起。 */
+    cartLatchBounds(): Rect.Type | undefined {
+        if (this.room.key !== "outside" || this.cartDocked) return undefined;
+        const arch = this.room.arch;
+        const halfWidth = this.room.cart.bodyW / 2;
+        const left = Math.max(arch.x0, this.cartAxle - halfWidth);
+        const right = Math.min(arch.x1, this.cartAxle + halfWidth);
+        return right > left ? Rect(left, arch.y, right - left, arch.h) : undefined;
+    }
+
     /** 水平位移 + 实体/拱洞阻挡。 */
     private slideX(a: Actor, dx: number): void {
         let nx = a.x + dx;
@@ -5455,19 +5464,15 @@ export class Play {
                 }
             }
         }
-        // 城外：未拉车入窝前，车底连杆挡栓封住下层拱口（arch.x0..arch.x1）；
-        // 车轮一旦落窝（cartDocked），挡栓收回，底层拱洞外平地彻底畅通，不再残留车底空气墙。
-        if (this.room.key === "outside" && !this.cartDocked && a.y < CART_CLEAR - 0.001) {
-            const bx0 = Math.max(room.arch.x0, this.cartAxle - CART_HALF);
-            const bx1 = Math.min(room.arch.x1, this.cartAxle + CART_HALF);
-            if (bx1 > bx0 && nx + half > bx0 && nx - half < bx1) {
-                if (a.x <= bx0) {
-                    nx = bx0 - half;
-                } else if (a.x >= bx1) {
-                    nx = bx1 + half;
-                } else {
-                    nx = a.x;
-                }
+        const latch = this.cartLatchBounds();
+        if (latch !== undefined && a.y < latch.y + latch.height - 0.001
+            && nx + half > latch.x && nx - half < latch.x + latch.width) {
+            if (a.x <= latch.x) {
+                nx = latch.x - half;
+            } else if (a.x >= latch.x + latch.width) {
+                nx = latch.x + latch.width + half;
+            } else {
+                nx = a.x;
             }
         }
         // 拱洞（低洞）：身高超出净空就进不去。

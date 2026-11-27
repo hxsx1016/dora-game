@@ -108,8 +108,8 @@
       "h_ref": 4.1,
       "h_top": 7.3,
       "source_actors": 17,
-      "boxes": 57,
-      "triangles": 684,
+      "boxes": 56,
+      "triangles": 672,
       "materials": [
         "M_xm3d_stone",
         "M_xm3d_stone_dark",
@@ -117,7 +117,7 @@
         "M_xm3d_earth",
         "M_xm3d_void"
       ],
-      "bytes": 40156,
+      "bytes": 39508,
       "items": [
         {
           "room": "outside",
@@ -1323,18 +1323,18 @@
             "name": "outside_anchor_003"
           },
           "game": [
-            63.2,
+            74.0,
             9.6,
             0.0
           ],
           "bounds": [
             [
-              0.56,
+              0.68,
               0.0,
               -0.75
             ],
             [
-              0.704,
+              0.8,
               0.192,
               0.75
             ]
@@ -1351,18 +1351,18 @@
             "name": "outside_anchor_004"
           },
           "game": [
-            77.6,
+            86.0,
             19.2,
             0.0
           ],
           "bounds": [
             [
-              0.704,
+              0.8,
               0.0,
               -0.75
             ],
             [
-              0.848,
+              0.92,
               0.384,
               0.75
             ]
@@ -1379,18 +1379,18 @@
             "name": "outside_anchor_005"
           },
           "game": [
-            92.0,
+            98.0,
             28.8,
             0.0
           ],
           "bounds": [
             [
-              0.848,
+              0.92,
               0.0,
               -0.75
             ],
             [
-              0.992,
+              1.04,
               0.576,
               0.75
             ]
@@ -1407,18 +1407,18 @@
             "name": "outside_anchor_006"
           },
           "game": [
-            106.4,
+            110.0,
             38.4,
             0.0
           ],
           "bounds": [
             [
-              0.992,
+              1.04,
               0.0,
               -0.75
             ],
             [
-              1.136,
+              1.16,
               0.768,
               0.75
             ]
@@ -1435,13 +1435,13 @@
             "name": "outside_anchor_007"
           },
           "game": [
-            120.8,
+            122.0,
             48.0,
             0.0
           ],
           "bounds": [
             [
-              1.136,
+              1.16,
               0.0,
               -0.75
             ],
@@ -1771,19 +1771,19 @@
             "name": "outside_anchor_019"
           },
           "game": [
-            720.0,
-            8.0,
+            745.0,
+            10.7,
             0.0
           ],
           "bounds": [
             [
-              7.0,
+              7.3,
               0.0,
               -0.75
             ],
             [
-              7.4,
-              0.16,
+              7.6,
+              0.213,
               0.75
             ]
           ],
@@ -1799,19 +1799,19 @@
             "name": "outside_anchor_020"
           },
           "game": [
-            760.0,
-            16.0,
+            775.0,
+            21.3,
             0.0
           ],
           "bounds": [
             [
-              7.4,
+              7.6,
               0.0,
               -0.75
             ],
             [
-              7.8,
-              0.32,
+              7.9,
+              0.427,
               0.75
             ]
           ],
@@ -1827,41 +1827,13 @@
             "name": "outside_anchor_021"
           },
           "game": [
-            795.0,
-            24.0,
-            0.0
-          ],
-          "bounds": [
-            [
-              7.8,
-              0.0,
-              -0.75
-            ],
-            [
-              8.1,
-              0.48,
-              0.75
-            ]
-          ],
-          "anchorTag": "box"
-        },
-        {
-          "room": "outside",
-          "target": "outside_anchor_022",
-          "kind": "anchor",
-          "anchor": true,
-          "source": {
-            "level": "rooms.ts",
-            "name": "outside_anchor_022"
-          },
-          "game": [
-            815.0,
+            805.0,
             32.0,
             0.0
           ],
           "bounds": [
             [
-              8.1,
+              7.9,
               0.0,
               -0.75
             ],
@@ -1875,12 +1847,12 @@
         },
         {
           "room": "outside",
-          "target": "outside_anchor_023",
+          "target": "outside_anchor_022",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "outside_anchor_023"
+            "name": "outside_anchor_022"
           },
           "game": [
             880.0,
@@ -1903,12 +1875,12 @@
         },
         {
           "room": "outside",
-          "target": "outside_anchor_024",
+          "target": "outside_anchor_023",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "outside_anchor_024"
+            "name": "outside_anchor_023"
           },
           "game": [
             1220.0,
@@ -1945,8 +1917,8 @@
       "h_ref": -9.41,
       "h_top": -6.21,
       "source_actors": 17,
-      "boxes": 47,
-      "triangles": 592,
+      "boxes": 54,
+      "triangles": 676,
       "materials": [
         "M_xm3d_stone",
         "M_xm3d_stone_dark",
@@ -1957,7 +1929,7 @@
         "M_xm3d_metal",
         "M_xm3d_void"
       ],
-      "bytes": 37884,
+      "bytes": 42704,
       "items": [
         {
           "room": "village",
@@ -3461,6 +3433,202 @@
             ]
           ],
           "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_019",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_019"
+          },
+          "game": [
+            560.0,
+            28.0,
+            62.5
+          ],
+          "bounds": [
+            [
+              5.56,
+              0.0,
+              -0.95
+            ],
+            [
+              5.64,
+              0.56,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_020",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_020"
+          },
+          "game": [
+            640.0,
+            28.0,
+            62.5
+          ],
+          "bounds": [
+            [
+              6.36,
+              0.0,
+              -0.95
+            ],
+            [
+              6.44,
+              0.56,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_021",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_021"
+          },
+          "game": [
+            600.0,
+            50.0,
+            62.5
+          ],
+          "bounds": [
+            [
+              5.56,
+              0.44,
+              -0.95
+            ],
+            [
+              6.44,
+              0.56,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_022",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_022"
+          },
+          "game": [
+            600.0,
+            -4.0,
+            62.5
+          ],
+          "bounds": [
+            [
+              5.64,
+              -0.08,
+              -0.95
+            ],
+            [
+              6.36,
+              0.0,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_023",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_023"
+          },
+          "game": [
+            600.0,
+            22.0,
+            92.5
+          ],
+          "bounds": [
+            [
+              5.64,
+              0.0,
+              -0.95
+            ],
+            [
+              6.36,
+              0.44,
+              -0.9
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_024",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_024"
+          },
+          "game": [
+            600.0,
+            3.0,
+            32.0
+          ],
+          "bounds": [
+            [
+              5.6,
+              0.0,
+              -0.34
+            ],
+            [
+              6.4,
+              0.06,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "village",
+          "target": "village_anchor_025",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "village_anchor_025"
+          },
+          "game": [
+            600.0,
+            53.0,
+            32.0
+          ],
+          "bounds": [
+            [
+              5.6,
+              0.5,
+              -0.34
+            ],
+            [
+              6.4,
+              0.56,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
         }
       ]
     },
@@ -3478,8 +3646,8 @@
       "h_ref": 5.74,
       "h_top": 8.94,
       "source_actors": 52,
-      "boxes": 67,
-      "triangles": 1224,
+      "boxes": 78,
+      "triangles": 1356,
       "materials": [
         "M_xm3d_stone",
         "M_xm3d_stone_dark",
@@ -3488,7 +3656,7 @@
         "M_xm3d_metal",
         "M_xm3d_void"
       ],
-      "bytes": 63948,
+      "bytes": 71280,
       "items": [
         {
           "room": "forest",
@@ -5338,7 +5506,7 @@
             "name": "forest_anchor_001"
           },
           "game": [
-            800.0,
+            350.0,
             -6.0,
             0.0
           ],
@@ -5349,7 +5517,7 @@
               -2.2
             ],
             [
-              16.0,
+              7.0,
               0.0,
               2.2
             ]
@@ -5364,6 +5532,62 @@
           "source": {
             "level": "rooms.ts",
             "name": "forest_anchor_002"
+          },
+          "game": [
+            970.0,
+            -6.0,
+            0.0
+          ],
+          "bounds": [
+            [
+              7.9,
+              -0.12,
+              -2.2
+            ],
+            [
+              11.5,
+              0.0,
+              2.2
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_003",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_003"
+          },
+          "game": [
+            1430.0,
+            -6.0,
+            0.0
+          ],
+          "bounds": [
+            [
+              12.6,
+              -0.12,
+              -2.2
+            ],
+            [
+              16.0,
+              0.0,
+              2.2
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_004",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_004"
           },
           "game": [
             302.0,
@@ -5386,12 +5610,12 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_003",
+          "target": "forest_anchor_005",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_003"
+            "name": "forest_anchor_005"
           },
           "game": [
             378.0,
@@ -5414,12 +5638,12 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_004",
+          "target": "forest_anchor_006",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_004"
+            "name": "forest_anchor_006"
           },
           "game": [
             340.0,
@@ -5442,62 +5666,6 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_005",
-          "kind": "anchor",
-          "anchor": true,
-          "source": {
-            "level": "rooms.ts",
-            "name": "forest_anchor_005"
-          },
-          "game": [
-            745.0,
-            -6.0,
-            0.0
-          ],
-          "bounds": [
-            [
-              7.0,
-              -0.1,
-              -0.5
-            ],
-            [
-              7.9,
-              -0.02,
-              0.5
-            ]
-          ],
-          "anchorTag": "box"
-        },
-        {
-          "room": "forest",
-          "target": "forest_anchor_006",
-          "kind": "anchor",
-          "anchor": true,
-          "source": {
-            "level": "rooms.ts",
-            "name": "forest_anchor_006"
-          },
-          "game": [
-            696.0,
-            0.0,
-            0.0
-          ],
-          "bounds": [
-            [
-              6.92,
-              -0.06,
-              -0.55
-            ],
-            [
-              7.0,
-              0.06,
-              0.55
-            ]
-          ],
-          "anchorTag": "box"
-        },
-        {
-          "room": "forest",
           "target": "forest_anchor_007",
           "kind": "anchor",
           "anchor": true,
@@ -5506,20 +5674,20 @@
             "name": "forest_anchor_007"
           },
           "game": [
-            794.0,
-            0.0,
+            745.0,
+            -14.0,
             0.0
           ],
           "bounds": [
             [
-              7.9,
-              -0.06,
-              -0.55
+              7.0,
+              -0.18,
+              -0.5
             ],
             [
-              7.98,
-              0.06,
-              0.55
+              7.9,
+              -0.1,
+              0.5
             ]
           ],
           "anchorTag": "box"
@@ -5532,6 +5700,90 @@
           "source": {
             "level": "rooms.ts",
             "name": "forest_anchor_008"
+          },
+          "game": [
+            745.0,
+            -5.0,
+            0.0
+          ],
+          "bounds": [
+            [
+              7.0,
+              -0.1,
+              -0.5
+            ],
+            [
+              7.9,
+              0.0,
+              0.5
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_009",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_009"
+          },
+          "game": [
+            696.0,
+            -2.0,
+            0.0
+          ],
+          "bounds": [
+            [
+              6.92,
+              -0.1,
+              -0.55
+            ],
+            [
+              7.0,
+              0.06,
+              0.55
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_010",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_010"
+          },
+          "game": [
+            794.0,
+            -2.0,
+            0.0
+          ],
+          "bounds": [
+            [
+              7.9,
+              -0.1,
+              -0.55
+            ],
+            [
+              7.98,
+              0.06,
+              0.55
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_011",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_011"
           },
           "game": [
             580.0,
@@ -5554,12 +5806,12 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_009",
+          "target": "forest_anchor_012",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_009"
+            "name": "forest_anchor_012"
           },
           "game": [
             1040.0,
@@ -5582,16 +5834,44 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_010",
+          "target": "forest_anchor_013",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_010"
+            "name": "forest_anchor_013"
           },
           "game": [
             1205.0,
-            -6.0,
+            -15.0,
+            0.0
+          ],
+          "bounds": [
+            [
+              11.5,
+              -0.2,
+              -1.1
+            ],
+            [
+              12.6,
+              -0.1,
+              1.1
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_014",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_014"
+          },
+          "game": [
+            1205.0,
+            -5.0,
             0.0
           ],
           "bounds": [
@@ -5602,7 +5882,7 @@
             ],
             [
               12.6,
-              -0.02,
+              0.0,
               1.1
             ]
           ],
@@ -5610,12 +5890,12 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_011",
+          "target": "forest_anchor_015",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_011"
+            "name": "forest_anchor_015"
           },
           "game": [
             1146.0,
@@ -5638,12 +5918,12 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_012",
+          "target": "forest_anchor_016",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_012"
+            "name": "forest_anchor_016"
           },
           "game": [
             1264.0,
@@ -5666,12 +5946,96 @@
         },
         {
           "room": "forest",
-          "target": "forest_anchor_013",
+          "target": "forest_anchor_017",
           "kind": "anchor",
           "anchor": true,
           "source": {
             "level": "rooms.ts",
-            "name": "forest_anchor_013"
+            "name": "forest_anchor_017"
+          },
+          "game": [
+            1224.0,
+            12.0,
+            75.0
+          ],
+          "bounds": [
+            [
+              12.18,
+              -0.1,
+              -0.92
+            ],
+            [
+              12.3,
+              0.34,
+              -0.58
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_018",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_018"
+          },
+          "game": [
+            1224.0,
+            41.0,
+            75.0
+          ],
+          "bounds": [
+            [
+              12.15,
+              0.34,
+              -0.9
+            ],
+            [
+              12.33,
+              0.48,
+              -0.6
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_019",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_019"
+          },
+          "game": [
+            1202.0,
+            -0.5,
+            62.5
+          ],
+          "bounds": [
+            [
+              11.62,
+              -0.02,
+              -0.95
+            ],
+            [
+              12.42,
+              0.01,
+              -0.3
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_020",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_020"
           },
           "game": [
             1525.0,
@@ -5688,6 +6052,118 @@
               16.0,
               2.4,
               -1.55
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_021",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_021"
+          },
+          "game": [
+            745.0,
+            -6.0,
+            -135.0
+          ],
+          "bounds": [
+            [
+              7.0,
+              -0.12,
+              0.5
+            ],
+            [
+              7.9,
+              0.0,
+              2.2
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_022",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_022"
+          },
+          "game": [
+            745.0,
+            -6.0,
+            135.0
+          ],
+          "bounds": [
+            [
+              7.0,
+              -0.12,
+              -2.2
+            ],
+            [
+              7.9,
+              0.0,
+              -0.5
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_023",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_023"
+          },
+          "game": [
+            1205.0,
+            -6.0,
+            -165.0
+          ],
+          "bounds": [
+            [
+              11.5,
+              -0.12,
+              1.1
+            ],
+            [
+              12.6,
+              0.0,
+              2.2
+            ]
+          ],
+          "anchorTag": "box"
+        },
+        {
+          "room": "forest",
+          "target": "forest_anchor_024",
+          "kind": "anchor",
+          "anchor": true,
+          "source": {
+            "level": "rooms.ts",
+            "name": "forest_anchor_024"
+          },
+          "game": [
+            1205.0,
+            -6.0,
+            165.0
+          ],
+          "bounds": [
+            [
+              11.5,
+              -0.12,
+              -2.2
+            ],
+            [
+              12.6,
+              0.0,
+              -1.1
             ]
           ],
           "anchorTag": "box"
@@ -7593,18 +8069,18 @@
           "game": [
             433.0,
             60.0,
-            0.0
+            75.0
           ],
           "bounds": [
             [
               4.3,
               0.0,
-              -0.55
+              -0.95
             ],
             [
               4.36,
               1.2,
-              0.55
+              -0.55
             ]
           ],
           "anchorTag": "box"
@@ -7621,18 +8097,18 @@
           "game": [
             467.0,
             60.0,
-            0.0
+            75.0
           ],
           "bounds": [
             [
               4.64,
               0.0,
-              -0.55
+              -0.95
             ],
             [
               4.7,
               1.2,
-              0.55
+              -0.55
             ]
           ],
           "anchorTag": "box"
@@ -7649,18 +8125,18 @@
           "game": [
             450.0,
             119.0,
-            0.0
+            75.0
           ],
           "bounds": [
             [
               4.3,
               1.14,
-              -0.55
+              -0.95
             ],
             [
               4.7,
               1.24,
-              0.55
+              -0.55
             ]
           ],
           "anchorTag": "box"

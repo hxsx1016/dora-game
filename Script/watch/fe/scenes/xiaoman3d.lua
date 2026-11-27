@@ -13,6 +13,7 @@ local DrawNode = ____Dora.DrawNode -- 1
 local Model3D = ____Dora.Model3D -- 1
 local Node = ____Dora.Node -- 1
 local Node3D = ____Dora.Node3D -- 1
+local Rect = ____Dora.Rect -- 1
 local Size = ____Dora.Size -- 1
 local Surface3D = ____Dora.Surface3D -- 1
 local Vec2 = ____Dora.Vec2 -- 1
@@ -31,7 +32,7 @@ local ROOM_MODELS = {outside = "assets/xiaoman3d/outside.glb", village = "assets
 ____exports.Xiaoman3DScene = __TS__Class() -- 17
 local Xiaoman3DScene = ____exports.Xiaoman3DScene -- 17
 Xiaoman3DScene.name = "Xiaoman3DScene" -- 17
-function Xiaoman3DScene.prototype.____constructor(self, host) -- 43
+function Xiaoman3DScene.prototype.____constructor(self, host) -- 44
 	self.root = Node3D() -- 18
 	self.camera = Camera3D("xiaoman-follow") -- 19
 	self.room = "" -- 21
@@ -41,380 +42,440 @@ function Xiaoman3DScene.prototype.____constructor(self, host) -- 43
 	self.localCam = __TS__New(CameraDirector) -- 26
 	self.scratch = DrawNode() -- 27
 	self.glow = DrawNode() -- 28
-	self.depths = {} -- 30
-	self.focal = 1 -- 31
-	self.stageX = 0 -- 32
-	self.stageY = 0 -- 33
-	self.fullW = 1280 -- 34
-	self.fullH = 720 -- 35
-	self.pitchSin = 0 -- 36
-	self.pitchCos = 1 -- 37
-	self.cameraX = 0 -- 38
-	self.cameraY = 0 -- 39
-	self.cameraZ = 0 -- 40
-	self.time = 0 -- 41
-	Director.entry:addChild(self.root) -- 44
-	self.root.visible = false -- 45
-	local sun = DirectionalLight3D() -- 46
-	sun.color = Color3(229, 233, 242) -- 47
-	sun.intensity = 2.2 -- 48
-	sun.angles = Vec3(-48, -25, 0) -- 49
-	self.root:addChild(sun) -- 50
-	local fill = DirectionalLight3D() -- 51
-	fill.color = Color3(210, 216, 226) -- 52
-	fill.intensity = 0.8 -- 53
-	fill.angles = Vec3(35, 150, 0) -- 54
-	self.root:addChild(fill) -- 55
-	local effects = Surface3D( -- 56
-		self.glow, -- 56
-		Size(20, 5), -- 56
-		Size(2000, 500) -- 56
-	) -- 56
-	if effects == nil then -- 56
-		error("Surface3D effects creation failed") -- 57
-	end -- 57
-	effects.scaleX = -1 -- 58
-	effects.position = Vec3(0, 0, 0.015) -- 59
-	self.root:addChild(effects) -- 60
-	self.assets = __TS__New( -- 61
-		AssetSlotHost, -- 61
-		Node(), -- 61
-		0, -- 61
-		function(sprite, key, instance, x, y) return self:placeSprite( -- 61
-			sprite, -- 61
-			key, -- 61
-			instance, -- 61
-			x, -- 61
-			y -- 61
-		) end -- 61
-	) -- 61
-	self.localCam.x = 0 -- 63
-	self.localCam.y = 82 -- 64
-	self.localCam.viewW = 0 -- 65
-	self.localCam.ppu = 1 -- 66
-	self.localCam.groundScreenY = 0 -- 67
-	host:onCleanup(function() -- 68
-		self:hide() -- 69
-		self.root:removeFromParent() -- 70
-	end) -- 68
-end -- 43
-function Xiaoman3DScene.prototype.supports(self, p, visualMode) -- 74
-	return visualMode == "lowpoly" and ROOM_MODELS[p.room.key] ~= nil -- 75
-end -- 74
-function Xiaoman3DScene.prototype.hide(self) -- 78
-	self.root.visible = false -- 79
-	if self.active then -- 79
-		Director:removeCamera(self.camera) -- 81
-		self.active = false -- 82
-	end -- 82
-end -- 78
-function Xiaoman3DScene.prototype.render(self, p, cam, actors, dt, w, h, vp) -- 86
-	self.p = p -- 87
-	self.time = self.time + dt -- 88
-	if self.room ~= p.room.key then -- 88
-		if self.model ~= nil then -- 88
-			self.root:removeChild(self.model) -- 90
-		end -- 90
-		self.model = Model3D(ROOM_MODELS[p.room.key]) -- 91
-		self.root:addChild(self.model) -- 92
-		self.room = p.room.key -- 93
-	end -- 93
-	if self.model ~= nil then -- 93
-		self.model.position = Vec3(p.ox / 100, 0, 0) -- 96
+	self.depths = {} -- 31
+	self.focal = 1 -- 32
+	self.stageX = 0 -- 33
+	self.stageY = 0 -- 34
+	self.fullW = 1280 -- 35
+	self.fullH = 720 -- 36
+	self.pitchSin = 0 -- 37
+	self.pitchCos = 1 -- 38
+	self.cameraX = 0 -- 39
+	self.cameraY = 0 -- 40
+	self.cameraZ = 0 -- 41
+	self.time = 0 -- 42
+	Director.entry:addChild(self.root) -- 45
+	self.root.visible = false -- 46
+	local sun = DirectionalLight3D() -- 47
+	sun.color = Color3(229, 233, 242) -- 48
+	sun.intensity = 2.2 -- 49
+	sun.angles = Vec3(-48, -25, 0) -- 50
+	self.root:addChild(sun) -- 51
+	local fill = DirectionalLight3D() -- 52
+	fill.color = Color3(210, 216, 226) -- 53
+	fill.intensity = 0.8 -- 54
+	fill.angles = Vec3(35, 150, 0) -- 55
+	self.root:addChild(fill) -- 56
+	local content = Node() -- 57
+	content:addChild(self.glow) -- 58
+	local effects = Surface3D( -- 59
+		content, -- 59
+		Size(20, 5), -- 59
+		Size(2000, 500) -- 59
+	) -- 59
+	if effects == nil then -- 59
+		error("Surface3D effects creation failed") -- 60
+	end -- 60
+	effects.scaleX = -1 -- 61
+	self.effects = effects -- 62
+	self.root:addChild(effects) -- 63
+	self.assets = __TS__New( -- 64
+		AssetSlotHost, -- 64
+		Node(), -- 64
+		0, -- 64
+		function(sprite, key, instance, x, y) return self:placeSprite( -- 64
+			sprite, -- 64
+			key, -- 64
+			instance, -- 64
+			x, -- 64
+			y -- 64
+		) end -- 64
+	) -- 64
+	self.localCam.x = 0 -- 66
+	self.localCam.y = 82 -- 67
+	self.localCam.viewW = 0 -- 68
+	self.localCam.ppu = 1 -- 69
+	self.localCam.groundScreenY = 0 -- 70
+	host:onCleanup(function() -- 71
+		self:hide() -- 72
+		self.root:removeFromParent() -- 73
+	end) -- 71
+end -- 44
+function Xiaoman3DScene.prototype.supports(self, p, visualMode) -- 77
+	return visualMode == "lowpoly" and ROOM_MODELS[p.room.key] ~= nil -- 78
+end -- 77
+function Xiaoman3DScene.prototype.hide(self) -- 81
+	self.root.visible = false -- 82
+	if self.active then -- 82
+		Director:removeCamera(self.camera) -- 84
+		self.active = false -- 85
+	end -- 85
+end -- 81
+function Xiaoman3DScene.prototype.render(self, p, cam, actors, dt, w, h, vp) -- 89
+	self.p = p -- 90
+	self.time = self.time + dt -- 91
+	if self.room ~= p.room.key then -- 91
+		if self.model ~= nil then -- 91
+			self.root:removeChild(self.model) -- 93
+		end -- 93
+		self.model = Model3D(ROOM_MODELS[p.room.key]) -- 94
+		self.root:addChild(self.model) -- 95
+		self.room = p.room.key -- 96
 	end -- 96
-	if not self.active then -- 96
-		Director:pushCamera(self.camera) -- 98
-		self.active = true -- 99
-	end -- 99
-	self.root.visible = true -- 101
-	self:updateCamera(cam, w, h, vp) -- 102
-	cam.projection = self -- 103
-	self.depths = {actor_child = p.player.depth, actor_scav = 0, actor_dog = 0} -- 104
-	self.assets:beginFrame() -- 105
-	self.scratch:clear() -- 106
-	self.glow:clear() -- 107
-	for key in pairs(self.shadows) do -- 108
-		self.shadows[key].visible = false -- 108
-	end -- 108
-	local a = p.player -- 109
-	if a.alive then -- 109
-		local ground = actors:supportGroundY(p, a) -- 111
-		self:placeShadow( -- 112
-			"child", -- 112
-			a.x, -- 112
-			ground, -- 112
-			a.depth, -- 112
-			a.w * 0.48, -- 112
-			7, -- 112
-			math.max(0.2, 1 - (a.y - ground) / 180) -- 113
-		) -- 113
-	end -- 113
-	if p.room.scavenger ~= nil then -- 113
-		self:placeShadow( -- 116
-			"scavenger", -- 116
-			p.scavX, -- 116
-			p.room.scavenger.y, -- 116
-			0, -- 116
-			15, -- 116
-			8 -- 116
-		) -- 116
-	end -- 116
-	if p.room.key == "forest" then -- 116
-		self:placeShadow( -- 118
-			"dog", -- 118
-			p.dogX, -- 118
-			0, -- 118
-			0, -- 118
-			19, -- 118
-			7 -- 118
-		) -- 118
-	end -- 118
-	actors:drawAll( -- 119
-		self.scratch, -- 119
-		self.glow, -- 119
-		self.assets, -- 119
-		p, -- 119
-		self.localCam -- 119
-	) -- 119
-	self:drawProps(p) -- 120
-	self.assets:endFrame() -- 121
-end -- 86
-function Xiaoman3DScene.prototype.placeSprite(self, sprite, key, instance, x, y) -- 124
-	local surface = self.surfaces[key] -- 125
-	if surface == nil then -- 125
-		local content = Node() -- 127
-		local created = Surface3D( -- 128
-			content, -- 128
-			Size(4, 4), -- 128
-			Size(400, 400) -- 128
-		) -- 128
-		if created == nil then -- 128
-			error("Surface3D creation failed for " .. key) -- 129
-		end -- 129
-		surface = created -- 130
-		surface.scaleX = -1 -- 132
-		sprite:removeFromParent(false) -- 133
-		content:addChild(sprite) -- 134
-		self.root:addChild(surface) -- 135
-		self.surfaces[key] = surface -- 136
-	end -- 136
-	local depth = self.depths[instance] or 0 -- 138
-	surface.position = Vec3(x / 100, (y - depth * DEPTH_Y_SCALE) / 100, -depth / 100) -- 139
-	sprite.position = Vec2(0, 0) -- 140
-end -- 124
-function Xiaoman3DScene.prototype.placeShadow(self, key, x, y, depth, rx, rz, opacity) -- 143
-	if opacity == nil then -- 143
-		opacity = 1 -- 143
+	local centerX = (p.room.minX + p.room.maxX) / 2 -- 100
+	self.glow.x = -centerX -- 101
+	self.effects.position = Vec3(centerX / 100, 0, 0.015) -- 102
+	if self.model ~= nil then -- 102
+		self.model.position = Vec3(p.ox / 100, 0, 0) -- 103
+	end -- 103
+	if not self.active then -- 103
+		Director:pushCamera(self.camera) -- 105
+		self.active = true -- 106
+	end -- 106
+	self.root.visible = true -- 108
+	self:updateCamera(cam, w, h, vp) -- 109
+	cam.projection = self -- 110
+	self.depths = {actor_child = p.player.depth, actor_scav = 0, actor_dog = 0} -- 111
+	self.assets:beginFrame() -- 112
+	self.scratch:clear() -- 113
+	self.glow:clear() -- 114
+	for key in pairs(self.shadows) do -- 115
+		self.shadows[key].visible = false -- 115
+	end -- 115
+	local a = p.player -- 116
+	if a.alive then -- 116
+		local ground = actors:supportGroundY(p, a) -- 118
+		self:placeShadow( -- 119
+			"child", -- 119
+			a.x, -- 119
+			ground, -- 119
+			a.depth, -- 119
+			a.w * 0.48, -- 119
+			7, -- 119
+			math.max(0.2, 1 - (a.y - ground) / 180) -- 120
+		) -- 120
+	end -- 120
+	if p.room.scavenger ~= nil then -- 120
+		self:placeShadow( -- 123
+			"scavenger", -- 123
+			p.scavX, -- 123
+			p.room.scavenger.y, -- 123
+			0, -- 123
+			15, -- 123
+			8 -- 123
+		) -- 123
+	end -- 123
+	if p.room.key == "forest" then -- 123
+		self:placeShadow( -- 125
+			"dog", -- 125
+			p.dogX, -- 125
+			0, -- 125
+			0, -- 125
+			19, -- 125
+			7 -- 125
+		) -- 125
+	end -- 125
+	actors:drawAll( -- 126
+		self.scratch, -- 126
+		self.glow, -- 126
+		self.assets, -- 126
+		p, -- 126
+		self.localCam -- 126
+	) -- 126
+	self:drawProps(p) -- 127
+	self.assets:endFrame() -- 128
+end -- 89
+function Xiaoman3DScene.prototype.placeSprite(self, sprite, key, instance, x, y) -- 131
+	local surface = self.surfaces[key] -- 132
+	if surface == nil then -- 132
+		local content = Node() -- 134
+		local created = Surface3D( -- 135
+			content, -- 135
+			Size(4, 4), -- 135
+			Size(400, 400) -- 135
+		) -- 135
+		if created == nil then -- 135
+			error("Surface3D creation failed for " .. key) -- 136
+		end -- 136
+		surface = created -- 137
+		surface.scaleX = -1 -- 139
+		sprite:removeFromParent(false) -- 140
+		content:addChild(sprite) -- 141
+		self.root:addChild(surface) -- 142
+		self.surfaces[key] = surface -- 143
 	end -- 143
-	local surface = self.shadows[key] -- 144
-	if surface == nil then -- 144
-		local content = DrawNode() -- 146
-		content:drawCircle( -- 147
-			Vec2(0, 0), -- 147
-			50, -- 147
-			Color(16, 17, 20, 100) -- 147
-		) -- 147
-		local created = Surface3D( -- 148
-			content, -- 148
-			Size(1, 1), -- 148
-			Size(100, 100) -- 148
-		) -- 148
-		if created == nil then -- 148
-			error("Surface3D shadow creation failed") -- 149
-		end -- 149
-		surface = created -- 150
-		surface.angles = Vec3(90, 0, 0) -- 151
-		self.root:addChild(surface) -- 152
-		self.shadows[key] = surface -- 153
-	end -- 153
-	surface.visible = true -- 155
-	surface.content.opacity = opacity -- 156
-	surface.scale = Vec3(rx / 50, rz / 50, 1) -- 157
-	surface.position = Vec3(x / 100, (y + 0.6) / 100, -depth / 100) -- 158
-end -- 143
-function Xiaoman3DScene.prototype.drawProps(self, p) -- 161
-	local c = p.room.cart -- 162
-	if c.bodyW > 0 then -- 162
-		local d = c.depth or 0 -- 164
-		self.depths.cart = d -- 165
-		self.depths.cart_cloth = d - 1 -- 166
-		self.assets:tryPlace( -- 167
-			"prop_cart", -- 167
-			"cart", -- 167
-			p.cartAxle, -- 167
-			c.baseY + d * DEPTH_Y_SCALE, -- 167
-			c.bodyW * 1.38, -- 168
-			(c.wheelR * 2 + c.bodyH) * 0.94 -- 168
-		) -- 168
-		self.assets:tryPlace( -- 169
-			"fe_red_cloth", -- 169
-			"cart_cloth", -- 169
-			p.cartAxle - c.bodyW / 2 + 2, -- 169
-			c.baseY + c.wheelR + c.bodyH - 2 + (d - 1) * DEPTH_Y_SCALE, -- 170
-			24, -- 170
-			24, -- 170
-			{frame = math.floor(self.time * 6) % 3} -- 171
-		) -- 171
-	end -- 171
-	for ____, box in ipairs(p.boxes) do -- 173
-		if box.id == "outside_red_cart" and not box.broken then -- 173
-			self.assets:tryPlace( -- 175
-				"prop_cart", -- 175
-				"red_cart", -- 175
-				(box.x0 + box.x1) / 2, -- 175
-				box.y0, -- 175
-				box.x1 - box.x0, -- 175
-				box.y1 - box.y0 -- 175
-			) -- 175
-			self.assets:tryPlace( -- 176
-				"fe_red_cloth", -- 176
-				"red_cart_cloth", -- 176
-				box.x0 + 4, -- 176
-				box.y1 - 3, -- 176
-				22, -- 176
-				22, -- 176
-				{frame = math.floor(self.time * 6) % 3} -- 177
-			) -- 177
-		end -- 177
-	end -- 177
-	if p.room.key == "village" then -- 177
-		if not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 and p.room.bottle ~= nil then -- 177
+	local depth = self.depths[instance] or 0 -- 145
+	surface.position = Vec3(x / 100, (y - depth * DEPTH_Y_SCALE) / 100, -depth / 100) -- 146
+	sprite.position = Vec2(0, 0) -- 147
+end -- 131
+function Xiaoman3DScene.prototype.placeShadow(self, key, x, y, depth, rx, rz, opacity) -- 150
+	if opacity == nil then -- 150
+		opacity = 1 -- 150
+	end -- 150
+	local surface = self.shadows[key] -- 151
+	if surface == nil then -- 151
+		local content = DrawNode() -- 153
+		content:drawCircle( -- 154
+			Vec2(0, 0), -- 154
+			50, -- 154
+			Color(16, 17, 20, 100) -- 154
+		) -- 154
+		local created = Surface3D( -- 155
+			content, -- 155
+			Size(1, 1), -- 155
+			Size(100, 100) -- 155
+		) -- 155
+		if created == nil then -- 155
+			error("Surface3D shadow creation failed") -- 156
+		end -- 156
+		surface = created -- 157
+		surface.angles = Vec3(90, 0, 0) -- 158
+		self.root:addChild(surface) -- 159
+		self.shadows[key] = surface -- 160
+	end -- 160
+	surface.visible = true -- 162
+	surface.content.opacity = opacity -- 163
+	surface.scale = Vec3(rx / 50, rz / 50, 1) -- 164
+	surface.position = Vec3(x / 100, (y + 0.6) / 100, -depth / 100) -- 165
+end -- 150
+function Xiaoman3DScene.prototype.drawProps(self, p) -- 168
+	local c = p.room.cart -- 169
+	if c.bodyW > 0 then -- 169
+		local d = c.depth or 0 -- 171
+		self.depths.cart = d -- 172
+		self.depths.cart_cloth = d - 1 -- 173
+		self.assets:tryPlace( -- 174
+			"prop_cart", -- 174
+			"cart", -- 174
+			p.cartAxle, -- 174
+			c.baseY + d * DEPTH_Y_SCALE, -- 174
+			c.bodyW * 1.38, -- 175
+			(c.wheelR * 2 + c.bodyH) * 0.94 -- 175
+		) -- 175
+		self.assets:tryPlace( -- 176
+			"fe_red_cloth", -- 176
+			"cart_cloth", -- 176
+			p.cartAxle - c.bodyW / 2 + 2, -- 176
+			c.baseY + c.wheelR + c.bodyH - 2 + (d - 1) * DEPTH_Y_SCALE, -- 177
+			24, -- 177
+			24, -- 177
+			{frame = math.floor(self.time * 6) % 3} -- 178
+		) -- 178
+	end -- 178
+	for ____, box in ipairs(p.boxes) do -- 180
+		if box.id == "outside_red_cart" and not box.broken then -- 180
 			self.assets:tryPlace( -- 182
-				"prop_bottle", -- 182
-				"bottle_shelf", -- 182
-				p.room.bottle.x, -- 182
-				p.room.bottle.y, -- 182
-				14, -- 182
-				14 -- 182
+				"prop_cart", -- 182
+				"red_cart", -- 182
+				(box.x0 + box.x1) / 2, -- 182
+				box.y0, -- 182
+				box.x1 - box.x0, -- 182
+				box.y1 - box.y0 -- 182
 			) -- 182
-		end -- 182
-		if p.hasBottle and p.aimHold <= 0 then -- 182
-			local a = p.player -- 185
-			self.depths.bottle_held = a.depth - 1 -- 186
-			self.assets:tryPlace( -- 187
-				"prop_bottle", -- 187
-				"bottle_held", -- 187
-				a.x + a.facing * 10, -- 187
-				a.y + a.h * 0.52 + (a.depth - 1) * DEPTH_Y_SCALE, -- 188
-				14, -- 188
-				14 -- 188
-			) -- 188
-		end -- 188
-		if p.bottleFly ~= nil then -- 188
-			self.assets:tryPlace( -- 191
-				"prop_bottle", -- 191
-				"bottle_air", -- 191
-				p.bottleFly.x, -- 191
-				p.bottleFly.y, -- 191
-				14, -- 191
-				14, -- 191
-				{angle = self.time * 360} -- 192
-			) -- 192
-		end -- 192
-	end -- 192
-	if p.hasBottle and p.aimHold > 0 and p.bottleAimX >= 0 then -- 192
-		local endX = p.bottleAimX -- 196
-		local endY = p.bottleAimY -- 197
-		local x0 = p.player.x + (endX >= p.player.x and 10 or -10) -- 198
-		local y0 = p.player.y + p.player.h * 0.7 -- 199
-		local duration = 0.62 -- 200
-		local vx = (endX - x0) / duration -- 201
-		local vy = (endY - y0 + 0.5 * GRAVITY * duration * duration) / duration -- 202
-		do -- 202
-			local i = 1 -- 203
-			while i <= 18 do -- 203
-				local t = i / 18 * duration -- 204
-				self.glow:drawDot( -- 205
-					Vec2(x0 + vx * t, y0 + vy * t - 0.5 * GRAVITY * t * t), -- 205
-					1.2, -- 205
-					Color(229, 206, 148, 210) -- 206
-				) -- 206
-				i = i + 1 -- 203
-			end -- 203
-		end -- 203
-		self.glow:drawEllipse( -- 208
-			Vec2(endX, endY + 1), -- 208
-			8, -- 208
-			2, -- 208
-			Color(229, 206, 148, 170) -- 208
-		) -- 208
-	end -- 208
-	if p.room.key == "tower" then -- 208
-		if not p.towerDoorOpen then -- 208
-			self.assets:tryPlace( -- 212
-				"prop_tower_door", -- 212
-				"tower_door", -- 212
-				p.ox + 450, -- 212
-				0, -- 212
-				40, -- 212
-				110 -- 212
-			) -- 212
-		else -- 212
-			self.depths.tower_guard = 38 -- 214
-			local writing = p.deskHold >= 24 or p.towerHanded -- 215
-			self.assets:tryPlacePath( -- 216
-				writing and "assets/art/actors_extra.clip|tower_guard_write" or "assets/art/actors_extra.clip|tower_guard_lantern", -- 216
-				"tower_guard", -- 217
-				p.ox + 626, -- 218
-				38 * DEPTH_Y_SCALE, -- 218
-				54, -- 218
-				82, -- 218
-				{anchorX = 0.44, anchorY = 0, preserveAspect = true, facing = -1} -- 219
-			) -- 219
-			self.depths.desk_lamp = 22 -- 220
-			self.assets:tryPlace( -- 221
-				"prop_lantern", -- 221
-				"desk_lamp", -- 221
-				p.ox + 639, -- 221
-				35 + 22 * DEPTH_Y_SCALE, -- 221
-				18, -- 221
-				30 -- 221
-			) -- 221
-		end -- 221
-	end -- 221
-end -- 161
-function Xiaoman3DScene.prototype.updateCamera(self, cam, w, h, vp) -- 226
-	self.fullW = View.size.width -- 227
-	self.fullH = View.size.height -- 228
-	self.stageX = vp.stageX -- 229
-	self.stageY = vp.stageY -- 230
-	self.focal = self.fullH / (2 * math.tan(View.fieldOfView * math.pi / 360)) -- 231
-	local distance = 4.25 / cam.zoom * self.fullH / h -- 232
-	local rise = distance * 0.19 -- 233
-	local length = math.sqrt(distance * distance + rise * rise) -- 234
-	self.pitchSin = rise / length -- 235
-	self.pitchCos = distance / length -- 236
-	local offsetX = (vp.stageX + w / 2 - self.fullW / 2) * length / self.focal -- 237
-	local offsetY = (vp.stageY + h / 2 - self.fullH / 2) * length / self.focal -- 238
-	local tx = cam.x / 100 - offsetX -- 239
-	local ty = 0.85 + (cam.y - 82) * 0.0045 - offsetY * self.pitchCos -- 240
-	local tz = offsetY * self.pitchSin -- 241
-	self.cameraX = tx -- 242
-	self.cameraY = ty + rise -- 243
-	self.cameraZ = tz + distance -- 244
-	self.camera:lookAt( -- 245
-		Vec3(self.cameraX, self.cameraY, self.cameraZ), -- 245
-		Vec3(tx, ty, tz) -- 245
-	) -- 245
-end -- 226
-function Xiaoman3DScene.prototype.worldToScreen(self, x, y, depth) -- 248
-	if depth == nil then -- 248
-		depth = 0 -- 248
-	end -- 248
-	local dx = x / 100 - self.cameraX -- 249
-	local dy = y / 100 - self.cameraY -- 250
-	local dz = -depth / 100 - self.cameraZ -- 251
-	local forward = -dy * self.pitchSin - dz * self.pitchCos -- 252
-	return {x = self.fullW / 2 + dx * self.focal / forward - self.stageX, y = self.fullH / 2 + (dy * self.pitchCos - dz * self.pitchSin) * self.focal / forward - self.stageY} -- 253
-end -- 248
-function Xiaoman3DScene.prototype.screenToWorld(self, x, y) -- 259
-	local u = (x + self.stageX - self.fullW / 2) / self.focal -- 260
-	local v = (y + self.stageY - self.fullH / 2) / self.focal -- 261
-	local rayY = v * self.pitchCos - self.pitchSin -- 262
-	local rayZ = -v * self.pitchSin - self.pitchCos -- 263
-	local ____opt_0 = self.p -- 263
-	local z = -(____opt_0 and ____opt_0.player.depth or 0) / 100 -- 265
-	local t = (z - self.cameraZ) / rayZ -- 266
-	return {x = (self.cameraX + u * t) * 100, y = (self.cameraY + rayY * t) * 100} -- 267
-end -- 259
-return ____exports -- 259
+			self.assets:tryPlace( -- 183
+				"fe_red_cloth", -- 183
+				"red_cart_cloth", -- 183
+				box.x0 + 4, -- 183
+				box.y1 - 3, -- 183
+				22, -- 183
+				22, -- 183
+				{frame = math.floor(self.time * 6) % 3} -- 184
+			) -- 184
+		end -- 184
+	end -- 184
+	if p.room.key == "village" then -- 184
+		if not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 and p.room.bottle ~= nil then -- 184
+			self.assets:tryPlace( -- 189
+				"prop_bottle", -- 189
+				"bottle_shelf", -- 189
+				p.room.bottle.x, -- 189
+				p.room.bottle.y, -- 189
+				14, -- 189
+				14 -- 189
+			) -- 189
+		end -- 189
+		if p.hasBottle and p.aimHold <= 0 then -- 189
+			local a = p.player -- 192
+			self.depths.bottle_held = a.depth - 1 -- 193
+			self.assets:tryPlace( -- 194
+				"prop_bottle", -- 194
+				"bottle_held", -- 194
+				a.x + a.facing * 10, -- 194
+				a.y + a.h * 0.52 + (a.depth - 1) * DEPTH_Y_SCALE, -- 195
+				14, -- 195
+				14 -- 195
+			) -- 195
+		end -- 195
+		if p.bottleFly ~= nil then -- 195
+			self.assets:tryPlace( -- 198
+				"prop_bottle", -- 198
+				"bottle_air", -- 198
+				p.bottleFly.x, -- 198
+				p.bottleFly.y, -- 198
+				14, -- 198
+				14, -- 198
+				{angle = self.time * 360} -- 199
+			) -- 199
+		end -- 199
+	end -- 199
+	if p.hasBottle and p.aimHold > 0 and p.bottleAimX >= 0 then -- 199
+		local endX = p.bottleAimX -- 203
+		local endY = p.bottleAimY -- 204
+		local x0 = p.player.x + (endX >= p.player.x and 10 or -10) -- 205
+		local y0 = p.player.y + p.player.h * 0.7 -- 206
+		local duration = 0.62 -- 207
+		local vx = (endX - x0) / duration -- 208
+		local vy = (endY - y0 + 0.5 * GRAVITY * duration * duration) / duration -- 209
+		do -- 209
+			local i = 1 -- 210
+			while i <= 18 do -- 210
+				local t = i / 18 * duration -- 211
+				self.glow:drawDot( -- 212
+					Vec2(x0 + vx * t, y0 + vy * t - 0.5 * GRAVITY * t * t), -- 212
+					1.2, -- 212
+					Color(229, 206, 148, 210) -- 213
+				) -- 213
+				i = i + 1 -- 210
+			end -- 210
+		end -- 210
+		self.glow:drawEllipse( -- 215
+			Vec2(endX, endY + 1), -- 215
+			8, -- 215
+			2, -- 215
+			Color(229, 206, 148, 170) -- 215
+		) -- 215
+	end -- 215
+	local latch = p:cartLatchBounds() -- 217
+	if latch ~= nil then -- 217
+		local iron = Color(122, 103, 78, 255) -- 219
+		local top = latch.y + latch.height -- 220
+		local post = math.min(3, latch.width) -- 221
+		self.glow:drawRect( -- 222
+			Rect(latch.x, top - 5, latch.width, 5), -- 222
+			iron -- 222
+		) -- 222
+		self.glow:drawRect( -- 223
+			Rect(latch.x, latch.y, post, latch.height), -- 223
+			iron -- 223
+		) -- 223
+		self.glow:drawRect( -- 224
+			Rect(latch.x + latch.width - post, latch.y, post, latch.height), -- 224
+			iron -- 224
+		) -- 224
+		self.glow:drawRect( -- 225
+			Rect(latch.x, top - 2, latch.width, 2), -- 225
+			Color(194, 171, 132, 255) -- 225
+		) -- 225
+	end -- 225
+	if p.room.key == "forest" then -- 225
+		local lampX = p.ox + 1224 -- 229
+		local sway = math.sin(self.time * 1.7) * 3 -- 230
+		self.glow:drawRect( -- 231
+			Rect(p.ox + 700, -3, 90, 3), -- 231
+			Color(94, 116, 120, 120) -- 231
+		) -- 231
+		self.glow:drawRect( -- 232
+			Rect(p.ox + 1150, -3, 110, 3), -- 232
+			Color(98, 124, 126, 132) -- 232
+		) -- 232
+		self.glow:drawEllipse( -- 233
+			Vec2(lampX + sway, 1), -- 233
+			26, -- 233
+			3, -- 233
+			Color(229, 206, 148, 118) -- 233
+		) -- 233
+		self.glow:drawEllipse( -- 234
+			Vec2(lampX + sway * 0.6, 1), -- 234
+			12, -- 234
+			2, -- 234
+			Color(246, 232, 186, 172) -- 234
+		) -- 234
+		self.depths.water_lamp = 40 -- 235
+		self.assets:tryPlace( -- 236
+			"prop_lantern", -- 236
+			"water_lamp", -- 236
+			lampX, -- 236
+			34 + 40 * DEPTH_Y_SCALE, -- 236
+			16, -- 236
+			26 -- 236
+		) -- 236
+	end -- 236
+	if p.room.key == "tower" then -- 236
+		if not p.towerDoorOpen then -- 236
+			self.assets:tryPlace( -- 240
+				"prop_tower_door", -- 240
+				"tower_door", -- 240
+				p.ox + 450, -- 240
+				0, -- 240
+				40, -- 240
+				110 -- 240
+			) -- 240
+		else -- 240
+			self.depths.tower_guard = 38 -- 242
+			local writing = p.deskHold >= 24 or p.towerHanded -- 243
+			self.assets:tryPlacePath( -- 244
+				writing and "assets/art/actors_extra.clip|tower_guard_write" or "assets/art/actors_extra.clip|tower_guard_lantern", -- 244
+				"tower_guard", -- 245
+				p.ox + 626, -- 246
+				38 * DEPTH_Y_SCALE, -- 246
+				54, -- 246
+				82, -- 246
+				{anchorX = 0.44, anchorY = 0, preserveAspect = true, facing = -1} -- 247
+			) -- 247
+			self.depths.desk_lamp = 22 -- 248
+			self.assets:tryPlace( -- 249
+				"prop_lantern", -- 249
+				"desk_lamp", -- 249
+				p.ox + 639, -- 249
+				35 + 22 * DEPTH_Y_SCALE, -- 249
+				18, -- 249
+				30 -- 249
+			) -- 249
+		end -- 249
+	end -- 249
+end -- 168
+function Xiaoman3DScene.prototype.updateCamera(self, cam, w, h, vp) -- 254
+	self.fullW = View.size.width -- 255
+	self.fullH = View.size.height -- 256
+	self.stageX = vp.stageX -- 257
+	self.stageY = vp.stageY -- 258
+	self.focal = self.fullH / (2 * math.tan(View.fieldOfView * math.pi / 360)) -- 259
+	local distance = 4.25 / cam.zoom * self.fullH / h -- 260
+	local rise = distance * 0.19 -- 261
+	local length = math.sqrt(distance * distance + rise * rise) -- 262
+	self.pitchSin = rise / length -- 263
+	self.pitchCos = distance / length -- 264
+	local offsetX = (vp.stageX + w / 2 - self.fullW / 2) * length / self.focal -- 265
+	local offsetY = (vp.stageY + h / 2 - self.fullH / 2) * length / self.focal -- 266
+	local tx = cam.x / 100 - offsetX -- 267
+	local ty = 0.85 + (cam.y - 82) * 0.0045 - offsetY * self.pitchCos -- 268
+	local tz = offsetY * self.pitchSin -- 269
+	self.cameraX = tx -- 270
+	self.cameraY = ty + rise -- 271
+	self.cameraZ = tz + distance -- 272
+	self.camera:lookAt( -- 273
+		Vec3(self.cameraX, self.cameraY, self.cameraZ), -- 273
+		Vec3(tx, ty, tz) -- 273
+	) -- 273
+end -- 254
+function Xiaoman3DScene.prototype.worldToScreen(self, x, y, depth) -- 276
+	if depth == nil then -- 276
+		depth = 0 -- 276
+	end -- 276
+	local dx = x / 100 - self.cameraX -- 277
+	local dy = y / 100 - self.cameraY -- 278
+	local dz = -depth / 100 - self.cameraZ -- 279
+	local forward = -dy * self.pitchSin - dz * self.pitchCos -- 280
+	return {x = self.fullW / 2 + dx * self.focal / forward - self.stageX, y = self.fullH / 2 + (dy * self.pitchCos - dz * self.pitchSin) * self.focal / forward - self.stageY} -- 281
+end -- 276
+function Xiaoman3DScene.prototype.screenToWorld(self, x, y) -- 287
+	local u = (x + self.stageX - self.fullW / 2) / self.focal -- 288
+	local v = (y + self.stageY - self.fullH / 2) / self.focal -- 289
+	local rayY = v * self.pitchCos - self.pitchSin -- 290
+	local rayZ = -v * self.pitchSin - self.pitchCos -- 291
+	local ____opt_0 = self.p -- 291
+	local z = -(____opt_0 and ____opt_0.player.depth or 0) / 100 -- 293
+	local t = (z - self.cameraZ) / rayZ -- 294
+	return {x = (self.cameraX + u * t) * 100, y = (self.cameraY + rayY * t) * 100} -- 295
+end -- 287
+return ____exports -- 287

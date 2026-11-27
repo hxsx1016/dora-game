@@ -1,4 +1,4 @@
-import { Camera3D, Color, Color3, Director, DirectionalLight3D, DrawNode, Model3D, Node, Node3D, Size, Sprite, Surface3D, Vec2, Vec3, View } from "Dora";
+import { Camera3D, Color, Color3, Director, DirectionalLight3D, DrawNode, Model3D, Node, Node3D, Rect, Size, Sprite, Surface3D, Vec2, Vec3, View } from "Dora";
 import { GRAVITY, Play } from "Script/watch/play";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { StageViewport } from "Script/watch/platform";
@@ -26,6 +26,7 @@ export class Xiaoman3DScene implements WorldProjection {
     private localCam = new CameraDirector();
     private scratch = DrawNode();
     private glow = DrawNode();
+    private effects: Surface3D.Type;
     private p: Play | undefined;
     private depths: Record<string, number> = {};
     private focal = 1;
@@ -53,10 +54,12 @@ export class Xiaoman3DScene implements WorldProjection {
         fill.intensity = 0.8;
         fill.angles = Vec3(35, 150, 0);
         this.root.addChild(fill);
-        const effects = Surface3D(this.glow, Size(20, 5), Size(2000, 500));
+        const content = Node();
+        content.addChild(this.glow);
+        const effects = Surface3D(content, Size(20, 5), Size(2000, 500));
         if (effects === undefined) error("Surface3D effects creation failed");
         effects.scaleX = -1;
-        effects.position = Vec3(0, 0, 0.015);
+        this.effects = effects;
         this.root.addChild(effects);
         this.assets = new AssetSlotHost(Node(), 0, (sprite, key, instance, x, y) => this.placeSprite(sprite, key, instance, x, y));
         // Draw existing animation selection in game units, then move each sprite into shared depth.
@@ -93,6 +96,10 @@ export class Xiaoman3DScene implements WorldProjection {
             this.room = p.room.key;
         }
         // Rooms can be embedded in a continuous run at p.ox.
+        // 特效画布以房间中点为中心，世界坐标绘制的两端都落在纹理内。
+        const centerX = (p.room.minX + p.room.maxX) / 2;
+        this.glow.x = -centerX;
+        this.effects.position = Vec3(centerX / 100, 0, 0.015);
         if (this.model !== undefined) this.model.position = Vec3(p.ox / 100, 0, 0);
         if (!this.active) {
             Director.pushCamera(this.camera);
@@ -206,6 +213,27 @@ export class Xiaoman3DScene implements WorldProjection {
                     Color(229, 206, 148, 210));
             }
             this.glow.drawEllipse(Vec2(endX, endY + 1), 8, 2, Color(229, 206, 148, 170));
+        }
+        const latch = p.cartLatchBounds();
+        if (latch !== undefined) {
+            const iron = Color(122, 103, 78, 255);
+            const top = latch.y + latch.height;
+            const post = Math.min(3, latch.width);
+            this.glow.drawRect(Rect(latch.x, top - 5, latch.width, 5), iron);
+            this.glow.drawRect(Rect(latch.x, latch.y, post, latch.height), iron);
+            this.glow.drawRect(Rect(latch.x + latch.width - post, latch.y, post, latch.height), iron);
+            this.glow.drawRect(Rect(latch.x, top - 2, latch.width, 2), Color(194, 171, 132, 255));
+        }
+        // 森林旧渠与溪湾：水面微光、水中灯影（贴水面、随呼吸轻摆）。
+        if (p.room.key === "forest") {
+            const lampX = p.ox + 1224;
+            const sway = Math.sin(this.time * 1.7) * 3;
+            this.glow.drawRect(Rect(p.ox + 700, -3, 90, 3), Color(94, 116, 120, 120));
+            this.glow.drawRect(Rect(p.ox + 1150, -3, 110, 3), Color(98, 124, 126, 132));
+            this.glow.drawEllipse(Vec2(lampX + sway, 1), 26, 3, Color(229, 206, 148, 118));
+            this.glow.drawEllipse(Vec2(lampX + sway * 0.6, 1), 12, 2, Color(246, 232, 186, 172));
+            this.depths.water_lamp = 40;
+            this.assets.tryPlace("prop_lantern", "water_lamp", lampX, 34 + 40 * DEPTH_Y_SCALE, 16, 26);
         }
         if (p.room.key === "tower") {
             if (!p.towerDoorOpen) {
