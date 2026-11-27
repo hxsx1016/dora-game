@@ -516,7 +516,9 @@ end
 do
 	local publicRooms = {}
 	for index, room in ipairs(rooms.ROOMS) do
-		if room.key ~= "museum" then publicRooms[#publicRooms + 1] = index - 1 end
+		if room.key ~= "museum" and room.key ~= "street" and room.key ~= "checkpoint" then
+			publicRooms[#publicRooms + 1] = index - 1
+		end
 	end
 	fe.screen = "chapters"
 	fe.menus:openChapters()

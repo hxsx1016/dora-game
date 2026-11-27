@@ -1692,6 +1692,7 @@ export class Play {
         }
         this.reloadPendingEffect = reloadEffectOf(path);
         this.reloadOpen = false;
+        this.reloadT = 0;
         this.emit("reloadSolved", {
             effect: this.reloadPendingEffect, answerTicks: this.reloadAnswerTicks, pathLength: path.length,
         });
@@ -1751,7 +1752,7 @@ export class Play {
     }
 
     private reloadTicks(): number {
-        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * this.talentRank("reload"));
+        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * this.talentRank("reload") - 3 * this.talentRank("craft"));
     }
 
     update(dt: number, input: Input): void {
@@ -2053,9 +2054,9 @@ export class Play {
             speed = SOLDIER_SPEED * 0.45;
         }
 
-        // 握车把时人由车带着走，自己按方向键不再叠加位移。
-        const handsBusy = this.gripping || gripIntent;
-        const dir = this.gripping ? 0 : input.moveX;
+        // 握车把或打开慢时换弹盘时，方向键归车/换弹盘使用，避免 W/A/S/D 同时带走人物。
+        const handsBusy = this.gripping || gripIntent || this.reloadOpen;
+        const dir = (this.gripping || this.reloadOpen) ? 0 : input.moveX;
         // 逃柜段控制权在小满身上，但仍要允许她切里道绕过石柱；其余 childMode 段保持原行为。
         const depthDir = this.room.depth !== undefined && !handsBusy
             && (!isChild || this.phase === "prologue-escape") ? -input.moveY : 0;
@@ -2080,8 +2081,13 @@ export class Play {
         this.fallY(a, dt);
 
         // 点射：周戍按住左键，朝准星打一条线；两手握车或在博物馆/北塔静默室内不能开枪。
-        if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && input.fire.pressed) {
+        if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && !this.reloadOpen && input.fire.pressed) {
             this.shoot(a);
+        }
+        // 手动起盘换弹（Q 键）：在支持慢时连线换弹的护送段允许随时主动调出 3×3 盘面。
+        if (!isChild && !peacefulRoom && !this.gripping && !this.reloadOpen && this.reloadPendingEffect === ""
+            && this.run.trial === undefined && this.room.campaign?.reloadPuzzle === true && input.flare.pressed) {
+            this.beginReload();
         }
     }
 
@@ -3174,11 +3180,21 @@ export class Play {
                 this.dogDir = -1;
             }
             const moving = Math.abs(p.vx) > 1 || !p.onGround;
-            if (!sheltered && !p.crouch && moving && dist < effectiveRange) {
+            const twigOffsets = [235, 455, 865, 1115];
+            let nearTwig = false;
+            let ti = 0;
+            for (ti = 0; ti < twigOffsets.length; ti++) {
+                if (Math.abs(p.x - (ox + twigOffsets[ti])) <= 18 && p.y <= 8) {
+                    nearTwig = true;
+                    break;
+                }
+            }
+            const twigRange = nearTwig ? Math.max(effectiveRange, 400) : effectiveRange;
+            if (!sheltered && !p.crouch && moving && dist < twigRange) {
                 this.dogState = "ear";
-                this.dogT = earNeedTicks;
+                this.dogT = nearTwig ? Math.min(earNeedTicks, 12) : earNeedTicks;
                 this.dogTargetX = p.x;
-                this.flashSet(inDitchSprint ? "旧渠枯枝响 · 狗立刻转耳" : "狗转耳朵", 0.8);
+                this.flashSet(inDitchSprint ? "旧渠枯枝响 · 狗立刻转耳" : (nearTwig ? "踩断枯枝 · 狗立刻转耳" : "狗转耳朵"), 0.8);
             }
             return;
         }
@@ -3468,12 +3484,12 @@ export class Play {
             this.flashSet("转布行线 · 小满到窗板后等", 1.3);
             this.log("转布行线");
         }
-        // 第三段安全工台：靠近工台按 E 开面板。
+        // 第三段安全工台：靠近工台（含整张 560..680 台面与两侧接近日）按 E 开面板，不穿透到普通机关提示。
         if (wr.key === "escort3") {
-            const benchX = wr.minX + 560;
-            const nearBench = Math.abs(p.x - benchX) <= this.benchReach + 40 && p.y < 60;
+            const nearBench = p.x >= wr.minX + 472 && p.x <= wr.minX + 710 && p.y < 60;
             if (nearBench && input.interact.pressed) {
                 this.openCraftBench();
+                return;
             }
         }
         // 拾取：走到掉落物上自动进包。
@@ -3499,7 +3515,25 @@ export class Play {
                 this.emit("pickup", { kind: pk.kind, x: pk.x, y: pk.y, label: pk.label });
             }
         }
-        if (!this.stepCraft(input) && input.interact.pressed) {
+        // S1–C2 正式剧情中，若小满因近距交火受惊，允许周戍走近按 E 轻敲两下安抚。
+        this.calmConsumed = false;
+        if (this.run.trial === undefined && this.partner.alive && this.run.joined
+            && (this.room.campaign?.chapter === "S" || this.room.campaign?.chapter === "C")
+            && (this.escort.fear > 0 || this.escort.state === "frozen" || this.escort.state === "calming")) {
+            const dist = inReachDepth(p.depth, this.partner.depth) ? Math.abs(p.x - this.partner.x) : 1e9;
+            const hadK1 = this.escort.knock1;
+            const hadK2 = this.escort.knock2;
+            this.calmConsumed = this.escort.update(input, p.x, p.facing, this.partner.x, dist);
+            if (!hadK1 && this.escort.knock1) {
+                this.emit("knock", { count: 1, x: this.partner.x, room: this.room.key });
+            }
+            if (!hadK2 && this.escort.knock2) {
+                this.emit("knock", { count: 2, x: this.partner.x, room: this.room.key });
+            }
+            this.partner.crouch = this.escort.crouchPose;
+            this.partner.h = this.partner.crouch ? CHILD_CROUCH_H : CHILD_H;
+        }
+        if (!this.calmConsumed && !this.stepCraft(input) && input.interact.pressed) {
             this.campaignInteract();
         }
         this.stepCampaignCart(dt, input);
@@ -3859,9 +3893,6 @@ export class Play {
             }
             if (!e.alive) {
                 continue;
-            }
-            if (e.hitT > 0) {
-                e.hitT -= dt;
             }
             if (e.kind === "breaker") {
                 this.stepBreaker(e, dt);
@@ -4512,9 +4543,12 @@ export class Play {
             }
         }
 
-        // 按住 F 瞄，松手才投
+        // 按住 F 瞄，松手才投；右键/取消键清零放弃投掷
         if (this.hasBottle) {
-            if (input.aim.held) {
+            if (input.bottleCanceled) {
+                this.aimHold = 0;
+                this.bottleAimX = -1;
+            } else if (input.aim.held) {
                 this.aimHold += dt;
                 if (this.aimHold > 1.2) {
                     this.aimHold = 1.2;
@@ -4910,9 +4944,16 @@ export class Play {
             const fromFront = (a.x < e.x && dx > 0) || (a.x > e.x && dx < 0);
             const shieldTop = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE + 64;
             if (e.kind === "shield" && (e.shieldHp ?? 0) > 0 && fromFront && impactY <= shieldTop) {
-                e.shieldHp = (e.shieldHp ?? 0) - 1;
+                const dmg = reloadEffect === "push" ? 2 : 1;
+                e.shieldHp = Math.max(0, (e.shieldHp ?? 0) - dmg);
                 e.hitT = 0.3;
-                this.flashSet("盾面挡下 · 盾 " + e.shieldHp + "/" + (e.shieldHpMax ?? 2), 0.8);
+                if (reloadEffect === "push") {
+                    e.x = Math.max(this.room.minX + 20, Math.min(this.room.maxX - 20, e.x + a.facing * 46));
+                    this.emit("reloadApplied", { effect: "push", weapon: this.equippedWeapon, enemyX: e.x });
+                    this.flashSet(e.shieldHp <= 0 ? "推退破盾！" : "推退震退持盾手", 0.9);
+                } else {
+                    this.flashSet("盾面挡下 · 盾 " + e.shieldHp + "/" + (e.shieldHpMax ?? 2), 0.8);
+                }
                 this.emit("shotResolved", {
                     hit: true, enemyIndex: i, enemyX: e.x, aimX: aim.x, aimY: aim.y,
                     impactX: ox + dx * t, impactY: oy + dy * t, shield: true,
@@ -4958,7 +4999,9 @@ export class Play {
 
     /** 把一次开火派发成危险事件；是否真的吓到她由 childExposed 判。 */
     private applyFireDanger(shotX: number): void {
-        if (this.room.key !== "checkpoint" || !this.partner.alive) {
+        const isStorySc = this.isCampaign && this.run.trial === undefined && this.run.joined
+            && (this.room.campaign?.chapter === "S" || this.room.campaign?.chapter === "C");
+        if ((this.room.key !== "checkpoint" && !isStorySc) || !this.partner.alive) {
             return;
         }
         let dangerX = shotX;
@@ -4978,6 +5021,10 @@ export class Play {
         }
         if (best >= 0) {
             dangerX = this.enemies[best].x;
+        }
+        // S1–C2 战役房仅在近距交火波及小满身侧（<260）时累积惊惧，避免远距对射频繁打断节奏。
+        if (isStorySc && Math.abs(dangerX - this.partner.x) > 260) {
+            return;
         }
         const exposed = this.childExposed(dangerX);
         const before = this.escort.fear;

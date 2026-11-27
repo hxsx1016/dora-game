@@ -6,6 +6,7 @@ local ____Dora = require("Dora") -- 1
 local Color = ____Dora.Color -- 1
 local ____depth = require("Script.watch.depth") -- 2
 local ACTOR_DEPTH_HALF = ____depth.ACTOR_DEPTH_HALF -- 2
+local DEPTH_Y_SCALE = ____depth.DEPTH_Y_SCALE -- 2
 local overlapsDepth = ____depth.overlapsDepth -- 2
 ____exports.OCCLUDED_OPACITY = 0.44 -- 6
 local WHITE = Color(255, 255, 255, 255) -- 7
@@ -23,15 +24,15 @@ end -- 24
 local function hides(actor, prop) -- 28
 	local behind = actor.depth > prop.depth.min + 0.5 -- 29
 	local passingThrough = prop.passThrough and overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF) -- 30
-	if not actor.alive or not behind and not passingThrough or actor.x + actor.w * 0.5 <= prop.x0 or actor.x - actor.w * 0.5 >= prop.x1 then -- 30
+	if not actor.alive or not behind and not passingThrough or actor.x + actor.w * 0.5 <= prop.x0 or actor.x - actor.w * 0.5 >= prop.x1 then -- 31
 		return false -- 33
 	end -- 33
-	if actor.y >= prop.y1 and overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF) then -- 33
+	if actor.y >= prop.y1 and overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF) then -- 35
 		return false -- 36
 	end -- 36
-	local foot = actor.y + actor.depth -- 38
+	local foot = actor.y + actor.depth * DEPTH_Y_SCALE -- 38
 	local height = actor.rollT > 0 and actor.h * 0.6 or actor.h -- 39
-	return foot < prop.y1 + prop.depth.max and foot + height > prop.y0 + prop.depth.min -- 40
+	return foot < prop.y1 + prop.depth.max * DEPTH_Y_SCALE and foot + height > prop.y0 + prop.depth.min * DEPTH_Y_SCALE -- 40
 end -- 28
 ____exports.DepthOcclusion = __TS__Class() -- 43
 local DepthOcclusion = ____exports.DepthOcclusion -- 43

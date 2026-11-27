@@ -78,7 +78,7 @@ export function payMaterials(inv: Inventory, recipe: RecipeSpec): boolean {
 }
 
 export function weaponEffectOf(weapon: string): WeaponEffect {
-    if (weapon === "guide_lantern_gun") {
+    if (weapon === "guide_lantern_gun" || weapon === ARTIFACT_WEAPON_ID) {
         return "light";
     }
     if (weapon === "echo_gun") {

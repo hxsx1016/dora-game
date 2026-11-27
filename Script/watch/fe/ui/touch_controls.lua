@@ -874,7 +874,7 @@ function TouchControls.prototype.syncContext(self, params) -- 242
 		else -- 762
 			local rightX = ovW - safeR - 92 * sc -- 768
 			local bottomY = safeB + 110 * sc -- 769
-			bottleCancelCenter = {x = rightX - 14 * sc, y = bottomY + 14 * sc, r = 44 * sc} -- 770
+			bottleCancelCenter = {x = rightX - 186 * sc, y = bottomY + 126 * sc, r = 42 * sc} -- 770
 			if not p.childMode then -- 772
 				buttons[#buttons + 1] = { -- 773
 					id = "fire", -- 774

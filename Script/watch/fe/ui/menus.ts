@@ -83,9 +83,9 @@ const TITLE_ITEMS = [
     { id: "quit", zh: "退出游戏" },
 ];
 
-// 博物馆由双通关后的井口进入，章节菜单保留公开关卡原有的房间索引。
+// 博物馆由双通关后的井口进入；旧版灰盒 street/checkpoint 仅保留给 debug 回归，不暴露在正式选章里。
 const CHAPTERS = ROOMS.map((room, roomIndex) => ({ room, roomIndex }))
-    .filter(chapter => chapter.room.key !== "museum");
+    .filter(chapter => chapter.room.key !== "museum" && chapter.room.key !== "street" && chapter.room.key !== "checkpoint");
 
 // 桌面端严格保持 0..7 既有顺序（4 = fullscreen，7 = quit），第 8 项追加「操控设置」二级页。
 const PAUSE_ITEMS = [
@@ -604,8 +604,8 @@ export class MenuRenderer {
         const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
         const splitTrack = CHAPTERS.length > 8;
         const perRow = splitTrack ? Math.ceil(CHAPTERS.length / 2) : CHAPTERS.length;
-        const trackY = (splitTrack ? 195 : 148) + extraH * 0.25;
-        const rowGap = 84;
+        const trackY = (splitTrack ? 210 : 148) + extraH * 0.25;
+        const rowGap = 68;
         const trackX0 = marginX + 34;
         const trackX1 = w - marginX - 34;
         const stepX = (trackX1 - trackX0) / Math.max(1, perRow - 1);
@@ -615,7 +615,7 @@ export class MenuRenderer {
         for (s = 0; s < CHAPTERS.length; s++) {
             const sx = trackX0 + (s % perRow) * stepX;
             const sy = trackY - Math.floor(s / perRow) * rowGap;
-            stationBoxes.push(Rect(sx - stepX * 0.45, sy - 37, stepX * 0.9, 74));
+            stationBoxes.push(Rect(sx - stepX * 0.45, sy - 29, stepX * 0.9, 58));
         }
 
         const prevSelected = this.chapterSelected;
@@ -644,8 +644,8 @@ export class MenuRenderer {
         const theme = themeOf(activeRoom.key);
         const winX = marginX;
         const winY = 266 + extraH * 0.44;
-        const winW = Math.min(548, Math.max(420, w * 0.43));
-        const winH = 300;
+        const winW = Math.min(520, Math.max(360, (w - marginX * 2) * 0.46));
+        const winH = 296;
         const winBox = Rect(winX, winY, winW, winH);
         const winHover = frame.inside && winBox.containsPoint(frame.pointer);
 
@@ -664,9 +664,10 @@ export class MenuRenderer {
 
         texts.put("xs", theme.actCode + "  ·  " + theme.lineTag, winX + 20, winY + 22, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
 
-        const infoX = winX + winW + 46;
+        const infoX = winX + winW + 40;
+        const infoW = Math.max(240, w - marginX - infoX);
         const infoCenterY = winY + winH * 0.5;
-        drawMistCurve(uiArt, "chap_info_mist", infoX + 210, infoCenterY + 36, 420, 88, theme.accent, 0.22, -1);
+        drawMistCurve(uiArt, "chap_info_mist", infoX + infoW * 0.5, infoCenterY + 36, Math.min(420, infoW + 24), 88, theme.accent, 0.22, -1);
 
         const volCol = theme.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber;
         texts.put("xs", theme.volumeTagZh, infoX, winY + winH - 44, toColor(volCol), 0, 0.5, TextAlign.Left, 2.8, 0.92, 0.08);
@@ -687,7 +688,7 @@ export class MenuRenderer {
             texts.put("banner", theme.titleZh, infoX, titleY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.4, 1, 0.10);
         }
 
-        drawHairline(uiInkDraw, uiArt, "chap_info_line", infoX + 185, titleY - 36, 370, PALETTE.silkDim, 0.58, false, 2);
+        drawHairline(uiInkDraw, uiArt, "chap_info_line", infoX + Math.min(185, infoW * 0.5), titleY - 36, Math.min(370, infoW), PALETTE.silkDim, 0.58, false, 2);
         texts.put("sm", theme.introWhisper, infoX, titleY - 72, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.8, 0.94, 0.08);
 
         const goX = infoX;
@@ -706,7 +707,9 @@ export class MenuRenderer {
             : (frame.mode === "touch" ? "点选" : "Enter");
         texts.put("xs", chapConfirmTag, goX + 156, goY + 21, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.82, 0.08);
 
-        drawSilkVeil(uiDraw, uiArt, "chap_track_veil", w * 0.5, trackY + 6, w - marginX * 1.1, 126, PALETTE.inkWash, 0.72, -2);
+        const veilCenterY = splitTrack ? (trackY - rowGap * 0.5) : (trackY + 6);
+        const veilH = splitTrack ? 156 : 126;
+        drawSilkVeil(uiDraw, uiArt, "chap_track_veil", w * 0.5, veilCenterY, w - marginX * 1.1, veilH, PALETTE.inkWash, 0.72, -2);
         drawMistCurve(uiArt, "chap_track_mist", w * 0.5, trackY, trackX1 - trackX0 + 160, 74, PALETTE.inkMist, 0.62, -1);
         uiInkDraw.drawSegment(Vec2(trackX0, trackY), Vec2(trackX1, trackY), 0.9, toColor(PALETTE.silkDim, 145));
 
@@ -882,10 +885,11 @@ export class MenuRenderer {
         drawHairline(uiInkDraw, uiArt, "ctrl_l_line", leftColX + colW * 0.5, headY - 24, colW, PALETTE.cyanDim, 0.58, false, 2);
 
         let i = 0;
+        const keycapW = 160;
         for (i = 0; i < guide.soldierRows.length; i++) {
             const ry = headY - 66 - i * rowStep;
-            drawSilkKeycap(uiInkDraw, texts, leftColX + 2, ry - 13, 136, 26, guide.soldierRows[i][0], PALETTE.cyan, 0.92, false);
-            texts.put("sm", guide.soldierRows[i][1], leftColX + 152, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
+            drawSilkKeycap(uiInkDraw, texts, leftColX + 2, ry - 13, keycapW, 26, guide.soldierRows[i][0], PALETTE.cyan, 0.92, false);
+            texts.put("sm", guide.soldierRows[i][1], leftColX + keycapW + 16, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
         }
 
         const rightColX = midX + 44;
@@ -895,8 +899,8 @@ export class MenuRenderer {
 
         for (i = 0; i < guide.childRows.length; i++) {
             const ry = headY - 66 - i * rowStep;
-            drawSilkKeycap(uiInkDraw, texts, rightColX + 2, ry - 13, 136, 26, guide.childRows[i][0], PALETTE.amber, 0.92, false);
-            texts.put("sm", guide.childRows[i][1], rightColX + 152, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
+            drawSilkKeycap(uiInkDraw, texts, rightColX + 2, ry - 13, keycapW, 26, guide.childRows[i][0], PALETTE.amber, 0.92, false);
+            texts.put("sm", guide.childRows[i][1], rightColX + keycapW + 16, ry, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, 0.92, 0.08);
         }
 
         const ctrlBackKey = frame.mode === "gamepad"

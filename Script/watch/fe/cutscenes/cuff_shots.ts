@@ -23,6 +23,7 @@ import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     G05_PIXEL_RETURN_END,
@@ -1026,7 +1027,19 @@ export class CuffShotsPlugin implements FeRenderPlugin {
             // 仅当玩家在暂停菜单主动打开「按键辅助」时显示轻量提示，默认完全关闭
             if (view.assistHintsEnabled) {
                 drawSilkVeil(uiDraw, uiArt, "g05_assist_veil", w * 0.5, h - 26, 280, 28, PALETTE.inkWash, 0.72, -1);
-                ctx.texts.put("xs", "按住 E 牵住伸来的袖口", w * 0.5, h - 26, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, 0.90, 0.08);
+                ctx.texts.put(
+                    "xs",
+                    adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    w * 0.5,
+                    h - 26,
+                    toColor(PALETTE.amberCore),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    1.2,
+                    0.90,
+                    0.08,
+                );
             }
             return;
         }

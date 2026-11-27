@@ -135,7 +135,7 @@ export class HudRenderer {
         const gap = 14;
         const totalW = count * cardW + (count - 1) * gap;
         const startX = (w - totalW) * 0.5;
-        const y = h - (touchMode ? 122 : 108) - safeTop;
+        const y = h - (touchMode ? 132 : 120) - safeTop;
         let i = 0;
         for (i = 0; i < count; i++) {
             out.push(Rect(startX + i * (cardW + gap), y, cardW, cardH));
@@ -178,17 +178,18 @@ export class HudRenderer {
         const by = h - 72 - safe.top;
         const lowHp = p.hp <= 1;
 
-        drawSilkVeil(uiDraw, uiArt, "hud_soldier_veil", bx + 150, by + 24, 340, 56, PALETTE.inkWash, 0.62 * alpha, -1);
+        const segCount = Math.max(1, p.maxHp);
+        const segW = segCount >= 5 ? 42 : 54;
+        const segH = 9;
+        const gap = segCount >= 5 ? 6 : 8;
+        const veilW = Math.max(340, 124 + segCount * (segW + gap));
+        drawSilkVeil(uiDraw, uiArt, "hud_soldier_veil", bx + veilW * 0.44, by + 24, veilW, 56, PALETTE.inkWash, 0.62 * alpha, -1);
         texts.put("md", "戍", bx + 16, by + 25, toColor(lowHp ? PALETTE.rouge : PALETTE.cyanCore), 0.5, 0.5, TextAlign.Center, 0, alpha, 0.10);
         uiInkDraw.drawSegment(Vec2(bx + 32, by + 9), Vec2(bx + 32, by + 40), 0.8, toColor(PALETTE.silkDim, 130 * alpha));
         texts.put("xs", "周戍 · 体力", bx + 44, by + 36, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.4, alpha, 0.08);
 
-        const segCount = Math.max(1, p.maxHp);
         const barX = bx + 44;
         const barY = by + 16;
-        const segW = 54;
-        const segH = 9;
-        const gap = 8;
 
         let i = 0;
         for (i = 0; i < segCount; i++) {
@@ -230,12 +231,14 @@ export class HudRenderer {
                 uiInkDraw.drawRect(Rect(covX, barY - 9, 54, 18), toColor(PALETTE.cyanDim, 165 * alpha), 0.8, toColor(PALETTE.cyanCore, 180 * alpha));
                 texts.put("xs", "掩体中", covX + 27, barY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0);
             }
-        } else if (p.coverNear) {
+        } else if (assistHintsEnabled && p.coverNear) {
             uiInkDraw.drawRect(Rect(covX, barY - 9, 54, 18), Color(14, 17, 25, Math.round(150 * alpha)), 0.8, toColor(PALETTE.silkLine, 165 * alpha));
             texts.put("xs", "可贴靠", covX + 27, barY, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0.08);
         }
 
-        if (p.room.key === "prologue" || p.room.key === "street" || p.room.key === "checkpoint") {
+        const showCampaignFear = p.isCampaign && (p.room.campaign?.chapter === "S" || p.room.campaign?.chapter === "C")
+            && (p.escort.fear > 0 || p.escort.state === "frozen" || p.escort.state === "calming");
+        if (p.room.key === "prologue" || p.room.key === "street" || p.room.key === "checkpoint" || showCampaignFear) {
             const subY = by - 24;
             const frozen = p.escort.state === "frozen";
             const calming = p.escort.state === "calming";
@@ -323,13 +326,15 @@ export class HudRenderer {
         uiInkDraw.drawSegment(Vec2(bx + 32, by + 7), Vec2(bx + 32, by + 37), 0.8, toColor(PALETTE.silkDim, 130 * alpha));
         texts.put("xs", "小满 · 潜行", bx + 44, by + 33, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, alpha, 0.08);
 
-        let posture = "轻步前行 · 保持隐蔽";
+        let posture = assistHintsEnabled ? "轻步前行 · 保持隐蔽" : "轻步前行";
         let col = PALETTE.textMid;
         if (alert) {
-            posture = p.scavChase || p.dogState === "chase" ? "已被发现 · 速寻隐蔽" : "引起警觉 · 停步蹲伏";
+            posture = p.scavChase || p.dogState === "chase"
+                ? (assistHintsEnabled ? "已被发现 · 速寻隐蔽" : "已被发现")
+                : (assistHintsEnabled ? "引起警觉 · 停步蹲伏" : "引起警觉");
             col = PALETTE.crimsonCore;
         } else if (p.player.crouch) {
-            posture = "低姿伏行 · 匿迹于影";
+            posture = assistHintsEnabled ? "低姿伏行 · 匿迹于影" : "低姿伏行";
             col = PALETTE.emerald;
         } else if (p.hasBottle) {
             posture = assistHintsEnabled
@@ -353,7 +358,7 @@ export class HudRenderer {
         touchOverlayVisible: boolean,
     ): void {
         const theme = themeOf(p.room.key);
-        const rx = w - 32 - safe.right - (touchOverlayVisible ? 104 : 0);
+        const rx = w - 32 - safe.right - (touchOverlayVisible ? 208 : 0);
         const cy = h - 44 - safe.top;
         const pauseTip = inputMode === "gamepad" ? "START 暂歇" : "Esc 暂歇";
 
@@ -408,8 +413,13 @@ export class HudRenderer {
                     gpFocus ? 1.5 : 0.9,
                     toColor(borderCol, Math.round((gpFocus ? 235 : 185) * alpha)),
                 );
-                drawSilkKeycap(uiInkDraw, texts, bx + 8, cy - 11, 22, 22, "" + (ti + 1), borderCol, alpha, true);
-                texts.put("xs", talentNames[talentOffers[ti]], bx + 38, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
+                if (inputMode === "kbm") {
+                    drawSilkKeycap(uiInkDraw, texts, bx + 8, cy - 11, 22, 22, "" + (ti + 1), borderCol, alpha, true);
+                    texts.put("xs", talentNames[talentOffers[ti]], bx + 38, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
+                } else {
+                    drawBlossomDot(uiInkDraw, uiArt, "hud_talent_dot_" + ti, bx + 18, cy, gpFocus ? 12 : 8, borderCol, alpha, 4);
+                    texts.put("xs", talentNames[talentOffers[ti]], bx + 34, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
+                }
             }
         }
 

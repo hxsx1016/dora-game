@@ -2,7 +2,7 @@
 local ____lualib = require("lualib_bundle") -- 1
 local __TS__Class = ____lualib.__TS__Class -- 1
 local ____exports = {} -- 1
-local edge -- 643
+local edge -- 650
 local ____Dora = require("Dora") -- 14
 local App = ____Dora.App -- 14
 local Keyboard = ____Dora.Keyboard -- 14
@@ -15,17 +15,17 @@ local saveControlSettings = ____controls_config.saveControlSettings -- 22
 local ____platform = require("Script.watch.platform") -- 25
 local computeStageViewport = ____platform.computeStageViewport -- 27
 local getPlatformCaps = ____platform.getPlatformCaps -- 28
-function edge(state, held) -- 643
-	local was = state.held -- 644
-	state.held = held -- 645
-	if held and not was then -- 646
-		state.pressed = true -- 647
-	end -- 647
-	if not held and was then -- 649
-		state.released = true -- 650
-	end -- 650
-	return state -- 652
-end -- 652
+function edge(state, held) -- 650
+	local was = state.held -- 651
+	state.held = held -- 652
+	if held and not was then -- 653
+		state.pressed = true -- 654
+	end -- 654
+	if not held and was then -- 656
+		state.released = true -- 657
+	end -- 657
+	return state -- 659
+end -- 659
 local function emptyKey() -- 39
 	return {held = false, pressed = false, released = false} -- 40
 end -- 39
@@ -414,174 +414,180 @@ function Input.prototype.update(self) -- 251
 			self.aim.released = false -- 448
 		end -- 448
 	end -- 448
-	local pick = n1 and 1 or (n2 and 2 or (n3 and 3 or 0)) -- 452
-	if self.suppressPickRoomOnce then -- 453
-		self.suppressPickRoomOnce = false -- 454
-		self.pickRoom = 0 -- 455
-	elseif pick ~= 0 and pick ~= self.lastPick then -- 456
-		self.pickRoom = pick -- 457
-	end -- 457
-	self.lastPick = pick -- 459
-	self.frameInteractPressed = self.interact.pressed -- 460
-	local touchUiActive = touch ~= nil and (touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside) -- 463
-	if touchUiActive and touch ~= nil then -- 466
-		self.uiX = touch.uiX -- 467
-		self.uiY = touch.uiY -- 468
-		self.uiDx = touch.uiDx -- 469
-		self.uiDy = touch.uiDy -- 470
-		self.uiInside = touch.uiInside -- 471
-		self.uiHeld = touch.uiHeld -- 472
-		self.uiPressed = touch.uiPressed -- 473
-		self.uiReleased = touch.uiReleased -- 474
-		self.uiRightPressed = false -- 475
-		if touch.uiHeld or touch.uiPressed then -- 476
-			self.mdx = touch.uiDx -- 477
-			self.mdy = touch.uiDy -- 478
-			self.mx = touch.uiX -- 479
-			self.my = touch.uiY -- 480
-			self.inside = true -- 481
-		elseif touch.hasAim then -- 482
-			self.mdx = touch.aimX - self.mx -- 483
-			self.mdy = touch.aimY - self.my -- 484
-			self.mx = touch.aimX -- 485
-			self.my = touch.aimY -- 486
-			self.inside = true -- 487
-		else -- 487
-			self.mdx = 0 -- 489
-			self.mdy = 0 -- 490
-			self.inside = touch.uiInside -- 491
-		end -- 491
-		return -- 493
-	end -- 493
-	if self.inputMode == "gamepad" then -- 496
-		if gp ~= nil and gp.hasAim then -- 497
-			self.mdx = gp.aimX - self.mx -- 498
-			self.mdy = gp.aimY - self.my -- 499
-			self.mx = gp.aimX -- 500
-			self.my = gp.aimY -- 501
-			self.inside = true -- 502
-		else -- 502
-			self.mdx = 0 -- 504
-			self.mdy = 0 -- 505
-			self.inside = false -- 506
-		end -- 506
-		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 509
-			self.uiDx = mouseStageX - self.uiX -- 510
-			self.uiDy = mouseStageY - self.uiY -- 511
-			self.uiX = mouseStageX -- 512
-			self.uiY = mouseStageY -- 513
-			self.uiInside = true -- 514
-			self.uiHeld = mouseLeft -- 515
-			self.uiPressed = mouseLeftPressed -- 516
-			self.uiReleased = mouseLeftReleased -- 517
-			self.uiRightPressed = mouseRightPressed -- 518
-		else -- 518
-			self.uiX = self.mx -- 520
-			self.uiY = self.my -- 521
-			self.uiDx = 0 -- 522
-			self.uiDy = 0 -- 523
-			self.uiInside = false -- 524
-			self.uiHeld = false -- 525
-			self.uiPressed = false -- 526
-			self.uiReleased = false -- 527
-			self.uiRightPressed = false -- 528
-		end -- 528
-		return -- 530
-	end -- 530
-	if self.inputMode == "touch" then -- 533
-		if touch ~= nil and touch.hasAim then -- 534
-			self.mdx = touch.aimX - self.mx -- 535
-			self.mdy = touch.aimY - self.my -- 536
-			self.mx = touch.aimX -- 537
-			self.my = touch.aimY -- 538
-			self.inside = true -- 539
-		else -- 539
-			self.mdx = 0 -- 541
-			self.mdy = 0 -- 542
-			self.inside = false -- 543
-		end -- 543
-		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 546
-			self.uiDx = mouseStageX - self.uiX -- 547
-			self.uiDy = mouseStageY - self.uiY -- 548
-			self.uiX = mouseStageX -- 549
-			self.uiY = mouseStageY -- 550
-			self.uiInside = true -- 551
-			self.uiHeld = mouseLeft -- 552
-			self.uiPressed = mouseLeftPressed -- 553
-			self.uiReleased = mouseLeftReleased -- 554
-			self.uiRightPressed = mouseRightPressed -- 555
-		else -- 555
-			self.uiDx = 0 -- 557
-			self.uiDy = 0 -- 558
-			self.uiInside = false -- 559
-			self.uiHeld = false -- 560
-			self.uiPressed = false -- 561
-			self.uiReleased = false -- 562
-			self.uiRightPressed = false -- 563
-		end -- 563
-		return -- 565
-	end -- 565
-	self.mdx = mouseStageX - self.mx -- 569
-	self.mdy = mouseStageY - self.my -- 570
-	self.mx = mouseStageX -- 571
-	self.my = mouseStageY -- 572
-	self.inside = mouseInsideStage -- 573
-	local effLeft = not suppressMouse and mouseLeft and mouseInsideStage -- 575
-	local effLeftPressed = not suppressMouse and mouseLeftPressed and mouseInsideStage -- 576
-	local effLeftReleased = not suppressMouse and mouseLeftReleased -- 577
-	local effRightPressed = not suppressMouse and mouseRightPressed and mouseInsideStage -- 578
-	self.uiX = mouseStageX -- 579
-	self.uiY = mouseStageY -- 580
-	self.uiDx = self.mdx -- 581
-	self.uiDy = self.mdy -- 582
-	self.uiInside = mouseInsideStage -- 583
-	self.uiHeld = effLeft -- 584
-	self.uiPressed = effLeftPressed -- 585
-	self.uiReleased = effLeftReleased -- 586
-	self.uiRightPressed = effRightPressed -- 587
+	if not suppressMouse and self.inputMode == "kbm" and self.aim.held and mouseRightPressed then -- 452
+		self.bottleCanceled = true -- 453
+		self.aim.held = false -- 454
+		self.aim.pressed = false -- 455
+		self.aim.released = false -- 456
+	end -- 456
+	local pick = n1 and 1 or (n2 and 2 or (n3 and 3 or 0)) -- 459
+	if self.suppressPickRoomOnce then -- 460
+		self.suppressPickRoomOnce = false -- 461
+		self.pickRoom = 0 -- 462
+	elseif pick ~= 0 and pick ~= self.lastPick then -- 463
+		self.pickRoom = pick -- 464
+	end -- 464
+	self.lastPick = pick -- 466
+	self.frameInteractPressed = self.interact.pressed -- 467
+	local touchUiActive = touch ~= nil and (touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside) -- 470
+	if touchUiActive and touch ~= nil then -- 473
+		self.uiX = touch.uiX -- 474
+		self.uiY = touch.uiY -- 475
+		self.uiDx = touch.uiDx -- 476
+		self.uiDy = touch.uiDy -- 477
+		self.uiInside = touch.uiInside -- 478
+		self.uiHeld = touch.uiHeld -- 479
+		self.uiPressed = touch.uiPressed -- 480
+		self.uiReleased = touch.uiReleased -- 481
+		self.uiRightPressed = false -- 482
+		if touch.uiHeld or touch.uiPressed then -- 483
+			self.mdx = touch.uiDx -- 484
+			self.mdy = touch.uiDy -- 485
+			self.mx = touch.uiX -- 486
+			self.my = touch.uiY -- 487
+			self.inside = true -- 488
+		elseif touch.hasAim then -- 489
+			self.mdx = touch.aimX - self.mx -- 490
+			self.mdy = touch.aimY - self.my -- 491
+			self.mx = touch.aimX -- 492
+			self.my = touch.aimY -- 493
+			self.inside = true -- 494
+		else -- 494
+			self.mdx = 0 -- 496
+			self.mdy = 0 -- 497
+			self.inside = touch.uiInside -- 498
+		end -- 498
+		return -- 500
+	end -- 500
+	if self.inputMode == "gamepad" then -- 503
+		if gp ~= nil and gp.hasAim then -- 504
+			self.mdx = gp.aimX - self.mx -- 505
+			self.mdy = gp.aimY - self.my -- 506
+			self.mx = gp.aimX -- 507
+			self.my = gp.aimY -- 508
+			self.inside = true -- 509
+		else -- 509
+			self.mdx = 0 -- 511
+			self.mdy = 0 -- 512
+			self.inside = false -- 513
+		end -- 513
+		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 516
+			self.uiDx = mouseStageX - self.uiX -- 517
+			self.uiDy = mouseStageY - self.uiY -- 518
+			self.uiX = mouseStageX -- 519
+			self.uiY = mouseStageY -- 520
+			self.uiInside = true -- 521
+			self.uiHeld = mouseLeft -- 522
+			self.uiPressed = mouseLeftPressed -- 523
+			self.uiReleased = mouseLeftReleased -- 524
+			self.uiRightPressed = mouseRightPressed -- 525
+		else -- 525
+			self.uiX = self.mx -- 527
+			self.uiY = self.my -- 528
+			self.uiDx = 0 -- 529
+			self.uiDy = 0 -- 530
+			self.uiInside = false -- 531
+			self.uiHeld = false -- 532
+			self.uiPressed = false -- 533
+			self.uiReleased = false -- 534
+			self.uiRightPressed = false -- 535
+		end -- 535
+		return -- 537
+	end -- 537
+	if self.inputMode == "touch" then -- 540
+		if touch ~= nil and touch.hasAim then -- 541
+			self.mdx = touch.aimX - self.mx -- 542
+			self.mdy = touch.aimY - self.my -- 543
+			self.mx = touch.aimX -- 544
+			self.my = touch.aimY -- 545
+			self.inside = true -- 546
+		else -- 546
+			self.mdx = 0 -- 548
+			self.mdy = 0 -- 549
+			self.inside = false -- 550
+		end -- 550
+		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 553
+			self.uiDx = mouseStageX - self.uiX -- 554
+			self.uiDy = mouseStageY - self.uiY -- 555
+			self.uiX = mouseStageX -- 556
+			self.uiY = mouseStageY -- 557
+			self.uiInside = true -- 558
+			self.uiHeld = mouseLeft -- 559
+			self.uiPressed = mouseLeftPressed -- 560
+			self.uiReleased = mouseLeftReleased -- 561
+			self.uiRightPressed = mouseRightPressed -- 562
+		else -- 562
+			self.uiDx = 0 -- 564
+			self.uiDy = 0 -- 565
+			self.uiInside = false -- 566
+			self.uiHeld = false -- 567
+			self.uiPressed = false -- 568
+			self.uiReleased = false -- 569
+			self.uiRightPressed = false -- 570
+		end -- 570
+		return -- 572
+	end -- 572
+	self.mdx = mouseStageX - self.mx -- 576
+	self.mdy = mouseStageY - self.my -- 577
+	self.mx = mouseStageX -- 578
+	self.my = mouseStageY -- 579
+	self.inside = mouseInsideStage -- 580
+	local effLeft = not suppressMouse and mouseLeft and mouseInsideStage -- 582
+	local effLeftPressed = not suppressMouse and mouseLeftPressed and mouseInsideStage -- 583
+	local effLeftReleased = not suppressMouse and mouseLeftReleased -- 584
+	local effRightPressed = not suppressMouse and mouseRightPressed and mouseInsideStage -- 585
+	self.uiX = mouseStageX -- 586
+	self.uiY = mouseStageY -- 587
+	self.uiDx = self.mdx -- 588
+	self.uiDy = self.mdy -- 589
+	self.uiInside = mouseInsideStage -- 590
+	self.uiHeld = effLeft -- 591
+	self.uiPressed = effLeftPressed -- 592
+	self.uiReleased = effLeftReleased -- 593
+	self.uiRightPressed = effRightPressed -- 594
 end -- 251
-function Input.prototype.consumePickRoom(self) -- 591
-	self.pickRoom = 0 -- 592
-	self.suppressPickRoomOnce = true -- 593
-end -- 591
-function Input.prototype.requestPickRoom(self, slot) -- 597
-	if slot >= 1 and slot <= 3 then -- 598
-		self.pickRoom = slot -- 599
-	end -- 599
-end -- 597
-function Input.prototype.beginStep(self, first) -- 603
-	if not first then -- 604
-		self:clearEdges() -- 605
-	end -- 605
-end -- 603
-function Input.prototype.endStep(self) -- 609
-	self:clearEdges() -- 610
-end -- 609
-function Input.prototype.consumeEdges(self) -- 613
-	self:clearEdges() -- 614
-end -- 613
-function Input.prototype.clearEdges(self) -- 617
-	self.jump.pressed = false -- 618
-	self.jump.released = false -- 619
-	self.crouch.pressed = false -- 620
-	self.crouch.released = false -- 621
-	self.cover.pressed = false -- 622
-	self.cover.released = false -- 623
-	self.interact.pressed = false -- 624
-	self.interact.released = false -- 625
-	self.aim.pressed = false -- 626
-	self.aim.released = false -- 627
-	self.fire.pressed = false -- 628
-	self.fire.released = false -- 629
-	self.flare.pressed = false -- 630
-	self.flare.released = false -- 631
-	self.pause.pressed = false -- 632
-	self.pause.released = false -- 633
-	self.retry.pressed = false -- 634
-	self.retry.released = false -- 635
-	self.toggleView.pressed = false -- 636
-	self.toggleView.released = false -- 637
-	self.tab.pressed = false -- 638
-	self.tab.released = false -- 639
-end -- 617
-return ____exports -- 617
+function Input.prototype.consumePickRoom(self) -- 598
+	self.pickRoom = 0 -- 599
+	self.suppressPickRoomOnce = true -- 600
+end -- 598
+function Input.prototype.requestPickRoom(self, slot) -- 604
+	if slot >= 1 and slot <= 3 then -- 605
+		self.pickRoom = slot -- 606
+	end -- 606
+end -- 604
+function Input.prototype.beginStep(self, first) -- 610
+	if not first then -- 611
+		self:clearEdges() -- 612
+	end -- 612
+end -- 610
+function Input.prototype.endStep(self) -- 616
+	self:clearEdges() -- 617
+end -- 616
+function Input.prototype.consumeEdges(self) -- 620
+	self:clearEdges() -- 621
+end -- 620
+function Input.prototype.clearEdges(self) -- 624
+	self.jump.pressed = false -- 625
+	self.jump.released = false -- 626
+	self.crouch.pressed = false -- 627
+	self.crouch.released = false -- 628
+	self.cover.pressed = false -- 629
+	self.cover.released = false -- 630
+	self.interact.pressed = false -- 631
+	self.interact.released = false -- 632
+	self.aim.pressed = false -- 633
+	self.aim.released = false -- 634
+	self.fire.pressed = false -- 635
+	self.fire.released = false -- 636
+	self.flare.pressed = false -- 637
+	self.flare.released = false -- 638
+	self.pause.pressed = false -- 639
+	self.pause.released = false -- 640
+	self.retry.pressed = false -- 641
+	self.retry.released = false -- 642
+	self.toggleView.pressed = false -- 643
+	self.toggleView.released = false -- 644
+	self.tab.pressed = false -- 645
+	self.tab.released = false -- 646
+end -- 624
+return ____exports -- 624

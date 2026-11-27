@@ -83,8 +83,10 @@ do
 	local pt = new(playmod.Play, rooms.TOWER_ROOM, nil, r)
 	fe:bindPlay(pt, 1280, 720)
 	local towerPlugin = fe:getPlugin("fe-05-tower-endings")
-	check("3.1 男主线进北塔生成周戍同伴", pt.partner.alive == true and pt.partner.w > 28,
-		string.format("alive=%s w=%.0f", tostring(pt.partner.alive), pt.partner.w))
+	check("3.1 男主线进北塔周戍控场且小满并肩同伴（无双周戍）",
+		pt.childMode == false and pt.player.w > 28 and pt.partner.alive == true and pt.partner.w <= 28,
+		string.format("childMode=%s playerW=%.0f partnerAlive=%s partnerW=%.0f",
+			tostring(pt.childMode), pt.player.w, tostring(pt.partner.alive), pt.partner.w))
 
 	-- 敲门 -> 门开进 tower-enter：周戍随后跟进，全屏过场让权（active == false）
 	pt.player.x = pt.ox + 445

@@ -294,10 +294,10 @@ fe.menus:openChapters()
 syncTouch("chapters", nil, 1)
 fe:renderMenu(1 / 60, input, W, H)
 local marginX = 96
-local perRow = math.ceil((#rooms.ROOMS - 1) / 2)
+local perRow = math.ceil((#rooms.ROOMS - 3) / 2)
 local stepX = ((W - marginX - 34) - (marginX + 34)) / math.max(1, perRow - 1)
 local st2x = (marginX + 34) + 2 * stepX
-local st2y = 195
+local st2y = 210
 router:injectTouch("began", 18, st2x, st2y, false)
 input:update()
 local act1 = fe:renderMenu(1 / 60, input, W, H)

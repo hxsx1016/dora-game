@@ -460,12 +460,13 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const inside = sim?.pointerX !== undefined
             ? true
             : (useUiPtr ? ctx.input.uiInside : ctx.input.inside);
+        const kbmMode = ctx.input.inputMode === "kbm";
         const leftHeld = sim?.click !== undefined
             ? sim.click
-            : (ctx.input.uiHeld || ctx.input.fire.held || (!touchMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
+            : (ctx.input.uiHeld || ctx.input.fire.held || (kbmMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
         const rightHeld = sim?.rightClick !== undefined
             ? sim.rightClick
-            : (ctx.input.uiRightPressed || (!touchMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
+            : (ctx.input.uiRightPressed || (kbmMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
 
         const click = sim?.click !== undefined
             ? sim.click

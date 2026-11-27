@@ -8,6 +8,7 @@ local ____exports = {} -- 1
 local ____escort = require("Script.watch.escort") -- 9
 local CALM_REACH = ____escort.CALM_REACH -- 9
 local ____depth = require("Script.watch.depth") -- 10
+local DEPTH_Y_SCALE = ____depth.DEPTH_Y_SCALE -- 10
 local inReachDepth = ____depth.inReachDepth -- 10
 local overlapsDepth = ____depth.overlapsDepth -- 10
 function ____exports.createEmptyFrameEvents(roomSessionId, eventSeq, checkpoint) -- 94
@@ -124,12 +125,12 @@ function PlayAdapter.prototype.reset(self, p) -- 207
 	self.prevCaughtT = 0 -- 220
 	self.prevGateSpawned = p ~= nil and p.gateSpawned or 0 -- 221
 	self.prevAliveMask = {} -- 222
-	if p ~= nil then -- 222
+	if p ~= nil then -- 223
 		local i = 0 -- 224
 		do -- 224
 			i = 0 -- 225
 			while i < #p.enemies do -- 225
-				local ____self_prevAliveMask_1 = self.prevAliveMask -- 225
+				local ____self_prevAliveMask_1 = self.prevAliveMask -- 226
 				____self_prevAliveMask_1[#____self_prevAliveMask_1 + 1] = p.enemies[i + 1].alive -- 226
 				i = i + 1 -- 225
 			end -- 225
@@ -138,11 +139,11 @@ function PlayAdapter.prototype.reset(self, p) -- 207
 end -- 207
 function PlayAdapter.prototype.sample(self, p) -- 232
 	local roomChanged = self.prevRoomKey ~= "" and self.prevRoomKey ~= p.room.key -- 233
-	if roomChanged then -- 233
+	if roomChanged then -- 234
 		self:reset(p) -- 235
 	end -- 235
 	local rawEvents = p:drainEvents() -- 238
-	if #rawEvents > 1 then -- 238
+	if #rawEvents > 1 then -- 240
 		__TS__ArraySort( -- 241
 			rawEvents, -- 241
 			function(____, a, b) return a.seq ~= b.seq and a.seq - b.seq or a.tick - b.tick end -- 241
@@ -164,9 +165,9 @@ function PlayAdapter.prototype.sample(self, p) -- 232
 				____temp_2 = true -- 250
 			end -- 250
 			local wasAlive = ____temp_2 -- 250
-			if wasAlive and not p.enemies[i + 1].alive then -- 250
+			if wasAlive and not p.enemies[i + 1].alive then -- 251
 				enemyKilledX = p.enemies[i + 1].x -- 252
-				enemyKilledY = p.enemies[i + 1].y + (p.enemies[i + 1].depth or 0) + p.enemies[i + 1].h * 0.55 -- 253
+				enemyKilledY = p.enemies[i + 1].y + (p.enemies[i + 1].depth or 0) * DEPTH_Y_SCALE + p.enemies[i + 1].h * 0.55 -- 253
 			end -- 253
 			i = i + 1 -- 249
 		end -- 249
@@ -176,7 +177,7 @@ function PlayAdapter.prototype.sample(self, p) -- 232
 	local rollStarted = p.player.rollT > 0 and self.prevRollT <= 0 -- 259
 	local knockPulse = false -- 262
 	local knockX = p.player.x -- 263
-	local knockY = p.player.y + p.player.depth + p.player.h * 0.5 -- 264
+	local knockY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.5 -- 264
 	local bottleLanded = p.bottleLandT > self.prevBottleLandT + 0.1 and p.bottleLandX >= 0 -- 266
 	local bottleLandX = p.bottleLandX -- 267
 	local bottleLandY = p.bottleLandY -- 268
@@ -222,509 +223,509 @@ function PlayAdapter.prototype.sample(self, p) -- 232
 	for ____, event in ipairs(rawEvents) do -- 309
 		self.eventSeq = self.eventSeq + 1 -- 310
 		eventSummary[#eventSummary + 1] = (((tostring(event.seq) .. "@") .. tostring(event.tick)) .. ":") .. event.name -- 311
-		if event.name == "knock" then -- 311
+		if event.name == "knock" then -- 313
 			knockPulse = true -- 314
 			local x = event.data.x -- 315
 			knockX = type(x) == "number" and x or p.player.x -- 316
-			knockY = p.escort.state == "calming" and p.partner.y + p.partner.depth + 28 or p.player.y + p.player.depth + p.player.h * 0.55 -- 317
-		elseif event.name == "actorHit" or event.name == "gateFailed" then -- 317
-			playerHit = true -- 320
-		elseif event.name == "coverBlocked" then -- 320
-			coverDeflect = true -- 322
-		elseif event.name == "bottleLanded" then -- 322
-			bottleLanded = true -- 324
-			if type(event.data.x) == "number" then -- 324
-				bottleLandX = event.data.x -- 326
-			end -- 326
-			if type(event.data.y) == "number" then -- 326
-				bottleLandY = event.data.y -- 329
-			end -- 329
-		elseif event.name == "cartDocked" then -- 329
-			cartJustDocked = true -- 332
-		elseif event.name == "roomChange" then -- 332
-			migratedRoomChange = true -- 334
-		elseif event.name == "storyRouteLocked" then -- 334
-			storyRouteLocked = true -- 336
-		elseif event.name == "gateCountDone" and p.storyRoute == "soldier" then -- 336
-			gateRested = true -- 338
-		elseif event.name == "handHeld" then -- 338
-			handJustTied = true -- 340
-		elseif event.name == "handRelease" then -- 340
-			handReleased = true -- 342
-		elseif event.name == "storyLine" then -- 342
-			storyLine = true -- 344
-			storyLineText = type(event.data.text) == "string" and event.data.text or "" -- 345
-		elseif event.name == "storyExit" then -- 345
-			storyExit = true -- 347
-			storyExitRoute = type(event.data.route) == "string" and event.data.route or "" -- 348
-		elseif event.name == "carryStart" then -- 348
-			carryStarted = true -- 350
-		elseif event.name == "reloadOpen" then -- 350
-			reloadOpened = true -- 352
-		elseif event.name == "reloadSolved" then -- 352
-			reloadSolved = true -- 354
-			reloadEffect = type(event.data.effect) == "string" and event.data.effect or "" -- 355
-		elseif event.name == "reloadApplied" then -- 355
-			reloadApplied = true -- 357
-			reloadAppliedEffect = type(event.data.effect) == "string" and event.data.effect or "" -- 358
-		elseif event.name == "reloadTimeout" then -- 358
-			reloadTimeout = true -- 360
-		elseif event.name == "reloadInvalid" then -- 360
-			reloadInvalid = true -- 362
-		elseif event.name == "segmentDone" then -- 362
-			segmentDone = true -- 364
-			segmentKey = type(event.data.room) == "string" and event.data.room or "" -- 365
-			segmentNext = type(event.data.next) == "string" and event.data.next or "" -- 366
-		elseif event.name == "benchOpen" then -- 366
-			benchOpened = true -- 368
-		elseif event.name == "benchCraft" then -- 368
-			benchCrafted = true -- 370
-			benchCraftedWeapon = type(event.data.weapon) == "string" and event.data.weapon or "" -- 371
-		elseif event.name == "benchEquip" then -- 371
-			benchEquipped = true -- 373
-		elseif event.name == "benchClose" then -- 373
-			benchClosed = true -- 375
-		elseif event.name == "benchRejected" then -- 375
-			benchRejected = true -- 377
-			benchRejectReason = type(event.data.reason) == "string" and event.data.reason or "" -- 378
-		elseif event.name == "museumStep" then -- 378
-			museumStep = true -- 380
-			museumStepName = type(event.data.step) == "string" and event.data.step or "" -- 381
-		elseif event.name == "museumDone" then -- 381
-			museumDone = true -- 383
-		elseif event.name == "endingReached" then -- 383
-			endingReached = true -- 385
-			ending = type(event.data.ending) == "string" and event.data.ending or "" -- 386
-			endingOfficial = event.data.official == true -- 387
-			endingLines = __TS__ArrayIsArray(event.data.lines) and __TS__ArrayMap( -- 388
-				event.data.lines, -- 389
-				function(____, v) return type(v) == "string" and v or "" end -- 389
-			) or ({}) -- 389
-		end -- 389
-	end -- 389
-	self.prevRoomKey = p.room.key -- 395
-	self.prevPhase = p.phase -- 396
-	self.prevHp = p.hp -- 397
-	self.prevTrace = p.trace -- 398
-	self.prevCoveredFlash = p.coveredFlash -- 399
-	self.prevRollT = p.player.rollT -- 400
-	self.prevCalmTick = p.escort.calmTick -- 401
-	self.prevKnocks = p.knocks -- 402
-	self.prevBottleLandT = p.bottleLandT -- 403
-	self.prevCartDocked = p.cartDocked -- 404
-	self.prevCheckpoint = p.checkpoint -- 405
-	self.prevCaughtT = p.caughtT -- 406
-	self.prevGateSpawned = p.gateSpawned -- 407
-	self.prevAliveMask = {} -- 408
-	do -- 408
-		i = 0 -- 409
-		while i < #p.enemies do -- 409
-			local ____self_prevAliveMask_3 = self.prevAliveMask -- 409
-			____self_prevAliveMask_3[#____self_prevAliveMask_3 + 1] = p.enemies[i + 1].alive -- 410
-			i = i + 1 -- 409
-		end -- 409
-	end -- 409
-	local ____shotFired_5 = shotFired -- 414
-	local ____shotHit_6 = shotHit -- 415
-	local ____shotFired_4 -- 416
-	if shotFired then -- 416
-		____shotFired_4 = p.trace -- 416
-	else -- 416
-		____shotFired_4 = nil -- 416
-	end -- 416
-	return { -- 413
-		shotFired = ____shotFired_5, -- 414
-		shotHit = ____shotHit_6, -- 415
-		shotTrace = ____shotFired_4, -- 416
-		enemyKilledX = enemyKilledX, -- 417
-		enemyKilledY = enemyKilledY, -- 418
-		playerHit = playerHit, -- 419
-		coverDeflect = coverDeflect, -- 420
-		rollStarted = rollStarted, -- 421
-		knockPulse = knockPulse, -- 422
-		knockX = knockX, -- 423
-		knockY = knockY, -- 424
-		bottleLanded = bottleLanded, -- 425
-		bottleLandX = bottleLandX, -- 426
-		bottleLandY = bottleLandY, -- 427
-		cartJustDocked = cartJustDocked, -- 428
-		checkpointJustHit = checkpointJustHit, -- 429
-		caughtTriggered = caughtTriggered, -- 430
-		phaseChanged = phaseChanged, -- 431
-		roomChanged = roomChanged or migratedRoomChange, -- 432
-		gateWaveSpawned = gateWaveSpawned, -- 433
-		storyRouteLocked = storyRouteLocked, -- 435
-		storyRoute = p.storyRoute, -- 436
-		gateRested = gateRested, -- 437
-		handJustTied = handJustTied, -- 438
-		handReleased = handReleased, -- 439
-		storyLine = storyLine, -- 440
-		storyLineText = storyLineText, -- 441
-		storyExit = storyExit, -- 442
-		storyExitRoute = storyExitRoute, -- 443
-		carryStarted = carryStarted, -- 444
-		reloadOpened = reloadOpened, -- 445
-		reloadSolved = reloadSolved, -- 446
-		reloadEffect = reloadEffect, -- 447
-		reloadApplied = reloadApplied, -- 448
-		reloadAppliedEffect = reloadAppliedEffect, -- 449
-		reloadTimeout = reloadTimeout, -- 450
-		reloadInvalid = reloadInvalid, -- 451
-		segmentDone = segmentDone, -- 452
-		segmentKey = segmentKey, -- 453
-		segmentNext = segmentNext, -- 454
-		benchOpened = benchOpened, -- 455
-		benchCrafted = benchCrafted, -- 456
-		benchCraftedWeapon = benchCraftedWeapon, -- 457
-		benchEquipped = benchEquipped, -- 458
-		benchClosed = benchClosed, -- 459
-		benchRejected = benchRejected, -- 460
-		benchRejectReason = benchRejectReason, -- 461
-		endingReached = endingReached, -- 462
-		ending = ending, -- 463
-		endingOfficial = endingOfficial, -- 464
-		endingLines = endingLines, -- 465
-		museumStep = museumStep, -- 466
-		museumStepName = museumStepName, -- 467
-		museumDone = museumDone, -- 468
-		rawEvents = rawEvents, -- 470
-		eventSeq = self.eventSeq, -- 471
-		roomSessionId = self.roomSessionId, -- 472
-		checkpoint = p.checkpoint, -- 473
-		eventSummary = eventSummary -- 474
-	} -- 474
+			knockY = p.escort.state == "calming" and p.partner.y + p.partner.depth * DEPTH_Y_SCALE + 28 or p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.55 -- 317
+		elseif event.name == "actorHit" or event.name == "gateFailed" then -- 320
+			playerHit = true -- 321
+		elseif event.name == "coverBlocked" then -- 322
+			coverDeflect = true -- 323
+		elseif event.name == "bottleLanded" then -- 324
+			bottleLanded = true -- 325
+			if type(event.data.x) == "number" then -- 326
+				bottleLandX = event.data.x -- 327
+			end -- 327
+			if type(event.data.y) == "number" then -- 329
+				bottleLandY = event.data.y -- 330
+			end -- 330
+		elseif event.name == "cartDocked" then -- 332
+			cartJustDocked = true -- 333
+		elseif event.name == "roomChange" then -- 334
+			migratedRoomChange = true -- 335
+		elseif event.name == "storyRouteLocked" then -- 336
+			storyRouteLocked = true -- 337
+		elseif event.name == "gateCountDone" and p.storyRoute == "soldier" then -- 338
+			gateRested = true -- 339
+		elseif event.name == "handHeld" then -- 340
+			handJustTied = true -- 341
+		elseif event.name == "handRelease" then -- 342
+			handReleased = true -- 343
+		elseif event.name == "storyLine" then -- 344
+			storyLine = true -- 345
+			storyLineText = type(event.data.text) == "string" and event.data.text or "" -- 346
+		elseif event.name == "storyExit" then -- 347
+			storyExit = true -- 348
+			storyExitRoute = type(event.data.route) == "string" and event.data.route or "" -- 349
+		elseif event.name == "carryStart" then -- 350
+			carryStarted = true -- 351
+		elseif event.name == "reloadOpen" then -- 352
+			reloadOpened = true -- 353
+		elseif event.name == "reloadSolved" then -- 354
+			reloadSolved = true -- 355
+			reloadEffect = type(event.data.effect) == "string" and event.data.effect or "" -- 356
+		elseif event.name == "reloadApplied" then -- 357
+			reloadApplied = true -- 358
+			reloadAppliedEffect = type(event.data.effect) == "string" and event.data.effect or "" -- 359
+		elseif event.name == "reloadTimeout" then -- 360
+			reloadTimeout = true -- 361
+		elseif event.name == "reloadInvalid" then -- 362
+			reloadInvalid = true -- 363
+		elseif event.name == "segmentDone" then -- 364
+			segmentDone = true -- 365
+			segmentKey = type(event.data.room) == "string" and event.data.room or "" -- 366
+			segmentNext = type(event.data.next) == "string" and event.data.next or "" -- 367
+		elseif event.name == "benchOpen" then -- 368
+			benchOpened = true -- 369
+		elseif event.name == "benchCraft" then -- 370
+			benchCrafted = true -- 371
+			benchCraftedWeapon = type(event.data.weapon) == "string" and event.data.weapon or "" -- 372
+		elseif event.name == "benchEquip" then -- 373
+			benchEquipped = true -- 374
+		elseif event.name == "benchClose" then -- 375
+			benchClosed = true -- 376
+		elseif event.name == "benchRejected" then -- 377
+			benchRejected = true -- 378
+			benchRejectReason = type(event.data.reason) == "string" and event.data.reason or "" -- 379
+		elseif event.name == "museumStep" then -- 380
+			museumStep = true -- 381
+			museumStepName = type(event.data.step) == "string" and event.data.step or "" -- 382
+		elseif event.name == "museumDone" then -- 383
+			museumDone = true -- 384
+		elseif event.name == "endingReached" then -- 385
+			endingReached = true -- 386
+			ending = type(event.data.ending) == "string" and event.data.ending or "" -- 387
+			endingOfficial = event.data.official == true -- 388
+			endingLines = __TS__ArrayIsArray(event.data.lines) and __TS__ArrayMap( -- 389
+				event.data.lines, -- 390
+				function(____, v) return type(v) == "string" and v or "" end -- 390
+			) or ({}) -- 391
+		end -- 391
+	end -- 391
+	self.prevRoomKey = p.room.key -- 396
+	self.prevPhase = p.phase -- 397
+	self.prevHp = p.hp -- 398
+	self.prevTrace = p.trace -- 399
+	self.prevCoveredFlash = p.coveredFlash -- 400
+	self.prevRollT = p.player.rollT -- 401
+	self.prevCalmTick = p.escort.calmTick -- 402
+	self.prevKnocks = p.knocks -- 403
+	self.prevBottleLandT = p.bottleLandT -- 404
+	self.prevCartDocked = p.cartDocked -- 405
+	self.prevCheckpoint = p.checkpoint -- 406
+	self.prevCaughtT = p.caughtT -- 407
+	self.prevGateSpawned = p.gateSpawned -- 408
+	self.prevAliveMask = {} -- 409
+	do -- 409
+		i = 0 -- 410
+		while i < #p.enemies do -- 410
+			local ____self_prevAliveMask_3 = self.prevAliveMask -- 411
+			____self_prevAliveMask_3[#____self_prevAliveMask_3 + 1] = p.enemies[i + 1].alive -- 411
+			i = i + 1 -- 410
+		end -- 410
+	end -- 410
+	local ____shotFired_5 = shotFired -- 415
+	local ____shotHit_6 = shotHit -- 416
+	local ____shotFired_4 -- 417
+	if shotFired then -- 417
+		____shotFired_4 = p.trace -- 417
+	else -- 417
+		____shotFired_4 = nil -- 417
+	end -- 417
+	return { -- 414
+		shotFired = ____shotFired_5, -- 415
+		shotHit = ____shotHit_6, -- 416
+		shotTrace = ____shotFired_4, -- 417
+		enemyKilledX = enemyKilledX, -- 418
+		enemyKilledY = enemyKilledY, -- 419
+		playerHit = playerHit, -- 420
+		coverDeflect = coverDeflect, -- 421
+		rollStarted = rollStarted, -- 422
+		knockPulse = knockPulse, -- 423
+		knockX = knockX, -- 424
+		knockY = knockY, -- 425
+		bottleLanded = bottleLanded, -- 426
+		bottleLandX = bottleLandX, -- 427
+		bottleLandY = bottleLandY, -- 428
+		cartJustDocked = cartJustDocked, -- 429
+		checkpointJustHit = checkpointJustHit, -- 430
+		caughtTriggered = caughtTriggered, -- 431
+		phaseChanged = phaseChanged, -- 432
+		roomChanged = roomChanged or migratedRoomChange, -- 433
+		gateWaveSpawned = gateWaveSpawned, -- 434
+		storyRouteLocked = storyRouteLocked, -- 436
+		storyRoute = p.storyRoute, -- 437
+		gateRested = gateRested, -- 438
+		handJustTied = handJustTied, -- 439
+		handReleased = handReleased, -- 440
+		storyLine = storyLine, -- 441
+		storyLineText = storyLineText, -- 442
+		storyExit = storyExit, -- 443
+		storyExitRoute = storyExitRoute, -- 444
+		carryStarted = carryStarted, -- 445
+		reloadOpened = reloadOpened, -- 446
+		reloadSolved = reloadSolved, -- 447
+		reloadEffect = reloadEffect, -- 448
+		reloadApplied = reloadApplied, -- 449
+		reloadAppliedEffect = reloadAppliedEffect, -- 450
+		reloadTimeout = reloadTimeout, -- 451
+		reloadInvalid = reloadInvalid, -- 452
+		segmentDone = segmentDone, -- 453
+		segmentKey = segmentKey, -- 454
+		segmentNext = segmentNext, -- 455
+		benchOpened = benchOpened, -- 456
+		benchCrafted = benchCrafted, -- 457
+		benchCraftedWeapon = benchCraftedWeapon, -- 458
+		benchEquipped = benchEquipped, -- 459
+		benchClosed = benchClosed, -- 460
+		benchRejected = benchRejected, -- 461
+		benchRejectReason = benchRejectReason, -- 462
+		endingReached = endingReached, -- 463
+		ending = ending, -- 464
+		endingOfficial = endingOfficial, -- 465
+		endingLines = endingLines, -- 466
+		museumStep = museumStep, -- 467
+		museumStepName = museumStepName, -- 468
+		museumDone = museumDone, -- 469
+		rawEvents = rawEvents, -- 471
+		eventSeq = self.eventSeq, -- 472
+		roomSessionId = self.roomSessionId, -- 473
+		checkpoint = p.checkpoint, -- 474
+		eventSummary = eventSummary -- 475
+	} -- 475
 end -- 232
 --- 每次只展示最相关的就近操作。走到可触发的位置才显示按键。
-function ____exports.deriveWorldPrompt(p) -- 481
-	local room = p.room -- 482
-	local player = p.player -- 483
-	if p.paused or not player.alive then -- 483
-		return nil -- 485
-	end -- 485
-	if room.key == "prologue" and p.phase == "prologue-wait" then -- 485
-		local ____opt_9 = room.story -- 485
-		local ____opt_7 = ____opt_9 and ____opt_9.prologue -- 485
-		local reach = ____opt_7 and ____opt_7.giveReach or 46 -- 489
-		if math.abs(player.x - p.partner.x) <= reach and inReachDepth(player.depth, p.partner.depth) then -- 489
-			return { -- 491
-				x = p.partner.x, -- 491
-				y = p.partner.y + p.partner.depth + p.partner.h + 22, -- 491
-				keyTag = "E", -- 491
-				label = "递出指南针", -- 491
-				urgent = false -- 491
-			} -- 491
-		end -- 491
-		return nil -- 493
-	end -- 493
-	if not p.childMode and p.escort.state == "frozen" then -- 493
-		if math.abs(player.x - p.partner.x) <= CALM_REACH and inReachDepth(player.depth, p.partner.depth) then -- 493
-			return { -- 498
-				x = p.partner.x, -- 498
-				y = p.partner.y + p.partner.depth + p.partner.h + 22, -- 498
-				keyTag = "E", -- 498
-				label = "安抚小满", -- 498
-				urgent = true -- 498
-			} -- 498
-		end -- 498
-		return nil -- 500
-	end -- 500
-	local ____opt_11 = room.story -- 500
-	local gate = ____opt_11 and ____opt_11.gate -- 503
-	if gate ~= nil then -- 503
-		if p.phase == "gate-idle" and p.gateNeedConfirm and math.abs(player.x - gate.winchX) <= 24 and player.y < 20 and inReachDepth(player.depth) and p.partner.alive and math.abs(p.partner.x - gate.waitX) <= 60 then -- 503
-			return { -- 508
-				x = gate.winchX, -- 508
-				y = 84, -- 508
-				keyTag = "E", -- 508
-				label = "重新守门", -- 508
-				urgent = true -- 508
-			} -- 508
-		end -- 508
-		if p.phase == "gate-send" and math.abs(player.x - gate.doorX) <= 60 and inReachDepth(player.depth) then -- 508
-			return { -- 511
-				x = gate.doorX, -- 511
-				y = 98, -- 511
-				keyTag = "E", -- 511
-				label = "送小满出城", -- 511
-				urgent = true -- 511
-			} -- 511
-		end -- 511
-		if p.phase == "gate-wait" then -- 511
-			local ratio = math.max( -- 515
-				0, -- 515
-				math.min(1, p.handTicks / p.handNeedTicks) -- 515
-			) -- 515
-			return { -- 516
-				x = gate.doorX + 30, -- 517
-				y = 96, -- 517
-				keyTag = p.handArmed and "按住 E" or "松开再按住 E", -- 518
-				label = p.handTicks > 0 and "牵起小满" or "把手伸给她", -- 519
-				urgent = p.handArmed, -- 520
-				progress = ratio -- 520
-			} -- 520
-		end -- 520
-		if p.phase == "gate-hand" then -- 520
-			return { -- 524
-				x = gate.doorX + 30, -- 524
-				y = 96, -- 524
-				keyTag = "E", -- 524
-				label = "我们走吧。", -- 524
-				urgent = false -- 524
-			} -- 524
-		end -- 524
-		if p.phase == "gate-walk" then -- 524
-			return { -- 527
-				x = player.x, -- 527
-				y = player.y + player.h + 22, -- 527
-				keyTag = "→", -- 527
-				label = "走向城外", -- 527
-				urgent = false -- 527
-			} -- 527
-		end -- 527
-	end -- 527
-	if p.reloadOpen then -- 527
-		local ratio = math.max( -- 533
-			0, -- 533
-			math.min(1, p.reloadAnswerTicks / 240) -- 533
-		) -- 533
-		return { -- 534
-			x = player.x, -- 535
-			y = player.y + player.depth + player.h + 34, -- 535
-			keyTag = "连线", -- 536
-			label = "画到枪机复位", -- 536
-			urgent = p.reloadAnswerTicks > 168, -- 536
-			progress = ratio -- 536
-		} -- 536
-	end -- 536
-	if p.reloadPendingEffect ~= "" then -- 536
-		return { -- 540
-			x = player.x, -- 541
-			y = player.y + player.depth + player.h + 34, -- 541
-			keyTag = "F", -- 542
-			label = "枪机已上势 · 打下一枪", -- 542
-			urgent = false -- 542
-		} -- 542
-	end -- 542
-	if room.key == "gatepath" and not p.carryOn then -- 542
-		return { -- 546
-			x = player.x, -- 546
-			y = player.y + player.h + 24, -- 546
-			keyTag = "→", -- 546
-			label = "走到高石阶", -- 546
-			urgent = false -- 546
-		} -- 546
-	end -- 546
-	if room.key == "escort3" and not p.craftBench.active then -- 546
-		local bench = 560 -- 549
-		if math.abs(player.x - bench) <= p.benchReach + 40 and player.y < 12 then -- 549
-			return { -- 551
-				x = bench, -- 551
-				y = 92, -- 551
-				keyTag = "E", -- 551
-				label = "在工台制作", -- 551
-				urgent = false -- 551
-			} -- 551
-		end -- 551
-	end -- 551
-	if (room.key == "escort2" or room.key == "escort3" or room.key == "escort4" or room.key == "escort5") and p.carryOn then -- 551
-		return { -- 555
-			x = player.x, -- 555
-			y = player.y + player.h + 24, -- 555
-			keyTag = "→", -- 555
-			label = "带她走到出口", -- 555
-			urgent = false -- 555
-		} -- 555
-	end -- 555
-	local cart = room.cart -- 558
-	if (room.key == "checkpoint" or room.key == "outside" or room.key == "c2-granary") and not p.cartDocked and cart.bodyW > 0 then -- 558
-		local handleX = p.cartAxle + cart.handleOffset -- 560
-		if p.gripping or p:cartHandleInReach() then -- 560
-			return { -- 562
-				x = handleX, -- 563
-				y = cart.baseY + (cart.depth or 0) + cart.wheelR + cart.bodyH + 46, -- 564
-				keyTag = room.key == "c2-granary" and "E 握柄 + D" or "按住 E + D", -- 565
-				label = room.key == "outside" and "向前拉车" or "向前推车", -- 566
-				urgent = false -- 567
-			} -- 567
-		end -- 567
-	end -- 567
-	if p.isCampaign then -- 567
-		local bi = 0 -- 573
-		do -- 573
-			bi = 0 -- 574
-			while bi < #p.boxes do -- 574
-				do -- 574
-					local b = p.boxes[bi + 1] -- 575
-					if b.broken == true or b.hidden == true or b.interact == nil then -- 575
-						goto __continue74 -- 577
-					end -- 577
-					local cx = (b.x0 + b.x1) * 0.5 -- 579
-					local reach = b.interact.reach or 46 -- 580
-					if math.abs(player.x - cx) <= reach + 16 and overlapsDepth(player.depth, b.depth, 16) then -- 580
-						local kind = b.interact.kind -- 582
-						local label = kind == "open_board" and "放下窗板" or (kind == "lower_curtain" and "放下木帘" or "抬起门锁") -- 583
-						return { -- 585
-							x = cx, -- 585
-							y = b.y1 + 24, -- 585
-							keyTag = "E", -- 585
-							label = label, -- 585
-							urgent = true -- 585
-						} -- 585
-					end -- 585
-				end -- 585
-				::__continue74:: -- 585
-				bi = bi + 1 -- 574
-			end -- 574
-		end -- 574
-	end -- 574
-	if room.key == "village" and p.scavChase then -- 574
-		local ____player_crouch_13 -- 591
-		if player.crouch then -- 591
-			____player_crouch_13 = nil -- 591
-		else -- 591
-			____player_crouch_13 = { -- 591
-				x = player.x, -- 592
-				y = player.y + player.h + 22, -- 592
-				keyTag = "按住 Ctrl", -- 592
-				label = "蹲下躲避", -- 592
-				urgent = true -- 592
-			} -- 592
-		end -- 592
-		return ____player_crouch_13 -- 591
-	end -- 591
-	if room.key == "village" and not p.passed then -- 591
-		local bottle = room.bottle -- 597
-		if p.hasBottle then -- 597
-			return { -- 599
-				x = player.x, -- 600
-				y = player.y + player.h + 26, -- 600
-				keyTag = p.aimHold >= 0.12 and "松开 F" or "按住 F", -- 601
-				label = p.aimHold >= 0.12 and "投瓶" or "瞄准砖地", -- 602
-				urgent = false -- 602
-			} -- 602
-		end -- 602
-		if p.bottleFly == nil and bottle ~= nil then -- 602
-			local dx = player.x - bottle.x -- 606
-			local dy = player.y + player.h * 0.5 - bottle.y -- 607
-			if dx * dx + dy * dy < 56 * 56 then -- 607
-				return { -- 609
-					x = bottle.x, -- 609
-					y = bottle.y + 36, -- 609
-					keyTag = "E", -- 609
-					label = "拾起瓶子", -- 609
-					urgent = false -- 609
-				} -- 609
-			end -- 609
-		end -- 609
-	end -- 609
-	local arch = room.arch -- 614
-	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 614
-		return { -- 618
-			x = (arch.x0 + arch.x1) * 0.5, -- 619
-			y = arch.y + arch.h + 44, -- 619
-			keyTag = "按住 Ctrl", -- 620
-			label = room.key == "outside" and "蹲着穿过拱洞" or "蹲着钻过桌下", -- 620
-			urgent = false -- 620
-		} -- 620
-	end -- 620
-	local ____opt_14 = room.story -- 620
-	local museum = ____opt_14 and ____opt_14.museum -- 624
-	if room.key == "museum" and museum ~= nil then -- 624
-		if p.phase == "museum-cabinet" then -- 624
-			return { -- 627
-				x = museum.cabinetX, -- 627
-				y = 64 + 44, -- 627
-				keyTag = "E", -- 627
-				label = "玻璃柜前 · 收枪入袖", -- 627
-				urgent = true -- 627
-			} -- 627
-		end -- 627
-		if p.phase == "museum-hall" then -- 627
-			return { -- 630
-				x = museum.hallX, -- 630
-				y = 120, -- 630
-				keyTag = "走到", -- 630
-				label = "西厅那头 · 孩子的脚步", -- 630
-				urgent = false -- 630
-			} -- 630
-		end -- 630
-		if p.phase == "museum-lamp" then -- 630
-			return { -- 633
-				x = museum.lampX, -- 633
-				y = 120, -- 633
-				keyTag = "E", -- 633
-				label = "末厅 · 把灯转向西窗", -- 633
-				urgent = true -- 633
-			} -- 633
-		end -- 633
-		if p.phase == "museum-return" then -- 633
-			return { -- 636
-				x = museum.cabinetX, -- 636
-				y = 64 + 44, -- 636
-				keyTag = "E", -- 636
-				label = "回柜边 · 轻敲两下", -- 636
-				urgent = true -- 636
-			} -- 636
-		end -- 636
-		if p.phase == "museum-done" then -- 636
-			return { -- 639
-				x = museum.cabinetX, -- 639
-				y = 64 + 44, -- 639
-				keyTag = "E", -- 639
-				label = "回柜边 · 灯还亮着", -- 639
-				urgent = false -- 639
-			} -- 639
-		end -- 639
-		return nil -- 641
-	end -- 641
-	local ____opt_16 = room.story -- 641
-	local tower = ____opt_16 and ____opt_16.tower -- 644
-	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 644
-		return { -- 646
-			x = tower.doorX, -- 646
-			y = 96, -- 646
-			keyTag = "E", -- 646
-			label = "敲两下 · 守卒应门", -- 646
-			urgent = false -- 646
-		} -- 646
-	end -- 646
-	if p.phase == "tower-enter" then -- 646
-		return { -- 649
-			x = 605, -- 649
-			y = 64, -- 649
-			keyTag = "→", -- 649
-			label = "跨过门槛 · 走到值夜桌前", -- 649
-			urgent = false -- 649
-		} -- 649
-	end -- 649
-	if p.phase == "tower-desk" then -- 649
-		return { -- 652
-			x = 605, -- 653
-			y = 64, -- 653
-			keyTag = "按住 E", -- 653
-			label = "交出针套、指南针和纸条", -- 653
-			progress = p.deskHold / 36, -- 654
-			urgent = true -- 654
-		} -- 654
-	end -- 654
-	if p.phase == "tower-given" then -- 654
-		return { -- 658
-			x = 605, -- 658
-			y = 64, -- 658
-			keyTag = "", -- 658
-			label = "看登记簿 · 西窗的灯", -- 658
-			urgent = false -- 658
-		} -- 658
-	end -- 658
-	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 658
-		return { -- 663
-			x = player.x, -- 664
-			y = player.y + player.depth + player.h + 25, -- 664
-			keyTag = "按住 Shift", -- 665
-			label = "贴靠掩体", -- 665
-			urgent = gate ~= nil -- 665
-		} -- 665
-	end -- 665
-	return nil -- 668
-end -- 481
-return ____exports -- 481
+function ____exports.deriveWorldPrompt(p) -- 482
+	local room = p.room -- 483
+	local player = p.player -- 484
+	if p.paused or not player.alive then -- 485
+		return nil -- 486
+	end -- 486
+	if room.key == "prologue" and p.phase == "prologue-wait" then -- 489
+		local ____opt_9 = room.story -- 490
+		local ____opt_7 = ____opt_9 and ____opt_9.prologue -- 490
+		local reach = ____opt_7 and ____opt_7.giveReach or 46 -- 490
+		if math.abs(player.x - p.partner.x) <= reach and inReachDepth(player.depth, p.partner.depth) then -- 491
+			return { -- 492
+				x = p.partner.x, -- 492
+				y = p.partner.y + p.partner.depth * DEPTH_Y_SCALE + p.partner.h + 22, -- 492
+				keyTag = "E", -- 492
+				label = "递出指南针", -- 492
+				urgent = false -- 492
+			} -- 492
+		end -- 492
+		return nil -- 494
+	end -- 494
+	if not p.childMode and p.escort.state == "frozen" then -- 497
+		if math.abs(player.x - p.partner.x) <= CALM_REACH and inReachDepth(player.depth, p.partner.depth) then -- 498
+			return { -- 499
+				x = p.partner.x, -- 499
+				y = p.partner.y + p.partner.depth * DEPTH_Y_SCALE + p.partner.h + 22, -- 499
+				keyTag = "E", -- 499
+				label = "安抚小满", -- 499
+				urgent = true -- 499
+			} -- 499
+		end -- 499
+		return nil -- 501
+	end -- 501
+	local ____opt_11 = room.story -- 504
+	local gate = ____opt_11 and ____opt_11.gate -- 504
+	if gate ~= nil then -- 505
+		if p.phase == "gate-idle" and p.gateNeedConfirm and math.abs(player.x - gate.winchX) <= 24 and player.y < 20 and inReachDepth(player.depth) and p.partner.alive and math.abs(p.partner.x - gate.waitX) <= 60 then -- 506
+			return { -- 509
+				x = gate.winchX, -- 509
+				y = 84, -- 509
+				keyTag = "E", -- 509
+				label = "重新守门", -- 509
+				urgent = true -- 509
+			} -- 509
+		end -- 509
+		if p.phase == "gate-send" and math.abs(player.x - gate.doorX) <= 60 and inReachDepth(player.depth) then -- 511
+			return { -- 512
+				x = gate.doorX, -- 512
+				y = 98, -- 512
+				keyTag = "E", -- 512
+				label = "送小满出城", -- 512
+				urgent = true -- 512
+			} -- 512
+		end -- 512
+		if p.phase == "gate-wait" then -- 514
+			local ratio = math.max( -- 516
+				0, -- 516
+				math.min(1, p.handTicks / p.handNeedTicks) -- 516
+			) -- 516
+			return { -- 517
+				x = gate.doorX + 30, -- 518
+				y = 96, -- 518
+				keyTag = p.handArmed and "按住 E" or "松开再按住 E", -- 519
+				label = p.handTicks > 0 and "牵起小满" or "把手伸给她", -- 520
+				urgent = p.handArmed, -- 521
+				progress = ratio -- 521
+			} -- 521
+		end -- 521
+		if p.phase == "gate-hand" then -- 524
+			return { -- 525
+				x = gate.doorX + 30, -- 525
+				y = 96, -- 525
+				keyTag = "E", -- 525
+				label = "我们走吧。", -- 525
+				urgent = false -- 525
+			} -- 525
+		end -- 525
+		if p.phase == "gate-walk" then -- 527
+			return { -- 528
+				x = player.x, -- 528
+				y = player.y + player.h + 22, -- 528
+				keyTag = "→", -- 528
+				label = "走向城外", -- 528
+				urgent = false -- 528
+			} -- 528
+		end -- 528
+	end -- 528
+	if p.reloadOpen then -- 533
+		local ratio = math.max( -- 534
+			0, -- 534
+			math.min(1, p.reloadAnswerTicks / 240) -- 534
+		) -- 534
+		return { -- 535
+			x = player.x, -- 536
+			y = player.y + player.depth * DEPTH_Y_SCALE + player.h + 34, -- 536
+			keyTag = "连线", -- 537
+			label = "画到枪机复位", -- 537
+			urgent = p.reloadAnswerTicks > 168, -- 537
+			progress = ratio -- 537
+		} -- 537
+	end -- 537
+	if p.reloadPendingEffect ~= "" then -- 540
+		return { -- 541
+			x = player.x, -- 542
+			y = player.y + player.depth * DEPTH_Y_SCALE + player.h + 34, -- 542
+			keyTag = "左键", -- 543
+			label = "枪机已上势 · 打下一枪", -- 543
+			urgent = false -- 543
+		} -- 543
+	end -- 543
+	if room.key == "gatepath" and not p.carryOn then -- 546
+		return { -- 547
+			x = player.x, -- 547
+			y = player.y + player.h + 24, -- 547
+			keyTag = "→", -- 547
+			label = "走到高石阶", -- 547
+			urgent = false -- 547
+		} -- 547
+	end -- 547
+	if room.key == "escort3" and not p.craftBench.active then -- 549
+		local bench = 560 -- 550
+		if math.abs(player.x - bench) <= p.benchReach + 40 and player.y < 12 then -- 551
+			return { -- 552
+				x = bench, -- 552
+				y = 92, -- 552
+				keyTag = "E", -- 552
+				label = "在工台制作", -- 552
+				urgent = false -- 552
+			} -- 552
+		end -- 552
+	end -- 552
+	if (room.key == "escort2" or room.key == "escort3" or room.key == "escort4" or room.key == "escort5") and p.carryOn then -- 555
+		return { -- 556
+			x = player.x, -- 556
+			y = player.y + player.h + 24, -- 556
+			keyTag = "→", -- 556
+			label = "带她走到出口", -- 556
+			urgent = false -- 556
+		} -- 556
+	end -- 556
+	local cart = room.cart -- 559
+	if (room.key == "checkpoint" or room.key == "outside" or room.key == "c2-granary") and not p.cartDocked and cart.bodyW > 0 then -- 560
+		local handleX = p.cartAxle + cart.handleOffset -- 561
+		if p.gripping or p:cartHandleInReach() then -- 562
+			return { -- 563
+				x = handleX, -- 564
+				y = cart.baseY + (cart.depth or 0) * DEPTH_Y_SCALE + cart.wheelR + cart.bodyH + 46, -- 565
+				keyTag = room.key == "c2-granary" and "E 握柄 + D" or "按住 E + D", -- 566
+				label = room.key == "outside" and "向前拉车" or "向前推车", -- 567
+				urgent = false -- 568
+			} -- 568
+		end -- 568
+	end -- 568
+	if p.isCampaign then -- 573
+		local bi = 0 -- 574
+		do -- 574
+			bi = 0 -- 575
+			while bi < #p.boxes do -- 575
+				do -- 575
+					local b = p.boxes[bi + 1] -- 576
+					if b.broken == true or b.hidden == true or b.interact == nil then -- 577
+						goto __continue74 -- 578
+					end -- 578
+					local cx = (b.x0 + b.x1) * 0.5 -- 580
+					local reach = b.interact.reach or 46 -- 581
+					if math.abs(player.x - cx) <= reach + 16 and overlapsDepth(player.depth, b.depth, 16) then -- 582
+						local kind = b.interact.kind -- 583
+						local label = kind == "open_board" and "放下窗板" or (kind == "lower_curtain" and "放下木帘" or "抬起门锁") -- 584
+						return { -- 586
+							x = cx, -- 586
+							y = b.y1 + 24, -- 586
+							keyTag = "E", -- 586
+							label = label, -- 586
+							urgent = true -- 586
+						} -- 586
+					end -- 586
+				end -- 586
+				::__continue74:: -- 586
+				bi = bi + 1 -- 575
+			end -- 575
+		end -- 575
+	end -- 575
+	if room.key == "village" and p.scavChase then -- 591
+		local ____player_crouch_13 -- 592
+		if player.crouch then -- 592
+			____player_crouch_13 = nil -- 592
+		else -- 592
+			____player_crouch_13 = { -- 592
+				x = player.x, -- 593
+				y = player.y + player.h + 22, -- 593
+				keyTag = "按住 Ctrl", -- 593
+				label = "蹲下躲避", -- 593
+				urgent = true -- 593
+			} -- 593
+		end -- 593
+		return ____player_crouch_13 -- 592
+	end -- 592
+	if room.key == "village" and not p.passed then -- 597
+		local bottle = room.bottle -- 598
+		if p.hasBottle then -- 599
+			return { -- 600
+				x = player.x, -- 601
+				y = player.y + player.h + 26, -- 601
+				keyTag = p.aimHold >= 0.12 and "松开 F" or "按住 F", -- 602
+				label = p.aimHold >= 0.12 and "投瓶" or "瞄准砖地", -- 603
+				urgent = false -- 603
+			} -- 603
+		end -- 603
+		if p.bottleFly == nil and bottle ~= nil then -- 606
+			local dx = player.x - bottle.x -- 607
+			local dy = player.y + player.h * 0.5 - bottle.y -- 608
+			if dx * dx + dy * dy < 56 * 56 then -- 609
+				return { -- 610
+					x = bottle.x, -- 610
+					y = bottle.y + 36, -- 610
+					keyTag = "E", -- 610
+					label = "拾起瓶子", -- 610
+					urgent = false -- 610
+				} -- 610
+			end -- 610
+		end -- 610
+	end -- 610
+	local arch = room.arch -- 615
+	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 616
+		return { -- 619
+			x = (arch.x0 + arch.x1) * 0.5, -- 620
+			y = arch.y + arch.h + 44, -- 620
+			keyTag = "按住 Ctrl", -- 621
+			label = room.key == "outside" and "蹲着穿过拱洞" or "蹲着钻过桌下", -- 621
+			urgent = false -- 621
+		} -- 621
+	end -- 621
+	local ____opt_14 = room.story -- 625
+	local museum = ____opt_14 and ____opt_14.museum -- 625
+	if room.key == "museum" and museum ~= nil then -- 626
+		if p.phase == "museum-cabinet" then -- 627
+			return { -- 628
+				x = museum.cabinetX, -- 628
+				y = 64 + 44, -- 628
+				keyTag = "E", -- 628
+				label = "玻璃柜前 · 收枪入袖", -- 628
+				urgent = true -- 628
+			} -- 628
+		end -- 628
+		if p.phase == "museum-hall" then -- 630
+			return { -- 631
+				x = museum.hallX, -- 631
+				y = 120, -- 631
+				keyTag = "走到", -- 631
+				label = "西厅那头 · 孩子的脚步", -- 631
+				urgent = false -- 631
+			} -- 631
+		end -- 631
+		if p.phase == "museum-lamp" then -- 633
+			return { -- 634
+				x = museum.lampX, -- 634
+				y = 120, -- 634
+				keyTag = "E", -- 634
+				label = "末厅 · 把灯转向西窗", -- 634
+				urgent = true -- 634
+			} -- 634
+		end -- 634
+		if p.phase == "museum-return" then -- 636
+			return { -- 637
+				x = museum.cabinetX, -- 637
+				y = 64 + 44, -- 637
+				keyTag = "E", -- 637
+				label = "回柜边 · 轻敲两下", -- 637
+				urgent = true -- 637
+			} -- 637
+		end -- 637
+		if p.phase == "museum-done" then -- 639
+			return { -- 640
+				x = museum.cabinetX, -- 640
+				y = 64 + 44, -- 640
+				keyTag = "E", -- 640
+				label = "回柜边 · 灯还亮着", -- 640
+				urgent = false -- 640
+			} -- 640
+		end -- 640
+		return nil -- 642
+	end -- 642
+	local ____opt_16 = room.story -- 645
+	local tower = ____opt_16 and ____opt_16.tower -- 645
+	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 646
+		return { -- 647
+			x = tower.doorX, -- 647
+			y = 96, -- 647
+			keyTag = "E", -- 647
+			label = "敲两下 · 守卒应门", -- 647
+			urgent = false -- 647
+		} -- 647
+	end -- 647
+	if p.phase == "tower-enter" then -- 649
+		return { -- 650
+			x = 605, -- 650
+			y = 64, -- 650
+			keyTag = "→", -- 650
+			label = "跨过门槛 · 走到值夜桌前", -- 650
+			urgent = false -- 650
+		} -- 650
+	end -- 650
+	if p.phase == "tower-desk" then -- 652
+		return { -- 653
+			x = 605, -- 654
+			y = 64, -- 654
+			keyTag = "按住 E", -- 654
+			label = "交出针套、指南针和纸条", -- 654
+			progress = p.deskHold / 36, -- 655
+			urgent = true -- 655
+		} -- 655
+	end -- 655
+	if p.phase == "tower-given" then -- 658
+		return { -- 659
+			x = 605, -- 659
+			y = 64, -- 659
+			keyTag = "", -- 659
+			label = "看登记簿 · 西窗的灯", -- 659
+			urgent = false -- 659
+		} -- 659
+	end -- 659
+	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 662
+		return { -- 664
+			x = player.x, -- 665
+			y = player.y + player.depth * DEPTH_Y_SCALE + player.h + 25, -- 665
+			keyTag = "按住 Shift", -- 666
+			label = "贴靠掩体", -- 666
+			urgent = gate ~= nil -- 666
+		} -- 666
+	end -- 666
+	return nil -- 669
+end -- 482
+return ____exports -- 482

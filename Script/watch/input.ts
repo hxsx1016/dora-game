@@ -449,6 +449,13 @@ export class Input {
             }
         }
 
+        if (!suppressMouse && this.inputMode === "kbm" && this.aim.held && mouseRightPressed) {
+            this.bottleCanceled = true;
+            this.aim.held = false;
+            this.aim.pressed = false;
+            this.aim.released = false;
+        }
+
         const pick = n1 ? 1 : (n2 ? 2 : (n3 ? 3 : 0));
         if (this.suppressPickRoomOnce) {
             this.suppressPickRoomOnce = false;

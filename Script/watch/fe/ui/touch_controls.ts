@@ -767,7 +767,7 @@ export class TouchControls {
                 // 横屏右手宋明扇形圆钮布局（1280×720 基准逻辑像素）
                 const rightX = ovW - safeR - 92 * sc;
                 const bottomY = safeB + 110 * sc;
-                bottleCancelCenter = { x: rightX - 14 * sc, y: bottomY + 14 * sc, r: 44 * sc };
+                bottleCancelCenter = { x: rightX - 186 * sc, y: bottomY + 126 * sc, r: 42 * sc };
 
                 if (!p.childMode) {
                     buttons.push({

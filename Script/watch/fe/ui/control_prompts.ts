@@ -93,7 +93,7 @@ export function adaptWorldKeyTag(
         if (rawKeyTag === "松开再按住 E") return "松开再按 Y";
         if (rawKeyTag === "按住 E + D") return "按住 Y + 右";
         if (rawKeyTag === "E 握柄 + D") return "Y 握柄 + 右";
-        if (rawKeyTag === "F") return "RT / X";
+        if (rawKeyTag === "F" || rawKeyTag === "左键") return "RT / X";
         if (rawKeyTag === "按住 F") return "按住 RT";
         if (rawKeyTag === "松开 F") return "松开 RT";
         if (rawKeyTag === "按住 Ctrl") return "按住 B";
@@ -107,7 +107,7 @@ export function adaptWorldKeyTag(
     if (rawKeyTag === "按住 E") return "长按交互";
     if (rawKeyTag === "松开再按住 E") return "松开再长按";
     if (rawKeyTag === "按住 E + D" || rawKeyTag === "E 握柄 + D") return "点推车+摇杆";
-    if (rawKeyTag === "F") return "开火";
+    if (rawKeyTag === "F" || rawKeyTag === "左键") return "开火";
     if (rawKeyTag === "按住 F") return "拖投瓶";
     if (rawKeyTag === "松开 F") return "松手投";
     if (rawKeyTag === "按住 Ctrl") return "点蹲伏";
@@ -143,6 +143,8 @@ export function adaptHintSentence(
             .split("左键发射火铳").join("按 [RT/X] 发射火铳")
             .split("左键发铳").join("按 [RT/X] 发铳")
             .split("按 E 再次启程").join("按 Y 再次启程")
+            .split("按住 E").join("按住 Y")
+            .split("方向键").join("左摇杆")
             .split("Esc 暂歇").join("START 暂歇")
             .split("返回").join("按 " + backBtn + " 返回");
     }
@@ -158,8 +160,10 @@ export function adaptHintSentence(
         .split("[SHIFT]").join("「轻步/掩体」")
         .split("按住 [F]").join("按住「投瓶」拖拽")
         .split("[F]").join("「投瓶」")
+        .split("按住 E").join("长按「交互」")
         .split("按 [E]").join("点按「交互」")
         .split("[E]").join("「交互」")
+        .split("方向键").join("左下摇杆")
         .split("按 [ESC]").join("轻触右上「暂歇」")
         .split("[ESC]").join("右上「暂歇」")
         .split("按 [SPACE]").join("点按「翻滚/跳跃」")
@@ -227,14 +231,14 @@ export function controlsGuideRows(tab: InputMode): {
             ],
         };
     }
-    return {
+        return {
         subtitle: "键鼠操作说明 · 全平台通用",
         soldierRows: [
-            ["WASD / 方向键", "左右、前后自由移动"],
-            ["鼠标 + 左键", "瞄准与发射火铳"],
-            ["按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"],
-            ["SPACE", "平地翻滚 / 靠近矮柜翻越"],
-            ["E", "递物 / 轻敲安抚 / 按住+D 推车"],
+            ["WASD / 方向键", "左右、前后纵深自由移动"],
+            ["鼠标 + 左键 / Q", "瞄准发射火铳 · Q 随时开换弹盘"],
+            ["按住 SHIFT / SPACE", "贴靠掩体挡弹 · 平地翻滚或翻越"],
+            ["E / 1·2·3", "交互推车工台 · 数字键选护送本领"],
+            ["拖线 / 方向+回车", "慢时 3×3 换弹盘 · 右键/退格重画"],
             ["ESC / R / T", "暂歇菜单 / 重试检查点 / 切神器"],
         ],
         childRows: [
@@ -243,7 +247,7 @@ export function controlsGuideRows(tab: InputMode): {
             ["按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
             ["SPACE", "跳跃攀上石阶与矮台"],
             ["E", "拾瓶 / 敲塔门 / 按住+D 拉车"],
-            ["F 按住→松开", "瞄准砖地，投瓶引开拾荒者"],
+            ["F 按住→松开", "瞄准砖地/铁盆投瓶 · 右键取消"],
         ],
     };
 }

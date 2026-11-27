@@ -20,6 +20,7 @@
  */
 
 import { Color, DrawNode, Vec2 } from "Dora";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { RoomSpec, StairSpec } from "Script/watch/rooms";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -401,7 +402,7 @@ export function verifyWalkPlaneAlignment(
 
     const inv = cam.screenToWorld(p3.x, p3.y);
     const invDx = inv.x - wx;
-    const invDy = inv.y - (wy + (proj.baseDepth ?? 0));
+    const invDy = inv.y - (wy + (proj.baseDepth ?? 0) * DEPTH_Y_SCALE);
     const inverseErrWorld = Math.sqrt(invDx * invDx + invDy * invDy);
     return {
         forwardErrPx,
@@ -1289,9 +1290,12 @@ export function buildOutsideJettyLowpoly(
         });
     }
 
-    // 4. 城墙实体块（对悬空城墙 y > 0 在后景 z=34..72 增补落地砖拱墩，消除悬浮灰块感且不挡底层通行）
+    // 4. 城墙实体块（补丁红布车单独按木车绘制，绝不画成巨型砖墙+砖墩；悬空城墙补后景砖拱墩）
     for (i = 0; i < room.solids.length; i++) {
         const s = room.solids[i];
+        if (s.id === "outside_red_cart") {
+            continue;
+        }
         scene.addBox({
             x0: s.x,
             x1: s.x + s.w,

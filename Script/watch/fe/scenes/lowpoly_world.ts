@@ -284,11 +284,16 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         if (!ctx.paused && ctx.worldDt > 0) {
             const dt = ctx.worldDt;
 
-            // 首次握住红布检修车右柄 → 触发约 0.54s 家人缝布回忆，不中断持续拉车输入
-            if (p.gripping && !this.prevGripping && !this.memoryPlayed) {
+            // 首次握住红布检修车右柄，或拉开挡道红布车触发 redCartMemoryT → 触发约 0.54s 家人缝布回忆，不中断输入
+            const redCartMemTrigger = p.redCartMemoryT > 0 && !this.memoryPlayed;
+            if (((p.gripping && !this.prevGripping) || redCartMemTrigger) && !this.memoryPlayed) {
                 this.memoryPlayed = true;
                 this.memoryTriggeredCount += 1;
                 this.memoryTimer = 0;
+                if (redCartMemTrigger) {
+                    this.memoryAnchorWorldX = p.player.x;
+                    this.memoryAnchorWorldY = p.player.y + 36;
+                }
                 ctx.audio.playOnce(
                     "fe04:outside:sewing:" + ctx.events.roomSessionId,
                     "ambience",
@@ -482,6 +487,32 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
         // 1. 复用 fe-01 核心低模栈台构建器（floors / stairs / solids / 无垂布低拱 / 左端红布投影 / 脚底接触影）
         buildOutsideJettyLowpoly(scene, p.room, p.player.x, p.player.y, p.cartAxle, this.animTime);
+
+        // 1b. 挡住石阶口的补丁红布独轮车（实时跟随后端 outside_red_cart 坐标，避免画成灰砖墙与高墩）
+        const redBox = p.boxes.find((b) => b.id === "outside_red_cart");
+        if (redBox !== undefined && redBox.broken !== true && redBox.hidden !== true) {
+            scene.addBox({
+                x0: redBox.x0 + 2,
+                x1: redBox.x1 - 2,
+                y0: redBox.y0 + 10,
+                y1: redBox.y1,
+                z0: -10,
+                z1: 12,
+                material: MING_MATERIALS.mingTimber,
+                bucket: LP_BUCKET.PROP,
+                highlightTopEdge: true,
+                edgeWidth: 0.9,
+            });
+            // 车沿系着的旧补丁红布
+            const rSway = Math.sin(this.animTime * 2.9) * 4.5;
+            scene.addTri3D(
+                vec3(redBox.x0 + 4, redBox.y1, -11),
+                vec3(redBox.x0 + 18, redBox.y1, -10),
+                vec3(redBox.x0 - 2 + rSway, redBox.y0 + 10, -12),
+                MING_MATERIALS.mingRedCloth,
+                { bucket: LP_BUCKET.PROP, sortBias: 0.26, edgeWidth: 0.8 },
+            );
+        }
 
         // 2. 增补城外细部：上层木轮车辙与空窝物理凹槽（x = 432）、下层廊顶铁格栅条影与盐碱高水线
         const c = p.room.cart;

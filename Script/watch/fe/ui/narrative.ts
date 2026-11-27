@@ -149,7 +149,8 @@ export class NarrativeRenderer {
         const stripW = Math.min(w - 72 - safe.left - safe.right, Math.max(540, contentW + 210));
         const stripH = 54;
         const cx = w * 0.5;
-        const cy = (this.letterbox > 0.4 ? 36 : 42) + safe.bottom * 0.5;
+        const touchLift = inputMode === "touch" && this.letterbox <= 0.4 ? 22 : 0;
+        const cy = (this.letterbox > 0.4 ? 36 : 42) + touchLift + safe.bottom * 0.5;
 
         // 丝绒般柔边烟黛长幕
         drawSilkVeil(uiDraw, art, "sub_veil", cx, cy, stripW, stripH, line.urgent ? PALETTE.inkWarm : PALETTE.inkWash, 0.84, -1);
@@ -202,12 +203,26 @@ export class NarrativeRenderer {
                 }
             }
             if (p.flash !== "" && p.flashT > 0) {
-                // 过滤后端 flash 里含显式按键指令的引导句（如「按 E」「按 F」「按 Shift」），仅留即时结果反馈
-                const hasKeyHint = p.flash.indexOf("按 E") >= 0
-                    || p.flash.indexOf("按 F") >= 0
-                    || p.flash.indexOf("按 Shift") >= 0
-                    || p.flash.indexOf("按 Ctrl") >= 0
-                    || p.flash.indexOf("E 再玩") >= 0;
+                // 严格低引导红线：过滤全部含显式按键指令、倒计时催促或解谜直给文案，仅留纯状态与即时结果
+                const fl = p.flash;
+                const hasKeyHint = fl.indexOf("按 E") >= 0
+                    || fl.indexOf("点 E") >= 0
+                    || fl.indexOf("按住 E") >= 0
+                    || fl.indexOf("按 F") >= 0
+                    || fl.indexOf("按住 F") >= 0
+                    || fl.indexOf("按 Shift") >= 0
+                    || fl.indexOf("按 Ctrl") >= 0
+                    || fl.indexOf("A/D") >= 0
+                    || fl.indexOf("限时") >= 0
+                    || fl.indexOf("E 再玩") >= 0
+                    || fl.indexOf("E 拉开") >= 0
+                    || fl.indexOf("E 敲") >= 0
+                    || fl.indexOf("E 递") >= 0
+                    || fl.indexOf("E 送") >= 0
+                    || fl.indexOf("E 交") >= 0
+                    || fl.indexOf("E 拿") >= 0
+                    || fl.indexOf("E 开") >= 0
+                    || fl.indexOf("按 1") >= 0;
                 if (!hasKeyHint) {
                     const isDanger = p.flash.indexOf("中弹") >= 0 || p.flash.indexOf("被抓") >= 0 || p.flash.indexOf("击倒") >= 0 || p.flash.indexOf("看见") >= 0 || p.flash.indexOf("追") >= 0;
                     let text = p.flash;

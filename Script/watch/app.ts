@@ -10,6 +10,7 @@ import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } fr
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
@@ -914,8 +915,10 @@ function syncFrameAdapters(frameDt: number): void {
                 playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
                 playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
             } else {
-                playerScreenX = stageVp.stageW * 0.45;
-                playerScreenY = stageVp.stageH * 0.36;
+                // 护送试炼（mode === 2）按 Play.view 精确投影主角屏幕位置，保证手柄方向锥磁吸准心不偏心
+                const vz = p.view.zoom > 0 ? p.view.zoom : 1;
+                playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
+                playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
             }
         }
 
@@ -1254,7 +1257,7 @@ function drawCampaign(p: Play): void {
     let line = room.name;
     if (c !== undefined) {
         line = line + "  " + c.chapter + c.act + " · 目标 " + goalLabel(c.goal)
-            + " · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0)) + " / 预算 " + mmss(c.budget);
+            + " · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0)) + " / 预算 " + mmss(c.budget * 60);
     }
     if (p.paused) {
         line = line + "  · 已暂停 Esc 继续";
