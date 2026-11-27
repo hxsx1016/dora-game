@@ -41,6 +41,11 @@ import { TowerEndingsPlugin } from "Script/watch/fe/cutscenes/tower_endings";
 import { WellMuseumPlugin } from "Script/watch/fe/scenes/well_museum";
 import { ReloadWheelPlugin } from "Script/watch/fe/ui/reload_wheel";
 import { CraftBenchPlugin } from "Script/watch/fe/ui/craft_bench";
+import {
+    TalentDraftPlugin,
+    computeEscortDeathButtons,
+    computeTalentSlipRects,
+} from "Script/watch/fe/ui/talent_draft";
 
 export class WatchFrontend {
     private occlusion = new DepthOcclusion();
@@ -70,6 +75,7 @@ export class WatchFrontend {
     readonly hud = new HudRenderer();
     readonly narrative = new NarrativeRenderer();
     readonly menus = new MenuRenderer();
+    readonly talentDraft = new TalentDraftPlugin();
 
     private plugins: FeRenderPlugin[] = [];
 
@@ -160,6 +166,7 @@ export class WatchFrontend {
         this.registerPlugin(new WellMuseumPlugin(this.contract));
         this.registerPlugin(new ReloadWheelPlugin(this.contract));
         this.registerPlugin(new CraftBenchPlugin(this.contract));
+        this.registerPlugin(this.talentDraft);
     }
 
     /** 注册前端渲染插件（按 id 幂等覆盖并保持既有优先级槽位），供 Wave 1 / Wave 2 并行模块零冲突挂载 */
@@ -244,6 +251,7 @@ export class WatchFrontend {
             watchFe["wellMuseum"] = this.getPlugin("fe-06-well-museum");
             watchFe["reloadWheel"] = this.getPlugin("fe-02-reload-wheel");
             watchFe["craftBench"] = this.getPlugin("fe-02-craft-bench");
+            watchFe["talentDraft"] = this.getPlugin("fe-07-talent-draft");
         }
     }
 
@@ -267,6 +275,8 @@ export class WatchFrontend {
         this.syncRuntimeHooks();
         this.boundPlay = p;
         p.worldMapper = (sx: number, sy: number) => this.cam.screenToWorld(sx, sy);
+        p.useEscortDeathSummary = true;
+        p.openTalentDraft();
         this.cam.snap(p, w, h);
         this.adapter.reset(p);
         this.contract.resetForRoom(p);
@@ -338,14 +348,52 @@ export class WatchFrontend {
         this.texts.put("sm", this.toastText, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * alpha, 0.08);
     }
 
-    /** 计算男主线三选一本领卡的舞台 UI 坐标矩形，供 TouchControls 同步直点热区。 */
+    /** 计算男主线三选一折笺本领卡的舞台 UI 坐标矩形，供 TouchControls 同步直点热区。 */
     getStoryTalentBoxes(p: Play, w: number, h: number, touchMode: boolean): Rect.Type[] {
         const offers = p.getStoryTalentOffers();
-        if (offers.length === 0) {
+        if (offers.length === 0 || p.escortFailed) {
             return [];
         }
         const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
-        return this.hud.talentCardRects(w / uiScale, h / uiScale, offers.length, touchMode, this.stageVp.safeUi.top);
+        return computeTalentSlipRects(w / uiScale, h / uiScale, offers.length, touchMode, this.stageVp.safeUi.top);
+    }
+
+    /** 计算男主线「折戟重整」小结页两枚按钮的舞台 UI 坐标矩形。 */
+    getEscortDeathBoxes(p: Play, w: number, h: number): { retry: Rect.Type; title: Rect.Type } | undefined {
+        if (!p.escortFailed) {
+            return undefined;
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        return computeEscortDeathButtons(w / uiScale, h / uiScale);
+    }
+
+    /** 检测点击是否命中「折戟重整」小结页按钮。 */
+    tryPickEscortDeathAtPointer(p: Play, input: Input, w: number, h: number): "retry" | "title" | "" {
+        if (!p.escortFailed) {
+            return "";
+        }
+        if (input.inputMode === "gamepad" && !input.uiPressed) {
+            return "";
+        }
+        const useUiPtr = input.uiInside || input.uiPressed;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        if (!inside) {
+            return "";
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const pointer = Vec2(rawX / uiScale, rawY / uiScale);
+        const btns = computeEscortDeathButtons(w / uiScale, h / uiScale);
+        if (btns.retry.containsPoint(pointer)) {
+            this.talentDraft.deathSelected = 0;
+            return "retry";
+        }
+        if (btns.title.containsPoint(pointer)) {
+            this.talentDraft.deathSelected = 1;
+            return "title";
+        }
+        return "";
     }
 
     private playMenuUiSound(kind: UiSoundKind): void {
@@ -363,26 +411,6 @@ export class WatchFrontend {
             this.audio.playUi("ui:pause_close", "assets/audio/ui/pause_close.wav", 0.66, 0.08);
         } else if (kind === "toggle") {
             this.audio.playUi("ui:toggle", "assets/audio/ui/setting_toggle.wav", 0.64, 0.04);
-        }
-    }
-
-    /** 护送试炼肉鸽（mode 2）切换段落时重置试炼音频态 */
-    resetTrialAudio(p: Play): void {
-        this.adapter.reset(p);
-        this.audio.stopRoomTransient();
-        this.soundscape.resetForRoom(p);
-    }
-
-    /** 护送试炼肉鸽（mode 2）每帧消费事件队列与声景拟音 */
-    syncTrialAudio(dt: number, p: Play, offerCount: number, ev?: FrameEvents): void {
-        const safeDt = Math.min(0.05, Math.max(0.001, dt));
-        this.audio.setPaused(p.paused);
-        this.audio.setCameraRef(p.player.x, 960);
-        this.audio.update(safeDt);
-        if (!p.paused) {
-            const frame = ev !== undefined ? ev : this.adapter.sample(p);
-            this.audio.ingestEvents(frame, p);
-            this.soundscape.updateTrial(safeDt, p, this.audio, offerCount);
         }
     }
 
@@ -445,10 +473,12 @@ export class WatchFrontend {
         const rawX = useUiPtr ? input.uiX : input.mx;
         const rawY = useUiPtr ? input.uiY : input.my;
         const pointer = Vec2(rawX / uiScale, rawY / uiScale);
-        const boxes = this.hud.talentCardRects(uiW, uiH, offers.length, input.isTouchMode(), this.stageVp.safeUi.top);
+        const boxes = computeTalentSlipRects(uiW, uiH, offers.length, input.isTouchMode(), this.stageVp.safeUi.top);
         let i = 0;
         for (i = 0; i < boxes.length; i++) {
             if (boxes[i].containsPoint(pointer)) {
+                this.talentDraft.selected = i;
+                this.hud.talentSelected = i;
                 return p.chooseTalent(i);
             }
         }
@@ -456,7 +486,7 @@ export class WatchFrontend {
     }
 
     /** 局内试玩态每帧更新与渲染（返回暂停菜单动作，非暂停时返回 none） */
-    renderPlay(dt: number, p: Play, input: Input, w: number, h: number, trialMode: boolean = false, evIn?: FrameEvents): MenuAction {
+    renderPlay(dt: number, p: Play, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
         this.setVisible(true);
         if (this.boundPlay !== p) {
@@ -466,11 +496,9 @@ export class WatchFrontend {
         if (this.toastTimer > 0) {
             this.toastTimer = Math.max(0, this.toastTimer - safeDt);
         }
-        if (!trialMode) {
-            this.audio.setPaused(p.paused);
-            this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
-            this.audio.update(safeDt);
-        }
+        this.audio.setPaused(p.paused);
+        this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+        this.audio.update(safeDt);
 
         let ev: FrameEvents;
         let worldDt = 0;
@@ -478,11 +506,9 @@ export class WatchFrontend {
 
         if (!p.paused) {
             // 唯一 drainEvents() 消费入口 → 按 seq 顺序分发给 VFX 与分轨音频
-            ev = evIn !== undefined ? evIn : this.adapter.sample(p);
+            ev = this.adapter.sample(p);
             this.vfx.ingest(ev, p, this.cam);
-            if (!trialMode) {
-                this.audio.ingestEvents(ev, p);
-            }
+            this.audio.ingestEvents(ev, p);
             const touch = input.getTouch();
             if (touch !== undefined) {
                 if (ev.playerHit) {
@@ -547,10 +573,8 @@ export class WatchFrontend {
         if (!p.paused) {
             this.time += worldDt;
             this.cam.update(worldDt, p, w, h);
-            if (!trialMode) {
-                this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
-                this.soundscape.updatePlay(worldDt, p, view, this.audio);
-            }
+            this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+            this.soundscape.updatePlay(worldDt, p, view, this.audio);
             this.actors.update(worldDt, p);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
             this.hud.update(safeDt, p);
@@ -633,8 +657,8 @@ export class WatchFrontend {
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
         let action: MenuAction = { type: "none" };
         if (p.paused) {
-            // 试炼有自己的暂停与选卡面板，这里不再画剧情暂停菜单，也不消费其输入。
-            action = trialMode ? { type: "none" } : this.menus.updateAndDrawPause(
+            const isMaleRoguelike = p.run.source === "official" && p.storyRoute === "soldier" && p.isEscortRoom();
+            action = this.menus.updateAndDrawPause(
                 safeDt,
                 input,
                 this.uiDraw,
@@ -650,6 +674,7 @@ export class WatchFrontend {
                     this.contract.toggleAssistHints();
                 },
                 this.stageVp.safeUi,
+                isMaleRoguelike,
             );
         } else {
             // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写

@@ -531,10 +531,11 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
 
     // 慢时换弹：盘开着时只提示连线；已画好的枪机在下一枪前提示左键发射。
     if (p.reloadOpen) {
-        const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / 240));
+        const need = Math.max(1, p.reloadNeedTicks());
+        const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / need));
         return {
             x: player.x, y: player.y + player.depth * DEPTH_Y_SCALE + player.h + 34,
-            keyTag: "连线", label: "画到枪机复位", urgent: p.reloadAnswerTicks > 168, progress: ratio,
+            keyTag: "连线", label: "画到枪机复位", urgent: p.reloadAnswerTicks > need * 0.7, progress: ratio,
         };
     }
     if (p.reloadPendingEffect !== "") {

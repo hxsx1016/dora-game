@@ -7,12 +7,14 @@
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
-import { talentNames } from "Script/watch/run";
+import { ALL_TALENTS, TALENT_CATALOG } from "Script/watch/run";
+import { weaponNameOf } from "Script/watch/craft";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { FEAR_MAX } from "Script/watch/escort";
 import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import { SafeInsets, ZERO_SAFE_INSETS } from "Script/watch/platform";
 import { adaptHintSentence, adaptWorldKeyTag } from "Script/watch/fe/ui/control_prompts";
+import { computeTalentSlipRects } from "Script/watch/fe/ui/talent_draft";
 import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -124,23 +126,9 @@ export class HudRenderer {
         }
     }
 
-    /** 计算男主线护送段三选一本领卡的 UI 坐标矩形（渲染与点击命中共用单一真源）。 */
+    /** 计算男主线护送段三选一折笺本领卡的 UI 坐标矩形（委托给 TalentDraftPlugin 单一真源）。 */
     talentCardRects(w: number, h: number, count: number, touchMode: boolean = false, safeTop: number = 0): Rect.Type[] {
-        const out: Rect.Type[] = [];
-        if (count <= 0) {
-            return out;
-        }
-        const cardW = touchMode ? 212 : 204;
-        const cardH = touchMode ? 50 : 38;
-        const gap = 14;
-        const totalW = count * cardW + (count - 1) * gap;
-        const startX = (w - totalW) * 0.5;
-        const y = h - (touchMode ? 132 : 120) - safeTop;
-        let i = 0;
-        for (i = 0; i < count; i++) {
-            out.push(Rect(startX + i * (cardW + gap), y, cardW, cardH));
-        }
-        return out;
+        return computeTalentSlipRects(w, h, count, touchMode, safeTop);
     }
 
     /** 独立绘制战斗/投瓶准星（供 frontend.ts 在全速 UI 插件判定后决定是否绘制，实现同帧零闪烁隐藏） */
@@ -276,17 +264,40 @@ export class HudRenderer {
         }
 
         const ranks = p.getStoryTalentRanks();
-        if (ranks !== undefined) {
-            const parts: string[] = [];
-            if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
-            if (ranks.reload > 0) parts.push("熟铳" + ranks.reload);
-            if (ranks.guard > 0) parts.push("护身" + ranks.guard);
-            if (ranks.craft > 0) parts.push("巧手" + ranks.craft);
-            if (parts.length > 0) {
-                const subY = by - 22;
-                const txt = "本领 · " + parts.join(" · ");
-                drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.56 * alpha, -1);
-                texts.put("xs", txt, bx + 14, subY + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+        if (p.isEscortRoom()) {
+            const inv = p.run.inventory;
+            const sup: string[] = [];
+            sup.push(weaponNameOf(p.equippedWeapon));
+            const attempt = p.getEscortAttempt();
+            if (attempt > 1) sup.push("第" + attempt + "轮");
+            if (inv.wood > 0) sup.push("木筹" + inv.wood);
+            if (inv.bell > 0) sup.push("铃筹" + inv.bell);
+            if (inv.shield > 0) sup.push("残盾" + inv.shield);
+            if (inv.wedge > 0) sup.push("木楔" + inv.wedge);
+            if (inv.ammo > 0) sup.push("弹包" + inv.ammo);
+            const row1Y = by - 22;
+            const supTxt = sup.join(" · ");
+            const supW = Math.max(240, visualTextWidth(supTxt, 15) + 34);
+            drawSilkVeil(uiDraw, uiArt, "hud_escort_sup_veil", bx + supW * 0.48, row1Y + 6, supW, 24, PALETTE.inkWash, 0.54 * alpha, -1);
+            texts.put("xs", supTxt, bx + 14, row1Y + 6, toColor(PALETTE.cyanCore), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
+
+            if (ranks !== undefined) {
+                const parts: string[] = [];
+                let ti = 0;
+                for (ti = 0; ti < ALL_TALENTS.length; ti++) {
+                    const tid = ALL_TALENTS[ti];
+                    const rk = ranks[tid] ?? 0;
+                    if (rk > 0) {
+                        parts.push(TALENT_CATALOG[tid].title + rk);
+                    }
+                }
+                if (parts.length > 0) {
+                    const row2Y = row1Y - 26;
+                    const txt = "本领 · " + parts.join(" · ");
+                    const talW = Math.max(240, visualTextWidth(txt, 15) + 34);
+                    drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + talW * 0.48, row2Y + 6, talW, 24, PALETTE.inkWash, 0.56 * alpha, -1);
+                    texts.put("xs", txt, bx + 14, row2Y + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+                }
             }
         } else if (p.isCampaign && p.room.campaign !== undefined && (p.room.campaign.chapter === "S" || p.room.campaign.chapter === "C")) {
             const inv = p.run.inventory;
@@ -383,48 +394,8 @@ export class HudRenderer {
         gamepadLayout: GamepadLayout,
         safe: SafeInsets,
     ): void {
-        const touchMode = inputMode === "touch";
-        const talentOffers = p.getStoryTalentOffers();
-        if (talentOffers.length > 0 && !p.craftBench.active && !p.reloadOpen) {
-            const boxes = this.talentCardRects(w, h, talentOffers.length, touchMode, safe.top);
-            const cx = w * 0.5;
-            const titleY = h - 54 - safe.top;
-            const talentHint = inputMode === "gamepad"
-                ? "护送本领三选一 · LB/RB 择项 · L3 确认或点选"
-                : (touchMode
-                    ? "护送本领三选一 · 轻触卡面习得"
-                    : "护送本领三选一 · 按 1 / 2 / 3 或点击习得");
-            drawSilkVeil(uiDraw, uiArt, "hud_talent_head_veil", cx, titleY, 410, 26, PALETTE.inkWash, 0.72 * alpha, -1);
-            drawHairline(uiInkDraw, uiArt, "hud_talent_head_line", cx, titleY + 13, 330, PALETTE.amber, 0.52 * alpha, true, 2);
-            texts.put("xs", talentHint, cx, titleY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, alpha, 0.08);
-
-            let ti = 0;
-            for (ti = 0; ti < talentOffers.length; ti++) {
-                const box = boxes[ti];
-                const bx = box.x;
-                const by = box.y;
-                const bh = box.height;
-                const cy = by + bh * 0.5;
-                const gpFocus = inputMode === "gamepad" && ti === this.talentSelected;
-                const borderCol = gpFocus ? PALETTE.rouge : PALETTE.amber;
-                uiDraw.drawRect(
-                    box,
-                    toColor(gpFocus ? PALETTE.inkWarm : PALETTE.panelBgDeep, Math.round((gpFocus ? 235 : 215) * alpha)),
-                    gpFocus ? 1.5 : 0.9,
-                    toColor(borderCol, Math.round((gpFocus ? 235 : 185) * alpha)),
-                );
-                if (inputMode === "kbm") {
-                    drawSilkKeycap(uiInkDraw, texts, bx + 8, cy - 11, 22, 22, "" + (ti + 1), borderCol, alpha, true);
-                    texts.put("xs", talentNames[talentOffers[ti]], bx + 38, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
-                } else {
-                    drawBlossomDot(uiInkDraw, uiArt, "hud_talent_dot_" + ti, bx + 18, cy, gpFocus ? 12 : 8, borderCol, alpha, 4);
-                    texts.put("xs", talentNames[talentOffers[ti]], bx + 34, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
-                }
-            }
-        }
-
-        // 工台与 3×3 慢时换弹界面已分别由 CraftBenchPlugin / ReloadWheelPlugin 全速层接管，
-        // 此处不再叠绘旧版灰盒工台与顶部换弹条，避免新旧双层 UI 互相遮挡与错位键位提示。
+        // 本领折笺选卡、工台与 3×3 慢时换弹界面已分别由 TalentDraftPlugin / CraftBenchPlugin / ReloadWheelPlugin 全速层接管，
+        // 此处不再叠绘旧版顶部浮动本领条、旧版灰盒工台或换弹条，避免双层 UI 互相遮挡。
 
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
             const g = p.room.story.gate;

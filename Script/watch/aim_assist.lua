@@ -1,217 +1,191 @@
 -- [ts]: aim_assist.ts
 local ____exports = {} -- 1
-local DEFAULT_CONE_HALF_ANGLE_RAD = 26 * math.pi / 180 -- 20
-local function clamp(v, lo, hi) -- 22
-	return v < lo and lo or (v > hi and hi or v) -- 23
-end -- 22
-local function hypot(dx, dy) -- 26
-	return math.sqrt(dx * dx + dy * dy) -- 27
-end -- 26
+local DEFAULT_CONE_HALF_ANGLE_RAD = 26 * math.pi / 180 -- 19
+local function clamp(v, lo, hi) -- 21
+	return v < lo and lo or (v > hi and hi or v) -- 22
+end -- 21
+local function hypot(dx, dy) -- 25
+	return math.sqrt(dx * dx + dy * dy) -- 26
+end -- 25
 --- 从高清前端镜头采集当前房内可见活体敌兵的舞台坐标候选点。
-function ____exports.collectPlayAimTargets(p, cam, stageW, stageH) -- 31
-	local out = {} -- 37
-	local i = 0 -- 38
-	do -- 38
-		i = 0 -- 39
-		while i < #p.enemies do -- 39
-			do -- 39
-				local e = p.enemies[i + 1] -- 40
+function ____exports.collectPlayAimTargets(p, cam, stageW, stageH) -- 30
+	local out = {} -- 36
+	local i = 0 -- 37
+	do -- 37
+		i = 0 -- 38
+		while i < #p.enemies do -- 38
+			do -- 38
+				local e = p.enemies[i + 1] -- 39
 				if not e.alive then -- 40
-					goto __continue6 -- 41
-				end -- 41
-				local isShield = e.kind == "shield" and (e.shieldHp or 0) > 0 -- 42
-				local aimWorldY = e.y + e.h * (isShield and 0.88 or 0.6) -- 43
-				local sx = cam:sx(e.x) -- 44
-				local sy = cam:sy(aimWorldY, e.depth or 0) -- 45
+					goto __continue6 -- 40
+				end -- 40
+				local isShield = e.kind == "shield" and (e.shieldHp or 0) > 0 -- 41
+				local aimWorldY = e.y + e.h * (isShield and 0.88 or 0.6) -- 42
+				local sx = cam:sx(e.x) -- 43
+				local sy = cam:sy(aimWorldY, e.depth or 0) -- 44
 				if sx >= -64 and sx <= stageW + 64 and sy >= -48 and sy <= stageH + 48 then -- 45
-					out[#out + 1] = {sx = sx, sy = sy, shield = isShield} -- 47
-				end -- 47
-			end -- 47
-			::__continue6:: -- 47
-			i = i + 1 -- 39
-		end -- 39
-	end -- 39
-	return out -- 50
-end -- 31
---- 从护送试炼（mode === 2）采集敌兵舞台坐标候选点。
-function ____exports.collectTrialAimTargets(p, cam, stageW, stageH) -- 54
-	local out = {} -- 60
-	local i = 0 -- 61
-	do -- 61
-		i = 0 -- 62
-		while i < #p.enemies do -- 62
-			do -- 62
-				local e = p.enemies[i + 1] -- 63
-				if not e.alive then -- 63
-					goto __continue11 -- 64
-				end -- 64
-				local isShield = e.kind == "shield" and (e.shieldHp or 0) > 0 -- 65
-				local aimWorldY = e.y + e.h * (isShield and 0.88 or 0.6) -- 66
-				local sx = cam:sx(e.x) -- 67
-				local sy = cam:sy(aimWorldY, e.depth or 0) -- 68
-				if sx >= -64 and sx <= stageW + 64 and sy >= -48 and sy <= stageH + 48 then -- 68
-					out[#out + 1] = {sx = sx, sy = sy, shield = isShield} -- 70
-				end -- 70
-			end -- 70
-			::__continue11:: -- 70
-			i = i + 1 -- 62
-		end -- 62
-	end -- 62
-	return out -- 73
-end -- 54
+					out[#out + 1] = {sx = sx, sy = sy, shield = isShield} -- 46
+				end -- 46
+			end -- 46
+			::__continue6:: -- 46
+			i = i + 1 -- 38
+		end -- 38
+	end -- 38
+	return out -- 49
+end -- 30
 --- 屏幕点选轻度磁吸（用于触屏直点 / 拖滑点射）：仅在指定像素半径内吸附最近目标。
-function ____exports.snapPointAim(stageX, stageY, targets, maxSnapPx, enabled) -- 77
-	if not enabled or #targets == 0 or maxSnapPx <= 0 then -- 77
-		return {x = stageX, y = stageY} -- 85
-	end -- 85
-	local bestDist = maxSnapPx -- 87
-	local bestX = stageX -- 88
-	local bestY = stageY -- 89
-	local i = 0 -- 90
-	do -- 90
-		i = 0 -- 91
-		while i < #targets do -- 91
-			local e = targets[i + 1] -- 92
-			local d = hypot(e.sx - stageX, e.sy - stageY) -- 93
-			if d < bestDist then -- 93
-				bestDist = d -- 95
-				bestX = e.sx -- 96
-				bestY = e.sy -- 97
-			end -- 97
-			i = i + 1 -- 91
-		end -- 91
-	end -- 91
-	return {x = bestX, y = bestY} -- 100
-end -- 77
+function ____exports.snapPointAim(stageX, stageY, targets, maxSnapPx, enabled) -- 53
+	if not enabled or #targets == 0 or maxSnapPx <= 0 then -- 60
+		return {x = stageX, y = stageY} -- 61
+	end -- 61
+	local bestDist = maxSnapPx -- 63
+	local bestX = stageX -- 64
+	local bestY = stageY -- 65
+	local i = 0 -- 66
+	do -- 66
+		i = 0 -- 67
+		while i < #targets do -- 67
+			local e = targets[i + 1] -- 68
+			local d = hypot(e.sx - stageX, e.sy - stageY) -- 69
+			if d < bestDist then -- 70
+				bestDist = d -- 71
+				bestX = e.sx -- 72
+				bestY = e.sy -- 73
+			end -- 73
+			i = i + 1 -- 67
+		end -- 67
+	end -- 67
+	return {x = bestX, y = bestY} -- 76
+end -- 53
 --- 方向锥轻度磁吸（用于手柄右摇杆 360° 瞄准与触屏开火摇杆精瞄）。
-function ____exports.snapConeAim(originX, originY, dirX, dirY, reachPx, stageW, stageH, targets, enabled, halfAngleRad) -- 104
-	if halfAngleRad == nil then -- 104
-		halfAngleRad = DEFAULT_CONE_HALF_ANGLE_RAD -- 114
-	end -- 114
-	local baseX = clamp( -- 116
-		originX + dirX * reachPx, -- 116
-		12, -- 116
-		math.max(24, stageW - 12) -- 116
-	) -- 116
-	local baseY = clamp( -- 117
-		originY + dirY * reachPx, -- 117
-		12, -- 117
-		math.max(24, stageH - 12) -- 117
-	) -- 117
-	if not enabled or #targets == 0 then -- 117
-		return {x = baseX, y = baseY} -- 120
-	end -- 120
-	local wantAngle = math.atan(dirY, dirX) -- 123
-	local bestScore = 1000000000 -- 124
-	local bestTarget -- 125
-	local i = 0 -- 126
-	do -- 126
-		i = 0 -- 127
-		while i < #targets do -- 127
-			do -- 127
-				local e = targets[i + 1] -- 128
-				if e.sx < -24 or e.sx > stageW + 24 or e.sy < -24 or e.sy > stageH + 24 then -- 128
-					goto __continue22 -- 130
-				end -- 130
-				local dx = e.sx - originX -- 132
-				local dy = e.sy - originY -- 133
-				local dist = hypot(dx, dy) -- 134
-				if dist < 18 then -- 134
-					goto __continue22 -- 135
-				end -- 135
-				local diff = math.atan(dy, dx) - wantAngle -- 136
-				while diff > math.pi do -- 136
-					diff = diff - math.pi * 2 -- 137
-				end -- 137
-				while diff < -math.pi do -- 137
-					diff = diff + math.pi * 2 -- 138
-				end -- 138
-				local absDiff = math.abs(diff) -- 139
-				if absDiff <= halfAngleRad then -- 139
-					local score = absDiff * 420 + dist * 0.25 -- 141
-					if score < bestScore then -- 141
-						bestScore = score -- 143
-						bestTarget = e -- 144
-					end -- 144
-				end -- 144
-			end -- 144
-			::__continue22:: -- 144
-			i = i + 1 -- 127
-		end -- 127
-	end -- 127
-	if bestTarget ~= nil then -- 127
-		return { -- 150
-			x = clamp( -- 151
-				bestTarget.sx, -- 151
-				12, -- 151
-				math.max(24, stageW - 12) -- 151
-			), -- 151
-			y = clamp( -- 152
-				bestTarget.sy, -- 152
-				12, -- 152
-				math.max(24, stageH - 12) -- 152
-			) -- 152
-		} -- 152
-	end -- 152
-	return {x = baseX, y = baseY} -- 155
-end -- 104
+function ____exports.snapConeAim(originX, originY, dirX, dirY, reachPx, stageW, stageH, targets, enabled, halfAngleRad) -- 80
+	if halfAngleRad == nil then -- 90
+		halfAngleRad = DEFAULT_CONE_HALF_ANGLE_RAD -- 90
+	end -- 90
+	local baseX = clamp( -- 92
+		originX + dirX * reachPx, -- 92
+		12, -- 92
+		math.max(24, stageW - 12) -- 92
+	) -- 92
+	local baseY = clamp( -- 93
+		originY + dirY * reachPx, -- 93
+		12, -- 93
+		math.max(24, stageH - 12) -- 93
+	) -- 93
+	if not enabled or #targets == 0 then -- 95
+		return {x = baseX, y = baseY} -- 96
+	end -- 96
+	local wantAngle = math.atan(dirY, dirX) -- 99
+	local bestScore = 1000000000 -- 100
+	local bestTarget -- 101
+	local i = 0 -- 102
+	do -- 102
+		i = 0 -- 103
+		while i < #targets do -- 103
+			do -- 103
+				local e = targets[i + 1] -- 104
+				if e.sx < -24 or e.sx > stageW + 24 or e.sy < -24 or e.sy > stageH + 24 then -- 105
+					goto __continue17 -- 106
+				end -- 106
+				local dx = e.sx - originX -- 108
+				local dy = e.sy - originY -- 109
+				local dist = hypot(dx, dy) -- 110
+				if dist < 18 then -- 111
+					goto __continue17 -- 111
+				end -- 111
+				local diff = math.atan(dy, dx) - wantAngle -- 112
+				while diff > math.pi do -- 113
+					diff = diff - math.pi * 2 -- 113
+				end -- 113
+				while diff < -math.pi do -- 114
+					diff = diff + math.pi * 2 -- 114
+				end -- 114
+				local absDiff = math.abs(diff) -- 115
+				if absDiff <= halfAngleRad then -- 116
+					local score = absDiff * 420 + dist * 0.25 -- 117
+					if score < bestScore then -- 118
+						bestScore = score -- 119
+						bestTarget = e -- 120
+					end -- 120
+				end -- 120
+			end -- 120
+			::__continue17:: -- 120
+			i = i + 1 -- 103
+		end -- 103
+	end -- 103
+	if bestTarget ~= nil then -- 125
+		return { -- 126
+			x = clamp( -- 127
+				bestTarget.sx, -- 127
+				12, -- 127
+				math.max(24, stageW - 12) -- 127
+			), -- 127
+			y = clamp( -- 128
+				bestTarget.sy, -- 128
+				12, -- 128
+				math.max(24, stageH - 12) -- 128
+			) -- 128
+		} -- 128
+	end -- 128
+	return {x = baseX, y = baseY} -- 131
+end -- 80
 --- 触屏点按「开火」大钮时的智能锁敌目标（未开启磁吸或无可见敌人时沿朝向平射）。
-function ____exports.pickSmartFireTarget(originX, originY, facing, stageW, stageH, uiScale, targets, aimAssist, fallback) -- 159
-	if aimAssist and #targets > 0 then -- 159
-		local bestDist = 1000000000 -- 171
-		local bestX = originX + facing * 220 -- 172
-		local bestY = originY -- 173
-		local i = 0 -- 174
-		do -- 174
-			i = 0 -- 175
-			while i < #targets do -- 175
-				do -- 175
-					local e = targets[i + 1] -- 176
-					if e.sx < -32 or e.sx > stageW + 32 or e.sy < -32 or e.sy > stageH + 32 then -- 176
-						goto __continue33 -- 178
-					end -- 178
-					local d = hypot(e.sx - originX, e.sy - originY) -- 180
-					if d < bestDist then -- 180
-						bestDist = d -- 182
-						bestX = e.sx -- 183
-						bestY = e.sy -- 184
-					end -- 184
-				end -- 184
-				::__continue33:: -- 184
-				i = i + 1 -- 175
-			end -- 175
-		end -- 175
-		if bestDist < 100000000 then -- 175
-			return { -- 188
-				x = clamp( -- 189
-					bestX, -- 189
-					12, -- 189
-					math.max(24, stageW - 12) -- 189
-				), -- 189
-				y = clamp( -- 190
-					bestY, -- 190
-					12, -- 190
-					math.max(24, stageH - 12) -- 190
-				) -- 190
-			} -- 190
-		end -- 190
-	end -- 190
-	if fallback ~= nil then -- 190
-		return fallback -- 195
-	end -- 195
-	local dir = facing < 0 and -1 or 1 -- 197
-	local reach = 240 * math.max(0.25, uiScale) -- 198
-	return { -- 199
-		x = clamp( -- 200
-			originX + dir * reach, -- 200
-			16, -- 200
-			math.max(32, stageW - 16) -- 200
-		), -- 200
-		y = clamp( -- 201
-			originY, -- 201
-			16, -- 201
-			math.max(32, stageH - 16) -- 201
-		) -- 201
-	} -- 201
-end -- 159
-return ____exports -- 159
+function ____exports.pickSmartFireTarget(originX, originY, facing, stageW, stageH, uiScale, targets, aimAssist, fallback) -- 135
+	if aimAssist and #targets > 0 then -- 146
+		local bestDist = 1000000000 -- 147
+		local bestX = originX + facing * 220 -- 148
+		local bestY = originY -- 149
+		local i = 0 -- 150
+		do -- 150
+			i = 0 -- 151
+			while i < #targets do -- 151
+				do -- 151
+					local e = targets[i + 1] -- 152
+					if e.sx < -32 or e.sx > stageW + 32 or e.sy < -32 or e.sy > stageH + 32 then -- 153
+						goto __continue28 -- 154
+					end -- 154
+					local d = hypot(e.sx - originX, e.sy - originY) -- 156
+					if d < bestDist then -- 157
+						bestDist = d -- 158
+						bestX = e.sx -- 159
+						bestY = e.sy -- 160
+					end -- 160
+				end -- 160
+				::__continue28:: -- 160
+				i = i + 1 -- 151
+			end -- 151
+		end -- 151
+		if bestDist < 100000000 then -- 163
+			return { -- 164
+				x = clamp( -- 165
+					bestX, -- 165
+					12, -- 165
+					math.max(24, stageW - 12) -- 165
+				), -- 165
+				y = clamp( -- 166
+					bestY, -- 166
+					12, -- 166
+					math.max(24, stageH - 12) -- 166
+				) -- 166
+			} -- 166
+		end -- 166
+	end -- 166
+	if fallback ~= nil then -- 170
+		return fallback -- 171
+	end -- 171
+	local dir = facing < 0 and -1 or 1 -- 173
+	local reach = 240 * math.max(0.25, uiScale) -- 174
+	return { -- 175
+		x = clamp( -- 176
+			originX + dir * reach, -- 176
+			16, -- 176
+			math.max(32, stageW - 16) -- 176
+		), -- 176
+		y = clamp( -- 177
+			originY, -- 177
+			16, -- 177
+			math.max(32, stageH - 16) -- 177
+		) -- 177
+	} -- 177
+end -- 135
+return ____exports -- 135

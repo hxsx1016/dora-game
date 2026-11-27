@@ -16,8 +16,8 @@
 import { BlendFunc, BlendOp, Color, DrawNode, Node, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
-import { RunState, talentNames } from "Script/watch/run";
-import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
+import { RunState } from "Script/watch/run";
+import { collectPlayAimTargets } from "Script/watch/aim_assist";
 import { StageViewport, canToggleFullscreen, isWebPlatform } from "Script/watch/platform";
 import {
     TouchAccent,
@@ -65,6 +65,7 @@ export interface TouchOverlaySyncParams {
     isMuted: boolean;
     isFullscreen: boolean;
     storyTalentBoxes: Rect.Type[];
+    escortDeathBoxes?: { retry: Rect.Type; title: Rect.Type };
     dt: number;
 }
 
@@ -265,18 +266,16 @@ export class TouchControls {
         const sc = router.settings.touchScale;
 
         const isPlayMode = params.mode === 1 && params.screen === "play" && p !== undefined;
-        const isTrialMode = params.mode === 2 && p !== undefined;
-        const gameplayActive = isPlayMode || isTrialMode;
-
-        const trial = params.run?.trial;
-        const trialEnded = isTrialMode && trial !== undefined && (trial.lost || params.run?.finished === true);
-        const trialHasOffers = isTrialMode && trial !== undefined && trial.offers.length > 0 && p !== undefined && !p.paused && !trialEnded;
+        const gameplayActive = isPlayMode;
+        const talentModalOpen = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active
+            && !p.reloadOpen && !p.escortFailed && p.talentModalActive && p.getStoryTalentOffers().length > 0;
+        const escortSummaryOpen = isPlayMode && p !== undefined && !p.paused && p.escortFailed;
 
         const modal = !gameplayActive
-            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active));
+            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active || talentModalOpen || escortSummaryOpen));
         const cutsceneBlocking = isPlayMode && p !== undefined
             ? isCutsceneBlockingPlay(p)
-            : (isTrialMode && p !== undefined && (p.paused || trialEnded || trialHasOffers));
+            : false;
 
         const allowDepth = p !== undefined && p.room.depth !== undefined
             && (!p.childMode || p.phase === "prologue-escape");
@@ -452,9 +451,9 @@ export class TouchControls {
             }
         }
 
-        // -------- B. 竖屏菜单掌机导航键（开机品牌序幕不展示导航键，其他菜单与暂停页同时支持直点上方 16:9 画面）--------
+        // -------- B. 竖屏菜单掌机导航键（开机品牌序幕不展示导航键，菜单、暂停、折笺与折戟小结同时支持直点上方 16:9 画面）--------
         if (isPortrait && overlayActive && params.screen !== "splash"
-            && (!gameplayActive || (isPlayMode && p !== undefined && p.paused))) {
+            && (!gameplayActive || (isPlayMode && p !== undefined && (p.paused || talentModalOpen || escortSummaryOpen)))) {
             const cy = Math.max(safeB + 84, vp.deckH * 0.50);
             const leftX = safeL + Math.max(82, ovW * 0.25);
             const step = Math.min(54, Math.max(42, ovW * 0.12));
@@ -495,11 +494,29 @@ export class TouchControls {
             });
         }
 
-        // -------- C. 局内直点矩形热区（故事本领卡、世界交互气泡、试炼弹窗）--------
+        // -------- C. 局内直点矩形热区（折笺本领卡、折戟小结按钮、世界交互气泡）--------
         let prompt: WorldPrompt | undefined;
-        if (isPlayMode && p !== undefined && !modal && !cutsceneBlocking) {
-            // 男主线护送三选一本领卡（从舞台 UI 空间换算到叠加层空间，手柄混用触屏时同样可直点）
-            if (params.storyTalentBoxes.length > 0) {
+        if (isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen && !cutsceneBlocking) {
+            if (p.escortFailed && params.escortDeathBoxes !== undefined) {
+                const pushStageRect = (zoneId: string, b: Rect.Type): void => {
+                    const vx = vp.stageX + b.x * vp.uiScale;
+                    const vy = vp.stageY + b.y * vp.uiScale;
+                    const vw = b.width * vp.uiScale;
+                    const vh = b.height * vp.uiScale;
+                    rectZones.push({
+                        id: zoneId,
+                        rect: Rect(
+                            (vx - 4) / overlayScale,
+                            (vy - 6) / overlayScale,
+                            (vw + 8) / overlayScale,
+                            (vh + 12) / overlayScale,
+                        ),
+                    });
+                };
+                pushStageRect("escort:retry", params.escortDeathBoxes.retry);
+                pushStageRect("escort:title", params.escortDeathBoxes.title);
+            } else if (params.storyTalentBoxes.length > 0) {
+                // 男主线护送折笺三选一本领卡（从舞台 UI 空间换算到叠加层空间，手柄混用触屏时同样可直点）
                 let ti = 0;
                 for (ti = 0; ti < params.storyTalentBoxes.length; ti++) {
                     const b = params.storyTalentBoxes[ti];
@@ -518,7 +535,8 @@ export class TouchControls {
                     });
                 }
             }
-
+        }
+        if (isPlayMode && p !== undefined && !modal && !cutsceneBlocking) {
             prompt = deriveWorldPrompt(p);
             if (prompt !== undefined && prompt.keyTag.indexOf("E") >= 0 && params.cam !== undefined
                 && params.assistHintsEnabled) {
@@ -561,43 +579,6 @@ export class TouchControls {
                 progress: 0,
                 dimmed: false,
             });
-        }
-
-        // 护送试炼（mode === 2）暂停 / 结算 / 本领三选一按钮热区
-        if (isTrialMode && p !== undefined && overlayActive) {
-            if (p.paused || trialEnded) {
-                const cx = ovW * 0.5;
-                const cy = isPortrait ? Math.max(safeB + 110, vp.deckH * 0.52) : ovH * 0.48;
-                const bw = isPortrait ? Math.min(220, ovW * 0.62) : 240;
-                const bh = isPortrait ? 44 : 50;
-                const step = bh + 14;
-                if (p.paused && !trialEnded) {
-                    rectZones.push({ id: "trial:resume", rect: Rect(cx - bw * 0.5, cy + step * 0.8, bw, bh) });
-                }
-                rectZones.push({ id: "trial:retry", rect: Rect(cx - bw * 0.5, cy - bh * 0.2, bw, bh) });
-                rectZones.push({ id: "trial:title", rect: Rect(cx - bw * 0.5, cy - step * 1.2, bw, bh) });
-            } else if (trialHasOffers && trial !== undefined) {
-                const count = trial.offers.length;
-                const cardW = isPortrait ? Math.min(114, Math.floor((ovW - 44) / Math.max(1, count) - 10)) : 216;
-                const cardH = isPortrait ? 52 : 62;
-                const gap = isPortrait ? 10 : 18;
-                const totalW = count * cardW + (count - 1) * gap;
-                const startX = (ovW - totalW) * 0.5;
-                const y = (isPortrait ? vp.deckH * 0.52 : ovH * 0.48) - cardH * 0.5;
-                let i = 0;
-                for (i = 0; i < count; i++) {
-                    rectZones.push({
-                        id: "talent:" + i,
-                        rect: Rect(startX + i * (cardW + gap), y, cardW, cardH),
-                    });
-                }
-                if (!isPortrait) {
-                    rectZones.push({ id: "pause", rect: Rect(ovW - safeR - 108, ovH - safeT - 64, 92, 46) });
-                }
-            } else if (!isPortrait) {
-                rectZones.push({ id: "pause", rect: Rect(ovW - safeR - 108, ovH - safeT - 64, 92, 46) });
-                rectZones.push({ id: "retry", rect: Rect(ovW - safeR - 210, ovH - safeT - 64, 92, 46) });
-            }
         }
 
         // -------- D. 局内双线动作按钮（横屏右下扇形 / 竖屏下掌机右区）--------
@@ -906,21 +887,14 @@ export class TouchControls {
         }
 
         // -------- E. 采集活体敌兵与主角枪口锚点（主舞台局部坐标，触屏与手柄共享同一工具）--------
-        const enemyTargets = canShoot && p !== undefined
-            ? (isPlayMode && params.cam !== undefined
-                ? collectPlayAimTargets(p, params.cam, vp.stageW, vp.stageH)
-                : (params.cam !== undefined
-                    ? collectTrialAimTargets(p, params.cam, vp.stageW, vp.stageH)
-                    : []))
+        const enemyTargets = canShoot && p !== undefined && isPlayMode && params.cam !== undefined
+            ? collectPlayAimTargets(p, params.cam, vp.stageW, vp.stageH)
             : [];
 
         let playerScreenX = vp.stageW * 0.5;
         let playerScreenY = vp.stageH * 0.38;
         if (p !== undefined) {
             if (isPlayMode && params.cam !== undefined) {
-                playerScreenX = params.cam.sx(p.player.x + p.player.facing * 8);
-                playerScreenY = params.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-            } else if (params.cam !== undefined) {
                 playerScreenX = params.cam.sx(p.player.x + p.player.facing * 8);
                 playerScreenY = params.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
             } else {
@@ -1014,12 +988,7 @@ export class TouchControls {
             this.texts.put("xs", "轻触屏幕再次启程", rx, ry, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.6, 0.94, 0.08);
         }
 
-        // 3. 护送试炼（mode === 2）矩形卡面与结算按钮
-        if (this.lastMode === 2 && this.lastPlay !== undefined) {
-            this.drawTrialZones(ctx, baseAlpha);
-        }
-
-        // 4. 左手虚拟摇杆（非模态、非过场局内绘制）
+        // 3. 左手虚拟摇杆（非模态、非过场局内绘制）
         if (ctx.gameplayActive && !ctx.modal && !ctx.cutsceneBlocking) {
             this.drawStick(router, ctx, baseAlpha);
         }
@@ -1077,9 +1046,10 @@ export class TouchControls {
             const footY = Math.max(vp.safe.bottom + 14, 16);
             const p = this.lastPlay;
             const inOverlayModal = p !== undefined && (p.reloadOpen || p.craftBench.active);
+            const inChoiceModal = p !== undefined && (p.escortFailed || (p.talentModalActive && p.getStoryTalentOffers().length > 0));
             const hint = inOverlayModal
                 ? "直接在上屏点按或一笔划连"
-                : (!ctx.gameplayActive || (p !== undefined && p.paused)
+                : ((!ctx.gameplayActive || (p !== undefined && p.paused) || inChoiceModal)
                     ? "可点上屏菜单或用下方导航键"
                     : (ctx.childMode
                         ? "左摇杆内圈轻步 · 蹲伏/轻步点按切换"
@@ -1297,31 +1267,6 @@ export class TouchControls {
             if (b.id === "fire" && fireStick.active && fireStick.dragging) {
                 this.padInkDraw.drawSegment(Vec2(fireStick.originX, fireStick.originY), Vec2(fireStick.knobX, fireStick.knobY), 1.4, toColor(PALETTE.rouge, 190));
                 fillCirclePoly(this.padDraw, fireStick.knobX, fireStick.knobY, 12, toColor(PALETTE.rouge, 210), 1.2, toColor(PALETTE.crimsonCore, 240), 16);
-            }
-        }
-    }
-
-    private drawTrialZones(ctx: TouchFrameContext, alpha: number): void {
-        const trial = this.lastRun?.trial;
-        let i = 0;
-        for (i = 0; i < ctx.rectZones.length; i++) {
-            const z = ctx.rectZones[i];
-            const r = z.rect;
-            const cx = r.x + r.width * 0.5;
-            const cy = r.y + r.height * 0.5;
-            if (z.id === "pause" || z.id === "retry") {
-                this.padDraw.drawRoundedRect(r, 6, toColor(PALETTE.inkWash, 185 * alpha), 1.2, toColor(PALETTE.silkLine, 175 * alpha));
-                this.texts.put("xs", z.id === "pause" ? "暂停" : "重开", cx, cy, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.8, 0.94, 0.08);
-            } else if (z.id.indexOf("talent:") === 0 && trial !== undefined) {
-                const idx = Number(z.id.slice(7));
-                const tName = idx >= 0 && idx < trial.offers.length ? talentNames[trial.offers[idx]] : "";
-                this.padDraw.drawRoundedRect(r, 6, toColor(PALETTE.panelBgDeep, 235), 1.6, toColor(PALETTE.amber, 225));
-                this.texts.put("xs", (idx + 1) + " · " + tName, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0.6, 0.98, 0.08);
-            } else if (z.id === "trial:resume" || z.id === "trial:retry" || z.id === "trial:title") {
-                const label = z.id === "trial:resume" ? "继续试炼" : (z.id === "trial:retry" ? "再开一局" : "返回标题");
-                const border = z.id === "trial:resume" ? PALETTE.amber : PALETTE.silkLine;
-                this.padDraw.drawRoundedRect(r, 6, toColor(PALETTE.panelBgDeep, 235), 1.5, toColor(border, 220));
-                this.texts.put("sm", label, cx, cy, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.0, 0.98, 0.08);
             }
         }
     }

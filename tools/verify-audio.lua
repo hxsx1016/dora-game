@@ -9,13 +9,14 @@
 -- 3. 四通道音量设置（masterVol/bgmVol/sfxVol/voiceVol）在 controls_config 与 AudioDirector 的实时生效与持久化往返；
 -- 4. 全 46 个 PlayEventName 新接线（interactUsed/pickup/propDamaged/propBroken/bottleThrown/fearChanged/
 --    reloadApplied/benchOpen/Equip/Close/campaignFailed/武器与掩体材质差异化）真播放闭环；
--- 5. 护送试炼（mode 2）音频驱动（resetTrialAudio / syncTrialAudio）；
+-- 5. 男主线肉鸽护送（escort1）音频驱动与暂停零污染不变量；
 -- 6. 暂停态 UI 发声不污染局内 playLog、退回标题 activeLoops 清零等零回归不变量。
 
 local Dora = require("Dora")
 local new = require("lualib_bundle").__TS__New
 local rooms = require("Script.watch.rooms")
 local play = require("Script.watch.play")
+local runmod = require("Script.watch.run")
 local Input = require("Script.watch.input").Input
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local ctrlCfg = require("Script.watch.controls_config")
@@ -366,16 +367,20 @@ do
 		string.format("hit=%d/%d backend=%d/%d", hitAll, #expectedPaths, backendAll, #expectedPaths))
 end
 
--- ---------------------------------------------------------------- 5. 护送试炼（mode 2）音频与暂停零污染不变量
+-- ---------------------------------------------------------------- 5. 男主线肉鸽护送音频与暂停零污染不变量
 do
-	local pTrial = new(play.Play, rooms.ESCORT1_ROOM)
-	fe:resetTrialAudio(pTrial)
-	fe:syncTrialAudio(DT, pTrial, 0)
-	check("5.1 护送试炼(mode 2)激活 escort_combat BGM", fe.audio:getCurrentBgmId() == "escort_combat", "id=" .. fe.audio:getCurrentBgmId())
+	local rEsc = runmod.createRun(20261124, "official")
+	rEsc.story.route = "soldier"
+	rEsc.story.settled = true
+	local pEsc = new(play.Play, rooms.ESCORT1_ROOM, nil, rEsc)
+	fe.screen = "play"
+	fe:bindPlay(pEsc, 1280, 720)
+	fe:renderPlay(DT, pEsc, inp, 1280, 720)
+	check("5.1 男主线肉鸽护送(escort1)激活 escort_combat BGM", fe.audio:getCurrentBgmId() == "escort_combat", "id=" .. fe.audio:getCurrentBgmId())
 
 	-- 暂停态播放 UI 音效绝不污染 playLog
-	pTrial.paused = true
-	fe:syncTrialAudio(DT, pTrial, 0)
+	pEsc.paused = true
+	fe:renderPlay(DT, pEsc, inp, 1280, 720)
 	local logBeforePause = #fe.audio:getPlayLog()
 	fe.audio:playUi("ui:test_hover", "assets/audio/ui/menu_hover.wav", 0.5, 0)
 	fe.audio:playUi("ui:test_confirm", "assets/audio/ui/menu_confirm.wav", 0.7, 0)
