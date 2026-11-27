@@ -187,6 +187,7 @@ export class AssetSlotHost {
     private container: Node.Type;
     private sprites: Record<string, Sprite.Type> = {};
     private unavailable: Record<string, boolean> = {};
+    private lastPlacement: Record<string, Sprite.Type> = {};
     private visibleLastFrame: Record<string, Sprite.Type> = {};
     private visibleThisFrame: Record<string, Sprite.Type> = {};
     private localSlots: Record<string, AssetSlotConfig> = {};
@@ -200,6 +201,14 @@ export class AssetSlotHost {
     /** 在当前宿主实例上注册动态资源槽（也可使用顶层 registerDynamicSlot 全局注册） */
     registerDynamicSlot(key: string, cfg: AssetSlotConfig): void {
         this.localSlots[key] = cfg;
+    }
+
+    /** 隐藏此实例最近放置的帧；下一次正常放置会重新显示。 */
+    hideLastPlacement(instanceKey: string): void {
+        const sprite = this.lastPlacement[instanceKey];
+        if (sprite !== undefined) {
+            sprite.visible = false;
+        }
     }
 
     beginFrame(): void {
@@ -294,6 +303,7 @@ export class AssetSlotHost {
         sprite.opacity = Math.max(0, Math.min(1, baseA * op));
         sprite.visible = true;
         this.visibleThisFrame[key] = sprite;
+        this.lastPlacement[instanceKey] = sprite;
         return true;
     }
 

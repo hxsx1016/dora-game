@@ -31,34 +31,6 @@ export interface CarryPoseDebugState {
     handoverActive: boolean;
 }
 
-/** 原生 actors.ts 在护送/背负模式下可能激活的 actor_child 精灵帧（同 instanceKey 原地压隐防重影） */
-const CHILD_SPRITE_PATHS: readonly string[] = [
-    "assets/art/sprites.clip|child_idle",
-    "assets/art/sprites.clip|child_run",
-    "assets/art/sprites.clip|child_step",
-    "assets/art/sprites.clip|child_crouch",
-    "assets/art/sprites.clip|child_crouch_step",
-    "assets/art/sprites.clip|child_fear",
-    "assets/art/sprites.clip|child_peek",
-    "assets/art/sprites.clip|child_offer",
-    "assets/art/sprites.clip|child_knock",
-];
-
-/** 原生 actors.ts 在合体牵手/背负模式下可能激活的 actor_soldier 精灵帧（使用 actors_extra.clip 合体帧时原地压隐防重影） */
-const SOLDIER_SPRITE_PATHS: readonly string[] = [
-    "assets/art/sprites.clip|soldier_idle",
-    "assets/art/sprites.clip|soldier_run",
-    "assets/art/sprites.clip|soldier_step",
-    "assets/art/sprites.clip|soldier_cover",
-    "assets/art/sprites.clip|soldier_fire",
-    "assets/art/sprites.clip|soldier_fire_run",
-    "assets/art/sprites.clip|soldier_fire_run_step",
-    "assets/art/sprites.clip|soldier_hit",
-    "assets/art/sprites.clip|soldier_knock",
-    "assets/art/sprites.clip|soldier_hold",
-    "assets/art/sprites.clip|soldier_offer",
-];
-
 /** 同一道青布补线袖口（同源 cuff_shots.CUFF_PALETTE）与明初小满红褐短袄色板 */
 const CUFF_CLOTH = toColor(CUFF_PALETTE.indigoBase);
 const CUFF_MEND = toColor(CUFF_PALETTE.stitchThread);
@@ -74,36 +46,6 @@ function clamp01(v: number): number {
 function smoothStep(t: number): number {
     const k = clamp01(t);
     return k * k * (3 - 2 * k);
-}
-
-function suppressOriginalChild(worldArt: AssetSlotHost): void {
-    let i = 0;
-    for (i = 0; i < CHILD_SPRITE_PATHS.length; i++) {
-        worldArt.tryPlacePath(
-            CHILD_SPRITE_PATHS[i],
-            "actor_child",
-            -9999,
-            -9999,
-            1,
-            1,
-            { anchorY: 0, preserveAspect: true, opacity: 0, layer: -99 },
-        );
-    }
-}
-
-function suppressOriginalSoldier(worldArt: AssetSlotHost): void {
-    let i = 0;
-    for (i = 0; i < SOLDIER_SPRITE_PATHS.length; i++) {
-        worldArt.tryPlacePath(
-            SOLDIER_SPRITE_PATHS[i],
-            "actor_soldier",
-            -9999,
-            -9999,
-            1,
-            1,
-            { anchorY: 0, preserveAspect: true, opacity: 0, layer: -99 },
-        );
-    }
 }
 
 export class CarryPosePlugin implements FeRenderPlugin {
@@ -278,7 +220,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
         }
 
         // 背负、蹲背攀爬或工台放下：压隐原生 actor_child，彻底杜绝半空蹬腿或双小满重影
-        suppressOriginalChild(worldArt);
+        worldArt.hideLastPlacement("actor_child");
 
         if (this.mode === "atBench" || this.benchDropT > 0.5) {
             this.drawAtBench(fgDraw, fgGlow, worldArt, ctx);
@@ -325,15 +267,15 @@ export class CarryPosePlugin implements FeRenderPlugin {
                 facing: f,
                 layer: depthEnabled ? depthOrder(soldier.depth, 4) : 4,
             })) {
-                suppressOriginalChild(worldArt);
-                suppressOriginalSoldier(worldArt);
+                worldArt.hideLastPlacement("actor_child");
+                worldArt.hideLastPlacement("actor_soldier");
                 fgDraw.drawEllipse(Vec2(sx + f * cam.len(24), sy + 1), cam.len(12), 3.0, Color(10, 10, 12, 125));
                 return;
             }
         }
 
         if (!nearPartner) {
-            suppressOriginalChild(worldArt);
+            worldArt.hideLastPlacement("actor_child");
             const childStep = Math.floor(this.animTime * 13);
             const slot = speed > 8 ? "child_run" : "child_idle";
             const scx = cam.sx(childWX);
@@ -430,7 +372,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
                 facing: duoFacing,
                 layer: duoLayer,
             })) {
-                suppressOriginalSoldier(worldArt);
+                worldArt.hideLastPlacement("actor_soldier");
                 // 换弹慢时期间肩侧保留一缕极克制微杏提灯微光，提示小满正搭手协助换弹
                 if (this.reachT > 0.05) {
                     const reachFrac = smoothStep(this.reachT);

@@ -167,131 +167,139 @@ end -- 182
 ____exports.AssetSlotHost = __TS__Class() -- 186
 local AssetSlotHost = ____exports.AssetSlotHost -- 186
 AssetSlotHost.name = "AssetSlotHost" -- 186
-function AssetSlotHost.prototype.____constructor(self, parent, order) -- 194
+function AssetSlotHost.prototype.____constructor(self, parent, order) -- 195
 	self.sprites = {} -- 188
 	self.unavailable = {} -- 189
-	self.visibleLastFrame = {} -- 190
-	self.visibleThisFrame = {} -- 191
-	self.localSlots = {} -- 192
-	self.container = Node() -- 195
-	self.container.order = order -- 196
-	self.container:addTo(parent) -- 197
-end -- 194
-function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 201
-	self.localSlots[key] = cfg -- 202
-end -- 201
-function AssetSlotHost.prototype.beginFrame(self) -- 205
-	self.visibleThisFrame = {} -- 206
-end -- 205
-function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 209
-	if options == nil then -- 209
-		options = {} -- 213
-	end -- 213
-	local staticSlots = ____exports.ASSET_SLOTS -- 215
-	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 216
-	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 216
-		return false -- 218
-	end -- 218
-	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 220
-	local path = cfg.paths[frame + 1] -- 221
-	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 222
-	return self:placeResolvedPath( -- 225
-		path, -- 225
-		anchorX, -- 225
-		cfg.anchorY, -- 225
-		cfg.preserveAspect, -- 225
-		cfg.smooth == true, -- 225
-		instanceKey, -- 225
-		x, -- 225
-		y, -- 225
-		targetW, -- 225
-		targetH, -- 225
-		options -- 225
-	) -- 225
-end -- 209
-function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 229
-	if options == nil then -- 229
-		options = {} -- 233
-	end -- 233
-	if path == "" or targetW <= 0 or targetH <= 0 then -- 233
-		return false -- 236
-	end -- 236
-	local ____self_placeResolvedPath_3 = self.placeResolvedPath -- 238
-	local ____array_2 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 238
-	local ____options_preserveAspect_1 = options.preserveAspect -- 242
-	if ____options_preserveAspect_1 == nil then -- 242
-		____options_preserveAspect_1 = false -- 242
+	self.lastPlacement = {} -- 190
+	self.visibleLastFrame = {} -- 191
+	self.visibleThisFrame = {} -- 192
+	self.localSlots = {} -- 193
+	self.container = Node() -- 196
+	self.container.order = order -- 197
+	self.container:addTo(parent) -- 198
+end -- 195
+function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 202
+	self.localSlots[key] = cfg -- 203
+end -- 202
+function AssetSlotHost.prototype.hideLastPlacement(self, instanceKey) -- 207
+	local sprite = self.lastPlacement[instanceKey] -- 208
+	if sprite ~= nil then -- 208
+		sprite.visible = false -- 210
+	end -- 210
+end -- 207
+function AssetSlotHost.prototype.beginFrame(self) -- 214
+	self.visibleThisFrame = {} -- 215
+end -- 214
+function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 218
+	if options == nil then -- 218
+		options = {} -- 222
+	end -- 222
+	local staticSlots = ____exports.ASSET_SLOTS -- 224
+	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 225
+	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 225
+		return false -- 227
+	end -- 227
+	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 229
+	local path = cfg.paths[frame + 1] -- 230
+	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 231
+	return self:placeResolvedPath( -- 234
+		path, -- 234
+		anchorX, -- 234
+		cfg.anchorY, -- 234
+		cfg.preserveAspect, -- 234
+		cfg.smooth == true, -- 234
+		instanceKey, -- 234
+		x, -- 234
+		y, -- 234
+		targetW, -- 234
+		targetH, -- 234
+		options -- 234
+	) -- 234
+end -- 218
+function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 238
+	if options == nil then -- 238
+		options = {} -- 242
 	end -- 242
-	__TS__SparseArrayPush( -- 242
-		____array_2, -- 242
-		____options_preserveAspect_1, -- 242
-		options.smooth == true, -- 243
-		instanceKey, -- 244
-		x, -- 245
-		y, -- 246
-		targetW, -- 247
-		targetH, -- 248
-		options -- 249
-	) -- 249
-	return ____self_placeResolvedPath_3( -- 238
-		self, -- 238
-		__TS__SparseArraySpread(____array_2) -- 238
-	) -- 238
-end -- 229
-function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options) -- 253
-	local key = (instanceKey .. ":") .. path -- 263
-	local sprite = self.sprites[key] -- 264
-	if sprite == nil then -- 264
-		if self.unavailable[path] then -- 264
-			return false -- 267
-		end -- 267
-		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 269
-		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 270
-		local ____Content_exist_result_4 -- 271
-		if Content:exist(file) then -- 271
-			____Content_exist_result_4 = Sprite(path) -- 271
-		else -- 271
-			____Content_exist_result_4 = nil -- 271
-		end -- 271
-		local loaded = ____Content_exist_result_4 -- 271
-		if loaded == nil then -- 271
-			self.unavailable[path] = true -- 273
-			return false -- 274
-		end -- 274
-		loaded.anchor = Vec2(anchorX, anchorY) -- 276
-		loaded.filter = smooth and "Anisotropic" or "Point" -- 277
-		loaded:addTo(self.container) -- 278
-		self.sprites[key] = loaded -- 279
-		sprite = loaded -- 280
-	end -- 280
-	local scaleY = targetH / math.max(1, sprite.height) -- 283
-	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 284
-	sprite.position = Vec2( -- 285
-		math.floor(x + 0.5), -- 285
-		math.floor(y + 0.5) -- 285
-	) -- 285
-	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 286
-	sprite.scaleY = options.flipY and -scaleY or scaleY -- 287
-	sprite.angle = options.angle or 0 -- 288
-	sprite.order = options.layer or 0 -- 289
-	local col = options.color or WHITE -- 290
-	sprite.color = col -- 291
-	local baseA = col.a / 255 -- 292
-	local op = options.opacity or 1 -- 293
-	sprite.opacity = math.max( -- 294
-		0, -- 294
-		math.min(1, baseA * op) -- 294
+	if path == "" or targetW <= 0 or targetH <= 0 then -- 242
+		return false -- 245
+	end -- 245
+	local ____self_placeResolvedPath_3 = self.placeResolvedPath -- 247
+	local ____array_2 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 247
+	local ____options_preserveAspect_1 = options.preserveAspect -- 251
+	if ____options_preserveAspect_1 == nil then -- 251
+		____options_preserveAspect_1 = false -- 251
+	end -- 251
+	__TS__SparseArrayPush( -- 251
+		____array_2, -- 251
+		____options_preserveAspect_1, -- 251
+		options.smooth == true, -- 252
+		instanceKey, -- 253
+		x, -- 254
+		y, -- 255
+		targetW, -- 256
+		targetH, -- 257
+		options -- 258
+	) -- 258
+	return ____self_placeResolvedPath_3( -- 247
+		self, -- 247
+		__TS__SparseArraySpread(____array_2) -- 247
+	) -- 247
+end -- 238
+function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options) -- 262
+	local key = (instanceKey .. ":") .. path -- 272
+	local sprite = self.sprites[key] -- 273
+	if sprite == nil then -- 273
+		if self.unavailable[path] then -- 273
+			return false -- 276
+		end -- 276
+		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 278
+		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 279
+		local ____Content_exist_result_4 -- 280
+		if Content:exist(file) then -- 280
+			____Content_exist_result_4 = Sprite(path) -- 280
+		else -- 280
+			____Content_exist_result_4 = nil -- 280
+		end -- 280
+		local loaded = ____Content_exist_result_4 -- 280
+		if loaded == nil then -- 280
+			self.unavailable[path] = true -- 282
+			return false -- 283
+		end -- 283
+		loaded.anchor = Vec2(anchorX, anchorY) -- 285
+		loaded.filter = smooth and "Anisotropic" or "Point" -- 286
+		loaded:addTo(self.container) -- 287
+		self.sprites[key] = loaded -- 288
+		sprite = loaded -- 289
+	end -- 289
+	local scaleY = targetH / math.max(1, sprite.height) -- 292
+	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 293
+	sprite.position = Vec2( -- 294
+		math.floor(x + 0.5), -- 294
+		math.floor(y + 0.5) -- 294
 	) -- 294
-	sprite.visible = true -- 295
-	self.visibleThisFrame[key] = sprite -- 296
-	return true -- 297
-end -- 253
-function AssetSlotHost.prototype.endFrame(self) -- 300
-	for key in pairs(self.visibleLastFrame) do -- 301
-		if self.visibleThisFrame[key] == nil then -- 301
-			self.visibleLastFrame[key].visible = false -- 303
-		end -- 303
-	end -- 303
-	self.visibleLastFrame = self.visibleThisFrame -- 306
-end -- 300
-return ____exports -- 300
+	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 295
+	sprite.scaleY = options.flipY and -scaleY or scaleY -- 296
+	sprite.angle = options.angle or 0 -- 297
+	sprite.order = options.layer or 0 -- 298
+	local col = options.color or WHITE -- 299
+	sprite.color = col -- 300
+	local baseA = col.a / 255 -- 301
+	local op = options.opacity or 1 -- 302
+	sprite.opacity = math.max( -- 303
+		0, -- 303
+		math.min(1, baseA * op) -- 303
+	) -- 303
+	sprite.visible = true -- 304
+	self.visibleThisFrame[key] = sprite -- 305
+	self.lastPlacement[instanceKey] = sprite -- 306
+	return true -- 307
+end -- 262
+function AssetSlotHost.prototype.endFrame(self) -- 310
+	for key in pairs(self.visibleLastFrame) do -- 311
+		if self.visibleThisFrame[key] == nil then -- 311
+			self.visibleLastFrame[key].visible = false -- 313
+		end -- 313
+	end -- 313
+	self.visibleLastFrame = self.visibleThisFrame -- 316
+end -- 310
+return ____exports -- 310
