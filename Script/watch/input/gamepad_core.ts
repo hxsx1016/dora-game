@@ -618,10 +618,10 @@ export class GamepadRouter {
         const reloadConfirm = this.ctx.reloadActive && (gpReloadConfirmBtn || yPressed || rtEdge);
         const reloadReset = this.ctx.reloadActive && (gpReloadResetBtn || xPressed);
 
-        // 5. 局内三选一本领卡切选
+        // 5. 局内三选一折笺本领卡手柄切选（同时支持 LB/RB + L3 与模态下左右 + 确认）
         let talentDelta = 0;
         let talentConfirm = false;
-        if (this.ctx.talentOfferCount > 0 && !this.ctx.modal && !this.ctx.reloadActive && !this.ctx.craftActive) {
+        if (this.ctx.talentOfferCount > 0 && !this.ctx.reloadActive && !this.ctx.craftActive) {
             if (lbPressed) talentDelta -= 1;
             if (rbPressed) talentDelta += 1;
             if (lsPressed || rsPressed || (raw.lb && rbPressed) || (raw.rb && lbPressed)) {

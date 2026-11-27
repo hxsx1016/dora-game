@@ -57,7 +57,6 @@ export function collectAimTargets(
     }
     return out;
 }
-
 /** 屏幕点选轻度磁吸（用于触屏直点 / 拖滑点射）：仅在指定像素半径内吸附最近目标。 */
 export function snapPointAim(
     stageX: number,

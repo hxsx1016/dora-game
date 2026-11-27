@@ -16,19 +16,19 @@ ____exports.VOLUME_STEPS = { -- 36
 	0.9, -- 36
 	1 -- 36
 } -- 36
-function ____exports.getReleaseConfig() -- 231
-	local ____opt_0 = _G.package -- 232
-	local reg = ____opt_0 and ____opt_0.loaded -- 232
-	local ____temp_2 -- 233
-	if reg ~= nil then -- 233
-		____temp_2 = reg["watch.release"] -- 233
-	else -- 233
-		____temp_2 = nil -- 233
-	end -- 233
-	local cfg = ____temp_2 -- 233
-	if cfg ~= nil and type(cfg) == "table" then -- 234
-		return cfg -- 235
+function ____exports.getReleaseConfig() -- 233
+	local ____opt_0 = _G.package -- 234
+	local reg = ____opt_0 and ____opt_0.loaded -- 234
+	local ____temp_2 -- 235
+	if reg ~= nil then -- 235
+		____temp_2 = reg["watch.release"] -- 235
+	else -- 235
+		____temp_2 = nil -- 235
 	end -- 235
-	return nil -- 237
-end -- 231
-return ____exports -- 231
+	local cfg = ____temp_2 -- 235
+	if cfg ~= nil and type(cfg) == "table" then -- 236
+		return cfg -- 237
+	end -- 237
+	return nil -- 239
+end -- 233
+return ____exports -- 233

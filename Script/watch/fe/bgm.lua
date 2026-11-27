@@ -222,335 +222,315 @@ function SoundscapeDirector.prototype.updatePlay(self, dt, p, view, audio) -- 14
 	audio:setSpaceMuffled(inArch or inCabinet or inDitch) -- 165
 	self:syncFoley(dt, p, view, audio) -- 168
 end -- 140
-function SoundscapeDirector.prototype.updateTrial(self, dt, p, audio, offerCount) -- 172
-	audio:stopMenuAmbience(0.3) -- 173
-	self.lastSplashActive = false -- 174
-	if self.boundRoomKey ~= p.room.key then -- 175
-		self:resetForRoom(p) -- 176
-		self.prevOfferCount = offerCount -- 177
-	end -- 177
-	if p.paused then -- 179
-		return -- 180
-	end -- 180
-	local spec = BGM_CATALOG.escort_combat -- 182
-	audio:setBgmManualDuck(1) -- 183
-	audio:playBgm(spec.id, spec.path, {volume = spec.volume, looping = spec.looping, loopPoint = spec.loopPoint, fadeIn = spec.fadeIn}) -- 184
-	audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "escort_mountain_night_loop.ogg", 0.36) -- 190
-	if offerCount > 0 and self.prevOfferCount == 0 then -- 192
-		audio:playUi("ui:talent_appear", UI_ROOT .. "talent_appear.wav", 0.72, 0.2) -- 193
-	end -- 193
-	self.prevOfferCount = offerCount -- 195
-	self:syncLocomotionAndCombatFoley(dt, p, audio, false) -- 197
-end -- 172
-function SoundscapeDirector.prototype.syncPlayBgm(self, p, view, audio) -- 200
-	local key = p.room.key -- 201
-	local phase = p.phase -- 202
-	local desired -- 203
-	local manualDuck = 1 -- 204
-	if view.visualMode == "museum" or key == "museum" then -- 206
-		local mp = view.archive.museumPhase -- 207
-		if mp == "well_reflect" or mp == "return_cabinet" then -- 208
-			desired = nil -- 209
-		else -- 209
-			desired = BGM_CATALOG.museum -- 211
-		end -- 211
-	elseif key == "prologue" then -- 213
-		if phase == "prologue-wake" or phase == "prologue-shadow" or phase == "prologue-escape" or phase == "prologue-hide" then -- 214
-			desired = nil -- 215
-		else -- 215
-			desired = BGM_CATALOG.prologue -- 217
-		end -- 217
-	elseif key == "street" or key == "s1-crossroad" or key == "s2-drygoods" or key == "s3-archway" then -- 219
-		desired = BGM_CATALOG.street -- 220
-	elseif key == "checkpoint" or key == "c1-yard" or key == "c2-granary" then -- 221
-		desired = BGM_CATALOG.checkpoint -- 222
-	elseif key == "gate" then -- 223
-		if phase == "gate-hold" then -- 224
-			desired = BGM_CATALOG.gate_siege -- 225
-		elseif phase == "gate-idle" then -- 226
-			desired = BGM_CATALOG.checkpoint -- 227
-			manualDuck = 0.65 -- 228
-		elseif phase == "gate-send" or phase == "gate-farewell" then -- 229
-			desired = nil -- 230
-		elseif phase == "gate-count" then -- 231
-			desired = BGM_CATALOG.gate_count -- 232
-			if view.countNumber >= 18 then -- 233
-				manualDuck = 0 -- 234
-			elseif view.countNumber >= 15 then -- 235
-				manualDuck = 0.35 -- 236
-			end -- 236
-		elseif phase == "gate-hand" or view.storyRoute == "soldier" and view.gateReunion.completed then -- 238
-			desired = BGM_CATALOG.reunion -- 239
-		elseif phase == "gate-walk" then -- 240
-			desired = view.storyRoute == "soldier" and BGM_CATALOG.reunion or BGM_CATALOG.child_lone -- 241
-		else -- 241
-			desired = BGM_CATALOG.gate_count -- 243
-			manualDuck = 0.35 -- 244
-		end -- 244
-	elseif key == "gatepath" then -- 246
-		desired = BGM_CATALOG.reunion -- 247
-	elseif key == "escort3" then -- 248
-		desired = BGM_CATALOG.escort_bench -- 249
-	elseif key == "escort1" or key == "escort2" or key == "escort4" or key == "escort5" then -- 250
-		desired = BGM_CATALOG.escort_combat -- 251
-	elseif key == "outside" or key == "village" then -- 252
-		desired = BGM_CATALOG.child_lone -- 253
-	elseif key == "forest" then -- 254
-		desired = p.player.x >= p.ox + 1140 and BGM_CATALOG.creek_dawn or BGM_CATALOG.forest_stalk -- 255
-	elseif key == "tower" then -- 256
-		local endingActive = phase == "tower-knock" or phase == "tower-given" or phase == "tower-end" -- 257
-		if endingActive then -- 258
-			desired = view.storyRoute == "soldier" and BGM_CATALOG.ending_m03 or BGM_CATALOG.ending_f03 -- 259
-		else -- 259
-			desired = BGM_CATALOG.creek_dawn -- 261
-			manualDuck = 0.72 -- 262
-		end -- 262
-	end -- 262
-	audio:setBgmManualDuck(manualDuck) -- 266
-	if desired == nil then -- 267
-		if audio:getCurrentBgmId() ~= "" then -- 268
-			audio:stopBgm(1.2) -- 269
-		end -- 269
-		return -- 271
-	end -- 271
-	local ____temp_0 -- 273
-	if desired.id == "ending_f03" or desired.id == "ending_m03" then -- 273
-		____temp_0 = self.prevPhase ~= "tower-knock" and self.prevPhase ~= "tower-given" and self.prevPhase ~= "tower-end" -- 274
-	else -- 274
-		____temp_0 = desired.id == "gate_siege" and self.prevPhase ~= "gate-hold" -- 275
+function SoundscapeDirector.prototype.syncPlayBgm(self, p, view, audio) -- 171
+	local key = p.room.key -- 172
+	local phase = p.phase -- 173
+	local desired -- 174
+	local manualDuck = 1 -- 175
+	if view.visualMode == "museum" or key == "museum" then -- 177
+		local mp = view.archive.museumPhase -- 178
+		if mp == "well_reflect" or mp == "return_cabinet" then -- 179
+			desired = nil -- 180
+		else -- 180
+			desired = BGM_CATALOG.museum -- 182
+		end -- 182
+	elseif key == "prologue" then -- 184
+		if phase == "prologue-wake" or phase == "prologue-shadow" or phase == "prologue-escape" or phase == "prologue-hide" then -- 185
+			desired = nil -- 186
+		else -- 186
+			desired = BGM_CATALOG.prologue -- 188
+		end -- 188
+	elseif key == "street" or key == "s1-crossroad" or key == "s2-drygoods" or key == "s3-archway" then -- 190
+		desired = BGM_CATALOG.street -- 191
+	elseif key == "checkpoint" or key == "c1-yard" or key == "c2-granary" then -- 192
+		desired = BGM_CATALOG.checkpoint -- 193
+	elseif key == "gate" then -- 194
+		if phase == "gate-hold" then -- 195
+			desired = BGM_CATALOG.gate_siege -- 196
+		elseif phase == "gate-idle" then -- 197
+			desired = BGM_CATALOG.checkpoint -- 198
+			manualDuck = 0.65 -- 199
+		elseif phase == "gate-send" or phase == "gate-farewell" then -- 200
+			desired = nil -- 201
+		elseif phase == "gate-count" then -- 202
+			desired = BGM_CATALOG.gate_count -- 203
+			if view.countNumber >= 18 then -- 204
+				manualDuck = 0 -- 205
+			elseif view.countNumber >= 15 then -- 206
+				manualDuck = 0.35 -- 207
+			end -- 207
+		elseif phase == "gate-hand" or view.storyRoute == "soldier" and view.gateReunion.completed then -- 209
+			desired = BGM_CATALOG.reunion -- 210
+		elseif phase == "gate-walk" then -- 211
+			desired = view.storyRoute == "soldier" and BGM_CATALOG.reunion or BGM_CATALOG.child_lone -- 212
+		else -- 212
+			desired = BGM_CATALOG.gate_count -- 214
+			manualDuck = 0.35 -- 215
+		end -- 215
+	elseif key == "gatepath" then -- 217
+		desired = BGM_CATALOG.reunion -- 218
+	elseif key == "escort3" then -- 219
+		desired = BGM_CATALOG.escort_bench -- 220
+	elseif key == "escort1" or key == "escort2" or key == "escort4" or key == "escort5" then -- 221
+		desired = BGM_CATALOG.escort_combat -- 222
+	elseif key == "outside" or key == "village" then -- 223
+		desired = BGM_CATALOG.child_lone -- 224
+	elseif key == "forest" then -- 225
+		desired = p.player.x >= p.ox + 1140 and BGM_CATALOG.creek_dawn or BGM_CATALOG.forest_stalk -- 226
+	elseif key == "tower" then -- 227
+		local endingActive = phase == "tower-knock" or phase == "tower-given" or phase == "tower-end" -- 228
+		if endingActive then -- 229
+			desired = view.storyRoute == "soldier" and BGM_CATALOG.ending_m03 or BGM_CATALOG.ending_f03 -- 230
+		else -- 230
+			desired = BGM_CATALOG.creek_dawn -- 232
+			manualDuck = 0.72 -- 233
+		end -- 233
+	end -- 233
+	audio:setBgmManualDuck(manualDuck) -- 237
+	if desired == nil then -- 238
+		if audio:getCurrentBgmId() ~= "" then -- 239
+			audio:stopBgm(1.2) -- 240
+		end -- 240
+		return -- 242
+	end -- 242
+	local ____temp_0 -- 244
+	if desired.id == "ending_f03" or desired.id == "ending_m03" then -- 244
+		____temp_0 = self.prevPhase ~= "tower-knock" and self.prevPhase ~= "tower-given" and self.prevPhase ~= "tower-end" -- 245
+	else -- 245
+		____temp_0 = desired.id == "gate_siege" and self.prevPhase ~= "gate-hold" -- 246
+	end -- 246
+	local forceRestart = ____temp_0 -- 244
+	audio:playBgm(desired.id, desired.path, { -- 248
+		volume = desired.volume, -- 249
+		looping = desired.looping, -- 250
+		loopPoint = desired.loopPoint, -- 251
+		fadeIn = desired.fadeIn, -- 252
+		restart = forceRestart -- 253
+	}) -- 253
+end -- 171
+function SoundscapeDirector.prototype.syncPlayAmbience(self, dt, p, view, audio) -- 257
+	local key = p.room.key -- 258
+	local phase = p.phase -- 259
+	if key == "prologue" and phase ~= "prologue-wake" and view.visualMode ~= "museum" then -- 262
+		audio:setSceneAmbience("scene_main_amb", "ambience", "assets/audio/prologue/night_distant_fire.wav", 0.24) -- 263
+	elseif key == "street" or key == "s1-crossroad" or key == "s2-drygoods" or key == "s3-archway" then -- 264
+		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "street_fire_ember_loop.ogg", 0.34) -- 265
+	elseif key == "checkpoint" or key == "c1-yard" or key == "c2-granary" then -- 266
+		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "checkpoint_wind_chains_loop.ogg", 0.36) -- 267
+	elseif key == "gate" and (phase == "gate-idle" or phase == "gate-hold" or phase == "gate-send") then -- 268
+		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "gate_siege_ambience_loop.ogg", phase == "gate-hold" and 0.42 or 0.28) -- 269
+	elseif key == "gatepath" or key == "escort1" or key == "escort2" or key == "escort4" or key == "escort5" then -- 270
+		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "escort_mountain_night_loop.ogg", 0.34) -- 271
+	elseif key == "escort3" then -- 272
+		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "escort_bench_lantern_loop.ogg", 0.38) -- 273
+	else -- 273
+		audio:stopSceneAmbience("scene_main_amb", 0.3) -- 275
 	end -- 275
-	local forceRestart = ____temp_0 -- 273
-	audio:playBgm(desired.id, desired.path, { -- 277
-		volume = desired.volume, -- 278
-		looping = desired.looping, -- 279
-		loopPoint = desired.loopPoint, -- 280
-		fadeIn = desired.fadeIn, -- 281
-		restart = forceRestart -- 282
-	}) -- 282
-end -- 200
-function SoundscapeDirector.prototype.syncPlayAmbience(self, dt, p, view, audio) -- 286
-	local key = p.room.key -- 287
-	local phase = p.phase -- 288
-	if key == "prologue" and phase ~= "prologue-wake" and view.visualMode ~= "museum" then -- 291
-		audio:setSceneAmbience("scene_main_amb", "ambience", "assets/audio/prologue/night_distant_fire.wav", 0.24) -- 292
-	elseif key == "street" or key == "s1-crossroad" or key == "s2-drygoods" or key == "s3-archway" then -- 293
-		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "street_fire_ember_loop.ogg", 0.34) -- 294
-	elseif key == "checkpoint" or key == "c1-yard" or key == "c2-granary" then -- 295
-		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "checkpoint_wind_chains_loop.ogg", 0.36) -- 296
-	elseif key == "gate" and (phase == "gate-idle" or phase == "gate-hold" or phase == "gate-send") then -- 297
-		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "gate_siege_ambience_loop.ogg", phase == "gate-hold" and 0.42 or 0.28) -- 298
-	elseif key == "gatepath" or key == "escort1" or key == "escort2" or key == "escort4" or key == "escort5" then -- 299
-		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "escort_mountain_night_loop.ogg", 0.34) -- 300
-	elseif key == "escort3" then -- 301
-		audio:setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT .. "escort_bench_lantern_loop.ogg", 0.38) -- 302
+	if key == "gate" and phase == "gate-hold" then -- 279
+		if self.prevPhase ~= "gate-hold" then -- 280
+			audio:playFoley( -- 281
+				"gate:winch_start", -- 281
+				CMB_ROOT .. "gate_winch_start.wav", -- 281
+				0.8, -- 281
+				-0.25, -- 281
+				250 -- 281
+			) -- 281
+			self.gateTarpPlayed = false -- 282
+		end -- 282
+		local progress = clamp01(p.gateTick / 2700) -- 284
+		audio:setSceneAmbience("scene_winch_chain", "ambience", AMB_ROOT .. "gate_winch_chain_loop.ogg", 0.26 + progress * 0.16) -- 285
+		if not self.gateTarpPlayed and p.gateTick >= 720 then -- 286
+			self.gateTarpPlayed = true -- 287
+			audio:playFoley( -- 288
+				"gate:tarp_fall", -- 288
+				CMB_ROOT .. "gate_tarp_fall.wav", -- 288
+				0.72, -- 288
+				0.18, -- 288
+				500 -- 288
+			) -- 288
+		end -- 288
+	else -- 288
+		if key == "gate" and self.prevPhase == "gate-hold" and phase == "gate-send" then -- 291
+			audio:playFoley( -- 292
+				"gate:winch_lock", -- 292
+				CMB_ROOT .. "gate_winch_lock.wav", -- 292
+				0.88, -- 292
+				-0.1, -- 292
+				250 -- 292
+			) -- 292
+		end -- 292
+		audio:stopSceneAmbience("scene_winch_chain", 0.25) -- 294
+	end -- 294
+	local nearCulvert = p.room.arch.h > 0 and p.player.x >= p.room.arch.x0 - 40 and p.player.x <= p.room.arch.x1 + 40 or key == "village" and p.player.x >= p.ox + 520 or key == "forest" and p.player.x >= p.ox + 830 and p.player.x <= p.ox + 1230 -- 298
+	if nearCulvert and view.visualMode ~= "museum" then -- 301
+		audio:setSceneAmbience("scene_culvert_drip", "water", AMB_ROOT .. "culvert_drip_echo_loop.ogg", 0.3) -- 302
 	else -- 302
-		audio:stopSceneAmbience("scene_main_amb", 0.3) -- 304
+		audio:stopSceneAmbience("scene_culvert_drip", 0.35) -- 304
 	end -- 304
-	if key == "gate" and phase == "gate-hold" then -- 308
-		if self.prevPhase ~= "gate-hold" then -- 309
-			audio:playFoley( -- 310
-				"gate:winch_start", -- 310
-				CMB_ROOT .. "gate_winch_start.wav", -- 310
-				0.8, -- 310
-				-0.25, -- 310
-				250 -- 310
-			) -- 310
-			self.gateTarpPlayed = false -- 311
-		end -- 311
-		local progress = clamp01(p.gateTick / 2700) -- 313
-		audio:setSceneAmbience("scene_winch_chain", "ambience", AMB_ROOT .. "gate_winch_chain_loop.ogg", 0.26 + progress * 0.16) -- 314
-		if not self.gateTarpPlayed and p.gateTick >= 720 then -- 315
-			self.gateTarpPlayed = true -- 316
-			audio:playFoley( -- 317
-				"gate:tarp_fall", -- 317
-				CMB_ROOT .. "gate_tarp_fall.wav", -- 317
-				0.72, -- 317
-				0.18, -- 317
-				500 -- 317
-			) -- 317
-		end -- 317
-	else -- 317
-		if key == "gate" and self.prevPhase == "gate-hold" and phase == "gate-send" then -- 320
-			audio:playFoley( -- 321
-				"gate:winch_lock", -- 321
-				CMB_ROOT .. "gate_winch_lock.wav", -- 321
-				0.88, -- 321
-				-0.1, -- 321
-				250 -- 321
-			) -- 321
-		end -- 321
-		audio:stopSceneAmbience("scene_winch_chain", 0.25) -- 323
-	end -- 323
-	local nearCulvert = p.room.arch.h > 0 and p.player.x >= p.room.arch.x0 - 40 and p.player.x <= p.room.arch.x1 + 40 or key == "village" and p.player.x >= p.ox + 520 or key == "forest" and p.player.x >= p.ox + 830 and p.player.x <= p.ox + 1230 -- 327
-	if nearCulvert and view.visualMode ~= "museum" then -- 330
-		audio:setSceneAmbience("scene_culvert_drip", "water", AMB_ROOT .. "culvert_drip_echo_loop.ogg", 0.3) -- 331
-	else -- 331
-		audio:stopSceneAmbience("scene_culvert_drip", 0.35) -- 333
-	end -- 333
-	if key ~= "outside" and p.room.cart.bodyW > 0 and dt > 0.0001 then -- 337
-		local speed = math.abs(p.cartAxle - self.prevCartAxle) / dt -- 338
-		if speed > 4 then -- 339
-			local vol = math.min(0.46, 0.18 + speed / 64 * 0.28) -- 340
-			audio:setSceneAmbience("scene_cart_wheel", "ambience", "assets/audio/child/cart_wheel_loop.wav", vol) -- 341
-		else -- 341
-			audio:stopSceneAmbience("scene_cart_wheel", 0.12) -- 343
-		end -- 343
-	else -- 343
-		audio:stopSceneAmbience("scene_cart_wheel", 0.12) -- 346
-	end -- 346
-	self.prevCartAxle = p.cartAxle -- 348
-end -- 286
-function SoundscapeDirector.prototype.syncFoley(self, dt, p, view, audio) -- 351
-	local key = p.room.key -- 352
-	local inCutscene = view.visualMode == "museum" or key == "prologue" and (p.phase == "prologue-wake" or p.phase == "prologue-shadow" or p.phase == "prologue-give") or key == "gate" and (p.phase == "gate-farewell" or p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or key == "tower" and (p.phase == "tower-knock" or p.phase == "tower-given" or p.phase == "tower-end") -- 353
-	local offerCount = #p:getStoryTalentOffers() -- 359
-	if offerCount > 0 and self.prevOfferCount == 0 then -- 360
-		audio:playUi("ui:talent_appear", UI_ROOT .. "talent_appear.wav", 0.72, 0.2) -- 361
-	end -- 361
-	self.prevOfferCount = offerCount -- 363
-	if not p.craftBench.active and self.prevWeapon ~= "" and p.equippedWeapon ~= self.prevWeapon then -- 366
-		audio:playFoley( -- 367
-			"weapon:switch", -- 367
-			CMB_ROOT .. "weapon_switch_artifact.wav", -- 367
-			0.78, -- 367
-			0, -- 367
-			140 -- 367
-		) -- 367
-	end -- 367
-	self.prevWeapon = p.equippedWeapon -- 369
-	if key == "village" and p.hasBottle and not self.prevHasBottle then -- 372
-		audio:playFoley( -- 373
-			"village:bottle_pickup", -- 373
-			FOL_ROOT .. "bottle_pickup.wav", -- 373
-			0.76, -- 373
-			audio:panForWorldX(p.player.x), -- 373
-			180 -- 373
-		) -- 373
-	end -- 373
-	self.prevHasBottle = p.hasBottle -- 375
-	self:syncLocomotionAndCombatFoley(dt, p, audio, inCutscene) -- 377
-	self.prevPhase = p.phase -- 378
-end -- 351
-function SoundscapeDirector.prototype.syncLocomotionAndCombatFoley(self, dt, p, audio, suppressLocomotion) -- 381
-	local a = p.player -- 382
-	local pan = audio:panForWorldX(a.x) -- 383
-	if not suppressLocomotion and dt > 0 then -- 385
-		if a.rollT > 0 and self.prevRollT <= 0 then -- 387
-			audio:playFoley( -- 388
-				"foley:roll", -- 388
-				FOL_ROOT .. "soldier_roll.wav", -- 388
-				0.74, -- 388
-				pan, -- 388
-				220 -- 388
-			) -- 388
-		end -- 388
-		if not a.onGround and self.prevOnGround and a.vy > 80 then -- 392
-			local jPath = p.childMode and FOL_ROOT .. "jump_child.wav" or FOL_ROOT .. "jump_soldier.wav" -- 393
-			audio:playFoley( -- 394
-				"foley:jump", -- 394
-				jPath, -- 394
-				0.56, -- 394
-				pan, -- 394
-				160 -- 394
-			) -- 394
-		elseif a.onGround and not self.prevOnGround and self.prevVy < -60 then -- 395
-			local lPath = p.childMode and FOL_ROOT .. "land_child.wav" or FOL_ROOT .. "land_soldier.wav" -- 396
-			local impactVol = clamp01(0.36 + math.min( -- 397
-				1, -- 397
-				math.abs(self.prevVy) / 420 -- 397
-			) * 0.42) -- 397
-			audio:playFoley( -- 398
-				"foley:land", -- 398
-				lPath, -- 398
-				impactVol, -- 398
-				pan, -- 398
-				120 -- 398
-			) -- 398
-		end -- 398
-		if a.crouch and not self.prevCrouch and a.onGround then -- 402
-			audio:playFoley( -- 403
-				"foley:crouch", -- 403
-				FOL_ROOT .. "crouch_rustle.wav", -- 403
-				0.34, -- 403
-				pan, -- 403
-				180 -- 403
-			) -- 403
-		end -- 403
-		local speedX = math.abs(a.vx) -- 407
-		if a.onGround and a.rollT <= 0 and speedX > 12 then -- 408
-			self.stepAccum = self.stepAccum + speedX * dt -- 409
-			local stride = p.childMode and (a.crouch and 26 or 34) or 48 -- 410
-			if self.stepAccum >= stride then -- 411
-				self.stepAccum = self.stepAccum - stride -- 412
-				self.stepIdx = self.stepIdx + 1 -- 413
-				local stepInfo = self:pickPlayerFootstep(p, self.stepIdx) -- 414
-				audio:playFoley( -- 415
-					"foley:step", -- 415
-					stepInfo.path, -- 415
-					stepInfo.vol, -- 415
-					pan, -- 415
-					140 -- 415
-				) -- 415
-			end -- 415
-		elseif speedX <= 4 then -- 417
-			self.stepAccum = math.min(self.stepAccum, 16) -- 418
-		end -- 418
-		if p.room.key == "gatepath" and not p.childMode and p.partner.alive and math.abs(p.partner.vx) > 8 then -- 422
-			self.partnerStepAccum = self.partnerStepAccum + math.abs(p.partner.vx) * dt -- 423
-			if self.partnerStepAccum >= 32 then -- 424
-				self.partnerStepAccum = self.partnerStepAccum - 32 -- 425
-				self.partnerStepIdx = self.partnerStepIdx + 1 -- 426
-				local cPath = CHILD_STONE_STEPS[self.partnerStepIdx % #CHILD_STONE_STEPS + 1] -- 427
-				audio:playFoley( -- 428
-					"foley:partner_step", -- 428
-					cPath, -- 428
-					0.44, -- 428
-					audio:panForWorldX(p.partner.x), -- 428
-					140 -- 428
-				) -- 428
-			end -- 428
-		end -- 428
-	end -- 428
-	local i = 0 -- 434
-	do -- 434
-		i = 0 -- 435
-		while i < #p.enemies do -- 435
-			local en = p.enemies[i + 1] -- 436
-			local warnNow = en.alive and en.warnT > 0 -- 437
-			local warnWas = self.enemyWarnPrev[i] == true -- 438
-			if warnNow and not warnWas then -- 439
-				audio:playFoley( -- 440
-					"combat:enemy_warn:" .. tostring(i), -- 440
-					CMB_ROOT .. "enemy_warn.wav", -- 440
-					0.68, -- 440
-					audio:panForWorldX(en.x), -- 440
-					300 -- 440
-				) -- 440
-			end -- 440
-			self.enemyWarnPrev[i] = warnNow -- 442
-			i = i + 1 -- 435
-		end -- 435
+	if key ~= "outside" and p.room.cart.bodyW > 0 and dt > 0.0001 then -- 308
+		local speed = math.abs(p.cartAxle - self.prevCartAxle) / dt -- 309
+		if speed > 4 then -- 310
+			local vol = math.min(0.46, 0.18 + speed / 64 * 0.28) -- 311
+			audio:setSceneAmbience("scene_cart_wheel", "ambience", "assets/audio/child/cart_wheel_loop.wav", vol) -- 312
+		else -- 312
+			audio:stopSceneAmbience("scene_cart_wheel", 0.12) -- 314
+		end -- 314
+	else -- 314
+		audio:stopSceneAmbience("scene_cart_wheel", 0.12) -- 317
+	end -- 317
+	self.prevCartAxle = p.cartAxle -- 319
+end -- 257
+function SoundscapeDirector.prototype.syncFoley(self, dt, p, view, audio) -- 322
+	local key = p.room.key -- 323
+	local inCutscene = view.visualMode == "museum" or key == "prologue" and (p.phase == "prologue-wake" or p.phase == "prologue-shadow" or p.phase == "prologue-give") or key == "gate" and (p.phase == "gate-farewell" or p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or key == "tower" and (p.phase == "tower-knock" or p.phase == "tower-given" or p.phase == "tower-end") -- 324
+	local offerCount = #p:getStoryTalentOffers() -- 330
+	if offerCount > 0 and self.prevOfferCount == 0 then -- 331
+		audio:playUi("ui:talent_appear", UI_ROOT .. "talent_appear.wav", 0.72, 0.2) -- 332
+	end -- 332
+	self.prevOfferCount = offerCount -- 334
+	if not p.craftBench.active and self.prevWeapon ~= "" and p.equippedWeapon ~= self.prevWeapon then -- 337
+		audio:playFoley( -- 338
+			"weapon:switch", -- 338
+			CMB_ROOT .. "weapon_switch_artifact.wav", -- 338
+			0.78, -- 338
+			0, -- 338
+			140 -- 338
+		) -- 338
+	end -- 338
+	self.prevWeapon = p.equippedWeapon -- 340
+	if key == "village" and p.hasBottle and not self.prevHasBottle then -- 343
+		audio:playFoley( -- 344
+			"village:bottle_pickup", -- 344
+			FOL_ROOT .. "bottle_pickup.wav", -- 344
+			0.76, -- 344
+			audio:panForWorldX(p.player.x), -- 344
+			180 -- 344
+		) -- 344
+	end -- 344
+	self.prevHasBottle = p.hasBottle -- 346
+	self:syncLocomotionAndCombatFoley(dt, p, audio, inCutscene) -- 348
+	self.prevPhase = p.phase -- 349
+end -- 322
+function SoundscapeDirector.prototype.syncLocomotionAndCombatFoley(self, dt, p, audio, suppressLocomotion) -- 352
+	local a = p.player -- 353
+	local pan = audio:panForWorldX(a.x) -- 354
+	if not suppressLocomotion and dt > 0 then -- 356
+		if a.rollT > 0 and self.prevRollT <= 0 then -- 358
+			audio:playFoley( -- 359
+				"foley:roll", -- 359
+				FOL_ROOT .. "soldier_roll.wav", -- 359
+				0.74, -- 359
+				pan, -- 359
+				220 -- 359
+			) -- 359
+		end -- 359
+		if not a.onGround and self.prevOnGround and a.vy > 80 then -- 363
+			local jPath = p.childMode and FOL_ROOT .. "jump_child.wav" or FOL_ROOT .. "jump_soldier.wav" -- 364
+			audio:playFoley( -- 365
+				"foley:jump", -- 365
+				jPath, -- 365
+				0.56, -- 365
+				pan, -- 365
+				160 -- 365
+			) -- 365
+		elseif a.onGround and not self.prevOnGround and self.prevVy < -60 then -- 366
+			local lPath = p.childMode and FOL_ROOT .. "land_child.wav" or FOL_ROOT .. "land_soldier.wav" -- 367
+			local impactVol = clamp01(0.36 + math.min( -- 368
+				1, -- 368
+				math.abs(self.prevVy) / 420 -- 368
+			) * 0.42) -- 368
+			audio:playFoley( -- 369
+				"foley:land", -- 369
+				lPath, -- 369
+				impactVol, -- 369
+				pan, -- 369
+				120 -- 369
+			) -- 369
+		end -- 369
+		if a.crouch and not self.prevCrouch and a.onGround then -- 373
+			audio:playFoley( -- 374
+				"foley:crouch", -- 374
+				FOL_ROOT .. "crouch_rustle.wav", -- 374
+				0.34, -- 374
+				pan, -- 374
+				180 -- 374
+			) -- 374
+		end -- 374
+		local speedX = math.abs(a.vx) -- 378
+		if a.onGround and a.rollT <= 0 and speedX > 12 then -- 379
+			self.stepAccum = self.stepAccum + speedX * dt -- 380
+			local stride = p.childMode and (a.crouch and 26 or 34) or 48 -- 381
+			if self.stepAccum >= stride then -- 382
+				self.stepAccum = self.stepAccum - stride -- 383
+				self.stepIdx = self.stepIdx + 1 -- 384
+				local stepInfo = self:pickPlayerFootstep(p, self.stepIdx) -- 385
+				audio:playFoley( -- 386
+					"foley:step", -- 386
+					stepInfo.path, -- 386
+					stepInfo.vol, -- 386
+					pan, -- 386
+					140 -- 386
+				) -- 386
+			end -- 386
+		elseif speedX <= 4 then -- 388
+			self.stepAccum = math.min(self.stepAccum, 16) -- 389
+		end -- 389
+		if p.room.key == "gatepath" and not p.childMode and p.partner.alive and math.abs(p.partner.vx) > 8 then -- 393
+			self.partnerStepAccum = self.partnerStepAccum + math.abs(p.partner.vx) * dt -- 394
+			if self.partnerStepAccum >= 32 then -- 395
+				self.partnerStepAccum = self.partnerStepAccum - 32 -- 396
+				self.partnerStepIdx = self.partnerStepIdx + 1 -- 397
+				local cPath = CHILD_STONE_STEPS[self.partnerStepIdx % #CHILD_STONE_STEPS + 1] -- 398
+				audio:playFoley( -- 399
+					"foley:partner_step", -- 399
+					cPath, -- 399
+					0.44, -- 399
+					audio:panForWorldX(p.partner.x), -- 399
+					140 -- 399
+				) -- 399
+			end -- 399
+		end -- 399
+	end -- 399
+	local i = 0 -- 405
+	do -- 405
+		i = 0 -- 406
+		while i < #p.enemies do -- 406
+			local en = p.enemies[i + 1] -- 407
+			local warnNow = en.alive and en.warnT > 0 -- 408
+			local warnWas = self.enemyWarnPrev[i] == true -- 409
+			if warnNow and not warnWas then -- 410
+				audio:playFoley( -- 411
+					"combat:enemy_warn:" .. tostring(i), -- 411
+					CMB_ROOT .. "enemy_warn.wav", -- 411
+					0.68, -- 411
+					audio:panForWorldX(en.x), -- 411
+					300 -- 411
+				) -- 411
+			end -- 411
+			self.enemyWarnPrev[i] = warnNow -- 413
+			i = i + 1 -- 406
+		end -- 406
+	end -- 406
+	self.prevOnGround = a.onGround -- 416
+	self.prevVy = a.vy -- 417
+	self.prevRollT = a.rollT -- 418
+	self.prevCrouch = a.crouch -- 419
+end -- 352
+function SoundscapeDirector.prototype.pickPlayerFootstep(self, p, idx) -- 422
+	if not p.childMode then -- 423
+		return {path = SOLDIER_STONE_STEPS[idx % #SOLDIER_STONE_STEPS + 1], vol = p.player.crouch and 0.34 or 0.54} -- 424
+	end -- 424
+	local key = p.room.key -- 429
+	local slowFactor = p.player.crouch and 0.52 or (math.abs(p.player.vx) <= 95 and 0.68 or 1) -- 430
+	if key == "forest" then -- 431
+		if p.player.x >= p.ox + 1310 then -- 432
+			return {path = CHILD_WATER_STEPS[idx % #CHILD_WATER_STEPS + 1], vol = 0.46 * slowFactor} -- 433
+		end -- 433
+		return {path = CHILD_MOSS_STEPS[idx % #CHILD_MOSS_STEPS + 1], vol = 0.36 * slowFactor} -- 435
 	end -- 435
-	self.prevOnGround = a.onGround -- 445
-	self.prevVy = a.vy -- 446
-	self.prevRollT = a.rollT -- 447
-	self.prevCrouch = a.crouch -- 448
-end -- 381
-function SoundscapeDirector.prototype.pickPlayerFootstep(self, p, idx) -- 451
-	if not p.childMode then -- 452
-		return {path = SOLDIER_STONE_STEPS[idx % #SOLDIER_STONE_STEPS + 1], vol = p.player.crouch and 0.34 or 0.54} -- 453
-	end -- 453
-	local key = p.room.key -- 458
-	local slowFactor = p.player.crouch and 0.52 or (math.abs(p.player.vx) <= 95 and 0.68 or 1) -- 459
-	if key == "forest" then -- 460
-		if p.player.x >= p.ox + 1310 then -- 461
-			return {path = CHILD_WATER_STEPS[idx % #CHILD_WATER_STEPS + 1], vol = 0.46 * slowFactor} -- 462
-		end -- 462
-		return {path = CHILD_MOSS_STEPS[idx % #CHILD_MOSS_STEPS + 1], vol = 0.36 * slowFactor} -- 464
-	end -- 464
-	if key == "village" and p.player.x >= p.ox + 540 then -- 466
-		return {path = CHILD_WATER_STEPS[idx % #CHILD_WATER_STEPS + 1], vol = 0.42 * slowFactor} -- 467
-	end -- 467
-	return {path = CHILD_STONE_STEPS[idx % #CHILD_STONE_STEPS + 1], vol = 0.48 * slowFactor} -- 469
-end -- 451
-return ____exports -- 451
+	if key == "village" and p.player.x >= p.ox + 540 then -- 437
+		return {path = CHILD_WATER_STEPS[idx % #CHILD_WATER_STEPS + 1], vol = 0.42 * slowFactor} -- 438
+	end -- 438
+	return {path = CHILD_STONE_STEPS[idx % #CHILD_STONE_STEPS + 1], vol = 0.48 * slowFactor} -- 440
+end -- 422
+return ____exports -- 422

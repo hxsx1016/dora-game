@@ -179,6 +179,8 @@ class AndroidTouchDriver implements TargetInputDriver {
             isMuted: ctx.isMuted,
             isFullscreen: false,
             storyTalentBoxes: ctx.storyTalentBoxes,
+            escortDeathBoxes: ctx.escortDeathBoxes,
+            ledgerButtonBox: ctx.ledgerButtonBox,
             dt: ctx.dt,
         });
     }

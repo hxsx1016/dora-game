@@ -148,6 +148,10 @@ export function getSaveFile(): string {
     return currentFile;
 }
 
+export function savePath(): string {
+    return absPath(currentFile);
+}
+
 export function emptySave(): SaveState {
     return {
         childCleared: false,
@@ -622,6 +626,11 @@ export interface SessionSave {
     talentSeed?: number;
     talentRoom?: string;
     talentOffers?: string[];
+    /** 新版 8 项本领等级序列化列表（如 vitality:1,focus:2）；旧档四字段仍自动兼容。 */
+    talentRanks?: string[];
+    escortAttempt?: number;
+    escortVariant?: number;
+    talentDeferred?: boolean;
     talentVitality?: number;
     talentReload?: number;
     talentGuard?: number;
@@ -683,7 +692,7 @@ function parseListField(raw: string | undefined): string[] {
     return out;
 }
 
-function formatSession(s: SessionSave): string {
+export function formatSession(s: SessionSave): string {
     return [
         "version=" + SESSION_VERSION,
         "roomKey=" + s.roomKey,
@@ -725,6 +734,10 @@ function formatSession(s: SessionSave): string {
         "talentSeed=" + Math.round(s.talentSeed ?? 0),
         "talentRoom=" + (s.talentRoom ?? ""),
         "talentOffers=" + (s.talentOffers === undefined ? "" : s.talentOffers.join(",")),
+        "talentRanks=" + (s.talentRanks === undefined ? "" : s.talentRanks.join(",")),
+        "escortAttempt=" + Math.round(s.escortAttempt ?? 1),
+        "escortVariant=" + Math.round(s.escortVariant ?? 0),
+        "talentDeferred=" + (s.talentDeferred === true ? "true" : "false"),
         "talentVitality=" + Math.round(s.talentVitality ?? 0),
         "talentReload=" + Math.round(s.talentReload ?? 0),
         "talentGuard=" + Math.round(s.talentGuard ?? 0),
@@ -740,7 +753,7 @@ function formatSession(s: SessionSave): string {
     ].join("\n");
 }
 
-function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: string; state?: SessionSave } {
+export function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: string; state?: SessionSave } {
     if (text.length === 0) {
         return { ok: false, status: "corrupt", reason: "局中存档为空" };
     }
@@ -831,6 +844,10 @@ function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: 
             talentSeed: Math.max(0, intOf(lineValue(text, "talentSeed") ?? "0", 0)),
             talentRoom: lineValue(text, "talentRoom") ?? "",
             talentOffers: parseListField(lineValue(text, "talentOffers")),
+            talentRanks: parseListField(lineValue(text, "talentRanks")),
+            escortAttempt: Math.max(1, intOf(lineValue(text, "escortAttempt") ?? "1", 1)),
+            escortVariant: Math.max(0, intOf(lineValue(text, "escortVariant") ?? "0", 0)),
+            talentDeferred: parseBoolField(lineValue(text, "talentDeferred"), false) === true,
             talentVitality: Math.max(0, intOf(lineValue(text, "talentVitality") ?? "0", 0)),
             talentReload: Math.max(0, intOf(lineValue(text, "talentReload") ?? "0", 0)),
             talentGuard: Math.max(0, intOf(lineValue(text, "talentGuard") ?? "0", 0)),

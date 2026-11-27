@@ -854,6 +854,43 @@ export class TouchRouter {
 
         const stage = portrait ? viewToStage(viewX, viewY, vp) : { x: viewX, y: viewY, inside: viewX >= 0 && viewX <= vp.stageW && viewY >= 0 && viewY <= vp.stageH };
 
+        // 2b. 局内直点矩形热区优先于模态指针（折笺本领卡 / 折戟小结按钮 / 札记按钮 / 世界交互气泡，手柄混用触屏同样可用）
+        if (this.ctx.gameplayActive && this.ctx.rectZones.length > 0) {
+            const zone = this.hitTestRectZones(ov.x, ov.y);
+            if (zone !== undefined) {
+                this.qHadUiTouch = true;
+                this.fingers[id] = {
+                    id,
+                    fromMouse: false,
+                    kind: "zone",
+                    zoneId: zone.id,
+                    startViewX: viewX,
+                    startViewY: viewY,
+                    curViewX: viewX,
+                    curViewY: viewY,
+                    startOvX: ov.x,
+                    startOvY: ov.y,
+                    curOvX: ov.x,
+                    curOvY: ov.y,
+                    movedDistOv: 0,
+                };
+                if (zone.id === "pause") {
+                    this.qPausePressed = true;
+                    this.vibrate(0.015);
+                } else if (zone.id === "retry") {
+                    this.qRetryPressed = true;
+                    this.vibrate(0.015);
+                } else if (zone.id === "worldPrompt") {
+                    this.triggerInteractAction(id);
+                } else {
+                    this.qZoneTap = zone.id;
+                    this.vibrate(0.015);
+                }
+                return;
+            }
+        }
+
+        // 2c. 模态界面（标题 / 选章 / 说明 / 暂停 / 3×3 换弹盘 / 工台 / 折笺 / 折戟小结）：统一单指舞台 UI 指针
         if (this.ctx.modal || !this.ctx.gameplayActive) {
             this.qHadUiTouch = true;
             if (this.modalFingerId < 0 && (!portrait || stage.inside)) {
@@ -882,39 +919,7 @@ export class TouchRouter {
             return;
         }
 
-        const zone = this.hitTestRectZones(ov.x, ov.y);
-        if (zone !== undefined) {
-            this.qHadUiTouch = true;
-            this.fingers[id] = {
-                id,
-                fromMouse: false,
-                kind: "zone",
-                zoneId: zone.id,
-                startViewX: viewX,
-                startViewY: viewY,
-                curViewX: viewX,
-                curViewY: viewY,
-                startOvX: ov.x,
-                startOvY: ov.y,
-                curOvX: ov.x,
-                curOvY: ov.y,
-                movedDistOv: 0,
-            };
-            if (zone.id === "pause") {
-                this.qPausePressed = true;
-                this.vibrate(0.015);
-            } else if (zone.id === "retry") {
-                this.qRetryPressed = true;
-                this.vibrate(0.015);
-            } else if (zone.id === "worldPrompt") {
-                this.triggerInteractAction(id);
-            } else {
-                this.qZoneTap = zone.id;
-                this.vibrate(0.015);
-            }
-            return;
-        }
-
+        // 2d. 过场阻塞期间：仅响应北塔尾声轻触再启程
         if (this.ctx.cutsceneBlocking) {
             this.qHadUiTouch = true;
             if (this.ctx.inTowerEnd) {

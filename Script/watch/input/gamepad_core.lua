@@ -595,7 +595,7 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 437
 	local reloadReset = self.ctx.reloadActive and (gpReloadResetBtn or xPressed) -- 619
 	local talentDelta = 0 -- 622
 	local talentConfirm = false -- 623
-	if self.ctx.talentOfferCount > 0 and not self.ctx.modal and not self.ctx.reloadActive and not self.ctx.craftActive then -- 624
+	if self.ctx.talentOfferCount > 0 and not self.ctx.reloadActive and not self.ctx.craftActive then -- 624
 		if lbPressed then -- 625
 			talentDelta = talentDelta - 1 -- 625
 		end -- 625

@@ -53,6 +53,7 @@ do
 		and r.story.equippedWeapon == craftmod.ARTIFACT_WEAPON_ID)
 
 	fe:bindPlay(p1, 1280, 720)
+	if #p1:getStoryTalentOffers() > 0 then p1:chooseTalent(0) end
 	local aft = fe:getPlugin("fe-06-afterimage-artifact")
 	inp.moveX = 1
 	for _ = 1, 24 do

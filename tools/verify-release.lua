@@ -46,14 +46,14 @@ local fe = new(Frontend, root)
 local input = new(Input)
 input.inside = false
 
--- 标题页：向下移动 4 次到第 5 项「退出游戏」
+-- 标题页：向下移动 3 次到第 4 项「退出游戏」（独立护送试炼已融入正式男主线）
 fe.screen = "title"
 fe.menus.selected = 0
-for _ = 1, 4 do
+for _ = 1, 3 do
     fe.menus:onKeyEvent("Down")
     fe:renderMenu(1 / 60, input, 1280, 720)
 end
-check("title menu selects quit at index 4", fe.menus.selected == 4)
+check("title menu selects quit at index 3", fe.menus.selected == 3)
 fe.menus:onKeyEvent("Return")
 local titleAct = fe:renderMenu(1 / 60, input, 1280, 720)
 check("title quit emits quit action", titleAct.type == "quit")

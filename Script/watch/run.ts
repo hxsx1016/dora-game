@@ -134,19 +134,222 @@ export interface StoryState {
     talents?: StoryTalents;
 }
 
+export type Talent =
+    | "vitality"
+    | "guard"
+    | "stride"
+    | "focus"
+    | "push_force"
+    | "echo_wide"
+    | "lantern_pierce"
+    | "salvage";
+
+export type TalentBranch = "body" | "wheel" | "craft";
+
+export interface TalentMeta {
+    readonly id: Talent;
+    readonly title: string;
+    readonly branch: TalentBranch;
+    readonly branchZh: string;
+    readonly shortDesc: string;
+    readonly detailDesc: string;
+    readonly synergyWeapon?: string;
+    readonly synergyLabel?: string;
+    readonly glyphEffect: "normal" | "knockback" | "echo" | "light";
+}
+
+export const ALL_TALENTS: readonly Talent[] = [
+    "vitality",
+    "guard",
+    "stride",
+    "focus",
+    "push_force",
+    "echo_wide",
+    "lantern_pierce",
+    "salvage",
+];
+
+export const TALENT_CATALOG: Record<Talent, TalentMeta> = {
+    vitality: {
+        id: "vitality",
+        title: "厚甲",
+        branch: "body",
+        branchZh: "护身",
+        shortDesc: "体力上限+1并回复1点",
+        detailDesc: "稳守肩背，体力上限增一并即刻回气",
+        glyphEffect: "normal",
+    },
+    guard: {
+        id: "guard",
+        title: "护身",
+        branch: "body",
+        branchZh: "护身",
+        shortDesc: "受击保护+15拍，翻滚全向避近战",
+        detailDesc: "延长受击硬直保护，翻滚可避背身盾击与破障",
+        glyphEffect: "normal",
+    },
+    stride: {
+        id: "stride",
+        title: "疾步",
+        branch: "body",
+        branchZh: "护身",
+        shortDesc: "背负步速+10%，翻滚更疾",
+        detailDesc: "背负穿巷步幅更稳，翻滚突围拉远身距",
+        synergyWeapon: "echo_gun",
+        synergyLabel: "与回声铳相合",
+        glyphEffect: "normal",
+    },
+    focus: {
+        id: "focus",
+        title: "凝神",
+        branch: "wheel",
+        branchZh: "枪机",
+        shortDesc: "慢时换弹线盘+1秒",
+        detailDesc: "慢时连线作答延宽60拍，从容绘出铃纹与灯纹",
+        synergyWeapon: "guide_lantern_gun",
+        synergyLabel: "与引路灯铳相合",
+        glyphEffect: "light",
+    },
+    push_force: {
+        id: "push_force",
+        title: "劲推",
+        branch: "wheel",
+        branchZh: "枪机",
+        shortDesc: "推退破盾加伤并震退敌兵",
+        detailDesc: "推退连线可重挫盾面并大幅震退，压缓周边举铳",
+        glyphEffect: "knockback",
+    },
+    echo_wide: {
+        id: "echo_wide",
+        title: "广音",
+        branch: "wheel",
+        branchZh: "枪机",
+        shortDesc: "回声多惊一人并延缓开火",
+        detailDesc: "铃纹连线额外惊动一处敌兵，显著推迟敌群开火",
+        synergyWeapon: "echo_gun",
+        synergyLabel: "与回声铳共鸣",
+        glyphEffect: "echo",
+    },
+    lantern_pierce: {
+        id: "lantern_pierce",
+        title: "明灯",
+        branch: "craft",
+        branchZh: "工巧",
+        shortDesc: "灯纹必起光晕，镇敌范围加大",
+        detailDesc: "灯纹命中即起余明光晕，镇住旁侧敌兵并扩宽照域",
+        synergyWeapon: "guide_lantern_gun",
+        synergyLabel: "与引路灯铳共鸣",
+        glyphEffect: "light",
+    },
+    salvage: {
+        id: "salvage",
+        title: "拾料",
+        branch: "craft",
+        branchZh: "工巧",
+        shortDesc: "即得筹料+1，架盾与立楔加厚",
+        detailDesc: "拾得木纹或铃纹筹一枚，架起残盾与临时木楔多承一击",
+        glyphEffect: "knockback",
+    },
+};
+
+export const talentNames: Record<Talent, string> = {
+    vitality: "厚甲·体力+1",
+    guard: "护身·硬直+15拍",
+    stride: "疾步·背负提速",
+    focus: "凝神·线盘+1秒",
+    push_force: "劲推·破盾震退",
+    echo_wide: "广音·回声多惊",
+    lantern_pierce: "明灯·余明镇敌",
+    salvage: "拾料·得筹加盾",
+};
+
+export function isTalent(value: string): value is Talent {
+    let i = 0;
+    for (i = 0; i < ALL_TALENTS.length; i++) {
+        if (ALL_TALENTS[i] === value) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** 向后兼容旧档中 4 项旧本领名：reload -> focus，craft -> salvage。 */
+export function normalizeLegacyTalent(raw: string): Talent | undefined {
+    if (isTalent(raw)) {
+        return raw;
+    }
+    if (raw === "reload") {
+        return "focus";
+    }
+    if (raw === "craft") {
+        return "salvage";
+    }
+    return undefined;
+}
+
+export function createEmptyTalentRanks(): Record<Talent, number> {
+    return {
+        vitality: 0,
+        guard: 0,
+        stride: 0,
+        focus: 0,
+        push_force: 0,
+        echo_wide: 0,
+        lantern_pierce: 0,
+        salvage: 0,
+    };
+}
+
+/** 按基础种子与轮回次序确定性派生新一轮种子（第 1 轮直用基础种子，死亡重开逐轮演变）。 */
+export function deriveAttemptSeed(baseSeed: number, attempt: number = 1): number {
+    let s = 1 + Math.floor(Math.abs(baseSeed)) % 2147483646;
+    let k = 1;
+    for (k = 1; k < attempt; k++) {
+        s = (s * 48271 + k * 7919) % 2147483647;
+        if (s <= 0) {
+            s = 1;
+        }
+    }
+    return s;
+}
+
+/** 按种子、轮次与房间键确定性选取遭遇变体（0..variantCount-1）。 */
+export function pickEscortVariant(seed: number, attempt: number, roomKey: string, variantCount: number = 3): number {
+    if (variantCount <= 1) {
+        return 0;
+    }
+    let h = deriveAttemptSeed(seed, attempt);
+    let i = 0;
+    for (i = 0; i < roomKey.length; i++) {
+        h = ((h * 33) + roomKey.charCodeAt(i)) % 2147483647;
+    }
+    h = (h * 48271) % 2147483647;
+    return Math.abs(h) % variantCount;
+}
+
 export interface StoryTalents {
     randomState: number;
+    /** 当前男主线护送轮次（首次为 1，每次战斗倒地重开递增并派生新种子）。 */
+    attempt: number;
     ranks: Record<Talent, number>;
     offers: Talent[];
     room: string;
+    /** 当前段落选用的敌兵编组变体索引（0..2）。 */
+    variant: number;
+    /** 第三段安全工台：延后至关闭工台（或越过工台区）后再抽本领，以联动刚改制的武器。 */
+    deferred: boolean;
 }
 
-export function createStoryTalents(seed: number = 20261124): StoryTalents {
+export function createStoryTalents(seed: number = 20261124, attempt: number = 1): StoryTalents {
+    const safeAttempt = Math.max(1, Math.floor(attempt));
     return {
-        randomState: 1 + Math.floor(Math.abs(seed)) % 2147483646,
-        ranks: { vitality: 0, reload: 0, guard: 0, craft: 0 },
+        randomState: deriveAttemptSeed(seed, safeAttempt),
+        attempt: safeAttempt,
+        ranks: createEmptyTalentRanks(),
         offers: [],
         room: "",
+        variant: 0,
+        deferred: false,
     };
 }
 
@@ -173,52 +376,62 @@ export function createStory(hp: number = 3, maxHp: number = 3, seed: number = 20
         ending: "",
         cp: undefined,
         segments: {},
-        talents: createStoryTalents(seed),
+        talents: createStoryTalents(seed, 1),
     };
 }
 
-export type Talent = "vitality" | "reload" | "guard" | "craft";
-export const talentNames: Record<Talent, string> = {
-    vitality: "厚甲·体力+1", reload: "熟铳·装填减6拍", guard: "护身·受击保护加12拍", craft: "巧手·制楔减6拍",
-};
-
-export interface Trial {
-    randomState: number;
-    hp: number;
-    lost: boolean;
-    ranks: Record<Talent, number>;
-    offers: Talent[];
-    room: string;
-}
-
-export function createTrial(seed: number): RunState {
-    const run = createRun(seed, "trial");
-    run.trial = { randomState: 1 + Math.floor(Math.abs(seed)) % 2147483646, hp: 3, lost: false,
-        ranks: { vitality: 0, reload: 0, guard: 0, craft: 0 }, offers: [], room: "" };
-    return run;
-}
-
-export function draftTalentOffers(target: { randomState: number; offers: Talent[]; room: string }, room: string): void {
-    if (target.room === room) return;
+export function draftTalentOffers(
+    target: StoryTalents,
+    room: string,
+    equippedWeapon: string = "standard_gun",
+): void {
+    if (target.room === room && !target.deferred) {
+        return;
+    }
     target.room = room;
-    const pool: Talent[] = ["vitality", "reload", "guard", "craft"];
+    target.deferred = false;
+    const pool: Talent[] = ALL_TALENTS.slice();
     target.offers = [];
-    while (target.offers.length < 3) {
+    while (target.offers.length < 3 && pool.length > 0) {
+        let totalW = 0;
+        const weights: number[] = [];
+        let i = 0;
+        for (i = 0; i < pool.length; i++) {
+            const t = pool[i];
+            let w = 10;
+            if ((equippedWeapon === "guide_lantern_gun" || equippedWeapon === "time_shuttler")
+                && (t === "lantern_pierce" || t === "focus")) {
+                w += 10;
+            } else if (equippedWeapon === "echo_gun" && (t === "echo_wide" || t === "stride")) {
+                w += 10;
+            }
+            if ((room === "escort1" || room === "escort2") && t === "salvage") {
+                w += 4;
+            }
+            if ((target.ranks[t] ?? 0) >= 2) {
+                w = Math.max(3, w - 4);
+            }
+            weights.push(w);
+            totalW += w;
+        }
         target.randomState = (target.randomState * 48271) % 2147483647;
-        const index = Math.floor(target.randomState / 2147483647 * pool.length);
-        target.offers.push(pool.splice(index, 1)[0]);
+        let pick = (target.randomState / 2147483647) * totalW;
+        let chosen = 0;
+        for (i = 0; i < weights.length; i++) {
+            pick -= weights[i];
+            if (pick <= 0) {
+                chosen = i;
+                break;
+            }
+        }
+        target.offers.push(pool.splice(chosen, 1)[0]);
     }
 }
 
-export function draftRoom(trial: Trial, room: string): void {
-    draftTalentOffers(trial, room);
-}
-
-/** 本局从哪来：official=标题「新的旅程」，chapter=章节直达，debug=数字快跳/验收夹具，trial=标题试炼。 */
-export type RunSource = "official" | "chapter" | "debug" | "trial";
+/** 本局从哪来：official=标题「开始游戏」，chapter=章节直达，debug=数字快跳/验收夹具。 */
+export type RunSource = "official" | "chapter" | "debug";
 
 export interface RunState {
-    trial?: Trial;
     /** 开局来源：只有 official 的结局写通关档案。 */
     source: RunSource;
     seed: number;

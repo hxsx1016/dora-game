@@ -649,8 +649,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     }
 
     private evaluateGate(p: Play, view: DualRouteSnapshot): { open: boolean; reason: string } {
-        if (p.run.trial !== undefined) {
-            return { open: false, reason: "trial_mode" };
+        if (p.run.source === "chapter") {
+            return { open: false, reason: "chapter_preview" };
         }
         if (p.room.key !== "prologue") {
             return { open: false, reason: "not_prologue" };

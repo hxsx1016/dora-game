@@ -390,9 +390,10 @@ export const PORTRAIT_TOUCH_DELEGATE: PortraitTouchDelegate = {
 
             const footY = Math.max(vp.safe.bottom + 14, 16);
             const inOverlayModal = lastPlay !== undefined && (lastPlay.reloadOpen || lastPlay.craftBench.active);
+            const inChoiceModal = lastPlay !== undefined && (lastPlay.escortFailed || (lastPlay.talentModalActive && lastPlay.getStoryTalentOffers().length > 0));
             const hint = inOverlayModal
                 ? "直接在上屏点按或一笔划连"
-                : (!ctx.gameplayActive || (lastPlay !== undefined && lastPlay.paused)
+                : (!ctx.gameplayActive || (lastPlay !== undefined && lastPlay.paused) || inChoiceModal
                     ? "可点上屏菜单或用下方导航键"
                     : (ctx.childMode
                         ? "左摇杆内圈轻步 · 蹲伏/轻步点按切换"

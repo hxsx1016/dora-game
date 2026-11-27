@@ -208,13 +208,13 @@ do
 		stGive.gateOpen == false and stGive.gateBlockedReason == "after_cabinet_window"
 		and stFollow.gateOpen == false and stFollow.gateBlockedReason == "after_cabinet_window")
 
-	-- 2.6 试炼模式封闭井口
-	local pTrial = new(play.Play, rooms.PROLOGUE_ROOM)
-	pTrial.run.trial = { stage = 1 }
-	pTrial.archive = { childCleared = true, soldierCleared = true, artifactOwned = false, museumPhase = "well_open", museumSeen = false }
-	fe:bindPlay(pTrial, 1280, 720)
-	fe:renderPlay(DT, pTrial, inp, 1280, 720)
-	check("2.6 试炼模式封闭井口", wellPl:getDebugState().gateBlockedReason == "trial_mode")
+	-- 2.6 章节预览模式封闭井口
+	local pPreview = new(play.Play, rooms.PROLOGUE_ROOM)
+	pPreview.run.source = "chapter"
+	pPreview.archive = { childCleared = true, soldierCleared = true, artifactOwned = false, museumPhase = "well_open", museumSeen = false }
+	fe:bindPlay(pPreview, 1280, 720)
+	fe:renderPlay(DT, pPreview, inp, 1280, 720)
+	check("2.6 章节预览模式封闭井口", wellPl:getDebugState().gateBlockedReason == "chapter_preview")
 
 	-- 2.7 章节直达、排演结局与退出排演绝不污染正式档案
 	local pLive = new(play.Play, rooms.PROLOGUE_ROOM)

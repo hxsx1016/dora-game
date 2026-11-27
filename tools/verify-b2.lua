@@ -421,12 +421,14 @@ for _, ev in ipairs(pj.events) do
 	end
 end
 check("章节直达落幕事件标非正式", pjEvents == 1 and pjOfficial == false, "count=" .. pjEvents .. " official=" .. tostring(pjOfficial))
-local trialRun = runmod.createTrial(67543212)
-local ptrl = lualib.__TS__New(play.Play, rooms.S1_CROSSROAD, nil, trialRun)
-check("试炼不走正式结局字段", ptrl.run.story.ending == "", "ending=" .. ptrl.run.story.ending)
-check("试炼有种子", ptrl.run.seed == 67543212, "seed=" .. tostring(ptrl.run.seed))
-check("试炼开局三选一", ptrl.run.trial ~= nil and #ptrl.run.trial.offers == 3,
-	"offers=" .. tostring(ptrl.run.trial and #ptrl.run.trial.offers))
+local escRun = runmod.createRun(67543212, "official")
+escRun.story.route = "soldier"
+escRun.story.settled = true
+local pEsc = lualib.__TS__New(play.Play, rooms.ESCORT1_ROOM, nil, escRun)
+check("男主肉鸽未到北塔不写结局", pEsc.run.story.ending == "", "ending=" .. pEsc.run.story.ending)
+check("男主肉鸽保留局种子", pEsc.run.seed == 67543212, "seed=" .. tostring(pEsc.run.seed))
+check("男主肉鸽进段三选一", #pEsc:getStoryTalentOffers() == 3,
+	"offers=" .. tostring(#pEsc:getStoryTalentOffers()))
 
 local ra = runmod.createRun(20261125, "official")
 ra.story.route = "soldier"

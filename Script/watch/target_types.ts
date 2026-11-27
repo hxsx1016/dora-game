@@ -158,6 +158,8 @@ export interface TargetFrameSync {
     isMuted: boolean;
     isFullscreen: boolean;
     storyTalentBoxes: Rect.Type[];
+    escortDeathBoxes?: { retry: Rect.Type; title: Rect.Type };
+    ledgerButtonBox?: Rect.Type;
     dt: number;
 }
 

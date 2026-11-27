@@ -259,26 +259,24 @@ class HandheldInputDriver implements TargetInputDriver {
         const vp = ctx.viewport;
         const p = ctx.play;
         const isPlayMode = ctx.mode === 1 && ctx.screen === "play" && p !== undefined;
-        const isTrialMode = ctx.mode === 2 && p !== undefined;
-        const gameplayActive = isPlayMode || isTrialMode;
+        const gameplayActive = isPlayMode;
+        const talentModalOpen = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active
+            && !p.reloadOpen && !p.escortFailed && p.talentModalActive && p.getStoryTalentOffers().length > 0;
+        const escortSummaryOpen = isPlayMode && p !== undefined && !p.paused && p.escortFailed;
 
-        const trial = ctx.run?.trial;
-        const trialEnded = isTrialMode && trial !== undefined && (trial.lost || ctx.run?.finished === true);
-        const trialHasOffers = isTrialMode && trial !== undefined && trial.offers.length > 0 && p !== undefined && !p.paused && !trialEnded;
         const modal = !gameplayActive
-            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active))
-            || (isTrialMode && p !== undefined && (p.paused || trialEnded));
+            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active || talentModalOpen || escortSummaryOpen));
         const reloadActive = isPlayMode && p !== undefined && !p.paused && p.reloadOpen;
         const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
-        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen
-            ? p.getStoryTalentOffers().length
-            : (trialHasOffers && trial !== undefined ? trial.offers.length : 0);
+        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed
+            ? (ctx.storyTalentBoxes.length > 0 ? ctx.storyTalentBoxes.length : p.getStoryTalentOffers().length)
+            : 0;
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
         const allowDepth = p !== undefined && p.room.depth !== undefined
             && (!p.childMode || p.phase === "prologue-escape");
         const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
         const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
-            && !modal && !cutsceneBlocking && !trialHasOffers && p.escort.state !== "calming";
+            && !modal && !cutsceneBlocking && p.escort.state !== "calming";
         const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village"
             && p.hasBottle && !p.passed && !modal && !cutsceneBlocking;
         const inLowArch = p !== undefined && p.room.arch.h > 0
@@ -310,6 +308,8 @@ class HandheldInputDriver implements TargetInputDriver {
                 isMuted: ctx.isMuted,
                 isFullscreen: false,
                 storyTalentBoxes: ctx.storyTalentBoxes,
+                escortDeathBoxes: ctx.escortDeathBoxes,
+                ledgerButtonBox: ctx.ledgerButtonBox,
                 enemyTargets,
                 dt: ctx.dt,
             });

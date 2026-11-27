@@ -52,7 +52,6 @@ export interface MenuAction {
         | "continue"
         | "start"
         | "replayStory"
-        | "trial"
         | "jump"
         | "resume"
         | "retry"
@@ -73,7 +72,6 @@ const TITLE_ITEMS = [
     { id: "start", zh: "开始游戏" },
     { id: "chapters", zh: "选择章节" },
     { id: "controls", zh: "操作说明" },
-    { id: "trial", zh: "护送试炼 · 肉鸽" },
     { id: "quit", zh: "退出游戏" },
 ];
 
@@ -134,6 +132,7 @@ const PAUSE_ITEMS = [
     { id: "title", zh: "返回标题" },
     { id: "quit", zh: "退出游戏" },
     { id: "settings", zh: "操控设置" },
+    { id: "ledger", zh: "行军札记 · 构筑" },
 ];
 
 const VERTICAL_TITLE = ["向", "西", "守", "望"];
@@ -635,7 +634,6 @@ export class MenuRenderer {
             const idx = hit >= 0 ? hit : this.selected;
             const id = items[idx].id;
             if (id === "continue") { this.emitSound("start"); return { type: "continue" }; }
-            if (id === "trial") { this.emitSound("start"); return { type: "trial" }; }
             if (id === "start") { this.emitSound("start"); return { type: "start" }; }
             if (id === "chapters") { this.emitSound("confirm"); return { type: "openChapters" }; }
             if (id === "quit") { this.emitSound("back"); return { type: "quit" }; }
@@ -1149,6 +1147,9 @@ export class MenuRenderer {
         assistHintsEnabled: boolean = false,
         onToggleAssist?: () => void,
         safeUi: SafeInsets = ZERO_SAFE_INSETS,
+        isMaleRoguelike: boolean = false,
+        showLedgerEntry: boolean = false,
+        onOpenLedger?: () => void,
     ): MenuAction {
         this.time += dt;
         const frame = this.readFrame(input, uiScale, safeUi);
@@ -1180,7 +1181,9 @@ export class MenuRenderer {
         const allowFs = canToggleFullscreen();
         const allowQuit = canQuitApp();
         const pauseItems = PAUSE_ITEMS.filter(item =>
-            (item.id !== "fullscreen" || allowFs) && (item.id !== "quit" || allowQuit),
+            (item.id !== "fullscreen" || allowFs)
+            && (item.id !== "quit" || allowQuit)
+            && (item.id !== "ledger" || showLedgerEntry),
         );
         if (this.pauseSelected >= pauseItems.length) {
             this.pauseSelected = 0;
@@ -1223,7 +1226,9 @@ export class MenuRenderer {
             const shiftX = active ? 10 : 0;
             const item = pauseItems[i];
             let label = item.zh;
-            if (item.id === "assist") {
+            if (item.id === "retry" && isMaleRoguelike) {
+                label = "重开本轮护送";
+            } else if (item.id === "assist") {
                 label = assistHintsEnabled ? "按键辅助：开" : "按键辅助：关";
             } else if (item.id === "fullscreen") {
                 label = App.fullScreen ? "显示：全屏" : "显示：窗口";
@@ -1273,6 +1278,15 @@ export class MenuRenderer {
                 this.openPauseSettings();
                 this.emitSound("confirm");
                 return { type: "none" };
+            }
+            if (id === "ledger") {
+                if (onOpenLedger !== undefined) {
+                    onOpenLedger();
+                }
+                this.pauseShowControls = false;
+                this.pauseShowSettings = false;
+                this.emitSound("confirm");
+                return { type: "resume" };
             }
             if (id === "assist") {
                 if (onToggleAssist !== undefined) {

@@ -448,21 +448,22 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 			) -- 389
 			local footY = math.max(vp.safe.bottom + 14, 16) -- 391
 			local inOverlayModal = lastPlay ~= nil and (lastPlay.reloadOpen or lastPlay.craftBench.active) -- 392
-			local hint = inOverlayModal and "直接在上屏点按或一笔划连" or ((not ctx.gameplayActive or lastPlay ~= nil and lastPlay.paused) and "可点上屏菜单或用下方导航键" or (ctx.childMode and "左摇杆内圈轻步 · 蹲伏/轻步点按切换" or "左摇杆走位 · 点上屏或拖「开火」瞄射")) -- 393
-			texts:put( -- 400
-				"xs", -- 400
-				hint, -- 400
-				w * 0.5, -- 400
-				footY, -- 400
-				toColor(PALETTE.textDim), -- 400
-				0.5, -- 400
-				0.5, -- 400
-				"Center", -- 400
-				0.8, -- 400
-				0.78, -- 400
-				0.06 -- 400
-			) -- 400
-		end -- 400
+			local inChoiceModal = lastPlay ~= nil and (lastPlay.escortFailed or lastPlay.talentModalActive and #lastPlay:getStoryTalentOffers() > 0) -- 393
+			local hint = inOverlayModal and "直接在上屏点按或一笔划连" or ((not ctx.gameplayActive or lastPlay ~= nil and lastPlay.paused or inChoiceModal) and "可点上屏菜单或用下方导航键" or (ctx.childMode and "左摇杆内圈轻步 · 蹲伏/轻步点按切换" or "左摇杆走位 · 点上屏或拖「开火」瞄射")) -- 394
+			texts:put( -- 401
+				"xs", -- 401
+				hint, -- 401
+				w * 0.5, -- 401
+				footY, -- 401
+				toColor(PALETTE.textDim), -- 401
+				0.5, -- 401
+				0.5, -- 401
+				"Center", -- 401
+				0.8, -- 401
+				0.78, -- 401
+				0.06 -- 401
+			) -- 401
+		end -- 401
 	end -- 369
 } -- 369
 return ____exports -- 369

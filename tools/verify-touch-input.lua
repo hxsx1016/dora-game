@@ -1,7 +1,7 @@
 -- 统一触屏多指路由、复杂交互、Android 独立包退出策略与生命周期专项验收（target = "android" 纯触屏目标）：
 -- 覆盖：多指并发与鼠标合成事件隔离、2.5D 纵深与小满内圈慢走/防误蹲、推拉车握柄锁定、
 -- 空村投瓶拖拽与取消圈、3x3 换弹盘触控滑连与重画钮、选章两段确认、
--- 时间穿梭器按钮、护送试炼触控、Android BackButton 状态机与切后台防卡键。
+-- 时间穿梭器按钮、男主线折笺选卡与折戟小结触控、Android BackButton 状态机与切后台防卡键。
 
 local Dora = require("Dora")
 local Content = Dora.Content
@@ -30,7 +30,6 @@ local controlsCfg = require("Script.watch.controls_config")
 local Input = require("Script.watch.input").Input
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local createRun = require("Script.watch.run").createRun
-local createTrial = require("Script.watch.run").createTrial
 
 local pass = 0
 local function check(tag, cond)
@@ -73,7 +72,7 @@ input:setStageViewport(vp)
 fe:setStagePlacement(vp)
 input.settings.haptics = false
 
-local function syncTouch(screen, p, modeNum, runObj, talentBoxes)
+local function syncTouch(screen, p, modeNum, runObj, talentBoxes, deathBoxes)
 	return ctrl:syncContext({
 		viewport = vp,
 		mode = modeNum or 1,
@@ -91,6 +90,7 @@ local function syncTouch(screen, p, modeNum, runObj, talentBoxes)
 		isMuted = false,
 		isFullscreen = false,
 		storyTalentBoxes = talentBoxes or {},
+		escortDeathBoxes = deathBoxes,
 		dt = 1 / 60,
 	})
 end
@@ -246,7 +246,7 @@ pOutside:update(1 / 60, input)
 input:endStep()
 check("second tap cleanly ungrips cart", (not router.cartGripLatched) and (not pOutside.gripping))
 
--- 5. 男主线 escort1：3x3 换弹盘触控一笔滑连 + 时间穿梭器钮 + 三选一天赋卡点击
+-- 5. 男主线 escort1：居中央折笺三选一轻暂停直点 -> 选毕切回战斗浮钮 + 时间穿梭器钮 + 3x3 换弹盘滑连
 local escRun = createRun(20261124, "official", { childCleared = true, soldierCleared = true, artifactOwned = true, museumPhase = "done", museumSeen = true })
 escRun.story.route = "soldier"
 escRun.story.settled = true
@@ -254,7 +254,18 @@ local pEsc = new(play.Play, rooms.ESCORT1_ROOM, nil, escRun)
 fe:bindPlay(pEsc, W, H)
 router:clearRoomStates()
 local tBoxes = fe:getStoryTalentBoxes(pEsc, W, H, true)
-local ctxEsc = syncTouch("play", pEsc, 1, escRun, tBoxes)
+local ctxDraft = syncTouch("play", pEsc, 1, escRun, tBoxes)
+check("talent draft modal suppresses gameplay fire button", pEsc.talentModalActive and findBtn(ctxDraft, "fire") == nil)
+local tZone0 = findZone(ctxDraft, "talent:0")
+check("talent:0 rectZone registered", tZone0 ~= nil)
+router:injectTouch("began", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
+router:injectTouch("ended", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
+input:update()
+check("tapping talent card emits zoneTap without firing", input.touchZoneTap == "talent:0" and not input.fire.pressed)
+pEsc:chooseTalent(0)
+check("choosing talent exits folded-slip modal", not pEsc.talentModalActive and #pEsc:getStoryTalentOffers() == 0)
+
+local ctxEsc = syncTouch("play", pEsc, 1, escRun, {})
 local artBtn = findBtn(ctxEsc, "artifact")
 check("artifact button appears when artifactOwned=true", artBtn ~= nil)
 check("no dead flare button in soldier touch layout", findBtn(ctxEsc, "flare") == nil)
@@ -263,13 +274,6 @@ router:injectTouch("ended", 15, artBtn.x, artBtn.y, false)
 input:update()
 check("artifact tap emits artifactTogglePressed", input.artifactTogglePressed)
 check("toggleArtifactWeapon equips time_shuttler", pEsc:toggleArtifactWeapon() and pEsc.equippedWeapon == "time_shuttler")
-
-local tZone0 = findZone(ctxEsc, "talent:0")
-check("talent:0 rectZone registered", tZone0 ~= nil)
-router:injectTouch("began", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
-router:injectTouch("ended", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
-input:update()
-check("tapping talent card emits zoneTap without firing", input.touchZoneTap == "talent:0" and not input.fire.pressed)
 
 -- 触发 3x3 换弹并一笔触控滑连 0 -> 4 -> 8
 pEsc:submitFeIntent({ kind = "reloadOpen" })
@@ -316,17 +320,20 @@ router:injectTouch("ended", 19, st2x, st2y, false)
 input:update()
 check("second touch on same chapter confirms jump", act2.type == "jump")
 
--- 7. 护送试炼（mode === 2）触控上下文：天赋卡 + 暂停/结算按钮
-local trialRun = createTrial(42)
-local pTrial = new(play.Play, rooms.CAMPAIGN_ROOMS[1], nil, trialRun)
-local ctxTrialOffers = syncTouch("play", pTrial, 2, trialRun)
-check("trial mode offers expose clickable talent:0 zone", findZone(ctxTrialOffers, "talent:0") ~= nil)
-pTrial.paused = true
-local ctxTrialPaused = syncTouch("play", pTrial, 2, trialRun)
-check("trial mode pause exposes resume/retry/title zones",
-	findZone(ctxTrialPaused, "trial:resume") ~= nil
-	and findZone(ctxTrialPaused, "trial:retry") ~= nil
-	and findZone(ctxTrialPaused, "trial:title") ~= nil)
+-- 7. 男主线肉鸽「折戟山道」轮回小结触控热区：重整再赴 / 返回标题
+fe.screen = "play"
+pEsc.hp = 0
+pEsc:campaignFailed()
+check("escort defeat opens death summary modal", pEsc.escortFailed == true)
+local dBoxes = fe:getEscortDeathBoxes(pEsc, W, H)
+local ctxDeath = syncTouch("play", pEsc, 1, escRun, {}, dBoxes)
+local retryZ = findZone(ctxDeath, "escort:retry")
+local titleZ = findZone(ctxDeath, "escort:title")
+check("escort death summary exposes retry and title touch zones", retryZ ~= nil and titleZ ~= nil)
+router:injectTouch("began", 20, retryZ.rect.x + 20, retryZ.rect.y + 20, false)
+router:injectTouch("ended", 20, retryZ.rect.x + 20, retryZ.rect.y + 20, false)
+input:update()
+check("tapping escort:retry emits zoneTap without firing", input.touchZoneTap == "escort:retry" and not input.fire.pressed)
 
 -- 8. 触控配置切换与 BackButton 状态机（依托 app.start 完整钩子）
 local origOpacity = router.settings.touchOpacity

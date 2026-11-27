@@ -97,7 +97,7 @@ local inp = newInput()
 
 print("==== M2 前端合流全链路联合验收开始 ====")
 
--- ---------------------------------------------------------------- 1. 默认 11 插件优先级与运行时钩子
+-- ---------------------------------------------------------------- 1. 默认 12 插件优先级与运行时钩子
 do
 	local list = fe:getPlugins()
 	local expectedIds = {
@@ -112,6 +112,7 @@ do
 		"fe-06-well-museum",
 		"fe-02-reload-wheel",
 		"fe-02-craft-bench",
+		"fe-07-talent-draft",
 	}
 	local orderOk = (#list == #expectedIds)
 	if orderOk then
@@ -122,11 +123,11 @@ do
 			end
 		end
 	end
-	check("1.1 默认构造按分层优先级注册全部 11 枚插件", orderOk, "count=" .. tostring(#list))
+	check("1.1 默认构造按分层优先级注册全部 12 枚插件", orderOk, "count=" .. tostring(#list))
 
 	local p = new(play.Play, rooms.PROLOGUE_ROOM)
 	fe:bindPlay(p, 1280, 720)
-	check("1.2 watch.fe 自动同步全部 11 枚插件与底座钩子",
+	check("1.2 watch.fe 自动同步全部 12 枚插件与底座钩子",
 		runtimeHook.contract == fe.contract
 		and runtimeHook.audio == fe.audio
 		and runtimeHook.mingAudit == fe:getPlugin("fe03-ming-audit")
@@ -139,7 +140,8 @@ do
 		and runtimeHook.towerEndings == fe:getPlugin("fe-05-tower-endings")
 		and runtimeHook.wellMuseum == fe:getPlugin("fe-06-well-museum")
 		and runtimeHook.reloadWheel == fe:getPlugin("fe-02-reload-wheel")
-		and runtimeHook.craftBench == fe:getPlugin("fe-02-craft-bench"))
+		and runtimeHook.craftBench == fe:getPlugin("fe-02-craft-bench")
+		and runtimeHook.talentDraft == fe:getPlugin("fe-07-talent-draft"))
 
 	-- 全部 81 份离线音频资产目录可达（gate 30 + combat 11 + child 14 + tower 15 + museum 11）
 	local sampleLoops = {

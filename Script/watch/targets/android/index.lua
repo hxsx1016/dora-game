@@ -344,293 +344,295 @@ function AndroidTouchDriver.prototype.syncFrame(self, ctx) -- 163
 		isMuted = ctx.isMuted, -- 179
 		isFullscreen = false, -- 180
 		storyTalentBoxes = ctx.storyTalentBoxes, -- 181
-		dt = ctx.dt -- 182
-	}) -- 182
+		escortDeathBoxes = ctx.escortDeathBoxes, -- 182
+		ledgerButtonBox = ctx.ledgerButtonBox, -- 183
+		dt = ctx.dt -- 184
+	}) -- 184
 end -- 163
-function AndroidTouchDriver.prototype.renderOverlay(self) -- 186
-	local ____opt_0 = self.controls -- 187
-	if ____opt_0 ~= nil then -- 187
-		____opt_0:render(self.router) -- 187
-	end -- 187
-end -- 186
-function AndroidTouchDriver.prototype.clearTransient(self, keepTouchToggles) -- 190
-	self.router:releaseAll(keepTouchToggles) -- 191
-end -- 190
-function AndroidTouchDriver.prototype.vibrate(self, seconds) -- 194
-	self.router:vibrate(seconds) -- 195
-end -- 194
-function AndroidTouchDriver.prototype.shouldShowTouchControls(self, _input, _vp) -- 198
-	return true -- 199
-end -- 198
-function AndroidTouchDriver.prototype.getTouchRouter(self) -- 202
-	return self.router -- 203
-end -- 202
-function AndroidTouchDriver.prototype.getTouchControls(self) -- 206
-	return self.controls -- 207
-end -- 206
-function AndroidTouchDriver.prototype.injectTouch(self, phase, id, x, y, fromMouse) -- 210
-	self.router:injectTouch( -- 211
-		phase, -- 211
-		id, -- 211
-		x, -- 211
-		y, -- 211
-		fromMouse == true -- 211
-	) -- 211
-end -- 210
-function AndroidTouchDriver.prototype.pollInto(self, input) -- 214
-	input.inputMode = "touch" -- 215
-	local touch = self.router:consumeSnapshot() -- 216
-	if touch.hadRealTouch then -- 217
-		input.userInteracted = true -- 218
-	end -- 218
-	input.moveX = touch.moveX -- 221
-	input.moveY = touch.moveY -- 222
-	input:applyKeyHeld( -- 223
-		touch.jumpHeld, -- 224
-		touch.crouchHeld, -- 225
-		touch.coverHeld, -- 226
-		touch.interactHeld, -- 227
-		touch.aimHeld, -- 228
-		touch.fireHeld, -- 229
-		false, -- 230
-		false, -- 231
+function AndroidTouchDriver.prototype.renderOverlay(self) -- 188
+	local ____opt_0 = self.controls -- 189
+	if ____opt_0 ~= nil then -- 189
+		____opt_0:render(self.router) -- 189
+	end -- 189
+end -- 188
+function AndroidTouchDriver.prototype.clearTransient(self, keepTouchToggles) -- 192
+	self.router:releaseAll(keepTouchToggles) -- 193
+end -- 192
+function AndroidTouchDriver.prototype.vibrate(self, seconds) -- 196
+	self.router:vibrate(seconds) -- 197
+end -- 196
+function AndroidTouchDriver.prototype.shouldShowTouchControls(self, _input, _vp) -- 200
+	return true -- 201
+end -- 200
+function AndroidTouchDriver.prototype.getTouchRouter(self) -- 204
+	return self.router -- 205
+end -- 204
+function AndroidTouchDriver.prototype.getTouchControls(self) -- 208
+	return self.controls -- 209
+end -- 208
+function AndroidTouchDriver.prototype.injectTouch(self, phase, id, x, y, fromMouse) -- 212
+	self.router:injectTouch( -- 213
+		phase, -- 213
+		id, -- 213
+		x, -- 213
+		y, -- 213
+		fromMouse == true -- 213
+	) -- 213
+end -- 212
+function AndroidTouchDriver.prototype.pollInto(self, input) -- 216
+	input.inputMode = "touch" -- 217
+	local touch = self.router:consumeSnapshot() -- 218
+	if touch.hadRealTouch then -- 219
+		input.userInteracted = true -- 220
+	end -- 220
+	input.moveX = touch.moveX -- 223
+	input.moveY = touch.moveY -- 224
+	input:applyKeyHeld( -- 225
+		touch.jumpHeld, -- 226
+		touch.crouchHeld, -- 227
+		touch.coverHeld, -- 228
+		touch.interactHeld, -- 229
+		touch.aimHeld, -- 230
+		touch.fireHeld, -- 231
 		false, -- 232
 		false, -- 233
-		false -- 234
-	) -- 234
-	input:resetFrameSignals() -- 237
-	if touch.jumpPressed then -- 238
-		input.jump.pressed = true -- 238
-	end -- 238
-	if touch.interactPressed then -- 239
-		input.interact.pressed = true -- 239
-	end -- 239
-	if touch.firePressed then -- 240
-		input.fire.pressed = true -- 240
+		false, -- 234
+		false, -- 235
+		false -- 236
+	) -- 236
+	input:resetFrameSignals() -- 239
+	if touch.jumpPressed then -- 240
+		input.jump.pressed = true -- 240
 	end -- 240
-	if touch.pausePressed then -- 241
-		input.pause.pressed = true -- 241
+	if touch.interactPressed then -- 241
+		input.interact.pressed = true -- 241
 	end -- 241
-	if touch.retryPressed then -- 242
-		input.retry.pressed = true -- 242
+	if touch.firePressed then -- 242
+		input.fire.pressed = true -- 242
 	end -- 242
-	if touch.artifactPressed then -- 243
-		input.artifactTogglePressed = true -- 243
+	if touch.pausePressed then -- 243
+		input.pause.pressed = true -- 243
 	end -- 243
-	if touch.mutePressed then -- 244
-		input.muteTogglePressed = true -- 244
+	if touch.retryPressed then -- 244
+		input.retry.pressed = true -- 244
 	end -- 244
-	if touch.anyTapBegan then -- 245
-		input.splashSkipPressed = true -- 245
+	if touch.artifactPressed then -- 245
+		input.artifactTogglePressed = true -- 245
 	end -- 245
-	if touch.zoneTap ~= "" then -- 246
-		input.touchZoneTap = touch.zoneTap -- 246
+	if touch.mutePressed then -- 246
+		input.muteTogglePressed = true -- 246
 	end -- 246
-	input.navUp = touch.navUp -- 247
-	input.navDown = touch.navDown -- 248
-	input.navLeft = touch.navLeft -- 249
-	input.navRight = touch.navRight -- 250
-	input.navConfirm = touch.navConfirm -- 251
-	input.navBack = touch.navBack -- 252
-	input.craftConfirm = touch.navConfirm -- 253
-	input.craftCancel = touch.navBack -- 254
-	if touch.bottleCanceled then -- 255
-		input.bottleCanceled = true -- 256
-		input.aim.held = false -- 257
-		input.aim.pressed = false -- 258
-		input.aim.released = false -- 259
-	end -- 259
-	input.frameInteractPressed = input.interact.pressed -- 262
-	if touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside then -- 264
-		input.uiX = touch.uiX -- 265
-		input.uiY = touch.uiY -- 266
-		input.uiDx = touch.uiDx -- 267
-		input.uiDy = touch.uiDy -- 268
-		input.uiInside = touch.uiInside -- 269
-		input.uiHeld = touch.uiHeld -- 270
-		input.uiPressed = touch.uiPressed -- 271
-		input.uiReleased = touch.uiReleased -- 272
-		input.uiRightPressed = false -- 273
-		if touch.uiHeld or touch.uiPressed then -- 274
-			input.mdx = touch.uiDx -- 275
-			input.mdy = touch.uiDy -- 276
-			input.mx = touch.uiX -- 277
-			input.my = touch.uiY -- 278
-			input.inside = true -- 279
-		elseif touch.hasAim then -- 280
-			input.mdx = touch.aimX - input.mx -- 281
-			input.mdy = touch.aimY - input.my -- 282
-			input.mx = touch.aimX -- 283
-			input.my = touch.aimY -- 284
-			input.inside = true -- 285
-		else -- 285
-			input.mdx = 0 -- 287
-			input.mdy = 0 -- 288
-			input.inside = touch.uiInside -- 289
-		end -- 289
-		return -- 291
-	end -- 291
-	if touch.hasAim then -- 294
-		input.mdx = touch.aimX - input.mx -- 295
-		input.mdy = touch.aimY - input.my -- 296
-		input.mx = touch.aimX -- 297
-		input.my = touch.aimY -- 298
-		input.inside = true -- 299
-	else -- 299
-		input.mdx = 0 -- 301
-		input.mdy = 0 -- 302
-		input.inside = false -- 303
-	end -- 303
-	input.uiDx = 0 -- 305
-	input.uiDy = 0 -- 306
-	input.uiInside = false -- 307
-	input.uiHeld = false -- 308
-	input.uiPressed = false -- 309
-	input.uiReleased = false -- 310
-	input.uiRightPressed = false -- 311
-end -- 214
-____exports.TARGET = { -- 315
-	id = "android", -- 316
-	supportsKbm = false, -- 317
-	supportsTouch = true, -- 318
-	supportsGamepad = false, -- 319
-	supportsPortrait = true, -- 320
-	defaultInputMode = "touch", -- 321
-	supportedModes = {"touch"}, -- 322
-	modePrefOrder = {"touch"}, -- 323
-	controlsGuideTabs = {{mode = "touch", label = "触屏"}}, -- 324
-	getPlatformCaps = function(self) -- 326
-		local standaloneApk = isStandaloneApk() -- 327
-		local cfg = getReleaseConfig() -- 328
-		return { -- 329
-			kind = "android", -- 330
-			target = "android", -- 331
-			isDesktop = false, -- 332
-			isMobile = true, -- 333
-			isWeb = false, -- 334
-			isStandaloneAndroidApk = standaloneApk, -- 335
-			canToggleFullscreen = false, -- 336
-			canQuit = standaloneApk, -- 337
-			hasBackButton = true, -- 338
-			supportsHaptics = type(App.vibrate) == "function", -- 339
-			needsAudioUnlock = false, -- 340
-			isRelease = cfg ~= nil and cfg.isRelease == true, -- 341
-			defaultInputMode = "touch" -- 342
-		} -- 342
-	end, -- 326
-	canToggleFullscreen = function(self) -- 346
-		return false -- 347
-	end, -- 346
-	canQuitApp = function(self) -- 350
-		return isStandaloneApk() -- 351
-	end, -- 350
-	isReleaseMode = function(self) -- 354
-		local cfg = getReleaseConfig() -- 355
-		return cfg ~= nil and cfg.isRelease == true -- 356
-	end, -- 354
-	computeStageViewport = function(self, fullW, fullH) -- 359
-		return computeAdaptiveViewport(fullW, fullH) -- 360
-	end, -- 359
-	triggerHaptics = function(self, seconds, enabled) -- 363
-		triggerMobileHaptics(seconds, enabled) -- 364
-	end, -- 363
-	keyTagFor = function(self, action, _mode, _layout) -- 367
-		return keyTagTouch(action) -- 368
-	end, -- 367
-	adaptWorldKeyTag = function(self, rawKeyTag, _mode, _layout) -- 371
-		return adaptWorldKeyTagTouch(rawKeyTag) -- 372
-	end, -- 371
-	adaptHintSentence = function(self, text, _mode, _layout) -- 375
-		return adaptHintSentenceTouch(text) -- 376
-	end, -- 375
-	controlsGuideRows = function(self, _tab) -- 379
-		return ANDROID_GUIDE -- 380
-	end, -- 379
-	splashSkipHint = function(self, _mode, _layout) -- 383
-		return "轻触跳过" -- 384
-	end, -- 383
-	titleFooterHint = function(self, _mode, _layout) -- 387
-		return isStandaloneApk() and "轻触择项启程   ·   双击返回键退出" or "轻触择项启程" -- 388
-	end, -- 387
-	chapterFooterHint = function(self, _mode, _confirmTag) -- 393
-		return "轻触驿站预览   ·   再点或轻触入此卷章" -- 394
-	end, -- 393
-	pauseFooterHint = function(self, _mode, _layout) -- 397
-		return "轻触确认   ·   点「继续游戏」续行" -- 398
-	end, -- 397
-	settingsFooterHint = function(self, _mode, _layout) -- 401
-		return "轻触任意条目切换   ·   设置自动保存" -- 402
-	end, -- 401
-	controlsFooterRightHint = function(self, _mode) -- 405
-		return "暂歇菜单可调触控与声音" -- 406
-	end, -- 405
-	epilogueFooterHint = function(self, _mode, _layout) -- 409
-		return "轻触任一入口继续" -- 410
-	end, -- 409
-	trialSubHint = function(self, _mode, ended, seed) -- 413
-		return ("种子 " .. tostring(seed)) .. (ended and " · 点下方按钮再开或返回标题" or " · 点下方按钮继续/重开/返回标题") -- 414
-	end, -- 413
-	settingsRows = function(self) -- 417
-		return ANDROID_SETTINGS_ROWS -- 418
-	end, -- 417
-	settingsPauseLabel = function(self, _settings) -- 421
-		return "触控与声音" -- 422
-	end, -- 421
-	settingsHeaderTitle = function(self) -- 425
-		return "触控与声音" -- 426
-	end, -- 425
-	settingsHeaderSummary = function(self, _activeMode) -- 429
-		return "当前模式：触屏 · 操控与四通道音量实时生效" -- 430
-	end, -- 429
-	settingsValueText = function(self, rowId, settings, _activeMode) -- 433
-		if rowId == "aimAssist" then -- 434
-			return settings.aimAssist and "开" or "关" -- 434
-		end -- 434
-		if rowId == "touchOpacity" then -- 435
-			return opacityLabelOf(settings.touchOpacity) -- 435
-		end -- 435
-		if rowId == "touchScale" then -- 436
-			return scaleLabelOf(settings.touchScale) -- 436
+	if touch.anyTapBegan then -- 247
+		input.splashSkipPressed = true -- 247
+	end -- 247
+	if touch.zoneTap ~= "" then -- 248
+		input.touchZoneTap = touch.zoneTap -- 248
+	end -- 248
+	input.navUp = touch.navUp -- 249
+	input.navDown = touch.navDown -- 250
+	input.navLeft = touch.navLeft -- 251
+	input.navRight = touch.navRight -- 252
+	input.navConfirm = touch.navConfirm -- 253
+	input.navBack = touch.navBack -- 254
+	input.craftConfirm = touch.navConfirm -- 255
+	input.craftCancel = touch.navBack -- 256
+	if touch.bottleCanceled then -- 257
+		input.bottleCanceled = true -- 258
+		input.aim.held = false -- 259
+		input.aim.pressed = false -- 260
+		input.aim.released = false -- 261
+	end -- 261
+	input.frameInteractPressed = input.interact.pressed -- 264
+	if touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside then -- 266
+		input.uiX = touch.uiX -- 267
+		input.uiY = touch.uiY -- 268
+		input.uiDx = touch.uiDx -- 269
+		input.uiDy = touch.uiDy -- 270
+		input.uiInside = touch.uiInside -- 271
+		input.uiHeld = touch.uiHeld -- 272
+		input.uiPressed = touch.uiPressed -- 273
+		input.uiReleased = touch.uiReleased -- 274
+		input.uiRightPressed = false -- 275
+		if touch.uiHeld or touch.uiPressed then -- 276
+			input.mdx = touch.uiDx -- 277
+			input.mdy = touch.uiDy -- 278
+			input.mx = touch.uiX -- 279
+			input.my = touch.uiY -- 280
+			input.inside = true -- 281
+		elseif touch.hasAim then -- 282
+			input.mdx = touch.aimX - input.mx -- 283
+			input.mdy = touch.aimY - input.my -- 284
+			input.mx = touch.aimX -- 285
+			input.my = touch.aimY -- 286
+			input.inside = true -- 287
+		else -- 287
+			input.mdx = 0 -- 289
+			input.mdy = 0 -- 290
+			input.inside = touch.uiInside -- 291
+		end -- 291
+		return -- 293
+	end -- 293
+	if touch.hasAim then -- 296
+		input.mdx = touch.aimX - input.mx -- 297
+		input.mdy = touch.aimY - input.my -- 298
+		input.mx = touch.aimX -- 299
+		input.my = touch.aimY -- 300
+		input.inside = true -- 301
+	else -- 301
+		input.mdx = 0 -- 303
+		input.mdy = 0 -- 304
+		input.inside = false -- 305
+	end -- 305
+	input.uiDx = 0 -- 307
+	input.uiDy = 0 -- 308
+	input.uiInside = false -- 309
+	input.uiHeld = false -- 310
+	input.uiPressed = false -- 311
+	input.uiReleased = false -- 312
+	input.uiRightPressed = false -- 313
+end -- 216
+____exports.TARGET = { -- 317
+	id = "android", -- 318
+	supportsKbm = false, -- 319
+	supportsTouch = true, -- 320
+	supportsGamepad = false, -- 321
+	supportsPortrait = true, -- 322
+	defaultInputMode = "touch", -- 323
+	supportedModes = {"touch"}, -- 324
+	modePrefOrder = {"touch"}, -- 325
+	controlsGuideTabs = {{mode = "touch", label = "触屏"}}, -- 326
+	getPlatformCaps = function(self) -- 328
+		local standaloneApk = isStandaloneApk() -- 329
+		local cfg = getReleaseConfig() -- 330
+		return { -- 331
+			kind = "android", -- 332
+			target = "android", -- 333
+			isDesktop = false, -- 334
+			isMobile = true, -- 335
+			isWeb = false, -- 336
+			isStandaloneAndroidApk = standaloneApk, -- 337
+			canToggleFullscreen = false, -- 338
+			canQuit = standaloneApk, -- 339
+			hasBackButton = true, -- 340
+			supportsHaptics = type(App.vibrate) == "function", -- 341
+			needsAudioUnlock = false, -- 342
+			isRelease = cfg ~= nil and cfg.isRelease == true, -- 343
+			defaultInputMode = "touch" -- 344
+		} -- 344
+	end, -- 328
+	canToggleFullscreen = function(self) -- 348
+		return false -- 349
+	end, -- 348
+	canQuitApp = function(self) -- 352
+		return isStandaloneApk() -- 353
+	end, -- 352
+	isReleaseMode = function(self) -- 356
+		local cfg = getReleaseConfig() -- 357
+		return cfg ~= nil and cfg.isRelease == true -- 358
+	end, -- 356
+	computeStageViewport = function(self, fullW, fullH) -- 361
+		return computeAdaptiveViewport(fullW, fullH) -- 362
+	end, -- 361
+	triggerHaptics = function(self, seconds, enabled) -- 365
+		triggerMobileHaptics(seconds, enabled) -- 366
+	end, -- 365
+	keyTagFor = function(self, action, _mode, _layout) -- 369
+		return keyTagTouch(action) -- 370
+	end, -- 369
+	adaptWorldKeyTag = function(self, rawKeyTag, _mode, _layout) -- 373
+		return adaptWorldKeyTagTouch(rawKeyTag) -- 374
+	end, -- 373
+	adaptHintSentence = function(self, text, _mode, _layout) -- 377
+		return adaptHintSentenceTouch(text) -- 378
+	end, -- 377
+	controlsGuideRows = function(self, _tab) -- 381
+		return ANDROID_GUIDE -- 382
+	end, -- 381
+	splashSkipHint = function(self, _mode, _layout) -- 385
+		return "轻触跳过" -- 386
+	end, -- 385
+	titleFooterHint = function(self, _mode, _layout) -- 389
+		return isStandaloneApk() and "轻触择项启程   ·   双击返回键退出" or "轻触择项启程" -- 390
+	end, -- 389
+	chapterFooterHint = function(self, _mode, _confirmTag) -- 395
+		return "轻触驿站预览   ·   再点或轻触入此卷章" -- 396
+	end, -- 395
+	pauseFooterHint = function(self, _mode, _layout) -- 399
+		return "轻触确认   ·   点「继续游戏」续行" -- 400
+	end, -- 399
+	settingsFooterHint = function(self, _mode, _layout) -- 403
+		return "轻触任意条目切换   ·   设置自动保存" -- 404
+	end, -- 403
+	controlsFooterRightHint = function(self, _mode) -- 407
+		return "暂歇菜单可调触控与声音" -- 408
+	end, -- 407
+	epilogueFooterHint = function(self, _mode, _layout) -- 411
+		return "轻触任一入口继续" -- 412
+	end, -- 411
+	trialSubHint = function(self, _mode, ended, seed) -- 415
+		return ("种子 " .. tostring(seed)) .. (ended and " · 点下方按钮再开或返回标题" or " · 点下方按钮继续/重开/返回标题") -- 416
+	end, -- 415
+	settingsRows = function(self) -- 419
+		return ANDROID_SETTINGS_ROWS -- 420
+	end, -- 419
+	settingsPauseLabel = function(self, _settings) -- 423
+		return "触控与声音" -- 424
+	end, -- 423
+	settingsHeaderTitle = function(self) -- 427
+		return "触控与声音" -- 428
+	end, -- 427
+	settingsHeaderSummary = function(self, _activeMode) -- 431
+		return "当前模式：触屏 · 操控与四通道音量实时生效" -- 432
+	end, -- 431
+	settingsValueText = function(self, rowId, settings, _activeMode) -- 435
+		if rowId == "aimAssist" then -- 436
+			return settings.aimAssist and "开" or "关" -- 436
 		end -- 436
-		if rowId == "haptics" then -- 437
-			return settings.haptics and "开" or "关" -- 437
+		if rowId == "touchOpacity" then -- 437
+			return opacityLabelOf(settings.touchOpacity) -- 437
 		end -- 437
-		return volumeSettingText(rowId, settings) -- 438
-	end, -- 433
-	applySettingsDelta = function(self, rowId, delta, settings, input) -- 441
-		if rowId == "back" then -- 442
-			return "back" -- 442
-		end -- 442
-		if rowId == "aimAssist" then -- 443
-			settings.aimAssist = not settings.aimAssist -- 444
-			saveControlSettings(settings) -- 445
-			return "control" -- 446
-		end -- 446
-		if rowId == "touchOpacity" then -- 448
-			settings.touchOpacity = nextStepValue(settings.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 449
-			saveControlSettings(settings) -- 450
-			return "control" -- 451
-		end -- 451
-		if rowId == "touchScale" then -- 453
-			settings.touchScale = nextStepValue(settings.touchScale, TOUCH_SCALE_STEPS, delta) -- 454
-			saveControlSettings(settings) -- 455
-			return "control" -- 456
-		end -- 456
-		if rowId == "haptics" then -- 458
-			settings.haptics = not settings.haptics -- 459
-			saveControlSettings(settings) -- 460
-			if settings.haptics then -- 461
-				input:vibrate(0.018) -- 462
-			end -- 462
-			return "control" -- 464
-		end -- 464
-		if applyVolumeSetting(rowId, delta, settings) then -- 466
-			return "audio" -- 466
+		if rowId == "touchScale" then -- 438
+			return scaleLabelOf(settings.touchScale) -- 438
+		end -- 438
+		if rowId == "haptics" then -- 439
+			return settings.haptics and "开" or "关" -- 439
+		end -- 439
+		return volumeSettingText(rowId, settings) -- 440
+	end, -- 435
+	applySettingsDelta = function(self, rowId, delta, settings, input) -- 443
+		if rowId == "back" then -- 444
+			return "back" -- 444
+		end -- 444
+		if rowId == "aimAssist" then -- 445
+			settings.aimAssist = not settings.aimAssist -- 446
+			saveControlSettings(settings) -- 447
+			return "control" -- 448
+		end -- 448
+		if rowId == "touchOpacity" then -- 450
+			settings.touchOpacity = nextStepValue(settings.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 451
+			saveControlSettings(settings) -- 452
+			return "control" -- 453
+		end -- 453
+		if rowId == "touchScale" then -- 455
+			settings.touchScale = nextStepValue(settings.touchScale, TOUCH_SCALE_STEPS, delta) -- 456
+			saveControlSettings(settings) -- 457
+			return "control" -- 458
+		end -- 458
+		if rowId == "haptics" then -- 460
+			settings.haptics = not settings.haptics -- 461
+			saveControlSettings(settings) -- 462
+			if settings.haptics then -- 463
+				input:vibrate(0.018) -- 464
+			end -- 464
+			return "control" -- 466
 		end -- 466
-		return "none" -- 467
-	end, -- 441
-	createDriver = function(self, settings) -- 470
-		return __TS__New(AndroidTouchDriver, settings) -- 471
-	end -- 470
-} -- 470
-return ____exports -- 470
+		if applyVolumeSetting(rowId, delta, settings) then -- 468
+			return "audio" -- 468
+		end -- 468
+		return "none" -- 469
+	end, -- 443
+	createDriver = function(self, settings) -- 472
+		return __TS__New(AndroidTouchDriver, settings) -- 473
+	end -- 472
+} -- 472
+return ____exports -- 472
