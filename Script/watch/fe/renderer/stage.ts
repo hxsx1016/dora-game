@@ -75,6 +75,19 @@ function coverArt(solid: SolidSpec): AssetSlotKey {
     return solid.label.indexOf("柜") >= 0 || solid.label.indexOf("货") >= 0 ? "cover_wood" : "cover_stone";
 }
 
+const GUARD_LANTERN_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|guard_lantern_0",
+    "assets/art/actors_enemies_anim.clip|guard_lantern_1",
+    "assets/art/actors_enemies_anim.clip|guard_lantern_2",
+    "assets/art/actors_enemies_anim.clip|guard_lantern_3",
+];
+const GUARD_WRITE_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|guard_write_0",
+    "assets/art/actors_enemies_anim.clip|guard_write_1",
+    "assets/art/actors_enemies_anim.clip|guard_write_2",
+    "assets/art/actors_enemies_anim.clip|guard_write_3",
+];
+
 function tintByShade(base: Color.Type, shade: number): Color.Type {
     return Color(
         Math.max(0, Math.min(255, Math.round(base.r * shade))),
@@ -146,20 +159,19 @@ export class StageRenderer {
     ): void {
         const w = cam.viewW;
         const x = w * (0.76 - progress * 0.24);
-        // 所有中景装饰统一落脚在 backRoadY 路面后缘，杜绝悬空浮游
+        // 所有中景装饰统一落脚在 backRoadY 路面后缘，杜绝悬空浮游；
+        // prologue / village / checkpoint 已由高精暗黑像素底图自带完整建筑群，不再叠放半透明旧 eaves 矩形块。
         if (backdropKey === "forest" || backdropKey === "outside" || backdropKey === "tower") {
             assets.tryPlace("pine", "mid_pine", x, backRoadY - cam.len(4), cam.len(118), cam.len(104),
                 { layer: 1, opacity: 0.48 });
-        } else if (backdropKey === "prologue" || backdropKey === "village" || backdropKey === "checkpoint") {
-            assets.tryPlace("eaves", "mid_eaves", x, backRoadY - cam.len(4), cam.len(172), cam.len(94),
-                { layer: 1, opacity: 0.44 });
-        } else if (backdropKey !== "gate") {
+        } else if (backdropKey === "street") {
             assets.tryPlace("dp_ruin_house_a", "mid_ruin", x, backRoadY - cam.len(4), cam.len(132), cam.len(118),
                 { layer: 1, opacity: 0.42 });
         }
         if (backdropKey === "street" || backdropKey === "checkpoint" || backdropKey === "prologue") {
+            const lanternSway = Math.sin(progress * 6 + cam.x * 0.004) * 2.5;
             assets.tryPlace("prop_lantern", "mid_lantern", w * (0.27 - progress * 0.20),
-                backRoadY + cam.len(86), cam.len(20), cam.len(28), { layer: 2, opacity: 0.86 });
+                backRoadY + cam.len(86), cam.len(20), cam.len(28), { layer: 2, opacity: 0.86, angle: lanternSway });
         }
     }
 
@@ -953,37 +965,44 @@ export class StageRenderer {
         x0: number, y0: number, sw: number, sh: number,
         s: SolidSpec, p: Play, cam: CameraDirector, time: number,
     ): void {
-        fillVGradRect(fgDraw, x0, y0, sw, sh, Color(15, 21, 34, 255), Color(32, 44, 66, 255));
-        fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.4, toColor(PALETTE.rimSilver, 165));
+        // 塔门实体由下方「门楣」统一根据开合态放置 prop_tower_door；绝不叠绘裸露灰盒矩形框
+        if (s.id === "tower_door") {
+            return;
+        }
+        fillVGradRect(fgDraw, x0, y0, sw, sh, Color(14, 19, 30, 255), Color(26, 36, 54, 255));
+        fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.0, Color(42, 54, 72, 145));
 
         if (s.label.indexOf("塔身") >= 0) {
             this.tileMasonry(assets, s, x0, y0, sw, sh);
-            // 纪念碑式北塔墙面：竖向石肋、横梁与狭长暖光观察窗缝
-            const ribs = 4;
-            let r = 1;
-            for (r = 1; r < ribs; r++) {
-                const rx = x0 + (sw * r) / ribs;
-                fgDraw.drawSegment(Vec2(rx, y0), Vec2(rx, y0 + sh), 2, Color(10, 15, 24, 210));
-                fgDraw.drawSegment(Vec2(rx + 2, y0), Vec2(rx + 2, y0 + sh), 1, Color(68, 86, 114, 130));
+            if (s.w >= 60) {
+                // 纪念碑式北塔墙面：竖向石肋、横梁与狭长暖光观察窗缝
+                const ribs = 4;
+                let r = 1;
+                for (r = 1; r < ribs; r++) {
+                    const rx = x0 + (sw * r) / ribs;
+                    fgDraw.drawSegment(Vec2(rx, y0), Vec2(rx, y0 + sh), 2, Color(10, 15, 24, 210));
+                    fgDraw.drawSegment(Vec2(rx + 2, y0), Vec2(rx + 2, y0 + sh), 1, Color(68, 86, 114, 130));
+                }
+                // 横向石砌分层线
+                const bands = 4;
+                let b = 1;
+                for (b = 1; b < bands; b++) {
+                    const by = y0 + (sh * b) / bands;
+                    fgDraw.drawSegment(Vec2(x0 + 4, by), Vec2(x0 + sw - 4, by), 1.2, Color(52, 68, 92, 135));
+                }
+                // 塔壁狭长暖灯观察窗
+                const slitX = s.x < 400 ? x0 + sw * 0.62 : x0 + sw * 0.34;
+                const slitY = y0 + sh * 0.56;
+                const slitH = sh * 0.22;
+                fgDraw.drawRect(Rect(slitX - 5, slitY, 10, slitH), Color(8, 12, 20, 245), 1.2, toColor(PALETTE.amberDim, 190));
+                fgGlow.drawRect(Rect(slitX - 2, slitY + 4, 4, slitH - 8), toColor(PALETTE.amber, 190));
+                fillRadialGlow(fgGlow, slitX, slitY + slitH * 0.5, 44, slitH * 0.7, Color(255, 206, 128, 52), Color(255, 180, 86, 0), 14);
             }
-            // 横向石砌分层线
-            const bands = 4;
-            let b = 1;
-            for (b = 1; b < bands; b++) {
-                const by = y0 + (sh * b) / bands;
-                fgDraw.drawSegment(Vec2(x0 + 4, by), Vec2(x0 + sw - 4, by), 1.2, Color(52, 68, 92, 135));
-            }
-            // 塔壁狭长暖灯观察窗
-            const slitX = s.x < 400 ? x0 + sw * 0.62 : x0 + sw * 0.34;
-            const slitY = y0 + sh * 0.56;
-            const slitH = sh * 0.22;
-            fgDraw.drawRect(Rect(slitX - 5, slitY, 10, slitH), Color(8, 12, 20, 245), 1.2, toColor(PALETTE.amberDim, 190));
-            fgGlow.drawRect(Rect(slitX - 2, slitY + 4, 4, slitH - 8), toColor(PALETTE.amber, 190));
-            fillRadialGlow(fgGlow, slitX, slitY + slitH * 0.5, 44, slitH * 0.7, Color(255, 206, 128, 52), Color(255, 180, 86, 0), 14);
         }
 
         // 门楣下方温暖圣殿灯火（开门时灯光骤然敞开铺满门廊！）
         if (s.label.indexOf("门楣") >= 0) {
+            this.tileMasonry(assets, s, x0, y0, sw, sh);
             const opened = p.towerDoorOpen
                 || p.phase === "tower-enter"
                 || p.phase === "tower-desk"
@@ -1027,13 +1046,14 @@ export class StageRenderer {
                 // 值夜室暖光背景
                 fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26), cam.len(96), cam.len(74),
                     Color(255, 198, 114, Math.round(52 * pulse)), Color(255, 168, 72, 0), 16);
-                // 值夜守卒手绘精灵（立于木案右后方；交物后切换伏案登记姿态）
+                // 值夜守卒高精像素 4 帧活态动画（提灯轻摆呼吸 / 伏案执笔书录）
                 const guardX = deskCx + cam.len(26);
+                const guardFrame = Math.floor(time * (writing ? 3.2 : 3.8)) % 4;
                 const guardClip = writing
-                    ? "assets/art/actors_extra.clip|tower_guard_write"
-                    : "assets/art/actors_extra.clip|tower_guard_lantern";
-                if (!assets.tryPlacePath(guardClip, "tower_guard_npc", guardX, groundY, cam.len(54), cam.len(84), {
-                    anchorX: 0.44,
+                    ? GUARD_WRITE_CLIPS[guardFrame]
+                    : GUARD_LANTERN_CLIPS[guardFrame];
+                if (!assets.tryPlacePath(guardClip, "tower_guard_npc", guardX, groundY, cam.len(54), cam.len(86), {
+                    anchorX: 0.5,
                     anchorY: 0,
                     preserveAspect: true,
                     facing: -1,

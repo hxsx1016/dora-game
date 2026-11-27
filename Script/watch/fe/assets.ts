@@ -64,6 +64,9 @@ export interface SpritePlacement {
     frame?: number;
     angle?: number;
     layer?: number;
+    /** 次级物理挤压拉伸倍率（转向弹性、起跳拉伸、落地缓冲） */
+    scaleXMul?: number;
+    scaleYMul?: number;
 }
 
 export interface PathPlacementOptions extends SpritePlacement {
@@ -526,8 +529,10 @@ export class AssetSlotHost {
         if (textureRect !== undefined) {
             sprite.textureRect = textureRect;
         }
-        const scaleY = targetH / Math.max(1, textureRect?.height ?? sprite.height);
-        const scaleX = preserveAspect ? scaleY : targetW / Math.max(1, sprite.width);
+        const baseScaleY = targetH / Math.max(1, textureRect?.height ?? sprite.height);
+        const baseScaleX = preserveAspect ? baseScaleY : targetW / Math.max(1, sprite.width);
+        const scaleX = baseScaleX * (options.scaleXMul ?? 1);
+        const scaleY = baseScaleY * (options.scaleYMul ?? 1);
         sprite.anchor = Vec2(anchorX, anchorY);
         sprite.position = textureRect === undefined ? Vec2(Math.round(x), Math.round(y)) : Vec2(x, y);
         sprite.scaleX = (options.facing ?? 1) < 0 ? -scaleX : scaleX;

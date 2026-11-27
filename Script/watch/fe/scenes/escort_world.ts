@@ -160,15 +160,26 @@ export class EscortWorldRenderer {
                 Color(232, 186, 126, 0), 18);
         }
 
-        // 2. 贯穿全线的远景「宁村北塔与西窗暖灯」（escort2 透窗见灯，其余五段直映山脊）
-        const ridgePath = "assets/art/bg_escort_ridge.png";
-        const ridge = backdropArt.currentSprite("ming_fallback_scene", ridgePath) ?? backdropArt.currentSprite("scene", ridgePath);
+        // 2. 贯穿全线的远景「宁村北塔与西窗暖灯」（escort2 透窗见灯；已含手绘北塔的底图直接锚定西窗灯火，绝不叠画第二座几何塔）
+        const paintedTowerSources: readonly { path: string; px: number; py: number }[] = [
+            { path: "assets/art/bg_escort_ridge.png", px: 568, py: 51 },
+            { path: "assets/art/forest.png", px: 538, py: 99 },
+            { path: "assets/art/tower.png", px: 433, py: 132 },
+        ];
         let paintedWindow: Vec2.Type | undefined;
-        if (ridge !== undefined && ridge.visible && ridge.opacity > 0) {
-            // 西窗在 640×360 底图的 (568, 51)，图片坐标从左上起算。
-            const x = ridge.x + (568 / 640 - ridge.anchor.x) * ridge.width * ridge.scaleX;
-            const y = ridge.y + (1 - 51 / 360 - ridge.anchor.y) * ridge.height * ridge.scaleY;
-            if (x >= 0 && x <= w && y >= 0 && y <= h) paintedWindow = Vec2(x, y);
+        for (let si = 0; si < paintedTowerSources.length; si++) {
+            const src = paintedTowerSources[si];
+            const sp = backdropArt.currentSprite("ming_fallback_scene", src.path)
+                ?? backdropArt.currentSprite("scene", src.path);
+            if (sp !== undefined && sp.visible && sp.opacity > 0) {
+                // 640×360 底图坐标从左上起算，映射至当前屏幕坐标。
+                const x = sp.x + (src.px / 640 - sp.anchor.x) * sp.width * sp.scaleX;
+                const y = sp.y + (1 - src.py / 360 - sp.anchor.y) * sp.height * sp.scaleY;
+                if (x >= 0 && x <= w && y >= 0 && y <= h) {
+                    paintedWindow = Vec2(x, y);
+                    break;
+                }
+            }
         }
         this.drawDistantNorthTower(towerDraw, bgGlow, w, h, cam.x, time, spec, dynamicDawn, key === "escort2", paintedWindow);
 
@@ -573,20 +584,7 @@ export class EscortWorldRenderer {
         worldArt.tryPlace("sh_stele_banner", "e1_banner_b", cam.sx(ox + 1245), backY, cam.len(60), cam.len(66), {
             layer: backLayer, opacity: 0.88, facing: -1,
         });
-        // 巷道边缘暗黑铁艺火盆精灵（替换昔日纯色梯形多边形火盆）
-        const emberSpots = [285, 860];
-        for (let i = 0; i < emberSpots.length; i++) {
-            const bx = cam.sx(ox + emberSpots[i]);
-            const pulse = 0.82 + 0.18 * Math.sin(time * 4.2 + i * 1.9);
-            worldArt.tryPlace("dp_shadow_contact", "e1_brazier_sh_" + i, bx, backY + 1, cam.len(26), cam.len(7), {
-                layer: backLayer - 1, opacity: 0.76,
-            });
-            worldArt.tryPlace("dp_brazier", "e1_brazier_" + i, bx, backY, cam.len(26), cam.len(30), {
-                layer: backLayer + 1,
-            });
-            fillRadialGlow(fgGlow, bx, backY + cam.len(22), cam.len(52), cam.len(40),
-                Color(226, 116, 52, Math.round(68 * pulse)), Color(226, 116, 52, 0), 14);
-        }
+        // 巷道边缘火盆（x=285 / 860, depth=LANE_DEPTH.upper+14）已交由 SceneFxSystem 统一使用 dp_brazier + 4 帧像素火焰与升腾火星渲染，避免双份重绘。
     }
 
     private drawEscort2Setpieces(
