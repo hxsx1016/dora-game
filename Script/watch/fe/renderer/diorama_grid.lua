@@ -12,264 +12,267 @@ local Grid = ____Dora.Grid -- 12
 local Node = ____Dora.Node -- 12
 local Sprite = ____Dora.Sprite -- 12
 local Vec2 = ____Dora.Vec2 -- 12
-local WHITE = Color(255, 255, 255, 255) -- 95
-local NORMAL_BLEND = BlendFunc("SrcAlpha", "InvSrcAlpha") -- 96
-local ADDITIVE_BLEND = BlendFunc("SrcAlpha", "One") -- 97
-local function fileOfClip(clipStr) -- 99
-	local idx = (string.find(clipStr, "|", nil, true) or 0) - 1 -- 100
-	return idx < 0 and clipStr or __TS__StringSlice(clipStr, 0, idx) -- 101
-end -- 99
-____exports.DioramaLayerHost = __TS__Class() -- 104
-local DioramaLayerHost = ____exports.DioramaLayerHost -- 104
-DioramaLayerHost.name = "DioramaLayerHost" -- 104
-function DioramaLayerHost.prototype.____constructor(self, parent, order) -- 122
-	self.unavailable = {} -- 106
-	self.gridPools = {} -- 109
-	self.gridCursor = {} -- 110
-	self.spritePools = {} -- 113
-	self.spriteCursor = {} -- 114
-	self.drawPool = {} -- 117
-	self.drawCursor = 0 -- 118
-	self.orderCounter = 0 -- 120
-	self.container = Node() -- 123
-	self.container.order = order -- 124
-	self.container:addTo(parent) -- 125
-end -- 122
-function DioramaLayerHost.prototype.beginFrame(self) -- 129
-	self.gridCursor = {} -- 130
-	self.spriteCursor = {} -- 131
-	self.drawCursor = 0 -- 132
-	self.orderCounter = 0 -- 133
-end -- 129
-function DioramaLayerHost.prototype.nextOrder(self) -- 137
-	local cur = self.orderCounter -- 138
-	self.orderCounter = self.orderCounter + 1 -- 139
-	return cur -- 140
-end -- 137
-function DioramaLayerHost.prototype.acquireDrawRun(self, order) -- 144
-	local node = self.drawPool[self.drawCursor + 1] -- 145
-	if node == nil then -- 145
-		node = DrawNode() -- 147
-		node:addTo(self.container) -- 148
-		self.drawPool[self.drawCursor + 1] = node -- 149
-	end -- 149
-	self.drawCursor = self.drawCursor + 1 -- 151
-	node:clear() -- 152
-	node.order = order -- 153
-	node.visible = true -- 154
-	return node -- 155
-end -- 144
-function DioramaLayerHost.prototype.placeTexturedQuad(self, params) -- 163
-	if params.opacity <= 0.008 then -- 163
-		return false -- 165
-	end -- 165
-	local segX = math.max( -- 167
-		1, -- 167
-		math.min( -- 167
-			12, -- 167
-			math.floor(params.segX) -- 167
-		) -- 167
-	) -- 167
-	local segY = math.max( -- 168
+local WHITE = Color(255, 255, 255, 255) -- 96
+local NORMAL_BLEND = BlendFunc("SrcAlpha", "InvSrcAlpha") -- 97
+local ADDITIVE_BLEND = BlendFunc("SrcAlpha", "One") -- 98
+local function fileOfClip(clipStr) -- 100
+	local idx = (string.find(clipStr, "|", nil, true) or 0) - 1 -- 101
+	return idx < 0 and clipStr or __TS__StringSlice(clipStr, 0, idx) -- 102
+end -- 100
+____exports.DioramaLayerHost = __TS__Class() -- 105
+local DioramaLayerHost = ____exports.DioramaLayerHost -- 105
+DioramaLayerHost.name = "DioramaLayerHost" -- 105
+function DioramaLayerHost.prototype.____constructor(self, parent, order) -- 123
+	self.unavailable = {} -- 107
+	self.gridPools = {} -- 110
+	self.gridCursor = {} -- 111
+	self.spritePools = {} -- 114
+	self.spriteCursor = {} -- 115
+	self.drawPool = {} -- 118
+	self.drawCursor = 0 -- 119
+	self.orderCounter = 0 -- 121
+	self.container = Node() -- 124
+	self.container.order = order -- 125
+	self.container:addTo(parent) -- 126
+end -- 123
+function DioramaLayerHost.prototype.beginFrame(self) -- 130
+	self.gridCursor = {} -- 131
+	self.spriteCursor = {} -- 132
+	self.drawCursor = 0 -- 133
+	self.orderCounter = 0 -- 134
+end -- 130
+function DioramaLayerHost.prototype.nextOrder(self) -- 138
+	local cur = self.orderCounter -- 139
+	self.orderCounter = self.orderCounter + 1 -- 140
+	return cur -- 141
+end -- 138
+function DioramaLayerHost.prototype.acquireDrawRun(self, order) -- 145
+	local node = self.drawPool[self.drawCursor + 1] -- 146
+	if node == nil then -- 146
+		node = DrawNode() -- 148
+		node:addTo(self.container) -- 149
+		self.drawPool[self.drawCursor + 1] = node -- 150
+	end -- 150
+	self.drawCursor = self.drawCursor + 1 -- 152
+	node:clear() -- 153
+	node.order = order -- 154
+	node.visible = true -- 155
+	return node -- 156
+end -- 145
+function DioramaLayerHost.prototype.placeTexturedQuad(self, params) -- 164
+	if params.opacity <= 0.008 then -- 164
+		return false -- 166
+	end -- 166
+	local segX = math.max( -- 168
 		1, -- 168
 		math.min( -- 168
-			8, -- 168
-			math.floor(params.segY) -- 168
+			12, -- 168
+			math.floor(params.segX) -- 168
 		) -- 168
 	) -- 168
-	local add = params.additive == true -- 169
-	local poolKey = ((((params.clipStr .. "#") .. tostring(segX)) .. "x") .. tostring(segY)) .. (add and ":add" or "") -- 170
-	if self.unavailable[params.clipStr] == true then -- 170
-		return false -- 173
-	end -- 173
-	local bucket = self.gridPools[poolKey] -- 176
-	if bucket == nil then -- 176
-		bucket = {} -- 178
-		self.gridPools[poolKey] = bucket -- 179
-	end -- 179
-	local idx = self.gridCursor[poolKey] or 0 -- 181
-	local entry = bucket[idx + 1] -- 182
-	if entry == nil then -- 182
-		local file = fileOfClip(params.clipStr) -- 184
-		if not Content:exist(file) then -- 184
-			self.unavailable[params.clipStr] = true -- 186
-			return false -- 187
-		end -- 187
-		local grid = Grid(params.clipStr, segX, segY) -- 189
-		if grid == nil then -- 189
-			self.unavailable[params.clipStr] = true -- 191
-			return false -- 192
-		end -- 192
-		grid.position = Vec2(0, 0) -- 194
-		grid.blendFunc = add and ADDITIVE_BLEND or NORMAL_BLEND -- 195
-		grid:addTo(self.container) -- 196
-		entry = { -- 197
-			node = grid, -- 197
-			clipStr = params.clipStr, -- 197
-			segX = segX, -- 197
-			segY = segY, -- 197
-			additive = add -- 197
-		} -- 197
-		bucket[idx + 1] = entry -- 198
-	end -- 198
-	self.gridCursor[poolKey] = idx + 1 -- 200
-	local grid = entry.node -- 202
-	local ____params_0 = params -- 203
-	local v0 = ____params_0.v0 -- 203
-	local v1 = ____params_0.v1 -- 203
-	local v2 = ____params_0.v2 -- 203
-	local v3 = ____params_0.v3 -- 203
-	local projector = ____params_0.projector -- 203
-	local wave = ____params_0.wave -- 203
-	local iy = 1 -- 206
-	do -- 206
-		iy = 1 -- 207
-		while iy <= segY + 1 do -- 207
-			local vTop = (iy - 1) / segY -- 208
-			local vBot = 1 - vTop -- 209
-			local lx = v3.x * vBot + v0.x * vTop -- 211
-			local ly = v3.y * vBot + v0.y * vTop -- 212
-			local lz = v3.z * vBot + v0.z * vTop -- 213
-			local rx = v2.x * vBot + v1.x * vTop -- 214
-			local ry = v2.y * vBot + v1.y * vTop -- 215
-			local rz = v2.z * vBot + v1.z * vTop -- 216
-			local ix = 1 -- 218
-			do -- 218
-				ix = 1 -- 219
-				while ix <= segX + 1 do -- 219
-					local u = (ix - 1) / segX -- 220
-					local wx = lx + (rx - lx) * u -- 221
-					local wy = ly + (ry - ly) * u -- 222
-					local wz = lz + (rz - lz) * u -- 223
-					local pt = projector:project(wx, wy, wz) -- 224
-					local sx = pt.x -- 225
-					local sy = pt.y -- 226
-					if wave ~= nil then -- 226
-						local weight = 1 -- 228
-						if wave.pin == "top" then -- 228
-							weight = vTop * vTop -- 230
-						elseif wave.pin == "left" then -- 230
-							weight = u * u -- 232
-						end -- 232
-						local ang = wave.phase + u * wave.freqU + vTop * wave.freqV -- 234
-						sx = sx + math.sin(ang) * wave.ampX * weight * pt.scale -- 235
-						sy = sy + math.cos(ang * 0.85) * wave.ampY * weight * pt.scale -- 236
-					end -- 236
-					grid:setPos( -- 238
-						ix, -- 238
-						iy, -- 238
-						Vec2(sx, sy) -- 238
-					) -- 238
-					ix = ix + 1 -- 219
-				end -- 219
-			end -- 219
-			iy = iy + 1 -- 207
-		end -- 207
-	end -- 207
-	grid.order = params.order -- 242
-	grid.color = params.tintColor -- 243
-	local baseA = params.tintColor.a / 255 -- 244
-	grid.opacity = math.max( -- 245
-		0, -- 245
-		math.min(1, baseA * params.opacity) -- 245
-	) -- 245
-	grid.visible = true -- 246
-	return true -- 247
-end -- 163
-function DioramaLayerHost.prototype.placeCutoutCard(self, params) -- 251
-	local op = params.opacity or 1 -- 252
-	if op <= 0.008 or params.targetW <= 0.5 or params.targetH <= 0.5 then -- 252
-		return false -- 254
-	end -- 254
-	if self.unavailable[params.clipStr] == true then -- 254
-		return false -- 257
-	end -- 257
-	local smooth = params.smooth ~= false -- 259
-	local add = params.additive == true -- 260
-	local poolKey = (params.clipStr .. (smooth and ":s" or ":p")) .. (add and ":a" or "") -- 261
-	local bucket = self.spritePools[poolKey] -- 263
-	if bucket == nil then -- 263
-		bucket = {} -- 265
-		self.spritePools[poolKey] = bucket -- 266
-	end -- 266
-	local idx = self.spriteCursor[poolKey] or 0 -- 268
-	local entry = bucket[idx + 1] -- 269
-	if entry == nil then -- 269
-		local file = fileOfClip(params.clipStr) -- 271
-		if not Content:exist(file) then -- 271
-			self.unavailable[params.clipStr] = true -- 273
-			return false -- 274
-		end -- 274
-		local sp = Sprite(params.clipStr) -- 276
-		if sp == nil then -- 276
-			self.unavailable[params.clipStr] = true -- 278
-			return false -- 279
-		end -- 279
-		sp.filter = smooth and "Anisotropic" or "Point" -- 281
-		sp.blendFunc = add and ADDITIVE_BLEND or NORMAL_BLEND -- 282
-		sp:addTo(self.container) -- 283
-		entry = {node = sp, clipStr = params.clipStr, smooth = smooth, additive = add} -- 284
-		bucket[idx + 1] = entry -- 285
-	end -- 285
-	self.spriteCursor[poolKey] = idx + 1 -- 287
-	local sp = entry.node -- 289
-	sp.anchor = Vec2(params.anchorX or 0.5, params.anchorY or 0) -- 290
-	sp.position = Vec2(params.x, params.y) -- 291
-	local sx = params.targetW / math.max(1, sp.width) -- 292
-	local sy = params.targetH / math.max(1, sp.height) -- 293
-	sp.scaleX = (params.facing or 1) < 0 and -sx or sx -- 294
-	sp.scaleY = params.flipY == true and -sy or sy -- 295
-	sp.angle = params.angle or 0 -- 296
-	sp.order = params.order -- 297
-	local col = params.color or WHITE -- 298
-	sp.color = col -- 299
-	sp.opacity = math.max( -- 300
-		0, -- 300
-		math.min(1, col.a / 255 * op) -- 300
-	) -- 300
-	sp.visible = true -- 301
-	return true -- 302
-end -- 251
-function DioramaLayerHost.prototype.endFrame(self) -- 306
-	for key in pairs(self.gridPools) do -- 307
-		local bucket = self.gridPools[key] -- 308
-		local used = self.gridCursor[key] or 0 -- 309
-		local i = used -- 310
-		do -- 310
-			i = used -- 311
-			while i < #bucket do -- 311
-				if bucket[i + 1].node.visible then -- 311
-					bucket[i + 1].node.visible = false -- 313
-				end -- 313
-				i = i + 1 -- 311
-			end -- 311
-		end -- 311
-	end -- 311
-	for key in pairs(self.spritePools) do -- 317
-		local bucket = self.spritePools[key] -- 318
-		local used = self.spriteCursor[key] or 0 -- 319
-		local i = used -- 320
-		do -- 320
-			i = used -- 321
-			while i < #bucket do -- 321
-				if bucket[i + 1].node.visible then -- 321
-					bucket[i + 1].node.visible = false -- 323
-				end -- 323
-				i = i + 1 -- 321
-			end -- 321
-		end -- 321
-	end -- 321
-	local d = self.drawCursor -- 327
-	do -- 327
-		d = self.drawCursor -- 328
-		while d < #self.drawPool do -- 328
-			local dn = self.drawPool[d + 1] -- 329
-			if dn.visible then -- 329
-				dn:clear() -- 331
-				dn.visible = false -- 332
-			end -- 332
-			d = d + 1 -- 328
-		end -- 328
-	end -- 328
-end -- 306
-return ____exports -- 306
+	local segY = math.max( -- 169
+		1, -- 169
+		math.min( -- 169
+			8, -- 169
+			math.floor(params.segY) -- 169
+		) -- 169
+	) -- 169
+	local add = params.additive == true -- 170
+	local poolKey = ((((params.clipStr .. "#") .. tostring(segX)) .. "x") .. tostring(segY)) .. (add and ":add" or "") -- 171
+	if self.unavailable[params.clipStr] == true then -- 171
+		return false -- 174
+	end -- 174
+	local bucket = self.gridPools[poolKey] -- 177
+	if bucket == nil then -- 177
+		bucket = {} -- 179
+		self.gridPools[poolKey] = bucket -- 180
+	end -- 180
+	local idx = self.gridCursor[poolKey] or 0 -- 182
+	local entry = bucket[idx + 1] -- 183
+	if entry == nil then -- 183
+		local file = fileOfClip(params.clipStr) -- 185
+		if not Content:exist(file) then -- 185
+			self.unavailable[params.clipStr] = true -- 187
+			return false -- 188
+		end -- 188
+		local grid = Grid(params.clipStr, segX, segY) -- 190
+		if grid == nil then -- 190
+			self.unavailable[params.clipStr] = true -- 192
+			return false -- 193
+		end -- 193
+		grid.position = Vec2(0, 0) -- 195
+		grid.blendFunc = add and ADDITIVE_BLEND or NORMAL_BLEND -- 196
+		grid:addTo(self.container) -- 197
+		entry = { -- 198
+			node = grid, -- 198
+			clipStr = params.clipStr, -- 198
+			segX = segX, -- 198
+			segY = segY, -- 198
+			additive = add -- 198
+		} -- 198
+		bucket[idx + 1] = entry -- 199
+	end -- 199
+	self.gridCursor[poolKey] = idx + 1 -- 201
+	local grid = entry.node -- 203
+	local ____params_0 = params -- 204
+	local v0 = ____params_0.v0 -- 204
+	local v1 = ____params_0.v1 -- 204
+	local v2 = ____params_0.v2 -- 204
+	local v3 = ____params_0.v3 -- 204
+	local projector = ____params_0.projector -- 204
+	local wave = ____params_0.wave -- 204
+	local iy = 1 -- 207
+	do -- 207
+		iy = 1 -- 208
+		while iy <= segY + 1 do -- 208
+			local vTop = (iy - 1) / segY -- 209
+			local vBot = 1 - vTop -- 210
+			local shade = math.floor(255 * (vBot + vTop * params.bottomShade) + 0.5) -- 211
+			local rowColor = Color(shade, shade, shade, 255) -- 212
+			local lx = v3.x * vBot + v0.x * vTop -- 214
+			local ly = v3.y * vBot + v0.y * vTop -- 215
+			local lz = v3.z * vBot + v0.z * vTop -- 216
+			local rx = v2.x * vBot + v1.x * vTop -- 217
+			local ry = v2.y * vBot + v1.y * vTop -- 218
+			local rz = v2.z * vBot + v1.z * vTop -- 219
+			local ix = 1 -- 221
+			do -- 221
+				ix = 1 -- 222
+				while ix <= segX + 1 do -- 222
+					local u = (ix - 1) / segX -- 223
+					local wx = lx + (rx - lx) * u -- 224
+					local wy = ly + (ry - ly) * u -- 225
+					local wz = lz + (rz - lz) * u -- 226
+					local pt = projector:project(wx, wy, wz) -- 227
+					local sx = pt.x -- 228
+					local sy = pt.y -- 229
+					if wave ~= nil then -- 229
+						local weight = 1 -- 231
+						if wave.pin == "top" then -- 231
+							weight = vTop * vTop -- 233
+						elseif wave.pin == "left" then -- 233
+							weight = u * u -- 235
+						end -- 235
+						local ang = wave.phase + u * wave.freqU + vTop * wave.freqV -- 237
+						sx = sx + math.sin(ang) * wave.ampX * weight * pt.scale -- 238
+						sy = sy + math.cos(ang * 0.85) * wave.ampY * weight * pt.scale -- 239
+					end -- 239
+					grid:setPos( -- 241
+						ix, -- 241
+						iy, -- 241
+						Vec2(sx, sy) -- 241
+					) -- 241
+					grid:setColor(ix, iy, rowColor) -- 242
+					ix = ix + 1 -- 222
+				end -- 222
+			end -- 222
+			iy = iy + 1 -- 208
+		end -- 208
+	end -- 208
+	grid.order = params.order -- 246
+	grid.color = params.tintColor -- 247
+	local baseA = params.tintColor.a / 255 -- 248
+	grid.opacity = math.max( -- 249
+		0, -- 249
+		math.min(1, baseA * params.opacity) -- 249
+	) -- 249
+	grid.visible = true -- 250
+	return true -- 251
+end -- 164
+function DioramaLayerHost.prototype.placeCutoutCard(self, params) -- 255
+	local op = params.opacity or 1 -- 256
+	if op <= 0.008 or params.targetW <= 0.5 or params.targetH <= 0.5 then -- 256
+		return false -- 258
+	end -- 258
+	if self.unavailable[params.clipStr] == true then -- 258
+		return false -- 261
+	end -- 261
+	local smooth = params.smooth ~= false -- 263
+	local add = params.additive == true -- 264
+	local poolKey = (params.clipStr .. (smooth and ":s" or ":p")) .. (add and ":a" or "") -- 265
+	local bucket = self.spritePools[poolKey] -- 267
+	if bucket == nil then -- 267
+		bucket = {} -- 269
+		self.spritePools[poolKey] = bucket -- 270
+	end -- 270
+	local idx = self.spriteCursor[poolKey] or 0 -- 272
+	local entry = bucket[idx + 1] -- 273
+	if entry == nil then -- 273
+		local file = fileOfClip(params.clipStr) -- 275
+		if not Content:exist(file) then -- 275
+			self.unavailable[params.clipStr] = true -- 277
+			return false -- 278
+		end -- 278
+		local sp = Sprite(params.clipStr) -- 280
+		if sp == nil then -- 280
+			self.unavailable[params.clipStr] = true -- 282
+			return false -- 283
+		end -- 283
+		sp.filter = smooth and "Anisotropic" or "Point" -- 285
+		sp.blendFunc = add and ADDITIVE_BLEND or NORMAL_BLEND -- 286
+		sp:addTo(self.container) -- 287
+		entry = {node = sp, clipStr = params.clipStr, smooth = smooth, additive = add} -- 288
+		bucket[idx + 1] = entry -- 289
+	end -- 289
+	self.spriteCursor[poolKey] = idx + 1 -- 291
+	local sp = entry.node -- 293
+	sp.anchor = Vec2(params.anchorX or 0.5, params.anchorY or 0) -- 294
+	sp.position = Vec2(params.x, params.y) -- 295
+	local sx = params.targetW / math.max(1, sp.width) -- 296
+	local sy = params.targetH / math.max(1, sp.height) -- 297
+	sp.scaleX = (params.facing or 1) < 0 and -sx or sx -- 298
+	sp.scaleY = params.flipY == true and -sy or sy -- 299
+	sp.angle = params.angle or 0 -- 300
+	sp.order = params.order -- 301
+	local col = params.color or WHITE -- 302
+	sp.color = col -- 303
+	sp.opacity = math.max( -- 304
+		0, -- 304
+		math.min(1, col.a / 255 * op) -- 304
+	) -- 304
+	sp.visible = true -- 305
+	return true -- 306
+end -- 255
+function DioramaLayerHost.prototype.endFrame(self) -- 310
+	for key in pairs(self.gridPools) do -- 311
+		local bucket = self.gridPools[key] -- 312
+		local used = self.gridCursor[key] or 0 -- 313
+		local i = used -- 314
+		do -- 314
+			i = used -- 315
+			while i < #bucket do -- 315
+				if bucket[i + 1].node.visible then -- 315
+					bucket[i + 1].node.visible = false -- 317
+				end -- 317
+				i = i + 1 -- 315
+			end -- 315
+		end -- 315
+	end -- 315
+	for key in pairs(self.spritePools) do -- 321
+		local bucket = self.spritePools[key] -- 322
+		local used = self.spriteCursor[key] or 0 -- 323
+		local i = used -- 324
+		do -- 324
+			i = used -- 325
+			while i < #bucket do -- 325
+				if bucket[i + 1].node.visible then -- 325
+					bucket[i + 1].node.visible = false -- 327
+				end -- 327
+				i = i + 1 -- 325
+			end -- 325
+		end -- 325
+	end -- 325
+	local d = self.drawCursor -- 331
+	do -- 331
+		d = self.drawCursor -- 332
+		while d < #self.drawPool do -- 332
+			local dn = self.drawPool[d + 1] -- 333
+			if dn.visible then -- 333
+				dn:clear() -- 335
+				dn.visible = false -- 336
+			end -- 336
+			d = d + 1 -- 332
+		end -- 332
+	end -- 332
+end -- 310
+return ____exports -- 310

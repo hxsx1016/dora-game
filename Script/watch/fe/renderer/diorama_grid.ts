@@ -53,6 +53,7 @@ export interface DioramaTexturedQuadParams {
     segY: number;
     projector: DioramaProjector;
     tintColor: Color.Type;
+    bottomShade: number;
     opacity: number;
     order: number;
     additive?: boolean;
@@ -207,6 +208,8 @@ export class DioramaLayerHost {
         for (iy = 1; iy <= segY + 1; iy++) {
             const vTop = (iy - 1) / segY; // 0 = top, 1 = bottom
             const vBot = 1 - vTop;
+            const shade = Math.round(255 * (vBot + vTop * params.bottomShade));
+            const rowColor = Color(shade, shade, shade, 255);
             // 左边插值 (v3 -> v0) 与右边插值 (v2 -> v1)
             const lx = v3.x * vBot + v0.x * vTop;
             const ly = v3.y * vBot + v0.y * vTop;
@@ -236,6 +239,7 @@ export class DioramaLayerHost {
                     sy += Math.cos(ang * 0.85) * wave.ampY * weight * pt.scale;
                 }
                 grid.setPos(ix, iy, Vec2(sx, sy));
+                grid.setColor(ix, iy, rowColor);
             }
         }
 
