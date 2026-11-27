@@ -170,6 +170,13 @@ do
     for _ = 1, 7 do renderTick(4) end
     local running = fe.worldArt.visibleLastFrame["actor_soldier:assets/art/zhoushu-run.png"]
     check("continuous movement reaches the full running cycle", running ~= nil and running.visible and not start.visible)
+    local gait = fe.actors.playerStride
+    local before = gait.cycle
+    mover.ticks = mover.ticks + 4
+    mover.player.x = mover.player.x + 16
+    fe:renderPlay(4 * play.STEP, mover, i, 1280, 720)
+    local expected = (before + 16 / (mover.player.h * 1.32)) % 1
+    check("four simulation steps advance the gait by the measured distance", math.abs(gait.cycle - expected) < 1e-8)
     local rect = running.textureRect
     mover.paused = true
     fe:renderPlay(play.STEP, mover, i, 1280, 720)
@@ -188,6 +195,7 @@ do
 
     local slidePath = "actor_soldier:assets/art/zhoushu-slide.png"
     local frames, last = 0, -1
+    mover.player.depth = 32
     for frame = 0, 41 do
         if frame % 2 == 0 then
             mover.player.rollT = 0.35 - frame * play.STEP / 2
@@ -201,6 +209,9 @@ do
         if cel > last then frames = frames + 1 end
         last = cel
         if frame == 20 then
+            local dust = fe.actors.slideDust[1]
+            check("dust keeps ground height and lane depth for camera projection", dust ~= nil
+                and dust.y == mover.player.y and dust.depth == mover.player.depth)
             mover.paused = true
             fe:renderPlay(0.12, mover, i, 1280, 720)
             check("pause freezes the interpolated slide pose", sprite.textureRect.x == sample.x

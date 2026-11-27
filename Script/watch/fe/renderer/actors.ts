@@ -11,6 +11,7 @@ import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/theme";
 
 interface SlideDust {
+    depth: number;
     x: number;
     y: number;
     facing: number;
@@ -23,11 +24,13 @@ interface Stride {
     depth: number;
     speed: number;
     cycle: number;
+    sampledCycle: number;
+    sinceSample: number;
     effort: number;
 }
 
 function strideAt(actor: Actor): Stride {
-    return { actor, x: actor.x, depth: actor.depth, speed: 0, cycle: 0, effort: 0 };
+    return { actor, x: actor.x, depth: actor.depth, speed: 0, cycle: 0, sampledCycle: 0, sinceSample: 0, effort: 0 };
 }
 
 const RUN_START_T = 0.10;
@@ -35,13 +38,18 @@ const RUN_STOP_T = 0.13;
 
 function advanceStride(stride: Stride, steps: number, dt: number): void {
     const a = stride.actor;
+    let distance = 0;
     if (steps > 0) {
         const dx = a.x - stride.x;
         const depth = a.depth - stride.depth;
-        const speed = Math.sqrt(dx * dx + depth * depth) / (steps * STEP);
+        distance = Math.sqrt(dx * dx + depth * depth);
+        const speed = distance / (steps * STEP);
         stride.speed = speed <= 380 ? speed : 0;
         stride.x = a.x;
         stride.depth = a.depth;
+        stride.sinceSample = 0;
+    } else {
+        stride.sinceSample = Math.min(STEP, stride.sinceSample + dt);
     }
     if (!a.alive || !a.onGround || a.crouch || a.covered || a.rollT > 0) {
         stride.effort = 0;
@@ -50,7 +58,9 @@ function advanceStride(stride: Stride, steps: number, dt: number): void {
     if (stride.speed > 8) {
         stride.effort = Math.min(1, stride.effort + dt / RUN_START_T);
         const strideLength = a.h * (a.w <= 28 ? 1.40 : 1.32);
-        stride.cycle = (stride.cycle + stride.speed * dt / strideLength) % 1;
+        stride.sampledCycle = (stride.sampledCycle + distance / strideLength) % 1;
+        // Only the displayed pose extrapolates between ticks. The next sample uses measured travel.
+        stride.cycle = (stride.sampledCycle + stride.speed * stride.sinceSample / strideLength) % 1;
     } else {
         stride.effort = Math.max(0, stride.effort - dt / RUN_STOP_T);
     }
@@ -142,7 +152,8 @@ export class ActorsRenderer {
             if (a.onGround && speed > 8 && progress >= 0.16 && progress < 0.77 && this.dustCooldown <= 0) {
                 this.slideDust.push({
                     x: a.x + a.facing * a.h * 0.34,
-                    y: a.y + a.depth,
+                    y: a.y,
+                    depth: a.depth,
                     facing: a.facing,
                     life: DUST_LIFE,
                 });
@@ -215,7 +226,7 @@ export class ActorsRenderer {
             const alpha = dust.life / DUST_LIFE;
             const spread = 1 - alpha;
             const x = cam.sx(dust.x - dust.facing * spread * 17);
-            const y = cam.sy(dust.y + 1.5 + spread * 2);
+            const y = cam.sy(dust.y + 1.5 + spread * 2, dust.depth);
             draw.drawEllipse(Vec2(x, y), cam.len(5 + spread * 7), cam.len(1.5 + spread * 2),
                 Color(166, 147, 124, 170 * alpha));
             draw.drawDot(Vec2(x - dust.facing * cam.len(3), y + cam.len(4)),
