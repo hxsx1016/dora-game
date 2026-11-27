@@ -32,6 +32,8 @@ export interface FePluginContext {
     backdropArt: AssetSlotHost;
     worldArt: AssetSlotHost;
     uiArt: AssetSlotHost;
+    /** 普通混合遮幅，位于加色光效之上、字幕之下。 */
+    uiMask: DrawNode.Type;
     /** 2.5D 微缩剧场纹理网格宿主：远景层（order 14）、中景可玩层（order 28）、前景遮挡层（order 34） */
     dioramaBg?: DioramaLayerHost;
     dioramaWorld?: DioramaLayerHost;

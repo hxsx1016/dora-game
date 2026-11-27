@@ -976,11 +976,11 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         // 4. 上下眼睑柔边开合遮幅（第一人称睁眼核心体感）
         const lidH = h * 0.52 * (1 - eyeOpen);
         if (lidH > 1) {
-            uiDraw.drawRect(Rect(0, h - lidH, w, lidH), Color(5, 6, 9, 255));
-            uiDraw.drawRect(Rect(0, 0, w, lidH), Color(5, 6, 9, 255));
+            ctx.uiMask.drawRect(Rect(0, h - lidH, w, lidH), Color(5, 6, 9, 255));
+            ctx.uiMask.drawRect(Rect(0, 0, w, lidH), Color(5, 6, 9, 255));
             const feather = Math.min(46, h * 0.08);
-            fillVGradRect(uiDraw, 0, h - lidH - feather, w, feather, Color(5, 6, 9, 0), Color(5, 6, 9, 235));
-            fillVGradRect(uiDraw, 0, lidH, w, feather, Color(5, 6, 9, 235), Color(5, 6, 9, 0));
+            fillVGradRect(ctx.uiMask, 0, h - lidH - feather, w, feather, Color(5, 6, 9, 0), Color(5, 6, 9, 235));
+            fillVGradRect(ctx.uiMask, 0, lidH, w, feather, Color(5, 6, 9, 235), Color(5, 6, 9, 0));
         }
 
         // 5. 黑场与初醒时父亲唤「小满。」极简素幕字幕

@@ -172,6 +172,7 @@ interface QueuedFace {
     worldQuad?: [Vec3, Vec3, Vec3, Vec3];
     texture?: string;
     texTint?: Color.Type;
+    texBottomShade?: number;
     texOpacity?: number;
     subdivX?: number;
     subdivY?: number;
@@ -660,7 +661,8 @@ export class LowpolyScene {
         }
 
         const ao = opts.bottomAo !== undefined ? opts.bottomAo : (mat.bottomAo ?? 0.22);
-        const botRgba = ao > 0.005 ? scaleRGBA(topRgba, Math.max(0.35, 1 - ao * (0.45 + 0.55 * this.proj.morph)), 1) : topRgba;
+        const bottomShade = ao > 0.005 ? Math.max(0.35, 1 - ao * (0.45 + 0.55 * this.proj.morph)) : 1;
+        const botRgba = scaleRGBA(topRgba, bottomShade);
         const cBot = toColor(botRgba);
         const cTop = toColor(topRgba);
 
@@ -683,6 +685,7 @@ export class LowpolyScene {
             worldQuad: hasTex ? [v0, v1, v2, v3] : undefined,
             texture: hasTex ? mat.texture : undefined,
             texTint,
+            texBottomShade: bottomShade,
             texOpacity: opacity,
             subdivX: opts.subdivX ?? mat.subdivX ?? 2,
             subdivY: opts.subdivY ?? mat.subdivY ?? 2,
@@ -1467,6 +1470,7 @@ export class LowpolyScene {
                         segX: f.subdivX ?? 2,
                         segY: f.subdivY ?? 2,
                         projector: this,
+                        bottomShade: f.texBottomShade ?? 1,
                         tintColor: f.texTint ?? f.cols[2] ?? Color(255, 255, 255, 255),
                         opacity: f.texOpacity ?? 1,
                         order,
