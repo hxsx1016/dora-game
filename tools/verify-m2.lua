@@ -220,7 +220,19 @@ do
 	pT:update(DT, inp)
 	inp.interact.pressed = false
 	fe:renderPlay(DT, pT, inp, 1280, 720)
-	for _ = 1, 510 do
+	for _ = 1, 38 do
+		pT:update(DT, inp)
+		fe:renderPlay(DT, pT, inp, 1280, 720)
+	end
+	pT.player.x = pT.ox + 605
+	pT.player.y = 0
+	inp.interact.held = true
+	for _ = 1, 38 do
+		pT:update(DT, inp)
+		fe:renderPlay(DT, pT, inp, 1280, 720)
+	end
+	inp.interact.held = false
+	for _ = 1, 460 do
 		pT:update(DT, inp)
 		fe:renderPlay(DT, pT, inp, 1280, 720)
 	end
@@ -275,7 +287,19 @@ do
 	inp.interact.pressed = true
 	pT:update(DT, inp)
 	inp.interact.pressed = false
-	for _ = 1, 510 do
+	for _ = 1, 38 do
+		pT:update(DT, inp)
+		fe:renderPlay(DT, pT, inp, 1280, 720)
+	end
+	pT.player.x = pT.ox + 605
+	pT.player.y = 0
+	inp.interact.held = true
+	for _ = 1, 38 do
+		pT:update(DT, inp)
+		fe:renderPlay(DT, pT, inp, 1280, 720)
+	end
+	inp.interact.held = false
+	for _ = 1, 460 do
 		pT:update(DT, inp)
 		fe:renderPlay(DT, pT, inp, 1280, 720)
 	end

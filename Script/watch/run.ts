@@ -122,6 +122,8 @@ export interface StoryState {
     museumReturn: boolean;
     /** 已在第三段工台做出的武器 id；空串表示还没做。 */
     craftedWeapon: string;
+    /** 当前装备的武器 id（支持标准铳、工台改制武器及双通关时间穿梭器）。 */
+    equippedWeapon: string;
     /** 结局：reunion=北塔团圆；lamp=小满留灯；空串表示还没落幕。 */
     ending: string;
     /** 最近一次检查点快照；切房/重试时随 run 一起带走。 */
@@ -149,6 +151,7 @@ export function createStory(hp: number = 3, maxHp: number = 3): StoryState {
         museumReturn: false,
         escortDone: false,
         craftedWeapon: "",
+        equippedWeapon: "",
         ending: "",
         cp: undefined,
         segments: {},

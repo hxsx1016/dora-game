@@ -15,7 +15,8 @@ import { STEP, StepClock } from "Script/watch/clock";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createTrial, mmss, RunSource, RunState, talentNames } from "Script/watch/run";
 import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
-    markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending } from "Script/watch/save";
+    markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
+    SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 declare function print(...args: string[]): void;
@@ -101,10 +102,100 @@ function toggleFullscreen(): boolean {
 
 function quitGame(): void {
     flushProfile();
+    saveCurrentSession();
     if (fe !== undefined) {
         fe.audio.stopRoomTransient();
     }
     App.shutdown();
+}
+
+function canSaveSession(): boolean {
+    if (mode !== 1 || play === undefined || storyRun === undefined) {
+        return false;
+    }
+    if (storyRun.source !== "official" || play.run.finished) {
+        return false;
+    }
+    if (play.room.key === "museum" || (play.room.key === "tower" && play.phase === "tower-end")) {
+        return false;
+    }
+    return true;
+}
+
+function refreshTitleSessionFlag(): void {
+    if (fe !== undefined) {
+        fe.menus.hasSession = hasSessionSave();
+    }
+}
+
+function saveCurrentSession(): boolean {
+    if (!canSaveSession() || play === undefined) {
+        return false;
+    }
+    play.sessionDirty = false;
+    const ok = saveSession(play.exportSession());
+    refreshTitleSessionFlag();
+    return ok;
+}
+
+function continueOfficialStory(): Play | undefined {
+    const res = loadSession();
+    if (res.status !== "ok" || res.state === undefined) {
+        refreshTitleSessionFlag();
+        return undefined;
+    }
+    const s: SessionSave = res.state;
+    const idx = roomIndexByKey(s.roomKey);
+    if (ROOMS[idx].key !== s.roomKey) {
+        return undefined;
+    }
+    storyRun = createRun(s.seed, "official", profile);
+    storyRun.checkpoint = s.checkpoint;
+    storyRun.story.route = s.route;
+    storyRun.story.hp = s.hp;
+    storyRun.story.maxHp = s.maxHp;
+    storyRun.story.hpAtGate = s.hpAtGate;
+    storyRun.story.maxHpAtGate = s.maxHpAtGate;
+    storyRun.story.settled = s.settled;
+    storyRun.story.phase = s.phase;
+    storyRun.story.countTick = s.countTick;
+    storyRun.story.phaseTick = s.phaseTick;
+    storyRun.story.handTicks = s.handTicks;
+    storyRun.story.handDone = s.handDone;
+    storyRun.story.lineSaid = s.lineSaid;
+    storyRun.story.tied = s.tied;
+    storyRun.story.carry = s.carry;
+    storyRun.story.escortDone = s.escortDone;
+    storyRun.story.craftedWeapon = s.craftedWeapon;
+    storyRun.story.equippedWeapon = s.equippedWeapon;
+    storyRun.inventory.wood = s.wood;
+    storyRun.inventory.bell = s.bell;
+    storyRun.inventory.scrap = s.scrap;
+    storyRun.inventory.wedge = s.wedge;
+    storyRun.inventory.ammo = s.ammo;
+    storyRun.inventory.shield = s.shield;
+    storyRun.inventory.pass = s.pass;
+    storyRun.inventory.quickbelt = s.quickbelt;
+    let k = 0;
+    for (k = 0; k < s.taken.length; k++) {
+        storyRun.taken[s.taken[k]] = true;
+    }
+    for (k = 0; k < s.segments.length; k++) {
+        storyRun.story.segments[s.segments[k]] = true;
+    }
+    current = idx;
+    setMode(1);
+    if (fe !== undefined) {
+        fe.screen = "play";
+    }
+    play = undefined;
+    ensurePlay(s.checkpoint > 0 ? { checkpoint: s.checkpoint } : undefined);
+    const cur = play as Play | undefined;
+    if (cur !== undefined && s.cartAxle > 0 && cur.room.cart.bodyW > 0) {
+        cur.cartAxle = s.cartAxle;
+        cur.cartDocked = s.cartDocked;
+    }
+    return play;
 }
 
 function makeGrayboxLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
@@ -197,6 +288,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     }
     fe = new WatchFrontend(parent);
     fe.screen = startScreen;
+    refreshTitleSessionFlag();
     grayboxLayer.visible = mode === 0;
     fe.setVisible(mode === 1);
     if (campaignLayer !== undefined) {
@@ -205,10 +297,11 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
 
     input = new Input();
 
-    // 窗口关闭、退出或切后台前确保待落盘档案安全写入，防止丢失双通关进度。
+    // 窗口关闭、退出或切后台前确保待落盘档案与局中进度安全写入，防止丢失进度。
     parent.gslot("AppEvent", (eventType: string) => {
         if (eventType === "Quit" || eventType === "Shutdown" || eventType === "WillEnterBackground") {
             flushProfile();
+            saveCurrentSession();
         }
     });
 
@@ -217,6 +310,10 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         if (key === KeyName.F11
             || (key === KeyName.Return && (Keyboard.isKeyPressed(KeyName.LAlt) || Keyboard.isKeyPressed(KeyName.RAlt)))) {
             toggleFullscreen();
+            return;
+        }
+        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && key === KeyName.T) {
+            play.toggleArtifactWeapon();
             return;
         }
         if (fe !== undefined && mode === 1 && (fe.screen !== "play" || (play !== undefined && play.paused))) {
@@ -324,12 +421,27 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         getProfileDetail: () => profileDetail,
         useTestSave: (name: string) => {
             setSaveFile(name);
+            setSessionFile(name === "" ? "" : name + ".session");
             clearProfilePending();
             const loaded = loadSave();
             profile = loaded.state;
             profileStatus = loaded.status;
             profileDetail = loaded.detail;
+            refreshTitleSessionFlag();
         },
+        useTestSession: (name: string) => {
+            setSessionFile(name);
+            refreshTitleSessionFlag();
+        },
+        getSessionFile,
+        hasSessionSave,
+        saveSessionNow: () => saveCurrentSession(),
+        clearSessionNow: () => {
+            const ok = clearSession();
+            refreshTitleSessionFlag();
+            return ok;
+        },
+        continueStory: () => continueOfficialStory(),
         saveNow: () => saveSave(profile),
         getSaveFile,
         isRelease: () => isReleaseBuild(),
@@ -728,8 +840,14 @@ function tickFrontend(frameDt: number): void {
         input.consumeEdges();
         if (act.type === "trial") {
             startTrial();
+        } else if (act.type === "continue") {
+            if (continueOfficialStory() === undefined) {
+                enterPlayRoom(officialStartIndex(), "official", true);
+            }
         } else if (act.type === "start") {
-            // 馆内中途退出过：从档案里的同一步续读；否则照常从序章起。
+            // 馆内中途退出过：从档案里的同一步续读；否则照常从序章起并清除旧局中档。
+            clearSession();
+            refreshTitleSessionFlag();
             enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
             enterPlayRoom(act.roomIndex, "chapter");
@@ -780,6 +898,7 @@ function tickFrontend(frameDt: number): void {
         p.paused = true;
         p.aimHold = 0;
         p.bottleAimX = -1;
+        saveCurrentSession();
         fe.menus.openPause();
         input.consumeEdges();
     }
@@ -801,6 +920,8 @@ function tickFrontend(frameDt: number): void {
         } else if (pauseAct.type === "quit") {
             quitGame();
         } else if (pauseAct.type === "toTitle") {
+            saveCurrentSession();
+            refreshTitleSessionFlag();
             fe.menus.resetInput();
             fe.screen = "title";
         }
@@ -837,6 +958,10 @@ function tickFrontend(frameDt: number): void {
             const leaving = p.drainEvents();
             // 片尾回序章：重开一份局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
             if (p.restartStory) {
+                if (storyRun !== undefined && storyRun.source === "official") {
+                    clearSession();
+                    refreshTitleSessionFlag();
+                }
                 storyRun = createRun(20261124, storyRun === undefined ? "official" : storyRun.source, profile);
             }
             current = idx;
@@ -844,6 +969,9 @@ function tickFrontend(frameDt: number): void {
             const fresh = play;
             if (fresh !== undefined) {
                 fresh.adoptEvents(leaving);
+            }
+            if (!p.restartStory) {
+                saveCurrentSession();
             }
             clock.reset();
             dirty = true;
@@ -853,6 +981,12 @@ function tickFrontend(frameDt: number): void {
 
     // 档案变化（正式通关、井口取器）在下一个渲染帧落盘；写失败保留旧文件，下次再试。
     flushProfile();
+    if (p.run.finished && p.run.source === "official" && hasSessionSave()) {
+        clearSession();
+        refreshTitleSessionFlag();
+    } else if (p.sessionDirty) {
+        saveCurrentSession();
+    }
     fe.renderPlay(frameDt, p, input, viewW, viewH);
 }
 

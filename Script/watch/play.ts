@@ -26,8 +26,9 @@ import {
     reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
 } from "Script/watch/reload";
 import {
-    CRAFT_RECIPES, RecipeSpec, findRecipe, missingMaterials, payMaterials, weaponEffectOf, weaponNameOf,
+    ARTIFACT_WEAPON_ID, CRAFT_RECIPES, RecipeSpec, findRecipe, missingMaterials, payMaterials, weaponEffectOf, weaponNameOf,
 } from "Script/watch/craft";
+import { SessionSave } from "Script/watch/save";
 
 /** 60 拍 = 1 秒；固定步长见 clock.ts。 */
 export { STEP };
@@ -529,6 +530,8 @@ export class Play {
     readonly archive: ArchiveState;
     /** 档案有变化、等 app 落盘；Play 本身不碰文件。 */
     archiveDirty = false;
+    /** 局中进度有变化、等 app 写局中存档；只对正式剧情生效。 */
+    sessionDirty = false;
     /** 片尾按 E 回序章：app 收到后新建局内状态，但共享同一份档案。 */
     restartStory = false;
     /** 序章旧井：双通关且尚未取到穿梭器时开放。 */
@@ -742,6 +745,17 @@ export class Play {
                 crafted: this.run.story.craftedWeapon === r.id,
             });
         }
+        // 双通关井底取得「时间穿梭器」后，工台额外开放装备入口（零耗料、已持有），驱动男主线轨迹残影。
+        if (this.archive.artifactOwned) {
+            out.push({
+                id: ARTIFACT_WEAPON_ID,
+                name: weaponNameOf(ARTIFACT_WEAPON_ID),
+                desc: "井底拾取彩蛋 · 男主线移动留下冷白微金轨迹残影",
+                enhancedEffect: "light",
+                cost: {},
+                crafted: true,
+            });
+        }
         return out;
     }
 
@@ -816,7 +830,9 @@ export class Play {
         payMaterials(this.run.inventory, recipe);
         this.handledCraftRequests[requestId] = true;
         this.run.story.craftedWeapon = recipe.id;
+        this.run.story.equippedWeapon = recipe.id;
         this.equippedWeapon = recipe.id;
+        this.sessionDirty = true;
         this.craftBench.justCraftedTimer = this.craftBench.firstCraftDone ? 0.45 : 1.0;
         this.craftBench.firstCraftDone = true;
         this.syncCraftBench();
@@ -832,17 +848,85 @@ export class Play {
         return true;
     }
 
-    /** 换装：只允许已做过的武器与标准铳。 */
+    /** 换装：允许标准铳、工台已改制武器，以及双通关取得的时间穿梭器。 */
     equipWeapon(weaponId: string): boolean {
-        if (weaponId !== "standard_gun" && this.run.story.craftedWeapon !== weaponId) {
+        const artifactOk = weaponId === ARTIFACT_WEAPON_ID && this.archive.artifactOwned;
+        if (weaponId !== "standard_gun" && this.run.story.craftedWeapon !== weaponId && !artifactOk) {
             this.emit("benchRejected", { recipeId: weaponId, reason: "unknown" });
             return false;
         }
         this.equippedWeapon = weaponId;
+        this.run.story.equippedWeapon = weaponId;
+        this.sessionDirty = true;
         this.syncCraftBench();
         this.flashSet("已装备 " + weaponNameOf(weaponId), 1.0);
         this.emit("benchEquip", { weapon: weaponId });
         return true;
+    }
+
+    /** 男主线快捷切换「时间穿梭器」彩蛋装备（需已从井底拾取）。 */
+    toggleArtifactWeapon(): boolean {
+        if (!this.archive.artifactOwned || this.childMode) {
+            return false;
+        }
+        if (this.equippedWeapon === ARTIFACT_WEAPON_ID) {
+            const fallback = this.run.story.craftedWeapon !== "" ? this.run.story.craftedWeapon : "standard_gun";
+            return this.equipWeapon(fallback);
+        }
+        return this.equipWeapon(ARTIFACT_WEAPON_ID);
+    }
+
+    /** 导出当前局中存档快照（供 app.ts 写入 watch-save/session.txt）。 */
+    exportSession(): SessionSave {
+        this.syncStory();
+        const story = this.run.story;
+        const inv = this.run.inventory;
+        const taken: string[] = [];
+        for (const k in this.run.taken) {
+            if (this.run.taken[k] === true) {
+                taken.push(k);
+            }
+        }
+        const segments: string[] = [];
+        for (const k in story.segments) {
+            if (story.segments[k] === true) {
+                segments.push(k);
+            }
+        }
+        return {
+            roomKey: this.room.key,
+            checkpoint: this.checkpoint,
+            seed: this.run.seed,
+            route: story.route,
+            hp: story.hp,
+            maxHp: story.maxHp,
+            hpAtGate: story.hpAtGate,
+            maxHpAtGate: story.maxHpAtGate,
+            settled: story.settled,
+            phase: this.phase,
+            countTick: story.countTick,
+            phaseTick: story.phaseTick,
+            handTicks: story.handTicks,
+            handDone: story.handDone,
+            lineSaid: story.lineSaid,
+            tied: story.tied,
+            carry: story.carry,
+            escortDone: story.escortDone,
+            craftedWeapon: story.craftedWeapon,
+            equippedWeapon: this.equippedWeapon,
+            wood: inv.wood,
+            bell: inv.bell,
+            scrap: inv.scrap,
+            wedge: inv.wedge,
+            ammo: inv.ammo,
+            shield: inv.shield,
+            pass: inv.pass,
+            quickbelt: inv.quickbelt,
+            taken,
+            segments,
+            cartAxle: this.cartAxle,
+            cartDocked: this.cartDocked,
+        };
     }
 
     /**
@@ -973,15 +1057,26 @@ export class Play {
         this.museumReturn = story.museumReturn;
         story.museumReturn = false;
         this.escortDone = story.escortDone;
-        this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        const savedEq = story.equippedWeapon;
+        if (savedEq === ARTIFACT_WEAPON_ID && this.archive.artifactOwned) {
+            this.equippedWeapon = ARTIFACT_WEAPON_ID;
+        } else if (savedEq === "standard_gun" || (savedEq !== "" && savedEq === story.craftedWeapon)) {
+            this.equippedWeapon = savedEq;
+        } else {
+            this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        }
         this.syncCraftBench();
-        // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口敞开。
+        // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口与下层水路敞开。
         if (story.segments["outside_cart"] === true) {
             this.redCartPulled = true;
             const redBox = this.boxes.find((b) => b.id === "outside_red_cart");
             if (redBox !== undefined) {
-                redBox.x0 = 300;
-                redBox.x1 = 344;
+                redBox.x0 = 430;
+                redBox.x1 = 474;
+            }
+            if (this.room.key === "outside" && this.room.cart.bodyW > 0) {
+                this.cartAxle = this.room.cart.endX;
+                this.cartDocked = true;
             }
         }
         this.forestPath = story.segments["forest_burrow"] === true ? "burrow"
@@ -991,10 +1086,26 @@ export class Play {
         if (this.checkpoint > 0 && story.cp !== undefined && story.cp.id === this.checkpoint) {
             this.applyCheckpointSnap(this.checkpoint);
         }
-        // 北塔：男主背着妹妹到门前，放到地上再敲门；女主单人抵塔。
+        // 北塔：男主背着妹妹到门前，放到地上并肩同行；女主单人抵塔。
         if (this.room.key === "tower" && story.route === "soldier") {
             this.carryOn = false;
             this.run.story.carry = false;
+            this.partner = {
+                x: Math.max(this.room.minX + 40, this.player.x - 36),
+                y: 0,
+                depth: 0,
+                depthSpeed: 0,
+                vx: 0,
+                vy: 0,
+                w: SOLDIER_W,
+                h: SOLDIER_H,
+                onGround: true,
+                facing: 1,
+                crouch: false,
+                rollT: 0,
+                covered: false,
+                alive: true,
+            };
         }
         // 北塔门廊/值夜室：门开、交物与中途阶段可续读。
         if (this.room.key === "tower") {
@@ -1009,6 +1120,11 @@ export class Play {
                 if (story.phase === "tower-desk" || story.phase === "tower-given") {
                     this.player.x = this.ox + 605;
                     this.player.y = 0;
+                    if (story.route === "soldier" && this.partner.alive) {
+                        this.partner.x = this.ox + 568;
+                        this.partner.y = 0;
+                        this.partner.facing = 1;
+                    }
                 }
             }
         }
@@ -2577,6 +2693,21 @@ export class Play {
         const t = this.room.story === undefined ? undefined : this.room.story.tower;
         if (t === undefined) {
             return;
+        }
+        // 团圆线：周戍站在小满身侧随行跨过门槛、共立值夜室案前。
+        if (this.storyRoute === "soldier" && this.partner.alive) {
+            const targetX = Math.max(this.room.minX + 40, this.player.x - 36);
+            const gap = targetX - this.partner.x;
+            if (Math.abs(gap) > 2) {
+                const dir = gap > 0 ? 1 : -1;
+                const stepDist = Math.min(Math.abs(gap), SOLDIER_SPEED * dt);
+                this.partner.facing = dir;
+                this.partner.vx = dir * SOLDIER_SPEED;
+                this.partner.x += dir * stepDist;
+            } else {
+                this.partner.vx = 0;
+                this.partner.facing = 1;
+            }
         }
         if (this.phase === "tower-wait") {
             const near = Math.abs(this.player.x - t.doorX) <= 50;

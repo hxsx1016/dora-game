@@ -101,1550 +101,1561 @@ function MenuRenderer.prototype.____constructor(self) -- 104
 	self.selected = 0 -- 105
 	self.chapterSelected = 0 -- 106
 	self.pauseSelected = 0 -- 107
-	self.chaptersFromPause = false -- 108
-	self.pauseShowControls = false -- 110
-	self.previousKeys = {} -- 111
-	self.queuedKeys = {} -- 112
-	self.queuedBack = false -- 113
-	self.time = 0 -- 114
+	self.hasSession = false -- 109
+	self.chaptersFromPause = false -- 110
+	self.pauseShowControls = false -- 112
+	self.previousKeys = {} -- 113
+	self.queuedKeys = {} -- 114
+	self.queuedBack = false -- 115
+	self.time = 0 -- 116
 end -- 104
-function MenuRenderer.prototype.isShowingPauseControls(self) -- 116
-	return self.pauseShowControls -- 117
-end -- 116
-function MenuRenderer.prototype.openChapters(self, roomIndex) -- 120
-	self.chaptersFromPause = roomIndex ~= nil -- 121
-	self.chapterSelected = math.max( -- 122
-		0, -- 122
-		__TS__ArrayFindIndex( -- 122
-			CHAPTERS, -- 122
-			function(____, chapter) return chapter.roomIndex == roomIndex end -- 122
-		) -- 122
-	) -- 122
-	self.pauseShowControls = false -- 123
-	self:resetInput() -- 124
-end -- 120
-function MenuRenderer.prototype.openPause(self) -- 127
-	self.pauseSelected = 0 -- 128
-	self.pauseShowControls = false -- 129
-	self:resetInput() -- 130
-end -- 127
-function MenuRenderer.prototype.resetInput(self) -- 134
-	self.previousKeys = pressedKeys() -- 135
-	self.queuedKeys = {} -- 136
-	self.queuedBack = false -- 137
-end -- 134
-function MenuRenderer.prototype.onKeyEvent(self, key) -- 141
-	if key == "Up" or key == "W" then -- 141
-		self.queuedKeys.up = true -- 143
-	elseif key == "Down" or key == "S" then -- 143
-		self.queuedKeys.down = true -- 145
-	elseif key == "Left" or key == "A" then -- 145
-		self.queuedKeys.left = true -- 147
-	elseif key == "Right" or key == "D" then -- 147
-		self.queuedKeys.right = true -- 149
-	elseif key == "Return" or key == "Space" then -- 149
-		self.queuedKeys.confirm = true -- 151
-	elseif key == "Escape" then -- 151
-		self.queuedBack = true -- 153
-	end -- 153
-end -- 141
-function MenuRenderer.prototype.readFrame(self, input, scale) -- 157
-	local held = pressedKeys() -- 158
-	local prev = self.previousKeys -- 159
-	local queued = self.queuedKeys -- 160
-	local frame = { -- 161
-		keys = { -- 162
-			up = queued.up == true or held.up and not prev.up, -- 163
-			down = queued.down == true or held.down and not prev.down, -- 164
-			left = queued.left == true or held.left and not prev.left, -- 165
-			right = queued.right == true or held.right and not prev.right, -- 166
-			confirm = queued.confirm == true or held.confirm and not prev.confirm -- 167
-		}, -- 167
-		back = self.queuedBack or input.pause.pressed, -- 169
-		pointer = Vec2(input.mx / scale, input.my / scale), -- 170
-		inside = input.inside, -- 171
-		click = input.inside and input.fire.pressed, -- 172
-		pointerMoved = input.inside and math.abs(input.mdx) + math.abs(input.mdy) >= scale -- 173
-	} -- 173
-	self.previousKeys = held -- 175
-	self.queuedKeys = {} -- 176
-	self.queuedBack = false -- 177
-	return frame -- 178
-end -- 157
-function MenuRenderer.prototype.verticalSelection(self, selected, boxes, frame) -- 181
-	local hit = hitIndex(boxes, frame.pointer, frame.inside) -- 182
-	if frame.click and hit >= 0 then -- 182
-		return hit -- 184
-	end -- 184
-	if frame.keys.up then -- 184
-		return (selected + #boxes - 1) % #boxes -- 187
-	end -- 187
-	if frame.keys.down then -- 187
-		return (selected + 1) % #boxes -- 190
-	end -- 190
-	return frame.pointerMoved and hit >= 0 and not frame.keys.confirm and hit or selected -- 192
-end -- 181
-function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, stage, bgDraw, bgGlow, backdropArt, uiArt, uiDraw, uiInkDraw, uiGlow, texts, w, h, uiScale) -- 195
-	self.time = self.time + dt -- 212
-	local artW = math.max(w, h * 16 / 9) -- 213
-	local artH = artW * 9 / 16 -- 214
-	if not backdropArt:tryPlace( -- 214
-		"title_backdrop", -- 215
-		"menu_landscape", -- 215
-		w * 0.5, -- 215
-		(h - artH) * 0.5, -- 215
-		artW, -- 215
-		artH -- 215
-	) then -- 215
-		stage:drawMenuBackdrop( -- 216
-			bgDraw, -- 216
-			bgGlow, -- 216
-			w, -- 216
-			h, -- 216
-			self.time -- 216
-		) -- 216
-	end -- 216
-	local frame = self:readFrame(input, uiScale) -- 219
-	w = w / uiScale -- 220
-	h = h / uiScale -- 221
-	if screen == "title" then -- 221
-		return self:drawTitle( -- 224
-			frame, -- 224
-			uiDraw, -- 224
-			uiInkDraw, -- 224
-			uiArt, -- 224
-			uiGlow, -- 224
-			texts, -- 224
-			w, -- 224
-			h -- 224
-		) -- 224
-	end -- 224
-	if screen == "chapters" then -- 224
-		return self:drawChapters( -- 227
-			frame, -- 227
-			uiDraw, -- 227
-			uiInkDraw, -- 227
-			uiArt, -- 227
-			uiGlow, -- 227
-			texts, -- 227
-			w, -- 227
-			h -- 227
-		) -- 227
-	end -- 227
-	return self:drawControls( -- 229
-		frame, -- 229
-		uiDraw, -- 229
-		uiInkDraw, -- 229
-		uiArt, -- 229
-		uiGlow, -- 229
-		texts, -- 229
-		w, -- 229
-		h -- 229
-	) -- 229
-end -- 195
-function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 232
-	fillHGradRect( -- 243
-		uiDraw, -- 243
-		0, -- 243
-		0, -- 243
-		w * 0.22, -- 243
-		h, -- 243
-		Color(9, 11, 18, 192), -- 243
-		Color(9, 11, 18, 116) -- 243
-	) -- 243
-	fillHGradRect( -- 244
-		uiDraw, -- 244
-		w * 0.22, -- 244
-		0, -- 244
-		w * 0.28, -- 244
-		h, -- 244
-		Color(9, 11, 18, 116), -- 244
-		Color(9, 11, 18, 0) -- 244
-	) -- 244
-	fillVGradRect( -- 245
+function MenuRenderer.prototype.isShowingPauseControls(self) -- 118
+	return self.pauseShowControls -- 119
+end -- 118
+function MenuRenderer.prototype.openChapters(self, roomIndex) -- 122
+	self.chaptersFromPause = roomIndex ~= nil -- 123
+	self.chapterSelected = math.max( -- 124
+		0, -- 124
+		__TS__ArrayFindIndex( -- 124
+			CHAPTERS, -- 124
+			function(____, chapter) return chapter.roomIndex == roomIndex end -- 124
+		) -- 124
+	) -- 124
+	self.pauseShowControls = false -- 125
+	self:resetInput() -- 126
+end -- 122
+function MenuRenderer.prototype.openPause(self) -- 129
+	self.pauseSelected = 0 -- 130
+	self.pauseShowControls = false -- 131
+	self:resetInput() -- 132
+end -- 129
+function MenuRenderer.prototype.resetInput(self) -- 136
+	self.previousKeys = pressedKeys() -- 137
+	self.queuedKeys = {} -- 138
+	self.queuedBack = false -- 139
+end -- 136
+function MenuRenderer.prototype.onKeyEvent(self, key) -- 143
+	if key == "Up" or key == "W" then -- 143
+		self.queuedKeys.up = true -- 145
+	elseif key == "Down" or key == "S" then -- 145
+		self.queuedKeys.down = true -- 147
+	elseif key == "Left" or key == "A" then -- 147
+		self.queuedKeys.left = true -- 149
+	elseif key == "Right" or key == "D" then -- 149
+		self.queuedKeys.right = true -- 151
+	elseif key == "Return" or key == "Space" then -- 151
+		self.queuedKeys.confirm = true -- 153
+	elseif key == "Escape" then -- 153
+		self.queuedBack = true -- 155
+	end -- 155
+end -- 143
+function MenuRenderer.prototype.readFrame(self, input, scale) -- 159
+	local held = pressedKeys() -- 160
+	local prev = self.previousKeys -- 161
+	local queued = self.queuedKeys -- 162
+	local frame = { -- 163
+		keys = { -- 164
+			up = queued.up == true or held.up and not prev.up, -- 165
+			down = queued.down == true or held.down and not prev.down, -- 166
+			left = queued.left == true or held.left and not prev.left, -- 167
+			right = queued.right == true or held.right and not prev.right, -- 168
+			confirm = queued.confirm == true or held.confirm and not prev.confirm -- 169
+		}, -- 169
+		back = self.queuedBack or input.pause.pressed, -- 171
+		pointer = Vec2(input.mx / scale, input.my / scale), -- 172
+		inside = input.inside, -- 173
+		click = input.inside and input.fire.pressed, -- 174
+		pointerMoved = input.inside and math.abs(input.mdx) + math.abs(input.mdy) >= scale -- 175
+	} -- 175
+	self.previousKeys = held -- 177
+	self.queuedKeys = {} -- 178
+	self.queuedBack = false -- 179
+	return frame -- 180
+end -- 159
+function MenuRenderer.prototype.verticalSelection(self, selected, boxes, frame) -- 183
+	local hit = hitIndex(boxes, frame.pointer, frame.inside) -- 184
+	if frame.click and hit >= 0 then -- 184
+		return hit -- 186
+	end -- 186
+	if frame.keys.up then -- 186
+		return (selected + #boxes - 1) % #boxes -- 189
+	end -- 189
+	if frame.keys.down then -- 189
+		return (selected + 1) % #boxes -- 192
+	end -- 192
+	return frame.pointerMoved and hit >= 0 and not frame.keys.confirm and hit or selected -- 194
+end -- 183
+function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, stage, bgDraw, bgGlow, backdropArt, uiArt, uiDraw, uiInkDraw, uiGlow, texts, w, h, uiScale) -- 197
+	self.time = self.time + dt -- 214
+	local artW = math.max(w, h * 16 / 9) -- 215
+	local artH = artW * 9 / 16 -- 216
+	if not backdropArt:tryPlace( -- 216
+		"title_backdrop", -- 217
+		"menu_landscape", -- 217
+		w * 0.5, -- 217
+		(h - artH) * 0.5, -- 217
+		artW, -- 217
+		artH -- 217
+	) then -- 217
+		stage:drawMenuBackdrop( -- 218
+			bgDraw, -- 218
+			bgGlow, -- 218
+			w, -- 218
+			h, -- 218
+			self.time -- 218
+		) -- 218
+	end -- 218
+	local frame = self:readFrame(input, uiScale) -- 221
+	w = w / uiScale -- 222
+	h = h / uiScale -- 223
+	if screen == "title" then -- 223
+		return self:drawTitle( -- 226
+			frame, -- 226
+			uiDraw, -- 226
+			uiInkDraw, -- 226
+			uiArt, -- 226
+			uiGlow, -- 226
+			texts, -- 226
+			w, -- 226
+			h -- 226
+		) -- 226
+	end -- 226
+	if screen == "chapters" then -- 226
+		return self:drawChapters( -- 229
+			frame, -- 229
+			uiDraw, -- 229
+			uiInkDraw, -- 229
+			uiArt, -- 229
+			uiGlow, -- 229
+			texts, -- 229
+			w, -- 229
+			h -- 229
+		) -- 229
+	end -- 229
+	return self:drawControls( -- 231
+		frame, -- 231
+		uiDraw, -- 231
+		uiInkDraw, -- 231
+		uiArt, -- 231
+		uiGlow, -- 231
+		texts, -- 231
+		w, -- 231
+		h -- 231
+	) -- 231
+end -- 197
+function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 234
+	fillHGradRect( -- 245
 		uiDraw, -- 245
 		0, -- 245
 		0, -- 245
-		w, -- 245
-		78, -- 245
-		Color(8, 10, 16, 138), -- 245
-		Color(8, 10, 16, 0) -- 245
+		w * 0.22, -- 245
+		h, -- 245
+		Color(9, 11, 18, 192), -- 245
+		Color(9, 11, 18, 116) -- 245
 	) -- 245
-	local titleX = 148 -- 248
-	local topY = h - 104 -- 249
-	local charStep = 66 -- 250
-	local sway = math.sin(self.time * 0.7) * 5 -- 251
-	drawMistCurve( -- 252
-		uiArt, -- 252
-		"title_mist_wisp", -- 252
-		titleX + 86 + sway, -- 252
-		topY - 122, -- 252
-		340, -- 252
-		82, -- 252
-		PALETTE.jadeMist, -- 252
-		0.2, -- 252
-		-1 -- 252
-	) -- 252
-	uiArt:tryPlace( -- 253
-		"ink_petal_mist", -- 253
-		"title_petals", -- 253
-		titleX + 12, -- 253
-		topY - 102, -- 253
-		230, -- 253
-		210, -- 253
-		{ -- 253
-			color = toColor(PALETTE.inkMist), -- 254
-			opacity = 0.4, -- 254
-			layer = -1 -- 254
-		} -- 254
+	fillHGradRect( -- 246
+		uiDraw, -- 246
+		w * 0.22, -- 246
+		0, -- 246
+		w * 0.28, -- 246
+		h, -- 246
+		Color(9, 11, 18, 116), -- 246
+		Color(9, 11, 18, 0) -- 246
+	) -- 246
+	fillVGradRect( -- 247
+		uiDraw, -- 247
+		0, -- 247
+		0, -- 247
+		w, -- 247
+		78, -- 247
+		Color(8, 10, 16, 138), -- 247
+		Color(8, 10, 16, 0) -- 247
+	) -- 247
+	local titleX = 148 -- 250
+	local topY = h - 104 -- 251
+	local charStep = 66 -- 252
+	local sway = math.sin(self.time * 0.7) * 5 -- 253
+	drawMistCurve( -- 254
+		uiArt, -- 254
+		"title_mist_wisp", -- 254
+		titleX + 86 + sway, -- 254
+		topY - 122, -- 254
+		340, -- 254
+		82, -- 254
+		PALETTE.jadeMist, -- 254
+		0.2, -- 254
+		-1 -- 254
 	) -- 254
-	uiArt:tryPlace( -- 256
-		"ink_vstream", -- 256
-		"title_vstream", -- 256
-		titleX - 48, -- 256
-		topY - 100, -- 256
-		34, -- 256
-		290, -- 256
-		{ -- 256
-			color = toColor(PALETTE.silkDim), -- 257
-			opacity = 0.48, -- 257
-			layer = 1 -- 257
-		} -- 257
-	) -- 257
-	local c = 0 -- 261
-	do -- 261
-		c = 0 -- 262
-		while c < #VERTICAL_TITLE do -- 262
-			texts:put( -- 263
-				"title", -- 264
-				VERTICAL_TITLE[c + 1], -- 265
-				titleX, -- 266
-				topY - c * charStep, -- 267
-				toColor(PALETTE.textBright), -- 268
-				0.5, -- 269
-				0.5, -- 270
-				"Center", -- 271
-				0, -- 272
-				0.98, -- 273
-				0.1, -- 274
-				Color(8, 10, 16, 210) -- 275
-			) -- 275
-			c = c + 1 -- 262
-		end -- 262
-	end -- 262
-	drawLoneSeal( -- 280
-		uiInkDraw, -- 281
-		uiArt, -- 282
-		texts, -- 283
-		"title_lone_seal", -- 284
-		titleX + 46, -- 285
-		topY - 3 * charStep + 8, -- 286
-		26, -- 287
-		52, -- 288
-		"守", -- 289
-		"望", -- 290
-		PALETTE.sealRed, -- 291
-		PALETTE.sealText, -- 292
-		0.94, -- 293
-		4 -- 294
-	) -- 294
-	local colRightX = titleX + 132 -- 298
-	local colLeftX = titleX + 102 -- 299
-	local poemStep = 22 -- 300
-	local p = 0 -- 301
-	do -- 301
-		p = 0 -- 302
-		while p < #EPIGRAPH_RIGHT do -- 302
-			local ch = EPIGRAPH_RIGHT[p + 1] -- 303
-			if ch ~= "" then -- 303
-				texts:put( -- 305
-					"xs", -- 305
-					ch, -- 305
-					colRightX, -- 305
-					topY - 22 - p * poemStep, -- 305
-					toColor(PALETTE.textMid), -- 305
-					0.5, -- 305
-					0.5, -- 305
-					"Center", -- 305
-					0, -- 305
-					0.86, -- 305
-					0.08 -- 305
-				) -- 305
-			end -- 305
-			p = p + 1 -- 302
-		end -- 302
-	end -- 302
-	do -- 302
-		p = 0 -- 308
-		while p < #EPIGRAPH_LEFT do -- 308
-			texts:put( -- 309
-				"xs", -- 309
-				EPIGRAPH_LEFT[p + 1], -- 309
-				colLeftX, -- 309
-				topY - 68 - p * poemStep, -- 309
-				toColor(PALETTE.amberCore), -- 309
-				0.5, -- 309
-				0.5, -- 309
-				"Center", -- 309
-				0, -- 309
-				0.9, -- 309
-				0.08 -- 309
-			) -- 309
-			p = p + 1 -- 308
-		end -- 308
-	end -- 308
-	local menuX = 112 -- 313
-	local btnW = 280 -- 314
-	local btnH = 40 -- 315
-	local gap = 8 -- 316
-	local startY = 264 -- 317
-	local boxes = {} -- 318
-	local i = 0 -- 319
-	do -- 319
-		i = 0 -- 320
-		while i < #TITLE_ITEMS do -- 320
-			boxes[#boxes + 1] = Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH) -- 321
-			i = i + 1 -- 320
-		end -- 320
-	end -- 320
-	self.selected = self:verticalSelection(self.selected, boxes, frame) -- 323
-	do -- 323
-		i = 0 -- 325
-		while i < #TITLE_ITEMS do -- 325
-			local by = boxes[i + 1].y -- 326
-			local active = self.selected == i -- 327
-			local cy = by + btnH * 0.5 -- 328
-			local shiftX = active and 10 or 0 -- 329
-			if active then -- 329
-				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.2) -- 332
-				drawSilkRibbon( -- 333
-					uiDraw, -- 333
-					uiArt, -- 333
-					"title_rib_red_" .. tostring(i), -- 333
-					menuX + 124, -- 333
-					cy, -- 333
-					290, -- 333
-					40, -- 333
-					PALETTE.rougeSoft, -- 333
-					0.52 * breathe, -- 333
-					0 -- 333
-				) -- 333
-				drawHairline( -- 334
-					uiInkDraw, -- 334
-					uiArt, -- 334
-					"title_rib_line_" .. tostring(i), -- 334
-					menuX + 114, -- 334
-					by + 4, -- 334
-					230, -- 334
-					PALETTE.silkLine, -- 334
-					0.42 * breathe, -- 334
-					false, -- 334
-					2 -- 334
-				) -- 334
-				drawBlossomDot( -- 335
-					uiInkDraw, -- 335
-					uiArt, -- 335
-					"title_dot_" .. tostring(i), -- 335
-					menuX + 14, -- 335
-					cy, -- 335
-					16, -- 335
-					PALETTE.rouge, -- 335
-					0.96, -- 335
-					4 -- 335
-				) -- 335
-				fillRadialGlow( -- 336
-					uiGlow, -- 336
-					menuX + 14, -- 336
-					cy, -- 336
-					22, -- 336
-					16, -- 336
-					toColor(PALETTE.rouge, 28 * breathe), -- 336
-					Color(182, 58, 56, 0), -- 336
-					10 -- 336
-				) -- 336
-			else -- 336
-				drawBlossomDot( -- 338
-					uiInkDraw, -- 338
-					uiArt, -- 338
-					"title_dot_" .. tostring(i), -- 338
-					menuX + 14, -- 338
-					cy, -- 338
-					8, -- 338
-					PALETTE.silkDim, -- 338
-					0.4, -- 338
-					3 -- 338
-				) -- 338
-			end -- 338
-			texts:put( -- 341
-				"md", -- 342
-				TITLE_ITEMS[i + 1].zh, -- 343
-				menuX + 34 + shiftX, -- 344
-				cy, -- 345
-				toColor(active and PALETTE.textBright or PALETTE.textMid), -- 346
-				0, -- 347
-				0.5, -- 348
-				"Left", -- 349
-				active and 4.4 or 2.8, -- 350
-				active and 1 or 0.88, -- 351
-				0.1 -- 352
-			) -- 352
-			i = i + 1 -- 325
-		end -- 325
-	end -- 325
-	texts:put( -- 356
-		"xs", -- 356
-		"上下择项   ·   回车或点选启程", -- 356
-		menuX + 12, -- 356
-		42, -- 356
-		toColor(PALETTE.textDim), -- 356
-		0, -- 356
-		0.5, -- 356
-		"Left", -- 356
-		1.4, -- 356
-		0.88, -- 356
-		0.08 -- 356
-	) -- 356
-	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 358
-	if hit >= 0 or frame.keys.confirm then -- 358
-		local idx = hit >= 0 and hit or self.selected -- 360
-		local id = TITLE_ITEMS[idx + 1].id -- 361
-		if id == "trial" then -- 361
-			return {type = "trial"} -- 362
-		end -- 362
-		if id == "start" then -- 362
-			return {type = "start"} -- 364
-		end -- 364
-		if id == "chapters" then -- 364
-			return {type = "openChapters"} -- 367
-		end -- 367
-		if id == "quit" then -- 367
-			return {type = "quit"} -- 370
-		end -- 370
-		return {type = "openControls"} -- 372
-	end -- 372
-	return {type = "none"} -- 374
-end -- 232
-function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 381
-	local back = {type = self.chaptersFromPause and "backPause" or "backTitle"} -- 391
-	if frame.back then -- 391
-		return back -- 393
-	end -- 393
-	local marginX = 96 -- 396
-	local splitTrack = #CHAPTERS > 8 -- 397
-	local perRow = splitTrack and math.ceil(#CHAPTERS / 2) or #CHAPTERS -- 398
-	local trackY = splitTrack and 195 or 148 -- 399
-	local rowGap = 84 -- 400
-	local trackX0 = marginX + 34 -- 401
-	local trackX1 = w - marginX - 34 -- 402
-	local stepX = (trackX1 - trackX0) / math.max(1, perRow - 1) -- 403
-	local stationBoxes = {} -- 405
-	local s = 0 -- 406
-	do -- 406
-		s = 0 -- 407
-		while s < #CHAPTERS do -- 407
-			local sx = trackX0 + s % perRow * stepX -- 408
-			local sy = trackY - math.floor(s / perRow) * rowGap -- 409
-			stationBoxes[#stationBoxes + 1] = Rect(sx - stepX * 0.45, sy - 37, stepX * 0.9, 74) -- 410
-			s = s + 1 -- 407
-		end -- 407
-	end -- 407
-	local hitStation = hitIndex(stationBoxes, frame.pointer, frame.inside) -- 413
-	local keys = frame.keys -- 414
-	if frame.click and hitStation >= 0 then -- 414
-		self.chapterSelected = hitStation -- 416
-	elseif keys.left or keys.right or not splitTrack and (keys.up or keys.down) then -- 416
-		local step = keys.left and -1 or (keys.right and 1 or 4) -- 418
-		self.chapterSelected = (self.chapterSelected + step + #CHAPTERS) % #CHAPTERS -- 419
-	elseif keys.down and self.chapterSelected < perRow then -- 419
-		self.chapterSelected = math.min(#CHAPTERS - 1, self.chapterSelected + perRow) -- 421
-	elseif keys.up and self.chapterSelected >= perRow then -- 421
-		self.chapterSelected = self.chapterSelected - perRow -- 423
-	elseif frame.pointerMoved and hitStation >= 0 and not keys.confirm then -- 423
-		self.chapterSelected = hitStation -- 425
-	end -- 425
-	uiDraw:drawRect( -- 429
-		Rect(0, 0, w, h), -- 429
-		Color(10, 12, 19, 198) -- 429
-	) -- 429
-	texts:put( -- 432
-		"banner", -- 432
-		"选择章节", -- 432
-		marginX, -- 432
-		h - 66, -- 432
-		toColor(PALETTE.textBright), -- 432
-		0, -- 432
-		0.5, -- 432
-		"Left", -- 432
-		4.5, -- 432
-		0.96, -- 432
-		0.1 -- 432
-	) -- 432
-	drawHairline( -- 433
-		uiInkDraw, -- 433
-		uiArt, -- 433
-		"chap_top_line", -- 433
-		w * 0.5, -- 433
-		h - 100, -- 433
-		w - marginX * 2, -- 433
-		PALETTE.silkDim, -- 433
-		0.6, -- 433
-		true, -- 433
-		2 -- 433
-	) -- 433
-	local activeRoom = CHAPTERS[self.chapterSelected + 1].room -- 436
-	local theme = themeOf(activeRoom.key) -- 437
-	local winX = marginX -- 438
-	local winY = 266 -- 439
-	local winW = 548 -- 440
-	local winH = 300 -- 441
-	local winBox = Rect(winX, winY, winW, winH) -- 442
-	local winHover = frame.inside and winBox:containsPoint(frame.pointer) -- 443
-	uiArt:tryPlace( -- 446
-		"ink_frame_mask", -- 446
-		"chap_win_shadow", -- 446
-		winX + winW * 0.5, -- 446
-		winY + winH * 0.5, -- 446
-		winW + 40, -- 446
-		winH + 34, -- 446
-		{ -- 446
-			color = toColor(PALETTE.inkVoid), -- 447
-			opacity = 0.88, -- 447
-			layer = -2 -- 447
-		} -- 447
-	) -- 447
-	local bgSlot = "bgFar_" .. (theme.backdropKey or activeRoom.key) -- 449
-	uiArt:tryPlace( -- 450
-		bgSlot, -- 450
-		"chap_win_art", -- 450
-		winX + winW * 0.5, -- 450
-		winY + 4, -- 450
-		winW - 8, -- 450
-		winH - 8, -- 450
-		{opacity = 0.92, layer = -1} -- 450
-	) -- 450
-	fillVGradRect( -- 454
-		uiInkDraw, -- 454
-		winX, -- 454
-		winY, -- 454
-		winW, -- 454
-		56, -- 454
-		Color(10, 12, 19, 200), -- 454
-		Color(10, 12, 19, 0) -- 454
-	) -- 454
-	fillVGradRect( -- 455
-		uiInkDraw, -- 455
-		winX, -- 455
-		winY + winH - 36, -- 455
-		winW, -- 455
-		36, -- 455
-		Color(10, 12, 19, 0), -- 455
-		Color(10, 12, 19, 130) -- 455
-	) -- 455
-	fillHGradRect( -- 456
-		uiInkDraw, -- 456
-		winX, -- 456
-		winY, -- 456
-		34, -- 456
-		winH, -- 456
-		Color(10, 12, 19, 135), -- 456
-		Color(10, 12, 19, 0) -- 456
-	) -- 456
-	fillHGradRect( -- 457
-		uiInkDraw, -- 457
-		winX + winW - 34, -- 457
-		winY, -- 457
-		34, -- 457
-		winH, -- 457
-		Color(10, 12, 19, 0), -- 457
-		Color(10, 12, 19, 135) -- 457
-	) -- 457
-	drawFiligreeCorners( -- 459
-		uiInkDraw, -- 459
-		uiArt, -- 459
-		"chap_win_frame", -- 459
-		winX, -- 459
-		winY, -- 459
-		winW, -- 459
-		winH, -- 459
-		winHover and PALETTE.textBright or PALETTE.silkLine, -- 459
-		winHover and 0.92 or 0.72, -- 459
-		34, -- 459
-		true, -- 459
-		3 -- 459
-	) -- 459
-	texts:put( -- 462
-		"xs", -- 462
-		(theme.actCode .. "  ·  ") .. theme.lineTag, -- 462
-		winX + 20, -- 462
-		winY + 22, -- 462
-		toColor(PALETTE.textMid), -- 462
-		0, -- 462
-		0.5, -- 462
-		"Left", -- 462
-		1.8, -- 462
-		0.9, -- 462
-		0.08 -- 462
-	) -- 462
-	local infoX = winX + winW + 46 -- 465
-	local infoCenterY = winY + winH * 0.5 -- 466
-	drawMistCurve( -- 467
-		uiArt, -- 467
-		"chap_info_mist", -- 467
-		infoX + 210, -- 467
-		infoCenterY + 36, -- 467
-		420, -- 467
-		88, -- 467
-		theme.accent, -- 467
-		0.22, -- 467
-		-1 -- 467
+	uiArt:tryPlace( -- 255
+		"ink_petal_mist", -- 255
+		"title_petals", -- 255
+		titleX + 12, -- 255
+		topY - 102, -- 255
+		230, -- 255
+		210, -- 255
+		{ -- 255
+			color = toColor(PALETTE.inkMist), -- 256
+			opacity = 0.4, -- 256
+			layer = -1 -- 256
+		} -- 256
+	) -- 256
+	uiArt:tryPlace( -- 258
+		"ink_vstream", -- 258
+		"title_vstream", -- 258
+		titleX - 48, -- 258
+		topY - 100, -- 258
+		34, -- 258
+		290, -- 258
+		{ -- 258
+			color = toColor(PALETTE.silkDim), -- 259
+			opacity = 0.48, -- 259
+			layer = 1 -- 259
+		} -- 259
+	) -- 259
+	local c = 0 -- 263
+	do -- 263
+		c = 0 -- 264
+		while c < #VERTICAL_TITLE do -- 264
+			texts:put( -- 265
+				"title", -- 266
+				VERTICAL_TITLE[c + 1], -- 267
+				titleX, -- 268
+				topY - c * charStep, -- 269
+				toColor(PALETTE.textBright), -- 270
+				0.5, -- 271
+				0.5, -- 272
+				"Center", -- 273
+				0, -- 274
+				0.98, -- 275
+				0.1, -- 276
+				Color(8, 10, 16, 210) -- 277
+			) -- 277
+			c = c + 1 -- 264
+		end -- 264
+	end -- 264
+	drawLoneSeal( -- 282
+		uiInkDraw, -- 283
+		uiArt, -- 284
+		texts, -- 285
+		"title_lone_seal", -- 286
+		titleX + 46, -- 287
+		topY - 3 * charStep + 8, -- 288
+		26, -- 289
+		52, -- 290
+		"守", -- 291
+		"望", -- 292
+		PALETTE.sealRed, -- 293
+		PALETTE.sealText, -- 294
+		0.94, -- 295
+		4 -- 296
+	) -- 296
+	local colRightX = titleX + 132 -- 300
+	local colLeftX = titleX + 102 -- 301
+	local poemStep = 22 -- 302
+	local p = 0 -- 303
+	do -- 303
+		p = 0 -- 304
+		while p < #EPIGRAPH_RIGHT do -- 304
+			local ch = EPIGRAPH_RIGHT[p + 1] -- 305
+			if ch ~= "" then -- 305
+				texts:put( -- 307
+					"xs", -- 307
+					ch, -- 307
+					colRightX, -- 307
+					topY - 22 - p * poemStep, -- 307
+					toColor(PALETTE.textMid), -- 307
+					0.5, -- 307
+					0.5, -- 307
+					"Center", -- 307
+					0, -- 307
+					0.86, -- 307
+					0.08 -- 307
+				) -- 307
+			end -- 307
+			p = p + 1 -- 304
+		end -- 304
+	end -- 304
+	do -- 304
+		p = 0 -- 310
+		while p < #EPIGRAPH_LEFT do -- 310
+			texts:put( -- 311
+				"xs", -- 311
+				EPIGRAPH_LEFT[p + 1], -- 311
+				colLeftX, -- 311
+				topY - 68 - p * poemStep, -- 311
+				toColor(PALETTE.amberCore), -- 311
+				0.5, -- 311
+				0.5, -- 311
+				"Center", -- 311
+				0, -- 311
+				0.9, -- 311
+				0.08 -- 311
+			) -- 311
+			p = p + 1 -- 310
+		end -- 310
+	end -- 310
+	local items = self.hasSession and ({ -- 315
+		{id = "continue", zh = "继续游戏"}, -- 316
+		table.unpack(TITLE_ITEMS) -- 316
+	}) or TITLE_ITEMS -- 316
+	if self.selected >= #items then -- 316
+		self.selected = 0 -- 319
+	end -- 319
+	local menuX = 112 -- 321
+	local btnW = 280 -- 322
+	local btnH = 40 -- 323
+	local gap = self.hasSession and 6 or 8 -- 324
+	local startY = self.hasSession and 294 or 264 -- 325
+	local boxes = {} -- 326
+	local i = 0 -- 327
+	do -- 327
+		i = 0 -- 328
+		while i < #items do -- 328
+			boxes[#boxes + 1] = Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH) -- 329
+			i = i + 1 -- 328
+		end -- 328
+	end -- 328
+	self.selected = self:verticalSelection(self.selected, boxes, frame) -- 331
+	do -- 331
+		i = 0 -- 333
+		while i < #items do -- 333
+			local by = boxes[i + 1].y -- 334
+			local active = self.selected == i -- 335
+			local cy = by + btnH * 0.5 -- 336
+			local shiftX = active and 10 or 0 -- 337
+			if active then -- 337
+				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.2) -- 340
+				drawSilkRibbon( -- 341
+					uiDraw, -- 341
+					uiArt, -- 341
+					"title_rib_red_" .. tostring(i), -- 341
+					menuX + 124, -- 341
+					cy, -- 341
+					290, -- 341
+					40, -- 341
+					PALETTE.rougeSoft, -- 341
+					0.52 * breathe, -- 341
+					0 -- 341
+				) -- 341
+				drawHairline( -- 342
+					uiInkDraw, -- 342
+					uiArt, -- 342
+					"title_rib_line_" .. tostring(i), -- 342
+					menuX + 114, -- 342
+					by + 4, -- 342
+					230, -- 342
+					PALETTE.silkLine, -- 342
+					0.42 * breathe, -- 342
+					false, -- 342
+					2 -- 342
+				) -- 342
+				drawBlossomDot( -- 343
+					uiInkDraw, -- 343
+					uiArt, -- 343
+					"title_dot_" .. tostring(i), -- 343
+					menuX + 14, -- 343
+					cy, -- 343
+					16, -- 343
+					PALETTE.rouge, -- 343
+					0.96, -- 343
+					4 -- 343
+				) -- 343
+				fillRadialGlow( -- 344
+					uiGlow, -- 344
+					menuX + 14, -- 344
+					cy, -- 344
+					22, -- 344
+					16, -- 344
+					toColor(PALETTE.rouge, 28 * breathe), -- 344
+					Color(182, 58, 56, 0), -- 344
+					10 -- 344
+				) -- 344
+			else -- 344
+				drawBlossomDot( -- 346
+					uiInkDraw, -- 346
+					uiArt, -- 346
+					"title_dot_" .. tostring(i), -- 346
+					menuX + 14, -- 346
+					cy, -- 346
+					8, -- 346
+					PALETTE.silkDim, -- 346
+					0.4, -- 346
+					3 -- 346
+				) -- 346
+			end -- 346
+			texts:put( -- 349
+				"md", -- 350
+				items[i + 1].zh, -- 351
+				menuX + 34 + shiftX, -- 352
+				cy, -- 353
+				toColor(active and PALETTE.textBright or PALETTE.textMid), -- 354
+				0, -- 355
+				0.5, -- 356
+				"Left", -- 357
+				active and 4.4 or 2.8, -- 358
+				active and 1 or 0.88, -- 359
+				0.1 -- 360
+			) -- 360
+			i = i + 1 -- 333
+		end -- 333
+	end -- 333
+	texts:put( -- 364
+		"xs", -- 364
+		"上下择项   ·   回车或点选启程", -- 364
+		menuX + 12, -- 364
+		42, -- 364
+		toColor(PALETTE.textDim), -- 364
+		0, -- 364
+		0.5, -- 364
+		"Left", -- 364
+		1.4, -- 364
+		0.88, -- 364
+		0.08 -- 364
+	) -- 364
+	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 366
+	if hit >= 0 or frame.keys.confirm then -- 366
+		local idx = hit >= 0 and hit or self.selected -- 368
+		local id = items[idx + 1].id -- 369
+		if id == "continue" then -- 369
+			return {type = "continue"} -- 371
+		end -- 371
+		if id == "trial" then -- 371
+			return {type = "trial"} -- 373
+		end -- 373
+		if id == "start" then -- 373
+			return {type = "start"} -- 375
+		end -- 375
+		if id == "chapters" then -- 375
+			return {type = "openChapters"} -- 378
+		end -- 378
+		if id == "quit" then -- 378
+			return {type = "quit"} -- 381
+		end -- 381
+		return {type = "openControls"} -- 383
+	end -- 383
+	return {type = "none"} -- 385
+end -- 234
+function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 392
+	local back = {type = self.chaptersFromPause and "backPause" or "backTitle"} -- 402
+	if frame.back then -- 402
+		return back -- 404
+	end -- 404
+	local marginX = 96 -- 407
+	local splitTrack = #CHAPTERS > 8 -- 408
+	local perRow = splitTrack and math.ceil(#CHAPTERS / 2) or #CHAPTERS -- 409
+	local trackY = splitTrack and 195 or 148 -- 410
+	local rowGap = 84 -- 411
+	local trackX0 = marginX + 34 -- 412
+	local trackX1 = w - marginX - 34 -- 413
+	local stepX = (trackX1 - trackX0) / math.max(1, perRow - 1) -- 414
+	local stationBoxes = {} -- 416
+	local s = 0 -- 417
+	do -- 417
+		s = 0 -- 418
+		while s < #CHAPTERS do -- 418
+			local sx = trackX0 + s % perRow * stepX -- 419
+			local sy = trackY - math.floor(s / perRow) * rowGap -- 420
+			stationBoxes[#stationBoxes + 1] = Rect(sx - stepX * 0.45, sy - 37, stepX * 0.9, 74) -- 421
+			s = s + 1 -- 418
+		end -- 418
+	end -- 418
+	local hitStation = hitIndex(stationBoxes, frame.pointer, frame.inside) -- 424
+	local keys = frame.keys -- 425
+	if frame.click and hitStation >= 0 then -- 425
+		self.chapterSelected = hitStation -- 427
+	elseif keys.left or keys.right or not splitTrack and (keys.up or keys.down) then -- 427
+		local step = keys.left and -1 or (keys.right and 1 or 4) -- 429
+		self.chapterSelected = (self.chapterSelected + step + #CHAPTERS) % #CHAPTERS -- 430
+	elseif keys.down and self.chapterSelected < perRow then -- 430
+		self.chapterSelected = math.min(#CHAPTERS - 1, self.chapterSelected + perRow) -- 432
+	elseif keys.up and self.chapterSelected >= perRow then -- 432
+		self.chapterSelected = self.chapterSelected - perRow -- 434
+	elseif frame.pointerMoved and hitStation >= 0 and not keys.confirm then -- 434
+		self.chapterSelected = hitStation -- 436
+	end -- 436
+	uiDraw:drawRect( -- 440
+		Rect(0, 0, w, h), -- 440
+		Color(10, 12, 19, 198) -- 440
+	) -- 440
+	texts:put( -- 443
+		"banner", -- 443
+		"选择章节", -- 443
+		marginX, -- 443
+		h - 66, -- 443
+		toColor(PALETTE.textBright), -- 443
+		0, -- 443
+		0.5, -- 443
+		"Left", -- 443
+		4.5, -- 443
+		0.96, -- 443
+		0.1 -- 443
+	) -- 443
+	drawHairline( -- 444
+		uiInkDraw, -- 444
+		uiArt, -- 444
+		"chap_top_line", -- 444
+		w * 0.5, -- 444
+		h - 100, -- 444
+		w - marginX * 2, -- 444
+		PALETTE.silkDim, -- 444
+		0.6, -- 444
+		true, -- 444
+		2 -- 444
+	) -- 444
+	local activeRoom = CHAPTERS[self.chapterSelected + 1].room -- 447
+	local theme = themeOf(activeRoom.key) -- 448
+	local winX = marginX -- 449
+	local winY = 266 -- 450
+	local winW = 548 -- 451
+	local winH = 300 -- 452
+	local winBox = Rect(winX, winY, winW, winH) -- 453
+	local winHover = frame.inside and winBox:containsPoint(frame.pointer) -- 454
+	uiArt:tryPlace( -- 457
+		"ink_frame_mask", -- 457
+		"chap_win_shadow", -- 457
+		winX + winW * 0.5, -- 457
+		winY + winH * 0.5, -- 457
+		winW + 40, -- 457
+		winH + 34, -- 457
+		{ -- 457
+			color = toColor(PALETTE.inkVoid), -- 458
+			opacity = 0.88, -- 458
+			layer = -2 -- 458
+		} -- 458
+	) -- 458
+	local bgSlot = "bgFar_" .. (theme.backdropKey or activeRoom.key) -- 460
+	uiArt:tryPlace( -- 461
+		bgSlot, -- 461
+		"chap_win_art", -- 461
+		winX + winW * 0.5, -- 461
+		winY + 4, -- 461
+		winW - 8, -- 461
+		winH - 8, -- 461
+		{opacity = 0.92, layer = -1} -- 461
+	) -- 461
+	fillVGradRect( -- 465
+		uiInkDraw, -- 465
+		winX, -- 465
+		winY, -- 465
+		winW, -- 465
+		56, -- 465
+		Color(10, 12, 19, 200), -- 465
+		Color(10, 12, 19, 0) -- 465
+	) -- 465
+	fillVGradRect( -- 466
+		uiInkDraw, -- 466
+		winX, -- 466
+		winY + winH - 36, -- 466
+		winW, -- 466
+		36, -- 466
+		Color(10, 12, 19, 0), -- 466
+		Color(10, 12, 19, 130) -- 466
+	) -- 466
+	fillHGradRect( -- 467
+		uiInkDraw, -- 467
+		winX, -- 467
+		winY, -- 467
+		34, -- 467
+		winH, -- 467
+		Color(10, 12, 19, 135), -- 467
+		Color(10, 12, 19, 0) -- 467
 	) -- 467
-	local volCol = self.chapterSelected < 4 and PALETTE.cyan or PALETTE.amber -- 470
-	texts:put( -- 471
-		"xs", -- 471
-		theme.volumeTagZh, -- 471
-		infoX, -- 471
-		winY + winH - 44, -- 471
-		toColor(volCol), -- 471
-		0, -- 471
-		0.5, -- 471
-		"Left", -- 471
-		2.8, -- 471
-		0.92, -- 471
-		0.08 -- 471
-	) -- 471
-	local sep = " · " -- 474
-	local sIdx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 475
-	local titleY = winY + winH - 98 -- 476
-	if theme.backdropKey ~= nil then -- 476
-		texts:put( -- 478
-			"lg", -- 478
-			theme.titleZh, -- 478
-			infoX, -- 478
-			titleY, -- 478
-			toColor(PALETTE.textBright) -- 478
-		) -- 478
-	elseif sIdx > 0 then -- 478
-		local leftPart = __TS__StringSlice(theme.titleZh, 0, sIdx) -- 480
-		local rightPart = __TS__StringSlice(theme.titleZh, sIdx + #sep) -- 481
-		local lw = visualTextWidth(leftPart, 40) -- 482
-		texts:put( -- 483
-			"banner", -- 483
-			leftPart, -- 483
-			infoX, -- 483
-			titleY, -- 483
-			toColor(PALETTE.textBright), -- 483
-			0, -- 483
-			0.5, -- 483
-			"Left", -- 483
-			2, -- 483
-			1, -- 483
-			0.1 -- 483
-		) -- 483
-		drawBlossomDot( -- 484
-			uiInkDraw, -- 484
-			uiArt, -- 484
-			"chap_title_dot", -- 484
-			infoX + lw + 16, -- 484
-			titleY - 2, -- 484
-			11, -- 484
-			activeRoom.key == "gate" and PALETTE.rouge or PALETTE.silkLine, -- 484
-			0.9, -- 484
-			4 -- 484
-		) -- 484
-		texts:put( -- 485
-			"banner", -- 485
-			rightPart, -- 485
-			infoX + lw + 32, -- 485
-			titleY, -- 485
-			toColor(PALETTE.textBright), -- 485
-			0, -- 485
-			0.5, -- 485
-			"Left", -- 485
-			2, -- 485
-			1, -- 485
-			0.1 -- 485
-		) -- 485
-	else -- 485
-		texts:put( -- 487
-			"banner", -- 487
-			theme.titleZh, -- 487
-			infoX, -- 487
-			titleY, -- 487
-			toColor(PALETTE.textBright), -- 487
-			0, -- 487
-			0.5, -- 487
-			"Left", -- 487
-			2.4, -- 487
-			1, -- 487
-			0.1 -- 487
-		) -- 487
-	end -- 487
-	drawHairline( -- 490
-		uiInkDraw, -- 490
-		uiArt, -- 490
-		"chap_info_line", -- 490
-		infoX + 185, -- 490
-		titleY - 36, -- 490
-		370, -- 490
-		PALETTE.silkDim, -- 490
-		0.58, -- 490
-		false, -- 490
-		2 -- 490
-	) -- 490
-	texts:put( -- 493
-		"sm", -- 493
-		theme.introWhisper, -- 493
-		infoX, -- 493
-		titleY - 72, -- 493
-		toColor(PALETTE.textMid), -- 493
-		0, -- 493
-		0.5, -- 493
-		"Left", -- 493
-		0.8, -- 493
-		0.94, -- 493
-		0.08 -- 493
-	) -- 493
-	local goX = infoX -- 496
-	local goY = winY + 26 -- 497
-	local goW = 220 -- 498
-	local goH = 42 -- 499
-	local goBox = Rect(goX, goY, goW, goH) -- 500
-	local goHover = frame.inside and goBox:containsPoint(frame.pointer) -- 501
-	local breathe = 0.84 + 0.16 * math.sin(self.time * 2.4) -- 502
-	drawSilkRibbon( -- 503
-		uiDraw, -- 503
-		uiArt, -- 503
-		"chap_go_rib", -- 503
-		goX + 106, -- 503
-		goY + 21, -- 503
-		250, -- 503
-		40, -- 503
-		goHover and PALETTE.rouge or PALETTE.rougeSoft, -- 503
-		(goHover and 0.68 or 0.46) * breathe, -- 503
-		0 -- 503
-	) -- 503
-	drawHairline( -- 504
-		uiInkDraw, -- 504
-		uiArt, -- 504
-		"chap_go_line", -- 504
-		goX + 94, -- 504
-		goY + 3, -- 504
-		196, -- 504
-		PALETTE.silkLine, -- 504
-		goHover and 0.68 or 0.4, -- 504
-		false, -- 504
-		2 -- 504
+	fillHGradRect( -- 468
+		uiInkDraw, -- 468
+		winX + winW - 34, -- 468
+		winY, -- 468
+		34, -- 468
+		winH, -- 468
+		Color(10, 12, 19, 0), -- 468
+		Color(10, 12, 19, 135) -- 468
+	) -- 468
+	drawFiligreeCorners( -- 470
+		uiInkDraw, -- 470
+		uiArt, -- 470
+		"chap_win_frame", -- 470
+		winX, -- 470
+		winY, -- 470
+		winW, -- 470
+		winH, -- 470
+		winHover and PALETTE.textBright or PALETTE.silkLine, -- 470
+		winHover and 0.92 or 0.72, -- 470
+		34, -- 470
+		true, -- 470
+		3 -- 470
+	) -- 470
+	texts:put( -- 473
+		"xs", -- 473
+		(theme.actCode .. "  ·  ") .. theme.lineTag, -- 473
+		winX + 20, -- 473
+		winY + 22, -- 473
+		toColor(PALETTE.textMid), -- 473
+		0, -- 473
+		0.5, -- 473
+		"Left", -- 473
+		1.8, -- 473
+		0.9, -- 473
+		0.08 -- 473
+	) -- 473
+	local infoX = winX + winW + 46 -- 476
+	local infoCenterY = winY + winH * 0.5 -- 477
+	drawMistCurve( -- 478
+		uiArt, -- 478
+		"chap_info_mist", -- 478
+		infoX + 210, -- 478
+		infoCenterY + 36, -- 478
+		420, -- 478
+		88, -- 478
+		theme.accent, -- 478
+		0.22, -- 478
+		-1 -- 478
+	) -- 478
+	local volCol = self.chapterSelected < 4 and PALETTE.cyan or PALETTE.amber -- 481
+	texts:put( -- 482
+		"xs", -- 482
+		theme.volumeTagZh, -- 482
+		infoX, -- 482
+		winY + winH - 44, -- 482
+		toColor(volCol), -- 482
+		0, -- 482
+		0.5, -- 482
+		"Left", -- 482
+		2.8, -- 482
+		0.92, -- 482
+		0.08 -- 482
+	) -- 482
+	local sep = " · " -- 485
+	local sIdx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 486
+	local titleY = winY + winH - 98 -- 487
+	if theme.backdropKey ~= nil then -- 487
+		texts:put( -- 489
+			"lg", -- 489
+			theme.titleZh, -- 489
+			infoX, -- 489
+			titleY, -- 489
+			toColor(PALETTE.textBright) -- 489
+		) -- 489
+	elseif sIdx > 0 then -- 489
+		local leftPart = __TS__StringSlice(theme.titleZh, 0, sIdx) -- 491
+		local rightPart = __TS__StringSlice(theme.titleZh, sIdx + #sep) -- 492
+		local lw = visualTextWidth(leftPart, 40) -- 493
+		texts:put( -- 494
+			"banner", -- 494
+			leftPart, -- 494
+			infoX, -- 494
+			titleY, -- 494
+			toColor(PALETTE.textBright), -- 494
+			0, -- 494
+			0.5, -- 494
+			"Left", -- 494
+			2, -- 494
+			1, -- 494
+			0.1 -- 494
+		) -- 494
+		drawBlossomDot( -- 495
+			uiInkDraw, -- 495
+			uiArt, -- 495
+			"chap_title_dot", -- 495
+			infoX + lw + 16, -- 495
+			titleY - 2, -- 495
+			11, -- 495
+			activeRoom.key == "gate" and PALETTE.rouge or PALETTE.silkLine, -- 495
+			0.9, -- 495
+			4 -- 495
+		) -- 495
+		texts:put( -- 496
+			"banner", -- 496
+			rightPart, -- 496
+			infoX + lw + 32, -- 496
+			titleY, -- 496
+			toColor(PALETTE.textBright), -- 496
+			0, -- 496
+			0.5, -- 496
+			"Left", -- 496
+			2, -- 496
+			1, -- 496
+			0.1 -- 496
+		) -- 496
+	else -- 496
+		texts:put( -- 498
+			"banner", -- 498
+			theme.titleZh, -- 498
+			infoX, -- 498
+			titleY, -- 498
+			toColor(PALETTE.textBright), -- 498
+			0, -- 498
+			0.5, -- 498
+			"Left", -- 498
+			2.4, -- 498
+			1, -- 498
+			0.1 -- 498
+		) -- 498
+	end -- 498
+	drawHairline( -- 501
+		uiInkDraw, -- 501
+		uiArt, -- 501
+		"chap_info_line", -- 501
+		infoX + 185, -- 501
+		titleY - 36, -- 501
+		370, -- 501
+		PALETTE.silkDim, -- 501
+		0.58, -- 501
+		false, -- 501
+		2 -- 501
+	) -- 501
+	texts:put( -- 504
+		"sm", -- 504
+		theme.introWhisper, -- 504
+		infoX, -- 504
+		titleY - 72, -- 504
+		toColor(PALETTE.textMid), -- 504
+		0, -- 504
+		0.5, -- 504
+		"Left", -- 504
+		0.8, -- 504
+		0.94, -- 504
+		0.08 -- 504
 	) -- 504
-	drawBlossomDot( -- 505
-		uiInkDraw, -- 505
-		uiArt, -- 505
-		"chap_go_dot", -- 505
-		goX + 14, -- 505
-		goY + 21, -- 505
-		14, -- 505
-		PALETTE.rouge, -- 505
-		0.96, -- 505
-		4 -- 505
-	) -- 505
-	texts:put( -- 506
-		"md", -- 506
-		"入此卷章", -- 506
-		goX + 34, -- 506
-		goY + 21, -- 506
-		toColor(PALETTE.textBright), -- 506
-		0, -- 506
-		0.5, -- 506
-		"Left", -- 506
-		3.8, -- 506
-		1, -- 506
-		0.1 -- 506
-	) -- 506
-	texts:put( -- 507
-		"xs", -- 507
-		"Enter", -- 507
-		goX + 156, -- 507
-		goY + 21, -- 507
-		toColor(PALETTE.textDim), -- 507
-		0, -- 507
-		0.5, -- 507
-		"Left", -- 507
-		1, -- 507
-		0.82, -- 507
-		0.08 -- 507
-	) -- 507
-	drawSilkVeil( -- 510
-		uiDraw, -- 510
-		uiArt, -- 510
-		"chap_track_veil", -- 510
-		w * 0.5, -- 510
-		trackY + 6, -- 510
-		w - marginX * 1.1, -- 510
-		126, -- 510
-		PALETTE.inkWash, -- 510
-		0.72, -- 510
-		-2 -- 510
-	) -- 510
-	drawMistCurve( -- 511
-		uiArt, -- 511
-		"chap_track_mist", -- 511
-		w * 0.5, -- 511
-		trackY, -- 511
-		trackX1 - trackX0 + 160, -- 511
-		74, -- 511
-		PALETTE.inkMist, -- 511
-		0.62, -- 511
-		-1 -- 511
-	) -- 511
-	uiInkDraw:drawSegment( -- 512
-		Vec2(trackX0, trackY), -- 512
-		Vec2(trackX1, trackY), -- 512
-		0.9, -- 512
-		toColor(PALETTE.silkDim, 145) -- 512
-	) -- 512
-	if splitTrack then -- 512
-		local lastX = trackX0 + (#CHAPTERS - perRow - 1) * stepX -- 515
-		uiInkDraw:drawSegment( -- 516
-			Vec2(trackX0, trackY - rowGap), -- 516
-			Vec2(lastX, trackY - rowGap), -- 516
-			0.9, -- 516
-			toColor(PALETTE.silkDim, 145) -- 516
-		) -- 516
-	else -- 516
-		local midDivX = trackX0 + stepX * 3.5 -- 518
-		uiInkDraw:drawSegment( -- 519
-			Vec2(midDivX, trackY - 12), -- 519
-			Vec2(midDivX, trackY + 12), -- 519
-			0.8, -- 519
-			toColor(PALETTE.silkDim, 120) -- 519
-		) -- 519
-		texts:put( -- 520
-			"xs", -- 520
-			"上卷 · 孤城护童", -- 520
-			trackX0 + stepX * 1.5, -- 520
-			trackY + 52, -- 520
-			toColor(PALETTE.cyan), -- 520
-			0.5, -- 520
-			0.5, -- 520
-			"Center", -- 520
-			2.2, -- 520
-			0.88, -- 520
-			0.08 -- 520
-		) -- 520
-		texts:put( -- 521
-			"xs", -- 521
-			"下卷 · 独赴北塔", -- 521
-			trackX0 + stepX * 5.5, -- 521
-			trackY + 52, -- 521
-			toColor(PALETTE.amber), -- 521
-			0.5, -- 521
-			0.5, -- 521
-			"Center", -- 521
-			2.2, -- 521
-			0.88, -- 521
-			0.08 -- 521
-		) -- 521
-	end -- 521
-	local i = 0 -- 524
-	do -- 524
-		i = 0 -- 525
-		while i < #CHAPTERS do -- 525
-			local box = stationBoxes[i + 1] -- 526
-			local sx = box.x + box.width * 0.5 -- 527
-			local sy = box.y + box.height * 0.5 -- 528
-			local rt = themeOf(CHAPTERS[i + 1].room.key) -- 529
-			local active = self.chapterSelected == i -- 530
-			local nodeCol = active and PALETTE.rouge or (i < 4 and PALETTE.cyan or PALETTE.amber) -- 531
-			if active then -- 531
-				fillRadialGlow( -- 534
-					uiGlow, -- 534
-					sx, -- 534
-					sy, -- 534
-					26, -- 534
-					26, -- 534
-					toColor(PALETTE.rouge, 36 * breathe), -- 534
-					Color(182, 58, 56, 0), -- 534
-					12 -- 534
-				) -- 534
-				uiArt:tryPlace( -- 535
-					"ink_enso_fine", -- 535
-					"chap_st_ring_" .. tostring(i), -- 535
-					sx, -- 535
-					sy, -- 535
-					32, -- 535
-					32, -- 535
-					{ -- 535
-						color = toColor(PALETTE.silkLine), -- 536
-						opacity = 0.78, -- 536
-						angle = self.time * 18, -- 536
-						layer = 3 -- 536
-					} -- 536
-				) -- 536
-				drawBlossomDot( -- 538
-					uiInkDraw, -- 538
-					uiArt, -- 538
-					"chap_st_dot_" .. tostring(i), -- 538
-					sx, -- 538
-					sy, -- 538
-					17, -- 538
-					PALETTE.rouge, -- 538
-					0.98, -- 538
-					4 -- 538
-				) -- 538
-			else -- 538
-				uiArt:tryPlace( -- 540
-					"ink_enso_fine", -- 540
-					"chap_st_ring_" .. tostring(i), -- 540
-					sx, -- 540
-					sy, -- 540
-					16, -- 540
-					16, -- 540
-					{ -- 540
-						color = toColor(nodeCol), -- 541
-						opacity = 0.62, -- 541
-						layer = 3 -- 541
-					} -- 541
-				) -- 541
-				drawBlossomDot( -- 543
-					uiInkDraw, -- 543
-					uiArt, -- 543
-					"chap_st_dot_" .. tostring(i), -- 543
-					sx, -- 543
-					sy, -- 543
-					7, -- 543
-					PALETTE.silkLine, -- 543
-					0.72, -- 543
-					4 -- 543
-				) -- 543
-			end -- 543
-			if not splitTrack then -- 543
-				texts:put( -- 547
-					"xs", -- 547
-					rt.numeralZh, -- 547
-					sx, -- 547
-					sy + 25, -- 547
-					toColor(active and PALETTE.crimsonCore or PALETTE.textMid), -- 547
-					0.5, -- 547
-					0.5, -- 547
-					"Center", -- 547
-					0, -- 547
-					active and 1 or 0.88, -- 547
-					0.08 -- 547
+	local goX = infoX -- 507
+	local goY = winY + 26 -- 508
+	local goW = 220 -- 509
+	local goH = 42 -- 510
+	local goBox = Rect(goX, goY, goW, goH) -- 511
+	local goHover = frame.inside and goBox:containsPoint(frame.pointer) -- 512
+	local breathe = 0.84 + 0.16 * math.sin(self.time * 2.4) -- 513
+	drawSilkRibbon( -- 514
+		uiDraw, -- 514
+		uiArt, -- 514
+		"chap_go_rib", -- 514
+		goX + 106, -- 514
+		goY + 21, -- 514
+		250, -- 514
+		40, -- 514
+		goHover and PALETTE.rouge or PALETTE.rougeSoft, -- 514
+		(goHover and 0.68 or 0.46) * breathe, -- 514
+		0 -- 514
+	) -- 514
+	drawHairline( -- 515
+		uiInkDraw, -- 515
+		uiArt, -- 515
+		"chap_go_line", -- 515
+		goX + 94, -- 515
+		goY + 3, -- 515
+		196, -- 515
+		PALETTE.silkLine, -- 515
+		goHover and 0.68 or 0.4, -- 515
+		false, -- 515
+		2 -- 515
+	) -- 515
+	drawBlossomDot( -- 516
+		uiInkDraw, -- 516
+		uiArt, -- 516
+		"chap_go_dot", -- 516
+		goX + 14, -- 516
+		goY + 21, -- 516
+		14, -- 516
+		PALETTE.rouge, -- 516
+		0.96, -- 516
+		4 -- 516
+	) -- 516
+	texts:put( -- 517
+		"md", -- 517
+		"入此卷章", -- 517
+		goX + 34, -- 517
+		goY + 21, -- 517
+		toColor(PALETTE.textBright), -- 517
+		0, -- 517
+		0.5, -- 517
+		"Left", -- 517
+		3.8, -- 517
+		1, -- 517
+		0.1 -- 517
+	) -- 517
+	texts:put( -- 518
+		"xs", -- 518
+		"Enter", -- 518
+		goX + 156, -- 518
+		goY + 21, -- 518
+		toColor(PALETTE.textDim), -- 518
+		0, -- 518
+		0.5, -- 518
+		"Left", -- 518
+		1, -- 518
+		0.82, -- 518
+		0.08 -- 518
+	) -- 518
+	drawSilkVeil( -- 521
+		uiDraw, -- 521
+		uiArt, -- 521
+		"chap_track_veil", -- 521
+		w * 0.5, -- 521
+		trackY + 6, -- 521
+		w - marginX * 1.1, -- 521
+		126, -- 521
+		PALETTE.inkWash, -- 521
+		0.72, -- 521
+		-2 -- 521
+	) -- 521
+	drawMistCurve( -- 522
+		uiArt, -- 522
+		"chap_track_mist", -- 522
+		w * 0.5, -- 522
+		trackY, -- 522
+		trackX1 - trackX0 + 160, -- 522
+		74, -- 522
+		PALETTE.inkMist, -- 522
+		0.62, -- 522
+		-1 -- 522
+	) -- 522
+	uiInkDraw:drawSegment( -- 523
+		Vec2(trackX0, trackY), -- 523
+		Vec2(trackX1, trackY), -- 523
+		0.9, -- 523
+		toColor(PALETTE.silkDim, 145) -- 523
+	) -- 523
+	if splitTrack then -- 523
+		local lastX = trackX0 + (#CHAPTERS - perRow - 1) * stepX -- 526
+		uiInkDraw:drawSegment( -- 527
+			Vec2(trackX0, trackY - rowGap), -- 527
+			Vec2(lastX, trackY - rowGap), -- 527
+			0.9, -- 527
+			toColor(PALETTE.silkDim, 145) -- 527
+		) -- 527
+	else -- 527
+		local midDivX = trackX0 + stepX * 3.5 -- 529
+		uiInkDraw:drawSegment( -- 530
+			Vec2(midDivX, trackY - 12), -- 530
+			Vec2(midDivX, trackY + 12), -- 530
+			0.8, -- 530
+			toColor(PALETTE.silkDim, 120) -- 530
+		) -- 530
+		texts:put( -- 531
+			"xs", -- 531
+			"上卷 · 孤城护童", -- 531
+			trackX0 + stepX * 1.5, -- 531
+			trackY + 52, -- 531
+			toColor(PALETTE.cyan), -- 531
+			0.5, -- 531
+			0.5, -- 531
+			"Center", -- 531
+			2.2, -- 531
+			0.88, -- 531
+			0.08 -- 531
+		) -- 531
+		texts:put( -- 532
+			"xs", -- 532
+			"下卷 · 独赴北塔", -- 532
+			trackX0 + stepX * 5.5, -- 532
+			trackY + 52, -- 532
+			toColor(PALETTE.amber), -- 532
+			0.5, -- 532
+			0.5, -- 532
+			"Center", -- 532
+			2.2, -- 532
+			0.88, -- 532
+			0.08 -- 532
+		) -- 532
+	end -- 532
+	local i = 0 -- 535
+	do -- 535
+		i = 0 -- 536
+		while i < #CHAPTERS do -- 536
+			local box = stationBoxes[i + 1] -- 537
+			local sx = box.x + box.width * 0.5 -- 538
+			local sy = box.y + box.height * 0.5 -- 539
+			local rt = themeOf(CHAPTERS[i + 1].room.key) -- 540
+			local active = self.chapterSelected == i -- 541
+			local nodeCol = active and PALETTE.rouge or (i < 4 and PALETTE.cyan or PALETTE.amber) -- 542
+			if active then -- 542
+				fillRadialGlow( -- 545
+					uiGlow, -- 545
+					sx, -- 545
+					sy, -- 545
+					26, -- 545
+					26, -- 545
+					toColor(PALETTE.rouge, 36 * breathe), -- 545
+					Color(182, 58, 56, 0), -- 545
+					12 -- 545
+				) -- 545
+				uiArt:tryPlace( -- 546
+					"ink_enso_fine", -- 546
+					"chap_st_ring_" .. tostring(i), -- 546
+					sx, -- 546
+					sy, -- 546
+					32, -- 546
+					32, -- 546
+					{ -- 546
+						color = toColor(PALETTE.silkLine), -- 547
+						opacity = 0.78, -- 547
+						angle = self.time * 18, -- 547
+						layer = 3 -- 547
+					} -- 547
 				) -- 547
-			end -- 547
-			texts:put( -- 549
-				"xs", -- 549
-				rt.shortNameZh, -- 549
-				sx, -- 549
-				sy - 26, -- 549
-				toColor(active and PALETTE.textBright or PALETTE.textMid), -- 549
-				0.5, -- 549
-				0.5, -- 549
-				"Center", -- 549
-				1, -- 549
-				active and 1 or 0.84, -- 549
-				0.08 -- 549
-			) -- 549
-			i = i + 1 -- 525
-		end -- 525
-	end -- 525
-	local backX = marginX -- 553
-	local backY = 40 -- 554
-	local backBox = Rect(backX, backY, 190, 34) -- 555
-	local backHover = frame.inside and backBox:containsPoint(frame.pointer) -- 556
-	drawSilkKeycap( -- 557
-		uiInkDraw, -- 557
-		texts, -- 557
-		backX, -- 557
-		backY + 5, -- 557
-		44, -- 557
-		24, -- 557
-		"ESC", -- 557
-		backHover and PALETTE.rouge or PALETTE.silkDim, -- 557
-		0.92, -- 557
-		backHover -- 557
-	) -- 557
-	texts:put( -- 558
-		"sm", -- 558
-		self.chaptersFromPause and "返回暂停" or "返回标题", -- 558
-		backX + 56, -- 558
-		backY + 17, -- 558
-		toColor(backHover and PALETTE.textBright or PALETTE.textMid), -- 558
-		0, -- 558
-		0.5, -- 558
-		"Left", -- 558
-		1.8, -- 558
-		0.9, -- 558
-		0.08 -- 558
-	) -- 558
-	texts:put( -- 559
-		"xs", -- 559
-		"方向键选择   ·   回车或点击进入", -- 559
-		w - marginX, -- 559
-		backY + 17, -- 559
-		toColor(PALETTE.textDim), -- 559
-		1, -- 559
-		0.5, -- 559
-		"Right", -- 559
-		1.2, -- 559
-		0.75, -- 559
-		0.08 -- 559
-	) -- 559
-	if frame.click and backHover then -- 559
-		return back -- 562
-	end -- 562
-	if keys.confirm or frame.click and (hitStation >= 0 or winHover or goHover) then -- 562
-		return {type = "jump", roomIndex = CHAPTERS[self.chapterSelected + 1].roomIndex} -- 565
-	end -- 565
-	return {type = "none"} -- 567
-end -- 381
-function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiArt, _uiGlow, texts, w, h, backLabel) -- 573
-	if backLabel == nil then -- 573
-		backLabel = "返回标题" -- 582
-	end -- 582
-	local marginX = 96 -- 584
-	local backX = marginX -- 585
-	local backY = 40 -- 586
-	local backBox = Rect(backX, backY, 230, 34) -- 587
-	local backHover = frame.inside and backBox:containsPoint(frame.pointer) -- 588
-	if frame.back or frame.keys.confirm or frame.click and backHover then -- 588
-		return {type = "backTitle"} -- 590
-	end -- 590
-	uiDraw:drawRect( -- 592
-		Rect(0, 0, w, h), -- 592
-		Color(10, 12, 19, 204) -- 592
-	) -- 592
-	texts:put( -- 594
-		"banner", -- 594
-		"执器要诀", -- 594
-		marginX, -- 594
-		h - 66, -- 594
-		toColor(PALETTE.textBright), -- 594
-		0, -- 594
-		0.5, -- 594
-		"Left", -- 594
-		4.5, -- 594
-		0.96, -- 594
-		0.1 -- 594
-	) -- 594
-	texts:put( -- 595
-		"xs", -- 595
-		"键鼠操作说明", -- 595
-		marginX + 196, -- 595
-		h - 70, -- 595
-		toColor(PALETTE.textDim), -- 595
-		0, -- 595
-		0.5, -- 595
-		"Left", -- 595
-		2, -- 595
-		0.85, -- 595
-		0.08 -- 595
-	) -- 595
-	drawHairline( -- 596
-		uiInkDraw, -- 596
-		uiArt, -- 596
-		"ctrl_top_line", -- 596
-		w * 0.5, -- 596
-		h - 100, -- 596
-		w - marginX * 2, -- 596
-		PALETTE.silkDim, -- 596
-		0.6, -- 596
-		true, -- 596
-		2 -- 596
-	) -- 596
-	local areaY = 114 -- 599
-	local areaH = h - 244 -- 600
-	drawFiligreeCorners( -- 601
-		uiInkDraw, -- 601
-		uiArt, -- 601
-		"ctrl_outer", -- 601
-		marginX, -- 601
-		areaY, -- 601
-		w - marginX * 2, -- 601
-		areaH, -- 601
-		PALETTE.silkDim, -- 601
-		0.52, -- 601
-		34, -- 601
-		false, -- 601
-		2 -- 601
-	) -- 601
-	local midX = w * 0.5 -- 604
-	uiArt:tryPlace( -- 605
-		"ink_vstream", -- 605
-		"ctrl_mid_stream", -- 605
-		midX, -- 605
-		areaY + areaH * 0.5, -- 605
-		32, -- 605
-		areaH - 18, -- 605
-		{ -- 605
-			color = toColor(PALETTE.silkDim), -- 606
-			opacity = 0.52, -- 606
-			layer = 1 -- 606
-		} -- 606
+				drawBlossomDot( -- 549
+					uiInkDraw, -- 549
+					uiArt, -- 549
+					"chap_st_dot_" .. tostring(i), -- 549
+					sx, -- 549
+					sy, -- 549
+					17, -- 549
+					PALETTE.rouge, -- 549
+					0.98, -- 549
+					4 -- 549
+				) -- 549
+			else -- 549
+				uiArt:tryPlace( -- 551
+					"ink_enso_fine", -- 551
+					"chap_st_ring_" .. tostring(i), -- 551
+					sx, -- 551
+					sy, -- 551
+					16, -- 551
+					16, -- 551
+					{ -- 551
+						color = toColor(nodeCol), -- 552
+						opacity = 0.62, -- 552
+						layer = 3 -- 552
+					} -- 552
+				) -- 552
+				drawBlossomDot( -- 554
+					uiInkDraw, -- 554
+					uiArt, -- 554
+					"chap_st_dot_" .. tostring(i), -- 554
+					sx, -- 554
+					sy, -- 554
+					7, -- 554
+					PALETTE.silkLine, -- 554
+					0.72, -- 554
+					4 -- 554
+				) -- 554
+			end -- 554
+			if not splitTrack then -- 554
+				texts:put( -- 558
+					"xs", -- 558
+					rt.numeralZh, -- 558
+					sx, -- 558
+					sy + 25, -- 558
+					toColor(active and PALETTE.crimsonCore or PALETTE.textMid), -- 558
+					0.5, -- 558
+					0.5, -- 558
+					"Center", -- 558
+					0, -- 558
+					active and 1 or 0.88, -- 558
+					0.08 -- 558
+				) -- 558
+			end -- 558
+			texts:put( -- 560
+				"xs", -- 560
+				rt.shortNameZh, -- 560
+				sx, -- 560
+				sy - 26, -- 560
+				toColor(active and PALETTE.textBright or PALETTE.textMid), -- 560
+				0.5, -- 560
+				0.5, -- 560
+				"Center", -- 560
+				1, -- 560
+				active and 1 or 0.84, -- 560
+				0.08 -- 560
+			) -- 560
+			i = i + 1 -- 536
+		end -- 536
+	end -- 536
+	local backX = marginX -- 564
+	local backY = 40 -- 565
+	local backBox = Rect(backX, backY, 190, 34) -- 566
+	local backHover = frame.inside and backBox:containsPoint(frame.pointer) -- 567
+	drawSilkKeycap( -- 568
+		uiInkDraw, -- 568
+		texts, -- 568
+		backX, -- 568
+		backY + 5, -- 568
+		44, -- 568
+		24, -- 568
+		"ESC", -- 568
+		backHover and PALETTE.rouge or PALETTE.silkDim, -- 568
+		0.92, -- 568
+		backHover -- 568
+	) -- 568
+	texts:put( -- 569
+		"sm", -- 569
+		self.chaptersFromPause and "返回暂停" or "返回标题", -- 569
+		backX + 56, -- 569
+		backY + 17, -- 569
+		toColor(backHover and PALETTE.textBright or PALETTE.textMid), -- 569
+		0, -- 569
+		0.5, -- 569
+		"Left", -- 569
+		1.8, -- 569
+		0.9, -- 569
+		0.08 -- 569
+	) -- 569
+	texts:put( -- 570
+		"xs", -- 570
+		"方向键选择   ·   回车或点击进入", -- 570
+		w - marginX, -- 570
+		backY + 17, -- 570
+		toColor(PALETTE.textDim), -- 570
+		1, -- 570
+		0.5, -- 570
+		"Right", -- 570
+		1.2, -- 570
+		0.75, -- 570
+		0.08 -- 570
+	) -- 570
+	if frame.click and backHover then -- 570
+		return back -- 573
+	end -- 573
+	if keys.confirm or frame.click and (hitStation >= 0 or winHover or goHover) then -- 573
+		return {type = "jump", roomIndex = CHAPTERS[self.chapterSelected + 1].roomIndex} -- 576
+	end -- 576
+	return {type = "none"} -- 578
+end -- 392
+function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiArt, _uiGlow, texts, w, h, backLabel) -- 584
+	if backLabel == nil then -- 584
+		backLabel = "返回标题" -- 593
+	end -- 593
+	local marginX = 96 -- 595
+	local backX = marginX -- 596
+	local backY = 40 -- 597
+	local backBox = Rect(backX, backY, 230, 34) -- 598
+	local backHover = frame.inside and backBox:containsPoint(frame.pointer) -- 599
+	if frame.back or frame.keys.confirm or frame.click and backHover then -- 599
+		return {type = "backTitle"} -- 601
+	end -- 601
+	uiDraw:drawRect( -- 603
+		Rect(0, 0, w, h), -- 603
+		Color(10, 12, 19, 204) -- 603
+	) -- 603
+	texts:put( -- 605
+		"banner", -- 605
+		"执器要诀", -- 605
+		marginX, -- 605
+		h - 66, -- 605
+		toColor(PALETTE.textBright), -- 605
+		0, -- 605
+		0.5, -- 605
+		"Left", -- 605
+		4.5, -- 605
+		0.96, -- 605
+		0.1 -- 605
+	) -- 605
+	texts:put( -- 606
+		"xs", -- 606
+		"键鼠操作说明", -- 606
+		marginX + 196, -- 606
+		h - 70, -- 606
+		toColor(PALETTE.textDim), -- 606
+		0, -- 606
+		0.5, -- 606
+		"Left", -- 606
+		2, -- 606
+		0.85, -- 606
+		0.08 -- 606
 	) -- 606
-	drawBlossomDot( -- 608
-		uiInkDraw, -- 608
-		uiArt, -- 608
-		"ctrl_mid_dot", -- 608
-		midX, -- 608
-		areaY + areaH * 0.5, -- 608
-		11, -- 608
-		PALETTE.silkLine, -- 608
-		0.62, -- 608
-		3 -- 608
-	) -- 608
-	local leftColX = marginX + 34 -- 611
-	local colW = midX - leftColX - 42 -- 612
-	local headY = areaY + areaH - 34 -- 613
-	drawBlossomDot( -- 614
-		uiInkDraw, -- 614
-		uiArt, -- 614
-		"ctrl_l_dot", -- 614
-		leftColX + 8, -- 614
-		headY, -- 614
-		12, -- 614
-		PALETTE.cyan, -- 614
-		0.88, -- 614
-		3 -- 614
-	) -- 614
-	texts:put( -- 615
-		"md", -- 615
-		"周戍 · 护送与交锋", -- 615
-		leftColX + 26, -- 615
-		headY, -- 615
-		toColor(PALETTE.cyanCore), -- 615
-		0, -- 615
-		0.5, -- 615
-		"Left", -- 615
-		2.4, -- 615
-		0.98, -- 615
-		0.08 -- 615
-	) -- 615
-	drawHairline( -- 616
-		uiInkDraw, -- 616
-		uiArt, -- 616
-		"ctrl_l_line", -- 616
-		leftColX + colW * 0.5, -- 616
-		headY - 24, -- 616
-		colW, -- 616
-		PALETTE.cyanDim, -- 616
-		0.58, -- 616
-		false, -- 616
-		2 -- 616
-	) -- 616
-	local sRows = { -- 618
-		{"WASD / 方向键", "左右、前后自由移动"}, -- 619
-		{"鼠标 + 左键", "瞄准与发射火铳"}, -- 620
-		{"按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"}, -- 621
-		{"SPACE", "平地翻滚 / 靠近矮柜翻越"}, -- 622
-		{"E", "递物 / 轻敲安抚 / 按住+D 推车"}, -- 623
-		{"ESC / R", "暂歇菜单 / 重试检查点"} -- 624
-	} -- 624
-	local i = 0 -- 626
-	do -- 626
-		i = 0 -- 627
-		while i < #sRows do -- 627
-			local ry = headY - 66 - i * 52 -- 628
-			drawSilkKeycap( -- 629
-				uiInkDraw, -- 629
-				texts, -- 629
-				leftColX + 2, -- 629
-				ry - 13, -- 629
-				132, -- 629
-				26, -- 629
-				sRows[i + 1][1], -- 629
-				PALETTE.cyan, -- 629
-				0.92, -- 629
-				false -- 629
-			) -- 629
-			texts:put( -- 630
-				"sm", -- 630
-				sRows[i + 1][2], -- 630
-				leftColX + 150, -- 630
-				ry, -- 630
-				toColor(PALETTE.textBright), -- 630
-				0, -- 630
-				0.5, -- 630
-				"Left", -- 630
-				0.8, -- 630
-				0.92, -- 630
-				0.08 -- 630
-			) -- 630
-			i = i + 1 -- 627
-		end -- 627
-	end -- 627
-	local rightColX = midX + 44 -- 634
-	drawBlossomDot( -- 635
-		uiInkDraw, -- 635
-		uiArt, -- 635
-		"ctrl_r_dot", -- 635
-		rightColX + 8, -- 635
-		headY, -- 635
-		12, -- 635
-		PALETTE.amber, -- 635
-		0.88, -- 635
-		3 -- 635
-	) -- 635
-	texts:put( -- 636
-		"md", -- 636
-		"小满 · 潜行与寻路", -- 636
-		rightColX + 26, -- 636
-		headY, -- 636
-		toColor(PALETTE.amberCore), -- 636
-		0, -- 636
-		0.5, -- 636
-		"Left", -- 636
-		2.4, -- 636
-		0.98, -- 636
-		0.08 -- 636
-	) -- 636
-	drawHairline( -- 637
-		uiInkDraw, -- 637
-		uiArt, -- 637
-		"ctrl_r_line", -- 637
-		rightColX + colW * 0.5, -- 637
-		headY - 24, -- 637
-		colW, -- 637
-		PALETTE.amberDim, -- 637
-		0.58, -- 637
-		false, -- 637
-		2 -- 637
-	) -- 637
-	local cRows = { -- 639
-		{"A / D · ← / →", "左右潜行"}, -- 640
-		{"按住 SHIFT", "轻步慢走（压低脚步声）"}, -- 641
-		{"按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"}, -- 642
-		{"SPACE", "跳跃攀上石阶与矮台"}, -- 643
-		{"E", "拾瓶 / 敲塔门 / 按住+D 拉车"}, -- 644
-		{"F 按住→松开", "瞄准砖地，投瓶引开拾荒者"} -- 645
-	} -- 645
-	do -- 645
-		i = 0 -- 647
-		while i < #cRows do -- 647
-			local ry = headY - 66 - i * 52 -- 648
-			drawSilkKeycap( -- 649
-				uiInkDraw, -- 649
-				texts, -- 649
-				rightColX + 2, -- 649
-				ry - 13, -- 649
-				132, -- 649
-				26, -- 649
-				cRows[i + 1][1], -- 649
-				PALETTE.amber, -- 649
-				0.92, -- 649
-				false -- 649
-			) -- 649
-			texts:put( -- 650
-				"sm", -- 650
-				cRows[i + 1][2], -- 650
-				rightColX + 150, -- 650
-				ry, -- 650
-				toColor(PALETTE.textBright), -- 650
-				0, -- 650
-				0.5, -- 650
-				"Left", -- 650
-				0.8, -- 650
-				0.92, -- 650
-				0.08 -- 650
-			) -- 650
-			i = i + 1 -- 647
-		end -- 647
-	end -- 647
-	drawSilkKeycap( -- 654
-		uiInkDraw, -- 654
-		texts, -- 654
-		backX, -- 654
-		backY + 5, -- 654
-		110, -- 654
-		24, -- 654
-		"ESC / ENTER", -- 654
-		backHover and PALETTE.rouge or PALETTE.silkDim, -- 654
-		0.92, -- 654
-		backHover -- 654
-	) -- 654
-	texts:put( -- 655
-		"sm", -- 655
-		backLabel, -- 655
-		backX + 122, -- 655
-		backY + 17, -- 655
-		toColor(backHover and PALETTE.textBright or PALETTE.textMid), -- 655
-		0, -- 655
-		0.5, -- 655
-		"Left", -- 655
-		1.8, -- 655
-		0.92, -- 655
-		0.08 -- 655
-	) -- 655
-	texts:put( -- 656
-		"xs", -- 656
-		"F11 / Alt+Enter 切换全屏", -- 656
-		w - marginX, -- 656
-		backY + 17, -- 656
-		toColor(PALETTE.textDim), -- 656
-		1, -- 656
-		0.5, -- 656
-		"Right", -- 656
-		1.2, -- 656
-		0.78, -- 656
-		0.08 -- 656
-	) -- 656
-	return {type = "none"} -- 658
-end -- 573
-function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, uiScale, assistHintsEnabled, onToggleAssist) -- 665
-	if assistHintsEnabled == nil then -- 665
-		assistHintsEnabled = false -- 676
-	end -- 676
-	self.time = self.time + dt -- 679
-	local frame = self:readFrame(input, uiScale) -- 680
-	if self.pauseShowControls then -- 680
-		local ctrlAct = self:drawControls( -- 684
-			frame, -- 684
-			uiDraw, -- 684
-			uiInkDraw, -- 684
-			uiArt, -- 684
-			uiGlow, -- 684
-			texts, -- 684
-			w, -- 684
-			h, -- 684
-			"返回暂停" -- 684
-		) -- 684
-		if ctrlAct.type == "backTitle" then -- 684
-			self.pauseShowControls = false -- 686
-			self:resetInput() -- 687
-		end -- 687
-		return {type = "none"} -- 689
-	end -- 689
-	if frame.back then -- 689
-		self.pauseShowControls = false -- 693
-		return {type = "resume"} -- 694
-	end -- 694
-	uiDraw:drawRect( -- 698
-		Rect(0, 0, w, h), -- 698
-		Color(8, 10, 16, 102) -- 698
-	) -- 698
-	fillHGradRect( -- 699
-		uiDraw, -- 699
-		0, -- 699
-		0, -- 699
-		w * 0.27, -- 699
-		h, -- 699
-		Color(9, 11, 18, 232), -- 699
-		Color(10, 13, 21, 198) -- 699
-	) -- 699
-	fillHGradRect( -- 700
-		uiDraw, -- 700
-		w * 0.27, -- 700
-		0, -- 700
-		w * 0.21, -- 700
-		h, -- 700
-		Color(10, 13, 21, 198), -- 700
-		Color(10, 13, 21, 0) -- 700
-	) -- 700
-	local menuX = 110 -- 703
-	uiArt:tryPlace( -- 704
-		"ink_vstream", -- 704
-		"pause_vstream", -- 704
-		menuX - 32, -- 704
-		h * 0.5, -- 704
-		34, -- 704
-		h * 0.78, -- 704
-		{ -- 704
-			color = toColor(PALETTE.silkDim), -- 705
-			opacity = 0.48, -- 705
-			layer = 1 -- 705
-		} -- 705
-	) -- 705
-	drawMistCurve( -- 707
-		uiArt, -- 707
-		"pause_mist", -- 707
-		menuX + 118, -- 707
-		h - 154, -- 707
-		290, -- 707
-		72, -- 707
-		PALETTE.jadeMist, -- 707
-		0.2, -- 707
-		-1 -- 707
-	) -- 707
-	texts:put( -- 710
-		"banner", -- 710
-		"暂歇", -- 710
-		menuX + 16, -- 710
-		h - 146, -- 710
-		toColor(PALETTE.textBright), -- 710
+	drawHairline( -- 607
+		uiInkDraw, -- 607
+		uiArt, -- 607
+		"ctrl_top_line", -- 607
+		w * 0.5, -- 607
+		h - 100, -- 607
+		w - marginX * 2, -- 607
+		PALETTE.silkDim, -- 607
+		0.6, -- 607
+		true, -- 607
+		2 -- 607
+	) -- 607
+	local areaY = 114 -- 610
+	local areaH = h - 244 -- 611
+	drawFiligreeCorners( -- 612
+		uiInkDraw, -- 612
+		uiArt, -- 612
+		"ctrl_outer", -- 612
+		marginX, -- 612
+		areaY, -- 612
+		w - marginX * 2, -- 612
+		areaH, -- 612
+		PALETTE.silkDim, -- 612
+		0.52, -- 612
+		34, -- 612
+		false, -- 612
+		2 -- 612
+	) -- 612
+	local midX = w * 0.5 -- 615
+	uiArt:tryPlace( -- 616
+		"ink_vstream", -- 616
+		"ctrl_mid_stream", -- 616
+		midX, -- 616
+		areaY + areaH * 0.5, -- 616
+		32, -- 616
+		areaH - 18, -- 616
+		{ -- 616
+			color = toColor(PALETTE.silkDim), -- 617
+			opacity = 0.52, -- 617
+			layer = 1 -- 617
+		} -- 617
+	) -- 617
+	drawBlossomDot( -- 619
+		uiInkDraw, -- 619
+		uiArt, -- 619
+		"ctrl_mid_dot", -- 619
+		midX, -- 619
+		areaY + areaH * 0.5, -- 619
+		11, -- 619
+		PALETTE.silkLine, -- 619
+		0.62, -- 619
+		3 -- 619
+	) -- 619
+	local leftColX = marginX + 34 -- 622
+	local colW = midX - leftColX - 42 -- 623
+	local headY = areaY + areaH - 34 -- 624
+	drawBlossomDot( -- 625
+		uiInkDraw, -- 625
+		uiArt, -- 625
+		"ctrl_l_dot", -- 625
+		leftColX + 8, -- 625
+		headY, -- 625
+		12, -- 625
+		PALETTE.cyan, -- 625
+		0.88, -- 625
+		3 -- 625
+	) -- 625
+	texts:put( -- 626
+		"md", -- 626
+		"周戍 · 护送与交锋", -- 626
+		leftColX + 26, -- 626
+		headY, -- 626
+		toColor(PALETTE.cyanCore), -- 626
+		0, -- 626
+		0.5, -- 626
+		"Left", -- 626
+		2.4, -- 626
+		0.98, -- 626
+		0.08 -- 626
+	) -- 626
+	drawHairline( -- 627
+		uiInkDraw, -- 627
+		uiArt, -- 627
+		"ctrl_l_line", -- 627
+		leftColX + colW * 0.5, -- 627
+		headY - 24, -- 627
+		colW, -- 627
+		PALETTE.cyanDim, -- 627
+		0.58, -- 627
+		false, -- 627
+		2 -- 627
+	) -- 627
+	local sRows = { -- 629
+		{"WASD / 方向键", "左右、前后自由移动"}, -- 630
+		{"鼠标 + 左键", "瞄准与发射火铳"}, -- 631
+		{"按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"}, -- 632
+		{"SPACE", "平地翻滚 / 靠近矮柜翻越"}, -- 633
+		{"E", "递物 / 轻敲安抚 / 按住+D 推车"}, -- 634
+		{"ESC / R", "暂歇菜单 / 重试检查点"} -- 635
+	} -- 635
+	local i = 0 -- 637
+	do -- 637
+		i = 0 -- 638
+		while i < #sRows do -- 638
+			local ry = headY - 66 - i * 52 -- 639
+			drawSilkKeycap( -- 640
+				uiInkDraw, -- 640
+				texts, -- 640
+				leftColX + 2, -- 640
+				ry - 13, -- 640
+				132, -- 640
+				26, -- 640
+				sRows[i + 1][1], -- 640
+				PALETTE.cyan, -- 640
+				0.92, -- 640
+				false -- 640
+			) -- 640
+			texts:put( -- 641
+				"sm", -- 641
+				sRows[i + 1][2], -- 641
+				leftColX + 150, -- 641
+				ry, -- 641
+				toColor(PALETTE.textBright), -- 641
+				0, -- 641
+				0.5, -- 641
+				"Left", -- 641
+				0.8, -- 641
+				0.92, -- 641
+				0.08 -- 641
+			) -- 641
+			i = i + 1 -- 638
+		end -- 638
+	end -- 638
+	local rightColX = midX + 44 -- 645
+	drawBlossomDot( -- 646
+		uiInkDraw, -- 646
+		uiArt, -- 646
+		"ctrl_r_dot", -- 646
+		rightColX + 8, -- 646
+		headY, -- 646
+		12, -- 646
+		PALETTE.amber, -- 646
+		0.88, -- 646
+		3 -- 646
+	) -- 646
+	texts:put( -- 647
+		"md", -- 647
+		"小满 · 潜行与寻路", -- 647
+		rightColX + 26, -- 647
+		headY, -- 647
+		toColor(PALETTE.amberCore), -- 647
+		0, -- 647
+		0.5, -- 647
+		"Left", -- 647
+		2.4, -- 647
+		0.98, -- 647
+		0.08 -- 647
+	) -- 647
+	drawHairline( -- 648
+		uiInkDraw, -- 648
+		uiArt, -- 648
+		"ctrl_r_line", -- 648
+		rightColX + colW * 0.5, -- 648
+		headY - 24, -- 648
+		colW, -- 648
+		PALETTE.amberDim, -- 648
+		0.58, -- 648
+		false, -- 648
+		2 -- 648
+	) -- 648
+	local cRows = { -- 650
+		{"A / D · ← / →", "左右潜行"}, -- 651
+		{"按住 SHIFT", "轻步慢走（压低脚步声）"}, -- 652
+		{"按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"}, -- 653
+		{"SPACE", "跳跃攀上石阶与矮台"}, -- 654
+		{"E", "拾瓶 / 敲塔门 / 按住+D 拉车"}, -- 655
+		{"F 按住→松开", "瞄准砖地，投瓶引开拾荒者"} -- 656
+	} -- 656
+	do -- 656
+		i = 0 -- 658
+		while i < #cRows do -- 658
+			local ry = headY - 66 - i * 52 -- 659
+			drawSilkKeycap( -- 660
+				uiInkDraw, -- 660
+				texts, -- 660
+				rightColX + 2, -- 660
+				ry - 13, -- 660
+				132, -- 660
+				26, -- 660
+				cRows[i + 1][1], -- 660
+				PALETTE.amber, -- 660
+				0.92, -- 660
+				false -- 660
+			) -- 660
+			texts:put( -- 661
+				"sm", -- 661
+				cRows[i + 1][2], -- 661
+				rightColX + 150, -- 661
+				ry, -- 661
+				toColor(PALETTE.textBright), -- 661
+				0, -- 661
+				0.5, -- 661
+				"Left", -- 661
+				0.8, -- 661
+				0.92, -- 661
+				0.08 -- 661
+			) -- 661
+			i = i + 1 -- 658
+		end -- 658
+	end -- 658
+	drawSilkKeycap( -- 665
+		uiInkDraw, -- 665
+		texts, -- 665
+		backX, -- 665
+		backY + 5, -- 665
+		110, -- 665
+		24, -- 665
+		"ESC / ENTER", -- 665
+		backHover and PALETTE.rouge or PALETTE.silkDim, -- 665
+		0.92, -- 665
+		backHover -- 665
+	) -- 665
+	texts:put( -- 666
+		"sm", -- 666
+		backLabel, -- 666
+		backX + 122, -- 666
+		backY + 17, -- 666
+		toColor(backHover and PALETTE.textBright or PALETTE.textMid), -- 666
+		0, -- 666
+		0.5, -- 666
+		"Left", -- 666
+		1.8, -- 666
+		0.92, -- 666
+		0.08 -- 666
+	) -- 666
+	texts:put( -- 667
+		"xs", -- 667
+		"F11 / Alt+Enter 切换全屏", -- 667
+		w - marginX, -- 667
+		backY + 17, -- 667
+		toColor(PALETTE.textDim), -- 667
+		1, -- 667
+		0.5, -- 667
+		"Right", -- 667
+		1.2, -- 667
+		0.78, -- 667
+		0.08 -- 667
+	) -- 667
+	return {type = "none"} -- 669
+end -- 584
+function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, uiScale, assistHintsEnabled, onToggleAssist) -- 676
+	if assistHintsEnabled == nil then -- 676
+		assistHintsEnabled = false -- 687
+	end -- 687
+	self.time = self.time + dt -- 690
+	local frame = self:readFrame(input, uiScale) -- 691
+	if self.pauseShowControls then -- 691
+		local ctrlAct = self:drawControls( -- 695
+			frame, -- 695
+			uiDraw, -- 695
+			uiInkDraw, -- 695
+			uiArt, -- 695
+			uiGlow, -- 695
+			texts, -- 695
+			w, -- 695
+			h, -- 695
+			"返回暂停" -- 695
+		) -- 695
+		if ctrlAct.type == "backTitle" then -- 695
+			self.pauseShowControls = false -- 697
+			self:resetInput() -- 698
+		end -- 698
+		return {type = "none"} -- 700
+	end -- 700
+	if frame.back then -- 700
+		self.pauseShowControls = false -- 704
+		return {type = "resume"} -- 705
+	end -- 705
+	uiDraw:drawRect( -- 709
+		Rect(0, 0, w, h), -- 709
+		Color(8, 10, 16, 102) -- 709
+	) -- 709
+	fillHGradRect( -- 710
+		uiDraw, -- 710
 		0, -- 710
-		0.5, -- 710
-		"Left", -- 710
-		10, -- 710
-		0.98, -- 710
-		0.1 -- 710
+		0, -- 710
+		w * 0.27, -- 710
+		h, -- 710
+		Color(9, 11, 18, 232), -- 710
+		Color(10, 13, 21, 198) -- 710
 	) -- 710
-	texts:put( -- 711
-		"xs", -- 711
-		"月夜暂驻 · 卷页留痕", -- 711
-		menuX + 18, -- 711
-		h - 184, -- 711
-		toColor(PALETTE.textDim), -- 711
+	fillHGradRect( -- 711
+		uiDraw, -- 711
+		w * 0.27, -- 711
 		0, -- 711
-		0.5, -- 711
-		"Left", -- 711
-		2, -- 711
-		0.8, -- 711
-		0.08 -- 711
+		w * 0.21, -- 711
+		h, -- 711
+		Color(10, 13, 21, 198), -- 711
+		Color(10, 13, 21, 0) -- 711
 	) -- 711
-	drawHairline( -- 712
-		uiInkDraw, -- 712
-		uiArt, -- 712
-		"pause_div", -- 712
-		menuX + 124, -- 712
-		h - 210, -- 712
-		240, -- 712
-		PALETTE.silkDim, -- 712
-		0.58, -- 712
-		true, -- 712
-		2 -- 712
-	) -- 712
-	local boxes = {} -- 714
-	local i = 0 -- 715
-	do -- 715
-		i = 0 -- 716
-		while i < #PAUSE_ITEMS do -- 716
-			boxes[#boxes + 1] = Rect(menuX - 10, h - 266 - i * 46, 270, 38) -- 717
-			i = i + 1 -- 716
-		end -- 716
-	end -- 716
-	self.pauseSelected = self:verticalSelection(self.pauseSelected, boxes, frame) -- 719
-	do -- 719
-		i = 0 -- 721
-		while i < #PAUSE_ITEMS do -- 721
-			local iy = boxes[i + 1].y -- 722
-			local active = self.pauseSelected == i -- 723
-			local cy = iy + 19 -- 724
-			local shiftX = active and 10 or 0 -- 725
-			local item = PAUSE_ITEMS[i + 1] -- 726
-			local label = item.id == "assist" and (assistHintsEnabled and "按键辅助：开" or "按键辅助：关") or (item.id == "fullscreen" and (App.fullScreen and "显示：全屏" or "显示：窗口") or item.zh) -- 727
-			if active then -- 727
-				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.4) -- 734
-				drawSilkRibbon( -- 735
-					uiDraw, -- 735
-					uiArt, -- 735
-					"pause_rib_" .. tostring(i), -- 735
-					menuX + 116, -- 735
-					cy, -- 735
-					276, -- 735
-					38, -- 735
-					PALETTE.rougeSoft, -- 735
-					0.54 * breathe, -- 735
-					0 -- 735
-				) -- 735
-				drawHairline( -- 736
-					uiInkDraw, -- 736
-					uiArt, -- 736
-					"pause_line_" .. tostring(i), -- 736
-					menuX + 106, -- 736
-					iy + 3, -- 736
-					210, -- 736
-					PALETTE.silkLine, -- 736
-					0.42 * breathe, -- 736
-					false, -- 736
-					2 -- 736
-				) -- 736
-				drawBlossomDot( -- 737
-					uiInkDraw, -- 737
-					uiArt, -- 737
-					"pause_dot_" .. tostring(i), -- 737
-					menuX + 12, -- 737
-					cy, -- 737
-					15, -- 737
-					PALETTE.rouge, -- 737
-					0.96, -- 737
-					4 -- 737
-				) -- 737
-				fillRadialGlow( -- 738
-					uiGlow, -- 738
-					menuX + 12, -- 738
-					cy, -- 738
-					22, -- 738
-					16, -- 738
-					toColor(PALETTE.rouge, 26 * breathe), -- 738
-					Color(182, 58, 56, 0), -- 738
-					10 -- 738
-				) -- 738
-			else -- 738
-				drawBlossomDot( -- 740
-					uiInkDraw, -- 740
-					uiArt, -- 740
-					"pause_dot_" .. tostring(i), -- 740
-					menuX + 12, -- 740
-					cy, -- 740
-					8, -- 740
-					PALETTE.silkDim, -- 740
-					0.4, -- 740
-					3 -- 740
-				) -- 740
-			end -- 740
-			texts:put( -- 743
-				"md", -- 744
-				label, -- 745
-				menuX + 32 + shiftX, -- 746
-				cy, -- 747
-				toColor(active and PALETTE.textBright or PALETTE.textMid), -- 748
-				0, -- 749
-				0.5, -- 750
-				"Left", -- 751
-				active and 3.8 or 2.4, -- 752
-				active and 1 or 0.88, -- 753
-				0.1 -- 754
-			) -- 754
-			i = i + 1 -- 721
-		end -- 721
-	end -- 721
-	texts:put( -- 758
-		"xs", -- 758
-		"Esc 续行   ·   Enter 或点击确认", -- 758
-		menuX + 12, -- 758
-		56, -- 758
-		toColor(PALETTE.textDim), -- 758
-		0, -- 758
-		0.5, -- 758
-		"Left", -- 758
-		1.2, -- 758
-		0.86, -- 758
-		0.08 -- 758
-	) -- 758
-	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 760
-	if hit >= 0 or frame.keys.confirm then -- 760
-		local idx = hit >= 0 and hit or self.pauseSelected -- 762
-		local id = PAUSE_ITEMS[idx + 1].id -- 763
-		if id == "controls" then -- 763
-			self.pauseShowControls = true -- 765
-			self:resetInput() -- 766
-			return {type = "none"} -- 767
-		end -- 767
-		if id == "assist" then -- 767
-			if onToggleAssist ~= nil then -- 767
-				onToggleAssist() -- 771
-			end -- 771
-			self:resetInput() -- 773
-			return {type = "none"} -- 774
-		end -- 774
-		if id == "fullscreen" then -- 774
+	local menuX = 110 -- 714
+	uiArt:tryPlace( -- 715
+		"ink_vstream", -- 715
+		"pause_vstream", -- 715
+		menuX - 32, -- 715
+		h * 0.5, -- 715
+		34, -- 715
+		h * 0.78, -- 715
+		{ -- 715
+			color = toColor(PALETTE.silkDim), -- 716
+			opacity = 0.48, -- 716
+			layer = 1 -- 716
+		} -- 716
+	) -- 716
+	drawMistCurve( -- 718
+		uiArt, -- 718
+		"pause_mist", -- 718
+		menuX + 118, -- 718
+		h - 154, -- 718
+		290, -- 718
+		72, -- 718
+		PALETTE.jadeMist, -- 718
+		0.2, -- 718
+		-1 -- 718
+	) -- 718
+	texts:put( -- 721
+		"banner", -- 721
+		"暂歇", -- 721
+		menuX + 16, -- 721
+		h - 146, -- 721
+		toColor(PALETTE.textBright), -- 721
+		0, -- 721
+		0.5, -- 721
+		"Left", -- 721
+		10, -- 721
+		0.98, -- 721
+		0.1 -- 721
+	) -- 721
+	texts:put( -- 722
+		"xs", -- 722
+		"月夜暂驻 · 卷页留痕", -- 722
+		menuX + 18, -- 722
+		h - 184, -- 722
+		toColor(PALETTE.textDim), -- 722
+		0, -- 722
+		0.5, -- 722
+		"Left", -- 722
+		2, -- 722
+		0.8, -- 722
+		0.08 -- 722
+	) -- 722
+	drawHairline( -- 723
+		uiInkDraw, -- 723
+		uiArt, -- 723
+		"pause_div", -- 723
+		menuX + 124, -- 723
+		h - 210, -- 723
+		240, -- 723
+		PALETTE.silkDim, -- 723
+		0.58, -- 723
+		true, -- 723
+		2 -- 723
+	) -- 723
+	local boxes = {} -- 725
+	local i = 0 -- 726
+	do -- 726
+		i = 0 -- 727
+		while i < #PAUSE_ITEMS do -- 727
+			boxes[#boxes + 1] = Rect(menuX - 10, h - 266 - i * 46, 270, 38) -- 728
+			i = i + 1 -- 727
+		end -- 727
+	end -- 727
+	self.pauseSelected = self:verticalSelection(self.pauseSelected, boxes, frame) -- 730
+	do -- 730
+		i = 0 -- 732
+		while i < #PAUSE_ITEMS do -- 732
+			local iy = boxes[i + 1].y -- 733
+			local active = self.pauseSelected == i -- 734
+			local cy = iy + 19 -- 735
+			local shiftX = active and 10 or 0 -- 736
+			local item = PAUSE_ITEMS[i + 1] -- 737
+			local label = item.id == "assist" and (assistHintsEnabled and "按键辅助：开" or "按键辅助：关") or (item.id == "fullscreen" and (App.fullScreen and "显示：全屏" or "显示：窗口") or item.zh) -- 738
+			if active then -- 738
+				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.4) -- 745
+				drawSilkRibbon( -- 746
+					uiDraw, -- 746
+					uiArt, -- 746
+					"pause_rib_" .. tostring(i), -- 746
+					menuX + 116, -- 746
+					cy, -- 746
+					276, -- 746
+					38, -- 746
+					PALETTE.rougeSoft, -- 746
+					0.54 * breathe, -- 746
+					0 -- 746
+				) -- 746
+				drawHairline( -- 747
+					uiInkDraw, -- 747
+					uiArt, -- 747
+					"pause_line_" .. tostring(i), -- 747
+					menuX + 106, -- 747
+					iy + 3, -- 747
+					210, -- 747
+					PALETTE.silkLine, -- 747
+					0.42 * breathe, -- 747
+					false, -- 747
+					2 -- 747
+				) -- 747
+				drawBlossomDot( -- 748
+					uiInkDraw, -- 748
+					uiArt, -- 748
+					"pause_dot_" .. tostring(i), -- 748
+					menuX + 12, -- 748
+					cy, -- 748
+					15, -- 748
+					PALETTE.rouge, -- 748
+					0.96, -- 748
+					4 -- 748
+				) -- 748
+				fillRadialGlow( -- 749
+					uiGlow, -- 749
+					menuX + 12, -- 749
+					cy, -- 749
+					22, -- 749
+					16, -- 749
+					toColor(PALETTE.rouge, 26 * breathe), -- 749
+					Color(182, 58, 56, 0), -- 749
+					10 -- 749
+				) -- 749
+			else -- 749
+				drawBlossomDot( -- 751
+					uiInkDraw, -- 751
+					uiArt, -- 751
+					"pause_dot_" .. tostring(i), -- 751
+					menuX + 12, -- 751
+					cy, -- 751
+					8, -- 751
+					PALETTE.silkDim, -- 751
+					0.4, -- 751
+					3 -- 751
+				) -- 751
+			end -- 751
+			texts:put( -- 754
+				"md", -- 755
+				label, -- 756
+				menuX + 32 + shiftX, -- 757
+				cy, -- 758
+				toColor(active and PALETTE.textBright or PALETTE.textMid), -- 759
+				0, -- 760
+				0.5, -- 761
+				"Left", -- 762
+				active and 3.8 or 2.4, -- 763
+				active and 1 or 0.88, -- 764
+				0.1 -- 765
+			) -- 765
+			i = i + 1 -- 732
+		end -- 732
+	end -- 732
+	texts:put( -- 769
+		"xs", -- 769
+		"Esc 续行   ·   Enter 或点击确认", -- 769
+		menuX + 12, -- 769
+		56, -- 769
+		toColor(PALETTE.textDim), -- 769
+		0, -- 769
+		0.5, -- 769
+		"Left", -- 769
+		1.2, -- 769
+		0.86, -- 769
+		0.08 -- 769
+	) -- 769
+	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 771
+	if hit >= 0 or frame.keys.confirm then -- 771
+		local idx = hit >= 0 and hit or self.pauseSelected -- 773
+		local id = PAUSE_ITEMS[idx + 1].id -- 774
+		if id == "controls" then -- 774
+			self.pauseShowControls = true -- 776
 			self:resetInput() -- 777
-			return {type = "toggleFullscreen"} -- 778
+			return {type = "none"} -- 778
 		end -- 778
-		self.pauseShowControls = false -- 780
-		if id == "resume" then -- 780
-			return {type = "resume"} -- 782
-		end -- 782
-		if id == "retry" then -- 782
-			return {type = "retry"} -- 785
+		if id == "assist" then -- 778
+			if onToggleAssist ~= nil then -- 778
+				onToggleAssist() -- 782
+			end -- 782
+			self:resetInput() -- 784
+			return {type = "none"} -- 785
 		end -- 785
-		if id == "chapters" then -- 785
-			return {type = "openChapters"} -- 788
-		end -- 788
-		if id == "quit" then -- 788
-			return {type = "quit"} -- 791
-		end -- 791
-		return {type = "toTitle"} -- 793
-	end -- 793
-	return {type = "none"} -- 795
-end -- 665
-return ____exports -- 665
+		if id == "fullscreen" then -- 785
+			self:resetInput() -- 788
+			return {type = "toggleFullscreen"} -- 789
+		end -- 789
+		self.pauseShowControls = false -- 791
+		if id == "resume" then -- 791
+			return {type = "resume"} -- 793
+		end -- 793
+		if id == "retry" then -- 793
+			return {type = "retry"} -- 796
+		end -- 796
+		if id == "chapters" then -- 796
+			return {type = "openChapters"} -- 799
+		end -- 799
+		if id == "quit" then -- 799
+			return {type = "quit"} -- 802
+		end -- 802
+		return {type = "toTitle"} -- 804
+	end -- 804
+	return {type = "none"} -- 806
+end -- 676
+return ____exports -- 676
