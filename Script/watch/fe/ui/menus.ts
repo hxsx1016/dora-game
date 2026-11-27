@@ -8,32 +8,17 @@
  *   让所有平台都能随时选择操作模式（自动/键鼠/触屏/手柄）及共享磁吸、手柄布局与触控参数。
  */
 
-import { App, Color, DrawNode, Keyboard, KeyName, Rect, TextAlign, Vec2 } from "Dora";
+import { App, Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
-import {
-    GamepadLayout,
-    InputMode,
-    TOUCH_OPACITY_STEPS,
-    TOUCH_SCALE_STEPS,
-    VOLUME_STEPS,
-    inputModeLabelOf,
-    layoutLabelOf,
-    modePrefLabelOf,
-    nextStepValue,
-    opacityLabelOf,
-    saveControlSettings,
-    scaleLabelOf,
-    volumeLabelOf,
-} from "Script/watch/controls_config";
+import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import {
     SafeInsets,
     ZERO_SAFE_INSETS,
     canQuitApp,
     canToggleFullscreen,
-    getPlatformCaps,
 } from "Script/watch/platform";
-import { controlsGuideRows, keyTagFor } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import { HISTORY_CARDS } from "Script/watch/dialogues";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
@@ -108,22 +93,6 @@ const PAUSE_ITEMS = [
     { id: "settings", zh: "操控设置" },
 ];
 
-// 索引 0..6 保持既有操控设置项零回归，7..10 追加四通道音量调节，11 为返回。
-const SETTINGS_ROWS = [
-    { id: "modePref", title: "操作模式" },
-    { id: "aimAssist", title: "瞄准磁吸" },
-    { id: "gpLayout", title: "手柄确认键" },
-    { id: "crouchMode", title: "手柄蹲伏方式" },
-    { id: "touchOpacity", title: "触控按键透度" },
-    { id: "touchScale", title: "触控按键大小" },
-    { id: "haptics", title: "触觉震动反馈" },
-    { id: "masterVol", title: "主音量" },
-    { id: "bgmVol", title: "音乐音量" },
-    { id: "sfxVol", title: "音效与环境" },
-    { id: "voiceVol", title: "人声音量" },
-    { id: "back", title: "返回暂歇菜单" },
-];
-
 const VERTICAL_TITLE = ["向", "西", "守", "望"];
 const EPIGRAPH_RIGHT = ["城", "破", "那", "天", "", "他", "留", "下", "断", "后"];
 const EPIGRAPH_LEFT = ["她", "独", "自", "走", "向", "北", "塔"];
@@ -149,16 +118,6 @@ interface MenuFrame {
     mode: InputMode;
     layout: GamepadLayout;
     safe: SafeInsets;
-}
-
-function pressedKeys(): MenuKeys {
-    return {
-        up: Keyboard.isKeyPressed(KeyName.Up) || Keyboard.isKeyPressed(KeyName.W),
-        down: Keyboard.isKeyPressed(KeyName.Down) || Keyboard.isKeyPressed(KeyName.S),
-        left: Keyboard.isKeyPressed(KeyName.Left) || Keyboard.isKeyPressed(KeyName.A),
-        right: Keyboard.isKeyPressed(KeyName.Right) || Keyboard.isKeyPressed(KeyName.D),
-        confirm: Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space),
-    };
 }
 
 function hitIndex(boxes: Rect.Type[], pointer: Vec2.Type, inside: boolean): number {
@@ -197,7 +156,6 @@ export class MenuRenderer {
     private pauseShowControls = false;
     private pauseShowSettings = false;
     private controlsTabManual = false;
-    private previousKeys: Partial<MenuKeys> = {};
     private queuedKeys: Partial<MenuKeys> = {};
     private queuedBack = false;
     private queuedSkip = false;
@@ -258,36 +216,33 @@ export class MenuRenderer {
         this.queuedBack = true;
     }
 
-    /** 页面切换后，把仍按住的键视为旧输入，避免切页串键。 */
+    /** 页面切换后清空待消费边沿，避免切页串键。 */
     resetInput(): void {
-        this.previousKeys = pressedKeys();
         this.queuedKeys = {};
         this.queuedBack = false;
         this.queuedSkip = false;
         this.controlsTabManual = false;
     }
 
-    /** 锁存两个渲染帧之间的短按。方向键轮询也保留同一份按下边沿。 */
-    onKeyEvent(key: KeyName): void {
+    /** 锁存两个渲染帧之间的键盘短按（仅在含键鼠端或自动化测试中调用）。 */
+    onKeyEvent(key: string): void {
         this.queuedSkip = true;
-        if (key === KeyName.Up || key === KeyName.W) {
+        if (key === "Up" || key === "W") {
             this.queuedKeys.up = true;
-        } else if (key === KeyName.Down || key === KeyName.S) {
+        } else if (key === "Down" || key === "S") {
             this.queuedKeys.down = true;
-        } else if (key === KeyName.Left || key === KeyName.A) {
+        } else if (key === "Left" || key === "A") {
             this.queuedKeys.left = true;
-        } else if (key === KeyName.Right || key === KeyName.D) {
+        } else if (key === "Right" || key === "D") {
             this.queuedKeys.right = true;
-        } else if (key === KeyName.Return || key === KeyName.Space) {
+        } else if (key === "Return" || key === "Space") {
             this.queuedKeys.confirm = true;
-        } else if (key === KeyName.Escape) {
+        } else if (key === "Escape") {
             this.queuedBack = true;
         }
     }
 
     private readFrame(input: Input, scale: number, safe: SafeInsets): MenuFrame {
-        const held = pressedKeys();
-        const prev = this.previousKeys;
         const queued = this.queuedKeys;
 
         // 优先使用规范化渲染帧 UI 指针；保留直接写 input.mx/fire.pressed 的验收脚本兼容
@@ -302,11 +257,11 @@ export class MenuRenderer {
 
         const frame: MenuFrame = {
             keys: {
-                up: queued.up === true || (held.up && !prev.up) || input.navUp,
-                down: queued.down === true || (held.down && !prev.down) || input.navDown,
-                left: queued.left === true || (held.left && !prev.left) || input.navLeft,
-                right: queued.right === true || (held.right && !prev.right) || input.navRight,
-                confirm: queued.confirm === true || (held.confirm && !prev.confirm) || input.navConfirm,
+                up: queued.up === true || input.navUp,
+                down: queued.down === true || input.navDown,
+                left: queued.left === true || input.navLeft,
+                right: queued.right === true || input.navRight,
+                confirm: queued.confirm === true || input.navConfirm,
             },
             back: this.queuedBack || input.pause.pressed || input.navBack,
             prevTab: input.navPrevTab,
@@ -320,7 +275,6 @@ export class MenuRenderer {
             layout: input.gamepadLayout,
             safe,
         };
-        this.previousKeys = held;
         this.queuedKeys = {};
         this.queuedBack = false;
         this.queuedSkip = false;
@@ -455,11 +409,7 @@ export class MenuRenderer {
 
         if (t >= 0.35 && t < 4.15) {
             const hintA = Math.min(1, (t - 0.35) / 0.35) * 0.52;
-            const skipText = frame.mode === "touch"
-                ? "轻触跳过"
-                : (frame.mode === "gamepad"
-                    ? (keyTagFor("confirm", "gamepad", frame.layout) + " / START  跳过")
-                    : "ESC / SPACE  SKIP");
+            const skipText = getActiveTarget().splashSkipHint(frame.mode, frame.layout);
             texts.put("xs", skipText, w - 48 - frame.safe.right * 0.6, 36 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.4, hintA, 0);
         }
 
@@ -605,13 +555,7 @@ export class MenuRenderer {
             );
         }
 
-        const titleHint = frame.mode === "gamepad"
-            ? ("左摇杆 / 十字键择项   ·   " + keyTagFor("confirm", "gamepad", frame.layout) + " 或点选启程")
-            : (frame.mode === "touch"
-                ? (getPlatformCaps().hasBackButton && canQuitApp()
-                    ? "轻触择项启程   ·   双击返回键退出"
-                    : "轻触择项启程   ·   支持键鼠与手柄")
-                : "上下择项   ·   回车或点选启程");
+        const titleHint = getActiveTarget().titleFooterHint(frame.mode, frame.layout);
         texts.put("xs", titleHint, menuX + 12, 42 + frame.safe.bottom * 0.45, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
 
         // 右下角克制团队落款（局外人 T2 微光角标）
@@ -758,9 +702,7 @@ export class MenuRenderer {
         drawHairline(uiInkDraw, uiArt, "chap_go_line", goX + 94, goY + 3, 196, PALETTE.silkLine, goHover ? 0.68 : 0.40, false, 2);
         drawBlossomDot(uiInkDraw, uiArt, "chap_go_dot", goX + 14, goY + 21, 14, PALETTE.rouge, 0.96, 4);
         texts.put("md", "入此卷章", goX + 34, goY + 21, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 3.8, 1, 0.10);
-        const chapConfirmTag = frame.mode === "gamepad"
-            ? keyTagFor("confirm", "gamepad", frame.layout)
-            : (frame.mode === "touch" ? "点选" : "Enter");
+        const chapConfirmTag = getActiveTarget().keyTagFor("confirm", frame.mode, frame.layout);
         texts.put("xs", chapConfirmTag, goX + 156, goY + 21, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.0, 0.82, 0.08);
 
         const veilCenterY = splitTrack ? (trackY - rowGap * 0.5) : (trackY + 6);
@@ -811,14 +753,8 @@ export class MenuRenderer {
         const backY = 40 + frame.safe.bottom * 0.45;
         const backBox = Rect(backX - 6, backY - 6, 210, 46);
         const backHover = frame.inside && backBox.containsPoint(frame.pointer);
-        const chapBackTag = frame.mode === "gamepad"
-            ? keyTagFor("back", "gamepad", frame.layout)
-            : (frame.mode === "touch" ? "返回" : "ESC");
-        const chapFooter = frame.mode === "gamepad"
-            ? ("摇杆/十字键选择   ·   " + chapConfirmTag + " 或点选进入")
-            : (frame.mode === "touch"
-                ? "轻触驿站预览   ·   再点或轻触入此卷章"
-                : "方向键选择   ·   回车或点击进入");
+        const chapBackTag = getActiveTarget().keyTagFor("back", frame.mode, frame.layout);
+        const chapFooter = getActiveTarget().chapterFooterHint(frame.mode, chapConfirmTag);
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, 48, 24, chapBackTag, backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
         texts.put("sm", this.chaptersFromPause ? "返回暂停" : "返回标题", backX + 60, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
         texts.put("xs", chapFooter, w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
@@ -838,7 +774,7 @@ export class MenuRenderer {
         return { type: "none" };
     }
 
-    /** 操作说明 V3：「极简通透双栏素笺」× 键鼠 / 手柄 / 触屏三页统一切换 */
+    /** 操作说明 V3：「极简通透双栏素笺」× 按当前端裁剪页签（单端单页无页签，双/三端可切换） */
     private drawControls(
         frame: MenuFrame,
         uiDraw: DrawNode.Type,
@@ -850,40 +786,43 @@ export class MenuRenderer {
         h: number,
         backLabel: string = "返回标题",
     ): MenuAction {
-        if (!this.controlsTabManual) {
-            this.controlsTab = frame.mode;
+        const target = getActiveTarget();
+        const tabs = target.controlsGuideTabs;
+        const hasMultipleTabs = tabs.length > 1;
+        if (!this.controlsTabManual || tabs.findIndex(t => t.mode === this.controlsTab) < 0) {
+            this.controlsTab = tabs.findIndex(t => t.mode === frame.mode) >= 0 ? frame.mode : tabs[0].mode;
         }
-        const tabOrder: InputMode[] = ["kbm", "gamepad", "touch"];
-        const tabLabels = ["键鼠", "手柄", "触屏"];
         const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
         const tabW = 92;
         const tabH = 28;
         const tabGap = 10;
-        const tabStartX = w - marginX - (tabW * 3 + tabGap * 2);
-        const tabY = h - 82 - frame.safe.top * 0.35;
-        const tabBoxes: Rect.Type[] = [
-            Rect(tabStartX, tabY, tabW, tabH),
-            Rect(tabStartX + tabW + tabGap, tabY, tabW, tabH),
-            Rect(tabStartX + (tabW + tabGap) * 2, tabY, tabW, tabH),
-        ];
-
-        const hitTab = hitIndex(tabBoxes, frame.pointer, frame.inside);
-        if (frame.click && hitTab >= 0) {
-            if (this.controlsTab !== tabOrder[hitTab]) {
+        const tabBoxes: Rect.Type[] = [];
+        let hitTab = -1;
+        if (hasMultipleTabs) {
+            const tabStartX = w - marginX - (tabW * tabs.length + tabGap * (tabs.length - 1));
+            const tabY = h - 82 - frame.safe.top * 0.35;
+            let k = 0;
+            for (k = 0; k < tabs.length; k++) {
+                tabBoxes.push(Rect(tabStartX + (tabW + tabGap) * k, tabY, tabW, tabH));
+            }
+            hitTab = hitIndex(tabBoxes, frame.pointer, frame.inside);
+            if (frame.click && hitTab >= 0) {
+                if (this.controlsTab !== tabs[hitTab].mode) {
+                    this.emitSound("toggle");
+                }
+                this.controlsTab = tabs[hitTab].mode;
+                this.controlsTabManual = true;
+            } else if (frame.keys.left || frame.prevTab) {
+                const cur = tabs.findIndex(t => t.mode === this.controlsTab);
+                this.controlsTab = tabs[((cur >= 0 ? cur : 0) + tabs.length - 1) % tabs.length].mode;
+                this.controlsTabManual = true;
+                this.emitSound("toggle");
+            } else if (frame.keys.right || frame.nextTab) {
+                const cur = tabs.findIndex(t => t.mode === this.controlsTab);
+                this.controlsTab = tabs[((cur >= 0 ? cur : 0) + 1) % tabs.length].mode;
+                this.controlsTabManual = true;
                 this.emitSound("toggle");
             }
-            this.controlsTab = tabOrder[hitTab];
-            this.controlsTabManual = true;
-        } else if (frame.keys.left || frame.prevTab) {
-            const cur = tabOrder.indexOf(this.controlsTab);
-            this.controlsTab = tabOrder[(cur + tabOrder.length - 1) % tabOrder.length];
-            this.controlsTabManual = true;
-            this.emitSound("toggle");
-        } else if (frame.keys.right || frame.nextTab) {
-            const cur = tabOrder.indexOf(this.controlsTab);
-            this.controlsTab = tabOrder[(cur + 1) % tabOrder.length];
-            this.controlsTabManual = true;
-            this.emitSound("toggle");
         }
 
         const backX = marginX;
@@ -896,36 +835,38 @@ export class MenuRenderer {
         }
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 204));
 
-        const guide = controlsGuideRows(this.controlsTab);
+        const guide = target.controlsGuideRows(this.controlsTab);
         const topHeadY = h - 66 - frame.safe.top * 0.35;
         texts.put("banner", "执器要诀", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
         texts.put("xs", guide.subtitle, marginX + 196, topHeadY - 4, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.8, 0.85, 0.08);
         drawHairline(uiInkDraw, uiArt, "ctrl_top_line", w * 0.5, topHeadY - 34, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
-        let ti = 0;
-        for (ti = 0; ti < tabBoxes.length; ti++) {
-            const tb = tabBoxes[ti];
-            const activeTab = this.controlsTab === tabOrder[ti];
-            const hoverTab = hitTab === ti;
-            uiInkDraw.drawRect(
-                tb,
-                activeTab ? toColor(PALETTE.rougeSoft, 150) : Color(14, 17, 25, hoverTab ? 185 : 130),
-                0.9,
-                toColor(activeTab ? PALETTE.rouge : (hoverTab ? PALETTE.textBright : PALETTE.silkDim), activeTab ? 225 : 155),
-            );
-            texts.put(
-                "xs",
-                tabLabels[ti],
-                tb.x + tb.width * 0.5,
-                tb.y + tb.height * 0.5,
-                toColor(activeTab ? PALETTE.textBright : PALETTE.textMid),
-                0.5,
-                0.5,
-                TextAlign.Center,
-                0.8,
-                activeTab ? 0.98 : 0.82,
-                0.08,
-            );
+        if (hasMultipleTabs) {
+            let ti = 0;
+            for (ti = 0; ti < tabBoxes.length; ti++) {
+                const tb = tabBoxes[ti];
+                const activeTab = this.controlsTab === tabs[ti].mode;
+                const hoverTab = hitTab === ti;
+                uiInkDraw.drawRect(
+                    tb,
+                    activeTab ? toColor(PALETTE.rougeSoft, 150) : Color(14, 17, 25, hoverTab ? 185 : 130),
+                    0.9,
+                    toColor(activeTab ? PALETTE.rouge : (hoverTab ? PALETTE.textBright : PALETTE.silkDim), activeTab ? 225 : 155),
+                );
+                texts.put(
+                    "xs",
+                    tabs[ti].label,
+                    tb.x + tb.width * 0.5,
+                    tb.y + tb.height * 0.5,
+                    toColor(activeTab ? PALETTE.textBright : PALETTE.textMid),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    0.8,
+                    activeTab ? 0.98 : 0.82,
+                    0.08,
+                );
+            }
         }
 
         const extraH = Math.max(0, h - 720);
@@ -968,13 +909,9 @@ export class MenuRenderer {
         }
 
         const ctrlBackKey = frame.mode === "gamepad"
-            ? (keyTagFor("back", "gamepad", frame.layout) + " / " + keyTagFor("confirm", "gamepad", frame.layout))
+            ? (target.keyTagFor("back", "gamepad", frame.layout) + " / " + target.keyTagFor("confirm", "gamepad", frame.layout))
             : (frame.mode === "touch" ? "返回" : "ESC / ENTER");
-        const ctrlRightHint = frame.mode === "gamepad"
-            ? "LB / RB 或左右切换键位图"
-            : (frame.mode === "touch"
-                ? "轻触右上页签切图 · 暂歇菜单可调操控设置"
-                : (canToggleFullscreen() ? "←/→ 切页   ·   F11 / Alt+Enter 全屏" : "←/→ 切页   ·   暂歇菜单可调操控设置"));
+        const ctrlRightHint = target.controlsFooterRightHint(frame.mode);
         const keyW = frame.mode === "touch" ? 76 : 110;
         drawSilkKeycap(uiInkDraw, texts, backX, backY + 5, keyW, 24, ctrlBackKey, backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
         texts.put("sm", backLabel, backX + keyW + 12, backY + 17, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.92, 0.08);
@@ -983,7 +920,7 @@ export class MenuRenderer {
         return { type: "none" };
     }
 
-    /** 暂停内原地「操控设置」二级页：所有平台统一选择操作模式（自动/键鼠/触屏/手柄）与触控/手柄参数。 */
+    /** 暂停内原地设置二级页：按当前端仅展示本端有效设置项（Windows 仅音量，Android 触控+音量，掌机/Web 含模式与手柄）。 */
     private drawPauseSettings(
         frame: MenuFrame,
         input: Input,
@@ -1000,27 +937,31 @@ export class MenuRenderer {
             return true;
         }
 
-        const caps = getPlatformCaps();
+        const target = getActiveTarget();
+        const rows = target.settingsRows();
         const s = input.settings;
+        if (this.settingsSelected >= rows.length) {
+            this.settingsSelected = 0;
+        }
 
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 206));
 
         const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
         const topHeadY = h - 56 - frame.safe.top * 0.35;
-        texts.put("banner", "操控与声音", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.0, 0.96, 0.10);
-        const curSummary = "当前模式：" + inputModeLabelOf(input.inputMode) + " · 操控与四通道音量实时生效";
+        texts.put("banner", target.settingsHeaderTitle(), marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.0, 0.96, 0.10);
+        const curSummary = target.settingsHeaderSummary(input.inputMode);
         texts.put("xs", curSummary, marginX + 224, topHeadY - 4, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
         drawHairline(uiInkDraw, uiArt, "set_top_line", w * 0.5, topHeadY - 30, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
         const panelW = Math.min(760, w - marginX * 2);
         const panelX = (w - panelW) * 0.5;
         const rowH = 34;
-        const rowStep = 39;
+        const rowStep = rows.length <= 6 ? 48 : 39;
         const firstY = topHeadY - 76;
 
         const boxes: Rect.Type[] = [];
         let i = 0;
-        for (i = 0; i < SETTINGS_ROWS.length; i++) {
+        for (i = 0; i < rows.length; i++) {
             boxes.push(Rect(panelX, firstY - i * rowStep, panelW, rowH));
         }
         const prevSetSel = this.settingsSelected;
@@ -1030,80 +971,22 @@ export class MenuRenderer {
         }
 
         const applyDelta = (rowId: string, delta: number): boolean => {
-            if (rowId === "back") {
+            const res = target.applySettingsDelta(rowId, delta, s, input);
+            if (res === "back") {
                 this.emitSound("back");
                 return true;
             }
-            let audioChanged = false;
-            if (rowId === "modePref") {
-                input.cycleModePref(delta);
-            } else if (rowId === "aimAssist") {
-                s.aimAssist = !s.aimAssist;
-                saveControlSettings(s);
-            } else if (rowId === "gpLayout") {
-                s.gamepadLayout = s.gamepadLayout === "xbox" ? "nintendo" : "xbox";
-                input.gamepadLayout = s.gamepadLayout;
-                saveControlSettings(s);
-            } else if (rowId === "crouchMode") {
-                s.crouchToggle = !s.crouchToggle;
-                saveControlSettings(s);
-            } else if (rowId === "touchOpacity") {
-                s.touchOpacity = nextStepValue(s.touchOpacity, TOUCH_OPACITY_STEPS, delta);
-                saveControlSettings(s);
-            } else if (rowId === "touchScale") {
-                s.touchScale = nextStepValue(s.touchScale, TOUCH_SCALE_STEPS, delta);
-                saveControlSettings(s);
-            } else if (rowId === "haptics") {
-                s.haptics = !s.haptics;
-                saveControlSettings(s);
-                if (s.haptics) {
-                    input.getTouch()?.vibrate(0.018);
-                }
-            } else if (rowId === "masterVol") {
-                s.masterVol = nextStepValue(s.masterVol, VOLUME_STEPS, delta);
-                saveControlSettings(s);
-                audioChanged = true;
-            } else if (rowId === "bgmVol") {
-                s.bgmVol = nextStepValue(s.bgmVol, VOLUME_STEPS, delta);
-                saveControlSettings(s);
-                audioChanged = true;
-            } else if (rowId === "sfxVol") {
-                s.sfxVol = nextStepValue(s.sfxVol, VOLUME_STEPS, delta);
-                saveControlSettings(s);
-                audioChanged = true;
-            } else if (rowId === "voiceVol") {
-                s.voiceVol = nextStepValue(s.voiceVol, VOLUME_STEPS, delta);
-                saveControlSettings(s);
-                audioChanged = true;
-            }
-            if (audioChanged && this.onAudioSettingsChanged !== undefined) {
+            if (res === "audio" && this.onAudioSettingsChanged !== undefined) {
                 this.onAudioSettingsChanged(input);
             }
-            this.emitSound("toggle");
+            if (res !== "none") {
+                this.emitSound("toggle");
+            }
             return false;
         };
 
-        const valueTextOf = (rowId: string): string => {
-            if (rowId === "modePref") {
-                return s.modePref === "auto"
-                    ? ("自动切换（" + inputModeLabelOf(input.inputMode) + "）")
-                    : ("锁定 · " + modePrefLabelOf(s.modePref));
-            }
-            if (rowId === "aimAssist") return s.aimAssist ? "开（触屏与手柄共用）" : "关";
-            if (rowId === "gpLayout") return layoutLabelOf(s.gamepadLayout);
-            if (rowId === "crouchMode") return s.crouchToggle ? "点按切换" : "持续按住";
-            if (rowId === "touchOpacity") return opacityLabelOf(s.touchOpacity);
-            if (rowId === "touchScale") return scaleLabelOf(s.touchScale);
-            if (rowId === "haptics") return caps.supportsHaptics ? (s.haptics ? "开" : "关") : (s.haptics ? "开（仅移动端生效）" : "关");
-            if (rowId === "masterVol") return volumeLabelOf(s.masterVol);
-            if (rowId === "bgmVol") return volumeLabelOf(s.bgmVol);
-            if (rowId === "sfxVol") return volumeLabelOf(s.sfxVol);
-            if (rowId === "voiceVol") return volumeLabelOf(s.voiceVol);
-            return "";
-        };
-
-        for (i = 0; i < SETTINGS_ROWS.length; i++) {
-            const row = SETTINGS_ROWS[i];
+        for (i = 0; i < rows.length; i++) {
+            const row = rows[i];
             const box = boxes[i];
             const cy = box.y + box.height * 0.5;
             const active = this.settingsSelected === i;
@@ -1132,7 +1015,7 @@ export class MenuRenderer {
                 0.08,
             );
 
-            const val = valueTextOf(row.id);
+            const val = target.settingsValueText(row.id, s, input.inputMode);
             if (val !== "") {
                 const valCol = active ? PALETTE.amberCore : PALETTE.cyanCore;
                 const decorated = active ? ("‹  " + val + "  ›") : val;
@@ -1141,24 +1024,20 @@ export class MenuRenderer {
         }
 
         const backY = 40 + frame.safe.bottom * 0.45;
-        const hint = frame.mode === "gamepad"
-            ? ("左右或 " + keyTagFor("confirm", "gamepad", frame.layout) + " 切换   ·   " + keyTagFor("back", "gamepad", frame.layout) + " 返回暂停")
-            : (frame.mode === "touch"
-                ? "轻触任意条目切换   ·   设置自动保存"
-                : "←/→ 或回车/点击切换   ·   Esc 返回暂停");
+        const hint = target.settingsFooterHint(frame.mode, frame.layout);
         texts.put("xs", hint, w * 0.5, backY + 14, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.84, 0.08);
 
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
         if (hit >= 0) {
             this.settingsSelected = hit;
-            if (applyDelta(SETTINGS_ROWS[hit].id, 1)) {
+            if (applyDelta(rows[hit].id, 1)) {
                 return true;
             }
             this.resetInput();
             return false;
         }
         if (frame.keys.left || frame.prevTab) {
-            const id = SETTINGS_ROWS[this.settingsSelected].id;
+            const id = rows[this.settingsSelected].id;
             if (id !== "back") {
                 applyDelta(id, -1);
                 this.resetInput();
@@ -1166,7 +1045,7 @@ export class MenuRenderer {
             return false;
         }
         if (frame.keys.right || frame.nextTab || frame.keys.confirm) {
-            const id = SETTINGS_ROWS[this.settingsSelected].id;
+            const id = rows[this.settingsSelected].id;
             if (applyDelta(id, 1)) {
                 return true;
             }
@@ -1274,7 +1153,7 @@ export class MenuRenderer {
             } else if (item.id === "fullscreen") {
                 label = App.fullScreen ? "显示：全屏" : "显示：窗口";
             } else if (item.id === "settings") {
-                label = "操控设置 · " + modePrefLabelOf(input.settings.modePref);
+                label = getActiveTarget().settingsPauseLabel(input.settings);
             }
 
             if (active) {
@@ -1302,11 +1181,7 @@ export class MenuRenderer {
             );
         }
 
-        const pauseFooter = frame.mode === "gamepad"
-            ? (keyTagFor("back", "gamepad", frame.layout) + " / START 续行   ·   " + keyTagFor("confirm", "gamepad", frame.layout) + " 确认")
-            : (frame.mode === "touch"
-                ? "轻触确认   ·   点「继续游戏」续行"
-                : "Esc 续行   ·   Enter 或点击确认");
+        const pauseFooter = getActiveTarget().pauseFooterHint(frame.mode, frame.layout);
         texts.put("xs", pauseFooter, menuX + 12, 38 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.2, 0.86, 0.08);
 
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
@@ -1437,9 +1312,7 @@ export class MenuRenderer {
             );
         }
 
-        const footer = frame.mode === "gamepad"
-            ? (keyTagFor("confirm", "gamepad", frame.layout) + " 确认   ·   " + keyTagFor("back", "gamepad", frame.layout) + " 返回标题")
-            : (frame.mode === "touch" ? "轻触任一入口继续" : "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题");
+        const footer = getActiveTarget().epilogueFooterHint(frame.mode, frame.layout);
         texts.put("xs", footer, cx, 38 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.84, 0.08);
 
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;

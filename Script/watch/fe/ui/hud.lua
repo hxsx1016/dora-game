@@ -15,9 +15,8 @@ local ____escort = require("Script.watch.escort") -- 12
 local FEAR_MAX = ____escort.FEAR_MAX -- 12
 local ____platform = require("Script.watch.platform") -- 14
 local ZERO_SAFE_INSETS = ____platform.ZERO_SAFE_INSETS -- 14
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 15
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 15
-local adaptWorldKeyTag = ____control_prompts.adaptWorldKeyTag -- 15
+local ____target = require("Script.watch.target") -- 15
+local getActiveTarget = ____target.getActiveTarget -- 15
 local ____adapter = require("Script.watch.fe.adapter") -- 16
 local deriveWorldPrompt = ____adapter.deriveWorldPrompt -- 16
 local ____theme = require("Script.watch.fe.theme") -- 21
@@ -137,7 +136,7 @@ function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, text
 				local adapted = { -- 90
 					x = prompt.x, -- 91
 					y = prompt.y, -- 92
-					keyTag = adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout), -- 93
+					keyTag = getActiveTarget():adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout), -- 93
 					label = prompt.label, -- 94
 					urgent = prompt.urgent, -- 95
 					progress = prompt.progress -- 96
@@ -551,7 +550,7 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 		if frozen then -- 263
 			local pulse = 0.65 + 0.35 * math.sin(self.time * 7) -- 264
 			if assistHintsEnabled then -- 265
-				local calmKey = adaptWorldKeyTag("E", inputMode, gamepadLayout) -- 266
+				local calmKey = getActiveTarget():adaptWorldKeyTag("E", inputMode, gamepadLayout) -- 266
 				local keyW = math.max( -- 267
 					22, -- 267
 					visualTextWidth(calmKey, 15) + 10 -- 267
@@ -759,7 +758,7 @@ function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiInkDraw, uiArt, t
 		posture = assistHintsEnabled and "低姿伏行 · 匿迹于影" or "低姿伏行" -- 337
 		col = PALETTE.emerald -- 338
 	elseif p.hasBottle then -- 339
-		posture = assistHintsEnabled and adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout) or "手持陶瓶" -- 340
+		posture = assistHintsEnabled and getActiveTarget():adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout) or "手持陶瓶" -- 340
 		col = PALETTE.amberCore -- 343
 	end -- 343
 	texts:put( -- 345
@@ -966,8 +965,8 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 					p.handTicks / math.max(1, p.handNeedTicks) -- 436
 				) -- 436
 			) -- 436
-			local holdInteractKey = adaptWorldKeyTag("按住 E", inputMode, gamepadLayout) -- 437
-			local reholdInteractKey = adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout) -- 438
+			local holdInteractKey = getActiveTarget():adaptWorldKeyTag("按住 E", inputMode, gamepadLayout) -- 437
+			local reholdInteractKey = getActiveTarget():adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout) -- 438
 			local label = tied and "我们走吧。" or (p.handTicks > 0 and (("牵起小满 · " .. tostring(p.handTicks)) .. " / ") .. tostring(p.handNeedTicks) or (p.handArmed and holdInteractKey .. " · 把手伸给她" or reholdInteractKey .. " · 把手伸给她")) -- 439
 			drawSilkVeil( -- 443
 				uiDraw, -- 443
@@ -1093,7 +1092,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 				false, -- 471
 				2 -- 471
 			) -- 471
-			local idleNeedConfirmLabel = assistHintsEnabled and adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout) or "绞盘待命" -- 473
+			local idleNeedConfirmLabel = assistHintsEnabled and getActiveTarget():adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout) or "绞盘待命" -- 473
 			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and idleNeedConfirmLabel or "待小满就位 · 绞盘启") or ("城门死守 · 余 " .. secStr) .. " 秒" -- 476
 			texts:put( -- 479
 				"xs", -- 479

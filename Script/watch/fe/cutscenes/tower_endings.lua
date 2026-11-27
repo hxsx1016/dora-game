@@ -14,8 +14,8 @@ local CUFF_PALETTE = ____cuff_shots.CUFF_PALETTE -- 34
 local drawPatchedCuff = ____cuff_shots.drawPatchedCuff -- 34
 local ____dialogues = require("Script.watch.dialogues") -- 36
 local NEEDLE_NOTE_LINES = ____dialogues.NEEDLE_NOTE_LINES -- 36
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 37
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 37
+local ____target = require("Script.watch.target") -- 37
+local getActiveTarget = ____target.getActiveTarget -- 37
 local ____lowpoly = require("Script.watch.fe.renderer.lowpoly") -- 39
 local MING_MATERIALS = ____lowpoly.MING_MATERIALS -- 41
 local TOWER_WEST_LAMP_LIGHT = ____lowpoly.TOWER_WEST_LAMP_LIGHT -- 42
@@ -2995,7 +2995,7 @@ function TowerEndingsPlugin.prototype.drawDialogueSubtitle(self, uiDraw, uiInkDr
 	end -- 2096
 	if ctx.view.assistHintsEnabled and self.confirmReady then -- 2101
 		local rawHint = route == "child" and "按 E 收页 · 尾声与史话   ·   Esc 暂歇" or "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇" -- 2102
-		local hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout) -- 2105
+		local hint = getActiveTarget():adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout) -- 2105
 		ctx.texts:put( -- 2106
 			"xs", -- 2106
 			hint, -- 2106

@@ -1,40 +1,35 @@
 /**
- * 《向西守望》统一宋明水墨触控叠加层与竖屏掌机操控台（纯布局 + 渲染层，零底层 Touch 监听）。
+ * 《向西守望》宋明水墨触控叠加层（仅安卓、安卓掌机与 Web 目标引入）。
  *
- * 深度解耦职责：
- * - 所有底层手指采集与状态机均在 Script/watch/touch.ts（TouchRouter），本模块仅负责：
- *   1. 根据当前 StageViewport / Play / Screen / RunState 计算按钮与热区，喂给 TouchRouter（布局与命中单一真源）；
- *   2. 在独立 overlayRoot（order = 60，位于前端与试炼层之上）渲染水墨触控控件：
- *      - 横屏模式：宋明水墨动态浮动左摇杆（2.5D 四向刻度 + 小满内圈轻步环）+ 右侧扇形动作圆钮
- *        （周戍双模开火/拖瞄摇杆、动态「翻越/翻滚」、掩体开关、情境交互带长按环、神器穿梭钮；
- *          小满跳跃、蹲伏/轻步开关、情境交互、空村投瓶拖瞄与取消圈）+ 顶栏快捷章；
- *      - 竖屏模式：上半屏 16:9 完整无裁切舞台 + 顶部鸦青状态条 + 下半屏宋明水墨掌机操控台
- *        （菜单导航键、局内摇杆与动作键、试炼选卡/结算钮），零手指遮挡画面；
- *      - 护送试炼（mode === 2）完整支持摇杆、战斗钮、天赋三选一与暂停/结算直点。
+ * 性能优化：
+ * 1. 专用轻量化 TextPool（{ xs: 24, sm: 12 } = 36 个 Label，较旧版 178 个削减 80% 节点数）；
+ * 2. 隐藏态脏清标记（hasDrawn）：手柄态/键鼠态隐藏时仅首帧清空一次，后续帧零 clear/零遍历；
+ * 3. 可选竖屏委托（portraitDelegate）：掌机端传 undefined，物理不引入竖屏代码；
+ * 4. 复用外部单次采集的 enemyTargets，消除触屏+手柄重复投影。
+ *
+ * 注意：Windows 发行包不引入、不打包本模块。
  */
 
 import { BlendFunc, BlendOp, Color, DrawNode, Node, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
-import { Input } from "Script/watch/input";
 import { RunState, talentNames } from "Script/watch/run";
-import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
-import { StageViewport, canToggleFullscreen, isWebPlatform } from "Script/watch/platform";
+import { AimTargetCandidate, collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/input/aim_assist";
 import {
     TouchAccent,
     TouchButtonSpec,
     TouchFrameContext,
     TouchRectZone,
     TouchRouter,
-} from "Script/watch/touch";
+} from "Script/watch/input/touch_core";
+import { deriveInteractActionMeta } from "Script/watch/input/touch_interact_meta";
+import type { PortraitTouchDelegate } from "Script/watch/input/touch_hud_portrait";
 import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
-import {
-    deriveInteractActionMeta,
-    isCutsceneBlockingPlay,
-} from "Script/watch/fe/ui/control_prompts";
+import { isCutsceneBlockingPlay } from "Script/watch/fe/ui/play_prompts";
+import { StageViewport } from "Script/watch/target_types";
 import {
     PALETTE,
     RGBA,
@@ -43,7 +38,6 @@ import {
     drawHairline,
     drawSilkVeil,
     fillRadialGlow,
-    fillVGradRect,
     toColor,
     visualTextWidth,
 } from "Script/watch/fe/theme";
@@ -59,17 +53,18 @@ export interface TouchOverlaySyncParams {
     play: Play | undefined;
     run: RunState | undefined;
     cam: CameraDirector | undefined;
-    input: Input;
     router: TouchRouter;
+    overlayActive: boolean;
+    allowAutoGameplayTouch: boolean;
+    allowMouseOnOverlay: boolean;
+    showWebTopPills: boolean;
+    canToggleFullscreen: boolean;
     assistHintsEnabled: boolean;
     isMuted: boolean;
     isFullscreen: boolean;
     storyTalentBoxes: Rect.Type[];
+    enemyTargets?: AimTargetCandidate[];
     dt: number;
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-    return v < lo ? lo : (v > hi ? hi : v);
 }
 
 function accentPalette(accent: TouchAccent): RGBA {
@@ -162,12 +157,13 @@ function isInLowArch(p: Play): boolean {
 
 export class TouchControls {
     private overlayRoot: Node.Type;
-    private deckDraw: DrawNode.Type;
+    private deckDraw: DrawNode.Type | undefined;
     private padDraw: DrawNode.Type;
     private padArt: AssetSlotHost;
     private padInkDraw: DrawNode.Type;
     private padGlow: DrawNode.Type;
     private texts: TextPool;
+    private portraitDelegate: PortraitTouchDelegate | undefined;
 
     private lastContext: TouchFrameContext | undefined;
     private lastMode = 1;
@@ -175,15 +171,21 @@ export class TouchControls {
     private lastPlay: Play | undefined;
     private lastRun: RunState | undefined;
     private time = 0;
+    private hasDrawn = false;
 
-    constructor(parent: Node.Type) {
+    constructor(parent: Node.Type, portraitDelegate?: PortraitTouchDelegate) {
+        this.portraitDelegate = portraitDelegate;
+
         this.overlayRoot = Node();
         this.overlayRoot.order = 60;
         this.overlayRoot.addTo(parent);
 
-        this.deckDraw = DrawNode();
-        this.deckDraw.order = 0;
-        this.deckDraw.addTo(this.overlayRoot);
+        if (portraitDelegate !== undefined) {
+            const deck = DrawNode();
+            deck.order = 0;
+            deck.addTo(this.overlayRoot);
+            this.deckDraw = deck;
+        }
 
         this.padDraw = DrawNode();
         this.padDraw.order = 2;
@@ -201,10 +203,14 @@ export class TouchControls {
         this.padGlow.blendFunc = additive;
         this.padGlow.addTo(this.overlayRoot);
 
-        this.texts = new TextPool(this.overlayRoot, 10);
+        // 触控层仅用 xs / sm 两桶，由 178 个 SDF Label 精简至 36 个（省 142 个 C++ 节点）
+        this.texts = new TextPool(this.overlayRoot, 10, { xs: 24, sm: 12 });
     }
 
-    /** 供自动化验证脚本查询当前布局按钮表与状态。 */
+    getAllocatedLabelCount(): number {
+        return this.texts.totalAllocated;
+    }
+
     getLayoutSummary(router?: TouchRouter): {
         buttonIds: string[];
         zoneIds: string[];
@@ -238,7 +244,6 @@ export class TouchControls {
         };
     }
 
-    /** 每帧在 Input.update() 之前计算全屏/竖屏触控热区并喂给 TouchRouter。 */
     syncContext(params: TouchOverlaySyncParams): TouchFrameContext {
         this.time += Math.min(0.05, Math.max(0, params.dt));
         this.lastMode = params.mode;
@@ -249,8 +254,8 @@ export class TouchControls {
         const vp = params.viewport;
         const p = params.play;
         const router = params.router;
-        const input = params.input;
-        const isPortrait = vp.isPortrait;
+        const pDel = this.portraitDelegate;
+        const isPortrait = pDel !== undefined && vp.isPortrait;
         const overlayScale = isPortrait ? 1 : vp.uiScale;
         const ovW = vp.fullW / Math.max(0.25, overlayScale);
         const ovH = vp.fullH / Math.max(0.25, overlayScale);
@@ -259,9 +264,7 @@ export class TouchControls {
         const safeT = vp.safe.top / Math.max(0.25, overlayScale);
         const safeB = vp.safe.bottom / Math.max(0.25, overlayScale);
 
-        const overlayActive = input.shouldShowTouchControls();
-        const allowMouseOnOverlay = isPortrait || input.settings.modePref === "touch";
-        const allowAutoGameplayTouch = input.settings.modePref === "auto" || input.settings.modePref === "touch";
+        const overlayActive = params.overlayActive;
         const sc = router.settings.touchScale;
 
         const isPlayMode = params.mode === 1 && params.screen === "play" && p !== undefined;
@@ -291,214 +294,89 @@ export class TouchControls {
         const buttons: TouchButtonSpec[] = [];
         const rectZones: TouchRectZone[] = [];
 
-        // 默认摇杆几何（竖屏下掌机左半区固定底座；横屏左半屏动态浮现）
-        const unitPortrait = clamp(Math.min(vp.fullW / 420, Math.max(180, vp.deckH) / 340), 0.72, 1.15);
-        const stickMaxR = isPortrait
-            ? Math.round(52 * unitPortrait * sc)
-            : STICK_BASE_R_LANDSCAPE * sc;
-        const stickDefaultX = isPortrait
-            ? safeL + Math.max(stickMaxR + 26, Math.round(ovW * 0.24))
-            : safeL + 126 * sc;
-        const stickDefaultY = isPortrait
-            ? Math.max(safeB + stickMaxR + 24, vp.deckH * 0.44)
-            : safeB + 126 * sc;
-        const stickZoneMaxX = isPortrait ? ovW * 0.50 : ovW * 0.46;
-        const stickZoneMaxY = isPortrait ? Math.max(40, vp.deckH - 8) : ovH - 110;
+        const pGeom = isPortrait && pDel !== undefined
+            ? pDel.computeStickGeom(vp, ovW, safeL, safeB, sc)
+            : undefined;
+        const stickMaxR = pGeom !== undefined ? pGeom.stickMaxR : STICK_BASE_R_LANDSCAPE * sc;
+        const stickDefaultX = pGeom !== undefined ? pGeom.stickDefaultX : safeL + 126 * sc;
+        const stickDefaultY = pGeom !== undefined ? pGeom.stickDefaultY : safeB + 126 * sc;
+        const stickZoneMaxX = pGeom !== undefined ? pGeom.stickZoneMaxX : ovW * 0.46;
+        const stickZoneMaxY = pGeom !== undefined ? pGeom.stickZoneMaxY : ovH - 110;
 
         let bottleCancelCenter = { x: ovW - safeR - 106 * sc, y: safeB + 124 * sc, r: 44 * sc };
 
-        // -------- A. 顶部快捷条（暂歇 / 重试 / 静音 / 全屏）--------
+        // A. 顶部快捷条
         if (overlayActive) {
-            if (isPortrait) {
-                // 竖屏顶部状态带快捷胶囊钮
-                const topY = ovH - vp.topBarH * 0.5;
-                const pillH = 26;
-                let rx = ovW - safeR - 10;
-
-                if (gameplayActive && p !== undefined && !p.paused) {
-                    const pw = 58;
-                    rx -= pw;
-                    buttons.push({
-                        id: "pause",
-                        x: rx + pw * 0.5,
-                        y: topY,
-                        r: 22,
-                        shape: "pill",
-                        rect: Rect(rx, topY - pillH * 0.5, pw, pillH),
-                        label: "暂歇",
-                        accent: "silk",
-                        active: false,
-                        highlighted: false,
-                        progress: 0,
-                        dimmed: false,
-                    });
-                    rx -= 8;
-
-                    const inTowerEnd = p.room.key === "tower" && p.phase !== "tower-wait";
-                    if (!inTowerEnd) {
-                        const rw = 58;
-                        rx -= rw;
-                        buttons.push({
-                            id: "retry",
-                            x: rx + rw * 0.5,
-                            y: topY,
-                            r: 22,
-                            shape: "pill",
-                            rect: Rect(rx, topY - pillH * 0.5, rw, pillH),
-                            label: "重试",
-                            accent: "amber",
-                            active: false,
-                            highlighted: false,
-                            progress: 0,
-                            dimmed: false,
-                        });
-                        rx -= 8;
-                    }
-                }
-
-                const mw = 54;
-                rx -= mw;
+            if (isPortrait && pDel !== undefined) {
+                pDel.pushTopButtons(
+                    buttons, vp, ovW, ovH, safeR, gameplayActive, p,
+                    params.isMuted, params.isFullscreen, params.canToggleFullscreen,
+                );
+            } else if (isPlayMode && !modal) {
+                const px = ovW - safeR - 112;
+                const py = ovH - safeT - 66;
                 buttons.push({
-                    id: "mute",
-                    x: rx + mw * 0.5,
-                    y: topY,
-                    r: 20,
+                    id: "pause",
+                    x: px + 46,
+                    y: py + 21,
+                    r: 28,
                     shape: "pill",
-                    rect: Rect(rx, topY - pillH * 0.5, mw, pillH),
-                    label: params.isMuted ? "静音" : "有声",
-                    accent: params.isMuted ? "rouge" : "cyan",
-                    active: params.isMuted,
+                    rect: Rect(px, py, 94, 42),
+                    label: "暂歇",
+                    accent: "silk",
+                    active: false,
                     highlighted: false,
                     progress: 0,
                     dimmed: false,
                 });
-                rx -= 8;
-
-                if (canToggleFullscreen()) {
-                    const fw = 54;
-                    rx -= fw;
+                if (params.showWebTopPills) {
+                    const mw = 58;
+                    const mx = px - mw - 10;
                     buttons.push({
-                        id: "fullscreen",
-                        x: rx + fw * 0.5,
-                        y: topY,
-                        r: 20,
-                        shape: "pill",
-                        rect: Rect(rx, topY - pillH * 0.5, fw, pillH),
-                        label: params.isFullscreen ? "窗口" : "全屏",
-                        accent: "silk",
-                        active: params.isFullscreen,
-                        highlighted: false,
-                        progress: 0,
-                        dimmed: false,
-                    });
-                }
-            } else {
-                // 横屏右上角「暂歇」章（非模态局内常驻，过场也可点按暂停）
-                if (isPlayMode && !modal) {
-                    const px = ovW - safeR - 112;
-                    const py = ovH - safeT - 66;
-                    buttons.push({
-                        id: "pause",
-                        x: px + 46,
+                        id: "mute",
+                        x: mx + mw * 0.5,
                         y: py + 21,
-                        r: 28,
+                        r: 22,
                         shape: "pill",
-                        rect: Rect(px, py, 94, 42),
-                        label: "暂歇",
-                        accent: "silk",
-                        active: false,
+                        rect: Rect(mx, py + 4, mw, 34),
+                        label: params.isMuted ? "静音" : "有声",
+                        accent: params.isMuted ? "rouge" : "cyan",
+                        active: params.isMuted,
                         highlighted: false,
                         progress: 0,
                         dimmed: false,
                     });
-                    // Web 端触控模式补充小巧「静音 / 全屏」胶囊于暂歇左侧
-                    if (isWebPlatform()) {
-                        const mw = 58;
-                        const mx = px - mw - 10;
+                    if (params.canToggleFullscreen) {
+                        const fw = 58;
+                        const fx = mx - fw - 8;
                         buttons.push({
-                            id: "mute",
-                            x: mx + mw * 0.5,
+                            id: "fullscreen",
+                            x: fx + fw * 0.5,
                             y: py + 21,
                             r: 22,
                             shape: "pill",
-                            rect: Rect(mx, py + 4, mw, 34),
-                            label: params.isMuted ? "静音" : "有声",
-                            accent: params.isMuted ? "rouge" : "cyan",
-                            active: params.isMuted,
+                            rect: Rect(fx, py + 4, fw, 34),
+                            label: params.isFullscreen ? "窗口" : "全屏",
+                            accent: "silk",
+                            active: params.isFullscreen,
                             highlighted: false,
                             progress: 0,
                             dimmed: false,
                         });
-                        if (canToggleFullscreen()) {
-                            const fw = 58;
-                            const fx = mx - fw - 8;
-                            buttons.push({
-                                id: "fullscreen",
-                                x: fx + fw * 0.5,
-                                y: py + 21,
-                                r: 22,
-                                shape: "pill",
-                                rect: Rect(fx, py + 4, fw, 34),
-                                label: params.isFullscreen ? "窗口" : "全屏",
-                                accent: "silk",
-                                active: params.isFullscreen,
-                                highlighted: false,
-                                progress: 0,
-                                dimmed: false,
-                            });
-                        }
                     }
                 }
             }
         }
 
-        // -------- B. 竖屏菜单掌机导航键（开机品牌序幕不展示导航键，其他菜单与暂停页同时支持直点上方 16:9 画面）--------
-        if (isPortrait && overlayActive && params.screen !== "splash"
+        // B. 竖屏菜单掌机导航键
+        if (isPortrait && pDel !== undefined && overlayActive && params.screen !== "splash"
             && (!gameplayActive || (isPlayMode && p !== undefined && p.paused))) {
-            const cy = Math.max(safeB + 84, vp.deckH * 0.50);
-            const leftX = safeL + Math.max(82, ovW * 0.25);
-            const step = Math.min(54, Math.max(42, ovW * 0.12));
-            const nr = Math.min(26, Math.max(21, ovW * 0.06));
-            buttons.push({ id: "nav_up", x: leftX, y: cy + step, r: nr, label: "上", accent: "silk", active: false, highlighted: false, progress: 0, dimmed: false });
-            buttons.push({ id: "nav_down", x: leftX, y: cy - step, r: nr, label: "下", accent: "silk", active: false, highlighted: false, progress: 0, dimmed: false });
-            buttons.push({ id: "nav_left", x: leftX - step, y: cy, r: nr, label: "左", accent: "silk", active: false, highlighted: false, progress: 0, dimmed: false });
-            buttons.push({ id: "nav_right", x: leftX + step, y: cy, r: nr, label: "右", accent: "silk", active: false, highlighted: false, progress: 0, dimmed: false });
-
-            const rightX = ovW - safeR - Math.max(76, ovW * 0.23);
-            buttons.push({
-                id: "nav_confirm",
-                x: rightX,
-                y: cy + 28,
-                r: 28,
-                shape: "pill",
-                rect: Rect(rightX - 48, cy + 6, 96, 44),
-                label: "确认",
-                accent: "rouge",
-                active: false,
-                highlighted: true,
-                progress: 0,
-                dimmed: false,
-            });
-            buttons.push({
-                id: "nav_back",
-                x: rightX,
-                y: cy - 30,
-                r: 26,
-                shape: "pill",
-                rect: Rect(rightX - 48, cy - 50, 96, 40),
-                label: "返回",
-                accent: "silk",
-                active: false,
-                highlighted: false,
-                progress: 0,
-                dimmed: false,
-            });
+            pDel.pushMenuNavButtons(buttons, vp, ovW, safeL, safeR, safeB);
         }
 
-        // -------- C. 局内直点矩形热区（故事本领卡、世界交互气泡、试炼弹窗）--------
+        // C. 局内直点矩形热区（故事本领卡、世界交互气泡、试炼弹窗）
         let prompt: WorldPrompt | undefined;
         if (isPlayMode && p !== undefined && !modal && !cutsceneBlocking) {
-            // 男主线护送三选一本领卡（从舞台 UI 空间换算到叠加层空间，手柄混用触屏时同样可直点）
             if (params.storyTalentBoxes.length > 0) {
                 let ti = 0;
                 for (ti = 0; ti < params.storyTalentBoxes.length; ti++) {
@@ -542,7 +420,6 @@ export class TouchControls {
             }
         }
 
-        // 片尾定格满 8 秒后：横屏触屏提供底部居中「确认 / 再走一遍」胶囊钮，杜绝横屏触屏死锁
         if (isPlayMode && p !== undefined && !p.paused && overlayActive && !isPortrait
             && p.room.key === "tower" && p.phase === "tower-end" && p.towerEndReady()) {
             const cx = ovW * 0.5;
@@ -563,7 +440,6 @@ export class TouchControls {
             });
         }
 
-        // 护送试炼（mode === 2）暂停 / 结算 / 本领三选一按钮热区
         if (isTrialMode && p !== undefined && overlayActive) {
             if (p.paused || trialEnded) {
                 const cx = ovW * 0.5;
@@ -600,171 +476,17 @@ export class TouchControls {
             }
         }
 
-        // -------- D. 局内双线动作按钮（横屏右下扇形 / 竖屏下掌机右区）--------
+        // D. 局内双线动作按钮
         if (overlayActive && gameplayActive && p !== undefined && !modal && !cutsceneBlocking) {
             const interactMeta = deriveInteractActionMeta(p, prompt ?? deriveWorldPrompt(p), cartNearby, router.cartGripLatched);
+            const nearLedge = isNearLowLedgeForButton(p);
 
-            if (isPortrait) {
-                const u = unitPortrait * sc;
-                const rightX = ovW - safeR - Math.round(68 * u);
-                const bottomY = Math.max(safeB + Math.round(70 * u), vp.deckH * 0.40);
-                const postY = Math.min(vp.deckH - 26, stickDefaultY + stickMaxR + Math.round(42 * u));
-                bottleCancelCenter = { x: rightX - Math.round(14 * u), y: bottomY + Math.round(10 * u), r: Math.round(34 * u) };
-
-                if (!p.childMode) {
-                    // 左侧上方掩体切换胶囊
-                    const cw = Math.round(86 * u);
-                    const ch = Math.round(32 * u);
-                    buttons.push({
-                        id: "cover",
-                        x: stickDefaultX,
-                        y: postY,
-                        r: 24 * u,
-                        shape: "pill",
-                        toggle: true,
-                        rect: Rect(stickDefaultX - cw * 0.5, postY - ch * 0.5, cw, ch),
-                        label: router.coverToggled ? "离掩体" : "贴掩体",
-                        accent: "cyan",
-                        active: router.coverToggled || p.coverHug,
-                        highlighted: p.coverNear && !router.coverToggled,
-                        progress: 0,
-                        dimmed: !p.coverNear && !router.coverToggled,
-                    });
-
-                    // 右侧主控区
-                    buttons.push({
-                        id: "fire",
-                        x: rightX,
-                        y: bottomY + Math.round(8 * u),
-                        r: Math.round(36 * u),
-                        label: router.getFireStickVisual().dragging ? "松手射" : "开火",
-                        subLabel: "拖瞄",
-                        accent: "rouge",
-                        active: router.isButtonHeld("fire"),
-                        highlighted: p.reloadPendingEffect !== "",
-                        progress: 0,
-                        dimmed: p.gripping,
-                    });
-                    const nearLedge = isNearLowLedgeForButton(p);
-                    buttons.push({
-                        id: "jump",
-                        x: rightX - Math.round(84 * u),
-                        y: bottomY - Math.round(16 * u),
-                        r: Math.round(28 * u),
-                        label: nearLedge ? "翻越" : "翻滚",
-                        accent: "cyan",
-                        active: router.isButtonHeld("jump"),
-                        highlighted: nearLedge,
-                        progress: 0,
-                        dimmed: p.gripping,
-                    });
-                    buttons.push({
-                        id: "interact",
-                        x: rightX - Math.round(10 * u),
-                        y: bottomY + Math.round(88 * u),
-                        r: Math.round(30 * u),
-                        label: interactMeta.label,
-                        subLabel: interactMeta.subLabel,
-                        accent: interactMeta.urgent ? "rouge" : "amber",
-                        active: router.isButtonHeld("interact"),
-                        highlighted: interactMeta.available,
-                        progress: interactMeta.progress,
-                        dimmed: !interactMeta.available,
-                    });
-                    if (isPlayMode && p.archive.artifactOwned) {
-                        const eq = p.equippedWeapon === "time_shuttler";
-                        buttons.push({
-                            id: "artifact",
-                            x: rightX - Math.round(90 * u),
-                            y: bottomY + Math.round(68 * u),
-                            r: Math.round(24 * u),
-                            label: eq ? "收器" : "穿梭",
-                            accent: "amber",
-                            active: eq,
-                            highlighted: eq,
-                            progress: 0,
-                            dimmed: false,
-                        });
-                    }
-                } else {
-                    // 小满竖屏左侧上方：蹲伏 + 轻步切换胶囊
-                    const pw = Math.round(68 * u);
-                    const ph = Math.round(32 * u);
-                    buttons.push({
-                        id: "crouch",
-                        x: stickDefaultX - Math.round(38 * u),
-                        y: postY,
-                        r: 22 * u,
-                        shape: "pill",
-                        toggle: true,
-                        rect: Rect(stickDefaultX - Math.round(38 * u) - pw * 0.5, postY - ph * 0.5, pw, ph),
-                        label: router.crouchToggled ? "起身" : "蹲伏",
-                        accent: "emerald",
-                        active: router.crouchToggled || p.player.crouch,
-                        highlighted: p.scavChase && !p.player.crouch,
-                        progress: 0,
-                        dimmed: false,
-                    });
-                    buttons.push({
-                        id: "cover",
-                        x: stickDefaultX + Math.round(38 * u),
-                        y: postY,
-                        r: 22 * u,
-                        shape: "pill",
-                        toggle: true,
-                        rect: Rect(stickDefaultX + Math.round(38 * u) - pw * 0.5, postY - ph * 0.5, pw, ph),
-                        label: router.slowToggled ? "常步" : "轻步",
-                        accent: "silk",
-                        active: router.slowToggled,
-                        highlighted: false,
-                        progress: 0,
-                        dimmed: false,
-                    });
-
-                    // 小满竖屏右侧：大交互 + 跳跃 +（持瓶时）投瓶
-                    buttons.push({
-                        id: "jump",
-                        x: rightX,
-                        y: bottomY + Math.round(8 * u),
-                        r: Math.round(32 * u),
-                        label: "跳跃",
-                        accent: "amber",
-                        active: router.isButtonHeld("jump"),
-                        highlighted: false,
-                        progress: 0,
-                        dimmed: p.gripping,
-                    });
-                    buttons.push({
-                        id: "interact",
-                        x: rightX - Math.round(8 * u),
-                        y: bottomY + Math.round(86 * u),
-                        r: Math.round(31 * u),
-                        label: interactMeta.label,
-                        subLabel: interactMeta.subLabel,
-                        accent: interactMeta.urgent ? "rouge" : "amber",
-                        active: router.isButtonHeld("interact"),
-                        highlighted: interactMeta.available,
-                        progress: interactMeta.progress,
-                        dimmed: !interactMeta.available,
-                    });
-                    if (canBottleAim) {
-                        buttons.push({
-                            id: "bottle",
-                            x: rightX - Math.round(86 * u),
-                            y: bottomY + Math.round(46 * u),
-                            r: Math.round(32 * u),
-                            label: "投瓶",
-                            subLabel: "拖瞄",
-                            accent: "amber",
-                            active: router.isButtonHeld("bottle"),
-                            highlighted: true,
-                            progress: Math.min(1, p.aimHold / 0.12),
-                            dimmed: false,
-                        });
-                    }
-                }
+            if (isPortrait && pDel !== undefined && pGeom !== undefined) {
+                bottleCancelCenter = pDel.pushActionButtons(
+                    buttons, vp, ovW, safeR, safeB, pGeom, sc,
+                    p, isPlayMode, canBottleAim, nearLedge, interactMeta, router,
+                );
             } else {
-                // 横屏右手宋明扇形圆钮布局（1280×720 基准逻辑像素）
                 const rightX = ovW - safeR - 92 * sc;
                 const bottomY = safeB + 110 * sc;
                 bottleCancelCenter = { x: rightX - 186 * sc, y: bottomY + 126 * sc, r: 42 * sc };
@@ -783,7 +505,6 @@ export class TouchControls {
                         progress: 0,
                         dimmed: p.gripping,
                     });
-                    const nearLedge = isNearLowLedgeForButton(p);
                     buttons.push({
                         id: "jump",
                         x: rightX - 116 * sc,
@@ -905,12 +626,17 @@ export class TouchControls {
             }
         }
 
-        // -------- E. 采集活体敌兵与主角枪口锚点（主舞台局部坐标，触屏与手柄共享同一工具）--------
-        const enemyTargets = canShoot && p !== undefined
-            ? (isPlayMode && params.cam !== undefined
+        // E. 优先复用调用方单次采集的敌兵目标，避免双算；仅在开启磁吸且可射击时采集
+        let enemyTargets: AimTargetCandidate[];
+        if (params.enemyTargets !== undefined) {
+            enemyTargets = params.enemyTargets;
+        } else if (canShoot && router.settings.aimAssist && p !== undefined) {
+            enemyTargets = isPlayMode && params.cam !== undefined
                 ? collectPlayAimTargets(p, params.cam, vp.stageW, vp.stageH)
-                : collectTrialAimTargets(p, vp.stageW, vp.stageH))
-            : [];
+                : collectTrialAimTargets(p, vp.stageW, vp.stageH);
+        } else {
+            enemyTargets = [];
+        }
 
         let playerScreenX = vp.stageW * 0.5;
         let playerScreenY = vp.stageH * 0.38;
@@ -928,8 +654,8 @@ export class TouchControls {
             viewport: vp,
             overlayScale,
             overlayActive,
-            allowAutoGameplayTouch,
-            allowMouseOnOverlay,
+            allowAutoGameplayTouch: params.allowAutoGameplayTouch,
+            allowMouseOnOverlay: params.allowMouseOnOverlay,
             modal,
             gameplayActive,
             cutsceneBlocking,
@@ -964,21 +690,34 @@ export class TouchControls {
         return ctx;
     }
 
-    /** 每帧渲染水墨触控叠加层与竖屏掌机外框（在主前端与试炼层之后调用）。 */
     render(router: TouchRouter): void {
-        this.deckDraw.clear();
+        const ctx = this.lastContext;
+        const pDel = this.portraitDelegate;
+        const portraitVisible = pDel !== undefined && ctx !== undefined && ctx.viewport.isPortrait;
+        const visible = ctx !== undefined && (ctx.overlayActive || portraitVisible);
+
+        if (!visible) {
+            if (!this.hasDrawn) {
+                return;
+            }
+            this.deckDraw?.clear();
+            this.padDraw.clear();
+            this.padInkDraw.clear();
+            this.padGlow.clear();
+            this.padArt.beginFrame();
+            this.padArt.endFrame();
+            this.texts.hideAll();
+            this.hasDrawn = false;
+            return;
+        }
+
+        this.hasDrawn = true;
+        this.deckDraw?.clear();
         this.padDraw.clear();
         this.padInkDraw.clear();
         this.padGlow.clear();
         this.padArt.beginFrame();
         this.texts.beginFrame();
-
-        const ctx = this.lastContext;
-        if (ctx === undefined || (!ctx.overlayActive && !ctx.viewport.isPortrait)) {
-            this.padArt.endFrame();
-            this.texts.endFrame();
-            return;
-        }
 
         const vp = ctx.viewport;
         const sc = Math.max(0.25, ctx.overlayScale);
@@ -989,9 +728,8 @@ export class TouchControls {
         const ovH = vp.fullH / sc;
         const baseAlpha = router.settings.touchOpacity;
 
-        // 1. 竖屏掌机外壳（鸦青顶条 + 左右遮边 + 下半屏宋明水墨掌机底座）
-        if (vp.isPortrait) {
-            this.drawPortraitFrame(ctx, ovW, ovH);
+        if (portraitVisible && pDel !== undefined && this.deckDraw !== undefined) {
+            pDel.drawFrame(this.deckDraw, this.padInkDraw, this.texts, ctx, this.lastPlay, ovW, ovH);
         }
 
         if (!ctx.overlayActive) {
@@ -1000,29 +738,24 @@ export class TouchControls {
             return;
         }
 
-        // 2. 北塔尾声可轻触再启程浮签
         if (ctx.cutsceneBlocking && ctx.inTowerEnd && !ctx.modal) {
             const rx = ovW * 0.5;
-            const ry = vp.isPortrait ? Math.max(vp.safe.bottom + 54, vp.deckH * 0.5) : (vp.safe.bottom / sc + 54);
+            const ry = portraitVisible ? Math.max(vp.safe.bottom + 54, vp.deckH * 0.5) : (vp.safe.bottom / sc + 54);
             drawSilkVeil(this.padDraw, this.padArt, "touch_restart_veil", rx, ry, 230, 36, PALETTE.inkWash, 0.78 * baseAlpha, 1);
             drawHairline(this.padInkDraw, this.padArt, "touch_restart_line", rx, ry + 16, 180, PALETTE.amber, 0.52 * baseAlpha, true, 2);
             this.texts.put("xs", "轻触屏幕再次启程", rx, ry, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.6, 0.94, 0.08);
         }
 
-        // 3. 护送试炼（mode === 2）矩形卡面与结算按钮
         if (this.lastMode === 2 && this.lastPlay !== undefined) {
             this.drawTrialZones(ctx, baseAlpha);
         }
 
-        // 4. 左手虚拟摇杆（非模态、非过场局内绘制）
         if (ctx.gameplayActive && !ctx.modal && !ctx.cutsceneBlocking) {
             this.drawStick(router, ctx, baseAlpha);
         }
 
-        // 5. 全部按钮（顶栏快捷钮、竖屏导航键、局内动作圆钮/胶囊）
         this.drawButtons(router, ctx, baseAlpha);
 
-        // 6. 空村投瓶拖拽取消圈
         const bottleDrag = router.getBottleDragVisual();
         if (bottleDrag.active) {
             const cx = bottleDrag.cancelX;
@@ -1045,42 +778,6 @@ export class TouchControls {
 
         this.padArt.endFrame();
         this.texts.endFrame();
-    }
-
-    private drawPortraitFrame(ctx: TouchFrameContext, w: number, h: number): void {
-        const vp = ctx.viewport;
-        const topY = vp.stageY + vp.stageH;
-
-        if (topY < h) {
-            this.deckDraw.drawRect(Rect(0, topY, w, h - topY), toColor(PALETTE.inkVoid, 252));
-            this.deckDraw.drawSegment(Vec2(0, topY), Vec2(w, topY), 1.0, toColor(PALETTE.silkDim, 140));
-            const labelY = topY + (h - topY) * 0.5;
-            this.texts.put("xs", "向西守望 · 掌机竖屏", vp.safe.left + 12, labelY, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, 0.88, 0.08);
-        }
-
-        if (vp.stageX > 0) {
-            this.deckDraw.drawRect(Rect(0, vp.stageY, vp.stageX, vp.stageH), toColor(PALETTE.inkVoid, 255));
-            this.deckDraw.drawRect(Rect(vp.stageX + vp.stageW, vp.stageY, w - vp.stageX - vp.stageW, vp.stageH), toColor(PALETTE.inkVoid, 255));
-        }
-
-        if (vp.deckH > 0) {
-            fillVGradRect(this.deckDraw, 0, 0, w, vp.deckH, toColor(PALETTE.voidDark, 255), toColor(PALETTE.inkWash, 255));
-            this.deckDraw.drawSegment(Vec2(0, vp.deckH), Vec2(w, vp.deckH), 1.2, toColor(PALETTE.silkLine, 165));
-            this.deckDraw.drawSegment(Vec2(18, vp.deckH - 4), Vec2(w - 18, vp.deckH - 4), 0.6, toColor(PALETTE.silkDim, 85));
-            drawDiamond(this.padInkDraw, w * 0.5, vp.deckH, 5, 5, toColor(PALETTE.rouge, 220), 0.9, toColor(PALETTE.silkLine, 180));
-
-            const footY = Math.max(vp.safe.bottom + 14, 16);
-            const p = this.lastPlay;
-            const inOverlayModal = p !== undefined && (p.reloadOpen || p.craftBench.active);
-            const hint = inOverlayModal
-                ? "直接在上屏点按或一笔划连"
-                : (!ctx.gameplayActive || (p !== undefined && p.paused)
-                    ? "可点上屏菜单或用下方导航键"
-                    : (ctx.childMode
-                        ? "左摇杆内圈轻步 · 蹲伏/轻步点按切换"
-                        : "左摇杆走位 · 点上屏或拖「开火」瞄射"));
-            this.texts.put("xs", hint, w * 0.5, footY, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 0.8, 0.78, 0.06);
-        }
     }
 
     private drawStick(router: TouchRouter, ctx: TouchFrameContext, baseAlpha: number): void {

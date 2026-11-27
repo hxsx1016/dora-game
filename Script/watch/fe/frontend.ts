@@ -479,17 +479,14 @@ export class WatchFrontend {
             ev = this.adapter.sample(p);
             this.vfx.ingest(ev, p, this.cam);
             this.audio.ingestEvents(ev, p);
-            const touch = input.getTouch();
-            if (touch !== undefined) {
-                if (ev.playerHit) {
-                    touch.vibrate(0.036);
-                } else if (ev.reloadSolved || ev.benchCrafted || ev.handJustTied || ev.cartJustDocked) {
-                    touch.vibrate(0.024);
-                } else if (ev.coverDeflect) {
-                    touch.vibrate(0.018);
-                } else if (ev.knockPulse) {
-                    touch.vibrate(0.014);
-                }
+            if (ev.playerHit) {
+                input.vibrate(0.036);
+            } else if (ev.reloadSolved || ev.benchCrafted || ev.handJustTied || ev.cartJustDocked) {
+                input.vibrate(0.024);
+            } else if (ev.coverDeflect) {
+                input.vibrate(0.018);
+            } else if (ev.knockPulse) {
+                input.vibrate(0.014);
             }
         } else {
             // 暂停态不消费/不补播事件，并立即收净切场斜切幕布

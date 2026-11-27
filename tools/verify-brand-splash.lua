@@ -18,11 +18,13 @@ do
 		Content:insertSearchPath(3, Path(repoRoot, "Script", "Lib"))
 	end
 end
+
+package.loaded["watch.target"] = "web"
+local targetMod = require("Script.watch.target")
+targetMod.resetActiveTarget()
+
 local new = require("lualib_bundle").__TS__New
 local Input = require("Script.watch.input").Input
-local TouchRouter = require("Script.watch.touch").TouchRouter
-local GamepadRouter = require("Script.watch.gamepad").GamepadRouter
-local TouchControls = require("Script.watch.fe.ui.touch_controls").TouchControls
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local platform = require("Script.watch.platform")
 local assets = require("Script.watch.fe.assets")
@@ -60,13 +62,10 @@ end
 local root = Dora.Node()
 local fe = new(Frontend, root)
 local input = new(Input)
-local router = new(TouchRouter, input.settings)
-router:attach(root)
-input:bindTouch(router)
-local gp = new(GamepadRouter, input.settings)
-gp:attach(root)
-input:bindGamepad(gp)
-local ctrl = new(TouchControls, root)
+input:attach(root, {})
+local router = input:getTouchRouter()
+local gp = input:getGamepadRouter()
+local ctrl = input:getTouchControls()
 local vp = platform.computeStageViewport(1280, 720)
 input:setStageViewport(vp)
 
@@ -143,7 +142,8 @@ check("splash skips on gamepad button after 0.25s", act.type == "splashDone")
 fe.menus:resetSplash()
 ctrl:syncContext({
 	viewport = vp, mode = 1, screen = "splash", play = nil, run = nil, cam = fe.cam,
-	input = input, router = router, assistHintsEnabled = false, isMuted = false,
+	router = router, overlayActive = false, allowAutoGameplayTouch = true, allowMouseOnOverlay = false,
+	showWebTopPills = true, canToggleFullscreen = true, assistHintsEnabled = false, isMuted = false,
 	isFullscreen = false, storyTalentBoxes = {}, dt = 0.08,
 })
 for _ = 1, 5 do
@@ -163,6 +163,8 @@ fe.menus:resetInput()
 act = fe:renderMenu(1 / 60, input, 1280, 720)
 check("title screen with brand logos renders", act.type == "none")
 
+package.loaded["watch.target"] = nil
+targetMod.resetActiveTarget()
 root:cleanup()
 print(string.format("BRAND SPLASH VERIFY PASS %d / FAIL %d", pass, fail))
 assert(fail == 0, "brand splash verification failed")

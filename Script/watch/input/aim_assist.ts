@@ -1,8 +1,7 @@
 /**
- * 《向西守望》共享瞄准目标采集与轻度敌兵磁吸辅助（触屏与手柄统一复用）。
+ * 《向西守望》共享瞄准目标采集与轻度敌兵磁吸辅助（仅安卓、掌机、Web 引入）。
  *
- * 所有坐标均以主舞台局部像素空间（左下原点，0..stageW, 0..stageH）表达，
- * 自动兼容横屏全屏、KTR 3:2 / 4:3 以及竖屏上方 16:9 舞台。
+ * Windows 发行包不引入、不打包本模块。
  */
 
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
@@ -27,7 +26,7 @@ function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** 从高清前端镜头采集当前房内可见活体敌兵的舞台坐标候选点。 */
+/** 从高清前端镜头采集当前房内可见活体敌兵的舞台坐标候选点（单帧仅算一次，供触屏与手柄复用）。 */
 export function collectPlayAimTargets(
     p: Play,
     cam: CameraDirector,

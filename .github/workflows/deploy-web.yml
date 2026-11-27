@@ -128,13 +128,30 @@ jobs:
               throw new Error("manifest 配置异常: " + JSON.stringify({ entry: m.entry, profile: m.profile }));
             }
             const paths = new Set(m.files.map(f => f.path));
-            for (const req of ["assets/art/brand/app_icon.png", "assets/art/brand/game_logo_v.png", "Script/watch/platform.lua", "Script/watch/controls_config.lua", "Script/watch/gamepad.lua", "Script/watch/touch.lua"]) {
+            for (const req of [
+              "assets/art/brand/app_icon.png",
+              "assets/art/brand/game_logo_v.png",
+              "Script/watch/target.lua",
+              "Script/watch/platform.lua",
+              "Script/watch/platform_mobile.lua",
+              "Script/watch/controls_config.lua",
+              "Script/watch/input/kbm_core.lua",
+              "Script/watch/input/aim_assist.lua",
+              "Script/watch/input/gamepad_core.lua",
+              "Script/watch/input/touch_core.lua",
+              "Script/watch/input/touch_hud_landscape.lua",
+              "Script/watch/input/touch_hud_portrait.lua",
+              "Script/watch/targets/web/index.lua",
+            ]) {
               if (!paths.has(req)) throw new Error("manifest 缺少关键统一资产/模块: " + req);
             }
             const forbidden = m.files.filter(f =>
               f.path.startsWith("docs/") ||
               f.path.startsWith("art-source/") ||
               f.path.startsWith("tools/") ||
+              f.path.startsWith("Script/watch/targets/windows/") ||
+              f.path.startsWith("Script/watch/targets/android/") ||
+              f.path.startsWith("Script/watch/targets/handheld/") ||
               f.path.endsWith(".ts") ||
               f.path.includes("godot")
             );

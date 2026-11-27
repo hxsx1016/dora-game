@@ -16,8 +16,8 @@ local ____dialogues = require("Script.watch.dialogues") -- 13
 local MUTE_SFX_CAPTIONS = ____dialogues.MUTE_SFX_CAPTIONS -- 14
 local NEEDLE_NOTE_LINES = ____dialogues.NEEDLE_NOTE_LINES -- 15
 local dialogueById = ____dialogues.dialogueById -- 17
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 21
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 21
+local ____target = require("Script.watch.target") -- 21
+local getActiveTarget = ____target.getActiveTarget -- 21
 local ____theme = require("Script.watch.fe.theme") -- 23
 local PALETTE = ____theme.PALETTE -- 24
 local drawBlossomDot = ____theme.drawBlossomDot -- 25
@@ -488,7 +488,7 @@ function NarrativeRenderer.prototype.drawSubtitleStrip(self, uiDraw, uiInkDraw, 
 	end -- 412
 	local line = { -- 414
 		cue = rawLine.cue, -- 415
-		text = assistHintsEnabled and adaptHintSentence(rawLine.text, inputMode, gamepadLayout) or rawLine.text, -- 416
+		text = assistHintsEnabled and getActiveTarget():adaptHintSentence(rawLine.text, inputMode, gamepadLayout) or rawLine.text, -- 416
 		urgent = rawLine.urgent -- 417
 	} -- 417
 	local hasCue = line.cue ~= "" -- 419
@@ -1109,7 +1109,7 @@ function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDr
 			0 -- 809
 		) -- 809
 		local rawEndHint = assistHintsEnabled and "按 E 再次启程     ·     Esc 暂歇" or "Esc 暂歇" -- 810
-		local endHint = adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 811
+		local endHint = getActiveTarget():adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 811
 		texts:put( -- 812
 			"xs", -- 812
 			endHint, -- 812

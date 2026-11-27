@@ -71,7 +71,12 @@ cat > "$STAGE/Dora平台运行说明.md" <<MD
 
 - 适用引擎：**Dora SSR v1.10.2**（支持 Windows / macOS / Linux / Android / Web / KTR 掌机等全平台）
 - 入口文件：\`init.lua\`（源码 \`init.ts\`，已附完整预编译 Lua，无需二次编译即可直接运行）
-- 输入与多端适配：全平台统一支持 **键鼠 / 触屏 / 手柄** 三种操作模式（默认自动切换，亦可于暂停菜单「操控设置」中随时切换），自适应 16:9、3:2（KTR1/R2）、4:3 与竖屏掌机布局
+- 输入与分端目标架构：源码包完整保留 4 端目标实现（\`Script/watch/targets/{windows,android,handheld,web}/\`），发行构建按端物理裁剪：
+  - \`windows\`：纯键鼠（零触控节点、零手柄轮询、零 \`gamecontrollerdb.txt\`）；
+  - \`android\`：纯触屏（横屏全屏 + 竖屏 16:9 宋明水墨掌机台，零键鼠/手柄开销）；
+  - \`handheld\`：安卓掌机 KT-R1/KT-R2（触屏 + 手柄、锁定横屏、3:2/4:3 视野补偿与 Dora Go 热键避让）；
+  - \`web\`：浏览器全包含（键鼠 / 触屏 / 手柄三模热切 + 横竖屏自适应）。
+- 在 Dora SSR 客户端 / Dora Go 中调试或指定目标时，可在启动前设置 \`package.loaded["watch.target"] = "handheld"\`（可选 \`windows\` / \`android\` / \`handheld\` / \`web\`）；未指定时自动按运行平台映射。
 - 运行方式：
   1. 在 Dora SSR 客户端 / Web IDE（含 KTR 掌机端 Dora SSR Android 客户端）中导入本目录，直接运行 \`init.lua\`；
   2. 或命令行执行：\`Dora cli run -p . --entry init.lua\`。
