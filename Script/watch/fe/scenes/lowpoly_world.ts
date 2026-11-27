@@ -848,30 +848,37 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
                 fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(28), cam.len(120), cam.len(88),
                     Color(255, 198, 114, Math.round(74 * pulse)), Color(255, 168, 72, 0), 16);
-                // 值夜室守卒精灵与旧木值夜桌（淘汰单矩形+单圆点守卒占位）
+                // 值夜室守卒手绘精灵（提灯值夜 / 伏案记簿）与旧木值夜桌
                 const guardX = deskCx + cam.len(26);
-                if (!worldArt.tryPlace("soldier_idle", "fe04_tower_guard_npc", guardX, groundY, cam.len(34), cam.len(78), {
+                const writing = p.deskHold >= 24 || p.towerHanded;
+                const guardClip = writing
+                    ? "assets/art/actors_extra.clip|tower_guard_write"
+                    : "assets/art/actors_extra.clip|tower_guard_lantern";
+                if (!worldArt.tryPlacePath(guardClip, "fe04_tower_guard_npc", guardX, groundY, cam.len(54), cam.len(82), {
+                    anchorX: 0.44,
+                    anchorY: 0,
+                    preserveAspect: true,
                     facing: -1,
-                    color: Color(188, 164, 142, 255),
-                    opacity: 0.92,
+                    opacity: 0.96,
                     layer: 3600,
                 })) {
                     fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(28, 34, 44, 240));
                 }
-                worldArt.tryPlacePath("assets/art/diorama_cutouts.clip|table_apron_frame", "fe04_tower_desk_prop", deskCx, groundY, deskW * 1.12, deskH * 1.12, {
-                    anchorX: 0.5,
-                    anchorY: 0,
-                    color: Color(196, 168, 142, 255),
-                    opacity: 0.96,
-                    smooth: true,
+                worldArt.tryPlace("prop_table", "fe04_tower_desk_prop", deskCx, groundY, deskW * 1.06, deskH * 1.04, {
+                    color: Color(206, 180, 150, 255),
+                    opacity: 0.98,
                     layer: 3650,
                 });
-                worldArt.tryPlace("prop_lantern", "fe04_tower_desk_lamp", deskCx + cam.len(34), deskTop + cam.len(10), cam.len(14), cam.len(20), {
-                    opacity: 0.96,
-                    layer: 3700,
-                });
+                if (writing) {
+                    worldArt.tryPlace("prop_lantern", "fe04_tower_desk_lamp", deskCx + cam.len(34), deskTop + cam.len(10), cam.len(14), cam.len(20), {
+                        opacity: 0.96,
+                        layer: 3700,
+                    });
+                    fillRadialGlow(fgGlow, deskCx + cam.len(34), deskTop + cam.len(12), cam.len(24), cam.len(22), Color(255, 214, 134, Math.round(84 * pulse)), Color(255, 180, 86, 0), 12);
+                } else {
+                    fillRadialGlow(fgGlow, deskCx + cam.len(3), deskTop + cam.len(18), cam.len(28), cam.len(26), Color(255, 214, 134, Math.round(74 * pulse)), Color(255, 180, 86, 0), 12);
+                }
                 fgDraw.drawRect(Rect(deskCx + cam.len(2), deskTop + cam.len(1), cam.len(22), cam.len(4)), Color(230, 220, 196, 235));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(34), deskTop + cam.len(12)), cam.len(6.0), Color(255, 224, 152, Math.round(215 * pulse)));
                 if (p.deskHold >= 12 || p.towerHanded) {
                     worldArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|needle_pouch_compass", "fe04_tower_desk_pouch", deskCx - cam.len(18), deskTop + cam.len(8), cam.len(18), cam.len(18), {
                         anchorX: 0.5,

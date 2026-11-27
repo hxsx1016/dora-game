@@ -35,6 +35,33 @@ function roomSeed(key: string): number {
     return h;
 }
 
+interface DedicatedPropArt {
+    clip: string;
+    natAR: number;
+    heightMul: number;
+    tileable: boolean;
+}
+
+/** 将特定明代场景道具（空筐墙/粮袋堆/木帘/窗板/石井栏）映射至专属 props_ming.clip 手绘精灵，避免退化为通用砖木块 */
+function dedicatedSolidProp(solid: SolidSpec): DedicatedPropArt | undefined {
+    if (solid.art === "basket_wall") {
+        return { clip: "basket_wall", natAR: 144 / 90, heightMul: 1.08, tileable: true };
+    }
+    if (solid.art === "curtain") {
+        return { clip: "curtain", natAR: 144 / 126, heightMul: 1.06, tileable: false };
+    }
+    if (solid.art === "board") {
+        return { clip: "window_board", natAR: 88 / 144, heightMul: 1.04, tileable: false };
+    }
+    if (solid.id === "s1_well" || solid.art === "well" || solid.label.indexOf("井背") >= 0) {
+        return { clip: "well_curb", natAR: 144 / 120, heightMul: 1.12, tileable: false };
+    }
+    if (solid.label.indexOf("粮台") >= 0 || solid.label.indexOf("粮袋") >= 0) {
+        return { clip: "grain_sack", natAR: 144 / 74, heightMul: 1.12, tileable: true };
+    }
+    return undefined;
+}
+
 function coverArt(solid: SolidSpec): AssetSlotKey {
     if (solid.art === "gate_post" || solid.art === "wall" || solid.art === "latch") {
         return "wall";
@@ -499,6 +526,34 @@ export class StageRenderer {
         // 前后路缘清晰边界线（明确提示 2.5D 可通行纵深边界）
         draw.drawSegment(Vec2(left, front), Vec2(right, front), 1.4, toColor(theme.groundRim, 135));
         draw.drawSegment(Vec2(left, back), Vec2(right, back), 1.3, toColor(theme.groundRim, 92));
+
+        // 叠一层极轻的明代青石板纹理（位于全部 2.5D 角色与掩体之下，仅增质感不抢前景与影）
+        const texTileW = Math.max(88, cam.len(128));
+        const texStart = Math.max(0, Math.floor((visLeft - left) / texTileW));
+        const stoneTint = toColor(lerpRGBA(theme.groundTop, PALETTE.rimSilver, 0.25), 255);
+        for (let tcol = texStart; left + tcol * texTileW < visRight; tcol++) {
+            const tx0 = left + tcol * texTileW;
+            const tw = Math.min(texTileW, right - tx0);
+            if (tw <= 4) {
+                continue;
+            }
+            _assets.tryPlacePath(
+                "assets/art/tex_diorama_ming.clip|ming_stone",
+                "road_stone_" + _floor + "_" + tcol,
+                tx0 + tw * 0.5,
+                front,
+                tw + 0.5,
+                height,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    opacity: 0.14,
+                    color: stoneTint,
+                    smooth: true,
+                    layer: -18,
+                },
+            );
+        }
     }
 
     private drawStairs(
@@ -698,6 +753,35 @@ export class StageRenderer {
         }
         draw.drawEllipse(Vec2(center, base + cam.len(2)), width * 0.50,
             Math.max(2, cam.len(2.5)), Color(10, 10, 14, 128 * opacity));
+
+        // Phase 3 专属明代场景道具（空筐墙 / 粮袋堆 / 木帘 / 窗板 / 石井栏）：采用独立手绘轮廓，保留 key 兼容遮挡与破碎巡检
+        const propArt = dedicatedSolidProp(solid);
+        if (propArt !== undefined) {
+            const propPath = "assets/art/props_ming.clip|" + propArt.clip;
+            const drawH = frontH * propArt.heightMul;
+            const cols = propArt.tileable
+                ? Math.max(1, Math.min(6, Math.round((solid.w / Math.max(1, solid.h)) / propArt.natAR)))
+                : 1;
+            const colW = width / cols;
+            const tint = occlusionTint(opacity);
+            let placedProp = false;
+            for (let col = 0; col < cols; col++) {
+                const tileKey = col === 0 ? key : key + "_c" + col;
+                if (assets.tryPlacePath(propPath, tileKey, left + (col + 0.5) * colW, base, colW + 1, drawH, {
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    preserveAspect: !propArt.tileable && cols === 1 && solid.art === "board",
+                    opacity,
+                    color: tint,
+                    layer,
+                })) {
+                    placedProp = true;
+                }
+            }
+            if (placedProp) {
+                return;
+            }
+        }
 
         const timber = slot === "cover_wood" || solid.art === "thin_wood" || solid.art === "board" || solid.art === "curtain";
 
@@ -960,23 +1044,23 @@ export class StageRenderer {
             assets.tryPlace("prop_lantern", "tower_lantern", cx + sw * 0.43, lampY - sh * 0.36,
                 sw * 0.17, sh * 0.84, { layer: 3 });
             const pulse = 0.85 + 0.15 * Math.sin(time * 3);
-            const alpha = opened ? 155 : 88;
+            const alpha = opened ? 58 : 42;
             // 门框重型立柱与门板纹理
             fgDraw.drawSegment(Vec2(x0 + 4, y0), Vec2(x0 + 4, y0 - sh * 3.8), 4, Color(42, 52, 70, 255));
             fgDraw.drawSegment(Vec2(x0 + sw - 4, y0), Vec2(x0 + sw - 4, y0 - sh * 3.8), 4, Color(42, 52, 70, 255));
             fgDraw.drawSegment(Vec2(x0, y0), Vec2(x0 + sw, y0), 2.5, toColor(PALETTE.amber, 210));
-            // 门洞暖光溢出
+            // 门洞暖光溢出（克制暖黄透雾，避免加法混合过曝惨白）
             fillVGradRect(
                 fgGlow,
                 x0 + 6,
                 y0 - sh * 3.8,
                 sw - 12,
                 sh * 3.8,
-                Color(255, 206, 128, Math.round((opened ? alpha : alpha * 0.25) * pulse)),
-                Color(255, 224, 168, opened ? 180 : 62),
+                Color(246, 196, 118, Math.round((opened ? alpha : alpha * 0.35) * pulse)),
+                Color(246, 206, 142, opened ? 74 : 38),
             );
-            fillRadialGlow(fgGlow, cx, lampY, opened ? 105 : 58, opened ? 105 : 58, Color(255, 232, 178, Math.round(170 * pulse)), Color(255, 180, 86, 0), 18);
-            fgDraw.drawCircle(Vec2(cx, lampY), 5.5, toColor(PALETTE.amberCore));
+            fillRadialGlow(fgGlow, cx, lampY, opened ? 78 : 54, opened ? 72 : 52, Color(252, 218, 152, Math.round(92 * pulse)), Color(255, 180, 86, 0), 18);
+            fgDraw.drawCircle(Vec2(cx, lampY), 4.5, toColor(PALETTE.amberCore));
 
             // 门开后渲染值夜室木案、守卒剪影、油灯、登记簿与渐进交物（针套 / 指南针 / 纸条）
             if (opened) {
@@ -985,28 +1069,57 @@ export class StageRenderer {
                 const deskW = cam.len(84);
                 const deskH = cam.len(34);
                 const deskTop = groundY + deskH;
+                const writing = p.deskHold >= 24 || p.towerHanded;
                 // 值夜室暖光背景
-                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(32), cam.len(115), cam.len(90),
-                    Color(255, 198, 114, Math.round(68 * pulse)), Color(255, 168, 72, 0), 16);
-                // 守卒半身剪影（立于木案右后方）
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26), cam.len(96), cam.len(74),
+                    Color(255, 198, 114, Math.round(52 * pulse)), Color(255, 168, 72, 0), 16);
+                // 值夜守卒手绘精灵（立于木案右后方；交物后切换伏案登记姿态）
                 const guardX = deskCx + cam.len(26);
-                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(34, 42, 54, 240));
-                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(42, 50, 62, 245));
-                // 木案本体与案面
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
-                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(108, 74, 46, 255), 1, Color(148, 108, 68, 220));
-                // 案头摊开的收籍薄册与油灯
-                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(232, 222, 198, 245));
-                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(168, 128, 64, 245));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                const guardClip = writing
+                    ? "assets/art/actors_extra.clip|tower_guard_write"
+                    : "assets/art/actors_extra.clip|tower_guard_lantern";
+                if (!assets.tryPlacePath(guardClip, "tower_guard_npc", guardX, groundY, cam.len(54), cam.len(84), {
+                    anchorX: 0.44,
+                    anchorY: 0,
+                    preserveAspect: true,
+                    facing: -1,
+                    opacity: 0.96,
+                    layer: 3,
+                })) {
+                    fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(34, 42, 54, 240));
+                    fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(42, 50, 62, 245));
+                }
+                // 木案本体与案面（优先用透明镂空桌腿 prop_table，保证守卒鞋靴自然可见无暗板遮挡）
+                if (!assets.tryPlace("prop_table", "tower_guard_desk", deskCx, groundY, deskW * 1.06, deskH * 1.04, {
+                    color: Color(214, 188, 158, 255),
+                    opacity: 0.98,
+                    layer: 4,
+                })) {
+                    fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
+                    fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
+                    fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(108, 74, 46, 255), 1, Color(148, 108, 68, 220));
+                }
+                // 案头摊开的收籍薄册；仅伏案写簿时案角置油灯，提灯立守时直接以手中纸灯作光源防重灯
+                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(1), cam.len(22), cam.len(4.5)), Color(232, 222, 198, 245));
+                if (writing) {
+                    assets.tryPlace("prop_lantern", "tower_desk_lamp", deskCx + cam.len(34), deskTop + cam.len(10), cam.len(14), cam.len(20), { layer: 5 });
+                    fillRadialGlow(fgGlow, deskCx + cam.len(34), deskTop + cam.len(12), cam.len(24), cam.len(22), Color(255, 214, 134, Math.round(88 * pulse)), Color(255, 180, 86, 0), 12);
+                } else {
+                    fillRadialGlow(fgGlow, deskCx + cam.len(3), deskTop + cam.len(18), cam.len(30), cam.len(28), Color(255, 214, 134, Math.round(78 * pulse)), Color(255, 180, 86, 0), 12);
+                }
                 // 渐进交物视觉（12 拍针套、24 拍指南针与纸条）
                 if (p.deskHold >= 12 || p.towerHanded) {
-                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                    if (!assets.tryPlacePath("assets/art/cutscene_cuff_rig.clip|needle_pouch_compass", "tower_desk_pouch", deskCx - cam.len(22), deskTop + cam.len(8), cam.len(18), cam.len(18), {
+                        anchorX: 0.5,
+                        anchorY: 0.5,
+                        smooth: true,
+                        layer: 5,
+                    })) {
+                        fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                    }
                 }
-                if (p.deskHold >= 24 || p.towerHanded) {
-                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
-                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                if (writing) {
+                    fgDraw.drawRect(Rect(deskCx - cam.len(6), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
                 }
             }
         }

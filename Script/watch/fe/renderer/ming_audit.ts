@@ -61,19 +61,20 @@ export const CORE_MING_BACKDROPS: Record<string, AssetSlotKey> = {
     tower: "bgFar_tower",
 };
 
-/** 非八房战役/护送段到明朝像素底图的映射表（杜绝探照灯与工业钢架退化；已覆盖 B2 escort2-5） */
+/** 非八房战役/护送段到明朝像素底图的映射表（Phase 3 接入十字街布行 / 牌楼候检院 / 军粮棚 / 城外山脊四幅专属明代底图） */
 export const FALLBACK_MING_BACKDROPS: Record<string, AssetSlotKey> = {
-    "s1-crossroad": "bgFar_street",
-    "s2-drygoods": "bgFar_street",
-    "s3-archway": "bgFar_street",
-    "c1-yard": "bgFar_checkpoint",
-    "c2-granary": "bgFar_checkpoint",
-    "gatepath": "bgFar_outside",
-    "escort1": "bgFar_outside",
-    "escort2": "bgFar_checkpoint",
+    "s1-crossroad": "bgFar_crossroad_drygoods",
+    "s2-drygoods": "bgFar_crossroad_drygoods",
+    "s3-archway": "bgFar_archway_yard",
+    "c1-yard": "bgFar_archway_yard",
+    "c2-granary": "bgFar_granary",
+    "gatepath": "bgFar_escort_ridge",
+    "escort1": "bgFar_escort_ridge",
+    "escort2": "bgFar_granary",
     "escort3": "bgFar_forest",
-    "escort4": "bgFar_forest",
+    "escort4": "bgFar_escort_ridge",
     "escort5": "bgFar_tower",
+    "museum": "bgFar_museum",
 };
 
 export interface LegacyRedlineFinding {
@@ -376,16 +377,28 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
         if (backdropArt.tryPlace(slot, "ming_fallback_scene", w * (0.5 - progress * 0.09), sceneY, artW, artH)) {
             this.fallbackInterceptCount += 1;
             const theme = themeOf(roomKey);
-            const dressSlot: AssetSlotKey = slot === "bgFar_outside" ? "pine" : "eaves";
-            backdropArt.tryPlace(
-                dressSlot,
-                "ming_fallback_mid",
-                w * (0.74 - progress * 0.25),
-                ground - cam.len(10),
-                cam.len(dressSlot === "pine" ? 124 : 186),
-                cam.len(dressSlot === "pine" ? 138 : 104),
-                { layer: 1, opacity: 0.46 },
-            );
+            const outdoorRidge = slot === "bgFar_outside" || slot === "bgFar_escort_ridge" || slot === "bgFar_forest";
+            if (outdoorRidge) {
+                backdropArt.tryPlace(
+                    "pine",
+                    "ming_fallback_mid",
+                    w * (0.76 - progress * 0.22),
+                    ground - cam.len(8),
+                    cam.len(122),
+                    cam.len(107),
+                    { layer: 1, opacity: 0.42 },
+                );
+            } else if (slot !== "bgFar_granary" && slot !== "bgFar_crossroad_drygoods" && slot !== "bgFar_archway_yard") {
+                backdropArt.tryPlace(
+                    "eaves",
+                    "ming_fallback_mid",
+                    w * (0.74 - progress * 0.25),
+                    ground - cam.len(10),
+                    cam.len(176),
+                    cam.len(96),
+                    { layer: 1, opacity: 0.44 },
+                );
+            }
             fillVGradRect(bgDraw, 0, 0, w, h, toColor(PALETTE.voidDark), toColor(theme.skyMid));
             fillVGradRect(bgGlow, 0, ground - 1, w, h * 0.14, Color(43, 49, 63, 15), Color(43, 49, 63, 0));
             return true;

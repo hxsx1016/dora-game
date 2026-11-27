@@ -35,8 +35,8 @@ export class PropsRenderer {
         this.drawZones(fgDraw, p, cam);
         this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
         this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
-        this.drawBracedShield(fgDraw, p, cam);
-        this.drawCraftMaterials(assets, p, cam);
+        this.drawBracedShield(fgDraw, assets, p, cam);
+        this.drawCraftMaterials(fgDraw, fgGlow, assets, p, cam, time);
         if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
             const x = (p.player.x + p.partner.x) * 0.5;
             const y = p.partner.y + p.partner.h * 0.62;
@@ -50,7 +50,7 @@ export class PropsRenderer {
     }
 
     /** 绘制 C2 军粮棚架设的木制残盾（与后端 p.bracedShield 同步出现与破碎） */
-    private drawBracedShield(fgDraw: DrawNode.Type, p: Play, cam: CameraDirector): void {
+    private drawBracedShield(fgDraw: DrawNode.Type, assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
         const sh = p.bracedShield;
         if (sh === undefined || sh.hp <= 0) {
             return;
@@ -59,36 +59,83 @@ export class PropsRenderer {
         const by = cam.sy(sh.y, p.player.depth);
         const w = Math.max(8, cam.len(12));
         const h = cam.len(sh.h);
-        fgDraw.drawEllipse(Vec2(cx, by + 1), w * 0.9, 3.2, Color(8, 10, 14, 150));
+        fgDraw.drawEllipse(Vec2(cx, by + 1), Math.max(w * 0.9, h * 0.42), 3.4, Color(8, 10, 14, 150));
+        if (assets.tryPlacePath("assets/art/props_ming.clip|braced_shield", "braced_shield_prop", cx, by, h * 0.95, h * 1.04, {
+            anchorX: 0.5,
+            anchorY: 0,
+            preserveAspect: true,
+            color: sh.hp <= 1 ? Color(218, 178, 154, 255) : Color(255, 255, 255, 255),
+            layer: p.room.depth === undefined ? 3 : depthOrder(p.player.depth, 2),
+        })) {
+            return;
+        }
         fgDraw.drawSegment(Vec2(cx - w * 0.65, by), Vec2(cx - w * 0.15, by + h * 0.55), 2.2, Color(84, 58, 38, 255));
         fgDraw.drawRect(Rect(cx - w * 0.5, by + 2, w, h - 2), Color(104, 72, 46, 248), 1.4, Color(172, 178, 184, 235));
         fgDraw.drawCircle(Vec2(cx, by + h * 0.52), Math.max(2.5, cam.len(4)), Color(148, 154, 160, 245));
     }
 
-    private drawCraftMaterials(assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
+    private drawCraftMaterials(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        p: Play,
+        cam: CameraDirector,
+        time: number,
+    ): void {
         for (const pickup of p.pickups) {
-            // 兼容 B2 工台材料与 S1..C2 战役物资掉落（wood / bell / scrap / wedge / ammo / shield / pass / quickbelt）。
+            // 全部 8 类明代拾取物对应 props_ming.clip 独立手绘道具图标（消除 65° 旋转竹简与借用指南针占位）
             const kind: string = pickup.kind;
             if (pickup.id === "" || p.run.taken[pickup.id]) {
                 continue;
             }
-            const depth = pickup.depth ?? 0;
-            const isWood = kind === "wood" || kind === "scrap" || kind === "wedge";
-            const isMetal = kind === "bell" || kind === "shield" || kind === "ammo" || kind === "pass" || kind === "quickbelt";
-            if (!isWood && !isMetal) {
+            let clipName = "";
+            let glowCol = PALETTE.amber;
+            if (kind === "wood") {
+                clipName = "pickup_wood";
+                glowCol = PALETTE.amber;
+            } else if (kind === "bell") {
+                clipName = "pickup_bell";
+                glowCol = PALETTE.amberCore;
+            } else if (kind === "scrap") {
+                clipName = "pickup_scrap";
+                glowCol = PALETTE.amber;
+            } else if (kind === "wedge") {
+                clipName = "pickup_wedge";
+                glowCol = PALETTE.emerald;
+            } else if (kind === "ammo") {
+                clipName = "pickup_ammo";
+                glowCol = PALETTE.cyan;
+            } else if (kind === "shield") {
+                clipName = "pickup_shield";
+                glowCol = PALETTE.cyan;
+            } else if (kind === "pass") {
+                clipName = "pickup_pass";
+                glowCol = PALETTE.amberCore;
+            } else if (kind === "quickbelt") {
+                clipName = "pickup_quickbelt";
+                glowCol = PALETTE.amberCore;
+            } else {
                 continue;
             }
-            const tint = kind === "wood" || kind === "scrap"
-                ? PALETTE.amber
-                : (kind === "wedge" ? PALETTE.emerald : (kind === "shield" || kind === "ammo" ? PALETTE.cyan : PALETTE.amberCore));
-            assets.tryPlace(
-                isWood ? "ink_bamboo_slip" : "prop_compass",
+            const depth = pickup.depth ?? 0;
+            const sx = cam.sx(pickup.x);
+            const groundY = cam.sy(pickup.y, depth);
+            const bob = Math.sin(time * 3.1 + pickup.x * 0.03) * cam.len(2.4);
+            const sy = cam.sy(pickup.y + 11, depth) + bob;
+            const iconSize = cam.len(20);
+            fgDraw.drawEllipse(Vec2(sx, groundY + 1), cam.len(9.5), 2.6, Color(10, 10, 14, 130));
+            fillRadialGlow(fgGlow, sx, sy, cam.len(14), cam.len(12), toColor(glowCol, 42), Color(glowCol.r, glowCol.g, glowCol.b, 0), 10);
+            assets.tryPlacePath(
+                "assets/art/props_ming.clip|" + clipName,
                 "pickup_" + pickup.id,
-                cam.sx(pickup.x), cam.sy(pickup.y + 9, depth),
-                cam.len(18), cam.len(isWood ? 7 : 16),
+                sx,
+                sy,
+                iconSize,
+                iconSize,
                 {
-                    angle: isWood ? 65 : 0,
-                    color: toColor(tint),
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    preserveAspect: true,
                     layer: p.room.depth === undefined ? 3 : depthOrder(depth, 1),
                 },
             );
@@ -300,20 +347,27 @@ export class PropsRenderer {
         cam: CameraDirector,
         time: number,
     ): void {
-        // 1. 瓶架与架上玻璃瓶（与 rooms.ts h=52 严格对齐）
+        // 1. 瓶架与架上玻璃瓶（与 rooms.ts h=52 严格对齐；Phase 3 采用独立手绘木架精灵）
         const bottle = p.room.bottle;
         if (bottle !== undefined) {
             const bx0 = cam.sx(bottle.x - 16);
             const bx1 = cam.sx(bottle.x + 16);
             const by0 = cam.sy(0);
             const by1 = cam.sy(52);
-            const beam = cam.len(3.2);
-            const side = Color(78, 57, 41, 255);
-            fgDraw.drawRect(Rect(bx0, by0, beam, by1 - by0), side);
-            fgDraw.drawRect(Rect(bx1 - beam, by0, beam, by1 - by0), side);
-            for (const shelfY of [by0 + (by1 - by0) * 0.46, by1 - beam]) {
-                fgDraw.drawRect(Rect(bx0 - beam * 0.25, shelfY, bx1 - bx0 + beam * 0.5, beam),
-                    Color(106, 78, 56, 255), 1, Color(56, 42, 34, 240));
+            if (!assets.tryPlacePath("assets/art/props_ming.clip|bottle_rack", "village_bottle_rack", cam.sx(bottle.x), by0, cam.len(44), by1 - by0, {
+                anchorX: 0.5,
+                anchorY: 0,
+                preserveAspect: true,
+                layer: 2,
+            })) {
+                const beam = cam.len(3.2);
+                const side = Color(78, 57, 41, 255);
+                fgDraw.drawRect(Rect(bx0, by0, beam, by1 - by0), side);
+                fgDraw.drawRect(Rect(bx1 - beam, by0, beam, by1 - by0), side);
+                for (const shelfY of [by0 + (by1 - by0) * 0.46, by1 - beam]) {
+                    fgDraw.drawRect(Rect(bx0 - beam * 0.25, shelfY, bx1 - bx0 + beam * 0.5, beam),
+                        Color(106, 78, 56, 255), 1, Color(56, 42, 34, 240));
+                }
             }
             if (!p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0) {
                 this.drawBottleSprite(fgDraw, assets, "bottle_shelf", cam.sx(bottle.x), cam.sy(56), cam.ppu, 0);
