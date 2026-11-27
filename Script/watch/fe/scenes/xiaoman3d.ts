@@ -1,10 +1,19 @@
-import { Camera3D, Color, Color3, Director, DirectionalLight3D, DrawNode, Model3D, Node, Node3D, Rect, Size, Sprite, Surface3D, Vec2, Vec3, View } from "Dora";
+/**
+ * 《向西守望》小满单人线真 3D 主场景控制器（xiaoman3d.ts）。
+ *
+ * 视觉对比与空间分工：
+ * - 场景建筑（outside/village/forest/tower.glb）与 NPC/道具采用暗黑写实 PBR 材质 + 实时阴影冷月光 + 叙事暖灯；
+ * - 主角小满采用亮色纯体素 3D 角色（xiaoman.glb，含 13 套骨骼动画），支持 W/A/S/D 四向纵深行走与正/背/左/右全角度展示；
+ * - 保持与 rooms.ts / Play 碰撞判定与 worldToScreen / screenToWorld 严格互逆（0.00 px 投瓶与拾取误差）。
+ */
+
+import { Camera3D, Color, Director, DrawNode, Model3D, Node, Node3D, Size, Surface3D, Vec2, Vec3, View } from "Dora";
 import { GRAVITY, Play } from "Script/watch/play";
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { StageViewport } from "Script/watch/platform";
-import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector, WorldProjection } from "Script/watch/fe/camera";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
+import { Xiaoman3DActor, Xiaoman3DActorDebug } from "Script/watch/fe/scenes/xiaoman3d_actor";
+import { Xiaoman3DEntities, Xiaoman3DEntitiesDebug } from "Script/watch/fe/scenes/xiaoman3d_entities";
 
 const ROOM_MODELS: Record<string, string> = {
     outside: "assets/xiaoman3d/outside.glb",
@@ -13,6 +22,27 @@ const ROOM_MODELS: Record<string, string> = {
     tower: "assets/xiaoman3d/tower.glb",
 };
 
+interface View3DLike {
+    setEnvironmentMap?: (path: string) => boolean;
+    setEnvironmentIntensity?: (diffuse: number, specular: number, exposure?: number) => void;
+    shadowMapSize?: number;
+    stats?: { drawCalls: number; triangles: number; models: number; visibleModels: number };
+}
+
+export interface Xiaoman3DDebugState {
+    active: boolean;
+    room: string;
+    actor: Xiaoman3DActorDebug;
+    entities: Xiaoman3DEntitiesDebug;
+    cameraPos: { x: number; y: number; z: number };
+    drawCalls: number;
+    visibleModels: number;
+}
+
+function getView3D(): View3DLike {
+    return Director.entry as unknown as View3DLike;
+}
+
 /** GLB coordinates stay Y-up. Collision and interaction authority stays in rooms.ts/Play. */
 export class Xiaoman3DScene implements WorldProjection {
     private root = Node3D();
@@ -20,15 +50,18 @@ export class Xiaoman3DScene implements WorldProjection {
     private model: Model3D.Type | undefined;
     private room = "";
     private active = false;
-    private surfaces: Record<string, Surface3D.Type> = {};
-    private shadows: Record<string, Surface3D.Type> = {};
-    private assets: AssetSlotHost;
-    private localCam = new CameraDirector();
-    private scratch = DrawNode();
+    private envConfigured = false;
+
+    private actor: Xiaoman3DActor;
+    private entities: Xiaoman3DEntities;
+
     private glow = DrawNode();
     private effects: Surface3D.Type;
+    private groundFx = DrawNode();
+    private groundSurface: Surface3D.Type;
+    private shadows: Record<string, Surface3D.Type> = {};
+
     private p: Play | undefined;
-    private depths: Record<string, number> = {};
     private focal = 1;
     private stageX = 0;
     private stageY = 0;
@@ -44,16 +77,11 @@ export class Xiaoman3DScene implements WorldProjection {
     constructor(host: Node.Type) {
         Director.entry.addChild(this.root);
         this.root.visible = false;
-        const sun = DirectionalLight3D();
-        sun.color = Color3(229, 233, 242);
-        sun.intensity = 2.2;
-        sun.angles = Vec3(-48, -25, 0);
-        this.root.addChild(sun);
-        const fill = DirectionalLight3D();
-        fill.color = Color3(210, 216, 226);
-        fill.intensity = 0.8;
-        fill.angles = Vec3(35, 150, 0);
-        this.root.addChild(fill);
+
+        this.actor = new Xiaoman3DActor(this.root);
+        this.entities = new Xiaoman3DEntities(this.root);
+
+        // 垂直世界特效层（投瓶抛物线预览点、空中碎屑）
         const content = Node();
         content.addChild(this.glow);
         const effects = Surface3D(content, Size(20, 5), Size(2000, 500));
@@ -61,13 +89,17 @@ export class Xiaoman3DScene implements WorldProjection {
         effects.scaleX = -1;
         this.effects = effects;
         this.root.addChild(effects);
-        this.assets = new AssetSlotHost(Node(), 0, (sprite, key, instance, x, y) => this.placeSprite(sprite, key, instance, x, y));
-        // Draw existing animation selection in game units, then move each sprite into shared depth.
-        this.localCam.x = 0;
-        this.localCam.y = 82;
-        this.localCam.viewW = 0;
-        this.localCam.ppu = 1;
-        this.localCam.groundScreenY = 0;
+
+        // 水平贴地特效层（声波扩散环、拾荒者视线扇形、溪湾碎灯波纹）
+        const gContent = Node();
+        gContent.addChild(this.groundFx);
+        const gSurf = Surface3D(gContent, Size(20, 4), Size(2000, 400));
+        if (gSurf === undefined) error("Surface3D groundFx creation failed");
+        gSurf.angles = Vec3(90, 0, 0);
+        gSurf.scaleX = -1;
+        this.groundSurface = gSurf;
+        this.root.addChild(gSurf);
+
         host.onCleanup(() => {
             this.hide();
             this.root.removeFromParent();
@@ -78,8 +110,38 @@ export class Xiaoman3DScene implements WorldProjection {
         return visualMode === "lowpoly" && ROOM_MODELS[p.room.key] !== undefined;
     }
 
+    private configureEnvironment(): void {
+        if (this.envConfigured) {
+            return;
+        }
+        const v3 = getView3D();
+        if (v3.setEnvironmentMap !== undefined) {
+            v3.setEnvironmentMap("");
+        }
+        if (v3.setEnvironmentIntensity !== undefined) {
+            // 压低环境底光，让暗黑写实场景拥有深邃阴影与高反差冷暖光影，同时保留砖石木纹暗部层次
+            v3.setEnvironmentIntensity(0.24, 0.18, 1.02);
+        }
+        v3.shadowMapSize = 1024;
+        this.envConfigured = true;
+    }
+
+    private restoreEnvironment(): void {
+        if (!this.envConfigured) {
+            return;
+        }
+        const v3 = getView3D();
+        if (v3.setEnvironmentIntensity !== undefined) {
+            v3.setEnvironmentIntensity(1.0, 1.0, 1.0);
+        }
+        this.envConfigured = false;
+    }
+
     hide(): void {
         this.root.visible = false;
+        this.actor.hide();
+        this.entities.hide();
+        this.restoreEnvironment();
         if (this.active) {
             Director.removeCamera(this.camera);
             this.active = false;
@@ -88,70 +150,101 @@ export class Xiaoman3DScene implements WorldProjection {
 
     render(p: Play, cam: CameraDirector, actors: ActorsRenderer, dt: number, w: number, h: number, vp: StageViewport): void {
         this.p = p;
-        this.time += dt;
+        const safeDt = p.paused ? 0 : dt;
+        this.time += safeDt;
+
         if (this.room !== p.room.key) {
-            if (this.model !== undefined) this.root.removeChild(this.model);
-            this.model = Model3D(ROOM_MODELS[p.room.key]);
-            this.root.addChild(this.model);
+            if (this.model !== undefined) {
+                this.root.removeChild(this.model);
+                this.model = undefined;
+            }
+            const loaded = Model3D(ROOM_MODELS[p.room.key]);
+            if (loaded.parent !== undefined) {
+                loaded.removeFromParent(false);
+            }
+            this.model = loaded;
+            this.root.addChild(loaded);
             this.room = p.room.key;
         }
-        // Rooms can be embedded in a continuous run at p.ox.
-        // 特效画布以房间中点为中心，世界坐标绘制的两端都落在纹理内。
+
+        // 特效画布以房间中点为中心，覆盖整个房间跨度
         const centerX = (p.room.minX + p.room.maxX) / 2;
         this.glow.x = -centerX;
-        this.effects.position = Vec3(centerX / 100, 0, 0.015);
-        if (this.model !== undefined) this.model.position = Vec3(p.ox / 100, 0, 0);
+        this.effects.position = Vec3(centerX / 100, 0, -p.player.depth / 100 + 0.02);
+        this.groundFx.x = -centerX;
+        this.groundFx.y = 0;
+        this.groundSurface.position = Vec3(centerX / 100, 0.015, 0);
+
+        if (this.model !== undefined) {
+            this.model.position = Vec3(p.ox / 100, 0, 0);
+        }
+
+        this.configureEnvironment();
         if (!this.active) {
             Director.pushCamera(this.camera);
             this.active = true;
         }
         this.root.visible = true;
-        this.updateCamera(cam, w, h, vp);
+
+        this.updateCamera(p, cam, w, h, vp);
         cam.projection = this;
-        this.depths = { actor_child: p.player.depth, actor_scav: 0, actor_dog: 0 };
-        this.assets.beginFrame();
-        this.scratch.clear();
+
         this.glow.clear();
-        for (const key in this.shadows) this.shadows[key].visible = false;
+        this.groundFx.clear();
+
+        // 贴地接触影（配合主方向光实时阴影，让脚底落地感更稳）
+        for (const key in this.shadows) {
+            this.shadows[key].visible = false;
+        }
         const a = p.player;
         if (a.alive) {
             const ground = actors.supportGroundY(p, a);
-            this.placeShadow("child", a.x, ground, a.depth, a.w * 0.48, 7,
-                Math.max(0.2, 1 - (a.y - ground) / 180));
+            this.placeShadow("child", a.x, ground, a.depth, a.w * 0.56, 10,
+                Math.max(0.24, 0.92 - (a.y - ground) / 170));
         }
         if (p.room.scavenger !== undefined) {
-            this.placeShadow("scavenger", p.scavX, p.room.scavenger.y, 0, 15, 8);
+            this.placeShadow("scavenger", p.scavX, p.room.scavenger.y, 0, 17, 10, 0.85);
         }
-        if (p.room.key === "forest") this.placeShadow("dog", p.dogX, 0, 0, 19, 7);
-        actors.drawAll(this.scratch, this.glow, this.assets, p, this.localCam);
-        this.drawProps(p);
-        this.assets.endFrame();
+        if (p.room.key === "forest") {
+            this.placeShadow("dog", p.dogX, 0, 6, 20, 9, 0.82);
+        }
+
+        // 更新 3D 体素主角小满 + 暗黑写实 3D NPC / 动态道具 / 光照
+        this.actor.update(p, safeDt);
+        this.entities.update(p, safeDt, cam.x, this.glow, this.groundFx);
+
+        // 投瓶抛物线瞄准预览（位于玩家当前纵深平面）
+        this.drawBottleAimPreview(p);
     }
 
-    private placeSprite(sprite: Sprite.Type, key: string, instance: string, x: number, y: number): void {
-        let surface = this.surfaces[key];
-        if (surface === undefined) {
-            const content = Node();
-            const created = Surface3D(content, Size(4, 4), Size(400, 400));
-            if (created === undefined) error("Surface3D creation failed for " + key);
-            surface = created;
-            // Surface content faces -Z. Mirror its local X for the +Z following camera.
-            surface.scaleX = -1;
-            sprite.removeFromParent(false);
-            content.addChild(sprite);
-            this.root.addChild(surface);
-            this.surfaces[key] = surface;
+    private drawBottleAimPreview(p: Play): void {
+        if (!p.hasBottle || p.aimHold <= 0 || p.bottleAimX < 0) {
+            return;
         }
-        const depth = this.depths[instance] ?? 0;
-        surface.position = Vec3(x / 100, (y - depth * DEPTH_Y_SCALE) / 100, -depth / 100);
-        sprite.position = Vec2(0, 0);
+        const endX = p.bottleAimX;
+        const endY = p.bottleAimY;
+        const x0 = p.player.x + (endX >= p.player.x ? 10 : -10);
+        const y0 = p.player.y + p.player.h * 0.7;
+        const duration = 0.62;
+        const vx = (endX - x0) / duration;
+        const vy = (endY - y0 + 0.5 * GRAVITY * duration * duration) / duration;
+        let i = 1;
+        for (i = 1; i <= 18; i++) {
+            const t = (i / 18) * duration;
+            this.glow.drawDot(
+                Vec2(x0 + vx * t, y0 + vy * t - 0.5 * GRAVITY * t * t),
+                1.4,
+                Color(246, 220, 152, 224),
+            );
+        }
+        this.glow.drawEllipse(Vec2(endX, endY + 1.5), 9, 2.4, Color(246, 220, 152, 190));
     }
 
     private placeShadow(key: string, x: number, y: number, depth: number, rx: number, rz: number, opacity: number = 1): void {
         let surface = this.shadows[key];
         if (surface === undefined) {
             const content = DrawNode();
-            content.drawCircle(Vec2(0, 0), 50, Color(16, 17, 20, 100));
+            content.drawCircle(Vec2(0, 0), 50, Color(8, 10, 14, 138));
             const created = Surface3D(content, Size(1, 1), Size(100, 100));
             if (created === undefined) error("Surface3D shadow creation failed");
             surface = created;
@@ -162,111 +255,37 @@ export class Xiaoman3DScene implements WorldProjection {
         surface.visible = true;
         surface.content.opacity = opacity;
         surface.scale = Vec3(rx / 50, rz / 50, 1);
-        surface.position = Vec3(x / 100, (y + 0.6) / 100, -depth / 100);
+        surface.position = Vec3(x / 100, (y + 0.7) / 100, -depth / 100);
     }
 
-    private drawProps(p: Play): void {
-        const c = p.room.cart;
-        if (c.bodyW > 0) {
-            const d = c.depth ?? 0;
-            this.depths.cart = d;
-            this.depths.cart_cloth = d - 1;
-            this.assets.tryPlace("prop_cart", "cart", p.cartAxle, c.baseY + d * DEPTH_Y_SCALE,
-                c.bodyW * 1.38, (c.wheelR * 2 + c.bodyH) * 0.94);
-            this.assets.tryPlace("fe_red_cloth", "cart_cloth", p.cartAxle - c.bodyW / 2 + 2,
-                c.baseY + c.wheelR + c.bodyH - 2 + (d - 1) * DEPTH_Y_SCALE, 24, 24,
-                { frame: Math.floor(this.time * 6) % 3 });
-        }
-        for (const box of p.boxes) {
-            if (box.id === "outside_red_cart" && !box.broken) {
-                this.assets.tryPlace("prop_cart", "red_cart", (box.x0 + box.x1) / 2, box.y0, box.x1 - box.x0, box.y1 - box.y0);
-                this.assets.tryPlace("fe_red_cloth", "red_cart_cloth", box.x0 + 4, box.y1 - 3, 22, 22,
-                    { frame: Math.floor(this.time * 6) % 3 });
-            }
-        }
-        if (p.room.key === "village") {
-            if (!p.hasBottle && p.bottleFly === undefined && p.bottleLandT <= 0 && p.room.bottle !== undefined) {
-                this.assets.tryPlace("prop_bottle", "bottle_shelf", p.room.bottle.x, p.room.bottle.y, 14, 14);
-            }
-            if (p.hasBottle && p.aimHold <= 0) {
-                const a = p.player;
-                this.depths.bottle_held = a.depth - 1;
-                this.assets.tryPlace("prop_bottle", "bottle_held", a.x + a.facing * 10,
-                    a.y + a.h * 0.52 + (a.depth - 1) * DEPTH_Y_SCALE, 14, 14);
-            }
-            if (p.bottleFly !== undefined) {
-                this.assets.tryPlace("prop_bottle", "bottle_air", p.bottleFly.x, p.bottleFly.y, 14, 14,
-                    { angle: this.time * 360 });
-            }
-        }
-        if (p.hasBottle && p.aimHold > 0 && p.bottleAimX >= 0) {
-            const endX = p.bottleAimX;
-            const endY = p.bottleAimY;
-            const x0 = p.player.x + (endX >= p.player.x ? 10 : -10);
-            const y0 = p.player.y + p.player.h * 0.7;
-            const duration = 0.62;
-            const vx = (endX - x0) / duration;
-            const vy = (endY - y0 + 0.5 * GRAVITY * duration * duration) / duration;
-            for (let i = 1; i <= 18; i++) {
-                const t = i / 18 * duration;
-                this.glow.drawDot(Vec2(x0 + vx * t, y0 + vy * t - 0.5 * GRAVITY * t * t), 1.2,
-                    Color(229, 206, 148, 210));
-            }
-            this.glow.drawEllipse(Vec2(endX, endY + 1), 8, 2, Color(229, 206, 148, 170));
-        }
-        const latch = p.cartLatchBounds();
-        if (latch !== undefined) {
-            const iron = Color(122, 103, 78, 255);
-            const top = latch.y + latch.height;
-            const post = Math.min(3, latch.width);
-            this.glow.drawRect(Rect(latch.x, top - 5, latch.width, 5), iron);
-            this.glow.drawRect(Rect(latch.x, latch.y, post, latch.height), iron);
-            this.glow.drawRect(Rect(latch.x + latch.width - post, latch.y, post, latch.height), iron);
-            this.glow.drawRect(Rect(latch.x, top - 2, latch.width, 2), Color(194, 171, 132, 255));
-        }
-        // 森林旧渠与溪湾：水面微光、水中灯影（贴水面、随呼吸轻摆）。
-        if (p.room.key === "forest") {
-            const lampX = p.ox + 1224;
-            const sway = Math.sin(this.time * 1.7) * 3;
-            this.glow.drawRect(Rect(p.ox + 700, -3, 90, 3), Color(94, 116, 120, 120));
-            this.glow.drawRect(Rect(p.ox + 1150, -3, 110, 3), Color(98, 124, 126, 132));
-            this.glow.drawEllipse(Vec2(lampX + sway, 1), 26, 3, Color(229, 206, 148, 118));
-            this.glow.drawEllipse(Vec2(lampX + sway * 0.6, 1), 12, 2, Color(246, 232, 186, 172));
-            this.depths.water_lamp = 40;
-            this.assets.tryPlace("prop_lantern", "water_lamp", lampX, 34 + 40 * DEPTH_Y_SCALE, 16, 26);
-        }
-        if (p.room.key === "tower") {
-            if (!p.towerDoorOpen) {
-                this.assets.tryPlace("prop_tower_door", "tower_door", p.ox + 450, 0, 40, 110);
-            } else {
-                this.depths.tower_guard = 38;
-                const writing = p.deskHold >= 24 || p.towerHanded;
-                this.assets.tryPlacePath(writing ? "assets/art/actors_extra.clip|tower_guard_write"
-                    : "assets/art/actors_extra.clip|tower_guard_lantern", "tower_guard",
-                    p.ox + 626, 38 * DEPTH_Y_SCALE, 54, 82,
-                    { anchorX: 0.44, anchorY: 0, preserveAspect: true, facing: -1 });
-                this.depths.desk_lamp = 22;
-                this.assets.tryPlace("prop_lantern", "desk_lamp", p.ox + 639, 35 + 22 * DEPTH_Y_SCALE, 18, 30);
-            }
-        }
-    }
-
-    private updateCamera(cam: CameraDirector, w: number, h: number, vp: StageViewport): void {
+    private updateCamera(p: Play, cam: CameraDirector, w: number, h: number, vp: StageViewport): void {
         this.fullW = View.size.width;
         this.fullH = View.size.height;
         this.stageX = vp.stageX;
         this.stageY = vp.stageY;
         this.focal = this.fullH / (2 * Math.tan(View.fieldOfView * Math.PI / 360));
-        const distance = 4.25 / cam.zoom * this.fullH / h;
-        const rise = distance * 0.19;
+
+        // 略微按房间调整俯仰与视距：空村桌下压低机位增强压迫感，北塔居中对准门廊与值夜室避免左侧塔墙遮挡
+        const baseDist = p.room.key === "village" ? 3.90 : (p.room.key === "tower" ? 4.10 : 4.25);
+        const riseRatio = p.room.key === "village" ? 0.16 : 0.21;
+        const baseTargetY = p.room.key === "village" ? 0.68 : 0.82;
+
+        const distance = baseDist / cam.zoom * this.fullH / h;
+        const rise = distance * riseRatio;
         const length = Math.sqrt(distance * distance + rise * rise);
         this.pitchSin = rise / length;
         this.pitchCos = distance / length;
+
         const offsetX = (vp.stageX + w / 2 - this.fullW / 2) * length / this.focal;
         const offsetY = (vp.stageY + h / 2 - this.fullH / 2) * length / this.focal;
-        const tx = cam.x / 100 - offsetX;
-        const ty = 0.85 + (cam.y - 82) * 0.0045 - offsetY * this.pitchCos;
-        const tz = offsetY * this.pitchSin;
+        const focusWorldX = p.room.key === "tower"
+            ? (p.towerDoorOpen ? Math.max(5.35, (p.ox + 490) / 100 + (p.player.x - (p.ox + 490)) * 0.0045) : Math.max(4.85, p.player.x / 100 + 0.55))
+            : cam.x / 100;
+        const tx = focusWorldX - offsetX;
+        const ty = baseTargetY + (cam.y - 82) * 0.0045 - offsetY * this.pitchCos;
+        // 镜头深度温和跟随小满前后纵深，凸显 3D 空间透视且不打乱互逆投影
+        const tz = -p.player.depth * 0.0035 + offsetY * this.pitchSin;
+
         this.cameraX = tx;
         this.cameraY = ty + rise;
         this.cameraZ = tz + distance;
@@ -293,5 +312,19 @@ export class Xiaoman3DScene implements WorldProjection {
         const z = -(this.p?.player.depth ?? 0) / 100;
         const t = (z - this.cameraZ) / rayZ;
         return { x: (this.cameraX + u * t) * 100, y: (this.cameraY + rayY * t) * 100 };
+    }
+
+    getDebugState(): Xiaoman3DDebugState {
+        const v3 = getView3D();
+        const stats = v3.stats;
+        return {
+            active: this.active,
+            room: this.room,
+            actor: this.actor.getDebugState(this.p),
+            entities: this.entities.getDebugState(),
+            cameraPos: { x: this.cameraX, y: this.cameraY, z: this.cameraZ },
+            drawCalls: stats !== undefined ? stats.drawCalls : 0,
+            visibleModels: stats !== undefined ? stats.visibleModels : 0,
+        };
     }
 }

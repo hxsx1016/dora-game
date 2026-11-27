@@ -275,8 +275,7 @@ export class TouchControls {
             || p.escortFailed || p.talentModalActive || params.ledgerOpen === true;
         const cutsceneBlocking = isPlayMode && p !== undefined && isCutsceneBlockingPlay(p);
 
-        const allowDepth = p !== undefined && p.room.depth !== undefined
-            && (!p.childMode || p.phase === "prologue-escape");
+        const allowDepth = p !== undefined && p.room.depth !== undefined;
         const cart = p !== undefined ? p.room.cart : undefined;
         const cartNearby = p !== undefined && cart !== undefined && !p.cartDocked && cart.bodyW > 0
             && (p.gripping || p.cartHandleInReach());

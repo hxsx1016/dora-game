@@ -332,6 +332,7 @@ export const OUTSIDE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1240,
     height: 230,
+    depth: LANE_ROAD,
     floors: [
         { y: 0, x0: 0, x1: 1240 },
         { y: 96, x0: 128, x1: 512 },
@@ -391,6 +392,7 @@ export const VILLAGE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 720,
     height: 200,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
         { x: 96, w: 32, h: 52, y: 0, label: "瓶架", art: "cover_wood" },
@@ -671,6 +673,7 @@ export const FOREST_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1600,
     height: 200,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1600 }],
     solids: [
         { x: 300, w: 80, h: 24, y: 0, label: "草丛 300–380 · 高 24", passable: true },
@@ -717,6 +720,7 @@ export const TOWER_ROOM: RoomSpec = {
     minX: 0,
     maxX: 720,
     height: 220,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
         { x: 180, w: 220, h: 200, y: 0, label: "塔身左 180–400" },

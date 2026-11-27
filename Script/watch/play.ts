@@ -2042,8 +2042,11 @@ export class Play {
             return false;
         }
         const handleX = this.cartAxle + c.handleOffset;
+        const depthOk = this.childMode
+            ? Math.abs(a.depth - (c.depth ?? 0)) <= 48
+            : inReachDepth(a.depth, c.depth ?? 0);
         return Math.abs(a.x - handleX) <= CART_REACH && Math.abs(a.y - c.baseY) <= 40
-            && inReachDepth(a.depth, c.depth ?? 0);
+            && depthOk;
     }
 
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
@@ -2151,9 +2154,8 @@ export class Play {
         // 握车把或打开慢时换弹盘时，方向键归车/换弹盘使用，避免 W/A/S/D 同时带走人物。
         const handsBusy = this.gripping || gripIntent || this.reloadOpen;
         const dir = (this.gripping || this.reloadOpen) ? 0 : input.moveX;
-        // 逃柜段控制权在小满身上，但仍要允许她切里道绕过石柱；其余 childMode 段保持原行为。
-        const depthDir = this.room.depth !== undefined && !handsBusy
-            && (!isChild || this.phase === "prologue-escape") ? -input.moveY : 0;
+        // 凡定义了 depth 的房间均开放前后纵深四向行走（含小满 3D 单人线四房与序章逃柜）。
+        const depthDir = this.room.depth !== undefined && !handsBusy ? -input.moveY : 0;
         const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
