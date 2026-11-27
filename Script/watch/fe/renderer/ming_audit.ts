@@ -368,13 +368,13 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
         const h = cam.viewH;
         const span = Math.max(1, ctx.p.room.maxX - ctx.p.room.minX);
         const progress = (cam.x - ctx.p.room.minX) / span - 0.5;
-        const ground = cam.groundScreenY;
-        const artW = Math.max(w, (h * 16) / 9) + w * 0.12;
+        const backRoadY = cam.sy(0, ctx.p.room.depth !== undefined ? ctx.p.room.depth.max : 0);
+        const artW = Math.max(w, (h * 16) / 9) * 1.10;
         const artH = (artW * 9) / 16;
-        // 与 stage.ts 地平线锚点一致（画面底边略低于地面基线，避免悬空或切腰）
-        const sceneY = Math.min((h - artH) * 0.5, ground - artH * 0.24);
+        // 严格把 640×360 暗黑像素底图的底缘石基顶线（约 25% 高度）锚死在 2.5D 路面后缘，杜绝悬浮与穿帮。
+        const sceneY = Math.min(0, Math.max(h - artH, backRoadY - artH * 0.25));
 
-        if (backdropArt.tryPlace(slot, "ming_fallback_scene", w * (0.5 - progress * 0.09), sceneY, artW, artH)) {
+        if (backdropArt.tryPlace(slot, "ming_fallback_scene", w * (0.5 - progress * 0.08), sceneY, artW, artH)) {
             this.fallbackInterceptCount += 1;
             const theme = themeOf(roomKey);
             const outdoorRidge = slot === "bgFar_outside" || slot === "bgFar_escort_ridge" || slot === "bgFar_forest";
@@ -382,25 +382,25 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
                 backdropArt.tryPlace(
                     "pine",
                     "ming_fallback_mid",
-                    w * (0.76 - progress * 0.22),
-                    ground - cam.len(8),
-                    cam.len(122),
-                    cam.len(107),
-                    { layer: 1, opacity: 0.42 },
+                    w * (0.76 - progress * 0.24),
+                    backRoadY - cam.len(4),
+                    cam.len(118),
+                    cam.len(104),
+                    { layer: 1, opacity: 0.46 },
                 );
             } else if (slot !== "bgFar_granary" && slot !== "bgFar_crossroad_drygoods" && slot !== "bgFar_archway_yard") {
                 backdropArt.tryPlace(
                     "eaves",
                     "ming_fallback_mid",
-                    w * (0.74 - progress * 0.25),
-                    ground - cam.len(10),
-                    cam.len(176),
-                    cam.len(96),
-                    { layer: 1, opacity: 0.44 },
+                    w * (0.74 - progress * 0.24),
+                    backRoadY - cam.len(4),
+                    cam.len(172),
+                    cam.len(94),
+                    { layer: 1, opacity: 0.46 },
                 );
             }
             fillVGradRect(bgDraw, 0, 0, w, h, toColor(PALETTE.voidDark), toColor(theme.skyMid));
-            fillVGradRect(bgGlow, 0, ground - 1, w, h * 0.14, Color(43, 49, 63, 15), Color(43, 49, 63, 0));
+            fillVGradRect(bgGlow, 0, backRoadY - 2, w, h * 0.13, Color(43, 52, 68, 18), Color(43, 52, 68, 0));
             return true;
         }
         return false;

@@ -319,6 +319,8 @@ function collectGameFiles() {
         "assets/art/bg_escort_ridge.png",
         "assets/art/props_second_half.clip",
         "assets/art/props_second_half.png",
+        "assets/art/scene_dark_pixel.clip",
+        "assets/art/scene_dark_pixel.png",
         "assets/art/brand/app_icon.png",
         "assets/art/brand/game_logo_h.png",
         "assets/art/brand/game_logo_v.png",

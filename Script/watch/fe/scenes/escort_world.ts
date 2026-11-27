@@ -183,17 +183,18 @@ export class EscortWorldRenderer {
             color: toColor(PALETTE.inkMist), opacity: mistOp * 0.85, layer: 5, facing: -1,
         });
 
-        // 4. 分房间专属中景建筑剪影与体积光束（L1 视差 0.42x）
+        // 4. 分房间专属暗黑像素中景建筑立牌与体积光束（全面替换为 scene_dark_pixel.clip，肃清纯色多边形灰模）
+        const backRoadY = cam.sy(0, p.room.depth !== undefined ? p.room.depth.max : 0);
         if (key === "escort1") {
-            this.drawEscort1AlleySilhouettes(bgDraw, w, h, cam.x);
+            this.drawEscort1AlleySilhouettes(backdropArt, w, backRoadY, cam);
         } else if (key === "escort2") {
-            this.drawEscort2GranaryRafters(bgDraw, bgGlow, w, h, cam.x, time);
+            this.drawEscort2GranaryRafters(backdropArt, bgGlow, w, h, backRoadY, cam, time);
         } else if (key === "escort3") {
-            this.drawEscort3MountainShelterBg(bgDraw, bgGlow, w, h, cam.x, time);
+            this.drawEscort3MountainShelterBg(backdropArt, bgGlow, w, h, backRoadY, cam, time);
         } else if (key === "escort4") {
-            this.drawEscort4CliffGorge(bgDraw, bgGlow, w, h, cam.x, time);
+            this.drawEscort4CliffGorge(backdropArt, bgGlow, w, h, backRoadY, cam, time);
         } else if (key === "escort5") {
-            this.drawEscort5TowerApproachBg(bgDraw, bgGlow, w, h, cam.x, time, dynamicDawn);
+            this.drawEscort5TowerApproachBg(backdropArt, bgGlow, w, h, backRoadY, cam, time, dynamicDawn);
         }
     }
 
@@ -256,27 +257,28 @@ export class EscortWorldRenderer {
         const parallaxX = cam.x * 1.26;
         const sway = Math.sin(time * 1.6) * 4;
 
-        // 顶部极轻前景屋檐/官仓横梁框（避免悬空树桩穿帮）
+        // 顶部极轻前景官仓横梁贴图框（用暗黑像素木梁替换纯黑矩形）
         if (key === "escort2") {
-            // 官仓前景顶梁与垂檐阴影
-            fgDraw.drawRect(Rect(0, h - 34, w, 34), Color(10, 12, 16, 205));
-            fgDraw.drawSegment(Vec2(0, h - 34), Vec2(w, h - 34), 1.6, Color(58, 46, 36, 155));
-            for (let rx = -40; rx < w + 80; rx += 160) {
-                const bx = rx - ((parallaxX * 0.18) % 160);
-                fgDraw.drawRect(Rect(bx, h - 46, 14, 46), Color(14, 12, 11, 190));
+            const tileW = 140;
+            const cols = Math.ceil(w / tileW) + 2;
+            const offset = (parallaxX * 0.18) % tileW;
+            for (let c = 0; c < cols; c++) {
+                worldArt.tryPlace("fe_beam_wood", "escort2_fg_top_" + c, c * tileW - offset, h - 24, tileW + 2, 26, {
+                    layer: 5200, color: Color(96, 86, 80, 255), opacity: 0.92,
+                });
             }
         } else if (key === "escort3" || key === "escort4" || key === "escort5") {
-            // 山路前景两侧落地松冠剪影（锚在底部边缘外侧，形成自然画幅压边，不悬空裁切）
+            // 山路前景两侧落地暗黑松冠立牌（锚在底部边缘外侧，形成自然画幅压边）
             worldArt.tryPlace("grass_low", "escort_fg_bush_l", 78 + sway * 0.4, -4, 190, 48, {
-                color: Color(10, 14, 18, 255), opacity: 0.78, layer: 5200,
+                color: Color(24, 34, 42, 255), opacity: 0.82, layer: 5200,
             });
             worldArt.tryPlace("grass_low", "escort_fg_bush_r", w - 82 - sway * 0.35, -4, 198, 52, {
-                color: Color(10, 14, 18, 255), opacity: 0.78, layer: 5200, facing: -1,
+                color: Color(24, 34, 42, 255), opacity: 0.82, layer: 5200, facing: -1,
             });
         }
 
-        // 底部近景草叶/断石极薄剪影（仅压在屏幕最下 28px）
-        const stride = 260;
+        // 底部近景暗黑像素碎岩立牌（替换昔日纯黑几何多边形灰模）
+        const stride = 280;
         const startSlot = Math.floor((parallaxX - 200) / stride);
         for (let s = startSlot; s <= startSlot + 6; s++) {
             const sx = s * stride - parallaxX + w * 0.5;
@@ -284,14 +286,13 @@ export class EscortWorldRenderer {
                 continue;
             }
             const hSeed = Math.abs(Math.sin(s * 12.9898) * 43758.5453) % 1;
-            const rockH = 16 + hSeed * 18;
-            const rockW = 46 + hSeed * 42;
-            fgDraw.drawPolygon([
-                Vec2(sx - rockW * 0.5, 0),
-                Vec2(sx + rockW * 0.5, 0),
-                Vec2(sx + rockW * 0.25 + sway * 0.2, rockH),
-                Vec2(sx - rockW * 0.3 + sway * 0.2, rockH * 0.82),
-            ], Color(8, 10, 14, 196));
+            const rockH = 18 + hSeed * 14;
+            const rockW = 68 + hSeed * 36;
+            worldArt.tryPlace("dp_fg_rock", "escort_fg_rock_" + (s - startSlot), sx, -2, rockW, rockH, {
+                layer: 5190,
+                opacity: 0.88,
+                facing: s % 2 === 0 ? 1 : -1,
+            });
         }
     }
 
@@ -377,55 +378,50 @@ export class EscortWorldRenderer {
         bgGlow.drawDot(Vec2(lampX, lampY), Math.max(1.8, 3.6 * s), Color(255, 246, 212, Math.round(248 * alphaMul)));
     }
 
-    // ---------------------------------------------------------------- 各关专属 L1 中景背景
+    // ---------------------------------------------------------------- 各关专属 L1 暗黑像素中景立牌（0 纯色几何灰模）
 
-    private drawEscort1AlleySilhouettes(bgDraw: DrawNode.Type, w: number, h: number, camX: number): void {
-        const shift = camX * 0.38;
+    private drawEscort1AlleySilhouettes(backdropArt: AssetSlotHost, w: number, backRoadY: number, cam: CameraDirector): void {
+        const shift = cam.x * 0.34;
         const houses = [
-            { x: 140, bw: 165, bh: 165, roof: 36 },
-            { x: 430, bw: 190, bh: 195, roof: 42 },
-            { x: 760, bw: 145, bh: 150, roof: 30 },
-            { x: 1080, bw: 210, bh: 185, roof: 40 },
+            { x: 160, w: 158, h: 140, slot: "dp_ruin_house_a" },
+            { x: 470, w: 146, h: 132, slot: "dp_ruin_house_b" },
+            { x: 800, w: 154, h: 136, slot: "dp_ruin_house_a" },
+            { x: 1120, w: 142, h: 128, slot: "dp_ruin_house_b" },
         ];
-        for (const hs of houses) {
+        for (let i = 0; i < houses.length; i++) {
+            const hs = houses[i];
             const sx = ((hs.x - shift) % (w + 340) + (w + 340)) % (w + 340) - 170;
-            const base = h * 0.25;
-            bgDraw.drawRect(Rect(sx, base, hs.bw, hs.bh), Color(16, 20, 29, 175));
-            bgDraw.drawPolygon([
-                Vec2(sx - 16, base + hs.bh),
-                Vec2(sx + hs.bw + 16, base + hs.bh),
-                Vec2(sx + hs.bw * 0.78, base + hs.bh + hs.roof),
-                Vec2(sx + hs.bw * 0.22, base + hs.bh + hs.roof),
-            ], Color(12, 15, 22, 195));
+            backdropArt.tryPlace(hs.slot, "e1_mid_house_" + i, sx, backRoadY - cam.len(4), cam.len(hs.w * 0.82), cam.len(hs.h * 0.82), {
+                layer: 3, opacity: 0.72, facing: i % 2 === 0 ? 1 : -1,
+            });
         }
     }
 
     private drawEscort2GranaryRafters(
-        bgDraw: DrawNode.Type,
+        backdropArt: AssetSlotHost,
         bgGlow: DrawNode.Type,
         w: number,
         h: number,
-        camX: number,
+        backRoadY: number,
+        cam: CameraDirector,
         time: number,
     ): void {
-        const shift = camX * 0.42;
-        // 官仓深暗高顶横梁与人字木桁架
-        bgDraw.drawRect(Rect(0, h * 0.80, w, h * 0.20), Color(12, 14, 20, 192));
+        const shift = cam.x * 0.38;
         const span = 290;
         const first = Math.floor((shift - 180) / span);
+        const pillarH = Math.max(120, h - backRoadY + 12);
         for (let k = first; k <= first + 6; k++) {
             const bx = k * span - shift;
-            // 纵柱
-            bgDraw.drawRect(Rect(bx - 9, h * 0.20, 18, h * 0.62), Color(22, 19, 17, 165));
-            // 斜撑人字梁
-            bgDraw.drawSegment(Vec2(bx, h * 0.82), Vec2(bx + span * 0.5, h * 0.96), 7, Color(26, 21, 18, 185));
-            bgDraw.drawSegment(Vec2(bx + span, h * 0.82), Vec2(bx + span * 0.5, h * 0.96), 7, Color(26, 21, 18, 185));
-            // 破瓦斜射冷月光柱（自屏幕顶檐无缝贯下，上下双端渐隐，告别硬边平头梯形！）
+            // 暗黑像素官仓高木柱立牌（锚在路面后缘，告别纯色竖条矩形）
+            backdropArt.tryPlace("dp_granary_pillar", "e2_mid_pillar_" + (k - first), bx, backRoadY - cam.len(2), cam.len(26), pillarH, {
+                layer: 3, opacity: 0.76,
+            });
+            // 破瓦斜射冷月光柱（上下双端渐隐 + 浮尘）
             if (Math.abs(k) % 2 === 0) {
                 const topX = bx + span * 0.44;
                 const pulse = 0.86 + 0.14 * Math.sin(time * 1.1 + k);
-                const midA = Math.round(30 * pulse);
-                const topA = Math.round(14 * pulse);
+                const midA = Math.round(28 * pulse);
+                const topA = Math.round(12 * pulse);
                 fillGradQuad(
                     bgGlow,
                     topX - 20, h + 10, Color(168, 194, 224, topA),
@@ -437,94 +433,80 @@ export class EscortWorldRenderer {
                     bgGlow,
                     topX + 8, h * 0.48, Color(176, 202, 232, midA),
                     topX + 94, h * 0.48, Color(176, 202, 232, midA),
-                    topX + 136, h * 0.14, Color(168, 194, 224, 0),
-                    topX + 30, h * 0.14, Color(168, 194, 224, 0),
+                    topX + 136, backRoadY, Color(168, 194, 224, 0),
+                    topX + 30, backRoadY, Color(168, 194, 224, 0),
                 );
-                // 光柱内浮沉米糠微尘
                 for (let d = 0; d < 4; d++) {
                     const phase = (time * 0.18 + d * 0.27 + k * 0.31) % 1;
                     const dx = topX + 12 + phase * 76 + Math.sin(time * 1.4 + d) * 8;
-                    const dy = h * (0.90 - phase * 0.68);
-                    bgGlow.drawDot(Vec2(dx, dy), 1.6, Color(214, 222, 232, Math.round(62 * Math.sin(phase * Math.PI))));
+                    const dy = h * (0.90 - phase * 0.64);
+                    bgGlow.drawDot(Vec2(dx, dy), 1.5, Color(214, 222, 232, Math.round(58 * Math.sin(phase * Math.PI))));
                 }
             }
         }
     }
 
     private drawEscort3MountainShelterBg(
-        bgDraw: DrawNode.Type,
+        backdropArt: AssetSlotHost,
         bgGlow: DrawNode.Type,
         w: number,
         h: number,
-        camX: number,
+        backRoadY: number,
+        cam: CameraDirector,
         time: number,
     ): void {
-        // 山腰避风崖壁剪影（左侧护住工台）
-        const cliffX = 120 - camX * 0.28;
-        bgDraw.drawPolygon([
-            Vec2(cliffX - 240, h * 0.18),
-            Vec2(cliffX + 260, h * 0.18),
-            Vec2(cliffX + 165, h * 0.68),
-            Vec2(cliffX - 180, h * 0.86),
-        ], Color(14, 18, 25, 165));
-        // 中央工台方向在远景层晕开一层极淡暖雾
+        const cliffX = 240 - cam.x * 0.26;
+        backdropArt.tryPlace("dp_cliff_rock", "e3_mid_cliff", cliffX, backRoadY - cam.len(6), cam.len(220), cam.len(165), {
+            layer: 3, opacity: 0.72,
+        });
         const warmPulse = 0.90 + 0.10 * Math.sin(time * 2.1);
-        fillRadialGlow(bgGlow, w * 0.50, h * 0.36, w * 0.26, h * 0.26,
-            Color(224, 164, 88, Math.round(32 * warmPulse)), Color(224, 164, 88, 0), 16);
+        fillRadialGlow(bgGlow, w * 0.50, backRoadY + cam.len(54), w * 0.26, h * 0.24,
+            Color(224, 164, 88, Math.round(30 * warmPulse)), Color(224, 164, 88, 0), 16);
     }
 
     private drawEscort4CliffGorge(
-        bgDraw: DrawNode.Type,
+        backdropArt: AssetSlotHost,
         bgGlow: DrawNode.Type,
         w: number,
         h: number,
-        camX: number,
+        backRoadY: number,
+        cam: CameraDirector,
         time: number,
     ): void {
-        // 深壑雾谷暗冷色调 + 倾斜崖峰剪影
-        const shift = camX * 0.32;
+        const shift = cam.x * 0.30;
         for (let i = 0; i < 4; i++) {
             const px = ((i * 380 - shift) % (w + 420) + (w + 420)) % (w + 420) - 210;
-            bgDraw.drawPolygon([
-                Vec2(px - 120, h * 0.20),
-                Vec2(px + 145, h * 0.20),
-                Vec2(px + 48, h * (0.58 + (i % 2) * 0.12)),
-                Vec2(px - 58, h * (0.50 + (i % 2) * 0.08)),
-            ], Color(16, 22, 33, 152));
+            backdropArt.tryPlace("dp_cliff_rock", "e4_mid_cliff_" + i, px, backRoadY - cam.len(6), cam.len(176), cam.len(132 + (i % 2) * 26), {
+                layer: 3, opacity: 0.68, facing: i % 2 === 0 ? 1 : -1,
+            });
         }
-        // 山风疾云轻光带
-        const cloudX = ((time * 24) % (w + 400)) - 200;
-        bgGlow.drawPolygon([
-            Vec2(cloudX, h * 0.78),
-            Vec2(cloudX + 240, h * 0.82),
-            Vec2(cloudX + 210, h * 0.87),
-            Vec2(cloudX - 20, h * 0.83),
-        ], Color(142, 164, 192, 24));
+        const cloudX = ((time * 22) % (w + 420)) - 210;
+        backdropArt.tryPlace("ink_mist_curve", "e4_wind_cloud", cloudX, h * 0.80, 320, 52, {
+            color: Color(142, 164, 192, 255), opacity: 0.18, layer: 4,
+        });
     }
 
     private drawEscort5TowerApproachBg(
-        bgDraw: DrawNode.Type,
+        backdropArt: AssetSlotHost,
         bgGlow: DrawNode.Type,
         w: number,
         h: number,
-        camX: number,
+        backRoadY: number,
+        cam: CameraDirector,
         time: number,
         dawnWarmth: number,
     ): void {
-        // 破晓山岭微光 + 山门远影
         const glowPulse = 0.88 + 0.12 * Math.sin(time * 1.8);
         fillRadialGlow(bgGlow, w * 0.78, h * 0.48, w * 0.42, h * 0.30,
             Color(228, 184, 132, Math.round(44 * dawnWarmth * glowPulse)),
             Color(228, 184, 132, 0), 18);
-        // 远景山道古松与低墙剪影
-        const shift = camX * 0.30;
-        bgDraw.drawPolygon([
-            Vec2(0, h * 0.20),
-            Vec2(w, h * 0.20),
-            Vec2(w, h * 0.34),
-            Vec2(w * 0.55 - (shift % 120) * 0.2, h * 0.29),
-            Vec2(0, h * 0.36),
-        ], Color(18, 22, 32, 140));
+        const shift = cam.x * 0.26;
+        backdropArt.tryPlace("dp_cliff_rock", "e5_mid_ridge_l", 180 - (shift % 140), backRoadY - cam.len(6), cam.len(185), cam.len(118), {
+            layer: 3, opacity: 0.64,
+        });
+        backdropArt.tryPlace("pine", "e5_mid_pine_r", w * 0.62 - (shift % 180) * 0.3, backRoadY - cam.len(4), cam.len(108), cam.len(96), {
+            layer: 3, opacity: 0.56,
+        });
     }
 
     // ---------------------------------------------------------------- 各关专属 L2 实景构件
@@ -539,55 +521,41 @@ export class EscortWorldRenderer {
         time: number,
         ox: number,
     ): void {
-        const groundY = cam.sy(0);
-        // 1. 城门外残旗与指路石碑（x=96 与 x=520）
-        worldArt.tryPlace("sh_stele_banner", "gp_banner_start", cam.sx(ox + 96), groundY, cam.len(68), cam.len(74), {
-            layer: 1, opacity: 0.92,
+        const backDepth = p.room.depth !== undefined ? p.room.depth.max : 0;
+        const backY = cam.sy(0, backDepth);
+        const backLayer = p.room.depth !== undefined ? depthOrder(backDepth, -2) : 1;
+        // 1. 城门外残旗与指路石碑（锚定在 2.5D 窄巷后侧路缘，不挡路、不悬空）
+        worldArt.tryPlace("sh_stele_banner", "gp_banner_start", cam.sx(ox + 108), backY, cam.len(64), cam.len(70), {
+            layer: backLayer, opacity: 0.90,
         });
-        worldArt.tryPlace("sh_stele_banner", "gp_stele_mid", cam.sx(ox + 520), groundY, cam.len(54), cam.len(60), {
-            layer: 1, opacity: 0.86, facing: -1,
+        worldArt.tryPlace("sh_stele_banner", "gp_stele_mid", cam.sx(ox + 520), backY, cam.len(52), cam.len(58), {
+            layer: backLayer, opacity: 0.84, facing: -1,
         });
         // 2. 高石阶顶（x=910）一盏引路孤灯，照向第一段护送口
-        const stepTopY = cam.sy(48);
+        const stepTopY = cam.sy(48, backDepth);
         const lampX = cam.sx(ox + 912);
-        const poleH = cam.len(58);
+        const poleH = cam.len(56);
         fgDraw.drawSegment(Vec2(lampX, stepTopY), Vec2(lampX, stepTopY + poleH), Math.max(1.8, cam.len(2.4)), Color(74, 54, 38, 240));
         fgDraw.drawSegment(Vec2(lampX, stepTopY + poleH), Vec2(lampX - cam.len(14), stepTopY + poleH), Math.max(1.5, cam.len(2)), Color(74, 54, 38, 240));
-        worldArt.tryPlace("prop_lantern", "gp_top_lantern", lampX - cam.len(14), stepTopY + poleH - cam.len(14), cam.len(18), cam.len(22), { layer: 4 });
+        worldArt.tryPlace("prop_lantern", "gp_top_lantern", lampX - cam.len(14), stepTopY + poleH - cam.len(14), cam.len(18), cam.len(22), {
+            layer: backLayer + 2,
+        });
         const flame = 0.88 + 0.12 * Math.sin(time * 3.1);
         fillRadialGlow(fgGlow, lampX - cam.len(14), stepTopY + poleH - cam.len(14), cam.len(54), cam.len(48),
             Color(246, 192, 114, Math.round(72 * flame)), Color(246, 192, 114, 0), 16);
 
-        // 3. 牵手同行段：青石地面一大一小两道斜月长影
-        if (p.phase === "gatepath-start" && p.partner.alive) {
-            const sx1 = cam.sx(p.player.x);
-            const sx2 = cam.sx(p.partner.x);
-            fgDraw.drawPolygon([
-                Vec2(sx1 - cam.len(10), groundY + 1),
-                Vec2(sx1 + cam.len(10), groundY + 1),
-                Vec2(sx1 - cam.len(24), groundY - cam.len(10)),
-                Vec2(sx1 - cam.len(40), groundY - cam.len(10)),
-            ], Color(8, 10, 16, 86));
-            fgDraw.drawPolygon([
-                Vec2(sx2 - cam.len(7), groundY + 1),
-                Vec2(sx2 + cam.len(7), groundY + 1),
-                Vec2(sx2 - cam.len(15), groundY - cam.len(7)),
-                Vec2(sx2 - cam.len(26), groundY - cam.len(7)),
-            ], Color(8, 10, 16, 78));
-        }
-
-        // 4. 高石阶背起瞬间的电影柔光脉冲
+        // 3. 高石阶背起瞬间的电影柔光脉冲
         if (this.carryBloomT > 0 || view.backCarry.mounting) {
             const k = this.carryBloomT > 0 ? clamp01(this.carryBloomT / 1.15) : 0.72;
             const bx = cam.sx(p.player.x);
-            const by = cam.sy(p.player.y + 42);
+            const by = cam.sy(p.player.y + 42, p.player.depth);
             fillRadialGlow(fgGlow, bx, by, cam.len(96), cam.len(72),
                 Color(244, 206, 142, Math.round(62 * k)), Color(244, 206, 142, 0), 18);
         }
     }
 
     private drawEscort1Setpieces(
-        fgDraw: DrawNode.Type,
+        _fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         _p: Play,
@@ -595,37 +563,34 @@ export class EscortWorldRenderer {
         time: number,
         ox: number,
     ): void {
-        const backDepth = LANE_DEPTH.upper + 16;
+        const backDepth = LANE_DEPTH.upper + 14;
         const backY = cam.sy(0, backDepth);
         const backLayer = depthOrder(backDepth, -2);
         // 巷口残旗与路碑
-        worldArt.tryPlace("sh_stele_banner", "e1_banner_a", cam.sx(ox + 150), backY, cam.len(68), cam.len(76), {
+        worldArt.tryPlace("sh_stele_banner", "e1_banner_a", cam.sx(ox + 150), backY, cam.len(64), cam.len(72), {
             layer: backLayer, opacity: 0.90,
         });
-        worldArt.tryPlace("sh_stele_banner", "e1_banner_b", cam.sx(ox + 1245), backY, cam.len(64), cam.len(70), {
+        worldArt.tryPlace("sh_stele_banner", "e1_banner_b", cam.sx(ox + 1245), backY, cam.len(60), cam.len(66), {
             layer: backLayer, opacity: 0.88, facing: -1,
         });
-        // 巷道边缘余烬火盆（提供冷暗巷战中的明代火光锚点）
+        // 巷道边缘暗黑铁艺火盆精灵（替换昔日纯色梯形多边形火盆）
         const emberSpots = [285, 860];
         for (let i = 0; i < emberSpots.length; i++) {
             const bx = cam.sx(ox + emberSpots[i]);
             const pulse = 0.82 + 0.18 * Math.sin(time * 4.2 + i * 1.9);
-            fgDraw.drawPolygon([
-                Vec2(bx - cam.len(12), backY + cam.len(14)),
-                Vec2(bx + cam.len(12), backY + cam.len(14)),
-                Vec2(bx + cam.len(8), backY + cam.len(4)),
-                Vec2(bx - cam.len(8), backY + cam.len(4)),
-            ], Color(38, 34, 34, 240), 1.0, Color(88, 72, 62, 180));
-            fgDraw.drawSegment(Vec2(bx - cam.len(9), backY), Vec2(bx - cam.len(6), backY + cam.len(6)), 2, Color(34, 30, 30, 235));
-            fgDraw.drawSegment(Vec2(bx + cam.len(9), backY), Vec2(bx + cam.len(6), backY + cam.len(6)), 2, Color(34, 30, 30, 235));
-            fgGlow.drawEllipse(Vec2(bx, backY + cam.len(14)), cam.len(9), cam.len(3.5), Color(236, 114, 48, Math.round(185 * pulse)));
-            fillRadialGlow(fgGlow, bx, backY + cam.len(18), cam.len(48), cam.len(36),
-                Color(226, 116, 52, Math.round(62 * pulse)), Color(226, 116, 52, 0), 14);
+            worldArt.tryPlace("dp_shadow_contact", "e1_brazier_sh_" + i, bx, backY + 1, cam.len(26), cam.len(7), {
+                layer: backLayer - 1, opacity: 0.76,
+            });
+            worldArt.tryPlace("dp_brazier", "e1_brazier_" + i, bx, backY, cam.len(26), cam.len(30), {
+                layer: backLayer + 1,
+            });
+            fillRadialGlow(fgGlow, bx, backY + cam.len(22), cam.len(52), cam.len(40),
+                Color(226, 116, 52, Math.round(68 * pulse)), Color(226, 116, 52, 0), 14);
         }
     }
 
     private drawEscort2Setpieces(
-        fgDraw: DrawNode.Type,
+        _fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         p: Play,
@@ -633,10 +598,10 @@ export class EscortWorldRenderer {
         time: number,
         ox: number,
     ): void {
-        const backDepth = LANE_DEPTH.upper + 16;
+        const backDepth = LANE_DEPTH.upper + 14;
         const backY = cam.sy(0, backDepth);
         const backLayer = depthOrder(backDepth, -2);
-        // 粮棚后墙堆叠粗麻粮袋（丰富空间视觉，不干扰地面碰撞）
+        // 粮棚后墙堆叠粗麻粮袋
         const sackSpots = [195, 480, 1020, 1310];
         for (let i = 0; i < sackSpots.length; i++) {
             const sx = cam.sx(ox + sackSpots[i]);
@@ -647,18 +612,18 @@ export class EscortWorldRenderer {
                 color: Color(172, 168, 162, 255),
             });
         }
-        // 棚架上悬垂的旧军粮布幔剪影
-        const beamY = cam.sy(64, -24);
-        const drapeX = cam.sx(ox + 440);
-        const sway = Math.sin(time * 1.9) * 3;
-        fgDraw.drawPolygon([
-            Vec2(drapeX - cam.len(22), beamY),
-            Vec2(drapeX + cam.len(22), beamY),
-            Vec2(drapeX + cam.len(18) + sway, beamY - cam.len(24)),
-            Vec2(drapeX - cam.len(14) + sway * 0.7, beamY - cam.len(19)),
-        ], Color(72, 58, 46, 160));
+        // 补齐棚架梁（x=300..900, depth=-44..-20）右端视觉支柱，消除右端悬空穿帮
+        const postX = cam.sx(ox + 888);
+        const postBaseY = cam.sy(0, -44);
+        const postLayer = depthOrder(-44, 0);
+        worldArt.tryPlace("dp_shadow_contact", "e2_right_post_sh", postX, postBaseY + 1, cam.len(28), cam.len(9), {
+            layer: postLayer - 1, opacity: 0.75,
+        });
+        worldArt.tryPlace("fe_pillar_wood", "e2_right_post", postX, postBaseY, cam.len(22), cam.len(64), {
+            layer: postLayer,
+        });
 
-        // 地面拾取材料下方极克制环境微光（木纹筹暖松脂光 / 铃纹筹古铜清辉，方便灰度与暗夜辨认）
+        // 地面拾取材料下方极克制环境微光
         for (const pk of p.pickups) {
             if (pk.id === "" || p.run.taken[pk.id]) {
                 continue;
@@ -672,7 +637,7 @@ export class EscortWorldRenderer {
     }
 
     private drawEscort3WorkbenchSanctuary(
-        fgDraw: DrawNode.Type,
+        _fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         p: Play,
@@ -682,38 +647,41 @@ export class EscortWorldRenderer {
         ox: number,
     ): void {
         const pulse = 0.88 + 0.12 * Math.sin(time * 2.6);
+        // 严格对齐 rooms.ts e3_bench 实体（x=560..680, lanes=["middle","upper"] => depth=-12..+44），根治下道隐形空气墙！
         const benchCx = cam.sx(ox + 620);
-        const benchDepth = LANE_DEPTH.middle + 10;
+        const benchDepth = -12;
         const benchBaseY = cam.sy(0, benchDepth);
         const benchLayer = depthOrder(benchDepth, 2);
 
-        // 1. 温暖琥珀安全光池（暴风眼里的十分钟安宁）
+        // 1. 温暖琥珀安全光池
         fillRadialGlow(fgGlow, benchCx, benchBaseY + cam.len(42), cam.len(168), cam.len(112),
             Color(246, 184, 96, Math.round(76 * pulse)), Color(246, 168, 74, 0), 20);
         fillRadialGlow(fgGlow, benchCx - cam.len(22), benchBaseY + cam.len(68), cam.len(58), cam.len(48),
             Color(255, 224, 152, Math.round(115 * pulse)), Color(255, 198, 108, 0), 14);
 
-        // 2. 明代山腰木构修铳工棚与羊角风灯（精致像素实景覆盖在工台位置）
-        worldArt.tryPlace("sh_craft_workbench", "e3_sanctuary_bench", benchCx, benchBaseY - cam.len(4), cam.len(142), cam.len(112), {
+        // 2. 工台底部接地影（严格铺满 560..680, middle+upper 占地范围）+ 修铳工棚
+        worldArt.tryPlace("dp_shadow_contact", "e3_sanctuary_bench_sh", benchCx, benchBaseY + cam.len(6), cam.len(136), cam.len(26), {
+            layer: benchLayer - 1, opacity: 0.84,
+        });
+        worldArt.tryPlace("sh_craft_workbench", "e3_sanctuary_bench", benchCx, benchBaseY - cam.len(2), cam.len(136), cam.len(110), {
             layer: benchLayer,
         });
 
-        // 3. 工台左侧：周戍铺下的青布披风与干草休息席（供小满安坐看哥哥修铳）
+        // 3. 工台左侧：周戍铺下的青布披风与干草休息席（同样靠后道放置，绝不侵占前道）
         const matX = cam.sx(ox + 516);
-        const matDepth = LANE_DEPTH.middle + 4;
+        const matDepth = LANE_DEPTH.upper;
         const matY = cam.sy(0, matDepth);
-        worldArt.tryPlace("sh_straw_mat", "e3_xiaoman_mat", matX, matY - cam.len(2), cam.len(66), cam.len(28), {
+        worldArt.tryPlace("sh_straw_mat", "e3_xiaoman_mat", matX, matY - cam.len(2), cam.len(64), cam.len(26), {
             layer: depthOrder(matDepth, 0),
         });
-        // 当小满被放下在工台边时，给她加一层柔和灯晕
         if (view.backCarry.atBench || view.craftBench.active) {
             fillRadialGlow(fgGlow, matX, matY + cam.len(22), cam.len(42), cam.len(34),
                 Color(252, 212, 138, Math.round(68 * pulse)), Color(252, 212, 138, 0), 14);
         }
 
         // 4. 山腰左侧指路碑与松风树影
-        worldArt.tryPlace("sh_stele_banner", "e3_entry_stele", cam.sx(ox + 235), cam.sy(0, LANE_DEPTH.upper + 16), cam.len(58), cam.len(66), {
-            layer: depthOrder(LANE_DEPTH.upper + 16, -1), opacity: 0.86,
+        worldArt.tryPlace("sh_stele_banner", "e3_entry_stele", cam.sx(ox + 235), cam.sy(0, LANE_DEPTH.upper + 14), cam.len(58), cam.len(66), {
+            layer: depthOrder(LANE_DEPTH.upper + 14, -1), opacity: 0.86,
         });
 
         // 靶身由 ActorsRenderer 绘制，这里仅叠加受击声波。

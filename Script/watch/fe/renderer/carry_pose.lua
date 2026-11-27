@@ -194,318 +194,322 @@ function CarryPosePlugin.prototype.drawHandInHand(self, fgDraw, fgGlow, worldArt
 	local childWY = partner.y -- 236
 	local childDepth = partner.depth -- 237
 	if soldier.rollT <= 0 and not p.gripping then -- 237
-		local sx = cam:sx(soldier.x) -- 241
-		local sy = cam:sy(soldier.y, soldier.depth) -- 242
-		local bob = speed > 8 and math.abs(math.sin(self.animTime * 10.5)) * cam:len(2.2) or math.sin(self.animTime * 2.2) * cam:len(0.6) -- 243
-		local duoH = cam:len(soldier.h * 1.03) -- 244
-		if worldArt:tryPlacePath( -- 244
-			"assets/art/actors_extra.clip|duo_hand_walk", -- 245
-			"carry_duo_hand", -- 245
-			sx, -- 245
-			sy + bob, -- 245
-			duoH, -- 245
-			duoH, -- 245
-			{ -- 245
-				anchorX = 0.28, -- 246
-				anchorY = 0, -- 247
-				preserveAspect = true, -- 248
-				facing = f, -- 249
-				layer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 250
-			} -- 250
-		) then -- 250
-			fgDraw:drawEllipse( -- 252
-				Vec2( -- 252
-					sx + f * cam:len(24), -- 252
-					sy + 1 -- 252
-				), -- 252
-				cam:len(12), -- 252
-				3, -- 252
-				Color(10, 10, 12, 125) -- 252
-			) -- 252
-			self.childAnchorX = childWX -- 253
-			self.childAnchorY = childWY -- 254
-			return {player = true, partner = true} -- 255
-		end -- 255
-	end -- 255
-	local partnerPlaced = false -- 259
-	if not nearPartner then -- 259
-		local lag = speed > 8 and math.sin(self.animTime * 13.5) * 2.4 or 0 -- 262
-		childWX = soldier.x - f * 26 + lag -- 263
-		childWY = soldier.y -- 264
-		childDepth = soldier.depth -- 265
-		local scx = cam:sx(childWX) -- 267
-		local scy = cam:sy(childWY, childDepth) -- 268
-		local cW = cam:len(22) -- 269
-		local cH = cam:len(64) -- 270
-		local pose = { -- 271
-			facing = f, -- 271
-			layer = depthEnabled and depthOrder(childDepth, 4) or 4 -- 271
-		} -- 271
-		partnerPlaced = speed > 8 and worldArt:tryPlaceRun( -- 272
-			"child", -- 272
-			"carry_child_walk", -- 272
-			scx, -- 272
-			scy, -- 272
-			cW, -- 272
-			cH, -- 272
-			self.animTime * 1.8, -- 272
-			pose -- 272
-		) or worldArt:tryPlace( -- 272
-			"child_idle", -- 273
-			"carry_child_walk", -- 273
-			scx, -- 273
-			scy, -- 273
-			cW, -- 273
-			cH, -- 273
-			pose -- 273
-		) -- 273
-		fgDraw:drawEllipse( -- 274
-			Vec2(scx, scy + 1), -- 274
-			cW * 0.46, -- 274
-			3.2, -- 274
-			Color(10, 10, 12, 130) -- 274
-		) -- 274
-	end -- 274
-	self.childAnchorX = childWX -- 277
-	self.childAnchorY = childWY -- 278
-	local playerPlaced = false -- 281
-	if speed <= 8 and soldier.rollT <= 0 then -- 281
-		playerPlaced = worldArt:tryPlace( -- 283
-			"fe_soldier_hand_hold", -- 284
-			"carry_soldier_hold", -- 285
-			cam:sx(soldier.x), -- 286
-			cam:sy(soldier.y, soldier.depth), -- 287
-			cam:len(36), -- 288
-			cam:len(soldier.h), -- 289
-			{ -- 290
-				facing = f, -- 291
-				layer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 292
-			} -- 292
-		) -- 292
-	end -- 292
-	local sHandX = cam:sx(soldier.x - f * 8) -- 296
-	local sHandY = cam:sy(soldier.y + soldier.h * 0.46, soldier.depth) -- 297
-	local cHandX = cam:sx(childWX + f * 7) -- 298
-	local cHandY = cam:sy(childWY + 36, childDepth) -- 299
-	local claspX = (sHandX + cHandX) * 0.5 -- 300
-	local claspY = (sHandY + cHandY) * 0.5 -- 301
-	fillRadialGlow( -- 302
-		fgGlow, -- 302
-		claspX, -- 302
-		claspY, -- 302
-		cam:len(10), -- 302
-		cam:len(8), -- 302
-		toColor(PALETTE.amberCore, 76), -- 302
-		Color(244, 234, 214, 0), -- 302
-		10 -- 302
-	) -- 302
-	return {player = playerPlaced, partner = partnerPlaced} -- 303
+		local dScale = cam:depthScale(soldier.depth, depthEnabled) -- 241
+		local sx = cam:sx(soldier.x) -- 242
+		local sy = cam:sy(soldier.y, soldier.depth) -- 243
+		local bob = speed > 8 and math.abs(math.sin(self.animTime * 10.5)) * cam:len(2.2) or math.sin(self.animTime * 2.2) * cam:len(0.6) -- 244
+		local duoH = cam:len(soldier.h * 1.03) * dScale -- 245
+		local duoLayer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 246
+		if worldArt:tryPlacePath( -- 246
+			"assets/art/actors_extra.clip|duo_hand_walk", -- 247
+			"carry_duo_hand", -- 247
+			sx, -- 247
+			sy + bob, -- 247
+			duoH, -- 247
+			duoH, -- 247
+			{ -- 247
+				anchorX = 0.28, -- 248
+				anchorY = 0, -- 249
+				preserveAspect = true, -- 250
+				facing = f, -- 251
+				layer = duoLayer -- 252
+			} -- 252
+		) then -- 252
+			worldArt:tryPlace( -- 254
+				"dp_shadow_contact", -- 254
+				"carry_duo_hand_sh", -- 254
+				sx + f * cam:len(24) * dScale, -- 254
+				sy + 1, -- 254
+				cam:len(30) * dScale, -- 254
+				cam:len(9) * dScale, -- 254
+				{layer = duoLayer - 1, opacity = 0.82} -- 254
+			) -- 254
+			self.childAnchorX = childWX -- 257
+			self.childAnchorY = childWY -- 258
+			return {player = true, partner = true} -- 259
+		end -- 259
+	end -- 259
+	local partnerPlaced = false -- 263
+	if not nearPartner then -- 263
+		local lag = speed > 8 and math.sin(self.animTime * 13.5) * 2.4 or 0 -- 266
+		childWX = soldier.x - f * 26 + lag -- 267
+		childWY = soldier.y -- 268
+		childDepth = soldier.depth -- 269
+		local dScale = cam:depthScale(childDepth, depthEnabled) -- 271
+		local scx = cam:sx(childWX) -- 272
+		local scy = cam:sy(childWY, childDepth) -- 273
+		local cW = cam:len(22) * dScale -- 274
+		local cH = cam:len(64) * dScale -- 275
+		local cLayer = depthEnabled and depthOrder(childDepth, 4) or 4 -- 276
+		local pose = {facing = f, layer = cLayer} -- 277
+		partnerPlaced = speed > 8 and worldArt:tryPlaceRun( -- 278
+			"child", -- 278
+			"carry_child_walk", -- 278
+			scx, -- 278
+			scy, -- 278
+			cW, -- 278
+			cH, -- 278
+			self.animTime * 1.8, -- 278
+			pose -- 278
+		) or worldArt:tryPlace( -- 278
+			"child_idle", -- 279
+			"carry_child_walk", -- 279
+			scx, -- 279
+			scy, -- 279
+			cW, -- 279
+			cH, -- 279
+			pose -- 279
+		) -- 279
+		worldArt:tryPlace( -- 280
+			"dp_shadow_contact", -- 280
+			"carry_child_walk_sh", -- 280
+			scx, -- 280
+			scy + 1, -- 280
+			cW * 1.4, -- 280
+			cam:len(8) * dScale, -- 280
+			{layer = cLayer - 1, opacity = 0.8} -- 280
+		) -- 280
+	end -- 280
+	self.childAnchorX = childWX -- 285
+	self.childAnchorY = childWY -- 286
+	local playerPlaced = false -- 289
+	if speed <= 8 and soldier.rollT <= 0 then -- 289
+		playerPlaced = worldArt:tryPlace( -- 291
+			"fe_soldier_hand_hold", -- 292
+			"carry_soldier_hold", -- 293
+			cam:sx(soldier.x), -- 294
+			cam:sy(soldier.y, soldier.depth), -- 295
+			cam:len(36), -- 296
+			cam:len(soldier.h), -- 297
+			{ -- 298
+				facing = f, -- 299
+				layer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 300
+			} -- 300
+		) -- 300
+	end -- 300
+	local sHandX = cam:sx(soldier.x - f * 8) -- 304
+	local sHandY = cam:sy(soldier.y + soldier.h * 0.46, soldier.depth) -- 305
+	local cHandX = cam:sx(childWX + f * 7) -- 306
+	local cHandY = cam:sy(childWY + 36, childDepth) -- 307
+	local claspX = (sHandX + cHandX) * 0.5 -- 308
+	local claspY = (sHandY + cHandY) * 0.5 -- 309
+	fillRadialGlow( -- 310
+		fgGlow, -- 310
+		claspX, -- 310
+		claspY, -- 310
+		cam:len(10), -- 310
+		cam:len(8), -- 310
+		toColor(PALETTE.amberCore, 76), -- 310
+		Color(244, 234, 214, 0), -- 310
+		10 -- 310
+	) -- 310
+	return {player = playerPlaced, partner = partnerPlaced} -- 311
 end -- 219
-function CarryPosePlugin.prototype.drawCarriedOrMounting(self, fgGlow, worldArt, ctx) -- 307
-	local p = ctx.p -- 312
-	local cam = ctx.cam -- 313
-	local soldier = p.player -- 314
-	local depthEnabled = p.room.depth ~= nil -- 315
-	local sf = self.smoothedFacing -- 316
-	local faceSign = sf >= 0 and 1 or -1 -- 317
-	local speed = math.max( -- 318
-		math.abs(soldier.vx), -- 318
-		math.abs(soldier.depthSpeed) -- 318
-	) -- 318
-	local kMount = self.mode == "mounting" and smoothStep(self.mountT) or 1 -- 321
-	local crouchDip = self.mode == "mounting" and math.sin(kMount * math.pi) * 14 or ((soldier.covered or p.coverHug) and 10 or (soldier.rollT > 0 and 18 or 0)) -- 322
-	local walking = speed > 8 and soldier.onGround -- 326
-	local bob = walking and math.abs(math.sin(self.animTime * 10.5)) * 2 or math.sin(self.animTime * 2.5) * 0.8 -- 327
-	local targetBackX = soldier.x - sf * 13 -- 332
-	local targetBackY = soldier.y + 30 - crouchDip + bob -- 333
-	local startGroundX = soldier.x - sf * 24 -- 334
-	local startGroundY = soldier.y -- 335
-	local arcLift = self.mode == "mounting" and math.sin(kMount * math.pi) * 8 or 0 -- 336
-	local childWX = startGroundX + (targetBackX - startGroundX) * kMount -- 338
-	local childWY = startGroundY + (targetBackY - startGroundY) * kMount + arcLift -- 339
-	self.childAnchorX = childWX -- 340
-	self.childAnchorY = childWY -- 341
-	local scx = cam:sx(soldier.x) -- 343
-	local scy = cam:sy(soldier.y, soldier.depth) -- 344
-	local baseLayer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 345
-	if self.mode == "mounting" and kMount < 0.72 then -- 345
-		local playerPlaced = worldArt:tryPlace( -- 349
-			"fe_soldier_kneel_mount", -- 349
-			"carry_soldier_kneel", -- 349
-			scx, -- 349
-			scy, -- 349
-			cam:len(42), -- 349
-			cam:len(soldier.h * 0.9), -- 349
-			{facing = faceSign, layer = baseLayer} -- 349
-		) -- 349
-		local cx = cam:sx(childWX) -- 353
-		local cy = cam:sy(childWY, soldier.depth) -- 354
-		local partnerPlaced = worldArt:tryPlace( -- 355
-			kMount < 0.45 and "child_crouch" or "child_peek", -- 355
-			"carry_child", -- 355
-			cx, -- 355
-			cy, -- 355
-			cam:len(22), -- 355
-			cam:len(42 + (1 - kMount) * 18), -- 355
-			{facing = faceSign, layer = baseLayer + 1} -- 355
-		) -- 355
-		return {player = playerPlaced, partner = partnerPlaced} -- 359
-	end -- 359
-	if kMount >= 0.72 and soldier.rollT <= 0 and not p.gripping then -- 359
-		local firing = p.ticks < self.shotUntil -- 364
-		local duoClip = firing and "duo_carry_fire" or (walking and "duo_carry_run" or "duo_carry_idle") -- 365
-		local duoAnchorX = firing and 0.36 or 0.54 -- 366
-		local duoFacing = firing and self.shotFacing or faceSign -- 367
-		local duoLayer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 368
-		local crouchScale = (soldier.covered or p.coverHug) and 0.86 or 1.05 -- 369
-		local duoH = cam:len(soldier.h * crouchScale) -- 370
-		local sx = cam:sx(soldier.x) -- 371
-		local sy = cam:sy(soldier.y, soldier.depth) + cam:len(bob * 0.7) -- 372
-		if worldArt:tryPlacePath( -- 372
-			"assets/art/actors_extra.clip|" .. duoClip, -- 373
-			"carry_duo_sprite", -- 373
-			sx, -- 373
-			sy, -- 373
-			duoH, -- 373
-			duoH, -- 373
-			{ -- 373
-				anchorX = duoAnchorX, -- 374
-				anchorY = 0, -- 375
-				preserveAspect = true, -- 376
-				facing = duoFacing, -- 377
-				layer = duoLayer -- 378
-			} -- 378
-		) then -- 378
-			if self.reachT > 0.05 then -- 378
-				local reachFrac = smoothStep(self.reachT) -- 382
-				local gx = sx + sf * cam:len(14 + reachFrac * 8) -- 383
-				local gy = sy + duoH * 0.72 -- 384
-				fillRadialGlow( -- 385
-					fgGlow, -- 386
-					gx, -- 387
-					gy, -- 388
-					cam:len(10 * reachFrac), -- 389
-					cam:len(10 * reachFrac), -- 390
-					toColor(PALETTE.amberCore, 82 * reachFrac), -- 391
-					Color(244, 234, 214, 0), -- 392
-					10 -- 393
-				) -- 393
-			end -- 393
-			return {player = true, partner = true} -- 396
-		end -- 396
-	end -- 396
-	local cx = cam:sx(childWX) -- 401
-	local cy = cam:sy(childWY, soldier.depth) -- 402
-	local partnerPlaced = worldArt:tryPlace( -- 403
-		"child_peek", -- 403
-		"carry_child", -- 403
-		cx, -- 403
-		cy, -- 403
-		cam:len(22), -- 403
-		cam:len(40), -- 403
-		{ -- 403
-			facing = faceSign, -- 404
-			layer = depthEnabled and depthOrder(soldier.depth, 3) or 3 -- 405
-		} -- 405
-	) -- 405
-	return {player = false, partner = partnerPlaced} -- 407
-end -- 307
-function CarryPosePlugin.prototype.drawAtBench(self, fgDraw, fgGlow, worldArt, ctx) -- 411
-	local p = ctx.p -- 417
-	local cam = ctx.cam -- 418
-	local soldier = p.player -- 419
-	local depthEnabled = p.room.depth ~= nil -- 420
-	local f = soldier.facing >= 0 and 1 or -1 -- 421
-	local dropK = smoothStep(self.benchDropT) -- 422
-	local startX = soldier.x - f * 12 -- 425
-	local startY = soldier.y + 26 -- 426
-	local standX = soldier.x + f * 30 -- 427
-	local standY = soldier.y -- 428
-	local childWX = startX + (standX - startX) * dropK -- 429
-	local childWY = startY + (standY - startY) * dropK -- 430
-	self.childAnchorX = childWX -- 431
-	self.childAnchorY = childWY -- 432
-	local cx = cam:sx(childWX) -- 434
-	local cy = cam:sy(childWY, soldier.depth) -- 435
-	local cW = cam:len(22) -- 436
-	local cH = cam:len(64) -- 437
-	local handing = ctx.view.craftBench.justCraftedTimer > 0 -- 439
-	local slot = handing and "child_offer" or "child_idle" -- 440
-	local partnerPlaced = worldArt:tryPlace( -- 441
-		slot, -- 441
-		"carry_child_bench", -- 441
-		cx, -- 441
-		cy, -- 441
-		cW, -- 441
-		cH, -- 441
-		{ -- 441
-			facing = -f, -- 442
-			layer = depthEnabled and depthOrder(soldier.depth, 5) or 5 -- 443
-		} -- 443
-	) -- 443
-	fgDraw:drawEllipse( -- 445
-		Vec2( -- 445
-			cx, -- 445
-			cam:sy(soldier.y, soldier.depth) + 1 -- 445
-		), -- 445
-		cW * 0.48 * dropK, -- 445
-		3.2, -- 445
-		Color(10, 10, 12, 130) -- 445
-	) -- 445
-	if handing then -- 445
-		local prog = clamp01(1 - ctx.view.craftBench.justCraftedTimer) -- 449
-		local midX = cam:sx(soldier.x + f * (22 - prog * 10)) -- 450
-		local midY = cam:sy( -- 451
-			soldier.y + 44 + math.sin(prog * math.pi) * 5, -- 451
-			soldier.depth -- 451
-		) -- 451
-		local gunClip = ctx.view.craftBench.equippedWeapon == "echo_gun" and "craft_echo_gun" or "craft_lantern_gun" -- 452
-		local gunW = cam:len(38) -- 453
-		local gunH = cam:len(14) -- 454
-		if not worldArt:tryPlacePath( -- 454
-			"assets/art/vfx_craft_art.clip|" .. gunClip, -- 455
-			"carry_bench_gun", -- 455
-			midX, -- 455
-			midY, -- 455
-			gunW, -- 455
-			gunH, -- 455
-			{ -- 455
-				anchorX = 0.5, -- 456
-				anchorY = 0.5, -- 457
-				preserveAspect = true, -- 458
-				facing = f, -- 459
-				smooth = true, -- 460
-				layer = depthEnabled and depthOrder(soldier.depth, 6) or 6 -- 461
-			} -- 461
-		) then -- 461
-			local gunLen = cam:len(22) -- 463
-			fgDraw:drawSegment( -- 464
-				Vec2(midX - f * gunLen * 0.4, midY - 2), -- 464
-				Vec2(midX + f * gunLen * 0.25, midY + 1), -- 464
-				3.2, -- 464
-				Color(108, 74, 52, 255) -- 464
-			) -- 464
-			fgDraw:drawSegment( -- 465
-				Vec2(midX + f * gunLen * 0.1, midY + 1), -- 465
-				Vec2(midX + f * gunLen * 0.65, midY + 3), -- 465
-				1.8, -- 465
-				Color(148, 144, 134, 245) -- 465
-			) -- 465
-		end -- 465
-		fillRadialGlow( -- 467
-			fgGlow, -- 467
-			midX, -- 467
-			midY, -- 467
-			cam:len(15), -- 467
-			cam:len(11), -- 467
-			toColor(PALETTE.amberCore, 72), -- 467
-			Color(244, 234, 214, 0), -- 467
-			10 -- 467
-		) -- 467
-	end -- 467
-	return partnerPlaced -- 469
-end -- 411
-function ____exports.createCarryPosePlugin() -- 473
-	return __TS__New(____exports.CarryPosePlugin) -- 474
-end -- 473
-return ____exports -- 473
+function CarryPosePlugin.prototype.drawCarriedOrMounting(self, fgGlow, worldArt, ctx) -- 315
+	local p = ctx.p -- 320
+	local cam = ctx.cam -- 321
+	local soldier = p.player -- 322
+	local depthEnabled = p.room.depth ~= nil -- 323
+	local sf = self.smoothedFacing -- 324
+	local faceSign = sf >= 0 and 1 or -1 -- 325
+	local speed = math.max( -- 326
+		math.abs(soldier.vx), -- 326
+		math.abs(soldier.depthSpeed) -- 326
+	) -- 326
+	local kMount = self.mode == "mounting" and smoothStep(self.mountT) or 1 -- 329
+	local crouchDip = self.mode == "mounting" and math.sin(kMount * math.pi) * 14 or ((soldier.covered or p.coverHug) and 10 or (soldier.rollT > 0 and 18 or 0)) -- 330
+	local walking = speed > 8 and soldier.onGround -- 334
+	local bob = walking and math.abs(math.sin(self.animTime * 10.5)) * 2 or math.sin(self.animTime * 2.5) * 0.8 -- 335
+	local targetBackX = soldier.x - sf * 13 -- 340
+	local targetBackY = soldier.y + 30 - crouchDip + bob -- 341
+	local startGroundX = soldier.x - sf * 24 -- 342
+	local startGroundY = soldier.y -- 343
+	local arcLift = self.mode == "mounting" and math.sin(kMount * math.pi) * 8 or 0 -- 344
+	local childWX = startGroundX + (targetBackX - startGroundX) * kMount -- 346
+	local childWY = startGroundY + (targetBackY - startGroundY) * kMount + arcLift -- 347
+	self.childAnchorX = childWX -- 348
+	self.childAnchorY = childWY -- 349
+	local scx = cam:sx(soldier.x) -- 351
+	local scy = cam:sy(soldier.y, soldier.depth) -- 352
+	local baseLayer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 353
+	if self.mode == "mounting" and kMount < 0.72 then -- 353
+		local playerPlaced = worldArt:tryPlace( -- 357
+			"fe_soldier_kneel_mount", -- 357
+			"carry_soldier_kneel", -- 357
+			scx, -- 357
+			scy, -- 357
+			cam:len(42), -- 357
+			cam:len(soldier.h * 0.9), -- 357
+			{facing = faceSign, layer = baseLayer} -- 357
+		) -- 357
+		local cx = cam:sx(childWX) -- 361
+		local cy = cam:sy(childWY, soldier.depth) -- 362
+		local partnerPlaced = worldArt:tryPlace( -- 363
+			kMount < 0.45 and "child_crouch" or "child_peek", -- 363
+			"carry_child", -- 363
+			cx, -- 363
+			cy, -- 363
+			cam:len(22), -- 363
+			cam:len(42 + (1 - kMount) * 18), -- 363
+			{facing = faceSign, layer = baseLayer + 1} -- 363
+		) -- 363
+		return {player = playerPlaced, partner = partnerPlaced} -- 367
+	end -- 367
+	if kMount >= 0.72 and soldier.rollT <= 0 and not p.gripping then -- 367
+		local firing = p.ticks < self.shotUntil -- 372
+		local duoClip = firing and "duo_carry_fire" or (walking and "duo_carry_run" or "duo_carry_idle") -- 373
+		local duoAnchorX = firing and 0.36 or 0.54 -- 374
+		local duoFacing = firing and self.shotFacing or faceSign -- 375
+		local duoLayer = depthEnabled and depthOrder(soldier.depth, 4) or 4 -- 376
+		local dScale = cam:depthScale(soldier.depth, depthEnabled) -- 377
+		local crouchScale = (soldier.covered or p.coverHug) and 0.86 or 1.05 -- 378
+		local duoH = cam:len(soldier.h * crouchScale) * dScale -- 379
+		local sx = cam:sx(soldier.x) -- 380
+		local sy = cam:sy(soldier.y, soldier.depth) + cam:len(bob * 0.7) -- 381
+		if worldArt:tryPlacePath( -- 381
+			"assets/art/actors_extra.clip|" .. duoClip, -- 382
+			"carry_duo_sprite", -- 382
+			sx, -- 382
+			sy, -- 382
+			duoH, -- 382
+			duoH, -- 382
+			{ -- 382
+				anchorX = duoAnchorX, -- 383
+				anchorY = 0, -- 384
+				preserveAspect = true, -- 385
+				facing = duoFacing, -- 386
+				layer = duoLayer -- 387
+			} -- 387
+		) then -- 387
+			if self.reachT > 0.05 then -- 387
+				local reachFrac = smoothStep(self.reachT) -- 391
+				local gx = sx + sf * cam:len(14 + reachFrac * 8) -- 392
+				local gy = sy + duoH * 0.72 -- 393
+				fillRadialGlow( -- 394
+					fgGlow, -- 395
+					gx, -- 396
+					gy, -- 397
+					cam:len(10 * reachFrac), -- 398
+					cam:len(10 * reachFrac), -- 399
+					toColor(PALETTE.amberCore, 82 * reachFrac), -- 400
+					Color(244, 234, 214, 0), -- 401
+					10 -- 402
+				) -- 402
+			end -- 402
+			return {player = true, partner = true} -- 405
+		end -- 405
+	end -- 405
+	local cx = cam:sx(childWX) -- 410
+	local cy = cam:sy(childWY, soldier.depth) -- 411
+	local partnerPlaced = worldArt:tryPlace( -- 412
+		"child_peek", -- 412
+		"carry_child", -- 412
+		cx, -- 412
+		cy, -- 412
+		cam:len(22), -- 412
+		cam:len(40), -- 412
+		{ -- 412
+			facing = faceSign, -- 413
+			layer = depthEnabled and depthOrder(soldier.depth, 3) or 3 -- 414
+		} -- 414
+	) -- 414
+	return {player = false, partner = partnerPlaced} -- 416
+end -- 315
+function CarryPosePlugin.prototype.drawAtBench(self, fgDraw, fgGlow, worldArt, ctx) -- 420
+	local p = ctx.p -- 426
+	local cam = ctx.cam -- 427
+	local soldier = p.player -- 428
+	local depthEnabled = p.room.depth ~= nil -- 429
+	local f = soldier.facing >= 0 and 1 or -1 -- 430
+	local dropK = smoothStep(self.benchDropT) -- 431
+	local startX = soldier.x - f * 12 -- 434
+	local startY = soldier.y + 26 -- 435
+	local standX = soldier.x + f * 30 -- 436
+	local standY = soldier.y -- 437
+	local childWX = startX + (standX - startX) * dropK -- 438
+	local childWY = startY + (standY - startY) * dropK -- 439
+	self.childAnchorX = childWX -- 440
+	self.childAnchorY = childWY -- 441
+	local dScale = cam:depthScale(soldier.depth, depthEnabled) -- 443
+	local cx = cam:sx(childWX) -- 444
+	local cy = cam:sy(childWY, soldier.depth) -- 445
+	local cW = cam:len(22) * dScale -- 446
+	local cH = cam:len(64) * dScale -- 447
+	local handing = ctx.view.craftBench.justCraftedTimer > 0 -- 449
+	local slot = handing and "child_offer" or "child_idle" -- 450
+	local benchLayer = depthEnabled and depthOrder(soldier.depth, 5) or 5 -- 451
+	local partnerPlaced = worldArt:tryPlace( -- 452
+		slot, -- 452
+		"carry_child_bench", -- 452
+		cx, -- 452
+		cy, -- 452
+		cW, -- 452
+		cH, -- 452
+		{facing = -f, layer = benchLayer} -- 452
+	) -- 452
+	worldArt:tryPlace( -- 456
+		"dp_shadow_contact", -- 456
+		"carry_child_bench_sh", -- 456
+		cx, -- 456
+		cam:sy(soldier.y, soldier.depth) + 1, -- 456
+		cW * 1.45 * math.max(0.3, dropK), -- 456
+		cam:len(8) * dScale, -- 456
+		{layer = benchLayer - 1, opacity = 0.8} -- 456
+	) -- 456
+	if handing then -- 456
+		local prog = clamp01(1 - ctx.view.craftBench.justCraftedTimer) -- 462
+		local midX = cam:sx(soldier.x + f * (22 - prog * 10)) -- 463
+		local midY = cam:sy( -- 464
+			soldier.y + 44 + math.sin(prog * math.pi) * 5, -- 464
+			soldier.depth -- 464
+		) -- 464
+		local gunClip = ctx.view.craftBench.equippedWeapon == "echo_gun" and "craft_echo_gun" or "craft_lantern_gun" -- 465
+		local gunW = cam:len(38) -- 466
+		local gunH = cam:len(14) -- 467
+		if not worldArt:tryPlacePath( -- 467
+			"assets/art/vfx_craft_art.clip|" .. gunClip, -- 468
+			"carry_bench_gun", -- 468
+			midX, -- 468
+			midY, -- 468
+			gunW, -- 468
+			gunH, -- 468
+			{ -- 468
+				anchorX = 0.5, -- 469
+				anchorY = 0.5, -- 470
+				preserveAspect = true, -- 471
+				facing = f, -- 472
+				smooth = true, -- 473
+				layer = depthEnabled and depthOrder(soldier.depth, 6) or 6 -- 474
+			} -- 474
+		) then -- 474
+			local gunLen = cam:len(22) -- 476
+			fgDraw:drawSegment( -- 477
+				Vec2(midX - f * gunLen * 0.4, midY - 2), -- 477
+				Vec2(midX + f * gunLen * 0.25, midY + 1), -- 477
+				3.2, -- 477
+				Color(108, 74, 52, 255) -- 477
+			) -- 477
+			fgDraw:drawSegment( -- 478
+				Vec2(midX + f * gunLen * 0.1, midY + 1), -- 478
+				Vec2(midX + f * gunLen * 0.65, midY + 3), -- 478
+				1.8, -- 478
+				Color(148, 144, 134, 245) -- 478
+			) -- 478
+		end -- 478
+		fillRadialGlow( -- 480
+			fgGlow, -- 480
+			midX, -- 480
+			midY, -- 480
+			cam:len(15), -- 480
+			cam:len(11), -- 480
+			toColor(PALETTE.amberCore, 72), -- 480
+			Color(244, 234, 214, 0), -- 480
+			10 -- 480
+		) -- 480
+	end -- 480
+	return partnerPlaced -- 482
+end -- 420
+function ____exports.createCarryPosePlugin() -- 486
+	return __TS__New(____exports.CarryPosePlugin) -- 487
+end -- 486
+return ____exports -- 486
