@@ -75,6 +75,19 @@ function coverArt(solid: SolidSpec): AssetSlotKey {
     return solid.label.indexOf("柜") >= 0 || solid.label.indexOf("货") >= 0 ? "cover_wood" : "cover_stone";
 }
 
+const GUARD_LANTERN_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|guard_lantern_0",
+    "assets/art/actors_enemies_anim.clip|guard_lantern_1",
+    "assets/art/actors_enemies_anim.clip|guard_lantern_2",
+    "assets/art/actors_enemies_anim.clip|guard_lantern_3",
+];
+const GUARD_WRITE_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|guard_write_0",
+    "assets/art/actors_enemies_anim.clip|guard_write_1",
+    "assets/art/actors_enemies_anim.clip|guard_write_2",
+    "assets/art/actors_enemies_anim.clip|guard_write_3",
+];
+
 export class StageRenderer {
     /** 绘制背景三层（天穹 + 月亮/探照灯/北塔灯标 + 远景 + 中景 + 底部雾气） */
     drawBackdrop(
@@ -162,8 +175,9 @@ export class StageRenderer {
                 { layer: 1, opacity: 0.44 });
         }
         if (backdropKey === "street" || backdropKey === "checkpoint" || backdropKey === "prologue") {
+            const lanternSway = Math.sin(progress * 6 + cam.x * 0.004) * 2.5;
             assets.tryPlace("prop_lantern", "mid_lantern", w * (0.27 - progress * 0.18),
-                ground + cam.len(96), cam.len(20), cam.len(28), { layer: 2, opacity: 0.82 });
+                ground + cam.len(96), cam.len(20), cam.len(28), { layer: 2, opacity: 0.82, angle: lanternSway });
         }
     }
 
@@ -1100,13 +1114,14 @@ export class StageRenderer {
                 // 值夜室暖光背景
                 fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26), cam.len(96), cam.len(74),
                     Color(255, 198, 114, Math.round(52 * pulse)), Color(255, 168, 72, 0), 16);
-                // 值夜守卒手绘精灵（立于木案右后方；交物后切换伏案登记姿态）
+                // 值夜守卒高精像素 4 帧活态动画（提灯轻摆呼吸 / 伏案执笔书录）
                 const guardX = deskCx + cam.len(26);
+                const guardFrame = Math.floor(time * (writing ? 3.2 : 3.8)) % 4;
                 const guardClip = writing
-                    ? "assets/art/actors_extra.clip|tower_guard_write"
-                    : "assets/art/actors_extra.clip|tower_guard_lantern";
-                if (!assets.tryPlacePath(guardClip, "tower_guard_npc", guardX, groundY, cam.len(54), cam.len(84), {
-                    anchorX: 0.44,
+                    ? GUARD_WRITE_CLIPS[guardFrame]
+                    : GUARD_LANTERN_CLIPS[guardFrame];
+                if (!assets.tryPlacePath(guardClip, "tower_guard_npc", guardX, groundY, cam.len(54), cam.len(86), {
+                    anchorX: 0.5,
                     anchorY: 0,
                     preserveAspect: true,
                     facing: -1,

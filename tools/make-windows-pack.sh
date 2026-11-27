@@ -248,6 +248,8 @@ for required in \
     "Script/watch/targets/windows/index.lua" \
     "Script/watch/input/kbm_core.lua" \
     "Script/watch/fe/frontend.lua" \
+    "Script/watch/fe/renderer/anim_controller.lua" \
+    "Script/watch/fe/renderer/scene_fx.lua" \
     "assets/art/title.png" \
     "assets/art/brand/game_logo_h.png" \
     "assets/art/brand/game_logo_v.png" \
@@ -275,6 +277,16 @@ for required in \
     "assets/art/props_second_half.png" \
     "assets/art/actors-hd.clip" \
     "assets/art/actors-hd.png" \
+    "assets/art/actors_zhoushu_anim.clip" \
+    "assets/art/actors_zhoushu_anim.png" \
+    "assets/art/actors_xiaoman_anim.clip" \
+    "assets/art/actors_xiaoman_anim.png" \
+    "assets/art/actors_duo_anim.clip" \
+    "assets/art/actors_duo_anim.png" \
+    "assets/art/actors_enemies_anim.clip" \
+    "assets/art/actors_enemies_anim.png" \
+    "assets/art/vfx_ming_fx.clip" \
+    "assets/art/vfx_ming_fx.png" \
     "assets/art/zhoushu-run.png" \
     "assets/art/xiaoman-run.png" \
     "assets/art/zhoushu-run-transition.png" \

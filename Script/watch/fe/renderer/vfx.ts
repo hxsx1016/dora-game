@@ -13,6 +13,7 @@ import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/dep
 import { FrameEvents } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
+import { FootstepCue } from "Script/watch/fe/renderer/anim_controller";
 import {
     AmbientKind,
     PALETTE,
@@ -70,6 +71,17 @@ interface ImpactBurst {
     maxLife: number;
 }
 
+interface StepDustPuff {
+    x: number;
+    y: number;
+    depth: number;
+    facing: number;
+    life: number;
+    maxLife: number;
+    scale: number;
+    wide: boolean;
+}
+
 interface AmbientMote {
     fx: number; // 0..1 屏幕归一化位置
     fy: number;
@@ -81,12 +93,32 @@ interface AmbientMote {
 
 const AMBIENT_COUNT = 34;
 
+const MUZZLE_CLIPS = [
+    "assets/art/vfx_ming_fx.clip|muzzle_0",
+    "assets/art/vfx_ming_fx.clip|muzzle_1",
+    "assets/art/vfx_ming_fx.clip|muzzle_2",
+    "assets/art/vfx_ming_fx.clip|muzzle_3",
+];
+const SMOKE_CLIPS = [
+    "assets/art/vfx_ming_fx.clip|smoke_0",
+    "assets/art/vfx_ming_fx.clip|smoke_1",
+    "assets/art/vfx_ming_fx.clip|smoke_2",
+    "assets/art/vfx_ming_fx.clip|smoke_3",
+];
+const HIT_SPARK_CLIP = "assets/art/vfx_ming_fx.clip|hit_spark_0";
+const DEBRIS_CLIP = "assets/art/vfx_ming_fx.clip|debris_0";
+const STEP_DUST_CLIPS = [
+    "assets/art/vfx_ming_fx.clip|dust_0",
+    "assets/art/vfx_ming_fx.clip|dust_1",
+];
+
 export class VfxSystem {
     private sparks: Spark[] = [];
     private rings: SonicRing[] = [];
     private tracers: SlashTracer[] = [];
     private plumes: MuzzlePlume[] = [];
     private bursts: ImpactBurst[] = [];
+    private stepDusts: StepDustPuff[] = [];
     private motes: AmbientMote[] = [];
 
     /** 视觉受击红边脉冲（0..1） */
@@ -131,10 +163,45 @@ export class VfxSystem {
         this.tracers = [];
         this.plumes = [];
         this.bursts = [];
+        this.stepDusts = [];
         this.hitVignette = 0;
         this.deflectFlash = 0;
         this.visualHitstop = 0;
         this.crosshairKick = 0;
+    }
+
+    /** 接收角色脚步/急停/起跳/落地事件，生成贴地暗黑像素扬尘 */
+    ingestFootsteps(cues: FootstepCue[]): void {
+        for (let i = 0; i < cues.length; i++) {
+            const c = cues[i];
+            if (this.stepDusts.length >= 26) {
+                this.stepDusts.shift();
+            }
+            const wide = c.kind === "land" || c.kind === "brake";
+            const maxLife = c.kind === "land" ? 0.34 : (c.kind === "brake" ? 0.28 : 0.22);
+            this.stepDusts.push({
+                x: c.x,
+                y: c.y,
+                depth: c.depth,
+                facing: c.facing,
+                life: maxLife,
+                maxLife,
+                scale: (wide ? 1.15 : 0.78) * Math.max(0.6, c.strength),
+                wide,
+            });
+            if (c.kind === "land") {
+                this.stepDusts.push({
+                    x: c.x + c.facing * 8,
+                    y: c.y,
+                    depth: c.depth,
+                    facing: -c.facing,
+                    life: maxLife * 0.9,
+                    maxLife: maxLife * 0.9,
+                    scale: 0.92 * Math.max(0.6, c.strength),
+                    wide: true,
+                });
+            }
+        }
     }
 
     /** 根据后端边沿事件生成对应 ICEY 打击与交互特效 */
@@ -332,6 +399,18 @@ export class VfxSystem {
         }
         this.rings.length = w;
 
+        // 脚步/落地/急停贴地扬尘
+        w = 0;
+        for (i = 0; i < this.stepDusts.length; i++) {
+            const sd = this.stepDusts[i];
+            sd.life -= dt;
+            if (sd.life > 0) {
+                this.stepDusts[w] = sd;
+                w += 1;
+            }
+        }
+        this.stepDusts.length = w;
+
         // 环境氛围粒子
         for (i = 0; i < this.motes.length; i++) {
             const m = this.motes[i];
@@ -373,13 +452,21 @@ export class VfxSystem {
             fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 3.2 * k, toColor(outerCol, 88 * k));
             fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 1.3 * k, toColor(PALETTE.amberCore, 195 * k));
 
-            // 枪口明式鸟铳火药爆焰（手绘 vfx_muzzle_blast 沿弹道方向旋转，替代旧十字线段）
-            if (k > 0.45) {
-                const mk = (k - 0.45) / 0.55;
+            // 枪口明式鸟铳 4 帧暗黑像素爆焰（沿弹道旋转，替代单帧旧图）
+            if (k > 0.40) {
+                const mk = (k - 0.40) / 0.60;
+                const mIdx = Math.min(3, Math.floor((1 - mk) * 4));
                 const shotAngle = -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
-                const blastH = Math.max(18, cam.len(22 * (0.78 + 0.32 * mk)));
-                fillRadialGlow(fgGlow, x0, y0, 20 * mk, 16 * mk, toColor(PALETTE.amberCore, 128 * mk), Color(186, 126, 62, 0), 12);
-                if (!assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_muzzle_blast", "vfx_muzzle_" + i, x0, y0, blastH * 1.7, blastH, {
+                const blastH = Math.max(20, cam.len(26 * (0.82 + 0.34 * mk)));
+                fillRadialGlow(fgGlow, x0, y0, 22 * mk, 18 * mk, toColor(PALETTE.amberCore, 136 * mk), Color(186, 126, 62, 0), 12);
+                if (!assets.tryPlacePath(MUZZLE_CLIPS[mIdx], "vfx_muzzle_" + i, x0, y0, blastH * 1.6, blastH, {
+                    anchorX: 0.14,
+                    anchorY: 0.48,
+                    preserveAspect: true,
+                    angle: shotAngle,
+                    opacity: Math.min(1, mk * 1.2),
+                    layer: 9,
+                }) && !assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_muzzle_blast", "vfx_muzzle_" + i, x0, y0, blastH * 1.7, blastH, {
                     anchorX: 0.14,
                     anchorY: 0.42,
                     preserveAspect: true,
@@ -401,54 +488,93 @@ export class VfxSystem {
             }
         }
 
-        // 1b. 黑火药手绘硝烟团（随枪口散逸抬升）
+        // 1b. 黑火药 4 帧暗黑像素硝烟团（随枪口散逸抬升）
         for (i = 0; i < this.plumes.length; i++) {
             const pl = this.plumes[i];
             const k = pl.life / pl.maxLife;
             const grow = 1 - k;
-            const size = cam.len(18 + grow * 28);
-            assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_smoke_plume", "vfx_smoke_" + i, cam.sx(pl.x), cam.sy(pl.y), size, size, {
+            const sIdx = Math.min(3, Math.floor(grow * 4));
+            const size = cam.len(18 + grow * 30);
+            if (!assets.tryPlacePath(SMOKE_CLIPS[sIdx], "vfx_smoke_" + i, cam.sx(pl.x), cam.sy(pl.y), size, size, {
                 anchorX: 0.5,
                 anchorY: 0.5,
                 preserveAspect: true,
                 facing: pl.dir,
-                opacity: k * 0.68,
-                smooth: true,
+                opacity: k * 0.72,
                 layer: 8,
-            });
+            })) {
+                assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_smoke_plume", "vfx_smoke_" + i, cam.sx(pl.x), cam.sy(pl.y), size, size, {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    preserveAspect: true,
+                    facing: pl.dir,
+                    opacity: k * 0.68,
+                    smooth: true,
+                    layer: 8,
+                });
+            }
         }
 
-        // 1c. 弹着点手绘木石碎屑爆裂
+        // 1c. 弹着点暗黑像素星芒/碎屑爆裂
         for (i = 0; i < this.bursts.length; i++) {
             const bu = this.bursts[i];
             const k = bu.life / bu.maxLife;
-            const size = cam.len(16 + (1 - k) * 20);
-            assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_debris_burst", "vfx_impact_" + i, cam.sx(bu.x), cam.sy(bu.y), size, size, {
+            const size = cam.len(18 + (1 - k) * 22);
+            const clip = bu.hit ? HIT_SPARK_CLIP : DEBRIS_CLIP;
+            if (!assets.tryPlacePath(clip, "vfx_impact_" + i, cam.sx(bu.x), cam.sy(bu.y), size, size, {
                 anchorX: 0.5,
                 anchorY: 0.5,
                 preserveAspect: true,
-                color: bu.hit ? Color(246, 174, 152, 255) : Color(235, 224, 206, 255),
-                opacity: k * 0.88,
-                smooth: true,
+                opacity: k * 0.92,
                 layer: 9,
-            });
+            })) {
+                assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_debris_burst", "vfx_impact_" + i, cam.sx(bu.x), cam.sy(bu.y), size, size, {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    preserveAspect: true,
+                    color: bu.hit ? Color(246, 174, 152, 255) : Color(235, 224, 206, 255),
+                    opacity: k * 0.88,
+                    smooth: true,
+                    layer: 9,
+                });
+            }
         }
 
         if (this.deflectFlash > 0) {
             const k = this.deflectFlash;
             const dy = cam.sy(this.deflectY + (1 - k) * 11);
-            const height = cam.len(22 + (1 - k) * 16);
-            if (!assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_debris_burst", "blocked", cam.sx(this.deflectX), dy, height, height, {
+            const height = cam.len(22 + (1 - k) * 18);
+            if (!assets.tryPlacePath(DEBRIS_CLIP, "blocked", cam.sx(this.deflectX), dy, height, height, {
                 anchorX: 0.5,
                 anchorY: 0.5,
                 preserveAspect: true,
-                opacity: k * 0.92,
-                smooth: true,
+                opacity: k * 0.94,
                 layer: 8,
             })) {
                 assets.tryPlace("stone_chips", "blocked", cam.sx(this.deflectX), dy, height, height, {
                     opacity: k, layer: 8,
                 });
+            }
+        }
+
+        // 2. 脚步着地 / 急停 / 起跳 / 落地暗黑像素扬尘
+        for (i = 0; i < this.stepDusts.length; i++) {
+            const sd = this.stepDusts[i];
+            const k = sd.life / sd.maxLife;
+            const prog = 1 - k;
+            const sx = cam.sx(sd.x - sd.facing * prog * 9);
+            const sy = cam.sy(sd.y + prog * 1.5, sd.depth);
+            const size = cam.len((11 + prog * 14) * sd.scale);
+            const clip = STEP_DUST_CLIPS[sd.wide || prog > 0.45 ? 1 : 0];
+            if (!assets.tryPlacePath(clip, "vfx_step_dust_" + i, sx, sy, size * 1.3, size, {
+                anchorX: 0.5,
+                anchorY: 0,
+                preserveAspect: true,
+                facing: sd.facing,
+                opacity: k * 0.72,
+                layer: 6,
+            })) {
+                fgGlow.drawEllipse(Vec2(sx, sy + 1), size * 0.42, size * 0.14, Color(166, 154, 138, Math.round(110 * k)));
             }
         }
 
@@ -479,25 +605,27 @@ export class VfxSystem {
         }
     }
 
-    /** 绘制屏幕空间氛围粒子 + 暗朱受击墨边脉冲 */
-    drawScreenVfx(fgGlow: DrawNode.Type, w: number, h: number, roomKey: string): void {
-        const theme = themeOf(roomKey);
-        const kind = theme.ambient;
-        let i = 0;
-        for (i = 0; i < this.motes.length; i++) {
-            const m = this.motes[i];
-            const x = m.fx * w;
-            const y = m.fy * h;
-            const tw = 0.55 + 0.45 * Math.sin(m.phase);
-            if (kind === "drizzle") {
-                fgGlow.drawSegment(Vec2(x, y), Vec2(x + 4, y + 18), 0.85, Color(156, 174, 188, Math.round(44 * tw)));
-            } else if (kind === "ash") {
-                const c = roomKey === "gate" ? PALETTE.sealRedBright : PALETTE.amberDim;
-                fgGlow.drawDot(Vec2(x, y), m.size * 0.82, toColor(c, 78 * tw));
-            } else if (kind === "spores") {
-                fgGlow.drawDot(Vec2(x, y), m.size * 0.9, toColor(PALETTE.emerald, 82 * tw));
-            } else {
-                fgGlow.drawDot(Vec2(x, y), m.size * 0.95, toColor(PALETTE.amberCore, 94 * tw));
+    /** 绘制屏幕空间氛围粒子 + 暗朱受击墨边脉冲（像素模式由 SceneFxSystem 接管三层天气，此处仅保留受击红边） */
+    drawScreenVfx(fgGlow: DrawNode.Type, w: number, h: number, roomKey: string, drawAmbient: boolean = true): void {
+        if (drawAmbient) {
+            const theme = themeOf(roomKey);
+            const kind = theme.ambient;
+            let i = 0;
+            for (i = 0; i < this.motes.length; i++) {
+                const m = this.motes[i];
+                const x = m.fx * w;
+                const y = m.fy * h;
+                const tw = 0.55 + 0.45 * Math.sin(m.phase);
+                if (kind === "drizzle") {
+                    fgGlow.drawSegment(Vec2(x, y), Vec2(x + 4, y + 18), 0.85, Color(156, 174, 188, Math.round(44 * tw)));
+                } else if (kind === "ash") {
+                    const c = roomKey === "gate" ? PALETTE.sealRedBright : PALETTE.amberDim;
+                    fgGlow.drawDot(Vec2(x, y), m.size * 0.82, toColor(c, 78 * tw));
+                } else if (kind === "spores") {
+                    fgGlow.drawDot(Vec2(x, y), m.size * 0.9, toColor(PALETTE.emerald, 82 * tw));
+                } else {
+                    fgGlow.drawDot(Vec2(x, y), m.size * 0.95, toColor(PALETTE.amberCore, 94 * tw));
+                }
             }
         }
 

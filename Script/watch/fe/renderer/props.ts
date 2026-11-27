@@ -258,7 +258,10 @@ export class PropsRenderer {
         }, p, fadeDt) : 1;
         fgDraw.drawEllipse(Vec2(cx, baseY + 2), bw * 0.62, 5, Color(4, 6, 10, 150 * opacity));
 
-        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY, cam.len(artWidth), cam.len(artHeight), {
+        const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
+        const moved = Math.abs(axleX - c.startX) > 0.25;
+        const rollJitter = moved ? Math.abs(Math.sin(wheelSpin * 2)) * cam.len(0.85) : 0;
+        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY + rollJitter, cam.len(artWidth), cam.len(artHeight), {
             layer: raised ? depthOrder(depth, 2) : 2, opacity, color: occlusionTint(opacity),
         });
         if (!painted) {
@@ -271,7 +274,6 @@ export class PropsRenderer {
             fgDraw.drawSegment(Vec2(x0 - 2, bodyY1), Vec2(x1 + 2, bodyY1), 2.2, toColor(PALETTE.rimSilver, 220));
 
             // 旋转双轮（按位移真实滚动）
-            const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
             const wxA = x0 + bw * 0.24;
             const wxB = x1 - bw * 0.24;
             const wy = baseY + wr;

@@ -109,6 +109,8 @@ REQ_LUA=(
     Script/watch/input/touch_core.lua
     Script/watch/input/touch_interact_meta.lua
     Script/watch/input/touch_hud_landscape.lua
+    Script/watch/fe/renderer/anim_controller.lua
+    Script/watch/fe/renderer/scene_fx.lua
 )
 if [ "$PROFILE" = "android" ]; then
     REQ_LUA+=(

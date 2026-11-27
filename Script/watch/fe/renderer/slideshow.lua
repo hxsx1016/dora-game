@@ -351,158 +351,179 @@ function ____exports.drawPixelSlideshow(uiDraw, uiInkDraw, uiArt, keyframes, t, 
 			) -- 337
 		) -- 337
 	end -- 337
-	____exports.drawSlideFrameChrome( -- 341
-		uiDraw, -- 341
-		uiInkDraw, -- 341
-		uiArt, -- 341
-		shiftedRect, -- 341
-		uiW, -- 341
-		uiH, -- 341
-		opts -- 341
-	) -- 341
-	return activeIdx -- 342
+	local moteAlpha = baseOp * (1 - dipShade) * 0.58 -- 342
+	if moteAlpha > 0.04 then -- 342
+		do -- 342
+			local m = 0 -- 344
+			while m < 14 do -- 344
+				local seed = m * 37.3 + 11.7 -- 345
+				local u = (math.sin(seed) * 43758.5453 % 1 + 1) % 1 -- 346
+				local v = (math.sin(seed * 1.7) * 24634.6345 % 1 + 1) % 1 -- 347
+				local mx = shiftedRect.x + (u + t * (0.018 + m % 3 * 0.007)) % 1 * shiftedRect.w -- 348
+				local my = shiftedRect.y + (v + t * (0.012 + m % 2 * 0.008)) % 1 * shiftedRect.h -- 349
+				local tw = 0.45 + 0.55 * math.sin(t * 2.4 + m * 1.9) -- 350
+				local col = m % 3 == 0 and PALETTE.amberCore or PALETTE.jadeMist -- 351
+				uiInkDraw:drawDot( -- 352
+					Vec2(mx, my), -- 352
+					1.1 + m % 2 * 0.65, -- 352
+					toColor(col, 118 * tw * moteAlpha) -- 352
+				) -- 352
+				m = m + 1 -- 344
+			end -- 344
+		end -- 344
+	end -- 344
+	____exports.drawSlideFrameChrome( -- 356
+		uiDraw, -- 356
+		uiInkDraw, -- 356
+		uiArt, -- 356
+		shiftedRect, -- 356
+		uiW, -- 356
+		uiH, -- 356
+		opts -- 356
+	) -- 356
+	return activeIdx -- 357
 end -- 230
 --- 绘制统一宋明烟黛过场字幕条
-function ____exports.drawSlideSubtitle(uiDraw, uiInkDraw, uiArt, texts, keyPrefix, text, cx, cy, alpha, color, layer) -- 346
-	if color == nil then -- 346
-		color = PALETTE.textBright -- 356
-	end -- 356
-	if layer == nil then -- 356
-		layer = 8 -- 357
-	end -- 357
-	local a = clamp01(alpha) -- 359
-	if a <= 0.01 or text == "" then -- 359
-		return -- 361
-	end -- 361
-	local veilW = math.max( -- 363
-		320, -- 363
-		math.min(760, #text * 15 + 140) -- 363
-	) -- 363
-	drawSilkVeil( -- 364
-		uiDraw, -- 364
-		uiArt, -- 364
-		keyPrefix .. "_veil", -- 364
-		cx, -- 364
-		cy, -- 364
-		veilW, -- 364
-		44, -- 364
-		PALETTE.inkWash, -- 364
-		0.84 * a, -- 364
-		layer -- 364
-	) -- 364
-	drawHairline( -- 365
-		uiInkDraw, -- 365
-		uiArt, -- 365
-		keyPrefix .. "_hair", -- 365
-		cx, -- 365
-		cy + 20, -- 365
-		veilW * 0.62, -- 365
-		PALETTE.silkDim, -- 365
-		0.48 * a, -- 365
-		true, -- 365
-		layer + 1 -- 365
-	) -- 365
-	texts:put( -- 366
-		"sm", -- 366
-		text, -- 366
-		cx, -- 366
-		cy, -- 366
-		toColor(color), -- 366
-		0.5, -- 366
-		0.5, -- 366
-		"Center", -- 366
-		1.2, -- 366
-		a, -- 366
-		0.08 -- 366
-	) -- 366
-end -- 346
+function ____exports.drawSlideSubtitle(uiDraw, uiInkDraw, uiArt, texts, keyPrefix, text, cx, cy, alpha, color, layer) -- 361
+	if color == nil then -- 361
+		color = PALETTE.textBright -- 371
+	end -- 371
+	if layer == nil then -- 371
+		layer = 8 -- 372
+	end -- 372
+	local a = clamp01(alpha) -- 374
+	if a <= 0.01 or text == "" then -- 374
+		return -- 376
+	end -- 376
+	local veilW = math.max( -- 378
+		320, -- 378
+		math.min(760, #text * 15 + 140) -- 378
+	) -- 378
+	drawSilkVeil( -- 379
+		uiDraw, -- 379
+		uiArt, -- 379
+		keyPrefix .. "_veil", -- 379
+		cx, -- 379
+		cy, -- 379
+		veilW, -- 379
+		44, -- 379
+		PALETTE.inkWash, -- 379
+		0.84 * a, -- 379
+		layer -- 379
+	) -- 379
+	drawHairline( -- 380
+		uiInkDraw, -- 380
+		uiArt, -- 380
+		keyPrefix .. "_hair", -- 380
+		cx, -- 380
+		cy + 20, -- 380
+		veilW * 0.62, -- 380
+		PALETTE.silkDim, -- 380
+		0.48 * a, -- 380
+		true, -- 380
+		layer + 1 -- 380
+	) -- 380
+	texts:put( -- 381
+		"sm", -- 381
+		text, -- 381
+		cx, -- 381
+		cy, -- 381
+		toColor(color), -- 381
+		0.5, -- 381
+		0.5, -- 381
+		"Center", -- 381
+		1.2, -- 381
+		a, -- 381
+		0.08 -- 381
+	) -- 381
+end -- 361
 --- 小满单人线「冷月像素电影剧场」氛围调色与四周压边暗角。
 -- 绝不使用硬描边或多边形块，仅用克制冷靛月雾渐变与四角柔光暗晕衬托像素场景。
-function ____exports.drawChildColdMoonGrade(draw, glow, w, h, intensity, warmShift) -- 373
-	if intensity == nil then -- 373
-		intensity = 1 -- 378
-	end -- 378
-	if warmShift == nil then -- 378
-		warmShift = 0 -- 379
-	end -- 379
-	local k = clamp01(intensity) -- 381
-	if k <= 0.01 then -- 381
-		return -- 383
-	end -- 383
-	local coldAmt = k * (1 - clamp01(warmShift) * 0.72) -- 385
-	local zeroVoid = Color(10, 14, 22, 0) -- 386
-	fillVGradRect( -- 388
-		draw, -- 388
-		0, -- 388
-		h * 0.64, -- 388
-		w, -- 388
-		h * 0.36, -- 388
-		zeroVoid, -- 388
-		Color( -- 388
-			8, -- 388
-			12, -- 388
-			22, -- 388
-			math.floor(96 * coldAmt + 0.5) -- 388
-		) -- 388
-	) -- 388
-	fillVGradRect( -- 389
-		draw, -- 389
-		0, -- 389
-		0, -- 389
-		w, -- 389
-		h * 0.14, -- 389
-		Color( -- 389
-			6, -- 389
-			9, -- 389
-			16, -- 389
-			math.floor(115 * k + 0.5) -- 389
-		), -- 389
-		zeroVoid -- 389
-	) -- 389
-	fillHGradRect( -- 391
-		draw, -- 391
-		0, -- 391
-		0, -- 391
-		w * 0.14, -- 391
-		h, -- 391
-		Color( -- 391
-			7, -- 391
-			10, -- 391
-			18, -- 391
-			math.floor(112 * coldAmt + 0.5) -- 391
-		), -- 391
-		zeroVoid -- 391
-	) -- 391
-	fillHGradRect( -- 392
-		draw, -- 392
-		w * 0.86, -- 392
-		0, -- 392
-		w * 0.14, -- 392
-		h, -- 392
-		zeroVoid, -- 392
-		Color( -- 392
-			7, -- 392
-			10, -- 392
-			18, -- 392
-			math.floor(112 * coldAmt + 0.5) -- 392
-		) -- 392
-	) -- 392
-	if coldAmt > 0.05 then -- 392
-		fillRadialGlow( -- 395
-			glow, -- 396
-			w * 0.72, -- 397
-			h * 0.78, -- 398
-			w * 0.38, -- 399
-			h * 0.34, -- 400
-			Color( -- 401
-				138, -- 401
-				174, -- 401
-				206, -- 401
-				math.floor(24 * coldAmt + 0.5) -- 401
-			), -- 401
-			Color(24, 42, 68, 0), -- 402
-			14 -- 403
+function ____exports.drawChildColdMoonGrade(draw, glow, w, h, intensity, warmShift) -- 388
+	if intensity == nil then -- 388
+		intensity = 1 -- 393
+	end -- 393
+	if warmShift == nil then -- 393
+		warmShift = 0 -- 394
+	end -- 394
+	local k = clamp01(intensity) -- 396
+	if k <= 0.01 then -- 396
+		return -- 398
+	end -- 398
+	local coldAmt = k * (1 - clamp01(warmShift) * 0.72) -- 400
+	local zeroVoid = Color(10, 14, 22, 0) -- 401
+	fillVGradRect( -- 403
+		draw, -- 403
+		0, -- 403
+		h * 0.64, -- 403
+		w, -- 403
+		h * 0.36, -- 403
+		zeroVoid, -- 403
+		Color( -- 403
+			8, -- 403
+			12, -- 403
+			22, -- 403
+			math.floor(96 * coldAmt + 0.5) -- 403
 		) -- 403
-	end -- 403
-end -- 373
-return ____exports -- 373
+	) -- 403
+	fillVGradRect( -- 404
+		draw, -- 404
+		0, -- 404
+		0, -- 404
+		w, -- 404
+		h * 0.14, -- 404
+		Color( -- 404
+			6, -- 404
+			9, -- 404
+			16, -- 404
+			math.floor(115 * k + 0.5) -- 404
+		), -- 404
+		zeroVoid -- 404
+	) -- 404
+	fillHGradRect( -- 406
+		draw, -- 406
+		0, -- 406
+		0, -- 406
+		w * 0.14, -- 406
+		h, -- 406
+		Color( -- 406
+			7, -- 406
+			10, -- 406
+			18, -- 406
+			math.floor(112 * coldAmt + 0.5) -- 406
+		), -- 406
+		zeroVoid -- 406
+	) -- 406
+	fillHGradRect( -- 407
+		draw, -- 407
+		w * 0.86, -- 407
+		0, -- 407
+		w * 0.14, -- 407
+		h, -- 407
+		zeroVoid, -- 407
+		Color( -- 407
+			7, -- 407
+			10, -- 407
+			18, -- 407
+			math.floor(112 * coldAmt + 0.5) -- 407
+		) -- 407
+	) -- 407
+	if coldAmt > 0.05 then -- 407
+		fillRadialGlow( -- 410
+			glow, -- 411
+			w * 0.72, -- 412
+			h * 0.78, -- 413
+			w * 0.38, -- 414
+			h * 0.34, -- 415
+			Color( -- 416
+				138, -- 416
+				174, -- 416
+				206, -- 416
+				math.floor(24 * coldAmt + 0.5) -- 416
+			), -- 416
+			Color(24, 42, 68, 0), -- 417
+			14 -- 418
+		) -- 418
+	end -- 418
+end -- 388
+return ____exports -- 388

@@ -25,6 +25,7 @@ import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
 import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
+import { SceneFxSystem } from "Script/watch/fe/renderer/scene_fx";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { EscortWorldRenderer } from "Script/watch/fe/scenes/escort_world";
 import { ensureSecondHalfAssetsRegistered } from "Script/watch/fe/scenes/second_half_assets";
@@ -76,6 +77,7 @@ export class WatchFrontend {
     readonly escortWorld = new EscortWorldRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
+    readonly sceneFx = new SceneFxSystem();
     readonly vfx = new VfxSystem();
     readonly hud = new HudRenderer();
     readonly narrative = new NarrativeRenderer();
@@ -316,6 +318,7 @@ export class WatchFrontend {
         this.audio.stopRoomTransient();
         this.soundscape.resetForRoom(p);
         this.actors.reset(p);
+        this.sceneFx.reset(p.room.key);
         this.occlusion.reset();
         this.vfx.reset();
         this.hud.reset(p);
@@ -464,6 +467,7 @@ export class WatchFrontend {
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
         const safeDt = Math.min(0.05, Math.max(0, dt));
+        this.time += safeDt;
         if (this.toastTimer > 0) {
             this.toastTimer = Math.max(0, this.toastTimer - safeDt);
         }
@@ -494,6 +498,9 @@ export class WatchFrontend {
             uiScale,
             this.stageVp.safeUi,
         );
+        if (this.screen === "title") {
+            this.sceneFx.drawTitleAtmosphere(this.bgGlow, this.fgGlow, this.backdropArt, this.worldArt, w, h, this.time);
+        }
         this.drawToast(w / uiScale);
         this.finishFrame();
         return act;
@@ -627,6 +634,8 @@ export class WatchFrontend {
             this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
             this.soundscape.updatePlay(worldDt, p, view, this.audio);
             this.actors.update(worldDt, p);
+            this.vfx.ingestFootsteps(this.actors.drainFootsteps());
+            this.sceneFx.update(worldDt, p, this.cam);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
             this.hud.update(safeDt, p);
             this.narrative.update(safeDt, p, ev, input.frameInteractPressed);
@@ -649,6 +658,7 @@ export class WatchFrontend {
         }
         if (view.visualMode === "pixel") {
             this.escortWorld.drawBackdropOverlay(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time, this.escortTowerDraw);
+            this.sceneFx.drawBackdropFx(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam);
         }
 
         // 2. 逻辑平面建筑与地面（可由插件接管；淡化吃 worldDt）
@@ -676,6 +686,7 @@ export class WatchFrontend {
         }
         if (view.visualMode === "pixel") {
             this.escortWorld.drawWorldSetpieces(this.fgDraw, this.fgGlow, this.worldArt, p, view, this.cam, this.time);
+            this.sceneFx.drawWorldFx(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam);
         }
 
         // 4. 关节剪影角色与插件角色叠层（博物馆态由 WellMuseumPlugin 全权绘制，防止暂停垂纱下透出明初序章精灵；背负态收净原生同伴孤儿脚影）
@@ -704,8 +715,9 @@ export class WatchFrontend {
         if (view.visualMode === "pixel") {
             this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
             this.escortWorld.drawForegroundFraming(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
+            this.sceneFx.drawForegroundWeather(this.fgGlow, p, this.cam, w, h);
         }
-        this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
+        this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key, view.visualMode !== "pixel");
 
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
         let action: MenuAction = { type: "none" };
