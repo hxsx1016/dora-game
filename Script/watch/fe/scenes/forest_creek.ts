@@ -477,64 +477,52 @@ export class ForestCreekScene {
             { bucket: LP_BUCKET.BACKDROP },
         );
 
-        // 2. 远景密林多层古松（三层交错低模松冠 + 渐细树干，杜绝单调单三角几何感）
+        // 2. 远景密林手绘盘枝古松立牌（彻底淘汰三层三角形几何松，交替使用 pine_gnarled_a / pine_gnarled_b）
         const treeXs = [80, 210, 360, 510, 670, 840, 1010, 1180, 1290];
         let i = 0;
         for (i = 0; i < treeXs.length; i++) {
             const tx = ox + treeXs[i];
             const tz = 185 + (i % 3) * 42;
-            const tw = 12 + (i % 2) * 5;
-            scene.addBox({
-                x0: tx - tw * 0.5,
-                x1: tx + tw * 0.5,
-                y0: -20,
-                y1: 185 + (i % 2) * 20,
-                z0: tz,
-                z1: tz + 16,
-                material: MING_MATERIALS.distantWall,
+            const useB = (i % 2) === 1;
+            const framePath = useB
+                ? "assets/art/diorama_cutouts.clip|pine_gnarled_b"
+                : "assets/art/diorama_cutouts.clip|pine_gnarled_a";
+            const treeH = 215 + (i % 3) * 26;
+            const treeW = useB ? treeH * (308 / 364) : treeH * (400 / 310);
+            const depthDim = Math.max(0.45, 1 - (tz - 170) / 360);
+            scene.addCutout3D(framePath, tx, -12, tz, treeW, treeH, {
                 bucket: LP_BUCKET.BACKDROP,
-                edgeWidth: 0,
+                facing: (i % 3 === 0) ? -1 : 1,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(
+                    Math.round(92 * depthDim + 18),
+                    Math.round(118 * depthDim + 24),
+                    Math.round(124 * depthDim + 28),
+                    255,
+                ),
+                opacity: 0.92,
+                sortBias: 0.04 + (i % 3) * 0.01,
             });
-            // 三层错落低模松冠（下宽上收、略带风偏）
-            const lean = ((i % 3) - 1) * 7;
-            const baseH = 92 + (i % 2) * 14;
-            let tier = 0;
-            for (tier = 0; tier < 3; tier++) {
-                const ty0 = baseH + tier * 32;
-                const ty1 = ty0 + 52 - tier * 6;
-                const half = 50 - tier * 11;
-                const colShift = tier * 4;
-                scene.addTri3D(
-                    vec3(tx - half + lean * 0.4, ty0, tz - 4 - tier * 2),
-                    vec3(tx + half + lean * 0.4, ty0 + 4, tz - 4 - tier * 2),
-                    vec3(tx + lean, ty1, tz + 4),
-                    { base: rgba(18 + colShift, 30 + colShift, 32 + colShift, 255) },
-                    { bucket: LP_BUCKET.BACKDROP, sortBias: 0.04 + tier * 0.01 },
-                );
-            }
         }
 
-        // 3. 远山北塔实景剪影（位于溪湾尽头右上方 x = 1525, z = 340；进入溪湾前被前景垂枝遮挡，步上溪岸才露真灯！）
+        // 3. 远山北塔手绘重檐实景立牌（位于溪湾尽头右上方 x = 1525, z = 340；进入溪湾前被前景垂枝遮挡，步上溪岸才露真灯！）
         const towerX = ox + 1525;
-        scene.addBox({
-            x0: towerX - 24,
-            x1: towerX + 24,
-            y0: 44,
-            y1: 174,
-            z0: 332,
-            z1: 356,
-            material: MING_MATERIALS.distantWall,
-            bucket: LP_BUCKET.BACKDROP,
-            sortBias: 0.12,
-            edgeWidth: 0,
-        });
-        // 明代望塔重檐屋顶
-        scene.addTri3D(
-            vec3(towerX - 34, 174, 330),
-            vec3(towerX + 34, 174, 330),
-            vec3(towerX, 200, 344),
-            MING_MATERIALS.mingTile,
-            { bucket: LP_BUCKET.BACKDROP, sortBias: 0.14 },
+        scene.addCutout3D(
+            "assets/art/diorama_cutouts.clip|north_tower_distant",
+            towerX,
+            34,
+            340,
+            126,
+            162,
+            {
+                bucket: LP_BUCKET.BACKDROP,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(154, 174, 192, 255),
+                opacity: 0.95,
+                sortBias: 0.14,
+            },
         );
 
         // 4. 山谷冷雾带
@@ -620,39 +608,27 @@ export class ForestCreekScene {
             { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.04, subdivX: 6, subdivY: 4 },
         );
 
-        // 2. 中景古松树干与分层松冠（z = 36..82，带自然锥形树干、斜枝与多层墨绿针叶冠，摆脱黑方柱观感）
+        // 2. 中景手绘盘枝古松立牌（z = 38..56，彻底替换直杆 + 三角几何树）
         const midTrunks = [150, 415, 650, 910, 1255];
         let i = 0;
         for (i = 0; i < midTrunks.length; i++) {
             const tx = ox + midTrunks[i];
-            const tz = 38 + (i % 2) * 18;
-            const halfW = 10 + (i % 2) * 2;
-            const topW = halfW * 0.62;
-            // 微收分古松树干
-            scene.addQuad3D(
-                vec3(tx - halfW, -10, tz),
-                vec3(tx + halfW, -10, tz),
-                vec3(tx + topW, 205, tz),
-                vec3(tx - topW, 205, tz),
-                MAT_PINE_TRUNK,
-                { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.7 },
-            );
-            // 侧向低垂古松枝与两层冷绿松针冠
-            const bDir = i % 2 === 0 ? 1 : -1;
-            scene.addTri3D(
-                vec3(tx - topW * 0.5, 118, tz - 2),
-                vec3(tx + bDir * 56, 108, tz - 4),
-                vec3(tx + bDir * 12, 142, tz - 2),
-                MAT_PINE_NEEDLE,
-                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.08, edgeWidth: 0.6 },
-            );
-            scene.addTri3D(
-                vec3(tx - bDir * 44, 146, tz - 2),
-                vec3(tx + bDir * 48, 152, tz - 3),
-                vec3(tx, 198, tz - 2),
-                MAT_PINE_NEEDLE,
-                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 0.6 },
-            );
+            const tz = 42 + (i % 2) * 18;
+            const useB = (i % 2) === 0;
+            const framePath = useB
+                ? "assets/art/diorama_cutouts.clip|pine_gnarled_b"
+                : "assets/art/diorama_cutouts.clip|pine_gnarled_a";
+            const treeH = 228 + (i % 2) * 24;
+            const treeW = useB ? treeH * (308 / 364) : treeH * (400 / 310);
+            scene.addCutout3D(framePath, tx, -8, tz, treeW, treeH, {
+                bucket: LP_BUCKET.MIDGROUND,
+                facing: (i % 2 === 0) ? 1 : -1,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(142, 164, 168, 255),
+                opacity: 0.96,
+                sortBias: 0.06,
+            });
         }
 
         // 3. 严格贴合 rooms.ts 两处矮台（520..640 / 980..1100，高 22）的盘结树根与青石坎
@@ -673,37 +649,22 @@ export class ForestCreekScene {
         }
 
         // 4. 双岔路自然形体辨识（严格对齐 FOREST_ROOM 与 play.ts 判定区，不摆路牌、不画灯带）：
-        //    4a. 树根窄洞（严格对齐后端 300..380 / 300..460 蹲行隐蔽段，盘结有机树根低拱，仅容小满伏身钻过、犬挤不进）
-        scene.addTri3D(
-            vec3(ox + 286, 0, 12),
-            vec3(ox + 318, 12, 12),
-            vec3(ox + 306, 76, 22),
-            MAT_ROOT_ARCH,
-            { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.9 },
-        );
-        scene.addTri3D(
-            vec3(ox + 372, 12, 12),
-            vec3(ox + 412, 0, 12),
-            vec3(ox + 382, 78, 22),
-            MAT_ROOT_ARCH,
-            { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.9 },
-        );
-        scene.addQuad3D(
-            vec3(ox + 298, 48, 14),
-            vec3(ox + 394, 52, 14),
-            vec3(ox + 384, 86, 36),
-            vec3(ox + 306, 82, 36),
-            MAT_ROOT_ARCH,
-            { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 1.0 },
-        );
-        // 树根洞内暗影与冷月微光缝（纯自然形体提示可蹲钻）
-        scene.addQuad3D(
-            vec3(ox + 306, 0, 34),
-            vec3(ox + 382, 0, 34),
-            vec3(ox + 376, 48, 34),
-            vec3(ox + 312, 48, 34),
-            { base: rgba(10, 16, 18, 215), edge: rgba(164, 192, 188, 130) },
-            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: -0.05, edgeWidth: 1.0 },
+        //    4a. 手绘苔藓盘根拱洞（严格对齐后端 300..380 蹲行隐蔽段，仅容小满伏身钻过、犬挤不进）
+        scene.addCutout3D(
+            "assets/art/diorama_cutouts.clip|root_archway",
+            ox + 348,
+            -4,
+            18,
+            148,
+            100,
+            {
+                bucket: LP_BUCKET.MIDGROUND,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(176, 194, 186, 255),
+                opacity: 0.98,
+                sortBias: 0.14,
+            },
         );
         //    4b. 旧渠（严格对齐后端 700..790 站跑快行段：后排凹陷青石盖板与掀角石板，以冷月湿石反光自然区分）
         scene.addBox({
@@ -950,7 +911,7 @@ export class ForestCreekScene {
     drawForegroundOverlay(
         uiDraw: DrawNode.Type,
         _uiInkDraw: DrawNode.Type,
-        _uiArt: AssetSlotHost,
+        uiArt: AssetSlotHost,
         _uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): boolean {
@@ -981,77 +942,74 @@ export class ForestCreekScene {
             }
         }
 
-        // 2. 溪湾前景垂枝（粗枝干 + 错落垂叶群，初入溪湾自然遮挡真塔灯、只见脚边水面碎影；
-        //    随玩家走上溪岸 reveal 0 -> 1 自然向两侧拨开，露出真北塔灯火！）
+        // 2. 溪湾前景手绘垂枝剪影（fg_pine_bough：初入溪湾自然遮挡真塔灯、只见脚边水面碎影；
+        //    随玩家走上溪岸 reveal 0 -> 1 自然向左右轻盈拨开，露出远山真北塔灯火！）
         const nearCreek = smoothstep(ox + 1060, ox + 1240, p.player.x);
         if (nearCreek > 0.02) {
-            const w = cam.viewW;
-            const h = cam.viewH;
-            const partShift = this.creekReveal * w * 0.38;
-            const liftShift = this.creekReveal * h * 0.16;
-            const canopyAlpha = Math.round(244 * nearCreek * (1 - this.creekReveal * 0.28));
-            const cTrunk = Color(14, 18, 18, canopyAlpha);
-            const cDark = Color(11, 20, 20, canopyAlpha);
-            const cLeaf = Color(22, 36, 33, Math.round(canopyAlpha * 0.94));
-            const sway = Math.sin(this.animTime * 1.45) * 5;
+            const uw = ctx.uiW;
+            const uh = ctx.uiH;
+            const partShift = this.creekReveal * uw * 0.40;
+            const liftShift = this.creekReveal * uh * 0.18;
+            const boughOp = clamp01(nearCreek * (1 - this.creekReveal * 0.34));
+            const sway = Math.sin(this.animTime * 1.45) * 6;
+            const boughTint = Color(34, 52, 50, 255);
 
-            // 斜探的粗松枝干（自右上角自然伸展至中右上方）
-            drawUiQuad(
-                uiDraw,
-                { x: w * 0.56 + partShift + sway * 0.4, y: h * 0.67 + liftShift },
-                { x: w * 1.06 + partShift, y: h * 0.84 + liftShift },
-                { x: w * 1.06 + partShift, y: h * 0.96 + liftShift },
-                { x: w * 0.54 + partShift + sway * 0.4, y: h * 0.74 + liftShift },
-                cTrunk,
-                cDark,
-                inv,
+            // 右上主垂松枝（遮挡远山北塔，随 creekReveal 向右上方自然拨开）
+            uiArt.tryPlacePath(
+                "assets/art/diorama_cutouts.clip|fg_pine_bough",
+                "forest_fg_bough_right_main",
+                uw * 0.78 + partShift + sway * 0.5,
+                uh * 0.78 + liftShift,
+                uw * 0.56,
+                uh * 0.46,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    facing: -1,
+                    angle: 4 + Math.sin(this.animTime * 1.2) * 1.4,
+                    color: boughTint,
+                    opacity: 0.96 * boughOp,
+                    smooth: true,
+                    layer: 0,
+                },
             );
-            // 错落有机垂叶簇（覆盖 0.50w..1.05w 上方，去规整方块与等腰三角）
-            const clusters = [
-                { fx: 0.56, fy: 0.66, rw: 118, rh: 92, drop: 112 },
-                { fx: 0.68, fy: 0.62, rw: 138, rh: 108, drop: 134 },
-                { fx: 0.81, fy: 0.64, rw: 146, rh: 112, drop: 124 },
-                { fx: 0.94, fy: 0.70, rw: 142, rh: 118, drop: 116 },
-                { fx: 0.74, fy: 0.78, rw: 165, rh: 110, drop: 92 },
-            ];
-            let ci = 0;
-            for (ci = 0; ci < clusters.length; ci++) {
-                const cl = clusters[ci];
-                const bx = w * cl.fx + partShift + sway * (0.5 + ci * 0.12);
-                const by = h * cl.fy + liftShift;
-                drawUiTri(
-                    uiDraw,
-                    { x: bx - cl.rw * 0.65, y: by + cl.rh * 0.85 },
-                    { x: bx + cl.rw * 0.72, y: by + cl.rh * 0.62 },
-                    { x: bx - cl.rw * 0.12 + sway * 0.6, y: by - cl.drop * 0.68 },
-                    cDark,
-                    cDark,
-                    cLeaf,
-                    inv,
-                );
-                drawUiTri(
-                    uiDraw,
-                    { x: bx - cl.rw * 0.28, y: by + cl.rh * 0.92 },
-                    { x: bx + cl.rw * 0.88, y: by + cl.rh * 0.82 },
-                    { x: bx + cl.rw * 0.24 + sway * 0.8, y: by - cl.drop * 0.54 },
-                    cDark,
-                    cTrunk,
-                    cLeaf,
-                    inv,
-                );
-            }
-
-            // 左侧平衡垂枝（随步行向左轻微让开）
-            const lShift = this.creekReveal * w * 0.22;
-            drawUiTri(
-                uiDraw,
-                { x: -30 - lShift, y: h + 16 },
-                { x: w * 0.30 - lShift, y: h + 16 },
-                { x: w * 0.12 - lShift - sway * 0.5, y: h * 0.68 + liftShift * 0.5 },
-                cDark,
-                cDark,
-                cLeaf,
-                inv,
+            uiArt.tryPlacePath(
+                "assets/art/diorama_cutouts.clip|fg_pine_bough",
+                "forest_fg_bough_right_sub",
+                uw * 0.94 + partShift * 0.85 + sway * 0.3,
+                uh * 0.66 + liftShift * 0.8,
+                uw * 0.42,
+                uh * 0.34,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    facing: -1,
+                    angle: -8,
+                    color: Color(24, 38, 38, 255),
+                    opacity: 0.90 * boughOp,
+                    smooth: true,
+                    layer: 0,
+                },
+            );
+            // 左上平衡垂松枝（随步行向左轻微让开）
+            const lShift = this.creekReveal * uw * 0.24;
+            uiArt.tryPlacePath(
+                "assets/art/diorama_cutouts.clip|fg_pine_bough",
+                "forest_fg_bough_left",
+                uw * 0.16 - lShift - sway * 0.4,
+                uh * 0.82 + liftShift * 0.55,
+                uw * 0.44,
+                uh * 0.36,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    facing: 1,
+                    angle: -6 - Math.sin(this.animTime * 1.1) * 1.2,
+                    color: boughTint,
+                    opacity: 0.88 * boughOp,
+                    smooth: true,
+                    layer: 0,
+                },
             );
         }
 

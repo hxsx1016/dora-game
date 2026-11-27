@@ -106,6 +106,7 @@ export interface LowpolyCutoutOptions {
     angle?: number;
     opacity?: number;
     tint?: RGBA;
+    color?: RGBA;
     unlit?: boolean;
     smooth?: boolean;
     additive?: boolean;
@@ -731,7 +732,7 @@ export class LowpolyScene {
         if (screenW < 1 || screenH < 1) {
             return;
         }
-        const baseTint = opts.tint ?? rgba(240, 244, 248, 255);
+        const baseTint = opts.tint ?? opts.color ?? rgba(240, 244, 248, 255);
         let finalRgba = baseTint;
         if (opts.unlit !== true) {
             const m = clamp01(this.proj.morph);

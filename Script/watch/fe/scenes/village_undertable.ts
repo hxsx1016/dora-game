@@ -611,24 +611,38 @@ export class VillageUndertableScene {
             { bucket: LP_BUCKET.BACKDROP },
         );
 
-        // 远景民居白灰残墙与歇山屋檐轮廓
-        scene.addBox({
-            x0: ox + 460,
-            x1: ox + 690,
-            y0: 0,
-            y1: 118,
-            z0: 210,
-            z1: 260,
-            material: MING_MATERIALS.distantWall,
-            bucket: LP_BUCKET.BACKDROP,
-            edgeWidth: 0,
-        });
-        scene.addTri3D(
-            vec3(ox + 446, 118, 206),
-            vec3(ox + 704, 118, 206),
-            vec3(ox + 575, 162, 232),
-            MING_MATERIALS.mingTile,
-            { bucket: LP_BUCKET.BACKDROP, sortBias: 0.04 },
+        // 远景民居残垣飞檐与远山北塔实景立牌（替换纯三角几何屋顶）
+        scene.addCutout3D(
+            "assets/art/diorama_cutouts.clip|ming_eave_ruin",
+            ox + 575,
+            18,
+            218,
+            238,
+            156,
+            {
+                bucket: LP_BUCKET.BACKDROP,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(112, 126, 144, 255),
+                opacity: 0.90,
+                sortBias: 0.04,
+            },
+        );
+        scene.addCutout3D(
+            "assets/art/diorama_cutouts.clip|north_tower_distant",
+            ox + 668,
+            46,
+            405,
+            108,
+            138,
+            {
+                bucket: LP_BUCKET.BACKDROP,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(132, 146, 168, 255),
+                opacity: 0.88,
+                sortBias: 0.06,
+            },
         );
 
         // 远景冷灶室内后壁（左半室，x = 0..438，z = 110..150，构成门内与院外强明暗分界）
@@ -911,7 +925,7 @@ export class VillageUndertableScene {
     }
 
     private buildCulvertEntrance(scene: LowpolyScene, cx: number): void {
-        // 凹陷暗渠石框（x = cx-15..cx+15，y = -10..18，z = 12..48，不挡地面碰撞但清晰标明下穿口）
+        // 凹陷暗渠石框底台（不挡地面碰撞但清晰标明下穿口）
         scene.addBox({
             x0: cx - 18,
             x1: cx + 18,
@@ -922,44 +936,25 @@ export class VillageUndertableScene {
             material: MAT_CULVERT_STONE,
             bucket: LP_BUCKET.WALK_DECK,
             highlightTopEdge: true,
-            edgeWidth: 1.0,
+            edgeWidth: 0.8,
         });
-        // 暗渠黑洞内口（纯暗，与上方亮石沿形成高灰度对比）
-        scene.addQuad3D(
-            vec3(cx - 12, 1, 22),
-            vec3(cx + 12, 1, 22),
-            vec3(cx + 10, 26, 22),
-            vec3(cx - 10, 26, 22),
-            { base: rgba(6, 9, 14, 255) },
-            { bucket: LP_BUCKET.MIDGROUND, unlit: true, sortBias: 0.35, edgeColor: rgba(186, 204, 222, 185), edgeWidth: 1.2 },
+        // 手绘石拱暗渠栅栏入口（diorama_cutouts.clip|culvert_arch）
+        scene.addCutout3D(
+            "assets/art/diorama_cutouts.clip|culvert_arch",
+            cx,
+            0,
+            20,
+            46,
+            33,
+            {
+                bucket: LP_BUCKET.MIDGROUND,
+                anchorX: 0.5,
+                anchorY: 0,
+                color: rgba(182, 198, 214, 255),
+                opacity: 0.98,
+                sortBias: 0.32,
+            },
         );
-        // 掀开一角的木翻板与暗铁格栅条
-        scene.addBox({
-            x0: cx - 15,
-            x1: cx - 11,
-            y0: 2,
-            y1: 24,
-            z0: 14,
-            z1: 22,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            highlightTopEdge: true,
-        });
-        let gi = 0;
-        for (gi = 0; gi < 3; gi++) {
-            const gx = cx - 6 + gi * 6;
-            scene.addBox({
-                x0: gx - 1,
-                x1: gx + 1,
-                y0: 2,
-                y1: 24,
-                z0: 18,
-                z1: 21,
-                material: MING_MATERIALS.mingIron,
-                bucket: LP_BUCKET.PROP,
-                sortBias: 0.1,
-            });
-        }
     }
 
     private buildSoftDirtPatch(scene: LowpolyScene, softX: number): void {
@@ -1025,49 +1020,26 @@ export class VillageUndertableScene {
             bucket: LP_BUCKET.PROP,
             sortBias: 0.02,
         });
-        // 铁盆受击时产生阻尼倾角微摆（盆沿先颤动！）
+        // 手绘厚壁旧铁盆立牌（受击时随 basinShakeAngle 产生阻尼倾角微摆）
         const tilt = this.basinShakeAngle;
-        const liftL = Math.sin(tilt) * 14;
-        const liftR = -liftL;
         const shiftX = Math.sin(tilt * 1.4) * 2.5;
-        const baseY = 3;
-        const topY = 14.5;
         const bx = basinX + shiftX;
-
-        // 铁盆外壁（梯形斜面，宽口窄底，区别于平铺砖块）
-        scene.addQuad3D(
-            vec3(bx - 11, baseY + Math.max(0, liftL * 0.4), -8),
-            vec3(bx + 11, baseY + Math.max(0, liftR * 0.4), -8),
-            vec3(bx + 16, topY + liftR, -12),
-            vec3(bx - 16, topY + liftL, -12),
-            MAT_IRON_BASIN,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.25, edgeWidth: 1.2 },
-        );
-        // 铁盆左斜壁与右斜壁
-        scene.addQuad3D(
-            vec3(bx - 11, baseY + Math.max(0, liftL * 0.4), 10),
-            vec3(bx - 11, baseY + Math.max(0, liftL * 0.4), -8),
-            vec3(bx - 16, topY + liftL, -12),
-            vec3(bx - 16, topY + liftL, 14),
-            MAT_IRON_BASIN,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.22, edgeWidth: 1.0 },
-        );
-        scene.addQuad3D(
-            vec3(bx + 11, baseY + Math.max(0, liftR * 0.4), -8),
-            vec3(bx + 11, baseY + Math.max(0, liftR * 0.4), 10),
-            vec3(bx + 16, topY + liftR, 14),
-            vec3(bx + 16, topY + liftR, -12),
-            MAT_IRON_BASIN,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.22, edgeWidth: 1.0 },
-        );
-        // 铁盆内凹暗底与外翻盆沿亮边（在阴影和灰度里一眼认出“盆”）
-        scene.addQuad3D(
-            vec3(bx - 14, topY - 1 + liftL, -10),
-            vec3(bx + 14, topY - 1 + liftR, -10),
-            vec3(bx + 14, topY - 1 + liftR, 12),
-            vec3(bx - 14, topY - 1 + liftL, 12),
-            { base: rgba(24, 30, 40, 255), edge: rgba(232, 238, 246, 235) },
-            { bucket: LP_BUCKET.PROP, sortBias: 0.28, edgeWidth: 1.5 },
+        scene.addCutout3D(
+            "assets/art/diorama_cutouts.clip|iron_basin",
+            bx,
+            2,
+            -8,
+            38,
+            17.5,
+            {
+                bucket: LP_BUCKET.PROP,
+                anchorX: 0.5,
+                anchorY: 0,
+                angle: -(tilt * 180) / Math.PI,
+                color: rgba(214, 224, 236, 255),
+                opacity: 0.99,
+                sortBias: 0.28,
+            },
         );
     }
 
@@ -1300,7 +1272,7 @@ export class VillageUndertableScene {
         const p = ctx.p;
         const cam = ctx.cam;
         if (p.room.scavenger !== undefined) {
-            this.drawScavengerShoeOverlay(fgDraw, fgGlow, p, cam);
+            this.drawScavengerShoeOverlay(fgDraw, fgGlow, worldArt, p, cam);
         }
 
         // 暂停态下 uiDraw 不运行，使用 worldArt 贴合同一木桌真实尺度兜底，绝不弹出巨型黑块
@@ -1334,6 +1306,7 @@ export class VillageUndertableScene {
     private drawScavengerShoeOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
     ): void {
@@ -1341,56 +1314,47 @@ export class VillageUndertableScene {
         const by = cam.sy(p.room.scavenger !== undefined ? p.room.scavenger.y : 0);
         const f = this.shoeFacing >= 0 ? 1 : -1;
         const moving = p.scavState === "patrol" || p.scavState === "walk" || p.scavState === "back" || p.scavState === "chase";
-        const stride = moving ? Math.sin(this.scavStridePhase) * cam.len(7.2) : 0;
         const pausedToe = this.shoeToePauseTimer > 0;
 
-        // 1. 地面月光擦亮底带（柔和自然地把阴影里的鞋底从深色地面托出，确保灰度高对比且不生硬）
-        fillRadialGlow(fgGlow, cx + f * cam.len(4), by + 2, cam.len(32), cam.len(8), Color(196, 208, 220, 48), Color(156, 172, 190, 0), 14);
-        fgDraw.drawEllipse(Vec2(cx + f * cam.len(2), by + 1), cam.len(19), cam.len(3.4), Color(92, 102, 114, 72));
+        // 1. 地面月光擦亮底带（柔和把阴影里的草鞋脚步从深色地面托出，确保灰度高对比）
+        fillRadialGlow(fgGlow, cx + f * cam.len(4), by + 2, cam.len(34), cam.len(9), Color(196, 208, 220, 52), Color(156, 172, 190, 0), 14);
+        fgDraw.drawEllipse(Vec2(cx + f * cam.len(2), by + 1), cam.len(19), cam.len(3.4), Color(74, 82, 92, 68));
 
-        // 2. 整双草鞋 / 布鞋鞋底（贴合像素双足，明确区分鞋跟、鞋弓与朝向鞋尖，去生硬白折线）
-        const drawSingleShoe = (footX: number, liftY: number, isFront: boolean): void => {
-            const heelX = footX - f * cam.len(4.8);
-            const midX = footX + f * cam.len(1.8);
-            const toeX = footX + f * cam.len(7.6);
-            const soleY = by + 0.8 + liftY;
-            const shoeH = cam.len(4.4);
-            // 鞋体暗麻布与鞋底厚度
-            fgDraw.drawPolygon([
-                Vec2(heelX, soleY),
-                Vec2(toeX, soleY),
-                Vec2(toeX - f * cam.len(1.0), soleY + shoeH * 0.56),
-                Vec2(midX, soleY + shoeH * 0.96),
-                Vec2(heelX + f * cam.len(0.6), soleY + shoeH * 0.86),
-            ], isFront ? Color(68, 58, 48, 250) : Color(46, 40, 34, 240));
-            // 麻绳编织鞋底侧缘（暗处与灰度下清晰可读鞋底朝向）
-            const soleCol = isFront ? Color(198, 192, 178, 232) : Color(148, 144, 134, 195);
-            fgDraw.drawSegment(Vec2(heelX, soleY + 0.6), Vec2(toeX, soleY + 0.6), 1.5, soleCol);
-            // 鞋尖受侧光微亮弧面
-            fgDraw.drawSegment(Vec2(toeX - f * cam.len(1.2), soleY + 0.8), Vec2(toeX - f * cam.len(1.4), soleY + shoeH * 0.56), 1.3, Color(214, 210, 198, isFront ? 220 : 165));
-            // 砸硬砖鞋尖微顿时的瞬间警觉压重微光
-            if (isFront && pausedToe) {
-                fgGlow.drawDot(Vec2(toeX, soleY + 1.5), 3.0, Color(236, 218, 178, 155));
-            }
-        };
-
-        const backLift = moving ? Math.max(0, -Math.sin(this.scavStridePhase)) * cam.len(2.4) : 0;
-        const frontLift = moving ? Math.max(0, Math.sin(this.scavStridePhase)) * cam.len(2.8) : 0;
-        drawSingleShoe(cx - stride - f * cam.len(3.5), backLift, false);
-        drawSingleShoe(cx + stride + f * cam.len(4.0), frontLift, true);
+        // 2. 手绘拾荒者绑腿草鞋脚步立牌（diorama_cutouts.clip|scav_legs_a / scav_legs_b，与像素步态同步）
+        const stepB = moving && Math.sin(this.scavStridePhase) < 0;
+        const framePath = stepB
+            ? "assets/art/diorama_cutouts.clip|scav_legs_b"
+            : "assets/art/diorama_cutouts.clip|scav_legs_a";
+        const bobY = moving ? Math.abs(Math.sin(this.scavStridePhase)) * cam.len(1.8) : 0;
+        const tiltDeg = moving ? Math.sin(this.scavStridePhase) * 3.5 * f : 0;
+        const legsH = cam.len(23);
+        const legsW = legsH * (394 / 342);
+        worldArt.tryPlacePath(framePath, "fe04_scav_painted_legs", cx, by - 1 + bobY, legsW, legsH, {
+            anchorX: 0.5,
+            anchorY: 0,
+            facing: f,
+            angle: tiltDeg,
+            color: Color(204, 212, 224, 255),
+            opacity: 0.94,
+            smooth: true,
+            layer: 4650,
+        });
+        if (pausedToe) {
+            fgGlow.drawDot(Vec2(cx + f * cam.len(10), by + 2), 3.4, Color(236, 218, 178, 165));
+        }
     }
 
     /**
-     * 在 uiDraw 层（严格位于 2D 角色精灵 worldArt 之前、HUD 文本之后）绘制与 drawWorld
-     * 严格 1:1 对齐的唯一明式木桌前景部分（前桌腿 + 桌面沿 + 粗瓷碗）：
-     * - 彻底消除旧版「巨型前景桌压在小桌上」的双桌畸变，保证桌高 44、宽 128 与人物尺度严密契合；
+     * 在 uiDraw / uiArt 前景层（严格位于 2D 角色精灵 worldArt 之前、HUD 文本之后）绘制与 drawWorld
+     * 严格 1:1 对齐的唯一明式木桌前景部分（手绘 table_apron_frame + hemp_tablecloth + 粗瓷冷碗）：
+     * - 保持桌高 44、宽 128 与人物尺度严密契合，桌下 44 单位净空完全通透；
      * - 小满从前后桌腿之间、桌面之下穿行时呈现自然真实的前后遮挡层次；
      * - 固定返回 false，绝不压隐 HUD、字幕或投瓶准星。
      */
     drawForegroundOverlay(
         uiDraw: DrawNode.Type,
         _uiInkDraw: DrawNode.Type,
-        _uiArt: AssetSlotHost,
+        uiArt: AssetSlotHost,
         _uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): boolean {
@@ -1406,57 +1370,82 @@ export class VillageUndertableScene {
         const zFront = -15;
         const zMid = 4;
 
-        // 1. 两侧前桌腿（宽 7 单位，严守 y = 0..44，站在地面上绝不穿地）
-        const drawFrontLeg = (lx0: number, lx1: number): void => {
-            const mBL = projectWorld3D(lx0, 0, zFront, cam, this.proj);
-            const mBR = projectWorld3D(lx1, 0, zFront, cam, this.proj);
-            const mTR = projectWorld3D(lx1, tableBotY, zFront, cam, this.proj);
-            const mTL = projectWorld3D(lx0, tableBotY, zFront, cam, this.proj);
-            drawUiQuad(uiDraw, mBL, mBR, mTR, mTL, Color(26, 20, 15, 250), Color(38, 29, 22, 252), inv, Color(88, 70, 54, 145), 0.9);
-            // 桌腿受院门冷月侧光擦亮的右侧面
-            const sBR = projectWorld3D(lx1, 0, zFront + 7, cam, this.proj);
-            const sTR = projectWorld3D(lx1, tableBotY, zFront + 7, cam, this.proj);
-            drawUiQuad(uiDraw, mBR, sBR, sTR, mTR, Color(44, 34, 26, 248), Color(66, 52, 40, 250), inv, Color(138, 120, 102, 155), 0.8);
-        };
-        drawFrontLeg(arch.x0 - 1, arch.x0 + 6);
-        drawFrontLeg(arch.x1 - 6, arch.x1 + 1);
-
-        // 2. 桌下前景暗影底面（z = zFront..zMid，y = arch.h，保留清晰 44 单位净空）
-        const bFarL = projectWorld3D(xLeft, tableBotY, zMid, cam, this.proj);
-        const bFarR = projectWorld3D(xRight, tableBotY, zMid, cam, this.proj);
-        const bNearR = projectWorld3D(xRight, tableBotY, zFront, cam, this.proj);
-        const bNearL = projectWorld3D(xLeft, tableBotY, zFront, cam, this.proj);
-        drawUiQuad(uiDraw, bFarL, bFarR, bNearR, bNearL, Color(18, 14, 11, 236), Color(28, 21, 16, 242), inv, Color(76, 58, 44, 115), 0.8);
-
-        // 3. 杉木桌面正沿（厚 8 单位，y = 44..52）
-        const fTopR = projectWorld3D(xRight, tableTopY, zFront, cam, this.proj);
+        // 1. 桌面顶面透视（保留 3D 顶面衔接与后半桌一致）
         const fTopL = projectWorld3D(xLeft, tableTopY, zFront, cam, this.proj);
-        drawUiQuad(uiDraw, bNearL, bNearR, fTopR, fTopL, Color(38, 28, 21, 252), Color(56, 42, 32, 254), inv, Color(124, 98, 76, 155), 1.0);
-        // 桌沿下边缘温润木棱
-        uiDraw.drawSegment(Vec2(bNearL.x * inv, bNearL.y * inv), Vec2(bNearR.x * inv, bNearR.y * inv), 1.2, Color(142, 122, 100, 175));
-
-        // 4. 桌面顶面透视（与 drawWorld 后半桌面无缝衔接）
+        const fTopR = projectWorld3D(xRight, tableTopY, zFront, cam, this.proj);
         const topBackL = projectWorld3D(xLeft, tableTopY, zMid, cam, this.proj);
         const topBackR = projectWorld3D(xRight, tableTopY, zMid, cam, this.proj);
-        drawUiQuad(uiDraw, fTopL, fTopR, topBackR, topBackL, Color(52, 40, 30, 244), Color(32, 24, 19, 236), inv, Color(132, 110, 88, 130), 0.8);
+        drawUiQuad(uiDraw, fTopL, fTopR, topBackR, topBackL, Color(46, 35, 26, 240), Color(28, 21, 16, 232), inv, Color(118, 98, 78, 115), 0.7);
 
-        // 5. 桌上真实比例粗瓷冷碗（14×6 世界单位 ≈ 28cm×12cm，绝非巨碗）
-        const bowlBL = projectWorld3D(arch.x0 + 24, tableTopY + 0.5, -5, cam, this.proj);
-        const bowlBR = projectWorld3D(arch.x0 + 38, tableTopY + 0.5, -5, cam, this.proj);
-        const bowlTR = projectWorld3D(arch.x0 + 40, tableTopY + 6.5, -5, cam, this.proj);
-        const bowlTL = projectWorld3D(arch.x0 + 22, tableTopY + 6.5, -5, cam, this.proj);
-        drawUiQuad(uiDraw, bowlBL, bowlBR, bowlTR, bowlTL, Color(72, 68, 62, 244), Color(118, 114, 106, 246), inv, Color(172, 166, 156, 175), 0.8);
+        // 2. 手绘明式厚木桌前框（透明桌下净空，严密对齐 y = 0..tableTopY、xLeft..xRight）
+        const pBL = projectWorld3D(xLeft, 0, zFront, cam, this.proj);
+        const pBR = projectWorld3D(xRight, 0, zFront, cam, this.proj);
+        const tblW = Math.max(24, (pBR.x - pBL.x) * inv);
+        const tblH = Math.max(18, (fTopL.y - pBL.y) * inv);
+        const tblCx = (pBL.x + pBR.x) * 0.5 * inv;
+        const tblBot = pBL.y * inv;
+        const placedTable = uiArt.tryPlacePath(
+            "assets/art/diorama_cutouts.clip|table_apron_frame",
+            "fe04_village_fg_table_frame",
+            tblCx,
+            tblBot,
+            tblW * 1.03,
+            tblH * 1.04,
+            {
+                anchorX: 0.5,
+                anchorY: 0,
+                color: Color(172, 158, 146, 255),
+                opacity: 0.98,
+                smooth: true,
+                layer: 1,
+            },
+        );
+        if (!placedTable) {
+            const bNearL = projectWorld3D(xLeft, tableBotY, zFront, cam, this.proj);
+            const bNearR = projectWorld3D(xRight, tableBotY, zFront, cam, this.proj);
+            drawUiQuad(uiDraw, bNearL, bNearR, fTopR, fTopL, Color(38, 28, 21, 252), Color(56, 42, 32, 254), inv);
+        }
 
-        // 6. 左角克制短粗布桌角垂布（仅下垂 7 单位，不遮挡桌下净空与小满身影）
-        const clothL = projectWorld3D(xLeft + 2, tableBotY - 7, zFront, cam, this.proj);
-        const clothR = projectWorld3D(xLeft + 26, tableBotY - 1, zFront, cam, this.proj);
-        uiDraw.drawVertices([
-            [Vec2(bNearL.x * inv, bNearL.y * inv), Color(28, 22, 19, 224)],
-            [Vec2(clothL.x * inv, clothL.y * inv), Color(36, 29, 25, 212)],
-            [Vec2(clothR.x * inv, clothR.y * inv), Color(26, 21, 18, 198)],
-        ]);
+        // 3. 左桌角垂落手绘粗麻桌布角（克制尺寸落在左角外沿，绝不遮挡桌下小满）
+        uiArt.tryPlacePath(
+            "assets/art/diorama_cutouts.clip|hemp_tablecloth",
+            "fe04_village_fg_tablecloth",
+            pBL.x * inv + tblW * 0.08,
+            fTopL.y * inv + 2,
+            tblW * 0.24,
+            tblH * 0.42,
+            {
+                anchorX: 0.5,
+                anchorY: 1,
+                color: Color(136, 132, 126, 255),
+                opacity: 0.90,
+                smooth: true,
+                layer: 2,
+            },
+        );
 
-        // 7. 蹲伏在桌下（304..416）时顶部极克制木梁压顶暗边，强化《小小梦魇》桌下压迫层次（绝不遮挡鞋底与投瓶）
+        // 4. 桌上真实比例手绘粗瓷冷碗（14×7 世界单位 ≈ 28cm×14cm，绝非巨碗）
+        const bowlPt = projectWorld3D(arch.x0 + 31, tableTopY, -5, cam, this.proj);
+        const bowlW = cam.len(17) * inv;
+        const bowlH = bowlW * (248 / 326);
+        uiArt.tryPlacePath(
+            "assets/art/cutscene_story_parts.clip|porridge_bowl",
+            "fe04_village_table_bowl",
+            bowlPt.x * inv,
+            bowlPt.y * inv - 2,
+            bowlW,
+            bowlH,
+            {
+                anchorX: 0.5,
+                anchorY: 0,
+                color: Color(152, 158, 166, 255),
+                opacity: 0.94,
+                smooth: true,
+                layer: 2,
+            },
+        );
+
+        // 5. 蹲伏在桌下（304..416）时顶部极克制木梁压顶暗边，强化《小小梦魇》桌下压迫层次（绝不遮挡鞋底与投瓶）
         if (p.player.crouch && p.player.x >= arch.x0 - 16 && p.player.x <= arch.x1 + 16) {
             const topBandH = ctx.uiH * 0.14;
             fillVGradRect(
