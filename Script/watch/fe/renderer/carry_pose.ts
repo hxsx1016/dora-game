@@ -2,10 +2,8 @@
  * 《向西守望》Wave 1 · FE-02：兄妹牵手 / 蹲背攀爬 / 背负移动转身 / 换弹探手 / 工台放下叠层渲染插件。
  *
  * 设计红线与零冲突约束：
- * - 独立实现 FeRenderPlugin，零改动 actors.ts / frontend.ts / play.ts；
  * - 仅在序章像素风（view.visualMode === "pixel"）下工作，严格复用周戍单碰撞体位置，不引入额外碰撞；
- * - 背负/攀爬/工台放下态通过 AssetSlotHost 同 instanceKey:path 覆写将原生 actor_child 凌空步态隐去，
- *   消除 B1 后端 carryOn=true 时 p.partner.vx>8 导致的半空跑步穿帮与排演态重影；
+ * - 姿态报告本帧成功放置的角色，由基础渲染补画其余角色；
  * - 世界空间动画全部吃 ctx.worldDt（暂停自动归零冻结），换弹探手吃 ctx.uiDt（暂停同冻、慢时灵动）。
  */
 
@@ -14,7 +12,7 @@ import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { depthOrder } from "Script/watch/fe/occlusion";
-import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { FePluginContext, FeRenderPlugin, PartyPose } from "Script/watch/fe/plugins";
 import { PALETTE, fillRadialGlow, toColor } from "Script/watch/fe/theme";
 
 export type CarryPoseMode = "none" | "handInHand" | "mounting" | "carrying" | "atBench";
@@ -30,28 +28,6 @@ export interface CarryPoseDebugState {
     handoverActive: boolean;
 }
 
-/** 原生 actors.ts 在护送/背负模式下可能激活的 actor_child / actor_soldier 精灵帧（原地压隐防重影） */
-const CHILD_SPRITE_PATHS: readonly string[] = [
-    "assets/art/sprites.clip|child_idle",
-    "assets/art/sprites.clip|child_run",
-    "assets/art/sprites.clip|child_step",
-    "assets/art/sprites.clip|child_crouch",
-    "assets/art/sprites.clip|child_crouch_step",
-    "assets/art/sprites.clip|child_fear",
-    "assets/art/sprites.clip|child_peek",
-    "assets/art/sprites.clip|child_offer",
-    "assets/art/sprites.clip|child_knock",
-];
-
-const SOLDIER_SPRITE_PATHS: readonly string[] = [
-    "assets/art/sprites.clip|soldier_idle",
-    "assets/art/sprites.clip|soldier_run",
-    "assets/art/sprites.clip|soldier_step",
-    "assets/art/sprites.clip|soldier_cover",
-    "assets/art/sprites.clip|soldier_hold",
-    "assets/art/sprites.clip|soldier_offer",
-];
-
 function clamp01(v: number): number {
     return Math.max(0, Math.min(1, v));
 }
@@ -59,36 +35,6 @@ function clamp01(v: number): number {
 function smoothStep(t: number): number {
     const k = clamp01(t);
     return k * k * (3 - 2 * k);
-}
-
-function suppressOriginalChild(worldArt: AssetSlotHost): void {
-    let i = 0;
-    for (i = 0; i < CHILD_SPRITE_PATHS.length; i++) {
-        worldArt.tryPlacePath(
-            CHILD_SPRITE_PATHS[i],
-            "actor_child",
-            -9999,
-            -9999,
-            1,
-            1,
-            { anchorY: 0, preserveAspect: true, opacity: 0, layer: -99 },
-        );
-    }
-}
-
-function suppressOriginalSoldier(worldArt: AssetSlotHost): void {
-    let i = 0;
-    for (i = 0; i < SOLDIER_SPRITE_PATHS.length; i++) {
-        worldArt.tryPlacePath(
-            SOLDIER_SPRITE_PATHS[i],
-            "actor_soldier",
-            -9999,
-            -9999,
-            1,
-            1,
-            { anchorY: 0, preserveAspect: true, opacity: 0, layer: -99 },
-        );
-    }
 }
 
 export class CarryPosePlugin implements FeRenderPlugin {
@@ -229,12 +175,12 @@ export class CarryPosePlugin implements FeRenderPlugin {
         }
     }
 
-    drawActorsOverlay(
+    drawPartyPose(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         ctx: FePluginContext,
-    ): void {
+    ): PartyPose | undefined {
         const view = ctx.view;
         const p = ctx.p;
         if (view.visualMode !== "pixel" || p.childMode || !p.player.alive) {
@@ -245,19 +191,14 @@ export class CarryPosePlugin implements FeRenderPlugin {
         }
 
         if (this.mode === "handInHand") {
-            this.drawHandInHand(fgDraw, fgGlow, worldArt, ctx);
-            return;
+            return this.drawHandInHand(fgDraw, fgGlow, worldArt, ctx);
         }
-
-        // 背负、蹲背攀爬或工台放下：压隐原生 actor_child，彻底杜绝半空蹬腿或双小满重影
-        suppressOriginalChild(worldArt);
 
         if (this.mode === "atBench" || this.benchDropT > 0.5) {
-            this.drawAtBench(fgDraw, fgGlow, worldArt, ctx);
-            return;
+            return { player: false, partner: this.drawAtBench(fgDraw, fgGlow, worldArt, ctx) };
         }
 
-        this.drawCarriedOrMounting(fgDraw, fgGlow, worldArt, ctx);
+        return this.drawCarriedOrMounting(fgGlow, worldArt, ctx);
     }
 
     /** 姿态 1：风台重逢后牵手过平路（兄妹各自步幅 + 青布补线袖口交握） */
@@ -266,7 +207,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         ctx: FePluginContext,
-    ): void {
+    ): PartyPose {
         const p = ctx.p;
         const cam = ctx.cam;
         const soldier = p.player;
@@ -281,8 +222,8 @@ export class CarryPosePlugin implements FeRenderPlugin {
         let childWY = partner.y;
         let childDepth = partner.depth;
 
+        let partnerPlaced = false;
         if (!nearPartner) {
-            suppressOriginalChild(worldArt);
             // 小满牵手步幅比周戍轻快（两套步频呼应分镜 G06「只听两种步幅」）
             const lag = speed > 8 ? Math.sin(this.animTime * 13.5) * 2.4 : 0;
             childWX = soldier.x - f * 26 + lag;
@@ -295,7 +236,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
             const scy = cam.sy(childWY, childDepth);
             const cW = cam.len(22);
             const cH = cam.len(64);
-            worldArt.tryPlace(slot, "carry_child_walk", scx, scy, cW, cH, {
+            partnerPlaced = worldArt.tryPlace(slot, "carry_child_walk", scx, scy, cW, cH, {
                 facing: f,
                 frame: speed > 8 ? childStep : 0,
                 layer: depthEnabled ? depthOrder(childDepth, 4) : 4,
@@ -307,9 +248,9 @@ export class CarryPosePlugin implements FeRenderPlugin {
         this.childAnchorY = childWY;
 
         // 驻足牵手时换用像素牵手伸臂精灵 fe_soldier_hand_hold，行走时以柔和暖微光连结两人像素身影（告别线条手臂）
+        let playerPlaced = false;
         if (speed <= 8 && soldier.rollT <= 0) {
-            suppressOriginalSoldier(worldArt);
-            worldArt.tryPlace(
+            playerPlaced = worldArt.tryPlace(
                 "fe_soldier_hand_hold",
                 "carry_soldier_hold",
                 cam.sx(soldier.x),
@@ -329,15 +270,15 @@ export class CarryPosePlugin implements FeRenderPlugin {
         const claspX = (sHandX + cHandX) * 0.5;
         const claspY = (sHandY + cHandY) * 0.5;
         fillRadialGlow(fgGlow, claspX, claspY, cam.len(10), cam.len(8), toColor(PALETTE.amberCore, 76), Color(244, 234, 214, 0), 10);
+        return { player: playerPlaced, partner: partnerPlaced };
     }
 
     /** 姿态 2 & 3：高石阶蹲背攀爬（mounting）与常规背负战斗移动（carrying），全像素一体精灵零矢量手臂 */
     private drawCarriedOrMounting(
-        fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         ctx: FePluginContext,
-    ): void {
+    ): PartyPose {
         const p = ctx.p;
         const cam = ctx.cam;
         const soldier = p.player;
@@ -375,19 +316,17 @@ export class CarryPosePlugin implements FeRenderPlugin {
 
         // 蹲背攀爬前段：周戍单膝跪迎像素精灵 + 小满俯身攀上
         if (this.mode === "mounting" && kMount < 0.72) {
-            suppressOriginalSoldier(worldArt);
-            fgDraw.drawEllipse(Vec2(scx - sf * cam.len(4), scy + 1), cam.len(22), 4.0, Color(10, 10, 12, 118));
-            worldArt.tryPlace("fe_soldier_kneel_mount", "carry_soldier_kneel", scx, scy, cam.len(42), cam.len(soldier.h * 0.90), {
+            const playerPlaced = worldArt.tryPlace("fe_soldier_kneel_mount", "carry_soldier_kneel", scx, scy, cam.len(42), cam.len(soldier.h * 0.90), {
                 facing: faceSign,
                 layer: baseLayer,
             });
             const cx = cam.sx(childWX);
             const cy = cam.sy(childWY, soldier.depth);
-            worldArt.tryPlace(kMount < 0.45 ? "child_crouch" : "child_peek", "carry_child", cx, cy, cam.len(22), cam.len(42 + (1 - kMount) * 18), {
+            const partnerPlaced = worldArt.tryPlace(kMount < 0.45 ? "child_crouch" : "child_peek", "carry_child", cx, cy, cam.len(22), cam.len(42 + (1 - kMount) * 18), {
                 facing: faceSign,
                 layer: baseLayer + 1,
             });
-            return;
+            return { player: playerPlaced, partner: partnerPlaced };
         }
 
         // 背负稳态（待机 / 步履 / 换弹探手）：使用专属合体像素精灵，周戍翻滚时退回原生翻滚精灵+背上小满
@@ -402,24 +341,24 @@ export class CarryPosePlugin implements FeRenderPlugin {
                 frame,
                 layer: baseLayer,
             })) {
-                suppressOriginalSoldier(worldArt);
                 if (this.reachT > 0.12) {
                     const reachFrac = smoothStep(this.reachT);
                     const handGlowX = cam.sx(soldier.x + sf * (14 + reachFrac * 10));
                     const handGlowY = cam.sy(soldier.y + soldier.h * 0.72 - crouchDip, soldier.depth);
                     fillRadialGlow(fgGlow, handGlowX, handGlowY, cam.len(9 * reachFrac), cam.len(9 * reachFrac), toColor(PALETTE.amberCore, 72 * reachFrac), Color(244, 234, 214, 0), 10);
                 }
-                return;
+                return { player: true, partner: true };
             }
         }
 
-        // 翻滚兜底：保留原生周戍翻滚精灵，仅在身后低层贴合小满像素精灵（零矢量棍臂）
+        // 翻滚或合体帧缺失：保留原生周戍动作，仅在身后低层贴合小满像素精灵（零矢量棍臂）
         const cx = cam.sx(childWX);
         const cy = cam.sy(childWY, soldier.depth);
-        worldArt.tryPlace("child_peek", "carry_child", cx, cy, cam.len(22), cam.len(40), {
+        const partnerPlaced = worldArt.tryPlace("child_peek", "carry_child", cx, cy, cam.len(22), cam.len(40), {
             facing: faceSign,
             layer: depthEnabled ? depthOrder(soldier.depth, 3) : 3,
         });
+        return { player: false, partner: partnerPlaced };
     }
 
     /** 姿态 4：第三段安全工台放下小满（并协同表现首次试握像素鸟铳递器） */
@@ -428,7 +367,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
         fgGlow: DrawNode.Type,
         worldArt: AssetSlotHost,
         ctx: FePluginContext,
-    ): void {
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const soldier = p.player;
@@ -453,7 +392,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
 
         const handing = ctx.view.craftBench.justCraftedTimer > 0;
         const slot = handing ? "child_offer" : "child_idle";
-        worldArt.tryPlace(slot, "carry_child_bench", cx, cy, cW, cH, {
+        const partnerPlaced = worldArt.tryPlace(slot, "carry_child_bench", cx, cy, cW, cH, {
             facing: -f,
             layer: depthEnabled ? depthOrder(soldier.depth, 5) : 5,
         });
@@ -471,6 +410,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
             });
             fillRadialGlow(fgGlow, midX, midY, cam.len(15), cam.len(11), toColor(PALETTE.amberCore, 72), Color(244, 234, 214, 0), 10);
         }
+        return partnerPlaced;
     }
 }
 

@@ -5,6 +5,7 @@ import { Actor, Enemy, Play, Trace } from "Script/watch/play";
 import { FEAR_MAX } from "Script/watch/escort";
 import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/depth";
 import { depthOrder } from "Script/watch/fe/occlusion";
+import { PartyPose } from "Script/watch/fe/plugins";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/theme";
@@ -104,7 +105,7 @@ export class ActorsRenderer {
         assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
-        suppressPartner: boolean = false,
+        pose?: PartyPose,
     ): void {
         // 1. 翻滚像素扬尘步烟（最底层）
         this.drawAfterimages(fgGlow, assets, cam);
@@ -126,7 +127,7 @@ export class ActorsRenderer {
         }
 
         // 5. 同伴（先画同伴，再画主角，确保主角层级最突出；背负插件接管时一并跳过原生精灵与脚底阴影）
-        if (p.partner.alive && !suppressPartner) {
+        if (p.partner.alive && !pose?.partner) {
             const partnerIsChild = p.partner.w <= 28;
             if (partnerIsChild) {
                 this.drawXiaoman(fgDraw, fgGlow, assets, p.partner, p, cam, false);
@@ -140,7 +141,7 @@ export class ActorsRenderer {
             if (p.childMode) {
                 this.drawXiaoman(fgDraw, fgGlow, assets, p.player, p, cam, true);
             } else {
-                this.drawZhouShu(fgDraw, fgGlow, assets, p.player, p, cam, true);
+                this.drawZhouShu(fgDraw, fgGlow, assets, p.player, p, cam, true, pose?.player);
             }
         }
     }
@@ -209,6 +210,7 @@ export class ActorsRenderer {
         p: Play,
         cam: CameraDirector,
         isControlled: boolean,
+        bodyPlaced: boolean = false,
     ): void {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
@@ -259,7 +261,7 @@ export class ActorsRenderer {
             slot = "soldier_run";
             frame = step;
         }
-        if (assets.tryPlace(slot, "actor_soldier", cx, by, W, height, {
+        if (bodyPlaced || assets.tryPlace(slot, "actor_soldier", cx, by, W, height, {
             facing, frame, layer: depthEnabled ? depthOrder(a.depth, 4) : 4,
         })) {
             fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.54, 4, Color(12, 11, 13, 145));

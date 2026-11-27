@@ -47,6 +47,12 @@ export interface FePluginContext {
     paused: boolean;
 }
 
+/** 本帧姿态已画出的角色本体。 */
+export interface PartyPose {
+    player: boolean;
+    partner: boolean;
+}
+
 export interface FeRenderPlugin {
     readonly id: string;
     /** 切房或重试绑定新 Play 实例时回调，用于清理上一房的临时渲染状态 */
@@ -76,6 +82,13 @@ export interface FeRenderPlugin {
         worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): boolean;
+    /** 在基础角色绘制前尝试放置姿态，缺少的角色由 ActorsRenderer 补画。 */
+    drawPartyPose?(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): PartyPose | undefined;
     /** 在常规角色之上叠加绘制（背负姿态、脚底接触影、穿梭器残影等） */
     drawActorsOverlay?(
         fgDraw: DrawNode.Type,
