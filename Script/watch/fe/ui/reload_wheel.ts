@@ -16,7 +16,7 @@
  *    - 盘面智能停靠侧方，画内同时可见周戍、背上探手的小满与远处敌人。
  */
 
-import { Color, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { Color, Content, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { ZERO_SAFE_INSETS } from "Script/watch/platform";
 import { AssetSlotHost } from "Script/watch/fe/assets";
@@ -794,10 +794,13 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
         // 仅在实际连入节点时亮起并按步数发声（排演或非 live 补播）
         this.nodePulseSeq += 1;
+        const stepIdx = Math.max(1, Math.min(6, this.lastKnownPath.length));
+        const pitched = "assets/audio/combat/reload_node_" + stepIdx + ".wav";
+        const nodePath = Content.exist(pitched) ? pitched : "assets/audio/combat/reload_node.wav";
         ctx.audio.playOnce(
             "fe02:reload_node:r" + ctx.events.roomSessionId + ":n" + this.nodePulseSeq + ":" + node,
             "sfx",
-            "assets/audio/combat/reload_node.wav",
+            nodePath,
             0.78,
             "reload:node:" + node,
             ctx.p.ticks,

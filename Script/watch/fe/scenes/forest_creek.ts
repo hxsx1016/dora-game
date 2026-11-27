@@ -15,7 +15,7 @@
  *    - 停步时水面涟漪与碎灯倒影持续流动，暂停时立即冻结。
  */
 
-import { Color, DrawNode, Rect, Vec2 } from "Dora";
+import { Color, Content, DrawNode, Rect, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -297,16 +297,23 @@ export class ForestCreekScene {
                         0.82,
                         "fe04:forest:dog_alert",
                         p.ticks,
+                        -1,
+                        { pan: ctx.audio.panForWorldX(p.dogX) },
                     );
                 } else if (p.dogState === "chase" && this.prevDogState !== "chase") {
                     this.dogAlertCount += 1;
+                    const chasePath = Content.exist("assets/audio/foley/dog_chase_bark.wav")
+                        ? "assets/audio/foley/dog_chase_bark.wav"
+                        : (CHILD_AUDIO_ROOT + "dog_alert.wav");
                     ctx.audio.playOnce(
                         "fe04:forest:dog_chase:" + ctx.events.roomSessionId + ":" + this.dogAlertCount,
                         "sfx",
-                        CHILD_AUDIO_ROOT + "dog_alert.wav",
+                        chasePath,
                         0.90,
                         "fe04:forest:dog_chase",
                         p.ticks,
+                        -1,
+                        { pan: ctx.audio.panForWorldX(p.dogX) },
                     );
                 }
 
@@ -327,6 +334,8 @@ export class ForestCreekScene {
                                 vol,
                                 "fe04:forest:dog_step",
                                 p.ticks,
+                                -1,
+                                { pan: ctx.audio.panForWorldX(p.dogX) },
                             );
                         }
                     }
@@ -389,6 +398,8 @@ export class ForestCreekScene {
             0.84,
             "fe04:forest:twig_snap",
             ctx.p.ticks,
+            -1,
+            { pan: ctx.audio.panForWorldX(worldX) },
         );
         let i = 0;
         for (i = 0; i < 6; i++) {
