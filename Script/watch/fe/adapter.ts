@@ -85,6 +85,7 @@ export interface FrameEvents {
     talentPickedRank: number;
     campaignFailedReset: boolean;
     campaignFailedRoom: string;
+    fallenBuild?: { ranks: Record<string, number>; weaponId: string; seed: number };
     pickupTaken: boolean;
     pickupKind: string;
     pickupLabel: string;
@@ -336,6 +337,7 @@ export class PlayAdapter {
         let talentPickedRank = 0;
         let campaignFailedReset = false;
         let campaignFailedRoom = "";
+        let fallenBuild: FrameEvents["fallenBuild"];
         let pickupTaken = false;
         let pickupKind = "";
         let pickupLabel = "";
@@ -432,6 +434,7 @@ export class PlayAdapter {
                 talentPickedRank = typeof event.data.rank === "number" ? event.data.rank : 1;
             } else if (event.name === "campaignFailed" && event.data.reset === true) {
                 campaignFailedReset = true;
+                fallenBuild = event.data.fallenBuild as FrameEvents["fallenBuild"];
                 campaignFailedRoom = typeof event.data.room === "string" ? event.data.room : "";
             } else if (event.name === "pickup") {
                 pickupTaken = true;
@@ -527,6 +530,7 @@ export class PlayAdapter {
             talentPickedRank,
             campaignFailedReset,
             campaignFailedRoom,
+            fallenBuild,
             pickupTaken,
             pickupKind,
             pickupLabel,

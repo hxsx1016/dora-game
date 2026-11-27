@@ -259,13 +259,6 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
     private deathRecapT = 0;
     private deathRecapSnap: DeathRecapSnapshot | undefined;
 
-    // 存活态构筑快照（确保 restartEscortFromDeath 清空前已留痕）
-    private lastAliveRoomKey = "";
-    private lastAliveRanks: Record<string, number> = {};
-    private lastAliveTotalRanks = 0;
-    private lastAliveWeapon = "standard_gun";
-    private lastAliveSeed = 0;
-
     // 调试读数缓存
     private lastMarchTitle = "初启北行";
     private lastGuardArcActive = false;
@@ -280,6 +273,11 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         this.contract = contract;
         this.getHudSelected = getHudSelected;
         this.setHudSelected = setHudSelected;
+    }
+
+    canPickTalent(): boolean {
+        return !this.ledgerOpen && this.deathRecapT <= 0.15
+            && (this.drawerState === "expanded" || this.drawerState === "compact");
     }
 
     isExpanded(): boolean {
@@ -334,6 +332,10 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
 
     /** 供自动化验证脚本触发「折筹重整」演出 */
     triggerTestDeathRecap(roomKey: string, ranks: Record<string, number>, weapon: string = "standard_gun"): void {
+        this.showDeathRecap(roomKey, ranks, weapon, 0);
+    }
+
+    private showDeathRecap(roomKey: string, ranks: Record<string, number>, weapon: string, seed: number): void {
         let total = 0;
         const copy: Record<string, number> = {};
         for (const k in ranks) {
@@ -348,7 +350,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
             ranks: copy,
             totalRanks: total,
             weaponId: weapon,
-            seed: this.lastAliveSeed,
+            seed,
         };
         this.deathRecapT = DEATH_RECAP_DURATION;
     }
@@ -368,6 +370,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         touchMode: boolean = false,
         safeTop: number = 0,
     ): Rect.Type[] {
+        if (!this.canPickTalent()) return [];
         const useExpanded = this.drawerState !== "compact";
         return computeRoguelikeCardRects(uiW, uiH, count, useExpanded, touchMode, safeTop);
     }
@@ -426,18 +429,6 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         this.lastRanks = {};
         for (const k in rg.ranks) {
             this.lastRanks[k] = rg.ranks[k];
-        }
-        if (rg.active) {
-            this.lastAliveRoomKey = rg.roomKey;
-            this.lastAliveRanks = {};
-            for (const k in rg.ranks) {
-                if (rg.ranks[k] > 0) {
-                    this.lastAliveRanks[k] = rg.ranks[k];
-                }
-            }
-            this.lastAliveTotalRanks = rg.totalRanks;
-            this.lastAliveWeapon = rg.equippedWeapon;
-            this.lastAliveSeed = rg.seed;
         }
         this.drawerState = rg.offers.length > 0 ? "expanded" : "hidden";
         this.focusScale = 1;
@@ -523,8 +514,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         const udt = Math.max(0, ctx.uiDt);
         this.animTime += udt;
 
-        // 1. 先消费本帧肉鸽事件（必须在刷新 lastAlive* 之前消费 campaignFailedReset，
-        //    因为 restartEscortFromDeath 已在 emit 前将 hp 复原并清空了 story.talents！）
+        // 1. 处理过段与战死事件。
         if (ctx.events.segmentDone && ctx.events.segmentKey !== "") {
             this.segmentBannerHeadline = stageOrderNumeral(ctx.events.segmentKey) + "程告破";
             this.segmentBannerSub = ctx.events.segmentNext !== ""
@@ -533,34 +523,10 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
             this.segmentBannerT = SEGMENT_BANNER_DURATION;
         }
 
-        if (ctx.events.campaignFailedReset) {
-            const fallenRoom = ctx.events.campaignFailedRoom !== "" ? ctx.events.campaignFailedRoom : this.lastAliveRoomKey;
-            const copyRanks: Record<string, number> = {};
-            for (const k in this.lastAliveRanks) {
-                copyRanks[k] = this.lastAliveRanks[k];
-            }
-            this.deathRecapSnap = {
-                roomKey: fallenRoom !== "" ? fallenRoom : "escort1",
-                stageName: stageReadableName(fallenRoom !== "" ? fallenRoom : "escort1"),
-                ranks: copyRanks,
-                totalRanks: this.lastAliveTotalRanks,
-                weaponId: this.lastAliveWeapon,
-                seed: this.lastAliveSeed,
-            };
-            this.deathRecapT = DEATH_RECAP_DURATION;
-            this.ledgerOpen = false;
-        } else if (rg.active && ctx.p.player.alive && ctx.p.hp > 0) {
-            // 2. 记录存活态最新构筑快照（确保战死重置清空 story.talents 前完整保留复盘数据）
-            this.lastAliveRoomKey = rg.roomKey;
-            this.lastAliveRanks = {};
-            for (const k in rg.ranks) {
-                if (rg.ranks[k] > 0) {
-                    this.lastAliveRanks[k] = rg.ranks[k];
-                }
-            }
-            this.lastAliveTotalRanks = rg.totalRanks;
-            this.lastAliveWeapon = rg.equippedWeapon;
-            this.lastAliveSeed = rg.seed;
+        const fallen = ctx.events.fallenBuild;
+        if (ctx.events.campaignFailedReset && fallen !== undefined) {
+            this.showDeathRecap(ctx.events.campaignFailedRoom, fallen.ranks, fallen.weaponId, fallen.seed);
+            this.closeLedger();
         }
 
         if (ctx.events.pickupTaken && ctx.events.pickupKind !== "") {
@@ -1893,7 +1859,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         }
 
         const countText = snap.totalRanks > 0 ? ("曾习" + toChineseUpper(snap.totalRanks) + "筹") : "尚未择筹";
-        const summary = "止步于「" + snap.stageName + "」 · " + countText + " · 筹散人安，重整再护";
+        const summary = "止步于「" + snap.stageName + "」 · " + countText + " · " + weaponMetaOf(snap.weaponId).name + " · 筹散人安，重整再护";
         ctx.texts.put("sm", summary, cx, cy - 48, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.0, 0.94 * alpha, 0.08);
         ctx.texts.put("xs", "新一轮护送将自城外巷路再启", cx, cy - 82, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.78 * alpha, 0.06);
     }

@@ -645,6 +645,8 @@ export class DualRouteContract {
     private intentLog: IntentLogEntry[] = [];
     private lastSnapshot: DualRouteSnapshot | undefined;
 
+    constructor(private readonly canPickTalent?: (p: Play) => boolean) {}
+
     /** 获取当前数据源模式 */
     getDataSource(): ContractDataSource {
         return this.source;
@@ -767,12 +769,10 @@ export class DualRouteContract {
      * - 排演模式：由独立排演内存状态机闭环消费。
      */
     submitIntent(p: Play, intent: FrontendIntent): boolean {
-        let accepted = false;
-        if (this.source === "rehearsal" && this.rehearsal !== undefined) {
-            accepted = this.applyRehearsalIntent(this.rehearsal, intent);
-        } else {
-            accepted = this.forwardLiveIntent(p, intent);
-        }
+        const allowed = intent.kind !== "chooseTalent" || this.canPickTalent === undefined || this.canPickTalent(p);
+        const accepted = allowed && (this.source === "rehearsal" && this.rehearsal !== undefined
+            ? this.applyRehearsalIntent(this.rehearsal, intent)
+            : this.forwardLiveIntent(p, intent));
         this.intentLog.push({
             tick: p.ticks,
             source: this.source,

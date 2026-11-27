@@ -526,18 +526,10 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         }
         if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
             && !play.craftBench.active && !play.reloadOpen && play.getStoryTalentOffers().length > 0) {
-            if (key === KeyName.Num1) {
-                play.chooseTalent(0);
-                input?.consumePickRoom();
-                return;
-            }
-            if (key === KeyName.Num2) {
-                play.chooseTalent(1);
-                input?.consumePickRoom();
-                return;
-            }
-            if (key === KeyName.Num3) {
-                play.chooseTalent(2);
+            if (key === KeyName.Num1 || key === KeyName.Num2 || key === KeyName.Num3) {
+                if (fe.canPickStoryTalent(play)) {
+                    play.chooseTalent(key === KeyName.Num1 ? 0 : key === KeyName.Num2 ? 1 : 2);
+                }
                 input?.consumePickRoom();
                 return;
             }
@@ -904,7 +896,7 @@ function syncFrameAdapters(frameDt: number): void {
         const reloadActive = isPlayMode && p !== undefined && !p.paused && p.reloadOpen;
         const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
         const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen
-            ? p.getStoryTalentOffers().length
+            ? storyTalentBoxes.length
             : (trialHasOffers && trial !== undefined ? trial.offers.length : 0);
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
         const allowDepth = p !== undefined && p.room.depth !== undefined
@@ -1016,7 +1008,9 @@ function tick(frameDt: number): void {
     if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
         && !play.craftBench.active && play.getStoryTalentOffers().length > 0
         && input.pickRoom >= 1 && input.pickRoom <= 3) {
-        play.chooseTalent(input.pickRoom - 1);
+        if (fe.canPickStoryTalent(play)) {
+            play.chooseTalent(input.pickRoom - 1);
+        }
         input.pickRoom = 0;
     }
 
@@ -1395,10 +1389,10 @@ function tickFrontend(frameDt: number): void {
     p.aimY = input.my;
 
     const zoneTap = input.touchZoneTap;
-    input.touchZoneTap = "";
+    if (zoneTap !== "ledger:toggle") input.touchZoneTap = "";
 
     const offers = p.getStoryTalentOffers();
-    if (!p.paused && !p.craftBench.active && !p.reloadOpen && offers.length > 0) {
+    if (fe.canPickStoryTalent(p) && offers.length > 0) {
         if (fe.hud.talentSelected >= offers.length) {
             fe.hud.talentSelected = 0;
         }

@@ -123,6 +123,13 @@ do
 	inp.mx = rects[2].x + rects[2].width * 0.5
 	inp.my = rects[2].y + rects[2].height * 0.5
 	inp.fire.pressed = true
+	rgPlugin:openLedger()
+	check("札记盖住筹签时原坐标、触屏热区和选筹意图均不可用",
+		not fe:tryPickTalentAtPointer(p, inp, 1280, 720)
+		and #fe:getStoryTalentBoxes(p, 1280, 720, true) == 0
+		and not fe.contract:submitIntent(p, { kind = "chooseTalent", slot = 1 })
+		and #p:getStoryTalentOffers() == 3)
+	rgPlugin:closeLedger()
 	local picked = fe:tryPickTalentAtPointer(p, inp, 1280, 720)
 	inp.fire.pressed = false
 	fe:renderPlay(1 / 60, p, inp, 1280, 720)
@@ -297,15 +304,20 @@ do
 	-- 模拟男主线 escort4 战死触发 campaignFailed(reset:true) 并切回 escort1
 	fe:bindPlay(p4, 1280, 720)
 	fe:renderPlay(1 / 60, p4, inp, 1280, 720)
+	p4.equippedWeapon = "echo_gun"
+	p4.run.story.talents.ranks.guard = 2
 	p4.hp = 0
 	p4:campaignFailed()
-	fe:renderPlay(1 / 60, p4, inp, 1280, 720)
+	local leaving = p4:drainEvents()
 	local p1 = new(playmod.Play, rooms.ESCORT1_ROOM, nil, r)
 	fe:bindPlay(p1, 1280, 720)
+	p1:adoptEvents(leaving)
 	fe:renderPlay(1 / 60, p1, inp, 1280, 720)
 	local stRecap = rgPlugin:getState()
-	check("5.2 战死重置触发「折筹重整 · 残筹散墨」复盘幕，准确留痕战死前 2 枚已习本领并跨房存活",
-		stRecap.deathRecapActive == true and stRecap.deathRecapRoom == "escort4" and stRecap.deathRecapCount == 2,
+	check("5.2 战死重置触发「折筹重整 · 残筹散墨」复盘幕，重绑首房后仍显示最后一拍的武器和本领",
+		stRecap.deathRecapActive == true and stRecap.deathRecapRoom == "escort4" and stRecap.deathRecapCount == 4
+		and rgPlugin.deathRecapSnap.ranks.guard == 2 and rgPlugin.deathRecapSnap.weaponId == "echo_gun"
+		and rgPlugin.deathRecapSnap.seed == r.seed and p1.equippedWeapon == "standard_gun",
 		string.format("active=%s room=%s count=%d", tostring(stRecap.deathRecapActive), stRecap.deathRecapRoom, stRecap.deathRecapCount))
 
 	-- 暂停期间冻结演出计时

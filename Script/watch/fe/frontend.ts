@@ -61,7 +61,7 @@ export class WatchFrontend {
 
     readonly cam = new CameraDirector();
     readonly adapter = new PlayAdapter();
-    readonly contract = new DualRouteContract();
+    readonly contract = new DualRouteContract((p: Play) => this.canPickStoryTalent(p));
     readonly audio = new AudioDirector();
     readonly soundscape = new SoundscapeDirector();
     readonly stage = new StageRenderer();
@@ -358,10 +358,14 @@ export class WatchFrontend {
         this.texts.put("sm", this.toastText, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * alpha, 0.08);
     }
 
+    canPickStoryTalent(p: Play): boolean {
+        return !p.paused && !p.craftBench.active && !p.reloadOpen && this.roguelikeUi.canPickTalent();
+    }
+
     /** 计算男主线三选一本领卡的舞台 UI 坐标矩形，供 TouchControls 同步直点热区。 */
     getStoryTalentBoxes(p: Play, w: number, h: number, touchMode: boolean): Rect.Type[] {
         const offers = p.getStoryTalentOffers();
-        if (offers.length === 0) {
+        if (!this.canPickStoryTalent(p) || offers.length === 0) {
             return [];
         }
         const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
@@ -448,7 +452,7 @@ export class WatchFrontend {
     /** 局内试玩态：检测点击是否命中男主线护送段的三选一本领卡（仅消费真实指针点击，不误吃手柄右摇杆枪口准星） */
     tryPickTalentAtPointer(p: Play, input: Input, w: number, h: number): boolean {
         const offers = p.getStoryTalentOffers();
-        if (offers.length === 0) {
+        if (!this.canPickStoryTalent(p) || offers.length === 0) {
             return false;
         }
         if (input.inputMode === "gamepad" && !input.uiPressed) {
@@ -472,19 +476,11 @@ export class WatchFrontend {
                 return p.chooseTalent(i);
             }
         }
-        const toggleBox = this.roguelikeUi.getExpandToggleRect();
-        if (toggleBox.width > 0 && toggleBox.containsPoint(pointer)) {
-            this.roguelikeUi.setCompact(this.roguelikeUi.isExpanded());
-            this.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.45, 0.045);
-            return true;
-        }
-        const ledgerBox = this.roguelikeUi.getLedgerButtonRect();
-        if (ledgerBox.width > 0 && ledgerBox.containsPoint(pointer)) {
-            this.roguelikeUi.toggleLedger();
-            this.audio.playUi("ui:ledger_open", "assets/audio/ui/pause_open.wav", 0.56, 0.08);
-            return true;
-        }
-        return false;
+        // 插件在 renderPlay 中处理两个按钮的同一次点击，这里先消费开火边沿。
+        const ledger = this.roguelikeUi.getLedgerButtonRect();
+        const toggle = this.roguelikeUi.getExpandToggleRect();
+        return (ledger.width > 0 && ledger.containsPoint(pointer))
+            || (toggle.width > 0 && toggle.containsPoint(pointer));
     }
 
     /** 局内试玩态每帧更新与渲染（返回暂停菜单动作，非暂停时返回 none） */

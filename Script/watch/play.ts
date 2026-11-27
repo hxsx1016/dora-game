@@ -4214,6 +4214,11 @@ export class Play {
     private restartEscortFromDeath(): void {
         const story = this.run.story;
         const inv = this.run.inventory;
+        const fallenBuild = {
+            ranks: { ...(story.talents?.ranks ?? {}) },
+            weaponId: this.equippedWeapon,
+            seed: this.run.seed,
+        };
         const vitBonus = story.talents !== undefined ? story.talents.ranks.vitality : 0;
         if (vitBonus > 0) {
             this.maxHp = Math.max(3, this.maxHp - vitBonus);
@@ -4256,7 +4261,7 @@ export class Play {
         this.log("男主线失败 · 回 escort1");
         this.emit("campaignFailed", {
             room: this.room.key, hp: 0, maxHp: this.maxHp,
-            reset: true, to: "escort1", route: this.storyRoute,
+            reset: true, to: "escort1", route: this.storyRoute, fallenBuild,
         });
         this.requestRoom("escort1", "男主线失败重开");
     }

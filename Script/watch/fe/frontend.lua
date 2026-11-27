@@ -77,7 +77,10 @@ function WatchFrontend.prototype.____constructor(self, parent) -- 85
 	self.occlusion = __TS__New(DepthOcclusion) -- 47
 	self.cam = __TS__New(CameraDirector) -- 62
 	self.adapter = __TS__New(PlayAdapter) -- 63
-	self.contract = __TS__New(DualRouteContract) -- 64
+	self.contract = __TS__New( -- 64
+		DualRouteContract, -- 64
+		function(p) return self:canPickStoryTalent(p) end -- 64
+	) -- 64
 	self.audio = __TS__New(AudioDirector) -- 65
 	self.soundscape = __TS__New(SoundscapeDirector) -- 66
 	self.stage = __TS__New(StageRenderer) -- 67
@@ -150,7 +153,7 @@ function WatchFrontend.prototype.____constructor(self, parent) -- 85
 		count, -- 153
 		touchMode, -- 153
 		safeTop -- 153
-	) end -- 152
+	) end -- 153
 	self:registerPlugin(__TS__New(MingArtAuditPlugin)) -- 167
 	self:registerPlugin(__TS__New(GateTransitionPlugin)) -- 168
 	self:registerPlugin(__TS__New(LowpolyWorldPlugin)) -- 169
@@ -168,10 +171,10 @@ function WatchFrontend.prototype.registerPlugin(self, plugin) -- 181
 	do -- 182
 		i = 0 -- 183
 		while i < #self.plugins do -- 183
-			if self.plugins[i + 1].id == plugin.id then -- 184
+			if self.plugins[i + 1].id == plugin.id then -- 183
 				self.plugins[i + 1] = plugin -- 185
 				self:syncRuntimeHooks() -- 186
-				if self.boundPlay ~= nil and plugin.onBindPlay ~= nil then -- 187
+				if self.boundPlay ~= nil and plugin.onBindPlay ~= nil then -- 186
 					plugin:onBindPlay( -- 188
 						self.boundPlay, -- 188
 						self.contract:peekSnapshot(self.boundPlay) -- 188
@@ -182,10 +185,10 @@ function WatchFrontend.prototype.registerPlugin(self, plugin) -- 181
 			i = i + 1 -- 183
 		end -- 183
 	end -- 183
-	local ____self_plugins_0 = self.plugins -- 193
+	local ____self_plugins_0 = self.plugins -- 183
 	____self_plugins_0[#____self_plugins_0 + 1] = plugin -- 193
 	self:syncRuntimeHooks() -- 194
-	if self.boundPlay ~= nil and plugin.onBindPlay ~= nil then -- 195
+	if self.boundPlay ~= nil and plugin.onBindPlay ~= nil then -- 194
 		plugin:onBindPlay( -- 196
 			self.boundPlay, -- 196
 			self.contract:peekSnapshot(self.boundPlay) -- 196
@@ -198,25 +201,25 @@ function WatchFrontend.prototype.unregisterPlugin(self, id) -- 201
 	do -- 203
 		i = 0 -- 204
 		while i < #self.plugins do -- 204
-			if self.plugins[i + 1].id ~= id then -- 205
+			if self.plugins[i + 1].id ~= id then -- 204
 				self.plugins[w + 1] = self.plugins[i + 1] -- 206
 				w = w + 1 -- 207
 			end -- 207
 			i = i + 1 -- 204
 		end -- 204
 	end -- 204
-	__TS__ArraySetLength(self.plugins, w) -- 210
+	__TS__ArraySetLength(self.plugins, w) -- 204
 	self:syncRuntimeHooks() -- 211
 end -- 201
 function WatchFrontend.prototype.getPlugin(self, id) -- 215
-	if self.roguelikeUi ~= nil and id == self.roguelikeUi.id then -- 216
+	if self.roguelikeUi ~= nil and id == self.roguelikeUi.id then -- 215
 		return self.roguelikeUi -- 217
 	end -- 217
 	local i = 0 -- 219
 	do -- 219
 		i = 0 -- 220
 		while i < #self.plugins do -- 220
-			if self.plugins[i + 1].id == id then -- 221
+			if self.plugins[i + 1].id == id then -- 220
 				return self.plugins[i + 1] -- 222
 			end -- 222
 			i = i + 1 -- 220
@@ -236,13 +239,13 @@ function WatchFrontend.prototype.syncRuntimeHooks(self) -- 237
 		____temp_1 = nil -- 239
 	end -- 239
 	local loaded = ____temp_1 -- 239
-	if loaded == nil then -- 240
+	if loaded == nil then -- 239
 		return -- 241
 	end -- 241
 	local rawFe = loaded["watch.fe"] -- 243
-	if rawFe ~= nil and type(rawFe) == "table" then -- 244
+	if rawFe ~= nil and type(rawFe) == "table" then -- 243
 		local watchFe = rawFe -- 245
-		if watchFe.contract ~= self.contract then -- 246
+		if watchFe.contract ~= self.contract then -- 245
 			watchFe.contract = self.contract -- 247
 			watchFe.audio = self.audio -- 248
 			watchFe.soundscape = self.soundscape -- 249
@@ -275,7 +278,7 @@ function WatchFrontend.prototype.resizeInterface(self, w, h) -- 269
 end -- 269
 function WatchFrontend.prototype.setVisible(self, v) -- 277
 	self.layerRoot.visible = v -- 278
-	if not v then -- 279
+	if not v then -- 278
 		self.texts:hideAll() -- 280
 	end -- 280
 end -- 277
@@ -294,13 +297,13 @@ function WatchFrontend.prototype.bindPlay(self, p, w, h) -- 285
 	self.hud:reset(p) -- 297
 	self.narrative:onEnterRoom(p.room.key) -- 298
 	local initView = self.contract:peekSnapshot(p) -- 300
-	if #self.plugins > 0 then -- 301
+	if #self.plugins > 0 then -- 300
 		local i = 0 -- 302
 		do -- 302
 			i = 0 -- 303
 			while i < #self.plugins do -- 303
 				local pl = self.plugins[i + 1] -- 304
-				if pl.onBindPlay ~= nil then -- 305
+				if pl.onBindPlay ~= nil then -- 304
 					pl:onBindPlay(p, initView) -- 306
 				end -- 306
 				i = i + 1 -- 303
@@ -343,7 +346,7 @@ function WatchFrontend.prototype.getToastText(self) -- 346
 	return self.toastTimer > 0 and self.toastText or "" -- 347
 end -- 346
 function WatchFrontend.prototype.drawToast(self, uiW) -- 350
-	if self.toastTimer <= 0 or self.toastText == "" then -- 351
+	if self.toastTimer <= 0 or self.toastText == "" then -- 350
 		return -- 352
 	end -- 352
 	local alpha = math.min(1, self.toastTimer * 2.4) -- 354
@@ -375,523 +378,516 @@ function WatchFrontend.prototype.drawToast(self, uiW) -- 350
 		0.08 -- 358
 	) -- 358
 end -- 350
-function WatchFrontend.prototype.getStoryTalentBoxes(self, p, w, h, touchMode) -- 362
-	local offers = p:getStoryTalentOffers() -- 363
-	if #offers == 0 then -- 364
-		return {} -- 365
-	end -- 365
-	local uiScale = math.max( -- 367
-		0.25, -- 367
-		math.min(w / 1280, h / 720) -- 367
-	) -- 367
-	return self.hud:talentCardRects( -- 368
-		w / uiScale, -- 368
-		h / uiScale, -- 368
-		#offers, -- 368
-		touchMode, -- 368
-		self.stageVp.safeUi.top -- 368
-	) -- 368
-end -- 362
-function WatchFrontend.prototype.playMenuUiSound(self, kind) -- 371
-	if kind == "hover" then -- 372
-		self.audio:playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.5, 0.045) -- 373
-	elseif kind == "confirm" then -- 374
-		self.audio:playUi("ui:confirm", "assets/audio/ui/menu_confirm.wav", 0.72, 0.05) -- 375
-	elseif kind == "back" then -- 376
-		self.audio:playUi("ui:back", "assets/audio/ui/menu_back.wav", 0.66, 0.05) -- 377
-	elseif kind == "start" then -- 378
-		self.audio:playUi("ui:start", "assets/audio/ui/game_start.wav", 0.82, 0.08) -- 379
-	elseif kind == "pauseOpen" then -- 380
-		self.audio:playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08) -- 381
-	elseif kind == "pauseClose" then -- 382
-		self.audio:playUi("ui:pause_close", "assets/audio/ui/pause_close.wav", 0.66, 0.08) -- 383
-	elseif kind == "toggle" then -- 384
-		self.audio:playUi("ui:toggle", "assets/audio/ui/setting_toggle.wav", 0.64, 0.04) -- 385
-	end -- 385
-end -- 371
-function WatchFrontend.prototype.resetTrialAudio(self, p) -- 390
-	self.adapter:reset(p) -- 391
-	self.audio:stopRoomTransient() -- 392
-	self.soundscape:resetForRoom(p) -- 393
-end -- 390
-function WatchFrontend.prototype.syncTrialAudio(self, dt, p, offerCount) -- 397
-	local safeDt = math.min( -- 398
-		0.05, -- 398
-		math.max(0.001, dt) -- 398
-	) -- 398
-	self.audio:setPaused(p.paused) -- 399
-	self.audio:setCameraRef(p.player.x, 960) -- 400
-	self.audio:update(safeDt) -- 401
-	if not p.paused then -- 402
-		local ev = self.adapter:sample(p) -- 403
-		self.audio:ingestEvents(ev, p) -- 404
-		self.soundscape:updateTrial(safeDt, p, self.audio, offerCount) -- 405
-	end -- 405
-end -- 397
-function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 410
-	self:syncRuntimeHooks() -- 411
-	local safeDt = math.min( -- 412
-		0.05, -- 412
-		math.max(0, dt) -- 412
-	) -- 412
-	if self.toastTimer > 0 then -- 413
-		self.toastTimer = math.max(0, self.toastTimer - safeDt) -- 414
-	end -- 414
-	if self.screen == "title" and self.boundPlay ~= nil then -- 416
-		self.audio:stopRoomTransient() -- 417
-		self.boundPlay = nil -- 418
+function WatchFrontend.prototype.canPickStoryTalent(self, p) -- 361
+	return not p.paused and not p.craftBench.active and not p.reloadOpen and self.roguelikeUi:canPickTalent() -- 362
+end -- 361
+function WatchFrontend.prototype.getStoryTalentBoxes(self, p, w, h, touchMode) -- 366
+	local offers = p:getStoryTalentOffers() -- 367
+	if not self:canPickStoryTalent(p) or #offers == 0 then -- 367
+		return {} -- 369
+	end -- 369
+	local uiScale = math.max( -- 371
+		0.25, -- 371
+		math.min(w / 1280, h / 720) -- 371
+	) -- 371
+	return self.hud:talentCardRects( -- 372
+		w / uiScale, -- 372
+		h / uiScale, -- 372
+		#offers, -- 372
+		touchMode, -- 372
+		self.stageVp.safeUi.top -- 372
+	) -- 372
+end -- 366
+function WatchFrontend.prototype.playMenuUiSound(self, kind) -- 375
+	if kind == "hover" then -- 375
+		self.audio:playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.5, 0.045) -- 377
+	elseif kind == "confirm" then -- 377
+		self.audio:playUi("ui:confirm", "assets/audio/ui/menu_confirm.wav", 0.72, 0.05) -- 379
+	elseif kind == "back" then -- 379
+		self.audio:playUi("ui:back", "assets/audio/ui/menu_back.wav", 0.66, 0.05) -- 381
+	elseif kind == "start" then -- 381
+		self.audio:playUi("ui:start", "assets/audio/ui/game_start.wav", 0.82, 0.08) -- 383
+	elseif kind == "pauseOpen" then -- 383
+		self.audio:playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08) -- 385
+	elseif kind == "pauseClose" then -- 385
+		self.audio:playUi("ui:pause_close", "assets/audio/ui/pause_close.wav", 0.66, 0.08) -- 387
+	elseif kind == "toggle" then -- 387
+		self.audio:playUi("ui:toggle", "assets/audio/ui/setting_toggle.wav", 0.64, 0.04) -- 389
+	end -- 389
+end -- 375
+function WatchFrontend.prototype.resetTrialAudio(self, p) -- 394
+	self.adapter:reset(p) -- 395
+	self.audio:stopRoomTransient() -- 396
+	self.soundscape:resetForRoom(p) -- 397
+end -- 394
+function WatchFrontend.prototype.syncTrialAudio(self, dt, p, offerCount) -- 401
+	local safeDt = math.min( -- 402
+		0.05, -- 402
+		math.max(0.001, dt) -- 402
+	) -- 402
+	self.audio:setPaused(p.paused) -- 403
+	self.audio:setCameraRef(p.player.x, 960) -- 404
+	self.audio:update(safeDt) -- 405
+	if not p.paused then -- 405
+		local ev = self.adapter:sample(p) -- 407
+		self.audio:ingestEvents(ev, p) -- 408
+		self.soundscape:updateTrial(safeDt, p, self.audio, offerCount) -- 409
+	end -- 409
+end -- 401
+function WatchFrontend.prototype.renderMenu(self, dt, input, w, h) -- 414
+	self:syncRuntimeHooks() -- 415
+	local safeDt = math.min( -- 416
+		0.05, -- 416
+		math.max(0, dt) -- 416
+	) -- 416
+	if self.toastTimer > 0 then -- 416
+		self.toastTimer = math.max(0, self.toastTimer - safeDt) -- 418
 	end -- 418
-	self.audio:update(safeDt) -- 420
-	self.soundscape:updateMenu(self.screen, self.audio) -- 421
-	self:setVisible(true) -- 422
-	self:clearAll() -- 423
-	local uiScale = self:resizeInterface(w, h) -- 424
-	local act = self.menus:updateAndDrawScreen( -- 425
-		dt, -- 426
-		self.screen, -- 427
-		input, -- 428
-		self.stage, -- 429
-		self.bgDraw, -- 430
-		self.bgGlow, -- 431
-		self.backdropArt, -- 432
-		self.uiArt, -- 433
-		self.uiDraw, -- 434
-		self.uiInkDraw, -- 435
-		self.uiGlow, -- 436
-		self.texts, -- 437
-		w, -- 438
-		h, -- 439
-		uiScale, -- 440
-		self.stageVp.safeUi -- 441
-	) -- 441
-	self:drawToast(w / uiScale) -- 443
-	self:finishFrame() -- 444
-	return act -- 445
-end -- 410
-function WatchFrontend.prototype.tryPickTalentAtPointer(self, p, input, w, h) -- 449
-	local offers = p:getStoryTalentOffers() -- 450
-	if #offers == 0 then -- 451
-		return false -- 452
-	end -- 452
-	if input.inputMode == "gamepad" and not input.uiPressed then -- 454
-		return false -- 455
-	end -- 455
-	local useUiPtr = input.uiInside or input.uiPressed -- 457
-	local ____useUiPtr_2 -- 458
-	if useUiPtr then -- 458
-		____useUiPtr_2 = input.uiInside -- 458
-	else -- 458
-		____useUiPtr_2 = input.inside -- 458
-	end -- 458
-	local inside = ____useUiPtr_2 -- 458
-	if not inside then -- 459
-		return false -- 460
-	end -- 460
-	local uiScale = math.max( -- 462
-		0.25, -- 462
-		math.min(w / 1280, h / 720) -- 462
-	) -- 462
-	local uiW = w / uiScale -- 463
-	local uiH = h / uiScale -- 464
-	local rawX = useUiPtr and input.uiX or input.mx -- 465
-	local rawY = useUiPtr and input.uiY or input.my -- 466
-	local pointer = Vec2(rawX / uiScale, rawY / uiScale) -- 467
-	local boxes = self.hud:talentCardRects( -- 468
-		uiW, -- 468
-		uiH, -- 468
-		#offers, -- 468
-		input:isTouchMode(), -- 468
-		self.stageVp.safeUi.top -- 468
-	) -- 468
-	local i = 0 -- 469
-	do -- 469
-		i = 0 -- 470
-		while i < #boxes do -- 470
-			if boxes[i + 1]:containsPoint(pointer) then -- 471
-				return p:chooseTalent(i) -- 472
-			end -- 472
-			i = i + 1 -- 470
-		end -- 470
-	end -- 470
-	local toggleBox = self.roguelikeUi:getExpandToggleRect() -- 475
-	if toggleBox.width > 0 and toggleBox:containsPoint(pointer) then -- 476
-		self.roguelikeUi:setCompact(self.roguelikeUi:isExpanded()) -- 477
-		self.audio:playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.45, 0.045) -- 478
-		return true -- 479
-	end -- 479
-	local ledgerBox = self.roguelikeUi:getLedgerButtonRect() -- 481
-	if ledgerBox.width > 0 and ledgerBox:containsPoint(pointer) then -- 482
-		self.roguelikeUi:toggleLedger() -- 483
-		self.audio:playUi("ui:ledger_open", "assets/audio/ui/pause_open.wav", 0.56, 0.08) -- 484
-		return true -- 485
-	end -- 485
-	return false -- 487
-end -- 449
-function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 491
-	self:syncRuntimeHooks() -- 492
-	self:setVisible(true) -- 493
-	if self.boundPlay ~= p then -- 494
-		self:bindPlay(p, w, h) -- 495
+	if self.screen == "title" and self.boundPlay ~= nil then -- 418
+		self.audio:stopRoomTransient() -- 421
+		self.boundPlay = nil -- 422
+	end -- 422
+	self.audio:update(safeDt) -- 424
+	self.soundscape:updateMenu(self.screen, self.audio) -- 425
+	self:setVisible(true) -- 426
+	self:clearAll() -- 427
+	local uiScale = self:resizeInterface(w, h) -- 428
+	local act = self.menus:updateAndDrawScreen( -- 429
+		dt, -- 430
+		self.screen, -- 431
+		input, -- 432
+		self.stage, -- 433
+		self.bgDraw, -- 434
+		self.bgGlow, -- 435
+		self.backdropArt, -- 436
+		self.uiArt, -- 437
+		self.uiDraw, -- 438
+		self.uiInkDraw, -- 439
+		self.uiGlow, -- 440
+		self.texts, -- 441
+		w, -- 442
+		h, -- 443
+		uiScale, -- 444
+		self.stageVp.safeUi -- 445
+	) -- 445
+	self:drawToast(w / uiScale) -- 447
+	self:finishFrame() -- 448
+	return act -- 449
+end -- 414
+function WatchFrontend.prototype.tryPickTalentAtPointer(self, p, input, w, h) -- 453
+	local offers = p:getStoryTalentOffers() -- 454
+	if not self:canPickStoryTalent(p) or #offers == 0 then -- 454
+		return false -- 456
+	end -- 456
+	if input.inputMode == "gamepad" and not input.uiPressed then -- 456
+		return false -- 459
+	end -- 459
+	local useUiPtr = input.uiInside or input.uiPressed -- 461
+	local ____useUiPtr_2 -- 462
+	if useUiPtr then -- 462
+		____useUiPtr_2 = input.uiInside -- 462
+	else -- 462
+		____useUiPtr_2 = input.inside -- 462
+	end -- 462
+	local inside = ____useUiPtr_2 -- 462
+	if not inside then -- 462
+		return false -- 464
+	end -- 464
+	local uiScale = math.max( -- 466
+		0.25, -- 466
+		math.min(w / 1280, h / 720) -- 466
+	) -- 466
+	local uiW = w / uiScale -- 467
+	local uiH = h / uiScale -- 468
+	local rawX = useUiPtr and input.uiX or input.mx -- 469
+	local rawY = useUiPtr and input.uiY or input.my -- 470
+	local pointer = Vec2(rawX / uiScale, rawY / uiScale) -- 471
+	local boxes = self.hud:talentCardRects( -- 472
+		uiW, -- 472
+		uiH, -- 472
+		#offers, -- 472
+		input:isTouchMode(), -- 472
+		self.stageVp.safeUi.top -- 472
+	) -- 472
+	local i = 0 -- 473
+	do -- 473
+		i = 0 -- 474
+		while i < #boxes do -- 474
+			if boxes[i + 1]:containsPoint(pointer) then -- 474
+				return p:chooseTalent(i) -- 476
+			end -- 476
+			i = i + 1 -- 474
+		end -- 474
+	end -- 474
+	local ledger = self.roguelikeUi:getLedgerButtonRect() -- 480
+	local toggle = self.roguelikeUi:getExpandToggleRect() -- 481
+	return ledger.width > 0 and ledger:containsPoint(pointer) or toggle.width > 0 and toggle:containsPoint(pointer) -- 482
+end -- 453
+function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 487
+	self:syncRuntimeHooks() -- 488
+	self:setVisible(true) -- 489
+	if self.boundPlay ~= p then -- 489
+		self:bindPlay(p, w, h) -- 491
+	end -- 491
+	local safeDt = math.min( -- 493
+		0.05, -- 493
+		math.max(0.001, dt) -- 493
+	) -- 493
+	if self.toastTimer > 0 then -- 493
+		self.toastTimer = math.max(0, self.toastTimer - safeDt) -- 495
 	end -- 495
-	local safeDt = math.min( -- 497
-		0.05, -- 497
-		math.max(0.001, dt) -- 497
-	) -- 497
-	if self.toastTimer > 0 then -- 498
-		self.toastTimer = math.max(0, self.toastTimer - safeDt) -- 499
-	end -- 499
-	self.audio:setPaused(p.paused) -- 501
-	self.audio:setCameraRef( -- 502
-		self.cam.x, -- 502
-		w / math.max(0.25, self.cam.ppu) -- 502
-	) -- 502
-	self.audio:update(safeDt) -- 503
-	local ev -- 505
-	local worldDt = 0 -- 506
-	local uiDt = 0 -- 507
-	if not p.paused then -- 509
-		ev = self.adapter:sample(p) -- 511
-		self.vfx:ingest(ev, p, self.cam) -- 512
-		self.audio:ingestEvents(ev, p) -- 513
-		local touch = input:getTouch() -- 514
-		if touch ~= nil then -- 515
-			if ev.playerHit then -- 516
-				touch:vibrate(0.036) -- 517
-			elseif ev.reloadSolved or ev.benchCrafted or ev.handJustTied or ev.cartJustDocked then -- 518
-				touch:vibrate(0.024) -- 519
-			elseif ev.coverDeflect then -- 520
-				touch:vibrate(0.018) -- 521
-			elseif ev.knockPulse then -- 522
-				touch:vibrate(0.014) -- 523
-			end -- 523
-		end -- 523
-	else -- 523
-		ev = self.adapter:emptyFrame(p) -- 528
-		self.narrative.wipeT = 0 -- 529
-	end -- 529
-	local view = self.contract:sample(p, p.paused and 0 or safeDt, input, ev) -- 532
-	if not p.paused then -- 533
-		local clampedScale = math.max( -- 534
-			0, -- 534
-			math.min(2, view.timeScale) -- 534
-		) -- 534
-		uiDt = safeDt -- 535
-		worldDt = safeDt * clampedScale -- 536
-	end -- 536
-	local uiScale = self:resizeInterface(w, h) -- 539
-	local uiW = w / uiScale -- 540
-	local uiH = h / uiScale -- 541
-	local ctx = { -- 543
-		p = p, -- 544
-		view = view, -- 545
-		events = ev, -- 546
-		input = input, -- 547
-		cam = self.cam, -- 548
-		audio = self.audio, -- 549
-		assets = self.worldArt, -- 550
-		backdropArt = self.backdropArt, -- 551
-		worldArt = self.worldArt, -- 552
-		uiArt = self.uiArt, -- 553
-		texts = self.texts, -- 554
-		worldDt = worldDt, -- 555
-		uiDt = uiDt, -- 556
-		w = w, -- 557
-		h = h, -- 558
-		uiW = uiW, -- 559
-		uiH = uiH, -- 560
-		uiScale = uiScale, -- 561
-		safeUi = self.stageVp.safeUi, -- 562
-		paused = p.paused -- 563
-	} -- 563
-	local i = 0 -- 567
-	do -- 567
-		i = 0 -- 568
-		while i < #self.plugins do -- 568
-			local pl = self.plugins[i + 1] -- 569
-			if pl.update ~= nil then -- 570
-				pl:update(ctx) -- 571
-			end -- 571
-			i = i + 1 -- 568
-		end -- 568
-	end -- 568
-	self.roguelikeUi:update(ctx) -- 574
-	if not p.paused then -- 576
-		self.time = self.time + worldDt -- 577
-		self.cam:update(worldDt, p, w, h) -- 578
-		self.audio:setCameraRef( -- 579
-			self.cam.x, -- 579
-			w / math.max(0.25, self.cam.ppu) -- 579
-		) -- 579
-		self.soundscape:updatePlay(worldDt, p, view, self.audio) -- 580
-		self.actors:update(worldDt, p) -- 581
-		self.vfx:update( -- 582
-			worldDt, -- 582
-			themeOf(p.room.key).ambient -- 582
-		) -- 582
-		self.hud:update(safeDt, p) -- 583
-		self.narrative:update(safeDt, p, ev, input.frameInteractPressed) -- 584
-	else -- 584
-		self.cam:update(0, p, w, h) -- 586
-	end -- 586
-	self:clearAll() -- 589
-	local backdropHandled = false -- 592
-	do -- 592
-		i = 0 -- 593
-		while i < #self.plugins do -- 593
-			local pl = self.plugins[i + 1] -- 594
-			if pl.drawBackdrop ~= nil and pl:drawBackdrop(self.bgDraw, self.bgGlow, self.backdropArt, ctx) then -- 595
-				backdropHandled = true -- 596
-			end -- 596
-			i = i + 1 -- 593
-		end -- 593
-	end -- 593
-	if not backdropHandled then -- 599
-		self.stage:drawBackdrop( -- 600
-			self.bgDraw, -- 600
-			self.bgGlow, -- 600
-			self.backdropArt, -- 600
-			p, -- 600
-			self.cam, -- 600
-			self.time -- 600
-		) -- 600
-	end -- 600
-	local worldHandled = false -- 604
-	do -- 604
-		i = 0 -- 605
-		while i < #self.plugins do -- 605
-			local pl = self.plugins[i + 1] -- 606
-			if pl.drawWorld ~= nil and pl:drawWorld(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 607
-				worldHandled = true -- 608
-			end -- 608
-			i = i + 1 -- 605
-		end -- 605
-	end -- 605
-	if not worldHandled then -- 611
-		self.stage:drawPlayableWorld( -- 612
-			self.fgDraw, -- 612
-			self.fgGlow, -- 612
-			self.worldArt, -- 612
-			p, -- 612
-			self.cam, -- 612
-			self.time, -- 612
-			self.occlusion, -- 612
-			worldDt -- 612
-		) -- 612
-	end -- 612
-	local propsHandled = false -- 616
-	do -- 616
-		i = 0 -- 617
-		while i < #self.plugins do -- 617
-			local pl = self.plugins[i + 1] -- 618
-			if pl.drawPropsOverlay ~= nil and pl:drawPropsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 619
-				propsHandled = true -- 620
-			end -- 620
-			i = i + 1 -- 617
-		end -- 617
-	end -- 617
-	if not propsHandled then -- 623
-		self.props:drawAll( -- 624
-			self.fgDraw, -- 624
-			self.fgGlow, -- 624
-			self.worldArt, -- 624
-			p, -- 624
-			self.cam, -- 624
-			self.time, -- 624
-			self.occlusion, -- 624
-			worldDt -- 624
-		) -- 624
-	end -- 624
-	local suppressAllActors = view.visualMode == "museum" -- 628
-	local partnerFarInHand = view.backCarry.handInHand and (not p.partner.alive or math.abs(p.partner.x - p.player.x) > 56 or math.abs(p.partner.y - p.player.y) > 24) -- 629
-	local suppressPartner = view.visualMode == "pixel" and not p.childMode and p.player.alive and (view.backCarry.active or view.backCarry.mounting or view.backCarry.atBench or view.craftBench.active or partnerFarInHand) -- 633
-	if not suppressAllActors then -- 641
-		self.actors:drawAll( -- 642
-			self.fgDraw, -- 642
-			self.fgGlow, -- 642
-			self.worldArt, -- 642
-			p, -- 642
-			self.cam, -- 642
-			suppressPartner -- 642
-		) -- 642
-	end -- 642
-	do -- 642
-		i = 0 -- 644
-		while i < #self.plugins do -- 644
-			local pl = self.plugins[i + 1] -- 645
-			if pl.drawActorsOverlay ~= nil then -- 646
-				pl:drawActorsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) -- 647
-			end -- 647
-			i = i + 1 -- 644
-		end -- 644
-	end -- 644
-	self.roguelikeUi:drawActorsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) -- 650
-	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 653
-	if view.visualMode == "pixel" then -- 656
-		self.stage:drawForegroundFraming( -- 657
-			self.fgDraw, -- 657
-			w, -- 657
-			h, -- 657
-			p, -- 657
-			self.cam -- 657
-		) -- 657
-	end -- 657
-	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 659
-	local action = {type = "none"} -- 662
-	if p.paused then -- 663
-		action = self.menus:updateAndDrawPause( -- 664
-			safeDt, -- 665
-			input, -- 666
-			self.uiDraw, -- 667
-			self.uiInkDraw, -- 668
-			self.uiArt, -- 669
-			self.uiGlow, -- 670
-			self.texts, -- 671
-			uiW, -- 672
-			uiH, -- 673
-			uiScale, -- 674
-			view.assistHintsEnabled, -- 675
-			function() -- 676
-				self.contract:toggleAssistHints() -- 677
-			end, -- 676
-			self.stageVp.safeUi, -- 679
-			view.roguelike.active, -- 680
-			function() -- 681
-				self.roguelikeUi:openLedger() -- 682
-			end -- 681
-		) -- 681
-	else -- 681
-		local cutsceneHandled = false -- 687
-		do -- 687
-			i = 0 -- 688
-			while i < #self.plugins do -- 688
-				local pl = self.plugins[i + 1] -- 689
-				if pl.drawCutsceneOverlay ~= nil and pl:drawCutsceneOverlay( -- 690
-					self.uiDraw, -- 691
-					self.uiInkDraw, -- 691
-					self.uiArt, -- 691
-					self.uiGlow, -- 691
-					ctx -- 691
-				) then -- 691
-					cutsceneHandled = true -- 692
-				end -- 692
-				i = i + 1 -- 688
-			end -- 688
-		end -- 688
-		local roguelikeModal = not cutsceneHandled and self.roguelikeUi:isModalOverlayActive() -- 696
-		if not cutsceneHandled and not roguelikeModal then -- 697
-			local touchOverlayVisible = input:shouldShowTouchControls() and not self.stageVp.isPortrait -- 698
-			self.hud:draw( -- 699
-				self.uiDraw, -- 700
-				self.uiInkDraw, -- 701
-				self.uiArt, -- 702
-				self.uiGlow, -- 703
-				self.texts, -- 704
-				p, -- 705
-				self.cam, -- 706
-				self.vfx, -- 707
-				self.narrative.letterbox, -- 708
-				uiScale, -- 709
-				view.assistHintsEnabled, -- 710
-				true, -- 711
-				input.inputMode, -- 712
-				input.gamepadLayout, -- 713
-				self.stageVp.safeUi, -- 714
-				input.retryHoldProgress, -- 715
-				touchOverlayVisible -- 716
-			) -- 716
-			local suppressBanner = self.roguelikeUi:isSuppressingRoomBanner() -- 718
-			local savedBannerT = self.narrative.bannerT -- 719
-			if suppressBanner then -- 720
-				self.narrative.bannerT = 0 -- 721
-			end -- 721
-			self.narrative:draw( -- 723
-				self.uiDraw, -- 724
-				self.uiInkDraw, -- 725
-				self.uiGlow, -- 726
-				self.uiArt, -- 727
-				self.texts, -- 728
-				p, -- 729
-				uiW, -- 730
-				uiH, -- 731
-				view.assistHintsEnabled, -- 732
-				input.inputMode, -- 733
-				input.gamepadLayout, -- 734
-				self.stageVp.safeUi -- 735
-			) -- 735
-			if suppressBanner then -- 737
-				self.narrative.bannerT = savedBannerT -- 738
-			end -- 738
-		end -- 738
-		local suppressReticle = cutsceneHandled or view.reloadSession.active or view.craftBench.active -- 742
-		do -- 742
-			i = 0 -- 743
-			while i < #self.plugins do -- 743
-				local pl = self.plugins[i + 1] -- 744
-				if pl.drawFullSpeedUi ~= nil and pl:drawFullSpeedUi( -- 745
-					self.uiDraw, -- 746
-					self.uiInkDraw, -- 746
-					self.uiArt, -- 746
-					self.uiGlow, -- 746
-					ctx -- 746
-				) then -- 746
-					suppressReticle = true -- 747
-				end -- 747
-				i = i + 1 -- 743
-			end -- 743
-		end -- 743
-		if not cutsceneHandled and self.roguelikeUi:drawFullSpeedUi( -- 750
-			self.uiDraw, -- 751
-			self.uiInkDraw, -- 751
-			self.uiArt, -- 751
-			self.uiGlow, -- 751
-			ctx -- 751
-		) then -- 751
-			suppressReticle = true -- 752
-		end -- 752
-		if not suppressReticle then -- 754
-			self.hud:drawReticleOverlay( -- 755
-				self.uiInkDraw, -- 756
-				self.uiArt, -- 757
-				self.uiGlow, -- 758
-				p, -- 759
-				self.cam, -- 760
-				self.vfx, -- 761
-				self.narrative.letterbox, -- 762
-				uiScale, -- 763
-				input:isTouchMode() -- 764
-			) -- 764
-		end -- 764
-		if view.isRehearsal then -- 769
-			local badgeText = view.rehearsalTag ~= "" and "排演 · " .. view.rehearsalTag or "排演模式" -- 770
-			drawSilkVeil( -- 771
-				self.uiDraw, -- 771
-				self.uiArt, -- 771
-				"rehearsal_tag_veil", -- 771
-				uiW * 0.5, -- 771
-				uiH - 22 - self.stageVp.safeUi.top, -- 771
-				168, -- 771
-				26, -- 771
-				PALETTE.inkWarm, -- 771
-				0.74, -- 771
-				8 -- 771
-			) -- 771
-			self.texts:put( -- 772
-				"xs", -- 772
-				badgeText, -- 772
-				uiW * 0.5, -- 772
-				uiH - 22 - self.stageVp.safeUi.top, -- 772
-				toColor(PALETTE.amberCore), -- 772
-				0.5, -- 772
-				0.5, -- 772
-				"Center", -- 772
-				1.2, -- 772
-				0.92, -- 772
-				0.08 -- 772
-			) -- 772
-		end -- 772
-	end -- 772
-	self:drawToast(uiW) -- 776
-	self:finishFrame() -- 777
-	return action -- 778
-end -- 491
-return ____exports -- 491
+	self.audio:setPaused(p.paused) -- 497
+	self.audio:setCameraRef( -- 498
+		self.cam.x, -- 498
+		w / math.max(0.25, self.cam.ppu) -- 498
+	) -- 498
+	self.audio:update(safeDt) -- 499
+	local ev -- 501
+	local worldDt = 0 -- 502
+	local uiDt = 0 -- 503
+	if not p.paused then -- 503
+		ev = self.adapter:sample(p) -- 507
+		self.vfx:ingest(ev, p, self.cam) -- 508
+		self.audio:ingestEvents(ev, p) -- 509
+		local touch = input:getTouch() -- 510
+		if touch ~= nil then -- 510
+			if ev.playerHit then -- 510
+				touch:vibrate(0.036) -- 513
+			elseif ev.reloadSolved or ev.benchCrafted or ev.handJustTied or ev.cartJustDocked then -- 513
+				touch:vibrate(0.024) -- 515
+			elseif ev.coverDeflect then -- 515
+				touch:vibrate(0.018) -- 517
+			elseif ev.knockPulse then -- 517
+				touch:vibrate(0.014) -- 519
+			end -- 519
+		end -- 519
+	else -- 519
+		ev = self.adapter:emptyFrame(p) -- 524
+		self.narrative.wipeT = 0 -- 525
+	end -- 525
+	local view = self.contract:sample(p, p.paused and 0 or safeDt, input, ev) -- 528
+	if not p.paused then -- 528
+		local clampedScale = math.max( -- 530
+			0, -- 530
+			math.min(2, view.timeScale) -- 530
+		) -- 530
+		uiDt = safeDt -- 531
+		worldDt = safeDt * clampedScale -- 532
+	end -- 532
+	local uiScale = self:resizeInterface(w, h) -- 535
+	local uiW = w / uiScale -- 536
+	local uiH = h / uiScale -- 537
+	local ctx = { -- 539
+		p = p, -- 540
+		view = view, -- 541
+		events = ev, -- 542
+		input = input, -- 543
+		cam = self.cam, -- 544
+		audio = self.audio, -- 545
+		assets = self.worldArt, -- 546
+		backdropArt = self.backdropArt, -- 547
+		worldArt = self.worldArt, -- 548
+		uiArt = self.uiArt, -- 549
+		texts = self.texts, -- 550
+		worldDt = worldDt, -- 551
+		uiDt = uiDt, -- 552
+		w = w, -- 553
+		h = h, -- 554
+		uiW = uiW, -- 555
+		uiH = uiH, -- 556
+		uiScale = uiScale, -- 557
+		safeUi = self.stageVp.safeUi, -- 558
+		paused = p.paused -- 559
+	} -- 559
+	local i = 0 -- 563
+	do -- 563
+		i = 0 -- 564
+		while i < #self.plugins do -- 564
+			local pl = self.plugins[i + 1] -- 565
+			if pl.update ~= nil then -- 565
+				pl:update(ctx) -- 567
+			end -- 567
+			i = i + 1 -- 564
+		end -- 564
+	end -- 564
+	self.roguelikeUi:update(ctx) -- 570
+	if not p.paused then -- 570
+		self.time = self.time + worldDt -- 573
+		self.cam:update(worldDt, p, w, h) -- 574
+		self.audio:setCameraRef( -- 575
+			self.cam.x, -- 575
+			w / math.max(0.25, self.cam.ppu) -- 575
+		) -- 575
+		self.soundscape:updatePlay(worldDt, p, view, self.audio) -- 576
+		self.actors:update(worldDt, p) -- 577
+		self.vfx:update( -- 578
+			worldDt, -- 578
+			themeOf(p.room.key).ambient -- 578
+		) -- 578
+		self.hud:update(safeDt, p) -- 579
+		self.narrative:update(safeDt, p, ev, input.frameInteractPressed) -- 580
+	else -- 580
+		self.cam:update(0, p, w, h) -- 582
+	end -- 582
+	self:clearAll() -- 585
+	local backdropHandled = false -- 588
+	do -- 588
+		i = 0 -- 589
+		while i < #self.plugins do -- 589
+			local pl = self.plugins[i + 1] -- 590
+			if pl.drawBackdrop ~= nil and pl:drawBackdrop(self.bgDraw, self.bgGlow, self.backdropArt, ctx) then -- 590
+				backdropHandled = true -- 592
+			end -- 592
+			i = i + 1 -- 589
+		end -- 589
+	end -- 589
+	if not backdropHandled then -- 589
+		self.stage:drawBackdrop( -- 596
+			self.bgDraw, -- 596
+			self.bgGlow, -- 596
+			self.backdropArt, -- 596
+			p, -- 596
+			self.cam, -- 596
+			self.time -- 596
+		) -- 596
+	end -- 596
+	local worldHandled = false -- 600
+	do -- 600
+		i = 0 -- 601
+		while i < #self.plugins do -- 601
+			local pl = self.plugins[i + 1] -- 602
+			if pl.drawWorld ~= nil and pl:drawWorld(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 602
+				worldHandled = true -- 604
+			end -- 604
+			i = i + 1 -- 601
+		end -- 601
+	end -- 601
+	if not worldHandled then -- 601
+		self.stage:drawPlayableWorld( -- 608
+			self.fgDraw, -- 608
+			self.fgGlow, -- 608
+			self.worldArt, -- 608
+			p, -- 608
+			self.cam, -- 608
+			self.time, -- 608
+			self.occlusion, -- 608
+			worldDt -- 608
+		) -- 608
+	end -- 608
+	local propsHandled = false -- 612
+	do -- 612
+		i = 0 -- 613
+		while i < #self.plugins do -- 613
+			local pl = self.plugins[i + 1] -- 614
+			if pl.drawPropsOverlay ~= nil and pl:drawPropsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) then -- 614
+				propsHandled = true -- 616
+			end -- 616
+			i = i + 1 -- 613
+		end -- 613
+	end -- 613
+	if not propsHandled then -- 613
+		self.props:drawAll( -- 620
+			self.fgDraw, -- 620
+			self.fgGlow, -- 620
+			self.worldArt, -- 620
+			p, -- 620
+			self.cam, -- 620
+			self.time, -- 620
+			self.occlusion, -- 620
+			worldDt -- 620
+		) -- 620
+	end -- 620
+	local suppressAllActors = view.visualMode == "museum" -- 624
+	local partnerFarInHand = view.backCarry.handInHand and (not p.partner.alive or math.abs(p.partner.x - p.player.x) > 56 or math.abs(p.partner.y - p.player.y) > 24) -- 625
+	local suppressPartner = view.visualMode == "pixel" and not p.childMode and p.player.alive and (view.backCarry.active or view.backCarry.mounting or view.backCarry.atBench or view.craftBench.active or partnerFarInHand) -- 629
+	if not suppressAllActors then -- 629
+		self.actors:drawAll( -- 638
+			self.fgDraw, -- 638
+			self.fgGlow, -- 638
+			self.worldArt, -- 638
+			p, -- 638
+			self.cam, -- 638
+			suppressPartner -- 638
+		) -- 638
+	end -- 638
+	do -- 638
+		i = 0 -- 640
+		while i < #self.plugins do -- 640
+			local pl = self.plugins[i + 1] -- 641
+			if pl.drawActorsOverlay ~= nil then -- 641
+				pl:drawActorsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) -- 643
+			end -- 643
+			i = i + 1 -- 640
+		end -- 640
+	end -- 640
+	self.roguelikeUi:drawActorsOverlay(self.fgDraw, self.fgGlow, self.worldArt, ctx) -- 646
+	self.vfx:drawWorldVfx(self.fgGlow, self.worldArt, self.cam) -- 649
+	if view.visualMode == "pixel" then -- 649
+		self.stage:drawForegroundFraming( -- 653
+			self.fgDraw, -- 653
+			w, -- 653
+			h, -- 653
+			p, -- 653
+			self.cam -- 653
+		) -- 653
+	end -- 653
+	self.vfx:drawScreenVfx(self.fgGlow, w, h, p.room.key) -- 655
+	local action = {type = "none"} -- 658
+	if p.paused then -- 658
+		action = self.menus:updateAndDrawPause( -- 660
+			safeDt, -- 661
+			input, -- 662
+			self.uiDraw, -- 663
+			self.uiInkDraw, -- 664
+			self.uiArt, -- 665
+			self.uiGlow, -- 666
+			self.texts, -- 667
+			uiW, -- 668
+			uiH, -- 669
+			uiScale, -- 670
+			view.assistHintsEnabled, -- 671
+			function() -- 672
+				self.contract:toggleAssistHints() -- 673
+			end, -- 672
+			self.stageVp.safeUi, -- 675
+			view.roguelike.active, -- 676
+			function() -- 677
+				self.roguelikeUi:openLedger() -- 678
+			end -- 677
+		) -- 677
+	else -- 677
+		local cutsceneHandled = false -- 683
+		do -- 683
+			i = 0 -- 684
+			while i < #self.plugins do -- 684
+				local pl = self.plugins[i + 1] -- 685
+				if pl.drawCutsceneOverlay ~= nil and pl:drawCutsceneOverlay( -- 685
+					self.uiDraw, -- 687
+					self.uiInkDraw, -- 687
+					self.uiArt, -- 687
+					self.uiGlow, -- 687
+					ctx -- 687
+				) then -- 687
+					cutsceneHandled = true -- 688
+				end -- 688
+				i = i + 1 -- 684
+			end -- 684
+		end -- 684
+		local roguelikeModal = not cutsceneHandled and self.roguelikeUi:isModalOverlayActive() -- 692
+		if not cutsceneHandled and not roguelikeModal then -- 692
+			local touchOverlayVisible = input:shouldShowTouchControls() and not self.stageVp.isPortrait -- 694
+			self.hud:draw( -- 695
+				self.uiDraw, -- 696
+				self.uiInkDraw, -- 697
+				self.uiArt, -- 698
+				self.uiGlow, -- 699
+				self.texts, -- 700
+				p, -- 701
+				self.cam, -- 702
+				self.vfx, -- 703
+				self.narrative.letterbox, -- 704
+				uiScale, -- 705
+				view.assistHintsEnabled, -- 706
+				true, -- 707
+				input.inputMode, -- 708
+				input.gamepadLayout, -- 709
+				self.stageVp.safeUi, -- 710
+				input.retryHoldProgress, -- 711
+				touchOverlayVisible -- 712
+			) -- 712
+			local suppressBanner = self.roguelikeUi:isSuppressingRoomBanner() -- 714
+			local savedBannerT = self.narrative.bannerT -- 715
+			if suppressBanner then -- 715
+				self.narrative.bannerT = 0 -- 717
+			end -- 717
+			self.narrative:draw( -- 719
+				self.uiDraw, -- 720
+				self.uiInkDraw, -- 721
+				self.uiGlow, -- 722
+				self.uiArt, -- 723
+				self.texts, -- 724
+				p, -- 725
+				uiW, -- 726
+				uiH, -- 727
+				view.assistHintsEnabled, -- 728
+				input.inputMode, -- 729
+				input.gamepadLayout, -- 730
+				self.stageVp.safeUi -- 731
+			) -- 731
+			if suppressBanner then -- 731
+				self.narrative.bannerT = savedBannerT -- 734
+			end -- 734
+		end -- 734
+		local suppressReticle = cutsceneHandled or view.reloadSession.active or view.craftBench.active -- 738
+		do -- 738
+			i = 0 -- 739
+			while i < #self.plugins do -- 739
+				local pl = self.plugins[i + 1] -- 740
+				if pl.drawFullSpeedUi ~= nil and pl:drawFullSpeedUi( -- 740
+					self.uiDraw, -- 742
+					self.uiInkDraw, -- 742
+					self.uiArt, -- 742
+					self.uiGlow, -- 742
+					ctx -- 742
+				) then -- 742
+					suppressReticle = true -- 743
+				end -- 743
+				i = i + 1 -- 739
+			end -- 739
+		end -- 739
+		if not cutsceneHandled and self.roguelikeUi:drawFullSpeedUi( -- 739
+			self.uiDraw, -- 747
+			self.uiInkDraw, -- 747
+			self.uiArt, -- 747
+			self.uiGlow, -- 747
+			ctx -- 747
+		) then -- 747
+			suppressReticle = true -- 748
+		end -- 748
+		if not suppressReticle then -- 748
+			self.hud:drawReticleOverlay( -- 751
+				self.uiInkDraw, -- 752
+				self.uiArt, -- 753
+				self.uiGlow, -- 754
+				p, -- 755
+				self.cam, -- 756
+				self.vfx, -- 757
+				self.narrative.letterbox, -- 758
+				uiScale, -- 759
+				input:isTouchMode() -- 760
+			) -- 760
+		end -- 760
+		if view.isRehearsal then -- 760
+			local badgeText = view.rehearsalTag ~= "" and "排演 · " .. view.rehearsalTag or "排演模式" -- 766
+			drawSilkVeil( -- 767
+				self.uiDraw, -- 767
+				self.uiArt, -- 767
+				"rehearsal_tag_veil", -- 767
+				uiW * 0.5, -- 767
+				uiH - 22 - self.stageVp.safeUi.top, -- 767
+				168, -- 767
+				26, -- 767
+				PALETTE.inkWarm, -- 767
+				0.74, -- 767
+				8 -- 767
+			) -- 767
+			self.texts:put( -- 768
+				"xs", -- 768
+				badgeText, -- 768
+				uiW * 0.5, -- 768
+				uiH - 22 - self.stageVp.safeUi.top, -- 768
+				toColor(PALETTE.amberCore), -- 768
+				0.5, -- 768
+				0.5, -- 768
+				"Center", -- 768
+				1.2, -- 768
+				0.92, -- 768
+				0.08 -- 768
+			) -- 768
+		end -- 768
+	end -- 768
+	self:drawToast(uiW) -- 772
+	self:finishFrame() -- 773
+	return action -- 774
+end -- 487
+return ____exports -- 487
