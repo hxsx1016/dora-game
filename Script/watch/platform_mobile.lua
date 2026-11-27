@@ -5,23 +5,23 @@ local App = ____Dora.App -- 7
 local View = ____Dora.View -- 7
 --- 判断舞台是否接近 KTR1/KTR2 等紧凑非 16:9 掌机屏（3:2 或 4:3）。
 function ____exports.isCompactAspect(stageW, stageH) -- 11
-	if stageW <= 0 or stageH <= 0 then -- 12
+	if stageW <= 0 or stageH <= 0 then -- 11
 		return false -- 12
 	end -- 12
 	return stageW / stageH < 1.62 -- 13
 end -- 11
 --- 触发短促触觉微震动反馈（仅移动设备支持且用户开启震动时生效）。
 function ____exports.triggerMobileHaptics(seconds, enabled) -- 17
-	if not enabled then -- 18
+	if not enabled then -- 17
 		return -- 19
 	end -- 19
 	local plat = App.platform -- 21
-	if plat ~= "Android" and plat ~= "iOS" then -- 22
+	if plat ~= "Android" and plat ~= "iOS" then -- 21
 		return -- 23
 	end -- 23
-	if type(App.vibrate) == "function" then -- 25
-		do -- 25
-			pcall(function() -- 25
+	if type(App.vibrate) == "function" then -- 23
+		do -- 23
+			pcall(function() -- 23
 				App:vibrate(seconds) -- 27
 			end) -- 27
 		end -- 27
@@ -29,16 +29,16 @@ function ____exports.triggerMobileHaptics(seconds, enabled) -- 17
 end -- 17
 --- 读取安全区内缩（容错无 safeArea 的旧引擎/测试环境，换算为 View 逻辑像素）。
 function ____exports.readSafeInsets(fullW, fullH) -- 35
-	if fullW <= 0 or fullH <= 0 then -- 36
+	if fullW <= 0 or fullH <= 0 then -- 35
 		return {left = 0, right = 0, top = 0, bottom = 0} -- 37
 	end -- 37
 	local appObj = App -- 39
 	local safe = appObj.safeArea -- 40
 	local vis = appObj.visualSize -- 41
-	if safe == nil or vis == nil or vis.width <= 0 or vis.height <= 0 then -- 42
+	if safe == nil or vis == nil or vis.width <= 0 or vis.height <= 0 then -- 41
 		return {left = 0, right = 0, top = 0, bottom = 0} -- 43
 	end -- 43
-	if safe.width <= 0 or safe.height <= 0 then -- 45
+	if safe.width <= 0 or safe.height <= 0 then -- 43
 		return {left = 0, right = 0, top = 0, bottom = 0} -- 46
 	end -- 46
 	local sx = fullW / vis.width -- 48
@@ -104,7 +104,7 @@ function ____exports.computeAdaptiveViewport(fullW, fullH) -- 93
 	local h = math.max(180, fullH > 0 and fullH or View.size.height) -- 95
 	local safe = ____exports.readSafeInsets(w, h) -- 96
 	local isPortrait = h > w * 1.05 -- 97
-	if not isPortrait then -- 99
+	if not isPortrait then -- 97
 		local uiScale = math.max( -- 100
 			0.25, -- 100
 			math.min(w / 1280, h / 720) -- 100

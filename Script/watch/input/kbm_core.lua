@@ -27,7 +27,7 @@ end -- 53
 function KbmPoller.prototype.attach(self, parent, hooks) -- 68
 	parent:onKeyDown(function(key) -- 69
 		hooks:onFirstUserGesture() -- 70
-		if key == "F11" or key == "Return" and (Keyboard:isKeyPressed("LAlt") or Keyboard:isKeyPressed("RAlt")) then -- 71
+		if key == "F11" or key == "Return" and (Keyboard:isKeyPressed("LAlt") or Keyboard:isKeyPressed("RAlt")) then -- 70
 			hooks:onToggleFullscreen() -- 74
 			return -- 75
 		end -- 75

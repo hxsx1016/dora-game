@@ -57,10 +57,10 @@ local CALLI_BUCKETS = { -- 45
 	title = true -- 54
 } -- 54
 local function resolveFont(useCalli) -- 57
-	if useCalli and Content:exist(FONT_CALLI_PATH) then -- 58
+	if useCalli and Content:exist(FONT_CALLI_PATH) then -- 57
 		return FONT_CALLI_PATH -- 59
 	end -- 59
-	if Content:exist(FONT_BODY_PATH) then -- 61
+	if Content:exist(FONT_BODY_PATH) then -- 59
 		return FONT_BODY_PATH -- 62
 	end -- 62
 	return FONT_FALLBACK -- 64
@@ -102,8 +102,8 @@ function TextPool.prototype.____constructor(self, parent, order, customCaps) -- 
 		while i < #ALL_BUCKETS do -- 89
 			local bucket = ALL_BUCKETS[i + 1] -- 90
 			local cap = customCaps ~= nil and (customCaps[bucket] or 0) or BUCKET_CAPS[bucket] -- 91
-			if cap > 0 then -- 92
-				local ____self_activeBuckets_0 = self.activeBuckets -- 93
+			if cap > 0 then -- 91
+				local ____self_activeBuckets_0 = self.activeBuckets -- 91
 				____self_activeBuckets_0[#____self_activeBuckets_0 + 1] = bucket -- 93
 				total = total + self:allocBucket(bucket, cap) -- 94
 			end -- 94
@@ -122,10 +122,10 @@ function TextPool.prototype.allocBucket(self, bucket, cap) -- 100
 		i = 0 -- 106
 		while i < cap do -- 106
 			local lb = Label(font, size, true) -- 107
-			if lb == nil and font ~= FONT_FALLBACK then -- 108
+			if lb == nil and font ~= FONT_FALLBACK then -- 107
 				lb = Label(FONT_FALLBACK, size, true) -- 109
 			end -- 109
-			if lb ~= nil then -- 111
+			if lb ~= nil then -- 109
 				lb.outlineColor = DEFAULT_OUTLINE -- 112
 				lb.outlineWidth = 0.13 -- 113
 				lb.visible = false -- 114
@@ -149,30 +149,30 @@ function TextPool.prototype.beginFrame(self) -- 123
 	end -- 125
 end -- 123
 function TextPool.prototype.put(self, bucket, text, x, y, color, ax, ay, align, spacing, opacity, outlineWidth, outlineColor) -- 130
-	if ax == nil then -- 136
+	if ax == nil then -- 130
 		ax = 0 -- 136
 	end -- 136
-	if ay == nil then -- 137
+	if ay == nil then -- 136
 		ay = 0.5 -- 137
 	end -- 137
-	if align == nil then -- 138
+	if align == nil then -- 137
 		align = "Left" -- 138
 	end -- 138
-	if spacing == nil then -- 139
+	if spacing == nil then -- 138
 		spacing = 0 -- 139
 	end -- 139
-	if opacity == nil then -- 140
+	if opacity == nil then -- 139
 		opacity = 1 -- 140
 	end -- 140
-	if outlineWidth == nil then -- 141
+	if outlineWidth == nil then -- 140
 		outlineWidth = 0.13 -- 141
 	end -- 141
-	if text == "" then -- 144
+	if text == "" then -- 141
 		return -- 145
 	end -- 145
 	local list = self.pools[bucket] -- 147
 	local idx = self.used[bucket] -- 148
-	if idx >= #list then -- 149
+	if idx >= #list then -- 148
 		return -- 150
 	end -- 150
 	self.used[bucket] = idx + 1 -- 152
@@ -180,9 +180,9 @@ function TextPool.prototype.put(self, bucket, text, x, y, color, ax, ay, align, 
 	lb.text = text -- 154
 	lb.color = color -- 155
 	lb.outlineWidth = outlineWidth -- 156
-	if outlineColor ~= nil then -- 157
+	if outlineColor ~= nil then -- 156
 		lb.outlineColor = outlineColor -- 158
-	elseif outlineWidth <= 0 then -- 159
+	elseif outlineWidth <= 0 then -- 158
 		lb.outlineColor = Color(0, 0, 0, 0) -- 160
 	else -- 160
 		lb.outlineColor = DEFAULT_OUTLINE -- 162
@@ -218,7 +218,7 @@ function TextPool.prototype.hideRest(self, bucket) -- 184
 	local list = self.pools[bucket] -- 185
 	local i = self.used[bucket] -- 186
 	do -- 186
-		while i < #list do -- 187
+		while i < #list do -- 186
 			list[i + 1].visible = false -- 188
 			i = i + 1 -- 187
 		end -- 187

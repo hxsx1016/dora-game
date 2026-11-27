@@ -41,7 +41,7 @@ function ____exports.triggerHaptics(seconds, enabled) -- 70
 	getActiveTarget():triggerHaptics(seconds, enabled) -- 71
 end -- 70
 function ____exports.isCompactAspect(stageW, stageH) -- 74
-	if stageW <= 0 or stageH <= 0 then -- 75
+	if stageW <= 0 or stageH <= 0 then -- 74
 		return false -- 75
 	end -- 75
 	return stageW / stageH < 1.62 -- 76

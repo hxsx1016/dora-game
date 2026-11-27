@@ -38,7 +38,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 		local topY = ovH - vp.topBarH * 0.5 -- 90
 		local pillH = 26 -- 91
 		local rx = ovW - safeR - 10 -- 92
-		if gameplayActive and p ~= nil and not p.paused then -- 94
+		if gameplayActive and p ~= nil and not p.paused then -- 92
 			local pw = 58 -- 95
 			rx = rx - pw -- 96
 			buttons[#buttons + 1] = { -- 97
@@ -57,7 +57,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 			} -- 109
 			rx = rx - 8 -- 111
 			local inTowerEnd = p.room.key == "tower" and p.phase ~= "tower-wait" -- 113
-			if not inTowerEnd then -- 114
+			if not inTowerEnd then -- 113
 				local rw = 58 -- 115
 				rx = rx - rw -- 116
 				buttons[#buttons + 1] = { -- 117
@@ -94,7 +94,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 			dimmed = false -- 149
 		} -- 149
 		rx = rx - 8 -- 151
-		if allowFullscreen then -- 153
+		if allowFullscreen then -- 151
 			local fw = 54 -- 154
 			rx = rx - fw -- 155
 			buttons[#buttons + 1] = { -- 156
@@ -218,7 +218,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 			y = bottomY + math.floor(10 * u + 0.5), -- 219
 			r = math.floor(34 * u + 0.5) -- 219
 		} -- 219
-		if not p.childMode then -- 221
+		if not p.childMode then -- 219
 			local cw = math.floor(86 * u + 0.5) -- 222
 			local ch = math.floor(32 * u + 0.5) -- 223
 			buttons[#buttons + 1] = { -- 224
@@ -274,7 +274,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 				progress = interactMeta.progress, -- 274
 				dimmed = not interactMeta.available -- 275
 			} -- 275
-			if isPlayMode and p.archive.artifactOwned then -- 277
+			if isPlayMode and p.archive.artifactOwned then -- 275
 				local eq = p.equippedWeapon == "time_shuttler" -- 278
 				buttons[#buttons + 1] = { -- 279
 					id = "artifact", -- 280
@@ -357,7 +357,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 				progress = interactMeta.progress, -- 347
 				dimmed = not interactMeta.available -- 348
 			} -- 348
-			if canBottleAim then -- 350
+			if canBottleAim then -- 348
 				buttons[#buttons + 1] = { -- 351
 					id = "bottle", -- 352
 					x = rightX - math.floor(86 * u + 0.5), -- 353
@@ -378,7 +378,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 	drawFrame = function(self, deckDraw, padInkDraw, texts, ctx, lastPlay, w, h) -- 369
 		local vp = ctx.viewport -- 370
 		local topY = vp.stageY + vp.stageH -- 371
-		if topY < h then -- 373
+		if topY < h then -- 371
 			deckDraw:drawRect( -- 374
 				Rect(0, topY, w, h - topY), -- 374
 				toColor(PALETTE.inkVoid, 252) -- 374
@@ -404,7 +404,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 				0.08 -- 377
 			) -- 377
 		end -- 377
-		if vp.stageX > 0 then -- 380
+		if vp.stageX > 0 then -- 377
 			deckDraw:drawRect( -- 381
 				Rect(0, vp.stageY, vp.stageX, vp.stageH), -- 381
 				toColor(PALETTE.inkVoid, 255) -- 381
@@ -414,7 +414,7 @@ ____exports.PORTRAIT_TOUCH_DELEGATE = { -- 75
 				toColor(PALETTE.inkVoid, 255) -- 382
 			) -- 382
 		end -- 382
-		if vp.deckH > 0 then -- 385
+		if vp.deckH > 0 then -- 382
 			fillVGradRect( -- 386
 				deckDraw, -- 386
 				0, -- 386

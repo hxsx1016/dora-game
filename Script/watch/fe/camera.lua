@@ -44,14 +44,14 @@ function CameraDirector.prototype.snap(self, p, w, h) -- 60
 	self:recomputeMetrics(p, w, h) -- 69
 end -- 60
 function CameraDirector.prototype.addShake(self, amount) -- 73
-	if amount > self.shakeAmp then -- 74
+	if amount > self.shakeAmp then -- 73
 		self.shakeAmp = math.min(18, amount) -- 75
 	else -- 75
 		self.shakeAmp = math.min(18, self.shakeAmp + amount * 0.45) -- 77
 	end -- 77
 end -- 73
 function CameraDirector.prototype.update(self, dt, p, w, h) -- 82
-	if self.anchorLock ~= nil then -- 83
+	if self.anchorLock ~= nil then -- 82
 		self.shakeAmp = 0 -- 84
 		self.shakeX = 0 -- 85
 		self.shakeY = 0 -- 86
@@ -60,48 +60,48 @@ function CameraDirector.prototype.update(self, dt, p, w, h) -- 82
 	end -- 88
 	local theme = themeOf(p.room.key) -- 90
 	local desiredZoom = theme.defaultZoom -- 91
-	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 94
+	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 91
 		desiredZoom = 1.24 -- 95
-	elseif not p.childMode and p.escort.state == "calming" then -- 96
+	elseif not p.childMode and p.escort.state == "calming" then -- 95
 		desiredZoom = 1.2 -- 97
-	elseif p.room.key == "gate" then -- 98
-		if p.phase == "gate-hold" then -- 99
+	elseif p.room.key == "gate" then -- 97
+		if p.phase == "gate-hold" then -- 97
 			desiredZoom = 0.88 -- 100
-		elseif p.phase == "gate-count" then -- 101
+		elseif p.phase == "gate-count" then -- 100
 			desiredZoom = 1.15 -- 102
-		elseif p.phase == "gate-wait" then -- 103
+		elseif p.phase == "gate-wait" then -- 102
 			desiredZoom = 1.12 -- 105
-		elseif p.phase == "gate-hand" then -- 106
+		elseif p.phase == "gate-hand" then -- 105
 			desiredZoom = 1.22 -- 107
-		elseif p.phase == "gate-send" or p.phase == "gate-farewell" then -- 108
+		elseif p.phase == "gate-send" or p.phase == "gate-farewell" then -- 107
 			desiredZoom = 1.06 -- 109
 		end -- 109
-	elseif p.room.key == "museum" then -- 111
+	elseif p.room.key == "museum" then -- 109
 		desiredZoom = p.phase == "museum-cabinet" and 1.14 or 1.06 -- 113
-	elseif p.room.key == "outside" then -- 114
+	elseif p.room.key == "outside" then -- 113
 		desiredZoom = p.player.x < 560 and 0.94 or 1.02 -- 116
-	elseif p.room.key == "forest" and p.player.x >= p.ox + 1160 and p.player.x <= p.ox + 1350 then -- 117
+	elseif p.room.key == "forest" and p.player.x >= p.ox + 1160 and p.player.x <= p.ox + 1350 then -- 116
 		desiredZoom = p.player.x < p.ox + 1280 and 1.12 or 0.98 -- 119
-	elseif p.room.key == "tower" and p.phase ~= "tower-wait" then -- 120
+	elseif p.room.key == "tower" and p.phase ~= "tower-wait" then -- 119
 		desiredZoom = 1.22 -- 121
 	end -- 121
 	local zk = math.min(1, dt * 3.8) -- 124
-	if p.reloadOpen then -- 125
+	if p.reloadOpen then -- 124
 		desiredZoom = math.max(desiredZoom, 1.16) -- 127
 	end -- 127
 	self.zoom = self.zoom + (desiredZoom - self.zoom) * zk -- 129
 	local lookAhead = p.player.facing * 48 -- 132
-	if not p.childMode and p.aimX > 0 and w > 0 then -- 133
+	if not p.childMode and p.aimX > 0 and w > 0 then -- 132
 		local normMouse = (p.aimX / w - 0.5) * 2 -- 134
 		lookAhead = lookAhead + normMouse * 36 -- 135
 	end -- 135
-	if p.room.key == "outside" and p.player.x < 520 then -- 137
+	if p.room.key == "outside" and p.player.x < 520 then -- 135
 		lookAhead = p.player.x < 280 and 96 or 18 -- 139
 	end -- 139
-	if p.room.key == "gate" and p.phase == "gate-hold" then -- 141
+	if p.room.key == "gate" and p.phase == "gate-hold" then -- 139
 		lookAhead = 120 -- 142
 	end -- 142
-	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 144
+	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 142
 		lookAhead = (p.partner.x - p.player.x) * 0.5 -- 145
 	end -- 145
 	local tx = p.player.x + lookAhead -- 148
@@ -109,7 +109,7 @@ function CameraDirector.prototype.update(self, dt, p, w, h) -- 82
 	local followK = math.min(1, dt * 6.5) -- 150
 	self.x = self.x + (tx - self.x) * followK -- 151
 	self.y = self.y + (ty - self.y) * math.min(1, dt * 5) -- 152
-	if self.shakeAmp > 0.08 then -- 155
+	if self.shakeAmp > 0.08 then -- 152
 		self.shakePhase = self.shakePhase + dt * 68 -- 156
 		self.shakeX = math.sin(self.shakePhase * 1.3) * self.shakeAmp -- 157
 		self.shakeY = math.cos(self.shakePhase * 1.7) * self.shakeAmp * 0.72 -- 158
@@ -122,7 +122,7 @@ function CameraDirector.prototype.update(self, dt, p, w, h) -- 82
 	self:recomputeMetrics(p, w, h) -- 166
 end -- 82
 function CameraDirector.prototype.targetCamY(self, p) -- 169
-	if p.room.key == "outside" and p.player.y >= 60 then -- 170
+	if p.room.key == "outside" and p.player.y >= 60 then -- 169
 		return 102 -- 171
 	end -- 171
 	return 82 + math.max(0, p.player.y - 36) * 0.35 -- 173
@@ -132,23 +132,23 @@ function CameraDirector.prototype.recomputeMetrics(self, p, w, h) -- 176
 	self.viewH = math.max(180, h) -- 178
 	self.groundScreenY = self.viewH * GROUND_SCREEN_FRAC -- 179
 	local lock = self.anchorLock -- 181
-	if lock ~= nil then -- 182
+	if lock ~= nil then -- 181
 		local basePpu = self.viewH / BASE_VIEW_UNITS_H -- 183
 		local worldSpan = lock.thresholdWorldX - lock.footWorldX -- 184
-		if lock.screenThresholdFracX ~= nil and math.abs(worldSpan) > 0.0001 then -- 185
+		if lock.screenThresholdFracX ~= nil and math.abs(worldSpan) > 0.0001 then -- 184
 			local screenSpan = (lock.screenThresholdFracX - lock.screenFootFracX) * self.viewW -- 186
 			local solvedPpu = screenSpan / worldSpan -- 187
-			if solvedPpu > 0.05 then -- 188
+			if solvedPpu > 0.05 then -- 187
 				self.ppu = solvedPpu -- 189
 				self.zoom = solvedPpu / basePpu -- 190
 			else -- 190
-				if lock.zoomOverride ~= nil and lock.zoomOverride > 0.05 then -- 192
+				if lock.zoomOverride ~= nil and lock.zoomOverride > 0.05 then -- 190
 					self.zoom = lock.zoomOverride -- 193
 				end -- 193
 				self.ppu = basePpu * self.zoom -- 195
 			end -- 195
 		else -- 195
-			if lock.zoomOverride ~= nil and lock.zoomOverride > 0.05 then -- 198
+			if lock.zoomOverride ~= nil and lock.zoomOverride > 0.05 then -- 195
 				self.zoom = lock.zoomOverride -- 199
 			end -- 199
 			self.ppu = basePpu * self.zoom -- 201
@@ -163,19 +163,19 @@ function CameraDirector.prototype.recomputeMetrics(self, p, w, h) -- 176
 	local aspectComp = aspect < 16 / 9 and math.max( -- 213
 		0.82, -- 214
 		math.min(1, aspect / (16 / 9)) -- 214
-	) or 1 -- 215
+	) or 1 -- 214
 	self.ppu = self.viewH / BASE_VIEW_UNITS_H * self.zoom * aspectComp -- 216
 	local halfWorldW = self.viewW * 0.5 / self.ppu -- 219
 	local spanX = p.room.maxX - p.room.minX -- 220
-	if spanX <= halfWorldW * 2 then -- 221
+	if spanX <= halfWorldW * 2 then -- 220
 		self.x = (p.room.minX + p.room.maxX) * 0.5 -- 222
 	else -- 222
 		local minCam = p.room.minX + halfWorldW -- 224
 		local maxCam = p.room.maxX - halfWorldW -- 225
-		if self.x < minCam then -- 226
+		if self.x < minCam then -- 225
 			self.x = minCam -- 227
 		end -- 227
-		if self.x > maxCam then -- 229
+		if self.x > maxCam then -- 227
 			self.x = maxCam -- 230
 		end -- 230
 	end -- 230

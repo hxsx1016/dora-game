@@ -30,16 +30,16 @@ function ____exports.getControlSettingsFile() -- 41
 	return customControlsFile ~= "" and customControlsFile or DEFAULT_CONTROLS_FILE -- 42
 end -- 41
 local function isAbsolutePath(p) -- 45
-	if #p == 0 then -- 46
+	if #p == 0 then -- 45
 		return false -- 46
 	end -- 46
-	if string.sub(p, 1, 1) == "/" or string.sub(p, 1, 1) == "\\" then -- 47
+	if string.sub(p, 1, 1) == "/" or string.sub(p, 1, 1) == "\\" then -- 46
 		return true -- 47
 	end -- 47
 	return #p >= 2 and string.sub(p, 2, 2) == ":" -- 48
 end -- 45
 local function resolvePath(rel) -- 51
-	if isAbsolutePath(rel) then -- 52
+	if isAbsolutePath(rel) then -- 51
 		return rel -- 53
 	end -- 53
 	local base = Content.writablePath -- 55
@@ -54,9 +54,9 @@ end -- 51
 local function parentDirOf(p) -- 62
 	local i = #p - 1 -- 63
 	do -- 63
-		while i >= 0 do -- 64
+		while i >= 0 do -- 63
 			local ch = __TS__StringCharAt(p, i) -- 65
-			if ch == "/" or ch == "\\" then -- 66
+			if ch == "/" or ch == "\\" then -- 65
 				return __TS__StringSlice(p, 0, i) -- 67
 			end -- 67
 			i = i - 1 -- 64
@@ -90,61 +90,61 @@ local function applyKvLines(raw, out) -- 91
 			do -- 94
 				local line = __TS__StringTrim(lines[i + 1]) -- 95
 				local eq = (string.find(line, "=", nil, true) or 0) - 1 -- 96
-				if eq <= 0 then -- 97
+				if eq <= 0 then -- 96
 					goto __continue16 -- 97
 				end -- 97
 				local k = __TS__StringSlice(line, 0, eq) -- 98
 				local v = __TS__StringSlice(line, eq + 1) -- 99
-				if k == "modePref" then -- 100
-					if v == "auto" or v == "kbm" or v == "touch" or v == "gamepad" then -- 101
+				if k == "modePref" then -- 99
+					if v == "auto" or v == "kbm" or v == "touch" or v == "gamepad" then -- 99
 						out.modePref = v -- 102
 					end -- 102
-				elseif k == "aimAssist" then -- 104
+				elseif k == "aimAssist" then -- 102
 					out.aimAssist = v == "1" or v == "true" -- 105
-				elseif k == "crouchToggle" then -- 106
+				elseif k == "crouchToggle" then -- 105
 					out.crouchToggle = v == "1" or v == "true" -- 107
-				elseif k == "gamepadLayout" or k == "layout" then -- 108
+				elseif k == "gamepadLayout" or k == "layout" then -- 107
 					out.gamepadLayout = v == "nintendo" and "nintendo" or "xbox" -- 109
-				elseif k == "deadzoneLeft" then -- 110
+				elseif k == "deadzoneLeft" then -- 109
 					local n = __TS__Number(v) -- 111
-					if n >= 0.08 and n <= 0.45 then -- 112
+					if n >= 0.08 and n <= 0.45 then -- 111
 						out.deadzoneLeft = n -- 112
 					end -- 112
-				elseif k == "deadzoneRight" then -- 113
+				elseif k == "deadzoneRight" then -- 112
 					local n = __TS__Number(v) -- 114
-					if n >= 0.08 and n <= 0.45 then -- 115
+					if n >= 0.08 and n <= 0.45 then -- 114
 						out.deadzoneRight = n -- 115
 					end -- 115
-				elseif k == "touchOpacity" or k == "opacity" then -- 116
+				elseif k == "touchOpacity" or k == "opacity" then -- 115
 					local n = __TS__Number(v) -- 117
-					if n >= 0.3 and n <= 1 then -- 118
+					if n >= 0.3 and n <= 1 then -- 117
 						out.touchOpacity = n -- 118
 					end -- 118
-				elseif k == "touchScale" or k == "scale" then -- 119
+				elseif k == "touchScale" or k == "scale" then -- 118
 					local n = __TS__Number(v) -- 120
-					if n >= 0.75 and n <= 1.35 then -- 121
+					if n >= 0.75 and n <= 1.35 then -- 120
 						out.touchScale = n -- 121
 					end -- 121
-				elseif k == "haptics" then -- 122
+				elseif k == "haptics" then -- 121
 					out.haptics = v == "1" or v == "true" -- 123
-				elseif k == "masterVol" then -- 124
+				elseif k == "masterVol" then -- 123
 					local n = __TS__Number(v) -- 125
-					if n >= 0 and n <= 1 then -- 126
+					if n >= 0 and n <= 1 then -- 125
 						out.masterVol = n -- 126
 					end -- 126
-				elseif k == "bgmVol" then -- 127
+				elseif k == "bgmVol" then -- 126
 					local n = __TS__Number(v) -- 128
-					if n >= 0 and n <= 1 then -- 129
+					if n >= 0 and n <= 1 then -- 128
 						out.bgmVol = n -- 129
 					end -- 129
-				elseif k == "sfxVol" then -- 130
+				elseif k == "sfxVol" then -- 129
 					local n = __TS__Number(v) -- 131
-					if n >= 0 and n <= 1 then -- 132
+					if n >= 0 and n <= 1 then -- 131
 						out.sfxVol = n -- 132
 					end -- 132
-				elseif k == "voiceVol" then -- 133
+				elseif k == "voiceVol" then -- 132
 					local n = __TS__Number(v) -- 134
-					if n >= 0 and n <= 1 then -- 135
+					if n >= 0 and n <= 1 then -- 134
 						out.voiceVol = n -- 135
 					end -- 135
 				end -- 135
@@ -159,25 +159,25 @@ function ____exports.loadControlSettings() -- 140
 	do -- 141
 		local ____try, ____hasReturned, ____returnValue = pcall(function() -- 141
 			local mainPath = resolvePath(____exports.getControlSettingsFile()) -- 143
-			if Content:exist(mainPath) then -- 144
+			if Content:exist(mainPath) then -- 143
 				local raw = Content:load(mainPath) -- 145
-				if raw ~= nil and raw ~= "" then -- 146
+				if raw ~= nil and raw ~= "" then -- 145
 					applyKvLines(raw, out) -- 147
 				end -- 147
 				return true, out -- 149
 			end -- 149
-			if customControlsFile == "" then -- 151
+			if customControlsFile == "" then -- 149
 				local legacyTouch = resolvePath(LEGACY_TOUCH_FILE) -- 152
-				if Content:exist(legacyTouch) then -- 153
+				if Content:exist(legacyTouch) then -- 152
 					local raw = Content:load(legacyTouch) -- 154
-					if raw ~= nil and raw ~= "" then -- 155
+					if raw ~= nil and raw ~= "" then -- 154
 						applyKvLines(raw, out) -- 156
 					end -- 156
 				end -- 156
 				local legacyGamepad = resolvePath(LEGACY_GAMEPAD_FILE) -- 159
-				if Content:exist(legacyGamepad) then -- 160
+				if Content:exist(legacyGamepad) then -- 159
 					local raw = Content:load(legacyGamepad) -- 161
-					if raw ~= nil and raw ~= "" then -- 162
+					if raw ~= nil and raw ~= "" then -- 161
 						applyKvLines(raw, out) -- 163
 					end -- 163
 				end -- 163
@@ -194,7 +194,7 @@ function ____exports.saveControlSettings(s) -- 173
 		pcall(function() -- 173
 			local target = resolvePath(____exports.getControlSettingsFile()) -- 175
 			local dir = parentDirOf(target) -- 176
-			if dir ~= "" and not Content:exist(dir) then -- 177
+			if dir ~= "" and not Content:exist(dir) then -- 176
 				Content:mkdir(dir) -- 178
 			end -- 178
 			local text = ((((((((((((((((((((((((((((((((((((("modePref=" .. s.modePref) .. "\n") .. "aimAssist=") .. (s.aimAssist and "1" or "0")) .. "\n") .. "crouchToggle=") .. (s.crouchToggle and "1" or "0")) .. "\n") .. "gamepadLayout=") .. s.gamepadLayout) .. "\n") .. "deadzoneLeft=") .. __TS__NumberToFixed(s.deadzoneLeft, 2)) .. "\n") .. "deadzoneRight=") .. __TS__NumberToFixed(s.deadzoneRight, 2)) .. "\n") .. "touchOpacity=") .. __TS__NumberToFixed(s.touchOpacity, 2)) .. "\n") .. "touchScale=") .. __TS__NumberToFixed(s.touchScale, 2)) .. "\n") .. "haptics=") .. (s.haptics and "1" or "0")) .. "\n") .. "masterVol=") .. __TS__NumberToFixed(s.masterVol, 2)) .. "\n") .. "bgmVol=") .. __TS__NumberToFixed(s.bgmVol, 2)) .. "\n") .. "sfxVol=") .. __TS__NumberToFixed(s.sfxVol, 2)) .. "\n") .. "voiceVol=") .. __TS__NumberToFixed(s.voiceVol, 2)) .. "\n" -- 180
@@ -206,7 +206,7 @@ function ____exports.nextPrefInList(cur, list, delta) -- 200
 	if delta == nil then -- 200
 		delta = 1 -- 200
 	end -- 200
-	if #list == 0 then -- 201
+	if #list == 0 then -- 200
 		return "auto" -- 201
 	end -- 201
 	local idx = __TS__ArrayIndexOf(list, cur) -- 202
@@ -231,7 +231,7 @@ function ____exports.nextStepValue(cur, steps, delta) -- 212
 		i = 0 -- 216
 		while i < #steps do -- 216
 			local d = math.abs(steps[i + 1] - cur) -- 217
-			if d < bestDist then -- 218
+			if d < bestDist then -- 217
 				bestDist = d -- 219
 				bestIdx = i -- 220
 			end -- 220
@@ -242,22 +242,22 @@ function ____exports.nextStepValue(cur, steps, delta) -- 212
 	return steps[(bestIdx + delta + len) % len + 1] -- 224
 end -- 212
 function ____exports.modePrefLabelOf(pref) -- 227
-	if pref == "kbm" then -- 228
+	if pref == "kbm" then -- 227
 		return "键鼠" -- 228
 	end -- 228
-	if pref == "touch" then -- 229
+	if pref == "touch" then -- 228
 		return "触屏" -- 229
 	end -- 229
-	if pref == "gamepad" then -- 230
+	if pref == "gamepad" then -- 229
 		return "手柄" -- 230
 	end -- 230
 	return "自动" -- 231
 end -- 227
 function ____exports.inputModeLabelOf(mode) -- 234
-	if mode == "touch" then -- 235
+	if mode == "touch" then -- 234
 		return "触屏" -- 235
 	end -- 235
-	if mode == "gamepad" then -- 236
+	if mode == "gamepad" then -- 235
 		return "手柄" -- 236
 	end -- 236
 	return "键鼠" -- 237
@@ -266,19 +266,19 @@ function ____exports.layoutLabelOf(layout) -- 240
 	return layout == "nintendo" and "日系 B确认" or "标准 A确认" -- 241
 end -- 240
 function ____exports.opacityLabelOf(opacity) -- 244
-	if opacity <= 0.62 then -- 245
+	if opacity <= 0.62 then -- 244
 		return "轻" -- 245
 	end -- 245
-	if opacity >= 0.88 then -- 246
+	if opacity >= 0.88 then -- 245
 		return "浓" -- 246
 	end -- 246
 	return "中" -- 247
 end -- 244
 function ____exports.scaleLabelOf(scale) -- 250
-	if scale <= 0.93 then -- 251
+	if scale <= 0.93 then -- 250
 		return "小" -- 251
 	end -- 251
-	if scale >= 1.07 then -- 252
+	if scale >= 1.07 then -- 251
 		return "大" -- 252
 	end -- 252
 	return "中" -- 253
@@ -291,22 +291,22 @@ function ____exports.volumeLabelOf(vol) -- 256
 	return pct <= 0 and "静音" or tostring(pct) .. "%" -- 258
 end -- 256
 function ____exports.applyVolumeSetting(rowId, delta, s) -- 261
-	if rowId == "masterVol" then -- 266
+	if rowId == "masterVol" then -- 261
 		s.masterVol = ____exports.nextStepValue(s.masterVol, VOLUME_STEPS, delta) -- 267
 		____exports.saveControlSettings(s) -- 268
 		return true -- 269
 	end -- 269
-	if rowId == "bgmVol" then -- 271
+	if rowId == "bgmVol" then -- 269
 		s.bgmVol = ____exports.nextStepValue(s.bgmVol, VOLUME_STEPS, delta) -- 272
 		____exports.saveControlSettings(s) -- 273
 		return true -- 274
 	end -- 274
-	if rowId == "sfxVol" then -- 276
+	if rowId == "sfxVol" then -- 274
 		s.sfxVol = ____exports.nextStepValue(s.sfxVol, VOLUME_STEPS, delta) -- 277
 		____exports.saveControlSettings(s) -- 278
 		return true -- 279
 	end -- 279
-	if rowId == "voiceVol" then -- 281
+	if rowId == "voiceVol" then -- 279
 		s.voiceVol = ____exports.nextStepValue(s.voiceVol, VOLUME_STEPS, delta) -- 282
 		____exports.saveControlSettings(s) -- 283
 		return true -- 284
@@ -314,16 +314,16 @@ function ____exports.applyVolumeSetting(rowId, delta, s) -- 261
 	return false -- 286
 end -- 261
 function ____exports.volumeSettingText(rowId, s) -- 289
-	if rowId == "masterVol" then -- 290
+	if rowId == "masterVol" then -- 289
 		return ____exports.volumeLabelOf(s.masterVol) -- 290
 	end -- 290
-	if rowId == "bgmVol" then -- 291
+	if rowId == "bgmVol" then -- 290
 		return ____exports.volumeLabelOf(s.bgmVol) -- 291
 	end -- 291
-	if rowId == "sfxVol" then -- 292
+	if rowId == "sfxVol" then -- 291
 		return ____exports.volumeLabelOf(s.sfxVol) -- 292
 	end -- 292
-	if rowId == "voiceVol" then -- 293
+	if rowId == "voiceVol" then -- 292
 		return ____exports.volumeLabelOf(s.voiceVol) -- 293
 	end -- 293
 	return "" -- 294

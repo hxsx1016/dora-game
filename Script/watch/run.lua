@@ -18,7 +18,7 @@ function ____exports.isMuseumPhase(value) -- 42
 	do -- 43
 		i = 0 -- 44
 		while i < #____exports.MUSEUM_PHASES do -- 44
-			if ____exports.MUSEUM_PHASES[i + 1] == value then -- 45
+			if ____exports.MUSEUM_PHASES[i + 1] == value then -- 44
 				return true -- 46
 			end -- 46
 			i = i + 1 -- 44
@@ -142,7 +142,7 @@ function ____exports.isTalent(value) -- 266
 	do -- 267
 		i = 0 -- 268
 		while i < #____exports.ALL_TALENTS do -- 268
-			if ____exports.ALL_TALENTS[i + 1] == value then -- 269
+			if ____exports.ALL_TALENTS[i + 1] == value then -- 268
 				return true -- 270
 			end -- 270
 			i = i + 1 -- 268
@@ -152,13 +152,13 @@ function ____exports.isTalent(value) -- 266
 end -- 266
 --- 向后兼容旧档中 4 项旧本领名：reload -> focus，craft -> salvage。
 function ____exports.normalizeLegacyTalent(raw) -- 277
-	if ____exports.isTalent(raw) then -- 278
+	if ____exports.isTalent(raw) then -- 277
 		return raw -- 279
 	end -- 279
-	if raw == "reload" then -- 281
+	if raw == "reload" then -- 279
 		return "focus" -- 282
 	end -- 282
-	if raw == "craft" then -- 284
+	if raw == "craft" then -- 282
 		return "salvage" -- 285
 	end -- 285
 	return nil -- 287
@@ -186,7 +186,7 @@ function ____exports.deriveAttemptSeed(baseSeed, attempt) -- 304
 		k = 1 -- 307
 		while k < attempt do -- 307
 			s = (s * 48271 + k * 7919) % 2147483647 -- 308
-			if s <= 0 then -- 309
+			if s <= 0 then -- 308
 				s = 1 -- 310
 			end -- 310
 			k = k + 1 -- 307
@@ -199,7 +199,7 @@ function ____exports.pickEscortVariant(seed, attempt, roomKey, variantCount) -- 
 	if variantCount == nil then -- 317
 		variantCount = 3 -- 317
 	end -- 317
-	if variantCount <= 1 then -- 318
+	if variantCount <= 1 then -- 317
 		return 0 -- 319
 	end -- 319
 	local h = ____exports.deriveAttemptSeed(seed, attempt) -- 321
@@ -271,17 +271,17 @@ function ____exports.createStory(hp, maxHp, seed) -- 356
 	} -- 379
 end -- 356
 function ____exports.draftTalentOffers(target, room, equippedWeapon) -- 383
-	if equippedWeapon == nil then -- 386
+	if equippedWeapon == nil then -- 383
 		equippedWeapon = "standard_gun" -- 386
 	end -- 386
-	if target.room == room and not target.deferred then -- 388
+	if target.room == room and not target.deferred then -- 386
 		return -- 389
 	end -- 389
 	target.room = room -- 391
 	target.deferred = false -- 392
 	local pool = __TS__ArraySlice(____exports.ALL_TALENTS) -- 393
 	target.offers = {} -- 394
-	while #target.offers < 3 and #pool > 0 do -- 395
+	while #target.offers < 3 and #pool > 0 do -- 394
 		local totalW = 0 -- 396
 		local weights = {} -- 397
 		local i = 0 -- 398
@@ -290,15 +290,15 @@ function ____exports.draftTalentOffers(target, room, equippedWeapon) -- 383
 			while i < #pool do -- 399
 				local t = pool[i + 1] -- 400
 				local w = 10 -- 401
-				if (equippedWeapon == "guide_lantern_gun" or equippedWeapon == "time_shuttler") and (t == "lantern_pierce" or t == "focus") then -- 402
+				if (equippedWeapon == "guide_lantern_gun" or equippedWeapon == "time_shuttler") and (t == "lantern_pierce" or t == "focus") then -- 401
 					w = w + 10 -- 404
-				elseif equippedWeapon == "echo_gun" and (t == "echo_wide" or t == "stride") then -- 405
+				elseif equippedWeapon == "echo_gun" and (t == "echo_wide" or t == "stride") then -- 404
 					w = w + 10 -- 406
 				end -- 406
-				if (room == "escort1" or room == "escort2") and t == "salvage" then -- 408
+				if (room == "escort1" or room == "escort2") and t == "salvage" then -- 406
 					w = w + 4 -- 409
 				end -- 409
-				if (target.ranks[t] or 0) >= 2 then -- 411
+				if (target.ranks[t] or 0) >= 2 then -- 409
 					w = math.max(3, w - 4) -- 412
 				end -- 412
 				weights[#weights + 1] = w -- 414
@@ -313,14 +313,14 @@ function ____exports.draftTalentOffers(target, room, equippedWeapon) -- 383
 			i = 0 -- 420
 			while i < #weights do -- 420
 				pick = pick - weights[i + 1] -- 421
-				if pick <= 0 then -- 422
+				if pick <= 0 then -- 421
 					chosen = i -- 423
 					break -- 424
 				end -- 424
 				i = i + 1 -- 420
 			end -- 420
 		end -- 420
-		local ____target_offers_0 = target.offers -- 427
+		local ____target_offers_0 = target.offers -- 420
 		____target_offers_0[#____target_offers_0 + 1] = __TS__ArraySplice(pool, chosen, 1)[1] -- 427
 	end -- 427
 end -- 383
@@ -333,7 +333,7 @@ function ____exports.createRun(seed, source, archive) -- 471
 	if source == nil then -- 471
 		source = "debug" -- 471
 	end -- 471
-	if archive == nil then -- 472
+	if archive == nil then -- 471
 		archive = ____exports.createArchive() -- 472
 	end -- 472
 	return { -- 473
