@@ -184,13 +184,23 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
   - 角色与过场部件：背负合体（`carry_idle`、`carry_walk_a/b`、`carry_reload`）、单膝蹲背（`soldier_kneel_mount`）、门后听声（`child_listen_door`）、牵手伸臂（`soldier_hand_hold`）、北塔提灯守卒（`tower_guard_lantern`）、执笔手（`tower_brush_hand`）、换弹手势（`reload_hand_tap/trace`）、桌上袖口/热汤碗/针套指南针/提灯特写
   - 场景道具与像素特效/地皮/前景：铁盆平放与倾斜、古井石栏、城外砖拱、稻草试射靶、明式木工案、木瓶架、木制残盾、引路灯铳与回声铳、灯柱木架、木纹筹/铃纹筹、藤盾、密林树根拱、暗渠石栅、3 帧风吹红布、枪口焰、命中火星、火药烟尘、热气、溪水倒影、3 枚换弹像素印章、砖地/软土/木柱/木梁/青石板地砖及桌下木沿/桌腿/垂松枝前景剪影。
 
-## 硬核明代木刻暗黑漫画过场动画（`feature/dev-261127-cutscene-anim` · 第 0 批先导落地）
+## 硬核明代木刻暗黑漫画过场动画（`feature/dev-261127-cutscene-anim` · 全 10 段 68 帧完结）
 
-为全面替代过场中的几何多边形拼贴与低帧率淡化幻灯片，围绕「硬核明代木刻暗黑漫画（极重浓墨块面 + 锋利枯笔墨线 + 零重影步进硬切 + 单帧黑白赤墨冲击帧）」定调风格母版，使用 AI 图像生成辅助绘制并经人工质检去噪、门缝无痕合成、960×540 自适应 256 色锐利量化输出运行时资源（`smooth: true` 各向异性过滤）：
+为全面替代过场中的几何多边形拼贴与低帧率淡化幻灯片，围绕「硬核明代木刻暗黑漫画（极重浓墨块面 + 锋利枯笔墨线 + 零重影步进硬切 + 单帧黑白赤墨冲击帧）」定调风格母版，使用 AI 图像生成辅助绘制并经人工质检去噪、光学锚点校准、门缝无痕合成、960×540 自适应 256 色锐利量化输出运行时资源（`smooth: true` 过滤，合计 68 帧约 13 MB）：
 
 - **风格圣经母版（`art-source/comic_cutscenes/style_master_bible.png`）**：锁定周戍、小满、核心图腾暗靛补线袖口与明代真器物（指南针布套、粗陶油灯盏、木骨素纸提灯、缺口粗瓷碗，彻底修正旧图西式煤油灯穿帮）。
-- **P02「墙影截断 → 滚碗撞槛 → 入柜合缝」（`assets/art/cutscenes/p02/`，10 帧 960×540，合计 3.29 MB）**：
-  - `p02_01_shadows.png`、`p02_02a_door_intrude.png`、`p02_03_impact_cut.png`（单帧黑白赤墨木刻冲击帧）、`p02_04_shadows_fall.png`
-  - `p02_05_bowl_roll1.png`、`p02_06_bowl_roll2.png`、`p02_07_bowl_smash.png`（撞槛白爆定格与背景厨柜微启）
-  - `p02_08a_cabinet_slit.png`、`p02_08m_cabinet_narrowing.png`、`p02_08b_cabinet_shut.png`（入柜三阶合缝至一线冷月）
-- **P05 城门送别首帧锚点源图（`art-source/comic_cutscenes/p05/p05_01_clutch_cuff.png`）**：已落盘，待后续批次补全 P01 / P03 / P05 / G05 / G01–G04 / F01 / M02 / F03 / M03 / E01 / E02 全序列。
+- **共同序章 P01 / P02（`assets/art/cutscenes/p01/` 4 帧、`p02/` 10 帧）**：
+  - P01：`p01_01_curtain_dark` → `p01_02_curtain_glow` → `p01_03_hand_bedrail` → `p01_04_look_door`；
+  - P02：`p02_01_shadows` → `p02_02a_door_intrude` → `p02_03_impact_cut`（单帧三色木刻冲击帧）→ `p02_04_shadows_fall` → `p02_05_bowl_roll1` → `p02_06_bowl_roll2`（正口倾斜顺滑滚进精修版）→ `p02_07_bowl_smash` → `p02_08a/08m/08b`（入柜三阶合缝至一线冷月）。
+- **四镜同源五针补线袖口三联（`p03/` 4 帧、`p05/` 6 帧、`g05/` 8 帧）**：
+  - P03 柜边相认：`p03_01_two_fingers` → `p03_02_cuff_enter` → `p03_03_cuff_wipe` → `p03_04_hand_meet`；
+  - P05 城门送别：`p05_01_clutch_cuff` → `p05_02_brother_pinch` → `p05_03_sleeve_pull` → `p05_04_gate_drop` → `p05_05_gate_slam_impact`（单帧三色木刻落门冲击）→ `p05_06_open_fingers`；
+  - G05 风台重逢：`g05_01_cuff_peek` → `g05_02_cuff_extend` → `g05_03_hands_meet` → `g05_04_hands_clasp` → `g05_05_tilt_arm` → `g05_06_tilt_shoulder` → `g05_07_zhoushu_reveal` → `g05_08_zhoushu_warm`。
+- **城门 24 秒转景与非阻塞漫画插格（`gate/` 4 帧、`f01/` 4 帧、`m02/` 8 帧）**：
+  - G01–G04：`gate_01_beam` → `gate_02_dock` → `gate_03_fog` → `gate_04_terrace`（与 `gate_transition.ts` 门洞/地平线/远山北塔坐标锁定）；
+  - F01 缝布闪回：`f01_01_thumb_cloth` → `f01_02_needle_pierce` → `f01_03_thread_pull` → `f01_04_stitch_smooth`（明代粗陶油灯盏暖光，无西式玻璃煤油灯）；
+  - M02 工台试握：`m02_lantern_01..04`（明式鸟铳 + 木框油纸提灯）与 `m02_echo_01..04`（明式鸟铳 + 铸铜共鸣铃与银白墨纹声波）。
+- **北塔双结局同机位配对与双通关古井/博物馆彩蛋（`tower/` 12 帧、`museum/` 8 帧）**：
+  - F03 / M03 门廊配对：`f03_porch_01_knock` / `f03_porch_02_open` 与 `m03_porch_01_knock` / `m03_porch_02_open`（同机位背影面向暖灯大门）；
+  - F03 / M03 值夜室配对：`f03_room_01_cold` → `02_hover` → `03_move_lamp` → `04_lit_bowl` 与 `m03_room_01_warm` → `02_speak` → `03_pouch` → `04_bowl`（中右桌区留暗避让实机宣纸收籍簿与 0px 悬停笔尖）；
+  - E01 / E02 光学匹配剪辑与回柜：`e01_01_well_water` → `e01_02_compass_align` → `e01_03_match_flash` → `e01_04_vitrine_emerge`（中心白灯反光锚定 `(0.50, 0.54)` 误差 0px）；`e02_01_west_window` → `e02_02_lamp_turn` → `e02_03_dawn_well_reflect` → `e02_04_cabinet_cuff_return`（四镜闭环五针补线袖口）。

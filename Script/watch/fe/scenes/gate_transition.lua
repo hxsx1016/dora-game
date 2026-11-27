@@ -450,7 +450,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 	end -- 478
 	if w1 > 0.01 then -- 478
 		backdropArt:tryPlace( -- 481
-			"slide_gate_01", -- 481
+			"comic_gate_01_beam", -- 481
 			"gate_px_stage1", -- 481
 			artX, -- 481
 			artY, -- 481
@@ -461,7 +461,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 	end -- 481
 	if w2 > 0.01 then -- 481
 		backdropArt:tryPlace( -- 484
-			"slide_gate_02", -- 484
+			"comic_gate_02_dock", -- 484
 			"gate_px_stage2", -- 484
 			artX, -- 484
 			artY, -- 484
@@ -472,7 +472,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 	end -- 484
 	if w3 > 0.01 then -- 484
 		backdropArt:tryPlace( -- 487
-			"slide_gate_03", -- 487
+			"comic_gate_03_fog", -- 487
 			"gate_px_stage3", -- 487
 			artX, -- 487
 			artY, -- 487
@@ -483,7 +483,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 	end -- 487
 	if w4 > 0.01 then -- 487
 		backdropArt:tryPlace( -- 490
-			"slide_gate_04", -- 490
+			"comic_gate_04_terrace", -- 490
 			"gate_px_stage4", -- 490
 			artX, -- 490
 			artY, -- 490

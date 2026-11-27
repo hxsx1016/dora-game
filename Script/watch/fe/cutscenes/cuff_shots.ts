@@ -32,6 +32,7 @@ import {
     createGateTransitionPlugin,
 } from "Script/watch/fe/scenes/gate_transition";
 import { clamp01, smoothstep } from "Script/watch/fe/renderer/lowpoly";
+import { ComicKeyframe, drawComicSequence } from "Script/watch/fe/renderer/slideshow";
 import {
     PALETTE,
     RGBA,
@@ -89,6 +90,52 @@ export interface CuffShotDebugState {
 const GATE_AUDIO_ROOT = "assets/audio/gate/";
 const LINE_P05 = "「小满，慢慢数到二十。哥要是还没出来，你就往北塔走。」";
 const LINE_G05 = "「我们走吧。」";
+
+/** P03 柜边相认硬核木刻漫画逐帧拍表（归一化进度 0..1） */
+const P03_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_p03_01_two_fingers", start: 0.00, end: 0.28, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
+    { slot: "comic_p03_02_cuff_enter", start: 0.28, end: 0.52, zoomFrom: 1.005, zoomTo: 1.016, transition: "cut" },
+    { slot: "comic_p03_03_cuff_wipe", start: 0.52, end: 0.76, zoomFrom: 1.01, zoomTo: 1.022, transition: "cut", shakeAmp: 2.6, shakeFreq: 52 },
+    { slot: "comic_p03_04_hand_meet", start: 0.76, end: 1.00, zoomFrom: 1.012, zoomTo: 1.00, transition: "cut" },
+];
+
+/** P05 城门送别硬核木刻漫画逐帧拍表（归一化进度 0..1，含 0.72 落门单帧三色木刻冲击） */
+const P05_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_p05_01_clutch_cuff", start: 0.00, end: 0.20, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
+    { slot: "comic_p05_02_brother_pinch", start: 0.20, end: 0.44, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
+    { slot: "comic_p05_03_sleeve_pull", start: 0.44, end: 0.64, zoomFrom: 1.008, zoomTo: 1.02, transition: "cut" },
+    { slot: "comic_p05_04_gate_drop", start: 0.64, end: 0.72, zoomFrom: 1.015, zoomTo: 1.028, transition: "cut", shakeAmp: 4.0, shakeFreq: 62 },
+    { slot: "comic_p05_05_gate_slam_impact", start: 0.72, end: 0.79, zoomFrom: 1.036, zoomTo: 1.036, transition: "cut", impactFlash: true, impactDur: 0.07, shakeAmp: 12.0, shakeFreq: 74 },
+    { slot: "comic_p05_06_open_fingers", start: 0.79, end: 1.00, zoomFrom: 1.012, zoomTo: 1.00, transition: "cut", shakeAmp: 2.2 },
+];
+
+/** G05 长按伸袖交互拍表（严格跟随 holdProgress 0..1） */
+const G05_HOLD_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_g05_01_cuff_peek", start: 0.00, end: 0.30, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
+    { slot: "comic_g05_02_cuff_extend", start: 0.30, end: 0.70, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
+    { slot: "comic_g05_03_hands_meet", start: 0.70, end: 1.00, zoomFrom: 1.01, zoomTo: 1.02, transition: "cut" },
+];
+
+/** G05 握稳重逢顺臂抬镜至周戍露脸拍表（秒） */
+const G05_REUNION_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_g05_04_hands_clasp", start: 0.00, end: 0.38, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
+    { slot: "comic_g05_05_tilt_arm", start: 0.38, end: 0.78, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
+    { slot: "comic_g05_06_tilt_shoulder", start: 0.78, end: 1.18, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
+    { slot: "comic_g05_07_zhoushu_reveal", start: 1.18, end: 1.72, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
+    { slot: "comic_g05_08_zhoushu_warm", start: 1.72, end: 12.0, zoomFrom: 1.008, zoomTo: 1.00, transition: "cut" },
+];
+
+/** G05 4 秒独立排演全 8 帧连续拍表 */
+const G05_REHEARSAL_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_g05_01_cuff_peek", start: 0.00, end: 0.50, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
+    { slot: "comic_g05_02_cuff_extend", start: 0.50, end: 1.00, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
+    { slot: "comic_g05_03_hands_meet", start: 1.00, end: 1.45, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
+    { slot: "comic_g05_04_hands_clasp", start: 1.45, end: 1.88, zoomFrom: 1.005, zoomTo: 1.012, transition: "cut" },
+    { slot: "comic_g05_05_tilt_arm", start: 1.88, end: 2.30, zoomFrom: 1.005, zoomTo: 1.012, transition: "cut" },
+    { slot: "comic_g05_06_tilt_shoulder", start: 2.30, end: 2.72, zoomFrom: 1.005, zoomTo: 1.012, transition: "cut" },
+    { slot: "comic_g05_07_zhoushu_reveal", start: 2.72, end: 3.30, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
+    { slot: "comic_g05_08_zhoushu_warm", start: 3.30, end: 4.50, zoomFrom: 1.006, zoomTo: 1.00, transition: "cut" },
+];
 
 /** 统一明初守卒补线青布袖口色板（与《明朝全局美术设定》完全一致，灰度亮度差 > 60%） */
 export const CUFF_PALETTE = {
@@ -845,130 +892,34 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
-        uiGlow: DrawNode.Type,
+        _uiGlow: DrawNode.Type,
         ctx: FePluginContext,
         w: number,
         h: number,
         prog: number,
     ): void {
-        const fade = smoothstep(0, 0.08, prog) * (1 - smoothstep(0.92, 1.0, prog));
-        // 全幅宽银幕特写构图（去浮空弹窗白框，保留上下电影遮幅，清晰聚焦柜沿与手绘补线袖口）
+        const fade = smoothstep(0, 0.07, prog) * (1 - smoothstep(0.93, 1.0, prog));
         const barH = Math.round(h * 0.075);
-        const bx = 0;
-        const by = barH;
-        const boxW = w;
-        const boxH = Math.max(120, h - barH * 2);
 
-        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 14, Math.round(232 * fade)));
-        fillVGradRect(uiDraw, bx, by, boxW, boxH, Color(12, 11, 15, Math.round(248 * fade)), Color(22, 22, 28, Math.round(248 * fade)));
-        // 柜板与柜沿真实旧木纹理底（tex_diorama_ming.clip|ming_timber）
-        const rimY = by + boxH * 0.36;
-        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_timber", "p03_cabinet_rim_tex", w * 0.5, (by + rimY) * 0.5, w, Math.max(12, rimY - by), {
-            color: Color(126, 104, 86, 255),
-            opacity: 0.92 * fade,
-            smooth: true,
-            layer: 1,
-        });
-        uiDraw.drawSegment(Vec2(bx, rimY), Vec2(bx + boxW, rimY), 2.2, Color(142, 114, 88, Math.round(215 * fade)));
-        // 右侧竖向厨柜门缝与暗木门板（小满藏身处；门板置 layer=5 真实遮挡小满伸出的小臂）
-        const crackX = bx + boxW * 0.72;
-        uiDraw.drawRect(Rect(crackX, rimY, boxW - (crackX - bx), by + boxH - rimY), Color(6, 7, 11, Math.round(248 * fade)));
-        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_timber", "p03_cabinet_door_tex", crackX + 40 + (boxW - (crackX + 40)) * 0.5, rimY + (by + boxH - rimY) * 0.5, Math.max(12, boxW - (crackX + 40)), Math.max(12, by + boxH - rimY), {
-            color: Color(96, 78, 62, 255),
-            opacity: 0.98 * fade,
-            smooth: true,
-            layer: 5,
-        });
-        fillRadialGlow(uiGlow, crackX - 18, rimY + 42, 190, 120, Color(166, 192, 218, Math.round(48 * fade)), Color(64, 92, 124, 0), 16);
+        drawComicSequence(
+            uiDraw,
+            uiInkDraw,
+            uiArt,
+            P03_COMIC_SEQ,
+            prog,
+            w,
+            h,
+            {
+                letterboxH: barH,
+                opacity: fade,
+                layer: 2,
+                instancePrefix: "p03_comic",
+                accentBorder: true,
+            },
+        );
 
-        // 1. 柜沿碎瓷片（在 0.32..0.66 被补线袖口拂落移出柜沿）
-        const wipeT = smoothstep(0.30, 0.66, prog);
-        const shardOffsets = [
-            { x: -72, y: 8, dx: 46, dy: -38, r: 9 },
-            { x: -34, y: 12, dx: 64, dy: -46, r: 7 },
-            { x: 4, y: 6, dx: 82, dy: -52, r: 10 },
-            { x: 32, y: 10, dx: 74, dy: -34, r: 6 },
-        ];
-        const shardAlpha = fade * (1 - smoothstep(0.58, 0.74, prog));
-        if (shardAlpha > 0.02) {
-            let si = 0;
-            for (si = 0; si < shardOffsets.length; si++) {
-                const sh = shardOffsets[si];
-                const sx = bx + boxW * 0.52 + sh.x + sh.dx * wipeT * wipeT;
-                const sy = rimY + sh.y + sh.dy * wipeT * wipeT;
-                uiInkDraw.drawPolygon([
-                    Vec2(sx - sh.r, sy - sh.r * 0.4),
-                    Vec2(sx + sh.r * 0.9, sy - sh.r * 0.6),
-                    Vec2(sx + sh.r * 0.2, sy + sh.r * 0.8),
-                ], Color(212, 218, 224, Math.round(235 * shardAlpha)), 0.9, Color(92, 108, 126, Math.round(200 * shardAlpha)));
-            }
-        }
-
-        // 2. 柜缝露出的小满两指 → 最终递出整只小手（手绘 cutscene_cuff_rig.clip）
-        const fingerEnter = smoothstep(0.04, 0.24, prog);
-        const handOut = smoothstep(0.70, 0.90, prog);
-        if (handOut > 0.05) {
-            drawChildHand(
-                uiDraw,
-                crackX + 34 - handOut * 78,
-                rimY + 58,
-                Math.PI,
-                1.18,
-                "open_fingers",
-                fade * handOut,
-                false,
-                uiArt,
-                "p03_child_hand",
-                4,
-            );
-        } else if (fingerEnter > 0.02) {
-            drawChildHand(
-                uiDraw,
-                crackX + 18 - fingerEnter * 26,
-                rimY + 52,
-                Math.PI,
-                1.16,
-                "two_fingers",
-                fade * fingerEnter,
-                false,
-                uiArt,
-                "p03_child_peek",
-                4,
-            );
-        }
-
-        // 3. 周戍补线青布袖口（从左侧画边自然探入，先平扫揩去碎瓷，再舒展递手入柜）
-        const sleeveEnter = smoothstep(0.22, 0.36, prog);
-        if (sleeveEnter > 0.01) {
-            const reachT = smoothstep(0.66, 0.88, prog);
-            const wx = w * 0.06 + sleeveEnter * (w * 0.14) + Math.sin(wipeT * Math.PI) * 92 + reachT * 84;
-            const wy = rimY + 52 - Math.sin(wipeT * Math.PI) * 28 + reachT * 12;
-            const ang = -0.14 * Math.sin(wipeT * Math.PI) + 0.04 * reachT;
-            const pose: CuffHandPose = reachT > 0.2 ? "reach" : "wipe";
-            drawPatchedCuff(uiDraw, uiGlow, {
-                wristX: wx,
-                wristY: wy,
-                angleRad: ang,
-                scale: 1.48,
-                pose,
-                opacity: fade * sleeveEnter,
-                stitchHighlight: 0.35 + 0.35 * Math.sin(wipeT * Math.PI),
-                warmth: 0.18,
-                uiArt,
-                instanceKey: "p03_zhou_cuff",
-                layer: 4,
-            });
-        }
-        // 左右柔暗边缘过渡，让双袖自然融于画边阴影
-        uiInkDraw.drawRect(Rect(0, by, 14, boxH), Color(7, 9, 14, Math.round(140 * fade)));
-
-        // 上下电影遮幅与轻字幕（无弹窗方框）
-        uiInkDraw.drawRect(Rect(0, 0, w, barH), Color(6, 8, 12, Math.round(245 * fade)));
-        uiInkDraw.drawRect(Rect(0, h - barH, w, barH), Color(6, 8, 12, Math.round(245 * fade)));
-        uiInkDraw.drawSegment(Vec2(0, barH), Vec2(w, barH), 0.9, toColor(PALETTE.silkDim, Math.round(86 * fade)));
-        uiInkDraw.drawSegment(Vec2(0, h - barH), Vec2(w, h - barH), 0.9, toColor(PALETTE.silkDim, Math.round(86 * fade)));
         if (this.rehearsalShot === "P03") {
-            drawSilkVeil(uiDraw, uiArt, "p03_sub_veil", w * 0.5, 42, 520, 42, PALETTE.inkWash, 0.82 * fade, -1);
+            drawSilkVeil(uiDraw, uiArt, "p03_sub_veil", w * 0.5, 42, 520, 42, PALETTE.inkWash, 0.82 * fade, 7);
             const subText = prog < 0.68
                 ? "青布袖口掠过柜沿，轻轻拂开了碎瓷。"
                 : "「是我，别怕。……这个沉，替我揣怀里。」";
@@ -977,97 +928,44 @@ export class CuffShotsPlugin implements FeRenderPlugin {
     }
 
     /**
-     * P05 城门送别（4s 完整排演版）：
-     * - 0.00..0.28：小满双手扯紧补线袖口；
-     * - 0.28..0.70：周戍隔布轻捏她的手 + 定稿台词；
-     * - 0.70..1.00：重门合拢，补线袖口从左退出画面，留小满张开手指姿态无缝接 G01 首帧。
+     * P05 城门送别（硬核木刻暗黑漫画 6 帧序列 + 落门三色冲击定格）：
+     * - 0.00..0.20：小满双手扯紧补线袖口；
+     * - 0.20..0.64：周戍隔布轻捏她的手 + 定稿台词 → 缓缓抽袖；
+     * - 0.64..0.79：铁木重门急落 → 单帧三色木刻震屏冲击；
+     * - 0.79..1.00：重门合死，留小满孤手张开手指姿态无缝衔接 G01 首帧。
      */
     private renderP05FullShot(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
-        uiGlow: DrawNode.Type,
+        _uiGlow: DrawNode.Type,
         ctx: FePluginContext,
         w: number,
         h: number,
         prog: number,
     ): void {
-        const fade = smoothstep(0, 0.06, prog) * (1 - smoothstep(0.95, 1.0, prog));
+        const fade = smoothstep(0, 0.05, prog) * (1 - smoothstep(0.95, 1.0, prog));
         const barH = Math.round(h * 0.075);
-        const bx = 0;
-        const by = barH;
-        const boxW = w;
-        const boxH = Math.max(120, h - barH * 2);
 
-        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 14, Math.round(238 * fade)));
-        // 门柱后方望出去的护城河冷月水光 + 微缩水波纹理
-        fillVGradRect(uiDraw, bx, by, boxW, boxH, Color(12, 19, 30, Math.round(248 * fade)), Color(24, 38, 54, Math.round(248 * fade)));
-        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_water", "p05_moat_water", w * 0.65, by + boxH * 0.26, w * 0.75, boxH * 0.52, {
-            color: Color(124, 152, 178, 255),
-            opacity: 0.42 * fade,
-            smooth: true,
-            layer: 0,
-        });
-        fillRadialGlow(uiGlow, bx + boxW * 0.66, by + boxH * 0.34, 280, 96, Color(152, 194, 224, Math.round(78 * fade)), Color(40, 70, 108, 0), 16);
-
-        const releaseT = smoothstep(0.68, 0.94, prog);
-        const pinchT = smoothstep(0.24, 0.42, prog) * (1 - releaseT);
-
-        // 周戍补线袖口（位于门内左侧，最后随落门抽离画边）
-        const cuffX = w * 0.40 - releaseT * 310;
-        const cuffY = by + boxH * 0.50;
-        drawPatchedCuff(uiDraw, uiGlow, {
-            wristX: cuffX,
-            wristY: cuffY,
-            angleRad: -0.05,
-            scale: 1.28,
-            pose: pinchT > 0.25 ? "pinch" : "open",
-            opacity: fade * (1 - releaseT * 0.88),
-            stitchHighlight: 0.45 + 0.30 * pinchT,
-            warmth: 0.12,
-            uiArt,
-            instanceKey: "p05_zhou_cuff",
-            layer: 4,
-        });
-
-        // 小满小手（先攥紧补袖，落门抽袖后停在张开手指姿态，无缝衔接 G01 首帧）
-        const childHandX = w * 0.56 + releaseT * 46;
-        const childHandY = by + boxH * 0.46 - releaseT * 14;
-        drawChildHand(
+        drawComicSequence(
             uiDraw,
-            childHandX,
-            childHandY,
-            Math.PI + 0.10,
-            1.28,
-            releaseT > 0.35 ? "open_fingers" : "clutch",
-            fade,
-            true,
+            uiInkDraw,
             uiArt,
-            "p05_child_hand",
-            5,
+            P05_COMIC_SEQ,
+            prog,
+            w,
+            h,
+            {
+                letterboxH: barH,
+                opacity: fade,
+                layer: 2,
+                instancePrefix: "p05_comic",
+                accentBorder: true,
+            },
         );
 
-        // 重门自上而下缓缓合拢（使用实木厚门贴图，0.68..0.95 落门声盖过兵声）
-        if (releaseT > 0.01) {
-            const dropH = boxH * releaseT * 0.92;
-            const gateW = w * 0.48;
-            uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_timber", "p05_gate_drop", gateW * 0.5, by + boxH - dropH * 0.5, gateW, Math.max(8, dropH), {
-                color: Color(86, 74, 62, 255),
-                opacity: 0.96 * fade,
-                smooth: true,
-                layer: 6,
-            });
-            uiInkDraw.drawSegment(Vec2(0, by + boxH - dropH), Vec2(gateW, by + boxH - dropH), 2.8, Color(138, 122, 102, Math.round(220 * fade)));
-        }
-
-        // 上下电影遮幅（无浮空方框）
-        uiInkDraw.drawRect(Rect(0, 0, w, barH), Color(6, 8, 12, Math.round(245 * fade)));
-        uiInkDraw.drawRect(Rect(0, h - barH, w, barH), Color(6, 8, 12, Math.round(245 * fade)));
-        uiInkDraw.drawSegment(Vec2(0, barH), Vec2(w, barH), 0.9, toColor(PALETTE.silkDim, Math.round(86 * fade)));
-        uiInkDraw.drawSegment(Vec2(0, h - barH), Vec2(w, h - barH), 0.9, toColor(PALETTE.silkDim, Math.round(86 * fade)));
-
-        // 定稿台词
-        const lineAlpha = fade * smoothstep(0.18, 0.30, prog) * (1 - smoothstep(0.86, 0.98, prog));
+        // 定稿台词（置于底部黑边内，零遮挡手部特写）
+        const lineAlpha = fade * smoothstep(0.14, 0.26, prog) * (1 - smoothstep(0.86, 0.98, prog));
         if (lineAlpha > 0.02) {
             drawSilkVeil(uiDraw, uiArt, "p05_sub_veil", w * 0.5, 42, 740, 44, PALETTE.inkWash, 0.86 * lineAlpha, 7);
             drawHairline(uiInkDraw, uiArt, "p05_sub_line", w * 0.5, 62, 520, PALETTE.silkDim, 0.52 * lineAlpha, true, 8);
@@ -1148,39 +1046,22 @@ export class CuffShotsPlugin implements FeRenderPlugin {
 
         if (!completed) {
             if (ext > 0.008) {
-                const veilA = Math.round(138 * clamp01(ext * 1.15));
-                fillVGradRect(uiDraw, 0, h * 0.26, w, h * 0.18, Color(8, 11, 18, 0), Color(8, 11, 18, veilA));
-                fillVGradRect(uiDraw, 0, h * 0.44, w, h * 0.18, Color(8, 11, 18, veilA), Color(8, 11, 18, 0));
-
-                const cuffX = -56 + ext * (w * 0.42 + 56);
-                const cuffY = h * 0.44 + Math.sin(this.animTime * 2.2) * 2;
-                drawPatchedCuff(uiDraw, uiGlow, {
-                    wristX: cuffX,
-                    wristY: cuffY,
-                    angleRad: -0.05,
-                    scale: 1.22,
-                    pose: ext > 0.82 ? "clasp" : "reach",
-                    opacity: clamp01(0.32 + ext * 0.68),
-                    stitchHighlight: 0.35 + 0.60 * ext,
-                    uiArt,
-                    instanceKey: "g05_live_zhou_cuff",
-                    layer: 4,
-                });
-
-                const childX = w * 0.66 - ext * (w * 0.13);
-                const childY = h * 0.41 + ext * 14;
-                drawChildHand(
+                const comicOp = smoothstep(0.01, 0.16, ext);
+                drawComicSequence(
                     uiDraw,
-                    childX,
-                    childY,
-                    Math.PI + 0.08,
-                    1.20,
-                    ext > 0.88 ? "clasp" : "reach_up",
-                    clamp01(0.25 + ext * 0.75),
-                    true,
+                    uiInkDraw,
                     uiArt,
-                    "g05_live_child_hand",
-                    5,
+                    G05_HOLD_COMIC_SEQ,
+                    ext,
+                    w,
+                    h,
+                    {
+                        letterboxH: Math.round(h * 0.068),
+                        opacity: comicOp,
+                        layer: 2,
+                        instancePrefix: "g05_hold_comic",
+                        accentBorder: true,
+                    },
                 );
 
                 // 极细霜月进度丝（贴近底部黑边，留出上方空间给 G05 对白幕）
@@ -1226,55 +1107,25 @@ export class CuffShotsPlugin implements FeRenderPlugin {
 
         // 满 0.6s 重逢完成：握稳掌心 → 顺相握手臂抬镜 → 全幅月夜蹲姿周戍 → 单次「我们走吧。」
         const t = this.g05ReunionElapsed;
-        const claspPull = smoothstep(0.0, 0.35, t);
-        const tilt = smoothstep(G05_PIXEL_RETURN_START, G05_PIXEL_RETURN_END, t);
-        const armDropY = tilt * (h * 0.30);
-
-        // 1. 沿相握手臂抬镜显现全幅冷月蹲姿周戍重逢 CG
-        const portraitAlpha = smoothstep(0.28, 0.85, t);
-        if (portraitAlpha > 0.02) {
-            drawZhouShuReunionPortrait(uiDraw, uiInkDraw, uiArt, uiGlow, w, h, (1 - portraitAlpha) * 28, portraitAlpha);
-        }
-
-        // 2. 相握的双手与补线袖口（随抬镜自然下沉并完全淡出，还给周戍重逢特写纯净构图）
-        const claspFade = 1 - smoothstep(0.55, 1.08, t);
-        if (claspFade > 0.02) {
-            drawPatchedCuff(uiDraw, uiGlow, {
-                wristX: w * 0.44,
-                wristY: h * 0.42 - armDropY,
-                angleRad: -0.05 + tilt * 0.22,
-                scale: 1.22,
-                pose: "clasp",
-                opacity: claspFade,
-                stitchHighlight: 0.72 * (1 - tilt * 0.5),
-                cuffPullBack: claspPull * 0.85,
-                warmth: tilt * 0.32,
-                uiArt,
-                instanceKey: "g05_live_zhou_cuff",
-                layer: 4,
-            });
-            drawChildHand(
-                uiDraw,
-                w * 0.56,
-                h * 0.40 - armDropY,
-                Math.PI + 0.05 - tilt * 0.14,
-                1.20,
-                "clasp",
-                claspFade,
-                true,
-                uiArt,
-                "g05_live_child_hand",
-                5,
-            );
-        }
-
         const barH = Math.round(h * 0.068);
-        if (portraitAlpha > 0.05) {
-            uiInkDraw.drawRect(Rect(0, 0, w, barH), Color(6, 8, 12, Math.round(244 * portraitAlpha)));
-            uiInkDraw.drawRect(Rect(0, h - barH, w, barH), Color(6, 8, 12, Math.round(244 * portraitAlpha)));
-        }
+        drawComicSequence(
+            uiDraw,
+            uiInkDraw,
+            uiArt,
+            G05_REUNION_COMIC_SEQ,
+            t,
+            w,
+            h,
+            {
+                letterboxH: barH,
+                opacity: 1,
+                layer: 2,
+                instancePrefix: "g05_reunion_comic",
+                accentBorder: true,
+            },
+        );
 
-        // 3. 单次定稿台词「我们走吧。」
+        // 单次定稿台词「我们走吧。」
         const lineAlpha = smoothstep(0.75, 0.98, t);
         if (lineAlpha > 0.02) {
             drawSilkVeil(uiDraw, uiArt, "g05_line_veil", w * 0.5, 42, 420, 44, PALETTE.inkWash, 0.86 * lineAlpha, 7);
@@ -1283,67 +1134,34 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         }
     }
 
-    /** G05 独立 4s 排演版（全幅宽银幕重逢，用于三镜对比截帧与自动示范录屏） */
+    /** G05 独立 4s 排演版（全幅宽银幕 8 帧连续重逢，用于三镜对比截帧与自动示范录屏） */
     private renderG05RehearsalShot(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
-        uiGlow: DrawNode.Type,
+        _uiGlow: DrawNode.Type,
         ctx: FePluginContext,
         w: number,
         h: number,
         t: number,
     ): void {
-        const holdExt = smoothstep(0.55, 1.45, t);
-        const tilt = smoothstep(1.55, 2.55, t);
-        const claspPull = smoothstep(1.40, 1.75, t);
-        const armDropY = tilt * (h * 0.28);
         const barH = Math.round(h * 0.072);
-
-        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 14, 248));
-        const bgTop = lerpRGBA(rgba(16, 24, 36, 250), rgba(20, 26, 36, 250), tilt);
-        const bgBot = lerpRGBA(rgba(10, 15, 24, 250), rgba(14, 18, 26, 250), tilt);
-        fillVGradRect(uiDraw, 0, barH, w, h - barH * 2, toColor(bgBot), toColor(bgTop));
-
-        if (tilt > 0.04) {
-            drawZhouShuReunionPortrait(uiDraw, uiInkDraw, uiArt, uiGlow, w, h, (1 - tilt) * 28, tilt);
-        }
-
-        const handFade = 1 - smoothstep(1.75, 2.38, t);
-        if (handFade > 0.02) {
-            drawPatchedCuff(uiDraw, uiGlow, {
-                wristX: w * 0.06 + holdExt * (w * 0.38),
-                wristY: h * 0.48 - armDropY,
-                angleRad: -0.05 + tilt * 0.20,
-                scale: 1.24,
-                pose: t >= 1.40 ? "clasp" : "reach",
-                opacity: clamp01(0.28 + holdExt * 0.72) * handFade,
-                stitchHighlight: 0.45 + 0.45 * holdExt * (1 - tilt * 0.4),
-                cuffPullBack: claspPull * 0.85,
-                warmth: tilt * 0.32,
-                uiArt,
-                instanceKey: "g05_reh_zhou_cuff",
-                layer: 4,
-            });
-            drawChildHand(
-                uiDraw,
-                w * 0.68 - holdExt * (w * 0.12),
-                h * 0.44 - armDropY,
-                Math.PI + 0.06,
-                1.22,
-                t >= 1.40 ? "clasp" : "reach_up",
-                clamp01(0.35 + holdExt * 0.65) * handFade,
-                true,
-                uiArt,
-                "g05_reh_child_hand",
-                5,
-            );
-        }
-
-        uiInkDraw.drawRect(Rect(0, 0, w, barH), Color(6, 8, 12, 246));
-        uiInkDraw.drawRect(Rect(0, h - barH, w, barH), Color(6, 8, 12, 246));
-        uiInkDraw.drawSegment(Vec2(0, barH), Vec2(w, barH), 0.9, toColor(PALETTE.silkDim, 86));
-        uiInkDraw.drawSegment(Vec2(0, h - barH), Vec2(w, h - barH), 0.9, toColor(PALETTE.silkDim, 86));
+        drawComicSequence(
+            uiDraw,
+            uiInkDraw,
+            uiArt,
+            G05_REHEARSAL_COMIC_SEQ,
+            t,
+            w,
+            h,
+            {
+                letterboxH: barH,
+                opacity: 1,
+                layer: 2,
+                instancePrefix: "g05_reh_comic",
+                accentBorder: true,
+            },
+        );
 
         const lineAlpha = smoothstep(2.35, 2.65, t);
         if (lineAlpha > 0.02) {

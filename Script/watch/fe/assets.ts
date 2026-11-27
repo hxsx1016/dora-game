@@ -33,9 +33,25 @@ export type AssetSlotKey =
     | "slide_e02_museum_hall" | "slide_e02_window_dawn" | "slide_e02_return_cabinet"
     | "slide_f01_sewing" | "slide_m02_lantern_gun" | "slide_m02_echo_gun"
     // ── 硬核明代木刻暗黑漫画过场原画（assets/art/cutscenes/**/*.png，960×540，smooth: true） ──
+    | "comic_p01_01_curtain_dark" | "comic_p01_02_curtain_glow" | "comic_p01_03_hand_bedrail" | "comic_p01_04_look_door"
     | "comic_p02_01_shadows" | "comic_p02_02a_door_intrude" | "comic_p02_03_impact_cut" | "comic_p02_04_shadows_fall"
     | "comic_p02_05_bowl_roll1" | "comic_p02_06_bowl_roll2" | "comic_p02_07_bowl_smash"
     | "comic_p02_08a_cabinet_slit" | "comic_p02_08m_cabinet_narrowing" | "comic_p02_08b_cabinet_shut"
+    | "comic_p03_01_two_fingers" | "comic_p03_02_cuff_enter" | "comic_p03_03_cuff_wipe" | "comic_p03_04_hand_meet"
+    | "comic_p05_01_clutch_cuff" | "comic_p05_02_brother_pinch" | "comic_p05_03_sleeve_pull"
+    | "comic_p05_04_gate_drop" | "comic_p05_05_gate_slam_impact" | "comic_p05_06_open_fingers"
+    | "comic_g05_01_cuff_peek" | "comic_g05_02_cuff_extend" | "comic_g05_03_hands_meet" | "comic_g05_04_hands_clasp"
+    | "comic_g05_05_tilt_arm" | "comic_g05_06_tilt_shoulder" | "comic_g05_07_zhoushu_reveal" | "comic_g05_08_zhoushu_warm"
+    | "comic_gate_01_beam" | "comic_gate_02_dock" | "comic_gate_03_fog" | "comic_gate_04_terrace"
+    | "comic_f01_01_thumb_cloth" | "comic_f01_02_needle_pierce" | "comic_f01_03_thread_pull" | "comic_f01_04_stitch_smooth"
+    | "comic_m02_lantern_01_offer" | "comic_m02_lantern_02_grip" | "comic_m02_lantern_03_heft" | "comic_m02_lantern_04_ready"
+    | "comic_m02_echo_01_offer" | "comic_m02_echo_02_grip" | "comic_m02_echo_03_heft" | "comic_m02_echo_04_ready"
+    | "comic_tower_f03_porch_01_knock" | "comic_tower_f03_porch_02_open"
+    | "comic_tower_m03_porch_01_knock" | "comic_tower_m03_porch_02_open"
+    | "comic_tower_f03_room_01_cold" | "comic_tower_f03_room_02_hover" | "comic_tower_f03_room_03_move_lamp" | "comic_tower_f03_room_04_lit_bowl"
+    | "comic_tower_m03_room_01_warm" | "comic_tower_m03_room_02_speak" | "comic_tower_m03_room_03_pouch" | "comic_tower_m03_room_04_bowl"
+    | "comic_museum_e01_01_well_water" | "comic_museum_e01_02_compass_align" | "comic_museum_e01_03_match_flash" | "comic_museum_e01_04_vitrine_emerge"
+    | "comic_museum_e02_01_west_window" | "comic_museum_e02_02_lamp_turn" | "comic_museum_e02_03_dawn_well_reflect" | "comic_museum_e02_04_cabinet_cuff_return"
     // ── 扩展像素精灵图集（assets/art/sprites_fe.clip，零改动旧图集） ──
     | "fe_carry_idle" | "fe_carry_walk" | "fe_carry_reload"
     | "fe_soldier_kneel_mount" | "fe_child_listen_door" | "fe_soldier_hand_hold" | "fe_tower_guard_lantern"
@@ -274,6 +290,10 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     slide_m02_lantern_gun: slide("m02_handover_lantern"),
     slide_m02_echo_gun: slide("m02_handover_echo"),
     // ── 硬核明代木刻暗黑漫画过场原画 ──
+    comic_p01_01_curtain_dark: comicCutscene("p01/p01_01_curtain_dark"),
+    comic_p01_02_curtain_glow: comicCutscene("p01/p01_02_curtain_glow"),
+    comic_p01_03_hand_bedrail: comicCutscene("p01/p01_03_hand_bedrail"),
+    comic_p01_04_look_door: comicCutscene("p01/p01_04_look_door"),
     comic_p02_01_shadows: comicCutscene("p02/p02_01_shadows"),
     comic_p02_02a_door_intrude: comicCutscene("p02/p02_02a_door_intrude"),
     comic_p02_03_impact_cut: comicCutscene("p02/p02_03_impact_cut"),
@@ -284,6 +304,60 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     comic_p02_08a_cabinet_slit: comicCutscene("p02/p02_08a_cabinet_slit"),
     comic_p02_08m_cabinet_narrowing: comicCutscene("p02/p02_08m_cabinet_narrowing"),
     comic_p02_08b_cabinet_shut: comicCutscene("p02/p02_08b_cabinet_shut"),
+    comic_p03_01_two_fingers: comicCutscene("p03/p03_01_two_fingers"),
+    comic_p03_02_cuff_enter: comicCutscene("p03/p03_02_cuff_enter"),
+    comic_p03_03_cuff_wipe: comicCutscene("p03/p03_03_cuff_wipe"),
+    comic_p03_04_hand_meet: comicCutscene("p03/p03_04_hand_meet"),
+    comic_p05_01_clutch_cuff: comicCutscene("p05/p05_01_clutch_cuff"),
+    comic_p05_02_brother_pinch: comicCutscene("p05/p05_02_brother_pinch"),
+    comic_p05_03_sleeve_pull: comicCutscene("p05/p05_03_sleeve_pull"),
+    comic_p05_04_gate_drop: comicCutscene("p05/p05_04_gate_drop"),
+    comic_p05_05_gate_slam_impact: comicCutscene("p05/p05_05_gate_slam_impact"),
+    comic_p05_06_open_fingers: comicCutscene("p05/p05_06_open_fingers"),
+    comic_g05_01_cuff_peek: comicCutscene("g05/g05_01_cuff_peek"),
+    comic_g05_02_cuff_extend: comicCutscene("g05/g05_02_cuff_extend"),
+    comic_g05_03_hands_meet: comicCutscene("g05/g05_03_hands_meet"),
+    comic_g05_04_hands_clasp: comicCutscene("g05/g05_04_hands_clasp"),
+    comic_g05_05_tilt_arm: comicCutscene("g05/g05_05_tilt_arm"),
+    comic_g05_06_tilt_shoulder: comicCutscene("g05/g05_06_tilt_shoulder"),
+    comic_g05_07_zhoushu_reveal: comicCutscene("g05/g05_07_zhoushu_reveal"),
+    comic_g05_08_zhoushu_warm: comicCutscene("g05/g05_08_zhoushu_warm"),
+    comic_gate_01_beam: { paths: ["assets/art/cutscenes/gate/gate_01_beam.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_02_dock: { paths: ["assets/art/cutscenes/gate/gate_02_dock.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_03_fog: { paths: ["assets/art/cutscenes/gate/gate_03_fog.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_04_terrace: { paths: ["assets/art/cutscenes/gate/gate_04_terrace.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_f01_01_thumb_cloth: comicCutscene("f01/f01_01_thumb_cloth"),
+    comic_f01_02_needle_pierce: comicCutscene("f01/f01_02_needle_pierce"),
+    comic_f01_03_thread_pull: comicCutscene("f01/f01_03_thread_pull"),
+    comic_f01_04_stitch_smooth: comicCutscene("f01/f01_04_stitch_smooth"),
+    comic_m02_lantern_01_offer: comicCutscene("m02/m02_lantern_01_offer"),
+    comic_m02_lantern_02_grip: comicCutscene("m02/m02_lantern_02_grip"),
+    comic_m02_lantern_03_heft: comicCutscene("m02/m02_lantern_03_heft"),
+    comic_m02_lantern_04_ready: comicCutscene("m02/m02_lantern_04_ready"),
+    comic_m02_echo_01_offer: comicCutscene("m02/m02_echo_01_offer"),
+    comic_m02_echo_02_grip: comicCutscene("m02/m02_echo_02_grip"),
+    comic_m02_echo_03_heft: comicCutscene("m02/m02_echo_03_heft"),
+    comic_m02_echo_04_ready: comicCutscene("m02/m02_echo_04_ready"),
+    comic_tower_f03_porch_01_knock: comicCutscene("tower/f03_porch_01_knock"),
+    comic_tower_f03_porch_02_open: comicCutscene("tower/f03_porch_02_open"),
+    comic_tower_m03_porch_01_knock: comicCutscene("tower/m03_porch_01_knock"),
+    comic_tower_m03_porch_02_open: comicCutscene("tower/m03_porch_02_open"),
+    comic_tower_f03_room_01_cold: comicCutscene("tower/f03_room_01_cold"),
+    comic_tower_f03_room_02_hover: comicCutscene("tower/f03_room_02_hover"),
+    comic_tower_f03_room_03_move_lamp: comicCutscene("tower/f03_room_03_move_lamp"),
+    comic_tower_f03_room_04_lit_bowl: comicCutscene("tower/f03_room_04_lit_bowl"),
+    comic_tower_m03_room_01_warm: comicCutscene("tower/m03_room_01_warm"),
+    comic_tower_m03_room_02_speak: comicCutscene("tower/m03_room_02_speak"),
+    comic_tower_m03_room_03_pouch: comicCutscene("tower/m03_room_03_pouch"),
+    comic_tower_m03_room_04_bowl: comicCutscene("tower/m03_room_04_bowl"),
+    comic_museum_e01_01_well_water: comicCutscene("museum/e01_01_well_water"),
+    comic_museum_e01_02_compass_align: comicCutscene("museum/e01_02_compass_align"),
+    comic_museum_e01_03_match_flash: comicCutscene("museum/e01_03_match_flash"),
+    comic_museum_e01_04_vitrine_emerge: comicCutscene("museum/e01_04_vitrine_emerge"),
+    comic_museum_e02_01_west_window: comicCutscene("museum/e02_01_west_window"),
+    comic_museum_e02_02_lamp_turn: comicCutscene("museum/e02_02_lamp_turn"),
+    comic_museum_e02_03_dawn_well_reflect: comicCutscene("museum/e02_03_dawn_well_reflect"),
+    comic_museum_e02_04_cabinet_cuff_return: comicCutscene("museum/e02_04_cabinet_cuff_return"),
     // ── 扩展像素精灵图集（sprites_fe.clip） ──
     fe_carry_idle: feClip("carry_idle", 0, true, 0.50),
     fe_carry_walk: feClip(["carry_walk_a", "carry_idle", "carry_walk_b", "carry_idle"], 0, true, [0.50, 0.50, 0.50, 0.50]),

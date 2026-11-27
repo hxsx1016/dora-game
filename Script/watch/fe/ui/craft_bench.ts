@@ -28,6 +28,7 @@ import {
 } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
+import { ComicKeyframe, drawComicInsertPanel } from "Script/watch/fe/renderer/slideshow";
 import {
     RELOAD_GRID,
     drawReloadPatternGlyph,
@@ -1011,97 +1012,64 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const prog = Math.max(0, Math.min(1, 1 - this.handoverRemaining / Math.max(0.01, this.handoverDuration)));
         const fade = prog < 0.14 ? prog / 0.14 : (prog > 0.84 ? (1 - prog) / 0.16 : 1);
         const cx = ctx.uiW * 0.5;
-        const cy = ctx.uiH * 0.68;
-        const w = 440;
-        const h = 112;
+        const cy = ctx.uiH * 0.64;
+        const panelW = Math.min(416, Math.round(ctx.uiW * 0.34));
+        const panelH = Math.round(panelW * 9 / 16);
+        const isEcho = this.handoverEffect === "echo";
+        const isFullFirstCraft = this.handoverDuration >= 0.8;
+        const seq: readonly ComicKeyframe[] = isFullFirstCraft
+            ? (isEcho
+                ? [
+                    { slot: "comic_m02_echo_01_offer", start: 0.00, end: 0.25, zoomFrom: 1.00, zoomTo: 1.015 },
+                    { slot: "comic_m02_echo_02_grip", start: 0.25, end: 0.52, zoomFrom: 1.005, zoomTo: 1.018 },
+                    { slot: "comic_m02_echo_03_heft", start: 0.52, end: 0.78, zoomFrom: 1.01, zoomTo: 1.024 },
+                    { slot: "comic_m02_echo_04_ready", start: 0.78, end: 1.00, zoomFrom: 1.01, zoomTo: 1.00 },
+                ]
+                : [
+                    { slot: "comic_m02_lantern_01_offer", start: 0.00, end: 0.25, zoomFrom: 1.00, zoomTo: 1.015 },
+                    { slot: "comic_m02_lantern_02_grip", start: 0.25, end: 0.52, zoomFrom: 1.005, zoomTo: 1.018 },
+                    { slot: "comic_m02_lantern_03_heft", start: 0.52, end: 0.78, zoomFrom: 1.01, zoomTo: 1.024 },
+                    { slot: "comic_m02_lantern_04_ready", start: 0.78, end: 1.00, zoomFrom: 1.01, zoomTo: 1.00 },
+                ])
+            : (isEcho
+                ? [
+                    { slot: "comic_m02_echo_02_grip", start: 0.00, end: 0.50, zoomFrom: 1.00, zoomTo: 1.015 },
+                    { slot: "comic_m02_echo_04_ready", start: 0.50, end: 1.00, zoomFrom: 1.005, zoomTo: 1.00 },
+                ]
+                : [
+                    { slot: "comic_m02_lantern_02_grip", start: 0.00, end: 0.50, zoomFrom: 1.00, zoomTo: 1.015 },
+                    { slot: "comic_m02_lantern_04_ready", start: 0.50, end: 1.00, zoomFrom: 1.005, zoomTo: 1.00 },
+                ]);
 
-        drawSilkVeil(uiDraw, uiArt, "cb_handover_veil", cx, cy, w + 80, h + 28, PALETTE.inkWash, 0.84 * fade, 0);
-        drawHairline(uiInkDraw, uiArt, "cb_handover_top", cx, cy + h * 0.48, w - 30, PALETTE.amber, 0.58 * fade, true, 2);
+        fillRadialGlow(
+            uiGlow,
+            cx,
+            cy,
+            panelW * 0.68,
+            panelH * 0.72,
+            toColor(isEcho ? PALETTE.jadeMist : PALETTE.amberCore, Math.round(58 * fade)),
+            Color(24, 22, 18, 0),
+            16,
+        );
+        drawComicInsertPanel(
+            uiDraw,
+            uiInkDraw,
+            uiArt,
+            seq,
+            prog,
+            { x: cx - panelW * 0.5, y: cy - panelH * 0.5, w: panelW, h: panelH },
+            fade,
+            isEcho ? "cb_m02_echo" : "cb_m02_lantern",
+            4,
+        );
 
-        // 三段动作节奏：0..0.38 递出，0.38..0.74 试握微抬，0.74..1.0 小满松手退步
-        const passK = Math.min(1, prog / 0.38);
-        const gripLift = prog >= 0.38 && prog < 0.74 ? Math.sin(((prog - 0.38) / 0.36) * Math.PI) * 9 : 0;
-        const releaseK = prog >= 0.74 ? (prog - 0.74) / 0.26 : 0;
-        const a245 = Math.round(245 * fade);
-        const a235 = Math.round(235 * fade);
-
-        // 左侧：小满红褐短袄递出之手；右侧：周戍同源青布补线袖口接握；中央：手绘改制鸟铳
-        const childHandX = cx - 78 + passK * 42 - releaseK * 38;
-        const childHandY = cy - 4 + gripLift * 0.2;
-        const solHandX = cx + 82 - Math.min(1, Math.max(0, (prog - 0.18) / 0.28)) * 42;
-        const solHandY = cy - 4 + gripLift;
-        const gunX = prog < 0.38 ? childHandX + 14 : solHandX - 8;
-        const gunY = cy + 6 + gripLift;
-
-        const childPlaced = uiArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|cuff_xiaoman_reach", "cb_ho_child", childHandX, childHandY - 6, 154, 68, {
-            anchorX: 0.43,
-            anchorY: 0.52,
-            facing: -1,
-            smooth: true,
-            opacity: 0.94 * fade,
-            layer: 3,
-        });
-        if (!childPlaced) {
-            uiInkDraw.drawPolygon([
-                Vec2(cx - 148, cy - 22),
-                Vec2(cx - 146, cy - 8),
-                Vec2(childHandX - 10, childHandY + 4),
-                Vec2(childHandX - 10, childHandY - 6),
-            ], Color(164, 78, 54, a235), 1.0, Color(52, 28, 22, a235));
-            uiInkDraw.drawSegment(Vec2(childHandX - 11, childHandY + 4), Vec2(childHandX - 11, childHandY - 6), 2.0, Color(204, 174, 122, a245));
-            uiInkDraw.drawEllipse(Vec2(childHandX, childHandY - 1), 6.2, 4.4, Color(238, 212, 182, a245));
-        }
-
-        const solPlaced = uiArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|cuff_zhou_clasp", "cb_ho_zhou", solHandX, solHandY - 4, 168, 78, {
-            anchorX: 0.57,
-            anchorY: 0.50,
-            facing: -1,
-            smooth: true,
-            opacity: 0.96 * fade,
-            layer: 4,
-        });
-        if (!solPlaced) {
-            uiInkDraw.drawPolygon([
-                Vec2(cx + 154, cy - 18),
-                Vec2(cx + 154, cy - 1),
-                Vec2(solHandX + 12, solHandY + 6),
-                Vec2(solHandX + 12, solHandY - 7),
-            ], toColor(CUFF_PALETTE.indigoBase, a245), 1.0, toColor(CUFF_PALETTE.indigoShadow, a245));
-            const mendCol = toColor(CUFF_PALETTE.stitchThread, a245);
-            uiInkDraw.drawSegment(Vec2(solHandX + 16, solHandY - 5), Vec2(solHandX + 19, solHandY + 4), 1.5, mendCol);
-            uiInkDraw.drawSegment(Vec2(solHandX + 21, solHandY - 5), Vec2(solHandX + 24, solHandY + 4), 1.5, mendCol);
-            uiInkDraw.drawSegment(Vec2(solHandX + 26, solHandY - 5), Vec2(solHandX + 29, solHandY + 4), 1.5, mendCol);
-            uiInkDraw.drawEllipse(Vec2(solHandX, solHandY), 6.8, 5.0, toColor(CUFF_PALETTE.skinBase, a245));
-        }
-
-        const gunClip = this.handoverEffect === "echo" ? "craft_echo_gun" : "craft_lantern_gun";
-        if (!uiArt.tryPlacePath("assets/art/vfx_craft_art.clip|" + gunClip, "cb_ho_gun", gunX, gunY, 170, 52, {
-            anchorX: 0.5,
-            anchorY: 0.5,
-            preserveAspect: true,
-            smooth: true,
-            opacity: 0.98 * fade,
-            layer: 5,
-        })) {
-            uiInkDraw.drawPolygon([
-                Vec2(gunX - 42, gunY - 8),
-                Vec2(gunX - 12, gunY - 3),
-                Vec2(gunX + 16, gunY + 1),
-                Vec2(gunX + 16, gunY + 6),
-                Vec2(gunX - 16, gunY + 3),
-                Vec2(gunX - 40, gunY + 1),
-            ], Color(108, 72, 48, a245), 1.0, Color(46, 30, 20, a245));
-            uiInkDraw.drawSegment(Vec2(gunX - 6, gunY + 4), Vec2(gunX + 56, gunY + 8), 2.8, Color(152, 148, 138, a245));
-            uiInkDraw.drawSegment(Vec2(gunX + 14, gunY + 1), Vec2(gunX + 14, gunY + 8), 2.0, Color(198, 166, 112, a245));
-            uiInkDraw.drawSegment(Vec2(gunX + 36, gunY + 3), Vec2(gunX + 36, gunY + 9), 1.6, Color(198, 166, 112, a245));
-        }
-        drawReloadPatternGlyph(uiInkDraw, gunX + 2, gunY + 26, 8.5, this.handoverEffect, PALETTE.amberCore, fade);
-        fillRadialGlow(uiGlow, gunX + 4, gunY + 4, 48, 22, toColor(PALETTE.amberCore, 52 * fade), Color(244, 234, 214, 0), 12);
-
-        const caption = this.handoverDuration >= 0.8
+        const capY = cy - panelH * 0.5 - 24;
+        drawSilkVeil(uiDraw, uiArt, "cb_handover_veil", cx, capY, panelW + 24, 30, PALETTE.inkWash, 0.86 * fade, 5);
+        drawReloadPatternGlyph(uiInkDraw, cx - panelW * 0.42, capY, 7.5, this.handoverEffect, PALETTE.amberCore, fade);
+        const caption = isFullFirstCraft
             ? (this.handoverWeaponName + " 已成 · 周戍试握上手")
             : (this.handoverWeaponName + " 已交接佩用");
-        ctx.texts.put("xs", caption, cx, cy - 34, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.94 * fade, 0.08);
+        ctx.texts.put("xs", caption, cx + 8, capY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * fade, 0.08);
     }
 }
 

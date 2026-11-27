@@ -258,8 +258,20 @@ for required in \
     "assets/art/sprites_fe.clip" \
     "assets/art/sprites_fe.png" \
     "assets/art/slides/p01_01_curtain.png" \
+    "assets/art/cutscenes/p01/p01_01_curtain_dark.png" \
     "assets/art/cutscenes/p02/p02_01_shadows.png" \
     "assets/art/cutscenes/p02/p02_07_bowl_smash.png" \
+    "assets/art/cutscenes/p03/p03_01_two_fingers.png" \
+    "assets/art/cutscenes/p05/p05_05_gate_slam_impact.png" \
+    "assets/art/cutscenes/g05/g05_07_zhoushu_reveal.png" \
+    "assets/art/cutscenes/gate/gate_04_terrace.png" \
+    "assets/art/cutscenes/f01/f01_03_thread_pull.png" \
+    "assets/art/cutscenes/m02/m02_lantern_03_heft.png" \
+    "assets/art/cutscenes/m02/m02_echo_03_heft.png" \
+    "assets/art/cutscenes/tower/f03_room_04_lit_bowl.png" \
+    "assets/art/cutscenes/tower/m03_room_04_bowl.png" \
+    "assets/art/cutscenes/museum/e01_04_vitrine_emerge.png" \
+    "assets/art/cutscenes/museum/e02_04_cabinet_cuff_return.png" \
     "assets/art/tex_diorama_ming.clip" \
     "assets/art/tex_diorama_ming.png" \
     "assets/art/diorama_cutouts.clip" \

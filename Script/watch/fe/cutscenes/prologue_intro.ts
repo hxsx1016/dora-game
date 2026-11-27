@@ -71,6 +71,47 @@ export const PROLOGUE_TIMINGS = {
 };
 
 /**
+ * P01 父亲叫醒小满硬核明代木刻暗黑漫画逐帧拍表（总长 4.00s，与 D30/D31 及 bed_creak 1.78s 精确咬合）：
+ * 黑场透光 → 掀帐见火 → 父亲粗手压褥撑床沿 → 坐起望见火光门缝无缝衔接 P02。
+ */
+const P01_WAKE_COMIC_SEQ: readonly ComicKeyframe[] = [
+    {
+        slot: "comic_p01_01_curtain_dark",
+        start: 0.00,
+        end: 0.92,
+        zoomFrom: 1.00,
+        zoomTo: 1.014,
+        transition: "cut",
+    },
+    {
+        slot: "comic_p01_02_curtain_glow",
+        start: 0.92,
+        end: 1.78,
+        zoomFrom: 1.005,
+        zoomTo: 1.018,
+        transition: "cut",
+    },
+    {
+        slot: "comic_p01_03_hand_bedrail",
+        start: 1.78,
+        end: 2.90,
+        zoomFrom: 1.012,
+        zoomTo: 1.024,
+        transition: "cut",
+        shakeAmp: 3.2,
+        shakeFreq: 52,
+    },
+    {
+        slot: "comic_p01_04_look_door",
+        start: 2.90,
+        end: 4.00,
+        zoomFrom: 1.008,
+        zoomTo: 1.02,
+        transition: "cut",
+    },
+];
+
+/**
  * P02 硬核明代木刻暗黑漫画逐帧拍表（总长 4.50s，等步幅跨度 + 零重影硬切 + 1.55s 单帧冲击 + 3.88s 撞槛定格）：
  * 全部时间点与 stepP02Shadow 音效触发毫秒级咬合。
  */
@@ -934,7 +975,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiArt: FePluginContext["uiArt"],
-        uiGlow: DrawNode.Type,
+        _uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): void {
         const w = ctx.uiW;
@@ -944,174 +985,33 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         // 全屏深墨底，彻底隔绝底层场景
         uiDraw.drawRect(Rect(0, 0, w, h), Color(6, 7, 11, 255));
 
-        // 阶段比例
-        const wakeOpen = smoothstep(0.75, 2.10, t);
-        const blinkDip = t >= 1.25 && t <= 1.62 ? Math.sin(((t - 1.25) / 0.37) * Math.PI) * 0.24 : 0;
+        // 睁眼开合节奏（黑场先闻唤声 → 眼睑缓慢张开 → 末段轻收衔接 P02）
+        const wakeOpen = smoothstep(0.28, 1.45, t);
+        const blinkDip = t >= 0.96 && t <= 1.28 ? Math.sin(((t - 0.96) / 0.32) * Math.PI) * 0.22 : 0;
         const eyeOpen = clamp01(wakeOpen - blinkDip);
-        const sitPan = smoothstep(2.65, 3.85, t);
-        const handPress = smoothstep(1.75, 2.35, t) * (1 - smoothstep(3.15, 3.85, t) * 0.65);
-        const fadeOut = 1 - smoothstep(3.72, 4.0, t);
+        const fadeOut = 1 - smoothstep(3.76, 4.0, t);
+        const barH = Math.round(h * 0.068);
 
         if (eyeOpen > 0.01) {
-            const panX = -sitPan * w * 0.16;
-            const sitLiftY = sitPan * h * 0.06;
-            const fireFlicker = 0.84 + 0.16 * Math.sin(t * 9.5) * Math.cos(t * 5.2);
-
-            // 1. 粗麻床帐背景（暖橙火光透帐 + 粗麻织纹叠层）
-            fillVGradRect(
+            drawComicSequence(
                 uiDraw,
-                0,
-                0,
+                uiInkDraw,
+                uiArt,
+                P01_WAKE_COMIC_SEQ,
+                t,
                 w,
                 h,
-                Color(16, 14, 18, Math.round(255 * eyeOpen * fadeOut)),
-                Color(34, 24, 24, Math.round(255 * eyeOpen * fadeOut)),
-            );
-            uiArt.tryPlacePath(
-                "assets/art/tex_diorama_ming.clip|ming_cloth",
-                "p01_canopy_linen",
-                w * 0.5 + panX * 0.45 + Math.sin(t * 1.1) * 6,
-                h * 0.62 - sitLiftY * 0.5,
-                w * 1.32,
-                h * 0.84,
                 {
-                    color: Color(74, 62, 54, 255),
-                    opacity: 0.44 * eyeOpen * fadeOut,
-                    smooth: true,
-                    layer: -2,
+                    letterboxH: barH,
+                    opacity: clamp01(smoothstep(0.18, 0.58, t)) * fadeOut,
+                    layer: 2,
+                    instancePrefix: "p01_comic",
+                    accentBorder: true,
                 },
             );
-            // 透过粗麻床帐的火光暖晕
-            fillRadialGlow(
-                uiGlow,
-                w * 0.34 + panX * 0.4,
-                h * 0.62 - sitLiftY,
-                w * 0.42,
-                h * 0.36,
-                Color(186, 108, 56, Math.round(68 * fireFlicker * eyeOpen * fadeOut)),
-                Color(120, 52, 28, 0),
-                18,
-            );
-            // 麻布垂褶竖纹（柔和暗褶增强飘动层次）
-            let fold = 0;
-            for (fold = 0; fold < 11; fold++) {
-                const fx = w * (0.04 + fold * 0.095) + panX * 0.55 + Math.sin(t * 1.4 + fold) * 4;
-                const fw = 22 + (fold % 3) * 10;
-                const col = (fold & 1) === 0
-                    ? Color(52, 42, 36, Math.round(48 * eyeOpen * fadeOut))
-                    : Color(24, 20, 22, Math.round(62 * eyeOpen * fadeOut));
-                fillHGradRect(uiDraw, fx, h * 0.24, fw, h * 0.72, Color(col.r, col.g, col.b, 0), col);
-            }
-
-            // 2. 右侧门缝（顺父亲转头方向渐渐入画，冷月与火光并透）
-            const doorVis = smoothstep(2.25, 3.20, t);
-            if (doorVis > 0.01) {
-                const doorX = w * 0.84 + panX * 0.95;
-                const crackW = 14 + sitPan * 18;
-                const doorBot = h * 0.14 - sitLiftY * 0.4;
-                const doorH = h * 0.72;
-                // 门框暗木两侧
-                uiDraw.drawRect(Rect(doorX - 46, doorBot, 46, doorH), Color(14, 12, 14, Math.round(235 * doorVis * fadeOut)));
-                uiDraw.drawRect(Rect(doorX + crackW, doorBot, 54, doorH), Color(14, 12, 14, Math.round(235 * doorVis * fadeOut)));
-                // 门缝冷月 + 远火斜光
-                fillVGradRect(
-                    uiDraw,
-                    doorX,
-                    doorBot,
-                    crackW,
-                    doorH,
-                    Color(142, 168, 186, Math.round(170 * doorVis * fadeOut)),
-                    Color(214, 168, 118, Math.round(195 * doorVis * fireFlicker * fadeOut)),
-                );
-                fillGradQuad(
-                    uiGlow,
-                    doorX, doorBot, Color(164, 188, 204, Math.round(64 * doorVis * fadeOut)),
-                    doorX + crackW, doorBot, Color(214, 164, 108, Math.round(54 * doorVis * fadeOut)),
-                    doorX - 135, doorBot - 40, Color(120, 148, 170, 0),
-                    doorX - 190, doorBot + doorH * 0.48, Color(180, 130, 82, 0),
-                );
-            }
-
-            // 3. 床沿、粗布褥子与父亲撑住床沿陷进褥子的手
-            const bedTopY = h * 0.27 - sitLiftY;
-            const dipX = w * 0.52 + panX * 0.7;
-            const pressDepth = 22 * handPress;
-            // 褥面轮廓（受掌压向内下陷）
-            uiDraw.drawPolygon([
-                Vec2(0, 0),
-                Vec2(w, 0),
-                Vec2(w, bedTopY + 10),
-                Vec2(dipX + 110, bedTopY + 6),
-                Vec2(dipX + 38, bedTopY - pressDepth * 0.85),
-                Vec2(dipX - 34, bedTopY - pressDepth),
-                Vec2(dipX - 108, bedTopY + 5),
-                Vec2(0, bedTopY + 12),
-            ], Color(30, 27, 32, Math.round(248 * eyeOpen * fadeOut)));
-
-            // 褥面压痕高光与褶皱线
-            uiInkDraw.drawSegment(
-                Vec2(dipX - 96, bedTopY + 4),
-                Vec2(dipX - 30, bedTopY - pressDepth + 2),
-                1.6,
-                Color(124, 114, 102, Math.round(145 * eyeOpen * fadeOut)),
-            );
-            uiInkDraw.drawSegment(
-                Vec2(dipX - 30, bedTopY - pressDepth + 2),
-                Vec2(dipX + 38, bedTopY - pressDepth * 0.85 + 2),
-                1.4,
-                Color(92, 82, 74, Math.round(165 * eyeOpen * fadeOut)),
-            );
-            uiInkDraw.drawSegment(
-                Vec2(dipX + 38, bedTopY - pressDepth * 0.85 + 2),
-                Vec2(dipX + 106, bedTopY + 5),
-                1.5,
-                Color(138, 122, 106, Math.round(140 * eyeOpen * fadeOut)),
-            );
-
-            // 父亲宽厚手掌撑住床沿陷进粗布褥子（优先使用手绘 cutscene_story_parts.clip|prologue_father_hand）
-            if (handPress > 0.02) {
-                const hx = dipX;
-                const hy = bedTopY - pressDepth + 12;
-                const handOp = handPress * fadeOut;
-                const warmR = Math.round(218 + 26 * fireFlicker);
-                const warmG = Math.round(192 + 18 * fireFlicker);
-                const warmB = Math.round(172 + 10 * fireFlicker);
-                if (!uiArt.tryPlacePath(
-                    "assets/art/cutscene_story_parts.clip|prologue_father_hand",
-                    "p01_father_hand",
-                    hx + 18,
-                    hy + 32,
-                    360,
-                    295,
-                    {
-                        anchorX: 0.48,
-                        anchorY: 0.36,
-                        color: Color(warmR, warmG, warmB, 255),
-                        opacity: handOp,
-                        smooth: true,
-                        layer: 2,
-                    },
-                )) {
-                    const ha = Math.round(245 * handOp);
-                    uiDraw.drawPolygon([
-                        Vec2(hx - 62, hy + 135),
-                        Vec2(hx - 14, hy + 142),
-                        Vec2(hx + 8, hy + 28),
-                        Vec2(hx - 36, hy + 24),
-                    ], Color(42, 46, 54, ha));
-                    uiDraw.drawPolygon([
-                        Vec2(hx - 38, hy + 26),
-                        Vec2(hx + 16, hy + 28),
-                        Vec2(hx + 34, hy + 2),
-                        Vec2(hx + 22, hy - 14),
-                        Vec2(hx - 26, hy - 12),
-                        Vec2(hx - 42, hy + 4),
-                    ], Color(148, 112, 86, ha));
-                }
-            }
         }
 
-        // 4. 上下眼睑柔边开合遮幅（第一人称睁眼核心体感）
+        // 上下眼睑柔边开合遮幅（保留第一人称睁眼核心体感）
         const lidH = h * 0.52 * (1 - eyeOpen);
         if (lidH > 1) {
             ctx.uiMask.drawRect(Rect(0, h - lidH, w, lidH), Color(5, 6, 9, 255));
@@ -1121,7 +1021,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             fillVGradRect(ctx.uiMask, 0, lidH, w, feather, Color(5, 6, 9, 235), Color(5, 6, 9, 0));
         }
 
-        // 5. 排演态黑场父亲唤「小满。」极简素幕字幕（正式模式交由 NarrativeRenderer.drawCutsceneDialogue 呈现 D30/D31）
+        // 排演态黑场父亲唤「小满。」极简素幕字幕（正式模式交由 NarrativeRenderer.drawCutsceneDialogue 呈现 D30/D31）
         if (this.rehearsalActive) {
             const callAlpha = smoothstep(0.10, 0.32, t) * (1 - smoothstep(1.05, 1.55, t));
             if (callAlpha > 0.02) {

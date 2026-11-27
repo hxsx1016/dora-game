@@ -43,6 +43,7 @@ import {
     ForestCreekDebugState,
     ForestCreekScene,
 } from "Script/watch/fe/scenes/forest_creek";
+import { ComicKeyframe, drawComicInsertPanel } from "Script/watch/fe/renderer/slideshow";
 import {
     fillRadialGlow,
     fillVGradRect,
@@ -1093,7 +1094,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
      */
     private drawOutsideSewingMemoryOverlay(
         uiDraw: DrawNode.Type,
-        _uiInkDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
@@ -1102,42 +1103,36 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const prog = clamp01(this.memoryTimer / SEWING_MEMORY_DURATION);
-        const alpha = smoothstep(0, 0.20, prog) * (1 - smoothstep(0.72, 1.0, prog));
+        const alpha = smoothstep(0, 0.16, prog) * (1 - smoothstep(0.76, 1.0, prog));
         if (alpha <= 0.01) {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
         const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
-        const cx = Math.max(190, Math.min(ctx.uiW - 190, handPt.x * inv - 20));
-        const cy = Math.max(170, Math.min(ctx.uiH - 150, handPt.y * inv + 104));
-        const pullT = smoothstep(0.14, 0.82, prog);
-        const zoom = 0.94 + pullT * 0.09;
+        const panelW = Math.min(352, Math.round(ctx.uiW * 0.28));
+        const panelH = Math.round(panelW * 9 / 16);
+        const cx = Math.max(panelW * 0.5 + 24, Math.min(ctx.uiW - panelW * 0.5 - 24, handPt.x * inv - 16));
+        const cy = Math.max(panelH * 0.5 + 28, Math.min(ctx.uiH - panelH * 0.5 - 28, handPt.y * inv + 112));
+        const seq: readonly ComicKeyframe[] = [
+            { slot: "comic_f01_01_thumb_cloth", start: 0.00, end: 0.22, zoomFrom: 1.00, zoomTo: 1.015 },
+            { slot: "comic_f01_02_needle_pierce", start: 0.22, end: 0.48, zoomFrom: 1.005, zoomTo: 1.018 },
+            { slot: "comic_f01_03_thread_pull", start: 0.48, end: 0.76, zoomFrom: 1.01, zoomTo: 1.022 },
+            { slot: "comic_f01_04_stitch_smooth", start: 0.76, end: 1.00, zoomFrom: 1.01, zoomTo: 1.00 },
+        ];
 
-        // 柔和暖灯回忆云晕（无生硬蛋形/矩形边框，自然浮于冷月夜空之上）
-        fillRadialGlow(uiGlow, cx, cy, 215 * zoom, 152 * zoom, Color(238, 186, 114, Math.round(88 * alpha)), Color(214, 152, 82, 0), 22);
-        uiArt.tryPlace("ink_petal_mist", "fe04_f01_memory_mist", cx, cy, 380 * zoom, 260 * zoom, {
-            color: Color(36, 24, 18, 255),
-            opacity: 0.72 * alpha,
-            layer: 3,
-        });
-        if (!uiArt.tryPlacePath(
-            "assets/art/cutscene_story_parts.clip|f01_mother_stitch",
-            "fe04_f01_mother_stitch",
-            cx + pullT * 6,
-            cy + pullT * 4,
-            296 * zoom,
-            218 * zoom,
-            {
-                anchorX: 0.5,
-                anchorY: 0.5,
-                color: Color(246, 224, 196, 255),
-                opacity: 0.96 * alpha,
-                smooth: true,
-                layer: 4,
-            },
-        )) {
-            uiDraw.drawEllipse(Vec2(cx, cy), 116, 70, Color(32, 22, 16, Math.round(196 * alpha)));
-        }
+        // 柔和明代油灯盏暖光云晕 + 非阻塞硬核漫画插格（保留小满持续拉车操控）
+        fillRadialGlow(uiGlow, cx, cy, panelW * 0.68, panelH * 0.76, Color(238, 186, 114, Math.round(74 * alpha)), Color(214, 152, 82, 0), 20);
+        drawComicInsertPanel(
+            uiDraw,
+            uiInkDraw,
+            uiArt,
+            seq,
+            prog,
+            { x: cx - panelW * 0.5, y: cy - panelH * 0.5, w: panelW, h: panelH },
+            alpha,
+            "fe04_f01_comic",
+            4,
+        );
     }
 }
 

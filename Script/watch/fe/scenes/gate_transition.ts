@@ -478,16 +478,16 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             backdropArt.tryPlace("bgFar_gate", "gate_px_stage0", artX, artY, artW, artH, { opacity: w0, layer: 0 });
         }
         if (w1 > 0.01) {
-            backdropArt.tryPlace("slide_gate_01", "gate_px_stage1", artX, artY, artW, artH, { opacity: w1, layer: 1 });
+            backdropArt.tryPlace("comic_gate_01_beam", "gate_px_stage1", artX, artY, artW, artH, { opacity: w1, layer: 1 });
         }
         if (w2 > 0.01) {
-            backdropArt.tryPlace("slide_gate_02", "gate_px_stage2", artX, artY, artW, artH, { opacity: w2, layer: 2 });
+            backdropArt.tryPlace("comic_gate_02_dock", "gate_px_stage2", artX, artY, artW, artH, { opacity: w2, layer: 2 });
         }
         if (w3 > 0.01) {
-            backdropArt.tryPlace("slide_gate_03", "gate_px_stage3", artX, artY, artW, artH, { opacity: w3, layer: 3 });
+            backdropArt.tryPlace("comic_gate_03_fog", "gate_px_stage3", artX, artY, artW, artH, { opacity: w3, layer: 3 });
         }
         if (w4 > 0.01) {
-            backdropArt.tryPlace("slide_gate_04", "gate_px_stage4", artX, artY, artW, artH, { opacity: w4, layer: 4 });
+            backdropArt.tryPlace("comic_gate_04_terrace", "gate_px_stage4", artX, artY, artW, artH, { opacity: w4, layer: 4 });
         }
 
         // 远山北塔一豆柔和暖灯微脉动（与像素画面融为一体）
