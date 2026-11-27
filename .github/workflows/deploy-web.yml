@@ -142,8 +142,9 @@ jobs:
               throw new Error("白名单泄漏非运行文件: " + forbidden.map(f => f.path).join(", "));
             }
             const totalBytes = m.files.reduce((acc, f) => acc + f.size, 0);
-            if (totalBytes > 15 * 1024 * 1024) {
-              throw new Error("游戏静态资源超出 15MB 预算: " + totalBytes);
+            // 合入 #18 全量 196 份 48kHz 音频资产（~81.5 MB）后静态包体约 89 MB，预算上限设为 120 MB
+            if (totalBytes > 120 * 1024 * 1024) {
+              throw new Error("游戏静态资源超出 120MB 预算: " + totalBytes);
             }
             console.log("[verify-web] manifest OK:", m.files.length, "files,", (totalBytes / 1048576).toFixed(2), "MB");
           ' "$SERVER_DIR/dora-web-manifest.json"
