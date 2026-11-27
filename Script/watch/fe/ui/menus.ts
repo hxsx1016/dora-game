@@ -32,6 +32,7 @@ import {
     getPlatformCaps,
 } from "Script/watch/platform";
 import { controlsGuideRows, keyTagFor } from "Script/watch/fe/ui/control_prompts";
+import { HISTORY_CARDS } from "Script/watch/dialogues";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
@@ -53,7 +54,7 @@ import {
     visualTextWidth,
 } from "Script/watch/fe/theme";
 
-export type ScreenKind = "splash" | "title" | "chapters" | "controls" | "play";
+export type ScreenKind = "splash" | "title" | "chapters" | "controls" | "epilogue" | "history" | "play";
 
 export interface MenuAction {
     type:
@@ -61,6 +62,7 @@ export interface MenuAction {
         | "splashDone"
         | "continue"
         | "start"
+        | "replayStory"
         | "trial"
         | "jump"
         | "resume"
@@ -68,7 +70,9 @@ export interface MenuAction {
         | "toTitle"
         | "openChapters"
         | "openControls"
+        | "openHistory"
         | "backTitle"
+        | "backEpilogue"
         | "backPause"
         | "toggleFullscreen"
         | "quit";
@@ -160,6 +164,11 @@ export class MenuRenderer {
     chapterSelected = 0;
     pauseSelected = 0;
     settingsSelected = 0;
+    epilogueSelected = 0;
+    epilogueEnding: "lamp" | "reunion" = "lamp";
+    epilogueBothCleared = false;
+    historyCardIndex = 0;
+    private historyFromEpilogue = false;
     /** 存在有效局中存档时，标题页首项显示「继续游戏」，无存档时保持原 5 项索引不变。 */
     hasSession = false;
     /** 操作说明页当前分页（自动随最近输入模式同步，支持左右 / LB / RB / 点击切换） */
@@ -209,6 +218,19 @@ export class MenuRenderer {
         this.pauseSelected = 0;
         this.pauseShowControls = false;
         this.pauseShowSettings = false;
+        this.resetInput();
+    }
+
+    openEpilogue(ending: "lamp" | "reunion" = "lamp", bothCleared: boolean = false): void {
+        this.epilogueEnding = ending;
+        this.epilogueBothCleared = bothCleared;
+        this.epilogueSelected = 0;
+        this.resetInput();
+    }
+
+    openHistory(fromEpilogue: boolean = true): void {
+        this.historyFromEpilogue = fromEpilogue;
+        this.historyCardIndex = 0;
         this.resetInput();
     }
 
@@ -340,6 +362,12 @@ export class MenuRenderer {
         }
         if (screen === "chapters") {
             return this.drawChapters(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+        }
+        if (screen === "epilogue") {
+            return this.drawEpilogue(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+        }
+        if (screen === "history") {
+            return this.drawHistory(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
         }
         return this.drawControls(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
     }
@@ -1240,6 +1268,249 @@ export class MenuRenderer {
             if (id === "chapters") return { type: "openChapters" };
             if (id === "quit") return { type: "quit" };
             return { type: "toTitle" };
+        }
+        return { type: "none" };
+    }
+
+    /**
+     * 片尾落款页（《向西守望》正篇收束）：
+     * 严格按剧本「片尾操作与落款」提供「返回标题」「再走一遍」「了解历史」三项入口。
+     */
+    private drawEpilogue(
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        texts: TextPool,
+        w: number,
+        h: number,
+    ): MenuAction {
+        if (frame.back) {
+            return { type: "backTitle" };
+        }
+
+        // 深宵鸦青水墨幕 + 居中微光烟岚
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 15, 214));
+        const cx = w * 0.5;
+        const reunion = this.epilogueEnding === "reunion";
+        const accentCol = reunion ? PALETTE.amber : PALETTE.cyan;
+        drawMistCurve(uiArt, "ep_mist", cx, h * 0.62, 620, 120, accentCol, 0.20, 0);
+        fillRadialGlow(uiGlow, cx, h * 0.68, 220, 140, toColor(accentCol, 28), Color(10, 14, 22, 0), 18);
+
+        // 水墨片名《向西守望》与孤印「守望」
+        const titleY = h * 0.72;
+        texts.put("title", "向西守望", cx - 18, titleY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 12.0, 0.98, 0.12);
+        drawLoneSeal(uiInkDraw, uiArt, texts, "ep_seal", cx + 148, titleY - 2, 24, 46, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.94, 4);
+        drawHairline(uiInkDraw, uiArt, "ep_div", cx, titleY - 46, 360, PALETTE.silkDim, 0.62, true, 2);
+
+        const endingTitle = reunion ? "终章 · 兄妹团圆" : "终章 · 西窗留灯";
+        const verse = reunion
+            ? "簿页两行落墨，西窗灯火犹明。山海未静，此行终归同路。"
+            : "西窗长灯未熄，簿页末行仍空——留给城门那头仍可能走来的人。";
+        texts.put("md", endingTitle, cx, titleY - 76, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 3.2, 0.96, 0.08);
+        texts.put("sm", verse, cx, titleY - 114, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, 0.92, 0.08);
+
+        if (this.epilogueBothCleared) {
+            drawSilkVeil(uiDraw, uiArt, "ep_well_veil", cx, titleY - 152, 560, 30, PALETTE.inkWarm, 0.68, 0);
+            texts.put("xs", "双结局已通 · 回到序章寻柜之前，后院深井似有冷白微光", cx, titleY - 152, toColor(PALETTE.cyanCore), 0.5, 0.5, TextAlign.Center, 1.0, 0.90, 0.08);
+        }
+
+        const items = [
+            { id: "history", zh: "了解历史 · 片尾史话" },
+            { id: "replay", zh: "再走一遍" },
+            { id: "title", zh: "返回标题" },
+        ];
+        const btnW = 286;
+        const btnH = 44;
+        const gap = 14;
+        const baseY = Math.max(150, h * 0.34);
+        const boxes: Rect.Type[] = [];
+        let i = 0;
+        for (i = 0; i < items.length; i++) {
+            boxes.push(Rect(cx - btnW * 0.5, baseY - i * (btnH + gap), btnW, btnH));
+        }
+        this.epilogueSelected = this.verticalSelection(this.epilogueSelected, boxes, frame);
+
+        for (i = 0; i < items.length; i++) {
+            const box = boxes[i];
+            const active = this.epilogueSelected === i;
+            const cy = box.y + box.height * 0.5;
+            if (active) {
+                const breathe = 0.86 + 0.14 * Math.sin(this.time * 2.4);
+                drawSilkRibbon(uiDraw, uiArt, "ep_rib_" + i, cx, cy, btnW + 24, btnH, PALETTE.rougeSoft, 0.62 * breathe, 0);
+                drawHairline(uiInkDraw, uiArt, "ep_line_" + i, cx, box.y + 3, btnW - 44, PALETTE.silkLine, 0.48 * breathe, false, 2);
+                drawBlossomDot(uiInkDraw, uiArt, "ep_dot_" + i, box.x + 22, cy, 13, PALETTE.rouge, 0.96, 4);
+            } else {
+                drawSilkVeil(uiDraw, uiArt, "ep_idle_" + i, cx, cy, btnW, btnH - 2, PALETTE.inkWash, 0.58, 0);
+                drawBlossomDot(uiInkDraw, uiArt, "ep_dot_" + i, box.x + 22, cy, 8, PALETTE.silkDim, 0.42, 3);
+            }
+            texts.put(
+                "sm",
+                items[i].zh,
+                cx + 6,
+                cy,
+                toColor(active ? PALETTE.textBright : PALETTE.textMid),
+                0.5,
+                0.5,
+                TextAlign.Center,
+                active ? 2.6 : 1.6,
+                active ? 1.0 : 0.88,
+                0.08,
+            );
+        }
+
+        const footer = frame.mode === "gamepad"
+            ? (keyTagFor("confirm", "gamepad", frame.layout) + " 确认   ·   " + keyTagFor("back", "gamepad", frame.layout) + " 返回标题")
+            : (frame.mode === "touch" ? "轻触任一入口继续" : "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题");
+        texts.put("xs", footer, cx, 38 + frame.safe.bottom * 0.4, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.84, 0.08);
+
+        const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
+        if (hit >= 0 || frame.keys.confirm) {
+            const idx = hit >= 0 ? hit : this.epilogueSelected;
+            const id = items[idx].id;
+            if (id === "history") return { type: "openHistory" };
+            if (id === "replay") return { type: "replayStory" };
+            return { type: "backTitle" };
+        }
+        return { type: "none" };
+    }
+
+    /**
+     * 片尾史话（三张可选史话卡片：海隅筑城 / 井边烟火 / 长灯不绝）：
+     * 采用冷素宣纸书页与明版朱丝栏排印，支持左右翻页、手柄 LB/RB 与触屏直点。
+     */
+    private drawHistory(
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        texts: TextPool,
+        w: number,
+        h: number,
+    ): MenuAction {
+        if (frame.back) {
+            return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
+        }
+
+        const total = HISTORY_CARDS.length;
+        if (frame.keys.left || frame.prevTab) {
+            this.historyCardIndex = (this.historyCardIndex + total - 1) % total;
+        } else if (frame.keys.right || frame.nextTab) {
+            this.historyCardIndex = (this.historyCardIndex + 1) % total;
+        }
+        const card = HISTORY_CARDS[this.historyCardIndex];
+
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(7, 9, 15, 206));
+        const cx = w * 0.5;
+        const pageW = Math.min(w - 110 - frame.safe.left - frame.safe.right, 860);
+        const pageH = Math.min(h - 140 - frame.safe.top - frame.safe.bottom, 500);
+        const px = cx - pageW * 0.5;
+        const py = (h - pageH) * 0.5 + 14;
+        const midY = py + pageH * 0.5;
+
+        uiArt.tryPlace("ink_frame_mask", "hist_shadow", cx, midY - 6, pageW + 52, pageH + 46, {
+            color: toColor(PALETTE.voidDark), opacity: 0.84, layer: -1,
+        });
+        if (!uiArt.tryPlace("ink_song_paper", "hist_paper", cx, midY, pageW, pageH, { opacity: 0.98, layer: 1 })) {
+            uiDraw.drawRect(Rect(px, py, pageW, pageH), toColor(PALETTE.xuanPaper, 248), 1.0, toColor(PALETTE.silkDim, 180));
+        }
+        fillRadialGlow(uiGlow, cx, midY + 40, 260, 140, Color(236, 224, 202, 16), Color(236, 224, 202, 0), 14);
+
+        // 明版朱丝栏
+        const inX = px + 42;
+        const inY = py + 32;
+        const inW = pageW - 84;
+        const inH = pageH - 64;
+        const redSilk = toColor(PALETTE.rouge, 118);
+        const redSilkFaint = toColor(PALETTE.rouge, 58);
+        uiInkDraw.drawRect(Rect(inX, inY, inW, inH), Color(0, 0, 0, 0), 0.95, redSilk);
+        uiInkDraw.drawRect(Rect(inX + 4, inY + 4, inW - 8, inH - 8), Color(0, 0, 0, 0), 0.55, redSilkFaint);
+
+        // 天头：片尾史话 + 页码
+        const headY = inY + inH - 30;
+        texts.put("md", "片尾史话  ·  " + card.indexZh + " · " + card.title, inX + 20, headY, toColor(PALETTE.xuanInk), 0, 0.5, TextAlign.Left, 2.0, 0.96, 0);
+        texts.put("xs", (this.historyCardIndex + 1) + " / " + total, inX + inW - 20, headY, toColor(PALETTE.rouge), 1, 0.5, TextAlign.Right, 1.8, 0.88, 0);
+        uiInkDraw.drawSegment(Vec2(inX + 14, headY - 22), Vec2(inX + inW - 14, headY - 22), 0.85, redSilk);
+
+        // 副题
+        texts.put("xs", card.subtitle, inX + 20, headY - 42, toColor(PALETTE.xuanInkSub), 0, 0.5, TextAlign.Left, 1.4, 0.86, 0);
+
+        // 正文按 UTF-8 字符边界与视觉宽度自动折行（TSTL Lua 字节索引安全，绝不截断多字节汉字）
+        const wrapZh = (src: string, maxUnits: number): string[] => {
+            const out: string[] = [];
+            let buf = "";
+            let units = 0;
+            let ci = 0;
+            while (ci < src.length) {
+                const b = src.charCodeAt(ci);
+                const step = b < 128 ? 1 : (b < 224 ? 2 : (b < 240 ? 3 : 4));
+                const ch = src.slice(ci, ci + step);
+                const u = b < 128 ? 0.56 : 1.02;
+                if (units + u > maxUnits && buf !== "") {
+                    out.push(buf);
+                    buf = ch;
+                    units = u;
+                } else {
+                    buf += ch;
+                    units += u;
+                }
+                ci += step;
+            }
+            if (buf !== "") {
+                out.push(buf);
+            }
+            return out;
+        };
+
+        const charsPerLine = Math.max(24, Math.floor((inW - 44) / 20));
+        let cursorY = headY - 76;
+        let pi = 0;
+        for (pi = 0; pi < card.paragraphs.length; pi++) {
+            const lines = wrapZh("　　" + card.paragraphs[pi], charsPerLine);
+            let li = 0;
+            for (li = 0; li < lines.length; li++) {
+                texts.put("sm", lines[li], inX + 22, cursorY, toColor(PALETTE.xuanInk), 0, 0.5, TextAlign.Left, 0.6, 0.94, 0);
+                cursorY -= 30;
+            }
+            cursorY -= 12;
+        }
+
+        // 页底小注
+        const footY = inY + 26;
+        uiInkDraw.drawSegment(Vec2(inX + 14, footY + 20), Vec2(inX + inW - 14, footY + 20), 0.6, redSilkFaint);
+        texts.put("xs", card.footnote, inX + 20, footY, toColor(PALETTE.xuanInkSub), 0, 0.5, TextAlign.Left, 0.4, 0.84, 0);
+
+        // 底部导航按钮：上一页 / 卡片标签 / 下一页 / 返回
+        const navY = Math.max(30, py - 48);
+        const prevBox = Rect(cx - 290, navY, 132, 34);
+        const nextBox = Rect(cx + 158, navY, 132, 34);
+        const backBox = Rect(cx - 88, navY, 176, 34);
+
+        const drawNavBtn = (box: Rect.Type, tag: string, label: string): boolean => {
+            const hover = frame.inside && box.containsPoint(frame.pointer);
+            drawSilkVeil(uiDraw, uiArt, "hist_btn_" + tag, box.x + box.width * 0.5, box.y + box.height * 0.5, box.width, box.height, hover ? PALETTE.rougeSoft : PALETTE.inkWash, hover ? 0.86 : 0.72, 2);
+            texts.put("xs", label, box.x + box.width * 0.5, box.y + box.height * 0.5, toColor(hover ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.94, 0.08);
+            return hover && frame.click;
+        };
+
+        if (drawNavBtn(prevBox, "prev", "上一篇")) {
+            this.historyCardIndex = (this.historyCardIndex + total - 1) % total;
+        }
+        if (drawNavBtn(nextBox, "next", "下一篇")) {
+            this.historyCardIndex = (this.historyCardIndex + 1) % total;
+        }
+        if (drawNavBtn(backBox, "back", this.historyFromEpilogue ? "返回尾声" : "返回标题")) {
+            return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
+        }
+
+        if (frame.keys.confirm) {
+            if (this.historyCardIndex + 1 < total) {
+                this.historyCardIndex += 1;
+            } else {
+                return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
+            }
         }
         return { type: "none" };
     }

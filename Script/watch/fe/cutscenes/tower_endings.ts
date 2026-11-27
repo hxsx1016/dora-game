@@ -33,6 +33,7 @@ import { AudioDirector } from "Script/watch/fe/audio";
 import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE, drawPatchedCuff } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { NEEDLE_NOTE_LINES } from "Script/watch/dialogues";
 import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
@@ -1432,7 +1433,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         }
 
         // 5. 桌上物件与同框热瓷碗沿（F03 孤碗 + 针套纸条；M03 解下针套轻放案上 + 小满双手端碗）
-        this.drawDeskPropsAndBowl(uiDraw, uiInkDraw, uiGlow, route, s, ox, oy);
+        this.drawDeskPropsAndBowl(uiDraw, uiInkDraw, uiGlow, ctx, route, s, ox, oy);
     }
 
     private drawF03LowpolyRoomAndWindow(
@@ -1816,6 +1817,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
         uiGlow: DrawNode.Type,
+        ctx: FePluginContext,
         route: TowerEndingRoute,
         s: number,
         ox: number,
@@ -1828,10 +1830,23 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const bowlY = oy + TOWER_SHOT_LAYOUT.bowlRimY * s;
 
         if (route === "child") {
-            // F03：案左摊开小满交出的针套与托孤折纸（1.6s 起在案边可见）
+            // F03：案左摊开小满交出的针套与托孤折纸（1.6s 起在案边可见；1.65..4.15s 呈现纸条手书原词）
             const propA = smoothstep(1.55, 2.05, t);
             if (propA > 0.02) {
                 this.drawNeedleCaseOnDesk(uiInkDraw, ncX, ncY, s, propA, true);
+            }
+            const noteReadA = smoothstep(1.65, 2.10, t) * (1 - smoothstep(3.65, 4.15, t));
+            if (noteReadA > 0.02) {
+                const cardX = ncX + 18 * s;
+                const cardY = ncY + 84 * s;
+                uiInkDraw.drawRect(
+                    Rect(cardX - 118 * s, cardY - 30 * s, 236 * s, 60 * s),
+                    toColor(PALETTE.xuanPaper, Math.round(238 * noteReadA)),
+                    1.0,
+                    toColor(PALETTE.rouge, Math.round(110 * noteReadA)),
+                );
+                ctx.texts.put("xs", NEEDLE_NOTE_LINES[0], cardX, cardY + 10 * s, toColor(PALETTE.xuanInk), 0.5, 0.5, TextAlign.Center, 0.6, 0.94 * noteReadA, 0);
+                ctx.texts.put("xs", "—— " + NEEDLE_NOTE_LINES[1], cardX + 74 * s, cardY - 12 * s, toColor(PALETTE.xuanInkSub), 1, 0.5, TextAlign.Right, 0.8, 0.88 * noteReadA, 0);
             }
             // F03：4.35s 守卒将粗瓷热碗推至案沿，与空着的第二行同框定格
             const bowlK = smoothstep(4.35, 5.15, t);
@@ -2085,8 +2100,8 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         // 低引导规范：仅当玩家在暂停菜单主动打开「按键辅助」且定格读完解锁后，才在底遮幅极淡提示重开
         if (ctx.view.assistHintsEnabled && this.confirmReady) {
             const rawHint = route === "child"
-                ? "按 E 再次启程   ·   Esc 暂歇"
-                : "团圆尾声   ·   按 E 再次启程   ·   Esc 暂歇";
+                ? "按 E 收页 · 尾声与史话   ·   Esc 暂歇"
+                : "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇";
             const hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
             ctx.texts.put("xs", hint, ctx.uiW * 0.5, barH * 0.5, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.88, 0.08);
         }

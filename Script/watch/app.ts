@@ -174,7 +174,7 @@ function handleBackButton(): void {
         fe.menus.resetInput();
         return;
     }
-    if (fe.screen === "chapters" || fe.screen === "controls") {
+    if (fe.screen === "chapters" || fe.screen === "controls" || fe.screen === "epilogue" || fe.screen === "history") {
         fe.menus.triggerBack();
         return;
     }
@@ -604,6 +604,13 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 fe.menus.resetSplash();
             } else if (sc === "chapters") {
                 fe.menus.openChapters();
+            } else if (sc === "epilogue") {
+                fe.menus.openEpilogue(
+                    play !== undefined && play.storyRoute === "soldier" ? "reunion" : "lamp",
+                    profile.childCleared && profile.soldierCleared,
+                );
+            } else if (sc === "history") {
+                fe.menus.openHistory(false);
             } else {
                 fe.menus.resetInput();
             }
@@ -1341,6 +1348,16 @@ function tickFrontend(frameDt: number): void {
         } else if (act.type === "openControls") {
             fe.menus.resetInput();
             fe.screen = "controls";
+        } else if (act.type === "openHistory") {
+            fe.menus.openHistory(true);
+            fe.screen = "history";
+        } else if (act.type === "backEpilogue") {
+            fe.menus.resetInput();
+            fe.screen = "epilogue";
+        } else if (act.type === "replayStory") {
+            clearSession();
+            refreshTitleSessionFlag();
+            enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "backTitle") {
             fe.menus.resetInput();
             fe.screen = "title";
@@ -1394,9 +1411,27 @@ function tickFrontend(frameDt: number): void {
         }
     }
 
-    // 北塔尾声支持手柄确认键 / 触屏确认钮重新启程（与键盘 E 共享 8 秒防误跳闸门）
-    if (!p.paused && p.room.key === "tower" && p.phase === "tower-end" && input.navConfirm) {
-        input.interact.pressed = true;
+    // 北塔尾声满 8 秒读完后，按确认键（E / 手柄确认 / 触屏）收页进入片尾落款与史话入口
+    if (!p.paused && p.room.key === "tower" && p.phase === "tower-end") {
+        if (input.navConfirm) {
+            input.interact.pressed = true;
+        }
+        if (p.towerEndReady() && (input.interact.pressed || input.retry.pressed)) {
+            flushProfile();
+            if (p.run.source === "official" && hasSessionSave()) {
+                clearSession();
+                refreshTitleSessionFlag();
+            }
+            fe.audio.stopRoomTransient();
+            fe.menus.openEpilogue(
+                p.storyRoute === "soldier" ? "reunion" : "lamp",
+                profile.childCleared && profile.soldierCleared,
+            );
+            fe.screen = "epilogue";
+            input.clearTransient(true);
+            input.consumeEdges();
+            return;
+        }
     }
 
     if (!p.paused && p.craftBench.active && input.pause.pressed) {

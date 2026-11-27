@@ -536,7 +536,7 @@ function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 408
 			themeOf(p.room.key).ambient -- 494
 		) -- 494
 		self.hud:update(safeDt, p) -- 495
-		self.narrative:update(safeDt, p) -- 496
+		self.narrative:update(safeDt, p, ev, input.frameInteractPressed) -- 496
 	else -- 496
 		self.cam:update(0, p, w, h) -- 498
 	end -- 498

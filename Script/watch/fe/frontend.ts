@@ -493,7 +493,7 @@ export class WatchFrontend {
             this.actors.update(worldDt, p);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
             this.hud.update(safeDt, p);
-            this.narrative.update(safeDt, p);
+            this.narrative.update(safeDt, p, ev, input.frameInteractPressed);
         } else {
             this.cam.update(0, p, w, h);
         }

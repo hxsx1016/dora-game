@@ -561,13 +561,13 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                 }
             }
             if (this.p05ExitTimer >= 0) {
-                if (p.phase !== "gate-count" || view.countElapsedTicks > 90) {
+                if (p.phase !== "gate-count" || view.countElapsedTicks > 240) {
                     this.p05ExitTimer = -1;
                 } else {
                     if (dt > 0) {
                         this.p05ExitTimer += dt;
                     }
-                    if (this.p05ExitTimer >= 0.85) {
+                    if (this.p05ExitTimer >= 3.6) {
                         this.p05ExitTimer = -1;
                     } else {
                         this.activeShot = "P05";
@@ -715,8 +715,8 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                 this.renderP05FullShot(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog);
                 return true;
             }
-            // Live gate-send→gate-count 首 0.85s 衔接：袖口从门缝退去，保留小满张指接 G01 首帧
-            this.renderP05ExitBridge(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, clamp01(this.p05ExitTimer / 0.85));
+            // Live gate-send→gate-count 首 3.6s 送别衔接：补线袖口隔布轻捏 + 定稿嘱咐台词 + 随落门抽离接 G01
+            this.renderP05ExitBridge(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, clamp01(this.p05ExitTimer / 3.6));
             return false;
         }
 
@@ -923,31 +923,50 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         }
     }
 
-    /** Live 模式 gate-send → gate-count 首 0.85s 衔接：袖口从左门缝退出、小满保持张指接 G01 */
+    /** Live 模式 gate-send → gate-count 首 3.6s 送别衔接：补线袖口轻捏、定稿嘱咐台词与落门抽袖接 G01 */
     private renderP05ExitBridge(
         uiDraw: DrawNode.Type,
-        _uiInkDraw: DrawNode.Type,
-        _uiArt: AssetSlotHost,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
-        _ctx: FePluginContext,
+        ctx: FePluginContext,
         w: number,
         h: number,
         t: number,
     ): void {
-        const out = smoothstep(0, 1, t);
-        const alpha = 1 - out;
+        const enter = smoothstep(0, 0.12, t);
+        const out = smoothstep(0.66, 1.0, t);
+        const alpha = enter * (1 - out);
         if (alpha <= 0.02) {
             return;
         }
+        const pinchT = smoothstep(0.14, 0.34, t) * (1 - out);
         drawPatchedCuff(uiDraw, uiGlow, {
-            wristX: w * 0.24 - out * 240,
+            wristX: w * 0.25 - out * 240,
             wristY: h * 0.40,
             angleRad: -0.05,
-            scale: 0.92,
-            pose: "open",
-            opacity: alpha * 0.92,
-            stitchHighlight: 0.45,
+            scale: 0.94,
+            pose: pinchT > 0.25 ? "pinch" : "open",
+            opacity: alpha * 0.94,
+            stitchHighlight: 0.45 + 0.28 * pinchT,
         });
+        drawChildHand(
+            uiDraw,
+            w * 0.35 + out * 26,
+            h * 0.37 - out * 10,
+            Math.PI + 0.10,
+            0.94,
+            out > 0.32 ? "open_fingers" : "clutch",
+            alpha * 0.92,
+            true,
+        );
+        const lineAlpha = smoothstep(0.08, 0.22, t) * (1 - smoothstep(0.82, 0.98, t));
+        if (lineAlpha > 0.02) {
+            const subY = 92;
+            drawSilkVeil(uiDraw, uiArt, "p05_live_veil", w * 0.5, subY, 760, 44, PALETTE.inkWash, 0.86 * lineAlpha, -1);
+            drawHairline(uiInkDraw, uiArt, "p05_live_line", w * 0.5, subY + 20, 520, PALETTE.silkDim, 0.52 * lineAlpha, true, 2);
+            ctx.texts.put("sm", LINE_P05, w * 0.5, subY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.8, lineAlpha, 0.08);
+        }
     }
 
     /**
