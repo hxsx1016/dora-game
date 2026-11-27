@@ -15,275 +15,283 @@ local Content = ____Dora.Content -- 1
 local Node = ____Dora.Node -- 1
 local Sprite = ____Dora.Sprite -- 1
 local Vec2 = ____Dora.Vec2 -- 1
-local function backdrop(name) -- 46
-	return {paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false} -- 47
-end -- 46
-local function clip(names, anchorY, preserveAspect, anchorX) -- 50
-	if anchorY == nil then -- 50
-		anchorY = 0 -- 52
-	end -- 52
-	if preserveAspect == nil then -- 52
-		preserveAspect = false -- 53
-	end -- 53
-	local frames = type(names) == "string" and ({names}) or names -- 56
-	return { -- 57
-		paths = __TS__ArrayMap( -- 57
-			frames, -- 57
-			function(____, name) return "assets/art/sprites.clip|" .. name end -- 57
-		), -- 57
-		anchorX = anchorX, -- 57
-		anchorY = anchorY, -- 57
-		preserveAspect = preserveAspect -- 57
-	} -- 57
-end -- 50
-local function inkClip(name, preserveAspect) -- 60
-	if preserveAspect == nil then -- 60
-		preserveAspect = false -- 60
-	end -- 60
-	return {paths = {"assets/art/ui_ink.clip|" .. name}, anchorY = 0.5, preserveAspect = preserveAspect, smooth = true} -- 61
-end -- 60
-local function actor(names, anchorX) -- 64
-	return clip(names, 0, true, anchorX) -- 65
-end -- 64
-____exports.ASSET_SLOTS = { -- 68
-	bgFar_prologue = backdrop("prologue"), -- 69
-	bgFar_street = backdrop("street"), -- 70
-	bgFar_checkpoint = backdrop("checkpoint"), -- 71
-	bgFar_gate = backdrop("gate"), -- 72
-	bgFar_outside = backdrop("outside"), -- 73
-	bgFar_village = backdrop("village"), -- 74
-	bgFar_forest = backdrop("forest"), -- 75
-	bgFar_tower = backdrop("tower"), -- 76
-	title_backdrop = backdrop("title"), -- 77
-	soldier_idle = actor("soldier_idle"), -- 78
-	soldier_run = actor({"soldier_run", "soldier_idle", "soldier_step", "soldier_idle"}, {0.54, 0.5, 0.45, 0.5}), -- 79
-	soldier_roll = actor("soldier_roll", 0.47), -- 80
-	soldier_cover = actor("soldier_cover", 0.47), -- 81
-	soldier_push = actor({"soldier_push", "soldier_push_step"}, {0.43, 0.46}), -- 82
-	soldier_hold = actor("soldier_hold"), -- 83
-	soldier_offer = actor("soldier_offer", 0.48), -- 84
-	soldier_knock = actor({"soldier_cover", "soldier_knock"}, {0.47, 0.39}), -- 85
-	soldier_hit = actor("soldier_hit", 0.5), -- 86
-	soldier_fire = actor("soldier_fire", 0.51), -- 87
-	soldier_fire_move = actor({"soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"}, {0.53, 0.51, 0.55, 0.51}), -- 88
-	child_idle = actor("child_idle", 0.48), -- 89
-	child_run = actor({"child_run", "child_idle", "child_step", "child_idle"}, {0.54, 0.48, 0.51, 0.48}), -- 90
-	child_crouch = actor({"child_crouch", "child_crouch_step"}, {0.44, 0.43}), -- 91
-	child_fear = actor("child_fear", 0.48), -- 92
-	child_peek = actor("child_peek", 0.5), -- 93
-	child_pull = actor({"child_pull", "child_pull_step"}, {0.4, 0.44}), -- 94
-	child_aim = actor("child_aim", 0.47), -- 95
-	child_throw = actor("child_throw", 0.49), -- 96
-	child_knock = actor("child_knock", 0.5), -- 97
-	child_offer = actor("child_offer", 0.49), -- 98
-	enemy_idle = actor("enemy_idle", 0.5), -- 99
-	enemy_aim = actor("enemy_aim", 0.51), -- 100
-	enemy_down = actor("enemy_down"), -- 101
-	enemy_hit = actor("enemy_hit", 0.48), -- 102
-	scavenger = actor({"scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"}, {0.52, 0.52, 0.48, 0.52}), -- 103
-	dog = actor({"dog_idle", "dog_alert", "dog_run", "dog_sniff"}, {0.5, 0.5, 0.54, 0.58}), -- 104
-	prop_cart = clip("cart", 0, false, 0.44), -- 105
-	prop_bottle = clip("bottle", 0.5, true), -- 106
-	prop_tower_door = clip("door"), -- 107
-	prop_lantern = clip("lantern", 0.5, true), -- 108
-	prop_table = clip("table"), -- 109
-	prop_compass = clip("compass", 0.5, true), -- 110
-	prop_winch = clip("winch", 0.5, true), -- 111
-	wall = clip("wall"), -- 112
-	cover_wood = clip("cover_wood"), -- 113
-	cover_stone = clip("cover_stone"), -- 114
-	fence = clip("fence"), -- 115
-	slab = clip("slab"), -- 116
-	eaves = clip("eaves"), -- 117
-	pine = clip("pine"), -- 118
-	grass = clip("grass"), -- 119
-	grass_low = clip("grass_low"), -- 120
-	stone_chips = clip("stone_chips", 0.5, true), -- 121
-	ui_corner = clip("ui_corner"), -- 122
-	ui_corner_c = clip("ui_corner", 0.5, false), -- 123
-	ui_paper = clip("paper", 0.5), -- 124
-	ink_ribbon_sweep = inkClip("ink_ribbon_sweep"), -- 125
-	ink_mist_curve = inkClip("ink_mist_curve"), -- 126
-	ink_veil_strip = inkClip("ink_veil_strip"), -- 127
-	ink_hairline = inkClip("ink_hairline"), -- 128
-	ink_bamboo_slip = inkClip("ink_bamboo_slip"), -- 129
-	ink_bamboo_slot = inkClip("ink_bamboo_slot"), -- 130
-	ink_frame_mask = inkClip("ink_frame_mask"), -- 131
-	ink_vstream = inkClip("ink_vstream"), -- 132
-	ink_knot_ornament = inkClip("ink_knot_ornament"), -- 133
-	ink_corner_fine = inkClip("ink_corner_fine"), -- 134
-	ink_seal_slender = inkClip("ink_seal_slender"), -- 135
-	ink_blossom_dot = inkClip("ink_blossom_dot"), -- 136
-	ink_enso_fine = inkClip("ink_enso_fine"), -- 137
-	ink_petal_mist = inkClip("ink_petal_mist"), -- 138
-	ink_song_paper = inkClip("ink_song_paper"), -- 139
-	brand_game_logo_h = {paths = {"assets/art/brand/game_logo_h.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 140
-	brand_game_logo_v = {paths = {"assets/art/brand/game_logo_v.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 141
-	brand_team_logo = {paths = {"assets/art/brand/team_logo_dark.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 142
-	brand_team_badge = {paths = {"assets/art/brand/team_badge.png"}, anchorY = 0.5, preserveAspect = true, smooth = true} -- 143
-} -- 143
-local WHITE = Color(255, 255, 255, 255) -- 146
+local function backdrop(name, smooth) -- 47
+	if smooth == nil then -- 47
+		smooth = false -- 47
+	end -- 47
+	return smooth and ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false, smooth = true}) or ({paths = {("assets/art/" .. name) .. ".png"}, anchorY = 0, preserveAspect = false}) -- 48
+end -- 47
+local function clip(names, anchorY, preserveAspect, anchorX) -- 53
+	if anchorY == nil then -- 53
+		anchorY = 0 -- 55
+	end -- 55
+	if preserveAspect == nil then -- 55
+		preserveAspect = false -- 56
+	end -- 56
+	local frames = type(names) == "string" and ({names}) or names -- 59
+	return { -- 60
+		paths = __TS__ArrayMap( -- 60
+			frames, -- 60
+			function(____, name) return "assets/art/sprites.clip|" .. name end -- 60
+		), -- 60
+		anchorX = anchorX, -- 60
+		anchorY = anchorY, -- 60
+		preserveAspect = preserveAspect -- 60
+	} -- 60
+end -- 53
+local function inkClip(name, preserveAspect) -- 63
+	if preserveAspect == nil then -- 63
+		preserveAspect = false -- 63
+	end -- 63
+	return {paths = {"assets/art/ui_ink.clip|" .. name}, anchorY = 0.5, preserveAspect = preserveAspect, smooth = true} -- 64
+end -- 63
+local function actor(names, anchorX) -- 67
+	return clip(names, 0, true, anchorX) -- 68
+end -- 67
+____exports.ASSET_SLOTS = { -- 71
+	bgFar_prologue = backdrop("prologue"), -- 72
+	bgFar_street = backdrop("street"), -- 73
+	bgFar_checkpoint = backdrop("checkpoint"), -- 74
+	bgFar_gate = backdrop("gate"), -- 75
+	bgFar_outside = backdrop("outside"), -- 76
+	bgFar_village = backdrop("village"), -- 77
+	bgFar_forest = backdrop("forest"), -- 78
+	bgFar_tower = backdrop("tower"), -- 79
+	bgFar_crossroad_drygoods = backdrop("bg_crossroad_drygoods", true), -- 80
+	bgFar_archway_yard = backdrop("bg_archway_yard", true), -- 81
+	bgFar_granary = backdrop("bg_granary", true), -- 82
+	bgFar_escort_ridge = backdrop("bg_escort_ridge", true), -- 83
+	bgFar_museum = backdrop("bg_museum_hall", true), -- 84
+	title_backdrop = backdrop("title"), -- 85
+	soldier_idle = actor("soldier_idle"), -- 86
+	soldier_run = actor({"soldier_run", "soldier_idle", "soldier_step", "soldier_idle"}, {0.54, 0.5, 0.45, 0.5}), -- 87
+	soldier_roll = actor("soldier_roll", 0.47), -- 88
+	soldier_cover = actor("soldier_cover", 0.47), -- 89
+	soldier_push = actor({"soldier_push", "soldier_push_step"}, {0.43, 0.46}), -- 90
+	soldier_hold = actor("soldier_hold"), -- 91
+	soldier_offer = actor("soldier_offer", 0.48), -- 92
+	soldier_knock = actor({"soldier_cover", "soldier_knock"}, {0.47, 0.39}), -- 93
+	soldier_hit = actor("soldier_hit", 0.5), -- 94
+	soldier_fire = actor("soldier_fire", 0.51), -- 95
+	soldier_fire_move = actor({"soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"}, {0.53, 0.51, 0.55, 0.51}), -- 96
+	child_idle = actor("child_idle", 0.48), -- 97
+	child_run = actor({"child_run", "child_idle", "child_step", "child_idle"}, {0.54, 0.48, 0.51, 0.48}), -- 98
+	child_crouch = actor({"child_crouch", "child_crouch_step"}, {0.44, 0.43}), -- 99
+	child_fear = actor("child_fear", 0.48), -- 100
+	child_peek = actor("child_peek", 0.5), -- 101
+	child_pull = actor({"child_pull", "child_pull_step"}, {0.4, 0.44}), -- 102
+	child_aim = actor("child_aim", 0.47), -- 103
+	child_throw = actor("child_throw", 0.49), -- 104
+	child_knock = actor("child_knock", 0.5), -- 105
+	child_offer = actor("child_offer", 0.49), -- 106
+	enemy_idle = actor("enemy_idle", 0.5), -- 107
+	enemy_aim = actor("enemy_aim", 0.51), -- 108
+	enemy_down = actor("enemy_down"), -- 109
+	enemy_hit = actor("enemy_hit", 0.48), -- 110
+	scavenger = actor({"scavenger_idle", "scavenger_walk", "scavenger_turn", "scavenger_run"}, {0.52, 0.52, 0.48, 0.52}), -- 111
+	dog = actor({"dog_idle", "dog_alert", "dog_run", "dog_sniff"}, {0.5, 0.5, 0.54, 0.58}), -- 112
+	prop_cart = clip("cart", 0, false, 0.44), -- 113
+	prop_bottle = clip("bottle", 0.5, true), -- 114
+	prop_tower_door = clip("door"), -- 115
+	prop_lantern = clip("lantern", 0.5, true), -- 116
+	prop_table = clip("table"), -- 117
+	prop_compass = clip("compass", 0.5, true), -- 118
+	prop_winch = clip("winch", 0.5, true), -- 119
+	wall = clip("wall"), -- 120
+	cover_wood = clip("cover_wood"), -- 121
+	cover_stone = clip("cover_stone"), -- 122
+	fence = clip("fence"), -- 123
+	slab = clip("slab"), -- 124
+	eaves = clip("eaves"), -- 125
+	pine = clip("pine"), -- 126
+	grass = clip("grass"), -- 127
+	grass_low = clip("grass_low"), -- 128
+	stone_chips = clip("stone_chips", 0.5, true), -- 129
+	ui_corner = clip("ui_corner"), -- 130
+	ui_corner_c = clip("ui_corner", 0.5, false), -- 131
+	ui_paper = clip("paper", 0.5), -- 132
+	ink_ribbon_sweep = inkClip("ink_ribbon_sweep"), -- 133
+	ink_mist_curve = inkClip("ink_mist_curve"), -- 134
+	ink_veil_strip = inkClip("ink_veil_strip"), -- 135
+	ink_hairline = inkClip("ink_hairline"), -- 136
+	ink_bamboo_slip = inkClip("ink_bamboo_slip"), -- 137
+	ink_bamboo_slot = inkClip("ink_bamboo_slot"), -- 138
+	ink_frame_mask = inkClip("ink_frame_mask"), -- 139
+	ink_vstream = inkClip("ink_vstream"), -- 140
+	ink_knot_ornament = inkClip("ink_knot_ornament"), -- 141
+	ink_corner_fine = inkClip("ink_corner_fine"), -- 142
+	ink_seal_slender = inkClip("ink_seal_slender"), -- 143
+	ink_blossom_dot = inkClip("ink_blossom_dot"), -- 144
+	ink_enso_fine = inkClip("ink_enso_fine"), -- 145
+	ink_petal_mist = inkClip("ink_petal_mist"), -- 146
+	ink_song_paper = inkClip("ink_song_paper"), -- 147
+	brand_game_logo_h = {paths = {"assets/art/brand/game_logo_h.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 148
+	brand_game_logo_v = {paths = {"assets/art/brand/game_logo_v.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 149
+	brand_team_logo = {paths = {"assets/art/brand/team_logo_dark.png"}, anchorY = 0.5, preserveAspect = true, smooth = true}, -- 150
+	brand_team_badge = {paths = {"assets/art/brand/team_badge.png"}, anchorY = 0.5, preserveAspect = true, smooth = true} -- 151
+} -- 151
+local WHITE = Color(255, 255, 255, 255) -- 154
 --- 并行分支动态注册资源槽（与静态 ASSET_SLOTS 隔离，不破坏 verify-integration 全量槽位断言）。
 -- 挂在 package.loaded 共享表上，避免不同 Dora 编译版本以 "Script.watch.*" 与 "watch.*" 双路径加载时产生双份表。
-local function sharedDynamicSlots() -- 152
-	local g = _G -- 153
-	local ____temp_0 -- 154
-	if g.package ~= nil then -- 154
-		____temp_0 = g.package.loaded -- 154
-	else -- 154
-		____temp_0 = nil -- 154
-	end -- 154
-	local loaded = ____temp_0 -- 154
-	if loaded ~= nil then -- 154
-		local existing = loaded["watch.fe.dynamic_slots"] -- 156
-		if existing ~= nil and type(existing) == "table" then -- 156
-			return existing -- 158
-		end -- 158
-		local created = {} -- 160
-		loaded["watch.fe.dynamic_slots"] = created -- 161
-		return created -- 162
+local function sharedDynamicSlots() -- 160
+	local g = _G -- 161
+	local ____temp_0 -- 162
+	if g.package ~= nil then -- 162
+		____temp_0 = g.package.loaded -- 162
+	else -- 162
+		____temp_0 = nil -- 162
 	end -- 162
-	return FALLBACK_DYNAMIC_SLOTS -- 164
-end -- 152
-FALLBACK_DYNAMIC_SLOTS = {} -- 167
+	local loaded = ____temp_0 -- 162
+	if loaded ~= nil then -- 162
+		local existing = loaded["watch.fe.dynamic_slots"] -- 164
+		if existing ~= nil and type(existing) == "table" then -- 164
+			return existing -- 166
+		end -- 166
+		local created = {} -- 168
+		loaded["watch.fe.dynamic_slots"] = created -- 169
+		return created -- 170
+	end -- 170
+	return FALLBACK_DYNAMIC_SLOTS -- 172
+end -- 160
+FALLBACK_DYNAMIC_SLOTS = {} -- 175
 --- 全局动态注册贴图/图集槽位，供 Wave 1/2 插件零冲突挂载新资源
-function ____exports.registerDynamicSlot(key, cfg) -- 170
-	sharedDynamicSlots()[key] = cfg -- 171
-end -- 170
-function ____exports.unregisterDynamicSlot(key) -- 174
-	__TS__Delete( -- 175
-		sharedDynamicSlots(), -- 175
-		key -- 175
-	) -- 175
-end -- 174
-____exports.AssetSlotHost = __TS__Class() -- 178
-local AssetSlotHost = ____exports.AssetSlotHost -- 178
-AssetSlotHost.name = "AssetSlotHost" -- 178
-function AssetSlotHost.prototype.____constructor(self, parent, order) -- 186
-	self.sprites = {} -- 180
-	self.unavailable = {} -- 181
-	self.visibleLastFrame = {} -- 182
-	self.visibleThisFrame = {} -- 183
-	self.localSlots = {} -- 184
-	self.container = Node() -- 187
-	self.container.order = order -- 188
-	self.container:addTo(parent) -- 189
-end -- 186
-function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 193
-	self.localSlots[key] = cfg -- 194
-end -- 193
-function AssetSlotHost.prototype.beginFrame(self) -- 197
-	self.visibleThisFrame = {} -- 198
-end -- 197
-function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 201
-	if options == nil then -- 201
-		options = {} -- 205
-	end -- 205
-	local staticSlots = ____exports.ASSET_SLOTS -- 207
-	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 208
-	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 208
-		return false -- 210
-	end -- 210
-	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 212
-	local path = cfg.paths[frame + 1] -- 213
-	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 214
-	return self:placeResolvedPath( -- 217
-		path, -- 217
-		anchorX, -- 217
-		cfg.anchorY, -- 217
-		cfg.preserveAspect, -- 217
-		cfg.smooth == true, -- 217
-		instanceKey, -- 217
-		x, -- 217
-		y, -- 217
-		targetW, -- 217
-		targetH, -- 217
-		options -- 217
-	) -- 217
+function ____exports.registerDynamicSlot(key, cfg) -- 178
+	sharedDynamicSlots()[key] = cfg -- 179
+end -- 178
+function ____exports.unregisterDynamicSlot(key) -- 182
+	__TS__Delete( -- 183
+		sharedDynamicSlots(), -- 183
+		key -- 183
+	) -- 183
+end -- 182
+____exports.AssetSlotHost = __TS__Class() -- 186
+local AssetSlotHost = ____exports.AssetSlotHost -- 186
+AssetSlotHost.name = "AssetSlotHost" -- 186
+function AssetSlotHost.prototype.____constructor(self, parent, order) -- 194
+	self.sprites = {} -- 188
+	self.unavailable = {} -- 189
+	self.visibleLastFrame = {} -- 190
+	self.visibleThisFrame = {} -- 191
+	self.localSlots = {} -- 192
+	self.container = Node() -- 195
+	self.container.order = order -- 196
+	self.container:addTo(parent) -- 197
+end -- 194
+function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 201
+	self.localSlots[key] = cfg -- 202
 end -- 201
-function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 221
-	if options == nil then -- 221
-		options = {} -- 225
-	end -- 225
-	if path == "" or targetW <= 0 or targetH <= 0 then -- 225
-		return false -- 228
-	end -- 228
-	local ____self_placeResolvedPath_3 = self.placeResolvedPath -- 230
-	local ____array_2 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 230
-	local ____options_preserveAspect_1 = options.preserveAspect -- 234
-	if ____options_preserveAspect_1 == nil then -- 234
-		____options_preserveAspect_1 = false -- 234
-	end -- 234
-	__TS__SparseArrayPush( -- 234
-		____array_2, -- 234
-		____options_preserveAspect_1, -- 234
-		options.smooth == true, -- 235
-		instanceKey, -- 236
-		x, -- 237
-		y, -- 238
-		targetW, -- 239
-		targetH, -- 240
-		options -- 241
-	) -- 241
-	return ____self_placeResolvedPath_3( -- 230
-		self, -- 230
-		__TS__SparseArraySpread(____array_2) -- 230
-	) -- 230
-end -- 221
-function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options) -- 245
-	local key = (instanceKey .. ":") .. path -- 255
-	local sprite = self.sprites[key] -- 256
-	if sprite == nil then -- 256
-		if self.unavailable[path] then -- 256
-			return false -- 259
-		end -- 259
-		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 261
-		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 262
-		local ____Content_exist_result_4 -- 263
-		if Content:exist(file) then -- 263
-			____Content_exist_result_4 = Sprite(path) -- 263
-		else -- 263
-			____Content_exist_result_4 = nil -- 263
-		end -- 263
-		local loaded = ____Content_exist_result_4 -- 263
-		if loaded == nil then -- 263
-			self.unavailable[path] = true -- 265
-			return false -- 266
-		end -- 266
-		loaded.anchor = Vec2(anchorX, anchorY) -- 268
-		loaded.filter = smooth and "Anisotropic" or "Point" -- 269
-		loaded:addTo(self.container) -- 270
-		self.sprites[key] = loaded -- 271
-		sprite = loaded -- 272
-	end -- 272
-	local scaleY = targetH / math.max(1, sprite.height) -- 275
-	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 276
-	sprite.position = Vec2( -- 277
-		math.floor(x + 0.5), -- 277
-		math.floor(y + 0.5) -- 277
-	) -- 277
-	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 278
-	sprite.scaleY = options.flipY and -scaleY or scaleY -- 279
-	sprite.angle = options.angle or 0 -- 280
-	sprite.order = options.layer or 0 -- 281
-	local col = options.color or WHITE -- 282
-	sprite.color = col -- 283
-	local baseA = col.a / 255 -- 284
-	local op = options.opacity or 1 -- 285
-	sprite.opacity = math.max( -- 286
-		0, -- 286
-		math.min(1, baseA * op) -- 286
-	) -- 286
-	sprite.visible = true -- 287
-	self.visibleThisFrame[key] = sprite -- 288
-	return true -- 289
-end -- 245
-function AssetSlotHost.prototype.endFrame(self) -- 292
-	for key in pairs(self.visibleLastFrame) do -- 293
-		if self.visibleThisFrame[key] == nil then -- 293
-			self.visibleLastFrame[key].visible = false -- 295
-		end -- 295
-	end -- 295
-	self.visibleLastFrame = self.visibleThisFrame -- 298
-end -- 292
-return ____exports -- 292
+function AssetSlotHost.prototype.beginFrame(self) -- 205
+	self.visibleThisFrame = {} -- 206
+end -- 205
+function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 209
+	if options == nil then -- 209
+		options = {} -- 213
+	end -- 213
+	local staticSlots = ____exports.ASSET_SLOTS -- 215
+	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 216
+	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 216
+		return false -- 218
+	end -- 218
+	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 220
+	local path = cfg.paths[frame + 1] -- 221
+	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 222
+	return self:placeResolvedPath( -- 225
+		path, -- 225
+		anchorX, -- 225
+		cfg.anchorY, -- 225
+		cfg.preserveAspect, -- 225
+		cfg.smooth == true, -- 225
+		instanceKey, -- 225
+		x, -- 225
+		y, -- 225
+		targetW, -- 225
+		targetH, -- 225
+		options -- 225
+	) -- 225
+end -- 209
+function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 229
+	if options == nil then -- 229
+		options = {} -- 233
+	end -- 233
+	if path == "" or targetW <= 0 or targetH <= 0 then -- 233
+		return false -- 236
+	end -- 236
+	local ____self_placeResolvedPath_3 = self.placeResolvedPath -- 238
+	local ____array_2 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 238
+	local ____options_preserveAspect_1 = options.preserveAspect -- 242
+	if ____options_preserveAspect_1 == nil then -- 242
+		____options_preserveAspect_1 = false -- 242
+	end -- 242
+	__TS__SparseArrayPush( -- 242
+		____array_2, -- 242
+		____options_preserveAspect_1, -- 242
+		options.smooth == true, -- 243
+		instanceKey, -- 244
+		x, -- 245
+		y, -- 246
+		targetW, -- 247
+		targetH, -- 248
+		options -- 249
+	) -- 249
+	return ____self_placeResolvedPath_3( -- 238
+		self, -- 238
+		__TS__SparseArraySpread(____array_2) -- 238
+	) -- 238
+end -- 229
+function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options) -- 253
+	local key = (instanceKey .. ":") .. path -- 263
+	local sprite = self.sprites[key] -- 264
+	if sprite == nil then -- 264
+		if self.unavailable[path] then -- 264
+			return false -- 267
+		end -- 267
+		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 269
+		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 270
+		local ____Content_exist_result_4 -- 271
+		if Content:exist(file) then -- 271
+			____Content_exist_result_4 = Sprite(path) -- 271
+		else -- 271
+			____Content_exist_result_4 = nil -- 271
+		end -- 271
+		local loaded = ____Content_exist_result_4 -- 271
+		if loaded == nil then -- 271
+			self.unavailable[path] = true -- 273
+			return false -- 274
+		end -- 274
+		loaded.anchor = Vec2(anchorX, anchorY) -- 276
+		loaded.filter = smooth and "Anisotropic" or "Point" -- 277
+		loaded:addTo(self.container) -- 278
+		self.sprites[key] = loaded -- 279
+		sprite = loaded -- 280
+	end -- 280
+	local scaleY = targetH / math.max(1, sprite.height) -- 283
+	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 284
+	sprite.position = Vec2( -- 285
+		math.floor(x + 0.5), -- 285
+		math.floor(y + 0.5) -- 285
+	) -- 285
+	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 286
+	sprite.scaleY = options.flipY and -scaleY or scaleY -- 287
+	sprite.angle = options.angle or 0 -- 288
+	sprite.order = options.layer or 0 -- 289
+	local col = options.color or WHITE -- 290
+	sprite.color = col -- 291
+	local baseA = col.a / 255 -- 292
+	local op = options.opacity or 1 -- 293
+	sprite.opacity = math.max( -- 294
+		0, -- 294
+		math.min(1, baseA * op) -- 294
+	) -- 294
+	sprite.visible = true -- 295
+	self.visibleThisFrame[key] = sprite -- 296
+	return true -- 297
+end -- 253
+function AssetSlotHost.prototype.endFrame(self) -- 300
+	for key in pairs(self.visibleLastFrame) do -- 301
+		if self.visibleThisFrame[key] == nil then -- 301
+			self.visibleLastFrame[key].visible = false -- 303
+		end -- 303
+	end -- 303
+	self.visibleLastFrame = self.visibleThisFrame -- 306
+end -- 300
+return ____exports -- 300
