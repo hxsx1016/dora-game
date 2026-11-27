@@ -200,7 +200,9 @@ do
 		lowerZone ~= nil and tapZoneOk,
 		"zoneTap=" .. tostring(inp.touchZoneTap))
 
-	-- 暂停菜单：索引 8 仍为操控设置，索引 9 为「行军札记」且选定后退出暂停并直接展开札记
+	-- 暂停菜单：桌面端索引 8 仍为操控设置，索引 9 为「行军札记」且选定后退出暂停并直接展开札记
+	package.loaded["watch.target"] = "windows"
+	targetMod.resetActiveTarget()
 	local vpLand = platform.computeStageViewport(1280, 720)
 	inp:setStageViewport(vpLand)
 	fe:setStagePlacement(vpLand)
@@ -224,6 +226,8 @@ do
 		idx8IsSettings == true and act.type == "resume" and rgPlugin:isLedgerOpen() == true,
 		string.format("idx8=%s act=%s ledger=%s", tostring(idx8IsSettings), tostring(act.type), tostring(rgPlugin:isLedgerOpen())))
 	rgPlugin:closeLedger()
+	package.loaded["watch.target"] = "web"
+	targetMod.resetActiveTarget()
 end
 
 -- ==================== 4. 排演态验证：世界层反馈 / 动态行军雅号 / 未来新天赋兜底 ====================

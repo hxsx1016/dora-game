@@ -255,6 +255,15 @@ for required in \
     "assets/art/brand/team_badge.png" \
     "assets/art/brand/app_icon.png" \
     "assets/art/sprites.clip" \
+    "assets/art/tex_diorama_ming.clip" \
+    "assets/art/diorama_cutouts.clip" \
+    "assets/art/cutscene_cuff_rig.clip" \
+    "assets/art/props_ming.clip" \
+    "assets/art/actors_extra.clip" \
+    "assets/art/vfx_craft_art.clip" \
+    "assets/art/bg_escort_ridge.png" \
+    "assets/art/props_second_half.clip" \
+    "assets/art/props_second_half.png" \
     "assets/font/lxgw-neo-zhisong.ttf" \
     "assets/font/longcang-brush.ttf" \
     "assets/audio/combat/shot.wav" \
