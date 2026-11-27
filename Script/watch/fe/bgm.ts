@@ -197,7 +197,7 @@ export class SoundscapeDirector {
             } else if (phase === "gate-idle") {
                 desired = BGM_CATALOG.checkpoint;
                 manualDuck = 0.65;
-            } else if (phase === "gate-send") {
+            } else if (phase === "gate-send" || phase === "gate-farewell") {
                 desired = undefined;
             } else if (phase === "gate-count") {
                 desired = BGM_CATALOG.gate_count;
@@ -323,7 +323,7 @@ export class SoundscapeDirector {
         const key = p.room.key;
         const inCutscene = view.visualMode === "museum"
             || (key === "prologue" && (p.phase === "prologue-wake" || p.phase === "prologue-shadow" || p.phase === "prologue-give"))
-            || (key === "gate" && (p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
+            || (key === "gate" && (p.phase === "gate-farewell" || p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
             || (key === "tower" && (p.phase === "tower-knock" || p.phase === "tower-given" || p.phase === "tower-end"));
 
         // 本领卡浮现音效

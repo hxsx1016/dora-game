@@ -426,6 +426,8 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
     private lastSubtitle = "";
     private prevPhase = "";
     private loopsActive = false;
+    /** 敲门结束进入 tower-enter 时承接 0.90s 非阻塞推门提灯淡出过渡，既完整呈现开门演出又不锁控/不遮挡跨门槛 */
+    private doorOpenOverlayElapsed = -1;
 
     /** 按严格双线红线推导北塔结局路线：只读锁存 storyRoute（兼容 B2 ending，绝不碰即时 HP 或 run.route） */
     private resolveRoute(p: Play, view: DualRouteSnapshot): TowerEndingRoute {
@@ -465,6 +467,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         this.earlyInputBlockedCount = 0;
         this.rehearsalAcknowledged = false;
         this.lastSubtitle = "";
+        this.doorOpenOverlayElapsed = -1;
     }
 
     // ==================== 排演与自动化验证钩子 ====================
@@ -716,6 +719,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
     private stepLiveSync(ctx: FePluginContext, route: TowerEndingRoute): void {
         const p = ctx.p;
         const phase = p.phase;
+        const cameFromKnock = this.prevPhase === "tower-knock";
         const justEnteredKnock = this.prevPhase !== "tower-knock" && phase === "tower-knock";
         const justEnteredEnter = this.prevPhase !== "tower-enter" && phase === "tower-enter";
         const justEnteredGiven = this.prevPhase !== "tower-given" && phase === "tower-given";
@@ -724,12 +728,13 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         if (phase === "tower-wait") {
             // 门廊自由步行阶段交由基础/低模世界层处理（与 fe-04 零冲突），若曾室内重试则不关门
+            this.doorOpenOverlayElapsed = -1;
             this.active = false;
             return;
         }
 
-        if (phase === "tower-enter" || phase === "tower-desk") {
-            // 门开后让回画面控制权，玩家亲自跨门槛并在值夜桌长按交物，不让全屏过场遮挡操作。
+        if (phase === "tower-enter") {
+            // 门开后立即让回画面控制权（active = false），并用 0.90s 非阻塞提灯开门淡出衔接值夜室实景
             this.doorOpened = true;
             this.replyKnockCount = Math.max(2, this.replyKnockCount);
             if (justEnteredEnter && this.indoorRetryCount === 0 && !ctx.paused) {
@@ -737,8 +742,34 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
                 this.playTowerOnce(ctx.audio, "reply1", "sfx", TOWER_AUDIO_FILES.reply1, 0.78, "tower:reply:1", tick);
                 this.playTowerOnce(ctx.audio, "reply2", "sfx", TOWER_AUDIO_FILES.reply2, 0.80, "tower:reply:2", tick);
                 this.playTowerOnce(ctx.audio, "door_open", "sfx", TOWER_AUDIO_FILES.doorOpen, 0.84, "tower:door_open", tick);
+                ctx.audio.playLoop("tower_room_warm", "ambience", TOWER_AUDIO_FILES.roomWarm, 0.28, tick);
+                this.loopsActive = true;
+                if (cameFromKnock) {
+                    this.doorOpenOverlayElapsed = 0;
+                }
+            }
+            if (this.doorOpenOverlayElapsed >= 0) {
+                if (p.player.x >= p.ox + 520) {
+                    this.doorOpenOverlayElapsed = -1;
+                } else if (!ctx.paused && ctx.worldDt > 0) {
+                    this.doorOpenOverlayElapsed += ctx.worldDt;
+                    if (this.doorOpenOverlayElapsed >= 0.90) {
+                        this.doorOpenOverlayElapsed = -1;
+                    }
+                }
             }
             this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.doorOpenSec);
+            this.active = false;
+            this.syncDerivedMilestones(this.seqElapsed, route);
+            return;
+        }
+
+        if (phase === "tower-desk") {
+            // 门开并跨过门槛后交回实景控制权，玩家在值夜桌长按交物，不让全屏过场遮挡操作。
+            this.doorOpenOverlayElapsed = -1;
+            this.doorOpened = true;
+            this.replyKnockCount = Math.max(2, this.replyKnockCount);
+            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.indoorCutSec);
             this.active = false;
             this.syncDerivedMilestones(this.seqElapsed, route);
             return;
@@ -760,8 +791,8 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.indoorCutSec);
         } else if (justEnteredEnd) {
             this.doorOpened = true;
-            // 无缝延续 8 秒演出，不因 play.ts 在 3.6s 切入 tower-end 而跳切
-            this.seqElapsed = Math.max(this.seqElapsed, 3.60);
+            // 无缝延续 8 秒演出，并与后端 phaseTick 下限对齐，防止尾声字幕与 D55 错拍叠字
+            this.seqElapsed = Math.max(this.seqElapsed, 3.60 + p.phaseTick / 60);
         }
 
         // 消费后端当帧真实 knock 事件，保证第 0 拍 / 第 12 拍精确对齐
@@ -1008,6 +1039,34 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         ctx: FePluginContext,
     ): boolean {
         if (!this.active) {
+            if (!this.rehearsalActive && ctx.p.room.key === "tower" && ctx.p.phase === "tower-enter" && this.doorOpenOverlayElapsed >= 0) {
+                // 非阻塞推门提灯衔接：0.00..0.90s 内由暖灯开门光晕自然溶入可交互值夜室（返回 false 不遮挡操作与对白）
+                const u = clamp01(this.doorOpenOverlayElapsed / 0.90);
+                const fade = 1 - smoothstep(0.28, 1.0, u);
+                if (fade > 0.02) {
+                    const route = this.activeRoute;
+                    const openK = smoothstep(0.0, 0.55, u);
+                    const cx = ctx.uiW * 0.5;
+                    const cy = ctx.uiH * 0.46;
+                    uiDraw.drawRect(Rect(0, 0, ctx.uiW, ctx.uiH), Color(8, 10, 16, Math.round(145 * fade)));
+                    fillRadialGlow(
+                        uiGlow,
+                        cx + 42 * (1 - openK),
+                        cy + 16,
+                        ctx.uiW * (0.26 + 0.18 * openK),
+                        ctx.uiH * (0.34 + 0.16 * openK),
+                        Color(248, 212, 144, Math.round(128 * fade)),
+                        Color(220, 154, 72, 0),
+                        18,
+                    );
+                    this.drawMingLantern(uiInkDraw, uiGlow, cx + 66 - openK * 24, cy + 28, 1.05, fade * (0.45 + 0.55 * openK), 1.0);
+                    const cap = route === "child"
+                        ? "守卒推门提灯，暖光先照见她腕上的针套。"
+                        : "守卒推门提灯，周戍牵小满一同跨过门槛。";
+                    drawSilkVeil(uiDraw, uiArt, "tower_door_open_veil", cx, ctx.uiH - 86, 560, 38, PALETTE.inkWarm, 0.78 * fade, 2);
+                    ctx.texts.put("sm", cap, cx, ctx.uiH - 86, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.0, fade, 0.08);
+                }
+            }
             return false;
         }
 

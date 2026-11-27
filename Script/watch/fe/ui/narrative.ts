@@ -52,6 +52,7 @@ export class NarrativeRenderer {
     private queuedLines: ScriptDialogueLine[] = [];
     private triggeredBeats: Record<string, boolean> = {};
     private lastS2BoardOpen = false;
+    private lastC1LatchRaised = false;
     private lastCartDocked = false;
     private lastEscortCalming = false;
     private lastFlashSeen = "";
@@ -68,6 +69,7 @@ export class NarrativeRenderer {
         this.queuedLines = [];
         this.triggeredBeats = {};
         this.lastS2BoardOpen = false;
+        this.lastC1LatchRaised = false;
         this.lastCartDocked = false;
         this.lastEscortCalming = false;
         this.lastFlashSeen = "";
@@ -165,17 +167,36 @@ export class NarrativeRenderer {
         // 3. 逐场非阻塞剧情对白（D01–D65 + G06 + 3 处可选发现）
         if (key === "prologue") {
             if (p.phase === "prologue-wake") {
-                this.triggerOnce("p0_wake", ["D30", "D31", "D32"], true);
-            } else if (p.phase === "prologue-shadow" || p.phase === "prologue-escape") {
-                this.triggerOnce("p0_shadow", ["D33", "D34"], true);
+                if (p.introTick < 120) {
+                    this.triggerOnce("p0_wake_mom", ["D30"], true);
+                } else {
+                    this.triggerOnce("p0_wake_dad", ["D31"], true);
+                }
+            } else if (p.phase === "prologue-shadow") {
+                if (p.introTick < 90) {
+                    this.triggerOnce("p0_shadow_call", ["D32"], true);
+                } else {
+                    this.triggerOnce("p0_shadow_raider", ["D33"], true);
+                }
+            } else if (p.phase === "prologue-escape") {
+                this.triggerOnce("p0_shadow_raider", ["D33"]);
+                this.triggerOnce("p0_escape_cry", ["D34"]);
+            } else if (p.phase === "prologue-hide") {
+                // 入柜后收声留给柜外渐远脚步
+                if (this.activeLine !== undefined) {
+                    this.activeLine = undefined;
+                    this.activeLineT = 0;
+                    this.queuedLines = [];
+                }
             } else if (p.phase === "prologue-wait") {
                 this.triggerOnce("p1_call", ["D35", "D36"], true);
             } else if (p.phase === "prologue-give") {
+                // P03 占满 3 秒（180 拍），先在特写内播完 D01，切回跟随段再自然续播 D02/D03/D37/D38
                 this.triggerOnce("p2_give", ["D01", "D02", "D03", "D37", "D38"], true);
             } else if (p.phase === "prologue-follow") {
-                if (px >= ox + 400) {
+                if (px >= ox + 420) {
                     this.triggerOnce("p3_well", ["D21", "D22", "D39"]);
-                } else {
+                } else if (px >= ox + 300) {
                     this.triggerOnce("p2_wall", ["D57", "D58"]);
                 }
                 // 可选发现 01：巷壁纸风车（递物后折返巷口左侧按 E，零阻塞）
@@ -188,12 +209,15 @@ export class NarrativeRenderer {
 
         if (key === "s1-crossroad") {
             if (px < ox + 260) {
-                this.triggerOnce("s1_standoff", ["D23", "D24", "D40", "D41"]);
-            } else if (px >= ox + 360 && this.activeLine !== undefined && this.activeLine.id === "D23") {
-                // 玩家先一步迈入街口即自然略去未说完的对峙喊话
+                this.triggerOnce("s1_standoff", ["D23", "D24"]);
+            } else if (px >= ox + 380 && this.activeLine !== undefined && this.activeLine.id === "D23") {
+                // 玩家先一步迈入街口即自然略去未说完的对峙喊话，但不误删战后的 D40/D41
                 this.activeLine = undefined;
                 this.activeLineT = 0;
                 this.queuedLines = [];
+            }
+            if (px >= ox + 920) {
+                this.triggerOnce("s1_after_fight", ["D40", "D41"]);
             }
             return;
         }
@@ -229,6 +253,19 @@ export class NarrativeRenderer {
             return;
         }
 
+        if (key === "c1-yard") {
+            if (px >= ox + 220 && px <= ox + 640) {
+                this.triggerOnce("c1_enter", ["C1A", "C1B"]);
+            }
+            const latchRaised = p.run.c1Latch === true;
+            if (latchRaised && !this.lastC1LatchRaised) {
+                this.showMuteCaption("latchOpen", 2.0);
+                this.triggerOnce("c1_latch", ["C1C"], true);
+            }
+            this.lastC1LatchRaised = latchRaised;
+            return;
+        }
+
         if (key === "c2-granary") {
             if (!p.cartDocked && px >= ox + 260) {
                 this.triggerOnce("c2_groove", ["D07", "D43"]);
@@ -252,9 +289,22 @@ export class NarrativeRenderer {
                     this.queuedLines = [];
                 }
             } else if (p.phase === "gate-send") {
-                this.triggerOnce("g3_farewell", ["D10", "D61", "D62", "D46", "D47", "D12"], true);
+                this.triggerOnce("g3_farewell", ["D10", "D25", "D26", "D61", "D62", "D46", "D47", "D12"], true);
+            } else if (p.phase === "gate-farewell" || p.phase === "gate-count") {
+                // P05 嘱咐与 G01 数到二十由对应演出插件独占字幕，避免双字幕叠加
+                if (this.activeLine !== undefined) {
+                    this.activeLine = undefined;
+                    this.activeLineT = 0;
+                    this.queuedLines = [];
+                }
             } else if (p.phase === "gate-wait") {
                 this.triggerOnce("g4_reunion_call", ["D48", "D49", "D50"], true);
+            } else if (p.phase === "gate-hand") {
+                if (this.activeLine !== undefined) {
+                    this.activeLine = undefined;
+                    this.activeLineT = 0;
+                    this.queuedLines = [];
+                }
             }
             return;
         }
@@ -279,15 +329,17 @@ export class NarrativeRenderer {
             // 可选发现 06：门廊扶正风灯（叩门前于门廊外侧按 E，不抢占 doorX=445±50 叩门热区）
             if (p.phase === "tower-wait" && interactPressed && px >= ox + 300 && px <= ox + 385) {
                 this.triggerOnce("opt_lantern", ["OPT_LANTERN"], true);
-            } else if (p.phase === "tower-knock") {
+            } else if (p.phase === "tower-enter") {
+                // 推门过渡结束后跨入值夜室，先接门廊应门问话 D14–D15，不提前问姓名
                 this.triggerOnce("t2_knock", ["D14", "D15"], true);
-            } else if (p.phase === "tower-enter" || p.phase === "tower-desk") {
+            } else if (p.phase === "tower-desk") {
                 if (p.storyRoute === "soldier") {
-                    this.triggerOnce("t3_soldier_talk", ["D53", "D54", "D16", "D17", "D63", "D64"], true);
+                    this.triggerOnce("t3_soldier_talk", ["D53", "D54", "D16", "D17", "D63", "D64"]);
                 } else {
-                    this.triggerOnce("t3_child_talk", ["D16", "D17", "D63", "D64", "D18", "D19"], true);
+                    this.triggerOnce("t3_child_talk", ["D16", "D17", "D63", "D64", "D18", "D19"]);
                 }
-            } else if (p.phase === "tower-end" && p.storyRoute === "soldier") {
+            } else if (p.phase === "tower-end" && p.storyRoute === "soldier" && p.phaseTick >= 200) {
+                // 等 M03 前段 6.85s 叙事收净后再接团圆尾声对白 D55–D56–D65，零叠字
                 this.triggerOnce("t3_reunion_end", ["D55", "D56", "D65"], true);
             }
         }
@@ -313,12 +365,16 @@ export class NarrativeRenderer {
 
         const wantCinema =
             (p.room.key === "prologue" && p.phase === "prologue-give")
-            || (p.room.key === "gate" && (p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
+            || (p.room.key === "gate" && (p.phase === "gate-farewell" || p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
             || p.reloadOpen
             || ((p.room.key === "tower" || p.room.key === "museum") && p.phase !== "tower-wait");
         const target = wantCinema ? 1 : 0;
         this.letterbox += (target - this.letterbox) * Math.min(1, dt * 4.5);
 
+        // 北塔一旦叩门入场，立刻清掉入房章名横幅，防止 door_open 交回控制权后误重现「终章 · 北塔守望」
+        if (p.room.key === "tower" && p.phase !== "tower-wait") {
+            this.bannerT = 0;
+        }
         if (this.bannerT > 0) {
             this.bannerT = Math.max(0, this.bannerT - dt);
         }
@@ -380,6 +436,115 @@ export class NarrativeRenderer {
                 color: toColor(PALETTE.inkMist), opacity: 0.20 * this.wipeT, layer: 5,
             });
         }
+    }
+
+    /**
+     * 过场插件接管画面（cutsceneHandled === true）时的专用剧本对白与静音声效字幕通道：
+     * - 只在当前过场阶段未由插件独占底部字幕时透出 activeLine（P01/P02/P03/G05/M03 尾声），
+     * - 绝不叠加常规战斗 HUD、章名横幅或按键教学，确保 Wave 2 对白（D01–D65）与过场视觉零互吞、零叠字。
+     */
+    drawCutsceneDialogue(
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        art: AssetSlotHost,
+        texts: TextPool,
+        p: Play,
+        w: number,
+        h: number,
+        safe: SafeInsets = ZERO_SAFE_INSETS,
+    ): void {
+        if (p.paused) {
+            return;
+        }
+        const key = p.room.key;
+        const allowDialogue =
+            (key === "prologue"
+                && (p.phase === "prologue-wake"
+                    || p.phase === "prologue-shadow"
+                    || p.phase === "prologue-escape"
+                    || p.phase === "prologue-give"))
+            || (key === "gate" && p.phase === "gate-wait")
+            || (key === "tower" && p.phase === "tower-end" && p.storyRoute === "soldier" && p.phaseTick >= 200);
+
+        const cx = w * 0.5;
+        const cy = (key === "gate" && p.phase === "gate-wait" ? 68 : 42) + safe.bottom * 0.5;
+
+        if (this.muteCaptionT > 0 && this.muteCaption !== "") {
+            const capAlpha = Math.min(1, this.muteCaptionT * 2.5);
+            const capY = cy + 44;
+            drawSilkVeil(uiDraw, art, "cut_mute_veil", cx, capY, 172, 26, PALETTE.inkWarm, 0.76 * capAlpha, 0);
+            texts.put("xs", this.muteCaption, cx, capY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.94 * capAlpha, 0.08);
+        }
+
+        if (!allowDialogue || this.activeLine === undefined) {
+            return;
+        }
+        const spoken = this.activeLine.who !== ""
+            ? (this.activeLine.who + "：「" + this.activeLine.text + "」")
+            : this.activeLine.text;
+        const cue = this.activeLine.who === "周戍" ? "兄"
+            : (this.activeLine.who === "小满" ? "妹" : "");
+        const urgent = this.activeLine.urgent === true;
+        const hasCue = cue !== "";
+        const textW = visualTextWidth(spoken, 18);
+        const contentW = textW + (hasCue ? 48 : 0);
+        const stripW = Math.min(w - 72 - safe.left - safe.right, Math.max(500, contentW + 180));
+        const stripH = 50;
+
+        drawSilkVeil(uiDraw, art, "cut_sub_veil", cx, cy, stripW, stripH, urgent ? PALETTE.inkWarm : PALETTE.inkWash, 0.86, 2);
+        drawHairline(uiInkDraw, art, "cut_sub_top", cx, cy + 21, stripW * 0.72, urgent ? PALETTE.rouge : PALETTE.silkDim, urgent ? 0.72 : 0.52, true, 3);
+        if (hasCue) {
+            const startX = cx - contentW * 0.5;
+            const cueCol = urgent ? PALETTE.rouge : (p.childMode ? PALETTE.amber : PALETTE.cyan);
+            drawBlossomDot(uiInkDraw, art, "cut_cue_dot", startX + 6, cy - 1, 10, cueCol, 0.94, 4);
+            texts.put("xs", cue, startX + 24, cy - 1, toColor(urgent ? PALETTE.crimsonCore : cueCol), 0.5, 0.5, TextAlign.Center, 0, 0.96, 0.08);
+            uiInkDraw.drawSegment(Vec2(startX + 38, cy - 8), Vec2(startX + 38, cy + 6), 0.75, toColor(PALETTE.silkDim, 115));
+            texts.put("sm", spoken, startX + 48, cy - 1, toColor(urgent ? PALETTE.crimsonCore : PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.9, 0.98, 0.08);
+        } else {
+            texts.put("sm", spoken, cx, cy - 1, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.0, 0.98, 0.08);
+        }
+    }
+
+    private isKeyHintSegment(seg: string): boolean {
+        return seg.indexOf("按 E") >= 0
+            || seg.indexOf("点 E") >= 0
+            || seg.indexOf("按住 E") >= 0
+            || seg.indexOf("按 F") >= 0
+            || seg.indexOf("按住 F") >= 0
+            || seg.indexOf("按 Shift") >= 0
+            || seg.indexOf("按 Ctrl") >= 0
+            || seg.indexOf("A/D") >= 0
+            || seg.indexOf("限时") >= 0
+            || seg.indexOf("E 再玩") >= 0
+            || seg.indexOf("E 拉开") >= 0
+            || seg.indexOf("E 敲") >= 0
+            || seg.indexOf("E 递") >= 0
+            || seg.indexOf("E 送") >= 0
+            || seg.indexOf("E 交") >= 0
+            || seg.indexOf("E 拿") >= 0
+            || seg.indexOf("E 开") >= 0
+            || seg.indexOf("E 选") >= 0
+            || seg.indexOf("按 1") >= 0;
+    }
+
+    /** 拆分复合 flashSet 中的「纯叙事状态句」与「按键/倒计时教学段」，低引导下只去按键段不连坐叙事句 */
+    private stripKeyHintClause(fl: string): string {
+        if (!this.isKeyHintSegment(fl)) {
+            return fl;
+        }
+        const parts = fl.split(" · ");
+        if (parts.length <= 1) {
+            return "";
+        }
+        const kept: string[] = [];
+        let i = 0;
+        for (i = 0; i < parts.length; i++) {
+            const seg = parts[i].trim();
+            if (seg !== "" && !this.isKeyHintSegment(seg)) {
+                kept.push(seg);
+            }
+        }
+        return kept.join(" · ");
     }
 
     private drawSubtitleStrip(
@@ -481,29 +646,11 @@ export class NarrativeRenderer {
                 }
             }
             if (p.flash !== "" && p.flashT > 0) {
-                // 严格低引导红线：过滤全部含显式按键指令、倒计时催促或解谜直给文案，仅留纯状态与即时结果
-                const fl = p.flash;
-                const hasKeyHint = fl.indexOf("按 E") >= 0
-                    || fl.indexOf("点 E") >= 0
-                    || fl.indexOf("按住 E") >= 0
-                    || fl.indexOf("按 F") >= 0
-                    || fl.indexOf("按住 F") >= 0
-                    || fl.indexOf("按 Shift") >= 0
-                    || fl.indexOf("按 Ctrl") >= 0
-                    || fl.indexOf("A/D") >= 0
-                    || fl.indexOf("限时") >= 0
-                    || fl.indexOf("E 再玩") >= 0
-                    || fl.indexOf("E 拉开") >= 0
-                    || fl.indexOf("E 敲") >= 0
-                    || fl.indexOf("E 递") >= 0
-                    || fl.indexOf("E 送") >= 0
-                    || fl.indexOf("E 交") >= 0
-                    || fl.indexOf("E 拿") >= 0
-                    || fl.indexOf("E 开") >= 0
-                    || fl.indexOf("按 1") >= 0;
-                if (!hasKeyHint) {
-                    const isDanger = p.flash.indexOf("中弹") >= 0 || p.flash.indexOf("被抓") >= 0 || p.flash.indexOf("击倒") >= 0 || p.flash.indexOf("看见") >= 0 || p.flash.indexOf("追") >= 0;
-                    let text = p.flash;
+                // 严格低引导红线：仅剔除显式按键与倒计时子句，保留复合闪字中的纯叙事状态（如「周戍蹲到柜边」「守满了」「两下轻叩」）
+                const cleanFlash = this.stripKeyHintClause(p.flash);
+                if (cleanFlash !== "") {
+                    const isDanger = cleanFlash.indexOf("中弹") >= 0 || cleanFlash.indexOf("被抓") >= 0 || cleanFlash.indexOf("击倒") >= 0 || cleanFlash.indexOf("看见") >= 0 || cleanFlash.indexOf("追") >= 0;
+                    let text = cleanFlash;
                     let cue = isDanger ? "危" : (p.childMode ? "潜" : "战");
                     if (key === "tower" || key === "prologue") {
                         cue = "";

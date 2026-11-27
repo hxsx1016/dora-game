@@ -314,2710 +314,2813 @@ function TowerEndingsPlugin.prototype.____constructor(self) -- 390
 	self.lastSubtitle = "" -- 426
 	self.prevPhase = "" -- 427
 	self.loopsActive = false -- 428
+	self.doorOpenOverlayElapsed = -1 -- 430
 end -- 390
-function TowerEndingsPlugin.prototype.resolveRoute(self, p, view) -- 431
-	if self.rehearsalActive then -- 432
-		return self.rehearsalRoute -- 433
-	end -- 433
-	if view.storyRoute == "soldier" then -- 435
-		return "soldier" -- 436
-	end -- 436
-	if view.storyRoute == "child" then -- 438
-		return "child" -- 439
-	end -- 439
-	local runRec = asRecord(p.run) -- 442
-	local ____asRecord_1 = asRecord -- 443
-	local ____temp_0 -- 443
-	if runRec ~= nil then -- 443
-		____temp_0 = runRec.story -- 443
-	else -- 443
-		____temp_0 = nil -- 443
-	end -- 443
-	local storyRec = ____asRecord_1(____temp_0) -- 443
-	if storyRec ~= nil and storyRec.ending == "reunion" then -- 444
-		return "soldier" -- 445
+function TowerEndingsPlugin.prototype.resolveRoute(self, p, view) -- 433
+	if self.rehearsalActive then -- 434
+		return self.rehearsalRoute -- 435
+	end -- 435
+	if view.storyRoute == "soldier" then -- 437
+		return "soldier" -- 438
+	end -- 438
+	if view.storyRoute == "child" then -- 440
+		return "child" -- 441
+	end -- 441
+	local runRec = asRecord(p.run) -- 444
+	local ____asRecord_1 = asRecord -- 445
+	local ____temp_0 -- 445
+	if runRec ~= nil then -- 445
+		____temp_0 = runRec.story -- 445
+	else -- 445
+		____temp_0 = nil -- 445
 	end -- 445
-	return p.childMode and "child" or "soldier" -- 448
-end -- 431
-function TowerEndingsPlugin.prototype.clearSequenceState(self, keepIndoorDoorOpen) -- 451
-	self.active = keepIndoorDoorOpen -- 452
-	self.seqElapsed = keepIndoorDoorOpen and ____exports.TOWER_ENDING_TIMINGS.indoorCutSec or 0 -- 453
-	self.holdElapsed = 0 -- 454
-	self.doorOpened = keepIndoorDoorOpen -- 455
-	self.knockCount = keepIndoorDoorOpen and 2 or 0 -- 456
-	self.replyKnockCount = keepIndoorDoorOpen and 2 or 0 -- 457
-	if not keepIndoorDoorOpen then -- 458
-		self.row1Written = false -- 459
-		self.row2Written = false -- 460
-		self.registryAppendCount = 0 -- 461
-	end -- 461
-	self.staleInputMustRelease = true -- 463
-	self.confirmReady = false -- 464
-	self.earlyInputBlockedCount = 0 -- 465
-	self.rehearsalAcknowledged = false -- 466
-	self.lastSubtitle = "" -- 467
-end -- 451
-function TowerEndingsPlugin.prototype.startRehearsal(self, route, contract, opts) -- 473
-	self.rehearsalActive = true -- 478
-	self.rehearsalRoute = route -- 479
-	self.activeRoute = route -- 480
-	local tag = opts and opts.tag or (route == "child" and "fe05-F03" or "fe05-M03") -- 481
-	if contract ~= nil then -- 482
-		contract:enterRehearsal(tag) -- 483
-		contract:setMockRoute(route) -- 484
-	end -- 484
-	local isIndoor = (opts and opts.indoorRetry) == true -- 486
-	self.sessionId = self.sessionId + 1 -- 487
-	self:clearSequenceState(isIndoor) -- 488
-	self.active = true -- 489
-	self.doorClosedAfterRetry = false -- 490
-	if isIndoor then -- 491
-		self.indoorRetryCount = self.indoorRetryCount + 1 -- 492
-	end -- 492
-	if (opts and opts.seekTime) ~= nil then -- 494
-		self:seekRehearsal(opts.seekTime) -- 495
+	local storyRec = ____asRecord_1(____temp_0) -- 445
+	if storyRec ~= nil and storyRec.ending == "reunion" then -- 446
+		return "soldier" -- 447
+	end -- 447
+	return p.childMode and "child" or "soldier" -- 450
+end -- 433
+function TowerEndingsPlugin.prototype.clearSequenceState(self, keepIndoorDoorOpen) -- 453
+	self.active = keepIndoorDoorOpen -- 454
+	self.seqElapsed = keepIndoorDoorOpen and ____exports.TOWER_ENDING_TIMINGS.indoorCutSec or 0 -- 455
+	self.holdElapsed = 0 -- 456
+	self.doorOpened = keepIndoorDoorOpen -- 457
+	self.knockCount = keepIndoorDoorOpen and 2 or 0 -- 458
+	self.replyKnockCount = keepIndoorDoorOpen and 2 or 0 -- 459
+	if not keepIndoorDoorOpen then -- 460
+		self.row1Written = false -- 461
+		self.row2Written = false -- 462
+		self.registryAppendCount = 0 -- 463
+	end -- 463
+	self.staleInputMustRelease = true -- 465
+	self.confirmReady = false -- 466
+	self.earlyInputBlockedCount = 0 -- 467
+	self.rehearsalAcknowledged = false -- 468
+	self.lastSubtitle = "" -- 469
+	self.doorOpenOverlayElapsed = -1 -- 470
+end -- 453
+function TowerEndingsPlugin.prototype.startRehearsal(self, route, contract, opts) -- 476
+	self.rehearsalActive = true -- 481
+	self.rehearsalRoute = route -- 482
+	self.activeRoute = route -- 483
+	local tag = opts and opts.tag or (route == "child" and "fe05-F03" or "fe05-M03") -- 484
+	if contract ~= nil then -- 485
+		contract:enterRehearsal(tag) -- 486
+		contract:setMockRoute(route) -- 487
+	end -- 487
+	local isIndoor = (opts and opts.indoorRetry) == true -- 489
+	self.sessionId = self.sessionId + 1 -- 490
+	self:clearSequenceState(isIndoor) -- 491
+	self.active = true -- 492
+	self.doorClosedAfterRetry = false -- 493
+	if isIndoor then -- 494
+		self.indoorRetryCount = self.indoorRetryCount + 1 -- 495
 	end -- 495
-end -- 473
-function TowerEndingsPlugin.prototype.seekRehearsal(self, seconds) -- 500
-	if not self.rehearsalActive then -- 501
-		return -- 502
-	end -- 502
-	local t = math.max(0, seconds) -- 504
-	self.seqElapsed = t -- 505
-	self.holdElapsed = math.max(0, t - ____exports.TOWER_ENDING_TIMINGS.divergeEndSec) -- 506
-	self.active = true -- 507
-	self:syncDerivedMilestones(t, self.activeRoute) -- 508
-	self.confirmReady = not self.staleInputMustRelease and t >= ____exports.TOWER_ENDING_TIMINGS.holdReadySec -- 509
-end -- 500
-function TowerEndingsPlugin.prototype.triggerIndoorRetry(self) -- 513
-	if not self.doorOpened and self.seqElapsed < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 514
-		self.doorOpened = true -- 515
-	end -- 515
-	self.indoorRetryCount = self.indoorRetryCount + 1 -- 517
-	self.doorClosedAfterRetry = false -- 518
-	self.doorOpened = true -- 519
-	self.active = true -- 520
-	self.seqElapsed = math.max( -- 521
-		____exports.TOWER_ENDING_TIMINGS.indoorCutSec, -- 521
-		math.min(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.row1StartSec) -- 521
-	) -- 521
-	self.holdElapsed = 0 -- 522
-	self.knockCount = math.max(2, self.knockCount) -- 523
-	self.replyKnockCount = math.max(2, self.replyKnockCount) -- 524
-	self.staleInputMustRelease = true -- 526
-	self.confirmReady = false -- 527
-end -- 513
-function TowerEndingsPlugin.prototype.stopRehearsal(self, contract) -- 531
-	self.rehearsalActive = false -- 532
-	self:clearSequenceState(false) -- 533
-	self.indoorRetryCount = 0 -- 534
-	self.doorClosedAfterRetry = false -- 535
-	if contract ~= nil then -- 536
-		contract:exitRehearsal() -- 537
-	end -- 537
-end -- 531
-function TowerEndingsPlugin.prototype.getDebugState(self) -- 541
-	local route = self.activeRoute -- 542
-	local lampProg = route == "child" and smoothstep(5.2, 6.75, self.seqElapsed) or 0 -- 543
-	local scaled = computeScaledAnchors(self.lastUiW, self.lastUiH, lampProg) -- 546
-	local visualStyle = route == "child" and "lowpoly" or "pixel" -- 547
-	local needleOnDesk = route == "soldier" and self.seqElapsed >= 5.55 -- 548
-	local twoHandsBowl = route == "soldier" and self.seqElapsed >= 5.95 -- 549
-	return { -- 551
-		active = self.active, -- 552
-		isRehearsal = self.rehearsalActive, -- 553
-		route = route, -- 554
-		visualStyle = visualStyle, -- 555
-		stage = deriveStage(self.seqElapsed, self.active), -- 556
-		seqElapsed = self.seqElapsed, -- 557
-		holdElapsed = self.holdElapsed, -- 558
-		doorOpened = self.doorOpened, -- 559
-		knockCount = self.knockCount, -- 560
-		replyKnockCount = self.replyKnockCount, -- 561
-		row1Written = self.row1Written, -- 562
-		row1Name = self.row1Written and "小满" or "", -- 563
-		row2Written = self.row2Written, -- 564
-		row2Name = self.row2Written and "周戍" or "", -- 565
-		row2Blank = not self.row2Written, -- 566
-		hasCompletionStamp = false, -- 567
-		registryRowCapacity = 2, -- 568
-		registryAppendCount = self.registryAppendCount, -- 569
-		lampProgress = lampProg, -- 570
-		lampAtWestWindow = route == "child" and lampProg >= 0.99, -- 571
-		needleCaseOnDesk = needleOnDesk, -- 572
-		twoHandsHoldingBowl = twoHandsBowl, -- 573
-		staleInputMustRelease = self.staleInputMustRelease, -- 574
-		confirmReady = self.confirmReady, -- 575
-		earlyInputBlockedCount = self.earlyInputBlockedCount, -- 576
-		rehearsalAcknowledged = self.rehearsalAcknowledged, -- 577
-		indoorRetryCount = self.indoorRetryCount, -- 578
-		doorClosedAfterRetry = self.doorClosedAfterRetry, -- 579
-		subtitleText = self.lastSubtitle, -- 580
-		anchors = scaled.anchors -- 581
-	} -- 581
-end -- 541
-function TowerEndingsPlugin.prototype.syncRuntimeHook(self) -- 585
-	local g = _G -- 586
-	local ____temp_8 -- 587
-	if g.package ~= nil then -- 587
-		____temp_8 = g.package.loaded -- 587
-	else -- 587
-		____temp_8 = nil -- 587
-	end -- 587
-	local loaded = ____temp_8 -- 587
-	if loaded == nil then -- 588
-		return -- 589
-	end -- 589
-	local rawFe = loaded["watch.fe"] -- 591
-	if rawFe ~= nil and type(rawFe) == "table" then -- 592
-		local watchFe = rawFe -- 593
-		if watchFe.towerEndings ~= self then -- 594
-			watchFe.towerEndings = self -- 595
-		end -- 595
-	end -- 595
-end -- 585
-function TowerEndingsPlugin.prototype.onBindPlay(self, p, view) -- 602
-	self:syncRuntimeHook() -- 603
-	self.sessionId = self.sessionId + 1 -- 604
-	self.loopsActive = false -- 605
-	self.prevPhase = p.phase -- 606
-	if self.rehearsalActive then -- 608
-		return -- 609
-	end -- 609
-	local route = self:resolveRoute(p, view) -- 612
-	local isTower = p.room.key == "tower" -- 613
-	local alreadyCutscenePhase = isTower and (p.phase == "tower-given" or p.phase == "tower-end") -- 614
-	local alreadyIndoorPhase = isTower and (p.phase == "tower-enter" or p.phase == "tower-desk" or alreadyCutscenePhase) -- 615
-	local sameRunIndoorRetry = isTower and self.lastRoomKey == "tower" and self.doorOpened and p.run == self.lastRunRef and route == self.activeRoute and (p.checkpoint > 0 or alreadyIndoorPhase) -- 620
-	self.activeRoute = route -- 627
-	self.lastRoomKey = p.room.key -- 628
-	self.lastRunRef = p.run -- 629
-	if not isTower then -- 631
-		self:clearSequenceState(false) -- 632
-		self.indoorRetryCount = 0 -- 633
-		self.doorClosedAfterRetry = false -- 634
-		return -- 635
-	end -- 635
-	if sameRunIndoorRetry or alreadyCutscenePhase then -- 638
-		self.indoorRetryCount = self.indoorRetryCount + 1 -- 640
-		self.doorClosedAfterRetry = false -- 641
-		self:clearSequenceState(true) -- 642
-		if p.phase == "tower-end" then -- 643
-			self.seqElapsed = ____exports.TOWER_ENDING_TIMINGS.divergeEndSec -- 644
-			self:syncDerivedMilestones(self.seqElapsed, route) -- 645
-		end -- 645
-		return -- 647
-	end -- 647
-	if p.phase == "tower-enter" or p.phase == "tower-desk" then -- 650
-		self:clearSequenceState(false) -- 652
-		self.doorOpened = true -- 653
-		self.replyKnockCount = 2 -- 654
-		self.active = false -- 655
-		return -- 656
-	end -- 656
-	self:clearSequenceState(false) -- 660
-	self.indoorRetryCount = 0 -- 661
-	self.doorClosedAfterRetry = false -- 662
-end -- 602
-function TowerEndingsPlugin.prototype.update(self, ctx) -- 665
-	self:syncRuntimeHook() -- 666
-	self.lastUiW = ctx.uiW -- 667
-	self.lastUiH = ctx.uiH -- 668
-	local p = ctx.p -- 669
-	if not self.rehearsalActive and p.room.key ~= "tower" then -- 671
-		if self.loopsActive then -- 672
-			ctx.audio:stopLoop("tower_wind_cold", 0.15) -- 673
-			ctx.audio:stopLoop("tower_room_warm", 0.15) -- 674
-			self.loopsActive = false -- 675
-		end -- 675
-		self.active = false -- 677
-		return -- 678
-	end -- 678
-	local route = self:resolveRoute(p, ctx.view) -- 681
-	self.activeRoute = route -- 682
-	if not self.rehearsalActive then -- 684
-		self:stepLiveSync(ctx, route) -- 685
-	else -- 685
-		self:stepRehearsal(ctx, route) -- 687
-	end -- 687
-	if not self.active then -- 690
-		local inInteractiveHall = not self.rehearsalActive and p.room.key == "tower" and (p.phase == "tower-enter" or p.phase == "tower-desk") -- 691
-		if self.loopsActive and not inInteractiveHall then -- 693
-			ctx.audio:stopLoop("tower_wind_cold", 0.15) -- 694
-			ctx.audio:stopLoop("tower_room_warm", 0.15) -- 695
-			self.loopsActive = false -- 696
-		end -- 696
-		return -- 698
-	end -- 698
-	if not ctx.paused and ctx.worldDt > 0 then -- 702
-		self.animTime = self.animTime + ctx.worldDt -- 703
-		self:syncDerivedMilestones(self.seqElapsed, route) -- 704
-		self:syncAudioCues(ctx.audio, ctx, route) -- 705
-		self:stepInputGuard(ctx.input) -- 706
-	elseif not ctx.paused then -- 707
-		self:syncDerivedMilestones(self.seqElapsed, route) -- 709
-		self:stepInputGuard(ctx.input) -- 710
-	end -- 710
-	self.lastSubtitle = self:composeSubtitle(route) -- 713
-end -- 665
-function TowerEndingsPlugin.prototype.stepLiveSync(self, ctx, route) -- 716
-	local p = ctx.p -- 717
-	local phase = p.phase -- 718
-	local justEnteredKnock = self.prevPhase ~= "tower-knock" and phase == "tower-knock" -- 719
-	local justEnteredEnter = self.prevPhase ~= "tower-enter" and phase == "tower-enter" -- 720
-	local justEnteredGiven = self.prevPhase ~= "tower-given" and phase == "tower-given" -- 721
-	local justEnteredEnd = self.prevPhase ~= "tower-end" and phase == "tower-end" -- 722
-	self.prevPhase = phase -- 723
-	if phase == "tower-wait" then -- 725
-		self.active = false -- 727
-		return -- 728
-	end -- 728
-	if phase == "tower-enter" or phase == "tower-desk" then -- 731
-		self.doorOpened = true -- 733
-		self.replyKnockCount = math.max(2, self.replyKnockCount) -- 734
-		if justEnteredEnter and self.indoorRetryCount == 0 and not ctx.paused then -- 735
-			local tick = p.ticks -- 736
-			self:playTowerOnce( -- 737
-				ctx.audio, -- 737
-				"reply1", -- 737
-				"sfx", -- 737
-				____exports.TOWER_AUDIO_FILES.reply1, -- 737
-				0.78, -- 737
-				"tower:reply:1", -- 737
-				tick -- 737
-			) -- 737
-			self:playTowerOnce( -- 738
-				ctx.audio, -- 738
-				"reply2", -- 738
-				"sfx", -- 738
-				____exports.TOWER_AUDIO_FILES.reply2, -- 738
-				0.8, -- 738
-				"tower:reply:2", -- 738
-				tick -- 738
-			) -- 738
-			self:playTowerOnce( -- 739
-				ctx.audio, -- 739
-				"door_open", -- 739
-				"sfx", -- 739
-				____exports.TOWER_AUDIO_FILES.doorOpen, -- 739
-				0.84, -- 739
-				"tower:door_open", -- 739
-				tick -- 739
-			) -- 739
-		end -- 739
-		self.seqElapsed = math.max(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.doorOpenSec) -- 741
-		self.active = false -- 742
-		self:syncDerivedMilestones(self.seqElapsed, route) -- 743
-		return -- 744
-	end -- 744
-	if not self.active then -- 747
-		self.active = true -- 748
-		self.staleInputMustRelease = ctx.input.interact.held or ctx.input.retry.held or ctx.input.interact.pressed -- 749
-		self.confirmReady = false -- 750
-	end -- 750
-	if justEnteredKnock then -- 753
-		self.seqElapsed = p.phaseTick / 60 -- 754
-		self.holdElapsed = 0 -- 755
-		self.staleInputMustRelease = true -- 756
-		self.confirmReady = false -- 757
-	elseif justEnteredGiven then -- 758
-		self.doorOpened = true -- 759
-		self.seqElapsed = math.max(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec) -- 760
-	elseif justEnteredEnd then -- 761
-		self.doorOpened = true -- 762
-		self.seqElapsed = math.max(self.seqElapsed, 3.6) -- 764
+	if (opts and opts.seekTime) ~= nil then -- 497
+		self:seekRehearsal(opts.seekTime) -- 498
+	end -- 498
+end -- 476
+function TowerEndingsPlugin.prototype.seekRehearsal(self, seconds) -- 503
+	if not self.rehearsalActive then -- 504
+		return -- 505
+	end -- 505
+	local t = math.max(0, seconds) -- 507
+	self.seqElapsed = t -- 508
+	self.holdElapsed = math.max(0, t - ____exports.TOWER_ENDING_TIMINGS.divergeEndSec) -- 509
+	self.active = true -- 510
+	self:syncDerivedMilestones(t, self.activeRoute) -- 511
+	self.confirmReady = not self.staleInputMustRelease and t >= ____exports.TOWER_ENDING_TIMINGS.holdReadySec -- 512
+end -- 503
+function TowerEndingsPlugin.prototype.triggerIndoorRetry(self) -- 516
+	if not self.doorOpened and self.seqElapsed < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 517
+		self.doorOpened = true -- 518
+	end -- 518
+	self.indoorRetryCount = self.indoorRetryCount + 1 -- 520
+	self.doorClosedAfterRetry = false -- 521
+	self.doorOpened = true -- 522
+	self.active = true -- 523
+	self.seqElapsed = math.max( -- 524
+		____exports.TOWER_ENDING_TIMINGS.indoorCutSec, -- 524
+		math.min(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.row1StartSec) -- 524
+	) -- 524
+	self.holdElapsed = 0 -- 525
+	self.knockCount = math.max(2, self.knockCount) -- 526
+	self.replyKnockCount = math.max(2, self.replyKnockCount) -- 527
+	self.staleInputMustRelease = true -- 529
+	self.confirmReady = false -- 530
+end -- 516
+function TowerEndingsPlugin.prototype.stopRehearsal(self, contract) -- 534
+	self.rehearsalActive = false -- 535
+	self:clearSequenceState(false) -- 536
+	self.indoorRetryCount = 0 -- 537
+	self.doorClosedAfterRetry = false -- 538
+	if contract ~= nil then -- 539
+		contract:exitRehearsal() -- 540
+	end -- 540
+end -- 534
+function TowerEndingsPlugin.prototype.getDebugState(self) -- 544
+	local route = self.activeRoute -- 545
+	local lampProg = route == "child" and smoothstep(5.2, 6.75, self.seqElapsed) or 0 -- 546
+	local scaled = computeScaledAnchors(self.lastUiW, self.lastUiH, lampProg) -- 549
+	local visualStyle = route == "child" and "lowpoly" or "pixel" -- 550
+	local needleOnDesk = route == "soldier" and self.seqElapsed >= 5.55 -- 551
+	local twoHandsBowl = route == "soldier" and self.seqElapsed >= 5.95 -- 552
+	return { -- 554
+		active = self.active, -- 555
+		isRehearsal = self.rehearsalActive, -- 556
+		route = route, -- 557
+		visualStyle = visualStyle, -- 558
+		stage = deriveStage(self.seqElapsed, self.active), -- 559
+		seqElapsed = self.seqElapsed, -- 560
+		holdElapsed = self.holdElapsed, -- 561
+		doorOpened = self.doorOpened, -- 562
+		knockCount = self.knockCount, -- 563
+		replyKnockCount = self.replyKnockCount, -- 564
+		row1Written = self.row1Written, -- 565
+		row1Name = self.row1Written and "小满" or "", -- 566
+		row2Written = self.row2Written, -- 567
+		row2Name = self.row2Written and "周戍" or "", -- 568
+		row2Blank = not self.row2Written, -- 569
+		hasCompletionStamp = false, -- 570
+		registryRowCapacity = 2, -- 571
+		registryAppendCount = self.registryAppendCount, -- 572
+		lampProgress = lampProg, -- 573
+		lampAtWestWindow = route == "child" and lampProg >= 0.99, -- 574
+		needleCaseOnDesk = needleOnDesk, -- 575
+		twoHandsHoldingBowl = twoHandsBowl, -- 576
+		staleInputMustRelease = self.staleInputMustRelease, -- 577
+		confirmReady = self.confirmReady, -- 578
+		earlyInputBlockedCount = self.earlyInputBlockedCount, -- 579
+		rehearsalAcknowledged = self.rehearsalAcknowledged, -- 580
+		indoorRetryCount = self.indoorRetryCount, -- 581
+		doorClosedAfterRetry = self.doorClosedAfterRetry, -- 582
+		subtitleText = self.lastSubtitle, -- 583
+		anchors = scaled.anchors -- 584
+	} -- 584
+end -- 544
+function TowerEndingsPlugin.prototype.syncRuntimeHook(self) -- 588
+	local g = _G -- 589
+	local ____temp_8 -- 590
+	if g.package ~= nil then -- 590
+		____temp_8 = g.package.loaded -- 590
+	else -- 590
+		____temp_8 = nil -- 590
+	end -- 590
+	local loaded = ____temp_8 -- 590
+	if loaded == nil then -- 591
+		return -- 592
+	end -- 592
+	local rawFe = loaded["watch.fe"] -- 594
+	if rawFe ~= nil and type(rawFe) == "table" then -- 595
+		local watchFe = rawFe -- 596
+		if watchFe.towerEndings ~= self then -- 597
+			watchFe.towerEndings = self -- 598
+		end -- 598
+	end -- 598
+end -- 588
+function TowerEndingsPlugin.prototype.onBindPlay(self, p, view) -- 605
+	self:syncRuntimeHook() -- 606
+	self.sessionId = self.sessionId + 1 -- 607
+	self.loopsActive = false -- 608
+	self.prevPhase = p.phase -- 609
+	if self.rehearsalActive then -- 611
+		return -- 612
+	end -- 612
+	local route = self:resolveRoute(p, view) -- 615
+	local isTower = p.room.key == "tower" -- 616
+	local alreadyCutscenePhase = isTower and (p.phase == "tower-given" or p.phase == "tower-end") -- 617
+	local alreadyIndoorPhase = isTower and (p.phase == "tower-enter" or p.phase == "tower-desk" or alreadyCutscenePhase) -- 618
+	local sameRunIndoorRetry = isTower and self.lastRoomKey == "tower" and self.doorOpened and p.run == self.lastRunRef and route == self.activeRoute and (p.checkpoint > 0 or alreadyIndoorPhase) -- 623
+	self.activeRoute = route -- 630
+	self.lastRoomKey = p.room.key -- 631
+	self.lastRunRef = p.run -- 632
+	if not isTower then -- 634
+		self:clearSequenceState(false) -- 635
+		self.indoorRetryCount = 0 -- 636
+		self.doorClosedAfterRetry = false -- 637
+		return -- 638
+	end -- 638
+	if sameRunIndoorRetry or alreadyCutscenePhase then -- 641
+		self.indoorRetryCount = self.indoorRetryCount + 1 -- 643
+		self.doorClosedAfterRetry = false -- 644
+		self:clearSequenceState(true) -- 645
+		if p.phase == "tower-end" then -- 646
+			self.seqElapsed = ____exports.TOWER_ENDING_TIMINGS.divergeEndSec -- 647
+			self:syncDerivedMilestones(self.seqElapsed, route) -- 648
+		end -- 648
+		return -- 650
+	end -- 650
+	if p.phase == "tower-enter" or p.phase == "tower-desk" then -- 653
+		self:clearSequenceState(false) -- 655
+		self.doorOpened = true -- 656
+		self.replyKnockCount = 2 -- 657
+		self.active = false -- 658
+		return -- 659
+	end -- 659
+	self:clearSequenceState(false) -- 663
+	self.indoorRetryCount = 0 -- 664
+	self.doorClosedAfterRetry = false -- 665
+end -- 605
+function TowerEndingsPlugin.prototype.update(self, ctx) -- 668
+	self:syncRuntimeHook() -- 669
+	self.lastUiW = ctx.uiW -- 670
+	self.lastUiH = ctx.uiH -- 671
+	local p = ctx.p -- 672
+	if not self.rehearsalActive and p.room.key ~= "tower" then -- 674
+		if self.loopsActive then -- 675
+			ctx.audio:stopLoop("tower_wind_cold", 0.15) -- 676
+			ctx.audio:stopLoop("tower_room_warm", 0.15) -- 677
+			self.loopsActive = false -- 678
+		end -- 678
+		self.active = false -- 680
+		return -- 681
+	end -- 681
+	local route = self:resolveRoute(p, ctx.view) -- 684
+	self.activeRoute = route -- 685
+	if not self.rehearsalActive then -- 687
+		self:stepLiveSync(ctx, route) -- 688
+	else -- 688
+		self:stepRehearsal(ctx, route) -- 690
+	end -- 690
+	if not self.active then -- 693
+		local inInteractiveHall = not self.rehearsalActive and p.room.key == "tower" and (p.phase == "tower-enter" or p.phase == "tower-desk") -- 694
+		if self.loopsActive and not inInteractiveHall then -- 696
+			ctx.audio:stopLoop("tower_wind_cold", 0.15) -- 697
+			ctx.audio:stopLoop("tower_room_warm", 0.15) -- 698
+			self.loopsActive = false -- 699
+		end -- 699
+		return -- 701
+	end -- 701
+	if not ctx.paused and ctx.worldDt > 0 then -- 705
+		self.animTime = self.animTime + ctx.worldDt -- 706
+		self:syncDerivedMilestones(self.seqElapsed, route) -- 707
+		self:syncAudioCues(ctx.audio, ctx, route) -- 708
+		self:stepInputGuard(ctx.input) -- 709
+	elseif not ctx.paused then -- 710
+		self:syncDerivedMilestones(self.seqElapsed, route) -- 712
+		self:stepInputGuard(ctx.input) -- 713
+	end -- 713
+	self.lastSubtitle = self:composeSubtitle(route) -- 716
+end -- 668
+function TowerEndingsPlugin.prototype.stepLiveSync(self, ctx, route) -- 719
+	local p = ctx.p -- 720
+	local phase = p.phase -- 721
+	local cameFromKnock = self.prevPhase == "tower-knock" -- 722
+	local justEnteredKnock = self.prevPhase ~= "tower-knock" and phase == "tower-knock" -- 723
+	local justEnteredEnter = self.prevPhase ~= "tower-enter" and phase == "tower-enter" -- 724
+	local justEnteredGiven = self.prevPhase ~= "tower-given" and phase == "tower-given" -- 725
+	local justEnteredEnd = self.prevPhase ~= "tower-end" and phase == "tower-end" -- 726
+	self.prevPhase = phase -- 727
+	if phase == "tower-wait" then -- 729
+		self.doorOpenOverlayElapsed = -1 -- 731
+		self.active = false -- 732
+		return -- 733
+	end -- 733
+	if phase == "tower-enter" then -- 736
+		self.doorOpened = true -- 738
+		self.replyKnockCount = math.max(2, self.replyKnockCount) -- 739
+		if justEnteredEnter and self.indoorRetryCount == 0 and not ctx.paused then -- 740
+			local tick = p.ticks -- 741
+			self:playTowerOnce( -- 742
+				ctx.audio, -- 742
+				"reply1", -- 742
+				"sfx", -- 742
+				____exports.TOWER_AUDIO_FILES.reply1, -- 742
+				0.78, -- 742
+				"tower:reply:1", -- 742
+				tick -- 742
+			) -- 742
+			self:playTowerOnce( -- 743
+				ctx.audio, -- 743
+				"reply2", -- 743
+				"sfx", -- 743
+				____exports.TOWER_AUDIO_FILES.reply2, -- 743
+				0.8, -- 743
+				"tower:reply:2", -- 743
+				tick -- 743
+			) -- 743
+			self:playTowerOnce( -- 744
+				ctx.audio, -- 744
+				"door_open", -- 744
+				"sfx", -- 744
+				____exports.TOWER_AUDIO_FILES.doorOpen, -- 744
+				0.84, -- 744
+				"tower:door_open", -- 744
+				tick -- 744
+			) -- 744
+			ctx.audio:playLoop( -- 745
+				"tower_room_warm", -- 745
+				"ambience", -- 745
+				____exports.TOWER_AUDIO_FILES.roomWarm, -- 745
+				0.28, -- 745
+				tick -- 745
+			) -- 745
+			self.loopsActive = true -- 746
+			if cameFromKnock then -- 747
+				self.doorOpenOverlayElapsed = 0 -- 748
+			end -- 748
+		end -- 748
+		if self.doorOpenOverlayElapsed >= 0 then -- 751
+			if p.player.x >= p.ox + 520 then -- 752
+				self.doorOpenOverlayElapsed = -1 -- 753
+			elseif not ctx.paused and ctx.worldDt > 0 then -- 754
+				self.doorOpenOverlayElapsed = self.doorOpenOverlayElapsed + ctx.worldDt -- 755
+				if self.doorOpenOverlayElapsed >= 0.9 then -- 756
+					self.doorOpenOverlayElapsed = -1 -- 757
+				end -- 757
+			end -- 757
+		end -- 757
+		self.seqElapsed = math.max(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.doorOpenSec) -- 761
+		self.active = false -- 762
+		self:syncDerivedMilestones(self.seqElapsed, route) -- 763
+		return -- 764
 	end -- 764
-	if not ctx.paused and #ctx.events.rawEvents > 0 then -- 768
-		local i = 0 -- 769
-		do -- 769
-			i = 0 -- 770
-			while i < #ctx.events.rawEvents do -- 770
-				local ev = ctx.events.rawEvents[i + 1] -- 771
-				if ev.name == "knock" then -- 772
-					local cnt = type(ev.data.count) == "number" and ev.data.count or self.knockCount + 1 -- 773
-					if cnt >= 1 and self.knockCount < 1 then -- 774
-						self.knockCount = 1 -- 775
-						self:playTowerOnce( -- 776
-							ctx.audio, -- 776
-							"knock1", -- 776
-							"sfx", -- 776
-							____exports.TOWER_AUDIO_FILES.knock1, -- 776
-							0.88, -- 776
-							"tower:knock:1", -- 776
-							ev.tick, -- 776
-							ev.seq -- 776
-						) -- 776
-					end -- 776
-					if cnt >= 2 and self.knockCount < 2 then -- 778
-						self.knockCount = 2 -- 779
-						self:playTowerOnce( -- 780
-							ctx.audio, -- 780
-							"knock2", -- 780
-							"sfx", -- 780
-							____exports.TOWER_AUDIO_FILES.knock2, -- 780
-							0.9, -- 780
-							"tower:knock:2", -- 780
-							ev.tick, -- 780
-							ev.seq -- 780
-						) -- 780
-					end -- 780
-				end -- 780
-				i = i + 1 -- 770
-			end -- 770
-		end -- 770
-	end -- 770
-	if not ctx.paused and ctx.worldDt > 0 then -- 786
-		if phase == "tower-knock" then -- 787
-			local backendSec = math.min(____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001, p.phaseTick / 60) -- 789
-			self.seqElapsed = math.max(self.seqElapsed + ctx.worldDt, backendSec) -- 790
-			if self.seqElapsed > ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 then -- 791
-				self.seqElapsed = ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 -- 792
-			end -- 792
-		else -- 792
-			self.seqElapsed = self.seqElapsed + ctx.worldDt -- 795
-			if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 796
-				self.holdElapsed = self.holdElapsed + ctx.worldDt -- 797
-			end -- 797
-		end -- 797
-	end -- 797
-	if self.indoorRetryCount > 0 and not self.doorOpened then -- 802
-		self.doorClosedAfterRetry = true -- 803
-	end -- 803
-	self:syncDerivedMilestones(self.seqElapsed, route) -- 805
-end -- 716
-function TowerEndingsPlugin.prototype.stepRehearsal(self, ctx, route) -- 808
-	self.active = true -- 809
-	if not ctx.paused and ctx.worldDt > 0 then -- 810
-		self.seqElapsed = self.seqElapsed + ctx.worldDt -- 811
-		if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 812
-			self.holdElapsed = self.holdElapsed + ctx.worldDt -- 813
-		end -- 813
-	end -- 813
-	if self.indoorRetryCount > 0 and not self.doorOpened then -- 816
-		self.doorClosedAfterRetry = true -- 817
-	end -- 817
-	self:syncDerivedMilestones(self.seqElapsed, route) -- 819
-end -- 808
-function TowerEndingsPlugin.prototype.syncDerivedMilestones(self, t, route) -- 822
-	if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec and self.knockCount < 1 then -- 823
-		self.knockCount = 1 -- 824
-	end -- 824
-	if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec and self.knockCount < 2 then -- 826
-		self.knockCount = 2 -- 827
-	end -- 827
-	if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec and self.replyKnockCount < 1 then -- 829
-		self.replyKnockCount = 1 -- 830
-	end -- 830
-	if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec and self.replyKnockCount < 2 then -- 832
-		self.replyKnockCount = 2 -- 833
-	end -- 833
-	if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 835
-		self.doorOpened = true -- 836
-	end -- 836
-	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec and not self.row1Written then -- 839
-		self.row1Written = true -- 840
-		self.registryAppendCount = self.registryAppendCount + 1 -- 841
-	end -- 841
-	if route == "soldier" and t >= 4.6 and not self.row2Written then -- 843
-		self.row2Written = true -- 844
-		self.registryAppendCount = self.registryAppendCount + 1 -- 845
-	end -- 845
-	if route == "child" and self.row2Written then -- 847
-		self.row2Written = false -- 849
-		self.registryAppendCount = self.row1Written and 1 or 0 -- 850
-	end -- 850
-end -- 822
-function TowerEndingsPlugin.prototype.stepInputGuard(self, input) -- 854
-	local keyHeld = input.interact.held or input.retry.held -- 855
-	local keyPressed = input.interact.pressed or input.retry.pressed -- 856
-	local readyTime = self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.holdReadySec -- 857
-	if self.staleInputMustRelease then -- 859
-		if not keyHeld then -- 860
-			self.staleInputMustRelease = false -- 861
-		elseif keyPressed then -- 862
-			self.earlyInputBlockedCount = self.earlyInputBlockedCount + 1 -- 863
-		end -- 863
-		self.confirmReady = false -- 865
-		return -- 866
-	end -- 866
-	if not readyTime then -- 869
-		if keyPressed then -- 870
-			self.earlyInputBlockedCount = self.earlyInputBlockedCount + 1 -- 871
-			self.staleInputMustRelease = keyHeld -- 872
-		end -- 872
-		self.confirmReady = false -- 874
-		return -- 875
-	end -- 875
-	self.confirmReady = true -- 878
-	if self.rehearsalActive and keyPressed then -- 879
-		self.rehearsalAcknowledged = true -- 880
-	end -- 880
-end -- 854
-function TowerEndingsPlugin.prototype.playTowerOnce(self, audio, tag, track, path, volume, cueId, tick, seq) -- 884
-	if seq == nil then -- 892
-		seq = -1 -- 892
-	end -- 892
-	local dedupeKey = (("tower:s" .. tostring(self.sessionId)) .. ":") .. tag -- 894
-	audio:playOnce( -- 895
-		dedupeKey, -- 895
-		track, -- 895
-		path, -- 895
-		volume, -- 895
-		cueId, -- 895
-		tick, -- 895
-		seq -- 895
-	) -- 895
-end -- 884
-function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 898
-	local t = self.seqElapsed -- 899
-	local tick = ctx.p.ticks -- 900
-	local indoorK = smoothstep(____exports.TOWER_ENDING_TIMINGS.doorOpenSec, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec + 0.5, t) -- 901
-	self.loopsActive = true -- 904
-	audio:playLoop( -- 905
-		"tower_wind_cold", -- 905
-		"wind", -- 905
-		____exports.TOWER_AUDIO_FILES.windCold, -- 905
-		lerp(0.36, 0.14, indoorK), -- 905
-		tick -- 905
-	) -- 905
-	if indoorK > 0.05 then -- 906
-		audio:playLoop( -- 907
-			"tower_room_warm", -- 907
-			"ambience", -- 907
-			____exports.TOWER_AUDIO_FILES.roomWarm, -- 907
-			lerp(0.06, 0.34, indoorK), -- 907
-			tick -- 907
-		) -- 907
-	end -- 907
-	if self.indoorRetryCount == 0 then -- 911
-		if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec then -- 912
-			self:playTowerOnce( -- 913
-				audio, -- 913
-				"knock1", -- 913
-				"sfx", -- 913
-				____exports.TOWER_AUDIO_FILES.knock1, -- 913
-				0.88, -- 913
-				"tower:knock:1", -- 913
-				tick -- 913
-			) -- 913
-		end -- 913
-		if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec then -- 915
-			self:playTowerOnce( -- 916
-				audio, -- 916
-				"knock2", -- 916
-				"sfx", -- 916
-				____exports.TOWER_AUDIO_FILES.knock2, -- 916
-				0.9, -- 916
-				"tower:knock:2", -- 916
-				tick -- 916
-			) -- 916
-		end -- 916
-		if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 918
-			self:playTowerOnce( -- 919
-				audio, -- 919
-				"reply1", -- 919
-				"sfx", -- 919
-				____exports.TOWER_AUDIO_FILES.reply1, -- 919
-				0.78, -- 919
-				"tower:reply:1", -- 919
-				tick -- 919
-			) -- 919
-		end -- 919
-		if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec then -- 921
-			self:playTowerOnce( -- 922
-				audio, -- 922
-				"reply2", -- 922
-				"sfx", -- 922
-				____exports.TOWER_AUDIO_FILES.reply2, -- 922
-				0.8, -- 922
-				"tower:reply:2", -- 922
-				tick -- 922
-			) -- 922
-		end -- 922
-		if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 924
-			self:playTowerOnce( -- 925
-				audio, -- 925
-				"door_open", -- 925
-				"sfx", -- 925
-				____exports.TOWER_AUDIO_FILES.doorOpen, -- 925
-				0.84, -- 925
-				"tower:door_open", -- 925
-				tick -- 925
-			) -- 925
-		end -- 925
-	end -- 925
-	if t >= 1.5 then -- 929
-		self:playTowerOnce( -- 930
-			audio, -- 930
-			"book_open", -- 930
-			"sfx", -- 930
-			____exports.TOWER_AUDIO_FILES.bookOpen, -- 930
-			0.82, -- 930
-			"tower:book_open", -- 930
-			tick -- 930
-		) -- 930
-	end -- 930
-	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 932
-		self:playTowerOnce( -- 933
-			audio, -- 933
-			"brush1", -- 933
-			"sfx", -- 933
-			____exports.TOWER_AUDIO_FILES.brush1, -- 933
-			0.8, -- 933
-			"tower:brush:row1", -- 933
-			tick -- 933
-		) -- 933
-	end -- 933
-	if route == "child" then -- 936
-		if t >= 4.35 then -- 937
-			self:playTowerOnce( -- 938
-				audio, -- 938
-				"f03_line", -- 938
-				"voice", -- 938
-				____exports.TOWER_AUDIO_FILES.lineXiaomanLamp, -- 938
-				0.86, -- 938
-				"tower:f03:line_lamp", -- 938
-				tick -- 938
-			) -- 938
-		end -- 938
-		if t >= 4.45 then -- 940
-			self:playTowerOnce( -- 941
-				audio, -- 941
-				"f03_bowl", -- 941
-				"sfx", -- 941
-				____exports.TOWER_AUDIO_FILES.bowlSet, -- 941
-				0.8, -- 941
-				"tower:bowl_set", -- 941
-				tick -- 941
-			) -- 941
-		end -- 941
-		if t >= 5.2 then -- 943
+	if phase == "tower-desk" then -- 767
+		self.doorOpenOverlayElapsed = -1 -- 769
+		self.doorOpened = true -- 770
+		self.replyKnockCount = math.max(2, self.replyKnockCount) -- 771
+		self.seqElapsed = math.max(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec) -- 772
+		self.active = false -- 773
+		self:syncDerivedMilestones(self.seqElapsed, route) -- 774
+		return -- 775
+	end -- 775
+	if not self.active then -- 778
+		self.active = true -- 779
+		self.staleInputMustRelease = ctx.input.interact.held or ctx.input.retry.held or ctx.input.interact.pressed -- 780
+		self.confirmReady = false -- 781
+	end -- 781
+	if justEnteredKnock then -- 784
+		self.seqElapsed = p.phaseTick / 60 -- 785
+		self.holdElapsed = 0 -- 786
+		self.staleInputMustRelease = true -- 787
+		self.confirmReady = false -- 788
+	elseif justEnteredGiven then -- 789
+		self.doorOpened = true -- 790
+		self.seqElapsed = math.max(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec) -- 791
+	elseif justEnteredEnd then -- 792
+		self.doorOpened = true -- 793
+		self.seqElapsed = math.max(self.seqElapsed, 3.6 + p.phaseTick / 60) -- 795
+	end -- 795
+	if not ctx.paused and #ctx.events.rawEvents > 0 then -- 799
+		local i = 0 -- 800
+		do -- 800
+			i = 0 -- 801
+			while i < #ctx.events.rawEvents do -- 801
+				local ev = ctx.events.rawEvents[i + 1] -- 802
+				if ev.name == "knock" then -- 803
+					local cnt = type(ev.data.count) == "number" and ev.data.count or self.knockCount + 1 -- 804
+					if cnt >= 1 and self.knockCount < 1 then -- 805
+						self.knockCount = 1 -- 806
+						self:playTowerOnce( -- 807
+							ctx.audio, -- 807
+							"knock1", -- 807
+							"sfx", -- 807
+							____exports.TOWER_AUDIO_FILES.knock1, -- 807
+							0.88, -- 807
+							"tower:knock:1", -- 807
+							ev.tick, -- 807
+							ev.seq -- 807
+						) -- 807
+					end -- 807
+					if cnt >= 2 and self.knockCount < 2 then -- 809
+						self.knockCount = 2 -- 810
+						self:playTowerOnce( -- 811
+							ctx.audio, -- 811
+							"knock2", -- 811
+							"sfx", -- 811
+							____exports.TOWER_AUDIO_FILES.knock2, -- 811
+							0.9, -- 811
+							"tower:knock:2", -- 811
+							ev.tick, -- 811
+							ev.seq -- 811
+						) -- 811
+					end -- 811
+				end -- 811
+				i = i + 1 -- 801
+			end -- 801
+		end -- 801
+	end -- 801
+	if not ctx.paused and ctx.worldDt > 0 then -- 817
+		if phase == "tower-knock" then -- 818
+			local backendSec = math.min(____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001, p.phaseTick / 60) -- 820
+			self.seqElapsed = math.max(self.seqElapsed + ctx.worldDt, backendSec) -- 821
+			if self.seqElapsed > ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 then -- 822
+				self.seqElapsed = ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 -- 823
+			end -- 823
+		else -- 823
+			self.seqElapsed = self.seqElapsed + ctx.worldDt -- 826
+			if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 827
+				self.holdElapsed = self.holdElapsed + ctx.worldDt -- 828
+			end -- 828
+		end -- 828
+	end -- 828
+	if self.indoorRetryCount > 0 and not self.doorOpened then -- 833
+		self.doorClosedAfterRetry = true -- 834
+	end -- 834
+	self:syncDerivedMilestones(self.seqElapsed, route) -- 836
+end -- 719
+function TowerEndingsPlugin.prototype.stepRehearsal(self, ctx, route) -- 839
+	self.active = true -- 840
+	if not ctx.paused and ctx.worldDt > 0 then -- 841
+		self.seqElapsed = self.seqElapsed + ctx.worldDt -- 842
+		if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 843
+			self.holdElapsed = self.holdElapsed + ctx.worldDt -- 844
+		end -- 844
+	end -- 844
+	if self.indoorRetryCount > 0 and not self.doorOpened then -- 847
+		self.doorClosedAfterRetry = true -- 848
+	end -- 848
+	self:syncDerivedMilestones(self.seqElapsed, route) -- 850
+end -- 839
+function TowerEndingsPlugin.prototype.syncDerivedMilestones(self, t, route) -- 853
+	if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec and self.knockCount < 1 then -- 854
+		self.knockCount = 1 -- 855
+	end -- 855
+	if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec and self.knockCount < 2 then -- 857
+		self.knockCount = 2 -- 858
+	end -- 858
+	if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec and self.replyKnockCount < 1 then -- 860
+		self.replyKnockCount = 1 -- 861
+	end -- 861
+	if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec and self.replyKnockCount < 2 then -- 863
+		self.replyKnockCount = 2 -- 864
+	end -- 864
+	if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 866
+		self.doorOpened = true -- 867
+	end -- 867
+	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec and not self.row1Written then -- 870
+		self.row1Written = true -- 871
+		self.registryAppendCount = self.registryAppendCount + 1 -- 872
+	end -- 872
+	if route == "soldier" and t >= 4.6 and not self.row2Written then -- 874
+		self.row2Written = true -- 875
+		self.registryAppendCount = self.registryAppendCount + 1 -- 876
+	end -- 876
+	if route == "child" and self.row2Written then -- 878
+		self.row2Written = false -- 880
+		self.registryAppendCount = self.row1Written and 1 or 0 -- 881
+	end -- 881
+end -- 853
+function TowerEndingsPlugin.prototype.stepInputGuard(self, input) -- 885
+	local keyHeld = input.interact.held or input.retry.held -- 886
+	local keyPressed = input.interact.pressed or input.retry.pressed -- 887
+	local readyTime = self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.holdReadySec -- 888
+	if self.staleInputMustRelease then -- 890
+		if not keyHeld then -- 891
+			self.staleInputMustRelease = false -- 892
+		elseif keyPressed then -- 893
+			self.earlyInputBlockedCount = self.earlyInputBlockedCount + 1 -- 894
+		end -- 894
+		self.confirmReady = false -- 896
+		return -- 897
+	end -- 897
+	if not readyTime then -- 900
+		if keyPressed then -- 901
+			self.earlyInputBlockedCount = self.earlyInputBlockedCount + 1 -- 902
+			self.staleInputMustRelease = keyHeld -- 903
+		end -- 903
+		self.confirmReady = false -- 905
+		return -- 906
+	end -- 906
+	self.confirmReady = true -- 909
+	if self.rehearsalActive and keyPressed then -- 910
+		self.rehearsalAcknowledged = true -- 911
+	end -- 911
+end -- 885
+function TowerEndingsPlugin.prototype.playTowerOnce(self, audio, tag, track, path, volume, cueId, tick, seq) -- 915
+	if seq == nil then -- 923
+		seq = -1 -- 923
+	end -- 923
+	local dedupeKey = (("tower:s" .. tostring(self.sessionId)) .. ":") .. tag -- 925
+	audio:playOnce( -- 926
+		dedupeKey, -- 926
+		track, -- 926
+		path, -- 926
+		volume, -- 926
+		cueId, -- 926
+		tick, -- 926
+		seq -- 926
+	) -- 926
+end -- 915
+function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 929
+	local t = self.seqElapsed -- 930
+	local tick = ctx.p.ticks -- 931
+	local indoorK = smoothstep(____exports.TOWER_ENDING_TIMINGS.doorOpenSec, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec + 0.5, t) -- 932
+	self.loopsActive = true -- 935
+	audio:playLoop( -- 936
+		"tower_wind_cold", -- 936
+		"wind", -- 936
+		____exports.TOWER_AUDIO_FILES.windCold, -- 936
+		lerp(0.36, 0.14, indoorK), -- 936
+		tick -- 936
+	) -- 936
+	if indoorK > 0.05 then -- 937
+		audio:playLoop( -- 938
+			"tower_room_warm", -- 938
+			"ambience", -- 938
+			____exports.TOWER_AUDIO_FILES.roomWarm, -- 938
+			lerp(0.06, 0.34, indoorK), -- 938
+			tick -- 938
+		) -- 938
+	end -- 938
+	if self.indoorRetryCount == 0 then -- 942
+		if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec then -- 943
 			self:playTowerOnce( -- 944
 				audio, -- 944
-				"f03_lamp", -- 944
+				"knock1", -- 944
 				"sfx", -- 944
-				____exports.TOWER_AUDIO_FILES.lampMove, -- 944
-				0.82, -- 944
-				"tower:f03:lamp_move", -- 944
+				____exports.TOWER_AUDIO_FILES.knock1, -- 944
+				0.88, -- 944
+				"tower:knock:1", -- 944
 				tick -- 944
 			) -- 944
 		end -- 944
-	else -- 944
-		if t >= 4.28 then -- 947
-			self:playTowerOnce( -- 948
-				audio, -- 948
-				"m03_line", -- 948
-				"voice", -- 948
-				____exports.TOWER_AUDIO_FILES.lineZhoushuName, -- 948
-				0.9, -- 948
-				"tower:m03:line_name", -- 948
-				tick -- 948
-			) -- 948
-		end -- 948
-		if t >= 4.62 then -- 950
-			self:playTowerOnce( -- 951
-				audio, -- 951
-				"brush2", -- 951
-				"sfx", -- 951
-				____exports.TOWER_AUDIO_FILES.brush2, -- 951
-				0.82, -- 951
-				"tower:brush:row2", -- 951
-				tick -- 951
-			) -- 951
-		end -- 951
-		if t >= 5.55 then -- 953
-			self:playTowerOnce( -- 954
-				audio, -- 954
-				"m03_needle", -- 954
-				"sfx", -- 954
-				____exports.TOWER_AUDIO_FILES.needlePlace, -- 954
-				0.8, -- 954
-				"tower:m03:needle_place", -- 954
-				tick -- 954
-			) -- 954
-		end -- 954
-		if t >= 6.02 then -- 956
-			self:playTowerOnce( -- 957
-				audio, -- 957
-				"m03_bowl", -- 957
-				"sfx", -- 957
-				____exports.TOWER_AUDIO_FILES.bowlSet, -- 957
-				0.82, -- 957
-				"tower:bowl_set", -- 957
-				tick -- 957
-			) -- 957
-		end -- 957
-	end -- 957
-end -- 898
-function TowerEndingsPlugin.prototype.composeSubtitle(self, route) -- 962
-	local t = self.seqElapsed -- 963
-	if t < ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 964
-		return "[两下轻敲]  门外厚木上传来两声轻敲。" -- 965
-	end -- 965
-	if t < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 967
-		return "[门内回敲]  静默一息，门后轻轻回敲两声。" -- 968
-	end -- 968
-	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 970
-		return route == "child" and "守卒推门提灯，暖光先照见她腕上的针套。" or "守卒推门提灯，周戍牵小满一同跨过门槛。" -- 971
-	end -- 971
-	if t < ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 975
-		return route == "child" and "她把针套与纸条摊在案前，守卒展开收籍末页。" or "两人站在值夜室内，守卒摊开收籍末页。" -- 976
-	end -- 976
-	if t < ____exports.TOWER_ENDING_TIMINGS.pivotStartSec then -- 980
-		return "守卒蘸墨提笔，在第一行写下「小满」。" -- 981
-	end -- 981
-	if t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 983
-		return "笔尖停在第二行上方。" -- 984
-	end -- 984
-	if route == "child" then -- 986
-		if t < 6.7 then -- 987
-			return F03_DIALOGUE -- 988
+		if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec then -- 946
+			self:playTowerOnce( -- 947
+				audio, -- 947
+				"knock2", -- 947
+				"sfx", -- 947
+				____exports.TOWER_AUDIO_FILES.knock2, -- 947
+				0.9, -- 947
+				"tower:knock:2", -- 947
+				tick -- 947
+			) -- 947
+		end -- 947
+		if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 949
+			self:playTowerOnce( -- 950
+				audio, -- 950
+				"reply1", -- 950
+				"sfx", -- 950
+				____exports.TOWER_AUDIO_FILES.reply1, -- 950
+				0.78, -- 950
+				"tower:reply:1", -- 950
+				tick -- 950
+			) -- 950
+		end -- 950
+		if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec then -- 952
+			self:playTowerOnce( -- 953
+				audio, -- 953
+				"reply2", -- 953
+				"sfx", -- 953
+				____exports.TOWER_AUDIO_FILES.reply2, -- 953
+				0.8, -- 953
+				"tower:reply:2", -- 953
+				tick -- 953
+			) -- 953
+		end -- 953
+		if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 955
+			self:playTowerOnce( -- 956
+				audio, -- 956
+				"door_open", -- 956
+				"sfx", -- 956
+				____exports.TOWER_AUDIO_FILES.doorOpen, -- 956
+				0.84, -- 956
+				"tower:door_open", -- 956
+				tick -- 956
+			) -- 956
+		end -- 956
+	end -- 956
+	if t >= 1.5 then -- 960
+		self:playTowerOnce( -- 961
+			audio, -- 961
+			"book_open", -- 961
+			"sfx", -- 961
+			____exports.TOWER_AUDIO_FILES.bookOpen, -- 961
+			0.82, -- 961
+			"tower:book_open", -- 961
+			tick -- 961
+		) -- 961
+	end -- 961
+	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 963
+		self:playTowerOnce( -- 964
+			audio, -- 964
+			"brush1", -- 964
+			"sfx", -- 964
+			____exports.TOWER_AUDIO_FILES.brush1, -- 964
+			0.8, -- 964
+			"tower:brush:row1", -- 964
+			tick -- 964
+		) -- 964
+	end -- 964
+	if route == "child" then -- 967
+		if t >= 4.35 then -- 968
+			self:playTowerOnce( -- 969
+				audio, -- 969
+				"f03_line", -- 969
+				"voice", -- 969
+				____exports.TOWER_AUDIO_FILES.lineXiaomanLamp, -- 969
+				0.86, -- 969
+				"tower:f03:line_lamp", -- 969
+				tick -- 969
+			) -- 969
+		end -- 969
+		if t >= 4.45 then -- 971
+			self:playTowerOnce( -- 972
+				audio, -- 972
+				"f03_bowl", -- 972
+				"sfx", -- 972
+				____exports.TOWER_AUDIO_FILES.bowlSet, -- 972
+				0.8, -- 972
+				"tower:bowl_set", -- 972
+				tick -- 972
+			) -- 972
+		end -- 972
+		if t >= 5.2 then -- 974
+			self:playTowerOnce( -- 975
+				audio, -- 975
+				"f03_lamp", -- 975
+				"sfx", -- 975
+				____exports.TOWER_AUDIO_FILES.lampMove, -- 975
+				0.82, -- 975
+				"tower:f03:lamp_move", -- 975
+				tick -- 975
+			) -- 975
+		end -- 975
+	else -- 975
+		if t >= 4.28 then -- 978
+			self:playTowerOnce( -- 979
+				audio, -- 979
+				"m03_line", -- 979
+				"voice", -- 979
+				____exports.TOWER_AUDIO_FILES.lineZhoushuName, -- 979
+				0.9, -- 979
+				"tower:m03:line_name", -- 979
+				tick -- 979
+			) -- 979
+		end -- 979
+		if t >= 4.62 then -- 981
+			self:playTowerOnce( -- 982
+				audio, -- 982
+				"brush2", -- 982
+				"sfx", -- 982
+				____exports.TOWER_AUDIO_FILES.brush2, -- 982
+				0.82, -- 982
+				"tower:brush:row2", -- 982
+				tick -- 982
+			) -- 982
+		end -- 982
+		if t >= 5.55 then -- 984
+			self:playTowerOnce( -- 985
+				audio, -- 985
+				"m03_needle", -- 985
+				"sfx", -- 985
+				____exports.TOWER_AUDIO_FILES.needlePlace, -- 985
+				0.8, -- 985
+				"tower:m03:needle_place", -- 985
+				tick -- 985
+			) -- 985
+		end -- 985
+		if t >= 6.02 then -- 987
+			self:playTowerOnce( -- 988
+				audio, -- 988
+				"m03_bowl", -- 988
+				"sfx", -- 988
+				____exports.TOWER_AUDIO_FILES.bowlSet, -- 988
+				0.82, -- 988
+				"tower:bowl_set", -- 988
+				tick -- 988
+			) -- 988
 		end -- 988
-		return "" -- 990
-	end -- 990
-	if t < 5.45 then -- 992
-		return M03_DIALOGUE -- 993
-	end -- 993
-	if t < 6.85 then -- 995
-		return "守卒写满第二行。小满解下针套轻放案上，两只手端起热碗。" -- 996
+	end -- 988
+end -- 929
+function TowerEndingsPlugin.prototype.composeSubtitle(self, route) -- 993
+	local t = self.seqElapsed -- 994
+	if t < ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 995
+		return "[两下轻敲]  门外厚木上传来两声轻敲。" -- 996
 	end -- 996
-	return "" -- 998
-end -- 962
-function TowerEndingsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1003
-	if not self.active then -- 1010
-		return false -- 1011
-	end -- 1011
-	local route = self.activeRoute -- 1014
-	local t = self.seqElapsed -- 1015
-	local lampProg = route == "child" and smoothstep(5.2, 6.75, t) or 0 -- 1016
-	local scaled = computeScaledAnchors(ctx.uiW, ctx.uiH, lampProg) -- 1017
-	local s = scaled.s -- 1018
-	local ox = scaled.ox -- 1019
-	local oy = scaled.oy -- 1020
-	uiDraw:drawRect( -- 1023
-		Rect(0, 0, ctx.uiW, ctx.uiH), -- 1023
-		Color(8, 10, 16, 255) -- 1023
-	) -- 1023
-	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 1025
-		self:drawAct1PorchAndDoor( -- 1027
-			uiDraw, -- 1027
-			uiInkDraw, -- 1027
-			uiArt, -- 1027
-			uiGlow, -- 1027
-			ctx, -- 1027
-			route, -- 1027
-			s, -- 1027
-			ox, -- 1027
-			oy -- 1027
-		) -- 1027
-		local fadeOut = smoothstep(1.22, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec, t) -- 1029
-		if fadeOut > 0.01 then -- 1030
-			uiInkDraw:drawRect( -- 1031
-				Rect(0, 0, ctx.uiW, ctx.uiH), -- 1031
-				Color( -- 1031
-					8, -- 1031
-					10, -- 1031
-					16, -- 1031
-					math.floor(230 * fadeOut + 0.5) -- 1031
-				) -- 1031
-			) -- 1031
-		end -- 1031
-	else -- 1031
-		self:drawAct2And3Guardroom( -- 1035
-			uiDraw, -- 1035
-			uiInkDraw, -- 1035
-			uiArt, -- 1035
-			uiGlow, -- 1035
-			ctx, -- 1035
-			route, -- 1035
-			lampProg, -- 1035
-			s, -- 1035
-			ox, -- 1035
-			oy -- 1035
-		) -- 1035
-		local fadeIn = 1 - smoothstep(____exports.TOWER_ENDING_TIMINGS.indoorCutSec, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec + 0.24, t) -- 1036
-		if fadeIn > 0.01 then -- 1037
-			uiInkDraw:drawRect( -- 1038
-				Rect(0, 0, ctx.uiW, ctx.uiH), -- 1038
-				Color( -- 1038
-					8, -- 1038
-					10, -- 1038
-					16, -- 1038
-					math.floor(220 * fadeIn + 0.5) -- 1038
-				) -- 1038
-			) -- 1038
-		end -- 1038
-	end -- 1038
-	local barH = math.floor(____exports.TOWER_SHOT_LAYOUT.letterboxH * s + 0.5) -- 1043
-	uiInkDraw:drawRect( -- 1044
-		Rect(0, ctx.uiH - barH, ctx.uiW, barH), -- 1044
-		Color(7, 9, 14, 248) -- 1044
-	) -- 1044
-	uiInkDraw:drawRect( -- 1045
-		Rect(0, 0, ctx.uiW, barH), -- 1045
-		Color(7, 9, 14, 248) -- 1045
-	) -- 1045
-	uiInkDraw:drawSegment( -- 1046
-		Vec2(0, ctx.uiH - barH), -- 1046
-		Vec2(ctx.uiW, ctx.uiH - barH), -- 1046
-		0.9, -- 1046
-		toColor(PALETTE.silkDim, 82) -- 1046
-	) -- 1046
-	uiInkDraw:drawSegment( -- 1047
-		Vec2(0, barH), -- 1047
-		Vec2(ctx.uiW, barH), -- 1047
-		0.9, -- 1047
-		toColor(PALETTE.silkDim, 82) -- 1047
-	) -- 1047
-	self:drawDialogueSubtitle( -- 1050
-		uiDraw, -- 1050
-		uiInkDraw, -- 1050
-		uiArt, -- 1050
-		ctx, -- 1050
-		route, -- 1050
-		s, -- 1050
-		barH -- 1050
-	) -- 1050
-	return true -- 1052
-end -- 1003
-function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, s, ox, oy) -- 1057
-	local t = self.seqElapsed -- 1068
-	local isLowpoly = route == "child" -- 1069
-	local openK = smoothstep(____exports.TOWER_ENDING_TIMINGS.doorOpenSec, 1.24, t) -- 1070
-	local doorCx = ox + ____exports.TOWER_SHOT_LAYOUT.doorCenterX * s -- 1071
-	local threshY = oy + ____exports.TOWER_SHOT_LAYOUT.thresholdY * s -- 1072
-	local doorW = ____exports.TOWER_SHOT_LAYOUT.doorW * s -- 1073
-	local doorH = ____exports.TOWER_SHOT_LAYOUT.doorH * s -- 1074
-	local doorL = doorCx - doorW * 0.5 -- 1075
-	local doorR = doorCx + doorW * 0.5 -- 1076
-	local k1Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.knock1Sec) / 0.055) ^ 2) -- 1079
-	local k2Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.knock2Sec) / 0.055) ^ 2) -- 1080
-	local r1Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.reply1Sec) / 0.06) ^ 2) -- 1081
-	local r2Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.reply2Sec) / 0.06) ^ 2) -- 1082
-	local doorShakeX = (k1Pulse + k2Pulse) * 2.4 * s * math.sin(t * 95) + (r1Pulse + r2Pulse) * 1.4 * s * math.sin(t * 80) -- 1083
-	if isLowpoly then -- 1086
-		local light = lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, openK * 0.62) -- 1088
-		fillVGradRect( -- 1089
-			uiDraw, -- 1090
-			0, -- 1090
-			0, -- 1090
-			ctx.uiW, -- 1090
-			ctx.uiH, -- 1090
-			Color(12, 16, 26, 255), -- 1091
-			Color(20, 28, 44, 255) -- 1092
-		) -- 1092
-		local wallCol = shadeSurface( -- 1095
-			MING_MATERIALS.mingBrickDark.base, -- 1095
-			vec3(0, 0, -1), -- 1095
-			24, -- 1095
-			1, -- 1095
-			light, -- 1095
-			MING_MATERIALS.mingBrickDark -- 1095
-		) -- 1095
-		local jambCol = shadeSurface( -- 1096
-			MING_MATERIALS.mingBrick.base, -- 1096
-			vec3(0.75, 0.15, -0.64), -- 1096
-			10, -- 1096
-			1, -- 1096
-			light, -- 1096
-			MING_MATERIALS.mingBrick -- 1096
-		) -- 1096
-		local jambRCol = shadeSurface( -- 1097
-			MING_MATERIALS.mingBrick.base, -- 1097
-			vec3(-0.75, 0.15, -0.64), -- 1097
-			10, -- 1097
-			1, -- 1097
-			light, -- 1097
-			MING_MATERIALS.mingBrick -- 1097
-		) -- 1097
-		local lintelCol = shadeSurface( -- 1098
-			MING_MATERIALS.mingStoneStep.base, -- 1098
-			vec3(0, -0.55, -0.83), -- 1098
-			6, -- 1098
-			1, -- 1098
-			light, -- 1098
-			MING_MATERIALS.mingStoneStep -- 1098
-		) -- 1098
-		local stepCol = shadeSurface( -- 1099
-			MING_MATERIALS.mingStoneStep.base, -- 1099
-			vec3(0, 0.92, -0.39), -- 1099
-			0, -- 1099
-			1, -- 1099
-			light, -- 1099
-			MING_MATERIALS.mingStoneStep -- 1099
-		) -- 1099
-		uiDraw:drawRect( -- 1101
-			Rect(0, threshY, doorL - 26 * s, ctx.uiH - threshY), -- 1101
-			toColor(wallCol) -- 1101
-		) -- 1101
-		uiDraw:drawRect( -- 1102
-			Rect(doorR + 26 * s, threshY, ctx.uiW - (doorR + 26 * s), ctx.uiH - threshY), -- 1102
-			toColor(wallCol) -- 1102
-		) -- 1102
-		uiDraw:drawPolygon( -- 1104
-			{ -- 1104
-				Vec2(doorL - 26 * s, threshY), -- 1105
-				Vec2(doorL, threshY + 12 * s), -- 1106
-				Vec2(doorL, threshY + doorH - 8 * s), -- 1107
-				Vec2(doorL - 26 * s, threshY + doorH + 18 * s) -- 1108
-			}, -- 1108
-			toColor(jambCol), -- 1109
-			1, -- 1109
-			toColor(PALETTE.silkDim, 68) -- 1109
-		) -- 1109
-		uiDraw:drawPolygon( -- 1110
-			{ -- 1110
-				Vec2(doorR + 26 * s, threshY), -- 1111
-				Vec2(doorR, threshY + 12 * s), -- 1112
-				Vec2(doorR, threshY + doorH - 8 * s), -- 1113
-				Vec2(doorR + 26 * s, threshY + doorH + 18 * s) -- 1114
-			}, -- 1114
-			toColor(jambRCol), -- 1115
-			1, -- 1115
-			toColor(PALETTE.silkDim, 68) -- 1115
-		) -- 1115
-		uiDraw:drawPolygon( -- 1117
-			{ -- 1117
-				Vec2(doorL - 44 * s, threshY + doorH + 18 * s), -- 1118
-				Vec2(doorR + 44 * s, threshY + doorH + 18 * s), -- 1119
-				Vec2(doorR + 58 * s, threshY + doorH + 92 * s), -- 1120
-				Vec2(doorL - 58 * s, threshY + doorH + 92 * s) -- 1121
-			}, -- 1121
-			toColor(lintelCol), -- 1122
-			1.1, -- 1122
-			toColor(STONE_EDGE_FALLBACK, 130) -- 1122
-		) -- 1122
-		uiDraw:drawRect( -- 1124
-			Rect(0, 0, ctx.uiW, threshY), -- 1124
-			Color(16, 20, 30, 255) -- 1124
-		) -- 1124
-		uiDraw:drawPolygon( -- 1125
-			{ -- 1125
-				Vec2(doorL - 58 * s, threshY - 20 * s), -- 1126
-				Vec2(doorR + 58 * s, threshY - 20 * s), -- 1127
-				Vec2(doorR + 28 * s, threshY + 12 * s), -- 1128
-				Vec2(doorL - 28 * s, threshY + 12 * s) -- 1129
-			}, -- 1129
-			toColor(stepCol), -- 1130
-			1, -- 1130
-			toColor(STONE_EDGE_FALLBACK, 150) -- 1130
-		) -- 1130
-		uiDraw:drawPolygon( -- 1132
-			{ -- 1132
-				Vec2(0, 0), -- 1133
-				Vec2(142 * s, 0), -- 1134
-				Vec2(114 * s, ctx.uiH), -- 1135
-				Vec2(0, ctx.uiH) -- 1136
-			}, -- 1136
-			Color(10, 14, 22, 220) -- 1137
-		) -- 1137
-		uiDraw:drawPolygon( -- 1138
-			{ -- 1138
-				Vec2(ctx.uiW - 142 * s, 0), -- 1139
-				Vec2(ctx.uiW, 0), -- 1140
-				Vec2(ctx.uiW, ctx.uiH), -- 1141
-				Vec2(ctx.uiW - 114 * s, ctx.uiH) -- 1142
-			}, -- 1142
-			Color(10, 14, 22, 220) -- 1143
-		) -- 1143
-	else -- 1143
-		fillVGradRect( -- 1146
-			uiDraw, -- 1147
-			0, -- 1147
-			0, -- 1147
-			ctx.uiW, -- 1147
-			ctx.uiH, -- 1147
-			Color(18, 22, 32, 255), -- 1148
-			Color(32, 38, 52, 255) -- 1149
-		) -- 1149
-		uiDraw:drawPolygon( -- 1152
-			{ -- 1152
-				Vec2(0, threshY), -- 1153
-				Vec2(doorL, threshY), -- 1154
-				Vec2(doorL, threshY + 188 * s), -- 1155
-				Vec2(doorL * 0.55, threshY + 230 * s), -- 1156
-				Vec2(doorL * 0.22, threshY + 172 * s), -- 1157
-				Vec2(0, threshY + 196 * s) -- 1158
-			}, -- 1158
-			Color(26, 30, 40, 235) -- 1159
-		) -- 1159
-		uiDraw:drawPolygon( -- 1160
-			{ -- 1160
-				Vec2(doorR, threshY), -- 1161
-				Vec2(ctx.uiW, threshY), -- 1162
-				Vec2(ctx.uiW, threshY + 218 * s), -- 1163
-				Vec2(doorR + (ctx.uiW - doorR) * 0.56, threshY + 248 * s), -- 1164
-				Vec2(doorR, threshY + 178 * s) -- 1165
-			}, -- 1165
-			Color(26, 30, 40, 235) -- 1166
-		) -- 1166
-		uiDraw:drawRect( -- 1168
-			Rect(0, threshY, doorL, ctx.uiH - threshY), -- 1168
-			Color(54, 56, 62, 255), -- 1168
+	if t < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 998
+		return "[门内回敲]  静默一息，门后轻轻回敲两声。" -- 999
+	end -- 999
+	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 1001
+		return route == "child" and "守卒推门提灯，暖光先照见她腕上的针套。" or "守卒推门提灯，周戍牵小满一同跨过门槛。" -- 1002
+	end -- 1002
+	if t < ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 1006
+		return route == "child" and "她把针套与纸条摊在案前，守卒展开收籍末页。" or "两人站在值夜室内，守卒摊开收籍末页。" -- 1007
+	end -- 1007
+	if t < ____exports.TOWER_ENDING_TIMINGS.pivotStartSec then -- 1011
+		return "守卒蘸墨提笔，在第一行写下「小满」。" -- 1012
+	end -- 1012
+	if t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 1014
+		return "笔尖停在第二行上方。" -- 1015
+	end -- 1015
+	if route == "child" then -- 1017
+		if t < 6.7 then -- 1018
+			return F03_DIALOGUE -- 1019
+		end -- 1019
+		return "" -- 1021
+	end -- 1021
+	if t < 5.45 then -- 1023
+		return M03_DIALOGUE -- 1024
+	end -- 1024
+	if t < 6.85 then -- 1026
+		return "守卒写满第二行。小满解下针套轻放案上，两只手端起热碗。" -- 1027
+	end -- 1027
+	return "" -- 1029
+end -- 993
+function TowerEndingsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1034
+	if not self.active then -- 1041
+		if not self.rehearsalActive and ctx.p.room.key == "tower" and ctx.p.phase == "tower-enter" and self.doorOpenOverlayElapsed >= 0 then -- 1042
+			local u = clamp01(self.doorOpenOverlayElapsed / 0.9) -- 1044
+			local fade = 1 - smoothstep(0.28, 1, u) -- 1045
+			if fade > 0.02 then -- 1046
+				local route = self.activeRoute -- 1047
+				local openK = smoothstep(0, 0.55, u) -- 1048
+				local cx = ctx.uiW * 0.5 -- 1049
+				local cy = ctx.uiH * 0.46 -- 1050
+				uiDraw:drawRect( -- 1051
+					Rect(0, 0, ctx.uiW, ctx.uiH), -- 1051
+					Color( -- 1051
+						8, -- 1051
+						10, -- 1051
+						16, -- 1051
+						math.floor(145 * fade + 0.5) -- 1051
+					) -- 1051
+				) -- 1051
+				fillRadialGlow( -- 1052
+					uiGlow, -- 1053
+					cx + 42 * (1 - openK), -- 1054
+					cy + 16, -- 1055
+					ctx.uiW * (0.26 + 0.18 * openK), -- 1056
+					ctx.uiH * (0.34 + 0.16 * openK), -- 1057
+					Color( -- 1058
+						248, -- 1058
+						212, -- 1058
+						144, -- 1058
+						math.floor(128 * fade + 0.5) -- 1058
+					), -- 1058
+					Color(220, 154, 72, 0), -- 1059
+					18 -- 1060
+				) -- 1060
+				self:drawMingLantern( -- 1062
+					uiInkDraw, -- 1062
+					uiGlow, -- 1062
+					cx + 66 - openK * 24, -- 1062
+					cy + 28, -- 1062
+					1.05, -- 1062
+					fade * (0.45 + 0.55 * openK), -- 1062
+					1 -- 1062
+				) -- 1062
+				local cap = route == "child" and "守卒推门提灯，暖光先照见她腕上的针套。" or "守卒推门提灯，周戍牵小满一同跨过门槛。" -- 1063
+				drawSilkVeil( -- 1066
+					uiDraw, -- 1066
+					uiArt, -- 1066
+					"tower_door_open_veil", -- 1066
+					cx, -- 1066
+					ctx.uiH - 86, -- 1066
+					560, -- 1066
+					38, -- 1066
+					PALETTE.inkWarm, -- 1066
+					0.78 * fade, -- 1066
+					2 -- 1066
+				) -- 1066
+				ctx.texts:put( -- 1067
+					"sm", -- 1067
+					cap, -- 1067
+					cx, -- 1067
+					ctx.uiH - 86, -- 1067
+					toColor(PALETTE.amberCore), -- 1067
+					0.5, -- 1067
+					0.5, -- 1067
+					"Center", -- 1067
+					1, -- 1067
+					fade, -- 1067
+					0.08 -- 1067
+				) -- 1067
+			end -- 1067
+		end -- 1067
+		return false -- 1070
+	end -- 1070
+	local route = self.activeRoute -- 1073
+	local t = self.seqElapsed -- 1074
+	local lampProg = route == "child" and smoothstep(5.2, 6.75, t) or 0 -- 1075
+	local scaled = computeScaledAnchors(ctx.uiW, ctx.uiH, lampProg) -- 1076
+	local s = scaled.s -- 1077
+	local ox = scaled.ox -- 1078
+	local oy = scaled.oy -- 1079
+	uiDraw:drawRect( -- 1082
+		Rect(0, 0, ctx.uiW, ctx.uiH), -- 1082
+		Color(8, 10, 16, 255) -- 1082
+	) -- 1082
+	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 1084
+		self:drawAct1PorchAndDoor( -- 1086
+			uiDraw, -- 1086
+			uiInkDraw, -- 1086
+			uiArt, -- 1086
+			uiGlow, -- 1086
+			ctx, -- 1086
+			route, -- 1086
+			s, -- 1086
+			ox, -- 1086
+			oy -- 1086
+		) -- 1086
+		local fadeOut = smoothstep(1.22, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec, t) -- 1088
+		if fadeOut > 0.01 then -- 1089
+			uiInkDraw:drawRect( -- 1090
+				Rect(0, 0, ctx.uiW, ctx.uiH), -- 1090
+				Color( -- 1090
+					8, -- 1090
+					10, -- 1090
+					16, -- 1090
+					math.floor(230 * fadeOut + 0.5) -- 1090
+				) -- 1090
+			) -- 1090
+		end -- 1090
+	else -- 1090
+		self:drawAct2And3Guardroom( -- 1094
+			uiDraw, -- 1094
+			uiInkDraw, -- 1094
+			uiArt, -- 1094
+			uiGlow, -- 1094
+			ctx, -- 1094
+			route, -- 1094
+			lampProg, -- 1094
+			s, -- 1094
+			ox, -- 1094
+			oy -- 1094
+		) -- 1094
+		local fadeIn = 1 - smoothstep(____exports.TOWER_ENDING_TIMINGS.indoorCutSec, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec + 0.24, t) -- 1095
+		if fadeIn > 0.01 then -- 1096
+			uiInkDraw:drawRect( -- 1097
+				Rect(0, 0, ctx.uiW, ctx.uiH), -- 1097
+				Color( -- 1097
+					8, -- 1097
+					10, -- 1097
+					16, -- 1097
+					math.floor(220 * fadeIn + 0.5) -- 1097
+				) -- 1097
+			) -- 1097
+		end -- 1097
+	end -- 1097
+	local barH = math.floor(____exports.TOWER_SHOT_LAYOUT.letterboxH * s + 0.5) -- 1102
+	uiInkDraw:drawRect( -- 1103
+		Rect(0, ctx.uiH - barH, ctx.uiW, barH), -- 1103
+		Color(7, 9, 14, 248) -- 1103
+	) -- 1103
+	uiInkDraw:drawRect( -- 1104
+		Rect(0, 0, ctx.uiW, barH), -- 1104
+		Color(7, 9, 14, 248) -- 1104
+	) -- 1104
+	uiInkDraw:drawSegment( -- 1105
+		Vec2(0, ctx.uiH - barH), -- 1105
+		Vec2(ctx.uiW, ctx.uiH - barH), -- 1105
+		0.9, -- 1105
+		toColor(PALETTE.silkDim, 82) -- 1105
+	) -- 1105
+	uiInkDraw:drawSegment( -- 1106
+		Vec2(0, barH), -- 1106
+		Vec2(ctx.uiW, barH), -- 1106
+		0.9, -- 1106
+		toColor(PALETTE.silkDim, 82) -- 1106
+	) -- 1106
+	self:drawDialogueSubtitle( -- 1109
+		uiDraw, -- 1109
+		uiInkDraw, -- 1109
+		uiArt, -- 1109
+		ctx, -- 1109
+		route, -- 1109
+		s, -- 1109
+		barH -- 1109
+	) -- 1109
+	return true -- 1111
+end -- 1034
+function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, s, ox, oy) -- 1116
+	local t = self.seqElapsed -- 1127
+	local isLowpoly = route == "child" -- 1128
+	local openK = smoothstep(____exports.TOWER_ENDING_TIMINGS.doorOpenSec, 1.24, t) -- 1129
+	local doorCx = ox + ____exports.TOWER_SHOT_LAYOUT.doorCenterX * s -- 1130
+	local threshY = oy + ____exports.TOWER_SHOT_LAYOUT.thresholdY * s -- 1131
+	local doorW = ____exports.TOWER_SHOT_LAYOUT.doorW * s -- 1132
+	local doorH = ____exports.TOWER_SHOT_LAYOUT.doorH * s -- 1133
+	local doorL = doorCx - doorW * 0.5 -- 1134
+	local doorR = doorCx + doorW * 0.5 -- 1135
+	local k1Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.knock1Sec) / 0.055) ^ 2) -- 1138
+	local k2Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.knock2Sec) / 0.055) ^ 2) -- 1139
+	local r1Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.reply1Sec) / 0.06) ^ 2) -- 1140
+	local r2Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.reply2Sec) / 0.06) ^ 2) -- 1141
+	local doorShakeX = (k1Pulse + k2Pulse) * 2.4 * s * math.sin(t * 95) + (r1Pulse + r2Pulse) * 1.4 * s * math.sin(t * 80) -- 1142
+	if isLowpoly then -- 1145
+		local light = lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, openK * 0.62) -- 1147
+		fillVGradRect( -- 1148
+			uiDraw, -- 1149
+			0, -- 1149
+			0, -- 1149
+			ctx.uiW, -- 1149
+			ctx.uiH, -- 1149
+			Color(12, 16, 26, 255), -- 1150
+			Color(20, 28, 44, 255) -- 1151
+		) -- 1151
+		local wallCol = shadeSurface( -- 1154
+			MING_MATERIALS.mingBrickDark.base, -- 1154
+			vec3(0, 0, -1), -- 1154
+			24, -- 1154
+			1, -- 1154
+			light, -- 1154
+			MING_MATERIALS.mingBrickDark -- 1154
+		) -- 1154
+		local jambCol = shadeSurface( -- 1155
+			MING_MATERIALS.mingBrick.base, -- 1155
+			vec3(0.75, 0.15, -0.64), -- 1155
+			10, -- 1155
+			1, -- 1155
+			light, -- 1155
+			MING_MATERIALS.mingBrick -- 1155
+		) -- 1155
+		local jambRCol = shadeSurface( -- 1156
+			MING_MATERIALS.mingBrick.base, -- 1156
+			vec3(-0.75, 0.15, -0.64), -- 1156
+			10, -- 1156
+			1, -- 1156
+			light, -- 1156
+			MING_MATERIALS.mingBrick -- 1156
+		) -- 1156
+		local lintelCol = shadeSurface( -- 1157
+			MING_MATERIALS.mingStoneStep.base, -- 1157
+			vec3(0, -0.55, -0.83), -- 1157
+			6, -- 1157
+			1, -- 1157
+			light, -- 1157
+			MING_MATERIALS.mingStoneStep -- 1157
+		) -- 1157
+		local stepCol = shadeSurface( -- 1158
+			MING_MATERIALS.mingStoneStep.base, -- 1158
+			vec3(0, 0.92, -0.39), -- 1158
+			0, -- 1158
+			1, -- 1158
+			light, -- 1158
+			MING_MATERIALS.mingStoneStep -- 1158
+		) -- 1158
+		uiDraw:drawRect( -- 1160
+			Rect(0, threshY, doorL - 26 * s, ctx.uiH - threshY), -- 1160
+			toColor(wallCol) -- 1160
+		) -- 1160
+		uiDraw:drawRect( -- 1161
+			Rect(doorR + 26 * s, threshY, ctx.uiW - (doorR + 26 * s), ctx.uiH - threshY), -- 1161
+			toColor(wallCol) -- 1161
+		) -- 1161
+		uiDraw:drawPolygon( -- 1163
+			{ -- 1163
+				Vec2(doorL - 26 * s, threshY), -- 1164
+				Vec2(doorL, threshY + 12 * s), -- 1165
+				Vec2(doorL, threshY + doorH - 8 * s), -- 1166
+				Vec2(doorL - 26 * s, threshY + doorH + 18 * s) -- 1167
+			}, -- 1167
+			toColor(jambCol), -- 1168
 			1, -- 1168
-			Color(88, 90, 96, 155) -- 1168
+			toColor(PALETTE.silkDim, 68) -- 1168
 		) -- 1168
-		uiDraw:drawRect( -- 1169
-			Rect(doorR, threshY, ctx.uiW - doorR, ctx.uiH - threshY), -- 1169
-			Color(54, 56, 62, 255), -- 1169
-			1, -- 1169
-			Color(88, 90, 96, 155) -- 1169
-		) -- 1169
-		uiDraw:drawRect( -- 1170
-			Rect(doorL - 28 * s, threshY + doorH, doorW + 56 * s, 68 * s), -- 1170
-			Color(72, 68, 62, 255), -- 1170
-			1, -- 1170
-			Color(124, 114, 100, 175) -- 1170
-		) -- 1170
-		local row = 0 -- 1171
-		do -- 1171
-			row = 0 -- 1172
-			while row < 10 do -- 1172
-				local by = threshY + row * 46 * s -- 1173
-				uiDraw:drawSegment( -- 1174
-					Vec2(0, by), -- 1174
-					Vec2(doorL, by), -- 1174
-					1, -- 1174
-					Color(34, 36, 42, 175) -- 1174
-				) -- 1174
-				uiDraw:drawSegment( -- 1175
-					Vec2(doorR, by), -- 1175
-					Vec2(ctx.uiW, by), -- 1175
-					1, -- 1175
-					Color(34, 36, 42, 175) -- 1175
-				) -- 1175
-				local stag = row % 2 * 34 * s -- 1176
-				local col = 0 -- 1177
-				do -- 1177
-					col = 0 -- 1178
-					while col < 7 do -- 1178
-						local lx = stag + col * 68 * s -- 1179
-						if lx > 4 * s and lx < doorL - 4 * s then -- 1180
-							uiDraw:drawSegment( -- 1181
-								Vec2(lx, by), -- 1181
-								Vec2(lx, by + 46 * s), -- 1181
-								0.9, -- 1181
-								Color(36, 38, 44, 130) -- 1181
-							) -- 1181
-						end -- 1181
-						local rx = doorR + stag + col * 68 * s -- 1183
-						if rx > doorR + 4 * s and rx < ctx.uiW - 4 * s then -- 1184
-							uiDraw:drawSegment( -- 1185
-								Vec2(rx, by), -- 1185
-								Vec2(rx, by + 46 * s), -- 1185
-								0.9, -- 1185
-								Color(36, 38, 44, 130) -- 1185
-							) -- 1185
-						end -- 1185
-						col = col + 1 -- 1178
-					end -- 1178
-				end -- 1178
-				row = row + 1 -- 1172
-			end -- 1172
-		end -- 1172
-		uiDraw:drawRect( -- 1190
-			Rect(0, 0, ctx.uiW, threshY), -- 1190
-			Color(28, 26, 28, 255) -- 1190
-		) -- 1190
-		uiDraw:drawRect( -- 1191
-			Rect(doorL - 36 * s, threshY - 12 * s, doorW + 72 * s, 22 * s), -- 1191
-			Color(96, 94, 92, 255), -- 1191
-			1, -- 1191
-			Color(156, 152, 144, 175) -- 1191
-		) -- 1191
-	end -- 1191
-	local innerWarm = 0.22 + openK * 0.78 + (r1Pulse + r2Pulse) * 0.14 -- 1195
-	fillVGradRect( -- 1196
-		uiDraw, -- 1197
-		doorL, -- 1197
-		threshY + 8 * s, -- 1197
-		doorW, -- 1197
-		doorH - 8 * s, -- 1197
-		Color( -- 1198
-			46, -- 1198
-			32, -- 1198
-			20, -- 1198
-			math.floor(255 * math.min(1, innerWarm + 0.15) + 0.5) -- 1198
-		), -- 1198
-		Color( -- 1199
-			118, -- 1199
-			82, -- 1199
-			42, -- 1199
-			math.floor(255 * math.min(1, innerWarm) + 0.5) -- 1199
-		) -- 1199
-	) -- 1199
-	local leafW = math.max(26 * s, doorW * (1 - openK * 0.76)) -- 1203
-	local leafX = doorL + doorShakeX * (1 - openK) -- 1204
-	local woodCol = isLowpoly and toColor(shadeSurface( -- 1205
-		MING_MATERIALS.mingTimberDark.base, -- 1206
-		vec3(-0.2, 0.25, -0.95), -- 1206
-		4, -- 1206
-		1, -- 1206
-		TOWER_WEST_LAMP_LIGHT, -- 1206
-		MING_MATERIALS.mingTimberDark -- 1206
-	)) or Color(76, 54, 38, 255) -- 1207
-	uiDraw:drawRect( -- 1208
-		Rect(leafX, threshY + 12 * s, leafW, doorH - 14 * s), -- 1209
-		woodCol, -- 1210
-		1.4, -- 1211
-		Color(138, 106, 74, 185) -- 1212
-	) -- 1212
-	local planks = 4 -- 1215
-	local pi = 1 -- 1216
-	do -- 1216
-		pi = 1 -- 1217
-		while pi < planks do -- 1217
-			local px = leafX + leafW * pi / planks -- 1218
-			uiDraw:drawSegment( -- 1219
-				Vec2(px, threshY + 14 * s), -- 1219
-				Vec2(px, threshY + doorH - 4 * s), -- 1219
-				1.1, -- 1219
-				Color(38, 26, 18, 185) -- 1219
-			) -- 1219
-			pi = pi + 1 -- 1217
-		end -- 1217
-	end -- 1217
-	uiDraw:drawRect( -- 1221
-		Rect(leafX + 4 * s, threshY + doorH * 0.24, leafW - 8 * s, 10 * s), -- 1221
-		Color(54, 38, 26, 225) -- 1221
-	) -- 1221
-	uiDraw:drawRect( -- 1222
-		Rect(leafX + 4 * s, threshY + doorH * 0.74, leafW - 8 * s, 10 * s), -- 1222
-		Color(54, 38, 26, 225) -- 1222
-	) -- 1222
-	local ringX = leafX + leafW * 0.72 -- 1224
-	local ringY = threshY + doorH * 0.56 -- 1225
-	uiDraw:drawRect( -- 1226
-		Rect(ringX - 6 * s, ringY + 4 * s, 12 * s, 12 * s), -- 1226
-		Color(42, 46, 52, 235), -- 1226
-		1, -- 1226
-		Color(96, 100, 108, 170) -- 1226
-	) -- 1226
-	strokeEllipse( -- 1227
-		uiDraw, -- 1227
-		ringX, -- 1227
-		ringY - 2 * s, -- 1227
-		8 * s, -- 1227
-		9 * s, -- 1227
-		1.8 * s, -- 1227
-		Color(108, 112, 118, 195), -- 1227
-		16 -- 1227
-	) -- 1227
-	local seamGlowA = math.floor(92 + openK * 145 + (r1Pulse + r2Pulse) * 48 + 0.5) -- 1230
-	fillRadialGlow( -- 1231
-		uiGlow, -- 1232
-		doorCx + openK * 24 * s, -- 1232
-		threshY + 14 * s, -- 1232
-		(92 + openK * 120) * s, -- 1233
-		(26 + openK * 58) * s, -- 1233
-		Color( -- 1234
-			246, -- 1234
-			204, -- 1234
-			134, -- 1234
-			math.min(220, seamGlowA) -- 1234
-		), -- 1234
-		Color(220, 156, 72, 0), -- 1235
-		18 -- 1236
-	) -- 1236
-	local kx = ox + ____exports.TOWER_SHOT_LAYOUT.knockHandX * s -- 1240
-	local ky = oy + ____exports.TOWER_SHOT_LAYOUT.knockHandY * s -- 1241
-	if k1Pulse > 0.08 or k2Pulse > 0.08 then -- 1242
-		local amp = math.max(k1Pulse, k2Pulse) -- 1243
-		local r = (18 + (1 - amp) * 34) * s -- 1244
-		strokeEllipse( -- 1245
-			uiInkDraw, -- 1245
-			kx + 24 * s, -- 1245
-			ky, -- 1245
-			r, -- 1245
-			r * 0.85, -- 1245
-			1.8 * s, -- 1245
-			toColor( -- 1245
-				PALETTE.amberCore, -- 1245
-				math.floor(210 * amp + 0.5) -- 1245
-			), -- 1245
-			24 -- 1245
-		) -- 1245
-	end -- 1245
-	if r1Pulse > 0.08 or r2Pulse > 0.08 then -- 1247
-		local amp = math.max(r1Pulse, r2Pulse) -- 1248
-		local r = (24 + (1 - amp) * 42) * s -- 1249
-		strokeEllipse( -- 1250
-			uiInkDraw, -- 1250
-			doorCx + 30 * s, -- 1250
-			ky + 16 * s, -- 1250
-			r, -- 1250
-			r * 0.9, -- 1250
-			1.6 * s, -- 1250
-			toColor( -- 1250
-				PALETTE.amber, -- 1250
-				math.floor(185 * amp + 0.5) -- 1250
-			), -- 1250
-			24 -- 1250
+		uiDraw:drawPolygon( -- 1169
+			{ -- 1169
+				Vec2(doorR + 26 * s, threshY), -- 1170
+				Vec2(doorR, threshY + 12 * s), -- 1171
+				Vec2(doorR, threshY + doorH - 8 * s), -- 1172
+				Vec2(doorR + 26 * s, threshY + doorH + 18 * s) -- 1173
+			}, -- 1173
+			toColor(jambRCol), -- 1174
+			1, -- 1174
+			toColor(PALETTE.silkDim, 68) -- 1174
+		) -- 1174
+		uiDraw:drawPolygon( -- 1176
+			{ -- 1176
+				Vec2(doorL - 44 * s, threshY + doorH + 18 * s), -- 1177
+				Vec2(doorR + 44 * s, threshY + doorH + 18 * s), -- 1178
+				Vec2(doorR + 58 * s, threshY + doorH + 92 * s), -- 1179
+				Vec2(doorL - 58 * s, threshY + doorH + 92 * s) -- 1180
+			}, -- 1180
+			toColor(lintelCol), -- 1181
+			1.1, -- 1181
+			toColor(STONE_EDGE_FALLBACK, 130) -- 1181
+		) -- 1181
+		uiDraw:drawRect( -- 1183
+			Rect(0, 0, ctx.uiW, threshY), -- 1183
+			Color(16, 20, 30, 255) -- 1183
+		) -- 1183
+		uiDraw:drawPolygon( -- 1184
+			{ -- 1184
+				Vec2(doorL - 58 * s, threshY - 20 * s), -- 1185
+				Vec2(doorR + 58 * s, threshY - 20 * s), -- 1186
+				Vec2(doorR + 28 * s, threshY + 12 * s), -- 1187
+				Vec2(doorL - 28 * s, threshY + 12 * s) -- 1188
+			}, -- 1188
+			toColor(stepCol), -- 1189
+			1, -- 1189
+			toColor(STONE_EDGE_FALLBACK, 150) -- 1189
+		) -- 1189
+		uiDraw:drawPolygon( -- 1191
+			{ -- 1191
+				Vec2(0, 0), -- 1192
+				Vec2(142 * s, 0), -- 1193
+				Vec2(114 * s, ctx.uiH), -- 1194
+				Vec2(0, ctx.uiH) -- 1195
+			}, -- 1195
+			Color(10, 14, 22, 220) -- 1196
+		) -- 1196
+		uiDraw:drawPolygon( -- 1197
+			{ -- 1197
+				Vec2(ctx.uiW - 142 * s, 0), -- 1198
+				Vec2(ctx.uiW, 0), -- 1199
+				Vec2(ctx.uiW, ctx.uiH), -- 1200
+				Vec2(ctx.uiW - 114 * s, ctx.uiH) -- 1201
+			}, -- 1201
+			Color(10, 14, 22, 220) -- 1202
+		) -- 1202
+	else -- 1202
+		fillVGradRect( -- 1205
+			uiDraw, -- 1206
+			0, -- 1206
+			0, -- 1206
+			ctx.uiW, -- 1206
+			ctx.uiH, -- 1206
+			Color(18, 22, 32, 255), -- 1207
+			Color(32, 38, 52, 255) -- 1208
+		) -- 1208
+		uiDraw:drawPolygon( -- 1211
+			{ -- 1211
+				Vec2(0, threshY), -- 1212
+				Vec2(doorL, threshY), -- 1213
+				Vec2(doorL, threshY + 188 * s), -- 1214
+				Vec2(doorL * 0.55, threshY + 230 * s), -- 1215
+				Vec2(doorL * 0.22, threshY + 172 * s), -- 1216
+				Vec2(0, threshY + 196 * s) -- 1217
+			}, -- 1217
+			Color(26, 30, 40, 235) -- 1218
+		) -- 1218
+		uiDraw:drawPolygon( -- 1219
+			{ -- 1219
+				Vec2(doorR, threshY), -- 1220
+				Vec2(ctx.uiW, threshY), -- 1221
+				Vec2(ctx.uiW, threshY + 218 * s), -- 1222
+				Vec2(doorR + (ctx.uiW - doorR) * 0.56, threshY + 248 * s), -- 1223
+				Vec2(doorR, threshY + 178 * s) -- 1224
+			}, -- 1224
+			Color(26, 30, 40, 235) -- 1225
+		) -- 1225
+		uiDraw:drawRect( -- 1227
+			Rect(0, threshY, doorL, ctx.uiH - threshY), -- 1227
+			Color(54, 56, 62, 255), -- 1227
+			1, -- 1227
+			Color(88, 90, 96, 155) -- 1227
+		) -- 1227
+		uiDraw:drawRect( -- 1228
+			Rect(doorR, threshY, ctx.uiW - doorR, ctx.uiH - threshY), -- 1228
+			Color(54, 56, 62, 255), -- 1228
+			1, -- 1228
+			Color(88, 90, 96, 155) -- 1228
+		) -- 1228
+		uiDraw:drawRect( -- 1229
+			Rect(doorL - 28 * s, threshY + doorH, doorW + 56 * s, 68 * s), -- 1229
+			Color(72, 68, 62, 255), -- 1229
+			1, -- 1229
+			Color(124, 114, 100, 175) -- 1229
+		) -- 1229
+		local row = 0 -- 1230
+		do -- 1230
+			row = 0 -- 1231
+			while row < 10 do -- 1231
+				local by = threshY + row * 46 * s -- 1232
+				uiDraw:drawSegment( -- 1233
+					Vec2(0, by), -- 1233
+					Vec2(doorL, by), -- 1233
+					1, -- 1233
+					Color(34, 36, 42, 175) -- 1233
+				) -- 1233
+				uiDraw:drawSegment( -- 1234
+					Vec2(doorR, by), -- 1234
+					Vec2(ctx.uiW, by), -- 1234
+					1, -- 1234
+					Color(34, 36, 42, 175) -- 1234
+				) -- 1234
+				local stag = row % 2 * 34 * s -- 1235
+				local col = 0 -- 1236
+				do -- 1236
+					col = 0 -- 1237
+					while col < 7 do -- 1237
+						local lx = stag + col * 68 * s -- 1238
+						if lx > 4 * s and lx < doorL - 4 * s then -- 1239
+							uiDraw:drawSegment( -- 1240
+								Vec2(lx, by), -- 1240
+								Vec2(lx, by + 46 * s), -- 1240
+								0.9, -- 1240
+								Color(36, 38, 44, 130) -- 1240
+							) -- 1240
+						end -- 1240
+						local rx = doorR + stag + col * 68 * s -- 1242
+						if rx > doorR + 4 * s and rx < ctx.uiW - 4 * s then -- 1243
+							uiDraw:drawSegment( -- 1244
+								Vec2(rx, by), -- 1244
+								Vec2(rx, by + 46 * s), -- 1244
+								0.9, -- 1244
+								Color(36, 38, 44, 130) -- 1244
+							) -- 1244
+						end -- 1244
+						col = col + 1 -- 1237
+					end -- 1237
+				end -- 1237
+				row = row + 1 -- 1231
+			end -- 1231
+		end -- 1231
+		uiDraw:drawRect( -- 1249
+			Rect(0, 0, ctx.uiW, threshY), -- 1249
+			Color(28, 26, 28, 255) -- 1249
+		) -- 1249
+		uiDraw:drawRect( -- 1250
+			Rect(doorL - 36 * s, threshY - 12 * s, doorW + 72 * s, 22 * s), -- 1250
+			Color(96, 94, 92, 255), -- 1250
+			1, -- 1250
+			Color(156, 152, 144, 175) -- 1250
 		) -- 1250
 	end -- 1250
-	if openK > 0.05 then -- 1254
-		local lanX = ox + ____exports.TOWER_SHOT_LAYOUT.doorLanternX * s + (1 - openK) * 42 * s -- 1255
-		local lanY = oy + ____exports.TOWER_SHOT_LAYOUT.doorLanternY * s -- 1256
-		uiInkDraw:drawPolygon( -- 1258
-			{ -- 1258
-				Vec2(lanX + 76 * s, lanY + 42 * s), -- 1259
-				Vec2(lanX + 12 * s, lanY + 34 * s), -- 1260
-				Vec2(lanX + 8 * s, lanY + 12 * s), -- 1261
-				Vec2(lanX + 78 * s, lanY + 12 * s) -- 1262
-			}, -- 1262
-			Color( -- 1263
-				54, -- 1263
-				48, -- 1263
-				44, -- 1263
-				math.floor(240 * openK + 0.5) -- 1263
-			), -- 1263
-			1, -- 1263
-			Color( -- 1263
-				98, -- 1263
-				86, -- 1263
-				74, -- 1263
-				math.floor(180 * openK + 0.5) -- 1263
-			) -- 1263
-		) -- 1263
-		self:drawMingLantern( -- 1264
-			uiInkDraw, -- 1264
-			uiGlow, -- 1264
-			lanX, -- 1264
-			lanY - 14 * s, -- 1264
-			1.08 * s, -- 1264
-			openK, -- 1264
-			1 -- 1264
-		) -- 1264
-		fillRadialGlow( -- 1266
-			uiGlow, -- 1267
-			kx + 12 * s, -- 1267
-			ky - 14 * s, -- 1267
-			148 * s, -- 1268
-			128 * s, -- 1268
-			Color( -- 1269
-				246, -- 1269
-				208, -- 1269
-				142, -- 1269
-				math.floor(98 * openK + 0.5) -- 1269
-			), -- 1269
-			Color(232, 174, 92, 0), -- 1270
-			18 -- 1271
-		) -- 1271
-	end -- 1271
-	local stepInX = openK * 44 * s -- 1276
-	local xiaomanX = doorCx - 66 * s + stepInX -- 1277
-	local xiaomanY = threshY - 2 * s -- 1278
-	uiDraw:drawEllipse( -- 1280
-		Vec2(xiaomanX, xiaomanY + 2 * s), -- 1280
-		34 * s, -- 1280
-		8 * s, -- 1280
-		Color(4, 6, 12, 190) -- 1280
+	local innerWarm = 0.22 + openK * 0.78 + (r1Pulse + r2Pulse) * 0.14 -- 1254
+	fillVGradRect( -- 1255
+		uiDraw, -- 1256
+		doorL, -- 1256
+		threshY + 8 * s, -- 1256
+		doorW, -- 1256
+		doorH - 8 * s, -- 1256
+		Color( -- 1257
+			46, -- 1257
+			32, -- 1257
+			20, -- 1257
+			math.floor(255 * math.min(1, innerWarm + 0.15) + 0.5) -- 1257
+		), -- 1257
+		Color( -- 1258
+			118, -- 1258
+			82, -- 1258
+			42, -- 1258
+			math.floor(255 * math.min(1, innerWarm) + 0.5) -- 1258
+		) -- 1258
+	) -- 1258
+	local leafW = math.max(26 * s, doorW * (1 - openK * 0.76)) -- 1262
+	local leafX = doorL + doorShakeX * (1 - openK) -- 1263
+	local woodCol = isLowpoly and toColor(shadeSurface( -- 1264
+		MING_MATERIALS.mingTimberDark.base, -- 1265
+		vec3(-0.2, 0.25, -0.95), -- 1265
+		4, -- 1265
+		1, -- 1265
+		TOWER_WEST_LAMP_LIGHT, -- 1265
+		MING_MATERIALS.mingTimberDark -- 1265
+	)) or Color(76, 54, 38, 255) -- 1266
+	uiDraw:drawRect( -- 1267
+		Rect(leafX, threshY + 12 * s, leafW, doorH - 14 * s), -- 1268
+		woodCol, -- 1269
+		1.4, -- 1270
+		Color(138, 106, 74, 185) -- 1271
+	) -- 1271
+	local planks = 4 -- 1274
+	local pi = 1 -- 1275
+	do -- 1275
+		pi = 1 -- 1276
+		while pi < planks do -- 1276
+			local px = leafX + leafW * pi / planks -- 1277
+			uiDraw:drawSegment( -- 1278
+				Vec2(px, threshY + 14 * s), -- 1278
+				Vec2(px, threshY + doorH - 4 * s), -- 1278
+				1.1, -- 1278
+				Color(38, 26, 18, 185) -- 1278
+			) -- 1278
+			pi = pi + 1 -- 1276
+		end -- 1276
+	end -- 1276
+	uiDraw:drawRect( -- 1280
+		Rect(leafX + 4 * s, threshY + doorH * 0.24, leafW - 8 * s, 10 * s), -- 1280
+		Color(54, 38, 26, 225) -- 1280
 	) -- 1280
-	local childSlot = (k1Pulse > 0.25 or k2Pulse > 0.25) and "child_knock" or (openK > 0.45 and "child_offer" or "child_idle") -- 1281
-	uiArt:tryPlace( -- 1282
-		childSlot, -- 1282
-		"fe05_porch_child", -- 1282
-		xiaomanX, -- 1282
-		xiaomanY, -- 1282
-		108 * s, -- 1282
-		148 * s, -- 1282
-		{facing = 1, opacity = 0.98, layer = 2} -- 1282
-	) -- 1282
-	if openK > 0.15 then -- 1286
-		local wristX = xiaomanX + 22 * s -- 1287
-		local wristY = xiaomanY + 76 * s -- 1288
-		uiInkDraw:drawRect( -- 1289
-			Rect(wristX - 7 * s, wristY - 5 * s, 14 * s, 11 * s), -- 1290
-			Color( -- 1291
-				142, -- 1291
-				118, -- 1291
-				84, -- 1291
-				math.floor(245 * openK + 0.5) -- 1291
-			), -- 1291
-			1, -- 1292
-			Color( -- 1293
-				222, -- 1293
-				192, -- 1293
-				128, -- 1293
-				math.floor(235 * openK + 0.5) -- 1293
-			) -- 1293
-		) -- 1293
-		uiInkDraw:drawSegment( -- 1295
-			Vec2(wristX - 8 * s, wristY), -- 1296
-			Vec2(wristX + 8 * s, wristY + 2 * s), -- 1297
-			2 * s, -- 1298
-			toColor( -- 1299
-				CUFF_PALETTE.childCord, -- 1299
-				math.floor(240 * openK + 0.5) -- 1299
-			) -- 1299
-		) -- 1299
-	end -- 1299
-	if route == "soldier" then -- 1303
-		local zhouX = xiaomanX - 72 * s -- 1305
-		local zhouY = threshY - 2 * s -- 1306
-		uiDraw:drawEllipse( -- 1307
-			Vec2(zhouX, zhouY + 2 * s), -- 1307
-			42 * s, -- 1307
-			9 * s, -- 1307
-			Color(4, 6, 12, 190) -- 1307
-		) -- 1307
-		uiArt:tryPlace( -- 1308
-			"soldier_idle", -- 1308
-			"fe05_porch_soldier", -- 1308
-			zhouX, -- 1308
-			zhouY, -- 1308
-			146 * s, -- 1308
-			206 * s, -- 1308
-			{facing = 1, opacity = 0.98, layer = 2} -- 1308
-		) -- 1308
-		local handMidX = (zhouX + xiaomanX) * 0.5 + 4 * s -- 1312
-		local handMidY = threshY + 66 * s -- 1313
-		uiInkDraw:drawSegment( -- 1314
-			Vec2(zhouX + 20 * s, threshY + 106 * s), -- 1315
-			Vec2(handMidX - 2 * s, handMidY), -- 1316
-			6.2 * s, -- 1317
-			toColor(CUFF_PALETTE.indigoBase, 245) -- 1318
-		) -- 1318
-		uiInkDraw:drawSegment( -- 1320
-			Vec2(handMidX - 9 * s, handMidY + 9 * s), -- 1321
-			Vec2(handMidX - 3 * s, handMidY + 13 * s), -- 1322
-			1.9 * s, -- 1323
-			toColor(CUFF_PALETTE.stitchThread, 240) -- 1324
-		) -- 1324
-		uiInkDraw:drawSegment( -- 1326
-			Vec2(xiaomanX - 14 * s, threshY + 78 * s), -- 1327
-			Vec2(handMidX + 2 * s, handMidY), -- 1328
-			4.8 * s, -- 1329
-			toColor(CUFF_PALETTE.childSleeve, 245) -- 1330
+	uiDraw:drawRect( -- 1281
+		Rect(leafX + 4 * s, threshY + doorH * 0.74, leafW - 8 * s, 10 * s), -- 1281
+		Color(54, 38, 26, 225) -- 1281
+	) -- 1281
+	local ringX = leafX + leafW * 0.72 -- 1283
+	local ringY = threshY + doorH * 0.56 -- 1284
+	uiDraw:drawRect( -- 1285
+		Rect(ringX - 6 * s, ringY + 4 * s, 12 * s, 12 * s), -- 1285
+		Color(42, 46, 52, 235), -- 1285
+		1, -- 1285
+		Color(96, 100, 108, 170) -- 1285
+	) -- 1285
+	strokeEllipse( -- 1286
+		uiDraw, -- 1286
+		ringX, -- 1286
+		ringY - 2 * s, -- 1286
+		8 * s, -- 1286
+		9 * s, -- 1286
+		1.8 * s, -- 1286
+		Color(108, 112, 118, 195), -- 1286
+		16 -- 1286
+	) -- 1286
+	local seamGlowA = math.floor(92 + openK * 145 + (r1Pulse + r2Pulse) * 48 + 0.5) -- 1289
+	fillRadialGlow( -- 1290
+		uiGlow, -- 1291
+		doorCx + openK * 24 * s, -- 1291
+		threshY + 14 * s, -- 1291
+		(92 + openK * 120) * s, -- 1292
+		(26 + openK * 58) * s, -- 1292
+		Color( -- 1293
+			246, -- 1293
+			204, -- 1293
+			134, -- 1293
+			math.min(220, seamGlowA) -- 1293
+		), -- 1293
+		Color(220, 156, 72, 0), -- 1294
+		18 -- 1295
+	) -- 1295
+	local kx = ox + ____exports.TOWER_SHOT_LAYOUT.knockHandX * s -- 1299
+	local ky = oy + ____exports.TOWER_SHOT_LAYOUT.knockHandY * s -- 1300
+	if k1Pulse > 0.08 or k2Pulse > 0.08 then -- 1301
+		local amp = math.max(k1Pulse, k2Pulse) -- 1302
+		local r = (18 + (1 - amp) * 34) * s -- 1303
+		strokeEllipse( -- 1304
+			uiInkDraw, -- 1304
+			kx + 24 * s, -- 1304
+			ky, -- 1304
+			r, -- 1304
+			r * 0.85, -- 1304
+			1.8 * s, -- 1304
+			toColor( -- 1304
+				PALETTE.amberCore, -- 1304
+				math.floor(210 * amp + 0.5) -- 1304
+			), -- 1304
+			24 -- 1304
+		) -- 1304
+	end -- 1304
+	if r1Pulse > 0.08 or r2Pulse > 0.08 then -- 1306
+		local amp = math.max(r1Pulse, r2Pulse) -- 1307
+		local r = (24 + (1 - amp) * 42) * s -- 1308
+		strokeEllipse( -- 1309
+			uiInkDraw, -- 1309
+			doorCx + 30 * s, -- 1309
+			ky + 16 * s, -- 1309
+			r, -- 1309
+			r * 0.9, -- 1309
+			1.6 * s, -- 1309
+			toColor( -- 1309
+				PALETTE.amber, -- 1309
+				math.floor(185 * amp + 0.5) -- 1309
+			), -- 1309
+			24 -- 1309
+		) -- 1309
+	end -- 1309
+	if openK > 0.05 then -- 1313
+		local lanX = ox + ____exports.TOWER_SHOT_LAYOUT.doorLanternX * s + (1 - openK) * 42 * s -- 1314
+		local lanY = oy + ____exports.TOWER_SHOT_LAYOUT.doorLanternY * s -- 1315
+		uiInkDraw:drawPolygon( -- 1317
+			{ -- 1317
+				Vec2(lanX + 76 * s, lanY + 42 * s), -- 1318
+				Vec2(lanX + 12 * s, lanY + 34 * s), -- 1319
+				Vec2(lanX + 8 * s, lanY + 12 * s), -- 1320
+				Vec2(lanX + 78 * s, lanY + 12 * s) -- 1321
+			}, -- 1321
+			Color( -- 1322
+				54, -- 1322
+				48, -- 1322
+				44, -- 1322
+				math.floor(240 * openK + 0.5) -- 1322
+			), -- 1322
+			1, -- 1322
+			Color( -- 1322
+				98, -- 1322
+				86, -- 1322
+				74, -- 1322
+				math.floor(180 * openK + 0.5) -- 1322
+			) -- 1322
+		) -- 1322
+		self:drawMingLantern( -- 1323
+			uiInkDraw, -- 1323
+			uiGlow, -- 1323
+			lanX, -- 1323
+			lanY - 14 * s, -- 1323
+			1.08 * s, -- 1323
+			openK, -- 1323
+			1 -- 1323
+		) -- 1323
+		fillRadialGlow( -- 1325
+			uiGlow, -- 1326
+			kx + 12 * s, -- 1326
+			ky - 14 * s, -- 1326
+			148 * s, -- 1327
+			128 * s, -- 1327
+			Color( -- 1328
+				246, -- 1328
+				208, -- 1328
+				142, -- 1328
+				math.floor(98 * openK + 0.5) -- 1328
+			), -- 1328
+			Color(232, 174, 92, 0), -- 1329
+			18 -- 1330
 		) -- 1330
-		uiInkDraw:drawDot( -- 1332
-			Vec2(handMidX, handMidY), -- 1332
-			4.8 * s, -- 1332
-			toColor(CUFF_PALETTE.skinLight, 245) -- 1332
-		) -- 1332
-	end -- 1332
-end -- 1057
-function TowerEndingsPlugin.prototype.drawAct2And3Guardroom(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, lampProg, s, ox, oy) -- 1338
-	local t = self.seqElapsed -- 1350
-	local isLowpoly = route == "child" -- 1351
-	local deskY = oy + ____exports.TOWER_SHOT_LAYOUT.deskTopY * s -- 1352
-	if isLowpoly then -- 1355
-		self:drawF03LowpolyRoomAndWindow( -- 1356
-			uiDraw, -- 1356
-			uiGlow, -- 1356
-			ctx, -- 1356
-			lampProg, -- 1356
-			s, -- 1356
-			ox, -- 1356
-			oy -- 1356
-		) -- 1356
-	else -- 1356
-		self:drawM03PixelRoomAndWindow( -- 1358
-			uiDraw, -- 1358
-			uiArt, -- 1358
-			uiGlow, -- 1358
-			ctx, -- 1358
-			s, -- 1358
-			ox, -- 1358
-			oy -- 1358
+	end -- 1330
+	local stepInX = openK * 44 * s -- 1335
+	local xiaomanX = doorCx - 66 * s + stepInX -- 1336
+	local xiaomanY = threshY - 2 * s -- 1337
+	uiDraw:drawEllipse( -- 1339
+		Vec2(xiaomanX, xiaomanY + 2 * s), -- 1339
+		34 * s, -- 1339
+		8 * s, -- 1339
+		Color(4, 6, 12, 190) -- 1339
+	) -- 1339
+	local childSlot = (k1Pulse > 0.25 or k2Pulse > 0.25) and "child_knock" or (openK > 0.45 and "child_offer" or "child_idle") -- 1340
+	uiArt:tryPlace( -- 1341
+		childSlot, -- 1341
+		"fe05_porch_child", -- 1341
+		xiaomanX, -- 1341
+		xiaomanY, -- 1341
+		108 * s, -- 1341
+		148 * s, -- 1341
+		{facing = 1, opacity = 0.98, layer = 2} -- 1341
+	) -- 1341
+	if openK > 0.15 then -- 1345
+		local wristX = xiaomanX + 22 * s -- 1346
+		local wristY = xiaomanY + 76 * s -- 1347
+		uiInkDraw:drawRect( -- 1348
+			Rect(wristX - 7 * s, wristY - 5 * s, 14 * s, 11 * s), -- 1349
+			Color( -- 1350
+				142, -- 1350
+				118, -- 1350
+				84, -- 1350
+				math.floor(245 * openK + 0.5) -- 1350
+			), -- 1350
+			1, -- 1351
+			Color( -- 1352
+				222, -- 1352
+				192, -- 1352
+				128, -- 1352
+				math.floor(235 * openK + 0.5) -- 1352
+			) -- 1352
+		) -- 1352
+		uiInkDraw:drawSegment( -- 1354
+			Vec2(wristX - 8 * s, wristY), -- 1355
+			Vec2(wristX + 8 * s, wristY + 2 * s), -- 1356
+			2 * s, -- 1357
+			toColor( -- 1358
+				CUFF_PALETTE.childCord, -- 1358
+				math.floor(240 * openK + 0.5) -- 1358
+			) -- 1358
 		) -- 1358
 	end -- 1358
-	local deskTopCol = isLowpoly and toColor(shadeSurface( -- 1362
-		MING_MATERIALS.mingTimber.base, -- 1364
-		vec3(-0.25, 0.9, -0.35), -- 1365
-		0, -- 1366
-		1, -- 1367
-		lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg), -- 1368
-		MING_MATERIALS.mingTimber -- 1369
-	)) or Color(86, 60, 42, 255) -- 1371
-	local deskFrontCol = isLowpoly and toColor(shadeSurface( -- 1372
-		MING_MATERIALS.mingTimberDark.base, -- 1374
-		vec3(0, 0.1, -0.99), -- 1375
-		-4, -- 1376
-		1, -- 1377
-		lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg), -- 1378
-		MING_MATERIALS.mingTimberDark -- 1379
-	)) or Color(52, 36, 26, 255) -- 1381
-	uiDraw:drawPolygon( -- 1384
-		{ -- 1384
-			Vec2(0, deskY - 120 * s), -- 1385
-			Vec2(ctx.uiW, deskY - 120 * s), -- 1386
-			Vec2(ctx.uiW, deskY + 42 * s), -- 1387
-			Vec2(0, deskY + 42 * s) -- 1388
-		}, -- 1388
-		deskTopCol -- 1389
-	) -- 1389
-	uiDraw:drawRect( -- 1390
-		Rect(0, 0, ctx.uiW, deskY - 118 * s), -- 1390
-		deskFrontCol -- 1390
-	) -- 1390
-	uiDraw:drawSegment( -- 1391
-		Vec2(0, deskY + 42 * s), -- 1391
-		Vec2(ctx.uiW, deskY + 42 * s), -- 1391
-		1.6 * s, -- 1391
-		Color(158, 126, 92, 165) -- 1391
-	) -- 1391
-	uiDraw:drawSegment( -- 1392
-		Vec2(0, deskY - 118 * s), -- 1392
-		Vec2(ctx.uiW, deskY - 118 * s), -- 1392
-		2 * s, -- 1392
-		Color(172, 138, 102, 155) -- 1392
-	) -- 1392
-	local inkX = ox + ____exports.TOWER_SHOT_LAYOUT.inkstoneX * s -- 1395
-	local inkY = oy + ____exports.TOWER_SHOT_LAYOUT.inkstoneY * s -- 1396
-	uiDraw:drawEllipse( -- 1397
-		Vec2(inkX + 3 * s, inkY - 18 * s), -- 1397
-		44 * s, -- 1397
-		11 * s, -- 1397
-		Color(10, 10, 14, 145) -- 1397
-	) -- 1397
-	uiDraw:drawPolygon( -- 1398
-		{ -- 1398
-			Vec2(inkX - 38 * s, inkY - 18 * s), -- 1399
-			Vec2(inkX + 38 * s, inkY - 18 * s), -- 1400
-			Vec2(inkX + 32 * s, inkY + 18 * s), -- 1401
-			Vec2(inkX - 32 * s, inkY + 18 * s) -- 1402
-		}, -- 1402
-		Color(38, 44, 52, 255), -- 1403
-		1.2, -- 1403
-		Color(96, 106, 118, 185) -- 1403
-	) -- 1403
-	uiDraw:drawEllipse( -- 1404
-		Vec2(inkX, inkY + 1 * s), -- 1404
-		22 * s, -- 1404
-		10 * s, -- 1404
-		Color(12, 14, 18, 255) -- 1404
-	) -- 1404
-	strokeEllipse( -- 1405
-		uiDraw, -- 1405
-		inkX, -- 1405
-		inkY + 1 * s, -- 1405
-		22 * s, -- 1405
-		10 * s, -- 1405
-		1.1 * s, -- 1405
-		Color(76, 86, 98, 165), -- 1405
-		18 -- 1405
-	) -- 1405
-	local lx = isLowpoly and ox + lerp(____exports.TOWER_SHOT_LAYOUT.lampDeskX, ____exports.TOWER_SHOT_LAYOUT.lampWindowX, lampProg) * s or ox + ____exports.TOWER_SHOT_LAYOUT.lampDeskX * s -- 1408
-	local ly = isLowpoly and oy + (lerp(____exports.TOWER_SHOT_LAYOUT.lampDeskY, ____exports.TOWER_SHOT_LAYOUT.lampWindowY, lampProg) + math.sin(math.pi * lampProg) * 34) * s or oy + ____exports.TOWER_SHOT_LAYOUT.lampDeskY * s -- 1411
-	local lampWarmth = isLowpoly and 0.45 + 0.55 * lampProg or 0.92 -- 1414
-	self:drawMingLantern( -- 1415
-		uiInkDraw, -- 1415
-		uiGlow, -- 1415
-		lx, -- 1415
-		ly, -- 1415
-		1.02 * s, -- 1415
-		1, -- 1415
-		lampWarmth -- 1415
-	) -- 1415
-	if isLowpoly and lampProg > 0.04 then -- 1418
-		local beamA = math.floor(62 * lampProg + 0.5) -- 1419
-		fillGradQuad( -- 1420
-			uiGlow, -- 1421
-			lx + 10 * s, -- 1422
-			ly + 30 * s, -- 1422
-			Color(248, 206, 134, beamA), -- 1422
-			lx + 10 * s, -- 1423
-			ly - 32 * s, -- 1423
-			Color( -- 1423
-				248, -- 1423
-				206, -- 1423
-				134, -- 1423
-				math.floor(beamA * 0.72 + 0.5) -- 1423
-			), -- 1423
-			ox + (____exports.TOWER_SHOT_LAYOUT.bookX + ____exports.TOWER_SHOT_LAYOUT.bookW * 0.92) * s, -- 1424
-			oy + (____exports.TOWER_SHOT_LAYOUT.row2Y - 58) * s, -- 1424
-			Color(242, 198, 124, 0), -- 1424
-			ox + (____exports.TOWER_SHOT_LAYOUT.bookX + ____exports.TOWER_SHOT_LAYOUT.bookW * 0.85) * s, -- 1425
-			oy + (____exports.TOWER_SHOT_LAYOUT.row1Y + 48) * s, -- 1425
-			Color(242, 198, 124, 0) -- 1425
-		) -- 1425
-	end -- 1425
-	local bookReveal = smoothstep(____exports.TOWER_ENDING_TIMINGS.indoorCutSec, 1.85, t) -- 1430
-	if bookReveal > 0.02 then -- 1431
-		self:drawRegisterBook( -- 1432
-			uiDraw, -- 1432
-			uiInkDraw, -- 1432
-			uiArt, -- 1432
-			uiGlow, -- 1432
-			ctx, -- 1432
-			route, -- 1432
-			bookReveal, -- 1432
-			lampProg, -- 1432
-			s, -- 1432
-			ox, -- 1432
-			oy -- 1432
-		) -- 1432
-	end -- 1432
-	self:drawDeskPropsAndBowl( -- 1436
-		uiDraw, -- 1436
-		uiInkDraw, -- 1436
-		uiGlow, -- 1436
-		ctx, -- 1436
-		route, -- 1436
-		s, -- 1436
-		ox, -- 1436
-		oy -- 1436
-	) -- 1436
-end -- 1338
-function TowerEndingsPlugin.prototype.drawF03LowpolyRoomAndWindow(self, uiDraw, uiGlow, ctx, lampProg, s, ox, oy) -- 1439
-	local light = lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg) -- 1448
-	local wallTop = lerpRGBA( -- 1449
-		rgba(18, 24, 38, 255), -- 1449
-		rgba(46, 36, 28, 255), -- 1449
-		lampProg -- 1449
+	if route == "soldier" then -- 1362
+		local zhouX = xiaomanX - 72 * s -- 1364
+		local zhouY = threshY - 2 * s -- 1365
+		uiDraw:drawEllipse( -- 1366
+			Vec2(zhouX, zhouY + 2 * s), -- 1366
+			42 * s, -- 1366
+			9 * s, -- 1366
+			Color(4, 6, 12, 190) -- 1366
+		) -- 1366
+		uiArt:tryPlace( -- 1367
+			"soldier_idle", -- 1367
+			"fe05_porch_soldier", -- 1367
+			zhouX, -- 1367
+			zhouY, -- 1367
+			146 * s, -- 1367
+			206 * s, -- 1367
+			{facing = 1, opacity = 0.98, layer = 2} -- 1367
+		) -- 1367
+		local handMidX = (zhouX + xiaomanX) * 0.5 + 4 * s -- 1371
+		local handMidY = threshY + 66 * s -- 1372
+		uiInkDraw:drawSegment( -- 1373
+			Vec2(zhouX + 20 * s, threshY + 106 * s), -- 1374
+			Vec2(handMidX - 2 * s, handMidY), -- 1375
+			6.2 * s, -- 1376
+			toColor(CUFF_PALETTE.indigoBase, 245) -- 1377
+		) -- 1377
+		uiInkDraw:drawSegment( -- 1379
+			Vec2(handMidX - 9 * s, handMidY + 9 * s), -- 1380
+			Vec2(handMidX - 3 * s, handMidY + 13 * s), -- 1381
+			1.9 * s, -- 1382
+			toColor(CUFF_PALETTE.stitchThread, 240) -- 1383
+		) -- 1383
+		uiInkDraw:drawSegment( -- 1385
+			Vec2(xiaomanX - 14 * s, threshY + 78 * s), -- 1386
+			Vec2(handMidX + 2 * s, handMidY), -- 1387
+			4.8 * s, -- 1388
+			toColor(CUFF_PALETTE.childSleeve, 245) -- 1389
+		) -- 1389
+		uiInkDraw:drawDot( -- 1391
+			Vec2(handMidX, handMidY), -- 1391
+			4.8 * s, -- 1391
+			toColor(CUFF_PALETTE.skinLight, 245) -- 1391
+		) -- 1391
+	end -- 1391
+end -- 1116
+function TowerEndingsPlugin.prototype.drawAct2And3Guardroom(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, lampProg, s, ox, oy) -- 1397
+	local t = self.seqElapsed -- 1409
+	local isLowpoly = route == "child" -- 1410
+	local deskY = oy + ____exports.TOWER_SHOT_LAYOUT.deskTopY * s -- 1411
+	if isLowpoly then -- 1414
+		self:drawF03LowpolyRoomAndWindow( -- 1415
+			uiDraw, -- 1415
+			uiGlow, -- 1415
+			ctx, -- 1415
+			lampProg, -- 1415
+			s, -- 1415
+			ox, -- 1415
+			oy -- 1415
+		) -- 1415
+	else -- 1415
+		self:drawM03PixelRoomAndWindow( -- 1417
+			uiDraw, -- 1417
+			uiArt, -- 1417
+			uiGlow, -- 1417
+			ctx, -- 1417
+			s, -- 1417
+			ox, -- 1417
+			oy -- 1417
+		) -- 1417
+	end -- 1417
+	local deskTopCol = isLowpoly and toColor(shadeSurface( -- 1421
+		MING_MATERIALS.mingTimber.base, -- 1423
+		vec3(-0.25, 0.9, -0.35), -- 1424
+		0, -- 1425
+		1, -- 1426
+		lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg), -- 1427
+		MING_MATERIALS.mingTimber -- 1428
+	)) or Color(86, 60, 42, 255) -- 1430
+	local deskFrontCol = isLowpoly and toColor(shadeSurface( -- 1431
+		MING_MATERIALS.mingTimberDark.base, -- 1433
+		vec3(0, 0.1, -0.99), -- 1434
+		-4, -- 1435
+		1, -- 1436
+		lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg), -- 1437
+		MING_MATERIALS.mingTimberDark -- 1438
+	)) or Color(52, 36, 26, 255) -- 1440
+	uiDraw:drawPolygon( -- 1443
+		{ -- 1443
+			Vec2(0, deskY - 120 * s), -- 1444
+			Vec2(ctx.uiW, deskY - 120 * s), -- 1445
+			Vec2(ctx.uiW, deskY + 42 * s), -- 1446
+			Vec2(0, deskY + 42 * s) -- 1447
+		}, -- 1447
+		deskTopCol -- 1448
+	) -- 1448
+	uiDraw:drawRect( -- 1449
+		Rect(0, 0, ctx.uiW, deskY - 118 * s), -- 1449
+		deskFrontCol -- 1449
 	) -- 1449
-	local wallBot = lerpRGBA( -- 1450
-		rgba(12, 16, 26, 255), -- 1450
-		rgba(28, 22, 20, 255), -- 1450
-		lampProg -- 1450
+	uiDraw:drawSegment( -- 1450
+		Vec2(0, deskY + 42 * s), -- 1450
+		Vec2(ctx.uiW, deskY + 42 * s), -- 1450
+		1.6 * s, -- 1450
+		Color(158, 126, 92, 165) -- 1450
 	) -- 1450
-	fillVGradRect( -- 1451
-		uiDraw, -- 1451
-		0, -- 1451
-		0, -- 1451
-		ctx.uiW, -- 1451
-		ctx.uiH, -- 1451
-		toColor(wallBot), -- 1451
-		toColor(wallTop) -- 1451
+	uiDraw:drawSegment( -- 1451
+		Vec2(0, deskY - 118 * s), -- 1451
+		Vec2(ctx.uiW, deskY - 118 * s), -- 1451
+		2 * s, -- 1451
+		Color(172, 138, 102, 155) -- 1451
 	) -- 1451
-	local beamCol = shadeSurface( -- 1454
-		MING_MATERIALS.mingTimberDark.base, -- 1454
-		vec3(-0.3, -0.6, -0.74), -- 1454
-		18, -- 1454
-		1, -- 1454
-		light, -- 1454
-		MING_MATERIALS.mingTimberDark -- 1454
-	) -- 1454
-	uiDraw:drawPolygon( -- 1455
-		{ -- 1455
-			Vec2(0, ctx.uiH - 96 * s), -- 1456
-			Vec2(ctx.uiW, ctx.uiH - 72 * s), -- 1457
-			Vec2(ctx.uiW, ctx.uiH - 42 * s), -- 1458
-			Vec2(0, ctx.uiH - 42 * s) -- 1459
-		}, -- 1459
-		toColor(beamCol) -- 1460
-	) -- 1460
-	local wx = ox + ____exports.TOWER_SHOT_LAYOUT.westWindowX * s -- 1463
-	local wy = oy + ____exports.TOWER_SHOT_LAYOUT.westWindowY * s -- 1464
-	local ww = ____exports.TOWER_SHOT_LAYOUT.westWindowW * s -- 1465
-	local wh = ____exports.TOWER_SHOT_LAYOUT.westWindowH * s -- 1466
-	local embrasure = 24 * s -- 1467
-	fillVGradRect( -- 1470
-		uiDraw, -- 1470
-		wx, -- 1470
-		wy, -- 1470
-		ww, -- 1470
-		wh, -- 1470
-		Color(34, 44, 62, 255), -- 1470
-		Color(16, 24, 40, 255) -- 1470
-	) -- 1470
-	uiDraw:drawPolygon( -- 1471
-		{ -- 1471
-			Vec2(wx, wy), -- 1472
-			Vec2(wx + ww, wy), -- 1473
-			Vec2(wx + ww, wy + wh * 0.34), -- 1474
-			Vec2(wx + ww * 0.56, wy + wh * 0.42), -- 1475
-			Vec2(wx + ww * 0.22, wy + wh * 0.28), -- 1476
-			Vec2(wx, wy + wh * 0.36) -- 1477
-		}, -- 1477
-		Color(20, 26, 38, 240) -- 1478
-	) -- 1478
-	if lampProg > 0.12 then -- 1480
-		fillRadialGlow( -- 1481
-			uiGlow, -- 1482
-			wx + ww * 0.5, -- 1482
-			wy + 26 * s, -- 1482
-			ww * 0.65, -- 1483
-			wh * 0.55, -- 1483
-			Color( -- 1484
-				248, -- 1484
-				206, -- 1484
-				134, -- 1484
-				math.floor(92 * lampProg + 0.5) -- 1484
-			), -- 1484
-			Color(232, 174, 88, 0), -- 1485
-			16 -- 1486
-		) -- 1486
-	end -- 1486
-	local leftWall = shadeSurface( -- 1491
-		MING_MATERIALS.mingBrick.base, -- 1491
-		vec3(0.84, 0.22, -0.49), -- 1491
-		10, -- 1491
-		1, -- 1491
-		light, -- 1491
-		MING_MATERIALS.mingBrick -- 1491
-	) -- 1491
-	local rightWall = shadeSurface( -- 1492
-		MING_MATERIALS.mingBrick.base, -- 1492
-		vec3(-0.84, 0.22, -0.49), -- 1492
-		10, -- 1492
-		1, -- 1492
-		light, -- 1492
-		MING_MATERIALS.mingBrick -- 1492
-	) -- 1492
-	local sillCol = shadeSurface( -- 1493
-		MING_MATERIALS.mingStoneStep.base, -- 1493
-		vec3(0, 0.94, -0.34), -- 1493
-		6, -- 1493
-		1, -- 1493
-		light, -- 1493
-		MING_MATERIALS.mingStoneStep -- 1493
-	) -- 1493
-	uiDraw:drawPolygon( -- 1494
-		{ -- 1494
-			Vec2(wx - embrasure, wy - 12 * s), -- 1495
-			Vec2(wx, wy), -- 1496
-			Vec2(wx, wy + wh), -- 1497
-			Vec2(wx - embrasure, wy + wh + 14 * s) -- 1498
-		}, -- 1498
-		toColor(leftWall) -- 1499
-	) -- 1499
-	uiDraw:drawPolygon( -- 1500
-		{ -- 1500
-			Vec2(wx + ww, wy), -- 1501
-			Vec2(wx + ww + embrasure, wy - 12 * s), -- 1502
-			Vec2(wx + ww + embrasure, wy + wh + 14 * s), -- 1503
-			Vec2(wx + ww, wy + wh) -- 1504
-		}, -- 1504
-		toColor(rightWall) -- 1505
-	) -- 1505
-	uiDraw:drawPolygon( -- 1507
-		{ -- 1507
-			Vec2(wx - embrasure - 10 * s, wy - 16 * s), -- 1508
-			Vec2(wx + ww + embrasure + 10 * s, wy - 16 * s), -- 1509
-			Vec2(wx + ww + 4 * s, wy + 10 * s), -- 1510
-			Vec2(wx - 4 * s, wy + 10 * s) -- 1511
-		}, -- 1511
-		toColor(sillCol), -- 1512
-		1, -- 1512
-		toColor(STONE_EDGE_FALLBACK, 140) -- 1512
-	) -- 1512
-	local bar = 1 -- 1515
-	do -- 1515
-		bar = 1 -- 1516
-		while bar <= 3 do -- 1516
-			local bx = wx + ww * bar / 4 -- 1517
-			uiDraw:drawSegment( -- 1518
-				Vec2(bx, wy + 6 * s), -- 1518
-				Vec2(bx, wy + wh - 2 * s), -- 1518
-				3 * s, -- 1518
-				Color(46, 34, 26, 235) -- 1518
-			) -- 1518
-			bar = bar + 1 -- 1516
-		end -- 1516
-	end -- 1516
-	uiDraw:drawSegment( -- 1520
-		Vec2(wx, wy + wh * 0.56), -- 1520
-		Vec2(wx + ww, wy + wh * 0.56), -- 1520
-		3.2 * s, -- 1520
-		Color(46, 34, 26, 235) -- 1520
-	) -- 1520
-	uiDraw:drawRect( -- 1521
-		Rect(wx, wy, ww, wh), -- 1521
-		Color(0, 0, 0, 0), -- 1521
-		2.4 * s, -- 1521
-		Color(66, 50, 38, 240) -- 1521
-	) -- 1521
-	if lampProg > 0.02 then -- 1524
-		fillRadialGlow( -- 1525
-			uiGlow, -- 1526
-			wx + ww * 0.5, -- 1526
-			wy + 34 * s, -- 1526
-			540 * s, -- 1527
-			390 * s, -- 1527
-			Color( -- 1528
-				246, -- 1528
-				198, -- 1528
-				122, -- 1528
-				math.floor(74 * lampProg + 0.5) -- 1528
-			), -- 1528
-			Color(216, 154, 72, 0), -- 1529
-			20 -- 1530
-		) -- 1530
-	end -- 1530
-end -- 1439
-function TowerEndingsPlugin.prototype.drawM03PixelRoomAndWindow(self, uiDraw, uiArt, uiGlow, ctx, s, ox, oy) -- 1535
-	fillVGradRect( -- 1545
-		uiDraw, -- 1546
-		0, -- 1546
-		0, -- 1546
-		ctx.uiW, -- 1546
-		ctx.uiH, -- 1546
-		Color(26, 21, 20, 255), -- 1547
-		Color(46, 36, 30, 255) -- 1548
-	) -- 1548
-	local r = 0 -- 1551
-	do -- 1551
-		r = 0 -- 1552
-		while r < 9 do -- 1552
-			local y = oy + (280 + r * 44) * s -- 1553
-			uiDraw:drawSegment( -- 1554
-				Vec2(0, y), -- 1554
-				Vec2(ctx.uiW, y), -- 1554
-				1, -- 1554
-				Color(34, 27, 24, 150) -- 1554
-			) -- 1554
-			r = r + 1 -- 1552
-		end -- 1552
-	end -- 1552
-	local wx = ox + ____exports.TOWER_SHOT_LAYOUT.westWindowX * s -- 1558
-	local wy = oy + ____exports.TOWER_SHOT_LAYOUT.westWindowY * s -- 1559
-	local ww = ____exports.TOWER_SHOT_LAYOUT.westWindowW * s -- 1560
-	local wh = ____exports.TOWER_SHOT_LAYOUT.westWindowH * s -- 1561
-	fillVGradRect( -- 1562
-		uiDraw, -- 1562
-		wx, -- 1562
-		wy, -- 1562
-		ww, -- 1562
-		wh, -- 1562
-		Color(56, 62, 74, 255), -- 1562
-		Color(26, 34, 50, 255) -- 1562
-	) -- 1562
-	uiDraw:drawRect( -- 1563
-		Rect(wx - 12 * s, wy - 14 * s, ww + 24 * s, 18 * s), -- 1563
-		Color(92, 68, 48, 255), -- 1563
-		1, -- 1563
-		Color(148, 114, 82, 180) -- 1563
-	) -- 1563
-	local bar = 1 -- 1564
-	do -- 1564
-		bar = 1 -- 1565
-		while bar <= 3 do -- 1565
-			local bx = wx + ww * bar / 4 -- 1566
-			uiDraw:drawSegment( -- 1567
-				Vec2(bx, wy + 4 * s), -- 1567
-				Vec2(bx, wy + wh - 2 * s), -- 1567
-				3.2 * s, -- 1567
-				Color(64, 46, 34, 245) -- 1567
-			) -- 1567
-			bar = bar + 1 -- 1565
-		end -- 1565
-	end -- 1565
-	uiDraw:drawSegment( -- 1569
-		Vec2(wx, wy + wh * 0.56), -- 1569
-		Vec2(wx + ww, wy + wh * 0.56), -- 1569
-		3.2 * s, -- 1569
-		Color(64, 46, 34, 245) -- 1569
-	) -- 1569
-	uiDraw:drawRect( -- 1570
-		Rect(wx, wy, ww, wh), -- 1570
-		Color(0, 0, 0, 0), -- 1570
-		2.8 * s, -- 1570
-		Color(88, 64, 44, 245) -- 1570
-	) -- 1570
-	local groupX = ox + 210 * s -- 1573
-	local groupY = oy + 300 * s -- 1574
-	uiArt:tryPlace( -- 1575
-		"soldier_idle", -- 1575
-		"fe05_m03_room_soldier", -- 1575
-		groupX - 38 * s, -- 1575
-		groupY, -- 1575
-		118 * s, -- 1575
-		166 * s, -- 1575
-		{facing = 1, opacity = 0.9, layer = 1} -- 1575
-	) -- 1575
-	uiArt:tryPlace( -- 1578
-		"child_idle", -- 1578
-		"fe05_m03_room_child", -- 1578
-		groupX + 42 * s, -- 1578
-		groupY, -- 1578
-		86 * s, -- 1578
-		116 * s, -- 1578
-		{facing = 1, opacity = 0.92, layer = 1} -- 1578
-	) -- 1578
-	fillRadialGlow( -- 1583
-		uiGlow, -- 1584
-		ox + 260 * s, -- 1584
-		oy + 416 * s, -- 1584
-		520 * s, -- 1585
-		360 * s, -- 1585
-		Color(246, 202, 134, 68), -- 1586
-		Color(220, 158, 76, 0), -- 1587
-		20 -- 1588
-	) -- 1588
-end -- 1535
-function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, reveal, lampProg, s, ox, oy) -- 1592
-	local t = self.seqElapsed -- 1605
-	local bx = ox + ____exports.TOWER_SHOT_LAYOUT.bookX * s -- 1606
-	local by = oy + ____exports.TOWER_SHOT_LAYOUT.bookY * s -- 1607
-	local bw = ____exports.TOWER_SHOT_LAYOUT.bookW * s -- 1608
-	local bh = ____exports.TOWER_SHOT_LAYOUT.bookH * s -- 1609
-	local midX = bx + bw * 0.5 -- 1610
-	local midY = by + bh * 0.5 -- 1611
-	uiDraw:drawRect( -- 1614
-		Rect(bx - 6 * s, by - 8 * s, bw + 14 * s, bh + 10 * s), -- 1614
-		Color( -- 1614
-			10, -- 1614
-			11, -- 1614
-			16, -- 1614
-			math.floor(108 * reveal + 0.5) -- 1614
-		) -- 1614
-	) -- 1614
-	uiDraw:drawRect( -- 1615
-		Rect(bx - 12 * s, by + 12 * s, 15 * s, bh - 24 * s), -- 1615
-		Color( -- 1615
-			32, -- 1615
-			46, -- 1615
-			62, -- 1615
-			math.floor(235 * reveal + 0.5) -- 1615
-		), -- 1615
-		1, -- 1615
-		Color( -- 1615
-			86, -- 1615
-			104, -- 1615
-			124, -- 1615
-			math.floor(165 * reveal + 0.5) -- 1615
-		) -- 1615
-	) -- 1615
-	if not uiArt:tryPlace( -- 1618
-		"ink_song_paper", -- 1618
-		"fe05_registry_paper", -- 1618
-		midX, -- 1618
-		midY, -- 1618
-		bw, -- 1618
-		bh, -- 1618
-		{opacity = 0.98 * reveal, layer = 1} -- 1618
-	) then -- 1618
-		uiDraw:drawRect( -- 1619
-			Rect(bx, by, bw, bh), -- 1620
-			toColor( -- 1621
-				PALETTE.xuanPaper, -- 1621
-				math.floor(248 * reveal + 0.5) -- 1621
-			), -- 1621
-			1, -- 1622
-			toColor( -- 1623
-				PALETTE.silkDim, -- 1623
-				math.floor(180 * reveal + 0.5) -- 1623
-			) -- 1623
-		) -- 1623
-	end -- 1623
-	local paperWarm = route == "child" and 0.18 + 0.82 * lampProg or 0.72 -- 1628
-	fillRadialGlow( -- 1629
-		uiGlow, -- 1630
-		bx + bw * 0.34, -- 1630
-		by + bh * 0.48, -- 1630
-		bw * 0.58, -- 1631
-		bh * 0.52, -- 1631
-		Color( -- 1632
-			246, -- 1632
-			214, -- 1632
-			156, -- 1632
-			math.floor(44 * paperWarm * reveal + 0.5) -- 1632
-		), -- 1632
-		Color(238, 198, 128, 0), -- 1633
-		16 -- 1634
+	local inkX = ox + ____exports.TOWER_SHOT_LAYOUT.inkstoneX * s -- 1454
+	local inkY = oy + ____exports.TOWER_SHOT_LAYOUT.inkstoneY * s -- 1455
+	uiDraw:drawEllipse( -- 1456
+		Vec2(inkX + 3 * s, inkY - 18 * s), -- 1456
+		44 * s, -- 1456
+		11 * s, -- 1456
+		Color(10, 10, 14, 145) -- 1456
+	) -- 1456
+	uiDraw:drawPolygon( -- 1457
+		{ -- 1457
+			Vec2(inkX - 38 * s, inkY - 18 * s), -- 1458
+			Vec2(inkX + 38 * s, inkY - 18 * s), -- 1459
+			Vec2(inkX + 32 * s, inkY + 18 * s), -- 1460
+			Vec2(inkX - 32 * s, inkY + 18 * s) -- 1461
+		}, -- 1461
+		Color(38, 44, 52, 255), -- 1462
+		1.2, -- 1462
+		Color(96, 106, 118, 185) -- 1462
+	) -- 1462
+	uiDraw:drawEllipse( -- 1463
+		Vec2(inkX, inkY + 1 * s), -- 1463
+		22 * s, -- 1463
+		10 * s, -- 1463
+		Color(12, 14, 18, 255) -- 1463
+	) -- 1463
+	strokeEllipse( -- 1464
+		uiDraw, -- 1464
+		inkX, -- 1464
+		inkY + 1 * s, -- 1464
+		22 * s, -- 1464
+		10 * s, -- 1464
+		1.1 * s, -- 1464
+		Color(76, 86, 98, 165), -- 1464
+		18 -- 1464
+	) -- 1464
+	local lx = isLowpoly and ox + lerp(____exports.TOWER_SHOT_LAYOUT.lampDeskX, ____exports.TOWER_SHOT_LAYOUT.lampWindowX, lampProg) * s or ox + ____exports.TOWER_SHOT_LAYOUT.lampDeskX * s -- 1467
+	local ly = isLowpoly and oy + (lerp(____exports.TOWER_SHOT_LAYOUT.lampDeskY, ____exports.TOWER_SHOT_LAYOUT.lampWindowY, lampProg) + math.sin(math.pi * lampProg) * 34) * s or oy + ____exports.TOWER_SHOT_LAYOUT.lampDeskY * s -- 1470
+	local lampWarmth = isLowpoly and 0.45 + 0.55 * lampProg or 0.92 -- 1473
+	self:drawMingLantern( -- 1474
+		uiInkDraw, -- 1474
+		uiGlow, -- 1474
+		lx, -- 1474
+		ly, -- 1474
+		1.02 * s, -- 1474
+		1, -- 1474
+		lampWarmth -- 1474
+	) -- 1474
+	if isLowpoly and lampProg > 0.04 then -- 1477
+		local beamA = math.floor(62 * lampProg + 0.5) -- 1478
+		fillGradQuad( -- 1479
+			uiGlow, -- 1480
+			lx + 10 * s, -- 1481
+			ly + 30 * s, -- 1481
+			Color(248, 206, 134, beamA), -- 1481
+			lx + 10 * s, -- 1482
+			ly - 32 * s, -- 1482
+			Color( -- 1482
+				248, -- 1482
+				206, -- 1482
+				134, -- 1482
+				math.floor(beamA * 0.72 + 0.5) -- 1482
+			), -- 1482
+			ox + (____exports.TOWER_SHOT_LAYOUT.bookX + ____exports.TOWER_SHOT_LAYOUT.bookW * 0.92) * s, -- 1483
+			oy + (____exports.TOWER_SHOT_LAYOUT.row2Y - 58) * s, -- 1483
+			Color(242, 198, 124, 0), -- 1483
+			ox + (____exports.TOWER_SHOT_LAYOUT.bookX + ____exports.TOWER_SHOT_LAYOUT.bookW * 0.85) * s, -- 1484
+			oy + (____exports.TOWER_SHOT_LAYOUT.row1Y + 48) * s, -- 1484
+			Color(242, 198, 124, 0) -- 1484
+		) -- 1484
+	end -- 1484
+	local bookReveal = smoothstep(____exports.TOWER_ENDING_TIMINGS.indoorCutSec, 1.85, t) -- 1489
+	if bookReveal > 0.02 then -- 1490
+		self:drawRegisterBook( -- 1491
+			uiDraw, -- 1491
+			uiInkDraw, -- 1491
+			uiArt, -- 1491
+			uiGlow, -- 1491
+			ctx, -- 1491
+			route, -- 1491
+			bookReveal, -- 1491
+			lampProg, -- 1491
+			s, -- 1491
+			ox, -- 1491
+			oy -- 1491
+		) -- 1491
+	end -- 1491
+	self:drawDeskPropsAndBowl( -- 1495
+		uiDraw, -- 1495
+		uiInkDraw, -- 1495
+		uiGlow, -- 1495
+		ctx, -- 1495
+		route, -- 1495
+		s, -- 1495
+		ox, -- 1495
+		oy -- 1495
+	) -- 1495
+end -- 1397
+function TowerEndingsPlugin.prototype.drawF03LowpolyRoomAndWindow(self, uiDraw, uiGlow, ctx, lampProg, s, ox, oy) -- 1498
+	local light = lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg) -- 1507
+	local wallTop = lerpRGBA( -- 1508
+		rgba(18, 24, 38, 255), -- 1508
+		rgba(46, 36, 28, 255), -- 1508
+		lampProg -- 1508
+	) -- 1508
+	local wallBot = lerpRGBA( -- 1509
+		rgba(12, 16, 26, 255), -- 1509
+		rgba(28, 22, 20, 255), -- 1509
+		lampProg -- 1509
+	) -- 1509
+	fillVGradRect( -- 1510
+		uiDraw, -- 1510
+		0, -- 1510
+		0, -- 1510
+		ctx.uiW, -- 1510
+		ctx.uiH, -- 1510
+		toColor(wallBot), -- 1510
+		toColor(wallTop) -- 1510
+	) -- 1510
+	local beamCol = shadeSurface( -- 1513
+		MING_MATERIALS.mingTimberDark.base, -- 1513
+		vec3(-0.3, -0.6, -0.74), -- 1513
+		18, -- 1513
+		1, -- 1513
+		light, -- 1513
+		MING_MATERIALS.mingTimberDark -- 1513
+	) -- 1513
+	uiDraw:drawPolygon( -- 1514
+		{ -- 1514
+			Vec2(0, ctx.uiH - 96 * s), -- 1515
+			Vec2(ctx.uiW, ctx.uiH - 72 * s), -- 1516
+			Vec2(ctx.uiW, ctx.uiH - 42 * s), -- 1517
+			Vec2(0, ctx.uiH - 42 * s) -- 1518
+		}, -- 1518
+		toColor(beamCol) -- 1519
+	) -- 1519
+	local wx = ox + ____exports.TOWER_SHOT_LAYOUT.westWindowX * s -- 1522
+	local wy = oy + ____exports.TOWER_SHOT_LAYOUT.westWindowY * s -- 1523
+	local ww = ____exports.TOWER_SHOT_LAYOUT.westWindowW * s -- 1524
+	local wh = ____exports.TOWER_SHOT_LAYOUT.westWindowH * s -- 1525
+	local embrasure = 24 * s -- 1526
+	fillVGradRect( -- 1529
+		uiDraw, -- 1529
+		wx, -- 1529
+		wy, -- 1529
+		ww, -- 1529
+		wh, -- 1529
+		Color(34, 44, 62, 255), -- 1529
+		Color(16, 24, 40, 255) -- 1529
+	) -- 1529
+	uiDraw:drawPolygon( -- 1530
+		{ -- 1530
+			Vec2(wx, wy), -- 1531
+			Vec2(wx + ww, wy), -- 1532
+			Vec2(wx + ww, wy + wh * 0.34), -- 1533
+			Vec2(wx + ww * 0.56, wy + wh * 0.42), -- 1534
+			Vec2(wx + ww * 0.22, wy + wh * 0.28), -- 1535
+			Vec2(wx, wy + wh * 0.36) -- 1536
+		}, -- 1536
+		Color(20, 26, 38, 240) -- 1537
+	) -- 1537
+	if lampProg > 0.12 then -- 1539
+		fillRadialGlow( -- 1540
+			uiGlow, -- 1541
+			wx + ww * 0.5, -- 1541
+			wy + 26 * s, -- 1541
+			ww * 0.65, -- 1542
+			wh * 0.55, -- 1542
+			Color( -- 1543
+				248, -- 1543
+				206, -- 1543
+				134, -- 1543
+				math.floor(92 * lampProg + 0.5) -- 1543
+			), -- 1543
+			Color(232, 174, 88, 0), -- 1544
+			16 -- 1545
+		) -- 1545
+	end -- 1545
+	local leftWall = shadeSurface( -- 1550
+		MING_MATERIALS.mingBrick.base, -- 1550
+		vec3(0.84, 0.22, -0.49), -- 1550
+		10, -- 1550
+		1, -- 1550
+		light, -- 1550
+		MING_MATERIALS.mingBrick -- 1550
+	) -- 1550
+	local rightWall = shadeSurface( -- 1551
+		MING_MATERIALS.mingBrick.base, -- 1551
+		vec3(-0.84, 0.22, -0.49), -- 1551
+		10, -- 1551
+		1, -- 1551
+		light, -- 1551
+		MING_MATERIALS.mingBrick -- 1551
+	) -- 1551
+	local sillCol = shadeSurface( -- 1552
+		MING_MATERIALS.mingStoneStep.base, -- 1552
+		vec3(0, 0.94, -0.34), -- 1552
+		6, -- 1552
+		1, -- 1552
+		light, -- 1552
+		MING_MATERIALS.mingStoneStep -- 1552
+	) -- 1552
+	uiDraw:drawPolygon( -- 1553
+		{ -- 1553
+			Vec2(wx - embrasure, wy - 12 * s), -- 1554
+			Vec2(wx, wy), -- 1555
+			Vec2(wx, wy + wh), -- 1556
+			Vec2(wx - embrasure, wy + wh + 14 * s) -- 1557
+		}, -- 1557
+		toColor(leftWall) -- 1558
+	) -- 1558
+	uiDraw:drawPolygon( -- 1559
+		{ -- 1559
+			Vec2(wx + ww, wy), -- 1560
+			Vec2(wx + ww + embrasure, wy - 12 * s), -- 1561
+			Vec2(wx + ww + embrasure, wy + wh + 14 * s), -- 1562
+			Vec2(wx + ww, wy + wh) -- 1563
+		}, -- 1563
+		toColor(rightWall) -- 1564
+	) -- 1564
+	uiDraw:drawPolygon( -- 1566
+		{ -- 1566
+			Vec2(wx - embrasure - 10 * s, wy - 16 * s), -- 1567
+			Vec2(wx + ww + embrasure + 10 * s, wy - 16 * s), -- 1568
+			Vec2(wx + ww + 4 * s, wy + 10 * s), -- 1569
+			Vec2(wx - 4 * s, wy + 10 * s) -- 1570
+		}, -- 1570
+		toColor(sillCol), -- 1571
+		1, -- 1571
+		toColor(STONE_EDGE_FALLBACK, 140) -- 1571
+	) -- 1571
+	local bar = 1 -- 1574
+	do -- 1574
+		bar = 1 -- 1575
+		while bar <= 3 do -- 1575
+			local bx = wx + ww * bar / 4 -- 1576
+			uiDraw:drawSegment( -- 1577
+				Vec2(bx, wy + 6 * s), -- 1577
+				Vec2(bx, wy + wh - 2 * s), -- 1577
+				3 * s, -- 1577
+				Color(46, 34, 26, 235) -- 1577
+			) -- 1577
+			bar = bar + 1 -- 1575
+		end -- 1575
+	end -- 1575
+	uiDraw:drawSegment( -- 1579
+		Vec2(wx, wy + wh * 0.56), -- 1579
+		Vec2(wx + ww, wy + wh * 0.56), -- 1579
+		3.2 * s, -- 1579
+		Color(46, 34, 26, 235) -- 1579
+	) -- 1579
+	uiDraw:drawRect( -- 1580
+		Rect(wx, wy, ww, wh), -- 1580
+		Color(0, 0, 0, 0), -- 1580
+		2.4 * s, -- 1580
+		Color(66, 50, 38, 240) -- 1580
+	) -- 1580
+	if lampProg > 0.02 then -- 1583
+		fillRadialGlow( -- 1584
+			uiGlow, -- 1585
+			wx + ww * 0.5, -- 1585
+			wy + 34 * s, -- 1585
+			540 * s, -- 1586
+			390 * s, -- 1586
+			Color( -- 1587
+				246, -- 1587
+				198, -- 1587
+				122, -- 1587
+				math.floor(74 * lampProg + 0.5) -- 1587
+			), -- 1587
+			Color(216, 154, 72, 0), -- 1588
+			20 -- 1589
+		) -- 1589
+	end -- 1589
+end -- 1498
+function TowerEndingsPlugin.prototype.drawM03PixelRoomAndWindow(self, uiDraw, uiArt, uiGlow, ctx, s, ox, oy) -- 1594
+	fillVGradRect( -- 1604
+		uiDraw, -- 1605
+		0, -- 1605
+		0, -- 1605
+		ctx.uiW, -- 1605
+		ctx.uiH, -- 1605
+		Color(26, 21, 20, 255), -- 1606
+		Color(46, 36, 30, 255) -- 1607
+	) -- 1607
+	local r = 0 -- 1610
+	do -- 1610
+		r = 0 -- 1611
+		while r < 9 do -- 1611
+			local y = oy + (280 + r * 44) * s -- 1612
+			uiDraw:drawSegment( -- 1613
+				Vec2(0, y), -- 1613
+				Vec2(ctx.uiW, y), -- 1613
+				1, -- 1613
+				Color(34, 27, 24, 150) -- 1613
+			) -- 1613
+			r = r + 1 -- 1611
+		end -- 1611
+	end -- 1611
+	local wx = ox + ____exports.TOWER_SHOT_LAYOUT.westWindowX * s -- 1617
+	local wy = oy + ____exports.TOWER_SHOT_LAYOUT.westWindowY * s -- 1618
+	local ww = ____exports.TOWER_SHOT_LAYOUT.westWindowW * s -- 1619
+	local wh = ____exports.TOWER_SHOT_LAYOUT.westWindowH * s -- 1620
+	fillVGradRect( -- 1621
+		uiDraw, -- 1621
+		wx, -- 1621
+		wy, -- 1621
+		ww, -- 1621
+		wh, -- 1621
+		Color(56, 62, 74, 255), -- 1621
+		Color(26, 34, 50, 255) -- 1621
+	) -- 1621
+	uiDraw:drawRect( -- 1622
+		Rect(wx - 12 * s, wy - 14 * s, ww + 24 * s, 18 * s), -- 1622
+		Color(92, 68, 48, 255), -- 1622
+		1, -- 1622
+		Color(148, 114, 82, 180) -- 1622
+	) -- 1622
+	local bar = 1 -- 1623
+	do -- 1623
+		bar = 1 -- 1624
+		while bar <= 3 do -- 1624
+			local bx = wx + ww * bar / 4 -- 1625
+			uiDraw:drawSegment( -- 1626
+				Vec2(bx, wy + 4 * s), -- 1626
+				Vec2(bx, wy + wh - 2 * s), -- 1626
+				3.2 * s, -- 1626
+				Color(64, 46, 34, 245) -- 1626
+			) -- 1626
+			bar = bar + 1 -- 1624
+		end -- 1624
+	end -- 1624
+	uiDraw:drawSegment( -- 1628
+		Vec2(wx, wy + wh * 0.56), -- 1628
+		Vec2(wx + ww, wy + wh * 0.56), -- 1628
+		3.2 * s, -- 1628
+		Color(64, 46, 34, 245) -- 1628
+	) -- 1628
+	uiDraw:drawRect( -- 1629
+		Rect(wx, wy, ww, wh), -- 1629
+		Color(0, 0, 0, 0), -- 1629
+		2.8 * s, -- 1629
+		Color(88, 64, 44, 245) -- 1629
+	) -- 1629
+	local groupX = ox + 210 * s -- 1632
+	local groupY = oy + 300 * s -- 1633
+	uiArt:tryPlace( -- 1634
+		"soldier_idle", -- 1634
+		"fe05_m03_room_soldier", -- 1634
+		groupX - 38 * s, -- 1634
+		groupY, -- 1634
+		118 * s, -- 1634
+		166 * s, -- 1634
+		{facing = 1, opacity = 0.9, layer = 1} -- 1634
 	) -- 1634
-	local padX = 44 * s -- 1638
-	local padY = 32 * s -- 1639
-	local inX = bx + padX -- 1640
-	local inY = by + padY -- 1641
-	local inW = bw - padX * 2 -- 1642
-	local inH = bh - padY * 2 -- 1643
-	local redSilk = toColor( -- 1644
-		PALETTE.rouge, -- 1644
-		math.floor(132 * reveal + 0.5) -- 1644
-	) -- 1644
-	local redFaint = toColor( -- 1645
-		PALETTE.rouge, -- 1645
-		math.floor(70 * reveal + 0.5) -- 1645
-	) -- 1645
-	uiInkDraw:drawRect( -- 1646
-		Rect(inX, inY, inW, inH), -- 1646
-		Color(0, 0, 0, 0), -- 1646
-		1, -- 1646
-		redSilk -- 1646
-	) -- 1646
-	uiInkDraw:drawRect( -- 1647
-		Rect(inX + 4 * s, inY + 4 * s, inW - 8 * s, inH - 8 * s), -- 1647
-		Color(0, 0, 0, 0), -- 1647
-		0.6, -- 1647
-		redFaint -- 1647
+	uiArt:tryPlace( -- 1637
+		"child_idle", -- 1637
+		"fe05_m03_room_child", -- 1637
+		groupX + 42 * s, -- 1637
+		groupY, -- 1637
+		86 * s, -- 1637
+		116 * s, -- 1637
+		{facing = 1, opacity = 0.92, layer = 1} -- 1637
+	) -- 1637
+	fillRadialGlow( -- 1642
+		uiGlow, -- 1643
+		ox + 260 * s, -- 1643
+		oy + 416 * s, -- 1643
+		520 * s, -- 1644
+		360 * s, -- 1644
+		Color(246, 202, 134, 68), -- 1645
+		Color(220, 158, 76, 0), -- 1646
+		20 -- 1647
 	) -- 1647
-	local headY = inY + inH - 28 * s -- 1650
-	ctx.texts:put( -- 1651
-		"md", -- 1651
-		"北塔值夜收籍 · 末页", -- 1651
-		inX + 18 * s, -- 1651
-		headY, -- 1651
-		toColor(PALETTE.xuanInk), -- 1651
-		0, -- 1651
-		0.5, -- 1651
-		"Left", -- 1651
-		2.2, -- 1651
-		0.96 * reveal, -- 1651
-		0 -- 1651
-	) -- 1651
-	ctx.texts:put( -- 1652
-		"xs", -- 1652
-		"宁村北塔", -- 1652
-		inX + inW - 18 * s, -- 1652
-		headY, -- 1652
-		toColor(PALETTE.xuanInkSub), -- 1652
-		1, -- 1652
-		0.5, -- 1652
-		"Right", -- 1652
-		1.8, -- 1652
-		0.8 * reveal, -- 1652
-		0 -- 1652
-	) -- 1652
-	uiInkDraw:drawSegment( -- 1653
-		Vec2(inX + 14 * s, headY - 22 * s), -- 1653
-		Vec2(inX + inW - 14 * s, headY - 22 * s), -- 1653
-		0.9, -- 1653
-		redSilk -- 1653
-	) -- 1653
-	local row1Y = oy + ____exports.TOWER_SHOT_LAYOUT.row1Y * s -- 1656
-	local row1SubY = oy + ____exports.TOWER_SHOT_LAYOUT.row1SubY * s -- 1657
-	local r1Prog = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1StartSec, ____exports.TOWER_ENDING_TIMINGS.row1EndSec, t) -- 1658
-	ctx.texts:put( -- 1659
-		"sm", -- 1659
-		"肆拾壹", -- 1659
-		inX + 18 * s, -- 1659
-		row1Y, -- 1659
-		toColor(PALETTE.rouge), -- 1659
-		0, -- 1659
-		0.5, -- 1659
-		"Left", -- 1659
-		1, -- 1659
-		0.94 * reveal, -- 1659
-		0 -- 1659
-	) -- 1659
-	if r1Prog > 0.02 then -- 1660
-		ctx.texts:put( -- 1661
-			"md", -- 1661
-			joinPrefixTokens(ROW1_TOKENS, r1Prog), -- 1661
-			inX + 96 * s, -- 1661
-			row1Y, -- 1661
-			toColor(PALETTE.xuanInk), -- 1661
-			0, -- 1661
-			0.5, -- 1661
-			"Left", -- 1661
-			1.6, -- 1661
-			0.96 * math.min(1, r1Prog * 1.4), -- 1661
-			0 -- 1661
-		) -- 1661
-	end -- 1661
-	if r1Prog > 0.65 then -- 1663
-		local subA = smoothstep(0.65, 1, r1Prog) * reveal -- 1664
-		local subText = route == "child" and "怀黄铜指南针、手书一纸；守城戍卒周戍所托。" or "与守城戍卒同行抵塔，安然入室。" -- 1665
-		ctx.texts:put( -- 1668
-			"xs", -- 1668
-			subText, -- 1668
-			inX + 96 * s, -- 1668
-			row1SubY, -- 1668
-			toColor(PALETTE.xuanInkSub), -- 1668
-			0, -- 1668
-			0.5, -- 1668
-			"Left", -- 1668
-			0.6, -- 1668
-			0.88 * subA, -- 1668
-			0 -- 1668
-		) -- 1668
-	end -- 1668
-	uiInkDraw:drawSegment( -- 1670
-		Vec2(inX + 16 * s, row1SubY - 24 * s), -- 1670
-		Vec2(inX + inW - 16 * s, row1SubY - 24 * s), -- 1670
-		0.7, -- 1670
-		redFaint -- 1670
-	) -- 1670
-	local row2Y = oy + ____exports.TOWER_SHOT_LAYOUT.row2Y * s -- 1673
-	local row2SubY = oy + ____exports.TOWER_SHOT_LAYOUT.row2SubY * s -- 1674
-	ctx.texts:put( -- 1675
-		"sm", -- 1675
-		"肆拾贰", -- 1675
-		inX + 18 * s, -- 1675
-		row2Y, -- 1675
-		toColor(PALETTE.rouge), -- 1675
-		0, -- 1675
-		0.5, -- 1675
-		"Left", -- 1675
-		1, -- 1675
-		0.94 * reveal, -- 1675
-		0 -- 1675
-	) -- 1675
-	if route == "child" then -- 1677
-		local lineA = math.floor((105 + 55 * lampProg) * reveal + 0.5) -- 1679
-		uiInkDraw:drawSegment( -- 1680
-			Vec2(inX + 96 * s, row2Y - 9 * s), -- 1681
-			Vec2(inX + inW - 26 * s, row2Y - 9 * s), -- 1682
-			1, -- 1683
-			toColor(PALETTE.xuanInkSub, lineA) -- 1684
-		) -- 1684
-	else -- 1684
-		local r2Prog = smoothstep(4.6, 5.55, t) -- 1688
-		if r2Prog <= 0.02 then -- 1689
-			uiInkDraw:drawSegment( -- 1690
-				Vec2(inX + 96 * s, row2Y - 9 * s), -- 1691
-				Vec2(inX + inW - 26 * s, row2Y - 9 * s), -- 1692
-				0.9, -- 1693
-				toColor( -- 1694
-					PALETTE.xuanInkSub, -- 1694
-					math.floor(105 * reveal + 0.5) -- 1694
-				) -- 1694
-			) -- 1694
-		else -- 1694
-			ctx.texts:put( -- 1697
-				"md", -- 1697
-				joinPrefixTokens(ROW2_SOLDIER_TOKENS, r2Prog), -- 1697
-				inX + 96 * s, -- 1697
-				row2Y, -- 1697
-				toColor(PALETTE.xuanInk), -- 1697
-				0, -- 1697
-				0.5, -- 1697
-				"Left", -- 1697
-				1.6, -- 1697
-				0.96 * math.min(1, r2Prog * 1.4), -- 1697
-				0 -- 1697
-			) -- 1697
-			if r2Prog > 0.65 then -- 1698
-				local subA = smoothstep(0.65, 1, r2Prog) * reveal -- 1699
-				ctx.texts:put( -- 1700
-					"xs", -- 1700
-					"守城戍卒亲口报出姓名，两人俱安。", -- 1700
-					inX + 96 * s, -- 1700
-					row2SubY, -- 1700
-					toColor(PALETTE.xuanInkSub), -- 1700
-					0, -- 1700
-					0.5, -- 1700
-					"Left", -- 1700
-					0.6, -- 1700
-					0.88 * subA, -- 1700
-					0 -- 1700
-				) -- 1700
-			end -- 1700
-		end -- 1700
-	end -- 1700
-	uiInkDraw:drawSegment( -- 1704
-		Vec2(inX + 16 * s, row2SubY - 24 * s), -- 1704
-		Vec2(inX + inW - 16 * s, row2SubY - 24 * s), -- 1704
-		0.7, -- 1704
-		redFaint -- 1704
+end -- 1594
+function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, reveal, lampProg, s, ox, oy) -- 1651
+	local t = self.seqElapsed -- 1664
+	local bx = ox + ____exports.TOWER_SHOT_LAYOUT.bookX * s -- 1665
+	local by = oy + ____exports.TOWER_SHOT_LAYOUT.bookY * s -- 1666
+	local bw = ____exports.TOWER_SHOT_LAYOUT.bookW * s -- 1667
+	local bh = ____exports.TOWER_SHOT_LAYOUT.bookH * s -- 1668
+	local midX = bx + bw * 0.5 -- 1669
+	local midY = by + bh * 0.5 -- 1670
+	uiDraw:drawRect( -- 1673
+		Rect(bx - 6 * s, by - 8 * s, bw + 14 * s, bh + 10 * s), -- 1673
+		Color( -- 1673
+			10, -- 1673
+			11, -- 1673
+			16, -- 1673
+			math.floor(108 * reveal + 0.5) -- 1673
+		) -- 1673
+	) -- 1673
+	uiDraw:drawRect( -- 1674
+		Rect(bx - 12 * s, by + 12 * s, 15 * s, bh - 24 * s), -- 1674
+		Color( -- 1674
+			32, -- 1674
+			46, -- 1674
+			62, -- 1674
+			math.floor(235 * reveal + 0.5) -- 1674
+		), -- 1674
+		1, -- 1674
+		Color( -- 1674
+			86, -- 1674
+			104, -- 1674
+			124, -- 1674
+			math.floor(165 * reveal + 0.5) -- 1674
+		) -- 1674
+	) -- 1674
+	if not uiArt:tryPlace( -- 1677
+		"ink_song_paper", -- 1677
+		"fe05_registry_paper", -- 1677
+		midX, -- 1677
+		midY, -- 1677
+		bw, -- 1677
+		bh, -- 1677
+		{opacity = 0.98 * reveal, layer = 1} -- 1677
+	) then -- 1677
+		uiDraw:drawRect( -- 1678
+			Rect(bx, by, bw, bh), -- 1679
+			toColor( -- 1680
+				PALETTE.xuanPaper, -- 1680
+				math.floor(248 * reveal + 0.5) -- 1680
+			), -- 1680
+			1, -- 1681
+			toColor( -- 1682
+				PALETTE.silkDim, -- 1682
+				math.floor(180 * reveal + 0.5) -- 1682
+			) -- 1682
+		) -- 1682
+	end -- 1682
+	local paperWarm = route == "child" and 0.18 + 0.82 * lampProg or 0.72 -- 1687
+	fillRadialGlow( -- 1688
+		uiGlow, -- 1689
+		bx + bw * 0.34, -- 1689
+		by + bh * 0.48, -- 1689
+		bw * 0.58, -- 1690
+		bh * 0.52, -- 1690
+		Color( -- 1691
+			246, -- 1691
+			214, -- 1691
+			156, -- 1691
+			math.floor(44 * paperWarm * reveal + 0.5) -- 1691
+		), -- 1691
+		Color(238, 198, 128, 0), -- 1692
+		16 -- 1693
+	) -- 1693
+	local padX = 44 * s -- 1697
+	local padY = 32 * s -- 1698
+	local inX = bx + padX -- 1699
+	local inY = by + padY -- 1700
+	local inW = bw - padX * 2 -- 1701
+	local inH = bh - padY * 2 -- 1702
+	local redSilk = toColor( -- 1703
+		PALETTE.rouge, -- 1703
+		math.floor(132 * reveal + 0.5) -- 1703
+	) -- 1703
+	local redFaint = toColor( -- 1704
+		PALETTE.rouge, -- 1704
+		math.floor(70 * reveal + 0.5) -- 1704
 	) -- 1704
-	local colophonA = smoothstep(6.7, 7.6, t) * reveal -- 1707
-	if colophonA > 0.02 then -- 1708
-		local signY = inY + 34 * s -- 1709
-		ctx.texts:put( -- 1710
-			"banner", -- 1710
-			"向西守望", -- 1710
-			midX - 24 * s, -- 1710
-			signY, -- 1710
-			toColor(PALETTE.xuanInk), -- 1710
-			0.5, -- 1710
-			0.5, -- 1710
-			"Center", -- 1710
-			6, -- 1710
-			0.88 * colophonA, -- 1710
-			0 -- 1710
-		) -- 1710
-	end -- 1710
-	self:drawGuardBrushHand( -- 1714
-		uiInkDraw, -- 1714
-		route, -- 1714
-		s, -- 1714
-		ox, -- 1714
-		oy -- 1714
-	) -- 1714
-end -- 1592
-function TowerEndingsPlugin.prototype.drawGuardBrushHand(self, uiInkDraw, route, s, ox, oy) -- 1717
-	local t = self.seqElapsed -- 1724
-	local hoverX = ox + ____exports.TOWER_SHOT_LAYOUT.brushHoverTipX * s -- 1725
-	local hoverY = oy + ____exports.TOWER_SHOT_LAYOUT.brushHoverTipY * s -- 1726
-	local row1X0 = hoverX -- 1727
-	local row1X1 = hoverX + 142 * s -- 1728
-	local row1Y = oy + ____exports.TOWER_SHOT_LAYOUT.row1Y * s -- 1729
-	local tipX = hoverX -- 1731
-	local tipY = hoverY -- 1732
-	local alpha = 0 -- 1733
-	local lifted = 0 -- 1734
-	if t >= 2 and t < ____exports.TOWER_ENDING_TIMINGS.row1EndSec then -- 1736
-		local k = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1StartSec, ____exports.TOWER_ENDING_TIMINGS.row1EndSec, t) -- 1738
-		tipX = lerp(row1X0, row1X1, k) -- 1739
-		tipY = row1Y + math.sin(k * math.pi * 6) * 3.5 * s -- 1740
-		alpha = smoothstep(2, 2.2, t) -- 1741
-		lifted = (1 - smoothstep(2.12, 2.22, t)) * 12 * s -- 1742
-	elseif t >= ____exports.TOWER_ENDING_TIMINGS.row1EndSec and t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 1743
-		local moveK = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1EndSec, 3.6, t) -- 1745
-		tipX = lerp(row1X1, hoverX, moveK) -- 1746
-		tipY = lerp(row1Y, hoverY, moveK) -- 1747
-		alpha = 1 -- 1748
-		lifted = 9 * s + math.sin(self.animTime * 2.4) * 1.2 * s -- 1749
-	elseif route == "child" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 4.95 then -- 1750
-		local outK = smoothstep(____exports.TOWER_ENDING_TIMINGS.pivotEndSec, 4.95, t) -- 1752
-		tipX = hoverX + outK * 140 * s -- 1753
-		tipY = hoverY + outK * 46 * s -- 1754
-		lifted = (9 + outK * 28) * s -- 1755
-		alpha = 1 - outK -- 1756
-	elseif route == "soldier" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 6.05 then -- 1757
-		if t < 4.6 then -- 1759
-			local dipK = smoothstep(____exports.TOWER_ENDING_TIMINGS.pivotEndSec, 4.6, t) -- 1760
-			tipX = hoverX -- 1761
-			tipY = hoverY -- 1762
-			lifted = lerp(9 * s, 0, dipK) -- 1763
-			alpha = 1 -- 1764
-		elseif t < 5.55 then -- 1765
-			local wK = smoothstep(4.6, 5.55, t) -- 1766
-			tipX = lerp(hoverX, hoverX + 216 * s, wK) -- 1767
-			tipY = hoverY - 2 * s + math.sin(wK * math.pi * 8) * 3.2 * s -- 1768
-			lifted = 0 -- 1769
-			alpha = 1 -- 1770
-		else -- 1770
-			local outK = smoothstep(5.55, 6.05, t) -- 1772
-			tipX = hoverX + 216 * s + outK * 115 * s -- 1773
-			tipY = hoverY + outK * 52 * s -- 1774
-			lifted = outK * 24 * s -- 1775
-			alpha = 1 - outK -- 1776
-		end -- 1776
-	end -- 1776
-	if alpha <= 0.02 then -- 1780
-		return -- 1781
-	end -- 1781
-	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 1784
-	local bx = tipX -- 1785
-	local by = tipY + lifted -- 1786
-	uiInkDraw:drawEllipse( -- 1788
-		Vec2(tipX + 4 * s, tipY - 3 * s), -- 1788
-		(5 + lifted * 0.22) * s, -- 1788
-		2.8 * s, -- 1788
-		Color( -- 1788
-			20, -- 1788
-			18, -- 1788
-			16, -- 1788
-			math.floor(78 * alpha + 0.5) -- 1788
-		) -- 1788
-	) -- 1788
-	uiInkDraw:drawPolygon( -- 1790
-		{ -- 1790
-			Vec2(bx, by), -- 1791
-			Vec2(bx + 15 * s, by - 4 * s), -- 1792
-			Vec2(bx + 10 * s, by + 8 * s) -- 1793
-		}, -- 1793
-		Color(22, 22, 26, a) -- 1794
-	) -- 1794
-	uiInkDraw:drawSegment( -- 1796
-		Vec2(bx + 12 * s, by + 2 * s), -- 1796
-		Vec2(bx + 24 * s, by + 6 * s), -- 1796
-		7.8 * s, -- 1796
-		Color(164, 138, 92, a) -- 1796
-	) -- 1796
-	uiInkDraw:drawSegment( -- 1797
-		Vec2(bx + 22 * s, by + 5 * s), -- 1797
-		Vec2(bx + 122 * s, by + 34 * s), -- 1797
-		6.8 * s, -- 1797
-		Color(142, 110, 74, a) -- 1797
-	) -- 1797
-	uiInkDraw:drawSegment( -- 1798
-		Vec2(bx + 22 * s, by + 5 * s), -- 1798
-		Vec2(bx + 122 * s, by + 34 * s), -- 1798
-		1.8 * s, -- 1798
-		Color( -- 1798
-			196, -- 1798
-			164, -- 1798
-			118, -- 1798
-			math.floor(185 * alpha + 0.5) -- 1798
-		) -- 1798
-	) -- 1798
-	uiInkDraw:drawPolygon( -- 1800
-		{ -- 1800
-			Vec2(bx + 44 * s, by - 6 * s), -- 1801
-			Vec2(bx + 102 * s, by - 14 * s), -- 1802
-			Vec2(bx + 110 * s, by + 18 * s), -- 1803
-			Vec2(bx + 54 * s, by + 22 * s) -- 1804
-		}, -- 1804
-		Color(188, 154, 126, a), -- 1805
-		1, -- 1805
-		Color(128, 98, 76, a) -- 1805
-	) -- 1805
-	uiInkDraw:drawSegment( -- 1806
-		Vec2(bx + 46 * s, by + 16 * s), -- 1806
-		Vec2(bx + 76 * s, by + 20 * s), -- 1806
-		5.2 * s, -- 1806
-		Color(204, 170, 140, a) -- 1806
-	) -- 1806
-	uiInkDraw:drawSegment( -- 1807
-		Vec2(bx + 48 * s, by + 2 * s), -- 1807
-		Vec2(bx + 82 * s, by + 4 * s), -- 1807
-		4.8 * s, -- 1807
-		Color(180, 146, 118, a) -- 1807
-	) -- 1807
-	uiInkDraw:drawPolygon( -- 1808
-		{ -- 1808
-			Vec2(bx + 98 * s, by - 14 * s), -- 1809
-			Vec2(bx + 224 * s, by - 32 * s), -- 1810
-			Vec2(bx + 230 * s, by + 18 * s), -- 1811
-			Vec2(bx + 104 * s, by + 20 * s) -- 1812
-		}, -- 1812
-		Color(54, 48, 44, a), -- 1813
-		1.2, -- 1813
-		Color(94, 84, 72, a) -- 1813
-	) -- 1813
-end -- 1717
-function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDraw, uiGlow, ctx, route, s, ox, oy) -- 1816
-	local t = self.seqElapsed -- 1826
-	local ncX = ox + ____exports.TOWER_SHOT_LAYOUT.needleCaseDeskX * s -- 1827
-	local ncY = oy + ____exports.TOWER_SHOT_LAYOUT.needleCaseDeskY * s -- 1828
-	local bowlX = ox + ____exports.TOWER_SHOT_LAYOUT.bowlRimX * s -- 1829
-	local bowlY = oy + ____exports.TOWER_SHOT_LAYOUT.bowlRimY * s -- 1830
-	if route == "child" then -- 1832
-		local propA = smoothstep(1.55, 2.05, t) -- 1834
-		if propA > 0.02 then -- 1835
-			self:drawNeedleCaseOnDesk( -- 1836
-				uiInkDraw, -- 1836
-				ncX, -- 1836
-				ncY, -- 1836
-				s, -- 1836
-				propA, -- 1836
-				true -- 1836
-			) -- 1836
-		end -- 1836
-		local noteReadA = smoothstep(1.65, 2.1, t) * (1 - smoothstep(3.65, 4.15, t)) -- 1838
-		if noteReadA > 0.02 then -- 1839
-			local cardX = ncX + 18 * s -- 1840
-			local cardY = ncY + 84 * s -- 1841
-			uiInkDraw:drawRect( -- 1842
-				Rect(cardX - 118 * s, cardY - 30 * s, 236 * s, 60 * s), -- 1843
-				toColor( -- 1844
-					PALETTE.xuanPaper, -- 1844
-					math.floor(238 * noteReadA + 0.5) -- 1844
-				), -- 1844
-				1, -- 1845
-				toColor( -- 1846
-					PALETTE.rouge, -- 1846
-					math.floor(110 * noteReadA + 0.5) -- 1846
-				) -- 1846
-			) -- 1846
-			ctx.texts:put( -- 1848
-				"xs", -- 1848
-				NEEDLE_NOTE_LINES[1], -- 1848
-				cardX, -- 1848
-				cardY + 10 * s, -- 1848
-				toColor(PALETTE.xuanInk), -- 1848
-				0.5, -- 1848
-				0.5, -- 1848
-				"Center", -- 1848
-				0.6, -- 1848
-				0.94 * noteReadA, -- 1848
-				0 -- 1848
-			) -- 1848
-			ctx.texts:put( -- 1849
-				"xs", -- 1849
-				"—— " .. NEEDLE_NOTE_LINES[2], -- 1849
-				cardX + 74 * s, -- 1849
-				cardY - 12 * s, -- 1849
-				toColor(PALETTE.xuanInkSub), -- 1849
-				1, -- 1849
-				0.5, -- 1849
-				"Right", -- 1849
-				0.8, -- 1849
-				0.88 * noteReadA, -- 1849
-				0 -- 1849
-			) -- 1849
-		end -- 1849
-		local bowlK = smoothstep(4.35, 5.15, t) -- 1852
-		if bowlK > 0.02 then -- 1853
-			local bx = lerp(bowlX + 135 * s, bowlX, bowlK) -- 1854
-			self:drawWarmPorcelainBowl( -- 1855
-				uiInkDraw, -- 1855
-				uiGlow, -- 1855
-				bx, -- 1855
-				bowlY, -- 1855
-				s, -- 1855
-				bowlK, -- 1855
-				false, -- 1855
-				0 -- 1855
-			) -- 1855
-		end -- 1855
-	else -- 1855
-		local needleK = smoothstep(5.45, 6.15, t) -- 1859
-		if needleK > 0.02 then -- 1860
-			local ny = lerp(ncY + 46 * s, ncY, needleK) -- 1861
-			self:drawNeedleCaseOnDesk( -- 1862
-				uiInkDraw, -- 1862
-				ncX, -- 1862
-				ny, -- 1862
-				s, -- 1862
-				needleK, -- 1862
-				false -- 1862
-			) -- 1862
-		end -- 1862
-		local bowlK = smoothstep(5.8, 6.65, t) -- 1865
-		if bowlK > 0.02 then -- 1866
-			local by = lerp(bowlY - 54 * s, bowlY, bowlK) -- 1867
-			local handsK = smoothstep(5.95, 6.75, t) -- 1868
-			self:drawWarmPorcelainBowl( -- 1869
-				uiInkDraw, -- 1869
-				uiGlow, -- 1869
-				bowlX, -- 1869
-				by, -- 1869
-				s, -- 1869
-				bowlK, -- 1869
-				true, -- 1869
-				handsK -- 1869
-			) -- 1869
-		end -- 1869
-		local cuffK = smoothstep(4.25, 4.85, t) -- 1872
-		if cuffK > 0.02 then -- 1873
-			drawPatchedCuff(uiInkDraw, uiGlow, { -- 1874
-				wristX = ox + 122 * s, -- 1875
-				wristY = oy + 182 * s, -- 1876
-				angleRad = 0.08, -- 1877
-				scale = 0.6 * s, -- 1878
-				pose = "open", -- 1879
-				opacity = 0.92 * cuffK, -- 1880
-				stitchHighlight = 0.34, -- 1881
-				warmth = 0.72 -- 1882
-			}) -- 1882
-		end -- 1882
-	end -- 1882
-end -- 1816
-function TowerEndingsPlugin.prototype.drawNeedleCaseOnDesk(self, draw, cx, cy, s, alpha, withNote) -- 1889
-	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 1897
-	draw:drawEllipse( -- 1899
-		Vec2(cx + 4 * s, cy - 12 * s), -- 1899
-		44 * s, -- 1899
-		14 * s, -- 1899
-		Color( -- 1899
-			10, -- 1899
-			10, -- 1899
-			14, -- 1899
-			math.floor(140 * alpha + 0.5) -- 1899
-		) -- 1899
-	) -- 1899
-	draw:drawPolygon( -- 1901
-		{ -- 1901
-			Vec2(cx - 32 * s, cy - 12 * s), -- 1902
-			Vec2(cx + 26 * s, cy - 15 * s), -- 1903
-			Vec2(cx + 30 * s, cy + 16 * s), -- 1904
-			Vec2(cx - 28 * s, cy + 18 * s) -- 1905
-		}, -- 1905
-		Color(148, 124, 92, a), -- 1906
-		1.3, -- 1906
-		Color(88, 70, 50, a) -- 1906
-	) -- 1906
-	draw:drawEllipse( -- 1908
-		Vec2(cx + 18 * s, cy + 2 * s), -- 1908
-		13 * s, -- 1908
-		13 * s, -- 1908
-		Color(188, 152, 86, a) -- 1908
-	) -- 1908
-	strokeEllipse( -- 1909
-		draw, -- 1909
-		cx + 18 * s, -- 1909
-		cy + 2 * s, -- 1909
-		13 * s, -- 1909
-		13 * s, -- 1909
-		1.5 * s, -- 1909
-		Color(118, 92, 46, a), -- 1909
-		18 -- 1909
-	) -- 1909
-	draw:drawDot( -- 1910
-		Vec2(cx + 18 * s, cy + 2 * s), -- 1910
-		2.5 * s, -- 1910
-		Color(72, 54, 28, a) -- 1910
-	) -- 1910
-	draw:drawSegment( -- 1911
-		Vec2(cx + 12 * s, cy - 2 * s), -- 1911
-		Vec2(cx + 24 * s, cy + 6 * s), -- 1911
-		1.5 * s, -- 1911
-		Color(164, 48, 44, a) -- 1911
-	) -- 1911
-	draw:drawSegment( -- 1913
-		Vec2(cx - 28 * s, cy + 4 * s), -- 1913
-		Vec2(cx - 56 * s, cy - 8 * s), -- 1913
-		2.4 * s, -- 1913
-		toColor(CUFF_PALETTE.childCord, a) -- 1913
-	) -- 1913
-	draw:drawSegment( -- 1914
-		Vec2(cx - 56 * s, cy - 8 * s), -- 1914
-		Vec2(cx - 72 * s, cy + 6 * s), -- 1914
-		2.2 * s, -- 1914
-		toColor(CUFF_PALETTE.childCord, a) -- 1914
-	) -- 1914
-	draw:drawSegment( -- 1915
-		Vec2(cx - 72 * s, cy + 6 * s), -- 1915
-		Vec2(cx - 48 * s, cy + 16 * s), -- 1915
-		2 * s, -- 1915
-		toColor( -- 1915
-			CUFF_PALETTE.childCord, -- 1915
-			math.floor(215 * alpha + 0.5) -- 1915
-		) -- 1915
-	) -- 1915
-	if withNote then -- 1917
-		draw:drawPolygon( -- 1919
-			{ -- 1919
-				Vec2(cx + 38 * s, cy - 18 * s), -- 1920
-				Vec2(cx + 96 * s, cy - 12 * s), -- 1921
-				Vec2(cx + 90 * s, cy + 24 * s), -- 1922
-				Vec2(cx + 34 * s, cy + 18 * s) -- 1923
-			}, -- 1923
-			toColor(PALETTE.xuanPaper, a), -- 1924
-			1, -- 1924
-			toColor( -- 1924
-				PALETTE.xuanInkSub, -- 1924
-				math.floor(160 * alpha + 0.5) -- 1924
-			) -- 1924
-		) -- 1924
-		draw:drawSegment( -- 1925
-			Vec2(cx + 46 * s, cy + 8 * s), -- 1925
-			Vec2(cx + 80 * s, cy + 11 * s), -- 1925
-			1.2 * s, -- 1925
-			toColor( -- 1925
-				PALETTE.xuanInk, -- 1925
-				math.floor(170 * alpha + 0.5) -- 1925
-			) -- 1925
-		) -- 1925
-		draw:drawSegment( -- 1926
-			Vec2(cx + 46 * s, cy - 2 * s), -- 1926
-			Vec2(cx + 76 * s, cy + 1 * s), -- 1926
-			1.2 * s, -- 1926
-			toColor( -- 1926
-				PALETTE.xuanInk, -- 1926
-				math.floor(160 * alpha + 0.5) -- 1926
-			) -- 1926
-		) -- 1926
-	end -- 1926
-end -- 1889
-function TowerEndingsPlugin.prototype.drawWarmPorcelainBowl(self, draw, glow, cx, cy, s, alpha, heldByTwoHands, handsK) -- 1931
-	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 1941
-	draw:drawEllipse( -- 1943
-		Vec2(cx, cy - 36 * s), -- 1943
-		58 * s, -- 1943
-		14 * s, -- 1943
-		Color( -- 1943
-			8, -- 1943
-			9, -- 1943
-			14, -- 1943
-			math.floor(150 * alpha + 0.5) -- 1943
-		) -- 1943
-	) -- 1943
-	draw:drawPolygon( -- 1945
-		{ -- 1945
-			Vec2(cx - 32 * s, cy - 38 * s), -- 1946
-			Vec2(cx + 32 * s, cy - 38 * s), -- 1947
-			Vec2(cx + 62 * s, cy + 8 * s), -- 1948
-			Vec2(cx - 62 * s, cy + 8 * s) -- 1949
-		}, -- 1949
-		Color(168, 166, 156, a), -- 1950
-		1.4, -- 1950
-		Color(98, 96, 88, a) -- 1950
-	) -- 1950
-	draw:drawPolygon( -- 1952
-		{ -- 1952
-			Vec2(cx + 8 * s, cy - 36 * s), -- 1953
-			Vec2(cx + 32 * s, cy - 38 * s), -- 1954
-			Vec2(cx + 62 * s, cy + 8 * s), -- 1955
-			Vec2(cx + 22 * s, cy + 6 * s) -- 1956
-		}, -- 1956
-		Color( -- 1957
-			122, -- 1957
-			120, -- 1957
-			112, -- 1957
-			math.floor(160 * alpha + 0.5) -- 1957
-		) -- 1957
-	) -- 1957
-	draw:drawEllipse( -- 1959
-		Vec2(cx, cy + 8 * s), -- 1959
-		64 * s, -- 1959
-		21 * s, -- 1959
-		Color(224, 218, 206, a) -- 1959
-	) -- 1959
-	strokeEllipse( -- 1960
-		draw, -- 1960
-		cx, -- 1960
-		cy + 8 * s, -- 1960
-		64 * s, -- 1960
-		21 * s, -- 1960
-		1.9 * s, -- 1960
-		Color(116, 110, 100, a), -- 1960
-		28 -- 1960
-	) -- 1960
-	draw:drawEllipse( -- 1961
-		Vec2(cx, cy + 6 * s), -- 1961
-		54 * s, -- 1961
-		15 * s, -- 1961
-		Color(196, 168, 122, a) -- 1961
-	) -- 1961
-	strokeEllipse( -- 1962
-		draw, -- 1962
-		cx, -- 1962
-		cy + 6 * s, -- 1962
-		54 * s, -- 1962
-		15 * s, -- 1962
-		1.1 * s, -- 1962
-		Color(158, 132, 92, a), -- 1962
-		24 -- 1962
-	) -- 1962
-	draw:drawSegment( -- 1964
-		Vec2(cx - 46 * s, cy + 16 * s), -- 1964
-		Vec2(cx - 10 * s, cy + 25 * s), -- 1964
-		2 * s, -- 1964
-		Color( -- 1964
-			248, -- 1964
-			246, -- 1964
-			240, -- 1964
-			math.floor(215 * alpha + 0.5) -- 1964
-		) -- 1964
-	) -- 1964
-	local wi = 0 -- 1967
-	do -- 1967
-		wi = 0 -- 1968
-		while wi < 3 do -- 1968
-			local phase = self.animTime * 1.1 + wi * 2.05 -- 1969
-			local baseX = cx + (wi - 1) * 18 * s -- 1970
-			local baseY = cy + 16 * s -- 1971
-			local segs = 4 -- 1972
-			local prevX = baseX -- 1973
-			local prevY = baseY -- 1974
-			local si = 1 -- 1975
-			do -- 1975
-				si = 1 -- 1976
-				while si <= segs do -- 1976
-					local frac = si / segs -- 1977
-					local nx = baseX + math.sin(phase + frac * 3.1) * (6.5 * frac) * s -- 1978
-					local ny = baseY + frac * (36 + wi % 2 * 10) * s -- 1979
-					local wa = math.floor(46 * (1 - frac * 0.72) * alpha + 0.5) -- 1980
-					glow:drawSegment( -- 1981
-						Vec2(prevX, prevY), -- 1981
-						Vec2(nx, ny), -- 1981
-						(2.2 - frac * 0.9) * s, -- 1981
-						Color(244, 238, 226, wa) -- 1981
-					) -- 1981
-					prevX = nx -- 1982
-					prevY = ny -- 1983
-					si = si + 1 -- 1976
-				end -- 1976
-			end -- 1976
-			wi = wi + 1 -- 1968
-		end -- 1968
-	end -- 1968
-	if heldByTwoHands and handsK > 0.02 then -- 1988
-		local ha = math.floor(255 * clamp01(handsK * alpha) + 0.5) -- 1989
-		local skin = toColor(CUFF_PALETTE.childSkin, ha) -- 1990
-		local skinSh = toColor(CUFF_PALETTE.childSkinShadow, ha) -- 1991
-		local sleeve = toColor(CUFF_PALETTE.childSleeve, ha) -- 1992
-		local spread = (1 - handsK) * 28 * s -- 1993
-		draw:drawPolygon( -- 1996
-			{ -- 1996
-				Vec2(cx - 122 * s - spread, cy - 58 * s), -- 1997
-				Vec2(cx - 72 * s - spread, cy - 30 * s), -- 1998
-				Vec2(cx - 82 * s - spread, cy - 4 * s), -- 1999
-				Vec2(cx - 134 * s - spread, cy - 26 * s) -- 2000
-			}, -- 2000
-			sleeve, -- 2001
-			1.1, -- 2001
-			skinSh -- 2001
-		) -- 2001
-		draw:drawPolygon( -- 2002
-			{ -- 2002
-				Vec2(cx - 76 * s - spread, cy - 28 * s), -- 2003
-				Vec2(cx - 48 * s - spread, cy - 18 * s), -- 2004
-				Vec2(cx - 44 * s - spread, cy + 6 * s), -- 2005
-				Vec2(cx - 74 * s - spread, cy + 2 * s) -- 2006
-			}, -- 2006
-			skin, -- 2007
-			1.1, -- 2007
-			skinSh -- 2007
-		) -- 2007
-		draw:drawSegment( -- 2008
-			Vec2(cx - 56 * s - spread, cy + 2 * s), -- 2008
-			Vec2(cx - 38 * s - spread, cy + 12 * s), -- 2008
-			4.6 * s, -- 2008
-			skin -- 2008
-		) -- 2008
-		draw:drawSegment( -- 2009
-			Vec2(cx - 58 * s - spread, cy - 7 * s), -- 2009
-			Vec2(cx - 40 * s - spread, cy - 2 * s), -- 2009
-			4.4 * s, -- 2009
-			skin -- 2009
-		) -- 2009
-		draw:drawSegment( -- 2010
-			Vec2(cx - 56 * s - spread, cy - 16 * s), -- 2010
-			Vec2(cx - 40 * s - spread, cy - 14 * s), -- 2010
-			4.2 * s, -- 2010
-			skin -- 2010
-		) -- 2010
-		draw:drawPolygon( -- 2013
-			{ -- 2013
-				Vec2(cx + 122 * s + spread, cy - 58 * s), -- 2014
-				Vec2(cx + 72 * s + spread, cy - 30 * s), -- 2015
-				Vec2(cx + 82 * s + spread, cy - 4 * s), -- 2016
-				Vec2(cx + 134 * s + spread, cy - 26 * s) -- 2017
-			}, -- 2017
-			sleeve, -- 2018
-			1.1, -- 2018
-			skinSh -- 2018
-		) -- 2018
-		draw:drawPolygon( -- 2019
-			{ -- 2019
-				Vec2(cx + 76 * s + spread, cy - 28 * s), -- 2020
-				Vec2(cx + 48 * s + spread, cy - 18 * s), -- 2021
-				Vec2(cx + 44 * s + spread, cy + 6 * s), -- 2022
-				Vec2(cx + 74 * s + spread, cy + 2 * s) -- 2023
-			}, -- 2023
-			skin, -- 2024
-			1.1, -- 2024
-			skinSh -- 2024
-		) -- 2024
-		draw:drawSegment( -- 2025
-			Vec2(cx + 56 * s + spread, cy + 2 * s), -- 2025
-			Vec2(cx + 38 * s + spread, cy + 12 * s), -- 2025
-			4.6 * s, -- 2025
-			skin -- 2025
-		) -- 2025
-		draw:drawSegment( -- 2026
-			Vec2(cx + 58 * s + spread, cy - 7 * s), -- 2026
-			Vec2(cx + 40 * s + spread, cy - 2 * s), -- 2026
-			4.4 * s, -- 2026
-			skin -- 2026
-		) -- 2026
-		draw:drawSegment( -- 2027
-			Vec2(cx + 56 * s + spread, cy - 16 * s), -- 2027
-			Vec2(cx + 40 * s + spread, cy - 14 * s), -- 2027
-			4.2 * s, -- 2027
-			skin -- 2027
-		) -- 2027
+	uiInkDraw:drawRect( -- 1705
+		Rect(inX, inY, inW, inH), -- 1705
+		Color(0, 0, 0, 0), -- 1705
+		1, -- 1705
+		redSilk -- 1705
+	) -- 1705
+	uiInkDraw:drawRect( -- 1706
+		Rect(inX + 4 * s, inY + 4 * s, inW - 8 * s, inH - 8 * s), -- 1706
+		Color(0, 0, 0, 0), -- 1706
+		0.6, -- 1706
+		redFaint -- 1706
+	) -- 1706
+	local headY = inY + inH - 28 * s -- 1709
+	ctx.texts:put( -- 1710
+		"md", -- 1710
+		"北塔值夜收籍 · 末页", -- 1710
+		inX + 18 * s, -- 1710
+		headY, -- 1710
+		toColor(PALETTE.xuanInk), -- 1710
+		0, -- 1710
+		0.5, -- 1710
+		"Left", -- 1710
+		2.2, -- 1710
+		0.96 * reveal, -- 1710
+		0 -- 1710
+	) -- 1710
+	ctx.texts:put( -- 1711
+		"xs", -- 1711
+		"宁村北塔", -- 1711
+		inX + inW - 18 * s, -- 1711
+		headY, -- 1711
+		toColor(PALETTE.xuanInkSub), -- 1711
+		1, -- 1711
+		0.5, -- 1711
+		"Right", -- 1711
+		1.8, -- 1711
+		0.8 * reveal, -- 1711
+		0 -- 1711
+	) -- 1711
+	uiInkDraw:drawSegment( -- 1712
+		Vec2(inX + 14 * s, headY - 22 * s), -- 1712
+		Vec2(inX + inW - 14 * s, headY - 22 * s), -- 1712
+		0.9, -- 1712
+		redSilk -- 1712
+	) -- 1712
+	local row1Y = oy + ____exports.TOWER_SHOT_LAYOUT.row1Y * s -- 1715
+	local row1SubY = oy + ____exports.TOWER_SHOT_LAYOUT.row1SubY * s -- 1716
+	local r1Prog = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1StartSec, ____exports.TOWER_ENDING_TIMINGS.row1EndSec, t) -- 1717
+	ctx.texts:put( -- 1718
+		"sm", -- 1718
+		"肆拾壹", -- 1718
+		inX + 18 * s, -- 1718
+		row1Y, -- 1718
+		toColor(PALETTE.rouge), -- 1718
+		0, -- 1718
+		0.5, -- 1718
+		"Left", -- 1718
+		1, -- 1718
+		0.94 * reveal, -- 1718
+		0 -- 1718
+	) -- 1718
+	if r1Prog > 0.02 then -- 1719
+		ctx.texts:put( -- 1720
+			"md", -- 1720
+			joinPrefixTokens(ROW1_TOKENS, r1Prog), -- 1720
+			inX + 96 * s, -- 1720
+			row1Y, -- 1720
+			toColor(PALETTE.xuanInk), -- 1720
+			0, -- 1720
+			0.5, -- 1720
+			"Left", -- 1720
+			1.6, -- 1720
+			0.96 * math.min(1, r1Prog * 1.4), -- 1720
+			0 -- 1720
+		) -- 1720
+	end -- 1720
+	if r1Prog > 0.65 then -- 1722
+		local subA = smoothstep(0.65, 1, r1Prog) * reveal -- 1723
+		local subText = route == "child" and "怀黄铜指南针、手书一纸；守城戍卒周戍所托。" or "与守城戍卒同行抵塔，安然入室。" -- 1724
+		ctx.texts:put( -- 1727
+			"xs", -- 1727
+			subText, -- 1727
+			inX + 96 * s, -- 1727
+			row1SubY, -- 1727
+			toColor(PALETTE.xuanInkSub), -- 1727
+			0, -- 1727
+			0.5, -- 1727
+			"Left", -- 1727
+			0.6, -- 1727
+			0.88 * subA, -- 1727
+			0 -- 1727
+		) -- 1727
+	end -- 1727
+	uiInkDraw:drawSegment( -- 1729
+		Vec2(inX + 16 * s, row1SubY - 24 * s), -- 1729
+		Vec2(inX + inW - 16 * s, row1SubY - 24 * s), -- 1729
+		0.7, -- 1729
+		redFaint -- 1729
+	) -- 1729
+	local row2Y = oy + ____exports.TOWER_SHOT_LAYOUT.row2Y * s -- 1732
+	local row2SubY = oy + ____exports.TOWER_SHOT_LAYOUT.row2SubY * s -- 1733
+	ctx.texts:put( -- 1734
+		"sm", -- 1734
+		"肆拾贰", -- 1734
+		inX + 18 * s, -- 1734
+		row2Y, -- 1734
+		toColor(PALETTE.rouge), -- 1734
+		0, -- 1734
+		0.5, -- 1734
+		"Left", -- 1734
+		1, -- 1734
+		0.94 * reveal, -- 1734
+		0 -- 1734
+	) -- 1734
+	if route == "child" then -- 1736
+		local lineA = math.floor((105 + 55 * lampProg) * reveal + 0.5) -- 1738
+		uiInkDraw:drawSegment( -- 1739
+			Vec2(inX + 96 * s, row2Y - 9 * s), -- 1740
+			Vec2(inX + inW - 26 * s, row2Y - 9 * s), -- 1741
+			1, -- 1742
+			toColor(PALETTE.xuanInkSub, lineA) -- 1743
+		) -- 1743
+	else -- 1743
+		local r2Prog = smoothstep(4.6, 5.55, t) -- 1747
+		if r2Prog <= 0.02 then -- 1748
+			uiInkDraw:drawSegment( -- 1749
+				Vec2(inX + 96 * s, row2Y - 9 * s), -- 1750
+				Vec2(inX + inW - 26 * s, row2Y - 9 * s), -- 1751
+				0.9, -- 1752
+				toColor( -- 1753
+					PALETTE.xuanInkSub, -- 1753
+					math.floor(105 * reveal + 0.5) -- 1753
+				) -- 1753
+			) -- 1753
+		else -- 1753
+			ctx.texts:put( -- 1756
+				"md", -- 1756
+				joinPrefixTokens(ROW2_SOLDIER_TOKENS, r2Prog), -- 1756
+				inX + 96 * s, -- 1756
+				row2Y, -- 1756
+				toColor(PALETTE.xuanInk), -- 1756
+				0, -- 1756
+				0.5, -- 1756
+				"Left", -- 1756
+				1.6, -- 1756
+				0.96 * math.min(1, r2Prog * 1.4), -- 1756
+				0 -- 1756
+			) -- 1756
+			if r2Prog > 0.65 then -- 1757
+				local subA = smoothstep(0.65, 1, r2Prog) * reveal -- 1758
+				ctx.texts:put( -- 1759
+					"xs", -- 1759
+					"守城戍卒亲口报出姓名，两人俱安。", -- 1759
+					inX + 96 * s, -- 1759
+					row2SubY, -- 1759
+					toColor(PALETTE.xuanInkSub), -- 1759
+					0, -- 1759
+					0.5, -- 1759
+					"Left", -- 1759
+					0.6, -- 1759
+					0.88 * subA, -- 1759
+					0 -- 1759
+				) -- 1759
+			end -- 1759
+		end -- 1759
+	end -- 1759
+	uiInkDraw:drawSegment( -- 1763
+		Vec2(inX + 16 * s, row2SubY - 24 * s), -- 1763
+		Vec2(inX + inW - 16 * s, row2SubY - 24 * s), -- 1763
+		0.7, -- 1763
+		redFaint -- 1763
+	) -- 1763
+	local colophonA = smoothstep(6.7, 7.6, t) * reveal -- 1766
+	if colophonA > 0.02 then -- 1767
+		local signY = inY + 34 * s -- 1768
+		ctx.texts:put( -- 1769
+			"banner", -- 1769
+			"向西守望", -- 1769
+			midX - 24 * s, -- 1769
+			signY, -- 1769
+			toColor(PALETTE.xuanInk), -- 1769
+			0.5, -- 1769
+			0.5, -- 1769
+			"Center", -- 1769
+			6, -- 1769
+			0.88 * colophonA, -- 1769
+			0 -- 1769
+		) -- 1769
+	end -- 1769
+	self:drawGuardBrushHand( -- 1773
+		uiInkDraw, -- 1773
+		route, -- 1773
+		s, -- 1773
+		ox, -- 1773
+		oy -- 1773
+	) -- 1773
+end -- 1651
+function TowerEndingsPlugin.prototype.drawGuardBrushHand(self, uiInkDraw, route, s, ox, oy) -- 1776
+	local t = self.seqElapsed -- 1783
+	local hoverX = ox + ____exports.TOWER_SHOT_LAYOUT.brushHoverTipX * s -- 1784
+	local hoverY = oy + ____exports.TOWER_SHOT_LAYOUT.brushHoverTipY * s -- 1785
+	local row1X0 = hoverX -- 1786
+	local row1X1 = hoverX + 142 * s -- 1787
+	local row1Y = oy + ____exports.TOWER_SHOT_LAYOUT.row1Y * s -- 1788
+	local tipX = hoverX -- 1790
+	local tipY = hoverY -- 1791
+	local alpha = 0 -- 1792
+	local lifted = 0 -- 1793
+	if t >= 2 and t < ____exports.TOWER_ENDING_TIMINGS.row1EndSec then -- 1795
+		local k = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1StartSec, ____exports.TOWER_ENDING_TIMINGS.row1EndSec, t) -- 1797
+		tipX = lerp(row1X0, row1X1, k) -- 1798
+		tipY = row1Y + math.sin(k * math.pi * 6) * 3.5 * s -- 1799
+		alpha = smoothstep(2, 2.2, t) -- 1800
+		lifted = (1 - smoothstep(2.12, 2.22, t)) * 12 * s -- 1801
+	elseif t >= ____exports.TOWER_ENDING_TIMINGS.row1EndSec and t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 1802
+		local moveK = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1EndSec, 3.6, t) -- 1804
+		tipX = lerp(row1X1, hoverX, moveK) -- 1805
+		tipY = lerp(row1Y, hoverY, moveK) -- 1806
+		alpha = 1 -- 1807
+		lifted = 9 * s + math.sin(self.animTime * 2.4) * 1.2 * s -- 1808
+	elseif route == "child" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 4.95 then -- 1809
+		local outK = smoothstep(____exports.TOWER_ENDING_TIMINGS.pivotEndSec, 4.95, t) -- 1811
+		tipX = hoverX + outK * 140 * s -- 1812
+		tipY = hoverY + outK * 46 * s -- 1813
+		lifted = (9 + outK * 28) * s -- 1814
+		alpha = 1 - outK -- 1815
+	elseif route == "soldier" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 6.05 then -- 1816
+		if t < 4.6 then -- 1818
+			local dipK = smoothstep(____exports.TOWER_ENDING_TIMINGS.pivotEndSec, 4.6, t) -- 1819
+			tipX = hoverX -- 1820
+			tipY = hoverY -- 1821
+			lifted = lerp(9 * s, 0, dipK) -- 1822
+			alpha = 1 -- 1823
+		elseif t < 5.55 then -- 1824
+			local wK = smoothstep(4.6, 5.55, t) -- 1825
+			tipX = lerp(hoverX, hoverX + 216 * s, wK) -- 1826
+			tipY = hoverY - 2 * s + math.sin(wK * math.pi * 8) * 3.2 * s -- 1827
+			lifted = 0 -- 1828
+			alpha = 1 -- 1829
+		else -- 1829
+			local outK = smoothstep(5.55, 6.05, t) -- 1831
+			tipX = hoverX + 216 * s + outK * 115 * s -- 1832
+			tipY = hoverY + outK * 52 * s -- 1833
+			lifted = outK * 24 * s -- 1834
+			alpha = 1 - outK -- 1835
+		end -- 1835
+	end -- 1835
+	if alpha <= 0.02 then -- 1839
+		return -- 1840
+	end -- 1840
+	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 1843
+	local bx = tipX -- 1844
+	local by = tipY + lifted -- 1845
+	uiInkDraw:drawEllipse( -- 1847
+		Vec2(tipX + 4 * s, tipY - 3 * s), -- 1847
+		(5 + lifted * 0.22) * s, -- 1847
+		2.8 * s, -- 1847
+		Color( -- 1847
+			20, -- 1847
+			18, -- 1847
+			16, -- 1847
+			math.floor(78 * alpha + 0.5) -- 1847
+		) -- 1847
+	) -- 1847
+	uiInkDraw:drawPolygon( -- 1849
+		{ -- 1849
+			Vec2(bx, by), -- 1850
+			Vec2(bx + 15 * s, by - 4 * s), -- 1851
+			Vec2(bx + 10 * s, by + 8 * s) -- 1852
+		}, -- 1852
+		Color(22, 22, 26, a) -- 1853
+	) -- 1853
+	uiInkDraw:drawSegment( -- 1855
+		Vec2(bx + 12 * s, by + 2 * s), -- 1855
+		Vec2(bx + 24 * s, by + 6 * s), -- 1855
+		7.8 * s, -- 1855
+		Color(164, 138, 92, a) -- 1855
+	) -- 1855
+	uiInkDraw:drawSegment( -- 1856
+		Vec2(bx + 22 * s, by + 5 * s), -- 1856
+		Vec2(bx + 122 * s, by + 34 * s), -- 1856
+		6.8 * s, -- 1856
+		Color(142, 110, 74, a) -- 1856
+	) -- 1856
+	uiInkDraw:drawSegment( -- 1857
+		Vec2(bx + 22 * s, by + 5 * s), -- 1857
+		Vec2(bx + 122 * s, by + 34 * s), -- 1857
+		1.8 * s, -- 1857
+		Color( -- 1857
+			196, -- 1857
+			164, -- 1857
+			118, -- 1857
+			math.floor(185 * alpha + 0.5) -- 1857
+		) -- 1857
+	) -- 1857
+	uiInkDraw:drawPolygon( -- 1859
+		{ -- 1859
+			Vec2(bx + 44 * s, by - 6 * s), -- 1860
+			Vec2(bx + 102 * s, by - 14 * s), -- 1861
+			Vec2(bx + 110 * s, by + 18 * s), -- 1862
+			Vec2(bx + 54 * s, by + 22 * s) -- 1863
+		}, -- 1863
+		Color(188, 154, 126, a), -- 1864
+		1, -- 1864
+		Color(128, 98, 76, a) -- 1864
+	) -- 1864
+	uiInkDraw:drawSegment( -- 1865
+		Vec2(bx + 46 * s, by + 16 * s), -- 1865
+		Vec2(bx + 76 * s, by + 20 * s), -- 1865
+		5.2 * s, -- 1865
+		Color(204, 170, 140, a) -- 1865
+	) -- 1865
+	uiInkDraw:drawSegment( -- 1866
+		Vec2(bx + 48 * s, by + 2 * s), -- 1866
+		Vec2(bx + 82 * s, by + 4 * s), -- 1866
+		4.8 * s, -- 1866
+		Color(180, 146, 118, a) -- 1866
+	) -- 1866
+	uiInkDraw:drawPolygon( -- 1867
+		{ -- 1867
+			Vec2(bx + 98 * s, by - 14 * s), -- 1868
+			Vec2(bx + 224 * s, by - 32 * s), -- 1869
+			Vec2(bx + 230 * s, by + 18 * s), -- 1870
+			Vec2(bx + 104 * s, by + 20 * s) -- 1871
+		}, -- 1871
+		Color(54, 48, 44, a), -- 1872
+		1.2, -- 1872
+		Color(94, 84, 72, a) -- 1872
+	) -- 1872
+end -- 1776
+function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDraw, uiGlow, ctx, route, s, ox, oy) -- 1875
+	local t = self.seqElapsed -- 1885
+	local ncX = ox + ____exports.TOWER_SHOT_LAYOUT.needleCaseDeskX * s -- 1886
+	local ncY = oy + ____exports.TOWER_SHOT_LAYOUT.needleCaseDeskY * s -- 1887
+	local bowlX = ox + ____exports.TOWER_SHOT_LAYOUT.bowlRimX * s -- 1888
+	local bowlY = oy + ____exports.TOWER_SHOT_LAYOUT.bowlRimY * s -- 1889
+	if route == "child" then -- 1891
+		local propA = smoothstep(1.55, 2.05, t) -- 1893
+		if propA > 0.02 then -- 1894
+			self:drawNeedleCaseOnDesk( -- 1895
+				uiInkDraw, -- 1895
+				ncX, -- 1895
+				ncY, -- 1895
+				s, -- 1895
+				propA, -- 1895
+				true -- 1895
+			) -- 1895
+		end -- 1895
+		local noteReadA = smoothstep(1.65, 2.1, t) * (1 - smoothstep(3.65, 4.15, t)) -- 1897
+		if noteReadA > 0.02 then -- 1898
+			local cardX = ncX + 18 * s -- 1899
+			local cardY = ncY + 84 * s -- 1900
+			uiInkDraw:drawRect( -- 1901
+				Rect(cardX - 118 * s, cardY - 30 * s, 236 * s, 60 * s), -- 1902
+				toColor( -- 1903
+					PALETTE.xuanPaper, -- 1903
+					math.floor(238 * noteReadA + 0.5) -- 1903
+				), -- 1903
+				1, -- 1904
+				toColor( -- 1905
+					PALETTE.rouge, -- 1905
+					math.floor(110 * noteReadA + 0.5) -- 1905
+				) -- 1905
+			) -- 1905
+			ctx.texts:put( -- 1907
+				"xs", -- 1907
+				NEEDLE_NOTE_LINES[1], -- 1907
+				cardX, -- 1907
+				cardY + 10 * s, -- 1907
+				toColor(PALETTE.xuanInk), -- 1907
+				0.5, -- 1907
+				0.5, -- 1907
+				"Center", -- 1907
+				0.6, -- 1907
+				0.94 * noteReadA, -- 1907
+				0 -- 1907
+			) -- 1907
+			ctx.texts:put( -- 1908
+				"xs", -- 1908
+				"—— " .. NEEDLE_NOTE_LINES[2], -- 1908
+				cardX + 74 * s, -- 1908
+				cardY - 12 * s, -- 1908
+				toColor(PALETTE.xuanInkSub), -- 1908
+				1, -- 1908
+				0.5, -- 1908
+				"Right", -- 1908
+				0.8, -- 1908
+				0.88 * noteReadA, -- 1908
+				0 -- 1908
+			) -- 1908
+		end -- 1908
+		local bowlK = smoothstep(4.35, 5.15, t) -- 1911
+		if bowlK > 0.02 then -- 1912
+			local bx = lerp(bowlX + 135 * s, bowlX, bowlK) -- 1913
+			self:drawWarmPorcelainBowl( -- 1914
+				uiInkDraw, -- 1914
+				uiGlow, -- 1914
+				bx, -- 1914
+				bowlY, -- 1914
+				s, -- 1914
+				bowlK, -- 1914
+				false, -- 1914
+				0 -- 1914
+			) -- 1914
+		end -- 1914
+	else -- 1914
+		local needleK = smoothstep(5.45, 6.15, t) -- 1918
+		if needleK > 0.02 then -- 1919
+			local ny = lerp(ncY + 46 * s, ncY, needleK) -- 1920
+			self:drawNeedleCaseOnDesk( -- 1921
+				uiInkDraw, -- 1921
+				ncX, -- 1921
+				ny, -- 1921
+				s, -- 1921
+				needleK, -- 1921
+				false -- 1921
+			) -- 1921
+		end -- 1921
+		local bowlK = smoothstep(5.8, 6.65, t) -- 1924
+		if bowlK > 0.02 then -- 1925
+			local by = lerp(bowlY - 54 * s, bowlY, bowlK) -- 1926
+			local handsK = smoothstep(5.95, 6.75, t) -- 1927
+			self:drawWarmPorcelainBowl( -- 1928
+				uiInkDraw, -- 1928
+				uiGlow, -- 1928
+				bowlX, -- 1928
+				by, -- 1928
+				s, -- 1928
+				bowlK, -- 1928
+				true, -- 1928
+				handsK -- 1928
+			) -- 1928
+		end -- 1928
+		local cuffK = smoothstep(4.25, 4.85, t) -- 1931
+		if cuffK > 0.02 then -- 1932
+			drawPatchedCuff(uiInkDraw, uiGlow, { -- 1933
+				wristX = ox + 122 * s, -- 1934
+				wristY = oy + 182 * s, -- 1935
+				angleRad = 0.08, -- 1936
+				scale = 0.6 * s, -- 1937
+				pose = "open", -- 1938
+				opacity = 0.92 * cuffK, -- 1939
+				stitchHighlight = 0.34, -- 1940
+				warmth = 0.72 -- 1941
+			}) -- 1941
+		end -- 1941
+	end -- 1941
+end -- 1875
+function TowerEndingsPlugin.prototype.drawNeedleCaseOnDesk(self, draw, cx, cy, s, alpha, withNote) -- 1948
+	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 1956
+	draw:drawEllipse( -- 1958
+		Vec2(cx + 4 * s, cy - 12 * s), -- 1958
+		44 * s, -- 1958
+		14 * s, -- 1958
+		Color( -- 1958
+			10, -- 1958
+			10, -- 1958
+			14, -- 1958
+			math.floor(140 * alpha + 0.5) -- 1958
+		) -- 1958
+	) -- 1958
+	draw:drawPolygon( -- 1960
+		{ -- 1960
+			Vec2(cx - 32 * s, cy - 12 * s), -- 1961
+			Vec2(cx + 26 * s, cy - 15 * s), -- 1962
+			Vec2(cx + 30 * s, cy + 16 * s), -- 1963
+			Vec2(cx - 28 * s, cy + 18 * s) -- 1964
+		}, -- 1964
+		Color(148, 124, 92, a), -- 1965
+		1.3, -- 1965
+		Color(88, 70, 50, a) -- 1965
+	) -- 1965
+	draw:drawEllipse( -- 1967
+		Vec2(cx + 18 * s, cy + 2 * s), -- 1967
+		13 * s, -- 1967
+		13 * s, -- 1967
+		Color(188, 152, 86, a) -- 1967
+	) -- 1967
+	strokeEllipse( -- 1968
+		draw, -- 1968
+		cx + 18 * s, -- 1968
+		cy + 2 * s, -- 1968
+		13 * s, -- 1968
+		13 * s, -- 1968
+		1.5 * s, -- 1968
+		Color(118, 92, 46, a), -- 1968
+		18 -- 1968
+	) -- 1968
+	draw:drawDot( -- 1969
+		Vec2(cx + 18 * s, cy + 2 * s), -- 1969
+		2.5 * s, -- 1969
+		Color(72, 54, 28, a) -- 1969
+	) -- 1969
+	draw:drawSegment( -- 1970
+		Vec2(cx + 12 * s, cy - 2 * s), -- 1970
+		Vec2(cx + 24 * s, cy + 6 * s), -- 1970
+		1.5 * s, -- 1970
+		Color(164, 48, 44, a) -- 1970
+	) -- 1970
+	draw:drawSegment( -- 1972
+		Vec2(cx - 28 * s, cy + 4 * s), -- 1972
+		Vec2(cx - 56 * s, cy - 8 * s), -- 1972
+		2.4 * s, -- 1972
+		toColor(CUFF_PALETTE.childCord, a) -- 1972
+	) -- 1972
+	draw:drawSegment( -- 1973
+		Vec2(cx - 56 * s, cy - 8 * s), -- 1973
+		Vec2(cx - 72 * s, cy + 6 * s), -- 1973
+		2.2 * s, -- 1973
+		toColor(CUFF_PALETTE.childCord, a) -- 1973
+	) -- 1973
+	draw:drawSegment( -- 1974
+		Vec2(cx - 72 * s, cy + 6 * s), -- 1974
+		Vec2(cx - 48 * s, cy + 16 * s), -- 1974
+		2 * s, -- 1974
+		toColor( -- 1974
+			CUFF_PALETTE.childCord, -- 1974
+			math.floor(215 * alpha + 0.5) -- 1974
+		) -- 1974
+	) -- 1974
+	if withNote then -- 1976
+		draw:drawPolygon( -- 1978
+			{ -- 1978
+				Vec2(cx + 38 * s, cy - 18 * s), -- 1979
+				Vec2(cx + 96 * s, cy - 12 * s), -- 1980
+				Vec2(cx + 90 * s, cy + 24 * s), -- 1981
+				Vec2(cx + 34 * s, cy + 18 * s) -- 1982
+			}, -- 1982
+			toColor(PALETTE.xuanPaper, a), -- 1983
+			1, -- 1983
+			toColor( -- 1983
+				PALETTE.xuanInkSub, -- 1983
+				math.floor(160 * alpha + 0.5) -- 1983
+			) -- 1983
+		) -- 1983
+		draw:drawSegment( -- 1984
+			Vec2(cx + 46 * s, cy + 8 * s), -- 1984
+			Vec2(cx + 80 * s, cy + 11 * s), -- 1984
+			1.2 * s, -- 1984
+			toColor( -- 1984
+				PALETTE.xuanInk, -- 1984
+				math.floor(170 * alpha + 0.5) -- 1984
+			) -- 1984
+		) -- 1984
+		draw:drawSegment( -- 1985
+			Vec2(cx + 46 * s, cy - 2 * s), -- 1985
+			Vec2(cx + 76 * s, cy + 1 * s), -- 1985
+			1.2 * s, -- 1985
+			toColor( -- 1985
+				PALETTE.xuanInk, -- 1985
+				math.floor(160 * alpha + 0.5) -- 1985
+			) -- 1985
+		) -- 1985
+	end -- 1985
+end -- 1948
+function TowerEndingsPlugin.prototype.drawWarmPorcelainBowl(self, draw, glow, cx, cy, s, alpha, heldByTwoHands, handsK) -- 1990
+	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 2000
+	draw:drawEllipse( -- 2002
+		Vec2(cx, cy - 36 * s), -- 2002
+		58 * s, -- 2002
+		14 * s, -- 2002
+		Color( -- 2002
+			8, -- 2002
+			9, -- 2002
+			14, -- 2002
+			math.floor(150 * alpha + 0.5) -- 2002
+		) -- 2002
+	) -- 2002
+	draw:drawPolygon( -- 2004
+		{ -- 2004
+			Vec2(cx - 32 * s, cy - 38 * s), -- 2005
+			Vec2(cx + 32 * s, cy - 38 * s), -- 2006
+			Vec2(cx + 62 * s, cy + 8 * s), -- 2007
+			Vec2(cx - 62 * s, cy + 8 * s) -- 2008
+		}, -- 2008
+		Color(168, 166, 156, a), -- 2009
+		1.4, -- 2009
+		Color(98, 96, 88, a) -- 2009
+	) -- 2009
+	draw:drawPolygon( -- 2011
+		{ -- 2011
+			Vec2(cx + 8 * s, cy - 36 * s), -- 2012
+			Vec2(cx + 32 * s, cy - 38 * s), -- 2013
+			Vec2(cx + 62 * s, cy + 8 * s), -- 2014
+			Vec2(cx + 22 * s, cy + 6 * s) -- 2015
+		}, -- 2015
+		Color( -- 2016
+			122, -- 2016
+			120, -- 2016
+			112, -- 2016
+			math.floor(160 * alpha + 0.5) -- 2016
+		) -- 2016
+	) -- 2016
+	draw:drawEllipse( -- 2018
+		Vec2(cx, cy + 8 * s), -- 2018
+		64 * s, -- 2018
+		21 * s, -- 2018
+		Color(224, 218, 206, a) -- 2018
+	) -- 2018
+	strokeEllipse( -- 2019
+		draw, -- 2019
+		cx, -- 2019
+		cy + 8 * s, -- 2019
+		64 * s, -- 2019
+		21 * s, -- 2019
+		1.9 * s, -- 2019
+		Color(116, 110, 100, a), -- 2019
+		28 -- 2019
+	) -- 2019
+	draw:drawEllipse( -- 2020
+		Vec2(cx, cy + 6 * s), -- 2020
+		54 * s, -- 2020
+		15 * s, -- 2020
+		Color(196, 168, 122, a) -- 2020
+	) -- 2020
+	strokeEllipse( -- 2021
+		draw, -- 2021
+		cx, -- 2021
+		cy + 6 * s, -- 2021
+		54 * s, -- 2021
+		15 * s, -- 2021
+		1.1 * s, -- 2021
+		Color(158, 132, 92, a), -- 2021
+		24 -- 2021
+	) -- 2021
+	draw:drawSegment( -- 2023
+		Vec2(cx - 46 * s, cy + 16 * s), -- 2023
+		Vec2(cx - 10 * s, cy + 25 * s), -- 2023
+		2 * s, -- 2023
+		Color( -- 2023
+			248, -- 2023
+			246, -- 2023
+			240, -- 2023
+			math.floor(215 * alpha + 0.5) -- 2023
+		) -- 2023
+	) -- 2023
+	local wi = 0 -- 2026
+	do -- 2026
+		wi = 0 -- 2027
+		while wi < 3 do -- 2027
+			local phase = self.animTime * 1.1 + wi * 2.05 -- 2028
+			local baseX = cx + (wi - 1) * 18 * s -- 2029
+			local baseY = cy + 16 * s -- 2030
+			local segs = 4 -- 2031
+			local prevX = baseX -- 2032
+			local prevY = baseY -- 2033
+			local si = 1 -- 2034
+			do -- 2034
+				si = 1 -- 2035
+				while si <= segs do -- 2035
+					local frac = si / segs -- 2036
+					local nx = baseX + math.sin(phase + frac * 3.1) * (6.5 * frac) * s -- 2037
+					local ny = baseY + frac * (36 + wi % 2 * 10) * s -- 2038
+					local wa = math.floor(46 * (1 - frac * 0.72) * alpha + 0.5) -- 2039
+					glow:drawSegment( -- 2040
+						Vec2(prevX, prevY), -- 2040
+						Vec2(nx, ny), -- 2040
+						(2.2 - frac * 0.9) * s, -- 2040
+						Color(244, 238, 226, wa) -- 2040
+					) -- 2040
+					prevX = nx -- 2041
+					prevY = ny -- 2042
+					si = si + 1 -- 2035
+				end -- 2035
+			end -- 2035
+			wi = wi + 1 -- 2027
+		end -- 2027
 	end -- 2027
-end -- 1931
-function TowerEndingsPlugin.prototype.drawMingLantern(self, draw, glow, cx, cy, scale, alpha, warmth) -- 2032
-	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 2041
-	local flicker = 0.92 + 0.08 * math.sin(self.animTime * 7.2) -- 2042
-	draw:drawSegment( -- 2044
-		Vec2(cx - 10 * scale, cy + 28 * scale), -- 2044
-		Vec2(cx, cy + 40 * scale), -- 2044
-		1.8 * scale, -- 2044
-		Color(88, 86, 82, a) -- 2044
-	) -- 2044
-	draw:drawSegment( -- 2045
-		Vec2(cx + 10 * scale, cy + 28 * scale), -- 2045
-		Vec2(cx, cy + 40 * scale), -- 2045
-		1.8 * scale, -- 2045
-		Color(88, 86, 82, a) -- 2045
-	) -- 2045
-	draw:drawRect( -- 2047
-		Rect(cx - 17 * scale, cy + 22 * scale, 34 * scale, 7 * scale), -- 2047
-		Color(62, 46, 34, a), -- 2047
-		1, -- 2047
-		Color(118, 92, 66, a) -- 2047
-	) -- 2047
-	draw:drawRect( -- 2048
-		Rect(cx - 18 * scale, cy - 26 * scale, 36 * scale, 8 * scale), -- 2048
-		Color(62, 46, 34, a), -- 2048
-		1, -- 2048
-		Color(118, 92, 66, a) -- 2048
-	) -- 2048
-	draw:drawRect( -- 2050
-		Rect(cx - 14 * scale, cy - 18 * scale, 28 * scale, 40 * scale), -- 2051
-		Color( -- 2052
-			238, -- 2052
-			198, -- 2052
-			132, -- 2052
-			math.floor(230 * alpha * (0.75 + 0.25 * warmth) + 0.5) -- 2052
-		), -- 2052
-		1.4 * scale, -- 2053
-		Color(94, 70, 48, a) -- 2054
-	) -- 2054
-	draw:drawSegment( -- 2056
-		Vec2(cx, cy - 18 * scale), -- 2056
-		Vec2(cx, cy + 22 * scale), -- 2056
-		1.1 * scale, -- 2056
-		Color( -- 2056
-			94, -- 2056
-			70, -- 2056
-			48, -- 2056
-			math.floor(150 * alpha + 0.5) -- 2056
-		) -- 2056
-	) -- 2056
-	draw:drawEllipse( -- 2057
-		Vec2(cx, cy + 2 * scale), -- 2057
-		4.6 * scale * flicker, -- 2057
-		8.5 * scale * flicker, -- 2057
-		Color(255, 244, 212, a) -- 2057
-	) -- 2057
-	fillRadialGlow( -- 2059
-		glow, -- 2060
-		cx, -- 2060
-		cy + 2 * scale, -- 2060
-		94 * scale * flicker * (0.75 + 0.35 * warmth), -- 2061
-		94 * scale * flicker * (0.75 + 0.35 * warmth), -- 2062
-		Color( -- 2063
-			250, -- 2063
-			208, -- 2063
-			132, -- 2063
-			math.floor(128 * alpha * warmth + 0.5) -- 2063
-		), -- 2063
-		Color(228, 162, 74, 0), -- 2064
-		16 -- 2065
-	) -- 2065
-end -- 2032
-function TowerEndingsPlugin.prototype.drawDialogueSubtitle(self, uiDraw, uiInkDraw, uiArt, ctx, route, s, barH) -- 2069
-	local line = self.lastSubtitle -- 2078
-	if line ~= "" then -- 2079
-		local cy = barH + 34 * s -- 2080
-		local stripW = math.min(ctx.uiW - 120 * s, 720 * s) -- 2081
-		drawSilkVeil( -- 2082
-			uiDraw, -- 2082
-			uiArt, -- 2082
-			"fe05_sub_veil", -- 2082
-			ctx.uiW * 0.5, -- 2082
-			cy, -- 2082
-			stripW, -- 2082
-			48 * s, -- 2082
-			PALETTE.inkWash, -- 2082
-			0.82, -- 2082
-			3 -- 2082
-		) -- 2082
-		drawHairline( -- 2083
-			uiInkDraw, -- 2083
-			uiArt, -- 2083
-			"fe05_sub_hair", -- 2083
-			ctx.uiW * 0.5, -- 2083
-			cy + 21 * s, -- 2083
-			stripW * 0.68, -- 2083
-			PALETTE.silkDim, -- 2083
-			0.54, -- 2083
-			true, -- 2083
-			4 -- 2083
+	if heldByTwoHands and handsK > 0.02 then -- 2047
+		local ha = math.floor(255 * clamp01(handsK * alpha) + 0.5) -- 2048
+		local skin = toColor(CUFF_PALETTE.childSkin, ha) -- 2049
+		local skinSh = toColor(CUFF_PALETTE.childSkinShadow, ha) -- 2050
+		local sleeve = toColor(CUFF_PALETTE.childSleeve, ha) -- 2051
+		local spread = (1 - handsK) * 28 * s -- 2052
+		draw:drawPolygon( -- 2055
+			{ -- 2055
+				Vec2(cx - 122 * s - spread, cy - 58 * s), -- 2056
+				Vec2(cx - 72 * s - spread, cy - 30 * s), -- 2057
+				Vec2(cx - 82 * s - spread, cy - 4 * s), -- 2058
+				Vec2(cx - 134 * s - spread, cy - 26 * s) -- 2059
+			}, -- 2059
+			sleeve, -- 2060
+			1.1, -- 2060
+			skinSh -- 2060
+		) -- 2060
+		draw:drawPolygon( -- 2061
+			{ -- 2061
+				Vec2(cx - 76 * s - spread, cy - 28 * s), -- 2062
+				Vec2(cx - 48 * s - spread, cy - 18 * s), -- 2063
+				Vec2(cx - 44 * s - spread, cy + 6 * s), -- 2064
+				Vec2(cx - 74 * s - spread, cy + 2 * s) -- 2065
+			}, -- 2065
+			skin, -- 2066
+			1.1, -- 2066
+			skinSh -- 2066
+		) -- 2066
+		draw:drawSegment( -- 2067
+			Vec2(cx - 56 * s - spread, cy + 2 * s), -- 2067
+			Vec2(cx - 38 * s - spread, cy + 12 * s), -- 2067
+			4.6 * s, -- 2067
+			skin -- 2067
+		) -- 2067
+		draw:drawSegment( -- 2068
+			Vec2(cx - 58 * s - spread, cy - 7 * s), -- 2068
+			Vec2(cx - 40 * s - spread, cy - 2 * s), -- 2068
+			4.4 * s, -- 2068
+			skin -- 2068
+		) -- 2068
+		draw:drawSegment( -- 2069
+			Vec2(cx - 56 * s - spread, cy - 16 * s), -- 2069
+			Vec2(cx - 40 * s - spread, cy - 14 * s), -- 2069
+			4.2 * s, -- 2069
+			skin -- 2069
+		) -- 2069
+		draw:drawPolygon( -- 2072
+			{ -- 2072
+				Vec2(cx + 122 * s + spread, cy - 58 * s), -- 2073
+				Vec2(cx + 72 * s + spread, cy - 30 * s), -- 2074
+				Vec2(cx + 82 * s + spread, cy - 4 * s), -- 2075
+				Vec2(cx + 134 * s + spread, cy - 26 * s) -- 2076
+			}, -- 2076
+			sleeve, -- 2077
+			1.1, -- 2077
+			skinSh -- 2077
+		) -- 2077
+		draw:drawPolygon( -- 2078
+			{ -- 2078
+				Vec2(cx + 76 * s + spread, cy - 28 * s), -- 2079
+				Vec2(cx + 48 * s + spread, cy - 18 * s), -- 2080
+				Vec2(cx + 44 * s + spread, cy + 6 * s), -- 2081
+				Vec2(cx + 74 * s + spread, cy + 2 * s) -- 2082
+			}, -- 2082
+			skin, -- 2083
+			1.1, -- 2083
+			skinSh -- 2083
 		) -- 2083
-		local isSpoken = line == F03_DIALOGUE or line == M03_DIALOGUE -- 2084
-		ctx.texts:put( -- 2085
-			isSpoken and "md" or "sm", -- 2086
-			line, -- 2087
-			ctx.uiW * 0.5, -- 2088
-			cy - 1 * s, -- 2089
-			toColor(isSpoken and PALETTE.amberCore or PALETTE.textBright), -- 2090
-			0.5, -- 2091
-			0.5, -- 2092
-			"Center", -- 2093
-			isSpoken and 1.8 or 1, -- 2094
-			0.98, -- 2095
-			0.08 -- 2096
-		) -- 2096
-	end -- 2096
-	if ctx.view.assistHintsEnabled and self.confirmReady then -- 2101
-		local rawHint = route == "child" and "按 E 收页 · 尾声与史话   ·   Esc 暂歇" or "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇" -- 2102
-		local hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout) -- 2105
-		ctx.texts:put( -- 2106
-			"xs", -- 2106
-			hint, -- 2106
-			ctx.uiW * 0.5, -- 2106
-			barH * 0.5, -- 2106
-			toColor(PALETTE.textMid), -- 2106
-			0.5, -- 2106
-			0.5, -- 2106
-			"Center", -- 2106
-			1.4, -- 2106
-			0.88, -- 2106
-			0.08 -- 2106
-		) -- 2106
-	end -- 2106
-end -- 2069
-function ____exports.createTowerEndingsPlugin() -- 2111
-	return __TS__New(____exports.TowerEndingsPlugin) -- 2112
-end -- 2111
+		draw:drawSegment( -- 2084
+			Vec2(cx + 56 * s + spread, cy + 2 * s), -- 2084
+			Vec2(cx + 38 * s + spread, cy + 12 * s), -- 2084
+			4.6 * s, -- 2084
+			skin -- 2084
+		) -- 2084
+		draw:drawSegment( -- 2085
+			Vec2(cx + 58 * s + spread, cy - 7 * s), -- 2085
+			Vec2(cx + 40 * s + spread, cy - 2 * s), -- 2085
+			4.4 * s, -- 2085
+			skin -- 2085
+		) -- 2085
+		draw:drawSegment( -- 2086
+			Vec2(cx + 56 * s + spread, cy - 16 * s), -- 2086
+			Vec2(cx + 40 * s + spread, cy - 14 * s), -- 2086
+			4.2 * s, -- 2086
+			skin -- 2086
+		) -- 2086
+	end -- 2086
+end -- 1990
+function TowerEndingsPlugin.prototype.drawMingLantern(self, draw, glow, cx, cy, scale, alpha, warmth) -- 2091
+	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 2100
+	local flicker = 0.92 + 0.08 * math.sin(self.animTime * 7.2) -- 2101
+	draw:drawSegment( -- 2103
+		Vec2(cx - 10 * scale, cy + 28 * scale), -- 2103
+		Vec2(cx, cy + 40 * scale), -- 2103
+		1.8 * scale, -- 2103
+		Color(88, 86, 82, a) -- 2103
+	) -- 2103
+	draw:drawSegment( -- 2104
+		Vec2(cx + 10 * scale, cy + 28 * scale), -- 2104
+		Vec2(cx, cy + 40 * scale), -- 2104
+		1.8 * scale, -- 2104
+		Color(88, 86, 82, a) -- 2104
+	) -- 2104
+	draw:drawRect( -- 2106
+		Rect(cx - 17 * scale, cy + 22 * scale, 34 * scale, 7 * scale), -- 2106
+		Color(62, 46, 34, a), -- 2106
+		1, -- 2106
+		Color(118, 92, 66, a) -- 2106
+	) -- 2106
+	draw:drawRect( -- 2107
+		Rect(cx - 18 * scale, cy - 26 * scale, 36 * scale, 8 * scale), -- 2107
+		Color(62, 46, 34, a), -- 2107
+		1, -- 2107
+		Color(118, 92, 66, a) -- 2107
+	) -- 2107
+	draw:drawRect( -- 2109
+		Rect(cx - 14 * scale, cy - 18 * scale, 28 * scale, 40 * scale), -- 2110
+		Color( -- 2111
+			238, -- 2111
+			198, -- 2111
+			132, -- 2111
+			math.floor(230 * alpha * (0.75 + 0.25 * warmth) + 0.5) -- 2111
+		), -- 2111
+		1.4 * scale, -- 2112
+		Color(94, 70, 48, a) -- 2113
+	) -- 2113
+	draw:drawSegment( -- 2115
+		Vec2(cx, cy - 18 * scale), -- 2115
+		Vec2(cx, cy + 22 * scale), -- 2115
+		1.1 * scale, -- 2115
+		Color( -- 2115
+			94, -- 2115
+			70, -- 2115
+			48, -- 2115
+			math.floor(150 * alpha + 0.5) -- 2115
+		) -- 2115
+	) -- 2115
+	draw:drawEllipse( -- 2116
+		Vec2(cx, cy + 2 * scale), -- 2116
+		4.6 * scale * flicker, -- 2116
+		8.5 * scale * flicker, -- 2116
+		Color(255, 244, 212, a) -- 2116
+	) -- 2116
+	fillRadialGlow( -- 2118
+		glow, -- 2119
+		cx, -- 2119
+		cy + 2 * scale, -- 2119
+		94 * scale * flicker * (0.75 + 0.35 * warmth), -- 2120
+		94 * scale * flicker * (0.75 + 0.35 * warmth), -- 2121
+		Color( -- 2122
+			250, -- 2122
+			208, -- 2122
+			132, -- 2122
+			math.floor(128 * alpha * warmth + 0.5) -- 2122
+		), -- 2122
+		Color(228, 162, 74, 0), -- 2123
+		16 -- 2124
+	) -- 2124
+end -- 2091
+function TowerEndingsPlugin.prototype.drawDialogueSubtitle(self, uiDraw, uiInkDraw, uiArt, ctx, route, s, barH) -- 2128
+	local line = self.lastSubtitle -- 2137
+	if line ~= "" then -- 2138
+		local cy = barH + 34 * s -- 2139
+		local stripW = math.min(ctx.uiW - 120 * s, 720 * s) -- 2140
+		drawSilkVeil( -- 2141
+			uiDraw, -- 2141
+			uiArt, -- 2141
+			"fe05_sub_veil", -- 2141
+			ctx.uiW * 0.5, -- 2141
+			cy, -- 2141
+			stripW, -- 2141
+			48 * s, -- 2141
+			PALETTE.inkWash, -- 2141
+			0.82, -- 2141
+			3 -- 2141
+		) -- 2141
+		drawHairline( -- 2142
+			uiInkDraw, -- 2142
+			uiArt, -- 2142
+			"fe05_sub_hair", -- 2142
+			ctx.uiW * 0.5, -- 2142
+			cy + 21 * s, -- 2142
+			stripW * 0.68, -- 2142
+			PALETTE.silkDim, -- 2142
+			0.54, -- 2142
+			true, -- 2142
+			4 -- 2142
+		) -- 2142
+		local isSpoken = line == F03_DIALOGUE or line == M03_DIALOGUE -- 2143
+		ctx.texts:put( -- 2144
+			isSpoken and "md" or "sm", -- 2145
+			line, -- 2146
+			ctx.uiW * 0.5, -- 2147
+			cy - 1 * s, -- 2148
+			toColor(isSpoken and PALETTE.amberCore or PALETTE.textBright), -- 2149
+			0.5, -- 2150
+			0.5, -- 2151
+			"Center", -- 2152
+			isSpoken and 1.8 or 1, -- 2153
+			0.98, -- 2154
+			0.08 -- 2155
+		) -- 2155
+	end -- 2155
+	if ctx.view.assistHintsEnabled and self.confirmReady then -- 2160
+		local rawHint = route == "child" and "按 E 收页 · 尾声与史话   ·   Esc 暂歇" or "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇" -- 2161
+		local hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout) -- 2164
+		ctx.texts:put( -- 2165
+			"xs", -- 2165
+			hint, -- 2165
+			ctx.uiW * 0.5, -- 2165
+			barH * 0.5, -- 2165
+			toColor(PALETTE.textMid), -- 2165
+			0.5, -- 2165
+			0.5, -- 2165
+			"Center", -- 2165
+			1.4, -- 2165
+			0.88, -- 2165
+			0.08 -- 2165
+		) -- 2165
+	end -- 2165
+end -- 2128
+function ____exports.createTowerEndingsPlugin() -- 2170
+	return __TS__New(____exports.TowerEndingsPlugin) -- 2171
+end -- 2170
 --- 供 M2 接线或独立验收脚本一键挂载（按 id 幂等覆盖）
-function ____exports.attachTowerEndingsPlugin(fe) -- 2116
-	local plugin = __TS__New(____exports.TowerEndingsPlugin) -- 2117
-	fe:registerPlugin(plugin) -- 2118
-	return plugin -- 2119
-end -- 2116
-return ____exports -- 2116
+function ____exports.attachTowerEndingsPlugin(fe) -- 2175
+	local plugin = __TS__New(____exports.TowerEndingsPlugin) -- 2176
+	fe:registerPlugin(plugin) -- 2177
+	return plugin -- 2178
+end -- 2175
+return ____exports -- 2175

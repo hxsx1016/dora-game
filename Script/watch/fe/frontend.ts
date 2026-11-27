@@ -733,6 +733,18 @@ export class WatchFrontend {
                 if (suppressBanner) {
                     this.narrative.bannerT = savedBannerT;
                 }
+            } else {
+                // 过场插件接管画面时仍透出对应阶段的剧本对白与静音方向字幕（避免 Wave 2 D01–D65 被静默吞掉）
+                this.narrative.drawCutsceneDialogue(
+                    this.uiDraw,
+                    this.uiInkDraw,
+                    this.uiArt,
+                    this.texts,
+                    p,
+                    uiW,
+                    uiH,
+                    this.stageVp.safeUi,
+                );
             }
 
             let suppressReticle = cutsceneHandled || view.reloadSession.active || view.craftBench.active;

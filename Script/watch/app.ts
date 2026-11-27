@@ -210,7 +210,14 @@ function canSaveSession(): boolean {
 
 function refreshTitleSessionFlag(): void {
     if (fe !== undefined) {
-        fe.menus.hasSession = hasSessionSave();
+        const has = hasSessionSave();
+        fe.menus.hasSession = has;
+        if (has) {
+            const loaded = loadSession();
+            fe.menus.setSessionRoomKey(loaded.status === "ok" && loaded.state !== undefined ? loaded.state.roomKey : "");
+        } else {
+            fe.menus.setSessionRoomKey("");
+        }
     }
 }
 
@@ -365,6 +372,20 @@ function continueOfficialStory(): Play | undefined {
         if (cur.room.key === "village") {
             if (s.hasBottle === true) cur.hasBottle = true;
             if (s.villagePassed === true) cur.passed = true;
+        }
+        // 序章 P01/P02 期间自动落盘时按设计重播 P01 叫醒，避免静默跳到 prologue-wait。
+        if (cur.room.key === "prologue"
+            && (s.phase === ""
+                || s.phase === "prologue-wake"
+                || s.phase === "prologue-shadow"
+                || s.phase === "prologue-escape"
+                || s.phase === "prologue-hide")) {
+            cur.phase = "prologue-wake";
+        }
+        // 男主护送 1..5 续读兜底：非工台状态下保持背负，防止旧档 carry=false 导致 CarryPose 失活。
+        if (cur.room.key.indexOf("escort") === 0 && s.route === "soldier" && !cur.craftBench.active && !cur.carryOn) {
+            cur.carryOn = true;
+            storyRun.story.carry = true;
         }
     }
     return play;
@@ -675,8 +696,9 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             return play;
         },
         // 章节预览与菜单「章节」页的 jump 同一入口（chapter 来源，只演出不记档）。
-        previewChapter: (idx: number, seed?: number) => {
-            enterPlayRoom(idx, "chapter", false, seed);
+        previewChapter: (idx: number, routeOrSeed?: "child" | "soldier" | number, seed?: number) => {
+            enterPlayRoom(idx, "chapter", false, typeof routeOrSeed === "number" ? routeOrSeed : seed,
+                typeof routeOrSeed === "string" ? routeOrSeed : undefined);
             return play;
         },
         getStoryRun: () => storyRun,
@@ -806,7 +828,39 @@ function roomIndexByKey(key: string): number {
     return 0;
 }
 
-function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, seedOverride?: number): void {
+function applyChapterPreviewContext(targetRun: RunState, roomKey: string, routeOverride?: "child" | "soldier"): void {
+    // 章节直达按对应路线预置独立预览上下文（绝不污染正式档或通关档案），
+    // 防止 storyRoute 落回 undecided 导致小满四房低模、周戍护送背负、工台试握与北塔双结局失活。
+    if (roomKey === "outside" || roomKey === "village" || roomKey === "forest"
+        || (roomKey === "tower" && routeOverride !== "soldier")) {
+        targetRun.story.route = "child";
+        targetRun.story.settled = true;
+        targetRun.story.countTick = 1440;
+    } else if (roomKey === "gatepath" || roomKey.indexOf("escort") === 0
+        || (roomKey === "tower" && routeOverride === "soldier")) {
+        targetRun.story.route = "soldier";
+        targetRun.story.settled = true;
+        targetRun.joined = true;
+        targetRun.story.handDone = true;
+        targetRun.story.tied = true;
+        targetRun.story.hpAtGate = targetRun.story.maxHpAtGate = 3;
+        if (roomKey.indexOf("escort") === 0) {
+            targetRun.story.carry = true;
+        }
+        if (roomKey === "escort4" || roomKey === "escort5") {
+            targetRun.inventory.wood = 2;
+            targetRun.inventory.bell = 1;
+        }
+        if (roomKey === "escort3") {
+            targetRun.inventory.wood = Math.max(targetRun.inventory.wood, 2);
+            targetRun.inventory.scrap = Math.max(targetRun.inventory.scrap, 2);
+            targetRun.inventory.bell = Math.max(targetRun.inventory.bell, 1);
+            targetRun.inventory.wedge = Math.max(targetRun.inventory.wedge, 1);
+        }
+    }
+}
+
+function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, seedOverride?: number, chapterRoute?: "child" | "soldier"): void {
     current = idx;
     setMode(1);
     if (fe !== undefined) {
@@ -815,41 +869,19 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, 
     play = undefined;
     // 标题「新的旅程」进序章视为正式开新局；章节直达始终起干净独立预览局，不泄漏或污染正式局状态。
     if (fresh || source === "chapter" || storyRun === undefined) {
-        const seed = seedOverride !== undefined
-            ? seedOverride
-            : ((source === "official" || source === "chapter") ? randomRunSeed() : 20261124);
-        storyRun = createRun(seed, source, profile);
+        storyRun = createRun(seedOverride ?? (source === "debug" ? 20261124 : randomRunSeed()), source, profile);
         if (source === "chapter") {
-            const targetKey = ROOMS[idx].key;
-            if (targetKey === "gatepath" || targetKey === "escort1" || targetKey === "escort2"
-                || targetKey === "escort3" || targetKey === "escort4" || targetKey === "escort5") {
-                storyRun.story.route = "soldier";
-                storyRun.story.settled = true;
-                storyRun.story.hp = 3;
-                storyRun.story.maxHp = 3;
-                storyRun.story.hpAtGate = 3;
-                storyRun.story.maxHpAtGate = 3;
-                storyRun.story.handDone = true;
-                storyRun.story.tied = true;
-                storyRun.story.carry = targetKey !== "gatepath";
-                storyRun.joined = true;
-                if (targetKey === "escort3" || targetKey === "escort4" || targetKey === "escort5") {
-                    storyRun.inventory.wood = 2;
-                    storyRun.inventory.bell = 1;
-                }
-            } else if (targetKey === "outside" || targetKey === "village" || targetKey === "forest") {
-                storyRun.story.route = "child";
-                storyRun.story.settled = true;
-                storyRun.story.countTick = 1440;
-            }
+            const targetKey = ROOMS[current] !== undefined ? ROOMS[current].key : "";
+            applyChapterPreviewContext(storyRun, targetKey, chapterRoute);
         }
     } else {
         storyRun.source = source;
     }
     ensurePlay();
-    // 标题「开始游戏」是正式新局：首帧从 P01「叫醒」起播，章节直达/快跳不播。
+    // 标题「开始游戏」与「选择章节 → 序章」均从 P01「叫醒」完整起播；debug 夹具保持 prologue-wait 兼容。
     const firstPlay = play as Play | undefined;
-    if (fresh && source === "official" && firstPlay !== undefined && ROOMS[current].key === "prologue") {
+    if (firstPlay !== undefined && ROOMS[current].key === "prologue"
+        && ((fresh && source === "official") || source === "chapter")) {
         firstPlay.phase = "prologue-wake";
     }
     flushProfile();
@@ -1176,7 +1208,7 @@ function tickFrontend(frameDt: number): void {
             refreshTitleSessionFlag();
             enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
-            enterPlayRoom(act.roomIndex, "chapter");
+            enterPlayRoom(act.roomIndex, "chapter", false, undefined, act.route);
         } else if (act.type === "openChapters") {
             fe.menus.openChapters();
             fe.screen = "chapters";
