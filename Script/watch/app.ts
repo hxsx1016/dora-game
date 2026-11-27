@@ -1041,7 +1041,9 @@ function tick(frameDt: number): void {
     if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
         && !play.craftBench.active && !play.reloadOpen && !play.escortFailed && play.getStoryTalentOffers().length > 0
         && input.pickRoom >= 1 && input.pickRoom <= 3) {
-        play.chooseTalent(input.pickRoom - 1);
+        if (fe.canPickStoryTalent(play)) {
+            play.chooseTalent(input.pickRoom - 1);
+        }
         input.pickRoom = 0;
     }
 
@@ -1216,7 +1218,7 @@ function tickFrontend(frameDt: number): void {
     p.aimY = input.my;
 
     const zoneTap = input.touchZoneTap;
-    input.touchZoneTap = "";
+    if (zoneTap !== "ledger:toggle") input.touchZoneTap = "";
 
     // 男主线肉鸽护送倒地：轮回小结页（折戟山道 → 重整再赴 / 返回标题）
     if (!p.paused && p.escortFailed) {

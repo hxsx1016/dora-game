@@ -35,6 +35,7 @@ import {
     deriveInteractActionMeta,
     isCutsceneBlockingPlay,
 } from "Script/watch/fe/ui/control_prompts";
+import { drawTalentGlyph, resolveTalentVisual } from "Script/watch/fe/ui/talent_catalog";
 import {
     PALETTE,
     RGBA,
@@ -175,6 +176,7 @@ export class TouchControls {
     private lastScreen: ScreenKind = "title";
     private lastPlay: Play | undefined;
     private lastRun: RunState | undefined;
+    private portraitTalentCards: { slot: number; id: string; rect: Rect.Type }[] = [];
     private time = 0;
 
     constructor(parent: Node.Type) {
@@ -531,6 +533,46 @@ export class TouchControls {
                             (vy - 6) / overlayScale,
                             (vw + 8) / overlayScale,
                             (vh + 12) / overlayScale,
+                        ),
+                    });
+                }
+
+                // 竖屏掌机台：在下半屏掌机台顶部追加 3 枚大拇指直点筹签键，无需伸手上屏也能单击落印
+                if (isPortrait && overlayActive && vp.deckH >= 220) {
+                    const offers = p.getStoryTalentOffers();
+                    const count = Math.min(offers.length, params.storyTalentBoxes.length);
+                    if (count > 0) {
+                        const padX = Math.max(12, safeL + 10);
+                        const gap = 8;
+                        const availW = ovW - padX * 2;
+                        const cardW = (availW - gap * (count - 1)) / count;
+                        const cardH = 34;
+                        const cardY = vp.deckH - cardH - 8;
+                        for (ti = 0; ti < count; ti++) {
+                            const r = Rect(padX + ti * (cardW + gap), cardY, cardW, cardH);
+                            rectZones.push({ id: "talent:" + ti, rect: r });
+                            this.portraitTalentCards.push({ slot: ti, id: offers[ti], rect: r });
+                        }
+                    }
+                }
+            }
+
+            // 同步左上「札记」按钮热区（若 RoguelikeUiPlugin 已挂载）
+            const g = globalThis as unknown as { package?: { loaded?: Record<string, unknown> } };
+            const watchFe = g.package?.loaded?.["watch.fe"] as Record<string, unknown> | undefined;
+            const rgPlugin = watchFe?.["roguelikeUi"] as { getLedgerButtonRect?: () => Rect.Type } | undefined;
+            if (rgPlugin !== undefined && typeof rgPlugin.getLedgerButtonRect === "function") {
+                const lb = rgPlugin.getLedgerButtonRect();
+                if (lb.width > 0 && lb.height > 0) {
+                    const lx = vp.stageX + lb.x * vp.uiScale;
+                    const ly = vp.stageY + lb.y * vp.uiScale;
+                    rectZones.push({
+                        id: "ledger:toggle",
+                        rect: Rect(
+                            (lx - 4) / overlayScale,
+                            (ly - 4) / overlayScale,
+                            ((lb.width + 8) * vp.uiScale) / overlayScale,
+                            ((lb.height + 8) * vp.uiScale) / overlayScale,
                         ),
                     });
                 }
@@ -1267,6 +1309,62 @@ export class TouchControls {
             if (b.id === "fire" && fireStick.active && fireStick.dragging) {
                 this.padInkDraw.drawSegment(Vec2(fireStick.originX, fireStick.originY), Vec2(fireStick.knobX, fireStick.knobY), 1.4, toColor(PALETTE.rouge, 190));
                 fillCirclePoly(this.padDraw, fireStick.knobX, fireStick.knobY, 12, toColor(PALETTE.rouge, 210), 1.2, toColor(PALETTE.crimsonCore, 240), 16);
+            }
+        }
+    }
+
+    private drawPortraitStoryTalentCards(alpha: number): void {
+        let i = 0;
+        for (i = 0; i < this.portraitTalentCards.length; i++) {
+            const card = this.portraitTalentCards[i];
+            const meta = resolveTalentVisual(card.id);
+            const r = card.rect;
+            const cy = r.y + r.height * 0.5;
+            this.padDraw.drawRoundedRect(
+                r,
+                5,
+                toColor(PALETTE.panelBgDeep, Math.round(228 * alpha)),
+                1.2,
+                toColor(meta.accent, Math.round(215 * alpha)),
+            );
+            drawTalentGlyph(this.padInkDraw, r.x + 17, cy, 8.5, card.id, meta.accent, Math.min(1, alpha + 0.1), meta.accentCore);
+            this.texts.put(
+                "xs",
+                meta.title + " · 落印",
+                r.x + 31,
+                cy,
+                toColor(meta.accentCore),
+                0,
+                0.5,
+                TextAlign.Left,
+                0.4,
+                Math.min(1, alpha + 0.12),
+                0.08,
+            );
+        }
+    }
+
+    private drawTrialZones(ctx: TouchFrameContext, alpha: number): void {
+        const trial = this.lastRun?.trial;
+        let i = 0;
+        for (i = 0; i < ctx.rectZones.length; i++) {
+            const z = ctx.rectZones[i];
+            const r = z.rect;
+            const cx = r.x + r.width * 0.5;
+            const cy = r.y + r.height * 0.5;
+            if (z.id === "pause" || z.id === "retry") {
+                this.padDraw.drawRoundedRect(r, 6, toColor(PALETTE.inkWash, 185 * alpha), 1.2, toColor(PALETTE.silkLine, 175 * alpha));
+                this.texts.put("xs", z.id === "pause" ? "暂停" : "重开", cx, cy, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.8, 0.94, 0.08);
+            } else if (z.id.indexOf("talent:") === 0 && trial !== undefined) {
+                const idx = Number(z.id.slice(7));
+                const tName = idx >= 0 && idx < trial.offers.length ? talentNames[trial.offers[idx]] : "";
+                this.padDraw.drawRoundedRect(r, 6, toColor(PALETTE.panelBgDeep, 235), 1.6, toColor(PALETTE.amber, 225));
+                this.texts.put("xs", (idx + 1) + " · " + tName, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0.6, 0.98, 0.08);
+            } else if (z.id === "trial:resume" || z.id === "trial:retry" || z.id === "trial:title") {
+                const label = z.id === "trial:resume" ? "继续试炼" : (z.id === "trial:retry" ? "再开一局" : "返回标题");
+                const border = z.id === "trial:resume" ? PALETTE.amber : PALETTE.silkLine;
+                this.padDraw.drawRoundedRect(r, 6, toColor(PALETTE.panelBgDeep, 235), 1.5, toColor(border, 220));
+                this.texts.put("sm", label, cx, cy, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.0, 0.98, 0.08);
             }
         }
     }

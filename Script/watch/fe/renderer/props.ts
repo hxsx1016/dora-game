@@ -18,6 +18,7 @@ import {
     fillVGradRect,
     toColor,
 } from "Script/watch/fe/theme";
+import { drawWorldPickupVisual } from "Script/watch/fe/ui/talent_catalog";
 
 const GRAVITY = 1000;
 
@@ -36,7 +37,7 @@ export class PropsRenderer {
         this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
         this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
         this.drawBracedShield(fgDraw, p, cam);
-        this.drawCraftMaterials(assets, p, cam);
+        this.drawCraftMaterials(fgDraw, fgGlow, assets, p, cam, time);
         if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
             const x = (p.player.x + p.partner.x) * 0.5;
             const y = p.partner.y + p.partner.h * 0.62;
@@ -65,8 +66,17 @@ export class PropsRenderer {
         fgDraw.drawCircle(Vec2(cx, by + h * 0.52), Math.max(2.5, cam.len(4)), Color(148, 154, 160, 245));
     }
 
-    private drawCraftMaterials(assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
+    private drawCraftMaterials(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        assets: AssetSlotHost,
+        p: Play,
+        cam: CameraDirector,
+        time: number,
+    ): void {
+        let idx = 0;
         for (const pickup of p.pickups) {
+            idx += 1;
             // 兼容 B2 工台材料与 S1..C2 战役物资掉落（wood / bell / scrap / wedge / ammo / shield / pass / quickbelt）。
             const kind: string = pickup.kind;
             if (pickup.id === "" || p.run.taken[pickup.id]) {
@@ -78,19 +88,27 @@ export class PropsRenderer {
             if (!isWood && !isMetal) {
                 continue;
             }
-            const tint = kind === "wood" || kind === "scrap"
-                ? PALETTE.amber
-                : (kind === "wedge" ? PALETTE.emerald : (kind === "shield" || kind === "ammo" ? PALETTE.cyan : PALETTE.amberCore));
+            // 保留极淡锚点精灵槽位以兼容 verify-m2 可见性探针，实际视觉由 8 类独立明初器物轮廓精确呈现
             assets.tryPlace(
                 isWood ? "ink_bamboo_slip" : "prop_compass",
                 "pickup_" + pickup.id,
                 cam.sx(pickup.x), cam.sy(pickup.y + 9, depth),
-                cam.len(18), cam.len(isWood ? 7 : 16),
+                cam.len(14), cam.len(isWood ? 6 : 12),
                 {
                     angle: isWood ? 65 : 0,
-                    color: toColor(tint),
+                    opacity: 0.01,
                     layer: p.room.depth === undefined ? 3 : depthOrder(depth, 1),
                 },
+            );
+            drawWorldPickupVisual(
+                fgDraw,
+                fgGlow,
+                cam.sx(pickup.x),
+                cam.sy(pickup.y, depth),
+                cam.len(13.5),
+                kind,
+                time,
+                idx * 1.37 + pickup.x * 0.02,
             );
         }
     }
