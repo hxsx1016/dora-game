@@ -7,6 +7,7 @@ on:
       - 'init.lua'
       - 'Script/**'
       - 'assets/**'
+      - 'art-source/brand/icons/**'
       - 'tools/make-windows-pack.sh'
       - 'tools/make-dora-source-pack.sh'
       - 'tools/windows-boot.lua'
@@ -159,7 +160,7 @@ jobs:
           $dest = Join-Path $env:RUNNER_TEMP "verify-opengl"
           Expand-Archive -Path $zip -DestinationPath $dest -Force
           $root = Join-Path $dest "${env:EXE_NAME}-${ver}-windows-x64-opengl"
-          foreach ($req in @("${env:EXE_NAME}.exe", "dora-game-id", "Script\init.lua", "Script\main.lua", "assets\art\title.png", "assets\audio\combat\shot.wav", "SHA256SUMS")) {
+          foreach ($req in @("${env:EXE_NAME}.exe", "${env:EXE_NAME}.ico", "dora-game-id", "Script\init.lua", "Script\main.lua", "assets\art\title.png", "assets\art\brand\game_logo_h.png", "assets\art\brand\team_logo_dark.png", "assets\art\brand\app_icon.png", "assets\audio\combat\shot.wav", "SHA256SUMS")) {
             $p = Join-Path $root $req
             if (-not (Test-Path $p)) { throw "Missing required file in OpenGL pack: $req" }
           }

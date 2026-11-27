@@ -16,7 +16,9 @@
 
 import { Color, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
+import { ZERO_SAFE_INSETS } from "Script/watch/platform";
 import { AssetSlotHost } from "Script/watch/fe/assets";
+import { keyTagFor } from "Script/watch/fe/ui/control_prompts";
 import {
     CraftRecipeView,
     DualRouteContract,
@@ -280,9 +282,9 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         }
     }
 
-    private resetInputEdges(): void {
-        this.prevLeft = typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
-        this.prevRight = typeof Mouse !== "undefined" ? Mouse.rightButtonPressed : false;
+    private resetInputEdges(touchMode: boolean = false): void {
+        this.prevLeft = !touchMode && typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
+        this.prevRight = !touchMode && typeof Mouse !== "undefined" ? Mouse.rightButtonPressed : false;
         if (typeof Keyboard !== "undefined") {
             this.prevLeftKey = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
             this.prevRightKey = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
@@ -308,14 +310,16 @@ export class CraftBenchPlugin implements FeRenderPlugin {
     } {
         const uiW = ctx.uiW;
         const uiH = ctx.uiH;
-        const benchW = Math.min(uiW - 88, 692);
+        const safe = ctx.safeUi ?? ZERO_SAFE_INSETS;
+        const touchMode = ctx.input.isTouchMode();
+        const benchW = Math.min(uiW - 88 - safe.left - safe.right, 692);
         const benchH = 290;
         // 智能侧向停靠：避让画面中的周戍与落地小满，保持人物与木案同尺度同框可见
         const soldierUiX = ctx.cam.sx(ctx.p.player.x) / ctx.uiScale;
-        const benchX = soldierUiX < uiW * 0.52
-            ? Math.max(36, uiW - benchW - 44)
-            : 44;
-        const benchY = Math.max(46, Math.min(uiH * 0.10, 66));
+        const minX = 36 + safe.left;
+        const maxX = Math.max(minX, uiW - benchW - 44 - safe.right);
+        const benchX = soldierUiX < uiW * 0.52 ? maxX : minX;
+        const benchY = Math.max(46 + safe.bottom, Math.min(uiH * 0.10 + safe.bottom, 66 + safe.bottom));
         const matW = 196;
 
         const cardsAreaX = benchX + matW + 18;
@@ -331,7 +335,9 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         for (i = 0; i < count; i++) {
             this.cardBoxes.push(Rect(cardsAreaX + i * (cardW + gap), cardY, cardW, cardH));
         }
-        this.closeBox = Rect(benchX + benchW - 88, benchY + benchH - 40, 72, 26);
+        const closeW = touchMode ? 88 : 76;
+        const closeH = touchMode ? 32 : 26;
+        this.closeBox = Rect(benchX + benchW - closeW - 16, benchY + benchH - closeH - 12, closeW, closeH);
         return { benchX, benchY, benchW, benchH, matW };
     }
 
@@ -341,7 +347,7 @@ export class CraftBenchPlugin implements FeRenderPlugin {
 
         // 暂停态严格冻结所有计时与试握动画
         if (ctx.paused) {
-            this.resetInputEdges();
+            this.resetInputEdges(ctx.input.isTouchMode());
             return;
         }
 
@@ -364,7 +370,7 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             this.missingFlashT = 0;
             this.missingList = [];
             this.selectedIdx = Math.max(0, Math.min(Math.max(0, bench.recipes.length - 1), this.selectedIdx));
-            this.resetInputEdges();
+            this.resetInputEdges(ctx.input.isTouchMode());
         } else if (!bench.active && this.wasActive) {
             this.pendingRecipeId = "";
             this.missingFlashT = 0;
@@ -439,14 +445,31 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const sim = this.pendingSimInput;
         this.pendingSimInput = undefined;
 
-        const ptrX = sim?.pointerX !== undefined ? sim.pointerX : (ctx.input.mx / ctx.uiScale);
-        const ptrY = sim?.pointerY !== undefined ? sim.pointerY : (ctx.input.my / ctx.uiScale);
-        const inside = sim?.pointerX !== undefined ? true : ctx.input.inside;
-        const leftHeld = sim?.click !== undefined ? sim.click : (ctx.input.fire.held || (typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
-        const rightHeld = sim?.rightClick !== undefined ? sim.rightClick : (typeof Mouse !== "undefined" && Mouse.rightButtonPressed);
+        const touchMode = ctx.input.isTouchMode();
+        const useUiPtr = sim?.pointerX === undefined
+            && (ctx.input.uiHeld || ctx.input.uiPressed || ctx.input.uiReleased || (touchMode && ctx.input.uiInside));
+        const ptrX = sim?.pointerX !== undefined
+            ? sim.pointerX
+            : ((useUiPtr ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale);
+        const ptrY = sim?.pointerY !== undefined
+            ? sim.pointerY
+            : ((useUiPtr ? ctx.input.uiY : ctx.input.my) / ctx.uiScale);
+        const inside = sim?.pointerX !== undefined
+            ? true
+            : (useUiPtr ? ctx.input.uiInside : ctx.input.inside);
+        const leftHeld = sim?.click !== undefined
+            ? sim.click
+            : (ctx.input.uiHeld || ctx.input.fire.held || (!touchMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
+        const rightHeld = sim?.rightClick !== undefined
+            ? sim.rightClick
+            : (ctx.input.uiRightPressed || (!touchMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
 
-        const click = sim?.click !== undefined ? sim.click : (leftHeld && !this.prevLeft);
-        const rightClick = sim?.rightClick !== undefined ? sim.rightClick : (rightHeld && !this.prevRight);
+        const click = sim?.click !== undefined
+            ? sim.click
+            : (ctx.input.uiPressed || (leftHeld && !this.prevLeft));
+        const rightClick = sim?.rightClick !== undefined
+            ? sim.rightClick
+            : (ctx.input.uiRightPressed || (rightHeld && !this.prevRight));
         this.prevLeft = leftHeld;
         this.prevRight = rightHeld;
 
@@ -458,19 +481,25 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             move = sim.move ?? 0;
             confirm = sim.confirm === true;
             cancel = sim.cancel === true;
-        } else if (typeof Keyboard !== "undefined") {
-            const lk = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
-            const rk = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
-            const cf = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
-            const cc = Keyboard.isKeyPressed(KeyName.BackSpace);
-            if (lk && !this.prevLeftKey) { move -= 1; }
-            if (rk && !this.prevRightKey) { move += 1; }
-            confirm = cf && !this.prevConfirm;
-            cancel = cc && !this.prevCancel;
-            this.prevLeftKey = lk;
-            this.prevRightKey = rk;
-            this.prevConfirm = cf;
-            this.prevCancel = cc;
+        } else {
+            if (typeof Keyboard !== "undefined") {
+                const lk = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
+                const rk = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
+                const cf = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
+                const cc = Keyboard.isKeyPressed(KeyName.BackSpace);
+                if (lk && !this.prevLeftKey) { move -= 1; }
+                if (rk && !this.prevRightKey) { move += 1; }
+                confirm = cf && !this.prevConfirm;
+                cancel = cc && !this.prevCancel;
+                this.prevLeftKey = lk;
+                this.prevRightKey = rk;
+                this.prevConfirm = cf;
+                this.prevCancel = cc;
+            }
+            if (ctx.input.navLeft || ctx.input.navPrevTab) { move -= 1; }
+            if (ctx.input.navRight || ctx.input.navNextTab) { move += 1; }
+            if (ctx.input.navConfirm) { confirm = true; }
+            if (ctx.input.navBack) { cancel = true; }
         }
 
         // 右键或点击「收起」取消工台：完整保留所有材料
@@ -486,8 +515,10 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             return;
         }
 
+        const rawDx = useUiPtr ? ctx.input.uiDx : ctx.input.mdx;
+        const rawDy = useUiPtr ? ctx.input.uiDy : ctx.input.mdy;
         const pointerMoved = sim?.pointerX !== undefined
-            || (inside && Math.abs(ctx.input.mdx) + Math.abs(ctx.input.mdy) >= ctx.uiScale);
+            || (!touchMode && inside && Math.abs(rawDx) + Math.abs(rawDy) >= ctx.uiScale);
         let hitCard = -1;
         if (inside) {
             let i = 0;
@@ -612,16 +643,21 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         ctx.texts.put("md", "安全工台 · 改制鸟铳", bx + 54, by + bh - 26, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 2.0, 0.96 * appear, 0.08);
         drawHairline(uiInkDraw, uiArt, "cb_head_line", bx + bw * 0.5, by + bh - 46, bw - 36, PALETTE.amberDim, 0.55 * appear, false, 2);
 
-        const closeHover = ctx.input.inside && this.closeBox.containsPoint(Vec2(ctx.input.mx / ctx.uiScale, ctx.input.my / ctx.uiScale));
+        const hoverX = (ctx.input.uiInside ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale;
+        const hoverY = (ctx.input.uiInside ? ctx.input.uiY : ctx.input.my) / ctx.uiScale;
+        const closeHover = (ctx.input.uiInside || ctx.input.inside) && this.closeBox.containsPoint(Vec2(hoverX, hoverY));
         uiInkDraw.drawRect(
             this.closeBox,
             Color(24, 18, 16, Math.round((closeHover ? 215 : 155) * appear)),
             0.9,
             toColor(closeHover ? PALETTE.amberCore : PALETTE.silkDim, 185 * appear),
         );
+        const closeText = ctx.input.isGamepadMode()
+            ? (keyTagFor("back", "gamepad", ctx.input.gamepadLayout) + " 收起")
+            : "收起";
         ctx.texts.put(
             "xs",
-            "收起",
+            closeText,
             this.closeBox.x + this.closeBox.width * 0.5,
             this.closeBox.y + this.closeBox.height * 0.5,
             toColor(closeHover ? PALETTE.textBright : PALETTE.textMid),

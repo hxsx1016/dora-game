@@ -5,19 +5,33 @@
  *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
  */
 
-import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, PlatformType, Rect, Size, Vec2, View } from "Dora";
+import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
 import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
+import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
+import { InputMode, InputModePref } from "Script/watch/controls_config";
+import { GamepadFrameContext, GamepadRawState, GamepadRouter } from "Script/watch/gamepad";
+import {
+    StageViewport,
+    canQuitApp,
+    canToggleFullscreen,
+    computeStageViewport,
+    getReleaseConfig,
+    isReleaseMode,
+} from "Script/watch/platform";
+import { TouchRouter } from "Script/watch/touch";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createStoryTalents, createTrial, mmss, RunSource, RunState, Talent, talentNames } from "Script/watch/run";
 import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
     markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
     SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
+import { TouchControls } from "Script/watch/fe/ui/touch_controls";
+import { isCutsceneBlockingPlay } from "Script/watch/fe/ui/control_prompts";
 
 declare function print(...args: string[]): void;
 
@@ -67,46 +81,131 @@ let dirty = true;
 /** 0 = 灰盒调试视图，1 = 游戏前端。 */
 let mode = 1;
 let input: Input | undefined;
+let touchRouter: TouchRouter | undefined;
+let gamepadRouter: GamepadRouter | undefined;
+let touchControls: TouchControls | undefined;
 let play: Play | undefined;
 let fe: WatchFrontend | undefined;
 const clock = new StepClock();
-
-interface ReleaseConfig {
-    isRelease?: boolean;
-    version?: string;
-    portableSave?: boolean;
-}
-
-function getReleaseConfig(): ReleaseConfig | undefined {
-    const reg = (globalThis as unknown as { package?: { loaded?: Record<string, unknown> } }).package?.loaded;
-    const cfg = reg !== undefined ? reg["watch.release"] : undefined;
-    if (cfg !== undefined && typeof cfg === "object") {
-        return cfg as ReleaseConfig;
-    }
-    return undefined;
-}
+let stageVp: StageViewport = computeStageViewport(1280, 720);
+let testViewportOverride: { w: number; h: number } | undefined;
+let audioUnlocked = false;
+let appClock = 0;
+let lastBackPressClock = -10;
+let trialTalentSelected = 0;
 
 function isReleaseBuild(): boolean {
-    return getReleaseConfig()?.isRelease === true;
+    return isReleaseMode();
+}
+
+function onFirstUserGesture(): void {
+    if (audioUnlocked || fe === undefined) {
+        return;
+    }
+    audioUnlocked = true;
+    fe.audio.unlockAndResyncAfterGesture();
 }
 
 function toggleFullscreen(): boolean {
-    const plat = App.platform;
-    if (plat !== PlatformType.Windows && plat !== PlatformType.macOS && plat !== PlatformType.Linux) {
+    if (!canToggleFullscreen()) {
         return false;
     }
-    const next = !App.fullScreen;
-    App.fullScreen = next;
-    return next;
+    try {
+        const next = !App.fullScreen;
+        App.fullScreen = next;
+        return next;
+    } catch {
+        return false;
+    }
 }
 
 function quitGame(): void {
     flushProfile();
     saveCurrentSession();
+    input?.clearTransient(false);
     if (fe !== undefined) {
         fe.audio.stopRoomTransient();
     }
+    if (!canQuitApp()) {
+        // Web / Dora Go 源码模式不允许停死宿主进程：安全回退到标题页
+        current = 0;
+        play = undefined;
+        run = undefined;
+        setMode(1);
+        if (fe !== undefined) {
+            fe.screen = "title";
+            fe.menus.resetInput();
+        }
+        return;
+    }
     App.shutdown();
+}
+
+function handleBackButton(): void {
+    if (mode === 0) {
+        setMode(1);
+        return;
+    }
+    if (mode === 2 && play !== undefined) {
+        const trial = run?.trial;
+        if (trial !== undefined && (trial.lost || run?.finished === true)) {
+            current = 0;
+            play = undefined;
+            run = undefined;
+            setMode(1);
+            if (fe !== undefined) {
+                fe.screen = "title";
+                fe.menus.resetInput();
+            }
+            return;
+        }
+        play.paused = !play.paused;
+        clock.reset();
+        input?.clearTransient(true);
+        return;
+    }
+    if (fe === undefined) {
+        return;
+    }
+    if (fe.screen === "splash") {
+        fe.menus.resetSplash();
+        fe.screen = "title";
+        fe.menus.resetInput();
+        return;
+    }
+    if (fe.screen === "chapters" || fe.screen === "controls") {
+        fe.menus.triggerBack();
+        return;
+    }
+    if (fe.screen === "title") {
+        if (!canQuitApp()) {
+            fe.showToast("按系统返回主界面或切换应用离开", 1.8);
+            return;
+        }
+        if (appClock - lastBackPressClock <= 2.0) {
+            quitGame();
+        } else {
+            lastBackPressClock = appClock;
+            fe.showToast("再按一次返回退出游戏", 2.0);
+        }
+        return;
+    }
+    if (fe.screen === "play" && play !== undefined) {
+        if (play.paused) {
+            fe.menus.triggerBack();
+            return;
+        }
+        if (play.craftBench.active) {
+            play.closeCraftBench();
+            return;
+        }
+        play.paused = true;
+        play.aimHold = 0;
+        play.bottleAimX = -1;
+        saveCurrentSession();
+        fe.menus.openPause();
+        input?.clearTransient(true);
+    }
 }
 
 function canSaveSession(): boolean {
@@ -318,6 +417,9 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     }
     fe = new WatchFrontend(parent);
     fe.screen = startScreen;
+    if (startScreen === "splash") {
+        fe.menus.resetSplash();
+    }
     refreshTitleSessionFlag();
     grayboxLayer.visible = mode === 0;
     fe.setVisible(mode === 1);
@@ -326,17 +428,55 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     }
 
     input = new Input();
+    touchRouter = new TouchRouter(input.settings);
+    touchRouter.attach(parent);
+    input.bindTouch(touchRouter);
 
-    // 窗口关闭、退出或切后台前确保待落盘档案与局中进度安全写入，防止丢失进度。
+    gamepadRouter = new GamepadRouter(input.settings);
+    gamepadRouter.attach(parent);
+    input.bindGamepad(gamepadRouter);
+
+    touchControls = new TouchControls(parent);
+
+    // 系统返回键、窗口关闭、切后台与焦点切换生命周期统一治理
     parent.gslot("AppEvent", (eventType: string) => {
-        if (eventType === "Quit" || eventType === "Shutdown" || eventType === "WillEnterBackground") {
+        if (eventType === "BackButton") {
+            handleBackButton();
+            return;
+        }
+        if (eventType === "Quit" || eventType === "Shutdown") {
             flushProfile();
             saveCurrentSession();
+            input?.clearTransient(false);
+            return;
+        }
+        if (eventType === "WillEnterBackground" || eventType === "DidEnterBackground" || eventType === "WindowFocusLost") {
+            flushProfile();
+            saveCurrentSession();
+            input?.clearTransient(true);
+            if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused) {
+                play.paused = true;
+                play.aimHold = 0;
+                play.bottleAimX = -1;
+                fe.menus.openPause();
+            }
+            if (fe !== undefined) {
+                fe.audio.setPaused(true);
+            }
+            return;
+        }
+        if (eventType === "DidEnterForeground" || eventType === "WindowFocusGained") {
+            if (fe !== undefined) {
+                const paused = mode === 1 && fe.screen === "play" && play !== undefined && play.paused;
+                fe.audio.setPaused(paused);
+            }
         }
     });
 
     // 开发与验收快捷键 + 瞬时按键边沿锁存（防止低帧率下短按 E / Space / Esc / 菜单方向键被轮询漏掉）
     parent.onKeyDown((key: KeyName) => {
+        onFirstUserGesture();
+        input?.markKeyboardActivity();
         if (key === KeyName.F11
             || (key === KeyName.Return && (Keyboard.isKeyPressed(KeyName.LAlt) || Keyboard.isKeyPressed(KeyName.RAlt)))) {
             toggleFullscreen();
@@ -410,9 +550,11 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     viewH = View.size.height;
     applySize();
 
-    // 验收钩子：保留 watch.input / watch.play / watch.room，并补充 watch.fe 控制面
+    // 验收钩子：保留 watch.input / watch.play / watch.room / watch.fe，并补充三模与多比例视口控制面
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.input"] = input;
+    reg["watch.touch"] = touchRouter;
+    reg["watch.gamepad"] = gamepadRouter;
     reg["watch.fe"] = {
         setScreen: (sc: ScreenKind) => {
             if (fe === undefined) {
@@ -420,7 +562,9 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             }
             setMode(1);
             fe.screen = sc;
-            if (sc === "chapters") {
+            if (sc === "splash") {
+                fe.menus.resetSplash();
+            } else if (sc === "chapters") {
                 fe.menus.openChapters();
             } else {
                 fe.menus.resetInput();
@@ -493,6 +637,40 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         getReleaseVersion: () => getReleaseConfig()?.version ?? "dev",
         toggleFullscreen: () => toggleFullscreen(),
         quitGame: () => quitGame(),
+        startTrial: () => startTrial(),
+        handleBackButton: () => handleBackButton(),
+        getViewport: () => stageVp,
+        getTouchController: () => touchControls,
+        getTouchRouter: () => touchRouter,
+        getGamepad: () => gamepadRouter,
+        setGamepadSim: (state?: GamepadRawState) => {
+            gamepadRouter?.setSimulatedState(state);
+        },
+        injectTouch: (phase: "began" | "moved" | "ended", id: number, x: number, y: number, fromMouse?: boolean) => {
+            touchRouter?.injectTouch(phase, id, x, y, fromMouse);
+        },
+        getInputMode: () => input?.inputMode ?? "kbm",
+        setInputMode: (m: InputMode) => {
+            input?.setInputMode(m);
+        },
+        setModePref: (pref: InputModePref) => {
+            input?.setModePref(pref);
+        },
+        applyViewportForTest: (w?: number, h?: number) => {
+            if (w !== undefined && h !== undefined && w > 0 && h > 0) {
+                testViewportOverride = { w, h };
+                viewW = w;
+                viewH = h;
+            } else {
+                testViewportOverride = undefined;
+                viewW = View.size.width;
+                viewH = View.size.height;
+            }
+            applySize();
+            dirty = true;
+            return stageVp;
+        },
+        getToast: () => fe?.getToastText() ?? "",
     };
 
     if (mode === 1 && startScreen === "play") {
@@ -612,11 +790,138 @@ function applySize(): void {
     }
     root.size = Size(viewW, viewH);
     root.position = Vec2(-viewW / 2, -viewH / 2);
+    stageVp = computeStageViewport(viewW, viewH);
+    if (input !== undefined) {
+        input.setStageViewport(stageVp);
+    }
+    if (fe !== undefined) {
+        fe.setStagePlacement(stageVp);
+    }
+    if (campaignLayer !== undefined) {
+        campaignLayer.position = Vec2(stageVp.stageX, stageVp.stageY);
+    }
+    if (grayboxLayer !== undefined) {
+        grayboxLayer.position = Vec2(0, 0);
+    }
+}
+
+function syncFrameAdapters(frameDt: number): void {
+    if (input === undefined) {
+        return;
+    }
+    const p = play;
+    const isPlayMode = mode === 1 && fe !== undefined && fe.screen === "play" && p !== undefined;
+    const isTrialMode = mode === 2 && p !== undefined;
+    const gameplayActive = isPlayMode || isTrialMode;
+
+    const storyTalentBoxes = isPlayMode && fe !== undefined && p !== undefined
+        && !p.paused && !p.craftBench.active && !p.reloadOpen
+        ? fe.getStoryTalentBoxes(p, stageVp.stageW, stageVp.stageH, input.isTouchMode())
+        : [];
+
+    if (touchControls !== undefined && touchRouter !== undefined) {
+        let isFs = false;
+        if (canToggleFullscreen()) {
+            try {
+                isFs = App.fullScreen;
+            } catch {
+                isFs = false;
+            }
+        }
+        touchControls.syncContext({
+            viewport: stageVp,
+            mode,
+            screen: fe !== undefined ? fe.screen : "title",
+            play: p,
+            run,
+            cam: fe !== undefined ? fe.cam : undefined,
+            input,
+            router: touchRouter,
+            assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
+            isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
+            isFullscreen: isFs,
+            storyTalentBoxes,
+            dt: frameDt,
+        });
+    }
+
+    if (gamepadRouter !== undefined) {
+        const trial = run?.trial;
+        const trialEnded = isTrialMode && trial !== undefined && (trial.lost || run?.finished === true);
+        const trialHasOffers = isTrialMode && trial !== undefined && trial.offers.length > 0 && p !== undefined && !p.paused && !trialEnded;
+        const modal = !gameplayActive
+            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active))
+            || (isTrialMode && p !== undefined && (p.paused || trialEnded));
+        const reloadActive = isPlayMode && p !== undefined && !p.paused && p.reloadOpen;
+        const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
+        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen
+            ? p.getStoryTalentOffers().length
+            : (trialHasOffers && trial !== undefined ? trial.offers.length : 0);
+        const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
+        const allowDepth = p !== undefined && p.room.depth !== undefined
+            && (!p.childMode || p.phase === "prologue-escape");
+        const canShoot = gameplayActive && p !== undefined && !p.childMode && !p.gripping
+            && !modal && !cutsceneBlocking && !trialHasOffers && p.escort.state !== "calming";
+        const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village"
+            && p.hasBottle && !p.passed && !modal && !cutsceneBlocking;
+        const inLowArch = p !== undefined && p.room.arch.h > 0
+            && p.player.x >= p.room.arch.x0 - 10 && p.player.x <= p.room.arch.x1 + 10
+            && p.player.y <= p.room.arch.y + p.room.arch.h;
+        const inTowerEnd = isPlayMode && p !== undefined && p.room.key === "tower" && p.phase === "tower-end";
+
+        let playerScreenX = stageVp.stageW * 0.5;
+        let playerScreenY = stageVp.stageH * 0.38;
+        if (p !== undefined) {
+            if (isPlayMode && fe !== undefined) {
+                playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
+                playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
+            } else {
+                playerScreenX = stageVp.stageW * 0.45;
+                playerScreenY = stageVp.stageH * 0.36;
+            }
+        }
+
+        const enemyTargets = canShoot && p !== undefined
+            ? (isPlayMode && fe !== undefined
+                ? collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
+                : collectTrialAimTargets(p, stageVp.stageW, stageVp.stageH))
+            : [];
+
+        const gpCtx: GamepadFrameContext = {
+            stageW: stageVp.stageW,
+            stageH: stageVp.stageH,
+            uiScale: stageVp.uiScale,
+            modal,
+            gameplayActive,
+            reloadActive,
+            craftActive,
+            talentOfferCount,
+            childMode: p !== undefined && p.childMode,
+            allowDepth,
+            canShoot,
+            canBottleAim,
+            playerRolling: p !== undefined && p.player.rollT > 0,
+            inLowArch,
+            inTowerEnd,
+            playerFacing: p !== undefined ? p.player.facing : 1,
+            playerScreenX,
+            playerScreenY,
+            enemyTargets,
+        };
+        gamepadRouter.setFrameContext(gpCtx, frameDt);
+    }
+}
+
+function renderTouchOverlay(): void {
+    if (touchControls !== undefined && touchRouter !== undefined) {
+        touchControls.render(touchRouter);
+    }
 }
 
 function tick(frameDt: number): void {
-    const w = View.size.width;
-    const h = View.size.height;
+    appClock += Math.min(0.05, Math.max(0, frameDt));
+    const w = testViewportOverride !== undefined ? testViewportOverride.w : View.size.width;
+    const h = testViewportOverride !== undefined ? testViewportOverride.h : View.size.height;
     if (w !== viewW || h !== viewH) {
         viewW = w;
         viewH = h;
@@ -626,9 +931,33 @@ function tick(frameDt: number): void {
     if (input === undefined) {
         return;
     }
+    syncFrameAdapters(frameDt);
     input.update();
+
+    if (input.userInteracted) {
+        onFirstUserGesture();
+    }
+    if (input.muteTogglePressed && fe !== undefined) {
+        input.muteTogglePressed = false;
+        fe.audio.toggleAllMuted();
+    }
+    if (input.fullscreenTogglePressed) {
+        input.fullscreenTogglePressed = false;
+        toggleFullscreen();
+    }
+    if (input.artifactTogglePressed && mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused) {
+        input.artifactTogglePressed = false;
+        play.toggleArtifactWeapon();
+    }
+    if (input.bottleCanceled && play !== undefined) {
+        input.bottleCanceled = false;
+        play.aimHold = 0;
+        play.bottleAimX = -1;
+    }
+
     if (mode === 2 && run?.trial !== undefined) {
         tickCampaign(frameDt);
+        renderTouchOverlay();
         return;
     }
 
@@ -668,16 +997,13 @@ function tick(frameDt: number): void {
 
     if (mode === 2) {
         tickCampaign(frameDt);
-        return;
-    }
-    if (mode === 1) {
+    } else if (mode === 1) {
         tickFrontend(frameDt);
-        return;
-    }
-    if (dirty) {
+    } else if (dirty) {
         redrawGraybox();
         dirty = false;
     }
+    renderTouchOverlay();
 }
 
 /** 把当前 Play 实例挂到 package.loaded，供 Lua 回放/验收读真实运行态。 */
@@ -706,12 +1032,13 @@ function ensurePlay(resume?: { checkpoint: number }): void {
     registerPlay();
     clock.reset();
     if (fe !== undefined && mode === 1) {
-        fe.bindPlay(play, viewW, viewH);
+        fe.bindPlay(play, stageVp.stageW, stageVp.stageH);
     }
 }
 
 function startTrial(): void {
     current = 0;
+    trialTalentSelected = 0;
     run = createTrial(App.rand);
     setMode(2);
     ensurePlay();
@@ -731,12 +1058,41 @@ function tickCampaign(frameDt: number): void {
     p.aimX = input.mx;
     p.aimY = input.my;
 
+    const zoneTap = input.touchZoneTap;
+    input.touchZoneTap = "";
+
     const trial = run?.trial;
     if (trial !== undefined) {
         const ended = trial.lost || run?.finished === true;
         const pick = input.pickRoom;
         input.pickRoom = 0;
-        if ((ended && input.pause.pressed) || (p.paused && input.interact.pressed)) {
+
+        if (zoneTap === "trial:resume" && p.paused && !ended) {
+            p.paused = false;
+            clock.reset();
+            input.consumeEdges();
+            drawCampaign(p);
+            return;
+        }
+        if (zoneTap === "trial:retry") {
+            input.consumeEdges();
+            startTrial();
+            return;
+        }
+        if (zoneTap === "trial:title") {
+            input.consumeEdges();
+            current = 0;
+            play = undefined;
+            run = undefined;
+            setMode(1);
+            if (fe !== undefined) {
+                fe.screen = "title";
+                fe.menus.resetInput();
+            }
+            return;
+        }
+
+        if ((ended && (input.pause.pressed || input.navBack)) || (p.paused && input.interact.pressed)) {
             input.consumeEdges();
             current = 0;
             play = undefined;
@@ -749,7 +1105,7 @@ function tickCampaign(frameDt: number): void {
             return;
         }
         if (ended || (p.paused && input.retry.pressed)) {
-            const restart = input.retry.pressed;
+            const restart = input.retry.pressed || (ended && input.navConfirm);
             input.consumeEdges();
             if (restart) startTrial();
             else drawCampaign(p);
@@ -757,7 +1113,27 @@ function tickCampaign(frameDt: number): void {
         }
         input.retry.pressed = false;
         if (trial.offers.length > 0 && !p.paused && !input.pause.pressed) {
-            if (pick > 0) p.chooseTalent(pick - 1);
+            if (trialTalentSelected >= trial.offers.length) {
+                trialTalentSelected = 0;
+            }
+            if (zoneTap.indexOf("talent:") === 0) {
+                const idx = parseInt(zoneTap.slice(7), 10);
+                if (idx >= 0 && idx < trial.offers.length) {
+                    p.chooseTalent(idx);
+                }
+            } else if (pick > 0) {
+                p.chooseTalent(pick - 1);
+            } else {
+                const delta = input.talentDelta
+                    + ((input.navRight || input.navNextTab) ? 1 : 0)
+                    - ((input.navLeft || input.navPrevTab) ? 1 : 0);
+                if (delta !== 0) {
+                    trialTalentSelected = (trialTalentSelected + delta + trial.offers.length) % trial.offers.length;
+                }
+                if (input.talentConfirm || input.navConfirm) {
+                    p.chooseTalent(trialTalentSelected);
+                }
+            }
             input.consumeEdges();
             clock.reset();
             drawCampaign(p);
@@ -773,7 +1149,7 @@ function tickCampaign(frameDt: number): void {
         ensurePlay();
         return;
     }
-    if (input.pause.pressed) {
+    if (input.pause.pressed || (p.paused && input.navBack)) {
         input.pause.pressed = false;
         p.paused = !p.paused;
         clock.reset();
@@ -829,8 +1205,10 @@ function drawCampaign(p: Play): void {
     if (campaignDraw === undefined) {
         return;
     }
-    const w = viewW;
-    const h = viewH;
+    const w = stageVp.stageW;
+    const h = stageVp.stageH;
+    const safeL = stageVp.safeUi.left * stageVp.uiScale;
+    const safeT = stageVp.safeUi.top * stageVp.uiScale;
     p.draw(campaignDraw, w, h);
     const room = CAMPAIGN_ROOMS[current];
     const c = room.campaign;
@@ -854,7 +1232,7 @@ function drawCampaign(p: Play): void {
     }
     if (campaignHud !== undefined) {
         campaignHud.text = line;
-        campaignHud.position = Vec2(24, h - 14);
+        campaignHud.position = Vec2(24 + safeL, h - 14 - safeT);
         campaignHud.visible = true;
     }
     if (campaignSub !== undefined) {
@@ -870,13 +1248,23 @@ function drawCampaign(p: Play): void {
             sub = sub + " · " + p.flash;
         }
         if (trial !== undefined && r !== undefined) {
-            if (trial.lost || r.finished) sub = "种子 " + r.seed + " · R 再开一局 · Esc 返回标题";
-            else if (p.paused) sub = "种子 " + r.seed + " · Esc 继续 · R 重新开局 · E 返回标题";
-            else if (trial.offers.length > 0) sub = trial.offers.map((talent, index) => (index + 1) + " " + talentNames[talent]).join("　");
-            else sub = "厚甲" + trial.ranks.vitality + " 熟铳" + trial.ranks.reload + " 护身" + trial.ranks.guard + " 巧手" + trial.ranks.craft + " · " + (p.flash !== "" ? p.flash : (r.joined ? "小满跟随" : "小满等待"));
+            const gpMode = input !== undefined && input.isGamepadMode();
+            const touchMode = input !== undefined && input.isTouchMode();
+            if (trial.lost || r.finished) {
+                sub = "种子 " + r.seed + (gpMode ? " · A 再开一局 · START 返回标题" : (touchMode ? " · 点下方按钮再开或返回标题" : " · R 再开一局 · Esc 返回标题"));
+            } else if (p.paused) {
+                sub = "种子 " + r.seed + (gpMode ? " · START 继续 · 长按BACK 重开 · Y 返回标题" : (touchMode ? " · 点下方按钮继续/重开/返回标题" : " · Esc 继续 · R 重新开局 · E 返回标题"));
+            } else if (trial.offers.length > 0) {
+                sub = trial.offers.map((talent, index) => {
+                    const mark = gpMode && index === trialTalentSelected ? "▶ " : "";
+                    return mark + (index + 1) + " " + talentNames[talent];
+                }).join("　");
+            } else {
+                sub = "厚甲" + trial.ranks.vitality + " 熟铳" + trial.ranks.reload + " 护身" + trial.ranks.guard + " 巧手" + trial.ranks.craft + " · " + (p.flash !== "" ? p.flash : (r.joined ? "小满跟随" : "小满等待"));
+            }
         }
         campaignSub.text = sub;
-        campaignSub.position = Vec2(24, h - 44);
+        campaignSub.position = Vec2(24 + safeL, h - 44 - safeT);
         campaignSub.visible = true;
     }
 }
@@ -886,11 +1274,14 @@ function tickFrontend(frameDt: number): void {
         return;
     }
 
-    // 1. 标题 / 章节直达 / 操作图鉴
+    // 1. 序幕 / 标题 / 章节直达 / 操作图鉴
     if (fe.screen !== "play") {
-        const act = fe.renderMenu(frameDt, input, viewW, viewH);
+        const act = fe.renderMenu(frameDt, input, stageVp.stageW, stageVp.stageH);
         input.consumeEdges();
-        if (act.type === "trial") {
+        if (act.type === "splashDone") {
+            fe.menus.resetInput();
+            fe.screen = "title";
+        } else if (act.type === "trial") {
             startTrial();
         } else if (act.type === "continue") {
             if (continueOfficialStory() === undefined) {
@@ -941,9 +1332,38 @@ function tickFrontend(frameDt: number): void {
     p.aimX = input.mx;
     p.aimY = input.my;
 
-    if (!p.paused && !p.craftBench.active && !p.reloadOpen && p.getStoryTalentOffers().length > 0
-        && input.inside && input.fire.pressed && fe.tryPickTalentAtPointer(p, input, viewW, viewH)) {
-        input.fire.pressed = false;
+    const zoneTap = input.touchZoneTap;
+    input.touchZoneTap = "";
+
+    const offers = p.getStoryTalentOffers();
+    if (!p.paused && !p.craftBench.active && !p.reloadOpen && offers.length > 0) {
+        if (fe.hud.talentSelected >= offers.length) {
+            fe.hud.talentSelected = 0;
+        }
+        if (zoneTap.indexOf("talent:") === 0) {
+            const idx = parseInt(zoneTap.slice(7), 10);
+            if (idx >= 0 && idx < offers.length && p.chooseTalent(idx)) {
+                input.fire.pressed = false;
+            }
+        } else {
+            if (input.talentDelta !== 0) {
+                fe.hud.talentSelected = (fe.hud.talentSelected + input.talentDelta + offers.length) % offers.length;
+                input.talentDelta = 0;
+            }
+            if (input.talentConfirm) {
+                p.chooseTalent(fe.hud.talentSelected);
+                input.talentConfirm = false;
+                input.fire.pressed = false;
+            } else if ((input.uiPressed || input.fire.pressed)
+                && fe.tryPickTalentAtPointer(p, input, stageVp.stageW, stageVp.stageH)) {
+                input.fire.pressed = false;
+            }
+        }
+    }
+
+    // 北塔尾声支持手柄确认键重新启程（与键盘 E / 触屏点画保持同源）
+    if (!p.paused && p.room.key === "tower" && p.phase === "tower-end" && input.navConfirm) {
+        input.interact.pressed = true;
     }
 
     if (!p.paused && p.craftBench.active && input.pause.pressed) {
@@ -957,13 +1377,14 @@ function tickFrontend(frameDt: number): void {
         p.bottleAimX = -1;
         saveCurrentSession();
         fe.menus.openPause();
+        input.clearTransient(true);
         input.consumeEdges();
     }
 
     if (p.paused) {
         // 菜单独占这一帧的输入。恢复时从下一帧开始推进游戏。
         clock.reset();
-        const pauseAct = fe.renderPlay(frameDt, p, input, viewW, viewH);
+        const pauseAct = fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH);
         input.consumeEdges();
         if (pauseAct.type === "resume") {
             p.paused = false;
@@ -1044,7 +1465,7 @@ function tickFrontend(frameDt: number): void {
     } else if (p.sessionDirty) {
         saveCurrentSession();
     }
-    fe.renderPlay(frameDt, p, input, viewW, viewH);
+    fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH);
 }
 
 /** D1 灰盒调试视图（按 G / F2 切入） */

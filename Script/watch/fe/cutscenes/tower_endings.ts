@@ -33,6 +33,7 @@ import { AudioDirector } from "Script/watch/fe/audio";
 import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE, drawPatchedCuff } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     LightRig,
@@ -2074,9 +2075,10 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         // 低引导规范：仅当玩家在暂停菜单主动打开「按键辅助」且定格读完解锁后，才在底遮幅极淡提示重开
         if (ctx.view.assistHintsEnabled && this.confirmReady) {
-            const hint = route === "child"
+            const rawHint = route === "child"
                 ? "按 E 再次启程   ·   Esc 暂歇"
                 : "团圆尾声   ·   按 E 再次启程   ·   Esc 暂歇";
+            const hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
             ctx.texts.put("xs", hint, ctx.uiW * 0.5, barH * 0.5, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.88, 0.08);
         }
     }

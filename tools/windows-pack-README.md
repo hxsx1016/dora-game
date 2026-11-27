@@ -40,6 +40,7 @@
 | 路径 | 用途 |
 | --- | --- |
 | `WestwardWatch.exe` | Dora SSR v1.10.2 Windows x64 独立游戏运行时 |
+| `WestwardWatch.ico` | 《向西守望》Windows 多尺寸应用图标（可用于桌面快捷方式或自定义图标） |
 | `dora-game-id` | 独立游戏标识（锚定资源路径、隔离单实例锁与存档目录） |
 | `启动-向西守望.cmd` | 中文路径兼容启动脚本 |
 | `Script/init.lua`、`Script/main.lua`、`Script/watch/` | 发行启动引导、游戏入口、玩法与水墨/低模前端 Lua 模块 |

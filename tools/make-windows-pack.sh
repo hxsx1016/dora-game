@@ -160,13 +160,19 @@ printf '%s' "$GAME_ID" > "$OUT/dora-game-id"
     printf 'commit=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 } > "$OUT/VERSION.txt"
 
-# 5. 注入启动引导、游戏 Lua 模块与完整运行时素材
+# 5. 注入启动引导、游戏 Lua 模块、完整运行时素材与 Windows 图标
 cp "$ROOT/tools/windows-boot.lua" "$OUT/Script/init.lua"
 cp "$ROOT/init.lua" "$OUT/Script/main.lua"
 mkdir -p "$OUT/Script/watch"
 rsync -a --include='*/' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
 rsync -a --exclude '.DS_Store' --exclude '._*' "$ROOT/assets/" "$OUT/assets/"
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
+if [ -f "$ROOT/art-source/brand/icons/WestwardWatch.ico" ]; then
+    cp "$ROOT/art-source/brand/icons/WestwardWatch.ico" "$OUT/${EXE_NAME}.ico"
+    if [ -n "${RCEDIT_BIN:-}" ] && [ -x "${RCEDIT_BIN}" ]; then
+        "${RCEDIT_BIN}" "$OUT/${EXE_NAME}.exe" --set-icon "$OUT/${EXE_NAME}.ico"
+    fi
+fi
 
 # 6. 中文友好启动脚本（UTF-8 代码页 + 支持中文与空格路径）
 cat > "$OUT/启动-向西守望.cmd" <<CMD
@@ -187,6 +193,7 @@ for forbidden in www Doc dora-wa dora_godot.dll wa.dll Script/Dev Script/Tools; 
 done
 for required in \
     "${EXE_NAME}.exe" \
+    "${EXE_NAME}.ico" \
     "dora-game-id" \
     "VERSION.txt" \
     "Script/init.lua" \
@@ -195,6 +202,11 @@ for required in \
     "Script/watch/app.lua" \
     "Script/watch/fe/frontend.lua" \
     "assets/art/title.png" \
+    "assets/art/brand/game_logo_h.png" \
+    "assets/art/brand/game_logo_v.png" \
+    "assets/art/brand/team_logo_dark.png" \
+    "assets/art/brand/team_badge.png" \
+    "assets/art/brand/app_icon.png" \
     "assets/art/sprites.clip" \
     "assets/font/lxgw-neo-zhisong.ttf" \
     "assets/font/longcang-brush.ttf" \

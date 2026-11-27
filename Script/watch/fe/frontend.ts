@@ -9,9 +9,10 @@
  *   惰性向 package.loaded["watch.fe"] 挂载 contract/audio/registerPlugin 调试钩子（零改动 app.ts）。
  */
 
-import { BlendFunc, BlendOp, DrawNode, Node, TextAlign, Vec2 } from "Dora";
+import { BlendFunc, BlendOp, DrawNode, Node, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
+import { StageViewport, computeStageViewport } from "Script/watch/platform";
 import { FrameEvents, PlayAdapter } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
@@ -73,6 +74,9 @@ export class WatchFrontend {
     screen: ScreenKind = "title";
     private time = 0;
     private boundPlay: Play | undefined;
+    private stageVp: StageViewport = computeStageViewport(1280, 720);
+    private toastText = "";
+    private toastTimer = 0;
 
     constructor(parent: Node.Type) {
         this.layerRoot = Node();
@@ -297,9 +301,49 @@ export class WatchFrontend {
         this.texts.endFrame();
     }
 
+    /** 同步主舞台视口与偏移（横屏原点 0,0；竖屏自动抬升至上半屏 16:9 舞台）。 */
+    setStagePlacement(vp: StageViewport): void {
+        this.stageVp = vp;
+        this.layerRoot.position = Vec2(vp.stageX, vp.stageY);
+    }
+
+    /** 底部轻量水墨提示条（供 Android 双击返回退出等系统提示）。 */
+    showToast(text: string, duration: number = 1.8): void {
+        this.toastText = text;
+        this.toastTimer = duration;
+    }
+
+    getToastText(): string {
+        return this.toastTimer > 0 ? this.toastText : "";
+    }
+
+    private drawToast(uiW: number): void {
+        if (this.toastTimer <= 0 || this.toastText === "") {
+            return;
+        }
+        const alpha = Math.min(1, this.toastTimer * 2.4);
+        const cx = uiW * 0.5;
+        const cy = 82 + this.stageVp.safeUi.bottom * 0.6;
+        drawSilkVeil(this.uiDraw, this.uiArt, "fe_toast_veil", cx, cy, 340, 38, PALETTE.inkWarm, 0.86 * alpha, 9);
+        this.texts.put("sm", this.toastText, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * alpha, 0.08);
+    }
+
+    /** 计算男主线三选一本领卡的舞台 UI 坐标矩形，供 TouchControls 同步直点热区。 */
+    getStoryTalentBoxes(p: Play, w: number, h: number, touchMode: boolean): Rect.Type[] {
+        const offers = p.getStoryTalentOffers();
+        if (offers.length === 0) {
+            return [];
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        return this.hud.talentCardRects(w / uiScale, h / uiScale, offers.length, touchMode, this.stageVp.safeUi.top);
+    }
+
     /** 菜单态每帧更新与渲染 */
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
+        if (this.toastTimer > 0) {
+            this.toastTimer = Math.max(0, this.toastTimer - Math.min(0.05, Math.max(0, dt)));
+        }
         if (this.screen === "title" && this.boundPlay !== undefined) {
             this.audio.stopRoomTransient();
             this.boundPlay = undefined;
@@ -323,7 +367,9 @@ export class WatchFrontend {
             w,
             h,
             uiScale,
+            this.stageVp.safeUi,
         );
+        this.drawToast(w / uiScale);
         this.finishFrame();
         return act;
     }
@@ -331,14 +377,21 @@ export class WatchFrontend {
     /** 局内试玩态：检测点击是否命中男主线护送段的三选一本领卡（命中后直接习得并吞掉当拍开火） */
     tryPickTalentAtPointer(p: Play, input: Input, w: number, h: number): boolean {
         const offers = p.getStoryTalentOffers();
-        if (offers.length === 0 || !input.inside) {
+        if (offers.length === 0) {
+            return false;
+        }
+        const useUiPtr = input.uiInside || input.uiPressed;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        if (!inside) {
             return false;
         }
         const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
         const uiW = w / uiScale;
         const uiH = h / uiScale;
-        const pointer = Vec2(input.mx / uiScale, input.my / uiScale);
-        const boxes = this.hud.talentCardRects(uiW, uiH, offers.length);
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const pointer = Vec2(rawX / uiScale, rawY / uiScale);
+        const boxes = this.hud.talentCardRects(uiW, uiH, offers.length, input.isTouchMode(), this.stageVp.safeUi.top);
         let i = 0;
         for (i = 0; i < boxes.length; i++) {
             if (boxes[i].containsPoint(pointer)) {
@@ -356,6 +409,9 @@ export class WatchFrontend {
             this.bindPlay(p, w, h);
         }
         const safeDt = Math.min(0.05, Math.max(0.001, dt));
+        if (this.toastTimer > 0) {
+            this.toastTimer = Math.max(0, this.toastTimer - safeDt);
+        }
         this.audio.setPaused(p.paused);
 
         let ev: FrameEvents;
@@ -367,6 +423,18 @@ export class WatchFrontend {
             ev = this.adapter.sample(p);
             this.vfx.ingest(ev, p, this.cam);
             this.audio.ingestEvents(ev, p);
+            const touch = input.getTouch();
+            if (touch !== undefined) {
+                if (ev.playerHit) {
+                    touch.vibrate(0.036);
+                } else if (ev.reloadSolved || ev.benchCrafted || ev.handJustTied || ev.cartJustDocked) {
+                    touch.vibrate(0.024);
+                } else if (ev.coverDeflect) {
+                    touch.vibrate(0.018);
+                } else if (ev.knockPulse) {
+                    touch.vibrate(0.014);
+                }
+            }
         } else {
             // 暂停态不消费/不补播事件，并立即收净切场斜切幕布
             ev = this.adapter.emptyFrame(p);
@@ -403,6 +471,7 @@ export class WatchFrontend {
             uiW,
             uiH,
             uiScale,
+            safeUi: this.stageVp.safeUi,
             paused: p.paused,
         };
 
@@ -513,6 +582,7 @@ export class WatchFrontend {
                 () => {
                     this.contract.toggleAssistHints();
                 },
+                this.stageVp.safeUi,
             );
         } else {
             // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写
@@ -526,6 +596,7 @@ export class WatchFrontend {
             }
 
             if (!cutsceneHandled) {
+                const touchOverlayVisible = input.shouldShowTouchControls() && !this.stageVp.isPortrait;
                 this.hud.draw(
                     this.uiDraw,
                     this.uiInkDraw,
@@ -539,6 +610,11 @@ export class WatchFrontend {
                     uiScale,
                     view.assistHintsEnabled,
                     true,
+                    input.inputMode,
+                    input.gamepadLayout,
+                    this.stageVp.safeUi,
+                    input.retryHoldProgress,
+                    touchOverlayVisible,
                 );
                 this.narrative.draw(
                     this.uiDraw,
@@ -550,6 +626,9 @@ export class WatchFrontend {
                     uiW,
                     uiH,
                     view.assistHintsEnabled,
+                    input.inputMode,
+                    input.gamepadLayout,
+                    this.stageVp.safeUi,
                 );
             }
 
@@ -571,17 +650,19 @@ export class WatchFrontend {
                     this.vfx,
                     this.narrative.letterbox,
                     uiScale,
+                    input.isTouchMode(),
                 );
             }
 
             // 排演态显式标注（对齐 64fc06f 录屏标注要求，避免排演样片与正式玩法混淆）
             if (view.isRehearsal) {
                 const badgeText = view.rehearsalTag !== "" ? ("排演 · " + view.rehearsalTag) : "排演模式";
-                drawSilkVeil(this.uiDraw, this.uiArt, "rehearsal_tag_veil", uiW * 0.5, uiH - 22, 168, 26, PALETTE.inkWarm, 0.74, 8);
-                this.texts.put("xs", badgeText, uiW * 0.5, uiH - 22, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, 0.92, 0.08);
+                drawSilkVeil(this.uiDraw, this.uiArt, "rehearsal_tag_veil", uiW * 0.5, uiH - 22 - this.stageVp.safeUi.top, 168, 26, PALETTE.inkWarm, 0.74, 8);
+                this.texts.put("xs", badgeText, uiW * 0.5, uiH - 22 - this.stageVp.safeUi.top, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, 0.92, 0.08);
             }
         }
 
+        this.drawToast(uiW);
         this.finishFrame();
         return action;
     }

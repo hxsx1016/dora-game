@@ -1,0 +1,181 @@
+name: Build & Deploy Web (GitHub Pages)
+
+on:
+  pull_request:
+    paths:
+      - 'init.ts'
+      - 'init.lua'
+      - 'Script/**'
+      - 'assets/**'
+      - 'art-source/brand/icons/web/**'
+      - 'tools/export-html.mjs'
+      - 'tools/audit-assets.py'
+      - 'tools/check-repo.py'
+      - '.github/workflows/deploy-web.yml'
+  push:
+    branches:
+      - main
+      - exp/multi-device-adapt
+      - exp/multi-device-unified
+    paths:
+      - 'init.ts'
+      - 'init.lua'
+      - 'Script/**'
+      - 'assets/**'
+      - 'art-source/brand/icons/web/**'
+      - 'tools/export-html.mjs'
+      - 'tools/audit-assets.py'
+      - 'tools/check-repo.py'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: '构建完成后部署到 GitHub Pages'
+        required: false
+        default: true
+        type: boolean
+      version:
+        description: '可选版本标识（留空取短 commit SHA）'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-web-deploy
+  cancel-in-progress: false
+
+env:
+  DORA_VERSION: v1.10.2
+  DORA_WEB_IDE_SHA256: 644e4fc0def8da2ccf0cdc5e7bff301c89fa72b5771d38fcaa7e63d5b860d124
+
+jobs:
+  build:
+    name: Build & Verify Web Bundle
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run repository and asset audits
+        run: |
+          python3 tools/check-repo.py
+          python3 tools/audit-assets.py
+
+      - name: Resolve Web bundle version
+        id: meta
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VER="${{ inputs.version }}"
+          else
+            VER="web-${GITHUB_SHA::7}"
+          fi
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify Dora SSR Web Player runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dora-web" "$RUNNER_TEMP/dora-web-unpack"
+          gh release download "${DORA_VERSION}" --repo IppClub/Dora-SSR \
+            --dir "$RUNNER_TEMP/dora-web" \
+            --pattern "web-ide-files.zip"
+          (
+            cd "$RUNNER_TEMP/dora-web"
+            echo "${DORA_WEB_IDE_SHA256}  web-ide-files.zip" | sha256sum -c -
+          )
+          unzip -q "$RUNNER_TEMP/dora-web/web-ide-files.zip" -d "$RUNNER_TEMP/dora-web-unpack"
+
+      - name: Export Web (server + offline HTML) packages
+        run: |
+          RUNTIME_DIR="$(find "$RUNNER_TEMP/dora-web-unpack" -type d -name web-player | head -n 1)"
+          if [ -z "$RUNTIME_DIR" ]; then
+            echo "未能在 web-ide-files.zip 中找到 web-player 运行时目录" >&2
+            exit 1
+          fi
+          node tools/export-html.mjs \
+            --mode both \
+            --runtime-dir "$RUNTIME_DIR" \
+            --out-dir "$RUNNER_TEMP/web-out" \
+            --version "${{ steps.meta.outputs.version }}"
+
+      - name: Validate exported Web bundle structure, unified icons and whitelist
+        run: |
+          SERVER_DIR="$RUNNER_TEMP/web-out/web-server"
+          HTML_DIR="$RUNNER_TEMP/web-out/web-html"
+          test -f "$SERVER_DIR/.nojekyll" || { echo "缺少 server 文件: .nojekyll" >&2; exit 1; }
+          for req in index.html favicon.ico favicon-32x32.png apple-touch-icon.png icon-192.png icon-512.png site.webmanifest dora-web-manifest.json dora-player-runtime.js dora-player-runtime.wasm dora-player-runtime.data audio-worklet.js dora-audio-mixer.wasm runtime.json; do
+            test -s "$SERVER_DIR/$req" || { echo "缺少 server 文件: $req" >&2; exit 1; }
+          done
+          for req in index.html html-loader.js favicon.ico favicon-32x32.png apple-touch-icon.png icon-192.png icon-512.png site.webmanifest; do
+            test -s "$HTML_DIR/$req" || { echo "缺少 html 文件: $req" >&2; exit 1; }
+          done
+          node --check "$HTML_DIR/html-loader.js"
+          node -e '
+            const fs = require("fs");
+            const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            if (m.entry !== "init.lua" || m.profile !== "dora-preset") {
+              throw new Error("manifest 配置异常: " + JSON.stringify({ entry: m.entry, profile: m.profile }));
+            }
+            const paths = new Set(m.files.map(f => f.path));
+            for (const req of ["assets/art/brand/app_icon.png", "assets/art/brand/game_logo_v.png", "Script/watch/platform.lua", "Script/watch/controls_config.lua", "Script/watch/gamepad.lua", "Script/watch/touch.lua"]) {
+              if (!paths.has(req)) throw new Error("manifest 缺少关键统一资产/模块: " + req);
+            }
+            const forbidden = m.files.filter(f =>
+              f.path.startsWith("docs/") ||
+              f.path.startsWith("art-source/") ||
+              f.path.startsWith("tools/") ||
+              f.path.endsWith(".ts") ||
+              f.path.includes("godot")
+            );
+            if (forbidden.length > 0) {
+              throw new Error("白名单泄漏非运行文件: " + forbidden.map(f => f.path).join(", "));
+            }
+            const totalBytes = m.files.reduce((acc, f) => acc + f.size, 0);
+            if (totalBytes > 15 * 1024 * 1024) {
+              throw new Error("游戏静态资源超出 15MB 预算: " + totalBytes);
+            }
+            console.log("[verify-web] manifest OK:", m.files.length, "files,", (totalBytes / 1048576).toFixed(2), "MB");
+          ' "$SERVER_DIR/dora-web-manifest.json"
+
+      - name: Upload Web ZIP artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: westward-watch-web-bundles
+          path: |
+            ${{ runner.temp }}/web-out/*.zip
+          retention-days: 14
+
+      - name: Configure GitHub Pages
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/web-out/web-server
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages)
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -12,6 +12,7 @@
 | TypeScript / Lua 游戏代码与前端渲染 | Codex / Claude / Gemini 编码智能体辅助生成与重构 | 架构拆单、接口契约（`Script/watch/fe/contract.ts`）、跨分支合流、冲突裁决与 18+ 组引擎自动化回归验收均由人类审核与把关 |
 | 自动化测试、CI 与打包流水线 | 编码智能体辅助编写 | `tools/verify-*.lua`、`tools/audit-assets.py`、`tools/make-windows-pack.sh`、`.github/workflows/release-windows.yml` 等工程脚本经本地与 CI 实测通过 |
 | 美术与音频素材 | 原创像素与水墨美术绘制 + Python 离线程序化合成音频 | 见下方第二、三节逐项清单；人声占位轨如替换为真人干声请在终稿中更新状态 |
+| 游戏与团队品牌标识 | AI 图像生成辅助 + 人类视觉把关、字形质检与透明通道/多端图标后期处理 | 团队「局外人」主导方向与终稿选型（G2 水墨题签主标、I2 北塔斜光图标、T2 六边暖灯团队标及 16:9 宣传封面），经人工逐字质检与透明通道精修后入库 `assets/art/brand/` 与 `art-source/brand/` |
 
 ## 二、开源引擎与第三方依赖
 
@@ -31,6 +32,7 @@
 
 ### 2. 美术资源（`assets/art/` 与 `art-source/`）
 - 场景背景图（`prologue.png`、`street.png`、`checkpoint.png`、`gate.png`、`outside.png`、`village.png`、`forest.png`、`tower.png`、`title.png`）与角色/道具/水墨 UI 图集（`sprites.png`/`sprites.clip`、`ui_ink.png`/`ui_ink.clip`）均为本项目在开发期内创作整理，无未授权商业素材。
+- 品牌与多端图标资产（`assets/art/brand/` 与 `art-source/brand/`）：包含《向西守望》G2 横版/竖版水墨题签主标、I2 暗夜北塔西窗 1:1 应用图标（及 Windows `.ico` / Android `mipmap-*` / Web `favicon` 派生集）、「局外人（OUTSIDER）」T2 六边暖灯团队标（暗底/宣纸浅底/紧凑角标）及 16:9 宣传封面，均为团队设计定稿并由 AI 辅助生成后经程序透明抠底与人工质检产出，无第三方版权限制。
 
 ### 3. 音频资源（`assets/audio/`，共 96 份离线 WAV）
 所有音频均为项目内程序化离线合成的原创 16-bit PCM WAV 素材，无第三方版权限制，分目录清册如下：

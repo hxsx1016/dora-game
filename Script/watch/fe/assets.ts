@@ -15,7 +15,8 @@ export type AssetSlotKey =
     | "ink_ribbon_sweep" | "ink_mist_curve" | "ink_veil_strip" | "ink_hairline"
     | "ink_bamboo_slip" | "ink_bamboo_slot" | "ink_frame_mask" | "ink_vstream"
     | "ink_knot_ornament" | "ink_corner_fine" | "ink_seal_slender" | "ink_blossom_dot"
-    | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper";
+    | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper"
+    | "brand_game_logo_h" | "brand_game_logo_v" | "brand_team_logo" | "brand_team_badge";
 
 export interface AssetSlotConfig {
     paths: string[];
@@ -136,6 +137,10 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     ink_enso_fine: inkClip("ink_enso_fine"),
     ink_petal_mist: inkClip("ink_petal_mist"),
     ink_song_paper: inkClip("ink_song_paper"),
+    brand_game_logo_h: { paths: ["assets/art/brand/game_logo_h.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    brand_game_logo_v: { paths: ["assets/art/brand/game_logo_v.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    brand_team_logo: { paths: ["assets/art/brand/team_logo_dark.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    brand_team_badge: { paths: ["assets/art/brand/team_badge.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
 };
 
 const WHITE = Color(255, 255, 255, 255);

@@ -159,46 +159,51 @@ function CameraDirector.prototype.recomputeMetrics(self, p, w, h) -- 176
 		self.y = 82 + desiredYOffset / 0.45 -- 206
 		return -- 207
 	end -- 207
-	self.ppu = self.viewH / BASE_VIEW_UNITS_H * self.zoom -- 210
-	local halfWorldW = self.viewW * 0.5 / self.ppu -- 213
-	local spanX = p.room.maxX - p.room.minX -- 214
-	if spanX <= halfWorldW * 2 then -- 214
-		self.x = (p.room.minX + p.room.maxX) * 0.5 -- 216
-	else -- 216
-		local minCam = p.room.minX + halfWorldW -- 218
-		local maxCam = p.room.maxX - halfWorldW -- 219
-		if self.x < minCam then -- 219
-			self.x = minCam -- 221
-		end -- 221
-		if self.x > maxCam then -- 221
-			self.x = maxCam -- 224
-		end -- 224
-	end -- 224
+	local aspect = self.viewW / self.viewH -- 212
+	local aspectComp = aspect < 16 / 9 and math.max( -- 213
+		0.82, -- 214
+		math.min(1, aspect / (16 / 9)) -- 214
+	) or 1 -- 214
+	self.ppu = self.viewH / BASE_VIEW_UNITS_H * self.zoom * aspectComp -- 216
+	local halfWorldW = self.viewW * 0.5 / self.ppu -- 219
+	local spanX = p.room.maxX - p.room.minX -- 220
+	if spanX <= halfWorldW * 2 then -- 220
+		self.x = (p.room.minX + p.room.maxX) * 0.5 -- 222
+	else -- 222
+		local minCam = p.room.minX + halfWorldW -- 224
+		local maxCam = p.room.maxX - halfWorldW -- 225
+		if self.x < minCam then -- 225
+			self.x = minCam -- 227
+		end -- 227
+		if self.x > maxCam then -- 227
+			self.x = maxCam -- 230
+		end -- 230
+	end -- 230
 end -- 176
-function CameraDirector.prototype.sx(self, wx) -- 230
-	return self.viewW * 0.5 + (wx - self.x) * self.ppu + self.shakeX -- 231
-end -- 230
-function CameraDirector.prototype.sy(self, wy, depth) -- 235
-	if depth == nil then -- 235
-		depth = 0 -- 235
-	end -- 235
-	local yOffset = (self.y - 82) * 0.45 -- 236
-	return self.groundScreenY + (wy + depth * DEPTH_Y_SCALE - yOffset) * self.ppu + self.shakeY -- 237
-end -- 235
-function CameraDirector.prototype.len(self, worldLen) -- 241
-	return worldLen * self.ppu -- 242
+function CameraDirector.prototype.sx(self, wx) -- 236
+	return self.viewW * 0.5 + (wx - self.x) * self.ppu + self.shakeX -- 237
+end -- 236
+function CameraDirector.prototype.sy(self, wy, depth) -- 241
+	if depth == nil then -- 241
+		depth = 0 -- 241
+	end -- 241
+	local yOffset = (self.y - 82) * 0.45 -- 242
+	return self.groundScreenY + (wy + depth * DEPTH_Y_SCALE - yOffset) * self.ppu + self.shakeY -- 243
 end -- 241
-function CameraDirector.prototype.worldToScreen(self, wx, wy, depth) -- 246
-	if depth == nil then -- 246
-		depth = 0 -- 246
-	end -- 246
-	return { -- 247
-		x = self:sx(wx), -- 248
-		y = self:sy(wy, depth) -- 249
-	} -- 249
-end -- 246
-function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 254
-	local yOffset = (self.y - 82) * 0.45 -- 255
-	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 256
-end -- 254
-return ____exports -- 254
+function CameraDirector.prototype.len(self, worldLen) -- 247
+	return worldLen * self.ppu -- 248
+end -- 247
+function CameraDirector.prototype.worldToScreen(self, wx, wy, depth) -- 252
+	if depth == nil then -- 252
+		depth = 0 -- 252
+	end -- 252
+	return { -- 253
+		x = self:sx(wx), -- 254
+		y = self:sy(wy, depth) -- 255
+	} -- 255
+end -- 252
+function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 260
+	local yOffset = (self.y - 82) * 0.45 -- 261
+	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 262
+end -- 260
+return ____exports -- 260

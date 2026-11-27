@@ -207,7 +207,13 @@ export class CameraDirector {
             return;
         }
 
-        this.ppu = (this.viewH / BASE_VIEW_UNITS_H) * this.zoom;
+        // 非 16:9 紧凑掌机屏（如 KTR1/R2 3:2 1620×1080、KTR2 4:3 1280×960）适度回退纵向缩放，
+        // 避免枪战横向视野被截窄 20%–25%；16:9 及更宽屏幕保持 1.0 零变化。
+        const aspect = this.viewW / this.viewH;
+        const aspectComp = aspect < (16 / 9)
+            ? Math.max(0.82, Math.min(1.0, aspect / (16 / 9)))
+            : 1.0;
+        this.ppu = (this.viewH / BASE_VIEW_UNITS_H) * this.zoom * aspectComp;
 
         // 水平钳制在房间边界内，避免露出房间外黑洞
         const halfWorldW = (this.viewW * 0.5) / this.ppu;

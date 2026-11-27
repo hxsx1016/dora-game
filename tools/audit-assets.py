@@ -77,6 +77,10 @@ def check_font_coverage() -> tuple[int, list[str]]:
     cjk_chars: set[str] = set()
     string_re = re.compile(r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\'')
     targets = list((ROOT / "Script" / "watch" / "fe").rglob("*.ts"))
+    for extra in ("platform.ts", "controls_config.ts", "aim_assist.ts", "input.ts", "touch.ts", "gamepad.ts"):
+        p = ROOT / "Script" / "watch" / extra
+        if p.is_file():
+            targets.append(p)
     for path in targets:
         if not path.is_file():
             continue
