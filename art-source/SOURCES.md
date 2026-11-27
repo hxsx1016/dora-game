@@ -15,7 +15,9 @@
 
 [周戍原画](characters/zhoushu.png)、[小满原画](characters/xiaoman.png)和[补充姿势](characters/extra-poses.png)来自本作原有明朝角色稿。站姿等常用姿势从原画重新导出，周戍由 66 提升至 198 像素高，小满由 48 提升至 144 像素高。跑步使用同一原画的上身、手臂、裤腿、裹腿和布鞋分层，按脚步循环逐帧合成，每人 160 张。引擎按位移取帧并复用一个精灵节点。
 
-[周戍滑铲原画](characters/zhoushu-slide.png)由 Codex 内置 ImageGen 参考原角色稿生成。四个动作点按原地面冲刺计时播放。使用已安装 Pillow 的 Python 运行 [build.py](characters/build.py)，可从这些源稿重新生成 `assets/art/actors-hd.png`、`actors-hd.clip` 及两张跑步图集。
+[周戍滑铲原画](characters/zhoushu-slide.png)由 Codex 内置 ImageGen 参考原角色稿生成。按盔、肩、肘、膝和鞋跟等位置，在四张原画之间生成 64 张滑铲画面。低姿滑行时支撑鞋跟对齐地面，首尾接回站姿，整套沿用原地面冲刺计时。
+
+周戍和小满的起步与停步各有一张 96 帧过渡图集，由八个步相和十二档步幅合成。停步时保留脚步所在的步相并减小步幅，回到原站姿。使用已安装 Pillow 的 Python 运行 [build.py](characters/build.py) 重建角色图集、原跑步循环、起停过渡和滑铲。
 
 ```text
 Use case: stylized-concept.

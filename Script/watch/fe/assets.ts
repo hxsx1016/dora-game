@@ -63,11 +63,28 @@ function character(names: string | string[]): AssetSlotConfig {
 }
 
 export const RUN_FRAME_COUNT = 160;
-const RUN_COLUMNS = 10;
-const RUN_GUTTER = 2;
+export const RUN_TRANSITION_PHASES = 8;
+export const RUN_TRANSITION_LEVELS = 12;
+export const SLIDE_FRAME_COUNT = 64;
+const ATLAS_GUTTER = 2;
+
+interface MotionAtlas {
+    path: string;
+    width: number;
+    height: number;
+    columns: number;
+}
+
 const RUN_ATLASES = {
-    soldier: { path: "assets/art/zhoushu-run.png", width: 180, height: 200 },
-    child: { path: "assets/art/xiaoman-run.png", width: 144, height: 164 },
+    soldier: { path: "assets/art/zhoushu-run.png", width: 180, height: 200, columns: 10 },
+    child: { path: "assets/art/xiaoman-run.png", width: 144, height: 164, columns: 10 },
+};
+const RUN_TRANSITIONS = {
+    soldier: { ...RUN_ATLASES.soldier, path: "assets/art/zhoushu-run-transition.png", columns: RUN_TRANSITION_PHASES },
+    child: { ...RUN_ATLASES.child, path: "assets/art/xiaoman-run-transition.png", columns: RUN_TRANSITION_PHASES },
+};
+const SLIDE_ATLAS: MotionAtlas = {
+    path: "assets/art/zhoushu-slide.png", width: 300, height: 198, columns: 8,
 };
 
 export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
@@ -233,16 +250,54 @@ export class AssetSlotHost {
         x: number, y: number, targetW: number, targetH: number,
         cycles: number,
         options: SpritePlacement = {},
+        effort: number = 1,
+    ): boolean {
+        if (effort < 1 && this.tryPlaceRunTransition(actor, instanceKey, x, y, targetW, targetH, cycles, effort, options)) {
+            return true;
+        }
+        const frame = Math.floor((cycles - Math.floor(cycles)) * RUN_FRAME_COUNT);
+        return this.tryPlaceMotionFrame(RUN_ATLASES[actor], frame, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    /** 部分步幅沿用当前步相，急停后可收回同一只脚。 */
+    private tryPlaceRunTransition(
+        actor: keyof typeof RUN_TRANSITIONS,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        cycles: number, effort: number,
+        options: SpritePlacement = {},
+    ): boolean {
+        const phase = Math.floor((cycles - Math.floor(cycles)) * RUN_TRANSITION_PHASES + 0.5) % RUN_TRANSITION_PHASES;
+        const level = Math.max(0, Math.min(RUN_TRANSITION_LEVELS - 1, Math.round(effort * (RUN_TRANSITION_LEVELS + 1)) - 1));
+        return this.tryPlaceMotionFrame(RUN_TRANSITIONS[actor], level * RUN_TRANSITION_PHASES + phase,
+            instanceKey, x, y, targetW, targetH, options);
+    }
+
+    tryPlaceSlide(
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        progress: number,
+        options: SpritePlacement = {},
+    ): boolean {
+        const frame = Math.max(0, Math.min(SLIDE_FRAME_COUNT - 1, Math.floor(progress * SLIDE_FRAME_COUNT)));
+        return this.tryPlaceMotionFrame(SLIDE_ATLAS, frame, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    private tryPlaceMotionFrame(
+        atlas: MotionAtlas,
+        frame: number,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        options: SpritePlacement,
     ): boolean {
         if (targetW <= 0 || targetH <= 0) {
             return false;
         }
-        const { path, width, height } = RUN_ATLASES[actor];
-        const frame = Math.floor((cycles - Math.floor(cycles)) * RUN_FRAME_COUNT);
-        const col = frame % RUN_COLUMNS;
-        const row = Math.floor(frame / RUN_COLUMNS);
-        const rect = Rect(col * (width + 2 * RUN_GUTTER) + RUN_GUTTER,
-            row * (height + 2 * RUN_GUTTER) + RUN_GUTTER, width, height);
+        const { path, width, height, columns } = atlas;
+        const col = frame % columns;
+        const row = Math.floor(frame / columns);
+        const rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER,
+            row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height);
         return this.placeResolvedPath(path, 0, true, false, instanceKey, x, y, targetW, targetH, options, rect);
     }
 

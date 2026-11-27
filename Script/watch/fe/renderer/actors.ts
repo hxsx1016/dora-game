@@ -23,11 +23,15 @@ interface Stride {
     depth: number;
     speed: number;
     cycle: number;
+    effort: number;
 }
 
 function strideAt(actor: Actor): Stride {
-    return { actor, x: actor.x, depth: actor.depth, speed: 0, cycle: 0 };
+    return { actor, x: actor.x, depth: actor.depth, speed: 0, cycle: 0, effort: 0 };
 }
+
+const RUN_START_T = 0.10;
+const RUN_STOP_T = 0.13;
 
 function advanceStride(stride: Stride, steps: number, dt: number): void {
     const a = stride.actor;
@@ -39,9 +43,16 @@ function advanceStride(stride: Stride, steps: number, dt: number): void {
         stride.x = a.x;
         stride.depth = a.depth;
     }
-    if (a.onGround && !a.crouch && !a.covered && a.rollT <= 0 && stride.speed > 8) {
+    if (!a.alive || !a.onGround || a.crouch || a.covered || a.rollT > 0) {
+        stride.effort = 0;
+        return;
+    }
+    if (stride.speed > 8) {
+        stride.effort = Math.min(1, stride.effort + dt / RUN_START_T);
         const strideLength = a.h * (a.w <= 28 ? 1.40 : 1.32);
         stride.cycle = (stride.cycle + stride.speed * dt / strideLength) % 1;
+    } else {
+        stride.effort = Math.max(0, stride.effort - dt / RUN_STOP_T);
     }
 }
 
@@ -51,6 +62,7 @@ export class ActorsRenderer {
     private slideDust: SlideDust[] = [];
     private dustCooldown = 0;
     private slideDuration = 0;
+    private slideRemainder = 0;
     private strideTick = 0;
     private playerStride: Stride | undefined;
     private partnerStride: Stride | undefined;
@@ -68,6 +80,7 @@ export class ActorsRenderer {
         this.slideDust = [];
         this.dustCooldown = 0;
         this.slideDuration = 0;
+        this.slideRemainder = 0;
         this.strideTick = p.ticks;
         this.playerStride = strideAt(p.player);
         this.partnerStride = strideAt(p.partner);
@@ -109,16 +122,20 @@ export class ActorsRenderer {
         advanceStride(this.playerStride, steps, dt);
         advanceStride(this.partnerStride, steps, dt);
         this.strideTick = p.ticks;
-        this.updateSlideDust(dt, p, this.playerStride.speed);
+        this.updateSlide(dt, steps, p, this.playerStride.speed);
     }
 
     private slidePhase(a: Actor): number {
-        return this.slideDuration > 0 ? 1 - a.rollT / this.slideDuration : 0;
+        const remaining = Math.max(0, a.rollT - this.slideRemainder);
+        return this.slideDuration > 0 ? 1 - remaining / this.slideDuration : 0;
     }
 
-    private updateSlideDust(dt: number, p: Play, speed: number): void {
+    private updateSlide(dt: number, steps: number, p: Play, speed: number): void {
         const a = p.player;
         if (!p.childMode && a.rollT > 0) {
+            // Reuse the time left between two simulation ticks on faster displays.
+            this.slideRemainder = this.slideDuration === 0
+                ? 0 : Math.max(0, Math.min(STEP, this.slideRemainder + dt - steps * STEP));
             this.slideDuration = Math.max(this.slideDuration, a.rollT);
             const progress = this.slidePhase(a);
             this.dustCooldown -= dt;
@@ -133,6 +150,7 @@ export class ActorsRenderer {
             }
         } else {
             this.slideDuration = 0;
+            this.slideRemainder = 0;
             this.dustCooldown = 0;
         }
         let write = 0;
@@ -269,9 +287,12 @@ export class ActorsRenderer {
         const pose = {
             facing, frame, layer: depthEnabled ? depthOrder(a.depth, 4) : 4,
         };
-        const running = slot === "soldier_run" && a.onGround && gait !== undefined
-            && assets.tryPlaceRun("soldier", "actor_soldier", cx, by, W, height, gait.cycle, pose);
-        if (running || assets.tryPlace(slot, "actor_soldier", cx, by, W, height, pose)) {
+        const sliding = slot === "soldier_slide"
+            && assets.tryPlaceSlide("actor_soldier", cx, by, W, height, this.slidePhase(a), pose);
+        const running = (slot === "soldier_run" || slot === "soldier_idle") && a.onGround
+            && gait !== undefined && gait.effort > 0
+            && assets.tryPlaceRun("soldier", "actor_soldier", cx, by, W, height, gait.cycle, pose, gait.effort);
+        if (sliding || running || assets.tryPlace(slot, "actor_soldier", cx, by, W, height, pose)) {
             fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.54, 4, Color(12, 11, 13, 145));
             return;
         }
@@ -443,8 +464,9 @@ export class ActorsRenderer {
         const pose = {
             facing, frame, layer: depthEnabled ? depthOrder(a.depth, 5) : 5,
         };
-        const running = slot === "child_run" && a.onGround && gait !== undefined
-            && assets.tryPlaceRun("child", "actor_child", cx, by, W, height, gait.cycle, pose);
+        const running = (slot === "child_run" || slot === "child_idle") && a.onGround
+            && gait !== undefined && gait.effort > 0
+            && assets.tryPlaceRun("child", "actor_child", cx, by, W, height, gait.cycle, pose, gait.effort);
         if (running || assets.tryPlace(slot, "actor_child", cx, by, W, height, pose)) {
             fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.48, 3, Color(12, 11, 13, 125));
             if (afraid) {
