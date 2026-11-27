@@ -125,12 +125,12 @@ function PlayAdapter.prototype.reset(self, p) -- 207
 	self.prevCaughtT = 0 -- 220
 	self.prevGateSpawned = p ~= nil and p.gateSpawned or 0 -- 221
 	self.prevAliveMask = {} -- 222
-	if p ~= nil then -- 223
+	if p ~= nil then -- 222
 		local i = 0 -- 224
 		do -- 224
 			i = 0 -- 225
 			while i < #p.enemies do -- 225
-				local ____self_prevAliveMask_1 = self.prevAliveMask -- 226
+				local ____self_prevAliveMask_1 = self.prevAliveMask -- 225
 				____self_prevAliveMask_1[#____self_prevAliveMask_1 + 1] = p.enemies[i + 1].alive -- 226
 				i = i + 1 -- 225
 			end -- 225
@@ -139,11 +139,11 @@ function PlayAdapter.prototype.reset(self, p) -- 207
 end -- 207
 function PlayAdapter.prototype.sample(self, p) -- 232
 	local roomChanged = self.prevRoomKey ~= "" and self.prevRoomKey ~= p.room.key -- 233
-	if roomChanged then -- 234
+	if roomChanged then -- 233
 		self:reset(p) -- 235
 	end -- 235
 	local rawEvents = p:drainEvents() -- 238
-	if #rawEvents > 1 then -- 240
+	if #rawEvents > 1 then -- 238
 		__TS__ArraySort( -- 241
 			rawEvents, -- 241
 			function(____, a, b) return a.seq ~= b.seq and a.seq - b.seq or a.tick - b.tick end -- 241
@@ -165,7 +165,7 @@ function PlayAdapter.prototype.sample(self, p) -- 232
 				____temp_2 = true -- 250
 			end -- 250
 			local wasAlive = ____temp_2 -- 250
-			if wasAlive and not p.enemies[i + 1].alive then -- 251
+			if wasAlive and not p.enemies[i + 1].alive then -- 250
 				enemyKilledX = p.enemies[i + 1].x -- 252
 				enemyKilledY = p.enemies[i + 1].y + (p.enemies[i + 1].depth or 0) * DEPTH_Y_SCALE + p.enemies[i + 1].h * 0.55 -- 253
 			end -- 253
@@ -223,86 +223,86 @@ function PlayAdapter.prototype.sample(self, p) -- 232
 	for ____, event in ipairs(rawEvents) do -- 309
 		self.eventSeq = self.eventSeq + 1 -- 310
 		eventSummary[#eventSummary + 1] = (((tostring(event.seq) .. "@") .. tostring(event.tick)) .. ":") .. event.name -- 311
-		if event.name == "knock" then -- 313
+		if event.name == "knock" then -- 311
 			knockPulse = true -- 314
 			local x = event.data.x -- 315
 			knockX = type(x) == "number" and x or p.player.x -- 316
 			knockY = p.escort.state == "calming" and p.partner.y + p.partner.depth * DEPTH_Y_SCALE + 28 or p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.55 -- 317
-		elseif event.name == "actorHit" or event.name == "gateFailed" then -- 320
+		elseif event.name == "actorHit" or event.name == "gateFailed" then -- 317
 			playerHit = true -- 321
-		elseif event.name == "coverBlocked" then -- 322
+		elseif event.name == "coverBlocked" then -- 321
 			coverDeflect = true -- 323
-		elseif event.name == "bottleLanded" then -- 324
+		elseif event.name == "bottleLanded" then -- 323
 			bottleLanded = true -- 325
-			if type(event.data.x) == "number" then -- 326
+			if type(event.data.x) == "number" then -- 325
 				bottleLandX = event.data.x -- 327
 			end -- 327
-			if type(event.data.y) == "number" then -- 329
+			if type(event.data.y) == "number" then -- 327
 				bottleLandY = event.data.y -- 330
 			end -- 330
-		elseif event.name == "cartDocked" then -- 332
+		elseif event.name == "cartDocked" then -- 330
 			cartJustDocked = true -- 333
-		elseif event.name == "roomChange" then -- 334
+		elseif event.name == "roomChange" then -- 333
 			migratedRoomChange = true -- 335
-		elseif event.name == "storyRouteLocked" then -- 336
+		elseif event.name == "storyRouteLocked" then -- 335
 			storyRouteLocked = true -- 337
-		elseif event.name == "gateCountDone" and p.storyRoute == "soldier" then -- 338
+		elseif event.name == "gateCountDone" and p.storyRoute == "soldier" then -- 337
 			gateRested = true -- 339
-		elseif event.name == "handHeld" then -- 340
+		elseif event.name == "handHeld" then -- 339
 			handJustTied = true -- 341
-		elseif event.name == "handRelease" then -- 342
+		elseif event.name == "handRelease" then -- 341
 			handReleased = true -- 343
-		elseif event.name == "storyLine" then -- 344
+		elseif event.name == "storyLine" then -- 343
 			storyLine = true -- 345
 			storyLineText = type(event.data.text) == "string" and event.data.text or "" -- 346
-		elseif event.name == "storyExit" then -- 347
+		elseif event.name == "storyExit" then -- 346
 			storyExit = true -- 348
 			storyExitRoute = type(event.data.route) == "string" and event.data.route or "" -- 349
-		elseif event.name == "carryStart" then -- 350
+		elseif event.name == "carryStart" then -- 349
 			carryStarted = true -- 351
-		elseif event.name == "reloadOpen" then -- 352
+		elseif event.name == "reloadOpen" then -- 351
 			reloadOpened = true -- 353
-		elseif event.name == "reloadSolved" then -- 354
+		elseif event.name == "reloadSolved" then -- 353
 			reloadSolved = true -- 355
 			reloadEffect = type(event.data.effect) == "string" and event.data.effect or "" -- 356
-		elseif event.name == "reloadApplied" then -- 357
+		elseif event.name == "reloadApplied" then -- 356
 			reloadApplied = true -- 358
 			reloadAppliedEffect = type(event.data.effect) == "string" and event.data.effect or "" -- 359
-		elseif event.name == "reloadTimeout" then -- 360
+		elseif event.name == "reloadTimeout" then -- 359
 			reloadTimeout = true -- 361
-		elseif event.name == "reloadInvalid" then -- 362
+		elseif event.name == "reloadInvalid" then -- 361
 			reloadInvalid = true -- 363
-		elseif event.name == "segmentDone" then -- 364
+		elseif event.name == "segmentDone" then -- 363
 			segmentDone = true -- 365
 			segmentKey = type(event.data.room) == "string" and event.data.room or "" -- 366
 			segmentNext = type(event.data.next) == "string" and event.data.next or "" -- 367
-		elseif event.name == "benchOpen" then -- 368
+		elseif event.name == "benchOpen" then -- 367
 			benchOpened = true -- 369
-		elseif event.name == "benchCraft" then -- 370
+		elseif event.name == "benchCraft" then -- 369
 			benchCrafted = true -- 371
 			benchCraftedWeapon = type(event.data.weapon) == "string" and event.data.weapon or "" -- 372
-		elseif event.name == "benchEquip" then -- 373
+		elseif event.name == "benchEquip" then -- 372
 			benchEquipped = true -- 374
-		elseif event.name == "benchClose" then -- 375
+		elseif event.name == "benchClose" then -- 374
 			benchClosed = true -- 376
-		elseif event.name == "benchRejected" then -- 377
+		elseif event.name == "benchRejected" then -- 376
 			benchRejected = true -- 378
 			benchRejectReason = type(event.data.reason) == "string" and event.data.reason or "" -- 379
-		elseif event.name == "museumStep" then -- 380
+		elseif event.name == "museumStep" then -- 379
 			museumStep = true -- 381
 			museumStepName = type(event.data.step) == "string" and event.data.step or "" -- 382
-		elseif event.name == "museumDone" then -- 383
+		elseif event.name == "museumDone" then -- 382
 			museumDone = true -- 384
-		elseif event.name == "endingReached" then -- 385
+		elseif event.name == "endingReached" then -- 384
 			endingReached = true -- 386
 			ending = type(event.data.ending) == "string" and event.data.ending or "" -- 387
 			endingOfficial = event.data.official == true -- 388
 			endingLines = __TS__ArrayIsArray(event.data.lines) and __TS__ArrayMap( -- 389
 				event.data.lines, -- 390
 				function(____, v) return type(v) == "string" and v or "" end -- 390
-			) or ({}) -- 391
-		end -- 391
-	end -- 391
+			) or ({}) -- 390
+		end -- 390
+	end -- 390
 	self.prevRoomKey = p.room.key -- 396
 	self.prevPhase = p.phase -- 397
 	self.prevHp = p.hp -- 398
@@ -320,7 +320,7 @@ function PlayAdapter.prototype.sample(self, p) -- 232
 	do -- 409
 		i = 0 -- 410
 		while i < #p.enemies do -- 410
-			local ____self_prevAliveMask_3 = self.prevAliveMask -- 411
+			local ____self_prevAliveMask_3 = self.prevAliveMask -- 410
 			____self_prevAliveMask_3[#____self_prevAliveMask_3 + 1] = p.enemies[i + 1].alive -- 411
 			i = i + 1 -- 410
 		end -- 410
@@ -399,14 +399,14 @@ end -- 232
 function ____exports.deriveWorldPrompt(p) -- 482
 	local room = p.room -- 483
 	local player = p.player -- 484
-	if p.paused or not player.alive then -- 485
+	if p.paused or not player.alive then -- 484
 		return nil -- 486
 	end -- 486
-	if room.key == "prologue" and p.phase == "prologue-wait" then -- 489
-		local ____opt_9 = room.story -- 490
-		local ____opt_7 = ____opt_9 and ____opt_9.prologue -- 490
+	if room.key == "prologue" and p.phase == "prologue-wait" then -- 486
+		local ____opt_9 = room.story -- 486
+		local ____opt_7 = ____opt_9 and ____opt_9.prologue -- 486
 		local reach = ____opt_7 and ____opt_7.giveReach or 46 -- 490
-		if math.abs(player.x - p.partner.x) <= reach and inReachDepth(player.depth, p.partner.depth) then -- 491
+		if math.abs(player.x - p.partner.x) <= reach and inReachDepth(player.depth, p.partner.depth) then -- 490
 			return { -- 492
 				x = p.partner.x, -- 492
 				y = p.partner.y + p.partner.depth * DEPTH_Y_SCALE + p.partner.h + 22, -- 492
@@ -417,8 +417,8 @@ function ____exports.deriveWorldPrompt(p) -- 482
 		end -- 492
 		return nil -- 494
 	end -- 494
-	if not p.childMode and p.escort.state == "frozen" then -- 497
-		if math.abs(player.x - p.partner.x) <= CALM_REACH and inReachDepth(player.depth, p.partner.depth) then -- 498
+	if not p.childMode and p.escort.state == "frozen" then -- 494
+		if math.abs(player.x - p.partner.x) <= CALM_REACH and inReachDepth(player.depth, p.partner.depth) then -- 494
 			return { -- 499
 				x = p.partner.x, -- 499
 				y = p.partner.y + p.partner.depth * DEPTH_Y_SCALE + p.partner.h + 22, -- 499
@@ -429,10 +429,10 @@ function ____exports.deriveWorldPrompt(p) -- 482
 		end -- 499
 		return nil -- 501
 	end -- 501
-	local ____opt_11 = room.story -- 504
+	local ____opt_11 = room.story -- 501
 	local gate = ____opt_11 and ____opt_11.gate -- 504
-	if gate ~= nil then -- 505
-		if p.phase == "gate-idle" and p.gateNeedConfirm and math.abs(player.x - gate.winchX) <= 24 and player.y < 20 and inReachDepth(player.depth) and p.partner.alive and math.abs(p.partner.x - gate.waitX) <= 60 then -- 506
+	if gate ~= nil then -- 504
+		if p.phase == "gate-idle" and p.gateNeedConfirm and math.abs(player.x - gate.winchX) <= 24 and player.y < 20 and inReachDepth(player.depth) and p.partner.alive and math.abs(p.partner.x - gate.waitX) <= 60 then -- 504
 			return { -- 509
 				x = gate.winchX, -- 509
 				y = 84, -- 509
@@ -441,7 +441,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = true -- 509
 			} -- 509
 		end -- 509
-		if p.phase == "gate-send" and math.abs(player.x - gate.doorX) <= 60 and inReachDepth(player.depth) then -- 511
+		if p.phase == "gate-send" and math.abs(player.x - gate.doorX) <= 60 and inReachDepth(player.depth) then -- 509
 			return { -- 512
 				x = gate.doorX, -- 512
 				y = 98, -- 512
@@ -450,7 +450,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = true -- 512
 			} -- 512
 		end -- 512
-		if p.phase == "gate-wait" then -- 514
+		if p.phase == "gate-wait" then -- 512
 			local ratio = math.max( -- 516
 				0, -- 516
 				math.min(1, p.handTicks / p.handNeedTicks) -- 516
@@ -464,7 +464,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				progress = ratio -- 521
 			} -- 521
 		end -- 521
-		if p.phase == "gate-hand" then -- 524
+		if p.phase == "gate-hand" then -- 521
 			return { -- 525
 				x = gate.doorX + 30, -- 525
 				y = 96, -- 525
@@ -473,7 +473,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = false -- 525
 			} -- 525
 		end -- 525
-		if p.phase == "gate-walk" then -- 527
+		if p.phase == "gate-walk" then -- 525
 			return { -- 528
 				x = player.x, -- 528
 				y = player.y + player.h + 22, -- 528
@@ -483,7 +483,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			} -- 528
 		end -- 528
 	end -- 528
-	if p.reloadOpen then -- 533
+	if p.reloadOpen then -- 528
 		local ratio = math.max( -- 534
 			0, -- 534
 			math.min(1, p.reloadAnswerTicks / 240) -- 534
@@ -497,7 +497,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			progress = ratio -- 537
 		} -- 537
 	end -- 537
-	if p.reloadPendingEffect ~= "" then -- 540
+	if p.reloadPendingEffect ~= "" then -- 537
 		return { -- 541
 			x = player.x, -- 542
 			y = player.y + player.depth * DEPTH_Y_SCALE + player.h + 34, -- 542
@@ -506,7 +506,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = false -- 543
 		} -- 543
 	end -- 543
-	if room.key == "gatepath" and not p.carryOn then -- 546
+	if room.key == "gatepath" and not p.carryOn then -- 543
 		return { -- 547
 			x = player.x, -- 547
 			y = player.y + player.h + 24, -- 547
@@ -515,9 +515,9 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = false -- 547
 		} -- 547
 	end -- 547
-	if room.key == "escort3" and not p.craftBench.active then -- 549
+	if room.key == "escort3" and not p.craftBench.active then -- 547
 		local bench = 560 -- 550
-		if math.abs(player.x - bench) <= p.benchReach + 40 and player.y < 12 then -- 551
+		if math.abs(player.x - bench) <= p.benchReach + 40 and player.y < 12 then -- 550
 			return { -- 552
 				x = bench, -- 552
 				y = 92, -- 552
@@ -527,7 +527,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			} -- 552
 		end -- 552
 	end -- 552
-	if (room.key == "escort2" or room.key == "escort3" or room.key == "escort4" or room.key == "escort5") and p.carryOn then -- 555
+	if (room.key == "escort2" or room.key == "escort3" or room.key == "escort4" or room.key == "escort5") and p.carryOn then -- 552
 		return { -- 556
 			x = player.x, -- 556
 			y = player.y + player.h + 24, -- 556
@@ -537,9 +537,9 @@ function ____exports.deriveWorldPrompt(p) -- 482
 		} -- 556
 	end -- 556
 	local cart = room.cart -- 559
-	if (room.key == "checkpoint" or room.key == "outside" or room.key == "c2-granary") and not p.cartDocked and cart.bodyW > 0 then -- 560
+	if (room.key == "checkpoint" or room.key == "outside" or room.key == "c2-granary") and not p.cartDocked and cart.bodyW > 0 then -- 559
 		local handleX = p.cartAxle + cart.handleOffset -- 561
-		if p.gripping or p:cartHandleInReach() then -- 562
+		if p.gripping or p:cartHandleInReach() then -- 561
 			return { -- 563
 				x = handleX, -- 564
 				y = cart.baseY + (cart.depth or 0) * DEPTH_Y_SCALE + cart.wheelR + cart.bodyH + 46, -- 565
@@ -549,19 +549,19 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			} -- 568
 		end -- 568
 	end -- 568
-	if p.isCampaign then -- 573
+	if p.isCampaign then -- 568
 		local bi = 0 -- 574
 		do -- 574
 			bi = 0 -- 575
 			while bi < #p.boxes do -- 575
 				do -- 575
 					local b = p.boxes[bi + 1] -- 576
-					if b.broken == true or b.hidden == true or b.interact == nil then -- 577
+					if b.broken == true or b.hidden == true or b.interact == nil then -- 576
 						goto __continue74 -- 578
 					end -- 578
 					local cx = (b.x0 + b.x1) * 0.5 -- 580
 					local reach = b.interact.reach or 46 -- 581
-					if math.abs(player.x - cx) <= reach + 16 and overlapsDepth(player.depth, b.depth, 16) then -- 582
+					if math.abs(player.x - cx) <= reach + 16 and overlapsDepth(player.depth, b.depth, 16) then -- 581
 						local kind = b.interact.kind -- 583
 						local label = kind == "open_board" and "放下窗板" or (kind == "lower_curtain" and "放下木帘" or "抬起门锁") -- 584
 						return { -- 586
@@ -578,7 +578,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			end -- 575
 		end -- 575
 	end -- 575
-	if room.key == "village" and p.scavChase then -- 591
+	if room.key == "village" and p.scavChase then -- 575
 		local ____player_crouch_13 -- 592
 		if player.crouch then -- 592
 			____player_crouch_13 = nil -- 592
@@ -593,9 +593,9 @@ function ____exports.deriveWorldPrompt(p) -- 482
 		end -- 593
 		return ____player_crouch_13 -- 592
 	end -- 592
-	if room.key == "village" and not p.passed then -- 597
+	if room.key == "village" and not p.passed then -- 592
 		local bottle = room.bottle -- 598
-		if p.hasBottle then -- 599
+		if p.hasBottle then -- 598
 			return { -- 600
 				x = player.x, -- 601
 				y = player.y + player.h + 26, -- 601
@@ -604,10 +604,10 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = false -- 603
 			} -- 603
 		end -- 603
-		if p.bottleFly == nil and bottle ~= nil then -- 606
+		if p.bottleFly == nil and bottle ~= nil then -- 603
 			local dx = player.x - bottle.x -- 607
 			local dy = player.y + player.h * 0.5 - bottle.y -- 608
-			if dx * dx + dy * dy < 56 * 56 then -- 609
+			if dx * dx + dy * dy < 56 * 56 then -- 608
 				return { -- 610
 					x = bottle.x, -- 610
 					y = bottle.y + 36, -- 610
@@ -619,7 +619,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 		end -- 610
 	end -- 610
 	local arch = room.arch -- 615
-	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 616
+	if (room.key == "village" or room.key == "outside" and p.cartDocked) and arch.h > 0 and not player.crouch and player.y <= arch.y + 28 and player.x >= arch.x0 - 56 and player.x < arch.x1 then -- 615
 		return { -- 619
 			x = (arch.x0 + arch.x1) * 0.5, -- 620
 			y = arch.y + arch.h + 44, -- 620
@@ -628,10 +628,10 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = false -- 621
 		} -- 621
 	end -- 621
-	local ____opt_14 = room.story -- 625
+	local ____opt_14 = room.story -- 621
 	local museum = ____opt_14 and ____opt_14.museum -- 625
-	if room.key == "museum" and museum ~= nil then -- 626
-		if p.phase == "museum-cabinet" then -- 627
+	if room.key == "museum" and museum ~= nil then -- 625
+		if p.phase == "museum-cabinet" then -- 625
 			return { -- 628
 				x = museum.cabinetX, -- 628
 				y = 64 + 44, -- 628
@@ -640,7 +640,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = true -- 628
 			} -- 628
 		end -- 628
-		if p.phase == "museum-hall" then -- 630
+		if p.phase == "museum-hall" then -- 628
 			return { -- 631
 				x = museum.hallX, -- 631
 				y = 120, -- 631
@@ -649,7 +649,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = false -- 631
 			} -- 631
 		end -- 631
-		if p.phase == "museum-lamp" then -- 633
+		if p.phase == "museum-lamp" then -- 631
 			return { -- 634
 				x = museum.lampX, -- 634
 				y = 120, -- 634
@@ -658,7 +658,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = true -- 634
 			} -- 634
 		end -- 634
-		if p.phase == "museum-return" then -- 636
+		if p.phase == "museum-return" then -- 634
 			return { -- 637
 				x = museum.cabinetX, -- 637
 				y = 64 + 44, -- 637
@@ -667,7 +667,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 				urgent = true -- 637
 			} -- 637
 		end -- 637
-		if p.phase == "museum-done" then -- 639
+		if p.phase == "museum-done" then -- 637
 			return { -- 640
 				x = museum.cabinetX, -- 640
 				y = 64 + 44, -- 640
@@ -678,9 +678,9 @@ function ____exports.deriveWorldPrompt(p) -- 482
 		end -- 640
 		return nil -- 642
 	end -- 642
-	local ____opt_16 = room.story -- 645
+	local ____opt_16 = room.story -- 642
 	local tower = ____opt_16 and ____opt_16.tower -- 645
-	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 646
+	if p.phase == "tower-wait" and tower ~= nil and math.abs(player.x - tower.doorX) <= 50 then -- 645
 		return { -- 647
 			x = tower.doorX, -- 647
 			y = 96, -- 647
@@ -689,7 +689,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = false -- 647
 		} -- 647
 	end -- 647
-	if p.phase == "tower-enter" then -- 649
+	if p.phase == "tower-enter" then -- 647
 		return { -- 650
 			x = 605, -- 650
 			y = 64, -- 650
@@ -698,7 +698,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = false -- 650
 		} -- 650
 	end -- 650
-	if p.phase == "tower-desk" then -- 652
+	if p.phase == "tower-desk" then -- 650
 		return { -- 653
 			x = 605, -- 654
 			y = 64, -- 654
@@ -708,7 +708,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = true -- 655
 		} -- 655
 	end -- 655
-	if p.phase == "tower-given" then -- 658
+	if p.phase == "tower-given" then -- 655
 		return { -- 659
 			x = 605, -- 659
 			y = 64, -- 659
@@ -717,7 +717,7 @@ function ____exports.deriveWorldPrompt(p) -- 482
 			urgent = false -- 659
 		} -- 659
 	end -- 659
-	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 662
+	if room.key ~= "prologue" and not p.childMode and p.coverNear and not p.coverHug and not p.gripping and p.escort.state ~= "calming" and (gate == nil or p.phase == "gate-hold") then -- 659
 		return { -- 664
 			x = player.x, -- 665
 			y = player.y + player.depth * DEPTH_Y_SCALE + player.h + 25, -- 665

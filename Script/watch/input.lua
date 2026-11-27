@@ -2,7 +2,7 @@
 local ____lualib = require("lualib_bundle") -- 1
 local __TS__Class = ____lualib.__TS__Class -- 1
 local ____exports = {} -- 1
-local edge -- 650
+local edge -- 1
 local ____Dora = require("Dora") -- 14
 local App = ____Dora.App -- 14
 local Keyboard = ____Dora.Keyboard -- 14
@@ -18,10 +18,10 @@ local getPlatformCaps = ____platform.getPlatformCaps -- 28
 function edge(state, held) -- 650
 	local was = state.held -- 651
 	state.held = held -- 652
-	if held and not was then -- 653
+	if held and not was then -- 652
 		state.pressed = true -- 654
 	end -- 654
-	if not held and was then -- 656
+	if not held and was then -- 654
 		state.released = true -- 657
 	end -- 657
 	return state -- 659
@@ -98,7 +98,7 @@ function Input.prototype.____constructor(self) -- 149
 	self.prevMouseLeft = false -- 146
 	self.prevMouseRight = false -- 147
 	self.gamepadLayout = self.settings.gamepadLayout -- 150
-	if self.settings.modePref ~= "auto" then -- 151
+	if self.settings.modePref ~= "auto" then -- 150
 		self.inputMode = self.settings.modePref -- 152
 	end -- 152
 end -- 149
@@ -133,20 +133,20 @@ function Input.prototype.isKbmMode(self) -- 191
 	return self.inputMode == "kbm" -- 192
 end -- 191
 function Input.prototype.setInputMode(self, mode) -- 196
-	if self.inputMode == mode then -- 197
+	if self.inputMode == mode then -- 196
 		return -- 197
 	end -- 197
 	self.inputMode = mode -- 198
-	if mode ~= "touch" then -- 199
-		local ____opt_0 = self.touchRouter -- 200
-		if ____opt_0 ~= nil then -- 200
+	if mode ~= "touch" then -- 198
+		local ____opt_0 = self.touchRouter -- 198
+		if ____opt_0 ~= nil then -- 198
 			____opt_0:releaseAll(false) -- 200
 		end -- 200
 	end -- 200
 end -- 196
 function Input.prototype.setModePref(self, pref) -- 205
 	self.settings.modePref = pref -- 206
-	if pref ~= "auto" then -- 207
+	if pref ~= "auto" then -- 206
 		self:setInputMode(pref) -- 208
 	end -- 208
 	saveControlSettings(self.settings) -- 210
@@ -160,20 +160,20 @@ function Input.prototype.cycleModePref(self, delta) -- 213
 	return next -- 216
 end -- 213
 function Input.prototype.shouldShowTouchControls(self) -- 224
-	if self.stageVp.isPortrait then -- 225
+	if self.stageVp.isPortrait then -- 224
 		return true -- 226
 	end -- 226
-	if self.settings.modePref == "touch" then -- 228
+	if self.settings.modePref == "touch" then -- 226
 		return true -- 229
 	end -- 229
-	if self.settings.modePref == "kbm" or self.settings.modePref == "gamepad" then -- 231
+	if self.settings.modePref == "kbm" or self.settings.modePref == "gamepad" then -- 229
 		return false -- 232
 	end -- 232
 	return self.inputMode == "touch" -- 234
 end -- 224
 function Input.prototype.markKeyboardActivity(self) -- 238
 	self.userInteracted = true -- 239
-	if self.settings.modePref == "auto" then -- 240
+	if self.settings.modePref == "auto" then -- 239
 		self:setInputMode("kbm") -- 241
 	end -- 241
 end -- 238
@@ -181,12 +181,12 @@ function Input.prototype.clearTransient(self, keepTouchToggles) -- 246
 	if keepTouchToggles == nil then -- 246
 		keepTouchToggles = false -- 246
 	end -- 246
-	local ____opt_2 = self.touchRouter -- 247
-	if ____opt_2 ~= nil then -- 247
+	local ____opt_2 = self.touchRouter -- 246
+	if ____opt_2 ~= nil then -- 246
 		____opt_2:releaseAll(keepTouchToggles) -- 247
 	end -- 247
-	local ____opt_4 = self.gamepadRouter -- 248
-	if ____opt_4 ~= nil then -- 248
+	local ____opt_4 = self.gamepadRouter -- 247
+	if ____opt_4 ~= nil then -- 247
 		____opt_4:clearTransient() -- 248
 	end -- 248
 end -- 246
@@ -243,19 +243,19 @@ function Input.prototype.update(self) -- 251
 	local anyKb = left or right or up or down or kbJump or kbCrouch or kbCover or kbInteract or kbAim or kbFlare or kbPause or kbRetry or kbToggle or kbTab or n1 or n2 or n3 or Keyboard:isKeyPressed("Return") -- 311
 	local hadGp = gp ~= nil and gp.hadGamepadInput -- 316
 	local hadTouchAny = touch ~= nil and touch.hadRealTouch -- 317
-	if anyKb or realMouseActive or hadGp or hadTouchAny then -- 318
+	if anyKb or realMouseActive or hadGp or hadTouchAny then -- 317
 		self.userInteracted = true -- 319
 	end -- 319
-	if self.settings.modePref ~= "auto" then -- 322
+	if self.settings.modePref ~= "auto" then -- 319
 		self:setInputMode(self.settings.modePref) -- 323
 	else -- 323
-		if hadGp then -- 325
+		if hadGp then -- 323
 			self:setInputMode("gamepad") -- 326
-		elseif touch ~= nil and touch.hadGameplayTouch then -- 327
+		elseif touch ~= nil and touch.hadGameplayTouch then -- 326
 			self:setInputMode("touch") -- 328
-		elseif anyKb or realMouseActive then -- 329
+		elseif anyKb or realMouseActive then -- 328
 			self:setInputMode("kbm") -- 330
-		elseif touch ~= nil and touch.hadUiTouch and self.inputMode == "kbm" then -- 331
+		elseif touch ~= nil and touch.hadUiTouch and self.inputMode == "kbm" then -- 330
 			self:setInputMode("touch") -- 332
 		end -- 332
 	end -- 332
@@ -303,38 +303,38 @@ function Input.prototype.update(self) -- 251
 	self.talentDelta = 0 -- 387
 	self.talentConfirm = false -- 388
 	self.retryHoldProgress = 0 -- 389
-	if gp ~= nil then -- 391
-		if gp.jumpPressed then -- 392
+	if gp ~= nil then -- 389
+		if gp.jumpPressed then -- 389
 			self.jump.pressed = true -- 392
 		end -- 392
-		if gp.crouchPressed then -- 393
+		if gp.crouchPressed then -- 392
 			self.crouch.pressed = true -- 393
 		end -- 393
-		if gp.interactPressed then -- 394
+		if gp.interactPressed then -- 393
 			self.interact.pressed = true -- 394
 		end -- 394
-		if gp.aimPressed then -- 395
+		if gp.aimPressed then -- 394
 			self.aim.pressed = true -- 395
 		end -- 395
-		if gp.firePressed then -- 396
+		if gp.firePressed then -- 395
 			self.fire.pressed = true -- 396
 		end -- 396
-		if gp.flarePressed then -- 397
+		if gp.flarePressed then -- 396
 			self.flare.pressed = true -- 397
 		end -- 397
-		if gp.pausePressed then -- 398
+		if gp.pausePressed then -- 397
 			self.pause.pressed = true -- 398
 		end -- 398
-		if gp.retryPressed then -- 399
+		if gp.retryPressed then -- 398
 			self.retry.pressed = true -- 399
 		end -- 399
-		if gp.artifactPressed then -- 400
+		if gp.artifactPressed then -- 399
 			self.artifactTogglePressed = true -- 400
 		end -- 400
-		if gp.anyButtonPressed then -- 401
+		if gp.anyButtonPressed then -- 400
 			self.splashSkipPressed = true -- 401
 		end -- 401
-		if gp.bottleCanceled then -- 402
+		if gp.bottleCanceled then -- 401
 			self.bottleCanceled = true -- 403
 			self.aim.held = false -- 404
 			self.aim.pressed = false -- 405
@@ -358,79 +358,79 @@ function Input.prototype.update(self) -- 251
 		self.talentConfirm = gp.talentConfirm -- 423
 		self.retryHoldProgress = gp.retryHoldProgress -- 424
 	end -- 424
-	if touch ~= nil then -- 427
-		if touch.jumpPressed then -- 428
+	if touch ~= nil then -- 424
+		if touch.jumpPressed then -- 424
 			self.jump.pressed = true -- 428
 		end -- 428
-		if touch.interactPressed then -- 429
+		if touch.interactPressed then -- 428
 			self.interact.pressed = true -- 429
 		end -- 429
-		if touch.firePressed then -- 430
+		if touch.firePressed then -- 429
 			self.fire.pressed = true -- 430
 		end -- 430
-		if touch.pausePressed then -- 431
+		if touch.pausePressed then -- 430
 			self.pause.pressed = true -- 431
 		end -- 431
-		if touch.retryPressed then -- 432
+		if touch.retryPressed then -- 431
 			self.retry.pressed = true -- 432
 		end -- 432
-		if touch.artifactPressed then -- 433
+		if touch.artifactPressed then -- 432
 			self.artifactTogglePressed = true -- 433
 		end -- 433
-		if touch.mutePressed then -- 434
+		if touch.mutePressed then -- 433
 			self.muteTogglePressed = true -- 434
 		end -- 434
-		if touch.fullscreenPressed then -- 435
+		if touch.fullscreenPressed then -- 434
 			self.fullscreenTogglePressed = true -- 435
 		end -- 435
-		if touch.anyTapBegan then -- 436
+		if touch.anyTapBegan then -- 435
 			self.splashSkipPressed = true -- 436
 		end -- 436
-		if touch.zoneTap ~= "" then -- 437
+		if touch.zoneTap ~= "" then -- 436
 			self.touchZoneTap = touch.zoneTap -- 437
 		end -- 437
-		if touch.navUp then -- 438
+		if touch.navUp then -- 437
 			self.navUp = true -- 438
 		end -- 438
-		if touch.navDown then -- 439
+		if touch.navDown then -- 438
 			self.navDown = true -- 439
 		end -- 439
-		if touch.navLeft then -- 440
+		if touch.navLeft then -- 439
 			self.navLeft = true -- 440
 		end -- 440
-		if touch.navRight then -- 441
+		if touch.navRight then -- 440
 			self.navRight = true -- 441
 		end -- 441
-		if touch.navConfirm then -- 442
+		if touch.navConfirm then -- 441
 			self.navConfirm = true -- 442
 		end -- 442
-		if touch.navBack then -- 443
+		if touch.navBack then -- 442
 			self.navBack = true -- 443
 		end -- 443
-		if touch.bottleCanceled then -- 444
+		if touch.bottleCanceled then -- 443
 			self.bottleCanceled = true -- 445
 			self.aim.held = false -- 446
 			self.aim.pressed = false -- 447
 			self.aim.released = false -- 448
 		end -- 448
 	end -- 448
-	if not suppressMouse and self.inputMode == "kbm" and self.aim.held and mouseRightPressed then -- 452
+	if not suppressMouse and self.inputMode == "kbm" and self.aim.held and mouseRightPressed then -- 448
 		self.bottleCanceled = true -- 453
 		self.aim.held = false -- 454
 		self.aim.pressed = false -- 455
 		self.aim.released = false -- 456
 	end -- 456
 	local pick = n1 and 1 or (n2 and 2 or (n3 and 3 or 0)) -- 459
-	if self.suppressPickRoomOnce then -- 460
+	if self.suppressPickRoomOnce then -- 459
 		self.suppressPickRoomOnce = false -- 461
 		self.pickRoom = 0 -- 462
-	elseif pick ~= 0 and pick ~= self.lastPick then -- 463
+	elseif pick ~= 0 and pick ~= self.lastPick then -- 462
 		self.pickRoom = pick -- 464
 	end -- 464
 	self.lastPick = pick -- 466
 	self.frameInteractPressed = self.interact.pressed -- 467
 	local touchUiActive = touch ~= nil and (touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside) -- 470
-	if touchUiActive and touch ~= nil then -- 473
+	if touchUiActive and touch ~= nil then -- 470
 		self.uiX = touch.uiX -- 474
 		self.uiY = touch.uiY -- 475
 		self.uiDx = touch.uiDx -- 476
@@ -440,13 +440,13 @@ function Input.prototype.update(self) -- 251
 		self.uiPressed = touch.uiPressed -- 480
 		self.uiReleased = touch.uiReleased -- 481
 		self.uiRightPressed = false -- 482
-		if touch.uiHeld or touch.uiPressed then -- 483
+		if touch.uiHeld or touch.uiPressed then -- 482
 			self.mdx = touch.uiDx -- 484
 			self.mdy = touch.uiDy -- 485
 			self.mx = touch.uiX -- 486
 			self.my = touch.uiY -- 487
 			self.inside = true -- 488
-		elseif touch.hasAim then -- 489
+		elseif touch.hasAim then -- 488
 			self.mdx = touch.aimX - self.mx -- 490
 			self.mdy = touch.aimY - self.my -- 491
 			self.mx = touch.aimX -- 492
@@ -459,8 +459,8 @@ function Input.prototype.update(self) -- 251
 		end -- 498
 		return -- 500
 	end -- 500
-	if self.inputMode == "gamepad" then -- 503
-		if gp ~= nil and gp.hasAim then -- 504
+	if self.inputMode == "gamepad" then -- 500
+		if gp ~= nil and gp.hasAim then -- 500
 			self.mdx = gp.aimX - self.mx -- 505
 			self.mdy = gp.aimY - self.my -- 506
 			self.mx = gp.aimX -- 507
@@ -471,7 +471,7 @@ function Input.prototype.update(self) -- 251
 			self.mdy = 0 -- 512
 			self.inside = false -- 513
 		end -- 513
-		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 516
+		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 513
 			self.uiDx = mouseStageX - self.uiX -- 517
 			self.uiDy = mouseStageY - self.uiY -- 518
 			self.uiX = mouseStageX -- 519
@@ -494,8 +494,8 @@ function Input.prototype.update(self) -- 251
 		end -- 535
 		return -- 537
 	end -- 537
-	if self.inputMode == "touch" then -- 540
-		if touch ~= nil and touch.hasAim then -- 541
+	if self.inputMode == "touch" then -- 537
+		if touch ~= nil and touch.hasAim then -- 537
 			self.mdx = touch.aimX - self.mx -- 542
 			self.mdy = touch.aimY - self.my -- 543
 			self.mx = touch.aimX -- 544
@@ -506,7 +506,7 @@ function Input.prototype.update(self) -- 251
 			self.mdy = 0 -- 549
 			self.inside = false -- 550
 		end -- 550
-		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 553
+		if not suppressMouse and mouseInsideStage and (mouseLeft or mouseLeftPressed or mouseLeftReleased) then -- 550
 			self.uiDx = mouseStageX - self.uiX -- 554
 			self.uiDy = mouseStageY - self.uiY -- 555
 			self.uiX = mouseStageX -- 556
@@ -551,12 +551,12 @@ function Input.prototype.consumePickRoom(self) -- 598
 	self.suppressPickRoomOnce = true -- 600
 end -- 598
 function Input.prototype.requestPickRoom(self, slot) -- 604
-	if slot >= 1 and slot <= 3 then -- 605
+	if slot >= 1 and slot <= 3 then -- 604
 		self.pickRoom = slot -- 606
 	end -- 606
 end -- 604
 function Input.prototype.beginStep(self, first) -- 610
-	if not first then -- 611
+	if not first then -- 610
 		self:clearEdges() -- 612
 	end -- 612
 end -- 610

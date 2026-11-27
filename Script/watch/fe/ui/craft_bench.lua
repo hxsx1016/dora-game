@@ -47,7 +47,7 @@ local function materialLabel(key) -- 88
 	return MATERIAL_NAMES[key] or key -- 89
 end -- 88
 local function resolveRuntimeContract(injected) -- 92
-	if injected ~= nil then -- 93
+	if injected ~= nil then -- 92
 		return injected -- 94
 	end -- 94
 	local g = _G -- 96
@@ -58,13 +58,13 @@ local function resolveRuntimeContract(injected) -- 92
 		____temp_0 = nil -- 97
 	end -- 97
 	local loaded = ____temp_0 -- 97
-	if loaded == nil then -- 98
+	if loaded == nil then -- 97
 		return nil -- 99
 	end -- 99
 	local feHook = loaded["watch.fe"] -- 101
-	if feHook ~= nil and type(feHook) == "table" then -- 102
+	if feHook ~= nil and type(feHook) == "table" then -- 101
 		local c = feHook.contract -- 103
-		if c ~= nil and type(c) == "table" then -- 104
+		if c ~= nil and type(c) == "table" then -- 103
 			return c -- 105
 		end -- 105
 	end -- 105
@@ -73,7 +73,7 @@ end -- 92
 local function dispatchIntentFallback(p, intent) -- 111
 	local rec = p -- 112
 	local handler = rec.submitFeIntent -- 113
-	if type(handler) == "function" then -- 114
+	if type(handler) == "function" then -- 113
 		return handler(p, intent) ~= false -- 115
 	end -- 115
 	return false -- 117
@@ -83,7 +83,7 @@ local function collectMissingMaterials(recipe, inventory) -- 120
 	for mat in pairs(recipe.cost) do -- 125
 		local need = recipe.cost[mat] -- 126
 		local have = inventory[mat] or 0 -- 127
-		if have < need then -- 128
+		if have < need then -- 127
 			missing[#missing + 1] = mat -- 129
 		end -- 129
 	end -- 129
@@ -98,7 +98,7 @@ local function sortedMaterialKeys(inventory, recipes) -- 135
 	do -- 144
 		i = 0 -- 145
 		while i < #recipes do -- 145
-			if recipes[i + 1].cost.wood ~= nil or recipes[i + 1].cost.bell ~= nil then -- 146
+			if recipes[i + 1].cost.wood ~= nil or recipes[i + 1].cost.bell ~= nil then -- 145
 				hasBackendKeys = true -- 147
 			end -- 147
 			i = i + 1 -- 145
@@ -118,7 +118,7 @@ local function sortedMaterialKeys(inventory, recipes) -- 135
 		while i < #recipes do -- 155
 			local cost = recipes[i + 1].cost -- 156
 			for k in pairs(cost) do -- 157
-				if not seen[k] then -- 158
+				if not seen[k] then -- 157
 					seen[k] = true -- 159
 					out[#out + 1] = k -- 160
 				end -- 160
@@ -130,7 +130,7 @@ local function sortedMaterialKeys(inventory, recipes) -- 135
 		i = 0 -- 164
 		while i < #prefer do -- 164
 			local k = prefer[i + 1] -- 165
-			if not seen[k] and inventory[k] ~= nil and inventory[k] > 0 then -- 166
+			if not seen[k] and inventory[k] ~= nil and inventory[k] > 0 then -- 165
 				seen[k] = true -- 167
 				out[#out + 1] = k -- 168
 			end -- 168
@@ -177,7 +177,7 @@ function CraftBenchPlugin.prototype.getState(self) -- 225
 	local inv = {} -- 226
 	local craftedIds = {} -- 227
 	local equipped = "standard_gun" -- 228
-	if self.lastSnapshotBench ~= nil then -- 229
+	if self.lastSnapshotBench ~= nil then -- 228
 		for k in pairs(self.lastSnapshotBench.inventory) do -- 230
 			inv[k] = self.lastSnapshotBench.inventory[k] -- 231
 		end -- 231
@@ -185,7 +185,7 @@ function CraftBenchPlugin.prototype.getState(self) -- 225
 		do -- 233
 			i = 0 -- 234
 			while i < #self.lastSnapshotBench.recipes do -- 234
-				if self.lastSnapshotBench.recipes[i + 1].crafted then -- 235
+				if self.lastSnapshotBench.recipes[i + 1].crafted then -- 234
 					craftedIds[#craftedIds + 1] = self.lastSnapshotBench.recipes[i + 1].id -- 236
 				end -- 236
 				i = i + 1 -- 234
@@ -255,7 +255,7 @@ function CraftBenchPlugin.prototype.resetInputEdges(self, touchMode) -- 285
 		____temp_2 = false -- 287
 	end -- 287
 	self.prevRight = ____temp_2 -- 287
-	if type(Keyboard) ~= "nil" then -- 288
+	if type(Keyboard) ~= "nil" then -- 287
 		self.prevLeftKey = Keyboard:isKeyPressed("A") or Keyboard:isKeyPressed("Left") -- 289
 		self.prevRightKey = Keyboard:isKeyPressed("D") or Keyboard:isKeyPressed("Right") -- 290
 		self.prevConfirm = Keyboard:isKeyPressed("Return") or Keyboard:isKeyPressed("Space") or Keyboard:isKeyPressed("E") -- 291
@@ -264,7 +264,7 @@ function CraftBenchPlugin.prototype.resetInputEdges(self, touchMode) -- 285
 end -- 285
 function CraftBenchPlugin.prototype.submitIntent(self, p, intent) -- 296
 	local contract = resolveRuntimeContract(self.injectedContract) -- 297
-	if contract ~= nil then -- 298
+	if contract ~= nil then -- 297
 		return contract:submitIntent(p, intent) -- 299
 	end -- 299
 	return dispatchIntentFallback(p, intent) -- 301
@@ -298,7 +298,7 @@ function CraftBenchPlugin.prototype.computeLayout(self, ctx, recipeCount) -- 304
 	do -- 337
 		i = 0 -- 338
 		while i < count do -- 338
-			local ____self_cardBoxes_3 = self.cardBoxes -- 339
+			local ____self_cardBoxes_3 = self.cardBoxes -- 338
 			____self_cardBoxes_3[#____self_cardBoxes_3 + 1] = Rect(cardsAreaX + i * (cardW + gap), cardY, cardW, cardH) -- 339
 			i = i + 1 -- 338
 		end -- 338
@@ -317,20 +317,20 @@ end -- 304
 function CraftBenchPlugin.prototype.update(self, ctx) -- 347
 	local bench = ctx.view.craftBench -- 348
 	self.lastSnapshotBench = bench -- 349
-	if ctx.paused then -- 352
+	if ctx.paused then -- 349
 		self:resetInputEdges(ctx.input:isTouchMode()) -- 353
 		return -- 354
 	end -- 354
 	local udt = math.max(0, ctx.uiDt) -- 357
 	self.animTime = self.animTime + udt -- 358
-	if self.missingFlashT > 0 then -- 360
+	if self.missingFlashT > 0 then -- 358
 		self.missingFlashT = math.max(0, self.missingFlashT - udt) -- 361
 	end -- 361
-	if self.handoverRemaining > 0 then -- 363
+	if self.handoverRemaining > 0 then -- 361
 		self.handoverRemaining = math.max(0, self.handoverRemaining - udt) -- 364
 	end -- 364
 	self:detectCraftCompletion(ctx, bench) -- 368
-	if bench.active and not self.wasActive then -- 370
+	if bench.active and not self.wasActive then -- 368
 		self.openAnimT = 0 -- 371
 		self.pendingRecipeId = "" -- 372
 		self.missingFlashT = 0 -- 373
@@ -343,12 +343,12 @@ function CraftBenchPlugin.prototype.update(self, ctx) -- 347
 			) -- 375
 		) -- 375
 		self:resetInputEdges(ctx.input:isTouchMode()) -- 376
-	elseif not bench.active and self.wasActive then -- 377
+	elseif not bench.active and self.wasActive then -- 376
 		self.pendingRecipeId = "" -- 378
 		self.missingFlashT = 0 -- 379
 	end -- 379
 	self.wasActive = bench.active -- 381
-	if not bench.active then -- 383
+	if not bench.active then -- 381
 		self.pendingSimInput = nil -- 384
 		return -- 385
 	end -- 385
@@ -363,7 +363,7 @@ function CraftBenchPlugin.prototype.detectCraftCompletion(self, ctx, bench) -- 3
 		i = 0 -- 398
 		while i < #bench.recipes do -- 398
 			local r = bench.recipes[i + 1] -- 399
-			if r.crafted and self.prevCraftedMap[r.id] ~= true then -- 400
+			if r.crafted and self.prevCraftedMap[r.id] ~= true then -- 399
 				newlyCrafted = r -- 401
 			end -- 401
 			self.prevCraftedMap[r.id] = r.crafted -- 403
@@ -374,14 +374,14 @@ function CraftBenchPlugin.prototype.detectCraftCompletion(self, ctx, bench) -- 3
 		i = 0 -- 407
 		while i < #ctx.events.rawEvents do -- 407
 			local ename = ctx.events.rawEvents[i + 1].name -- 408
-			if ename == "benchRejected" then -- 409
+			if ename == "benchRejected" then -- 408
 				self.pendingRecipeId = "" -- 410
 				self.missingFlashT = 0.45 -- 411
 			end -- 411
 			i = i + 1 -- 407
 		end -- 407
 	end -- 407
-	if newlyCrafted ~= nil then -- 415
+	if newlyCrafted ~= nil then -- 407
 		local ____temp_4 -- 416
 		if self.pendingRecipeId == newlyCrafted.id then -- 416
 			____temp_4 = self.pendingFirstCraftAtSubmit -- 417
@@ -400,14 +400,14 @@ function CraftBenchPlugin.prototype.detectCraftCompletion(self, ctx, bench) -- 3
 			i = 0 -- 427
 			while i < #ctx.events.rawEvents do -- 427
 				local ename = ctx.events.rawEvents[i + 1].name -- 428
-				if ename == "craftDone" or ename == "benchCraft" then -- 429
+				if ename == "craftDone" or ename == "benchCraft" then -- 428
 					hasBackendDone = true -- 430
 					break -- 431
 				end -- 431
 				i = i + 1 -- 427
 			end -- 427
 		end -- 427
-		if not hasBackendDone then -- 434
+		if not hasBackendDone then -- 427
 			ctx.audio:playOnce( -- 435
 				(("fe02:craft_done:r" .. tostring(ctx.events.roomSessionId)) .. ":") .. newlyCrafted.id, -- 436
 				"sfx", -- 437
@@ -473,20 +473,20 @@ function CraftBenchPlugin.prototype.processInputs(self, ctx, bench) -- 447
 	local move = 0 -- 480
 	local confirm = false -- 481
 	local cancel = false -- 482
-	if sim ~= nil and (sim.move ~= nil or sim.confirm ~= nil or sim.cancel ~= nil) then -- 484
+	if sim ~= nil and (sim.move ~= nil or sim.confirm ~= nil or sim.cancel ~= nil) then -- 482
 		move = sim.move or 0 -- 485
 		confirm = sim.confirm == true -- 486
 		cancel = sim.cancel == true -- 487
 	else -- 487
-		if type(Keyboard) ~= "nil" then -- 489
+		if type(Keyboard) ~= "nil" then -- 487
 			local lk = Keyboard:isKeyPressed("A") or Keyboard:isKeyPressed("Left") -- 490
 			local rk = Keyboard:isKeyPressed("D") or Keyboard:isKeyPressed("Right") -- 491
 			local cf = Keyboard:isKeyPressed("Return") or Keyboard:isKeyPressed("Space") or Keyboard:isKeyPressed("E") -- 492
 			local cc = Keyboard:isKeyPressed("BackSpace") -- 493
-			if lk and not self.prevLeftKey then -- 494
+			if lk and not self.prevLeftKey then -- 493
 				move = move - 1 -- 494
 			end -- 494
-			if rk and not self.prevRightKey then -- 495
+			if rk and not self.prevRightKey then -- 494
 				move = move + 1 -- 495
 			end -- 495
 			confirm = cf and not self.prevConfirm -- 496
@@ -496,39 +496,39 @@ function CraftBenchPlugin.prototype.processInputs(self, ctx, bench) -- 447
 			self.prevConfirm = cf -- 500
 			self.prevCancel = cc -- 501
 		end -- 501
-		if ctx.input.navLeft or ctx.input.navPrevTab then -- 503
+		if ctx.input.navLeft or ctx.input.navPrevTab then -- 501
 			move = move - 1 -- 503
 		end -- 503
-		if ctx.input.navRight or ctx.input.navNextTab then -- 504
+		if ctx.input.navRight or ctx.input.navNextTab then -- 503
 			move = move + 1 -- 504
 		end -- 504
-		if ctx.input.navConfirm then -- 505
+		if ctx.input.navConfirm then -- 504
 			confirm = true -- 505
 		end -- 505
-		if ctx.input.navBack then -- 506
+		if ctx.input.navBack then -- 505
 			cancel = true -- 506
 		end -- 506
 	end -- 506
 	local ptr = Vec2(ptrX, ptrY) -- 510
 	local hitClose = inside and self.closeBox:containsPoint(ptr) -- 511
-	if cancel or rightClick or click and hitClose then -- 512
+	if cancel or rightClick or click and hitClose then -- 511
 		self:submitIntent(ctx.p, {kind = "craftClose"}) -- 513
 		return -- 514
 	end -- 514
 	local count = #bench.recipes -- 517
-	if count == 0 then -- 518
+	if count == 0 then -- 517
 		return -- 519
 	end -- 519
 	local rawDx = useUiPtr and ctx.input.uiDx or ctx.input.mdx -- 522
 	local rawDy = useUiPtr and ctx.input.uiDy or ctx.input.mdy -- 523
 	local pointerMoved = (sim and sim.pointerX) ~= nil or not touchMode and inside and math.abs(rawDx) + math.abs(rawDy) >= ctx.uiScale -- 524
 	local hitCard = -1 -- 526
-	if inside then -- 527
+	if inside then -- 526
 		local i = 0 -- 528
 		do -- 528
 			i = 0 -- 529
 			while i < #self.cardBoxes do -- 529
-				if self.cardBoxes[i + 1]:containsPoint(ptr) then -- 530
+				if self.cardBoxes[i + 1]:containsPoint(ptr) then -- 529
 					hitCard = i -- 531
 					break -- 532
 				end -- 532
@@ -536,38 +536,38 @@ function CraftBenchPlugin.prototype.processInputs(self, ctx, bench) -- 447
 			end -- 529
 		end -- 529
 	end -- 529
-	if move ~= 0 then -- 537
+	if move ~= 0 then -- 529
 		self.pointerActive = false -- 538
 		self.selectedIdx = (self.selectedIdx + move + count) % count -- 539
-	elseif pointerMoved and hitCard >= 0 then -- 540
+	elseif pointerMoved and hitCard >= 0 then -- 539
 		self.pointerActive = true -- 541
 		self.selectedIdx = hitCard -- 542
 	end -- 542
 	local triggerConfirm = confirm or click and hitCard >= 0 -- 545
-	if not triggerConfirm then -- 546
+	if not triggerConfirm then -- 545
 		return -- 547
 	end -- 547
-	if click and hitCard >= 0 then -- 549
+	if click and hitCard >= 0 then -- 547
 		self.selectedIdx = hitCard -- 550
 	end -- 550
-	if self.handoverRemaining > 0.05 then -- 554
+	if self.handoverRemaining > 0.05 then -- 550
 		return -- 555
 	end -- 555
 	local recipe = bench.recipes[self.selectedIdx + 1] -- 558
-	if recipe == nil then -- 559
+	if recipe == nil then -- 558
 		return -- 560
 	end -- 560
-	if recipe.crafted then -- 563
-		if bench.equippedWeapon ~= recipe.id then -- 564
+	if recipe.crafted then -- 560
+		if bench.equippedWeapon ~= recipe.id then -- 560
 			self:submitIntent(ctx.p, {kind = "craftEquip", weaponId = recipe.id}) -- 565
 		end -- 565
 		return -- 567
 	end -- 567
-	if self.pendingRecipeId == recipe.id then -- 571
+	if self.pendingRecipeId == recipe.id then -- 567
 		return -- 572
 	end -- 572
 	local missing = collectMissingMaterials(recipe, bench.inventory) -- 576
-	if #missing > 0 then -- 577
+	if #missing > 0 then -- 576
 		self.missingList = missing -- 578
 		self.missingFlashT = 0.55 -- 579
 		ctx.audio:playOnce( -- 580
@@ -587,16 +587,16 @@ function CraftBenchPlugin.prototype.processInputs(self, ctx, bench) -- 447
 	self.requestSeq = self.requestSeq + 1 -- 595
 	local requestId = (((("craft:r" .. tostring(ctx.events.roomSessionId)) .. ":") .. recipe.id) .. ":") .. tostring(self.requestSeq) -- 596
 	local accepted = self:submitIntent(ctx.p, {kind = "craftSubmit", requestId = requestId, recipeId = recipe.id}) -- 597
-	if not accepted then -- 602
+	if not accepted then -- 597
 		self.pendingRecipeId = "" -- 603
 	end -- 603
 end -- 447
 function CraftBenchPlugin.prototype.drawFullSpeedUi(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 607
 	local bench = ctx.view.craftBench -- 614
-	if not bench.active and self.handoverRemaining <= 0.01 then -- 615
+	if not bench.active and self.handoverRemaining <= 0.01 then -- 614
 		return false -- 616
 	end -- 616
-	if not bench.active then -- 620
+	if not bench.active then -- 616
 		self:drawHandoverOverlay( -- 621
 			uiDraw, -- 621
 			uiInkDraw, -- 621
@@ -721,7 +721,7 @@ function CraftBenchPlugin.prototype.drawFullSpeedUi(self, uiDraw, uiInkDraw, uiA
 			i = i + 1 -- 681
 		end -- 681
 	end -- 681
-	if self.handoverRemaining > 0.01 then -- 697
+	if self.handoverRemaining > 0.01 then -- 681
 		self:drawHandoverOverlay( -- 698
 			uiDraw, -- 698
 			uiInkDraw, -- 698
@@ -881,7 +881,7 @@ function CraftBenchPlugin.prototype.drawTableMaterials(self, uiDraw, uiInkDraw, 
 			local isMissing = self.missingFlashT > 0.02 and __TS__ArrayIndexOf(self.missingList, mat) >= 0 -- 771
 			local shake = isMissing and math.sin(self.animTime * 54) * 3.5 or 0 -- 772
 			local rowY = y + h - 62 - i * 48 -- 773
-			if isMissing then -- 775
+			if isMissing then -- 773
 				uiDraw:drawRect( -- 776
 					Rect(x + 6 + shake, rowY - 18, w - 12, 38), -- 776
 					toColor(PALETTE.rougeSoft, 145 * appear), -- 776
@@ -899,7 +899,7 @@ function CraftBenchPlugin.prototype.drawTableMaterials(self, uiDraw, uiInkDraw, 
 				while t < shown do -- 782
 					local tx = x + 22 + t * 14 + shake -- 783
 					local filled = t < count -- 784
-					if mat == "bell_tally" or mat == "bell" then -- 785
+					if mat == "bell_tally" or mat == "bell" then -- 784
 						drawReloadPatternGlyph( -- 786
 							uiInkDraw, -- 787
 							tx, -- 788
@@ -917,7 +917,7 @@ function CraftBenchPlugin.prototype.drawTableMaterials(self, uiDraw, uiInkDraw, 
 							1, -- 800
 							toColor(filled and PALETTE.amberCore or PALETTE.silkDim, (filled and 230 or 120) * appear) -- 801
 						) -- 801
-						if filled then -- 803
+						if filled then -- 801
 							uiInkDraw:drawSegment( -- 804
 								Vec2(tx - 2, rowY + 3), -- 804
 								Vec2(tx + 2, rowY + 3), -- 804
@@ -990,7 +990,7 @@ function CraftBenchPlugin.prototype.resolveWeaponName(self, bench, weaponId) -- 
 	do -- 845
 		i = 0 -- 846
 		while i < #bench.recipes do -- 846
-			if bench.recipes[i + 1].id == weaponId then -- 847
+			if bench.recipes[i + 1].id == weaponId then -- 846
 				return bench.recipes[i + 1].name -- 848
 			end -- 848
 			i = i + 1 -- 846
@@ -1004,7 +1004,7 @@ function CraftBenchPlugin.prototype.drawRecipeCard(self, uiDraw, uiInkDraw, uiAr
 	local equipped = bench.equippedWeapon == recipe.id -- 868
 	local isPending = self.pendingRecipeId == recipe.id -- 869
 	local highlightMissing = selected and self.missingFlashT > 0.02 and #missing > 0 -- 870
-	if not uiArt:tryPlace( -- 873
+	if not uiArt:tryPlace( -- 870
 		"ink_song_paper", -- 873
 		"cb_card_" .. recipe.id, -- 873
 		box.x + box.width * 0.5, -- 873
@@ -1033,7 +1033,7 @@ function CraftBenchPlugin.prototype.drawRecipeCard(self, uiDraw, uiInkDraw, uiAr
 		true, -- 880
 		2 -- 880
 	) -- 880
-	if selected then -- 882
+	if selected then -- 880
 		drawSilkRibbon( -- 883
 			uiDraw, -- 883
 			uiArt, -- 883
@@ -1143,12 +1143,12 @@ function CraftBenchPlugin.prototype.drawRecipeCard(self, uiDraw, uiInkDraw, uiAr
 		46, -- 924
 		44, -- 924
 		math.floor(32 * appear + 0.5) -- 924
-	) or (selected and (canCraft or recipe.crafted) and Color( -- 925
+	) or (selected and (canCraft or recipe.crafted) and Color( -- 924
 		32, -- 926
 		30, -- 926
 		32, -- 926
 		math.floor(218 * appear + 0.5) -- 926
-	) or Color( -- 927
+	) or Color( -- 926
 		32, -- 927
 		30, -- 927
 		32, -- 927

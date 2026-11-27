@@ -212,6 +212,13 @@ for required in \
     "assets/art/brand/team_badge.png" \
     "assets/art/brand/app_icon.png" \
     "assets/art/sprites.clip" \
+    "assets/art/actors-hd.clip" \
+    "assets/art/actors-hd.png" \
+    "assets/art/zhoushu-run.png" \
+    "assets/art/xiaoman-run.png" \
+    "assets/art/zhoushu-run-transition.png" \
+    "assets/art/xiaoman-run-transition.png" \
+    "assets/art/zhoushu-slide.png" \
     "assets/font/lxgw-neo-zhisong.ttf" \
     "assets/font/longcang-brush.ttf" \
     "assets/audio/combat/shot.wav" \

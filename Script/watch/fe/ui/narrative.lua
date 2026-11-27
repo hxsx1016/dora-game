@@ -72,11 +72,11 @@ function NarrativeRenderer.prototype.triggerOnce(self, beatKey, lineIds, replace
 	if replaceCurrent == nil then -- 88
 		replaceCurrent = false -- 88
 	end -- 88
-	if self.triggeredBeats[beatKey] then -- 89
+	if self.triggeredBeats[beatKey] then -- 88
 		return -- 90
 	end -- 90
 	self.triggeredBeats[beatKey] = true -- 92
-	if replaceCurrent then -- 93
+	if replaceCurrent then -- 92
 		self.activeLine = nil -- 94
 		self.activeLineT = 0 -- 95
 		self.queuedLines = {} -- 96
@@ -86,12 +86,12 @@ function NarrativeRenderer.prototype.triggerOnce(self, beatKey, lineIds, replace
 		i = 0 -- 99
 		while i < #lineIds do -- 99
 			local d = dialogueById(lineIds[i + 1]) -- 100
-			if d ~= nil then -- 101
-				if self.activeLine == nil then -- 102
+			if d ~= nil then -- 100
+				if self.activeLine == nil then -- 100
 					self.activeLine = d -- 103
 					self.activeLineT = d.duration -- 104
 				else -- 104
-					local ____self_queuedLines_0 = self.queuedLines -- 106
+					local ____self_queuedLines_0 = self.queuedLines -- 104
 					____self_queuedLines_0[#____self_queuedLines_0 + 1] = d -- 106
 				end -- 106
 			end -- 106
@@ -104,7 +104,7 @@ function NarrativeRenderer.prototype.showMuteCaption(self, key, duration) -- 112
 		duration = 1.9 -- 112
 	end -- 112
 	local txt = MUTE_SFX_CAPTIONS[key] -- 113
-	if txt ~= nil and txt ~= "" then -- 114
+	if txt ~= nil and txt ~= "" then -- 113
 		self.muteCaption = txt -- 115
 		self.muteCaptionT = duration -- 116
 	end -- 116
@@ -116,14 +116,14 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 	local key = p.room.key -- 121
 	local ox = p.ox -- 122
 	local px = p.player.x -- 123
-	if events ~= nil then -- 126
-		if events.knockPulse then -- 127
+	if events ~= nil then -- 123
+		if events.knockPulse then -- 123
 			self:showMuteCaption("knockTwo", 1.8) -- 128
 		end -- 128
-		if events.cartJustDocked then -- 130
+		if events.cartJustDocked then -- 128
 			self:showMuteCaption("cartDock", 2) -- 131
 		end -- 131
-		if events.bottleLanded then -- 133
+		if events.bottleLanded then -- 131
 			local isBasin = (string.find(p.flash, "铁盆", nil, true) or 0) - 1 >= 0 -- 134
 			self:showMuteCaption(isBasin and "basinRing" or "brickClink", 2) -- 135
 		end -- 135
@@ -132,38 +132,38 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 			ei = 0 -- 138
 			while ei < #events.rawEvents do -- 138
 				local ev = events.rawEvents[ei + 1] -- 139
-				if ev.name == "storyBeat" and ev.data.beat == "tower_door" then -- 140
+				if ev.name == "storyBeat" and ev.data.beat == "tower_door" then -- 139
 					self:showMuteCaption("knockReply", 2) -- 141
 				end -- 141
 				ei = ei + 1 -- 138
 			end -- 138
 		end -- 138
 	end -- 138
-	if p.flash ~= "" and p.flash ~= self.lastFlashSeen then -- 145
+	if p.flash ~= "" and p.flash ~= self.lastFlashSeen then -- 138
 		self.lastFlashSeen = p.flash -- 146
-		if (string.find(p.flash, "枯枝", nil, true) or 0) - 1 >= 0 then -- 147
+		if (string.find(p.flash, "枯枝", nil, true) or 0) - 1 >= 0 then -- 146
 			self:showMuteCaption("twigSnap", 1.8) -- 148
-		elseif (string.find(p.flash, "铁盆", nil, true) or 0) - 1 >= 0 then -- 149
+		elseif (string.find(p.flash, "铁盆", nil, true) or 0) - 1 >= 0 then -- 148
 			self:showMuteCaption("basinRing", 1.8) -- 150
-		elseif (string.find(p.flash, "砖", nil, true) or 0) - 1 >= 0 and key == "village" then -- 151
+		elseif (string.find(p.flash, "砖", nil, true) or 0) - 1 >= 0 and key == "village" then -- 150
 			self:showMuteCaption("brickClink", 1.8) -- 152
 		end -- 152
 	end -- 152
 	local calmingNow = p.escort.state == "calming" -- 157
-	if calmingNow and not self.lastEscortCalming then -- 158
+	if calmingNow and not self.lastEscortCalming then -- 157
 		self:showMuteCaption("knockTwo", 2) -- 159
 		self.triggeredBeats.calming_d04 = false -- 160
 		self:triggerOnce("calming_d04", {"D04"}, true) -- 161
 	end -- 161
 	self.lastEscortCalming = calmingNow -- 163
-	if key == "prologue" then -- 166
-		if p.phase == "prologue-wake" then -- 167
+	if key == "prologue" then -- 163
+		if p.phase == "prologue-wake" then -- 163
 			self:triggerOnce("p0_wake", {"D30", "D31", "D32"}, true) -- 168
-		elseif p.phase == "prologue-shadow" or p.phase == "prologue-escape" then -- 169
+		elseif p.phase == "prologue-shadow" or p.phase == "prologue-escape" then -- 168
 			self:triggerOnce("p0_shadow", {"D33", "D34"}, true) -- 170
-		elseif p.phase == "prologue-wait" then -- 171
+		elseif p.phase == "prologue-wait" then -- 170
 			self:triggerOnce("p1_call", {"D35", "D36"}, true) -- 172
-		elseif p.phase == "prologue-give" then -- 173
+		elseif p.phase == "prologue-give" then -- 172
 			self:triggerOnce("p2_give", { -- 174
 				"D01", -- 174
 				"D02", -- 174
@@ -171,73 +171,73 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 				"D37", -- 174
 				"D38" -- 174
 			}, true) -- 174
-		elseif p.phase == "prologue-follow" then -- 175
-			if px >= ox + 400 then -- 176
+		elseif p.phase == "prologue-follow" then -- 174
+			if px >= ox + 400 then -- 174
 				self:triggerOnce("p3_well", {"D21", "D22", "D39"}) -- 177
 			else -- 177
 				self:triggerOnce("p2_wall", {"D57", "D58"}) -- 179
 			end -- 179
-			if interactPressed and px <= ox + 175 and math.abs(p.player.y) < 20 then -- 182
+			if interactPressed and px <= ox + 175 and math.abs(p.player.y) < 20 then -- 179
 				self:triggerOnce("opt_pinwheel", {"OPT_PINWHEEL"}, true) -- 183
 			end -- 183
 		end -- 183
 		return -- 186
 	end -- 186
-	if key == "s1-crossroad" then -- 189
-		if px < ox + 260 then -- 190
+	if key == "s1-crossroad" then -- 186
+		if px < ox + 260 then -- 186
 			self:triggerOnce("s1_standoff", {"D23", "D24", "D40", "D41"}) -- 191
-		elseif px >= ox + 360 and self.activeLine ~= nil and self.activeLine.id == "D23" then -- 192
+		elseif px >= ox + 360 and self.activeLine ~= nil and self.activeLine.id == "D23" then -- 191
 			self.activeLine = nil -- 194
 			self.activeLineT = 0 -- 195
 			self.queuedLines = {} -- 196
 		end -- 196
 		return -- 198
 	end -- 198
-	if key == "s2-drygoods" then -- 201
+	if key == "s2-drygoods" then -- 198
 		local boardOpen = false -- 202
 		local bi = 0 -- 203
 		do -- 203
 			bi = 0 -- 204
 			while bi < #p.boxes do -- 204
-				if p.boxes[bi + 1].id == "s2_board_cover" and not p.boxes[bi + 1].hidden then -- 205
+				if p.boxes[bi + 1].id == "s2_board_cover" and not p.boxes[bi + 1].hidden then -- 204
 					boardOpen = true -- 206
 					break -- 207
 				end -- 207
 				bi = bi + 1 -- 204
 			end -- 204
 		end -- 204
-		if not boardOpen and px >= ox + 290 and px <= ox + 520 then -- 210
+		if not boardOpen and px >= ox + 290 and px <= ox + 520 then -- 204
 			self:triggerOnce("s2_hint_board", {"D05"}) -- 211
 		end -- 211
-		if boardOpen and not self.lastS2BoardOpen then -- 213
+		if boardOpen and not self.lastS2BoardOpen then -- 211
 			self:showMuteCaption("boardDrop", 2) -- 214
 			self:triggerOnce("s2_board_drop", {"D42"}, true) -- 215
 		end -- 215
-		if boardOpen and interactPressed and px >= ox + 470 and px <= ox + 640 and math.abs(p.player.y) < 20 then -- 218
+		if boardOpen and interactPressed and px >= ox + 470 and px <= ox + 640 and math.abs(p.player.y) < 20 then -- 215
 			self:triggerOnce("opt_shadowdisc", {"OPT_SHADOWDISC"}, true) -- 219
 		end -- 219
 		self.lastS2BoardOpen = boardOpen -- 221
 		return -- 222
 	end -- 222
-	if key == "s3-archway" then -- 225
-		if px >= ox + 660 and p.partner.alive and math.abs(p.partner.x - px) <= 150 then -- 226
+	if key == "s3-archway" then -- 222
+		if px >= ox + 660 and p.partner.alive and math.abs(p.partner.x - px) <= 150 then -- 222
 			self:triggerOnce("s3_rejoin", {"D06"}) -- 227
 		end -- 227
 		return -- 229
 	end -- 229
-	if key == "c2-granary" then -- 232
-		if not p.cartDocked and px >= ox + 260 then -- 233
+	if key == "c2-granary" then -- 229
+		if not p.cartDocked and px >= ox + 260 then -- 229
 			self:triggerOnce("c2_groove", {"D07", "D43"}) -- 234
 		end -- 234
-		if p.cartDocked and not self.lastCartDocked then -- 236
+		if p.cartDocked and not self.lastCartDocked then -- 234
 			self:showMuteCaption("latchOpen", 2) -- 237
 			self:triggerOnce("c2_docked", {"D08"}, true) -- 238
 		end -- 238
 		self.lastCartDocked = p.cartDocked -- 240
 		return -- 241
 	end -- 241
-	if key == "gate" then -- 244
-		if p.phase == "gate-idle" then -- 245
+	if key == "gate" then -- 241
+		if p.phase == "gate-idle" then -- 241
 			self:triggerOnce("g1_winch", { -- 246
 				"D09", -- 246
 				"D44", -- 246
@@ -245,13 +245,13 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 				"D59", -- 246
 				"D60" -- 246
 			}) -- 246
-		elseif p.phase == "gate-hold" then -- 247
-			if self.activeLine ~= nil then -- 249
+		elseif p.phase == "gate-hold" then -- 246
+			if self.activeLine ~= nil then -- 246
 				self.activeLine = nil -- 250
 				self.activeLineT = 0 -- 251
 				self.queuedLines = {} -- 252
 			end -- 252
-		elseif p.phase == "gate-send" then -- 254
+		elseif p.phase == "gate-send" then -- 252
 			self:triggerOnce("g3_farewell", { -- 255
 				"D10", -- 255
 				"D61", -- 255
@@ -260,31 +260,31 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 				"D47", -- 255
 				"D12" -- 255
 			}, true) -- 255
-		elseif p.phase == "gate-wait" then -- 256
+		elseif p.phase == "gate-wait" then -- 255
 			self:triggerOnce("g4_reunion_call", {"D48", "D49", "D50"}, true) -- 257
 		end -- 257
 		return -- 259
 	end -- 259
-	if key == "gatepath" then -- 262
+	if key == "gatepath" then -- 259
 		self:triggerOnce("g06_north", {"G06A", "G06B", "D51", "D52"}) -- 263
 		return -- 264
 	end -- 264
-	if key == "village" then -- 267
-		if p.passed and px >= ox + 550 and px <= ox + 690 then -- 269
+	if key == "village" then -- 264
+		if p.passed and px >= ox + 550 and px <= ox + 690 then -- 264
 			self:triggerOnce("v3_grate_ask", {"D27"}) -- 270
-			if interactPressed and self.triggeredBeats.v3_grate_ask then -- 271
+			if interactPressed and self.triggeredBeats.v3_grate_ask then -- 270
 				self:triggerOnce("v3_grate_reply", {"D28", "D29"}, true) -- 272
 			end -- 272
 		end -- 272
 		return -- 275
 	end -- 275
-	if key == "tower" then -- 278
-		if p.phase == "tower-wait" and interactPressed and px >= ox + 300 and px <= ox + 385 then -- 280
+	if key == "tower" then -- 275
+		if p.phase == "tower-wait" and interactPressed and px >= ox + 300 and px <= ox + 385 then -- 275
 			self:triggerOnce("opt_lantern", {"OPT_LANTERN"}, true) -- 281
-		elseif p.phase == "tower-knock" then -- 282
+		elseif p.phase == "tower-knock" then -- 281
 			self:triggerOnce("t2_knock", {"D14", "D15"}, true) -- 283
-		elseif p.phase == "tower-enter" or p.phase == "tower-desk" then -- 284
-			if p.storyRoute == "soldier" then -- 285
+		elseif p.phase == "tower-enter" or p.phase == "tower-desk" then -- 283
+			if p.storyRoute == "soldier" then -- 283
 				self:triggerOnce("t3_soldier_talk", { -- 286
 					"D53", -- 286
 					"D54", -- 286
@@ -303,7 +303,7 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 					"D19" -- 288
 				}, true) -- 288
 			end -- 288
-		elseif p.phase == "tower-end" and p.storyRoute == "soldier" then -- 290
+		elseif p.phase == "tower-end" and p.storyRoute == "soldier" then -- 288
 			self:triggerOnce("t3_reunion_end", {"D55", "D56", "D65"}, true) -- 291
 		end -- 291
 	end -- 291
@@ -313,15 +313,15 @@ function NarrativeRenderer.prototype.update(self, dt, p, events, interactPressed
 		interactPressed = false -- 296
 	end -- 296
 	self.time = self.time + dt -- 297
-	if self.lastRoomKey ~= p.room.key then -- 298
+	if self.lastRoomKey ~= p.room.key then -- 297
 		self:onEnterRoom(p.room.key) -- 299
 	end -- 299
-	if self.muteCaptionT > 0 then -- 301
+	if self.muteCaptionT > 0 then -- 299
 		self.muteCaptionT = math.max(0, self.muteCaptionT - dt) -- 302
 	end -- 302
-	if self.activeLine ~= nil then -- 304
+	if self.activeLine ~= nil then -- 302
 		self.activeLineT = self.activeLineT - dt -- 305
-		if self.activeLineT <= 0 then -- 306
+		if self.activeLineT <= 0 then -- 305
 			local next = table.remove(self.queuedLines, 1) -- 307
 			self.activeLine = next -- 308
 			self.activeLineT = next ~= nil and next.duration or 0 -- 309
@@ -331,27 +331,27 @@ function NarrativeRenderer.prototype.update(self, dt, p, events, interactPressed
 	local wantCinema = p.room.key == "prologue" and p.phase == "prologue-give" or p.room.key == "gate" and (p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand") or p.reloadOpen or (p.room.key == "tower" or p.room.key == "museum") and p.phase ~= "tower-wait" -- 314
 	local target = wantCinema and 1 or 0 -- 319
 	self.letterbox = self.letterbox + (target - self.letterbox) * math.min(1, dt * 4.5) -- 320
-	if self.bannerT > 0 then -- 322
+	if self.bannerT > 0 then -- 320
 		self.bannerT = math.max(0, self.bannerT - dt) -- 323
 	end -- 323
-	if self.wipeT > 0 then -- 325
+	if self.wipeT > 0 then -- 323
 		self.wipeT = math.max(0, self.wipeT - dt * 2.4) -- 326
 	end -- 326
 end -- 296
 function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 330
-	if assistHintsEnabled == nil then -- 339
+	if assistHintsEnabled == nil then -- 330
 		assistHintsEnabled = false -- 339
 	end -- 339
-	if inputMode == nil then -- 340
+	if inputMode == nil then -- 339
 		inputMode = "kbm" -- 340
 	end -- 340
-	if gamepadLayout == nil then -- 341
+	if gamepadLayout == nil then -- 340
 		gamepadLayout = "xbox" -- 341
 	end -- 341
-	if safe == nil then -- 342
+	if safe == nil then -- 341
 		safe = ZERO_SAFE_INSETS -- 342
 	end -- 342
-	if self.letterbox > 0.01 then -- 345
+	if self.letterbox > 0.01 then -- 342
 		local barH = math.floor(70 * self.letterbox + 0.5) -- 346
 		uiDraw:drawRect( -- 347
 			Rect(0, h - barH, w, barH), -- 347
@@ -374,7 +374,7 @@ function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, 
 			toColor(PALETTE.silkDim, 70 * self.letterbox) -- 350
 		) -- 350
 	end -- 350
-	if p.room.key == "gate" and p.phase == "gate-count" then -- 354
+	if p.room.key == "gate" and p.phase == "gate-count" then -- 350
 		self:drawGateCountOverlay( -- 355
 			uiDraw, -- 355
 			uiInkDraw, -- 355
@@ -386,7 +386,7 @@ function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, 
 		) -- 355
 	end -- 355
 	local showRegistry = p.room.key == "tower" and (p.phase == "tower-end" or p.phase == "tower-given" and p.phaseTick >= 120) -- 359
-	if showRegistry then -- 360
+	if showRegistry then -- 359
 		self:drawTowerRegistryCard( -- 361
 			uiDraw, -- 361
 			uiInkDraw, -- 361
@@ -401,7 +401,7 @@ function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, 
 			gamepadLayout -- 361
 		) -- 361
 	end -- 361
-	if not p.paused and not showRegistry then -- 365
+	if not p.paused and not showRegistry then -- 361
 		self:drawSubtitleStrip( -- 366
 			uiDraw, -- 366
 			uiInkDraw, -- 366
@@ -416,7 +416,7 @@ function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, 
 			safe -- 366
 		) -- 366
 	end -- 366
-	if self.bannerT > 0 and not p.paused then -- 370
+	if self.bannerT > 0 and not p.paused then -- 366
 		self:drawAreaBanner( -- 371
 			uiDraw, -- 371
 			uiInkDraw, -- 371
@@ -427,7 +427,7 @@ function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, 
 			h -- 371
 		) -- 371
 	end -- 371
-	if self.wipeT > 0.01 then -- 375
+	if self.wipeT > 0.01 then -- 371
 		local k = math.min(1, self.wipeT * 1.15) -- 376
 		local a = math.floor(255 * k * k + 0.5) -- 377
 		uiDraw:drawRect( -- 378
@@ -453,7 +453,7 @@ function NarrativeRenderer.prototype.drawSubtitleStrip(self, uiDraw, uiInkDraw, 
 	local cx = w * 0.5 -- 398
 	local touchLift = inputMode == "touch" and self.letterbox <= 0.4 and 22 or 0 -- 399
 	local cy = (self.letterbox > 0.4 and 36 or 42) + touchLift + safe.bottom * 0.5 -- 400
-	if self.muteCaptionT > 0 and self.muteCaption ~= "" then -- 403
+	if self.muteCaptionT > 0 and self.muteCaption ~= "" then -- 400
 		local capAlpha = math.min(1, self.muteCaptionT * 2.5) -- 404
 		local capY = cy + 44 -- 405
 		drawSilkVeil( -- 406
@@ -483,7 +483,7 @@ function NarrativeRenderer.prototype.drawSubtitleStrip(self, uiDraw, uiInkDraw, 
 		) -- 407
 	end -- 407
 	local rawLine = self:composeNarrativeLine(p, assistHintsEnabled) -- 410
-	if rawLine.text == "" then -- 411
+	if rawLine.text == "" then -- 410
 		return -- 412
 	end -- 412
 	local line = { -- 414
@@ -524,7 +524,7 @@ function NarrativeRenderer.prototype.drawSubtitleStrip(self, uiDraw, uiInkDraw, 
 		true, -- 429
 		2 -- 429
 	) -- 429
-	if hasCue then -- 431
+	if hasCue then -- 429
 		local startX = cx - contentW * 0.5 -- 432
 		local cueCol = line.urgent and PALETTE.rouge or (p.childMode and PALETTE.amber or PALETTE.cyan) -- 433
 		drawBlossomDot( -- 434
@@ -589,199 +589,199 @@ end -- 385
 function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEnabled) -- 444
 	local key = p.room.key -- 445
 	local theme = themeOf(key) -- 446
-	if key == "gate" and p.phase == "gate-count" then -- 448
-		if p.countTick >= GATE_COUNT_END then -- 449
+	if key == "gate" and p.phase == "gate-count" then -- 446
+		if p.countTick >= GATE_COUNT_END then -- 446
 			return {cue = "", text = "……二十了。我往北去了。", urgent = false} -- 450
 		end -- 450
 		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 456
 	end -- 456
-	if not assistHintsEnabled then -- 459
-		if self.activeLine ~= nil then -- 461
+	if not assistHintsEnabled then -- 456
+		if self.activeLine ~= nil then -- 456
 			local spoken = self.activeLine.who ~= "" and ((self.activeLine.who .. "：「") .. self.activeLine.text) .. "」" or self.activeLine.text -- 462
 			local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 465
 			return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 467
 		end -- 467
-		if key == "prologue" and p.phase == "prologue-give" then -- 469
+		if key == "prologue" and p.phase == "prologue-give" then -- 467
 			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 470
 		end -- 470
-		if key == "checkpoint" and p.escort.state == "calming" then -- 472
+		if key == "checkpoint" and p.escort.state == "calming" then -- 470
 			return {cue = "", text = "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent = false} -- 473
 		end -- 473
-		if key == "tower" then -- 475
-			if p.phase == "tower-knock" then -- 476
+		if key == "tower" then -- 473
+			if p.phase == "tower-knock" then -- 473
 				return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 477
 			end -- 477
-			if p.phase == "tower-given" then -- 479
+			if p.phase == "tower-given" then -- 477
 				return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 480
 			end -- 480
 		end -- 480
-		if p.flash ~= "" and p.flashT > 0 then -- 483
+		if p.flash ~= "" and p.flashT > 0 and p.flash ~= "翻滚结束" then -- 480
 			local fl = p.flash -- 485
 			local hasKeyHint = (string.find(fl, "按 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "点 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按住 E", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 F", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按住 F", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 Shift", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 Ctrl", nil, true) or 0) - 1 >= 0 or (string.find(fl, "A/D", nil, true) or 0) - 1 >= 0 or (string.find(fl, "限时", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 再玩", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 拉开", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 敲", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 递", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 送", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 交", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 拿", nil, true) or 0) - 1 >= 0 or (string.find(fl, "E 开", nil, true) or 0) - 1 >= 0 or (string.find(fl, "按 1", nil, true) or 0) - 1 >= 0 -- 486
-			if not hasKeyHint then -- 504
+			if not hasKeyHint then -- 486
 				local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 505
 				local text = p.flash -- 506
 				local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 507
-				if key == "tower" or key == "prologue" then -- 508
+				if key == "tower" or key == "prologue" then -- 507
 					cue = "" -- 509
 				end -- 509
-				if text == "命中" then -- 511
+				if text == "命中" then -- 509
 					text = "倭寇击倒" -- 512
-				elseif text == "打空" then -- 513
+				elseif text == "打空" then -- 512
 					text = "铅丸偏离或被掩体阻挡" -- 514
-				elseif text == "翻滚" then -- 515
-					text = "伏身翻滚回避" -- 516
+				elseif text == "翻滚" then -- 514
+					text = "伏身滑铲" -- 516
 				end -- 516
 				return {cue = cue, text = text, urgent = isDanger} -- 518
 			end -- 518
 		end -- 518
 		return {cue = "", text = "", urgent = false} -- 521
 	end -- 521
-	if key == "gate" and p.phase == "gate-hold" then -- 524
+	if key == "gate" and p.phase == "gate-hold" then -- 521
 		local threatened = false -- 525
 		local hasAliveEnemy = false -- 526
 		local i = 0 -- 527
 		do -- 527
 			i = 0 -- 528
 			while i < #p.enemies do -- 528
-				if p.enemies[i + 1].alive then -- 529
+				if p.enemies[i + 1].alive then -- 528
 					hasAliveEnemy = true -- 530
-					if p.enemies[i + 1].warnT > 0 then -- 531
+					if p.enemies[i + 1].warnT > 0 then -- 530
 						threatened = true -- 532
 					end -- 532
 				end -- 532
 				i = i + 1 -- 528
 			end -- 528
 		end -- 528
-		if threatened then -- 536
+		if threatened then -- 528
 			return {cue = "警", text = "倭寇举铳瞄准 —— 贴住街垒按住 [SHIFT] 挡下，或左键先手击倒", urgent = true} -- 537
 		end -- 537
-		if p.coverHug then -- 539
-			if hasAliveEnemy and not p.coverBlocking then -- 540
+		if p.coverHug then -- 537
+			if hasAliveEnemy and not p.coverBlocking then -- 537
 				return {cue = "警", text = "此侧背向来敌，无法挡弹 —— 贴靠街垒左侧按住 [SHIFT]", urgent = true} -- 541
 			end -- 541
 			return {cue = "掩", text = "已贴靠掩体。左键发射火铳压制来敌，守满四十五秒", urgent = false} -- 543
 		end -- 543
 		return {cue = "守", text = "靠近街垒按住 [SHIFT] 贴掩体，左键发铳守住城门", urgent = false} -- 545
 	end -- 545
-	if key == "gate" and p.phase == "gate-count" then -- 548
-		if p.countTick >= GATE_COUNT_END then -- 549
+	if key == "gate" and p.phase == "gate-count" then -- 545
+		if p.countTick >= GATE_COUNT_END then -- 545
 			return {cue = "", text = "……二十了。我往北去了。", urgent = false} -- 550
 		end -- 550
 		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 556
 	end -- 556
-	if self.activeLine ~= nil then -- 559
+	if self.activeLine ~= nil then -- 556
 		local spoken = self.activeLine.who ~= "" and ((self.activeLine.who .. "：「") .. self.activeLine.text) .. "」" or self.activeLine.text -- 560
 		local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 563
 		return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 565
 	end -- 565
-	if p.flash ~= "" and p.flashT > 0 then -- 568
+	if p.flash ~= "" and p.flashT > 0 and p.flash ~= "翻滚结束" then -- 565
 		local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 569
 		local text = p.flash -- 570
 		local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 571
-		if key == "tower" or key == "prologue" then -- 572
+		if key == "tower" or key == "prologue" then -- 571
 			cue = "" -- 573
 		end -- 573
-		if text == "命中" then -- 575
+		if text == "命中" then -- 573
 			text = "倭寇击倒 —— 继续推进并留意掩体" -- 576
-		elseif text == "打空" then -- 577
+		elseif text == "打空" then -- 576
 			text = "铅丸偏离或被掩体阻挡" -- 578
-		elseif text == "翻滚" then -- 579
-			text = "伏身翻滚回避" -- 580
+		elseif text == "翻滚" then -- 578
+			text = "伏身滑铲" -- 580
 		end -- 580
 		return {cue = cue, text = text, urgent = isDanger} -- 582
 	end -- 582
-	if key == "prologue" then -- 585
-		if p.phase == "prologue-wait" then -- 586
+	if key == "prologue" then -- 582
+		if p.phase == "prologue-wait" then -- 582
 			return {cue = "", text = "按住 [W] 向里走，绕过石柱和倒柜，再用 [S] 靠近小满", urgent = false} -- 587
 		end -- 587
-		if p.phase == "prologue-give" then -- 589
+		if p.phase == "prologue-give" then -- 587
 			return {cue = "", text = "他把纸条仔细塞进指南针皮套里，递到她手里。", urgent = false} -- 590
 		end -- 590
 		return {cue = "", text = "带小满往右，从两根门柱之间穿过", urgent = false} -- 592
 	end -- 592
-	if key == "street" then -- 595
+	if key == "street" then -- 592
 		local alive = 0 -- 596
 		local i = 0 -- 597
 		do -- 597
 			i = 0 -- 598
 			while i < #p.enemies do -- 598
-				if p.enemies[i + 1].alive then -- 599
+				if p.enemies[i + 1].alive then -- 598
 					alive = alive + 1 -- 599
 				end -- 599
 				i = i + 1 -- 598
 			end -- 598
 		end -- 598
-		if alive > 0 then -- 601
+		if alive > 0 then -- 598
 			return {cue = "战", text = "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent = false} -- 602
 		end -- 602
 		return {cue = "", text = "带小满穿过右侧门洞，进入检查站", urgent = false} -- 604
 	end -- 604
-	if key == "checkpoint" then -- 607
-		if p.escort.state == "frozen" then -- 608
+	if key == "checkpoint" then -- 604
+		if p.escort.state == "frozen" then -- 604
 			return {cue = "危", text = "铳声吓住了小满，她蹲在原地不走了 —— 走近按 [E] 敲两下安抚她", urgent = true} -- 609
 		end -- 609
-		if p.escort.state == "calming" then -- 611
+		if p.escort.state == "calming" then -- 609
 			return {cue = "", text = "咚、咚。敲两下 —— 这是只属于两个人的暗号。", urgent = false} -- 612
 		end -- 612
-		if not p.cartDocked then -- 614
+		if not p.cartDocked then -- 612
 			return {cue = "机", text = "清障并护送小满穿过检查站，按住 [E]+[D] 把红布板车推入装卸窝", urgent = false} -- 615
 		end -- 615
 		return {cue = "归", text = "车轮落窝了。带小满从右侧门洞出去", urgent = false} -- 617
 	end -- 617
-	if key == "gate" then -- 620
-		if p.phase == "gate-idle" then -- 621
+	if key == "gate" then -- 617
+		if p.phase == "gate-idle" then -- 617
 			return {cue = p.gateNeedConfirm and "警" or "", text = p.gateNeedConfirm and "倒地后已退回绞盘。按 [E] 确认重新就位，再守四十五秒" or "小满正走向门洞等待点。走到左侧绞盘就位，守住最后四十五秒", urgent = p.gateNeedConfirm} -- 622
 		end -- 622
-		if p.phase == "gate-send" then -- 628
+		if p.phase == "gate-send" then -- 622
 			return {cue = "", text = "四十五秒守满了。走到右侧城门边，按 [E] 把小满送出城去", urgent = false} -- 629
 		end -- 629
 		return {cue = "", text = "她迈出了第一步。沿着门外小道向前，离开这座沦陷的城", urgent = false} -- 631
 	end -- 631
-	if key == "outside" then -- 634
-		if not p.cartDocked then -- 635
+	if key == "outside" then -- 631
+		if not p.cartDocked then -- 631
 			return {cue = "", text = "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent = false} -- 636
 		end -- 636
-		if p.checkpoint < p.room.arch.x1 then -- 638
+		if p.checkpoint < p.room.arch.x1 then -- 636
 			return {cue = "潜", text = "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent = false} -- 639
 		end -- 639
 		return {cue = "", text = "穿过矮拱，沿墙根小路向北塔灯火前行", urgent = false} -- 641
 	end -- 641
-	if key == "village" then -- 644
-		if p.scavChase then -- 645
+	if key == "village" then -- 641
+		if p.scavChase then -- 641
 			return {cue = "危", text = "拾荒者追上来了！按住 [CTRL] 钻进桌底甩开视线", urgent = true} -- 646
 		end -- 646
-		if p.passed then -- 648
+		if p.passed then -- 646
 			return {cue = "", text = "越过了第一院。继续向右，走进通往北塔的森林", urgent = false} -- 649
 		end -- 649
-		if p.hasBottle then -- 651
+		if p.hasBottle then -- 649
 			return {cue = "诱", text = "按住 [F] 瞄准右侧砖地，松开投瓶 —— 引开拾荒者后按 [CTRL] 钻过桌下", urgent = false} -- 652
 		end -- 652
-		if p.bottleFly ~= nil then -- 654
+		if p.bottleFly ~= nil then -- 652
 			return {cue = "潜", text = "瓶子正落向砖地，屏息等拾荒者被声响引开", urgent = false} -- 655
 		end -- 655
-		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 657
+		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 655
 			return {cue = "潜", text = "拾荒者循声走开了 —— 趁隙按住 [CTRL] 钻过桌下", urgent = false} -- 658
 		end -- 658
 		return {cue = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 660
 	end -- 660
-	if key == "forest" then -- 663
-		if p.dogState == "chase" then -- 664
+	if key == "forest" then -- 660
+		if p.dogState == "chase" then -- 660
 			return {cue = "危", text = "猎犬追上来了 —— 速按 [CTRL] 蹲进草丛匿迹！", urgent = true} -- 665
 		end -- 665
-		if p.dogState == "ear" then -- 667
+		if p.dogState == "ear" then -- 665
 			return {cue = "警", text = "猎犬竖起了耳朵 —— 立刻按住 [CTRL] 蹲下别出声！", urgent = true} -- 668
 		end -- 668
 		return {cue = "", text = "林间有猎犬巡逻。按住 [SHIFT] 轻步慢走或 [CTRL] 伏低，绕开猎犬抵达北塔", urgent = false} -- 670
 	end -- 670
-	if key == "tower" then -- 673
-		if p.phase == "tower-wait" then -- 674
+	if key == "tower" then -- 670
+		if p.phase == "tower-wait" then -- 670
 			return {cue = "", text = "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent = false} -- 675
 		end -- 675
-		if p.phase == "tower-knock" then -- 677
+		if p.phase == "tower-knock" then -- 675
 			return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 678
 		end -- 678
-		if p.phase == "tower-given" then -- 680
+		if p.phase == "tower-given" then -- 678
 			return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 681
 		end -- 681
 		return {cue = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 683
@@ -889,7 +889,7 @@ function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDr
 			layer = -1 -- 744
 		} -- 744
 	) -- 744
-	if not art:tryPlace( -- 748
+	if not art:tryPlace( -- 744
 		"ink_song_paper", -- 748
 		"registry_song_paper", -- 748
 		midX, -- 748
@@ -1004,7 +1004,7 @@ function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDr
 	) -- 789
 	local blankY = row1Y - 80 -- 792
 	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.2) -- 793
-	if reunion then -- 794
+	if reunion then -- 793
 		texts:put( -- 795
 			"sm", -- 795
 			"肆拾贰   周戍 · 兄妹同行 · 已入塔", -- 795
@@ -1065,7 +1065,7 @@ function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDr
 			0 -- 800
 		) -- 800
 	end -- 800
-	if p.phase == "tower-end" then -- 804
+	if p.phase == "tower-end" then -- 800
 		local signY = inY + 46 -- 805
 		texts:put( -- 806
 			"banner", -- 806
@@ -1129,9 +1129,9 @@ function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art
 	local theme = themeOf(roomKey) -- 825
 	local t = self.bannerT / self.bannerMax -- 826
 	local alpha = 1 -- 827
-	if t > 0.82 then -- 828
+	if t > 0.82 then -- 827
 		alpha = (1 - t) / 0.18 -- 829
-	elseif t < 0.28 then -- 830
+	elseif t < 0.28 then -- 829
 		alpha = t / 0.28 -- 831
 	end -- 831
 	local cx = w * 0.5 -- 833
@@ -1175,7 +1175,7 @@ function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art
 	local sep = " · " -- 843
 	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 844
 	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 845
-	if theme.backdropKey ~= nil then -- 846
+	if theme.backdropKey ~= nil then -- 845
 		texts:put( -- 847
 			"lg", -- 847
 			theme.titleZh, -- 847
@@ -1189,7 +1189,7 @@ function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art
 			alpha, -- 848
 			0.1 -- 848
 		) -- 848
-	elseif idx > 0 then -- 849
+	elseif idx > 0 then -- 848
 		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 850
 		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 851
 		local lw = visualTextWidth(leftPart, 42) -- 852

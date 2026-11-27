@@ -74,13 +74,13 @@ local function countVoicePath(n) -- 96
 	return ((GATE_AUDIO_ROOT .. "count_") .. pad2(n)) .. ".wav" -- 97
 end -- 96
 local function countVoiceVolume(n) -- 100
-	if n == 19 then -- 101
+	if n == 19 then -- 100
 		return 0.68 -- 102
 	end -- 102
-	if n == 18 then -- 104
+	if n == 18 then -- 102
 		return 0.8 -- 105
 	end -- 105
-	if n == 20 then -- 107
+	if n == 20 then -- 105
 		return 0.96 -- 108
 	end -- 108
 	return 0.84 -- 110
@@ -172,31 +172,31 @@ function GateTransitionPlugin.prototype.getDebugState(self) -- 177
 	} -- 197
 end -- 177
 function GateTransitionPlugin.prototype.shouldActivate(self, p, view) -- 201
-	if p.room.key ~= "gate" then -- 202
+	if p.room.key ~= "gate" then -- 201
 		return false -- 203
 	end -- 203
-	if p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand" then -- 205
+	if p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-hand" then -- 203
 		return true -- 206
 	end -- 206
-	if p.phase == "gate-walk" and view.storyRoute ~= "soldier" then -- 208
+	if p.phase == "gate-walk" and view.storyRoute ~= "soldier" then -- 206
 		return true -- 209
 	end -- 209
 	return false -- 211
 end -- 201
 function GateTransitionPlugin.prototype.gestureStageForTick(self, tick, view) -- 214
-	if view.storyRoute == "soldier" and (view.gateReunion.completed or view.gateReunion.active) then -- 215
+	if view.storyRoute == "soldier" and (view.gateReunion.completed or view.gateReunion.active) then -- 214
 		return 5 -- 216
 	end -- 216
-	if tick >= view.countDurationTicks then -- 218
+	if tick >= view.countDurationTicks then -- 216
 		return 4 -- 219
 	end -- 219
-	if tick >= 1260 then -- 221
+	if tick >= 1260 then -- 219
 		return 3 -- 222
 	end -- 222
-	if tick >= 1080 then -- 224
+	if tick >= 1080 then -- 222
 		return 2 -- 225
 	end -- 225
-	if tick >= 480 then -- 227
+	if tick >= 480 then -- 225
 		return 1 -- 228
 	end -- 228
 	return 0 -- 230
@@ -205,8 +205,8 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 	local p = ctx.p -- 234
 	local view = ctx.view -- 235
 	local want = self:shouldActivate(p, view) -- 236
-	if not want then -- 238
-		if self.wasActive then -- 239
+	if not want then -- 236
+		if self.wasActive then -- 236
 			ctx.cam:setAnchorLock(nil) -- 240
 			ctx.audio:stopLoop("gate_wind", 0.25) -- 241
 			ctx.audio:stopLoop("gate_water", 0.25) -- 242
@@ -219,28 +219,28 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 	self.active = true -- 250
 	local justEntered = not self.wasActive -- 251
 	self.wasActive = true -- 252
-	local ____opt_0 = p.room.story -- 254
+	local ____opt_0 = p.room.story -- 252
 	local g = ____opt_0 and ____opt_0.gate -- 254
 	local doorX = g ~= nil and g.doorX or p.ox + 860 -- 255
 	self.lockThresholdX = doorX + 14 -- 257
 	self.lockFootX = p.player.x -- 258
-	if not ctx.paused then -- 260
+	if not ctx.paused then -- 258
 		self.animTime = self.animTime + ctx.worldDt -- 261
-		if self.countCueAge < 20 then -- 262
+		if self.countCueAge < 20 then -- 261
 			self.countCueAge = self.countCueAge + ctx.worldDt -- 263
 		end -- 263
-		if self.g04LineAge >= 0 and self.g04LineAge < 20 then -- 265
+		if self.g04LineAge >= 0 and self.g04LineAge < 20 then -- 263
 			self.g04LineAge = self.g04LineAge + ctx.worldDt -- 266
 		end -- 266
 	end -- 266
-	if p.phase == "gate-wait" or p.phase == "gate-hand" or p.phase == "gate-walk" then -- 271
+	if p.phase == "gate-wait" or p.phase == "gate-hand" or p.phase == "gate-walk" then -- 266
 		self.rawMorph = 1 -- 272
 	else -- 272
 		self.rawMorph = clamp01(view.countElapsedTicks / math.max(1, view.countDurationTicks)) -- 274
 	end -- 274
 	local reunionDone = p.phase == "gate-hand" or view.storyRoute == "soldier" and view.gateReunion.completed -- 278
-	if reunionDone then -- 279
-		if not ctx.paused then -- 280
+	if reunionDone then -- 278
+		if not ctx.paused then -- 278
 			self.reunionTimer = self.reunionTimer + ctx.worldDt -- 281
 		end -- 281
 		self.reunionPixelReturn = smoothstep(____exports.G05_PIXEL_RETURN_START, ____exports.G05_PIXEL_RETURN_END, self.reunionTimer) -- 283
@@ -251,7 +251,7 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 		self.effectiveMorph = self.rawMorph -- 288
 	end -- 288
 	local lockCamera = (p.phase == "gate-count" or p.phase == "gate-wait") and self.reunionPixelReturn < 0.98 -- 292
-	if lockCamera then -- 293
+	if lockCamera then -- 292
 		local tiltLift = self.reunionPixelReturn * 0.055 -- 295
 		ctx.cam:setAnchorLock({ -- 296
 			footWorldX = self.lockFootX, -- 297
@@ -283,29 +283,29 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 	) -- 324
 	local jumped = self.lastCountTick >= 0 and (tick < self.lastCountTick or tick - self.lastCountTick > 36) -- 325
 	local stage = self:gestureStageForTick(tick, view) -- 326
-	if justEntered and tick > 12 then -- 328
+	if justEntered and tick > 12 then -- 326
 		self.lastTriggeredCount = countNum -- 330
 		self.activeCountZh = COUNT_ZH[countNum + 1] or "" -- 331
 		self.countCueAge = 0.6 -- 332
 		self.lastGestureStage = stage -- 333
-		if tick >= view.countDurationTicks and view.storyRoute ~= "soldier" then -- 334
+		if tick >= view.countDurationTicks and view.storyRoute ~= "soldier" then -- 333
 			self.g04LineTriggered = true -- 335
 			self.g04LineAge = 0.5 -- 336
 		end -- 336
-	elseif jumped then -- 338
+	elseif jumped then -- 336
 		self.pendingBreath19 = false -- 339
 		self.lastTriggeredCount = countNum -- 340
 		self.activeCountZh = COUNT_ZH[countNum + 1] or "" -- 341
 		self.countCueAge = 0.35 -- 342
 		self.lastGestureStage = stage -- 343
-		if tick < view.countDurationTicks then -- 344
+		if tick < view.countDurationTicks then -- 343
 			self.g04LineTriggered = false -- 345
 			self.g04LineAge = -1 -- 346
 			self.rehearsalKnockTimer = -1 -- 347
 			self.rehearsalKnockStage = 0 -- 348
 		end -- 348
-	elseif not ctx.paused and (p.phase == "gate-count" or p.phase == "gate-wait") then -- 350
-		if countNum > self.lastTriggeredCount then -- 351
+	elseif not ctx.paused and (p.phase == "gate-count" or p.phase == "gate-wait") then -- 348
+		if countNum > self.lastTriggeredCount then -- 348
 			self.lastTriggeredCount = countNum -- 352
 			self.activeCountZh = COUNT_ZH[countNum + 1] or "" -- 353
 			self.countCueAge = 0 -- 354
@@ -321,12 +321,12 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 				tick -- 364
 			) -- 364
 		end -- 364
-		if stage ~= self.lastGestureStage then -- 367
+		if stage ~= self.lastGestureStage then -- 364
 			self.lastGestureStage = stage -- 368
 			self.gestureChangeCount = self.gestureChangeCount + 1 -- 369
 		end -- 369
 	end -- 369
-	if self.pendingBreath19 and self.countCueAge >= 0.78 and not ctx.paused and p.phase == "gate-count" then -- 373
+	if self.pendingBreath19 and self.countCueAge >= 0.78 and not ctx.paused and p.phase == "gate-count" then -- 369
 		self.pendingBreath19 = false -- 374
 		ctx.audio:playOnce( -- 375
 			"gate:breath19:" .. tostring(ctx.events.roomSessionId), -- 376
@@ -338,13 +338,13 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 		) -- 381
 	end -- 381
 	local isChildWait = p.phase == "gate-count" and tick >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 386
-	if isChildWait and not self.g04LineTriggered and not ctx.paused then -- 389
+	if isChildWait and not self.g04LineTriggered and not ctx.paused then -- 386
 		self.g04LineTriggered = true -- 390
 		self.g04LineAge = 0 -- 391
 	end -- 391
 	local isSoldierWait = view.storyRoute == "soldier" and (p.phase == "gate-wait" or p.phase == "gate-count" and view.gateReunion.active and not view.gateReunion.completed) -- 395
-	if isSoldierWait and view.isRehearsal and not ctx.paused then -- 397
-		if self.rehearsalKnockTimer < 0 then -- 398
+	if isSoldierWait and view.isRehearsal and not ctx.paused then -- 395
+		if self.rehearsalKnockTimer < 0 then -- 395
 			self.rehearsalKnockTimer = 0 -- 399
 			self.rehearsalKnockStage = 1 -- 400
 			ctx.audio:playOnce( -- 401
@@ -357,7 +357,7 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 			) -- 407
 		else -- 407
 			self.rehearsalKnockTimer = self.rehearsalKnockTimer + ctx.worldDt -- 410
-			if self.rehearsalKnockStage < 2 and self.rehearsalKnockTimer >= 12 / 60 then -- 411
+			if self.rehearsalKnockStage < 2 and self.rehearsalKnockTimer >= 12 / 60 then -- 410
 				self.rehearsalKnockStage = 2 -- 412
 				ctx.audio:playOnce( -- 413
 					"gate:rehearsal:knock:2:" .. tostring(ctx.events.roomSessionId), -- 414
@@ -370,7 +370,7 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 			end -- 419
 		end -- 419
 	end -- 419
-	if not ctx.paused then -- 426
+	if not ctx.paused then -- 419
 		local voiceDuck = p.phase == "gate-count" and countNum >= 18 and 0.32 + 0.68 * smoothstep(0.95, 1.55, self.countCueAge) or 1 -- 427
 		local reunionCalm = reunionDone and 1 - self.reunionPixelReturn * 0.55 or 1 -- 429
 		local windVol = (0.18 + 0.46 * self.effectiveMorph) * voiceDuck * reunionCalm -- 430
@@ -389,7 +389,7 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 			waterVol, -- 433
 			tick -- 433
 		) -- 433
-		if isChildWait then -- 434
+		if isChildWait then -- 433
 			ctx.audio:playLoop( -- 435
 				"gate_breath", -- 435
 				"ambience", -- 435
@@ -404,7 +404,7 @@ function GateTransitionPlugin.prototype.update(self, ctx) -- 233
 	self.lastCountTick = tick -- 441
 end -- 233
 function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdropArt, ctx) -- 444
-	if not self.active then -- 450
+	if not self.active then -- 444
 		return false -- 451
 	end -- 451
 	local cam = ctx.cam -- 453
@@ -446,7 +446,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 		toColor(skyMid) -- 464
 	) -- 464
 	local pixelBgAlpha = 1 - smoothstep(0.08, 0.72, m) -- 467
-	if pixelBgAlpha > 0.01 then -- 468
+	if pixelBgAlpha > 0.01 then -- 467
 		local span = math.max(1, ctx.p.room.maxX - ctx.p.room.minX) -- 469
 		local progress = (cam.x - ctx.p.room.minX) / span - 0.5 -- 470
 		local artW = math.max(w, h * 16 / 9) + w * 0.12 -- 471
@@ -462,7 +462,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 		) -- 473
 	end -- 473
 	local farReveal = smoothstep(0.22, 0.85, m) -- 480
-	if farReveal > 0.01 then -- 481
+	if farReveal > 0.01 then -- 480
 		local scene = __TS__New(LowpolyScene, cam, self.activeProjection, GATE_NIGHTMARE_LIGHT) -- 482
 		local xMin = self.lockThresholdX - 320 -- 483
 		local xMax = self.lockThresholdX + 680 -- 484
@@ -476,7 +476,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 				{x = self.lockThresholdX + 460, y = 164}, -- 494
 				{x = xMax, y = 132} -- 495
 			}, -- 495
-			-40, -- 497
+			-40, -- 495
 			520, -- 498
 			MING_MATERIALS.distantHill, -- 499
 			{bucket = LP_BUCKET.BACKDROP, opacity = farReveal * (0.55 + 0.45 * hillSep)} -- 500
@@ -640,7 +640,7 @@ function GateTransitionPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backd
 	return true -- 584
 end -- 444
 function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt, ctx) -- 587
-	if not self.active then -- 593
+	if not self.active then -- 587
 		return false -- 594
 	end -- 594
 	local p = ctx.p -- 596
@@ -651,7 +651,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 	local scene = __TS__New(LowpolyScene, cam, self.activeProjection, GATE_NIGHTMARE_LIGHT) -- 602
 	local closeFrac = p.phase == "gate-count" and 0.44 + 0.56 * clamp01(ctx.view.countElapsedTicks / 360) or 1 -- 605
 	local stepReveal = smoothstep(0.18, 0.58, m) -- 610
-	if stepReveal > 0.01 then -- 611
+	if stepReveal > 0.01 then -- 610
 		local stairSpec = { -- 612
 			x0 = thX + 108, -- 613
 			x1 = thX + 292, -- 614
@@ -689,7 +689,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 	end -- 624
 	local wallReveal = smoothstep(0.02, 0.22, m) -- 647
 	local frameLightStrength = smoothstep(0.1, 0.34, m) * (1 - 0.35 * smoothstep(0.85, 1, m)) -- 648
-	if wallReveal > 0.01 then -- 649
+	if wallReveal > 0.01 then -- 648
 		scene:addBox({ -- 650
 			x0 = doorLeft - 140, -- 651
 			x1 = thX - 18, -- 652
@@ -732,7 +732,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 			edgeWidth = 0.8 -- 691
 		}) -- 691
 	end -- 691
-	if frameLightStrength > 0.02 then -- 696
+	if frameLightStrength > 0.02 then -- 691
 		scene:addLightShaft( -- 697
 			thX + 16, -- 698
 			thX + 34, -- 698
@@ -794,7 +794,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 	end -- 717
 	local doorAlpha = 1 - self.reunionPixelReturn -- 722
 	local doorBotY = 160 * (1 - closeFrac) -- 723
-	if 160 - doorBotY > 2 and doorAlpha > 0.02 then -- 724
+	if 160 - doorBotY > 2 and doorAlpha > 0.02 then -- 723
 		scene:addBox({ -- 725
 			x0 = thX - 122, -- 726
 			x1 = thX - 2, -- 727
@@ -814,7 +814,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 			bi = 0 -- 741
 			while bi < #bandYs do -- 741
 				local byBand = bandYs[bi + 1] -- 742
-				if byBand + 6 < 158 then -- 743
+				if byBand + 6 < 158 then -- 742
 					scene:addBox({ -- 744
 						x0 = thX - 120, -- 745
 						x1 = thX - 4, -- 746
@@ -832,7 +832,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 				bi = bi + 1 -- 741
 			end -- 741
 		end -- 741
-		if closeFrac < 0.98 then -- 760
+		if closeFrac < 0.98 then -- 741
 			local gapAlpha = (1 - closeFrac) * 0.65 * doorAlpha -- 761
 			scene:addLightShaft( -- 762
 				thX - 96, -- 763
@@ -875,7 +875,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 		edgeWidth = 0.85 -- 800
 	}) -- 800
 	local plankReveal = smoothstep(0.14, 0.52, m) -- 804
-	if plankReveal > 0.01 then -- 805
+	if plankReveal > 0.01 then -- 804
 		local overhangZ0 = -10 - 48 * plankReveal -- 806
 		scene:addPlankDeck( -- 807
 			thX + 58, -- 808
@@ -936,7 +936,7 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 	) -- 860
 	scene:flush(fgDraw, fgGlow) -- 866
 	local hidePartnerInside = self.reunionPixelReturn < 0.85 and closeFrac > 0.6 -- 870
-	if hidePartnerInside then -- 871
+	if hidePartnerInside then -- 870
 		local wallRightX = cam:sx(thX - 1) -- 872
 		local wallLeftX = cam:sx(doorLeft - 140) -- 873
 		local wallW = math.max(2, wallRightX - wallLeftX) -- 874
@@ -974,16 +974,16 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 		) -- 904
 	end -- 904
 	local fgBeamAlpha = smoothstep(0.42, 0.95, m) * (1 - self.reunionPixelReturn) -- 910
-	if fgBeamAlpha > 0.02 then -- 911
+	if fgBeamAlpha > 0.02 then -- 910
 		scene:placeForegroundOccluder( -- 912
 			worldArt, -- 913
 			"cover_wood", -- 914
 			"gate_fg_beam_right", -- 915
 			thX + 266, -- 916
 			thX + 356, -- 917
-			-42, -- 918
+			-42, -- 917
 			22, -- 919
-			-68, -- 920
+			-68, -- 919
 			{ -- 921
 				color = Color(14, 17, 24, 255), -- 921
 				opacity = 0.92 * fgBeamAlpha, -- 921
@@ -997,7 +997,7 @@ function GateTransitionPlugin.prototype.drawPropsOverlay(self, _fgDraw, _fgGlow,
 	return self.active and ctx.p.phase ~= "gate-walk" -- 935
 end -- 928
 function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 938
-	if not self.active then -- 944
+	if not self.active then -- 938
 		return -- 945
 	end -- 945
 	local p = ctx.p -- 947
@@ -1007,7 +1007,7 @@ function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, 
 	local cx = cam:sx(p.player.x) -- 951
 	local by = cam:sy(p.player.y, p.player.depth) -- 952
 	local H = cam:len(p.player.h) -- 953
-	if p.phase == "gate-count" and tick >= 1080 and tick < view.countDurationTicks then -- 956
+	if p.phase == "gate-count" and tick >= 1080 and tick < view.countDurationTicks then -- 953
 		local leanK = smoothstep(1080, 1130, tick) -- 957
 		local doorSx = cam:sx(self.lockThresholdX) -- 958
 		local headY = by + H * 0.8 -- 959
@@ -1015,7 +1015,7 @@ function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, 
 		fgGlow:drawArc( -- 962
 			Vec2(doorSx + 4, headY), -- 963
 			12 + (1 - earPulse) * 8, -- 964
-			-38, -- 965
+			-38, -- 964
 			38, -- 966
 			1.1, -- 967
 			Color( -- 968
@@ -1025,7 +1025,7 @@ function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, 
 				math.floor(78 * leanK * earPulse + 0.5) -- 968
 			) -- 968
 		) -- 968
-		if tick >= 1260 then -- 971
+		if tick >= 1260 then -- 968
 			local breathCycle = self.animTime * 0.7 % 1 -- 972
 			local bAlpha = math.sin(breathCycle * math.pi) * 0.48 -- 973
 			local bx = cx - 10 - breathCycle * 18 -- 974
@@ -1048,7 +1048,7 @@ function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, 
 		end -- 984
 	end -- 984
 	local isChildIdle = p.phase == "gate-count" and tick >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 990
-	if isChildIdle then -- 993
+	if isChildIdle then -- 990
 		local pouchX = cx + cam:len(6) -- 994
 		local pouchY = by + H * 0.48 -- 995
 		local pulse = 0.72 + 0.28 * math.sin(self.animTime * 2.4) -- 996
@@ -1077,7 +1077,7 @@ function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, 
 		) -- 1007
 	end -- 1007
 	local isSoldierWait = view.storyRoute == "soldier" and not view.gateReunion.completed and (p.phase == "gate-wait" or p.phase == "gate-count" and view.gateReunion.active) -- 1011
-	if isSoldierWait then -- 1014
+	if isSoldierWait then -- 1011
 		local wallSx = cam:sx(self.lockThresholdX + 2) -- 1015
 		local knockY = by + H * 0.56 -- 1016
 		local ringCycle = self.animTime * 0.85 % 1 -- 1017
@@ -1110,14 +1110,14 @@ function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, 
 	end -- 1025
 end -- 938
 function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, _uiGlow, ctx) -- 1029
-	if not self.active then -- 1036
+	if not self.active then -- 1029
 		return false -- 1037
 	end -- 1037
 	local p = ctx.p -- 1039
 	local view = ctx.view -- 1040
 	local w = ctx.uiW -- 1041
 	local h = ctx.uiH -- 1042
-	if p.phase == "gate-walk" then -- 1045
+	if p.phase == "gate-walk" then -- 1042
 		return false -- 1046
 	end -- 1046
 	local barH = math.floor(52 * (1 - self.reunionPixelReturn * 0.35) + 0.5) -- 1050
@@ -1142,7 +1142,7 @@ function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkD
 		toColor(PALETTE.silkDim, 68) -- 1054
 	) -- 1054
 	local inCounting = p.phase == "gate-count" and view.countElapsedTicks < view.countDurationTicks -- 1057
-	if inCounting and self.activeCountZh ~= "" then -- 1058
+	if inCounting and self.activeCountZh ~= "" then -- 1057
 		local isBreathNum = view.countNumber == 19 -- 1059
 		local fadeIn = smoothstep(0, 0.16, self.countCueAge) -- 1060
 		local holdOut = 1 - smoothstep(isBreathNum and 2.1 or 1.15, isBreathNum and 2.85 or 1.65, self.countCueAge) -- 1061
@@ -1202,9 +1202,9 @@ function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkD
 		return true -- 1086
 	end -- 1086
 	local isChildDone = p.phase == "gate-count" and view.countElapsedTicks >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 1090
-	if isChildDone then -- 1093
+	if isChildDone then -- 1090
 		local lineAlpha = self.g04LineAge >= 0 and smoothstep(0, 0.25, self.g04LineAge) * (1 - smoothstep(3.8, 5.2, self.g04LineAge)) or 0.9 -- 1094
-		if lineAlpha > 0.02 then -- 1097
+		if lineAlpha > 0.02 then -- 1094
 			drawSilkVeil( -- 1098
 				uiDraw, -- 1098
 				uiArt, -- 1098
@@ -1243,7 +1243,7 @@ function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkD
 				0.08 -- 1111
 			) -- 1111
 		end -- 1111
-		if view.assistHintsEnabled then -- 1114
+		if view.assistHintsEnabled then -- 1111
 			ctx.texts:put( -- 1115
 				"xs", -- 1116
 				adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1117

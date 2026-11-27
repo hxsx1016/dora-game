@@ -1633,7 +1633,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
 
         // 5. 自由步行的周戍（沿用真实明初像素立绘，与常规世界场景同尺度 ~192px，不再腰斩缩水）
         const playerSx = toScreenX(this.hallWalkX);
-        const moving = !inLampTurn && (this.hallMoving || Math.abs(ctx.input.moveX) > 0.05);
+        const moving = !inLampTurn && this.hallMoving;
         const slot = moving ? "soldier_run" : "soldier_idle";
         const frame = moving ? Math.floor(this.hallWalkAnim) : 0;
         const charH = Math.round(192 * Math.max(0.75, Math.min(1.25, h / 720)));
@@ -1641,11 +1641,14 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         // 脚底接地微影与磨石反光影
         uiDraw.drawEllipse(Vec2(playerSx, floorY + 2), 34, 6.5, Color(6, 8, 12, 178));
         uiDraw.drawEllipse(Vec2(playerSx, floorY - 14), 24, 4.5, Color(16, 20, 28, 62));
-        if (!uiArt.tryPlace(slot, "fe06_museum_zhoushu", playerSx, floorY + 2, charW, charH, {
+        const pose = {
             facing: this.hallFacing,
             frame,
             layer: 3,
-        })) {
+        };
+        const running = moving && uiArt.tryPlaceRun("soldier", "fe06_museum_zhoushu", playerSx, floorY + 2,
+            charW, charH, this.hallWalkAnim / 4, pose);
+        if (!running && !uiArt.tryPlace(slot, "fe06_museum_zhoushu", playerSx, floorY + 2, charW, charH, pose)) {
             // 无贴图兜底剪影
             uiDraw.drawRect(Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), toColor(CUFF_PALETTE.indigoBase));
             uiDraw.drawCircle(Vec2(playerSx, floorY + charH * 0.92), 16, Color(66, 73, 76, 255));

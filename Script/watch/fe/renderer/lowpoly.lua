@@ -26,7 +26,7 @@ function ____exports.clamp01(v) -- 153
 	) -- 154
 end -- 153
 function ____exports.smoothstep(edge0, edge1, x) -- 157
-	if edge1 <= edge0 then -- 158
+	if edge1 <= edge0 then -- 157
 		return x >= edge1 and 1 or 0 -- 159
 	end -- 159
 	local t = ____exports.clamp01((x - edge0) / (edge1 - edge0)) -- 161
@@ -37,7 +37,7 @@ function ____exports.vec3(x, y, z) -- 165
 end -- 165
 function ____exports.normalize3(v) -- 169
 	local len = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) -- 170
-	if len < 0.00001 then -- 171
+	if len < 0.00001 then -- 170
 		return {x = 0, y = 1, z = 0} -- 172
 	end -- 172
 	return {x = v.x / len, y = v.y / len, z = v.z / len} -- 174
@@ -221,7 +221,7 @@ function ____exports.projectWorld3D(wx, wy, wz, cam, proj) -- 360
 	local bx = cam:sx(wx) -- 367
 	local by = cam:sy(wy, proj.baseDepth or 0) -- 368
 	local m = ____exports.clamp01(proj.morph) -- 369
-	if m <= 0.00001 or math.abs(wz) <= 0.00001 then -- 370
+	if m <= 0.00001 or math.abs(wz) <= 0.00001 then -- 369
 		return {x = bx, y = by, scale = 1, zEff = 0} -- 371
 	end -- 371
 	local focal = math.max(60, proj.focal) -- 373
@@ -254,7 +254,7 @@ function ____exports.verifyWalkPlaneAlignment(cam, proj, wx, wy) -- 391
 end -- 391
 --- 计算给定法线与深度的低模平面受光+雾效颜色
 function ____exports.shadeSurface(base, normal, avgZ, morph, light, mat, opacityMul) -- 416
-	if opacityMul == nil then -- 423
+	if opacityMul == nil then -- 416
 		opacityMul = 1 -- 423
 	end -- 423
 	local m = ____exports.clamp01(morph) -- 425
@@ -281,7 +281,7 @@ function ____exports.shadeSurface(base, normal, avgZ, morph, light, mat, opacity
 		b = clampByte(bLit), -- 449
 		a = clampByte(base.a * ____exports.clamp01(opacityMul)) -- 450
 	} -- 450
-	if avgZ > light.fogStartZ and m > 0.01 then -- 453
+	if avgZ > light.fogStartZ and m > 0.01 then -- 450
 		local span = math.max(1, light.fogEndZ - light.fogStartZ) -- 454
 		local fogT = ____exports.clamp01((avgZ - light.fogStartZ) / span) * light.fogMaxAlpha * m -- 455
 		local mixed = lerpRGBA(lit, light.fogColor, fogT) -- 456
@@ -321,11 +321,11 @@ function LowpolyScene.prototype.vanishingPointScreen(self) -- 488
 	return {x = self.cam.viewW * self.proj.vpFracX + (self.proj.vpOffsetX or 0), y = self.cam.viewH * self.proj.vpFracY + (self.proj.vpOffsetY or 0)} -- 489
 end -- 488
 function LowpolyScene.prototype.addQuad3D(self, v0, v1, v2, v3, mat, opts) -- 496
-	if opts == nil then -- 502
+	if opts == nil then -- 496
 		opts = {} -- 502
 	end -- 502
 	local opacity = opts.opacity or 1 -- 504
-	if opacity <= 0.01 then -- 505
+	if opacity <= 0.01 then -- 504
 		return -- 506
 	end -- 506
 	local p0 = self:project(v0.x, v0.y, v0.z) -- 508
@@ -333,12 +333,12 @@ function LowpolyScene.prototype.addQuad3D(self, v0, v1, v2, v3, mat, opts) -- 49
 	local p2 = self:project(v2.x, v2.y, v2.z) -- 510
 	local p3 = self:project(v3.x, v3.y, v3.z) -- 511
 	local area2 = math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y) + (p2.x - p0.x) * (p3.y - p0.y) - (p3.x - p0.x) * (p2.y - p0.y)) -- 514
-	if area2 < 0.25 then -- 518
+	if area2 < 0.25 then -- 514
 		return -- 519
 	end -- 519
 	local avgZ = opts.sortZOverride ~= nil and opts.sortZOverride or (v0.z + v1.z + v2.z + v3.z) * 0.25 -- 522
 	local topRgba -- 523
-	if opts.unlit == true then -- 524
+	if opts.unlit == true then -- 523
 		topRgba = scaleRGBA(mat.base, 1, opacity) -- 525
 	else -- 525
 		local n = cross3( -- 527
@@ -368,8 +368,8 @@ function LowpolyScene.prototype.addQuad3D(self, v0, v1, v2, v3, mat, opts) -- 49
 	local edgeCol = edgeRgba ~= nil and edgeW > 0 and toColor( -- 538
 		edgeRgba, -- 539
 		math.floor(edgeRgba.a * opacity + 0.5) -- 539
-	) or nil -- 540
-	local ____self_faces_4 = self.faces -- 542
+	) or nil -- 539
+	local ____self_faces_4 = self.faces -- 539
 	____self_faces_4[#____self_faces_4 + 1] = { -- 542
 		bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND, -- 543
 		sortZ = avgZ, -- 544
@@ -382,18 +382,18 @@ function LowpolyScene.prototype.addQuad3D(self, v0, v1, v2, v3, mat, opts) -- 49
 	} -- 550
 end -- 496
 function LowpolyScene.prototype.addTri3D(self, v0, v1, v2, mat, opts) -- 555
-	if opts == nil then -- 560
+	if opts == nil then -- 555
 		opts = {} -- 560
 	end -- 560
 	local opacity = opts.opacity or 1 -- 562
-	if opacity <= 0.01 then -- 563
+	if opacity <= 0.01 then -- 562
 		return -- 564
 	end -- 564
 	local p0 = self:project(v0.x, v0.y, v0.z) -- 566
 	local p1 = self:project(v1.x, v1.y, v1.z) -- 567
 	local p2 = self:project(v2.x, v2.y, v2.z) -- 568
 	local area2 = math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y)) -- 570
-	if area2 < 0.25 then -- 571
+	if area2 < 0.25 then -- 570
 		return -- 572
 	end -- 572
 	local avgZ = opts.sortZOverride ~= nil and opts.sortZOverride or (v0.z + v1.z + v2.z) / 3 -- 575
@@ -420,8 +420,8 @@ function LowpolyScene.prototype.addTri3D(self, v0, v1, v2, mat, opts) -- 555
 	local edgeCol = edgeRgba ~= nil and edgeW > 0 and toColor( -- 584
 		edgeRgba, -- 585
 		math.floor(edgeRgba.a * opacity + 0.5) -- 585
-	) or nil -- 586
-	local ____self_faces_5 = self.faces -- 588
+	) or nil -- 585
+	local ____self_faces_5 = self.faces -- 585
 	____self_faces_5[#____self_faces_5 + 1] = { -- 588
 		bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND, -- 589
 		sortZ = avgZ, -- 590
@@ -439,7 +439,7 @@ function LowpolyScene.prototype.addTri3D(self, v0, v1, v2, mat, opts) -- 555
 end -- 555
 function LowpolyScene.prototype.addBox(self, spec) -- 604
 	local opacity = spec.opacity or 1 -- 605
-	if opacity <= 0.01 then -- 606
+	if opacity <= 0.01 then -- 605
 		return -- 607
 	end -- 607
 	local x0 = math.min(spec.x0, spec.x1) -- 609
@@ -458,8 +458,8 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 	local sx1 = self.cam:sx(x1) -- 624
 	local sy0 = self.cam:sy(y0, self.proj.baseDepth or 0) -- 625
 	local sy1 = self.cam:sy(y1, self.proj.baseDepth or 0) -- 626
-	if m > 0.002 and z1 - z0 > 0.05 then -- 628
-		if spec.skipLeft ~= true and sx0 > vp.x + 0.5 then -- 630
+	if m > 0.002 and z1 - z0 > 0.05 then -- 626
+		if spec.skipLeft ~= true and sx0 > vp.x + 0.5 then -- 626
 			self:addQuad3D( -- 631
 				____exports.vec3(x0, y0, z1), -- 632
 				____exports.vec3(x0, y0, z0), -- 633
@@ -475,7 +475,7 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 				} -- 637
 			) -- 637
 		end -- 637
-		if spec.skipRight ~= true and sx1 < vp.x - 0.5 then -- 641
+		if spec.skipRight ~= true and sx1 < vp.x - 0.5 then -- 637
 			self:addQuad3D( -- 642
 				____exports.vec3(x1, y0, z0), -- 643
 				____exports.vec3(x1, y0, z1), -- 644
@@ -491,7 +491,7 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 				} -- 648
 			) -- 648
 		end -- 648
-		if spec.skipTop ~= true and sy1 < vp.y - 0.5 then -- 652
+		if spec.skipTop ~= true and sy1 < vp.y - 0.5 then -- 648
 			self:addQuad3D( -- 653
 				____exports.vec3(x0, y1, z0), -- 654
 				____exports.vec3(x1, y1, z0), -- 655
@@ -508,7 +508,7 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 				} -- 659
 			) -- 659
 		end -- 659
-		if spec.skipBottom ~= true and sy0 > vp.y + 0.5 then -- 663
+		if spec.skipBottom ~= true and sy0 > vp.y + 0.5 then -- 659
 			self:addQuad3D( -- 664
 				____exports.vec3(x0, y0, z1), -- 665
 				____exports.vec3(x1, y0, z1), -- 666
@@ -526,7 +526,7 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 			) -- 670
 		end -- 670
 	end -- 670
-	if spec.skipFront ~= true then -- 676
+	if spec.skipFront ~= true then -- 670
 		local beforeLen = #self.faces -- 677
 		self:addQuad3D( -- 678
 			____exports.vec3(x0, y0, z0), -- 679
@@ -542,7 +542,7 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 				edgeWidth = edgeW -- 684
 			} -- 684
 		) -- 684
-		if spec.highlightTopEdge == true and #self.faces > beforeLen then -- 686
+		if spec.highlightTopEdge == true and #self.faces > beforeLen then -- 684
 			local face = self.faces[#self.faces] -- 687
 			local rimCol = spec.material.edge or rgba(198, 206, 214, 180) -- 688
 			face.topHighlight = { -- 689
@@ -557,7 +557,7 @@ function LowpolyScene.prototype.addBox(self, spec) -- 604
 	end -- 692
 end -- 604
 function LowpolyScene.prototype.addBeveledFrame(self, openX0, openX1, y0, openY1, pillarW, lintelH, z0, z1, mat, opts) -- 702
-	if opts == nil then -- 712
+	if opts == nil then -- 702
 		opts = {} -- 712
 	end -- 712
 	local bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND -- 720
@@ -603,7 +603,7 @@ function LowpolyScene.prototype.addBeveledFrame(self, openX0, openX1, y0, openY1
 		highlightTopEdge = true -- 764
 	}) -- 764
 	local rimAlpha = (opts.innerRimStrength or 0) * ____exports.clamp01(self.proj.morph) * opacity -- 768
-	if rimAlpha > 0.02 then -- 769
+	if rimAlpha > 0.02 then -- 768
 		local rimCol = opts.innerRimLight or rgba(226, 236, 246, 255) -- 770
 		local p0 = self:project(openX0, y0 + 2, z0) -- 771
 		local p1 = self:project(openX0, y0 + 2, z1) -- 772
@@ -617,15 +617,15 @@ function LowpolyScene.prototype.addBeveledFrame(self, openX0, openX1, y0, openY1
 			rimCol, -- 776
 			math.floor(28 * rimAlpha + 0.5) -- 776
 		) -- 776
-		local ____self_glows_6 = self.glows -- 777
+		local ____self_glows_6 = self.glows -- 776
 		____self_glows_6[#____self_glows_6 + 1] = {pts = {p0, p1, p2, p3}, cols = {cNear, cFar, cFar, cNear}} -- 777
 	end -- 777
 end -- 702
 function LowpolyScene.prototype.addStairFlight(self, stair, z0, z1, mat, opts) -- 785
-	if mat == nil then -- 789
+	if mat == nil then -- 785
 		mat = ____exports.MING_MATERIALS.mingStoneStep -- 789
 	end -- 789
-	if opts == nil then -- 790
+	if opts == nil then -- 789
 		opts = {} -- 790
 	end -- 790
 	local n = math.max(1, stair.steps + 1) -- 792
@@ -642,7 +642,7 @@ function LowpolyScene.prototype.addStairFlight(self, stair, z0, z1, mat, opts) -
 				local wy = n == 1 and stair.y1 or stair.y0 + (stair.y1 - stair.y0) * k / (n - 1) -- 801
 				local wx0 = stair.x0 + stepW * k -- 802
 				local wx1 = wx0 + stepW -- 803
-				if wy <= floorY + 1 then -- 804
+				if wy <= floorY + 1 then -- 803
 					goto __continue43 -- 805
 				end -- 805
 				self:addBox({ -- 807
@@ -666,10 +666,10 @@ function LowpolyScene.prototype.addStairFlight(self, stair, z0, z1, mat, opts) -
 	end -- 800
 end -- 785
 function LowpolyScene.prototype.addPlankDeck(self, x0, x1, topY, z0, z1, plankCount, thickness, mat, opts) -- 828
-	if mat == nil then -- 836
+	if mat == nil then -- 828
 		mat = ____exports.MING_MATERIALS.mingTimber -- 836
 	end -- 836
-	if opts == nil then -- 837
+	if opts == nil then -- 836
 		opts = {} -- 837
 	end -- 837
 	local count = math.max( -- 845
@@ -682,7 +682,7 @@ function LowpolyScene.prototype.addPlankDeck(self, x0, x1, topY, z0, z1, plankCo
 	local spanZ = math.max(1, z1 - z0) -- 849
 	local gap = math.min(2.6, spanZ / (count * 6)) -- 850
 	local plankDepth = (spanZ - gap * (count - 1)) / count -- 851
-	if opts.withPosts == true then -- 854
+	if opts.withPosts == true then -- 851
 		local postBot = opts.postBottomY or topY - 92 -- 855
 		local postMat = ____exports.MING_MATERIALS.mingTimberDark -- 856
 		local postCount = math.max( -- 857
@@ -746,13 +746,13 @@ function LowpolyScene.prototype.addPlankDeck(self, x0, x1, topY, z0, z1, plankCo
 	end -- 879
 end -- 828
 function LowpolyScene.prototype.addDistantRidge(self, peaks, baseY, z, mat, opts) -- 909
-	if mat == nil then -- 913
+	if mat == nil then -- 909
 		mat = ____exports.MING_MATERIALS.distantHill -- 913
 	end -- 913
-	if opts == nil then -- 914
+	if opts == nil then -- 913
 		opts = {} -- 914
 	end -- 914
-	if #peaks < 2 then -- 916
+	if #peaks < 2 then -- 914
 		return -- 917
 	end -- 917
 	local bucket = opts.bucket or ____exports.LP_BUCKET.BACKDROP -- 919
@@ -807,13 +807,13 @@ function LowpolyScene.prototype.addDistantRidge(self, peaks, baseY, z, mat, opts
 	end -- 924
 end -- 909
 function LowpolyScene.prototype.addFogBand(self, x0, x1, y0, y1, z, color, bottomAlpha, topAlpha, opts) -- 964
-	if opts == nil then -- 973
+	if opts == nil then -- 964
 		opts = {} -- 973
 	end -- 973
 	local m = ____exports.clamp01(self.proj.morph) -- 975
 	local ba = ____exports.clamp01(bottomAlpha * m) -- 976
 	local ta = ____exports.clamp01(topAlpha * m) -- 977
-	if ba <= 0.008 and ta <= 0.008 then -- 978
+	if ba <= 0.008 and ta <= 0.008 then -- 977
 		return -- 979
 	end -- 979
 	local p0 = self:project(x0, y0, z) -- 981
@@ -828,7 +828,7 @@ function LowpolyScene.prototype.addFogBand(self, x0, x1, y0, y1, z, color, botto
 		color, -- 986
 		math.floor(255 * ta + 0.5) -- 986
 	) -- 986
-	local ____self_faces_7 = self.faces -- 987
+	local ____self_faces_7 = self.faces -- 986
 	____self_faces_7[#____self_faces_7 + 1] = { -- 987
 		bucket = opts.bucket or ____exports.LP_BUCKET.BACKDROP, -- 988
 		sortZ = z, -- 989
@@ -843,7 +843,7 @@ end -- 964
 function LowpolyScene.prototype.addLightShaft(self, topX0, topX1, topY, botX0, botX1, botY, z, color, topAlpha, botAlpha) -- 1000
 	local ta = ____exports.clamp01(topAlpha) -- 1012
 	local ba = ____exports.clamp01(botAlpha) -- 1013
-	if ta <= 0.005 and ba <= 0.005 then -- 1014
+	if ta <= 0.005 and ba <= 0.005 then -- 1013
 		return -- 1015
 	end -- 1015
 	local p0 = self:project(botX0, botY, z) -- 1017
@@ -858,18 +858,18 @@ function LowpolyScene.prototype.addLightShaft(self, topX0, topX1, topY, botX0, b
 		color, -- 1022
 		math.floor(255 * ba + 0.5) -- 1022
 	) -- 1022
-	local ____self_glows_8 = self.glows -- 1023
+	local ____self_glows_8 = self.glows -- 1022
 	____self_glows_8[#____self_glows_8 + 1] = {pts = {p0, p1, p2, p3}, cols = {cBot, cBot, cTop, cTop}} -- 1023
 end -- 1000
 function LowpolyScene.prototype.addContactShadow(self, wx, wy, radiusX, radiusZ, opacity, opts) -- 1033
-	if opacity == nil then -- 1038
+	if opacity == nil then -- 1033
 		opacity = 0.72 -- 1038
 	end -- 1038
-	if opts == nil then -- 1039
+	if opts == nil then -- 1038
 		opts = {} -- 1039
 	end -- 1039
 	local op = ____exports.clamp01(opacity) -- 1041
-	if op <= 0.01 then -- 1042
+	if op <= 0.01 then -- 1041
 		return -- 1043
 	end -- 1043
 	local bucket = opts.bucket or ____exports.LP_BUCKET.PROP -- 1045
@@ -902,7 +902,7 @@ function LowpolyScene.prototype.addContactShadow(self, wx, wy, radiusX, radiusZ,
 				wy + 0.4, -- 1067
 				outerZ * 0.15 + math.sin(a1) * outerZ -- 1068
 			) -- 1068
-			local ____self_faces_9 = self.faces -- 1070
+			local ____self_faces_9 = self.faces -- 1068
 			____self_faces_9[#____self_faces_9 + 1] = { -- 1070
 				bucket = bucket, -- 1071
 				sortZ = 0.05, -- 1072
@@ -940,7 +940,7 @@ function LowpolyScene.prototype.addContactShadow(self, wx, wy, radiusX, radiusZ,
 		while i < coreSegs do -- 1089
 			local a0 = i / coreSegs * math.pi * 2 -- 1090
 			local a1 = (i + 1) / coreSegs * math.pi * 2 -- 1091
-			local ____self_faces_10 = self.faces -- 1092
+			local ____self_faces_10 = self.faces -- 1091
 			____self_faces_10[#____self_faces_10 + 1] = { -- 1092
 				bucket = bucket, -- 1093
 				sortZ = 0.01, -- 1094
@@ -970,14 +970,14 @@ function LowpolyScene.prototype.addContactShadow(self, wx, wy, radiusX, radiusZ,
 	end -- 1089
 end -- 1033
 function LowpolyScene.prototype.placeForegroundOccluder(self, worldArt, slotKey, instanceKey, x0, x1, y0, y1, wz, opts) -- 1113
-	if opts == nil then -- 1122
+	if opts == nil then -- 1113
 		opts = {} -- 1122
 	end -- 1122
 	local pBL = self:project(x0, y0, wz) -- 1124
 	local pTR = self:project(x1, y1, wz) -- 1125
 	local w = math.abs(pTR.x - pBL.x) -- 1126
 	local h = math.abs(pTR.y - pBL.y) -- 1127
-	if w < 1 or h < 1 then -- 1128
+	if w < 1 or h < 1 then -- 1127
 		return false -- 1129
 	end -- 1129
 	return worldArt:tryPlace( -- 1131
@@ -995,14 +995,14 @@ function LowpolyScene.prototype.placeForegroundOccluder(self, worldArt, slotKey,
 	) -- 1141
 end -- 1113
 function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
-	if #self.faces > 1 then -- 1148
+	if #self.faces > 1 then -- 1147
 		__TS__ArraySort( -- 1149
 			self.faces, -- 1149
 			function(____, a, b) -- 1149
-				if a.bucket ~= b.bucket then -- 1150
+				if a.bucket ~= b.bucket then -- 1149
 					return a.bucket - b.bucket -- 1151
 				end -- 1151
-				if math.abs(a.sortZ - b.sortZ) > 0.001 then -- 1153
+				if math.abs(a.sortZ - b.sortZ) > 0.001 then -- 1151
 					return b.sortZ - a.sortZ -- 1154
 				end -- 1154
 				return a.sortBias - b.sortBias -- 1156
@@ -1014,7 +1014,7 @@ function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
 		i = 0 -- 1161
 		while i < #self.faces do -- 1161
 			local f = self.faces[i + 1] -- 1162
-			if #f.pts == 3 then -- 1163
+			if #f.pts == 3 then -- 1162
 				draw:drawVertices({ -- 1164
 					{ -- 1165
 						Vec2(f.pts[1].x, f.pts[1].y), -- 1165
@@ -1029,7 +1029,7 @@ function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
 						f.cols[3] -- 1167
 					} -- 1167
 				}) -- 1167
-			elseif #f.pts == 4 then -- 1169
+			elseif #f.pts == 4 then -- 1167
 				local v0 = Vec2(f.pts[1].x, f.pts[1].y) -- 1170
 				local v1 = Vec2(f.pts[2].x, f.pts[2].y) -- 1171
 				local v2 = Vec2(f.pts[3].x, f.pts[3].y) -- 1172
@@ -1037,7 +1037,7 @@ function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
 				draw:drawVertices({{v0, f.cols[1]}, {v1, f.cols[2]}, {v2, f.cols[3]}}) -- 1174
 				draw:drawVertices({{v0, f.cols[1]}, {v2, f.cols[3]}, {v3, f.cols[4]}}) -- 1179
 			end -- 1179
-			if f.edgeCol ~= nil and f.edgeWidth > 0 then -- 1185
+			if f.edgeCol ~= nil and f.edgeWidth > 0 then -- 1179
 				local count = #f.pts -- 1186
 				local k = 0 -- 1187
 				do -- 1187
@@ -1055,7 +1055,7 @@ function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
 					end -- 1188
 				end -- 1188
 			end -- 1188
-			if f.topHighlight ~= nil then -- 1194
+			if f.topHighlight ~= nil then -- 1188
 				local hl = f.topHighlight -- 1195
 				draw:drawSegment( -- 1196
 					Vec2(hl[1].x, hl[1].y), -- 1196
@@ -1067,12 +1067,12 @@ function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
 			i = i + 1 -- 1161
 		end -- 1161
 	end -- 1161
-	if glowDraw ~= nil and #self.glows > 0 then -- 1200
-		do -- 1200
+	if glowDraw ~= nil and #self.glows > 0 then -- 1161
+		do -- 1161
 			i = 0 -- 1201
 			while i < #self.glows do -- 1201
 				local g = self.glows[i + 1] -- 1202
-				if #g.pts == 4 then -- 1203
+				if #g.pts == 4 then -- 1202
 					local v0 = Vec2(g.pts[1].x, g.pts[1].y) -- 1204
 					local v1 = Vec2(g.pts[2].x, g.pts[2].y) -- 1205
 					local v2 = Vec2(g.pts[3].x, g.pts[3].y) -- 1206
@@ -1099,7 +1099,7 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 			{x = room.minX + 760, y = 224}, -- 1246
 			{x = room.maxX + 220, y = 150} -- 1247
 		}, -- 1247
-		-40, -- 1249
+		-40, -- 1247
 		420, -- 1250
 		____exports.MING_MATERIALS.distantHill, -- 1251
 		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1252
@@ -1121,7 +1121,7 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 		while i < #room.floors do -- 1260
 			local fl = room.floors[i + 1] -- 1261
 			local isMain = fl.y <= 0.1 -- 1262
-			if isMain then -- 1263
+			if isMain then -- 1262
 				scene:addBox({ -- 1264
 					x0 = fl.x0, -- 1265
 					x1 = fl.x1, -- 1266
@@ -1167,7 +1167,7 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 		while i < #room.solids do -- 1294
 			do -- 1294
 				local s = room.solids[i + 1] -- 1295
-				if s.id == "outside_red_cart" then -- 1296
+				if s.id == "outside_red_cart" then -- 1295
 					goto __continue92 -- 1297
 				end -- 1297
 				scene:addBox({ -- 1299
@@ -1181,7 +1181,7 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1307
 					highlightTopEdge = true -- 1308
 				}) -- 1308
-				if s.y > 10 then -- 1310
+				if s.y > 10 then -- 1308
 					scene:addBox({ -- 1311
 						x0 = s.x, -- 1312
 						x1 = s.x + 18, -- 1313
@@ -1213,7 +1213,7 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 		end -- 1294
 	end -- 1294
 	local arch = room.arch -- 1339
-	if arch.h > 0 and arch.x1 > arch.x0 then -- 1340
+	if arch.h > 0 and arch.x1 > arch.x0 then -- 1339
 		scene:addBeveledFrame( -- 1341
 			arch.x0, -- 1341
 			arch.x1, -- 1341
@@ -1232,7 +1232,7 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 		) -- 1344
 	end -- 1344
 	local c = room.cart -- 1349
-	if c.bodyW > 0 then -- 1350
+	if c.bodyW > 0 then -- 1349
 		scene:addContactShadow( -- 1351
 			cartAxle, -- 1351
 			c.baseY, -- 1351

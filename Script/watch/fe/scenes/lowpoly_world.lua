@@ -101,13 +101,13 @@ function LowpolyWorldPlugin.prototype.syncRuntimeHook(self) -- 143
 		____temp_0 = nil -- 145
 	end -- 145
 	local loaded = ____temp_0 -- 145
-	if loaded == nil then -- 146
+	if loaded == nil then -- 145
 		return -- 147
 	end -- 147
 	local rawFe = loaded["watch.fe"] -- 149
-	if rawFe ~= nil and type(rawFe) == "table" then -- 150
+	if rawFe ~= nil and type(rawFe) == "table" then -- 149
 		local watchFe = rawFe -- 151
-		if watchFe.lowpolyWorld ~= self then -- 152
+		if watchFe.lowpolyWorld ~= self then -- 151
 			watchFe.lowpolyWorld = self -- 153
 		end -- 153
 	end -- 153
@@ -120,13 +120,13 @@ function LowpolyWorldPlugin.prototype.shouldActivate(self, ctx) -- 162
 end -- 162
 function LowpolyWorldPlugin.prototype.getActiveProjection(self, roomKey) -- 166
 	local key = roomKey or self.activeRoomKey -- 167
-	if key == "village" then -- 168
+	if key == "village" then -- 167
 		return self.village:getProjection() -- 169
 	end -- 169
-	if key == "forest" then -- 171
+	if key == "forest" then -- 169
 		return self.forest:getProjection() -- 172
 	end -- 172
-	if key == "tower" then -- 174
+	if key == "tower" then -- 172
 		return self.towerProj -- 175
 	end -- 175
 	return self.outsideProj -- 177
@@ -168,8 +168,8 @@ end -- 212
 function LowpolyWorldPlugin.prototype.update(self, ctx) -- 220
 	self:syncRuntimeHook() -- 221
 	local want = self:shouldActivate(ctx) -- 222
-	if not want then -- 223
-		if self.wasActive then -- 224
+	if not want then -- 222
+		if self.wasActive then -- 222
 			ctx.cam:setAnchorLock(nil) -- 225
 			self:stopAllAudioLoops(ctx) -- 226
 			self.wasActive = false -- 227
@@ -178,7 +178,7 @@ function LowpolyWorldPlugin.prototype.update(self, ctx) -- 220
 		return -- 230
 	end -- 230
 	local p = ctx.p -- 233
-	if self.activeRoomKey ~= "" and self.activeRoomKey ~= p.room.key then -- 234
+	if self.activeRoomKey ~= "" and self.activeRoomKey ~= p.room.key then -- 233
 		ctx.cam:setAnchorLock(nil) -- 235
 		self:stopAllAudioLoops(ctx) -- 236
 		self:resetRoomState(p) -- 237
@@ -186,16 +186,16 @@ function LowpolyWorldPlugin.prototype.update(self, ctx) -- 220
 	self.active = true -- 240
 	self.wasActive = true -- 241
 	self.activeRoomKey = p.room.key -- 242
-	if not ctx.paused and ctx.worldDt > 0 then -- 244
+	if not ctx.paused and ctx.worldDt > 0 then -- 242
 		self.animTime = self.animTime + ctx.worldDt -- 245
 	end -- 245
-	if p.room.key == "outside" then -- 248
+	if p.room.key == "outside" then -- 245
 		self:updateOutside(ctx) -- 249
-	elseif p.room.key == "village" then -- 250
+	elseif p.room.key == "village" then -- 249
 		self.village:update(ctx) -- 251
-	elseif p.room.key == "forest" then -- 252
+	elseif p.room.key == "forest" then -- 251
 		self.forest:update(ctx) -- 253
-	elseif p.room.key == "tower" then -- 254
+	elseif p.room.key == "tower" then -- 253
 		ctx.cam:setAnchorLock(nil) -- 255
 		self.towerProj = { -- 256
 			morph = 1, -- 257
@@ -212,23 +212,23 @@ function LowpolyWorldPlugin.prototype.updateOutside(self, ctx) -- 268
 	local p = ctx.p -- 269
 	ctx.cam:setAnchorLock(nil) -- 270
 	local c = p.room.cart -- 272
-	if c.bodyW > 0 then -- 273
+	if c.bodyW > 0 then -- 272
 		self.lastCartAxle = p.cartAxle -- 275
 		self.lastCartClothX = p.cartAxle - c.bodyW * 0.5 -- 276
-		if self.lastCartClothX >= self.lastCartAxle or c.clothSide >= 0 then -- 277
+		if self.lastCartClothX >= self.lastCartAxle or c.clothSide >= 0 then -- 276
 			self.cartClothLeftInvariantOk = false -- 278
 		end -- 278
 		self.memoryAnchorWorldX = p.cartAxle + c.handleOffset -- 280
 		self.memoryAnchorWorldY = c.baseY + c.wheelR + c.bodyH * 0.72 -- 281
 	end -- 281
-	if not ctx.paused and ctx.worldDt > 0 then -- 284
+	if not ctx.paused and ctx.worldDt > 0 then -- 281
 		local dt = ctx.worldDt -- 285
 		local redCartMemTrigger = p.redCartMemoryT > 0 and not self.memoryPlayed -- 288
-		if (p.gripping and not self.prevGripping or redCartMemTrigger) and not self.memoryPlayed then -- 289
+		if (p.gripping and not self.prevGripping or redCartMemTrigger) and not self.memoryPlayed then -- 288
 			self.memoryPlayed = true -- 290
 			self.memoryTriggeredCount = self.memoryTriggeredCount + 1 -- 291
 			self.memoryTimer = 0 -- 292
-			if redCartMemTrigger then -- 293
+			if redCartMemTrigger then -- 292
 				self.memoryAnchorWorldX = p.player.x -- 294
 				self.memoryAnchorWorldY = p.player.y + 36 -- 295
 			end -- 295
@@ -242,7 +242,7 @@ function LowpolyWorldPlugin.prototype.updateOutside(self, ctx) -- 268
 			) -- 303
 		end -- 303
 		self.prevGripping = p.gripping -- 306
-		if self.memoryTimer >= 0 and self.memoryTimer < SEWING_MEMORY_DURATION then -- 308
+		if self.memoryTimer >= 0 and self.memoryTimer < SEWING_MEMORY_DURATION then -- 306
 			self.memoryTimer = math.min(SEWING_MEMORY_DURATION, self.memoryTimer + dt) -- 309
 		end -- 309
 		local cartSpeed = math.abs(p.cartAxle - self.prevCartAxle) / math.max(0.001, dt) -- 313
@@ -256,7 +256,7 @@ function LowpolyWorldPlugin.prototype.updateOutside(self, ctx) -- 268
 			0.36, -- 318
 			p.ticks -- 318
 		) -- 318
-		if self.cartWheelVol > 0.03 then -- 319
+		if self.cartWheelVol > 0.03 then -- 318
 			ctx.audio:playLoop( -- 320
 				"fe04_cart_wheel", -- 320
 				"ambience", -- 320
@@ -279,20 +279,20 @@ function LowpolyWorldPlugin.prototype.updateOutside(self, ctx) -- 268
 	} -- 333
 end -- 268
 function LowpolyWorldPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdropArt, ctx) -- 337
-	if not self.active then -- 343
+	if not self.active then -- 337
 		return false -- 344
 	end -- 344
 	local key = ctx.p.room.key -- 346
-	if key == "village" then -- 347
+	if key == "village" then -- 346
 		return self.village:drawBackdrop(bgDraw, bgGlow, backdropArt, ctx) -- 348
 	end -- 348
-	if key == "forest" then -- 350
+	if key == "forest" then -- 348
 		return self.forest:drawBackdrop(bgDraw, bgGlow, backdropArt, ctx) -- 351
 	end -- 351
-	if key == "outside" then -- 353
+	if key == "outside" then -- 351
 		return self:drawOutsideBackdrop(bgDraw, bgGlow, ctx) -- 354
 	end -- 354
-	if key == "tower" then -- 356
+	if key == "tower" then -- 354
 		return self:drawTowerBackdrop(bgDraw, bgGlow, ctx) -- 357
 	end -- 357
 	return false -- 359
@@ -448,7 +448,7 @@ function LowpolyWorldPlugin.prototype.drawTowerBackdrop(self, bgDraw, bgGlow, ct
 			{x = ox + 640, y = 184}, -- 441
 			{x = ox + 920, y = 132} -- 442
 		}, -- 442
-		-40, -- 444
+		-40, -- 442
 		420, -- 445
 		MING_MATERIALS.distantHill, -- 446
 		{bucket = LP_BUCKET.BACKDROP} -- 447
@@ -468,20 +468,20 @@ function LowpolyWorldPlugin.prototype.drawTowerBackdrop(self, bgDraw, bgGlow, ct
 	return true -- 454
 end -- 423
 function LowpolyWorldPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt, ctx) -- 457
-	if not self.active then -- 463
+	if not self.active then -- 457
 		return false -- 464
 	end -- 464
 	local key = ctx.p.room.key -- 466
-	if key == "village" then -- 467
+	if key == "village" then -- 466
 		return self.village:drawWorld(fgDraw, fgGlow, worldArt, ctx) -- 468
 	end -- 468
-	if key == "forest" then -- 470
+	if key == "forest" then -- 468
 		return self.forest:drawWorld(fgDraw, fgGlow, worldArt, ctx) -- 471
 	end -- 471
-	if key == "outside" then -- 473
+	if key == "outside" then -- 471
 		return self:drawOutsideWorld(fgDraw, fgGlow, ctx) -- 474
 	end -- 474
-	if key == "tower" then -- 476
+	if key == "tower" then -- 474
 		return self:drawTowerWorld(fgDraw, fgGlow, ctx) -- 477
 	end -- 477
 	return false -- 479
@@ -503,7 +503,7 @@ function LowpolyWorldPlugin.prototype.drawOutsideWorld(self, fgDraw, fgGlow, ctx
 		p.boxes, -- 492
 		function(____, b) return b.id == "outside_red_cart" end -- 492
 	) -- 492
-	if redBox ~= nil and redBox.broken ~= true and redBox.hidden ~= true then -- 493
+	if redBox ~= nil and redBox.broken ~= true and redBox.hidden ~= true then -- 492
 		scene:addBox({ -- 494
 			x0 = redBox.x0 + 2, -- 495
 			x1 = redBox.x1 - 2, -- 496
@@ -526,7 +526,7 @@ function LowpolyWorldPlugin.prototype.drawOutsideWorld(self, fgDraw, fgGlow, ctx
 		) -- 513
 	end -- 513
 	local c = p.room.cart -- 518
-	if c.bodyW > 0 then -- 519
+	if c.bodyW > 0 then -- 518
 		scene:addBox({ -- 521
 			x0 = c.endX - 18, -- 522
 			x1 = c.endX + 18, -- 523
@@ -564,10 +564,10 @@ function LowpolyWorldPlugin.prototype.drawOutsideWorld(self, fgDraw, fgGlow, ctx
 			edgeWidth = 0 -- 556
 		}) -- 556
 	end -- 556
-	if not p.cartDocked and p.room.arch.h > 0 then -- 562
+	if not p.cartDocked and p.room.arch.h > 0 then -- 556
 		local bx0 = math.max(p.room.arch.x0 + 4, p.cartAxle - 18) -- 563
 		local bx1 = math.min(p.room.arch.x1 - 4, p.cartAxle + 18) -- 564
-		if bx1 > bx0 + 4 then -- 565
+		if bx1 > bx0 + 4 then -- 564
 			scene:addBox({ -- 566
 				x0 = bx0, -- 567
 				x1 = bx1, -- 568
@@ -681,7 +681,7 @@ function LowpolyWorldPlugin.prototype.drawOutsideWorld(self, fgDraw, fgGlow, ctx
 			) -- 643
 			local off = row % 2 * 18 -- 644
 			local colX = ox + 528 + off -- 645
-			while colX < ox + 594 do -- 646
+			while colX < ox + 594 do -- 645
 				local v0 = projectWorld3D( -- 647
 					colX, -- 647
 					wy - 19, -- 647
@@ -776,7 +776,7 @@ function LowpolyWorldPlugin.prototype.drawTowerWorld(self, fgDraw, fgGlow, ctx) 
 			innerRimStrength = opened and 0.78 or 0.32 -- 722
 		} -- 722
 	) -- 722
-	if not opened then -- 726
+	if not opened then -- 722
 		scene:addBox({ -- 727
 			x0 = ox + 404, -- 728
 			x1 = ox + 486, -- 729
@@ -962,23 +962,23 @@ function LowpolyWorldPlugin.prototype.drawTowerWorld(self, fgDraw, fgGlow, ctx) 
 	return true -- 810
 end -- 657
 function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 813
-	if not self.active then -- 819
+	if not self.active then -- 813
 		return false -- 820
 	end -- 820
 	local key = ctx.p.room.key -- 822
-	if key == "village" then -- 823
+	if key == "village" then -- 822
 		return self.village:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 824
 	end -- 824
-	if key == "forest" then -- 826
+	if key == "forest" then -- 824
 		return self.forest:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 827
 	end -- 827
-	if key == "outside" then -- 829
+	if key == "outside" then -- 827
 		return self:drawOutsideCartLowpoly(fgDraw, fgGlow, ctx) -- 830
 	end -- 830
-	if key == "tower" then -- 832
+	if key == "tower" then -- 830
 		local p = ctx.p -- 833
 		local opened = p.towerDoorOpen or p.phase == "tower-enter" or p.phase == "tower-desk" -- 834
-		if opened then -- 835
+		if opened then -- 834
 			local cam = ctx.cam -- 836
 			local deskCx = cam:sx(p.ox + 605) -- 837
 			local groundY = cam:sy(0) -- 838
@@ -1079,7 +1079,7 @@ function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, wor
 					math.floor(220 * pulse + 0.5) -- 854
 				) -- 854
 			) -- 854
-			if p.deskHold >= 12 or p.towerHanded then -- 855
+			if p.deskHold >= 12 or p.towerHanded then -- 854
 				fgDraw:drawRect( -- 856
 					Rect( -- 856
 						deskCx - cam:len(28), -- 856
@@ -1090,7 +1090,7 @@ function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, wor
 					Color(156, 62, 48, 245) -- 856
 				) -- 856
 			end -- 856
-			if p.deskHold >= 24 or p.towerHanded then -- 858
+			if p.deskHold >= 24 or p.towerHanded then -- 856
 				fgDraw:drawCircle( -- 859
 					Vec2( -- 859
 						deskCx - cam:len(8), -- 859
@@ -1118,7 +1118,7 @@ function LowpolyWorldPlugin.prototype.drawOutsideCartLowpoly(self, fgDraw, fgGlo
 	local p = ctx.p -- 870
 	local cam = ctx.cam -- 871
 	local c = p.room.cart -- 872
-	if c.bodyW <= 0 then -- 873
+	if c.bodyW <= 0 then -- 872
 		return true -- 874
 	end -- 874
 	local scene = __TS__New(LowpolyScene, cam, self.outsideProj, OUTSIDE_JETTY_LIGHT) -- 876
@@ -1267,22 +1267,22 @@ function LowpolyWorldPlugin.prototype.drawOutsideCartLowpoly(self, fgDraw, fgGlo
 	return true -- 981
 end -- 869
 function LowpolyWorldPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 984
-	if not self.active then -- 990
+	if not self.active then -- 984
 		return -- 991
 	end -- 991
 	local key = ctx.p.room.key -- 993
-	if key == "village" then -- 994
+	if key == "village" then -- 993
 		self.village:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 995
-	elseif key == "forest" then -- 996
+	elseif key == "forest" then -- 995
 		self.forest:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 997
 	end -- 997
 end -- 984
 function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1005
-	if not self.active then -- 1012
+	if not self.active then -- 1005
 		return false -- 1013
 	end -- 1013
 	local key = ctx.p.room.key -- 1015
-	if key == "village" then -- 1016
+	if key == "village" then -- 1015
 		return self.village:drawForegroundOverlay( -- 1017
 			uiDraw, -- 1017
 			uiInkDraw, -- 1017
@@ -1291,7 +1291,7 @@ function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 			ctx -- 1017
 		) -- 1017
 	end -- 1017
-	if key == "forest" then -- 1019
+	if key == "forest" then -- 1017
 		return self.forest:drawForegroundOverlay( -- 1020
 			uiDraw, -- 1020
 			uiInkDraw, -- 1020
@@ -1300,19 +1300,19 @@ function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 			ctx -- 1020
 		) -- 1020
 	end -- 1020
-	if key == "outside" then -- 1022
+	if key == "outside" then -- 1020
 		self:drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiGlow, ctx) -- 1023
 		return false -- 1024
 	end -- 1024
 	return false -- 1026
 end -- 1005
 function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 1033
-	if self.memoryTimer < 0 or self.memoryTimer >= SEWING_MEMORY_DURATION then -- 1039
+	if self.memoryTimer < 0 or self.memoryTimer >= SEWING_MEMORY_DURATION then -- 1033
 		return -- 1040
 	end -- 1040
 	local prog = clamp01(self.memoryTimer / SEWING_MEMORY_DURATION) -- 1042
 	local alpha = smoothstep(0, 0.2, prog) * (1 - smoothstep(0.72, 1, prog)) -- 1044
-	if alpha <= 0.01 then -- 1045
+	if alpha <= 0.01 then -- 1044
 		return -- 1046
 	end -- 1046
 	local inv = 1 / math.max(0.25, ctx.uiScale) -- 1048

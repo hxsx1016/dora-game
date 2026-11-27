@@ -185,11 +185,11 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 	local ox = p.ox -- 258
 	ctx.cam:setAnchorLock(nil) -- 261
 	self.creekReveal = smoothstep(ox + 1310, ox + 1435, p.player.x) -- 264
-	if not ctx.paused and ctx.worldDt > 0 then -- 266
+	if not ctx.paused and ctx.worldDt > 0 then -- 264
 		local dt = ctx.worldDt -- 267
 		self.animTime = self.animTime + dt -- 268
 		self.ripplePhase = self.ripplePhase + dt * 2.4 -- 270
-		if self.xiaomanListenTimer > 0 then -- 272
+		if self.xiaomanListenTimer > 0 then -- 270
 			self.xiaomanListenTimer = math.max(0, self.xiaomanListenTimer - dt) -- 273
 		end -- 273
 		local movingFast = not p.player.crouch and (math.abs(p.player.vx) > 10 or not p.player.onGround) -- 277
@@ -199,15 +199,15 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 			while i < #TWIG_OFFSETS do -- 279
 				local tx = ox + TWIG_OFFSETS[i + 1] -- 280
 				local lastSnapAt = self.twigTriggered[i] or -99 -- 281
-				if movingFast and math.abs(p.player.x - tx) <= 18 and p.player.y <= 8 and self.animTime - lastSnapAt > 2.4 then -- 282
+				if movingFast and math.abs(p.player.x - tx) <= 18 and p.player.y <= 8 and self.animTime - lastSnapAt > 2.4 then -- 281
 					self.twigTriggered[i] = self.animTime -- 283
 					self:triggerTwigSnap(ctx, tx, p.dogX >= p.player.x and 1 or -1) -- 284
 				end -- 284
 				i = i + 1 -- 279
 			end -- 279
 		end -- 279
-		if p.room.story ~= nil and p.room.story.dog ~= nil then -- 289
-			if p.dogState == "ear" and self.prevDogState ~= "ear" then -- 290
+		if p.room.story ~= nil and p.room.story.dog ~= nil then -- 279
+			if p.dogState == "ear" and self.prevDogState ~= "ear" then -- 279
 				self.dogAlertCount = self.dogAlertCount + 1 -- 291
 				self:triggerTwigSnap(ctx, p.player.x, p.dogX >= p.player.x and 1 or -1) -- 292
 				ctx.audio:playOnce( -- 293
@@ -217,10 +217,10 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 					0.82, -- 297
 					"fe04:forest:dog_alert", -- 298
 					p.ticks, -- 299
-					-1, -- 300
+					-1, -- 299
 					{pan = ctx.audio:panForWorldX(p.dogX)} -- 301
 				) -- 301
-			elseif p.dogState == "chase" and self.prevDogState ~= "chase" then -- 303
+			elseif p.dogState == "chase" and self.prevDogState ~= "chase" then -- 301
 				self.dogAlertCount = self.dogAlertCount + 1 -- 304
 				local chasePath = Content:exist("assets/audio/foley/dog_chase_bark.wav") and "assets/audio/foley/dog_chase_bark.wav" or CHILD_AUDIO_ROOT .. "dog_alert.wav" -- 305
 				ctx.audio:playOnce( -- 308
@@ -230,18 +230,18 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 					0.9, -- 312
 					"fe04:forest:dog_chase", -- 313
 					p.ticks, -- 314
-					-1, -- 315
+					-1, -- 314
 					{pan = ctx.audio:panForWorldX(p.dogX)} -- 316
 				) -- 316
 			end -- 316
 			local dogDx = math.abs(p.dogX - self.prevDogX) -- 320
-			if dogDx > 0.01 and (p.dogState == "patrol" or p.dogState == "chase" or p.dogState == "back") then -- 321
+			if dogDx > 0.01 and (p.dogState == "patrol" or p.dogState == "chase" or p.dogState == "back") then -- 320
 				self.dogStepAccum = self.dogStepAccum + dogDx -- 322
 				local stepStride = p.dogState == "chase" and 28 or 42 -- 323
-				if self.dogStepAccum >= stepStride then -- 324
+				if self.dogStepAccum >= stepStride then -- 323
 					self.dogStepAccum = 0 -- 325
 					local dist = math.abs(p.player.x - p.dogX) -- 326
-					if dist < 420 then -- 327
+					if dist < 420 then -- 326
 						self.dogStepCount = self.dogStepCount + 1 -- 328
 						local vol = 0.24 + 0.48 * clamp01(1 - dist / 420) -- 329
 						ctx.audio:playOnce( -- 330
@@ -251,7 +251,7 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 							vol, -- 334
 							"fe04:forest:dog_step", -- 335
 							p.ticks, -- 336
-							-1, -- 337
+							-1, -- 336
 							{pan = ctx.audio:panForWorldX(p.dogX)} -- 338
 						) -- 338
 					end -- 338
@@ -266,11 +266,11 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 			while i < #self.splinters do -- 349
 				local sp = self.splinters[i + 1] -- 350
 				sp.life = sp.life - dt -- 351
-				if sp.life > 0 then -- 352
+				if sp.life > 0 then -- 351
 					sp.vy = sp.vy - 320 * dt -- 353
 					sp.x = sp.x + sp.vx * dt -- 354
 					sp.y = sp.y + sp.vy * dt -- 355
-					if sp.y < 0 then -- 356
+					if sp.y < 0 then -- 355
 						sp.y = 0 -- 357
 						sp.vy = 0 -- 358
 						sp.vx = sp.vx * 0.4 -- 359
@@ -281,7 +281,7 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 				i = i + 1 -- 349
 			end -- 349
 		end -- 349
-		__TS__ArraySetLength(self.splinters, w) -- 365
+		__TS__ArraySetLength(self.splinters, w) -- 349
 		local creekApproach = smoothstep(ox + 1140, ox + 1410, p.player.x) -- 368
 		local windVol = 0.34 * (1 - creekApproach * 0.42) -- 369
 		self.creekWaterVol = 0.02 + 0.54 * creekApproach -- 370
@@ -292,7 +292,7 @@ function ForestCreekScene.prototype.update(self, ctx) -- 255
 			windVol, -- 371
 			p.ticks -- 371
 		) -- 371
-		if creekApproach > 0.02 then -- 372
+		if creekApproach > 0.02 then -- 371
 			ctx.audio:playLoop( -- 373
 				"fe04_creek_water", -- 373
 				"water", -- 373
@@ -325,7 +325,7 @@ function ForestCreekScene.prototype.triggerTwigSnap(self, ctx, worldX, listenDir
 		0.84, -- 398
 		"fe04:forest:twig_snap", -- 399
 		ctx.p.ticks, -- 400
-		-1, -- 401
+		-1, -- 400
 		{pan = ctx.audio:panForWorldX(worldX)} -- 402
 	) -- 402
 	local i = 0 -- 404
@@ -334,7 +334,7 @@ function ForestCreekScene.prototype.triggerTwigSnap(self, ctx, worldX, listenDir
 		while i < 6 do -- 405
 			local ang = (0.2 + self:rand() * 0.6) * math.pi -- 406
 			local spd = 45 + self:rand() * 75 -- 407
-			local ____self_splinters_0 = self.splinters -- 408
+			local ____self_splinters_0 = self.splinters -- 407
 			____self_splinters_0[#____self_splinters_0 + 1] = { -- 408
 				x = worldX + (self:rand() - 0.5) * 10, -- 409
 				y = 2, -- 410
@@ -399,7 +399,7 @@ function ForestCreekScene.prototype.drawBackdrop(self, bgDraw, bgGlow, _backdrop
 			{x = ox + 1420, y = 168}, -- 450
 			{x = ox + 1780, y = 196} -- 451
 		}, -- 451
-		-40, -- 453
+		-40, -- 451
 		460, -- 454
 		MING_MATERIALS.distantHill, -- 455
 		{bucket = LP_BUCKET.BACKDROP} -- 456
@@ -684,7 +684,7 @@ function ForestCreekScene.prototype.drawWorld(self, fgDraw, fgGlow, _worldArt, c
 		i = 0 -- 708
 		while i < #p.room.solids do -- 708
 			local s = p.room.solids[i + 1] -- 709
-			if s.passable == true then -- 710
+			if s.passable == true then -- 709
 				self:buildGrassCluster( -- 711
 					scene, -- 711
 					s.x, -- 711
@@ -693,7 +693,7 @@ function ForestCreekScene.prototype.drawWorld(self, fgDraw, fgGlow, _worldArt, c
 					s.h, -- 711
 					8 -- 711
 				) -- 711
-			elseif s.x >= ox + 1500 then -- 712
+			elseif s.x >= ox + 1500 then -- 711
 				scene:addBox({ -- 714
 					x0 = s.x, -- 715
 					x1 = s.x + s.w, -- 716
@@ -738,7 +738,7 @@ function ForestCreekScene.prototype.drawWorld(self, fgDraw, fgGlow, _worldArt, c
 		0.8, -- 748
 		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 748
 	) -- 748
-	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 749
+	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 748
 		scene:addContactShadow( -- 750
 			p.dogX, -- 750
 			0, -- 750
@@ -800,7 +800,7 @@ function ForestCreekScene.prototype.buildGrassCluster(self, scene, x0, x1, y0, h
 end -- 770
 function ForestCreekScene.prototype.drawCreekWaterReflection(self, fgDraw, fgGlow, p, cam) -- 789
 	local ox = p.ox -- 795
-	if cam:sx(ox + 1230) > cam.viewW + 120 then -- 796
+	if cam:sx(ox + 1230) > cam.viewW + 120 then -- 795
 		return -- 797
 	end -- 797
 	local lampPulse = 0.84 + 0.16 * math.sin(self.animTime * 2.3) -- 799
@@ -940,7 +940,7 @@ function ForestCreekScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worl
 		1.2, -- 874
 		Color(206, 220, 228, 135) -- 875
 	) -- 875
-	if self.xiaomanListenTimer > 0 then -- 879
+	if self.xiaomanListenTimer > 0 then -- 875
 		local k = smoothstep(0, 0.12, self.xiaomanListenTimer) * clamp01(self.xiaomanListenTimer / 0.52) -- 880
 		local earX = px + self.xiaomanListenDir * cam:len(8) -- 881
 		local earY = pTopY - cam:len(10) -- 882
@@ -975,7 +975,7 @@ function ForestCreekScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worl
 			) -- 888
 		) -- 888
 	end -- 888
-	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 892
+	if p.room.story ~= nil and p.room.story.dog ~= nil then -- 888
 		local alert = p.dogState == "ear" or p.dogState == "chase" -- 893
 		local f = p.dogState == "chase" and (p.player.x >= p.dogX and 1 or -1) or p.dogDir -- 894
 		local headX = cam:sx(p.dogX + f * 11) -- 895
@@ -992,7 +992,7 @@ function ForestCreekScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worl
 			1.1, -- 903
 			earCol -- 903
 		) -- 903
-		if alert then -- 904
+		if alert then -- 903
 			local waveR = cam:len(8 + self.animTime * 20 % 13) -- 905
 			fgGlow:drawArc( -- 906
 				Vec2(headX, headY + earH * 0.75), -- 906
@@ -1004,7 +1004,7 @@ function ForestCreekScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worl
 			) -- 906
 		end -- 906
 	end -- 906
-	if ctx.paused then -- 911
+	if ctx.paused then -- 906
 		local pX = cam.viewW * (0.78 + self.creekReveal * 0.24) -- 912
 		worldArt:tryPlace( -- 913
 			"pine", -- 913
@@ -1032,7 +1032,7 @@ function ForestCreekScene.prototype.drawForegroundOverlay(self, uiDraw, _uiInkDr
 		while i < #p.room.solids do -- 941
 			do -- 941
 				local s = p.room.solids[i + 1] -- 942
-				if s.passable ~= true then -- 943
+				if s.passable ~= true then -- 942
 					goto __continue66 -- 944
 				end -- 944
 				local blades = math.max( -- 946
@@ -1088,7 +1088,7 @@ function ForestCreekScene.prototype.drawForegroundOverlay(self, uiDraw, _uiInkDr
 		end -- 941
 	end -- 941
 	local nearCreek = smoothstep(ox + 1060, ox + 1240, p.player.x) -- 963
-	if nearCreek > 0.02 then -- 964
+	if nearCreek > 0.02 then -- 963
 		local w = cam.viewW -- 965
 		local h = cam.viewH -- 966
 		local partShift = self.creekReveal * w * 0.38 -- 967

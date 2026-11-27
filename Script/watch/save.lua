@@ -7,22 +7,22 @@ local __TS__StringCharCodeAt = ____lualib.__TS__StringCharCodeAt -- 1
 local __TS__StringCharAt = ____lualib.__TS__StringCharAt -- 1
 local __TS__StringTrim = ____lualib.__TS__StringTrim -- 1
 local ____exports = {} -- 1
-local copyForWrite, absPath, lineValue, intOf, formatSave, parseSave, normalize, sameContent, backupPathFor, backupCorrupt, usableBackup, dirOf, ops, fault, currentFile, protectedPath -- 78
+local copyForWrite, absPath, lineValue, intOf, formatSave, parseSave, normalize, sameContent, backupPathFor, backupCorrupt, usableBackup, dirOf, ops, fault, currentFile, protectedPath -- 1
 local ____Dora = require("Dora") -- 11
 local Content = ____Dora.Content -- 11
 local ____run = require("Script.watch.run") -- 12
 local isMuseumPhase = ____run.isMuseumPhase -- 12
 function copyForWrite(from, to) -- 78
-	if fault == "replace" then -- 79
+	if fault == "replace" then -- 78
 		return false -- 80
 	end -- 80
 	return ops:copy(from, to) -- 82
 end -- 82
 function absPath(path) -- 92
-	if #path > 0 and (string.sub(path, 1, 1) == "/" or string.sub(path, 1, 1) == "\\") then -- 93
+	if #path > 0 and (string.sub(path, 1, 1) == "/" or string.sub(path, 1, 1) == "\\") then -- 92
 		return path -- 94
 	end -- 94
-	if #path >= 2 and string.sub(path, 2, 2) == ":" then -- 96
+	if #path >= 2 and string.sub(path, 2, 2) == ":" then -- 94
 		return path -- 97
 	end -- 97
 	local base = Content.writablePath -- 99
@@ -51,7 +51,7 @@ function lineValue(text, key) -- 161
 		i = 0 -- 165
 		while i < #lines do -- 165
 			local line = lines[i + 1] -- 166
-			if #line >= #prefix and __TS__StringSubstring(line, 0, #prefix) == prefix then -- 167
+			if #line >= #prefix and __TS__StringSubstring(line, 0, #prefix) == prefix then -- 166
 				return __TS__StringSubstring(line, #prefix) -- 168
 			end -- 168
 			i = i + 1 -- 165
@@ -60,21 +60,21 @@ function lineValue(text, key) -- 161
 	return nil -- 171
 end -- 171
 function intOf(text, fallback) -- 174
-	if #text == 0 then -- 175
+	if #text == 0 then -- 174
 		return fallback -- 176
 	end -- 176
 	local i = 0 -- 178
 	local sign = 1 -- 179
-	if string.sub(text, 1, 1) == "-" then -- 180
+	if string.sub(text, 1, 1) == "-" then -- 179
 		sign = -1 -- 181
 		i = 1 -- 182
 	end -- 182
 	local n = 0 -- 184
 	local digits = 0 -- 185
 	do -- 185
-		while i < #text do -- 186
+		while i < #text do -- 185
 			local c = __TS__StringCharCodeAt(text, i) -- 187
-			if c < 48 or c > 57 then -- 188
+			if c < 48 or c > 57 then -- 187
 				return fallback -- 189
 			end -- 189
 			n = n * 10 + (c - 48) -- 191
@@ -82,7 +82,7 @@ function intOf(text, fallback) -- 174
 			i = i + 1 -- 186
 		end -- 186
 	end -- 186
-	if digits == 0 then -- 194
+	if digits == 0 then -- 186
 		return fallback -- 195
 	end -- 195
 	return sign * n -- 197
@@ -108,21 +108,21 @@ function parseSave(text) -- 223
 		reason = "", -- 224
 		state = ____exports.emptySave() -- 224
 	} -- 224
-	if #text == 0 then -- 225
+	if #text == 0 then -- 224
 		bad.reason = "档案为空" -- 226
 		return bad -- 227
 	end -- 227
 	local versionText = lineValue(text, "version") -- 229
-	if versionText == nil then -- 230
+	if versionText == nil then -- 229
 		bad.reason = "缺少 version 行" -- 231
 		return bad -- 232
 	end -- 232
 	local version = intOf(versionText, -1) -- 234
-	if version < 0 then -- 235
+	if version < 0 then -- 234
 		bad.reason = "version 不是十进制整数" -- 236
 		return bad -- 237
 	end -- 237
-	if version > ____exports.SAVE_VERSION then -- 239
+	if version > ____exports.SAVE_VERSION then -- 237
 		return { -- 240
 			ok = false, -- 240
 			status = "unsupported", -- 240
@@ -130,7 +130,7 @@ function parseSave(text) -- 223
 			state = ____exports.emptySave() -- 240
 		} -- 240
 	end -- 240
-	if version ~= ____exports.SAVE_VERSION then -- 242
+	if version ~= ____exports.SAVE_VERSION then -- 240
 		bad.reason = "不支持的旧版本 " .. tostring(version) -- 243
 		return bad -- 244
 	end -- 244
@@ -141,11 +141,11 @@ function parseSave(text) -- 223
 		i = 0 -- 249
 		while i < #boolKeys do -- 249
 			local value = lineValue(text, boolKeys[i + 1]) -- 250
-			if value == nil then -- 251
+			if value == nil then -- 250
 				bad.reason = "缺少字段 " .. boolKeys[i + 1] -- 252
 				return bad -- 253
 			end -- 253
-			if value ~= "true" and value ~= "false" then -- 255
+			if value ~= "true" and value ~= "false" then -- 253
 				bad.reason = ("字段 " .. boolKeys[i + 1]) .. " 不是布尔值" -- 256
 				return bad -- 257
 			end -- 257
@@ -154,11 +154,11 @@ function parseSave(text) -- 223
 		end -- 249
 	end -- 249
 	local phase = lineValue(text, "museumPhase") -- 261
-	if phase == nil then -- 262
+	if phase == nil then -- 261
 		bad.reason = "缺少字段 museumPhase" -- 263
 		return bad -- 264
 	end -- 264
-	if not isMuseumPhase(phase) then -- 266
+	if not isMuseumPhase(phase) then -- 264
 		bad.reason = "museumPhase 不在枚举内" -- 267
 		return bad -- 268
 	end -- 268
@@ -190,20 +190,20 @@ end -- 285
 function sameContent(a, b) -- 289
 	local textA = ops:load(a) -- 290
 	local textB = ops:load(b) -- 291
-	if textA == nil or textB == nil then -- 292
+	if textA == nil or textB == nil then -- 291
 		return false -- 293
 	end -- 293
 	return normalize(textA) == normalize(textB) -- 295
 end -- 295
 function backupPathFor(target, suffix) -- 299
 	local candidate = target .. suffix -- 300
-	if not ops:exist(candidate) then -- 301
+	if not ops:exist(candidate) then -- 300
 		return candidate -- 302
 	end -- 302
 	local n = 2 -- 304
-	while n <= 9999 do -- 305
+	while n <= 9999 do -- 304
 		candidate = ((target .. suffix) .. ".") .. tostring(n) -- 306
-		if not ops:exist(candidate) then -- 307
+		if not ops:exist(candidate) then -- 306
 			return candidate -- 308
 		end -- 308
 		n = n + 1 -- 310
@@ -211,23 +211,23 @@ function backupPathFor(target, suffix) -- 299
 	return "" -- 312
 end -- 312
 function backupCorrupt(target, suffix) -- 319
-	if not ops:exist(target) then -- 320
+	if not ops:exist(target) then -- 319
 		return "" -- 321
 	end -- 321
 	local backup = backupPathFor(target, suffix) -- 323
-	if backup == "" then -- 324
+	if backup == "" then -- 323
 		return "" -- 325
 	end -- 325
-	if not ops:copy(target, backup) then -- 327
+	if not ops:copy(target, backup) then -- 325
 		return "" -- 328
 	end -- 328
-	if not sameContent(target, backup) then -- 330
+	if not sameContent(target, backup) then -- 328
 		return "" -- 331
 	end -- 331
 	return backup -- 333
 end -- 333
 function usableBackup(path) -- 346
-	if not ops:exist(path) then -- 347
+	if not ops:exist(path) then -- 346
 		return false -- 348
 	end -- 348
 	local text = ops:load(path) -- 350
@@ -236,9 +236,9 @@ end -- 351
 function dirOf(path) -- 456
 	local i = #path - 1 -- 457
 	do -- 457
-		while i >= 0 do -- 458
+		while i >= 0 do -- 457
 			local ch = __TS__StringCharAt(path, i) -- 459
-			if ch == "/" or ch == "\\" then -- 460
+			if ch == "/" or ch == "\\" then -- 459
 				return __TS__StringSubstring(path, 0, i) -- 461
 			end -- 461
 			i = i - 1 -- 458
@@ -254,34 +254,34 @@ end -- 464
 -- 未知版本原件（按路径保护）拒绝写入。
 function ____exports.saveSave(state) -- 475
 	local target = absPath(currentFile) -- 476
-	if protectedPath == target then -- 477
+	if protectedPath == target then -- 476
 		return false -- 478
 	end -- 478
 	local dir = dirOf(target) -- 480
-	if dir ~= "" and not ops:isdir(dir) then -- 481
+	if dir ~= "" and not ops:isdir(dir) then -- 480
 		ops:mkdir(dir) -- 482
 	end -- 482
 	local tmp = target .. ".tmp" -- 484
 	local prev = target .. ".prev" -- 485
 	local text = formatSave(state) -- 486
-	if fault == "write" then -- 488
+	if fault == "write" then -- 486
 		return false -- 489
 	end -- 489
-	if not ops:save(tmp, text) then -- 491
+	if not ops:save(tmp, text) then -- 489
 		ops:remove(tmp) -- 492
 		return false -- 493
 	end -- 493
 	local written = ops:load(tmp) -- 495
-	if written == nil or normalize(written) ~= normalize(text) then -- 496
+	if written == nil or normalize(written) ~= normalize(text) then -- 495
 		ops:remove(tmp) -- 497
 		return false -- 498
 	end -- 498
 	local existed = ops:exist(target) -- 501
 	local backedUp = false -- 502
-	if existed then -- 503
-		if usableBackup(target) then -- 504
+	if existed then -- 502
+		if usableBackup(target) then -- 502
 			backedUp = ops:copy(target, prev) -- 505
-			if not backedUp or not usableBackup(prev) then -- 506
+			if not backedUp or not usableBackup(prev) then -- 505
 				ops:remove(tmp) -- 508
 				return false -- 509
 			end -- 509
@@ -289,15 +289,15 @@ function ____exports.saveSave(state) -- 475
 			backupCorrupt(target, ".corrupt") -- 513
 		end -- 513
 	end -- 513
-	if not copyForWrite(tmp, target) then -- 517
-		if existed and backedUp and not sameContent(target, prev) then -- 518
+	if not copyForWrite(tmp, target) then -- 513
+		if existed and backedUp and not sameContent(target, prev) then -- 513
 			ops:copy(prev, target) -- 519
 		end -- 519
 		return false -- 522
 	end -- 522
 	local check = ops:load(target) -- 525
-	if fault == "verify" or check == nil or normalize(check) ~= normalize(text) then -- 526
-		if existed and backedUp and ops:copy(prev, target) and usableBackup(target) then -- 527
+	if fault == "verify" or check == nil or normalize(check) ~= normalize(text) then -- 525
+		if existed and backedUp and ops:copy(prev, target) and usableBackup(target) then -- 525
 			ops:remove(tmp) -- 528
 			return false -- 529
 		end -- 529
@@ -349,13 +349,13 @@ end -- 121
 --- 把登记的档案落盘；成功才清登记，失败保留等下一帧重试。
 -- 登记属于别的档案路径时不写、返回 false（调用方应显式丢弃或先切回）。
 function ____exports.flushProfile() -- 129
-	if pending == nil then -- 130
+	if pending == nil then -- 129
 		return true -- 131
 	end -- 131
-	if pending.file ~= currentFile then -- 133
+	if pending.file ~= currentFile then -- 131
 		return false -- 134
 	end -- 134
-	if not ____exports.saveSave(pending.state) then -- 136
+	if not ____exports.saveSave(pending.state) then -- 134
 		return false -- 137
 	end -- 137
 	pending = nil -- 139
@@ -370,24 +370,24 @@ end -- 147
 --- 读文本；读不到按空串处理（解析会判 corrupt）。
 local function loadText(path) -- 337
 	local text = ops:load(path) -- 338
-	if text == nil then -- 339
+	if text == nil then -- 338
 		return "" -- 340
 	end -- 340
 	return text -- 342
 end -- 337
 --- 用候选件恢复目标；成功（复制成功且回读解析一致）才清候选，失败保留候选并返回 false。
 local function restoreFrom(candidate, target, keepCandidate) -- 355
-	if not usableBackup(candidate) then -- 356
+	if not usableBackup(candidate) then -- 355
 		return false -- 357
 	end -- 357
-	if not ops:copy(candidate, target) then -- 359
+	if not ops:copy(candidate, target) then -- 357
 		return false -- 360
 	end -- 360
 	local again = parseSave(loadText(target)) -- 362
-	if not again.ok then -- 363
+	if not again.ok then -- 362
 		return false -- 364
 	end -- 364
-	if not keepCandidate then -- 366
+	if not keepCandidate then -- 364
 		ops:remove(candidate) -- 367
 	end -- 367
 	return true -- 369
@@ -403,16 +403,16 @@ function ____exports.loadSave() -- 379
 	local prev = target .. ".prev" -- 382
 	local recovered = false -- 383
 	local recoveryDetail = "" -- 384
-	if not ops:exist(target) then -- 386
-		if restoreFrom(tmp, target, false) then -- 387
+	if not ops:exist(target) then -- 384
+		if restoreFrom(tmp, target, false) then -- 384
 			recovered = true -- 388
 			recoveryDetail = "目标缺失，已用完整 .tmp 恢复" -- 389
-		elseif restoreFrom(prev, target, true) then -- 390
+		elseif restoreFrom(prev, target, true) then -- 389
 			recovered = true -- 391
 			recoveryDetail = "目标缺失，已用完整 .prev 恢复" -- 392
 		end -- 392
 	end -- 392
-	if not ops:exist(target) then -- 396
+	if not ops:exist(target) then -- 392
 		return { -- 397
 			state = ____exports.emptySave(), -- 398
 			status = "missing", -- 398
@@ -424,8 +424,8 @@ function ____exports.loadSave() -- 379
 	end -- 400
 	local text = ops:load(target) -- 404
 	local parsed = parseSave(text == nil and "" or text) -- 405
-	if parsed.ok then -- 406
-		if ops:exist(tmp) and sameContent(tmp, target) then -- 408
+	if parsed.ok then -- 405
+		if ops:exist(tmp) and sameContent(tmp, target) then -- 405
 			ops:remove(tmp) -- 409
 		end -- 409
 		return { -- 411
@@ -437,9 +437,9 @@ function ____exports.loadSave() -- 379
 			action = "keep" -- 414
 		} -- 414
 	end -- 414
-	if parsed.status == "corrupt" then -- 418
+	if parsed.status == "corrupt" then -- 414
 		local broken = backupCorrupt(target, ".corrupt") -- 419
-		if restoreFrom(tmp, target, false) then -- 420
+		if restoreFrom(tmp, target, false) then -- 419
 			return { -- 421
 				state = parseSave(loadText(target)).state, -- 422
 				status = "ok", -- 423
@@ -449,7 +449,7 @@ function ____exports.loadSave() -- 379
 				action = "keep" -- 425
 			} -- 425
 		end -- 425
-		if restoreFrom(prev, target, true) then -- 428
+		if restoreFrom(prev, target, true) then -- 425
 			return { -- 429
 				state = parseSave(loadText(target)).state, -- 430
 				status = "ok", -- 431
@@ -483,20 +483,20 @@ end -- 379
 -- 只有备份复制成功、内容与原件一致、且备份本身可解析时才删除目标。
 function ____exports.resetSave() -- 543
 	local target = absPath(currentFile) -- 544
-	if not ops:exist(target) then -- 545
+	if not ops:exist(target) then -- 544
 		return false -- 546
 	end -- 546
 	local backup = backupCorrupt(target, ".reset") -- 548
-	if backup == "" then -- 549
+	if backup == "" then -- 548
 		return false -- 550
 	end -- 550
-	if not sameContent(target, backup) then -- 553
+	if not sameContent(target, backup) then -- 550
 		return false -- 554
 	end -- 554
-	if not ops:remove(target) then -- 556
+	if not ops:remove(target) then -- 554
 		return false -- 557
 	end -- 557
-	if protectedPath == target then -- 559
+	if protectedPath == target then -- 557
 		protectedPath = "" -- 560
 	end -- 560
 	return true -- 562
@@ -509,7 +509,7 @@ function ____exports.saveSignature(state) -- 566
 		state.artifactOwned and "1" or "0", -- 570
 		state.museumPhase, -- 571
 		state.museumSeen and "1" or "0" -- 572
-	}, "|") -- 573
+	}, "|") -- 572
 end -- 566
 ____exports.SESSION_VERSION = 1 -- 580
 ____exports.SESSION_FILE = "watch-save/session.txt" -- 581
@@ -521,19 +521,19 @@ function ____exports.getSessionFile() -- 653
 	return currentSessionFile -- 654
 end -- 653
 local function parseBoolField(raw, fallback) -- 657
-	if raw == nil then -- 658
+	if raw == nil then -- 657
 		return fallback -- 659
 	end -- 659
-	if raw == "true" or raw == "1" then -- 661
+	if raw == "true" or raw == "1" then -- 659
 		return true -- 662
 	end -- 662
-	if raw == "false" or raw == "0" then -- 664
+	if raw == "false" or raw == "0" then -- 662
 		return false -- 665
 	end -- 665
 	return nil -- 667
 end -- 657
 local function parseListField(raw) -- 670
-	if raw == nil or raw == "" then -- 671
+	if raw == nil or raw == "" then -- 670
 		return {} -- 672
 	end -- 672
 	local parts = __TS__StringSplit(raw, ",") -- 674
@@ -543,7 +543,7 @@ local function parseListField(raw) -- 670
 		i = 0 -- 677
 		while i < #parts do -- 677
 			local item = __TS__StringTrim(parts[i + 1]) -- 678
-			if item ~= "" then -- 679
+			if item ~= "" then -- 678
 				out[#out + 1] = item -- 680
 			end -- 680
 			i = i + 1 -- 677
@@ -611,18 +611,18 @@ local function formatSession(s) -- 686
 	) -- 740
 end -- 686
 local function parseSession(text) -- 743
-	if #text == 0 then -- 744
+	if #text == 0 then -- 743
 		return {ok = false, status = "corrupt", reason = "局中存档为空"} -- 745
 	end -- 745
 	local verRaw = lineValue(text, "version") -- 747
-	if verRaw == nil then -- 748
+	if verRaw == nil then -- 747
 		return {ok = false, status = "corrupt", reason = "缺少 version 行"} -- 749
 	end -- 749
 	local ver = intOf(verRaw, -1) -- 751
-	if ver < 0 then -- 752
+	if ver < 0 then -- 751
 		return {ok = false, status = "corrupt", reason = "version 非法"} -- 753
 	end -- 753
-	if ver > ____exports.SESSION_VERSION then -- 755
+	if ver > ____exports.SESSION_VERSION then -- 753
 		return { -- 756
 			ok = false, -- 756
 			status = "unsupported", -- 756
@@ -630,11 +630,11 @@ local function parseSession(text) -- 743
 		} -- 756
 	end -- 756
 	local roomKey = lineValue(text, "roomKey") -- 758
-	if roomKey == nil or roomKey == "" then -- 759
+	if roomKey == nil or roomKey == "" then -- 758
 		return {ok = false, status = "corrupt", reason = "缺少 roomKey"} -- 760
 	end -- 760
 	local routeRaw = lineValue(text, "route") or "" -- 762
-	if routeRaw ~= "" and routeRaw ~= "child" and routeRaw ~= "soldier" then -- 763
+	if routeRaw ~= "" and routeRaw ~= "child" and routeRaw ~= "soldier" then -- 762
 		return {ok = false, status = "corrupt", reason = "route 取值非法"} -- 764
 	end -- 764
 	local settled = parseBoolField( -- 766
@@ -677,11 +677,11 @@ local function parseSession(text) -- 743
 		lineValue(text, "c2Latch"), -- 775
 		false -- 775
 	) -- 775
-	if settled == nil or handDone == nil or lineSaid == nil or tied == nil or carry == nil or escortDone == nil or cartDocked == nil or joined == nil or c1Latch == nil or c2Latch == nil then -- 776
+	if settled == nil or handDone == nil or lineSaid == nil or tied == nil or carry == nil or escortDone == nil or cartDocked == nil or joined == nil or c1Latch == nil or c2Latch == nil then -- 775
 		return {ok = false, status = "corrupt", reason = "布尔字段非法"} -- 779
 	end -- 779
 	local campRouteRaw = lineValue(text, "campaignRoute") or "" -- 781
-	if campRouteRaw ~= "" and campRouteRaw ~= "outer" and campRouteRaw ~= "drygoods" then -- 782
+	if campRouteRaw ~= "" and campRouteRaw ~= "outer" and campRouteRaw ~= "drygoods" then -- 781
 		return {ok = false, status = "corrupt", reason = "campaignRoute 取值非法"} -- 783
 	end -- 783
 	local hp = intOf( -- 785
@@ -692,7 +692,7 @@ local function parseSession(text) -- 743
 		lineValue(text, "maxHp") or "3", -- 786
 		-1 -- 786
 	) -- 786
-	if hp < 0 or maxHp <= 0 then -- 787
+	if hp < 0 or maxHp <= 0 then -- 786
 		return {ok = false, status = "corrupt", reason = "血量字段非法"} -- 788
 	end -- 788
 	return { -- 790
@@ -886,29 +886,29 @@ local function parseSession(text) -- 743
 	} -- 844
 end -- 743
 local function usableSessionBackup(path) -- 849
-	if not ops:exist(path) then -- 850
+	if not ops:exist(path) then -- 849
 		return false -- 851
 	end -- 851
 	return parseSession(loadText(path)).ok -- 853
 end -- 849
 local function restoreSessionFrom(candidate, target, keepCandidate) -- 856
-	if not usableSessionBackup(candidate) then -- 857
+	if not usableSessionBackup(candidate) then -- 856
 		return false -- 858
 	end -- 858
-	if not ops:copy(candidate, target) then -- 860
+	if not ops:copy(candidate, target) then -- 858
 		return false -- 861
 	end -- 861
-	if not sameContent(candidate, target) then -- 863
+	if not sameContent(candidate, target) then -- 861
 		return false -- 864
 	end -- 864
-	if not keepCandidate then -- 866
+	if not keepCandidate then -- 864
 		ops:remove(candidate) -- 867
 	end -- 867
 	return true -- 869
 end -- 856
 function ____exports.hasSessionSave() -- 872
 	local target = absPath(currentSessionFile) -- 873
-	if usableSessionBackup(target) then -- 874
+	if usableSessionBackup(target) then -- 873
 		return true -- 875
 	end -- 875
 	return usableSessionBackup(target .. ".tmp") or usableSessionBackup(target .. ".prev") -- 877
@@ -917,8 +917,8 @@ function ____exports.loadSession() -- 880
 	local target = absPath(currentSessionFile) -- 881
 	local tmp = target .. ".tmp" -- 882
 	local prev = target .. ".prev" -- 883
-	if not ops:exist(target) then -- 884
-		if restoreSessionFrom(tmp, target, false) then -- 885
+	if not ops:exist(target) then -- 883
+		if restoreSessionFrom(tmp, target, false) then -- 883
 			local p = parseSession(loadText(target)) -- 886
 			return { -- 887
 				state = p.state, -- 887
@@ -928,7 +928,7 @@ function ____exports.loadSession() -- 880
 				backup = "" -- 887
 			} -- 887
 		end -- 887
-		if restoreSessionFrom(prev, target, true) then -- 889
+		if restoreSessionFrom(prev, target, true) then -- 887
 			local p = parseSession(loadText(target)) -- 890
 			return { -- 891
 				state = p.state, -- 891
@@ -947,8 +947,8 @@ function ____exports.loadSession() -- 880
 		} -- 893
 	end -- 893
 	local parsed = parseSession(loadText(target)) -- 895
-	if parsed.ok and parsed.state ~= nil then -- 896
-		if ops:exist(tmp) and sameContent(tmp, target) then -- 897
+	if parsed.ok and parsed.state ~= nil then -- 895
+		if ops:exist(tmp) and sameContent(tmp, target) then -- 895
 			ops:remove(tmp) -- 898
 		end -- 898
 		return { -- 900
@@ -959,9 +959,9 @@ function ____exports.loadSession() -- 880
 			backup = "" -- 900
 		} -- 900
 	end -- 900
-	if parsed.status == "corrupt" then -- 902
+	if parsed.status == "corrupt" then -- 900
 		local broken = backupCorrupt(target, ".corrupt") -- 903
-		if restoreSessionFrom(tmp, target, false) then -- 904
+		if restoreSessionFrom(tmp, target, false) then -- 903
 			local p = parseSession(loadText(target)) -- 905
 			return { -- 906
 				state = p.state, -- 906
@@ -971,7 +971,7 @@ function ____exports.loadSession() -- 880
 				backup = broken -- 906
 			} -- 906
 		end -- 906
-		if restoreSessionFrom(prev, target, true) then -- 908
+		if restoreSessionFrom(prev, target, true) then -- 906
 			local p = parseSession(loadText(target)) -- 909
 			return { -- 910
 				state = p.state, -- 910
@@ -1001,27 +1001,27 @@ end -- 880
 function ____exports.saveSession(state) -- 918
 	local target = absPath(currentSessionFile) -- 919
 	local dir = dirOf(target) -- 920
-	if dir ~= "" and not ops:isdir(dir) then -- 921
+	if dir ~= "" and not ops:isdir(dir) then -- 920
 		ops:mkdir(dir) -- 922
 	end -- 922
 	local tmp = target .. ".tmp" -- 924
 	local prev = target .. ".prev" -- 925
 	local text = formatSession(state) -- 926
-	if not ops:save(tmp, text) then -- 927
+	if not ops:save(tmp, text) then -- 926
 		ops:remove(tmp) -- 928
 		return false -- 929
 	end -- 929
 	local written = ops:load(tmp) -- 931
-	if written == nil or normalize(written) ~= normalize(text) then -- 932
+	if written == nil or normalize(written) ~= normalize(text) then -- 931
 		ops:remove(tmp) -- 933
 		return false -- 934
 	end -- 934
 	local existed = ops:exist(target) -- 936
 	local backedUp = false -- 937
-	if existed then -- 938
-		if usableSessionBackup(target) then -- 939
+	if existed then -- 937
+		if usableSessionBackup(target) then -- 937
 			backedUp = ops:copy(target, prev) -- 940
-			if not backedUp or not usableSessionBackup(prev) then -- 941
+			if not backedUp or not usableSessionBackup(prev) then -- 940
 				ops:remove(tmp) -- 942
 				return false -- 943
 			end -- 943
@@ -1029,15 +1029,15 @@ function ____exports.saveSession(state) -- 918
 			backupCorrupt(target, ".corrupt") -- 946
 		end -- 946
 	end -- 946
-	if not ops:copy(tmp, target) then -- 949
-		if existed and backedUp and not sameContent(target, prev) then -- 950
+	if not ops:copy(tmp, target) then -- 946
+		if existed and backedUp and not sameContent(target, prev) then -- 946
 			ops:copy(prev, target) -- 951
 		end -- 951
 		return false -- 953
 	end -- 953
 	local check = ops:load(target) -- 955
-	if check == nil or normalize(check) ~= normalize(text) then -- 956
-		if existed and backedUp and ops:copy(prev, target) and usableSessionBackup(target) then -- 957
+	if check == nil or normalize(check) ~= normalize(text) then -- 955
+		if existed and backedUp and ops:copy(prev, target) and usableSessionBackup(target) then -- 955
 			ops:remove(tmp) -- 958
 		end -- 958
 		return false -- 960
@@ -1050,13 +1050,13 @@ function ____exports.clearSession() -- 966
 	local tmp = target .. ".tmp" -- 968
 	local prev = target .. ".prev" -- 969
 	local ok = true -- 970
-	if ops:exist(target) then -- 971
+	if ops:exist(target) then -- 970
 		ok = ops:remove(target) and ok -- 972
 	end -- 972
-	if ops:exist(tmp) then -- 974
+	if ops:exist(tmp) then -- 972
 		ops:remove(tmp) -- 975
 	end -- 975
-	if ops:exist(prev) then -- 977
+	if ops:exist(prev) then -- 975
 		ops:remove(prev) -- 978
 	end -- 978
 	return ok -- 980

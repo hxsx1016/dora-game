@@ -125,7 +125,7 @@ local function pressedKeys() -- 154
 	} -- 160
 end -- 154
 local function hitIndex(boxes, pointer, inside) -- 164
-	if not inside then -- 165
+	if not inside then -- 164
 		return -1 -- 166
 	end -- 166
 	return __TS__ArrayFindIndex( -- 168
@@ -160,7 +160,7 @@ function MenuRenderer.prototype.____constructor(self) -- 171
 	self.time = 0 -- 205
 end -- 171
 function MenuRenderer.prototype.emitSound(self, kind) -- 190
-	if self.onUiSound ~= nil then -- 191
+	if self.onUiSound ~= nil then -- 190
 		self:onUiSound(kind) -- 192
 	end -- 192
 end -- 190
@@ -232,17 +232,17 @@ function MenuRenderer.prototype.resetInput(self) -- 262
 end -- 262
 function MenuRenderer.prototype.onKeyEvent(self, key) -- 271
 	self.queuedSkip = true -- 272
-	if key == "Up" or key == "W" then -- 273
+	if key == "Up" or key == "W" then -- 272
 		self.queuedKeys.up = true -- 274
-	elseif key == "Down" or key == "S" then -- 275
+	elseif key == "Down" or key == "S" then -- 274
 		self.queuedKeys.down = true -- 276
-	elseif key == "Left" or key == "A" then -- 277
+	elseif key == "Left" or key == "A" then -- 276
 		self.queuedKeys.left = true -- 278
-	elseif key == "Right" or key == "D" then -- 279
+	elseif key == "Right" or key == "D" then -- 278
 		self.queuedKeys.right = true -- 280
-	elseif key == "Return" or key == "Space" then -- 281
+	elseif key == "Return" or key == "Space" then -- 280
 		self.queuedKeys.confirm = true -- 282
-	elseif key == "Escape" then -- 283
+	elseif key == "Escape" then -- 282
 		self.queuedBack = true -- 284
 	end -- 284
 end -- 271
@@ -298,27 +298,27 @@ function MenuRenderer.prototype.readFrame(self, input, scale, safe) -- 288
 end -- 288
 function MenuRenderer.prototype.verticalSelection(self, selected, boxes, frame) -- 330
 	local hit = hitIndex(boxes, frame.pointer, frame.inside) -- 331
-	if frame.click and hit >= 0 then -- 332
+	if frame.click and hit >= 0 then -- 331
 		return hit -- 333
 	end -- 333
-	if frame.keys.up then -- 335
+	if frame.keys.up then -- 333
 		return (selected + #boxes - 1) % #boxes -- 336
 	end -- 336
-	if frame.keys.down then -- 338
+	if frame.keys.down then -- 336
 		return (selected + 1) % #boxes -- 339
 	end -- 339
 	return frame.pointerMoved and hit >= 0 and not frame.keys.confirm and hit or selected -- 341
 end -- 330
 function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, stage, bgDraw, bgGlow, backdropArt, uiArt, uiDraw, uiInkDraw, uiGlow, texts, w, h, uiScale, safeUi) -- 344
-	if safeUi == nil then -- 360
+	if safeUi == nil then -- 344
 		safeUi = ZERO_SAFE_INSETS -- 360
 	end -- 360
 	self.time = self.time + dt -- 362
 	local splashDissolving = screen == "splash" and self.splashTime >= 4.15 -- 363
-	if screen ~= "splash" or splashDissolving then -- 364
+	if screen ~= "splash" or splashDissolving then -- 363
 		local artW = math.max(w, h * 16 / 9) -- 365
 		local artH = artW * 9 / 16 -- 366
-		if not backdropArt:tryPlace( -- 367
+		if not backdropArt:tryPlace( -- 366
 			"title_backdrop", -- 367
 			"menu_landscape", -- 367
 			w * 0.5, -- 367
@@ -338,7 +338,7 @@ function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, sta
 	local frame = self:readFrame(input, uiScale, safeUi) -- 372
 	w = w / uiScale -- 373
 	h = h / uiScale -- 374
-	if screen == "splash" then -- 376
+	if screen == "splash" then -- 374
 		return self:drawSplash( -- 377
 			dt, -- 377
 			frame, -- 377
@@ -349,7 +349,7 @@ function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, sta
 			h -- 377
 		) -- 377
 	end -- 377
-	if screen == "title" then -- 379
+	if screen == "title" then -- 377
 		return self:drawTitle( -- 380
 			frame, -- 380
 			uiDraw, -- 380
@@ -361,7 +361,7 @@ function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, sta
 			h -- 380
 		) -- 380
 	end -- 380
-	if screen == "chapters" then -- 382
+	if screen == "chapters" then -- 380
 		return self:drawChapters( -- 383
 			frame, -- 383
 			uiDraw, -- 383
@@ -373,7 +373,7 @@ function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, sta
 			h -- 383
 		) -- 383
 	end -- 383
-	if screen == "epilogue" then -- 385
+	if screen == "epilogue" then -- 383
 		return self:drawEpilogue( -- 386
 			frame, -- 386
 			uiDraw, -- 386
@@ -385,7 +385,7 @@ function MenuRenderer.prototype.updateAndDrawScreen(self, dt, screen, input, sta
 			h -- 386
 		) -- 386
 	end -- 386
-	if screen == "history" then -- 388
+	if screen == "history" then -- 386
 		return self:drawHistory( -- 389
 			frame, -- 389
 			uiDraw, -- 389
@@ -416,7 +416,7 @@ function MenuRenderer.prototype.drawSplash(self, dt, frame, uiDraw, uiArt, texts
 	self.splashTime = self.splashTime + safeDt -- 410
 	local t = self.splashTime -- 411
 	local wantSkip = t >= 0.25 and (frame.skipInput or frame.click or frame.keys.confirm or frame.back) -- 413
-	if wantSkip or t >= 4.65 then -- 414
+	if wantSkip or t >= 4.65 then -- 413
 		self.splashTime = 0 -- 415
 		return {type = "splashDone"} -- 416
 	end -- 416
@@ -434,24 +434,24 @@ function MenuRenderer.prototype.drawSplash(self, dt, frame, uiDraw, uiArt, texts
 		) -- 423
 	) -- 423
 	local function smoothEnvelope(localT, fadeIn, holdEnd, endT) -- 425
-		if localT <= 0 or localT >= endT then -- 426
+		if localT <= 0 or localT >= endT then -- 425
 			return 0 -- 426
 		end -- 426
-		if localT < fadeIn then -- 427
+		if localT < fadeIn then -- 426
 			local u = localT / fadeIn -- 428
 			return u * u * (3 - 2 * u) -- 429
 		end -- 429
-		if localT <= holdEnd then -- 431
+		if localT <= holdEnd then -- 429
 			return 1 -- 431
 		end -- 431
 		local u = (localT - holdEnd) / math.max(0.01, endT - holdEnd) -- 432
 		return 1 - u * u * (3 - 2 * u) -- 433
 	end -- 425
-	if t < 2.2 then -- 436
+	if t < 2.2 then -- 425
 		local alpha = smoothEnvelope(t, 0.42, 1.72, 2.2) -- 437
 		local scaleBreath = 0.985 + 0.03 * (t / 2.2) -- 438
 		local logoH = math.min(384, h * 0.54) * scaleBreath -- 439
-		if not uiArt:tryPlace( -- 440
+		if not uiArt:tryPlace( -- 439
 			"brand_team_logo", -- 440
 			"splash_team_logo", -- 440
 			w * 0.5, -- 440
@@ -487,7 +487,7 @@ function MenuRenderer.prototype.drawSplash(self, dt, frame, uiDraw, uiArt, texts
 			alpha * 0.62, -- 443
 			0 -- 443
 		) -- 443
-	elseif t < 4.25 then -- 444
+	elseif t < 4.25 then -- 443
 		local localT = t - 2.2 -- 445
 		local alpha = smoothEnvelope(localT, 0.45, 1.6, 2.05) -- 446
 		local sway = math.sin(localT * 1.1) * 8 -- 447
@@ -504,7 +504,7 @@ function MenuRenderer.prototype.drawSplash(self, dt, frame, uiDraw, uiArt, texts
 		) -- 448
 		local scaleBreath = 0.985 + 0.028 * (localT / 2.05) -- 449
 		local logoH = math.min(310, h * 0.44) * scaleBreath -- 450
-		if not uiArt:tryPlace( -- 451
+		if not uiArt:tryPlace( -- 450
 			"brand_game_logo_h", -- 451
 			"splash_game_logo", -- 451
 			w * 0.5, -- 451
@@ -528,7 +528,7 @@ function MenuRenderer.prototype.drawSplash(self, dt, frame, uiDraw, uiArt, texts
 			) -- 452
 		end -- 452
 	end -- 452
-	if t >= 0.35 and t < 4.15 then -- 456
+	if t >= 0.35 and t < 4.15 then -- 452
 		local hintA = math.min(1, (t - 0.35) / 0.35) * 0.52 -- 457
 		local skipText = frame.mode == "touch" and "轻触跳过" or (frame.mode == "gamepad" and keyTagFor("confirm", "gamepad", frame.layout) .. " / START  跳过" or "ESC / SPACE  SKIP") -- 458
 		texts:put( -- 463
@@ -613,7 +613,7 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 		304, -- 494
 		{opacity = 0.98, layer = 3} -- 494
 	) -- 494
-	if not placedBrandTitle then -- 497
+	if not placedBrandTitle then -- 494
 		uiArt:tryPlace( -- 498
 			"ink_vstream", -- 498
 			"title_vstream", -- 498
@@ -673,7 +673,7 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 		p = 0 -- 541
 		while p < #EPIGRAPH_RIGHT do -- 541
 			local ch = EPIGRAPH_RIGHT[p + 1] -- 542
-			if ch ~= "" then -- 543
+			if ch ~= "" then -- 542
 				texts:put( -- 544
 					"xs", -- 544
 					ch, -- 544
@@ -717,8 +717,8 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 	local items = self.hasSession and ({ -- 555
 		{id = "continue", zh = "继续游戏"}, -- 556
 		table.unpack(baseItems) -- 556
-	}) or baseItems -- 557
-	if self.selected >= #items then -- 558
+	}) or baseItems -- 556
+	if self.selected >= #items then -- 556
 		self.selected = 0 -- 559
 	end -- 559
 	local menuX = 112 + frame.safe.left * 0.6 -- 561
@@ -737,7 +737,7 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 	end -- 568
 	local prevTitleSel = self.selected -- 571
 	self.selected = self:verticalSelection(self.selected, boxes, frame) -- 572
-	if self.selected ~= prevTitleSel then -- 573
+	if self.selected ~= prevTitleSel then -- 572
 		self:emitSound("hover") -- 574
 	end -- 574
 	do -- 574
@@ -747,7 +747,7 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 			local active = self.selected == i -- 579
 			local cy = by + btnH * 0.5 -- 580
 			local shiftX = active and 10 or 0 -- 581
-			if active then -- 583
+			if active then -- 581
 				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.2) -- 584
 				drawSilkRibbon( -- 585
 					uiDraw, -- 585
@@ -858,26 +858,26 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 		{opacity = 0.95, layer = 3} -- 621
 	) -- 621
 	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 625
-	if hit >= 0 or frame.keys.confirm then -- 626
+	if hit >= 0 or frame.keys.confirm then -- 625
 		local idx = hit >= 0 and hit or self.selected -- 627
 		local id = items[idx + 1].id -- 628
-		if id == "continue" then -- 629
+		if id == "continue" then -- 628
 			self:emitSound("start") -- 629
 			return {type = "continue"} -- 629
 		end -- 629
-		if id == "trial" then -- 630
+		if id == "trial" then -- 629
 			self:emitSound("start") -- 630
 			return {type = "trial"} -- 630
 		end -- 630
-		if id == "start" then -- 631
+		if id == "start" then -- 630
 			self:emitSound("start") -- 631
 			return {type = "start"} -- 631
 		end -- 631
-		if id == "chapters" then -- 632
+		if id == "chapters" then -- 631
 			self:emitSound("confirm") -- 632
 			return {type = "openChapters"} -- 632
 		end -- 632
-		if id == "quit" then -- 633
+		if id == "quit" then -- 632
 			self:emitSound("back") -- 633
 			return {type = "quit"} -- 633
 		end -- 633
@@ -888,7 +888,7 @@ function MenuRenderer.prototype.drawTitle(self, frame, uiDraw, uiInkDraw, uiArt,
 end -- 469
 function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 640
 	local back = {type = self.chaptersFromPause and "backPause" or "backTitle"} -- 650
-	if frame.back then -- 651
+	if frame.back then -- 650
 		self:emitSound("back") -- 652
 		return back -- 653
 	end -- 653
@@ -918,19 +918,19 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 	local prevSelected = self.chapterSelected -- 674
 	local hitStation = hitIndex(stationBoxes, frame.pointer, frame.inside) -- 675
 	local keys = frame.keys -- 676
-	if frame.click and hitStation >= 0 then -- 677
+	if frame.click and hitStation >= 0 then -- 676
 		self.chapterSelected = hitStation -- 678
-	elseif keys.left or keys.right or not splitTrack and (keys.up or keys.down) then -- 679
+	elseif keys.left or keys.right or not splitTrack and (keys.up or keys.down) then -- 678
 		local step = keys.left and -1 or (keys.right and 1 or 4) -- 680
 		self.chapterSelected = (self.chapterSelected + step + #CHAPTERS) % #CHAPTERS -- 681
-	elseif keys.down and self.chapterSelected < perRow then -- 682
+	elseif keys.down and self.chapterSelected < perRow then -- 681
 		self.chapterSelected = math.min(#CHAPTERS - 1, self.chapterSelected + perRow) -- 683
-	elseif keys.up and self.chapterSelected >= perRow then -- 684
+	elseif keys.up and self.chapterSelected >= perRow then -- 683
 		self.chapterSelected = self.chapterSelected - perRow -- 685
-	elseif frame.pointerMoved and hitStation >= 0 and not keys.confirm then -- 686
+	elseif frame.pointerMoved and hitStation >= 0 and not keys.confirm then -- 685
 		self.chapterSelected = hitStation -- 687
 	end -- 687
-	if self.chapterSelected ~= prevSelected then -- 689
+	if self.chapterSelected ~= prevSelected then -- 687
 		self:emitSound("hover") -- 690
 	end -- 690
 	uiDraw:drawRect( -- 693
@@ -1091,7 +1091,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 	local sep = " · " -- 731
 	local sIdx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 732
 	local titleY = winY + winH - 98 -- 733
-	if theme.backdropKey ~= nil then -- 734
+	if theme.backdropKey ~= nil then -- 733
 		texts:put( -- 735
 			"lg", -- 735
 			theme.titleZh, -- 735
@@ -1099,7 +1099,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 			titleY, -- 735
 			toColor(PALETTE.textBright) -- 735
 		) -- 735
-	elseif sIdx > 0 then -- 736
+	elseif sIdx > 0 then -- 735
 		local leftPart = __TS__StringSlice(theme.titleZh, 0, sIdx) -- 737
 		local rightPart = __TS__StringSlice(theme.titleZh, sIdx + #sep) -- 738
 		local lw = visualTextWidth(leftPart, 40) -- 739
@@ -1280,7 +1280,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 		0.9, -- 770
 		toColor(PALETTE.silkDim, 145) -- 770
 	) -- 770
-	if splitTrack then -- 772
+	if splitTrack then -- 770
 		local lastX = trackX0 + (#CHAPTERS - perRow - 1) * stepX -- 773
 		uiInkDraw:drawSegment( -- 774
 			Vec2(trackX0, trackY - rowGap), -- 774
@@ -1333,7 +1333,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 			local rt = themeOf(CHAPTERS[i + 1].room.key) -- 787
 			local active = self.chapterSelected == i -- 788
 			local nodeCol = active and PALETTE.rouge or (rt.lineTag == "周戍" and PALETTE.cyan or PALETTE.amber) -- 789
-			if active then -- 791
+			if active then -- 789
 				fillRadialGlow( -- 792
 					uiGlow, -- 792
 					sx, -- 792
@@ -1395,7 +1395,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 					4 -- 801
 				) -- 801
 			end -- 801
-			if not splitTrack then -- 804
+			if not splitTrack then -- 801
 				texts:put( -- 805
 					"xs", -- 805
 					rt.numeralZh, -- 805
@@ -1470,7 +1470,7 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 		0.75, -- 824
 		0.08 -- 824
 	) -- 824
-	if frame.click and backHover then -- 826
+	if frame.click and backHover then -- 824
 		self:emitSound("back") -- 827
 		return back -- 828
 	end -- 828
@@ -1481,17 +1481,17 @@ function MenuRenderer.prototype.drawChapters(self, frame, uiDraw, uiInkDraw, uiA
 		____temp_2 = hitStation >= 0 -- 833
 	end -- 833
 	local stationConfirmed = ____temp_2 -- 831
-	if keys.confirm or frame.click and (stationConfirmed or winHover or goHover) then -- 834
+	if keys.confirm or frame.click and (stationConfirmed or winHover or goHover) then -- 831
 		self:emitSound("start") -- 835
 		return {type = "jump", roomIndex = CHAPTERS[self.chapterSelected + 1].roomIndex} -- 836
 	end -- 836
 	return {type = "none"} -- 838
 end -- 640
 function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiArt, _uiGlow, texts, w, h, backLabel) -- 842
-	if backLabel == nil then -- 851
+	if backLabel == nil then -- 842
 		backLabel = "返回标题" -- 851
 	end -- 851
-	if not self.controlsTabManual then -- 853
+	if not self.controlsTabManual then -- 851
 		self.controlsTab = frame.mode -- 854
 	end -- 854
 	local tabOrder = {"kbm", "gamepad", "touch"} -- 856
@@ -1511,18 +1511,18 @@ function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiA
 		Rect(tabStartX + (tabW + tabGap) * 2, tabY, tabW, tabH) -- 867
 	} -- 867
 	local hitTab = hitIndex(tabBoxes, frame.pointer, frame.inside) -- 870
-	if frame.click and hitTab >= 0 then -- 871
-		if self.controlsTab ~= tabOrder[hitTab + 1] then -- 872
+	if frame.click and hitTab >= 0 then -- 870
+		if self.controlsTab ~= tabOrder[hitTab + 1] then -- 870
 			self:emitSound("toggle") -- 873
 		end -- 873
 		self.controlsTab = tabOrder[hitTab + 1] -- 875
 		self.controlsTabManual = true -- 876
-	elseif frame.keys.left or frame.prevTab then -- 877
+	elseif frame.keys.left or frame.prevTab then -- 876
 		local cur = __TS__ArrayIndexOf(tabOrder, self.controlsTab) -- 878
 		self.controlsTab = tabOrder[(cur + #tabOrder - 1) % #tabOrder + 1] -- 879
 		self.controlsTabManual = true -- 880
 		self:emitSound("toggle") -- 881
-	elseif frame.keys.right or frame.nextTab then -- 882
+	elseif frame.keys.right or frame.nextTab then -- 881
 		local cur = __TS__ArrayIndexOf(tabOrder, self.controlsTab) -- 883
 		self.controlsTab = tabOrder[(cur + 1) % #tabOrder + 1] -- 884
 		self.controlsTabManual = true -- 885
@@ -1532,7 +1532,7 @@ function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiA
 	local backY = 40 + frame.safe.bottom * 0.45 -- 890
 	local backBox = Rect(backX - 6, backY - 6, 250, 46) -- 891
 	local backHover = frame.inside and backBox:containsPoint(frame.pointer) -- 892
-	if frame.back or frame.keys.confirm and not (frame.click and hitTab >= 0) or frame.click and backHover then -- 893
+	if frame.back or frame.keys.confirm and not (frame.click and hitTab >= 0) or frame.click and backHover then -- 892
 		self:emitSound("back") -- 894
 		return {type = "backTitle"} -- 895
 	end -- 895
@@ -1838,7 +1838,7 @@ function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiA
 	return {type = "none"} -- 983
 end -- 842
 function MenuRenderer.prototype.drawPauseSettings(self, frame, input, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 987
-	if frame.back then -- 998
+	if frame.back then -- 987
 		self:emitSound("back") -- 999
 		return true -- 1000
 	end -- 1000
@@ -1908,97 +1908,97 @@ function MenuRenderer.prototype.drawPauseSettings(self, frame, input, uiDraw, ui
 	end -- 1023
 	local prevSetSel = self.settingsSelected -- 1026
 	self.settingsSelected = self:verticalSelection(self.settingsSelected, boxes, frame) -- 1027
-	if self.settingsSelected ~= prevSetSel then -- 1028
+	if self.settingsSelected ~= prevSetSel then -- 1027
 		self:emitSound("hover") -- 1029
 	end -- 1029
 	local function applyDelta(rowId, delta) -- 1032
-		if rowId == "back" then -- 1033
+		if rowId == "back" then -- 1032
 			self:emitSound("back") -- 1034
 			return true -- 1035
 		end -- 1035
 		local audioChanged = false -- 1037
-		if rowId == "modePref" then -- 1038
+		if rowId == "modePref" then -- 1037
 			input:cycleModePref(delta) -- 1039
-		elseif rowId == "aimAssist" then -- 1040
+		elseif rowId == "aimAssist" then -- 1039
 			s.aimAssist = not s.aimAssist -- 1041
 			saveControlSettings(s) -- 1042
-		elseif rowId == "gpLayout" then -- 1043
+		elseif rowId == "gpLayout" then -- 1042
 			s.gamepadLayout = s.gamepadLayout == "xbox" and "nintendo" or "xbox" -- 1044
 			input.gamepadLayout = s.gamepadLayout -- 1045
 			saveControlSettings(s) -- 1046
-		elseif rowId == "crouchMode" then -- 1047
+		elseif rowId == "crouchMode" then -- 1046
 			s.crouchToggle = not s.crouchToggle -- 1048
 			saveControlSettings(s) -- 1049
-		elseif rowId == "touchOpacity" then -- 1050
+		elseif rowId == "touchOpacity" then -- 1049
 			s.touchOpacity = nextStepValue(s.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 1051
 			saveControlSettings(s) -- 1052
-		elseif rowId == "touchScale" then -- 1053
+		elseif rowId == "touchScale" then -- 1052
 			s.touchScale = nextStepValue(s.touchScale, TOUCH_SCALE_STEPS, delta) -- 1054
 			saveControlSettings(s) -- 1055
-		elseif rowId == "haptics" then -- 1056
+		elseif rowId == "haptics" then -- 1055
 			s.haptics = not s.haptics -- 1057
 			saveControlSettings(s) -- 1058
-			if s.haptics then -- 1059
-				local ____opt_3 = input:getTouch() -- 1060
-				if ____opt_3 ~= nil then -- 1060
+			if s.haptics then -- 1058
+				local ____opt_3 = input:getTouch() -- 1058
+				if ____opt_3 ~= nil then -- 1058
 					____opt_3:vibrate(0.018) -- 1060
 				end -- 1060
 			end -- 1060
-		elseif rowId == "masterVol" then -- 1062
+		elseif rowId == "masterVol" then -- 1060
 			s.masterVol = nextStepValue(s.masterVol, VOLUME_STEPS, delta) -- 1063
 			saveControlSettings(s) -- 1064
 			audioChanged = true -- 1065
-		elseif rowId == "bgmVol" then -- 1066
+		elseif rowId == "bgmVol" then -- 1065
 			s.bgmVol = nextStepValue(s.bgmVol, VOLUME_STEPS, delta) -- 1067
 			saveControlSettings(s) -- 1068
 			audioChanged = true -- 1069
-		elseif rowId == "sfxVol" then -- 1070
+		elseif rowId == "sfxVol" then -- 1069
 			s.sfxVol = nextStepValue(s.sfxVol, VOLUME_STEPS, delta) -- 1071
 			saveControlSettings(s) -- 1072
 			audioChanged = true -- 1073
-		elseif rowId == "voiceVol" then -- 1074
+		elseif rowId == "voiceVol" then -- 1073
 			s.voiceVol = nextStepValue(s.voiceVol, VOLUME_STEPS, delta) -- 1075
 			saveControlSettings(s) -- 1076
 			audioChanged = true -- 1077
 		end -- 1077
-		if audioChanged and self.onAudioSettingsChanged ~= nil then -- 1079
+		if audioChanged and self.onAudioSettingsChanged ~= nil then -- 1077
 			self:onAudioSettingsChanged(input) -- 1080
 		end -- 1080
 		self:emitSound("toggle") -- 1082
 		return false -- 1083
 	end -- 1032
 	local function valueTextOf(rowId) -- 1086
-		if rowId == "modePref" then -- 1087
+		if rowId == "modePref" then -- 1086
 			return s.modePref == "auto" and ("自动切换（" .. inputModeLabelOf(input.inputMode)) .. "）" or "锁定 · " .. modePrefLabelOf(s.modePref) -- 1088
 		end -- 1088
-		if rowId == "aimAssist" then -- 1092
+		if rowId == "aimAssist" then -- 1088
 			return s.aimAssist and "开（触屏与手柄共用）" or "关" -- 1092
 		end -- 1092
-		if rowId == "gpLayout" then -- 1093
+		if rowId == "gpLayout" then -- 1092
 			return layoutLabelOf(s.gamepadLayout) -- 1093
 		end -- 1093
-		if rowId == "crouchMode" then -- 1094
+		if rowId == "crouchMode" then -- 1093
 			return s.crouchToggle and "点按切换" or "持续按住" -- 1094
 		end -- 1094
-		if rowId == "touchOpacity" then -- 1095
+		if rowId == "touchOpacity" then -- 1094
 			return opacityLabelOf(s.touchOpacity) -- 1095
 		end -- 1095
-		if rowId == "touchScale" then -- 1096
+		if rowId == "touchScale" then -- 1095
 			return scaleLabelOf(s.touchScale) -- 1096
 		end -- 1096
-		if rowId == "haptics" then -- 1097
+		if rowId == "haptics" then -- 1096
 			return caps.supportsHaptics and (s.haptics and "开" or "关") or (s.haptics and "开（仅移动端生效）" or "关") -- 1097
 		end -- 1097
-		if rowId == "masterVol" then -- 1098
+		if rowId == "masterVol" then -- 1097
 			return volumeLabelOf(s.masterVol) -- 1098
 		end -- 1098
-		if rowId == "bgmVol" then -- 1099
+		if rowId == "bgmVol" then -- 1098
 			return volumeLabelOf(s.bgmVol) -- 1099
 		end -- 1099
-		if rowId == "sfxVol" then -- 1100
+		if rowId == "sfxVol" then -- 1099
 			return volumeLabelOf(s.sfxVol) -- 1100
 		end -- 1100
-		if rowId == "voiceVol" then -- 1101
+		if rowId == "voiceVol" then -- 1100
 			return volumeLabelOf(s.voiceVol) -- 1101
 		end -- 1101
 		return "" -- 1102
@@ -2010,7 +2010,7 @@ function MenuRenderer.prototype.drawPauseSettings(self, frame, input, uiDraw, ui
 			local box = boxes[i + 1] -- 1107
 			local cy = box.y + box.height * 0.5 -- 1108
 			local active = self.settingsSelected == i -- 1109
-			if active then -- 1111
+			if active then -- 1109
 				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.4) -- 1112
 				drawSilkRibbon( -- 1113
 					uiDraw, -- 1113
@@ -2084,7 +2084,7 @@ function MenuRenderer.prototype.drawPauseSettings(self, frame, input, uiDraw, ui
 				0.08 -- 1132
 			) -- 1132
 			local val = valueTextOf(row.id) -- 1135
-			if val ~= "" then -- 1136
+			if val ~= "" then -- 1135
 				local valCol = active and PALETTE.amberCore or PALETTE.cyanCore -- 1137
 				local decorated = active and ("‹  " .. val) .. "  ›" or val -- 1138
 				texts:put( -- 1139
@@ -2120,25 +2120,25 @@ function MenuRenderer.prototype.drawPauseSettings(self, frame, input, uiDraw, ui
 		0.08 -- 1149
 	) -- 1149
 	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 1151
-	if hit >= 0 then -- 1152
+	if hit >= 0 then -- 1151
 		self.settingsSelected = hit -- 1153
-		if applyDelta(SETTINGS_ROWS[hit + 1].id, 1) then -- 1154
+		if applyDelta(SETTINGS_ROWS[hit + 1].id, 1) then -- 1153
 			return true -- 1155
 		end -- 1155
 		self:resetInput() -- 1157
 		return false -- 1158
 	end -- 1158
-	if frame.keys.left or frame.prevTab then -- 1160
+	if frame.keys.left or frame.prevTab then -- 1158
 		local id = SETTINGS_ROWS[self.settingsSelected + 1].id -- 1161
-		if id ~= "back" then -- 1162
+		if id ~= "back" then -- 1161
 			applyDelta(id, -1) -- 1163
 			self:resetInput() -- 1164
 		end -- 1164
 		return false -- 1166
 	end -- 1166
-	if frame.keys.right or frame.nextTab or frame.keys.confirm then -- 1168
+	if frame.keys.right or frame.nextTab or frame.keys.confirm then -- 1166
 		local id = SETTINGS_ROWS[self.settingsSelected + 1].id -- 1169
-		if applyDelta(id, 1) then -- 1170
+		if applyDelta(id, 1) then -- 1169
 			return true -- 1171
 		end -- 1171
 		self:resetInput() -- 1173
@@ -2147,15 +2147,15 @@ function MenuRenderer.prototype.drawPauseSettings(self, frame, input, uiDraw, ui
 	return false -- 1176
 end -- 987
 function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, uiScale, assistHintsEnabled, onToggleAssist, safeUi) -- 1184
-	if assistHintsEnabled == nil then -- 1195
+	if assistHintsEnabled == nil then -- 1184
 		assistHintsEnabled = false -- 1195
 	end -- 1195
-	if safeUi == nil then -- 1197
+	if safeUi == nil then -- 1195
 		safeUi = ZERO_SAFE_INSETS -- 1197
 	end -- 1197
 	self.time = self.time + dt -- 1199
 	local frame = self:readFrame(input, uiScale, safeUi) -- 1200
-	if self.pauseShowControls then -- 1202
+	if self.pauseShowControls then -- 1200
 		local ctrlAct = self:drawControls( -- 1203
 			frame, -- 1203
 			uiDraw, -- 1203
@@ -2167,14 +2167,14 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 			h, -- 1203
 			"返回暂停" -- 1203
 		) -- 1203
-		if ctrlAct.type == "backTitle" then -- 1204
+		if ctrlAct.type == "backTitle" then -- 1203
 			self.pauseShowControls = false -- 1205
 			self:resetInput() -- 1206
 		end -- 1206
 		return {type = "none"} -- 1208
 	end -- 1208
-	if self.pauseShowSettings then -- 1211
-		if self:drawPauseSettings( -- 1212
+	if self.pauseShowSettings then -- 1208
+		if self:drawPauseSettings( -- 1208
 			frame, -- 1212
 			input, -- 1212
 			uiDraw, -- 1212
@@ -2190,7 +2190,7 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 		end -- 1214
 		return {type = "none"} -- 1216
 	end -- 1216
-	if frame.back then -- 1219
+	if frame.back then -- 1216
 		self.pauseShowControls = false -- 1220
 		self.pauseShowSettings = false -- 1221
 		self:emitSound("pauseClose") -- 1222
@@ -2202,7 +2202,7 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 		PAUSE_ITEMS, -- 1228
 		function(____, item) return (item.id ~= "fullscreen" or allowFs) and (item.id ~= "quit" or allowQuit) end -- 1228
 	) -- 1228
-	if self.pauseSelected >= #pauseItems then -- 1231
+	if self.pauseSelected >= #pauseItems then -- 1228
 		self.pauseSelected = 0 -- 1232
 	end -- 1232
 	uiDraw:drawRect( -- 1235
@@ -2306,7 +2306,7 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 	end -- 1256
 	local prevPauseSel = self.pauseSelected -- 1259
 	self.pauseSelected = self:verticalSelection(self.pauseSelected, boxes, frame) -- 1260
-	if self.pauseSelected ~= prevPauseSel then -- 1261
+	if self.pauseSelected ~= prevPauseSel then -- 1260
 		self:emitSound("hover") -- 1262
 	end -- 1262
 	do -- 1262
@@ -2318,14 +2318,14 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 			local shiftX = active and 10 or 0 -- 1269
 			local item = pauseItems[i + 1] -- 1270
 			local label = item.zh -- 1271
-			if item.id == "assist" then -- 1272
+			if item.id == "assist" then -- 1271
 				label = assistHintsEnabled and "按键辅助：开" or "按键辅助：关" -- 1273
-			elseif item.id == "fullscreen" then -- 1274
+			elseif item.id == "fullscreen" then -- 1273
 				label = App.fullScreen and "显示：全屏" or "显示：窗口" -- 1275
-			elseif item.id == "settings" then -- 1276
+			elseif item.id == "settings" then -- 1275
 				label = "操控设置 · " .. modePrefLabelOf(input.settings.modePref) -- 1277
 			end -- 1277
-			if active then -- 1280
+			if active then -- 1277
 				local breathe = 0.84 + 0.16 * math.sin(self.time * 2.4) -- 1281
 				drawSilkRibbon( -- 1282
 					uiDraw, -- 1282
@@ -2416,48 +2416,48 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 		0.08 -- 1310
 	) -- 1310
 	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 1312
-	if hit >= 0 or frame.keys.confirm then -- 1313
+	if hit >= 0 or frame.keys.confirm then -- 1312
 		local idx = hit >= 0 and hit or self.pauseSelected -- 1314
 		local id = pauseItems[idx + 1].id -- 1315
-		if id == "controls" then -- 1316
+		if id == "controls" then -- 1315
 			self.pauseShowControls = true -- 1317
 			self:emitSound("confirm") -- 1318
 			self:resetInput() -- 1319
 			return {type = "none"} -- 1320
 		end -- 1320
-		if id == "settings" then -- 1322
+		if id == "settings" then -- 1320
 			self:openPauseSettings() -- 1323
 			self:emitSound("confirm") -- 1324
 			return {type = "none"} -- 1325
 		end -- 1325
-		if id == "assist" then -- 1327
-			if onToggleAssist ~= nil then -- 1328
+		if id == "assist" then -- 1325
+			if onToggleAssist ~= nil then -- 1325
 				onToggleAssist() -- 1329
 			end -- 1329
 			self:emitSound("toggle") -- 1331
 			self:resetInput() -- 1332
 			return {type = "none"} -- 1333
 		end -- 1333
-		if id == "fullscreen" then -- 1335
+		if id == "fullscreen" then -- 1333
 			self:emitSound("toggle") -- 1336
 			self:resetInput() -- 1337
 			return {type = "toggleFullscreen"} -- 1338
 		end -- 1338
 		self.pauseShowControls = false -- 1340
 		self.pauseShowSettings = false -- 1341
-		if id == "resume" then -- 1342
+		if id == "resume" then -- 1341
 			self:emitSound("pauseClose") -- 1342
 			return {type = "resume"} -- 1342
 		end -- 1342
-		if id == "retry" then -- 1343
+		if id == "retry" then -- 1342
 			self:emitSound("confirm") -- 1343
 			return {type = "retry"} -- 1343
 		end -- 1343
-		if id == "chapters" then -- 1344
+		if id == "chapters" then -- 1343
 			self:emitSound("confirm") -- 1344
 			return {type = "openChapters"} -- 1344
 		end -- 1344
-		if id == "quit" then -- 1345
+		if id == "quit" then -- 1344
 			self:emitSound("back") -- 1345
 			return {type = "quit"} -- 1345
 		end -- 1345
@@ -2467,7 +2467,7 @@ function MenuRenderer.prototype.updateAndDrawPause(self, dt, input, uiDraw, uiIn
 	return {type = "none"} -- 1349
 end -- 1184
 function MenuRenderer.prototype.drawEpilogue(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 1356
-	if frame.back then -- 1366
+	if frame.back then -- 1356
 		return {type = "backTitle"} -- 1367
 	end -- 1367
 	uiDraw:drawRect( -- 1371
@@ -2568,7 +2568,7 @@ function MenuRenderer.prototype.drawEpilogue(self, frame, uiDraw, uiInkDraw, uiA
 		0.92, -- 1389
 		0.08 -- 1389
 	) -- 1389
-	if self.epilogueBothCleared then -- 1391
+	if self.epilogueBothCleared then -- 1389
 		drawSilkVeil( -- 1392
 			uiDraw, -- 1392
 			uiArt, -- 1392
@@ -2616,7 +2616,7 @@ function MenuRenderer.prototype.drawEpilogue(self, frame, uiDraw, uiInkDraw, uiA
 			local box = boxes[i + 1] -- 1413
 			local active = self.epilogueSelected == i -- 1414
 			local cy = box.y + box.height * 0.5 -- 1415
-			if active then -- 1416
+			if active then -- 1415
 				local breathe = 0.86 + 0.14 * math.sin(self.time * 2.4) -- 1417
 				drawSilkRibbon( -- 1418
 					uiDraw, -- 1418
@@ -2709,13 +2709,13 @@ function MenuRenderer.prototype.drawEpilogue(self, frame, uiDraw, uiInkDraw, uiA
 		0.08 -- 1443
 	) -- 1443
 	local hit = frame.click and hitIndex(boxes, frame.pointer, frame.inside) or -1 -- 1445
-	if hit >= 0 or frame.keys.confirm then -- 1446
+	if hit >= 0 or frame.keys.confirm then -- 1445
 		local idx = hit >= 0 and hit or self.epilogueSelected -- 1447
 		local id = items[idx + 1].id -- 1448
-		if id == "history" then -- 1449
+		if id == "history" then -- 1448
 			return {type = "openHistory"} -- 1449
 		end -- 1449
-		if id == "replay" then -- 1450
+		if id == "replay" then -- 1449
 			return {type = "replayStory"} -- 1450
 		end -- 1450
 		return {type = "backTitle"} -- 1451
@@ -2723,13 +2723,13 @@ function MenuRenderer.prototype.drawEpilogue(self, frame, uiDraw, uiInkDraw, uiA
 	return {type = "none"} -- 1453
 end -- 1356
 function MenuRenderer.prototype.drawHistory(self, frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h) -- 1460
-	if frame.back then -- 1470
+	if frame.back then -- 1460
 		return {type = self.historyFromEpilogue and "backEpilogue" or "backTitle"} -- 1471
 	end -- 1471
 	local total = #HISTORY_CARDS -- 1474
-	if frame.keys.left or frame.prevTab then -- 1475
+	if frame.keys.left or frame.prevTab then -- 1474
 		self.historyCardIndex = (self.historyCardIndex + total - 1) % total -- 1476
-	elseif frame.keys.right or frame.nextTab then -- 1477
+	elseif frame.keys.right or frame.nextTab then -- 1476
 		self.historyCardIndex = (self.historyCardIndex + 1) % total -- 1478
 	end -- 1478
 	local card = HISTORY_CARDS[self.historyCardIndex + 1] -- 1480
@@ -2756,7 +2756,7 @@ function MenuRenderer.prototype.drawHistory(self, frame, uiDraw, uiInkDraw, uiAr
 			layer = -1 -- 1491
 		} -- 1491
 	) -- 1491
-	if not uiArt:tryPlace( -- 1493
+	if not uiArt:tryPlace( -- 1491
 		"ink_song_paper", -- 1493
 		"hist_paper", -- 1493
 		cx, -- 1493
@@ -2851,12 +2851,12 @@ function MenuRenderer.prototype.drawHistory(self, frame, uiDraw, uiInkDraw, uiAr
 		local buf = "" -- 1520
 		local units = 0 -- 1521
 		local ci = 0 -- 1522
-		while ci < #src do -- 1523
+		while ci < #src do -- 1522
 			local b = __TS__StringCharCodeAt(src, ci) -- 1524
 			local step = b < 128 and 1 or (b < 224 and 2 or (b < 240 and 3 or 4)) -- 1525
 			local ch = __TS__StringSlice(src, ci, ci + step) -- 1526
 			local u = b < 128 and 0.56 or 1.02 -- 1527
-			if units + u > maxUnits and buf ~= "" then -- 1528
+			if units + u > maxUnits and buf ~= "" then -- 1527
 				out[#out + 1] = buf -- 1529
 				buf = ch -- 1530
 				units = u -- 1531
@@ -2866,7 +2866,7 @@ function MenuRenderer.prototype.drawHistory(self, frame, uiDraw, uiInkDraw, uiAr
 			end -- 1534
 			ci = ci + step -- 1536
 		end -- 1536
-		if buf ~= "" then -- 1538
+		if buf ~= "" then -- 1536
 			out[#out + 1] = buf -- 1539
 		end -- 1539
 		return out -- 1541
@@ -2959,17 +2959,17 @@ function MenuRenderer.prototype.drawHistory(self, frame, uiDraw, uiInkDraw, uiAr
 		) -- 1571
 		return hover and frame.click -- 1572
 	end -- 1568
-	if drawNavBtn(prevBox, "prev", "上一篇") then -- 1575
+	if drawNavBtn(prevBox, "prev", "上一篇") then -- 1568
 		self.historyCardIndex = (self.historyCardIndex + total - 1) % total -- 1576
 	end -- 1576
-	if drawNavBtn(nextBox, "next", "下一篇") then -- 1578
+	if drawNavBtn(nextBox, "next", "下一篇") then -- 1576
 		self.historyCardIndex = (self.historyCardIndex + 1) % total -- 1579
 	end -- 1579
-	if drawNavBtn(backBox, "back", self.historyFromEpilogue and "返回尾声" or "返回标题") then -- 1581
+	if drawNavBtn(backBox, "back", self.historyFromEpilogue and "返回尾声" or "返回标题") then -- 1579
 		return {type = self.historyFromEpilogue and "backEpilogue" or "backTitle"} -- 1582
 	end -- 1582
-	if frame.keys.confirm then -- 1585
-		if self.historyCardIndex + 1 < total then -- 1586
+	if frame.keys.confirm then -- 1582
+		if self.historyCardIndex + 1 < total then -- 1582
 			self.historyCardIndex = self.historyCardIndex + 1 -- 1587
 		else -- 1587
 			return {type = self.historyFromEpilogue and "backEpilogue" or "backTitle"} -- 1589

@@ -54,20 +54,20 @@ local function clamp01(v) -- 110
 	) -- 111
 end -- 110
 local function smoothstep(edge0, edge1, x) -- 114
-	if edge1 <= edge0 then -- 115
+	if edge1 <= edge0 then -- 114
 		return x >= edge1 and 1 or 0 -- 116
 	end -- 116
 	local t = clamp01((x - edge0) / (edge1 - edge0)) -- 118
 	return t * t * (3 - 2 * t) -- 119
 end -- 114
 local function asRecord(value) -- 122
-	if value ~= nil and type(value) == "table" then -- 123
+	if value ~= nil and type(value) == "table" then -- 122
 		return value -- 124
 	end -- 124
 	return nil -- 126
 end -- 122
 local function readNum(rec, key) -- 129
-	if rec == nil then -- 130
+	if rec == nil then -- 129
 		return nil -- 131
 	end -- 131
 	local v = rec[key] -- 133
@@ -113,13 +113,13 @@ function PrologueIntroPlugin.prototype.onBindPlay(self, p, _view) -- 175
 	self:syncRuntimeHook() -- 179
 end -- 175
 function PrologueIntroPlugin.prototype.clearTransientState(self, clearRehearsal) -- 183
-	if self.fireLoopActive and self.lastAudio ~= nil then -- 184
+	if self.fireLoopActive and self.lastAudio ~= nil then -- 183
 		self.lastAudio:stopLoop("fe03_night_fire", 0) -- 185
 	end -- 185
-	if clearRehearsal then -- 187
+	if clearRehearsal then -- 185
 		self.rehearsalActive = false -- 188
 		self.rehearsalSequence = false -- 189
-		if self.enteredContractRehearsal and self.boundContract ~= nil then -- 190
+		if self.enteredContractRehearsal and self.boundContract ~= nil then -- 189
 			self.boundContract:exitRehearsal() -- 191
 		end -- 191
 		self.enteredContractRehearsal = false -- 193
@@ -153,16 +153,16 @@ function PrologueIntroPlugin.prototype.syncRuntimeHook(self) -- 217
 		____temp_0 = nil -- 219
 	end -- 219
 	local loaded = ____temp_0 -- 219
-	if loaded == nil then -- 220
+	if loaded == nil then -- 219
 		return -- 221
 	end -- 221
 	local rawFe = loaded["watch.fe"] -- 223
-	if rawFe ~= nil and type(rawFe) == "table" then -- 224
+	if rawFe ~= nil and type(rawFe) == "table" then -- 223
 		local watchFe = rawFe -- 225
-		if watchFe.prologue ~= self then -- 226
+		if watchFe.prologue ~= self then -- 225
 			watchFe.prologue = self -- 227
 		end -- 227
-		if self.boundContract == nil and watchFe.contract ~= nil and type(watchFe.contract) == "table" then -- 229
+		if self.boundContract == nil and watchFe.contract ~= nil and type(watchFe.contract) == "table" then -- 227
 			self.boundContract = watchFe.contract -- 230
 		end -- 230
 	end -- 230
@@ -171,23 +171,23 @@ function PrologueIntroPlugin.prototype.startRehearsal(self, mode, escapeDuration
 	self:clearTransientState(false) -- 237
 	self.rehearsalActive = true -- 238
 	self.rehearsalSequence = mode == "sequence" -- 239
-	if contract ~= nil then -- 240
+	if contract ~= nil then -- 239
 		self.boundContract = contract -- 241
 	else -- 241
 		self:syncRuntimeHook() -- 243
 	end -- 243
-	if self.boundContract ~= nil and not self.boundContract:isRehearsal() then -- 245
+	if self.boundContract ~= nil and not self.boundContract:isRehearsal() then -- 243
 		self.boundContract:enterRehearsal("fe03-prologue") -- 246
 		self.enteredContractRehearsal = true -- 247
 	end -- 247
 	self.escapeDuration = escapeDuration ~= nil and escapeDuration > 0.5 and escapeDuration or ____exports.PROLOGUE_TIMINGS.p02EscapeDuration -- 249
-	if mode == "p01" or mode == "sequence" then -- 253
+	if mode == "p01" or mode == "sequence" then -- 249
 		self:enterStage("p01_wake", ____exports.PROLOGUE_TIMINGS.p01Duration) -- 254
-	elseif mode == "p02" then -- 255
+	elseif mode == "p02" then -- 254
 		self:enterStage("p02_shadow", ____exports.PROLOGUE_TIMINGS.p02ShadowDuration) -- 256
-	elseif mode == "p02_escape" then -- 257
+	elseif mode == "p02_escape" then -- 256
 		self:enterEscapeFromDoorway(false) -- 258
-	elseif mode == "p04" then -- 259
+	elseif mode == "p04" then -- 258
 		self:triggerP04(0, 0) -- 260
 	end -- 260
 end -- 236
@@ -198,17 +198,17 @@ function PrologueIntroPlugin.prototype.seekRehearsal(self, stage, seconds) -- 27
 	local t = math.max(0, seconds) -- 271
 	self.rehearsalActive = true -- 272
 	self.rehearsalSequence = false -- 273
-	if stage == "p01_wake" then -- 274
+	if stage == "p01_wake" then -- 273
 		self:enterStage("p01_wake", ____exports.PROLOGUE_TIMINGS.p01Duration) -- 275
 		self.stageElapsed = math.min(____exports.PROLOGUE_TIMINGS.p01Duration, t) -- 276
 		return -- 277
 	end -- 277
-	if stage == "p02_shadow" then -- 279
+	if stage == "p02_shadow" then -- 277
 		self:enterStage("p02_shadow", ____exports.PROLOGUE_TIMINGS.p02ShadowDuration) -- 280
 		self.stageElapsed = math.min(____exports.PROLOGUE_TIMINGS.p02ShadowDuration, t) -- 281
 		return -- 282
 	end -- 282
-	if stage == "p02_escape" then -- 284
+	if stage == "p02_escape" then -- 282
 		self:enterEscapeFromDoorway(false) -- 285
 		local clamped = math.min(self.escapeDuration, t) -- 286
 		self.stageElapsed = clamped -- 287
@@ -218,14 +218,14 @@ function PrologueIntroPlugin.prototype.seekRehearsal(self, stage, seconds) -- 27
 		self.vignetteAlpha = clamp01(0.14 + u * 0.56) -- 292
 		return -- 293
 	end -- 293
-	if stage == "p02_hidden" then -- 295
+	if stage == "p02_hidden" then -- 293
 		self:enterHiddenCabinet() -- 296
 		self.stageElapsed = math.min(____exports.PROLOGUE_TIMINGS.p02HiddenLinger, t) -- 297
 		local fadeK = clamp01(1 - self.stageElapsed / ____exports.PROLOGUE_TIMINGS.p02HiddenFadeOut) -- 298
 		self.vignetteAlpha = self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02HiddenFadeOut and 0 or self.hiddenStartVignette * fadeK -- 299
 		return -- 302
 	end -- 302
-	if stage == "p04_flash" then -- 304
+	if stage == "p04_flash" then -- 302
 		self.stage = "idle" -- 305
 		self:triggerP04(220, 0) -- 306
 		self.p04Elapsed = math.min(____exports.PROLOGUE_TIMINGS.p04FlashDuration, t) -- 307
@@ -235,7 +235,7 @@ function PrologueIntroPlugin.prototype.seekRehearsal(self, stage, seconds) -- 27
 	self:clearTransientState(false) -- 311
 end -- 270
 function PrologueIntroPlugin.prototype.triggerCabinetEnter(self) -- 315
-	if self.stage == "p02_escape" or self.stage == "p02_shadow" then -- 316
+	if self.stage == "p02_escape" or self.stage == "p02_shadow" then -- 315
 		self:enterHiddenCabinet() -- 317
 	end -- 317
 end -- 315
@@ -271,7 +271,7 @@ function PrologueIntroPlugin.prototype.enterStage(self, next, duration) -- 353
 	self.stage = next -- 354
 	self.stageElapsed = 0 -- 355
 	self.stageDuration = duration -- 356
-	if next ~= "p02_escape" and next ~= "p02_hidden" then -- 357
+	if next ~= "p02_escape" and next ~= "p02_hidden" then -- 356
 		self.vignetteAlpha = 0 -- 358
 		self.heartbeatHz = 0 -- 359
 		self.heartbeatPulse = 0 -- 360
@@ -291,7 +291,7 @@ function PrologueIntroPlugin.prototype.enterEscapeFromDoorway(self, isRetry) -- 
 	self.heartbeatPhase = 0 -- 376
 	self.heartbeatBeatCount = 0 -- 377
 	self.heartbeatPulse = 0 -- 378
-	if isRetry then -- 379
+	if isRetry then -- 378
 		self.escapeRetryCount = self.escapeRetryCount + 1 -- 380
 	end -- 380
 end -- 365
@@ -316,20 +316,20 @@ function PrologueIntroPlugin.prototype.triggerP04(self, anchorX, anchorY) -- 396
 end -- 396
 function PrologueIntroPlugin.prototype.recomputeP04Weights(self) -- 405
 	local t = self.p04Elapsed -- 406
-	if t < 0.08 then -- 407
+	if t < 0.08 then -- 406
 		self.p04FlashIntensity = clamp01(t / 0.08) -- 408
-	elseif t < 0.55 then -- 409
+	elseif t < 0.55 then -- 408
 		local k = (t - 0.08) / 0.47 -- 410
 		local flicker = 0.86 + 0.14 * math.sin(t * 46) -- 411
 		self.p04FlashIntensity = clamp01((1 - k * k) * flicker) -- 412
 	else -- 412
 		self.p04FlashIntensity = 0 -- 414
 	end -- 414
-	if t >= 0.18 then -- 416
+	if t >= 0.18 then -- 414
 		local reveal = smoothstep(0.18, 0.42, t) -- 417
 		local settle = t > 0.55 and 0.42 + 0.43 * (1 - smoothstep(0.55, 0.95, t)) or 0.85 -- 418
 		self.p04PostHintAlpha = math.max(self.p04PostHintAlpha, reveal * settle) -- 419
-		if t > 0.55 then -- 420
+		if t > 0.55 then -- 419
 			self.p04PostHintAlpha = 0.42 + 0.43 * (1 - smoothstep(0.55, 0.95, t)) -- 421
 		end -- 421
 	end -- 421
@@ -341,45 +341,45 @@ function PrologueIntroPlugin.prototype.update(self, ctx) -- 430
 	self.lastAudio = ctx.audio -- 431
 	self:syncRuntimeHook() -- 432
 	local p = ctx.p -- 433
-	if self.lastRoomKey ~= "" and self.lastRoomKey ~= p.room.key then -- 435
+	if self.lastRoomKey ~= "" and self.lastRoomKey ~= p.room.key then -- 433
 		self:onBindPlay(p, ctx.view) -- 436
 	end -- 436
-	if ctx.paused or ctx.worldDt <= 0 then -- 440
+	if ctx.paused or ctx.worldDt <= 0 then -- 436
 		return -- 441
 	end -- 441
 	local dt = ctx.worldDt -- 444
-	if not self.rehearsalActive then -- 447
+	if not self.rehearsalActive then -- 444
 		self:syncLiveBackendTriggers(ctx) -- 448
 	end -- 448
-	if self.stage == "p01_wake" then -- 452
+	if self.stage == "p01_wake" then -- 448
 		self:stepP01(ctx, dt) -- 453
-	elseif self.stage == "p02_shadow" then -- 454
+	elseif self.stage == "p02_shadow" then -- 453
 		self:stepP02Shadow(ctx, dt) -- 455
-	elseif self.stage == "p02_escape" then -- 456
+	elseif self.stage == "p02_escape" then -- 455
 		self:stepP02Escape(ctx, dt) -- 457
-	elseif self.stage == "p02_hidden" then -- 458
+	elseif self.stage == "p02_hidden" then -- 457
 		self:stepP02Hidden(ctx, dt) -- 459
 	end -- 459
-	if self.p04Active then -- 463
+	if self.p04Active then -- 459
 		self:stepP04(ctx, dt) -- 464
 	end -- 464
 end -- 430
 function PrologueIntroPlugin.prototype.syncLiveBackendTriggers(self, ctx) -- 468
 	local p = ctx.p -- 469
 	local pRec = asRecord(p) -- 470
-	if p.room.key == "prologue" then -- 473
+	if p.room.key == "prologue" then -- 470
 		local phase = p.phase -- 474
-		if phase == "prologue-wake" and self.stage ~= "p01_wake" then -- 475
+		if phase == "prologue-wake" and self.stage ~= "p01_wake" then -- 474
 			self:enterStage("p01_wake", ____exports.PROLOGUE_TIMINGS.p01Duration) -- 476
-		elseif phase == "prologue-shadow" and self.stage ~= "p02_shadow" then -- 477
+		elseif phase == "prologue-shadow" and self.stage ~= "p02_shadow" then -- 476
 			self:enterStage("p02_shadow", ____exports.PROLOGUE_TIMINGS.p02ShadowDuration) -- 478
-		elseif phase == "prologue-escape" and self.stage ~= "p02_escape" then -- 479
+		elseif phase == "prologue-escape" and self.stage ~= "p02_escape" then -- 478
 			local dur = readNum(pRec, "escapeDuration") or ____exports.PROLOGUE_TIMINGS.p02EscapeDuration -- 480
 			self.escapeDuration = math.max(0.5, dur) -- 481
 			self:enterEscapeFromDoorway(false) -- 482
-		elseif phase == "prologue-hide" and self.stage ~= "p02_hidden" then -- 483
+		elseif phase == "prologue-hide" and self.stage ~= "p02_hidden" then -- 482
 			self:enterHiddenCabinet() -- 484
-		elseif (phase == "prologue-wait" or phase == "prologue-give") and (self.stage == "p02_escape" or self.stage == "p02_hidden") then -- 486
+		elseif (phase == "prologue-wait" or phase == "prologue-give") and (self.stage == "p02_escape" or self.stage == "p02_hidden") then -- 484
 			self.stage = "idle" -- 489
 			self.vignetteAlpha = 0 -- 490
 			self.heartbeatHz = 0 -- 491
@@ -392,21 +392,21 @@ function PrologueIntroPlugin.prototype.syncLiveBackendTriggers(self, ctx) -- 468
 		while i < #ctx.events.rawEvents do -- 498
 			local ev = ctx.events.rawEvents[i + 1] -- 499
 			local ename = ev.name -- 500
-			if ename == "prologueBeat" and ev.data.beat == "escapeRetry" and self.stage == "p02_escape" then -- 501
+			if ename == "prologueBeat" and ev.data.beat == "escapeRetry" and self.stage == "p02_escape" then -- 500
 				self:retryEscape() -- 502
-			elseif ename == "p04WallFlash" or ename == "wallPeekFlash" then -- 503
-				if not self.p04TriggeredOnce then -- 504
+			elseif ename == "p04WallFlash" or ename == "wallPeekFlash" then -- 502
+				if not self.p04TriggeredOnce then -- 502
 					self:triggerP04(p.player.x, p.player.y) -- 505
 				end -- 505
 			end -- 505
 			i = i + 1 -- 498
 		end -- 498
 	end -- 498
-	if not self.p04TriggeredOnce and not p.childMode and p.player.alive and p.partner.alive then -- 511
+	if not self.p04TriggeredOnce and not p.childMode and p.player.alive and p.partner.alive then -- 498
 		local inPrologueCourtyard = p.room.key == "prologue" and p.phase == "prologue-follow" and p.player.x >= p.ox + 470 and p.player.x <= p.ox + 635 -- 512
 		local inStreetWallRoot = p.room.key == "street" and p.player.x >= p.ox + 115 and p.player.x <= p.ox + 265 and self:hasAliveEnemy(p) -- 515
 		local inS1WellRoot = p.room.key == "s1-crossroad" and p.player.x >= p.ox + 185 and p.player.x <= p.ox + 320 -- 518
-		if inPrologueCourtyard or inStreetWallRoot or inS1WellRoot then -- 520
+		if inPrologueCourtyard or inStreetWallRoot or inS1WellRoot then -- 518
 			self:triggerP04(p.player.x, p.player.y) -- 521
 		end -- 521
 	end -- 521
@@ -416,7 +416,7 @@ function PrologueIntroPlugin.prototype.hasAliveEnemy(self, p) -- 526
 	do -- 527
 		i = 0 -- 528
 		while i < #p.enemies do -- 528
-			if p.enemies[i + 1].alive then -- 529
+			if p.enemies[i + 1].alive then -- 528
 				return true -- 530
 			end -- 530
 			i = i + 1 -- 528
@@ -427,7 +427,7 @@ end -- 526
 function PrologueIntroPlugin.prototype.stepP01(self, ctx, dt) -- 536
 	self.stageElapsed = self.stageElapsed + dt -- 537
 	local tick = ctx.p.ticks -- 538
-	if not self.fireLoopActive then -- 540
+	if not self.fireLoopActive then -- 538
 		self.fireLoopActive = true -- 541
 		ctx.audio:playLoop( -- 542
 			"fe03_night_fire", -- 542
@@ -437,7 +437,7 @@ function PrologueIntroPlugin.prototype.stepP01(self, ctx, dt) -- 536
 			tick -- 542
 		) -- 542
 	end -- 542
-	if self.stageElapsed >= 0.12 then -- 544
+	if self.stageElapsed >= 0.12 then -- 542
 		ctx.audio:playOnce( -- 545
 			self:cueKey("p01_father_call"), -- 546
 			"voice", -- 547
@@ -447,7 +447,7 @@ function PrologueIntroPlugin.prototype.stepP01(self, ctx, dt) -- 536
 			tick -- 551
 		) -- 551
 	end -- 551
-	if self.stageElapsed >= 1.9 then -- 554
+	if self.stageElapsed >= 1.9 then -- 551
 		ctx.audio:playOnce( -- 555
 			self:cueKey("p01_bed_press"), -- 556
 			"sfx", -- 557
@@ -457,8 +457,8 @@ function PrologueIntroPlugin.prototype.stepP01(self, ctx, dt) -- 536
 			tick -- 561
 		) -- 561
 	end -- 561
-	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p01Duration then -- 565
-		if self.rehearsalSequence then -- 566
+	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p01Duration then -- 561
+		if self.rehearsalSequence then -- 561
 			self:enterStage("p02_shadow", ____exports.PROLOGUE_TIMINGS.p02ShadowDuration) -- 567
 		else -- 567
 			self.stageElapsed = ____exports.PROLOGUE_TIMINGS.p01Duration -- 569
@@ -469,7 +469,7 @@ end -- 536
 function PrologueIntroPlugin.prototype.stepP02Shadow(self, ctx, dt) -- 575
 	self.stageElapsed = self.stageElapsed + dt -- 576
 	local tick = ctx.p.ticks -- 577
-	if self.stageElapsed >= 0.08 then -- 579
+	if self.stageElapsed >= 0.08 then -- 577
 		ctx.audio:playOnce( -- 580
 			self:cueKey("p02_door_commotion"), -- 581
 			"ambience", -- 582
@@ -479,7 +479,7 @@ function PrologueIntroPlugin.prototype.stepP02Shadow(self, ctx, dt) -- 575
 			tick -- 586
 		) -- 586
 	end -- 586
-	if self.stageElapsed >= 0.65 then -- 589
+	if self.stageElapsed >= 0.65 then -- 586
 		ctx.audio:playOnce( -- 590
 			self:cueKey("p02_shadow_strike"), -- 591
 			"sfx", -- 592
@@ -489,7 +489,7 @@ function PrologueIntroPlugin.prototype.stepP02Shadow(self, ctx, dt) -- 575
 			tick -- 596
 		) -- 596
 	end -- 596
-	if self.stageElapsed >= 1.02 then -- 599
+	if self.stageElapsed >= 1.02 then -- 596
 		ctx.audio:playOnce( -- 600
 			self:cueKey("p02_bowl_roll"), -- 601
 			"sfx", -- 602
@@ -499,7 +499,7 @@ function PrologueIntroPlugin.prototype.stepP02Shadow(self, ctx, dt) -- 575
 			tick -- 606
 		) -- 606
 	end -- 606
-	if self.stageElapsed >= 1.85 then -- 609
+	if self.stageElapsed >= 1.85 then -- 606
 		ctx.audio:playOnce( -- 610
 			self:cueKey("p02_bowl_hit"), -- 611
 			"sfx", -- 612
@@ -509,7 +509,7 @@ function PrologueIntroPlugin.prototype.stepP02Shadow(self, ctx, dt) -- 575
 			tick -- 616
 		) -- 616
 	end -- 616
-	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02ShadowDuration then -- 620
+	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02ShadowDuration then -- 616
 		self:enterEscapeFromDoorway(false) -- 622
 	end -- 622
 end -- 575
@@ -517,21 +517,21 @@ function PrologueIntroPlugin.prototype.stepP02Escape(self, ctx, dt) -- 626
 	self.stageElapsed = self.stageElapsed + dt -- 627
 	local pRec = asRecord(ctx.p) -- 630
 	local liveRemain = readNum(pRec, "escapeRemaining") -- 631
-	if not self.rehearsalActive and liveRemain ~= nil then -- 632
+	if not self.rehearsalActive and liveRemain ~= nil then -- 631
 		self.escapeRemaining = math.max(0, liveRemain) -- 633
 	else -- 633
 		self.escapeRemaining = math.max(0, self.escapeRemaining - dt) -- 635
 	end -- 635
-	if self.rehearsalActive then -- 639
-		if ctx.input.moveX ~= 0 then -- 640
+	if self.rehearsalActive then -- 635
+		if ctx.input.moveX ~= 0 then -- 635
 			self.escapePlayerX = clamp01(self.escapePlayerX + ctx.input.moveX * dt * 0.34) -- 641
 		end -- 641
-		if self.escapePlayerX >= 0.85 and ctx.input.interact.pressed or self.escapePlayerX >= 0.98 then -- 643
+		if self.escapePlayerX >= 0.85 and ctx.input.interact.pressed or self.escapePlayerX >= 0.98 then -- 641
 			self:enterHiddenCabinet() -- 644
 			return -- 645
 		end -- 645
 	end -- 645
-	if self.escapeRemaining <= 0 and (self.rehearsalActive or liveRemain == nil) then -- 650
+	if self.escapeRemaining <= 0 and (self.rehearsalActive or liveRemain == nil) then -- 645
 		self:retryEscape() -- 651
 		return -- 652
 	end -- 652
@@ -540,7 +540,7 @@ function PrologueIntroPlugin.prototype.stepP02Escape(self, ctx, dt) -- 626
 	local prevCycle = math.floor(self.heartbeatPhase) -- 659
 	self.heartbeatPhase = self.heartbeatPhase + dt * self.heartbeatHz -- 660
 	local currCycle = math.floor(self.heartbeatPhase) -- 661
-	if currCycle > prevCycle then -- 662
+	if currCycle > prevCycle then -- 661
 		self.heartbeatBeatCount = self.heartbeatBeatCount + 1 -- 663
 		self.heartbeatPulse = 1 -- 664
 		ctx.audio:playOnce( -- 665
@@ -553,7 +553,7 @@ function PrologueIntroPlugin.prototype.stepP02Escape(self, ctx, dt) -- 626
 		) -- 671
 	else -- 671
 		local frac = self.heartbeatPhase - currCycle -- 675
-		if frac >= 0.2 and frac <= 0.28 then -- 676
+		if frac >= 0.2 and frac <= 0.28 then -- 675
 			self.heartbeatPulse = math.max(self.heartbeatPulse, 0.56) -- 677
 		end -- 677
 		self.heartbeatPulse = math.max(0, self.heartbeatPulse - dt * 3.8) -- 679
@@ -571,14 +571,14 @@ function PrologueIntroPlugin.prototype.stepP02Hidden(self, ctx, dt) -- 686
 		"prologue:p02_cabinet_shut", -- 695
 		tick -- 696
 	) -- 696
-	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02HiddenFadeOut then -- 700
+	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02HiddenFadeOut then -- 696
 		self.vignetteAlpha = 0 -- 701
 	else -- 701
 		self.vignetteAlpha = self.hiddenStartVignette * (1 - self.stageElapsed / ____exports.PROLOGUE_TIMINGS.p02HiddenFadeOut) -- 703
 	end -- 703
 	self.heartbeatHz = 0 -- 706
 	self.heartbeatPulse = 0 -- 707
-	if self.stageElapsed >= 0.3 then -- 710
+	if self.stageElapsed >= 0.3 then -- 707
 		ctx.audio:playOnce( -- 711
 			self:cueKey("p02_footsteps_fade"), -- 712
 			"sfx", -- 713
@@ -588,16 +588,16 @@ function PrologueIntroPlugin.prototype.stepP02Hidden(self, ctx, dt) -- 686
 			tick -- 717
 		) -- 717
 	end -- 717
-	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02HiddenLinger then -- 721
+	if self.stageElapsed >= ____exports.PROLOGUE_TIMINGS.p02HiddenLinger then -- 717
 		self.stageElapsed = ____exports.PROLOGUE_TIMINGS.p02HiddenLinger -- 722
 		self.vignetteAlpha = 0 -- 723
-		if not self.rehearsalActive then -- 724
+		if not self.rehearsalActive then -- 723
 			self.stage = "idle" -- 725
 		end -- 725
 	end -- 725
 end -- 686
 function PrologueIntroPlugin.prototype.stepP04(self, ctx, dt) -- 730
-	if self.p04Elapsed == 0 then -- 731
+	if self.p04Elapsed == 0 then -- 730
 		ctx.audio:playOnce( -- 732
 			self:cueKey("p04_gunflash"), -- 733
 			"sfx", -- 734
@@ -609,7 +609,7 @@ function PrologueIntroPlugin.prototype.stepP04(self, ctx, dt) -- 730
 	end -- 738
 	self.p04Elapsed = self.p04Elapsed + dt -- 741
 	self:recomputeP04Weights() -- 742
-	if self.p04Elapsed >= ____exports.PROLOGUE_TIMINGS.p04FlashDuration then -- 743
+	if self.p04Elapsed >= ____exports.PROLOGUE_TIMINGS.p04FlashDuration then -- 742
 		self.p04Elapsed = ____exports.PROLOGUE_TIMINGS.p04FlashDuration -- 744
 		self.p04FlashIntensity = 0 -- 745
 		self.p04Active = false -- 746
@@ -617,13 +617,13 @@ function PrologueIntroPlugin.prototype.stepP04(self, ctx, dt) -- 730
 	end -- 748
 end -- 730
 function PrologueIntroPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 753
-	if not self.p04Active and self.p04PostHintAlpha <= 0.01 then -- 759
+	if not self.p04Active and self.p04PostHintAlpha <= 0.01 then -- 753
 		return -- 760
 	end -- 760
 	self:drawP04WorldAction(fgDraw, fgGlow, ctx) -- 762
 end -- 753
 function PrologueIntroPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 766
-	if self.stage == "p01_wake" then -- 773
+	if self.stage == "p01_wake" then -- 766
 		self:drawP01Wake( -- 774
 			uiDraw, -- 774
 			uiInkDraw, -- 774
@@ -633,15 +633,15 @@ function PrologueIntroPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDr
 		) -- 774
 		return true -- 775
 	end -- 775
-	if self.stage == "p02_shadow" then -- 777
+	if self.stage == "p02_shadow" then -- 775
 		self:drawP02ShadowAndBowl(uiDraw, uiInkDraw, uiGlow, ctx) -- 778
 		return true -- 779
 	end -- 779
-	if self.stage == "p02_escape" then -- 781
+	if self.stage == "p02_escape" then -- 779
 		self:drawP02EscapeVignette(uiDraw, uiInkDraw, uiGlow, ctx) -- 782
 		return true -- 784
 	end -- 784
-	if self.stage == "p02_hidden" then -- 786
+	if self.stage == "p02_hidden" then -- 784
 		self:drawP02HiddenCabinet(uiDraw, uiInkDraw, uiGlow, ctx) -- 787
 		return true -- 788
 	end -- 788
@@ -661,7 +661,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 	local sitPan = smoothstep(2.65, 3.85, t) -- 813
 	local handPress = smoothstep(1.75, 2.35, t) * (1 - smoothstep(3.15, 3.85, t) * 0.65) -- 814
 	local fadeOut = 1 - smoothstep(3.72, 4, t) -- 815
-	if eyeOpen > 0.01 then -- 817
+	if eyeOpen > 0.01 then -- 815
 		local panX = -sitPan * w * 0.16 -- 818
 		local sitLiftY = sitPan * h * 0.06 -- 819
 		local fireFlicker = 0.84 + 0.16 * math.sin(t * 9.5) * math.cos(t * 5.2) -- 820
@@ -710,7 +710,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 					42, -- 849
 					36, -- 849
 					math.floor(64 * eyeOpen * fadeOut + 0.5) -- 849
-				) or Color( -- 850
+				) or Color( -- 849
 					24, -- 850
 					20, -- 850
 					22, -- 850
@@ -729,7 +729,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 			end -- 845
 		end -- 845
 		local doorVis = smoothstep(2.25, 3.2, t) -- 855
-		if doorVis > 0.01 then -- 856
+		if doorVis > 0.01 then -- 855
 			local doorX = w * 0.84 + panX * 0.95 -- 857
 			local crackW = 14 + sitPan * 18 -- 858
 			local doorBot = h * 0.14 - sitLiftY * 0.4 -- 859
@@ -851,7 +851,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 				math.floor(140 * eyeOpen * fadeOut + 0.5) -- 916
 			) -- 916
 		) -- 916
-		if handPress > 0.02 then -- 920
+		if handPress > 0.02 then -- 916
 			local hx = dipX -- 921
 			local hy = bedTopY - pressDepth + 14 -- 922
 			local ha = math.floor(245 * handPress * fadeOut + 0.5) -- 923
@@ -903,7 +903,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 		end -- 950
 	end -- 950
 	local lidH = h * 0.52 * (1 - eyeOpen) -- 956
-	if lidH > 1 then -- 957
+	if lidH > 1 then -- 956
 		uiDraw:drawRect( -- 958
 			Rect(0, h - lidH, w, lidH), -- 958
 			Color(5, 6, 9, 255) -- 958
@@ -933,7 +933,7 @@ function PrologueIntroPlugin.prototype.drawP01Wake(self, uiDraw, uiInkDraw, uiAr
 		) -- 962
 	end -- 962
 	local callAlpha = smoothstep(0.1, 0.32, t) * (1 - smoothstep(1.05, 1.55, t)) -- 966
-	if callAlpha > 0.02 then -- 967
+	if callAlpha > 0.02 then -- 966
 		drawSilkVeil( -- 968
 			uiDraw, -- 968
 			uiArt, -- 968
@@ -1047,7 +1047,7 @@ function PrologueIntroPlugin.prototype.drawP02ShadowAndBowl(self, uiDraw, uiInkD
 		21, -- 1043
 		Color(11, 10, 14, 205) -- 1043
 	) -- 1043
-	if cutProg > 0.01 then -- 1046
+	if cutProg > 0.01 then -- 1043
 		local sx = w * (0.02 + cutProg * 0.46) -- 1047
 		uiDraw:drawPolygon( -- 1048
 			{ -- 1048
@@ -1092,7 +1092,7 @@ function PrologueIntroPlugin.prototype.drawP02ShadowAndBowl(self, uiDraw, uiInkD
 		Color(156, 128, 96, 200) -- 1066
 	) -- 1066
 	local rollK = smoothstep(0.98, 1.85, t) -- 1069
-	if t >= 0.96 then -- 1070
+	if t >= 0.96 then -- 1069
 		local startX = w * 0.14 -- 1071
 		local stopX = threshX - 18 -- 1072
 		local bx = startX + (stopX - startX) * rollK -- 1073
@@ -1128,9 +1128,9 @@ function PrologueIntroPlugin.prototype.drawP02ShadowAndBowl(self, uiDraw, uiInkD
 			1.5, -- 1090
 			Color(224, 222, 214, 215) -- 1090
 		) -- 1090
-		if t >= 1.84 then -- 1091
+		if t >= 1.84 then -- 1090
 			local impact = 1 - smoothstep(1.84, 2, t) -- 1092
-			if impact > 0.02 then -- 1093
+			if impact > 0.02 then -- 1092
 				uiInkDraw:drawSegment( -- 1094
 					Vec2(threshX - 2, floorY + 8), -- 1095
 					Vec2(threshX - 14 - (1 - impact) * 12, floorY + 18 + (1 - impact) * 8), -- 1096
@@ -1171,7 +1171,7 @@ function PrologueIntroPlugin.prototype.drawP02EscapeVignette(self, uiDraw, uiInk
 	local w = ctx.uiW -- 1122
 	local h = ctx.uiH -- 1123
 	local a = clamp01(self.vignetteAlpha) -- 1124
-	if a > 0.005 then -- 1126
+	if a > 0.005 then -- 1124
 		local edgeX = w * (0.09 + 0.06 * a) -- 1127
 		local edgeY = h * (0.11 + 0.07 * a) -- 1128
 		local peakA = math.floor(168 * a + 0.5) -- 1129
@@ -1215,7 +1215,7 @@ function PrologueIntroPlugin.prototype.drawP02EscapeVignette(self, uiDraw, uiInk
 			cZero, -- 1138
 			cEdge -- 1138
 		) -- 1138
-		if self.heartbeatPulse > 0.02 then -- 1141
+		if self.heartbeatPulse > 0.02 then -- 1138
 			local pa = math.floor(62 * self.heartbeatPulse * a + 0.5) -- 1142
 			local cPulse = Color(rouge.r, rouge.g, rouge.b, pa) -- 1143
 			local cPulseZero = Color(rouge.r, rouge.g, rouge.b, 0) -- 1144
@@ -1239,7 +1239,7 @@ function PrologueIntroPlugin.prototype.drawP02EscapeVignette(self, uiDraw, uiInk
 			) -- 1146
 		end -- 1146
 	end -- 1146
-	if self.rehearsalActive then -- 1151
+	if self.rehearsalActive then -- 1146
 		local groundY = h * 0.24 -- 1152
 		local doorX = w * 0.14 -- 1153
 		local cabX = w * 0.8 -- 1154
@@ -1266,310 +1266,307 @@ function PrologueIntroPlugin.prototype.drawP02EscapeVignette(self, uiDraw, uiInk
 			2.2, -- 1163
 			Color(176, 144, 106, 210) -- 1163
 		) -- 1163
-		if not ctx.uiArt:tryPlace( -- 1165
-			"child_run", -- 1165
+		if not ctx.uiArt:tryPlaceRun( -- 1163
+			"child", -- 1165
 			"p02_escape_child", -- 1165
 			childX, -- 1165
 			groundY, -- 1165
 			46, -- 1165
 			74, -- 1165
-			{ -- 1165
-				facing = 1, -- 1166
-				frame = math.floor(self.stageElapsed * 10), -- 1167
-				layer = 3 -- 1168
-			} -- 1168
-		) then -- 1168
-			uiDraw:drawRect( -- 1170
-				Rect(childX - 12, groundY, 24, 54), -- 1170
-				Color(168, 72, 54, 235) -- 1170
-			) -- 1170
-		end -- 1170
-	end -- 1170
+			self.stageElapsed * 1.8, -- 1165
+			{facing = 1, layer = 3} -- 1165
+		) then -- 1165
+			uiDraw:drawRect( -- 1169
+				Rect(childX - 12, groundY, 24, 54), -- 1169
+				Color(168, 72, 54, 235) -- 1169
+			) -- 1169
+		end -- 1169
+	end -- 1169
 end -- 1116
-function PrologueIntroPlugin.prototype.drawP02HiddenCabinet(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 1177
-	local w = ctx.uiW -- 1183
-	local h = ctx.uiH -- 1184
-	local t = self.stageElapsed -- 1185
-	local closeK = smoothstep(0, 0.26, t) -- 1186
-	local slitW = w * (0.28 - 0.21 * closeK) -- 1189
-	local leftW = (w - slitW) * 0.5 -- 1190
+function PrologueIntroPlugin.prototype.drawP02HiddenCabinet(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 1176
+	local w = ctx.uiW -- 1182
+	local h = ctx.uiH -- 1183
+	local t = self.stageElapsed -- 1184
+	local closeK = smoothstep(0, 0.26, t) -- 1185
+	local slitW = w * (0.28 - 0.21 * closeK) -- 1188
+	local leftW = (w - slitW) * 0.5 -- 1189
+	uiDraw:drawRect( -- 1190
+		Rect(0, 0, leftW, h), -- 1190
+		Color(7, 7, 10, 248) -- 1190
+	) -- 1190
 	uiDraw:drawRect( -- 1191
-		Rect(0, 0, leftW, h), -- 1191
+		Rect(w - leftW, 0, leftW, h), -- 1191
 		Color(7, 7, 10, 248) -- 1191
 	) -- 1191
-	uiDraw:drawRect( -- 1192
-		Rect(w - leftW, 0, leftW, h), -- 1192
-		Color(7, 7, 10, 248) -- 1192
+	uiInkDraw:drawSegment( -- 1192
+		Vec2(leftW, 0), -- 1192
+		Vec2(leftW, h), -- 1192
+		1.4, -- 1192
+		Color(66, 52, 40, 175) -- 1192
 	) -- 1192
 	uiInkDraw:drawSegment( -- 1193
-		Vec2(leftW, 0), -- 1193
-		Vec2(leftW, h), -- 1193
+		Vec2(w - leftW, 0), -- 1193
+		Vec2(w - leftW, h), -- 1193
 		1.4, -- 1193
 		Color(66, 52, 40, 175) -- 1193
 	) -- 1193
-	uiInkDraw:drawSegment( -- 1194
-		Vec2(w - leftW, 0), -- 1194
-		Vec2(w - leftW, h), -- 1194
-		1.4, -- 1194
-		Color(66, 52, 40, 175) -- 1194
-	) -- 1194
-	local footFade = 1 - smoothstep(0.3, 0.8, t) -- 1197
-	if footFade > 0.02 then -- 1198
-		local shadowX = w * 0.5 + (1 - footFade) * 38 -- 1199
-		fillRadialGlow( -- 1200
-			uiGlow, -- 1201
-			shadowX, -- 1202
-			h * 0.42, -- 1203
-			32, -- 1204
-			90, -- 1205
-			Color( -- 1206
-				148, -- 1206
-				168, -- 1206
-				184, -- 1206
-				math.floor(32 * footFade + 0.5) -- 1206
-			), -- 1206
-			Color(90, 110, 130, 0), -- 1207
-			12 -- 1208
-		) -- 1208
-	end -- 1208
-	if self.vignetteAlpha > 0.005 then -- 1213
-		local a = math.floor(140 * self.vignetteAlpha + 0.5) -- 1214
-		local edge = w * 0.08 -- 1215
+	local footFade = 1 - smoothstep(0.3, 0.8, t) -- 1196
+	if footFade > 0.02 then -- 1196
+		local shadowX = w * 0.5 + (1 - footFade) * 38 -- 1198
+		fillRadialGlow( -- 1199
+			uiGlow, -- 1200
+			shadowX, -- 1201
+			h * 0.42, -- 1202
+			32, -- 1203
+			90, -- 1204
+			Color( -- 1205
+				148, -- 1205
+				168, -- 1205
+				184, -- 1205
+				math.floor(32 * footFade + 0.5) -- 1205
+			), -- 1205
+			Color(90, 110, 130, 0), -- 1206
+			12 -- 1207
+		) -- 1207
+	end -- 1207
+	if self.vignetteAlpha > 0.005 then -- 1207
+		local a = math.floor(140 * self.vignetteAlpha + 0.5) -- 1213
+		local edge = w * 0.08 -- 1214
+		fillHGradRect( -- 1215
+			uiDraw, -- 1215
+			0, -- 1215
+			0, -- 1215
+			edge, -- 1215
+			h, -- 1215
+			Color(124, 38, 42, a), -- 1215
+			Color(124, 38, 42, 0) -- 1215
+		) -- 1215
 		fillHGradRect( -- 1216
 			uiDraw, -- 1216
-			0, -- 1216
+			w - edge, -- 1216
 			0, -- 1216
 			edge, -- 1216
 			h, -- 1216
-			Color(124, 38, 42, a), -- 1216
-			Color(124, 38, 42, 0) -- 1216
+			Color(124, 38, 42, 0), -- 1216
+			Color(124, 38, 42, a) -- 1216
 		) -- 1216
-		fillHGradRect( -- 1217
-			uiDraw, -- 1217
-			w - edge, -- 1217
-			0, -- 1217
-			edge, -- 1217
-			h, -- 1217
-			Color(124, 38, 42, 0), -- 1217
-			Color(124, 38, 42, a) -- 1217
-		) -- 1217
-	end -- 1217
-end -- 1177
-function PrologueIntroPlugin.prototype.drawP04WorldAction(self, fgDraw, fgGlow, ctx) -- 1223
-	local p = ctx.p -- 1228
-	local cam = ctx.cam -- 1229
-	local flash = self.p04FlashIntensity -- 1230
-	local hintAlpha = self.p04PostHintAlpha -- 1231
-	local zhou = p.childMode and p.partner or p.player -- 1233
-	local xiao = p.childMode and p.player or p.partner -- 1234
-	local zX = cam:sx(zhou.x) -- 1235
-	local zY = cam:sy(zhou.y, zhou.depth) -- 1236
-	local zH = cam:len(zhou.h) -- 1237
-	local xX = cam:sx(xiao.x) -- 1238
-	local xY = cam:sy(xiao.y, xiao.depth) -- 1239
-	local xH = cam:len(xiao.h) -- 1240
-	if flash > 0.01 then -- 1243
-		fillGradQuad( -- 1245
-			fgGlow, -- 1246
+	end -- 1216
+end -- 1176
+function PrologueIntroPlugin.prototype.drawP04WorldAction(self, fgDraw, fgGlow, ctx) -- 1222
+	local p = ctx.p -- 1227
+	local cam = ctx.cam -- 1228
+	local flash = self.p04FlashIntensity -- 1229
+	local hintAlpha = self.p04PostHintAlpha -- 1230
+	local zhou = p.childMode and p.partner or p.player -- 1232
+	local xiao = p.childMode and p.player or p.partner -- 1233
+	local zX = cam:sx(zhou.x) -- 1234
+	local zY = cam:sy(zhou.y, zhou.depth) -- 1235
+	local zH = cam:len(zhou.h) -- 1236
+	local xX = cam:sx(xiao.x) -- 1237
+	local xY = cam:sy(xiao.y, xiao.depth) -- 1238
+	local xH = cam:len(xiao.h) -- 1239
+	if flash > 0.01 then -- 1239
+		fillGradQuad( -- 1244
+			fgGlow, -- 1245
+			cam.viewW, -- 1246
+			cam.groundScreenY + cam:len(18), -- 1246
+			Color( -- 1246
+				238, -- 1246
+				178, -- 1246
+				108, -- 1246
+				math.floor(96 * flash + 0.5) -- 1246
+			), -- 1246
 			cam.viewW, -- 1247
-			cam.groundScreenY + cam:len(18), -- 1247
+			cam.groundScreenY + cam:len(195), -- 1247
 			Color( -- 1247
-				238, -- 1247
-				178, -- 1247
-				108, -- 1247
-				math.floor(96 * flash + 0.5) -- 1247
+				224, -- 1247
+				148, -- 1247
+				82, -- 1247
+				math.floor(72 * flash + 0.5) -- 1247
 			), -- 1247
-			cam.viewW, -- 1248
-			cam.groundScreenY + cam:len(195), -- 1248
-			Color( -- 1248
-				224, -- 1248
-				148, -- 1248
-				82, -- 1248
-				math.floor(72 * flash + 0.5) -- 1248
-			), -- 1248
+			zX - cam:len(140), -- 1248
+			cam.groundScreenY + cam:len(140), -- 1248
+			Color(200, 120, 62, 0), -- 1248
 			zX - cam:len(140), -- 1249
-			cam.groundScreenY + cam:len(140), -- 1249
-			Color(200, 120, 62, 0), -- 1249
-			zX - cam:len(140), -- 1250
-			cam.groundScreenY, -- 1250
-			Color(200, 120, 62, 0) -- 1250
-		) -- 1250
-		local wallBaseY = cam.groundScreenY + cam:len(14) -- 1254
-		local shAlpha = math.floor(148 * flash + 0.5) -- 1255
-		local shCol = Color(8, 10, 14, shAlpha) -- 1256
-		fgDraw:drawPolygon( -- 1258
-			{ -- 1258
+			cam.groundScreenY, -- 1249
+			Color(200, 120, 62, 0) -- 1249
+		) -- 1249
+		local wallBaseY = cam.groundScreenY + cam:len(14) -- 1253
+		local shAlpha = math.floor(148 * flash + 0.5) -- 1254
+		local shCol = Color(8, 10, 14, shAlpha) -- 1255
+		fgDraw:drawPolygon( -- 1257
+			{ -- 1257
+				Vec2( -- 1258
+					zX - cam:len(14), -- 1258
+					wallBaseY -- 1258
+				), -- 1258
 				Vec2( -- 1259
-					zX - cam:len(14), -- 1259
+					zX + cam:len(6), -- 1259
 					wallBaseY -- 1259
 				), -- 1259
 				Vec2( -- 1260
-					zX + cam:len(6), -- 1260
-					wallBaseY -- 1260
+					zX - cam:len(38), -- 1260
+					wallBaseY + zH * 1.18 -- 1260
 				), -- 1260
 				Vec2( -- 1261
-					zX - cam:len(38), -- 1261
-					wallBaseY + zH * 1.18 -- 1261
-				), -- 1261
-				Vec2( -- 1262
-					zX - cam:len(64), -- 1262
-					wallBaseY + zH * 1.12 -- 1262
-				) -- 1262
-			}, -- 1262
-			shCol -- 1263
-		) -- 1263
-		fgDraw:drawPolygon( -- 1265
-			{ -- 1265
+					zX - cam:len(64), -- 1261
+					wallBaseY + zH * 1.12 -- 1261
+				) -- 1261
+			}, -- 1261
+			shCol -- 1262
+		) -- 1262
+		fgDraw:drawPolygon( -- 1264
+			{ -- 1264
+				Vec2( -- 1265
+					xX - cam:len(10), -- 1265
+					wallBaseY -- 1265
+				), -- 1265
 				Vec2( -- 1266
-					xX - cam:len(10), -- 1266
+					xX + cam:len(6), -- 1266
 					wallBaseY -- 1266
 				), -- 1266
 				Vec2( -- 1267
-					xX + cam:len(6), -- 1267
-					wallBaseY -- 1267
+					xX - cam:len(26), -- 1267
+					wallBaseY + xH * 1.12 -- 1267
 				), -- 1267
 				Vec2( -- 1268
-					xX - cam:len(26), -- 1268
-					wallBaseY + xH * 1.12 -- 1268
-				), -- 1268
-				Vec2( -- 1269
-					xX - cam:len(44), -- 1269
-					wallBaseY + xH * 1.06 -- 1269
-				) -- 1269
-			}, -- 1269
-			shCol -- 1270
-		) -- 1270
-		local shieldK = smoothstep(0.1, 0.24, self.p04Elapsed) * (1 - smoothstep(0.5, 0.78, self.p04Elapsed)) -- 1273
-		if shieldK > 0.02 then -- 1274
-			local armX = zX + cam:len(10) -- 1275
-			local armY = zY + zH * 0.66 -- 1276
-			local cuffW = cam:len(13) -- 1277
-			local cuffH = cam:len(7) -- 1278
-			local sa = math.floor(235 * shieldK + 0.5) -- 1279
-			fgDraw:drawPolygon( -- 1280
-				{ -- 1280
-					Vec2( -- 1281
-						zX + cam:len(2), -- 1281
-						armY - cuffH * 0.4 -- 1281
-					), -- 1281
-					Vec2(armX + cuffW, armY + cuffH * 0.9), -- 1282
-					Vec2(armX + cuffW * 0.72, armY + cuffH * 1.75), -- 1283
-					Vec2( -- 1284
-						zX - cam:len(2), -- 1284
-						armY + cuffH * 0.5 -- 1284
-					) -- 1284
-				}, -- 1284
-				toColor(____exports.CUFF_SHARED_SPEC.indigoCloth, sa) -- 1285
-			) -- 1285
-			fgDraw:drawSegment( -- 1287
-				Vec2(armX + cuffW * 0.45, armY + cuffH * 0.75), -- 1288
-				Vec2(armX + cuffW * 0.82, armY + cuffH * 1.25), -- 1289
-				1.3, -- 1290
-				toColor( -- 1291
-					____exports.CUFF_SHARED_SPEC.mendStitch, -- 1291
-					math.floor(210 * shieldK + 0.5) -- 1291
-				) -- 1291
-			) -- 1291
-			fillGradQuad( -- 1294
-				fgDraw, -- 1295
+					xX - cam:len(44), -- 1268
+					wallBaseY + xH * 1.06 -- 1268
+				) -- 1268
+			}, -- 1268
+			shCol -- 1269
+		) -- 1269
+		local shieldK = smoothstep(0.1, 0.24, self.p04Elapsed) * (1 - smoothstep(0.5, 0.78, self.p04Elapsed)) -- 1272
+		if shieldK > 0.02 then -- 1272
+			local armX = zX + cam:len(10) -- 1274
+			local armY = zY + zH * 0.66 -- 1275
+			local cuffW = cam:len(13) -- 1276
+			local cuffH = cam:len(7) -- 1277
+			local sa = math.floor(235 * shieldK + 0.5) -- 1278
+			fgDraw:drawPolygon( -- 1279
+				{ -- 1279
+					Vec2( -- 1280
+						zX + cam:len(2), -- 1280
+						armY - cuffH * 0.4 -- 1280
+					), -- 1280
+					Vec2(armX + cuffW, armY + cuffH * 0.9), -- 1281
+					Vec2(armX + cuffW * 0.72, armY + cuffH * 1.75), -- 1282
+					Vec2( -- 1283
+						zX - cam:len(2), -- 1283
+						armY + cuffH * 0.5 -- 1283
+					) -- 1283
+				}, -- 1283
+				toColor(____exports.CUFF_SHARED_SPEC.indigoCloth, sa) -- 1284
+			) -- 1284
+			fgDraw:drawSegment( -- 1286
+				Vec2(armX + cuffW * 0.45, armY + cuffH * 0.75), -- 1287
+				Vec2(armX + cuffW * 0.82, armY + cuffH * 1.25), -- 1288
+				1.3, -- 1289
+				toColor( -- 1290
+					____exports.CUFF_SHARED_SPEC.mendStitch, -- 1290
+					math.floor(210 * shieldK + 0.5) -- 1290
+				) -- 1290
+			) -- 1290
+			fillGradQuad( -- 1293
+				fgDraw, -- 1294
+				zX + cam:len(4), -- 1295
+				zY + zH * 0.85, -- 1295
+				Color( -- 1295
+					10, -- 1295
+					12, -- 1295
+					18, -- 1295
+					math.floor(92 * shieldK + 0.5) -- 1295
+				), -- 1295
 				zX + cam:len(4), -- 1296
-				zY + zH * 0.85, -- 1296
+				zY, -- 1296
 				Color( -- 1296
 					10, -- 1296
 					12, -- 1296
 					18, -- 1296
-					math.floor(92 * shieldK + 0.5) -- 1296
+					math.floor(62 * shieldK + 0.5) -- 1296
 				), -- 1296
-				zX + cam:len(4), -- 1297
-				zY, -- 1297
-				Color( -- 1297
-					10, -- 1297
-					12, -- 1297
-					18, -- 1297
-					math.floor(62 * shieldK + 0.5) -- 1297
-				), -- 1297
+				xX - cam:len(18), -- 1297
+				xY, -- 1297
+				Color(10, 12, 18, 0), -- 1297
 				xX - cam:len(18), -- 1298
-				xY, -- 1298
-				Color(10, 12, 18, 0), -- 1298
-				xX - cam:len(18), -- 1299
-				xY + xH, -- 1299
-				Color(10, 12, 18, 0) -- 1299
-			) -- 1299
-		end -- 1299
-	end -- 1299
-	if hintAlpha > 0.02 then -- 1305
-		local baseWx = self.p04AnchorWorldX > 0 and self.p04AnchorWorldX or zhou.x -- 1306
-		local hintBaseX = cam:sx(baseWx + 74) -- 1307
-		local groundY = cam:sy(0, 0) -- 1308
-		local boardY = groundY + cam:len(34) -- 1309
-		local boardW = cam:len(62) -- 1310
-		local sheenBoost = flash * 0.55 -- 1311
-		local aNorm = clamp01(hintAlpha + sheenBoost) -- 1312
-		fgDraw:drawRect( -- 1315
-			Rect( -- 1316
-				hintBaseX, -- 1316
-				boardY, -- 1316
-				boardW, -- 1316
-				cam:len(12) -- 1316
+				xY + xH, -- 1298
+				Color(10, 12, 18, 0) -- 1298
+			) -- 1298
+		end -- 1298
+	end -- 1298
+	if hintAlpha > 0.02 then -- 1298
+		local baseWx = self.p04AnchorWorldX > 0 and self.p04AnchorWorldX or zhou.x -- 1305
+		local hintBaseX = cam:sx(baseWx + 74) -- 1306
+		local groundY = cam:sy(0, 0) -- 1307
+		local boardY = groundY + cam:len(34) -- 1308
+		local boardW = cam:len(62) -- 1309
+		local sheenBoost = flash * 0.55 -- 1310
+		local aNorm = clamp01(hintAlpha + sheenBoost) -- 1311
+		fgDraw:drawRect( -- 1314
+			Rect( -- 1315
+				hintBaseX, -- 1315
+				boardY, -- 1315
+				boardW, -- 1315
+				cam:len(12) -- 1315
+			), -- 1315
+			Color( -- 1316
+				54, -- 1316
+				42, -- 1316
+				32, -- 1316
+				math.floor(165 * aNorm + 0.5) -- 1316
 			), -- 1316
-			Color( -- 1317
-				54, -- 1317
-				42, -- 1317
-				32, -- 1317
-				math.floor(165 * aNorm + 0.5) -- 1317
-			), -- 1317
-			1, -- 1318
-			Color( -- 1319
-				126, -- 1319
-				102, -- 1319
-				76, -- 1319
-				math.floor(150 * aNorm + 0.5) -- 1319
-			) -- 1319
-		) -- 1319
-		fgDraw:drawSegment( -- 1321
-			Vec2(hintBaseX + 2, boardY + 1), -- 1322
-			Vec2(hintBaseX + boardW - 2, boardY + 1), -- 1323
-			2, -- 1324
-			Color( -- 1325
-				214, -- 1325
-				198, -- 1325
-				168, -- 1325
-				math.floor(215 * aNorm + 0.5) -- 1325
-			) -- 1325
-		) -- 1325
-		local grooveX0 = hintBaseX - cam:len(18) -- 1329
-		local grooveX1 = hintBaseX + boardW + cam:len(26) -- 1330
-		fgDraw:drawRect( -- 1331
-			Rect( -- 1332
-				grooveX0, -- 1332
-				groundY + 1, -- 1332
-				grooveX1 - grooveX0, -- 1332
-				cam:len(4) -- 1332
-			), -- 1332
-			Color( -- 1333
-				22, -- 1333
-				26, -- 1333
-				32, -- 1333
-				math.floor(170 * aNorm + 0.5) -- 1333
-			) -- 1333
-		) -- 1333
-		fgDraw:drawSegment( -- 1335
+			1, -- 1317
+			Color( -- 1318
+				126, -- 1318
+				102, -- 1318
+				76, -- 1318
+				math.floor(150 * aNorm + 0.5) -- 1318
+			) -- 1318
+		) -- 1318
+		fgDraw:drawSegment( -- 1320
+			Vec2(hintBaseX + 2, boardY + 1), -- 1321
+			Vec2(hintBaseX + boardW - 2, boardY + 1), -- 1322
+			2, -- 1323
+			Color( -- 1324
+				214, -- 1324
+				198, -- 1324
+				168, -- 1324
+				math.floor(215 * aNorm + 0.5) -- 1324
+			) -- 1324
+		) -- 1324
+		local grooveX0 = hintBaseX - cam:len(18) -- 1328
+		local grooveX1 = hintBaseX + boardW + cam:len(26) -- 1329
+		fgDraw:drawRect( -- 1330
+			Rect( -- 1331
+				grooveX0, -- 1331
+				groundY + 1, -- 1331
+				grooveX1 - grooveX0, -- 1331
+				cam:len(4) -- 1331
+			), -- 1331
+			Color( -- 1332
+				22, -- 1332
+				26, -- 1332
+				32, -- 1332
+				math.floor(170 * aNorm + 0.5) -- 1332
+			) -- 1332
+		) -- 1332
+		fgDraw:drawSegment( -- 1334
+			Vec2( -- 1335
+				grooveX0 + 4, -- 1335
+				groundY + cam:len(5) -- 1335
+			), -- 1335
 			Vec2( -- 1336
-				grooveX0 + 4, -- 1336
+				grooveX1 - 4, -- 1336
 				groundY + cam:len(5) -- 1336
 			), -- 1336
-			Vec2( -- 1337
-				grooveX1 - 4, -- 1337
-				groundY + cam:len(5) -- 1337
-			), -- 1337
-			1.6, -- 1338
-			Color( -- 1339
-				196, -- 1339
-				204, -- 1339
-				210, -- 1339
-				math.floor(195 * aNorm + 0.5) -- 1339
-			) -- 1339
-		) -- 1339
-	end -- 1339
-end -- 1223
-return ____exports -- 1223
+			1.6, -- 1337
+			Color( -- 1338
+				196, -- 1338
+				204, -- 1338
+				210, -- 1338
+				math.floor(195 * aNorm + 0.5) -- 1338
+			) -- 1338
+		) -- 1338
+	end -- 1338
+end -- 1222
+return ____exports -- 1222

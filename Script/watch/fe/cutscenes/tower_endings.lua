@@ -178,29 +178,29 @@ local function computeScaledAnchors(uiW, uiH, lampProg) -- 277
 	}} -- 309
 end -- 277
 local function deriveStage(seqElapsed, active) -- 314
-	if not active then -- 315
+	if not active then -- 314
 		return "idle" -- 316
 	end -- 316
-	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 318
+	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 316
 		return "porch_knock" -- 319
 	end -- 319
-	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 321
+	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 319
 		return "door_open" -- 322
 	end -- 322
-	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.pivotStartSec then -- 324
+	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.pivotStartSec then -- 322
 		return "book_row1" -- 325
 	end -- 325
-	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 327
+	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 325
 		return "pivot_hover" -- 328
 	end -- 328
-	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 330
+	if seqElapsed < ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 328
 		return "diverge_action" -- 331
 	end -- 331
 	return "ending_hold" -- 333
 end -- 314
 --- 将字符切片数组按进度拼接为前 n 段（避免 Lua 字节切片截断 UTF-8 汉字）
 local function joinPrefixTokens(tokens, progress) -- 337
-	if progress <= 0 or #tokens == 0 then -- 338
+	if progress <= 0 or #tokens == 0 then -- 337
 		return "" -- 339
 	end -- 339
 	local count = math.max( -- 341
@@ -247,17 +247,17 @@ local ROW2_SOLDIER_TOKENS = { -- 351
 	"收" -- 351
 } -- 351
 local function asRecord(v) -- 353
-	if v ~= nil and type(v) == "table" then -- 354
+	if v ~= nil and type(v) == "table" then -- 353
 		return v -- 355
 	end -- 355
 	return nil -- 357
 end -- 353
 --- 描边椭圆（Dora DrawNode.drawEllipse 仅支持填充，描边用等分折线保证锐利清晰）
 local function strokeEllipse(draw, cx, cy, rx, ry, width, color, segments) -- 361
-	if segments == nil then -- 369
+	if segments == nil then -- 361
 		segments = 24 -- 369
 	end -- 369
-	if rx <= 0.5 or ry <= 0.5 or width <= 0.05 then -- 371
+	if rx <= 0.5 or ry <= 0.5 or width <= 0.05 then -- 369
 		return -- 372
 	end -- 372
 	local step = math.pi * 2 / segments -- 374
@@ -316,13 +316,13 @@ function TowerEndingsPlugin.prototype.____constructor(self) -- 390
 	self.loopsActive = false -- 428
 end -- 390
 function TowerEndingsPlugin.prototype.resolveRoute(self, p, view) -- 431
-	if self.rehearsalActive then -- 432
+	if self.rehearsalActive then -- 431
 		return self.rehearsalRoute -- 433
 	end -- 433
-	if view.storyRoute == "soldier" then -- 435
+	if view.storyRoute == "soldier" then -- 433
 		return "soldier" -- 436
 	end -- 436
-	if view.storyRoute == "child" then -- 438
+	if view.storyRoute == "child" then -- 436
 		return "child" -- 439
 	end -- 439
 	local runRec = asRecord(p.run) -- 442
@@ -334,7 +334,7 @@ function TowerEndingsPlugin.prototype.resolveRoute(self, p, view) -- 431
 		____temp_0 = nil -- 443
 	end -- 443
 	local storyRec = ____asRecord_1(____temp_0) -- 443
-	if storyRec ~= nil and storyRec.ending == "reunion" then -- 444
+	if storyRec ~= nil and storyRec.ending == "reunion" then -- 443
 		return "soldier" -- 445
 	end -- 445
 	return p.childMode and "child" or "soldier" -- 448
@@ -346,7 +346,7 @@ function TowerEndingsPlugin.prototype.clearSequenceState(self, keepIndoorDoorOpe
 	self.doorOpened = keepIndoorDoorOpen -- 455
 	self.knockCount = keepIndoorDoorOpen and 2 or 0 -- 456
 	self.replyKnockCount = keepIndoorDoorOpen and 2 or 0 -- 457
-	if not keepIndoorDoorOpen then -- 458
+	if not keepIndoorDoorOpen then -- 457
 		self.row1Written = false -- 459
 		self.row2Written = false -- 460
 		self.registryAppendCount = 0 -- 461
@@ -362,7 +362,7 @@ function TowerEndingsPlugin.prototype.startRehearsal(self, route, contract, opts
 	self.rehearsalRoute = route -- 479
 	self.activeRoute = route -- 480
 	local tag = opts and opts.tag or (route == "child" and "fe05-F03" or "fe05-M03") -- 481
-	if contract ~= nil then -- 482
+	if contract ~= nil then -- 481
 		contract:enterRehearsal(tag) -- 483
 		contract:setMockRoute(route) -- 484
 	end -- 484
@@ -371,15 +371,15 @@ function TowerEndingsPlugin.prototype.startRehearsal(self, route, contract, opts
 	self:clearSequenceState(isIndoor) -- 488
 	self.active = true -- 489
 	self.doorClosedAfterRetry = false -- 490
-	if isIndoor then -- 491
+	if isIndoor then -- 490
 		self.indoorRetryCount = self.indoorRetryCount + 1 -- 492
 	end -- 492
-	if (opts and opts.seekTime) ~= nil then -- 494
+	if (opts and opts.seekTime) ~= nil then -- 492
 		self:seekRehearsal(opts.seekTime) -- 495
 	end -- 495
 end -- 473
 function TowerEndingsPlugin.prototype.seekRehearsal(self, seconds) -- 500
-	if not self.rehearsalActive then -- 501
+	if not self.rehearsalActive then -- 500
 		return -- 502
 	end -- 502
 	local t = math.max(0, seconds) -- 504
@@ -390,7 +390,7 @@ function TowerEndingsPlugin.prototype.seekRehearsal(self, seconds) -- 500
 	self.confirmReady = not self.staleInputMustRelease and t >= ____exports.TOWER_ENDING_TIMINGS.holdReadySec -- 509
 end -- 500
 function TowerEndingsPlugin.prototype.triggerIndoorRetry(self) -- 513
-	if not self.doorOpened and self.seqElapsed < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 514
+	if not self.doorOpened and self.seqElapsed < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 513
 		self.doorOpened = true -- 515
 	end -- 515
 	self.indoorRetryCount = self.indoorRetryCount + 1 -- 517
@@ -412,7 +412,7 @@ function TowerEndingsPlugin.prototype.stopRehearsal(self, contract) -- 531
 	self:clearSequenceState(false) -- 533
 	self.indoorRetryCount = 0 -- 534
 	self.doorClosedAfterRetry = false -- 535
-	if contract ~= nil then -- 536
+	if contract ~= nil then -- 535
 		contract:exitRehearsal() -- 537
 	end -- 537
 end -- 531
@@ -465,13 +465,13 @@ function TowerEndingsPlugin.prototype.syncRuntimeHook(self) -- 585
 		____temp_8 = nil -- 587
 	end -- 587
 	local loaded = ____temp_8 -- 587
-	if loaded == nil then -- 588
+	if loaded == nil then -- 587
 		return -- 589
 	end -- 589
 	local rawFe = loaded["watch.fe"] -- 591
-	if rawFe ~= nil and type(rawFe) == "table" then -- 592
+	if rawFe ~= nil and type(rawFe) == "table" then -- 591
 		local watchFe = rawFe -- 593
-		if watchFe.towerEndings ~= self then -- 594
+		if watchFe.towerEndings ~= self then -- 593
 			watchFe.towerEndings = self -- 595
 		end -- 595
 	end -- 595
@@ -481,7 +481,7 @@ function TowerEndingsPlugin.prototype.onBindPlay(self, p, view) -- 602
 	self.sessionId = self.sessionId + 1 -- 604
 	self.loopsActive = false -- 605
 	self.prevPhase = p.phase -- 606
-	if self.rehearsalActive then -- 608
+	if self.rehearsalActive then -- 606
 		return -- 609
 	end -- 609
 	local route = self:resolveRoute(p, view) -- 612
@@ -492,23 +492,23 @@ function TowerEndingsPlugin.prototype.onBindPlay(self, p, view) -- 602
 	self.activeRoute = route -- 627
 	self.lastRoomKey = p.room.key -- 628
 	self.lastRunRef = p.run -- 629
-	if not isTower then -- 631
+	if not isTower then -- 629
 		self:clearSequenceState(false) -- 632
 		self.indoorRetryCount = 0 -- 633
 		self.doorClosedAfterRetry = false -- 634
 		return -- 635
 	end -- 635
-	if sameRunIndoorRetry or alreadyCutscenePhase then -- 638
+	if sameRunIndoorRetry or alreadyCutscenePhase then -- 635
 		self.indoorRetryCount = self.indoorRetryCount + 1 -- 640
 		self.doorClosedAfterRetry = false -- 641
 		self:clearSequenceState(true) -- 642
-		if p.phase == "tower-end" then -- 643
+		if p.phase == "tower-end" then -- 642
 			self.seqElapsed = ____exports.TOWER_ENDING_TIMINGS.divergeEndSec -- 644
 			self:syncDerivedMilestones(self.seqElapsed, route) -- 645
 		end -- 645
 		return -- 647
 	end -- 647
-	if p.phase == "tower-enter" or p.phase == "tower-desk" then -- 650
+	if p.phase == "tower-enter" or p.phase == "tower-desk" then -- 647
 		self:clearSequenceState(false) -- 652
 		self.doorOpened = true -- 653
 		self.replyKnockCount = 2 -- 654
@@ -524,8 +524,8 @@ function TowerEndingsPlugin.prototype.update(self, ctx) -- 665
 	self.lastUiW = ctx.uiW -- 667
 	self.lastUiH = ctx.uiH -- 668
 	local p = ctx.p -- 669
-	if not self.rehearsalActive and p.room.key ~= "tower" then -- 671
-		if self.loopsActive then -- 672
+	if not self.rehearsalActive and p.room.key ~= "tower" then -- 669
+		if self.loopsActive then -- 669
 			ctx.audio:stopLoop("tower_wind_cold", 0.15) -- 673
 			ctx.audio:stopLoop("tower_room_warm", 0.15) -- 674
 			self.loopsActive = false -- 675
@@ -535,26 +535,26 @@ function TowerEndingsPlugin.prototype.update(self, ctx) -- 665
 	end -- 678
 	local route = self:resolveRoute(p, ctx.view) -- 681
 	self.activeRoute = route -- 682
-	if not self.rehearsalActive then -- 684
+	if not self.rehearsalActive then -- 682
 		self:stepLiveSync(ctx, route) -- 685
 	else -- 685
 		self:stepRehearsal(ctx, route) -- 687
 	end -- 687
-	if not self.active then -- 690
+	if not self.active then -- 687
 		local inInteractiveHall = not self.rehearsalActive and p.room.key == "tower" and (p.phase == "tower-enter" or p.phase == "tower-desk") -- 691
-		if self.loopsActive and not inInteractiveHall then -- 693
+		if self.loopsActive and not inInteractiveHall then -- 691
 			ctx.audio:stopLoop("tower_wind_cold", 0.15) -- 694
 			ctx.audio:stopLoop("tower_room_warm", 0.15) -- 695
 			self.loopsActive = false -- 696
 		end -- 696
 		return -- 698
 	end -- 698
-	if not ctx.paused and ctx.worldDt > 0 then -- 702
+	if not ctx.paused and ctx.worldDt > 0 then -- 698
 		self.animTime = self.animTime + ctx.worldDt -- 703
 		self:syncDerivedMilestones(self.seqElapsed, route) -- 704
 		self:syncAudioCues(ctx.audio, ctx, route) -- 705
 		self:stepInputGuard(ctx.input) -- 706
-	elseif not ctx.paused then -- 707
+	elseif not ctx.paused then -- 706
 		self:syncDerivedMilestones(self.seqElapsed, route) -- 709
 		self:stepInputGuard(ctx.input) -- 710
 	end -- 710
@@ -568,14 +568,14 @@ function TowerEndingsPlugin.prototype.stepLiveSync(self, ctx, route) -- 716
 	local justEnteredGiven = self.prevPhase ~= "tower-given" and phase == "tower-given" -- 721
 	local justEnteredEnd = self.prevPhase ~= "tower-end" and phase == "tower-end" -- 722
 	self.prevPhase = phase -- 723
-	if phase == "tower-wait" then -- 725
+	if phase == "tower-wait" then -- 723
 		self.active = false -- 727
 		return -- 728
 	end -- 728
-	if phase == "tower-enter" or phase == "tower-desk" then -- 731
+	if phase == "tower-enter" or phase == "tower-desk" then -- 728
 		self.doorOpened = true -- 733
 		self.replyKnockCount = math.max(2, self.replyKnockCount) -- 734
-		if justEnteredEnter and self.indoorRetryCount == 0 and not ctx.paused then -- 735
+		if justEnteredEnter and self.indoorRetryCount == 0 and not ctx.paused then -- 734
 			local tick = p.ticks -- 736
 			self:playTowerOnce( -- 737
 				ctx.audio, -- 737
@@ -610,32 +610,32 @@ function TowerEndingsPlugin.prototype.stepLiveSync(self, ctx, route) -- 716
 		self:syncDerivedMilestones(self.seqElapsed, route) -- 743
 		return -- 744
 	end -- 744
-	if not self.active then -- 747
+	if not self.active then -- 744
 		self.active = true -- 748
 		self.staleInputMustRelease = ctx.input.interact.held or ctx.input.retry.held or ctx.input.interact.pressed -- 749
 		self.confirmReady = false -- 750
 	end -- 750
-	if justEnteredKnock then -- 753
+	if justEnteredKnock then -- 750
 		self.seqElapsed = p.phaseTick / 60 -- 754
 		self.holdElapsed = 0 -- 755
 		self.staleInputMustRelease = true -- 756
 		self.confirmReady = false -- 757
-	elseif justEnteredGiven then -- 758
+	elseif justEnteredGiven then -- 757
 		self.doorOpened = true -- 759
 		self.seqElapsed = math.max(self.seqElapsed, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec) -- 760
-	elseif justEnteredEnd then -- 761
+	elseif justEnteredEnd then -- 760
 		self.doorOpened = true -- 762
 		self.seqElapsed = math.max(self.seqElapsed, 3.6) -- 764
 	end -- 764
-	if not ctx.paused and #ctx.events.rawEvents > 0 then -- 768
+	if not ctx.paused and #ctx.events.rawEvents > 0 then -- 764
 		local i = 0 -- 769
 		do -- 769
 			i = 0 -- 770
 			while i < #ctx.events.rawEvents do -- 770
 				local ev = ctx.events.rawEvents[i + 1] -- 771
-				if ev.name == "knock" then -- 772
+				if ev.name == "knock" then -- 771
 					local cnt = type(ev.data.count) == "number" and ev.data.count or self.knockCount + 1 -- 773
-					if cnt >= 1 and self.knockCount < 1 then -- 774
+					if cnt >= 1 and self.knockCount < 1 then -- 773
 						self.knockCount = 1 -- 775
 						self:playTowerOnce( -- 776
 							ctx.audio, -- 776
@@ -648,7 +648,7 @@ function TowerEndingsPlugin.prototype.stepLiveSync(self, ctx, route) -- 716
 							ev.seq -- 776
 						) -- 776
 					end -- 776
-					if cnt >= 2 and self.knockCount < 2 then -- 778
+					if cnt >= 2 and self.knockCount < 2 then -- 776
 						self.knockCount = 2 -- 779
 						self:playTowerOnce( -- 780
 							ctx.audio, -- 780
@@ -666,63 +666,63 @@ function TowerEndingsPlugin.prototype.stepLiveSync(self, ctx, route) -- 716
 			end -- 770
 		end -- 770
 	end -- 770
-	if not ctx.paused and ctx.worldDt > 0 then -- 786
-		if phase == "tower-knock" then -- 787
+	if not ctx.paused and ctx.worldDt > 0 then -- 770
+		if phase == "tower-knock" then -- 770
 			local backendSec = math.min(____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001, p.phaseTick / 60) -- 789
 			self.seqElapsed = math.max(self.seqElapsed + ctx.worldDt, backendSec) -- 790
-			if self.seqElapsed > ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 then -- 791
+			if self.seqElapsed > ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 then -- 790
 				self.seqElapsed = ____exports.TOWER_ENDING_TIMINGS.doorOpenSec - 0.001 -- 792
 			end -- 792
 		else -- 792
 			self.seqElapsed = self.seqElapsed + ctx.worldDt -- 795
-			if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 796
+			if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 795
 				self.holdElapsed = self.holdElapsed + ctx.worldDt -- 797
 			end -- 797
 		end -- 797
 	end -- 797
-	if self.indoorRetryCount > 0 and not self.doorOpened then -- 802
+	if self.indoorRetryCount > 0 and not self.doorOpened then -- 797
 		self.doorClosedAfterRetry = true -- 803
 	end -- 803
 	self:syncDerivedMilestones(self.seqElapsed, route) -- 805
 end -- 716
 function TowerEndingsPlugin.prototype.stepRehearsal(self, ctx, route) -- 808
 	self.active = true -- 809
-	if not ctx.paused and ctx.worldDt > 0 then -- 810
+	if not ctx.paused and ctx.worldDt > 0 then -- 809
 		self.seqElapsed = self.seqElapsed + ctx.worldDt -- 811
-		if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 812
+		if self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.divergeEndSec then -- 811
 			self.holdElapsed = self.holdElapsed + ctx.worldDt -- 813
 		end -- 813
 	end -- 813
-	if self.indoorRetryCount > 0 and not self.doorOpened then -- 816
+	if self.indoorRetryCount > 0 and not self.doorOpened then -- 813
 		self.doorClosedAfterRetry = true -- 817
 	end -- 817
 	self:syncDerivedMilestones(self.seqElapsed, route) -- 819
 end -- 808
 function TowerEndingsPlugin.prototype.syncDerivedMilestones(self, t, route) -- 822
-	if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec and self.knockCount < 1 then -- 823
+	if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec and self.knockCount < 1 then -- 822
 		self.knockCount = 1 -- 824
 	end -- 824
-	if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec and self.knockCount < 2 then -- 826
+	if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec and self.knockCount < 2 then -- 824
 		self.knockCount = 2 -- 827
 	end -- 827
-	if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec and self.replyKnockCount < 1 then -- 829
+	if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec and self.replyKnockCount < 1 then -- 827
 		self.replyKnockCount = 1 -- 830
 	end -- 830
-	if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec and self.replyKnockCount < 2 then -- 832
+	if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec and self.replyKnockCount < 2 then -- 830
 		self.replyKnockCount = 2 -- 833
 	end -- 833
-	if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 835
+	if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 833
 		self.doorOpened = true -- 836
 	end -- 836
-	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec and not self.row1Written then -- 839
+	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec and not self.row1Written then -- 836
 		self.row1Written = true -- 840
 		self.registryAppendCount = self.registryAppendCount + 1 -- 841
 	end -- 841
-	if route == "soldier" and t >= 4.6 and not self.row2Written then -- 843
+	if route == "soldier" and t >= 4.6 and not self.row2Written then -- 841
 		self.row2Written = true -- 844
 		self.registryAppendCount = self.registryAppendCount + 1 -- 845
 	end -- 845
-	if route == "child" and self.row2Written then -- 847
+	if route == "child" and self.row2Written then -- 845
 		self.row2Written = false -- 849
 		self.registryAppendCount = self.row1Written and 1 or 0 -- 850
 	end -- 850
@@ -731,17 +731,17 @@ function TowerEndingsPlugin.prototype.stepInputGuard(self, input) -- 854
 	local keyHeld = input.interact.held or input.retry.held -- 855
 	local keyPressed = input.interact.pressed or input.retry.pressed -- 856
 	local readyTime = self.seqElapsed >= ____exports.TOWER_ENDING_TIMINGS.holdReadySec -- 857
-	if self.staleInputMustRelease then -- 859
-		if not keyHeld then -- 860
+	if self.staleInputMustRelease then -- 857
+		if not keyHeld then -- 857
 			self.staleInputMustRelease = false -- 861
-		elseif keyPressed then -- 862
+		elseif keyPressed then -- 861
 			self.earlyInputBlockedCount = self.earlyInputBlockedCount + 1 -- 863
 		end -- 863
 		self.confirmReady = false -- 865
 		return -- 866
 	end -- 866
-	if not readyTime then -- 869
-		if keyPressed then -- 870
+	if not readyTime then -- 866
+		if keyPressed then -- 866
 			self.earlyInputBlockedCount = self.earlyInputBlockedCount + 1 -- 871
 			self.staleInputMustRelease = keyHeld -- 872
 		end -- 872
@@ -749,12 +749,12 @@ function TowerEndingsPlugin.prototype.stepInputGuard(self, input) -- 854
 		return -- 875
 	end -- 875
 	self.confirmReady = true -- 878
-	if self.rehearsalActive and keyPressed then -- 879
+	if self.rehearsalActive and keyPressed then -- 878
 		self.rehearsalAcknowledged = true -- 880
 	end -- 880
 end -- 854
 function TowerEndingsPlugin.prototype.playTowerOnce(self, audio, tag, track, path, volume, cueId, tick, seq) -- 884
-	if seq == nil then -- 892
+	if seq == nil then -- 884
 		seq = -1 -- 892
 	end -- 892
 	local dedupeKey = (("tower:s" .. tostring(self.sessionId)) .. ":") .. tag -- 894
@@ -780,7 +780,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 		lerp(0.36, 0.14, indoorK), -- 905
 		tick -- 905
 	) -- 905
-	if indoorK > 0.05 then -- 906
+	if indoorK > 0.05 then -- 905
 		audio:playLoop( -- 907
 			"tower_room_warm", -- 907
 			"ambience", -- 907
@@ -789,8 +789,8 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 			tick -- 907
 		) -- 907
 	end -- 907
-	if self.indoorRetryCount == 0 then -- 911
-		if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec then -- 912
+	if self.indoorRetryCount == 0 then -- 907
+		if t >= ____exports.TOWER_ENDING_TIMINGS.knock1Sec then -- 907
 			self:playTowerOnce( -- 913
 				audio, -- 913
 				"knock1", -- 913
@@ -801,7 +801,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 913
 			) -- 913
 		end -- 913
-		if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec then -- 915
+		if t >= ____exports.TOWER_ENDING_TIMINGS.knock2Sec then -- 913
 			self:playTowerOnce( -- 916
 				audio, -- 916
 				"knock2", -- 916
@@ -812,7 +812,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 916
 			) -- 916
 		end -- 916
-		if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 918
+		if t >= ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 916
 			self:playTowerOnce( -- 919
 				audio, -- 919
 				"reply1", -- 919
@@ -823,7 +823,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 919
 			) -- 919
 		end -- 919
-		if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec then -- 921
+		if t >= ____exports.TOWER_ENDING_TIMINGS.reply2Sec then -- 919
 			self:playTowerOnce( -- 922
 				audio, -- 922
 				"reply2", -- 922
@@ -834,7 +834,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 922
 			) -- 922
 		end -- 922
-		if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 924
+		if t >= ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 922
 			self:playTowerOnce( -- 925
 				audio, -- 925
 				"door_open", -- 925
@@ -846,7 +846,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 			) -- 925
 		end -- 925
 	end -- 925
-	if t >= 1.5 then -- 929
+	if t >= 1.5 then -- 925
 		self:playTowerOnce( -- 930
 			audio, -- 930
 			"book_open", -- 930
@@ -857,7 +857,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 			tick -- 930
 		) -- 930
 	end -- 930
-	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 932
+	if t >= ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 930
 		self:playTowerOnce( -- 933
 			audio, -- 933
 			"brush1", -- 933
@@ -868,8 +868,8 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 			tick -- 933
 		) -- 933
 	end -- 933
-	if route == "child" then -- 936
-		if t >= 4.35 then -- 937
+	if route == "child" then -- 933
+		if t >= 4.35 then -- 933
 			self:playTowerOnce( -- 938
 				audio, -- 938
 				"f03_line", -- 938
@@ -880,7 +880,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 938
 			) -- 938
 		end -- 938
-		if t >= 4.45 then -- 940
+		if t >= 4.45 then -- 938
 			self:playTowerOnce( -- 941
 				audio, -- 941
 				"f03_bowl", -- 941
@@ -891,7 +891,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 941
 			) -- 941
 		end -- 941
-		if t >= 5.2 then -- 943
+		if t >= 5.2 then -- 941
 			self:playTowerOnce( -- 944
 				audio, -- 944
 				"f03_lamp", -- 944
@@ -903,7 +903,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 			) -- 944
 		end -- 944
 	else -- 944
-		if t >= 4.28 then -- 947
+		if t >= 4.28 then -- 944
 			self:playTowerOnce( -- 948
 				audio, -- 948
 				"m03_line", -- 948
@@ -914,7 +914,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 948
 			) -- 948
 		end -- 948
-		if t >= 4.62 then -- 950
+		if t >= 4.62 then -- 948
 			self:playTowerOnce( -- 951
 				audio, -- 951
 				"brush2", -- 951
@@ -925,7 +925,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 951
 			) -- 951
 		end -- 951
-		if t >= 5.55 then -- 953
+		if t >= 5.55 then -- 951
 			self:playTowerOnce( -- 954
 				audio, -- 954
 				"m03_needle", -- 954
@@ -936,7 +936,7 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 				tick -- 954
 			) -- 954
 		end -- 954
-		if t >= 6.02 then -- 956
+		if t >= 6.02 then -- 954
 			self:playTowerOnce( -- 957
 				audio, -- 957
 				"m03_bowl", -- 957
@@ -951,40 +951,40 @@ function TowerEndingsPlugin.prototype.syncAudioCues(self, audio, ctx, route) -- 
 end -- 898
 function TowerEndingsPlugin.prototype.composeSubtitle(self, route) -- 962
 	local t = self.seqElapsed -- 963
-	if t < ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 964
+	if t < ____exports.TOWER_ENDING_TIMINGS.reply1Sec then -- 963
 		return "[两下轻敲]  门外厚木上传来两声轻敲。" -- 965
 	end -- 965
-	if t < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 967
+	if t < ____exports.TOWER_ENDING_TIMINGS.doorOpenSec then -- 965
 		return "[门内回敲]  静默一息，门后轻轻回敲两声。" -- 968
 	end -- 968
-	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 970
+	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 968
 		return route == "child" and "守卒推门提灯，暖光先照见她腕上的针套。" or "守卒推门提灯，周戍牵小满一同跨过门槛。" -- 971
 	end -- 971
-	if t < ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 975
+	if t < ____exports.TOWER_ENDING_TIMINGS.row1StartSec then -- 971
 		return route == "child" and "她把针套与纸条摊在案前，守卒展开收籍末页。" or "两人站在值夜室内，守卒摊开收籍末页。" -- 976
 	end -- 976
-	if t < ____exports.TOWER_ENDING_TIMINGS.pivotStartSec then -- 980
+	if t < ____exports.TOWER_ENDING_TIMINGS.pivotStartSec then -- 976
 		return "守卒蘸墨提笔，在第一行写下「小满」。" -- 981
 	end -- 981
-	if t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 983
+	if t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 981
 		return "笔尖停在第二行上方。" -- 984
 	end -- 984
-	if route == "child" then -- 986
-		if t < 6.7 then -- 987
+	if route == "child" then -- 984
+		if t < 6.7 then -- 984
 			return F03_DIALOGUE -- 988
 		end -- 988
 		return "" -- 990
 	end -- 990
-	if t < 5.45 then -- 992
+	if t < 5.45 then -- 990
 		return M03_DIALOGUE -- 993
 	end -- 993
-	if t < 6.85 then -- 995
+	if t < 6.85 then -- 993
 		return "守卒写满第二行。小满解下针套轻放案上，两只手端起热碗。" -- 996
 	end -- 996
 	return "" -- 998
 end -- 962
 function TowerEndingsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1003
-	if not self.active then -- 1010
+	if not self.active then -- 1003
 		return false -- 1011
 	end -- 1011
 	local route = self.activeRoute -- 1014
@@ -998,7 +998,7 @@ function TowerEndingsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 		Rect(0, 0, ctx.uiW, ctx.uiH), -- 1023
 		Color(8, 10, 16, 255) -- 1023
 	) -- 1023
-	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 1025
+	if t < ____exports.TOWER_ENDING_TIMINGS.indoorCutSec then -- 1023
 		self:drawAct1PorchAndDoor( -- 1027
 			uiDraw, -- 1027
 			uiInkDraw, -- 1027
@@ -1011,7 +1011,7 @@ function TowerEndingsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 			oy -- 1027
 		) -- 1027
 		local fadeOut = smoothstep(1.22, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec, t) -- 1029
-		if fadeOut > 0.01 then -- 1030
+		if fadeOut > 0.01 then -- 1029
 			uiInkDraw:drawRect( -- 1031
 				Rect(0, 0, ctx.uiW, ctx.uiH), -- 1031
 				Color( -- 1031
@@ -1036,7 +1036,7 @@ function TowerEndingsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 			oy -- 1035
 		) -- 1035
 		local fadeIn = 1 - smoothstep(____exports.TOWER_ENDING_TIMINGS.indoorCutSec, ____exports.TOWER_ENDING_TIMINGS.indoorCutSec + 0.24, t) -- 1036
-		if fadeIn > 0.01 then -- 1037
+		if fadeIn > 0.01 then -- 1036
 			uiInkDraw:drawRect( -- 1038
 				Rect(0, 0, ctx.uiW, ctx.uiH), -- 1038
 				Color( -- 1038
@@ -1095,7 +1095,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 	local r1Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.reply1Sec) / 0.06) ^ 2) -- 1081
 	local r2Pulse = math.exp(-((t - ____exports.TOWER_ENDING_TIMINGS.reply2Sec) / 0.06) ^ 2) -- 1082
 	local doorShakeX = (k1Pulse + k2Pulse) * 2.4 * s * math.sin(t * 95) + (r1Pulse + r2Pulse) * 1.4 * s * math.sin(t * 80) -- 1083
-	if isLowpoly then -- 1086
+	if isLowpoly then -- 1083
 		local light = lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, openK * 0.62) -- 1088
 		fillVGradRect( -- 1089
 			uiDraw, -- 1090
@@ -1292,7 +1292,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 					col = 0 -- 1178
 					while col < 7 do -- 1178
 						local lx = stag + col * 68 * s -- 1179
-						if lx > 4 * s and lx < doorL - 4 * s then -- 1180
+						if lx > 4 * s and lx < doorL - 4 * s then -- 1179
 							uiDraw:drawSegment( -- 1181
 								Vec2(lx, by), -- 1181
 								Vec2(lx, by + 46 * s), -- 1181
@@ -1301,7 +1301,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 							) -- 1181
 						end -- 1181
 						local rx = doorR + stag + col * 68 * s -- 1183
-						if rx > doorR + 4 * s and rx < ctx.uiW - 4 * s then -- 1184
+						if rx > doorR + 4 * s and rx < ctx.uiW - 4 * s then -- 1183
 							uiDraw:drawSegment( -- 1185
 								Vec2(rx, by), -- 1185
 								Vec2(rx, by + 46 * s), -- 1185
@@ -1355,7 +1355,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 		1, -- 1206
 		TOWER_WEST_LAMP_LIGHT, -- 1206
 		MING_MATERIALS.mingTimberDark -- 1206
-	)) or Color(76, 54, 38, 255) -- 1207
+	)) or Color(76, 54, 38, 255) -- 1206
 	uiDraw:drawRect( -- 1208
 		Rect(leafX, threshY + 12 * s, leafW, doorH - 14 * s), -- 1209
 		woodCol, -- 1210
@@ -1421,7 +1421,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 	) -- 1236
 	local kx = ox + ____exports.TOWER_SHOT_LAYOUT.knockHandX * s -- 1240
 	local ky = oy + ____exports.TOWER_SHOT_LAYOUT.knockHandY * s -- 1241
-	if k1Pulse > 0.08 or k2Pulse > 0.08 then -- 1242
+	if k1Pulse > 0.08 or k2Pulse > 0.08 then -- 1241
 		local amp = math.max(k1Pulse, k2Pulse) -- 1243
 		local r = (18 + (1 - amp) * 34) * s -- 1244
 		strokeEllipse( -- 1245
@@ -1438,7 +1438,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 			24 -- 1245
 		) -- 1245
 	end -- 1245
-	if r1Pulse > 0.08 or r2Pulse > 0.08 then -- 1247
+	if r1Pulse > 0.08 or r2Pulse > 0.08 then -- 1245
 		local amp = math.max(r1Pulse, r2Pulse) -- 1248
 		local r = (24 + (1 - amp) * 42) * s -- 1249
 		strokeEllipse( -- 1250
@@ -1455,7 +1455,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 			24 -- 1250
 		) -- 1250
 	end -- 1250
-	if openK > 0.05 then -- 1254
+	if openK > 0.05 then -- 1250
 		local lanX = ox + ____exports.TOWER_SHOT_LAYOUT.doorLanternX * s + (1 - openK) * 42 * s -- 1255
 		local lanY = oy + ____exports.TOWER_SHOT_LAYOUT.doorLanternY * s -- 1256
 		uiInkDraw:drawPolygon( -- 1258
@@ -1523,7 +1523,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 		148 * s, -- 1282
 		{facing = 1, opacity = 0.98, layer = 2} -- 1282
 	) -- 1282
-	if openK > 0.15 then -- 1286
+	if openK > 0.15 then -- 1282
 		local wristX = xiaomanX + 22 * s -- 1287
 		local wristY = xiaomanY + 76 * s -- 1288
 		uiInkDraw:drawRect( -- 1289
@@ -1552,7 +1552,7 @@ function TowerEndingsPlugin.prototype.drawAct1PorchAndDoor(self, uiDraw, uiInkDr
 			) -- 1299
 		) -- 1299
 	end -- 1299
-	if route == "soldier" then -- 1303
+	if route == "soldier" then -- 1299
 		local zhouX = xiaomanX - 72 * s -- 1305
 		local zhouY = threshY - 2 * s -- 1306
 		uiDraw:drawEllipse( -- 1307
@@ -1601,7 +1601,7 @@ function TowerEndingsPlugin.prototype.drawAct2And3Guardroom(self, uiDraw, uiInkD
 	local t = self.seqElapsed -- 1350
 	local isLowpoly = route == "child" -- 1351
 	local deskY = oy + ____exports.TOWER_SHOT_LAYOUT.deskTopY * s -- 1352
-	if isLowpoly then -- 1355
+	if isLowpoly then -- 1352
 		self:drawF03LowpolyRoomAndWindow( -- 1356
 			uiDraw, -- 1356
 			uiGlow, -- 1356
@@ -1629,15 +1629,15 @@ function TowerEndingsPlugin.prototype.drawAct2And3Guardroom(self, uiDraw, uiInkD
 		1, -- 1367
 		lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg), -- 1368
 		MING_MATERIALS.mingTimber -- 1369
-	)) or Color(86, 60, 42, 255) -- 1371
+	)) or Color(86, 60, 42, 255) -- 1369
 	local deskFrontCol = isLowpoly and toColor(shadeSurface( -- 1372
 		MING_MATERIALS.mingTimberDark.base, -- 1374
 		vec3(0, 0.1, -0.99), -- 1375
-		-4, -- 1376
+		-4, -- 1375
 		1, -- 1377
 		lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg), -- 1378
 		MING_MATERIALS.mingTimberDark -- 1379
-	)) or Color(52, 36, 26, 255) -- 1381
+	)) or Color(52, 36, 26, 255) -- 1379
 	uiDraw:drawPolygon( -- 1384
 		{ -- 1384
 			Vec2(0, deskY - 120 * s), -- 1385
@@ -1710,7 +1710,7 @@ function TowerEndingsPlugin.prototype.drawAct2And3Guardroom(self, uiDraw, uiInkD
 		1, -- 1415
 		lampWarmth -- 1415
 	) -- 1415
-	if isLowpoly and lampProg > 0.04 then -- 1418
+	if isLowpoly and lampProg > 0.04 then -- 1415
 		local beamA = math.floor(62 * lampProg + 0.5) -- 1419
 		fillGradQuad( -- 1420
 			uiGlow, -- 1421
@@ -1734,7 +1734,7 @@ function TowerEndingsPlugin.prototype.drawAct2And3Guardroom(self, uiDraw, uiInkD
 		) -- 1425
 	end -- 1425
 	local bookReveal = smoothstep(____exports.TOWER_ENDING_TIMINGS.indoorCutSec, 1.85, t) -- 1430
-	if bookReveal > 0.02 then -- 1431
+	if bookReveal > 0.02 then -- 1430
 		self:drawRegisterBook( -- 1432
 			uiDraw, -- 1432
 			uiInkDraw, -- 1432
@@ -1823,7 +1823,7 @@ function TowerEndingsPlugin.prototype.drawF03LowpolyRoomAndWindow(self, uiDraw, 
 		}, -- 1477
 		Color(20, 26, 38, 240) -- 1478
 	) -- 1478
-	if lampProg > 0.12 then -- 1480
+	if lampProg > 0.12 then -- 1478
 		fillRadialGlow( -- 1481
 			uiGlow, -- 1482
 			wx + ww * 0.5, -- 1482
@@ -1919,7 +1919,7 @@ function TowerEndingsPlugin.prototype.drawF03LowpolyRoomAndWindow(self, uiDraw, 
 		2.4 * s, -- 1521
 		Color(66, 50, 38, 240) -- 1521
 	) -- 1521
-	if lampProg > 0.02 then -- 1524
+	if lampProg > 0.02 then -- 1521
 		fillRadialGlow( -- 1525
 			uiGlow, -- 1526
 			wx + ww * 0.5, -- 1526
@@ -2070,7 +2070,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 			math.floor(165 * reveal + 0.5) -- 1615
 		) -- 1615
 	) -- 1615
-	if not uiArt:tryPlace( -- 1618
+	if not uiArt:tryPlace( -- 1615
 		"ink_song_paper", -- 1618
 		"fe05_registry_paper", -- 1618
 		midX, -- 1618
@@ -2183,7 +2183,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 		0.94 * reveal, -- 1659
 		0 -- 1659
 	) -- 1659
-	if r1Prog > 0.02 then -- 1660
+	if r1Prog > 0.02 then -- 1659
 		ctx.texts:put( -- 1661
 			"md", -- 1661
 			joinPrefixTokens(ROW1_TOKENS, r1Prog), -- 1661
@@ -2198,7 +2198,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 			0 -- 1661
 		) -- 1661
 	end -- 1661
-	if r1Prog > 0.65 then -- 1663
+	if r1Prog > 0.65 then -- 1661
 		local subA = smoothstep(0.65, 1, r1Prog) * reveal -- 1664
 		local subText = route == "child" and "怀黄铜指南针、手书一纸；守城戍卒周戍所托。" or "与守城戍卒同行抵塔，安然入室。" -- 1665
 		ctx.texts:put( -- 1668
@@ -2236,7 +2236,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 		0.94 * reveal, -- 1675
 		0 -- 1675
 	) -- 1675
-	if route == "child" then -- 1677
+	if route == "child" then -- 1675
 		local lineA = math.floor((105 + 55 * lampProg) * reveal + 0.5) -- 1679
 		uiInkDraw:drawSegment( -- 1680
 			Vec2(inX + 96 * s, row2Y - 9 * s), -- 1681
@@ -2246,7 +2246,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 		) -- 1684
 	else -- 1684
 		local r2Prog = smoothstep(4.6, 5.55, t) -- 1688
-		if r2Prog <= 0.02 then -- 1689
+		if r2Prog <= 0.02 then -- 1688
 			uiInkDraw:drawSegment( -- 1690
 				Vec2(inX + 96 * s, row2Y - 9 * s), -- 1691
 				Vec2(inX + inW - 26 * s, row2Y - 9 * s), -- 1692
@@ -2270,7 +2270,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 				0.96 * math.min(1, r2Prog * 1.4), -- 1697
 				0 -- 1697
 			) -- 1697
-			if r2Prog > 0.65 then -- 1698
+			if r2Prog > 0.65 then -- 1697
 				local subA = smoothstep(0.65, 1, r2Prog) * reveal -- 1699
 				ctx.texts:put( -- 1700
 					"xs", -- 1700
@@ -2295,7 +2295,7 @@ function TowerEndingsPlugin.prototype.drawRegisterBook(self, uiDraw, uiInkDraw, 
 		redFaint -- 1704
 	) -- 1704
 	local colophonA = smoothstep(6.7, 7.6, t) * reveal -- 1707
-	if colophonA > 0.02 then -- 1708
+	if colophonA > 0.02 then -- 1707
 		local signY = inY + 34 * s -- 1709
 		ctx.texts:put( -- 1710
 			"banner", -- 1710
@@ -2330,32 +2330,32 @@ function TowerEndingsPlugin.prototype.drawGuardBrushHand(self, uiInkDraw, route,
 	local tipY = hoverY -- 1732
 	local alpha = 0 -- 1733
 	local lifted = 0 -- 1734
-	if t >= 2 and t < ____exports.TOWER_ENDING_TIMINGS.row1EndSec then -- 1736
+	if t >= 2 and t < ____exports.TOWER_ENDING_TIMINGS.row1EndSec then -- 1734
 		local k = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1StartSec, ____exports.TOWER_ENDING_TIMINGS.row1EndSec, t) -- 1738
 		tipX = lerp(row1X0, row1X1, k) -- 1739
 		tipY = row1Y + math.sin(k * math.pi * 6) * 3.5 * s -- 1740
 		alpha = smoothstep(2, 2.2, t) -- 1741
 		lifted = (1 - smoothstep(2.12, 2.22, t)) * 12 * s -- 1742
-	elseif t >= ____exports.TOWER_ENDING_TIMINGS.row1EndSec and t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 1743
+	elseif t >= ____exports.TOWER_ENDING_TIMINGS.row1EndSec and t < ____exports.TOWER_ENDING_TIMINGS.pivotEndSec then -- 1742
 		local moveK = smoothstep(____exports.TOWER_ENDING_TIMINGS.row1EndSec, 3.6, t) -- 1745
 		tipX = lerp(row1X1, hoverX, moveK) -- 1746
 		tipY = lerp(row1Y, hoverY, moveK) -- 1747
 		alpha = 1 -- 1748
 		lifted = 9 * s + math.sin(self.animTime * 2.4) * 1.2 * s -- 1749
-	elseif route == "child" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 4.95 then -- 1750
+	elseif route == "child" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 4.95 then -- 1749
 		local outK = smoothstep(____exports.TOWER_ENDING_TIMINGS.pivotEndSec, 4.95, t) -- 1752
 		tipX = hoverX + outK * 140 * s -- 1753
 		tipY = hoverY + outK * 46 * s -- 1754
 		lifted = (9 + outK * 28) * s -- 1755
 		alpha = 1 - outK -- 1756
-	elseif route == "soldier" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 6.05 then -- 1757
-		if t < 4.6 then -- 1759
+	elseif route == "soldier" and t >= ____exports.TOWER_ENDING_TIMINGS.pivotEndSec and t < 6.05 then -- 1756
+		if t < 4.6 then -- 1756
 			local dipK = smoothstep(____exports.TOWER_ENDING_TIMINGS.pivotEndSec, 4.6, t) -- 1760
 			tipX = hoverX -- 1761
 			tipY = hoverY -- 1762
 			lifted = lerp(9 * s, 0, dipK) -- 1763
 			alpha = 1 -- 1764
-		elseif t < 5.55 then -- 1765
+		elseif t < 5.55 then -- 1764
 			local wK = smoothstep(4.6, 5.55, t) -- 1766
 			tipX = lerp(hoverX, hoverX + 216 * s, wK) -- 1767
 			tipY = hoverY - 2 * s + math.sin(wK * math.pi * 8) * 3.2 * s -- 1768
@@ -2369,7 +2369,7 @@ function TowerEndingsPlugin.prototype.drawGuardBrushHand(self, uiInkDraw, route,
 			alpha = 1 - outK -- 1776
 		end -- 1776
 	end -- 1776
-	if alpha <= 0.02 then -- 1780
+	if alpha <= 0.02 then -- 1776
 		return -- 1781
 	end -- 1781
 	local a = math.floor(255 * clamp01(alpha) + 0.5) -- 1784
@@ -2458,9 +2458,9 @@ function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDr
 	local ncY = oy + ____exports.TOWER_SHOT_LAYOUT.needleCaseDeskY * s -- 1828
 	local bowlX = ox + ____exports.TOWER_SHOT_LAYOUT.bowlRimX * s -- 1829
 	local bowlY = oy + ____exports.TOWER_SHOT_LAYOUT.bowlRimY * s -- 1830
-	if route == "child" then -- 1832
+	if route == "child" then -- 1830
 		local propA = smoothstep(1.55, 2.05, t) -- 1834
-		if propA > 0.02 then -- 1835
+		if propA > 0.02 then -- 1834
 			self:drawNeedleCaseOnDesk( -- 1836
 				uiInkDraw, -- 1836
 				ncX, -- 1836
@@ -2471,7 +2471,7 @@ function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDr
 			) -- 1836
 		end -- 1836
 		local noteReadA = smoothstep(1.65, 2.1, t) * (1 - smoothstep(3.65, 4.15, t)) -- 1838
-		if noteReadA > 0.02 then -- 1839
+		if noteReadA > 0.02 then -- 1838
 			local cardX = ncX + 18 * s -- 1840
 			local cardY = ncY + 84 * s -- 1841
 			uiInkDraw:drawRect( -- 1842
@@ -2514,7 +2514,7 @@ function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDr
 			) -- 1849
 		end -- 1849
 		local bowlK = smoothstep(4.35, 5.15, t) -- 1852
-		if bowlK > 0.02 then -- 1853
+		if bowlK > 0.02 then -- 1852
 			local bx = lerp(bowlX + 135 * s, bowlX, bowlK) -- 1854
 			self:drawWarmPorcelainBowl( -- 1855
 				uiInkDraw, -- 1855
@@ -2529,7 +2529,7 @@ function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDr
 		end -- 1855
 	else -- 1855
 		local needleK = smoothstep(5.45, 6.15, t) -- 1859
-		if needleK > 0.02 then -- 1860
+		if needleK > 0.02 then -- 1859
 			local ny = lerp(ncY + 46 * s, ncY, needleK) -- 1861
 			self:drawNeedleCaseOnDesk( -- 1862
 				uiInkDraw, -- 1862
@@ -2541,7 +2541,7 @@ function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDr
 			) -- 1862
 		end -- 1862
 		local bowlK = smoothstep(5.8, 6.65, t) -- 1865
-		if bowlK > 0.02 then -- 1866
+		if bowlK > 0.02 then -- 1865
 			local by = lerp(bowlY - 54 * s, bowlY, bowlK) -- 1867
 			local handsK = smoothstep(5.95, 6.75, t) -- 1868
 			self:drawWarmPorcelainBowl( -- 1869
@@ -2556,7 +2556,7 @@ function TowerEndingsPlugin.prototype.drawDeskPropsAndBowl(self, uiDraw, uiInkDr
 			) -- 1869
 		end -- 1869
 		local cuffK = smoothstep(4.25, 4.85, t) -- 1872
-		if cuffK > 0.02 then -- 1873
+		if cuffK > 0.02 then -- 1872
 			drawPatchedCuff(uiInkDraw, uiGlow, { -- 1874
 				wristX = ox + 122 * s, -- 1875
 				wristY = oy + 182 * s, -- 1876
@@ -2642,7 +2642,7 @@ function TowerEndingsPlugin.prototype.drawNeedleCaseOnDesk(self, draw, cx, cy, s
 			math.floor(215 * alpha + 0.5) -- 1915
 		) -- 1915
 	) -- 1915
-	if withNote then -- 1917
+	if withNote then -- 1915
 		draw:drawPolygon( -- 1919
 			{ -- 1919
 				Vec2(cx + 38 * s, cy - 18 * s), -- 1920
@@ -2790,7 +2790,7 @@ function TowerEndingsPlugin.prototype.drawWarmPorcelainBowl(self, draw, glow, cx
 			wi = wi + 1 -- 1968
 		end -- 1968
 	end -- 1968
-	if heldByTwoHands and handsK > 0.02 then -- 1988
+	if heldByTwoHands and handsK > 0.02 then -- 1968
 		local ha = math.floor(255 * clamp01(handsK * alpha) + 0.5) -- 1989
 		local skin = toColor(CUFF_PALETTE.childSkin, ha) -- 1990
 		local skinSh = toColor(CUFF_PALETTE.childSkinShadow, ha) -- 1991
@@ -2951,7 +2951,7 @@ function TowerEndingsPlugin.prototype.drawMingLantern(self, draw, glow, cx, cy, 
 end -- 2032
 function TowerEndingsPlugin.prototype.drawDialogueSubtitle(self, uiDraw, uiInkDraw, uiArt, ctx, route, s, barH) -- 2069
 	local line = self.lastSubtitle -- 2078
-	if line ~= "" then -- 2079
+	if line ~= "" then -- 2078
 		local cy = barH + 34 * s -- 2080
 		local stripW = math.min(ctx.uiW - 120 * s, 720 * s) -- 2081
 		drawSilkVeil( -- 2082
@@ -2993,7 +2993,7 @@ function TowerEndingsPlugin.prototype.drawDialogueSubtitle(self, uiDraw, uiInkDr
 			0.08 -- 2096
 		) -- 2096
 	end -- 2096
-	if ctx.view.assistHintsEnabled and self.confirmReady then -- 2101
+	if ctx.view.assistHintsEnabled and self.confirmReady then -- 2096
 		local rawHint = route == "child" and "按 E 收页 · 尾声与史话   ·   Esc 暂歇" or "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇" -- 2102
 		local hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout) -- 2105
 		ctx.texts:put( -- 2106

@@ -51,19 +51,19 @@ local function hypot(dx, dy) -- 183
 	return math.sqrt(dx * dx + dy * dy) -- 184
 end -- 183
 local function safeButtonPressed(id, btn) -- 187
-	if type(Controller) == "nil" then -- 188
+	if type(Controller) == "nil" then -- 187
 		return false -- 188
 	end -- 188
 	return Controller:isButtonPressed(id, btn) -- 189
 end -- 187
 local function safeButtonDown(id, btn) -- 192
-	if type(Controller) == "nil" then -- 193
+	if type(Controller) == "nil" then -- 192
 		return false -- 193
 	end -- 193
 	return Controller:isButtonDown(id, btn) -- 194
 end -- 192
 local function safeAxis(id, axis) -- 197
-	if type(Controller) == "nil" then -- 198
+	if type(Controller) == "nil" then -- 197
 		return 0 -- 198
 	end -- 198
 	local v = Controller:getAxis(id, axis) -- 199
@@ -136,7 +136,7 @@ function GamepadRouter.prototype.____constructor(self, sharedSettings) -- 283
 	self.settings = sharedSettings ~= nil and sharedSettings or defaultControlSettings() -- 284
 end -- 283
 function GamepadRouter.prototype.attach(self, parent) -- 287
-	if self.listenerNode ~= nil then -- 288
+	if self.listenerNode ~= nil then -- 287
 		return -- 289
 	end -- 289
 	local n = Node() -- 291
@@ -150,7 +150,7 @@ function GamepadRouter.prototype.attach(self, parent) -- 287
 		self.latchedButtons[buttonName] = true -- 300
 	end) -- 298
 	n:onAxis(function(controllerId, _axisName, value) -- 303
-		if math.abs(value) > 0.35 then -- 304
+		if math.abs(value) > 0.35 then -- 303
 			self.activeControllerId = controllerId -- 305
 		end -- 305
 	end) -- 303
@@ -172,7 +172,7 @@ function GamepadRouter.prototype.toggleAimAssist(self) -- 324
 end -- 324
 function GamepadRouter.prototype.toggleCrouchMode(self) -- 330
 	self.settings.crouchToggle = not self.settings.crouchToggle -- 331
-	if not self.settings.crouchToggle then -- 332
+	if not self.settings.crouchToggle then -- 331
 		self.crouchToggled = false -- 333
 	end -- 333
 	saveControlSettings(self.settings) -- 335
@@ -186,16 +186,16 @@ function GamepadRouter.prototype.setFrameContext(self, next, dt) -- 339
 	local wasChild = self.ctx.childMode -- 341
 	local wasReload = self.ctx.reloadActive -- 342
 	self.ctx = next -- 343
-	if wasChild ~= next.childMode or next.modal then -- 344
+	if wasChild ~= next.childMode or next.modal then -- 343
 		self.crouchToggled = false -- 345
 	end -- 345
-	if next.reloadActive and not wasReload then -- 347
+	if next.reloadActive and not wasReload then -- 345
 		self.reloadStickCol = 0 -- 348
 		self.reloadStickRow = 0 -- 349
 		self.reloadStickTimer = 0 -- 350
 		self.reloadStickArmed = false -- 351
 	end -- 351
-	if not next.canBottleAim then -- 353
+	if not next.canBottleAim then -- 351
 		self.wasBottleAiming = false -- 354
 		self.bottleCancelLock = false -- 355
 	end -- 355
@@ -213,7 +213,7 @@ function GamepadRouter.prototype.clearTransient(self) -- 359
 	self.repeatTimer = 0 -- 369
 end -- 359
 function GamepadRouter.prototype.sampleRaw(self) -- 372
-	if self.simState ~= nil then -- 373
+	if self.simState ~= nil then -- 372
 		local s = self.simState -- 374
 		return { -- 375
 			a = s.a == true, -- 376
@@ -239,7 +239,7 @@ function GamepadRouter.prototype.sampleRaw(self) -- 372
 		} -- 395
 	end -- 395
 	local out = emptyRaw() -- 399
-	if type(Controller) == "nil" then -- 400
+	if type(Controller) == "nil" then -- 399
 		return out -- 401
 	end -- 401
 	local cid = 0 -- 404
@@ -274,112 +274,112 @@ function GamepadRouter.prototype.sampleRaw(self) -- 372
 			) -- 426
 			local anyBtn = a or b or x or y or up or down or left or right or lb or rb or ls or rs or back or start -- 428
 			local anyAxis = math.abs(lx) > 0.25 or math.abs(ly) > 0.25 or math.abs(rx) > 0.25 or math.abs(ry) > 0.25 or lt > 0.25 or rt > 0.25 -- 429
-			if anyBtn or anyAxis then -- 430
+			if anyBtn or anyAxis then -- 429
 				self.activeControllerId = cid -- 431
 			end -- 431
-			if a then -- 433
+			if a then -- 431
 				out.a = true -- 433
 			end -- 433
-			if b then -- 434
+			if b then -- 433
 				out.b = true -- 434
 			end -- 434
-			if x then -- 435
+			if x then -- 434
 				out.x = true -- 435
 			end -- 435
-			if y then -- 436
+			if y then -- 435
 				out.y = true -- 436
 			end -- 436
-			if up then -- 437
+			if up then -- 436
 				out.up = true -- 437
 			end -- 437
-			if down then -- 438
+			if down then -- 437
 				out.down = true -- 438
 			end -- 438
-			if left then -- 439
+			if left then -- 438
 				out.left = true -- 439
 			end -- 439
-			if right then -- 440
+			if right then -- 439
 				out.right = true -- 440
 			end -- 440
-			if lb then -- 441
+			if lb then -- 440
 				out.lb = true -- 441
 			end -- 441
-			if rb then -- 442
+			if rb then -- 441
 				out.rb = true -- 442
 			end -- 442
-			if ls then -- 443
+			if ls then -- 442
 				out.ls = true -- 443
 			end -- 443
-			if rs then -- 444
+			if rs then -- 443
 				out.rs = true -- 444
 			end -- 444
-			if back then -- 445
+			if back then -- 444
 				out.back = true -- 445
 			end -- 445
-			if start then -- 446
+			if start then -- 445
 				out.start = true -- 446
 			end -- 446
-			if math.abs(lx) > math.abs(out.leftX) then -- 448
+			if math.abs(lx) > math.abs(out.leftX) then -- 446
 				out.leftX = lx -- 448
 			end -- 448
-			if math.abs(ly) > math.abs(out.leftY) then -- 449
+			if math.abs(ly) > math.abs(out.leftY) then -- 448
 				out.leftY = ly -- 449
 			end -- 449
-			if math.abs(rx) > math.abs(out.rightX) then -- 450
+			if math.abs(rx) > math.abs(out.rightX) then -- 449
 				out.rightX = rx -- 450
 			end -- 450
-			if math.abs(ry) > math.abs(out.rightY) then -- 451
+			if math.abs(ry) > math.abs(out.rightY) then -- 450
 				out.rightY = ry -- 451
 			end -- 451
-			if lt > out.lt then -- 452
+			if lt > out.lt then -- 451
 				out.lt = lt -- 452
 			end -- 452
-			if rt > out.rt then -- 453
+			if rt > out.rt then -- 452
 				out.rt = rt -- 453
 			end -- 453
 			cid = cid + 1 -- 405
 		end -- 405
 	end -- 405
-	if self.latchedButtons.a then -- 456
+	if self.latchedButtons.a then -- 405
 		out.a = true -- 456
 	end -- 456
-	if self.latchedButtons.b then -- 457
+	if self.latchedButtons.b then -- 456
 		out.b = true -- 457
 	end -- 457
-	if self.latchedButtons.x then -- 458
+	if self.latchedButtons.x then -- 457
 		out.x = true -- 458
 	end -- 458
-	if self.latchedButtons.y then -- 459
+	if self.latchedButtons.y then -- 458
 		out.y = true -- 459
 	end -- 459
-	if self.latchedButtons.dpup then -- 460
+	if self.latchedButtons.dpup then -- 459
 		out.up = true -- 460
 	end -- 460
-	if self.latchedButtons.dpdown then -- 461
+	if self.latchedButtons.dpdown then -- 460
 		out.down = true -- 461
 	end -- 461
-	if self.latchedButtons.dpleft then -- 462
+	if self.latchedButtons.dpleft then -- 461
 		out.left = true -- 462
 	end -- 462
-	if self.latchedButtons.dpright then -- 463
+	if self.latchedButtons.dpright then -- 462
 		out.right = true -- 463
 	end -- 463
-	if self.latchedButtons.leftshoulder then -- 464
+	if self.latchedButtons.leftshoulder then -- 463
 		out.lb = true -- 464
 	end -- 464
-	if self.latchedButtons.rightshoulder then -- 465
+	if self.latchedButtons.rightshoulder then -- 464
 		out.rb = true -- 465
 	end -- 465
-	if self.latchedButtons.leftstick then -- 466
+	if self.latchedButtons.leftstick then -- 465
 		out.ls = true -- 466
 	end -- 466
-	if self.latchedButtons.rightstick then -- 467
+	if self.latchedButtons.rightstick then -- 466
 		out.rs = true -- 467
 	end -- 467
-	if self.latchedButtons.back then -- 468
+	if self.latchedButtons.back then -- 467
 		out.back = true -- 468
 	end -- 468
-	if self.latchedButtons.start then -- 469
+	if self.latchedButtons.start then -- 468
 		out.start = true -- 469
 	end -- 469
 	self.latchedButtons = {} -- 470
@@ -426,23 +426,23 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 	local anyButtonPressed = aPressed or bPressed or xPressed or yPressed or startPressed or lbPressed or rbPressed -- 509
 	local pausePressed = false -- 512
 	local retryPressed = false -- 513
-	if raw.back and raw.start then -- 514
+	if raw.back and raw.start then -- 513
 		self.chordLocked = true -- 515
 		self.backHoldSec = 0 -- 516
 		self.backRetryFired = false -- 517
-	elseif self.chordLocked then -- 518
-		if not raw.back and not raw.start then -- 519
+	elseif self.chordLocked then -- 517
+		if not raw.back and not raw.start then -- 517
 			self.chordLocked = false -- 520
 		end -- 520
 		self.backHoldSec = 0 -- 522
 		self.backRetryFired = false -- 523
 	else -- 523
-		if startPressed and not raw.back then -- 525
+		if startPressed and not raw.back then -- 523
 			pausePressed = true -- 526
 		end -- 526
-		if raw.back and not raw.start and self.ctx.gameplayActive and not self.ctx.modal and not self.ctx.inTowerEnd then -- 528
+		if raw.back and not raw.start and self.ctx.gameplayActive and not self.ctx.modal and not self.ctx.inTowerEnd then -- 526
 			self.backHoldSec = self.backHoldSec + dt -- 529
-			if self.backHoldSec >= RETRY_HOLD_SEC and not self.backRetryFired then -- 530
+			if self.backHoldSec >= RETRY_HOLD_SEC and not self.backRetryFired then -- 529
 				retryPressed = true -- 531
 				self.backRetryFired = true -- 532
 			end -- 532
@@ -457,7 +457,7 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 	local stickMoveX = 0 -- 546
 	local stickMoveY = 0 -- 547
 	local stickSlowWalk = false -- 548
-	if lMag > dzL then -- 549
+	if lMag > dzL then -- 548
 		local normMag = clamp( -- 550
 			(lMag - dzL) / math.max(0.05, 1 - dzL), -- 550
 			0, -- 550
@@ -465,7 +465,7 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 		) -- 550
 		local nx = raw.leftX / lMag -- 551
 		local ny = raw.leftY / lMag -- 552
-		if self.ctx.allowDepth then -- 553
+		if self.ctx.allowDepth then -- 552
 			local maxAxis = math.max( -- 554
 				math.abs(nx), -- 554
 				math.abs(ny), -- 554
@@ -474,15 +474,15 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 			stickMoveX = clamp(nx / maxAxis * normMag, -1, 1) -- 555
 			stickMoveY = clamp(ny / maxAxis * normMag, -1, 1) -- 556
 		else -- 556
-			if math.abs(raw.leftX) > dzL * 0.85 then -- 558
+			if math.abs(raw.leftX) > dzL * 0.85 then -- 556
 				stickMoveX = raw.leftX > 0 and 1 or -1 -- 559
-				if lMag < 0.56 then -- 560
+				if lMag < 0.56 then -- 559
 					stickSlowWalk = true -- 561
 				end -- 561
 			end -- 561
-			if raw.leftY > 0.65 and math.abs(raw.leftY) > math.abs(raw.leftX) * 1.15 then -- 564
+			if raw.leftY > 0.65 and math.abs(raw.leftY) > math.abs(raw.leftX) * 1.15 then -- 561
 				stickMoveY = 1 -- 565
-			elseif raw.leftY < -0.65 and math.abs(raw.leftY) > math.abs(raw.leftX) * 1.15 then -- 566
+			elseif raw.leftY < -0.65 and math.abs(raw.leftY) > math.abs(raw.leftX) * 1.15 then -- 565
 				stickMoveY = -1 -- 567
 			end -- 567
 		end -- 567
@@ -494,11 +494,11 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 	local sMenuY = math.abs(raw.leftY) >= STICK_MENU_DEADZONE and (raw.leftY > 0 and 1 or -1) or 0 -- 578
 	local stickNavX = 0 -- 579
 	local stickNavY = 0 -- 580
-	if sMenuX == 0 and sMenuY == 0 then -- 581
+	if sMenuX == 0 and sMenuY == 0 then -- 580
 		self.repeatDirX = 0 -- 582
 		self.repeatDirY = 0 -- 583
 		self.repeatTimer = 0 -- 584
-	elseif sMenuX ~= self.repeatDirX or sMenuY ~= self.repeatDirY then -- 585
+	elseif sMenuX ~= self.repeatDirX or sMenuY ~= self.repeatDirY then -- 584
 		self.repeatDirX = sMenuX -- 586
 		self.repeatDirY = sMenuY -- 587
 		self.repeatTimer = MENU_REPEAT_INITIAL -- 588
@@ -506,7 +506,7 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 		stickNavY = sMenuY -- 590
 	else -- 590
 		self.repeatTimer = self.repeatTimer - dt -- 592
-		if self.repeatTimer <= 0 then -- 593
+		if self.repeatTimer <= 0 then -- 592
 			self.repeatTimer = MENU_REPEAT_INTERVAL -- 594
 			stickNavX = sMenuX -- 595
 			stickNavY = sMenuY -- 596
@@ -536,21 +536,21 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 	local reloadDirRow = 0 -- 611
 	local reloadStepEdge = false -- 612
 	local reloadAutoStep = false -- 613
-	if self.ctx.reloadActive then -- 614
+	if self.ctx.reloadActive then -- 613
 		local dpCol = (rightPressed and 1 or 0) - (leftPressed and 1 or 0) -- 615
 		local dpRow = (upPressed and 1 or 0) - (downPressed and 1 or 0) -- 616
-		if dpCol ~= 0 or dpRow ~= 0 then -- 617
+		if dpCol ~= 0 or dpRow ~= 0 then -- 616
 			reloadDirCol = dpCol -- 618
 			reloadDirRow = dpRow -- 619
 			reloadStepEdge = true -- 620
 		else -- 620
 			local rMagL = hypot(raw.leftX, raw.leftY) -- 622
-			if rMagL >= 0.45 then -- 623
+			if rMagL >= 0.45 then -- 622
 				local ux = raw.leftX / rMagL -- 624
 				local uy = -raw.leftY / rMagL -- 625
 				local qCol = ux > 0.38 and 1 or (ux < -0.38 and -1 or 0) -- 626
 				local qRow = uy > 0.38 and 1 or (uy < -0.38 and -1 or 0) -- 627
-				if qCol ~= self.reloadStickCol or qRow ~= self.reloadStickRow then -- 628
+				if qCol ~= self.reloadStickCol or qRow ~= self.reloadStickRow then -- 627
 					self.reloadStickCol = qCol -- 629
 					self.reloadStickRow = qRow -- 630
 					self.reloadStickTimer = 0.24 -- 631
@@ -559,9 +559,9 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 					reloadDirRow = qRow -- 634
 					reloadStepEdge = true -- 635
 					reloadAutoStep = true -- 636
-				elseif self.reloadStickArmed then -- 637
+				elseif self.reloadStickArmed then -- 636
 					self.reloadStickTimer = self.reloadStickTimer - dt -- 638
-					if self.reloadStickTimer <= 0 then -- 639
+					if self.reloadStickTimer <= 0 then -- 638
 						self.reloadStickTimer = 0.16 -- 640
 						reloadDirCol = qCol -- 641
 						reloadDirRow = qRow -- 642
@@ -595,14 +595,14 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 	local reloadReset = self.ctx.reloadActive and (gpReloadResetBtn or xPressed) -- 658
 	local talentDelta = 0 -- 661
 	local talentConfirm = false -- 662
-	if self.ctx.talentOfferCount > 0 and not self.ctx.modal and not self.ctx.reloadActive and not self.ctx.craftActive then -- 663
-		if lbPressed then -- 664
+	if self.ctx.talentOfferCount > 0 and not self.ctx.modal and not self.ctx.reloadActive and not self.ctx.craftActive then -- 662
+		if lbPressed then -- 662
 			talentDelta = talentDelta - 1 -- 664
 		end -- 664
-		if rbPressed then -- 665
+		if rbPressed then -- 664
 			talentDelta = talentDelta + 1 -- 665
 		end -- 665
-		if lsPressed or rsPressed or raw.lb and rbPressed or raw.rb and lbPressed then -- 666
+		if lsPressed or rsPressed or raw.lb and rbPressed or raw.rb and lbPressed then -- 665
 			talentConfirm = true -- 667
 		end -- 667
 	end -- 667
@@ -622,11 +622,11 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 	local flareHeld = false -- 685
 	local flarePressed = false -- 686
 	local artifactPressed = false -- 687
-	if gpActive then -- 689
+	if gpActive then -- 687
 		jumpHeld = raw.a -- 690
 		jumpPressed = aPressed -- 691
-		if self.settings.crouchToggle and self.ctx.childMode then -- 693
-			if bPressed and not self.wasBottleAiming then -- 694
+		if self.settings.crouchToggle and self.ctx.childMode then -- 691
+			if bPressed and not self.wasBottleAiming then -- 691
 				self.crouchToggled = not self.crouchToggled -- 695
 				crouchPressed = true -- 696
 			end -- 696
@@ -638,15 +638,15 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 		coverHeld = ltNow or raw.lb or self.ctx.childMode and stickSlowWalk -- 704
 		interactHeld = raw.y or raw.rb -- 705
 		interactPressed = yPressed or rbPressed -- 706
-		if self.ctx.childMode then -- 708
+		if self.ctx.childMode then -- 706
 			local rawBottleBtn = rtNow or raw.x -- 709
-			if self.ctx.canBottleAim then -- 710
-				if self.bottleCancelLock then -- 711
-					if not rawBottleBtn then -- 712
+			if self.ctx.canBottleAim then -- 709
+				if self.bottleCancelLock then -- 709
+					if not rawBottleBtn then -- 709
 						self.bottleCancelLock = false -- 713
 					end -- 713
 					aimHeld = false -- 715
-				elseif rawBottleBtn and bPressed and self.wasBottleAiming then -- 716
+				elseif rawBottleBtn and bPressed and self.wasBottleAiming then -- 715
 					bottleCanceled = true -- 717
 					self.bottleCancelLock = true -- 718
 					self.wasBottleAiming = false -- 719
@@ -663,19 +663,19 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 		else -- 728
 			fireHeld = rtNow or raw.x -- 731
 			firePressed = rtEdge or xPressed -- 732
-			if lsPressed and self.ctx.talentOfferCount == 0 then -- 733
+			if lsPressed and self.ctx.talentOfferCount == 0 then -- 732
 				artifactPressed = true -- 734
 			end -- 734
 		end -- 734
 	end -- 734
 	local hasAim = false -- 740
 	local scale = math.max(0.25, self.ctx.uiScale) -- 741
-	if gpActive and not self.ctx.childMode and self.ctx.canShoot then -- 742
-		if self.ctx.playerFacing ~= self.aimLastFacing and rMag <= dzR then -- 743
+	if gpActive and not self.ctx.childMode and self.ctx.canShoot then -- 741
+		if self.ctx.playerFacing ~= self.aimLastFacing and rMag <= dzR then -- 741
 			self.aimAngle = self.ctx.playerFacing >= 0 and 0 or math.pi -- 744
 			self.aimLastFacing = self.ctx.playerFacing -- 745
 		end -- 745
-		if rMag > dzR then -- 747
+		if rMag > dzR then -- 745
 			self.aimAngle = math.atan(-raw.rightY, raw.rightX) -- 748
 			self.aimLastFacing = raw.rightX >= 0 and 1 or -1 -- 749
 		end -- 749
@@ -693,12 +693,12 @@ function GamepadRouter.prototype.consumeSnapshot(self) -- 475
 		self.aimX = pt.x -- 762
 		self.aimY = pt.y -- 763
 		hasAim = true -- 764
-	elseif gpActive and self.ctx.childMode and self.ctx.canBottleAim then -- 765
-		if aimPressed then -- 766
+	elseif gpActive and self.ctx.childMode and self.ctx.canBottleAim then -- 764
+		if aimPressed then -- 764
 			self.bottleOffsetX = self.ctx.playerFacing * 155 * scale -- 767
 			self.bottleOffsetY = 0 -- 768
 		end -- 768
-		if aimHeld then -- 770
+		if aimHeld then -- 768
 			local steerX = rMag > dzR and raw.rightX or (lMag > dzL and raw.leftX or 0) -- 771
 			local steerY = rMag > dzR and -raw.rightY or (lMag > dzL and -raw.leftY or 0) -- 772
 			self.bottleOffsetX = clamp(self.bottleOffsetX + steerX * BOTTLE_AIM_SPEED_UI * scale * dt, -self.ctx.stageW * 0.48, self.ctx.stageW * 0.48) -- 773

@@ -70,7 +70,7 @@ local MAT_CULVERT_STONE = { -- 135
 	bottomAo = 0.34 -- 140
 } -- 140
 local function drawEllipseRing(draw, cx, cy, rx, ry, lineW, col, segs) -- 143
-	if segs == nil then -- 151
+	if segs == nil then -- 143
 		segs = 22 -- 151
 	end -- 151
 	local pts = {} -- 153
@@ -94,7 +94,7 @@ local function drawEllipseRing(draw, cx, cy, rx, ry, lineW, col, segs) -- 143
 	) -- 159
 end -- 143
 local function drawUiQuad(uiDraw, p0, p1, p2, p3, cBot, cTop, invScale, edgeCol, edgeW) -- 162
-	if edgeW == nil then -- 172
+	if edgeW == nil then -- 162
 		edgeW = 0 -- 172
 	end -- 172
 	local v0 = Vec2(p0.x * invScale, p0.y * invScale) -- 174
@@ -103,7 +103,7 @@ local function drawUiQuad(uiDraw, p0, p1, p2, p3, cBot, cTop, invScale, edgeCol,
 	local v3 = Vec2(p3.x * invScale, p3.y * invScale) -- 177
 	uiDraw:drawVertices({{v0, cBot}, {v1, cBot}, {v2, cTop}}) -- 178
 	uiDraw:drawVertices({{v0, cBot}, {v2, cTop}, {v3, cTop}}) -- 183
-	if edgeCol ~= nil and edgeW > 0 then -- 188
+	if edgeCol ~= nil and edgeW > 0 then -- 183
 		local half = edgeW * 0.5 -- 189
 		uiDraw:drawSegment(v0, v1, half, edgeCol) -- 190
 		uiDraw:drawSegment(v1, v2, half, edgeCol) -- 191
@@ -185,21 +185,21 @@ function VillageUndertableScene.prototype.getCulvertWorldX(self, p) -- 276
 	return p.ox + 600 -- 278
 end -- 276
 function VillageUndertableScene.prototype.classifyLandingSurface(self, p, x, explicitSurface) -- 282
-	if explicitSurface == "iron" or explicitSurface == "basin" then -- 283
+	if explicitSurface == "iron" or explicitSurface == "basin" then -- 282
 		return "iron" -- 284
 	end -- 284
-	if explicitSurface == "soft" or explicitSurface == "dirt" then -- 286
+	if explicitSurface == "soft" or explicitSurface == "dirt" then -- 284
 		return "soft" -- 287
 	end -- 287
-	if explicitSurface == "brick" then -- 289
+	if explicitSurface == "brick" then -- 287
 		return "brick" -- 290
 	end -- 290
 	local basinX = self:getBasinWorldX(p) -- 292
-	if math.abs(x - basinX) <= ____exports.VILLAGE_BASIN_HIT_RADIUS then -- 293
+	if math.abs(x - basinX) <= ____exports.VILLAGE_BASIN_HIT_RADIUS then -- 292
 		return "iron" -- 294
 	end -- 294
 	local softX = self:getSoftWorldX(p) -- 296
-	if math.abs(x - softX) <= ____exports.VILLAGE_SURFACE_HIT_RADIUS then -- 297
+	if math.abs(x - softX) <= ____exports.VILLAGE_SURFACE_HIT_RADIUS then -- 296
 		return "soft" -- 298
 	end -- 298
 	return "brick" -- 300
@@ -230,29 +230,29 @@ function VillageUndertableScene.prototype.update(self, ctx) -- 324
 	local arch = p.room.arch -- 329
 	local nearTable = p.player.x >= arch.x0 - 80 and p.player.x <= arch.x1 + 30 -- 330
 	local targetFocus = (p.player.crouch or nearTable) and 1 or 0.72 -- 331
-	if not ctx.paused and ctx.worldDt > 0 then -- 332
+	if not ctx.paused and ctx.worldDt > 0 then -- 331
 		local dt = ctx.worldDt -- 333
 		self.animTime = self.animTime + dt -- 334
 		self.underTableFocus = self.underTableFocus + (targetFocus - self.underTableFocus) * math.min(1, dt * 4.5) -- 335
-		if self.basinShakeTimer > 0 then -- 338
+		if self.basinShakeTimer > 0 then -- 335
 			self.basinShakeTimer = math.max(0, self.basinShakeTimer - dt) -- 339
 			local elapsed = self.basinShakeMax - self.basinShakeTimer -- 340
 			self.basinShakeAngle = math.sin(elapsed * 38) * math.exp(-elapsed * 3.1) * 0.24 -- 341
 		else -- 341
 			self.basinShakeAngle = 0 -- 343
 		end -- 343
-		if self.shoeToePauseTimer > 0 then -- 347
+		if self.shoeToePauseTimer > 0 then -- 343
 			self.shoeToePauseTimer = math.max(0, self.shoeToePauseTimer - dt) -- 348
 		end -- 348
 		local scavDx = p.scavX - self.prevScavX -- 350
-		if math.abs(scavDx) > 0.02 then -- 351
+		if math.abs(scavDx) > 0.02 then -- 350
 			self.scavStridePhase = self.scavStridePhase + math.abs(scavDx) * 0.16 -- 352
-		elseif p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" then -- 353
+		elseif p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" then -- 352
 			self.scavStridePhase = self.scavStridePhase + dt * (p.scavState == "chase" and 11.5 or 6.2) -- 354
 		end -- 354
 		self.prevScavX = p.scavX -- 356
 		local desiredFacing = self:computeDesiredShoeFacing(p) -- 359
-		if self.shoeToePauseTimer <= 0 then -- 360
+		if self.shoeToePauseTimer <= 0 then -- 359
 			self.shoeFacing = desiredFacing -- 361
 			self.shoeTurnBlend = math.min(1, self.shoeTurnBlend + dt * 6) -- 362
 		end -- 362
@@ -261,14 +261,14 @@ function VillageUndertableScene.prototype.update(self, ctx) -- 324
 			i = 0 -- 367
 			while i < #ctx.events.rawEvents do -- 367
 				local ev = ctx.events.rawEvents[i + 1] -- 368
-				if ev.name == "bottleLanded" then -- 369
+				if ev.name == "bottleLanded" then -- 368
 					self:onBottleLanded(ctx, ev) -- 370
 				end -- 370
 				i = i + 1 -- 367
 			end -- 367
 		end -- 367
-		if p.scavState == "turn" and self.prevScavState ~= "turn" then -- 375
-			if self.lastSurface == "brick" and self.shoeToePauseTimer <= 0 then -- 376
+		if p.scavState == "turn" and self.prevScavState ~= "turn" then -- 367
+			if self.lastSurface == "brick" and self.shoeToePauseTimer <= 0 then -- 367
 				self.shoeToePauseTimer = 0.14 -- 377
 			end -- 377
 		end -- 377
@@ -279,11 +279,11 @@ function VillageUndertableScene.prototype.update(self, ctx) -- 324
 			while i < #self.shards do -- 384
 				local sp = self.shards[i + 1] -- 385
 				sp.life = sp.life - dt -- 386
-				if sp.life > 0 then -- 387
+				if sp.life > 0 then -- 386
 					sp.vy = sp.vy - (sp.kind == "soft" and 180 or 420) * dt -- 388
 					sp.x = sp.x + sp.vx * dt -- 389
 					sp.y = sp.y + sp.vy * dt -- 390
-					if sp.y < 0 then -- 391
+					if sp.y < 0 then -- 390
 						sp.y = 0 -- 392
 						sp.vy = -sp.vy * 0.28 -- 393
 						sp.vx = sp.vx * 0.62 -- 394
@@ -294,21 +294,21 @@ function VillageUndertableScene.prototype.update(self, ctx) -- 324
 				i = i + 1 -- 384
 			end -- 384
 		end -- 384
-		__TS__ArraySetLength(self.shards, w) -- 400
+		__TS__ArraySetLength(self.shards, w) -- 384
 		w = 0 -- 403
 		do -- 403
 			i = 0 -- 404
 			while i < #self.rings do -- 404
 				local rg = self.rings[i + 1] -- 405
 				rg.age = rg.age + dt -- 406
-				if rg.age < rg.duration then -- 407
+				if rg.age < rg.duration then -- 406
 					self.rings[w + 1] = rg -- 408
 					w = w + 1 -- 409
 				end -- 409
 				i = i + 1 -- 404
 			end -- 404
 		end -- 404
-		__TS__ArraySetLength(self.rings, w) -- 412
+		__TS__ArraySetLength(self.rings, w) -- 404
 		ctx.audio:playLoop( -- 415
 			"fe04_village_night", -- 415
 			"ambience", -- 415
@@ -316,7 +316,7 @@ function VillageUndertableScene.prototype.update(self, ctx) -- 324
 			0.24, -- 415
 			p.ticks -- 415
 		) -- 415
-	elseif self.underTableFocus == 0 then -- 416
+	elseif self.underTableFocus == 0 then -- 415
 		self.underTableFocus = targetFocus -- 417
 	end -- 417
 	local focusAnchorX = math.max( -- 421
@@ -344,20 +344,20 @@ function VillageUndertableScene.prototype.update(self, ctx) -- 324
 	} -- 440
 end -- 324
 function VillageUndertableScene.prototype.computeDesiredShoeFacing(self, p) -- 444
-	if p.scavState == "chase" then -- 445
+	if p.scavState == "chase" then -- 444
 		return p.player.x >= p.scavX and 1 or -1 -- 446
 	end -- 446
-	if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 448
-		if math.abs(p.scavTargetX - p.scavX) > 2 then -- 449
+	if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 446
+		if math.abs(p.scavTargetX - p.scavX) > 2 then -- 446
 			return p.scavTargetX >= p.scavX and 1 or -1 -- 450
 		end -- 450
 	end -- 450
-	if p.scavState == "back" and p.room.scavenger ~= nil then -- 453
+	if p.scavState == "back" and p.room.scavenger ~= nil then -- 450
 		local home = math.max( -- 454
 			p.room.scavenger.x0, -- 454
 			math.min(p.room.scavenger.x1, p.scavX) -- 454
 		) -- 454
-		if math.abs(home - p.scavX) > 2 then -- 455
+		if math.abs(home - p.scavX) > 2 then -- 454
 			return home > p.scavX and 1 or -1 -- 456
 		end -- 456
 	end -- 456
@@ -371,13 +371,13 @@ function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
 	local surface = self:classifyLandingSurface(p, x, explicitSurface) -- 467
 	self.lastSurface = surface -- 469
 	self.lastLandX = x -- 470
-	if surface == "iron" then -- 472
+	if surface == "iron" then -- 470
 		self.ironHits = self.ironHits + 1 -- 473
 		self.basinShakeTimer = self.basinShakeMax -- 474
 		self.shoeToePauseTimer = 0 -- 475
 		self.shoeTurnBlend = 0.25 -- 476
 		local bx = self:getBasinWorldX(p) -- 477
-		local ____self_rings_0 = self.rings -- 479
+		local ____self_rings_0 = self.rings -- 477
 		____self_rings_0[#____self_rings_0 + 1] = { -- 479
 			x = bx, -- 479
 			y = 12, -- 479
@@ -386,7 +386,7 @@ function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
 			maxRadius = 84, -- 479
 			kind = "iron" -- 479
 		} -- 479
-		local ____self_rings_1 = self.rings -- 480
+		local ____self_rings_1 = self.rings -- 479
 		____self_rings_1[#____self_rings_1 + 1] = { -- 480
 			x = bx, -- 480
 			y = 12, -- 480
@@ -395,7 +395,7 @@ function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
 			maxRadius = 112, -- 480
 			kind = "iron" -- 480
 		} -- 480
-		local ____self_rings_2 = self.rings -- 481
+		local ____self_rings_2 = self.rings -- 480
 		____self_rings_2[#____self_rings_2 + 1] = { -- 481
 			x = bx, -- 481
 			y = 12, -- 481
@@ -415,10 +415,10 @@ function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
 			ev.tick, -- 492
 			ev.seq -- 493
 		) -- 493
-	elseif surface == "brick" then -- 495
+	elseif surface == "brick" then -- 493
 		self.brickHits = self.brickHits + 1 -- 496
 		self.shoeToePauseTimer = 0.14 -- 498
-		local ____self_rings_3 = self.rings -- 499
+		local ____self_rings_3 = self.rings -- 498
 		____self_rings_3[#____self_rings_3 + 1] = { -- 499
 			x = x, -- 499
 			y = math.max(2, y), -- 499
@@ -435,7 +435,7 @@ function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
 		) -- 500
 	else -- 500
 		self.softHits = self.softHits + 1 -- 502
-		local ____self_rings_4 = self.rings -- 503
+		local ____self_rings_4 = self.rings -- 502
 		____self_rings_4[#____self_rings_4 + 1] = { -- 503
 			x = x, -- 503
 			y = math.max(2, y), -- 503
@@ -451,7 +451,7 @@ function VillageUndertableScene.prototype.onBottleLanded(self, ctx, ev) -- 462
 			6 -- 504
 		) -- 504
 		local audioKey = ((((((("r" .. tostring(ctx.events.roomSessionId)) .. ":cp") .. tostring(ctx.events.checkpoint)) .. ":t") .. tostring(ev.tick)) .. ":s") .. tostring(ev.seq)) .. ":bottleLanded" -- 507
-		if not ctx.audio:hasPlayed(audioKey) then -- 508
+		if not ctx.audio:hasPlayed(audioKey) then -- 507
 			local key = (((("fe04:village:soft_thud:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(ev.tick)) .. ":") .. tostring(ev.seq) -- 509
 			ctx.audio:playOnce( -- 510
 				key, -- 511
@@ -472,7 +472,7 @@ function VillageUndertableScene.prototype.spawnShards(self, x, y, kind, count) -
 		while i < count do -- 525
 			local ang = (0.18 + self:rand() * 0.64) * math.pi -- 526
 			local spd = (kind == "soft" and 28 or 65) + self:rand() * (kind == "soft" and 36 or 95) -- 527
-			local ____self_shards_5 = self.shards -- 528
+			local ____self_shards_5 = self.shards -- 527
 			____self_shards_5[#____self_shards_5 + 1] = { -- 528
 				x = x + (self:rand() - 0.5) * 10, -- 529
 				y = y + 2, -- 530
@@ -526,7 +526,7 @@ function VillageUndertableScene.prototype.drawBackdrop(self, bgDraw, bgGlow, _ba
 			{x = ox + 590, y = 176}, -- 580
 			{x = ox + 860, y = 132} -- 581
 		}, -- 581
-		-20, -- 583
+		-20, -- 581
 		420, -- 584
 		MING_MATERIALS.distantHill, -- 585
 		{bucket = LP_BUCKET.BACKDROP} -- 586
@@ -833,7 +833,7 @@ function VillageUndertableScene.prototype.drawWorld(self, fgDraw, fgGlow, _world
 		0.8, -- 875
 		{bucket = LP_BUCKET.PROP, sortBias = 0.4} -- 875
 	) -- 875
-	if p.room.scavenger ~= nil then -- 876
+	if p.room.scavenger ~= nil then -- 875
 		scene:addContactShadow( -- 877
 			p.scavX, -- 877
 			p.room.scavenger.y, -- 877
@@ -1168,7 +1168,7 @@ function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fg
 		while i < #self.rings do -- 1112
 			do -- 1112
 				local rg = self.rings[i + 1] -- 1113
-				if rg.age < 0 then -- 1114
+				if rg.age < 0 then -- 1113
 					goto __continue75 -- 1115
 				end -- 1115
 				local t = clamp01(rg.age / rg.duration) -- 1117
@@ -1184,12 +1184,12 @@ function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fg
 					234, -- 1123
 					246, -- 1123
 					math.floor(235 * alpha + 0.5) -- 1123
-				) or (rg.kind == "brick" and Color( -- 1124
+				) or (rg.kind == "brick" and Color( -- 1123
 					236, -- 1125
 					216, -- 1125
 					178, -- 1125
 					math.floor(225 * alpha + 0.5) -- 1125
-				) or Color( -- 1126
+				) or Color( -- 1125
 					148, -- 1126
 					134, -- 1126
 					114, -- 1126
@@ -1205,7 +1205,7 @@ function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fg
 					ringCol, -- 1127
 					22 -- 1127
 				) -- 1127
-				if rg.kind == "iron" then -- 1128
+				if rg.kind == "iron" then -- 1127
 					drawEllipseRing( -- 1129
 						fgDraw, -- 1129
 						rx, -- 1129
@@ -1237,12 +1237,12 @@ function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fg
 				120, -- 1136
 				98, -- 1136
 				math.floor(170 * a + 0.5) -- 1136
-			) or (sp.kind == "iron" and Color( -- 1137
+			) or (sp.kind == "iron" and Color( -- 1136
 				224, -- 1138
 				232, -- 1138
 				242, -- 1138
 				math.floor(225 * a + 0.5) -- 1138
-			) or Color( -- 1139
+			) or Color( -- 1138
 				216, -- 1139
 				198, -- 1139
 				174, -- 1139
@@ -1259,7 +1259,7 @@ function VillageUndertableScene.prototype.drawSurfaceReadabilityDetails(self, fg
 			i = i + 1 -- 1132
 		end -- 1132
 	end -- 1132
-	if p.bottleLandT > 0 and p.bottleLandX >= 0 and #self.rings == 0 then -- 1144
+	if p.bottleLandT > 0 and p.bottleLandX >= 0 and #self.rings == 0 then -- 1132
 		local rx = cam:sx(p.bottleLandX) -- 1145
 		local ry = cam:sy(math.max(1, p.bottleLandY)) -- 1146
 		fgDraw:drawDot( -- 1147
@@ -1273,7 +1273,7 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 	local p = ctx.p -- 1158
 	local cam = ctx.cam -- 1159
 	local bottle = p.room.bottle -- 1162
-	if bottle ~= nil and not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 1163
+	if bottle ~= nil and not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 1162
 		self:drawCeramicBottle( -- 1164
 			fgDraw, -- 1164
 			fgGlow, -- 1164
@@ -1286,7 +1286,7 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 			true -- 1164
 		) -- 1164
 	end -- 1164
-	if p.hasBottle and p.aimHold <= 0 then -- 1168
+	if p.hasBottle and p.aimHold <= 0 then -- 1164
 		local pl = p.player -- 1169
 		self:drawCeramicBottle( -- 1170
 			fgDraw, -- 1171
@@ -1300,7 +1300,7 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 			false -- 1179
 		) -- 1179
 	end -- 1179
-	if p.bottleFly ~= nil then -- 1182
+	if p.bottleFly ~= nil then -- 1179
 		self:drawCeramicBottle( -- 1183
 			fgDraw, -- 1184
 			fgGlow, -- 1185
@@ -1313,11 +1313,11 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 			false -- 1192
 		) -- 1192
 	end -- 1192
-	if p.hasBottle and p.aimHold > 0 then -- 1197
+	if p.hasBottle and p.aimHold > 0 then -- 1192
 		local pl = p.player -- 1198
 		local endX = p.bottleAimX -- 1199
 		local endY = p.bottleAimY -- 1200
-		if endX < 0 then -- 1201
+		if endX < 0 then -- 1200
 			local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 1202
 			endX = wAim.x -- 1203
 			endY = 0 -- 1204
@@ -1370,7 +1370,7 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 			toColor(arcRgb, 235), -- 1233
 			20 -- 1233
 		) -- 1233
-		if previewSurface == "iron" then -- 1234
+		if previewSurface == "iron" then -- 1233
 			drawEllipseRing( -- 1235
 				fgGlow, -- 1235
 				lx, -- 1235
@@ -1381,7 +1381,7 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 				toColor(arcRgb, 195), -- 1235
 				22 -- 1235
 			) -- 1235
-		elseif previewSurface == "brick" then -- 1236
+		elseif previewSurface == "brick" then -- 1235
 			drawEllipseRing( -- 1237
 				fgGlow, -- 1237
 				lx, -- 1237
@@ -1398,7 +1398,7 @@ function VillageUndertableScene.prototype.drawPropsOverlay(self, fgDraw, fgGlow,
 end -- 1152
 function VillageUndertableScene.prototype.drawCeramicBottle(self, fgDraw, fgGlow, worldArt, id, cx, cy, ppu, tilt, shelfGlint) -- 1244
 	local size = math.max(10, ppu * 10.5) -- 1255
-	if not worldArt:tryPlace( -- 1256
+	if not worldArt:tryPlace( -- 1255
 		"prop_bottle", -- 1256
 		id, -- 1256
 		cx, -- 1256
@@ -1413,7 +1413,7 @@ function VillageUndertableScene.prototype.drawCeramicBottle(self, fgDraw, fgGlow
 			Color(172, 138, 102, 245) -- 1260
 		) -- 1260
 	end -- 1260
-	if shelfGlint then -- 1262
+	if shelfGlint then -- 1260
 		local p = 0.72 + 0.28 * math.sin(self.animTime * 3) -- 1263
 		fillRadialGlow( -- 1264
 			fgGlow, -- 1264
@@ -1435,10 +1435,10 @@ end -- 1244
 function VillageUndertableScene.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 1269
 	local p = ctx.p -- 1275
 	local cam = ctx.cam -- 1276
-	if p.room.scavenger ~= nil then -- 1277
+	if p.room.scavenger ~= nil then -- 1276
 		self:drawScavengerShoeOverlay(fgDraw, fgGlow, p, cam) -- 1278
 	end -- 1278
-	if ctx.paused then -- 1282
+	if ctx.paused then -- 1278
 		local arch = p.room.arch -- 1283
 		local pTopBL = projectWorld3D( -- 1284
 			arch.x0 - 8, -- 1284
@@ -1575,7 +1575,7 @@ function VillageUndertableScene.prototype.drawScavengerShoeOverlay(self, fgDraw,
 			1.3, -- 1345
 			Color(214, 210, 198, isFront and 220 or 165) -- 1345
 		) -- 1345
-		if isFront and pausedToe then -- 1347
+		if isFront and pausedToe then -- 1345
 			fgGlow:drawDot( -- 1348
 				Vec2(toeX, soleY + 1.5), -- 1348
 				3, -- 1348
@@ -1849,7 +1849,7 @@ function VillageUndertableScene.prototype.drawForegroundOverlay(self, uiDraw, _u
 			Color(26, 21, 18, 198) -- 1431
 		} -- 1431
 	}) -- 1431
-	if p.player.crouch and p.player.x >= arch.x0 - 16 and p.player.x <= arch.x1 + 16 then -- 1435
+	if p.player.crouch and p.player.x >= arch.x0 - 16 and p.player.x <= arch.x1 + 16 then -- 1431
 		local topBandH = ctx.uiH * 0.14 -- 1436
 		fillVGradRect( -- 1437
 			uiDraw, -- 1438

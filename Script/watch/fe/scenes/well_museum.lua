@@ -75,17 +75,17 @@ local function clamp01(v) -- 162
 	return clamp(v, 0, 1) -- 163
 end -- 162
 local function smoothstep(edge0, edge1, x) -- 166
-	if edge1 <= edge0 then -- 167
+	if edge1 <= edge0 then -- 166
 		return x >= edge1 and 1 or 0 -- 168
 	end -- 168
 	local t = clamp01((x - edge0) / (edge1 - edge0)) -- 170
 	return t * t * (3 - 2 * t) -- 171
 end -- 166
 local function drawEllipseRing(draw, cx, cy, rx, ry, fillCol, borderWidth, borderCol, segments) -- 174
-	if segments == nil then -- 183
+	if segments == nil then -- 174
 		segments = 28 -- 183
 	end -- 183
-	if rx <= 0.5 or ry <= 0.5 then -- 185
+	if rx <= 0.5 or ry <= 0.5 then -- 183
 		return -- 186
 	end -- 186
 	local pts = {} -- 188
@@ -105,7 +105,7 @@ local function drawEllipseRing(draw, cx, cy, rx, ry, fillCol, borderWidth, borde
 	draw:drawPolygon(pts, fillCol, borderWidth, borderCol) -- 195
 end -- 174
 local function drawCircleRing(draw, cx, cy, r, fillCol, borderWidth, borderCol, segments) -- 198
-	if segments == nil then -- 206
+	if segments == nil then -- 198
 		segments = 28 -- 206
 	end -- 206
 	drawEllipseRing( -- 208
@@ -121,20 +121,20 @@ local function drawCircleRing(draw, cx, cy, r, fillCol, borderWidth, borderCol, 
 	) -- 208
 end -- 198
 local function asRecord(v) -- 211
-	if v ~= nil and type(v) == "table" then -- 212
+	if v ~= nil and type(v) == "table" then -- 211
 		return v -- 213
 	end -- 213
 	return nil -- 215
 end -- 211
 local function readNum(rec, key) -- 218
-	if rec == nil then -- 219
+	if rec == nil then -- 218
 		return nil -- 220
 	end -- 220
 	local val = rec[key] -- 222
 	return type(val) == "number" and val or nil -- 223
 end -- 218
 local function readBool(rec, key) -- 226
-	if rec == nil then -- 227
+	if rec == nil then -- 226
 		return nil -- 228
 	end -- 228
 	local val = rec[key] -- 230
@@ -147,7 +147,7 @@ local function readBool(rec, key) -- 226
 	return ____temp_0 -- 231
 end -- 226
 local function resolveRuntimeContract(injected) -- 234
-	if injected ~= nil then -- 235
+	if injected ~= nil then -- 234
 		return injected -- 236
 	end -- 236
 	local g = _G -- 238
@@ -158,13 +158,13 @@ local function resolveRuntimeContract(injected) -- 234
 		____temp_1 = nil -- 239
 	end -- 239
 	local loaded = ____temp_1 -- 239
-	if loaded == nil then -- 240
+	if loaded == nil then -- 239
 		return nil -- 241
 	end -- 241
 	local rawFe = loaded["watch.fe"] -- 243
-	if rawFe ~= nil and type(rawFe) == "table" then -- 244
+	if rawFe ~= nil and type(rawFe) == "table" then -- 243
 		local c = rawFe.contract -- 245
-		if c ~= nil and type(c) == "table" then -- 246
+		if c ~= nil and type(c) == "table" then -- 245
 			return c -- 247
 		end -- 247
 	end -- 247
@@ -179,23 +179,23 @@ local function isPrologueIntroBlocking() -- 253
 		____temp_2 = nil -- 255
 	end -- 255
 	local loaded = ____temp_2 -- 255
-	if loaded == nil then -- 256
+	if loaded == nil then -- 255
 		return false -- 257
 	end -- 257
 	local rawFe = loaded["watch.fe"] -- 259
-	if rawFe == nil or type(rawFe) ~= "table" then -- 260
+	if rawFe == nil or type(rawFe) ~= "table" then -- 259
 		return false -- 261
 	end -- 261
 	local prologue = rawFe.prologue -- 263
-	if prologue == nil or type(prologue) ~= "table" then -- 264
+	if prologue == nil or type(prologue) ~= "table" then -- 263
 		return false -- 265
 	end -- 265
 	local fn = prologue.getSnapshot -- 267
-	if type(fn) ~= "function" then -- 268
+	if type(fn) ~= "function" then -- 267
 		return false -- 269
 	end -- 269
 	local snap = asRecord(fn(prologue)) -- 271
-	if readBool(snap, "blocksPlayerControl") == true then -- 272
+	if readBool(snap, "blocksPlayerControl") == true then -- 271
 		return true -- 273
 	end -- 273
 	local stage = snap ~= nil and type(snap.stage) == "string" and snap.stage or "idle" -- 276
@@ -268,13 +268,13 @@ function WellMuseumPlugin.prototype.syncRuntimeHook(self) -- 357
 		____temp_3 = nil -- 359
 	end -- 359
 	local loaded = ____temp_3 -- 359
-	if loaded == nil then -- 360
+	if loaded == nil then -- 359
 		return -- 361
 	end -- 361
 	local rawFe = loaded["watch.fe"] -- 363
-	if rawFe ~= nil and type(rawFe) == "table" then -- 364
+	if rawFe ~= nil and type(rawFe) == "table" then -- 363
 		local watchFe = rawFe -- 365
-		if watchFe.wellMuseum ~= self then -- 366
+		if watchFe.wellMuseum ~= self then -- 365
 			watchFe.wellMuseum = self -- 367
 		end -- 367
 	end -- 367
@@ -297,38 +297,38 @@ function WellMuseumPlugin.prototype.exportResumeState(self) -- 381
 	} -- 392
 end -- 381
 function WellMuseumPlugin.prototype.restoreResumeState(self, snap) -- 397
-	if snap.phase ~= nil then -- 398
+	if snap.phase ~= nil then -- 397
 		self.prevPhase = snap.phase -- 399
 		self.lastResumePhase = snap.phase -- 400
 	end -- 400
-	if snap.hallWalkX ~= nil then -- 402
+	if snap.hallWalkX ~= nil then -- 400
 		self.hallWalkX = clamp(snap.hallWalkX, 90, ____exports.MUSEUM_HALL_WIDTH - 90) -- 403
 		self.lastResumeWalkX = self.hallWalkX -- 404
 	end -- 404
-	if snap.hallCamX ~= nil then -- 406
+	if snap.hallCamX ~= nil then -- 404
 		self.hallCamX = snap.hallCamX -- 407
 	else -- 407
 		self.hallCamX = self.hallWalkX -- 409
 	end -- 409
-	if snap.hallFacing ~= nil then -- 411
+	if snap.hallFacing ~= nil then -- 409
 		self.hallFacing = snap.hallFacing >= 0 and 1 or -1 -- 412
 	end -- 412
-	if snap.holstered ~= nil then -- 414
+	if snap.holstered ~= nil then -- 412
 		self.holstered = snap.holstered -- 415
 	end -- 415
-	if snap.childEchoPlayed ~= nil then -- 417
+	if snap.childEchoPlayed ~= nil then -- 415
 		self.childEchoPlayed = snap.childEchoPlayed -- 418
 	end -- 418
-	if snap.reflectElapsed ~= nil then -- 420
+	if snap.reflectElapsed ~= nil then -- 418
 		self.reflectElapsed = math.max(0, snap.reflectElapsed) -- 421
 	end -- 421
-	if snap.lampElapsed ~= nil then -- 423
+	if snap.lampElapsed ~= nil then -- 421
 		self.lampElapsed = math.max(0, snap.lampElapsed) -- 424
 	end -- 424
-	if snap.returnElapsed ~= nil then -- 426
+	if snap.returnElapsed ~= nil then -- 424
 		self.returnElapsed = math.max(0, snap.returnElapsed) -- 427
 	end -- 427
-	if snap.artifactGrantCount ~= nil then -- 429
+	if snap.artifactGrantCount ~= nil then -- 427
 		self.artifactGrantCount = math.max(0, snap.artifactGrantCount) -- 430
 	end -- 430
 	self.savedResume = self:exportResumeState() -- 432
@@ -346,21 +346,21 @@ end -- 437
 function WellMuseumPlugin.prototype.setHallWalkPosition(self, x, holstered) -- 448
 	self.hallWalkX = clamp(x, 90, ____exports.MUSEUM_HALL_WIDTH - 90) -- 449
 	self.hallCamX = self.hallWalkX -- 450
-	if holstered ~= nil then -- 451
+	if holstered ~= nil then -- 450
 		self.holstered = holstered -- 452
-	elseif self.hallWalkX >= self.caseX - 85 then -- 453
+	elseif self.hallWalkX >= self.caseX - 85 then -- 452
 		self.holstered = true -- 454
 	end -- 454
 	self.savedResume = self:exportResumeState() -- 456
 end -- 448
 function WellMuseumPlugin.prototype.seekStageTime(self, stage, seconds) -- 460
 	local s = math.max(0, seconds) -- 461
-	if stage == "well_reflect" then -- 462
+	if stage == "well_reflect" then -- 461
 		self.reflectElapsed = math.min(____exports.MUSEUM_TIMINGS.wellReflectDuration, s) -- 463
-	elseif stage == "lamp_turn" then -- 464
+	elseif stage == "lamp_turn" then -- 463
 		self.lampElapsed = math.min(____exports.MUSEUM_TIMINGS.lampTurnDuration, s) -- 465
 		self.lineDawnShown = self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt -- 466
-	elseif stage == "return_cabinet" then -- 467
+	elseif stage == "return_cabinet" then -- 466
 		self.returnElapsed = math.min(____exports.MUSEUM_TIMINGS.returnCabinetDuration, s) -- 468
 	end -- 468
 end -- 460
@@ -413,7 +413,7 @@ function WellMuseumPlugin.prototype.getDebugState(self) -- 472
 end -- 472
 function WellMuseumPlugin.prototype.onBindPlay(self, p, view) -- 524
 	self:syncRuntimeHook() -- 525
-	if view.isRehearsal ~= self.rehearsal then -- 526
+	if view.isRehearsal ~= self.rehearsal then -- 525
 		self.savedResume = nil -- 527
 	end -- 527
 	self.rehearsal = view.isRehearsal -- 529
@@ -446,14 +446,14 @@ function WellMuseumPlugin.prototype.onBindPlay(self, p, view) -- 524
 	local backendWellX = readNum(pRec, "wellX") -- 553
 	self.wellWorldX = backendWellX ~= nil and p.ox + backendWellX or p.ox + ____exports.WELL_WORLD_X -- 554
 	self.hallMoving = false -- 555
-	if view.archive.childCleared and view.archive.soldierCleared and view.archive.artifactOwned then -- 558
-		if self.artifactGrantCount < 1 then -- 559
+	if view.archive.childCleared and view.archive.soldierCleared and view.archive.artifactOwned then -- 555
+		if self.artifactGrantCount < 1 then -- 555
 			self.artifactGrantCount = 1 -- 560
 		end -- 560
-	elseif not view.archive.artifactOwned then -- 562
+	elseif not view.archive.artifactOwned then -- 560
 		self.artifactGrantCount = 0 -- 563
 	end -- 563
-	if isActiveMuseumPhase(phase) then -- 567
+	if isActiveMuseumPhase(phase) then -- 563
 		local ____view_isRehearsal_7 -- 568
 		if view.isRehearsal then -- 568
 			____view_isRehearsal_7 = nil -- 568
@@ -491,7 +491,7 @@ function WellMuseumPlugin.prototype.onBindPlay(self, p, view) -- 524
 			____readBool_result_14 = readBool(pRec, "museumChildEchoPlayed") -- 573
 		end -- 573
 		local backendChildEcho = ____readBool_result_14 -- 573
-		if self.savedResume ~= nil and self.savedResume.phase == phase then -- 575
+		if self.savedResume ~= nil and self.savedResume.phase == phase then -- 573
 			self.hallWalkX = backendWalkX ~= nil and clamp(backendWalkX, 90, ____exports.MUSEUM_HALL_WIDTH - 90) or self.savedResume.hallWalkX -- 576
 			self.hallCamX = self.hallWalkX -- 577
 			self.hallFacing = self.savedResume.hallFacing -- 578
@@ -528,18 +528,18 @@ function WellMuseumPlugin.prototype.onBindPlay(self, p, view) -- 524
 		self.lineDawnShown = false -- 602
 		self.knock1Played = false -- 603
 		self.knock2Played = false -- 604
-		if phase == "locked" or phase == "well_open" then -- 605
+		if phase == "locked" or phase == "well_open" then -- 604
 			self.savedResume = nil -- 606
 		end -- 606
 	end -- 606
 end -- 524
 function WellMuseumPlugin.prototype.resetPhaseTimersForEntry(self, phase, backendWalkX, backendHolstered, backendChildEcho) -- 611
-	if phase == "well_reflect" then -- 617
+	if phase == "well_reflect" then -- 611
 		self.reflectElapsed = 0 -- 618
 		self.enterHallSubmitted = false -- 619
 		return -- 620
 	end -- 620
-	if phase == "hall_walk" then -- 622
+	if phase == "hall_walk" then -- 620
 		self.hallWalkX = backendWalkX ~= nil and clamp(backendWalkX, 90, ____exports.MUSEUM_HALL_WIDTH - 90) or ____exports.MUSEUM_ENTRY_X -- 623
 		self.hallCamX = self.hallWalkX -- 624
 		self.hallFacing = 1 -- 625
@@ -557,7 +557,7 @@ function WellMuseumPlugin.prototype.resetPhaseTimersForEntry(self, phase, backen
 		self.childEchoCountdown = -1 -- 629
 		return -- 630
 	end -- 630
-	if phase == "lamp_turn" then -- 632
+	if phase == "lamp_turn" then -- 630
 		self.hallWalkX = backendWalkX ~= nil and clamp(backendWalkX, 90, ____exports.MUSEUM_HALL_WIDTH - 90) or self.lampX - 36 -- 633
 		self.hallCamX = self.hallWalkX -- 634
 		self.hallFacing = 1 -- 635
@@ -569,43 +569,43 @@ function WellMuseumPlugin.prototype.resetPhaseTimersForEntry(self, phase, backen
 		self.beginReturnSubmitted = false -- 641
 		return -- 642
 	end -- 642
-	if phase == "return_cabinet" then -- 644
+	if phase == "return_cabinet" then -- 642
 		self.returnElapsed = 0 -- 645
 		self.knock2Played = false -- 646
 		self.returnCompleteSubmitted = false -- 647
 	end -- 647
 end -- 611
 function WellMuseumPlugin.prototype.evaluateGate(self, p, view) -- 651
-	if p.run.trial ~= nil then -- 652
+	if p.run.trial ~= nil then -- 651
 		return {open = false, reason = "trial_mode"} -- 653
 	end -- 653
-	if p.room.key ~= "prologue" then -- 655
+	if p.room.key ~= "prologue" then -- 653
 		return {open = false, reason = "not_prologue"} -- 656
 	end -- 656
-	if p.phase ~= "prologue-wait" and p.phase ~= "prologue-well" then -- 658
+	if p.phase ~= "prologue-wait" and p.phase ~= "prologue-well" then -- 656
 		return {open = false, reason = "after_cabinet_window"} -- 659
 	end -- 659
-	if isPrologueIntroBlocking() then -- 661
+	if isPrologueIntroBlocking() then -- 659
 		return {open = false, reason = "prologue_intro_active"} -- 662
 	end -- 662
-	if not view.archive.childCleared or not view.archive.soldierCleared then -- 665
+	if not view.archive.childCleared or not view.archive.soldierCleared then -- 662
 		return {open = false, reason = "requires_both_clear"} -- 666
 	end -- 666
-	if view.archive.museumPhase == "locked" then -- 668
+	if view.archive.museumPhase == "locked" then -- 666
 		return {open = false, reason = "phase_locked"} -- 669
 	end -- 669
 	return {open = true, reason = "ok"} -- 671
 end -- 651
 function WellMuseumPlugin.prototype.submitMuseumIntent(self, p, target) -- 674
 	local contract = resolveRuntimeContract(self.injectedContract) -- 675
-	if contract == nil then -- 676
+	if contract == nil then -- 675
 		return false -- 677
 	end -- 677
 	local intent = {kind = "museumInteract", target = target} -- 679
 	return contract:submitIntent(p, intent) -- 680
 end -- 674
 function WellMuseumPlugin.prototype.syncLoops(self, ctx, wantWellDrip, dripVolume, wantHallAmbience) -- 683
-	if wantWellDrip then -- 684
+	if wantWellDrip then -- 683
 		ctx.audio:playLoop( -- 685
 			LOOP_WELL_DRIP, -- 685
 			"water", -- 685
@@ -614,11 +614,11 @@ function WellMuseumPlugin.prototype.syncLoops(self, ctx, wantWellDrip, dripVolum
 			ctx.p.ticks -- 685
 		) -- 685
 		self.wellDripPlaying = true -- 686
-	elseif self.wellDripPlaying then -- 687
+	elseif self.wellDripPlaying then -- 686
 		ctx.audio:stopLoop(LOOP_WELL_DRIP) -- 688
 		self.wellDripPlaying = false -- 689
 	end -- 689
-	if wantHallAmbience then -- 692
+	if wantHallAmbience then -- 689
 		ctx.audio:playLoop( -- 693
 			LOOP_HALL_AMBIENCE, -- 693
 			"ambience", -- 693
@@ -627,7 +627,7 @@ function WellMuseumPlugin.prototype.syncLoops(self, ctx, wantWellDrip, dripVolum
 			ctx.p.ticks -- 693
 		) -- 693
 		self.hallAmbiencePlaying = true -- 694
-	elseif self.hallAmbiencePlaying then -- 695
+	elseif self.hallAmbiencePlaying then -- 694
 		ctx.audio:stopLoop(LOOP_HALL_AMBIENCE) -- 696
 		self.hallAmbiencePlaying = false -- 697
 	end -- 697
@@ -637,7 +637,7 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 	local p = ctx.p -- 703
 	local view = ctx.view -- 704
 	local phase = view.archive.museumPhase -- 705
-	if view.isRehearsal ~= self.rehearsal then -- 706
+	if view.isRehearsal ~= self.rehearsal then -- 705
 		self:syncLoops(ctx, false, 0, false) -- 707
 		self:onBindPlay(p, view) -- 708
 	end -- 708
@@ -652,18 +652,18 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 	self.simInput = nil -- 722
 	local interactPressed = ctx.input.interact.pressed or ctx.input.frameInteractPressed or sim ~= nil and sim.interact == true -- 723
 	local moveX = sim ~= nil and sim.moveX ~= nil and sim.moveX or ctx.input.moveX -- 726
-	if phase ~= self.prevPhase then -- 729
+	if phase ~= self.prevPhase then -- 726
 		local wasActive = isActiveMuseumPhase(self.prevPhase) -- 730
 		self.prevPhase = phase -- 731
-		if isActiveMuseumPhase(phase) then -- 732
-			if phase == "well_reflect" then -- 733
+		if isActiveMuseumPhase(phase) then -- 731
+			if phase == "well_reflect" then -- 731
 				self:resetPhaseTimersForEntry("well_reflect") -- 734
-				if view.archive.artifactOwned and self.artifactGrantCount < 1 then -- 735
+				if view.archive.artifactOwned and self.artifactGrantCount < 1 then -- 734
 					self.artifactGrantCount = 1 -- 736
 				end -- 736
-			elseif phase == "hall_walk" and not wasActive then -- 738
+			elseif phase == "hall_walk" and not wasActive then -- 736
 				self:resetPhaseTimersForEntry("hall_walk") -- 739
-			elseif phase == "hall_walk" and wasActive then -- 740
+			elseif phase == "hall_walk" and wasActive then -- 739
 				self.hallWalkX = ____exports.MUSEUM_ENTRY_X -- 741
 				self.hallCamX = ____exports.MUSEUM_ENTRY_X -- 742
 				self.hallFacing = 1 -- 743
@@ -671,12 +671,12 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 				self.holstered = false -- 745
 				self.childEchoPlayed = false -- 746
 				self.childEchoCountdown = -1 -- 747
-			elseif phase == "lamp_turn" then -- 748
+			elseif phase == "lamp_turn" then -- 747
 				self:resetPhaseTimersForEntry("lamp_turn", self.hallWalkX, true, self.childEchoPlayed) -- 749
-			elseif phase == "return_cabinet" then -- 750
+			elseif phase == "return_cabinet" then -- 749
 				self:resetPhaseTimersForEntry("return_cabinet") -- 751
 			end -- 751
-		elseif phase == "done" then -- 753
+		elseif phase == "done" then -- 751
 			self.savedResume = nil -- 754
 		end -- 754
 	end -- 754
@@ -684,33 +684,33 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 	self.gateOpen = gate.open -- 759
 	self.gateBlockedReason = gate.reason -- 760
 	self.nearWell = gate.open and math.abs(p.player.x - self.wellWorldX) <= ____exports.WELL_INTERACT_REACH -- 761
-	if ctx.paused then -- 764
+	if ctx.paused then -- 761
 		return -- 765
 	end -- 765
 	local wdt = math.max(0, ctx.worldDt) -- 768
 	local udt = math.max(0, ctx.uiDt) -- 769
 	self.animTime = self.animTime + wdt -- 770
-	if self.revisitCalmTimer > 0 then -- 772
+	if self.revisitCalmTimer > 0 then -- 770
 		self.revisitCalmTimer = math.max(0, self.revisitCalmTimer - wdt) -- 773
 	end -- 773
-	if self.childEchoVisualT > 0 then -- 775
+	if self.childEchoVisualT > 0 then -- 773
 		self.childEchoVisualT = math.max(0, self.childEchoVisualT - udt) -- 776
 	end -- 776
-	if self.knock1VisualT > 0 then -- 778
+	if self.knock1VisualT > 0 then -- 776
 		self.knock1VisualT = math.max(0, self.knock1VisualT - wdt) -- 779
 	end -- 779
-	if self.knock2VisualT > 0 then -- 781
+	if self.knock2VisualT > 0 then -- 779
 		self.knock2VisualT = math.max(0, self.knock2VisualT - wdt) -- 782
 	end -- 782
-	if view.visualMode ~= "museum" then -- 786
+	if view.visualMode ~= "museum" then -- 782
 		local wantDrip = gate.open and phase == "well_open" and not view.archive.museumSeen -- 787
 		local dist = math.abs(p.player.x - self.wellWorldX) -- 788
 		local dripVol = clamp(0.46 - dist * 0.0014, 0.08, 0.46) -- 789
 		self:syncLoops(ctx, wantDrip, dripVol, false) -- 790
-		if gate.open and self.nearWell and interactPressed then -- 792
+		if gate.open and self.nearWell and interactPressed then -- 790
 			local liveNeedsSecondEnter = not view.isRehearsal and p.room.key == "prologue" and view.archive.artifactOwned and not view.archive.museumSeen -- 793
 			local alreadyAwarded = not liveNeedsSecondEnter and (view.archive.museumSeen or phase == "done" or view.archive.artifactOwned and self.artifactGrantCount >= 1) -- 797
-			if (phase == "well_open" or liveNeedsSecondEnter) and not alreadyAwarded then -- 801
+			if (phase == "well_open" or liveNeedsSecondEnter) and not alreadyAwarded then -- 797
 				self:submitMuseumIntent(p, "well_pickup") -- 802
 			else -- 802
 				self.revisitCalmTimer = 1.4 -- 805
@@ -720,18 +720,18 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 		return -- 809
 	end -- 809
 	local effectivePhase = p.room.key == "museum" and phase == "well_reflect" and self.liveReflectDoneInMuseumRoom and "hall_walk" or phase -- 813
-	if effectivePhase == "well_reflect" then -- 817
+	if effectivePhase == "well_reflect" then -- 813
 		local dripVol = clamp( -- 818
 			0.44 * (1 - smoothstep(____exports.MUSEUM_TIMINGS.wellMatchCutStart, ____exports.MUSEUM_TIMINGS.wellReflectDuration, self.reflectElapsed)), -- 818
 			0, -- 818
 			0.44 -- 818
 		) -- 818
 		self:syncLoops(ctx, dripVol > 0.03, dripVol, false) -- 819
-		if wdt > 0 then -- 821
+		if wdt > 0 then -- 819
 			self.reflectElapsed = self.reflectElapsed + wdt -- 822
 		end -- 822
-		if self.reflectElapsed >= ____exports.MUSEUM_TIMINGS.wellPickupAt then -- 824
-			if self.artifactGrantCount < 1 then -- 825
+		if self.reflectElapsed >= ____exports.MUSEUM_TIMINGS.wellPickupAt then -- 822
+			if self.artifactGrantCount < 1 then -- 822
 				self.artifactGrantCount = 1 -- 826
 			end -- 826
 			ctx.audio:playOnce( -- 828
@@ -743,7 +743,7 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 				p.ticks -- 834
 			) -- 834
 		end -- 834
-		if self.reflectElapsed >= ____exports.MUSEUM_TIMINGS.wellMatchCutStart then -- 837
+		if self.reflectElapsed >= ____exports.MUSEUM_TIMINGS.wellMatchCutStart then -- 834
 			ctx.audio:playOnce( -- 838
 				"fe06:e01:matchcut:" .. tostring(self.roomSessionId), -- 839
 				"ambience", -- 840
@@ -754,20 +754,20 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 			) -- 844
 		end -- 844
 		self.savedResume = self:exportResumeState() -- 847
-		if self.reflectElapsed >= ____exports.MUSEUM_TIMINGS.wellReflectDuration and not self.enterHallSubmitted then -- 848
+		if self.reflectElapsed >= ____exports.MUSEUM_TIMINGS.wellReflectDuration and not self.enterHallSubmitted then -- 847
 			self.enterHallSubmitted = true -- 849
-			if p.room.key == "museum" then -- 850
+			if p.room.key == "museum" then -- 849
 				self.liveReflectDoneInMuseumRoom = true -- 851
 			end -- 851
 			self:submitMuseumIntent(p, "enter_hall") -- 853
 			local contract = resolveRuntimeContract(self.injectedContract) -- 854
-			if contract ~= nil and contract:isRehearsal() then -- 855
+			if contract ~= nil and contract:isRehearsal() then -- 854
 				contract:enterMockMuseum("hall_walk") -- 856
 			end -- 856
 		end -- 856
 		return -- 859
 	end -- 859
-	if effectivePhase == "hall_walk" then -- 863
+	if effectivePhase == "hall_walk" then -- 859
 		self:syncLoops(ctx, false, 0, true) -- 864
 		self.hallIntroElapsed = self.hallIntroElapsed + udt -- 865
 		local ____view_isRehearsal_19 -- 869
@@ -780,18 +780,18 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 		local backendWalkX = readNum(pRec, "museumWalkX") or (not view.isRehearsal and p.room.key == "museum" and p.player.x - p.ox or nil) -- 870
 		self.hallMoving = false -- 872
 		local previousX = self.hallWalkX -- 873
-		if backendWalkX ~= nil then -- 874
+		if backendWalkX ~= nil then -- 873
 			self.hallWalkX = clamp(backendWalkX, 90, ____exports.MUSEUM_HALL_WIDTH - 90) -- 875
-		elseif udt > 0 and math.abs(moveX) > 0.05 then -- 876
+		elseif udt > 0 and math.abs(moveX) > 0.05 then -- 875
 			self.hallWalkX = clamp(self.hallWalkX + moveX * ____exports.MUSEUM_WALK_SPEED * udt, 90, ____exports.MUSEUM_HALL_WIDTH - 90) -- 877
 		end -- 877
 		local delta = self.hallWalkX - previousX -- 879
-		if math.abs(delta) > 0.01 then -- 880
+		if math.abs(delta) > 0.01 then -- 879
 			self.hallFacing = delta >= 0 and 1 or -1 -- 881
 			self.hallWalkAnim = self.hallWalkAnim + udt * 8.5 -- 882
 			self.hallMoving = true -- 883
 			self.hallFootstepTimer = self.hallFootstepTimer + udt -- 884
-			if self.hallFootstepTimer >= 0.46 then -- 885
+			if self.hallFootstepTimer >= 0.46 then -- 884
 				self.hallFootstepTimer = 0 -- 886
 				ctx.audio:playOnce( -- 887
 					(("fe06:e02:step:" .. tostring(self.roomSessionId)) .. ":") .. tostring(math.floor(self.hallWalkAnim * 2)), -- 888
@@ -808,7 +808,7 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 		local camFollow = math.min(1, udt * 5.2) -- 901
 		self.hallCamX = self.hallCamX + (self.hallWalkX - self.hallCamX) * camFollow -- 902
 		local holsterThreshold = p.room.key == "museum" and self.caseX + 12 or self.caseX - 85 -- 905
-		if not self.holstered and self.hallWalkX >= holsterThreshold then -- 906
+		if not self.holstered and self.hallWalkX >= holsterThreshold then -- 905
 			self.holstered = true -- 907
 			ctx.audio:playOnce( -- 908
 				"fe06:e02:holster:" .. tostring(self.roomSessionId), -- 909
@@ -818,13 +818,13 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 				"museum:e02:weapon_holster", -- 913
 				p.ticks -- 914
 			) -- 914
-			if not self.childEchoPlayed then -- 916
+			if not self.childEchoPlayed then -- 914
 				self.childEchoCountdown = ____exports.MUSEUM_TIMINGS.childEchoDelay -- 917
 			end -- 917
 		end -- 917
-		if self.childEchoCountdown >= 0 and not self.childEchoPlayed then -- 921
+		if self.childEchoCountdown >= 0 and not self.childEchoPlayed then -- 917
 			self.childEchoCountdown = self.childEchoCountdown - udt -- 922
-			if self.childEchoCountdown <= 0 then -- 923
+			if self.childEchoCountdown <= 0 then -- 922
 				self.childEchoCountdown = -1 -- 924
 				self.childEchoPlayed = true -- 925
 				self.childEchoVisualT = 2.1 -- 926
@@ -846,21 +846,21 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 		end -- 940
 		self.nearLamp = ____view_isRehearsal_20 -- 938
 		self.savedResume = self:exportResumeState() -- 942
-		if self.nearLamp and interactPressed then -- 944
+		if self.nearLamp and interactPressed then -- 942
 			self:submitMuseumIntent(p, "lamp_turn") -- 945
 		end -- 945
 		return -- 947
 	end -- 947
-	if effectivePhase == "lamp_turn" then -- 951
+	if effectivePhase == "lamp_turn" then -- 947
 		self:syncLoops(ctx, false, 0, true) -- 952
-		if wdt > 0 then -- 953
+		if wdt > 0 then -- 952
 			self.lampElapsed = self.lampElapsed + wdt -- 954
 		end -- 954
-		if p.room.key == "museum" then -- 957
+		if p.room.key == "museum" then -- 954
 			local targetX = clamp(p.player.x - p.ox, 90, ____exports.MUSEUM_HALL_WIDTH - 90) -- 958
 			local delta = targetX - self.hallWalkX -- 959
 			self.hallMoving = math.abs(delta) > 0.25 -- 960
-			if self.hallMoving then -- 961
+			if self.hallMoving then -- 960
 				self.hallFacing = delta >= 0 and 1 or -1 -- 962
 				self.hallWalkAnim = self.hallWalkAnim + udt * 8.5 -- 963
 			end -- 963
@@ -875,7 +875,7 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 			"museum:e02:lamp_turn", -- 973
 			p.ticks -- 974
 		) -- 974
-		if self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 976
+		if self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 974
 			self.lineDawnShown = true -- 977
 			ctx.audio:playOnce( -- 978
 				"fe06:e02:line_dawn:" .. tostring(self.roomSessionId), -- 979
@@ -886,7 +886,7 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 				p.ticks -- 984
 			) -- 984
 		end -- 984
-		if self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampKnock1At and not self.knock1Played then -- 987
+		if self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampKnock1At and not self.knock1Played then -- 984
 			self.knock1Played = true -- 988
 			self.knock1VisualT = 0.85 -- 989
 			ctx.audio:playOnce( -- 990
@@ -899,22 +899,22 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 			) -- 996
 		end -- 996
 		self.savedResume = self:exportResumeState() -- 999
-		if self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampTurnDuration and not self.beginReturnSubmitted then -- 1001
+		if self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampTurnDuration and not self.beginReturnSubmitted then -- 999
 			self.beginReturnSubmitted = true -- 1002
 			self:submitMuseumIntent(p, "begin_return_cabinet") -- 1003
 			local contract = resolveRuntimeContract(self.injectedContract) -- 1004
-			if contract ~= nil and contract:isRehearsal() then -- 1005
+			if contract ~= nil and contract:isRehearsal() then -- 1004
 				contract:enterMockMuseum("return_cabinet") -- 1006
 			end -- 1006
 		end -- 1006
 		return -- 1009
 	end -- 1009
-	if phase == "return_cabinet" then -- 1013
+	if phase == "return_cabinet" then -- 1009
 		self:syncLoops(ctx, false, 0, false) -- 1014
-		if wdt > 0 then -- 1015
+		if wdt > 0 then -- 1014
 			self.returnElapsed = self.returnElapsed + wdt -- 1016
 		end -- 1016
-		if self.returnElapsed >= ____exports.MUSEUM_TIMINGS.returnKnock2At and not self.knock2Played then -- 1018
+		if self.returnElapsed >= ____exports.MUSEUM_TIMINGS.returnKnock2At and not self.knock2Played then -- 1016
 			self.knock2Played = true -- 1019
 			self.knock2VisualT = 0.9 -- 1020
 			ctx.audio:playOnce( -- 1021
@@ -927,14 +927,14 @@ function WellMuseumPlugin.prototype.update(self, ctx) -- 701
 			) -- 1027
 		end -- 1027
 		self.savedResume = self:exportResumeState() -- 1030
-		if self.returnElapsed >= ____exports.MUSEUM_TIMINGS.returnCabinetDuration and not self.returnCompleteSubmitted then -- 1032
+		if self.returnElapsed >= ____exports.MUSEUM_TIMINGS.returnCabinetDuration and not self.returnCompleteSubmitted then -- 1030
 			self.returnCompleteSubmitted = true -- 1033
 			self:submitMuseumIntent(p, "return_cabinet") -- 1034
 		end -- 1034
 	end -- 1034
 end -- 701
 function WellMuseumPlugin.prototype.drawBackdrop(self, bgDraw, _bgGlow, _backdropArt, ctx) -- 1039
-	if ctx.view.visualMode ~= "museum" then -- 1045
+	if ctx.view.visualMode ~= "museum" then -- 1039
 		return false -- 1046
 	end -- 1046
 	bgDraw:drawRect( -- 1049
@@ -950,7 +950,7 @@ function WellMuseumPlugin.prototype.drawPropsOverlay(self, _fgDraw, _fgGlow, _wo
 	return ctx.view.visualMode == "museum" -- 1068
 end -- 1062
 function WellMuseumPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 1074
-	if not self.gateOpen or ctx.view.visualMode == "museum" then -- 1080
+	if not self.gateOpen or ctx.view.visualMode == "museum" then -- 1074
 		return -- 1081
 	end -- 1081
 	local cam = ctx.cam -- 1083
@@ -1006,7 +1006,7 @@ function WellMuseumPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _wor
 	local dripCycle = self.animTime * 0.58 % 1 -- 1122
 	local rippleR = cam:len(3 + dripCycle * 11) -- 1123
 	local rippleAlpha = math.floor((1 - dripCycle) * (activeLure and 155 or 42) + 0.5) -- 1124
-	if activeLure then -- 1125
+	if activeLure then -- 1124
 		local shimmer = 0.65 + 0.35 * math.sin(self.animTime * 2.9) -- 1126
 		fgDraw:drawCircle( -- 1128
 			Vec2(wellCx, groundY + rimH), -- 1128
@@ -1044,7 +1044,7 @@ function WellMuseumPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _wor
 			Color(148, 178, 212, 0), -- 1137
 			16 -- 1138
 		) -- 1138
-		if dripCycle < 0.24 then -- 1141
+		if dripCycle < 0.24 then -- 1138
 			local dropK = dripCycle / 0.24 -- 1142
 			local dropY = groundY + archH * 0.72 - dropK * (archH * 0.72 - rimH) -- 1143
 			fgDraw:drawSegment( -- 1144
@@ -1057,7 +1057,7 @@ function WellMuseumPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _wor
 				Color(214, 228, 244, 185) -- 1148
 			) -- 1148
 		end -- 1148
-	elseif self.revisitCalmTimer > 0 then -- 1151
+	elseif self.revisitCalmTimer > 0 then -- 1148
 		local calmK = 1 - clamp01(self.revisitCalmTimer / 1.4) -- 1153
 		local calmR = cam:len(3 + calmK * 10) -- 1154
 		drawEllipseRing( -- 1155
@@ -1081,8 +1081,8 @@ end -- 1074
 function WellMuseumPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 1174
 	local view = ctx.view -- 1181
 	local phase = view.archive.museumPhase -- 1182
-	if view.visualMode ~= "museum" then -- 1184
-		if self.gateOpen and self.nearWell and view.assistHintsEnabled and phase == "well_open" and not view.archive.museumSeen then -- 1186
+	if view.visualMode ~= "museum" then -- 1182
+		if self.gateOpen and self.nearWell and view.assistHintsEnabled and phase == "well_open" and not view.archive.museumSeen then -- 1182
 			local sx = ctx.cam:sx(self.wellWorldX) / ctx.uiScale -- 1187
 			local sy = (ctx.cam:sy(0, 0) + ctx.cam:len(54)) / ctx.uiScale -- 1188
 			drawSilkVeil( -- 1189
@@ -1115,7 +1115,7 @@ function WellMuseumPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw,
 	local w = ctx.uiW -- 1206
 	local h = ctx.uiH -- 1207
 	local effectivePhase = ctx.p.room.key == "museum" and phase == "well_reflect" and self.liveReflectDoneInMuseumRoom and "hall_walk" or phase -- 1209
-	if effectivePhase == "well_reflect" then -- 1213
+	if effectivePhase == "well_reflect" then -- 1209
 		self:renderE01WellReflectMatchCut( -- 1214
 			uiDraw, -- 1214
 			uiInkDraw, -- 1214
@@ -1127,7 +1127,7 @@ function WellMuseumPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw,
 		) -- 1214
 		return true -- 1215
 	end -- 1215
-	if effectivePhase == "hall_walk" then -- 1217
+	if effectivePhase == "hall_walk" then -- 1215
 		self:renderE02MuseumHall( -- 1218
 			uiDraw, -- 1218
 			uiInkDraw, -- 1218
@@ -1141,7 +1141,7 @@ function WellMuseumPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw,
 		) -- 1218
 		return true -- 1219
 	end -- 1219
-	if effectivePhase == "lamp_turn" then -- 1221
+	if effectivePhase == "lamp_turn" then -- 1219
 		local turnProg = smoothstep(0, 1.15, self.lampElapsed) -- 1222
 		self:renderE02MuseumHall( -- 1223
 			uiDraw, -- 1223
@@ -1156,7 +1156,7 @@ function WellMuseumPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw,
 		) -- 1223
 		return true -- 1224
 	end -- 1224
-	if effectivePhase == "return_cabinet" then -- 1226
+	if effectivePhase == "return_cabinet" then -- 1224
 		self:renderE02ReturnCabinet( -- 1227
 			uiDraw, -- 1227
 			uiInkDraw, -- 1227
@@ -1195,7 +1195,7 @@ function WellMuseumPlugin.prototype.renderE01WellReflectMatchCut(self, uiDraw, u
 			255 -- 1268
 		) -- 1268
 	) -- 1268
-	if wellAlpha > 0.01 then -- 1273
+	if wellAlpha > 0.01 then -- 1268
 		local wellR = math.min(w, h) * (0.31 + matchK * 0.24) -- 1274
 		uiDraw:drawCircle( -- 1276
 			Vec2(ax, ay), -- 1276
@@ -1360,7 +1360,7 @@ function WellMuseumPlugin.prototype.renderE01WellReflectMatchCut(self, uiDraw, u
 				math.floor(185 * wellAlpha + 0.5) -- 1327
 			) -- 1327
 		) -- 1327
-		if t >= ____exports.MUSEUM_TIMINGS.wellPickupAt then -- 1330
+		if t >= ____exports.MUSEUM_TIMINGS.wellPickupAt then -- 1327
 			local pickK = smoothstep(____exports.MUSEUM_TIMINGS.wellPickupAt, ____exports.MUSEUM_TIMINGS.wellMatchCutStart, t) -- 1331
 			local liftY = ay + pickK * 14 -- 1332
 			drawCircleRing( -- 1333
@@ -1379,7 +1379,7 @@ function WellMuseumPlugin.prototype.renderE01WellReflectMatchCut(self, uiDraw, u
 				28 -- 1341
 			) -- 1341
 			local capA = smoothstep(____exports.MUSEUM_TIMINGS.wellPickupAt, ____exports.MUSEUM_TIMINGS.wellPickupAt + 0.35, t) * (1 - matchK) -- 1344
-			if capA > 0.03 then -- 1345
+			if capA > 0.03 then -- 1344
 				drawSilkVeil( -- 1346
 					uiDraw, -- 1346
 					uiArt, -- 1346
@@ -1407,7 +1407,7 @@ function WellMuseumPlugin.prototype.renderE01WellReflectMatchCut(self, uiDraw, u
 			end -- 1357
 		end -- 1357
 	end -- 1357
-	if matchK > 0.01 then -- 1364
+	if matchK > 0.01 then -- 1357
 		local caseW = 300 -- 1365
 		local caseH = 276 -- 1366
 		local caseX = self.glassAnchorX - caseW * 0.5 -- 1367
@@ -1499,7 +1499,7 @@ function WellMuseumPlugin.prototype.renderE01WellReflectMatchCut(self, uiDraw, u
 		Color(174, 204, 238, 0), -- 1403
 		20 -- 1404
 	) -- 1404
-	if flashPeak > 0.05 then -- 1407
+	if flashPeak > 0.05 then -- 1404
 		local rayW = 70 + flashPeak * 260 -- 1408
 		fillHGradRect( -- 1409
 			uiGlow, -- 1409
@@ -1566,7 +1566,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		px = 40 -- 1444
 		while px <= ____exports.MUSEUM_HALL_WIDTH do -- 1444
 			local sx = toScreenX(px) -- 1445
-			if sx >= -20 and sx <= w + 20 then -- 1446
+			if sx >= -20 and sx <= w + 20 then -- 1445
 				uiDraw:drawSegment( -- 1447
 					Vec2(sx, floorY), -- 1447
 					Vec2(sx, wallTopY), -- 1447
@@ -1598,7 +1598,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 	) -- 1453
 	local plaqueWorldX = self.caseX <= 260 and 108 or 180 -- 1456
 	local plaqueX = toScreenX(plaqueWorldX) -- 1457
-	if plaqueX > -240 and plaqueX < w + 240 then -- 1458
+	if plaqueX > -240 and plaqueX < w + 240 then -- 1457
 		local pw = 290 -- 1459
 		local ph = 132 -- 1460
 		local py = floorY + 135 -- 1461
@@ -1644,7 +1644,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		) -- 1491
 	end -- 1491
 	local caseSx = toScreenX(self.caseX) -- 1496
-	if caseSx > -260 and caseSx < w + 260 then -- 1497
+	if caseSx > -260 and caseSx < w + 260 then -- 1496
 		local boardOffsets = self.caseX <= 260 and ({180, 390}) or ({-210, 210}) -- 1499
 		local bi = 0 -- 1500
 		do -- 1500
@@ -1742,7 +1742,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 	local lampSx = toScreenX(self.lampX) -- 1547
 	local winSx = toScreenX(self.lampX + 108) -- 1548
 	local reflectK = inLampTurn and smoothstep(____exports.MUSEUM_TIMINGS.lampReflectStart, 2.35, self.lampElapsed) or 0 -- 1549
-	if winSx > -260 and winSx < w + 260 then -- 1553
+	if winSx > -260 and winSx < w + 260 then -- 1549
 		local winW = 204 -- 1554
 		local winH = 312 -- 1555
 		local winX = winSx - winW * 0.5 -- 1556
@@ -1766,7 +1766,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 				255 -- 1575
 			) -- 1575
 		) -- 1575
-		if reflectK > 0.02 then -- 1580
+		if reflectK > 0.02 then -- 1575
 			uiArt:tryPlace( -- 1581
 				"bgFar_prologue", -- 1581
 				"fe06_window_courtyard", -- 1581
@@ -1927,7 +1927,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		) -- 1631
 	end -- 1631
 	local playerSx = toScreenX(self.hallWalkX) -- 1635
-	local moving = not inLampTurn and (self.hallMoving or math.abs(ctx.input.moveX) > 0.05) -- 1636
+	local moving = not inLampTurn and self.hallMoving -- 1636
 	local slot = moving and "soldier_run" or "soldier_idle" -- 1637
 	local frame = moving and math.floor(self.hallWalkAnim) or 0 -- 1638
 	local charH = math.floor(192 * math.max( -- 1639
@@ -1947,422 +1947,433 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		4.5, -- 1643
 		Color(16, 20, 28, 62) -- 1643
 	) -- 1643
-	if not uiArt:tryPlace( -- 1644
-		slot, -- 1644
-		"fe06_museum_zhoushu", -- 1644
-		playerSx, -- 1644
-		floorY + 2, -- 1644
-		charW, -- 1644
-		charH, -- 1644
-		{facing = self.hallFacing, frame = frame, layer = 3} -- 1644
-	) then -- 1644
-		uiDraw:drawRect( -- 1650
-			Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), -- 1650
-			toColor(CUFF_PALETTE.indigoBase) -- 1650
-		) -- 1650
-		uiDraw:drawCircle( -- 1651
-			Vec2(playerSx, floorY + charH * 0.92), -- 1651
-			16, -- 1651
-			Color(66, 73, 76, 255) -- 1651
-		) -- 1651
-	end -- 1651
-	if self.holstered and not inLampTurn and math.abs(self.hallWalkX - self.caseX) <= 130 then -- 1655
-		local subA = clamp01(1 - math.abs(self.hallWalkX - self.caseX) / 145) * 0.86 -- 1656
-		ctx.texts:put( -- 1657
-			"xs", -- 1658
-			"已收起随身器物", -- 1659
-			caseSx, -- 1660
-			floorY + 252, -- 1661
-			toColor(PALETTE.textMid), -- 1662
-			0.5, -- 1663
-			0.5, -- 1664
-			"Center", -- 1665
-			0.9, -- 1666
-			subA -- 1667
-		) -- 1667
-	end -- 1667
-	if self.childEchoVisualT > 0 then -- 1672
-		local echoK = 1 - clamp01(self.childEchoVisualT / 2.1) -- 1673
-		local ex = math.min( -- 1674
-			w - 110, -- 1674
-			toScreenX(self.caseX + 310) -- 1674
-		) -- 1674
-		local ey = floorY + 32 -- 1675
-		local ea = math.floor(math.sin(echoK * math.pi) * 165 + 0.5) -- 1676
-		drawCircleRing( -- 1677
-			uiInkDraw, -- 1677
-			ex, -- 1677
-			ey, -- 1677
-			14 + echoK * 46, -- 1677
-			Color(0, 0, 0, 0), -- 1677
-			1.1, -- 1677
-			Color(224, 214, 194, ea), -- 1677
-			28 -- 1677
+	local pose = {facing = self.hallFacing, frame = frame, layer = 3} -- 1644
+	local running = moving and uiArt:tryPlaceRun( -- 1649
+		"soldier", -- 1649
+		"fe06_museum_zhoushu", -- 1649
+		playerSx, -- 1649
+		floorY + 2, -- 1649
+		charW, -- 1650
+		charH, -- 1650
+		self.hallWalkAnim / 4, -- 1650
+		pose -- 1650
+	) -- 1650
+	if not running and not uiArt:tryPlace( -- 1650
+		slot, -- 1651
+		"fe06_museum_zhoushu", -- 1651
+		playerSx, -- 1651
+		floorY + 2, -- 1651
+		charW, -- 1651
+		charH, -- 1651
+		pose -- 1651
+	) then -- 1651
+		uiDraw:drawRect( -- 1653
+			Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), -- 1653
+			toColor(CUFF_PALETTE.indigoBase) -- 1653
+		) -- 1653
+		uiDraw:drawCircle( -- 1654
+			Vec2(playerSx, floorY + charH * 0.92), -- 1654
+			16, -- 1654
+			Color(66, 73, 76, 255) -- 1654
+		) -- 1654
+	end -- 1654
+	if self.holstered and not inLampTurn and math.abs(self.hallWalkX - self.caseX) <= 130 then -- 1654
+		local subA = clamp01(1 - math.abs(self.hallWalkX - self.caseX) / 145) * 0.86 -- 1659
+		ctx.texts:put( -- 1660
+			"xs", -- 1661
+			"已收起随身器物", -- 1662
+			caseSx, -- 1663
+			floorY + 252, -- 1664
+			toColor(PALETTE.textMid), -- 1665
+			0.5, -- 1666
+			0.5, -- 1667
+			"Center", -- 1668
+			0.9, -- 1669
+			subA -- 1670
+		) -- 1670
+	end -- 1670
+	if self.childEchoVisualT > 0 then -- 1670
+		local echoK = 1 - clamp01(self.childEchoVisualT / 2.1) -- 1676
+		local ex = math.min( -- 1677
+			w - 110, -- 1677
+			toScreenX(self.caseX + 310) -- 1677
 		) -- 1677
-		drawCircleRing( -- 1678
-			uiInkDraw, -- 1678
-			ex, -- 1678
-			ey, -- 1678
-			8 + echoK * 28, -- 1678
-			Color(0, 0, 0, 0), -- 1678
-			0.9, -- 1678
-			Color( -- 1678
-				224, -- 1678
-				214, -- 1678
-				194, -- 1678
-				math.floor(ea * 0.7 + 0.5) -- 1678
-			), -- 1678
-			24 -- 1678
-		) -- 1678
-		ctx.texts:put( -- 1679
-			"xs", -- 1680
-			"（远方传来轻快的孩童脚步声）", -- 1681
-			w * 0.5, -- 1682
-			84, -- 1683
-			toColor(PALETTE.textMid), -- 1684
-			0.5, -- 1685
-			0.5, -- 1686
-			"Center", -- 1687
-			1, -- 1688
-			math.sin(echoK * math.pi) * 0.85 -- 1689
-		) -- 1689
-	end -- 1689
-	if not inLampTurn then -- 1694
-		local fadeIn = smoothstep(0, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn, self.hallIntroElapsed) -- 1695
-		local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold + ____exports.MUSEUM_TIMINGS.hallIntroFadeOut, self.hallIntroElapsed) -- 1696
-		local introA = fadeIn * fadeOut -- 1701
-		if introA > 0.02 then -- 1702
-			drawSilkVeil( -- 1703
-				uiDraw, -- 1703
-				uiArt, -- 1703
-				"fe06_hall_intro_veil", -- 1703
-				w * 0.5, -- 1703
-				h - 104, -- 1703
-				480, -- 1703
-				74, -- 1703
-				PALETTE.inkVoid, -- 1703
-				0.78 * introA, -- 1703
-				1 -- 1703
-			) -- 1703
-			drawHairline( -- 1704
-				uiInkDraw, -- 1704
-				uiArt, -- 1704
-				"fe06_hall_intro_line", -- 1704
-				w * 0.5, -- 1704
-				h - 106, -- 1704
-				260, -- 1704
-				PALETTE.silkLine, -- 1704
-				0.45 * introA, -- 1704
-				false, -- 1704
-				4 -- 1704
-			) -- 1704
-			ctx.texts:put( -- 1705
-				"md", -- 1705
-				____exports.MUSEUM_HALL_TITLE, -- 1705
-				w * 0.5, -- 1705
-				h - 88, -- 1705
-				toColor(PALETTE.textBright), -- 1705
-				0.5, -- 1705
-				0.5, -- 1705
-				"Center", -- 1705
-				1.8, -- 1705
-				introA -- 1705
-			) -- 1705
-			ctx.texts:put( -- 1706
-				"xs", -- 1706
-				____exports.MUSEUM_HALL_SUBTITLE, -- 1706
+		local ey = floorY + 32 -- 1678
+		local ea = math.floor(math.sin(echoK * math.pi) * 165 + 0.5) -- 1679
+		drawCircleRing( -- 1680
+			uiInkDraw, -- 1680
+			ex, -- 1680
+			ey, -- 1680
+			14 + echoK * 46, -- 1680
+			Color(0, 0, 0, 0), -- 1680
+			1.1, -- 1680
+			Color(224, 214, 194, ea), -- 1680
+			28 -- 1680
+		) -- 1680
+		drawCircleRing( -- 1681
+			uiInkDraw, -- 1681
+			ex, -- 1681
+			ey, -- 1681
+			8 + echoK * 28, -- 1681
+			Color(0, 0, 0, 0), -- 1681
+			0.9, -- 1681
+			Color( -- 1681
+				224, -- 1681
+				214, -- 1681
+				194, -- 1681
+				math.floor(ea * 0.7 + 0.5) -- 1681
+			), -- 1681
+			24 -- 1681
+		) -- 1681
+		ctx.texts:put( -- 1682
+			"xs", -- 1683
+			"（远方传来轻快的孩童脚步声）", -- 1684
+			w * 0.5, -- 1685
+			84, -- 1686
+			toColor(PALETTE.textMid), -- 1687
+			0.5, -- 1688
+			0.5, -- 1689
+			"Center", -- 1690
+			1, -- 1691
+			math.sin(echoK * math.pi) * 0.85 -- 1692
+		) -- 1692
+	end -- 1692
+	if not inLampTurn then -- 1692
+		local fadeIn = smoothstep(0, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn, self.hallIntroElapsed) -- 1698
+		local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold + ____exports.MUSEUM_TIMINGS.hallIntroFadeOut, self.hallIntroElapsed) -- 1699
+		local introA = fadeIn * fadeOut -- 1704
+		if introA > 0.02 then -- 1704
+			drawSilkVeil( -- 1706
+				uiDraw, -- 1706
+				uiArt, -- 1706
+				"fe06_hall_intro_veil", -- 1706
 				w * 0.5, -- 1706
-				h - 122, -- 1706
-				toColor(PALETTE.amberCore), -- 1706
-				0.5, -- 1706
-				0.5, -- 1706
-				"Center", -- 1706
-				1.2, -- 1706
-				introA * 0.88 -- 1706
+				h - 104, -- 1706
+				480, -- 1706
+				74, -- 1706
+				PALETTE.inkVoid, -- 1706
+				0.78 * introA, -- 1706
+				1 -- 1706
 			) -- 1706
-		end -- 1706
-		if self.nearLamp and ctx.view.assistHintsEnabled then -- 1710
-			drawSilkVeil( -- 1711
-				uiDraw, -- 1711
-				uiArt, -- 1711
-				"fe06_lamp_hint_veil", -- 1711
-				lampSx, -- 1711
-				floorY + 158, -- 1711
-				146, -- 1711
-				28, -- 1711
-				PALETTE.panelBg, -- 1711
-				0.84, -- 1711
-				1 -- 1711
-			) -- 1711
-			ctx.texts:put( -- 1712
-				"xs", -- 1713
-				adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1714
-				lampSx, -- 1715
-				floorY + 158, -- 1716
-				toColor(PALETTE.textBright), -- 1717
-				0.5, -- 1718
-				0.5, -- 1719
-				"Center", -- 1720
-				0.6, -- 1721
-				0.94 -- 1722
-			) -- 1722
-		end -- 1722
-	end -- 1722
-	if inLampTurn and self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 1728
-		local lineA = smoothstep(____exports.MUSEUM_TIMINGS.lampLineAt, ____exports.MUSEUM_TIMINGS.lampLineAt + 0.45, self.lampElapsed) * (1 - smoothstep(____exports.MUSEUM_TIMINGS.lampTurnDuration - 0.35, ____exports.MUSEUM_TIMINGS.lampTurnDuration, self.lampElapsed)) -- 1729
-		if lineA > 0.02 then -- 1731
-			drawSilkVeil( -- 1732
-				uiDraw, -- 1732
-				uiArt, -- 1732
-				"fe06_dawn_line_veil", -- 1732
-				w * 0.5, -- 1732
-				86, -- 1732
-				440, -- 1732
-				50, -- 1732
-				PALETTE.inkVoid, -- 1732
-				0.84 * lineA, -- 1732
-				1 -- 1732
-			) -- 1732
-			ctx.texts:put( -- 1733
-				"md", -- 1734
-				____exports.MUSEUM_LINE_DAWN, -- 1734
-				w * 0.5, -- 1736
-				86, -- 1737
-				toColor(PALETTE.amberCore), -- 1738
-				0.5, -- 1739
-				0.5, -- 1740
-				"Center", -- 1741
-				1.6, -- 1742
-				lineA -- 1743
-			) -- 1743
-		end -- 1743
-	end -- 1743
-	if self.knock1VisualT > 0 then -- 1748
-		local k1 = 1 - clamp01(self.knock1VisualT / 0.85) -- 1749
-		local k1A = math.floor((1 - k1) * 205 + 0.5) -- 1750
-		drawCircleRing( -- 1751
-			uiInkDraw, -- 1751
-			winSx, -- 1751
-			floorY + 148, -- 1751
-			12 + k1 * 64, -- 1751
-			Color(0, 0, 0, 0), -- 1751
-			1.6, -- 1751
-			Color(242, 232, 206, k1A), -- 1751
-			28 -- 1751
-		) -- 1751
-		drawCircleRing( -- 1752
-			uiInkDraw, -- 1752
-			winSx, -- 1752
-			floorY + 148, -- 1752
-			6 + k1 * 34, -- 1752
-			Color(0, 0, 0, 0), -- 1752
-			1.1, -- 1752
-			Color( -- 1752
-				242, -- 1752
-				232, -- 1752
-				206, -- 1752
-				math.floor(k1A * 0.72 + 0.5) -- 1752
-			), -- 1752
-			24 -- 1752
-		) -- 1752
-	end -- 1752
-	self:drawLetterbox( -- 1755
-		uiInkDraw, -- 1755
-		w, -- 1755
-		h, -- 1755
-		38, -- 1755
-		0.9 -- 1755
-	) -- 1755
+			drawHairline( -- 1707
+				uiInkDraw, -- 1707
+				uiArt, -- 1707
+				"fe06_hall_intro_line", -- 1707
+				w * 0.5, -- 1707
+				h - 106, -- 1707
+				260, -- 1707
+				PALETTE.silkLine, -- 1707
+				0.45 * introA, -- 1707
+				false, -- 1707
+				4 -- 1707
+			) -- 1707
+			ctx.texts:put( -- 1708
+				"md", -- 1708
+				____exports.MUSEUM_HALL_TITLE, -- 1708
+				w * 0.5, -- 1708
+				h - 88, -- 1708
+				toColor(PALETTE.textBright), -- 1708
+				0.5, -- 1708
+				0.5, -- 1708
+				"Center", -- 1708
+				1.8, -- 1708
+				introA -- 1708
+			) -- 1708
+			ctx.texts:put( -- 1709
+				"xs", -- 1709
+				____exports.MUSEUM_HALL_SUBTITLE, -- 1709
+				w * 0.5, -- 1709
+				h - 122, -- 1709
+				toColor(PALETTE.amberCore), -- 1709
+				0.5, -- 1709
+				0.5, -- 1709
+				"Center", -- 1709
+				1.2, -- 1709
+				introA * 0.88 -- 1709
+			) -- 1709
+		end -- 1709
+		if self.nearLamp and ctx.view.assistHintsEnabled then -- 1709
+			drawSilkVeil( -- 1714
+				uiDraw, -- 1714
+				uiArt, -- 1714
+				"fe06_lamp_hint_veil", -- 1714
+				lampSx, -- 1714
+				floorY + 158, -- 1714
+				146, -- 1714
+				28, -- 1714
+				PALETTE.panelBg, -- 1714
+				0.84, -- 1714
+				1 -- 1714
+			) -- 1714
+			ctx.texts:put( -- 1715
+				"xs", -- 1716
+				adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1717
+				lampSx, -- 1718
+				floorY + 158, -- 1719
+				toColor(PALETTE.textBright), -- 1720
+				0.5, -- 1721
+				0.5, -- 1722
+				"Center", -- 1723
+				0.6, -- 1724
+				0.94 -- 1725
+			) -- 1725
+		end -- 1725
+	end -- 1725
+	if inLampTurn and self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 1725
+		local lineA = smoothstep(____exports.MUSEUM_TIMINGS.lampLineAt, ____exports.MUSEUM_TIMINGS.lampLineAt + 0.45, self.lampElapsed) * (1 - smoothstep(____exports.MUSEUM_TIMINGS.lampTurnDuration - 0.35, ____exports.MUSEUM_TIMINGS.lampTurnDuration, self.lampElapsed)) -- 1732
+		if lineA > 0.02 then -- 1732
+			drawSilkVeil( -- 1735
+				uiDraw, -- 1735
+				uiArt, -- 1735
+				"fe06_dawn_line_veil", -- 1735
+				w * 0.5, -- 1735
+				86, -- 1735
+				440, -- 1735
+				50, -- 1735
+				PALETTE.inkVoid, -- 1735
+				0.84 * lineA, -- 1735
+				1 -- 1735
+			) -- 1735
+			ctx.texts:put( -- 1736
+				"md", -- 1737
+				____exports.MUSEUM_LINE_DAWN, -- 1737
+				w * 0.5, -- 1739
+				86, -- 1740
+				toColor(PALETTE.amberCore), -- 1741
+				0.5, -- 1742
+				0.5, -- 1743
+				"Center", -- 1744
+				1.6, -- 1745
+				lineA -- 1746
+			) -- 1746
+		end -- 1746
+	end -- 1746
+	if self.knock1VisualT > 0 then -- 1746
+		local k1 = 1 - clamp01(self.knock1VisualT / 0.85) -- 1752
+		local k1A = math.floor((1 - k1) * 205 + 0.5) -- 1753
+		drawCircleRing( -- 1754
+			uiInkDraw, -- 1754
+			winSx, -- 1754
+			floorY + 148, -- 1754
+			12 + k1 * 64, -- 1754
+			Color(0, 0, 0, 0), -- 1754
+			1.6, -- 1754
+			Color(242, 232, 206, k1A), -- 1754
+			28 -- 1754
+		) -- 1754
+		drawCircleRing( -- 1755
+			uiInkDraw, -- 1755
+			winSx, -- 1755
+			floorY + 148, -- 1755
+			6 + k1 * 34, -- 1755
+			Color(0, 0, 0, 0), -- 1755
+			1.1, -- 1755
+			Color( -- 1755
+				242, -- 1755
+				232, -- 1755
+				206, -- 1755
+				math.floor(k1A * 0.72 + 0.5) -- 1755
+			), -- 1755
+			24 -- 1755
+		) -- 1755
+	end -- 1755
+	self:drawLetterbox( -- 1758
+		uiInkDraw, -- 1758
+		w, -- 1758
+		h, -- 1758
+		38, -- 1758
+		0.9 -- 1758
+	) -- 1758
 end -- 1419
-function WellMuseumPlugin.prototype.renderE02ReturnCabinet(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1761
-	local t = self.returnElapsed -- 1770
-	local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.returnFadeOutAt, ____exports.MUSEUM_TIMINGS.returnCabinetDuration, t) -- 1771
-	uiDraw:drawRect( -- 1774
-		Rect(0, 0, w, h), -- 1774
-		Color( -- 1774
-			7, -- 1774
-			9, -- 1774
-			13, -- 1774
-			math.floor(252 * fadeOut + 0.5) -- 1774
-		) -- 1774
-	) -- 1774
-	if t < ____exports.MUSEUM_TIMINGS.returnKnock2At then -- 1776
-		self:drawLetterbox( -- 1777
-			uiInkDraw, -- 1777
-			w, -- 1777
-			h, -- 1777
-			42, -- 1777
-			0.95 * fadeOut -- 1777
+function WellMuseumPlugin.prototype.renderE02ReturnCabinet(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1764
+	local t = self.returnElapsed -- 1773
+	local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.returnFadeOutAt, ____exports.MUSEUM_TIMINGS.returnCabinetDuration, t) -- 1774
+	uiDraw:drawRect( -- 1777
+		Rect(0, 0, w, h), -- 1777
+		Color( -- 1777
+			7, -- 1777
+			9, -- 1777
+			13, -- 1777
+			math.floor(252 * fadeOut + 0.5) -- 1777
 		) -- 1777
-		return -- 1778
-	end -- 1778
-	local revealK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut -- 1782
-	local boxW = math.min(w - 140, 820) -- 1783
-	local boxH = math.min(h - 190, 390) -- 1784
-	local bx = (w - boxW) * 0.5 -- 1785
-	local by = (h - boxH) * 0.5 + 10 -- 1786
-	fillVGradRect( -- 1789
-		uiDraw, -- 1790
-		bx, -- 1791
-		by, -- 1792
-		boxW, -- 1793
-		boxH, -- 1794
-		Color( -- 1795
-			13, -- 1795
-			12, -- 1795
-			16, -- 1795
-			math.floor(248 * revealK + 0.5) -- 1795
-		), -- 1795
-		Color( -- 1796
-			24, -- 1796
-			24, -- 1796
-			30, -- 1796
-			math.floor(248 * revealK + 0.5) -- 1796
-		) -- 1796
-	) -- 1796
-	local cabEdgeX = bx + boxW * 0.58 -- 1799
-	uiDraw:drawRect( -- 1800
-		Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), -- 1800
-		Color( -- 1800
-			42, -- 1800
-			31, -- 1800
-			24, -- 1800
-			math.floor(246 * revealK + 0.5) -- 1800
-		) -- 1800
-	) -- 1800
-	uiDraw:drawSegment( -- 1801
-		Vec2(cabEdgeX, by), -- 1801
-		Vec2(cabEdgeX, by + boxH), -- 1801
-		2.4, -- 1801
-		Color( -- 1801
-			116, -- 1801
-			92, -- 1801
-			68, -- 1801
-			math.floor(220 * revealK + 0.5) -- 1801
-		) -- 1801
-	) -- 1801
-	local gi = 0 -- 1803
-	do -- 1803
-		gi = 0 -- 1804
-		while gi < 5 do -- 1804
-			local gx = cabEdgeX + 26 + gi * 44 -- 1805
-			if gx < bx + boxW - 10 then -- 1806
-				uiDraw:drawSegment( -- 1807
-					Vec2(gx, by + 12), -- 1807
-					Vec2(gx, by + boxH - 12), -- 1807
-					1, -- 1807
-					Color( -- 1807
-						28, -- 1807
-						20, -- 1807
-						15, -- 1807
-						math.floor(140 * revealK + 0.5) -- 1807
-					) -- 1807
-				) -- 1807
-			end -- 1807
-			gi = gi + 1 -- 1804
-		end -- 1804
-	end -- 1804
-	fillHGradRect( -- 1811
-		uiGlow, -- 1812
-		cabEdgeX - 58, -- 1813
-		by + 24, -- 1814
-		58, -- 1815
-		boxH - 48, -- 1816
-		Color(168, 188, 210, 0), -- 1817
-		Color( -- 1818
-			186, -- 1818
-			206, -- 1818
-			226, -- 1818
-			math.floor(42 * revealK + 0.5) -- 1818
-		) -- 1818
-	) -- 1818
-	if self.knock2VisualT > 0 then -- 1822
-		local k2 = 1 - clamp01(self.knock2VisualT / 0.9) -- 1823
-		local k2A = math.floor((1 - k2) * 215 * fadeOut + 0.5) -- 1824
-		drawCircleRing( -- 1825
-			uiInkDraw, -- 1825
-			cabEdgeX + 8, -- 1825
-			by + boxH * 0.5, -- 1825
-			10 + k2 * 56, -- 1825
-			Color(0, 0, 0, 0), -- 1825
-			1.6, -- 1825
-			Color(232, 220, 196, k2A), -- 1825
-			28 -- 1825
-		) -- 1825
-	end -- 1825
-	local extendK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.08, ____exports.MUSEUM_TIMINGS.returnKnock2At + 1.05, t) -- 1829
-	local wristX = bx + 115 + extendK * (cabEdgeX - bx - 168) -- 1830
-	local wristY = by + boxH * 0.5 -- 1831
-	drawPatchedCuff(uiInkDraw, uiGlow, { -- 1832
-		wristX = wristX, -- 1833
-		wristY = wristY, -- 1834
-		angleRad = -0.04 * (1 - extendK), -- 1835
-		scale = 1.02, -- 1836
-		pose = "reach", -- 1837
-		opacity = revealK, -- 1838
-		stitchHighlight = 0.48 + 0.22 * extendK, -- 1839
-		cuffPullBack = 0.06, -- 1840
-		warmth = 0.16 -- 1841
-	}) -- 1841
-	uiInkDraw:drawRect( -- 1845
-		Rect(bx, by, boxW, boxH), -- 1845
-		Color(0, 0, 0, 0), -- 1845
-		1.2, -- 1845
-		toColor( -- 1845
-			PALETTE.silkDim, -- 1845
-			math.floor(160 * revealK + 0.5) -- 1845
-		) -- 1845
-	) -- 1845
-	local tipA = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.45, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut -- 1846
-	if tipA > 0.03 then -- 1847
-		drawSilkVeil( -- 1848
-			uiDraw, -- 1848
-			uiArt, -- 1848
-			"fe06_return_veil", -- 1848
-			w * 0.5, -- 1848
-			by - 30, -- 1848
-			320, -- 1848
-			32, -- 1848
-			PALETTE.inkVoid, -- 1848
-			0.72 * tipA, -- 1848
-			1 -- 1848
+	) -- 1777
+	if t < ____exports.MUSEUM_TIMINGS.returnKnock2At then -- 1777
+		self:drawLetterbox( -- 1780
+			uiInkDraw, -- 1780
+			w, -- 1780
+			h, -- 1780
+			42, -- 1780
+			0.95 * fadeOut -- 1780
+		) -- 1780
+		return -- 1781
+	end -- 1781
+	local revealK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut -- 1785
+	local boxW = math.min(w - 140, 820) -- 1786
+	local boxH = math.min(h - 190, 390) -- 1787
+	local bx = (w - boxW) * 0.5 -- 1788
+	local by = (h - boxH) * 0.5 + 10 -- 1789
+	fillVGradRect( -- 1792
+		uiDraw, -- 1793
+		bx, -- 1794
+		by, -- 1795
+		boxW, -- 1796
+		boxH, -- 1797
+		Color( -- 1798
+			13, -- 1798
+			12, -- 1798
+			16, -- 1798
+			math.floor(248 * revealK + 0.5) -- 1798
+		), -- 1798
+		Color( -- 1799
+			24, -- 1799
+			24, -- 1799
+			30, -- 1799
+			math.floor(248 * revealK + 0.5) -- 1799
+		) -- 1799
+	) -- 1799
+	local cabEdgeX = bx + boxW * 0.58 -- 1802
+	uiDraw:drawRect( -- 1803
+		Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), -- 1803
+		Color( -- 1803
+			42, -- 1803
+			31, -- 1803
+			24, -- 1803
+			math.floor(246 * revealK + 0.5) -- 1803
+		) -- 1803
+	) -- 1803
+	uiDraw:drawSegment( -- 1804
+		Vec2(cabEdgeX, by), -- 1804
+		Vec2(cabEdgeX, by + boxH), -- 1804
+		2.4, -- 1804
+		Color( -- 1804
+			116, -- 1804
+			92, -- 1804
+			68, -- 1804
+			math.floor(220 * revealK + 0.5) -- 1804
+		) -- 1804
+	) -- 1804
+	local gi = 0 -- 1806
+	do -- 1806
+		gi = 0 -- 1807
+		while gi < 5 do -- 1807
+			local gx = cabEdgeX + 26 + gi * 44 -- 1808
+			if gx < bx + boxW - 10 then -- 1808
+				uiDraw:drawSegment( -- 1810
+					Vec2(gx, by + 12), -- 1810
+					Vec2(gx, by + boxH - 12), -- 1810
+					1, -- 1810
+					Color( -- 1810
+						28, -- 1810
+						20, -- 1810
+						15, -- 1810
+						math.floor(140 * revealK + 0.5) -- 1810
+					) -- 1810
+				) -- 1810
+			end -- 1810
+			gi = gi + 1 -- 1807
+		end -- 1807
+	end -- 1807
+	fillHGradRect( -- 1814
+		uiGlow, -- 1815
+		cabEdgeX - 58, -- 1816
+		by + 24, -- 1817
+		58, -- 1818
+		boxH - 48, -- 1819
+		Color(168, 188, 210, 0), -- 1820
+		Color( -- 1821
+			186, -- 1821
+			206, -- 1821
+			226, -- 1821
+			math.floor(42 * revealK + 0.5) -- 1821
+		) -- 1821
+	) -- 1821
+	if self.knock2VisualT > 0 then -- 1821
+		local k2 = 1 - clamp01(self.knock2VisualT / 0.9) -- 1826
+		local k2A = math.floor((1 - k2) * 215 * fadeOut + 0.5) -- 1827
+		drawCircleRing( -- 1828
+			uiInkDraw, -- 1828
+			cabEdgeX + 8, -- 1828
+			by + boxH * 0.5, -- 1828
+			10 + k2 * 56, -- 1828
+			Color(0, 0, 0, 0), -- 1828
+			1.6, -- 1828
+			Color(232, 220, 196, k2A), -- 1828
+			28 -- 1828
+		) -- 1828
+	end -- 1828
+	local extendK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.08, ____exports.MUSEUM_TIMINGS.returnKnock2At + 1.05, t) -- 1832
+	local wristX = bx + 115 + extendK * (cabEdgeX - bx - 168) -- 1833
+	local wristY = by + boxH * 0.5 -- 1834
+	drawPatchedCuff(uiInkDraw, uiGlow, { -- 1835
+		wristX = wristX, -- 1836
+		wristY = wristY, -- 1837
+		angleRad = -0.04 * (1 - extendK), -- 1838
+		scale = 1.02, -- 1839
+		pose = "reach", -- 1840
+		opacity = revealK, -- 1841
+		stitchHighlight = 0.48 + 0.22 * extendK, -- 1842
+		cuffPullBack = 0.06, -- 1843
+		warmth = 0.16 -- 1844
+	}) -- 1844
+	uiInkDraw:drawRect( -- 1848
+		Rect(bx, by, boxW, boxH), -- 1848
+		Color(0, 0, 0, 0), -- 1848
+		1.2, -- 1848
+		toColor( -- 1848
+			PALETTE.silkDim, -- 1848
+			math.floor(160 * revealK + 0.5) -- 1848
 		) -- 1848
-		ctx.texts:put( -- 1849
-			"xs", -- 1850
-			"两声轻敲落回柜板 · 寻回小满", -- 1851
-			w * 0.5, -- 1852
-			by - 30, -- 1853
-			toColor(PALETTE.textMid), -- 1854
-			0.5, -- 1855
-			0.5, -- 1856
-			"Center", -- 1857
-			1.2, -- 1858
-			tipA * 0.9 -- 1859
-		) -- 1859
-	end -- 1859
-	self:drawLetterbox( -- 1863
-		uiInkDraw, -- 1863
-		w, -- 1863
-		h, -- 1863
-		42, -- 1863
-		0.95 * fadeOut -- 1863
-	) -- 1863
-end -- 1761
-function WellMuseumPlugin.prototype.drawLetterbox(self, draw, w, h, barH, opacity) -- 1866
-	local a = math.floor(244 * clamp01(opacity) + 0.5) -- 1867
-	if a <= 2 then -- 1868
-		return -- 1869
-	end -- 1869
-	draw:drawRect( -- 1871
-		Rect(0, 0, w, barH), -- 1871
-		Color(6, 8, 12, a) -- 1871
-	) -- 1871
-	draw:drawRect( -- 1872
-		Rect(0, h - barH, w, barH), -- 1872
-		Color(6, 8, 12, a) -- 1872
-	) -- 1872
-end -- 1866
-function ____exports.createWellMuseumPlugin(contract) -- 1876
-	return __TS__New(____exports.WellMuseumPlugin, contract) -- 1877
-end -- 1876
-return ____exports -- 1876
+	) -- 1848
+	local tipA = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.45, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut -- 1849
+	if tipA > 0.03 then -- 1849
+		drawSilkVeil( -- 1851
+			uiDraw, -- 1851
+			uiArt, -- 1851
+			"fe06_return_veil", -- 1851
+			w * 0.5, -- 1851
+			by - 30, -- 1851
+			320, -- 1851
+			32, -- 1851
+			PALETTE.inkVoid, -- 1851
+			0.72 * tipA, -- 1851
+			1 -- 1851
+		) -- 1851
+		ctx.texts:put( -- 1852
+			"xs", -- 1853
+			"两声轻敲落回柜板 · 寻回小满", -- 1854
+			w * 0.5, -- 1855
+			by - 30, -- 1856
+			toColor(PALETTE.textMid), -- 1857
+			0.5, -- 1858
+			0.5, -- 1859
+			"Center", -- 1860
+			1.2, -- 1861
+			tipA * 0.9 -- 1862
+		) -- 1862
+	end -- 1862
+	self:drawLetterbox( -- 1866
+		uiInkDraw, -- 1866
+		w, -- 1866
+		h, -- 1866
+		42, -- 1866
+		0.95 * fadeOut -- 1866
+	) -- 1866
+end -- 1764
+function WellMuseumPlugin.prototype.drawLetterbox(self, draw, w, h, barH, opacity) -- 1869
+	local a = math.floor(244 * clamp01(opacity) + 0.5) -- 1870
+	if a <= 2 then -- 1870
+		return -- 1872
+	end -- 1872
+	draw:drawRect( -- 1874
+		Rect(0, 0, w, barH), -- 1874
+		Color(6, 8, 12, a) -- 1874
+	) -- 1874
+	draw:drawRect( -- 1875
+		Rect(0, h - barH, w, barH), -- 1875
+		Color(6, 8, 12, a) -- 1875
+	) -- 1875
+end -- 1869
+function ____exports.createWellMuseumPlugin(contract) -- 1879
+	return __TS__New(____exports.WellMuseumPlugin, contract) -- 1880
+end -- 1879
+return ____exports -- 1879

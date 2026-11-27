@@ -22,7 +22,7 @@ function ____exports.isArtifactWeaponId(weaponId) -- 33
 	do -- 34
 		i = 0 -- 35
 		while i < #____exports.ARTIFACT_WEAPON_IDS do -- 35
-			if ____exports.ARTIFACT_WEAPON_IDS[i + 1] == weaponId then -- 36
+			if ____exports.ARTIFACT_WEAPON_IDS[i + 1] == weaponId then -- 35
 				return true -- 37
 			end -- 37
 			i = i + 1 -- 35
@@ -37,13 +37,13 @@ local MIN_DRAW_SEPARATION_PX = 16 -- 72
 local GHOST_MAX_LIFE_SEC = 0.42 -- 73
 local MAX_GHOST_ALPHA = 0.34 -- 74
 local function asRecord(v) -- 76
-	if v ~= nil and type(v) == "table" then -- 77
+	if v ~= nil and type(v) == "table" then -- 76
 		return v -- 78
 	end -- 78
 	return nil -- 80
 end -- 76
 local function readBool(rec, key) -- 83
-	if rec == nil then -- 84
+	if rec == nil then -- 83
 		return nil -- 85
 	end -- 85
 	local val = rec[key] -- 87
@@ -56,17 +56,17 @@ local function readBool(rec, key) -- 83
 	return ____temp_0 -- 88
 end -- 83
 local function readStr(rec, key) -- 91
-	if rec == nil then -- 92
+	if rec == nil then -- 91
 		return nil -- 93
 	end -- 93
 	local val = rec[key] -- 95
 	return type(val) == "string" and val or nil -- 96
 end -- 91
 local function drawEllipseOutline(draw, cx, cy, rx, ry, fillCol, borderWidth, borderCol, segments) -- 99
-	if segments == nil then -- 108
+	if segments == nil then -- 99
 		segments = 18 -- 108
 	end -- 108
-	if rx <= 0.4 or ry <= 0.4 then -- 110
+	if rx <= 0.4 or ry <= 0.4 then -- 108
 		return -- 111
 	end -- 111
 	local pts = {} -- 113
@@ -114,13 +114,13 @@ function AfterimageArtifactPlugin.prototype.syncRuntimeHook(self) -- 143
 		____temp_1 = nil -- 145
 	end -- 145
 	local loaded = ____temp_1 -- 145
-	if loaded == nil then -- 146
+	if loaded == nil then -- 145
 		return -- 147
 	end -- 147
 	local rawFe = loaded["watch.fe"] -- 149
-	if rawFe ~= nil and type(rawFe) == "table" then -- 150
+	if rawFe ~= nil and type(rawFe) == "table" then -- 149
 		local watchFe = rawFe -- 151
-		if watchFe.afterimageArtifact ~= self then -- 152
+		if watchFe.afterimageArtifact ~= self then -- 151
 			watchFe.afterimageArtifact = self -- 153
 		end -- 153
 	end -- 153
@@ -160,10 +160,10 @@ function AfterimageArtifactPlugin.prototype.resolveEquipped(self, p, view) -- 19
 	local pRec = asRecord(p) -- 195
 	local runRec = asRecord(p.run) -- 196
 	local weaponId = view.craftBench.equippedWeapon ~= "" and view.craftBench.equippedWeapon or (readStr(pRec, "equippedWeapon") or readStr(runRec, "equippedWeapon") or "") -- 197
-	if self.equippedOverride ~= nil then -- 201
+	if self.equippedOverride ~= nil then -- 197
 		return {equipped = self.equippedOverride, weaponId = weaponId} -- 202
 	end -- 202
-	if readBool(pRec, "artifactEquipped") == true or readBool(runRec, "artifactEquipped") == true then -- 204
+	if readBool(pRec, "artifactEquipped") == true or readBool(runRec, "artifactEquipped") == true then -- 202
 		return {equipped = true, weaponId = weaponId} -- 205
 	end -- 205
 	return { -- 207
@@ -183,15 +183,15 @@ function AfterimageArtifactPlugin.prototype.update(self, ctx) -- 210
 	self.slowedByTimeScale = view.timeScale > 0 and view.timeScale < 0.99 -- 220
 	local allowedMode = view.visualMode == "pixel" and not p.childMode and p.player.alive and view.storyRoute ~= "child" -- 222
 	self.active = owned and eq.equipped and allowedMode -- 227
-	if not self.active then -- 229
-		if #self.ghosts > 0 then -- 230
+	if not self.active then -- 227
+		if #self.ghosts > 0 then -- 227
 			self:clearGhosts() -- 231
 		end -- 231
 		self.lastWorldDt = 0 -- 233
 		self.maxRenderedAlpha = 0 -- 234
 		return -- 235
 	end -- 235
-	if ctx.paused or ctx.worldDt <= 0 then -- 239
+	if ctx.paused or ctx.worldDt <= 0 then -- 235
 		self.lastWorldDt = 0 -- 240
 		return -- 241
 	end -- 241
@@ -204,17 +204,17 @@ function AfterimageArtifactPlugin.prototype.update(self, ctx) -- 210
 		while i < #self.ghosts do -- 250
 			local g = self.ghosts[i + 1] -- 251
 			g.life = g.life - dt -- 252
-			if g.life > 0 then -- 253
+			if g.life > 0 then -- 252
 				self.ghosts[write + 1] = g -- 254
 				write = write + 1 -- 255
 			end -- 255
 			i = i + 1 -- 250
 		end -- 250
 	end -- 250
-	__TS__ArraySetLength(self.ghosts, write) -- 258
+	__TS__ArraySetLength(self.ghosts, write) -- 250
 	local a = p.player -- 261
 	local speed = math.sqrt(a.vx * a.vx + a.vy * a.vy + a.depthSpeed * a.depthSpeed) -- 262
-	if not self.hasLastSample then -- 263
+	if not self.hasLastSample then -- 262
 		self.lastSampleX = a.x -- 264
 		self.lastSampleY = a.y -- 265
 		self.lastSampleDepth = a.depth -- 266
@@ -225,8 +225,8 @@ function AfterimageArtifactPlugin.prototype.update(self, ctx) -- 210
 	local dx = a.x - self.lastSampleX -- 272
 	local dy = a.y + a.depth * DEPTH_Y_SCALE - (self.lastSampleY + self.lastSampleDepth * DEPTH_Y_SCALE) -- 273
 	local dist = math.sqrt(dx * dx + dy * dy) -- 274
-	if dist >= MIN_STEP_DIST_PX and self.sampleTimer >= SAMPLE_INTERVAL_SEC * 0.65 or speed > 28 and dist >= 4.5 and self.sampleTimer >= SAMPLE_INTERVAL_SEC then -- 276
-		local ____self_ghosts_2 = self.ghosts -- 278
+	if dist >= MIN_STEP_DIST_PX and self.sampleTimer >= SAMPLE_INTERVAL_SEC * 0.65 or speed > 28 and dist >= 4.5 and self.sampleTimer >= SAMPLE_INTERVAL_SEC then -- 274
+		local ____self_ghosts_2 = self.ghosts -- 274
 		____self_ghosts_2[#____self_ghosts_2 + 1] = { -- 278
 			x = self.lastSampleX, -- 279
 			y = self.lastSampleY, -- 280
@@ -239,7 +239,7 @@ function AfterimageArtifactPlugin.prototype.update(self, ctx) -- 210
 			life = GHOST_MAX_LIFE_SEC, -- 287
 			maxLife = GHOST_MAX_LIFE_SEC -- 288
 		} -- 288
-		if #self.ghosts > MAX_GHOSTS then -- 290
+		if #self.ghosts > MAX_GHOSTS then -- 288
 			table.remove(self.ghosts, 1) -- 291
 		end -- 291
 		self.totalSpawned = self.totalSpawned + 1 -- 293
@@ -257,7 +257,7 @@ function AfterimageArtifactPlugin.prototype.update(self, ctx) -- 210
 	end -- 298
 end -- 210
 function AfterimageArtifactPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 302
-	if not self.active or #self.ghosts == 0 then -- 308
+	if not self.active or #self.ghosts == 0 then -- 302
 		self.maxRenderedAlpha = 0 -- 309
 		return -- 310
 	end -- 310
@@ -275,7 +275,7 @@ function AfterimageArtifactPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGl
 				local g = self.ghosts[i + 1] -- 322
 				local sepX = g.x - p.player.x -- 323
 				local sepY = g.y + g.depth * DEPTH_Y_SCALE - (p.player.y + p.player.depth * DEPTH_Y_SCALE) -- 324
-				if math.sqrt(sepX * sepX + sepY * sepY) < MIN_DRAW_SEPARATION_PX then -- 325
+				if math.sqrt(sepX * sepX + sepY * sepY) < MIN_DRAW_SEPARATION_PX then -- 324
 					goto __continue41 -- 326
 				end -- 326
 				local ratio = math.max( -- 329
@@ -284,10 +284,10 @@ function AfterimageArtifactPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGl
 				) -- 329
 				local rollDamp = g.rolling and 0.55 or 1 -- 330
 				local normAlpha = ratio ^ 1.8 * MAX_GHOST_ALPHA * rollDamp -- 331
-				if normAlpha <= 0.015 then -- 332
+				if normAlpha <= 0.015 then -- 331
 					goto __continue41 -- 333
 				end -- 333
-				if normAlpha > peakAlpha then -- 335
+				if normAlpha > peakAlpha then -- 333
 					peakAlpha = normAlpha -- 336
 				end -- 336
 				local cx = cam:sx(g.x) -- 339
@@ -362,7 +362,7 @@ function AfterimageArtifactPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGl
 					16 -- 387
 				) -- 387
 				local midY = by + bodyH * 0.56 -- 390
-				if hasPrevTrail and math.abs(cx - prevTrailX) < cam:len(72) then -- 391
+				if hasPrevTrail and math.abs(cx - prevTrailX) < cam:len(72) then -- 390
 					fgGlow:drawSegment( -- 392
 						Vec2(prevTrailX, prevTrailY), -- 393
 						Vec2(cx, midY), -- 394

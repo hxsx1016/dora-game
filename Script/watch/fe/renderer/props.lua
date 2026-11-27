@@ -41,7 +41,7 @@ function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, t
 	) -- 37
 	self:drawBracedShield(fgDraw, p, cam) -- 38
 	self:drawCraftMaterials(assets, p, cam) -- 39
-	if p.phase == "prologue-give" and p.phaseTick >= 12 and p.phaseTick < 36 then -- 40
+	if p.phase == "prologue-give" and p.phaseTick >= 12 and p.phaseTick < 36 then -- 39
 		local x = (p.player.x + p.partner.x) * 0.5 -- 41
 		local y = p.partner.y + p.partner.h * 0.62 -- 42
 		local depth = (p.player.depth + p.partner.depth) * 0.5 -- 43
@@ -55,7 +55,7 @@ function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, t
 			{layer = p.room.depth == nil and 6 or depthOrder(depth, 6)} -- 45
 		) -- 45
 	end -- 45
-	if p.room.key == "village" then -- 47
+	if p.room.key == "village" then -- 45
 		self:drawVillageProps( -- 48
 			fgDraw, -- 48
 			fgGlow, -- 48
@@ -68,7 +68,7 @@ function PropsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, t
 end -- 25
 function PropsRenderer.prototype.drawBracedShield(self, fgDraw, p, cam) -- 53
 	local sh = p.bracedShield -- 54
-	if sh == nil or sh.hp <= 0 then -- 55
+	if sh == nil or sh.hp <= 0 then -- 54
 		return -- 56
 	end -- 56
 	local cx = cam:sx(sh.x) -- 58
@@ -109,13 +109,13 @@ function PropsRenderer.prototype.drawCraftMaterials(self, assets, p, cam) -- 68
 	for ____, pickup in ipairs(p.pickups) do -- 69
 		do -- 69
 			local kind = pickup.kind -- 71
-			if pickup.id == "" or p.run.taken[pickup.id] then -- 72
+			if pickup.id == "" or p.run.taken[pickup.id] then -- 71
 				goto __continue9 -- 73
 			end -- 73
 			local depth = pickup.depth or 0 -- 75
 			local isWood = kind == "wood" or kind == "scrap" or kind == "wedge" -- 76
 			local isMetal = kind == "bell" or kind == "shield" or kind == "ammo" or kind == "pass" or kind == "quickbelt" -- 77
-			if not isWood and not isMetal then -- 78
+			if not isWood and not isMetal then -- 77
 				goto __continue9 -- 79
 			end -- 79
 			local tint = (kind == "wood" or kind == "scrap") and PALETTE.amber or (kind == "wedge" and PALETTE.emerald or ((kind == "shield" or kind == "ammo") and PALETTE.cyan or PALETTE.amberCore)) -- 81
@@ -146,7 +146,7 @@ function PropsRenderer.prototype.drawZones(self, fgDraw, p, cam) -- 98
 			local x1 = cam:sx(z.x1) -- 107
 			local y0 = cam:sy(z.y) -- 108
 			local zw = x1 - x0 -- 109
-			if z.tint == 1 then -- 111
+			if z.tint == 1 then -- 109
 				local road = p.room.depth -- 112
 				local front = cam:sy(z.y, road and road.min or -3) -- 113
 				local back = cam:sy(z.y, road and road.max or 1) -- 114
@@ -154,7 +154,7 @@ function PropsRenderer.prototype.drawZones(self, fgDraw, p, cam) -- 98
 					Rect(x0, front, zw, back - front), -- 115
 					Color(50, 35, 29, 48) -- 115
 				) -- 115
-			elseif z.tint == 2 then -- 116
+			elseif z.tint == 2 then -- 115
 				fgDraw:drawRect( -- 118
 					Rect(x0, y0 - 4, zw, 8), -- 118
 					Color(74, 58, 44, 220) -- 118
@@ -165,7 +165,7 @@ function PropsRenderer.prototype.drawZones(self, fgDraw, p, cam) -- 98
 					1.4, -- 119
 					Color(128, 98, 72, 190) -- 119
 				) -- 119
-			elseif z.tint == 3 then -- 120
+			elseif z.tint == 3 then -- 119
 				fgDraw:drawRect( -- 122
 					Rect(x0, y0 - 4, zw, 9), -- 122
 					Color(118, 122, 130, 235) -- 122
@@ -199,7 +199,7 @@ end -- 98
 function PropsRenderer.prototype.drawMarks(self, fgDraw, fgGlow, assets, p, cam, time) -- 134
 	for ____, m in ipairs(p.room.marks) do -- 142
 		do -- 142
-			if m.kind ~= 6 then -- 143
+			if m.kind ~= 6 then -- 142
 				goto __continue22 -- 144
 			end -- 144
 			local mx = cam:sx(m.x) -- 146
@@ -233,7 +233,7 @@ function PropsRenderer.prototype.drawMarks(self, fgDraw, fgGlow, assets, p, cam,
 				joint * 0.7, -- 155
 				wood -- 155
 			) -- 155
-			if not assets:tryPlace( -- 156
+			if not assets:tryPlace( -- 155
 				"prop_lantern", -- 156
 				"path_lamp_" .. tostring(m.x), -- 156
 				armX, -- 156
@@ -271,14 +271,14 @@ function PropsRenderer.prototype.drawMarks(self, fgDraw, fgGlow, assets, p, cam,
 end -- 134
 function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, occlusion, fadeDt) -- 166
 	local c = p.room.cart -- 175
-	if c.bodyW <= 0 then -- 176
+	if c.bodyW <= 0 then -- 175
 		return -- 177
 	end -- 177
 	local depth = c.depth or 0 -- 179
 	local raised = p.room.depth ~= nil -- 180
 	local lo = math.min(c.startX, c.endX) -- 183
 	local hi = math.max(c.startX, c.endX) -- 184
-	if hi - lo > 4 then -- 185
+	if hi - lo > 4 then -- 184
 		local rx0 = cam:sx(lo) -- 186
 		local rx1 = cam:sx(hi) -- 187
 		local ry = cam:sy(c.baseY, depth) -- 188
@@ -319,7 +319,7 @@ function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, oc
 		y1 = c.baseY + artHeight, -- 214
 		depth = {min = depth, max = depth + 8}, -- 215
 		passThrough = true -- 215
-	}, p, fadeDt) or 1 -- 216
+	}, p, fadeDt) or 1 -- 215
 	fgDraw:drawEllipse( -- 217
 		Vec2(cx, baseY + 2), -- 217
 		bw * 0.62, -- 217
@@ -339,7 +339,7 @@ function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, oc
 			color = occlusionTint(opacity) -- 220
 		} -- 220
 	) -- 220
-	if not painted then -- 222
+	if not painted then -- 220
 		fillVGradRect( -- 224
 			fgDraw, -- 224
 			x0, -- 224
@@ -396,7 +396,7 @@ function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, oc
 	local hTop = bodyY1 + cam:len(7) -- 242
 	local edge = painted and (c.handleOffset < 0 and cx - cam:len(artWidth * 0.42) or cx + cam:len(artWidth * 0.42)) or (c.handleOffset < 0 and x0 or x1) -- 243
 	local handleSpan = math.abs(hx - edge) -- 246
-	if not painted or handleSpan > cam:len(4) then -- 247
+	if not painted or handleSpan > cam:len(4) then -- 246
 		fgDraw:drawSegment( -- 248
 			Vec2(edge, bodyY0 + bh * 0.52), -- 248
 			Vec2( -- 248
@@ -422,7 +422,7 @@ function PropsRenderer.prototype.drawCart(self, fgDraw, assets, p, cam, time, oc
 			Color(126, 91, 61, 245 * opacity) -- 251
 		) -- 251
 	end -- 251
-	if painted then -- 254
+	if painted then -- 251
 		return -- 255
 	end -- 255
 	local clothAnchorX = c.clothSide < 0 and x0 + 3 or x1 - 3 -- 258
@@ -489,7 +489,7 @@ function PropsRenderer.prototype.drawWheel(self, draw, cx, cy, r, spin) -- 279
 end -- 279
 function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, p, cam, time) -- 295
 	local bottle = p.room.bottle -- 304
-	if bottle ~= nil then -- 305
+	if bottle ~= nil then -- 304
 		local bx0 = cam:sx(bottle.x - 16) -- 306
 		local bx1 = cam:sx(bottle.x + 16) -- 307
 		local by0 = cam:sy(0) -- 308
@@ -512,7 +512,7 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 				Color(56, 42, 34, 240) -- 316
 			) -- 316
 		end -- 316
-		if not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 318
+		if not p.hasBottle and p.bottleFly == nil and p.bottleLandT <= 0 then -- 316
 			self:drawBottleSprite( -- 319
 				fgDraw, -- 319
 				assets, -- 319
@@ -539,7 +539,7 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 		Color(9, 10, 15, 165), -- 330
 		Color(9, 10, 15, 100) -- 330
 	) -- 330
-	if not assets:tryPlace( -- 331
+	if not assets:tryPlace( -- 330
 		"prop_table", -- 331
 		"village_table", -- 331
 		(tx0 + tx1) * 0.5, -- 331
@@ -561,7 +561,7 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 			toColor(PALETTE.cartWood) -- 335
 		) -- 335
 	end -- 335
-	if p.hasBottle and p.aimHold <= 0 then -- 339
+	if p.hasBottle and p.aimHold <= 0 then -- 335
 		local pl = p.player -- 340
 		self:drawBottleSprite( -- 341
 			fgDraw, -- 341
@@ -573,7 +573,7 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 			pl.facing * 0.2 -- 341
 		) -- 341
 	end -- 341
-	if p.bottleFly ~= nil then -- 343
+	if p.bottleFly ~= nil then -- 341
 		self:drawBottleSprite( -- 344
 			fgDraw, -- 344
 			assets, -- 344
@@ -584,11 +584,11 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 			time * 14 -- 344
 		) -- 344
 	end -- 344
-	if p.hasBottle and p.aimHold > 0 then -- 348
+	if p.hasBottle and p.aimHold > 0 then -- 344
 		local pl = p.player -- 349
 		local endX = p.bottleAimX -- 350
 		local endY = p.bottleAimY -- 351
-		if endX < 0 then -- 352
+		if endX < 0 then -- 351
 			local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 353
 			endX = wAim.x -- 354
 			endY = 0 -- 355
@@ -633,7 +633,7 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 			1.6, -- 384
 			toColor(arcCol, activeAim and 245 or 165) -- 384
 		) -- 384
-		if isBrick then -- 385
+		if isBrick then -- 384
 			fgGlow:drawRing( -- 386
 				Vec2(lx, ly), -- 386
 				28 * pulse, -- 386
@@ -657,7 +657,7 @@ function PropsRenderer.prototype.drawVillageProps(self, fgDraw, fgGlow, assets, 
 end -- 295
 function PropsRenderer.prototype.drawBottleSprite(self, fgDraw, assets, id, cx, cy, ppu, tilt) -- 392
 	local height = math.max(10, ppu * 10.5) -- 399
-	if not assets:tryPlace( -- 400
+	if not assets:tryPlace( -- 399
 		"prop_bottle", -- 400
 		id, -- 400
 		cx, -- 400

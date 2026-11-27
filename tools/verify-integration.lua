@@ -88,6 +88,143 @@ for key, cfg in pairs(assets.ASSET_SLOTS) do
 end
 check("all asset frames load (" .. frames .. ")", frames > 80)
 
+-- Sample both complete cycles using the same node from the first to the last cel.
+for _, runner in ipairs({
+    { kind = "soldier", file = "zhoushu-run.png", w = 180, h = 200 },
+    { kind = "child", file = "xiaoman-run.png", w = 144, h = 164 },
+}) do
+    local key = "runner:assets/art/" .. runner.file
+    local original
+    local valid = assets.RUN_FRAME_COUNT == 160
+    for index = 0, assets.RUN_FRAME_COUNT - 1 do
+        host:beginFrame()
+        assert(host:tryPlaceRun(runner.kind, "runner", 164.25, 120, 38, 90, (index + 0.5) / assets.RUN_FRAME_COUNT))
+        host:endFrame()
+        local sprite = host.visibleLastFrame[key]
+        original = original or sprite
+        local rect = sprite.textureRect
+        valid = valid and sprite == original
+            and rect.x == 2 + (index % 10) * (runner.w + 4)
+            and rect.y == 2 + math.floor(index / 10) * (runner.h + 4)
+            and sprite.width == runner.w and sprite.height == runner.h
+    end
+    check(runner.kind .. " loads all 160 frames without allocating a node per cel", valid)
+    host:beginFrame()
+    host:tryPlaceRun(runner.kind, "runner", 164.25, 120, 38, 90, 1, {facing = -1})
+    host:endFrame()
+    check(runner.kind .. " wraps back to the first cel with the same ground anchor",
+        original.textureRect.x == 2 and original.textureRect.y == 2
+        and original.position.x == 164.25 and original.position.y == 120 and original.scaleX < 0)
+
+    local transitionKey = "runner:assets/art/" .. runner.file:gsub("%.png$", "-transition.png")
+    local transitionNode
+    local distinct = assets.RUN_TRANSITION_PHASES == 8 and assets.RUN_TRANSITION_LEVELS == 12
+    for level = 1, assets.RUN_TRANSITION_LEVELS do
+        for phase = 0, assets.RUN_TRANSITION_PHASES - 1 do
+            host:beginFrame()
+            assert(host:tryPlaceRun(runner.kind, "runner", 164.25, 120, 38, 90,
+                phase / assets.RUN_TRANSITION_PHASES, {facing = -1}, level / (assets.RUN_TRANSITION_LEVELS + 1)))
+            host:endFrame()
+            local sprite = host.visibleLastFrame[transitionKey]
+            transitionNode = transitionNode or sprite
+            local rect = sprite.textureRect
+            distinct = distinct and sprite == transitionNode and sprite.scaleX < 0 and sprite.position.y == 120
+                and rect.x == 2 + phase * (runner.w + 4)
+                and rect.y == 2 + (level - 1) * (runner.h + 4)
+        end
+    end
+    check(runner.kind .. " loads all 96 start and stop cels on one anchored node", distinct)
+end
+
+do
+    local node
+    local valid = assets.SLIDE_FRAME_COUNT == 64
+    for frame = 0, assets.SLIDE_FRAME_COUNT - 1 do
+        host:beginFrame()
+        assert(host:tryPlaceSlide("slider", 162.5, 120, 34, 90, (frame + 0.5) / assets.SLIDE_FRAME_COUNT))
+        host:endFrame()
+        local sprite = host.visibleLastFrame["slider:assets/art/zhoushu-slide.png"]
+        node = node or sprite
+        local rect = sprite.textureRect
+        valid = valid and sprite == node and sprite.position.y == 120
+            and rect.x == 2 + (frame % 8) * 304 and rect.y == 2 + math.floor(frame / 8) * 202
+    end
+    check("64 slide cels share the same sprite and ground anchor", valid)
+end
+
+do
+    local mover = new(play.Play, rooms.PROLOGUE_ROOM)
+    local i = new(Input)
+    mover.player.onGround = true
+    fe:bindPlay(mover, 1280, 720)
+    fe.screen = "play"
+    local function renderTick(dx)
+        mover.ticks = mover.ticks + 1
+        mover.player.x = mover.player.x + dx
+        fe:renderPlay(play.STEP, mover, i, 1280, 720)
+    end
+    local transitionPath = "actor_soldier:assets/art/zhoushu-run-transition.png"
+    renderTick(4)
+    local start = fe.worldArt.visibleLastFrame[transitionPath]
+    check("initial movement renders a short first stride", start ~= nil and start.visible)
+    for _ = 1, 7 do renderTick(4) end
+    local running = fe.worldArt.visibleLastFrame["actor_soldier:assets/art/zhoushu-run.png"]
+    check("continuous movement reaches the full running cycle", running ~= nil and running.visible and not start.visible)
+    local gait = fe.actors.playerStride
+    local before = gait.cycle
+    mover.ticks = mover.ticks + 4
+    mover.player.x = mover.player.x + 16
+    fe:renderPlay(4 * play.STEP, mover, i, 1280, 720)
+    local expected = (before + 16 / (mover.player.h * 1.32)) % 1
+    check("four simulation steps advance the gait by the measured distance", math.abs(gait.cycle - expected) < 1e-8)
+    local rect = running.textureRect
+    mover.paused = true
+    fe:renderPlay(play.STEP, mover, i, 1280, 720)
+    check("pause freezes the running pose", running.textureRect.x == rect.x and running.textureRect.y == rect.y)
+    mover.paused = false
+    renderTick(0)
+    local braking = fe.worldArt.visibleLastFrame[transitionPath]
+    check("stopping switches from running to a planted recovery", braking ~= nil and not running.visible)
+    local plant = braking.textureRect
+    renderTick(0)
+    check("braking reduces the stride without advancing the step", braking.textureRect.x == plant.x
+        and braking.textureRect.y < plant.y)
+    for _ = 1, 8 do renderTick(0) end
+    check("recovery ends at the standing pose", not braking.visible
+        and fe.worldArt.visibleLastFrame["actor_soldier:assets/art/actors-hd.clip|soldier_idle"] ~= nil)
+
+    local slidePath = "actor_soldier:assets/art/zhoushu-slide.png"
+    local frames, last = 0, -1
+    mover.player.depth = 32
+    for frame = 0, 41 do
+        if frame % 2 == 0 then
+            mover.player.rollT = 0.35 - frame * play.STEP / 2
+            mover.ticks = mover.ticks + 1
+            mover.player.x = mover.player.x + 4
+        end
+        fe:renderPlay(play.STEP / 2, mover, i, 1280, 720)
+        local sprite = fe.worldArt.visibleLastFrame[slidePath]
+        local sample = sprite.textureRect
+        local cel = (sample.x - 2) / 304 + 8 * (sample.y - 2) / 202
+        if cel > last then frames = frames + 1 end
+        last = cel
+        if frame == 20 then
+            local dust = fe.actors.slideDust[1]
+            check("dust keeps ground height and lane depth for camera projection", dust ~= nil
+                and dust.y == mover.player.y and dust.depth == mover.player.depth)
+            mover.paused = true
+            fe:renderPlay(0.12, mover, i, 1280, 720)
+            check("pause freezes the interpolated slide pose", sprite.textureRect.x == sample.x
+                and sprite.textureRect.y == sample.y)
+            mover.paused = false
+        end
+    end
+    check("at 120 Hz the slide advances on all 42 renders across 21 play ticks", frames == 42 and last >= 61)
+    mover.player.rollT = 0
+    renderTick(0)
+    check("the slide finishes on the original play tick", fe.worldArt.visibleLastFrame[slidePath] == nil)
+end
+
 -- The presentation adapter consumes queued events once and sees migrated room changes.
 local adapter = new(Adapter)
 p = new(play.Play, rooms.TOWER_ROOM)

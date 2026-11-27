@@ -4,7 +4,7 @@
  * 设计红线与零冲突约束：
  * - 独立实现 FeRenderPlugin，零改动 actors.ts / frontend.ts / play.ts；
  * - 仅在序章像素风（view.visualMode === "pixel"）下工作，严格复用周戍单碰撞体位置，不引入额外碰撞；
- * - 背负/攀爬/工台放下态通过 AssetSlotHost 同 instanceKey:path 覆写将原生 actor_child 凌空步态隐去，
+ * - 背负/攀爬/工台放下态通过 AssetSlotHost 将原生 actor_child 凌空步态隐去，
  *   消除 B1 后端 carryOn=true 时 p.partner.vx>8 导致的半空跑步穿帮与排演态重影；
  * - 世界空间动画全部吃 ctx.worldDt（暂停自动归零冻结），换弹探手吃 ctx.uiDt（暂停同冻、慢时灵动）。
  */
@@ -31,19 +31,6 @@ export interface CarryPoseDebugState {
     handoverActive: boolean;
 }
 
-/** 原生 actors.ts 在护送/背负模式下可能激活的 actor_child 精灵帧（同 instanceKey 原地压隐防重影） */
-const CHILD_SPRITE_PATHS: readonly string[] = [
-    "assets/art/sprites.clip|child_idle",
-    "assets/art/sprites.clip|child_run",
-    "assets/art/sprites.clip|child_step",
-    "assets/art/sprites.clip|child_crouch",
-    "assets/art/sprites.clip|child_crouch_step",
-    "assets/art/sprites.clip|child_fear",
-    "assets/art/sprites.clip|child_peek",
-    "assets/art/sprites.clip|child_offer",
-    "assets/art/sprites.clip|child_knock",
-];
-
 /** 同一道青布补线袖口（同源 cuff_shots.CUFF_PALETTE）与明初小满红褐短袄色板 */
 const CUFF_CLOTH = toColor(CUFF_PALETTE.indigoBase);
 const CUFF_MEND = toColor(CUFF_PALETTE.stitchThread);
@@ -59,21 +46,6 @@ function clamp01(v: number): number {
 function smoothStep(t: number): number {
     const k = clamp01(t);
     return k * k * (3 - 2 * k);
-}
-
-function suppressOriginalChild(worldArt: AssetSlotHost): void {
-    let i = 0;
-    for (i = 0; i < CHILD_SPRITE_PATHS.length; i++) {
-        worldArt.tryPlacePath(
-            CHILD_SPRITE_PATHS[i],
-            "actor_child",
-            -9999,
-            -9999,
-            1,
-            1,
-            { anchorY: 0, preserveAspect: true, opacity: 0, layer: -99 },
-        );
-    }
 }
 
 export class CarryPosePlugin implements FeRenderPlugin {
@@ -235,7 +207,7 @@ export class CarryPosePlugin implements FeRenderPlugin {
         }
 
         // 背负、蹲背攀爬或工台放下：压隐原生 actor_child，彻底杜绝半空蹬腿或双小满重影
-        suppressOriginalChild(worldArt);
+        worldArt.hideInstance("actor_child");
 
         if (this.mode === "atBench" || this.benchDropT > 0.5) {
             this.drawAtBench(fgDraw, fgGlow, worldArt, ctx);
@@ -267,24 +239,22 @@ export class CarryPosePlugin implements FeRenderPlugin {
         let childDepth = partner.depth;
 
         if (!nearPartner) {
-            suppressOriginalChild(worldArt);
+            worldArt.hideInstance("actor_child");
             // 小满牵手步幅比周戍轻快（两套步频呼应分镜 G06「只听两种步幅」）
             const lag = speed > 8 ? Math.sin(this.animTime * 13.5) * 2.4 : 0;
             childWX = soldier.x - f * 26 + lag;
             childWY = soldier.y;
             childDepth = soldier.depth;
 
-            const childStep = Math.floor(this.animTime * 13);
-            const slot = speed > 8 ? "child_run" : "child_idle";
             const scx = cam.sx(childWX);
             const scy = cam.sy(childWY, childDepth);
             const cW = cam.len(22);
             const cH = cam.len(64);
-            worldArt.tryPlace(slot, "carry_child_walk", scx, scy, cW, cH, {
-                facing: f,
-                frame: speed > 8 ? childStep : 0,
-                layer: depthEnabled ? depthOrder(childDepth, 4) : 4,
-            });
+            const pose = { facing: f, layer: depthEnabled ? depthOrder(childDepth, 4) : 4 };
+            if (speed <= 8 ||
+                !worldArt.tryPlaceRun("child", "carry_child_walk", scx, scy, cW, cH, this.animTime * 1.8, pose)) {
+                worldArt.tryPlace("child_idle", "carry_child_walk", scx, scy, cW, cH, pose);
+            }
             fgDraw.drawEllipse(Vec2(scx, scy + 1), cW * 0.46, 3.2, Color(10, 10, 12, 130));
         }
 
