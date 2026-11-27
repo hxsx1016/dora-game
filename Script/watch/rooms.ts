@@ -256,6 +256,8 @@ export interface RoomSpec {
     bottle?: { x: number; y: number };
     /** 村口：砖地落点。 */
     brickX?: number;
+    /** 村口：铁盆落点。 */
+    basinX?: number;
     /** 村口：软土落点。 */
     softX?: number;
     /** 村口：第一院通行线。 */
@@ -397,6 +399,7 @@ export const VILLAGE_ROOM: RoomSpec = {
     zones: [
         { x0: 256, x1: 288, y: 0, h: 6, tint: 2, label: "软土 272" },
         { x0: 440, x1: 448, y: 0, h: 120, tint: 4, label: "通行线 440" },
+        { x0: 532, x1: 564, y: 0, h: 6, tint: 4, label: "铁盆 548" },
         { x0: 592, x1: 624, y: 0, h: 6, tint: 3, label: "砖地 608" },
         { x0: 560, x1: 640, y: 0, h: 6, tint: 1, label: "暗渠口 560–640 · 蹲下钻" },
     ],
@@ -405,6 +408,7 @@ export const VILLAGE_ROOM: RoomSpec = {
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
     spawns: [{ x: 160, y: 0, h: 56, label: "小满 160" }],
     marks: [
+        { x: 548, y: 0, kind: 5, label: "铁盆落点 548" },
         { x: 608, y: 0, kind: 5, label: "砖地落点 608" },
         { x: 440, y: 0, kind: 4, label: "通行线 440" },
         { x: 600, y: 0, kind: 1, label: "暗渠口 600" },
@@ -428,6 +432,7 @@ export const VILLAGE_ROOM: RoomSpec = {
     },
     bottle: { x: 112, y: 48 },
     brickX: 608,
+    basinX: 548,
     softX: 272,
     passLine: 440,
 };
@@ -1352,6 +1357,7 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         },
         bottle: room.bottle === undefined ? undefined : { x: shift(room.bottle.x), y: room.bottle.y },
         brickX: room.brickX === undefined ? undefined : shift(room.brickX),
+        basinX: room.basinX === undefined ? undefined : shift(room.basinX),
         softX: room.softX === undefined ? undefined : shift(room.softX),
         passLine: room.passLine === undefined ? undefined : shift(room.passLine),
         campaign: room.campaign === undefined ? undefined : { ...room.campaign, exitX: shift(room.campaign.exitX) },

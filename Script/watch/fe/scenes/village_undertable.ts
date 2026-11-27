@@ -480,19 +480,17 @@ export class VillageUndertableScene {
             this.rings.push({ x: bx, y: 12, age: -0.28, duration: 1.32, maxRadius: 136, kind: "iron" });
             this.spawnShards(bx, 12, "iron", 7);
 
-            // 若后端尚未下发 surface="iron"，由本插件叠加铁盆金属余振（后端补齐后自动避让不重播）
-            if (explicitSurface !== "iron") {
-                const key = "fe04:village:iron_ring:" + ctx.events.roomSessionId + ":" + ev.tick + ":" + ev.seq;
-                ctx.audio.playOnce(
-                    key,
-                    "sfx",
-                    CHILD_AUDIO_ROOT + "bottle_iron_ring.wav",
-                    0.82,
-                    "fe04:bottle:iron_ring",
-                    ev.tick,
-                    ev.seq,
-                );
-            }
+            // 叠加铁盆第二声金属余振（与 audio.ts 主撞击音 bottle_iron.wav 形成双响层次）
+            const key = "fe04:village:iron_ring:" + ctx.events.roomSessionId + ":" + ev.tick + ":" + ev.seq;
+            ctx.audio.playOnce(
+                key,
+                "sfx",
+                CHILD_AUDIO_ROOT + "bottle_iron_ring.wav",
+                0.82,
+                "fe04:bottle:iron_ring",
+                ev.tick,
+                ev.seq,
+            );
         } else if (surface === "brick") {
             this.brickHits += 1;
             // 砸硬砖：拾荒者鞋尖先微顿约 0.14s，再果断转向调查方向
