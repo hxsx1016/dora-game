@@ -17,6 +17,7 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
+import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 
 export interface FePluginContext {
@@ -31,6 +32,10 @@ export interface FePluginContext {
     backdropArt: AssetSlotHost;
     worldArt: AssetSlotHost;
     uiArt: AssetSlotHost;
+    /** 2.5D 微缩剧场纹理网格宿主：远景层（order 14）、中景可玩层（order 28）、前景遮挡层（order 34） */
+    dioramaBg?: DioramaLayerHost;
+    dioramaWorld?: DioramaLayerHost;
+    dioramaFg?: DioramaLayerHost;
     texts: TextPool;
     /** 世界表现层增量时间（暂停为 0；换弹慢时期间为 rawDt * timeScale） */
     worldDt: number;

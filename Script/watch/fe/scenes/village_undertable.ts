@@ -22,6 +22,7 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { FePluginContext } from "Script/watch/fe/plugins";
 import {
+    DIORAMA_TEX_CLIP,
     LP_BUCKET,
     LowpolyMaterial,
     LowpolyProjection,
@@ -94,50 +95,74 @@ export interface VillageUndertableDebugState {
 
 const MAT_CLAY_STOVE: LowpolyMaterial = {
     base: rgba(74, 68, 62, 255),
-    edge: rgba(128, 120, 110, 145),
-    minShade: 0.22,
+    edge: rgba(128, 120, 110, 110),
+    minShade: 0.26,
     rimBoost: 0.16,
-    bottomAo: 0.36,
+    bottomAo: 0.34,
+    texture: DIORAMA_TEX_CLIP + "ming_plaster",
+    textureTint: rgba(168, 160, 148, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 const MAT_SOFT_EARTH: LowpolyMaterial = {
     base: rgba(66, 54, 43, 255),
-    edge: rgba(96, 80, 64, 95),
-    minShade: 0.30,
-    rimBoost: 0.06,
+    edge: rgba(96, 80, 64, 85),
+    minShade: 0.32,
+    rimBoost: 0.08,
     bottomAo: 0.24,
+    texture: DIORAMA_TEX_CLIP + "ming_plaster",
+    textureTint: rgba(132, 112, 92, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 const MAT_HARD_BRICK: LowpolyMaterial = {
     base: rgba(126, 132, 142, 255),
-    edge: rgba(220, 226, 234, 210),
-    minShade: 0.32,
+    edge: rgba(220, 226, 234, 165),
+    minShade: 0.36,
     rimBoost: 0.30,
     bottomAo: 0.22,
+    texture: DIORAMA_TEX_CLIP + "ming_brick",
+    textureTint: rgba(228, 234, 242, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 const MAT_IRON_BASIN: LowpolyMaterial = {
     base: rgba(58, 66, 78, 255),
-    edge: rgba(214, 224, 238, 225),
-    minShade: 0.24,
+    edge: rgba(214, 224, 238, 185),
+    minShade: 0.28,
     rimBoost: 0.38,
-    bottomAo: 0.28,
+    bottomAo: 0.26,
+    texture: DIORAMA_TEX_CLIP + "ming_iron",
+    textureTint: rgba(188, 198, 212, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 const MAT_TABLE_WOOD: LowpolyMaterial = {
     base: rgba(78, 56, 40, 255),
-    edge: rgba(142, 110, 82, 155),
-    minShade: 0.18,
+    edge: rgba(142, 110, 82, 120),
+    minShade: 0.24,
     rimBoost: 0.18,
-    bottomAo: 0.42,
+    bottomAo: 0.38,
+    texture: DIORAMA_TEX_CLIP + "ming_timber",
+    textureTint: rgba(164, 140, 120, 255),
+    subdivX: 3,
+    subdivY: 2,
 };
 
 const MAT_CULVERT_STONE: LowpolyMaterial = {
     base: rgba(76, 84, 96, 255),
-    edge: rgba(178, 194, 210, 195),
-    minShade: 0.26,
+    edge: rgba(178, 194, 210, 155),
+    minShade: 0.30,
     rimBoost: 0.28,
-    bottomAo: 0.34,
+    bottomAo: 0.30,
+    texture: DIORAMA_TEX_CLIP + "ming_stone",
+    textureTint: rgba(188, 198, 212, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 function drawEllipseRing(
@@ -661,7 +686,7 @@ export class VillageUndertableScene {
             bucket: LP_BUCKET.BACKDROP,
         });
 
-        scene.flush(bgDraw, bgGlow);
+        scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
 
         // 右上冷月微光（侧光光源方向依据）
         const mx = w * 0.80;
@@ -877,7 +902,7 @@ export class VillageUndertableScene {
             scene.addContactShadow(p.scavX, p.room.scavenger.y, 19, 13, 0.84, { bucket: LP_BUCKET.PROP, sortBias: 0.42 });
         }
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 9. 强化地表灰度纹理细节（砖缝高亮线、软土散点足印、暗渠水光、铁盆受击光闪）
         this.drawSurfaceReadabilityDetails(fgDraw, fgGlow, p, cam, softX, culvertX, basinX, brickX);

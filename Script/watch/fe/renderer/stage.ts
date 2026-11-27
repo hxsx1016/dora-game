@@ -85,34 +85,29 @@ export class StageRenderer {
         fillVGradRect(bgDraw, 0, splitY, w, h - splitY, toColor(theme.skyMid), toColor(theme.skyTop));
         fillVGradRect(bgDraw, 0, 0, w, splitY, toColor(theme.skyHorizon), toColor(theme.skyMid));
 
-        // 2. 冷月与大气晕染
+        // 2. 霜月微晕（仅无底图时兜底）
         if (theme.showMoon) {
             const mx = w * theme.moonXFrac - (cam.x - p.room.minX) * 0.015;
             const my = h * theme.moonYFrac;
             const mr = Math.max(18, h * 0.044);
-            fillRadialGlow(bgGlow, mx, my, mr * 6.2, mr * 6.2, Color(140, 200, 255, 28), Color(20, 40, 80, 0), 22);
-            fillRadialGlow(bgGlow, mx, my, mr * 2.4, mr * 2.4, Color(200, 232, 255, 64), Color(80, 140, 210, 0), 18);
-            bgDraw.drawCircle(Vec2(mx, my), mr, Color(224, 238, 252, 230));
-            // 轻微月面斜切暗弧，增加冷峻图形感
-            bgDraw.drawCircle(Vec2(mx + mr * 0.28, my + mr * 0.16), mr * 0.84, toColor(theme.skyTop, 110));
+            fillRadialGlow(bgGlow, mx, my, mr * 5.2, mr * 5.2, Color(156, 186, 212, 26), Color(20, 32, 52, 0), 20);
+            fillRadialGlow(bgGlow, mx, my, mr * 2.2, mr * 2.2, Color(210, 226, 238, 56), Color(64, 96, 134, 0), 18);
+            bgDraw.drawCircle(Vec2(mx, my), mr, Color(224, 236, 244, 220));
+            bgDraw.drawCircle(Vec2(mx + mr * 0.28, my + mr * 0.16), mr * 0.84, toColor(theme.skyTop, 118));
         }
 
         if (p.room.key === "forest") {
             this.drawFarForest(bgDraw, w, h, cam, theme, seed);
             this.drawMidForest(bgDraw, bgGlow, w, h, cam, theme, time, seed);
         } else {
-            this.drawFarCity(bgDraw, bgGlow, w, h, cam, theme, seed);
-            this.drawMidArchitecture(bgDraw, bgGlow, w, h, cam, theme, time, seed);
-        }
-        if (theme.showSearchlights) {
-            this.drawSearchlights(bgGlow, w, h, cam, theme, time, seed);
+            this.drawFarMingTown(bgDraw, w, h, cam, theme, seed);
         }
         if (theme.showTowerBeacon) {
             this.drawDistantNorthTower(bgDraw, bgGlow, w, h, cam, p, time);
         }
 
-        // 5. 底部大气深度雾气（把背景与逻辑前景锐利切开，艾希经典景深手法）
-        const fogH = h * 0.38;
+        // 3. 底部夜雾渐变
+        const fogH = h * 0.34;
         fillVGradRect(
             bgGlow,
             0,
@@ -262,74 +257,22 @@ export class StageRenderer {
         this.drawArch(fgDraw, p, cam);
     }
 
-    /** 绘制近景压边与电影暗角（绘制在角色和特效之后、HUD 之前） */
+    /** 绘制柔和电影暗角（移除早期科幻钢梁/黑梯形压边，保持明代画面通透干净） */
     drawForegroundFraming(
         fgDraw: DrawNode.Type,
         w: number,
         h: number,
-        p: Play,
-        cam: CameraDirector,
+        _p: Play,
+        _cam: CameraDirector,
     ): void {
-        const seed = roomSeed(p.room.key);
-        // 极低矮前景碎块/钢梁压边（1.26x 视差，不遮挡地面角色脚底，拉出舞台纵深）
-        const parallax = -cam.x * 1.26 * (cam.ppu * 0.45);
-        const span = 520;
-        const startIdx = Math.floor((-parallax - 200) / span);
-        let idx = startIdx;
-        for (idx = startIdx; idx <= startIdx + 4; idx++) {
-            const x = idx * span + parallax;
-            const r = hash01(seed + idx * 17);
-            const bw = 70 + r * 90;
-            const bh = 28 + hash01(seed + idx * 31) * 34;
-            fgDraw.drawPolygon([
-                Vec2(x, 0),
-                Vec2(x + bw, 0),
-                Vec2(x + bw - 18, bh),
-                Vec2(x + 12, bh * 0.72),
-            ], Color(4, 6, 11, 225));
-        }
-
         // 柔和电影暗角（顶部与底部微暗渐变，聚焦主体与字幕）
-        fillVGradRect(fgDraw, 0, h - h * 0.16, w, h * 0.16, Color(4, 6, 12, 0), Color(4, 6, 12, 138));
-        fillVGradRect(fgDraw, 0, 0, w, h * 0.13, Color(4, 6, 12, 185), Color(4, 6, 12, 0));
+        fillVGradRect(fgDraw, 0, h - h * 0.15, w, h * 0.15, Color(4, 6, 12, 0), Color(4, 6, 12, 126));
+        fillVGradRect(fgDraw, 0, 0, w, h * 0.12, Color(4, 6, 12, 165), Color(4, 6, 12, 0));
     }
 
-    private drawSearchlights(
-        bgGlow: DrawNode.Type,
-        w: number,
-        h: number,
-        cam: CameraDirector,
-        theme: RoomTheme,
-        time: number,
-        seed: number,
-    ): void {
-        const count = 3;
-        let i = 0;
-        for (i = 0; i < count; i++) {
-            const anchor = ((i * 0.34 + 0.18) * w - cam.x * 0.12) % (w + 260);
-            const bx = anchor < -120 ? anchor + w + 260 : anchor;
-            const by = cam.groundScreenY * 0.85;
-            const sway = Math.sin(time * (0.28 + i * 0.11) + seed + i * 2.1) * 0.32;
-            const ang = Math.PI * 0.5 + sway;
-            const len = h * 1.15;
-            const halfSpread = 0.065 + (i % 2) * 0.025;
-            const x1 = bx + Math.cos(ang - halfSpread) * len;
-            const y1 = by + Math.sin(ang - halfSpread) * len;
-            const x2 = bx + Math.cos(ang + halfSpread) * len;
-            const y2 = by + Math.sin(ang + halfSpread) * len;
-            const c0 = toColor(theme.beamColor);
-            const c1 = Color(theme.beamColor.r, theme.beamColor.g, theme.beamColor.b, 0);
-            bgGlow.drawVertices([
-                [Vec2(bx, by), c0],
-                [Vec2(x1, y1), c1],
-                [Vec2(x2, y2), c1],
-            ]);
-        }
-    }
-
-    private drawFarCity(
+    /** 兜底远景：明代海防青砖城垛与民居歇山屋脊剪影（肃清遗留探照灯/屋顶天线/钢桁架/电缆） */
+    private drawFarMingTown(
         bgDraw: DrawNode.Type,
-        bgGlow: DrawNode.Type,
         w: number,
         h: number,
         cam: CameraDirector,
@@ -338,7 +281,7 @@ export class StageRenderer {
     ): void {
         const baseY = cam.groundScreenY - 8;
         const shift = -cam.x * 0.20 * cam.ppu;
-        const colW = 108;
+        const colW = 112;
         const first = Math.floor((-shift - colW) / colW);
         const count = Math.ceil(w / colW) + 3;
         let i = 0;
@@ -346,33 +289,17 @@ export class StageRenderer {
             const idx = first + i;
             const r1 = hash01(seed + idx * 13.7);
             const r2 = hash01(seed + idx * 29.3);
-            const r3 = hash01(seed + idx * 47.1);
             const x = idx * colW + shift;
-            const bw = colW * (0.68 + r1 * 0.44);
-            const bh = h * (0.18 + r2 * 0.38);
-            const cut = r3 > 0.5 ? 16 + r1 * 22 : 0;
-
+            const bw = colW * (0.72 + r1 * 0.42);
+            const bh = h * (0.14 + r2 * 0.24);
+            const ridgeH = 14 + r1 * 18;
             bgDraw.drawPolygon([
                 Vec2(x, baseY),
                 Vec2(x + bw, baseY),
-                Vec2(x + bw, baseY + bh - cut),
-                Vec2(x + bw - cut, baseY + bh),
+                Vec2(x + bw, baseY + bh),
+                Vec2(x + bw * 0.5, baseY + bh + ridgeH),
                 Vec2(x, baseY + bh),
             ], toColor(theme.farBuilding));
-
-            // 屋顶天线 / 破损钢架
-            if (r3 > 0.62) {
-                const ax = x + bw * 0.25;
-                bgDraw.drawSegment(Vec2(ax, baseY + bh), Vec2(ax, baseY + bh + 32), 1.2, toColor(theme.farBuilding));
-                if (r1 > 0.6) {
-                    bgGlow.drawDot(Vec2(ax, baseY + bh + 32), 2.2, toColor(theme.accent, 145));
-                }
-            }
-            // 极稀疏冷光灯缝
-            if (r2 > 0.55) {
-                const wy = baseY + bh * (0.52 + r1 * 0.25);
-                bgGlow.drawSegment(Vec2(x + 12, wy), Vec2(x + bw - 14, wy), 1.1, toColor(theme.accent, 64));
-            }
         }
     }
 
@@ -397,7 +324,6 @@ export class StageRenderer {
             const cx = idx * step + shift;
             const tw = 34 + r1 * 38;
             const th = h * (0.24 + r2 * 0.34);
-            // 尖锐针叶树剪影（三层叠加）
             bgDraw.drawPolygon([
                 Vec2(cx - tw, baseY),
                 Vec2(cx + tw, baseY),
@@ -408,70 +334,6 @@ export class StageRenderer {
                 Vec2(cx + tw * 0.72, baseY + th * 0.32),
                 Vec2(cx, baseY + th * 1.12),
             ], toColor(theme.farBuilding));
-        }
-    }
-
-    private drawMidArchitecture(
-        bgDraw: DrawNode.Type,
-        bgGlow: DrawNode.Type,
-        w: number,
-        h: number,
-        cam: CameraDirector,
-        theme: RoomTheme,
-        time: number,
-        seed: number,
-    ): void {
-        const baseY = cam.groundScreenY - 4;
-        const shift = -cam.x * 0.48 * cam.ppu;
-        const bay = 240;
-        const first = Math.floor((-shift - bay) / bay);
-        const count = Math.ceil(w / bay) + 3;
-        const col = toColor(theme.midBuilding);
-        const edge = Color(theme.midBuilding.r + 22, theme.midBuilding.g + 28, theme.midBuilding.b + 38, 170);
-
-        let i = 0;
-        for (i = 0; i < count; i++) {
-            const idx = first + i;
-            const r = hash01(seed + idx * 37.3);
-            const x = idx * bay + shift;
-            const colH = h * (0.34 + r * 0.24);
-            const pw = 22 + r * 16;
-
-            // 中景工业立柱 + X 钢桁架
-            bgDraw.drawRect(Rect(x, baseY, pw, colH), col);
-            bgDraw.drawSegment(Vec2(x + pw, baseY), Vec2(x + pw, baseY + colH), 1, edge);
-            if (r > 0.35) {
-                const beamY = baseY + colH * 0.76;
-                bgDraw.drawSegment(Vec2(x + pw, beamY), Vec2(x + bay, beamY), 4, col);
-                bgDraw.drawSegment(Vec2(x + pw, beamY - 22), Vec2(x + bay * 0.5, beamY), 1.4, edge);
-                bgDraw.drawSegment(Vec2(x + bay * 0.5, beamY), Vec2(x + bay, beamY - 22), 1.4, edge);
-            }
-
-            // 垂落电缆弧线
-            bgDraw.drawQuadraticBezier(
-                Vec2(x + pw * 0.5, baseY + colH * 0.88),
-                Vec2(x + bay * 0.5, baseY + colH * 0.62 + Math.sin(time * 1.4 + idx) * 3),
-                Vec2(x + bay + pw * 0.5, baseY + colH * 0.85),
-                1.0,
-                Color(12, 18, 28, 180),
-            );
-
-            // 破损街灯与微弱光锥（间隔出现，避免过亮）
-            if ((idx & 1) === 0) {
-                const lx = x + bay * 0.52;
-                const ly = baseY + h * 0.31;
-                bgDraw.drawSegment(Vec2(lx, baseY), Vec2(lx, ly), 2.2, col);
-                bgDraw.drawSegment(Vec2(lx, ly), Vec2(lx + 18, ly - 4), 2, col);
-                const flicker = 0.84 + 0.16 * Math.sin(time * 5.2 + idx * 3.1);
-                const lc = theme.accent;
-                bgGlow.drawDot(Vec2(lx + 18, ly - 5), 3.2, toColor(lc, 210 * flicker));
-                fillRadialGlow(bgGlow, lx + 18, ly - 5, 36, 36, toColor(lc, 54 * flicker), Color(lc.r, lc.g, lc.b, 0), 14);
-                bgGlow.drawVertices([
-                    [Vec2(lx + 18, ly - 6), toColor(lc, 38 * flicker)],
-                    [Vec2(lx - 42, baseY), Color(lc.r, lc.g, lc.b, 0)],
-                    [Vec2(lx + 78, baseY), Color(lc.r, lc.g, lc.b, 0)],
-                ]);
-            }
         }
     }
 

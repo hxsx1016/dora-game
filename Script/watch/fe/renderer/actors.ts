@@ -270,10 +270,10 @@ export class ActorsRenderer {
         const rolling = a.rollT > 0;
         const crouching = a.covered || calming || rolling;
 
-        // 艾希风凌厉修长动漫比例：7 头身（headR ≈ H * 0.088，肩宽 ≈ H * 0.22，收腰 V 廓形）
+        // 极简明代守卒无贴图安全兜底（仅在 sprites.clip 不可用时触发，肃清旧 ICEY 霓虹兜底）
         const bodyH = rolling ? H * 0.62 : (crouching ? H * 0.82 : H);
         const lean = rolling ? f * H * 0.14 : (p.gripping ? f * H * 0.10 : (walking ? f * 6 : f * 2));
-        const sw = H * 0.115; // 半肩宽
+        const sw = H * 0.115;
 
         // 1. 双节 Articulated 腿部（大腿 + 小腿 + 战靴）
         const hipY = by + bodyH * 0.44 + bob * 0.4;
@@ -478,22 +478,13 @@ export class ActorsRenderer {
         const sendY = scarfY - 12 + Math.cos(this.animTime * 4.8) * 3.5;
         fgDraw.drawQuadraticBezier(Vec2(x - f * cw * 0.3, scarfY), Vec2(smidX, smidY), Vec2(sendX, sendY), 2.8, toColor(PALETTE.amberCore, 235));
 
-        // 4. 柔和儿童比例头部 + 尖角兜帽轮廓
+        // 4. 明代女童头部与双丫髻剪影兜底（无发光眼点）
         const headR = fullRef * (a.crouch ? 0.118 : 0.126);
         const headX = x + f * (a.crouch ? 5 : 2);
         const headY = Math.min(by + H - headR - 1, cloakTopY + headR * 0.92);
-        fgDraw.drawCircle(Vec2(headX, headY), headR, Color(240, 222, 198, 255));
-        // 尖角暖褐兜帽包裹头后侧，既可爱又极契合废土旅人剪影
-        fgDraw.drawPolygon([
-            Vec2(headX - f * headR * 1.28, headY - headR * 0.72),
-            Vec2(headX - f * headR * 1.48, headY + headR * 0.35),
-            Vec2(headX - f * headR * 0.25, headY + headR * 1.15),
-            Vec2(headX + f * headR * 0.68, headY + headR * 0.82),
-            Vec2(headX - f * headR * 0.18, headY + headR * 0.15),
-            Vec2(headX - f * headR * 0.35, headY - headR * 0.78),
-        ], Color(156, 114, 62, 248), 1.1, Color(244, 214, 162, 200));
-        // 明眸光点
-        fgGlow.drawDot(Vec2(headX + f * headR * 0.45, headY + 1), 2.2, toColor(PALETTE.amberCore));
+        fgDraw.drawCircle(Vec2(headX, headY), headR, Color(232, 212, 188, 255));
+        fgDraw.drawCircle(Vec2(headX - f * headR * 0.45, headY + headR * 0.72), headR * 0.42, Color(36, 30, 32, 250));
+        fgDraw.drawCircle(Vec2(headX + f * headR * 0.15, headY + headR * 0.82), headR * 0.36, Color(36, 30, 32, 250));
 
         // 5. 指南针微光
         const hasCompass = isControlled || p.room.key !== "prologue" || p.phase !== "prologue-wait";

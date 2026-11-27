@@ -404,7 +404,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         scene.addFogBand(ox - 180, ox + 1420, -34, 152, 180, rgba(28, 42, 60, 255), 0.58, 0.06, {
             bucket: LP_BUCKET.BACKDROP,
         });
-        scene.flush(bgDraw, bgGlow);
+        scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
 
         // 冷月与远山北塔一豆暖灯（引导尽头 x ≈ 1120，无任务光柱）
         const moonX = w * 0.76;
@@ -449,7 +449,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         scene.addFogBand(ox - 160, ox + 900, -24, 150, 260, rgba(36, 42, 58, 255), 0.56, 0.06, {
             bucket: LP_BUCKET.BACKDROP,
         });
-        scene.flush(bgDraw, bgGlow);
+        scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
 
         return true;
     }
@@ -503,14 +503,15 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
                 highlightTopEdge: true,
                 edgeWidth: 0.9,
             });
-            // 车沿系着的旧补丁红布
-            const rSway = Math.sin(this.animTime * 2.9) * 4.5;
-            scene.addTri3D(
-                vec3(redBox.x0 + 4, redBox.y1, -11),
+            // 车沿系着的旧补丁红布（Grid 织纹波浪飘动）
+            scene.addWavingQuad3D(
+                vec3(redBox.x0 - 4, redBox.y0 + 10, -12),
+                vec3(redBox.x0 + 14, redBox.y0 + 12, -11),
                 vec3(redBox.x0 + 18, redBox.y1, -10),
-                vec3(redBox.x0 - 2 + rSway, redBox.y0 + 10, -12),
+                vec3(redBox.x0 + 4, redBox.y1, -11),
                 MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, sortBias: 0.26, edgeWidth: 0.8 },
+                { ampX: 4.5, ampY: 1.8, phase: this.animTime * 2.9, freqU: 1.8, freqV: 2.4, pin: "top" },
+                { bucket: LP_BUCKET.PROP, sortBias: 0.26, subdivX: 3, subdivY: 3 },
             );
         }
 
@@ -623,7 +624,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             0.03,
         );
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 下层水门廊道头顶格栅条影（细微环境层次）
         let gi = 0;
@@ -632,23 +633,6 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             const p0 = projectWorld3D(gx, 0.5, -14, cam, this.outsideProj);
             const p1 = projectWorld3D(gx + 10, 0.5, 22, cam, this.outsideProj);
             fgDraw.drawSegment(Vec2(p0.x, p0.y), Vec2(p1.x, p1.y), 3.0, Color(8, 12, 18, 76));
-        }
-
-        // 右侧明代砖城墙水平灰缝与垛口檐线（打破大灰块的素面感，凸显宁村所海防砖墙）
-        let row = 0;
-        for (row = 1; row <= 6; row++) {
-            const wy = 96 + row * 19;
-            const bL = projectWorld3D(ox + 513, wy, -8, cam, this.outsideProj);
-            const bR = projectWorld3D(ox + 599, wy, -8, cam, this.outsideProj);
-            fgDraw.drawSegment(Vec2(bL.x, bL.y), Vec2(bR.x, bR.y), 0.9, Color(34, 40, 50, 185));
-            const off = (row % 2) * 18;
-            let colX = ox + 528 + off;
-            while (colX < ox + 594) {
-                const v0 = projectWorld3D(colX, wy - 19, -8, cam, this.outsideProj);
-                const v1 = projectWorld3D(colX, wy, -8, cam, this.outsideProj);
-                fgDraw.drawSegment(Vec2(v0.x, v0.y), Vec2(v1.x, v1.y), 0.8, Color(32, 38, 48, 150));
-                colX += 34;
-            }
         }
 
         return true;
@@ -771,7 +755,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         // 7. 小满脚底接触影
         scene.addContactShadow(p.player.x, p.player.y, 15, 11, 0.78, { bucket: LP_BUCKET.PROP, sortBias: 0.45 });
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 门廊悬灯暖点与西窗微晕
         const lampP = projectWorld3D(ox + 445, 102, 2, cam, this.towerProj);
@@ -789,23 +773,13 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
         const winP = projectWorld3D(ox + 296, 138, -9, cam, this.towerProj);
         fillRadialGlow(fgGlow, winP.x, winP.y, cam.len(38), cam.len(42), Color(246, 206, 132, Math.round(78 * pulse)), Color(232, 174, 82, 0), 14);
-        // 西窗明代木窗格（十字棂条）与塔壁青砖水平灰缝
+        // 西窗明代木窗格（十字棂条；塔身已由真实青砖 Grid 纹理承载）
         const wBL = projectWorld3D(ox + 286, 118, -9, cam, this.towerProj);
         const wTR = projectWorld3D(ox + 306, 158, -9, cam, this.towerProj);
         const wMidX = (wBL.x + wTR.x) * 0.5;
         const wMidY = (wBL.y + wTR.y) * 0.5;
         fgDraw.drawSegment(Vec2(wMidX, wBL.y), Vec2(wMidX, wTR.y), 1.4, Color(68, 52, 38, 225));
         fgDraw.drawSegment(Vec2(wBL.x, wMidY), Vec2(wTR.x, wMidY), 1.4, Color(68, 52, 38, 225));
-        let tr = 1;
-        for (tr = 1; tr <= 6; tr++) {
-            const ty = tr * 30;
-            const tl0 = projectWorld3D(ox + 182, ty, -8, cam, this.towerProj);
-            const tl1 = projectWorld3D(ox + 398, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tl0.x, tl0.y), Vec2(tl1.x, tl1.y), 0.8, Color(34, 38, 48, 135));
-            const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
-            const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
-        }
 
         return true;
     }
@@ -932,27 +906,20 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             highlightTopEdge: true,
         });
 
-        // 2. 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，自然垂扬可一眼认出，绝不随小满转向翻面！）
+        // 2. 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，Grid 粗麻织纹随风自然垂扬，绝不随小满转向翻面！）
         const clothX = axleX - halfW;
         const clothTop = bodyTop + 1;
-        const sway = Math.sin(this.animTime * 3.1) * 5.8;
-        const sway2 = Math.cos(this.animTime * 2.6) * 3.6;
-        scene.addTri3D(
+        scene.addWavingQuad3D(
+            vec3(clothX - 15, clothTop - 23, -14),
+            vec3(clothX + 2, clothTop - 21, -12),
+            vec3(clothX + 11, clothTop, -11),
             vec3(clothX - 2, clothTop + 1, -12),
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 16 + sway, clothTop - 22, -14),
             MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.28, edgeWidth: 0.9 },
-        );
-        scene.addTri3D(
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 16 + sway, clothTop - 22, -14),
-            vec3(clothX - 1 + sway2, clothTop - 24, -12),
-            MING_MATERIALS.mingRedCloth,
-            { bucket: LP_BUCKET.PROP, sortBias: 0.29, edgeWidth: 0.6 },
+            { ampX: 6.2, ampY: 2.4, phase: this.animTime * 3.1, freqU: 1.7, freqV: 2.6, pin: "top" },
+            { bucket: LP_BUCKET.PROP, sortBias: 0.28, subdivX: 3, subdivY: 4 },
         );
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 3. 旋转木辐条双轮（贴合 wz = 0，随 cartAxle 真实转动）
         const wheelXs = [axleX - halfW * 0.56, axleX + halfW * 0.56];

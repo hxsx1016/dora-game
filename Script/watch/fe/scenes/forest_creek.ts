@@ -21,6 +21,7 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { FePluginContext } from "Script/watch/fe/plugins";
 import {
+    DIORAMA_TEX_CLIP,
     FOREST_CREEK_LIGHT,
     LP_BUCKET,
     LowpolyMaterial,
@@ -70,23 +71,31 @@ export interface ForestCreekDebugState {
 
 const MAT_MOSS_GROUND: LowpolyMaterial = {
     base: rgba(44, 58, 52, 255),
-    edge: rgba(108, 134, 122, 145),
-    minShade: 0.24,
+    edge: rgba(108, 134, 122, 115),
+    minShade: 0.28,
     rimBoost: 0.20,
-    bottomAo: 0.34,
+    bottomAo: 0.32,
+    texture: DIORAMA_TEX_CLIP + "ming_stone",
+    textureTint: rgba(132, 154, 142, 255),
+    subdivX: 4,
+    subdivY: 2,
 };
 
 const MAT_PINE_TRUNK: LowpolyMaterial = {
     base: rgba(46, 38, 34, 255),
-    edge: rgba(98, 92, 86, 130),
-    minShade: 0.20,
+    edge: rgba(98, 92, 86, 100),
+    minShade: 0.24,
     rimBoost: 0.16,
-    bottomAo: 0.40,
+    bottomAo: 0.38,
+    texture: DIORAMA_TEX_CLIP + "ming_timber",
+    textureTint: rgba(126, 112, 102, 255),
+    subdivX: 2,
+    subdivY: 3,
 };
 
 const MAT_PINE_NEEDLE: LowpolyMaterial = {
     base: rgba(24, 42, 38, 255),
-    edge: rgba(78, 108, 98, 135),
+    edge: rgba(78, 108, 98, 105),
     minShade: 0.22,
     rimBoost: 0.18,
     bottomAo: 0.36,
@@ -94,23 +103,31 @@ const MAT_PINE_NEEDLE: LowpolyMaterial = {
 
 const MAT_ROOT_ARCH: LowpolyMaterial = {
     base: rgba(58, 46, 38, 255),
-    edge: rgba(146, 134, 116, 170),
-    minShade: 0.22,
+    edge: rgba(146, 134, 116, 130),
+    minShade: 0.26,
     rimBoost: 0.24,
-    bottomAo: 0.36,
+    bottomAo: 0.34,
+    texture: DIORAMA_TEX_CLIP + "ming_timber",
+    textureTint: rgba(146, 126, 108, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 const MAT_CANAL_STONE: LowpolyMaterial = {
     base: rgba(68, 78, 86, 255),
-    edge: rgba(164, 186, 198, 190),
-    minShade: 0.26,
+    edge: rgba(164, 186, 198, 145),
+    minShade: 0.30,
     rimBoost: 0.28,
-    bottomAo: 0.30,
+    bottomAo: 0.28,
+    texture: DIORAMA_TEX_CLIP + "ming_stone",
+    textureTint: rgba(168, 184, 196, 255),
+    subdivX: 2,
+    subdivY: 2,
 };
 
 const MAT_GRASS_BACK: LowpolyMaterial = {
     base: rgba(36, 56, 50, 255),
-    edge: rgba(96, 128, 116, 135),
+    edge: rgba(96, 128, 116, 105),
     minShade: 0.28,
     rimBoost: 0.16,
     bottomAo: 0.32,
@@ -118,10 +135,14 @@ const MAT_GRASS_BACK: LowpolyMaterial = {
 
 const MAT_CREEK_WATER: LowpolyMaterial = {
     base: rgba(24, 38, 48, 255),
-    edge: rgba(120, 152, 168, 110),
-    minShade: 0.35,
+    edge: rgba(120, 152, 168, 90),
+    minShade: 0.44,
     rimBoost: 0.22,
-    bottomAo: 0.12,
+    bottomAo: 0.10,
+    texture: DIORAMA_TEX_CLIP + "ming_water",
+    textureTint: rgba(188, 212, 224, 255),
+    subdivX: 6,
+    subdivY: 3,
 };
 
 const MAT_TWIG: LowpolyMaterial = {
@@ -521,7 +542,7 @@ export class ForestCreekScene {
             bucket: LP_BUCKET.BACKDROP,
         });
 
-        scene.flush(bgDraw, bgGlow);
+        scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
 
         // 5. 真北塔西窗暖灯（随与水面倒影完全同拍呼吸，前期被前景枝叶自然遮住）
         const lampPulse = 0.84 + 0.16 * Math.sin(this.animTime * 2.3);
@@ -579,22 +600,24 @@ export class ForestCreekScene {
             highlightTopEdge: true,
             edgeWidth: 0.9,
         });
-        // 溪湾宽阔水面（近岸前水 z = -44..-10 与远岸主水湾 z = 24..196，自 1170 延展至尽头）
-        scene.addQuad3D(
+        // 溪湾宽阔水面（真实夜水 Grid 波浪变形：近岸前水 z = -44..-10 与远岸主水湾 z = 24..196）
+        scene.addWavingQuad3D(
             vec3(ox + 1170, -6, -44),
             vec3(ox + 1640, -6, -44),
             vec3(ox + 1640, -2, -10),
             vec3(ox + 1170, -2, -10),
             MAT_CREEK_WATER,
-            { bucket: LP_BUCKET.WALK_DECK, sortBias: 0.08, edgeWidth: 0 },
+            { ampX: 3.4, ampY: 1.4, phase: this.ripplePhase, freqU: 5.2, freqV: 3.1, pin: "none" },
+            { bucket: LP_BUCKET.WALK_DECK, sortBias: 0.08, subdivX: 6, subdivY: 3 },
         );
-        scene.addQuad3D(
+        scene.addWavingQuad3D(
             vec3(ox + 1170, -2, 24),
             vec3(ox + 1660, -2, 24),
             vec3(ox + 1660, 4, 196),
             vec3(ox + 1170, 4, 196),
             MAT_CREEK_WATER,
-            { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.04, edgeWidth: 0 },
+            { ampX: 4.2, ampY: 1.6, phase: this.ripplePhase * 0.88 + 1.2, freqU: 6.4, freqV: 3.6, pin: "none" },
+            { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.04, subdivX: 6, subdivY: 4 },
         );
 
         // 2. 中景古松树干与分层松冠（z = 36..82，带自然锥形树干、斜枝与多层墨绿针叶冠，摆脱黑方柱观感）
@@ -750,7 +773,7 @@ export class ForestCreekScene {
             scene.addContactShadow(p.dogX, 0, 18, 11, 0.82, { bucket: LP_BUCKET.PROP, sortBias: 0.44 });
         }
 
-        scene.flush(fgDraw, fgGlow);
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 8. 溪湾脚边水面涟漪与揉碎的北塔灯影（停步持续流动，先见水里灯、上岸才见真灯！）
         this.drawCreekWaterReflection(fgDraw, fgGlow, p, cam);

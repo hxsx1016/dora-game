@@ -24,6 +24,7 @@ import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
+import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
@@ -48,6 +49,9 @@ export class WatchFrontend {
     private bgDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
     private backdropArt: AssetSlotHost;
+    private dioramaBg: DioramaLayerHost;
+    private dioramaWorld: DioramaLayerHost;
+    private dioramaFg: DioramaLayerHost;
     private worldArt: AssetSlotHost;
     private uiArt: AssetSlotHost;
     private fgDraw: DrawNode.Type;
@@ -105,7 +109,10 @@ export class WatchFrontend {
         this.bgGlow.addTo(this.layerRoot);
 
         this.backdropArt = new AssetSlotHost(this.layerRoot, 12);
+        this.dioramaBg = new DioramaLayerHost(this.layerRoot, 14);
+        this.dioramaWorld = new DioramaLayerHost(this.layerRoot, 28);
         this.worldArt = new AssetSlotHost(this.layerRoot, 32);
+        this.dioramaFg = new DioramaLayerHost(this.layerRoot, 34);
 
         this.fgDraw = DrawNode();
         this.fgDraw.order = 30;
@@ -299,6 +306,9 @@ export class WatchFrontend {
         this.uiInkDraw.clear();
         this.uiGlow.clear();
         this.backdropArt.beginFrame();
+        this.dioramaBg.beginFrame();
+        this.dioramaWorld.beginFrame();
+        this.dioramaFg.beginFrame();
         this.worldArt.beginFrame();
         this.uiArt.beginFrame();
         this.texts.beginFrame();
@@ -306,6 +316,9 @@ export class WatchFrontend {
 
     private finishFrame(): void {
         this.backdropArt.endFrame();
+        this.dioramaBg.endFrame();
+        this.dioramaWorld.endFrame();
+        this.dioramaFg.endFrame();
         this.worldArt.endFrame();
         this.uiArt.endFrame();
         this.texts.endFrame();
@@ -519,6 +532,9 @@ export class WatchFrontend {
             backdropArt: this.backdropArt,
             worldArt: this.worldArt,
             uiArt: this.uiArt,
+            dioramaBg: this.dioramaBg,
+            dioramaWorld: this.dioramaWorld,
+            dioramaFg: this.dioramaFg,
             texts: this.texts,
             worldDt,
             uiDt,

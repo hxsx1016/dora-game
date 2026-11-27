@@ -571,7 +571,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                 bgGlow.drawSegment(Vec2(pL.x, pL.y), Vec2(pR.x, pR.y), 1.1, Color(168, 198, 224, Math.round(90 * waterA)));
             }
 
-            scene.flush(bgDraw, bgGlow);
+            scene.flush(bgDraw, bgGlow, ctx.dioramaBg);
         }
 
         // 冷月微晕（居高开阔夜空，左避门楣、右避水墨报数字，不裁切不拥挤）
@@ -834,25 +834,18 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                 opacity: plankReveal,
                 highlightTopEdge: true,
             });
-            // 远处系在左端的旧红布（随风摆动，不翻面）
+            // 远处系在左端的旧红布（真实粗麻织纹 Grid 随风波动，不翻面）
             const clothBaseX = thX + 244;
             const clothTopY = 34;
             const windFreq = 2.8 + m * 1.4;
-            const wave1 = Math.sin(this.animTime * windFreq) * (4 + 6 * m);
-            const wave2 = Math.cos(this.animTime * windFreq * 0.85) * (3 + 4 * m);
-            scene.addTri3D(
-                vec3(clothBaseX, clothTopY, -12),
-                vec3(clothBaseX + 7, clothTopY - 2, -12),
-                vec3(clothBaseX - 8 + wave1, clothTopY - 24 + wave2 * 0.3, -15),
+            scene.addWavingQuad3D(
+                vec3(clothBaseX - 11, clothTopY - 24, -15),
+                vec3(clothBaseX + 5, clothTopY - 21, -13),
+                vec3(clothBaseX + 8, clothTopY - 1, -12),
+                vec3(clothBaseX - 1, clothTopY, -12),
                 MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, opacity: plankReveal, sortBias: 0.35, edgeWidth: 0.9 },
-            );
-            scene.addTri3D(
-                vec3(clothBaseX + 7, clothTopY - 2, -12),
-                vec3(clothBaseX - 8 + wave1, clothTopY - 24 + wave2 * 0.3, -15),
-                vec3(clothBaseX + 2 + wave2, clothTopY - 20, -13),
-                MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, opacity: plankReveal * 0.9, sortBias: 0.36 },
+                { ampX: 4.5 + 5.5 * m, ampY: 2.0 + 1.5 * m, phase: this.animTime * windFreq, freqU: 1.6, freqV: 2.6, pin: "top" },
+                { bucket: LP_BUCKET.PROP, opacity: plankReveal, sortBias: 0.35, subdivX: 3, subdivY: 4 },
             );
         }
 
@@ -862,8 +855,8 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             sortBias: 0.45,
         });
 
-        // 8. 刷出全部 3D 低模几何
-        scene.flush(fgDraw, fgGlow);
+        // 8. 刷出全部 3D 微缩剧场纹理几何
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
         // 9. 关门后用实心明代城墙与重门精灵遮蔽留在门内的 p.partner（周戍在 swapToChild 后仍 alive 站在门内 x<=860），
         //    男主线 G05 重逢切回像素风时淡出该遮挡，自然露出周戍身影；门槛位于 874，绝不越过门外小满 x=890！
