@@ -168,35 +168,6 @@ export class SoundscapeDirector {
         this.syncFoley(dt, p, view, audio);
     }
 
-    /** 护送试炼肉鸽模式（mode 2）声景与拟音控制 */
-    updateTrial(dt: number, p: Play, audio: AudioDirector, offerCount: number): void {
-        audio.stopMenuAmbience(0.3);
-        this.lastSplashActive = false;
-        if (this.boundRoomKey !== p.room.key) {
-            this.resetForRoom(p);
-            this.prevOfferCount = offerCount;
-        }
-        if (p.paused) {
-            return;
-        }
-        const spec = BGM_CATALOG.escort_combat;
-        audio.setBgmManualDuck(1.0);
-        audio.playBgm(spec.id, spec.path, {
-            volume: spec.volume,
-            looping: spec.looping,
-            loopPoint: spec.loopPoint,
-            fadeIn: spec.fadeIn,
-        });
-        audio.setSceneAmbience("scene_main_amb", "ambience", AMB_ROOT + "escort_mountain_night_loop.ogg", 0.36);
-
-        if (offerCount > 0 && this.prevOfferCount === 0) {
-            audio.playUi("ui:talent_appear", UI_ROOT + "talent_appear.wav", 0.72, 0.2);
-        }
-        this.prevOfferCount = offerCount;
-
-        this.syncLocomotionAndCombatFoley(dt, p, audio, false);
-    }
-
     private syncPlayBgm(p: Play, view: DualRouteSnapshot, audio: AudioDirector): void {
         const key = p.room.key;
         const phase = p.phase;
@@ -226,7 +197,7 @@ export class SoundscapeDirector {
             } else if (phase === "gate-idle") {
                 desired = BGM_CATALOG.checkpoint;
                 manualDuck = 0.65;
-            } else if (phase === "gate-send") {
+            } else if (phase === "gate-send" || phase === "gate-farewell") {
                 desired = undefined;
             } else if (phase === "gate-count") {
                 desired = BGM_CATALOG.gate_count;
@@ -352,7 +323,7 @@ export class SoundscapeDirector {
         const key = p.room.key;
         const inCutscene = view.visualMode === "museum"
             || (key === "prologue" && (p.phase === "prologue-wake" || p.phase === "prologue-shadow" || p.phase === "prologue-give"))
-            || (key === "gate" && (p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
+            || (key === "gate" && (p.phase === "gate-farewell" || p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-hand"))
             || (key === "tower" && (p.phase === "tower-knock" || p.phase === "tower-given" || p.phase === "tower-end"));
 
         // 本领卡浮现音效

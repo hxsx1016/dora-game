@@ -1,51 +1,32 @@
 /**
- * 《向西守望》统一三模操控配置与持久化（watch-save/controls.txt）。
+ * 《向西守望》统一配置持久化（watch-save/controls.txt）。
  *
- * 合并原 android-adapt (touch.txt)、handheld-ktr-adapt (gamepad.txt) 与 web-adapt (内存 touchPref)：
- * - 所有平台共享同一份操控配置，玩家可在任意平台自由切换「自动切换 / 键鼠 / 触屏 / 手柄」；
- * - 瞄准磁吸开关由触屏与手柄共用，不再分裂两份配置；
- * - 若新文件尚不存在，自动兼容导入旧版 touch.txt / gamepad.txt 偏好。
+ * 保持与旧版 controls.txt / touch.txt / gamepad.txt 的完全兼容，
+ * 各端只向玩家展示与修改本端支持的设置项，落盘时保留全部字段防跨端覆盖丢失。
  */
 
 import { Content } from "Dora";
+import {
+    ControlSettings,
+    GamepadLayout,
+    InputMode,
+    InputModePref,
+    TOUCH_OPACITY_STEPS,
+    TOUCH_SCALE_STEPS,
+    VOLUME_STEPS,
+} from "Script/watch/target_types";
 
-export type InputMode = "kbm" | "touch" | "gamepad";
-export type InputModePref = "auto" | "kbm" | "touch" | "gamepad";
-export type GamepadLayout = "xbox" | "nintendo";
-
-export interface ControlSettings {
-    /** 操作模式偏好：auto（按最近真实输入自动切换）或手动指定 kbm / touch / gamepad */
-    modePref: InputModePref;
-    /** 周戍轻度敌兵瞄准磁吸（触屏与手柄共享） */
-    aimAssist: boolean;
-    /** 手柄蹲伏采用点按切换而非持续按住（触屏默认即切换） */
-    crouchToggle: boolean;
-    /** 手柄确认键位布局：xbox（A 确认 / B 返回）或 nintendo（B 确认 / A 返回） */
-    gamepadLayout: GamepadLayout;
-    /** 左摇杆径向死区（默认 0.22） */
-    deadzoneLeft: number;
-    /** 右摇杆径向死区（默认 0.18） */
-    deadzoneRight: number;
-    /** 虚拟触控透明度（轻 0.52 / 中 0.78 / 浓 0.96） */
-    touchOpacity: number;
-    /** 虚拟触控缩放（小 0.88 / 中 1.0 / 大 1.14） */
-    touchScale: number;
-    /** 移动设备触觉微震动反馈 */
-    haptics: boolean;
-    /** 主音量（0.0–1.0，默认 1.0） */
-    masterVol: number;
-    /** 音乐 BGM 音量（0.0–1.0，默认 0.8） */
-    bgmVol: number;
-    /** 音效与环境音量（0.0–1.0，默认 0.9） */
-    sfxVol: number;
-    /** 人声与旁白音量（0.0–1.0，默认 1.0） */
-    voiceVol: number;
-}
+export {
+    ControlSettings,
+    GamepadLayout,
+    InputMode,
+    InputModePref,
+    TOUCH_OPACITY_STEPS,
+    TOUCH_SCALE_STEPS,
+    VOLUME_STEPS,
+};
 
 export const MODE_PREF_ORDER: InputModePref[] = ["auto", "kbm", "touch", "gamepad"];
-export const TOUCH_OPACITY_STEPS = [0.52, 0.78, 0.96];
-export const TOUCH_SCALE_STEPS = [0.88, 1.0, 1.14];
-export const VOLUME_STEPS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
 const DEFAULT_CONTROLS_FILE = "watch-save/controls.txt";
 const LEGACY_TOUCH_FILE = "watch-save/touch.txt";
@@ -167,7 +148,6 @@ export function loadControlSettings(): ControlSettings {
             }
             return out;
         }
-        // 新文件尚不存在时，平滑兼容旧版 touch.txt 与 gamepad.txt
         if (customControlsFile === "") {
             const legacyTouch = resolvePath(LEGACY_TOUCH_FILE);
             if (Content.exist(legacyTouch)) {
@@ -217,11 +197,16 @@ export function saveControlSettings(s: ControlSettings): void {
     }
 }
 
-export function nextModePref(cur: InputModePref, delta: number = 1): InputModePref {
-    const idx = MODE_PREF_ORDER.indexOf(cur);
+export function nextPrefInList(cur: InputModePref, list: InputModePref[], delta: number = 1): InputModePref {
+    if (list.length === 0) return "auto";
+    const idx = list.indexOf(cur);
     const base = idx >= 0 ? idx : 0;
-    const len = MODE_PREF_ORDER.length;
-    return MODE_PREF_ORDER[(base + delta + len) % len];
+    const len = list.length;
+    return list[(base + delta + len) % len];
+}
+
+export function nextModePref(cur: InputModePref, delta: number = 1): InputModePref {
+    return nextPrefInList(cur, MODE_PREF_ORDER, delta);
 }
 
 export function nextStepValue(cur: number, steps: number[], delta: number = 1): number {
@@ -271,4 +256,40 @@ export function scaleLabelOf(scale: number): string {
 export function volumeLabelOf(vol: number): string {
     const pct = Math.round(Math.max(0, Math.min(1, vol)) * 100);
     return pct <= 0 ? "静音" : (pct + "%");
+}
+
+export function applyVolumeSetting(
+    rowId: string,
+    delta: number,
+    s: ControlSettings,
+): boolean {
+    if (rowId === "masterVol") {
+        s.masterVol = nextStepValue(s.masterVol, VOLUME_STEPS, delta);
+        saveControlSettings(s);
+        return true;
+    }
+    if (rowId === "bgmVol") {
+        s.bgmVol = nextStepValue(s.bgmVol, VOLUME_STEPS, delta);
+        saveControlSettings(s);
+        return true;
+    }
+    if (rowId === "sfxVol") {
+        s.sfxVol = nextStepValue(s.sfxVol, VOLUME_STEPS, delta);
+        saveControlSettings(s);
+        return true;
+    }
+    if (rowId === "voiceVol") {
+        s.voiceVol = nextStepValue(s.voiceVol, VOLUME_STEPS, delta);
+        saveControlSettings(s);
+        return true;
+    }
+    return false;
+}
+
+export function volumeSettingText(rowId: string, s: ControlSettings): string {
+    if (rowId === "masterVol") return volumeLabelOf(s.masterVol);
+    if (rowId === "bgmVol") return volumeLabelOf(s.bgmVol);
+    if (rowId === "sfxVol") return volumeLabelOf(s.sfxVol);
+    if (rowId === "voiceVol") return volumeLabelOf(s.voiceVol);
+    return "";
 }

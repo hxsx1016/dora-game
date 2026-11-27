@@ -17,7 +17,7 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { Play } from "Script/watch/play";
+import { Play, PROLOGUE_CABINET_X } from "Script/watch/play";
 import { AudioDirector } from "Script/watch/fe/audio";
 import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
@@ -483,8 +483,11 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             } else if (phase === "prologue-hide" && this.stage !== "p02_hidden") {
                 this.enterHiddenCabinet();
             } else if (
-                (phase === "prologue-wait" || phase === "prologue-give")
-                && (this.stage === "p02_escape" || this.stage === "p02_hidden")
+                (phase === "prologue-wait" || phase === "prologue-give" || phase === "prologue-follow")
+                && (this.stage === "p01_wake"
+                    || this.stage === "p02_shadow"
+                    || this.stage === "p02_escape"
+                    || this.stage === "p02_hidden")
             ) {
                 this.stage = "idle";
                 this.vignetteAlpha = 0;
@@ -501,14 +504,15 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             if (ename === "prologueBeat" && ev.data["beat"] === "escapeRetry" && this.stage === "p02_escape") {
                 this.retryEscape();
             } else if (ename === "p04WallFlash" || ename === "wallPeekFlash") {
-                if (!this.p04TriggeredOnce) {
+                if (!this.p04TriggeredOnce && p.run.story.segments["p04_wall_flash"] !== true) {
+                    p.run.story.segments["p04_wall_flash"] = true;
                     this.triggerP04(p.player.x, p.player.y);
                 }
             }
         }
 
-        // 正式局内自然触发 P04：双人同行经兵房巷出口/十字街起始墙根段（单次去重，绝不锁控）
-        if (!this.p04TriggeredOnce && !p.childMode && p.player.alive && p.partner.alive) {
+        // 正式局内自然触发 P04：双人同行经兵房巷出口/十字街起始墙根段（跨房持久去重，避免序章与 S1 重复播放两次）
+        if (!this.p04TriggeredOnce && p.run.story.segments["p04_wall_flash"] !== true && !p.childMode && p.player.alive && p.partner.alive) {
             const inPrologueCourtyard = p.room.key === "prologue"
                 && p.phase === "prologue-follow"
                 && p.player.x >= p.ox + 470 && p.player.x <= p.ox + 635;
@@ -518,6 +522,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             const inS1WellRoot = p.room.key === "s1-crossroad"
                 && p.player.x >= p.ox + 185 && p.player.x <= p.ox + 320;
             if (inPrologueCourtyard || inStreetWallRoot || inS1WellRoot) {
+                p.run.story.segments["p04_wall_flash"] = true;
                 this.triggerP04(p.player.x, p.player.y);
             }
         }
@@ -565,9 +570,12 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         if (this.stageElapsed >= PROLOGUE_TIMINGS.p01Duration) {
             if (this.rehearsalSequence) {
                 this.enterStage("p02_shadow", PROLOGUE_TIMINGS.p02ShadowDuration);
-            } else {
+            } else if (this.rehearsalActive) {
                 this.stageElapsed = PROLOGUE_TIMINGS.p01Duration;
                 this.stage = "idle";
+            } else {
+                // 正式模式严格服从后端 prologue-wake → prologue-shadow 切换，防 worldDt 提前 1 帧切 idle 导致黑闪重播
+                this.stageElapsed = PROLOGUE_TIMINGS.p01Duration;
             }
         }
     }
@@ -618,8 +626,13 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         }
 
         if (this.stageElapsed >= PROLOGUE_TIMINGS.p02ShadowDuration) {
-            // 碗停、镜头归位与限时逃柜起表同拍对齐
-            this.enterEscapeFromDoorway(false);
+            if (this.rehearsalActive) {
+                // 排演态碗停、镜头归位与限时逃柜起表同拍对齐
+                this.enterEscapeFromDoorway(false);
+            } else {
+                // 正式态在末帧定格等待后端切入 prologue-escape，防双时钟抖动
+                this.stageElapsed = PROLOGUE_TIMINGS.p02ShadowDuration;
+            }
         }
     }
 
@@ -721,9 +734,6 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         if (this.stageElapsed >= PROLOGUE_TIMINGS.p02HiddenLinger) {
             this.stageElapsed = PROLOGUE_TIMINGS.p02HiddenLinger;
             this.vignetteAlpha = 0;
-            if (!this.rehearsalActive) {
-                this.stage = "idle";
-            }
         }
     }
 
@@ -749,13 +759,37 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         }
     }
 
-    /** 世界层叠绘：P04 枪火双人墙影、周戍侧肩挡光与窗板/石槽磨痕（不阻断走动与镜头） */
+    /** 世界层叠绘：P02 逃柜目标厨柜环境缝光引导 + P04 枪火双人墙影与磨痕（绝不阻断走动与镜头） */
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
         worldArt: FePluginContext["worldArt"],
         ctx: FePluginContext,
     ): void {
+        if (this.stage === "p02_escape" && !this.rehearsalActive && ctx.p.room.key === "prologue") {
+            const cam = ctx.cam;
+            const cabX = cam.sx(ctx.p.ox + PROLOGUE_CABINET_X + 18);
+            const cabY = cam.sy(0, 0);
+            const pulse = 0.65 + 0.35 * Math.sin(this.stageElapsed * 6.5);
+            const sway = Math.sin(this.stageElapsed * 9.0) * cam.len(2.5);
+            // 纯环境倒柜门缝暖光呼吸，无按键/箭头污染，确保低引导下也能一眼辨认藏身目标
+            fillRadialGlow(
+                fgGlow,
+                cabX + sway,
+                cabY + cam.len(34),
+                cam.len(38),
+                cam.len(46),
+                Color(232, 178, 104, Math.round(68 * pulse)),
+                Color(186, 118, 56, 0),
+                14,
+            );
+            fgDraw.drawSegment(
+                Vec2(cabX + sway, cabY + cam.len(4)),
+                Vec2(cabX + sway, cabY + cam.len(54)),
+                2.0,
+                Color(238, 198, 134, Math.round(165 * pulse)),
+            );
+        }
         if (!this.p04Active && this.p04PostHintAlpha <= 0.01) {
             return;
         }
@@ -983,23 +1017,25 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             fillVGradRect(ctx.uiMask, 0, lidH, w, feather, Color(5, 6, 9, 235), Color(5, 6, 9, 0));
         }
 
-        // 5. 黑场与初醒时父亲唤「小满。」极简素幕字幕
-        const callAlpha = smoothstep(0.10, 0.32, t) * (1 - smoothstep(1.05, 1.55, t));
-        if (callAlpha > 0.02) {
-            drawSilkVeil(uiDraw, uiArt, "p01_call_veil", w * 0.5, h * 0.14, 240, 44, PALETTE.inkWash, 0.72 * callAlpha, 0);
-            ctx.texts.put(
-                "sm",
-                "「小满。」",
-                w * 0.5,
-                h * 0.14,
-                toColor(PALETTE.textBright),
-                0.5,
-                0.5,
-                TextAlign.Center,
-                2.0,
-                callAlpha,
-                0.08,
-            );
+        // 5. 排演态黑场父亲唤「小满。」极简素幕字幕（正式模式交由 NarrativeRenderer.drawCutsceneDialogue 呈现 D30/D31）
+        if (this.rehearsalActive) {
+            const callAlpha = smoothstep(0.10, 0.32, t) * (1 - smoothstep(1.05, 1.55, t));
+            if (callAlpha > 0.02) {
+                drawSilkVeil(uiDraw, uiArt, "p01_call_veil", w * 0.5, h * 0.14, 240, 44, PALETTE.inkWash, 0.72 * callAlpha, 0);
+                ctx.texts.put(
+                    "sm",
+                    "「小满。」",
+                    w * 0.5,
+                    h * 0.14,
+                    toColor(PALETTE.textBright),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    2.0,
+                    callAlpha,
+                    0.08,
+                );
+            }
         }
     }
 

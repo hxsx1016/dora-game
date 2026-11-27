@@ -7,8 +7,11 @@ local ____Dora = require("Dora") -- 21
 local Color = ____Dora.Color -- 21
 local Rect = ____Dora.Rect -- 21
 local Vec2 = ____Dora.Vec2 -- 21
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 26
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 26
+local ____play = require("Script.watch.play") -- 22
+local GATE_FAREWELL_TICKS = ____play.GATE_FAREWELL_TICKS -- 22
+local PROLOGUE_GIVE_TICKS = ____play.PROLOGUE_GIVE_TICKS -- 22
+local ____target = require("Script.watch.target") -- 26
+local getActiveTarget = ____target.getActiveTarget -- 26
 local ____gate_transition = require("Script.watch.fe.scenes.gate_transition") -- 28
 local G05_PIXEL_RETURN_END = ____gate_transition.G05_PIXEL_RETURN_END -- 29
 local G05_PIXEL_RETURN_START = ____gate_transition.G05_PIXEL_RETURN_START -- 30
@@ -748,1307 +751,1291 @@ function CuffShotsPlugin.prototype.____constructor(self) -- 524
 	self.rehearsalDuration = 3 -- 534
 	self.rehearsalAutoAdvance = true -- 535
 	self.p03Progress = 0 -- 538
-	self.p05ExitTimer = -1 -- 539
-	self.g05SleeveExtend = 0 -- 540
-	self.g05ReunionElapsed = 0 -- 541
-	self.g05LineTriggered = false -- 542
-	self.g05AbortVisualCount = 0 -- 543
-	self.lastReleasedAbortCount = 0 -- 544
+	self.p05Progress = 0 -- 539
+	self.p05ExitTimer = -1 -- 540
+	self.g05SleeveExtend = 0 -- 541
+	self.g05ReunionElapsed = 0 -- 542
+	self.g05LineTriggered = false -- 543
+	self.g05AbortVisualCount = 0 -- 544
+	self.lastReleasedAbortCount = 0 -- 545
 end -- 524
-function CuffShotsPlugin.prototype.onBindPlay(self, p, _view) -- 546
-	self.animTime = 0 -- 547
-	self.prevPhase = p.phase -- 548
-	self.activeShot = "" -- 549
-	self.p03Progress = 0 -- 550
-	self.p05ExitTimer = -1 -- 551
-	self.g05SleeveExtend = 0 -- 552
-	self.g05ReunionElapsed = 0 -- 553
-	self.g05LineTriggered = false -- 554
-	self.g05AbortVisualCount = 0 -- 555
-	self.lastReleasedAbortCount = 0 -- 556
-end -- 546
-function CuffShotsPlugin.prototype.rehearseShot(self, shot, fixedTime) -- 564
-	self.rehearsalShot = shot -- 565
-	if shot == "" then -- 565
-		self.rehearsalTime = 0 -- 567
-		self.rehearsalAutoAdvance = true -- 568
-		return -- 569
-	end -- 569
-	self.rehearsalDuration = shot == "P03" and 3 or 4 -- 571
-	if fixedTime ~= nil then -- 571
-		self.rehearsalTime = math.max( -- 573
-			0, -- 573
-			math.min(self.rehearsalDuration, fixedTime) -- 573
-		) -- 573
-		self.rehearsalAutoAdvance = false -- 574
-	else -- 574
-		self.rehearsalTime = 0 -- 576
-		self.rehearsalAutoAdvance = true -- 577
-	end -- 577
-end -- 564
-function CuffShotsPlugin.prototype.stopRehearsalShot(self) -- 581
-	self:rehearseShot("") -- 582
-end -- 581
-function CuffShotsPlugin.prototype.getDebugState(self) -- 585
-	return { -- 586
-		activeShot = self.activeShot, -- 587
-		rehearsalShot = self.rehearsalShot, -- 588
-		rehearsalTime = self.rehearsalTime, -- 589
-		rehearsalDuration = self.rehearsalDuration, -- 590
-		p03Progress = self.p03Progress, -- 591
-		p05ExitTimer = self.p05ExitTimer, -- 592
-		g05SleeveExtend = self.g05SleeveExtend, -- 593
-		g05ReunionElapsed = self.g05ReunionElapsed, -- 594
-		g05LineTriggered = self.g05LineTriggered, -- 595
-		g05AbortVisualCount = self.g05AbortVisualCount -- 596
-	} -- 596
-end -- 585
-function CuffShotsPlugin.prototype.update(self, ctx) -- 600
-	local p = ctx.p -- 601
-	local view = ctx.view -- 602
-	local dt = ctx.paused and 0 or ctx.worldDt -- 603
-	self.animTime = self.animTime + dt -- 604
-	if self.rehearsalShot ~= "" then -- 604
-		self.activeShot = self.rehearsalShot -- 608
-		if self.rehearsalAutoAdvance and dt > 0 then -- 608
-			self.rehearsalTime = math.min(self.rehearsalDuration, self.rehearsalTime + dt) -- 610
-		end -- 610
-		if not ctx.paused then -- 610
-			self:triggerRehearsalAudio(ctx) -- 613
-		end -- 613
-		self.prevPhase = p.phase -- 615
-		return -- 616
-	end -- 616
-	self.activeShot = "" -- 619
-	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 619
-		self.activeShot = "P03" -- 623
-		self.p03Progress = clamp01(p.phaseTick / 60) -- 624
-		if not ctx.paused and self.p03Progress >= 0.25 then -- 624
-			ctx.audio:playOnce( -- 626
-				"cuff:p03:wipe:" .. tostring(ctx.events.roomSessionId), -- 627
-				"sfx", -- 628
-				GATE_AUDIO_ROOT .. "cloth_wipe_wood.wav", -- 629
-				0.86, -- 630
-				"cuff:p03:cloth_wipe_wood", -- 631
-				p.ticks -- 632
-			) -- 632
-		end -- 632
-		if not ctx.paused and self.p03Progress >= 0.62 then -- 632
-			ctx.audio:playOnce( -- 636
-				"cuff:p03:compass:" .. tostring(ctx.events.roomSessionId), -- 637
-				"sfx", -- 638
-				"assets/audio/interact/compass_handover.wav", -- 639
-				0.82, -- 640
-				"cuff:p03:compass_handover", -- 641
-				p.ticks -- 642
-			) -- 642
-		end -- 642
-		self.prevPhase = p.phase -- 645
-		return -- 646
-	else -- 646
-		self.p03Progress = 0 -- 648
-	end -- 648
-	if p.room.key == "gate" then -- 648
-		if self.prevPhase == "gate-send" and p.phase == "gate-count" and view.countElapsedTicks <= 8 then -- 648
-			self.p05ExitTimer = 0 -- 654
-			if not ctx.paused then -- 654
-				ctx.audio:playOnce( -- 656
-					"cuff:p05:slam:" .. tostring(ctx.events.roomSessionId), -- 657
-					"sfx", -- 658
-					GATE_AUDIO_ROOT .. "gate_slam.wav", -- 659
-					0.92, -- 660
-					"cuff:p05:gate_slam", -- 661
-					p.ticks -- 662
-				) -- 662
-				ctx.audio:playOnce( -- 664
-					"cuff:p05:line:" .. tostring(ctx.events.roomSessionId), -- 665
-					"voice", -- 666
-					GATE_AUDIO_ROOT .. "line_farewell.wav", -- 667
-					0.88, -- 668
-					"cuff:p05:line_farewell", -- 669
-					p.ticks -- 670
-				) -- 670
-			end -- 670
-		end -- 670
-		if self.p05ExitTimer >= 0 then -- 670
-			if p.phase ~= "gate-count" or view.countElapsedTicks > 240 then -- 670
-				self.p05ExitTimer = -1 -- 676
-			else -- 676
-				if dt > 0 then -- 676
-					self.p05ExitTimer = self.p05ExitTimer + dt -- 679
-				end -- 679
-				if self.p05ExitTimer >= 3.6 then -- 679
-					self.p05ExitTimer = -1 -- 682
-				else -- 682
-					self.activeShot = "P05" -- 684
-				end -- 684
-			end -- 684
-		end -- 684
-	else -- 684
-		self.p05ExitTimer = -1 -- 689
-	end -- 689
-	local inGateReunion = p.room.key == "gate" and (p.phase == "gate-wait" or p.phase == "gate-hand" or p.phase == "gate-count" and view.storyRoute == "soldier" and (view.gateReunion.active or view.gateReunion.completed)) -- 693
-	if inGateReunion then -- 693
-		self.activeShot = "G05" -- 701
-		local gr = view.gateReunion -- 702
-		local completed = p.phase == "gate-hand" or gr.completed -- 703
-		if gr.releasedAbortCount > self.lastReleasedAbortCount then -- 703
-			self.g05AbortVisualCount = self.g05AbortVisualCount + (gr.releasedAbortCount - self.lastReleasedAbortCount) -- 706
-			self.lastReleasedAbortCount = gr.releasedAbortCount -- 707
-			if not ctx.paused and view.isRehearsal then -- 707
-				ctx.audio:playOnce( -- 709
-					(("cuff:g05:release:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(gr.releasedAbortCount), -- 710
-					"sfx", -- 711
-					GATE_AUDIO_ROOT .. "reunion_release.wav", -- 712
-					0.72, -- 713
-					"cuff:g05:reunion_release", -- 714
-					p.ticks -- 715
-				) -- 715
-			end -- 715
-		end -- 715
-		if completed then -- 715
-			self.g05SleeveExtend = 1 -- 721
-			if dt > 0 then -- 721
-				self.g05ReunionElapsed = self.g05ReunionElapsed + dt -- 723
-			end -- 723
-			if not ctx.paused and not self.g05LineTriggered then -- 723
-				if view.isRehearsal then -- 723
-					ctx.audio:playOnce( -- 727
-						"cuff:g05:clasp:" .. tostring(ctx.events.roomSessionId), -- 728
-						"sfx", -- 729
-						GATE_AUDIO_ROOT .. "reunion_hold.wav", -- 730
-						0.88, -- 731
-						"cuff:g05:hand_held", -- 732
-						p.ticks -- 733
-					) -- 733
-				end -- 733
-				if self.g05ReunionElapsed >= 0.8 or p.phase == "gate-hand" and p.phaseTick >= 42 then -- 733
-					self.g05LineTriggered = true -- 737
-					ctx.audio:playOnce( -- 738
-						"cuff:g05:line:" .. tostring(ctx.events.roomSessionId), -- 739
-						"voice", -- 740
-						GATE_AUDIO_ROOT .. "line_reunion.wav", -- 741
-						0.94, -- 742
-						"cuff:g05:line_reunion", -- 743
-						p.ticks -- 744
-					) -- 744
-				end -- 744
-			end -- 744
-		else -- 744
-			self.g05ReunionElapsed = 0 -- 749
-			self.g05LineTriggered = false -- 750
-			if gr.holding or gr.holdProgress > 0.001 then -- 750
-				if gr.holdProgress >= self.g05SleeveExtend then -- 750
-					self.g05SleeveExtend = gr.holdProgress -- 754
-				elseif dt > 0 then -- 754
-					self.g05SleeveExtend = math.max(gr.holdProgress, self.g05SleeveExtend - dt * 4) -- 756
-				end -- 756
-			elseif dt > 0 and self.g05SleeveExtend > 0 then -- 756
-				self.g05SleeveExtend = math.max(0, self.g05SleeveExtend - dt * 2.8) -- 760
-			end -- 760
-		end -- 760
-	else -- 760
-		self.g05SleeveExtend = 0 -- 764
-		self.g05ReunionElapsed = 0 -- 765
-		self.g05LineTriggered = false -- 766
-		self.lastReleasedAbortCount = view.gateReunion.releasedAbortCount -- 767
-	end -- 767
-	self.prevPhase = p.phase -- 770
-end -- 600
-function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 773
-	local sid = ctx.events.roomSessionId -- 774
-	local t = self.rehearsalTime -- 775
-	if self.rehearsalShot == "P03" and t >= 0.85 then -- 775
-		ctx.audio:playOnce( -- 777
-			"reh:p03:wipe:" .. tostring(sid), -- 777
-			"sfx", -- 777
-			GATE_AUDIO_ROOT .. "cloth_wipe_wood.wav", -- 777
-			0.88, -- 777
-			"cuff:p03:cloth_wipe_wood", -- 777
-			ctx.p.ticks -- 777
-		) -- 777
-	elseif self.rehearsalShot == "P05" then -- 777
-		if t >= 0.9 then -- 777
-			ctx.audio:playOnce( -- 780
-				"reh:p05:line:" .. tostring(sid), -- 780
-				"voice", -- 780
-				GATE_AUDIO_ROOT .. "line_farewell.wav", -- 780
-				0.9, -- 780
-				"cuff:p05:line_farewell", -- 780
-				ctx.p.ticks -- 780
-			) -- 780
-		end -- 780
-		if t >= 2.75 then -- 780
+function CuffShotsPlugin.prototype.onBindPlay(self, p, _view) -- 547
+	self.animTime = 0 -- 548
+	self.prevPhase = p.phase -- 549
+	self.activeShot = "" -- 550
+	self.p03Progress = 0 -- 551
+	self.p05Progress = 0 -- 552
+	self.p05ExitTimer = -1 -- 553
+	self.g05SleeveExtend = 0 -- 554
+	self.g05ReunionElapsed = 0 -- 555
+	self.g05LineTriggered = false -- 556
+	self.g05AbortVisualCount = 0 -- 557
+	self.lastReleasedAbortCount = 0 -- 558
+end -- 547
+function CuffShotsPlugin.prototype.rehearseShot(self, shot, fixedTime) -- 566
+	self.rehearsalShot = shot -- 567
+	if shot == "" then -- 567
+		self.rehearsalTime = 0 -- 569
+		self.rehearsalAutoAdvance = true -- 570
+		return -- 571
+	end -- 571
+	self.rehearsalDuration = shot == "P03" and 3 or 4 -- 573
+	if fixedTime ~= nil then -- 573
+		self.rehearsalTime = math.max( -- 575
+			0, -- 575
+			math.min(self.rehearsalDuration, fixedTime) -- 575
+		) -- 575
+		self.rehearsalAutoAdvance = false -- 576
+	else -- 576
+		self.rehearsalTime = 0 -- 578
+		self.rehearsalAutoAdvance = true -- 579
+	end -- 579
+end -- 566
+function CuffShotsPlugin.prototype.stopRehearsalShot(self) -- 583
+	self:rehearseShot("") -- 584
+end -- 583
+function CuffShotsPlugin.prototype.getDebugState(self) -- 587
+	return { -- 588
+		activeShot = self.activeShot, -- 589
+		rehearsalShot = self.rehearsalShot, -- 590
+		rehearsalTime = self.rehearsalTime, -- 591
+		rehearsalDuration = self.rehearsalDuration, -- 592
+		p03Progress = self.p03Progress, -- 593
+		p05ExitTimer = self.p05ExitTimer, -- 594
+		g05SleeveExtend = self.g05SleeveExtend, -- 595
+		g05ReunionElapsed = self.g05ReunionElapsed, -- 596
+		g05LineTriggered = self.g05LineTriggered, -- 597
+		g05AbortVisualCount = self.g05AbortVisualCount -- 598
+	} -- 598
+end -- 587
+function CuffShotsPlugin.prototype.update(self, ctx) -- 602
+	local p = ctx.p -- 603
+	local view = ctx.view -- 604
+	local dt = ctx.paused and 0 or ctx.worldDt -- 605
+	self.animTime = self.animTime + dt -- 606
+	if self.rehearsalShot ~= "" then -- 606
+		self.activeShot = self.rehearsalShot -- 610
+		if self.rehearsalAutoAdvance and dt > 0 then -- 610
+			self.rehearsalTime = math.min(self.rehearsalDuration, self.rehearsalTime + dt) -- 612
+		end -- 612
+		if not ctx.paused then -- 612
+			self:triggerRehearsalAudio(ctx) -- 615
+		end -- 615
+		self.prevPhase = p.phase -- 617
+		return -- 618
+	end -- 618
+	self.activeShot = "" -- 621
+	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 621
+		self.activeShot = "P03" -- 625
+		self.p03Progress = clamp01(p.phaseTick / PROLOGUE_GIVE_TICKS) -- 626
+		if not ctx.paused and self.p03Progress >= 0.18 then -- 626
+			ctx.audio:playOnce( -- 628
+				"cuff:p03:wipe:" .. tostring(ctx.events.roomSessionId), -- 629
+				"sfx", -- 630
+				GATE_AUDIO_ROOT .. "cloth_wipe_wood.wav", -- 631
+				0.86, -- 632
+				"cuff:p03:cloth_wipe_wood", -- 633
+				p.ticks -- 634
+			) -- 634
+		end -- 634
+		if not ctx.paused and self.p03Progress >= 0.62 then -- 634
+			ctx.audio:playOnce( -- 638
+				"cuff:p03:compass:" .. tostring(ctx.events.roomSessionId), -- 639
+				"sfx", -- 640
+				"assets/audio/interact/compass_handover.wav", -- 641
+				0.82, -- 642
+				"cuff:p03:compass_handover", -- 643
+				p.ticks -- 644
+			) -- 644
+		end -- 644
+		self.prevPhase = p.phase -- 647
+		return -- 648
+	else -- 648
+		self.p03Progress = 0 -- 650
+	end -- 650
+	if p.room.key == "gate" and p.phase == "gate-farewell" then -- 650
+		self.activeShot = "P05" -- 655
+		self.p05Progress = clamp01(p.phaseTick / GATE_FAREWELL_TICKS) -- 656
+		self.p05ExitTimer = p.phaseTick / 60 -- 657
+		if not ctx.paused then -- 657
+			if self.p05Progress >= 0.14 then -- 657
+				ctx.audio:playOnce( -- 660
+					"cuff:p05:line:" .. tostring(ctx.events.roomSessionId), -- 661
+					"voice", -- 662
+					GATE_AUDIO_ROOT .. "line_farewell.wav", -- 663
+					0.88, -- 664
+					"cuff:p05:line_farewell", -- 665
+					p.ticks -- 666
+				) -- 666
+			end -- 666
+			if self.p05Progress >= 0.7 then -- 666
+				ctx.audio:playOnce( -- 670
+					"cuff:p05:slam:" .. tostring(ctx.events.roomSessionId), -- 671
+					"sfx", -- 672
+					GATE_AUDIO_ROOT .. "gate_slam.wav", -- 673
+					0.92, -- 674
+					"cuff:p05:gate_slam", -- 675
+					p.ticks -- 676
+				) -- 676
+			end -- 676
+		end -- 676
+		self.prevPhase = p.phase -- 680
+		return -- 681
+	else -- 681
+		self.p05Progress = 0 -- 683
+		self.p05ExitTimer = -1 -- 684
+	end -- 684
+	local inGateReunion = p.room.key == "gate" and (p.phase == "gate-wait" or p.phase == "gate-hand" or p.phase == "gate-count" and view.storyRoute == "soldier" and (view.gateReunion.active or view.gateReunion.completed)) -- 688
+	if inGateReunion then -- 688
+		self.activeShot = "G05" -- 696
+		local gr = view.gateReunion -- 697
+		local completed = p.phase == "gate-hand" or gr.completed -- 698
+		if gr.releasedAbortCount > self.lastReleasedAbortCount then -- 698
+			self.g05AbortVisualCount = self.g05AbortVisualCount + (gr.releasedAbortCount - self.lastReleasedAbortCount) -- 701
+			self.lastReleasedAbortCount = gr.releasedAbortCount -- 702
+			if not ctx.paused and view.isRehearsal then -- 702
+				ctx.audio:playOnce( -- 704
+					(("cuff:g05:release:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(gr.releasedAbortCount), -- 705
+					"sfx", -- 706
+					GATE_AUDIO_ROOT .. "reunion_release.wav", -- 707
+					0.72, -- 708
+					"cuff:g05:reunion_release", -- 709
+					p.ticks -- 710
+				) -- 710
+			end -- 710
+		end -- 710
+		if completed then -- 710
+			self.g05SleeveExtend = 1 -- 716
+			if dt > 0 then -- 716
+				self.g05ReunionElapsed = self.g05ReunionElapsed + dt -- 718
+			end -- 718
+			if not ctx.paused and not self.g05LineTriggered then -- 718
+				if view.isRehearsal then -- 718
+					ctx.audio:playOnce( -- 722
+						"cuff:g05:clasp:" .. tostring(ctx.events.roomSessionId), -- 723
+						"sfx", -- 724
+						GATE_AUDIO_ROOT .. "reunion_hold.wav", -- 725
+						0.88, -- 726
+						"cuff:g05:hand_held", -- 727
+						p.ticks -- 728
+					) -- 728
+				end -- 728
+				if self.g05ReunionElapsed >= 0.8 or p.phase == "gate-hand" and p.phaseTick >= 42 then -- 728
+					self.g05LineTriggered = true -- 732
+					ctx.audio:playOnce( -- 733
+						"cuff:g05:line:" .. tostring(ctx.events.roomSessionId), -- 734
+						"voice", -- 735
+						GATE_AUDIO_ROOT .. "line_reunion.wav", -- 736
+						0.94, -- 737
+						"cuff:g05:line_reunion", -- 738
+						p.ticks -- 739
+					) -- 739
+				end -- 739
+			end -- 739
+		else -- 739
+			self.g05ReunionElapsed = 0 -- 744
+			self.g05LineTriggered = false -- 745
+			if gr.holding or gr.holdProgress > 0.001 then -- 745
+				if gr.holdProgress >= self.g05SleeveExtend then -- 745
+					self.g05SleeveExtend = gr.holdProgress -- 749
+				elseif dt > 0 then -- 749
+					self.g05SleeveExtend = math.max(gr.holdProgress, self.g05SleeveExtend - dt * 4) -- 751
+				end -- 751
+			elseif dt > 0 and self.g05SleeveExtend > 0 then -- 751
+				self.g05SleeveExtend = math.max(0, self.g05SleeveExtend - dt * 2.8) -- 755
+			end -- 755
+		end -- 755
+	else -- 755
+		self.g05SleeveExtend = 0 -- 759
+		self.g05ReunionElapsed = 0 -- 760
+		self.g05LineTriggered = false -- 761
+		self.lastReleasedAbortCount = view.gateReunion.releasedAbortCount -- 762
+	end -- 762
+	self.prevPhase = p.phase -- 765
+end -- 602
+function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 768
+	local sid = ctx.events.roomSessionId -- 769
+	local t = self.rehearsalTime -- 770
+	if self.rehearsalShot == "P03" and t >= 0.85 then -- 770
+		ctx.audio:playOnce( -- 772
+			"reh:p03:wipe:" .. tostring(sid), -- 772
+			"sfx", -- 772
+			GATE_AUDIO_ROOT .. "cloth_wipe_wood.wav", -- 772
+			0.88, -- 772
+			"cuff:p03:cloth_wipe_wood", -- 772
+			ctx.p.ticks -- 772
+		) -- 772
+	elseif self.rehearsalShot == "P05" then -- 772
+		if t >= 0.9 then -- 772
+			ctx.audio:playOnce( -- 775
+				"reh:p05:line:" .. tostring(sid), -- 775
+				"voice", -- 775
+				GATE_AUDIO_ROOT .. "line_farewell.wav", -- 775
+				0.9, -- 775
+				"cuff:p05:line_farewell", -- 775
+				ctx.p.ticks -- 775
+			) -- 775
+		end -- 775
+		if t >= 2.75 then -- 775
+			ctx.audio:playOnce( -- 778
+				"reh:p05:slam:" .. tostring(sid), -- 778
+				"sfx", -- 778
+				GATE_AUDIO_ROOT .. "gate_slam.wav", -- 778
+				0.94, -- 778
+				"cuff:p05:gate_slam", -- 778
+				ctx.p.ticks -- 778
+			) -- 778
+			ctx.audio:playLoop( -- 779
+				"reh_p05_water", -- 779
+				"water", -- 779
+				GATE_AUDIO_ROOT .. "water_moat_loop.wav", -- 779
+				0.42, -- 779
+				ctx.p.ticks -- 779
+			) -- 779
+		end -- 779
+	elseif self.rehearsalShot == "G05" then -- 779
+		if t >= 0.05 then -- 779
 			ctx.audio:playOnce( -- 783
-				"reh:p05:slam:" .. tostring(sid), -- 783
+				"reh:g05:knock1:" .. tostring(sid), -- 783
 				"sfx", -- 783
-				GATE_AUDIO_ROOT .. "gate_slam.wav", -- 783
-				0.94, -- 783
-				"cuff:p05:gate_slam", -- 783
+				GATE_AUDIO_ROOT .. "knock_wall.wav", -- 783
+				0.88, -- 783
+				"knock:gate:1", -- 783
 				ctx.p.ticks -- 783
 			) -- 783
-			ctx.audio:playLoop( -- 784
-				"reh_p05_water", -- 784
-				"water", -- 784
-				GATE_AUDIO_ROOT .. "water_moat_loop.wav", -- 784
-				0.42, -- 784
-				ctx.p.ticks -- 784
-			) -- 784
-		end -- 784
-	elseif self.rehearsalShot == "G05" then -- 784
-		if t >= 0.05 then -- 784
-			ctx.audio:playOnce( -- 788
-				"reh:g05:knock1:" .. tostring(sid), -- 788
-				"sfx", -- 788
-				GATE_AUDIO_ROOT .. "knock_wall.wav", -- 788
-				0.88, -- 788
-				"knock:gate:1", -- 788
-				ctx.p.ticks -- 788
-			) -- 788
-		end -- 788
-		if t >= 0.25 then -- 788
-			ctx.audio:playOnce( -- 791
-				"reh:g05:knock2:" .. tostring(sid), -- 791
-				"sfx", -- 791
-				GATE_AUDIO_ROOT .. "knock_wall.wav", -- 791
-				0.92, -- 791
-				"knock:gate:2", -- 791
-				ctx.p.ticks -- 791
-			) -- 791
-		end -- 791
-		if t >= 1.55 then -- 791
-			ctx.audio:playOnce( -- 794
-				"reh:g05:clasp:" .. tostring(sid), -- 794
-				"sfx", -- 794
-				GATE_AUDIO_ROOT .. "reunion_hold.wav", -- 794
-				0.88, -- 794
-				"cuff:g05:hand_held", -- 794
-				ctx.p.ticks -- 794
-			) -- 794
-		end -- 794
-		if t >= 2.35 then -- 794
-			ctx.audio:playOnce( -- 797
-				"reh:g05:line:" .. tostring(sid), -- 797
-				"voice", -- 797
-				GATE_AUDIO_ROOT .. "line_reunion.wav", -- 797
-				0.94, -- 797
-				"cuff:g05:line_reunion", -- 797
-				ctx.p.ticks -- 797
-			) -- 797
-		end -- 797
-	end -- 797
-end -- 773
-function CuffShotsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 802
-	if self.activeShot == "" then -- 802
-		return false -- 810
-	end -- 810
-	local w = ctx.uiW -- 812
-	local h = ctx.uiH -- 813
-	if self.activeShot == "P03" then -- 813
-		local prog = self.rehearsalShot == "P03" and clamp01(self.rehearsalTime / self.rehearsalDuration) or self.p03Progress -- 816
-		self:renderP03Shot( -- 819
-			uiDraw, -- 819
-			uiInkDraw, -- 819
-			uiArt, -- 819
-			uiGlow, -- 819
-			ctx, -- 819
-			w, -- 819
-			h, -- 819
-			prog -- 819
-		) -- 819
-		return true -- 820
-	end -- 820
-	if self.activeShot == "P05" then -- 820
-		if self.rehearsalShot == "P05" then -- 820
-			local prog = clamp01(self.rehearsalTime / self.rehearsalDuration) -- 825
-			self:renderP05FullShot( -- 826
-				uiDraw, -- 826
-				uiInkDraw, -- 826
-				uiArt, -- 826
-				uiGlow, -- 826
-				ctx, -- 826
-				w, -- 826
-				h, -- 826
-				prog -- 826
-			) -- 826
-			return true -- 827
-		end -- 827
-		self:renderP05ExitBridge( -- 830
-			uiDraw, -- 830
-			uiInkDraw, -- 830
-			uiArt, -- 830
-			uiGlow, -- 830
-			ctx, -- 830
-			w, -- 830
-			h, -- 830
-			clamp01(self.p05ExitTimer / 3.6) -- 830
-		) -- 830
-		return false -- 831
-	end -- 831
-	if self.activeShot == "G05" then -- 831
-		if self.rehearsalShot == "G05" then -- 831
-			self:renderG05RehearsalShot( -- 836
-				uiDraw, -- 836
-				uiInkDraw, -- 836
-				uiArt, -- 836
-				uiGlow, -- 836
-				ctx, -- 836
-				w, -- 836
-				h, -- 836
-				self.rehearsalTime -- 836
-			) -- 836
-			return true -- 837
-		end -- 837
-		self:renderG05LiveShot( -- 839
-			uiDraw, -- 839
-			uiInkDraw, -- 839
-			uiArt, -- 839
-			uiGlow, -- 839
-			ctx, -- 839
-			w, -- 839
-			h -- 839
-		) -- 839
-		return true -- 840
-	end -- 840
-	return false -- 843
-end -- 802
-function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog) -- 852
-	local fade = smoothstep(0, 0.08, prog) * (1 - smoothstep(0.92, 1, prog)) -- 862
-	local barH = math.floor(h * 0.075 + 0.5) -- 864
-	local bx = 0 -- 865
-	local by = barH -- 866
-	local boxW = w -- 867
-	local boxH = math.max(120, h - barH * 2) -- 868
-	uiDraw:drawRect( -- 870
-		Rect(0, 0, w, h), -- 870
-		Color( -- 870
-			7, -- 870
-			9, -- 870
-			14, -- 870
-			math.floor(232 * fade + 0.5) -- 870
-		) -- 870
+		end -- 783
+		if t >= 0.25 then -- 783
+			ctx.audio:playOnce( -- 786
+				"reh:g05:knock2:" .. tostring(sid), -- 786
+				"sfx", -- 786
+				GATE_AUDIO_ROOT .. "knock_wall.wav", -- 786
+				0.92, -- 786
+				"knock:gate:2", -- 786
+				ctx.p.ticks -- 786
+			) -- 786
+		end -- 786
+		if t >= 1.55 then -- 786
+			ctx.audio:playOnce( -- 789
+				"reh:g05:clasp:" .. tostring(sid), -- 789
+				"sfx", -- 789
+				GATE_AUDIO_ROOT .. "reunion_hold.wav", -- 789
+				0.88, -- 789
+				"cuff:g05:hand_held", -- 789
+				ctx.p.ticks -- 789
+			) -- 789
+		end -- 789
+		if t >= 2.35 then -- 789
+			ctx.audio:playOnce( -- 792
+				"reh:g05:line:" .. tostring(sid), -- 792
+				"voice", -- 792
+				GATE_AUDIO_ROOT .. "line_reunion.wav", -- 792
+				0.94, -- 792
+				"cuff:g05:line_reunion", -- 792
+				ctx.p.ticks -- 792
+			) -- 792
+		end -- 792
+	end -- 792
+end -- 768
+function CuffShotsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 797
+	if self.activeShot == "" then -- 797
+		return false -- 805
+	end -- 805
+	local w = ctx.uiW -- 807
+	local h = ctx.uiH -- 808
+	if self.activeShot == "P03" then -- 808
+		local prog = self.rehearsalShot == "P03" and clamp01(self.rehearsalTime / self.rehearsalDuration) or self.p03Progress -- 811
+		self:renderP03Shot( -- 814
+			uiDraw, -- 814
+			uiInkDraw, -- 814
+			uiArt, -- 814
+			uiGlow, -- 814
+			ctx, -- 814
+			w, -- 814
+			h, -- 814
+			prog -- 814
+		) -- 814
+		return true -- 815
+	end -- 815
+	if self.activeShot == "P05" then -- 815
+		local prog = self.rehearsalShot == "P05" and clamp01(self.rehearsalTime / self.rehearsalDuration) or self.p05Progress -- 819
+		self:renderP05FullShot( -- 822
+			uiDraw, -- 822
+			uiInkDraw, -- 822
+			uiArt, -- 822
+			uiGlow, -- 822
+			ctx, -- 822
+			w, -- 822
+			h, -- 822
+			prog -- 822
+		) -- 822
+		return true -- 823
+	end -- 823
+	if self.activeShot == "G05" then -- 823
+		if self.rehearsalShot == "G05" then -- 823
+			self:renderG05RehearsalShot( -- 828
+				uiDraw, -- 828
+				uiInkDraw, -- 828
+				uiArt, -- 828
+				uiGlow, -- 828
+				ctx, -- 828
+				w, -- 828
+				h, -- 828
+				self.rehearsalTime -- 828
+			) -- 828
+			return true -- 829
+		end -- 829
+		self:renderG05LiveShot( -- 831
+			uiDraw, -- 831
+			uiInkDraw, -- 831
+			uiArt, -- 831
+			uiGlow, -- 831
+			ctx, -- 831
+			w, -- 831
+			h -- 831
+		) -- 831
+		return true -- 832
+	end -- 832
+	return false -- 835
+end -- 797
+function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog) -- 844
+	local fade = smoothstep(0, 0.08, prog) * (1 - smoothstep(0.92, 1, prog)) -- 854
+	local barH = math.floor(h * 0.075 + 0.5) -- 856
+	local bx = 0 -- 857
+	local by = barH -- 858
+	local boxW = w -- 859
+	local boxH = math.max(120, h - barH * 2) -- 860
+	uiDraw:drawRect( -- 862
+		Rect(0, 0, w, h), -- 862
+		Color( -- 862
+			7, -- 862
+			9, -- 862
+			14, -- 862
+			math.floor(232 * fade + 0.5) -- 862
+		) -- 862
+	) -- 862
+	fillVGradRect( -- 863
+		uiDraw, -- 863
+		bx, -- 863
+		by, -- 863
+		boxW, -- 863
+		boxH, -- 863
+		Color( -- 863
+			12, -- 863
+			11, -- 863
+			15, -- 863
+			math.floor(248 * fade + 0.5) -- 863
+		), -- 863
+		Color( -- 863
+			22, -- 863
+			22, -- 863
+			28, -- 863
+			math.floor(248 * fade + 0.5) -- 863
+		) -- 863
+	) -- 863
+	local rimY = by + boxH * 0.36 -- 865
+	uiArt:tryPlacePath( -- 866
+		"assets/art/tex_diorama_ming.clip|ming_timber", -- 866
+		"p03_cabinet_rim_tex", -- 866
+		w * 0.5, -- 866
+		(by + rimY) * 0.5, -- 866
+		w, -- 866
+		math.max(12, rimY - by), -- 866
+		{ -- 866
+			color = Color(126, 104, 86, 255), -- 867
+			opacity = 0.92 * fade, -- 868
+			smooth = true, -- 869
+			layer = 1 -- 870
+		} -- 870
 	) -- 870
-	fillVGradRect( -- 871
-		uiDraw, -- 871
-		bx, -- 871
-		by, -- 871
-		boxW, -- 871
-		boxH, -- 871
-		Color( -- 871
-			12, -- 871
-			11, -- 871
-			15, -- 871
-			math.floor(248 * fade + 0.5) -- 871
-		), -- 871
-		Color( -- 871
-			22, -- 871
-			22, -- 871
-			28, -- 871
-			math.floor(248 * fade + 0.5) -- 871
-		) -- 871
-	) -- 871
-	local rimY = by + boxH * 0.36 -- 873
-	uiArt:tryPlacePath( -- 874
-		"assets/art/tex_diorama_ming.clip|ming_timber", -- 874
-		"p03_cabinet_rim_tex", -- 874
-		w * 0.5, -- 874
-		(by + rimY) * 0.5, -- 874
-		w, -- 874
-		math.max(12, rimY - by), -- 874
-		{ -- 874
-			color = Color(126, 104, 86, 255), -- 875
-			opacity = 0.92 * fade, -- 876
-			smooth = true, -- 877
-			layer = 1 -- 878
-		} -- 878
-	) -- 878
-	uiDraw:drawSegment( -- 880
-		Vec2(bx, rimY), -- 880
-		Vec2(bx + boxW, rimY), -- 880
-		2.2, -- 880
-		Color( -- 880
-			142, -- 880
-			114, -- 880
-			88, -- 880
-			math.floor(215 * fade + 0.5) -- 880
-		) -- 880
+	uiDraw:drawSegment( -- 872
+		Vec2(bx, rimY), -- 872
+		Vec2(bx + boxW, rimY), -- 872
+		2.2, -- 872
+		Color( -- 872
+			142, -- 872
+			114, -- 872
+			88, -- 872
+			math.floor(215 * fade + 0.5) -- 872
+		) -- 872
+	) -- 872
+	local crackX = bx + boxW * 0.72 -- 874
+	uiDraw:drawRect( -- 875
+		Rect(crackX, rimY, boxW - (crackX - bx), by + boxH - rimY), -- 875
+		Color( -- 875
+			6, -- 875
+			7, -- 875
+			11, -- 875
+			math.floor(248 * fade + 0.5) -- 875
+		) -- 875
+	) -- 875
+	uiArt:tryPlacePath( -- 876
+		"assets/art/tex_diorama_ming.clip|ming_timber", -- 876
+		"p03_cabinet_door_tex", -- 876
+		crackX + 40 + (boxW - (crackX + 40)) * 0.5, -- 876
+		rimY + (by + boxH - rimY) * 0.5, -- 876
+		math.max(12, boxW - (crackX + 40)), -- 876
+		math.max(12, by + boxH - rimY), -- 876
+		{ -- 876
+			color = Color(96, 78, 62, 255), -- 877
+			opacity = 0.98 * fade, -- 878
+			smooth = true, -- 879
+			layer = 5 -- 880
+		} -- 880
 	) -- 880
-	local crackX = bx + boxW * 0.72 -- 882
-	uiDraw:drawRect( -- 883
-		Rect(crackX, rimY, boxW - (crackX - bx), by + boxH - rimY), -- 883
-		Color( -- 883
-			6, -- 883
-			7, -- 883
-			11, -- 883
-			math.floor(248 * fade + 0.5) -- 883
-		) -- 883
-	) -- 883
-	uiArt:tryPlacePath( -- 884
-		"assets/art/tex_diorama_ming.clip|ming_timber", -- 884
-		"p03_cabinet_door_tex", -- 884
-		crackX + 40 + (boxW - (crackX + 40)) * 0.5, -- 884
-		rimY + (by + boxH - rimY) * 0.5, -- 884
-		math.max(12, boxW - (crackX + 40)), -- 884
-		math.max(12, by + boxH - rimY), -- 884
-		{ -- 884
-			color = Color(96, 78, 62, 255), -- 885
-			opacity = 0.98 * fade, -- 886
-			smooth = true, -- 887
-			layer = 5 -- 888
-		} -- 888
-	) -- 888
-	fillRadialGlow( -- 890
-		uiGlow, -- 890
-		crackX - 18, -- 890
-		rimY + 42, -- 890
-		190, -- 890
-		120, -- 890
-		Color( -- 890
-			166, -- 890
-			192, -- 890
-			218, -- 890
-			math.floor(48 * fade + 0.5) -- 890
-		), -- 890
-		Color(64, 92, 124, 0), -- 890
-		16 -- 890
-	) -- 890
-	local wipeT = smoothstep(0.3, 0.66, prog) -- 893
-	local shardOffsets = {{ -- 894
-		x = -72, -- 895
-		y = 8, -- 895
-		dx = 46, -- 895
-		dy = -38, -- 895
-		r = 9 -- 895
-	}, { -- 895
-		x = -34, -- 896
-		y = 12, -- 896
-		dx = 64, -- 896
-		dy = -46, -- 896
-		r = 7 -- 896
-	}, { -- 896
-		x = 4, -- 897
-		y = 6, -- 897
-		dx = 82, -- 897
-		dy = -52, -- 897
-		r = 10 -- 897
-	}, { -- 897
-		x = 32, -- 898
-		y = 10, -- 898
-		dx = 74, -- 898
-		dy = -34, -- 898
-		r = 6 -- 898
-	}} -- 898
-	local shardAlpha = fade * (1 - smoothstep(0.58, 0.74, prog)) -- 900
-	if shardAlpha > 0.02 then -- 900
-		local si = 0 -- 902
-		do -- 902
-			si = 0 -- 903
-			while si < #shardOffsets do -- 903
-				local sh = shardOffsets[si + 1] -- 904
-				local sx = bx + boxW * 0.52 + sh.x + sh.dx * wipeT * wipeT -- 905
-				local sy = rimY + sh.y + sh.dy * wipeT * wipeT -- 906
-				uiInkDraw:drawPolygon( -- 907
-					{ -- 907
-						Vec2(sx - sh.r, sy - sh.r * 0.4), -- 908
-						Vec2(sx + sh.r * 0.9, sy - sh.r * 0.6), -- 909
-						Vec2(sx + sh.r * 0.2, sy + sh.r * 0.8) -- 910
-					}, -- 910
-					Color( -- 911
-						212, -- 911
-						218, -- 911
-						224, -- 911
-						math.floor(235 * shardAlpha + 0.5) -- 911
-					), -- 911
-					0.9, -- 911
-					Color( -- 911
-						92, -- 911
-						108, -- 911
-						126, -- 911
-						math.floor(200 * shardAlpha + 0.5) -- 911
-					) -- 911
-				) -- 911
-				si = si + 1 -- 903
-			end -- 903
-		end -- 903
-	end -- 903
-	local fingerEnter = smoothstep(0.04, 0.24, prog) -- 916
-	local handOut = smoothstep(0.7, 0.9, prog) -- 917
-	if handOut > 0.05 then -- 917
-		drawChildHand( -- 919
-			uiDraw, -- 920
-			crackX + 34 - handOut * 78, -- 921
-			rimY + 58, -- 922
-			math.pi, -- 923
-			1.18, -- 924
-			"open_fingers", -- 925
-			fade * handOut, -- 926
-			false, -- 927
-			uiArt, -- 928
-			"p03_child_hand", -- 929
-			4 -- 930
-		) -- 930
-	elseif fingerEnter > 0.02 then -- 930
-		drawChildHand( -- 933
-			uiDraw, -- 934
-			crackX + 18 - fingerEnter * 26, -- 935
-			rimY + 52, -- 936
-			math.pi, -- 937
-			1.16, -- 938
-			"two_fingers", -- 939
-			fade * fingerEnter, -- 940
-			false, -- 941
-			uiArt, -- 942
-			"p03_child_peek", -- 943
-			4 -- 944
-		) -- 944
-	end -- 944
-	local sleeveEnter = smoothstep(0.22, 0.36, prog) -- 949
-	if sleeveEnter > 0.01 then -- 949
-		local reachT = smoothstep(0.66, 0.88, prog) -- 951
-		local wx = w * 0.06 + sleeveEnter * (w * 0.14) + math.sin(wipeT * math.pi) * 92 + reachT * 84 -- 952
-		local wy = rimY + 52 - math.sin(wipeT * math.pi) * 28 + reachT * 12 -- 953
-		local ang = -0.14 * math.sin(wipeT * math.pi) + 0.04 * reachT -- 954
-		local pose = reachT > 0.2 and "reach" or "wipe" -- 955
-		____exports.drawPatchedCuff( -- 956
-			uiDraw, -- 956
-			uiGlow, -- 956
-			{ -- 956
-				wristX = wx, -- 957
-				wristY = wy, -- 958
-				angleRad = ang, -- 959
-				scale = 1.48, -- 960
-				pose = pose, -- 961
-				opacity = fade * sleeveEnter, -- 962
-				stitchHighlight = 0.35 + 0.35 * math.sin(wipeT * math.pi), -- 963
-				warmth = 0.18, -- 964
-				uiArt = uiArt, -- 965
-				instanceKey = "p03_zhou_cuff", -- 966
-				layer = 4 -- 967
-			} -- 967
+	fillRadialGlow( -- 882
+		uiGlow, -- 882
+		crackX - 18, -- 882
+		rimY + 42, -- 882
+		190, -- 882
+		120, -- 882
+		Color( -- 882
+			166, -- 882
+			192, -- 882
+			218, -- 882
+			math.floor(48 * fade + 0.5) -- 882
+		), -- 882
+		Color(64, 92, 124, 0), -- 882
+		16 -- 882
+	) -- 882
+	local wipeT = smoothstep(0.3, 0.66, prog) -- 885
+	local shardOffsets = {{ -- 886
+		x = -72, -- 887
+		y = 8, -- 887
+		dx = 46, -- 887
+		dy = -38, -- 887
+		r = 9 -- 887
+	}, { -- 887
+		x = -34, -- 888
+		y = 12, -- 888
+		dx = 64, -- 888
+		dy = -46, -- 888
+		r = 7 -- 888
+	}, { -- 888
+		x = 4, -- 889
+		y = 6, -- 889
+		dx = 82, -- 889
+		dy = -52, -- 889
+		r = 10 -- 889
+	}, { -- 889
+		x = 32, -- 890
+		y = 10, -- 890
+		dx = 74, -- 890
+		dy = -34, -- 890
+		r = 6 -- 890
+	}} -- 890
+	local shardAlpha = fade * (1 - smoothstep(0.58, 0.74, prog)) -- 892
+	if shardAlpha > 0.02 then -- 892
+		local si = 0 -- 894
+		do -- 894
+			si = 0 -- 895
+			while si < #shardOffsets do -- 895
+				local sh = shardOffsets[si + 1] -- 896
+				local sx = bx + boxW * 0.52 + sh.x + sh.dx * wipeT * wipeT -- 897
+				local sy = rimY + sh.y + sh.dy * wipeT * wipeT -- 898
+				uiInkDraw:drawPolygon( -- 899
+					{ -- 899
+						Vec2(sx - sh.r, sy - sh.r * 0.4), -- 900
+						Vec2(sx + sh.r * 0.9, sy - sh.r * 0.6), -- 901
+						Vec2(sx + sh.r * 0.2, sy + sh.r * 0.8) -- 902
+					}, -- 902
+					Color( -- 903
+						212, -- 903
+						218, -- 903
+						224, -- 903
+						math.floor(235 * shardAlpha + 0.5) -- 903
+					), -- 903
+					0.9, -- 903
+					Color( -- 903
+						92, -- 903
+						108, -- 903
+						126, -- 903
+						math.floor(200 * shardAlpha + 0.5) -- 903
+					) -- 903
+				) -- 903
+				si = si + 1 -- 895
+			end -- 895
+		end -- 895
+	end -- 895
+	local fingerEnter = smoothstep(0.04, 0.24, prog) -- 908
+	local handOut = smoothstep(0.7, 0.9, prog) -- 909
+	if handOut > 0.05 then -- 909
+		drawChildHand( -- 911
+			uiDraw, -- 912
+			crackX + 34 - handOut * 78, -- 913
+			rimY + 58, -- 914
+			math.pi, -- 915
+			1.18, -- 916
+			"open_fingers", -- 917
+			fade * handOut, -- 918
+			false, -- 919
+			uiArt, -- 920
+			"p03_child_hand", -- 921
+			4 -- 922
+		) -- 922
+	elseif fingerEnter > 0.02 then -- 922
+		drawChildHand( -- 925
+			uiDraw, -- 926
+			crackX + 18 - fingerEnter * 26, -- 927
+			rimY + 52, -- 928
+			math.pi, -- 929
+			1.16, -- 930
+			"two_fingers", -- 931
+			fade * fingerEnter, -- 932
+			false, -- 933
+			uiArt, -- 934
+			"p03_child_peek", -- 935
+			4 -- 936
+		) -- 936
+	end -- 936
+	local sleeveEnter = smoothstep(0.22, 0.36, prog) -- 941
+	if sleeveEnter > 0.01 then -- 941
+		local reachT = smoothstep(0.66, 0.88, prog) -- 943
+		local wx = w * 0.06 + sleeveEnter * (w * 0.14) + math.sin(wipeT * math.pi) * 92 + reachT * 84 -- 944
+		local wy = rimY + 52 - math.sin(wipeT * math.pi) * 28 + reachT * 12 -- 945
+		local ang = -0.14 * math.sin(wipeT * math.pi) + 0.04 * reachT -- 946
+		local pose = reachT > 0.2 and "reach" or "wipe" -- 947
+		____exports.drawPatchedCuff( -- 948
+			uiDraw, -- 948
+			uiGlow, -- 948
+			{ -- 948
+				wristX = wx, -- 949
+				wristY = wy, -- 950
+				angleRad = ang, -- 951
+				scale = 1.48, -- 952
+				pose = pose, -- 953
+				opacity = fade * sleeveEnter, -- 954
+				stitchHighlight = 0.35 + 0.35 * math.sin(wipeT * math.pi), -- 955
+				warmth = 0.18, -- 956
+				uiArt = uiArt, -- 957
+				instanceKey = "p03_zhou_cuff", -- 958
+				layer = 4 -- 959
+			} -- 959
+		) -- 959
+	end -- 959
+	uiInkDraw:drawRect( -- 963
+		Rect(0, by, 14, boxH), -- 963
+		Color( -- 963
+			7, -- 963
+			9, -- 963
+			14, -- 963
+			math.floor(140 * fade + 0.5) -- 963
+		) -- 963
+	) -- 963
+	uiInkDraw:drawRect( -- 966
+		Rect(0, 0, w, barH), -- 966
+		Color( -- 966
+			6, -- 966
+			8, -- 966
+			12, -- 966
+			math.floor(245 * fade + 0.5) -- 966
+		) -- 966
+	) -- 966
+	uiInkDraw:drawRect( -- 967
+		Rect(0, h - barH, w, barH), -- 967
+		Color( -- 967
+			6, -- 967
+			8, -- 967
+			12, -- 967
+			math.floor(245 * fade + 0.5) -- 967
 		) -- 967
-	end -- 967
-	uiInkDraw:drawRect( -- 971
-		Rect(0, by, 14, boxH), -- 971
-		Color( -- 971
-			7, -- 971
-			9, -- 971
-			14, -- 971
-			math.floor(140 * fade + 0.5) -- 971
+	) -- 967
+	uiInkDraw:drawSegment( -- 968
+		Vec2(0, barH), -- 968
+		Vec2(w, barH), -- 968
+		0.9, -- 968
+		toColor( -- 968
+			PALETTE.silkDim, -- 968
+			math.floor(86 * fade + 0.5) -- 968
+		) -- 968
+	) -- 968
+	uiInkDraw:drawSegment( -- 969
+		Vec2(0, h - barH), -- 969
+		Vec2(w, h - barH), -- 969
+		0.9, -- 969
+		toColor( -- 969
+			PALETTE.silkDim, -- 969
+			math.floor(86 * fade + 0.5) -- 969
+		) -- 969
+	) -- 969
+	if self.rehearsalShot == "P03" then -- 969
+		drawSilkVeil( -- 971
+			uiDraw, -- 971
+			uiArt, -- 971
+			"p03_sub_veil", -- 971
+			w * 0.5, -- 971
+			42, -- 971
+			520, -- 971
+			42, -- 971
+			PALETTE.inkWash, -- 971
+			0.82 * fade, -- 971
+			-1 -- 971
 		) -- 971
-	) -- 971
-	uiInkDraw:drawRect( -- 974
-		Rect(0, 0, w, barH), -- 974
-		Color( -- 974
-			6, -- 974
-			8, -- 974
-			12, -- 974
-			math.floor(245 * fade + 0.5) -- 974
-		) -- 974
-	) -- 974
-	uiInkDraw:drawRect( -- 975
-		Rect(0, h - barH, w, barH), -- 975
-		Color( -- 975
-			6, -- 975
-			8, -- 975
-			12, -- 975
-			math.floor(245 * fade + 0.5) -- 975
+		local subText = prog < 0.68 and "青布袖口掠过柜沿，轻轻拂开了碎瓷。" or "「是我，别怕。……这个沉，替我揣怀里。」" -- 972
+		ctx.texts:put( -- 975
+			"sm", -- 975
+			subText, -- 975
+			w * 0.5, -- 975
+			42, -- 975
+			toColor(PALETTE.textBright), -- 975
+			0.5, -- 975
+			0.5, -- 975
+			"Center", -- 975
+			1, -- 975
+			fade, -- 975
+			0.08 -- 975
 		) -- 975
-	) -- 975
-	uiInkDraw:drawSegment( -- 976
-		Vec2(0, barH), -- 976
-		Vec2(w, barH), -- 976
-		0.9, -- 976
-		toColor( -- 976
-			PALETTE.silkDim, -- 976
-			math.floor(86 * fade + 0.5) -- 976
-		) -- 976
-	) -- 976
-	uiInkDraw:drawSegment( -- 977
-		Vec2(0, h - barH), -- 977
-		Vec2(w, h - barH), -- 977
-		0.9, -- 977
-		toColor( -- 977
-			PALETTE.silkDim, -- 977
-			math.floor(86 * fade + 0.5) -- 977
-		) -- 977
-	) -- 977
-	drawSilkVeil( -- 978
-		uiDraw, -- 978
-		uiArt, -- 978
-		"p03_sub_veil", -- 978
-		w * 0.5, -- 978
-		42, -- 978
-		520, -- 978
-		42, -- 978
-		PALETTE.inkWash, -- 978
-		0.82 * fade, -- 978
-		7 -- 978
-	) -- 978
-	local subText = prog < 0.68 and "青布袖口掠过柜沿，轻轻拂开了碎瓷。" or "「是我，别怕。……这个沉，替我揣怀里。」" -- 979
-	ctx.texts:put( -- 982
-		"sm", -- 982
-		subText, -- 982
-		w * 0.5, -- 982
-		42, -- 982
-		toColor(PALETTE.textBright), -- 982
-		0.5, -- 982
-		0.5, -- 982
-		"Center", -- 982
-		1, -- 982
-		fade, -- 982
-		0.08 -- 982
-	) -- 982
-end -- 852
-function CuffShotsPlugin.prototype.renderP05FullShot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog) -- 991
-	local fade = smoothstep(0, 0.06, prog) * (1 - smoothstep(0.95, 1, prog)) -- 1001
-	local barH = math.floor(h * 0.075 + 0.5) -- 1002
-	local bx = 0 -- 1003
-	local by = barH -- 1004
-	local boxW = w -- 1005
-	local boxH = math.max(120, h - barH * 2) -- 1006
-	uiDraw:drawRect( -- 1008
-		Rect(0, 0, w, h), -- 1008
-		Color( -- 1008
-			7, -- 1008
-			9, -- 1008
-			14, -- 1008
-			math.floor(238 * fade + 0.5) -- 1008
-		) -- 1008
-	) -- 1008
-	fillVGradRect( -- 1010
-		uiDraw, -- 1010
-		bx, -- 1010
-		by, -- 1010
-		boxW, -- 1010
-		boxH, -- 1010
-		Color( -- 1010
-			12, -- 1010
-			19, -- 1010
-			30, -- 1010
-			math.floor(248 * fade + 0.5) -- 1010
-		), -- 1010
-		Color( -- 1010
-			24, -- 1010
-			38, -- 1010
-			54, -- 1010
-			math.floor(248 * fade + 0.5) -- 1010
-		) -- 1010
-	) -- 1010
-	uiArt:tryPlacePath( -- 1011
-		"assets/art/tex_diorama_ming.clip|ming_water", -- 1011
-		"p05_moat_water", -- 1011
-		w * 0.65, -- 1011
-		by + boxH * 0.26, -- 1011
-		w * 0.75, -- 1011
-		boxH * 0.52, -- 1011
-		{ -- 1011
-			color = Color(124, 152, 178, 255), -- 1012
-			opacity = 0.42 * fade, -- 1013
-			smooth = true, -- 1014
-			layer = 0 -- 1015
-		} -- 1015
-	) -- 1015
-	fillRadialGlow( -- 1017
-		uiGlow, -- 1017
-		bx + boxW * 0.66, -- 1017
-		by + boxH * 0.34, -- 1017
-		280, -- 1017
-		96, -- 1017
-		Color( -- 1017
-			152, -- 1017
-			194, -- 1017
-			224, -- 1017
-			math.floor(78 * fade + 0.5) -- 1017
-		), -- 1017
-		Color(40, 70, 108, 0), -- 1017
-		16 -- 1017
-	) -- 1017
-	local releaseT = smoothstep(0.68, 0.94, prog) -- 1019
-	local pinchT = smoothstep(0.24, 0.42, prog) * (1 - releaseT) -- 1020
-	local cuffX = w * 0.4 - releaseT * 310 -- 1023
-	local cuffY = by + boxH * 0.5 -- 1024
-	____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1025
-		wristX = cuffX, -- 1026
-		wristY = cuffY, -- 1027
-		angleRad = -0.05, -- 1028
-		scale = 1.28, -- 1029
-		pose = pinchT > 0.25 and "pinch" or "open", -- 1030
-		opacity = fade * (1 - releaseT * 0.88), -- 1031
-		stitchHighlight = 0.45 + 0.3 * pinchT, -- 1032
-		warmth = 0.12, -- 1033
-		uiArt = uiArt, -- 1034
-		instanceKey = "p05_zhou_cuff", -- 1035
-		layer = 4 -- 1036
-	}) -- 1036
-	local childHandX = w * 0.56 + releaseT * 46 -- 1040
-	local childHandY = by + boxH * 0.46 - releaseT * 14 -- 1041
-	drawChildHand( -- 1042
-		uiDraw, -- 1043
-		childHandX, -- 1044
-		childHandY, -- 1045
-		math.pi + 0.1, -- 1046
-		1.28, -- 1047
-		releaseT > 0.35 and "open_fingers" or "clutch", -- 1048
-		fade, -- 1049
-		true, -- 1050
-		uiArt, -- 1051
-		"p05_child_hand", -- 1052
-		5 -- 1053
-	) -- 1053
-	if releaseT > 0.01 then -- 1053
-		local dropH = boxH * releaseT * 0.92 -- 1058
-		local gateW = w * 0.48 -- 1059
-		uiArt:tryPlacePath( -- 1060
-			"assets/art/tex_diorama_ming.clip|ming_timber", -- 1060
-			"p05_gate_drop", -- 1060
-			gateW * 0.5, -- 1060
-			by + boxH - dropH * 0.5, -- 1060
-			gateW, -- 1060
-			math.max(8, dropH), -- 1060
-			{ -- 1060
-				color = Color(86, 74, 62, 255), -- 1061
-				opacity = 0.96 * fade, -- 1062
-				smooth = true, -- 1063
-				layer = 6 -- 1064
-			} -- 1064
+	end -- 975
+end -- 844
+function CuffShotsPlugin.prototype.renderP05FullShot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog) -- 985
+	local fade = smoothstep(0, 0.06, prog) * (1 - smoothstep(0.95, 1, prog)) -- 995
+	local barH = math.floor(h * 0.075 + 0.5) -- 996
+	local bx = 0 -- 997
+	local by = barH -- 998
+	local boxW = w -- 999
+	local boxH = math.max(120, h - barH * 2) -- 1000
+	uiDraw:drawRect( -- 1002
+		Rect(0, 0, w, h), -- 1002
+		Color( -- 1002
+			7, -- 1002
+			9, -- 1002
+			14, -- 1002
+			math.floor(238 * fade + 0.5) -- 1002
+		) -- 1002
+	) -- 1002
+	fillVGradRect( -- 1004
+		uiDraw, -- 1004
+		bx, -- 1004
+		by, -- 1004
+		boxW, -- 1004
+		boxH, -- 1004
+		Color( -- 1004
+			12, -- 1004
+			19, -- 1004
+			30, -- 1004
+			math.floor(248 * fade + 0.5) -- 1004
+		), -- 1004
+		Color( -- 1004
+			24, -- 1004
+			38, -- 1004
+			54, -- 1004
+			math.floor(248 * fade + 0.5) -- 1004
+		) -- 1004
+	) -- 1004
+	uiArt:tryPlacePath( -- 1005
+		"assets/art/tex_diorama_ming.clip|ming_water", -- 1005
+		"p05_moat_water", -- 1005
+		w * 0.65, -- 1005
+		by + boxH * 0.26, -- 1005
+		w * 0.75, -- 1005
+		boxH * 0.52, -- 1005
+		{ -- 1005
+			color = Color(124, 152, 178, 255), -- 1006
+			opacity = 0.42 * fade, -- 1007
+			smooth = true, -- 1008
+			layer = 0 -- 1009
+		} -- 1009
+	) -- 1009
+	fillRadialGlow( -- 1011
+		uiGlow, -- 1011
+		bx + boxW * 0.66, -- 1011
+		by + boxH * 0.34, -- 1011
+		280, -- 1011
+		96, -- 1011
+		Color( -- 1011
+			152, -- 1011
+			194, -- 1011
+			224, -- 1011
+			math.floor(78 * fade + 0.5) -- 1011
+		), -- 1011
+		Color(40, 70, 108, 0), -- 1011
+		16 -- 1011
+	) -- 1011
+	local releaseT = smoothstep(0.68, 0.94, prog) -- 1013
+	local pinchT = smoothstep(0.24, 0.42, prog) * (1 - releaseT) -- 1014
+	local cuffX = w * 0.4 - releaseT * 310 -- 1017
+	local cuffY = by + boxH * 0.5 -- 1018
+	____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1019
+		wristX = cuffX, -- 1020
+		wristY = cuffY, -- 1021
+		angleRad = -0.05, -- 1022
+		scale = 1.28, -- 1023
+		pose = pinchT > 0.25 and "pinch" or "open", -- 1024
+		opacity = fade * (1 - releaseT * 0.88), -- 1025
+		stitchHighlight = 0.45 + 0.3 * pinchT, -- 1026
+		warmth = 0.12, -- 1027
+		uiArt = uiArt, -- 1028
+		instanceKey = "p05_zhou_cuff", -- 1029
+		layer = 4 -- 1030
+	}) -- 1030
+	local childHandX = w * 0.56 + releaseT * 46 -- 1034
+	local childHandY = by + boxH * 0.46 - releaseT * 14 -- 1035
+	drawChildHand( -- 1036
+		uiDraw, -- 1037
+		childHandX, -- 1038
+		childHandY, -- 1039
+		math.pi + 0.1, -- 1040
+		1.28, -- 1041
+		releaseT > 0.35 and "open_fingers" or "clutch", -- 1042
+		fade, -- 1043
+		true, -- 1044
+		uiArt, -- 1045
+		"p05_child_hand", -- 1046
+		5 -- 1047
+	) -- 1047
+	if releaseT > 0.01 then -- 1047
+		local dropH = boxH * releaseT * 0.92 -- 1052
+		local gateW = w * 0.48 -- 1053
+		uiArt:tryPlacePath( -- 1054
+			"assets/art/tex_diorama_ming.clip|ming_timber", -- 1054
+			"p05_gate_drop", -- 1054
+			gateW * 0.5, -- 1054
+			by + boxH - dropH * 0.5, -- 1054
+			gateW, -- 1054
+			math.max(8, dropH), -- 1054
+			{ -- 1054
+				color = Color(86, 74, 62, 255), -- 1055
+				opacity = 0.96 * fade, -- 1056
+				smooth = true, -- 1057
+				layer = 6 -- 1058
+			} -- 1058
+		) -- 1058
+		uiInkDraw:drawSegment( -- 1060
+			Vec2(0, by + boxH - dropH), -- 1060
+			Vec2(gateW, by + boxH - dropH), -- 1060
+			2.8, -- 1060
+			Color( -- 1060
+				138, -- 1060
+				122, -- 1060
+				102, -- 1060
+				math.floor(220 * fade + 0.5) -- 1060
+			) -- 1060
+		) -- 1060
+	end -- 1060
+	uiInkDraw:drawRect( -- 1064
+		Rect(0, 0, w, barH), -- 1064
+		Color( -- 1064
+			6, -- 1064
+			8, -- 1064
+			12, -- 1064
+			math.floor(245 * fade + 0.5) -- 1064
 		) -- 1064
-		uiInkDraw:drawSegment( -- 1066
-			Vec2(0, by + boxH - dropH), -- 1066
-			Vec2(gateW, by + boxH - dropH), -- 1066
-			2.8, -- 1066
-			Color( -- 1066
-				138, -- 1066
-				122, -- 1066
-				102, -- 1066
-				math.floor(220 * fade + 0.5) -- 1066
-			) -- 1066
+	) -- 1064
+	uiInkDraw:drawRect( -- 1065
+		Rect(0, h - barH, w, barH), -- 1065
+		Color( -- 1065
+			6, -- 1065
+			8, -- 1065
+			12, -- 1065
+			math.floor(245 * fade + 0.5) -- 1065
+		) -- 1065
+	) -- 1065
+	uiInkDraw:drawSegment( -- 1066
+		Vec2(0, barH), -- 1066
+		Vec2(w, barH), -- 1066
+		0.9, -- 1066
+		toColor( -- 1066
+			PALETTE.silkDim, -- 1066
+			math.floor(86 * fade + 0.5) -- 1066
 		) -- 1066
-	end -- 1066
-	uiInkDraw:drawRect( -- 1070
-		Rect(0, 0, w, barH), -- 1070
-		Color( -- 1070
-			6, -- 1070
-			8, -- 1070
-			12, -- 1070
-			math.floor(245 * fade + 0.5) -- 1070
-		) -- 1070
-	) -- 1070
-	uiInkDraw:drawRect( -- 1071
-		Rect(0, h - barH, w, barH), -- 1071
-		Color( -- 1071
-			6, -- 1071
-			8, -- 1071
-			12, -- 1071
-			math.floor(245 * fade + 0.5) -- 1071
-		) -- 1071
-	) -- 1071
-	uiInkDraw:drawSegment( -- 1072
-		Vec2(0, barH), -- 1072
-		Vec2(w, barH), -- 1072
-		0.9, -- 1072
-		toColor( -- 1072
-			PALETTE.silkDim, -- 1072
-			math.floor(86 * fade + 0.5) -- 1072
+	) -- 1066
+	uiInkDraw:drawSegment( -- 1067
+		Vec2(0, h - barH), -- 1067
+		Vec2(w, h - barH), -- 1067
+		0.9, -- 1067
+		toColor( -- 1067
+			PALETTE.silkDim, -- 1067
+			math.floor(86 * fade + 0.5) -- 1067
+		) -- 1067
+	) -- 1067
+	local lineAlpha = fade * smoothstep(0.18, 0.3, prog) * (1 - smoothstep(0.86, 0.98, prog)) -- 1070
+	if lineAlpha > 0.02 then -- 1070
+		drawSilkVeil( -- 1072
+			uiDraw, -- 1072
+			uiArt, -- 1072
+			"p05_sub_veil", -- 1072
+			w * 0.5, -- 1072
+			42, -- 1072
+			740, -- 1072
+			44, -- 1072
+			PALETTE.inkWash, -- 1072
+			0.86 * lineAlpha, -- 1072
+			7 -- 1072
 		) -- 1072
-	) -- 1072
-	uiInkDraw:drawSegment( -- 1073
-		Vec2(0, h - barH), -- 1073
-		Vec2(w, h - barH), -- 1073
-		0.9, -- 1073
-		toColor( -- 1073
+		drawHairline( -- 1073
+			uiInkDraw, -- 1073
+			uiArt, -- 1073
+			"p05_sub_line", -- 1073
+			w * 0.5, -- 1073
+			62, -- 1073
+			520, -- 1073
 			PALETTE.silkDim, -- 1073
-			math.floor(86 * fade + 0.5) -- 1073
+			0.52 * lineAlpha, -- 1073
+			true, -- 1073
+			8 -- 1073
 		) -- 1073
-	) -- 1073
-	local lineAlpha = fade * smoothstep(0.18, 0.3, prog) * (1 - smoothstep(0.86, 0.98, prog)) -- 1076
-	if lineAlpha > 0.02 then -- 1076
-		drawSilkVeil( -- 1078
-			uiDraw, -- 1078
-			uiArt, -- 1078
-			"p05_sub_veil", -- 1078
-			w * 0.5, -- 1078
-			42, -- 1078
-			740, -- 1078
-			44, -- 1078
-			PALETTE.inkWash, -- 1078
-			0.86 * lineAlpha, -- 1078
-			7 -- 1078
-		) -- 1078
-		drawHairline( -- 1079
-			uiInkDraw, -- 1079
-			uiArt, -- 1079
-			"p05_sub_line", -- 1079
-			w * 0.5, -- 1079
-			62, -- 1079
-			520, -- 1079
-			PALETTE.silkDim, -- 1079
-			0.52 * lineAlpha, -- 1079
-			true, -- 1079
-			8 -- 1079
-		) -- 1079
-		ctx.texts:put( -- 1080
-			"sm", -- 1080
-			LINE_P05, -- 1080
-			w * 0.5, -- 1080
-			42, -- 1080
-			toColor(PALETTE.textBright), -- 1080
-			0.5, -- 1080
-			0.5, -- 1080
-			"Center", -- 1080
-			0.8, -- 1080
-			lineAlpha, -- 1080
-			0.08 -- 1080
-		) -- 1080
-	end -- 1080
-end -- 991
-function CuffShotsPlugin.prototype.renderP05ExitBridge(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, t) -- 1085
-	local enter = smoothstep(0, 0.12, t) -- 1095
-	local out = smoothstep(0.66, 1, t) -- 1096
-	local alpha = enter * (1 - out) -- 1097
-	if alpha <= 0.02 then -- 1097
-		return -- 1099
-	end -- 1099
-	local pinchT = smoothstep(0.14, 0.34, t) * (1 - out) -- 1101
-	____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1102
-		wristX = w * 0.27 - out * 260, -- 1103
-		wristY = h * 0.4, -- 1104
-		angleRad = -0.05, -- 1105
-		scale = 1.04, -- 1106
-		pose = pinchT > 0.25 and "pinch" or "open", -- 1107
-		opacity = alpha * 0.95, -- 1108
-		stitchHighlight = 0.45 + 0.28 * pinchT, -- 1109
-		uiArt = uiArt, -- 1110
-		instanceKey = "p05_live_zhou_cuff", -- 1111
-		layer = 4 -- 1112
-	}) -- 1112
-	drawChildHand( -- 1114
-		uiDraw, -- 1115
-		w * 0.39 + out * 30, -- 1116
-		h * 0.37 - out * 10, -- 1117
-		math.pi + 0.1, -- 1118
-		1.02, -- 1119
-		out > 0.32 and "open_fingers" or "clutch", -- 1120
-		alpha * 0.94, -- 1121
-		true, -- 1122
-		uiArt, -- 1123
-		"p05_live_child_hand", -- 1124
-		5 -- 1125
-	) -- 1125
-	local lineAlpha = smoothstep(0.08, 0.22, t) * (1 - smoothstep(0.82, 0.98, t)) -- 1127
-	if lineAlpha > 0.02 then -- 1127
-		local subY = 92 -- 1129
-		drawSilkVeil( -- 1130
-			uiDraw, -- 1130
-			uiArt, -- 1130
-			"p05_live_veil", -- 1130
-			w * 0.5, -- 1130
-			subY, -- 1130
-			760, -- 1130
-			44, -- 1130
-			PALETTE.inkWash, -- 1130
-			0.86 * lineAlpha, -- 1130
-			7 -- 1130
-		) -- 1130
-		drawHairline( -- 1131
-			uiInkDraw, -- 1131
-			uiArt, -- 1131
-			"p05_live_line", -- 1131
-			w * 0.5, -- 1131
-			subY + 20, -- 1131
-			520, -- 1131
-			PALETTE.silkDim, -- 1131
-			0.52 * lineAlpha, -- 1131
-			true, -- 1131
-			8 -- 1131
-		) -- 1131
-		ctx.texts:put( -- 1132
-			"sm", -- 1132
-			LINE_P05, -- 1132
-			w * 0.5, -- 1132
-			subY, -- 1132
-			toColor(PALETTE.textBright), -- 1132
-			0.5, -- 1132
-			0.5, -- 1132
-			"Center", -- 1132
-			0.8, -- 1132
-			lineAlpha, -- 1132
-			0.08 -- 1132
-		) -- 1132
-	end -- 1132
-end -- 1085
-function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1141
-	local view = ctx.view -- 1150
-	local gr = view.gateReunion -- 1151
-	local completed = ctx.p.phase == "gate-hand" or gr.completed -- 1152
-	local ext = clamp01(self.g05SleeveExtend) -- 1153
-	if not completed then -- 1153
-		if ext > 0.008 then -- 1153
-			local veilA = math.floor(138 * clamp01(ext * 1.15) + 0.5) -- 1157
-			fillVGradRect( -- 1158
-				uiDraw, -- 1158
-				0, -- 1158
-				h * 0.26, -- 1158
-				w, -- 1158
-				h * 0.18, -- 1158
-				Color(8, 11, 18, 0), -- 1158
-				Color(8, 11, 18, veilA) -- 1158
-			) -- 1158
-			fillVGradRect( -- 1159
-				uiDraw, -- 1159
-				0, -- 1159
-				h * 0.44, -- 1159
-				w, -- 1159
-				h * 0.18, -- 1159
-				Color(8, 11, 18, veilA), -- 1159
-				Color(8, 11, 18, 0) -- 1159
-			) -- 1159
-			local cuffX = -56 + ext * (w * 0.42 + 56) -- 1161
-			local cuffY = h * 0.44 + math.sin(self.animTime * 2.2) * 2 -- 1162
-			____exports.drawPatchedCuff( -- 1163
-				uiDraw, -- 1163
-				uiGlow, -- 1163
-				{ -- 1163
-					wristX = cuffX, -- 1164
-					wristY = cuffY, -- 1165
-					angleRad = -0.05, -- 1166
-					scale = 1.22, -- 1167
-					pose = ext > 0.82 and "clasp" or "reach", -- 1168
-					opacity = clamp01(0.32 + ext * 0.68), -- 1169
-					stitchHighlight = 0.35 + 0.6 * ext, -- 1170
-					uiArt = uiArt, -- 1171
-					instanceKey = "g05_live_zhou_cuff", -- 1172
-					layer = 4 -- 1173
-				} -- 1173
-			) -- 1173
-			local childX = w * 0.66 - ext * (w * 0.13) -- 1176
-			local childY = h * 0.41 + ext * 14 -- 1177
-			drawChildHand( -- 1178
-				uiDraw, -- 1179
-				childX, -- 1180
-				childY, -- 1181
-				math.pi + 0.08, -- 1182
-				1.2, -- 1183
-				ext > 0.88 and "clasp" or "reach_up", -- 1184
-				clamp01(0.25 + ext * 0.75), -- 1185
-				true, -- 1186
-				uiArt, -- 1187
-				"g05_live_child_hand", -- 1188
-				5 -- 1189
-			) -- 1189
-			local barW = 240 -- 1193
-			local bx0 = w * 0.5 - barW * 0.5 -- 1194
-			local by0 = 32 -- 1195
-			uiInkDraw:drawSegment( -- 1196
-				Vec2(bx0, by0), -- 1196
-				Vec2(bx0 + barW, by0), -- 1196
-				1.2, -- 1196
-				toColor(PALETTE.silkDim, 110) -- 1196
-			) -- 1196
-			uiInkDraw:drawSegment( -- 1197
-				Vec2(bx0, by0), -- 1197
-				Vec2(bx0 + barW * ext, by0), -- 1197
-				2.4, -- 1197
-				toColor(PALETTE.amberCore, 230) -- 1197
-			) -- 1197
-		else -- 1197
-			local peekPulse = 0.5 + 0.5 * math.sin(self.animTime * 2.4) -- 1199
-			____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1200
-				wristX = -120 + peekPulse * 18, -- 1201
-				wristY = h * 0.44, -- 1202
-				angleRad = -0.04, -- 1203
-				scale = 1.16, -- 1204
-				pose = "open", -- 1205
-				opacity = 0.42 + 0.24 * peekPulse, -- 1206
-				stitchHighlight = 0.35 * peekPulse, -- 1207
-				uiArt = uiArt, -- 1208
-				instanceKey = "g05_live_zhou_cuff", -- 1209
-				layer = 4 -- 1210
-			}) -- 1210
-		end -- 1210
-		if view.assistHintsEnabled then -- 1210
-			drawSilkVeil( -- 1215
-				uiDraw, -- 1215
-				uiArt, -- 1215
-				"g05_assist_veil", -- 1215
-				w * 0.5, -- 1215
-				h - 26, -- 1215
-				280, -- 1215
-				28, -- 1215
-				PALETTE.inkWash, -- 1215
-				0.72, -- 1215
-				7 -- 1215
-			) -- 1215
-			ctx.texts:put( -- 1216
-				"xs", -- 1217
-				adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1218
-				w * 0.5, -- 1219
-				h - 26, -- 1220
-				toColor(PALETTE.amberCore), -- 1221
-				0.5, -- 1222
-				0.5, -- 1223
-				"Center", -- 1224
-				1.2, -- 1225
-				0.9, -- 1226
-				0.08 -- 1227
-			) -- 1227
-		end -- 1227
-		return -- 1230
-	end -- 1230
-	local t = self.g05ReunionElapsed -- 1234
-	local claspPull = smoothstep(0, 0.35, t) -- 1235
-	local tilt = smoothstep(G05_PIXEL_RETURN_START, G05_PIXEL_RETURN_END, t) -- 1236
-	local armDropY = tilt * (h * 0.3) -- 1237
-	local portraitAlpha = smoothstep(0.28, 0.85, t) -- 1240
-	if portraitAlpha > 0.02 then -- 1240
-		drawZhouShuReunionPortrait( -- 1242
-			uiDraw, -- 1242
-			uiInkDraw, -- 1242
-			uiArt, -- 1242
-			uiGlow, -- 1242
-			w, -- 1242
-			h, -- 1242
-			(1 - portraitAlpha) * 28, -- 1242
-			portraitAlpha -- 1242
-		) -- 1242
-	end -- 1242
-	local claspFade = 1 - smoothstep(0.55, 1.08, t) -- 1246
-	if claspFade > 0.02 then -- 1246
-		____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1248
-			wristX = w * 0.44, -- 1249
-			wristY = h * 0.42 - armDropY, -- 1250
-			angleRad = -0.05 + tilt * 0.22, -- 1251
-			scale = 1.22, -- 1252
-			pose = "clasp", -- 1253
-			opacity = claspFade, -- 1254
-			stitchHighlight = 0.72 * (1 - tilt * 0.5), -- 1255
-			cuffPullBack = claspPull * 0.85, -- 1256
-			warmth = tilt * 0.32, -- 1257
-			uiArt = uiArt, -- 1258
-			instanceKey = "g05_live_zhou_cuff", -- 1259
-			layer = 4 -- 1260
-		}) -- 1260
-		drawChildHand( -- 1262
-			uiDraw, -- 1263
-			w * 0.56, -- 1264
-			h * 0.4 - armDropY, -- 1265
-			math.pi + 0.05 - tilt * 0.14, -- 1266
-			1.2, -- 1267
-			"clasp", -- 1268
-			claspFade, -- 1269
-			true, -- 1270
-			uiArt, -- 1271
-			"g05_live_child_hand", -- 1272
-			5 -- 1273
+		ctx.texts:put( -- 1074
+			"sm", -- 1074
+			LINE_P05, -- 1074
+			w * 0.5, -- 1074
+			42, -- 1074
+			toColor(PALETTE.textBright), -- 1074
+			0.5, -- 1074
+			0.5, -- 1074
+			"Center", -- 1074
+			0.8, -- 1074
+			lineAlpha, -- 1074
+			0.08 -- 1074
+		) -- 1074
+	end -- 1074
+end -- 985
+function CuffShotsPlugin.prototype.renderP05ExitBridge(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, t) -- 1079
+	local enter = smoothstep(0, 0.12, t) -- 1089
+	local out = smoothstep(0.66, 1, t) -- 1090
+	local alpha = enter * (1 - out) -- 1091
+	if alpha <= 0.02 then -- 1091
+		return -- 1093
+	end -- 1093
+	local pinchT = smoothstep(0.14, 0.34, t) * (1 - out) -- 1095
+	____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1096
+		wristX = w * 0.27 - out * 260, -- 1097
+		wristY = h * 0.4, -- 1098
+		angleRad = -0.05, -- 1099
+		scale = 1.04, -- 1100
+		pose = pinchT > 0.25 and "pinch" or "open", -- 1101
+		opacity = alpha * 0.95, -- 1102
+		stitchHighlight = 0.45 + 0.28 * pinchT, -- 1103
+		uiArt = uiArt, -- 1104
+		instanceKey = "p05_live_zhou_cuff", -- 1105
+		layer = 4 -- 1106
+	}) -- 1106
+	drawChildHand( -- 1108
+		uiDraw, -- 1109
+		w * 0.39 + out * 30, -- 1110
+		h * 0.37 - out * 10, -- 1111
+		math.pi + 0.1, -- 1112
+		1.02, -- 1113
+		out > 0.32 and "open_fingers" or "clutch", -- 1114
+		alpha * 0.94, -- 1115
+		true, -- 1116
+		uiArt, -- 1117
+		"p05_live_child_hand", -- 1118
+		5 -- 1119
+	) -- 1119
+	local lineAlpha = smoothstep(0.08, 0.22, t) * (1 - smoothstep(0.82, 0.98, t)) -- 1121
+	if lineAlpha > 0.02 then -- 1121
+		local subY = 92 -- 1123
+		drawSilkVeil( -- 1124
+			uiDraw, -- 1124
+			uiArt, -- 1124
+			"p05_live_veil", -- 1124
+			w * 0.5, -- 1124
+			subY, -- 1124
+			760, -- 1124
+			44, -- 1124
+			PALETTE.inkWash, -- 1124
+			0.86 * lineAlpha, -- 1124
+			7 -- 1124
+		) -- 1124
+		drawHairline( -- 1125
+			uiInkDraw, -- 1125
+			uiArt, -- 1125
+			"p05_live_line", -- 1125
+			w * 0.5, -- 1125
+			subY + 20, -- 1125
+			520, -- 1125
+			PALETTE.silkDim, -- 1125
+			0.52 * lineAlpha, -- 1125
+			true, -- 1125
+			8 -- 1125
+		) -- 1125
+		ctx.texts:put( -- 1126
+			"sm", -- 1126
+			LINE_P05, -- 1126
+			w * 0.5, -- 1126
+			subY, -- 1126
+			toColor(PALETTE.textBright), -- 1126
+			0.5, -- 1126
+			0.5, -- 1126
+			"Center", -- 1126
+			0.8, -- 1126
+			lineAlpha, -- 1126
+			0.08 -- 1126
+		) -- 1126
+	end -- 1126
+end -- 1079
+function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1135
+	local view = ctx.view -- 1144
+	local gr = view.gateReunion -- 1145
+	local completed = ctx.p.phase == "gate-hand" or gr.completed -- 1146
+	local ext = clamp01(self.g05SleeveExtend) -- 1147
+	if not completed then -- 1147
+		if ext > 0.008 then -- 1147
+			local veilA = math.floor(138 * clamp01(ext * 1.15) + 0.5) -- 1151
+			fillVGradRect( -- 1152
+				uiDraw, -- 1152
+				0, -- 1152
+				h * 0.26, -- 1152
+				w, -- 1152
+				h * 0.18, -- 1152
+				Color(8, 11, 18, 0), -- 1152
+				Color(8, 11, 18, veilA) -- 1152
+			) -- 1152
+			fillVGradRect( -- 1153
+				uiDraw, -- 1153
+				0, -- 1153
+				h * 0.44, -- 1153
+				w, -- 1153
+				h * 0.18, -- 1153
+				Color(8, 11, 18, veilA), -- 1153
+				Color(8, 11, 18, 0) -- 1153
+			) -- 1153
+			local cuffX = -56 + ext * (w * 0.42 + 56) -- 1155
+			local cuffY = h * 0.44 + math.sin(self.animTime * 2.2) * 2 -- 1156
+			____exports.drawPatchedCuff( -- 1157
+				uiDraw, -- 1157
+				uiGlow, -- 1157
+				{ -- 1157
+					wristX = cuffX, -- 1158
+					wristY = cuffY, -- 1159
+					angleRad = -0.05, -- 1160
+					scale = 1.22, -- 1161
+					pose = ext > 0.82 and "clasp" or "reach", -- 1162
+					opacity = clamp01(0.32 + ext * 0.68), -- 1163
+					stitchHighlight = 0.35 + 0.6 * ext, -- 1164
+					uiArt = uiArt, -- 1165
+					instanceKey = "g05_live_zhou_cuff", -- 1166
+					layer = 4 -- 1167
+				} -- 1167
+			) -- 1167
+			local childX = w * 0.66 - ext * (w * 0.13) -- 1170
+			local childY = h * 0.41 + ext * 14 -- 1171
+			drawChildHand( -- 1172
+				uiDraw, -- 1173
+				childX, -- 1174
+				childY, -- 1175
+				math.pi + 0.08, -- 1176
+				1.2, -- 1177
+				ext > 0.88 and "clasp" or "reach_up", -- 1178
+				clamp01(0.25 + ext * 0.75), -- 1179
+				true, -- 1180
+				uiArt, -- 1181
+				"g05_live_child_hand", -- 1182
+				5 -- 1183
+			) -- 1183
+			local barW = 240 -- 1187
+			local bx0 = w * 0.5 - barW * 0.5 -- 1188
+			local by0 = 18 -- 1189
+			uiInkDraw:drawSegment( -- 1190
+				Vec2(bx0, by0), -- 1190
+				Vec2(bx0 + barW, by0), -- 1190
+				1.2, -- 1190
+				toColor(PALETTE.silkDim, 110) -- 1190
+			) -- 1190
+			uiInkDraw:drawSegment( -- 1191
+				Vec2(bx0, by0), -- 1191
+				Vec2(bx0 + barW * ext, by0), -- 1191
+				2.4, -- 1191
+				toColor(PALETTE.amberCore, 230) -- 1191
+			) -- 1191
+		else -- 1191
+			local peekPulse = 0.5 + 0.5 * math.sin(self.animTime * 2.4) -- 1193
+			____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1194
+				wristX = -120 + peekPulse * 18, -- 1195
+				wristY = h * 0.44, -- 1196
+				angleRad = -0.04, -- 1197
+				scale = 1.16, -- 1198
+				pose = "open", -- 1199
+				opacity = 0.42 + 0.24 * peekPulse, -- 1200
+				stitchHighlight = 0.35 * peekPulse, -- 1201
+				uiArt = uiArt, -- 1202
+				instanceKey = "g05_live_zhou_cuff", -- 1203
+				layer = 4 -- 1204
+			}) -- 1204
+		end -- 1204
+		if view.assistHintsEnabled then -- 1204
+			drawSilkVeil( -- 1209
+				uiDraw, -- 1209
+				uiArt, -- 1209
+				"g05_assist_veil", -- 1209
+				w * 0.5, -- 1209
+				h - 26, -- 1209
+				280, -- 1209
+				28, -- 1209
+				PALETTE.inkWash, -- 1209
+				0.72, -- 1209
+				7 -- 1209
+			) -- 1209
+			ctx.texts:put( -- 1210
+				"xs", -- 1211
+				getActiveTarget():adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1212
+				w * 0.5, -- 1213
+				h - 26, -- 1214
+				toColor(PALETTE.amberCore), -- 1215
+				0.5, -- 1216
+				0.5, -- 1217
+				"Center", -- 1218
+				1.2, -- 1219
+				0.9, -- 1220
+				0.08 -- 1221
+			) -- 1221
+		end -- 1221
+		return -- 1224
+	end -- 1224
+	local t = self.g05ReunionElapsed -- 1228
+	local claspPull = smoothstep(0, 0.35, t) -- 1229
+	local tilt = smoothstep(G05_PIXEL_RETURN_START, G05_PIXEL_RETURN_END, t) -- 1230
+	local armDropY = tilt * (h * 0.3) -- 1231
+	local portraitAlpha = smoothstep(0.28, 0.85, t) -- 1234
+	if portraitAlpha > 0.02 then -- 1234
+		drawZhouShuReunionPortrait( -- 1236
+			uiDraw, -- 1236
+			uiInkDraw, -- 1236
+			uiArt, -- 1236
+			uiGlow, -- 1236
+			w, -- 1236
+			h, -- 1236
+			(1 - portraitAlpha) * 28, -- 1236
+			portraitAlpha -- 1236
+		) -- 1236
+	end -- 1236
+	local claspFade = 1 - smoothstep(0.55, 1.08, t) -- 1240
+	if claspFade > 0.02 then -- 1240
+		____exports.drawPatchedCuff(uiDraw, uiGlow, { -- 1242
+			wristX = w * 0.44, -- 1243
+			wristY = h * 0.42 - armDropY, -- 1244
+			angleRad = -0.05 + tilt * 0.22, -- 1245
+			scale = 1.22, -- 1246
+			pose = "clasp", -- 1247
+			opacity = claspFade, -- 1248
+			stitchHighlight = 0.72 * (1 - tilt * 0.5), -- 1249
+			cuffPullBack = claspPull * 0.85, -- 1250
+			warmth = tilt * 0.32, -- 1251
+			uiArt = uiArt, -- 1252
+			instanceKey = "g05_live_zhou_cuff", -- 1253
+			layer = 4 -- 1254
+		}) -- 1254
+		drawChildHand( -- 1256
+			uiDraw, -- 1257
+			w * 0.56, -- 1258
+			h * 0.4 - armDropY, -- 1259
+			math.pi + 0.05 - tilt * 0.14, -- 1260
+			1.2, -- 1261
+			"clasp", -- 1262
+			claspFade, -- 1263
+			true, -- 1264
+			uiArt, -- 1265
+			"g05_live_child_hand", -- 1266
+			5 -- 1267
+		) -- 1267
+	end -- 1267
+	local barH = math.floor(h * 0.068 + 0.5) -- 1271
+	if portraitAlpha > 0.05 then -- 1271
+		uiInkDraw:drawRect( -- 1273
+			Rect(0, 0, w, barH), -- 1273
+			Color( -- 1273
+				6, -- 1273
+				8, -- 1273
+				12, -- 1273
+				math.floor(244 * portraitAlpha + 0.5) -- 1273
+			) -- 1273
 		) -- 1273
-	end -- 1273
-	local barH = math.floor(h * 0.068 + 0.5) -- 1277
-	if portraitAlpha > 0.05 then -- 1277
-		uiInkDraw:drawRect( -- 1279
-			Rect(0, 0, w, barH), -- 1279
-			Color( -- 1279
-				6, -- 1279
-				8, -- 1279
-				12, -- 1279
-				math.floor(244 * portraitAlpha + 0.5) -- 1279
-			) -- 1279
-		) -- 1279
-		uiInkDraw:drawRect( -- 1280
-			Rect(0, h - barH, w, barH), -- 1280
-			Color( -- 1280
-				6, -- 1280
-				8, -- 1280
-				12, -- 1280
-				math.floor(244 * portraitAlpha + 0.5) -- 1280
-			) -- 1280
+		uiInkDraw:drawRect( -- 1274
+			Rect(0, h - barH, w, barH), -- 1274
+			Color( -- 1274
+				6, -- 1274
+				8, -- 1274
+				12, -- 1274
+				math.floor(244 * portraitAlpha + 0.5) -- 1274
+			) -- 1274
+		) -- 1274
+	end -- 1274
+	local lineAlpha = smoothstep(0.75, 0.98, t) -- 1278
+	if lineAlpha > 0.02 then -- 1278
+		drawSilkVeil( -- 1280
+			uiDraw, -- 1280
+			uiArt, -- 1280
+			"g05_line_veil", -- 1280
+			w * 0.5, -- 1280
+			42, -- 1280
+			420, -- 1280
+			44, -- 1280
+			PALETTE.inkWash, -- 1280
+			0.86 * lineAlpha, -- 1280
+			7 -- 1280
 		) -- 1280
-	end -- 1280
-	local lineAlpha = smoothstep(0.75, 0.98, t) -- 1284
-	if lineAlpha > 0.02 then -- 1284
-		drawSilkVeil( -- 1286
-			uiDraw, -- 1286
-			uiArt, -- 1286
-			"g05_line_veil", -- 1286
-			w * 0.5, -- 1286
-			42, -- 1286
-			420, -- 1286
-			44, -- 1286
-			PALETTE.inkWash, -- 1286
-			0.86 * lineAlpha, -- 1286
-			7 -- 1286
-		) -- 1286
-		drawHairline( -- 1287
-			uiInkDraw, -- 1287
-			uiArt, -- 1287
-			"g05_line_bar", -- 1287
-			w * 0.5, -- 1287
-			62, -- 1287
-			260, -- 1287
-			PALETTE.amber, -- 1287
-			0.58 * lineAlpha, -- 1287
-			true, -- 1287
-			8 -- 1287
-		) -- 1287
-		ctx.texts:put( -- 1288
-			"sm", -- 1288
-			LINE_G05, -- 1288
-			w * 0.5, -- 1288
-			42, -- 1288
-			toColor(PALETTE.textBright), -- 1288
-			0.5, -- 1288
-			0.5, -- 1288
-			"Center", -- 1288
-			2.2, -- 1288
-			lineAlpha, -- 1288
-			0.08 -- 1288
-		) -- 1288
-	end -- 1288
-end -- 1141
-function CuffShotsPlugin.prototype.renderG05RehearsalShot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, t) -- 1293
-	local holdExt = smoothstep(0.55, 1.45, t) -- 1303
-	local tilt = smoothstep(1.55, 2.55, t) -- 1304
-	local claspPull = smoothstep(1.4, 1.75, t) -- 1305
-	local armDropY = tilt * (h * 0.28) -- 1306
-	local barH = math.floor(h * 0.072 + 0.5) -- 1307
-	uiDraw:drawRect( -- 1309
-		Rect(0, 0, w, h), -- 1309
-		Color(7, 9, 14, 248) -- 1309
-	) -- 1309
-	local bgTop = lerpRGBA( -- 1310
-		rgba(16, 24, 36, 250), -- 1310
-		rgba(20, 26, 36, 250), -- 1310
-		tilt -- 1310
-	) -- 1310
-	local bgBot = lerpRGBA( -- 1311
-		rgba(10, 15, 24, 250), -- 1311
-		rgba(14, 18, 26, 250), -- 1311
-		tilt -- 1311
-	) -- 1311
-	fillVGradRect( -- 1312
-		uiDraw, -- 1312
-		0, -- 1312
-		barH, -- 1312
-		w, -- 1312
-		h - barH * 2, -- 1312
-		toColor(bgBot), -- 1312
-		toColor(bgTop) -- 1312
-	) -- 1312
-	if tilt > 0.04 then -- 1312
-		drawZhouShuReunionPortrait( -- 1315
-			uiDraw, -- 1315
-			uiInkDraw, -- 1315
-			uiArt, -- 1315
-			uiGlow, -- 1315
-			w, -- 1315
-			h, -- 1315
-			(1 - tilt) * 28, -- 1315
-			tilt -- 1315
-		) -- 1315
-	end -- 1315
-	local handFade = 1 - smoothstep(1.75, 2.38, t) -- 1318
-	if handFade > 0.02 then -- 1318
-		____exports.drawPatchedCuff( -- 1320
-			uiDraw, -- 1320
-			uiGlow, -- 1320
-			{ -- 1320
-				wristX = w * 0.06 + holdExt * (w * 0.38), -- 1321
-				wristY = h * 0.48 - armDropY, -- 1322
-				angleRad = -0.05 + tilt * 0.2, -- 1323
-				scale = 1.24, -- 1324
-				pose = t >= 1.4 and "clasp" or "reach", -- 1325
-				opacity = clamp01(0.28 + holdExt * 0.72) * handFade, -- 1326
-				stitchHighlight = 0.45 + 0.45 * holdExt * (1 - tilt * 0.4), -- 1327
-				cuffPullBack = claspPull * 0.85, -- 1328
-				warmth = tilt * 0.32, -- 1329
-				uiArt = uiArt, -- 1330
-				instanceKey = "g05_reh_zhou_cuff", -- 1331
-				layer = 4 -- 1332
-			} -- 1332
-		) -- 1332
-		drawChildHand( -- 1334
-			uiDraw, -- 1335
-			w * 0.68 - holdExt * (w * 0.12), -- 1336
-			h * 0.44 - armDropY, -- 1337
-			math.pi + 0.06, -- 1338
-			1.22, -- 1339
-			t >= 1.4 and "clasp" or "reach_up", -- 1340
-			clamp01(0.35 + holdExt * 0.65) * handFade, -- 1341
-			true, -- 1342
-			uiArt, -- 1343
-			"g05_reh_child_hand", -- 1344
-			5 -- 1345
-		) -- 1345
-	end -- 1345
-	uiInkDraw:drawRect( -- 1349
-		Rect(0, 0, w, barH), -- 1349
-		Color(6, 8, 12, 246) -- 1349
-	) -- 1349
-	uiInkDraw:drawRect( -- 1350
-		Rect(0, h - barH, w, barH), -- 1350
-		Color(6, 8, 12, 246) -- 1350
-	) -- 1350
-	uiInkDraw:drawSegment( -- 1351
-		Vec2(0, barH), -- 1351
-		Vec2(w, barH), -- 1351
-		0.9, -- 1351
-		toColor(PALETTE.silkDim, 86) -- 1351
-	) -- 1351
-	uiInkDraw:drawSegment( -- 1352
-		Vec2(0, h - barH), -- 1352
-		Vec2(w, h - barH), -- 1352
-		0.9, -- 1352
-		toColor(PALETTE.silkDim, 86) -- 1352
-	) -- 1352
-	local lineAlpha = smoothstep(2.35, 2.65, t) -- 1354
-	if lineAlpha > 0.02 then -- 1354
-		drawSilkVeil( -- 1356
-			uiDraw, -- 1356
-			uiArt, -- 1356
-			"g05_reh_veil", -- 1356
-			w * 0.5, -- 1356
-			42, -- 1356
-			420, -- 1356
-			44, -- 1356
-			PALETTE.inkWash, -- 1356
-			0.86 * lineAlpha, -- 1356
-			7 -- 1356
-		) -- 1356
-		drawHairline( -- 1357
-			uiInkDraw, -- 1357
-			uiArt, -- 1357
-			"g05_reh_bar", -- 1357
-			w * 0.5, -- 1357
-			62, -- 1357
-			260, -- 1357
-			PALETTE.amber, -- 1357
-			0.58 * lineAlpha, -- 1357
-			true, -- 1357
-			8 -- 1357
-		) -- 1357
-		ctx.texts:put( -- 1358
-			"sm", -- 1358
-			LINE_G05, -- 1358
-			w * 0.5, -- 1358
-			42, -- 1358
-			toColor(PALETTE.textBright), -- 1358
-			0.5, -- 1358
-			0.5, -- 1358
-			"Center", -- 1358
-			2.2, -- 1358
-			lineAlpha, -- 1358
-			0.08 -- 1358
-		) -- 1358
-	end -- 1358
-end -- 1293
-function ____exports.createCuffShotsPlugin() -- 1363
-	return __TS__New(____exports.CuffShotsPlugin) -- 1364
-end -- 1363
+		drawHairline( -- 1281
+			uiInkDraw, -- 1281
+			uiArt, -- 1281
+			"g05_line_bar", -- 1281
+			w * 0.5, -- 1281
+			62, -- 1281
+			260, -- 1281
+			PALETTE.amber, -- 1281
+			0.58 * lineAlpha, -- 1281
+			true, -- 1281
+			8 -- 1281
+		) -- 1281
+		ctx.texts:put( -- 1282
+			"sm", -- 1282
+			LINE_G05, -- 1282
+			w * 0.5, -- 1282
+			42, -- 1282
+			toColor(PALETTE.textBright), -- 1282
+			0.5, -- 1282
+			0.5, -- 1282
+			"Center", -- 1282
+			2.2, -- 1282
+			lineAlpha, -- 1282
+			0.08 -- 1282
+		) -- 1282
+	end -- 1282
+end -- 1135
+function CuffShotsPlugin.prototype.renderG05RehearsalShot(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, t) -- 1287
+	local holdExt = smoothstep(0.55, 1.45, t) -- 1297
+	local tilt = smoothstep(1.55, 2.55, t) -- 1298
+	local claspPull = smoothstep(1.4, 1.75, t) -- 1299
+	local armDropY = tilt * (h * 0.28) -- 1300
+	local barH = math.floor(h * 0.072 + 0.5) -- 1301
+	uiDraw:drawRect( -- 1303
+		Rect(0, 0, w, h), -- 1303
+		Color(7, 9, 14, 248) -- 1303
+	) -- 1303
+	local bgTop = lerpRGBA( -- 1304
+		rgba(16, 24, 36, 250), -- 1304
+		rgba(20, 26, 36, 250), -- 1304
+		tilt -- 1304
+	) -- 1304
+	local bgBot = lerpRGBA( -- 1305
+		rgba(10, 15, 24, 250), -- 1305
+		rgba(14, 18, 26, 250), -- 1305
+		tilt -- 1305
+	) -- 1305
+	fillVGradRect( -- 1306
+		uiDraw, -- 1306
+		0, -- 1306
+		barH, -- 1306
+		w, -- 1306
+		h - barH * 2, -- 1306
+		toColor(bgBot), -- 1306
+		toColor(bgTop) -- 1306
+	) -- 1306
+	if tilt > 0.04 then -- 1306
+		drawZhouShuReunionPortrait( -- 1309
+			uiDraw, -- 1309
+			uiInkDraw, -- 1309
+			uiArt, -- 1309
+			uiGlow, -- 1309
+			w, -- 1309
+			h, -- 1309
+			(1 - tilt) * 28, -- 1309
+			tilt -- 1309
+		) -- 1309
+	end -- 1309
+	local handFade = 1 - smoothstep(1.75, 2.38, t) -- 1312
+	if handFade > 0.02 then -- 1312
+		____exports.drawPatchedCuff( -- 1314
+			uiDraw, -- 1314
+			uiGlow, -- 1314
+			{ -- 1314
+				wristX = w * 0.06 + holdExt * (w * 0.38), -- 1315
+				wristY = h * 0.48 - armDropY, -- 1316
+				angleRad = -0.05 + tilt * 0.2, -- 1317
+				scale = 1.24, -- 1318
+				pose = t >= 1.4 and "clasp" or "reach", -- 1319
+				opacity = clamp01(0.28 + holdExt * 0.72) * handFade, -- 1320
+				stitchHighlight = 0.45 + 0.45 * holdExt * (1 - tilt * 0.4), -- 1321
+				cuffPullBack = claspPull * 0.85, -- 1322
+				warmth = tilt * 0.32, -- 1323
+				uiArt = uiArt, -- 1324
+				instanceKey = "g05_reh_zhou_cuff", -- 1325
+				layer = 4 -- 1326
+			} -- 1326
+		) -- 1326
+		drawChildHand( -- 1328
+			uiDraw, -- 1329
+			w * 0.68 - holdExt * (w * 0.12), -- 1330
+			h * 0.44 - armDropY, -- 1331
+			math.pi + 0.06, -- 1332
+			1.22, -- 1333
+			t >= 1.4 and "clasp" or "reach_up", -- 1334
+			clamp01(0.35 + holdExt * 0.65) * handFade, -- 1335
+			true, -- 1336
+			uiArt, -- 1337
+			"g05_reh_child_hand", -- 1338
+			5 -- 1339
+		) -- 1339
+	end -- 1339
+	uiInkDraw:drawRect( -- 1343
+		Rect(0, 0, w, barH), -- 1343
+		Color(6, 8, 12, 246) -- 1343
+	) -- 1343
+	uiInkDraw:drawRect( -- 1344
+		Rect(0, h - barH, w, barH), -- 1344
+		Color(6, 8, 12, 246) -- 1344
+	) -- 1344
+	uiInkDraw:drawSegment( -- 1345
+		Vec2(0, barH), -- 1345
+		Vec2(w, barH), -- 1345
+		0.9, -- 1345
+		toColor(PALETTE.silkDim, 86) -- 1345
+	) -- 1345
+	uiInkDraw:drawSegment( -- 1346
+		Vec2(0, h - barH), -- 1346
+		Vec2(w, h - barH), -- 1346
+		0.9, -- 1346
+		toColor(PALETTE.silkDim, 86) -- 1346
+	) -- 1346
+	local lineAlpha = smoothstep(2.35, 2.65, t) -- 1348
+	if lineAlpha > 0.02 then -- 1348
+		drawSilkVeil( -- 1350
+			uiDraw, -- 1350
+			uiArt, -- 1350
+			"g05_reh_veil", -- 1350
+			w * 0.5, -- 1350
+			42, -- 1350
+			420, -- 1350
+			44, -- 1350
+			PALETTE.inkWash, -- 1350
+			0.86 * lineAlpha, -- 1350
+			7 -- 1350
+		) -- 1350
+		drawHairline( -- 1351
+			uiInkDraw, -- 1351
+			uiArt, -- 1351
+			"g05_reh_bar", -- 1351
+			w * 0.5, -- 1351
+			62, -- 1351
+			260, -- 1351
+			PALETTE.amber, -- 1351
+			0.58 * lineAlpha, -- 1351
+			true, -- 1351
+			8 -- 1351
+		) -- 1351
+		ctx.texts:put( -- 1352
+			"sm", -- 1352
+			LINE_G05, -- 1352
+			w * 0.5, -- 1352
+			42, -- 1352
+			toColor(PALETTE.textBright), -- 1352
+			0.5, -- 1352
+			0.5, -- 1352
+			"Center", -- 1352
+			2.2, -- 1352
+			lineAlpha, -- 1352
+			0.08 -- 1352
+		) -- 1352
+	end -- 1352
+end -- 1287
+function ____exports.createCuffShotsPlugin() -- 1357
+	return __TS__New(____exports.CuffShotsPlugin) -- 1358
+end -- 1357
 --- 供 M1 合流接线与本地验收脚本使用的一键注册辅助：
 -- M1 在 frontend.ts 仅需调用 registerFe01Plugins(this)（不修改热点文件大块代码）。
-function ____exports.registerFe01Plugins(fe) -- 1371
-	local gateTransition = createGateTransitionPlugin() -- 1375
-	local cuffShots = ____exports.createCuffShotsPlugin() -- 1376
-	fe:registerPlugin(gateTransition) -- 1377
-	fe:registerPlugin(cuffShots) -- 1378
-	return {gateTransition = gateTransition, cuffShots = cuffShots} -- 1379
-end -- 1371
-return ____exports -- 1371
+function ____exports.registerFe01Plugins(fe) -- 1365
+	local gateTransition = createGateTransitionPlugin() -- 1369
+	local cuffShots = ____exports.createCuffShotsPlugin() -- 1370
+	fe:registerPlugin(gateTransition) -- 1371
+	fe:registerPlugin(cuffShots) -- 1372
+	return {gateTransition = gateTransition, cuffShots = cuffShots} -- 1373
+end -- 1365
+return ____exports -- 1365

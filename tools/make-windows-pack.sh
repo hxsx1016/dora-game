@@ -136,7 +136,8 @@ done
 shopt -u nullglob
 
 # 3. 按 Dora SSR NativeGameExport.yue 白名单复制最小引擎资源
-for item in Audio Font Image Shader Script/Lib LICENSES gamecontrollerdb.txt; do
+#    Windows 便携包为纯键鼠目标，物理剔除 gamecontrollerdb.txt（省 ~512KB）
+for item in Audio Font Image Shader Script/Lib LICENSES; do
     if [ -d "$SRC/$item" ]; then
         mkdir -p "$OUT/$item"
         rsync -a \
@@ -155,16 +156,42 @@ done
 printf '%s' "$GAME_ID" > "$OUT/dora-game-id"
 {
     printf '%s\n' "$VERSION"
+    printf 'target=windows\n'
     printf 'backend=%s\n' "$BACKEND"
     printf 'engine=Dora SSR v1.10.2\n'
     printf 'commit=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 } > "$OUT/VERSION.txt"
 
-# 5. 注入启动引导、游戏 Lua 模块、完整运行时素材、开源许可与 Windows 图标
+# 5. 注入启动引导、Windows 纯键鼠裁剪后的游戏 Lua 模块、完整运行时素材、开源许可与 Windows 图标
 cp "$ROOT/tools/windows-boot.lua" "$OUT/Script/init.lua"
 cp "$ROOT/init.lua" "$OUT/Script/main.lua"
 mkdir -p "$OUT/Script/watch"
-rsync -a --include='*/' --exclude='testdrive.lua' --include='*.lua' --exclude='*' "$ROOT/Script/watch/" "$OUT/Script/watch/"
+rsync -a --prune-empty-dirs \
+    --exclude='testdrive.lua' \
+    --exclude='platform_mobile.lua' \
+    --exclude='input/aim_assist.lua' \
+    --exclude='input/touch_*.lua' \
+    --exclude='input/gamepad_core.lua' \
+    --exclude='targets/android/' \
+    --exclude='targets/handheld/' \
+    --exclude='targets/web/' \
+    --include='*/' \
+    --include='*.lua' \
+    --exclude='*' \
+    "$ROOT/Script/watch/" "$OUT/Script/watch/"
+cat > "$OUT/Script/watch/target.lua" <<'LUA'
+local ____exports = {}
+local ____target = require("Script.watch.targets.windows.index").TARGET
+function ____exports.resolveTargetId()
+	return "windows"
+end
+function ____exports.resetActiveTarget()
+end
+function ____exports.getActiveTarget()
+	return ____target
+end
+return ____exports
+LUA
 rsync -a --exclude '.DS_Store' --exclude '._*' --exclude '*.md' "$ROOT/assets/" "$OUT/assets/"
 cp "$ROOT/tools/windows-pack-README.md" "$OUT/README.md"
 if [ -f "$ROOT/LICENSE" ]; then
@@ -188,7 +215,20 @@ printf '%s\r\n' \
     > "$OUT/启动-向西守望.cmd"
 
 echo "== 3/4 自校验包内结构与生成 SHA256SUMS"
-for forbidden in www Doc dora-wa dora_godot.dll wa.dll Script/Dev Script/Tools Script/watch/testdrive.lua assets/audio/gate/MANIFEST.md; do
+for forbidden in \
+    www Doc dora-wa dora_godot.dll wa.dll gamecontrollerdb.txt \
+    Script/Dev Script/Tools Script/watch/testdrive.lua \
+    Script/watch/platform_mobile.lua \
+    Script/watch/input/aim_assist.lua \
+    Script/watch/input/touch_core.lua \
+    Script/watch/input/touch_interact_meta.lua \
+    Script/watch/input/touch_hud_landscape.lua \
+    Script/watch/input/touch_hud_portrait.lua \
+    Script/watch/input/gamepad_core.lua \
+    Script/watch/targets/android \
+    Script/watch/targets/handheld \
+    Script/watch/targets/web \
+    assets/audio/gate/MANIFEST.md; do
     if [ -e "$OUT/$forbidden" ]; then
         echo "打包自检失败：发现不应包含的冗余文件/目录 $forbidden" >&2
         exit 1
@@ -204,6 +244,9 @@ for required in \
     "Script/main.lua" \
     "Script/Lib/lualib_bundle.lua" \
     "Script/watch/app.lua" \
+    "Script/watch/target.lua" \
+    "Script/watch/targets/windows/index.lua" \
+    "Script/watch/input/kbm_core.lua" \
     "Script/watch/fe/frontend.lua" \
     "assets/art/title.png" \
     "assets/art/brand/game_logo_h.png" \

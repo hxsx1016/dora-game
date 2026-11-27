@@ -19,11 +19,11 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { Play } from "Script/watch/play";
+import { GATE_FAREWELL_TICKS, Play, PROLOGUE_GIVE_TICKS } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     G05_PIXEL_RETURN_END,
@@ -536,6 +536,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
 
     // Live 过渡态
     private p03Progress = 0;
+    private p05Progress = 0;
     private p05ExitTimer = -1;
     private g05SleeveExtend = 0;
     private g05ReunionElapsed = 0;
@@ -548,6 +549,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         this.prevPhase = p.phase;
         this.activeShot = "";
         this.p03Progress = 0;
+        this.p05Progress = 0;
         this.p05ExitTimer = -1;
         this.g05SleeveExtend = 0;
         this.g05ReunionElapsed = 0;
@@ -618,11 +620,11 @@ export class CuffShotsPlugin implements FeRenderPlugin {
 
         this.activeShot = "";
 
-        // 2. P03 柜边相认（正式模式：prologue-give 60 拍或未来独立长拍均自适应归一化）
+        // 2. P03 柜边相认（正式模式：prologue-give 180 拍 = 3.0s，完整呈现拂瓷与递针套）
         if (p.room.key === "prologue" && p.phase === "prologue-give") {
             this.activeShot = "P03";
-            this.p03Progress = clamp01(p.phaseTick / 60);
-            if (!ctx.paused && this.p03Progress >= 0.25) {
+            this.p03Progress = clamp01(p.phaseTick / PROLOGUE_GIVE_TICKS);
+            if (!ctx.paused && this.p03Progress >= 0.18) {
                 ctx.audio.playOnce(
                     "cuff:p03:wipe:" + ctx.events.roomSessionId,
                     "sfx",
@@ -648,19 +650,13 @@ export class CuffShotsPlugin implements FeRenderPlugin {
             this.p03Progress = 0;
         }
 
-        // 3. P05 城门送别：gate-send 近门预期 → gate-send 切换至 gate-count 瞬间触发 0.8s 袖口退出衔接 G01
-        if (p.room.key === "gate") {
-            if (this.prevPhase === "gate-send" && p.phase === "gate-count" && view.countElapsedTicks <= 8) {
-                this.p05ExitTimer = 0;
-                if (!ctx.paused) {
-                    ctx.audio.playOnce(
-                        "cuff:p05:slam:" + ctx.events.roomSessionId,
-                        "sfx",
-                        GATE_AUDIO_ROOT + "gate_slam.wav",
-                        0.92,
-                        "cuff:p05:gate_slam",
-                        p.ticks,
-                    );
+        // 3. P05 城门送别：独占独立 gate-farewell 阶段（220 拍 ≈ 3.67s），播完嘱咐与落门再进入 G01 数到二十
+        if (p.room.key === "gate" && p.phase === "gate-farewell") {
+            this.activeShot = "P05";
+            this.p05Progress = clamp01(p.phaseTick / GATE_FAREWELL_TICKS);
+            this.p05ExitTimer = p.phaseTick / 60;
+            if (!ctx.paused) {
+                if (this.p05Progress >= 0.14) {
                     ctx.audio.playOnce(
                         "cuff:p05:line:" + ctx.events.roomSessionId,
                         "voice",
@@ -670,22 +666,21 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                         p.ticks,
                     );
                 }
-            }
-            if (this.p05ExitTimer >= 0) {
-                if (p.phase !== "gate-count" || view.countElapsedTicks > 240) {
-                    this.p05ExitTimer = -1;
-                } else {
-                    if (dt > 0) {
-                        this.p05ExitTimer += dt;
-                    }
-                    if (this.p05ExitTimer >= 3.6) {
-                        this.p05ExitTimer = -1;
-                    } else {
-                        this.activeShot = "P05";
-                    }
+                if (this.p05Progress >= 0.70) {
+                    ctx.audio.playOnce(
+                        "cuff:p05:slam:" + ctx.events.roomSessionId,
+                        "sfx",
+                        GATE_AUDIO_ROOT + "gate_slam.wav",
+                        0.92,
+                        "cuff:p05:gate_slam",
+                        p.ticks,
+                    );
                 }
             }
+            this.prevPhase = p.phase;
+            return;
         } else {
+            this.p05Progress = 0;
             this.p05ExitTimer = -1;
         }
 
@@ -821,14 +816,11 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         }
 
         if (this.activeShot === "P05") {
-            if (this.rehearsalShot === "P05") {
-                const prog = clamp01(this.rehearsalTime / this.rehearsalDuration);
-                this.renderP05FullShot(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog);
-                return true;
-            }
-            // Live gate-send→gate-count 首 3.6s 送别衔接：补线袖口隔布轻捏 + 定稿嘱咐台词 + 随落门抽离接 G01
-            this.renderP05ExitBridge(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, clamp01(this.p05ExitTimer / 3.6));
-            return false;
+            const prog = this.rehearsalShot === "P05"
+                ? clamp01(this.rehearsalTime / this.rehearsalDuration)
+                : this.p05Progress;
+            this.renderP05FullShot(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h, prog);
+            return true;
         }
 
         if (this.activeShot === "G05") {
@@ -975,11 +967,13 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         uiInkDraw.drawRect(Rect(0, h - barH, w, barH), Color(6, 8, 12, Math.round(245 * fade)));
         uiInkDraw.drawSegment(Vec2(0, barH), Vec2(w, barH), 0.9, toColor(PALETTE.silkDim, Math.round(86 * fade)));
         uiInkDraw.drawSegment(Vec2(0, h - barH), Vec2(w, h - barH), 0.9, toColor(PALETTE.silkDim, Math.round(86 * fade)));
-        drawSilkVeil(uiDraw, uiArt, "p03_sub_veil", w * 0.5, 42, 520, 42, PALETTE.inkWash, 0.82 * fade, 7);
-        const subText = prog < 0.68
-            ? "青布袖口掠过柜沿，轻轻拂开了碎瓷。"
-            : "「是我，别怕。……这个沉，替我揣怀里。」";
-        ctx.texts.put("sm", subText, w * 0.5, 42, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.0, fade, 0.08);
+        if (this.rehearsalShot === "P03") {
+            drawSilkVeil(uiDraw, uiArt, "p03_sub_veil", w * 0.5, 42, 520, 42, PALETTE.inkWash, 0.82 * fade, -1);
+            const subText = prog < 0.68
+                ? "青布袖口掠过柜沿，轻轻拂开了碎瓷。"
+                : "「是我，别怕。……这个沉，替我揣怀里。」";
+            ctx.texts.put("sm", subText, w * 0.5, 42, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.0, fade, 0.08);
+        }
     }
 
     /**
@@ -1189,10 +1183,10 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                     5,
                 );
 
-                // 极细霜月进度丝（贴近底部黑边，无现代仪表感）
+                // 极细霜月进度丝（贴近底部黑边，留出上方空间给 G05 对白幕）
                 const barW = 240;
                 const bx0 = w * 0.5 - barW * 0.5;
-                const by0 = 32;
+                const by0 = 18;
                 uiInkDraw.drawSegment(Vec2(bx0, by0), Vec2(bx0 + barW, by0), 1.2, toColor(PALETTE.silkDim, 110));
                 uiInkDraw.drawSegment(Vec2(bx0, by0), Vec2(bx0 + barW * ext, by0), 2.4, toColor(PALETTE.amberCore, 230));
             } else {
@@ -1215,7 +1209,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "g05_assist_veil", w * 0.5, h - 26, 280, 28, PALETTE.inkWash, 0.72, 7);
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout),
                     w * 0.5,
                     h - 26,
                     toColor(PALETTE.amberCore),

@@ -251,10 +251,10 @@ local pmd = newPlay(rooms.MUSEUM_ROOM, "debug", save.loadSave().state)
 pmd.player.x = pmd.ox + 200
 i = newInput(); tap(i, "interact"); step(pmd, i)
 check("D5 调试馆内只预览", pmd.archive.museumPhase ~= "hall_walk" and save.saveSignature(save.loadSave().state) == sigF, "")
--- D6 trial 与正式档隔离
-local tr = runmod.createTrial(20261125)
-check("D6 试炼来源", tr.source == "trial", tr.source)
-check("D6 试炼档案独立", tr.archive ~= profile and tr.archive.artifactOwned == false, "")
+-- D6 chapter 独立预览局与正式档隔离
+local ch = runmod.createRun(20261125, "chapter")
+check("D6 章节预览来源", ch.source == "chapter", ch.source)
+check("D6 章节预览档案独立", ch.archive ~= profile and ch.archive.artifactOwned == false, "")
 
 say("== E. 输入实走 ==")
 save.setSaveFile(C)

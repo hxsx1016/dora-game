@@ -14,11 +14,11 @@
  *    - 重复制作仅播短递交动作（0.45 秒）；读档/切房按快照完整还原。
  */
 
-import { Color, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { ZERO_SAFE_INSETS } from "Script/watch/platform";
+import { getActiveTarget } from "Script/watch/target";
 import { AssetSlotHost } from "Script/watch/fe/assets";
-import { keyTagFor } from "Script/watch/fe/ui/control_prompts";
 import {
     CraftRecipeView,
     DualRouteContract,
@@ -201,10 +201,6 @@ export class CraftBenchPlugin implements FeRenderPlugin {
     // 输入边沿状态（防 app.ts clearEdges 丢边沿）
     private prevLeft = false;
     private prevRight = false;
-    private prevLeftKey = false;
-    private prevRightKey = false;
-    private prevConfirm = false;
-    private prevCancel = false;
     private pointerActive = false;
 
     // 布局缓存（供点击命中与测试定位）
@@ -282,15 +278,9 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         }
     }
 
-    private resetInputEdges(touchMode: boolean = false): void {
-        this.prevLeft = !touchMode && typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
-        this.prevRight = !touchMode && typeof Mouse !== "undefined" ? Mouse.rightButtonPressed : false;
-        if (typeof Keyboard !== "undefined") {
-            this.prevLeftKey = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
-            this.prevRightKey = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
-            this.prevConfirm = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
-            this.prevCancel = Keyboard.isKeyPressed(KeyName.Escape) || Keyboard.isKeyPressed(KeyName.BackSpace);
-        }
+    private resetInputEdges(_touchMode: boolean = false): void {
+        this.prevLeft = false;
+        this.prevRight = false;
     }
 
     private submitIntent(p: Play, intent: FrontendIntent): boolean {
@@ -460,13 +450,12 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const inside = sim?.pointerX !== undefined
             ? true
             : (useUiPtr ? ctx.input.uiInside : ctx.input.inside);
-        const kbmMode = ctx.input.inputMode === "kbm";
         const leftHeld = sim?.click !== undefined
             ? sim.click
-            : (ctx.input.uiHeld || ctx.input.fire.held || (kbmMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
+            : (ctx.input.uiHeld || ctx.input.fire.held);
         const rightHeld = sim?.rightClick !== undefined
             ? sim.rightClick
-            : (ctx.input.uiRightPressed || (kbmMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
+            : ctx.input.uiRightPressed;
 
         const click = sim?.click !== undefined
             ? sim.click
@@ -486,24 +475,10 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             confirm = sim.confirm === true;
             cancel = sim.cancel === true;
         } else {
-            if (typeof Keyboard !== "undefined") {
-                const lk = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
-                const rk = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
-                const cf = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
-                const cc = Keyboard.isKeyPressed(KeyName.BackSpace);
-                if (lk && !this.prevLeftKey) { move -= 1; }
-                if (rk && !this.prevRightKey) { move += 1; }
-                confirm = cf && !this.prevConfirm;
-                cancel = cc && !this.prevCancel;
-                this.prevLeftKey = lk;
-                this.prevRightKey = rk;
-                this.prevConfirm = cf;
-                this.prevCancel = cc;
-            }
             if (ctx.input.navLeft || ctx.input.navPrevTab) { move -= 1; }
             if (ctx.input.navRight || ctx.input.navNextTab) { move += 1; }
-            if (ctx.input.navConfirm) { confirm = true; }
-            if (ctx.input.navBack) { cancel = true; }
+            if (ctx.input.craftConfirm || ctx.input.navConfirm) { confirm = true; }
+            if (ctx.input.craftCancel || ctx.input.navBack) { cancel = true; }
         }
 
         // 右键或点击「收起」取消工台：完整保留所有材料
@@ -657,7 +632,7 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             toColor(closeHover ? PALETTE.amberCore : PALETTE.silkDim, 185 * appear),
         );
         const closeText = ctx.input.isGamepadMode()
-            ? (keyTagFor("back", "gamepad", ctx.input.gamepadLayout) + " 收起")
+            ? (getActiveTarget().keyTagFor("back", "gamepad", ctx.input.gamepadLayout) + " 收起")
             : "收起";
         ctx.texts.put(
             "xs",

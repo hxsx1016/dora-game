@@ -10,8 +10,8 @@ local Vec2 = ____Dora.Vec2 -- 29
 local ____cuff_shots = require("Script.watch.fe.cutscenes.cuff_shots") -- 38
 local CUFF_PALETTE = ____cuff_shots.CUFF_PALETTE -- 39
 local drawPatchedCuff = ____cuff_shots.drawPatchedCuff -- 40
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 43
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 43
+local ____target = require("Script.watch.target") -- 43
+local getActiveTarget = ____target.getActiveTarget -- 43
 local ____theme = require("Script.watch.fe.theme") -- 44
 local PALETTE = ____theme.PALETTE -- 45
 local drawHairline = ____theme.drawHairline -- 46
@@ -576,8 +576,8 @@ function WellMuseumPlugin.prototype.resetPhaseTimersForEntry(self, phase, backen
 	end -- 647
 end -- 611
 function WellMuseumPlugin.prototype.evaluateGate(self, p, view) -- 651
-	if p.run.trial ~= nil then -- 651
-		return {open = false, reason = "trial_mode"} -- 653
+	if p.run.source == "chapter" then -- 651
+		return {open = false, reason = "chapter_preview"} -- 653
 	end -- 653
 	if p.room.key ~= "prologue" then -- 653
 		return {open = false, reason = "not_prologue"} -- 656
@@ -1099,7 +1099,7 @@ function WellMuseumPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw,
 			) -- 1189
 			ctx.texts:put( -- 1190
 				"xs", -- 1191
-				adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1192
+				getActiveTarget():adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1192
 				sx, -- 1193
 				sy, -- 1194
 				toColor(PALETTE.textBright), -- 1195
@@ -1986,7 +1986,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 			) -- 1710
 			ctx.texts:put( -- 1711
 				"xs", -- 1712
-				adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1713
+				getActiveTarget():adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1713
 				lampSx, -- 1714
 				floorY + 158, -- 1715
 				toColor(PALETTE.textBright), -- 1716

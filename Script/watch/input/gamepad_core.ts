@@ -1,20 +1,11 @@
 /**
- * 《向西守望》纯手柄输入驱动层（面向所有平台：桌面 / Web / Android / KTR 掌机 / 标准 SDL2 手柄）。
+ * 《向西守望》纯手柄输入驱动内核（仅安卓掌机与 Web 目标引入）。
  *
- * 职责边界（深度解耦）：
- * - 只负责轮询 Dora SSR Controller（自动扫描 0..3 槽位 + 帧间按钮锁存 + 自动化测试状态注入），
- *   不再私建触控监听、不再重复实现安全区换算或界面文案转换；
- * - 共享 ControlSettings（watch-save/controls.txt）与 aim_assist.ts 磁吸工具；
- * - 统一主流手柄手感：
- *   · 左摇杆径向死区 + 2.5D 方映射斜走 + 小满内圈 (<0.56) 轻步慢走 + 2D 房防误蹲；
- *   · 右摇杆 360° 准星投射 + 共享方向锥磁吸 + 小满投瓶落点微调与 B 键安全取消；
- *   · 扳机滞回（0.35 / 0.20）兼容数字与模拟扳机固件；
- *   · 避让 Dora Go 退出热键（Back + Start 静默锁定，单按 Start 暂停，单按 Back 长按 0.55s 重试）；
- *   · 3×3 换弹盘 8 向斜推直连、菜单左摇杆连发（0.55 / 0.38s / 0.13s）与 Xbox/日系 A/B 确认切换。
+ * 注意：Windows 与 Android 手机/平板发行包不引入、不打包本模块。
  */
 
 import { AxisName, ButtonName, Controller, Node, Size, Vec2 } from "Dora";
-import { AimTargetCandidate, snapConeAim } from "Script/watch/aim_assist";
+import { AimTargetCandidate, snapConeAim } from "Script/watch/input/aim_assist";
 import {
     ControlSettings,
     GamepadLayout,
@@ -23,43 +14,27 @@ import {
 } from "Script/watch/controls_config";
 
 export interface GamepadFrameContext {
-    /** 主舞台局部宽高（左下原点，兼容横屏、3:2/4:3 与竖屏上舞台） */
     stageW: number;
     stageH: number;
     uiScale: number;
-    /** 标题/选章/操作说明/暂停/换弹盘/工台等模态界面 */
     modal: boolean;
-    /** 是否处于局内试玩态（mode === 1 正式或 mode === 2 试炼） */
     gameplayActive: boolean;
-    /** 3×3 慢时连线换弹盘开启 */
     reloadActive: boolean;
-    /** 第三段安全工台开启 */
     craftActive: boolean;
-    /** 当前可见的三选一本领卡数量 */
     talentOfferCount: number;
     childMode: boolean;
-    /** 是否允许上下纵深移动（周戍全房 + 序章逃柜） */
     allowDepth: boolean;
-    /** 是否处于可射击状态 */
     canShoot: boolean;
-    /** 是否处于空村持瓶可瞄投状态 */
     canBottleAim: boolean;
-    /** 正在翻滚 */
     playerRolling: boolean;
-    /** 处于低拱强制低姿区 */
     inLowArch: boolean;
-    /** 北塔尾声可确认重开 */
     inTowerEnd: boolean;
-    /** 主角朝向（1 右 / -1 左） */
     playerFacing: number;
-    /** 主角枪口/身体在主舞台局部空间的锚点 */
     playerScreenX: number;
     playerScreenY: number;
-    /** 当前房内可见活体敌兵列表（舞台局部坐标） */
     enemyTargets: AimTargetCandidate[];
 }
 
-/** 原始手柄状态快照（既由物理 Controller 采样生成，也可供自动化测试直接注入）。 */
 export interface GamepadRawState {
     a?: boolean;
     b?: boolean;
@@ -84,11 +59,8 @@ export interface GamepadRawState {
 }
 
 export interface GamepadSnapshot {
-    /** 本帧是否检测到任何手柄有效输入 */
     hadGamepadInput: boolean;
-    /** 本帧是否有任意手柄主按键刚按下（供 Splash 跳过等使用） */
     anyButtonPressed: boolean;
-    /** 水平/纵深移动（-1..1） */
     moveX: number;
     moveY: number;
     jumpHeld: boolean;
@@ -112,7 +84,6 @@ export interface GamepadSnapshot {
     hasAim: boolean;
     aimX: number;
     aimY: number;
-    /** 菜单与弹窗统一导航边沿（含左摇杆连发） */
     navUp: boolean;
     navDown: boolean;
     navLeft: boolean;
@@ -121,14 +92,12 @@ export interface GamepadSnapshot {
     navBack: boolean;
     navPrevTab: boolean;
     navNextTab: boolean;
-    /** 3×3 慢时连线换弹盘 8 向操作（支持左摇杆斜向直选） */
     reloadDirCol: number;
     reloadDirRow: number;
     reloadStepEdge: boolean;
     reloadAutoStep: boolean;
     reloadConfirm: boolean;
     reloadReset: boolean;
-    /** 局内三选一本领卡手柄切选（LB/RB + L3/R3） */
     talentDelta: number;
     talentConfirm: boolean;
 }
@@ -230,7 +199,6 @@ export class GamepadRouter {
         enemyTargets: [],
     };
 
-    // 上一帧按钮状态（边沿检测）
     private prevA = false;
     private prevB = false;
     private prevX = false;
@@ -249,27 +217,22 @@ export class GamepadRouter {
     private rtPressed = false;
     private prevRtPressed = false;
 
-    // Dora Go Back+Start 避让与长按重试计时
     private chordLocked = false;
     private backHoldSec = 0;
     private backRetryFired = false;
 
-    // 蹲伏开关态（仅 crouchToggle 开启时启用）
     private crouchToggled = false;
     private bottleCancelLock = false;
 
-    // 菜单左摇杆方向连发状态
     private repeatDirX = 0;
     private repeatDirY = 0;
     private repeatTimer = 0;
 
-    // 3×3 换弹盘 8 向摇杆步进状态
     private reloadStickCol = 0;
     private reloadStickRow = 0;
     private reloadStickTimer = 0;
     private reloadStickArmed = false;
 
-    // 虚拟准星状态（舞台局部坐标）
     private aimAngle = 0;
     private aimLastFacing = 1;
     private aimX = 640;
@@ -310,7 +273,6 @@ export class GamepadRouter {
         this.listenerNode = n;
     }
 
-    /** 供自动化测试注入虚拟手柄帧状态；传入 undefined 恢复物理 Controller 轮询。 */
     setSimulatedState(state?: GamepadRawState): void {
         this.simState = state;
     }
@@ -476,7 +438,6 @@ export class GamepadRouter {
         const dt = this.lastDt;
         const raw = this.sampleRaw();
 
-        // 扳机滞回判定（兼容数字/模拟两种手柄固件）
         const ltNow = this.ltPressed ? raw.lt > TRIGGER_RELEASE_THRESHOLD : raw.lt > TRIGGER_PRESS_THRESHOLD;
         const rtNow = this.rtPressed ? raw.rt > TRIGGER_RELEASE_THRESHOLD : raw.rt > TRIGGER_PRESS_THRESHOLD;
         this.ltPressed = ltNow;
@@ -540,7 +501,7 @@ export class GamepadRouter {
             ? clamp(this.backHoldSec / RETRY_HOLD_SEC, 0, 1)
             : 0;
 
-        // 2. 左摇杆 + 十字键移动（2.5D 方映射全速斜走 + 小满内圈慢走 + 2D 防误蹲）
+        // 2. 左摇杆 + 十字键移动
         const dpadX = (raw.right ? 1 : 0) - (raw.left ? 1 : 0);
         const dpadY = (raw.down ? 1 : 0) - (raw.up ? 1 : 0);
         let stickMoveX = 0;
@@ -573,7 +534,7 @@ export class GamepadRouter {
         const moveX = bottleSteerLocksMove ? 0 : (dpadX !== 0 ? dpadX : stickMoveX);
         const moveY = bottleSteerLocksMove ? 0 : (dpadY !== 0 ? dpadY : stickMoveY);
 
-        // 3. 模态导航（左摇杆连发器：0.55 死区 / 0.38s 首拍 / 0.13s 连发）
+        // 3. 模态导航（左摇杆连发器）
         const sMenuX = Math.abs(raw.leftX) >= STICK_MENU_DEADZONE ? (raw.leftX > 0 ? 1 : -1) : 0;
         const sMenuY = Math.abs(raw.leftY) >= STICK_MENU_DEADZONE ? (raw.leftY > 0 ? 1 : -1) : 0;
         let stickNavX = 0;
@@ -606,7 +567,7 @@ export class GamepadRouter {
         const navPrevTab = lbPressed;
         const navNextTab = rbPressed;
 
-        // 4. 3×3 慢时连线换弹盘：左摇杆 8 向直推 + 十字键 + 确认/重画
+        // 4. 3×3 换弹盘 8 向操作
         let reloadDirCol = 0;
         let reloadDirRow = 0;
         let reloadStepEdge = false;
@@ -657,10 +618,10 @@ export class GamepadRouter {
         const reloadConfirm = this.ctx.reloadActive && (gpReloadConfirmBtn || yPressed || rtEdge);
         const reloadReset = this.ctx.reloadActive && (gpReloadResetBtn || xPressed);
 
-        // 5. 局内三选一本领卡手柄切选（不阻塞移动）
+        // 5. 局内三选一折笺本领卡手柄切选（同时支持 LB/RB + L3 与模态下左右 + 确认）
         let talentDelta = 0;
         let talentConfirm = false;
-        if (this.ctx.talentOfferCount > 0 && !this.ctx.modal && !this.ctx.reloadActive && !this.ctx.craftActive) {
+        if (this.ctx.talentOfferCount > 0 && !this.ctx.reloadActive && !this.ctx.craftActive) {
             if (lbPressed) talentDelta -= 1;
             if (rbPressed) talentDelta += 1;
             if (lsPressed || rsPressed || (raw.lb && rbPressed) || (raw.rb && lbPressed)) {
@@ -736,7 +697,7 @@ export class GamepadRouter {
             }
         }
 
-        // 7. 虚拟准星计算（主舞台局部坐标 + 共享方向锥磁吸）
+        // 7. 虚拟准星计算
         let hasAim = false;
         const scale = Math.max(0.25, this.ctx.uiScale);
         if (gpActive && !this.ctx.childMode && this.ctx.canShoot) {
@@ -786,7 +747,6 @@ export class GamepadRouter {
             }
         }
 
-        // 8. 更新上一帧物理键状态
         this.prevA = raw.a;
         this.prevB = raw.b;
         this.prevX = raw.x;

@@ -9,6 +9,7 @@ on:
       - 'assets/**'
       - 'art-source/brand/icons/android/**'
       - 'tools/android-boot.lua'
+      - 'tools/handheld-boot.lua'
       - 'tools/patch-android-apk.py'
       - 'tools/make-android-pack.sh'
       - 'tools/audit-assets.py'
@@ -124,7 +125,7 @@ jobs:
             echo "Repository signing secrets unavailable in this context; using ephemeral debug keystore."
           fi
 
-      - name: Build & Sign arm64-v8a and universal APKs
+      - name: Build & Sign Android Phone (touch-only) and Handheld (touch+gamepad) APKs
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -146,6 +147,7 @@ jobs:
 
           bash tools/make-android-pack.sh \
             --template-apk "$TEMPLATE_APK" \
+            --profile "android" \
             --abis "arm64-v8a" \
             --orientation "fullUser" \
             --suffix "android-arm64" \
@@ -162,9 +164,27 @@ jobs:
 
           bash tools/make-android-pack.sh \
             --template-apk "$TEMPLATE_APK" \
+            --profile "android" \
             --abis "arm64-v8a,armeabi-v7a" \
             --orientation "fullUser" \
             --suffix "android-universal" \
+            --out-dir "$OUT_DIR" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --version-code "${{ steps.meta.outputs.version_code }}" \
+            --package "${PACKAGE_NAME}" \
+            --title "${APP_TITLE}" \
+            --keystore "${{ steps.sign.outputs.ks_path }}" \
+            --ks-pass "$KS_PASS" \
+            --ks-alias "$KS_ALIAS" \
+            --key-pass "$KEY_PASS" \
+            --skip-audit
+
+          bash tools/make-android-pack.sh \
+            --template-apk "$TEMPLATE_APK" \
+            --profile "handheld" \
+            --abis "arm64-v8a" \
+            --orientation "sensorLandscape" \
+            --suffix "handheld-arm64" \
             --out-dir "$OUT_DIR" \
             --version "${{ steps.meta.outputs.version }}" \
             --version-code "${{ steps.meta.outputs.version_code }}" \
@@ -182,7 +202,7 @@ jobs:
             cat SHA256SUMS-android.txt
           )
 
-      - name: Verify APK metadata, fullUser rotation, 16KB alignment, permissions & unified assets
+      - name: Verify APK metadata, profile isolation, rotation, 16KB alignment & permissions
         run: |
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
           AAPT2="$BUILD_TOOLS/aapt2"
@@ -191,7 +211,8 @@ jobs:
           OUT_DIR="$RUNNER_TEMP/android-out"
 
           for apk in "$OUT_DIR"/*.apk; do
-            echo "=== Inspecting $(basename "$apk") ==="
+            APK_BASE="$(basename "$apk")"
+            echo "=== Inspecting ${APK_BASE} ==="
             BADGING="$("$AAPT2" dump badging "$apk")"
             echo "$BADGING" | head -n 30
             echo "$BADGING" | grep -q "package: name='${PACKAGE_NAME}'"
@@ -201,7 +222,13 @@ jobs:
               exit 1
             fi
             XMLTREE="$("$AAPT2" dump xmltree "$apk" --file AndroidManifest.xml)"
-            echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0xd|13([^0-9a-fA-F]|$))"
+            if [[ "$APK_BASE" == *-handheld-* ]]; then
+              APK_PROFILE="handheld"
+              echo "$XMLTREE" | grep -E "screenOrientation.*=[[:space:]]*(\(type 0x10\))?(0x0*6|6)[[:space:]]*$"
+            else
+              APK_PROFILE="android"
+              echo "$XMLTREE" | grep -E "screenOrientation.*=[[:space:]]*(\(type 0x10\))?(0x0*d|13)[[:space:]]*$"
+            fi
             "$ZIPALIGN" -c -P 16 -v 4 "$apk" >/dev/null
             "$APKSIGNER" verify --verbose "$apk"
             # 检查 .so ELF LOAD 段对齐情况（记录 16KB 页对齐兼容性）
@@ -216,21 +243,25 @@ jobs:
               done
               rm -rf "$TMP_SO"
             fi
-            python3 - "$apk" <<'PY'
+            python3 - "$apk" "$APK_PROFILE" <<'PY'
           import sys, zipfile
-          with zipfile.ZipFile(sys.argv[1]) as z:
+          apk_path, profile = sys.argv[1], sys.argv[2]
+          with zipfile.ZipFile(apk_path) as z:
               names = set(z.namelist())
-              for req in (
+              common_req = (
                   "assets/Script/init.lua",
                   "assets/Script/main.lua",
                   "assets/Script/watch/app.lua",
+                  "assets/Script/watch/target.lua",
+                  "assets/Script/watch/target_types.lua",
                   "assets/Script/watch/platform.lua",
+                  "assets/Script/watch/platform_mobile.lua",
                   "assets/Script/watch/controls_config.lua",
-                  "assets/Script/watch/aim_assist.lua",
-                  "assets/Script/watch/gamepad.lua",
-                  "assets/Script/watch/touch.lua",
-                  "assets/Script/watch/fe/ui/control_prompts.lua",
-                  "assets/Script/watch/fe/ui/touch_controls.lua",
+                  "assets/Script/watch/input.lua",
+                  "assets/Script/watch/input/aim_assist.lua",
+                  "assets/Script/watch/input/touch_core.lua",
+                  "assets/Script/watch/input/touch_interact_meta.lua",
+                  "assets/Script/watch/input/touch_hud_landscape.lua",
                   "assets/assets/art/title.png",
                   "assets/assets/art/brand/app_icon.png",
                   "assets/assets/art/brand/game_logo_h.png",
@@ -238,15 +269,42 @@ jobs:
                   "assets/assets/art/brand/team_logo_dark.png",
                   "assets/assets/font/lxgw-neo-zhisong.ttf",
                   "assets/assets/audio/combat/shot.wav",
-              ):
-                  assert req in names, f"Missing required APK asset: {req}"
-              for bad in ("assets/www/index.html", "assets/Audio/GeneralUserGS.sf3"):
-                  assert bad not in names, f"Forbidden dev file present: {bad}"
+              )
+              if profile == "handheld":
+                  profile_req = (
+                      "assets/Script/watch/targets/handheld/index.lua",
+                      "assets/Script/watch/input/gamepad_core.lua",
+                      "assets/gamecontrollerdb.txt",
+                  )
+                  profile_bad = (
+                      "assets/Script/watch/input/kbm_core.lua",
+                      "assets/Script/watch/input/touch_hud_portrait.lua",
+                      "assets/Script/watch/targets/windows/index.lua",
+                      "assets/Script/watch/targets/android/index.lua",
+                      "assets/Script/watch/targets/web/index.lua",
+                  )
+              else:
+                  profile_req = (
+                      "assets/Script/watch/targets/android/index.lua",
+                      "assets/Script/watch/input/touch_hud_portrait.lua",
+                  )
+                  profile_bad = (
+                      "assets/gamecontrollerdb.txt",
+                      "assets/Script/watch/input/kbm_core.lua",
+                      "assets/Script/watch/input/gamepad_core.lua",
+                      "assets/Script/watch/targets/windows/index.lua",
+                      "assets/Script/watch/targets/handheld/index.lua",
+                      "assets/Script/watch/targets/web/index.lua",
+                  )
+              for req in common_req + profile_req:
+                  assert req in names, f"[{profile}] Missing required APK asset: {req}"
+              for bad in ("assets/www/index.html", "assets/Audio/GeneralUserGS.sf3") + profile_bad:
+                  assert bad not in names, f"[{profile}] Forbidden dev/cross-target file present: {bad}"
               for n in names:
                   assert not n.endswith("libgodot_android.so") and not n.endswith("libgojni.so"), f"Bloated lib present: {n}"
                   if n.endswith(".so"):
                       assert z.getinfo(n).compress_type == zipfile.ZIP_STORED, f"Native lib not STORED: {n}"
-          print("APK internal structure, unified brand assets & uncompressed .so check PASSED.")
+          print(f"[{profile}] APK internal structure, target isolation & uncompressed .so check PASSED.")
           PY
           done
 

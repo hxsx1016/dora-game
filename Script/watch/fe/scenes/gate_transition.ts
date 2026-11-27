@@ -27,7 +27,7 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import {
     GATE_NIGHTMARE_LIGHT,
     LP_BUCKET,
@@ -1077,7 +1077,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             if (view.assistHintsEnabled) {
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout),
                     w * 0.5,
                     h - 26,
                     toColor(PALETTE.textDim),

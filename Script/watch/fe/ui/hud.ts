@@ -12,7 +12,7 @@ import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { FEAR_MAX } from "Script/watch/escort";
 import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import { SafeInsets, ZERO_SAFE_INSETS } from "Script/watch/platform";
-import { adaptHintSentence, adaptWorldKeyTag } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -36,6 +36,10 @@ export class HudRenderer {
     private time = 0;
     /** 手柄模式下男主线三选一本领卡当前高亮索引 */
     talentSelected = 0;
+    /** 已挂载 RoguelikeUiPlugin 时自动礼让旧版顶部扁矩形与文本行，防止双层叠绘 */
+    roguelikeUiHandled = false;
+    /** 指向 RoguelikeUiPlugin 的选筹热区单一真源（保持 hud.talentCardRects 100% 兼容） */
+    talentRectProvider?: (w: number, h: number, count: number, touchMode: boolean, safeTop: number) => Rect.Type[];
 
     reset(p?: Play): void {
         this.ghostHp = p !== undefined ? p.hp : 3;
@@ -90,7 +94,7 @@ export class HudRenderer {
                     const adapted: WorldPrompt = {
                         x: prompt.x,
                         y: prompt.y,
-                        keyTag: adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout),
+                        keyTag: getActiveTarget().adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout),
                         label: prompt.label,
                         urgent: prompt.urgent,
                         progress: prompt.progress,
@@ -126,6 +130,9 @@ export class HudRenderer {
 
     /** 计算男主线护送段三选一本领卡的 UI 坐标矩形（渲染与点击命中共用单一真源）。 */
     talentCardRects(w: number, h: number, count: number, touchMode: boolean = false, safeTop: number = 0): Rect.Type[] {
+        if (this.talentRectProvider !== undefined) {
+            return this.talentRectProvider(w, h, count, touchMode, safeTop);
+        }
         const out: Rect.Type[] = [];
         if (count <= 0) {
             return out;
@@ -263,7 +270,7 @@ export class HudRenderer {
             if (frozen) {
                 const pulse = 0.65 + 0.35 * Math.sin(this.time * 7.0);
                 if (assistHintsEnabled) {
-                    const calmKey = adaptWorldKeyTag("E", inputMode, gamepadLayout);
+                    const calmKey = getActiveTarget().adaptWorldKeyTag("E", inputMode, gamepadLayout);
                     const keyW = Math.max(22, visualTextWidth(calmKey, 15) + 10);
                     drawSilkKeycap(uiInkDraw, texts, bx + 170, subY - 5, keyW, 22, calmKey, PALETTE.rouge, alpha * pulse, true);
                     texts.put("xs", "轻敲安抚", bx + 176 + keyW, subY + 6, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.8, alpha * pulse, 0.08);
@@ -275,31 +282,33 @@ export class HudRenderer {
             }
         }
 
-        const ranks = p.getStoryTalentRanks();
-        if (ranks !== undefined) {
-            const parts: string[] = [];
-            if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
-            if (ranks.reload > 0) parts.push("熟铳" + ranks.reload);
-            if (ranks.guard > 0) parts.push("护身" + ranks.guard);
-            if (ranks.craft > 0) parts.push("巧手" + ranks.craft);
-            if (parts.length > 0) {
+        if (!this.roguelikeUiHandled) {
+            const ranks = p.getStoryTalentRanks();
+            if (ranks !== undefined) {
+                const parts: string[] = [];
+                if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
+                if (ranks.focus > 0) parts.push("凝神" + ranks.focus);
+                if (ranks.guard > 0) parts.push("护身" + ranks.guard);
+                if (ranks.salvage > 0) parts.push("拾料" + ranks.salvage);
+                if (parts.length > 0) {
+                    const subY = by - 22;
+                    const txt = "本领 · " + parts.join(" · ");
+                    drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.56 * alpha, -1);
+                    texts.put("xs", txt, bx + 14, subY + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+                }
+            } else if (p.isCampaign && p.room.campaign !== undefined && (p.room.campaign.chapter === "S" || p.room.campaign.chapter === "C")) {
+                const inv = p.run.inventory;
+                const items: string[] = [];
+                if (inv.shield > 0) items.push("残盾" + inv.shield);
+                if (inv.wedge > 0) items.push("木楔" + inv.wedge);
+                if (inv.ammo > 0) items.push("弹包" + inv.ammo);
+                if (inv.scrap > 0) items.push("木料" + inv.scrap);
+                const companionText = p.run.joined ? "小满同行" : "小满等待";
+                const summary = items.length > 0 ? (companionText + " · " + items.join(" ")) : companionText;
                 const subY = by - 22;
-                const txt = "本领 · " + parts.join(" · ");
-                drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.56 * alpha, -1);
-                texts.put("xs", txt, bx + 14, subY + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+                drawSilkVeil(uiDraw, uiArt, "hud_camp_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.54 * alpha, -1);
+                texts.put("xs", summary, bx + 14, subY + 6, toColor(p.run.joined ? PALETTE.cyanCore : PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
             }
-        } else if (p.isCampaign && p.room.campaign !== undefined && (p.room.campaign.chapter === "S" || p.room.campaign.chapter === "C")) {
-            const inv = p.run.inventory;
-            const items: string[] = [];
-            if (inv.shield > 0) items.push("残盾" + inv.shield);
-            if (inv.wedge > 0) items.push("木楔" + inv.wedge);
-            if (inv.ammo > 0) items.push("弹包" + inv.ammo);
-            if (inv.scrap > 0) items.push("木料" + inv.scrap);
-            const companionText = p.run.joined ? "小满同行" : "小满等待";
-            const summary = items.length > 0 ? (companionText + " · " + items.join(" ")) : companionText;
-            const subY = by - 22;
-            drawSilkVeil(uiDraw, uiArt, "hud_camp_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.54 * alpha, -1);
-            texts.put("xs", summary, bx + 14, subY + 6, toColor(p.run.joined ? PALETTE.cyanCore : PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
         }
     }
 
@@ -338,7 +347,7 @@ export class HudRenderer {
             col = PALETTE.emerald;
         } else if (p.hasBottle) {
             posture = assistHintsEnabled
-                ? adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout)
+                ? getActiveTarget().adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout)
                 : "手持陶瓶";
             col = PALETTE.amberCore;
         }
@@ -385,7 +394,7 @@ export class HudRenderer {
     ): void {
         const touchMode = inputMode === "touch";
         const talentOffers = p.getStoryTalentOffers();
-        if (talentOffers.length > 0 && !p.craftBench.active && !p.reloadOpen) {
+        if (!this.roguelikeUiHandled && talentOffers.length > 0 && !p.craftBench.active && !p.reloadOpen) {
             const boxes = this.talentCardRects(w, h, talentOffers.length, touchMode, safe.top);
             const cx = w * 0.5;
             const titleY = h - 54 - safe.top;
@@ -434,8 +443,8 @@ export class HudRenderer {
                 const by = h - 64 - safe.top;
                 const tied = p.phase === "gate-hand";
                 const ratio = tied ? 1 : Math.max(0, Math.min(1, p.handTicks / Math.max(1, p.handNeedTicks)));
-                const holdInteractKey = adaptWorldKeyTag("按住 E", inputMode, gamepadLayout);
-                const reholdInteractKey = adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout);
+                const holdInteractKey = getActiveTarget().adaptWorldKeyTag("按住 E", inputMode, gamepadLayout);
+                const reholdInteractKey = getActiveTarget().adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout);
                 const label = tied ? "我们走吧。"
                     : (p.handTicks > 0 ? "牵起小满 · " + p.handTicks + " / " + p.handNeedTicks
                         : (p.handArmed ? (holdInteractKey + " · 把手伸给她") : (reholdInteractKey + " · 把手伸给她")));
@@ -471,7 +480,7 @@ export class HudRenderer {
                 drawHairline(uiInkDraw, uiArt, "hud_gate_top", cx, by + 39, bw - 20, PALETTE.rougeSoft, 0.55 * alpha, false, 2);
 
                 const idleNeedConfirmLabel = assistHintsEnabled
-                    ? adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout)
+                    ? getActiveTarget().adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout)
                     : "绞盘待命";
                 const label = p.phase === "gate-idle"
                     ? (p.gateNeedConfirm ? idleNeedConfirmLabel : "待小满就位 · 绞盘启")

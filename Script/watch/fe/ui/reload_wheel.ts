@@ -16,12 +16,12 @@
  *    - 盘面智能停靠侧方，画内同时可见周戍、背上探手的小满与远处敌人。
  */
 
-import { Color, Content, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { Color, Content, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { ZERO_SAFE_INSETS } from "Script/watch/platform";
+import { getActiveTarget } from "Script/watch/target";
 import { AssetSlotHost } from "Script/watch/fe/assets";
-import { keyTagFor } from "Script/watch/fe/ui/control_prompts";
 import {
     DualRouteContract,
     DualRouteSnapshot,
@@ -335,12 +335,6 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
     private pointerActive = false;
     private prevLeft = false;
     private prevRight = false;
-    private prevUp = false;
-    private prevDown = false;
-    private prevLeftKey = false;
-    private prevRightKey = false;
-    private prevConfirm = false;
-    private prevReset = false;
     private localInvalidFlash = 0;
     private animTime = 0;
     private nodePulseSeq = 0;
@@ -430,17 +424,9 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         this.resetInputEdges();
     }
 
-    private resetInputEdges(touchMode: boolean = false): void {
-        this.prevLeft = !touchMode && typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
-        this.prevRight = !touchMode && typeof Mouse !== "undefined" ? Mouse.rightButtonPressed : false;
-        if (typeof Keyboard !== "undefined") {
-            this.prevUp = Keyboard.isKeyPressed(KeyName.W) || Keyboard.isKeyPressed(KeyName.Up);
-            this.prevDown = Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down);
-            this.prevLeftKey = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
-            this.prevRightKey = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
-            this.prevConfirm = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
-            this.prevReset = Keyboard.isKeyPressed(KeyName.BackSpace);
-        }
+    private resetInputEdges(_touchMode: boolean = false): void {
+        this.prevLeft = false;
+        this.prevRight = false;
     }
 
     private submitIntent(p: Play, intent: FrontendIntent): boolean {
@@ -646,13 +632,12 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         const inside = sim?.pointerX !== undefined
             ? true
             : (useUiPtr ? ctx.input.uiInside : ctx.input.inside);
-        const kbmMode = ctx.input.inputMode === "kbm";
         const leftHeld = sim?.leftHeld !== undefined
             ? sim.leftHeld
-            : (ctx.input.uiHeld || ctx.input.fire.held || (kbmMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
+            : (ctx.input.uiHeld || ctx.input.fire.held);
         const rightHeld = sim?.rightHeld !== undefined
             ? sim.rightHeld
-            : (ctx.input.uiRightPressed || (kbmMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
+            : ctx.input.uiRightPressed;
 
         const leftPressed = sim?.leftHeld !== undefined
             ? (leftHeld && !this.prevLeft)
@@ -745,35 +730,13 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             confirmPressed = sim.confirm === true;
             resetPressed = sim.reset === true;
         } else {
-            if (typeof Keyboard !== "undefined") {
-                const up = Keyboard.isKeyPressed(KeyName.W) || Keyboard.isKeyPressed(KeyName.Up);
-                const down = Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down);
-                const lk = Keyboard.isKeyPressed(KeyName.A) || Keyboard.isKeyPressed(KeyName.Left);
-                const rk = Keyboard.isKeyPressed(KeyName.D) || Keyboard.isKeyPressed(KeyName.Right);
-                const confirm = Keyboard.isKeyPressed(KeyName.Return) || Keyboard.isKeyPressed(KeyName.Space) || Keyboard.isKeyPressed(KeyName.E);
-                const reset = Keyboard.isKeyPressed(KeyName.BackSpace);
-
-                if (up && !this.prevUp) { dRow += 1; }
-                if (down && !this.prevDown) { dRow -= 1; }
-                if (rk && !this.prevRightKey) { dCol += 1; }
-                if (lk && !this.prevLeftKey) { dCol -= 1; }
-                confirmPressed = confirm && !this.prevConfirm;
-                resetPressed = reset && !this.prevReset;
-
-                this.prevUp = up;
-                this.prevDown = down;
-                this.prevLeftKey = lk;
-                this.prevRightKey = rk;
-                this.prevConfirm = confirm;
-                this.prevReset = reset;
-            }
             if (ctx.input.reloadReset) {
                 resetPressed = true;
             }
             if (ctx.input.reloadConfirm) {
                 confirmPressed = true;
             }
-            if (dCol === 0 && dRow === 0 && ctx.input.reloadStepEdge) {
+            if (ctx.input.reloadStepEdge) {
                 dCol = ctx.input.reloadDirCol;
                 dRow = ctx.input.reloadDirRow;
                 gpAutoCommit = ctx.input.reloadAutoStep;
@@ -1162,7 +1125,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         if (active && ctx.view.assistHintsEnabled) {
             const mode = ctx.input.inputMode;
             const hint = mode === "gamepad"
-                ? ("左摇杆八向直连至右上 · " + keyTagFor("back", "gamepad", ctx.input.gamepadLayout) + " 重画")
+                ? ("左摇杆八向直连至右上 · " + getActiveTarget().keyTagFor("back", "gamepad", ctx.input.gamepadLayout) + " 重画")
                 : (mode === "touch"
                     ? "单指一笔滑连至右上 · 点重画清空"
                     : "拖线或方向+回车连至右上");

@@ -40,7 +40,7 @@ import {
     drawPatchedCuff,
 } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import {
     PALETTE,
     drawHairline,
@@ -649,8 +649,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     }
 
     private evaluateGate(p: Play, view: DualRouteSnapshot): { open: boolean; reason: string } {
-        if (p.run.trial !== undefined) {
-            return { open: false, reason: "trial_mode" };
+        if (p.run.source === "chapter") {
+            return { open: false, reason: "chapter_preview" };
         }
         if (p.room.key !== "prologue") {
             return { open: false, reason: "not_prologue" };
@@ -1189,7 +1189,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "fe06_well_hint_veil", sx, sy, 132, 26, PALETTE.panelBg, 0.82, 1);
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout),
                     sx,
                     sy,
                     toColor(PALETTE.textBright),
@@ -1710,7 +1710,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "fe06_lamp_hint_veil", lampSx, floorY + 158, 146, 28, PALETTE.panelBg, 0.84, 1);
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout),
                     lampSx,
                     floorY + 158,
                     toColor(PALETTE.textBright),

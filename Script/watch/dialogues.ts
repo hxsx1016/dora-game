@@ -72,6 +72,11 @@ export const SCRIPT_DIALOGUES: Record<string, ScriptDialogueLine> = {
     // ── S3 牌楼后巷 ──
     D06: { id: "D06", who: "小满", text: "没落下。", duration: 2.0 },
 
+    // ── C1 候检院 ──
+    C1A: { id: "C1A", who: "小满", text: "哥，这院子堵死了……", duration: 2.4 },
+    C1B: { id: "C1B", who: "周戍", text: "绕栏后走。横闩在门背，我替你掀开。", duration: 2.8 },
+    C1C: { id: "C1C", who: "周戍", text: "闩开了，紧跟我进粮棚。", duration: 2.2 },
+
     // ── C2 军粮棚 ──
     D07: { id: "D07", who: "小满", text: "车轮压过这儿——你看，石槽磨亮了。", duration: 3.0 },
     D43: { id: "D43", who: "周戍", text: "抓紧我衣角。车轮响，也别松手。", duration: 2.8 },

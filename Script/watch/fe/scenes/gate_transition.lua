@@ -9,8 +9,8 @@ local Rect = ____Dora.Rect -- 24
 local Vec2 = ____Dora.Vec2 -- 24
 local ____play = require("Script.watch.play") -- 25
 local GATE_COUNT_END = ____play.GATE_COUNT_END -- 25
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 30
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 30
+local ____target = require("Script.watch.target") -- 30
+local getActiveTarget = ____target.getActiveTarget -- 30
 local ____lowpoly = require("Script.watch.fe.renderer.lowpoly") -- 31
 local GATE_NIGHTMARE_LIGHT = ____lowpoly.GATE_NIGHTMARE_LIGHT -- 32
 local LP_BUCKET = ____lowpoly.LP_BUCKET -- 33
@@ -1160,7 +1160,7 @@ function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkD
 		if view.assistHintsEnabled then -- 1074
 			ctx.texts:put( -- 1078
 				"xs", -- 1079
-				adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1080
+				getActiveTarget():adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1080
 				w * 0.5, -- 1081
 				h - 26, -- 1082
 				toColor(PALETTE.textDim), -- 1083

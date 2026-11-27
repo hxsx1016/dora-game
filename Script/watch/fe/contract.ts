@@ -87,6 +87,39 @@ export interface ArchiveSnapshot {
     museumSeen: boolean;
 }
 
+export interface RoguelikeStageNode {
+    key: string;
+    label: string;
+    isBench: boolean;
+    isFinal: boolean;
+    cleared: boolean;
+    current: boolean;
+}
+
+export interface RoguelikeSnapshot {
+    active: boolean;
+    showRouteTrack: boolean;
+    seed: number;
+    ticks: number;
+    routeTag: string;
+    roomKey: string;
+    offers: string[];
+    ranks: Record<string, number>;
+    totalRanks: number;
+    hp: number;
+    maxHp: number;
+    reloadTicksNow: number;
+    invulnTicksNow: number;
+    craftTicksNow: number;
+    activeReloadTicks: number;
+    activeInvulnTicks: number;
+    activeCraftTicks: number;
+    equippedWeapon: string;
+    supplies: Record<string, number>;
+    stages: RoguelikeStageNode[];
+    talentLabelHints: Record<string, string>;
+}
+
 export interface DualRouteSnapshot {
     /** 1. 城门 80% 血量锁存结果；正式模式缺字段固定返回 undecided */
     storyRoute: StoryRoute;
@@ -99,7 +132,7 @@ export interface DualRouteSnapshot {
     gateReunion: GateReunionSnapshot;
     /** 4. 牵手 / 蹲背 / 背负 / 工台放下状态 */
     backCarry: BackCarrySnapshot;
-    /** 5. 世界慢时倍率（常规 1，换弹慢时约 0.25） */
+    /** 5. 世界慢时倍率（常规 1，换弹/选筹慢时约 0.25） */
     timeScale: number;
     /** 6. 3×3 慢时连线换弹会话 */
     reloadSession: ReloadSessionSnapshot;
@@ -107,6 +140,8 @@ export interface DualRouteSnapshot {
     craftBench: CraftBenchSnapshot;
     /** 8. 双通关档案与水井/现代展厅状态 */
     archive: ArchiveSnapshot;
+    /** 9. 肉鸽构筑、筹签、随身战备与北行里程快照 */
+    roguelike: RoguelikeSnapshot;
     /** 默认关闭的低引导「按键辅助」开关（由暂停菜单切换） */
     assistHintsEnabled: boolean;
     /** 统一推导的当前画面风格模式 */
@@ -130,7 +165,8 @@ export type FrontendIntent =
     | { kind: "craftSubmit"; requestId: string; recipeId: string }
     | { kind: "craftEquip"; weaponId: string }
     | { kind: "craftClose" }
-    | { kind: "museumInteract"; target: string };
+    | { kind: "museumInteract"; target: string }
+    | { kind: "chooseTalent"; slot: number };
 
 export interface IntentLogEntry {
     tick: number;
@@ -152,6 +188,7 @@ interface RehearsalState {
     reloadSession: ReloadSessionSnapshot;
     craftBench: CraftBenchSnapshot;
     archive: ArchiveSnapshot;
+    roguelike: RoguelikeSnapshot;
     handledCraftRequestIds: Record<string, boolean>;
 }
 
@@ -159,6 +196,136 @@ const GATE_REUNION_HOLD_SECONDS = 0.6;
 const DEFAULT_RELOAD_DURATION = 4.0;
 const DEFAULT_SLOW_TIME_SCALE = 0.25;
 const MAX_INTENT_LOG = 64;
+const BASE_CRAFT_TICKS = 45;
+const BASE_INVULN_HIT_TICKS = 42;
+
+const ESCORT_STAGE_SPECS: readonly { key: string; label: string; isBench: boolean; isFinal: boolean }[] = [
+    { key: "escort1", label: "巷路", isBench: false, isFinal: false },
+    { key: "escort2", label: "粮棚", isBench: false, isFinal: false },
+    { key: "escort3", label: "工台", isBench: true, isFinal: false },
+    { key: "escort4", label: "山道", isBench: false, isFinal: false },
+    { key: "escort5", label: "塔前", isBench: false, isFinal: true },
+];
+
+const CAMPAIGN_STAGE_SPECS: readonly { key: string; label: string; isBench: boolean; isFinal: boolean }[] = [
+    { key: "s1-crossroad", label: "十字街", isBench: false, isFinal: false },
+    { key: "s2-drygoods", label: "布行", isBench: false, isFinal: false },
+    { key: "s3-archway", label: "牌楼", isBench: false, isFinal: false },
+    { key: "c1-yard", label: "候检院", isBench: false, isFinal: false },
+    { key: "c2-granary", label: "军粮棚", isBench: false, isFinal: true },
+];
+
+function computeDerivedReloadTicks(ranks: Record<string, number>, supplies: Record<string, number>): number {
+    const base = (supplies["quickbelt"] ?? 0) > 0 ? 36 : 54;
+    return base;
+}
+
+function computeDerivedInvulnTicks(ranks: Record<string, number>): number {
+    return BASE_INVULN_HIT_TICKS + 15 * (ranks["guard"] ?? 0);
+}
+
+function computeDerivedCraftTicks(ranks: Record<string, number>): number {
+    return Math.max(6, BASE_CRAFT_TICKS - 6 * (ranks["salvage"] ?? 0));
+}
+
+function buildStageNodes(
+    specs: readonly { key: string; label: string; isBench: boolean; isFinal: boolean }[],
+    currentRoomKey: string,
+    clearedMap?: Record<string, boolean>,
+): RoguelikeStageNode[] {
+    let curIdx = -1;
+    let i = 0;
+    for (i = 0; i < specs.length; i++) {
+        if (specs[i].key === currentRoomKey) {
+            curIdx = i;
+            break;
+        }
+    }
+    const out: RoguelikeStageNode[] = [];
+    for (i = 0; i < specs.length; i++) {
+        const sp = specs[i];
+        const byMap = clearedMap !== undefined && clearedMap[sp.key] === true;
+        const cleared = byMap || (curIdx >= 0 && i < curIdx);
+        out.push({
+            key: sp.key,
+            label: sp.label,
+            isBench: sp.isBench,
+            isFinal: sp.isFinal,
+            cleared,
+            current: sp.key === currentRoomKey,
+        });
+    }
+    return out;
+}
+
+function createEmptyRoguelike(): RoguelikeSnapshot {
+    return {
+        active: false,
+        showRouteTrack: false,
+        seed: 0,
+        ticks: 0,
+        routeTag: "",
+        roomKey: "",
+        offers: [],
+        ranks: { vitality: 0, reload: 0, guard: 0, craft: 0 },
+        totalRanks: 0,
+        hp: 3,
+        maxHp: 3,
+        reloadTicksNow: 54,
+        invulnTicksNow: BASE_INVULN_HIT_TICKS,
+        craftTicksNow: BASE_CRAFT_TICKS,
+        activeReloadTicks: 0,
+        activeInvulnTicks: 0,
+        activeCraftTicks: 0,
+        equippedWeapon: "standard_gun",
+        supplies: {},
+        stages: [],
+        talentLabelHints: {},
+    };
+}
+
+function cloneRoguelike(src: RoguelikeSnapshot): RoguelikeSnapshot {
+    const stages: RoguelikeStageNode[] = [];
+    let i = 0;
+    for (i = 0; i < src.stages.length; i++) {
+        const s = src.stages[i];
+        stages.push({
+            key: s.key,
+            label: s.label,
+            isBench: s.isBench,
+            isFinal: s.isFinal,
+            cleared: s.cleared,
+            current: s.current,
+        });
+    }
+    const hints: Record<string, string> = {};
+    for (const k in src.talentLabelHints) {
+        hints[k] = src.talentLabelHints[k];
+    }
+    return {
+        active: src.active,
+        showRouteTrack: src.showRouteTrack,
+        seed: src.seed,
+        ticks: src.ticks,
+        routeTag: src.routeTag,
+        roomKey: src.roomKey,
+        offers: src.offers.slice(),
+        ranks: cloneRecordNum(src.ranks),
+        totalRanks: src.totalRanks,
+        hp: src.hp,
+        maxHp: src.maxHp,
+        reloadTicksNow: src.reloadTicksNow,
+        invulnTicksNow: src.invulnTicksNow,
+        craftTicksNow: src.craftTicksNow,
+        activeReloadTicks: src.activeReloadTicks,
+        activeInvulnTicks: src.activeInvulnTicks,
+        activeCraftTicks: src.activeCraftTicks,
+        equippedWeapon: src.equippedWeapon,
+        supplies: cloneRecordNum(src.supplies),
+        stages,
+        talentLabelHints: hints,
+    };
+}
 
 function defaultRecipes(): CraftRecipeView[] {
     return [
@@ -276,6 +443,7 @@ function createInitialRehearsalState(tag: string): RehearsalState {
         reloadSession: createEmptyReloadSession(),
         craftBench: bench,
         archive: createEmptyArchive(),
+        roguelike: createEmptyRoguelike(),
         handledCraftRequestIds: {},
     };
 }
@@ -470,9 +638,12 @@ export class DualRouteContract {
     /** 正式模式瞬时交互计数（从后端一次性事件累计，切房/重试清零） */
     private liveReleasedAbortCount = 0;
     private liveReloadInvalidFlash = 0;
+    private liveFocusTimeScale = 1;
     private liveArchiveCache: ArchiveSnapshot = createEmptyArchive();
     private intentLog: IntentLogEntry[] = [];
     private lastSnapshot: DualRouteSnapshot | undefined;
+
+    constructor(private readonly canPickTalent?: (p: Play) => boolean) {}
 
     /** 获取当前数据源模式 */
     getDataSource(): ContractDataSource {
@@ -498,6 +669,16 @@ export class DualRouteContract {
     exitRehearsal(): void {
         this.source = "live";
         this.rehearsal = undefined;
+        this.liveFocusTimeScale = 1;
+    }
+
+    /** 设置前端聚焦轻慢时倍率（如三筹木牍展卷或行军札记翻阅时的 0.25x 表现层缓流，绝不阻塞 Play.update 模拟步） */
+    setFocusTimeScale(scale: number): void {
+        this.liveFocusTimeScale = Math.max(0.2, Math.min(1, scale));
+    }
+
+    getFocusTimeScale(): number {
+        return this.liveFocusTimeScale;
     }
 
     private ensureRehearsal(tag: string = "mock"): RehearsalState {
@@ -551,6 +732,7 @@ export class DualRouteContract {
         this.livePendingCraftRequests = {};
         this.liveReleasedAbortCount = 0;
         this.liveReloadInvalidFlash = 0;
+        this.liveFocusTimeScale = 1;
         this.liveArchiveCache = this.readLiveArchive(p);
         if (this.rehearsal !== undefined) {
             this.rehearsal.gateReunion = createEmptyGateReunion();
@@ -585,12 +767,10 @@ export class DualRouteContract {
      * - 排演模式：由独立排演内存状态机闭环消费。
      */
     submitIntent(p: Play, intent: FrontendIntent): boolean {
-        let accepted = false;
-        if (this.source === "rehearsal" && this.rehearsal !== undefined) {
-            accepted = this.applyRehearsalIntent(this.rehearsal, intent);
-        } else {
-            accepted = this.forwardLiveIntent(p, intent);
-        }
+        const allowed = intent.kind !== "chooseTalent" || this.canPickTalent === undefined || this.canPickTalent(p);
+        const accepted = allowed && (this.source === "rehearsal" && this.rehearsal !== undefined
+            ? this.applyRehearsalIntent(this.rehearsal, intent)
+            : this.forwardLiveIntent(p, intent));
         this.intentLog.push({
             tick: p.ticks,
             source: this.source,
@@ -710,6 +890,53 @@ export class DualRouteContract {
         }
     }
 
+    setMockRoguelike(patch: Partial<RoguelikeSnapshot> & { clearOffers?: boolean }): void {
+        const st = this.ensureRehearsal("mock");
+        const rg = st.roguelike;
+        rg.active = patch.active ?? true;
+        if (patch.showRouteTrack !== undefined) { rg.showRouteTrack = patch.showRouteTrack; }
+        if (patch.seed !== undefined) { rg.seed = patch.seed; }
+        if (patch.ticks !== undefined) { rg.ticks = patch.ticks; }
+        if (patch.routeTag !== undefined) { rg.routeTag = patch.routeTag; }
+        if (patch.roomKey !== undefined) { rg.roomKey = patch.roomKey; }
+        if (patch.clearOffers === true) {
+            rg.offers = [];
+        } else if (patch.offers !== undefined) {
+            rg.offers = patch.offers.slice();
+        }
+        if (patch.ranks !== undefined) {
+            rg.ranks = cloneRecordNum(patch.ranks);
+        }
+        if (patch.supplies !== undefined) {
+            rg.supplies = cloneRecordNum(patch.supplies);
+        }
+        if (patch.hp !== undefined) { rg.hp = patch.hp; }
+        if (patch.maxHp !== undefined) { rg.maxHp = patch.maxHp; }
+        if (patch.equippedWeapon !== undefined) { rg.equippedWeapon = patch.equippedWeapon; }
+        if (patch.activeReloadTicks !== undefined) { rg.activeReloadTicks = patch.activeReloadTicks; }
+        if (patch.activeInvulnTicks !== undefined) { rg.activeInvulnTicks = patch.activeInvulnTicks; }
+        if (patch.activeCraftTicks !== undefined) { rg.activeCraftTicks = patch.activeCraftTicks; }
+        if (patch.stages !== undefined) {
+            rg.stages = patch.stages.map(s => ({ ...s }));
+        } else if (rg.stages.length === 0) {
+            rg.stages = buildStageNodes(ESCORT_STAGE_SPECS, rg.roomKey !== "" ? rg.roomKey : "escort1");
+        }
+        if (patch.talentLabelHints !== undefined) {
+            rg.talentLabelHints = {};
+            for (const k in patch.talentLabelHints) {
+                rg.talentLabelHints[k] = patch.talentLabelHints[k];
+            }
+        }
+        let sum = 0;
+        for (const k in rg.ranks) {
+            sum += rg.ranks[k] ?? 0;
+        }
+        rg.totalRanks = patch.totalRanks ?? sum;
+        rg.reloadTicksNow = patch.reloadTicksNow ?? computeDerivedReloadTicks(rg.ranks, rg.supplies);
+        rg.invulnTicksNow = patch.invulnTicksNow ?? computeDerivedInvulnTicks(rg.ranks);
+        rg.craftTicksNow = patch.craftTicksNow ?? computeDerivedCraftTicks(rg.ranks);
+    }
+
     // ==================== 正式模式读取适配（后端字段上线后仅改此处） ====================
 
     private sampleLive(p: Play, dt: number, events?: FrameEvents): DualRouteSnapshot {
@@ -792,11 +1019,15 @@ export class DualRouteContract {
             ? parseReloadEffect(rsRec["previewEffect"])
             : (reloadActive ? deriveReloadEffectFromPath(livePath) : "normal");
 
+        const needTicksFn = pRec !== undefined ? pRec["reloadNeedTicks"] : undefined;
+        const liveReloadDuration = typeof needTicksFn === "function"
+            ? Math.max(0.5, (needTicksFn as (self: Play) => number)(p) / 60)
+            : DEFAULT_RELOAD_DURATION;
         const reloadSession: ReloadSessionSnapshot = {
             active: reloadActive,
             firstTime: readBool(rsRec, "firstTime") ?? (reloadTryCount <= 1),
             elapsed: readNum(rsRec, "elapsed") ?? (reloadAnswerTicks / 60),
-            duration: Math.max(0.01, readNum(rsRec, "duration") ?? DEFAULT_RELOAD_DURATION),
+            duration: Math.max(0.01, readNum(rsRec, "duration") ?? liveReloadDuration),
             path: livePath,
             previewEffect: livePreview,
             nextEffect: parseReloadEffect(liveNextRaw),
@@ -804,9 +1035,10 @@ export class DualRouteContract {
         };
 
         const rawScale = readNum(pRec, "timeScale") ?? readNum(runRec, "timeScale");
-        const timeScale = rawScale !== undefined && rawScale >= 0
+        const baseScale = rawScale !== undefined && rawScale >= 0
             ? rawScale
             : (reloadActive ? DEFAULT_SLOW_TIME_SCALE : 1);
+        const timeScale = Math.min(baseScale, this.liveFocusTimeScale);
 
         // 7. 第三段安全工台
         const cbRec = asRecord(pRec !== undefined ? pRec["craftBench"] : undefined);
@@ -815,6 +1047,9 @@ export class DualRouteContract {
         // 8. 双通关档案与水井/博物馆
         const archive = this.readLiveArchive(p);
         this.liveArchiveCache = archive;
+
+        // 9. 肉鸽成长、筹签、随身战备与北行里程快照（防御性多源读取，向前兼容后端扩展）
+        const roguelike = this.readLiveRoguelike(p, pRec, runRec, storyRec);
 
         const visualMode = deriveVisualMode(
             p.room.key,
@@ -837,11 +1072,117 @@ export class DualRouteContract {
             reloadSession,
             craftBench,
             archive,
+            roguelike,
             assistHintsEnabled: this.assistHintsEnabled,
             visualMode,
             dataSource: "live",
             isRehearsal: false,
             rehearsalTag: "",
+        };
+    }
+
+    private readLiveRoguelike(
+        p: Play,
+        pRec: Record<string, unknown> | undefined,
+        runRec: Record<string, unknown> | undefined,
+        storyRec: Record<string, unknown> | undefined,
+    ): RoguelikeSnapshot {
+        const roomKey = p.room.key;
+        const isEscort = roomKey.indexOf("escort") === 0;
+        const campChapter = p.room.campaign?.chapter;
+        const isCampaignRun = p.isCampaign && (campChapter === "S" || campChapter === "C");
+
+        const rawOffers = p.getStoryTalentOffers();
+        const offers: string[] = [];
+        let i = 0;
+        for (i = 0; i < rawOffers.length; i++) {
+            offers.push(rawOffers[i]);
+        }
+        const ranks: Record<string, number> = {};
+        const srcRanks = p.getStoryTalentRanks() as Record<string, number> | undefined;
+        let totalRanks = 0;
+        if (srcRanks !== undefined) {
+            for (const k in srcRanks) {
+                const v = srcRanks[k];
+                if (typeof v === "number" && v > 0) {
+                    ranks[k] = v;
+                    totalRanks += v;
+                }
+            }
+        }
+
+        const inv = p.run.inventory;
+        const supplies: Record<string, number> = {
+            wood: inv.wood ?? 0,
+            bell: inv.bell ?? 0,
+            shield: inv.shield ?? 0,
+            wedge: inv.wedge ?? 0,
+            ammo: inv.ammo ?? 0,
+            scrap: inv.scrap ?? 0,
+            pass: inv.pass ?? 0,
+            quickbelt: inv.quickbelt ?? 0,
+        };
+
+        const clearedSegs = asRecord(storyRec !== undefined ? storyRec["segments"] : undefined) as Record<string, boolean> | undefined;
+        let stages: RoguelikeStageNode[] = [];
+        let showRouteTrack = false;
+        if (isEscort) {
+            stages = buildStageNodes(ESCORT_STAGE_SPECS, roomKey, clearedSegs);
+            showRouteTrack = true;
+        } else if (isCampaignRun) {
+            stages = buildStageNodes(CAMPAIGN_STAGE_SPECS, roomKey);
+            showRouteTrack = true;
+        }
+
+        const explicitActive = readBool(pRec, "roguelikeActive") === true
+            || readBool(runRec, "roguelikeActive") === true;
+        const active = explicitActive || isEscort || isCampaignRun || offers.length > 0 || totalRanks > 0;
+
+        const talentLabelHints: Record<string, string> = {};
+        const rawMeta = asRecord(pRec !== undefined ? pRec["talentMeta"] : undefined)
+            ?? asRecord(runRec !== undefined ? runRec["talentMeta"] : undefined);
+        if (rawMeta !== undefined) {
+            for (const k in rawMeta) {
+                const v = rawMeta[k];
+                if (typeof v === "string") {
+                    talentLabelHints[k] = v;
+                } else {
+                    const obj = asRecord(v);
+                    const n = readStr(obj, "name");
+                    const d = readStr(obj, "desc");
+                    if (n !== undefined) {
+                        talentLabelHints[k] = d !== undefined && d !== "" ? (n + "·" + d) : n;
+                    }
+                }
+            }
+        }
+
+        const reloadTicksNow = computeDerivedReloadTicks(ranks, supplies);
+        const invulnTicksNow = computeDerivedInvulnTicks(ranks);
+        const craftTicksNow = computeDerivedCraftTicks(ranks);
+
+        return {
+            active,
+            showRouteTrack,
+            seed: p.run.seed,
+            ticks: p.run.ticks,
+            routeTag: p.run.route,
+            roomKey,
+            offers,
+            ranks,
+            totalRanks,
+            hp: p.hp,
+            maxHp: p.maxHp,
+            reloadTicksNow,
+            invulnTicksNow,
+            craftTicksNow,
+            activeReloadTicks: readNum(pRec, "reloadT") ?? 0,
+            activeInvulnTicks: readNum(pRec, "invulnT") ?? 0,
+            activeCraftTicks: readNum(pRec, "craftT") ?? 0,
+            equippedWeapon: p.equippedWeapon !== "" ? p.equippedWeapon : "standard_gun",
+            supplies,
+            stages,
+            talentLabelHints,
         };
     }
 
@@ -970,6 +1311,12 @@ export class DualRouteContract {
             }
             return false;
         }
+        if (intent.kind === "chooseTalent") {
+            const choose = pRec["chooseTalent"];
+            if (typeof choose === "function") {
+                return (choose as (self: Play, slot: number) => boolean)(p, intent.slot) === true;
+            }
+        }
         // 兼容 B1 后端已落地的 reloadTapNode(node) 入口
         const tapNode = pRec["reloadTapNode"];
         if (typeof tapNode === "function") {
@@ -1062,9 +1409,12 @@ export class DualRouteContract {
             st.craftBench.justCraftedTimer = Math.max(0, st.craftBench.justCraftedTimer - dt);
         }
 
-        const timeScale = st.timeScaleOverride !== undefined
+        const baseScale = st.timeScaleOverride !== undefined
             ? Math.max(0, st.timeScaleOverride)
             : (st.reloadSession.active ? DEFAULT_SLOW_TIME_SCALE : 1);
+        const timeScale = st.timeScaleOverride !== undefined
+            ? baseScale
+            : Math.min(baseScale, this.liveFocusTimeScale);
 
         const visualMode = deriveVisualMode(
             p.room.key,
@@ -1121,6 +1471,7 @@ export class DualRouteContract {
                 museumPhase: st.archive.museumPhase,
                 museumSeen: st.archive.museumSeen,
             },
+            roguelike: cloneRoguelike(st.roguelike),
             assistHintsEnabled: this.assistHintsEnabled,
             visualMode,
             dataSource: "rehearsal",
@@ -1269,6 +1620,24 @@ export class DualRouteContract {
                 return true;
             }
             return false;
+        }
+        if (intent.kind === "chooseTalent") {
+            const rg = st.roguelike;
+            const id = rg.offers[intent.slot];
+            if (id === undefined) {
+                return false;
+            }
+            rg.ranks[id] = (rg.ranks[id] ?? 0) + 1;
+            rg.totalRanks += 1;
+            if (id === "vitality") {
+                rg.maxHp += 1;
+                rg.hp += 1;
+            }
+            rg.offers = [];
+            rg.reloadTicksNow = computeDerivedReloadTicks(rg.ranks, rg.supplies);
+            rg.invulnTicksNow = computeDerivedInvulnTicks(rg.ranks);
+            rg.craftTicksNow = computeDerivedCraftTicks(rg.ranks);
+            return true;
         }
         return false;
     }
