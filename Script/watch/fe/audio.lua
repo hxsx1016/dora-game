@@ -754,50 +754,60 @@ function AudioDirector.prototype.dispatchSingleEvent(self, e, roomSessionId, che
 				e.tick, -- 526
 				e.seq -- 526
 			) -- 526
-		end -- 526
-	end -- 526
+		elseif beat == "talent_picked" then -- 526
+			self:playOnce( -- 528
+				key, -- 528
+				"sfx", -- 528
+				"assets/audio/combat/reload_solved.wav", -- 528
+				0.8, -- 528
+				"story:talent_picked", -- 528
+				e.tick, -- 528
+				e.seq -- 528
+			) -- 528
+		end -- 528
+	end -- 528
 end -- 408
-function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 531
-	return self.dedupeSet[dedupeKey] == true -- 532
-end -- 531
-function AudioDirector.prototype.getPlayLog(self) -- 535
-	return self.playLog -- 536
-end -- 535
-function AudioDirector.prototype.getLastEntry(self) -- 539
-	if #self.playLog == 0 then -- 539
-		return nil -- 541
-	end -- 541
-	return self.playLog[#self.playLog] -- 543
-end -- 539
-function AudioDirector.prototype.clearPlayLog(self) -- 546
-	self.playLog = {} -- 547
-end -- 546
-function AudioDirector.prototype.getTrackList(self) -- 550
-	return ALL_TRACKS -- 551
-end -- 550
-function AudioDirector.prototype.pruneStoppedSources(self) -- 554
-	local w = 0 -- 555
-	local i = 0 -- 556
-	do -- 556
-		i = 0 -- 557
-		while i < #self.activeSources do -- 557
-			local src = self.activeSources[i + 1] -- 558
-			if src.playing then -- 558
-				self.activeSources[w + 1] = src -- 560
-				w = w + 1 -- 561
-			else -- 561
-				src:removeFromParent(true) -- 563
-			end -- 563
-			i = i + 1 -- 557
-		end -- 557
-	end -- 557
-	__TS__ArraySetLength(self.activeSources, w) -- 557
-end -- 554
-function AudioDirector.prototype.recordLog(self, entry) -- 569
-	local ____self_playLog_2 = self.playLog -- 569
-	____self_playLog_2[#____self_playLog_2 + 1] = entry -- 570
-	if #self.playLog > MAX_PLAY_LOG then -- 570
-		table.remove(self.playLog, 1) -- 572
-	end -- 572
-end -- 569
-return ____exports -- 569
+function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 533
+	return self.dedupeSet[dedupeKey] == true -- 534
+end -- 533
+function AudioDirector.prototype.getPlayLog(self) -- 537
+	return self.playLog -- 538
+end -- 537
+function AudioDirector.prototype.getLastEntry(self) -- 541
+	if #self.playLog == 0 then -- 541
+		return nil -- 543
+	end -- 543
+	return self.playLog[#self.playLog] -- 545
+end -- 541
+function AudioDirector.prototype.clearPlayLog(self) -- 548
+	self.playLog = {} -- 549
+end -- 548
+function AudioDirector.prototype.getTrackList(self) -- 552
+	return ALL_TRACKS -- 553
+end -- 552
+function AudioDirector.prototype.pruneStoppedSources(self) -- 556
+	local w = 0 -- 557
+	local i = 0 -- 558
+	do -- 558
+		i = 0 -- 559
+		while i < #self.activeSources do -- 559
+			local src = self.activeSources[i + 1] -- 560
+			if src.playing then -- 560
+				self.activeSources[w + 1] = src -- 562
+				w = w + 1 -- 563
+			else -- 563
+				src:removeFromParent(true) -- 565
+			end -- 565
+			i = i + 1 -- 559
+		end -- 559
+	end -- 559
+	__TS__ArraySetLength(self.activeSources, w) -- 559
+end -- 556
+function AudioDirector.prototype.recordLog(self, entry) -- 571
+	local ____self_playLog_2 = self.playLog -- 571
+	____self_playLog_2[#____self_playLog_2 + 1] = entry -- 572
+	if #self.playLog > MAX_PLAY_LOG then -- 572
+		table.remove(self.playLog, 1) -- 574
+	end -- 574
+end -- 571
+return ____exports -- 571

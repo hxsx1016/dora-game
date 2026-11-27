@@ -8,6 +8,7 @@
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
+import { talentNames } from "Script/watch/run";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { FEAR_MAX } from "Script/watch/escort";
 import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
@@ -91,6 +92,25 @@ export class HudRenderer {
         if (!suppressReticle) {
             this.drawReticleOverlay(uiInkDraw, uiArt, uiGlow, p, cam, vfx, letterboxFrac, uiScale);
         }
+    }
+
+    /** 计算男主线护送段三选一本领卡的 UI 坐标矩形（渲染与点击命中共用单一真源）。 */
+    talentCardRects(w: number, h: number, count: number): Rect.Type[] {
+        const out: Rect.Type[] = [];
+        if (count <= 0) {
+            return out;
+        }
+        const cardW = 204;
+        const cardH = 38;
+        const gap = 14;
+        const totalW = count * cardW + (count - 1) * gap;
+        const startX = (w - totalW) * 0.5;
+        const y = h - 108;
+        let i = 0;
+        for (i = 0; i < count; i++) {
+            out.push(Rect(startX + i * (cardW + gap), y, cardW, cardH));
+        }
+        return out;
     }
 
     /** 独立绘制战斗/投瓶准星（供 frontend.ts 在全速 UI 插件判定后决定是否绘制，实现同帧零闪烁隐藏） */
@@ -222,6 +242,35 @@ export class HudRenderer {
                 texts.put("xs", "轻敲安抚中", bx + 172, subY + 6, toColor(PALETTE.emerald), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
             }
         }
+
+        // 男主线护送段已习得本领摘要（仅在至少习得一项后轻显）
+        const ranks = p.getStoryTalentRanks();
+        if (ranks !== undefined) {
+            const parts: string[] = [];
+            if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
+            if (ranks.reload > 0) parts.push("熟铳" + ranks.reload);
+            if (ranks.guard > 0) parts.push("护身" + ranks.guard);
+            if (ranks.craft > 0) parts.push("巧手" + ranks.craft);
+            if (parts.length > 0) {
+                const subY = by - 22;
+                const txt = "本领 · " + parts.join(" · ");
+                drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.56 * alpha, -1);
+                texts.put("xs", txt, bx + 14, subY + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+            }
+        } else if (p.isCampaign && p.room.campaign !== undefined && (p.room.campaign.chapter === "S" || p.room.campaign.chapter === "C")) {
+            // S1..C2 正式战役物资与小满同行提示
+            const inv = p.run.inventory;
+            const items: string[] = [];
+            if (inv.shield > 0) items.push("残盾" + inv.shield);
+            if (inv.wedge > 0) items.push("木楔" + inv.wedge);
+            if (inv.ammo > 0) items.push("弹包" + inv.ammo);
+            if (inv.scrap > 0) items.push("木料" + inv.scrap);
+            const companionText = p.run.joined ? "小满同行" : "小满等待";
+            const summary = items.length > 0 ? (companionText + " · " + items.join(" ")) : companionText;
+            const subY = by - 22;
+            drawSilkVeil(uiDraw, uiArt, "hud_camp_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.54 * alpha, -1);
+            texts.put("xs", summary, bx + 14, subY + 6, toColor(p.run.joined ? PALETTE.cyanCore : PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+        }
     }
 
     private drawChildStatus(
@@ -289,6 +338,30 @@ export class HudRenderer {
         alpha: number,
         assistHintsEnabled: boolean,
     ): void {
+        // 男主线五段护送：顶部轻透水墨三选一本领卡（不阻塞行走与战斗，按 1/2/3 或鼠标点击随时习得）
+        const talentOffers = p.getStoryTalentOffers();
+        if (talentOffers.length > 0 && !p.craftBench.active && !p.reloadOpen) {
+            const boxes = this.talentCardRects(w, h, talentOffers.length);
+            const cx = w * 0.5;
+            const titleY = h - 54;
+            drawSilkVeil(uiDraw, uiArt, "hud_talent_head_veil", cx, titleY, 360, 26, PALETTE.inkWash, 0.72 * alpha, -1);
+            drawHairline(uiInkDraw, uiArt, "hud_talent_head_line", cx, titleY + 13, 300, PALETTE.amber, 0.52 * alpha, true, 2);
+            texts.put("xs", "护送本领三选一 · 按 1 / 2 / 3 或点击习得", cx, titleY, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.2, alpha, 0.08);
+
+            let ti = 0;
+            for (ti = 0; ti < talentOffers.length; ti++) {
+                const box = boxes[ti];
+                const bx = box.x;
+                const by = box.y;
+                const bw = box.width;
+                const bh = box.height;
+                const cy = by + bh * 0.5;
+                uiDraw.drawRect(box, toColor(PALETTE.panelBgDeep, Math.round(215 * alpha)), 0.9, toColor(PALETTE.amber, Math.round(185 * alpha)));
+                drawSilkKeycap(uiInkDraw, texts, bx + 8, cy - 11, 22, 22, "" + (ti + 1), PALETTE.amber, alpha, true);
+                texts.put("xs", talentNames[talentOffers[ti]], bx + 38, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
+            }
+        }
+
         // 0. 慢时换弹：作答钟 4 秒、世界 1/4 速；3×3 盘已走过的点逐颗点亮。
         // 第三段工台：材料、两张配方与当前装备；面板期间世界冻结。
         if (p.craftBench.active) {

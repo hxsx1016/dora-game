@@ -1272,6 +1272,11 @@ export const CAMPAIGN_ROOMS: RoomSpec[] = [
 export const ROOMS: RoomSpec[] = [
     PROLOGUE_ROOM,
     STREET_ROOM,
+    S1_CROSSROAD,
+    S2_DRYGOODS,
+    S3_ARCHWAY,
+    C1_YARD,
+    C2_GRANARY,
     CHECKPOINT_ROOM,
     GATE_ROOM,
     GATE_PATH_ROOM,

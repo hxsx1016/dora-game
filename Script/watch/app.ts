@@ -13,7 +13,7 @@ import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { WatchFrontend } from "Script/watch/fe/frontend";
-import { createRun, createTrial, mmss, RunSource, RunState, talentNames } from "Script/watch/run";
+import { createRun, createStoryTalents, createTrial, mmss, RunSource, RunState, Talent, talentNames } from "Script/watch/run";
 import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
     markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
     SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
@@ -183,6 +183,36 @@ function continueOfficialStory(): Play | undefined {
     for (k = 0; k < s.segments.length; k++) {
         storyRun.story.segments[s.segments[k]] = true;
     }
+    if (s.campaignRoute !== undefined) {
+        storyRun.route = s.campaignRoute;
+    }
+    if (s.joined !== undefined) {
+        storyRun.joined = s.joined;
+    }
+    if (s.c1Latch !== undefined) {
+        storyRun.c1Latch = s.c1Latch;
+    }
+    if (s.c2Latch !== undefined) {
+        storyRun.c2Latch = s.c2Latch;
+    }
+    const stTalents = createStoryTalents(s.seed);
+    if (s.talentSeed !== undefined && s.talentSeed > 0) {
+        stTalents.randomState = s.talentSeed;
+    }
+    stTalents.room = s.talentRoom ?? "";
+    stTalents.ranks.vitality = s.talentVitality ?? 0;
+    stTalents.ranks.reload = s.talentReload ?? 0;
+    stTalents.ranks.guard = s.talentGuard ?? 0;
+    stTalents.ranks.craft = s.talentCraft ?? 0;
+    if (s.talentOffers !== undefined) {
+        for (k = 0; k < s.talentOffers.length; k++) {
+            const t = s.talentOffers[k];
+            if (t === "vitality" || t === "reload" || t === "guard" || t === "craft") {
+                stTalents.offers.push(t as Talent);
+            }
+        }
+    }
+    storyRun.story.talents = stTalents;
     current = idx;
     setMode(1);
     if (fe !== undefined) {
@@ -315,6 +345,21 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && key === KeyName.T) {
             play.toggleArtifactWeapon();
             return;
+        }
+        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
+            && !play.craftBench.active && play.getStoryTalentOffers().length > 0) {
+            if (key === KeyName.Num1) {
+                play.chooseTalent(0);
+                return;
+            }
+            if (key === KeyName.Num2) {
+                play.chooseTalent(1);
+                return;
+            }
+            if (key === KeyName.Num3) {
+                play.chooseTalent(2);
+                return;
+            }
         }
         if (fe !== undefined && mode === 1 && (fe.screen !== "play" || (play !== undefined && play.paused))) {
             fe.menus.onKeyEvent(key);
@@ -585,6 +630,13 @@ function tick(frameDt: number): void {
     if (mode === 2 && run?.trial !== undefined) {
         tickCampaign(frameDt);
         return;
+    }
+
+    if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
+        && !play.craftBench.active && play.getStoryTalentOffers().length > 0
+        && input.pickRoom >= 1 && input.pickRoom <= 3) {
+        play.chooseTalent(input.pickRoom - 1);
+        input.pickRoom = 0;
     }
 
     if (isReleaseBuild()) {
@@ -888,6 +940,11 @@ function tickFrontend(frameDt: number): void {
 
     p.aimX = input.mx;
     p.aimY = input.my;
+
+    if (!p.paused && !p.craftBench.active && !p.reloadOpen && p.getStoryTalentOffers().length > 0
+        && input.inside && input.fire.pressed && fe.tryPickTalentAtPointer(p, input, viewW, viewH)) {
+        input.fire.pressed = false;
+    }
 
     if (!p.paused && p.craftBench.active && input.pause.pressed) {
         p.closeCraftBench();

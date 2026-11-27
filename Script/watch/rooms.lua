@@ -2243,6 +2243,11 @@ ____exports.CAMPAIGN_ROOMS = { -- 1264
 ____exports.ROOMS = { -- 1272
 	____exports.PROLOGUE_ROOM, -- 1272
 	____exports.STREET_ROOM, -- 1272
+	____exports.S1_CROSSROAD, -- 1272
+	____exports.S2_DRYGOODS, -- 1272
+	____exports.S3_ARCHWAY, -- 1272
+	____exports.C1_YARD, -- 1272
+	____exports.C2_GRANARY, -- 1272
 	____exports.CHECKPOINT_ROOM, -- 1272
 	____exports.GATE_ROOM, -- 1272
 	____exports.GATE_PATH_ROOM, -- 1272
@@ -2257,220 +2262,220 @@ ____exports.ROOMS = { -- 1272
 	____exports.TOWER_ROOM, -- 1272
 	____exports.MUSEUM_ROOM -- 1272
 } -- 1272
-local function placeSolids(room) -- 1290
-	local blocks = {} -- 1291
-	for ____, solid in ipairs(room.solids) do -- 1292
-		local x = solid.x + room.originX -- 1293
-		if room.depth ~= nil and solid.lanes ~= nil then -- 1293
-			for ____, depth in ipairs(laneFootprints(solid.lanes)) do -- 1295
-				blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x, depth = depth, lanes = nil}) -- 1296
-			end -- 1296
-		else -- 1296
-			blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x}) -- 1299
-		end -- 1299
-	end -- 1299
-	return blocks -- 1302
-end -- 1290
-local function placeStairs(room) -- 1305
-	local out = {} -- 1306
-	for ____, stair in ipairs(room.stairs) do -- 1307
-		local x0 = stair.x0 + room.originX -- 1308
-		local x1 = stair.x1 + room.originX -- 1309
-		if room.depth ~= nil and stair.lanes ~= nil then -- 1309
-			for ____, depth in ipairs(laneFootprints(stair.lanes)) do -- 1311
-				out[#out + 1] = __TS__ObjectAssign({}, stair, {x0 = x0, x1 = x1, depth = depth, lanes = nil}) -- 1312
-			end -- 1312
-		else -- 1312
-			out[#out + 1] = __TS__ObjectAssign({}, stair, {x0 = x0, x1 = x1}) -- 1315
-		end -- 1315
-	end -- 1315
-	return out -- 1318
-end -- 1305
+local function placeSolids(room) -- 1295
+	local blocks = {} -- 1296
+	for ____, solid in ipairs(room.solids) do -- 1297
+		local x = solid.x + room.originX -- 1298
+		if room.depth ~= nil and solid.lanes ~= nil then -- 1298
+			for ____, depth in ipairs(laneFootprints(solid.lanes)) do -- 1300
+				blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x, depth = depth, lanes = nil}) -- 1301
+			end -- 1301
+		else -- 1301
+			blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x}) -- 1304
+		end -- 1304
+	end -- 1304
+	return blocks -- 1307
+end -- 1295
+local function placeStairs(room) -- 1310
+	local out = {} -- 1311
+	for ____, stair in ipairs(room.stairs) do -- 1312
+		local x0 = stair.x0 + room.originX -- 1313
+		local x1 = stair.x1 + room.originX -- 1314
+		if room.depth ~= nil and stair.lanes ~= nil then -- 1314
+			for ____, depth in ipairs(laneFootprints(stair.lanes)) do -- 1316
+				out[#out + 1] = __TS__ObjectAssign({}, stair, {x0 = x0, x1 = x1, depth = depth, lanes = nil}) -- 1317
+			end -- 1317
+		else -- 1317
+			out[#out + 1] = __TS__ObjectAssign({}, stair, {x0 = x0, x1 = x1}) -- 1320
+		end -- 1320
+	end -- 1320
+	return out -- 1323
+end -- 1310
 --- 把段内坐标搬进世界坐标：只加 originX，段内锚点一律不改。
 -- 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
-function ____exports.withOrigin(room) -- 1325
-	local ox = room.originX -- 1326
-	if ox == 0 then -- 1326
-		return room.depth == nil and room or __TS__ObjectAssign( -- 1328
-			{}, -- 1328
-			room, -- 1328
-			{ -- 1328
-				solids = placeSolids(room), -- 1328
-				stairs = placeStairs(room) -- 1328
-			} -- 1328
-		) -- 1328
-	end -- 1328
-	local function shift(x) -- 1330
-		return x + ox -- 1330
-	end -- 1330
-	local ____room_key_8 = room.key -- 1332
-	local ____room_name_9 = room.name -- 1333
-	local ____room_caption_10 = room.caption -- 1334
-	local ____shift_result_11 = shift(room.minX) -- 1336
-	local ____shift_result_12 = shift(room.maxX) -- 1337
-	local ____room_height_13 = room.height -- 1338
-	local ____room_depth_14 = room.depth -- 1339
-	local ____TS__ArrayMap_result_15 = __TS__ArrayMap( -- 1340
-		room.floors, -- 1340
-		function(____, f) return { -- 1340
-			y = f.y, -- 1340
-			x0 = shift(f.x0), -- 1340
-			x1 = shift(f.x1) -- 1340
-		} end -- 1340
-	) -- 1340
-	local ____placeSolids_result_16 = placeSolids(room) -- 1341
-	local ____TS__ArrayMap_result_17 = __TS__ArrayMap( -- 1342
-		room.zones, -- 1342
-		function(____, z) return { -- 1342
-			x0 = shift(z.x0), -- 1342
-			x1 = shift(z.x1), -- 1342
-			y = z.y, -- 1342
-			h = z.h, -- 1342
-			tint = z.tint, -- 1342
-			label = z.label -- 1342
-		} end -- 1342
-	) -- 1342
-	local ____temp_18 = { -- 1343
-		x0 = shift(room.arch.x0), -- 1343
-		x1 = shift(room.arch.x1), -- 1343
-		y = room.arch.y, -- 1343
-		h = room.arch.h, -- 1343
-		label = room.arch.label -- 1343
-	} -- 1343
-	local ____placeStairs_result_19 = placeStairs(room) -- 1344
-	local ____TS__ObjectAssign_result_20 = __TS__ObjectAssign( -- 1345
-		{}, -- 1345
-		room.cart, -- 1346
-		{ -- 1345
-			startX = shift(room.cart.startX), -- 1347
-			endX = shift(room.cart.endX) -- 1348
-		} -- 1348
-	) -- 1348
-	local ____TS__ArrayMap_result_21 = __TS__ArrayMap( -- 1350
-		room.spawns, -- 1350
-		function(____, s) return __TS__ObjectAssign( -- 1350
-			{}, -- 1350
-			s, -- 1350
-			{x = shift(s.x)} -- 1350
-		) end -- 1350
-	) -- 1350
-	local ____TS__ArrayMap_result_22 = __TS__ArrayMap( -- 1351
-		room.marks, -- 1351
-		function(____, m) return { -- 1351
-			x = shift(m.x), -- 1351
-			y = m.y, -- 1351
-			kind = m.kind, -- 1351
-			label = m.label -- 1351
-		} end -- 1351
-	) -- 1351
-	local ____TS__ArrayMap_result_23 = __TS__ArrayMap( -- 1352
-		room.dims, -- 1352
-		function(____, d) return { -- 1352
-			x0 = shift(d.x0), -- 1352
-			x1 = shift(d.x1), -- 1352
-			text = d.text -- 1352
-		} end -- 1352
-	) -- 1352
-	local ____temp_0 -- 1353
-	if room.scavenger == nil then -- 1353
-		____temp_0 = nil -- 1353
-	else -- 1353
-		____temp_0 = { -- 1353
-			x0 = shift(room.scavenger.x0), -- 1354
-			x1 = shift(room.scavenger.x1), -- 1354
-			y = room.scavenger.y, -- 1354
-			h = room.scavenger.h, -- 1354
-			patrolSpeed = room.scavenger.patrolSpeed, -- 1355
-			approachSpeed = room.scavenger.approachSpeed, -- 1355
-			hearTicks = room.scavenger.hearTicks, -- 1356
-			stallTicks = room.scavenger.stallTicks, -- 1356
-			range = room.scavenger.range -- 1356
-		} -- 1356
-	end -- 1356
-	local ____temp_1 -- 1358
-	if room.bottle == nil then -- 1358
-		____temp_1 = nil -- 1358
+function ____exports.withOrigin(room) -- 1330
+	local ox = room.originX -- 1331
+	if ox == 0 then -- 1331
+		return room.depth == nil and room or __TS__ObjectAssign( -- 1333
+			{}, -- 1333
+			room, -- 1333
+			{ -- 1333
+				solids = placeSolids(room), -- 1333
+				stairs = placeStairs(room) -- 1333
+			} -- 1333
+		) -- 1333
+	end -- 1333
+	local function shift(x) -- 1335
+		return x + ox -- 1335
+	end -- 1335
+	local ____room_key_8 = room.key -- 1337
+	local ____room_name_9 = room.name -- 1338
+	local ____room_caption_10 = room.caption -- 1339
+	local ____shift_result_11 = shift(room.minX) -- 1341
+	local ____shift_result_12 = shift(room.maxX) -- 1342
+	local ____room_height_13 = room.height -- 1343
+	local ____room_depth_14 = room.depth -- 1344
+	local ____TS__ArrayMap_result_15 = __TS__ArrayMap( -- 1345
+		room.floors, -- 1345
+		function(____, f) return { -- 1345
+			y = f.y, -- 1345
+			x0 = shift(f.x0), -- 1345
+			x1 = shift(f.x1) -- 1345
+		} end -- 1345
+	) -- 1345
+	local ____placeSolids_result_16 = placeSolids(room) -- 1346
+	local ____TS__ArrayMap_result_17 = __TS__ArrayMap( -- 1347
+		room.zones, -- 1347
+		function(____, z) return { -- 1347
+			x0 = shift(z.x0), -- 1347
+			x1 = shift(z.x1), -- 1347
+			y = z.y, -- 1347
+			h = z.h, -- 1347
+			tint = z.tint, -- 1347
+			label = z.label -- 1347
+		} end -- 1347
+	) -- 1347
+	local ____temp_18 = { -- 1348
+		x0 = shift(room.arch.x0), -- 1348
+		x1 = shift(room.arch.x1), -- 1348
+		y = room.arch.y, -- 1348
+		h = room.arch.h, -- 1348
+		label = room.arch.label -- 1348
+	} -- 1348
+	local ____placeStairs_result_19 = placeStairs(room) -- 1349
+	local ____TS__ObjectAssign_result_20 = __TS__ObjectAssign( -- 1350
+		{}, -- 1350
+		room.cart, -- 1351
+		{ -- 1350
+			startX = shift(room.cart.startX), -- 1352
+			endX = shift(room.cart.endX) -- 1353
+		} -- 1353
+	) -- 1353
+	local ____TS__ArrayMap_result_21 = __TS__ArrayMap( -- 1355
+		room.spawns, -- 1355
+		function(____, s) return __TS__ObjectAssign( -- 1355
+			{}, -- 1355
+			s, -- 1355
+			{x = shift(s.x)} -- 1355
+		) end -- 1355
+	) -- 1355
+	local ____TS__ArrayMap_result_22 = __TS__ArrayMap( -- 1356
+		room.marks, -- 1356
+		function(____, m) return { -- 1356
+			x = shift(m.x), -- 1356
+			y = m.y, -- 1356
+			kind = m.kind, -- 1356
+			label = m.label -- 1356
+		} end -- 1356
+	) -- 1356
+	local ____TS__ArrayMap_result_23 = __TS__ArrayMap( -- 1357
+		room.dims, -- 1357
+		function(____, d) return { -- 1357
+			x0 = shift(d.x0), -- 1357
+			x1 = shift(d.x1), -- 1357
+			text = d.text -- 1357
+		} end -- 1357
+	) -- 1357
+	local ____temp_0 -- 1358
+	if room.scavenger == nil then -- 1358
+		____temp_0 = nil -- 1358
 	else -- 1358
-		____temp_1 = { -- 1358
-			x = shift(room.bottle.x), -- 1358
-			y = room.bottle.y -- 1358
-		} -- 1358
-	end -- 1358
-	local ____temp_2 -- 1359
-	if room.brickX == nil then -- 1359
-		____temp_2 = nil -- 1359
-	else -- 1359
-		____temp_2 = shift(room.brickX) -- 1359
-	end -- 1359
-	local ____temp_3 -- 1360
-	if room.basinX == nil then -- 1360
-		____temp_3 = nil -- 1360
-	else -- 1360
-		____temp_3 = shift(room.basinX) -- 1360
-	end -- 1360
-	local ____temp_4 -- 1361
-	if room.softX == nil then -- 1361
-		____temp_4 = nil -- 1361
-	else -- 1361
-		____temp_4 = shift(room.softX) -- 1361
+		____temp_0 = { -- 1358
+			x0 = shift(room.scavenger.x0), -- 1359
+			x1 = shift(room.scavenger.x1), -- 1359
+			y = room.scavenger.y, -- 1359
+			h = room.scavenger.h, -- 1359
+			patrolSpeed = room.scavenger.patrolSpeed, -- 1360
+			approachSpeed = room.scavenger.approachSpeed, -- 1360
+			hearTicks = room.scavenger.hearTicks, -- 1361
+			stallTicks = room.scavenger.stallTicks, -- 1361
+			range = room.scavenger.range -- 1361
+		} -- 1361
 	end -- 1361
-	local ____temp_5 -- 1362
-	if room.passLine == nil then -- 1362
-		____temp_5 = nil -- 1362
-	else -- 1362
-		____temp_5 = shift(room.passLine) -- 1362
-	end -- 1362
-	local ____temp_6 -- 1363
-	if room.campaign == nil then -- 1363
-		____temp_6 = nil -- 1363
+	local ____temp_1 -- 1363
+	if room.bottle == nil then -- 1363
+		____temp_1 = nil -- 1363
 	else -- 1363
-		____temp_6 = __TS__ObjectAssign( -- 1363
-			{}, -- 1363
-			room.campaign, -- 1363
-			{exitX = shift(room.campaign.exitX)} -- 1363
-		) -- 1363
+		____temp_1 = { -- 1363
+			x = shift(room.bottle.x), -- 1363
+			y = room.bottle.y -- 1363
+		} -- 1363
 	end -- 1363
-	local ____temp_7 -- 1364
-	if room.pickups == nil then -- 1364
-		____temp_7 = nil -- 1364
+	local ____temp_2 -- 1364
+	if room.brickX == nil then -- 1364
+		____temp_2 = nil -- 1364
 	else -- 1364
-		____temp_7 = __TS__ArrayMap( -- 1364
-			room.pickups, -- 1364
-			function(____, p) return __TS__ObjectAssign( -- 1364
-				{}, -- 1364
-				p, -- 1364
-				{x = shift(p.x)} -- 1364
-			) end -- 1364
-		) -- 1364
+		____temp_2 = shift(room.brickX) -- 1364
 	end -- 1364
-	return { -- 1331
-		key = ____room_key_8, -- 1332
-		name = ____room_name_9, -- 1333
-		caption = ____room_caption_10, -- 1334
-		originX = 0, -- 1335
-		minX = ____shift_result_11, -- 1336
-		maxX = ____shift_result_12, -- 1337
-		height = ____room_height_13, -- 1338
-		depth = ____room_depth_14, -- 1339
-		floors = ____TS__ArrayMap_result_15, -- 1340
-		solids = ____placeSolids_result_16, -- 1341
-		zones = ____TS__ArrayMap_result_17, -- 1342
-		arch = ____temp_18, -- 1343
-		stairs = ____placeStairs_result_19, -- 1344
-		cart = ____TS__ObjectAssign_result_20, -- 1345
-		spawns = ____TS__ArrayMap_result_21, -- 1350
-		marks = ____TS__ArrayMap_result_22, -- 1351
-		dims = ____TS__ArrayMap_result_23, -- 1352
-		scavenger = ____temp_0, -- 1353
-		bottle = ____temp_1, -- 1358
-		brickX = ____temp_2, -- 1359
-		basinX = ____temp_3, -- 1360
-		softX = ____temp_4, -- 1361
-		passLine = ____temp_5, -- 1362
-		campaign = ____temp_6, -- 1363
-		pickups = ____temp_7, -- 1364
-		companion = room.companion, -- 1365
-		story = shiftStory(room.story, ox) -- 1366
-	} -- 1366
-end -- 1325
-return ____exports -- 1325
+	local ____temp_3 -- 1365
+	if room.basinX == nil then -- 1365
+		____temp_3 = nil -- 1365
+	else -- 1365
+		____temp_3 = shift(room.basinX) -- 1365
+	end -- 1365
+	local ____temp_4 -- 1366
+	if room.softX == nil then -- 1366
+		____temp_4 = nil -- 1366
+	else -- 1366
+		____temp_4 = shift(room.softX) -- 1366
+	end -- 1366
+	local ____temp_5 -- 1367
+	if room.passLine == nil then -- 1367
+		____temp_5 = nil -- 1367
+	else -- 1367
+		____temp_5 = shift(room.passLine) -- 1367
+	end -- 1367
+	local ____temp_6 -- 1368
+	if room.campaign == nil then -- 1368
+		____temp_6 = nil -- 1368
+	else -- 1368
+		____temp_6 = __TS__ObjectAssign( -- 1368
+			{}, -- 1368
+			room.campaign, -- 1368
+			{exitX = shift(room.campaign.exitX)} -- 1368
+		) -- 1368
+	end -- 1368
+	local ____temp_7 -- 1369
+	if room.pickups == nil then -- 1369
+		____temp_7 = nil -- 1369
+	else -- 1369
+		____temp_7 = __TS__ArrayMap( -- 1369
+			room.pickups, -- 1369
+			function(____, p) return __TS__ObjectAssign( -- 1369
+				{}, -- 1369
+				p, -- 1369
+				{x = shift(p.x)} -- 1369
+			) end -- 1369
+		) -- 1369
+	end -- 1369
+	return { -- 1336
+		key = ____room_key_8, -- 1337
+		name = ____room_name_9, -- 1338
+		caption = ____room_caption_10, -- 1339
+		originX = 0, -- 1340
+		minX = ____shift_result_11, -- 1341
+		maxX = ____shift_result_12, -- 1342
+		height = ____room_height_13, -- 1343
+		depth = ____room_depth_14, -- 1344
+		floors = ____TS__ArrayMap_result_15, -- 1345
+		solids = ____placeSolids_result_16, -- 1346
+		zones = ____TS__ArrayMap_result_17, -- 1347
+		arch = ____temp_18, -- 1348
+		stairs = ____placeStairs_result_19, -- 1349
+		cart = ____TS__ObjectAssign_result_20, -- 1350
+		spawns = ____TS__ArrayMap_result_21, -- 1355
+		marks = ____TS__ArrayMap_result_22, -- 1356
+		dims = ____TS__ArrayMap_result_23, -- 1357
+		scavenger = ____temp_0, -- 1358
+		bottle = ____temp_1, -- 1363
+		brickX = ____temp_2, -- 1364
+		basinX = ____temp_3, -- 1365
+		softX = ____temp_4, -- 1366
+		passLine = ____temp_5, -- 1367
+		campaign = ____temp_6, -- 1368
+		pickups = ____temp_7, -- 1369
+		companion = room.companion, -- 1370
+		story = shiftStory(room.story, ox) -- 1371
+	} -- 1371
+end -- 1330
+return ____exports -- 1330
