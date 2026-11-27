@@ -264,17 +264,13 @@ export class CarryPosePlugin implements FeRenderPlugin {
             childWY = soldier.y;
             childDepth = soldier.depth;
 
-            const childStep = Math.floor(this.animTime * 13);
-            const slot = speed > 8 ? "child_run" : "child_idle";
             const scx = cam.sx(childWX);
             const scy = cam.sy(childWY, childDepth);
             const cW = cam.len(22);
             const cH = cam.len(64);
-            partnerPlaced = worldArt.tryPlace(slot, "carry_child_walk", scx, scy, cW, cH, {
-                facing: f,
-                frame: speed > 8 ? childStep : 0,
-                layer: depthEnabled ? depthOrder(childDepth, 4) : 4,
-            });
+            const pose = { facing: f, layer: depthEnabled ? depthOrder(childDepth, 4) : 4 };
+            partnerPlaced = (speed > 8 && worldArt.tryPlaceRun("child", "carry_child_walk", scx, scy, cW, cH, this.animTime * 1.8, pose))
+                || worldArt.tryPlace("child_idle", "carry_child_walk", scx, scy, cW, cH, pose);
             fgDraw.drawEllipse(Vec2(scx, scy + 1), cW * 0.46, 3.2, Color(10, 10, 12, 130));
         }
 

@@ -1,10 +1,10 @@
-import { Color, Content, Node, Sprite, TextureFilter, Vec2 } from "Dora";
+import { Color, Content, Node, Rect, Size, Sprite, TextureFilter, Vec2 } from "Dora";
 
 export type AssetSlotKey =
     | "bgFar_prologue" | "bgFar_street" | "bgFar_checkpoint" | "bgFar_gate"
     | "bgFar_outside" | "bgFar_village" | "bgFar_forest" | "bgFar_tower"
     | "bgFar_crossroad_drygoods" | "bgFar_archway_yard" | "bgFar_granary" | "bgFar_escort_ridge" | "bgFar_museum"
-    | "soldier_idle" | "soldier_run" | "soldier_roll" | "soldier_cover"
+    | "soldier_idle" | "soldier_run" | "soldier_roll" | "soldier_slide" | "soldier_cover"
     | "soldier_push" | "soldier_hold" | "soldier_offer" | "soldier_knock" | "soldier_hit" | "soldier_fire" | "soldier_fire_move"
     | "child_idle" | "child_run" | "child_crouch" | "child_fear" | "child_peek"
     | "child_pull" | "child_aim" | "child_throw" | "child_knock" | "child_offer"
@@ -111,6 +111,36 @@ function feClip(
     return { paths: frames.map(name => "assets/art/sprites_fe.clip|" + name), anchorX, anchorY, preserveAspect };
 }
 
+function character(names: string | string[]): AssetSlotConfig {
+    const frames = typeof names === "string" ? [names] : names;
+    return { paths: frames.map(name => "assets/art/actors-hd.clip|" + name), anchorY: 0, preserveAspect: true };
+}
+
+export const RUN_FRAME_COUNT = 160;
+export const RUN_TRANSITION_PHASES = 8;
+export const RUN_TRANSITION_LEVELS = 12;
+export const SLIDE_FRAME_COUNT = 64;
+const ATLAS_GUTTER = 2;
+
+interface MotionAtlas {
+    path: string;
+    width: number;
+    height: number;
+    columns: number;
+}
+
+const RUN_ATLASES = {
+    soldier: { path: "assets/art/zhoushu-run.png", width: 180, height: 200, columns: 10 },
+    child: { path: "assets/art/xiaoman-run.png", width: 144, height: 164, columns: 10 },
+};
+const RUN_TRANSITIONS = {
+    soldier: { ...RUN_ATLASES.soldier, path: "assets/art/zhoushu-run-transition.png", columns: RUN_TRANSITION_PHASES },
+    child: { ...RUN_ATLASES.child, path: "assets/art/xiaoman-run-transition.png", columns: RUN_TRANSITION_PHASES },
+};
+const SLIDE_ATLAS: MotionAtlas = {
+    path: "assets/art/zhoushu-slide.png", width: 300, height: 198, columns: 8,
+};
+
 export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     bgFar_prologue: backdrop("prologue"),
     bgFar_street: backdrop("street"),
@@ -126,27 +156,28 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     bgFar_escort_ridge: backdrop("bg_escort_ridge", true),
     bgFar_museum: backdrop("bg_museum_hall", true),
     title_backdrop: backdrop("title"),
-    soldier_idle: actor("soldier_idle"),
-    soldier_run: actor(["soldier_run", "soldier_idle", "soldier_step", "soldier_idle"], [0.54, 0.50, 0.45, 0.50]),
-    soldier_roll: actor("soldier_roll", 0.47),
-    soldier_cover: actor("soldier_cover", 0.47),
-    soldier_push: actor(["soldier_push", "soldier_push_step"], [0.43, 0.46]),
-    soldier_hold: actor("soldier_hold"),
-    soldier_offer: actor("soldier_offer", 0.48),
-    soldier_knock: actor(["soldier_cover", "soldier_knock"], [0.47, 0.39]),
-    soldier_hit: actor("soldier_hit", 0.50),
-    soldier_fire: actor("soldier_fire", 0.51),
-    soldier_fire_move: actor(["soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"], [0.53, 0.51, 0.55, 0.51]),
-    child_idle: actor("child_idle", 0.48),
-    child_run: actor(["child_run", "child_idle", "child_step", "child_idle"], [0.54, 0.48, 0.51, 0.48]),
-    child_crouch: actor(["child_crouch", "child_crouch_step"], [0.44, 0.43]),
-    child_fear: actor("child_fear", 0.48),
-    child_peek: actor("child_peek", 0.50),
-    child_pull: actor(["child_pull", "child_pull_step"], [0.40, 0.44]),
-    child_aim: actor("child_aim", 0.47),
-    child_throw: actor("child_throw", 0.49),
-    child_knock: actor("child_knock", 0.50),
-    child_offer: actor("child_offer", 0.49),
+    soldier_idle: character("soldier_idle"),
+    soldier_run: character(["soldier_run", "soldier_step"]),
+    soldier_roll: character("soldier_roll"),
+    soldier_slide: character(["soldier_slide_0", "soldier_slide_1", "soldier_slide_2", "soldier_slide_3"]),
+    soldier_cover: character("soldier_cover"),
+    soldier_push: character(["soldier_push", "soldier_push_step"]),
+    soldier_hold: character("soldier_hold"),
+    soldier_offer: character("soldier_offer"),
+    soldier_knock: character(["soldier_cover", "soldier_knock"]),
+    soldier_hit: character("soldier_hit"),
+    soldier_fire: character("soldier_fire"),
+    soldier_fire_move: character(["soldier_fire_run", "soldier_fire", "soldier_fire_run_step", "soldier_fire"]),
+    child_idle: character("child_idle"),
+    child_run: character(["child_run", "child_step"]),
+    child_crouch: character(["child_crouch", "child_crouch_step"]),
+    child_fear: character("child_fear"),
+    child_peek: character("child_peek"),
+    child_pull: character(["child_pull", "child_pull_step"]),
+    child_aim: character("child_aim"),
+    child_throw: character("child_throw"),
+    child_knock: character("child_knock"),
+    child_offer: character("child_offer"),
     enemy_idle: actor("enemy_idle", 0.50),
     enemy_aim: actor("enemy_aim", 0.51),
     enemy_down: actor("enemy_down"),
@@ -369,6 +400,65 @@ export class AssetSlotHost {
     }
 
     /** 按具体资源路径或 clip 帧路径直接放置精灵，缺失时静默返回 false */
+    /** 循环进度为圈数。每个人物只复用一个精灵节点，逐帧改同一张贴图的采样范围。 */
+    tryPlaceRun(
+        actor: keyof typeof RUN_ATLASES,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        cycles: number,
+        options: SpritePlacement = {},
+        effort: number = 1,
+    ): boolean {
+        if (effort < 1 && this.tryPlaceRunTransition(actor, instanceKey, x, y, targetW, targetH, cycles, effort, options)) {
+            return true;
+        }
+        const frame = Math.floor((cycles - Math.floor(cycles)) * RUN_FRAME_COUNT);
+        return this.tryPlaceMotionFrame(RUN_ATLASES[actor], frame, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    /** 部分步幅沿用当前步相，急停后可收回同一只脚。 */
+    private tryPlaceRunTransition(
+        actor: keyof typeof RUN_TRANSITIONS,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        cycles: number, effort: number,
+        options: SpritePlacement = {},
+    ): boolean {
+        const phase = Math.floor((cycles - Math.floor(cycles)) * RUN_TRANSITION_PHASES + 0.5) % RUN_TRANSITION_PHASES;
+        const level = Math.max(0, Math.min(RUN_TRANSITION_LEVELS - 1, Math.round(effort * (RUN_TRANSITION_LEVELS + 1)) - 1));
+        return this.tryPlaceMotionFrame(RUN_TRANSITIONS[actor], level * RUN_TRANSITION_PHASES + phase,
+            instanceKey, x, y, targetW, targetH, options);
+    }
+
+    tryPlaceSlide(
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        progress: number,
+        options: SpritePlacement = {},
+    ): boolean {
+        const frame = Math.max(0, Math.min(SLIDE_FRAME_COUNT - 1, Math.floor(progress * SLIDE_FRAME_COUNT)));
+        return this.tryPlaceMotionFrame(SLIDE_ATLAS, frame, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    private tryPlaceMotionFrame(
+        atlas: MotionAtlas,
+        frame: number,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        options: SpritePlacement,
+    ): boolean {
+        if (targetW <= 0 || targetH <= 0) {
+            return false;
+        }
+        const { path, width, height, columns } = atlas;
+        const col = frame % columns;
+        const row = Math.floor(frame / columns);
+        const rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER,
+            row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height);
+        return this.placeResolvedPath(path, 0.5, 0, true, false, instanceKey, x, y, targetW, targetH, options, rect);
+    }
+
+    /** 按具体资源路径或 clip 帧路径直接放置精灵，缺失时静默返回 false */
     tryPlacePath(
         path: string,
         instanceKey: string,
@@ -402,6 +492,7 @@ export class AssetSlotHost {
         instanceKey: string,
         x: number, y: number, targetW: number, targetH: number,
         options: SpritePlacement,
+        textureRect?: Rect.Type,
     ): boolean {
         const key = instanceKey + ":" + path;
         let sprite = this.sprites[key];
@@ -416,16 +507,24 @@ export class AssetSlotHost {
                 this.unavailable[path] = true;
                 return false;
             }
-            loaded.anchor = Vec2(anchorX, anchorY);
+            if (textureRect !== undefined) {
+                // The texture crop sets UVs. Dora keeps the original node size until it is resized.
+                loaded.size = Size(textureRect.width, textureRect.height);
+            }
+
             loaded.filter = smooth ? TextureFilter.Anisotropic : TextureFilter.Point;
             loaded.addTo(this.container);
             this.sprites[key] = loaded;
             sprite = loaded;
         }
 
-        const scaleY = targetH / Math.max(1, sprite.height);
+        if (textureRect !== undefined) {
+            sprite.textureRect = textureRect;
+        }
+        const scaleY = targetH / Math.max(1, textureRect?.height ?? sprite.height);
         const scaleX = preserveAspect ? scaleY : targetW / Math.max(1, sprite.width);
-        sprite.position = Vec2(Math.round(x), Math.round(y));
+        sprite.anchor = Vec2(anchorX, anchorY);
+        sprite.position = textureRect === undefined ? Vec2(Math.round(x), Math.round(y)) : Vec2(x, y);
         sprite.scaleX = (options.facing ?? 1) < 0 ? -scaleX : scaleX;
         sprite.scaleY = options.flipY ? -scaleY : scaleY;
         sprite.angle = options.angle ?? 0;

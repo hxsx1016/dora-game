@@ -889,7 +889,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 				return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 707
 			end -- 707
 		end -- 707
-		if p.flash ~= "" and p.flashT > 0 then -- 707
+		if p.flash ~= "" and p.flashT > 0 and p.flash ~= "翻滚结束" then -- 707
 			local cleanFlash = self:stripKeyHintClause(p.flash) -- 712
 			if cleanFlash ~= "" then -- 712
 				local isDanger = (string.find(cleanFlash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(cleanFlash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(cleanFlash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(cleanFlash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(cleanFlash, "追", nil, true) or 0) - 1 >= 0 -- 714
@@ -903,7 +903,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 				elseif text == "打空" then -- 721
 					text = "铅丸偏离或被掩体阻挡" -- 723
 				elseif text == "翻滚" then -- 723
-					text = "伏身翻滚回避" -- 725
+					text = "伏身滑铲" -- 725
 				end -- 725
 				return {cue = cue, text = text, urgent = isDanger} -- 727
 			end -- 727
@@ -948,7 +948,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 		local cue = self.activeLine.who == "周戍" and "兄" or (self.activeLine.who == "小满" and "妹" or "") -- 772
 		return {cue = cue, text = spoken, urgent = self.activeLine.urgent == true} -- 774
 	end -- 774
-	if p.flash ~= "" and p.flashT > 0 then -- 774
+	if p.flash ~= "" and p.flashT > 0 and p.flash ~= "翻滚结束" then -- 774
 		local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 778
 		local text = p.flash -- 779
 		local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 780
@@ -960,7 +960,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 		elseif text == "打空" then -- 785
 			text = "铅丸偏离或被掩体阻挡" -- 787
 		elseif text == "翻滚" then -- 787
-			text = "伏身翻滚回避" -- 789
+			text = "伏身滑铲" -- 789
 		end -- 789
 		return {cue = cue, text = text, urgent = isDanger} -- 791
 	end -- 791

@@ -1,0 +1,33 @@
+<A A="actors-hd.png">
+  <B A="soldier_idle" B="2,2,70,198" />
+  <B A="soldier_run" B="76,2,174,198" />
+  <B A="soldier_step" B="254,2,156,198" />
+  <B A="soldier_roll" B="414,2,220,198" />
+  <B A="soldier_cover" B="638,2,218,198" />
+  <B A="soldier_push" B="860,2,198,198" />
+  <B A="soldier_hold" B="1062,2,140,198" />
+  <B A="soldier_offer" B="1206,2,204,198" />
+  <B A="soldier_knock" B="2,204,214,198" />
+  <B A="soldier_hit" B="220,204,144,198" />
+  <B A="soldier_fire" B="368,204,244,198" />
+  <B A="soldier_push_step" B="616,204,186,198" />
+  <B A="child_idle" B="806,204,52,144" />
+  <B A="child_run" B="862,204,102,144" />
+  <B A="child_step" B="968,204,112,144" />
+  <B A="child_fear" B="1084,204,114,144" />
+  <B A="child_crouch" B="1202,204,272,144" />
+  <B A="child_crouch_step" B="2,406,268,144" />
+  <B A="child_peek" B="274,406,170,144" />
+  <B A="child_pull" B="448,406,146,144" />
+  <B A="child_aim" B="598,406,122,144" />
+  <B A="child_throw" B="724,406,162,144" />
+  <B A="child_knock" B="890,406,88,144" />
+  <B A="child_offer" B="982,406,124,144" />
+  <B A="soldier_fire_run" B="1110,406,260,198" />
+  <B A="soldier_fire_run_step" B="2,608,270,198" />
+  <B A="child_pull_step" B="276,608,108,144" />
+  <B A="soldier_slide_0" B="388,608,300,198" />
+  <B A="soldier_slide_1" B="692,608,300,198" />
+  <B A="soldier_slide_2" B="996,608,300,198" />
+  <B A="soldier_slide_3" B="2,810,300,198" />
+</A>
