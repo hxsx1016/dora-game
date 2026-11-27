@@ -339,19 +339,19 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
 
     // 新版关卡试玩层：直接画 Play，HUD 只有两行读数。
     campaignLayer = Node();
-    campaignLayer.order = 3;
+    campaignLayer.order = 6;
     campaignLayer.addTo(parent);
     campaignHud = Label(FONT, 24);
     if (campaignHud !== undefined) {
         campaignHud.color = C_TEXT;
-        campaignHud.anchor = Vec2(0, 1);
+        campaignHud.anchor = Vec2(0.5, 1);
         campaignHud.addTo(campaignLayer);
         campaignHud.visible = true;
     }
     campaignSub = Label(FONT, 20);
     if (campaignSub !== undefined) {
         campaignSub.color = C_ACCENT;
-        campaignSub.anchor = Vec2(0, 1);
+        campaignSub.anchor = Vec2(0.5, 0);
         campaignSub.addTo(campaignLayer);
         campaignSub.visible = true;
     }
@@ -1156,7 +1156,7 @@ function drawCampaignHud(p: Play): void {
     }
     if (campaignHud !== undefined) {
         campaignHud.text = line;
-        campaignHud.position = Vec2(24 + safeL, h - 14 - safeT);
+        campaignHud.position = Vec2(stageVp.stageW * 0.5, h - 12 - safeT);
         campaignHud.visible = true;
     }
 
@@ -1179,7 +1179,7 @@ function drawCampaignHud(p: Play): void {
         }
     }
     campaignSub.text = sub;
-    campaignSub.position = Vec2(24 + safeL, h - 44 - safeT);
+    campaignSub.position = Vec2(stageVp.stageW * 0.5, 14 + stageVp.safeUi.bottom * stageVp.uiScale);
     campaignSub.visible = sub !== "";
 }
 

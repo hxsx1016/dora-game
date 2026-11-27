@@ -826,7 +826,7 @@ function drawCampaignHud(p) -- 1131
 	end -- 1155
 	if campaignHud ~= nil then -- 1155
 		campaignHud.text = line -- 1158
-		campaignHud.position = Vec2(24 + safeL, h - 14 - safeT) -- 1159
+		campaignHud.position = Vec2(stageVp.stageW * 0.5, h - 12 - safeT) -- 1159
 		campaignHud.visible = true -- 1160
 	end -- 1160
 	if campaignSub == nil then -- 1160
@@ -854,7 +854,7 @@ function drawCampaignHud(p) -- 1131
 		end -- 1178
 	end -- 1178
 	campaignSub.text = sub -- 1181
-	campaignSub.position = Vec2(24 + safeL, h - 44 - safeT) -- 1182
+	campaignSub.position = Vec2(stageVp.stageW * 0.5, 14 + stageVp.safeUi.bottom * stageVp.uiScale) -- 1182
 	campaignSub.visible = sub ~= "" -- 1183
 end -- 1183
 function tickFrontend(frameDt) -- 1186
@@ -1198,19 +1198,19 @@ function ____exports.start(parent, initialMode, startScreen) -- 336
 	root = parent -- 337
 	mode = initialMode -- 338
 	campaignLayer = Node() -- 341
-	campaignLayer.order = 3 -- 342
+	campaignLayer.order = 6 -- 342
 	campaignLayer:addTo(parent) -- 343
 	campaignHud = Label(FONT, 24) -- 344
 	if campaignHud ~= nil then -- 344
 		campaignHud.color = C_TEXT -- 346
-		campaignHud.anchor = Vec2(0, 1) -- 347
+		campaignHud.anchor = Vec2(0.5, 1) -- 347
 		campaignHud:addTo(campaignLayer) -- 348
 		campaignHud.visible = true -- 349
 	end -- 349
 	campaignSub = Label(FONT, 20) -- 351
 	if campaignSub ~= nil then -- 351
 		campaignSub.color = C_ACCENT -- 353
-		campaignSub.anchor = Vec2(0, 1) -- 354
+		campaignSub.anchor = Vec2(0.5, 0) -- 354
 		campaignSub:addTo(campaignLayer) -- 355
 		campaignSub.visible = true -- 356
 	end -- 356
