@@ -57,10 +57,41 @@ function isCallableCtor(ctor: unknown): boolean {
 }
 
 function safeCreateBus(): AudioBus.Type | undefined {
-    if (isCallableCtor(AudioBus)) {
-        return AudioBus();
+    if (!isCallableCtor(AudioBus)) {
+        return undefined;
     }
-    return undefined;
+    try {
+        return AudioBus();
+    } catch {
+        // 无音频输出设备（如未插耳机的台式机、远程桌面或虚拟机）时 SoLoud 会降级关闭，安全回退为无声模式
+        return undefined;
+    }
+}
+
+function safeCreateSource(
+    path: string,
+    autoRemove: boolean,
+    bus: AudioBus.Type | undefined,
+): AudioSource.Type | undefined {
+    if (!isCallableCtor(AudioSource)) {
+        return undefined;
+    }
+    try {
+        return AudioSource(path, autoRemove, bus);
+    } catch {
+        return undefined;
+    }
+}
+
+function safeAudioPlay(path: string, loop: boolean): number {
+    if (typeof Audio === "undefined" || typeof Audio.play !== "function") {
+        return 0;
+    }
+    try {
+        return Audio.play(path, loop);
+    } catch {
+        return 0;
+    }
 }
 
 export class AudioDirector {
@@ -187,7 +218,7 @@ export class AudioDirector {
         if (path !== "" && Content.exist(path)) {
             this.pruneStoppedSources();
             const bus = this.buses[track];
-            const src = isCallableCtor(AudioSource) ? AudioSource(path, false, bus) : undefined;
+            const src = safeCreateSource(path, false, bus);
             if (src !== undefined) {
                 // 挂载了独立 AudioBus 时由总线负责分轨增益与静音，声源自身只吃单条 cue 音量，避免重复乘方
                 src.volume = bus !== undefined ? cueVol : effectiveVol;
@@ -201,8 +232,8 @@ export class AudioDirector {
                 } else {
                     src.removeFromParent(true);
                 }
-            } else if (typeof Audio !== "undefined" && typeof Audio.play === "function") {
-                const handler = Audio.play(path, false);
+            } else {
+                const handler = safeAudioPlay(path, false);
                 if (handler > 0) {
                     this.activeHandlers.push(handler);
                     playedBackend = true;
@@ -251,7 +282,7 @@ export class AudioDirector {
         let handler: number | undefined;
         let playedBackend = false;
         if (path !== "" && Content.exist(path)) {
-            const created = isCallableCtor(AudioSource) ? AudioSource(path, false, bus) : undefined;
+            const created = safeCreateSource(path, false, bus);
             if (created !== undefined) {
                 created.looping = true;
                 created.volume = bus !== undefined ? clampedVol : clampedVol * trackGain;
@@ -265,8 +296,8 @@ export class AudioDirector {
                     created.removeFromParent(true);
                 }
             }
-            if (!playedBackend && typeof Audio !== "undefined" && typeof Audio.play === "function") {
-                const h = Audio.play(path, true);
+            if (!playedBackend) {
+                const h = safeAudioPlay(path, true);
                 if (h > 0) {
                     handler = h;
                     playedBackend = true;
@@ -317,7 +348,11 @@ export class AudioDirector {
         }
         this.paused = paused;
         if (typeof Audio !== "undefined" && typeof Audio.setPauseAllCurrent === "function") {
-            Audio.setPauseAllCurrent(paused);
+            try {
+                Audio.setPauseAllCurrent(paused);
+            } catch {
+                // 无声设备模式下静默忽略
+            }
         }
     }
 

@@ -34,624 +34,667 @@ local function isCallableCtor(ctor) -- 55
 	return ctor ~= nil and (type(ctor) == "function" or type(ctor) == "table") -- 56
 end -- 55
 local function safeCreateBus() -- 59
-	if isCallableCtor(AudioBus) then -- 59
-		return AudioBus() -- 61
+	if not isCallableCtor(AudioBus) then -- 59
+		return nil -- 61
 	end -- 61
-	return nil -- 63
+	do -- 61
+		local function ____catch() -- 61
+			return true, nil -- 67
+		end -- 67
+		local ____try, ____hasReturned, ____returnValue = pcall(function() -- 67
+			return true, AudioBus() -- 64
+		end) -- 64
+		if not ____try then -- 64
+			____hasReturned, ____returnValue = ____catch() -- 64
+		end -- 64
+		if ____hasReturned then -- 64
+			return ____returnValue -- 63
+		end -- 63
+	end -- 63
 end -- 59
-____exports.AudioDirector = __TS__Class() -- 66
-local AudioDirector = ____exports.AudioDirector -- 66
-AudioDirector.name = "AudioDirector" -- 66
-function AudioDirector.prototype.____constructor(self) -- 79
-	self.activeSources = {} -- 71
-	self.activeHandlers = {} -- 72
-	self.activeLoops = {} -- 73
-	self.dedupeSet = {} -- 74
-	self.playLog = {} -- 75
-	self.paused = false -- 76
-	self.worldPlaySpeed = 1 -- 77
-	self.buses = { -- 80
-		voice = safeCreateBus(), -- 81
-		wind = safeCreateBus(), -- 82
-		water = safeCreateBus(), -- 83
-		ambience = safeCreateBus(), -- 84
-		sfx = safeCreateBus() -- 85
-	} -- 85
-	self.trackVolumes = { -- 87
-		voice = 1, -- 88
-		wind = 1, -- 89
-		water = 1, -- 90
-		ambience = 1, -- 91
-		sfx = 1 -- 92
-	} -- 92
-	self.trackMuted = { -- 94
-		voice = false, -- 95
-		wind = false, -- 96
-		water = false, -- 97
-		ambience = false, -- 98
-		sfx = false -- 99
-	} -- 99
-end -- 79
-function AudioDirector.prototype.attachHost(self, parent) -- 104
-	if self.hostNode ~= nil then -- 104
-		return -- 106
-	end -- 106
-	local n = Node() -- 108
-	n.order = -1 -- 109
-	n:addTo(parent) -- 110
-	self.hostNode = n -- 111
-end -- 104
-function AudioDirector.prototype.isPaused(self) -- 114
-	return self.paused -- 115
-end -- 114
-function AudioDirector.prototype.getTrackVolume(self, track) -- 118
-	return self.trackVolumes[track] -- 119
-end -- 118
-function AudioDirector.prototype.setTrackVolume(self, track, volume) -- 122
-	local clamped = clamp01(volume) -- 123
-	self.trackVolumes[track] = clamped -- 124
-	self:syncBusGain(track) -- 125
-end -- 122
-function AudioDirector.prototype.isTrackMuted(self, track) -- 128
-	return self.trackMuted[track] -- 129
-end -- 128
-function AudioDirector.prototype.setTrackMuted(self, track, muted) -- 132
-	self.trackMuted[track] = muted -- 133
-	self:syncBusGain(track) -- 134
-end -- 132
-function AudioDirector.prototype.setWorldPlaySpeed(self, speed) -- 138
-	local next = math.max( -- 139
-		0.25, -- 139
-		math.min(2, speed) -- 139
-	) -- 139
-	if math.abs(next - self.worldPlaySpeed) < 0.001 then -- 139
-		return -- 141
-	end -- 141
-	self.worldPlaySpeed = next -- 143
-	local worldTracks = {"wind", "water", "ambience", "sfx"} -- 144
-	local i = 0 -- 145
-	do -- 145
-		i = 0 -- 146
-		while i < #worldTracks do -- 146
-			local bus = self.buses[worldTracks[i + 1]] -- 147
-			if bus ~= nil then -- 147
-				bus.playSpeed = next -- 149
-			end -- 149
-			i = i + 1 -- 146
-		end -- 146
-	end -- 146
-end -- 138
-function AudioDirector.prototype.syncBusGain(self, track) -- 154
-	local bus = self.buses[track] -- 155
-	if bus ~= nil then -- 155
-		bus.volume = self.trackMuted[track] and 0 or self.trackVolumes[track] -- 157
-	end -- 157
-end -- 154
-function AudioDirector.prototype.playOnce(self, dedupeKey, track, path, volume, cueId, tick, seq) -- 166
-	if volume == nil then -- 166
-		volume = 1 -- 170
-	end -- 170
-	if cueId == nil then -- 170
-		cueId = "" -- 171
-	end -- 171
-	if tick == nil then -- 171
-		tick = 0 -- 172
+local function safeCreateSource(path, autoRemove, bus) -- 71
+	if not isCallableCtor(AudioSource) then -- 71
+		return nil -- 77
+	end -- 77
+	do -- 77
+		local function ____catch() -- 77
+			return true, nil -- 82
+		end -- 82
+		local ____try, ____hasReturned, ____returnValue = pcall(function() -- 82
+			return true, AudioSource(path, autoRemove, bus) -- 80
+		end) -- 80
+		if not ____try then -- 80
+			____hasReturned, ____returnValue = ____catch() -- 80
+		end -- 80
+		if ____hasReturned then -- 80
+			return ____returnValue -- 79
+		end -- 79
+	end -- 79
+end -- 71
+local function safeAudioPlay(path, loop) -- 86
+	if type(Audio) == "nil" or type(Audio.play) ~= "function" then -- 86
+		return 0 -- 88
+	end -- 88
+	do -- 88
+		local function ____catch() -- 88
+			return true, 0 -- 93
+		end -- 93
+		local ____try, ____hasReturned, ____returnValue = pcall(function() -- 93
+			return true, Audio:play(path, loop) -- 91
+		end) -- 91
+		if not ____try then -- 91
+			____hasReturned, ____returnValue = ____catch() -- 91
+		end -- 91
+		if ____hasReturned then -- 91
+			return ____returnValue -- 90
+		end -- 90
+	end -- 90
+end -- 86
+____exports.AudioDirector = __TS__Class() -- 97
+local AudioDirector = ____exports.AudioDirector -- 97
+AudioDirector.name = "AudioDirector" -- 97
+function AudioDirector.prototype.____constructor(self) -- 110
+	self.activeSources = {} -- 102
+	self.activeHandlers = {} -- 103
+	self.activeLoops = {} -- 104
+	self.dedupeSet = {} -- 105
+	self.playLog = {} -- 106
+	self.paused = false -- 107
+	self.worldPlaySpeed = 1 -- 108
+	self.buses = { -- 111
+		voice = safeCreateBus(), -- 112
+		wind = safeCreateBus(), -- 113
+		water = safeCreateBus(), -- 114
+		ambience = safeCreateBus(), -- 115
+		sfx = safeCreateBus() -- 116
+	} -- 116
+	self.trackVolumes = { -- 118
+		voice = 1, -- 119
+		wind = 1, -- 120
+		water = 1, -- 121
+		ambience = 1, -- 122
+		sfx = 1 -- 123
+	} -- 123
+	self.trackMuted = { -- 125
+		voice = false, -- 126
+		wind = false, -- 127
+		water = false, -- 128
+		ambience = false, -- 129
+		sfx = false -- 130
+	} -- 130
+end -- 110
+function AudioDirector.prototype.attachHost(self, parent) -- 135
+	if self.hostNode ~= nil then -- 135
+		return -- 137
+	end -- 137
+	local n = Node() -- 139
+	n.order = -1 -- 140
+	n:addTo(parent) -- 141
+	self.hostNode = n -- 142
+end -- 135
+function AudioDirector.prototype.isPaused(self) -- 145
+	return self.paused -- 146
+end -- 145
+function AudioDirector.prototype.getTrackVolume(self, track) -- 149
+	return self.trackVolumes[track] -- 150
+end -- 149
+function AudioDirector.prototype.setTrackVolume(self, track, volume) -- 153
+	local clamped = clamp01(volume) -- 154
+	self.trackVolumes[track] = clamped -- 155
+	self:syncBusGain(track) -- 156
+end -- 153
+function AudioDirector.prototype.isTrackMuted(self, track) -- 159
+	return self.trackMuted[track] -- 160
+end -- 159
+function AudioDirector.prototype.setTrackMuted(self, track, muted) -- 163
+	self.trackMuted[track] = muted -- 164
+	self:syncBusGain(track) -- 165
+end -- 163
+function AudioDirector.prototype.setWorldPlaySpeed(self, speed) -- 169
+	local next = math.max( -- 170
+		0.25, -- 170
+		math.min(2, speed) -- 170
+	) -- 170
+	if math.abs(next - self.worldPlaySpeed) < 0.001 then -- 170
+		return -- 172
 	end -- 172
-	if seq == nil then -- 172
-		seq = -1 -- 173
-	end -- 173
-	if dedupeKey ~= "" and self.dedupeSet[dedupeKey] == true then -- 173
-		return false -- 176
-	end -- 176
-	if dedupeKey ~= "" then -- 176
-		self.dedupeSet[dedupeKey] = true -- 179
-	end -- 179
-	local cueVol = clamp01(volume) -- 182
-	local trackGain = self.trackMuted[track] and 0 or self.trackVolumes[track] -- 183
-	local effectiveVol = cueVol * trackGain -- 184
-	local playedBackend = false -- 185
-	if path ~= "" and Content:exist(path) then -- 185
-		self:pruneStoppedSources() -- 188
-		local bus = self.buses[track] -- 189
-		local ____isCallableCtor_result_0 -- 190
-		if isCallableCtor(AudioSource) then -- 190
-			____isCallableCtor_result_0 = AudioSource(path, false, bus) -- 190
-		else -- 190
-			____isCallableCtor_result_0 = nil -- 190
-		end -- 190
-		local src = ____isCallableCtor_result_0 -- 190
-		if src ~= nil then -- 190
-			src.volume = bus ~= nil and cueVol or effectiveVol -- 193
-			src.looping = false -- 194
-			if self.hostNode ~= nil then -- 194
-				src:addTo(self.hostNode) -- 196
-			end -- 196
-			playedBackend = src:play() -- 198
-			if playedBackend then -- 198
-				local ____self_activeSources_1 = self.activeSources -- 198
-				____self_activeSources_1[#____self_activeSources_1 + 1] = src -- 200
-			else -- 200
-				src:removeFromParent(true) -- 202
-			end -- 202
-		elseif type(Audio) ~= "nil" and type(Audio.play) == "function" then -- 202
-			local handler = Audio:play(path, false) -- 205
-			if handler > 0 then -- 205
-				local ____self_activeHandlers_2 = self.activeHandlers -- 205
-				____self_activeHandlers_2[#____self_activeHandlers_2 + 1] = handler -- 207
-				playedBackend = true -- 208
-			end -- 208
-		end -- 208
-	end -- 208
-	self:recordLog({ -- 213
-		tick = tick, -- 214
-		seq = seq, -- 215
-		track = track, -- 216
-		cueId = cueId ~= "" and cueId or (dedupeKey ~= "" and dedupeKey or path), -- 217
-		dedupeKey = dedupeKey, -- 218
-		path = path, -- 219
-		volume = clamp01(volume), -- 220
-		looped = false, -- 221
-		playedBackend = playedBackend -- 222
-	}) -- 222
-	return true -- 224
-end -- 166
-function AudioDirector.prototype.playLoop(self, loopId, track, path, volume, tick) -- 228
-	if volume == nil then -- 228
-		volume = 1 -- 232
-	end -- 232
-	if tick == nil then -- 232
-		tick = 0 -- 233
-	end -- 233
-	local prev = self.activeLoops[loopId] -- 235
-	local clampedVol = clamp01(volume) -- 236
-	local bus = self.buses[track] -- 237
-	local trackGain = self.trackMuted[track] and 0 or self.trackVolumes[track] -- 238
-	if prev ~= nil and prev.path == path and prev.track == track then -- 238
-		prev.volume = clampedVol -- 240
-		if prev.source ~= nil then -- 240
-			prev.source.volume = bus ~= nil and clampedVol or clampedVol * trackGain -- 242
-		end -- 242
-		return false -- 244
-	end -- 244
-	if prev ~= nil then -- 244
-		self:stopLoop(loopId, 0) -- 247
-	end -- 247
-	local source -- 250
-	local handler -- 251
-	local playedBackend = false -- 252
-	if path ~= "" and Content:exist(path) then -- 252
-		local ____isCallableCtor_result_3 -- 254
-		if isCallableCtor(AudioSource) then -- 254
-			____isCallableCtor_result_3 = AudioSource(path, false, bus) -- 254
-		else -- 254
-			____isCallableCtor_result_3 = nil -- 254
-		end -- 254
-		local created = ____isCallableCtor_result_3 -- 254
-		if created ~= nil then -- 254
-			created.looping = true -- 256
-			created.volume = bus ~= nil and clampedVol or clampedVol * trackGain -- 257
-			if self.hostNode ~= nil then -- 257
-				created:addTo(self.hostNode) -- 259
-			end -- 259
-			playedBackend = created:play() -- 261
-			if playedBackend then -- 261
-				source = created -- 263
-			else -- 263
-				created:removeFromParent(true) -- 265
-			end -- 265
-		end -- 265
-		if not playedBackend and type(Audio) ~= "nil" and type(Audio.play) == "function" then -- 265
-			local h = Audio:play(path, true) -- 269
-			if h > 0 then -- 269
-				handler = h -- 271
-				playedBackend = true -- 272
-			end -- 272
-		end -- 272
-	end -- 272
-	self.activeLoops[loopId] = { -- 277
-		track = track, -- 278
-		path = path, -- 279
-		volume = clampedVol, -- 280
-		source = source, -- 281
-		handler = handler -- 282
-	} -- 282
-	self:recordLog({ -- 284
-		tick = tick, -- 285
-		seq = -1, -- 286
-		track = track, -- 287
-		cueId = "loop:" .. loopId, -- 288
-		dedupeKey = "loop:" .. loopId, -- 289
-		path = path, -- 290
-		volume = clampedVol, -- 291
-		looped = true, -- 292
-		playedBackend = playedBackend -- 293
-	}) -- 293
-	return true -- 295
-end -- 228
-function AudioDirector.prototype.stopLoop(self, loopId, fadeTime) -- 298
-	if fadeTime == nil then -- 298
-		fadeTime = 0 -- 298
-	end -- 298
-	local entry = self.activeLoops[loopId] -- 299
-	if entry == nil then -- 299
-		return -- 301
-	end -- 301
-	if entry.source ~= nil then -- 301
-		entry.source:stop(fadeTime) -- 304
-		entry.source:removeFromParent(true) -- 305
-	end -- 305
-	if entry.handler ~= nil and type(Audio) ~= "nil" and type(Audio.stop) == "function" then -- 305
-		Audio:stop(entry.handler) -- 308
-	end -- 308
-	__TS__Delete(self.activeLoops, loopId) -- 310
-end -- 298
-function AudioDirector.prototype.setPaused(self, paused) -- 314
-	if self.paused == paused then -- 314
-		return -- 316
-	end -- 316
-	self.paused = paused -- 318
-	if type(Audio) ~= "nil" and type(Audio.setPauseAllCurrent) == "function" then -- 318
-		Audio:setPauseAllCurrent(paused) -- 320
-	end -- 320
-end -- 314
-function AudioDirector.prototype.stopRoomTransient(self) -- 325
-	local i = 0 -- 326
-	do -- 326
-		i = 0 -- 327
-		while i < #self.activeSources do -- 327
-			local src = self.activeSources[i + 1] -- 328
-			if src.playing then -- 328
-				src:stop(0) -- 330
-			end -- 330
-			src:removeFromParent(true) -- 332
-			i = i + 1 -- 327
-		end -- 327
-	end -- 327
-	self.activeSources = {} -- 334
-	if type(Audio) ~= "nil" and type(Audio.stop) == "function" then -- 334
-		do -- 334
-			i = 0 -- 337
-			while i < #self.activeHandlers do -- 337
-				Audio:stop(self.activeHandlers[i + 1]) -- 338
-				i = i + 1 -- 337
-			end -- 337
-		end -- 337
-	end -- 337
-	self.activeHandlers = {} -- 341
-	local loopIds = {} -- 343
-	for id in pairs(self.activeLoops) do -- 344
-		loopIds[#loopIds + 1] = id -- 345
-	end -- 345
-	do -- 345
-		i = 0 -- 347
-		while i < #loopIds do -- 347
-			self:stopLoop(loopIds[i + 1], 0) -- 348
-			i = i + 1 -- 347
-		end -- 347
+	self.worldPlaySpeed = next -- 174
+	local worldTracks = {"wind", "water", "ambience", "sfx"} -- 175
+	local i = 0 -- 176
+	do -- 176
+		i = 0 -- 177
+		while i < #worldTracks do -- 177
+			local bus = self.buses[worldTracks[i + 1]] -- 178
+			if bus ~= nil then -- 178
+				bus.playSpeed = next -- 180
+			end -- 180
+			i = i + 1 -- 177
+		end -- 177
+	end -- 177
+end -- 169
+function AudioDirector.prototype.syncBusGain(self, track) -- 185
+	local bus = self.buses[track] -- 186
+	if bus ~= nil then -- 186
+		bus.volume = self.trackMuted[track] and 0 or self.trackVolumes[track] -- 188
+	end -- 188
+end -- 185
+function AudioDirector.prototype.playOnce(self, dedupeKey, track, path, volume, cueId, tick, seq) -- 197
+	if volume == nil then -- 197
+		volume = 1 -- 201
+	end -- 201
+	if cueId == nil then -- 201
+		cueId = "" -- 202
+	end -- 202
+	if tick == nil then -- 202
+		tick = 0 -- 203
+	end -- 203
+	if seq == nil then -- 203
+		seq = -1 -- 204
+	end -- 204
+	if dedupeKey ~= "" and self.dedupeSet[dedupeKey] == true then -- 204
+		return false -- 207
+	end -- 207
+	if dedupeKey ~= "" then -- 207
+		self.dedupeSet[dedupeKey] = true -- 210
+	end -- 210
+	local cueVol = clamp01(volume) -- 213
+	local trackGain = self.trackMuted[track] and 0 or self.trackVolumes[track] -- 214
+	local effectiveVol = cueVol * trackGain -- 215
+	local playedBackend = false -- 216
+	if path ~= "" and Content:exist(path) then -- 216
+		self:pruneStoppedSources() -- 219
+		local bus = self.buses[track] -- 220
+		local src = safeCreateSource(path, false, bus) -- 221
+		if src ~= nil then -- 221
+			src.volume = bus ~= nil and cueVol or effectiveVol -- 224
+			src.looping = false -- 225
+			if self.hostNode ~= nil then -- 225
+				src:addTo(self.hostNode) -- 227
+			end -- 227
+			playedBackend = src:play() -- 229
+			if playedBackend then -- 229
+				local ____self_activeSources_0 = self.activeSources -- 229
+				____self_activeSources_0[#____self_activeSources_0 + 1] = src -- 231
+			else -- 231
+				src:removeFromParent(true) -- 233
+			end -- 233
+		else -- 233
+			local handler = safeAudioPlay(path, false) -- 236
+			if handler > 0 then -- 236
+				local ____self_activeHandlers_1 = self.activeHandlers -- 236
+				____self_activeHandlers_1[#____self_activeHandlers_1 + 1] = handler -- 238
+				playedBackend = true -- 239
+			end -- 239
+		end -- 239
+	end -- 239
+	self:recordLog({ -- 244
+		tick = tick, -- 245
+		seq = seq, -- 246
+		track = track, -- 247
+		cueId = cueId ~= "" and cueId or (dedupeKey ~= "" and dedupeKey or path), -- 248
+		dedupeKey = dedupeKey, -- 249
+		path = path, -- 250
+		volume = clamp01(volume), -- 251
+		looped = false, -- 252
+		playedBackend = playedBackend -- 253
+	}) -- 253
+	return true -- 255
+end -- 197
+function AudioDirector.prototype.playLoop(self, loopId, track, path, volume, tick) -- 259
+	if volume == nil then -- 259
+		volume = 1 -- 263
+	end -- 263
+	if tick == nil then -- 263
+		tick = 0 -- 264
+	end -- 264
+	local prev = self.activeLoops[loopId] -- 266
+	local clampedVol = clamp01(volume) -- 267
+	local bus = self.buses[track] -- 268
+	local trackGain = self.trackMuted[track] and 0 or self.trackVolumes[track] -- 269
+	if prev ~= nil and prev.path == path and prev.track == track then -- 269
+		prev.volume = clampedVol -- 271
+		if prev.source ~= nil then -- 271
+			prev.source.volume = bus ~= nil and clampedVol or clampedVol * trackGain -- 273
+		end -- 273
+		return false -- 275
+	end -- 275
+	if prev ~= nil then -- 275
+		self:stopLoop(loopId, 0) -- 278
+	end -- 278
+	local source -- 281
+	local handler -- 282
+	local playedBackend = false -- 283
+	if path ~= "" and Content:exist(path) then -- 283
+		local created = safeCreateSource(path, false, bus) -- 285
+		if created ~= nil then -- 285
+			created.looping = true -- 287
+			created.volume = bus ~= nil and clampedVol or clampedVol * trackGain -- 288
+			if self.hostNode ~= nil then -- 288
+				created:addTo(self.hostNode) -- 290
+			end -- 290
+			playedBackend = created:play() -- 292
+			if playedBackend then -- 292
+				source = created -- 294
+			else -- 294
+				created:removeFromParent(true) -- 296
+			end -- 296
+		end -- 296
+		if not playedBackend then -- 296
+			local h = safeAudioPlay(path, true) -- 300
+			if h > 0 then -- 300
+				handler = h -- 302
+				playedBackend = true -- 303
+			end -- 303
+		end -- 303
+	end -- 303
+	self.activeLoops[loopId] = { -- 308
+		track = track, -- 309
+		path = path, -- 310
+		volume = clampedVol, -- 311
+		source = source, -- 312
+		handler = handler -- 313
+	} -- 313
+	self:recordLog({ -- 315
+		tick = tick, -- 316
+		seq = -1, -- 317
+		track = track, -- 318
+		cueId = "loop:" .. loopId, -- 319
+		dedupeKey = "loop:" .. loopId, -- 320
+		path = path, -- 321
+		volume = clampedVol, -- 322
+		looped = true, -- 323
+		playedBackend = playedBackend -- 324
+	}) -- 324
+	return true -- 326
+end -- 259
+function AudioDirector.prototype.stopLoop(self, loopId, fadeTime) -- 329
+	if fadeTime == nil then -- 329
+		fadeTime = 0 -- 329
+	end -- 329
+	local entry = self.activeLoops[loopId] -- 330
+	if entry == nil then -- 330
+		return -- 332
+	end -- 332
+	if entry.source ~= nil then -- 332
+		entry.source:stop(fadeTime) -- 335
+		entry.source:removeFromParent(true) -- 336
+	end -- 336
+	if entry.handler ~= nil and type(Audio) ~= "nil" and type(Audio.stop) == "function" then -- 336
+		Audio:stop(entry.handler) -- 339
+	end -- 339
+	__TS__Delete(self.activeLoops, loopId) -- 341
+end -- 329
+function AudioDirector.prototype.setPaused(self, paused) -- 345
+	if self.paused == paused then -- 345
+		return -- 347
 	end -- 347
-	self.dedupeSet = {} -- 351
-	if self.paused then -- 351
-		self:setPaused(false) -- 353
-	end -- 353
-	self:setWorldPlaySpeed(1) -- 355
-end -- 325
-function AudioDirector.prototype.ingestEvents(self, ev, p) -- 363
-	if self.paused or #ev.rawEvents == 0 then -- 363
-		return -- 365
-	end -- 365
-	local i = 0 -- 367
-	do -- 367
-		i = 0 -- 368
-		while i < #ev.rawEvents do -- 368
-			self:dispatchSingleEvent(ev.rawEvents[i + 1], ev.roomSessionId, ev.checkpoint, p) -- 369
-			i = i + 1 -- 368
-		end -- 368
-	end -- 368
-end -- 363
-function AudioDirector.prototype.dispatchSingleEvent(self, e, roomSessionId, checkpoint, p) -- 373
-	local key = (((((((("r" .. tostring(roomSessionId)) .. ":cp") .. tostring(checkpoint)) .. ":t") .. tostring(e.tick)) .. ":s") .. tostring(e.seq)) .. ":") .. e.name -- 379
-	if e.name == "knock" then -- 379
-		local roomTag = type(e.data.room) == "string" and e.data.room or p.room.key -- 381
-		local countTag = type(e.data.count) == "number" and "" .. tostring(e.data.count) or "1" -- 382
-		self:playOnce( -- 383
-			key, -- 383
-			"sfx", -- 383
-			"assets/audio/sfx/knock.wav", -- 383
-			0.9, -- 383
-			(("knock:" .. roomTag) .. ":") .. countTag, -- 383
-			e.tick, -- 383
-			e.seq -- 383
-		) -- 383
-		return -- 384
-	end -- 384
-	if e.name == "shotResolved" then -- 384
-		local hit = e.data.hit == true -- 387
-		self:playOnce( -- 388
-			key, -- 388
-			"sfx", -- 388
-			"assets/audio/combat/shot.wav", -- 388
-			0.85, -- 388
-			hit and "shot:hit" or "shot:fire", -- 388
-			e.tick, -- 388
-			e.seq -- 388
-		) -- 388
-		return -- 389
-	end -- 389
-	if e.name == "coverBlocked" then -- 389
-		self:playOnce( -- 392
-			key, -- 392
-			"sfx", -- 392
-			"assets/audio/combat/cover_block.wav", -- 392
-			0.85, -- 392
-			"cover:blocked", -- 392
-			e.tick, -- 392
-			e.seq -- 392
-		) -- 392
-		return -- 393
-	end -- 393
-	if e.name == "actorHit" or e.name == "gateFailed" then -- 393
-		self:playOnce( -- 396
-			key, -- 396
-			"sfx", -- 396
-			"assets/audio/combat/actor_hit.wav", -- 396
-			0.9, -- 396
-			"actor:hit", -- 396
-			e.tick, -- 396
-			e.seq -- 396
-		) -- 396
-		return -- 397
-	end -- 397
-	if e.name == "bottleLanded" then -- 397
-		local surface = "brick" -- 400
-		if type(e.data.surface) == "string" then -- 400
-			surface = e.data.surface -- 402
-		elseif p.room.key == "village" then -- 402
-			local landX = type(e.data.x) == "number" and e.data.x or p.bottleLandX -- 404
-			if math.abs(landX - (p.ox + VILLAGE_BASIN_OFFSET_X)) <= VILLAGE_BASIN_HIT_RADIUS then -- 404
-				surface = "iron" -- 406
-			elseif p.room.softX ~= nil and math.abs(landX - p.room.softX) <= VILLAGE_SOFT_HIT_RADIUS then -- 406
-				surface = "soft" -- 408
-			end -- 408
-		end -- 408
-		local path = surface == "iron" and "assets/audio/child/bottle_iron.wav" or (surface == "soft" and "assets/audio/child/bottle_soft.wav" or "assets/audio/child/bottle_brick.wav") -- 411
-		self:playOnce( -- 414
-			key, -- 414
-			"sfx", -- 414
-			path, -- 414
-			0.9, -- 414
-			"bottle:" .. surface, -- 414
-			e.tick, -- 414
-			e.seq -- 414
-		) -- 414
-		return -- 415
-	end -- 415
-	if e.name == "cartDocked" then -- 415
+	self.paused = paused -- 349
+	if type(Audio) ~= "nil" and type(Audio.setPauseAllCurrent) == "function" then -- 349
+		do -- 349
+			pcall(function() -- 349
+				Audio:setPauseAllCurrent(paused) -- 352
+			end) -- 352
+		end -- 352
+	end -- 352
+end -- 345
+function AudioDirector.prototype.stopRoomTransient(self) -- 360
+	local i = 0 -- 361
+	do -- 361
+		i = 0 -- 362
+		while i < #self.activeSources do -- 362
+			local src = self.activeSources[i + 1] -- 363
+			if src.playing then -- 363
+				src:stop(0) -- 365
+			end -- 365
+			src:removeFromParent(true) -- 367
+			i = i + 1 -- 362
+		end -- 362
+	end -- 362
+	self.activeSources = {} -- 369
+	if type(Audio) ~= "nil" and type(Audio.stop) == "function" then -- 369
+		do -- 369
+			i = 0 -- 372
+			while i < #self.activeHandlers do -- 372
+				Audio:stop(self.activeHandlers[i + 1]) -- 373
+				i = i + 1 -- 372
+			end -- 372
+		end -- 372
+	end -- 372
+	self.activeHandlers = {} -- 376
+	local loopIds = {} -- 378
+	for id in pairs(self.activeLoops) do -- 379
+		loopIds[#loopIds + 1] = id -- 380
+	end -- 380
+	do -- 380
+		i = 0 -- 382
+		while i < #loopIds do -- 382
+			self:stopLoop(loopIds[i + 1], 0) -- 383
+			i = i + 1 -- 382
+		end -- 382
+	end -- 382
+	self.dedupeSet = {} -- 386
+	if self.paused then -- 386
+		self:setPaused(false) -- 388
+	end -- 388
+	self:setWorldPlaySpeed(1) -- 390
+end -- 360
+function AudioDirector.prototype.ingestEvents(self, ev, p) -- 398
+	if self.paused or #ev.rawEvents == 0 then -- 398
+		return -- 400
+	end -- 400
+	local i = 0 -- 402
+	do -- 402
+		i = 0 -- 403
+		while i < #ev.rawEvents do -- 403
+			self:dispatchSingleEvent(ev.rawEvents[i + 1], ev.roomSessionId, ev.checkpoint, p) -- 404
+			i = i + 1 -- 403
+		end -- 403
+	end -- 403
+end -- 398
+function AudioDirector.prototype.dispatchSingleEvent(self, e, roomSessionId, checkpoint, p) -- 408
+	local key = (((((((("r" .. tostring(roomSessionId)) .. ":cp") .. tostring(checkpoint)) .. ":t") .. tostring(e.tick)) .. ":s") .. tostring(e.seq)) .. ":") .. e.name -- 414
+	if e.name == "knock" then -- 414
+		local roomTag = type(e.data.room) == "string" and e.data.room or p.room.key -- 416
+		local countTag = type(e.data.count) == "number" and "" .. tostring(e.data.count) or "1" -- 417
 		self:playOnce( -- 418
 			key, -- 418
 			"sfx", -- 418
-			"assets/audio/child/cart_dock.wav", -- 418
-			0.88, -- 418
-			"cart:docked", -- 418
+			"assets/audio/sfx/knock.wav", -- 418
+			0.9, -- 418
+			(("knock:" .. roomTag) .. ":") .. countTag, -- 418
 			e.tick, -- 418
 			e.seq -- 418
 		) -- 418
 		return -- 419
 	end -- 419
-	if e.name == "craftDone" or e.name == "benchCraft" then -- 419
-		local recipeTag = type(e.data.recipeId) == "string" and ":" .. e.data.recipeId or (type(e.data.weapon) == "string" and ":" .. e.data.weapon or "") -- 422
-		self:playOnce( -- 425
-			key, -- 425
-			"sfx", -- 425
-			"assets/audio/combat/craft_done.wav", -- 425
-			0.88, -- 425
-			"craft:done" .. recipeTag, -- 425
-			e.tick, -- 425
-			e.seq -- 425
-		) -- 425
-		return -- 426
-	end -- 426
-	local name = e.name -- 429
-	if name == "benchRejected" then -- 429
-		local recipeTag = type(e.data.recipeId) == "string" and ":" .. e.data.recipeId or "" -- 431
-		self:playOnce( -- 432
-			key, -- 432
-			"sfx", -- 432
-			"assets/audio/combat/craft_insufficient.wav", -- 432
-			0.76, -- 432
-			"craft:insufficient" .. recipeTag, -- 432
-			e.tick, -- 432
-			e.seq -- 432
-		) -- 432
-	elseif name == "handHeld" then -- 432
-		self:playOnce( -- 434
-			key, -- 434
-			"sfx", -- 434
-			"assets/audio/gate/reunion_hold.wav", -- 434
-			0.9, -- 434
-			"gate:hand_held", -- 434
-			e.tick, -- 434
-			e.seq -- 434
-		) -- 434
-	elseif name == "handRelease" then -- 434
-		self:playOnce( -- 436
-			key, -- 436
-			"sfx", -- 436
-			"assets/audio/gate/reunion_release.wav", -- 436
-			0.7, -- 436
-			"gate:hand_release", -- 436
-			e.tick, -- 436
-			e.seq -- 436
-		) -- 436
-	elseif name == "carryStart" then -- 436
-		self:playOnce( -- 438
-			key, -- 438
-			"sfx", -- 438
-			"assets/audio/combat/carry_start.wav", -- 438
-			0.82, -- 438
-			"combat:carry_start", -- 438
-			e.tick, -- 438
-			e.seq -- 438
-		) -- 438
-	elseif name == "reloadOpen" then -- 438
-		self:playOnce( -- 440
-			key, -- 440
-			"sfx", -- 440
-			"assets/audio/combat/reload_open.wav", -- 440
-			0.8, -- 440
-			"reload:open", -- 440
-			e.tick, -- 440
-			e.seq -- 440
-		) -- 440
-	elseif name == "reloadNode" then -- 440
-		local nodeTag = type(e.data.node) == "number" and "" .. tostring(e.data.node) or "0" -- 442
-		self:playOnce( -- 443
-			key, -- 443
-			"sfx", -- 443
-			"assets/audio/combat/reload_node.wav", -- 443
-			0.78, -- 443
-			"reload:node:" .. nodeTag, -- 443
-			e.tick, -- 443
-			e.seq -- 443
-		) -- 443
-	elseif name == "reloadInvalid" then -- 443
-		self:playOnce( -- 445
-			key, -- 445
-			"sfx", -- 445
-			"assets/audio/combat/reload_invalid.wav", -- 445
-			0.72, -- 445
-			"reload:invalid", -- 445
-			e.tick, -- 445
-			e.seq -- 445
-		) -- 445
-	elseif name == "reloadSolved" then -- 445
-		local eff = type(e.data.effect) == "string" and e.data.effect or "push" -- 447
-		self:playOnce( -- 448
-			key, -- 448
-			"sfx", -- 448
-			"assets/audio/combat/reload_solved.wav", -- 448
-			0.9, -- 448
-			"reload:solved:" .. eff, -- 448
-			e.tick, -- 448
-			e.seq -- 448
-		) -- 448
-	elseif name == "reloadTimeout" then -- 448
-		self:playOnce( -- 450
-			key, -- 450
-			"sfx", -- 450
-			"assets/audio/combat/reload_timeout.wav", -- 450
-			0.78, -- 450
-			"reload:timeout", -- 450
-			e.tick, -- 450
-			e.seq -- 450
-		) -- 450
-	elseif name == "artifactFound" then -- 450
-		self:playOnce( -- 452
-			key, -- 452
-			"sfx", -- 452
-			"assets/audio/museum/artifact_pickup.wav", -- 452
-			0.88, -- 452
-			"museum:artifact_found", -- 452
-			e.tick, -- 452
-			e.seq -- 452
-		) -- 452
-	elseif name == "museumStep" then -- 452
-		local step = type(e.data.step) == "string" and e.data.step or "" -- 454
-		local cnt = type(e.data.count) == "number" and e.data.count or 1 -- 455
-		if step == "cabinet" then -- 455
-			self:playOnce( -- 457
-				key, -- 457
-				"sfx", -- 457
-				"assets/audio/museum/weapon_holster.wav", -- 457
-				0.78, -- 457
-				"museum:step:cabinet", -- 457
-				e.tick, -- 457
-				e.seq -- 457
-			) -- 457
-		elseif step == "hall" then -- 457
-			self:playOnce( -- 459
-				key, -- 459
-				"sfx", -- 459
-				"assets/audio/museum/child_steps_echo.wav", -- 459
-				0.76, -- 459
-				"museum:step:hall", -- 459
-				e.tick, -- 459
-				e.seq -- 459
-			) -- 459
-		elseif step == "lamp" then -- 459
-			self:playOnce( -- 461
-				key, -- 461
-				"sfx", -- 461
-				"assets/audio/museum/lamp_turn.wav", -- 461
-				0.82, -- 461
-				"museum:step:lamp", -- 461
-				e.tick, -- 461
-				e.seq -- 461
-			) -- 461
-		elseif step == "knock" then -- 461
-			local knockPath = cnt >= 2 and "assets/audio/museum/knock_cabinet_second.wav" or "assets/audio/museum/knock_hall_first.wav" -- 463
-			self:playOnce( -- 466
-				key, -- 466
-				"sfx", -- 466
-				knockPath, -- 466
-				0.9, -- 466
-				"museum:step:knock:" .. tostring(cnt), -- 466
-				e.tick, -- 466
-				e.seq -- 466
-			) -- 466
-		end -- 466
-	elseif name == "museumDone" then -- 466
+	if e.name == "shotResolved" then -- 419
+		local hit = e.data.hit == true -- 422
+		self:playOnce( -- 423
+			key, -- 423
+			"sfx", -- 423
+			"assets/audio/combat/shot.wav", -- 423
+			0.85, -- 423
+			hit and "shot:hit" or "shot:fire", -- 423
+			e.tick, -- 423
+			e.seq -- 423
+		) -- 423
+		return -- 424
+	end -- 424
+	if e.name == "coverBlocked" then -- 424
+		self:playOnce( -- 427
+			key, -- 427
+			"sfx", -- 427
+			"assets/audio/combat/cover_block.wav", -- 427
+			0.85, -- 427
+			"cover:blocked", -- 427
+			e.tick, -- 427
+			e.seq -- 427
+		) -- 427
+		return -- 428
+	end -- 428
+	if e.name == "actorHit" or e.name == "gateFailed" then -- 428
+		self:playOnce( -- 431
+			key, -- 431
+			"sfx", -- 431
+			"assets/audio/combat/actor_hit.wav", -- 431
+			0.9, -- 431
+			"actor:hit", -- 431
+			e.tick, -- 431
+			e.seq -- 431
+		) -- 431
+		return -- 432
+	end -- 432
+	if e.name == "bottleLanded" then -- 432
+		local surface = "brick" -- 435
+		if type(e.data.surface) == "string" then -- 435
+			surface = e.data.surface -- 437
+		elseif p.room.key == "village" then -- 437
+			local landX = type(e.data.x) == "number" and e.data.x or p.bottleLandX -- 439
+			if math.abs(landX - (p.ox + VILLAGE_BASIN_OFFSET_X)) <= VILLAGE_BASIN_HIT_RADIUS then -- 439
+				surface = "iron" -- 441
+			elseif p.room.softX ~= nil and math.abs(landX - p.room.softX) <= VILLAGE_SOFT_HIT_RADIUS then -- 441
+				surface = "soft" -- 443
+			end -- 443
+		end -- 443
+		local path = surface == "iron" and "assets/audio/child/bottle_iron.wav" or (surface == "soft" and "assets/audio/child/bottle_soft.wav" or "assets/audio/child/bottle_brick.wav") -- 446
+		self:playOnce( -- 449
+			key, -- 449
+			"sfx", -- 449
+			path, -- 449
+			0.9, -- 449
+			"bottle:" .. surface, -- 449
+			e.tick, -- 449
+			e.seq -- 449
+		) -- 449
+		return -- 450
+	end -- 450
+	if e.name == "cartDocked" then -- 450
+		self:playOnce( -- 453
+			key, -- 453
+			"sfx", -- 453
+			"assets/audio/child/cart_dock.wav", -- 453
+			0.88, -- 453
+			"cart:docked", -- 453
+			e.tick, -- 453
+			e.seq -- 453
+		) -- 453
+		return -- 454
+	end -- 454
+	if e.name == "craftDone" or e.name == "benchCraft" then -- 454
+		local recipeTag = type(e.data.recipeId) == "string" and ":" .. e.data.recipeId or (type(e.data.weapon) == "string" and ":" .. e.data.weapon or "") -- 457
+		self:playOnce( -- 460
+			key, -- 460
+			"sfx", -- 460
+			"assets/audio/combat/craft_done.wav", -- 460
+			0.88, -- 460
+			"craft:done" .. recipeTag, -- 460
+			e.tick, -- 460
+			e.seq -- 460
+		) -- 460
+		return -- 461
+	end -- 461
+	local name = e.name -- 464
+	if name == "benchRejected" then -- 464
+		local recipeTag = type(e.data.recipeId) == "string" and ":" .. e.data.recipeId or "" -- 466
+		self:playOnce( -- 467
+			key, -- 467
+			"sfx", -- 467
+			"assets/audio/combat/craft_insufficient.wav", -- 467
+			0.76, -- 467
+			"craft:insufficient" .. recipeTag, -- 467
+			e.tick, -- 467
+			e.seq -- 467
+		) -- 467
+	elseif name == "handHeld" then -- 467
 		self:playOnce( -- 469
 			key, -- 469
-			"voice", -- 469
-			"assets/audio/museum/line_dawn.wav", -- 469
-			0.88, -- 469
-			"museum:done", -- 469
+			"sfx", -- 469
+			"assets/audio/gate/reunion_hold.wav", -- 469
+			0.9, -- 469
+			"gate:hand_held", -- 469
 			e.tick, -- 469
 			e.seq -- 469
 		) -- 469
-	end -- 469
-end -- 373
-function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 473
-	return self.dedupeSet[dedupeKey] == true -- 474
-end -- 473
-function AudioDirector.prototype.getPlayLog(self) -- 477
-	return self.playLog -- 478
-end -- 477
-function AudioDirector.prototype.getLastEntry(self) -- 481
-	if #self.playLog == 0 then -- 481
-		return nil -- 483
-	end -- 483
-	return self.playLog[#self.playLog] -- 485
-end -- 481
-function AudioDirector.prototype.clearPlayLog(self) -- 488
-	self.playLog = {} -- 489
-end -- 488
-function AudioDirector.prototype.getTrackList(self) -- 492
-	return ALL_TRACKS -- 493
-end -- 492
-function AudioDirector.prototype.pruneStoppedSources(self) -- 496
-	local w = 0 -- 497
-	local i = 0 -- 498
-	do -- 498
-		i = 0 -- 499
-		while i < #self.activeSources do -- 499
-			local src = self.activeSources[i + 1] -- 500
-			if src.playing then -- 500
-				self.activeSources[w + 1] = src -- 502
-				w = w + 1 -- 503
-			else -- 503
-				src:removeFromParent(true) -- 505
-			end -- 505
-			i = i + 1 -- 499
-		end -- 499
-	end -- 499
-	__TS__ArraySetLength(self.activeSources, w) -- 499
-end -- 496
-function AudioDirector.prototype.recordLog(self, entry) -- 511
-	local ____self_playLog_4 = self.playLog -- 511
-	____self_playLog_4[#____self_playLog_4 + 1] = entry -- 512
-	if #self.playLog > MAX_PLAY_LOG then -- 512
-		table.remove(self.playLog, 1) -- 514
-	end -- 514
-end -- 511
-return ____exports -- 511
+	elseif name == "handRelease" then -- 469
+		self:playOnce( -- 471
+			key, -- 471
+			"sfx", -- 471
+			"assets/audio/gate/reunion_release.wav", -- 471
+			0.7, -- 471
+			"gate:hand_release", -- 471
+			e.tick, -- 471
+			e.seq -- 471
+		) -- 471
+	elseif name == "carryStart" then -- 471
+		self:playOnce( -- 473
+			key, -- 473
+			"sfx", -- 473
+			"assets/audio/combat/carry_start.wav", -- 473
+			0.82, -- 473
+			"combat:carry_start", -- 473
+			e.tick, -- 473
+			e.seq -- 473
+		) -- 473
+	elseif name == "reloadOpen" then -- 473
+		self:playOnce( -- 475
+			key, -- 475
+			"sfx", -- 475
+			"assets/audio/combat/reload_open.wav", -- 475
+			0.8, -- 475
+			"reload:open", -- 475
+			e.tick, -- 475
+			e.seq -- 475
+		) -- 475
+	elseif name == "reloadNode" then -- 475
+		local nodeTag = type(e.data.node) == "number" and "" .. tostring(e.data.node) or "0" -- 477
+		self:playOnce( -- 478
+			key, -- 478
+			"sfx", -- 478
+			"assets/audio/combat/reload_node.wav", -- 478
+			0.78, -- 478
+			"reload:node:" .. nodeTag, -- 478
+			e.tick, -- 478
+			e.seq -- 478
+		) -- 478
+	elseif name == "reloadInvalid" then -- 478
+		self:playOnce( -- 480
+			key, -- 480
+			"sfx", -- 480
+			"assets/audio/combat/reload_invalid.wav", -- 480
+			0.72, -- 480
+			"reload:invalid", -- 480
+			e.tick, -- 480
+			e.seq -- 480
+		) -- 480
+	elseif name == "reloadSolved" then -- 480
+		local eff = type(e.data.effect) == "string" and e.data.effect or "push" -- 482
+		self:playOnce( -- 483
+			key, -- 483
+			"sfx", -- 483
+			"assets/audio/combat/reload_solved.wav", -- 483
+			0.9, -- 483
+			"reload:solved:" .. eff, -- 483
+			e.tick, -- 483
+			e.seq -- 483
+		) -- 483
+	elseif name == "reloadTimeout" then -- 483
+		self:playOnce( -- 485
+			key, -- 485
+			"sfx", -- 485
+			"assets/audio/combat/reload_timeout.wav", -- 485
+			0.78, -- 485
+			"reload:timeout", -- 485
+			e.tick, -- 485
+			e.seq -- 485
+		) -- 485
+	elseif name == "artifactFound" then -- 485
+		self:playOnce( -- 487
+			key, -- 487
+			"sfx", -- 487
+			"assets/audio/museum/artifact_pickup.wav", -- 487
+			0.88, -- 487
+			"museum:artifact_found", -- 487
+			e.tick, -- 487
+			e.seq -- 487
+		) -- 487
+	elseif name == "museumStep" then -- 487
+		local step = type(e.data.step) == "string" and e.data.step or "" -- 489
+		local cnt = type(e.data.count) == "number" and e.data.count or 1 -- 490
+		if step == "cabinet" then -- 490
+			self:playOnce( -- 492
+				key, -- 492
+				"sfx", -- 492
+				"assets/audio/museum/weapon_holster.wav", -- 492
+				0.78, -- 492
+				"museum:step:cabinet", -- 492
+				e.tick, -- 492
+				e.seq -- 492
+			) -- 492
+		elseif step == "hall" then -- 492
+			self:playOnce( -- 494
+				key, -- 494
+				"sfx", -- 494
+				"assets/audio/museum/child_steps_echo.wav", -- 494
+				0.76, -- 494
+				"museum:step:hall", -- 494
+				e.tick, -- 494
+				e.seq -- 494
+			) -- 494
+		elseif step == "lamp" then -- 494
+			self:playOnce( -- 496
+				key, -- 496
+				"sfx", -- 496
+				"assets/audio/museum/lamp_turn.wav", -- 496
+				0.82, -- 496
+				"museum:step:lamp", -- 496
+				e.tick, -- 496
+				e.seq -- 496
+			) -- 496
+		elseif step == "knock" then -- 496
+			local knockPath = cnt >= 2 and "assets/audio/museum/knock_cabinet_second.wav" or "assets/audio/museum/knock_hall_first.wav" -- 498
+			self:playOnce( -- 501
+				key, -- 501
+				"sfx", -- 501
+				knockPath, -- 501
+				0.9, -- 501
+				"museum:step:knock:" .. tostring(cnt), -- 501
+				e.tick, -- 501
+				e.seq -- 501
+			) -- 501
+		end -- 501
+	elseif name == "museumDone" then -- 501
+		self:playOnce( -- 504
+			key, -- 504
+			"voice", -- 504
+			"assets/audio/museum/line_dawn.wav", -- 504
+			0.88, -- 504
+			"museum:done", -- 504
+			e.tick, -- 504
+			e.seq -- 504
+		) -- 504
+	end -- 504
+end -- 408
+function AudioDirector.prototype.hasPlayed(self, dedupeKey) -- 508
+	return self.dedupeSet[dedupeKey] == true -- 509
+end -- 508
+function AudioDirector.prototype.getPlayLog(self) -- 512
+	return self.playLog -- 513
+end -- 512
+function AudioDirector.prototype.getLastEntry(self) -- 516
+	if #self.playLog == 0 then -- 516
+		return nil -- 518
+	end -- 518
+	return self.playLog[#self.playLog] -- 520
+end -- 516
+function AudioDirector.prototype.clearPlayLog(self) -- 523
+	self.playLog = {} -- 524
+end -- 523
+function AudioDirector.prototype.getTrackList(self) -- 527
+	return ALL_TRACKS -- 528
+end -- 527
+function AudioDirector.prototype.pruneStoppedSources(self) -- 531
+	local w = 0 -- 532
+	local i = 0 -- 533
+	do -- 533
+		i = 0 -- 534
+		while i < #self.activeSources do -- 534
+			local src = self.activeSources[i + 1] -- 535
+			if src.playing then -- 535
+				self.activeSources[w + 1] = src -- 537
+				w = w + 1 -- 538
+			else -- 538
+				src:removeFromParent(true) -- 540
+			end -- 540
+			i = i + 1 -- 534
+		end -- 534
+	end -- 534
+	__TS__ArraySetLength(self.activeSources, w) -- 534
+end -- 531
+function AudioDirector.prototype.recordLog(self, entry) -- 546
+	local ____self_playLog_2 = self.playLog -- 546
+	____self_playLog_2[#____self_playLog_2 + 1] = entry -- 547
+	if #self.playLog > MAX_PLAY_LOG then -- 547
+		table.remove(self.playLog, 1) -- 549
+	end -- 549
+end -- 546
+return ____exports -- 546

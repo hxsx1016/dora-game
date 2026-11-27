@@ -632,7 +632,7 @@ function ____exports.deriveWorldPrompt(p) -- 481
 				x = museum.cabinetX, -- 618
 				y = 64 + 44, -- 618
 				keyTag = "E", -- 618
-				label = "回柜边 · 两下轻叩", -- 618
+				label = "回柜边 · 轻敲两下", -- 618
 				urgent = true -- 618
 			} -- 618
 		end -- 618
