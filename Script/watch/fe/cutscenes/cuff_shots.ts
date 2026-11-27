@@ -531,6 +531,16 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                     p.ticks,
                 );
             }
+            if (!ctx.paused && this.p03Progress >= 0.62) {
+                ctx.audio.playOnce(
+                    "cuff:p03:compass:" + ctx.events.roomSessionId,
+                    "sfx",
+                    "assets/audio/interact/compass_handover.wav",
+                    0.82,
+                    "cuff:p03:compass_handover",
+                    p.ticks,
+                );
+            }
             this.prevPhase = p.phase;
             return;
         } else {

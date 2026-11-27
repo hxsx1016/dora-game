@@ -291,6 +291,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
                 this.ghosts.shift();
             }
             this.totalSpawned += 1;
+            ctx.audio.playFoley("afterimage:whoosh", "assets/audio/combat/afterimage_whoosh.wav", 0.34, ctx.audio.panForWorldX(a.x), 300);
             this.sampleTimer = 0;
             this.lastSampleX = a.x;
             this.lastSampleY = a.y;

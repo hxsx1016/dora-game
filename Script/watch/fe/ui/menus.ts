@@ -16,6 +16,7 @@ import {
     InputMode,
     TOUCH_OPACITY_STEPS,
     TOUCH_SCALE_STEPS,
+    VOLUME_STEPS,
     inputModeLabelOf,
     layoutLabelOf,
     modePrefLabelOf,
@@ -23,6 +24,7 @@ import {
     opacityLabelOf,
     saveControlSettings,
     scaleLabelOf,
+    volumeLabelOf,
 } from "Script/watch/controls_config";
 import {
     SafeInsets,
@@ -55,6 +57,8 @@ import {
 } from "Script/watch/fe/theme";
 
 export type ScreenKind = "splash" | "title" | "chapters" | "controls" | "epilogue" | "history" | "play";
+
+export type UiSoundKind = "hover" | "confirm" | "back" | "start" | "pauseOpen" | "pauseClose" | "toggle";
 
 export interface MenuAction {
     type:
@@ -104,6 +108,7 @@ const PAUSE_ITEMS = [
     { id: "settings", zh: "操控设置" },
 ];
 
+// 索引 0..6 保持既有操控设置项零回归，7..10 追加四通道音量调节，11 为返回。
 const SETTINGS_ROWS = [
     { id: "modePref", title: "操作模式" },
     { id: "aimAssist", title: "瞄准磁吸" },
@@ -112,6 +117,10 @@ const SETTINGS_ROWS = [
     { id: "touchOpacity", title: "触控按键透度" },
     { id: "touchScale", title: "触控按键大小" },
     { id: "haptics", title: "触觉震动反馈" },
+    { id: "masterVol", title: "主音量" },
+    { id: "bgmVol", title: "音乐音量" },
+    { id: "sfxVol", title: "音效与环境" },
+    { id: "voiceVol", title: "人声音量" },
     { id: "back", title: "返回暂歇菜单" },
 ];
 
@@ -173,6 +182,16 @@ export class MenuRenderer {
     hasSession = false;
     /** 操作说明页当前分页（自动随最近输入模式同步，支持左右 / LB / RB / 点击切换） */
     controlsTab: InputMode = "kbm";
+    /** 可选水墨 UI 交互音效回调（由 WatchFrontend 挂载，测试直调零耦合） */
+    onUiSound?: (kind: UiSoundKind) => void;
+    /** 音量设置项实时变化回调 */
+    onAudioSettingsChanged?: (input: Input) => void;
+
+    private emitSound(kind: UiSoundKind): void {
+        if (this.onUiSound !== undefined) {
+            this.onUiSound(kind);
+        }
+    }
 
     private chaptersFromPause = false;
     private pauseShowControls = false;
@@ -549,7 +568,11 @@ export class MenuRenderer {
         for (i = 0; i < items.length; i++) {
             boxes.push(Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH));
         }
+        const prevTitleSel = this.selected;
         this.selected = this.verticalSelection(this.selected, boxes, frame);
+        if (this.selected !== prevTitleSel) {
+            this.emitSound("hover");
+        }
 
         for (i = 0; i < items.length; i++) {
             const by = boxes[i].y;
@@ -603,11 +626,12 @@ export class MenuRenderer {
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.selected;
             const id = items[idx].id;
-            if (id === "continue") return { type: "continue" };
-            if (id === "trial") return { type: "trial" };
-            if (id === "start") return { type: "start" };
-            if (id === "chapters") return { type: "openChapters" };
-            if (id === "quit") return { type: "quit" };
+            if (id === "continue") { this.emitSound("start"); return { type: "continue" }; }
+            if (id === "trial") { this.emitSound("start"); return { type: "trial" }; }
+            if (id === "start") { this.emitSound("start"); return { type: "start" }; }
+            if (id === "chapters") { this.emitSound("confirm"); return { type: "openChapters" }; }
+            if (id === "quit") { this.emitSound("back"); return { type: "quit" }; }
+            this.emitSound("confirm");
             return { type: "openControls" };
         }
         return { type: "none" };
@@ -625,6 +649,7 @@ export class MenuRenderer {
     ): MenuAction {
         const back: MenuAction = { type: this.chaptersFromPause ? "backPause" : "backTitle" };
         if (frame.back) {
+            this.emitSound("back");
             return back;
         }
 
@@ -660,6 +685,9 @@ export class MenuRenderer {
             this.chapterSelected -= perRow;
         } else if (frame.pointerMoved && hitStation >= 0 && !keys.confirm) {
             this.chapterSelected = hitStation;
+        }
+        if (this.chapterSelected !== prevSelected) {
+            this.emitSound("hover");
         }
 
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 198));
@@ -796,6 +824,7 @@ export class MenuRenderer {
         texts.put("xs", chapFooter, w - marginX, backY + 17, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.75, 0.08);
 
         if (frame.click && backHover) {
+            this.emitSound("back");
             return back;
         }
         // 触屏无悬停：首次轻触未选驿站仅预览，再次点击同一驿站或点击画窗/入此卷章进关
@@ -803,6 +832,7 @@ export class MenuRenderer {
             ? (hitStation >= 0 && hitStation === prevSelected)
             : (hitStation >= 0);
         if (keys.confirm || (frame.click && (stationConfirmed || winHover || goHover))) {
+            this.emitSound("start");
             return { type: "jump", roomIndex: CHAPTERS[this.chapterSelected].roomIndex };
         }
         return { type: "none" };
@@ -839,16 +869,21 @@ export class MenuRenderer {
 
         const hitTab = hitIndex(tabBoxes, frame.pointer, frame.inside);
         if (frame.click && hitTab >= 0) {
+            if (this.controlsTab !== tabOrder[hitTab]) {
+                this.emitSound("toggle");
+            }
             this.controlsTab = tabOrder[hitTab];
             this.controlsTabManual = true;
         } else if (frame.keys.left || frame.prevTab) {
             const cur = tabOrder.indexOf(this.controlsTab);
             this.controlsTab = tabOrder[(cur + tabOrder.length - 1) % tabOrder.length];
             this.controlsTabManual = true;
+            this.emitSound("toggle");
         } else if (frame.keys.right || frame.nextTab) {
             const cur = tabOrder.indexOf(this.controlsTab);
             this.controlsTab = tabOrder[(cur + 1) % tabOrder.length];
             this.controlsTabManual = true;
+            this.emitSound("toggle");
         }
 
         const backX = marginX;
@@ -856,6 +891,7 @@ export class MenuRenderer {
         const backBox = Rect(backX - 6, backY - 6, 250, 46);
         const backHover = frame.inside && backBox.containsPoint(frame.pointer);
         if (frame.back || (frame.keys.confirm && !(frame.click && hitTab >= 0)) || (frame.click && backHover)) {
+            this.emitSound("back");
             return { type: "backTitle" };
         }
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 204));
@@ -960,6 +996,7 @@ export class MenuRenderer {
         h: number,
     ): boolean {
         if (frame.back) {
+            this.emitSound("back");
             return true;
         }
 
@@ -969,29 +1006,35 @@ export class MenuRenderer {
         uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 206));
 
         const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
-        const topHeadY = h - 66 - frame.safe.top * 0.35;
-        texts.put("banner", "操控设置", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
-        const curSummary = "当前模式：" + inputModeLabelOf(input.inputMode) + " · 全平台支持键鼠 / 触屏 / 手柄";
-        texts.put("xs", curSummary, marginX + 196, topHeadY - 4, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
-        drawHairline(uiInkDraw, uiArt, "set_top_line", w * 0.5, topHeadY - 34, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
+        const topHeadY = h - 56 - frame.safe.top * 0.35;
+        texts.put("banner", "操控与声音", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.0, 0.96, 0.10);
+        const curSummary = "当前模式：" + inputModeLabelOf(input.inputMode) + " · 操控与四通道音量实时生效";
+        texts.put("xs", curSummary, marginX + 224, topHeadY - 4, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
+        drawHairline(uiInkDraw, uiArt, "set_top_line", w * 0.5, topHeadY - 30, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
         const panelW = Math.min(760, w - marginX * 2);
         const panelX = (w - panelW) * 0.5;
-        const rowH = 44;
-        const rowStep = 50;
-        const firstY = topHeadY - 104;
+        const rowH = 34;
+        const rowStep = 39;
+        const firstY = topHeadY - 76;
 
         const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < SETTINGS_ROWS.length; i++) {
             boxes.push(Rect(panelX, firstY - i * rowStep, panelW, rowH));
         }
+        const prevSetSel = this.settingsSelected;
         this.settingsSelected = this.verticalSelection(this.settingsSelected, boxes, frame);
+        if (this.settingsSelected !== prevSetSel) {
+            this.emitSound("hover");
+        }
 
         const applyDelta = (rowId: string, delta: number): boolean => {
             if (rowId === "back") {
+                this.emitSound("back");
                 return true;
             }
+            let audioChanged = false;
             if (rowId === "modePref") {
                 input.cycleModePref(delta);
             } else if (rowId === "aimAssist") {
@@ -1016,7 +1059,27 @@ export class MenuRenderer {
                 if (s.haptics) {
                     input.getTouch()?.vibrate(0.018);
                 }
+            } else if (rowId === "masterVol") {
+                s.masterVol = nextStepValue(s.masterVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            } else if (rowId === "bgmVol") {
+                s.bgmVol = nextStepValue(s.bgmVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            } else if (rowId === "sfxVol") {
+                s.sfxVol = nextStepValue(s.sfxVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
+            } else if (rowId === "voiceVol") {
+                s.voiceVol = nextStepValue(s.voiceVol, VOLUME_STEPS, delta);
+                saveControlSettings(s);
+                audioChanged = true;
             }
+            if (audioChanged && this.onAudioSettingsChanged !== undefined) {
+                this.onAudioSettingsChanged(input);
+            }
+            this.emitSound("toggle");
             return false;
         };
 
@@ -1032,6 +1095,10 @@ export class MenuRenderer {
             if (rowId === "touchOpacity") return opacityLabelOf(s.touchOpacity);
             if (rowId === "touchScale") return scaleLabelOf(s.touchScale);
             if (rowId === "haptics") return caps.supportsHaptics ? (s.haptics ? "开" : "关") : (s.haptics ? "开（仅移动端生效）" : "关");
+            if (rowId === "masterVol") return volumeLabelOf(s.masterVol);
+            if (rowId === "bgmVol") return volumeLabelOf(s.bgmVol);
+            if (rowId === "sfxVol") return volumeLabelOf(s.sfxVol);
+            if (rowId === "voiceVol") return volumeLabelOf(s.voiceVol);
             return "";
         };
 
@@ -1152,6 +1219,7 @@ export class MenuRenderer {
         if (frame.back) {
             this.pauseShowControls = false;
             this.pauseShowSettings = false;
+            this.emitSound("pauseClose");
             return { type: "resume" };
         }
 
@@ -1188,7 +1256,11 @@ export class MenuRenderer {
         for (i = 0; i < pauseItems.length; i++) {
             boxes.push(Rect(menuX - 10, firstY - i * rowStep, 286, rowH));
         }
+        const prevPauseSel = this.pauseSelected;
         this.pauseSelected = this.verticalSelection(this.pauseSelected, boxes, frame);
+        if (this.pauseSelected !== prevPauseSel) {
+            this.emitSound("hover");
+        }
 
         for (i = 0; i < pauseItems.length; i++) {
             const iy = boxes[i].y;
@@ -1243,30 +1315,35 @@ export class MenuRenderer {
             const id = pauseItems[idx].id;
             if (id === "controls") {
                 this.pauseShowControls = true;
+                this.emitSound("confirm");
                 this.resetInput();
                 return { type: "none" };
             }
             if (id === "settings") {
                 this.openPauseSettings();
+                this.emitSound("confirm");
                 return { type: "none" };
             }
             if (id === "assist") {
                 if (onToggleAssist !== undefined) {
                     onToggleAssist();
                 }
+                this.emitSound("toggle");
                 this.resetInput();
                 return { type: "none" };
             }
             if (id === "fullscreen") {
+                this.emitSound("toggle");
                 this.resetInput();
                 return { type: "toggleFullscreen" };
             }
             this.pauseShowControls = false;
             this.pauseShowSettings = false;
-            if (id === "resume") return { type: "resume" };
-            if (id === "retry") return { type: "retry" };
-            if (id === "chapters") return { type: "openChapters" };
-            if (id === "quit") return { type: "quit" };
+            if (id === "resume") { this.emitSound("pauseClose"); return { type: "resume" }; }
+            if (id === "retry") { this.emitSound("confirm"); return { type: "retry" }; }
+            if (id === "chapters") { this.emitSound("confirm"); return { type: "openChapters" }; }
+            if (id === "quit") { this.emitSound("back"); return { type: "quit" }; }
+            this.emitSound("back");
             return { type: "toTitle" };
         }
         return { type: "none" };

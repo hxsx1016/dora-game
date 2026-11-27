@@ -243,142 +243,149 @@ function AfterimageArtifactPlugin.prototype.update(self, ctx) -- 210
 			table.remove(self.ghosts, 1) -- 291
 		end -- 291
 		self.totalSpawned = self.totalSpawned + 1 -- 293
-		self.sampleTimer = 0 -- 294
-		self.lastSampleX = a.x -- 295
-		self.lastSampleY = a.y -- 296
-		self.lastSampleDepth = a.depth -- 297
-	end -- 297
+		ctx.audio:playFoley( -- 294
+			"afterimage:whoosh", -- 294
+			"assets/audio/combat/afterimage_whoosh.wav", -- 294
+			0.34, -- 294
+			ctx.audio:panForWorldX(a.x), -- 294
+			300 -- 294
+		) -- 294
+		self.sampleTimer = 0 -- 295
+		self.lastSampleX = a.x -- 296
+		self.lastSampleY = a.y -- 297
+		self.lastSampleDepth = a.depth -- 298
+	end -- 298
 end -- 210
-function AfterimageArtifactPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 301
-	if not self.active or #self.ghosts == 0 then -- 307
-		self.maxRenderedAlpha = 0 -- 308
-		return -- 309
-	end -- 309
-	local p = ctx.p -- 312
-	local cam = ctx.cam -- 313
-	local peakAlpha = 0 -- 314
-	local prevTrailX = 0 -- 315
-	local prevTrailY = 0 -- 316
-	local hasPrevTrail = false -- 317
-	local i = 0 -- 319
-	do -- 319
-		i = 0 -- 320
-		while i < #self.ghosts do -- 320
-			do -- 320
-				local g = self.ghosts[i + 1] -- 321
-				local sepX = g.x - p.player.x -- 322
-				local sepY = g.y + g.depth * DEPTH_Y_SCALE - (p.player.y + p.player.depth * DEPTH_Y_SCALE) -- 323
-				if math.sqrt(sepX * sepX + sepY * sepY) < MIN_DRAW_SEPARATION_PX then -- 324
-					goto __continue41 -- 325
-				end -- 325
-				local ratio = math.max( -- 328
-					0, -- 328
-					math.min(1, g.life / g.maxLife) -- 328
-				) -- 328
-				local rollDamp = g.rolling and 0.55 or 1 -- 329
-				local normAlpha = ratio ^ 1.8 * MAX_GHOST_ALPHA * rollDamp -- 330
-				if normAlpha <= 0.015 then -- 331
-					goto __continue41 -- 332
-				end -- 332
-				if normAlpha > peakAlpha then -- 334
-					peakAlpha = normAlpha -- 335
-				end -- 335
-				local cx = cam:sx(g.x) -- 338
-				local by = cam:sy(g.y, g.depth) -- 339
-				local fullH = cam:len(g.h) -- 340
-				local bodyH = g.rolling and fullH * 0.62 or (g.crouched and fullH * 0.8 or fullH) -- 341
-				local halfW = fullH * 0.14 -- 342
-				local f = g.facing -- 343
-				local whiteAlpha = math.floor(normAlpha * 255 + 0.5) -- 345
-				local goldAlpha = math.floor(normAlpha * 0.82 * 255 + 0.5) -- 346
-				local coldWhite = Color(224, 232, 240, whiteAlpha) -- 347
-				local coldFill = Color( -- 348
-					210, -- 348
-					222, -- 348
-					236, -- 348
-					math.floor(whiteAlpha * 0.28 + 0.5) -- 348
-				) -- 348
-				local paleGold = Color(218, 190, 128, goldAlpha) -- 349
-				local hipY = by + bodyH * 0.44 -- 352
-				local shY = by + bodyH * 0.78 -- 353
-				local headY = by + bodyH * 0.9 -- 354
-				local headR = fullH * 0.075 -- 355
-				local lean = f * fullH * 0.05 -- 356
-				fgDraw:drawPolygon( -- 359
-					{ -- 359
-						Vec2(cx - halfW * 1.15 - f * 4, hipY - bodyH * 0.1), -- 360
-						Vec2(cx + halfW * 0.78 + lean, hipY + 2), -- 361
-						Vec2(cx + halfW * 0.96 + lean, shY), -- 362
-						Vec2(cx - halfW * 0.88 + lean * 0.5, shY) -- 363
-					}, -- 363
-					coldFill, -- 364
-					1.05, -- 364
-					coldWhite -- 364
-				) -- 364
-				fgDraw:drawSegment( -- 367
-					Vec2(cx - halfW * 0.25, hipY), -- 367
-					Vec2(cx - f * halfW * 1.05, by + 2), -- 367
-					1.4, -- 367
-					coldWhite -- 367
-				) -- 367
+function AfterimageArtifactPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 302
+	if not self.active or #self.ghosts == 0 then -- 308
+		self.maxRenderedAlpha = 0 -- 309
+		return -- 310
+	end -- 310
+	local p = ctx.p -- 313
+	local cam = ctx.cam -- 314
+	local peakAlpha = 0 -- 315
+	local prevTrailX = 0 -- 316
+	local prevTrailY = 0 -- 317
+	local hasPrevTrail = false -- 318
+	local i = 0 -- 320
+	do -- 320
+		i = 0 -- 321
+		while i < #self.ghosts do -- 321
+			do -- 321
+				local g = self.ghosts[i + 1] -- 322
+				local sepX = g.x - p.player.x -- 323
+				local sepY = g.y + g.depth * DEPTH_Y_SCALE - (p.player.y + p.player.depth * DEPTH_Y_SCALE) -- 324
+				if math.sqrt(sepX * sepX + sepY * sepY) < MIN_DRAW_SEPARATION_PX then -- 325
+					goto __continue41 -- 326
+				end -- 326
+				local ratio = math.max( -- 329
+					0, -- 329
+					math.min(1, g.life / g.maxLife) -- 329
+				) -- 329
+				local rollDamp = g.rolling and 0.55 or 1 -- 330
+				local normAlpha = ratio ^ 1.8 * MAX_GHOST_ALPHA * rollDamp -- 331
+				if normAlpha <= 0.015 then -- 332
+					goto __continue41 -- 333
+				end -- 333
+				if normAlpha > peakAlpha then -- 335
+					peakAlpha = normAlpha -- 336
+				end -- 336
+				local cx = cam:sx(g.x) -- 339
+				local by = cam:sy(g.y, g.depth) -- 340
+				local fullH = cam:len(g.h) -- 341
+				local bodyH = g.rolling and fullH * 0.62 or (g.crouched and fullH * 0.8 or fullH) -- 342
+				local halfW = fullH * 0.14 -- 343
+				local f = g.facing -- 344
+				local whiteAlpha = math.floor(normAlpha * 255 + 0.5) -- 346
+				local goldAlpha = math.floor(normAlpha * 0.82 * 255 + 0.5) -- 347
+				local coldWhite = Color(224, 232, 240, whiteAlpha) -- 348
+				local coldFill = Color( -- 349
+					210, -- 349
+					222, -- 349
+					236, -- 349
+					math.floor(whiteAlpha * 0.28 + 0.5) -- 349
+				) -- 349
+				local paleGold = Color(218, 190, 128, goldAlpha) -- 350
+				local hipY = by + bodyH * 0.44 -- 353
+				local shY = by + bodyH * 0.78 -- 354
+				local headY = by + bodyH * 0.9 -- 355
+				local headR = fullH * 0.075 -- 356
+				local lean = f * fullH * 0.05 -- 357
+				fgDraw:drawPolygon( -- 360
+					{ -- 360
+						Vec2(cx - halfW * 1.15 - f * 4, hipY - bodyH * 0.1), -- 361
+						Vec2(cx + halfW * 0.78 + lean, hipY + 2), -- 362
+						Vec2(cx + halfW * 0.96 + lean, shY), -- 363
+						Vec2(cx - halfW * 0.88 + lean * 0.5, shY) -- 364
+					}, -- 364
+					coldFill, -- 365
+					1.05, -- 365
+					coldWhite -- 365
+				) -- 365
 				fgDraw:drawSegment( -- 368
-					Vec2(cx + halfW * 0.25, hipY), -- 368
-					Vec2(cx + f * halfW * 0.85, by + 2), -- 368
+					Vec2(cx - halfW * 0.25, hipY), -- 368
+					Vec2(cx - f * halfW * 1.05, by + 2), -- 368
 					1.4, -- 368
 					coldWhite -- 368
 				) -- 368
-				fgDraw:drawPolygon( -- 371
-					{ -- 371
-						Vec2(cx + lean - headR * 1.55, headY + headR * 0.15), -- 372
-						Vec2(cx + lean + headR * 1.55, headY + headR * 0.15), -- 373
-						Vec2(cx + lean + f * 1.5, headY + headR * 1.25) -- 374
-					}, -- 374
-					coldFill, -- 375
-					1, -- 375
-					coldWhite -- 375
-				) -- 375
-				fgGlow:drawSegment( -- 378
-					Vec2(cx - halfW * 0.55 + lean * 0.5, shY - 2), -- 379
-					Vec2(cx + halfW * 0.48 + lean * 0.6, hipY + 4), -- 380
-					1.3, -- 381
-					paleGold -- 382
-				) -- 382
-				drawEllipseOutline( -- 386
-					fgDraw, -- 386
-					cx, -- 386
-					by + 1, -- 386
-					halfW * 1.05, -- 386
-					2.4, -- 386
-					Color(0, 0, 0, 0), -- 386
-					0.9, -- 386
-					paleGold, -- 386
-					16 -- 386
-				) -- 386
-				local midY = by + bodyH * 0.56 -- 389
-				if hasPrevTrail and math.abs(cx - prevTrailX) < cam:len(72) then -- 390
-					fgGlow:drawSegment( -- 391
-						Vec2(prevTrailX, prevTrailY), -- 392
-						Vec2(cx, midY), -- 393
-						1, -- 394
-						Color( -- 395
-							220, -- 395
-							198, -- 395
-							146, -- 395
-							math.floor(goldAlpha * 0.55 + 0.5) -- 395
-						) -- 395
-					) -- 395
-				end -- 395
-				prevTrailX = cx -- 398
-				prevTrailY = midY -- 399
-				hasPrevTrail = true -- 400
-			end -- 400
-			::__continue41:: -- 400
-			i = i + 1 -- 320
-		end -- 320
-	end -- 320
-	self.maxRenderedAlpha = peakAlpha -- 403
-end -- 301
-function ____exports.createAfterimageArtifactPlugin() -- 407
-	return __TS__New(____exports.AfterimageArtifactPlugin) -- 408
-end -- 407
-return ____exports -- 407
+				fgDraw:drawSegment( -- 369
+					Vec2(cx + halfW * 0.25, hipY), -- 369
+					Vec2(cx + f * halfW * 0.85, by + 2), -- 369
+					1.4, -- 369
+					coldWhite -- 369
+				) -- 369
+				fgDraw:drawPolygon( -- 372
+					{ -- 372
+						Vec2(cx + lean - headR * 1.55, headY + headR * 0.15), -- 373
+						Vec2(cx + lean + headR * 1.55, headY + headR * 0.15), -- 374
+						Vec2(cx + lean + f * 1.5, headY + headR * 1.25) -- 375
+					}, -- 375
+					coldFill, -- 376
+					1, -- 376
+					coldWhite -- 376
+				) -- 376
+				fgGlow:drawSegment( -- 379
+					Vec2(cx - halfW * 0.55 + lean * 0.5, shY - 2), -- 380
+					Vec2(cx + halfW * 0.48 + lean * 0.6, hipY + 4), -- 381
+					1.3, -- 382
+					paleGold -- 383
+				) -- 383
+				drawEllipseOutline( -- 387
+					fgDraw, -- 387
+					cx, -- 387
+					by + 1, -- 387
+					halfW * 1.05, -- 387
+					2.4, -- 387
+					Color(0, 0, 0, 0), -- 387
+					0.9, -- 387
+					paleGold, -- 387
+					16 -- 387
+				) -- 387
+				local midY = by + bodyH * 0.56 -- 390
+				if hasPrevTrail and math.abs(cx - prevTrailX) < cam:len(72) then -- 391
+					fgGlow:drawSegment( -- 392
+						Vec2(prevTrailX, prevTrailY), -- 393
+						Vec2(cx, midY), -- 394
+						1, -- 395
+						Color( -- 396
+							220, -- 396
+							198, -- 396
+							146, -- 396
+							math.floor(goldAlpha * 0.55 + 0.5) -- 396
+						) -- 396
+					) -- 396
+				end -- 396
+				prevTrailX = cx -- 399
+				prevTrailY = midY -- 400
+				hasPrevTrail = true -- 401
+			end -- 401
+			::__continue41:: -- 401
+			i = i + 1 -- 321
+		end -- 321
+	end -- 321
+	self.maxRenderedAlpha = peakAlpha -- 404
+end -- 302
+function ____exports.createAfterimageArtifactPlugin() -- 408
+	return __TS__New(____exports.AfterimageArtifactPlugin) -- 409
+end -- 408
+return ____exports -- 408

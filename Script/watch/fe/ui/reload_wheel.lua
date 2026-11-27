@@ -9,6 +9,7 @@ local __TS__New = ____lualib.__TS__New -- 1
 local ____exports = {} -- 1
 local ____Dora = require("Dora") -- 19
 local Color = ____Dora.Color -- 19
+local Content = ____Dora.Content -- 19
 local Keyboard = ____Dora.Keyboard -- 19
 local Mouse = ____Dora.Mouse -- 19
 local Rect = ____Dora.Rect -- 19
@@ -814,866 +815,872 @@ function ReloadWheelPlugin.prototype.commitNodeStep(self, ctx, node, activePath)
 		return -- 805
 	end -- 805
 	self.nodePulseSeq = self.nodePulseSeq + 1 -- 808
-	ctx.audio:playOnce( -- 809
-		(((("fe02:reload_node:r" .. tostring(ctx.events.roomSessionId)) .. ":n") .. tostring(self.nodePulseSeq)) .. ":") .. tostring(node), -- 810
-		"sfx", -- 811
-		"assets/audio/combat/reload_node.wav", -- 812
-		0.78, -- 813
-		"reload:node:" .. tostring(node), -- 814
-		ctx.p.ticks -- 815
-	) -- 815
+	local stepIdx = math.max( -- 809
+		1, -- 809
+		math.min(6, #self.lastKnownPath) -- 809
+	) -- 809
+	local pitched = ("assets/audio/combat/reload_node_" .. tostring(stepIdx)) .. ".wav" -- 810
+	local nodePath = Content:exist(pitched) and pitched or "assets/audio/combat/reload_node.wav" -- 811
+	ctx.audio:playOnce( -- 812
+		(((("fe02:reload_node:r" .. tostring(ctx.events.roomSessionId)) .. ":n") .. tostring(self.nodePulseSeq)) .. ":") .. tostring(node), -- 813
+		"sfx", -- 814
+		nodePath, -- 815
+		0.78, -- 816
+		"reload:node:" .. tostring(node), -- 817
+		ctx.p.ticks -- 818
+	) -- 818
 end -- 799
-function ReloadWheelPlugin.prototype.triggerInvalidReset(self, ctx, activePath, flashError) -- 819
-	if flashError then -- 820
-		self.localInvalidFlash = 0.36 -- 821
-	end -- 821
-	self.kbCursor = ____exports.RELOAD_START_NODE -- 823
-	self.lastKnownPath = {____exports.RELOAD_START_NODE} -- 824
-	if #activePath > 1 then -- 826
-		self:submitIntent(ctx.p, {kind = "reloadTapNode", node = ____exports.RELOAD_START_NODE}) -- 827
-	end -- 827
-	if flashError then -- 829
-		self.nodePulseSeq = self.nodePulseSeq + 1 -- 830
-		ctx.audio:playOnce( -- 831
-			(("fe02:reload_invalid:r" .. tostring(ctx.events.roomSessionId)) .. ":e") .. tostring(self.nodePulseSeq), -- 832
-			"sfx", -- 833
-			"assets/audio/combat/reload_invalid.wav", -- 834
-			0.72, -- 835
-			"reload:invalid", -- 836
-			ctx.p.ticks -- 837
-		) -- 837
-	end -- 837
-end -- 819
-function ReloadWheelPlugin.prototype.hitTestNode(self, uiX, uiY, hitR) -- 842
-	if hitR == nil then -- 842
-		hitR = self.hitRadius -- 842
-	end -- 842
-	local r2 = hitR * hitR -- 843
-	local i = 0 -- 844
-	do -- 844
-		i = 0 -- 845
-		while i < #____exports.RELOAD_GRID do -- 845
-			local pos = self:getNodeUiPos(i) -- 846
-			local dx = uiX - pos.x -- 847
-			local dy = uiY - pos.y -- 848
-			if dx * dx + dy * dy <= r2 then -- 849
-				return i -- 850
-			end -- 850
-			i = i + 1 -- 845
-		end -- 845
+function ReloadWheelPlugin.prototype.triggerInvalidReset(self, ctx, activePath, flashError) -- 822
+	if flashError then -- 823
+		self.localInvalidFlash = 0.36 -- 824
+	end -- 824
+	self.kbCursor = ____exports.RELOAD_START_NODE -- 826
+	self.lastKnownPath = {____exports.RELOAD_START_NODE} -- 827
+	if #activePath > 1 then -- 829
+		self:submitIntent(ctx.p, {kind = "reloadTapNode", node = ____exports.RELOAD_START_NODE}) -- 830
+	end -- 830
+	if flashError then -- 832
+		self.nodePulseSeq = self.nodePulseSeq + 1 -- 833
+		ctx.audio:playOnce( -- 834
+			(("fe02:reload_invalid:r" .. tostring(ctx.events.roomSessionId)) .. ":e") .. tostring(self.nodePulseSeq), -- 835
+			"sfx", -- 836
+			"assets/audio/combat/reload_invalid.wav", -- 837
+			0.72, -- 838
+			"reload:invalid", -- 839
+			ctx.p.ticks -- 840
+		) -- 840
+	end -- 840
+end -- 822
+function ReloadWheelPlugin.prototype.hitTestNode(self, uiX, uiY, hitR) -- 845
+	if hitR == nil then -- 845
+		hitR = self.hitRadius -- 845
 	end -- 845
-	return -1 -- 853
-end -- 842
-function ReloadWheelPlugin.prototype.ingestAppliedEffects(self, ctx) -- 856
-	local p = ctx.p -- 857
-	local triggered = false -- 858
-	local i = 0 -- 859
-	do -- 859
-		i = 0 -- 860
-		while i < #ctx.events.rawEvents do -- 860
-			local e = ctx.events.rawEvents[i + 1] -- 861
-			if e.name == "reloadApplied" then -- 862
-				local rawEff = e.data.effect -- 863
-				local eff = rawEff == "echo" and "echo" or (rawEff == "light" and "light" or "knockback") -- 864
-				local ex = type(e.data.enemyX) == "number" and e.data.enemyX or p.player.x + p.player.facing * 200 -- 867
-				self:spawnAppliedVfx(eff, p, ex) -- 868
-				triggered = true -- 869
-			end -- 869
-			i = i + 1 -- 860
-		end -- 860
-	end -- 860
-	if not triggered and ctx.events.shotFired and self.lastKnownNextEffect ~= "normal" and ctx.view.reloadSession.nextEffect == "normal" then -- 873
-		local tx = ctx.events.shotTrace ~= nil and ctx.events.shotTrace.x1 or p.player.x + p.player.facing * 220 -- 874
-		self:spawnAppliedVfx(self.lastKnownNextEffect, p, tx) -- 875
-	end -- 875
-end -- 856
-function ReloadWheelPlugin.prototype.spawnAppliedVfx(self, effect, p, targetX) -- 879
-	local originX = p.player.x + p.player.facing * 18 -- 880
-	local originY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.62 -- 881
-	local targetY = p.player.y + p.player.depth * DEPTH_Y_SCALE + 46 -- 882
-	local maxLife = effect == "light" and 0.42 or (effect == "echo" and 0.56 or 0.34) -- 883
-	local ____self_appliedVfx_31 = self.appliedVfx -- 884
-	____self_appliedVfx_31[#____self_appliedVfx_31 + 1] = { -- 884
-		effect = effect, -- 885
-		originX = originX, -- 886
-		originY = originY, -- 887
-		targetX = targetX, -- 888
-		targetY = targetY, -- 889
-		facing = p.player.facing >= 0 and 1 or -1, -- 890
-		life = maxLife, -- 891
-		maxLife = maxLife -- 892
-	} -- 892
-end -- 879
-function ReloadWheelPlugin.prototype.updateAppliedVfx(self, wdt) -- 896
-	if wdt <= 0 or #self.appliedVfx == 0 then -- 897
-		return -- 898
-	end -- 898
-	local w = 0 -- 900
-	local i = 0 -- 901
-	do -- 901
-		i = 0 -- 902
-		while i < #self.appliedVfx do -- 902
-			local fx = self.appliedVfx[i + 1] -- 903
-			fx.life = fx.life - wdt -- 904
-			if fx.life > 0 then -- 905
-				self.appliedVfx[w + 1] = fx -- 906
-				w = w + 1 -- 907
-			end -- 907
-			i = i + 1 -- 902
-		end -- 902
-	end -- 902
-	__TS__ArraySetLength(self.appliedVfx, w) -- 910
-end -- 896
-function ReloadWheelPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 914
-	if #self.appliedVfx == 0 then -- 920
-		return -- 921
-	end -- 921
-	local cam = ctx.cam -- 923
-	local i = 0 -- 924
-	do -- 924
-		i = 0 -- 925
-		while i < #self.appliedVfx do -- 925
-			local fx = self.appliedVfx[i + 1] -- 926
-			local k = math.max( -- 927
-				0, -- 927
-				math.min(1, fx.life / fx.maxLife) -- 927
-			) -- 927
-			local prog = 1 - k -- 928
-			local ox = cam:sx(fx.originX) -- 929
-			local oy = cam:sy(fx.originY) -- 930
-			local tx = cam:sx(fx.targetX) -- 931
-			local ty = cam:sy(fx.targetY) -- 932
-			if fx.effect == "knockback" then -- 934
-				local r = cam:len(12 + prog * 34) -- 936
-				local startA = fx.facing >= 0 and -48 or 132 -- 937
-				local endA = fx.facing >= 0 and 48 or 228 -- 938
-				fgGlow:drawArc( -- 939
-					Vec2(tx, ty), -- 939
-					r, -- 939
-					startA, -- 939
-					endA, -- 939
-					2.4 * k, -- 939
-					toColor(PALETTE.moonPale, 210 * k) -- 939
-				) -- 939
-				fgDraw:drawArc( -- 940
-					Vec2( -- 940
-						tx - fx.facing * cam:len(6), -- 940
-						ty -- 940
-					), -- 940
-					r * 0.72, -- 940
-					startA, -- 940
-					endA, -- 940
-					1.5 * k, -- 940
-					toColor(PALETTE.silkLine, 165 * k) -- 940
-				) -- 940
-			elseif fx.effect == "echo" then -- 941
-				local r1 = cam:len(10 + prog * 64) -- 943
-				local r2 = cam:len(6 + prog * 40) -- 944
-				fgGlow:drawRing( -- 945
-					Vec2(tx, ty), -- 945
-					math.max(1, r1 - 1.6), -- 945
-					r1, -- 945
-					Color(0, 0, 0, 0), -- 945
-					1.3, -- 945
-					toColor(PALETTE.amber, 210 * k) -- 945
-				) -- 945
-				fgGlow:drawRing( -- 946
-					Vec2(tx, ty), -- 946
-					math.max(1, r2 - 1.2), -- 946
-					r2, -- 946
-					Color(0, 0, 0, 0), -- 946
-					1, -- 946
-					toColor(PALETTE.amberCore, 175 * k) -- 946
-				) -- 946
-			elseif fx.effect == "light" then -- 947
-				fgGlow:drawSegment( -- 949
-					Vec2(ox, oy), -- 949
+	local r2 = hitR * hitR -- 846
+	local i = 0 -- 847
+	do -- 847
+		i = 0 -- 848
+		while i < #____exports.RELOAD_GRID do -- 848
+			local pos = self:getNodeUiPos(i) -- 849
+			local dx = uiX - pos.x -- 850
+			local dy = uiY - pos.y -- 851
+			if dx * dx + dy * dy <= r2 then -- 852
+				return i -- 853
+			end -- 853
+			i = i + 1 -- 848
+		end -- 848
+	end -- 848
+	return -1 -- 856
+end -- 845
+function ReloadWheelPlugin.prototype.ingestAppliedEffects(self, ctx) -- 859
+	local p = ctx.p -- 860
+	local triggered = false -- 861
+	local i = 0 -- 862
+	do -- 862
+		i = 0 -- 863
+		while i < #ctx.events.rawEvents do -- 863
+			local e = ctx.events.rawEvents[i + 1] -- 864
+			if e.name == "reloadApplied" then -- 865
+				local rawEff = e.data.effect -- 866
+				local eff = rawEff == "echo" and "echo" or (rawEff == "light" and "light" or "knockback") -- 867
+				local ex = type(e.data.enemyX) == "number" and e.data.enemyX or p.player.x + p.player.facing * 200 -- 870
+				self:spawnAppliedVfx(eff, p, ex) -- 871
+				triggered = true -- 872
+			end -- 872
+			i = i + 1 -- 863
+		end -- 863
+	end -- 863
+	if not triggered and ctx.events.shotFired and self.lastKnownNextEffect ~= "normal" and ctx.view.reloadSession.nextEffect == "normal" then -- 876
+		local tx = ctx.events.shotTrace ~= nil and ctx.events.shotTrace.x1 or p.player.x + p.player.facing * 220 -- 877
+		self:spawnAppliedVfx(self.lastKnownNextEffect, p, tx) -- 878
+	end -- 878
+end -- 859
+function ReloadWheelPlugin.prototype.spawnAppliedVfx(self, effect, p, targetX) -- 882
+	local originX = p.player.x + p.player.facing * 18 -- 883
+	local originY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.62 -- 884
+	local targetY = p.player.y + p.player.depth * DEPTH_Y_SCALE + 46 -- 885
+	local maxLife = effect == "light" and 0.42 or (effect == "echo" and 0.56 or 0.34) -- 886
+	local ____self_appliedVfx_31 = self.appliedVfx -- 887
+	____self_appliedVfx_31[#____self_appliedVfx_31 + 1] = { -- 887
+		effect = effect, -- 888
+		originX = originX, -- 889
+		originY = originY, -- 890
+		targetX = targetX, -- 891
+		targetY = targetY, -- 892
+		facing = p.player.facing >= 0 and 1 or -1, -- 893
+		life = maxLife, -- 894
+		maxLife = maxLife -- 895
+	} -- 895
+end -- 882
+function ReloadWheelPlugin.prototype.updateAppliedVfx(self, wdt) -- 899
+	if wdt <= 0 or #self.appliedVfx == 0 then -- 900
+		return -- 901
+	end -- 901
+	local w = 0 -- 903
+	local i = 0 -- 904
+	do -- 904
+		i = 0 -- 905
+		while i < #self.appliedVfx do -- 905
+			local fx = self.appliedVfx[i + 1] -- 906
+			fx.life = fx.life - wdt -- 907
+			if fx.life > 0 then -- 908
+				self.appliedVfx[w + 1] = fx -- 909
+				w = w + 1 -- 910
+			end -- 910
+			i = i + 1 -- 905
+		end -- 905
+	end -- 905
+	__TS__ArraySetLength(self.appliedVfx, w) -- 913
+end -- 899
+function ReloadWheelPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 917
+	if #self.appliedVfx == 0 then -- 923
+		return -- 924
+	end -- 924
+	local cam = ctx.cam -- 926
+	local i = 0 -- 927
+	do -- 927
+		i = 0 -- 928
+		while i < #self.appliedVfx do -- 928
+			local fx = self.appliedVfx[i + 1] -- 929
+			local k = math.max( -- 930
+				0, -- 930
+				math.min(1, fx.life / fx.maxLife) -- 930
+			) -- 930
+			local prog = 1 - k -- 931
+			local ox = cam:sx(fx.originX) -- 932
+			local oy = cam:sy(fx.originY) -- 933
+			local tx = cam:sx(fx.targetX) -- 934
+			local ty = cam:sy(fx.targetY) -- 935
+			if fx.effect == "knockback" then -- 937
+				local r = cam:len(12 + prog * 34) -- 939
+				local startA = fx.facing >= 0 and -48 or 132 -- 940
+				local endA = fx.facing >= 0 and 48 or 228 -- 941
+				fgGlow:drawArc( -- 942
+					Vec2(tx, ty), -- 942
+					r, -- 942
+					startA, -- 942
+					endA, -- 942
+					2.4 * k, -- 942
+					toColor(PALETTE.moonPale, 210 * k) -- 942
+				) -- 942
+				fgDraw:drawArc( -- 943
+					Vec2( -- 943
+						tx - fx.facing * cam:len(6), -- 943
+						ty -- 943
+					), -- 943
+					r * 0.72, -- 943
+					startA, -- 943
+					endA, -- 943
+					1.5 * k, -- 943
+					toColor(PALETTE.silkLine, 165 * k) -- 943
+				) -- 943
+			elseif fx.effect == "echo" then -- 944
+				local r1 = cam:len(10 + prog * 64) -- 946
+				local r2 = cam:len(6 + prog * 40) -- 947
+				fgGlow:drawRing( -- 948
+					Vec2(tx, ty), -- 948
+					math.max(1, r1 - 1.6), -- 948
+					r1, -- 948
+					Color(0, 0, 0, 0), -- 948
+					1.3, -- 948
+					toColor(PALETTE.amber, 210 * k) -- 948
+				) -- 948
+				fgGlow:drawRing( -- 949
 					Vec2(tx, ty), -- 949
-					5 * k, -- 949
-					toColor(PALETTE.amber, 68 * k) -- 949
+					math.max(1, r2 - 1.2), -- 949
+					r2, -- 949
+					Color(0, 0, 0, 0), -- 949
+					1, -- 949
+					toColor(PALETTE.amberCore, 175 * k) -- 949
 				) -- 949
-				fgGlow:drawSegment( -- 950
-					Vec2(ox, oy), -- 950
-					Vec2(tx, ty), -- 950
-					1.8 * k, -- 950
-					toColor(PALETTE.amberCore, 185 * k) -- 950
-				) -- 950
-				fillRadialGlow( -- 951
-					fgGlow, -- 951
-					tx, -- 951
-					ty, -- 951
-					cam:len(42 * (0.6 + prog * 0.4)), -- 951
-					cam:len(34), -- 951
-					toColor(PALETTE.amberCore, 118 * k), -- 951
-					Color(244, 234, 214, 0), -- 951
-					16 -- 951
-				) -- 951
-			end -- 951
-			i = i + 1 -- 925
-		end -- 925
-	end -- 925
-end -- 914
-function ReloadWheelPlugin.prototype.drawFullSpeedUi(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 957
-	local rs = ctx.view.reloadSession -- 964
-	local active = rs.active -- 965
-	local retracting = not active and self.retractAnimT > 0.01 -- 966
-	if not active and not retracting then -- 967
-		if rs.nextEffect ~= "normal" and not ctx.view.craftBench.active then -- 969
-			self:drawArmedEffectBadge( -- 970
-				uiDraw, -- 970
-				uiInkDraw, -- 970
-				uiArt, -- 970
-				ctx, -- 970
-				rs.nextEffect -- 970
-			) -- 970
-		end -- 970
-		return false -- 972
-	end -- 972
-	local cx = self.panelCx -- 975
-	local cy = self.panelCy -- 976
-	local pw = self.panelW -- 977
-	local ph = self.panelH -- 978
-	local x0 = cx - pw * 0.5 -- 979
-	local y0 = cy - ph * 0.5 -- 980
-	local appear = active and math.min(1, self.openAnimT) or math.max( -- 982
-		0, -- 984
-		self.retractAnimT / math.max(0.01, self.retractDuration) -- 984
-	) -- 984
-	local shakeX = self.localInvalidFlash > 0 and math.sin(self.animTime * 62) * 5.5 * (self.localInvalidFlash / 0.36) or 0 -- 985
-	local px = cx + shakeX -- 988
-	if active then -- 991
-		uiDraw:drawRect( -- 992
-			Rect(0, 0, ctx.uiW, ctx.uiH), -- 992
-			Color( -- 992
-				10, -- 992
-				13, -- 992
-				20, -- 992
-				math.floor(54 * appear + 0.5) -- 992
-			) -- 992
-		) -- 992
-	end -- 992
-	drawSilkVeil( -- 996
-		uiDraw, -- 996
-		uiArt, -- 996
-		"rw_outer_veil", -- 996
-		px, -- 996
-		cy, -- 996
-		pw + 34, -- 996
-		ph + 28, -- 996
-		PALETTE.inkWash, -- 996
-		0.72 * appear, -- 996
-		-2 -- 996
-	) -- 996
-	if not uiArt:tryPlace( -- 997
-		"ink_song_paper", -- 997
-		"rw_paper", -- 997
-		px, -- 997
-		cy, -- 997
-		pw, -- 997
-		ph, -- 997
-		{opacity = 0.94 * appear, layer = 1} -- 997
-	) then -- 997
-		uiDraw:drawRoundedRect( -- 998
-			Rect(x0 + shakeX, y0, pw, ph), -- 999
-			6, -- 1000
-			toColor(PALETTE.xuanPaper, 240 * appear), -- 1001
-			1.2, -- 1002
-			toColor(PALETTE.xuanInkSub, 180 * appear) -- 1003
-		) -- 1003
-	end -- 1003
-	local frameCol = self.localInvalidFlash > 0.05 and PALETTE.rouge or PALETTE.xuanInkSub -- 1006
-	drawFiligreeCorners( -- 1007
-		uiInkDraw, -- 1007
-		uiArt, -- 1007
-		"rw_frame", -- 1007
-		x0 + shakeX + 8, -- 1007
-		y0 + 8, -- 1007
-		pw - 16, -- 1007
-		ph - 16, -- 1007
-		frameCol, -- 1007
-		0.72 * appear, -- 1007
-		22, -- 1007
-		true, -- 1007
-		2 -- 1007
-	) -- 1007
-	local activePath = active and (#rs.path > 0 and rs.path or ({____exports.RELOAD_START_NODE})) or self.settledPath -- 1010
-	local previewEffect = active and (#rs.path >= 2 and ____exports.deriveEffectFromGrid(activePath) or rs.previewEffect) or self.settledEffect -- 1013
-	local effAccent = self:effectInkColor(previewEffect) -- 1016
-	local headY = y0 + ph - 32 -- 1018
-	____exports.drawReloadPatternGlyph( -- 1019
-		uiInkDraw, -- 1019
-		px - 52, -- 1019
-		headY, -- 1019
-		11, -- 1019
-		previewEffect, -- 1019
-		effAccent, -- 1019
-		appear -- 1019
-	) -- 1019
-	local titleText = active and ____exports.reloadEffectShortLabel(previewEffect) or (self.settledTimedOut and "普通装填" or ____exports.reloadEffectShortLabel(self.settledEffect)) -- 1020
-	ctx.texts:put( -- 1023
-		"sm", -- 1024
-		titleText, -- 1025
-		px - 32, -- 1026
-		headY, -- 1027
-		toColor(self.localInvalidFlash > 0.05 and PALETTE.rouge or PALETTE.xuanInk), -- 1028
-		0, -- 1029
-		0.5, -- 1030
-		"Left", -- 1031
-		1.6, -- 1032
-		0.96 * appear, -- 1033
-		0 -- 1034
-	) -- 1034
-	if active and (ctx.input:isTouchMode() or #activePath > 1) then -- 1036
-		local canReset = #activePath > 1 -- 1037
-		local rb = Rect(self.resetBox.x + shakeX, self.resetBox.y, self.resetBox.width, self.resetBox.height) -- 1038
-		uiInkDraw:drawRect( -- 1039
-			rb, -- 1040
-			Color( -- 1041
-				32, -- 1041
-				30, -- 1041
-				32, -- 1041
-				math.floor((canReset and 32 or 12) * appear + 0.5) -- 1041
-			), -- 1041
-			0.85, -- 1042
-			toColor(canReset and PALETTE.rouge or PALETTE.xuanInkSub, (canReset and 185 or 95) * appear) -- 1043
-		) -- 1043
-		ctx.texts:put( -- 1045
-			"xs", -- 1046
-			"重画", -- 1047
-			rb.x + rb.width * 0.5, -- 1048
-			rb.y + rb.height * 0.5, -- 1049
-			toColor(canReset and PALETTE.rouge or PALETTE.xuanInkSub), -- 1050
-			0.5, -- 1051
-			0.5, -- 1052
-			"Center", -- 1053
-			1, -- 1054
-			(canReset and 0.94 or 0.52) * appear, -- 1055
-			0 -- 1056
-		) -- 1056
-	end -- 1056
-	drawHairline( -- 1059
-		uiInkDraw, -- 1059
-		uiArt, -- 1059
-		"rw_head_line", -- 1059
-		px, -- 1059
-		headY - 18, -- 1059
-		pw - 42, -- 1059
-		PALETTE.xuanInkSub, -- 1059
-		0.45 * appear, -- 1059
-		false, -- 1059
-		2 -- 1059
-	) -- 1059
-	local idx = 0 -- 1062
-	do -- 1062
-		idx = 0 -- 1063
-		while idx < 3 do -- 1063
-			local hA = self:getNodeUiPos(idx * 3) -- 1064
-			local hB = self:getNodeUiPos(idx * 3 + 2) -- 1065
-			uiInkDraw:drawSegment( -- 1066
-				Vec2(hA.x + shakeX, hA.y), -- 1066
-				Vec2(hB.x + shakeX, hB.y), -- 1066
-				0.75, -- 1066
-				toColor(PALETTE.xuanInkSub, 78 * appear) -- 1066
-			) -- 1066
-			local vA = self:getNodeUiPos(idx) -- 1067
-			local vB = self:getNodeUiPos(6 + idx) -- 1068
+			elseif fx.effect == "light" then -- 950
+				fgGlow:drawSegment( -- 952
+					Vec2(ox, oy), -- 952
+					Vec2(tx, ty), -- 952
+					5 * k, -- 952
+					toColor(PALETTE.amber, 68 * k) -- 952
+				) -- 952
+				fgGlow:drawSegment( -- 953
+					Vec2(ox, oy), -- 953
+					Vec2(tx, ty), -- 953
+					1.8 * k, -- 953
+					toColor(PALETTE.amberCore, 185 * k) -- 953
+				) -- 953
+				fillRadialGlow( -- 954
+					fgGlow, -- 954
+					tx, -- 954
+					ty, -- 954
+					cam:len(42 * (0.6 + prog * 0.4)), -- 954
+					cam:len(34), -- 954
+					toColor(PALETTE.amberCore, 118 * k), -- 954
+					Color(244, 234, 214, 0), -- 954
+					16 -- 954
+				) -- 954
+			end -- 954
+			i = i + 1 -- 928
+		end -- 928
+	end -- 928
+end -- 917
+function ReloadWheelPlugin.prototype.drawFullSpeedUi(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 960
+	local rs = ctx.view.reloadSession -- 967
+	local active = rs.active -- 968
+	local retracting = not active and self.retractAnimT > 0.01 -- 969
+	if not active and not retracting then -- 970
+		if rs.nextEffect ~= "normal" and not ctx.view.craftBench.active then -- 972
+			self:drawArmedEffectBadge( -- 973
+				uiDraw, -- 973
+				uiInkDraw, -- 973
+				uiArt, -- 973
+				ctx, -- 973
+				rs.nextEffect -- 973
+			) -- 973
+		end -- 973
+		return false -- 975
+	end -- 975
+	local cx = self.panelCx -- 978
+	local cy = self.panelCy -- 979
+	local pw = self.panelW -- 980
+	local ph = self.panelH -- 981
+	local x0 = cx - pw * 0.5 -- 982
+	local y0 = cy - ph * 0.5 -- 983
+	local appear = active and math.min(1, self.openAnimT) or math.max( -- 985
+		0, -- 987
+		self.retractAnimT / math.max(0.01, self.retractDuration) -- 987
+	) -- 987
+	local shakeX = self.localInvalidFlash > 0 and math.sin(self.animTime * 62) * 5.5 * (self.localInvalidFlash / 0.36) or 0 -- 988
+	local px = cx + shakeX -- 991
+	if active then -- 994
+		uiDraw:drawRect( -- 995
+			Rect(0, 0, ctx.uiW, ctx.uiH), -- 995
+			Color( -- 995
+				10, -- 995
+				13, -- 995
+				20, -- 995
+				math.floor(54 * appear + 0.5) -- 995
+			) -- 995
+		) -- 995
+	end -- 995
+	drawSilkVeil( -- 999
+		uiDraw, -- 999
+		uiArt, -- 999
+		"rw_outer_veil", -- 999
+		px, -- 999
+		cy, -- 999
+		pw + 34, -- 999
+		ph + 28, -- 999
+		PALETTE.inkWash, -- 999
+		0.72 * appear, -- 999
+		-2 -- 999
+	) -- 999
+	if not uiArt:tryPlace( -- 1000
+		"ink_song_paper", -- 1000
+		"rw_paper", -- 1000
+		px, -- 1000
+		cy, -- 1000
+		pw, -- 1000
+		ph, -- 1000
+		{opacity = 0.94 * appear, layer = 1} -- 1000
+	) then -- 1000
+		uiDraw:drawRoundedRect( -- 1001
+			Rect(x0 + shakeX, y0, pw, ph), -- 1002
+			6, -- 1003
+			toColor(PALETTE.xuanPaper, 240 * appear), -- 1004
+			1.2, -- 1005
+			toColor(PALETTE.xuanInkSub, 180 * appear) -- 1006
+		) -- 1006
+	end -- 1006
+	local frameCol = self.localInvalidFlash > 0.05 and PALETTE.rouge or PALETTE.xuanInkSub -- 1009
+	drawFiligreeCorners( -- 1010
+		uiInkDraw, -- 1010
+		uiArt, -- 1010
+		"rw_frame", -- 1010
+		x0 + shakeX + 8, -- 1010
+		y0 + 8, -- 1010
+		pw - 16, -- 1010
+		ph - 16, -- 1010
+		frameCol, -- 1010
+		0.72 * appear, -- 1010
+		22, -- 1010
+		true, -- 1010
+		2 -- 1010
+	) -- 1010
+	local activePath = active and (#rs.path > 0 and rs.path or ({____exports.RELOAD_START_NODE})) or self.settledPath -- 1013
+	local previewEffect = active and (#rs.path >= 2 and ____exports.deriveEffectFromGrid(activePath) or rs.previewEffect) or self.settledEffect -- 1016
+	local effAccent = self:effectInkColor(previewEffect) -- 1019
+	local headY = y0 + ph - 32 -- 1021
+	____exports.drawReloadPatternGlyph( -- 1022
+		uiInkDraw, -- 1022
+		px - 52, -- 1022
+		headY, -- 1022
+		11, -- 1022
+		previewEffect, -- 1022
+		effAccent, -- 1022
+		appear -- 1022
+	) -- 1022
+	local titleText = active and ____exports.reloadEffectShortLabel(previewEffect) or (self.settledTimedOut and "普通装填" or ____exports.reloadEffectShortLabel(self.settledEffect)) -- 1023
+	ctx.texts:put( -- 1026
+		"sm", -- 1027
+		titleText, -- 1028
+		px - 32, -- 1029
+		headY, -- 1030
+		toColor(self.localInvalidFlash > 0.05 and PALETTE.rouge or PALETTE.xuanInk), -- 1031
+		0, -- 1032
+		0.5, -- 1033
+		"Left", -- 1034
+		1.6, -- 1035
+		0.96 * appear, -- 1036
+		0 -- 1037
+	) -- 1037
+	if active and (ctx.input:isTouchMode() or #activePath > 1) then -- 1039
+		local canReset = #activePath > 1 -- 1040
+		local rb = Rect(self.resetBox.x + shakeX, self.resetBox.y, self.resetBox.width, self.resetBox.height) -- 1041
+		uiInkDraw:drawRect( -- 1042
+			rb, -- 1043
+			Color( -- 1044
+				32, -- 1044
+				30, -- 1044
+				32, -- 1044
+				math.floor((canReset and 32 or 12) * appear + 0.5) -- 1044
+			), -- 1044
+			0.85, -- 1045
+			toColor(canReset and PALETTE.rouge or PALETTE.xuanInkSub, (canReset and 185 or 95) * appear) -- 1046
+		) -- 1046
+		ctx.texts:put( -- 1048
+			"xs", -- 1049
+			"重画", -- 1050
+			rb.x + rb.width * 0.5, -- 1051
+			rb.y + rb.height * 0.5, -- 1052
+			toColor(canReset and PALETTE.rouge or PALETTE.xuanInkSub), -- 1053
+			0.5, -- 1054
+			0.5, -- 1055
+			"Center", -- 1056
+			1, -- 1057
+			(canReset and 0.94 or 0.52) * appear, -- 1058
+			0 -- 1059
+		) -- 1059
+	end -- 1059
+	drawHairline( -- 1062
+		uiInkDraw, -- 1062
+		uiArt, -- 1062
+		"rw_head_line", -- 1062
+		px, -- 1062
+		headY - 18, -- 1062
+		pw - 42, -- 1062
+		PALETTE.xuanInkSub, -- 1062
+		0.45 * appear, -- 1062
+		false, -- 1062
+		2 -- 1062
+	) -- 1062
+	local idx = 0 -- 1065
+	do -- 1065
+		idx = 0 -- 1066
+		while idx < 3 do -- 1066
+			local hA = self:getNodeUiPos(idx * 3) -- 1067
+			local hB = self:getNodeUiPos(idx * 3 + 2) -- 1068
 			uiInkDraw:drawSegment( -- 1069
-				Vec2(vA.x + shakeX, vA.y), -- 1069
-				Vec2(vB.x + shakeX, vB.y), -- 1069
+				Vec2(hA.x + shakeX, hA.y), -- 1069
+				Vec2(hB.x + shakeX, hB.y), -- 1069
 				0.75, -- 1069
 				toColor(PALETTE.xuanInkSub, 78 * appear) -- 1069
 			) -- 1069
-			idx = idx + 1 -- 1063
-		end -- 1063
-	end -- 1063
-	if #activePath >= 2 then -- 1073
-		self:drawPathStrokes( -- 1074
-			uiInkDraw, -- 1074
-			uiGlow, -- 1074
-			activePath, -- 1074
-			previewEffect, -- 1074
-			effAccent, -- 1074
-			shakeX, -- 1074
-			appear -- 1074
-		) -- 1074
-	end -- 1074
-	if active and self.dragging and #activePath >= 1 then -- 1078
-		local tail = self:getNodeUiPos(activePath[#activePath]) -- 1079
-		local mx = ctx.input.uiHeld and ctx.input.uiX / ctx.uiScale or self.lastUiPtrX -- 1080
-		local my = ctx.input.uiHeld and ctx.input.uiY / ctx.uiScale or self.lastUiPtrY -- 1081
-		uiInkDraw:drawSegment( -- 1082
-			Vec2(tail.x + shakeX, tail.y), -- 1082
-			Vec2(mx, my), -- 1082
-			1.4, -- 1082
-			toColor(effAccent, 150 * appear) -- 1082
-		) -- 1082
-		uiInkDraw:drawDot( -- 1083
-			Vec2(mx, my), -- 1083
-			3, -- 1083
-			toColor(effAccent, 210 * appear) -- 1083
-		) -- 1083
-	end -- 1083
-	local lastNode = #activePath > 0 and activePath[#activePath] or ____exports.RELOAD_START_NODE -- 1087
-	do -- 1087
-		idx = 0 -- 1088
-		while idx < #____exports.RELOAD_GRID do -- 1088
-			local spec = ____exports.RELOAD_GRID[idx + 1] -- 1089
-			local pos = self:getNodeUiPos(idx) -- 1090
-			local nx = pos.x + shakeX -- 1091
-			local ny = pos.y -- 1092
-			local inPath = __TS__ArrayIndexOf(activePath, idx) >= 0 -- 1093
-			local isValidNext = active and not inPath and ____exports.isAdjacentNode(lastNode, idx) -- 1094
-			local isKbFocus = active and not self.pointerActive and self.kbCursor == idx -- 1095
-			self:drawGridNode( -- 1096
-				uiInkDraw, -- 1096
-				uiGlow, -- 1096
-				spec, -- 1096
-				nx, -- 1096
-				ny, -- 1096
-				inPath, -- 1096
-				isValidNext, -- 1096
-				isKbFocus, -- 1096
-				effAccent, -- 1096
-				appear -- 1096
-			) -- 1096
-			idx = idx + 1 -- 1088
-		end -- 1088
-	end -- 1088
-	self:drawChildFinger( -- 1100
-		uiInkDraw, -- 1100
-		uiGlow, -- 1100
-		active, -- 1100
-		activePath, -- 1100
-		shakeX, -- 1100
-		appear -- 1100
-	) -- 1100
-	local barW = pw - 52 -- 1103
-	local barX = px - barW * 0.5 -- 1104
-	local barY = y0 + 28 -- 1105
-	local remainFrac = active and math.max( -- 1106
-		0, -- 1107
-		math.min( -- 1107
-			1, -- 1107
-			1 - rs.elapsed / math.max(0.01, rs.duration) -- 1107
-		) -- 1107
-	) or (self.settledTimedOut and 0 or 1) -- 1108
-	local urgent = active and remainFrac < 0.25 -- 1109
-	local barCol = urgent and PALETTE.rouge or PALETTE.xuanInk -- 1110
-	uiInkDraw:drawSegment( -- 1111
-		Vec2(barX, barY), -- 1111
-		Vec2(barX + barW, barY), -- 1111
-		1.4, -- 1111
-		toColor(PALETTE.xuanInkSub, 85 * appear) -- 1111
-	) -- 1111
-	if remainFrac > 0.005 then -- 1112
-		uiInkDraw:drawSegment( -- 1113
-			Vec2(barX, barY), -- 1113
-			Vec2(barX + barW * remainFrac, barY), -- 1113
-			3, -- 1113
-			toColor(barCol, 225 * appear) -- 1113
-		) -- 1113
-	end -- 1113
-	local tTick = 1 -- 1116
-	do -- 1116
-		tTick = 1 -- 1117
-		while tTick <= 3 do -- 1117
-			local tx = barX + barW * (tTick / 4) -- 1118
-			uiInkDraw:drawSegment( -- 1119
-				Vec2(tx, barY - 3.5), -- 1119
-				Vec2(tx, barY + 3.5), -- 1119
-				0.9, -- 1119
-				toColor(PALETTE.xuanInkSub, 125 * appear) -- 1119
-			) -- 1119
-			tTick = tTick + 1 -- 1117
-		end -- 1117
-	end -- 1117
-	if active and ctx.view.assistHintsEnabled then -- 1123
-		local mode = ctx.input.inputMode -- 1124
-		local hint = mode == "gamepad" and ("左摇杆八向直连至右上 · " .. keyTagFor("back", "gamepad", ctx.input.gamepadLayout)) .. " 重画" or (mode == "touch" and "单指一笔滑连至右上 · 点重画清空" or "拖线或方向+回车连至右上") -- 1125
-		ctx.texts:put( -- 1130
-			"xs", -- 1131
-			hint, -- 1132
-			px, -- 1133
-			y0 + 13, -- 1134
-			toColor(PALETTE.xuanInkSub), -- 1135
-			0.5, -- 1136
-			0.5, -- 1137
-			"Center", -- 1138
-			0.6, -- 1139
-			0.82 * appear, -- 1140
-			0 -- 1141
-		) -- 1141
-	end -- 1141
-	return active -- 1145
-end -- 957
-function ReloadWheelPlugin.prototype.effectInkColor(self, effect) -- 1148
-	if effect == "echo" then -- 1149
-		return PALETTE.rouge -- 1150
-	end -- 1150
-	if effect == "light" then -- 1152
-		return PALETTE.amberDim -- 1153
+			local vA = self:getNodeUiPos(idx) -- 1070
+			local vB = self:getNodeUiPos(6 + idx) -- 1071
+			uiInkDraw:drawSegment( -- 1072
+				Vec2(vA.x + shakeX, vA.y), -- 1072
+				Vec2(vB.x + shakeX, vB.y), -- 1072
+				0.75, -- 1072
+				toColor(PALETTE.xuanInkSub, 78 * appear) -- 1072
+			) -- 1072
+			idx = idx + 1 -- 1066
+		end -- 1066
+	end -- 1066
+	if #activePath >= 2 then -- 1076
+		self:drawPathStrokes( -- 1077
+			uiInkDraw, -- 1077
+			uiGlow, -- 1077
+			activePath, -- 1077
+			previewEffect, -- 1077
+			effAccent, -- 1077
+			shakeX, -- 1077
+			appear -- 1077
+		) -- 1077
+	end -- 1077
+	if active and self.dragging and #activePath >= 1 then -- 1081
+		local tail = self:getNodeUiPos(activePath[#activePath]) -- 1082
+		local mx = ctx.input.uiHeld and ctx.input.uiX / ctx.uiScale or self.lastUiPtrX -- 1083
+		local my = ctx.input.uiHeld and ctx.input.uiY / ctx.uiScale or self.lastUiPtrY -- 1084
+		uiInkDraw:drawSegment( -- 1085
+			Vec2(tail.x + shakeX, tail.y), -- 1085
+			Vec2(mx, my), -- 1085
+			1.4, -- 1085
+			toColor(effAccent, 150 * appear) -- 1085
+		) -- 1085
+		uiInkDraw:drawDot( -- 1086
+			Vec2(mx, my), -- 1086
+			3, -- 1086
+			toColor(effAccent, 210 * appear) -- 1086
+		) -- 1086
+	end -- 1086
+	local lastNode = #activePath > 0 and activePath[#activePath] or ____exports.RELOAD_START_NODE -- 1090
+	do -- 1090
+		idx = 0 -- 1091
+		while idx < #____exports.RELOAD_GRID do -- 1091
+			local spec = ____exports.RELOAD_GRID[idx + 1] -- 1092
+			local pos = self:getNodeUiPos(idx) -- 1093
+			local nx = pos.x + shakeX -- 1094
+			local ny = pos.y -- 1095
+			local inPath = __TS__ArrayIndexOf(activePath, idx) >= 0 -- 1096
+			local isValidNext = active and not inPath and ____exports.isAdjacentNode(lastNode, idx) -- 1097
+			local isKbFocus = active and not self.pointerActive and self.kbCursor == idx -- 1098
+			self:drawGridNode( -- 1099
+				uiInkDraw, -- 1099
+				uiGlow, -- 1099
+				spec, -- 1099
+				nx, -- 1099
+				ny, -- 1099
+				inPath, -- 1099
+				isValidNext, -- 1099
+				isKbFocus, -- 1099
+				effAccent, -- 1099
+				appear -- 1099
+			) -- 1099
+			idx = idx + 1 -- 1091
+		end -- 1091
+	end -- 1091
+	self:drawChildFinger( -- 1103
+		uiInkDraw, -- 1103
+		uiGlow, -- 1103
+		active, -- 1103
+		activePath, -- 1103
+		shakeX, -- 1103
+		appear -- 1103
+	) -- 1103
+	local barW = pw - 52 -- 1106
+	local barX = px - barW * 0.5 -- 1107
+	local barY = y0 + 28 -- 1108
+	local remainFrac = active and math.max( -- 1109
+		0, -- 1110
+		math.min( -- 1110
+			1, -- 1110
+			1 - rs.elapsed / math.max(0.01, rs.duration) -- 1110
+		) -- 1110
+	) or (self.settledTimedOut and 0 or 1) -- 1111
+	local urgent = active and remainFrac < 0.25 -- 1112
+	local barCol = urgent and PALETTE.rouge or PALETTE.xuanInk -- 1113
+	uiInkDraw:drawSegment( -- 1114
+		Vec2(barX, barY), -- 1114
+		Vec2(barX + barW, barY), -- 1114
+		1.4, -- 1114
+		toColor(PALETTE.xuanInkSub, 85 * appear) -- 1114
+	) -- 1114
+	if remainFrac > 0.005 then -- 1115
+		uiInkDraw:drawSegment( -- 1116
+			Vec2(barX, barY), -- 1116
+			Vec2(barX + barW * remainFrac, barY), -- 1116
+			3, -- 1116
+			toColor(barCol, 225 * appear) -- 1116
+		) -- 1116
+	end -- 1116
+	local tTick = 1 -- 1119
+	do -- 1119
+		tTick = 1 -- 1120
+		while tTick <= 3 do -- 1120
+			local tx = barX + barW * (tTick / 4) -- 1121
+			uiInkDraw:drawSegment( -- 1122
+				Vec2(tx, barY - 3.5), -- 1122
+				Vec2(tx, barY + 3.5), -- 1122
+				0.9, -- 1122
+				toColor(PALETTE.xuanInkSub, 125 * appear) -- 1122
+			) -- 1122
+			tTick = tTick + 1 -- 1120
+		end -- 1120
+	end -- 1120
+	if active and ctx.view.assistHintsEnabled then -- 1126
+		local mode = ctx.input.inputMode -- 1127
+		local hint = mode == "gamepad" and ("左摇杆八向直连至右上 · " .. keyTagFor("back", "gamepad", ctx.input.gamepadLayout)) .. " 重画" or (mode == "touch" and "单指一笔滑连至右上 · 点重画清空" or "拖线或方向+回车连至右上") -- 1128
+		ctx.texts:put( -- 1133
+			"xs", -- 1134
+			hint, -- 1135
+			px, -- 1136
+			y0 + 13, -- 1137
+			toColor(PALETTE.xuanInkSub), -- 1138
+			0.5, -- 1139
+			0.5, -- 1140
+			"Center", -- 1141
+			0.6, -- 1142
+			0.82 * appear, -- 1143
+			0 -- 1144
+		) -- 1144
+	end -- 1144
+	return active -- 1148
+end -- 960
+function ReloadWheelPlugin.prototype.effectInkColor(self, effect) -- 1151
+	if effect == "echo" then -- 1152
+		return PALETTE.rouge -- 1153
 	end -- 1153
-	if effect == "knockback" then -- 1155
-		return PALETTE.xuanInk -- 1156
+	if effect == "light" then -- 1155
+		return PALETTE.amberDim -- 1156
 	end -- 1156
-	return PALETTE.xuanInkSub -- 1158
-end -- 1148
-function ReloadWheelPlugin.prototype.drawPathStrokes(self, uiInkDraw, uiGlow, path, effect, col, shakeX, appear) -- 1161
-	local i = 0 -- 1170
-	do -- 1170
-		i = 0 -- 1171
-		while i < #path - 1 do -- 1171
-			local p0 = self:getNodeUiPos(path[i + 1]) -- 1172
-			local p1 = self:getNodeUiPos(path[i + 1 + 1]) -- 1173
-			local ax = p0.x + shakeX -- 1174
-			local ay = p0.y -- 1175
-			local bx = p1.x + shakeX -- 1176
-			local by = p1.y -- 1177
-			if effect == "echo" then -- 1179
-				local dx = bx - ax -- 1181
-				local dy = by - ay -- 1182
-				local len = math.max( -- 1183
-					1, -- 1183
-					math.sqrt(dx * dx + dy * dy) -- 1183
-				) -- 1183
-				local nx = -dy / len * 2.2 -- 1184
-				local ny = dx / len * 2.2 -- 1185
-				uiInkDraw:drawSegment( -- 1186
-					Vec2(ax + nx, ay + ny), -- 1186
-					Vec2(bx + nx, by + ny), -- 1186
-					1.35, -- 1186
-					toColor(col, 220 * appear) -- 1186
+	if effect == "knockback" then -- 1158
+		return PALETTE.xuanInk -- 1159
+	end -- 1159
+	return PALETTE.xuanInkSub -- 1161
+end -- 1151
+function ReloadWheelPlugin.prototype.drawPathStrokes(self, uiInkDraw, uiGlow, path, effect, col, shakeX, appear) -- 1164
+	local i = 0 -- 1173
+	do -- 1173
+		i = 0 -- 1174
+		while i < #path - 1 do -- 1174
+			local p0 = self:getNodeUiPos(path[i + 1]) -- 1175
+			local p1 = self:getNodeUiPos(path[i + 1 + 1]) -- 1176
+			local ax = p0.x + shakeX -- 1177
+			local ay = p0.y -- 1178
+			local bx = p1.x + shakeX -- 1179
+			local by = p1.y -- 1180
+			if effect == "echo" then -- 1182
+				local dx = bx - ax -- 1184
+				local dy = by - ay -- 1185
+				local len = math.max( -- 1186
+					1, -- 1186
+					math.sqrt(dx * dx + dy * dy) -- 1186
 				) -- 1186
-				uiInkDraw:drawSegment( -- 1187
-					Vec2(ax - nx, ay - ny), -- 1187
-					Vec2(bx - nx, by - ny), -- 1187
-					1.35, -- 1187
-					toColor(col, 220 * appear) -- 1187
-				) -- 1187
-			elseif effect == "light" then -- 1188
+				local nx = -dy / len * 2.2 -- 1187
+				local ny = dx / len * 2.2 -- 1188
+				uiInkDraw:drawSegment( -- 1189
+					Vec2(ax + nx, ay + ny), -- 1189
+					Vec2(bx + nx, by + ny), -- 1189
+					1.35, -- 1189
+					toColor(col, 220 * appear) -- 1189
+				) -- 1189
 				uiInkDraw:drawSegment( -- 1190
-					Vec2(ax, ay), -- 1190
-					Vec2(bx, by), -- 1190
-					3.1, -- 1190
-					toColor(PALETTE.xuanInk, 195 * appear) -- 1190
+					Vec2(ax - nx, ay - ny), -- 1190
+					Vec2(bx - nx, by - ny), -- 1190
+					1.35, -- 1190
+					toColor(col, 220 * appear) -- 1190
 				) -- 1190
-				uiInkDraw:drawSegment( -- 1191
-					Vec2(ax, ay), -- 1191
-					Vec2(bx, by), -- 1191
-					1.3, -- 1191
-					toColor(PALETTE.amberCore, 235 * appear) -- 1191
-				) -- 1191
-				uiGlow:drawSegment( -- 1192
-					Vec2(ax, ay), -- 1192
-					Vec2(bx, by), -- 1192
-					3.2, -- 1192
-					toColor(PALETTE.amber, 55 * appear) -- 1192
-				) -- 1192
-			else -- 1192
-				uiInkDraw:drawSegment( -- 1195
+			elseif effect == "light" then -- 1191
+				uiInkDraw:drawSegment( -- 1193
+					Vec2(ax, ay), -- 1193
+					Vec2(bx, by), -- 1193
+					3.1, -- 1193
+					toColor(PALETTE.xuanInk, 195 * appear) -- 1193
+				) -- 1193
+				uiInkDraw:drawSegment( -- 1194
+					Vec2(ax, ay), -- 1194
+					Vec2(bx, by), -- 1194
+					1.3, -- 1194
+					toColor(PALETTE.amberCore, 235 * appear) -- 1194
+				) -- 1194
+				uiGlow:drawSegment( -- 1195
 					Vec2(ax, ay), -- 1195
 					Vec2(bx, by), -- 1195
-					2.8, -- 1195
-					toColor(col, 230 * appear) -- 1195
+					3.2, -- 1195
+					toColor(PALETTE.amber, 55 * appear) -- 1195
 				) -- 1195
-			end -- 1195
-			i = i + 1 -- 1171
-		end -- 1171
-	end -- 1171
-end -- 1161
-function ReloadWheelPlugin.prototype.drawGridNode(self, uiInkDraw, uiGlow, spec, nx, ny, inPath, isValidNext, isKbFocus, effAccent, appear) -- 1200
-	local baseR = spec.kind == "plain" and 11 or 15 -- 1212
-	local strokeCol = inPath and effAccent or (isValidNext and PALETTE.xuanInk or PALETTE.xuanInkSub) -- 1213
-	local strokeAlpha = inPath and 245 or (isValidNext and 185 or 115) -- 1214
-	if isKbFocus then -- 1217
-		local focusCol = (isValidNext or inPath) and PALETTE.rouge or PALETTE.xuanInkSub -- 1218
-		uiInkDraw:drawRing( -- 1219
-			Vec2(nx, ny), -- 1219
-			baseR + 4.5, -- 1219
-			baseR + 6.2, -- 1219
-			Color(0, 0, 0, 0), -- 1219
-			1.1, -- 1219
-			toColor(focusCol, 215 * appear) -- 1219
-		) -- 1219
-	end -- 1219
-	if spec.kind == "bell" then -- 1222
-		if inPath then -- 1224
-			uiInkDraw:drawCircle( -- 1225
-				Vec2(nx, ny), -- 1225
-				baseR + 1, -- 1225
-				toColor(PALETTE.rouge, 36 * appear) -- 1225
-			) -- 1225
-			uiGlow:drawRing( -- 1226
-				Vec2(nx, ny), -- 1226
-				baseR + 2, -- 1226
-				baseR + 5, -- 1226
-				Color(0, 0, 0, 0), -- 1226
-				1.2, -- 1226
-				toColor(PALETTE.rouge, 110 * appear) -- 1226
-			) -- 1226
-		end -- 1226
-		uiInkDraw:drawRing( -- 1228
-			Vec2(nx, ny), -- 1228
-			baseR - 1.2, -- 1228
-			baseR, -- 1228
-			Color(0, 0, 0, 0), -- 1228
-			1.1, -- 1228
-			toColor(strokeCol, strokeAlpha * appear) -- 1228
-		) -- 1228
-		____exports.drawReloadPatternGlyph( -- 1229
-			uiInkDraw, -- 1229
-			nx, -- 1229
-			ny, -- 1229
-			9.5, -- 1229
-			"echo", -- 1229
-			inPath and PALETTE.rouge or strokeCol, -- 1229
-			appear -- 1229
-		) -- 1229
-		return -- 1230
-	end -- 1230
-	if spec.kind == "lamp" then -- 1233
-		if inPath then -- 1235
-			uiInkDraw:drawCircle( -- 1236
-				Vec2(nx, ny), -- 1236
-				baseR + 1, -- 1236
-				toColor(PALETTE.amber, 56 * appear) -- 1236
-			) -- 1236
-			fillRadialGlow( -- 1237
-				uiGlow, -- 1237
-				nx, -- 1237
-				ny, -- 1237
-				22, -- 1237
-				22, -- 1237
-				toColor(PALETTE.amberCore, 72 * appear), -- 1237
-				Color(244, 234, 214, 0), -- 1237
-				12 -- 1237
-			) -- 1237
-		end -- 1237
-		uiInkDraw:drawRing( -- 1239
-			Vec2(nx, ny), -- 1239
-			baseR - 1.2, -- 1239
-			baseR, -- 1239
-			Color(0, 0, 0, 0), -- 1239
-			1.1, -- 1239
-			toColor(strokeCol, strokeAlpha * appear) -- 1239
-		) -- 1239
-		____exports.drawReloadPatternGlyph( -- 1240
-			uiInkDraw, -- 1240
-			nx, -- 1240
-			ny, -- 1240
-			9.5, -- 1240
-			"light", -- 1240
-			inPath and PALETTE.xuanInk or strokeCol, -- 1240
-			appear -- 1240
-		) -- 1240
-		return -- 1241
-	end -- 1241
-	if spec.kind == "target" then -- 1244
-		drawDiamond( -- 1246
-			uiInkDraw, -- 1247
-			nx, -- 1248
-			ny, -- 1249
-			baseR, -- 1250
-			baseR, -- 1251
-			inPath and toColor(PALETTE.xuanInk, 220 * appear) or Color(0, 0, 0, 0), -- 1252
-			1.4, -- 1253
-			toColor(inPath and PALETTE.rouge or PALETTE.xuanInk, 230 * appear) -- 1254
-		) -- 1254
-		drawDiamond( -- 1256
-			uiInkDraw, -- 1257
-			nx, -- 1258
-			ny, -- 1259
-			baseR * 0.56, -- 1260
-			baseR * 0.56, -- 1261
-			toColor(inPath and PALETTE.amberCore or PALETTE.xuanInk, 210 * appear) -- 1262
-		) -- 1262
-		return -- 1264
-	end -- 1264
-	if spec.kind == "start" then -- 1267
-		uiInkDraw:drawRing( -- 1269
-			Vec2(nx, ny), -- 1269
-			baseR - 2.2, -- 1269
-			baseR, -- 1269
-			Color(0, 0, 0, 0), -- 1269
-			1.2, -- 1269
-			toColor(PALETTE.rouge, 220 * appear) -- 1269
-		) -- 1269
-		uiInkDraw:drawCircle( -- 1270
-			Vec2(nx, ny), -- 1270
-			4.8, -- 1270
-			toColor(PALETTE.xuanInk, 235 * appear) -- 1270
-		) -- 1270
-		return -- 1271
-	end -- 1271
-	if inPath then -- 1275
-		uiInkDraw:drawCircle( -- 1276
-			Vec2(nx, ny), -- 1276
-			6.2, -- 1276
-			toColor(effAccent, 235 * appear) -- 1276
-		) -- 1276
-		uiInkDraw:drawRing( -- 1277
-			Vec2(nx, ny), -- 1277
-			9.5, -- 1277
-			10.8, -- 1277
-			Color(0, 0, 0, 0), -- 1277
-			1, -- 1277
-			toColor(effAccent, 165 * appear) -- 1277
-		) -- 1277
-	else -- 1277
-		uiInkDraw:drawRing( -- 1279
+			else -- 1195
+				uiInkDraw:drawSegment( -- 1198
+					Vec2(ax, ay), -- 1198
+					Vec2(bx, by), -- 1198
+					2.8, -- 1198
+					toColor(col, 230 * appear) -- 1198
+				) -- 1198
+			end -- 1198
+			i = i + 1 -- 1174
+		end -- 1174
+	end -- 1174
+end -- 1164
+function ReloadWheelPlugin.prototype.drawGridNode(self, uiInkDraw, uiGlow, spec, nx, ny, inPath, isValidNext, isKbFocus, effAccent, appear) -- 1203
+	local baseR = spec.kind == "plain" and 11 or 15 -- 1215
+	local strokeCol = inPath and effAccent or (isValidNext and PALETTE.xuanInk or PALETTE.xuanInkSub) -- 1216
+	local strokeAlpha = inPath and 245 or (isValidNext and 185 or 115) -- 1217
+	if isKbFocus then -- 1220
+		local focusCol = (isValidNext or inPath) and PALETTE.rouge or PALETTE.xuanInkSub -- 1221
+		uiInkDraw:drawRing( -- 1222
+			Vec2(nx, ny), -- 1222
+			baseR + 4.5, -- 1222
+			baseR + 6.2, -- 1222
+			Color(0, 0, 0, 0), -- 1222
+			1.1, -- 1222
+			toColor(focusCol, 215 * appear) -- 1222
+		) -- 1222
+	end -- 1222
+	if spec.kind == "bell" then -- 1225
+		if inPath then -- 1227
+			uiInkDraw:drawCircle( -- 1228
+				Vec2(nx, ny), -- 1228
+				baseR + 1, -- 1228
+				toColor(PALETTE.rouge, 36 * appear) -- 1228
+			) -- 1228
+			uiGlow:drawRing( -- 1229
+				Vec2(nx, ny), -- 1229
+				baseR + 2, -- 1229
+				baseR + 5, -- 1229
+				Color(0, 0, 0, 0), -- 1229
+				1.2, -- 1229
+				toColor(PALETTE.rouge, 110 * appear) -- 1229
+			) -- 1229
+		end -- 1229
+		uiInkDraw:drawRing( -- 1231
+			Vec2(nx, ny), -- 1231
+			baseR - 1.2, -- 1231
+			baseR, -- 1231
+			Color(0, 0, 0, 0), -- 1231
+			1.1, -- 1231
+			toColor(strokeCol, strokeAlpha * appear) -- 1231
+		) -- 1231
+		____exports.drawReloadPatternGlyph( -- 1232
+			uiInkDraw, -- 1232
+			nx, -- 1232
+			ny, -- 1232
+			9.5, -- 1232
+			"echo", -- 1232
+			inPath and PALETTE.rouge or strokeCol, -- 1232
+			appear -- 1232
+		) -- 1232
+		return -- 1233
+	end -- 1233
+	if spec.kind == "lamp" then -- 1236
+		if inPath then -- 1238
+			uiInkDraw:drawCircle( -- 1239
+				Vec2(nx, ny), -- 1239
+				baseR + 1, -- 1239
+				toColor(PALETTE.amber, 56 * appear) -- 1239
+			) -- 1239
+			fillRadialGlow( -- 1240
+				uiGlow, -- 1240
+				nx, -- 1240
+				ny, -- 1240
+				22, -- 1240
+				22, -- 1240
+				toColor(PALETTE.amberCore, 72 * appear), -- 1240
+				Color(244, 234, 214, 0), -- 1240
+				12 -- 1240
+			) -- 1240
+		end -- 1240
+		uiInkDraw:drawRing( -- 1242
+			Vec2(nx, ny), -- 1242
+			baseR - 1.2, -- 1242
+			baseR, -- 1242
+			Color(0, 0, 0, 0), -- 1242
+			1.1, -- 1242
+			toColor(strokeCol, strokeAlpha * appear) -- 1242
+		) -- 1242
+		____exports.drawReloadPatternGlyph( -- 1243
+			uiInkDraw, -- 1243
+			nx, -- 1243
+			ny, -- 1243
+			9.5, -- 1243
+			"light", -- 1243
+			inPath and PALETTE.xuanInk or strokeCol, -- 1243
+			appear -- 1243
+		) -- 1243
+		return -- 1244
+	end -- 1244
+	if spec.kind == "target" then -- 1247
+		drawDiamond( -- 1249
+			uiInkDraw, -- 1250
+			nx, -- 1251
+			ny, -- 1252
+			baseR, -- 1253
+			baseR, -- 1254
+			inPath and toColor(PALETTE.xuanInk, 220 * appear) or Color(0, 0, 0, 0), -- 1255
+			1.4, -- 1256
+			toColor(inPath and PALETTE.rouge or PALETTE.xuanInk, 230 * appear) -- 1257
+		) -- 1257
+		drawDiamond( -- 1259
+			uiInkDraw, -- 1260
+			nx, -- 1261
+			ny, -- 1262
+			baseR * 0.56, -- 1263
+			baseR * 0.56, -- 1264
+			toColor(inPath and PALETTE.amberCore or PALETTE.xuanInk, 210 * appear) -- 1265
+		) -- 1265
+		return -- 1267
+	end -- 1267
+	if spec.kind == "start" then -- 1270
+		uiInkDraw:drawRing( -- 1272
+			Vec2(nx, ny), -- 1272
+			baseR - 2.2, -- 1272
+			baseR, -- 1272
+			Color(0, 0, 0, 0), -- 1272
+			1.2, -- 1272
+			toColor(PALETTE.rouge, 220 * appear) -- 1272
+		) -- 1272
+		uiInkDraw:drawCircle( -- 1273
+			Vec2(nx, ny), -- 1273
+			4.8, -- 1273
+			toColor(PALETTE.xuanInk, 235 * appear) -- 1273
+		) -- 1273
+		return -- 1274
+	end -- 1274
+	if inPath then -- 1278
+		uiInkDraw:drawCircle( -- 1279
 			Vec2(nx, ny), -- 1279
-			5.6, -- 1279
-			7, -- 1279
-			Color(0, 0, 0, 0), -- 1279
-			1, -- 1279
-			toColor(strokeCol, strokeAlpha * appear) -- 1279
+			6.2, -- 1279
+			toColor(effAccent, 235 * appear) -- 1279
 		) -- 1279
-	end -- 1279
-end -- 1200
-function ReloadWheelPlugin.prototype.drawChildFinger(self, uiInkDraw, uiGlow, active, path, shakeX, appear) -- 1284
-	local fx = 0 -- 1292
-	local fy = 0 -- 1293
-	if active then -- 1295
-		local tipNode = #path > 0 and path[#path] or ____exports.RELOAD_START_NODE -- 1296
-		local pos = self:getNodeUiPos(tipNode) -- 1297
-		local tapPulse = #path <= 1 and math.sin(self.animTime * 4.8) * 3.5 or 0 -- 1298
-		fx = pos.x + shakeX - 6 - tapPulse * 0.4 -- 1299
-		fy = pos.y - 6 - tapPulse -- 1300
-		if #path <= 1 then -- 1301
-			local ringR = 17 + math.sin(self.animTime * 4.2) * 2.5 -- 1303
-			uiInkDraw:drawRing( -- 1304
-				Vec2(pos.x + shakeX, pos.y), -- 1304
-				ringR - 1, -- 1304
-				ringR, -- 1304
-				Color(0, 0, 0, 0), -- 1304
-				1, -- 1304
-				toColor(PALETTE.rouge, 130 * appear) -- 1304
-			) -- 1304
-		end -- 1304
-	elseif self.retractAnimT > 0 and #path > 0 then -- 1306
-		local prog = math.max( -- 1308
-			0, -- 1308
-			math.min( -- 1308
-				1, -- 1308
-				1 - self.retractAnimT / math.max(0.01, self.retractDuration) -- 1308
-			) -- 1308
-		) -- 1308
-		local revFloat = (1 - prog) * (#path - 1) -- 1309
-		local idxA = math.max( -- 1310
-			0, -- 1310
-			math.min( -- 1310
-				#path - 1, -- 1310
-				math.floor(revFloat) -- 1310
-			) -- 1310
-		) -- 1310
-		local idxB = math.max( -- 1311
+		uiInkDraw:drawRing( -- 1280
+			Vec2(nx, ny), -- 1280
+			9.5, -- 1280
+			10.8, -- 1280
+			Color(0, 0, 0, 0), -- 1280
+			1, -- 1280
+			toColor(effAccent, 165 * appear) -- 1280
+		) -- 1280
+	else -- 1280
+		uiInkDraw:drawRing( -- 1282
+			Vec2(nx, ny), -- 1282
+			5.6, -- 1282
+			7, -- 1282
+			Color(0, 0, 0, 0), -- 1282
+			1, -- 1282
+			toColor(strokeCol, strokeAlpha * appear) -- 1282
+		) -- 1282
+	end -- 1282
+end -- 1203
+function ReloadWheelPlugin.prototype.drawChildFinger(self, uiInkDraw, uiGlow, active, path, shakeX, appear) -- 1287
+	local fx = 0 -- 1295
+	local fy = 0 -- 1296
+	if active then -- 1298
+		local tipNode = #path > 0 and path[#path] or ____exports.RELOAD_START_NODE -- 1299
+		local pos = self:getNodeUiPos(tipNode) -- 1300
+		local tapPulse = #path <= 1 and math.sin(self.animTime * 4.8) * 3.5 or 0 -- 1301
+		fx = pos.x + shakeX - 6 - tapPulse * 0.4 -- 1302
+		fy = pos.y - 6 - tapPulse -- 1303
+		if #path <= 1 then -- 1304
+			local ringR = 17 + math.sin(self.animTime * 4.2) * 2.5 -- 1306
+			uiInkDraw:drawRing( -- 1307
+				Vec2(pos.x + shakeX, pos.y), -- 1307
+				ringR - 1, -- 1307
+				ringR, -- 1307
+				Color(0, 0, 0, 0), -- 1307
+				1, -- 1307
+				toColor(PALETTE.rouge, 130 * appear) -- 1307
+			) -- 1307
+		end -- 1307
+	elseif self.retractAnimT > 0 and #path > 0 then -- 1309
+		local prog = math.max( -- 1311
 			0, -- 1311
-			math.min(#path - 1, idxA + 1) -- 1311
+			math.min( -- 1311
+				1, -- 1311
+				1 - self.retractAnimT / math.max(0.01, self.retractDuration) -- 1311
+			) -- 1311
 		) -- 1311
-		local frac = revFloat - idxA -- 1312
-		local pA = self:getNodeUiPos(path[idxA + 1]) -- 1313
-		local pB = self:getNodeUiPos(path[idxB + 1]) -- 1314
-		fx = pA.x + (pB.x - pA.x) * frac + shakeX - prog * 28 -- 1315
-		fy = pA.y + (pB.y - pA.y) * frac - prog * 22 -- 1316
-	else -- 1316
-		return -- 1318
-	end -- 1318
-	local a255 = math.floor(240 * appear + 0.5) -- 1322
-	local inkCol = toColor(PALETTE.xuanInk, 180 * appear) -- 1323
-	uiInkDraw:drawPolygon( -- 1324
-		{ -- 1324
-			Vec2(fx - 30, fy - 20), -- 1325
-			Vec2(fx - 22, fy - 28), -- 1326
-			Vec2(fx - 11, fy - 14), -- 1327
-			Vec2(fx - 17, fy - 9) -- 1328
-		}, -- 1328
-		Color(164, 78, 54, a255), -- 1329
-		1, -- 1329
-		inkCol -- 1329
-	) -- 1329
-	uiInkDraw:drawSegment( -- 1331
-		Vec2(fx - 16, fy - 10), -- 1331
-		Vec2(fx - 11, fy - 15), -- 1331
-		2, -- 1331
-		Color(204, 174, 122, a255) -- 1331
-	) -- 1331
-	uiInkDraw:drawCircle( -- 1333
-		Vec2(fx - 9, fy - 8), -- 1333
-		4.8, -- 1333
-		Color(238, 212, 182, a255) -- 1333
-	) -- 1333
+		local revFloat = (1 - prog) * (#path - 1) -- 1312
+		local idxA = math.max( -- 1313
+			0, -- 1313
+			math.min( -- 1313
+				#path - 1, -- 1313
+				math.floor(revFloat) -- 1313
+			) -- 1313
+		) -- 1313
+		local idxB = math.max( -- 1314
+			0, -- 1314
+			math.min(#path - 1, idxA + 1) -- 1314
+		) -- 1314
+		local frac = revFloat - idxA -- 1315
+		local pA = self:getNodeUiPos(path[idxA + 1]) -- 1316
+		local pB = self:getNodeUiPos(path[idxB + 1]) -- 1317
+		fx = pA.x + (pB.x - pA.x) * frac + shakeX - prog * 28 -- 1318
+		fy = pA.y + (pB.y - pA.y) * frac - prog * 22 -- 1319
+	else -- 1319
+		return -- 1321
+	end -- 1321
+	local a255 = math.floor(240 * appear + 0.5) -- 1325
+	local inkCol = toColor(PALETTE.xuanInk, 180 * appear) -- 1326
+	uiInkDraw:drawPolygon( -- 1327
+		{ -- 1327
+			Vec2(fx - 30, fy - 20), -- 1328
+			Vec2(fx - 22, fy - 28), -- 1329
+			Vec2(fx - 11, fy - 14), -- 1330
+			Vec2(fx - 17, fy - 9) -- 1331
+		}, -- 1331
+		Color(164, 78, 54, a255), -- 1332
+		1, -- 1332
+		inkCol -- 1332
+	) -- 1332
 	uiInkDraw:drawSegment( -- 1334
-		Vec2(fx - 7, fy - 6), -- 1334
-		Vec2(fx, fy), -- 1334
-		2.5, -- 1334
-		Color(244, 222, 196, a255) -- 1334
+		Vec2(fx - 16, fy - 10), -- 1334
+		Vec2(fx - 11, fy - 15), -- 1334
+		2, -- 1334
+		Color(204, 174, 122, a255) -- 1334
 	) -- 1334
-	uiInkDraw:drawRing( -- 1335
-		Vec2(fx, fy), -- 1335
-		2, -- 1335
-		3, -- 1335
-		Color(0, 0, 0, 0), -- 1335
-		0.9, -- 1335
-		inkCol -- 1335
-	) -- 1335
-	uiGlow:drawDot( -- 1336
-		Vec2(fx, fy), -- 1336
-		3.4, -- 1336
-		toColor(PALETTE.amberCore, 80 * appear) -- 1336
+	uiInkDraw:drawCircle( -- 1336
+		Vec2(fx - 9, fy - 8), -- 1336
+		4.8, -- 1336
+		Color(238, 212, 182, a255) -- 1336
 	) -- 1336
-end -- 1284
-function ReloadWheelPlugin.prototype.drawArmedEffectBadge(self, uiDraw, uiInkDraw, uiArt, ctx, effect) -- 1340
-	local safe = ctx.safeUi or ZERO_SAFE_INSETS -- 1347
-	local bx = 46 + safe.left -- 1348
-	local by = ctx.uiH - 134 - safe.top -- 1349
-	local col = effect == "echo" and PALETTE.rouge or (effect == "light" and PALETTE.amberCore or PALETTE.cyanCore) -- 1350
-	drawSilkVeil( -- 1351
-		uiDraw, -- 1351
-		uiArt, -- 1351
-		"rw_armed_veil", -- 1351
-		bx + 54, -- 1351
-		by, -- 1351
-		142, -- 1351
-		30, -- 1351
-		PALETTE.inkWash, -- 1351
-		0.72, -- 1351
-		-1 -- 1351
-	) -- 1351
-	____exports.drawReloadPatternGlyph( -- 1352
-		uiInkDraw, -- 1352
-		bx + 12, -- 1352
-		by, -- 1352
-		9, -- 1352
-		effect, -- 1352
-		col, -- 1352
-		0.96 -- 1352
-	) -- 1352
-	drawBlossomDot( -- 1353
-		uiInkDraw, -- 1353
-		uiArt, -- 1353
-		"rw_armed_dot", -- 1353
-		bx + 28, -- 1353
-		by, -- 1353
-		6, -- 1353
-		col, -- 1353
-		0.85, -- 1353
-		3 -- 1353
-	) -- 1353
-	ctx.texts:put( -- 1354
-		"xs", -- 1354
-		____exports.reloadEffectShortLabel(effect), -- 1354
-		bx + 38, -- 1354
+	uiInkDraw:drawSegment( -- 1337
+		Vec2(fx - 7, fy - 6), -- 1337
+		Vec2(fx, fy), -- 1337
+		2.5, -- 1337
+		Color(244, 222, 196, a255) -- 1337
+	) -- 1337
+	uiInkDraw:drawRing( -- 1338
+		Vec2(fx, fy), -- 1338
+		2, -- 1338
+		3, -- 1338
+		Color(0, 0, 0, 0), -- 1338
+		0.9, -- 1338
+		inkCol -- 1338
+	) -- 1338
+	uiGlow:drawDot( -- 1339
+		Vec2(fx, fy), -- 1339
+		3.4, -- 1339
+		toColor(PALETTE.amberCore, 80 * appear) -- 1339
+	) -- 1339
+end -- 1287
+function ReloadWheelPlugin.prototype.drawArmedEffectBadge(self, uiDraw, uiInkDraw, uiArt, ctx, effect) -- 1343
+	local safe = ctx.safeUi or ZERO_SAFE_INSETS -- 1350
+	local bx = 46 + safe.left -- 1351
+	local by = ctx.uiH - 134 - safe.top -- 1352
+	local col = effect == "echo" and PALETTE.rouge or (effect == "light" and PALETTE.amberCore or PALETTE.cyanCore) -- 1353
+	drawSilkVeil( -- 1354
+		uiDraw, -- 1354
+		uiArt, -- 1354
+		"rw_armed_veil", -- 1354
+		bx + 54, -- 1354
 		by, -- 1354
-		toColor(PALETTE.textBright), -- 1354
-		0, -- 1354
-		0.5, -- 1354
-		"Left", -- 1354
-		1, -- 1354
-		0.94, -- 1354
-		0.08 -- 1354
+		142, -- 1354
+		30, -- 1354
+		PALETTE.inkWash, -- 1354
+		0.72, -- 1354
+		-1 -- 1354
 	) -- 1354
-end -- 1340
-function ____exports.createReloadWheelPlugin(contract) -- 1358
-	return __TS__New(____exports.ReloadWheelPlugin, contract) -- 1359
-end -- 1358
-return ____exports -- 1358
+	____exports.drawReloadPatternGlyph( -- 1355
+		uiInkDraw, -- 1355
+		bx + 12, -- 1355
+		by, -- 1355
+		9, -- 1355
+		effect, -- 1355
+		col, -- 1355
+		0.96 -- 1355
+	) -- 1355
+	drawBlossomDot( -- 1356
+		uiInkDraw, -- 1356
+		uiArt, -- 1356
+		"rw_armed_dot", -- 1356
+		bx + 28, -- 1356
+		by, -- 1356
+		6, -- 1356
+		col, -- 1356
+		0.85, -- 1356
+		3 -- 1356
+	) -- 1356
+	ctx.texts:put( -- 1357
+		"xs", -- 1357
+		____exports.reloadEffectShortLabel(effect), -- 1357
+		bx + 38, -- 1357
+		by, -- 1357
+		toColor(PALETTE.textBright), -- 1357
+		0, -- 1357
+		0.5, -- 1357
+		"Left", -- 1357
+		1, -- 1357
+		0.94, -- 1357
+		0.08 -- 1357
+	) -- 1357
+end -- 1343
+function ____exports.createReloadWheelPlugin(contract) -- 1361
+	return __TS__New(____exports.ReloadWheelPlugin, contract) -- 1362
+end -- 1361
+return ____exports -- 1361
