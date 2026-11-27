@@ -691,7 +691,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             highlightTopEdge: true,
         });
 
-        // 2. 塔身左右厚重砖石墙体（拉齐至 z0 = -8 与步行面和石门框严密贴合，消除视觉退后导致的空气墙感）
+        // 2. 塔身左厚砖石墙体 + 右侧随开门切为值夜室室内剖面（避免开门后小满贴着实心外砖墙走向桌前）
         scene.addBox({
             x0: ox + 180,
             x1: ox + 400,
@@ -703,17 +703,123 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             bucket: LP_BUCKET.MIDGROUND,
             highlightTopEdge: true,
         });
-        scene.addBox({
-            x0: ox + 490,
-            x1: ox + 720,
-            y0: 0,
-            y1: 215,
-            z0: -8,
-            z1: 96,
-            material: MING_MATERIALS.mingBrick,
-            bucket: LP_BUCKET.MIDGROUND,
-            highlightTopEdge: true,
-        });
+        if (!opened) {
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 720,
+                y0: 0,
+                y1: 215,
+                z0: -8,
+                z1: 96,
+                material: MING_MATERIALS.mingBrick,
+                bucket: LP_BUCKET.MIDGROUND,
+                highlightTopEdge: true,
+            });
+        } else {
+            // 值夜室室内剖面：退后背墙（z=46..96）+ 暖木地板 + 顶棚砖梁 + 右端切口封墙 + 3D 实木值夜长桌
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 706,
+                y0: 0,
+                y1: 146,
+                z0: 46,
+                z1: 96,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.BACKDROP,
+                edgeWidth: 0.8,
+            });
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 706,
+                y0: -3,
+                y1: 2,
+                z0: -18,
+                z1: 48,
+                material: MING_MATERIALS.mingTimber,
+                bucket: LP_BUCKET.WALK_DECK,
+                sortBias: 0.12,
+                highlightTopEdge: true,
+            });
+            // 上方塔身砖梁与室内横梁（保留建筑屋顶压迫感）
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 720,
+                y0: 144,
+                y1: 215,
+                z0: -8,
+                z1: 96,
+                material: MING_MATERIALS.mingBrick,
+                bucket: LP_BUCKET.MIDGROUND,
+                highlightTopEdge: true,
+            });
+            scene.addBox({
+                x0: ox + 490,
+                x1: ox + 704,
+                y0: 132,
+                y1: 145,
+                z0: -4,
+                z1: 48,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                sortBias: 0.08,
+            });
+            // 右侧端墙剖口（x=702..724）
+            scene.addBox({
+                x0: ox + 702,
+                x1: ox + 724,
+                y0: 0,
+                y1: 146,
+                z0: -8,
+                z1: 96,
+                material: MING_MATERIALS.mingBrickDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                highlightTopEdge: true,
+            });
+            // 背墙暖光壁龛与木书架剪影
+            scene.addQuad3D(
+                vec3(ox + 544, 52, 45),
+                vec3(ox + 662, 52, 45),
+                vec3(ox + 662, 118, 45),
+                vec3(ox + 544, 118, 45),
+                { base: rgba(88, 62, 38, 255) },
+                { bucket: LP_BUCKET.BACKDROP, unlit: true, sortBias: 0.12, edgeColor: rgba(132, 98, 62, 210), edgeWidth: 1.0 },
+            );
+            // 3D 低模实木值夜长桌（与交物热区 x=605 严密对齐）
+            scene.addBox({
+                x0: ox + 564,
+                x1: ox + 646,
+                y0: 28,
+                y1: 35,
+                z0: 10,
+                z1: 36,
+                material: MING_MATERIALS.mingTimber,
+                bucket: LP_BUCKET.PROP,
+                sortBias: 0.12,
+                highlightTopEdge: true,
+            });
+            scene.addBox({
+                x0: ox + 568,
+                x1: ox + 576,
+                y0: 0,
+                y1: 28,
+                z0: 12,
+                z1: 32,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.PROP,
+                sortBias: 0.06,
+            });
+            scene.addBox({
+                x0: ox + 634,
+                x1: ox + 642,
+                y0: 0,
+                y1: 28,
+                z0: 12,
+                z1: 32,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.PROP,
+                sortBias: 0.06,
+            });
+        }
 
         // 3. 门廊石拱门楣（400..490, y = 110..144）
         scene.addBeveledFrame(ox + 400, ox + 490, 0, 110, 14, 34, -8, 68, MING_MATERIALS.mingStoneStep, {
@@ -802,9 +908,11 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             const tl0 = projectWorld3D(ox + 182, ty, -8, cam, this.towerProj);
             const tl1 = projectWorld3D(ox + 398, ty, -8, cam, this.towerProj);
             fgDraw.drawSegment(Vec2(tl0.x, tl0.y), Vec2(tl1.x, tl1.y), 0.8, Color(34, 38, 48, 135));
-            const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
-            const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
-            fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
+            if (!opened || ty >= 150) {
+                const tr0 = projectWorld3D(ox + 492, ty, -8, cam, this.towerProj);
+                const tr1 = projectWorld3D(ox + 718, ty, -8, cam, this.towerProj);
+                fgDraw.drawSegment(Vec2(tr0.x, tr0.y), Vec2(tr1.x, tr1.y), 0.8, Color(34, 38, 48, 135));
+            }
         }
 
         return true;
@@ -834,30 +942,28 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             const opened = p.towerDoorOpen || p.phase === "tower-enter" || p.phase === "tower-desk";
             if (opened) {
                 const cam = ctx.cam;
-                const deskCx = cam.sx(p.ox + 605);
-                const groundY = cam.sy(0);
-                const deskW = cam.len(84);
-                const deskH = cam.len(34);
-                const deskTop = groundY + deskH;
+                const deskTopP = projectWorld3D(p.ox + 605, 35, 22, cam, this.towerProj);
+                const guardBaseP = projectWorld3D(p.ox + 626, 0, 38, cam, this.towerProj);
+                const deskCx = deskTopP.x;
+                const deskTop = deskTopP.y;
+                const s = deskTopP.scale;
+                const gs = guardBaseP.scale;
                 const pulse = 0.88 + 0.12 * Math.sin(this.animTime * 2.8);
-                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(28), cam.len(120), cam.len(88),
-                    Color(255, 198, 114, Math.round(74 * pulse)), Color(255, 168, 72, 0), 16);
-                // 低模值夜室守卒轮廓与实木值夜桌
-                const guardX = deskCx + cam.len(26);
-                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(28, 34, 44, 240));
-                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(36, 44, 56, 245));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
-                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(74, 48, 30, 255));
-                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(102, 68, 42, 255), 1, Color(146, 106, 66, 220));
-                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(230, 220, 196, 245));
-                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(166, 126, 62, 245));
-                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(26) * s, cam.len(132) * s, cam.len(96) * s,
+                    Color(255, 198, 114, Math.round(82 * pulse)), Color(255, 168, 72, 0), 16);
+                // 低模值夜室守卒轮廓（位于 3D 实木值夜长桌后方）
+                fgDraw.drawRect(Rect(guardBaseP.x - cam.len(11) * gs, guardBaseP.y, cam.len(22) * gs, cam.len(68) * gs), Color(28, 34, 44, 242));
+                fgDraw.drawCircle(Vec2(guardBaseP.x, guardBaseP.y + cam.len(76) * gs), cam.len(9.5) * gs, Color(36, 44, 56, 248));
+                // 3D 桌面上摊开的宣纸登记簿与铜盏暖灯（与 drawTowerWorld 低模长桌严密贴合）
+                fgDraw.drawRect(Rect(deskCx + cam.len(4) * s, deskTop + cam.len(1) * s, cam.len(24) * s, cam.len(5) * s), Color(230, 220, 196, 245));
+                fgDraw.drawRect(Rect(deskCx + cam.len(30) * s, deskTop + cam.len(1) * s, cam.len(8) * s, cam.len(12) * s), Color(166, 126, 62, 245));
+                fgGlow.drawCircle(Vec2(deskCx + cam.len(34) * s, deskTop + cam.len(15) * s), cam.len(5.5) * s, Color(255, 224, 152, Math.round(220 * pulse)));
                 if (p.deskHold >= 12 || p.towerHanded) {
-                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(26) * s, deskTop + cam.len(1) * s, cam.len(14) * s, cam.len(6) * s), Color(156, 62, 48, 245));
                 }
                 if (p.deskHold >= 24 || p.towerHanded) {
-                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
-                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                    fgDraw.drawCircle(Vec2(deskCx - cam.len(7) * s, deskTop + cam.len(4) * s), cam.len(4.5) * s, Color(224, 186, 98, 255));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(15) * s, deskTop + cam.len(1) * s, cam.len(10) * s, cam.len(3) * s), Color(236, 228, 206, 240));
                 }
             }
             return true;

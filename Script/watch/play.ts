@@ -55,6 +55,10 @@ export const PROLOGUE_SHADOW_TICKS = 120;
 export const PROLOGUE_ESCAPE_TICKS = 450;
 /** 入柜后红晕收尽、柜外脚步渐远：0.85 秒 = 51 拍。 */
 export const PROLOGUE_HIDE_TICKS = 51;
+/** 序章 P03 柜边递针套特写时长：3.0 秒 = 180 拍（对齐分镜稿与 D01 对白节拍）。 */
+export const PROLOGUE_GIVE_TICKS = 180;
+/** 城门 P05 送别嘱咐独立演出时长：约 3.67 秒 = 220 拍（演完再切入 24 秒数到二十，零叠字叠音）。 */
+export const GATE_FAREWELL_TICKS = 220;
 /** 小满贴住倒柜左缘（段内 x，柜体从 152 起；玩家半宽 14）即拉门入柜。 */
 export const PROLOGUE_CABINET_X = 132;
 
@@ -637,7 +641,7 @@ export class Play {
     /** 逃柜失败次数；只影响演出重来，不写档案。 */
     escapeRetryCount = 0;
     /** 序章演出自己的拍计数器（wake/shadow/hide 各段）。 */
-    private introTick = 0;
+    introTick = 0;
 
     // —— 慢时连线换弹 ——
     /** 3×3 线盘开着：世界降到 1/4 速，只有每 4 个作答拍推进 1 个世界拍。 */
@@ -1192,7 +1196,7 @@ export class Play {
         this.handDone = story.handDone;
         this.lineSaid = story.lineSaid;
         this.tied = story.handDone;
-        this.carryOn = story.carry || (story.route === "soldier" && this.room.key === "escort1");
+        this.carryOn = story.carry || (story.route === "soldier" && this.room.key.indexOf("escort") === 0);
         this.museumReturn = story.museumReturn;
         story.museumReturn = false;
         this.escortDone = story.escortDone;
@@ -1332,9 +1336,9 @@ export class Play {
         this.gateTick = g.holdTicks;
         this.gateSpawned = 4;
         this.enemies = [];
-        if (story.phase === "gate-count" || story.phase === "gate-walk") {
-            this.phase = story.phase;
-            this.countTick = Math.max(story.countTick, 0);
+        if (story.phase === "gate-farewell" || story.phase === "gate-count" || story.phase === "gate-walk") {
+            this.phase = story.phase === "gate-farewell" ? "gate-count" : story.phase;
+            this.countTick = story.phase === "gate-farewell" ? 0 : Math.max(story.countTick, 0);
             this.swapToChild(g.doorX + 30);
             this.countPrevMove = 0;
             this.countArmed = false;
@@ -2208,7 +2212,7 @@ export class Play {
         if (this.room.key === "prologue" && this.phase === "prologue-give") {
             return true;
         }
-        if (this.room.key === "gate" && (this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
+        if (this.room.key === "gate" && (this.phase === "gate-farewell" || this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
             return true;
         }
         if (this.room.key === "tower" && (this.phase === "tower-knock" || this.phase === "tower-given")) {
@@ -2462,11 +2466,11 @@ export class Play {
         }
         if (this.phase === "prologue-give") {
             this.phaseTick += 1;
-            if (this.phaseTick === 12) {
-                this.flashSet("针套递过去", 0.7);
-            } else if (this.phaseTick === 36) {
-                this.flashSet("纸条塞进针套", 0.9);
-            } else if (this.phaseTick >= 60) {
+            if (this.phaseTick === 36) {
+                this.flashSet("针套递过去", 0.9);
+            } else if (this.phaseTick === 108) {
+                this.flashSet("纸条塞进针套", 1.0);
+            } else if (this.phaseTick >= PROLOGUE_GIVE_TICKS) {
                 this.phase = "prologue-follow";
                 this.phaseTick = 0;
                 child.crouch = false;
@@ -2580,15 +2584,28 @@ export class Play {
         if (this.phase === "gate-send") {
             const near = Math.abs(p.x - g.doorX) <= 60 && inReachDepth(p.depth);
             if (near && input.interact.pressed) {
-                // 送别确认 = 小满安全过门：此刻才提交路线，且只提交一次。
+                // 送别确认 = 小满安全过门：此刻才提交路线，且只提交一次；
+                // 正式与选章先演独立 P05 送别再入 24s 数到二十（零叠字叠音），debug 单房回归保持直入 gate-count。
                 this.commitRoute();
                 this.swapToChild(g.doorX + 30);
-                this.phase = "gate-count";
+                this.phase = this.run.source === "debug" ? "gate-count" : "gate-farewell";
+                this.phaseTick = 0;
                 this.countTick = 0;
                 // 送别时已经按着 D 的不算「新按」，必须先松开。
                 this.countArmed = false;
                 this.countPrevMove = input.moveX;
                 this.flashSet("门开了 · 送她出去", 1.8);
+            }
+            return;
+        }
+        if (this.phase === "gate-farewell") {
+            this.phaseTick += 1;
+            this.countPrevMove = input.moveX;
+            if (this.phaseTick >= GATE_FAREWELL_TICKS) {
+                this.phase = "gate-count";
+                this.phaseTick = 0;
+                this.countTick = 0;
+                this.countArmed = false;
             }
             return;
         }
@@ -5363,7 +5380,7 @@ export class Play {
             } else if (this.phase === "prologue-wait") {
                 parts.push("待递 " + Math.round(Math.abs(p.x - this.partner.x)));
             } else if (this.phase === "prologue-give") {
-                parts.push("递物 " + this.phaseTick + "/60");
+                parts.push("递物 " + this.phaseTick + "/" + PROLOGUE_GIVE_TICKS);
             } else {
                 parts.push("跟随");
             }
@@ -5521,6 +5538,9 @@ export class Play {
         if (this.phase === "gate-send") {
             return "送别";
         }
+        if (this.phase === "gate-farewell") {
+            return "嘱咐 " + this.phaseTick;
+        }
         if (this.phase === "gate-count") {
             return "数数 " + this.countTick;
         }
@@ -5609,7 +5629,7 @@ export class Play {
                 return near ? "点 E 递出针套 · 纸条一起塞进去" : "走到倒柜后的小满身边（x≈214）再点 E";
             }
             if (this.phase === "prologue-give") {
-                return "递物 " + this.phaseTick + " / 60 拍 · 站着别动";
+                return "递物 " + this.phaseTick + " / " + PROLOGUE_GIVE_TICKS + " 拍 · 站着别动";
             }
             return "她跟着你了 · 两人一起走到门口 680";
         }
@@ -5636,6 +5656,9 @@ export class Play {
                 }
                 if (this.phase === "gate-send") {
                     return "去门边 860 按 E 送别 · 她已经站在门口";
+                }
+                if (this.phase === "gate-farewell") {
+                    return "城门送别 · 嘱咐她慢慢数到二十";
                 }
                 if (this.phase === "gate-count") {
                     if (this.countTick >= GATE_COUNT_END) {
