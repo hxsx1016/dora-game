@@ -1097,7 +1097,9 @@ ____exports.ESCORT2_ROOM = { -- 844
 			h = 32, -- 858
 			y = 0, -- 858
 			label = "倒粮袋 640 · 高 32", -- 858
-			lanes = {"lower"} -- 858
+			lanes = {"lower"}, -- 858
+			art = "grain_sack", -- 858
+			id = "e2_grain_sacks" -- 858
 		}, -- 858
 		{ -- 859
 			x = 980, -- 859

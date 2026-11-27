@@ -212,6 +212,11 @@ for required in \
     "assets/art/brand/team_badge.png" \
     "assets/art/brand/app_icon.png" \
     "assets/art/sprites.clip" \
+    "assets/art/sprites_fe.clip" \
+    "assets/art/sprites_fe.png" \
+    "assets/art/slides/p01_01_curtain.png" \
+    "assets/art/props_second_half.clip" \
+    "assets/art/props_second_half.png" \
     "assets/font/lxgw-neo-zhisong.ttf" \
     "assets/font/longcang-brush.ttf" \
     "assets/audio/combat/shot.wav" \

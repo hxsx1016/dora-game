@@ -4512,10 +4512,14 @@ export class Play {
                     if (this.isCampaign) {
                         this.captureCheckpoint(m.x);
                     }
-                    if (this.cartDocked) {
-                        this.flashSet("检查点 · 车已落窝", 1.0);
+                    if (this.room.cart.bodyW > 0) {
+                        if (this.cartDocked) {
+                            this.flashSet("检查点 · 车已落窝", 1.0);
+                        } else {
+                            this.flashSet("检查点 · 车还没到位", 1.0);
+                        }
                     } else {
-                        this.flashSet("检查点 · 车还没到位", 1.0);
+                        this.flashSet("检查点", 1.0);
                     }
                 }
             }

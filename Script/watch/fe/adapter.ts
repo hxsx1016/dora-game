@@ -79,6 +79,8 @@ export interface FrameEvents {
     museumStep: boolean;
     museumStepName: string;
     museumDone: boolean;
+    /** 后端发射的叙事节拍（red_cart / red_cart_memory / footstep_near / ditch / path_burrow / path_ditch / water_lantern / tower_door 等） */
+    storyBeats: { beat: string; x: number; room: string; item: string }[];
     /** 本帧由唯一 drainEvents() 入口按 seq 升序取出的原始模拟事件（0 步帧与暂停帧为空） */
     rawEvents: PlayEvent[];
     /** 单调递增的已消费事件序号（供音频与插件防重播核对） */
@@ -151,6 +153,7 @@ export function createEmptyFrameEvents(
         museumStep: false,
         museumStepName: "",
         museumDone: false,
+        storyBeats: [],
         rawEvents: [],
         eventSeq,
         roomSessionId,
@@ -306,6 +309,7 @@ export class PlayAdapter {
         let ending = "";
         let endingOfficial = false;
         let endingLines: string[] = [];
+        const storyBeats: { beat: string; x: number; room: string; item: string }[] = [];
         for (const event of rawEvents) {
             this.eventSeq += 1;
             eventSummary.push(event.seq + "@" + event.tick + ":" + event.name);
@@ -382,6 +386,13 @@ export class PlayAdapter {
                 museumStepName = typeof event.data.step === "string" ? event.data.step : "";
             } else if (event.name === "museumDone") {
                 museumDone = true;
+            } else if (event.name === "storyBeat") {
+                storyBeats.push({
+                    beat: typeof event.data.beat === "string" ? event.data.beat : "",
+                    x: typeof event.data.x === "number" ? event.data.x : p.player.x,
+                    room: typeof event.data.room === "string" ? event.data.room : p.room.key,
+                    item: typeof event.data.item === "string" ? event.data.item : "",
+                });
             } else if (event.name === "endingReached") {
                 endingReached = true;
                 ending = typeof event.data.ending === "string" ? event.data.ending : "";
@@ -467,6 +478,7 @@ export class PlayAdapter {
             museumStep,
             museumStepName,
             museumDone,
+            storyBeats,
 
             rawEvents,
             eventSeq: this.eventSeq,

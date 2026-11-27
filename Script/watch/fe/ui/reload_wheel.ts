@@ -156,10 +156,26 @@ export function drawReloadPatternGlyph(
     effect: ReloadEffectKind,
     col: RGBA,
     alpha: number = 1,
+    uiArt?: AssetSlotHost,
+    instanceKey?: string,
+    layer: number = 4,
 ): void {
+    const r = Math.max(5, radius);
+    if (uiArt !== undefined && instanceKey !== undefined && effect !== "normal") {
+        const slot = effect === "echo"
+            ? "fe_glyph_bell"
+            : (effect === "light" ? "fe_glyph_lamp" : "fe_glyph_push");
+        const sz = Math.round(r * 2.2);
+        if (uiArt.tryPlace(slot, instanceKey, Math.round(cx), Math.round(cy), sz, sz, {
+            color: toColor(col, 255),
+            opacity: alpha,
+            layer,
+        })) {
+            return;
+        }
+    }
     const stroke = toColor(col, 235 * alpha);
     const faint = toColor(col, 130 * alpha);
-    const r = Math.max(5, radius);
 
     if (effect === "echo") {
         // 铜铃外形：圆顶 + 下撇铃口 + 铃舌 + 左右声波短弧
@@ -913,11 +929,11 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         this.appliedVfx.length = w;
     }
 
-    /** 在世界空间补充三种换弹效果的明朝水墨战斗反馈（不改 vfx.ts，无科幻激光） */
+    /** 在世界空间补充三种换弹效果的明朝水墨与像素火药战斗反馈 */
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: AssetSlotHost,
+        worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): void {
         if (this.appliedVfx.length === 0) {
@@ -935,22 +951,42 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             const ty = cam.sy(fx.targetY);
 
             if (fx.effect === "knockback") {
-                // 推退气浪弧 + 退步尘烟
+                // 推退气浪弧 + 像素火药退步尘烟
                 const r = cam.len(12 + prog * 34);
                 const startA = fx.facing >= 0 ? -48 : 132;
                 const endA = fx.facing >= 0 ? 48 : 228;
                 fgGlow.drawArc(Vec2(tx, ty), r, startA, endA, 2.4 * k, toColor(PALETTE.moonPale, 210 * k));
                 fgDraw.drawArc(Vec2(tx - fx.facing * cam.len(6), ty), r * 0.72, startA, endA, 1.5 * k, toColor(PALETTE.silkLine, 165 * k));
+                const smokeSz = cam.len(22 + prog * 18);
+                worldArt.tryPlace("fe_vfx_smoke", "rw_kb_smoke_" + i, tx - fx.facing * cam.len(4 + prog * 10), ty, smokeSz, smokeSz, {
+                    frame: Math.min(3, Math.floor(prog * 4)),
+                    opacity: 0.78 * k,
+                    layer: 8,
+                });
             } else if (fx.effect === "echo") {
-                // 回声铜铃枯笔双环
+                // 回声铜铃枯笔水墨圆环
                 const r1 = cam.len(10 + prog * 64);
                 const r2 = cam.len(6 + prog * 40);
-                fgGlow.drawRing(Vec2(tx, ty), Math.max(1, r1 - 1.6), r1, Color(0, 0, 0, 0), 1.3, toColor(PALETTE.amber, 210 * k));
+                if (!worldArt.tryPlace("ink_enso_fine", "rw_echo_ring_" + i, tx, ty, r1 * 2.2, r1 * 2.2, {
+                    color: toColor(PALETTE.amber),
+                    opacity: 0.85 * k,
+                    angle: prog * 28,
+                    layer: 8,
+                })) {
+                    fgGlow.drawRing(Vec2(tx, ty), Math.max(1, r1 - 1.6), r1, Color(0, 0, 0, 0), 1.3, toColor(PALETTE.amber, 210 * k));
+                }
                 fgGlow.drawRing(Vec2(tx, ty), Math.max(1, r2 - 1.2), r2, Color(0, 0, 0, 0), 1.0, toColor(PALETTE.amberCore, 175 * k));
             } else if (fx.effect === "light") {
-                // 照明破障暖白微光束（克制灯火感，非荧光激光）
+                // 照明破障暖白微光束 + 枪口像素暖焰
                 fgGlow.drawSegment(Vec2(ox, oy), Vec2(tx, ty), 5.0 * k, toColor(PALETTE.amber, 68 * k));
                 fgGlow.drawSegment(Vec2(ox, oy), Vec2(tx, ty), 1.8 * k, toColor(PALETTE.amberCore, 185 * k));
+                const flashSz = cam.len(26 + prog * 10);
+                worldArt.tryPlace("fe_vfx_muzzle", "rw_light_flare_" + i, ox, oy, flashSz, flashSz * 0.75, {
+                    frame: Math.min(2, Math.floor(prog * 3)),
+                    facing: fx.facing,
+                    opacity: 0.90 * k,
+                    layer: 9,
+                });
                 fillRadialGlow(fgGlow, tx, ty, cam.len(42 * (0.6 + prog * 0.4)), cam.len(34), toColor(PALETTE.amberCore, 118 * k), Color(244, 234, 214, 0), 16);
             }
         }
@@ -1086,7 +1122,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             uiInkDraw.drawDot(Vec2(mx, my), 3.0, toColor(effAccent, 210 * appear));
         }
 
-        // 6. 绘制 9 颗节点（仅在已连入时亮起，铃纹 4 / 灯纹 2 / 终点 8 各自独立几何轮廓）
+        // 6. 绘制 9 颗节点（仅在已连入时亮起，铃纹 4 / 灯纹 2 / 终点 8 各自独立像素纹章轮廓）
         const lastNode = activePath.length > 0 ? activePath[activePath.length - 1] : RELOAD_START_NODE;
         for (idx = 0; idx < RELOAD_GRID.length; idx++) {
             const spec = RELOAD_GRID[idx];
@@ -1096,11 +1132,11 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             const inPath = activePath.indexOf(idx) >= 0;
             const isValidNext = active && !inPath && isAdjacentNode(lastNode, idx);
             const isKbFocus = active && !this.pointerActive && this.kbCursor === idx;
-            this.drawGridNode(uiInkDraw, uiGlow, spec, nx, ny, inPath, isValidNext, isKbFocus, effAccent, appear);
+            this.drawGridNode(uiInkDraw, uiArt, uiGlow, spec, nx, ny, inPath, isValidNext, isKbFocus, effAccent, appear);
         }
 
-        // 7. 小满手指落位 / 走线 / 沿已选纹样收回表现（零文字教程）
-        this.drawChildFinger(uiInkDraw, uiGlow, active, activePath, shakeX, appear);
+        // 7. 小满手指落位 / 走线 / 沿已选纹样收回表现（像素手势精灵，零文字教程）
+        this.drawChildFinger(uiInkDraw, uiArt, uiGlow, active, activePath, shakeX, appear);
 
         // 8. 底缘 4 秒全速作答进度条（世界 60 拍 = 作答 240 拍）
         const barW = pw - 52;
@@ -1202,6 +1238,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
 
     private drawGridNode(
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         spec: ReloadNodeSpec,
         nx: number,
@@ -1229,7 +1266,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
                 uiGlow.drawRing(Vec2(nx, ny), baseR + 2, baseR + 5, Color(0, 0, 0, 0), 1.2, toColor(PALETTE.rouge, 110 * appear));
             }
             uiInkDraw.drawRing(Vec2(nx, ny), baseR - 1.2, baseR, Color(0, 0, 0, 0), 1.1, toColor(strokeCol, strokeAlpha * appear));
-            drawReloadPatternGlyph(uiInkDraw, nx, ny, 9.5, "echo", inPath ? PALETTE.rouge : strokeCol, appear);
+            drawReloadPatternGlyph(uiInkDraw, nx, ny, 9.5, "echo", inPath ? PALETTE.rouge : strokeCol, appear, uiArt, "rw_glyph_bell", 4);
             return;
         }
 
@@ -1240,7 +1277,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
                 fillRadialGlow(uiGlow, nx, ny, 22, 22, toColor(PALETTE.amberCore, 72 * appear), Color(244, 234, 214, 0), 12);
             }
             uiInkDraw.drawRing(Vec2(nx, ny), baseR - 1.2, baseR, Color(0, 0, 0, 0), 1.1, toColor(strokeCol, strokeAlpha * appear));
-            drawReloadPatternGlyph(uiInkDraw, nx, ny, 9.5, "light", inPath ? PALETTE.xuanInk : strokeCol, appear);
+            drawReloadPatternGlyph(uiInkDraw, nx, ny, 9.5, "light", inPath ? PALETTE.xuanInk : strokeCol, appear, uiArt, "rw_glyph_lamp", 4);
             return;
         }
 
@@ -1283,9 +1320,10 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
     }
 
-    /** 小满手指落位提示（起点 0 微叩指引；拖线中随笔尖；结算后沿已选纹样收回） */
+    /** 小满像素手指落位提示（起点 0 微叩指引；拖线中随笔尖；结算后沿已选纹样收回） */
     private drawChildFinger(
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         active: boolean,
         path: readonly number[],
@@ -1299,8 +1337,8 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             const tipNode = path.length > 0 ? path[path.length - 1] : RELOAD_START_NODE;
             const pos = this.getNodeUiPos(tipNode);
             const tapPulse = path.length <= 1 ? Math.sin(this.animTime * 4.8) * 3.5 : 0;
-            fx = pos.x + shakeX - 6 - tapPulse * 0.4;
-            fy = pos.y - 6 - tapPulse;
+            fx = pos.x + shakeX + 4 + tapPulse * 0.35;
+            fy = pos.y - 4 - tapPulse;
             if (path.length <= 1) {
                 // 仅起点处加一圈极淡呼吸墨环表示“可从此落笔”，完全不用文字
                 const ringR = 17 + Math.sin(this.animTime * 4.2) * 2.5;
@@ -1315,13 +1353,25 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             const frac = revFloat - idxA;
             const pA = this.getNodeUiPos(path[idxA]);
             const pB = this.getNodeUiPos(path[idxB]);
-            fx = pA.x + (pB.x - pA.x) * frac + shakeX - prog * 28;
+            fx = pA.x + (pB.x - pA.x) * frac + shakeX + prog * 28;
             fy = pA.y + (pB.y - pA.y) * frac - prog * 22;
         } else {
             return;
         }
 
-        // 绘制小满袖口与纤细食指（对齐明初红褐短袄袖口 + 针套麻绳 + 素墨描边小手）
+        uiGlow.drawDot(Vec2(fx, fy), 3.6, toColor(PALETTE.amberCore, 88 * appear));
+        if (uiArt.tryPlacePath("assets/art/vfx_craft_art.clip|reload_child_finger", "rw_child_finger", fx, fy, 64, 56, {
+            anchorX: 0.04,
+            anchorY: 0.96,
+            preserveAspect: true,
+            smooth: true,
+            opacity: 0.96 * appear,
+            layer: 6,
+        })) {
+            return;
+        }
+
+        // 无图集时的极简兜底
         const a255 = Math.round(240 * appear);
         const inkCol = toColor(PALETTE.xuanInk, 180 * appear);
         uiInkDraw.drawPolygon([
@@ -1330,13 +1380,10 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
             Vec2(fx - 11, fy - 14),
             Vec2(fx - 17, fy - 9),
         ], Color(164, 78, 54, a255), 1.0, inkCol);
-        // 腕上指南针布套麻绳
         uiInkDraw.drawSegment(Vec2(fx - 16, fy - 10), Vec2(fx - 11, fy - 15), 2.0, Color(204, 174, 122, a255));
-        // 小手掌与前伸食指
         uiInkDraw.drawCircle(Vec2(fx - 9, fy - 8), 4.8, Color(238, 212, 182, a255));
         uiInkDraw.drawSegment(Vec2(fx - 7, fy - 6), Vec2(fx, fy), 2.5, Color(244, 222, 196, a255));
         uiInkDraw.drawRing(Vec2(fx, fy), 2.0, 3.0, Color(0, 0, 0, 0), 0.9, inkCol);
-        uiGlow.drawDot(Vec2(fx, fy), 3.4, toColor(PALETTE.amberCore, 80 * appear));
     }
 
     /** 下次射击已上势时的极简左下角纹样微章（不占视野、灰度可辨） */
@@ -1352,7 +1399,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         const by = ctx.uiH - 134 - safe.top;
         const col = effect === "echo" ? PALETTE.rouge : (effect === "light" ? PALETTE.amberCore : PALETTE.cyanCore);
         drawSilkVeil(uiDraw, uiArt, "rw_armed_veil", bx + 54, by, 142, 30, PALETTE.inkWash, 0.72, -1);
-        drawReloadPatternGlyph(uiInkDraw, bx + 12, by, 9, effect, col, 0.96);
+        drawReloadPatternGlyph(uiInkDraw, bx + 12, by, 9, effect, col, 0.96, uiArt, "rw_armed_glyph", 4);
         drawBlossomDot(uiInkDraw, uiArt, "rw_armed_dot", bx + 28, by, 6, col, 0.85, 3);
         ctx.texts.put("xs", reloadEffectShortLabel(effect), bx + 38, by, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 1.0, 0.94, 0.08);
     }

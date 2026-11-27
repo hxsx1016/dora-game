@@ -17,6 +17,7 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
+import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 
 export interface FePluginContext {
@@ -31,6 +32,12 @@ export interface FePluginContext {
     backdropArt: AssetSlotHost;
     worldArt: AssetSlotHost;
     uiArt: AssetSlotHost;
+    /** 普通混合遮幅，位于加色光效之上、字幕之下。 */
+    uiMask: DrawNode.Type;
+    /** 2.5D 微缩剧场纹理网格宿主：远景层（order 14）、中景可玩层（order 28）、前景遮挡层（order 34） */
+    dioramaBg?: DioramaLayerHost;
+    dioramaWorld?: DioramaLayerHost;
+    dioramaFg?: DioramaLayerHost;
     texts: TextPool;
     /** 世界表现层增量时间（暂停为 0；换弹慢时期间为 rawDt * timeScale） */
     worldDt: number;
@@ -45,6 +52,12 @@ export interface FePluginContext {
     uiScale: number;
     safeUi?: SafeInsets;
     paused: boolean;
+}
+
+/** 本帧姿态已画出的角色本体。 */
+export interface PartyPose {
+    player: boolean;
+    partner: boolean;
 }
 
 export interface FeRenderPlugin {
@@ -76,6 +89,13 @@ export interface FeRenderPlugin {
         worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): boolean;
+    /** 在基础角色绘制前尝试放置姿态，缺少的角色由 ActorsRenderer 补画。 */
+    drawPartyPose?(
+        fgDraw: DrawNode.Type,
+        fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): PartyPose | undefined;
     /** 在常规角色之上叠加绘制（背负姿态、脚底接触影、穿梭器残影等） */
     drawActorsOverlay?(
         fgDraw: DrawNode.Type,

@@ -20,11 +20,14 @@ import { SoundscapeDirector } from "Script/watch/fe/bgm";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteContract } from "Script/watch/fe/contract";
 import { DepthOcclusion } from "Script/watch/fe/occlusion";
-import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { FePluginContext, FeRenderPlugin, PartyPose } from "Script/watch/fe/plugins";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
+import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
+import { EscortWorldRenderer } from "Script/watch/fe/scenes/escort_world";
+import { ensureSecondHalfAssetsRegistered } from "Script/watch/fe/scenes/second_half_assets";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
@@ -46,8 +49,12 @@ export class WatchFrontend {
     private occlusion = new DepthOcclusion();
     private layerRoot: Node.Type;
     private bgDraw: DrawNode.Type;
+    private escortTowerDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
     private backdropArt: AssetSlotHost;
+    private dioramaBg: DioramaLayerHost;
+    private dioramaWorld: DioramaLayerHost;
+    private dioramaFg: DioramaLayerHost;
     private worldArt: AssetSlotHost;
     private uiArt: AssetSlotHost;
     private fgDraw: DrawNode.Type;
@@ -56,6 +63,7 @@ export class WatchFrontend {
     private uiDraw: DrawNode.Type;
     private uiInkDraw: DrawNode.Type;
     private uiGlow: DrawNode.Type;
+    private uiMask: DrawNode.Type;
     private texts: TextPool;
 
     readonly cam = new CameraDirector();
@@ -64,6 +72,7 @@ export class WatchFrontend {
     readonly audio = new AudioDirector();
     readonly soundscape = new SoundscapeDirector();
     readonly stage = new StageRenderer();
+    readonly escortWorld = new EscortWorldRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
     readonly vfx = new VfxSystem();
@@ -84,6 +93,7 @@ export class WatchFrontend {
         this.layerRoot = Node();
         this.layerRoot.order = 5;
         this.layerRoot.addTo(parent);
+        ensureSecondHalfAssetsRegistered();
 
         this.audio.attachHost(this.layerRoot);
         this.menus.onUiSound = (kind: UiSoundKind) => {
@@ -99,13 +109,21 @@ export class WatchFrontend {
         this.bgDraw.order = 10;
         this.bgDraw.addTo(this.layerRoot);
 
+        // 首房城外整幅底图在 12 层，北塔剪影须位于底图与 15 层灯光之间。
+        this.escortTowerDraw = DrawNode();
+        this.escortTowerDraw.order = 13;
+        this.escortTowerDraw.addTo(this.layerRoot);
+
         this.bgGlow = DrawNode();
         this.bgGlow.order = 15;
         this.bgGlow.blendFunc = additive;
         this.bgGlow.addTo(this.layerRoot);
 
         this.backdropArt = new AssetSlotHost(this.layerRoot, 12);
+        this.dioramaBg = new DioramaLayerHost(this.layerRoot, 14);
+        this.dioramaWorld = new DioramaLayerHost(this.layerRoot, 28);
         this.worldArt = new AssetSlotHost(this.layerRoot, 32);
+        this.dioramaFg = new DioramaLayerHost(this.layerRoot, 34);
 
         this.fgDraw = DrawNode();
         this.fgDraw.order = 30;
@@ -134,6 +152,10 @@ export class WatchFrontend {
         this.uiGlow.order = 6;
         this.uiGlow.blendFunc = additive;
         this.uiGlow.addTo(this.uiLayer);
+
+        this.uiMask = DrawNode();
+        this.uiMask.order = 8;
+        this.uiMask.addTo(this.uiLayer);
 
         this.texts = new TextPool(this.uiLayer, 10);
 
@@ -292,13 +314,18 @@ export class WatchFrontend {
 
     private clearAll(): void {
         this.bgDraw.clear();
+        this.escortTowerDraw.clear();
         this.bgGlow.clear();
         this.fgDraw.clear();
         this.fgGlow.clear();
         this.uiDraw.clear();
         this.uiInkDraw.clear();
         this.uiGlow.clear();
+        this.uiMask.clear();
         this.backdropArt.beginFrame();
+        this.dioramaBg.beginFrame();
+        this.dioramaWorld.beginFrame();
+        this.dioramaFg.beginFrame();
         this.worldArt.beginFrame();
         this.uiArt.beginFrame();
         this.texts.beginFrame();
@@ -306,6 +333,9 @@ export class WatchFrontend {
 
     private finishFrame(): void {
         this.backdropArt.endFrame();
+        this.dioramaBg.endFrame();
+        this.dioramaWorld.endFrame();
+        this.dioramaFg.endFrame();
         this.worldArt.endFrame();
         this.uiArt.endFrame();
         this.texts.endFrame();
@@ -523,6 +553,10 @@ export class WatchFrontend {
             backdropArt: this.backdropArt,
             worldArt: this.worldArt,
             uiArt: this.uiArt,
+            uiMask: this.uiMask,
+            dioramaBg: this.dioramaBg,
+            dioramaWorld: this.dioramaWorld,
+            dioramaFg: this.dioramaFg,
             texts: this.texts,
             worldDt,
             uiDt,
@@ -547,6 +581,7 @@ export class WatchFrontend {
         if (!p.paused) {
             this.time += worldDt;
             this.cam.update(worldDt, p, w, h);
+            this.escortWorld.update(worldDt, p, ev.carryStarted);
             if (!trialMode) {
                 this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
                 this.soundscape.updatePlay(worldDt, p, view, this.audio);
@@ -572,6 +607,9 @@ export class WatchFrontend {
         if (!backdropHandled) {
             this.stage.drawBackdrop(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time);
         }
+        if (view.visualMode === "pixel") {
+            this.escortWorld.drawBackdropOverlay(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time, this.escortTowerDraw);
+        }
 
         // 2. 逻辑平面建筑与地面（可由插件接管；淡化吃 worldDt）
         let worldHandled = false;
@@ -596,23 +634,20 @@ export class WatchFrontend {
         if (!propsHandled) {
             this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
         }
+        if (view.visualMode === "pixel") {
+            this.escortWorld.drawWorldSetpieces(this.fgDraw, this.fgGlow, this.worldArt, p, view, this.cam, this.time);
+        }
 
         // 4. 关节剪影角色与插件角色叠层（博物馆态由 WellMuseumPlugin 全权绘制，防止暂停垂纱下透出明初序章精灵；背负态收净原生同伴孤儿脚影）
-        const suppressAllActors = view.visualMode === "museum";
-        const partnerFarInHand = view.backCarry.handInHand
-            && (!p.partner.alive
-                || Math.abs(p.partner.x - p.player.x) > 56
-                || Math.abs(p.partner.y - p.player.y) > 24);
-        const suppressPartner = view.visualMode === "pixel"
-            && !p.childMode
-            && p.player.alive
-            && (view.backCarry.active
-                || view.backCarry.mounting
-                || view.backCarry.atBench
-                || view.craftBench.active
-                || partnerFarInHand);
-        if (!suppressAllActors) {
-            this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, suppressPartner);
+        if (view.visualMode !== "museum") {
+            let pose: PartyPose | undefined;
+            for (const pl of this.plugins) {
+                if (pl.drawPartyPose !== undefined) {
+                    pose = pl.drawPartyPose(this.fgDraw, this.fgGlow, this.worldArt, ctx);
+                    if (pose !== undefined) break;
+                }
+            }
+            this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, pose);
         }
         for (i = 0; i < this.plugins.length; i++) {
             const pl = this.plugins[i];
@@ -627,6 +662,7 @@ export class WatchFrontend {
         // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边（低模与现代博物馆自有前景压边，不叠绘像素暗块）
         if (view.visualMode === "pixel") {
             this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
+            this.escortWorld.drawForegroundFraming(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
         }
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 

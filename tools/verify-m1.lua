@@ -152,11 +152,11 @@ do
 	check("2.2 全 8 房关闭现代探照灯（MING-01）", not anySearchlight)
 
 	check("2.3 B2 护送段 escort2-5 明朝底图映射就绪",
-		mingMod.resolveMingBackdropSlot("gatepath") == "bgFar_outside"
-		and mingMod.resolveMingBackdropSlot("escort1") == "bgFar_outside"
-		and mingMod.resolveMingBackdropSlot("escort2") == "bgFar_checkpoint"
+		mingMod.resolveMingBackdropSlot("gatepath") == "bgFar_escort_ridge"
+		and mingMod.resolveMingBackdropSlot("escort1") == "bgFar_escort_ridge"
+		and mingMod.resolveMingBackdropSlot("escort2") == "bgFar_granary"
 		and mingMod.resolveMingBackdropSlot("escort3") == "bgFar_forest"
-		and mingMod.resolveMingBackdropSlot("escort4") == "bgFar_forest"
+		and mingMod.resolveMingBackdropSlot("escort4") == "bgFar_escort_ridge"
 		and mingMod.resolveMingBackdropSlot("escort5") == "bgFar_tower")
 end
 

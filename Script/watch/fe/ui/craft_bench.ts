@@ -712,8 +712,16 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         bh: number,
         appear: number,
     ): void {
-        // 木案主体（与序章军粮棚木柜同色温，非现代战术板）
+        // 木案主体（与序章军粮棚木柜同色温，叠铺明代旧木板纹理，非现代战术板）
         uiDraw.drawRect(Rect(bx, by, bw, bh), Color(WOOD_BODY.r, WOOD_BODY.g, WOOD_BODY.b, Math.round(244 * appear)), 1.4, toColor(PALETTE.amberDim, 190 * appear));
+        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_timber", "cb_wood_tex", bx + bw * 0.5, by + bh * 0.5, bw - 4, bh - 12, {
+            anchorX: 0.5,
+            anchorY: 0.5,
+            color: Color(172, 132, 98, 255),
+            opacity: 0.34 * appear,
+            smooth: true,
+            layer: 0,
+        });
         // 上沿厚木台板与磨亮边线
         uiDraw.drawRect(Rect(bx - 8, by + bh - 10, bw + 16, 14), Color(WOOD_TOP.r, WOOD_TOP.g, WOOD_TOP.b, Math.round(250 * appear)), 1.0, WOOD_EDGE);
         uiInkDraw.drawSegment(Vec2(bx - 6, by + bh + 3), Vec2(bx + bw + 6, by + bh + 3), 1.2, toColor(PALETTE.amberCore, 115 * appear));
@@ -725,7 +733,7 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         let g = 1;
         for (g = 1; g <= 4; g++) {
             const gy = by + (bh - 50) * (g / 5);
-            uiDraw.drawSegment(Vec2(bx + 10, gy), Vec2(bx + bw - 10, gy), 0.75, Color(34, 23, 18, Math.round(110 * appear)));
+            uiDraw.drawSegment(Vec2(bx + 10, gy), Vec2(bx + bw - 10, gy), 0.75, Color(34, 23, 18, Math.round(92 * appear)));
         }
 
         // 左上角明式提灯与军粮棚同色温暖黄侧光
@@ -776,12 +784,27 @@ export class CraftBenchPlugin implements FeRenderPlugin {
                 uiDraw.drawRect(Rect(x + 6 + shake, rowY - 18, w - 12, 38), toColor(PALETTE.rougeSoft, 145 * appear), 1.0, toColor(PALETTE.crimsonCore, 220 * appear));
             }
 
-            // 实物筹码排布（木纹筹画竹木简条，铃纹筹画铜铃牌，灰度形状一眼区分）
-            const shown = Math.max(1, Math.min(4, count));
+            // 实物筹码排布（优先使用 props_ming.clip 手绘道具精灵，零几何矩形占位）
+            const matClip = (mat === "bell_tally" || mat === "bell")
+                ? "pickup_bell"
+                : (mat === "scrap"
+                    ? "pickup_scrap"
+                    : (mat === "wedge" ? "pickup_wedge" : (mat === "ammo" ? "pickup_ammo" : "pickup_wood")));
+            const shown = Math.max(1, Math.min(3, count));
             let t = 0;
             for (t = 0; t < shown; t++) {
-                const tx = x + 22 + t * 14 + shake;
+                const tx = x + 22 + t * 19 + shake;
                 const filled = t < count;
+                if (uiArt.tryPlacePath("assets/art/props_ming.clip|" + matClip, "cb_mat_" + mat + "_" + t, tx, rowY, 20, 20, {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    preserveAspect: true,
+                    color: filled ? Color(255, 255, 255, 255) : Color(138, 134, 128, 255),
+                    opacity: (filled ? 0.96 : 0.34) * appear,
+                    layer: 3,
+                })) {
+                    continue;
+                }
                 if (mat === "bell_tally" || mat === "bell") {
                     drawReloadPatternGlyph(
                         uiInkDraw,
@@ -915,6 +938,21 @@ export class CraftBenchPlugin implements FeRenderPlugin {
             row += 1;
         }
 
+        // 中下宣纸留白带：展示手绘改制明式鸟铳图样（引路灯铳 / 回声铳 / 快装器具），与文字与 3×3 零重叠
+        const weaponArtPath = recipe.enhancedEffect === "echo"
+            ? "assets/art/vfx_craft_art.clip|craft_echo_gun"
+            : (recipe.enhancedEffect === "light"
+                ? "assets/art/vfx_craft_art.clip|craft_lantern_gun"
+                : "assets/art/props_ming.clip|pickup_quickbelt");
+        uiArt.tryPlacePath(weaponArtPath, "cb_wpn_art_" + recipe.id, box.x + box.width * 0.5, box.y + 68, Math.min(box.width - 36, 126), 34, {
+            anchorX: 0.5,
+            anchorY: 0.5,
+            preserveAspect: true,
+            smooth: true,
+            opacity: (selected ? 0.96 : 0.78) * appear,
+            layer: 3,
+        });
+
         // 底部动作条（零按键教学文案，仅表达当前动作语义）
         const btnRect = Rect(box.x + 14, box.y + 14, box.width - 28, 34);
         const btnLabel = equipped
@@ -1012,51 +1050,77 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const a245 = Math.round(245 * fade);
         const a235 = Math.round(235 * fade);
 
-        // 左侧：小满红褐短袄袖管 + 针套腕绳 + 双手托举递出 → 松手退回
+        // 左侧：小满红褐短袄递出之手；右侧：周戍同源青布补线袖口接握；中央：手绘改制鸟铳
         const childHandX = cx - 78 + passK * 42 - releaseK * 38;
         const childHandY = cy - 4 + gripLift * 0.2;
-        uiInkDraw.drawPolygon([
-            Vec2(cx - 148, cy - 22),
-            Vec2(cx - 146, cy - 8),
-            Vec2(childHandX - 10, childHandY + 4),
-            Vec2(childHandX - 10, childHandY - 6),
-        ], Color(164, 78, 54, a235), 1.0, Color(52, 28, 22, a235));
-        uiInkDraw.drawSegment(Vec2(childHandX - 11, childHandY + 4), Vec2(childHandX - 11, childHandY - 6), 2.0, Color(204, 174, 122, a245));
-        uiInkDraw.drawEllipse(Vec2(childHandX, childHandY - 1), 6.2, 4.4, Color(238, 212, 182, a245));
-
-        // 右侧：周戍惯用手（与 fe-01 同源暗靛青布宽袖 + 标志性浅麻斜补线 + 握柄手掌）
         const solHandX = cx + 82 - Math.min(1, Math.max(0, (prog - 0.18) / 0.28)) * 42;
         const solHandY = cy - 4 + gripLift;
-        uiInkDraw.drawPolygon([
-            Vec2(cx + 154, cy - 18),
-            Vec2(cx + 154, cy - 1),
-            Vec2(solHandX + 12, solHandY + 6),
-            Vec2(solHandX + 12, solHandY - 7),
-        ], toColor(CUFF_PALETTE.indigoBase, a245), 1.0, toColor(CUFF_PALETTE.indigoShadow, a245));
-        // 贯穿全作的青布袖口斜补线（3 针清晰浅麻线，同源 CUFF_PALETTE）
-        const mendCol = toColor(CUFF_PALETTE.stitchThread, a245);
-        uiInkDraw.drawSegment(Vec2(solHandX + 16, solHandY - 5), Vec2(solHandX + 19, solHandY + 4), 1.5, mendCol);
-        uiInkDraw.drawSegment(Vec2(solHandX + 21, solHandY - 5), Vec2(solHandX + 24, solHandY + 4), 1.5, mendCol);
-        uiInkDraw.drawSegment(Vec2(solHandX + 26, solHandY - 5), Vec2(solHandX + 29, solHandY + 4), 1.5, mendCol);
-        uiInkDraw.drawEllipse(Vec2(solHandX, solHandY), 6.8, 5.0, toColor(CUFF_PALETTE.skinBase, a245));
-
-        // 中央成品明式鸟铳（弧形木托 + 铜箍 + 暗铁细长铳管 + 对应灯匣/铜铃纹样）
         const gunX = prog < 0.38 ? childHandX + 14 : solHandX - 8;
-        const gunY = cy + 3 + gripLift;
-        // 木托尾
-        uiInkDraw.drawPolygon([
-            Vec2(gunX - 42, gunY - 8),
-            Vec2(gunX - 12, gunY - 3),
-            Vec2(gunX + 16, gunY + 1),
-            Vec2(gunX + 16, gunY + 6),
-            Vec2(gunX - 16, gunY + 3),
-            Vec2(gunX - 40, gunY + 1),
-        ], Color(108, 72, 48, a245), 1.0, Color(46, 30, 20, a245));
-        // 暗铁长管与铜箍
-        uiInkDraw.drawSegment(Vec2(gunX - 6, gunY + 4), Vec2(gunX + 56, gunY + 8), 2.8, Color(152, 148, 138, a245));
-        uiInkDraw.drawSegment(Vec2(gunX + 14, gunY + 1), Vec2(gunX + 14, gunY + 8), 2.0, Color(198, 166, 112, a245));
-        uiInkDraw.drawSegment(Vec2(gunX + 36, gunY + 3), Vec2(gunX + 36, gunY + 9), 1.6, Color(198, 166, 112, a245));
-        drawReloadPatternGlyph(uiInkDraw, gunX + 2, gunY + 21, 8.5, this.handoverEffect, PALETTE.amberCore, fade);
+        const gunY = cy + 6 + gripLift;
+
+        const childPlaced = uiArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|cuff_xiaoman_reach", "cb_ho_child", childHandX, childHandY - 6, 154, 68, {
+            anchorX: 0.43,
+            anchorY: 0.52,
+            facing: -1,
+            smooth: true,
+            opacity: 0.94 * fade,
+            layer: 3,
+        });
+        if (!childPlaced) {
+            uiInkDraw.drawPolygon([
+                Vec2(cx - 148, cy - 22),
+                Vec2(cx - 146, cy - 8),
+                Vec2(childHandX - 10, childHandY + 4),
+                Vec2(childHandX - 10, childHandY - 6),
+            ], Color(164, 78, 54, a235), 1.0, Color(52, 28, 22, a235));
+            uiInkDraw.drawSegment(Vec2(childHandX - 11, childHandY + 4), Vec2(childHandX - 11, childHandY - 6), 2.0, Color(204, 174, 122, a245));
+            uiInkDraw.drawEllipse(Vec2(childHandX, childHandY - 1), 6.2, 4.4, Color(238, 212, 182, a245));
+        }
+
+        const solPlaced = uiArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|cuff_zhou_clasp", "cb_ho_zhou", solHandX, solHandY - 4, 168, 78, {
+            anchorX: 0.57,
+            anchorY: 0.50,
+            facing: -1,
+            smooth: true,
+            opacity: 0.96 * fade,
+            layer: 4,
+        });
+        if (!solPlaced) {
+            uiInkDraw.drawPolygon([
+                Vec2(cx + 154, cy - 18),
+                Vec2(cx + 154, cy - 1),
+                Vec2(solHandX + 12, solHandY + 6),
+                Vec2(solHandX + 12, solHandY - 7),
+            ], toColor(CUFF_PALETTE.indigoBase, a245), 1.0, toColor(CUFF_PALETTE.indigoShadow, a245));
+            const mendCol = toColor(CUFF_PALETTE.stitchThread, a245);
+            uiInkDraw.drawSegment(Vec2(solHandX + 16, solHandY - 5), Vec2(solHandX + 19, solHandY + 4), 1.5, mendCol);
+            uiInkDraw.drawSegment(Vec2(solHandX + 21, solHandY - 5), Vec2(solHandX + 24, solHandY + 4), 1.5, mendCol);
+            uiInkDraw.drawSegment(Vec2(solHandX + 26, solHandY - 5), Vec2(solHandX + 29, solHandY + 4), 1.5, mendCol);
+            uiInkDraw.drawEllipse(Vec2(solHandX, solHandY), 6.8, 5.0, toColor(CUFF_PALETTE.skinBase, a245));
+        }
+
+        const gunClip = this.handoverEffect === "echo" ? "craft_echo_gun" : "craft_lantern_gun";
+        if (!uiArt.tryPlacePath("assets/art/vfx_craft_art.clip|" + gunClip, "cb_ho_gun", gunX, gunY, 170, 52, {
+            anchorX: 0.5,
+            anchorY: 0.5,
+            preserveAspect: true,
+            smooth: true,
+            opacity: 0.98 * fade,
+            layer: 5,
+        })) {
+            uiInkDraw.drawPolygon([
+                Vec2(gunX - 42, gunY - 8),
+                Vec2(gunX - 12, gunY - 3),
+                Vec2(gunX + 16, gunY + 1),
+                Vec2(gunX + 16, gunY + 6),
+                Vec2(gunX - 16, gunY + 3),
+                Vec2(gunX - 40, gunY + 1),
+            ], Color(108, 72, 48, a245), 1.0, Color(46, 30, 20, a245));
+            uiInkDraw.drawSegment(Vec2(gunX - 6, gunY + 4), Vec2(gunX + 56, gunY + 8), 2.8, Color(152, 148, 138, a245));
+            uiInkDraw.drawSegment(Vec2(gunX + 14, gunY + 1), Vec2(gunX + 14, gunY + 8), 2.0, Color(198, 166, 112, a245));
+            uiInkDraw.drawSegment(Vec2(gunX + 36, gunY + 3), Vec2(gunX + 36, gunY + 9), 1.6, Color(198, 166, 112, a245));
+        }
+        drawReloadPatternGlyph(uiInkDraw, gunX + 2, gunY + 26, 8.5, this.handoverEffect, PALETTE.amberCore, fade);
         fillRadialGlow(uiGlow, gunX + 4, gunY + 4, 48, 22, toColor(PALETTE.amberCore, 52 * fade), Color(244, 234, 214, 0), 12);
 
         const caption = this.handoverDuration >= 0.8

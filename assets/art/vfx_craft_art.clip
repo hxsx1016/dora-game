@@ -1,0 +1,8 @@
+<A A="vfx_craft_art.png">
+  <B A="vfx_smoke_plume" B="4,4,320,267" />
+  <B A="vfx_debris_burst" B="328,4,294,266" />
+  <B A="reload_child_finger" B="626,4,250,222" />
+  <B A="vfx_muzzle_blast" B="4,275,320,187" />
+  <B A="craft_lantern_gun" B="328,275,320,97" />
+  <B A="craft_echo_gun" B="652,275,320,87" />
+</A>

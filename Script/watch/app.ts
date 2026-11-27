@@ -670,6 +670,21 @@ function roomIndexByKey(key: string): number {
     return 0;
 }
 
+/** 章节直达后半段时按目标房间预置独立预览路线（不改正式档、不污染通关档案）。 */
+export function applyChapterPreviewRoute(run: RunState, targetKey: string): void {
+    if (targetKey === "outside" || targetKey === "village" || targetKey === "forest" || targetKey === "tower") {
+        run.story.route = "child";
+        run.story.settled = true;
+    } else if (targetKey === "gatepath" || targetKey.indexOf("escort") === 0) {
+        run.story.route = "soldier";
+        run.story.settled = true;
+        run.joined = true;
+        if (targetKey.indexOf("escort") === 0) {
+            run.story.carry = true;
+        }
+    }
+}
+
 function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false): void {
     current = idx;
     setMode(1);
@@ -680,6 +695,10 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
     // 标题「新的旅程」进序章视为正式开新局；章节直达始终起干净独立预览局，不泄漏或污染正式局状态。
     if (fresh || source === "chapter" || storyRun === undefined) {
         storyRun = createRun(20261124, source, profile);
+        if (source === "chapter") {
+            const targetKey = ROOMS[current] !== undefined ? ROOMS[current].key : "";
+            applyChapterPreviewRoute(storyRun, targetKey);
+        }
     } else {
         storyRun.source = source;
     }

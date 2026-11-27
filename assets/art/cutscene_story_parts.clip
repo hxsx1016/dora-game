@@ -1,0 +1,9 @@
+<A A="cutscene_story_parts.png">
+  <B A="tower_porch_door" B="4,4,241,365" />
+  <B A="guard_brush_hand" B="249,4,418,327" />
+  <B A="prologue_father_hand" B="4,373,376,308" />
+  <B A="xiaoman_cup_hands" B="384,373,420,302" />
+  <B A="f01_mother_stitch" B="4,685,405,298" />
+  <B A="porridge_bowl" B="413,685,326,248" />
+  <B A="prologue_bowl_roll" B="743,685,201,158" />
+</A>

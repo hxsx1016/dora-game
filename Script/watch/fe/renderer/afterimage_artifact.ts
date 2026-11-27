@@ -19,6 +19,7 @@ import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
+import { depthOrder } from "Script/watch/fe/occlusion";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 
 export const ARTIFACT_WEAPON_IDS: readonly string[] = [
@@ -302,7 +303,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: AssetSlotHost,
+        worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): void {
         if (!this.active || this.ghosts.length === 0) {
@@ -343,50 +344,27 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
             const halfW = fullH * 0.14;
             const f = g.facing;
 
-            const whiteAlpha = Math.round(normAlpha * 255);
             const goldAlpha = Math.round(normAlpha * 0.82 * 255);
-            const coldWhite = Color(224, 232, 240, whiteAlpha);
-            const coldFill = Color(210, 222, 236, Math.round(whiteAlpha * 0.28));
             const paleGold = Color(218, 190, 128, goldAlpha);
 
-            // 1. 极克制冷白明初守卒剪影（笠形铁盔 + 斜襟短袄 + 摆角步姿，不遮挡判定与预警线）
-            const hipY = by + bodyH * 0.44;
-            const shY = by + bodyH * 0.78;
-            const headY = by + bodyH * 0.90;
-            const headR = fullH * 0.075;
-            const lean = f * fullH * 0.05;
+            // 1. 像素级霜月冷白周戍残影（真实角色精灵剪影，严格 <= 0.34 透明，彻底替代矢量木偶）
+            const ghostSlot = g.rolling
+                ? "soldier_roll"
+                : (g.crouched ? "soldier_cover" : (g.carrying ? "fe_carry_walk" : "soldier_run"));
+            const ghostW = cam.len(g.carrying ? 36 : 28);
+            const ghostLayer = p.room.depth !== undefined ? depthOrder(g.depth, 2) : 2;
+            worldArt.tryPlace(ghostSlot, "fe06_ghost_" + i, cx, by, ghostW, bodyH, {
+                facing: f,
+                frame: i,
+                color: Color(216, 228, 242, 255),
+                opacity: normAlpha,
+                layer: ghostLayer,
+            });
 
-            // 短袄与斜摆剪影（与周戍奔跑侧影呼应）
-            fgDraw.drawPolygon([
-                Vec2(cx - halfW * 1.15 - f * 4, hipY - bodyH * 0.10),
-                Vec2(cx + halfW * 0.78 + lean, hipY + 2),
-                Vec2(cx + halfW * 0.96 + lean, shY),
-                Vec2(cx - halfW * 0.88 + lean * 0.5, shY),
-            ], coldFill, 1.05, coldWhite);
-
-            // 步态前后腿轻迹
-            fgDraw.drawSegment(Vec2(cx - halfW * 0.25, hipY), Vec2(cx - f * halfW * 1.05, by + 2), 1.4, coldWhite);
-            fgDraw.drawSegment(Vec2(cx + halfW * 0.25, hipY), Vec2(cx + f * halfW * 0.85, by + 2), 1.4, coldWhite);
-
-            // 明代素铁笠盔尖轮廓（区别于圆球，更具明初守卒辨识度）
-            fgDraw.drawPolygon([
-                Vec2(cx + lean - headR * 1.55, headY + headR * 0.15),
-                Vec2(cx + lean + headR * 1.55, headY + headR * 0.15),
-                Vec2(cx + lean + f * 1.5, headY + headR * 1.25),
-            ], coldFill, 1.0, coldWhite);
-
-            // 2. 微金斜襟余韵（呼应黄铜指南针/时间穿梭器材质，仅作一缕细线）
-            fgGlow.drawSegment(
-                Vec2(cx - halfW * 0.55 + lean * 0.5, shY - 2),
-                Vec2(cx + halfW * 0.48 + lean * 0.6, hipY + 4),
-                1.3,
-                paleGold,
-            );
-
-            // 3. 脚底微弱时间刻度椭圆
+            // 2. 脚底微弱时间刻度椭圆
             drawEllipseOutline(fgDraw, cx, by + 1, halfW * 1.05, 2.4, Color(0, 0, 0, 0), 0.9, paleGold, 16);
 
-            // 4. 轻柔连接上一点轨迹的微金虚丝（仅在连续两点间，不跨屏拉长线）
+            // 3. 轻柔连接上一点轨迹的微金虚丝（仅在连续两点间，不跨屏拉长线）
             const midY = by + bodyH * 0.56;
             if (hasPrevTrail && Math.abs(cx - prevTrailX) < cam.len(72)) {
                 fgGlow.drawSegment(
