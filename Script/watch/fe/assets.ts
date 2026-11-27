@@ -17,7 +17,36 @@ export type AssetSlotKey =
     | "ink_bamboo_slip" | "ink_bamboo_slot" | "ink_frame_mask" | "ink_vstream"
     | "ink_knot_ornament" | "ink_corner_fine" | "ink_seal_slender" | "ink_blossom_dot"
     | "ink_enso_fine" | "ink_petal_mist" | "ink_song_paper"
-    | "brand_game_logo_h" | "brand_game_logo_v" | "brand_team_logo" | "brand_team_badge";
+    | "brand_game_logo_h" | "brand_game_logo_v" | "brand_team_logo" | "brand_team_badge"
+    // ── 明月绘卷 · 像素幻灯片（assets/art/slides/*.png，TextureFilter.Point） ──
+    | "slide_p01_01" | "slide_p01_02" | "slide_p01_03"
+    | "slide_p02_01" | "slide_p02_02" | "slide_p02_03" | "slide_p02_04" | "slide_p02_05"
+    | "slide_cuff_p03_01" | "slide_cuff_p03_02" | "slide_cuff_p03_03" | "slide_cuff_p03_04"
+    | "slide_cuff_p05_01" | "slide_cuff_p05_02" | "slide_cuff_p05_03" | "slide_cuff_p05_04"
+    | "slide_cuff_g05_01" | "slide_cuff_g05_02" | "slide_cuff_g05_03" | "slide_cuff_g05_04"
+    | "slide_gate_01" | "slide_gate_02" | "slide_gate_03" | "slide_gate_04"
+    | "slide_tower_porch_f03_closed" | "slide_tower_porch_f03_open"
+    | "slide_tower_porch_m03_closed" | "slide_tower_porch_m03_open"
+    | "slide_tower_room_f03_cold" | "slide_tower_room_f03_lit" | "slide_tower_room_m03_warm"
+    | "slide_tower_interior_live"
+    | "slide_e01_well" | "slide_e01_compass" | "slide_e01_vitrine"
+    | "slide_e02_museum_hall" | "slide_e02_window_dawn" | "slide_e02_return_cabinet"
+    | "slide_f01_sewing" | "slide_m02_lantern_gun" | "slide_m02_echo_gun"
+    // ── 扩展像素精灵图集（assets/art/sprites_fe.clip，零改动旧图集） ──
+    | "fe_carry_idle" | "fe_carry_walk" | "fe_carry_reload"
+    | "fe_soldier_kneel_mount" | "fe_child_listen_door" | "fe_soldier_hand_hold" | "fe_tower_guard_lantern"
+    | "fe_tower_brush_hand" | "fe_reload_hand_tap" | "fe_reload_hand_trace" | "fe_tower_cuff_rest"
+    | "fe_tower_bowl_solo" | "fe_tower_bowl_hands" | "fe_tower_pouch_note" | "fe_tower_lantern_detail"
+    | "fe_basin_flat" | "fe_basin_tilt" | "fe_well_rim" | "fe_outside_arch"
+    | "fe_straw_target" | "fe_workbench" | "fe_bottle_rack" | "fe_braced_shield"
+    | "fe_weapon_lantern_gun" | "fe_weapon_echo_gun" | "fe_lamp_bracket"
+    | "fe_icon_wood_tally" | "fe_icon_bell_tally" | "fe_gear_rattan_shield"
+    | "fe_root_arch" | "fe_culvert_grate"
+    | "fe_red_cloth" | "fe_vfx_muzzle" | "fe_vfx_hit_spark" | "fe_vfx_smoke"
+    | "fe_vfx_steam" | "fe_vfx_creek_reflect"
+    | "fe_glyph_bell" | "fe_glyph_lamp" | "fe_glyph_push"
+    | "fe_ground_brick" | "fe_ground_soft" | "fe_pillar_wood" | "fe_beam_wood" | "fe_road_stone"
+    | "fe_fg_table_top" | "fe_fg_table_leg" | "fe_fg_pine_bough";
 
 export interface AssetSlotConfig {
     paths: string[];
@@ -66,6 +95,20 @@ function inkClip(name: string, preserveAspect: boolean = false): AssetSlotConfig
 
 function actor(names: string | string[], anchorX?: number | number[]): AssetSlotConfig {
     return clip(names, 0, true, anchorX);
+}
+
+function slide(name: string): AssetSlotConfig {
+    return { paths: ["assets/art/slides/" + name + ".png"], anchorY: 0.5, preserveAspect: false };
+}
+
+function feClip(
+    names: string | string[],
+    anchorY: number = 0.5,
+    preserveAspect: boolean = true,
+    anchorX?: number | number[],
+): AssetSlotConfig {
+    const frames = typeof names === "string" ? [names] : names;
+    return { paths: frames.map(name => "assets/art/sprites_fe.clip|" + name), anchorX, anchorY, preserveAspect };
 }
 
 export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
@@ -149,6 +192,97 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     brand_game_logo_v: { paths: ["assets/art/brand/game_logo_v.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
     brand_team_logo: { paths: ["assets/art/brand/team_logo_dark.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
     brand_team_badge: { paths: ["assets/art/brand/team_badge.png"], anchorY: 0.5, preserveAspect: true, smooth: true },
+    // ── 明月绘卷 · 像素幻灯片 ──
+    slide_p01_01: slide("p01_01_curtain"),
+    slide_p01_02: slide("p01_02_hand"),
+    slide_p01_03: slide("p01_03_door"),
+    slide_p02_01: slide("p02_01_shadows"),
+    slide_p02_02: slide("p02_02_cut"),
+    slide_p02_03: slide("p02_03_bowl_roll"),
+    slide_p02_04: slide("p02_04_bowl_stop"),
+    slide_p02_05: slide("p02_05_cabinet"),
+    slide_cuff_p03_01: slide("cuff_p03_01"),
+    slide_cuff_p03_02: slide("cuff_p03_02"),
+    slide_cuff_p03_03: slide("cuff_p03_03"),
+    slide_cuff_p03_04: slide("cuff_p03_04"),
+    slide_cuff_p05_01: slide("cuff_p05_01"),
+    slide_cuff_p05_02: slide("cuff_p05_02"),
+    slide_cuff_p05_03: slide("cuff_p05_03"),
+    slide_cuff_p05_04: slide("cuff_p05_04"),
+    slide_cuff_g05_01: slide("cuff_g05_01"),
+    slide_cuff_g05_02: slide("cuff_g05_02"),
+    slide_cuff_g05_03: slide("cuff_g05_03"),
+    slide_cuff_g05_04: slide("cuff_g05_04"),
+    slide_gate_01: { paths: ["assets/art/slides/gate_stage_01.png"], anchorY: 0, preserveAspect: false },
+    slide_gate_02: { paths: ["assets/art/slides/gate_stage_02.png"], anchorY: 0, preserveAspect: false },
+    slide_gate_03: { paths: ["assets/art/slides/gate_stage_03.png"], anchorY: 0, preserveAspect: false },
+    slide_gate_04: { paths: ["assets/art/slides/gate_stage_04.png"], anchorY: 0, preserveAspect: false },
+    slide_tower_porch_f03_closed: slide("tower_porch_f03_closed"),
+    slide_tower_porch_f03_open: slide("tower_porch_f03_open"),
+    slide_tower_porch_m03_closed: slide("tower_porch_m03_closed"),
+    slide_tower_porch_m03_open: slide("tower_porch_m03_open"),
+    slide_tower_room_f03_cold: slide("tower_room_f03_cold"),
+    slide_tower_room_f03_lit: slide("tower_room_f03_lit"),
+    slide_tower_room_m03_warm: slide("tower_room_m03_warm"),
+    slide_tower_interior_live: { paths: ["assets/art/slides/tower_interior_live.png"], anchorY: 0, preserveAspect: false },
+    slide_e01_well: slide("e01_01_well"),
+    slide_e01_compass: slide("e01_02_compass"),
+    slide_e01_vitrine: slide("e01_03_vitrine"),
+    slide_e02_museum_hall: { paths: ["assets/art/slides/e02_museum_hall.png"], anchorY: 0, preserveAspect: false },
+    slide_e02_window_dawn: slide("e02_window_dawn"),
+    slide_e02_return_cabinet: slide("e02_return_cabinet"),
+    slide_f01_sewing: slide("f01_sewing_memory"),
+    slide_m02_lantern_gun: slide("m02_handover_lantern"),
+    slide_m02_echo_gun: slide("m02_handover_echo"),
+    // ── 扩展像素精灵图集（sprites_fe.clip） ──
+    fe_carry_idle: feClip("carry_idle", 0, true, 0.50),
+    fe_carry_walk: feClip(["carry_walk_a", "carry_idle", "carry_walk_b", "carry_idle"], 0, true, [0.50, 0.50, 0.50, 0.50]),
+    fe_carry_reload: feClip("carry_reload", 0, true, 0.48),
+    fe_soldier_kneel_mount: feClip("soldier_kneel_mount", 0, true, 0.50),
+    fe_child_listen_door: feClip("child_listen_door", 0, true, 0.50),
+    fe_soldier_hand_hold: feClip("soldier_hand_hold", 0, true, 0.50),
+    fe_tower_guard_lantern: feClip("tower_guard_lantern", 0, true, 0.50),
+    fe_tower_brush_hand: feClip("tower_brush_hand", 0.08, true, 0.06),
+    fe_reload_hand_tap: feClip("reload_hand_tap", 0.90, true, 0.14),
+    fe_reload_hand_trace: feClip("reload_hand_trace", 0.58, true, 0.92),
+    fe_tower_cuff_rest: feClip("tower_cuff_rest", 0.50, true, 0.05),
+    fe_tower_bowl_solo: feClip("tower_bowl_solo", 0.25, true, 0.50),
+    fe_tower_bowl_hands: feClip("tower_bowl_hands", 0.40, true, 0.50),
+    fe_tower_pouch_note: feClip("tower_pouch_note", 0.42, true, 0.50),
+    fe_tower_lantern_detail: feClip("tower_lantern_detail", 0.14, true, 0.50),
+    fe_basin_flat: feClip("prop_basin_flat", 0, true, 0.50),
+    fe_basin_tilt: feClip("prop_basin_tilt", 0, true, 0.50),
+    fe_well_rim: feClip("prop_well_rim", 0, true, 0.50),
+    fe_outside_arch: feClip("prop_outside_arch", 0, false, 0.50),
+    fe_straw_target: feClip("prop_straw_target", 0, true, 0.50),
+    fe_workbench: feClip("prop_workbench", 0, false, 0.50),
+    fe_bottle_rack: feClip("prop_bottle_rack", 0, true, 0.50),
+    fe_braced_shield: feClip("prop_braced_shield", 0, true, 0.50),
+    fe_weapon_lantern_gun: feClip("weapon_lantern_gun", 0.5, true, 0.50),
+    fe_weapon_echo_gun: feClip("weapon_echo_gun", 0.5, true, 0.50),
+    fe_lamp_bracket: feClip("prop_lamp_bracket", 0, true, 0.50),
+    fe_icon_wood_tally: feClip("icon_wood_tally", 0.5, true, 0.50),
+    fe_icon_bell_tally: feClip("icon_bell_tally", 0.5, true, 0.50),
+    fe_gear_rattan_shield: feClip("gear_rattan_shield", 0.5, true, 0.50),
+    fe_root_arch: feClip("prop_root_arch", 0, false, 0.50),
+    fe_culvert_grate: feClip("prop_culvert_grate", 0, false, 0.50),
+    fe_red_cloth: feClip(["prop_red_cloth_01", "prop_red_cloth_02", "prop_red_cloth_03"], 0.5, true, 0.90),
+    fe_vfx_muzzle: feClip(["vfx_muzzle_01", "vfx_muzzle_02", "vfx_muzzle_03"], 0.5, true, 0.12),
+    fe_vfx_hit_spark: feClip(["vfx_hit_spark_01", "vfx_hit_spark_02", "vfx_hit_spark_03"], 0.5, true, 0.50),
+    fe_vfx_smoke: feClip(["vfx_smoke_01", "vfx_smoke_02", "vfx_smoke_03", "vfx_smoke_04"], 0.5, true, 0.50),
+    fe_vfx_steam: feClip(["vfx_steam_01", "vfx_steam_02", "vfx_steam_03"], 0.0, true, 0.50),
+    fe_vfx_creek_reflect: feClip(["vfx_creek_reflect_01", "vfx_creek_reflect_02", "vfx_creek_reflect_03"], 0.5, false, 0.50),
+    fe_glyph_bell: feClip("glyph_bell", 0.5, true, 0.50),
+    fe_glyph_lamp: feClip("glyph_lamp", 0.5, true, 0.50),
+    fe_glyph_push: feClip("glyph_push", 0.5, true, 0.50),
+    fe_ground_brick: feClip("ground_brick_patch", 0, false, 0.50),
+    fe_ground_soft: feClip("ground_soft_patch", 0, false, 0.50),
+    fe_pillar_wood: feClip("pillar_wood", 0, false, 0.50),
+    fe_beam_wood: feClip("beam_wood", 0, false, 0.50),
+    fe_road_stone: feClip("road_stone", 0, false, 0.50),
+    fe_fg_table_top: feClip("fg_table_top", 1.0, false, 0.50),
+    fe_fg_table_leg: feClip("fg_table_leg", 1.0, false, 0.50),
+    fe_fg_pine_bough: feClip("fg_pine_bough", 1.0, false, 1.0),
 };
 
 const WHITE = Color(255, 255, 255, 255);

@@ -1,3 +1,4 @@
+import { drawPixelSlidePlate, drawSlideFrameChrome } from "Script/watch/fe/renderer/slideshow";
 /**
  * 《向西守望》Wave 2 fe-04 小满单人线《小小梦魇》风低模四房主场景插件（feature/fe-04-child-lowpoly）。
  *
@@ -1057,7 +1058,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
      */
     private drawOutsideSewingMemoryOverlay(
         uiDraw: DrawNode.Type,
-        _uiInkDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
@@ -1066,42 +1067,29 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const prog = clamp01(this.memoryTimer / SEWING_MEMORY_DURATION);
+        // 0..0.20 迅速浮现，0.20..0.72 稳拉最后一针，0.72..1.0 柔淡落回车柄
         const alpha = smoothstep(0, 0.20, prog) * (1 - smoothstep(0.72, 1.0, prog));
         if (alpha <= 0.01) {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
         const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
-        const cx = Math.max(190, Math.min(ctx.uiW - 190, handPt.x * inv - 20));
-        const cy = Math.max(170, Math.min(ctx.uiH - 150, handPt.y * inv + 104));
-        const pullT = smoothstep(0.14, 0.82, prog);
-        const zoom = 0.94 + pullT * 0.09;
+        const cardW = 264;
+        const cardH = 148;
+        const cx = Math.max(cardW * 0.5 + 24, Math.min(ctx.uiW - cardW * 0.5 - 24, handPt.x * inv - 16));
+        const cy = Math.max(cardH * 0.5 + 32, Math.min(ctx.uiH - cardH * 0.5 - 32, handPt.y * inv + 102));
+        const rect = { x: Math.round(cx - cardW * 0.5), y: Math.round(cy - cardH * 0.5), w: cardW, h: cardH };
 
-        // 柔和暖灯回忆云晕（无生硬蛋形/矩形边框，自然浮于冷月夜空之上）
-        fillRadialGlow(uiGlow, cx, cy, 215 * zoom, 152 * zoom, Color(238, 186, 114, Math.round(88 * alpha)), Color(214, 152, 82, 0), 22);
-        uiArt.tryPlace("ink_petal_mist", "fe04_f01_memory_mist", cx, cy, 380 * zoom, 260 * zoom, {
-            color: Color(36, 24, 18, 255),
-            opacity: 0.72 * alpha,
+        fillRadialGlow(uiGlow, cx, cy, cardW * 0.82, cardH * 0.92, Color(238, 190, 122, Math.round(88 * alpha)), Color(218, 162, 92, 0), 20);
+        const zoom = 1.0 + prog * 0.036;
+        drawPixelSlidePlate(uiDraw, uiInkDraw, uiArt, "slide_f01_sewing", "fe04_sewing_mem", rect, alpha * 0.96, 3, 0, 0, zoom);
+        drawSlideFrameChrome(uiDraw, uiInkDraw, uiArt, rect, ctx.uiW, ctx.uiH, {
+            frameOpacity: 0.78,
+            letterboxH: 0,
+            opacity: alpha,
             layer: 3,
+            instancePrefix: "fe04_sew",
         });
-        if (!uiArt.tryPlacePath(
-            "assets/art/cutscene_story_parts.clip|f01_mother_stitch",
-            "fe04_f01_mother_stitch",
-            cx + pullT * 6,
-            cy + pullT * 4,
-            296 * zoom,
-            218 * zoom,
-            {
-                anchorX: 0.5,
-                anchorY: 0.5,
-                color: Color(246, 224, 196, 255),
-                opacity: 0.96 * alpha,
-                smooth: true,
-                layer: 4,
-            },
-        )) {
-            uiDraw.drawEllipse(Vec2(cx, cy), 116, 70, Color(32, 22, 16, Math.round(196 * alpha)));
-        }
     }
 }
 

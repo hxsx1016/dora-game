@@ -11,7 +11,7 @@
 | 世界观、剧情、双线结构与关卡策划 | 人类团队原创 + AI 对话润色与文档整理 | 故事背景（明初温州宁村所 / 抗倭守城历史脉络）、双线对称叙事、80% 血量分流、慢时连线换弹、双通关水井与现代纪念展厅的核心设计均由团队主导定稿 |
 | TypeScript / Lua 游戏代码与前端渲染 | Codex / Claude / Gemini 编码智能体辅助生成与重构 | 架构拆单、接口契约（`Script/watch/fe/contract.ts`）、跨分支合流、冲突裁决与 18+ 组引擎自动化回归验收均由人类审核与把关 |
 | 自动化测试、CI 与打包流水线 | 编码智能体辅助编写 | `tools/verify-*.lua`（含 `verify-remediation.lua` / `verify-audio.lua`）、`tools/audit-assets.py`、`tools/audit-audio.py`、`tools/make-windows-pack.sh`、`tools/make-android-pack.sh`、`tools/patch-android-apk.py`、`tools/export-html.mjs`、`tools/make-dora-source-pack.sh` 及 `.github/workflows/{repository,release-windows,release-android,deploy-web}.yml` 等工程脚本经本地与 CI 实测通过 |
-| 美术素材与品牌标识 | Codex 内置 ImageGen 辅助生成像素底稿 + 人工修图/分层重构/水墨 UI 绘制 + 品牌透明抠底精修 | 场景背景图与明代像素角色基础图经人工修剪、缩帧与分层整理（完整提示词与处理记录见 [art-source/SOURCES.md](../art-source/SOURCES.md)）；水墨 UI 图集与程序低模场景为项目内设计绘制；团队「局外人」主导定稿 G2 水墨题签主标、I2 北塔图标、T2 团队标与 16:9 封面 |
+| 美术素材与品牌标识 | Codex / Antigravity 图像生成辅助绘制像素底稿 + 离线像素化降采样/限色/透明抠底 + 人工修图/分层重构/水墨 UI 绘制 | 场景背景图、41 张像素幻灯片分镜（`assets/art/slides/`）、62 帧扩展像素精灵图集（`assets/art/sprites_fe.{png,clip}`）与明代像素角色基础图均经像素网格对齐、限色重采样与逐帧质检（完整记录见 [art-source/SOURCES.md](../art-source/SOURCES.md)）；水墨 UI 图集为项目内设计绘制；团队「局外人」主导定稿 G2 水墨题签主标、I2 北塔图标、T2 团队标与 16:9 封面 |
 | 原创配乐、音效与人声轨 | 开源采样音源（FluidSynth + MuseScore General MIT）+ Python 物理建模 DSP 离线合成 + 神经语音（Edge-TTS）角色声学精修 | 全部 196 份 48 kHz 立体声音频资产均离线生成并入库，经 `tools/audit-audio.py` 与 `tools/verify-audio.lua` 全量声学与引擎验收；26 份人声轨保持同名路径，支持随时零代码替换为真人录音 |
 
 ## 二、开源引擎与第三方依赖
@@ -34,8 +34,8 @@
 | `assets/font/longcang-brush.ttf` | 龙藏体（Long Cang） | SIL OFL 1.1 | [OFL-LongCang.txt](../assets/font/OFL-LongCang.txt) |
 
 ### 2. 美术资源（`assets/art/` 与 `art-source/`）
-- 场景背景图（`prologue.png`、`street.png`、`checkpoint.png`、`gate.png`、`outside.png`、`village.png`、`forest.png`、`tower.png`、`title.png`）与角色精灵表（`sprites.png`/`sprites.clip`）在开发期内采用 Codex 内置 ImageGen 辅助生成并经团队手工二次像素整理、坐标裁切与风格统一；水墨 UI 图集（`ui_ink.png`/`ui_ink.clip`）为项目内程序/手工创作整理，均无未授权商业素材，详情见 [art-source/SOURCES.md](../art-source/SOURCES.md)。
 - 灰盒全面重制美术包（Phase 1–3）：含明代微缩场景 8 材质图集（`tex_diorama_ming`）、五大微缩场景立牌与三大过场全幅 CG（`diorama_cutouts`、`cutscene_cuff_rig`、`cutscene_story_parts`、`cutscene_well_museum`、`cg_g05_reunion.png`、`cg_tower_desk_cold.png`、`cg_tower_desk_warm.png`、`bg_museum_hall.png`），以及 2.5D 明代道具/拾取/精英敌人/双人合体/火药特效图集（`props_ming`、`actors_extra`、`vfx_craft_art`）与四幅新增战役底图（`bg_crossroad_drygoods.png`、`bg_archway_yard.png`、`bg_granary.png`、`bg_escort_ridge.png`），均为项目内 AI 辅助生图后经离线去底、连通域质检、脚底基线校准与 `.clip` 图集打包，无第三方商业版权限制。
+- 场景背景图（`prologue.png`、`street.png`、`checkpoint.png`、`gate.png`、`outside.png`、`village.png`、`forest.png`、`tower.png`、`title.png`）与角色精灵表（`sprites.png`/`sprites.clip`）在开发期内采用 Codex 内置 ImageGen 辅助生成并经团队手工二次像素整理、坐标裁切与风格统一；像素幻灯片分镜集（`assets/art/slides/*.png`，41 张）与扩展像素精灵图集（`assets/art/sprites_fe.png`/`sprites_fe.clip`，62 帧）经 AI 底稿生成、像素限色降采样、透明抠底与手工像素特效补绘制成；水墨 UI 图集（`ui_ink.png`/`ui_ink.clip`）为项目内程序/手工创作整理，均无未授权商业素材，详情见 [art-source/SOURCES.md](../art-source/SOURCES.md)。
 - 品牌与多端图标资产（`assets/art/brand/` 与 `art-source/brand/`）：包含《向西守望》G2 横版/竖版水墨题签主标、I2 暗夜北塔西窗 1:1 应用图标（及 Windows `.ico` / Android `ic_launcher_512.png` / Web `favicon` 派生集）、「局外人（OUTSIDER）」T2 六边暖灯团队标（暗底/紧凑角标）及 16:9 宣传封面，均为团队设计定稿并由 AI 辅助生成后经程序透明抠底与人工质检产出，无第三方版权限制。
 
 ### 3. 音频资源（`assets/audio/`，共 196 份 48 kHz 立体声离线资产：24 份 OGG Vorbis + 172 份 WAV）

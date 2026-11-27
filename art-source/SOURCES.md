@@ -153,3 +153,17 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
 - `actors_extra.png`（1024 × 288）+ `actors_extra.clip`：三类精英倭寇正反态（藤盾手 `enemy_shield_*`、破障斧手 `enemy_breaker_*`、朱缨头领 `enemy_leader_*`）、北塔值夜守卒（`tower_guard_lantern` / `tower_guard_write`）以及周戍与小满合体精灵（牵手 `duo_hand_walk`、背负待机/奔跑/持铳射 `duo_carry_idle` / `run` / `fire`）。
 - `vfx_craft_art.png`（1024 × 480）+ `vfx_craft_art.clip`：黑火药枪口爆焰 `vfx_muzzle_blast`、火药硝烟 `vfx_smoke_plume`、木石碎屑爆裂 `vfx_debris_burst`、安全工台改制鸟铳插画（`craft_lantern_gun` / `craft_echo_gun`）及换弹连线小满指路手 `reload_child_finger`。
 - 四幅 640 × 360 专属战役场景底图：`bg_crossroad_drygoods.png`（十字街与布行）、`bg_archway_yard.png`（石牌楼与候检院）、`bg_granary.png`（军粮棚）、`bg_escort_ridge.png`（城外护送山道与远方北塔）。
+## 明月绘卷 · 像素幻灯片与扩展像素图集（`feature/pixel-slideshow-overhaul`）
+
+为全面消除过场动画、伪 3D 低模几何块及实机叠层中的生硬矢量几何绘图，本分支使用 AI 图像生成辅助绘制 32-bit 明代像素分镜底稿，并经离线脚本像素化重采样（`BOX` 锐利降采样 + 96 色限色调色板 + 品红抠底去溢色 + 手工像素粒子/纹章绘制 + Dora `.clip` 图集打包），全部以 `TextureFilter.Point` 渲染：
+
+- **像素幻灯片分镜（`assets/art/slides/`，共 41 张 PNG，合计约 2.5 MB）**：
+  - 共同序章（P01–P02）：`p01_01_curtain.png`、`p01_02_hand.png`、`p01_03_door.png`、`p02_01_shadows.png`、`p02_02_cut.png`、`p02_03_bowl_roll.png`、`p02_04_bowl_stop.png`、`p02_05_cabinet.png`（480 × 270）
+  - 青布补线袖口三联特写（P03 / P05 / G05）：`cuff_p03_01..04.png`、`cuff_p05_01..04.png`、`cuff_g05_01..04.png`（480 × 270）
+  - 城门 24 秒转场四阶段背景（G01–G03）：`gate_stage_01..04.png`（320 × 180）
+  - 北塔双结局与实景值夜室（F03 / M03）：`tower_porch_{f03,m03}_{closed,open}.png`、`tower_room_{f03_cold,f03_lit,m03_warm}.png`、`tower_interior_live.png`（480 × 270）
+  - 双通关古井匹配剪辑与现代纪念展厅（E01 / E02）：`e01_01_well.png`、`e01_02_compass.png`、`e01_03_vitrine.png`、`e02_window_dawn.png`、`e02_return_cabinet.png`（480 × 270）及 `e02_museum_hall.png`（640 × 360 展厅全景）
+  - 实机叙事小特写：`f01_sewing_memory.png`（F01 缝布回忆）、`m02_handover_lantern.png` / `m02_handover_echo.png`（M02 试握递铳，480 × 270）
+- **扩展像素精灵图集（`assets/art/sprites_fe.png` + `assets/art/sprites_fe.clip`，1024 × 256，62 帧，零修改原 `sprites.clip` 58 帧与 `ui_ink.clip` 15 帧）**：
+  - 角色与过场部件：背负合体（`carry_idle`、`carry_walk_a/b`、`carry_reload`）、单膝蹲背（`soldier_kneel_mount`）、门后听声（`child_listen_door`）、牵手伸臂（`soldier_hand_hold`）、北塔提灯守卒（`tower_guard_lantern`）、执笔手（`tower_brush_hand`）、换弹手势（`reload_hand_tap/trace`）、桌上袖口/热汤碗/针套指南针/提灯特写
+  - 场景道具与像素特效/地皮/前景：铁盆平放与倾斜、古井石栏、城外砖拱、稻草试射靶、明式木工案、木瓶架、木制残盾、引路灯铳与回声铳、灯柱木架、木纹筹/铃纹筹、藤盾、密林树根拱、暗渠石栅、3 帧风吹红布、枪口焰、命中火星、火药烟尘、热气、溪水倒影、3 枚换弹像素印章、砖地/软土/木柱/木梁/青石板地砖及桌下木沿/桌腿/垂松枝前景剪影。

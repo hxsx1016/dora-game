@@ -54,22 +54,6 @@ interface SlashTracer {
     maxLife: number;
 }
 
-interface MuzzlePlume {
-    x: number;
-    y: number;
-    dir: number;
-    life: number;
-    maxLife: number;
-}
-
-interface ImpactBurst {
-    x: number;
-    y: number;
-    hit: boolean;
-    life: number;
-    maxLife: number;
-}
-
 interface AmbientMote {
     fx: number; // 0..1 屏幕归一化位置
     fy: number;
@@ -85,8 +69,6 @@ export class VfxSystem {
     private sparks: Spark[] = [];
     private rings: SonicRing[] = [];
     private tracers: SlashTracer[] = [];
-    private plumes: MuzzlePlume[] = [];
-    private bursts: ImpactBurst[] = [];
     private motes: AmbientMote[] = [];
 
     /** 视觉受击红边脉冲（0..1） */
@@ -129,8 +111,6 @@ export class VfxSystem {
         this.sparks = [];
         this.rings = [];
         this.tracers = [];
-        this.plumes = [];
-        this.bursts = [];
         this.hitVignette = 0;
         this.deflectFlash = 0;
         this.visualHitstop = 0;
@@ -222,14 +202,6 @@ export class VfxSystem {
             x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1,
             hit: t.hit, life: 0.16, maxLife: 0.16,
         });
-        this.plumes.push({
-            x: t.x0, y: t.y0, dir: t.x1 >= t.x0 ? 1 : -1,
-            life: 0.44, maxLife: 0.44,
-        });
-        this.bursts.push({
-            x: t.x1, y: t.y1, hit: t.hit,
-            life: 0.28, maxLife: 0.28,
-        });
         // 枪口火药火星 + 落点碎屑/暗朱溅星
         this.spawnBurst(t.x0, t.y0, 5, PALETTE.amberCore, 105);
         this.spawnBurst(t.x1, t.y1, t.hit ? 9 : 6, t.hit ? PALETTE.sealRedBright : PALETTE.amberDim, 130);
@@ -273,32 +245,6 @@ export class VfxSystem {
             }
         }
         this.tracers.length = w;
-
-        // 鸟铳黑火药硝烟团
-        w = 0;
-        for (i = 0; i < this.plumes.length; i++) {
-            const pl = this.plumes[i];
-            pl.life -= dt;
-            if (pl.life > 0) {
-                pl.x += pl.dir * 24 * dt * (pl.life / pl.maxLife);
-                pl.y += 18 * dt;
-                this.plumes[w] = pl;
-                w += 1;
-            }
-        }
-        this.plumes.length = w;
-
-        // 弹着点碎屑爆裂
-        w = 0;
-        for (i = 0; i < this.bursts.length; i++) {
-            const bu = this.bursts[i];
-            bu.life -= dt;
-            if (bu.life > 0) {
-                this.bursts[w] = bu;
-                w += 1;
-            }
-        }
-        this.bursts.length = w;
 
         // 粒子
         w = 0;
@@ -373,83 +319,38 @@ export class VfxSystem {
             fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 3.2 * k, toColor(outerCol, 88 * k));
             fgGlow.drawSegment(Vec2(x0, y0), Vec2(x1, y1), 1.3 * k, toColor(PALETTE.amberCore, 195 * k));
 
-            // 枪口明式鸟铳火药爆焰（手绘 vfx_muzzle_blast 沿弹道方向旋转，替代旧十字线段）
-            if (k > 0.45) {
-                const mk = (k - 0.45) / 0.55;
-                const shotAngle = -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
-                const blastH = Math.max(18, cam.len(22 * (0.78 + 0.32 * mk)));
-                fillRadialGlow(fgGlow, x0, y0, 20 * mk, 16 * mk, toColor(PALETTE.amberCore, 128 * mk), Color(186, 126, 62, 0), 12);
-                if (!assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_muzzle_blast", "vfx_muzzle_" + i, x0, y0, blastH * 1.7, blastH, {
-                    anchorX: 0.14,
-                    anchorY: 0.42,
-                    preserveAspect: true,
-                    angle: shotAngle,
-                    opacity: Math.min(1, mk * 1.15),
-                    smooth: true,
+            // 枪口像素火药暖焰（3 帧像素火焰精灵，告别十字矢量线条）
+            if (k > 0.55) {
+                const mk = (k - 0.55) / 0.45;
+                fillRadialGlow(fgGlow, x0, y0, 18 * mk, 14 * mk, toColor(PALETTE.amberCore, 128 * mk), Color(186, 126, 62, 0), 12);
+                const mSz = Math.max(14, cam.len(20 + (1 - mk) * 8));
+                assets.tryPlace("fe_vfx_muzzle", "vfx_muzzle_" + i, x0, y0, mSz, mSz * 0.78, {
+                    frame: Math.min(2, Math.floor((1 - mk) * 3)),
+                    facing: x1 >= x0 ? 1 : -1,
+                    opacity: mk,
                     layer: 9,
-                })) {
-                    fgGlow.drawSegment(Vec2(x0 - 10 * mk, y0), Vec2(x0 + 10 * mk, y0), 1.2, toColor(PALETTE.amberCore, 165 * mk));
-                    fgGlow.drawSegment(Vec2(x0, y0 - 7 * mk), Vec2(x0, y0 + 7 * mk), 1.0, toColor(PALETTE.amber, 145 * mk));
-                }
+                });
             }
-            // 命中暗朱星芒与火药微闪
+            // 命中像素火星迸射（3 帧像素溅花精灵，告别交叉 X 线段）
             if (tr.hit) {
                 const s = 16 * (1.15 - k * 0.45);
-                fillRadialGlow(fgGlow, x1, y1, s * 1.15, s * 0.9, toColor(PALETTE.sealRedBright, 130 * k), Color(168, 46, 44, 0), 12);
-                fgGlow.drawSegment(Vec2(x1 - s, y1 - s * 0.55), Vec2(x1 + s, y1 + s * 0.55), 1.6 * k, toColor(PALETTE.crimsonCore, 185 * k));
-                fgGlow.drawSegment(Vec2(x1 - s * 0.45, y1 + s * 0.7), Vec2(x1 + s * 0.45, y1 - s * 0.7), 1.2 * k, toColor(PALETTE.sealRedBright, 160 * k));
+                fillRadialGlow(fgGlow, x1, y1, s * 1.1, s * 0.85, toColor(PALETTE.sealRedBright, 118 * k), Color(168, 46, 44, 0), 12);
+                const hSz = Math.max(14, cam.len(22 + (1 - k) * 10));
+                assets.tryPlace("fe_vfx_hit_spark", "vfx_hit_" + i, x1, y1, hSz, hSz, {
+                    frame: Math.min(2, Math.floor((1 - k) * 3)),
+                    opacity: k,
+                    layer: 9,
+                });
             }
-        }
-
-        // 1b. 黑火药手绘硝烟团（随枪口散逸抬升）
-        for (i = 0; i < this.plumes.length; i++) {
-            const pl = this.plumes[i];
-            const k = pl.life / pl.maxLife;
-            const grow = 1 - k;
-            const size = cam.len(18 + grow * 28);
-            assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_smoke_plume", "vfx_smoke_" + i, cam.sx(pl.x), cam.sy(pl.y), size, size, {
-                anchorX: 0.5,
-                anchorY: 0.5,
-                preserveAspect: true,
-                facing: pl.dir,
-                opacity: k * 0.68,
-                smooth: true,
-                layer: 8,
-            });
-        }
-
-        // 1c. 弹着点手绘木石碎屑爆裂
-        for (i = 0; i < this.bursts.length; i++) {
-            const bu = this.bursts[i];
-            const k = bu.life / bu.maxLife;
-            const size = cam.len(16 + (1 - k) * 20);
-            assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_debris_burst", "vfx_impact_" + i, cam.sx(bu.x), cam.sy(bu.y), size, size, {
-                anchorX: 0.5,
-                anchorY: 0.5,
-                preserveAspect: true,
-                color: bu.hit ? Color(246, 174, 152, 255) : Color(235, 224, 206, 255),
-                opacity: k * 0.88,
-                smooth: true,
-                layer: 9,
-            });
         }
 
         if (this.deflectFlash > 0) {
             const k = this.deflectFlash;
             const dy = cam.sy(this.deflectY + (1 - k) * 11);
-            const height = cam.len(22 + (1 - k) * 16);
-            if (!assets.tryPlacePath("assets/art/vfx_craft_art.clip|vfx_debris_burst", "blocked", cam.sx(this.deflectX), dy, height, height, {
-                anchorX: 0.5,
-                anchorY: 0.5,
-                preserveAspect: true,
-                opacity: k * 0.92,
-                smooth: true,
-                layer: 8,
-            })) {
-                assets.tryPlace("stone_chips", "blocked", cam.sx(this.deflectX), dy, height, height, {
-                    opacity: k, layer: 8,
-                });
-            }
+            const height = cam.len(18 + (1 - k) * 12);
+            assets.tryPlace("stone_chips", "blocked", cam.sx(this.deflectX), dy, height, height, {
+                opacity: k, layer: 8,
+            });
         }
 
         // 3. 纤细枯笔墨韵扩散声波环

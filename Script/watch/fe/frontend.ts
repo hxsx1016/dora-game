@@ -20,7 +20,7 @@ import { SoundscapeDirector } from "Script/watch/fe/bgm";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteContract } from "Script/watch/fe/contract";
 import { DepthOcclusion } from "Script/watch/fe/occlusion";
-import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { FePluginContext, FeRenderPlugin, PartyPose } from "Script/watch/fe/plugins";
 import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
@@ -615,21 +615,15 @@ export class WatchFrontend {
         }
 
         // 4. 关节剪影角色与插件角色叠层（博物馆态由 WellMuseumPlugin 全权绘制，防止暂停垂纱下透出明初序章精灵；背负态收净原生同伴孤儿脚影）
-        const suppressAllActors = view.visualMode === "museum";
-        const partnerFarInHand = view.backCarry.handInHand
-            && (!p.partner.alive
-                || Math.abs(p.partner.x - p.player.x) > 56
-                || Math.abs(p.partner.y - p.player.y) > 24);
-        const suppressPartner = view.visualMode === "pixel"
-            && !p.childMode
-            && p.player.alive
-            && (view.backCarry.active
-                || view.backCarry.mounting
-                || view.backCarry.atBench
-                || view.craftBench.active
-                || partnerFarInHand);
-        if (!suppressAllActors) {
-            this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, suppressPartner);
+        if (view.visualMode !== "museum") {
+            let pose: PartyPose | undefined;
+            for (const pl of this.plugins) {
+                if (pl.drawPartyPose !== undefined) {
+                    pose = pl.drawPartyPose(this.fgDraw, this.fgGlow, this.worldArt, ctx);
+                    if (pose !== undefined) break;
+                }
+            }
+            this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, pose);
         }
         for (i = 0; i < this.plugins.length; i++) {
             const pl = this.plugins[i];

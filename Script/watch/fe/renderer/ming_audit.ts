@@ -410,26 +410,26 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: AssetSlotHost,
+        worldArt: AssetSlotHost,
         ctx: FePluginContext,
     ): void {
         const p = ctx.p;
         const cam = ctx.cam;
         const isPixelStyle = ctx.view.visualMode === "pixel" || ctx.view.visualMode === "transition";
 
-        // 1. 村口硬砖拼缝亮边 vs 软土散点浅足印（像素线灰度清晰区分；不覆盖 fe-04 低模舞台）
+        // 1. 村口硬砖拼缝亮边 vs 软土散点浅足印（像素地皮补丁；不覆盖 fe-04 舞台）
         if (isPixelStyle && p.room.key === "village") {
-            this.drawVillageGrayscaleSurfaces(fgDraw, p, cam);
+            this.drawVillageGrayscaleSurfaces(fgDraw, worldArt, p, cam);
         }
 
-        // 2. 森林草丛后犬耳与小满肩线冷月轮廓分离（非光柱、灰度可读；不覆盖 fe-04 低模舞台）
+        // 2. 森林草丛后小满肩线冷月轮廓分离（非光柱、灰度可读；不覆盖 fe-04 舞台）
         if (isPixelStyle && p.room.key === "forest") {
             this.drawForestSilhouetteSeparation(fgDraw, p, cam);
         }
 
         // 3. 城门内外板车：左端旧红布飘带一致性补强（绝不随角色转向翻面）
         if (isPixelStyle && (p.room.key === "checkpoint" || p.room.key === "outside") && p.room.cart.bodyW > 0) {
-            this.drawLeftEndRedClothAccent(fgDraw, p, cam);
+            this.drawLeftEndRedClothAccent(worldArt, p, cam);
         }
 
         // 4. 鸟铳地面焦痕（仅在当房存在，切房/重试清空）
@@ -448,25 +448,30 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
             const sw = Math.max(2, cam.len(c.w));
             const sh = Math.max(1.5, cam.len(c.h));
             if (c.isWood) {
-                // 木屑：细长焦褐/浅木条块，灰度偏暖暗带亮棱
                 fgDraw.drawRect(Rect(sx - sw * 0.5, sy - sh * 0.5, sw, sh), Color(128, 86, 54, Math.round(235 * k)));
                 fgDraw.drawSegment(Vec2(sx - sw * 0.5, sy + sh * 0.5), Vec2(sx + sw * 0.5, sy + sh * 0.5), 0.9, Color(196, 162, 118, Math.round(180 * k)));
             } else {
-                // 砖灰：冷灰粉尘微团 + 碎石棱点
                 fgDraw.drawCircle(Vec2(sx, sy), sw * 0.65, Color(164, 168, 172, Math.round(175 * k)));
                 fgDraw.drawDot(Vec2(sx + 1, sy + 1), Math.max(1.2, sw * 0.32), Color(218, 220, 224, Math.round(210 * k)));
             }
         }
 
-        // 6. 明代鸟铳短促灰白火药烟（非科幻离子光束）
+        // 6. 明代鸟铳短促像素灰白火药烟（4 帧像素烟团，替代圆球色块）
         for (i = 0; i < this.puffs.length; i++) {
             const pf = this.puffs[i];
             const k = pf.life / pf.maxLife;
             const sx = cam.sx(pf.x);
             const sy = cam.sy(pf.y);
-            const r = Math.max(2, cam.len(pf.r));
-            fgDraw.drawCircle(Vec2(sx, sy), r, Color(196, 198, 200, Math.round(92 * k)));
-            fgGlow.drawCircle(Vec2(sx, sy), r * 0.62, Color(224, 222, 214, Math.round(48 * k)));
+            const sz = Math.max(8, cam.len(pf.r * 3.4));
+            if (!worldArt.tryPlace("fe_vfx_smoke", "ming_puff_" + i, sx, sy, sz, sz, {
+                frame: Math.min(3, Math.floor((1 - k) * 4)),
+                opacity: 0.72 * k,
+                layer: 8,
+            })) {
+                const r = Math.max(2, cam.len(pf.r));
+                fgDraw.drawCircle(Vec2(sx, sy), r, Color(196, 198, 200, Math.round(92 * k)));
+                fgGlow.drawCircle(Vec2(sx, sy), r * 0.62, Color(224, 222, 214, Math.round(48 * k)));
+            }
         }
     }
 
@@ -543,119 +548,59 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
         }
     }
 
-    private drawVillageGrayscaleSurfaces(fgDraw: DrawNode.Type, p: Play, cam: FePluginContext["cam"]): void {
+    private drawVillageGrayscaleSurfaces(
+        fgDraw: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        p: Play,
+        cam: FePluginContext["cam"],
+    ): void {
         const y0 = cam.sy(0);
 
-        // 硬砖落点：清晰砖缝 + 亮边高光（灰度下与软土形成高对比结构差异）
         if (p.room.brickX !== undefined) {
-            const bx0 = cam.sx(p.room.brickX - 18);
-            const bx1 = cam.sx(p.room.brickX + 18);
-            const bw = bx1 - bx0;
-            const bh = Math.max(7, cam.len(4.5));
-            fgDraw.drawRect(Rect(bx0, y0 - bh * 0.4, bw, bh), Color(142, 146, 150, 235), 1.0, Color(216, 220, 224, 220));
-            // 两排错缝砖线
-            fgDraw.drawSegment(Vec2(bx0 + 1, y0 + bh * 0.1), Vec2(bx1 - 1, y0 + bh * 0.1), 1.0, Color(42, 44, 48, 225));
-            let k = 1;
-            for (k = 1; k <= 3; k++) {
-                const jx = bx0 + (bw * k) / 4;
-                fgDraw.drawSegment(Vec2(jx, y0 - bh * 0.4), Vec2(jx, y0 + bh * 0.1), 1.0, Color(42, 44, 48, 225));
+            const bx = cam.sx(p.room.brickX);
+            if (!worldArt.tryPlace("fe_ground_brick", "ming_vil_brick", bx, y0 - cam.len(4), cam.len(44), cam.len(14), { layer: 2 })) {
+                fgDraw.drawRect(Rect(bx - cam.len(18), y0 - 4, cam.len(36), 8), Color(142, 146, 150, 235));
             }
-            for (k = 1; k <= 2; k++) {
-                const jx = bx0 + (bw * (k + 0.35)) / 3;
-                fgDraw.drawSegment(Vec2(jx, y0 + bh * 0.1), Vec2(jx, y0 + bh * 0.6), 1.0, Color(42, 44, 48, 225));
-            }
-            // 砖面顶沿亮边
-            fgDraw.drawSegment(Vec2(bx0, y0 + bh * 0.6), Vec2(bx1, y0 + bh * 0.6), 1.6, Color(232, 234, 236, 230));
+            fgDraw.drawSegment(Vec2(bx - cam.len(20), y0 + 2), Vec2(bx + cam.len(20), y0 + 2), 1.3, Color(228, 232, 238, 170));
         }
 
-        // 软土落点：无硬边框、深暗散点土粒 + 浅足印凹纹（灰度一眼区别于硬砖）
         if (p.room.softX !== undefined) {
-            const sx0 = cam.sx(p.room.softX - 18);
-            const sx1 = cam.sx(p.room.softX + 18);
-            const sw = sx1 - sx0;
-            fgDraw.drawRect(Rect(sx0, y0 - 3, sw, 6), Color(54, 44, 36, 225));
-            // 散点土粒
-            const dotOffsets = [0.10, 0.24, 0.37, 0.51, 0.68, 0.81, 0.92];
-            let d = 0;
-            for (d = 0; d < dotOffsets.length; d++) {
-                const dx = sx0 + sw * dotOffsets[d];
-                const dy = y0 + ((d & 1) === 0 ? 1.5 : -1.2);
-                fgDraw.drawDot(Vec2(dx, dy), 1.5, Color(96, 82, 68, 215));
-            }
-            // 三个浅足印凹痕
-            let fp = 0;
-            for (fp = 0; fp < 3; fp++) {
-                const fx = sx0 + sw * (0.22 + fp * 0.28);
-                fgDraw.drawEllipse(Vec2(fx, y0 + 1.2), Math.max(3, cam.len(2.4)), 1.6, Color(34, 28, 24, 210));
+            const sx = cam.sx(p.room.softX);
+            if (!worldArt.tryPlace("fe_ground_soft", "ming_vil_soft", sx, y0 - cam.len(4), cam.len(44), cam.len(14), { layer: 2 })) {
+                fgDraw.drawRect(Rect(sx - cam.len(18), y0 - 3, cam.len(36), 6), Color(54, 44, 36, 225));
             }
         }
     }
 
     private drawForestSilhouetteSeparation(fgDraw: DrawNode.Type, p: Play, cam: FePluginContext["cam"]): void {
-        // 检查小满是否在草丛后：给肩线与双髻顶沿补极细冷月背光边
+        // 仅在草丛遮挡下补克制冷月微弧，不给猎犬贴生硬几何折线耳
         let childInGrass = false;
-        let dogInGrass = false;
         let i = 0;
         for (i = 0; i < p.room.solids.length; i++) {
             const s = p.room.solids[i];
-            if (s.passable !== true) {
-                continue;
-            }
-            if (p.player.x >= s.x - 16 && p.player.x <= s.x + s.w + 16) {
+            if (s.passable === true && p.player.x >= s.x - 16 && p.player.x <= s.x + s.w + 16) {
                 childInGrass = true;
             }
-            if (p.dogX >= s.x - 24 && p.dogX <= s.x + s.w + 24) {
-                dogInGrass = true;
-            }
         }
-
         if (childInGrass && p.player.alive) {
             const cx = cam.sx(p.player.x);
             const topY = cam.sy(p.player.y + p.player.h);
-            const halfW = cam.len(11);
-            // 克制冷月肩背细轮廓线，不画发光光环
-            fgDraw.drawArc(Vec2(cx, topY - cam.len(7)), halfW, 25, 155, 1.5, Color(214, 224, 230, 175));
-        }
-
-        if (p.room.story !== undefined && p.room.story.dog !== undefined) {
-            const alert = p.dogState === "ear" || p.dogState === "chase";
-            if (dogInGrass || alert) {
-                const f = p.dogState === "chase" ? (p.player.x >= p.dogX ? 1 : -1) : p.dogDir;
-                const dx = cam.sx(p.dogX + f * 12);
-                const dy = cam.sy(24);
-                const earH = cam.len(alert ? 7.5 : 5.0);
-                const earCol = alert ? Color(238, 232, 222, 225) : Color(196, 206, 212, 175);
-                // 清晰可读的竖起犬耳三角轮廓（静音与灰度下可一眼识别警觉）
-                fgDraw.drawSegment(Vec2(dx - f * 3, dy), Vec2(dx - f * 1, dy + earH), 1.6, earCol);
-                fgDraw.drawSegment(Vec2(dx - f * 1, dy + earH), Vec2(dx + f * 3, dy + 1), 1.5, earCol);
-            }
+            fgDraw.drawArc(Vec2(cx, topY - cam.len(7)), cam.len(11), 25, 155, 1.4, Color(214, 224, 230, 165));
         }
     }
 
-    private drawLeftEndRedClothAccent(fgDraw: DrawNode.Type, p: Play, cam: FePluginContext["cam"]): void {
+    private drawLeftEndRedClothAccent(worldArt: AssetSlotHost, p: Play, cam: FePluginContext["cam"]): void {
         const c = p.room.cart;
         const depth = c.depth ?? 0;
         // 红布恒定在车身左端（clothSide < 0），绝不随角色转向翻面
-        const leftEdgeWorldX = p.cartAxle - c.bodyW * 0.56;
+        const leftEdgeWorldX = p.cartAxle - c.bodyW * 0.54;
         const anchorX = cam.sx(leftEdgeWorldX);
-        const anchorY = cam.sy(c.baseY + c.wheelR + c.bodyH * 0.85, depth);
-        const sway = Math.sin(this.animTime * 3.1) * cam.len(3.5);
-        const len = cam.len(13);
-        const drop = cam.len(15);
-
-        fgDraw.drawPolygon([
-            Vec2(anchorX, anchorY),
-            Vec2(anchorX - len * 0.45, anchorY - drop * 0.42),
-            Vec2(anchorX - len + sway, anchorY - drop),
-            Vec2(anchorX - len * 0.55 + sway * 0.6, anchorY - drop * 0.86),
-            Vec2(anchorX + cam.len(2), anchorY - drop * 0.25),
-        ], toColor(PALETTE.clothRed, 220));
-        fgDraw.drawSegment(
-            Vec2(anchorX, anchorY),
-            Vec2(anchorX - len + sway, anchorY - drop),
-            1.2,
-            toColor(PALETTE.clothRedHighlight, 200),
-        );
+        const anchorY = cam.sy(c.baseY + c.wheelR + c.bodyH * 0.86, depth);
+        const frame = Math.floor(this.animTime * 4.4) % 3;
+        worldArt.tryPlace("fe_red_cloth", "ming_cart_red_cloth", anchorX, anchorY, cam.len(22), cam.len(22), {
+            frame,
+            layer: 6,
+        });
     }
 
     /** 执行全量明朝美术红线静态 + 运行态体检，供 verify-fe03 自动化断言 */
