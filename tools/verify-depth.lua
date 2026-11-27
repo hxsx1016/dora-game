@@ -231,7 +231,7 @@ do
     frontend.screen = "play"
     for _ = 1, 14 do frontend:renderPlay(1 / 60, play, input, 1280, 720) end
     local stone = frontend.worldArt.visibleLastFrame["depth_solid_110_-44:assets/art/sprites.clip|wall"]
-    local actor = frontend.worldArt.visibleLastFrame["actor_soldier:assets/art/sprites.clip|soldier_idle"]
+    local actor = frontend.worldArt.visibleLastFrame["actor_soldier:assets/art/actors-hd.clip|soldier_idle"]
     check("actual stone sprite is sorted, darkened and faded",
         stone and actor and stone.order > actor.order and near(stone.opacity, obscuredOpacity) and stone.color.r < 150)
     play.player.x = 95
@@ -244,7 +244,7 @@ do
     local nearPost = frontend.worldArt.visibleLastFrame["depth_solid_648_-44:assets/art/sprites.clip|wall"]
     local farPost = frontend.worldArt.visibleLastFrame["depth_solid_648_20:assets/art/sprites.clip|wall"]
     local sill = frontend.worldArt.visibleLastFrame["gate_sill_648:assets/art/sprites.clip|slab"]
-    actor = frontend.worldArt.visibleLastFrame["actor_soldier:assets/art/sprites.clip|soldier_idle"]
+    actor = frontend.worldArt.visibleLastFrame["actor_soldier:assets/art/actors-hd.clip|soldier_idle"]
     check("door passage draws the actor between the posts",
         nearPost and farPost and actor and sill and nearPost.order > actor.order and actor.order > farPost.order and
         near(nearPost.opacity, obscuredOpacity) and near(farPost.opacity, 1))

@@ -31,6 +31,7 @@ fi
 
 for asset in \
     art/sprites.clip art/title.png \
+    art/actors-hd.clip art/actors-hd.png art/zhoushu-run.png art/xiaoman-run.png \
     font/lxgw-neo-zhisong.ttf font/longcang-brush.ttf \
     audio/gate/count_20.wav audio/combat/carry_start.wav audio/child/bottle_brick.wav \
     audio/tower/book_open.wav audio/museum/hall_ambience_loop.wav; do

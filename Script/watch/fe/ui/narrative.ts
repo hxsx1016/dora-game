@@ -187,7 +187,7 @@ export class NarrativeRenderer {
                     return { cue: "", text: "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent: false };
                 }
             }
-            if (p.flash !== "" && p.flashT > 0) {
+            if (p.flash !== "" && p.flashT > 0 && p.flash !== "翻滚结束") {
                 // 过滤后端 flash 里含显式按键指令的引导句（如「按 E」「按 F」「按 Shift」），仅留即时结果反馈
                 const hasKeyHint = p.flash.indexOf("按 E") >= 0
                     || p.flash.indexOf("按 F") >= 0
@@ -206,7 +206,7 @@ export class NarrativeRenderer {
                     } else if (text === "打空") {
                         text = "铅丸偏离或被掩体阻挡";
                     } else if (text === "翻滚") {
-                        text = "伏身翻滚回避";
+                        text = "伏身滑铲";
                     }
                     return { cue, text, urgent: isDanger };
                 }
@@ -249,7 +249,7 @@ export class NarrativeRenderer {
             return { cue: "", text: "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent: false };
         }
 
-        if (p.flash !== "" && p.flashT > 0) {
+        if (p.flash !== "" && p.flashT > 0 && p.flash !== "翻滚结束") {
             const isDanger = p.flash.indexOf("中弹") >= 0 || p.flash.indexOf("被抓") >= 0 || p.flash.indexOf("击倒") >= 0 || p.flash.indexOf("看见") >= 0 || p.flash.indexOf("追") >= 0;
             let text = p.flash;
             let cue = isDanger ? "危" : (p.childMode ? "潜" : "战");
@@ -261,7 +261,7 @@ export class NarrativeRenderer {
             } else if (text === "打空") {
                 text = "铅丸偏离或被掩体阻挡";
             } else if (text === "翻滚") {
-                text = "伏身翻滚回避";
+                text = "伏身滑铲";
             }
             return { cue, text, urgent: isDanger };
         }

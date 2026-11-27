@@ -1223,7 +1223,7 @@ function MenuRenderer.prototype.drawControls(self, frame, uiDraw, uiInkDraw, uiA
 		{"WASD / 方向键", "左右、前后自由移动"}, -- 613
 		{"鼠标 + 左键", "瞄准与发射火铳"}, -- 614
 		{"按住 SHIFT", "贴靠柜台 / 街垒挡下铅丸"}, -- 615
-		{"SPACE", "平地翻滚 / 靠近矮柜翻越"}, -- 616
+		{"SPACE", "平地滑铲 / 靠近矮柜翻越"}, -- 616
 		{"E", "递物 / 轻敲安抚 / 按住+D 推车"}, -- 617
 		{"ESC / R", "暂歇菜单 / 重试检查点"} -- 618
 	} -- 618

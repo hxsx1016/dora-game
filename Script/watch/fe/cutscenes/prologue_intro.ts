@@ -1159,9 +1159,8 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             uiDraw.drawRect(Rect(cabX, groundY, 74, 108), Color(42, 31, 24, 240), 1.2, Color(118, 92, 68, 195));
             uiInkDraw.drawSegment(Vec2(cabX + 8 + wobble * 0.5, groundY + 6), Vec2(cabX + 8 + wobble * 0.5, groundY + 100), 2.2, Color(176, 144, 106, 210));
             // 小满奔跑剪影（复用小满像素帧，缺失则绘轮廓）
-            if (!ctx.uiArt.tryPlace("child_run", "p02_escape_child", childX, groundY, 46, 74, {
+            if (!ctx.uiArt.tryPlaceRun("child", "p02_escape_child", childX, groundY, 46, 74, this.stageElapsed * 1.8, {
                 facing: 1,
-                frame: Math.floor(this.stageElapsed * 10),
                 layer: 3,
             })) {
                 uiDraw.drawRect(Rect(childX - 12, groundY, 24, 54), Color(168, 72, 54, 235));

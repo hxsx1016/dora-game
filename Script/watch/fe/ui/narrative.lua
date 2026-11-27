@@ -276,7 +276,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 				return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 187
 			end -- 187
 		end -- 187
-		if p.flash ~= "" and p.flashT > 0 then -- 187
+		if p.flash ~= "" and p.flashT > 0 and p.flash ~= "翻滚结束" then -- 187
 			local hasKeyHint = (string.find(p.flash, "按 E", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "按 F", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "按 Shift", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "按 Ctrl", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "E 再玩", nil, true) or 0) - 1 >= 0 -- 192
 			if not hasKeyHint then -- 192
 				local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 198
@@ -290,7 +290,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 				elseif text == "打空" then -- 205
 					text = "铅丸偏离或被掩体阻挡" -- 207
 				elseif text == "翻滚" then -- 207
-					text = "伏身翻滚回避" -- 209
+					text = "伏身滑铲" -- 209
 				end -- 209
 				return {cue = cue, text = text, urgent = isDanger} -- 211
 			end -- 211
@@ -330,7 +330,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 		end -- 243
 		return {cue = "", text = "铁门合拢了。她在门外安静地数着数，等里面的人出来……", urgent = false} -- 249
 	end -- 249
-	if p.flash ~= "" and p.flashT > 0 then -- 249
+	if p.flash ~= "" and p.flashT > 0 and p.flash ~= "翻滚结束" then -- 249
 		local isDanger = (string.find(p.flash, "中弹", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "被抓", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "击倒", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "看见", nil, true) or 0) - 1 >= 0 or (string.find(p.flash, "追", nil, true) or 0) - 1 >= 0 -- 253
 		local text = p.flash -- 254
 		local cue = isDanger and "危" or (p.childMode and "潜" or "战") -- 255
@@ -342,7 +342,7 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 		elseif text == "打空" then -- 260
 			text = "铅丸偏离或被掩体阻挡" -- 262
 		elseif text == "翻滚" then -- 262
-			text = "伏身翻滚回避" -- 264
+			text = "伏身滑铲" -- 264
 		end -- 264
 		return {cue = cue, text = text, urgent = isDanger} -- 266
 	end -- 266

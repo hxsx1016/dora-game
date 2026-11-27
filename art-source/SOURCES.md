@@ -11,6 +11,20 @@
 
 本分支新增的场景和像素素材使用 Codex 内置 ImageGen 生成，按游戏规格裁切、校正脚底位置、整理帧并打包。补充动作以本工程生成的基础角色图作为参照。游戏运行时随包读取本地图像。Dora SSR 许可随官方发行包提供。
 
+## 高清人物与滑铲动作
+
+[周戍原画](characters/zhoushu.png)、[小满原画](characters/xiaoman.png)和[补充姿势](characters/extra-poses.png)来自本作原有明朝角色稿。站姿等常用姿势从原画重新导出，周戍由 66 提升至 198 像素高，小满由 48 提升至 144 像素高。跑步使用同一原画的上身、手臂、裤腿、裹腿和布鞋分层，按脚步循环逐帧合成，每人 160 张。引擎按位移取帧并复用一个精灵节点。
+
+[周戍滑铲原画](characters/zhoushu-slide.png)由 Codex 内置 ImageGen 参考原角色稿生成。四个动作点按原地面冲刺计时播放。使用已安装 Pillow 的 Python 运行 [build.py](characters/build.py)，可从这些源稿重新生成 `assets/art/actors-hd.png`、`actors-hd.clip` 及两张跑步图集。
+
+```text
+Use case: stylized-concept.
+Asset type: one production-quality transparent 2×2 key-pose sprite sheet for the original Chinese side-scroller 向西守望.
+Input image: visual identity and pixel-art reference for Zhou Shu, the same adult Ming-era guard in all twelve small cels. Preserve his matte iron helmet, small dark red plume, teal short quilted coat, old cloth wraps, brown belt, dark trousers, rough cloth boots, cheek and hair shape. Make four NEW poses of him, at finer pixel resolution with crisp clusters, quiet layered shading, small readable sleeve stitches and boot wraps. Use the same proportions and identity.
+All poses in strict flat right-facing side profile with orthographic game camera. These are four consecutive stages of one quick feet-first ground slide with a planted extended lead heel, not rolling, diving, bounding or skating. Top left: low braking entry, torso lowering back, one foot reaching right, the other knee starting to fold under the hip, arm opening for balance. Top right: full low slide, lead heel skimming along the ground to the right, rear leg folded below the hips, body leaning back with rear hand bracing close to ground, equipment follows torso. Bottom left: a continuation of the full slide, far knee pulls closer and the extended boot is beginning to tuck, torso slightly farther upright. Bottom right: one-foot planted low recovery squat, lead sole tucked nearly beneath the body, torso pitching forward only to rise. Clearly separate legs and boots, full readable silhouette and entirely visible helmet plume, grounded waist and lead foot.
+Precisely equal 2×2 cells, each pose centered with equal body scale and common foot-ground line within its cell and substantial transparent margins. Dark slate teal, subdued browns, pale canvas and warm skin, good contrast over a dark scene. Keep true transparent RGBA empty space. No floors, dust, cast shadows, extras, text, letters, grid borders, badges, or watermarks.
+```
+
 ## 水墨界面贴图与开源字体（`feature/fe-ink-ui`）
 
 - `assets/art/ui_ink.png` + `assets/art/ui_ink.clip`：宋明清雅水墨界面图集（含水袖飞白飘带、婉转烟岚流云曲线、烟黛渐变幕、霜月游丝细线、海棠菱花微结、纤细云肩折角、文人纤长孤印、玉簪体力细痕、月窗柔边墨云及 640×440 高清冷素宣纸页）。

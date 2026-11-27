@@ -1910,7 +1910,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		) -- 1612
 	end -- 1612
 	local playerSx = toScreenX(self.hallWalkX) -- 1616
-	local moving = not inLampTurn and (self.hallMoving or math.abs(ctx.input.moveX) > 0.05) -- 1617
+	local moving = not inLampTurn and self.hallMoving -- 1617
 	local slot = moving and "soldier_run" or "soldier_idle" -- 1618
 	local frame = moving and math.floor(self.hallWalkAnim) or 0 -- 1619
 	local charH = 114 -- 1620
@@ -1927,422 +1927,433 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		4, -- 1624
 		Color(16, 20, 28, 62) -- 1624
 	) -- 1624
-	if not uiArt:tryPlace( -- 1624
-		slot, -- 1625
-		"fe06_museum_zhoushu", -- 1625
-		playerSx, -- 1625
-		floorY + 2, -- 1625
-		charW, -- 1625
-		charH, -- 1625
-		{facing = self.hallFacing, frame = frame, layer = 3} -- 1625
-	) then -- 1625
-		uiDraw:drawRect( -- 1631
-			Rect(playerSx - 14, floorY + 2, 28, charH * 0.84), -- 1631
-			toColor(CUFF_PALETTE.indigoBase) -- 1631
-		) -- 1631
-		uiDraw:drawCircle( -- 1632
-			Vec2(playerSx, floorY + charH * 0.92), -- 1632
-			12, -- 1632
-			Color(66, 73, 76, 255) -- 1632
-		) -- 1632
-	end -- 1632
-	if self.holstered and not inLampTurn and math.abs(self.hallWalkX - ____exports.MUSEUM_CASE_X) <= 130 then -- 1632
-		local subA = clamp01(1 - math.abs(self.hallWalkX - ____exports.MUSEUM_CASE_X) / 145) * 0.86 -- 1637
-		ctx.texts:put( -- 1638
-			"xs", -- 1639
-			"已收起随身器物", -- 1640
-			caseSx, -- 1641
-			floorY + 286, -- 1642
-			toColor(PALETTE.textMid), -- 1643
-			0.5, -- 1644
-			0.5, -- 1645
-			"Center", -- 1646
-			0.9, -- 1647
-			subA -- 1648
-		) -- 1648
-	end -- 1648
-	if self.childEchoVisualT > 0 then -- 1648
-		local echoK = 1 - clamp01(self.childEchoVisualT / 2.1) -- 1654
-		local ex = math.min( -- 1655
-			w - 110, -- 1655
-			toScreenX(____exports.MUSEUM_CASE_X + 310) -- 1655
-		) -- 1655
-		local ey = floorY + 32 -- 1656
-		local ea = math.floor(math.sin(echoK * math.pi) * 165 + 0.5) -- 1657
-		drawCircleRing( -- 1658
-			uiInkDraw, -- 1658
-			ex, -- 1658
-			ey, -- 1658
-			14 + echoK * 46, -- 1658
-			Color(0, 0, 0, 0), -- 1658
-			1.1, -- 1658
-			Color(224, 214, 194, ea), -- 1658
-			28 -- 1658
+	local pose = {facing = self.hallFacing, frame = frame, layer = 3} -- 1625
+	local running = moving and uiArt:tryPlaceRun( -- 1630
+		"soldier", -- 1630
+		"fe06_museum_zhoushu", -- 1630
+		playerSx, -- 1630
+		floorY + 2, -- 1630
+		charW, -- 1631
+		charH, -- 1631
+		self.hallWalkAnim / 4, -- 1631
+		pose -- 1631
+	) -- 1631
+	if not running and not uiArt:tryPlace( -- 1631
+		slot, -- 1632
+		"fe06_museum_zhoushu", -- 1632
+		playerSx, -- 1632
+		floorY + 2, -- 1632
+		charW, -- 1632
+		charH, -- 1632
+		pose -- 1632
+	) then -- 1632
+		uiDraw:drawRect( -- 1634
+			Rect(playerSx - 14, floorY + 2, 28, charH * 0.84), -- 1634
+			toColor(CUFF_PALETTE.indigoBase) -- 1634
+		) -- 1634
+		uiDraw:drawCircle( -- 1635
+			Vec2(playerSx, floorY + charH * 0.92), -- 1635
+			12, -- 1635
+			Color(66, 73, 76, 255) -- 1635
+		) -- 1635
+	end -- 1635
+	if self.holstered and not inLampTurn and math.abs(self.hallWalkX - ____exports.MUSEUM_CASE_X) <= 130 then -- 1635
+		local subA = clamp01(1 - math.abs(self.hallWalkX - ____exports.MUSEUM_CASE_X) / 145) * 0.86 -- 1640
+		ctx.texts:put( -- 1641
+			"xs", -- 1642
+			"已收起随身器物", -- 1643
+			caseSx, -- 1644
+			floorY + 286, -- 1645
+			toColor(PALETTE.textMid), -- 1646
+			0.5, -- 1647
+			0.5, -- 1648
+			"Center", -- 1649
+			0.9, -- 1650
+			subA -- 1651
+		) -- 1651
+	end -- 1651
+	if self.childEchoVisualT > 0 then -- 1651
+		local echoK = 1 - clamp01(self.childEchoVisualT / 2.1) -- 1657
+		local ex = math.min( -- 1658
+			w - 110, -- 1658
+			toScreenX(____exports.MUSEUM_CASE_X + 310) -- 1658
 		) -- 1658
-		drawCircleRing( -- 1659
-			uiInkDraw, -- 1659
-			ex, -- 1659
-			ey, -- 1659
-			8 + echoK * 28, -- 1659
-			Color(0, 0, 0, 0), -- 1659
-			0.9, -- 1659
-			Color( -- 1659
-				224, -- 1659
-				214, -- 1659
-				194, -- 1659
-				math.floor(ea * 0.7 + 0.5) -- 1659
-			), -- 1659
-			24 -- 1659
-		) -- 1659
-		ctx.texts:put( -- 1660
-			"xs", -- 1661
-			"（远方传来轻快的孩童脚步声）", -- 1662
-			w * 0.5, -- 1663
-			84, -- 1664
-			toColor(PALETTE.textMid), -- 1665
-			0.5, -- 1666
-			0.5, -- 1667
-			"Center", -- 1668
-			1, -- 1669
-			math.sin(echoK * math.pi) * 0.85 -- 1670
-		) -- 1670
-	end -- 1670
-	if not inLampTurn then -- 1670
-		local fadeIn = smoothstep(0, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn, self.hallIntroElapsed) -- 1676
-		local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold + ____exports.MUSEUM_TIMINGS.hallIntroFadeOut, self.hallIntroElapsed) -- 1677
-		local introA = fadeIn * fadeOut -- 1682
-		if introA > 0.02 then -- 1682
-			drawSilkVeil( -- 1684
-				uiDraw, -- 1684
-				uiArt, -- 1684
-				"fe06_hall_intro_veil", -- 1684
-				w * 0.5, -- 1684
-				h - 104, -- 1684
-				480, -- 1684
-				74, -- 1684
-				PALETTE.inkVoid, -- 1684
-				0.78 * introA, -- 1684
-				1 -- 1684
-			) -- 1684
-			drawHairline( -- 1685
-				uiInkDraw, -- 1685
-				uiArt, -- 1685
-				"fe06_hall_intro_line", -- 1685
-				w * 0.5, -- 1685
-				h - 106, -- 1685
-				260, -- 1685
-				PALETTE.silkLine, -- 1685
-				0.45 * introA, -- 1685
-				false, -- 1685
-				4 -- 1685
-			) -- 1685
-			ctx.texts:put( -- 1686
-				"md", -- 1686
-				____exports.MUSEUM_HALL_TITLE, -- 1686
-				w * 0.5, -- 1686
-				h - 88, -- 1686
-				toColor(PALETTE.textBright), -- 1686
-				0.5, -- 1686
-				0.5, -- 1686
-				"Center", -- 1686
-				1.8, -- 1686
-				introA -- 1686
-			) -- 1686
-			ctx.texts:put( -- 1687
-				"xs", -- 1687
-				____exports.MUSEUM_HALL_SUBTITLE, -- 1687
+		local ey = floorY + 32 -- 1659
+		local ea = math.floor(math.sin(echoK * math.pi) * 165 + 0.5) -- 1660
+		drawCircleRing( -- 1661
+			uiInkDraw, -- 1661
+			ex, -- 1661
+			ey, -- 1661
+			14 + echoK * 46, -- 1661
+			Color(0, 0, 0, 0), -- 1661
+			1.1, -- 1661
+			Color(224, 214, 194, ea), -- 1661
+			28 -- 1661
+		) -- 1661
+		drawCircleRing( -- 1662
+			uiInkDraw, -- 1662
+			ex, -- 1662
+			ey, -- 1662
+			8 + echoK * 28, -- 1662
+			Color(0, 0, 0, 0), -- 1662
+			0.9, -- 1662
+			Color( -- 1662
+				224, -- 1662
+				214, -- 1662
+				194, -- 1662
+				math.floor(ea * 0.7 + 0.5) -- 1662
+			), -- 1662
+			24 -- 1662
+		) -- 1662
+		ctx.texts:put( -- 1663
+			"xs", -- 1664
+			"（远方传来轻快的孩童脚步声）", -- 1665
+			w * 0.5, -- 1666
+			84, -- 1667
+			toColor(PALETTE.textMid), -- 1668
+			0.5, -- 1669
+			0.5, -- 1670
+			"Center", -- 1671
+			1, -- 1672
+			math.sin(echoK * math.pi) * 0.85 -- 1673
+		) -- 1673
+	end -- 1673
+	if not inLampTurn then -- 1673
+		local fadeIn = smoothstep(0, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn, self.hallIntroElapsed) -- 1679
+		local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold, ____exports.MUSEUM_TIMINGS.hallIntroFadeIn + ____exports.MUSEUM_TIMINGS.hallIntroHold + ____exports.MUSEUM_TIMINGS.hallIntroFadeOut, self.hallIntroElapsed) -- 1680
+		local introA = fadeIn * fadeOut -- 1685
+		if introA > 0.02 then -- 1685
+			drawSilkVeil( -- 1687
+				uiDraw, -- 1687
+				uiArt, -- 1687
+				"fe06_hall_intro_veil", -- 1687
 				w * 0.5, -- 1687
-				h - 122, -- 1687
-				toColor(PALETTE.amberCore), -- 1687
-				0.5, -- 1687
-				0.5, -- 1687
-				"Center", -- 1687
-				1.2, -- 1687
-				introA * 0.88 -- 1687
+				h - 104, -- 1687
+				480, -- 1687
+				74, -- 1687
+				PALETTE.inkVoid, -- 1687
+				0.78 * introA, -- 1687
+				1 -- 1687
 			) -- 1687
-		end -- 1687
-		if self.nearLamp and ctx.view.assistHintsEnabled then -- 1687
-			drawSilkVeil( -- 1692
-				uiDraw, -- 1692
-				uiArt, -- 1692
-				"fe06_lamp_hint_veil", -- 1692
-				lampSx, -- 1692
-				floorY + 158, -- 1692
-				146, -- 1692
-				28, -- 1692
-				PALETTE.panelBg, -- 1692
-				0.84, -- 1692
-				1 -- 1692
-			) -- 1692
-			ctx.texts:put( -- 1693
-				"xs", -- 1693
-				"[E] 转动西窗灯", -- 1693
-				lampSx, -- 1693
-				floorY + 158, -- 1693
-				toColor(PALETTE.textBright), -- 1693
-				0.5, -- 1693
-				0.5, -- 1693
-				"Center", -- 1693
-				0.6, -- 1693
-				0.94 -- 1693
-			) -- 1693
-		end -- 1693
-	end -- 1693
-	if inLampTurn and self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 1693
-		local lineA = smoothstep(____exports.MUSEUM_TIMINGS.lampLineAt, ____exports.MUSEUM_TIMINGS.lampLineAt + 0.45, self.lampElapsed) * (1 - smoothstep(____exports.MUSEUM_TIMINGS.lampTurnDuration - 0.35, ____exports.MUSEUM_TIMINGS.lampTurnDuration, self.lampElapsed)) -- 1699
-		if lineA > 0.02 then -- 1699
-			drawSilkVeil( -- 1702
-				uiDraw, -- 1702
-				uiArt, -- 1702
-				"fe06_dawn_line_veil", -- 1702
-				w * 0.5, -- 1702
-				86, -- 1702
-				440, -- 1702
-				50, -- 1702
-				PALETTE.inkVoid, -- 1702
-				0.84 * lineA, -- 1702
-				1 -- 1702
-			) -- 1702
-			ctx.texts:put( -- 1703
-				"md", -- 1704
-				____exports.MUSEUM_LINE_DAWN, -- 1704
-				w * 0.5, -- 1706
-				86, -- 1707
-				toColor(PALETTE.amberCore), -- 1708
-				0.5, -- 1709
-				0.5, -- 1710
-				"Center", -- 1711
-				1.6, -- 1712
-				lineA -- 1713
-			) -- 1713
-		end -- 1713
-	end -- 1713
-	if self.knock1VisualT > 0 then -- 1713
-		local k1 = 1 - clamp01(self.knock1VisualT / 0.85) -- 1719
-		local k1A = math.floor((1 - k1) * 205 + 0.5) -- 1720
-		drawCircleRing( -- 1721
-			uiInkDraw, -- 1721
-			winSx, -- 1721
-			floorY + 148, -- 1721
-			12 + k1 * 64, -- 1721
-			Color(0, 0, 0, 0), -- 1721
-			1.6, -- 1721
-			Color(242, 232, 206, k1A), -- 1721
-			28 -- 1721
-		) -- 1721
-		drawCircleRing( -- 1722
-			uiInkDraw, -- 1722
-			winSx, -- 1722
-			floorY + 148, -- 1722
-			6 + k1 * 34, -- 1722
-			Color(0, 0, 0, 0), -- 1722
-			1.1, -- 1722
-			Color( -- 1722
-				242, -- 1722
-				232, -- 1722
-				206, -- 1722
-				math.floor(k1A * 0.72 + 0.5) -- 1722
-			), -- 1722
-			24 -- 1722
-		) -- 1722
-	end -- 1722
-	self:drawLetterbox( -- 1725
-		uiInkDraw, -- 1725
-		w, -- 1725
-		h, -- 1725
-		38, -- 1725
-		0.9 -- 1725
-	) -- 1725
+			drawHairline( -- 1688
+				uiInkDraw, -- 1688
+				uiArt, -- 1688
+				"fe06_hall_intro_line", -- 1688
+				w * 0.5, -- 1688
+				h - 106, -- 1688
+				260, -- 1688
+				PALETTE.silkLine, -- 1688
+				0.45 * introA, -- 1688
+				false, -- 1688
+				4 -- 1688
+			) -- 1688
+			ctx.texts:put( -- 1689
+				"md", -- 1689
+				____exports.MUSEUM_HALL_TITLE, -- 1689
+				w * 0.5, -- 1689
+				h - 88, -- 1689
+				toColor(PALETTE.textBright), -- 1689
+				0.5, -- 1689
+				0.5, -- 1689
+				"Center", -- 1689
+				1.8, -- 1689
+				introA -- 1689
+			) -- 1689
+			ctx.texts:put( -- 1690
+				"xs", -- 1690
+				____exports.MUSEUM_HALL_SUBTITLE, -- 1690
+				w * 0.5, -- 1690
+				h - 122, -- 1690
+				toColor(PALETTE.amberCore), -- 1690
+				0.5, -- 1690
+				0.5, -- 1690
+				"Center", -- 1690
+				1.2, -- 1690
+				introA * 0.88 -- 1690
+			) -- 1690
+		end -- 1690
+		if self.nearLamp and ctx.view.assistHintsEnabled then -- 1690
+			drawSilkVeil( -- 1695
+				uiDraw, -- 1695
+				uiArt, -- 1695
+				"fe06_lamp_hint_veil", -- 1695
+				lampSx, -- 1695
+				floorY + 158, -- 1695
+				146, -- 1695
+				28, -- 1695
+				PALETTE.panelBg, -- 1695
+				0.84, -- 1695
+				1 -- 1695
+			) -- 1695
+			ctx.texts:put( -- 1696
+				"xs", -- 1696
+				"[E] 转动西窗灯", -- 1696
+				lampSx, -- 1696
+				floorY + 158, -- 1696
+				toColor(PALETTE.textBright), -- 1696
+				0.5, -- 1696
+				0.5, -- 1696
+				"Center", -- 1696
+				0.6, -- 1696
+				0.94 -- 1696
+			) -- 1696
+		end -- 1696
+	end -- 1696
+	if inLampTurn and self.lampElapsed >= ____exports.MUSEUM_TIMINGS.lampLineAt then -- 1696
+		local lineA = smoothstep(____exports.MUSEUM_TIMINGS.lampLineAt, ____exports.MUSEUM_TIMINGS.lampLineAt + 0.45, self.lampElapsed) * (1 - smoothstep(____exports.MUSEUM_TIMINGS.lampTurnDuration - 0.35, ____exports.MUSEUM_TIMINGS.lampTurnDuration, self.lampElapsed)) -- 1702
+		if lineA > 0.02 then -- 1702
+			drawSilkVeil( -- 1705
+				uiDraw, -- 1705
+				uiArt, -- 1705
+				"fe06_dawn_line_veil", -- 1705
+				w * 0.5, -- 1705
+				86, -- 1705
+				440, -- 1705
+				50, -- 1705
+				PALETTE.inkVoid, -- 1705
+				0.84 * lineA, -- 1705
+				1 -- 1705
+			) -- 1705
+			ctx.texts:put( -- 1706
+				"md", -- 1707
+				____exports.MUSEUM_LINE_DAWN, -- 1707
+				w * 0.5, -- 1709
+				86, -- 1710
+				toColor(PALETTE.amberCore), -- 1711
+				0.5, -- 1712
+				0.5, -- 1713
+				"Center", -- 1714
+				1.6, -- 1715
+				lineA -- 1716
+			) -- 1716
+		end -- 1716
+	end -- 1716
+	if self.knock1VisualT > 0 then -- 1716
+		local k1 = 1 - clamp01(self.knock1VisualT / 0.85) -- 1722
+		local k1A = math.floor((1 - k1) * 205 + 0.5) -- 1723
+		drawCircleRing( -- 1724
+			uiInkDraw, -- 1724
+			winSx, -- 1724
+			floorY + 148, -- 1724
+			12 + k1 * 64, -- 1724
+			Color(0, 0, 0, 0), -- 1724
+			1.6, -- 1724
+			Color(242, 232, 206, k1A), -- 1724
+			28 -- 1724
+		) -- 1724
+		drawCircleRing( -- 1725
+			uiInkDraw, -- 1725
+			winSx, -- 1725
+			floorY + 148, -- 1725
+			6 + k1 * 34, -- 1725
+			Color(0, 0, 0, 0), -- 1725
+			1.1, -- 1725
+			Color( -- 1725
+				242, -- 1725
+				232, -- 1725
+				206, -- 1725
+				math.floor(k1A * 0.72 + 0.5) -- 1725
+			), -- 1725
+			24 -- 1725
+		) -- 1725
+	end -- 1725
+	self:drawLetterbox( -- 1728
+		uiInkDraw, -- 1728
+		w, -- 1728
+		h, -- 1728
+		38, -- 1728
+		0.9 -- 1728
+	) -- 1728
 end -- 1401
-function WellMuseumPlugin.prototype.renderE02ReturnCabinet(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1731
-	local t = self.returnElapsed -- 1740
-	local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.returnFadeOutAt, ____exports.MUSEUM_TIMINGS.returnCabinetDuration, t) -- 1741
-	uiDraw:drawRect( -- 1744
-		Rect(0, 0, w, h), -- 1744
-		Color( -- 1744
-			7, -- 1744
-			9, -- 1744
-			13, -- 1744
-			math.floor(252 * fadeOut + 0.5) -- 1744
-		) -- 1744
-	) -- 1744
-	if t < ____exports.MUSEUM_TIMINGS.returnKnock2At then -- 1744
-		self:drawLetterbox( -- 1747
-			uiInkDraw, -- 1747
-			w, -- 1747
-			h, -- 1747
-			42, -- 1747
-			0.95 * fadeOut -- 1747
+function WellMuseumPlugin.prototype.renderE02ReturnCabinet(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx, w, h) -- 1734
+	local t = self.returnElapsed -- 1743
+	local fadeOut = 1 - smoothstep(____exports.MUSEUM_TIMINGS.returnFadeOutAt, ____exports.MUSEUM_TIMINGS.returnCabinetDuration, t) -- 1744
+	uiDraw:drawRect( -- 1747
+		Rect(0, 0, w, h), -- 1747
+		Color( -- 1747
+			7, -- 1747
+			9, -- 1747
+			13, -- 1747
+			math.floor(252 * fadeOut + 0.5) -- 1747
 		) -- 1747
-		return -- 1748
-	end -- 1748
-	local revealK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut -- 1752
-	local boxW = math.min(w - 140, 820) -- 1753
-	local boxH = math.min(h - 190, 390) -- 1754
-	local bx = (w - boxW) * 0.5 -- 1755
-	local by = (h - boxH) * 0.5 + 10 -- 1756
-	fillVGradRect( -- 1759
-		uiDraw, -- 1760
-		bx, -- 1761
-		by, -- 1762
-		boxW, -- 1763
-		boxH, -- 1764
-		Color( -- 1765
-			13, -- 1765
-			12, -- 1765
-			16, -- 1765
-			math.floor(248 * revealK + 0.5) -- 1765
-		), -- 1765
-		Color( -- 1766
-			24, -- 1766
-			24, -- 1766
-			30, -- 1766
-			math.floor(248 * revealK + 0.5) -- 1766
-		) -- 1766
-	) -- 1766
-	local cabEdgeX = bx + boxW * 0.58 -- 1769
-	uiDraw:drawRect( -- 1770
-		Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), -- 1770
-		Color( -- 1770
-			42, -- 1770
-			31, -- 1770
-			24, -- 1770
-			math.floor(246 * revealK + 0.5) -- 1770
-		) -- 1770
-	) -- 1770
-	uiDraw:drawSegment( -- 1771
-		Vec2(cabEdgeX, by), -- 1771
-		Vec2(cabEdgeX, by + boxH), -- 1771
-		2.4, -- 1771
-		Color( -- 1771
-			116, -- 1771
-			92, -- 1771
-			68, -- 1771
-			math.floor(220 * revealK + 0.5) -- 1771
-		) -- 1771
-	) -- 1771
-	local gi = 0 -- 1773
-	do -- 1773
-		gi = 0 -- 1774
-		while gi < 5 do -- 1774
-			local gx = cabEdgeX + 26 + gi * 44 -- 1775
-			if gx < bx + boxW - 10 then -- 1775
-				uiDraw:drawSegment( -- 1777
-					Vec2(gx, by + 12), -- 1777
-					Vec2(gx, by + boxH - 12), -- 1777
-					1, -- 1777
-					Color( -- 1777
-						28, -- 1777
-						20, -- 1777
-						15, -- 1777
-						math.floor(140 * revealK + 0.5) -- 1777
-					) -- 1777
-				) -- 1777
-			end -- 1777
-			gi = gi + 1 -- 1774
-		end -- 1774
-	end -- 1774
-	fillHGradRect( -- 1781
-		uiGlow, -- 1782
-		cabEdgeX - 58, -- 1783
-		by + 24, -- 1784
-		58, -- 1785
-		boxH - 48, -- 1786
-		Color(168, 188, 210, 0), -- 1787
-		Color( -- 1788
-			186, -- 1788
-			206, -- 1788
-			226, -- 1788
-			math.floor(42 * revealK + 0.5) -- 1788
-		) -- 1788
-	) -- 1788
-	if self.knock2VisualT > 0 then -- 1788
-		local k2 = 1 - clamp01(self.knock2VisualT / 0.9) -- 1793
-		local k2A = math.floor((1 - k2) * 215 * fadeOut + 0.5) -- 1794
-		drawCircleRing( -- 1795
-			uiInkDraw, -- 1795
-			cabEdgeX + 8, -- 1795
-			by + boxH * 0.5, -- 1795
-			10 + k2 * 56, -- 1795
-			Color(0, 0, 0, 0), -- 1795
-			1.6, -- 1795
-			Color(232, 220, 196, k2A), -- 1795
-			28 -- 1795
-		) -- 1795
-	end -- 1795
-	local extendK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.08, ____exports.MUSEUM_TIMINGS.returnKnock2At + 1.05, t) -- 1799
-	local wristX = bx + 115 + extendK * (cabEdgeX - bx - 168) -- 1800
-	local wristY = by + boxH * 0.5 -- 1801
-	drawPatchedCuff(uiInkDraw, uiGlow, { -- 1802
-		wristX = wristX, -- 1803
-		wristY = wristY, -- 1804
-		angleRad = -0.04 * (1 - extendK), -- 1805
-		scale = 1.02, -- 1806
-		pose = "reach", -- 1807
-		opacity = revealK, -- 1808
-		stitchHighlight = 0.48 + 0.22 * extendK, -- 1809
-		cuffPullBack = 0.06, -- 1810
-		warmth = 0.16 -- 1811
-	}) -- 1811
-	uiInkDraw:drawRect( -- 1815
-		Rect(bx, by, boxW, boxH), -- 1815
-		Color(0, 0, 0, 0), -- 1815
-		1.2, -- 1815
-		toColor( -- 1815
-			PALETTE.silkDim, -- 1815
-			math.floor(160 * revealK + 0.5) -- 1815
-		) -- 1815
-	) -- 1815
-	local tipA = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.45, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut -- 1816
-	if tipA > 0.03 then -- 1816
-		drawSilkVeil( -- 1818
-			uiDraw, -- 1818
-			uiArt, -- 1818
-			"fe06_return_veil", -- 1818
-			w * 0.5, -- 1818
-			by - 30, -- 1818
-			320, -- 1818
-			32, -- 1818
-			PALETTE.inkVoid, -- 1818
-			0.72 * tipA, -- 1818
-			1 -- 1818
+	) -- 1747
+	if t < ____exports.MUSEUM_TIMINGS.returnKnock2At then -- 1747
+		self:drawLetterbox( -- 1750
+			uiInkDraw, -- 1750
+			w, -- 1750
+			h, -- 1750
+			42, -- 1750
+			0.95 * fadeOut -- 1750
+		) -- 1750
+		return -- 1751
+	end -- 1751
+	local revealK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut -- 1755
+	local boxW = math.min(w - 140, 820) -- 1756
+	local boxH = math.min(h - 190, 390) -- 1757
+	local bx = (w - boxW) * 0.5 -- 1758
+	local by = (h - boxH) * 0.5 + 10 -- 1759
+	fillVGradRect( -- 1762
+		uiDraw, -- 1763
+		bx, -- 1764
+		by, -- 1765
+		boxW, -- 1766
+		boxH, -- 1767
+		Color( -- 1768
+			13, -- 1768
+			12, -- 1768
+			16, -- 1768
+			math.floor(248 * revealK + 0.5) -- 1768
+		), -- 1768
+		Color( -- 1769
+			24, -- 1769
+			24, -- 1769
+			30, -- 1769
+			math.floor(248 * revealK + 0.5) -- 1769
+		) -- 1769
+	) -- 1769
+	local cabEdgeX = bx + boxW * 0.58 -- 1772
+	uiDraw:drawRect( -- 1773
+		Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), -- 1773
+		Color( -- 1773
+			42, -- 1773
+			31, -- 1773
+			24, -- 1773
+			math.floor(246 * revealK + 0.5) -- 1773
+		) -- 1773
+	) -- 1773
+	uiDraw:drawSegment( -- 1774
+		Vec2(cabEdgeX, by), -- 1774
+		Vec2(cabEdgeX, by + boxH), -- 1774
+		2.4, -- 1774
+		Color( -- 1774
+			116, -- 1774
+			92, -- 1774
+			68, -- 1774
+			math.floor(220 * revealK + 0.5) -- 1774
+		) -- 1774
+	) -- 1774
+	local gi = 0 -- 1776
+	do -- 1776
+		gi = 0 -- 1777
+		while gi < 5 do -- 1777
+			local gx = cabEdgeX + 26 + gi * 44 -- 1778
+			if gx < bx + boxW - 10 then -- 1778
+				uiDraw:drawSegment( -- 1780
+					Vec2(gx, by + 12), -- 1780
+					Vec2(gx, by + boxH - 12), -- 1780
+					1, -- 1780
+					Color( -- 1780
+						28, -- 1780
+						20, -- 1780
+						15, -- 1780
+						math.floor(140 * revealK + 0.5) -- 1780
+					) -- 1780
+				) -- 1780
+			end -- 1780
+			gi = gi + 1 -- 1777
+		end -- 1777
+	end -- 1777
+	fillHGradRect( -- 1784
+		uiGlow, -- 1785
+		cabEdgeX - 58, -- 1786
+		by + 24, -- 1787
+		58, -- 1788
+		boxH - 48, -- 1789
+		Color(168, 188, 210, 0), -- 1790
+		Color( -- 1791
+			186, -- 1791
+			206, -- 1791
+			226, -- 1791
+			math.floor(42 * revealK + 0.5) -- 1791
+		) -- 1791
+	) -- 1791
+	if self.knock2VisualT > 0 then -- 1791
+		local k2 = 1 - clamp01(self.knock2VisualT / 0.9) -- 1796
+		local k2A = math.floor((1 - k2) * 215 * fadeOut + 0.5) -- 1797
+		drawCircleRing( -- 1798
+			uiInkDraw, -- 1798
+			cabEdgeX + 8, -- 1798
+			by + boxH * 0.5, -- 1798
+			10 + k2 * 56, -- 1798
+			Color(0, 0, 0, 0), -- 1798
+			1.6, -- 1798
+			Color(232, 220, 196, k2A), -- 1798
+			28 -- 1798
+		) -- 1798
+	end -- 1798
+	local extendK = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.08, ____exports.MUSEUM_TIMINGS.returnKnock2At + 1.05, t) -- 1802
+	local wristX = bx + 115 + extendK * (cabEdgeX - bx - 168) -- 1803
+	local wristY = by + boxH * 0.5 -- 1804
+	drawPatchedCuff(uiInkDraw, uiGlow, { -- 1805
+		wristX = wristX, -- 1806
+		wristY = wristY, -- 1807
+		angleRad = -0.04 * (1 - extendK), -- 1808
+		scale = 1.02, -- 1809
+		pose = "reach", -- 1810
+		opacity = revealK, -- 1811
+		stitchHighlight = 0.48 + 0.22 * extendK, -- 1812
+		cuffPullBack = 0.06, -- 1813
+		warmth = 0.16 -- 1814
+	}) -- 1814
+	uiInkDraw:drawRect( -- 1818
+		Rect(bx, by, boxW, boxH), -- 1818
+		Color(0, 0, 0, 0), -- 1818
+		1.2, -- 1818
+		toColor( -- 1818
+			PALETTE.silkDim, -- 1818
+			math.floor(160 * revealK + 0.5) -- 1818
 		) -- 1818
-		ctx.texts:put( -- 1819
-			"xs", -- 1820
-			"两声轻敲落回柜板 · 寻回小满", -- 1821
-			w * 0.5, -- 1822
-			by - 30, -- 1823
-			toColor(PALETTE.textMid), -- 1824
-			0.5, -- 1825
-			0.5, -- 1826
-			"Center", -- 1827
-			1.2, -- 1828
-			tipA * 0.9 -- 1829
-		) -- 1829
-	end -- 1829
-	self:drawLetterbox( -- 1833
-		uiInkDraw, -- 1833
-		w, -- 1833
-		h, -- 1833
-		42, -- 1833
-		0.95 * fadeOut -- 1833
-	) -- 1833
-end -- 1731
-function WellMuseumPlugin.prototype.drawLetterbox(self, draw, w, h, barH, opacity) -- 1836
-	local a = math.floor(244 * clamp01(opacity) + 0.5) -- 1837
-	if a <= 2 then -- 1837
-		return -- 1839
-	end -- 1839
-	draw:drawRect( -- 1841
-		Rect(0, 0, w, barH), -- 1841
-		Color(6, 8, 12, a) -- 1841
-	) -- 1841
-	draw:drawRect( -- 1842
-		Rect(0, h - barH, w, barH), -- 1842
-		Color(6, 8, 12, a) -- 1842
-	) -- 1842
-end -- 1836
-function ____exports.createWellMuseumPlugin(contract) -- 1846
-	return __TS__New(____exports.WellMuseumPlugin, contract) -- 1847
-end -- 1846
-return ____exports -- 1846
+	) -- 1818
+	local tipA = smoothstep(____exports.MUSEUM_TIMINGS.returnKnock2At + 0.45, ____exports.MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut -- 1819
+	if tipA > 0.03 then -- 1819
+		drawSilkVeil( -- 1821
+			uiDraw, -- 1821
+			uiArt, -- 1821
+			"fe06_return_veil", -- 1821
+			w * 0.5, -- 1821
+			by - 30, -- 1821
+			320, -- 1821
+			32, -- 1821
+			PALETTE.inkVoid, -- 1821
+			0.72 * tipA, -- 1821
+			1 -- 1821
+		) -- 1821
+		ctx.texts:put( -- 1822
+			"xs", -- 1823
+			"两声轻敲落回柜板 · 寻回小满", -- 1824
+			w * 0.5, -- 1825
+			by - 30, -- 1826
+			toColor(PALETTE.textMid), -- 1827
+			0.5, -- 1828
+			0.5, -- 1829
+			"Center", -- 1830
+			1.2, -- 1831
+			tipA * 0.9 -- 1832
+		) -- 1832
+	end -- 1832
+	self:drawLetterbox( -- 1836
+		uiInkDraw, -- 1836
+		w, -- 1836
+		h, -- 1836
+		42, -- 1836
+		0.95 * fadeOut -- 1836
+	) -- 1836
+end -- 1734
+function WellMuseumPlugin.prototype.drawLetterbox(self, draw, w, h, barH, opacity) -- 1839
+	local a = math.floor(244 * clamp01(opacity) + 0.5) -- 1840
+	if a <= 2 then -- 1840
+		return -- 1842
+	end -- 1842
+	draw:drawRect( -- 1844
+		Rect(0, 0, w, barH), -- 1844
+		Color(6, 8, 12, a) -- 1844
+	) -- 1844
+	draw:drawRect( -- 1845
+		Rect(0, h - barH, w, barH), -- 1845
+		Color(6, 8, 12, a) -- 1845
+	) -- 1845
+end -- 1839
+function ____exports.createWellMuseumPlugin(contract) -- 1849
+	return __TS__New(____exports.WellMuseumPlugin, contract) -- 1850
+end -- 1849
+return ____exports -- 1849

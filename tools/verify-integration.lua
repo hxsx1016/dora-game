@@ -88,6 +88,67 @@ for key, cfg in pairs(assets.ASSET_SLOTS) do
 end
 check("all asset frames load (" .. frames .. ")", frames > 80)
 
+-- Sample both complete cycles using the same node from the first to the last cel.
+for _, runner in ipairs({
+    { kind = "soldier", file = "zhoushu-run.png", w = 180, h = 200 },
+    { kind = "child", file = "xiaoman-run.png", w = 144, h = 164 },
+}) do
+    local key = "runner:assets/art/" .. runner.file
+    local original
+    local valid = assets.RUN_FRAME_COUNT == 160
+    for index = 0, assets.RUN_FRAME_COUNT - 1 do
+        host:beginFrame()
+        assert(host:tryPlaceRun(runner.kind, "runner", 164.25, 120, 38, 90, (index + 0.5) / assets.RUN_FRAME_COUNT))
+        host:endFrame()
+        local sprite = host.visibleLastFrame[key]
+        original = original or sprite
+        local rect = sprite.textureRect
+        valid = valid and sprite == original
+            and rect.x == 2 + (index % 10) * (runner.w + 4)
+            and rect.y == 2 + math.floor(index / 10) * (runner.h + 4)
+            and sprite.width == runner.w and sprite.height == runner.h
+    end
+    check(runner.kind .. " loads all 160 frames without allocating a node per cel", valid)
+    host:beginFrame()
+    host:tryPlaceRun(runner.kind, "runner", 164.25, 120, 38, 90, 1, {facing = -1})
+    host:endFrame()
+    check(runner.kind .. " wraps back to the first cel with the same ground anchor",
+        original.textureRect.x == 2 and original.textureRect.y == 2
+        and original.position.x == 164.25 and original.position.y == 120 and original.scaleX < 0)
+end
+
+do
+    local mover = new(play.Play, rooms.PROLOGUE_ROOM)
+    local i = new(Input)
+    mover.player.onGround = true
+    fe:bindPlay(mover, 1280, 720)
+    fe.screen = "play"
+    mover.ticks = mover.ticks + 1
+    mover.player.x = mover.player.x + 4
+    fe:renderPlay(play.STEP, mover, i, 1280, 720)
+    local running = fe.worldArt.visibleLastFrame["actor_soldier:assets/art/zhoushu-run.png"]
+    check("actual movement activates the dense running atlas", running ~= nil and running.visible)
+    local rect = running.textureRect
+    mover.paused = true
+    fe:renderPlay(play.STEP, mover, i, 1280, 720)
+    check("pause freezes the running pose", running.textureRect.x == rect.x and running.textureRect.y == rect.y)
+    mover.paused = false
+    mover.ticks = mover.ticks + 1
+    fe:renderPlay(play.STEP, mover, i, 1280, 720)
+    check("stopping does not leave the running pose visible", not running.visible)
+
+    local phases = true
+    for index, remaining in ipairs({0.35, 0.27, 0.11, 0.045}) do
+        mover.player.rollT = remaining
+        mover.ticks = mover.ticks + 1
+        mover.player.x = mover.player.x + 4
+        fe:renderPlay(play.STEP, mover, i, 1280, 720)
+        local sprite = fe.worldArt.visibleLastFrame["actor_soldier:assets/art/actors-hd.clip|soldier_slide_" .. (index - 1)]
+        phases = phases and sprite ~= nil and sprite.visible
+    end
+    check("slide enters, grounds the heel, tucks, and rises on the existing timer", phases)
+end
+
 -- The presentation adapter consumes queued events once and sees migrated room changes.
 local adapter = new(Adapter)
 p = new(play.Play, rooms.TOWER_ROOM)

@@ -1263,310 +1263,307 @@ function PrologueIntroPlugin.prototype.drawP02EscapeVignette(self, uiDraw, uiInk
 			2.2, -- 1160
 			Color(176, 144, 106, 210) -- 1160
 		) -- 1160
-		if not ctx.uiArt:tryPlace( -- 1160
-			"child_run", -- 1162
+		if not ctx.uiArt:tryPlaceRun( -- 1160
+			"child", -- 1162
 			"p02_escape_child", -- 1162
 			childX, -- 1162
 			groundY, -- 1162
 			46, -- 1162
 			74, -- 1162
-			{ -- 1162
-				facing = 1, -- 1163
-				frame = math.floor(self.stageElapsed * 10), -- 1164
-				layer = 3 -- 1165
-			} -- 1165
-		) then -- 1165
-			uiDraw:drawRect( -- 1167
-				Rect(childX - 12, groundY, 24, 54), -- 1167
-				Color(168, 72, 54, 235) -- 1167
-			) -- 1167
-		end -- 1167
-	end -- 1167
+			self.stageElapsed * 1.8, -- 1162
+			{facing = 1, layer = 3} -- 1162
+		) then -- 1162
+			uiDraw:drawRect( -- 1166
+				Rect(childX - 12, groundY, 24, 54), -- 1166
+				Color(168, 72, 54, 235) -- 1166
+			) -- 1166
+		end -- 1166
+	end -- 1166
 end -- 1113
-function PrologueIntroPlugin.prototype.drawP02HiddenCabinet(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 1174
-	local w = ctx.uiW -- 1180
-	local h = ctx.uiH -- 1181
-	local t = self.stageElapsed -- 1182
-	local closeK = smoothstep(0, 0.26, t) -- 1183
-	local slitW = w * (0.28 - 0.21 * closeK) -- 1186
-	local leftW = (w - slitW) * 0.5 -- 1187
+function PrologueIntroPlugin.prototype.drawP02HiddenCabinet(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 1173
+	local w = ctx.uiW -- 1179
+	local h = ctx.uiH -- 1180
+	local t = self.stageElapsed -- 1181
+	local closeK = smoothstep(0, 0.26, t) -- 1182
+	local slitW = w * (0.28 - 0.21 * closeK) -- 1185
+	local leftW = (w - slitW) * 0.5 -- 1186
+	uiDraw:drawRect( -- 1187
+		Rect(0, 0, leftW, h), -- 1187
+		Color(7, 7, 10, 248) -- 1187
+	) -- 1187
 	uiDraw:drawRect( -- 1188
-		Rect(0, 0, leftW, h), -- 1188
+		Rect(w - leftW, 0, leftW, h), -- 1188
 		Color(7, 7, 10, 248) -- 1188
 	) -- 1188
-	uiDraw:drawRect( -- 1189
-		Rect(w - leftW, 0, leftW, h), -- 1189
-		Color(7, 7, 10, 248) -- 1189
+	uiInkDraw:drawSegment( -- 1189
+		Vec2(leftW, 0), -- 1189
+		Vec2(leftW, h), -- 1189
+		1.4, -- 1189
+		Color(66, 52, 40, 175) -- 1189
 	) -- 1189
 	uiInkDraw:drawSegment( -- 1190
-		Vec2(leftW, 0), -- 1190
-		Vec2(leftW, h), -- 1190
+		Vec2(w - leftW, 0), -- 1190
+		Vec2(w - leftW, h), -- 1190
 		1.4, -- 1190
 		Color(66, 52, 40, 175) -- 1190
 	) -- 1190
-	uiInkDraw:drawSegment( -- 1191
-		Vec2(w - leftW, 0), -- 1191
-		Vec2(w - leftW, h), -- 1191
-		1.4, -- 1191
-		Color(66, 52, 40, 175) -- 1191
-	) -- 1191
-	local footFade = 1 - smoothstep(0.3, 0.8, t) -- 1194
-	if footFade > 0.02 then -- 1194
-		local shadowX = w * 0.5 + (1 - footFade) * 38 -- 1196
-		fillRadialGlow( -- 1197
-			uiGlow, -- 1198
-			shadowX, -- 1199
-			h * 0.42, -- 1200
-			32, -- 1201
-			90, -- 1202
-			Color( -- 1203
-				148, -- 1203
-				168, -- 1203
-				184, -- 1203
-				math.floor(32 * footFade + 0.5) -- 1203
-			), -- 1203
-			Color(90, 110, 130, 0), -- 1204
-			12 -- 1205
-		) -- 1205
-	end -- 1205
-	if self.vignetteAlpha > 0.005 then -- 1205
-		local a = math.floor(140 * self.vignetteAlpha + 0.5) -- 1211
-		local edge = w * 0.08 -- 1212
+	local footFade = 1 - smoothstep(0.3, 0.8, t) -- 1193
+	if footFade > 0.02 then -- 1193
+		local shadowX = w * 0.5 + (1 - footFade) * 38 -- 1195
+		fillRadialGlow( -- 1196
+			uiGlow, -- 1197
+			shadowX, -- 1198
+			h * 0.42, -- 1199
+			32, -- 1200
+			90, -- 1201
+			Color( -- 1202
+				148, -- 1202
+				168, -- 1202
+				184, -- 1202
+				math.floor(32 * footFade + 0.5) -- 1202
+			), -- 1202
+			Color(90, 110, 130, 0), -- 1203
+			12 -- 1204
+		) -- 1204
+	end -- 1204
+	if self.vignetteAlpha > 0.005 then -- 1204
+		local a = math.floor(140 * self.vignetteAlpha + 0.5) -- 1210
+		local edge = w * 0.08 -- 1211
+		fillHGradRect( -- 1212
+			uiDraw, -- 1212
+			0, -- 1212
+			0, -- 1212
+			edge, -- 1212
+			h, -- 1212
+			Color(124, 38, 42, a), -- 1212
+			Color(124, 38, 42, 0) -- 1212
+		) -- 1212
 		fillHGradRect( -- 1213
 			uiDraw, -- 1213
-			0, -- 1213
+			w - edge, -- 1213
 			0, -- 1213
 			edge, -- 1213
 			h, -- 1213
-			Color(124, 38, 42, a), -- 1213
-			Color(124, 38, 42, 0) -- 1213
+			Color(124, 38, 42, 0), -- 1213
+			Color(124, 38, 42, a) -- 1213
 		) -- 1213
-		fillHGradRect( -- 1214
-			uiDraw, -- 1214
-			w - edge, -- 1214
-			0, -- 1214
-			edge, -- 1214
-			h, -- 1214
-			Color(124, 38, 42, 0), -- 1214
-			Color(124, 38, 42, a) -- 1214
-		) -- 1214
-	end -- 1214
-end -- 1174
-function PrologueIntroPlugin.prototype.drawP04WorldAction(self, fgDraw, fgGlow, ctx) -- 1220
-	local p = ctx.p -- 1225
-	local cam = ctx.cam -- 1226
-	local flash = self.p04FlashIntensity -- 1227
-	local hintAlpha = self.p04PostHintAlpha -- 1228
-	local zhou = p.childMode and p.partner or p.player -- 1230
-	local xiao = p.childMode and p.player or p.partner -- 1231
-	local zX = cam:sx(zhou.x) -- 1232
-	local zY = cam:sy(zhou.y, zhou.depth) -- 1233
-	local zH = cam:len(zhou.h) -- 1234
-	local xX = cam:sx(xiao.x) -- 1235
-	local xY = cam:sy(xiao.y, xiao.depth) -- 1236
-	local xH = cam:len(xiao.h) -- 1237
-	if flash > 0.01 then -- 1237
-		fillGradQuad( -- 1242
-			fgGlow, -- 1243
+	end -- 1213
+end -- 1173
+function PrologueIntroPlugin.prototype.drawP04WorldAction(self, fgDraw, fgGlow, ctx) -- 1219
+	local p = ctx.p -- 1224
+	local cam = ctx.cam -- 1225
+	local flash = self.p04FlashIntensity -- 1226
+	local hintAlpha = self.p04PostHintAlpha -- 1227
+	local zhou = p.childMode and p.partner or p.player -- 1229
+	local xiao = p.childMode and p.player or p.partner -- 1230
+	local zX = cam:sx(zhou.x) -- 1231
+	local zY = cam:sy(zhou.y, zhou.depth) -- 1232
+	local zH = cam:len(zhou.h) -- 1233
+	local xX = cam:sx(xiao.x) -- 1234
+	local xY = cam:sy(xiao.y, xiao.depth) -- 1235
+	local xH = cam:len(xiao.h) -- 1236
+	if flash > 0.01 then -- 1236
+		fillGradQuad( -- 1241
+			fgGlow, -- 1242
+			cam.viewW, -- 1243
+			cam.groundScreenY + cam:len(18), -- 1243
+			Color( -- 1243
+				238, -- 1243
+				178, -- 1243
+				108, -- 1243
+				math.floor(96 * flash + 0.5) -- 1243
+			), -- 1243
 			cam.viewW, -- 1244
-			cam.groundScreenY + cam:len(18), -- 1244
+			cam.groundScreenY + cam:len(195), -- 1244
 			Color( -- 1244
-				238, -- 1244
-				178, -- 1244
-				108, -- 1244
-				math.floor(96 * flash + 0.5) -- 1244
+				224, -- 1244
+				148, -- 1244
+				82, -- 1244
+				math.floor(72 * flash + 0.5) -- 1244
 			), -- 1244
-			cam.viewW, -- 1245
-			cam.groundScreenY + cam:len(195), -- 1245
-			Color( -- 1245
-				224, -- 1245
-				148, -- 1245
-				82, -- 1245
-				math.floor(72 * flash + 0.5) -- 1245
-			), -- 1245
+			zX - cam:len(140), -- 1245
+			cam.groundScreenY + cam:len(140), -- 1245
+			Color(200, 120, 62, 0), -- 1245
 			zX - cam:len(140), -- 1246
-			cam.groundScreenY + cam:len(140), -- 1246
-			Color(200, 120, 62, 0), -- 1246
-			zX - cam:len(140), -- 1247
-			cam.groundScreenY, -- 1247
-			Color(200, 120, 62, 0) -- 1247
-		) -- 1247
-		local wallBaseY = cam.groundScreenY + cam:len(14) -- 1251
-		local shAlpha = math.floor(148 * flash + 0.5) -- 1252
-		local shCol = Color(8, 10, 14, shAlpha) -- 1253
-		fgDraw:drawPolygon( -- 1255
-			{ -- 1255
+			cam.groundScreenY, -- 1246
+			Color(200, 120, 62, 0) -- 1246
+		) -- 1246
+		local wallBaseY = cam.groundScreenY + cam:len(14) -- 1250
+		local shAlpha = math.floor(148 * flash + 0.5) -- 1251
+		local shCol = Color(8, 10, 14, shAlpha) -- 1252
+		fgDraw:drawPolygon( -- 1254
+			{ -- 1254
+				Vec2( -- 1255
+					zX - cam:len(14), -- 1255
+					wallBaseY -- 1255
+				), -- 1255
 				Vec2( -- 1256
-					zX - cam:len(14), -- 1256
+					zX + cam:len(6), -- 1256
 					wallBaseY -- 1256
 				), -- 1256
 				Vec2( -- 1257
-					zX + cam:len(6), -- 1257
-					wallBaseY -- 1257
+					zX - cam:len(38), -- 1257
+					wallBaseY + zH * 1.18 -- 1257
 				), -- 1257
 				Vec2( -- 1258
-					zX - cam:len(38), -- 1258
-					wallBaseY + zH * 1.18 -- 1258
-				), -- 1258
-				Vec2( -- 1259
-					zX - cam:len(64), -- 1259
-					wallBaseY + zH * 1.12 -- 1259
-				) -- 1259
-			}, -- 1259
-			shCol -- 1260
-		) -- 1260
-		fgDraw:drawPolygon( -- 1262
-			{ -- 1262
+					zX - cam:len(64), -- 1258
+					wallBaseY + zH * 1.12 -- 1258
+				) -- 1258
+			}, -- 1258
+			shCol -- 1259
+		) -- 1259
+		fgDraw:drawPolygon( -- 1261
+			{ -- 1261
+				Vec2( -- 1262
+					xX - cam:len(10), -- 1262
+					wallBaseY -- 1262
+				), -- 1262
 				Vec2( -- 1263
-					xX - cam:len(10), -- 1263
+					xX + cam:len(6), -- 1263
 					wallBaseY -- 1263
 				), -- 1263
 				Vec2( -- 1264
-					xX + cam:len(6), -- 1264
-					wallBaseY -- 1264
+					xX - cam:len(26), -- 1264
+					wallBaseY + xH * 1.12 -- 1264
 				), -- 1264
 				Vec2( -- 1265
-					xX - cam:len(26), -- 1265
-					wallBaseY + xH * 1.12 -- 1265
-				), -- 1265
-				Vec2( -- 1266
-					xX - cam:len(44), -- 1266
-					wallBaseY + xH * 1.06 -- 1266
-				) -- 1266
-			}, -- 1266
-			shCol -- 1267
-		) -- 1267
-		local shieldK = smoothstep(0.1, 0.24, self.p04Elapsed) * (1 - smoothstep(0.5, 0.78, self.p04Elapsed)) -- 1270
-		if shieldK > 0.02 then -- 1270
-			local armX = zX + cam:len(10) -- 1272
-			local armY = zY + zH * 0.66 -- 1273
-			local cuffW = cam:len(13) -- 1274
-			local cuffH = cam:len(7) -- 1275
-			local sa = math.floor(235 * shieldK + 0.5) -- 1276
-			fgDraw:drawPolygon( -- 1277
-				{ -- 1277
-					Vec2( -- 1278
-						zX + cam:len(2), -- 1278
-						armY - cuffH * 0.4 -- 1278
-					), -- 1278
-					Vec2(armX + cuffW, armY + cuffH * 0.9), -- 1279
-					Vec2(armX + cuffW * 0.72, armY + cuffH * 1.75), -- 1280
-					Vec2( -- 1281
-						zX - cam:len(2), -- 1281
-						armY + cuffH * 0.5 -- 1281
-					) -- 1281
-				}, -- 1281
-				toColor(____exports.CUFF_SHARED_SPEC.indigoCloth, sa) -- 1282
-			) -- 1282
-			fgDraw:drawSegment( -- 1284
-				Vec2(armX + cuffW * 0.45, armY + cuffH * 0.75), -- 1285
-				Vec2(armX + cuffW * 0.82, armY + cuffH * 1.25), -- 1286
-				1.3, -- 1287
-				toColor( -- 1288
-					____exports.CUFF_SHARED_SPEC.mendStitch, -- 1288
-					math.floor(210 * shieldK + 0.5) -- 1288
-				) -- 1288
-			) -- 1288
-			fillGradQuad( -- 1291
-				fgDraw, -- 1292
+					xX - cam:len(44), -- 1265
+					wallBaseY + xH * 1.06 -- 1265
+				) -- 1265
+			}, -- 1265
+			shCol -- 1266
+		) -- 1266
+		local shieldK = smoothstep(0.1, 0.24, self.p04Elapsed) * (1 - smoothstep(0.5, 0.78, self.p04Elapsed)) -- 1269
+		if shieldK > 0.02 then -- 1269
+			local armX = zX + cam:len(10) -- 1271
+			local armY = zY + zH * 0.66 -- 1272
+			local cuffW = cam:len(13) -- 1273
+			local cuffH = cam:len(7) -- 1274
+			local sa = math.floor(235 * shieldK + 0.5) -- 1275
+			fgDraw:drawPolygon( -- 1276
+				{ -- 1276
+					Vec2( -- 1277
+						zX + cam:len(2), -- 1277
+						armY - cuffH * 0.4 -- 1277
+					), -- 1277
+					Vec2(armX + cuffW, armY + cuffH * 0.9), -- 1278
+					Vec2(armX + cuffW * 0.72, armY + cuffH * 1.75), -- 1279
+					Vec2( -- 1280
+						zX - cam:len(2), -- 1280
+						armY + cuffH * 0.5 -- 1280
+					) -- 1280
+				}, -- 1280
+				toColor(____exports.CUFF_SHARED_SPEC.indigoCloth, sa) -- 1281
+			) -- 1281
+			fgDraw:drawSegment( -- 1283
+				Vec2(armX + cuffW * 0.45, armY + cuffH * 0.75), -- 1284
+				Vec2(armX + cuffW * 0.82, armY + cuffH * 1.25), -- 1285
+				1.3, -- 1286
+				toColor( -- 1287
+					____exports.CUFF_SHARED_SPEC.mendStitch, -- 1287
+					math.floor(210 * shieldK + 0.5) -- 1287
+				) -- 1287
+			) -- 1287
+			fillGradQuad( -- 1290
+				fgDraw, -- 1291
+				zX + cam:len(4), -- 1292
+				zY + zH * 0.85, -- 1292
+				Color( -- 1292
+					10, -- 1292
+					12, -- 1292
+					18, -- 1292
+					math.floor(92 * shieldK + 0.5) -- 1292
+				), -- 1292
 				zX + cam:len(4), -- 1293
-				zY + zH * 0.85, -- 1293
+				zY, -- 1293
 				Color( -- 1293
 					10, -- 1293
 					12, -- 1293
 					18, -- 1293
-					math.floor(92 * shieldK + 0.5) -- 1293
+					math.floor(62 * shieldK + 0.5) -- 1293
 				), -- 1293
-				zX + cam:len(4), -- 1294
-				zY, -- 1294
-				Color( -- 1294
-					10, -- 1294
-					12, -- 1294
-					18, -- 1294
-					math.floor(62 * shieldK + 0.5) -- 1294
-				), -- 1294
+				xX - cam:len(18), -- 1294
+				xY, -- 1294
+				Color(10, 12, 18, 0), -- 1294
 				xX - cam:len(18), -- 1295
-				xY, -- 1295
-				Color(10, 12, 18, 0), -- 1295
-				xX - cam:len(18), -- 1296
-				xY + xH, -- 1296
-				Color(10, 12, 18, 0) -- 1296
-			) -- 1296
-		end -- 1296
-	end -- 1296
-	if hintAlpha > 0.02 then -- 1296
-		local baseWx = self.p04AnchorWorldX > 0 and self.p04AnchorWorldX or zhou.x -- 1303
-		local hintBaseX = cam:sx(baseWx + 74) -- 1304
-		local groundY = cam:sy(0, 0) -- 1305
-		local boardY = groundY + cam:len(34) -- 1306
-		local boardW = cam:len(62) -- 1307
-		local sheenBoost = flash * 0.55 -- 1308
-		local aNorm = clamp01(hintAlpha + sheenBoost) -- 1309
-		fgDraw:drawRect( -- 1312
-			Rect( -- 1313
-				hintBaseX, -- 1313
-				boardY, -- 1313
-				boardW, -- 1313
-				cam:len(12) -- 1313
+				xY + xH, -- 1295
+				Color(10, 12, 18, 0) -- 1295
+			) -- 1295
+		end -- 1295
+	end -- 1295
+	if hintAlpha > 0.02 then -- 1295
+		local baseWx = self.p04AnchorWorldX > 0 and self.p04AnchorWorldX or zhou.x -- 1302
+		local hintBaseX = cam:sx(baseWx + 74) -- 1303
+		local groundY = cam:sy(0, 0) -- 1304
+		local boardY = groundY + cam:len(34) -- 1305
+		local boardW = cam:len(62) -- 1306
+		local sheenBoost = flash * 0.55 -- 1307
+		local aNorm = clamp01(hintAlpha + sheenBoost) -- 1308
+		fgDraw:drawRect( -- 1311
+			Rect( -- 1312
+				hintBaseX, -- 1312
+				boardY, -- 1312
+				boardW, -- 1312
+				cam:len(12) -- 1312
+			), -- 1312
+			Color( -- 1313
+				54, -- 1313
+				42, -- 1313
+				32, -- 1313
+				math.floor(165 * aNorm + 0.5) -- 1313
 			), -- 1313
-			Color( -- 1314
-				54, -- 1314
-				42, -- 1314
-				32, -- 1314
-				math.floor(165 * aNorm + 0.5) -- 1314
-			), -- 1314
-			1, -- 1315
-			Color( -- 1316
-				126, -- 1316
-				102, -- 1316
-				76, -- 1316
-				math.floor(150 * aNorm + 0.5) -- 1316
-			) -- 1316
-		) -- 1316
-		fgDraw:drawSegment( -- 1318
-			Vec2(hintBaseX + 2, boardY + 1), -- 1319
-			Vec2(hintBaseX + boardW - 2, boardY + 1), -- 1320
-			2, -- 1321
-			Color( -- 1322
-				214, -- 1322
-				198, -- 1322
-				168, -- 1322
-				math.floor(215 * aNorm + 0.5) -- 1322
-			) -- 1322
-		) -- 1322
-		local grooveX0 = hintBaseX - cam:len(18) -- 1326
-		local grooveX1 = hintBaseX + boardW + cam:len(26) -- 1327
-		fgDraw:drawRect( -- 1328
-			Rect( -- 1329
-				grooveX0, -- 1329
-				groundY + 1, -- 1329
-				grooveX1 - grooveX0, -- 1329
-				cam:len(4) -- 1329
-			), -- 1329
-			Color( -- 1330
-				22, -- 1330
-				26, -- 1330
-				32, -- 1330
-				math.floor(170 * aNorm + 0.5) -- 1330
-			) -- 1330
-		) -- 1330
-		fgDraw:drawSegment( -- 1332
+			1, -- 1314
+			Color( -- 1315
+				126, -- 1315
+				102, -- 1315
+				76, -- 1315
+				math.floor(150 * aNorm + 0.5) -- 1315
+			) -- 1315
+		) -- 1315
+		fgDraw:drawSegment( -- 1317
+			Vec2(hintBaseX + 2, boardY + 1), -- 1318
+			Vec2(hintBaseX + boardW - 2, boardY + 1), -- 1319
+			2, -- 1320
+			Color( -- 1321
+				214, -- 1321
+				198, -- 1321
+				168, -- 1321
+				math.floor(215 * aNorm + 0.5) -- 1321
+			) -- 1321
+		) -- 1321
+		local grooveX0 = hintBaseX - cam:len(18) -- 1325
+		local grooveX1 = hintBaseX + boardW + cam:len(26) -- 1326
+		fgDraw:drawRect( -- 1327
+			Rect( -- 1328
+				grooveX0, -- 1328
+				groundY + 1, -- 1328
+				grooveX1 - grooveX0, -- 1328
+				cam:len(4) -- 1328
+			), -- 1328
+			Color( -- 1329
+				22, -- 1329
+				26, -- 1329
+				32, -- 1329
+				math.floor(170 * aNorm + 0.5) -- 1329
+			) -- 1329
+		) -- 1329
+		fgDraw:drawSegment( -- 1331
+			Vec2( -- 1332
+				grooveX0 + 4, -- 1332
+				groundY + cam:len(5) -- 1332
+			), -- 1332
 			Vec2( -- 1333
-				grooveX0 + 4, -- 1333
+				grooveX1 - 4, -- 1333
 				groundY + cam:len(5) -- 1333
 			), -- 1333
-			Vec2( -- 1334
-				grooveX1 - 4, -- 1334
-				groundY + cam:len(5) -- 1334
-			), -- 1334
-			1.6, -- 1335
-			Color( -- 1336
-				196, -- 1336
-				204, -- 1336
-				210, -- 1336
-				math.floor(195 * aNorm + 0.5) -- 1336
-			) -- 1336
-		) -- 1336
-	end -- 1336
-end -- 1220
-return ____exports -- 1220
+			1.6, -- 1334
+			Color( -- 1335
+				196, -- 1335
+				204, -- 1335
+				210, -- 1335
+				math.floor(195 * aNorm + 0.5) -- 1335
+			) -- 1335
+		) -- 1335
+	end -- 1335
+end -- 1219
+return ____exports -- 1219
