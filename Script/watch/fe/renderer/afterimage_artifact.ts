@@ -15,6 +15,7 @@
  */
 
 import { Color, DrawNode, Vec2 } from "Dora";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
@@ -269,7 +270,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
 
         this.sampleTimer += dt;
         const dx = a.x - this.lastSampleX;
-        const dy = (a.y + a.depth) - (this.lastSampleY + this.lastSampleDepth);
+        const dy = (a.y + a.depth * DEPTH_Y_SCALE) - (this.lastSampleY + this.lastSampleDepth * DEPTH_Y_SCALE);
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if ((dist >= MIN_STEP_DIST_PX && this.sampleTimer >= SAMPLE_INTERVAL_SEC * 0.65)
@@ -320,7 +321,7 @@ export class AfterimageArtifactPlugin implements FeRenderPlugin {
         for (i = 0; i < this.ghosts.length; i++) {
             const g = this.ghosts[i];
             const sepX = g.x - p.player.x;
-            const sepY = (g.y + g.depth) - (p.player.y + p.player.depth);
+            const sepY = (g.y + g.depth * DEPTH_Y_SCALE) - (p.player.y + p.player.depth * DEPTH_Y_SCALE);
             if (Math.sqrt(sepX * sepX + sepY * sepY) < MIN_DRAW_SEPARATION_PX) {
                 continue;
             }

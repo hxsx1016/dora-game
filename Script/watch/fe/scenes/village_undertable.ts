@@ -274,7 +274,8 @@ export class VillageUndertableScene {
     }
 
     getCulvertWorldX(p: Play): number {
-        return p.room.passLine ?? (p.ox + 440);
+        // 对齐 VILLAGE_ROOM 后端暗渠口（560..640，中心 600；passLine=440 为院门通行线而非暗渠）
+        return p.ox + 600;
     }
 
     /** 判定落点材质：优先消费后端 e.data.surface，缺失时按真实世界坐标 x 分类 */
@@ -1429,6 +1430,20 @@ export class VillageUndertableScene {
             [Vec2(clothL.x * inv, clothL.y * inv), Color(36, 29, 25, 212)],
             [Vec2(clothR.x * inv, clothR.y * inv), Color(26, 21, 18, 198)],
         ]);
+
+        // 7. 蹲伏在桌下（304..416）时顶部极克制木梁压顶暗边，强化《小小梦魇》桌下压迫层次（绝不遮挡鞋底与投瓶）
+        if (p.player.crouch && p.player.x >= arch.x0 - 16 && p.player.x <= arch.x1 + 16) {
+            const topBandH = ctx.uiH * 0.14;
+            fillVGradRect(
+                uiDraw,
+                0,
+                ctx.uiH - topBandH,
+                ctx.uiW,
+                topBandH,
+                Color(12, 10, 9, 0),
+                Color(12, 10, 9, 138),
+            );
+        }
 
         // 绝不压隐常规 HUD 与准星
         return false;

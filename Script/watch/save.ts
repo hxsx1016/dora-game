@@ -88,12 +88,19 @@ let pending: { state: SaveState; file: string } | undefined = undefined;
 /** 读到未知版本原件后置位：该路径的普通写档一律拒绝，切走再切回仍受保护。 */
 let protectedPath = "";
 
-/** 引擎的 `exist/load/copy/remove` 只认绝对路径；相对写入会落到 writablePath 但读不回来。 */
+/** 引擎的 `exist/load/copy/remove` 只认绝对路径；兼容 Unix `/` 与 Windows 盘符 `C:\...`。 */
 function absPath(path: string): string {
-    if (path.length > 0 && path.charAt(0) === "/") {
+    if (path.length > 0 && (path.charAt(0) === "/" || path.charAt(0) === "\\")) {
         return path;
     }
-    return Content.writablePath + "/" + path;
+    if (path.length >= 2 && path.charAt(1) === ":") {
+        return path;
+    }
+    const base = Content.writablePath;
+    const sep = base.indexOf("\\") >= 0 && base.indexOf("/") < 0 ? "\\" : "/";
+    const norm = sep === "\\" ? path.split("/").join("\\") : path;
+    const trimmed = (base.endsWith("/") || base.endsWith("\\")) ? base.slice(0, -1) : base;
+    return trimmed + sep + norm;
 }
 
 /** 测试用：切到隔离档案文件；传空则回正式档案。不清保护位（保护位按路径绑定）。 */
@@ -445,11 +452,12 @@ export function loadSave(): LoadResult {
     };
 }
 
-/** 目标文件的目录部分；没有目录就写根。 */
+/** 目标文件的目录部分；兼容 `/` 与 `\`，没有目录就写根。 */
 function dirOf(path: string): string {
     let i = path.length - 1;
     for (; i >= 0; i--) {
-        if (path.charAt(i) === "/") {
+        const ch = path.charAt(i);
+        if (ch === "/" || ch === "\\") {
             return path.substring(0, i);
         }
     }
@@ -493,11 +501,16 @@ export function saveSave(state: SaveState): boolean {
     const existed = ops.exist(target);
     let backedUp = false;
     if (existed) {
-        backedUp = ops.copy(target, prev);
-        if (!backedUp || !usableBackup(prev)) {
-            // 备份不可用：绝不覆盖唯一有效旧档。
-            ops.remove(tmp);
-            return false;
+        if (usableBackup(target)) {
+            backedUp = ops.copy(target, prev);
+            if (!backedUp || !usableBackup(prev)) {
+                // 备份不可用：绝不覆盖唯一有效旧档。
+                ops.remove(tmp);
+                return false;
+            }
+        } else {
+            // 原目标已损坏（非受保护高版本）：先隔离保留坏文件副本再允许写入新档，解除永久写死锁。
+            backupCorrupt(target, ".corrupt");
         }
     }
 
@@ -613,6 +626,14 @@ export interface SessionSave {
     talentReload?: number;
     talentGuard?: number;
     talentCraft?: number;
+    /** 房内机关/破损道具、精确角色位置与城门/空村状态（向后兼容旧版 session.txt）。 */
+    props?: string[];
+    playerX?: number;
+    playerY?: number;
+    playerDepth?: number;
+    gateTick?: number;
+    hasBottle?: boolean;
+    villagePassed?: boolean;
 }
 
 export interface SessionLoadResult {
@@ -708,6 +729,13 @@ function formatSession(s: SessionSave): string {
         "talentReload=" + Math.round(s.talentReload ?? 0),
         "talentGuard=" + Math.round(s.talentGuard ?? 0),
         "talentCraft=" + Math.round(s.talentCraft ?? 0),
+        "props=" + (s.props === undefined ? "" : s.props.join(",")),
+        "playerX=" + (s.playerX === undefined ? -1 : Math.round(s.playerX)),
+        "playerY=" + (s.playerY === undefined ? 0 : Math.round(s.playerY)),
+        "playerDepth=" + (s.playerDepth === undefined ? 0 : Math.round(s.playerDepth)),
+        "gateTick=" + Math.round(s.gateTick ?? 0),
+        "hasBottle=" + (s.hasBottle === true ? "true" : "false"),
+        "villagePassed=" + (s.villagePassed === true ? "true" : "false"),
         "",
     ].join("\n");
 }
@@ -807,6 +835,13 @@ function parseSession(text: string): { ok: boolean; status: LoadStatus; reason: 
             talentReload: Math.max(0, intOf(lineValue(text, "talentReload") ?? "0", 0)),
             talentGuard: Math.max(0, intOf(lineValue(text, "talentGuard") ?? "0", 0)),
             talentCraft: Math.max(0, intOf(lineValue(text, "talentCraft") ?? "0", 0)),
+            props: parseListField(lineValue(text, "props")),
+            playerX: intOf(lineValue(text, "playerX") ?? "-1", -1),
+            playerY: intOf(lineValue(text, "playerY") ?? "0", 0),
+            playerDepth: intOf(lineValue(text, "playerDepth") ?? "0", 0),
+            gateTick: Math.max(0, intOf(lineValue(text, "gateTick") ?? "0", 0)),
+            hasBottle: parseBoolField(lineValue(text, "hasBottle"), false) === true,
+            villagePassed: parseBoolField(lineValue(text, "villagePassed"), false) === true,
         },
     };
 }
@@ -859,7 +894,7 @@ export function loadSession(): SessionLoadResult {
     }
     const parsed = parseSession(loadText(target));
     if (parsed.ok && parsed.state !== undefined) {
-        if (ops.exist(tmp)) {
+        if (ops.exist(tmp) && sameContent(tmp, target)) {
             ops.remove(tmp);
         }
         return { state: parsed.state, status: "ok", detail: "局中存档读取成功", recovered: false, backup: "" };
@@ -901,10 +936,14 @@ export function saveSession(state: SessionSave): boolean {
     const existed = ops.exist(target);
     let backedUp = false;
     if (existed) {
-        backedUp = ops.copy(target, prev);
-        if (!backedUp || !usableSessionBackup(prev)) {
-            ops.remove(tmp);
-            return false;
+        if (usableSessionBackup(target)) {
+            backedUp = ops.copy(target, prev);
+            if (!backedUp || !usableSessionBackup(prev)) {
+                ops.remove(tmp);
+                return false;
+            }
+        } else {
+            backupCorrupt(target, ".corrupt");
         }
     }
     if (!ops.copy(tmp, target)) {

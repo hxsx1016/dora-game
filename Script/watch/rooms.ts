@@ -922,7 +922,7 @@ export const ESCORT3_ROOM: RoomSpec = {
     ],
     dims: [
         { x0: 560, x1: 680, text: "工台 120" },
-        { x0: 700, x1: 756, text: "掩体 56" },
+        { x0: 720, x1: 768, text: "掩体 48" },
     ],
     campaign: { chapter: "O", act: 3, budget: 240, goal: "reach_exit", exitX: 1150, next: "escort4", checkpoint: 1, reloadPuzzle: true },
 };
@@ -1091,7 +1091,7 @@ export const S2_DRYGOODS: RoomSpec = {
         },
         {
             x: 600, w: 80, h: 40, y: 0, label: "放下的窗板 600–680", lanes: ["lower"],
-            art: "board", id: "s2_board_cover", soft: true,
+            art: "board", id: "s2_board_cover", soft: true, hidden: true,
         },
         { x: 1560, w: 30, h: 150, y: 0, label: "牌楼左柱", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1700, w: 30, h: 150, y: 0, label: "牌楼右柱", lanes: ["lower", "upper"], art: "gate_post" },
@@ -1367,7 +1367,11 @@ export function withOrigin(room: RoomSpec): RoomSpec {
         passLine: room.passLine === undefined ? undefined : shift(room.passLine),
         campaign: room.campaign === undefined ? undefined : { ...room.campaign, exitX: shift(room.campaign.exitX) },
         pickups: room.pickups === undefined ? undefined : room.pickups.map((p) => ({ ...p, x: shift(p.x) })),
-        companion: room.companion,
+        companion: room.companion === undefined ? undefined : {
+            ...room.companion,
+            waitX: room.companion.waitX === undefined ? undefined : shift(room.companion.waitX),
+            joinX: room.companion.joinX === undefined ? undefined : shift(room.companion.joinX),
+        },
         story: shiftStory(room.story, ox),
     };
 }

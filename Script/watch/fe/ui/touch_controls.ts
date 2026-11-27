@@ -284,7 +284,8 @@ export class TouchControls {
         const cartNearby = p !== undefined && cart !== undefined && !p.cartDocked && cart.bodyW > 0
             && (p.gripping || p.cartHandleInReach());
         const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village" && p.hasBottle && !p.passed;
-        const canShoot = gameplayActive && p !== undefined && !p.childMode && !p.gripping
+        const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
+        const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
             && !cutsceneBlocking && !modal && p.escort.state !== "calming";
 
         const buttons: TouchButtonSpec[] = [];
@@ -451,8 +452,9 @@ export class TouchControls {
             }
         }
 
-        // -------- B. 竖屏菜单掌机导航键（同时支持直点上方 16:9 画面）--------
-        if (isPortrait && overlayActive && (!gameplayActive || (isPlayMode && p !== undefined && p.paused))) {
+        // -------- B. 竖屏菜单掌机导航键（开机品牌序幕不展示导航键，其他菜单与暂停页同时支持直点上方 16:9 画面）--------
+        if (isPortrait && overlayActive && params.screen !== "splash"
+            && (!gameplayActive || (isPlayMode && p !== undefined && p.paused))) {
             const cy = Math.max(safeB + 84, vp.deckH * 0.50);
             const leftX = safeL + Math.max(82, ovW * 0.25);
             const step = Math.min(54, Math.max(42, ovW * 0.12));
@@ -519,7 +521,7 @@ export class TouchControls {
 
             prompt = deriveWorldPrompt(p);
             if (prompt !== undefined && prompt.keyTag.indexOf("E") >= 0 && params.cam !== undefined
-                && (params.assistHintsEnabled || overlayActive)) {
+                && params.assistHintsEnabled) {
                 const keyW = Math.max(24, visualTextWidth(prompt.keyTag, 15) + 16);
                 const labelW = visualTextWidth(prompt.label, 15);
                 const pillW = keyW + labelW + 24;
@@ -538,6 +540,27 @@ export class TouchControls {
                     ),
                 });
             }
+        }
+
+        // 片尾定格满 8 秒后：横屏触屏提供底部居中「确认 / 再走一遍」胶囊钮，杜绝横屏触屏死锁
+        if (isPlayMode && p !== undefined && !p.paused && overlayActive && !isPortrait
+            && p.room.key === "tower" && p.phase === "tower-end" && p.towerEndReady()) {
+            const cx = ovW * 0.5;
+            const cy = safeB + 46;
+            buttons.push({
+                id: "nav_confirm",
+                x: cx,
+                y: cy,
+                r: 26,
+                shape: "pill",
+                rect: Rect(cx - 88, cy - 22, 176, 44),
+                label: "继续 · 归程",
+                accent: "amber",
+                active: false,
+                highlighted: true,
+                progress: 0,
+                dimmed: false,
+            });
         }
 
         // 护送试炼（mode === 2）暂停 / 结算 / 本领三选一按钮热区
@@ -744,7 +767,7 @@ export class TouchControls {
                 // 横屏右手宋明扇形圆钮布局（1280×720 基准逻辑像素）
                 const rightX = ovW - safeR - 92 * sc;
                 const bottomY = safeB + 110 * sc;
-                bottleCancelCenter = { x: rightX - 14 * sc, y: bottomY + 14 * sc, r: 44 * sc };
+                bottleCancelCenter = { x: rightX - 186 * sc, y: bottomY + 126 * sc, r: 42 * sc };
 
                 if (!p.childMode) {
                     buttons.push({

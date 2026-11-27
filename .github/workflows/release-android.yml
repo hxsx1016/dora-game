@@ -17,7 +17,6 @@ on:
     branches:
       - 'main'
       - 'exp/multi-device-adapt'
-      - 'exp/multi-device-unified'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -47,6 +46,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      signed_mode: ${{ steps.sign.outputs.signed_mode }}
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -184,7 +184,7 @@ jobs:
 
       - name: Verify APK metadata, fullUser rotation, 16KB alignment, permissions & unified assets
         run: |
-          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
           AAPT2="$BUILD_TOOLS/aapt2"
           ZIPALIGN="$BUILD_TOOLS/zipalign"
           APKSIGNER="$BUILD_TOOLS/apksigner"
@@ -204,6 +204,18 @@ jobs:
             echo "$XMLTREE" | grep -E "screenOrientation.*=(.*0xa|10([^0-9a-fA-F]|$))"
             "$ZIPALIGN" -c -P 16 -v 4 "$apk" >/dev/null
             "$APKSIGNER" verify --verbose "$apk"
+            # 检查 .so ELF LOAD 段对齐情况（记录 16KB 页对齐兼容性）
+            if command -v readelf >/dev/null 2>&1; then
+              TMP_SO="$RUNNER_TEMP/so-check-$(basename "$apk" .apk)"
+              rm -rf "$TMP_SO" && mkdir -p "$TMP_SO"
+              unzip -q -j "$apk" "lib/arm64-v8a/*.so" -d "$TMP_SO" || true
+              for so in "$TMP_SO"/*.so; do
+                [ -f "$so" ] || continue
+                echo "[ELF LOAD align] $(basename "$so"):"
+                readelf -l "$so" | awk '/LOAD/ {print "  " $0}'
+              done
+              rm -rf "$TMP_SO"
+            fi
             python3 - "$apk" <<'PY'
           import sys, zipfile
           with zipfile.ZipFile(sys.argv[1]) as z:
@@ -260,6 +272,13 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Enforce release keystore for public releases
+        run: |
+          if [ "${{ needs.build-android.outputs.signed_mode }}" != "release" ]; then
+            echo "拒绝发布：当前 APK 使用临时 30 天调试签名（signed_mode=${{ needs.build-android.outputs.signed_mode }}），请先在仓库 Secrets 配置 ANDROID_KEYSTORE_B64 / PASSWORD / ALIAS。" >&2
+            exit 1
+          fi
+
       - name: Download Android APK artifacts
         uses: actions/download-artifact@v4
         with:
@@ -278,8 +297,10 @@ jobs:
             if [[ "${VER}" == *-* ]]; then
               PRERELEASE_FLAG="--prerelease"
             fi
-            gh release create "${VER}" "$RUNNER_TEMP/android-out/"* \
+            if ! gh release create "${VER}" "$RUNNER_TEMP/android-out/"* \
               --title "《向西守望》${VER}" \
-              --notes "《向西守望》${VER} Android 正式签名安装包（arm64-v8a 精简版与双架构通用版，支持横竖屏自由切换、触屏/手柄/键鼠三模操控与 16KB 页对齐）。" \
-              ${PRERELEASE_FLAG}
+              --notes "《向西守望》${VER} 多端发行版（含 Windows 便携包、Dora 源码包、Android 正式签名 APK 与 Web 发行包）。" \
+              ${PRERELEASE_FLAG}; then
+              gh release upload "${VER}" "$RUNNER_TEMP/android-out/"* --clobber
+            fi
           fi

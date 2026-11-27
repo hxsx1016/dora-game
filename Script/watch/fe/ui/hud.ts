@@ -135,7 +135,7 @@ export class HudRenderer {
         const gap = 14;
         const totalW = count * cardW + (count - 1) * gap;
         const startX = (w - totalW) * 0.5;
-        const y = h - (touchMode ? 122 : 108) - safeTop;
+        const y = h - (touchMode ? 132 : 120) - safeTop;
         let i = 0;
         for (i = 0; i < count; i++) {
             out.push(Rect(startX + i * (cardW + gap), y, cardW, cardH));
@@ -178,17 +178,18 @@ export class HudRenderer {
         const by = h - 72 - safe.top;
         const lowHp = p.hp <= 1;
 
-        drawSilkVeil(uiDraw, uiArt, "hud_soldier_veil", bx + 150, by + 24, 340, 56, PALETTE.inkWash, 0.62 * alpha, -1);
+        const segCount = Math.max(1, p.maxHp);
+        const segW = segCount >= 5 ? 42 : 54;
+        const segH = 9;
+        const gap = segCount >= 5 ? 6 : 8;
+        const veilW = Math.max(340, 124 + segCount * (segW + gap));
+        drawSilkVeil(uiDraw, uiArt, "hud_soldier_veil", bx + veilW * 0.44, by + 24, veilW, 56, PALETTE.inkWash, 0.62 * alpha, -1);
         texts.put("md", "戍", bx + 16, by + 25, toColor(lowHp ? PALETTE.rouge : PALETTE.cyanCore), 0.5, 0.5, TextAlign.Center, 0, alpha, 0.10);
         uiInkDraw.drawSegment(Vec2(bx + 32, by + 9), Vec2(bx + 32, by + 40), 0.8, toColor(PALETTE.silkDim, 130 * alpha));
         texts.put("xs", "周戍 · 体力", bx + 44, by + 36, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.4, alpha, 0.08);
 
-        const segCount = Math.max(1, p.maxHp);
         const barX = bx + 44;
         const barY = by + 16;
-        const segW = 54;
-        const segH = 9;
-        const gap = 8;
 
         let i = 0;
         for (i = 0; i < segCount; i++) {
@@ -230,12 +231,14 @@ export class HudRenderer {
                 uiInkDraw.drawRect(Rect(covX, barY - 9, 54, 18), toColor(PALETTE.cyanDim, 165 * alpha), 0.8, toColor(PALETTE.cyanCore, 180 * alpha));
                 texts.put("xs", "掩体中", covX + 27, barY, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0);
             }
-        } else if (p.coverNear) {
+        } else if (assistHintsEnabled && p.coverNear) {
             uiInkDraw.drawRect(Rect(covX, barY - 9, 54, 18), Color(14, 17, 25, Math.round(150 * alpha)), 0.8, toColor(PALETTE.silkLine, 165 * alpha));
             texts.put("xs", "可贴靠", covX + 27, barY, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.6, alpha, 0.08);
         }
 
-        if (p.room.key === "prologue" || p.room.key === "street" || p.room.key === "checkpoint") {
+        const showCampaignFear = p.isCampaign && (p.room.campaign?.chapter === "S" || p.room.campaign?.chapter === "C")
+            && (p.escort.fear > 0 || p.escort.state === "frozen" || p.escort.state === "calming");
+        if (p.room.key === "prologue" || p.room.key === "street" || p.room.key === "checkpoint" || showCampaignFear) {
             const subY = by - 24;
             const frozen = p.escort.state === "frozen";
             const calming = p.escort.state === "calming";
@@ -323,13 +326,15 @@ export class HudRenderer {
         uiInkDraw.drawSegment(Vec2(bx + 32, by + 7), Vec2(bx + 32, by + 37), 0.8, toColor(PALETTE.silkDim, 130 * alpha));
         texts.put("xs", "小满 · 潜行", bx + 44, by + 33, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, alpha, 0.08);
 
-        let posture = "轻步前行 · 保持隐蔽";
+        let posture = assistHintsEnabled ? "轻步前行 · 保持隐蔽" : "轻步前行";
         let col = PALETTE.textMid;
         if (alert) {
-            posture = p.scavChase || p.dogState === "chase" ? "已被发现 · 速寻隐蔽" : "引起警觉 · 停步蹲伏";
+            posture = p.scavChase || p.dogState === "chase"
+                ? (assistHintsEnabled ? "已被发现 · 速寻隐蔽" : "已被发现")
+                : (assistHintsEnabled ? "引起警觉 · 停步蹲伏" : "引起警觉");
             col = PALETTE.crimsonCore;
         } else if (p.player.crouch) {
-            posture = "低姿伏行 · 匿迹于影";
+            posture = assistHintsEnabled ? "低姿伏行 · 匿迹于影" : "低姿伏行";
             col = PALETTE.emerald;
         } else if (p.hasBottle) {
             posture = assistHintsEnabled
@@ -353,7 +358,7 @@ export class HudRenderer {
         touchOverlayVisible: boolean,
     ): void {
         const theme = themeOf(p.room.key);
-        const rx = w - 32 - safe.right - (touchOverlayVisible ? 104 : 0);
+        const rx = w - 32 - safe.right - (touchOverlayVisible ? 208 : 0);
         const cy = h - 44 - safe.top;
         const pauseTip = inputMode === "gamepad" ? "START 暂歇" : "Esc 暂歇";
 
@@ -408,85 +413,18 @@ export class HudRenderer {
                     gpFocus ? 1.5 : 0.9,
                     toColor(borderCol, Math.round((gpFocus ? 235 : 185) * alpha)),
                 );
-                drawSilkKeycap(uiInkDraw, texts, bx + 8, cy - 11, 22, 22, "" + (ti + 1), borderCol, alpha, true);
-                texts.put("xs", talentNames[talentOffers[ti]], bx + 38, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
-            }
-        }
-
-        if (p.craftBench.active) {
-            const bw = 470;
-            const cx = w * 0.5;
-            const top = h * 0.32;
-            drawSilkVeil(uiDraw, uiArt, "hud_bench_veil", cx, top + 118, bw + 64, 208, PALETTE.inkWash, 0.86 * alpha, -1);
-            texts.put("xs", "工台 · 放她下来做一件", cx, top - 6, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.7, alpha, 0.08);
-            const inv = p.craftBench.inventory;
-            const wood = inv["wood"] ?? 0;
-            const bell = inv["bell"] ?? 0;
-            const scrap = inv["scrap"] ?? 0;
-            texts.put("xs", "木纹筹 " + wood + " · 铃纹筹 " + bell + " · 碎片 " + scrap, cx, top + 24,
-                toColor(PALETTE.silkDim), 0.5, 0.5, TextAlign.Center, 1.5, alpha, 0.08);
-            const recipes = p.craftBench.recipes;
-            for (let i = 0; i < recipes.length; i++) {
-                const r = recipes[i];
-                let costText = "";
-                let afford = true;
-                const costWood = r.cost["wood"] ?? 0;
-                const costBell = r.cost["bell"] ?? 0;
-                if (costWood > 0) {
-                    costText = costText + (costText !== "" ? " + " : "") + "木 " + costWood;
-                    if (wood < costWood) afford = false;
+                if (inputMode === "kbm") {
+                    drawSilkKeycap(uiInkDraw, texts, bx + 8, cy - 11, 22, 22, "" + (ti + 1), borderCol, alpha, true);
+                    texts.put("xs", talentNames[talentOffers[ti]], bx + 38, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
+                } else {
+                    drawBlossomDot(uiInkDraw, uiArt, "hud_talent_dot_" + ti, bx + 18, cy, gpFocus ? 12 : 8, borderCol, alpha, 4);
+                    texts.put("xs", talentNames[talentOffers[ti]], bx + 34, cy, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.6, alpha, 0.08);
                 }
-                if (costBell > 0) {
-                    costText = costText + (costText !== "" ? " + " : "") + "铃 " + costBell;
-                    if (bell < costBell) afford = false;
-                }
-                const equipped = p.craftBench.equippedWeapon === r.id;
-                const state = r.crafted ? "已做成" : (afford ? "可制作" : "缺料");
-                const mark = equipped ? " ◈" : "";
-                texts.put("xs", r.name + " · " + costText + " · " + state + mark, cx, top + 56 + i * 26,
-                    toColor(equipped ? PALETTE.cyanCore : (r.crafted ? PALETTE.silkDim : PALETTE.textBright)),
-                    0.5, 0.5, TextAlign.Center, 1.6, alpha, 0.08);
-            }
-            const firstMade = p.craftBench.firstCraftDone ? " · 首制完成" : "";
-            texts.put("xs", "E 制作 · Q 装备 · Esc 离开" + firstMade, cx, top + 128,
-                toColor(PALETTE.amber), 0.5, 0.5, TextAlign.Center, 1.5, alpha, 0.06);
-        }
-
-        if (p.reloadOpen) {
-            const bw = 400;
-            const cx = w * 0.5;
-            const by = h - 64 - safe.top;
-            const ratio = Math.max(0, Math.min(1, p.reloadAnswerTicks / 240));
-            const effect = p.reloadPendingEffect;
-            const label = effect !== ""
-                ? "枪机复位 · " + (effect === "push" ? "推退" : (effect === "echo" ? "回声引声源" : "照明照遮蔽"))
-                : "连线换弹 · " + Math.min(9, p.reloadPath.length) + " / 9";
-            drawSilkVeil(uiDraw, uiArt, "hud_reload_veil", cx, by + 18, bw + 90, 48, PALETTE.inkWash, 0.76 * alpha, -1);
-            drawHairline(uiInkDraw, uiArt, "hud_reload_top", cx, by + 39, bw - 20, PALETTE.cyan, 0.55 * alpha, false, 2);
-            texts.put("xs", label, cx, by + 26, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 1.8, alpha, 0.08);
-
-            for (let n = 0; n < 9; n++) {
-                const col = n % 3;
-                const row = Math.floor(n / 3);
-                const nx = cx + (col - 1) * 13;
-                const ny = by + 50 + row * 12;
-                const inPath = p.reloadPath.indexOf(n) >= 0;
-                const isEnd = n === 8;
-                uiArt.tryPlace("ink_enso_fine", "reload_node_" + n, nx, ny, isEnd ? 10 : 6, isEnd ? 10 : 6, {
-                    color: toColor(isEnd ? PALETTE.cyanCore : (inPath ? PALETTE.amber : PALETTE.silkDim)),
-                    opacity: (isEnd || inPath ? 0.92 : 0.4) * alpha, layer: 3,
-                });
-            }
-
-            const pbw = bw - 80;
-            const pbx = cx - pbw * 0.5;
-            const pby = by + 9;
-            uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw, pby), 1.4, toColor(PALETTE.silkDim, 115 * alpha));
-            if (ratio > 0.002) {
-                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 2.8, toColor(PALETTE.cyan, 220 * alpha));
-                uiInkDraw.drawSegment(Vec2(pbx, pby), Vec2(pbx + pbw * ratio, pby), 1.0, toColor(PALETTE.cyanCore, 160 * alpha));
             }
         }
+
+        // 工台与 3×3 慢时换弹界面已分别由 CraftBenchPlugin / ReloadWheelPlugin 全速层接管，
+        // 此处不再叠绘旧版灰盒工台与顶部换弹条，避免新旧双层 UI 互相遮挡与错位键位提示。
 
         if (p.room.key === "gate" && p.room.story !== undefined && p.room.story.gate !== undefined) {
             const g = p.room.story.gate;

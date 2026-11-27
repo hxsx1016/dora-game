@@ -10,6 +10,7 @@ import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } fr
 import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
 import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
@@ -176,7 +177,7 @@ function handleBackButton(): void {
         fe.menus.resetInput();
         return;
     }
-    if (fe.screen === "chapters" || fe.screen === "controls") {
+    if (fe.screen === "chapters" || fe.screen === "controls" || fe.screen === "epilogue" || fe.screen === "history") {
         fe.menus.triggerBack();
         return;
     }
@@ -297,6 +298,20 @@ function continueOfficialStory(): Play | undefined {
     if (s.c2Latch !== undefined) {
         storyRun.c2Latch = s.c2Latch;
     }
+    if (s.props !== undefined) {
+        for (k = 0; k < s.props.length; k++) {
+            const parts = s.props[k].split(":");
+            const pid = parts[0];
+            if (pid !== undefined && pid !== "") {
+                storyRun.props[pid] = {
+                    broken: parts[1] === undefined ? true : parts[1] === "1",
+                    hp: parts[2] === undefined ? 0 : (tonumber(parts[2]) ?? 0),
+                    wedge: parts[3] === "1",
+                    revealed: parts[4] === "1" ? true : undefined,
+                };
+            }
+        }
+    }
     const stTalents = createStoryTalents(s.seed);
     if (s.talentSeed !== undefined && s.talentSeed > 0) {
         stTalents.randomState = s.talentSeed;
@@ -323,9 +338,25 @@ function continueOfficialStory(): Play | undefined {
     play = undefined;
     ensurePlay(s.checkpoint > 0 ? { checkpoint: s.checkpoint } : undefined);
     const cur = play as Play | undefined;
-    if (cur !== undefined && s.cartAxle > 0 && cur.room.cart.bodyW > 0) {
-        cur.cartAxle = s.cartAxle;
-        cur.cartDocked = s.cartDocked;
+    if (cur !== undefined) {
+        if (s.cartAxle > 0 && cur.room.cart.bodyW > 0) {
+            cur.cartAxle = s.cartAxle;
+            cur.cartDocked = s.cartDocked;
+        }
+        if (s.playerX !== undefined && s.playerX >= 0) {
+            cur.player.x = Math.max(cur.room.minX + 16, Math.min(cur.room.maxX - 16, s.playerX));
+            cur.player.y = Math.max(0, s.playerY ?? 0);
+            if (cur.room.depth !== undefined && s.playerDepth !== undefined) {
+                cur.player.depth = Math.max(cur.room.depth.min, Math.min(cur.room.depth.max, s.playerDepth));
+            }
+        }
+        if (cur.room.key === "gate" && s.gateTick !== undefined && s.gateTick > 0) {
+            cur.gateTick = s.gateTick;
+        }
+        if (cur.room.key === "village") {
+            if (s.hasBottle === true) cur.hasBottle = true;
+            if (s.villagePassed === true) cur.passed = true;
+        }
     }
     return play;
 }
@@ -463,6 +494,8 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 play.aimHold = 0;
                 play.bottleAimX = -1;
                 fe.menus.openPause();
+            } else if (mode === 2 && play !== undefined && !play.paused) {
+                play.paused = true;
             }
             if (fe !== undefined) {
                 fe.audio.setPaused(true);
@@ -471,7 +504,8 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         }
         if (eventType === "DidEnterForeground" || eventType === "WindowFocusGained") {
             if (fe !== undefined) {
-                const paused = mode === 1 && fe.screen === "play" && play !== undefined && play.paused;
+                const paused = play !== undefined && play.paused
+                    && ((mode === 1 && fe.screen === "play") || mode === 2);
                 fe.audio.setPaused(paused);
             }
         }
@@ -491,31 +525,35 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             return;
         }
         if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
-            && !play.craftBench.active && play.getStoryTalentOffers().length > 0) {
+            && !play.craftBench.active && !play.reloadOpen && play.getStoryTalentOffers().length > 0) {
             if (key === KeyName.Num1) {
                 play.chooseTalent(0);
+                input?.consumePickRoom();
                 return;
             }
             if (key === KeyName.Num2) {
                 play.chooseTalent(1);
+                input?.consumePickRoom();
                 return;
             }
             if (key === KeyName.Num3) {
                 play.chooseTalent(2);
+                input?.consumePickRoom();
                 return;
             }
         }
-        if (fe !== undefined && mode === 1 && (fe.screen !== "play" || (play !== undefined && play.paused))) {
+        const inPausedPlay = mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && play.paused;
+        if (fe !== undefined && mode === 1 && (fe.screen !== "play" || inPausedPlay)) {
             fe.menus.onKeyEvent(key);
         }
-        if (input !== undefined && ((mode === 1 && fe !== undefined && fe.screen === "play") || mode === 2)) {
+        if (input !== undefined && ((mode === 1 && fe !== undefined && fe.screen === "play" && !inPausedPlay) || mode === 2)) {
             if (key === KeyName.E) {
                 input.interact.pressed = true;
             } else if (key === KeyName.Space) {
                 input.jump.pressed = true;
             } else if (key === KeyName.Escape) {
                 input.pause.pressed = true;
-            } else if (key === KeyName.R) {
+            } else if (key === KeyName.R && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
                 input.retry.pressed = true;
             }
         }
@@ -570,6 +608,13 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 fe.menus.resetSplash();
             } else if (sc === "chapters") {
                 fe.menus.openChapters();
+            } else if (sc === "epilogue") {
+                fe.menus.openEpilogue(
+                    play !== undefined && play.storyRoute === "soldier" ? "reunion" : "lamp",
+                    profile.childCleared && profile.soldierCleared,
+                );
+            } else if (sc === "history") {
+                fe.menus.openHistory(false);
             } else {
                 fe.menus.resetInput();
             }
@@ -743,8 +788,8 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false):
         fe.screen = "play";
     }
     play = undefined;
-    // 标题「新的旅程」进序章视为正式开新局；章节直达与快跳只预览，不写通关档案。
-    if (fresh || storyRun === undefined) {
+    // 标题「新的旅程」进序章视为正式开新局；章节直达始终起干净独立预览局，不泄漏或污染正式局状态。
+    if (fresh || source === "chapter" || storyRun === undefined) {
         storyRun = createRun(20261124, source, profile);
     } else {
         storyRun.source = source;
@@ -864,7 +909,8 @@ function syncFrameAdapters(frameDt: number): void {
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
         const allowDepth = p !== undefined && p.room.depth !== undefined
             && (!p.childMode || p.phase === "prologue-escape");
-        const canShoot = gameplayActive && p !== undefined && !p.childMode && !p.gripping
+        const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
+        const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
             && !modal && !cutsceneBlocking && !trialHasOffers && p.escort.state !== "calming";
         const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village"
             && p.hasBottle && !p.passed && !modal && !cutsceneBlocking;
@@ -880,8 +926,10 @@ function syncFrameAdapters(frameDt: number): void {
                 playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
                 playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
             } else {
-                playerScreenX = stageVp.stageW * 0.45;
-                playerScreenY = stageVp.stageH * 0.36;
+                // 护送试炼（mode === 2）按 Play.view 精确投影主角屏幕位置，保证手柄方向锥磁吸准心不偏心
+                const vz = p.view.zoom > 0 ? p.view.zoom : 1;
+                playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
+                playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
             }
         }
 
@@ -1228,7 +1276,7 @@ function drawCampaign(p: Play): void {
     let line = room.name;
     if (c !== undefined) {
         line = line + "  " + c.chapter + c.act + " · 目标 " + goalLabel(c.goal)
-            + " · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0)) + " / 预算 " + mmss(c.budget);
+            + " · 本段 " + mmss(r === undefined ? 0 : (r.roomTicks[room.key] ?? 0)) + " / 预算 " + mmss(c.budget * 60);
     }
     if (p.paused) {
         line = line + "  · 已暂停 Esc 继续";
@@ -1312,6 +1360,16 @@ function tickFrontend(frameDt: number): void {
         } else if (act.type === "openControls") {
             fe.menus.resetInput();
             fe.screen = "controls";
+        } else if (act.type === "openHistory") {
+            fe.menus.openHistory(true);
+            fe.screen = "history";
+        } else if (act.type === "backEpilogue") {
+            fe.menus.resetInput();
+            fe.screen = "epilogue";
+        } else if (act.type === "replayStory") {
+            clearSession();
+            refreshTitleSessionFlag();
+            enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "backTitle") {
             fe.menus.resetInput();
             fe.screen = "title";
@@ -1332,14 +1390,6 @@ function tickFrontend(frameDt: number): void {
         return;
     }
     const p = play;
-
-    const inTowerEnding = p.room.key === "tower" && p.phase !== "tower-wait";
-    if (input.retry.pressed && !inTowerEnding) {
-        input.consumeEdges();
-        // 重试保留检查点，并重新绑定前端相机与运行态验收钩子。
-        ensurePlay({ checkpoint: p.checkpoint });
-        return;
-    }
 
     p.aimX = input.mx;
     p.aimY = input.my;
@@ -1366,16 +1416,34 @@ function tickFrontend(frameDt: number): void {
                 p.chooseTalent(fe.hud.talentSelected);
                 input.talentConfirm = false;
                 input.fire.pressed = false;
-            } else if ((input.uiPressed || input.fire.pressed)
+            } else if ((input.uiPressed || (input.inputMode !== "gamepad" && input.fire.pressed))
                 && fe.tryPickTalentAtPointer(p, input, stageVp.stageW, stageVp.stageH)) {
                 input.fire.pressed = false;
             }
         }
     }
 
-    // 北塔尾声支持手柄确认键重新启程（与键盘 E / 触屏点画保持同源）
-    if (!p.paused && p.room.key === "tower" && p.phase === "tower-end" && input.navConfirm) {
-        input.interact.pressed = true;
+    // 北塔尾声满 8 秒读完后，按确认键（E / 手柄确认 / 触屏）收页进入片尾落款与史话入口
+    if (!p.paused && p.room.key === "tower" && p.phase === "tower-end") {
+        if (input.navConfirm) {
+            input.interact.pressed = true;
+        }
+        if (p.towerEndReady() && (input.interact.pressed || input.retry.pressed)) {
+            flushProfile();
+            if (p.run.source === "official" && hasSessionSave()) {
+                clearSession();
+                refreshTitleSessionFlag();
+            }
+            fe.audio.stopRoomTransient();
+            fe.menus.openEpilogue(
+                p.storyRoute === "soldier" ? "reunion" : "lamp",
+                profile.childCleared && profile.soldierCleared,
+            );
+            fe.screen = "epilogue";
+            input.clearTransient(true);
+            input.consumeEdges();
+            return;
+        }
     }
 
     if (!p.paused && p.craftBench.active && input.pause.pressed) {
@@ -1404,6 +1472,8 @@ function tickFrontend(frameDt: number): void {
         } else if (pauseAct.type === "retry") {
             ensurePlay({ checkpoint: p.checkpoint });
         } else if (pauseAct.type === "openChapters") {
+            fe.audio.stopRoomTransient();
+            fe.audio.setPaused(false);
             fe.menus.openChapters(current);
             fe.screen = "chapters";
         } else if (pauseAct.type === "toggleFullscreen") {
@@ -1416,6 +1486,16 @@ function tickFrontend(frameDt: number): void {
             fe.menus.resetInput();
             fe.screen = "title";
         }
+        return;
+    }
+
+    const inTowerEnding = p.room.key === "tower" && p.phase !== "tower-wait";
+    const inPrologueIntro = p.room.key === "prologue"
+        && (p.phase === "prologue-wake" || p.phase === "prologue-shadow" || p.phase === "prologue-escape" || p.phase === "prologue-hide");
+    if (input.retry.pressed && !inTowerEnding && !inPrologueIntro && !p.craftBench.active && !p.reloadOpen) {
+        input.consumeEdges();
+        // 重试保留检查点，并重新绑定前端相机与运行态验收钩子。
+        ensurePlay({ checkpoint: p.checkpoint });
         return;
     }
 
@@ -1447,18 +1527,22 @@ function tickFrontend(frameDt: number): void {
             // 切房同拍：旧实例的档案变化先落盘；失败则留 profileDirty，由后续帧重试。
             flushProfile();
             const leaving = p.drainEvents();
-            // 片尾回序章：重开一份局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
+            // 片尾回序章：重开一份正式局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
             if (p.restartStory) {
                 if (storyRun !== undefined && storyRun.source === "official") {
                     clearSession();
                     refreshTitleSessionFlag();
                 }
-                storyRun = createRun(20261124, storyRun === undefined ? "official" : storyRun.source, profile);
+                const nextSource: RunSource = (storyRun !== undefined && storyRun.source === "debug") ? "debug" : "official";
+                storyRun = createRun(20261124, nextSource, profile);
             }
             current = idx;
             ensurePlay();
             const fresh = play;
             if (fresh !== undefined) {
+                if (p.restartStory && ROOMS[current].key === "prologue" && storyRun?.source === "official") {
+                    fresh.phase = "prologue-wake";
+                }
                 fresh.adoptEvents(leaving);
             }
             if (!p.restartStory) {

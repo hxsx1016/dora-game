@@ -568,8 +568,10 @@ export class GamepadRouter {
                 }
             }
         }
-        const moveX = dpadX !== 0 ? dpadX : stickMoveX;
-        const moveY = dpadY !== 0 ? dpadY : stickMoveY;
+        const bottleSteerLocksMove = this.ctx.gameplayActive && this.ctx.childMode && this.ctx.canBottleAim
+            && (rtNow || raw.x) && !this.bottleCancelLock && rMag <= dzR;
+        const moveX = bottleSteerLocksMove ? 0 : (dpadX !== 0 ? dpadX : stickMoveX);
+        const moveY = bottleSteerLocksMove ? 0 : (dpadY !== 0 ? dpadY : stickMoveY);
 
         // 3. 模态导航（左摇杆连发器：0.55 死区 / 0.38s 首拍 / 0.13s 连发）
         const sMenuX = Math.abs(raw.leftX) >= STICK_MENU_DEADZONE ? (raw.leftX > 0 ? 1 : -1) : 0;
@@ -650,8 +652,10 @@ export class GamepadRouter {
                 }
             }
         }
-        const reloadConfirm = this.ctx.reloadActive && (aPressed || yPressed || rtEdge);
-        const reloadReset = this.ctx.reloadActive && (bPressed || xPressed);
+        const gpReloadConfirmBtn = this.settings.gamepadLayout === "nintendo" ? bPressed : aPressed;
+        const gpReloadResetBtn = this.settings.gamepadLayout === "nintendo" ? aPressed : bPressed;
+        const reloadConfirm = this.ctx.reloadActive && (gpReloadConfirmBtn || yPressed || rtEdge);
+        const reloadReset = this.ctx.reloadActive && (gpReloadResetBtn || xPressed);
 
         // 5. 局内三选一本领卡手柄切选（不阻塞移动）
         let talentDelta = 0;

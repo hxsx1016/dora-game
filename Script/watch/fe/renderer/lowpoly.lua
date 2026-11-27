@@ -6,1251 +6,1259 @@ local ____exports = {} -- 1
 local ____Dora = require("Dora") -- 22
 local Color = ____Dora.Color -- 22
 local Vec2 = ____Dora.Vec2 -- 22
-local ____theme = require("Script.watch.fe.theme") -- 26
-local lerpRGBA = ____theme.lerpRGBA -- 26
-local rgba = ____theme.rgba -- 26
-local toColor = ____theme.toColor -- 26
-____exports.LP_BUCKET = { -- 90
-	BACKDROP = 0, -- 91
-	MIDGROUND = 1, -- 92
-	WALK_DECK = 2, -- 93
-	PROP = 3, -- 94
-	FOREGROUND = 4 -- 95
-} -- 95
-function ____exports.clamp01(v) -- 152
-	return math.max( -- 153
-		0, -- 153
-		math.min(1, v) -- 153
-	) -- 153
-end -- 152
-function ____exports.smoothstep(edge0, edge1, x) -- 156
-	if edge1 <= edge0 then -- 156
-		return x >= edge1 and 1 or 0 -- 158
-	end -- 158
-	local t = ____exports.clamp01((x - edge0) / (edge1 - edge0)) -- 160
-	return t * t * (3 - 2 * t) -- 161
-end -- 156
-function ____exports.vec3(x, y, z) -- 164
-	return {x = x, y = y, z = z} -- 165
-end -- 164
-function ____exports.normalize3(v) -- 168
-	local len = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) -- 169
-	if len < 0.00001 then -- 169
-		return {x = 0, y = 1, z = 0} -- 171
-	end -- 171
-	return {x = v.x / len, y = v.y / len, z = v.z / len} -- 173
-end -- 168
-local function dot3(a, b) -- 176
-	return a.x * b.x + a.y * b.y + a.z * b.z -- 177
-end -- 176
-local function cross3(a, b) -- 180
-	return {x = a.y * b.z - a.z * b.y, y = a.z * b.x - a.x * b.z, z = a.x * b.y - a.y * b.x} -- 181
-end -- 180
-local function sub3(a, b) -- 188
-	return {x = a.x - b.x, y = a.y - b.y, z = a.z - b.z} -- 189
-end -- 188
-local function clampByte(v) -- 192
-	return math.max( -- 193
-		0, -- 193
-		math.min( -- 193
-			255, -- 193
-			math.floor(v + 0.5) -- 193
-		) -- 193
-	) -- 193
-end -- 192
-local function scaleRGBA(c, k, alphaMul) -- 196
-	if alphaMul == nil then -- 196
-		alphaMul = 1 -- 196
-	end -- 196
-	return { -- 197
-		r = clampByte(c.r * k), -- 198
-		g = clampByte(c.g * k), -- 199
-		b = clampByte(c.b * k), -- 200
-		a = clampByte(c.a * alphaMul) -- 201
-	} -- 201
-end -- 196
+local ____depth = require("Script.watch.depth") -- 23
+local DEPTH_Y_SCALE = ____depth.DEPTH_Y_SCALE -- 23
+local ____theme = require("Script.watch.fe.theme") -- 27
+local lerpRGBA = ____theme.lerpRGBA -- 27
+local rgba = ____theme.rgba -- 27
+local toColor = ____theme.toColor -- 27
+____exports.LP_BUCKET = { -- 91
+	BACKDROP = 0, -- 92
+	MIDGROUND = 1, -- 93
+	WALK_DECK = 2, -- 94
+	PROP = 3, -- 95
+	FOREGROUND = 4 -- 96
+} -- 96
+function ____exports.clamp01(v) -- 153
+	return math.max( -- 154
+		0, -- 154
+		math.min(1, v) -- 154
+	) -- 154
+end -- 153
+function ____exports.smoothstep(edge0, edge1, x) -- 157
+	if edge1 <= edge0 then -- 158
+		return x >= edge1 and 1 or 0 -- 159
+	end -- 159
+	local t = ____exports.clamp01((x - edge0) / (edge1 - edge0)) -- 161
+	return t * t * (3 - 2 * t) -- 162
+end -- 157
+function ____exports.vec3(x, y, z) -- 165
+	return {x = x, y = y, z = z} -- 166
+end -- 165
+function ____exports.normalize3(v) -- 169
+	local len = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) -- 170
+	if len < 0.00001 then -- 171
+		return {x = 0, y = 1, z = 0} -- 172
+	end -- 172
+	return {x = v.x / len, y = v.y / len, z = v.z / len} -- 174
+end -- 169
+local function dot3(a, b) -- 177
+	return a.x * b.x + a.y * b.y + a.z * b.z -- 178
+end -- 177
+local function cross3(a, b) -- 181
+	return {x = a.y * b.z - a.z * b.y, y = a.z * b.x - a.x * b.z, z = a.x * b.y - a.y * b.x} -- 182
+end -- 181
+local function sub3(a, b) -- 189
+	return {x = a.x - b.x, y = a.y - b.y, z = a.z - b.z} -- 190
+end -- 189
+local function clampByte(v) -- 193
+	return math.max( -- 194
+		0, -- 194
+		math.min( -- 194
+			255, -- 194
+			math.floor(v + 0.5) -- 194
+		) -- 194
+	) -- 194
+end -- 193
+local function scaleRGBA(c, k, alphaMul) -- 197
+	if alphaMul == nil then -- 197
+		alphaMul = 1 -- 197
+	end -- 197
+	return { -- 198
+		r = clampByte(c.r * k), -- 199
+		g = clampByte(c.g * k), -- 200
+		b = clampByte(c.b * k), -- 201
+		a = clampByte(c.a * alphaMul) -- 202
+	} -- 202
+end -- 197
 --- 明初温州宁村所海防卫城低模材质预设（高灰度区分度、禁现代/仙侠荧光）
-____exports.MING_MATERIALS = { -- 206
-	mingBrick = { -- 207
-		base = rgba(96, 102, 112, 255), -- 208
-		edge = rgba(154, 162, 174, 155), -- 209
-		minShade = 0.3, -- 210
-		rimBoost = 0.24, -- 211
-		bottomAo = 0.28 -- 212
-	}, -- 212
-	mingBrickDark = { -- 214
-		base = rgba(54, 60, 72, 255), -- 215
-		edge = rgba(108, 118, 134, 135), -- 216
-		minShade = 0.24, -- 217
-		rimBoost = 0.18, -- 218
-		bottomAo = 0.34 -- 219
-	}, -- 219
-	mingTimber = { -- 221
-		base = rgba(114, 84, 62, 255), -- 222
-		edge = rgba(168, 134, 104, 160), -- 223
-		minShade = 0.26, -- 224
-		rimBoost = 0.22, -- 225
-		bottomAo = 0.3 -- 226
-	}, -- 226
-	mingTimberDark = { -- 228
-		base = rgba(68, 50, 38, 255), -- 229
-		edge = rgba(122, 96, 76, 145), -- 230
-		minShade = 0.2, -- 231
-		rimBoost = 0.16, -- 232
-		bottomAo = 0.36 -- 233
-	}, -- 233
-	mingStoneStep = { -- 235
-		base = rgba(118, 122, 128, 255), -- 236
-		edge = rgba(188, 194, 200, 185), -- 237
-		minShade = 0.28, -- 238
-		rimBoost = 0.26, -- 239
-		bottomAo = 0.26 -- 240
-	}, -- 240
-	mingIron = { -- 242
-		base = rgba(46, 52, 62, 255), -- 243
-		edge = rgba(136, 146, 158, 165), -- 244
-		minShade = 0.22, -- 245
-		rimBoost = 0.28, -- 246
-		bottomAo = 0.25 -- 247
-	}, -- 247
-	mingTile = { -- 249
-		base = rgba(44, 52, 66, 255), -- 250
-		edge = rgba(102, 116, 136, 140), -- 251
-		minShade = 0.24, -- 252
-		rimBoost = 0.18, -- 253
-		bottomAo = 0.24 -- 254
-	}, -- 254
-	mingRedCloth = { -- 256
-		base = rgba(176, 52, 48, 255), -- 257
-		edge = rgba(224, 116, 102, 195), -- 258
-		minShade = 0.36, -- 259
-		rimBoost = 0.24, -- 260
-		bottomAo = 0.18 -- 261
-	}, -- 261
-	distantWall = { -- 263
-		base = rgba(42, 52, 68, 255), -- 264
-		edge = rgba(98, 114, 136, 115), -- 265
-		minShade = 0.35, -- 266
-		rimBoost = 0.14, -- 267
-		bottomAo = 0.22 -- 268
-	}, -- 268
-	distantHill = { -- 270
-		base = rgba(28, 38, 54, 255), -- 271
-		edge = rgba(74, 92, 116, 90), -- 272
-		minShade = 0.38, -- 273
-		rimBoost = 0.12, -- 274
-		bottomAo = 0.2 -- 275
-	} -- 275
-} -- 275
+____exports.MING_MATERIALS = { -- 207
+	mingBrick = { -- 208
+		base = rgba(96, 102, 112, 255), -- 209
+		edge = rgba(154, 162, 174, 155), -- 210
+		minShade = 0.3, -- 211
+		rimBoost = 0.24, -- 212
+		bottomAo = 0.28 -- 213
+	}, -- 213
+	mingBrickDark = { -- 215
+		base = rgba(54, 60, 72, 255), -- 216
+		edge = rgba(108, 118, 134, 135), -- 217
+		minShade = 0.24, -- 218
+		rimBoost = 0.18, -- 219
+		bottomAo = 0.34 -- 220
+	}, -- 220
+	mingTimber = { -- 222
+		base = rgba(114, 84, 62, 255), -- 223
+		edge = rgba(168, 134, 104, 160), -- 224
+		minShade = 0.26, -- 225
+		rimBoost = 0.22, -- 226
+		bottomAo = 0.3 -- 227
+	}, -- 227
+	mingTimberDark = { -- 229
+		base = rgba(68, 50, 38, 255), -- 230
+		edge = rgba(122, 96, 76, 145), -- 231
+		minShade = 0.2, -- 232
+		rimBoost = 0.16, -- 233
+		bottomAo = 0.36 -- 234
+	}, -- 234
+	mingStoneStep = { -- 236
+		base = rgba(118, 122, 128, 255), -- 237
+		edge = rgba(188, 194, 200, 185), -- 238
+		minShade = 0.28, -- 239
+		rimBoost = 0.26, -- 240
+		bottomAo = 0.26 -- 241
+	}, -- 241
+	mingIron = { -- 243
+		base = rgba(46, 52, 62, 255), -- 244
+		edge = rgba(136, 146, 158, 165), -- 245
+		minShade = 0.22, -- 246
+		rimBoost = 0.28, -- 247
+		bottomAo = 0.25 -- 248
+	}, -- 248
+	mingTile = { -- 250
+		base = rgba(44, 52, 66, 255), -- 251
+		edge = rgba(102, 116, 136, 140), -- 252
+		minShade = 0.24, -- 253
+		rimBoost = 0.18, -- 254
+		bottomAo = 0.24 -- 255
+	}, -- 255
+	mingRedCloth = { -- 257
+		base = rgba(176, 52, 48, 255), -- 258
+		edge = rgba(224, 116, 102, 195), -- 259
+		minShade = 0.36, -- 260
+		rimBoost = 0.24, -- 261
+		bottomAo = 0.18 -- 262
+	}, -- 262
+	distantWall = { -- 264
+		base = rgba(42, 52, 68, 255), -- 265
+		edge = rgba(98, 114, 136, 115), -- 266
+		minShade = 0.35, -- 267
+		rimBoost = 0.14, -- 268
+		bottomAo = 0.22 -- 269
+	}, -- 269
+	distantHill = { -- 271
+		base = rgba(28, 38, 54, 255), -- 272
+		edge = rgba(74, 92, 116, 90), -- 273
+		minShade = 0.38, -- 274
+		rimBoost = 0.12, -- 275
+		bottomAo = 0.2 -- 276
+	} -- 276
+} -- 276
 --- 城门风台与小满线四房灯光预设（对齐《小小梦魇》第一作高反差侧光）
-____exports.GATE_NIGHTMARE_LIGHT = { -- 280
-	keyDir = ____exports.normalize3(____exports.vec3(-0.62, 0.64, -0.45)), -- 281
-	keyColor = rgba(206, 224, 240, 255), -- 282
-	keyStrength = 0.88, -- 283
-	rimDir = ____exports.normalize3(____exports.vec3(0.76, 0.36, -0.54)), -- 284
-	rimColor = rgba(224, 196, 150, 255), -- 285
-	rimStrength = 0.34, -- 286
-	ambientColor = rgba(26, 34, 48, 255), -- 287
-	fogColor = rgba(26, 36, 52, 255), -- 288
-	fogStartZ = 36, -- 289
-	fogEndZ = 560, -- 290
-	fogMaxAlpha = 0.84, -- 291
-	shadowContrast = 0.72 -- 292
-} -- 292
-____exports.OUTSIDE_JETTY_LIGHT = { -- 295
-	keyDir = ____exports.normalize3(____exports.vec3(-0.56, 0.68, -0.48)), -- 296
-	keyColor = rgba(196, 214, 232, 255), -- 297
-	keyStrength = 0.86, -- 298
-	rimDir = ____exports.normalize3(____exports.vec3(0.78, 0.32, -0.54)), -- 299
-	rimColor = rgba(226, 188, 136, 255), -- 300
-	rimStrength = 0.32, -- 301
-	ambientColor = rgba(24, 32, 46, 255), -- 302
-	fogColor = rgba(24, 34, 50, 255), -- 303
-	fogStartZ = 42, -- 304
-	fogEndZ = 520, -- 305
-	fogMaxAlpha = 0.8, -- 306
-	shadowContrast = 0.74 -- 307
-} -- 307
-____exports.VILLAGE_UNDERTABLE_LIGHT = { -- 310
-	keyDir = ____exports.normalize3(____exports.vec3(0.72, 0.44, -0.54)), -- 311
-	keyColor = rgba(214, 208, 194, 255), -- 312
-	keyStrength = 0.92, -- 313
-	rimDir = ____exports.normalize3(____exports.vec3(-0.64, 0.52, -0.56)), -- 314
-	rimColor = rgba(146, 166, 186, 255), -- 315
-	rimStrength = 0.28, -- 316
-	ambientColor = rgba(18, 22, 30, 255), -- 317
-	fogColor = rgba(22, 26, 34, 255), -- 318
-	fogStartZ = 55, -- 319
-	fogEndZ = 460, -- 320
-	fogMaxAlpha = 0.78, -- 321
-	shadowContrast = 0.82 -- 322
-} -- 322
-____exports.FOREST_CREEK_LIGHT = { -- 325
-	keyDir = ____exports.normalize3(____exports.vec3(-0.48, 0.74, -0.47)), -- 326
-	keyColor = rgba(178, 206, 202, 255), -- 327
-	keyStrength = 0.8, -- 328
-	rimDir = ____exports.normalize3(____exports.vec3(0.82, 0.28, -0.5)), -- 329
-	rimColor = rgba(232, 196, 132, 255), -- 330
-	rimStrength = 0.36, -- 331
-	ambientColor = rgba(18, 30, 34, 255), -- 332
-	fogColor = rgba(20, 34, 38, 255), -- 333
-	fogStartZ = 34, -- 334
-	fogEndZ = 480, -- 335
-	fogMaxAlpha = 0.86, -- 336
-	shadowContrast = 0.76 -- 337
-} -- 337
-____exports.TOWER_WEST_LAMP_LIGHT = { -- 340
-	keyDir = ____exports.normalize3(____exports.vec3(-0.74, 0.48, -0.47)), -- 341
-	keyColor = rgba(242, 202, 138, 255), -- 342
-	keyStrength = 0.94, -- 343
-	rimDir = ____exports.normalize3(____exports.vec3(0.62, 0.54, -0.57)), -- 344
-	rimColor = rgba(142, 168, 198, 255), -- 345
-	rimStrength = 0.26, -- 346
-	ambientColor = rgba(24, 26, 36, 255), -- 347
-	fogColor = rgba(24, 28, 40, 255), -- 348
-	fogStartZ = 60, -- 349
-	fogEndZ = 480, -- 350
-	fogMaxAlpha = 0.72, -- 351
-	shadowContrast = 0.7 -- 352
-} -- 352
+____exports.GATE_NIGHTMARE_LIGHT = { -- 281
+	keyDir = ____exports.normalize3(____exports.vec3(-0.62, 0.64, -0.45)), -- 282
+	keyColor = rgba(206, 224, 240, 255), -- 283
+	keyStrength = 0.88, -- 284
+	rimDir = ____exports.normalize3(____exports.vec3(0.76, 0.36, -0.54)), -- 285
+	rimColor = rgba(224, 196, 150, 255), -- 286
+	rimStrength = 0.34, -- 287
+	ambientColor = rgba(26, 34, 48, 255), -- 288
+	fogColor = rgba(26, 36, 52, 255), -- 289
+	fogStartZ = 36, -- 290
+	fogEndZ = 560, -- 291
+	fogMaxAlpha = 0.84, -- 292
+	shadowContrast = 0.72 -- 293
+} -- 293
+____exports.OUTSIDE_JETTY_LIGHT = { -- 296
+	keyDir = ____exports.normalize3(____exports.vec3(-0.56, 0.68, -0.48)), -- 297
+	keyColor = rgba(196, 214, 232, 255), -- 298
+	keyStrength = 0.86, -- 299
+	rimDir = ____exports.normalize3(____exports.vec3(0.78, 0.32, -0.54)), -- 300
+	rimColor = rgba(226, 188, 136, 255), -- 301
+	rimStrength = 0.32, -- 302
+	ambientColor = rgba(24, 32, 46, 255), -- 303
+	fogColor = rgba(24, 34, 50, 255), -- 304
+	fogStartZ = 42, -- 305
+	fogEndZ = 520, -- 306
+	fogMaxAlpha = 0.8, -- 307
+	shadowContrast = 0.74 -- 308
+} -- 308
+____exports.VILLAGE_UNDERTABLE_LIGHT = { -- 311
+	keyDir = ____exports.normalize3(____exports.vec3(0.72, 0.44, -0.54)), -- 312
+	keyColor = rgba(214, 208, 194, 255), -- 313
+	keyStrength = 0.92, -- 314
+	rimDir = ____exports.normalize3(____exports.vec3(-0.64, 0.52, -0.56)), -- 315
+	rimColor = rgba(146, 166, 186, 255), -- 316
+	rimStrength = 0.28, -- 317
+	ambientColor = rgba(18, 22, 30, 255), -- 318
+	fogColor = rgba(22, 26, 34, 255), -- 319
+	fogStartZ = 55, -- 320
+	fogEndZ = 460, -- 321
+	fogMaxAlpha = 0.78, -- 322
+	shadowContrast = 0.82 -- 323
+} -- 323
+____exports.FOREST_CREEK_LIGHT = { -- 326
+	keyDir = ____exports.normalize3(____exports.vec3(-0.48, 0.74, -0.47)), -- 327
+	keyColor = rgba(178, 206, 202, 255), -- 328
+	keyStrength = 0.8, -- 329
+	rimDir = ____exports.normalize3(____exports.vec3(0.82, 0.28, -0.5)), -- 330
+	rimColor = rgba(232, 196, 132, 255), -- 331
+	rimStrength = 0.36, -- 332
+	ambientColor = rgba(18, 30, 34, 255), -- 333
+	fogColor = rgba(20, 34, 38, 255), -- 334
+	fogStartZ = 34, -- 335
+	fogEndZ = 480, -- 336
+	fogMaxAlpha = 0.86, -- 337
+	shadowContrast = 0.76 -- 338
+} -- 338
+____exports.TOWER_WEST_LAMP_LIGHT = { -- 341
+	keyDir = ____exports.normalize3(____exports.vec3(-0.74, 0.48, -0.47)), -- 342
+	keyColor = rgba(242, 202, 138, 255), -- 343
+	keyStrength = 0.94, -- 344
+	rimDir = ____exports.normalize3(____exports.vec3(0.62, 0.54, -0.57)), -- 345
+	rimColor = rgba(142, 168, 198, 255), -- 346
+	rimStrength = 0.26, -- 347
+	ambientColor = rgba(24, 26, 36, 255), -- 348
+	fogColor = rgba(24, 28, 40, 255), -- 349
+	fogStartZ = 60, -- 350
+	fogEndZ = 480, -- 351
+	fogMaxAlpha = 0.72, -- 352
+	shadowContrast = 0.7 -- 353
+} -- 353
 --- 核心 2.5D 低模投影：
 -- 凡 wz === 0（走面、脚底、门槛、车柄、投瓶落点），恒精确等于 cam.worldToScreen(wx, wy, baseDepth)。
-function ____exports.projectWorld3D(wx, wy, wz, cam, proj) -- 359
-	local bx = cam:sx(wx) -- 366
-	local by = cam:sy(wy, proj.baseDepth or 0) -- 367
-	local m = ____exports.clamp01(proj.morph) -- 368
-	if m <= 0.00001 or math.abs(wz) <= 0.00001 then -- 368
-		return {x = bx, y = by, scale = 1, zEff = 0} -- 370
-	end -- 370
-	local focal = math.max(60, proj.focal) -- 372
-	local zEff = wz * m -- 373
-	local denom = math.max(focal * 0.22, focal + zEff) -- 374
-	local s = focal / denom -- 375
-	local vpX = cam.viewW * proj.vpFracX + (proj.vpOffsetX or 0) -- 376
-	local vpY = cam.viewH * proj.vpFracY + (proj.vpOffsetY or 0) -- 377
-	return {x = vpX + (bx - vpX) * s, y = vpY + (by - vpY) * s, scale = s, zEff = zEff} -- 378
-end -- 359
+function ____exports.projectWorld3D(wx, wy, wz, cam, proj) -- 360
+	local bx = cam:sx(wx) -- 367
+	local by = cam:sy(wy, proj.baseDepth or 0) -- 368
+	local m = ____exports.clamp01(proj.morph) -- 369
+	if m <= 0.00001 or math.abs(wz) <= 0.00001 then -- 370
+		return {x = bx, y = by, scale = 1, zEff = 0} -- 371
+	end -- 371
+	local focal = math.max(60, proj.focal) -- 373
+	local zEff = wz * m -- 374
+	local denom = math.max(focal * 0.22, focal + zEff) -- 375
+	local s = focal / denom -- 376
+	local vpX = cam.viewW * proj.vpFracX + (proj.vpOffsetX or 0) -- 377
+	local vpY = cam.viewH * proj.vpFracY + (proj.vpOffsetY or 0) -- 378
+	return {x = vpX + (bx - vpX) * s, y = vpY + (by - vpY) * s, scale = s, zEff = zEff} -- 379
+end -- 360
 --- 走面对齐自检辅助（供自动化脚本断言 wz = 0 与 screenToWorld 严格互逆）：
 -- 返回前向投影误差与反算世界坐标误差（均为像素/世界单位绝对误差）。
-function ____exports.verifyWalkPlaneAlignment(cam, proj, wx, wy) -- 390
-	local p3 = ____exports.projectWorld3D( -- 396
-		wx, -- 396
-		wy, -- 396
-		0, -- 396
-		cam, -- 396
-		proj -- 396
-	) -- 396
-	local p2 = cam:worldToScreen(wx, wy, proj.baseDepth or 0) -- 397
-	local fwdDx = p3.x - p2.x -- 398
-	local fwdDy = p3.y - p2.y -- 399
-	local forwardErrPx = math.sqrt(fwdDx * fwdDx + fwdDy * fwdDy) -- 400
-	local inv = cam:screenToWorld(p3.x, p3.y) -- 402
-	local invDx = inv.x - wx -- 403
-	local invDy = inv.y - (wy + (proj.baseDepth or 0)) -- 404
-	local inverseErrWorld = math.sqrt(invDx * invDx + invDy * invDy) -- 405
-	return {forwardErrPx = forwardErrPx, inverseErrWorld = inverseErrWorld, screenX = p3.x, screenY = p3.y} -- 406
-end -- 390
+function ____exports.verifyWalkPlaneAlignment(cam, proj, wx, wy) -- 391
+	local p3 = ____exports.projectWorld3D( -- 397
+		wx, -- 397
+		wy, -- 397
+		0, -- 397
+		cam, -- 397
+		proj -- 397
+	) -- 397
+	local p2 = cam:worldToScreen(wx, wy, proj.baseDepth or 0) -- 398
+	local fwdDx = p3.x - p2.x -- 399
+	local fwdDy = p3.y - p2.y -- 400
+	local forwardErrPx = math.sqrt(fwdDx * fwdDx + fwdDy * fwdDy) -- 401
+	local inv = cam:screenToWorld(p3.x, p3.y) -- 403
+	local invDx = inv.x - wx -- 404
+	local invDy = inv.y - (wy + (proj.baseDepth or 0) * DEPTH_Y_SCALE) -- 405
+	local inverseErrWorld = math.sqrt(invDx * invDx + invDy * invDy) -- 406
+	return {forwardErrPx = forwardErrPx, inverseErrWorld = inverseErrWorld, screenX = p3.x, screenY = p3.y} -- 407
+end -- 391
 --- 计算给定法线与深度的低模平面受光+雾效颜色
-function ____exports.shadeSurface(base, normal, avgZ, morph, light, mat, opacityMul) -- 415
-	if opacityMul == nil then -- 415
-		opacityMul = 1 -- 422
-	end -- 422
-	local m = ____exports.clamp01(morph) -- 424
-	local n = ____exports.normalize3(normal) -- 425
-	local ndl = math.max( -- 426
-		0, -- 426
-		dot3(n, light.keyDir) -- 426
-	) -- 426
-	local ndr = math.max( -- 427
+function ____exports.shadeSurface(base, normal, avgZ, morph, light, mat, opacityMul) -- 416
+	if opacityMul == nil then -- 423
+		opacityMul = 1 -- 423
+	end -- 423
+	local m = ____exports.clamp01(morph) -- 425
+	local n = ____exports.normalize3(normal) -- 426
+	local ndl = math.max( -- 427
 		0, -- 427
-		dot3(n, light.rimDir) -- 427
+		dot3(n, light.keyDir) -- 427
 	) -- 427
-	local minShade = mat and mat.minShade or 0.28 -- 428
-	local rimBoost = mat and mat.rimBoost or 0.2 -- 429
-	local contrast = light.shadowContrast * (0.45 + 0.55 * m) -- 430
-	local keyFactor = minShade + (1 - minShade) * (ndl * light.keyStrength + (1 - contrast) * 0.25) -- 432
-	local rimFactor = ndr * light.rimStrength * (0.35 + 0.65 * m) * (1 + rimBoost) -- 433
-	local rLit = base.r * keyFactor * (0.55 + 0.45 * light.keyColor.r / 255) + light.ambientColor.r * (0.28 * (1 - ndl * 0.5)) + light.rimColor.r * rimFactor * 0.45 -- 435
-	local gLit = base.g * keyFactor * (0.55 + 0.45 * light.keyColor.g / 255) + light.ambientColor.g * (0.28 * (1 - ndl * 0.5)) + light.rimColor.g * rimFactor * 0.45 -- 438
-	local bLit = base.b * keyFactor * (0.55 + 0.45 * light.keyColor.b / 255) + light.ambientColor.b * (0.28 * (1 - ndl * 0.5)) + light.rimColor.b * rimFactor * 0.45 -- 441
-	local lit = { -- 445
-		r = clampByte(rLit), -- 446
-		g = clampByte(gLit), -- 447
-		b = clampByte(bLit), -- 448
-		a = clampByte(base.a * ____exports.clamp01(opacityMul)) -- 449
-	} -- 449
-	if avgZ > light.fogStartZ and m > 0.01 then -- 449
-		local span = math.max(1, light.fogEndZ - light.fogStartZ) -- 453
-		local fogT = ____exports.clamp01((avgZ - light.fogStartZ) / span) * light.fogMaxAlpha * m -- 454
-		local mixed = lerpRGBA(lit, light.fogColor, fogT) -- 455
-		mixed.a = lit.a -- 456
-		return mixed -- 457
-	end -- 457
-	return lit -- 459
-end -- 415
+	local ndr = math.max( -- 428
+		0, -- 428
+		dot3(n, light.rimDir) -- 428
+	) -- 428
+	local minShade = mat and mat.minShade or 0.28 -- 429
+	local rimBoost = mat and mat.rimBoost or 0.2 -- 430
+	local contrast = light.shadowContrast * (0.45 + 0.55 * m) -- 431
+	local keyFactor = minShade + (1 - minShade) * (ndl * light.keyStrength + (1 - contrast) * 0.25) -- 433
+	local rimFactor = ndr * light.rimStrength * (0.35 + 0.65 * m) * (1 + rimBoost) -- 434
+	local rLit = base.r * keyFactor * (0.55 + 0.45 * light.keyColor.r / 255) + light.ambientColor.r * (0.28 * (1 - ndl * 0.5)) + light.rimColor.r * rimFactor * 0.45 -- 436
+	local gLit = base.g * keyFactor * (0.55 + 0.45 * light.keyColor.g / 255) + light.ambientColor.g * (0.28 * (1 - ndl * 0.5)) + light.rimColor.g * rimFactor * 0.45 -- 439
+	local bLit = base.b * keyFactor * (0.55 + 0.45 * light.keyColor.b / 255) + light.ambientColor.b * (0.28 * (1 - ndl * 0.5)) + light.rimColor.b * rimFactor * 0.45 -- 442
+	local lit = { -- 446
+		r = clampByte(rLit), -- 447
+		g = clampByte(gLit), -- 448
+		b = clampByte(bLit), -- 449
+		a = clampByte(base.a * ____exports.clamp01(opacityMul)) -- 450
+	} -- 450
+	if avgZ > light.fogStartZ and m > 0.01 then -- 453
+		local span = math.max(1, light.fogEndZ - light.fogStartZ) -- 454
+		local fogT = ____exports.clamp01((avgZ - light.fogStartZ) / span) * light.fogMaxAlpha * m -- 455
+		local mixed = lerpRGBA(lit, light.fogColor, fogT) -- 456
+		mixed.a = lit.a -- 457
+		return mixed -- 458
+	end -- 458
+	return lit -- 460
+end -- 416
 --- 画家算法低模场景批处理器：
 -- 每帧收集所有 3D 几何面与体积光，flush 时按 (bucket, sortZ DESC, sortBias) 统一绘制。
-____exports.LowpolyScene = __TS__Class() -- 466
-local LowpolyScene = ____exports.LowpolyScene -- 466
-LowpolyScene.name = "LowpolyScene" -- 466
-function LowpolyScene.prototype.____constructor(self, cam, proj, light) -- 473
-	if light == nil then -- 473
-		light = ____exports.GATE_NIGHTMARE_LIGHT -- 473
-	end -- 473
-	self.faces = {} -- 470
-	self.glows = {} -- 471
-	self.cam = cam -- 474
-	self.proj = proj -- 475
-	self.light = light -- 476
-end -- 473
-function LowpolyScene.prototype.getFaceCount(self) -- 479
-	return #self.faces -- 480
-end -- 479
-function LowpolyScene.prototype.project(self, wx, wy, wz) -- 483
-	return ____exports.projectWorld3D( -- 484
-		wx, -- 484
-		wy, -- 484
-		wz, -- 484
-		self.cam, -- 484
-		self.proj -- 484
-	) -- 484
-end -- 483
-function LowpolyScene.prototype.vanishingPointScreen(self) -- 487
-	return {x = self.cam.viewW * self.proj.vpFracX + (self.proj.vpOffsetX or 0), y = self.cam.viewH * self.proj.vpFracY + (self.proj.vpOffsetY or 0)} -- 488
-end -- 487
-function LowpolyScene.prototype.addQuad3D(self, v0, v1, v2, v3, mat, opts) -- 495
-	if opts == nil then -- 495
-		opts = {} -- 501
-	end -- 501
-	local opacity = opts.opacity or 1 -- 503
-	if opacity <= 0.01 then -- 503
-		return -- 505
-	end -- 505
-	local p0 = self:project(v0.x, v0.y, v0.z) -- 507
-	local p1 = self:project(v1.x, v1.y, v1.z) -- 508
-	local p2 = self:project(v2.x, v2.y, v2.z) -- 509
-	local p3 = self:project(v3.x, v3.y, v3.z) -- 510
-	local area2 = math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y) + (p2.x - p0.x) * (p3.y - p0.y) - (p3.x - p0.x) * (p2.y - p0.y)) -- 513
-	if area2 < 0.25 then -- 513
-		return -- 518
-	end -- 518
-	local avgZ = opts.sortZOverride ~= nil and opts.sortZOverride or (v0.z + v1.z + v2.z + v3.z) * 0.25 -- 521
-	local topRgba -- 522
-	if opts.unlit == true then -- 522
-		topRgba = scaleRGBA(mat.base, 1, opacity) -- 524
-	else -- 524
-		local n = cross3( -- 526
-			sub3(v1, v0), -- 526
-			sub3(v3, v0) -- 526
-		) -- 526
-		topRgba = ____exports.shadeSurface( -- 527
-			mat.base, -- 527
-			n, -- 527
-			avgZ, -- 527
-			self.proj.morph, -- 527
-			self.light, -- 527
-			mat, -- 527
-			opacity -- 527
+____exports.LowpolyScene = __TS__Class() -- 467
+local LowpolyScene = ____exports.LowpolyScene -- 467
+LowpolyScene.name = "LowpolyScene" -- 467
+function LowpolyScene.prototype.____constructor(self, cam, proj, light) -- 474
+	if light == nil then -- 474
+		light = ____exports.GATE_NIGHTMARE_LIGHT -- 474
+	end -- 474
+	self.faces = {} -- 471
+	self.glows = {} -- 472
+	self.cam = cam -- 475
+	self.proj = proj -- 476
+	self.light = light -- 477
+end -- 474
+function LowpolyScene.prototype.getFaceCount(self) -- 480
+	return #self.faces -- 481
+end -- 480
+function LowpolyScene.prototype.project(self, wx, wy, wz) -- 484
+	return ____exports.projectWorld3D( -- 485
+		wx, -- 485
+		wy, -- 485
+		wz, -- 485
+		self.cam, -- 485
+		self.proj -- 485
+	) -- 485
+end -- 484
+function LowpolyScene.prototype.vanishingPointScreen(self) -- 488
+	return {x = self.cam.viewW * self.proj.vpFracX + (self.proj.vpOffsetX or 0), y = self.cam.viewH * self.proj.vpFracY + (self.proj.vpOffsetY or 0)} -- 489
+end -- 488
+function LowpolyScene.prototype.addQuad3D(self, v0, v1, v2, v3, mat, opts) -- 496
+	if opts == nil then -- 502
+		opts = {} -- 502
+	end -- 502
+	local opacity = opts.opacity or 1 -- 504
+	if opacity <= 0.01 then -- 505
+		return -- 506
+	end -- 506
+	local p0 = self:project(v0.x, v0.y, v0.z) -- 508
+	local p1 = self:project(v1.x, v1.y, v1.z) -- 509
+	local p2 = self:project(v2.x, v2.y, v2.z) -- 510
+	local p3 = self:project(v3.x, v3.y, v3.z) -- 511
+	local area2 = math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y) + (p2.x - p0.x) * (p3.y - p0.y) - (p3.x - p0.x) * (p2.y - p0.y)) -- 514
+	if area2 < 0.25 then -- 518
+		return -- 519
+	end -- 519
+	local avgZ = opts.sortZOverride ~= nil and opts.sortZOverride or (v0.z + v1.z + v2.z + v3.z) * 0.25 -- 522
+	local topRgba -- 523
+	if opts.unlit == true then -- 524
+		topRgba = scaleRGBA(mat.base, 1, opacity) -- 525
+	else -- 525
+		local n = cross3( -- 527
+			sub3(v1, v0), -- 527
+			sub3(v3, v0) -- 527
 		) -- 527
-	end -- 527
-	local ao = opts.bottomAo ~= nil and opts.bottomAo or (mat.bottomAo or 0.22) -- 530
-	local botRgba = ao > 0.005 and scaleRGBA( -- 531
-		topRgba, -- 531
-		math.max(0.35, 1 - ao * (0.45 + 0.55 * self.proj.morph)), -- 531
-		1 -- 531
-	) or topRgba -- 531
-	local cBot = toColor(botRgba) -- 532
-	local cTop = toColor(topRgba) -- 533
-	local edgeRgba = opts.edgeColor or mat.edge -- 535
-	local edgeW = opts.edgeWidth or 0 -- 536
-	local edgeCol = edgeRgba ~= nil and edgeW > 0 and toColor( -- 537
-		edgeRgba, -- 538
-		math.floor(edgeRgba.a * opacity + 0.5) -- 538
-	) or nil -- 538
-	local ____self_faces_4 = self.faces -- 538
-	____self_faces_4[#____self_faces_4 + 1] = { -- 541
-		bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND, -- 542
-		sortZ = avgZ, -- 543
-		sortBias = opts.sortBias or 0, -- 544
-		pts = {p0, p1, p2, p3}, -- 545
-		cols = {cBot, cBot, cTop, cTop}, -- 546
-		edgeCol = edgeCol, -- 547
-		edgeWidth = edgeW, -- 548
-		topHighlight = nil -- 549
-	} -- 549
-end -- 495
-function LowpolyScene.prototype.addTri3D(self, v0, v1, v2, mat, opts) -- 554
-	if opts == nil then -- 554
-		opts = {} -- 559
-	end -- 559
-	local opacity = opts.opacity or 1 -- 561
-	if opacity <= 0.01 then -- 561
-		return -- 563
-	end -- 563
-	local p0 = self:project(v0.x, v0.y, v0.z) -- 565
-	local p1 = self:project(v1.x, v1.y, v1.z) -- 566
-	local p2 = self:project(v2.x, v2.y, v2.z) -- 567
-	local area2 = math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y)) -- 569
-	if area2 < 0.25 then -- 569
-		return -- 571
-	end -- 571
-	local avgZ = opts.sortZOverride ~= nil and opts.sortZOverride or (v0.z + v1.z + v2.z) / 3 -- 574
-	local colRgba = opts.unlit == true and scaleRGBA(mat.base, 1, opacity) or ____exports.shadeSurface( -- 575
-		mat.base, -- 577
-		cross3( -- 577
-			sub3(v1, v0), -- 577
-			sub3(v2, v0) -- 577
-		), -- 577
-		avgZ, -- 577
-		self.proj.morph, -- 577
-		self.light, -- 577
-		mat, -- 577
-		opacity -- 577
-	) -- 577
-	local ao = opts.bottomAo ~= nil and opts.bottomAo or (mat.bottomAo or 0.16) -- 578
-	local botRgba = ao > 0.005 and scaleRGBA( -- 579
-		colRgba, -- 579
-		math.max(0.4, 1 - ao), -- 579
-		1 -- 579
-	) or colRgba -- 579
-	local edgeRgba = opts.edgeColor or mat.edge -- 581
-	local edgeW = opts.edgeWidth or 0 -- 582
-	local edgeCol = edgeRgba ~= nil and edgeW > 0 and toColor( -- 583
-		edgeRgba, -- 584
-		math.floor(edgeRgba.a * opacity + 0.5) -- 584
-	) or nil -- 584
-	local ____self_faces_5 = self.faces -- 584
-	____self_faces_5[#____self_faces_5 + 1] = { -- 587
-		bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND, -- 588
-		sortZ = avgZ, -- 589
-		sortBias = opts.sortBias or 0, -- 590
-		pts = {p0, p1, p2}, -- 591
-		cols = { -- 592
-			toColor(botRgba), -- 592
-			toColor(botRgba), -- 592
-			toColor(colRgba) -- 592
-		}, -- 592
-		edgeCol = edgeCol, -- 593
-		edgeWidth = edgeW, -- 594
-		topHighlight = nil -- 595
-	} -- 595
-end -- 554
-function LowpolyScene.prototype.addBox(self, spec) -- 603
-	local opacity = spec.opacity or 1 -- 604
-	if opacity <= 0.01 then -- 604
-		return -- 606
-	end -- 606
-	local x0 = math.min(spec.x0, spec.x1) -- 608
-	local x1 = math.max(spec.x0, spec.x1) -- 609
-	local y0 = math.min(spec.y0, spec.y1) -- 610
-	local y1 = math.max(spec.y0, spec.y1) -- 611
-	local z0 = math.min(spec.z0, spec.z1) -- 612
-	local z1 = math.max(spec.z0, spec.z1) -- 613
-	local bucket = spec.bucket or ____exports.LP_BUCKET.MIDGROUND -- 615
-	local bias = spec.sortBias or 0 -- 616
-	local edgeW = spec.edgeWidth or 0.85 -- 617
-	local midZ = (z0 + z1) * 0.5 -- 618
-	local vp = self:vanishingPointScreen() -- 619
-	local m = ____exports.clamp01(self.proj.morph) -- 620
-	local sx0 = self.cam:sx(x0) -- 622
-	local sx1 = self.cam:sx(x1) -- 623
-	local sy0 = self.cam:sy(y0, self.proj.baseDepth or 0) -- 624
-	local sy1 = self.cam:sy(y1, self.proj.baseDepth or 0) -- 625
-	if m > 0.002 and z1 - z0 > 0.05 then -- 625
-		if spec.skipLeft ~= true and sx0 > vp.x + 0.5 then -- 625
-			self:addQuad3D( -- 630
-				____exports.vec3(x0, y0, z1), -- 631
-				____exports.vec3(x0, y0, z0), -- 632
-				____exports.vec3(x0, y1, z0), -- 633
-				____exports.vec3(x0, y1, z1), -- 634
-				spec.material, -- 635
-				{ -- 636
-					bucket = bucket, -- 636
-					sortZOverride = midZ + 0.4, -- 636
-					sortBias = bias - 0.1, -- 636
-					opacity = opacity, -- 636
-					edgeWidth = edgeW -- 636
-				} -- 636
-			) -- 636
-		end -- 636
-		if spec.skipRight ~= true and sx1 < vp.x - 0.5 then -- 636
-			self:addQuad3D( -- 641
-				____exports.vec3(x1, y0, z0), -- 642
-				____exports.vec3(x1, y0, z1), -- 643
-				____exports.vec3(x1, y1, z1), -- 644
-				____exports.vec3(x1, y1, z0), -- 645
-				spec.material, -- 646
-				{ -- 647
-					bucket = bucket, -- 647
-					sortZOverride = midZ + 0.4, -- 647
-					sortBias = bias - 0.1, -- 647
-					opacity = opacity, -- 647
-					edgeWidth = edgeW -- 647
-				} -- 647
-			) -- 647
-		end -- 647
-		if spec.skipTop ~= true and sy1 < vp.y - 0.5 then -- 647
-			self:addQuad3D( -- 652
-				____exports.vec3(x0, y1, z0), -- 653
-				____exports.vec3(x1, y1, z0), -- 654
-				____exports.vec3(x1, y1, z1), -- 655
-				____exports.vec3(x0, y1, z1), -- 656
-				spec.material, -- 657
-				{ -- 658
-					bucket = bucket, -- 658
-					sortZOverride = midZ + 0.2, -- 658
-					sortBias = bias - 0.05, -- 658
-					opacity = opacity, -- 658
-					edgeWidth = edgeW, -- 658
-					bottomAo = 0.08 -- 658
-				} -- 658
-			) -- 658
-		end -- 658
-		if spec.skipBottom ~= true and sy0 > vp.y + 0.5 then -- 658
-			self:addQuad3D( -- 663
-				____exports.vec3(x0, y0, z1), -- 664
-				____exports.vec3(x1, y0, z1), -- 665
-				____exports.vec3(x1, y0, z0), -- 666
-				____exports.vec3(x0, y0, z0), -- 667
-				spec.material, -- 668
-				{ -- 669
-					bucket = bucket, -- 669
-					sortZOverride = midZ + 0.2, -- 669
-					sortBias = bias - 0.05, -- 669
-					opacity = opacity, -- 669
-					edgeWidth = edgeW, -- 669
-					bottomAo = 0.34 -- 669
-				} -- 669
-			) -- 669
-		end -- 669
-	end -- 669
-	if spec.skipFront ~= true then -- 669
-		local beforeLen = #self.faces -- 676
-		self:addQuad3D( -- 677
-			____exports.vec3(x0, y0, z0), -- 678
-			____exports.vec3(x1, y0, z0), -- 679
-			____exports.vec3(x1, y1, z0), -- 680
-			____exports.vec3(x0, y1, z0), -- 681
-			spec.material, -- 682
-			{ -- 683
-				bucket = bucket, -- 683
-				sortZOverride = z0, -- 683
-				sortBias = bias, -- 683
-				opacity = opacity, -- 683
-				edgeWidth = edgeW -- 683
-			} -- 683
-		) -- 683
-		if spec.highlightTopEdge == true and #self.faces > beforeLen then -- 683
-			local face = self.faces[#self.faces] -- 686
-			local rimCol = spec.material.edge or rgba(198, 206, 214, 180) -- 687
-			face.topHighlight = { -- 688
-				face.pts[4], -- 689
-				face.pts[3], -- 690
-				toColor( -- 691
-					rimCol, -- 691
-					math.floor(math.min(245, rimCol.a * 1.15) * opacity + 0.5) -- 691
-				) -- 691
-			} -- 691
-		end -- 691
-	end -- 691
-end -- 603
-function LowpolyScene.prototype.addBeveledFrame(self, openX0, openX1, y0, openY1, pillarW, lintelH, z0, z1, mat, opts) -- 701
-	if opts == nil then -- 701
-		opts = {} -- 711
-	end -- 711
-	local bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND -- 719
-	local opacity = opts.opacity or 1 -- 720
-	local bias = opts.sortBias or 0 -- 721
-	self:addBox({ -- 724
-		x0 = openX0 - pillarW, -- 725
-		x1 = openX0, -- 726
-		y0 = y0, -- 727
-		y1 = openY1 + lintelH, -- 728
-		z0 = z0, -- 729
-		z1 = z1, -- 730
-		material = mat, -- 731
-		bucket = bucket, -- 732
-		sortBias = bias, -- 733
-		opacity = opacity, -- 734
-		highlightTopEdge = true -- 735
-	}) -- 735
-	self:addBox({ -- 738
-		x0 = openX1, -- 739
-		x1 = openX1 + pillarW, -- 740
-		y0 = y0, -- 741
-		y1 = openY1 + lintelH, -- 742
-		z0 = z0, -- 743
-		z1 = z1, -- 744
-		material = mat, -- 745
-		bucket = bucket, -- 746
-		sortBias = bias, -- 747
-		opacity = opacity, -- 748
-		highlightTopEdge = true -- 749
-	}) -- 749
-	self:addBox({ -- 752
-		x0 = openX0 - pillarW * 0.2, -- 753
-		x1 = openX1 + pillarW * 0.2, -- 754
-		y0 = openY1, -- 755
-		y1 = openY1 + lintelH, -- 756
-		z0 = z0, -- 757
-		z1 = z1, -- 758
-		material = mat, -- 759
-		bucket = bucket, -- 760
-		sortBias = bias + 0.05, -- 761
-		opacity = opacity, -- 762
-		highlightTopEdge = true -- 763
-	}) -- 763
-	local rimAlpha = (opts.innerRimStrength or 0) * ____exports.clamp01(self.proj.morph) * opacity -- 767
-	if rimAlpha > 0.02 then -- 767
-		local rimCol = opts.innerRimLight or rgba(226, 236, 246, 255) -- 769
-		local p0 = self:project(openX0, y0 + 2, z0) -- 770
-		local p1 = self:project(openX0, y0 + 2, z1) -- 771
-		local p2 = self:project(openX0, openY1 - 2, z1) -- 772
-		local p3 = self:project(openX0, openY1 - 2, z0) -- 773
-		local cNear = toColor( -- 774
-			rimCol, -- 774
-			math.floor(135 * rimAlpha + 0.5) -- 774
-		) -- 774
-		local cFar = toColor( -- 775
+		topRgba = ____exports.shadeSurface( -- 528
+			mat.base, -- 528
+			n, -- 528
+			avgZ, -- 528
+			self.proj.morph, -- 528
+			self.light, -- 528
+			mat, -- 528
+			opacity -- 528
+		) -- 528
+	end -- 528
+	local ao = opts.bottomAo ~= nil and opts.bottomAo or (mat.bottomAo or 0.22) -- 531
+	local botRgba = ao > 0.005 and scaleRGBA( -- 532
+		topRgba, -- 532
+		math.max(0.35, 1 - ao * (0.45 + 0.55 * self.proj.morph)), -- 532
+		1 -- 532
+	) or topRgba -- 532
+	local cBot = toColor(botRgba) -- 533
+	local cTop = toColor(topRgba) -- 534
+	local edgeRgba = opts.edgeColor or mat.edge -- 536
+	local edgeW = opts.edgeWidth or 0 -- 537
+	local edgeCol = edgeRgba ~= nil and edgeW > 0 and toColor( -- 538
+		edgeRgba, -- 539
+		math.floor(edgeRgba.a * opacity + 0.5) -- 539
+	) or nil -- 540
+	local ____self_faces_4 = self.faces -- 542
+	____self_faces_4[#____self_faces_4 + 1] = { -- 542
+		bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND, -- 543
+		sortZ = avgZ, -- 544
+		sortBias = opts.sortBias or 0, -- 545
+		pts = {p0, p1, p2, p3}, -- 546
+		cols = {cBot, cBot, cTop, cTop}, -- 547
+		edgeCol = edgeCol, -- 548
+		edgeWidth = edgeW, -- 549
+		topHighlight = nil -- 550
+	} -- 550
+end -- 496
+function LowpolyScene.prototype.addTri3D(self, v0, v1, v2, mat, opts) -- 555
+	if opts == nil then -- 560
+		opts = {} -- 560
+	end -- 560
+	local opacity = opts.opacity or 1 -- 562
+	if opacity <= 0.01 then -- 563
+		return -- 564
+	end -- 564
+	local p0 = self:project(v0.x, v0.y, v0.z) -- 566
+	local p1 = self:project(v1.x, v1.y, v1.z) -- 567
+	local p2 = self:project(v2.x, v2.y, v2.z) -- 568
+	local area2 = math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y)) -- 570
+	if area2 < 0.25 then -- 571
+		return -- 572
+	end -- 572
+	local avgZ = opts.sortZOverride ~= nil and opts.sortZOverride or (v0.z + v1.z + v2.z) / 3 -- 575
+	local colRgba = opts.unlit == true and scaleRGBA(mat.base, 1, opacity) or ____exports.shadeSurface( -- 576
+		mat.base, -- 578
+		cross3( -- 578
+			sub3(v1, v0), -- 578
+			sub3(v2, v0) -- 578
+		), -- 578
+		avgZ, -- 578
+		self.proj.morph, -- 578
+		self.light, -- 578
+		mat, -- 578
+		opacity -- 578
+	) -- 578
+	local ao = opts.bottomAo ~= nil and opts.bottomAo or (mat.bottomAo or 0.16) -- 579
+	local botRgba = ao > 0.005 and scaleRGBA( -- 580
+		colRgba, -- 580
+		math.max(0.4, 1 - ao), -- 580
+		1 -- 580
+	) or colRgba -- 580
+	local edgeRgba = opts.edgeColor or mat.edge -- 582
+	local edgeW = opts.edgeWidth or 0 -- 583
+	local edgeCol = edgeRgba ~= nil and edgeW > 0 and toColor( -- 584
+		edgeRgba, -- 585
+		math.floor(edgeRgba.a * opacity + 0.5) -- 585
+	) or nil -- 586
+	local ____self_faces_5 = self.faces -- 588
+	____self_faces_5[#____self_faces_5 + 1] = { -- 588
+		bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND, -- 589
+		sortZ = avgZ, -- 590
+		sortBias = opts.sortBias or 0, -- 591
+		pts = {p0, p1, p2}, -- 592
+		cols = { -- 593
+			toColor(botRgba), -- 593
+			toColor(botRgba), -- 593
+			toColor(colRgba) -- 593
+		}, -- 593
+		edgeCol = edgeCol, -- 594
+		edgeWidth = edgeW, -- 595
+		topHighlight = nil -- 596
+	} -- 596
+end -- 555
+function LowpolyScene.prototype.addBox(self, spec) -- 604
+	local opacity = spec.opacity or 1 -- 605
+	if opacity <= 0.01 then -- 606
+		return -- 607
+	end -- 607
+	local x0 = math.min(spec.x0, spec.x1) -- 609
+	local x1 = math.max(spec.x0, spec.x1) -- 610
+	local y0 = math.min(spec.y0, spec.y1) -- 611
+	local y1 = math.max(spec.y0, spec.y1) -- 612
+	local z0 = math.min(spec.z0, spec.z1) -- 613
+	local z1 = math.max(spec.z0, spec.z1) -- 614
+	local bucket = spec.bucket or ____exports.LP_BUCKET.MIDGROUND -- 616
+	local bias = spec.sortBias or 0 -- 617
+	local edgeW = spec.edgeWidth or 0.85 -- 618
+	local midZ = (z0 + z1) * 0.5 -- 619
+	local vp = self:vanishingPointScreen() -- 620
+	local m = ____exports.clamp01(self.proj.morph) -- 621
+	local sx0 = self.cam:sx(x0) -- 623
+	local sx1 = self.cam:sx(x1) -- 624
+	local sy0 = self.cam:sy(y0, self.proj.baseDepth or 0) -- 625
+	local sy1 = self.cam:sy(y1, self.proj.baseDepth or 0) -- 626
+	if m > 0.002 and z1 - z0 > 0.05 then -- 628
+		if spec.skipLeft ~= true and sx0 > vp.x + 0.5 then -- 630
+			self:addQuad3D( -- 631
+				____exports.vec3(x0, y0, z1), -- 632
+				____exports.vec3(x0, y0, z0), -- 633
+				____exports.vec3(x0, y1, z0), -- 634
+				____exports.vec3(x0, y1, z1), -- 635
+				spec.material, -- 636
+				{ -- 637
+					bucket = bucket, -- 637
+					sortZOverride = midZ + 0.4, -- 637
+					sortBias = bias - 0.1, -- 637
+					opacity = opacity, -- 637
+					edgeWidth = edgeW -- 637
+				} -- 637
+			) -- 637
+		end -- 637
+		if spec.skipRight ~= true and sx1 < vp.x - 0.5 then -- 641
+			self:addQuad3D( -- 642
+				____exports.vec3(x1, y0, z0), -- 643
+				____exports.vec3(x1, y0, z1), -- 644
+				____exports.vec3(x1, y1, z1), -- 645
+				____exports.vec3(x1, y1, z0), -- 646
+				spec.material, -- 647
+				{ -- 648
+					bucket = bucket, -- 648
+					sortZOverride = midZ + 0.4, -- 648
+					sortBias = bias - 0.1, -- 648
+					opacity = opacity, -- 648
+					edgeWidth = edgeW -- 648
+				} -- 648
+			) -- 648
+		end -- 648
+		if spec.skipTop ~= true and sy1 < vp.y - 0.5 then -- 652
+			self:addQuad3D( -- 653
+				____exports.vec3(x0, y1, z0), -- 654
+				____exports.vec3(x1, y1, z0), -- 655
+				____exports.vec3(x1, y1, z1), -- 656
+				____exports.vec3(x0, y1, z1), -- 657
+				spec.material, -- 658
+				{ -- 659
+					bucket = bucket, -- 659
+					sortZOverride = midZ + 0.2, -- 659
+					sortBias = bias - 0.05, -- 659
+					opacity = opacity, -- 659
+					edgeWidth = edgeW, -- 659
+					bottomAo = 0.08 -- 659
+				} -- 659
+			) -- 659
+		end -- 659
+		if spec.skipBottom ~= true and sy0 > vp.y + 0.5 then -- 663
+			self:addQuad3D( -- 664
+				____exports.vec3(x0, y0, z1), -- 665
+				____exports.vec3(x1, y0, z1), -- 666
+				____exports.vec3(x1, y0, z0), -- 667
+				____exports.vec3(x0, y0, z0), -- 668
+				spec.material, -- 669
+				{ -- 670
+					bucket = bucket, -- 670
+					sortZOverride = midZ + 0.2, -- 670
+					sortBias = bias - 0.05, -- 670
+					opacity = opacity, -- 670
+					edgeWidth = edgeW, -- 670
+					bottomAo = 0.34 -- 670
+				} -- 670
+			) -- 670
+		end -- 670
+	end -- 670
+	if spec.skipFront ~= true then -- 676
+		local beforeLen = #self.faces -- 677
+		self:addQuad3D( -- 678
+			____exports.vec3(x0, y0, z0), -- 679
+			____exports.vec3(x1, y0, z0), -- 680
+			____exports.vec3(x1, y1, z0), -- 681
+			____exports.vec3(x0, y1, z0), -- 682
+			spec.material, -- 683
+			{ -- 684
+				bucket = bucket, -- 684
+				sortZOverride = z0, -- 684
+				sortBias = bias, -- 684
+				opacity = opacity, -- 684
+				edgeWidth = edgeW -- 684
+			} -- 684
+		) -- 684
+		if spec.highlightTopEdge == true and #self.faces > beforeLen then -- 686
+			local face = self.faces[#self.faces] -- 687
+			local rimCol = spec.material.edge or rgba(198, 206, 214, 180) -- 688
+			face.topHighlight = { -- 689
+				face.pts[4], -- 690
+				face.pts[3], -- 691
+				toColor( -- 692
+					rimCol, -- 692
+					math.floor(math.min(245, rimCol.a * 1.15) * opacity + 0.5) -- 692
+				) -- 692
+			} -- 692
+		end -- 692
+	end -- 692
+end -- 604
+function LowpolyScene.prototype.addBeveledFrame(self, openX0, openX1, y0, openY1, pillarW, lintelH, z0, z1, mat, opts) -- 702
+	if opts == nil then -- 712
+		opts = {} -- 712
+	end -- 712
+	local bucket = opts.bucket or ____exports.LP_BUCKET.MIDGROUND -- 720
+	local opacity = opts.opacity or 1 -- 721
+	local bias = opts.sortBias or 0 -- 722
+	self:addBox({ -- 725
+		x0 = openX0 - pillarW, -- 726
+		x1 = openX0, -- 727
+		y0 = y0, -- 728
+		y1 = openY1 + lintelH, -- 729
+		z0 = z0, -- 730
+		z1 = z1, -- 731
+		material = mat, -- 732
+		bucket = bucket, -- 733
+		sortBias = bias, -- 734
+		opacity = opacity, -- 735
+		highlightTopEdge = true -- 736
+	}) -- 736
+	self:addBox({ -- 739
+		x0 = openX1, -- 740
+		x1 = openX1 + pillarW, -- 741
+		y0 = y0, -- 742
+		y1 = openY1 + lintelH, -- 743
+		z0 = z0, -- 744
+		z1 = z1, -- 745
+		material = mat, -- 746
+		bucket = bucket, -- 747
+		sortBias = bias, -- 748
+		opacity = opacity, -- 749
+		highlightTopEdge = true -- 750
+	}) -- 750
+	self:addBox({ -- 753
+		x0 = openX0 - pillarW * 0.2, -- 754
+		x1 = openX1 + pillarW * 0.2, -- 755
+		y0 = openY1, -- 756
+		y1 = openY1 + lintelH, -- 757
+		z0 = z0, -- 758
+		z1 = z1, -- 759
+		material = mat, -- 760
+		bucket = bucket, -- 761
+		sortBias = bias + 0.05, -- 762
+		opacity = opacity, -- 763
+		highlightTopEdge = true -- 764
+	}) -- 764
+	local rimAlpha = (opts.innerRimStrength or 0) * ____exports.clamp01(self.proj.morph) * opacity -- 768
+	if rimAlpha > 0.02 then -- 769
+		local rimCol = opts.innerRimLight or rgba(226, 236, 246, 255) -- 770
+		local p0 = self:project(openX0, y0 + 2, z0) -- 771
+		local p1 = self:project(openX0, y0 + 2, z1) -- 772
+		local p2 = self:project(openX0, openY1 - 2, z1) -- 773
+		local p3 = self:project(openX0, openY1 - 2, z0) -- 774
+		local cNear = toColor( -- 775
 			rimCol, -- 775
-			math.floor(28 * rimAlpha + 0.5) -- 775
+			math.floor(135 * rimAlpha + 0.5) -- 775
 		) -- 775
-		local ____self_glows_6 = self.glows -- 775
-		____self_glows_6[#____self_glows_6 + 1] = {pts = {p0, p1, p2, p3}, cols = {cNear, cFar, cFar, cNear}} -- 776
-	end -- 776
-end -- 701
-function LowpolyScene.prototype.addStairFlight(self, stair, z0, z1, mat, opts) -- 784
-	if mat == nil then -- 784
-		mat = ____exports.MING_MATERIALS.mingStoneStep -- 788
-	end -- 788
-	if opts == nil then -- 788
-		opts = {} -- 789
+		local cFar = toColor( -- 776
+			rimCol, -- 776
+			math.floor(28 * rimAlpha + 0.5) -- 776
+		) -- 776
+		local ____self_glows_6 = self.glows -- 777
+		____self_glows_6[#____self_glows_6 + 1] = {pts = {p0, p1, p2, p3}, cols = {cNear, cFar, cFar, cNear}} -- 777
+	end -- 777
+end -- 702
+function LowpolyScene.prototype.addStairFlight(self, stair, z0, z1, mat, opts) -- 785
+	if mat == nil then -- 789
+		mat = ____exports.MING_MATERIALS.mingStoneStep -- 789
 	end -- 789
-	local n = math.max(1, stair.steps + 1) -- 791
-	local stepW = (stair.x1 - stair.x0) / n -- 792
-	local floorY = opts.baseY ~= nil and opts.baseY or math.min(stair.y0, stair.y1) -- 793
-	local bucket = opts.bucket or ____exports.LP_BUCKET.WALK_DECK -- 794
-	local opacity = opts.opacity or 1 -- 795
-	local bias = opts.sortBias or 0 -- 796
-	local k = 0 -- 798
-	do -- 798
-		k = 0 -- 799
-		while k < n do -- 799
-			do -- 799
-				local wy = n == 1 and stair.y1 or stair.y0 + (stair.y1 - stair.y0) * k / (n - 1) -- 800
-				local wx0 = stair.x0 + stepW * k -- 801
-				local wx1 = wx0 + stepW -- 802
-				if wy <= floorY + 1 then -- 802
-					goto __continue43 -- 804
-				end -- 804
-				self:addBox({ -- 806
-					x0 = wx0, -- 807
-					x1 = wx1, -- 808
-					y0 = floorY, -- 809
-					y1 = wy, -- 810
-					z0 = z0, -- 811
-					z1 = z1, -- 812
-					material = mat, -- 813
-					bucket = bucket, -- 814
-					sortBias = bias + k * 0.01, -- 815
-					opacity = opacity, -- 816
-					highlightTopEdge = true, -- 817
-					edgeWidth = 0.9 -- 818
-				}) -- 818
-			end -- 818
-			::__continue43:: -- 818
-			k = k + 1 -- 799
-		end -- 799
-	end -- 799
-end -- 784
-function LowpolyScene.prototype.addPlankDeck(self, x0, x1, topY, z0, z1, plankCount, thickness, mat, opts) -- 827
-	if mat == nil then -- 827
-		mat = ____exports.MING_MATERIALS.mingTimber -- 835
-	end -- 835
-	if opts == nil then -- 835
-		opts = {} -- 836
+	if opts == nil then -- 790
+		opts = {} -- 790
+	end -- 790
+	local n = math.max(1, stair.steps + 1) -- 792
+	local stepW = (stair.x1 - stair.x0) / n -- 793
+	local floorY = opts.baseY ~= nil and opts.baseY or math.min(stair.y0, stair.y1) -- 794
+	local bucket = opts.bucket or ____exports.LP_BUCKET.WALK_DECK -- 795
+	local opacity = opts.opacity or 1 -- 796
+	local bias = opts.sortBias or 0 -- 797
+	local k = 0 -- 799
+	do -- 799
+		k = 0 -- 800
+		while k < n do -- 800
+			do -- 800
+				local wy = n == 1 and stair.y1 or stair.y0 + (stair.y1 - stair.y0) * k / (n - 1) -- 801
+				local wx0 = stair.x0 + stepW * k -- 802
+				local wx1 = wx0 + stepW -- 803
+				if wy <= floorY + 1 then -- 804
+					goto __continue43 -- 805
+				end -- 805
+				self:addBox({ -- 807
+					x0 = wx0, -- 808
+					x1 = wx1, -- 809
+					y0 = floorY, -- 810
+					y1 = wy, -- 811
+					z0 = z0, -- 812
+					z1 = z1, -- 813
+					material = mat, -- 814
+					bucket = bucket, -- 815
+					sortBias = bias + k * 0.01, -- 816
+					opacity = opacity, -- 817
+					highlightTopEdge = true, -- 818
+					edgeWidth = 0.9 -- 819
+				}) -- 819
+			end -- 819
+			::__continue43:: -- 819
+			k = k + 1 -- 800
+		end -- 800
+	end -- 800
+end -- 785
+function LowpolyScene.prototype.addPlankDeck(self, x0, x1, topY, z0, z1, plankCount, thickness, mat, opts) -- 828
+	if mat == nil then -- 836
+		mat = ____exports.MING_MATERIALS.mingTimber -- 836
 	end -- 836
-	local count = math.max( -- 844
-		1, -- 844
-		math.floor(plankCount) -- 844
-	) -- 844
-	local bucket = opts.bucket or ____exports.LP_BUCKET.WALK_DECK -- 845
-	local opacity = opts.opacity or 1 -- 846
-	local bias = opts.sortBias or 0 -- 847
-	local spanZ = math.max(1, z1 - z0) -- 848
-	local gap = math.min(2.6, spanZ / (count * 6)) -- 849
-	local plankDepth = (spanZ - gap * (count - 1)) / count -- 850
-	if opts.withPosts == true then -- 850
-		local postBot = opts.postBottomY or topY - 92 -- 854
-		local postMat = ____exports.MING_MATERIALS.mingTimberDark -- 855
-		local postCount = math.max( -- 856
-			2, -- 856
-			math.min( -- 856
-				5, -- 856
-				math.floor((x1 - x0) / 110) + 1 -- 856
-			) -- 856
-		) -- 856
-		local pi = 0 -- 857
-		do -- 857
-			pi = 0 -- 858
-			while pi < postCount do -- 858
-				local px = x0 + 18 + (x1 - x0 - 36) * pi / math.max(1, postCount - 1) -- 859
-				self:addBox({ -- 860
-					x0 = px - 6, -- 861
-					x1 = px + 6, -- 862
-					y0 = postBot, -- 863
-					y1 = topY - thickness, -- 864
-					z0 = z0 + 4, -- 865
-					z1 = z0 + 18, -- 866
-					material = postMat, -- 867
-					bucket = bucket, -- 868
-					sortBias = bias - 0.3, -- 869
-					opacity = opacity, -- 870
-					edgeWidth = 0.7 -- 871
-				}) -- 871
-				pi = pi + 1 -- 858
-			end -- 858
-		end -- 858
-	end -- 858
-	local i = 0 -- 877
-	do -- 877
-		i = 0 -- 878
-		while i < count do -- 878
-			local pz0 = z0 + i * (plankDepth + gap) -- 879
-			local pz1 = pz0 + plankDepth -- 880
-			local plankMat = i & 1 == 0 and mat or ({ -- 881
-				base = scaleRGBA(mat.base, 0.88), -- 884
-				edge = mat.edge, -- 885
-				minShade = mat.minShade, -- 886
-				rimBoost = mat.rimBoost, -- 887
-				bottomAo = mat.bottomAo -- 888
-			}) -- 888
-			self:addBox({ -- 890
-				x0 = x0, -- 891
-				x1 = x1, -- 892
-				y0 = topY - thickness, -- 893
-				y1 = topY, -- 894
-				z0 = pz0, -- 895
-				z1 = pz1, -- 896
-				material = plankMat, -- 897
-				bucket = bucket, -- 898
-				sortBias = bias + (count - i) * 0.01, -- 899
-				opacity = opacity, -- 900
-				highlightTopEdge = i == 0, -- 901
-				edgeWidth = 0.8 -- 902
-			}) -- 902
-			i = i + 1 -- 878
-		end -- 878
-	end -- 878
-end -- 827
-function LowpolyScene.prototype.addDistantRidge(self, peaks, baseY, z, mat, opts) -- 908
-	if mat == nil then -- 908
-		mat = ____exports.MING_MATERIALS.distantHill -- 912
-	end -- 912
-	if opts == nil then -- 912
-		opts = {} -- 913
+	if opts == nil then -- 837
+		opts = {} -- 837
+	end -- 837
+	local count = math.max( -- 845
+		1, -- 845
+		math.floor(plankCount) -- 845
+	) -- 845
+	local bucket = opts.bucket or ____exports.LP_BUCKET.WALK_DECK -- 846
+	local opacity = opts.opacity or 1 -- 847
+	local bias = opts.sortBias or 0 -- 848
+	local spanZ = math.max(1, z1 - z0) -- 849
+	local gap = math.min(2.6, spanZ / (count * 6)) -- 850
+	local plankDepth = (spanZ - gap * (count - 1)) / count -- 851
+	if opts.withPosts == true then -- 854
+		local postBot = opts.postBottomY or topY - 92 -- 855
+		local postMat = ____exports.MING_MATERIALS.mingTimberDark -- 856
+		local postCount = math.max( -- 857
+			2, -- 857
+			math.min( -- 857
+				5, -- 857
+				math.floor((x1 - x0) / 110) + 1 -- 857
+			) -- 857
+		) -- 857
+		local pi = 0 -- 858
+		do -- 858
+			pi = 0 -- 859
+			while pi < postCount do -- 859
+				local px = x0 + 18 + (x1 - x0 - 36) * pi / math.max(1, postCount - 1) -- 860
+				self:addBox({ -- 861
+					x0 = px - 6, -- 862
+					x1 = px + 6, -- 863
+					y0 = postBot, -- 864
+					y1 = topY - thickness, -- 865
+					z0 = z0 + 4, -- 866
+					z1 = z0 + 18, -- 867
+					material = postMat, -- 868
+					bucket = bucket, -- 869
+					sortBias = bias - 0.3, -- 870
+					opacity = opacity, -- 871
+					edgeWidth = 0.7 -- 872
+				}) -- 872
+				pi = pi + 1 -- 859
+			end -- 859
+		end -- 859
+	end -- 859
+	local i = 0 -- 878
+	do -- 878
+		i = 0 -- 879
+		while i < count do -- 879
+			local pz0 = z0 + i * (plankDepth + gap) -- 880
+			local pz1 = pz0 + plankDepth -- 881
+			local plankMat = i & 1 == 0 and mat or ({ -- 882
+				base = scaleRGBA(mat.base, 0.88), -- 885
+				edge = mat.edge, -- 886
+				minShade = mat.minShade, -- 887
+				rimBoost = mat.rimBoost, -- 888
+				bottomAo = mat.bottomAo -- 889
+			}) -- 889
+			self:addBox({ -- 891
+				x0 = x0, -- 892
+				x1 = x1, -- 893
+				y0 = topY - thickness, -- 894
+				y1 = topY, -- 895
+				z0 = pz0, -- 896
+				z1 = pz1, -- 897
+				material = plankMat, -- 898
+				bucket = bucket, -- 899
+				sortBias = bias + (count - i) * 0.01, -- 900
+				opacity = opacity, -- 901
+				highlightTopEdge = i == 0, -- 902
+				edgeWidth = 0.8 -- 903
+			}) -- 903
+			i = i + 1 -- 879
+		end -- 879
+	end -- 879
+end -- 828
+function LowpolyScene.prototype.addDistantRidge(self, peaks, baseY, z, mat, opts) -- 909
+	if mat == nil then -- 913
+		mat = ____exports.MING_MATERIALS.distantHill -- 913
 	end -- 913
-	if #peaks < 2 then -- 913
-		return -- 916
-	end -- 916
-	local bucket = opts.bucket or ____exports.LP_BUCKET.BACKDROP -- 918
-	local opacity = opts.opacity or 1 -- 919
-	local bias = opts.sortBias or 0 -- 920
-	local i = 0 -- 922
-	do -- 922
-		i = 0 -- 923
-		while i < #peaks - 1 do -- 923
-			local a = peaks[i + 1] -- 924
-			local b = peaks[i + 1 + 1] -- 925
-			local midX = (a.x + b.x) * 0.5 -- 926
-			local midY = math.min(a.y, b.y) - math.abs(b.y - a.y) * 0.25 -- 927
-			local ridgeMat = b.y >= a.y and mat or ({ -- 928
-				base = scaleRGBA(mat.base, 0.84), -- 931
-				edge = mat.edge, -- 932
-				minShade = mat.minShade, -- 933
-				rimBoost = mat.rimBoost, -- 934
-				bottomAo = mat.bottomAo -- 935
-			}) -- 935
-			self:addTri3D( -- 937
-				____exports.vec3(a.x, baseY, z), -- 938
-				____exports.vec3(b.x, baseY, z), -- 939
-				____exports.vec3(a.x, a.y, z), -- 940
-				ridgeMat, -- 941
-				{bucket = bucket, sortBias = bias, opacity = opacity, edgeWidth = 0} -- 942
-			) -- 942
-			self:addTri3D( -- 944
-				____exports.vec3(b.x, baseY, z), -- 945
-				____exports.vec3(b.x, b.y, z), -- 946
-				____exports.vec3(a.x, a.y, z), -- 947
-				ridgeMat, -- 948
-				{bucket = bucket, sortBias = bias + 0.01, opacity = opacity, edgeWidth = 0} -- 949
-			) -- 949
-			self:addTri3D( -- 952
-				____exports.vec3( -- 953
-					midX, -- 953
-					math.max(baseY, midY), -- 953
-					z - 8 -- 953
-				), -- 953
-				____exports.vec3(b.x, baseY, z), -- 954
-				____exports.vec3(b.x, b.y, z), -- 955
-				{ -- 956
-					base = scaleRGBA(mat.base, 0.78), -- 956
-					minShade = 0.3, -- 956
-					bottomAo = 0.2 -- 956
-				}, -- 956
-				{bucket = bucket, sortBias = bias + 0.02, opacity = opacity * 0.85} -- 957
-			) -- 957
-			i = i + 1 -- 923
-		end -- 923
-	end -- 923
-end -- 908
-function LowpolyScene.prototype.addFogBand(self, x0, x1, y0, y1, z, color, bottomAlpha, topAlpha, opts) -- 963
-	if opts == nil then -- 963
-		opts = {} -- 972
-	end -- 972
-	local m = ____exports.clamp01(self.proj.morph) -- 974
-	local ba = ____exports.clamp01(bottomAlpha * m) -- 975
-	local ta = ____exports.clamp01(topAlpha * m) -- 976
-	if ba <= 0.008 and ta <= 0.008 then -- 976
-		return -- 978
-	end -- 978
-	local p0 = self:project(x0, y0, z) -- 980
-	local p1 = self:project(x1, y0, z) -- 981
-	local p2 = self:project(x1, y1, z) -- 982
-	local p3 = self:project(x0, y1, z) -- 983
-	local cBot = toColor( -- 984
-		color, -- 984
-		math.floor(255 * ba + 0.5) -- 984
-	) -- 984
-	local cTop = toColor( -- 985
+	if opts == nil then -- 914
+		opts = {} -- 914
+	end -- 914
+	if #peaks < 2 then -- 916
+		return -- 917
+	end -- 917
+	local bucket = opts.bucket or ____exports.LP_BUCKET.BACKDROP -- 919
+	local opacity = opts.opacity or 1 -- 920
+	local bias = opts.sortBias or 0 -- 921
+	local i = 0 -- 923
+	do -- 923
+		i = 0 -- 924
+		while i < #peaks - 1 do -- 924
+			local a = peaks[i + 1] -- 925
+			local b = peaks[i + 1 + 1] -- 926
+			local midX = (a.x + b.x) * 0.5 -- 927
+			local midY = math.min(a.y, b.y) - math.abs(b.y - a.y) * 0.25 -- 928
+			local ridgeMat = b.y >= a.y and mat or ({ -- 929
+				base = scaleRGBA(mat.base, 0.84), -- 932
+				edge = mat.edge, -- 933
+				minShade = mat.minShade, -- 934
+				rimBoost = mat.rimBoost, -- 935
+				bottomAo = mat.bottomAo -- 936
+			}) -- 936
+			self:addTri3D( -- 938
+				____exports.vec3(a.x, baseY, z), -- 939
+				____exports.vec3(b.x, baseY, z), -- 940
+				____exports.vec3(a.x, a.y, z), -- 941
+				ridgeMat, -- 942
+				{bucket = bucket, sortBias = bias, opacity = opacity, edgeWidth = 0} -- 943
+			) -- 943
+			self:addTri3D( -- 945
+				____exports.vec3(b.x, baseY, z), -- 946
+				____exports.vec3(b.x, b.y, z), -- 947
+				____exports.vec3(a.x, a.y, z), -- 948
+				ridgeMat, -- 949
+				{bucket = bucket, sortBias = bias + 0.01, opacity = opacity, edgeWidth = 0} -- 950
+			) -- 950
+			self:addTri3D( -- 953
+				____exports.vec3( -- 954
+					midX, -- 954
+					math.max(baseY, midY), -- 954
+					z - 8 -- 954
+				), -- 954
+				____exports.vec3(b.x, baseY, z), -- 955
+				____exports.vec3(b.x, b.y, z), -- 956
+				{ -- 957
+					base = scaleRGBA(mat.base, 0.78), -- 957
+					minShade = 0.3, -- 957
+					bottomAo = 0.2 -- 957
+				}, -- 957
+				{bucket = bucket, sortBias = bias + 0.02, opacity = opacity * 0.85} -- 958
+			) -- 958
+			i = i + 1 -- 924
+		end -- 924
+	end -- 924
+end -- 909
+function LowpolyScene.prototype.addFogBand(self, x0, x1, y0, y1, z, color, bottomAlpha, topAlpha, opts) -- 964
+	if opts == nil then -- 973
+		opts = {} -- 973
+	end -- 973
+	local m = ____exports.clamp01(self.proj.morph) -- 975
+	local ba = ____exports.clamp01(bottomAlpha * m) -- 976
+	local ta = ____exports.clamp01(topAlpha * m) -- 977
+	if ba <= 0.008 and ta <= 0.008 then -- 978
+		return -- 979
+	end -- 979
+	local p0 = self:project(x0, y0, z) -- 981
+	local p1 = self:project(x1, y0, z) -- 982
+	local p2 = self:project(x1, y1, z) -- 983
+	local p3 = self:project(x0, y1, z) -- 984
+	local cBot = toColor( -- 985
 		color, -- 985
-		math.floor(255 * ta + 0.5) -- 985
+		math.floor(255 * ba + 0.5) -- 985
 	) -- 985
-	local ____self_faces_7 = self.faces -- 985
-	____self_faces_7[#____self_faces_7 + 1] = { -- 986
-		bucket = opts.bucket or ____exports.LP_BUCKET.BACKDROP, -- 987
-		sortZ = z, -- 988
-		sortBias = opts.sortBias or 0.5, -- 989
-		pts = {p0, p1, p2, p3}, -- 990
-		cols = {cBot, cBot, cTop, cTop}, -- 991
-		edgeCol = nil, -- 992
-		edgeWidth = 0, -- 993
-		topHighlight = nil -- 994
-	} -- 994
-end -- 963
-function LowpolyScene.prototype.addLightShaft(self, topX0, topX1, topY, botX0, botX1, botY, z, color, topAlpha, botAlpha) -- 999
-	local ta = ____exports.clamp01(topAlpha) -- 1011
-	local ba = ____exports.clamp01(botAlpha) -- 1012
-	if ta <= 0.005 and ba <= 0.005 then -- 1012
-		return -- 1014
-	end -- 1014
-	local p0 = self:project(botX0, botY, z) -- 1016
-	local p1 = self:project(botX1, botY, z) -- 1017
-	local p2 = self:project(topX1, topY, z) -- 1018
-	local p3 = self:project(topX0, topY, z) -- 1019
-	local cTop = toColor( -- 1020
-		color, -- 1020
-		math.floor(255 * ta + 0.5) -- 1020
-	) -- 1020
-	local cBot = toColor( -- 1021
+	local cTop = toColor( -- 986
+		color, -- 986
+		math.floor(255 * ta + 0.5) -- 986
+	) -- 986
+	local ____self_faces_7 = self.faces -- 987
+	____self_faces_7[#____self_faces_7 + 1] = { -- 987
+		bucket = opts.bucket or ____exports.LP_BUCKET.BACKDROP, -- 988
+		sortZ = z, -- 989
+		sortBias = opts.sortBias or 0.5, -- 990
+		pts = {p0, p1, p2, p3}, -- 991
+		cols = {cBot, cBot, cTop, cTop}, -- 992
+		edgeCol = nil, -- 993
+		edgeWidth = 0, -- 994
+		topHighlight = nil -- 995
+	} -- 995
+end -- 964
+function LowpolyScene.prototype.addLightShaft(self, topX0, topX1, topY, botX0, botX1, botY, z, color, topAlpha, botAlpha) -- 1000
+	local ta = ____exports.clamp01(topAlpha) -- 1012
+	local ba = ____exports.clamp01(botAlpha) -- 1013
+	if ta <= 0.005 and ba <= 0.005 then -- 1014
+		return -- 1015
+	end -- 1015
+	local p0 = self:project(botX0, botY, z) -- 1017
+	local p1 = self:project(botX1, botY, z) -- 1018
+	local p2 = self:project(topX1, topY, z) -- 1019
+	local p3 = self:project(topX0, topY, z) -- 1020
+	local cTop = toColor( -- 1021
 		color, -- 1021
-		math.floor(255 * ba + 0.5) -- 1021
+		math.floor(255 * ta + 0.5) -- 1021
 	) -- 1021
-	local ____self_glows_8 = self.glows -- 1021
-	____self_glows_8[#____self_glows_8 + 1] = {pts = {p0, p1, p2, p3}, cols = {cBot, cBot, cTop, cTop}} -- 1022
-end -- 999
-function LowpolyScene.prototype.addContactShadow(self, wx, wy, radiusX, radiusZ, opacity, opts) -- 1032
-	if opacity == nil then -- 1032
-		opacity = 0.72 -- 1037
-	end -- 1037
-	if opts == nil then -- 1037
-		opts = {} -- 1038
+	local cBot = toColor( -- 1022
+		color, -- 1022
+		math.floor(255 * ba + 0.5) -- 1022
+	) -- 1022
+	local ____self_glows_8 = self.glows -- 1023
+	____self_glows_8[#____self_glows_8 + 1] = {pts = {p0, p1, p2, p3}, cols = {cBot, cBot, cTop, cTop}} -- 1023
+end -- 1000
+function LowpolyScene.prototype.addContactShadow(self, wx, wy, radiusX, radiusZ, opacity, opts) -- 1033
+	if opacity == nil then -- 1038
+		opacity = 0.72 -- 1038
 	end -- 1038
-	local op = ____exports.clamp01(opacity) -- 1040
-	if op <= 0.01 then -- 1040
-		return -- 1042
-	end -- 1042
-	local bucket = opts.bucket or ____exports.LP_BUCKET.PROP -- 1044
-	local bias = opts.sortBias or 0.2 -- 1045
-	local m = ____exports.clamp01(self.proj.morph) -- 1046
-	local castShiftX = (opts.castDirX or -self.light.keyDir.x) * radiusX * (0.28 + 0.42 * m) -- 1047
-	local segs = 10 -- 1050
-	local outerZ = math.max(4, radiusZ * (0.55 + 0.65 * m)) -- 1051
-	local centerP = self:project(wx + castShiftX * 0.45, wy + 0.4, outerZ * 0.15) -- 1052
-	local innerCol = Color( -- 1053
-		7, -- 1053
-		9, -- 1053
-		14, -- 1053
-		math.floor(145 * op * (0.55 + 0.45 * m) + 0.5) -- 1053
-	) -- 1053
-	local outerCol = Color(7, 9, 14, 0) -- 1054
-	local i = 0 -- 1055
-	do -- 1055
-		i = 0 -- 1056
-		while i < segs do -- 1056
-			local a0 = i / segs * math.pi * 2 -- 1057
-			local a1 = (i + 1) / segs * math.pi * 2 -- 1058
-			local pA = self:project( -- 1059
-				wx + castShiftX * 0.45 + math.cos(a0) * radiusX * 1.42, -- 1060
-				wy + 0.4, -- 1061
-				outerZ * 0.15 + math.sin(a0) * outerZ -- 1062
-			) -- 1062
-			local pB = self:project( -- 1064
-				wx + castShiftX * 0.45 + math.cos(a1) * radiusX * 1.42, -- 1065
-				wy + 0.4, -- 1066
-				outerZ * 0.15 + math.sin(a1) * outerZ -- 1067
-			) -- 1067
-			local ____self_faces_9 = self.faces -- 1067
-			____self_faces_9[#____self_faces_9 + 1] = { -- 1069
-				bucket = bucket, -- 1070
-				sortZ = 0.05, -- 1071
-				sortBias = bias, -- 1072
-				pts = {centerP, pA, pB}, -- 1073
-				cols = {innerCol, outerCol, outerCol}, -- 1074
-				edgeCol = nil, -- 1075
-				edgeWidth = 0, -- 1076
-				topHighlight = nil -- 1077
-			} -- 1077
-			i = i + 1 -- 1056
-		end -- 1056
-	end -- 1056
-	local footP = self:project(wx, wy + 0.5, 0) -- 1082
-	local coreRx = self.cam:len(radiusX * 0.78) -- 1083
-	local coreRy = math.max( -- 1084
-		2.5, -- 1084
-		self.cam:len(math.max(2.4, radiusZ * 0.24)) -- 1084
-	) -- 1084
-	local coreIn = Color( -- 1085
-		5, -- 1085
-		7, -- 1085
-		12, -- 1085
-		math.floor(210 * op + 0.5) -- 1085
+	if opts == nil then -- 1039
+		opts = {} -- 1039
+	end -- 1039
+	local op = ____exports.clamp01(opacity) -- 1041
+	if op <= 0.01 then -- 1042
+		return -- 1043
+	end -- 1043
+	local bucket = opts.bucket or ____exports.LP_BUCKET.PROP -- 1045
+	local bias = opts.sortBias or 0.2 -- 1046
+	local m = ____exports.clamp01(self.proj.morph) -- 1047
+	local castShiftX = (opts.castDirX or -self.light.keyDir.x) * radiusX * (0.28 + 0.42 * m) -- 1048
+	local segs = 10 -- 1051
+	local outerZ = math.max(4, radiusZ * (0.55 + 0.65 * m)) -- 1052
+	local centerP = self:project(wx + castShiftX * 0.45, wy + 0.4, outerZ * 0.15) -- 1053
+	local innerCol = Color( -- 1054
+		7, -- 1054
+		9, -- 1054
+		14, -- 1054
+		math.floor(145 * op * (0.55 + 0.45 * m) + 0.5) -- 1054
+	) -- 1054
+	local outerCol = Color(7, 9, 14, 0) -- 1055
+	local i = 0 -- 1056
+	do -- 1056
+		i = 0 -- 1057
+		while i < segs do -- 1057
+			local a0 = i / segs * math.pi * 2 -- 1058
+			local a1 = (i + 1) / segs * math.pi * 2 -- 1059
+			local pA = self:project( -- 1060
+				wx + castShiftX * 0.45 + math.cos(a0) * radiusX * 1.42, -- 1061
+				wy + 0.4, -- 1062
+				outerZ * 0.15 + math.sin(a0) * outerZ -- 1063
+			) -- 1063
+			local pB = self:project( -- 1065
+				wx + castShiftX * 0.45 + math.cos(a1) * radiusX * 1.42, -- 1066
+				wy + 0.4, -- 1067
+				outerZ * 0.15 + math.sin(a1) * outerZ -- 1068
+			) -- 1068
+			local ____self_faces_9 = self.faces -- 1070
+			____self_faces_9[#____self_faces_9 + 1] = { -- 1070
+				bucket = bucket, -- 1071
+				sortZ = 0.05, -- 1072
+				sortBias = bias, -- 1073
+				pts = {centerP, pA, pB}, -- 1074
+				cols = {innerCol, outerCol, outerCol}, -- 1075
+				edgeCol = nil, -- 1076
+				edgeWidth = 0, -- 1077
+				topHighlight = nil -- 1078
+			} -- 1078
+			i = i + 1 -- 1057
+		end -- 1057
+	end -- 1057
+	local footP = self:project(wx, wy + 0.5, 0) -- 1083
+	local coreRx = self.cam:len(radiusX * 0.78) -- 1084
+	local coreRy = math.max( -- 1085
+		2.5, -- 1085
+		self.cam:len(math.max(2.4, radiusZ * 0.24)) -- 1085
 	) -- 1085
-	local coreOut = Color( -- 1086
+	local coreIn = Color( -- 1086
 		5, -- 1086
 		7, -- 1086
 		12, -- 1086
-		math.floor(32 * op + 0.5) -- 1086
+		math.floor(210 * op + 0.5) -- 1086
 	) -- 1086
-	local coreSegs = 8 -- 1087
-	do -- 1087
-		i = 0 -- 1088
-		while i < coreSegs do -- 1088
-			local a0 = i / coreSegs * math.pi * 2 -- 1089
-			local a1 = (i + 1) / coreSegs * math.pi * 2 -- 1090
-			local ____self_faces_10 = self.faces -- 1090
-			____self_faces_10[#____self_faces_10 + 1] = { -- 1091
-				bucket = bucket, -- 1092
-				sortZ = 0.01, -- 1093
-				sortBias = bias + 0.05, -- 1094
-				pts = { -- 1095
-					footP, -- 1096
-					{ -- 1097
-						x = footP.x + math.cos(a0) * coreRx, -- 1097
-						y = footP.y + math.sin(a0) * coreRy, -- 1097
-						scale = 1, -- 1097
-						zEff = 0 -- 1097
-					}, -- 1097
+	local coreOut = Color( -- 1087
+		5, -- 1087
+		7, -- 1087
+		12, -- 1087
+		math.floor(32 * op + 0.5) -- 1087
+	) -- 1087
+	local coreSegs = 8 -- 1088
+	do -- 1088
+		i = 0 -- 1089
+		while i < coreSegs do -- 1089
+			local a0 = i / coreSegs * math.pi * 2 -- 1090
+			local a1 = (i + 1) / coreSegs * math.pi * 2 -- 1091
+			local ____self_faces_10 = self.faces -- 1092
+			____self_faces_10[#____self_faces_10 + 1] = { -- 1092
+				bucket = bucket, -- 1093
+				sortZ = 0.01, -- 1094
+				sortBias = bias + 0.05, -- 1095
+				pts = { -- 1096
+					footP, -- 1097
 					{ -- 1098
-						x = footP.x + math.cos(a1) * coreRx, -- 1098
-						y = footP.y + math.sin(a1) * coreRy, -- 1098
+						x = footP.x + math.cos(a0) * coreRx, -- 1098
+						y = footP.y + math.sin(a0) * coreRy, -- 1098
 						scale = 1, -- 1098
 						zEff = 0 -- 1098
-					} -- 1098
-				}, -- 1098
-				cols = {coreIn, coreOut, coreOut}, -- 1100
-				edgeCol = nil, -- 1101
-				edgeWidth = 0, -- 1102
-				topHighlight = nil -- 1103
-			} -- 1103
-			i = i + 1 -- 1088
-		end -- 1088
-	end -- 1088
-end -- 1032
-function LowpolyScene.prototype.placeForegroundOccluder(self, worldArt, slotKey, instanceKey, x0, x1, y0, y1, wz, opts) -- 1112
-	if opts == nil then -- 1112
-		opts = {} -- 1121
-	end -- 1121
-	local pBL = self:project(x0, y0, wz) -- 1123
-	local pTR = self:project(x1, y1, wz) -- 1124
-	local w = math.abs(pTR.x - pBL.x) -- 1125
-	local h = math.abs(pTR.y - pBL.y) -- 1126
-	if w < 1 or h < 1 then -- 1126
-		return false -- 1128
-	end -- 1128
-	return worldArt:tryPlace( -- 1130
-		slotKey, -- 1131
-		instanceKey, -- 1132
-		(pBL.x + pTR.x) * 0.5, -- 1133
-		math.min(pBL.y, pTR.y), -- 1134
-		w, -- 1135
-		h, -- 1136
-		{ -- 1137
-			color = opts.color or Color(28, 32, 42, 255), -- 1138
-			opacity = opts.opacity or 0.92, -- 1139
-			layer = opts.layer or 5200 -- 1140
-		} -- 1140
-	) -- 1140
-end -- 1112
-function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1146
-	if #self.faces > 1 then -- 1146
-		__TS__ArraySort( -- 1148
-			self.faces, -- 1148
-			function(____, a, b) -- 1148
-				if a.bucket ~= b.bucket then -- 1148
-					return a.bucket - b.bucket -- 1150
-				end -- 1150
-				if math.abs(a.sortZ - b.sortZ) > 0.001 then -- 1150
-					return b.sortZ - a.sortZ -- 1153
-				end -- 1153
-				return a.sortBias - b.sortBias -- 1155
-			end -- 1148
-		) -- 1148
-	end -- 1148
-	local i = 0 -- 1159
-	do -- 1159
-		i = 0 -- 1160
-		while i < #self.faces do -- 1160
-			local f = self.faces[i + 1] -- 1161
-			if #f.pts == 3 then -- 1161
-				draw:drawVertices({ -- 1163
-					{ -- 1164
-						Vec2(f.pts[1].x, f.pts[1].y), -- 1164
-						f.cols[1] -- 1164
-					}, -- 1164
+					}, -- 1098
+					{ -- 1099
+						x = footP.x + math.cos(a1) * coreRx, -- 1099
+						y = footP.y + math.sin(a1) * coreRy, -- 1099
+						scale = 1, -- 1099
+						zEff = 0 -- 1099
+					} -- 1099
+				}, -- 1099
+				cols = {coreIn, coreOut, coreOut}, -- 1101
+				edgeCol = nil, -- 1102
+				edgeWidth = 0, -- 1103
+				topHighlight = nil -- 1104
+			} -- 1104
+			i = i + 1 -- 1089
+		end -- 1089
+	end -- 1089
+end -- 1033
+function LowpolyScene.prototype.placeForegroundOccluder(self, worldArt, slotKey, instanceKey, x0, x1, y0, y1, wz, opts) -- 1113
+	if opts == nil then -- 1122
+		opts = {} -- 1122
+	end -- 1122
+	local pBL = self:project(x0, y0, wz) -- 1124
+	local pTR = self:project(x1, y1, wz) -- 1125
+	local w = math.abs(pTR.x - pBL.x) -- 1126
+	local h = math.abs(pTR.y - pBL.y) -- 1127
+	if w < 1 or h < 1 then -- 1128
+		return false -- 1129
+	end -- 1129
+	return worldArt:tryPlace( -- 1131
+		slotKey, -- 1132
+		instanceKey, -- 1133
+		(pBL.x + pTR.x) * 0.5, -- 1134
+		math.min(pBL.y, pTR.y), -- 1135
+		w, -- 1136
+		h, -- 1137
+		{ -- 1138
+			color = opts.color or Color(28, 32, 42, 255), -- 1139
+			opacity = opts.opacity or 0.92, -- 1140
+			layer = opts.layer or 5200 -- 1141
+		} -- 1141
+	) -- 1141
+end -- 1113
+function LowpolyScene.prototype.flush(self, draw, glowDraw) -- 1147
+	if #self.faces > 1 then -- 1148
+		__TS__ArraySort( -- 1149
+			self.faces, -- 1149
+			function(____, a, b) -- 1149
+				if a.bucket ~= b.bucket then -- 1150
+					return a.bucket - b.bucket -- 1151
+				end -- 1151
+				if math.abs(a.sortZ - b.sortZ) > 0.001 then -- 1153
+					return b.sortZ - a.sortZ -- 1154
+				end -- 1154
+				return a.sortBias - b.sortBias -- 1156
+			end -- 1149
+		) -- 1149
+	end -- 1149
+	local i = 0 -- 1160
+	do -- 1160
+		i = 0 -- 1161
+		while i < #self.faces do -- 1161
+			local f = self.faces[i + 1] -- 1162
+			if #f.pts == 3 then -- 1163
+				draw:drawVertices({ -- 1164
 					{ -- 1165
-						Vec2(f.pts[2].x, f.pts[2].y), -- 1165
-						f.cols[2] -- 1165
+						Vec2(f.pts[1].x, f.pts[1].y), -- 1165
+						f.cols[1] -- 1165
 					}, -- 1165
 					{ -- 1166
-						Vec2(f.pts[3].x, f.pts[3].y), -- 1166
-						f.cols[3] -- 1166
-					} -- 1166
-				}) -- 1166
-			elseif #f.pts == 4 then -- 1166
-				local v0 = Vec2(f.pts[1].x, f.pts[1].y) -- 1169
-				local v1 = Vec2(f.pts[2].x, f.pts[2].y) -- 1170
-				local v2 = Vec2(f.pts[3].x, f.pts[3].y) -- 1171
-				local v3 = Vec2(f.pts[4].x, f.pts[4].y) -- 1172
-				draw:drawVertices({{v0, f.cols[1]}, {v1, f.cols[2]}, {v2, f.cols[3]}}) -- 1173
-				draw:drawVertices({{v0, f.cols[1]}, {v2, f.cols[3]}, {v3, f.cols[4]}}) -- 1178
-			end -- 1178
-			if f.edgeCol ~= nil and f.edgeWidth > 0 then -- 1178
-				local count = #f.pts -- 1185
-				local k = 0 -- 1186
-				do -- 1186
-					k = 0 -- 1187
-					while k < count do -- 1187
-						local a = f.pts[k + 1] -- 1188
-						local b = f.pts[(k + 1) % count + 1] -- 1189
-						draw:drawSegment( -- 1190
-							Vec2(a.x, a.y), -- 1190
-							Vec2(b.x, b.y), -- 1190
-							f.edgeWidth * 0.5, -- 1190
-							f.edgeCol -- 1190
-						) -- 1190
-						k = k + 1 -- 1187
-					end -- 1187
-				end -- 1187
-			end -- 1187
-			if f.topHighlight ~= nil then -- 1187
-				local hl = f.topHighlight -- 1194
-				draw:drawSegment( -- 1195
-					Vec2(hl[1].x, hl[1].y), -- 1195
-					Vec2(hl[2].x, hl[2].y), -- 1195
-					1.15, -- 1195
-					hl[3] -- 1195
-				) -- 1195
-			end -- 1195
-			i = i + 1 -- 1160
-		end -- 1160
-	end -- 1160
-	if glowDraw ~= nil and #self.glows > 0 then -- 1160
-		do -- 1160
-			i = 0 -- 1200
-			while i < #self.glows do -- 1200
-				local g = self.glows[i + 1] -- 1201
-				if #g.pts == 4 then -- 1201
-					local v0 = Vec2(g.pts[1].x, g.pts[1].y) -- 1203
-					local v1 = Vec2(g.pts[2].x, g.pts[2].y) -- 1204
-					local v2 = Vec2(g.pts[3].x, g.pts[3].y) -- 1205
-					local v3 = Vec2(g.pts[4].x, g.pts[4].y) -- 1206
-					glowDraw:drawVertices({{v0, g.cols[1]}, {v1, g.cols[2]}, {v2, g.cols[3]}}) -- 1207
-					glowDraw:drawVertices({{v0, g.cols[1]}, {v2, g.cols[3]}, {v3, g.cols[4]}}) -- 1212
-				end -- 1212
-				i = i + 1 -- 1200
-			end -- 1200
-		end -- 1200
-	end -- 1200
-	self.faces = {} -- 1221
-	self.glows = {} -- 1222
-end -- 1146
+						Vec2(f.pts[2].x, f.pts[2].y), -- 1166
+						f.cols[2] -- 1166
+					}, -- 1166
+					{ -- 1167
+						Vec2(f.pts[3].x, f.pts[3].y), -- 1167
+						f.cols[3] -- 1167
+					} -- 1167
+				}) -- 1167
+			elseif #f.pts == 4 then -- 1169
+				local v0 = Vec2(f.pts[1].x, f.pts[1].y) -- 1170
+				local v1 = Vec2(f.pts[2].x, f.pts[2].y) -- 1171
+				local v2 = Vec2(f.pts[3].x, f.pts[3].y) -- 1172
+				local v3 = Vec2(f.pts[4].x, f.pts[4].y) -- 1173
+				draw:drawVertices({{v0, f.cols[1]}, {v1, f.cols[2]}, {v2, f.cols[3]}}) -- 1174
+				draw:drawVertices({{v0, f.cols[1]}, {v2, f.cols[3]}, {v3, f.cols[4]}}) -- 1179
+			end -- 1179
+			if f.edgeCol ~= nil and f.edgeWidth > 0 then -- 1185
+				local count = #f.pts -- 1186
+				local k = 0 -- 1187
+				do -- 1187
+					k = 0 -- 1188
+					while k < count do -- 1188
+						local a = f.pts[k + 1] -- 1189
+						local b = f.pts[(k + 1) % count + 1] -- 1190
+						draw:drawSegment( -- 1191
+							Vec2(a.x, a.y), -- 1191
+							Vec2(b.x, b.y), -- 1191
+							f.edgeWidth * 0.5, -- 1191
+							f.edgeCol -- 1191
+						) -- 1191
+						k = k + 1 -- 1188
+					end -- 1188
+				end -- 1188
+			end -- 1188
+			if f.topHighlight ~= nil then -- 1194
+				local hl = f.topHighlight -- 1195
+				draw:drawSegment( -- 1196
+					Vec2(hl[1].x, hl[1].y), -- 1196
+					Vec2(hl[2].x, hl[2].y), -- 1196
+					1.15, -- 1196
+					hl[3] -- 1196
+				) -- 1196
+			end -- 1196
+			i = i + 1 -- 1161
+		end -- 1161
+	end -- 1161
+	if glowDraw ~= nil and #self.glows > 0 then -- 1200
+		do -- 1200
+			i = 0 -- 1201
+			while i < #self.glows do -- 1201
+				local g = self.glows[i + 1] -- 1202
+				if #g.pts == 4 then -- 1203
+					local v0 = Vec2(g.pts[1].x, g.pts[1].y) -- 1204
+					local v1 = Vec2(g.pts[2].x, g.pts[2].y) -- 1205
+					local v2 = Vec2(g.pts[3].x, g.pts[3].y) -- 1206
+					local v3 = Vec2(g.pts[4].x, g.pts[4].y) -- 1207
+					glowDraw:drawVertices({{v0, g.cols[1]}, {v1, g.cols[2]}, {v2, g.cols[3]}}) -- 1208
+					glowDraw:drawVertices({{v0, g.cols[1]}, {v2, g.cols[3]}, {v3, g.cols[4]}}) -- 1213
+				end -- 1213
+				i = i + 1 -- 1201
+			end -- 1201
+		end -- 1201
+	end -- 1201
+	self.faces = {} -- 1222
+	self.glows = {} -- 1223
+end -- 1147
 --- 复用级低模栈台构建器（同时服务 M1 城外栈台小幅侧移验收 与 Wave 2 fe-04 `outside` 房间）：
 -- 直接读取 RoomSpec 的 floors / stairs / solids / arch 真实世界坐标生成 3D 几何体，
 -- 保证木板前后遮挡、踏步侧面、拱洞内壁与 wz = 0 碰撞/车柄落点严丝合缝。
-function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartAxle, time) -- 1231
-	scene:addDistantRidge( -- 1240
-		{ -- 1241
-			{x = room.minX - 180, y = 125}, -- 1242
-			{x = room.minX + 120, y = 196}, -- 1243
-			{x = room.minX + 420, y = 162}, -- 1244
-			{x = room.minX + 760, y = 224}, -- 1245
-			{x = room.maxX + 220, y = 150} -- 1246
-		}, -- 1246
-		-40, -- 1246
-		420, -- 1249
-		____exports.MING_MATERIALS.distantHill, -- 1250
-		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1251
-	) -- 1251
-	scene:addFogBand( -- 1253
-		room.minX - 240, -- 1253
-		room.maxX + 240, -- 1253
-		-30, -- 1253
-		175, -- 1253
-		290, -- 1253
-		scene.light.fogColor, -- 1253
-		0.56, -- 1253
-		0.04, -- 1253
-		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1253
-	) -- 1253
-	local i = 0 -- 1258
-	do -- 1258
-		i = 0 -- 1259
-		while i < #room.floors do -- 1259
-			local fl = room.floors[i + 1] -- 1260
-			local isMain = fl.y <= 0.1 -- 1261
-			if isMain then -- 1261
-				scene:addBox({ -- 1263
-					x0 = fl.x0, -- 1264
-					x1 = fl.x1, -- 1265
-					y0 = -48, -- 1266
-					y1 = fl.y, -- 1267
-					z0 = -26, -- 1268
-					z1 = 88, -- 1269
-					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1270
-					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1271
-					highlightTopEdge = true -- 1272
-				}) -- 1272
-			else -- 1272
-				scene:addPlankDeck( -- 1276
-					fl.x0, -- 1276
-					fl.x1, -- 1276
-					fl.y, -- 1276
-					-24, -- 1276
-					52, -- 1276
-					5, -- 1276
-					11, -- 1276
-					____exports.MING_MATERIALS.mingTimber, -- 1276
-					{bucket = ____exports.LP_BUCKET.WALK_DECK, withPosts = true, postBottomY = 0} -- 1276
-				) -- 1276
-			end -- 1276
-			i = i + 1 -- 1259
-		end -- 1259
-	end -- 1259
+function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartAxle, time) -- 1232
+	scene:addDistantRidge( -- 1241
+		{ -- 1242
+			{x = room.minX - 180, y = 125}, -- 1243
+			{x = room.minX + 120, y = 196}, -- 1244
+			{x = room.minX + 420, y = 162}, -- 1245
+			{x = room.minX + 760, y = 224}, -- 1246
+			{x = room.maxX + 220, y = 150} -- 1247
+		}, -- 1247
+		-40, -- 1249
+		420, -- 1250
+		____exports.MING_MATERIALS.distantHill, -- 1251
+		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1252
+	) -- 1252
+	scene:addFogBand( -- 1254
+		room.minX - 240, -- 1254
+		room.maxX + 240, -- 1254
+		-30, -- 1254
+		175, -- 1254
+		290, -- 1254
+		scene.light.fogColor, -- 1254
+		0.56, -- 1254
+		0.04, -- 1254
+		{bucket = ____exports.LP_BUCKET.BACKDROP} -- 1254
+	) -- 1254
+	local i = 0 -- 1259
 	do -- 1259
-		i = 0 -- 1285
-		while i < #room.stairs do -- 1285
-			scene:addStairFlight( -- 1286
-				room.stairs[i + 1], -- 1286
-				14, -- 1286
-				76, -- 1286
-				____exports.MING_MATERIALS.mingStoneStep, -- 1286
-				{bucket = ____exports.LP_BUCKET.MIDGROUND, baseY = 0} -- 1286
-			) -- 1286
-			i = i + 1 -- 1285
-		end -- 1285
-	end -- 1285
-	do -- 1285
-		i = 0 -- 1293
-		while i < #room.solids do -- 1293
-			local s = room.solids[i + 1] -- 1294
-			scene:addBox({ -- 1295
-				x0 = s.x, -- 1296
-				x1 = s.x + s.w, -- 1297
-				y0 = s.y, -- 1298
-				y1 = s.y + s.h, -- 1299
-				z0 = -8, -- 1300
-				z1 = 72, -- 1301
-				material = ____exports.MING_MATERIALS.mingBrick, -- 1302
-				bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1303
-				highlightTopEdge = true -- 1304
-			}) -- 1304
-			if s.y > 10 then -- 1304
-				scene:addBox({ -- 1307
-					x0 = s.x, -- 1308
-					x1 = s.x + 18, -- 1309
-					y0 = 0, -- 1310
-					y1 = s.y, -- 1311
-					z0 = 32, -- 1312
-					z1 = 72, -- 1313
-					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1314
-					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1315
-					sortBias = -0.08, -- 1316
-					edgeWidth = 0.7 -- 1317
-				}) -- 1317
-				scene:addBox({ -- 1319
-					x0 = s.x + s.w - 18, -- 1320
-					x1 = s.x + s.w, -- 1321
-					y0 = 0, -- 1322
-					y1 = s.y, -- 1323
-					z0 = 32, -- 1324
-					z1 = 72, -- 1325
-					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1326
-					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1327
-					sortBias = -0.08, -- 1328
-					edgeWidth = 0.7 -- 1329
-				}) -- 1329
-			end -- 1329
-			i = i + 1 -- 1293
-		end -- 1293
-	end -- 1293
-	local arch = room.arch -- 1335
-	if arch.h > 0 and arch.x1 > arch.x0 then -- 1335
-		scene:addBeveledFrame( -- 1337
-			arch.x0, -- 1337
-			arch.x1, -- 1337
-			arch.y, -- 1337
-			arch.y + arch.h, -- 1337
-			22, -- 1337
-			18, -- 1337
-			-10, -- 1337
-			64, -- 1337
-			____exports.MING_MATERIALS.mingStoneStep, -- 1337
-			{ -- 1337
-				bucket = ____exports.LP_BUCKET.WALK_DECK, -- 1338
-				innerRimLight = rgba(176, 206, 228, 255), -- 1339
-				innerRimStrength = 0.45 -- 1340
-			} -- 1340
-		) -- 1340
-	end -- 1340
-	local c = room.cart -- 1345
-	if c.bodyW > 0 then -- 1345
-		scene:addContactShadow( -- 1347
-			cartAxle, -- 1347
-			c.baseY, -- 1347
-			c.bodyW * 0.62, -- 1347
-			14, -- 1347
-			0.7, -- 1347
-			{bucket = ____exports.LP_BUCKET.PROP} -- 1347
-		) -- 1347
-		local clothX = cartAxle - c.bodyW * 0.5 -- 1348
-		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1349
-		local sway = math.sin(time * 3.1) * 5.5 -- 1350
-		scene:addTri3D( -- 1351
-			____exports.vec3(clothX, clothTop, -4), -- 1352
-			____exports.vec3(clothX + 9, clothTop, -4), -- 1353
-			____exports.vec3(clothX - 5 + sway, clothTop - 22, -6), -- 1354
-			____exports.MING_MATERIALS.mingRedCloth, -- 1355
-			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, edgeWidth = 0.9} -- 1356
-		) -- 1356
-	end -- 1356
-	scene:addContactShadow( -- 1361
-		actorX, -- 1361
-		actorY, -- 1361
-		15, -- 1361
-		11, -- 1361
-		0.78, -- 1361
-		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1361
-	) -- 1361
-end -- 1231
-return ____exports -- 1231
+		i = 0 -- 1260
+		while i < #room.floors do -- 1260
+			local fl = room.floors[i + 1] -- 1261
+			local isMain = fl.y <= 0.1 -- 1262
+			if isMain then -- 1263
+				scene:addBox({ -- 1264
+					x0 = fl.x0, -- 1265
+					x1 = fl.x1, -- 1266
+					y0 = -48, -- 1267
+					y1 = fl.y, -- 1268
+					z0 = -26, -- 1269
+					z1 = 88, -- 1270
+					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1271
+					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1272
+					highlightTopEdge = true -- 1273
+				}) -- 1273
+			else -- 1273
+				scene:addPlankDeck( -- 1277
+					fl.x0, -- 1277
+					fl.x1, -- 1277
+					fl.y, -- 1277
+					-24, -- 1277
+					52, -- 1277
+					5, -- 1277
+					11, -- 1277
+					____exports.MING_MATERIALS.mingTimber, -- 1277
+					{bucket = ____exports.LP_BUCKET.WALK_DECK, withPosts = true, postBottomY = 0} -- 1277
+				) -- 1277
+			end -- 1277
+			i = i + 1 -- 1260
+		end -- 1260
+	end -- 1260
+	do -- 1260
+		i = 0 -- 1286
+		while i < #room.stairs do -- 1286
+			scene:addStairFlight( -- 1287
+				room.stairs[i + 1], -- 1287
+				14, -- 1287
+				76, -- 1287
+				____exports.MING_MATERIALS.mingStoneStep, -- 1287
+				{bucket = ____exports.LP_BUCKET.MIDGROUND, baseY = 0} -- 1287
+			) -- 1287
+			i = i + 1 -- 1286
+		end -- 1286
+	end -- 1286
+	do -- 1286
+		i = 0 -- 1294
+		while i < #room.solids do -- 1294
+			do -- 1294
+				local s = room.solids[i + 1] -- 1295
+				if s.id == "outside_red_cart" then -- 1296
+					goto __continue92 -- 1297
+				end -- 1297
+				scene:addBox({ -- 1299
+					x0 = s.x, -- 1300
+					x1 = s.x + s.w, -- 1301
+					y0 = s.y, -- 1302
+					y1 = s.y + s.h, -- 1303
+					z0 = -8, -- 1304
+					z1 = 72, -- 1305
+					material = ____exports.MING_MATERIALS.mingBrick, -- 1306
+					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1307
+					highlightTopEdge = true -- 1308
+				}) -- 1308
+				if s.y > 10 then -- 1310
+					scene:addBox({ -- 1311
+						x0 = s.x, -- 1312
+						x1 = s.x + 18, -- 1313
+						y0 = 0, -- 1314
+						y1 = s.y, -- 1315
+						z0 = 32, -- 1316
+						z1 = 72, -- 1317
+						material = ____exports.MING_MATERIALS.mingBrickDark, -- 1318
+						bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1319
+						sortBias = -0.08, -- 1320
+						edgeWidth = 0.7 -- 1321
+					}) -- 1321
+					scene:addBox({ -- 1323
+						x0 = s.x + s.w - 18, -- 1324
+						x1 = s.x + s.w, -- 1325
+						y0 = 0, -- 1326
+						y1 = s.y, -- 1327
+						z0 = 32, -- 1328
+						z1 = 72, -- 1329
+						material = ____exports.MING_MATERIALS.mingBrickDark, -- 1330
+						bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1331
+						sortBias = -0.08, -- 1332
+						edgeWidth = 0.7 -- 1333
+					}) -- 1333
+				end -- 1333
+			end -- 1333
+			::__continue92:: -- 1333
+			i = i + 1 -- 1294
+		end -- 1294
+	end -- 1294
+	local arch = room.arch -- 1339
+	if arch.h > 0 and arch.x1 > arch.x0 then -- 1340
+		scene:addBeveledFrame( -- 1341
+			arch.x0, -- 1341
+			arch.x1, -- 1341
+			arch.y, -- 1341
+			arch.y + arch.h, -- 1341
+			22, -- 1341
+			18, -- 1341
+			-10, -- 1341
+			64, -- 1341
+			____exports.MING_MATERIALS.mingStoneStep, -- 1341
+			{ -- 1341
+				bucket = ____exports.LP_BUCKET.WALK_DECK, -- 1342
+				innerRimLight = rgba(176, 206, 228, 255), -- 1343
+				innerRimStrength = 0.45 -- 1344
+			} -- 1344
+		) -- 1344
+	end -- 1344
+	local c = room.cart -- 1349
+	if c.bodyW > 0 then -- 1350
+		scene:addContactShadow( -- 1351
+			cartAxle, -- 1351
+			c.baseY, -- 1351
+			c.bodyW * 0.62, -- 1351
+			14, -- 1351
+			0.7, -- 1351
+			{bucket = ____exports.LP_BUCKET.PROP} -- 1351
+		) -- 1351
+		local clothX = cartAxle - c.bodyW * 0.5 -- 1352
+		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1353
+		local sway = math.sin(time * 3.1) * 5.5 -- 1354
+		scene:addTri3D( -- 1355
+			____exports.vec3(clothX, clothTop, -4), -- 1356
+			____exports.vec3(clothX + 9, clothTop, -4), -- 1357
+			____exports.vec3(clothX - 5 + sway, clothTop - 22, -6), -- 1358
+			____exports.MING_MATERIALS.mingRedCloth, -- 1359
+			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, edgeWidth = 0.9} -- 1360
+		) -- 1360
+	end -- 1360
+	scene:addContactShadow( -- 1365
+		actorX, -- 1365
+		actorY, -- 1365
+		15, -- 1365
+		11, -- 1365
+		0.78, -- 1365
+		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1365
+	) -- 1365
+end -- 1232
+return ____exports -- 1232

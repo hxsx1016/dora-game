@@ -97,6 +97,11 @@ export class Input {
     /** 本会话是否收到过任意真实玩家输入（供 Web 音频首手势解锁） */
     userInteracted = false;
 
+    /** 渲染帧内是否按下过交互键（不被模拟步 endStep 清空，供插件 renderPlay 读取） */
+    frameInteractPressed = false;
+    /** 渲染帧内是否由按键选天赋消费了 1-3，防非发行态穿透跳房 */
+    private suppressPickRoomOnce = false;
+
     /** 单帧快捷边沿（供 app.ts 消费，不侵入 Play.update） */
     artifactTogglePressed = false;
     bottleCanceled = false;
@@ -444,11 +449,22 @@ export class Input {
             }
         }
 
+        if (!suppressMouse && this.inputMode === "kbm" && this.aim.held && mouseRightPressed) {
+            this.bottleCanceled = true;
+            this.aim.held = false;
+            this.aim.pressed = false;
+            this.aim.released = false;
+        }
+
         const pick = n1 ? 1 : (n2 ? 2 : (n3 ? 3 : 0));
-        if (pick !== 0 && pick !== this.lastPick) {
+        if (this.suppressPickRoomOnce) {
+            this.suppressPickRoomOnce = false;
+            this.pickRoom = 0;
+        } else if (pick !== 0 && pick !== this.lastPick) {
             this.pickRoom = pick;
         }
         this.lastPick = pick;
+        this.frameInteractPressed = this.interact.pressed;
 
         // 6. 合并主舞台准星（mx/my）与渲染帧 UI 指针（uiX..uiRightPressed）
         const touchUiActive = touch !== undefined
@@ -496,16 +512,28 @@ export class Input {
                 this.mdy = 0;
                 this.inside = false;
             }
-            // 手柄态静默鼠标悬停防抢焦；但在桌面锁定手柄模式下若真实点击菜单仍不卡死
-            this.uiX = this.mx;
-            this.uiY = this.my;
-            this.uiDx = 0;
-            this.uiDy = 0;
-            this.uiInside = false;
-            this.uiHeld = false;
-            this.uiPressed = false;
-            this.uiReleased = false;
-            this.uiRightPressed = false;
+            // 手柄态静默鼠标悬停防抢焦；但在桌面锁定手柄模式下若真实点击菜单/UI仍保留 uiPressed，绝不锁死桌面点选
+            if (!suppressMouse && mouseInsideStage && (mouseLeft || mouseLeftPressed || mouseLeftReleased)) {
+                this.uiDx = mouseStageX - this.uiX;
+                this.uiDy = mouseStageY - this.uiY;
+                this.uiX = mouseStageX;
+                this.uiY = mouseStageY;
+                this.uiInside = true;
+                this.uiHeld = mouseLeft;
+                this.uiPressed = mouseLeftPressed;
+                this.uiReleased = mouseLeftReleased;
+                this.uiRightPressed = mouseRightPressed;
+            } else {
+                this.uiX = this.mx;
+                this.uiY = this.my;
+                this.uiDx = 0;
+                this.uiDy = 0;
+                this.uiInside = false;
+                this.uiHeld = false;
+                this.uiPressed = false;
+                this.uiReleased = false;
+                this.uiRightPressed = false;
+            }
             return;
         }
 
@@ -564,6 +592,12 @@ export class Input {
         this.uiPressed = effLeftPressed;
         this.uiReleased = effLeftReleased;
         this.uiRightPressed = effRightPressed;
+    }
+
+    /** 标记本帧 1/2/3 已被天赋选择消费，阻止穿透触发调试跳房 */
+    consumePickRoom(): void {
+        this.pickRoom = 0;
+        this.suppressPickRoomOnce = true;
     }
 
     /** 虚拟按钮请求选卡（1/2/3） */

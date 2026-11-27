@@ -15,6 +15,9 @@ local thread <const> = thread
 local sleep <const> = sleep
 
 App.devMode = false
+pcall(function()
+	App.webIDEEnabled = false
+end)
 
 local version = "release"
 local versionFile = Path(Content.assetPath, "VERSION.txt")
@@ -73,6 +76,8 @@ if Content:exist(smokeFlag) then
 		end
 		assertCheck("watch.fe hook loaded", hook ~= nil)
 		assertCheck("isRelease enabled", hook ~= nil and hook.isRelease() == true)
+		assertCheck("root LICENSE exists", Content:exist("LICENSE"))
+		assertCheck("dialogues module loads", pcall(require, "Script.watch.dialogues") == true)
 		assertCheck("title backdrop exists", Content:exist("assets/art/title.png"))
 		assertCheck("brand game logo exists", Content:exist("assets/art/brand/game_logo_h.png"))
 		assertCheck("brand team logo exists", Content:exist("assets/art/brand/team_logo_dark.png"))
@@ -82,6 +87,14 @@ if Content:exist(smokeFlag) then
 		assertCheck("combat shot wav exists", Content:exist("assets/audio/combat/shot.wav"))
 		assertCheck("prologue wav exists", Content:exist("assets/audio/prologue/night_distant_fire.wav"))
 		assertCheck("sfx knock wav exists", Content:exist("assets/audio/sfx/knock.wav"))
+		-- 真写盘回读自检（验证默认隔离目录或绿色 save/ 目录真实可写）
+		local saveDir = Path(Content.writablePath, "watch-save")
+		Content:mkdir(saveDir)
+		local probePath = Path(saveDir, "_ci_smoke_rw.tmp")
+		local wrote = Content:save(probePath, "smoke_ok=1\n")
+		local readBack = wrote and Content:load(probePath) or ""
+		pcall(function() Content:remove(probePath) end)
+		assertCheck("writablePath save write/readback", wrote == true and readBack:find("smoke_ok=1", 1, true) ~= nil)
 		lines[#lines + 1] = ok and "SMOKE_OK" or "SMOKE_FAIL"
 		Content:save(Path(Content.assetPath, ".ci-smoke-result.txt"), table.concat(lines, "\n") .. "\n")
 		sleep(0.2)

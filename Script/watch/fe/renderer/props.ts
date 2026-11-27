@@ -35,6 +35,7 @@ export class PropsRenderer {
         this.drawZones(fgDraw, p, cam);
         this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
         this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
+        this.drawBracedShield(fgDraw, p, cam);
         this.drawCraftMaterials(assets, p, cam);
         if (p.phase === "prologue-give" && p.phaseTick >= 12 && p.phaseTick < 36) {
             const x = (p.player.x + p.partner.x) * 0.5;
@@ -46,6 +47,22 @@ export class PropsRenderer {
         if (p.room.key === "village") {
             this.drawVillageProps(fgDraw, fgGlow, assets, p, cam, time);
         }
+    }
+
+    /** 绘制 C2 军粮棚架设的木制残盾（与后端 p.bracedShield 同步出现与破碎） */
+    private drawBracedShield(fgDraw: DrawNode.Type, p: Play, cam: CameraDirector): void {
+        const sh = p.bracedShield;
+        if (sh === undefined || sh.hp <= 0) {
+            return;
+        }
+        const cx = cam.sx(sh.x);
+        const by = cam.sy(sh.y, p.player.depth);
+        const w = Math.max(8, cam.len(12));
+        const h = cam.len(sh.h);
+        fgDraw.drawEllipse(Vec2(cx, by + 1), w * 0.9, 3.2, Color(8, 10, 14, 150));
+        fgDraw.drawSegment(Vec2(cx - w * 0.65, by), Vec2(cx - w * 0.15, by + h * 0.55), 2.2, Color(84, 58, 38, 255));
+        fgDraw.drawRect(Rect(cx - w * 0.5, by + 2, w, h - 2), Color(104, 72, 46, 248), 1.4, Color(172, 178, 184, 235));
+        fgDraw.drawCircle(Vec2(cx, by + h * 0.52), Math.max(2.5, cam.len(4)), Color(148, 154, 160, 245));
     }
 
     private drawCraftMaterials(assets: AssetSlotHost, p: Play, cam: CameraDirector): void {

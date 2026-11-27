@@ -496,8 +496,11 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         // 监听未来后端一次性事件（若有）
         let i = 0;
         for (i = 0; i < ctx.events.rawEvents.length; i++) {
-            const ename = ctx.events.rawEvents[i].name as string;
-            if (ename === "p04WallFlash" || ename === "wallPeekFlash") {
+            const ev = ctx.events.rawEvents[i];
+            const ename = ev.name as string;
+            if (ename === "prologueBeat" && ev.data["beat"] === "escapeRetry" && this.stage === "p02_escape") {
+                this.retryEscape();
+            } else if (ename === "p04WallFlash" || ename === "wallPeekFlash") {
                 if (!this.p04TriggeredOnce) {
                     this.triggerP04(p.player.x, p.player.y);
                 }
@@ -643,8 +646,8 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             }
         }
 
-        // 超时自动重试：退回门口可玩姿态，彻底清零红晕与心跳
-        if (this.escapeRemaining <= 0) {
+        // 超时自动重试：排演态本地重置；正式态由后端 prologueBeat(escapeRetry) 同步触发重置，防双重置抖动
+        if (this.escapeRemaining <= 0 && (this.rehearsalActive || liveRemain === undefined)) {
             this.retryEscape();
             return;
         }
@@ -777,8 +780,8 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         }
         if (this.stage === "p02_escape") {
             this.drawP02EscapeVignette(uiDraw, uiInkDraw, uiGlow, ctx);
-            // 排演态不劫持原叙事之外的逻辑，但隐藏默认底部长句干扰
-            return this.rehearsalActive;
+            // P02 限时逃柜期间压隐战斗 HUD 与底部教学长条，保持纯屏边红晕 + 心跳的窒息紧张感
+            return true;
         }
         if (this.stage === "p02_hidden") {
             this.drawP02HiddenCabinet(uiDraw, uiInkDraw, uiGlow, ctx);

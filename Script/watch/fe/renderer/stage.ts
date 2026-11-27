@@ -145,7 +145,7 @@ export class StageRenderer {
         }
     }
 
-    /** 标题菜单专用动态背景（无需 Play 实例即可直接绘制高氛围冷月废墟舞台） */
+    /** 标题菜单专用动态背景（底图缺失时以宋明水墨冷月孤城与远山北塔兜底，零现代霓虹/探照灯） */
     drawMenuBackdrop(
         bgDraw: DrawNode.Type,
         bgGlow: DrawNode.Type,
@@ -158,123 +158,87 @@ export class StageRenderer {
         fillVGradRect(bgDraw, 0, splitY, w, h - splitY, toColor(theme.skyMid), toColor(theme.skyTop));
         fillVGradRect(bgDraw, 0, 0, w, splitY, toColor(theme.skyHorizon), toColor(theme.skyMid));
 
-        // 巨大冷月与光晕（左移与右侧北塔形成对角构图，绝不重叠）
+        // 霜月淡晕（与右侧北塔孤灯对角呼应）
         const mx = w * 0.61;
         const my = h * 0.74;
-        const mr = h * 0.082;
-        fillRadialGlow(bgGlow, mx, my, mr * 5.2, mr * 5.2, Color(86, 210, 255, 34), Color(10, 24, 52, 0), 24);
-        fillRadialGlow(bgGlow, mx, my, mr * 2.1, mr * 2.1, Color(190, 240, 255, 76), Color(40, 120, 190, 0), 20);
-        bgDraw.drawCircle(Vec2(mx, my), mr, Color(228, 242, 255, 235));
-        bgDraw.drawCircle(Vec2(mx + mr * 0.25, my + mr * 0.14), mr * 0.86, Color(10, 18, 34, 125));
+        const mr = h * 0.072;
+        fillRadialGlow(bgGlow, mx, my, mr * 4.4, mr * 4.4, Color(164, 184, 198, 28), Color(16, 22, 34, 0), 22);
+        fillRadialGlow(bgGlow, mx, my, mr * 1.9, mr * 1.9, Color(214, 224, 232, 62), Color(36, 48, 64, 0), 18);
+        bgDraw.drawCircle(Vec2(mx, my), mr, Color(234, 238, 236, 225));
+        bgDraw.drawCircle(Vec2(mx + mr * 0.24, my + mr * 0.14), mr * 0.85, Color(14, 18, 28, 118));
 
-        // 探照灯光锥
-        let s = 0;
-        for (s = 0; s < 3; s++) {
-            const bx = w * (0.36 + s * 0.24);
-            const sway = Math.sin(time * (0.35 + s * 0.14) + s * 1.9) * 0.26;
-            const ang = Math.PI * 0.5 + sway - 0.12;
-            const len = h * 1.15;
-            const spread = 0.085 + s * 0.015;
-            const x1 = bx + Math.cos(ang - spread) * len;
-            const y1 = Math.sin(ang - spread) * len;
-            const x2 = bx + Math.cos(ang + spread) * len;
-            const y2 = Math.sin(ang + spread) * len;
-            const baseCol = s === 1 ? Color(255, 58, 92, 34) : Color(76, 214, 255, 36);
-            const tipCol = Color(baseCol.r, baseCol.g, baseCol.b, 0);
-            bgGlow.drawVertices([
-                [Vec2(bx, h * 0.15), baseCol],
-                [Vec2(x1, y1), tipCol],
-                [Vec2(x2, y2), tipCol],
-            ]);
-        }
-
-        // 远景巨构废墟剪影
+        // 远景明代海防青砖城垛与民居歇山屋脊剪影
         const groundY = h * 0.19;
         let i = 0;
-        for (i = 0; i < 16; i++) {
-            const bx = i * (w / 14) - 20 + Math.sin(time * 0.08) * 6;
-            const bw = 54 + hash01(i * 13 + 3) * 86;
-            const bh = h * (0.20 + hash01(i * 29 + 7) * 0.34);
-            const cut = 12 + hash01(i * 19) * 20;
+        for (i = 0; i < 14; i++) {
+            const bx = i * (w / 12) - 24 + Math.sin(time * 0.06) * 4;
+            const bw = 58 + hash01(i * 13 + 3) * 82;
+            const bh = h * (0.14 + hash01(i * 29 + 7) * 0.22);
+            const ridgeH = 14 + hash01(i * 19) * 18;
             bgDraw.drawPolygon([
                 Vec2(bx, groundY),
                 Vec2(bx + bw, groundY),
-                Vec2(bx + bw, groundY + bh - cut),
-                Vec2(bx + bw - cut, groundY + bh),
+                Vec2(bx + bw, groundY + bh),
+                Vec2(bx + bw * 0.5, groundY + bh + ridgeH),
                 Vec2(bx, groundY + bh),
-            ], Color(10, 16, 28, 255));
-            // 冷光窗口缝
-            if (hash01(i * 41 + 5) > 0.45) {
-                const wy = groundY + bh * 0.65;
-                bgGlow.drawSegment(Vec2(bx + 10, wy), Vec2(bx + bw - 14, wy), 1.2, Color(72, 224, 255, 95));
-            }
+            ], Color(14, 18, 26, 255));
         }
 
-        // 远景北塔尖碑（右侧标志性视觉，与左上方冷月遥相呼应）
+        // 远景北塔重檐望塔与西窗一豆暖灯
         const tx = w * 0.83;
         const ty0 = groundY;
-        const ty1 = h * 0.62;
+        const ty1 = h * 0.58;
         bgDraw.drawPolygon([
-            Vec2(tx - 26, ty0),
-            Vec2(tx + 26, ty0),
-            Vec2(tx + 11, ty1),
-            Vec2(tx - 11, ty1),
-        ], Color(15, 24, 40, 255), 1.2, Color(58, 86, 118, 140));
-        bgDraw.drawSegment(Vec2(tx, ty0 + 24), Vec2(tx, ty1 - 12), 1.4, Color(242, 188, 96, 85));
-        bgDraw.drawSegment(Vec2(tx, ty1), Vec2(tx, ty1 + 42), 2.2, Color(165, 212, 248, 210));
-        const pulse = 0.78 + 0.22 * Math.sin(time * 2.4);
-        fillRadialGlow(bgGlow, tx, ty1 + 42, 74 * pulse, 74 * pulse, Color(255, 222, 146, 130), Color(255, 180, 90, 0), 20);
-        bgGlow.drawDot(Vec2(tx, ty1 + 42), 5.0, Color(255, 248, 224, 255));
+            Vec2(tx - 24, ty0),
+            Vec2(tx + 24, ty0),
+            Vec2(tx + 15, ty1),
+            Vec2(tx - 15, ty1),
+        ], Color(18, 23, 34, 255), 1.1, Color(72, 84, 98, 130));
+        bgDraw.drawPolygon([
+            Vec2(tx - 32, ty1),
+            Vec2(tx + 32, ty1),
+            Vec2(tx, ty1 + 26),
+        ], Color(24, 30, 42, 255));
+        const pulse = 0.82 + 0.18 * Math.sin(time * 2.2);
+        const lampY = ty1 - 14;
+        fillRadialGlow(bgGlow, tx, lampY, 64 * pulse, 64 * pulse, Color(238, 198, 128, 118), Color(214, 162, 86, 0), 18);
+        bgGlow.drawDot(Vec2(tx, lampY), 4.2, Color(252, 240, 206, 245));
 
-        // 底部冰青地面与透视线
-        fillVGradRect(bgDraw, 0, 0, w, groundY, Color(6, 9, 16, 255), Color(16, 24, 38, 255));
-        bgDraw.drawSegment(Vec2(0, groundY), Vec2(w, groundY), 2, Color(76, 220, 255, 180));
-        fillVGradRect(bgGlow, 0, groundY, w, h * 0.24, Color(42, 130, 182, 52), Color(20, 60, 100, 0));
+        // 底部青石路与夜雾渐变
+        fillVGradRect(bgDraw, 0, 0, w, groundY, Color(9, 11, 17, 255), Color(20, 24, 34, 255));
+        bgDraw.drawSegment(Vec2(0, groundY), Vec2(w, groundY), 1.4, toColor(PALETTE.silkDim, 145));
+        fillVGradRect(bgGlow, 0, groundY, w, h * 0.18, Color(46, 56, 72, 42), Color(20, 26, 38, 0));
 
-        // 右下双人英雄逆光剪影（周戍冰青轮廓 + 小满暖金斗篷）
+        // 右下兄妹逆光剪影（周戍笠盔短袄鸟铳 + 小满旧布斗篷提灯微光）
         const sx = w * 0.64;
-        fillRadialGlow(bgGlow, sx + 38, groundY + 75, 128, 92, Color(52, 178, 232, 42), Color(20, 60, 110, 0), 18);
-        // 周戍：风衣下摆 + V 形装甲肩 + 步枪 + 冰青目镜光带
         bgDraw.drawPolygon([
-            Vec2(sx - 36, groundY + 12),
-            Vec2(sx + 10, groundY + 18),
-            Vec2(sx + 16, groundY + 124),
-            Vec2(sx - 18, groundY + 124),
-        ], Color(10, 16, 28, 255), 1.3, Color(76, 210, 255, 145));
-        bgDraw.drawSegment(Vec2(sx - 6, groundY + 48), Vec2(sx - 12, groundY + 2), 6, Color(10, 16, 28, 255));
-        bgDraw.drawSegment(Vec2(sx + 6, groundY + 48), Vec2(sx + 14, groundY + 2), 6, Color(14, 22, 36, 255));
+            Vec2(sx - 24, groundY + 14),
+            Vec2(sx + 14, groundY + 18),
+            Vec2(sx + 16, groundY + 116),
+            Vec2(sx - 16, groundY + 116),
+        ], Color(14, 18, 26, 255), 1.1, Color(118, 132, 144, 125));
+        bgDraw.drawSegment(Vec2(sx - 5, groundY + 46), Vec2(sx - 10, groundY + 2), 5.5, Color(12, 16, 24, 255));
+        bgDraw.drawSegment(Vec2(sx + 6, groundY + 46), Vec2(sx + 12, groundY + 2), 5.5, Color(16, 20, 30, 255));
+        bgDraw.drawCircle(Vec2(sx + 1, groundY + 132), 11, Color(18, 22, 32, 255));
         bgDraw.drawPolygon([
-            Vec2(sx - 20, groundY + 120),
-            Vec2(sx + 20, groundY + 122),
-            Vec2(sx + 16, groundY + 132),
-            Vec2(sx - 16, groundY + 130),
-        ], Color(208, 236, 252, 240));
-        bgDraw.drawCircle(Vec2(sx + 2, groundY + 146), 13, Color(14, 22, 36, 255));
-        bgDraw.drawArc(Vec2(sx + 2, groundY + 146), 13.5, 30, 165, 2.0, Color(216, 240, 255, 230));
-        bgGlow.drawSegment(Vec2(sx + 4, groundY + 148), Vec2(sx + 17, groundY + 150), 2.6, Color(86, 240, 255, 255));
-        bgDraw.drawSegment(Vec2(sx + 4, groundY + 104), Vec2(sx + 46, groundY + 94), 3.4, Color(34, 52, 74, 255));
-        bgGlow.drawSegment(Vec2(sx + 16, groundY + 102), Vec2(sx + 44, groundY + 95), 1.2, Color(86, 236, 255, 200));
+            Vec2(sx - 18, groundY + 135),
+            Vec2(sx + 20, groundY + 135),
+            Vec2(sx + 1, groundY + 148),
+        ], Color(44, 50, 58, 250));
+        bgDraw.drawSegment(Vec2(sx + 4, groundY + 96), Vec2(sx + 46, groundY + 88), 3.0, Color(78, 56, 40, 255));
 
-        // 小满：暖琥珀尖兜帽斗篷 + 飘带围巾 + 指南针微光
         const cx = w * 0.725;
         bgDraw.drawPolygon([
-            Vec2(cx - 20, groundY + 14),
-            Vec2(cx + 18, groundY + 14),
-            Vec2(cx + 12, groundY + 84),
-            Vec2(cx - 12, groundY + 84),
-        ], Color(188, 142, 78, 238), 1.4, Color(252, 232, 192, 225));
-        bgDraw.drawSegment(Vec2(cx - 5, groundY + 24), Vec2(cx - 6, groundY + 2), 4.2, Color(28, 24, 30, 255));
-        bgDraw.drawSegment(Vec2(cx + 5, groundY + 24), Vec2(cx + 6, groundY + 2), 4.2, Color(38, 32, 38, 255));
-        bgDraw.drawCircle(Vec2(cx + 1, groundY + 95), 11, Color(238, 220, 194, 250));
-        bgDraw.drawPolygon([
-            Vec2(cx - 15, groundY + 84),
-            Vec2(cx - 10, groundY + 108),
-            Vec2(cx + 6, groundY + 107),
-            Vec2(cx - 4, groundY + 84),
-        ], Color(156, 114, 62, 245));
-        bgGlow.drawSegment(Vec2(cx - 8, groundY + 82), Vec2(cx - 30, groundY + 64), 2.8, Color(252, 230, 178, 220));
-        fillRadialGlow(bgGlow, cx + 10, groundY + 56, 30, 30, Color(255, 214, 130, 115), Color(250, 180, 70, 0), 16);
-        bgGlow.drawDot(Vec2(cx + 10, groundY + 56), 3.2, Color(255, 246, 220, 255));
+            Vec2(cx - 18, groundY + 14),
+            Vec2(cx + 16, groundY + 14),
+            Vec2(cx + 11, groundY + 78),
+            Vec2(cx - 11, groundY + 78),
+        ], Color(148, 108, 66, 236), 1.2, Color(214, 186, 146, 195));
+        bgDraw.drawSegment(Vec2(cx - 4, groundY + 22), Vec2(cx - 5, groundY + 2), 3.8, Color(24, 20, 24, 255));
+        bgDraw.drawSegment(Vec2(cx + 4, groundY + 22), Vec2(cx + 5, groundY + 2), 3.8, Color(30, 26, 30, 255));
+        bgDraw.drawCircle(Vec2(cx + 1, groundY + 88), 10, Color(212, 192, 168, 240));
+        fillRadialGlow(bgGlow, cx + 10, groundY + 52, 26, 26, Color(238, 198, 128, 96), Color(214, 162, 86, 0), 14);
+        bgGlow.drawDot(Vec2(cx + 10, groundY + 52), 2.8, Color(252, 238, 202, 240));
     }
 
     /** 绘制逻辑平面建筑（地板、悬空平台、建筑实体、拱洞、台阶、城门闸门） */
@@ -794,8 +758,8 @@ export class StageRenderer {
                 continue;
             }
 
-            // 城外悬空城墙（y > 10）：补全背景支撑砖墩，消除空中悬浮灰块感（不阻挡底层走道）
-            if (p.room.key === "outside" && s.y > 10) {
+            // 城外悬空城墙（y > 10）：补全背景支撑砖墩，消除空中悬浮灰块感（不给补丁红布车画砖墩）
+            if (p.room.key === "outside" && s.y > 10 && s.id !== "outside_red_cart") {
                 const groundY = cam.sy(0);
                 const pierW = cam.len(16);
                 fgDraw.drawRect(Rect(x0, groundY, pierW, y0 - groundY), Color(32, 37, 46, 215), 0.9, Color(68, 76, 88, 140));
@@ -819,7 +783,7 @@ export class StageRenderer {
 
             // 3) 北塔塔身与门楣
             if (p.room.key === "tower") {
-                this.drawTowerStructure(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, time);
+                this.drawTowerStructure(fgDraw, fgGlow, assets, x0, y0, sw, sh, s, p, cam, time);
                 continue;
             }
 
@@ -1087,7 +1051,7 @@ export class StageRenderer {
         fgGlow: DrawNode.Type,
         assets: AssetSlotHost,
         x0: number, y0: number, sw: number, sh: number,
-        s: SolidSpec, p: Play, time: number,
+        s: SolidSpec, p: Play, cam: CameraDirector, time: number,
     ): void {
         fillVGradRect(fgDraw, x0, y0, sw, sh, Color(15, 21, 34, 255), Color(32, 44, 66, 255));
         fgDraw.drawRect(Rect(x0, y0, sw, sh), Color(0, 0, 0, 0), 1.4, toColor(PALETTE.rimSilver, 165));
@@ -1120,7 +1084,11 @@ export class StageRenderer {
 
         // 门楣下方温暖圣殿灯火（开门时灯光骤然敞开铺满门廊！）
         if (s.label.indexOf("门楣") >= 0) {
-            const opened = p.phase === "tower-given" || p.phase === "tower-end";
+            const opened = p.towerDoorOpen
+                || p.phase === "tower-enter"
+                || p.phase === "tower-desk"
+                || p.phase === "tower-given"
+                || p.phase === "tower-end";
             const cx = x0 + sw * 0.5;
             const lampY = y0 - 8;
             const doorHeight = y0 - Math.max(0, y0 - sh * 3.8);
@@ -1147,6 +1115,38 @@ export class StageRenderer {
             );
             fillRadialGlow(fgGlow, cx, lampY, opened ? 105 : 58, opened ? 105 : 58, Color(255, 232, 178, Math.round(170 * pulse)), Color(255, 180, 86, 0), 18);
             fgDraw.drawCircle(Vec2(cx, lampY), 5.5, toColor(PALETTE.amberCore));
+
+            // 门开后渲染值夜室木案、守卒剪影、油灯、登记簿与渐进交物（针套 / 指南针 / 纸条）
+            if (opened) {
+                const deskCx = cam.sx(p.ox + 605);
+                const groundY = cam.sy(0);
+                const deskW = cam.len(84);
+                const deskH = cam.len(34);
+                const deskTop = groundY + deskH;
+                // 值夜室暖光背景
+                fillRadialGlow(fgGlow, deskCx, deskTop + cam.len(32), cam.len(115), cam.len(90),
+                    Color(255, 198, 114, Math.round(68 * pulse)), Color(255, 168, 72, 0), 16);
+                // 守卒半身剪影（立于木案右后方）
+                const guardX = deskCx + cam.len(26);
+                fgDraw.drawRect(Rect(guardX - cam.len(11), groundY, cam.len(22), cam.len(68)), Color(34, 42, 54, 240));
+                fgDraw.drawCircle(Vec2(guardX, groundY + cam.len(76)), cam.len(9.5), Color(42, 50, 62, 245));
+                // 木案本体与案面
+                fgDraw.drawRect(Rect(deskCx - deskW * 0.5, groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
+                fgDraw.drawRect(Rect(deskCx + deskW * 0.5 - cam.len(6), groundY, cam.len(6), deskH), Color(78, 52, 34, 255));
+                fgDraw.drawRect(Rect(deskCx - deskW * 0.52, deskTop - cam.len(6), deskW * 1.04, cam.len(8)), Color(108, 74, 46, 255), 1, Color(148, 108, 68, 220));
+                // 案头摊开的收籍薄册与油灯
+                fgDraw.drawRect(Rect(deskCx + cam.len(4), deskTop + cam.len(2), cam.len(24), cam.len(5)), Color(232, 222, 198, 245));
+                fgDraw.drawRect(Rect(deskCx + cam.len(32), deskTop + cam.len(2), cam.len(8), cam.len(12)), Color(168, 128, 64, 245));
+                fgGlow.drawCircle(Vec2(deskCx + cam.len(36), deskTop + cam.len(16)), cam.len(5.5), Color(255, 224, 152, Math.round(220 * pulse)));
+                // 渐进交物视觉（12 拍针套、24 拍指南针与纸条）
+                if (p.deskHold >= 12 || p.towerHanded) {
+                    fgDraw.drawRect(Rect(deskCx - cam.len(28), deskTop + cam.len(2), cam.len(14), cam.len(6)), Color(156, 62, 48, 245));
+                }
+                if (p.deskHold >= 24 || p.towerHanded) {
+                    fgDraw.drawCircle(Vec2(deskCx - cam.len(8), deskTop + cam.len(5)), cam.len(4.5), Color(224, 186, 98, 255));
+                    fgDraw.drawRect(Rect(deskCx - cam.len(16), deskTop + cam.len(2), cam.len(10), cam.len(3)), Color(236, 228, 206, 240));
+                }
+            }
         }
     }
 

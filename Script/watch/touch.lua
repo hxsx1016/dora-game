@@ -140,7 +140,7 @@ function TouchRouter.prototype.____constructor(self, sharedSettings) -- 386
 	self.settings = sharedSettings ~= nil and sharedSettings or defaultControlSettings() -- 387
 end -- 386
 function TouchRouter.prototype.attach(self, parent) -- 390
-	if self.listenerNode ~= nil then -- 390
+	if self.listenerNode ~= nil then -- 391
 		return -- 392
 	end -- 392
 	local n = Node() -- 394
@@ -165,12 +165,12 @@ function TouchRouter.prototype.attach(self, parent) -- 390
 	self.listenerNode = n -- 413
 end -- 390
 function TouchRouter.prototype.injectTouch(self, phase, id, viewX, viewY, fromMouse) -- 417
-	if fromMouse == nil then -- 417
+	if fromMouse == nil then -- 422
 		fromMouse = false -- 422
 	end -- 422
-	if phase == "began" then -- 422
+	if phase == "began" then -- 424
 		self:handleTouchBegan(id, viewX, viewY, fromMouse) -- 425
-	elseif phase == "moved" then -- 425
+	elseif phase == "moved" then -- 426
 		self:handleTouchMoved(id, viewX, viewY, fromMouse) -- 427
 	else -- 427
 		self:handleTouchEnded(id, viewX, viewY, fromMouse) -- 429
@@ -194,7 +194,7 @@ end -- 445
 function TouchRouter.prototype.toggleHaptics(self) -- 451
 	self.settings.haptics = not self.settings.haptics -- 452
 	saveControlSettings(self.settings) -- 453
-	if self.settings.haptics then -- 453
+	if self.settings.haptics then -- 454
 		self:vibrate(0.018) -- 455
 	end -- 455
 	return self.settings.haptics -- 457
@@ -203,7 +203,7 @@ function TouchRouter.prototype.vibrate(self, seconds) -- 460
 	triggerHaptics(seconds, self.settings.haptics) -- 461
 end -- 460
 function TouchRouter.prototype.isSuppressingSyntheticMouse(self) -- 465
-	if self:hasActiveRealFinger() then -- 465
+	if self:hasActiveRealFinger() then -- 466
 		return true -- 467
 	end -- 467
 	return self.clockSec - self.lastRealTouchClock < SYNTHETIC_MOUSE_COOLDOWN_SEC -- 469
@@ -211,7 +211,7 @@ end -- 465
 function TouchRouter.prototype.hasActiveRealFinger(self) -- 472
 	for k in pairs(self.fingers) do -- 473
 		local f = self.fingers[k] -- 474
-		if f ~= nil and not f.fromMouse then -- 474
+		if f ~= nil and not f.fromMouse then -- 475
 			return true -- 476
 		end -- 476
 	end -- 476
@@ -220,7 +220,7 @@ end -- 472
 function TouchRouter.prototype.hasActiveMouseOverlayFinger(self) -- 482
 	for k in pairs(self.fingers) do -- 483
 		local f = self.fingers[k] -- 484
-		if f ~= nil and f.fromMouse then -- 484
+		if f ~= nil and f.fromMouse then -- 485
 			return true -- 486
 		end -- 486
 	end -- 486
@@ -234,36 +234,36 @@ function TouchRouter.prototype.setFrameContext(self, next, dt) -- 492
 	local wasModal = self.ctx.modal -- 494
 	local wasCutscene = self.ctx.cutsceneBlocking -- 495
 	self.ctx = next -- 496
-	if not wasModal and next.modal or not wasCutscene and next.cutsceneBlocking then -- 496
+	if not wasModal and next.modal or not wasCutscene and next.cutsceneBlocking then -- 498
 		self:releaseGameplayFingers() -- 499
 	end -- 499
-	if next.playerRolling then -- 499
+	if next.playerRolling then -- 502
 		self.coverToggled = false -- 503
 	end -- 503
-	if self.coverToggled then -- 503
-		if next.coverNear then -- 503
+	if self.coverToggled then -- 505
+		if next.coverNear then -- 506
 			self.coverNearSeen = true -- 507
-		elseif self.coverNearSeen then -- 507
+		elseif self.coverNearSeen then -- 508
 			self.coverToggled = false -- 509
 			self.coverNearSeen = false -- 510
 		end -- 510
 	else -- 510
 		self.coverNearSeen = false -- 513
 	end -- 513
-	if self.cartGripLatched then -- 513
-		if next.cartGripping then -- 513
+	if self.cartGripLatched then -- 516
+		if next.cartGripping then -- 517
 			self.cartGripSeenActive = true -- 518
-		elseif not next.cartNearby or self.cartGripSeenActive then -- 518
+		elseif not next.cartNearby or self.cartGripSeenActive then -- 519
 			self.cartGripLatched = false -- 520
 			self.cartGripSeenActive = false -- 521
 		end -- 521
 	else -- 521
 		self.cartGripSeenActive = false -- 524
 	end -- 524
-	if not next.canBottleAim and self.bottleFingerId >= 0 then -- 524
+	if not next.canBottleAim and self.bottleFingerId >= 0 then -- 527
 		self:releaseFingerById(self.bottleFingerId) -- 528
 	end -- 528
-	if next.childMode then -- 528
+	if next.childMode then -- 531
 		self.coverToggled = false -- 532
 	else -- 532
 		self.crouchToggled = false -- 534
@@ -290,7 +290,7 @@ function TouchRouter.prototype.releaseAll(self, keepToggles) -- 539
 	self.uiHeld = false -- 553
 	self.uiPressedQueue = false -- 554
 	self.uiReleasedQueue = false -- 555
-	if not keepToggles then -- 555
+	if not keepToggles then -- 556
 		self.coverToggled = false -- 557
 		self.crouchToggled = false -- 558
 		self.slowToggled = false -- 559
@@ -323,7 +323,7 @@ function TouchRouter.prototype.releaseGameplayFingers(self) -- 587
 	local ids = {} -- 588
 	for k in pairs(self.fingers) do -- 589
 		local f = self.fingers[k] -- 590
-		if f ~= nil and f.kind ~= "modal" then -- 590
+		if f ~= nil and f.kind ~= "modal" then -- 591
 			ids[#ids + 1] = f.id -- 592
 		end -- 592
 	end -- 592
@@ -338,41 +338,41 @@ function TouchRouter.prototype.releaseGameplayFingers(self) -- 587
 end -- 587
 function TouchRouter.prototype.releaseFingerById(self, id) -- 601
 	local f = self.fingers[id] -- 602
-	if f == nil then -- 602
+	if f == nil then -- 603
 		return -- 603
 	end -- 603
 	__TS__Delete(self.fingers, id) -- 604
-	if self.stickFingerId == id then -- 604
+	if self.stickFingerId == id then -- 605
 		self.stickFingerId = -1 -- 606
 		self.stickMoveX = 0 -- 607
 		self.stickMoveY = 0 -- 608
 		self.stickSlow = false -- 609
 	end -- 609
-	if self.interactFingerId == id then -- 609
+	if self.interactFingerId == id then -- 611
 		self.interactFingerId = -1 -- 611
 	end -- 611
-	if self.jumpFingerId == id then -- 611
+	if self.jumpFingerId == id then -- 612
 		self.jumpFingerId = -1 -- 612
 	end -- 612
-	if self.fireFingerId == id then -- 612
+	if self.fireFingerId == id then -- 613
 		self.fireFingerId = -1 -- 614
 		self.fireStickDragging = false -- 615
 	end -- 615
-	if self.bottleFingerId == id then -- 615
+	if self.bottleFingerId == id then -- 617
 		self.bottleFingerId = -1 -- 618
 		self.bottleCancelHover = false -- 619
 	end -- 619
-	if self.aimCanvasFingerId == id then -- 619
+	if self.aimCanvasFingerId == id then -- 621
 		self.aimCanvasFingerId = -1 -- 621
 	end -- 621
-	if self.modalFingerId == id then -- 621
+	if self.modalFingerId == id then -- 622
 		self.modalFingerId = -1 -- 623
 		self.uiHeld = false -- 624
 	end -- 624
 end -- 601
 function TouchRouter.prototype.getStickVisual(self) -- 628
 	local r = self.ctx.stickMaxR -- 629
-	if self.stickFingerId >= 0 then -- 629
+	if self.stickFingerId >= 0 then -- 630
 		return { -- 631
 			active = true, -- 632
 			originX = self.stickOriginX, -- 633
@@ -418,19 +418,19 @@ function TouchRouter.prototype.getBottleDragVisual(self) -- 666
 	} -- 674
 end -- 666
 function TouchRouter.prototype.isButtonHeld(self, id) -- 678
-	if id == "interact" then -- 678
+	if id == "interact" then -- 679
 		return self.interactFingerId >= 0 or self.cartGripLatched -- 679
 	end -- 679
-	if id == "jump" then -- 679
+	if id == "jump" then -- 680
 		return self.jumpFingerId >= 0 -- 680
 	end -- 680
-	if id == "fire" then -- 680
+	if id == "fire" then -- 681
 		return self.fireFingerId >= 0 -- 681
 	end -- 681
-	if id == "bottle" then -- 681
+	if id == "bottle" then -- 682
 		return self.bottleFingerId >= 0 -- 682
 	end -- 682
-	if id == "cover" then -- 682
+	if id == "cover" then -- 683
 		local ____table_ctx_childMode_0 -- 683
 		if self.ctx.childMode then -- 683
 			____table_ctx_childMode_0 = self.slowToggled -- 683
@@ -439,7 +439,7 @@ function TouchRouter.prototype.isButtonHeld(self, id) -- 678
 		end -- 683
 		return ____table_ctx_childMode_0 -- 683
 	end -- 683
-	if id == "crouch" then -- 683
+	if id == "crouch" then -- 684
 		return self.crouchToggled -- 684
 	end -- 684
 	return false -- 685
@@ -547,7 +547,7 @@ function TouchRouter.prototype.hitTestRectZones(self, ovX, ovY) -- 773
 		i = 0 -- 776
 		while i < #self.ctx.rectZones do -- 776
 			local z = self.ctx.rectZones[i + 1] -- 777
-			if z.rect:containsPoint(pt) then -- 777
+			if z.rect:containsPoint(pt) then -- 778
 				return z -- 779
 			end -- 779
 			i = i + 1 -- 776
@@ -565,15 +565,15 @@ function TouchRouter.prototype.hitTestButtons(self, ovX, ovY) -- 785
 		while i < #self.ctx.buttons do -- 790
 			do -- 790
 				local b = self.ctx.buttons[i + 1] -- 791
-				if b.rect ~= nil then -- 791
-					if b.rect:containsPoint(pt) then -- 791
+				if b.rect ~= nil then -- 792
+					if b.rect:containsPoint(pt) then -- 793
 						return b -- 794
 					end -- 794
 					goto __continue82 -- 796
 				end -- 796
 				local hitR = b.r * 1.22 -- 798
 				local d = hypot(ovX - b.x, ovY - b.y) -- 799
-				if d <= hitR and d < bestDist then -- 799
+				if d <= hitR and d < bestDist then -- 800
 					bestDist = d -- 801
 					best = b -- 802
 				end -- 802
@@ -587,12 +587,12 @@ end -- 785
 function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMouse) -- 808
 	local vp = self.ctx.viewport -- 809
 	local ov = self:toOverlay(viewX, viewY) -- 810
-	if fromMouse then -- 810
-		if not self.ctx.allowMouseOnOverlay or not self.ctx.overlayActive then -- 810
+	if fromMouse then -- 813
+		if not self.ctx.allowMouseOnOverlay or not self.ctx.overlayActive then -- 814
 			return -- 815
 		end -- 815
 		local hitBtn = self:hitTestButtons(ov.x, ov.y) -- 817
-		if hitBtn ~= nil then -- 817
+		if hitBtn ~= nil then -- 818
 			self.qMouseConsumed = true -- 819
 			self.fingers[id] = { -- 820
 				id = id, -- 821
@@ -620,7 +620,7 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 			) -- 835
 			return -- 836
 		end -- 836
-		if vp.isPortrait and self.ctx.gameplayActive and not self.ctx.modal and not self.ctx.cutsceneBlocking and viewY < vp.deckH and ov.x <= self.ctx.stickZoneMaxX and self.stickFingerId < 0 then -- 836
+		if vp.isPortrait and self.ctx.gameplayActive and not self.ctx.modal and not self.ctx.cutsceneBlocking and viewY < vp.deckH and ov.x <= self.ctx.stickZoneMaxX and self.stickFingerId < 0 then -- 838
 			self.qMouseConsumed = true -- 840
 			self:startStick( -- 841
 				id, -- 841
@@ -636,10 +636,10 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 	self.lastRealTouchClock = self.clockSec -- 847
 	self.qHadRealTouch = true -- 848
 	self.qAnyTapBegan = true -- 849
-	if self.ctx.overlayActive then -- 849
+	if self.ctx.overlayActive then -- 852
 		local btn = self:hitTestButtons(ov.x, ov.y) -- 853
-		if btn ~= nil then -- 853
-			if isInstantUiButton(btn.id) then -- 853
+		if btn ~= nil then -- 854
+			if isInstantUiButton(btn.id) then -- 855
 				self.qHadUiTouch = true -- 856
 			else -- 856
 				self.qHadGameplayTouch = true -- 858
@@ -672,9 +672,9 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 		end -- 876
 	end -- 876
 	local stage = viewToStage(viewX, viewY, vp) -- 880
-	if self.ctx.modal or not self.ctx.gameplayActive then -- 880
+	if self.ctx.modal or not self.ctx.gameplayActive then -- 883
 		self.qHadUiTouch = true -- 884
-		if self.modalFingerId < 0 and (not vp.isPortrait or stage.inside) then -- 884
+		if self.modalFingerId < 0 and (not vp.isPortrait or stage.inside) then -- 885
 			self.modalFingerId = id -- 886
 			self.uiX = stage.x -- 887
 			self.uiY = stage.y -- 888
@@ -700,7 +700,7 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 		return -- 908
 	end -- 908
 	local zone = self:hitTestRectZones(ov.x, ov.y) -- 912
-	if zone ~= nil then -- 912
+	if zone ~= nil then -- 913
 		self.qHadUiTouch = true -- 914
 		self.fingers[id] = { -- 915
 			id = id, -- 916
@@ -717,13 +717,13 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 			curOvY = ov.y, -- 927
 			movedDistOv = 0 -- 928
 		} -- 928
-		if zone.id == "pause" then -- 928
+		if zone.id == "pause" then -- 930
 			self.qPausePressed = true -- 931
 			self:vibrate(0.015) -- 932
-		elseif zone.id == "retry" then -- 932
+		elseif zone.id == "retry" then -- 933
 			self.qRetryPressed = true -- 934
 			self:vibrate(0.015) -- 935
-		elseif zone.id == "worldPrompt" then -- 935
+		elseif zone.id == "worldPrompt" then -- 936
 			self:triggerInteractAction(id) -- 937
 		else -- 937
 			self.qZoneTap = zone.id -- 939
@@ -731,15 +731,15 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 		end -- 940
 		return -- 942
 	end -- 942
-	if self.ctx.cutsceneBlocking then -- 942
+	if self.ctx.cutsceneBlocking then -- 946
 		self.qHadUiTouch = true -- 947
-		if self.ctx.inTowerEnd then -- 947
+		if self.ctx.inTowerEnd then -- 948
 			self.qInteractPressed = true -- 949
 			self:vibrate(0.015) -- 950
 		end -- 950
 		return -- 952
 	end -- 952
-	if not self.ctx.overlayActive and not self.ctx.allowAutoGameplayTouch then -- 952
+	if not self.ctx.overlayActive and not self.ctx.allowAutoGameplayTouch then -- 956
 		return -- 958
 	end -- 958
 	self.qHadGameplayTouch = true -- 960
@@ -750,7 +750,7 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 		____vp_isPortrait_12 = ov.x <= self.ctx.stickZoneMaxX and ov.y <= self.ctx.stickZoneMaxY -- 965
 	end -- 965
 	local inStickZone = ____vp_isPortrait_12 -- 963
-	if self.stickFingerId < 0 and inStickZone then -- 963
+	if self.stickFingerId < 0 and inStickZone then -- 966
 		self:startStick( -- 967
 			id, -- 967
 			viewX, -- 967
@@ -763,7 +763,7 @@ function TouchRouter.prototype.handleTouchBegan(self, id, viewX, viewY, fromMous
 	end -- 968
 	local ovH = vp.fullH / math.max(0.25, self.ctx.overlayScale) -- 972
 	local allowStageShoot = stage.inside and (vp.isPortrait or ov.y <= ovH - 84) -- 973
-	if self.ctx.canShoot and self.aimCanvasFingerId < 0 and allowStageShoot then -- 973
+	if self.ctx.canShoot and self.aimCanvasFingerId < 0 and allowStageShoot then -- 974
 		self.aimCanvasFingerId = id -- 975
 		local assisted = snapPointAim( -- 976
 			stage.x, -- 977
@@ -798,7 +798,7 @@ function TouchRouter.prototype.startStick(self, id, viewX, viewY, ovX, ovY, from
 	local r = self.ctx.stickMaxR -- 1014
 	local ox = self.ctx.stickDefaultX -- 1015
 	local oy = self.ctx.stickDefaultY -- 1016
-	if not self.ctx.stickFixedOrigin then -- 1016
+	if not self.ctx.stickFixedOrigin then -- 1017
 		local safeL = vp.safe.left / math.max(0.25, self.ctx.overlayScale) -- 1018
 		local safeB = vp.safe.bottom / math.max(0.25, self.ctx.overlayScale) -- 1019
 		ox = clamp( -- 1020
@@ -834,11 +834,11 @@ function TouchRouter.prototype.startStick(self, id, viewX, viewY, ovX, ovY, from
 	self:updateStickFromOverlay(ovX, ovY) -- 1042
 end -- 1005
 function TouchRouter.prototype.triggerInteractAction(self, id) -- 1045
-	if self.ctx.cartNearby then -- 1045
-		if self.cartGripLatched or self.ctx.cartGripping then -- 1045
+	if self.ctx.cartNearby then -- 1046
+		if self.cartGripLatched or self.ctx.cartGripping then -- 1047
 			self.cartGripLatched = false -- 1048
 			self.cartGripSeenActive = false -- 1049
-			if self.ctx.cartUsesToggle then -- 1049
+			if self.ctx.cartUsesToggle then -- 1050
 				self.qInteractPressed = true -- 1051
 			end -- 1051
 		else -- 1051
@@ -855,64 +855,64 @@ function TouchRouter.prototype.triggerInteractAction(self, id) -- 1045
 end -- 1045
 function TouchRouter.prototype.onButtonPressed(self, btn, id, _viewX, _viewY, ovX, ovY, fromMouse) -- 1066
 	local vp = self.ctx.viewport -- 1075
-	if btn.id == "interact" then -- 1075
+	if btn.id == "interact" then -- 1076
 		self:triggerInteractAction(id) -- 1077
-	elseif btn.id == "jump" then -- 1077
-		if self.ctx.childMode and self.crouchToggled and not self.ctx.inLowArch then -- 1077
+	elseif btn.id == "jump" then -- 1078
+		if self.ctx.childMode and self.crouchToggled and not self.ctx.inLowArch then -- 1079
 			self.crouchToggled = false -- 1080
 		end -- 1080
 		self.jumpFingerId = id -- 1082
 		self.qJumpPressed = true -- 1083
-		if not fromMouse then -- 1083
+		if not fromMouse then -- 1084
 			self:vibrate(0.014) -- 1084
 		end -- 1084
-	elseif btn.id == "cover" then -- 1084
-		if self.ctx.childMode then -- 1084
+	elseif btn.id == "cover" then -- 1085
+		if self.ctx.childMode then -- 1086
 			self.slowToggled = not self.slowToggled -- 1087
 		else -- 1087
 			self.coverToggled = not self.coverToggled -- 1089
 			self.coverNearSeen = self.ctx.coverNear -- 1090
 		end -- 1090
-		if not fromMouse then -- 1090
+		if not fromMouse then -- 1092
 			self:vibrate(0.012) -- 1092
 		end -- 1092
-	elseif btn.id == "crouch" then -- 1092
+	elseif btn.id == "crouch" then -- 1093
 		self.crouchToggled = not self.crouchToggled -- 1094
-		if not fromMouse then -- 1094
+		if not fromMouse then -- 1095
 			self:vibrate(0.012) -- 1095
 		end -- 1095
-	elseif btn.id == "artifact" then -- 1095
+	elseif btn.id == "artifact" then -- 1096
 		self.qArtifactPressed = true -- 1097
-		if not fromMouse then -- 1097
+		if not fromMouse then -- 1098
 			self:vibrate(0.02) -- 1098
 		end -- 1098
-	elseif btn.id == "pause" then -- 1098
+	elseif btn.id == "pause" then -- 1099
 		self.qPausePressed = true -- 1100
-		if not fromMouse then -- 1100
+		if not fromMouse then -- 1101
 			self:vibrate(0.014) -- 1101
 		end -- 1101
-	elseif btn.id == "retry" then -- 1101
+	elseif btn.id == "retry" then -- 1102
 		self.qRetryPressed = true -- 1103
-		if not fromMouse then -- 1103
+		if not fromMouse then -- 1104
 			self:vibrate(0.016) -- 1104
 		end -- 1104
-	elseif btn.id == "mute" then -- 1104
+	elseif btn.id == "mute" then -- 1105
 		self.qMutePressed = true -- 1106
-	elseif btn.id == "fullscreen" then -- 1106
+	elseif btn.id == "fullscreen" then -- 1107
 		self.qFullscreenPressed = true -- 1108
-	elseif btn.id == "nav_up" then -- 1108
+	elseif btn.id == "nav_up" then -- 1109
 		self.qNavUp = true -- 1110
-	elseif btn.id == "nav_down" then -- 1110
+	elseif btn.id == "nav_down" then -- 1111
 		self.qNavDown = true -- 1112
-	elseif btn.id == "nav_left" then -- 1112
+	elseif btn.id == "nav_left" then -- 1113
 		self.qNavLeft = true -- 1114
-	elseif btn.id == "nav_right" then -- 1114
+	elseif btn.id == "nav_right" then -- 1115
 		self.qNavRight = true -- 1116
-	elseif btn.id == "nav_confirm" then -- 1116
+	elseif btn.id == "nav_confirm" then -- 1117
 		self.qNavConfirm = true -- 1118
-	elseif btn.id == "nav_back" then -- 1118
+	elseif btn.id == "nav_back" then -- 1119
 		self.qNavBack = true -- 1120
-	elseif btn.id == "fire" then -- 1120
+	elseif btn.id == "fire" then -- 1121
 		self.fireFingerId = id -- 1122
 		self.fireStickDragging = false -- 1123
 		self.fireOriginX = btn.x -- 1124
@@ -933,11 +933,10 @@ function TouchRouter.prototype.onButtonPressed(self, btn, id, _viewX, _viewY, ov
 		self.aimX = smart.x -- 1139
 		self.aimY = smart.y -- 1140
 		self.hasAim = true -- 1141
-		self.qFirePressed = true -- 1142
-		if not fromMouse then -- 1142
-			self:vibrate(0.016) -- 1143
+		if not fromMouse then -- 1143
+			self:vibrate(0.012) -- 1143
 		end -- 1143
-	elseif btn.id == "bottle" then -- 1143
+	elseif btn.id == "bottle" then -- 1144
 		self.bottleFingerId = id -- 1145
 		self.bottleOriginOvX = btn.x -- 1146
 		self.bottleOriginOvY = btn.y -- 1147
@@ -956,7 +955,7 @@ function TouchRouter.prototype.onButtonPressed(self, btn, id, _viewX, _viewY, ov
 			math.max(40, vp.stageH - 48) -- 1153
 		) -- 1153
 		self.hasAim = true -- 1154
-		if not fromMouse then -- 1154
+		if not fromMouse then -- 1155
 			self:vibrate(0.015) -- 1155
 		end -- 1155
 	end -- 1155
@@ -967,7 +966,7 @@ function TouchRouter.prototype.updateStickFromOverlay(self, ovX, ovY) -- 1159
 	local dx = ovX - self.stickOriginX -- 1162
 	local dy = ovY - self.stickOriginY -- 1163
 	local dist = hypot(dx, dy) -- 1164
-	if dist <= 0.001 then -- 1164
+	if dist <= 0.001 then -- 1165
 		self.stickKnobX = self.stickOriginX -- 1166
 		self.stickKnobY = self.stickOriginY -- 1167
 		self.stickMoveX = 0 -- 1168
@@ -978,7 +977,7 @@ function TouchRouter.prototype.updateStickFromOverlay(self, ovX, ovY) -- 1159
 	local clamped = math.min(dist, maxR) -- 1173
 	self.stickKnobX = self.stickOriginX + dx / dist * clamped -- 1174
 	self.stickKnobY = self.stickOriginY + dy / dist * clamped -- 1175
-	if dist < dead then -- 1175
+	if dist < dead then -- 1177
 		self.stickMoveX = 0 -- 1178
 		self.stickMoveY = 0 -- 1179
 		self.stickSlow = false -- 1180
@@ -987,7 +986,7 @@ function TouchRouter.prototype.updateStickFromOverlay(self, ovX, ovY) -- 1159
 	local nx = dx / dist * (clamped / maxR) -- 1183
 	local ny = dy / dist * (clamped / maxR) -- 1184
 	self.stickMoveX = math.abs(nx) >= 0.22 and (nx > 0 and 1 or -1) or 0 -- 1186
-	if self.ctx.allowDepth then -- 1186
+	if self.ctx.allowDepth then -- 1187
 		self.stickMoveY = math.abs(ny) >= 0.3 and (ny > 0 and -1 or 1) or 0 -- 1189
 	else -- 1189
 		self.stickMoveY = 0 -- 1191
@@ -996,10 +995,10 @@ function TouchRouter.prototype.updateStickFromOverlay(self, ovX, ovY) -- 1159
 end -- 1159
 function TouchRouter.prototype.handleTouchMoved(self, id, viewX, viewY, fromMouse) -- 1197
 	local f = self.fingers[id] -- 1198
-	if f == nil then -- 1198
+	if f == nil then -- 1199
 		return -- 1200
 	end -- 1200
-	if not fromMouse then -- 1200
+	if not fromMouse then -- 1202
 		self.lastRealTouchClock = self.clockSec -- 1203
 	else -- 1203
 		self.qMouseConsumed = true -- 1205
@@ -1011,17 +1010,17 @@ function TouchRouter.prototype.handleTouchMoved(self, id, viewX, viewY, fromMous
 	f.curViewY = viewY -- 1211
 	f.curOvX = ov.x -- 1212
 	f.curOvY = ov.y -- 1213
-	if f.kind == "modal" and self.modalFingerId == id then -- 1213
+	if f.kind == "modal" and self.modalFingerId == id then -- 1215
 		local stage = viewToStage(viewX, viewY, vp) -- 1216
 		self.uiX = stage.x -- 1217
 		self.uiY = stage.y -- 1218
 		return -- 1219
 	end -- 1219
-	if f.kind == "stick" and self.stickFingerId == id then -- 1219
+	if f.kind == "stick" and self.stickFingerId == id then -- 1222
 		self:updateStickFromOverlay(ov.x, ov.y) -- 1223
 		return -- 1224
 	end -- 1224
-	if f.kind == "aim_canvas" and self.aimCanvasFingerId == id then -- 1224
+	if f.kind == "aim_canvas" and self.aimCanvasFingerId == id then -- 1227
 		local stage = viewToStage(viewX, viewY, vp) -- 1228
 		local assisted = snapPointAim( -- 1229
 			clamp( -- 1230
@@ -1043,7 +1042,7 @@ function TouchRouter.prototype.handleTouchMoved(self, id, viewX, viewY, fromMous
 		self.hasAim = true -- 1238
 		return -- 1239
 	end -- 1239
-	if f.kind == "btn" and f.btnId == "fire" and self.fireFingerId == id then -- 1239
+	if f.kind == "btn" and f.btnId == "fire" and self.fireFingerId == id then -- 1242
 		local maxR = FIRE_STICK_MAX_R_OV * self.settings.touchScale -- 1243
 		local dx = ov.x - self.fireOriginX -- 1244
 		local dy = ov.y - self.fireOriginY -- 1245
@@ -1051,7 +1050,7 @@ function TouchRouter.prototype.handleTouchMoved(self, id, viewX, viewY, fromMous
 		local clamped = math.min(dist, maxR) -- 1247
 		self.fireKnobX = dist > 0.001 and self.fireOriginX + dx / dist * clamped or self.fireOriginX -- 1248
 		self.fireKnobY = dist > 0.001 and self.fireOriginY + dy / dist * clamped or self.fireOriginY -- 1249
-		if dist >= FIRE_STICK_DRAG_THRESHOLD_OV * self.settings.touchScale then -- 1249
+		if dist >= FIRE_STICK_DRAG_THRESHOLD_OV * self.settings.touchScale then -- 1250
 			self.fireStickDragging = true -- 1251
 			f.firedOnDrag = true -- 1252
 			local pt = snapConeAim( -- 1253
@@ -1071,15 +1070,15 @@ function TouchRouter.prototype.handleTouchMoved(self, id, viewX, viewY, fromMous
 		end -- 1266
 		return -- 1268
 	end -- 1268
-	if f.kind == "btn" and f.btnId == "bottle" and self.bottleFingerId == id then -- 1268
+	if f.kind == "btn" and f.btnId == "bottle" and self.bottleFingerId == id then -- 1271
 		self.bottleFingerOvX = ov.x -- 1272
 		self.bottleFingerOvY = ov.y -- 1273
 		local cancel = self.ctx.bottleCancelCenter -- 1274
 		local dCancel = hypot(ov.x - cancel.x, ov.y - cancel.y) -- 1275
 		self.bottleCancelHover = dCancel <= cancel.r -- 1276
-		if not self.bottleCancelHover then -- 1276
+		if not self.bottleCancelHover then -- 1277
 			local stage = viewToStage(viewX, viewY, vp) -- 1278
-			if vp.isPortrait and not stage.inside then -- 1278
+			if vp.isPortrait and not stage.inside then -- 1279
 				local dx = ov.x - self.bottleOriginOvX -- 1281
 				local dy = ov.y - self.bottleOriginOvY -- 1282
 				local dir = self.ctx.playerFacing < 0 and -1 or 1 -- 1283
@@ -1112,17 +1111,17 @@ function TouchRouter.prototype.handleTouchMoved(self, id, viewX, viewY, fromMous
 end -- 1197
 function TouchRouter.prototype.handleTouchEnded(self, id, viewX, viewY, fromMouse) -- 1297
 	local f = self.fingers[id] -- 1298
-	if f == nil then -- 1298
+	if f == nil then -- 1299
 		return -- 1300
 	end -- 1300
-	if not fromMouse then -- 1300
+	if not fromMouse then -- 1302
 		self.lastRealTouchClock = self.clockSec -- 1303
 	else -- 1303
 		self.qMouseConsumed = true -- 1305
 	end -- 1305
 	local vp = self.ctx.viewport -- 1307
 	local ov = self:toOverlay(viewX, viewY) -- 1308
-	if f.kind == "modal" and self.modalFingerId == id then -- 1308
+	if f.kind == "modal" and self.modalFingerId == id then -- 1309
 		local stage = viewToStage(viewX, viewY, vp) -- 1310
 		self.uiX = stage.x -- 1311
 		self.uiY = stage.y -- 1312
@@ -1132,19 +1131,19 @@ function TouchRouter.prototype.handleTouchEnded(self, id, viewX, viewY, fromMous
 		__TS__Delete(self.fingers, id) -- 1316
 		return -- 1317
 	end -- 1317
-	if f.kind == "btn" and f.btnId == "fire" and self.fireFingerId == id then -- 1317
-		if f.firedOnDrag and self.ctx.canShoot then -- 1317
+	if f.kind == "btn" and f.btnId == "fire" and self.fireFingerId == id then -- 1320
+		if self.ctx.canShoot then -- 1321
 			self.qFirePressed = true -- 1322
-			if not fromMouse then -- 1322
+			if not fromMouse then -- 1323
 				self:vibrate(0.016) -- 1323
 			end -- 1323
 		end -- 1323
-	elseif f.kind == "btn" and f.btnId == "bottle" and self.bottleFingerId == id then -- 1323
+	elseif f.kind == "btn" and f.btnId == "bottle" and self.bottleFingerId == id then -- 1325
 		local cancel = self.ctx.bottleCancelCenter -- 1326
 		local dCancel = hypot(ov.x - cancel.x, ov.y - cancel.y) -- 1327
-		if dCancel <= cancel.r then -- 1327
+		if dCancel <= cancel.r then -- 1328
 			self.qBottleCanceled = true -- 1329
-			if not fromMouse then -- 1329
+			if not fromMouse then -- 1330
 				self:vibrate(0.012) -- 1330
 			end -- 1330
 		end -- 1330

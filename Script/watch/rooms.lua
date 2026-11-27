@@ -26,14 +26,14 @@ ____exports.CHECKPOINT_ROOM = { -- 276
 		label = "队栏 -430–-250 · 高 28", -- 289
 		lanes = {"lower", "middle"}, -- 289
 		art = "fence" -- 289
-	}, { -- 289
+	}, { -- 291
 		x = 240, -- 291
 		w = 100, -- 291
 		h = 44, -- 291
 		y = 0, -- 291
 		label = "柜台 240–340 · 高 44", -- 291
 		lanes = {"lower", "middle"} -- 291
-	}, { -- 291
+	}, { -- 292
 		x = 890, -- 292
 		w = 36, -- 292
 		h = 122, -- 292
@@ -90,19 +90,19 @@ ____exports.OUTSIDE_ROOM = { -- 325
 		y = 96, -- 341
 		id = "outside_red_cart", -- 341
 		label = "补丁红布车 · 挡住石阶口" -- 341
-	}, { -- 341
+	}, { -- 343
 		x = 512, -- 343
 		w = 88, -- 343
 		h = 134, -- 343
 		y = 96, -- 343
 		label = "台面右端城墙 · 下层可通" -- 343
-	}, { -- 343
+	}, { -- 344
 		x = 0, -- 344
 		w = 40, -- 344
 		h = 96, -- 344
 		y = 0, -- 344
 		label = "街口" -- 344
-	}, { -- 344
+	}, { -- 345
 		x = 1200, -- 345
 		w = 40, -- 345
 		h = 140, -- 345
@@ -124,7 +124,7 @@ ____exports.OUTSIDE_ROOM = { -- 325
 		y1 = 96, -- 350
 		steps = 5, -- 350
 		label = "石阶 0–96（每级 19.2 可直走）" -- 350
-	}, { -- 350
+	}, { -- 351
 		x0 = 700, -- 351
 		x1 = 820, -- 351
 		y0 = 0, -- 351
@@ -177,7 +177,7 @@ ____exports.VILLAGE_ROOM = { -- 385
 		y = 0, -- 395
 		label = "瓶架", -- 395
 		art = "cover_wood" -- 395
-	}, { -- 395
+	}, { -- 397
 		x = 672, -- 397
 		w = 48, -- 397
 		h = 96, -- 397
@@ -266,17 +266,17 @@ ____exports.VILLAGE_ROOM = { -- 385
 } -- 437
 --- 剧本锚点跟着 originX 一起搬，判定仍读世界坐标。
 local function shiftStory(story, ox) -- 441
-	if story == nil then -- 441
+	if story == nil then -- 442
 		return nil -- 443
 	end -- 443
-	if ox == 0 then -- 443
+	if ox == 0 then -- 445
 		return story -- 446
 	end -- 446
 	local out = {} -- 448
-	if story.prologue ~= nil then -- 448
+	if story.prologue ~= nil then -- 449
 		out.prologue = {giveReach = story.prologue.giveReach} -- 450
 	end -- 450
-	if story.gate ~= nil then -- 450
+	if story.gate ~= nil then -- 452
 		out.gate = { -- 453
 			winchX = story.gate.winchX + ox, -- 454
 			waitX = story.gate.waitX + ox, -- 455
@@ -285,16 +285,16 @@ local function shiftStory(story, ox) -- 441
 			holdTicks = story.gate.holdTicks -- 458
 		} -- 458
 	end -- 458
-	if story.gatepath ~= nil then -- 458
+	if story.gatepath ~= nil then -- 461
 		out.gatepath = {carryX = story.gatepath.carryX + ox, exitX = story.gatepath.exitX + ox, next = story.gatepath.next} -- 462
 	end -- 462
-	if story.dog ~= nil then -- 462
+	if story.dog ~= nil then -- 468
 		out.dog = {x0 = story.dog.x0 + ox, x1 = story.dog.x1 + ox, speed = story.dog.speed, range = story.dog.range} -- 469
 	end -- 469
-	if story.museum ~= nil then -- 469
+	if story.museum ~= nil then -- 471
 		out.museum = {cabinetX = story.museum.cabinetX + ox, hallX = story.museum.hallX + ox, lampX = story.museum.lampX + ox, exitX = story.museum.exitX + ox} -- 472
 	end -- 472
-	if story.tower ~= nil then -- 472
+	if story.tower ~= nil then -- 479
 		out.tower = {doorX = story.tower.doorX + ox, knockTicks = story.tower.knockTicks} -- 480
 	end -- 480
 	return out -- 482
@@ -413,14 +413,14 @@ ____exports.STREET_ROOM = { -- 533
 		y = 0, -- 544
 		label = "街心柜台 300–400 · 高 44", -- 544
 		lanes = {"lower", "middle"} -- 544
-	}, { -- 544
+	}, { -- 545
 		x = 620, -- 545
 		w = 60, -- 545
 		h = 36, -- 545
 		y = 0, -- 545
 		label = "街边矮墙 620", -- 545
 		lanes = {"upper"} -- 545
-	}, { -- 545
+	}, { -- 546
 		x = 892, -- 546
 		w = 40, -- 546
 		h = 120, -- 546
@@ -566,13 +566,13 @@ ____exports.GATE_PATH_ROOM = { -- 618
 		h = 180, -- 631
 		y = 0, -- 631
 		label = "城门内墙背影 0–60" -- 631
-	}, { -- 631
+	}, { -- 632
 		x = 560, -- 632
 		w = 44, -- 632
 		h = 28, -- 632
 		y = 0, -- 632
 		label = "倒石 560 · 高 28" -- 632
-	}, { -- 632
+	}, { -- 633
 		x = 1000, -- 633
 		w = 40, -- 633
 		h = 200, -- 633
@@ -635,21 +635,21 @@ ____exports.FOREST_ROOM = { -- 665
 		y = 0, -- 675
 		label = "草丛 300–380 · 高 24", -- 675
 		passable = true -- 675
-	}, { -- 675
+	}, { -- 676
 		x = 700, -- 676
 		w = 90, -- 676
 		h = 24, -- 676
 		y = 0, -- 676
 		label = "草丛 700–790 · 高 24", -- 676
 		passable = true -- 676
-	}, { -- 676
+	}, { -- 677
 		x = 1150, -- 677
 		w = 90, -- 677
 		h = 24, -- 677
 		y = 0, -- 677
 		label = "草丛 1150–1240 · 高 24", -- 677
 		passable = true -- 677
-	}, { -- 677
+	}, { -- 678
 		x = 1560, -- 678
 		w = 40, -- 678
 		h = 160, -- 678
@@ -663,21 +663,21 @@ ____exports.FOREST_ROOM = { -- 665
 		h = 6, -- 681
 		tint = 2, -- 681
 		label = "树根窄洞 300–380 · 蹲行" -- 681
-	}, { -- 681
+	}, { -- 682
 		x0 = 700, -- 682
 		x1 = 790, -- 682
 		y = 0, -- 682
 		h = 6, -- 682
 		tint = 3, -- 682
 		label = "旧渠 700–790 · 可跑" -- 682
-	}, { -- 682
+	}, { -- 683
 		x0 = 1180, -- 683
 		x1 = 1260, -- 683
 		y = 0, -- 683
 		h = 6, -- 683
 		tint = 1, -- 683
 		label = "溪湾 1180–1260 · 水里灯" -- 683
-	}, { -- 683
+	}, { -- 684
 		x0 = 1400, -- 684
 		x1 = 1470, -- 684
 		y = 0, -- 684
@@ -699,7 +699,7 @@ ____exports.FOREST_ROOM = { -- 665
 		y1 = 22, -- 688
 		steps = 1, -- 688
 		label = "矮台 520–640 · 高 22" -- 688
-	}, { -- 688
+	}, { -- 689
 		x0 = 980, -- 689
 		x1 = 1100, -- 689
 		y0 = 22, -- 689
@@ -787,7 +787,7 @@ ____exports.TOWER_ROOM = { -- 711
 		h = 8, -- 729
 		tint = 4, -- 729
 		label = "门廊 400–490" -- 729
-	}, { -- 729
+	}, { -- 730
 		x0 = 490, -- 730
 		x1 = 700, -- 730
 		y = 0, -- 730
@@ -888,14 +888,14 @@ ____exports.MUSEUM_ROOM = { -- 758
 		h = 16, -- 772
 		tint = 1, -- 772
 		label = "玻璃柜前" -- 772
-	}, { -- 772
+	}, { -- 773
 		x0 = 860, -- 773
 		x1 = 980, -- 773
 		y = 0, -- 773
 		h = 16, -- 773
 		tint = 2, -- 773
 		label = "走廊 · 孩子脚步" -- 773
-	}, { -- 773
+	}, { -- 774
 		x0 = 1210, -- 774
 		x1 = 1320, -- 774
 		y = 0, -- 774
@@ -1018,7 +1018,7 @@ ____exports.ESCORT1_ROOM = { -- 797
 		label = "火器手 820 · 中档", -- 820
 		kind = "gunner", -- 820
 		drop = "ammo" -- 820
-	}, { -- 820
+	}, { -- 821
 		x = 1020, -- 821
 		y = 0, -- 821
 		h = 84, -- 821
@@ -1026,7 +1026,7 @@ ____exports.ESCORT1_ROOM = { -- 797
 		label = "火器手 1020 · 浅档", -- 821
 		kind = "gunner", -- 821
 		drop = "ammo" -- 821
-	}, { -- 821
+	}, { -- 822
 		x = 1120, -- 822
 		y = 0, -- 822
 		h = 84, -- 822
@@ -1149,7 +1149,7 @@ ____exports.ESCORT2_ROOM = { -- 843
 		label = "火器手 700 · 中档", -- 866
 		kind = "gunner", -- 866
 		drop = "ammo" -- 866
-	}, { -- 866
+	}, { -- 867
 		x = 1080, -- 867
 		y = 0, -- 867
 		h = 84, -- 867
@@ -1157,7 +1157,7 @@ ____exports.ESCORT2_ROOM = { -- 843
 		label = "火器手 1080 · 浅档", -- 867
 		kind = "gunner", -- 867
 		drop = "ammo" -- 867
-	}, { -- 867
+	}, { -- 868
 		x = 1200, -- 868
 		y = 0, -- 868
 		h = 84, -- 868
@@ -1174,13 +1174,13 @@ ____exports.ESCORT2_ROOM = { -- 843
 		x = 380, -- 881
 		y = 0, -- 881
 		label = "木纹筹 · 棚下" -- 881
-	}, { -- 881
+	}, { -- 882
 		id = "e2_bell", -- 882
 		kind = "bell", -- 882
 		x = 560, -- 882
 		y = 0, -- 882
 		label = "铃纹筹 · 粮袋后" -- 882
-	}, { -- 882
+	}, { -- 883
 		id = "e2_wood_b", -- 883
 		kind = "wood", -- 883
 		x = 820, -- 883
@@ -1283,7 +1283,7 @@ ____exports.ESCORT3_ROOM = { -- 892
 		depth = 16, -- 914
 		label = "试射靶一 820", -- 914
 		kind = "target" -- 914
-	}, { -- 914
+	}, { -- 915
 		x = 940, -- 915
 		y = 0, -- 915
 		h = 84, -- 915
@@ -1292,7 +1292,7 @@ ____exports.ESCORT3_ROOM = { -- 892
 		kind = "target" -- 915
 	}}, -- 915
 	marks = {{x = 300, y = 0, kind = 0, label = "制前检查点 300"}, {x = 640, y = 0, kind = 3, label = "工台 640"}, {x = 960, y = 0, kind = 0, label = "制后检查点 960"}, {x = 1150, y = 0, kind = 0, label = "出站 1150"}}, -- 917
-	dims = {{x0 = 560, x1 = 680, text = "工台 120"}, {x0 = 700, x1 = 756, text = "掩体 56"}}, -- 923
+	dims = {{x0 = 560, x1 = 680, text = "工台 120"}, {x0 = 720, x1 = 768, text = "掩体 48"}}, -- 923
 	campaign = { -- 927
 		chapter = "O", -- 927
 		act = 3, -- 927
@@ -1386,7 +1386,7 @@ ____exports.ESCORT4_ROOM = { -- 933
 		label = "火器手 620 · 中档", -- 955
 		kind = "gunner", -- 955
 		drop = "ammo" -- 955
-	}, { -- 955
+	}, { -- 956
 		x = 840, -- 956
 		y = 0, -- 956
 		h = 84, -- 956
@@ -1394,7 +1394,7 @@ ____exports.ESCORT4_ROOM = { -- 933
 		label = "火器手 840 · 浅档", -- 956
 		kind = "gunner", -- 956
 		drop = "ammo" -- 956
-	}, { -- 956
+	}, { -- 957
 		x = 1060, -- 957
 		y = 0, -- 957
 		h = 84, -- 957
@@ -1508,7 +1508,7 @@ ____exports.ESCORT5_ROOM = { -- 975
 		label = "火器手 560 · 中档", -- 997
 		kind = "gunner", -- 997
 		drop = "ammo" -- 997
-	}, { -- 997
+	}, { -- 998
 		x = 780, -- 998
 		y = 0, -- 998
 		h = 84, -- 998
@@ -1516,7 +1516,7 @@ ____exports.ESCORT5_ROOM = { -- 975
 		label = "火器手 780 · 浅档", -- 998
 		kind = "gunner", -- 998
 		drop = "ammo" -- 998
-	}, { -- 998
+	}, { -- 999
 		x = 980, -- 999
 		y = 0, -- 999
 		h = 84, -- 999
@@ -1647,7 +1647,7 @@ ____exports.S1_CROSSROAD = { -- 1018
 		label = "单方向火器手 760", -- 1042
 		kind = "gunner", -- 1042
 		drop = "ammo" -- 1042
-	}, { -- 1042
+	}, { -- 1043
 		x = 880, -- 1043
 		y = 0, -- 1043
 		h = 84, -- 1043
@@ -1687,7 +1687,7 @@ ____exports.S2_DRYGOODS = { -- 1064
 		y = 0, -- 1075
 		depth = 0, -- 1075
 		label = "废木料 · 薄木摊挡脚下" -- 1075
-	}, { -- 1075
+	}, { -- 1076
 		id = "s2_scrap_2", -- 1076
 		kind = "scrap", -- 1076
 		x = 760, -- 1076
@@ -1771,7 +1771,8 @@ ____exports.S2_DRYGOODS = { -- 1064
 			lanes = {"lower"}, -- 1093
 			art = "board", -- 1094
 			id = "s2_board_cover", -- 1094
-			soft = true -- 1094
+			soft = true, -- 1094
+			hidden = true -- 1094
 		}, -- 1094
 		{ -- 1096
 			x = 1560, -- 1096
@@ -1818,7 +1819,7 @@ ____exports.S2_DRYGOODS = { -- 1064
 		kind = "shield", -- 1104
 		shieldHp = 2, -- 1104
 		drop = "shield" -- 1104
-	}, { -- 1104
+	}, { -- 1105
 		x = 1060, -- 1105
 		y = 0, -- 1105
 		h = 84, -- 1105
@@ -1826,7 +1827,7 @@ ____exports.S2_DRYGOODS = { -- 1064
 		label = "远侧火器手 1060", -- 1105
 		kind = "gunner", -- 1105
 		drop = "ammo" -- 1105
-	}, { -- 1105
+	}, { -- 1106
 		x = 1140, -- 1106
 		y = 0, -- 1106
 		h = 84, -- 1106
@@ -1927,7 +1928,7 @@ ____exports.S3_ARCHWAY = { -- 1126
 		steps = 3, -- 1146
 		label = "进口台阶", -- 1146
 		lanes = {"upper"} -- 1146
-	}, { -- 1146
+	}, { -- 1147
 		x0 = 260, -- 1147
 		x1 = 380, -- 1147
 		y0 = 0, -- 1147
@@ -1945,7 +1946,7 @@ ____exports.S3_ARCHWAY = { -- 1126
 		label = "高处火器手 860", -- 1151
 		kind = "gunner", -- 1151
 		drop = "ammo" -- 1151
-	}, { -- 1151
+	}, { -- 1152
 		x = 980, -- 1152
 		y = 0, -- 1152
 		h = 84, -- 1152
@@ -2070,7 +2071,7 @@ ____exports.C1_YARD = { -- 1168
 		label = "截断压近者 900", -- 1195
 		kind = "breaker", -- 1195
 		drop = "wedge" -- 1195
-	}, { -- 1195
+	}, { -- 1196
 		x = 1200, -- 1196
 		y = 0, -- 1196
 		h = 84, -- 1196
@@ -2211,7 +2212,7 @@ ____exports.C2_GRANARY = { -- 1212
 		label = "棚尾火器手 1580", -- 1250
 		kind = "gunner", -- 1250
 		drop = "ammo" -- 1250
-	}, { -- 1250
+	}, { -- 1251
 		x = 1340, -- 1251
 		y = 0, -- 1251
 		h = 84, -- 1251
@@ -2266,7 +2267,7 @@ local function placeSolids(room) -- 1295
 	local blocks = {} -- 1296
 	for ____, solid in ipairs(room.solids) do -- 1297
 		local x = solid.x + room.originX -- 1298
-		if room.depth ~= nil and solid.lanes ~= nil then -- 1298
+		if room.depth ~= nil and solid.lanes ~= nil then -- 1299
 			for ____, depth in ipairs(laneFootprints(solid.lanes)) do -- 1300
 				blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x, depth = depth, lanes = nil}) -- 1301
 			end -- 1301
@@ -2281,7 +2282,7 @@ local function placeStairs(room) -- 1310
 	for ____, stair in ipairs(room.stairs) do -- 1312
 		local x0 = stair.x0 + room.originX -- 1313
 		local x1 = stair.x1 + room.originX -- 1314
-		if room.depth ~= nil and stair.lanes ~= nil then -- 1314
+		if room.depth ~= nil and stair.lanes ~= nil then -- 1315
 			for ____, depth in ipairs(laneFootprints(stair.lanes)) do -- 1316
 				out[#out + 1] = __TS__ObjectAssign({}, stair, {x0 = x0, x1 = x1, depth = depth, lanes = nil}) -- 1317
 			end -- 1317
@@ -2295,7 +2296,7 @@ end -- 1310
 -- 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
 function ____exports.withOrigin(room) -- 1330
 	local ox = room.originX -- 1331
-	if ox == 0 then -- 1331
+	if ox == 0 then -- 1332
 		return room.depth == nil and room or __TS__ObjectAssign( -- 1333
 			{}, -- 1333
 			room, -- 1333
@@ -2308,14 +2309,14 @@ function ____exports.withOrigin(room) -- 1330
 	local function shift(x) -- 1335
 		return x + ox -- 1335
 	end -- 1335
-	local ____room_key_8 = room.key -- 1337
-	local ____room_name_9 = room.name -- 1338
-	local ____room_caption_10 = room.caption -- 1339
-	local ____shift_result_11 = shift(room.minX) -- 1341
-	local ____shift_result_12 = shift(room.maxX) -- 1342
-	local ____room_height_13 = room.height -- 1343
-	local ____room_depth_14 = room.depth -- 1344
-	local ____TS__ArrayMap_result_15 = __TS__ArrayMap( -- 1345
+	local ____room_key_12 = room.key -- 1337
+	local ____room_name_13 = room.name -- 1338
+	local ____room_caption_14 = room.caption -- 1339
+	local ____shift_result_15 = shift(room.minX) -- 1341
+	local ____shift_result_16 = shift(room.maxX) -- 1342
+	local ____room_height_17 = room.height -- 1343
+	local ____room_depth_18 = room.depth -- 1344
+	local ____TS__ArrayMap_result_19 = __TS__ArrayMap( -- 1345
 		room.floors, -- 1345
 		function(____, f) return { -- 1345
 			y = f.y, -- 1345
@@ -2323,8 +2324,8 @@ function ____exports.withOrigin(room) -- 1330
 			x1 = shift(f.x1) -- 1345
 		} end -- 1345
 	) -- 1345
-	local ____placeSolids_result_16 = placeSolids(room) -- 1346
-	local ____TS__ArrayMap_result_17 = __TS__ArrayMap( -- 1347
+	local ____placeSolids_result_20 = placeSolids(room) -- 1346
+	local ____TS__ArrayMap_result_21 = __TS__ArrayMap( -- 1347
 		room.zones, -- 1347
 		function(____, z) return { -- 1347
 			x0 = shift(z.x0), -- 1347
@@ -2335,15 +2336,15 @@ function ____exports.withOrigin(room) -- 1330
 			label = z.label -- 1347
 		} end -- 1347
 	) -- 1347
-	local ____temp_18 = { -- 1348
+	local ____temp_22 = { -- 1348
 		x0 = shift(room.arch.x0), -- 1348
 		x1 = shift(room.arch.x1), -- 1348
 		y = room.arch.y, -- 1348
 		h = room.arch.h, -- 1348
 		label = room.arch.label -- 1348
 	} -- 1348
-	local ____placeStairs_result_19 = placeStairs(room) -- 1349
-	local ____TS__ObjectAssign_result_20 = __TS__ObjectAssign( -- 1350
+	local ____placeStairs_result_23 = placeStairs(room) -- 1349
+	local ____TS__ObjectAssign_result_24 = __TS__ObjectAssign( -- 1350
 		{}, -- 1350
 		room.cart, -- 1351
 		{ -- 1350
@@ -2351,7 +2352,7 @@ function ____exports.withOrigin(room) -- 1330
 			endX = shift(room.cart.endX) -- 1353
 		} -- 1353
 	) -- 1353
-	local ____TS__ArrayMap_result_21 = __TS__ArrayMap( -- 1355
+	local ____TS__ArrayMap_result_25 = __TS__ArrayMap( -- 1355
 		room.spawns, -- 1355
 		function(____, s) return __TS__ObjectAssign( -- 1355
 			{}, -- 1355
@@ -2359,7 +2360,7 @@ function ____exports.withOrigin(room) -- 1330
 			{x = shift(s.x)} -- 1355
 		) end -- 1355
 	) -- 1355
-	local ____TS__ArrayMap_result_22 = __TS__ArrayMap( -- 1356
+	local ____TS__ArrayMap_result_26 = __TS__ArrayMap( -- 1356
 		room.marks, -- 1356
 		function(____, m) return { -- 1356
 			x = shift(m.x), -- 1356
@@ -2368,7 +2369,7 @@ function ____exports.withOrigin(room) -- 1330
 			label = m.label -- 1356
 		} end -- 1356
 	) -- 1356
-	local ____TS__ArrayMap_result_23 = __TS__ArrayMap( -- 1357
+	local ____TS__ArrayMap_result_27 = __TS__ArrayMap( -- 1357
 		room.dims, -- 1357
 		function(____, d) return { -- 1357
 			x0 = shift(d.x0), -- 1357
@@ -2448,24 +2449,43 @@ function ____exports.withOrigin(room) -- 1330
 			) end -- 1369
 		) -- 1369
 	end -- 1369
+	local ____temp_11 -- 1370
+	if room.companion == nil then -- 1370
+		____temp_11 = nil -- 1370
+	else -- 1370
+		local ____room_companion_10 = room.companion -- 1371
+		local ____temp_8 -- 1372
+		if room.companion.waitX == nil then -- 1372
+			____temp_8 = nil -- 1372
+		else -- 1372
+			____temp_8 = shift(room.companion.waitX) -- 1372
+		end -- 1372
+		local ____temp_9 -- 1373
+		if room.companion.joinX == nil then -- 1373
+			____temp_9 = nil -- 1373
+		else -- 1373
+			____temp_9 = shift(room.companion.joinX) -- 1373
+		end -- 1373
+		____temp_11 = __TS__ObjectAssign({}, ____room_companion_10, {waitX = ____temp_8, joinX = ____temp_9}) -- 1370
+	end -- 1370
 	return { -- 1336
-		key = ____room_key_8, -- 1337
-		name = ____room_name_9, -- 1338
-		caption = ____room_caption_10, -- 1339
+		key = ____room_key_12, -- 1337
+		name = ____room_name_13, -- 1338
+		caption = ____room_caption_14, -- 1339
 		originX = 0, -- 1340
-		minX = ____shift_result_11, -- 1341
-		maxX = ____shift_result_12, -- 1342
-		height = ____room_height_13, -- 1343
-		depth = ____room_depth_14, -- 1344
-		floors = ____TS__ArrayMap_result_15, -- 1345
-		solids = ____placeSolids_result_16, -- 1346
-		zones = ____TS__ArrayMap_result_17, -- 1347
-		arch = ____temp_18, -- 1348
-		stairs = ____placeStairs_result_19, -- 1349
-		cart = ____TS__ObjectAssign_result_20, -- 1350
-		spawns = ____TS__ArrayMap_result_21, -- 1355
-		marks = ____TS__ArrayMap_result_22, -- 1356
-		dims = ____TS__ArrayMap_result_23, -- 1357
+		minX = ____shift_result_15, -- 1341
+		maxX = ____shift_result_16, -- 1342
+		height = ____room_height_17, -- 1343
+		depth = ____room_depth_18, -- 1344
+		floors = ____TS__ArrayMap_result_19, -- 1345
+		solids = ____placeSolids_result_20, -- 1346
+		zones = ____TS__ArrayMap_result_21, -- 1347
+		arch = ____temp_22, -- 1348
+		stairs = ____placeStairs_result_23, -- 1349
+		cart = ____TS__ObjectAssign_result_24, -- 1350
+		spawns = ____TS__ArrayMap_result_25, -- 1355
+		marks = ____TS__ArrayMap_result_26, -- 1356
+		dims = ____TS__ArrayMap_result_27, -- 1357
 		scavenger = ____temp_0, -- 1358
 		bottle = ____temp_1, -- 1363
 		brickX = ____temp_2, -- 1364
@@ -2474,8 +2494,8 @@ function ____exports.withOrigin(room) -- 1330
 		passLine = ____temp_5, -- 1367
 		campaign = ____temp_6, -- 1368
 		pickups = ____temp_7, -- 1369
-		companion = room.companion, -- 1370
-		story = shiftStory(room.story, ox) -- 1371
-	} -- 1371
+		companion = ____temp_11, -- 1370
+		story = shiftStory(room.story, ox) -- 1375
+	} -- 1375
 end -- 1330
 return ____exports -- 1330

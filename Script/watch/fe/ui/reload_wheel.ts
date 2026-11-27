@@ -17,6 +17,7 @@
  */
 
 import { Color, Content, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { ZERO_SAFE_INSETS } from "Script/watch/platform";
 import { AssetSlotHost } from "Script/watch/fe/assets";
@@ -314,6 +315,7 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
     // 双输入物理边沿状态（防 app.ts clearEdges 丢边沿）
     private kbCursor = RELOAD_START_NODE;
     private dragging = false;
+    private dragAdvanced = false;
     private pointerActive = false;
     private prevLeft = false;
     private prevRight = false;
@@ -628,12 +630,13 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         const inside = sim?.pointerX !== undefined
             ? true
             : (useUiPtr ? ctx.input.uiInside : ctx.input.inside);
+        const kbmMode = ctx.input.inputMode === "kbm";
         const leftHeld = sim?.leftHeld !== undefined
             ? sim.leftHeld
-            : (ctx.input.uiHeld || ctx.input.fire.held || (!touchMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
+            : (ctx.input.uiHeld || ctx.input.fire.held || (kbmMode && typeof Mouse !== "undefined" && Mouse.leftButtonPressed));
         const rightHeld = sim?.rightHeld !== undefined
             ? sim.rightHeld
-            : (ctx.input.uiRightPressed || (!touchMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
+            : (ctx.input.uiRightPressed || (kbmMode && typeof Mouse !== "undefined" && Mouse.rightButtonPressed));
 
         const leftPressed = sim?.leftHeld !== undefined
             ? (leftHeld && !this.prevLeft)
@@ -658,28 +661,33 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         }
 
         const lastNode = activePath[activePath.length - 1];
-        const activeHitR = touchMode ? 38 : this.hitRadius;
+        const useTouchHit = touchMode || ctx.input.uiHeld || ctx.input.uiPressed;
+        const activeHitR = useTouchHit ? 38 : this.hitRadius;
         const hitNode = inside ? this.hitTestNode(ptrX, ptrY, activeHitR) : -1;
 
         // 1. 右键或点击「重画」按钮主动清空重画（不重计倒计时）
         const hitResetBtn = inside && (touchMode || activePath.length > 1) && this.resetBox.containsPoint(Vec2(ptrX, ptrY));
         if ((rightPressed || (leftPressed && hitResetBtn)) && activePath.length > 1) {
             this.dragging = false;
+            this.dragAdvanced = false;
             this.triggerInvalidReset(ctx, activePath, false);
             return;
         }
 
-        // 2. 鼠标 / 触屏一笔拖线或点选
+        // 2. 鼠标 / 触屏一笔拖线或逐格点选（逐格点选松手不清盘；拖线半途松手清回 [0]）
         if (leftPressed) {
             if (hitNode === RELOAD_START_NODE || hitNode === lastNode) {
                 this.dragging = true;
+                this.dragAdvanced = false;
                 this.kbCursor = lastNode;
             } else if (hitNode >= 0) {
                 if (activePath.indexOf(hitNode) < 0 && isAdjacentNode(lastNode, hitNode)) {
                     this.dragging = true;
+                    this.dragAdvanced = false;
                     this.commitNodeStep(ctx, hitNode, activePath);
                 } else {
                     this.dragging = false;
+                    this.dragAdvanced = false;
                     this.triggerInvalidReset(ctx, activePath, true);
                 }
                 return;
@@ -687,18 +695,22 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         } else if (this.dragging && leftHeld) {
             if (hitNode >= 0 && hitNode !== lastNode) {
                 if (activePath.indexOf(hitNode) < 0 && isAdjacentNode(lastNode, hitNode)) {
+                    this.dragAdvanced = true;
                     this.commitNodeStep(ctx, hitNode, activePath);
                 } else {
                     // 仅当拖入已访问旧节点（且不是刚离开的当前末点）或非法跳格点时判无效重画
                     this.dragging = false;
+                    this.dragAdvanced = false;
                     this.triggerInvalidReset(ctx, activePath, true);
                 }
                 return;
             }
         } else if (leftReleased && this.dragging) {
+            const wasDragStroke = this.dragAdvanced;
             this.dragging = false;
-            // 未连到终点 8 即松手：清回起点可立刻重画，不重计 4 秒
-            if (lastNode !== RELOAD_TARGET_NODE && activePath.length > 1) {
+            this.dragAdvanced = false;
+            // 仅一笔拖线中途未到终点 8 即松手时清回起点重画；逐格单击相邻点保留路径
+            if (wasDragStroke && lastNode !== RELOAD_TARGET_NODE && activePath.length > 1) {
                 this.triggerInvalidReset(ctx, activePath, true);
                 return;
             }
@@ -869,8 +881,8 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
 
     private spawnAppliedVfx(effect: ReloadEffectKind, p: Play, targetX: number): void {
         const originX = p.player.x + p.player.facing * 18;
-        const originY = p.player.y + p.player.depth + p.player.h * 0.62;
-        const targetY = p.player.y + p.player.depth + 46;
+        const originY = p.player.y + p.player.depth * DEPTH_Y_SCALE + p.player.h * 0.62;
+        const targetY = p.player.y + p.player.depth * DEPTH_Y_SCALE + 46;
         const maxLife = effect === "light" ? 0.42 : (effect === "echo" ? 0.56 : 0.34);
         this.appliedVfx.push({
             effect,
@@ -1335,8 +1347,9 @@ export class ReloadWheelPlugin implements FeRenderPlugin {
         ctx: FePluginContext,
         effect: ReloadEffectKind,
     ): void {
-        const bx = 46;
-        const by = ctx.uiH - 112;
+        const safe = ctx.safeUi ?? ZERO_SAFE_INSETS;
+        const bx = 46 + safe.left;
+        const by = ctx.uiH - 134 - safe.top;
         const col = effect === "echo" ? PALETTE.rouge : (effect === "light" ? PALETTE.amberCore : PALETTE.cyanCore);
         drawSilkVeil(uiDraw, uiArt, "rw_armed_veil", bx + 54, by, 142, 30, PALETTE.inkWash, 0.72, -1);
         drawReloadPatternGlyph(uiInkDraw, bx + 12, by, 9, effect, col, 0.96);
