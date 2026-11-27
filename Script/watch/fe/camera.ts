@@ -114,6 +114,9 @@ export class CameraDirector {
         } else if (p.room.key === "outside") {
             // 上层拉车或钻拱附近保持能同时看见上层板车与下层拱洞
             desiredZoom = p.player.x < 560 ? 0.94 : 1.02;
+        } else if (p.room.key === "forest" && p.player.x >= p.ox + 1160 && p.player.x <= p.ox + 1350) {
+            // F02 溪湾初见：先微收聚焦水中塔灯倒影，临近林岸后再舒展抬头见真灯
+            desiredZoom = p.player.x < p.ox + 1280 ? 1.12 : 0.98;
         } else if (p.room.key === "tower" && p.phase !== "tower-wait") {
             desiredZoom = 1.22;
         }

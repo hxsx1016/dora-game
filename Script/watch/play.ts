@@ -432,6 +432,8 @@ export class Play {
     aimHold = 0;
     /** 城外补丁红布车是否已拉开（石阶口露出）。 */
     private redCartPulled = false;
+    /** F01 补丁红布车半秒家庭回忆计时（拍）。 */
+    redCartMemoryT = 0;
     /** 桌下脚步提示的节流拍数。 */
     private footHintT = 0;
     /** 是否已提示过暗渠口。 */
@@ -440,6 +442,12 @@ export class Play {
     private forestPath: "burrow" | "ditch" | "" = "";
     /** 溪湾水里灯是否已看见。 */
     private waterSeen = false;
+    /** 铁盆命中给拾荒者叠加的额外驻留拍数（砖地=0，铁盆=90）。 */
+    private scavStallBonus = 0;
+    /** 前端结构化意图：风台长按牵手（兼容触屏/手柄与 contract.submitIntent）。 */
+    private intentGateReunionHold = false;
+    /** 前端结构化意图：博物馆一步交互请求。 */
+    private pendingMuseumIntentTarget = "";
     /** 拾荒者位置与状态机。 */
     scavX = 0;
     scavDir = 1;
@@ -930,11 +938,38 @@ export class Play {
     }
 
     /**
-     * 前端结构化意图入口：换弹、工台制作/装备/关面板。
-     * fe/contract.ts 的 forwardLiveIntent 优先调用它；B1 的 reloadTapNode 仍可直接用。
+     * 前端结构化意图入口：换弹、工台制作/装备/关面板、风台牵手长按、水井与博物馆全步交互。
+     * fe/contract.ts 的 forwardLiveIntent 优先调用它；为键鼠/触屏/网页/安卓提供统一入口。
      */
     submitFeIntent(intent: { kind: string; [key: string]: unknown }): boolean {
         const kind = intent === undefined ? "" : intent.kind;
+        if (kind === "gateReunionHold") {
+            if (this.room.key !== "gate" || (this.phase !== "gate-wait" && this.phase !== "gate-count")) {
+                return false;
+            }
+            const holding = intent.holding === true;
+            this.intentGateReunionHold = holding;
+            if (!holding && this.phase === "gate-wait") {
+                if (this.handTicks > 0) {
+                    this.emit("handRelease", { handTicks: this.handTicks, handNeedTicks: GATE_HAND_TICKS });
+                }
+                this.handTicks = 0;
+                this.handArmed = true;
+            }
+            return true;
+        }
+        if (kind === "reloadOpen") {
+            const camp = this.room.campaign;
+            if (this.run.trial !== undefined || camp === undefined || camp.reloadPuzzle !== true || this.reloadOpen) {
+                return false;
+            }
+            this.beginReload();
+            return this.reloadOpen;
+        }
+        if (kind === "reloadPathPreview") {
+            const path = intent.path;
+            return typeof path === "object" && path !== undefined && Array.isArray(path);
+        }
         if (kind === "reloadTapNode") {
             const node = intent.node;
             if (typeof node === "number") {
@@ -983,6 +1018,45 @@ export class Play {
         }
         if (kind === "wellPick") {
             return this.pickWell();
+        }
+        if (kind === "museumInteract") {
+            const target = typeof intent.target === "string" ? intent.target : "";
+            if (target === "well_pickup" || target === "well") {
+                return this.pickWell();
+            }
+            if (this.room.key !== "museum") {
+                return false;
+            }
+            return this.triggerMuseumIntent(target);
+        }
+        return false;
+    }
+
+    /** 结构化意图推进博物馆单步交互（与实体 E 键共享同一套校验与写档逻辑）。 */
+    private triggerMuseumIntent(target: string): boolean {
+        const mu = this.room.story === undefined || this.room.story.museum === undefined
+            ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
+            : this.room.story.museum;
+        const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
+        if (this.phase === "museum-cabinet" && (target === "" || target === "cabinet" || target === "weapon_case") && atCase) {
+            this.pendingMuseumIntentTarget = "cabinet";
+            return true;
+        }
+        if (this.phase === "museum-hall" && (target === "" || target === "hall" || target === "corridor") && this.player.x >= this.ox + mu.hallX) {
+            this.pendingMuseumIntentTarget = "hall";
+            return true;
+        }
+        if (this.phase === "museum-lamp" && (target === "" || target === "lamp" || target === "west_lamp") && this.player.x >= this.ox + mu.lampX) {
+            this.pendingMuseumIntentTarget = "lamp";
+            return true;
+        }
+        if (this.phase === "museum-return" && (target === "" || target === "return_cabinet" || target === "cabinet" || target === "return") && atCase) {
+            this.pendingMuseumIntentTarget = "return_cabinet";
+            return true;
+        }
+        if (this.phase === "museum-done" && (target === "" || target === "return_cabinet" || target === "return")) {
+            this.pendingMuseumIntentTarget = "done";
+            return true;
         }
         return false;
     }
@@ -1843,6 +1917,10 @@ export class Play {
             }
             if (a.crouch) {
                 speed = CHILD_SLOW;
+            } else if (this.room.key === "forest" && this.forestPath === "ditch"
+                && a.x >= this.ox + 700 && a.x <= this.ox + 1140) {
+                // 旧渠路线差异化：顺着干渠底站跑提速 22%，换取更高警戒风险
+                speed = CHILD_SPEED * 1.22;
             }
         } else if (a.covered) {
             speed = SOLDIER_SPEED * 0.45;
@@ -2428,7 +2506,8 @@ export class Play {
                 this.emit("knock", { count: 2, x: this.ox + g.doorX + 70, room: "gate" });
                 this.flashSet("第二下 · 她抬手了", 1.6);
             }
-            if (!input.interact.held) {
+            const held = input.interact.held || this.intentGateReunionHold;
+            if (!held) {
                 if (this.handTicks > 0) {
                     this.emit("handRelease", { handTicks: this.handTicks, handNeedTicks: GATE_HAND_TICKS });
                 }
@@ -2439,6 +2518,7 @@ export class Play {
             if (this.handArmed) {
                 this.handTicks += 1;
                 if (this.handTicks >= GATE_HAND_TICKS) {
+                    this.intentGateReunionHold = false;
                     this.phase = "gate-hand";
                     this.phaseTick = 0;
                     this.handDone = true;
@@ -2606,8 +2686,11 @@ export class Play {
             ? { cabinetX: 200, hallX: 900, lampX: 1250, exitX: 1360 }
             : this.room.story.museum;
         const atCase = this.player.x <= this.ox + mu.cabinetX + 60;
+        const intentTarget = this.pendingMuseumIntentTarget;
+        this.pendingMuseumIntentTarget = "";
+        const interactHit = input.interact.pressed || intentTarget !== "";
         if (this.phase === "museum-cabinet") {
-            if (atCase && input.interact.pressed) {
+            if (atCase && interactHit) {
                 this.phase = "museum-hall";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2620,7 +2703,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-hall") {
-            if (this.player.x >= this.ox + mu.hallX && input.interact.pressed) {
+            if (this.player.x >= this.ox + mu.hallX && interactHit) {
                 this.phase = "museum-lamp";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2633,7 +2716,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-lamp") {
-            if (this.player.x >= this.ox + mu.lampX && input.interact.pressed) {
+            if (this.player.x >= this.ox + mu.lampX && interactHit) {
                 this.phase = "museum-return";
                 this.phaseTick = 0;
                 if (this.canPersistProgress()) {
@@ -2646,7 +2729,7 @@ export class Play {
             return;
         }
         if (this.phase === "museum-return") {
-            if (atCase && input.interact.pressed) {
+            if (atCase && interactHit) {
                 this.phase = "museum-knock";
                 this.phaseTick = 0;
                 this.emit("museumStep", { step: "knock", count: 1, x: this.ox + mu.cabinetX, persisted: this.canPersistProgress() });
@@ -2673,7 +2756,7 @@ export class Play {
             }
             return;
         }
-        if (input.interact.pressed) {
+        if (interactHit) {
             this.museumReturn = true;
             this.requestRoom("prologue", "回柜边");
         }
@@ -2905,14 +2988,24 @@ export class Play {
         }
     }
 
-    /** 森林的狗：先转耳朵，再追；蹲下或拉开距离就丢。 */
+    /** 森林的狗：先转耳朵，再追；树根窄洞与草丛蹲伏提供隐蔽庇护，旧渠奔跑提速但警戒更快。 */
     private stepDog(dt: number): void {
         const dog = this.room.story === undefined ? undefined : this.room.story.dog;
         if (dog === undefined) {
             return;
         }
         const p = this.player;
+        const ox = this.ox;
         const dist = Math.abs(p.x - this.dogX);
+        const inBurrowCover = p.crouch && p.x >= ox + 300 && p.x <= ox + 460;
+        const inBrushCover = p.crouch && (
+            (p.x >= ox + 700 && p.x <= ox + 790)
+            || (p.x >= ox + 1150 && p.x <= ox + 1240)
+        );
+        const sheltered = inBurrowCover || inBrushCover;
+        const inDitchSprint = !p.crouch && this.forestPath === "ditch" && p.x >= ox + 700 && p.x <= ox + 1140;
+        const effectiveRange = inDitchSprint ? dog.range * 1.25 : dog.range;
+        const earNeedTicks = inDitchSprint ? 12 : 18;
         if (this.dogState === "patrol") {
             this.dogX += this.dogDir * dog.speed * dt;
             if (this.dogX < dog.x0) {
@@ -2923,15 +3016,21 @@ export class Play {
                 this.dogDir = -1;
             }
             const moving = Math.abs(p.vx) > 1 || !p.onGround;
-            if (!p.crouch && moving && dist < dog.range) {
+            if (!sheltered && !p.crouch && moving && dist < effectiveRange) {
                 this.dogState = "ear";
-                this.dogT = 18;
+                this.dogT = earNeedTicks;
                 this.dogTargetX = p.x;
-                this.flashSet("狗转耳朵", 0.8);
+                this.flashSet(inDitchSprint ? "旧渠枯枝响 · 狗立刻转耳" : "狗转耳朵", 0.8);
             }
             return;
         }
         if (this.dogState === "ear") {
+            if (sheltered) {
+                this.dogState = "sniff";
+                this.dogT = 45;
+                this.flashSet("钻进遮蔽 · 狗顿住了", 0.9);
+                return;
+            }
             this.dogT -= 1;
             if (this.dogT <= 0) {
                 this.dogState = "chase";
@@ -2943,14 +3042,14 @@ export class Play {
         if (this.dogState === "chase") {
             const dir = p.x > this.dogX ? 1 : -1;
             this.dogX += dir * dog.speed * 1.4 * dt;
-            if (Math.abs(p.x - this.dogX) < 18 && Math.abs(p.y) < 40) {
+            if (!sheltered && Math.abs(p.x - this.dogX) < 18 && Math.abs(p.y) < 40) {
                 this.caught();
                 this.dogState = "sniff";
                 this.dogT = 60;
-            } else if (dist > dog.range * 1.5 || p.crouch) {
+            } else if (dist > effectiveRange * 1.5 || p.crouch || sheltered) {
                 this.dogState = "sniff";
                 this.dogT = 60;
-                this.flashSet("狗停下了", 0.9);
+                this.flashSet(inBurrowCover ? "树根窄洞遮住身形 · 狗停下了" : "狗停下了", 0.9);
             }
             return;
         }
@@ -4064,8 +4163,11 @@ export class Play {
         this.emit("gateFailed", { failCount: this.gateFailCount, hp: 0, maxHp: this.maxHp });
     }
 
-    /** 城外：补丁红布车斜停在石阶口，点一次 E 把它拉开，台面到石阶的路才通。 */
+    /** 城外：补丁红布车斜停在石阶口，点一次 E 拉开并触发 F01 半秒缝布家庭回忆，台面到石阶的路才通。 */
     private stepRedCart(input: Input): void {
+        if (this.redCartMemoryT > 0) {
+            this.redCartMemoryT -= 1;
+        }
         if (this.room.key !== "outside" || this.redCartPulled) {
             return;
         }
@@ -4088,11 +4190,15 @@ export class Play {
         this.cartAxle = this.room.cart.endX;
         this.cartDocked = true;
         this.redCartPulled = true;
+        this.redCartMemoryT = 30;
         if (this.run.story !== undefined) {
             this.run.story.segments["outside_cart"] = true;
+            this.run.story.segments["outside_memory"] = true;
         }
-        this.flashSet("拉开红布车 · 石阶口露出来", 1.6);
+        this.sessionDirty = true;
+        this.flashSet("红布补丁 · 想起家里那一针 · 石阶口露出来", 1.8);
         this.emit("storyBeat", { beat: "red_cart", x: p.x, room: "outside" });
+        this.emit("storyBeat", { beat: "red_cart_memory", x: p.x, room: "outside", durationTicks: 30 });
     }
 
     private stepInteract(dt: number, input: Input): void {
@@ -4307,12 +4413,26 @@ export class Play {
         });
     }
 
-    /** 触地：只在这里派发一次声音事件，落点固定用预览缓存。 */
+    /** 空村三材质落点判定：软土消音 / 铁盆双响加长驻留 / 砖地常规单响。 */
+    private bottleSurfaceAt(x: number): "soft" | "iron" | "brick" {
+        if (this.room.softX !== undefined && Math.abs(x - this.room.softX) <= 34) {
+            return "soft";
+        }
+        if (this.room.basinX !== undefined && Math.abs(x - this.room.basinX) <= 24) {
+            return "iron";
+        }
+        return "brick";
+    }
+
+    /** 触地：只在这里派发一次声音事件，落点固定用预览缓存，并显式携带材质供前端分轨渲染。 */
     private landBottle(fly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number }): void {
         const x = this.bottleTargetX >= 0 ? this.bottleTargetX : fly.x;
         const y = this.bottleSurfaceY >= 0 ? this.bottleSurfaceY : fly.y;
         const s = this.room.scavenger;
-        const heard = s !== undefined && Math.abs(x - this.scavX) <= s.range;
+        const surface = this.bottleSurfaceAt(x);
+        const effRange = s === undefined ? 0 : (surface === "iron" ? s.range * 1.25 : s.range);
+        const heard = surface !== "soft" && s !== undefined && Math.abs(x - this.scavX) <= effRange;
+        const stallTicks = s === undefined ? 0 : (surface === "iron" ? s.stallTicks + 90 : s.stallTicks);
         this.bottleFly = undefined;
         this.bottleTargetX = -1;
         this.bottleTargetY = 0;
@@ -4320,27 +4440,41 @@ export class Play {
         this.bottleLandX = x;
         this.bottleLandY = y;
         this.bottleLandT = 0.9;
-        this.emit("bottleLanded", { x: x, y: y, heard: heard, scavState: this.scavState });
-        this.hearBottle(x);
+        this.emit("bottleLanded", {
+            x: x,
+            y: y,
+            surface: surface,
+            heard: heard,
+            resonance: surface === "iron",
+            stallTicks: heard ? stallTicks : 0,
+            scavState: this.scavState,
+        });
+        this.hearBottle(x, surface);
     }
 
-    /** 落地才结算听觉：射程内才转头。 */
-    private hearBottle(x: number): void {
+    /** 落地才结算听觉：软土消音不惊动，砖面单响常规驻留，铁盆余振两响加长驻留。 */
+    private hearBottle(x: number, surface: "soft" | "iron" | "brick" = "brick"): void {
         const s = this.room.scavenger;
         if (s === undefined) {
             return;
         }
-        if (Math.abs(x - this.scavX) > s.range) {
+        if (surface === "soft") {
+            this.flashSet("落在软土 · 没出声", 0.8);
+            return;
+        }
+        const effRange = surface === "iron" ? s.range * 1.25 : s.range;
+        if (Math.abs(x - this.scavX) > effRange) {
             this.flashSet("落地 · 他没听见", 0.6);
             return;
         }
         this.scavState = "turn";
         this.scavT = s.hearTicks;
-        this.scavTargetX = x;
-        this.flashSet("砖地一响 · 他转头", 0.9);
+        this.scavTargetX = surface === "iron" && this.room.basinX !== undefined ? this.room.basinX : x;
+        this.scavStallBonus = surface === "iron" ? 90 : 0;
+        this.flashSet(surface === "iron" ? "铁盆余振两响 · 他停下来细听" : "砖地一响 · 他转头", 1.1);
     }
 
-    /** 拾荒者：巡逻 → 转头 18 拍 → 赶到落点 → 停 120 拍 → 走回巡逻段。 */
+    /** 拾荒者：巡逻 → 转头 18 拍 → 赶到落点 → 停 120 拍（铁盆 210 拍） → 走回巡逻段。 */
     private stepScav(dt: number, s: ScavSpec): void {
         // 追逐由 stepScavChase 单独推进；这里只管巡查与「听见后过去看看」。
         if (this.scavState === "chase") {
@@ -4357,7 +4491,8 @@ export class Play {
             const d = this.scavTargetX - this.scavX;
             if (Math.abs(d) < 4) {
                 this.scavState = "stall";
-                this.scavT = s.stallTicks;
+                this.scavT = s.stallTicks + this.scavStallBonus;
+                this.scavStallBonus = 0;
                 return;
             }
             this.scavX += (d > 0 ? 1 : -1) * s.approachSpeed * dt;
