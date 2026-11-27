@@ -32,11 +32,20 @@ export interface ControlSettings {
     touchScale: number;
     /** 移动设备触觉微震动反馈 */
     haptics: boolean;
+    /** 主音量（0.0–1.0，默认 1.0） */
+    masterVol: number;
+    /** 音乐 BGM 音量（0.0–1.0，默认 0.8） */
+    bgmVol: number;
+    /** 音效与环境音量（0.0–1.0，默认 0.9） */
+    sfxVol: number;
+    /** 人声与旁白音量（0.0–1.0，默认 1.0） */
+    voiceVol: number;
 }
 
 export const MODE_PREF_ORDER: InputModePref[] = ["auto", "kbm", "touch", "gamepad"];
 export const TOUCH_OPACITY_STEPS = [0.52, 0.78, 0.96];
 export const TOUCH_SCALE_STEPS = [0.88, 1.0, 1.14];
+export const VOLUME_STEPS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
 const DEFAULT_CONTROLS_FILE = "watch-save/controls.txt";
 const LEGACY_TOUCH_FILE = "watch-save/touch.txt";
@@ -67,6 +76,10 @@ export function defaultControlSettings(): ControlSettings {
         touchOpacity: 0.78,
         touchScale: 1.0,
         haptics: true,
+        masterVol: 1.0,
+        bgmVol: 0.8,
+        sfxVol: 0.9,
+        voiceVol: 1.0,
     };
 }
 
@@ -103,6 +116,18 @@ function applyKvLines(raw: string, out: ControlSettings): void {
             if (n >= 0.75 && n <= 1.35) out.touchScale = n;
         } else if (k === "haptics") {
             out.haptics = v === "1" || v === "true";
+        } else if (k === "masterVol") {
+            const n = Number(v);
+            if (n >= 0 && n <= 1) out.masterVol = n;
+        } else if (k === "bgmVol") {
+            const n = Number(v);
+            if (n >= 0 && n <= 1) out.bgmVol = n;
+        } else if (k === "sfxVol") {
+            const n = Number(v);
+            if (n >= 0 && n <= 1) out.sfxVol = n;
+        } else if (k === "voiceVol") {
+            const n = Number(v);
+            if (n >= 0 && n <= 1) out.voiceVol = n;
         }
     }
 }
@@ -156,7 +181,11 @@ export function saveControlSettings(s: ControlSettings): void {
             + "deadzoneRight=" + s.deadzoneRight.toFixed(2) + "\n"
             + "touchOpacity=" + s.touchOpacity.toFixed(2) + "\n"
             + "touchScale=" + s.touchScale.toFixed(2) + "\n"
-            + "haptics=" + (s.haptics ? "1" : "0") + "\n";
+            + "haptics=" + (s.haptics ? "1" : "0") + "\n"
+            + "masterVol=" + s.masterVol.toFixed(2) + "\n"
+            + "bgmVol=" + s.bgmVol.toFixed(2) + "\n"
+            + "sfxVol=" + s.sfxVol.toFixed(2) + "\n"
+            + "voiceVol=" + s.voiceVol.toFixed(2) + "\n";
         Content.save(resolvePath(getControlSettingsFile()), text);
     } catch {
         // 只读环境下静默忽略落盘失败
@@ -212,4 +241,9 @@ export function scaleLabelOf(scale: number): string {
     if (scale <= 0.93) return "小";
     if (scale >= 1.07) return "大";
     return "中";
+}
+
+export function volumeLabelOf(vol: number): string {
+    const pct = Math.round(Math.max(0, Math.min(1, vol)) * 100);
+    return pct <= 0 ? "静音" : (pct + "%");
 }

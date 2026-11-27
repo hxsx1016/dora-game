@@ -133,6 +133,7 @@ function quitGame(): void {
         run = undefined;
         setMode(1);
         if (fe !== undefined) {
+            fe.audio.stopRoomTransient();
             fe.screen = "title";
             fe.menus.resetInput();
         }
@@ -154,12 +155,14 @@ function handleBackButton(): void {
             run = undefined;
             setMode(1);
             if (fe !== undefined) {
+                fe.audio.stopRoomTransient();
                 fe.screen = "title";
                 fe.menus.resetInput();
             }
             return;
         }
         play.paused = !play.paused;
+        fe?.audio.playUi(play.paused ? "ui:pause_open" : "ui:pause_close", play.paused ? "assets/audio/ui/pause_open.wav" : "assets/audio/ui/pause_close.wav", 0.66, 0.08);
         clock.reset();
         input?.clearTransient(true);
         return;
@@ -428,6 +431,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     }
 
     input = new Input();
+    fe.audio.applyUserVolumes(input.settings);
     touchRouter = new TouchRouter(input.settings);
     touchRouter.attach(parent);
     input.bindTouch(touchRouter);
@@ -1033,6 +1037,8 @@ function ensurePlay(resume?: { checkpoint: number }): void {
     clock.reset();
     if (fe !== undefined && mode === 1) {
         fe.bindPlay(play, stageVp.stageW, stageVp.stageH);
+    } else if (fe !== undefined && mode === 2) {
+        fe.resetTrialAudio(play);
     }
 }
 
@@ -1086,6 +1092,7 @@ function tickCampaign(frameDt: number): void {
             run = undefined;
             setMode(1);
             if (fe !== undefined) {
+                fe.audio.stopRoomTransient();
                 fe.screen = "title";
                 fe.menus.resetInput();
             }
@@ -1099,6 +1106,7 @@ function tickCampaign(frameDt: number): void {
             run = undefined;
             setMode(1);
             if (fe !== undefined) {
+                fe.audio.stopRoomTransient();
                 fe.screen = "title";
                 fe.menus.resetInput();
             }
@@ -1136,6 +1144,7 @@ function tickCampaign(frameDt: number): void {
             }
             input.consumeEdges();
             clock.reset();
+            fe?.syncTrialAudio(frameDt, p, trial.offers.length);
             drawCampaign(p);
             return;
         }
@@ -1152,10 +1161,12 @@ function tickCampaign(frameDt: number): void {
     if (input.pause.pressed || (p.paused && input.navBack)) {
         input.pause.pressed = false;
         p.paused = !p.paused;
+        fe?.audio.playUi(p.paused ? "ui:pause_open" : "ui:pause_close", p.paused ? "assets/audio/ui/pause_open.wav" : "assets/audio/ui/pause_close.wav", 0.66, 0.08);
         clock.reset();
         input.consumeEdges();
     }
     if (p.paused) {
+        fe?.syncTrialAudio(frameDt, p, trial?.offers.length ?? 0);
         drawCampaign(p);
         return;
     }
@@ -1170,6 +1181,7 @@ function tickCampaign(frameDt: number): void {
             break;
         }
     }
+    fe?.syncTrialAudio(frameDt, p, trial?.offers.length ?? 0);
 
     if (p.wantRoom !== "") {
         const key = p.wantRoom;
@@ -1377,6 +1389,7 @@ function tickFrontend(frameDt: number): void {
         p.bottleAimX = -1;
         saveCurrentSession();
         fe.menus.openPause();
+        fe.audio.playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08);
         input.clearTransient(true);
         input.consumeEdges();
     }

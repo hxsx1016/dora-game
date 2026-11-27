@@ -16,6 +16,7 @@ import { StageViewport, computeStageViewport } from "Script/watch/platform";
 import { FrameEvents, PlayAdapter } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { AudioDirector } from "Script/watch/fe/audio";
+import { SoundscapeDirector } from "Script/watch/fe/bgm";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteContract } from "Script/watch/fe/contract";
 import { DepthOcclusion } from "Script/watch/fe/occlusion";
@@ -27,7 +28,7 @@ import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
-import { MenuAction, MenuRenderer, ScreenKind } from "Script/watch/fe/ui/menus";
+import { MenuAction, MenuRenderer, ScreenKind, UiSoundKind } from "Script/watch/fe/ui/menus";
 import { PALETTE, drawSilkVeil, themeOf, toColor } from "Script/watch/fe/theme";
 import { MingArtAuditPlugin } from "Script/watch/fe/renderer/ming_audit";
 import { GateTransitionPlugin } from "Script/watch/fe/scenes/gate_transition";
@@ -61,6 +62,7 @@ export class WatchFrontend {
     readonly adapter = new PlayAdapter();
     readonly contract = new DualRouteContract();
     readonly audio = new AudioDirector();
+    readonly soundscape = new SoundscapeDirector();
     readonly stage = new StageRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
@@ -84,6 +86,12 @@ export class WatchFrontend {
         this.layerRoot.addTo(parent);
 
         this.audio.attachHost(this.layerRoot);
+        this.menus.onUiSound = (kind: UiSoundKind) => {
+            this.playMenuUiSound(kind);
+        };
+        this.menus.onAudioSettingsChanged = (inp: Input) => {
+            this.audio.applyUserVolumes(inp.settings);
+        };
 
         const additive = BlendFunc(BlendOp.SrcAlpha, BlendOp.One);
 
@@ -220,6 +228,7 @@ export class WatchFrontend {
             if (watchFe["contract"] !== this.contract) {
                 watchFe["contract"] = this.contract;
                 watchFe["audio"] = this.audio;
+                watchFe["soundscape"] = this.soundscape;
                 watchFe["registerPlugin"] = (plugin: FeRenderPlugin) => this.registerPlugin(plugin);
                 watchFe["unregisterPlugin"] = (id: string) => this.unregisterPlugin(id);
                 watchFe["getPlugin"] = (id: string) => this.getPlugin(id);
@@ -262,6 +271,7 @@ export class WatchFrontend {
         this.adapter.reset(p);
         this.contract.resetForRoom(p);
         this.audio.stopRoomTransient();
+        this.soundscape.resetForRoom(p);
         this.actors.reset(p);
         this.occlusion.reset();
         this.vfx.reset();
@@ -338,16 +348,57 @@ export class WatchFrontend {
         return this.hud.talentCardRects(w / uiScale, h / uiScale, offers.length, touchMode, this.stageVp.safeUi.top);
     }
 
+    private playMenuUiSound(kind: UiSoundKind): void {
+        if (kind === "hover") {
+            this.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.50, 0.045);
+        } else if (kind === "confirm") {
+            this.audio.playUi("ui:confirm", "assets/audio/ui/menu_confirm.wav", 0.72, 0.05);
+        } else if (kind === "back") {
+            this.audio.playUi("ui:back", "assets/audio/ui/menu_back.wav", 0.66, 0.05);
+        } else if (kind === "start") {
+            this.audio.playUi("ui:start", "assets/audio/ui/game_start.wav", 0.82, 0.08);
+        } else if (kind === "pauseOpen") {
+            this.audio.playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08);
+        } else if (kind === "pauseClose") {
+            this.audio.playUi("ui:pause_close", "assets/audio/ui/pause_close.wav", 0.66, 0.08);
+        } else if (kind === "toggle") {
+            this.audio.playUi("ui:toggle", "assets/audio/ui/setting_toggle.wav", 0.64, 0.04);
+        }
+    }
+
+    /** 护送试炼肉鸽（mode 2）切换段落时重置试炼音频态 */
+    resetTrialAudio(p: Play): void {
+        this.adapter.reset(p);
+        this.audio.stopRoomTransient();
+        this.soundscape.resetForRoom(p);
+    }
+
+    /** 护送试炼肉鸽（mode 2）每帧消费事件队列与声景拟音 */
+    syncTrialAudio(dt: number, p: Play, offerCount: number): void {
+        const safeDt = Math.min(0.05, Math.max(0.001, dt));
+        this.audio.setPaused(p.paused);
+        this.audio.setCameraRef(p.player.x, 960);
+        this.audio.update(safeDt);
+        if (!p.paused) {
+            const ev = this.adapter.sample(p);
+            this.audio.ingestEvents(ev, p);
+            this.soundscape.updateTrial(safeDt, p, this.audio, offerCount);
+        }
+    }
+
     /** 菜单态每帧更新与渲染 */
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
+        const safeDt = Math.min(0.05, Math.max(0, dt));
         if (this.toastTimer > 0) {
-            this.toastTimer = Math.max(0, this.toastTimer - Math.min(0.05, Math.max(0, dt)));
+            this.toastTimer = Math.max(0, this.toastTimer - safeDt);
         }
         if (this.screen === "title" && this.boundPlay !== undefined) {
             this.audio.stopRoomTransient();
             this.boundPlay = undefined;
         }
+        this.audio.update(safeDt);
+        this.soundscape.updateMenu(this.screen, this.audio);
         this.setVisible(true);
         this.clearAll();
         const uiScale = this.resizeInterface(w, h);
@@ -413,6 +464,8 @@ export class WatchFrontend {
             this.toastTimer = Math.max(0, this.toastTimer - safeDt);
         }
         this.audio.setPaused(p.paused);
+        this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+        this.audio.update(safeDt);
 
         let ev: FrameEvents;
         let worldDt = 0;
@@ -487,6 +540,8 @@ export class WatchFrontend {
         if (!p.paused) {
             this.time += worldDt;
             this.cam.update(worldDt, p, w, h);
+            this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
+            this.soundscape.updatePlay(worldDt, p, view, this.audio);
             this.actors.update(worldDt, p);
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
             this.hud.update(worldDt, p);
