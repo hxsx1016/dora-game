@@ -36,6 +36,10 @@ export class HudRenderer {
     private time = 0;
     /** 手柄模式下男主线三选一本领卡当前高亮索引 */
     talentSelected = 0;
+    /** 已挂载 RoguelikeUiPlugin 时自动礼让旧版顶部扁矩形与文本行，防止双层叠绘 */
+    roguelikeUiHandled = false;
+    /** 指向 RoguelikeUiPlugin 的选筹热区单一真源（保持 hud.talentCardRects 100% 兼容） */
+    talentRectProvider?: (w: number, h: number, count: number, touchMode: boolean, safeTop: number) => Rect.Type[];
 
     reset(p?: Play): void {
         this.ghostHp = p !== undefined ? p.hp : 3;
@@ -126,6 +130,9 @@ export class HudRenderer {
 
     /** 计算男主线护送段三选一本领卡的 UI 坐标矩形（渲染与点击命中共用单一真源）。 */
     talentCardRects(w: number, h: number, count: number, touchMode: boolean = false, safeTop: number = 0): Rect.Type[] {
+        if (this.talentRectProvider !== undefined) {
+            return this.talentRectProvider(w, h, count, touchMode, safeTop);
+        }
         const out: Rect.Type[] = [];
         if (count <= 0) {
             return out;
@@ -275,31 +282,33 @@ export class HudRenderer {
             }
         }
 
-        const ranks = p.getStoryTalentRanks();
-        if (ranks !== undefined) {
-            const parts: string[] = [];
-            if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
-            if (ranks.reload > 0) parts.push("熟铳" + ranks.reload);
-            if (ranks.guard > 0) parts.push("护身" + ranks.guard);
-            if (ranks.craft > 0) parts.push("巧手" + ranks.craft);
-            if (parts.length > 0) {
+        if (!this.roguelikeUiHandled) {
+            const ranks = p.getStoryTalentRanks();
+            if (ranks !== undefined) {
+                const parts: string[] = [];
+                if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
+                if (ranks.reload > 0) parts.push("熟铳" + ranks.reload);
+                if (ranks.guard > 0) parts.push("护身" + ranks.guard);
+                if (ranks.craft > 0) parts.push("巧手" + ranks.craft);
+                if (parts.length > 0) {
+                    const subY = by - 22;
+                    const txt = "本领 · " + parts.join(" · ");
+                    drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.56 * alpha, -1);
+                    texts.put("xs", txt, bx + 14, subY + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+                }
+            } else if (p.isCampaign && p.room.campaign !== undefined && (p.room.campaign.chapter === "S" || p.room.campaign.chapter === "C")) {
+                const inv = p.run.inventory;
+                const items: string[] = [];
+                if (inv.shield > 0) items.push("残盾" + inv.shield);
+                if (inv.wedge > 0) items.push("木楔" + inv.wedge);
+                if (inv.ammo > 0) items.push("弹包" + inv.ammo);
+                if (inv.scrap > 0) items.push("木料" + inv.scrap);
+                const companionText = p.run.joined ? "小满同行" : "小满等待";
+                const summary = items.length > 0 ? (companionText + " · " + items.join(" ")) : companionText;
                 const subY = by - 22;
-                const txt = "本领 · " + parts.join(" · ");
-                drawSilkVeil(uiDraw, uiArt, "hud_talent_ranks_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.56 * alpha, -1);
-                texts.put("xs", txt, bx + 14, subY + 6, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+                drawSilkVeil(uiDraw, uiArt, "hud_camp_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.54 * alpha, -1);
+                texts.put("xs", summary, bx + 14, subY + 6, toColor(p.run.joined ? PALETTE.cyanCore : PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
             }
-        } else if (p.isCampaign && p.room.campaign !== undefined && (p.room.campaign.chapter === "S" || p.room.campaign.chapter === "C")) {
-            const inv = p.run.inventory;
-            const items: string[] = [];
-            if (inv.shield > 0) items.push("残盾" + inv.shield);
-            if (inv.wedge > 0) items.push("木楔" + inv.wedge);
-            if (inv.ammo > 0) items.push("弹包" + inv.ammo);
-            if (inv.scrap > 0) items.push("木料" + inv.scrap);
-            const companionText = p.run.joined ? "小满同行" : "小满等待";
-            const summary = items.length > 0 ? (companionText + " · " + items.join(" ")) : companionText;
-            const subY = by - 22;
-            drawSilkVeil(uiDraw, uiArt, "hud_camp_veil", bx + 126, subY + 6, 260, 26, PALETTE.inkWash, 0.54 * alpha, -1);
-            texts.put("xs", summary, bx + 14, subY + 6, toColor(p.run.joined ? PALETTE.cyanCore : PALETTE.amberCore), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
         }
     }
 
@@ -385,7 +394,7 @@ export class HudRenderer {
     ): void {
         const touchMode = inputMode === "touch";
         const talentOffers = p.getStoryTalentOffers();
-        if (talentOffers.length > 0 && !p.craftBench.active && !p.reloadOpen) {
+        if (!this.roguelikeUiHandled && talentOffers.length > 0 && !p.craftBench.active && !p.reloadOpen) {
             const boxes = this.talentCardRects(w, h, talentOffers.length, touchMode, safe.top);
             const cx = w * 0.5;
             const titleY = h - 54 - safe.top;

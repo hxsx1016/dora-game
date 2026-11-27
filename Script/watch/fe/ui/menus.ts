@@ -106,6 +106,7 @@ const PAUSE_ITEMS = [
     { id: "title", zh: "返回标题" },
     { id: "quit", zh: "退出游戏" },
     { id: "settings", zh: "操控设置" },
+    { id: "ledger", zh: "行军札记" },
 ];
 
 // 索引 0..6 保持既有操控设置项零回归，7..10 追加四通道音量调节，11 为返回。
@@ -1195,6 +1196,8 @@ export class MenuRenderer {
         assistHintsEnabled: boolean = false,
         onToggleAssist?: () => void,
         safeUi: SafeInsets = ZERO_SAFE_INSETS,
+        showLedgerEntry: boolean = false,
+        onOpenLedger?: () => void,
     ): MenuAction {
         this.time += dt;
         const frame = this.readFrame(input, uiScale, safeUi);
@@ -1226,7 +1229,9 @@ export class MenuRenderer {
         const allowFs = canToggleFullscreen();
         const allowQuit = canQuitApp();
         const pauseItems = PAUSE_ITEMS.filter(item =>
-            (item.id !== "fullscreen" || allowFs) && (item.id !== "quit" || allowQuit),
+            (item.id !== "fullscreen" || allowFs)
+            && (item.id !== "quit" || allowQuit)
+            && (item.id !== "ledger" || showLedgerEntry),
         );
         if (this.pauseSelected >= pauseItems.length) {
             this.pauseSelected = 0;
@@ -1323,6 +1328,15 @@ export class MenuRenderer {
                 this.openPauseSettings();
                 this.emitSound("confirm");
                 return { type: "none" };
+            }
+            if (id === "ledger") {
+                if (onOpenLedger !== undefined) {
+                    onOpenLedger();
+                }
+                this.pauseShowControls = false;
+                this.pauseShowSettings = false;
+                this.emitSound("confirm");
+                return { type: "resume" };
             }
             if (id === "assist") {
                 if (onToggleAssist !== undefined) {

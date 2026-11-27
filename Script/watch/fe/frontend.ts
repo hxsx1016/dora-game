@@ -41,6 +41,7 @@ import { TowerEndingsPlugin } from "Script/watch/fe/cutscenes/tower_endings";
 import { WellMuseumPlugin } from "Script/watch/fe/scenes/well_museum";
 import { ReloadWheelPlugin } from "Script/watch/fe/ui/reload_wheel";
 import { CraftBenchPlugin } from "Script/watch/fe/ui/craft_bench";
+import { RoguelikeUiPlugin } from "Script/watch/fe/ui/roguelike_ui";
 
 export class WatchFrontend {
     private occlusion = new DepthOcclusion();
@@ -70,6 +71,7 @@ export class WatchFrontend {
     readonly hud = new HudRenderer();
     readonly narrative = new NarrativeRenderer();
     readonly menus = new MenuRenderer();
+    readonly roguelikeUi: RoguelikeUiPlugin;
 
     private plugins: FeRenderPlugin[] = [];
 
@@ -137,6 +139,19 @@ export class WatchFrontend {
 
         this.texts = new TextPool(this.uiLayer, 10);
 
+        // 内建肉鸽表现模块（《行军筹签记》）：须在首次 registerPlugin() 触发 syncRuntimeHooks() 前初始化，
+        // 实现 FeRenderPlugin 契约并与 11 枚 M2 分层插件零冲突协同（getPlugins() 严格保持 11 枚）。
+        this.roguelikeUi = new RoguelikeUiPlugin(
+            this.contract,
+            () => this.hud.talentSelected,
+            (idx: number) => {
+                this.hud.talentSelected = idx;
+            },
+        );
+        this.hud.roguelikeUiHandled = true;
+        this.hud.talentRectProvider = (w: number, h: number, count: number, touchMode: boolean, safeTop: number) =>
+            this.roguelikeUi.getTalentCardRects(w, h, count, touchMode, safeTop);
+
         // 合流点 M2：按渲染分层与依赖优先级统一注册 Wave 1 + Wave 2 全部 11 枚前端插件
         // 1. MingArtAuditPlugin（非八房明朝底图拦截 + 材质/灰度/红布校验；lowpoly/museum 态自动礼让）
         // 2. GateTransitionPlugin（风台 24s 转景舞台与遮幅，必须先于 CuffShotsPlugin）
@@ -198,6 +213,9 @@ export class WatchFrontend {
 
     /** 按插件 id 查询当前已挂载实例 */
     getPlugin(id: string): FeRenderPlugin | undefined {
+        if (this.roguelikeUi !== undefined && id === this.roguelikeUi.id) {
+            return this.roguelikeUi;
+        }
         let i = 0;
         for (i = 0; i < this.plugins.length; i++) {
             if (this.plugins[i].id === id) {
@@ -244,6 +262,7 @@ export class WatchFrontend {
             watchFe["wellMuseum"] = this.getPlugin("fe-06-well-museum");
             watchFe["reloadWheel"] = this.getPlugin("fe-02-reload-wheel");
             watchFe["craftBench"] = this.getPlugin("fe-02-craft-bench");
+            watchFe["roguelikeUi"] = this.roguelikeUi;
         }
     }
 
@@ -278,8 +297,8 @@ export class WatchFrontend {
         this.hud.reset(p);
         this.narrative.onEnterRoom(p.room.key);
 
+        const initView = this.contract.peekSnapshot(p);
         if (this.plugins.length > 0) {
-            const initView = this.contract.peekSnapshot(p);
             let i = 0;
             for (i = 0; i < this.plugins.length; i++) {
                 const pl = this.plugins[i];
@@ -288,6 +307,7 @@ export class WatchFrontend {
                 }
             }
         }
+        this.roguelikeUi.onBindPlay(p, initView);
     }
 
     private clearAll(): void {
@@ -452,6 +472,18 @@ export class WatchFrontend {
                 return p.chooseTalent(i);
             }
         }
+        const toggleBox = this.roguelikeUi.getExpandToggleRect();
+        if (toggleBox.width > 0 && toggleBox.containsPoint(pointer)) {
+            this.roguelikeUi.setCompact(this.roguelikeUi.isExpanded());
+            this.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.45, 0.045);
+            return true;
+        }
+        const ledgerBox = this.roguelikeUi.getLedgerButtonRect();
+        if (ledgerBox.width > 0 && ledgerBox.containsPoint(pointer)) {
+            this.roguelikeUi.toggleLedger();
+            this.audio.playUi("ui:ledger_open", "assets/audio/ui/pause_open.wav", 0.56, 0.08);
+            return true;
+        }
         return false;
     }
 
@@ -539,6 +571,7 @@ export class WatchFrontend {
                 pl.update(ctx);
             }
         }
+        this.roguelikeUi.update(ctx);
 
         if (!p.paused) {
             this.time += worldDt;
@@ -614,6 +647,7 @@ export class WatchFrontend {
                 pl.drawActorsOverlay(this.fgDraw, this.fgGlow, this.worldArt, ctx);
             }
         }
+        this.roguelikeUi.drawActorsOverlay(this.fgDraw, this.fgGlow, this.worldArt, ctx);
 
         // 5. 世界空间特效
         this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam);
@@ -643,6 +677,10 @@ export class WatchFrontend {
                     this.contract.toggleAssistHints();
                 },
                 this.stageVp.safeUi,
+                view.roguelike.active,
+                () => {
+                    this.roguelikeUi.openLedger();
+                },
             );
         } else {
             // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写
@@ -655,7 +693,8 @@ export class WatchFrontend {
                 }
             }
 
-            if (!cutsceneHandled) {
+            const roguelikeModal = !cutsceneHandled && this.roguelikeUi.isModalOverlayActive();
+            if (!cutsceneHandled && !roguelikeModal) {
                 const touchOverlayVisible = input.shouldShowTouchControls() && !this.stageVp.isPortrait;
                 this.hud.draw(
                     this.uiDraw,
@@ -676,6 +715,11 @@ export class WatchFrontend {
                     input.retryHoldProgress,
                     touchOverlayVisible,
                 );
+                const suppressBanner = this.roguelikeUi.isSuppressingRoomBanner();
+                const savedBannerT = this.narrative.bannerT;
+                if (suppressBanner) {
+                    this.narrative.bannerT = 0;
+                }
                 this.narrative.draw(
                     this.uiDraw,
                     this.uiInkDraw,
@@ -690,6 +734,9 @@ export class WatchFrontend {
                     input.gamepadLayout,
                     this.stageVp.safeUi,
                 );
+                if (suppressBanner) {
+                    this.narrative.bannerT = savedBannerT;
+                }
             }
 
             let suppressReticle = cutsceneHandled || view.reloadSession.active || view.craftBench.active;
@@ -699,6 +746,10 @@ export class WatchFrontend {
                     && pl.drawFullSpeedUi(this.uiDraw, this.uiInkDraw, this.uiArt, this.uiGlow, ctx)) {
                     suppressReticle = true;
                 }
+            }
+            if (!cutsceneHandled
+                && this.roguelikeUi.drawFullSpeedUi(this.uiDraw, this.uiInkDraw, this.uiArt, this.uiGlow, ctx)) {
+                suppressReticle = true;
             }
             if (!suppressReticle) {
                 this.hud.drawReticleOverlay(

@@ -35,6 +35,7 @@ import {
     deriveInteractActionMeta,
     isCutsceneBlockingPlay,
 } from "Script/watch/fe/ui/control_prompts";
+import { drawTalentGlyph, resolveTalentVisual } from "Script/watch/fe/ui/talent_catalog";
 import {
     PALETTE,
     RGBA,
@@ -174,6 +175,7 @@ export class TouchControls {
     private lastScreen: ScreenKind = "title";
     private lastPlay: Play | undefined;
     private lastRun: RunState | undefined;
+    private portraitTalentCards: { slot: number; id: string; rect: Rect.Type }[] = [];
     private time = 0;
 
     constructor(parent: Node.Type) {
@@ -495,10 +497,11 @@ export class TouchControls {
             });
         }
 
-        // -------- C. 局内直点矩形热区（故事本领卡、世界交互气泡、试炼弹窗）--------
+        // -------- C. 局内直点矩形热区（故事本领卡、行军札记、世界交互气泡、试炼弹窗）--------
+        this.portraitTalentCards = [];
         let prompt: WorldPrompt | undefined;
         if (isPlayMode && p !== undefined && !modal && !cutsceneBlocking) {
-            // 男主线护送三选一本领卡（从舞台 UI 空间换算到叠加层空间，手柄混用触屏时同样可直点）
+            // 男主线护送三选一本领卡（从舞台 UI 空间换算到叠加层空间，手柄混用触屏时同样可直点；单击直接落印）
             if (params.storyTalentBoxes.length > 0) {
                 let ti = 0;
                 for (ti = 0; ti < params.storyTalentBoxes.length; ti++) {
@@ -514,6 +517,46 @@ export class TouchControls {
                             (vy - 6) / overlayScale,
                             (vw + 8) / overlayScale,
                             (vh + 12) / overlayScale,
+                        ),
+                    });
+                }
+
+                // 竖屏掌机台：在下半屏掌机台顶部追加 3 枚大拇指直点筹签键，无需伸手上屏也能单击落印
+                if (isPortrait && overlayActive && vp.deckH >= 220) {
+                    const offers = p.getStoryTalentOffers();
+                    const count = Math.min(offers.length, params.storyTalentBoxes.length);
+                    if (count > 0) {
+                        const padX = Math.max(12, safeL + 10);
+                        const gap = 8;
+                        const availW = ovW - padX * 2;
+                        const cardW = (availW - gap * (count - 1)) / count;
+                        const cardH = 34;
+                        const cardY = vp.deckH - cardH - 8;
+                        for (ti = 0; ti < count; ti++) {
+                            const r = Rect(padX + ti * (cardW + gap), cardY, cardW, cardH);
+                            rectZones.push({ id: "talent:" + ti, rect: r });
+                            this.portraitTalentCards.push({ slot: ti, id: offers[ti], rect: r });
+                        }
+                    }
+                }
+            }
+
+            // 同步左上「札记」按钮热区（若 RoguelikeUiPlugin 已挂载）
+            const g = globalThis as unknown as { package?: { loaded?: Record<string, unknown> } };
+            const watchFe = g.package?.loaded?.["watch.fe"] as Record<string, unknown> | undefined;
+            const rgPlugin = watchFe?.["roguelikeUi"] as { getLedgerButtonRect?: () => Rect.Type } | undefined;
+            if (rgPlugin !== undefined && typeof rgPlugin.getLedgerButtonRect === "function") {
+                const lb = rgPlugin.getLedgerButtonRect();
+                if (lb.width > 0 && lb.height > 0) {
+                    const lx = vp.stageX + lb.x * vp.uiScale;
+                    const ly = vp.stageY + lb.y * vp.uiScale;
+                    rectZones.push({
+                        id: "ledger:toggle",
+                        rect: Rect(
+                            (lx - 4) / overlayScale,
+                            (ly - 4) / overlayScale,
+                            ((lb.width + 8) * vp.uiScale) / overlayScale,
+                            ((lb.height + 8) * vp.uiScale) / overlayScale,
                         ),
                     });
                 }
@@ -1009,9 +1052,11 @@ export class TouchControls {
             this.texts.put("xs", "轻触屏幕再次启程", rx, ry, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.6, 0.94, 0.08);
         }
 
-        // 3. 护送试炼（mode === 2）矩形卡面与结算按钮
+        // 3. 护送试炼（mode === 2）矩形卡面与结算按钮；竖屏主线肉鸽掌机台顶部三筹快键
         if (this.lastMode === 2 && this.lastPlay !== undefined) {
             this.drawTrialZones(ctx, baseAlpha);
+        } else if (this.lastMode === 1 && vp.isPortrait && this.portraitTalentCards.length > 0) {
+            this.drawPortraitStoryTalentCards(baseAlpha);
         }
 
         // 4. 左手虚拟摇杆（非模态、非过场局内绘制）
@@ -1293,6 +1338,37 @@ export class TouchControls {
                 this.padInkDraw.drawSegment(Vec2(fireStick.originX, fireStick.originY), Vec2(fireStick.knobX, fireStick.knobY), 1.4, toColor(PALETTE.rouge, 190));
                 fillCirclePoly(this.padDraw, fireStick.knobX, fireStick.knobY, 12, toColor(PALETTE.rouge, 210), 1.2, toColor(PALETTE.crimsonCore, 240), 16);
             }
+        }
+    }
+
+    private drawPortraitStoryTalentCards(alpha: number): void {
+        let i = 0;
+        for (i = 0; i < this.portraitTalentCards.length; i++) {
+            const card = this.portraitTalentCards[i];
+            const meta = resolveTalentVisual(card.id);
+            const r = card.rect;
+            const cy = r.y + r.height * 0.5;
+            this.padDraw.drawRoundedRect(
+                r,
+                5,
+                toColor(PALETTE.panelBgDeep, Math.round(228 * alpha)),
+                1.2,
+                toColor(meta.accent, Math.round(215 * alpha)),
+            );
+            drawTalentGlyph(this.padInkDraw, r.x + 17, cy, 8.5, card.id, meta.accent, Math.min(1, alpha + 0.1), meta.accentCore);
+            this.texts.put(
+                "xs",
+                meta.title + " · 落印",
+                r.x + 31,
+                cy,
+                toColor(meta.accentCore),
+                0,
+                0.5,
+                TextAlign.Left,
+                0.4,
+                Math.min(1, alpha + 0.12),
+                0.08,
+            );
         }
     }
 

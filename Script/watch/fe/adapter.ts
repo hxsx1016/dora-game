@@ -79,6 +79,19 @@ export interface FrameEvents {
     museumStep: boolean;
     museumStepName: string;
     museumDone: boolean;
+    /** 肉鸽成长与战备交互事件（零侵入增量字段，供 RoguelikeUiPlugin 消费）。 */
+    talentPicked: boolean;
+    talentPickedId: string;
+    talentPickedRank: number;
+    campaignFailedReset: boolean;
+    campaignFailedRoom: string;
+    pickupTaken: boolean;
+    pickupKind: string;
+    pickupLabel: string;
+    pickupRejected: boolean;
+    pickupRejectedKind: string;
+    craftStarted: boolean;
+    craftDone: boolean;
     /** 本帧由唯一 drainEvents() 入口按 seq 升序取出的原始模拟事件（0 步帧与暂停帧为空） */
     rawEvents: PlayEvent[];
     /** 单调递增的已消费事件序号（供音频与插件防重播核对） */
@@ -151,6 +164,18 @@ export function createEmptyFrameEvents(
         museumStep: false,
         museumStepName: "",
         museumDone: false,
+        talentPicked: false,
+        talentPickedId: "",
+        talentPickedRank: 0,
+        campaignFailedReset: false,
+        campaignFailedRoom: "",
+        pickupTaken: false,
+        pickupKind: "",
+        pickupLabel: "",
+        pickupRejected: false,
+        pickupRejectedKind: "",
+        craftStarted: false,
+        craftDone: false,
         rawEvents: [],
         eventSeq,
         roomSessionId,
@@ -306,6 +331,18 @@ export class PlayAdapter {
         let ending = "";
         let endingOfficial = false;
         let endingLines: string[] = [];
+        let talentPicked = false;
+        let talentPickedId = "";
+        let talentPickedRank = 0;
+        let campaignFailedReset = false;
+        let campaignFailedRoom = "";
+        let pickupTaken = false;
+        let pickupKind = "";
+        let pickupLabel = "";
+        let pickupRejected = false;
+        let pickupRejectedKind = "";
+        let craftStarted = false;
+        let craftDone = false;
         for (const event of rawEvents) {
             this.eventSeq += 1;
             eventSummary.push(event.seq + "@" + event.tick + ":" + event.name);
@@ -389,6 +426,24 @@ export class PlayAdapter {
                 endingLines = Array.isArray(event.data.lines)
                     ? (event.data.lines as unknown[]).map((v) => (typeof v === "string" ? v : ""))
                     : [];
+            } else if (event.name === "storyBeat" && event.data.beat === "talent_picked") {
+                talentPicked = true;
+                talentPickedId = typeof event.data.talent === "string" ? event.data.talent : "";
+                talentPickedRank = typeof event.data.rank === "number" ? event.data.rank : 1;
+            } else if (event.name === "campaignFailed" && event.data.reset === true) {
+                campaignFailedReset = true;
+                campaignFailedRoom = typeof event.data.room === "string" ? event.data.room : "";
+            } else if (event.name === "pickup") {
+                pickupTaken = true;
+                pickupKind = typeof event.data.kind === "string" ? event.data.kind : "";
+                pickupLabel = typeof event.data.label === "string" ? event.data.label : "";
+            } else if (event.name === "pickupRejected") {
+                pickupRejected = true;
+                pickupRejectedKind = typeof event.data.kind === "string" ? event.data.kind : "";
+            } else if (event.name === "craftStart") {
+                craftStarted = true;
+            } else if (event.name === "craftDone") {
+                craftDone = true;
             }
         }
 
@@ -467,6 +522,18 @@ export class PlayAdapter {
             museumStep,
             museumStepName,
             museumDone,
+            talentPicked,
+            talentPickedId,
+            talentPickedRank,
+            campaignFailedReset,
+            campaignFailedRoom,
+            pickupTaken,
+            pickupKind,
+            pickupLabel,
+            pickupRejected,
+            pickupRejectedKind,
+            craftStarted,
+            craftDone,
 
             rawEvents,
             eventSeq: this.eventSeq,
