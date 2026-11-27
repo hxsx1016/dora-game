@@ -6137,7 +6137,7 @@ export class Play {
     private drawActors(draw: DrawNode.Type, w: number, h: number): void {
         const p = this.player;
         const isChild = this.childMode;
-        const footY = p.y + p.depth;
+        const footY = p.y + p.depth * DEPTH_Y_SCALE;
         // 贴住掩体时在身前画一条短竖线，和「压低的肩」一起表示真的靠住了。
         if (p.covered) {
             const edge = p.x + p.facing * (p.w / 2 + 2);
@@ -6158,7 +6158,7 @@ export class Play {
         for (i = 0; i < this.enemies.length; i++) {
             const e = this.enemies[i];
             const col = e.alive ? ENEMY_BODY : ENEMY_DEAD;
-            const enemyY = e.y + (e.depth ?? 0);
+            const enemyY = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE;
             this.drawBox(draw, w, h, e.x - e.w / 2, e.x + e.w / 2, enemyY, enemyY + e.h, col);
             if (e.alive) {
                 const ef = p.x >= e.x ? 1 : -1;

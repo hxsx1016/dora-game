@@ -1,5 +1,5 @@
 -- 《向西守望》肉鸽前端《行军筹签记》（fe-roguelike-ui）专项验收脚本
--- 覆盖：双态木简选筹 + 0.25x 表现层轻慢时不阻模拟 + 触屏单击直选与竖屏下台三筹 +
+-- 覆盖：双态木简选筹 + 0.25x 表现层轻慢时与选筹冻结 + 触屏单击直选与竖屏下台三筹 +
 -- 朱砂落印与墨芒归身 + escort 战备行囊修复 + 行军札记与动态雅号 + 2.5D 世界层反馈 +
 -- 险段告破与折筹重整跨 bindPlay 留痕 + 未来新天赋兜底 + 暂停冻结。
 
@@ -15,10 +15,10 @@ local rooms = require("Script.watch.rooms")
 local playmod = require("Script.watch.play")
 local runmod = require("Script.watch.run")
 local inputmod = require("Script.watch.input")
-local touchmod = require("Script.watch.touch")
+package.loaded["watch.target"] = "web"
+require("Script.watch.target").resetActiveTarget()
 local platform = require("Script.watch.platform")
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
-local TouchControls = require("Script.watch.fe.ui.touch_controls").TouchControls
 local catalog = require("Script.watch.fe.ui.talent_catalog")
 
 local PASS, FAIL = 0, 0
@@ -58,7 +58,7 @@ check("1.1 RoguelikeUiPlugin 挂载并保留 M2 11 枚分层插件零回归",
 	rgPlugin ~= nil and fe.roguelikeUi == rgPlugin and #fe:getPlugins() == 11,
 	"plugins=" .. tostring(#fe:getPlugins()))
 
--- ==================== 2. 真实男主线 escort1：展卷 0.25x 轻慢时、非阻塞走位自动收束、停步复展 ====================
+-- ==================== 2. 真实男主线 escort1：展卷 0.25x 轻慢时、移动输入自动收束、停步复展 ====================
 do
 	local r = runmod.createRun(20261127, "official")
 	r.story.route = "soldier"
@@ -83,7 +83,7 @@ do
 		and approx(snapExp.timeScale, 0.25, 0.04),
 		string.format("state=%s scale=%.2f offers=%d", stExp.drawerState, snapExp.timeScale, #stExp.offers))
 
-	-- 关键回归防护：展卷轻慢时仅作用于前端表现层，不阻塞 Play.update 模拟步；向右移动自动收束并恢复 1.0x
+	-- 关键回归防护：展卷轻慢时仅作用于前端表现层，选筹期间暂停 Play 模拟步；向右移动自动收束并恢复 1.0x
 	local tBefore = p.ticks
 	inp.moveX = 1
 	for _ = 1, 12 do
@@ -92,8 +92,8 @@ do
 	end
 	local stCmp = rgPlugin:getState()
 	local snapCmp = fe.contract:getLastSnapshot()
-	check("2.2 移动时 Play.update 零阻塞，同时三筹自动柔顺收束并恢复 1.0x 常速",
-		p.ticks == tBefore + 12 and stCmp.drawerState == "compact"
+	check("2.2 选筹期间模拟拍冻结，同时三筹自动柔顺收束并恢复 1.0x 常速",
+		p.ticks == tBefore and stCmp.drawerState == "compact"
 		and approx(stCmp.focusTimeScale, 1.0, 0.04)
 		and approx(snapCmp.timeScale, 1.0, 0.04),
 		string.format("ticks=%d state=%s scale=%.2f", p.ticks, stCmp.drawerState, snapCmp.timeScale))
@@ -156,10 +156,9 @@ do
 	r.story.settled = true
 	local p = new(playmod.Play, rooms.ESCORT2_ROOM, nil, r)
 	local inp = newInput()
-	local router = new(touchmod.TouchRouter)
-	inp:bindTouch(router)
+	inp:attach(root, {})
+	local router, ctrl = inp:getTouchRouter(), inp:getTouchControls()
 	inp:setModePref("touch")
-	local ctrl = new(TouchControls, root)
 
 	local vpPort = platform.computeStageViewport(430, 932)
 	inp:setStageViewport(vpPort)
@@ -170,7 +169,7 @@ do
 	local boxes = fe:getStoryTalentBoxes(p, vpPort.stageW, vpPort.stageH, true)
 	local tctx = ctrl:syncContext({
 		viewport = vpPort, mode = 1, screen = "play", play = p, run = r, cam = fe.cam,
-		input = inp, router = router, assistHintsEnabled = false, isMuted = false,
+		overlayActive = true, allowAutoGameplayTouch = true, allowMouseOnOverlay = true, router = router, assistHintsEnabled = false, isMuted = false,
 		isFullscreen = false, storyTalentBoxes = boxes, dt = 1 / 60,
 	})
 	ctrl:render(router)
@@ -194,29 +193,29 @@ do
 		lowerZone ~= nil and tapZoneOk,
 		"zoneTap=" .. tostring(inp.touchZoneTap))
 
-	-- 暂停菜单：索引 8 仍为操控设置，索引 9 为「行军札记」且选定后退出暂停并直接展开札记
+	-- 暂停菜单：Web 省略退出项，索引 7 为操控设置，索引 8 为「行军札记」且选定后退出暂停并直接展开札记
 	local vpLand = platform.computeStageViewport(1280, 720)
 	inp:setStageViewport(vpLand)
 	fe:setStagePlacement(vpLand)
 	inp:setModePref("kbm")
 	p.paused = true
 	fe.menus:openPause()
-	fe.menus.pauseSelected = 8
+	fe.menus.pauseSelected = 7
 	inp.navConfirm = true
 	fe:renderPlay(1 / 60, p, inp, 1280, 720)
-	local idx8IsSettings = fe.menus:isShowingPauseSettings()
+	local settingsOpened = fe.menus:isShowingPauseSettings()
 	inp.navConfirm = false
 
 	fe.menus:openPause()
-	fe.menus.pauseSelected = 9
+	fe.menus.pauseSelected = 8
 	inp.navConfirm = true
 	local act = fe:renderPlay(1 / 60, p, inp, 1280, 720)
 	inp.navConfirm = false
 	p.paused = false
 	fe:renderPlay(1 / 60, p, inp, 1280, 720)
-	check("3.2 暂停菜单索引 8 保持操控设置零回归，索引 9「行军札记」恢复并展开宣纸构筑页",
-		idx8IsSettings == true and act.type == "resume" and rgPlugin:isLedgerOpen() == true,
-		string.format("idx8=%s act=%s ledger=%s", tostring(idx8IsSettings), tostring(act.type), tostring(rgPlugin:isLedgerOpen())))
+	check("3.2 暂停菜单Web 索引 7 打开操控设置，索引 8「行军札记」恢复并展开宣纸构筑页",
+		settingsOpened == true and act.type == "resume" and rgPlugin:isLedgerOpen() == true,
+		string.format("settings=%s act=%s ledger=%s", tostring(settingsOpened), tostring(act.type), tostring(rgPlugin:isLedgerOpen())))
 	rgPlugin:closeLedger()
 end
 
@@ -235,7 +234,7 @@ do
 		seed = 20261127,
 		ticks = 7200,
 		offers = {},
-		ranks = { vitality = 2, guard = 2, reload = 1, craft = 1 },
+		ranks = { vitality = 2, guard = 2, focus = 1, salvage = 1 },
 		equippedWeapon = "guide_lantern_gun",
 		supplies = { wood = 2, bell = 1, wedge = 1, shield = 1 },
 		activeInvulnTicks = 28,
@@ -252,13 +251,13 @@ do
 
 	-- 4.2 多流派「行军雅号」派生校验
 	local tLamp = catalog.deriveMarchTitle({
-		ranks = { reload = 2 }, totalRanks = 2, equippedWeapon = "guide_lantern_gun", supplies = {},
+		ranks = { focus = 2 }, totalRanks = 2, equippedWeapon = "guide_lantern_gun", supplies = {},
 	})
 	local tEcho = catalog.deriveMarchTitle({
-		ranks = { reload = 2 }, totalRanks = 2, equippedWeapon = "echo_gun", supplies = {},
+		ranks = { focus = 2 }, totalRanks = 2, equippedWeapon = "echo_gun", supplies = {},
 	})
 	local tCraft = catalog.deriveMarchTitle({
-		ranks = { craft = 2 }, totalRanks = 2, equippedWeapon = "standard_gun", supplies = { wedge = 1 },
+		ranks = { salvage = 2 }, totalRanks = 2, equippedWeapon = "standard_gun", supplies = { wedge = 1 },
 	})
 	check("4.2 动态行军雅号覆盖多流派（明火疾铳 / 惊铃连响 / 巧楔筑垒）",
 		tLamp.title == "明火疾铳" and tEcho.title == "惊铃连响" and tCraft.title == "巧楔筑垒",
@@ -267,7 +266,7 @@ do
 	-- 4.3 未知未来天赋 ID 兜底零崩溃 + submitIntent(chooseTalent) 闭环
 	fe.contract:setMockRoguelike({
 		active = true,
-		offers = { "vitality", "night_watch", "craft" },
+		offers = { "vitality", "night_watch", "salvage" },
 		talentLabelHints = { night_watch = "夜哨·视野延展" },
 	})
 	fe:renderPlay(1 / 60, p, inp, 1280, 720)
@@ -287,7 +286,7 @@ do
 	r.story.route = "soldier"
 	r.story.settled = true
 	r.story.talents.ranks.vitality = 1
-	r.story.talents.ranks.reload = 1
+	r.story.talents.ranks.focus = 1
 	local p4 = new(playmod.Play, rooms.ESCORT4_ROOM, nil, r)
 	local inp = newInput()
 	fe:bindPlay(p4, 1280, 720)
@@ -308,26 +307,24 @@ do
 	p4.run.story.talents.ranks.guard = 2
 	p4.hp = 0
 	p4:campaignFailed()
-	local leaving = p4:drainEvents()
-	local p1 = new(playmod.Play, rooms.ESCORT1_ROOM, nil, r)
-	fe:bindPlay(p1, 1280, 720)
-	p1:adoptEvents(leaving)
-	fe:renderPlay(1 / 60, p1, inp, 1280, 720)
+	fe:renderPlay(1 / 60, p4, inp, 1280, 720)
 	local stRecap = rgPlugin:getState()
-	check("5.2 战死重置触发「折筹重整 · 残筹散墨」复盘幕，重绑首房后仍显示最后一拍的武器和本领",
+	check("5.2 战死重置触发「折筹重整 · 残筹散墨」复盘幕，确认前显示上一轮武器和本领",
 		stRecap.deathRecapActive == true and stRecap.deathRecapRoom == "escort4" and stRecap.deathRecapCount == 4
 		and rgPlugin.deathRecapSnap.ranks.guard == 2 and rgPlugin.deathRecapSnap.weaponId == "echo_gun"
-		and rgPlugin.deathRecapSnap.seed == r.seed and p1.equippedWeapon == "standard_gun",
+		and rgPlugin.deathRecapSnap.seed == p4.escortSummary.seed and p4.equippedWeapon == "standard_gun",
 		string.format("active=%s room=%s count=%d", tostring(stRecap.deathRecapActive), stRecap.deathRecapRoom, stRecap.deathRecapCount))
 
-	-- 暂停期间冻结演出计时
-	p1.paused = true
-	for _ = 1, 150 do
-		fe:renderPlay(1 / 60, p1, inp, 1280, 720)
+	-- 等待数秒后仍可选择，确认后才绑定新一轮首房。
+	for _ = 1, 240 do
+		fe:renderPlay(1 / 60, p4, inp, 1280, 720)
 	end
-	check("5.3 暂停态严格冻结折筹重整演出计时（2.5 秒不消退）",
-		rgPlugin:getState().deathRecapActive == true)
-	p1.paused = false
+	check("5.3 小结等待确认", rgPlugin:getState().deathRecapActive and p4.wantRoom == "")
+	assert(p4:confirmEscortRestart() and p4.wantRoom == "escort1")
+	local p1 = new(playmod.Play, rooms.ESCORT1_ROOM, nil, r)
+	fe:bindPlay(p1, 1280, 720)
+	check("5.4 新一轮首房可直接选筹", not rgPlugin:getState().deathRecapActive and #fe:getStoryTalentBoxes(p1, 1280, 720, false) == 3)
+
 end
 
 root:cleanup()

@@ -217,17 +217,15 @@ const CAMPAIGN_STAGE_SPECS: readonly { key: string; label: string; isBench: bool
 
 function computeDerivedReloadTicks(ranks: Record<string, number>, supplies: Record<string, number>): number {
     const base = (supplies["quickbelt"] ?? 0) > 0 ? 36 : 54;
-    const rel = ranks["reload"] ?? 0;
-    const crf = ranks["craft"] ?? 0;
-    return Math.max(6, base - 6 * rel - 3 * crf);
+    return base;
 }
 
 function computeDerivedInvulnTicks(ranks: Record<string, number>): number {
-    return BASE_INVULN_HIT_TICKS + 12 * (ranks["guard"] ?? 0);
+    return BASE_INVULN_HIT_TICKS + 15 * (ranks["guard"] ?? 0);
 }
 
 function computeDerivedCraftTicks(ranks: Record<string, number>): number {
-    return Math.max(6, BASE_CRAFT_TICKS - 6 * (ranks["craft"] ?? 0));
+    return Math.max(6, BASE_CRAFT_TICKS - 6 * (ranks["salvage"] ?? 0));
 }
 
 function buildStageNodes(
@@ -1100,20 +1098,8 @@ export class DualRouteContract {
         for (i = 0; i < rawOffers.length; i++) {
             offers.push(rawOffers[i]);
         }
-        if (offers.length === 0 && p.run.trial !== undefined && p.run.trial.offers.length > 0) {
-            for (i = 0; i < p.run.trial.offers.length; i++) {
-                offers.push(p.run.trial.offers[i]);
-            }
-        }
-
-        const ranks: Record<string, number> = { vitality: 0, reload: 0, guard: 0, craft: 0 };
-        const storyRanks = p.getStoryTalentRanks();
-        const fallbackStoryRanks = asRecord(asRecord(storyRec !== undefined ? storyRec["talents"] : undefined)?.["ranks"]);
-        const srcRanks: Record<string, unknown> | undefined = storyRanks !== undefined
-            ? (storyRanks as unknown as Record<string, unknown>)
-            : (p.run.trial !== undefined
-                ? (p.run.trial.ranks as unknown as Record<string, unknown>)
-                : fallbackStoryRanks);
+        const ranks: Record<string, number> = {};
+        const srcRanks = p.getStoryTalentRanks() as Record<string, number> | undefined;
         let totalRanks = 0;
         if (srcRanks !== undefined) {
             for (const k in srcRanks) {

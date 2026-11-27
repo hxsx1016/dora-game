@@ -28,7 +28,7 @@ import {
     RoguelikeStageNode,
 } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { keyTagFor } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import { RELOAD_GRID, drawReloadPatternGlyph } from "Script/watch/fe/ui/reload_wheel";
 import {
     PICKUP_ORDER,
@@ -200,6 +200,23 @@ function stageReadableName(roomKey: string): string {
     return themeOf(roomKey).titleZh;
 }
 
+export function computeEscortDeathButtons(
+    uiW: number,
+    uiH: number,
+): { retry: Rect.Type; title: Rect.Type } {
+    const cx = uiW * 0.5;
+    const panelH = Math.min(390, Math.max(320, uiH - 170));
+    const py = (uiH - panelH) * 0.5;
+    const btnW = 216;
+    const btnH = 44;
+    const btnY = py + 34;
+    const gap = 28;
+    return {
+        retry: Rect(cx - btnW - gap * 0.5, btnY, btnW, btnH),
+        title: Rect(cx + gap * 0.5, btnY, btnW, btnH),
+    };
+}
+
 export class RoguelikeUiPlugin implements FeRenderPlugin {
     readonly id = "fe-roguelike-ui";
 
@@ -256,6 +273,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
     private segmentBannerT = 0;
     private segmentBannerHeadline = "";
     private segmentBannerSub = "";
+    deathSelected = 0;
     private deathRecapT = 0;
     private deathRecapSnap: DeathRecapSnapshot | undefined;
 
@@ -408,6 +426,9 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
     }
 
     onBindPlay(_p: Play, view: DualRouteSnapshot): void {
+        this.deathRecapSnap = undefined;
+        this.deathRecapT = 0;
+        this.deathSelected = 0;
         const rg = view.roguelike;
         this.manualCompact = false;
         this.expandAnimT = 0;
@@ -436,16 +457,16 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
             this.contract.setFocusTimeScale(1);
         }
         this.resetInputEdges();
-        // 注意：segmentBannerT 与 deathRecapT 刻意跨 bindPlay 保留，承载切房/战死重置的情绪转场！
+        // 过段横幅跨房保留，死亡小结只停留在阵亡房间。
     }
 
     private resetInputEdges(): void {
-        if (typeof Keyboard !== "undefined") {
+        if (getActiveTarget().supportsKbm && typeof Keyboard !== "undefined") {
             this.prevKeyV = Keyboard.isKeyPressed(KeyName.V);
             this.prevKeyEsc = Keyboard.isKeyPressed(KeyName.Escape);
             this.prevKeyBack = Keyboard.isKeyPressed(KeyName.BackSpace);
         }
-        this.prevLeftDown = typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
+        this.prevLeftDown = getActiveTarget().supportsKbm && typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
     }
 
     private startSealAnimation(talentId: string, ctx: FePluginContext): void {
@@ -480,7 +501,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         };
         this.drawerState = "sealing";
         this.hoverSlot = -1;
-        ctx.input.getTouch()?.vibrate(0.024);
+        ctx.input.vibrate(0.024);
         if (ctx.view.backCarry.active) {
             this.xiaomanRippleT = 0.78;
         }
@@ -523,6 +544,11 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
             this.segmentBannerT = SEGMENT_BANNER_DURATION;
         }
 
+        const summary = ctx.p.escortSummary;
+        if (ctx.p.escortFailed && summary && this.deathRecapSnap === undefined) {
+            this.showDeathRecap(summary.roomKey, summary.ranks, summary.equippedWeapon, summary.seed);
+            this.closeLedger();
+        }
         const fallen = ctx.events.fallenBuild;
         if (ctx.events.campaignFailedReset && fallen !== undefined) {
             this.showDeathRecap(ctx.events.campaignFailedRoom, fallen.ranks, fallen.weaponId, fallen.seed);
@@ -587,7 +613,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
                 || ctx.input.interact.pressed
                 || ctx.input.navConfirm
             );
-            this.deathRecapT = Math.max(0, this.deathRecapT - udt * (wantSkip ? 4.2 : 1.0));
+            this.deathRecapT = Math.max(ctx.p.escortFailed ? 0.5 : 0, this.deathRecapT - udt * (wantSkip ? 4.2 : 1.0));
         }
 
         // 5. 监测本领选定（无论通过 1/2/3、鼠标、触屏单击、手柄 L3 还是排演 submitIntent）
@@ -641,7 +667,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         }
 
         // 7. 双态自适应（展卷 ↔ 收束）与键鼠/触屏/手柄交互
-        const modalBlocking = ctx.view.reloadSession.active || ctx.view.craftBench.active;
+        const modalBlocking = ctx.p.escortFailed || ctx.view.reloadSession.active || ctx.view.craftBench.active;
         this.processLedgerAndCardInputs(ctx, rg, modalBlocking);
 
         if (this.sealAnim === undefined && hasOffers) {
@@ -738,7 +764,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         let vPressed = false;
         let escPressed = false;
         let backPressed = false;
-        if (typeof Keyboard !== "undefined") {
+        if (getActiveTarget().supportsKbm && typeof Keyboard !== "undefined") {
             const vDown = Keyboard.isKeyPressed(KeyName.V);
             const escDown = Keyboard.isKeyPressed(KeyName.Escape);
             const backDown = Keyboard.isKeyPressed(KeyName.BackSpace);
@@ -963,7 +989,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
             const rx = px + facing * cam.len(14);
             const ry = headY + cam.len(4);
             const rr = Math.max(9, cam.len(10));
-            const hasReloadRank = (rg.ranks["reload"] ?? 0) > 0;
+            const hasReloadRank = (rg.ranks["focus"] ?? 0) > 0;
             const arcCol = hasReloadRank ? PALETTE.amberCore : PALETTE.silkLine;
             drawBrushArc(fgDraw, rx, ry, rr, rr, Math.PI * 0.15, Math.PI * 0.85, 1.4, toColor(PALETTE.inkWash, 160), 10);
             const endA = Math.PI * 0.85 - (Math.PI * 0.70) * prog;
@@ -1019,7 +1045,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
     ): boolean {
         const rg = ctx.view.roguelike;
         const safe = ctx.safeUi ?? ZERO_SAFE_INSETS;
-        const modalBlocking = ctx.view.reloadSession.active || ctx.view.craftBench.active;
+        const modalBlocking = ctx.p.escortFailed || ctx.view.reloadSession.active || ctx.view.craftBench.active;
 
         // 1. 模块 B：常驻肉鸽 HUD（北行舆图丝线 + 本领微章带 + 随身战备行囊条；札记/折筹全幕态自动静隐）
         if (rg.active && !modalBlocking && !this.ledgerOpen && this.deathRecapT <= 0.15) {
@@ -1164,7 +1190,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
 
         // 1. 收集所有已习得本领（保留固定次序 + 动态追加新天赋）
         const learnedIds: string[] = [];
-        const baseOrder = ["vitality", "reload", "guard", "craft"];
+        const baseOrder = ["vitality", "guard", "stride", "focus", "push_force", "echo_wide", "lantern_pierce", "salvage"];
         let i = 0;
         for (i = 0; i < baseOrder.length; i++) {
             if ((rg.ranks[baseOrder[i]] ?? 0) > 0) {
@@ -1188,8 +1214,8 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
             const badgeW = 62;
             const pulse = this.crestPulseMap[tid] ?? 0;
             const activeNow = (tid === "guard" && rg.activeInvulnTicks > 0)
-                || (tid === "reload" && rg.activeReloadTicks > 0)
-                || (tid === "craft" && rg.activeCraftTicks > 0);
+                || (tid === "focus" && rg.activeReloadTicks > 0)
+                || (tid === "salvage" && rg.activeCraftTicks > 0);
             const glowBoost = Math.max(pulse, activeNow ? (0.55 + 0.35 * Math.sin(this.animTime * 8)) : 0);
 
             if (glowBoost > 0.02) {
@@ -1411,7 +1437,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         drawSilkVeil(uiDraw, uiArt, "rg_exp_head_veil", cx, headY, 440, 30, PALETTE.inkWash, 0.78 * appear, -1);
         drawHairline(uiInkDraw, uiArt, "rg_exp_head_line", cx, headY + 15, 360, PALETTE.amber, 0.54 * appear, true, 2);
         const headText = mode === "gamepad"
-            ? ("途中整备 · 择一军筹（LB/RB 择项 · " + keyTagFor("confirm", "gamepad", ctx.input.gamepadLayout) + " / L3 落印）")
+            ? ("途中整备 · 择一军筹（LB/RB 择项 · " + getActiveTarget().keyTagFor("confirm", "gamepad", ctx.input.gamepadLayout) + " / L3 落印）")
             : (touchMode
                 ? "途中整备 · 择一军筹 · 轻触卡面直接落印"
                 : "途中整备 · 择一军筹 · 按 1 / 2 / 3 或点击落印");
@@ -1862,6 +1888,17 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         const summary = "止步于「" + snap.stageName + "」 · " + countText + " · " + weaponMetaOf(snap.weaponId).name + " · 筹散人安，重整再护";
         ctx.texts.put("sm", summary, cx, cy - 48, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.0, 0.94 * alpha, 0.08);
         ctx.texts.put("xs", "新一轮护送将自城外巷路再启", cx, cy - 82, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.78 * alpha, 0.06);
+        if (ctx.p.escortFailed) {
+            const btns = computeEscortDeathButtons(ctx.uiW, ctx.uiH);
+            const boxes = [btns.retry, btns.title];
+            for (let i = 0; i < boxes.length; i++) {
+                const box = boxes[i];
+                const color = i === this.deathSelected ? PALETTE.amberCore : PALETTE.silkLine;
+                uiDraw.drawRoundedRect(box, 4, toColor(PALETTE.inkWash, 220), 1.2, toColor(color));
+                ctx.texts.put("sm", i === 0 ? "重整再赴" : "返回标题", box.x + box.width / 2,
+                    box.y + box.height / 2, toColor(color), 0.5, 0.5, TextAlign.Center);
+            }
+        }
     }
 
     // ---------- 模块 C：「行军札记」宋明宣纸对折构筑总览页 ----------

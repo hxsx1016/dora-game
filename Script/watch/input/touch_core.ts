@@ -1,15 +1,12 @@
 /**
- * 《向西守望》统一多指触控路由内核（全应用唯一全屏 Touch 仲裁节点）。
+ * 《向西守望》多指触控路由内核（仅安卓、安卓掌机与 Web 目标引入）。
  *
- * 设计原则：
- * 1. 全应用仅此一处挂载 Size(0, 0) 全屏触控节点，消灭 android / web / handheld 三套触控监听打架；
- * 2. 按 touch.id 维护每根手指的独占归属（modal / stick / btn / zone / aim_canvas），多指并发零串触；
- * 3. 完整理解 StageViewport：
- *    - 按钮、摇杆、矩形热区在叠加层逻辑坐标（overlayScale）内命中；
- *    - 舞台内瞄准与模态 UI 指针通过 viewToStage() 输出主舞台局部坐标，横屏/竖屏掌机台零误差；
- * 4. 精准区分真实手指与 SDL 合成假鼠标（touch.fromMouse），既彻底杜绝安卓左手摇杆误射，
- *    又允许安卓/掌机外接物理键鼠无缝切换，且支持竖屏/常显触控下用鼠标点按虚拟按钮便于调试评审；
- * 5. 手柄模式下可保持战斗虚拟按键隐藏，同时继续承接菜单、3×3 换弹盘、工台与本领卡的混合触屏操作。
+ * 优化特性：
+ * - enableMouseCompat=false（安卓与掌机）：直接忽略鼠标合成事件，省去假鼠标保护窗与鼠标覆盖层分支；
+ * - enablePortrait=false（掌机）：跳过竖屏掌机区坐标判定；
+ * - enableMouseCompat=true + enablePortrait=true（Web）：保留完整桌面鼠标点按竖屏台与 250ms 假鼠标隔离。
+ *
+ * 注意：Windows 发行包不引入、不打包本模块。
  */
 
 import { Node, Rect, Size, Touch, Vec2 } from "Dora";
@@ -18,7 +15,7 @@ import {
     pickSmartFireTarget,
     snapConeAim,
     snapPointAim,
-} from "Script/watch/aim_assist";
+} from "Script/watch/input/aim_assist";
 import {
     ControlSettings,
     TOUCH_OPACITY_STEPS,
@@ -28,11 +25,11 @@ import {
     saveControlSettings,
 } from "Script/watch/controls_config";
 import {
-    StageViewport,
-    computeStageViewport,
-    triggerHaptics,
+    computeLandscapeSafeViewport,
+    triggerMobileHaptics,
     viewToStage,
-} from "Script/watch/platform";
+} from "Script/watch/platform_mobile";
+import { StageViewport } from "Script/watch/target_types";
 
 export type TouchButtonId =
     | "interact"
@@ -57,10 +54,8 @@ export type TouchAccent = "cyan" | "amber" | "rouge" | "emerald" | "silk";
 
 export interface TouchButtonSpec {
     id: TouchButtonId;
-    /** 叠加层逻辑空间中心坐标（view / overlayScale） */
     x: number;
     y: number;
-    /** 圆形命中视觉半径（rect 未填时生效） */
     r: number;
     label: string;
     subLabel?: string;
@@ -71,61 +66,38 @@ export interface TouchButtonSpec {
     dimmed: boolean;
     shape?: "circle" | "pill";
     toggle?: boolean;
-    /** 可选矩形命中区（用于顶栏胶囊钮或姿态切换胶囊） */
     rect?: Rect.Type;
 }
 
 export interface TouchRectZone {
     id: string;
-    /** 叠加层逻辑空间矩形热区（view / overlayScale） */
     rect: Rect.Type;
 }
 
 export interface TouchFrameContext {
     viewport: StageViewport;
-    /** 叠加层逻辑坐标缩放：横屏等于 viewport.uiScale，竖屏等于 1.0 */
     overlayScale: number;
-    /** 虚拟触控界面当前是否显示并可交互（横屏触屏态或竖屏掌机态为 true） */
     overlayActive: boolean;
-    /** 自动模式下是否允许空白画面首次触碰直接响应摇杆/开火并切入触屏模式 */
     allowAutoGameplayTouch: boolean;
-    /** 是否允许鼠标事件点按虚拟按钮与竖屏下掌机摇杆（竖屏或手动锁定触屏模式时为 true） */
     allowMouseOnOverlay: boolean;
-    /** 标题/选章/操作说明/暂停/换弹盘/工台/试炼弹窗等模态界面 */
     modal: boolean;
-    /** 是否处于可操作局内态（mode === 1 正式或 mode === 2 护送试炼） */
     gameplayActive: boolean;
-    /** 电影过场接管期间隐藏战斗按钮，仅保留顶栏暂歇与北塔尾声轻触 */
     cutsceneBlocking: boolean;
     childMode: boolean;
-    /** 是否允许上下纵深移动（周戍全房 + 序章逃柜） */
     allowDepth: boolean;
-    /** 是否允许右屏空白直点/摇杆开火 */
     canShoot: boolean;
-    /** 是否处于空村持瓶可投状态 */
     canBottleAim: boolean;
-    /** 靠近板车车把或正在握车把（未落窝） */
     cartNearby: boolean;
-    /** 后端当前是否正处于 gripping 态 */
     cartGripping: boolean;
-    /** C2 粮棚后端用点按 E 切换握柄；检查站/城外用持续按住 E */
     cartUsesToggle: boolean;
-    /** 靠近掩体 */
     coverNear: boolean;
-    /** 正在翻滚 */
     playerRolling: boolean;
-    /** 处于低拱强制低姿区 */
     inLowArch: boolean;
-    /** 北塔尾声可点按重开 */
     inTowerEnd: boolean;
-    /** 主角朝向（1 右 / -1 左） */
     playerFacing: number;
-    /** 主角枪口/身体在主舞台局部空间的锚点 */
     playerScreenX: number;
     playerScreenY: number;
-    /** 当前房内可见活体敌兵列表（主舞台局部坐标） */
     enemyTargets: AimTargetCandidate[];
-    /** 摇杆热区与基准几何（叠加层逻辑坐标） */
     stickZoneMaxX: number;
     stickZoneMaxY: number;
     stickDefaultX: number;
@@ -169,17 +141,11 @@ export interface TouchBottleDragVisual {
 }
 
 export interface TouchSnapshot {
-    /** 本帧是否收到真实手指（!fromMouse）触控事件 */
     hadRealTouch: boolean;
-    /** 真实手指是否作用于局内虚拟操控/战场（用于自动模式切入 touch） */
     hadGameplayTouch: boolean;
-    /** 真实手指是否作用于菜单/换弹盘/工台/本领卡等 UI */
     hadUiTouch: boolean;
-    /** 本帧是否有任意真实手指按下（供 Splash 跳过与 Web 音频解锁） */
     anyTapBegan: boolean;
-    /** 当前或近 250ms 内有真实手指活动：屏蔽 SDL 合成单指假鼠标 */
     suppressSyntheticMouse: boolean;
-    /** 鼠标点击已被虚拟覆盖层消费，防止同时穿透触发舞台原生左键射击 */
     mouseConsumedByOverlay: boolean;
     moveX: number;
     moveY: number;
@@ -205,10 +171,8 @@ export interface TouchSnapshot {
     navConfirm: boolean;
     navBack: boolean;
     hasAim: boolean;
-    /** 主舞台局部瞄准坐标（左下原点） */
     aimX: number;
     aimY: number;
-    /** 模态 UI 单指指针（主舞台局部坐标，左下原点） */
     uiHeld: boolean;
     uiPressed: boolean;
     uiReleased: boolean;
@@ -218,6 +182,11 @@ export interface TouchSnapshot {
     uiDx: number;
     uiDy: number;
     zoneTap: string;
+}
+
+export interface TouchRouterOptions {
+    enableMouseCompat?: boolean;
+    enablePortrait?: boolean;
 }
 
 type FingerKind = "modal" | "stick" | "btn" | "zone" | "aim_canvas";
@@ -269,11 +238,13 @@ function isInstantUiButton(id: TouchButtonId): boolean {
 
 export class TouchRouter {
     settings: ControlSettings;
+    private readonly enableMouseCompat: boolean;
+    private readonly enablePortrait: boolean;
     private listenerNode: Node.Type | undefined;
     private fingers: Record<number, FingerState> = {};
 
     private ctx: TouchFrameContext = {
-        viewport: computeStageViewport(1280, 720),
+        viewport: computeLandscapeSafeViewport(1280, 720),
         overlayScale: 1,
         overlayActive: false,
         allowAutoGameplayTouch: true,
@@ -307,7 +278,6 @@ export class TouchRouter {
         bottleCancelCenter: { x: 1120, y: 120, r: 44 },
     };
 
-    // 摇杆状态（叠加层逻辑坐标）
     private stickFingerId = -1;
     private stickOriginX = 148;
     private stickOriginY = 144;
@@ -317,7 +287,6 @@ export class TouchRouter {
     private stickMoveY = 0;
     private stickSlow = false;
 
-    // 触屏开关态与推车锁定态
     coverToggled = false;
     crouchToggled = false;
     slowToggled = false;
@@ -325,7 +294,6 @@ export class TouchRouter {
     private cartGripSeenActive = false;
     private coverNearSeen = false;
 
-    // 按钮按住状态
     private interactFingerId = -1;
     private jumpFingerId = -1;
     private fireFingerId = -1;
@@ -342,7 +310,6 @@ export class TouchRouter {
     private bottleFingerOvY = 0;
     private aimCanvasFingerId = -1;
 
-    // 模态 UI 指针状态（主舞台局部坐标）
     private modalFingerId = -1;
     private uiX = 0;
     private uiY = 0;
@@ -352,12 +319,10 @@ export class TouchRouter {
     private uiPressedQueue = false;
     private uiReleasedQueue = false;
 
-    // 瞄准坐标（主舞台局部坐标）
     private hasAim = false;
     private aimX = 640;
     private aimY = 300;
 
-    // 单帧边沿队列
     private qHadRealTouch = false;
     private qHadGameplayTouch = false;
     private qHadUiTouch = false;
@@ -383,8 +348,10 @@ export class TouchRouter {
     private clockSec = 10;
     private lastRealTouchClock = -10;
 
-    constructor(sharedSettings?: ControlSettings) {
+    constructor(sharedSettings?: ControlSettings, opts?: TouchRouterOptions) {
         this.settings = sharedSettings !== undefined ? sharedSettings : defaultControlSettings();
+        this.enableMouseCompat = opts?.enableMouseCompat === true;
+        this.enablePortrait = opts?.enablePortrait !== false;
     }
 
     attach(parent: Node.Type): void {
@@ -413,7 +380,6 @@ export class TouchRouter {
         this.listenerNode = n;
     }
 
-    /** 供自动化测试与模拟调试直接注入触控事件（走与真机完全相同的状态机）。 */
     injectTouch(
         phase: "began" | "moved" | "ended",
         id: number,
@@ -458,11 +424,13 @@ export class TouchRouter {
     }
 
     vibrate(seconds: number): void {
-        triggerHaptics(seconds, this.settings.haptics);
+        triggerMobileHaptics(seconds, this.settings.haptics);
     }
 
-    /** 是否存在正在按下或刚刚抬起的真实手指（用于动态屏蔽 SDL 合成鼠标，不误伤外接物理鼠标）。 */
     isSuppressingSyntheticMouse(): boolean {
+        if (!this.enableMouseCompat) {
+            return false;
+        }
         if (this.hasActiveRealFinger()) {
             return true;
         }
@@ -480,6 +448,9 @@ export class TouchRouter {
     }
 
     private hasActiveMouseOverlayFinger(): boolean {
+        if (!this.enableMouseCompat) {
+            return false;
+        }
         for (const k in this.fingers) {
             const f = this.fingers[k];
             if (f !== undefined && f.fromMouse) {
@@ -490,7 +461,9 @@ export class TouchRouter {
     }
 
     setFrameContext(next: TouchFrameContext, dt: number): void {
-        this.clockSec += Math.min(0.05, Math.max(0, dt));
+        if (this.enableMouseCompat) {
+            this.clockSec += Math.min(0.05, Math.max(0, dt));
+        }
         const wasModal = this.ctx.modal;
         const wasCutscene = this.ctx.cutsceneBlocking;
         this.ctx = next;
@@ -693,7 +666,7 @@ export class TouchRouter {
 
         const cartHold = this.cartGripLatched && !this.ctx.cartUsesToggle;
         const suppressSyntheticMouse = this.isSuppressingSyntheticMouse();
-        const mouseConsumed = this.qMouseConsumed || this.hasActiveMouseOverlayFinger();
+        const mouseConsumed = this.enableMouseCompat && (this.qMouseConsumed || this.hasActiveMouseOverlayFinger());
 
         const snap: TouchSnapshot = {
             hadRealTouch: this.qHadRealTouch,
@@ -806,14 +779,12 @@ export class TouchRouter {
     }
 
     private handleTouchBegan(id: number, viewX: number, viewY: number, fromMouse: boolean): void {
-        const vp = this.ctx.viewport;
-        const ov = this.toOverlay(viewX, viewY);
-
-        // 1. 鼠标事件：仅在竖屏或手动触屏模式下允许点击虚拟覆盖层按钮与竖屏下掌机摇杆，舞台交由原生鼠标处理
         if (fromMouse) {
-            if (!this.ctx.allowMouseOnOverlay || !this.ctx.overlayActive) {
+            if (!this.enableMouseCompat || !this.ctx.allowMouseOnOverlay || !this.ctx.overlayActive) {
                 return;
             }
+            const vp = this.ctx.viewport;
+            const ov = this.toOverlay(viewX, viewY);
             const hitBtn = this.hitTestButtons(ov.x, ov.y);
             if (hitBtn !== undefined) {
                 this.qMouseConsumed = true;
@@ -832,10 +803,10 @@ export class TouchRouter {
                     curOvY: ov.y,
                     movedDistOv: 0,
                 };
-                this.onButtonPressed(hitBtn, id, viewX, viewY, ov.x, ov.y, true);
+                this.onButtonPressed(hitBtn, id, ov.x, ov.y, true);
                 return;
             }
-            if (vp.isPortrait && this.ctx.gameplayActive && !this.ctx.modal && !this.ctx.cutsceneBlocking
+            if (this.enablePortrait && vp.isPortrait && this.ctx.gameplayActive && !this.ctx.modal && !this.ctx.cutsceneBlocking
                 && viewY < vp.deckH && ov.x <= this.ctx.stickZoneMaxX && this.stickFingerId < 0) {
                 this.qMouseConsumed = true;
                 this.startStick(id, viewX, viewY, ov.x, ov.y, true);
@@ -843,12 +814,16 @@ export class TouchRouter {
             return;
         }
 
-        // 2. 真实手指触控：记录保护窗屏蔽 SDL 假鼠标
-        this.lastRealTouchClock = this.clockSec;
+        const vp = this.ctx.viewport;
+        const ov = this.toOverlay(viewX, viewY);
+        const portrait = this.enablePortrait && vp.isPortrait;
+
+        if (this.enableMouseCompat) {
+            this.lastRealTouchClock = this.clockSec;
+        }
         this.qHadRealTouch = true;
         this.qAnyTapBegan = true;
 
-        // 2a. 虚拟覆盖层已激活时，优先命中按钮（含顶栏快捷钮、竖屏菜单导航键与局内动作按钮）
         if (this.ctx.overlayActive) {
             const btn = this.hitTestButtons(ov.x, ov.y);
             if (btn !== undefined) {
@@ -872,12 +847,12 @@ export class TouchRouter {
                     curOvY: ov.y,
                     movedDistOv: 0,
                 };
-                this.onButtonPressed(btn, id, viewX, viewY, ov.x, ov.y, false);
+                this.onButtonPressed(btn, id, ov.x, ov.y, false);
                 return;
             }
         }
 
-        const stage = viewToStage(viewX, viewY, vp);
+        const stage = portrait ? viewToStage(viewX, viewY, vp) : { x: viewX, y: viewY, inside: viewX >= 0 && viewX <= vp.stageW && viewY >= 0 && viewY <= vp.stageH };
 
         // 2b. 局内直点矩形热区优先于模态指针（折笺本领卡 / 折戟小结按钮 / 世界交互气泡，手柄混用触屏同样可用）
         if (this.ctx.gameplayActive && this.ctx.rectZones.length > 0) {
@@ -918,7 +893,7 @@ export class TouchRouter {
         // 2c. 模态界面（标题 / 选章 / 说明 / 暂停 / 3×3 换弹盘 / 工台 / 折笺 / 折戟小结）：统一单指舞台 UI 指针
         if (this.ctx.modal || !this.ctx.gameplayActive) {
             this.qHadUiTouch = true;
-            if (this.modalFingerId < 0 && (!vp.isPortrait || stage.inside)) {
+            if (this.modalFingerId < 0 && (!portrait || stage.inside)) {
                 this.modalFingerId = id;
                 this.uiX = stage.x;
                 this.uiY = stage.y;
@@ -954,15 +929,12 @@ export class TouchRouter {
             return;
         }
 
-        // 2e. 局内有效触屏（摇杆与直点射击）
         if (!this.ctx.overlayActive && !this.ctx.allowAutoGameplayTouch) {
-            // 手动锁定键鼠/手柄模式时，不触发虚拟摇杆与触屏射击，仅保留上方模态/本领直点
             return;
         }
         this.qHadGameplayTouch = true;
 
-        // 左手摇杆区（竖屏在下掌机左半区，横屏在左半屏动态浮现）
-        const inStickZone = vp.isPortrait
+        const inStickZone = portrait
             ? (viewY < vp.deckH && ov.x <= this.ctx.stickZoneMaxX)
             : (ov.x <= this.ctx.stickZoneMaxX && ov.y <= this.ctx.stickZoneMaxY);
         if (this.stickFingerId < 0 && inStickZone) {
@@ -970,9 +942,8 @@ export class TouchRouter {
             return;
         }
 
-        // 右半/主舞台直接点射瞄准（周戍战斗态）
         const ovH = vp.fullH / Math.max(0.25, this.ctx.overlayScale);
-        const allowStageShoot = stage.inside && (vp.isPortrait || ov.y <= ovH - 84);
+        const allowStageShoot = stage.inside && (portrait || ov.y <= ovH - 84);
         if (this.ctx.canShoot && this.aimCanvasFingerId < 0 && allowStageShoot) {
             this.aimCanvasFingerId = id;
             const assisted = snapPointAim(
@@ -1068,8 +1039,6 @@ export class TouchRouter {
     private onButtonPressed(
         btn: TouchButtonSpec,
         id: number,
-        _viewX: number,
-        _viewY: number,
         ovX: number,
         ovY: number,
         fromMouse: boolean,
@@ -1141,7 +1110,6 @@ export class TouchRouter {
             this.aimX = smart.x;
             this.aimY = smart.y;
             this.hasAim = true;
-            // 不在按下瞬间误射：统一在松手时发射一发（短按智能快射 / 拖动 ≥阈值 360° 精瞄松手发射）
             if (!fromMouse) this.vibrate(0.012);
         } else if (btn.id === "bottle") {
             this.bottleFingerId = id;
@@ -1187,12 +1155,10 @@ export class TouchRouter {
 
         this.stickMoveX = Math.abs(nx) >= 0.22 ? (nx > 0 ? 1 : -1) : 0;
         if (this.ctx.allowDepth) {
-            // 叠加层 y 向上，而 Input.moveY 为 -1 上、+1 下
             this.stickMoveY = Math.abs(ny) >= 0.30 ? (ny > 0 ? -1 : 1) : 0;
         } else {
             this.stickMoveY = 0;
         }
-        // 小满潜行房内圈轻推自动慢走（与手柄左摇杆内圈 < 56% 完全一致）
         this.stickSlow = this.ctx.childMode && this.stickMoveX !== 0 && clamped < maxR * 0.56;
     }
 
@@ -1201,12 +1167,15 @@ export class TouchRouter {
         if (f === undefined) {
             return;
         }
-        if (!fromMouse) {
-            this.lastRealTouchClock = this.clockSec;
-        } else {
-            this.qMouseConsumed = true;
+        if (this.enableMouseCompat) {
+            if (!fromMouse) {
+                this.lastRealTouchClock = this.clockSec;
+            } else {
+                this.qMouseConsumed = true;
+            }
         }
         const vp = this.ctx.viewport;
+        const portrait = this.enablePortrait && vp.isPortrait;
         const ov = this.toOverlay(viewX, viewY);
         f.movedDistOv += hypot(ov.x - f.curOvX, ov.y - f.curOvY);
         f.curViewX = viewX;
@@ -1215,7 +1184,7 @@ export class TouchRouter {
         f.curOvY = ov.y;
 
         if (f.kind === "modal" && this.modalFingerId === id) {
-            const stage = viewToStage(viewX, viewY, vp);
+            const stage = portrait ? viewToStage(viewX, viewY, vp) : { x: viewX, y: viewY, inside: true };
             this.uiX = stage.x;
             this.uiY = stage.y;
             return;
@@ -1227,7 +1196,7 @@ export class TouchRouter {
         }
 
         if (f.kind === "aim_canvas" && this.aimCanvasFingerId === id) {
-            const stage = viewToStage(viewX, viewY, vp);
+            const stage = portrait ? viewToStage(viewX, viewY, vp) : { x: viewX, y: viewY, inside: true };
             const assisted = snapPointAim(
                 clamp(stage.x, 8, Math.max(16, vp.stageW - 8)),
                 clamp(stage.y, 8, Math.max(16, vp.stageH - 8)),
@@ -1277,9 +1246,8 @@ export class TouchRouter {
             const dCancel = hypot(ov.x - cancel.x, ov.y - cancel.y);
             this.bottleCancelHover = dCancel <= cancel.r;
             if (!this.bottleCancelHover) {
-                const stage = viewToStage(viewX, viewY, vp);
-                if (vp.isPortrait && !stage.inside) {
-                    // 竖屏下掌机区拖曳投瓶：按相对位移映射到上方 16:9 舞台
+                const stage = portrait ? viewToStage(viewX, viewY, vp) : { x: viewX, y: viewY, inside: true };
+                if (portrait && !stage.inside) {
                     const dx = ov.x - this.bottleOriginOvX;
                     const dy = ov.y - this.bottleOriginOvY;
                     const dir = this.ctx.playerFacing < 0 ? -1 : 1;
@@ -1287,7 +1255,6 @@ export class TouchRouter {
                     this.aimX = clamp(this.ctx.playerScreenX + baseForward + dx * 2.2, 16, Math.max(32, vp.stageW - 16));
                     this.aimY = clamp(this.ctx.playerScreenY + dy * 1.4, 16, Math.max(32, vp.stageH - 16));
                 } else {
-                    // 横屏或手指滑入舞台：指尖略上移防遮挡落点
                     this.aimX = clamp(stage.x, 16, Math.max(32, vp.stageW - 16));
                     this.aimY = clamp(stage.y + BOTTLE_AIM_Y_OFFSET_UI * vp.uiScale, 16, Math.max(32, vp.stageH - 28));
                 }
@@ -1301,15 +1268,18 @@ export class TouchRouter {
         if (f === undefined) {
             return;
         }
-        if (!fromMouse) {
-            this.lastRealTouchClock = this.clockSec;
-        } else {
-            this.qMouseConsumed = true;
+        if (this.enableMouseCompat) {
+            if (!fromMouse) {
+                this.lastRealTouchClock = this.clockSec;
+            } else {
+                this.qMouseConsumed = true;
+            }
         }
         const vp = this.ctx.viewport;
+        const portrait = this.enablePortrait && vp.isPortrait;
         const ov = this.toOverlay(viewX, viewY);
         if (f.kind === "modal" && this.modalFingerId === id) {
-            const stage = viewToStage(viewX, viewY, vp);
+            const stage = portrait ? viewToStage(viewX, viewY, vp) : { x: viewX, y: viewY, inside: true };
             this.uiX = stage.x;
             this.uiY = stage.y;
             this.uiHeld = false;

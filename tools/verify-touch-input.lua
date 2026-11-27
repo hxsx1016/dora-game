@@ -1,5 +1,5 @@
--- 统一触屏多指路由、复杂交互、Android 独立包退出策略与生命周期专项验收：
--- 覆盖：多指并发与动态假鼠标隔离、2.5D 纵深与小满内圈慢走/防误蹲、推拉车握柄锁定、
+-- 统一触屏多指路由、复杂交互、Android 独立包退出策略与生命周期专项验收（target = "android" 纯触屏目标）：
+-- 覆盖：多指并发与鼠标合成事件隔离、2.5D 纵深与小满内圈慢走/防误蹲、推拉车握柄锁定、
 -- 空村投瓶拖拽与取消圈、3x3 换弹盘触控滑连与重画钮、选章两段确认、
 -- 时间穿梭器按钮、男主线折笺选卡与折戟小结触控、Android BackButton 状态机与切后台防卡键。
 
@@ -17,14 +17,17 @@ do
 		Content:insertSearchPath(3, Path(repoRoot, "Script", "Lib"))
 	end
 end
+
+package.loaded["watch.target"] = "android"
+local targetMod = require("Script.watch.target")
+targetMod.resetActiveTarget()
+
 local new = require("lualib_bundle").__TS__New
 local rooms = require("Script.watch.rooms")
 local play = require("Script.watch.play")
 local platform = require("Script.watch.platform")
 local controlsCfg = require("Script.watch.controls_config")
 local Input = require("Script.watch.input").Input
-local TouchRouter = require("Script.watch.touch").TouchRouter
-local TouchControls = require("Script.watch.fe.ui.touch_controls").TouchControls
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local createRun = require("Script.watch.run").createRun
 
@@ -56,17 +59,17 @@ end
 local root = Dora.Node()
 local fe = new(Frontend, root)
 local input = new(Input)
-local router = new(TouchRouter, input.settings)
-router:attach(root)
-input:bindTouch(router)
-local ctrl = new(TouchControls, root)
+input:attach(root, {})
+local router = input:getTouchRouter()
+local ctrl = input:getTouchControls()
+check("android target creates TouchRouter and TouchControls without GamepadRouter",
+	router ~= nil and ctrl ~= nil and input:getGamepadRouter() == nil)
+check("slim TouchControls allocates 36 SDF Labels (down from 178)", ctrl:getAllocatedLabelCount() == 36)
 
 local W, H = 1280, 720
 local vp = platform.computeStageViewport(W, H)
 input:setStageViewport(vp)
 fe:setStagePlacement(vp)
-input:setModePref("auto")
-input:setInputMode("touch")
 input.settings.haptics = false
 
 local function syncTouch(screen, p, modeNum, runObj, talentBoxes, deathBoxes)
@@ -76,9 +79,13 @@ local function syncTouch(screen, p, modeNum, runObj, talentBoxes, deathBoxes)
 		screen = screen,
 		play = p,
 		run = runObj,
-		cam = fe.cam,
-		input = input,
+		cam = (modeNum or 1) == 1 and fe.cam or nil,
 		router = router,
+		overlayActive = true,
+		allowAutoGameplayTouch = true,
+		allowMouseOnOverlay = false,
+		showWebTopPills = false,
+		canToggleFullscreen = false,
 		assistHintsEnabled = false,
 		isMuted = false,
 		isFullscreen = false,
@@ -88,18 +95,23 @@ local function syncTouch(screen, p, modeNum, runObj, talentBoxes, deathBoxes)
 	})
 end
 
--- 1. 周戍街道：多指并发（左手摇杆右推 + 右屏点射互不串触，2.5D 上下纵深有效 + 动态假鼠标屏蔽）
+-- 1. 周戍街道：多指并发（左手摇杆右推 + 右屏点射互不串触，2.5D 上下纵深有效 + 鼠标合成事件直接忽略）
 local streetRun = createRun(20261124, "debug")
 local pStreet = new(play.Play, rooms.STREET_ROOM, nil, streetRun)
 fe.screen = "play"
 fe:bindPlay(pStreet, W, H)
 syncTouch("play", pStreet, 1, streetRun)
 
+-- Android 纯触屏直接忽略鼠标合成事件（enableMouseCompat=false）
+router:injectTouch("began", 99, 860, 260, true)
+router:injectTouch("ended", 99, 860, 260, true)
+input:update()
+check("android touch-only ignores synthetic mouse events", not input.fire.pressed)
+
 router:injectTouch("began", 1, 150, 150, false)
 router:injectTouch("moved", 1, 208, 195, false)
 input:update()
 check("stick moves right without false shot", input.moveX == 1 and input.moveY == -1 and not input.fire.pressed)
-check("active finger suppresses synthetic mouse", router:isSuppressingSyntheticMouse())
 
 router:injectTouch("began", 2, 860, 260, false)
 input:update()
@@ -108,13 +120,6 @@ router:injectTouch("ended", 2, 860, 260, false)
 router:injectTouch("ended", 1, 208, 195, false)
 input:update()
 check("releasing fingers zeroes stick", input.moveX == 0 and input.moveY == 0)
-
--- 冷却 0.30s 后允许外接物理鼠标恢复工作（不锁死安卓平板外接键鼠）
-for _ = 1, 20 do
-	syncTouch("play", pStreet, 1, streetRun)
-	input:update()
-end
-check("synthetic mouse suppression clears after cooldown", not router:isSuppressingSyntheticMouse())
 
 -- 2. 小满空村：非纵深房下推摇杆不误蹲 + 内圈慢走 + 蹲伏切跳顺滑起身
 local pVillage = new(play.Play, rooms.VILLAGE_ROOM)
@@ -344,7 +349,8 @@ local appRoot = Dora.Node()
 app.start(appRoot, 1, "play")
 local hook = package.loaded["watch.fe"]
 local appTouch = package.loaded["watch.touch"]
-check("app exposes watch.touch hook", appTouch ~= nil)
+check("app exposes watch.touch hook and nil watch.gamepad on android target",
+	appTouch ~= nil and package.loaded["watch.gamepad"] == nil and hook.getTargetId() == "android")
 local appPlay = hook.getPlay()
 check("app play starts unpaused", appPlay ~= nil and not appPlay.paused)
 hook.handleBackButton()
@@ -365,6 +371,8 @@ check("background releaseAll clears stick completely", appInput.moveX == 0 and a
 
 -- 还原默认配置，避免污染用户存档
 controlsCfg.saveControlSettings(controlsCfg.defaultControlSettings())
+package.loaded["watch.target"] = nil
+targetMod.resetActiveTarget()
 appRoot:cleanup()
 root:cleanup()
 print("TOUCH INPUT VERIFY PASS " .. pass .. " / FAIL 0")

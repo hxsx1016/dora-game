@@ -23,7 +23,7 @@ import { GATE_FAREWELL_TICKS, Play, PROLOGUE_GIVE_TICKS } from "Script/watch/pla
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     G05_PIXEL_RETURN_END,
@@ -1052,7 +1052,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "g05_assist_veil", w * 0.5, h - 26, 280, 28, PALETTE.inkWash, 0.72, -1);
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout),
                     w * 0.5,
                     h - 26,
                     toColor(PALETTE.amberCore),

@@ -7,16 +7,12 @@
  * 2. 静音与灰度可读：四大本领与八类随身战备均具备完全互异的几何轮廓；
  * 3. 表驱动向前兼容：通过 registerTalentVisual() 可随时注册新本领，未登记 ID 自动回退至
  *    通用明代军筹模板，绝不崩溃；
- * 4. 严格匹配后端真实数值公式（Script/watch/play.ts）：
- *    - vitality：maxHp + 1，hp + 1
- *    - reload：装填拍 = max(6, (quickbelt>0 ? 36 : 54) - 6*reload - 3*craft)
- *    - guard：受击保护 = 42 + 12*guard
- *    - craft：制楔 = max(6, 45 - 6*craft)（且顺带减装填 3 拍）
+ * 4. 选筹与札记沿用正式护送的本领词典。
  * 5. 字库 0 缺字：全部正文字符经 lxgw-neo-zhisong.ttf 核对。
  */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
-import { talentNames } from "Script/watch/run";
+import { ALL_TALENTS, TALENT_CATALOG, talentNames } from "Script/watch/run";
 import { ReloadEffectKind, RoguelikeSnapshot } from "Script/watch/fe/contract";
 import { drawReloadPatternGlyph } from "Script/watch/fe/ui/reload_wheel";
 import {
@@ -86,63 +82,20 @@ export function registerTalentVisual(meta: TalentVisualMeta): void {
     TALENT_REGISTRY[meta.id] = meta;
 }
 
-registerTalentVisual({
-    id: "vitality",
-    title: "厚甲",
-    category: "固守",
-    accent: PALETTE.cyan,
-    accentCore: PALETTE.moonPale,
-    whisper: "「再重些，背上的人便稳些。」",
-    absorbTarget: "hp",
-    shortEffect: (snap) => "体力上限 " + snap.maxHp + " → " + (snap.maxHp + 1),
-    subEffect: () => "并即刻回气 +1",
-    ledgerLine: (snap, rank) => "体力上限 +" + rank + "（现 " + snap.hp + "/" + snap.maxHp + "）",
-});
-
-registerTalentVisual({
-    id: "reload",
-    title: "熟铳",
-    category: "火器",
-    accent: PALETTE.amber,
-    accentCore: PALETTE.amberCore,
-    whisper: "「火绳趁手，莫叫她久等。」",
-    absorbTarget: "gun",
-    shortEffect: (snap) => {
-        const next = Math.max(6, snap.reloadTicksNow - 6);
-        return "装填 " + snap.reloadTicksNow + " → " + next + " 拍";
-    },
-    subEffect: () => "更快复位鸟铳 (-6 拍)",
-    ledgerLine: (snap, rank) => "装填耗时 " + snap.reloadTicksNow + " 拍（减 " + (rank * 6) + " 拍）",
-});
-
-registerTalentVisual({
-    id: "guard",
-    title: "护身",
-    category: "身法",
-    accent: PALETTE.emerald,
-    accentCore: PALETTE.moonPale,
-    whisper: "「挨了这一记，步子不能乱。」",
-    absorbTarget: "shoulder",
-    shortEffect: (snap) => "护身 " + snap.invulnTicksNow + " → " + (snap.invulnTicksNow + 12) + " 拍",
-    subEffect: () => "受击多得喘息窗 (+12 拍)",
-    ledgerLine: (snap, rank) => "受击保护 " + snap.invulnTicksNow + " 拍（加 " + (rank * 12) + " 拍）",
-});
-
-registerTalentVisual({
-    id: "craft",
-    title: "巧手",
-    category: "机巧",
-    accent: PALETTE.amber,
-    accentCore: PALETTE.amberCore,
-    whisper: "「爹教的楔法，倒派上用场。」",
-    absorbTarget: "satchel",
-    shortEffect: (snap) => {
-        const next = Math.max(6, snap.craftTicksNow - 6);
-        return "制楔 " + snap.craftTicksNow + " → " + next + " 拍";
-    },
-    subEffect: () => "顺手减装填 3 拍",
-    ledgerLine: (snap, rank) => "制楔 " + snap.craftTicksNow + " 拍 · 装填另减 " + (rank * 3) + " 拍",
-});
+for (const id of ALL_TALENTS) {
+    const meta = TALENT_CATALOG[id];
+    const body = meta.branch === "body";
+    registerTalentVisual({
+        id, title: meta.title, category: meta.branchZh,
+        accent: body ? PALETTE.cyan : PALETTE.amber,
+        accentCore: body ? PALETTE.moonPale : PALETTE.amberCore,
+        whisper: meta.detailDesc,
+        absorbTarget: id === "vitality" ? "hp" : body ? "shoulder" : meta.branch === "wheel" ? "gun" : "satchel",
+        shortEffect: () => meta.shortDesc,
+        subEffect: (_snap, rank) => rankChinese(rank) + " → " + rankChinese(rank + 1) + " 阶",
+        ledgerLine: (_snap, rank) => meta.shortDesc + "（" + rankChinese(rank) + " 阶）",
+    });
+}
 
 /** 解析任意本领 ID 的视觉元数据；未知未来 ID 自动回退至明代军筹通用模板。 */
 export function resolveTalentVisual(id: string, snap?: RoguelikeSnapshot): TalentVisualMeta {
@@ -245,9 +198,9 @@ export function pickupMetaOf(kind: string): PickupDisplayMeta {
 /** 按当前已习本领、所持火铳与战备派生纯前端「行军雅号」（零后端侵入）。 */
 export function deriveMarchTitle(snap: RoguelikeSnapshot): MarchTitleMeta {
     const vit = snap.ranks["vitality"] ?? 0;
-    const rel = snap.ranks["reload"] ?? 0;
+    const rel = snap.ranks["focus"] ?? 0;
     const grd = snap.ranks["guard"] ?? 0;
-    const crf = snap.ranks["craft"] ?? 0;
+    const crf = snap.ranks["salvage"] ?? 0;
     const total = snap.totalRanks;
     const weapon = snap.equippedWeapon;
     const wedge = snap.supplies["wedge"] ?? 0;
@@ -355,7 +308,7 @@ export function drawTalentGlyph(
         return;
     }
 
-    if (talentId === "reload") {
+    if (talentId === "focus") {
         // 明式鸟铳铳身斜杆 + 护木
         draw.drawSegment(Vec2(cx - r * 0.82, cy - r * 0.54), Vec2(cx + r * 0.82, cy + r * 0.34), lw * 1.45, stroke);
         draw.drawSegment(Vec2(cx - r * 0.76, cy - r * 0.68), Vec2(cx + r * 0.22, cy - r * 0.14), lw * 1.0, faint);
@@ -388,7 +341,7 @@ export function drawTalentGlyph(
         return;
     }
 
-    if (talentId === "craft") {
+    if (talentId === "salvage") {
         // 梯形竹木楔（左侧立面 + 契口刻线）
         draw.drawPolygon([
             Vec2(cx - r * 0.68, cy - r * 0.56),

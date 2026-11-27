@@ -10,8 +10,8 @@ local Vec2 = ____Dora.Vec2 -- 21
 local ____play = require("Script.watch.play") -- 22
 local GATE_FAREWELL_TICKS = ____play.GATE_FAREWELL_TICKS -- 22
 local PROLOGUE_GIVE_TICKS = ____play.PROLOGUE_GIVE_TICKS -- 22
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 26
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 26
+local ____target = require("Script.watch.target") -- 26
+local getActiveTarget = ____target.getActiveTarget -- 26
 local ____gate_transition = require("Script.watch.fe.scenes.gate_transition") -- 28
 local G05_PIXEL_RETURN_END = ____gate_transition.G05_PIXEL_RETURN_END -- 29
 local G05_PIXEL_RETURN_START = ____gate_transition.G05_PIXEL_RETURN_START -- 30
@@ -76,7 +76,7 @@ end -- 114
 -- P03 擦碎瓷、P05 城门拉袖、G05 风台重逢 与 Wave 2 E02 博物馆回柜四镜严格共用本函数。
 function ____exports.drawPatchedCuff(draw, glow, opts) -- 129
 	local op = clamp01(opts.opacity or 1) -- 134
-	if op <= 0.01 then -- 135
+	if op <= 0.01 then -- 134
 		return -- 136
 	end -- 136
 	local ox = opts.wristX -- 138
@@ -210,7 +210,7 @@ function ____exports.drawPatchedCuff(draw, glow, opts) -- 129
 			draw:drawDot(a, 1.3 * s, pinCol) -- 228
 			draw:drawDot(b, 1.3 * s, pinCol) -- 229
 			draw:drawSegment(a, b, 2 * s, stitchCol) -- 230
-			if hl > 0.05 then -- 231
+			if hl > 0.05 then -- 230
 				glow:drawSegment( -- 232
 					a, -- 232
 					b, -- 232
@@ -228,7 +228,7 @@ function ____exports.drawPatchedCuff(draw, glow, opts) -- 129
 	local skinCol = tinted(____exports.CUFF_PALETTE.skinBase, w, op) -- 238
 	local skinSh = tinted(____exports.CUFF_PALETTE.skinShadow, w, op) -- 239
 	local skinHi = tinted(____exports.CUFF_PALETTE.skinLight, w, op * 0.85) -- 240
-	if opts.pose == "wipe" then -- 242
+	if opts.pose == "wipe" then -- 240
 		draw:drawPolygon( -- 244
 			{ -- 244
 				pt(handBase - 4, -20), -- 245
@@ -253,7 +253,7 @@ function ____exports.drawPatchedCuff(draw, glow, opts) -- 129
 			1.4 * s, -- 252
 			skinSh -- 252
 		) -- 252
-	elseif opts.pose == "pinch" then -- 253
+	elseif opts.pose == "pinch" then -- 252
 		draw:drawPolygon( -- 255
 			{ -- 255
 				pt(handBase - 4, -22), -- 256
@@ -278,7 +278,7 @@ function ____exports.drawPatchedCuff(draw, glow, opts) -- 129
 			5.6 * s, -- 263
 			skinCol -- 263
 		) -- 263
-	elseif opts.pose == "clasp" then -- 264
+	elseif opts.pose == "clasp" then -- 263
 		draw:drawPolygon( -- 266
 			{ -- 266
 				pt(handBase - 2, -22), -- 267
@@ -351,11 +351,11 @@ function ____exports.drawPatchedCuff(draw, glow, opts) -- 129
 end -- 129
 --- 绘制小满伸出的小手（含腕上暗红指南针布套短绳）
 local function drawChildHand(draw, ox, oy, angleRad, scale, pose, opacity, withCompassCord) -- 295
-	if withCompassCord == nil then -- 303
+	if withCompassCord == nil then -- 295
 		withCompassCord = true -- 303
 	end -- 303
 	local op = clamp01(opacity) -- 305
-	if op <= 0.01 then -- 306
+	if op <= 0.01 then -- 305
 		return -- 307
 	end -- 307
 	local cosA = math.cos(angleRad) -- 309
@@ -384,7 +384,7 @@ local function drawChildHand(draw, ox, oy, angleRad, scale, pose, opacity, withC
 		____exports.CUFF_PALETTE.childSleeve, -- 315
 		math.floor(255 * op + 0.5) -- 315
 	) -- 315
-	if pose == "two_fingers" then -- 317
+	if pose == "two_fingers" then -- 315
 		draw:drawSegment( -- 319
 			pt(-18, -4), -- 319
 			pt(18, -5), -- 319
@@ -420,7 +420,7 @@ local function drawChildHand(draw, ox, oy, angleRad, scale, pose, opacity, withC
 		1.1, -- 332
 		sh -- 332
 	) -- 332
-	if withCompassCord then -- 334
+	if withCompassCord then -- 332
 		draw:drawSegment( -- 336
 			pt(-10, -18), -- 336
 			pt(-4, 18), -- 336
@@ -452,7 +452,7 @@ local function drawChildHand(draw, ox, oy, angleRad, scale, pose, opacity, withC
 		1, -- 347
 		sh -- 347
 	) -- 347
-	if pose == "clutch" or pose == "clasp" then -- 349
+	if pose == "clutch" or pose == "clasp" then -- 347
 		draw:drawSegment( -- 351
 			pt(24, -11), -- 351
 			pt(44, -6), -- 351
@@ -513,7 +513,7 @@ end -- 295
 --- 仅在 G05 重逢抬镜后绘制序章像素风风格的蹲姿周戍近景（复用真实像素立绘，与本体画风 100% 统一）
 local function drawZhouShuReunionPortrait(draw, inkDraw, art, glow, cx, cy, scale, alpha) -- 366
 	local a = clamp01(alpha) -- 376
-	if a <= 0.01 then -- 377
+	if a <= 0.01 then -- 376
 		return -- 378
 	end -- 378
 	local s = scale -- 380
@@ -549,7 +549,7 @@ local function drawZhouShuReunionPortrait(draw, inkDraw, art, glow, cx, cy, scal
 		214 * s, -- 403
 		{opacity = a, layer = 4} -- 404
 	) -- 404
-	if not placed then -- 406
+	if not placed then -- 404
 		art:tryPlace( -- 407
 			"soldier_idle", -- 408
 			"g05_zhoushu_closeup", -- 409
@@ -630,13 +630,13 @@ function CuffShotsPlugin.prototype.onBindPlay(self, p, _view) -- 446
 end -- 446
 function CuffShotsPlugin.prototype.rehearseShot(self, shot, fixedTime) -- 465
 	self.rehearsalShot = shot -- 466
-	if shot == "" then -- 467
+	if shot == "" then -- 466
 		self.rehearsalTime = 0 -- 468
 		self.rehearsalAutoAdvance = true -- 469
 		return -- 470
 	end -- 470
 	self.rehearsalDuration = shot == "P03" and 3 or 4 -- 472
-	if fixedTime ~= nil then -- 473
+	if fixedTime ~= nil then -- 472
 		self.rehearsalTime = math.max( -- 474
 			0, -- 474
 			math.min(self.rehearsalDuration, fixedTime) -- 474
@@ -669,22 +669,22 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 	local view = ctx.view -- 503
 	local dt = ctx.paused and 0 or ctx.worldDt -- 504
 	self.animTime = self.animTime + dt -- 505
-	if self.rehearsalShot ~= "" then -- 508
+	if self.rehearsalShot ~= "" then -- 505
 		self.activeShot = self.rehearsalShot -- 509
-		if self.rehearsalAutoAdvance and dt > 0 then -- 510
+		if self.rehearsalAutoAdvance and dt > 0 then -- 509
 			self.rehearsalTime = math.min(self.rehearsalDuration, self.rehearsalTime + dt) -- 511
 		end -- 511
-		if not ctx.paused then -- 513
+		if not ctx.paused then -- 511
 			self:triggerRehearsalAudio(ctx) -- 514
 		end -- 514
 		self.prevPhase = p.phase -- 516
 		return -- 517
 	end -- 517
 	self.activeShot = "" -- 520
-	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 523
+	if p.room.key == "prologue" and p.phase == "prologue-give" then -- 520
 		self.activeShot = "P03" -- 524
 		self.p03Progress = clamp01(p.phaseTick / PROLOGUE_GIVE_TICKS) -- 525
-		if not ctx.paused and self.p03Progress >= 0.18 then -- 526
+		if not ctx.paused and self.p03Progress >= 0.18 then -- 525
 			ctx.audio:playOnce( -- 527
 				"cuff:p03:wipe:" .. tostring(ctx.events.roomSessionId), -- 528
 				"sfx", -- 529
@@ -694,7 +694,7 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 				p.ticks -- 533
 			) -- 533
 		end -- 533
-		if not ctx.paused and self.p03Progress >= 0.62 then -- 536
+		if not ctx.paused and self.p03Progress >= 0.62 then -- 533
 			ctx.audio:playOnce( -- 537
 				"cuff:p03:compass:" .. tostring(ctx.events.roomSessionId), -- 538
 				"sfx", -- 539
@@ -709,12 +709,12 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 	else -- 547
 		self.p03Progress = 0 -- 549
 	end -- 549
-	if p.room.key == "gate" and p.phase == "gate-farewell" then -- 553
+	if p.room.key == "gate" and p.phase == "gate-farewell" then -- 549
 		self.activeShot = "P05" -- 554
 		self.p05Progress = clamp01(p.phaseTick / GATE_FAREWELL_TICKS) -- 555
 		self.p05ExitTimer = p.phaseTick / 60 -- 556
-		if not ctx.paused then -- 557
-			if self.p05Progress >= 0.14 then -- 558
+		if not ctx.paused then -- 556
+			if self.p05Progress >= 0.14 then -- 556
 				ctx.audio:playOnce( -- 559
 					"cuff:p05:line:" .. tostring(ctx.events.roomSessionId), -- 560
 					"voice", -- 561
@@ -724,7 +724,7 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 					p.ticks -- 565
 				) -- 565
 			end -- 565
-			if self.p05Progress >= 0.7 then -- 568
+			if self.p05Progress >= 0.7 then -- 565
 				ctx.audio:playOnce( -- 569
 					"cuff:p05:slam:" .. tostring(ctx.events.roomSessionId), -- 570
 					"sfx", -- 571
@@ -742,14 +742,14 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 		self.p05ExitTimer = -1 -- 583
 	end -- 583
 	local inGateReunion = p.room.key == "gate" and (p.phase == "gate-wait" or p.phase == "gate-hand" or p.phase == "gate-count" and view.storyRoute == "soldier" and (view.gateReunion.active or view.gateReunion.completed)) -- 587
-	if inGateReunion then -- 594
+	if inGateReunion then -- 587
 		self.activeShot = "G05" -- 595
 		local gr = view.gateReunion -- 596
 		local completed = p.phase == "gate-hand" or gr.completed -- 597
-		if gr.releasedAbortCount > self.lastReleasedAbortCount then -- 599
+		if gr.releasedAbortCount > self.lastReleasedAbortCount then -- 597
 			self.g05AbortVisualCount = self.g05AbortVisualCount + (gr.releasedAbortCount - self.lastReleasedAbortCount) -- 600
 			self.lastReleasedAbortCount = gr.releasedAbortCount -- 601
-			if not ctx.paused and view.isRehearsal then -- 602
+			if not ctx.paused and view.isRehearsal then -- 601
 				ctx.audio:playOnce( -- 603
 					(("cuff:g05:release:" .. tostring(ctx.events.roomSessionId)) .. ":") .. tostring(gr.releasedAbortCount), -- 604
 					"sfx", -- 605
@@ -760,13 +760,13 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 				) -- 609
 			end -- 609
 		end -- 609
-		if completed then -- 614
+		if completed then -- 609
 			self.g05SleeveExtend = 1 -- 615
-			if dt > 0 then -- 616
+			if dt > 0 then -- 615
 				self.g05ReunionElapsed = self.g05ReunionElapsed + dt -- 617
 			end -- 617
-			if not ctx.paused and not self.g05LineTriggered then -- 619
-				if view.isRehearsal then -- 620
+			if not ctx.paused and not self.g05LineTriggered then -- 617
+				if view.isRehearsal then -- 617
 					ctx.audio:playOnce( -- 621
 						"cuff:g05:clasp:" .. tostring(ctx.events.roomSessionId), -- 622
 						"sfx", -- 623
@@ -776,7 +776,7 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 						p.ticks -- 627
 					) -- 627
 				end -- 627
-				if self.g05ReunionElapsed >= 0.8 or p.phase == "gate-hand" and p.phaseTick >= 42 then -- 630
+				if self.g05ReunionElapsed >= 0.8 or p.phase == "gate-hand" and p.phaseTick >= 42 then -- 627
 					self.g05LineTriggered = true -- 631
 					ctx.audio:playOnce( -- 632
 						"cuff:g05:line:" .. tostring(ctx.events.roomSessionId), -- 633
@@ -791,13 +791,13 @@ function CuffShotsPlugin.prototype.update(self, ctx) -- 501
 		else -- 638
 			self.g05ReunionElapsed = 0 -- 643
 			self.g05LineTriggered = false -- 644
-			if gr.holding or gr.holdProgress > 0.001 then -- 645
-				if gr.holdProgress >= self.g05SleeveExtend then -- 647
+			if gr.holding or gr.holdProgress > 0.001 then -- 644
+				if gr.holdProgress >= self.g05SleeveExtend then -- 644
 					self.g05SleeveExtend = gr.holdProgress -- 648
-				elseif dt > 0 then -- 649
+				elseif dt > 0 then -- 648
 					self.g05SleeveExtend = math.max(gr.holdProgress, self.g05SleeveExtend - dt * 4) -- 650
 				end -- 650
-			elseif dt > 0 and self.g05SleeveExtend > 0 then -- 652
+			elseif dt > 0 and self.g05SleeveExtend > 0 then -- 650
 				self.g05SleeveExtend = math.max(0, self.g05SleeveExtend - dt * 2.8) -- 654
 			end -- 654
 		end -- 654
@@ -812,7 +812,7 @@ end -- 501
 function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 	local sid = ctx.events.roomSessionId -- 668
 	local t = self.rehearsalTime -- 669
-	if self.rehearsalShot == "P03" and t >= 0.85 then -- 670
+	if self.rehearsalShot == "P03" and t >= 0.85 then -- 669
 		ctx.audio:playOnce( -- 671
 			"reh:p03:wipe:" .. tostring(sid), -- 671
 			"sfx", -- 671
@@ -821,8 +821,8 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 			"cuff:p03:cloth_wipe_wood", -- 671
 			ctx.p.ticks -- 671
 		) -- 671
-	elseif self.rehearsalShot == "P05" then -- 672
-		if t >= 0.9 then -- 673
+	elseif self.rehearsalShot == "P05" then -- 671
+		if t >= 0.9 then -- 671
 			ctx.audio:playOnce( -- 674
 				"reh:p05:line:" .. tostring(sid), -- 674
 				"voice", -- 674
@@ -832,7 +832,7 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 				ctx.p.ticks -- 674
 			) -- 674
 		end -- 674
-		if t >= 2.75 then -- 676
+		if t >= 2.75 then -- 674
 			ctx.audio:playOnce( -- 677
 				"reh:p05:slam:" .. tostring(sid), -- 677
 				"sfx", -- 677
@@ -849,8 +849,8 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 				ctx.p.ticks -- 678
 			) -- 678
 		end -- 678
-	elseif self.rehearsalShot == "G05" then -- 680
-		if t >= 0.05 then -- 681
+	elseif self.rehearsalShot == "G05" then -- 678
+		if t >= 0.05 then -- 678
 			ctx.audio:playOnce( -- 682
 				"reh:g05:knock1:" .. tostring(sid), -- 682
 				"sfx", -- 682
@@ -860,7 +860,7 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 				ctx.p.ticks -- 682
 			) -- 682
 		end -- 682
-		if t >= 0.25 then -- 684
+		if t >= 0.25 then -- 682
 			ctx.audio:playOnce( -- 685
 				"reh:g05:knock2:" .. tostring(sid), -- 685
 				"sfx", -- 685
@@ -870,7 +870,7 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 				ctx.p.ticks -- 685
 			) -- 685
 		end -- 685
-		if t >= 1.55 then -- 687
+		if t >= 1.55 then -- 685
 			ctx.audio:playOnce( -- 688
 				"reh:g05:clasp:" .. tostring(sid), -- 688
 				"sfx", -- 688
@@ -880,7 +880,7 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 				ctx.p.ticks -- 688
 			) -- 688
 		end -- 688
-		if t >= 2.35 then -- 690
+		if t >= 2.35 then -- 688
 			ctx.audio:playOnce( -- 691
 				"reh:g05:line:" .. tostring(sid), -- 691
 				"voice", -- 691
@@ -893,12 +893,12 @@ function CuffShotsPlugin.prototype.triggerRehearsalAudio(self, ctx) -- 667
 	end -- 691
 end -- 667
 function CuffShotsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 696
-	if self.activeShot == "" then -- 703
+	if self.activeShot == "" then -- 696
 		return false -- 704
 	end -- 704
 	local w = ctx.uiW -- 706
 	local h = ctx.uiH -- 707
-	if self.activeShot == "P03" then -- 709
+	if self.activeShot == "P03" then -- 707
 		local prog = self.rehearsalShot == "P03" and clamp01(self.rehearsalTime / self.rehearsalDuration) or self.p03Progress -- 710
 		self:renderP03Shot( -- 713
 			uiDraw, -- 713
@@ -912,7 +912,7 @@ function CuffShotsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, 
 		) -- 713
 		return true -- 714
 	end -- 714
-	if self.activeShot == "P05" then -- 717
+	if self.activeShot == "P05" then -- 714
 		local prog = self.rehearsalShot == "P05" and clamp01(self.rehearsalTime / self.rehearsalDuration) or self.p05Progress -- 718
 		self:renderP05FullShot( -- 721
 			uiDraw, -- 721
@@ -926,8 +926,8 @@ function CuffShotsPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, 
 		) -- 721
 		return true -- 722
 	end -- 722
-	if self.activeShot == "G05" then -- 725
-		if self.rehearsalShot == "G05" then -- 726
+	if self.activeShot == "G05" then -- 722
+		if self.rehearsalShot == "G05" then -- 722
 			self:renderG05RehearsalShot( -- 727
 				uiDraw, -- 727
 				uiInkDraw, -- 727
@@ -1034,19 +1034,19 @@ function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt,
 		dx = 46, -- 775
 		dy = -38, -- 775
 		r = 9 -- 775
-	}, { -- 776
+	}, { -- 775
 		x = -34, -- 776
 		y = 12, -- 776
 		dx = 64, -- 776
 		dy = -46, -- 776
 		r = 7 -- 776
-	}, { -- 777
+	}, { -- 776
 		x = 4, -- 777
 		y = 6, -- 777
 		dx = 82, -- 777
 		dy = -52, -- 777
 		r = 10 -- 777
-	}, { -- 778
+	}, { -- 777
 		x = 32, -- 778
 		y = 10, -- 778
 		dx = 74, -- 778
@@ -1054,7 +1054,7 @@ function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt,
 		r = 6 -- 778
 	}} -- 778
 	local shardAlpha = fade * (1 - smoothstep(0.58, 0.74, prog)) -- 780
-	if shardAlpha > 0.02 then -- 781
+	if shardAlpha > 0.02 then -- 780
 		local si = 0 -- 782
 		do -- 782
 			si = 0 -- 783
@@ -1088,7 +1088,7 @@ function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt,
 	end -- 783
 	local fingerEnter = smoothstep(0.04, 0.24, prog) -- 796
 	local handOut = smoothstep(0.7, 0.9, prog) -- 797
-	if handOut > 0.05 then -- 798
+	if handOut > 0.05 then -- 797
 		drawChildHand( -- 799
 			uiDraw, -- 800
 			crackX + 18 - handOut * 66, -- 801
@@ -1099,7 +1099,7 @@ function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt,
 			fade * handOut, -- 806
 			false -- 807
 		) -- 807
-	elseif fingerEnter > 0.02 then -- 809
+	elseif fingerEnter > 0.02 then -- 807
 		drawChildHand( -- 810
 			uiDraw, -- 811
 			crackX + 12 - fingerEnter * 24, -- 812
@@ -1112,7 +1112,7 @@ function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt,
 		) -- 818
 	end -- 818
 	local sleeveEnter = smoothstep(0.22, 0.36, prog) -- 823
-	if sleeveEnter > 0.01 then -- 824
+	if sleeveEnter > 0.01 then -- 823
 		local reachT = smoothstep(0.66, 0.88, prog) -- 825
 		local wx = bx + 110 + sleeveEnter * 195 + math.sin(wipeT * math.pi) * 78 + reachT * 82 -- 826
 		local wy = rimY + 46 - math.sin(wipeT * math.pi) * 26 + reachT * 12 -- 827
@@ -1142,7 +1142,7 @@ function CuffShotsPlugin.prototype.renderP03Shot(self, uiDraw, uiInkDraw, uiArt,
 			math.floor(145 * fade + 0.5) -- 843
 		) -- 843
 	) -- 843
-	if self.rehearsalShot == "P03" then -- 844
+	if self.rehearsalShot == "P03" then -- 843
 		drawSilkVeil( -- 845
 			uiDraw, -- 845
 			uiArt, -- 845
@@ -1246,7 +1246,7 @@ function CuffShotsPlugin.prototype.renderP05FullShot(self, uiDraw, uiInkDraw, ui
 		fade, -- 908
 		true -- 909
 	) -- 909
-	if releaseT > 0.01 then -- 913
+	if releaseT > 0.01 then -- 909
 		local dropH = boxH * releaseT * 0.88 -- 914
 		uiDraw:drawRect( -- 915
 			Rect(bx, by + boxH - dropH, boxW * 0.46, dropH), -- 915
@@ -1279,7 +1279,7 @@ function CuffShotsPlugin.prototype.renderP05FullShot(self, uiDraw, uiInkDraw, ui
 		) -- 919
 	) -- 919
 	local lineAlpha = fade * smoothstep(0.18, 0.3, prog) * (1 - smoothstep(0.86, 0.98, prog)) -- 922
-	if lineAlpha > 0.02 then -- 923
+	if lineAlpha > 0.02 then -- 922
 		drawSilkVeil( -- 924
 			uiDraw, -- 924
 			uiArt, -- 924
@@ -1323,7 +1323,7 @@ function CuffShotsPlugin.prototype.renderP05ExitBridge(self, uiDraw, uiInkDraw, 
 	local enter = smoothstep(0, 0.12, t) -- 941
 	local out = smoothstep(0.66, 1, t) -- 942
 	local alpha = enter * (1 - out) -- 943
-	if alpha <= 0.02 then -- 944
+	if alpha <= 0.02 then -- 943
 		return -- 945
 	end -- 945
 	local pinchT = smoothstep(0.14, 0.34, t) * (1 - out) -- 947
@@ -1347,7 +1347,7 @@ function CuffShotsPlugin.prototype.renderP05ExitBridge(self, uiDraw, uiInkDraw, 
 		true -- 965
 	) -- 965
 	local lineAlpha = smoothstep(0.08, 0.22, t) * (1 - smoothstep(0.82, 0.98, t)) -- 967
-	if lineAlpha > 0.02 then -- 968
+	if lineAlpha > 0.02 then -- 967
 		local subY = 92 -- 969
 		drawSilkVeil( -- 970
 			uiDraw, -- 970
@@ -1393,8 +1393,8 @@ function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, ui
 	local gr = view.gateReunion -- 992
 	local completed = ctx.p.phase == "gate-hand" or gr.completed -- 993
 	local ext = clamp01(self.g05SleeveExtend) -- 994
-	if not completed then -- 996
-		if ext > 0.008 then -- 998
+	if not completed then -- 994
+		if ext > 0.008 then -- 994
 			local veilA = math.floor(138 * clamp01(ext * 1.15) + 0.5) -- 1000
 			fillVGradRect( -- 1001
 				uiDraw, -- 1001
@@ -1468,7 +1468,7 @@ function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, ui
 				stitchHighlight = 0.35 * peekPulse -- 1046
 			}) -- 1046
 		end -- 1046
-		if view.assistHintsEnabled then -- 1051
+		if view.assistHintsEnabled then -- 1046
 			drawSilkVeil( -- 1052
 				uiDraw, -- 1052
 				uiArt, -- 1052
@@ -1483,7 +1483,7 @@ function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, ui
 			) -- 1052
 			ctx.texts:put( -- 1053
 				"xs", -- 1054
-				adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1055
+				getActiveTarget():adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1055
 				w * 0.5, -- 1056
 				h - 26, -- 1057
 				toColor(PALETTE.amberCore), -- 1058
@@ -1524,7 +1524,7 @@ function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, ui
 		true -- 1097
 	) -- 1097
 	local portraitAlpha = smoothstep(0.32, 0.88, t) -- 1101
-	if portraitAlpha > 0.02 then -- 1102
+	if portraitAlpha > 0.02 then -- 1101
 		local py = h * 0.56 + (1 - portraitAlpha) * 26 -- 1103
 		drawZhouShuReunionPortrait( -- 1104
 			uiDraw, -- 1104
@@ -1538,7 +1538,7 @@ function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, ui
 		) -- 1104
 	end -- 1104
 	local lineAlpha = smoothstep(0.75, 0.98, t) -- 1108
-	if lineAlpha > 0.02 then -- 1109
+	if lineAlpha > 0.02 then -- 1108
 		drawSilkVeil( -- 1110
 			uiDraw, -- 1110
 			uiArt, -- 1110
@@ -1610,7 +1610,7 @@ function CuffShotsPlugin.prototype.renderG05RehearsalShot(self, uiDraw, uiInkDra
 		toColor(bgBot), -- 1140
 		toColor(bgTop) -- 1140
 	) -- 1140
-	if tilt > 0.05 then -- 1142
+	if tilt > 0.05 then -- 1140
 		drawZhouShuReunionPortrait( -- 1143
 			uiDraw, -- 1143
 			uiInkDraw, -- 1143
@@ -1654,7 +1654,7 @@ function CuffShotsPlugin.prototype.renderG05RehearsalShot(self, uiDraw, uiInkDra
 		toColor(PALETTE.silkDim, 145) -- 1168
 	) -- 1168
 	local lineAlpha = smoothstep(2.35, 2.65, t) -- 1170
-	if lineAlpha > 0.02 then -- 1171
+	if lineAlpha > 0.02 then -- 1170
 		drawSilkVeil( -- 1172
 			uiDraw, -- 1172
 			uiArt, -- 1172

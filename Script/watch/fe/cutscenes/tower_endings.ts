@@ -34,7 +34,7 @@ import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE, drawPatchedCuff } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import { NEEDLE_NOTE_LINES } from "Script/watch/dialogues";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     LightRig,
@@ -2161,7 +2161,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             const rawHint = route === "child"
                 ? "按 E 收页 · 尾声与史话   ·   Esc 暂歇"
                 : "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇";
-            const hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
+            const hint = getActiveTarget().adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
             ctx.texts.put("xs", hint, ctx.uiW * 0.5, barH * 0.5, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.88, 0.08);
         }
     }

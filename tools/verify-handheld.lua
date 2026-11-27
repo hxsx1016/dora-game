@@ -1,6 +1,6 @@
--- 掌机、手柄与 KTR 赛道全链路验收脚本（Dora SSR 无头真跑）：
+-- 安卓掌机、手柄与 KTR 赛道全链路验收脚本（target = "handheld"，仅触屏 + 手柄，锁定横屏）：
 -- 1. 手柄核心映射、死区、扳机滞回、Back+Start 避让 Dora Go 退出热键与 Back 长按重试；
--- 2. 菜单 / 执器要诀三页切换 / 暂停「操控设置」原地二级页（含 Xbox/Nintendo A/B 互换）；
+-- 2. 菜单 / 执器要诀双页签（手柄/触屏）切换 / 暂停「操控设置」原地二级页（含 Xbox/Nintendo A/B 互换）；
 -- 3. 周戍 2.5D 枪战（右摇杆瞄准 + 共享敌兵/盾顶磁吸 + RT/X 开火 + LT/LB 掩体 + L3 穿梭器）；
 -- 4. 小满 2D 潜行（左摇杆轻推慢走且不误蹲 + B 蹲伏切换 + 投瓶右摇杆调落点 + B 取消投掷）；
 -- 5. 3×3 慢时连线换弹盘（手柄左摇杆斜向直连 0->4->8 + 手柄模式下混用触屏一笔划连 0->4->8）；
@@ -21,14 +21,16 @@ do
 		Content:insertSearchPath(3, Path(repoRoot, "Script", "Lib"))
 	end
 end
+
+package.loaded["watch.target"] = "handheld"
+local targetMod = require("Script.watch.target")
+targetMod.resetActiveTarget()
+
 local new = require("lualib_bundle").__TS__New
 local rooms = require("Script.watch.rooms")
 local playMod = require("Script.watch.play")
 local platform = require("Script.watch.platform")
 local controlsCfg = require("Script.watch.controls_config")
-local gpMod = require("Script.watch.gamepad")
-local TouchRouter = require("Script.watch.touch").TouchRouter
-local TouchControls = require("Script.watch.fe.ui.touch_controls").TouchControls
 local Input = require("Script.watch.input").Input
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local runMod = require("Script.watch.run")
@@ -73,17 +75,20 @@ end
 
 local root = Dora.Node()
 local input = new(Input)
+input:attach(root, {})
 input:setModePref("auto")
 input.settings.gamepadLayout = "xbox"
 input.settings.aimAssist = true
 input.settings.crouchToggle = false
-local gp = new(gpMod.GamepadRouter, input.settings)
-gp:attach(root)
-input:bindGamepad(gp)
-local router = new(TouchRouter, input.settings)
-router:attach(root)
-input:bindTouch(router)
-local ctrl = new(TouchControls, root)
+local gp = input:getGamepadRouter()
+local router = input:getTouchRouter()
+local ctrl = input:getTouchControls()
+check("handheld target attaches GamepadRouter + TouchRouter + 36-Label TouchControls",
+	gp ~= nil and router ~= nil and ctrl ~= nil and ctrl:getAllocatedLabelCount() == 36)
+check("handheld modePref cycles auto -> gamepad -> touch -> auto (no kbm)",
+	input:cycleModePref(1) == "gamepad"
+	and input:cycleModePref(1) == "touch"
+	and input:cycleModePref(1) == "auto")
 
 -- 1. Back + Start 组合键隔离 & Back 长按 0.55s 重试 & Start 暂停
 gp:setFrameContext(makeCtx({}), 1 / 60)
@@ -213,7 +218,7 @@ input:update()
 check("releasing RT after cancel does not fire stray bottle throw", not input.aim.released)
 input:consumeEdges()
 
--- 4. 菜单导航 + Xbox/Nintendo A/B 互换 + 执器要诀三页切换
+-- 4. 菜单导航 + Xbox/Nintendo A/B 互换 + 执器要诀双页切换（手柄/触屏）
 local fe = new(Frontend, root)
 local vp32 = platform.computeStageViewport(1620, 1080)
 local vp43 = platform.computeStageViewport(1280, 960)
@@ -249,6 +254,15 @@ gp:setSimulatedState({ rb = true })
 input:update()
 fe:renderMenu(1 / 60, input, 1620, 1080)
 check("RB switches controls tab from gamepad to touch", fe.menus.controlsTab == "touch")
+
+gp:setSimulatedState({})
+input:update()
+fe:renderMenu(1 / 60, input, 1620, 1080)
+
+gp:setSimulatedState({ rb = true })
+input:update()
+fe:renderMenu(1 / 60, input, 1620, 1080)
+check("RB wraps back to gamepad (no kbm tab on handheld)", fe.menus.controlsTab == "gamepad")
 
 gp:setSimulatedState({ b = true })
 input:update()
@@ -315,7 +329,8 @@ pReload:beginReload()
 check("second reload opens for hybrid touch drag test", pReload.reloadOpen == true)
 ctrl:syncContext({
 	viewport = vp32, mode = 1, screen = "play", play = pReload, run = storyRun, cam = fe.cam,
-	input = input, router = router, assistHintsEnabled = false, isMuted = false,
+	router = router, overlayActive = false, allowAutoGameplayTouch = true, allowMouseOnOverlay = false,
+	showWebTopPills = false, canToggleFullscreen = false, assistHintsEnabled = false, isMuted = false,
 	isFullscreen = false, storyTalentBoxes = {}, dt = 1 / 60,
 })
 input:update()
@@ -403,13 +418,19 @@ check("gamepad L3 chooses highlighted story talent", picked == true and #pReload
 
 -- 手柄模式下直接混用手指点选 escort3 的第二张本领卡
 local offers3 = pCraft:getStoryTalentOffers()
-if #offers3 > 0 then
+assert(#offers3 == 3, "escort3 must deal its three cards after the workbench closes")
+do
+	gp:setSimulatedState({})
+	input:update()
+	fe:renderPlay(1 / 60, pCraft, input, 1280, 960)
 	local boxes3 = fe:getStoryTalentBoxes(pCraft, 1280, 960, false)
 	ctrl:syncContext({
 		viewport = vp43, mode = 1, screen = "play", play = pCraft, run = storyRunCraft, cam = fe.cam,
-		input = input, router = router, assistHintsEnabled = false, isMuted = false,
+		router = router, overlayActive = false, allowAutoGameplayTouch = true, allowMouseOnOverlay = false,
+		showWebTopPills = false, canToggleFullscreen = false, assistHintsEnabled = false, isMuted = false,
 		isFullscreen = false, storyTalentBoxes = boxes3, dt = 1 / 60,
 	})
+	assert(#boxes3 == 3, "all post-workbench cards must be visible")
 	local b1 = boxes3[2]
 	router:injectTouch("began", 9, (b1.x + b1.width * 0.5) * vp43.uiScale, (b1.y + b1.height * 0.5) * vp43.uiScale, false)
 	router:injectTouch("ended", 9, (b1.x + b1.width * 0.5) * vp43.uiScale, (b1.y + b1.height * 0.5) * vp43.uiScale, false)
@@ -420,7 +441,8 @@ if #offers3 > 0 then
 	check("talent card picked cleanly", #pCraft:getStoryTalentOffers() == 0)
 end
 
--- 6c. 暂停菜单索引 8「操控设置」原地二级页手柄切换布局（Xbox <-> Nintendo）
+-- 6c. 暂停菜单末项「操控设置」原地二级页手柄切换布局（Xbox <-> Nintendo）
+-- 掌机非独立包模式下过滤全屏与退出，共 7 项（0..6），末项索引 6 为「操控设置」
 pCraft.paused = true
 fe.menus:openPause()
 input:setStageViewport(vp32)
@@ -433,11 +455,11 @@ gp:setSimulatedState({})
 input:update()
 check("gamepad mode activates pause menu selection", input:isGamepadMode() and fe.menus.pauseSelected == 1)
 
-fe.menus.pauseSelected = 8
+fe.menus.pauseSelected = 6
 gp:setSimulatedState({ a = true })
 input:update()
 fe:renderPlay(1 / 60, pCraft, input, 1620, 1080)
-check("pause index 8 opens 操控设置 sub-panel via gamepad A", fe.menus:isShowingPauseSettings())
+check("pause settings item opens 操控设置 sub-panel via gamepad A", fe.menus:isShowingPauseSettings())
 gp:setSimulatedState({})
 input:update()
 
@@ -500,5 +522,7 @@ fe:renderPlay(1 / 60, pCam, input, 1280, 960)
 check("3:2 and 4:3 play & pause frames render cleanly", true)
 
 controlsCfg.saveControlSettings(controlsCfg.defaultControlSettings())
+package.loaded["watch.target"] = nil
+targetMod.resetActiveTarget()
 root:cleanup()
 print("HANDHELD VERIFY PASS " .. pass .. " / FAIL 0")

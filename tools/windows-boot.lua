@@ -39,9 +39,11 @@ if Content:exist(portableDir) and Content:isdir(portableDir) then
 	portableSave = true
 end
 
+package.loaded["watch.target"] = "windows"
 package.loaded["watch.release"] = {
 	isRelease = true,
 	version = version,
+	target = "windows",
 	portableSave = portableSave,
 }
 
@@ -64,6 +66,7 @@ if Content:exist(smokeFlag) then
 		local lines = {
 			"version=" .. tostring(version),
 			"platform=" .. tostring(App.platform),
+			"target=" .. tostring(hook ~= nil and hook.getTargetId() or "unknown"),
 			"portableSave=" .. tostring(portableSave),
 		}
 		local function assertCheck(name, cond)
@@ -76,6 +79,12 @@ if Content:exist(smokeFlag) then
 		end
 		assertCheck("watch.fe hook loaded", hook ~= nil)
 		assertCheck("isRelease enabled", hook ~= nil and hook.isRelease() == true)
+		assertCheck("target locked to windows", hook ~= nil and hook.getTargetId() == "windows")
+		assertCheck("no touch/gamepad overlay in windows pack", hook ~= nil and hook.getTouchController() == nil and hook.getTouchRouter() == nil and hook.getGamepad() == nil)
+		assertCheck("stripped touch_core.lua", not Content:exist("Script/watch/input/touch_core.lua"))
+		assertCheck("stripped gamepad_core.lua", not Content:exist("Script/watch/input/gamepad_core.lua"))
+		assertCheck("stripped aim_assist.lua", not Content:exist("Script/watch/input/aim_assist.lua"))
+		assertCheck("stripped gamecontrollerdb.txt", not Content:exist("gamecontrollerdb.txt"))
 		assertCheck("root LICENSE exists", Content:exist("LICENSE"))
 		assertCheck("dialogues module loads", pcall(require, "Script.watch.dialogues") == true)
 		assertCheck("title backdrop exists", Content:exist("assets/art/title.png"))

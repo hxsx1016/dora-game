@@ -12,7 +12,7 @@ import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { FEAR_MAX } from "Script/watch/escort";
 import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import { SafeInsets, ZERO_SAFE_INSETS } from "Script/watch/platform";
-import { adaptHintSentence, adaptWorldKeyTag } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
@@ -94,7 +94,7 @@ export class HudRenderer {
                     const adapted: WorldPrompt = {
                         x: prompt.x,
                         y: prompt.y,
-                        keyTag: adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout),
+                        keyTag: getActiveTarget().adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout),
                         label: prompt.label,
                         urgent: prompt.urgent,
                         progress: prompt.progress,
@@ -270,7 +270,7 @@ export class HudRenderer {
             if (frozen) {
                 const pulse = 0.65 + 0.35 * Math.sin(this.time * 7.0);
                 if (assistHintsEnabled) {
-                    const calmKey = adaptWorldKeyTag("E", inputMode, gamepadLayout);
+                    const calmKey = getActiveTarget().adaptWorldKeyTag("E", inputMode, gamepadLayout);
                     const keyW = Math.max(22, visualTextWidth(calmKey, 15) + 10);
                     drawSilkKeycap(uiInkDraw, texts, bx + 170, subY - 5, keyW, 22, calmKey, PALETTE.rouge, alpha * pulse, true);
                     texts.put("xs", "轻敲安抚", bx + 176 + keyW, subY + 6, toColor(PALETTE.crimsonCore), 0, 0.5, TextAlign.Left, 0.8, alpha * pulse, 0.08);
@@ -287,9 +287,9 @@ export class HudRenderer {
             if (ranks !== undefined) {
                 const parts: string[] = [];
                 if (ranks.vitality > 0) parts.push("厚甲" + ranks.vitality);
-                if (ranks.reload > 0) parts.push("熟铳" + ranks.reload);
+                if (ranks.focus > 0) parts.push("凝神" + ranks.focus);
                 if (ranks.guard > 0) parts.push("护身" + ranks.guard);
-                if (ranks.craft > 0) parts.push("巧手" + ranks.craft);
+                if (ranks.salvage > 0) parts.push("拾料" + ranks.salvage);
                 if (parts.length > 0) {
                     const subY = by - 22;
                     const txt = "本领 · " + parts.join(" · ");
@@ -347,7 +347,7 @@ export class HudRenderer {
             col = PALETTE.emerald;
         } else if (p.hasBottle) {
             posture = assistHintsEnabled
-                ? adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout)
+                ? getActiveTarget().adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout)
                 : "手持陶瓶";
             col = PALETTE.amberCore;
         }
@@ -443,8 +443,8 @@ export class HudRenderer {
                 const by = h - 64 - safe.top;
                 const tied = p.phase === "gate-hand";
                 const ratio = tied ? 1 : Math.max(0, Math.min(1, p.handTicks / Math.max(1, p.handNeedTicks)));
-                const holdInteractKey = adaptWorldKeyTag("按住 E", inputMode, gamepadLayout);
-                const reholdInteractKey = adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout);
+                const holdInteractKey = getActiveTarget().adaptWorldKeyTag("按住 E", inputMode, gamepadLayout);
+                const reholdInteractKey = getActiveTarget().adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout);
                 const label = tied ? "我们走吧。"
                     : (p.handTicks > 0 ? "牵起小满 · " + p.handTicks + " / " + p.handNeedTicks
                         : (p.handArmed ? (holdInteractKey + " · 把手伸给她") : (reholdInteractKey + " · 把手伸给她")));
@@ -480,7 +480,7 @@ export class HudRenderer {
                 drawHairline(uiInkDraw, uiArt, "hud_gate_top", cx, by + 39, bw - 20, PALETTE.rougeSoft, 0.55 * alpha, false, 2);
 
                 const idleNeedConfirmLabel = assistHintsEnabled
-                    ? adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout)
+                    ? getActiveTarget().adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout)
                     : "绞盘待命";
                 const label = p.phase === "gate-idle"
                     ? (p.gateNeedConfirm ? idleNeedConfirmLabel : "待小满就位 · 绞盘启")

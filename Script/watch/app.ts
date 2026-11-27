@@ -1,20 +1,10 @@
-/**
- * 《守望》入口装配器：
- * - 正常启动进入 WatchFrontend 的标题页与八个房间；
- * - 保留 G / F2 切回 D1 灰盒调试视图（graybox.ts），保留 1..8 / Tab / F1 开发快跳与
- *   package.loaded["watch.play" | "watch.input" | "watch.room" | "watch.fe"] 运行态验收钩子。
- */
-
-import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
-import { LabelSpec, collectLabels, computeView, drawScaleRuler, renderWorld } from "Script/watch/graybox";
-import { CART_NOTE, HINTS, RULER_TEXT, STAND_NOTE, SWITCH_HINT, TITLE } from "Script/watch/keys";
+import { App, Node, Size, Vec2, View } from "Dora";
+import { getActiveTarget } from "Script/watch/target";
 import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
-import { collectPlayAimTargets } from "Script/watch/aim_assist";
 import { InputMode, InputModePref } from "Script/watch/controls_config";
-import { GamepadFrameContext, GamepadRawState, GamepadRouter } from "Script/watch/gamepad";
 import {
     StageViewport,
     canQuitApp,
@@ -23,62 +13,24 @@ import {
     getReleaseConfig,
     isReleaseMode,
 } from "Script/watch/platform";
-import { TouchRouter } from "Script/watch/touch";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createStoryTalents, normalizeLegacyTalent, RunSource, RunState, Talent } from "Script/watch/run";
 import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
     markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
     SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
-import { TouchControls } from "Script/watch/fe/ui/touch_controls";
-import { isCutsceneBlockingPlay } from "Script/watch/fe/ui/control_prompts";
-
-declare function print(...args: string[]): void;
-
-const FONT = "sarasa-mono-sc-regular";
-const LAYOUT_AUDIT = false;
-
-const C_TEXT = Color(236, 236, 232, 255);
-const C_DIM = Color(150, 154, 152, 255);
-const C_ACCENT = Color(226, 186, 84, 255);
-const C_BG = Color(17, 18, 19, 255);
-
-const POOL_BODY = 30;
-const POOL_SMALL = 44;
-const TOP_H = 208;
-const BOTTOM_H = 216;
 
 let root: Node.Type | undefined;
-let grayboxLayer: Node.Type | undefined;
-let draw: DrawNode.Type | undefined;
-let titleLabel: Label.Type | undefined;
-let roomLabel: Label.Type | undefined;
-let captionLabel: Label.Type | undefined;
-let hintLabel: Label.Type | undefined;
-let switchLabel: Label.Type | undefined;
 /** 正式剧情的跨房状态；模式 1 整局一份，切房与重试都复用它。 */
 let storyRun: RunState | undefined;
 /** 跨局档案：正式通关与神器只写在这里，与每局的 RunState 分开。 */
 let profile: SaveState = emptySave();
 let profileStatus = "missing";
 let profileDetail = "";
-let rulerLabel: Label.Type | undefined;
-let standLabel: Label.Type | undefined;
-let cartLabel: Label.Type | undefined;
-
-const poolBody: Label.Type[] = [];
-const poolSmall: Label.Type[] = [];
-
 let current = 0;
 let viewW = 0;
 let viewH = 0;
-let dirty = true;
-/** 0 = 灰盒调试视图，1 = 游戏前端。 */
-let mode = 1;
 let input: Input | undefined;
-let touchRouter: TouchRouter | undefined;
-let gamepadRouter: GamepadRouter | undefined;
-let touchControls: TouchControls | undefined;
 let play: Play | undefined;
 let fe: WatchFrontend | undefined;
 const clock = new StepClock();
@@ -128,7 +80,7 @@ function quitGame(): void {
         // Web / Dora Go 源码模式不允许停死宿主进程：安全回退到标题页
         current = 0;
         play = undefined;
-        setMode(1);
+        clock.reset();
         if (fe !== undefined) {
             fe.audio.stopRoomTransient();
             fe.screen = "title";
@@ -140,10 +92,6 @@ function quitGame(): void {
 }
 
 function handleBackButton(): void {
-    if (mode === 0) {
-        setMode(1);
-        return;
-    }
     if (fe === undefined) {
         return;
     }
@@ -178,6 +126,10 @@ function handleBackButton(): void {
             input?.clearTransient(true);
             return;
         }
+        if (fe.roguelikeUi.isLedgerOpen()) {
+            fe.roguelikeUi.closeLedger();
+            return;
+        }
         if (play.paused) {
             fe.menus.triggerBack();
             return;
@@ -196,7 +148,7 @@ function handleBackButton(): void {
 }
 
 function canSaveSession(): boolean {
-    if (mode !== 1 || play === undefined || storyRun === undefined) {
+    if (play === undefined || storyRun === undefined) {
         return false;
     }
     if (storyRun.source !== "official" || play.run.finished) {
@@ -297,7 +249,7 @@ function continueOfficialStory(): Play | undefined {
     }
     if (s.props !== undefined) {
         for (k = 0; k < s.props.length; k++) {
-            const parts = s.props[k].split(":");
+            const parts: string[] = s.props[k].split(":");
             const pid = parts[0];
             if (pid !== undefined && pid !== "") {
                 storyRun.props[pid] = {
@@ -323,7 +275,7 @@ function continueOfficialStory(): Play | undefined {
     stTalents.room = s.talentRoom ?? "";
     if (s.talentRanks !== undefined && s.talentRanks.length > 0) {
         for (k = 0; k < s.talentRanks.length; k++) {
-            const parts = s.talentRanks[k].split(":");
+            const parts: string[] = s.talentRanks[k].split(":");
             const norm = parts[0] !== undefined ? normalizeLegacyTalent(parts[0]) : undefined;
             const rk = parts[1] !== undefined ? (tonumber(parts[1]) ?? 0) : 0;
             if (norm !== undefined && rk > 0) {
@@ -347,7 +299,7 @@ function continueOfficialStory(): Play | undefined {
     }
     storyRun.story.talents = stTalents;
     current = idx;
-    setMode(1);
+    clock.reset();
     if (fe !== undefined) {
         fe.screen = "play";
     }
@@ -391,92 +343,61 @@ function continueOfficialStory(): Play | undefined {
     return play;
 }
 
-function makeGrayboxLabel(text: string, size: number, color: Color.Type): Label.Type | undefined {
-    if (grayboxLayer === undefined) {
-        return undefined;
-    }
-    const lb = Label(FONT, size);
-    if (lb === undefined) {
-        return undefined;
-    }
-    lb.text = text;
-    lb.color = color;
-    lb.addTo(grayboxLayer);
-    lb.visible = true;
-    return lb;
-}
-
-function place(lb: Label.Type | undefined, x: number, y: number, ax: number, ay: number): void {
-    if (lb === undefined) {
-        return;
-    }
-    lb.position = Vec2(x, y);
-    lb.anchor = Vec2(ax, ay);
-    lb.visible = true;
-}
-
-export function start(parent: Node.Type, initialMode: number = 1, startScreen: ScreenKind = "title"): void {
+export function start(parent: Node.Type, _initialMode: number = 1, startScreen: ScreenKind = "title"): void {
     root = parent;
-    mode = initialMode;
-
-    // 1. 保留 D1 灰盒调试层（G / F2 按需切入）
-    grayboxLayer = Node();
-    grayboxLayer.order = 2;
-    grayboxLayer.addTo(parent);
-
-    draw = DrawNode();
-    draw.addTo(grayboxLayer);
-
-    titleLabel = makeGrayboxLabel(TITLE, 40, C_TEXT);
-    roomLabel = makeGrayboxLabel("", 26, C_ACCENT);
-    captionLabel = makeGrayboxLabel("", 22, C_DIM);
-    switchLabel = makeGrayboxLabel(SWITCH_HINT, 22, C_DIM);
-    hintLabel = makeGrayboxLabel("", 22, C_TEXT);
-    rulerLabel = makeGrayboxLabel(RULER_TEXT, 22, C_DIM);
-    standLabel = makeGrayboxLabel(STAND_NOTE, 24, C_DIM);
-    cartLabel = makeGrayboxLabel(CART_NOTE, 24, C_ACCENT);
-
-    for (let i = 0; i < POOL_BODY; i++) {
-        const lb = makeGrayboxLabel("", 24, C_TEXT);
-        if (lb !== undefined) {
-            poolBody.push(lb);
-        }
-    }
-    for (let i = 0; i < POOL_SMALL; i++) {
-        const lb = makeGrayboxLabel("", 22, C_DIM);
-        if (lb !== undefined) {
-            poolSmall.push(lb);
-        }
-    }
 
     // 挂载菜单与游戏前端。
     // 读档：缺文件按新档起局；损坏/版本不支持时保留原文件并报告，仍可继续玩。
-    if (mode === 1) {
-        const loaded = loadSave();
-        profile = loaded.state;
-        profileStatus = loaded.status;
-        profileDetail = loaded.detail;
-    }
+    const loaded = loadSave();
+    profile = loaded.state;
+    profileStatus = loaded.status;
+    profileDetail = loaded.detail;
     fe = new WatchFrontend(parent);
     fe.screen = startScreen;
     if (startScreen === "splash") {
         fe.menus.resetSplash();
     }
     refreshTitleSessionFlag();
-    grayboxLayer.visible = mode === 0;
-    fe.setVisible(mode === 1);
+    fe.setVisible(true);
 
     input = new Input();
     fe.audio.applyUserVolumes(input.settings);
-    touchRouter = new TouchRouter(input.settings);
-    touchRouter.attach(parent);
-    input.bindTouch(touchRouter);
-
-    gamepadRouter = new GamepadRouter(input.settings);
-    gamepadRouter.attach(parent);
-    input.bindGamepad(gamepadRouter);
-
-    touchControls = new TouchControls(parent);
+    input.attach(parent, {
+        onFirstUserGesture: () => {
+            onFirstUserGesture();
+            input?.markKeyboardActivity();
+        },
+        onToggleFullscreen: () => {
+            toggleFullscreen();
+        },
+        onKeyDownEvent: (key: string) => {
+            if (fe?.screen === "play" && play !== undefined && !play.paused) {
+                if (key === "1" || key === "2" || key === "3") {
+                    input?.requestPickRoom(Number(key));
+                    return;
+                }
+                if (key === "T" && !play.escortFailed && !play.talentModalActive && !fe.roguelikeUi.isLedgerOpen()) {
+                    play.toggleArtifactWeapon();
+                    return;
+                }
+            }
+            const inPausedPlay = fe !== undefined && fe.screen === "play" && play !== undefined && play.paused;
+            if (fe !== undefined && (fe.screen !== "play" || inPausedPlay)) {
+                fe.menus.onKeyEvent(key);
+            }
+            if (input !== undefined && (fe !== undefined && fe.screen === "play" && !inPausedPlay)) {
+                if (key === "E") {
+                    input.interact.pressed = true;
+                } else if (key === "Space") {
+                    input.jump.pressed = true;
+                } else if (key === "Escape") {
+                    input.pause.pressed = true;
+                } else if (key === "R" && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
+                    input.retry.pressed = true;
+                }
+            }
+        },
+    });
 
     // 系统返回键、窗口关闭、切后台与焦点切换生命周期统一治理
     parent.gslot("AppEvent", (eventType: string) => {
@@ -494,7 +415,7 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
             flushProfile();
             saveCurrentSession();
             input?.clearTransient(true);
-            if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && !play.escortFailed) {
+            if (fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && !play.escortFailed) {
                 play.paused = true;
                 play.aimHold = 0;
                 play.bottleAimX = -1;
@@ -507,134 +428,9 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         }
         if (eventType === "DidEnterForeground" || eventType === "WindowFocusGained") {
             if (fe !== undefined) {
-                const paused = play !== undefined && play.paused && mode === 1 && fe.screen === "play";
+                const paused = play !== undefined && play.paused && fe.screen === "play";
                 fe.audio.setPaused(paused);
             }
-        }
-    });
-
-    // 开发与验收快捷键 + 瞬时按键边沿锁存（防止低帧率下短按 E / Space / Esc / 菜单方向键被轮询漏掉）
-    parent.onKeyDown((key: KeyName) => {
-        onFirstUserGesture();
-        input?.markKeyboardActivity();
-        if (key === KeyName.F11
-            || (key === KeyName.Return && (Keyboard.isKeyPressed(KeyName.LAlt) || Keyboard.isKeyPressed(KeyName.RAlt)))) {
-            toggleFullscreen();
-            return;
-        }
-        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused) {
-            if (play.escortFailed) {
-                if (key === KeyName.Left || key === KeyName.A) {
-                    fe.talentDraft.deathSelected = 0;
-                    return;
-                }
-                if (key === KeyName.Right || key === KeyName.D) {
-                    fe.talentDraft.deathSelected = 1;
-                    return;
-                }
-                if (key === KeyName.Escape) {
-                    fe.audio.stopRoomTransient();
-                    fe.menus.resetInput();
-                    fe.screen = "title";
-                    input?.clearTransient(true);
-                    return;
-                }
-                if ((key === KeyName.Return || key === KeyName.Space) && play.escortFailedTicks >= 24) {
-                    if (fe.talentDraft.deathSelected === 0) {
-                        play.confirmEscortRestart();
-                        applyRoomTransition(play);
-                    } else {
-                        fe.audio.stopRoomTransient();
-                        fe.menus.resetInput();
-                        fe.screen = "title";
-                        input?.clearTransient(true);
-                    }
-                    return;
-                }
-                if (key === KeyName.R && play.escortFailedTicks >= 24) {
-                    play.confirmEscortRestart();
-                    applyRoomTransition(play);
-                    return;
-                }
-                return;
-            }
-            if (!play.craftBench.active && !play.reloadOpen) {
-                const offers = play.getStoryTalentOffers();
-                if (offers.length > 0) {
-                    if (key === KeyName.Num1) {
-                        play.chooseTalent(0);
-                        input?.consumePickRoom();
-                        return;
-                    }
-                    if (key === KeyName.Num2) {
-                        play.chooseTalent(1);
-                        input?.consumePickRoom();
-                        return;
-                    }
-                    if (key === KeyName.Num3) {
-                        play.chooseTalent(2);
-                        input?.consumePickRoom();
-                        return;
-                    }
-                    if (play.talentModalActive) {
-                        if (key === KeyName.Left || key === KeyName.A) {
-                            fe.talentDraft.selected = (fe.talentDraft.selected + offers.length - 1) % offers.length;
-                            fe.hud.talentSelected = fe.talentDraft.selected;
-                            return;
-                        }
-                        if (key === KeyName.Right || key === KeyName.D) {
-                            fe.talentDraft.selected = (fe.talentDraft.selected + 1) % offers.length;
-                            fe.hud.talentSelected = fe.talentDraft.selected;
-                            return;
-                        }
-                        if (key === KeyName.Return || key === KeyName.Space) {
-                            play.chooseTalent(fe.talentDraft.selected);
-                            return;
-                        }
-                    }
-                }
-            }
-            if (key === KeyName.T && !(play.talentModalActive && play.getStoryTalentOffers().length > 0)) {
-                play.toggleArtifactWeapon();
-                return;
-            }
-        }
-        const inPausedPlay = mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && play.paused;
-        if (fe !== undefined && mode === 1 && (fe.screen !== "play" || inPausedPlay)) {
-            fe.menus.onKeyEvent(key);
-        }
-        if (input !== undefined && mode === 1 && fe !== undefined && fe.screen === "play" && !inPausedPlay) {
-            if (key === KeyName.E) {
-                input.interact.pressed = true;
-            } else if (key === KeyName.Space) {
-                input.jump.pressed = true;
-            } else if (key === KeyName.Escape) {
-                input.pause.pressed = true;
-            } else if (key === KeyName.R && (play === undefined || (!play.craftBench.active && !play.reloadOpen && !play.talentModalActive))) {
-                input.retry.pressed = true;
-            }
-        }
-        if (isReleaseBuild()) return;
-        if (key === KeyName.F1) {
-            enterPlayRoom(current, storyRun === undefined ? "debug" : storyRun.source);
-        } else if (key === KeyName.F2) {
-            setMode(0);
-        } else if (key === KeyName.Num1) {
-            pickByIndex(0);
-        } else if (key === KeyName.Num2) {
-            pickByIndex(1);
-        } else if (key === KeyName.Num3) {
-            pickByIndex(2);
-        } else if (key === KeyName.Num4) {
-            pickByIndex(3);
-        } else if (key === KeyName.Num5) {
-            pickByIndex(4);
-        } else if (key === KeyName.Num6) {
-            pickByIndex(5);
-        } else if (key === KeyName.Num7) {
-            pickByIndex(6);
-        } else if (key === KeyName.Num8) {
-            pickByIndex(7);
         }
     });
 
@@ -645,14 +441,14 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
     // 验收钩子：保留 watch.input / watch.play / watch.room / watch.fe，并补充三模与多比例视口控制面
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.input"] = input;
-    reg["watch.touch"] = touchRouter;
-    reg["watch.gamepad"] = gamepadRouter;
+    reg["watch.touch"] = input.getTouchRouter();
+    reg["watch.gamepad"] = input.getGamepadRouter();
     reg["watch.fe"] = {
         setScreen: (sc: ScreenKind) => {
             if (fe === undefined) {
                 return;
             }
-            setMode(1);
+            clock.reset();
             fe.screen = sc;
             if (sc === "splash") {
                 fe.menus.resetSplash();
@@ -739,16 +535,17 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         quitGame: () => quitGame(),
         handleBackButton: () => handleBackButton(),
         getViewport: () => stageVp,
-        getTouchController: () => touchControls,
-        getTouchRouter: () => touchRouter,
-        getGamepad: () => gamepadRouter,
-        setGamepadSim: (state?: GamepadRawState) => {
-            gamepadRouter?.setSimulatedState(state);
+        getTargetId: () => getActiveTarget().id,
+        getTouchController: () => input?.getTouchControls(),
+        getTouchRouter: () => input?.getTouchRouter(),
+        getGamepad: () => input?.getGamepadRouter(),
+        setGamepadSim: (state?: unknown) => {
+            input?.setGamepadSim(state);
         },
         injectTouch: (phase: "began" | "moved" | "ended", id: number, x: number, y: number, fromMouse?: boolean) => {
-            touchRouter?.injectTouch(phase, id, x, y, fromMouse);
+            input?.injectTouch(phase, id, x, y, fromMouse);
         },
-        getInputMode: () => input?.inputMode ?? "kbm",
+        getInputMode: () => input?.inputMode ?? getActiveTarget().defaultInputMode,
         setInputMode: (m: InputMode) => {
             input?.setInputMode(m);
         },
@@ -766,13 +563,12 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 viewH = View.size.height;
             }
             applySize();
-            dirty = true;
             return stageVp;
         },
         getToast: () => fe?.getToastText() ?? "",
     };
 
-    if (mode === 1 && startScreen === "play") {
+    if (startScreen === "play") {
         ensurePlay();
     }
 
@@ -780,18 +576,6 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         tick(frameDt);
         return false;
     });
-}
-
-function setMode(nextMode: number): void {
-    mode = nextMode === 0 ? 0 : 1;
-    if (grayboxLayer !== undefined) {
-        grayboxLayer.visible = mode === 0;
-    }
-    if (fe !== undefined) {
-        fe.setVisible(mode === 1);
-    }
-    dirty = true;
-    clock.reset();
 }
 
 /**
@@ -862,7 +646,7 @@ function applyChapterPreviewContext(targetRun: RunState, roomKey: string, routeO
 
 function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, seedOverride?: number, chapterRoute?: "child" | "soldier"): void {
     current = idx;
-    setMode(1);
+    clock.reset();
     if (fe !== undefined) {
         fe.screen = "play";
     }
@@ -887,26 +671,6 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, 
     flushProfile();
 }
 
-function pickByIndex(idx: number, source: RunSource = "debug"): void {
-    if (idx < 0 || idx >= ROOMS.length) {
-        return;
-    }
-    flushProfile();
-    if (storyRun !== undefined) {
-        storyRun.source = source;
-    }
-    current = idx;
-    dirty = true;
-    play = undefined;
-    clock.reset();
-    if (mode === 1) {
-        if (fe !== undefined) {
-            fe.screen = "play";
-        }
-        ensurePlay();
-    }
-}
-
 function applySize(): void {
     if (root === undefined) {
         return;
@@ -920,117 +684,52 @@ function applySize(): void {
     if (fe !== undefined) {
         fe.setStagePlacement(stageVp);
     }
-    if (grayboxLayer !== undefined) {
-        grayboxLayer.position = Vec2(0, 0);
-    }
 }
 
 function syncFrameAdapters(frameDt: number): void {
     if (input === undefined) {
         return;
     }
+    const target = input.target;
+    if (!target.supportsTouch && !target.supportsGamepad) {
+        return;
+    }
     const p = play;
-    const isPlayMode = mode === 1 && fe !== undefined && fe.screen === "play" && p !== undefined;
-    const gameplayActive = isPlayMode;
-
-    const storyTalentBoxes = isPlayMode && fe !== undefined && p !== undefined
-        && !p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed
+    const isPlayMode = fe !== undefined && fe.screen === "play" && p !== undefined;
+    const storyTalentBoxes = target.supportsTouch && isPlayMode && fe !== undefined && p !== undefined
+        && !p.paused && !p.craftBench.active && !p.reloadOpen
         ? fe.getStoryTalentBoxes(p, stageVp.stageW, stageVp.stageH, input.isTouchMode())
         : [];
-    const escortDeathBoxes = isPlayMode && fe !== undefined && p !== undefined
-        && !p.paused && p.escortFailed
-        ? fe.getEscortDeathBoxes(p, stageVp.stageW, stageVp.stageH)
-        : undefined;
 
-    if (touchControls !== undefined && touchRouter !== undefined) {
-        let isFs = false;
-        if (canToggleFullscreen()) {
-            try {
-                isFs = App.fullScreen;
-            } catch {
-                isFs = false;
-            }
+    let isFs = false;
+    if (target.canToggleFullscreen()) {
+        try {
+            isFs = App.fullScreen;
+        } catch {
+            isFs = false;
         }
-        touchControls.syncContext({
-            viewport: stageVp,
-            mode,
-            screen: fe !== undefined ? fe.screen : "title",
-            play: p,
-            run: storyRun,
-            cam: fe !== undefined ? fe.cam : undefined,
-            input,
-            router: touchRouter,
-            assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
-            isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
-            isFullscreen: isFs,
-            storyTalentBoxes,
-            escortDeathBoxes,
-            dt: frameDt,
-        });
     }
-
-    if (gamepadRouter !== undefined) {
-        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed
-            ? p.getStoryTalentOffers().length
-            : 0;
-        const talentBlocking = isPlayMode && p !== undefined && p.talentModalActive && talentOfferCount > 0;
-        const modal = !gameplayActive
-            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active || p.escortFailed || talentBlocking));
-        const reloadActive = isPlayMode && p !== undefined && !p.paused && p.reloadOpen;
-        const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
-        const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
-        const allowDepth = p !== undefined && p.room.depth !== undefined
-            && (!p.childMode || p.phase === "prologue-escape");
-        const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
-        const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
-            && !modal && !cutsceneBlocking && p.escort.state !== "calming";
-        const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village"
-            && p.hasBottle && !p.passed && !modal && !cutsceneBlocking;
-        const inLowArch = p !== undefined && p.room.arch.h > 0
-            && p.player.x >= p.room.arch.x0 - 10 && p.player.x <= p.room.arch.x1 + 10
-            && p.player.y <= p.room.arch.y + p.room.arch.h;
-        const inTowerEnd = isPlayMode && p !== undefined && p.room.key === "tower" && p.phase === "tower-end";
-
-        let playerScreenX = stageVp.stageW * 0.5;
-        let playerScreenY = stageVp.stageH * 0.38;
-        if (p !== undefined && isPlayMode && fe !== undefined) {
-            playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
-            playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-        }
-
-        const enemyTargets = canShoot && p !== undefined && isPlayMode && fe !== undefined
-            ? collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
-            : [];
-
-        const gpCtx: GamepadFrameContext = {
-            stageW: stageVp.stageW,
-            stageH: stageVp.stageH,
-            uiScale: stageVp.uiScale,
-            modal,
-            gameplayActive,
-            reloadActive,
-            craftActive,
-            talentOfferCount,
-            childMode: p !== undefined && p.childMode,
-            allowDepth,
-            canShoot,
-            canBottleAim,
-            playerRolling: p !== undefined && p.player.rollT > 0,
-            inLowArch,
-            inTowerEnd,
-            playerFacing: p !== undefined ? p.player.facing : 1,
-            playerScreenX,
-            playerScreenY,
-            enemyTargets,
-        };
-        gamepadRouter.setFrameContext(gpCtx, frameDt);
-    }
+    input.syncFrame({
+        viewport: stageVp,
+        mode: 1,
+        screen: fe !== undefined ? fe.screen : "title",
+        play: p,
+        run: storyRun,
+        cam: isPlayMode ? fe?.cam : undefined,
+        input,
+        assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
+        isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
+        isFullscreen: isFs,
+        storyTalentBoxes,
+        escortDeathBoxes: p && fe ? fe.getEscortDeathBoxes(p, stageVp.stageW, stageVp.stageH) : undefined,
+        ledgerBox: fe?.roguelikeUi.getLedgerButtonRect(),
+        ledgerOpen: fe?.roguelikeUi.isLedgerOpen() ?? false,
+        dt: frameDt,
+    });
 }
 
 function renderTouchOverlay(): void {
-    if (touchControls !== undefined && touchRouter !== undefined) {
-        touchControls.render(touchRouter);
-    }
+    input?.renderOverlay();
 }
 
 function tick(frameDt: number): void {
@@ -1041,7 +740,6 @@ function tick(frameDt: number): void {
         viewW = w;
         viewH = h;
         applySize();
-        dirty = true;
     }
     if (input === undefined) {
         return;
@@ -1060,9 +758,12 @@ function tick(frameDt: number): void {
         input.fullscreenTogglePressed = false;
         toggleFullscreen();
     }
-    if (input.artifactTogglePressed && mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && !play.escortFailed) {
+    if (input.artifactTogglePressed) {
         input.artifactTogglePressed = false;
-        play.toggleArtifactWeapon();
+        if (fe?.screen === "play" && play !== undefined && !play.paused && !play.escortFailed
+            && !play.talentModalActive && !fe.roguelikeUi.isLedgerOpen()) {
+            play.toggleArtifactWeapon();
+        }
     }
     if (input.bottleCanceled && play !== undefined) {
         input.bottleCanceled = false;
@@ -1070,48 +771,15 @@ function tick(frameDt: number): void {
         play.bottleAimX = -1;
     }
 
-    if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
+    if (fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
         && !play.craftBench.active && !play.reloadOpen && !play.escortFailed && play.getStoryTalentOffers().length > 0
         && input.pickRoom >= 1 && input.pickRoom <= 3) {
         if (fe.canPickStoryTalent(play)) {
             play.chooseTalent(input.pickRoom - 1);
         }
-        input.pickRoom = 0;
     }
-
-    if (isReleaseBuild()) {
-        input.toggleView.pressed = false;
-        input.pickRoom = 0;
-        input.tab.pressed = false;
-    } else {
-        // G 键切换灰盒调试视图 / 高清前端
-        if (input.toggleView.pressed) {
-            input.toggleView.pressed = false;
-            setMode(mode === 0 ? 1 : 0);
-            if (mode === 1 && fe !== undefined && fe.screen === "play" && play === undefined) {
-                ensurePlay();
-            }
-        }
-
-        // 1/2/3 与 Tab 轮询快跳
-        if (input.pickRoom !== 0) {
-            const idx = input.pickRoom - 1;
-            input.pickRoom = 0;
-            pickByIndex(idx);
-        } else if (input.tab.pressed) {
-            input.tab.pressed = false;
-            if (mode === 0 || (fe?.screen === "play" && !play?.paused)) {
-                pickByIndex((current + 1) % ROOMS.length);
-            }
-        }
-    }
-
-    if (mode === 1) {
-        tickFrontend(frameDt);
-    } else if (dirty) {
-        redrawGraybox();
-        dirty = false;
-    }
+    input.pickRoom = 0;
+    tickFrontend(frameDt);
     renderTouchOverlay();
 }
 
@@ -1132,7 +800,7 @@ function ensurePlay(resume?: { checkpoint: number }): void {
     play = new Play(ROOMS[current], resume, storyRun);
     registerPlay();
     clock.reset();
-    if (fe !== undefined && mode === 1) {
+    if (fe !== undefined) {
         fe.bindPlay(play, stageVp.stageW, stageVp.stageH);
     }
 }
@@ -1182,7 +850,6 @@ function applyRoomTransition(p: Play): boolean {
         saveCurrentSession();
     }
     clock.reset();
-    dirty = true;
     return true;
 }
 
@@ -1261,16 +928,16 @@ function tickFrontend(frameDt: number): void {
             deathAction = "title";
         } else {
             if (input.navLeft || input.navPrevTab) {
-                fe.talentDraft.deathSelected = 0;
+                fe.roguelikeUi.deathSelected = 0;
             } else if (input.navRight || input.navNextTab) {
-                fe.talentDraft.deathSelected = 1;
+                fe.roguelikeUi.deathSelected = 1;
             }
             if (input.pause.pressed || input.navBack) {
                 deathAction = "title";
             } else if (p.escortFailedTicks >= 24 && input.retry.pressed) {
                 deathAction = "retry";
             } else if (p.escortFailedTicks >= 24 && input.navConfirm) {
-                deathAction = fe.talentDraft.deathSelected === 0 ? "retry" : "title";
+                deathAction = fe.roguelikeUi.deathSelected === 0 ? "retry" : "title";
             } else if (p.escortFailedTicks >= 12
                 && (input.uiPressed || (input.inputMode !== "gamepad" && input.fire.pressed))) {
                 deathAction = fe.tryPickEscortDeathAtPointer(p, input, stageVp.stageW, stageVp.stageH);
@@ -1295,16 +962,21 @@ function tickFrontend(frameDt: number): void {
         input.fire.pressed = false;
     }
 
+    if (!p.paused && fe.roguelikeUi.isLedgerOpen()) {
+        clock.reset();
+        fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH);
+        input.consumeEdges();
+        return;
+    }
+
     const offers = p.getStoryTalentOffers();
-    if (!p.paused && !p.craftBench.active && !p.reloadOpen && !p.escortFailed && offers.length > 0) {
-        if (fe.talentDraft.selected >= offers.length) {
-            fe.talentDraft.selected = 0;
+    if (fe.canPickStoryTalent(p) && offers.length > 0) {
+        if (fe.hud.talentSelected >= offers.length) {
+            fe.hud.talentSelected = 0;
         }
-        fe.hud.talentSelected = fe.talentDraft.selected;
         if (zoneTap.indexOf("talent:") === 0) {
             const idx = parseInt(zoneTap.slice(7), 10);
             if (idx >= 0 && idx < offers.length && p.chooseTalent(idx)) {
-                fe.talentDraft.selected = idx;
                 fe.hud.talentSelected = idx;
                 input.fire.pressed = false;
             }
@@ -1312,14 +984,13 @@ function tickFrontend(frameDt: number): void {
             const navDelta = p.talentModalActive
                 ? ((input.navRight || input.navNextTab ? 1 : 0) - (input.navLeft || input.navPrevTab ? 1 : 0))
                 : 0;
-            const totalDelta = input.talentDelta + navDelta;
+            const totalDelta = navDelta !== 0 ? navDelta : input.talentDelta;
             if (totalDelta !== 0) {
-                fe.talentDraft.selected = (fe.talentDraft.selected + totalDelta + offers.length) % offers.length;
-                fe.hud.talentSelected = fe.talentDraft.selected;
+                fe.hud.talentSelected = (fe.hud.talentSelected + totalDelta + offers.length) % offers.length;
                 input.talentDelta = 0;
             }
             if (input.talentConfirm || (p.talentModalActive && input.navConfirm)) {
-                p.chooseTalent(fe.talentDraft.selected);
+                p.chooseTalent(fe.hud.talentSelected);
                 input.talentConfirm = false;
                 input.fire.pressed = false;
             } else if ((input.uiPressed || (input.inputMode !== "gamepad" && input.fire.pressed))
@@ -1441,86 +1112,4 @@ function tickFrontend(frameDt: number): void {
         saveCurrentSession();
     }
     fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH);
-}
-
-/** D1 灰盒调试视图（按 G / F2 切入） */
-function redrawGraybox(): void {
-    if (draw === undefined) {
-        return;
-    }
-    const w = viewW;
-    const h = viewH;
-    const room = ROOMS[current];
-
-    draw.clear();
-    draw.drawRect(Rect(0, h - TOP_H, w, TOP_H), C_BG);
-    draw.drawRect(Rect(0, 0, w, BOTTOM_H), C_BG);
-    draw.drawSegment(Vec2(0, h - TOP_H), Vec2(w, h - TOP_H), 1, Color(52, 54, 54, 255));
-    draw.drawSegment(Vec2(0, BOTTOM_H), Vec2(w, BOTTOM_H), 1, Color(52, 54, 54, 255));
-
-    const v = computeView(room, w, h);
-    renderWorld(draw, room, v, w, h);
-
-    const roomTop = v.groundPx + room.height * v.scale;
-    drawScaleRuler(draw, w - 192, roomTop + 36, v.scale);
-
-    place(titleLabel, 48, h - 40, 0, 1);
-    place(roomLabel, 48, h - 96, 0, 1);
-    place(captionLabel, 48, h - 140, 0, 1);
-
-    place(switchLabel, 48, 40, 0, 0);
-    place(hintLabel, 48, 84, 0, 0);
-    place(rulerLabel, w - 216, roomTop + 36 + v.scale * 0.5 - 14, 1, 0);
-    place(standLabel, 48, roomTop + 40, 0, 0);
-    place(cartLabel, 48, roomTop + 92, 0, 0);
-
-    if (roomLabel !== undefined) {
-        roomLabel.text = room.name;
-    }
-    if (captionLabel !== undefined) {
-        captionLabel.text = room.caption;
-    }
-    if (hintLabel !== undefined) {
-        const hintIdx = Math.min(current, HINTS.length - 1);
-        const lines = HINTS[hintIdx];
-        let merged = lines[0];
-        for (let i = 1; i < lines.length; i++) {
-            merged = merged + "    " + lines[i];
-        }
-        hintLabel.text = merged;
-    }
-
-    const specs = collectLabels(room, v, w);
-    const body: LabelSpec[] = [];
-    const small: LabelSpec[] = [];
-    for (let i = 0; i < specs.length; i++) {
-        const s = specs[i];
-        if (s.size >= 24) {
-            body.push(s);
-        } else {
-            small.push(s);
-        }
-    }
-    applyPool(body, poolBody);
-    applyPool(small, poolSmall);
-
-    if (LAYOUT_AUDIT) {
-        print("AUDIT|" + room.key + "|" + specs.length);
-    }
-}
-
-function applyPool(specs: LabelSpec[], pool: Label.Type[]): void {
-    for (let i = 0; i < pool.length; i++) {
-        const lb = pool[i];
-        if (i < specs.length) {
-            const s = specs[i];
-            lb.text = s.text;
-            lb.position = Vec2(s.x, s.y);
-            lb.anchor = Vec2(s.ax, s.ay);
-            lb.color = s.color;
-            lb.visible = true;
-        } else {
-            lb.visible = false;
-        }
-    }
 }

@@ -15,9 +15,8 @@ local ____escort = require("Script.watch.escort") -- 12
 local FEAR_MAX = ____escort.FEAR_MAX -- 12
 local ____platform = require("Script.watch.platform") -- 14
 local ZERO_SAFE_INSETS = ____platform.ZERO_SAFE_INSETS -- 14
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 15
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 15
-local adaptWorldKeyTag = ____control_prompts.adaptWorldKeyTag -- 15
+local ____target = require("Script.watch.target") -- 15
+local getActiveTarget = ____target.getActiveTarget -- 15
 local ____adapter = require("Script.watch.fe.adapter") -- 16
 local deriveWorldPrompt = ____adapter.deriveWorldPrompt -- 16
 local ____theme = require("Script.watch.fe.theme") -- 21
@@ -45,39 +44,39 @@ function HudRenderer.prototype.reset(self, p) -- 44
 end -- 44
 function HudRenderer.prototype.update(self, dt, p) -- 49
 	self.time = self.time + dt -- 50
-	if self.ghostHp > p.hp then -- 51
+	if self.ghostHp > p.hp then -- 50
 		self.ghostHp = math.max(p.hp, self.ghostHp - dt * 1.45) -- 52
 	else -- 52
 		self.ghostHp = p.hp -- 54
 	end -- 54
 end -- 49
 function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, texts, p, cam, vfx, letterboxFrac, uiScale, assistHintsEnabled, suppressReticle, inputMode, gamepadLayout, safe, retryHoldProgress, touchOverlayVisible) -- 58
-	if assistHintsEnabled == nil then -- 69
+	if assistHintsEnabled == nil then -- 58
 		assistHintsEnabled = false -- 69
 	end -- 69
-	if suppressReticle == nil then -- 70
+	if suppressReticle == nil then -- 69
 		suppressReticle = false -- 70
 	end -- 70
-	if inputMode == nil then -- 71
+	if inputMode == nil then -- 70
 		inputMode = "kbm" -- 71
 	end -- 71
-	if gamepadLayout == nil then -- 72
+	if gamepadLayout == nil then -- 71
 		gamepadLayout = "xbox" -- 72
 	end -- 72
-	if safe == nil then -- 73
+	if safe == nil then -- 72
 		safe = ZERO_SAFE_INSETS -- 73
 	end -- 73
-	if retryHoldProgress == nil then -- 74
+	if retryHoldProgress == nil then -- 73
 		retryHoldProgress = 0 -- 74
 	end -- 74
-	if touchOverlayVisible == nil then -- 75
+	if touchOverlayVisible == nil then -- 74
 		touchOverlayVisible = false -- 75
 	end -- 75
 	local w = cam.viewW / uiScale -- 77
 	local h = cam.viewH / uiScale -- 78
 	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 79
-	if hudAlpha > 0.05 then -- 81
-		if p.childMode then -- 82
+	if hudAlpha > 0.05 then -- 79
+		if p.childMode then -- 79
 			self:drawChildStatus( -- 83
 				uiDraw, -- 83
 				uiInkDraw, -- 83
@@ -132,13 +131,13 @@ function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, text
 			gamepadLayout, -- 89
 			safe -- 89
 		) -- 89
-		if assistHintsEnabled then -- 91
+		if assistHintsEnabled then -- 89
 			local prompt = deriveWorldPrompt(p) -- 92
-			if prompt ~= nil then -- 93
+			if prompt ~= nil then -- 92
 				local adapted = { -- 94
 					x = prompt.x, -- 95
 					y = prompt.y, -- 96
-					keyTag = adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout), -- 97
+					keyTag = getActiveTarget():adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout), -- 97
 					label = prompt.label, -- 98
 					urgent = prompt.urgent, -- 99
 					progress = prompt.progress -- 100
@@ -156,7 +155,7 @@ function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, text
 				) -- 102
 			end -- 102
 		end -- 102
-		if vfx.deflectFlash > 0.25 then -- 106
+		if vfx.deflectFlash > 0.25 then -- 102
 			local dx = cam:sx(vfx.deflectX) / uiScale -- 107
 			local dy = cam:sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 16 -- 108
 			texts:put( -- 109
@@ -174,7 +173,7 @@ function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, text
 			) -- 109
 		end -- 109
 	end -- 109
-	if retryHoldProgress > 0.02 then -- 114
+	if retryHoldProgress > 0.02 then -- 109
 		local cx = w * 0.5 -- 115
 		local cy = h - 32 - safe.top -- 116
 		local bw = 220 -- 117
@@ -221,7 +220,7 @@ function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, text
 			toColor(PALETTE.rouge, 235) -- 123
 		) -- 123
 	end -- 123
-	if not suppressReticle then -- 126
+	if not suppressReticle then -- 123
 		self:drawReticleOverlay( -- 127
 			uiInkDraw, -- 127
 			uiArt, -- 127
@@ -242,7 +241,7 @@ function HudRenderer.prototype.talentCardRects(self, w, h, count, touchMode, saf
 	if safeTop == nil then -- 132
 		safeTop = 0 -- 132
 	end -- 132
-	if self.talentRectProvider ~= nil then -- 133
+	if self.talentRectProvider ~= nil then -- 132
 		return self:talentRectProvider( -- 134
 			w, -- 134
 			h, -- 134
@@ -252,7 +251,7 @@ function HudRenderer.prototype.talentCardRects(self, w, h, count, touchMode, saf
 		) -- 134
 	end -- 134
 	local out = {} -- 136
-	if count <= 0 then -- 137
+	if count <= 0 then -- 136
 		return out -- 138
 	end -- 138
 	local cardW = touchMode and 212 or 204 -- 140
@@ -272,10 +271,10 @@ function HudRenderer.prototype.talentCardRects(self, w, h, count, touchMode, saf
 	return out -- 150
 end -- 132
 function HudRenderer.prototype.drawReticleOverlay(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, letterboxFrac, uiScale, touchMode) -- 154
-	if touchMode == nil then -- 163
+	if touchMode == nil then -- 154
 		touchMode = false -- 163
 	end -- 163
-	if not p.paused and letterboxFrac < 0.5 and not p.gripping and p.escort.state ~= "calming" and not p.gateNeedConfirm and p.phase ~= "prologue-give" then -- 165
+	if not p.paused and letterboxFrac < 0.5 and not p.gripping and p.escort.state ~= "calming" and not p.gateNeedConfirm and p.phase ~= "prologue-give" then -- 163
 		self:drawReticle( -- 167
 			uiInkDraw, -- 167
 			uiArt, -- 167
@@ -349,7 +348,7 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 		while i < segCount do -- 202
 			local sx = barX + i * (segW + gap) -- 203
 			local scx = sx + segW * 0.5 -- 204
-			if not uiArt:tryPlace( -- 205
+			if not uiArt:tryPlace( -- 204
 				"ink_bamboo_slot", -- 205
 				"hp_slot_" .. tostring(i), -- 205
 				scx, -- 205
@@ -369,17 +368,17 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 					toColor(PALETTE.silkDim, 145 * alpha) -- 208
 				) -- 208
 			end -- 208
-			if self.ghostHp > i and self.ghostHp > p.hp then -- 210
+			if self.ghostHp > i and self.ghostHp > p.hp then -- 208
 				local frac = math.min(1, self.ghostHp - i) -- 211
 				uiInkDraw:drawRect( -- 212
 					Rect(sx + 3, barY - 2, (segW - 6) * frac, 4), -- 212
 					toColor(PALETTE.crimsonCore, 150 * alpha) -- 212
 				) -- 212
 			end -- 212
-			if p.hp > i then -- 214
+			if p.hp > i then -- 212
 				local pulse = lowHp and 0.72 + 0.28 * math.sin(self.time * 7) or 1 -- 215
 				local fillCol = lowHp and PALETTE.rouge or PALETTE.moonPale -- 216
-				if not uiArt:tryPlace( -- 217
+				if not uiArt:tryPlace( -- 216
 					"ink_bamboo_slip", -- 217
 					"hp_fill_" .. tostring(i), -- 217
 					scx, -- 217
@@ -406,15 +405,15 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 	do -- 226
 		i = 0 -- 227
 		while i < #p.enemies do -- 227
-			if p.enemies[i + 1].alive then -- 228
+			if p.enemies[i + 1].alive then -- 227
 				hasAliveEnemy = true -- 229
 				break -- 230
 			end -- 230
 			i = i + 1 -- 227
 		end -- 227
 	end -- 227
-	if p.coverHug then -- 233
-		if hasAliveEnemy and not p.coverBlocking then -- 234
+	if p.coverHug then -- 227
+		if hasAliveEnemy and not p.coverBlocking then -- 227
 			uiInkDraw:drawRect( -- 235
 				Rect(covX, barY - 9, 72, 18), -- 235
 				toColor(PALETTE.inkWarm, 185 * alpha), -- 235
@@ -455,7 +454,7 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 				0 -- 239
 			) -- 239
 		end -- 239
-	elseif assistHintsEnabled and p.coverNear then -- 241
+	elseif assistHintsEnabled and p.coverNear then -- 239
 		uiInkDraw:drawRect( -- 242
 			Rect(covX, barY - 9, 54, 18), -- 242
 			Color( -- 242
@@ -492,7 +491,7 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 		____p_isCampaign_5 = ____temp_4 -- 246
 	end -- 246
 	local showCampaignFear = ____p_isCampaign_5 and (p.escort.fear > 0 or p.escort.state == "frozen" or p.escort.state == "calming") -- 246
-	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" or showCampaignFear then -- 248
+	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" or showCampaignFear then -- 246
 		local subY = by - 24 -- 249
 		local frozen = p.escort.state == "frozen" -- 250
 		local calming = p.escort.state == "calming" -- 251
@@ -542,7 +541,7 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 						layer = 2 -- 263
 					} -- 263
 				) -- 263
-				if lit then -- 265
+				if lit then -- 263
 					drawBlossomDot( -- 266
 						uiInkDraw, -- 266
 						uiArt, -- 266
@@ -558,10 +557,10 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 				k = k + 1 -- 257
 			end -- 257
 		end -- 257
-		if frozen then -- 270
+		if frozen then -- 257
 			local pulse = 0.65 + 0.35 * math.sin(self.time * 7) -- 271
-			if assistHintsEnabled then -- 272
-				local calmKey = adaptWorldKeyTag("E", inputMode, gamepadLayout) -- 273
+			if assistHintsEnabled then -- 271
+				local calmKey = getActiveTarget():adaptWorldKeyTag("E", inputMode, gamepadLayout) -- 273
 				local keyW = math.max( -- 274
 					22, -- 274
 					visualTextWidth(calmKey, 15) + 10 -- 274
@@ -606,7 +605,7 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 					0.08 -- 278
 				) -- 278
 			end -- 278
-		elseif calming then -- 280
+		elseif calming then -- 278
 			texts:put( -- 281
 				"xs", -- 281
 				"轻敲安抚中", -- 281
@@ -622,23 +621,23 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 			) -- 281
 		end -- 281
 	end -- 281
-	if not self.roguelikeUiHandled then -- 285
+	if not self.roguelikeUiHandled then -- 281
 		local ranks = p:getStoryTalentRanks() -- 286
-		if ranks ~= nil then -- 287
+		if ranks ~= nil then -- 286
 			local parts = {} -- 288
-			if ranks.vitality > 0 then -- 289
+			if ranks.vitality > 0 then -- 288
 				parts[#parts + 1] = "厚甲" .. tostring(ranks.vitality) -- 289
 			end -- 289
-			if ranks.reload > 0 then -- 290
-				parts[#parts + 1] = "熟铳" .. tostring(ranks.reload) -- 290
+			if ranks.focus > 0 then -- 289
+				parts[#parts + 1] = "凝神" .. tostring(ranks.focus) -- 290
 			end -- 290
-			if ranks.guard > 0 then -- 291
+			if ranks.guard > 0 then -- 290
 				parts[#parts + 1] = "护身" .. tostring(ranks.guard) -- 291
 			end -- 291
-			if ranks.craft > 0 then -- 292
-				parts[#parts + 1] = "巧手" .. tostring(ranks.craft) -- 292
+			if ranks.salvage > 0 then -- 291
+				parts[#parts + 1] = "拾料" .. tostring(ranks.salvage) -- 292
 			end -- 292
-			if #parts > 0 then -- 293
+			if #parts > 0 then -- 292
 				local subY = by - 22 -- 294
 				local txt = "本领 · " .. table.concat(parts, " · ") -- 295
 				drawSilkVeil( -- 296
@@ -667,19 +666,19 @@ function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt,
 					0.08 -- 297
 				) -- 297
 			end -- 297
-		elseif p.isCampaign and p.room.campaign ~= nil and (p.room.campaign.chapter == "S" or p.room.campaign.chapter == "C") then -- 299
+		elseif p.isCampaign and p.room.campaign ~= nil and (p.room.campaign.chapter == "S" or p.room.campaign.chapter == "C") then -- 297
 			local inv = p.run.inventory -- 300
 			local items = {} -- 301
-			if inv.shield > 0 then -- 302
+			if inv.shield > 0 then -- 301
 				items[#items + 1] = "残盾" .. tostring(inv.shield) -- 302
 			end -- 302
-			if inv.wedge > 0 then -- 303
+			if inv.wedge > 0 then -- 302
 				items[#items + 1] = "木楔" .. tostring(inv.wedge) -- 303
 			end -- 303
-			if inv.ammo > 0 then -- 304
+			if inv.ammo > 0 then -- 303
 				items[#items + 1] = "弹包" .. tostring(inv.ammo) -- 304
 			end -- 304
-			if inv.scrap > 0 then -- 305
+			if inv.scrap > 0 then -- 304
 				items[#items + 1] = "木料" .. tostring(inv.scrap) -- 305
 			end -- 305
 			local companionText = p.run.joined and "小满同行" or "小满等待" -- 306
@@ -764,14 +763,14 @@ function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiInkDraw, uiArt, t
 	) -- 336
 	local posture = assistHintsEnabled and "轻步前行 · 保持隐蔽" or "轻步前行" -- 338
 	local col = PALETTE.textMid -- 339
-	if alert then -- 340
+	if alert then -- 339
 		posture = (p.scavChase or p.dogState == "chase") and (assistHintsEnabled and "已被发现 · 速寻隐蔽" or "已被发现") or (assistHintsEnabled and "引起警觉 · 停步蹲伏" or "引起警觉") -- 341
 		col = PALETTE.crimsonCore -- 344
-	elseif p.player.crouch then -- 345
+	elseif p.player.crouch then -- 344
 		posture = assistHintsEnabled and "低姿伏行 · 匿迹于影" or "低姿伏行" -- 346
 		col = PALETTE.emerald -- 347
-	elseif p.hasBottle then -- 348
-		posture = assistHintsEnabled and adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout) or "手持陶瓶" -- 349
+	elseif p.hasBottle then -- 347
+		posture = assistHintsEnabled and getActiveTarget():adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout) or "手持陶瓶" -- 349
 		col = PALETTE.amberCore -- 352
 	end -- 352
 	texts:put( -- 354
@@ -818,7 +817,7 @@ function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiArt, texts, p, w
 		alpha, -- 375
 		0.08 -- 375
 	) -- 375
-	if not touchOverlayVisible then -- 376
+	if not touchOverlayVisible then -- 375
 		texts:put( -- 377
 			"xs", -- 377
 			pauseTip, -- 377
@@ -837,7 +836,7 @@ end -- 357
 function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 381
 	local touchMode = inputMode == "touch" -- 395
 	local talentOffers = p:getStoryTalentOffers() -- 396
-	if not self.roguelikeUiHandled and #talentOffers > 0 and not p.craftBench.active and not p.reloadOpen then -- 397
+	if not self.roguelikeUiHandled and #talentOffers > 0 and not p.craftBench.active and not p.reloadOpen then -- 396
 		local boxes = self:talentCardRects( -- 398
 			w, -- 398
 			h, -- 398
@@ -908,7 +907,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 						math.floor((gpFocus and 235 or 185) * alpha + 0.5) -- 423
 					) -- 423
 				) -- 423
-				if inputMode == "kbm" then -- 425
+				if inputMode == "kbm" then -- 423
 					drawSilkKeycap( -- 426
 						uiInkDraw, -- 426
 						texts, -- 426
@@ -964,9 +963,9 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 			end -- 411
 		end -- 411
 	end -- 411
-	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 438
+	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 411
 		local g = p.room.story.gate -- 439
-		if p.phase == "gate-wait" or p.phase == "gate-hand" then -- 440
+		if p.phase == "gate-wait" or p.phase == "gate-hand" then -- 439
 			local bw = 400 -- 441
 			local cx = w * 0.5 -- 442
 			local by = h - 64 - safe.top -- 443
@@ -978,8 +977,8 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 					p.handTicks / math.max(1, p.handNeedTicks) -- 445
 				) -- 445
 			) -- 445
-			local holdInteractKey = adaptWorldKeyTag("按住 E", inputMode, gamepadLayout) -- 446
-			local reholdInteractKey = adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout) -- 447
+			local holdInteractKey = getActiveTarget():adaptWorldKeyTag("按住 E", inputMode, gamepadLayout) -- 446
+			local reholdInteractKey = getActiveTarget():adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout) -- 447
 			local label = tied and "我们走吧。" or (p.handTicks > 0 and (("牵起小满 · " .. tostring(p.handTicks)) .. " / ") .. tostring(p.handNeedTicks) or (p.handArmed and holdInteractKey .. " · 把手伸给她" or reholdInteractKey .. " · 把手伸给她")) -- 448
 			drawSilkVeil( -- 452
 				uiDraw, -- 452
@@ -1027,7 +1026,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 				1.4, -- 459
 				toColor(PALETTE.silkDim, 115 * alpha) -- 459
 			) -- 459
-			if ratio > 0.002 then -- 460
+			if ratio > 0.002 then -- 459
 				uiInkDraw:drawSegment( -- 461
 					Vec2(pbx, pby), -- 461
 					Vec2(pbx + pbw * ratio, pby), -- 461
@@ -1068,7 +1067,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 				} -- 468
 			) -- 468
 		end -- 468
-		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 471
+		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 468
 			local bw = 400 -- 472
 			local cx = w * 0.5 -- 473
 			local by = h - 64 - safe.top -- 474
@@ -1105,7 +1104,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 				false, -- 480
 				2 -- 480
 			) -- 480
-			local idleNeedConfirmLabel = assistHintsEnabled and adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout) or "绞盘待命" -- 482
+			local idleNeedConfirmLabel = assistHintsEnabled and getActiveTarget():adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout) or "绞盘待命" -- 482
 			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and idleNeedConfirmLabel or "待小满就位 · 绞盘启") or ("城门死守 · 余 " .. secStr) .. " 秒" -- 485
 			texts:put( -- 488
 				"xs", -- 488
@@ -1129,7 +1128,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 				1.4, -- 493
 				toColor(PALETTE.silkDim, 115 * alpha) -- 493
 			) -- 493
-			if ratio > 0.002 then -- 494
+			if ratio > 0.002 then -- 493
 				uiInkDraw:drawSegment( -- 495
 					Vec2(pbx, pby), -- 495
 					Vec2(pbx + pbw * ratio, pby), -- 495
@@ -1150,7 +1149,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 				while k < #waves do -- 500
 					local wx = pbx + pbw * waves[k + 1] -- 501
 					local passed = p.gateSpawned > k -- 502
-					if passed then -- 503
+					if passed then -- 502
 						drawBlossomDot( -- 504
 							uiInkDraw, -- 504
 							uiArt, -- 504
@@ -1183,10 +1182,10 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 		end -- 500
 		return -- 512
 	end -- 512
-	if not assistHintsEnabled then -- 515
+	if not assistHintsEnabled then -- 512
 		return -- 516
 	end -- 516
-	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 518
+	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 516
 		local cx = w * 0.5 -- 519
 		local by = h - 44 - safe.top -- 520
 		local step1 = p.cartDocked -- 521
@@ -1212,7 +1211,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 			-1 -- 526
 		) -- 526
 		local x1 = cx - 134 -- 528
-		if step1 then -- 529
+		if step1 then -- 528
 			drawBlossomDot( -- 530
 				uiInkDraw, -- 530
 				uiArt, -- 530
@@ -1253,7 +1252,7 @@ function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, 
 			0.08 -- 534
 		) -- 534
 		local x2 = cx + 18 -- 536
-		if step2 then -- 537
+		if step2 then -- 536
 			drawBlossomDot( -- 538
 				uiInkDraw, -- 538
 				uiArt, -- 538
@@ -1401,12 +1400,12 @@ end -- 546
 function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale, touchMode) -- 584
 	local mx = p.aimX / uiScale -- 594
 	local my = p.aimY / uiScale -- 595
-	if mx <= 0 and my <= 0 then -- 596
+	if mx <= 0 and my <= 0 then -- 595
 		return -- 597
 	end -- 597
-	if p.childMode then -- 600
+	if p.childMode then -- 597
 		local aiming = p.room.key == "village" and p.hasBottle -- 601
-		if touchMode and (not aiming or p.aimHold <= 0) then -- 602
+		if touchMode and (not aiming or p.aimHold <= 0) then -- 601
 			return -- 603
 		end -- 603
 		local col = aiming and PALETTE.amberCore or PALETTE.silkDim -- 605
@@ -1415,7 +1414,7 @@ function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, ca
 			aiming and 2 or 1.6, -- 606
 			toColor(col, aiming and 215 or 120) -- 606
 		) -- 606
-		if aiming then -- 607
+		if aiming then -- 606
 			local sz = p.aimHold > 0 and 32 or 24 -- 608
 			uiArt:tryPlace( -- 609
 				"ink_enso_fine", -- 609
@@ -1442,7 +1441,7 @@ function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, ca
 		while i < #p.enemies do -- 619
 			local e = p.enemies[i + 1] -- 620
 			local ey = e.y + (e.depth or 0) * DEPTH_Y_SCALE -- 621
-			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= ey - 6 and wAim.y <= ey + e.h + 6 then -- 622
+			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= ey - 6 and wAim.y <= ey + e.h + 6 then -- 621
 				onEnemy = true -- 623
 			end -- 623
 			i = i + 1 -- 619
@@ -1505,7 +1504,7 @@ function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, ca
 		1.8, -- 641
 		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.textBright, 240) -- 641
 	) -- 641
-	if onEnemy then -- 643
+	if onEnemy then -- 641
 		local sz = 30 + math.sin(self.time * 11) * 1.8 -- 644
 		uiArt:tryPlace( -- 645
 			"ink_enso_fine", -- 645

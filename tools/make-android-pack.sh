@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 #
-# 从 Dora SSR v1.10.2 官方 Android APK 模板组装《向西守望》独立 Android APK。
+# 从 Dora SSR v1.10.2 官方 Android APK 模板组装《向西守望》独立 Android / 安卓掌机 APK。
 #
 # 特性：
-#   1. 自动执行仓库资产与字库审计（确保 0 缺字、0 缺失资产）；
-#   2. 白名单剔除 Godot/Wa/Web IDE/Doc/Dev 冗余文件，瘦身约 85%；
-#   3. 注入统一品牌 512x512 图标（art-source/brand/icons/android/ic_launcher_512.png）；
-#   4. 二进制修补 AndroidManifest.xml：独立包名、中文名、默认 fullUser 允许横竖屏自由切换
-#      （横屏全屏 / 竖屏上半 16:9 舞台 + 下半宋明水墨掌机台）、剥离无关高危权限；
+#   1. 支持两类专属裁剪配置（--profile）：
+#      - android（默认，手机/平板纯触屏）：物理剔除键鼠、手柄与 gamecontrollerdb.txt，默认 fullUser 横竖屏自适应；
+#      - handheld（安卓掌机 KT-R1/KT-R2 触屏+手柄）：物理剔除键鼠与竖屏手机掌机台，默认锁定 sensorLandscape 横屏；
+#   2. 自动执行仓库资产与字库审计（确保 0 缺字、0 缺失资产）；
+#   3. 白名单剔除 Godot/Wa/Web IDE/Doc/Dev 冗余文件，注入统一品牌 512x512 图标；
+#   4. 二进制修补 AndroidManifest.xml：独立包名、中文名、屏幕方向、剥离无关高危权限；
 #   5. 自动执行 zipalign -P 16（16KB 页对齐，兼容 Android 15+）及可选 apksigner v2/v3 正式签名与验签。
 #
 # 用法：
 #   bash tools/make-android-pack.sh \
 #     --template-apk <dora-ssr-v1.10.2-android.apk> \
+#     [--profile android | handheld] \
 #     [--abis arm64-v8a | arm64-v8a,armeabi-v7a] \
 #     [--orientation fullUser | sensorLandscape | unspecified] \
-#     [--suffix android-arm64 | android-universal] \
+#     [--suffix android-arm64 | android-universal | handheld-arm64] \
 #     [--out-dir <输出目录，默认 $BUILD_SCRATCH_ROOT/2026gamejam/android-out>] \
 #     [--version <版本名，如 v0.1.0>] \
 #     [--version-code <整数版本号，默认按提交数或 1>] \
@@ -26,8 +28,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEMPLATE_APK=""
+PROFILE="android"
 ABIS="arm64-v8a"
-ORIENTATION="fullUser"
+ORIENTATION=""
 SUFFIX=""
 OUT_ROOT="${BUILD_SCRATCH_ROOT:-$HOME/.build}/2026gamejam/android-out"
 VERSION=""
@@ -44,6 +47,7 @@ SKIP_AUDIT=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --template-apk) TEMPLATE_APK="${2:?}"; shift 2 ;;
+        --profile) PROFILE="${2:?}"; shift 2 ;;
         --abis) ABIS="${2:?}"; shift 2 ;;
         --orientation) ORIENTATION="${2:?}"; shift 2 ;;
         --suffix) SUFFIX="${2:?}"; shift 2 ;;
@@ -58,7 +62,7 @@ while [ $# -gt 0 ]; do
         --key-pass) KEY_PASS="${2:?}"; shift 2 ;;
         --skip-audit) SKIP_AUDIT=1; shift 1 ;;
         -h|--help)
-            sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '3,26p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -68,21 +72,57 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+case "$PROFILE" in
+    android)
+        BOOT_SCRIPT="$ROOT/tools/android-boot.lua"
+        DEFAULT_ORIENTATION="fullUser"
+        ;;
+    handheld)
+        BOOT_SCRIPT="$ROOT/tools/handheld-boot.lua"
+        DEFAULT_ORIENTATION="sensorLandscape"
+        ;;
+    *)
+        echo "不支持的 --profile: $PROFILE（仅支持 android 或 handheld）" >&2
+        exit 1
+        ;;
+esac
+
+if [ -z "$ORIENTATION" ]; then
+    ORIENTATION="$DEFAULT_ORIENTATION"
+fi
+
 if [ -z "$TEMPLATE_APK" ] || [ ! -f "$TEMPLATE_APK" ]; then
     echo "缺少 Dora SSR 官方 Android APK 模板：请通过 --template-apk 指定 dora-ssr-v1.10.2-android.apk" >&2
     exit 1
 fi
 
-for req_lua in \
-    init.lua \
-    Script/watch/app.lua \
-    Script/watch/platform.lua \
-    Script/watch/controls_config.lua \
-    Script/watch/aim_assist.lua \
-    Script/watch/gamepad.lua \
-    Script/watch/touch.lua \
-    Script/watch/fe/ui/control_prompts.lua \
-    Script/watch/fe/ui/touch_controls.lua; do
+REQ_LUA=(
+    init.lua
+    Script/watch/app.lua
+    Script/watch/target.lua
+    Script/watch/target_types.lua
+    Script/watch/platform.lua
+    Script/watch/platform_mobile.lua
+    Script/watch/controls_config.lua
+    Script/watch/input.lua
+    Script/watch/input/aim_assist.lua
+    Script/watch/input/touch_core.lua
+    Script/watch/input/touch_interact_meta.lua
+    Script/watch/input/touch_hud_landscape.lua
+)
+if [ "$PROFILE" = "android" ]; then
+    REQ_LUA+=(
+        Script/watch/input/touch_hud_portrait.lua
+        Script/watch/targets/android/index.lua
+    )
+else
+    REQ_LUA+=(
+        Script/watch/input/gamepad_core.lua
+        Script/watch/targets/handheld/index.lua
+    )
+fi
+
+for req_lua in "${REQ_LUA[@]}"; do
     if [ ! -f "$ROOT/$req_lua" ]; then
         echo "缺少 Lua 编译产物 $req_lua：请先执行 Dora TS 构建。" >&2
         exit 1
@@ -100,9 +140,9 @@ fi
 
 if [ -z "$SUFFIX" ]; then
     if [ "$ABIS" = "arm64-v8a" ]; then
-        SUFFIX="android-arm64"
+        SUFFIX="${PROFILE}-arm64"
     else
-        SUFFIX="android-universal"
+        SUFFIX="${PROFILE}-universal"
     fi
 fi
 
@@ -113,18 +153,86 @@ fi
 
 mkdir -p "$OUT_ROOT"
 OUT_ROOT="$(cd "$OUT_ROOT" && pwd)"
-STAGE="$(mktemp -d "${OUT_ROOT}/.stage-android-XXXXXX")"
+STAGE="$(mktemp -d "${OUT_ROOT}/.stage-${PROFILE}-XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 
-echo "== 2/5 组装游戏运行时资源"
+echo "== 2/5 组装游戏运行时资源（profile=${PROFILE}, orientation=${ORIENTATION}）"
 mkdir -p "$STAGE/assets/Script/watch" "$STAGE/assets/assets"
-cp "$ROOT/tools/android-boot.lua" "$STAGE/assets/Script/init.lua"
+cp "$BOOT_SCRIPT" "$STAGE/assets/Script/init.lua"
 cp "$ROOT/init.lua" "$STAGE/assets/Script/main.lua"
-rsync -a --include='*/' --include='*.lua' --exclude='testdrive.lua' --exclude='*' "$ROOT/Script/watch/" "$STAGE/assets/Script/watch/"
+
+if [ "$PROFILE" = "android" ]; then
+    rsync -a --prune-empty-dirs \
+        --exclude='testdrive.lua' \
+        --exclude='input/kbm_core.lua' \
+        --exclude='input/gamepad_core.lua' \
+        --exclude='targets/windows/' \
+        --exclude='targets/handheld/' \
+        --exclude='targets/web/' \
+        --include='*/' \
+        --include='*.lua' \
+        --exclude='*' \
+        "$ROOT/Script/watch/" "$STAGE/assets/Script/watch/"
+else
+    rsync -a --prune-empty-dirs \
+        --exclude='testdrive.lua' \
+        --exclude='input/kbm_core.lua' \
+        --exclude='input/touch_hud_portrait.lua' \
+        --exclude='targets/windows/' \
+        --exclude='targets/android/' \
+        --exclude='targets/web/' \
+        --include='*/' \
+        --include='*.lua' \
+        --exclude='*' \
+        "$ROOT/Script/watch/" "$STAGE/assets/Script/watch/"
+fi
+
+cat > "$STAGE/assets/Script/watch/target.lua" <<LUA
+local ____exports = {}
+local ____target = require("Script.watch.targets.${PROFILE}.index").TARGET
+function ____exports.resolveTargetId()
+	return "${PROFILE}"
+end
+function ____exports.resetActiveTarget()
+end
+function ____exports.getActiveTarget()
+	return ____target
+end
+return ____exports
+LUA
+
+# 阶段自检：确认当前 profile 仅包含预期模块，无跨端冗余残留
+if [ "$PROFILE" = "android" ]; then
+    FORBIDDEN_LUA=(
+        Script/watch/testdrive.lua
+        Script/watch/input/kbm_core.lua
+        Script/watch/input/gamepad_core.lua
+        Script/watch/targets/windows
+        Script/watch/targets/handheld
+        Script/watch/targets/web
+    )
+else
+    FORBIDDEN_LUA=(
+        Script/watch/testdrive.lua
+        Script/watch/input/kbm_core.lua
+        Script/watch/input/touch_hud_portrait.lua
+        Script/watch/targets/windows
+        Script/watch/targets/android
+        Script/watch/targets/web
+    )
+fi
+for bad in "${FORBIDDEN_LUA[@]}"; do
+    if [ -e "$STAGE/assets/$bad" ]; then
+        echo "打包自检失败（profile=${PROFILE}）：发现不应包含的冗余模块 $bad" >&2
+        exit 1
+    fi
+done
+
 rsync -a --exclude '.DS_Store' --exclude '._*' --exclude '*.md' "$ROOT/assets/" "$STAGE/assets/assets/"
 {
     printf '%s\n' "$VERSION"
     printf 'platform=Android\n'
+    printf 'target=%s\n' "$PROFILE"
     printf 'orientation=%s\n' "$ORIENTATION"
     printf 'abis=%s\n' "$ABIS"
     printf 'engine=Dora SSR v1.10.2\n'
@@ -136,14 +244,17 @@ ALIGNED_APK="$STAGE/aligned.apk"
 FINAL_APK="$OUT_ROOT/${APK_PREFIX}-${VERSION}-${SUFFIX}.apk"
 
 UNIFIED_ICON="$ROOT/art-source/brand/icons/android/ic_launcher_512.png"
-ICON_ARGS=()
+PATCH_EXTRA_ARGS=()
 if [ -f "$UNIFIED_ICON" ]; then
-    ICON_ARGS=(--icon "$UNIFIED_ICON")
+    PATCH_EXTRA_ARGS+=(--icon "$UNIFIED_ICON")
 else
     echo "警告：未找到统一品牌 Android 图标 $UNIFIED_ICON，将回退模板默认图标。" >&2
 fi
+if [ "$PROFILE" = "android" ]; then
+    PATCH_EXTRA_ARGS+=(--strip-controller-db)
+fi
 
-echo "== 3/5 裁剪模板 APK 并修补二进制清单（屏幕方向=${ORIENTATION} + 独立包名 + 统一品牌图标）"
+echo "== 3/5 裁剪模板 APK 并修补二进制清单（目标=${PROFILE} + 屏幕方向=${ORIENTATION} + 独立包名 + 统一品牌图标）"
 python3 "$ROOT/tools/patch-android-apk.py" \
     --template-apk "$TEMPLATE_APK" \
     --assets-dir "$STAGE/assets" \
@@ -154,7 +265,7 @@ python3 "$ROOT/tools/patch-android-apk.py" \
     --version-name="$VERSION_NAME" \
     --abis "$ABIS" \
     --orientation "$ORIENTATION" \
-    "${ICON_ARGS[@]}"
+    "${PATCH_EXTRA_ARGS[@]}"
 
 find_build_tool() {
     local tool="$1"

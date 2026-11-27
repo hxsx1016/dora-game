@@ -41,7 +41,7 @@ import { TowerEndingsPlugin } from "Script/watch/fe/cutscenes/tower_endings";
 import { WellMuseumPlugin } from "Script/watch/fe/scenes/well_museum";
 import { ReloadWheelPlugin } from "Script/watch/fe/ui/reload_wheel";
 import { CraftBenchPlugin } from "Script/watch/fe/ui/craft_bench";
-import { RoguelikeUiPlugin } from "Script/watch/fe/ui/roguelike_ui";
+import { computeEscortDeathButtons, RoguelikeUiPlugin } from "Script/watch/fe/ui/roguelike_ui";
 
 export class WatchFrontend {
     private occlusion = new DepthOcclusion();
@@ -285,6 +285,8 @@ export class WatchFrontend {
     bindPlay(p: Play, w: number, h: number): void {
         this.syncRuntimeHooks();
         this.boundPlay = p;
+        p.useEscortDeathSummary = true;
+        p.openTalentDraft();
         p.worldMapper = (sx: number, sy: number) => this.cam.screenToWorld(sx, sy);
         this.cam.snap(p, w, h);
         this.adapter.reset(p);
@@ -359,7 +361,7 @@ export class WatchFrontend {
     }
 
     canPickStoryTalent(p: Play): boolean {
-        return !p.paused && !p.craftBench.active && !p.reloadOpen && this.roguelikeUi.canPickTalent();
+        return !p.escortFailed && !p.paused && !p.craftBench.active && !p.reloadOpen && this.roguelikeUi.canPickTalent();
     }
 
     /** 计算男主线三选一本领卡的舞台 UI 坐标矩形，供 TouchControls 同步直点热区。 */
@@ -370,6 +372,44 @@ export class WatchFrontend {
         }
         const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
         return this.hud.talentCardRects(w / uiScale, h / uiScale, offers.length, touchMode, this.stageVp.safeUi.top);
+    }
+
+    /** 计算男主线「折戟重整」小结页两枚按钮的舞台 UI 坐标矩形。 */
+    getEscortDeathBoxes(p: Play, w: number, h: number): { retry: Rect.Type; title: Rect.Type } | undefined {
+        if (!p.escortFailed) {
+            return undefined;
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        return computeEscortDeathButtons(w / uiScale, h / uiScale);
+    }
+
+    /** 检测点击是否命中「折戟重整」小结页按钮。 */
+    tryPickEscortDeathAtPointer(p: Play, input: Input, w: number, h: number): "retry" | "title" | "" {
+        if (!p.escortFailed) {
+            return "";
+        }
+        if (input.inputMode === "gamepad" && !input.uiPressed) {
+            return "";
+        }
+        const useUiPtr = input.uiInside || input.uiPressed;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        if (!inside) {
+            return "";
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const pointer = Vec2(rawX / uiScale, rawY / uiScale);
+        const btns = computeEscortDeathButtons(w / uiScale, h / uiScale);
+        if (btns.retry.containsPoint(pointer)) {
+            this.roguelikeUi.deathSelected = 0;
+            return "retry";
+        }
+        if (btns.title.containsPoint(pointer)) {
+            this.roguelikeUi.deathSelected = 1;
+            return "title";
+        }
+        return "";
     }
 
     private playMenuUiSound(kind: UiSoundKind): void {
@@ -387,26 +427,6 @@ export class WatchFrontend {
             this.audio.playUi("ui:pause_close", "assets/audio/ui/pause_close.wav", 0.66, 0.08);
         } else if (kind === "toggle") {
             this.audio.playUi("ui:toggle", "assets/audio/ui/setting_toggle.wav", 0.64, 0.04);
-        }
-    }
-
-    /** 护送试炼肉鸽（mode 2）切换段落时重置试炼音频态 */
-    resetTrialAudio(p: Play): void {
-        this.adapter.reset(p);
-        this.audio.stopRoomTransient();
-        this.soundscape.resetForRoom(p);
-    }
-
-    /** 护送试炼肉鸽（mode 2）每帧消费事件队列与声景拟音 */
-    syncTrialAudio(dt: number, p: Play, offerCount: number): void {
-        const safeDt = Math.min(0.05, Math.max(0.001, dt));
-        this.audio.setPaused(p.paused);
-        this.audio.setCameraRef(p.player.x, 960);
-        this.audio.update(safeDt);
-        if (!p.paused) {
-            const ev = this.adapter.sample(p);
-            this.audio.ingestEvents(ev, p);
-            this.soundscape.updateTrial(safeDt, p, this.audio, offerCount);
         }
     }
 
@@ -507,17 +527,14 @@ export class WatchFrontend {
             ev = this.adapter.sample(p);
             this.vfx.ingest(ev, p, this.cam);
             this.audio.ingestEvents(ev, p);
-            const touch = input.getTouch();
-            if (touch !== undefined) {
-                if (ev.playerHit) {
-                    touch.vibrate(0.036);
-                } else if (ev.reloadSolved || ev.benchCrafted || ev.handJustTied || ev.cartJustDocked) {
-                    touch.vibrate(0.024);
-                } else if (ev.coverDeflect) {
-                    touch.vibrate(0.018);
-                } else if (ev.knockPulse) {
-                    touch.vibrate(0.014);
-                }
+            if (ev.playerHit) {
+                input.vibrate(0.036);
+            } else if (ev.reloadSolved || ev.benchCrafted || ev.handJustTied || ev.cartJustDocked) {
+                input.vibrate(0.024);
+            } else if (ev.coverDeflect) {
+                input.vibrate(0.018);
+            } else if (ev.knockPulse) {
+                input.vibrate(0.014);
             }
         } else {
             // 暂停态不消费/不补播事件，并立即收净切场斜切幕布
@@ -673,6 +690,7 @@ export class WatchFrontend {
                     this.contract.toggleAssistHints();
                 },
                 this.stageVp.safeUi,
+                p.run.source === "official" && p.storyRoute === "soldier" && p.isEscortRoom(),
                 view.roguelike.active,
                 () => {
                     this.roguelikeUi.openLedger();
@@ -733,7 +751,7 @@ export class WatchFrontend {
                 if (suppressBanner) {
                     this.narrative.bannerT = savedBannerT;
                 }
-            } else {
+            } else if (cutsceneHandled) {
                 // 过场插件接管画面时仍透出对应阶段的剧本对白与静音方向字幕（避免 Wave 2 D01–D65 被静默吞掉）
                 this.narrative.drawCutsceneDialogue(
                     this.uiDraw,
@@ -747,7 +765,7 @@ export class WatchFrontend {
                 );
             }
 
-            let suppressReticle = cutsceneHandled || view.reloadSession.active || view.craftBench.active;
+            let suppressReticle = cutsceneHandled || roguelikeModal || view.reloadSession.active || view.craftBench.active;
             for (i = 0; i < this.plugins.length; i++) {
                 const pl = this.plugins[i];
                 if (pl.drawFullSpeedUi !== undefined
