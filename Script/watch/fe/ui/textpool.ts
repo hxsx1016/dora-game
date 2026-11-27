@@ -2,7 +2,8 @@
  * 零抖动宋明风雅双字体 Label 对象池：
  * - 正文/界面桶（xs/sm/md/lg/xl）：霞鹜新致宋（LXGW Neo ZhiSong，SIL OFL 1.1），横细竖挺、清秀雕版明体；
  * - 标题/章名/孤印/数数大字桶（seal/sealLg/banner/title）：龙藏体（Long Cang，SIL OFL 1.1），瘦劲婉转行书；
- * - 外部字体缺失时自动回退至引擎内置 sarasa-mono-sc-regular，保证零崩溃。
+ * - 外部字体缺失时自动回退至引擎内置 sarasa-mono-sc-regular，保证零崩溃；
+ * - 支持传入自定义桶容量（如触控叠加层仅需 { xs: 24, sm: 12 }，从 178 个 SDF Label 降至 36 个）。
  */
 
 import { Color, Content, Label, Node, TextAlign, Vec2 } from "Dora";
@@ -14,6 +15,8 @@ const FONT_CALLI_PATH = "assets/font/longcang-brush.ttf";
 const DEFAULT_OUTLINE = Color(8, 10, 15, 200);
 
 export type FontBucket = "xs" | "sm" | "md" | "lg" | "xl" | "seal" | "sealLg" | "banner" | "title";
+
+const ALL_BUCKETS: FontBucket[] = ["xs", "sm", "md", "lg", "xl", "seal", "sealLg", "banner", "title"];
 
 const BUCKET_SIZES: Record<FontBucket, number> = {
     xs: 15,
@@ -64,9 +67,11 @@ function resolveFont(useCalli: boolean): string {
 export class TextPool {
     private pools: Record<FontBucket, Label.Type[]>;
     private used: Record<FontBucket, number>;
+    private activeBuckets: FontBucket[] = [];
     private container: Node.Type;
+    readonly totalAllocated: number;
 
-    constructor(parent: Node.Type, order: number) {
+    constructor(parent: Node.Type, order: number, customCaps?: Partial<Record<FontBucket, number>>) {
         this.container = Node();
         this.container.order = order;
         this.container.addTo(parent);
@@ -79,22 +84,24 @@ export class TextPool {
             seal: 0, sealLg: 0, banner: 0, title: 0,
         };
 
-        this.allocBucket("xs");
-        this.allocBucket("sm");
-        this.allocBucket("md");
-        this.allocBucket("lg");
-        this.allocBucket("xl");
-        this.allocBucket("seal");
-        this.allocBucket("sealLg");
-        this.allocBucket("banner");
-        this.allocBucket("title");
+        let total = 0;
+        let i = 0;
+        for (i = 0; i < ALL_BUCKETS.length; i++) {
+            const bucket = ALL_BUCKETS[i];
+            const cap = customCaps !== undefined ? (customCaps[bucket] ?? 0) : BUCKET_CAPS[bucket];
+            if (cap > 0) {
+                this.activeBuckets.push(bucket);
+                total += this.allocBucket(bucket, cap);
+            }
+        }
+        this.totalAllocated = total;
     }
 
-    private allocBucket(bucket: FontBucket): void {
+    private allocBucket(bucket: FontBucket, cap: number): number {
         const size = BUCKET_SIZES[bucket];
-        const cap = BUCKET_CAPS[bucket];
         const font = resolveFont(CALLI_BUCKETS[bucket]);
         const list = this.pools[bucket];
+        let created = 0;
         let i = 0;
         for (i = 0; i < cap; i++) {
             let lb = Label(font, size, true);
@@ -107,20 +114,17 @@ export class TextPool {
                 lb.visible = false;
                 lb.addTo(this.container);
                 list.push(lb);
+                created++;
             }
         }
+        return created;
     }
 
     beginFrame(): void {
-        this.used.xs = 0;
-        this.used.sm = 0;
-        this.used.md = 0;
-        this.used.lg = 0;
-        this.used.xl = 0;
-        this.used.seal = 0;
-        this.used.sealLg = 0;
-        this.used.banner = 0;
-        this.used.title = 0;
+        let i = 0;
+        for (i = 0; i < this.activeBuckets.length; i++) {
+            this.used[this.activeBuckets[i]] = 0;
+        }
     }
 
     put(
@@ -166,15 +170,10 @@ export class TextPool {
     }
 
     endFrame(): void {
-        this.hideRest("xs");
-        this.hideRest("sm");
-        this.hideRest("md");
-        this.hideRest("lg");
-        this.hideRest("xl");
-        this.hideRest("seal");
-        this.hideRest("sealLg");
-        this.hideRest("banner");
-        this.hideRest("title");
+        let i = 0;
+        for (i = 0; i < this.activeBuckets.length; i++) {
+            this.hideRest(this.activeBuckets[i]);
+        }
     }
 
     hideAll(): void {

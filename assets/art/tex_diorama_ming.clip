@@ -1,0 +1,10 @@
+<A A="tex_diorama_ming.png">
+  <B A="ming_brick" B="4,4,248,248" />
+  <B A="ming_timber" B="260,4,248,248" />
+  <B A="ming_stone" B="516,4,248,248" />
+  <B A="ming_plaster" B="772,4,248,248" />
+  <B A="ming_iron" B="4,260,248,248" />
+  <B A="ming_tile" B="260,260,248,248" />
+  <B A="ming_cloth" B="516,260,248,248" />
+  <B A="ming_water" B="772,260,248,248" />
+</A>

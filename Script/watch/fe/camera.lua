@@ -73,7 +73,7 @@ function CameraDirector.prototype.update(self, dt, p, w, h) -- 82
 			desiredZoom = 1.12 -- 105
 		elseif p.phase == "gate-hand" then -- 105
 			desiredZoom = 1.22 -- 107
-		elseif p.phase == "gate-send" then -- 107
+		elseif p.phase == "gate-send" or p.phase == "gate-farewell" then -- 107
 			desiredZoom = 1.06 -- 109
 		end -- 109
 	elseif p.room.key == "museum" then -- 109

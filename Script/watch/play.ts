@@ -11,12 +11,12 @@
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
 import {
-    BreakSpec, CartSpec, DepthRange, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
+    BreakSpec, CartSpec, DepthRange, ESCORT_VARIANTS, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
 } from "Script/watch/rooms";
 import {
-    ArchiveState, CheckpointSnap, createRun, createStoryTalents, draftRoom, draftTalentOffers,
-    Inventory, mmss, RunState, StoryRoute, Talent, talentNames,
+    ALL_TALENTS, ArchiveState, CheckpointSnap, createRun, createStoryTalents, draftTalentOffers,
+    Inventory, mmss, pickEscortVariant, RunState, StoryRoute, Talent, talentNames,
 } from "Script/watch/run";
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
@@ -55,6 +55,10 @@ export const PROLOGUE_SHADOW_TICKS = 120;
 export const PROLOGUE_ESCAPE_TICKS = 450;
 /** 入柜后红晕收尽、柜外脚步渐远：0.85 秒 = 51 拍。 */
 export const PROLOGUE_HIDE_TICKS = 51;
+/** 序章 P03 柜边递针套特写时长：3.0 秒 = 180 拍（对齐分镜稿与 D01 对白节拍）。 */
+export const PROLOGUE_GIVE_TICKS = 180;
+/** 城门 P05 送别嘱咐独立演出时长：约 3.67 秒 = 220 拍（演完再切入 24 秒数到二十，零叠字叠音）。 */
+export const GATE_FAREWELL_TICKS = 220;
 /** 小满贴住倒柜左缘（段内 x，柜体从 152 起；玩家半宽 14）即拉门入柜。 */
 export const PROLOGUE_CABINET_X = 132;
 
@@ -637,7 +641,7 @@ export class Play {
     /** 逃柜失败次数；只影响演出重来，不写档案。 */
     escapeRetryCount = 0;
     /** 序章演出自己的拍计数器（wake/shadow/hide 各段）。 */
-    private introTick = 0;
+    introTick = 0;
 
     // —— 慢时连线换弹 ——
     /** 3×3 线盘开着：世界降到 1/4 速，只有每 4 个作答拍推进 1 个世界拍。 */
@@ -652,6 +656,21 @@ export class Play {
     reloadPendingEffect: ReloadEffect = "";
     /** 这一房开盘次数，回放用来确认「重画不重新计时」。 */
     reloadTryCount = 0;
+
+    // —— 男主线肉鸽折笺选卡与折戟小结（前端挂载时开启轻暂停，独立无头回放保持非阻塞） ——
+    talentModalActive = false;
+    useEscortDeathSummary = false;
+    escortFailed = false;
+    escortFailedTicks = 0;
+    escortSummary: {
+        roomKey: string;
+        attempt: number;
+        seed: number;
+        equippedWeapon: string;
+        segmentsCleared: number;
+        ranks: Record<Talent, number>;
+    } | undefined = undefined;
+    private fieldWedgeSeq = 0;
 
     paused = false;
     /** 累计模拟步，用来做与帧率无关的计时。 */
@@ -677,7 +696,15 @@ export class Play {
         this.run = run ?? createRun();
         this.inventory = this.run.inventory;
         this.archive = this.run.archive;
-        this.equippedWeapon = this.run.story.craftedWeapon === "" ? "standard_gun" : this.run.story.craftedWeapon;
+        const story = this.run.story;
+        const savedEq = story.equippedWeapon;
+        if (savedEq === ARTIFACT_WEAPON_ID && this.archive.artifactOwned) {
+            this.equippedWeapon = ARTIFACT_WEAPON_ID;
+        } else if (savedEq === "standard_gun" || (savedEq !== "" && savedEq === story.craftedWeapon)) {
+            this.equippedWeapon = savedEq;
+        } else {
+            this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
+        }
         this.isCampaign = wr.campaign !== undefined;
         this.cam = { x: (wr.minX + wr.maxX) / 2, y: wr.height / 2 };
         this.buildWorld();
@@ -813,7 +840,7 @@ export class Play {
         });
     }
 
-    /** 关面板离站：重新背起小满，材料不足/未选也不拦路。 */
+    /** 关面板离站：重新背起小满，材料不足/未选也不拦路；第三段随即展开与刚改制武器联动的本领抽卡。 */
     closeCraftBench(): void {
         if (!this.craftBench.active) {
             return;
@@ -825,6 +852,36 @@ export class Play {
         this.flashSet("重新背起小满 · 往山道", 1.4);
         this.log("离站背起");
         this.emit("benchClose", { equipped: this.equippedWeapon, crafted: this.run.story.craftedWeapon });
+        if (this.room.key === "escort3" && this.storyRoute === "soldier") {
+            this.triggerDeferredEscort3Draft();
+        }
+    }
+
+    /** 第三段安全工台后置抽卡：确保玩家先选定引路灯铳/回声铳，再据此加权抽取 3 选 1 本领。 */
+    triggerDeferredEscort3Draft(): boolean {
+        if (this.room.key !== "escort3" || this.storyRoute !== "soldier" || this.run.finished) {
+            return false;
+        }
+        if (this.run.story.talents === undefined) {
+            this.run.story.talents = createStoryTalents(this.run.seed, 1);
+        }
+        const st = this.run.story.talents;
+        if (!st.deferred && st.room === "escort3") {
+            return false;
+        }
+        draftTalentOffers(st, "escort3", this.equippedWeapon);
+        if (this.useEscortDeathSummary && st.offers.length > 0) {
+            this.talentModalActive = true;
+        }
+        this.sessionDirty = true;
+        return st.offers.length > 0;
+    }
+
+    /** 前端绑定房间时打开折笺选卡轻暂停（若本段仍有未选本领）。 */
+    openTalentDraft(): void {
+        if (this.getStoryTalentOffers().length > 0 && !this.craftBench.active && !this.escortFailed) {
+            this.talentModalActive = true;
+        }
     }
 
     /**
@@ -926,9 +983,21 @@ export class Play {
                 );
             }
         }
+        const talentRanks: string[] = [];
+        if (story.talents !== undefined) {
+            let ti = 0;
+            for (ti = 0; ti < ALL_TALENTS.length; ti++) {
+                const tid = ALL_TALENTS[ti];
+                const rk = story.talents.ranks[tid] ?? 0;
+                if (rk > 0) {
+                    talentRanks.push(tid + ":" + rk);
+                }
+            }
+        }
         return {
-            roomKey: this.room.key,
-            checkpoint: this.checkpoint,
+            // 小结停在倒地房间，续读从新一轮 escort1 的默认出生点开始。
+            roomKey: this.escortFailed ? "escort1" : this.room.key,
+            checkpoint: this.escortFailed ? 0 : this.checkpoint,
             seed: this.run.seed,
             route: story.route,
             hp: story.hp,
@@ -966,14 +1035,18 @@ export class Play {
             talentSeed: story.talents !== undefined ? story.talents.randomState : 0,
             talentRoom: story.talents !== undefined ? story.talents.room : "",
             talentOffers: story.talents !== undefined ? story.talents.offers.slice() : [],
+            talentRanks,
+            escortAttempt: story.talents !== undefined ? story.talents.attempt : 1,
+            escortVariant: story.talents !== undefined ? story.talents.variant : 0,
+            talentDeferred: story.talents !== undefined ? story.talents.deferred : false,
             talentVitality: story.talents !== undefined ? story.talents.ranks.vitality : 0,
-            talentReload: story.talents !== undefined ? story.talents.ranks.reload : 0,
+            talentReload: story.talents !== undefined ? story.talents.ranks.focus : 0,
             talentGuard: story.talents !== undefined ? story.talents.ranks.guard : 0,
-            talentCraft: story.talents !== undefined ? story.talents.ranks.craft : 0,
+            talentCraft: story.talents !== undefined ? story.talents.ranks.salvage : 0,
             props,
-            playerX: this.player.x,
-            playerY: this.player.y,
-            playerDepth: this.player.depth,
+            playerX: this.escortFailed ? undefined : this.player.x,
+            playerY: this.escortFailed ? undefined : this.player.y,
+            playerDepth: this.escortFailed ? undefined : this.player.depth,
             gateTick: this.gateTick,
             hasBottle: this.hasBottle,
             villagePassed: this.passed,
@@ -1003,7 +1076,7 @@ export class Play {
         }
         if (kind === "reloadOpen") {
             const camp = this.room.campaign;
-            if (this.run.trial !== undefined || camp === undefined || camp.reloadPuzzle !== true || this.reloadOpen) {
+            if (camp === undefined || camp.reloadPuzzle !== true || this.reloadOpen) {
                 return false;
             }
             this.beginReload();
@@ -1172,11 +1245,6 @@ export class Play {
     }
 
     private restoreStory(): void {
-        // 标题独立试炼有自己的跨房血量与路线，不走正式剧情的快照。
-        // 正式剧情的护送房虽然是 campaign 数据，仍要继承周戍的血量与背负状态。
-        if (this.isCampaign && this.run.trial !== undefined) {
-            return;
-        }
         const story = this.run.story;
         if (story === undefined) {
             return;
@@ -1192,18 +1260,10 @@ export class Play {
         this.handDone = story.handDone;
         this.lineSaid = story.lineSaid;
         this.tied = story.handDone;
-        this.carryOn = story.carry || (story.route === "soldier" && this.room.key === "escort1");
+        this.carryOn = story.carry || (story.route === "soldier" && this.room.key.indexOf("escort") === 0);
         this.museumReturn = story.museumReturn;
         story.museumReturn = false;
         this.escortDone = story.escortDone;
-        const savedEq = story.equippedWeapon;
-        if (savedEq === ARTIFACT_WEAPON_ID && this.archive.artifactOwned) {
-            this.equippedWeapon = ARTIFACT_WEAPON_ID;
-        } else if (savedEq === "standard_gun" || (savedEq !== "" && savedEq === story.craftedWeapon)) {
-            this.equippedWeapon = savedEq;
-        } else {
-            this.equippedWeapon = story.craftedWeapon === "" ? "standard_gun" : story.craftedWeapon;
-        }
         this.syncCraftBench();
         // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口与下层水路敞开。
         if (story.segments["outside_cart"] === true) {
@@ -1332,9 +1392,9 @@ export class Play {
         this.gateTick = g.holdTicks;
         this.gateSpawned = 4;
         this.enemies = [];
-        if (story.phase === "gate-count" || story.phase === "gate-walk") {
-            this.phase = story.phase;
-            this.countTick = Math.max(story.countTick, 0);
+        if (story.phase === "gate-farewell" || story.phase === "gate-count" || story.phase === "gate-walk") {
+            this.phase = story.phase === "gate-farewell" ? "gate-count" : story.phase;
+            this.countTick = story.phase === "gate-farewell" ? 0 : Math.max(story.countTick, 0);
             this.swapToChild(g.doorX + 30);
             this.countPrevMove = 0;
             this.countArmed = false;
@@ -1440,17 +1500,28 @@ export class Play {
         this.cam.y = y + CAM_LOOK_UP;
         this.phase = "run";
         this.hp = this.maxHp;
-        const trial = this.run.trial;
-        if (trial !== undefined) {
-            draftRoom(trial, wr.key);
-            this.maxHp += trial.ranks.vitality;
-            this.hp = trial.hp;
-        } else if (this.isEscortRoom() && this.run.story.route === "soldier") {
-            // 正式男主线五段护送：每进一段按 seed 确定性抽 3 选 1 本领（非阻塞 HUD 卡，不影响既有脚本）。
+        if (this.isEscortRoom() && this.run.story.route === "soldier") {
             if (this.run.story.talents === undefined) {
-                this.run.story.talents = createStoryTalents(this.run.seed);
+                this.run.story.talents = createStoryTalents(this.run.seed, 1);
             }
-            draftTalentOffers(this.run.story.talents, wr.key);
+            const st = this.run.story.talents;
+            const variants = ESCORT_VARIANTS[wr.key];
+            if (this.run.source !== "debug" && variants !== undefined && variants.length > 0) {
+                st.variant = pickEscortVariant(this.run.seed, st.attempt, wr.key, variants.length);
+            } else {
+                st.variant = 0;
+            }
+            // 第三段安全工台先让玩家改制装备，关闭工台（或越过工台区）后再按新武器加权抽本领；
+            // 其余护送段进房即抽 3 选 1。
+            if (wr.key === "escort3") {
+                if (st.room !== "escort3") {
+                    st.room = "escort3";
+                    st.deferred = true;
+                    st.offers = [];
+                }
+            } else {
+                draftTalentOffers(st, wr.key, this.equippedWeapon);
+            }
         }
         this.buildEnemies();
         this.pickups = wr.pickups === undefined ? [] : wr.pickups.slice();
@@ -1493,15 +1564,26 @@ export class Play {
     private buildEnemies(): void {
         this.enemies = [];
         if (this.isCampaign) {
+            const variants = ESCORT_VARIANTS[this.room.key];
+            const useVariant = this.isEscortRoom()
+                && this.run.story.route === "soldier"
+                && this.run.source !== "debug"
+                && variants !== undefined
+                && variants.length > 0;
+            const vIdx = useVariant
+                ? Math.max(0, Math.min(variants.length - 1, this.run.story.talents?.variant ?? 0))
+                : 0;
+            const spawnList = useVariant ? variants[vIdx] : this.room.spawns;
             let i = 0;
-            for (i = 0; i < this.room.spawns.length; i++) {
-                const sp = this.room.spawns[i];
+            for (i = 0; i < spawnList.length; i++) {
+                const sp = spawnList[i];
                 const kind = sp.kind ?? "gunner";
                 const hp = sp.shieldHp ?? (kind === "shield" ? 2 : 0);
+                const sx = useVariant ? this.ox + sp.x : sp.x;
                 this.enemies.push({
-                    x: sp.x, y: sp.y, depth: sp.depth, w: 26, h: sp.h, alive: true, hitT: 0, warnT: 0, fireCd: 40,
+                    x: sx, y: sp.y, depth: sp.depth, w: 26, h: sp.h, alive: true, hitT: 0, warnT: 0, fireCd: 40,
                     kind: kind, shieldHp: hp, shieldHpMax: hp, drop: sp.drop ?? "none",
-                    homeX: sp.x, swingT: 0, awake: false, squad: i,
+                    homeX: sx, swingT: 0, awake: false, squad: i,
                 });
             }
             return;
@@ -1568,18 +1650,20 @@ export class Play {
     }
 
     private talentRank(talent: Talent): number {
-        if (this.run.trial !== undefined) {
-            return this.run.trial.ranks[talent];
-        }
         if (this.storyRoute === "soldier" && this.isEscortRoom() && this.run.story.talents !== undefined) {
-            return this.run.story.talents.ranks[talent];
+            return this.run.story.talents.ranks[talent] ?? 0;
         }
         return 0;
     }
 
+    /** 当前慢时连线换弹的作答预算拍数（默认 240 拍 = 4 秒；每重「凝神」+60 拍 = +1 秒）。 */
+    reloadNeedTicks(): number {
+        return RELOAD_ANSWER_TICKS + 60 * this.talentRank("focus");
+    }
+
     /** 正式男主线护送段当前可三选一的本领列表（非男主线或已选完时为空）。 */
     getStoryTalentOffers(): Talent[] {
-        if (this.run.trial !== undefined || this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
+        if (this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
             return [];
         }
         const st = this.run.story.talents;
@@ -1588,27 +1672,18 @@ export class Play {
 
     /** 正式男主线护送段已习得的本领等级表。 */
     getStoryTalentRanks(): Record<Talent, number> | undefined {
-        if (this.run.trial !== undefined || this.storyRoute !== "soldier" || !this.isEscortRoom()) {
+        if (this.storyRoute !== "soldier" || !this.isEscortRoom()) {
             return undefined;
         }
         return this.run.story.talents !== undefined ? this.run.story.talents.ranks : undefined;
     }
 
+    /** 当前男主线护送的轮回次序（1 起步）。 */
+    getEscortAttempt(): number {
+        return this.run.story.talents !== undefined ? Math.max(1, this.run.story.talents.attempt) : 1;
+    }
+
     chooseTalent(slot: number): boolean {
-        const trial = this.run.trial;
-        if (trial !== undefined) {
-            const talent = trial.offers[slot];
-            if (talent === undefined || trial.lost || this.run.finished) return false;
-            trial.ranks[talent] += 1;
-            trial.offers = [];
-            if (talent === "vitality") {
-                this.maxHp += 1;
-                this.hp += 1;
-                trial.hp = this.hp;
-            }
-            this.flashSet(talentNames[talent], 1.2);
-            return true;
-        }
         if (this.storyRoute !== "soldier" || !this.isEscortRoom() || this.run.finished) {
             return false;
         }
@@ -1617,35 +1692,45 @@ export class Play {
         if (st === undefined || talent === undefined) {
             return false;
         }
-        st.ranks[talent] += 1;
+        st.ranks[talent] = (st.ranks[talent] ?? 0) + 1;
         st.offers = [];
+        this.talentModalActive = false;
+        let extraMsg = "";
         if (talent === "vitality") {
             this.maxHp += 1;
             this.hp += 1;
             this.run.story.maxHp = this.maxHp;
             this.run.story.hp = this.hp;
+        } else if (talent === "salvage") {
+            const inv = this.run.inventory;
+            if ((inv.wood < 2 && inv.wood <= inv.bell) || (inv.bell >= 1 && st.ranks.salvage % 2 === 1)) {
+                inv.wood += 1;
+                extraMsg = " · 得木纹筹×1";
+            } else {
+                inv.bell += 1;
+                extraMsg = " · 得铃纹筹×1";
+            }
+            this.syncCraftBench();
         }
         this.sessionDirty = true;
-        this.flashSet("本领 · " + talentNames[talent], 1.4);
+        this.flashSet("本领 · " + talentNames[talent] + extraMsg, 1.5);
         this.emit("storyBeat", { beat: "talent_picked", talent: talent, rank: st.ranks[talent], room: this.room.key });
         return true;
     }
 
     /**
      * 进入一次换弹：设好装填拍。
-     * 3×3 慢时线盘只在正式护送房（escort1）开；试炼与旧关卡保持普通装填，
-     * 避免把 4000 拍的试炼回放拖成 1/4 速。
+     * 3×3 慢时线盘在男主线五段护送（reloadPuzzle === true）自动开启。
      */
     private beginReload(): void {
         this.reloadT = this.reloadTicks();
         const camp = this.room.campaign;
-        // 慢时连线是房间能力：护送段都开，标题试炼不开（4000 拍会被 1/4 速拖死）。
-        if (this.run.trial === undefined && camp !== undefined && camp.reloadPuzzle === true) {
+        if (camp !== undefined && camp.reloadPuzzle === true) {
             this.openReloadPuzzle();
         }
     }
 
-    /** 开线盘：从枪膛起点 0 起笔，240 作答拍；重开清空旧路径。 */
+    /** 开线盘：从枪膛起点 0 起笔，作答预算受「凝神」本领扩展；重开清空旧路径。 */
     private openReloadPuzzle(): void {
         this.reloadOpen = true;
         this.reloadAnswerTicks = 0;
@@ -1653,7 +1738,7 @@ export class Play {
         this.reloadPath = [RELOAD_START];
         this.reloadPendingEffect = "";
         this.reloadTryCount += 1;
-        this.emit("reloadOpen", { tryCount: this.reloadTryCount, needTicks: RELOAD_ANSWER_TICKS });
+        this.emit("reloadOpen", { tryCount: this.reloadTryCount, needTicks: this.reloadNeedTicks() });
     }
 
     /** 补弹/被打倒/换房时收起盘子：世界恢复正常速，未结算的效果作废。 */
@@ -1709,10 +1794,10 @@ export class Play {
     }
 
     /**
-     * 回声：把这一枪的余响引到最近一个还在场的敌人身上。
+     * 回声：把这一枪的余响引到最近还在场的敌人身上。
      * 他被惊动、枪口先抬一下（下一次开火延后），给玩家一个换位窗口。
      */
-    private echoToSource(from: Actor, count: number = 1): void {
+    private echoToSource(from: Actor, count: number = 1, delayTicks: number = 60): void {
         let best = -1;
         let bestD = 1e9;
         let i = 0;
@@ -1742,23 +1827,21 @@ export class Play {
             const e = this.enemies[best];
             e.awake = true;
             e.warnT = 0;
-            e.fireCd = Math.max(e.fireCd ?? 0, 60);
+            e.fireCd = Math.max(e.fireCd ?? 0, delayTicks);
             n += 1;
         }
         if (n === 0) {
             return;
         }
-        this.flashSet(n > 1 ? "回声引到两处声源 · 他们同时抬枪" : "回声引到声源 · 他先抬枪", 1.0);
+        this.flashSet(n > 1 ? "回声引到多处声源 · 敌群同时抬枪" : "回声引到声源 · 他先抬枪", 1.0);
     }
 
     private reloadTicks(): number {
-        return Math.max(6, (this.run.inventory.quickbelt > 0 ? 36 : 54) - 6 * this.talentRank("reload") - 3 * this.talentRank("craft"));
+        return Math.max(6, this.run.inventory.quickbelt > 0 ? 36 : 54);
     }
 
     update(dt: number, input: Input): void {
         this.syncCraftBench();
-        const trial = this.run.trial;
-        if (trial !== undefined && (trial.offers.length > 0 || trial.lost || this.run.finished)) return;
         if (!this.paused && this.craftBench.active && input.pause.pressed) {
             this.closeCraftBench();
             return;
@@ -1782,9 +1865,20 @@ export class Play {
             this.updateCamera(dt);
             return;
         }
+        // 男主线战斗折戟：前端展示轮回小结并停驻世界，等玩家确认再赴第一段或回标题。
+        if (this.escortFailed) {
+            this.escortFailedTicks += 1;
+            this.updateCamera(dt);
+            return;
+        }
         // 工台面板打开：世界停在开面板那一拍，玩家不推进、敌兵不动；
         // 面板用 E 确认配方，制作和装备由前端提交。
         if (this.craftBench.active) {
+            this.updateCamera(dt);
+            return;
+        }
+        // 男主线折笺选卡轻暂停（仅在前端挂接后激活，独立无头回放保持非阻塞）。
+        if (this.talentModalActive && this.getStoryTalentOffers().length > 0 && !this.reloadOpen) {
             this.updateCamera(dt);
             return;
         }
@@ -1792,11 +1886,12 @@ export class Play {
         // 慢时换弹：盘开着时世界 1/4 速。作答拍照走，只有每 4 拍推进 1 个世界拍；
         // 超时只关闭盘子并回到普通装填，不额外扣血或重开房间。
         if (this.reloadOpen) {
+            const needTicks = this.reloadNeedTicks();
             this.reloadAnswerTicks += 1;
-            if (this.reloadAnswerTicks > RELOAD_ANSWER_TICKS) {
+            if (this.reloadAnswerTicks > needTicks) {
                 this.reloadOpen = false;
                 this.reloadPendingEffect = "";
-                this.emit("reloadTimeout", { answerTicks: this.reloadAnswerTicks, needTicks: RELOAD_ANSWER_TICKS });
+                this.emit("reloadTimeout", { answerTicks: this.reloadAnswerTicks, needTicks: needTicks });
                 this.flashSet("换弹超时 · 普通装填", 1.2);
             } else if (this.reloadAnswerTicks % RELOAD_ANSWER_PER_WORLD !== 0) {
                 this.updateCamera(dt);
@@ -1830,13 +1925,8 @@ export class Play {
             }
         }
         // 敌兵先于剧情结算：守点最后一拍的开火不能被「进入送别」吞掉。
-        // 新版关卡房有自己的敌兵行为（掩体、深度、觉醒）；旧房才走简化敌兵。
-        // 试炼房保持原有双跑（旧简化敌兵 + 关卡敌兵），正式护送房只跑关卡敌兵。
         // campaign 房也走 stepEnemies：内部再分流到护送敌兵，城门/街道的旧敌兵不进这段。
-        if (trial === undefined || !this.run.finished) {
-            this.stepEnemies(dt, input);
-        }
-        if (trial !== undefined) trial.hp = this.hp;
+        this.stepEnemies(dt, input);
         if (!this.isCampaign) {
             this.stepStory(dt, input);
             this.stepEscort(dt, input);
@@ -2009,10 +2099,11 @@ export class Play {
         // 同一拍先按 E 且车把在范围里：这只 E 归握车，不能先射击/起跳/翻滚。
         const gripIntent = !this.gripping && input.interact.pressed && this.cartHandleInReach(a);
 
-        // 翻滚：周戍按下空格，0.35 秒内按固定速度冲出去，期间不能改向
+        // 翻滚：周戍按下空格，0.35 秒内按固定速度冲出去，期间不能改向（「疾步」提升翻滚速度）
         if (a.rollT > 0) {
             a.rollT -= dt;
-            a.vx = a.facing * ROLL_SPEED;
+            const rollSpd = this.isEscortRoom() ? ROLL_SPEED * (1 + 0.08 * this.talentRank("stride")) : ROLL_SPEED;
+            a.vx = a.facing * rollSpd;
             this.slideX(a, a.vx * dt);
             this.fallY(a, dt);
             if (a.rollT <= 0) {
@@ -2050,8 +2141,13 @@ export class Play {
                 // 旧渠路线差异化：顺着干渠底站跑提速 22%，换取更高警戒风险
                 speed = CHILD_SPEED * 1.22;
             }
-        } else if (a.covered) {
-            speed = SOLDIER_SPEED * 0.45;
+        } else {
+            if (this.isEscortRoom()) {
+                speed *= 1 + 0.10 * this.talentRank("stride");
+            }
+            if (a.covered) {
+                speed *= 0.45;
+            }
         }
 
         // 握车把或打开慢时换弹盘时，方向键归车/换弹盘使用，避免 W/A/S/D 同时带走人物。
@@ -2086,7 +2182,7 @@ export class Play {
         }
         // 手动起盘换弹（Q 键）：在支持慢时连线换弹的护送段允许随时主动调出 3×3 盘面。
         if (!isChild && !peacefulRoom && !this.gripping && !this.reloadOpen && this.reloadPendingEffect === ""
-            && this.run.trial === undefined && this.room.campaign?.reloadPuzzle === true && input.flare.pressed) {
+            && this.room.campaign?.reloadPuzzle === true && input.flare.pressed) {
             this.beginReload();
         }
     }
@@ -2208,7 +2304,7 @@ export class Play {
         if (this.room.key === "prologue" && this.phase === "prologue-give") {
             return true;
         }
-        if (this.room.key === "gate" && (this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
+        if (this.room.key === "gate" && (this.phase === "gate-farewell" || this.phase === "gate-count" || this.phase === "gate-wait" || this.phase === "gate-hand")) {
             return true;
         }
         if (this.room.key === "tower" && (this.phase === "tower-knock" || this.phase === "tower-given")) {
@@ -2462,11 +2558,11 @@ export class Play {
         }
         if (this.phase === "prologue-give") {
             this.phaseTick += 1;
-            if (this.phaseTick === 12) {
-                this.flashSet("针套递过去", 0.7);
-            } else if (this.phaseTick === 36) {
-                this.flashSet("纸条塞进针套", 0.9);
-            } else if (this.phaseTick >= 60) {
+            if (this.phaseTick === 36) {
+                this.flashSet("针套递过去", 0.9);
+            } else if (this.phaseTick === 108) {
+                this.flashSet("纸条塞进针套", 1.0);
+            } else if (this.phaseTick >= PROLOGUE_GIVE_TICKS) {
                 this.phase = "prologue-follow";
                 this.phaseTick = 0;
                 child.crouch = false;
@@ -2580,15 +2676,28 @@ export class Play {
         if (this.phase === "gate-send") {
             const near = Math.abs(p.x - g.doorX) <= 60 && inReachDepth(p.depth);
             if (near && input.interact.pressed) {
-                // 送别确认 = 小满安全过门：此刻才提交路线，且只提交一次。
+                // 送别确认 = 小满安全过门：此刻才提交路线，且只提交一次；
+                // 正式与选章先演独立 P05 送别再入 24s 数到二十（零叠字叠音），debug 单房回归保持直入 gate-count。
                 this.commitRoute();
                 this.swapToChild(g.doorX + 30);
-                this.phase = "gate-count";
+                this.phase = this.run.source === "debug" ? "gate-count" : "gate-farewell";
+                this.phaseTick = 0;
                 this.countTick = 0;
                 // 送别时已经按着 D 的不算「新按」，必须先松开。
                 this.countArmed = false;
                 this.countPrevMove = input.moveX;
                 this.flashSet("门开了 · 送她出去", 1.8);
+            }
+            return;
+        }
+        if (this.phase === "gate-farewell") {
+            this.phaseTick += 1;
+            this.countPrevMove = input.moveX;
+            if (this.phaseTick >= GATE_FAREWELL_TICKS) {
+                this.phase = "gate-count";
+                this.phaseTick = 0;
+                this.countTick = 0;
+                this.countArmed = false;
             }
             return;
         }
@@ -2719,9 +2828,6 @@ export class Play {
 
     /** 把本房的血量与演出拍写回跨房快照；R 重试与切房续读都靠它。 */
     private syncStory(): void {
-        if (this.isCampaign && this.run.trial !== undefined) {
-            return;
-        }
         const s = this.run.story;
         if (s === undefined) {
             return;
@@ -3397,7 +3503,7 @@ export class Play {
      */
     private stepCraft(input: Input): boolean {
         const inv = this.run.inventory;
-        const required = Math.max(6, CRAFT_TICKS - 6 * this.talentRank("craft"));
+        const required = Math.max(6, CRAFT_TICKS - 6 * this.talentRank("salvage"));
         if (this.craftT > 0) {
             if (!input.interact.held || this.gripping || this.player.rollT > 0
                 || this.escort.state === "calming" || this.paused) {
@@ -3485,11 +3591,15 @@ export class Play {
             this.log("转布行线");
         }
         // 第三段安全工台：靠近工台（含整张 560..680 台面与两侧接近日）按 E 开面板，不穿透到普通机关提示。
+        // 若玩家未开工台即越过工台区（x >= 940），也兜底触发第三段本领抽卡。
         if (wr.key === "escort3") {
             const nearBench = p.x >= wr.minX + 472 && p.x <= wr.minX + 710 && p.y < 60;
             if (nearBench && input.interact.pressed) {
                 this.openCraftBench();
                 return;
+            }
+            if (this.storyRoute === "soldier" && this.run.story.talents?.deferred === true && p.x >= wr.minX + 940) {
+                this.triggerDeferredEscort3Draft();
             }
         }
         // 拾取：走到掉落物上自动进包。
@@ -3517,7 +3627,7 @@ export class Play {
         }
         // S1–C2 正式剧情中，若小满因近距交火受惊，允许周戍走近按 E 轻敲两下安抚。
         this.calmConsumed = false;
-        if (this.run.trial === undefined && this.partner.alive && this.run.joined
+        if (this.partner.alive && this.run.joined
             && (this.room.campaign?.chapter === "S" || this.room.campaign?.chapter === "C")
             && (this.escort.fear > 0 || this.escort.state === "frozen" || this.escort.state === "calming")) {
             const dist = inReachDepth(p.depth, this.partner.depth) ? Math.abs(p.x - this.partner.x) : 1e9;
@@ -3570,15 +3680,38 @@ export class Play {
         if (inv.wedge > 0) {
             const w = this.findWedgeTarget();
             if (w !== undefined) {
+                const extraHp = (w.breakable?.wedgeHp ?? 1) + this.talentRank("salvage");
                 if (w.breakable !== undefined) {
-                    w.breakable.hp += w.breakable.wedgeHp ?? 1;
+                    w.breakable.hp += extraHp;
                 }
                 inv.wedge -= 1;
                 this.run.props[w.id === undefined ? "wedge" : w.id]
                     = { broken: w.broken === true, hp: w.breakable === undefined ? 0 : w.breakable.hp, wedge: true };
-                this.flashSet("钉木楔 · 多承一次", 1.2);
+                this.flashSet(extraHp > 1 ? ("钉木楔 · 多承" + extraHp + "次") : "钉木楔 · 多承一次", 1.2);
                 this.log("加固 " + (w.label === undefined ? "木件" : w.label));
                 this.emit("interactUsed", { kind: "wedge", x: w.x0 });
+                return;
+            }
+            if (this.isEscortRoom()) {
+                const p = this.player;
+                const wx = Math.max(this.room.minX + 64, Math.min(this.room.maxX - 64, p.x + p.facing * 32));
+                const hp = 1 + this.talentRank("salvage");
+                this.fieldWedgeSeq += 1;
+                const wid = "field_wedge_" + this.fieldWedgeSeq;
+                this.boxes.push({
+                    x0: wx - 12,
+                    x1: wx + 12,
+                    y0: p.y,
+                    y1: p.y + 48,
+                    depth: { min: p.depth - 20, max: p.depth + 20 },
+                    label: "立起的木楔掩体",
+                    id: wid,
+                    breakable: { hp: hp, kind: "thin_wood", wedgeable: true },
+                });
+                inv.wedge -= 1;
+                this.flashSet("立木楔 · 临时挡弹" + (hp > 1 ? ("(" + hp + "击)") : ""), 1.2);
+                this.log("立木楔掩体");
+                this.emit("interactUsed", { kind: "wedge", x: wx });
                 return;
             }
         }
@@ -3592,18 +3725,20 @@ export class Play {
             this.emit("interactUsed", { kind: "ammo", x: this.player.x });
             return;
         }
-        if (inv.shield > 0 && this.bracedShield === undefined && this.room.key === "c2-granary"
-            && this.player.x >= this.room.minX + 960 && this.player.x <= this.room.minX + 1320) {
+        const canBraceHere = (this.room.key === "c2-granary"
+            && this.player.x >= this.room.minX + 960 && this.player.x <= this.room.minX + 1320)
+            || this.isEscortRoom();
+        if (inv.shield > 0 && this.bracedShield === undefined && canBraceHere) {
             const p = this.player;
-            this.bracedShield = { x: p.x + p.facing * 26, y: p.y, w: 30, h: 64, hp: 1 };
+            const shHp = 1 + this.talentRank("salvage");
+            this.bracedShield = { x: p.x + p.facing * 26, y: p.y, w: 30, h: 64, hp: shHp };
             this.boxes.push({
                 x0: this.bracedShield.x - 15, x1: this.bracedShield.x + 15,
                 y0: p.y, y1: p.y + 64, depth: { min: -46, max: 46 }, label: "架起的残盾", id: "braced_shield",
                 soft: true, // 只挡弹，不参与走位碰撞；否则盾会把架盾的人自己推走。
-
             });
             inv.shield -= 1;
-            this.flashSet("架残盾 · 挡一发", 1.2);
+            this.flashSet(shHp > 1 ? ("架残盾 · 可挡" + shHp + "发") : "架残盾 · 挡一发", 1.2);
             this.log("架残盾");
             this.emit("interactUsed", { kind: "shield", x: p.x });
             return;
@@ -3788,7 +3923,7 @@ export class Play {
         if (c.next !== undefined && c.next !== "") {
             this.requestRoom(c.next, "段出口 " + wr.key);
             this.flashSet("过关 · " + c.next, 1.2);
-        } else if (wr.key === "c2-granary" && this.run.trial === undefined
+        } else if (wr.key === "c2-granary"
             && (this.run.source === "official" || this.run.source === "chapter")) {
             this.requestRoom("gate", "军粮棚出口");
             this.flashSet("出军粮棚 · 城门", 1.4);
@@ -3875,8 +4010,7 @@ export class Play {
     private stepCampaignEnemies(dt: number, input: Input): void {
         const p = this.player;
         let i = 0;
-        for (i = 0; i < this.enemies.length; i++) {
-            if (this.run.trial?.lost) return;
+        for (i = 0; i < this.enemies.length && !this.escortFailed; i++) {
             const e = this.enemies[i];
             if (e.kind === "target") {
                 // 试射靶只吃子弹：不移动、不开火，命中闪一下再立起来（必须在 !e.alive 之前检查，避免永久倒靶）。
@@ -3996,9 +4130,13 @@ export class Play {
         e.fireCd = CAMPAIGN_FIRE_COOLDOWN;
         if (this.bracedShield !== undefined && Math.abs(this.bracedShield.x - p.x) < 50) {
             this.bracedShield.hp -= 1;
-            this.boxes = this.boxes.filter((b) => b.id !== "braced_shield");
-            this.bracedShield = undefined;
-            this.flashSet("残盾碎 · 挡下一发", 1.0);
+            if (this.bracedShield.hp <= 0) {
+                this.boxes = this.boxes.filter((b) => b.id !== "braced_shield");
+                this.bracedShield = undefined;
+                this.flashSet("残盾碎 · 挡下一发", 1.0);
+            } else {
+                this.flashSet("残盾挡下一发 · 余" + this.bracedShield.hp, 1.0);
+            }
             this.emit("coverBlocked", { entity: "残盾", enemyX: e.x, hp: this.hp });
             return;
         }
@@ -4020,7 +4158,7 @@ export class Play {
         if (this.invulnT > 0) {
             return;
         }
-        this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
+        this.invulnT = INVULN_HIT_TICKS + 15 * this.talentRank("guard");
         this.craftT = 0;
         this.hp -= 1;
         this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -4054,9 +4192,9 @@ export class Play {
             // 翻滚只抵消正面来击：盾手在背后挥过来时，往前滚等于把后背送上去。
             // 全向免疫会让翻滚变成无成本的万能键，也就没有"看时机再滚"可言。
             const fromFront = (e.x - p.x) * p.facing > 0;
-            const rollDodges = p.rollT > 0 && fromFront;
+            const rollDodges = p.rollT > 0 && (fromFront || this.talentRank("guard") > 0);
             if (!rollDodges && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
+                this.invulnT = INVULN_HIT_TICKS + 15 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -4117,8 +4255,9 @@ export class Play {
             e.swingT = 64;
             if (target !== undefined) {
                 this.damageProp(target, 2);
-            } else if (Math.abs(p.x - e.x) < 60 && Math.abs((e.depth ?? 0) - p.depth) <= 26 && this.invulnT <= 0) {
-                this.invulnT = INVULN_HIT_TICKS + 12 * this.talentRank("guard");
+            } else if (Math.abs(p.x - e.x) < 60 && Math.abs((e.depth ?? 0) - p.depth) <= 26
+                && !(p.rollT > 0 && this.talentRank("guard") > 0) && this.invulnT <= 0) {
+                this.invulnT = INVULN_HIT_TICKS + 15 * this.talentRank("guard");
                 this.craftT = 0;
                 this.hp -= 1;
                 this.emit("actorHit", { target: "player", amount: 1, hp: this.hp, maxHp: this.maxHp, enemyX: e.x });
@@ -4155,16 +4294,57 @@ export class Play {
     }
 
     private campaignFailed(): void {
-        if (this.run.trial !== undefined) {
-            this.run.trial.lost = true;
-            this.wantRoom = "";
-            this.emit("campaignFailed", { room: this.room.key, hp: 0, maxHp: this.maxHp });
-            return;
-        }
-        // 正式男主线五段护送：战斗死亡回男主入口（首场 escort1），不是本段起点。
-        // 检查点主动重试（app 的 R）仍按快照回本段，与死亡回入口分开。
+        // 正式男主线五段护送：战斗死亡回男主入口（首场 escort1）并推进轮次派生新种子。
+        // 挂载高清前端时先展示宋明水墨「折戟重整」小结页，再由玩家确认重开或回标题；
+        // 独立无头测试（useEscortDeathSummary === false）立即执行重置并置 wantRoom = "escort1"。
         if (this.isCampaign && this.storyRoute === "soldier" && this.isEscortRoom()) {
-            this.restartEscortFromDeath();
+            if (this.escortFailed) return;
+            if (this.useEscortDeathSummary) {
+                const story = this.run.story;
+                const st = story.talents;
+                const ranksCopy: Record<Talent, number> = {
+                    vitality: st?.ranks.vitality ?? 0,
+                    guard: st?.ranks.guard ?? 0,
+                    stride: st?.ranks.stride ?? 0,
+                    focus: st?.ranks.focus ?? 0,
+                    push_force: st?.ranks.push_force ?? 0,
+                    echo_wide: st?.ranks.echo_wide ?? 0,
+                    lantern_pierce: st?.ranks.lantern_pierce ?? 0,
+                    salvage: st?.ranks.salvage ?? 0,
+                };
+                let cleared = 0;
+                const segKeys = ["escort1", "escort2", "escort3", "escort4", "escort5"];
+                let si = 0;
+                for (si = 0; si < segKeys.length; si++) {
+                    if (story.segments[segKeys[si]] === true) {
+                        cleared += 1;
+                    }
+                }
+                this.escortFailed = true;
+                this.escortFailedTicks = 0;
+                this.talentModalActive = false;
+                this.craftBench.active = false;
+                this.reloadT = 0;
+                this.closeReloadPuzzle();
+                this.gripping = false;
+                this.escortSummary = {
+                    roomKey: this.room.key,
+                    attempt: st !== undefined ? Math.max(1, st.attempt) : 1,
+                    seed: st !== undefined ? st.randomState : this.run.seed,
+                    equippedWeapon: this.equippedWeapon,
+                    segmentsCleared: cleared,
+                    ranks: ranksCopy,
+                };
+                this.resetEscortAttempt();
+                this.flashSet("折返山道 · 重整再赴", 2.0);
+                this.log("男主线折返 · 展示小结");
+                this.emit("campaignFailed", {
+                    room: this.room.key, hp: 0, maxHp: this.maxHp,
+                    reset: true, to: "escort1", route: this.storyRoute, summary: true,
+                });
+                return;
+            }
+            this.restartEscortRun();
             return;
         }
         const p = this.player;
@@ -4202,24 +4382,41 @@ export class Play {
     }
 
     /** 当前房是否是男主五段护送的一段。 */
-    private isEscortRoom(): boolean {
+    isEscortRoom(): boolean {
         return this.room.key.indexOf("escort") === 0;
     }
 
+    /** 阵亡时已结算新轮次，小结确认后只切回第一段。 */
+    confirmEscortRestart(): boolean {
+        if (!this.escortFailed) {
+            return false;
+        }
+        this.requestRoom("escort1", "男主线失败重开");
+        return true;
+    }
+
+    /** 主动重开本轮男主线肉鸽护送（供正式男主线 R / 暂停重开调用，关闭单段 S/L 刷血漏洞）。 */
+    restartEscortRun(): void {
+        this.resetEscortAttempt();
+        this.requestRoom("escort1", "男主线失败重开");
+    }
+
     /**
-     * 男主线战斗死亡：回 escort1 重开本局护送。
-     * 清材料、武器改制、已拾取物、分段完成标记与检查点快照；
-     * 保留 soldier 路线、过门背景与跨局通关档案。
+     * 男主线战斗死亡 / 主动重开本轮：回 escort1 重开本轮护送。
+     * 递增轮次并按基础种子派生新一轮随机种子；清材料、武器改制、已拾取物（含敌兵掉落）、
+     * 护送破坏记录、分段完成标记与检查点快照；保留 soldier 路线、过门锁存与跨局通关档案。
      */
-    private restartEscortFromDeath(): void {
+    private resetEscortAttempt(): void {
         const story = this.run.story;
         const inv = this.run.inventory;
-        const vitBonus = story.talents !== undefined ? story.talents.ranks.vitality : 0;
+        const prevAttempt = story.talents !== undefined ? Math.max(1, story.talents.attempt) : 1;
+        const nextAttempt = prevAttempt + 1;
+        const vitBonus = story.talents !== undefined ? (story.talents.ranks.vitality ?? 0) : 0;
         if (vitBonus > 0) {
             this.maxHp = Math.max(3, this.maxHp - vitBonus);
             story.maxHp = this.maxHp;
         }
-        story.talents = createStoryTalents(this.run.seed);
+        story.talents = createStoryTalents(this.run.seed, nextAttempt);
         this.hp = this.maxHp;
         story.hp = this.maxHp;
         story.cp = undefined;
@@ -4244,21 +4441,34 @@ export class Play {
         const keys = Object.keys(taken);
         let i = 0;
         for (i = 0; i < keys.length; i++) {
-            if (keys[i].indexOf("e2_") === 0 || keys[i].indexOf("e3_") === 0) {
-                delete taken[keys[i]];
+            const k = keys[i];
+            if (k.indexOf("e2_") === 0 || k.indexOf("e3_") === 0 || k.indexOf("escort") === 0) {
+                delete taken[k];
             }
         }
+        const propKeys = Object.keys(this.run.props);
+        for (i = 0; i < propKeys.length; i++) {
+            const pk = propKeys[i];
+            if (pk.indexOf("e1_") === 0 || pk.indexOf("e2_") === 0 || pk.indexOf("e3_") === 0
+                || pk.indexOf("e4_") === 0 || pk.indexOf("e5_") === 0 || pk.indexOf("field_wedge_") === 0) {
+                delete this.run.props[pk];
+            }
+        }
+        this.bracedShield = undefined;
+        this.talentModalActive = false;
         this.run.joined = true;
         this.reloadT = 0;
         this.closeReloadPuzzle();
         this.gripping = false;
-        this.flashSet("被击倒 · 回男主入口重开", 2.0);
-        this.log("男主线失败 · 回 escort1");
-        this.emit("campaignFailed", {
-            room: this.room.key, hp: 0, maxHp: this.maxHp,
-            reset: true, to: "escort1", route: this.storyRoute,
-        });
-        this.requestRoom("escort1", "男主线失败重开");
+        this.sessionDirty = true;
+        this.flashSet("重整启程 · 第" + nextAttempt + "轮护送", 2.0);
+        this.log("男主线重开 · 第" + nextAttempt + "轮回 escort1");
+        if (!this.useEscortDeathSummary) {
+            this.emit("campaignFailed", {
+                room: this.room.key, hp: 0, maxHp: this.maxHp,
+                reset: true, to: "escort1", route: this.storyRoute, attempt: nextAttempt,
+            });
+        }
     }
 
     /** 引路灯铳的光晕：把命中点附近第二人镇住，推远下一发。 */
@@ -4272,7 +4482,8 @@ export class Play {
             if (!e.alive || Math.abs(e.x - center.x) > radius) {
                 continue;
             }
-            e.fireCd = 150;
+            e.awake = true;
+            e.fireCd = Math.max(e.fireCd ?? 0, 150);
             e.warnT = 0;
         }
     }
@@ -4512,10 +4723,14 @@ export class Play {
                     if (this.isCampaign) {
                         this.captureCheckpoint(m.x);
                     }
-                    if (this.cartDocked) {
-                        this.flashSet("检查点 · 车已落窝", 1.0);
+                    if (this.room.cart.bodyW > 0) {
+                        if (this.cartDocked) {
+                            this.flashSet("检查点 · 车已落窝", 1.0);
+                        } else {
+                            this.flashSet("检查点 · 车还没到位", 1.0);
+                        }
                     } else {
-                        this.flashSet("检查点 · 车还没到位", 1.0);
+                        this.flashSet("检查点", 1.0);
                     }
                 }
             }
@@ -4944,11 +5159,16 @@ export class Play {
             const fromFront = (a.x < e.x && dx > 0) || (a.x > e.x && dx < 0);
             const shieldTop = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE + 64;
             if (e.kind === "shield" && (e.shieldHp ?? 0) > 0 && fromFront && impactY <= shieldTop) {
-                const dmg = reloadEffect === "push" ? 2 : 1;
+                const pushRank = this.talentRank("push_force");
+                const dmg = reloadEffect === "push" ? (2 + pushRank) : 1;
                 e.shieldHp = Math.max(0, (e.shieldHp ?? 0) - dmg);
                 e.hitT = 0.3;
                 if (reloadEffect === "push") {
-                    e.x = Math.max(this.room.minX + 20, Math.min(this.room.maxX - 20, e.x + a.facing * 46));
+                    const kb = 46 + 24 * pushRank;
+                    e.x = Math.max(this.room.minX + 20, Math.min(this.room.maxX - 20, e.x + a.facing * kb));
+                    if (pushRank > 0) {
+                        this.staggerNearby(e, 140 + 30 * pushRank, 90 + 30 * pushRank, i);
+                    }
                     this.emit("reloadApplied", { effect: "push", weapon: this.equippedWeapon, enemyX: e.x });
                     this.flashSet(e.shieldHp <= 0 ? "推退破盾！" : "推退震退持盾手", 0.9);
                 } else {
@@ -4966,14 +5186,21 @@ export class Play {
             killed = true;
             this.flashSet("命中", 0.6);
             this.dropFor(e);
-            if (reloadEffect === "light" && weaponFx === "light") {
-                this.blindNearby(e, 160, i);
+            const lpRank = this.talentRank("lantern_pierce");
+            if (reloadEffect === "light" && (weaponFx === "light" || lpRank > 0)) {
+                const blindRadius = (weaponFx === "light" ? 160 : 110) + 50 * lpRank;
+                this.blindNearby(e, blindRadius, i);
             }
             if (reloadEffect === "push") {
-                e.x += a.facing * 46;
+                const pushRank = this.talentRank("push_force");
+                e.x += a.facing * (46 + 24 * pushRank);
+                if (pushRank > 0) {
+                    this.staggerNearby(e, 140 + 30 * pushRank, 90 + 30 * pushRank, i);
+                }
                 this.emit("reloadApplied", { effect: "push", weapon: this.equippedWeapon, enemyX: e.x });
             } else if (reloadEffect === "echo") {
-                this.echoToSource(a, weaponFx === "echo" ? 2 : 1);
+                const echoRank = this.talentRank("echo_wide");
+                this.echoToSource(a, (weaponFx === "echo" ? 2 : 1) + echoRank, 60 + 30 * echoRank);
                 this.emit("reloadApplied", { effect: "echo", weapon: this.equippedWeapon, enemyX: e.x });
             } else if (reloadEffect === "light") {
                 this.emit("reloadApplied", { effect: "light", weapon: this.equippedWeapon, enemyX: e.x });
@@ -4997,9 +5224,27 @@ export class Play {
         });
     }
 
+    /** 「劲推」震荡波：将命中点周边敌兵震退并压缓其下一次举铳。 */
+    private staggerNearby(center: Enemy, radius: number, delayTicks: number, skipIndex: number): void {
+        let i = 0;
+        for (i = 0; i < this.enemies.length; i++) {
+            if (i === skipIndex) {
+                continue;
+            }
+            const e = this.enemies[i];
+            if (!e.alive || Math.abs(e.x - center.x) > radius) {
+                continue;
+            }
+            e.warnT = 0;
+            e.fireCd = Math.max(e.fireCd ?? 0, delayTicks);
+            const pushDir = e.x >= center.x ? 1 : -1;
+            e.x = Math.max(this.room.minX + 20, Math.min(this.room.maxX - 20, e.x + pushDir * 22));
+        }
+    }
+
     /** 把一次开火派发成危险事件；是否真的吓到她由 childExposed 判。 */
     private applyFireDanger(shotX: number): void {
-        const isStorySc = this.isCampaign && this.run.trial === undefined && this.run.joined
+        const isStorySc = this.isCampaign && this.run.joined
             && (this.room.campaign?.chapter === "S" || this.room.campaign?.chapter === "C");
         if ((this.room.key !== "checkpoint" && !isStorySc) || !this.partner.alive) {
             return;
@@ -5363,7 +5608,7 @@ export class Play {
             } else if (this.phase === "prologue-wait") {
                 parts.push("待递 " + Math.round(Math.abs(p.x - this.partner.x)));
             } else if (this.phase === "prologue-give") {
-                parts.push("递物 " + this.phaseTick + "/60");
+                parts.push("递物 " + this.phaseTick + "/" + PROLOGUE_GIVE_TICKS);
             } else {
                 parts.push("跟随");
             }
@@ -5521,6 +5766,9 @@ export class Play {
         if (this.phase === "gate-send") {
             return "送别";
         }
+        if (this.phase === "gate-farewell") {
+            return "嘱咐 " + this.phaseTick;
+        }
         if (this.phase === "gate-count") {
             return "数数 " + this.countTick;
         }
@@ -5609,7 +5857,7 @@ export class Play {
                 return near ? "点 E 递出针套 · 纸条一起塞进去" : "走到倒柜后的小满身边（x≈214）再点 E";
             }
             if (this.phase === "prologue-give") {
-                return "递物 " + this.phaseTick + " / 60 拍 · 站着别动";
+                return "递物 " + this.phaseTick + " / " + PROLOGUE_GIVE_TICKS + " 拍 · 站着别动";
             }
             return "她跟着你了 · 两人一起走到门口 680";
         }
@@ -5636,6 +5884,9 @@ export class Play {
                 }
                 if (this.phase === "gate-send") {
                     return "去门边 860 按 E 送别 · 她已经站在门口";
+                }
+                if (this.phase === "gate-farewell") {
+                    return "城门送别 · 嘱咐她慢慢数到二十";
                 }
                 if (this.phase === "gate-count") {
                     if (this.countTick >= GATE_COUNT_END) {
@@ -5890,7 +6141,7 @@ export class Play {
     private drawActors(draw: DrawNode.Type, w: number, h: number): void {
         const p = this.player;
         const isChild = this.childMode;
-        const footY = p.y + p.depth;
+        const footY = p.y + p.depth * DEPTH_Y_SCALE;
         // 贴住掩体时在身前画一条短竖线，和「压低的肩」一起表示真的靠住了。
         if (p.covered) {
             const edge = p.x + p.facing * (p.w / 2 + 2);
@@ -5911,7 +6162,7 @@ export class Play {
         for (i = 0; i < this.enemies.length; i++) {
             const e = this.enemies[i];
             const col = e.alive ? ENEMY_BODY : ENEMY_DEAD;
-            const enemyY = e.y + (e.depth ?? 0);
+            const enemyY = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE;
             this.drawBox(draw, w, h, e.x - e.w / 2, e.x + e.w / 2, enemyY, enemyY + e.h, col);
             if (e.alive) {
                 const ef = p.x >= e.x ? 1 : -1;

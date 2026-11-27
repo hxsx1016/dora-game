@@ -31,10 +31,12 @@ if Content:exist(versionFile) then
 	end
 end
 
+package.loaded["watch.target"] = "android"
 package.loaded["watch.release"] = {
 	isRelease = true,
 	version = version,
 	platform = "Android",
+	target = "android",
 	portableSave = false,
 }
 

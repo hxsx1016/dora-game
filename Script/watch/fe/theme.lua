@@ -8,22 +8,22 @@ local ____Dora = require("Dora") -- 8
 local Color = ____Dora.Color -- 8
 local Rect = ____Dora.Rect -- 8
 local Vec2 = ____Dora.Vec2 -- 8
-function ____exports.drawDiamond(draw, cx, cy, rx, ry, fill, borderW, borderCol) -- 716
-	if borderW == nil then -- 719
-		borderW = 0 -- 719
-	end -- 719
-	local pts = { -- 721
-		Vec2(cx, cy + ry), -- 722
-		Vec2(cx + rx, cy), -- 723
-		Vec2(cx, cy - ry), -- 724
-		Vec2(cx - rx, cy) -- 725
-	} -- 725
-	if borderW > 0 and borderCol ~= nil then -- 727
-		draw:drawPolygon(pts, fill, borderW, borderCol) -- 728
-	else -- 728
-		draw:drawPolygon(pts, fill) -- 730
-	end -- 730
-end -- 716
+function ____exports.drawDiamond(draw, cx, cy, rx, ry, fill, borderW, borderCol) -- 732
+	if borderW == nil then -- 732
+		borderW = 0 -- 735
+	end -- 735
+	local pts = { -- 737
+		Vec2(cx, cy + ry), -- 738
+		Vec2(cx + rx, cy), -- 739
+		Vec2(cx, cy - ry), -- 740
+		Vec2(cx - rx, cy) -- 741
+	} -- 741
+	if borderW > 0 and borderCol ~= nil then -- 741
+		draw:drawPolygon(pts, fill, borderW, borderCol) -- 744
+	else -- 744
+		draw:drawPolygon(pts, fill) -- 746
+	end -- 746
+end -- 732
 function ____exports.rgba(r, g, b, a) -- 19
 	if a == nil then -- 19
 		a = 255 -- 19
@@ -436,614 +436,629 @@ local ROOM_VARIANTS = { -- 374
 		"番外" -- 386
 	} -- 386
 } -- 386
-for key in pairs(ROOM_VARIANTS) do -- 389
-	local backdropKey, titleZh, shortNameZh, introWhisper, numZh, actZh = table.unpack(ROOM_VARIANTS[key], 1, 6) -- 390
-	local base = ____exports.ROOM_THEMES[backdropKey] -- 391
-	local soldierPath = key == "gatepath" or __TS__StringStartsWith(key, "escort") -- 392
-	____exports.ROOM_THEMES[key] = __TS__ObjectAssign({}, base, { -- 393
-		key = key, -- 394
-		backdropKey = backdropKey, -- 394
-		titleZh = titleZh, -- 394
-		shortNameZh = shortNameZh, -- 394
-		introWhisper = introWhisper, -- 394
-		numeralZh = numZh or (soldierPath and ____exports.ROOM_THEMES.outside.numeralZh or base.numeralZh), -- 395
-		actCode = actZh or (soldierPath and ____exports.ROOM_THEMES.outside.actCode or base.actCode), -- 396
-		lineTag = soldierPath and "周戍" or base.lineTag, -- 397
-		volumeTagZh = soldierPath and "周戍线 · 护送" or base.volumeTagZh -- 398
-	}) -- 398
-end -- 398
-function ____exports.themeOf(key) -- 402
-	local t = ____exports.ROOM_THEMES[key] -- 403
-	return t ~= nil and t or ____exports.ROOM_THEMES.prologue -- 404
-end -- 402
-local UPPER_DIGITS = { -- 407
-	"零", -- 407
-	"壹", -- 407
-	"贰", -- 407
-	"叁", -- 407
-	"肆", -- 407
-	"伍", -- 407
-	"陆", -- 407
-	"柒", -- 407
-	"捌", -- 407
-	"玖" -- 407
-} -- 407
+local VARIANT_BACKDROPS = { -- 389
+	["s1-crossroad"] = "crossroad_drygoods", -- 390
+	["s2-drygoods"] = "crossroad_drygoods", -- 391
+	["s3-archway"] = "archway_yard", -- 392
+	["c1-yard"] = "archway_yard", -- 393
+	["c2-granary"] = "granary", -- 394
+	gatepath = "escort_ridge", -- 395
+	escort1 = "escort_ridge", -- 396
+	escort2 = "granary", -- 397
+	escort3 = "forest", -- 398
+	escort4 = "escort_ridge", -- 399
+	escort5 = "tower", -- 400
+	museum = "museum" -- 401
+} -- 401
+for key in pairs(ROOM_VARIANTS) do -- 404
+	local baseKey, titleZh, shortNameZh, introWhisper, numZh, actZh = table.unpack(ROOM_VARIANTS[key], 1, 6) -- 405
+	local base = ____exports.ROOM_THEMES[baseKey] -- 406
+	local backdropKey = VARIANT_BACKDROPS[key] or baseKey -- 407
+	local soldierPath = key == "gatepath" or __TS__StringStartsWith(key, "escort") -- 408
+	____exports.ROOM_THEMES[key] = __TS__ObjectAssign({}, base, { -- 409
+		key = key, -- 410
+		backdropKey = backdropKey, -- 410
+		titleZh = titleZh, -- 410
+		shortNameZh = shortNameZh, -- 410
+		introWhisper = introWhisper, -- 410
+		numeralZh = numZh or (soldierPath and ____exports.ROOM_THEMES.outside.numeralZh or base.numeralZh), -- 411
+		actCode = actZh or (soldierPath and ____exports.ROOM_THEMES.outside.actCode or base.actCode), -- 412
+		lineTag = soldierPath and "周戍" or base.lineTag, -- 413
+		volumeTagZh = soldierPath and "周戍线 · 护送" or base.volumeTagZh -- 414
+	}) -- 414
+end -- 414
+function ____exports.themeOf(key) -- 418
+	local t = ____exports.ROOM_THEMES[key] -- 419
+	return t ~= nil and t or ____exports.ROOM_THEMES.prologue -- 420
+end -- 418
+local UPPER_DIGITS = { -- 423
+	"零", -- 423
+	"壹", -- 423
+	"贰", -- 423
+	"叁", -- 423
+	"肆", -- 423
+	"伍", -- 423
+	"陆", -- 423
+	"柒", -- 423
+	"捌", -- 423
+	"玖" -- 423
+} -- 423
 --- 将 0..100 整数转为传统中文大写数字（零、壹..拾、拾壹..玖拾玖、壹佰）
-function ____exports.toChineseUpper(n) -- 410
-	local v = math.max( -- 411
-		0, -- 411
-		math.min( -- 411
-			100, -- 411
-			math.floor(n) -- 411
-		) -- 411
-	) -- 411
-	if v == 100 then -- 412
-		return "壹佰" -- 413
-	end -- 413
-	if v < 10 then -- 415
-		return UPPER_DIGITS[v + 1] -- 416
-	end -- 416
-	local tens = math.floor(v / 10) -- 418
-	local ones = v % 10 -- 419
-	local prefix = tens == 1 and "拾" or UPPER_DIGITS[tens + 1] .. "拾" -- 420
-	return ones == 0 and prefix or prefix .. UPPER_DIGITS[ones + 1] -- 421
-end -- 410
+function ____exports.toChineseUpper(n) -- 426
+	local v = math.max( -- 427
+		0, -- 427
+		math.min( -- 427
+			100, -- 427
+			math.floor(n) -- 427
+		) -- 427
+	) -- 427
+	if v == 100 then -- 427
+		return "壹佰" -- 429
+	end -- 429
+	if v < 10 then -- 429
+		return UPPER_DIGITS[v + 1] -- 432
+	end -- 432
+	local tens = math.floor(v / 10) -- 434
+	local ones = v % 10 -- 435
+	local prefix = tens == 1 and "拾" or UPPER_DIGITS[tens + 1] .. "拾" -- 436
+	return ones == 0 and prefix or prefix .. UPPER_DIGITS[ones + 1] -- 437
+end -- 426
 --- 顶点渐变四边形
-function ____exports.fillGradQuad(draw, x0, y0, c00, x1, y1, c10, x2, y2, c11, x3, y3, c01) -- 425
-	local p0 = Vec2(x0, y0) -- 432
-	local p1 = Vec2(x1, y1) -- 433
-	local p2 = Vec2(x2, y2) -- 434
-	local p3 = Vec2(x3, y3) -- 435
-	draw:drawVertices({ -- 436
-		{p0, c00}, -- 437
-		{p1, c10}, -- 437
-		{p2, c11}, -- 437
-		{p0, c00}, -- 438
-		{p2, c11}, -- 438
-		{p3, c01} -- 438
-	}) -- 438
-end -- 425
+function ____exports.fillGradQuad(draw, x0, y0, c00, x1, y1, c10, x2, y2, c11, x3, y3, c01) -- 441
+	local p0 = Vec2(x0, y0) -- 448
+	local p1 = Vec2(x1, y1) -- 449
+	local p2 = Vec2(x2, y2) -- 450
+	local p3 = Vec2(x3, y3) -- 451
+	draw:drawVertices({ -- 452
+		{p0, c00}, -- 453
+		{p1, c10}, -- 453
+		{p2, c11}, -- 453
+		{p0, c00}, -- 454
+		{p2, c11}, -- 454
+		{p3, c01} -- 454
+	}) -- 454
+end -- 441
 --- 竖直方向线性渐变矩形
-function ____exports.fillVGradRect(draw, x, y, w, h, bottomCol, topCol) -- 443
-	____exports.fillGradQuad( -- 448
-		draw, -- 449
-		x, -- 450
-		y, -- 450
-		bottomCol, -- 450
-		x + w, -- 451
-		y, -- 451
-		bottomCol, -- 451
-		x + w, -- 452
-		y + h, -- 452
-		topCol, -- 452
-		x, -- 453
-		y + h, -- 453
-		topCol -- 453
-	) -- 453
-end -- 443
---- 水平方向线性渐变矩形
-function ____exports.fillHGradRect(draw, x, y, w, h, leftCol, rightCol) -- 458
-	____exports.fillGradQuad( -- 463
-		draw, -- 464
-		x, -- 465
-		y, -- 465
-		leftCol, -- 465
-		x + w, -- 466
+function ____exports.fillVGradRect(draw, x, y, w, h, bottomCol, topCol) -- 459
+	____exports.fillGradQuad( -- 464
+		draw, -- 465
+		x, -- 466
 		y, -- 466
-		rightCol, -- 466
+		bottomCol, -- 466
 		x + w, -- 467
-		y + h, -- 467
-		rightCol, -- 467
-		x, -- 468
+		y, -- 467
+		bottomCol, -- 467
+		x + w, -- 468
 		y + h, -- 468
-		leftCol -- 468
-	) -- 468
-end -- 458
+		topCol, -- 468
+		x, -- 469
+		y + h, -- 469
+		topCol -- 469
+	) -- 469
+end -- 459
+--- 水平方向线性渐变矩形
+function ____exports.fillHGradRect(draw, x, y, w, h, leftCol, rightCol) -- 474
+	____exports.fillGradQuad( -- 479
+		draw, -- 480
+		x, -- 481
+		y, -- 481
+		leftCol, -- 481
+		x + w, -- 482
+		y, -- 482
+		rightCol, -- 482
+		x + w, -- 483
+		y + h, -- 483
+		rightCol, -- 483
+		x, -- 484
+		y + h, -- 484
+		leftCol -- 484
+	) -- 484
+end -- 474
 --- 径向柔和光晕
-function ____exports.fillRadialGlow(draw, cx, cy, rx, ry, innerCol, outerCol, segments) -- 473
-	if segments == nil then -- 477
-		segments = 18 -- 477
-	end -- 477
-	if rx <= 0.5 or ry <= 0.5 then -- 479
-		return -- 480
-	end -- 480
-	local center = Vec2(cx, cy) -- 482
-	local verts = {} -- 483
-	local step = math.pi * 2 / segments -- 484
-	local i = 0 -- 485
-	do -- 485
-		i = 0 -- 486
-		while i < segments do -- 486
-			local a0 = i * step -- 487
-			local a1 = (i + 1) * step -- 488
-			verts[#verts + 1] = {center, innerCol} -- 489
-			verts[#verts + 1] = { -- 490
-				Vec2( -- 490
-					cx + math.cos(a0) * rx, -- 490
-					cy + math.sin(a0) * ry -- 490
-				), -- 490
-				outerCol -- 490
-			} -- 490
-			verts[#verts + 1] = { -- 491
-				Vec2( -- 491
-					cx + math.cos(a1) * rx, -- 491
-					cy + math.sin(a1) * ry -- 491
-				), -- 491
-				outerCol -- 491
-			} -- 491
-			i = i + 1 -- 486
-		end -- 486
-	end -- 486
-	draw:drawVertices(verts) -- 493
-end -- 473
+function ____exports.fillRadialGlow(draw, cx, cy, rx, ry, innerCol, outerCol, segments) -- 489
+	if segments == nil then -- 489
+		segments = 18 -- 493
+	end -- 493
+	if rx <= 0.5 or ry <= 0.5 then -- 493
+		return -- 496
+	end -- 496
+	local center = Vec2(cx, cy) -- 498
+	local verts = {} -- 499
+	local step = math.pi * 2 / segments -- 500
+	local i = 0 -- 501
+	do -- 501
+		i = 0 -- 502
+		while i < segments do -- 502
+			local a0 = i * step -- 503
+			local a1 = (i + 1) * step -- 504
+			verts[#verts + 1] = {center, innerCol} -- 505
+			verts[#verts + 1] = { -- 506
+				Vec2( -- 506
+					cx + math.cos(a0) * rx, -- 506
+					cy + math.sin(a0) * ry -- 506
+				), -- 506
+				outerCol -- 506
+			} -- 506
+			verts[#verts + 1] = { -- 507
+				Vec2( -- 507
+					cx + math.cos(a1) * rx, -- 507
+					cy + math.sin(a1) * ry -- 507
+				), -- 507
+				outerCol -- 507
+			} -- 507
+			i = i + 1 -- 502
+		end -- 502
+	end -- 502
+	draw:drawVertices(verts) -- 509
+end -- 489
 --- 烟黛渐变轻幕（《饿殍》柔边字幕幕 / 顶部轻带，四周自然消融无硬框）
-function ____exports.drawSilkVeil(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 499
-	if opacity == nil then -- 504
-		opacity = 0.84 -- 504
-	end -- 504
-	if layer == nil then -- 505
-		layer = -1 -- 505
-	end -- 505
-	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 507
-		return -- 508
-	end -- 508
-	if art:tryPlace( -- 510
-		"ink_veil_strip", -- 510
-		id, -- 510
-		cx, -- 510
-		cy, -- 510
-		w, -- 510
-		h, -- 510
-		{ -- 510
-			color = ____exports.toColor(tint, 255), -- 510
-			opacity = opacity, -- 510
-			layer = layer -- 510
-		} -- 510
-	) then -- 510
-		return -- 511
-	end -- 511
-	local x = cx - w * 0.5 -- 513
-	local y = cy - h * 0.5 -- 514
-	local fadeW = w * 0.22 -- 515
-	local midCol = ____exports.toColor( -- 516
-		tint, -- 516
-		math.floor(225 * opacity + 0.5) -- 516
-	) -- 516
-	local zeroCol = Color(tint.r, tint.g, tint.b, 0) -- 517
-	____exports.fillHGradRect( -- 518
-		fallbackDraw, -- 518
-		x, -- 518
-		y, -- 518
-		fadeW, -- 518
-		h, -- 518
-		zeroCol, -- 518
-		midCol -- 518
-	) -- 518
-	fallbackDraw:drawRect( -- 519
-		Rect( -- 519
-			x + fadeW, -- 519
-			y, -- 519
-			math.max(0, w - fadeW * 2), -- 519
-			h -- 519
-		), -- 519
-		midCol -- 519
-	) -- 519
-	____exports.fillHGradRect( -- 520
-		fallbackDraw, -- 520
-		x + w - fadeW, -- 520
-		y, -- 520
-		fadeW, -- 520
-		h, -- 520
-		midCol, -- 520
-		zeroCol -- 520
-	) -- 520
-end -- 499
+function ____exports.drawSilkVeil(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 515
+	if opacity == nil then -- 515
+		opacity = 0.84 -- 520
+	end -- 520
+	if layer == nil then -- 520
+		layer = -1 -- 521
+	end -- 521
+	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 521
+		return -- 524
+	end -- 524
+	if art:tryPlace( -- 524
+		"ink_veil_strip", -- 526
+		id, -- 526
+		cx, -- 526
+		cy, -- 526
+		w, -- 526
+		h, -- 526
+		{ -- 526
+			color = ____exports.toColor(tint, 255), -- 526
+			opacity = opacity, -- 526
+			layer = layer -- 526
+		} -- 526
+	) then -- 526
+		return -- 527
+	end -- 527
+	local x = cx - w * 0.5 -- 529
+	local y = cy - h * 0.5 -- 530
+	local fadeW = w * 0.22 -- 531
+	local midCol = ____exports.toColor( -- 532
+		tint, -- 532
+		math.floor(225 * opacity + 0.5) -- 532
+	) -- 532
+	local zeroCol = Color(tint.r, tint.g, tint.b, 0) -- 533
+	____exports.fillHGradRect( -- 534
+		fallbackDraw, -- 534
+		x, -- 534
+		y, -- 534
+		fadeW, -- 534
+		h, -- 534
+		zeroCol, -- 534
+		midCol -- 534
+	) -- 534
+	fallbackDraw:drawRect( -- 535
+		Rect( -- 535
+			x + fadeW, -- 535
+			y, -- 535
+			math.max(0, w - fadeW * 2), -- 535
+			h -- 535
+		), -- 535
+		midCol -- 535
+	) -- 535
+	____exports.fillHGradRect( -- 536
+		fallbackDraw, -- 536
+		x + w - fadeW, -- 536
+		y, -- 536
+		fadeW, -- 536
+		h, -- 536
+		midCol, -- 536
+		zeroCol -- 536
+	) -- 536
+end -- 515
 --- 水袖游丝飞白飘带（用于菜单选中态轻拂高光，柔美弧线非粗重墨块）
-function ____exports.drawSilkRibbon(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 526
-	if opacity == nil then -- 531
-		opacity = 0.65 -- 531
-	end -- 531
-	if layer == nil then -- 532
-		layer = 0 -- 532
-	end -- 532
-	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 534
-		return -- 535
-	end -- 535
-	if art:tryPlace( -- 537
-		"ink_ribbon_sweep", -- 537
-		id, -- 537
-		cx, -- 537
-		cy, -- 537
-		w, -- 537
-		h, -- 537
-		{ -- 537
-			color = ____exports.toColor(tint, 255), -- 537
-			opacity = opacity, -- 537
-			layer = layer -- 537
-		} -- 537
-	) then -- 537
-		return -- 538
-	end -- 538
-	local x = cx - w * 0.5 -- 540
-	local y = cy - h * 0.5 -- 541
-	____exports.fillHGradRect( -- 542
-		fallbackDraw, -- 542
-		x, -- 542
-		y, -- 542
-		w * 0.65, -- 542
-		h, -- 542
-		____exports.toColor( -- 542
-			tint, -- 542
-			math.floor(160 * opacity + 0.5) -- 542
-		), -- 542
-		Color(tint.r, tint.g, tint.b, 0) -- 542
-	) -- 542
-end -- 526
---- 婉转烟岚流云曲线（赋予标题、驿道长卷、章名以轻盈流动感）
-function ____exports.drawMistCurve(art, id, cx, cy, w, h, tint, opacity, layer, facing) -- 548
-	if opacity == nil then -- 552
-		opacity = 0.36 -- 552
-	end -- 552
-	if layer == nil then -- 553
-		layer = -1 -- 553
-	end -- 553
-	if facing == nil then -- 554
-		facing = 1 -- 554
+function ____exports.drawSilkRibbon(fallbackDraw, art, id, cx, cy, w, h, tint, opacity, layer) -- 542
+	if opacity == nil then -- 542
+		opacity = 0.65 -- 547
+	end -- 547
+	if layer == nil then -- 547
+		layer = 0 -- 548
+	end -- 548
+	if w <= 2 or h <= 2 or opacity <= 0.01 then -- 548
+		return -- 551
+	end -- 551
+	if art:tryPlace( -- 551
+		"ink_ribbon_sweep", -- 553
+		id, -- 553
+		cx, -- 553
+		cy, -- 553
+		w, -- 553
+		h, -- 553
+		{ -- 553
+			color = ____exports.toColor(tint, 255), -- 553
+			opacity = opacity, -- 553
+			layer = layer -- 553
+		} -- 553
+	) then -- 553
+		return -- 554
 	end -- 554
-	if w <= 4 or h <= 4 or opacity <= 0.01 then -- 556
-		return -- 557
-	end -- 557
-	art:tryPlace( -- 559
-		"ink_mist_curve", -- 559
-		id, -- 559
-		cx, -- 559
-		cy, -- 559
-		w, -- 559
-		h, -- 559
-		{ -- 559
-			color = ____exports.toColor(tint, 255), -- 559
-			opacity = opacity, -- 559
-			layer = layer, -- 559
-			facing = facing -- 559
-		} -- 559
-	) -- 559
-end -- 548
---- 霜月游丝细线（可选在中点缀一枚极精巧的宋明海棠菱花微结）
-function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, withKnot, layer) -- 565
-	if alpha == nil then -- 570
-		alpha = 0.72 -- 570
+	local x = cx - w * 0.5 -- 556
+	local y = cy - h * 0.5 -- 557
+	____exports.fillHGradRect( -- 558
+		fallbackDraw, -- 558
+		x, -- 558
+		y, -- 558
+		w * 0.65, -- 558
+		h, -- 558
+		____exports.toColor( -- 558
+			tint, -- 558
+			math.floor(160 * opacity + 0.5) -- 558
+		), -- 558
+		Color(tint.r, tint.g, tint.b, 0) -- 558
+	) -- 558
+end -- 542
+--- 婉转烟岚流云曲线（赋予标题、驿道长卷、章名以轻盈流动感）
+function ____exports.drawMistCurve(art, id, cx, cy, w, h, tint, opacity, layer, facing) -- 564
+	if opacity == nil then -- 564
+		opacity = 0.36 -- 568
+	end -- 568
+	if layer == nil then -- 568
+		layer = -1 -- 569
+	end -- 569
+	if facing == nil then -- 569
+		facing = 1 -- 570
 	end -- 570
-	if withKnot == nil then -- 571
-		withKnot = false -- 571
-	end -- 571
-	if layer == nil then -- 572
-		layer = 2 -- 572
-	end -- 572
-	if w <= 4 or alpha <= 0.01 then -- 574
-		return -- 575
-	end -- 575
-	if not art:tryPlace( -- 577
-		"ink_hairline", -- 577
-		id, -- 577
-		cx, -- 577
-		cy, -- 577
-		w, -- 577
-		10, -- 577
-		{ -- 577
-			color = ____exports.toColor(col, 255), -- 577
-			opacity = alpha, -- 577
-			layer = layer -- 577
-		} -- 577
-	) then -- 577
-		local half = w * 0.5 -- 578
-		____exports.fillHGradRect( -- 579
-			overlayDraw, -- 579
-			cx - half, -- 579
-			cy - 0.5, -- 579
-			half, -- 579
-			1, -- 579
-			Color(col.r, col.g, col.b, 0), -- 579
-			____exports.toColor(col, 190 * alpha) -- 579
-		) -- 579
-		____exports.fillHGradRect( -- 580
-			overlayDraw, -- 580
-			cx, -- 580
-			cy - 0.5, -- 580
-			half, -- 580
-			1, -- 580
-			____exports.toColor(col, 190 * alpha), -- 580
-			Color(col.r, col.g, col.b, 0) -- 580
-		) -- 580
-	end -- 580
-	if withKnot then -- 582
-		art:tryPlace( -- 583
-			"ink_knot_ornament", -- 583
-			id .. "_knot", -- 583
-			cx, -- 583
-			cy, -- 583
-			88, -- 583
-			24, -- 583
-			{ -- 583
-				color = ____exports.toColor(col, 255), -- 583
-				opacity = math.min(1, alpha * 1.15), -- 583
-				layer = layer + 1 -- 583
-			} -- 583
-		) -- 583
-	end -- 583
-end -- 565
---- 宋明纤细海棠折角（取代笨重双线铁框与像素铜角，带留白呼吸感）
-function ____exports.drawFiligreeCorners(overlayDraw, art, id, x, y, w, h, col, alpha, cornerSize, withHairBorder, layer) -- 590
-	if alpha == nil then -- 595
-		alpha = 0.78 -- 595
-	end -- 595
-	if cornerSize == nil then -- 596
-		cornerSize = 34 -- 596
+	if w <= 4 or h <= 4 or opacity <= 0.01 then -- 570
+		return -- 573
+	end -- 573
+	art:tryPlace( -- 575
+		"ink_mist_curve", -- 575
+		id, -- 575
+		cx, -- 575
+		cy, -- 575
+		w, -- 575
+		h, -- 575
+		{ -- 575
+			color = ____exports.toColor(tint, 255), -- 575
+			opacity = opacity, -- 575
+			layer = layer, -- 575
+			facing = facing -- 575
+		} -- 575
+	) -- 575
+end -- 564
+--- 霜月游丝细线（可选在中点缀一枚极精巧的宋明海棠菱花微结）
+function ____exports.drawHairline(overlayDraw, art, id, cx, cy, w, col, alpha, withKnot, layer) -- 581
+	if alpha == nil then -- 581
+		alpha = 0.72 -- 586
+	end -- 586
+	if withKnot == nil then -- 586
+		withKnot = false -- 587
+	end -- 587
+	if layer == nil then -- 587
+		layer = 2 -- 588
+	end -- 588
+	if w <= 4 or alpha <= 0.01 then -- 588
+		return -- 591
+	end -- 591
+	if not art:tryPlace( -- 591
+		"ink_hairline", -- 593
+		id, -- 593
+		cx, -- 593
+		cy, -- 593
+		w, -- 593
+		10, -- 593
+		{ -- 593
+			color = ____exports.toColor(col, 255), -- 593
+			opacity = alpha, -- 593
+			layer = layer -- 593
+		} -- 593
+	) then -- 593
+		local half = w * 0.5 -- 594
+		____exports.fillHGradRect( -- 595
+			overlayDraw, -- 595
+			cx - half, -- 595
+			cy - 0.5, -- 595
+			half, -- 595
+			1, -- 595
+			Color(col.r, col.g, col.b, 0), -- 595
+			____exports.toColor(col, 190 * alpha) -- 595
+		) -- 595
+		____exports.fillHGradRect( -- 596
+			overlayDraw, -- 596
+			cx, -- 596
+			cy - 0.5, -- 596
+			half, -- 596
+			1, -- 596
+			____exports.toColor(col, 190 * alpha), -- 596
+			Color(col.r, col.g, col.b, 0) -- 596
+		) -- 596
 	end -- 596
-	if withHairBorder == nil then -- 597
-		withHairBorder = true -- 597
-	end -- 597
-	if layer == nil then -- 598
-		layer = 2 -- 598
-	end -- 598
-	if alpha <= 0.01 then -- 600
-		return -- 601
-	end -- 601
-	if withHairBorder then -- 603
-		overlayDraw:drawRect( -- 604
-			Rect(x, y, w, h), -- 604
-			Color(0, 0, 0, 0), -- 604
-			0.75, -- 604
-			____exports.toColor(col, 78 * alpha) -- 604
-		) -- 604
-	end -- 604
-	local half = cornerSize * 0.5 -- 606
-	local c = ____exports.toColor(col, 255) -- 607
-	local op = alpha -- 608
-	art:tryPlace( -- 609
-		"ink_corner_fine", -- 609
-		id .. "_tl", -- 609
-		x + half - 2, -- 609
-		y + h - half + 2, -- 609
-		cornerSize, -- 609
-		cornerSize, -- 609
-		{color = c, opacity = op, layer = layer} -- 609
-	) -- 609
-	art:tryPlace( -- 610
-		"ink_corner_fine", -- 610
-		id .. "_tr", -- 610
-		x + w - half + 2, -- 610
-		y + h - half + 2, -- 610
-		cornerSize, -- 610
-		cornerSize, -- 610
-		{facing = -1, color = c, opacity = op, layer = layer} -- 610
-	) -- 610
-	art:tryPlace( -- 611
-		"ink_corner_fine", -- 611
-		id .. "_bl", -- 611
-		x + half - 2, -- 611
-		y + half - 2, -- 611
-		cornerSize, -- 611
-		cornerSize, -- 611
-		{flipY = true, color = c, opacity = op, layer = layer} -- 611
-	) -- 611
-	art:tryPlace( -- 612
-		"ink_corner_fine", -- 612
-		id .. "_br", -- 612
-		x + w - half + 2, -- 612
-		y + half - 2, -- 612
-		cornerSize, -- 612
-		cornerSize, -- 612
-		{ -- 612
-			facing = -1, -- 612
-			flipY = true, -- 612
-			color = c, -- 612
-			opacity = op, -- 612
-			layer = layer -- 612
-		} -- 612
-	) -- 612
-end -- 590
+	if withKnot then -- 596
+		art:tryPlace( -- 599
+			"ink_knot_ornament", -- 599
+			id .. "_knot", -- 599
+			cx, -- 599
+			cy, -- 599
+			88, -- 599
+			24, -- 599
+			{ -- 599
+				color = ____exports.toColor(col, 255), -- 599
+				opacity = math.min(1, alpha * 1.15), -- 599
+				layer = layer + 1 -- 599
+			} -- 599
+		) -- 599
+	end -- 599
+end -- 581
+--- 宋明纤细海棠折角（取代笨重双线铁框与像素铜角，带留白呼吸感）
+function ____exports.drawFiligreeCorners(overlayDraw, art, id, x, y, w, h, col, alpha, cornerSize, withHairBorder, layer) -- 606
+	if alpha == nil then -- 606
+		alpha = 0.78 -- 611
+	end -- 611
+	if cornerSize == nil then -- 611
+		cornerSize = 34 -- 612
+	end -- 612
+	if withHairBorder == nil then -- 612
+		withHairBorder = true -- 613
+	end -- 613
+	if layer == nil then -- 613
+		layer = 2 -- 614
+	end -- 614
+	if alpha <= 0.01 then -- 614
+		return -- 617
+	end -- 617
+	if withHairBorder then -- 617
+		overlayDraw:drawRect( -- 620
+			Rect(x, y, w, h), -- 620
+			Color(0, 0, 0, 0), -- 620
+			0.75, -- 620
+			____exports.toColor(col, 78 * alpha) -- 620
+		) -- 620
+	end -- 620
+	local half = cornerSize * 0.5 -- 622
+	local c = ____exports.toColor(col, 255) -- 623
+	local op = alpha -- 624
+	art:tryPlace( -- 625
+		"ink_corner_fine", -- 625
+		id .. "_tl", -- 625
+		x + half - 2, -- 625
+		y + h - half + 2, -- 625
+		cornerSize, -- 625
+		cornerSize, -- 625
+		{color = c, opacity = op, layer = layer} -- 625
+	) -- 625
+	art:tryPlace( -- 626
+		"ink_corner_fine", -- 626
+		id .. "_tr", -- 626
+		x + w - half + 2, -- 626
+		y + h - half + 2, -- 626
+		cornerSize, -- 626
+		cornerSize, -- 626
+		{facing = -1, color = c, opacity = op, layer = layer} -- 626
+	) -- 626
+	art:tryPlace( -- 627
+		"ink_corner_fine", -- 627
+		id .. "_bl", -- 627
+		x + half - 2, -- 627
+		y + half - 2, -- 627
+		cornerSize, -- 627
+		cornerSize, -- 627
+		{flipY = true, color = c, opacity = op, layer = layer} -- 627
+	) -- 627
+	art:tryPlace( -- 628
+		"ink_corner_fine", -- 628
+		id .. "_br", -- 628
+		x + w - half + 2, -- 628
+		y + half - 2, -- 628
+		cornerSize, -- 628
+		cornerSize, -- 628
+		{ -- 628
+			facing = -1, -- 628
+			flipY = true, -- 628
+			color = c, -- 628
+			opacity = op, -- 628
+			layer = layer -- 628
+		} -- 628
+	) -- 628
+end -- 606
 --- 文人孤印（全屏仅用于主标题落款与北塔登记簿落款，清瘦精致不泛滥）
-function ____exports.drawLoneSeal(overlayDraw, art, texts, id, cx, cy, w, h, topChar, botChar, stampCol, textCol, alpha, layer) -- 618
-	if alpha == nil then -- 626
-		alpha = 0.94 -- 626
-	end -- 626
-	if layer == nil then -- 627
-		layer = 4 -- 627
-	end -- 627
-	if alpha <= 0.01 then -- 629
-		return -- 630
-	end -- 630
-	if not art:tryPlace( -- 632
-		"ink_seal_slender", -- 632
-		id, -- 632
-		cx, -- 632
-		cy, -- 632
-		w, -- 632
-		h, -- 632
-		{ -- 632
-			color = ____exports.toColor(stampCol, 255), -- 632
-			opacity = alpha, -- 632
-			layer = layer -- 632
-		} -- 632
-	) then -- 632
-		overlayDraw:drawRect( -- 633
-			Rect(cx - w * 0.42, cy - h * 0.44, w * 0.84, h * 0.88), -- 633
-			____exports.toColor(stampCol, 225 * alpha) -- 633
-		) -- 633
-	end -- 633
-	texts:put( -- 635
-		"seal", -- 635
-		topChar, -- 635
-		cx, -- 635
-		cy + h * 0.17, -- 635
-		____exports.toColor(textCol), -- 635
-		0.5, -- 635
-		0.5, -- 635
-		"Center", -- 635
-		0, -- 635
-		alpha, -- 635
-		0 -- 635
-	) -- 635
-	texts:put( -- 636
-		"seal", -- 636
-		botChar, -- 636
-		cx, -- 636
-		cy - h * 0.18, -- 636
-		____exports.toColor(textCol), -- 636
-		0.5, -- 636
-		0.5, -- 636
-		"Center", -- 636
-		0, -- 636
-		alpha, -- 636
-		0 -- 636
-	) -- 636
-end -- 618
---- 纤巧菱花花蕊点（替换笨重圆点与方印焦点）
-function ____exports.drawBlossomDot(overlayDraw, art, id, cx, cy, size, col, alpha, layer) -- 640
-	if alpha == nil then -- 645
-		alpha = 0.92 -- 645
-	end -- 645
-	if layer == nil then -- 646
-		layer = 4 -- 646
+function ____exports.drawLoneSeal(overlayDraw, art, texts, id, cx, cy, w, h, topChar, botChar, stampCol, textCol, alpha, layer) -- 634
+	if alpha == nil then -- 634
+		alpha = 0.94 -- 642
+	end -- 642
+	if layer == nil then -- 642
+		layer = 4 -- 643
+	end -- 643
+	if alpha <= 0.01 then -- 643
+		return -- 646
 	end -- 646
-	if alpha <= 0.01 then -- 648
-		return -- 649
+	if not art:tryPlace( -- 646
+		"ink_seal_slender", -- 648
+		id, -- 648
+		cx, -- 648
+		cy, -- 648
+		w, -- 648
+		h, -- 648
+		{ -- 648
+			color = ____exports.toColor(stampCol, 255), -- 648
+			opacity = alpha, -- 648
+			layer = layer -- 648
+		} -- 648
+	) then -- 648
+		overlayDraw:drawRect( -- 649
+			Rect(cx - w * 0.42, cy - h * 0.44, w * 0.84, h * 0.88), -- 649
+			____exports.toColor(stampCol, 225 * alpha) -- 649
+		) -- 649
 	end -- 649
-	if not art:tryPlace( -- 651
-		"ink_blossom_dot", -- 651
-		id, -- 651
+	texts:put( -- 651
+		"seal", -- 651
+		topChar, -- 651
 		cx, -- 651
-		cy, -- 651
-		size, -- 651
-		size, -- 651
-		{ -- 651
-			color = ____exports.toColor(col, 255), -- 651
-			opacity = alpha, -- 651
-			layer = layer -- 651
-		} -- 651
-	) then -- 651
-		____exports.drawDiamond( -- 652
-			overlayDraw, -- 652
-			cx, -- 652
-			cy, -- 652
-			size * 0.35, -- 652
-			size * 0.35, -- 652
-			____exports.toColor(col, 230 * alpha) -- 652
-		) -- 652
-	end -- 652
-end -- 640
+		cy + h * 0.17, -- 651
+		____exports.toColor(textCol), -- 651
+		0.5, -- 651
+		0.5, -- 651
+		"Center", -- 651
+		0, -- 651
+		alpha, -- 651
+		0 -- 651
+	) -- 651
+	texts:put( -- 652
+		"seal", -- 652
+		botChar, -- 652
+		cx, -- 652
+		cy - h * 0.18, -- 652
+		____exports.toColor(textCol), -- 652
+		0.5, -- 652
+		0.5, -- 652
+		"Center", -- 652
+		0, -- 652
+		alpha, -- 652
+		0 -- 652
+	) -- 652
+end -- 634
+--- 纤巧菱花花蕊点（替换笨重圆点与方印焦点）
+function ____exports.drawBlossomDot(overlayDraw, art, id, cx, cy, size, col, alpha, layer) -- 656
+	if alpha == nil then -- 656
+		alpha = 0.92 -- 661
+	end -- 661
+	if layer == nil then -- 661
+		layer = 4 -- 662
+	end -- 662
+	if alpha <= 0.01 then -- 662
+		return -- 665
+	end -- 665
+	if not art:tryPlace( -- 665
+		"ink_blossom_dot", -- 667
+		id, -- 667
+		cx, -- 667
+		cy, -- 667
+		size, -- 667
+		size, -- 667
+		{ -- 667
+			color = ____exports.toColor(col, 255), -- 667
+			opacity = alpha, -- 667
+			layer = layer -- 667
+		} -- 667
+	) then -- 667
+		____exports.drawDiamond( -- 668
+			overlayDraw, -- 668
+			cx, -- 668
+			cy, -- 668
+			size * 0.35, -- 668
+			size * 0.35, -- 668
+			____exports.toColor(col, 230 * alpha) -- 668
+		) -- 668
+	end -- 668
+end -- 656
 --- 清雅霜银发丝微框键位（去土黄、去厚底）
-function ____exports.drawSilkKeycap(overlayDraw, texts, x, y, w, h, keyText, accent, alpha, urgent) -- 657
-	if alpha == nil then -- 663
-		alpha = 1 -- 663
-	end -- 663
-	if urgent == nil then -- 664
-		urgent = false -- 664
-	end -- 664
-	local bg = urgent and ____exports.toColor(____exports.PALETTE.rougeSoft, 200 * alpha) or Color( -- 666
-		14, -- 666
-		17, -- 666
-		25, -- 666
-		math.floor(186 * alpha + 0.5) -- 666
-	) -- 666
-	local bd = ____exports.toColor(urgent and ____exports.PALETTE.crimsonCore or accent, (urgent and 225 or 165) * alpha) -- 667
-	overlayDraw:drawRect( -- 668
-		Rect(x, y, w, h), -- 668
-		bg, -- 668
-		0.85, -- 668
-		bd -- 668
-	) -- 668
-	local tc = urgent and ____exports.toColor(____exports.PALETTE.sealText) or ____exports.toColor(____exports.PALETTE.textBright) -- 669
-	texts:put( -- 670
-		"xs", -- 670
-		keyText, -- 670
-		x + w * 0.5, -- 670
-		y + h * 0.5, -- 670
-		tc, -- 670
-		0.5, -- 670
-		0.5, -- 670
-		"Center", -- 670
-		0.5, -- 670
-		alpha, -- 670
-		urgent and 0 or 0.08 -- 670
-	) -- 670
-end -- 657
---- 以下四项仅为 stage/props/actors 既有调用保留兼容，新 UI 一律使用上述清雅水墨原语
-function ____exports.fillSkewRect(draw, x, y, w, h, skew, fill, borderW, borderCol) -- 674
-	if borderW == nil then -- 677
-		borderW = 0 -- 677
-	end -- 677
-	if w <= 0 or h <= 0 then -- 679
-		return -- 680
+function ____exports.drawSilkKeycap(overlayDraw, texts, x, y, w, h, keyText, accent, alpha, urgent) -- 673
+	if alpha == nil then -- 673
+		alpha = 1 -- 679
+	end -- 679
+	if urgent == nil then -- 679
+		urgent = false -- 680
 	end -- 680
-	local pts = { -- 682
-		Vec2(x, y), -- 683
-		Vec2(x + w, y), -- 684
-		Vec2(x + w + skew, y + h), -- 685
-		Vec2(x + skew, y + h) -- 686
-	} -- 686
-	if borderW > 0 and borderCol ~= nil then -- 688
-		draw:drawPolygon(pts, fill, borderW, borderCol) -- 689
-	else -- 689
-		draw:drawPolygon(pts, fill) -- 691
-	end -- 691
-end -- 674
-function ____exports.fillChamferBox(draw, x, y, w, h, cut, fill, borderW, borderCol) -- 695
-	if borderW == nil then -- 698
-		borderW = 0 -- 698
-	end -- 698
-	local c = math.min(cut, w * 0.3, h * 0.3) -- 700
-	local pts = { -- 701
-		Vec2(x, y), -- 702
-		Vec2(x + w - c, y), -- 703
-		Vec2(x + w, y + c), -- 704
-		Vec2(x + w, y + h), -- 705
-		Vec2(x + c, y + h), -- 706
-		Vec2(x, y + h - c) -- 707
-	} -- 707
-	if borderW > 0 and borderCol ~= nil then -- 709
-		draw:drawPolygon(pts, fill, borderW, borderCol) -- 710
-	else -- 710
-		draw:drawPolygon(pts, fill) -- 712
-	end -- 712
-end -- 695
-function ____exports.visualTextWidth(text, fontSize) -- 734
-	local units = 0 -- 735
-	local i = 0 -- 736
-	do -- 736
-		i = 0 -- 737
-		while i < #text do -- 737
-			local b = __TS__StringCharCodeAt(text, i) -- 738
-			if b < 128 then -- 739
-				units = units + 0.56 -- 740
-			elseif b >= 192 then -- 741
-				units = units + 1.02 -- 742
-			end -- 742
-			i = i + 1 -- 737
-		end -- 737
-	end -- 737
-	return units * fontSize -- 745
-end -- 734
-function ____exports.drawHazardStripes(draw, x, y, w, h, pitch, col) -- 748
-	local sw = pitch * 0.45 -- 753
-	local cur = x - h -- 754
-	while cur < x + w do -- 755
-		local x0 = math.max(x, cur) -- 756
-		local x1 = math.min(x + w, cur + sw) -- 757
-		local tx0 = math.max(x, cur + h) -- 758
-		local tx1 = math.min(x + w, cur + h + sw) -- 759
-		if x1 > x0 and tx1 > tx0 then -- 760
-			draw:drawPolygon( -- 761
-				{ -- 761
-					Vec2(x0, y), -- 762
-					Vec2(x1, y), -- 763
-					Vec2(tx1, y + h), -- 764
-					Vec2(tx0, y + h) -- 765
-				}, -- 765
-				col -- 766
-			) -- 766
-		end -- 766
-		cur = cur + pitch -- 768
-	end -- 768
-end -- 748
-return ____exports -- 748
+	local bg = urgent and ____exports.toColor(____exports.PALETTE.rougeSoft, 200 * alpha) or Color( -- 682
+		14, -- 682
+		17, -- 682
+		25, -- 682
+		math.floor(186 * alpha + 0.5) -- 682
+	) -- 682
+	local bd = ____exports.toColor(urgent and ____exports.PALETTE.crimsonCore or accent, (urgent and 225 or 165) * alpha) -- 683
+	overlayDraw:drawRect( -- 684
+		Rect(x, y, w, h), -- 684
+		bg, -- 684
+		0.85, -- 684
+		bd -- 684
+	) -- 684
+	local tc = urgent and ____exports.toColor(____exports.PALETTE.sealText) or ____exports.toColor(____exports.PALETTE.textBright) -- 685
+	texts:put( -- 686
+		"xs", -- 686
+		keyText, -- 686
+		x + w * 0.5, -- 686
+		y + h * 0.5, -- 686
+		tc, -- 686
+		0.5, -- 686
+		0.5, -- 686
+		"Center", -- 686
+		0.5, -- 686
+		alpha, -- 686
+		urgent and 0 or 0.08 -- 686
+	) -- 686
+end -- 673
+--- 以下四项仅为 stage/props/actors 既有调用保留兼容，新 UI 一律使用上述清雅水墨原语
+function ____exports.fillSkewRect(draw, x, y, w, h, skew, fill, borderW, borderCol) -- 690
+	if borderW == nil then -- 690
+		borderW = 0 -- 693
+	end -- 693
+	if w <= 0 or h <= 0 then -- 693
+		return -- 696
+	end -- 696
+	local pts = { -- 698
+		Vec2(x, y), -- 699
+		Vec2(x + w, y), -- 700
+		Vec2(x + w + skew, y + h), -- 701
+		Vec2(x + skew, y + h) -- 702
+	} -- 702
+	if borderW > 0 and borderCol ~= nil then -- 702
+		draw:drawPolygon(pts, fill, borderW, borderCol) -- 705
+	else -- 705
+		draw:drawPolygon(pts, fill) -- 707
+	end -- 707
+end -- 690
+function ____exports.fillChamferBox(draw, x, y, w, h, cut, fill, borderW, borderCol) -- 711
+	if borderW == nil then -- 711
+		borderW = 0 -- 714
+	end -- 714
+	local c = math.min(cut, w * 0.3, h * 0.3) -- 716
+	local pts = { -- 717
+		Vec2(x, y), -- 718
+		Vec2(x + w - c, y), -- 719
+		Vec2(x + w, y + c), -- 720
+		Vec2(x + w, y + h), -- 721
+		Vec2(x + c, y + h), -- 722
+		Vec2(x, y + h - c) -- 723
+	} -- 723
+	if borderW > 0 and borderCol ~= nil then -- 723
+		draw:drawPolygon(pts, fill, borderW, borderCol) -- 726
+	else -- 726
+		draw:drawPolygon(pts, fill) -- 728
+	end -- 728
+end -- 711
+function ____exports.visualTextWidth(text, fontSize) -- 750
+	local units = 0 -- 751
+	local i = 0 -- 752
+	do -- 752
+		i = 0 -- 753
+		while i < #text do -- 753
+			local b = __TS__StringCharCodeAt(text, i) -- 754
+			if b < 128 then -- 754
+				units = units + 0.56 -- 756
+			elseif b >= 192 then -- 756
+				units = units + 1.02 -- 758
+			end -- 758
+			i = i + 1 -- 753
+		end -- 753
+	end -- 753
+	return units * fontSize -- 761
+end -- 750
+function ____exports.drawHazardStripes(draw, x, y, w, h, pitch, col) -- 764
+	local sw = pitch * 0.45 -- 769
+	local cur = x - h -- 770
+	while cur < x + w do -- 770
+		local x0 = math.max(x, cur) -- 772
+		local x1 = math.min(x + w, cur + sw) -- 773
+		local tx0 = math.max(x, cur + h) -- 774
+		local tx1 = math.min(x + w, cur + h + sw) -- 775
+		if x1 > x0 and tx1 > tx0 then -- 775
+			draw:drawPolygon( -- 777
+				{ -- 777
+					Vec2(x0, y), -- 778
+					Vec2(x1, y), -- 779
+					Vec2(tx1, y + h), -- 780
+					Vec2(tx0, y + h) -- 781
+				}, -- 781
+				col -- 782
+			) -- 782
+		end -- 782
+		cur = cur + pitch -- 784
+	end -- 784
+end -- 764
+return ____exports -- 764

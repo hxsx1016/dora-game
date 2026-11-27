@@ -97,7 +97,7 @@ local inp = newInput()
 
 print("==== M2 前端合流全链路联合验收开始 ====")
 
--- ---------------------------------------------------------------- 1. 默认 11 插件优先级与运行时钩子
+-- ---------------------------------------------------------------- 1. 默认 12 插件优先级与运行时钩子
 do
 	local list = fe:getPlugins()
 	local expectedIds = {
@@ -139,7 +139,8 @@ do
 		and runtimeHook.towerEndings == fe:getPlugin("fe-05-tower-endings")
 		and runtimeHook.wellMuseum == fe:getPlugin("fe-06-well-museum")
 		and runtimeHook.reloadWheel == fe:getPlugin("fe-02-reload-wheel")
-		and runtimeHook.craftBench == fe:getPlugin("fe-02-craft-bench"))
+		and runtimeHook.craftBench == fe:getPlugin("fe-02-craft-bench")
+		and runtimeHook.roguelikeUi == fe:getPlugin("fe-roguelike-ui"))
 
 	-- 全部 81 份离线音频资产目录可达（gate 30 + combat 11 + child 14 + tower 15 + museum 11）
 	local sampleLoops = {
@@ -549,8 +550,8 @@ do
 	fe.screen = "play"
 	fe:bindPlay(p, 1280, 720)
 	fe:renderPlay(DT, p, inp, 1280, 720)
-	local wood = fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/ui_ink.clip|ink_bamboo_slip"]
-	local bell = fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/sprites.clip|compass"]
+	local wood = fe.worldArt.visibleLastFrame["pickup_qa_wood:assets/art/props_ming.clip|pickup_wood"]
+	local bell = fe.worldArt.visibleLastFrame["pickup_qa_bell:assets/art/props_ming.clip|pickup_bell"]
 	p.player.x, p.player.y, p.player.depth = 380, 0, 0
 	p:update(play.STEP, inp)
 	fe:renderPlay(DT, p, inp, 1280, 720)

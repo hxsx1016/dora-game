@@ -41,19 +41,21 @@ for _, path in ipairs(requiredAudio) do
 end
 
 -- 2. 验证标题菜单与暂停菜单新增发行项
+package.loaded["watch.target"] = "windows"
+require("Script.watch.target").resetActiveTarget()
 local root = Dora.Node()
 local fe = new(Frontend, root)
 local input = new(Input)
 input.inside = false
 
--- 标题页：向下移动 4 次到第 5 项「退出游戏」
+-- 标题页：向下移动 3 次到第 4 项「退出游戏」（独立护送试炼已融入正式男主线）
 fe.screen = "title"
 fe.menus.selected = 0
-for _ = 1, 4 do
+for _ = 1, 3 do
     fe.menus:onKeyEvent("Down")
     fe:renderMenu(1 / 60, input, 1280, 720)
 end
-check("title menu selects quit at index 4", fe.menus.selected == 4)
+check("title menu selects quit at index 3", fe.menus.selected == 3)
 fe.menus:onKeyEvent("Return")
 local titleAct = fe:renderMenu(1 / 60, input, 1280, 720)
 check("title quit emits quit action", titleAct.type == "quit")
@@ -86,6 +88,9 @@ check("pause quit emits quit action", pauseQuitAct.type == "quit")
 package.loaded["watch.release"] = { isRelease = true, version = "verify-rc" }
 local app = require("Script.watch.app")
 local appRoot = Dora.Node()
+local scheduler = Dora.Scheduler()
+appRoot.scheduler = scheduler
+Dora.Director.entry:addChild(appRoot)
 app.start(appRoot, 1, "play")
 local hook = package.loaded["watch.fe"]
 check("release hook reports isRelease=true", hook and hook.isRelease() == true)
@@ -93,16 +98,15 @@ check("release hook reports injected version", hook and hook.getReleaseVersion()
 
 local appInput = package.loaded["watch.input"]
 local startRoom = package.loaded["watch.room"]
-appInput.toggleView.pressed = true
-appInput.tab.pressed = true
-appInput.pickRoom = 4
--- 触发两帧推进，确认房间未被 Tab/数字键跳走且视图未被 G 切到灰盒
-Dora.thread(function()
-    Dora.sleep(0.05)
-    check("release mode blocks G/Tab/1-8 room skip", package.loaded["watch.room"] == startRoom)
-    check("release mode consumes blocked debug inputs", appInput.pickRoom == 0 and not appInput.tab.pressed and not appInput.toggleView.pressed)
-    package.loaded["watch.release"] = nil
-    appRoot:cleanup()
-    root:cleanup()
-    print("RELEASE VERIFY PASS " .. pass .. " / FAIL 0")
-end)
+for _, key in ipairs({"G", "Tab", "1", "4", "8"}) do
+    appRoot:emit("KeyDown", key)
+    scheduler:update(1 / 60)
+    check("release ignores debug shortcut " .. key, package.loaded["watch.room"] == startRoom
+        and hook.getFrontend().screen == "play" and appInput.pickRoom == 0)
+end
+package.loaded["watch.release"] = nil
+package.loaded["watch.target"] = nil
+require("Script.watch.target").resetActiveTarget()
+appRoot:removeFromParent()
+root:cleanup()
+print("RELEASE VERIFY PASS " .. pass .. " / FAIL 0")

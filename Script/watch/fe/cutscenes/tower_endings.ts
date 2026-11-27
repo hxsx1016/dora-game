@@ -34,7 +34,7 @@ import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE, drawPatchedCuff } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
 import { NEEDLE_NOTE_LINES } from "Script/watch/dialogues";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import type { WatchFrontend } from "Script/watch/fe/frontend";
 import {
     LightRig,
@@ -426,6 +426,8 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
     private lastSubtitle = "";
     private prevPhase = "";
     private loopsActive = false;
+    /** 敲门结束进入 tower-enter 时承接 0.90s 非阻塞推门提灯淡出过渡，既完整呈现开门演出又不锁控/不遮挡跨门槛 */
+    private doorOpenOverlayElapsed = -1;
 
     /** 按严格双线红线推导北塔结局路线：只读锁存 storyRoute（兼容 B2 ending，绝不碰即时 HP 或 run.route） */
     private resolveRoute(p: Play, view: DualRouteSnapshot): TowerEndingRoute {
@@ -465,6 +467,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         this.earlyInputBlockedCount = 0;
         this.rehearsalAcknowledged = false;
         this.lastSubtitle = "";
+        this.doorOpenOverlayElapsed = -1;
     }
 
     // ==================== 排演与自动化验证钩子 ====================
@@ -716,6 +719,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
     private stepLiveSync(ctx: FePluginContext, route: TowerEndingRoute): void {
         const p = ctx.p;
         const phase = p.phase;
+        const cameFromKnock = this.prevPhase === "tower-knock";
         const justEnteredKnock = this.prevPhase !== "tower-knock" && phase === "tower-knock";
         const justEnteredEnter = this.prevPhase !== "tower-enter" && phase === "tower-enter";
         const justEnteredGiven = this.prevPhase !== "tower-given" && phase === "tower-given";
@@ -724,12 +728,13 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
 
         if (phase === "tower-wait") {
             // 门廊自由步行阶段交由基础/低模世界层处理（与 fe-04 零冲突），若曾室内重试则不关门
+            this.doorOpenOverlayElapsed = -1;
             this.active = false;
             return;
         }
 
-        if (phase === "tower-enter" || phase === "tower-desk") {
-            // 门开后让回画面控制权，玩家亲自跨门槛并在值夜桌长按交物，不让全屏过场遮挡操作。
+        if (phase === "tower-enter") {
+            // 门开后立即让回画面控制权（active = false），并用 0.90s 非阻塞提灯开门淡出衔接值夜室实景
             this.doorOpened = true;
             this.replyKnockCount = Math.max(2, this.replyKnockCount);
             if (justEnteredEnter && this.indoorRetryCount === 0 && !ctx.paused) {
@@ -737,8 +742,34 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
                 this.playTowerOnce(ctx.audio, "reply1", "sfx", TOWER_AUDIO_FILES.reply1, 0.78, "tower:reply:1", tick);
                 this.playTowerOnce(ctx.audio, "reply2", "sfx", TOWER_AUDIO_FILES.reply2, 0.80, "tower:reply:2", tick);
                 this.playTowerOnce(ctx.audio, "door_open", "sfx", TOWER_AUDIO_FILES.doorOpen, 0.84, "tower:door_open", tick);
+                ctx.audio.playLoop("tower_room_warm", "ambience", TOWER_AUDIO_FILES.roomWarm, 0.28, tick);
+                this.loopsActive = true;
+                if (cameFromKnock) {
+                    this.doorOpenOverlayElapsed = 0;
+                }
+            }
+            if (this.doorOpenOverlayElapsed >= 0) {
+                if (p.player.x >= p.ox + 520) {
+                    this.doorOpenOverlayElapsed = -1;
+                } else if (!ctx.paused && ctx.worldDt > 0) {
+                    this.doorOpenOverlayElapsed += ctx.worldDt;
+                    if (this.doorOpenOverlayElapsed >= 0.90) {
+                        this.doorOpenOverlayElapsed = -1;
+                    }
+                }
             }
             this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.doorOpenSec);
+            this.active = false;
+            this.syncDerivedMilestones(this.seqElapsed, route);
+            return;
+        }
+
+        if (phase === "tower-desk") {
+            // 门开并跨过门槛后交回实景控制权，玩家在值夜桌长按交物，不让全屏过场遮挡操作。
+            this.doorOpenOverlayElapsed = -1;
+            this.doorOpened = true;
+            this.replyKnockCount = Math.max(2, this.replyKnockCount);
+            this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.indoorCutSec);
             this.active = false;
             this.syncDerivedMilestones(this.seqElapsed, route);
             return;
@@ -760,8 +791,8 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             this.seqElapsed = Math.max(this.seqElapsed, TOWER_ENDING_TIMINGS.indoorCutSec);
         } else if (justEnteredEnd) {
             this.doorOpened = true;
-            // 无缝延续 8 秒演出，不因 play.ts 在 3.6s 切入 tower-end 而跳切
-            this.seqElapsed = Math.max(this.seqElapsed, 3.60);
+            // 无缝延续 8 秒演出，并与后端 phaseTick 下限对齐，防止尾声字幕与 D55 错拍叠字
+            this.seqElapsed = Math.max(this.seqElapsed, 3.60 + p.phaseTick / 60);
         }
 
         // 消费后端当帧真实 knock 事件，保证第 0 拍 / 第 12 拍精确对齐
@@ -1008,6 +1039,34 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         ctx: FePluginContext,
     ): boolean {
         if (!this.active) {
+            if (!this.rehearsalActive && ctx.p.room.key === "tower" && ctx.p.phase === "tower-enter" && this.doorOpenOverlayElapsed >= 0) {
+                // 非阻塞推门提灯衔接：0.00..0.90s 内由暖灯开门光晕自然溶入可交互值夜室（返回 false 不遮挡操作与对白）
+                const u = clamp01(this.doorOpenOverlayElapsed / 0.90);
+                const fade = 1 - smoothstep(0.28, 1.0, u);
+                if (fade > 0.02) {
+                    const route = this.activeRoute;
+                    const openK = smoothstep(0.0, 0.55, u);
+                    const cx = ctx.uiW * 0.5;
+                    const cy = ctx.uiH * 0.46;
+                    uiDraw.drawRect(Rect(0, 0, ctx.uiW, ctx.uiH), Color(8, 10, 16, Math.round(145 * fade)));
+                    fillRadialGlow(
+                        uiGlow,
+                        cx + 42 * (1 - openK),
+                        cy + 16,
+                        ctx.uiW * (0.26 + 0.18 * openK),
+                        ctx.uiH * (0.34 + 0.16 * openK),
+                        Color(248, 212, 144, Math.round(128 * fade)),
+                        Color(220, 154, 72, 0),
+                        18,
+                    );
+                    this.drawMingLantern(uiInkDraw, uiGlow, cx + 66 - openK * 24, cy + 28, 1.05, fade * (0.45 + 0.55 * openK), 1.0);
+                    const cap = route === "child"
+                        ? "守卒推门提灯，暖光先照见她腕上的针套。"
+                        : "守卒推门提灯，周戍牵小满一同跨过门槛。";
+                    drawSilkVeil(uiDraw, uiArt, "tower_door_open_veil", cx, ctx.uiH - 86, 560, 38, PALETTE.inkWarm, 0.78 * fade, 2);
+                    ctx.texts.put("sm", cap, cx, ctx.uiH - 86, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.0, fade, 0.08);
+                }
+            }
             return false;
         }
 
@@ -1191,6 +1250,20 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             uiDraw.drawRect(Rect(doorL - 36 * s, threshY - 12 * s, doorW + 72 * s, 22 * s), Color(96, 94, 92, 255), 1.0, Color(156, 152, 144, 175));
         }
 
+        // 两侧塔壁叠一层明代青砖真实纹理，与第一阶段微缩剧场材质统一
+        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_brick", "fe05_porch_wall_l", doorL * 0.5, threshY + (ctx.uiH - threshY) * 0.5, Math.max(12, doorL), Math.max(12, ctx.uiH - threshY), {
+            color: isLowpoly ? Color(86, 98, 114, 255) : Color(118, 114, 110, 255),
+            opacity: 0.42,
+            smooth: true,
+            layer: 0,
+        });
+        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_brick", "fe05_porch_wall_r", doorR + (ctx.uiW - doorR) * 0.5, threshY + (ctx.uiH - threshY) * 0.5, Math.max(12, ctx.uiW - doorR), Math.max(12, ctx.uiH - threshY), {
+            color: isLowpoly ? Color(86, 98, 114, 255) : Color(118, 114, 110, 255),
+            opacity: 0.42,
+            smooth: true,
+            layer: 0,
+        });
+
         // 门洞内室暖光背景（随门开启骤然舒展）
         const innerWarm = 0.22 + openK * 0.78 + (r1Pulse + r2Pulse) * 0.14;
         fillVGradRect(
@@ -1199,32 +1272,35 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             Color(118, 82, 42, Math.round(255 * Math.min(1, innerWarm))),
         );
 
-        // 厚木门扇（向左内开，宽按 1 - openK * 0.72 透视收缩；门底留一线暖光）
+        // 厚木门扇（优先使用手绘明代铁铺首厚木塔门 cutscene_story_parts.clip|tower_porch_door，随开门透视收窄）
         const leafW = Math.max(26 * s, doorW * (1 - openK * 0.76));
         const leafX = doorL + doorShakeX * (1 - openK);
-        const woodCol = isLowpoly
-            ? toColor(shadeSurface(MING_MATERIALS.mingTimberDark.base, vec3(-0.2, 0.25, -0.95), 4, 1, TOWER_WEST_LAMP_LIGHT, MING_MATERIALS.mingTimberDark))
-            : Color(76, 54, 38, 255);
-        uiDraw.drawRect(
-            Rect(leafX, threshY + 12 * s, leafW, doorH - 14 * s),
-            woodCol,
-            1.4,
-            Color(138, 106, 74, 185),
-        );
-        // 门板竖拼缝与铁铺首门环（明代实木厚门）
-        const planks = 4;
-        let pi = 1;
-        for (pi = 1; pi < planks; pi++) {
-            const px = leafX + (leafW * pi) / planks;
-            uiDraw.drawSegment(Vec2(px, threshY + 14 * s), Vec2(px, threshY + doorH - 4 * s), 1.1, Color(38, 26, 18, 185));
+        if (!uiArt.tryPlacePath(
+            "assets/art/cutscene_story_parts.clip|tower_porch_door",
+            "fe05_porch_door_leaf",
+            leafX + leafW * 0.5,
+            threshY + 10 * s,
+            leafW,
+            doorH - 12 * s,
+            {
+                anchorX: 0.5,
+                anchorY: 0,
+                color: isLowpoly ? Color(204, 212, 224, 255) : Color(238, 228, 214, 255),
+                opacity: 0.98,
+                smooth: true,
+                layer: 1,
+            },
+        )) {
+            const woodCol = isLowpoly
+                ? toColor(shadeSurface(MING_MATERIALS.mingTimberDark.base, vec3(-0.2, 0.25, -0.95), 4, 1, TOWER_WEST_LAMP_LIGHT, MING_MATERIALS.mingTimberDark))
+                : Color(76, 54, 38, 255);
+            uiDraw.drawRect(
+                Rect(leafX, threshY + 12 * s, leafW, doorH - 14 * s),
+                woodCol,
+                1.4,
+                Color(138, 106, 74, 185),
+            );
         }
-        uiDraw.drawRect(Rect(leafX + 4 * s, threshY + doorH * 0.24, leafW - 8 * s, 10 * s), Color(54, 38, 26, 225));
-        uiDraw.drawRect(Rect(leafX + 4 * s, threshY + doorH * 0.74, leafW - 8 * s, 10 * s), Color(54, 38, 26, 225));
-        // 暗铁铺首门环（置于门扇中上部偏右，避免与小满头部重合）
-        const ringX = leafX + leafW * 0.72;
-        const ringY = threshY + doorH * 0.56;
-        uiDraw.drawRect(Rect(ringX - 6 * s, ringY + 4 * s, 12 * s, 12 * s), Color(42, 46, 52, 235), 1.0, Color(96, 100, 108, 170));
-        strokeEllipse(uiDraw, ringX, ringY - 2 * s, 8 * s, 9 * s, 1.8 * s, Color(108, 112, 118, 195), 16);
 
         // 门底缝与门侧暖光溢出
         const seamGlowA = Math.round(92 + openK * 145 + (r1Pulse + r2Pulse) * 48);
@@ -1351,60 +1427,51 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const isLowpoly = route === "child";
         const deskY = oy + TOWER_SHOT_LAYOUT.deskTopY * s;
 
-        // 1. 房间墙壁、西窗与木案底座（F03 低模切面冷→暖转换；M03 序章像素风团圆暖室）
-        if (isLowpoly) {
-            this.drawF03LowpolyRoomAndWindow(uiDraw, uiGlow, ctx, lampProg, s, ox, oy);
-        } else {
-            this.drawM03PixelRoomAndWindow(uiDraw, uiArt, uiGlow, ctx, s, ox, oy);
+        // 1. 房间墙壁、西窗与木案底座（F03 全幅手绘冷室→挪灯转暖 CG；M03 同机位团圆暖晨 CG）
+        const paintedRoomOk = isLowpoly
+            ? this.drawF03LowpolyRoomAndWindow(uiDraw, uiArt, uiGlow, ctx, lampProg, s, ox, oy)
+            : this.drawM03PixelRoomAndWindow(uiDraw, uiArt, uiGlow, ctx, s, ox, oy);
+
+        // 2. 案前厚重明式木桌兜底（仅当手绘 CG 缺失时启用几何桌面，避免覆盖精绘木案纹理）
+        if (!paintedRoomOk) {
+            const deskTopCol = isLowpoly
+                ? toColor(shadeSurface(
+                    MING_MATERIALS.mingTimber.base,
+                    vec3(-0.25, 0.90, -0.35),
+                    0,
+                    1,
+                    lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg),
+                    MING_MATERIALS.mingTimber,
+                ))
+                : Color(86, 60, 42, 255);
+            const deskFrontCol = isLowpoly
+                ? toColor(shadeSurface(
+                    MING_MATERIALS.mingTimberDark.base,
+                    vec3(0, 0.1, -0.99),
+                    -4,
+                    1,
+                    lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg),
+                    MING_MATERIALS.mingTimberDark,
+                ))
+                : Color(52, 36, 26, 255);
+            uiDraw.drawPolygon([
+                Vec2(0, deskY - 120 * s),
+                Vec2(ctx.uiW, deskY - 120 * s),
+                Vec2(ctx.uiW, deskY + 42 * s),
+                Vec2(0, deskY + 42 * s),
+            ], deskTopCol);
+            uiDraw.drawRect(Rect(0, 0, ctx.uiW, deskY - 118 * s), deskFrontCol);
+            const inkX = ox + TOWER_SHOT_LAYOUT.inkstoneX * s;
+            const inkY = oy + TOWER_SHOT_LAYOUT.inkstoneY * s;
+            uiDraw.drawPolygon([
+                Vec2(inkX - 38 * s, inkY - 18 * s),
+                Vec2(inkX + 38 * s, inkY - 18 * s),
+                Vec2(inkX + 32 * s, inkY + 18 * s),
+                Vec2(inkX - 32 * s, inkY + 18 * s),
+            ], Color(38, 44, 52, 255), 1.2, Color(96, 106, 118, 185));
         }
 
-        // 2. 案前厚重明式木桌（两线同一 deskTopY，保证簿页与碗沿严格同机位）
-        const deskTopCol = isLowpoly
-            ? toColor(shadeSurface(
-                MING_MATERIALS.mingTimber.base,
-                vec3(-0.25, 0.90, -0.35),
-                0,
-                1,
-                lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg),
-                MING_MATERIALS.mingTimber,
-            ))
-            : Color(86, 60, 42, 255);
-        const deskFrontCol = isLowpoly
-            ? toColor(shadeSurface(
-                MING_MATERIALS.mingTimberDark.base,
-                vec3(0, 0.1, -0.99),
-                -4,
-                1,
-                lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg),
-                MING_MATERIALS.mingTimberDark,
-            ))
-            : Color(52, 36, 26, 255);
-
-        // 桌面透视梯形 + 磨亮木案前沿
-        uiDraw.drawPolygon([
-            Vec2(0, deskY - 120 * s),
-            Vec2(ctx.uiW, deskY - 120 * s),
-            Vec2(ctx.uiW, deskY + 42 * s),
-            Vec2(0, deskY + 42 * s),
-        ], deskTopCol);
-        uiDraw.drawRect(Rect(0, 0, ctx.uiW, deskY - 118 * s), deskFrontCol);
-        uiDraw.drawSegment(Vec2(0, deskY + 42 * s), Vec2(ctx.uiW, deskY + 42 * s), 1.6 * s, Color(158, 126, 92, 165));
-        uiDraw.drawSegment(Vec2(0, deskY - 118 * s), Vec2(ctx.uiW, deskY - 118 * s), 2.0 * s, Color(172, 138, 102, 155));
-
-        // 案头青石砚台与竹笔搁（稳放于右侧桌面，绝不悬空于墙面）
-        const inkX = ox + TOWER_SHOT_LAYOUT.inkstoneX * s;
-        const inkY = oy + TOWER_SHOT_LAYOUT.inkstoneY * s;
-        uiDraw.drawEllipse(Vec2(inkX + 3 * s, inkY - 18 * s), 44 * s, 11 * s, Color(10, 10, 14, 145));
-        uiDraw.drawPolygon([
-            Vec2(inkX - 38 * s, inkY - 18 * s),
-            Vec2(inkX + 38 * s, inkY - 18 * s),
-            Vec2(inkX + 32 * s, inkY + 18 * s),
-            Vec2(inkX - 32 * s, inkY + 18 * s),
-        ], Color(38, 44, 52, 255), 1.2, Color(96, 106, 118, 185));
-        uiDraw.drawEllipse(Vec2(inkX, inkY + 1 * s), 22 * s, 10 * s, Color(12, 14, 18, 255));
-        strokeEllipse(uiDraw, inkX, inkY + 1 * s, 22 * s, 10 * s, 1.1 * s, Color(76, 86, 98, 165), 18);
-
-        // 3. 提灯位置（F03 从案头平滑端上西窗台，全室氛围随之由冷转暖；M03 暖灯稳立案头左隅，绝不遮挡兄妹人物）
+        // 3. 提灯位置（F03 端灯上西窗的过程可见动态提灯并自然并入窗台暖灯；M03 由暖室 CG 提灯与动态摇曳火晕承载）
         const lx = isLowpoly
             ? ox + lerp(TOWER_SHOT_LAYOUT.lampDeskX, TOWER_SHOT_LAYOUT.lampWindowX, lampProg) * s
             : ox + TOWER_SHOT_LAYOUT.lampDeskX * s;
@@ -1412,7 +1479,39 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             ? oy + (lerp(TOWER_SHOT_LAYOUT.lampDeskY, TOWER_SHOT_LAYOUT.lampWindowY, lampProg) + Math.sin(Math.PI * lampProg) * 34) * s
             : oy + TOWER_SHOT_LAYOUT.lampDeskY * s;
         const lampWarmth = isLowpoly ? (0.45 + 0.55 * lampProg) : 0.92;
-        this.drawMingLantern(uiInkDraw, uiGlow, lx, ly, 1.02 * s, 1.0, lampWarmth);
+        if (!paintedRoomOk) {
+            this.drawMingLantern(uiInkDraw, uiGlow, lx, ly, 1.02 * s, 1.0, lampWarmth);
+        } else if (isLowpoly) {
+            // 挪灯过程中显示移动油灯，就位后柔和融入手绘西窗油灯并保留动态暖晕
+            const moveVis = lampProg < 0.92 ? (1 - smoothstep(0.75, 0.96, lampProg)) : 0;
+            if (moveVis > 0.03) {
+                this.drawMingLantern(uiInkDraw, uiGlow, lx, ly, 0.92 * s, moveVis * 0.92, lampWarmth);
+            }
+            const flicker = 0.92 + 0.08 * Math.sin(this.animTime * 7.2);
+            fillRadialGlow(
+                uiGlow,
+                lx,
+                ly + 4 * s,
+                118 * s * flicker * (0.65 + 0.45 * lampProg),
+                118 * s * flicker * (0.65 + 0.45 * lampProg),
+                Color(250, 208, 132, Math.round((78 + 56 * lampProg) * flicker)),
+                Color(228, 162, 74, 0),
+                16,
+            );
+        } else {
+            // M03 暖室西窗油灯呼吸柔光
+            const flicker = 0.92 + 0.08 * Math.sin(this.animTime * 6.8);
+            fillRadialGlow(
+                uiGlow,
+                ox + 266 * s,
+                oy + 272 * s,
+                148 * s * flicker,
+                138 * s * flicker,
+                Color(252, 212, 138, Math.round(88 * flicker)),
+                Color(232, 168, 76, 0),
+                16,
+            );
+        }
 
         // F03 西窗暖灯斜光照亮摊开的宣纸第二行留白区（灰度/亮处高可读）
         if (isLowpoly && lampProg > 0.04) {
@@ -1433,103 +1532,73 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         }
 
         // 5. 桌上物件与同框热瓷碗沿（F03 孤碗 + 针套纸条；M03 解下针套轻放案上 + 小满双手端碗）
-        this.drawDeskPropsAndBowl(uiDraw, uiInkDraw, uiGlow, ctx, route, s, ox, oy);
+        this.drawDeskPropsAndBowl(uiDraw, uiInkDraw, uiArt, uiGlow, ctx, route, s, ox, oy);
     }
 
     private drawF03LowpolyRoomAndWindow(
         uiDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
         lampProg: number,
         s: number,
         ox: number,
         oy: number,
-    ): void {
+    ): boolean {
+        const scaleCover = Math.max(ctx.uiW / 960, ctx.uiH / 540);
+        const imgW = 960 * scaleCover;
+        const imgH = 540 * scaleCover;
+        const placedCold = uiArt.tryPlacePath(
+            "assets/art/cg_tower_desk_cold.png",
+            "fe05_f03_bg_cold",
+            ctx.uiW * 0.5,
+            ctx.uiH * 0.5,
+            imgW,
+            imgH,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                color: Color(
+                    Math.round(212 + 43 * lampProg),
+                    Math.round(220 + 22 * lampProg),
+                    Math.round(238 - 36 * lampProg),
+                    255,
+                ),
+                opacity: 1,
+                smooth: true,
+                layer: -8,
+            },
+        );
+        if (placedCold) {
+            // 端灯上西窗后保持 F03 独立冷石窗廓（零窗格重影），纯以西窗暖灯柔晕与温色照亮整室与簿页留白
+            if (lampProg > 0.02) {
+                const wx = ox + TOWER_SHOT_LAYOUT.westWindowX * s;
+                const wy = oy + TOWER_SHOT_LAYOUT.westWindowY * s;
+                const ww = TOWER_SHOT_LAYOUT.westWindowW * s;
+                fillRadialGlow(
+                    uiGlow, wx + ww * 0.58, wy + 22 * s,
+                    580 * s, 420 * s,
+                    Color(248, 198, 122, Math.round(92 * lampProg)),
+                    Color(216, 152, 68, 0),
+                    20,
+                );
+            }
+            return true;
+        }
+
+        // 兜底：无图时保持低模切面房间绘制
         const light = lerpLightRig(TOWER_COLD_DAWN_LIGHT, TOWER_WEST_LAMP_LIGHT, lampProg);
         const wallTop = lerpRGBA(rgba(18, 24, 38, 255), rgba(46, 36, 28, 255), lampProg);
         const wallBot = lerpRGBA(rgba(12, 16, 26, 255), rgba(28, 22, 20, 255), lampProg);
         fillVGradRect(uiDraw, 0, 0, ctx.uiW, ctx.uiH, toColor(wallBot), toColor(wallTop));
-
-        // 室内低模斜梁与墙面分块（明初望塔木石结构）
-        const beamCol = shadeSurface(MING_MATERIALS.mingTimberDark.base, vec3(-0.3, -0.6, -0.74), 18, 1, light, MING_MATERIALS.mingTimberDark);
-        uiDraw.drawPolygon([
-            Vec2(0, ctx.uiH - 96 * s),
-            Vec2(ctx.uiW, ctx.uiH - 72 * s),
-            Vec2(ctx.uiW, ctx.uiH - 42 * s),
-            Vec2(0, ctx.uiH - 42 * s),
-        ], toColor(beamCol));
-
-        // 朝西窄窗（立体低模厚石窗洞 + 半开木窗扇 + 窗外拂晓微明山坡）
         const wx = ox + TOWER_SHOT_LAYOUT.westWindowX * s;
         const wy = oy + TOWER_SHOT_LAYOUT.westWindowY * s;
         const ww = TOWER_SHOT_LAYOUT.westWindowW * s;
         const wh = TOWER_SHOT_LAYOUT.westWindowH * s;
-        const embrasure = 24 * s;
-
-        // 窗外拂晓天空与来路远山
         fillVGradRect(uiDraw, wx, wy, ww, wh, Color(34, 44, 62, 255), Color(16, 24, 40, 255));
-        uiDraw.drawPolygon([
-            Vec2(wx, wy),
-            Vec2(wx + ww, wy),
-            Vec2(wx + ww, wy + wh * 0.34),
-            Vec2(wx + ww * 0.56, wy + wh * 0.42),
-            Vec2(wx + ww * 0.22, wy + wh * 0.28),
-            Vec2(wx, wy + wh * 0.36),
-        ], Color(20, 26, 38, 240));
-        // 窗台漏出窗外的一豆暖光（挪灯后照亮来路山坡）
-        if (lampProg > 0.12) {
-            fillRadialGlow(
-                uiGlow, wx + ww * 0.5, wy + 26 * s,
-                ww * 0.65, wh * 0.55,
-                Color(248, 206, 134, Math.round(92 * lampProg)),
-                Color(232, 174, 88, 0),
-                16,
-            );
-        }
-
-        // 立体低模石窗框斜切面
-        const leftWall = shadeSurface(MING_MATERIALS.mingBrick.base, vec3(0.84, 0.22, -0.49), 10, 1, light, MING_MATERIALS.mingBrick);
-        const rightWall = shadeSurface(MING_MATERIALS.mingBrick.base, vec3(-0.84, 0.22, -0.49), 10, 1, light, MING_MATERIALS.mingBrick);
         const sillCol = shadeSurface(MING_MATERIALS.mingStoneStep.base, vec3(0, 0.94, -0.34), 6, 1, light, MING_MATERIALS.mingStoneStep);
-        uiDraw.drawPolygon([
-            Vec2(wx - embrasure, wy - 12 * s),
-            Vec2(wx, wy),
-            Vec2(wx, wy + wh),
-            Vec2(wx - embrasure, wy + wh + 14 * s),
-        ], toColor(leftWall));
-        uiDraw.drawPolygon([
-            Vec2(wx + ww, wy),
-            Vec2(wx + ww + embrasure, wy - 12 * s),
-            Vec2(wx + ww + embrasure, wy + wh + 14 * s),
-            Vec2(wx + ww, wy + wh),
-        ], toColor(rightWall));
-        // 宽厚西窗台
-        uiDraw.drawPolygon([
-            Vec2(wx - embrasure - 10 * s, wy - 16 * s),
-            Vec2(wx + ww + embrasure + 10 * s, wy - 16 * s),
-            Vec2(wx + ww + 4 * s, wy + 10 * s),
-            Vec2(wx - 4 * s, wy + 10 * s),
-        ], toColor(sillCol), 1.0, toColor(STONE_EDGE_FALLBACK, 140));
-
-        // 明式直棂木窗格
-        let bar = 1;
-        for (bar = 1; bar <= 3; bar++) {
-            const bx = wx + (ww * bar) / 4;
-            uiDraw.drawSegment(Vec2(bx, wy + 6 * s), Vec2(bx, wy + wh - 2 * s), 3.0 * s, Color(46, 34, 26, 235));
-        }
-        uiDraw.drawSegment(Vec2(wx, wy + wh * 0.56), Vec2(wx + ww, wy + wh * 0.56), 3.2 * s, Color(46, 34, 26, 235));
-        uiDraw.drawRect(Rect(wx, wy, ww, wh), Color(0, 0, 0, 0), 2.4 * s, Color(66, 50, 38, 240));
-
-        // 全室西窗暖光整体晕染（清晰改变房间冷暖气氛）
-        if (lampProg > 0.02) {
-            fillRadialGlow(
-                uiGlow, wx + ww * 0.5, wy + 34 * s,
-                540 * s, 390 * s,
-                Color(246, 198, 122, Math.round(74 * lampProg)),
-                Color(216, 154, 72, 0),
-                20,
-            );
-        }
+        uiDraw.drawRect(Rect(wx - 12 * s, wy - 14 * s, ww + 24 * s, 18 * s), toColor(sillCol));
+        return false;
     }
 
     private drawM03PixelRoomAndWindow(
@@ -1540,36 +1609,41 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         s: number,
         ox: number,
         oy: number,
-    ): void {
-        // 序章像素风暖室：砖灰土褐墙面 + 炉火暖意 + 同位置西窗
+    ): boolean {
+        const scaleCover = Math.max(ctx.uiW / 960, ctx.uiH / 540);
+        const imgW = 960 * scaleCover;
+        const imgH = 540 * scaleCover;
+        const placedWarm = uiArt.tryPlacePath(
+            "assets/art/cg_tower_desk_warm.png",
+            "fe05_m03_bg_warm",
+            ctx.uiW * 0.5,
+            ctx.uiH * 0.5,
+            imgW,
+            imgH,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                opacity: 1,
+                smooth: true,
+                layer: -8,
+            },
+        );
+        if (placedWarm) {
+            fillRadialGlow(
+                uiGlow, ox + 260 * s, oy + 416 * s,
+                520 * s, 360 * s,
+                Color(246, 202, 134, 62),
+                Color(220, 158, 76, 0),
+                20,
+            );
+            return true;
+        }
+
         fillVGradRect(
             uiDraw, 0, 0, ctx.uiW, ctx.uiH,
             Color(26, 21, 20, 255),
             Color(46, 36, 30, 255),
         );
-        // 墙体砌砖横竖缝（延续序章像素质感）
-        let r = 0;
-        for (r = 0; r < 9; r++) {
-            const y = oy + (280 + r * 44) * s;
-            uiDraw.drawSegment(Vec2(0, y), Vec2(ctx.uiW, y), 1.0, Color(34, 27, 24, 150));
-        }
-
-        // 同坐标西窗（像素风木窗 + 暖室晨光）
-        const wx = ox + TOWER_SHOT_LAYOUT.westWindowX * s;
-        const wy = oy + TOWER_SHOT_LAYOUT.westWindowY * s;
-        const ww = TOWER_SHOT_LAYOUT.westWindowW * s;
-        const wh = TOWER_SHOT_LAYOUT.westWindowH * s;
-        fillVGradRect(uiDraw, wx, wy, ww, wh, Color(56, 62, 74, 255), Color(26, 34, 50, 255));
-        uiDraw.drawRect(Rect(wx - 12 * s, wy - 14 * s, ww + 24 * s, 18 * s), Color(92, 68, 48, 255), 1.0, Color(148, 114, 82, 180));
-        let bar = 1;
-        for (bar = 1; bar <= 3; bar++) {
-            const bx = wx + (ww * bar) / 4;
-            uiDraw.drawSegment(Vec2(bx, wy + 4 * s), Vec2(bx, wy + wh - 2 * s), 3.2 * s, Color(64, 46, 34, 245));
-        }
-        uiDraw.drawSegment(Vec2(wx, wy + wh * 0.56), Vec2(wx + ww, wy + wh * 0.56), 3.2 * s, Color(64, 46, 34, 245));
-        uiDraw.drawRect(Rect(wx, wy, ww, wh), Color(0, 0, 0, 0), 2.8 * s, Color(88, 64, 44, 245));
-
-        // 暖室背景中的周戍与小满同框剪影/像素精灵（站在西窗灯下案后，不压木桌前沿）
         const groupX = ox + 210 * s;
         const groupY = oy + 300 * s;
         uiArt.tryPlace("soldier_idle", "fe05_m03_room_soldier", groupX - 38 * s, groupY, 118 * s, 166 * s, {
@@ -1578,15 +1652,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         uiArt.tryPlace("child_idle", "fe05_m03_room_child", groupX + 42 * s, groupY, 86 * s, 116 * s, {
             facing: 1, opacity: 0.92, layer: 1,
         });
-
-        // 团圆暖室柔光（克制暖黄，非荧光）
-        fillRadialGlow(
-            uiGlow, ox + 260 * s, oy + 416 * s,
-            520 * s, 360 * s,
-            Color(246, 202, 134, 68),
-            Color(220, 158, 76, 0),
-            20,
-        );
+        return false;
     }
 
     private drawRegisterBook(
@@ -1711,11 +1777,12 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         }
 
         // 守卒执短毫毛笔（在 2.10s–4.55s 或 M03 写第二行 4.55s–5.75s 出画；3.40s–4.20s 两线笔尖 0 px 锁定 brushHoverTipPos！）
-        this.drawGuardBrushHand(uiInkDraw, route, s, ox, oy);
+        this.drawGuardBrushHand(uiInkDraw, uiArt, route, s, ox, oy);
     }
 
     private drawGuardBrushHand(
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         route: TowerEndingRoute,
         s: number,
         ox: number,
@@ -1786,36 +1853,37 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const by = tipY + lifted;
         // 纸面笔尖投影（反映悬停高度，悬停时与纸面有明显空隙）
         uiInkDraw.drawEllipse(Vec2(tipX + 4 * s, tipY - 3 * s), (5 + lifted * 0.22) * s, 2.8 * s, Color(20, 18, 16, Math.round(78 * alpha)));
-        // 蘸墨短毫笔锋（斜向右下自然执笔，彻底避开第一行「小满 · 已收」文字！）
+        // 优先使用手绘守卒执笔手（笔锋左下角精确锚定在 brushHoverTipPos，0.00px 误差）
+        if (uiArt.tryPlacePath(
+            "assets/art/cutscene_story_parts.clip|guard_brush_hand",
+            "fe05_guard_brush_hand",
+            bx,
+            by,
+            344 * s,
+            268 * s,
+            {
+                anchorX: 0.03,
+                anchorY: 0.03,
+                opacity: clamp01(alpha),
+                smooth: true,
+                layer: 6,
+            },
+        )) {
+            return;
+        }
+        // 兜底绘制
         uiInkDraw.drawPolygon([
             Vec2(bx, by),
             Vec2(bx + 15 * s, by - 4 * s),
             Vec2(bx + 10 * s, by + 8 * s),
         ], Color(22, 22, 26, a));
-        // 铜箍笔斗与竹制短毫笔杆（朝右略偏上舒展，落于行间留白处）
-        uiInkDraw.drawSegment(Vec2(bx + 12 * s, by + 2 * s), Vec2(bx + 24 * s, by + 6 * s), 7.8 * s, Color(164, 138, 92, a));
-        uiInkDraw.drawSegment(Vec2(bx + 22 * s, by + 5 * s), Vec2(bx + 122 * s, by + 34 * s), 6.8 * s, Color(142, 110, 74, a));
-        uiInkDraw.drawSegment(Vec2(bx + 22 * s, by + 5 * s), Vec2(bx + 122 * s, by + 34 * s), 1.8 * s, Color(196, 164, 118, Math.round(185 * alpha)));
-        // 守卒执笔手指与暗褐布袖（紧扣笔杆中段、向右下书页边缘自然退去）
-        uiInkDraw.drawPolygon([
-            Vec2(bx + 44 * s, by - 6 * s),
-            Vec2(bx + 102 * s, by - 14 * s),
-            Vec2(bx + 110 * s, by + 18 * s),
-            Vec2(bx + 54 * s, by + 22 * s),
-        ], Color(188, 154, 126, a), 1.0, Color(128, 98, 76, a));
-        uiInkDraw.drawSegment(Vec2(bx + 46 * s, by + 16 * s), Vec2(bx + 76 * s, by + 20 * s), 5.2 * s, Color(204, 170, 140, a));
-        uiInkDraw.drawSegment(Vec2(bx + 48 * s, by + 2 * s), Vec2(bx + 82 * s, by + 4 * s), 4.8 * s, Color(180, 146, 118, a));
-        uiInkDraw.drawPolygon([
-            Vec2(bx + 98 * s, by - 14 * s),
-            Vec2(bx + 224 * s, by - 32 * s),
-            Vec2(bx + 230 * s, by + 18 * s),
-            Vec2(bx + 104 * s, by + 20 * s),
-        ], Color(54, 48, 44, a), 1.2, Color(94, 84, 72, a));
+        uiInkDraw.drawSegment(Vec2(bx + 12 * s, by + 2 * s), Vec2(bx + 122 * s, by + 34 * s), 6.8 * s, Color(142, 110, 74, a));
     }
 
     private drawDeskPropsAndBowl(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
         route: TowerEndingRoute,
@@ -1830,15 +1898,14 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const bowlY = oy + TOWER_SHOT_LAYOUT.bowlRimY * s;
 
         if (route === "child") {
-            // F03：案左摊开小满交出的针套与托孤折纸（1.6s 起在案边可见；1.65..4.15s 呈现纸条手书原词）
             const propA = smoothstep(1.55, 2.05, t);
             if (propA > 0.02) {
-                this.drawNeedleCaseOnDesk(uiInkDraw, ncX, ncY, s, propA, true);
+                this.drawNeedleCaseOnDesk(uiDraw, uiInkDraw, uiArt, ncX + 42 * s, ncY - 22 * s, s, propA, true);
             }
             const noteReadA = smoothstep(1.65, 2.10, t) * (1 - smoothstep(3.65, 4.15, t));
             if (noteReadA > 0.02) {
-                const cardX = ncX + 18 * s;
-                const cardY = ncY + 84 * s;
+                const cardX = ncX + 52 * s;
+                const cardY = ncY + 72 * s;
                 uiInkDraw.drawRect(
                     Rect(cardX - 118 * s, cardY - 30 * s, 236 * s, 60 * s),
                     toColor(PALETTE.xuanPaper, Math.round(238 * noteReadA)),
@@ -1848,46 +1915,48 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
                 ctx.texts.put("xs", NEEDLE_NOTE_LINES[0], cardX, cardY + 10 * s, toColor(PALETTE.xuanInk), 0.5, 0.5, TextAlign.Center, 0.6, 0.94 * noteReadA, 0);
                 ctx.texts.put("xs", "—— " + NEEDLE_NOTE_LINES[1], cardX + 74 * s, cardY - 12 * s, toColor(PALETTE.xuanInkSub), 1, 0.5, TextAlign.Right, 0.8, 0.88 * noteReadA, 0);
             }
-            // F03：4.35s 守卒将粗瓷热碗推至案沿，与空着的第二行同框定格
             const bowlK = smoothstep(4.35, 5.15, t);
             if (bowlK > 0.02) {
                 const bx = lerp(bowlX + 135 * s, bowlX, bowlK);
-                this.drawWarmPorcelainBowl(uiInkDraw, uiGlow, bx, bowlY, s, bowlK, false, 0);
+                this.drawWarmPorcelainBowl(uiDraw, uiInkDraw, uiArt, uiGlow, bx, bowlY, s, bowlK, false, 0);
             }
         } else {
-            // M03：5.45s 小满把腕上针套解下来轻轻放在木案上
             const needleK = smoothstep(5.45, 6.15, t);
             if (needleK > 0.02) {
-                const ny = lerp(ncY + 46 * s, ncY, needleK);
-                this.drawNeedleCaseOnDesk(uiInkDraw, ncX, ny, s, needleK, false);
+                const ny = lerp(ncY + 26 * s, ncY - 22 * s, needleK);
+                this.drawNeedleCaseOnDesk(uiDraw, uiInkDraw, uiArt, ncX + 64 * s, ny, s, needleK, false);
             }
-            // M03：5.85s 小满两只手稳稳端起热碗，与写满两行的簿页同框落团圆结局
             const bowlK = smoothstep(5.80, 6.65, t);
             if (bowlK > 0.02) {
                 const by = lerp(bowlY - 54 * s, bowlY, bowlK);
                 const handsK = smoothstep(5.95, 6.75, t);
-                this.drawWarmPorcelainBowl(uiInkDraw, uiGlow, bowlX, by, s, bowlK, true, handsK);
+                this.drawWarmPorcelainBowl(uiDraw, uiInkDraw, uiArt, uiGlow, bowlX, by, s, bowlK, true, handsK);
             }
-            // M03：画面左侧案沿保留周戍轻按桌边的补线袖口（与 fe-01 同源，强化团圆实感）
+            // M03：画面左侧案沿保留周戍轻按桌边的手绘补线袖口（与 fe-01 同源，强化团圆实感）
             const cuffK = smoothstep(4.25, 4.85, t);
             if (cuffK > 0.02) {
                 drawPatchedCuff(uiInkDraw, uiGlow, {
-                    wristX: ox + 122 * s,
-                    wristY: oy + 182 * s,
-                    angleRad: 0.08,
-                    scale: 0.60 * s,
+                    wristX: ox + 116 * s,
+                    wristY: oy + 168 * s,
+                    angleRad: 0.06,
+                    scale: 0.74 * s,
                     pose: "open",
-                    opacity: 0.92 * cuffK,
+                    opacity: 0.94 * cuffK,
                     stitchHighlight: 0.34,
                     warmth: 0.72,
+                    uiArt,
+                    instanceKey: "fe05_m03_desk_cuff",
+                    layer: 5,
                 });
             }
         }
     }
 
-    /** 绘制明初黄铜指南针布套（F03 含托孤纸条；M03 为刚解下轻放案边的布套与松开红绳） */
+    /** 绘制明初黄铜指南针布套（手绘 cutscene_cuff_rig.clip|needle_pouch_compass，阴影落在底画布不压画） */
     private drawNeedleCaseOnDesk(
-        draw: DrawNode.Type,
+        bgDraw: DrawNode.Type,
+        inkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         cx: number,
         cy: number,
         s: number,
@@ -1895,41 +1964,48 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         withNote: boolean,
     ): void {
         const a = Math.round(255 * clamp01(alpha));
-        // 桌影
-        draw.drawEllipse(Vec2(cx + 4 * s, cy - 12 * s), 44 * s, 14 * s, Color(10, 10, 14, Math.round(140 * alpha)));
-        // 粗麻布针套主体
-        draw.drawPolygon([
-            Vec2(cx - 32 * s, cy - 12 * s),
-            Vec2(cx + 26 * s, cy - 15 * s),
-            Vec2(cx + 30 * s, cy + 16 * s),
-            Vec2(cx - 28 * s, cy + 18 * s),
-        ], Color(148, 124, 92, a), 1.3, Color(88, 70, 50, a));
-        // 布套口露出的黄铜指南针半弧（素铜，无发光特效）
-        draw.drawEllipse(Vec2(cx + 18 * s, cy + 2 * s), 13 * s, 13 * s, Color(188, 152, 86, a));
-        strokeEllipse(draw, cx + 18 * s, cy + 2 * s, 13 * s, 13 * s, 1.5 * s, Color(118, 92, 46, a), 18);
-        draw.drawDot(Vec2(cx + 18 * s, cy + 2 * s), 2.5 * s, Color(72, 54, 28, a));
-        draw.drawSegment(Vec2(cx + 12 * s, cy - 2 * s), Vec2(cx + 24 * s, cy + 6 * s), 1.5 * s, Color(164, 48, 44, a));
-        // 解开的暗红绕腕短绳自然垂落在桌面
-        draw.drawSegment(Vec2(cx - 28 * s, cy + 4 * s), Vec2(cx - 56 * s, cy - 8 * s), 2.4 * s, toColor(CUFF_PALETTE.childCord, a));
-        draw.drawSegment(Vec2(cx - 56 * s, cy - 8 * s), Vec2(cx - 72 * s, cy + 6 * s), 2.2 * s, toColor(CUFF_PALETTE.childCord, a));
-        draw.drawSegment(Vec2(cx - 72 * s, cy + 6 * s), Vec2(cx - 48 * s, cy + 16 * s), 2.0 * s, toColor(CUFF_PALETTE.childCord, Math.round(215 * alpha)));
+        bgDraw.drawEllipse(Vec2(cx + 4 * s, cy - 32 * s), 44 * s, 12 * s, Color(10, 10, 14, Math.round(130 * alpha)));
+        if (!uiArt.tryPlacePath(
+            "assets/art/cutscene_cuff_rig.clip|needle_pouch_compass",
+            "fe05_desk_needle_pouch",
+            cx,
+            cy + 4 * s,
+            100 * s,
+            102 * s,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                angle: -10,
+                opacity: clamp01(alpha),
+                smooth: true,
+                layer: 5,
+            },
+        )) {
+            inkDraw.drawPolygon([
+                Vec2(cx - 32 * s, cy - 12 * s),
+                Vec2(cx + 26 * s, cy - 15 * s),
+                Vec2(cx + 30 * s, cy + 16 * s),
+                Vec2(cx - 28 * s, cy + 18 * s),
+            ], Color(148, 124, 92, a), 1.3, Color(88, 70, 50, a));
+        }
 
         if (withNote) {
-            // F03 托孤折纸短书（压在布套旁）
-            draw.drawPolygon([
-                Vec2(cx + 38 * s, cy - 18 * s),
-                Vec2(cx + 96 * s, cy - 12 * s),
-                Vec2(cx + 90 * s, cy + 24 * s),
-                Vec2(cx + 34 * s, cy + 18 * s),
+            inkDraw.drawPolygon([
+                Vec2(cx + 42 * s, cy - 18 * s),
+                Vec2(cx + 100 * s, cy - 12 * s),
+                Vec2(cx + 94 * s, cy + 24 * s),
+                Vec2(cx + 38 * s, cy + 18 * s),
             ], toColor(PALETTE.xuanPaper, a), 1.0, toColor(PALETTE.xuanInkSub, Math.round(160 * alpha)));
-            draw.drawSegment(Vec2(cx + 46 * s, cy + 8 * s), Vec2(cx + 80 * s, cy + 11 * s), 1.2 * s, toColor(PALETTE.xuanInk, Math.round(170 * alpha)));
-            draw.drawSegment(Vec2(cx + 46 * s, cy - 2 * s), Vec2(cx + 76 * s, cy + 1 * s), 1.2 * s, toColor(PALETTE.xuanInk, Math.round(160 * alpha)));
+            inkDraw.drawSegment(Vec2(cx + 50 * s, cy + 8 * s), Vec2(cx + 84 * s, cy + 11 * s), 1.2 * s, toColor(PALETTE.xuanInk, Math.round(170 * alpha)));
+            inkDraw.drawSegment(Vec2(cx + 50 * s, cy - 2 * s), Vec2(cx + 80 * s, cy + 1 * s), 1.2 * s, toColor(PALETTE.xuanInk, Math.round(160 * alpha)));
         }
     }
 
-    /** 绘制案沿粗瓷热碗（M03 叠加小满两只小手对称稳捧碗壁，且腕上已解去红绳） */
+    /** 绘制案沿粗瓷热粥碗（手绘 porridge_bowl + 柔和蒸腾热气 + M03 小满双手对称稳捧 xiaoman_cup_hands） */
     private drawWarmPorcelainBowl(
-        draw: DrawNode.Type,
+        bgDraw: DrawNode.Type,
+        inkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
         glow: DrawNode.Type,
         cx: number,
         cy: number,
@@ -1938,93 +2014,59 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         heldByTwoHands: boolean,
         handsK: number,
     ): void {
-        const a = Math.round(255 * clamp01(alpha));
-        // 碗底柔影
-        draw.drawEllipse(Vec2(cx, cy - 36 * s), 58 * s, 14 * s, Color(8, 9, 14, Math.round(150 * alpha)));
-        // 碗足与粗瓷厚壁（宋明青灰素瓷，灰度对比清晰）
-        draw.drawPolygon([
-            Vec2(cx - 32 * s, cy - 38 * s),
-            Vec2(cx + 32 * s, cy - 38 * s),
-            Vec2(cx + 62 * s, cy + 8 * s),
-            Vec2(cx - 62 * s, cy + 8 * s),
-        ], Color(168, 166, 156, a), 1.4, Color(98, 96, 88, a));
-        // 碗身暗部阴影与亮边
-        draw.drawPolygon([
-            Vec2(cx + 8 * s, cy - 36 * s),
-            Vec2(cx + 32 * s, cy - 38 * s),
-            Vec2(cx + 62 * s, cy + 8 * s),
-            Vec2(cx + 22 * s, cy + 6 * s),
-        ], Color(122, 120, 112, Math.round(160 * alpha)));
-        // 清晰可读的碗沿椭圆与碗内温热米汤
-        draw.drawEllipse(Vec2(cx, cy + 8 * s), 64 * s, 21 * s, Color(224, 218, 206, a));
-        strokeEllipse(draw, cx, cy + 8 * s, 64 * s, 21 * s, 1.9 * s, Color(116, 110, 100, a), 28);
-        draw.drawEllipse(Vec2(cx, cy + 6 * s), 54 * s, 15 * s, Color(196, 168, 122, a));
-        strokeEllipse(draw, cx, cy + 6 * s, 54 * s, 15 * s, 1.1 * s, Color(158, 132, 92, a), 24);
-        // 碗沿亮白高光弧
-        draw.drawSegment(Vec2(cx - 46 * s, cy + 16 * s), Vec2(cx - 10 * s, cy + 25 * s), 2.0 * s, Color(248, 246, 240, Math.round(215 * alpha)));
+        const op = clamp01(alpha);
+        bgDraw.drawEllipse(Vec2(cx, cy - 46 * s), 64 * s, 14 * s, Color(8, 9, 14, Math.round(138 * op)));
+        if (!uiArt.tryPlacePath(
+            "assets/art/cutscene_story_parts.clip|porridge_bowl",
+            "fe05_desk_porridge_bowl",
+            cx,
+            cy - 4 * s,
+            162 * s,
+            124 * s,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                opacity: op,
+                smooth: true,
+                layer: 5,
+            },
+        )) {
+            const a = Math.round(255 * op);
+            inkDraw.drawEllipse(Vec2(cx, cy + 8 * s), 64 * s, 21 * s, Color(224, 218, 206, a));
+        }
 
-        // 缓慢蜿蜒升腾的柔细热气（多段曲线渐隐，随 animTime 轻摇，暂停时完全冻结）
+        // 缓慢升腾的柔和热气云团（多层柔晕替代生硬锯齿细线，随 animTime 漂浮，暂停冻结）
         let wi = 0;
-        for (wi = 0; wi < 3; wi++) {
-            const phase = this.animTime * 1.1 + wi * 2.05;
-            const baseX = cx + (wi - 1) * 18 * s;
-            const baseY = cy + 16 * s;
-            const segs = 4;
-            let prevX = baseX;
-            let prevY = baseY;
-            let si = 1;
-            for (si = 1; si <= segs; si++) {
-                const frac = si / segs;
-                const nx = baseX + Math.sin(phase + frac * 3.1) * (6.5 * frac) * s;
-                const ny = baseY + frac * (36 + (wi % 2) * 10) * s;
-                const wa = Math.round((46 * (1 - frac * 0.72)) * alpha);
-                glow.drawSegment(Vec2(prevX, prevY), Vec2(nx, ny), (2.2 - frac * 0.9) * s, Color(244, 238, 226, wa));
-                prevX = nx;
-                prevY = ny;
+        for (wi = 0; wi < 4; wi++) {
+            const cyc = (this.animTime * 0.36 + wi * 0.25) % 1;
+            const sx = cx + (wi - 1.5) * 20 * s + Math.sin(this.animTime * 1.4 + wi * 2.1) * (8 + cyc * 10) * s;
+            const sy = cy + (24 + cyc * 58) * s;
+            const sr = (18 + cyc * 24) * s;
+            const wa = Math.round(Math.sin(cyc * Math.PI) * 34 * op);
+            if (wa > 2) {
+                fillRadialGlow(glow, sx, sy, sr, sr * 1.35, Color(246, 238, 224, wa), Color(246, 238, 224, 0), 12);
             }
         }
 
-        // M03：小满两只手对称端碗（解下针套后双手空出，无腕绳！）
+        // M03：小满两只手对称稳捧热碗（手绘 xiaoman_cup_hands，已解去红绳！）
         if (heldByTwoHands && handsK > 0.02) {
-            const ha = Math.round(255 * clamp01(handsK * alpha));
-            const skin = toColor(CUFF_PALETTE.childSkin, ha);
-            const skinSh = toColor(CUFF_PALETTE.childSkinShadow, ha);
-            const sleeve = toColor(CUFF_PALETTE.childSleeve, ha);
-            const spread = (1 - handsK) * 28 * s;
-
-            // 左手与左袖（稳稳托护碗左侧）
-            draw.drawPolygon([
-                Vec2(cx - 122 * s - spread, cy - 58 * s),
-                Vec2(cx - 72 * s - spread, cy - 30 * s),
-                Vec2(cx - 82 * s - spread, cy - 4 * s),
-                Vec2(cx - 134 * s - spread, cy - 26 * s),
-            ], sleeve, 1.1, skinSh);
-            draw.drawPolygon([
-                Vec2(cx - 76 * s - spread, cy - 28 * s),
-                Vec2(cx - 48 * s - spread, cy - 18 * s),
-                Vec2(cx - 44 * s - spread, cy + 6 * s),
-                Vec2(cx - 74 * s - spread, cy + 2 * s),
-            ], skin, 1.1, skinSh);
-            draw.drawSegment(Vec2(cx - 56 * s - spread, cy + 2 * s), Vec2(cx - 38 * s - spread, cy + 12 * s), 4.6 * s, skin);
-            draw.drawSegment(Vec2(cx - 58 * s - spread, cy - 7 * s), Vec2(cx - 40 * s - spread, cy - 2 * s), 4.4 * s, skin);
-            draw.drawSegment(Vec2(cx - 56 * s - spread, cy - 16 * s), Vec2(cx - 40 * s - spread, cy - 14 * s), 4.2 * s, skin);
-
-            // 右手与右袖（稳稳托护碗右侧）
-            draw.drawPolygon([
-                Vec2(cx + 122 * s + spread, cy - 58 * s),
-                Vec2(cx + 72 * s + spread, cy - 30 * s),
-                Vec2(cx + 82 * s + spread, cy - 4 * s),
-                Vec2(cx + 134 * s + spread, cy - 26 * s),
-            ], sleeve, 1.1, skinSh);
-            draw.drawPolygon([
-                Vec2(cx + 76 * s + spread, cy - 28 * s),
-                Vec2(cx + 48 * s + spread, cy - 18 * s),
-                Vec2(cx + 44 * s + spread, cy + 6 * s),
-                Vec2(cx + 74 * s + spread, cy + 2 * s),
-            ], skin, 1.1, skinSh);
-            draw.drawSegment(Vec2(cx + 56 * s + spread, cy + 2 * s), Vec2(cx + 38 * s + spread, cy + 12 * s), 4.6 * s, skin);
-            draw.drawSegment(Vec2(cx + 58 * s + spread, cy - 7 * s), Vec2(cx + 40 * s + spread, cy - 2 * s), 4.4 * s, skin);
-            draw.drawSegment(Vec2(cx + 56 * s + spread, cy - 16 * s), Vec2(cx + 40 * s + spread, cy - 14 * s), 4.2 * s, skin);
+            const liftY = (1 - handsK) * 36 * s;
+            const handOp = clamp01(handsK * op);
+            uiArt.tryPlacePath(
+                "assets/art/cutscene_story_parts.clip|xiaoman_cup_hands",
+                "fe05_m03_xiaoman_cup_hands",
+                cx,
+                cy - 34 * s - liftY,
+                258 * s,
+                186 * s,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    opacity: handOp,
+                    smooth: true,
+                    layer: 6,
+                },
+            );
         }
     }
 
@@ -2102,7 +2144,7 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
             const rawHint = route === "child"
                 ? "按 E 收页 · 尾声与史话   ·   Esc 暂歇"
                 : "团圆尾声   ·   按 E 收页与史话   ·   Esc 暂歇";
-            const hint = adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
+            const hint = getActiveTarget().adaptHintSentence(rawHint, ctx.input.inputMode, ctx.input.gamepadLayout);
             ctx.texts.put("xs", hint, ctx.uiW * 0.5, barH * 0.5, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.4, 0.88, 0.08);
         }
     }

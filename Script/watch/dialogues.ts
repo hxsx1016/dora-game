@@ -72,6 +72,11 @@ export const SCRIPT_DIALOGUES: Record<string, ScriptDialogueLine> = {
     // ── S3 牌楼后巷 ──
     D06: { id: "D06", who: "小满", text: "没落下。", duration: 2.0 },
 
+    // ── C1 候检院 ──
+    C1A: { id: "C1A", who: "小满", text: "哥，这院子堵死了……", duration: 2.4 },
+    C1B: { id: "C1B", who: "周戍", text: "绕栏后走。横闩在门背，我替你掀开。", duration: 2.8 },
+    C1C: { id: "C1C", who: "周戍", text: "闩开了，紧跟我进粮棚。", duration: 2.2 },
+
     // ── C2 军粮棚 ──
     D07: { id: "D07", who: "小满", text: "车轮压过这儿——你看，石槽磨亮了。", duration: 3.0 },
     D43: { id: "D43", who: "周戍", text: "抓紧我衣角。车轮响，也别松手。", duration: 2.8 },
@@ -128,9 +133,29 @@ export const SCRIPT_DIALOGUES: Record<string, ScriptDialogueLine> = {
     D56: { id: "D56", who: "周戍", text: "亮着。走过来就看得见。", duration: 2.6 },
     D65: { id: "D65", who: "守卒", text: "信国公老了还往海边赶。你们走吧，灯我替你们看着。", duration: 3.8 },
 
-    // ── 可选环境发现（静谧不阻塞） ──
+    // ── 男主护送线后半段（escort1..5 背上耳语与工台歇息，不挡视野） ──
+    E1A: { id: "E1A", who: "小满", text: "哥，你的背好热。火铳声响的时候，我把脸埋进去就好。", duration: 3.0 },
+    E1B: { id: "E1B", who: "周戍", text: "抱紧领口，莫松手。过了前头残坊就安静些。", duration: 2.8 },
+    E2A: { id: "E2A", who: "小满", text: "粮棚里这铜铃声，听着像城门口挂的那一只。", duration: 2.8 },
+    E2B: { id: "E2B", who: "周戍", text: "顺手收着。到山腰工台，哥替你把火铳再修稳些。", duration: 3.0 },
+    E3A: { id: "E3A", who: "周戍", text: "先在干草席上坐会儿。风灯暖着，你歇一歇。", duration: 3.0 },
+    E3B: { id: "E3B", who: "小满", text: "我不累。哥，你手上的灰我都看得见，慢些修。", duration: 2.8 },
+    E3C: { id: "E3C", who: "小满", text: "响得好清亮！这回隔着远也能听见。", duration: 2.6 },
+    E4A: { id: "E4A", who: "小满", text: "山风好大……北塔的屋檐我都看清楚了。", duration: 2.8 },
+    E4B: { id: "E4B", who: "周戍", text: "快翻过这道窄崖了。抓牢，哥带你冲过去。", duration: 2.8 },
+    E5A: { id: "E5A", who: "小满", text: "哥，天边泛白了——北塔的灯真的还亮着！", duration: 3.0 },
+    E5B: { id: "E5B", who: "周戍", text: "亮着。穿过这道坡，咱们就能敲门了。", duration: 2.8 },
+
+    // ── 女主单人线独行心境与发现（outside O3 / forest F4） ──
+    O3_WIND: { id: "O3_WIND", who: "小满", text: "盐埂的风好冷……指南针还指着北，灯就在那头。", duration: 3.2 },
+    F4_CREEK: { id: "F4_CREEK", who: "小满", text: "水里的那一点灯，和山坡上的是同一盏。", duration: 3.2 },
+
+    // ── 可选环境发现（静谧不阻塞，补齐六处完整收束） ──
     OPT_PINWHEEL: { id: "OPT_PINWHEEL", who: "", text: "缺了一角的纸风车在墙影里旋成完整一圈，她伸指虚追半下便快步跟回兄长身侧。", duration: 3.4 },
     OPT_SHADOWDISC: { id: "OPT_SHADOWDISC", who: "", text: "影戏盘轻轻一转，墙上原本错开的两道人影缓缓合到了一处，并肩而立。", duration: 3.4 },
+    OPT_SHELL: { id: "OPT_SHELL", who: "", text: "盐棚檐角的贝壳风铃随海风轻碰出两声脆响，像极了城门那两下暗号。", duration: 3.4 },
+    OPT_NEEDLEBOX: { id: "OPT_NEEDLEBOX", who: "", text: "织房半开的窗台下放着旧针线匣，油灯暖黄的火苗静静照着半匹未织完的麻布。", duration: 3.4 },
+    OPT_HOLLOW: { id: "OPT_HOLLOW", who: "", text: "拨开老松树洞口的干叶，里头安稳蜷着几枚干松果，风声在这里轻了一半。", duration: 3.2 },
     OPT_LANTERN: { id: "OPT_LANTERN", who: "", text: "扶正被晓风吹斜的旧风灯，灯焰稳了下来，她拢手在灯罩边暖了一瞬。", duration: 3.2 },
 };
 

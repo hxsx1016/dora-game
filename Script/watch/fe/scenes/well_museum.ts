@@ -40,7 +40,7 @@ import {
     drawPatchedCuff,
 } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import {
     PALETTE,
     drawHairline,
@@ -649,8 +649,8 @@ export class WellMuseumPlugin implements FeRenderPlugin {
     }
 
     private evaluateGate(p: Play, view: DualRouteSnapshot): { open: boolean; reason: string } {
-        if (p.run.trial !== undefined) {
-            return { open: false, reason: "trial_mode" };
+        if (p.run.source === "chapter") {
+            return { open: false, reason: "chapter_preview" };
         }
         if (p.room.key !== "prologue") {
             return { open: false, reason: "not_prologue" };
@@ -1189,7 +1189,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "fe06_well_hint_veil", sx, sy, 132, 26, PALETTE.panelBg, 0.82, 1);
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("[E] 俯身看井", ctx.input.inputMode, ctx.input.gamepadLayout),
                     sx,
                     sy,
                     toColor(PALETTE.textBright),
@@ -1269,57 +1269,85 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             ),
         );
 
-        // 1. 前半段：深黑古井石壁与水面（wellAlpha 从 1 平滑淡至 0）
+        // 1. 前半段：俯视青苔石井口（手绘透明中空 well_topdown_rim + 深水微纹）
         if (wellAlpha > 0.01) {
             const wellR = Math.min(w, h) * (0.31 + matchK * 0.24);
-            // 石砌井壁外圈
-            uiDraw.drawCircle(Vec2(ax, ay), wellR + 36, Color(30, 35, 42, Math.round(240 * wellAlpha)));
-            uiDraw.drawCircle(Vec2(ax, ay), wellR + 14, Color(20, 24, 30, Math.round(250 * wellAlpha)));
-            // 深水井面
-            uiDraw.drawCircle(Vec2(ax, ay), wellR, Color(7, 11, 17, Math.round(255 * wellAlpha)));
+            uiDraw.drawCircle(Vec2(ax, ay), wellR * 1.05, Color(7, 11, 17, Math.round(255 * wellAlpha)));
+            uiArt.tryPlacePath(
+                "assets/art/tex_diorama_ming.clip|ming_water",
+                "fe06_well_water_tex",
+                ax + Math.sin(t * 0.8) * 6,
+                ay + Math.cos(t * 0.6) * 5,
+                wellR * 1.48,
+                wellR * 1.48,
+                {
+                    color: Color(74, 96, 122, 255),
+                    opacity: 0.44 * wellAlpha,
+                    smooth: true,
+                    layer: 0,
+                },
+            );
+            const rimSize = wellR * 2.86;
+            if (!uiArt.tryPlacePath(
+                "assets/art/cutscene_well_museum.clip|well_topdown_rim",
+                "fe06_well_topdown_rim",
+                ax,
+                ay,
+                rimSize,
+                rimSize * (361 / 369),
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    color: Color(176, 188, 198, 255),
+                    opacity: wellAlpha,
+                    smooth: true,
+                    layer: 2,
+                },
+            )) {
+                uiDraw.drawCircle(Vec2(ax, ay), wellR + 36, Color(30, 35, 42, Math.round(240 * wellAlpha)));
+                uiDraw.drawCircle(Vec2(ax, ay), wellR, Color(7, 11, 17, Math.round(255 * wellAlpha)));
+            }
 
             // 同心缓慢水纹（以反光点为中心扩散）
             let ri = 0;
             for (ri = 0; ri < 3; ri++) {
                 const cyc = ((t * 0.42 + ri * 0.33) % 1);
                 const r = 20 + cyc * (wellR * 0.85);
-                const ra = Math.round((1 - cyc) * 90 * wellAlpha);
+                const ra = Math.round((1 - cyc) * 88 * wellAlpha);
                 drawCircleRing(uiInkDraw, ax, ay, r, Color(0, 0, 0, 0), 1.1, Color(176, 198, 222, ra), 32);
             }
 
-            // 黄铜指南针表蒙滑入，与井底白灯倒影精确叠合在同一锚点 (ax, ay)
+            // 黄铜指南针滑入，与井底白灯倒影精确叠合在同一锚点 (ax, ay)
             const compassSlide = smoothstep(0.15, 0.95, t);
             const compX = ax + (1 - compassSlide) * 140;
             const compY = ay - (1 - compassSlide) * 90;
             const compR = 62;
-            // 黄铜表壳
-            drawCircleRing(
-                uiInkDraw,
-                compX,
-                compY,
-                compR + 8,
-                Color(98, 78, 48, Math.round(218 * wellAlpha)),
-                2.0,
-                Color(186, 154, 102, Math.round(235 * wellAlpha)),
-                32,
+            uiArt.tryPlacePath(
+                "assets/art/cutscene_cuff_rig.clip|needle_pouch_compass",
+                "fe06_well_compass_pouch",
+                compX - 18,
+                compY - 22,
+                168,
+                172,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    angle: -18,
+                    opacity: 0.86 * wellAlpha,
+                    smooth: true,
+                    layer: 3,
+                },
             );
-            // 玻璃镜面与微透刻度线
             drawCircleRing(
                 uiInkDraw,
                 compX,
                 compY,
                 compR,
-                Color(16, 24, 36, Math.round(145 * wellAlpha)),
-                1.2,
-                Color(218, 226, 236, Math.round(180 * wellAlpha)),
+                Color(16, 24, 36, Math.round(112 * wellAlpha)),
+                1.4,
+                Color(218, 226, 236, Math.round(175 * wellAlpha)),
                 32,
             );
-            // 四向刻度与磁针
-            uiInkDraw.drawSegment(Vec2(compX, compY + compR - 6), Vec2(compX, compY + compR - 18), 1.6, Color(224, 206, 168, Math.round(190 * wellAlpha)));
-            uiInkDraw.drawSegment(Vec2(compX, compY - compR + 6), Vec2(compX, compY - compR + 18), 1.4, Color(168, 174, 182, Math.round(165 * wellAlpha)));
-            uiInkDraw.drawSegment(Vec2(compX - compR + 6, compY), Vec2(compX - compR + 18, compY), 1.4, Color(168, 174, 182, Math.round(165 * wellAlpha)));
-            uiInkDraw.drawSegment(Vec2(compX + compR - 6, compY), Vec2(compX + compR - 18, compY), 1.4, Color(168, 174, 182, Math.round(165 * wellAlpha)));
-            // 细指针（微微指向西与北）
             const needleAng = -0.35 + Math.sin(t * 2.2) * 0.08 * (1 - matchK);
             const nx = Math.cos(needleAng) * 34;
             const ny = Math.sin(needleAng) * 34;
@@ -1340,10 +1368,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                     Color(226, 204, 152, Math.round(215 * (1 - matchK * 0.65))),
                     28,
                 );
-                // 底部克制物件铭记（不弹大任务卡）
                 const capA = smoothstep(MUSEUM_TIMINGS.wellPickupAt, MUSEUM_TIMINGS.wellPickupAt + 0.35, t) * (1 - matchK);
                 if (capA > 0.03) {
-                    drawSilkVeil(uiDraw, uiArt, "fe06_pickup_veil", w * 0.5, 96, 300, 34, PALETTE.inkVoid, 0.78 * capA, 1);
+                    drawSilkVeil(uiDraw, uiArt, "fe06_pickup_veil", w * 0.5, 96, 300, 34, PALETTE.inkVoid, 0.78 * capA, 5);
                     ctx.texts.put(
                         "sm",
                         "拾起「时间穿梭器」",
@@ -1360,21 +1387,28 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             }
         }
 
-        // 2. 后半段匹配剪辑（matchK > 0）：现代博物馆玻璃展柜以同一反光锚点 (glassAnchorX, glassAnchorY) 浮现
+        // 2. 后半段匹配剪辑（matchK > 0）：现代博物馆展厅与玻璃展柜以同一反光锚点 (glassAnchorX, glassAnchorY) 无缝浮现
         if (matchK > 0.01) {
-            const caseW = 300;
-            const caseH = 276;
+            const cover = Math.max(w / 960, h / 540);
+            uiArt.tryPlacePath(
+                "assets/art/bg_museum_hall.png",
+                "fe06_match_museum_bg",
+                w * 0.5 + (this.glassAnchorX - w * 0.47) * 0.4,
+                h * 0.5,
+                960 * cover,
+                540 * cover,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    opacity: matchK * 0.94,
+                    smooth: true,
+                    layer: 1,
+                },
+            );
+            const caseW = 240;
+            const caseH = 224;
             const caseX = this.glassAnchorX - caseW * 0.5;
             const caseY = this.glassAnchorY - caseH * 0.54;
-            // 现代展厅冷灰石壁与展柜底台
-            uiDraw.drawRect(Rect(caseX - 80, caseY - 110, caseW + 160, caseH + 220), Color(24, 29, 36, Math.round(190 * matchK)));
-            uiDraw.drawRect(
-                Rect(caseX, caseY, caseW, caseH),
-                Color(18, 23, 30, Math.round(220 * matchK)),
-                1.6,
-                Color(164, 178, 194, Math.round(185 * matchK)),
-            );
-            // 展柜玻璃斜向清冷高光带（严格穿过 glassAnchorX, glassAnchorY）
             fillGradQuad(
                 uiInkDraw,
                 this.glassAnchorX - 42, caseY + caseH - 6, Color(224, 236, 248, Math.round(44 * matchK)),
@@ -1382,10 +1416,9 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 this.glassAnchorX - 18, caseY + 6, Color(224, 236, 248, Math.round(24 * matchK)),
                 this.glassAnchorX - 82, caseY + 6, Color(224, 236, 248, 0),
             );
-            // 展柜内部陈列铜指南针剪影
             uiArt.tryPlace("prop_compass", "fe06_match_compass", this.glassAnchorX, caseY + 72, 46, 46, {
-                opacity: matchK * 0.85,
-                layer: 3,
+                opacity: matchK * 0.90,
+                layer: 4,
             });
         }
 
@@ -1435,115 +1468,101 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         const camX = clamp(this.hallCamX, camMin, camMax);
         const toScreenX = (hx: number): number => halfW + (hx - camX);
 
-        // 1. 展厅背景墙与天顶（庄重冷青灰石材、克制建筑比例）
+        // 1. 现代纪念展厅全景手绘背景（按展厅坐标全幅平移，水磨石倒影、三幅木刻海防展画、玻璃展柜与落地西窗一体呈现）
         fillVGradRect(uiDraw, 0, floorY, w, h - floorY, Color(26, 31, 38, 255), Color(16, 20, 26, 255));
-        // 顶部暗槽天顶
-        uiDraw.drawRect(Rect(0, wallTopY, w, h - wallTopY), Color(11, 14, 19, 255));
-        // 建筑石板竖向接缝（增强行走视差与现代馆舍空间感）
-        let px = 0;
-        for (px = 40; px <= MUSEUM_HALL_WIDTH; px += 140) {
-            const sx = toScreenX(px);
-            if (sx >= -20 && sx <= w + 20) {
-                uiDraw.drawSegment(Vec2(sx, floorY), Vec2(sx, wallTopY), 1.0, Color(38, 45, 54, 130));
-            }
-        }
-        // 踢脚线与浅磨石地面
         fillVGradRect(uiDraw, 0, 0, w, floorY, Color(14, 17, 22, 255), Color(32, 37, 45, 255));
-        uiDraw.drawSegment(Vec2(0, floorY), Vec2(w, floorY), 2.0, Color(76, 86, 98, 220));
-        uiDraw.drawRect(Rect(0, floorY, w, 12), Color(20, 24, 31, 240));
+        const bgW = Math.max(w * 1.18, MUSEUM_HALL_WIDTH + 200);
+        const bgH = h;
+        const bgCenterX = toScreenX(MUSEUM_HALL_WIDTH * 0.5);
+        const paintedHall = uiArt.tryPlacePath(
+            "assets/art/bg_museum_hall.png",
+            "fe06_museum_hall_bg",
+            bgCenterX,
+            h * 0.5,
+            bgW,
+            bgH,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                opacity: 1,
+                smooth: true,
+                layer: -6,
+            },
+        );
+        if (!paintedHall) {
+            uiDraw.drawRect(Rect(0, wallTopY, w, h - wallTopY), Color(11, 14, 19, 255));
+            uiDraw.drawSegment(Vec2(0, floorY), Vec2(w, floorY), 2.0, Color(76, 86, 98, 220));
+        }
 
-        // 2. 入口序厅纪念铭墙（避开独立展厅 x = 200 玻璃展柜）
+        // 2. 入口序厅纪念铭牌（克制半透明磨砂玻璃铭板，不喧宾夺主）
         const plaqueWorldX = this.caseX <= 260 ? 108 : 180;
         const plaqueX = toScreenX(plaqueWorldX);
         if (plaqueX > -240 && plaqueX < w + 240) {
-            const pw = 290;
-            const ph = 132;
-            const py = floorY + 135;
-            uiDraw.drawRect(
-                Rect(plaqueX - pw * 0.5, py, pw, ph),
-                Color(18, 22, 28, 238),
-                1.2,
-                Color(118, 128, 140, 170),
-            );
-            fillRadialGlow(uiGlow, plaqueX, wallTopY - 8, 150, 120, Color(224, 232, 240, 42), Color(180, 196, 214, 0), 14);
+            const pw = 286;
+            const ph = 112;
+            const py = floorY + 146;
+            drawSilkVeil(uiDraw, uiArt, "fe06_plaque_veil", plaqueX, py + ph * 0.5, pw, ph, PALETTE.inkVoid, 0.62, 0);
+            fillRadialGlow(uiGlow, plaqueX, wallTopY - 8, 150, 120, Color(224, 232, 240, 38), Color(180, 196, 214, 0), 14);
             ctx.texts.put(
                 "sm",
                 "海防抗战纪念展厅",
                 plaqueX,
-                py + 82,
+                py + 72,
                 toColor(PALETTE.textBright),
                 0.5,
                 0.5,
                 TextAlign.Center,
                 2.0,
-                0.88,
+                0.90,
             );
             ctx.texts.put(
                 "xs",
                 "温州宁村 · 守望史迹陈列",
                 plaqueX,
-                py + 46,
-                toColor(PALETTE.textDim),
+                py + 38,
+                toColor(PALETTE.textMid),
                 0.5,
                 0.5,
                 TextAlign.Center,
                 1.0,
-                0.78,
+                0.80,
             );
         }
 
-        // 3. 中厅抗战史料挂板与玻璃展柜（x = 600）
+        // 3. 中厅独立玻璃展柜内陈列品与顶部射灯微晕（x = caseX）
         const caseSx = toScreenX(this.caseX);
         if (caseSx > -260 && caseSx < w + 260) {
-            // 两侧素雅历史展板（当 caseX 贴近左缘时不越出房间左边界）
-            const boardOffsets = this.caseX <= 260 ? [180, 390] : [-210, 210];
-            let bi = 0;
-            for (bi = 0; bi < boardOffsets.length; bi++) {
-                const bx = caseSx + boardOffsets[bi];
-                uiDraw.drawRect(Rect(bx - 56, floorY + 112, 112, 154), Color(20, 24, 30, 235), 1.0, Color(88, 98, 110, 155));
-                uiDraw.drawRect(Rect(bx - 42, floorY + 168, 84, 78), Color(34, 40, 48, 220));
-                uiDraw.drawSegment(Vec2(bx - 36, floorY + 146), Vec2(bx + 36, floorY + 146), 1.6, Color(138, 146, 156, 140));
-                uiDraw.drawSegment(Vec2(bx - 28, floorY + 132), Vec2(bx + 24, floorY + 132), 1.2, Color(108, 116, 126, 115));
-            }
-
-            // 中央独立玻璃展柜（内放明初旧铜指南针与素笺说明牌，与全尺寸周戍 192px 保持真实博物馆尺度）
             const pedW = 148;
             const pedH = 92;
             const glassH = 128;
-            // 深灰底座
-            uiDraw.drawRect(
-                Rect(caseSx - pedW * 0.5, floorY, pedW, pedH),
-                Color(22, 26, 33, 252),
-                1.2,
-                Color(96, 106, 118, 185),
-            );
-            // 玻璃柜体背衬
-            uiDraw.drawRect(
-                Rect(caseSx - pedW * 0.46, floorY + pedH, pedW * 0.92, glassH),
-                Color(16, 22, 30, 165),
-                1.4,
-                Color(180, 196, 214, 195),
-            );
-            // 陈列品：黄铜指南针与小展签
-            uiArt.tryPlace("prop_compass", "fe06_hall_compass", caseSx, floorY + pedH + 34, 34, 34, {
-                opacity: 0.94,
-                layer: 3,
+            if (!paintedHall) {
+                uiDraw.drawRect(Rect(caseSx - pedW * 0.5, floorY, pedW, pedH), Color(22, 26, 33, 252), 1.2, Color(96, 106, 118, 185));
+                uiDraw.drawRect(Rect(caseSx - pedW * 0.46, floorY + pedH, pedW * 0.92, glassH), Color(16, 22, 30, 165), 1.4, Color(180, 196, 214, 195));
+            }
+            // 陈列品：黄铜指南针与隐约可见的明代青布旧袖残片（稳放于玻璃展柜底座台面中央）
+            uiArt.tryPlace("prop_compass", "fe06_hall_compass", caseSx - 6, floorY + pedH + 18, 32, 32, {
+                opacity: 0.96,
+                layer: 2,
             });
-            uiDraw.drawRect(Rect(caseSx - 30, floorY + pedH + 6, 60, 12), Color(214, 212, 204, 190));
-            // 展柜玻璃高光与顶部清冷射灯
+            uiArt.tryPlacePath("assets/art/cutscene_cuff_rig.clip|cuff_zhou_open", "fe06_hall_cuff_relic", caseSx + 14, floorY + pedH + 14, 58, 26, {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                angle: -8,
+                opacity: 0.34,
+                smooth: true,
+                layer: 1,
+            });
             fillGradQuad(
                 uiInkDraw,
-                caseSx - 28, floorY + pedH + glassH - 4, Color(230, 240, 252, 42),
-                caseSx + 12, floorY + pedH + glassH - 4, Color(242, 248, 255, 72),
-                caseSx - 12, floorY + pedH + 4, Color(230, 240, 252, 18),
+                caseSx - 28, floorY + pedH + glassH - 4, Color(230, 240, 252, 36),
+                caseSx + 12, floorY + pedH + glassH - 4, Color(242, 248, 255, 62),
+                caseSx - 12, floorY + pedH + 4, Color(230, 240, 252, 14),
                 caseSx - 48, floorY + pedH + 4, Color(230, 240, 252, 0),
             );
-            fillRadialGlow(uiGlow, caseSx, floorY + pedH + glassH - 12, 86, 128, Color(224, 236, 250, 56), Color(168, 192, 220, 0), 16);
-            // 地面微弱倒影
-            fillVGradRect(uiDraw, caseSx - pedW * 0.45, floorY - 36, pedW * 0.9, 36, Color(168, 186, 206, 0), Color(168, 186, 206, 28));
+            fillRadialGlow(uiGlow, caseSx, floorY + pedH + glassH - 12, 86, 128, Color(224, 236, 250, 52), Color(168, 192, 220, 0), 16);
         }
 
-        // 4. 末厅西窗与可转动展灯（x = 1140..1280）
+        // 4. 末厅西窗与手绘黄铜可转动展灯（x = lampX..lampX+108）
         const lampSx = toScreenX(this.lampX);
         const winSx = toScreenX(this.lampX + 108);
         const reflectK = inLampTurn
@@ -1555,85 +1574,65 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             const winH = 312;
             const winX = winSx - winW * 0.5;
             const winY = floorY + 38;
-            // 西窗破晓天色（微蓝天光，转灯后染入柔和暖光）
-            fillVGradRect(
-                uiDraw,
-                winX,
-                winY,
-                winW,
-                winH,
-                Color(
-                    Math.round(54 + 46 * reflectK),
-                    Math.round(68 + 42 * reflectK),
-                    Math.round(92 + 24 * reflectK),
-                    255,
-                ),
-                Color(
-                    Math.round(30 + 28 * reflectK),
-                    Math.round(44 + 34 * reflectK),
-                    Math.round(70 + 30 * reflectK),
-                    255,
-                ),
-            );
-
-            // 转灯后：西窗玻璃缓缓浮现明初宁村所井庭与青砖墙影
-            if (reflectK > 0.02) {
-                uiArt.tryPlace("bgFar_prologue", "fe06_window_courtyard", winSx, winY + 26, winW - 8, winH - 52, {
-                    opacity: reflectK * 0.48,
-                    color: Color(238, 218, 186, 255),
-                    layer: 1,
-                });
-                // 叠绘宁村所古井栏与砖院剪影，确保像素与灰度下清晰可辨
-                const cy = winY + 34;
-                const silA = Math.round(188 * reflectK);
-                uiInkDraw.drawRect(Rect(winX + 12, cy, 42, 118), Color(24, 28, 36, silA));
-                uiInkDraw.drawRect(Rect(winX + winW - 56, cy, 44, 134), Color(24, 28, 36, silA));
-                // 井庭砖井
-                uiInkDraw.drawRect(Rect(winSx - 24, cy + 4, 48, 28), Color(46, 44, 42, Math.round(215 * reflectK)), 1.0, Color(214, 186, 138, Math.round(170 * reflectK)));
-                uiInkDraw.drawEllipse(Vec2(winSx, cy + 32), 26, 7, Color(218, 194, 148, Math.round(175 * reflectK)));
-                // 朝西破晓暖辉
-                fillRadialGlow(uiGlow, winSx, winY + winH * 0.48, 116, 128, Color(246, 218, 168, Math.round(92 * reflectK)), Color(214, 174, 112, 0), 18);
+            if (!paintedHall) {
+                fillVGradRect(uiDraw, winX, winY, winW, winH, Color(54, 68, 92, 255), Color(30, 44, 70, 255));
+                uiInkDraw.drawRect(Rect(winX, winY, winW, winH), Color(0, 0, 0, 0), 3.0, Color(68, 76, 88, 245));
             }
 
-            // 现代落地西窗窗格边框（在反射之上）
-            uiInkDraw.drawRect(Rect(winX, winY, winW, winH), Color(0, 0, 0, 0), 3.0, Color(68, 76, 88, 245));
-            uiInkDraw.drawSegment(Vec2(winSx, winY), Vec2(winSx, winY + winH), 2.0, Color(68, 76, 88, 235));
-            uiInkDraw.drawSegment(Vec2(winX, winY + winH * 0.56), Vec2(winX + winW, winY + winH * 0.56), 2.0, Color(68, 76, 88, 235));
+            // 转灯后：落地西窗玻璃缓缓浮现明初宁村所井庭暖辉映象
+            if (reflectK > 0.02) {
+                uiArt.tryPlace("bgFar_prologue", "fe06_window_courtyard", winSx, winY + 26, winW - 8, winH - 52, {
+                    opacity: reflectK * 0.52,
+                    color: Color(242, 222, 188, 255),
+                    layer: 1,
+                });
+                fillRadialGlow(uiGlow, winSx, winY + winH * 0.48, 136, 152, Color(248, 220, 170, Math.round(98 * reflectK)), Color(214, 174, 112, 0), 18);
+            }
 
-            // 窗前石质底座与可转动西窗展灯（lampSx，高度齐周戍胸肩便于抬手转灯）
-            const standW = 34;
-            const standH = 96;
-            uiDraw.drawRect(Rect(lampSx - standW * 0.5, floorY, standW, standH), Color(34, 39, 48, 250), 1.1, Color(108, 118, 130, 190));
-            // 金属灯柱与旋轴
-            const pivotY = floorY + standH + 44;
-            uiInkDraw.drawSegment(Vec2(lampSx, floorY + standH), Vec2(lampSx, pivotY), 3.2, Color(136, 144, 154, 240));
-            uiInkDraw.drawCircle(Vec2(lampSx, pivotY), 5.5, Color(196, 178, 142, 245));
-            // 灯头随 lampTurnProg 从略朝内侧（左偏）平缓转向西窗（右指）
+            // 窗前手绘可转动黄铜展灯（底座稳贴地面不倾斜，仅光束随转灯铺亮西窗）
             const aimDir = -0.65 + lampTurnProg * 1.48;
-            const headX = lampSx + Math.sin(aimDir) * 20;
-            const headY = pivotY + Math.cos(aimDir) * 14;
-            uiInkDraw.drawSegment(Vec2(lampSx, pivotY), Vec2(headX, headY), 6.2, Color(188, 166, 126, 245));
-            uiInkDraw.drawCircle(Vec2(headX, headY), 5.2, Color(248, 234, 198, 248));
+            const lampH = 192;
+            const lampW = lampH * (236 / 360);
+            const headX = lampSx + 18 + Math.sin(aimDir) * 20;
+            const headY = floorY + lampH - 34 + Math.cos(aimDir) * 10;
+            if (!uiArt.tryPlacePath(
+                "assets/art/cutscene_well_museum.clip|museum_brass_lamp",
+                "fe06_museum_brass_lamp",
+                lampSx,
+                floorY,
+                lampW,
+                lampH,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    angle: 0,
+                    opacity: 0.98,
+                    smooth: true,
+                    layer: 4,
+                },
+            )) {
+                uiDraw.drawRect(Rect(lampSx - 17, floorY, 34, 96), Color(34, 39, 48, 250));
+            }
 
             // 灯束锥光（转向西窗时铺亮窗面）
-            const beamLen = 132 + lampTurnProg * 76;
+            const beamLen = 138 + lampTurnProg * 86;
             const bxEnd = headX + Math.sin(aimDir) * beamLen;
             const byEnd = headY + Math.cos(aimDir) * 28;
             const perpX = -Math.cos(aimDir) * 18;
             const perpY = Math.sin(aimDir) * 34;
             fillGradQuad(
                 uiGlow,
-                headX, headY - 4, Color(246, 224, 178, Math.round(68 + 44 * lampTurnProg)),
-                headX, headY + 4, Color(246, 224, 178, Math.round(68 + 44 * lampTurnProg)),
+                headX, headY - 4, Color(246, 224, 178, Math.round(68 + 46 * lampTurnProg)),
+                headX, headY + 4, Color(246, 224, 178, Math.round(68 + 46 * lampTurnProg)),
                 bxEnd + perpX, byEnd + perpY + 34, Color(238, 206, 148, 0),
                 bxEnd - perpX, byEnd - perpY - 22, Color(238, 206, 148, 0),
             );
-            fillRadialGlow(uiGlow, headX, headY, 34, 34, Color(246, 228, 186, 78), Color(224, 194, 140, 0), 14);
+            fillRadialGlow(uiGlow, headX, headY, 38, 38, Color(248, 228, 186, 82), Color(224, 194, 140, 0), 14);
         }
 
         // 5. 自由步行的周戍（沿用真实明初像素立绘，与常规世界场景同尺度 ~192px，不再腰斩缩水）
         const playerSx = toScreenX(this.hallWalkX);
-        const moving = !inLampTurn && (this.hallMoving || Math.abs(ctx.input.moveX) > 0.05);
+        const moving = !inLampTurn && this.hallMoving;
         const slot = moving ? "soldier_run" : "soldier_idle";
         const frame = moving ? Math.floor(this.hallWalkAnim) : 0;
         const charH = Math.round(192 * Math.max(0.75, Math.min(1.25, h / 720)));
@@ -1641,11 +1640,14 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         // 脚底接地微影与磨石反光影
         uiDraw.drawEllipse(Vec2(playerSx, floorY + 2), 34, 6.5, Color(6, 8, 12, 178));
         uiDraw.drawEllipse(Vec2(playerSx, floorY - 14), 24, 4.5, Color(16, 20, 28, 62));
-        if (!uiArt.tryPlace(slot, "fe06_museum_zhoushu", playerSx, floorY + 2, charW, charH, {
+        const pose = {
             facing: this.hallFacing,
             frame,
             layer: 3,
-        })) {
+        };
+        const running = moving && uiArt.tryPlaceRun("soldier", "fe06_museum_zhoushu", playerSx, floorY + 2,
+            charW, charH, this.hallWalkAnim / 4, pose);
+        if (!running && !uiArt.tryPlace(slot, "fe06_museum_zhoushu", playerSx, floorY + 2, charW, charH, pose)) {
             // 无贴图兜底剪影
             uiDraw.drawRect(Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), toColor(CUFF_PALETTE.indigoBase));
             uiDraw.drawCircle(Vec2(playerSx, floorY + charH * 0.92), 16, Color(66, 73, 76, 255));
@@ -1711,7 +1713,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 drawSilkVeil(uiDraw, uiArt, "fe06_lamp_hint_veil", lampSx, floorY + 158, 146, 28, PALETTE.panelBg, 0.84, 1);
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("[E] 转动西窗灯", ctx.input.inputMode, ctx.input.gamepadLayout),
                     lampSx,
                     floorY + 158,
                     toColor(PALETTE.textBright),
@@ -1778,79 +1780,98 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             return;
         }
 
-        // 0.42s 起：第二声木板叩响落回明初倒柜边
+        // 0.42s 起：第二声木板叩响落回明初倒柜边（全幅宽银幕构图，去浮空弹窗框，复用手绘补线青布袖口）
         const revealK = smoothstep(MUSEUM_TIMINGS.returnKnock2At, MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut;
-        const boxW = Math.min(w - 140, 820);
-        const boxH = Math.min(h - 190, 390);
-        const bx = (w - boxW) * 0.5;
-        const by = (h - boxH) * 0.5 + 10;
+        const barH = 42;
+        const by = barH;
+        const boxH = Math.max(120, h - barH * 2);
 
-        // 明初暗木柜内与柜沿背景（与 P03 同一构图语汇）
         fillVGradRect(
             uiDraw,
-            bx,
+            0,
             by,
-            boxW,
+            w,
             boxH,
-            Color(13, 12, 16, Math.round(248 * revealK)),
-            Color(24, 24, 30, Math.round(248 * revealK)),
+            Color(12, 11, 16, Math.round(248 * revealK)),
+            Color(22, 22, 28, Math.round(248 * revealK)),
         );
-        // 左侧厨柜暗缝与厚重明初旧木柜板
-        const cabEdgeX = bx + boxW * 0.58;
-        uiDraw.drawRect(Rect(cabEdgeX, by, boxW - (cabEdgeX - bx), boxH), Color(42, 31, 24, Math.round(246 * revealK)));
-        uiDraw.drawSegment(Vec2(cabEdgeX, by), Vec2(cabEdgeX, by + boxH), 2.4, Color(116, 92, 68, Math.round(220 * revealK)));
-        // 柜板木纹细线
-        let gi = 0;
-        for (gi = 0; gi < 5; gi++) {
-            const gx = cabEdgeX + 26 + gi * 44;
-            if (gx < bx + boxW - 10) {
-                uiDraw.drawSegment(Vec2(gx, by + 12), Vec2(gx, by + boxH - 12), 1.0, Color(28, 20, 15, Math.round(140 * revealK)));
-            }
-        }
-        // 柜缝冷月微光
+        const cabEdgeX = w * 0.58;
+        uiArt.tryPlacePath(
+            "assets/art/tex_diorama_ming.clip|ming_timber",
+            "fe06_return_cab_wood",
+            cabEdgeX + (w - cabEdgeX) * 0.5,
+            by + boxH * 0.5,
+            Math.max(12, w - cabEdgeX),
+            boxH,
+            {
+                color: Color(110, 90, 74, 255),
+                opacity: 0.94 * revealK,
+                smooth: true,
+                layer: 1,
+            },
+        );
+        uiArt.tryPlacePath(
+            "assets/art/cutscene_well_museum.clip|prologue_cabinet_doors",
+            "fe06_return_cab_door",
+            cabEdgeX + 110,
+            by + boxH * 0.5,
+            340,
+            boxH * 0.92,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                color: Color(138, 120, 102, 255),
+                opacity: 0.85 * revealK,
+                smooth: true,
+                layer: 2,
+            },
+        );
+        uiDraw.drawSegment(Vec2(cabEdgeX, by), Vec2(cabEdgeX, by + boxH), 2.4, Color(128, 102, 76, Math.round(210 * revealK)));
         fillHGradRect(
             uiGlow,
-            cabEdgeX - 58,
+            cabEdgeX - 68,
             by + 24,
-            58,
+            68,
             boxH - 48,
             Color(168, 188, 210, 0),
-            Color(186, 206, 226, Math.round(42 * revealK)),
+            Color(186, 206, 226, Math.round(48 * revealK)),
         );
 
-        // 第二声实木叩响的柜板细波纹（无声可读）
+        // 第二声实木叩响的柜板柔晕波纹（无声可读）
         if (this.knock2VisualT > 0) {
             const k2 = 1 - clamp01(this.knock2VisualT / 0.9);
-            const k2A = Math.round((1 - k2) * 215 * fadeOut);
-            drawCircleRing(uiInkDraw, cabEdgeX + 8, by + boxH * 0.50, 10 + k2 * 56, Color(0, 0, 0, 0), 1.6, Color(232, 220, 196, k2A), 28);
+            const k2A = Math.round((1 - k2) * 185 * fadeOut);
+            fillRadialGlow(uiGlow, cabEdgeX + 6, by + boxH * 0.50, 26 + k2 * 52, 26 + k2 * 52, Color(238, 224, 194, Math.round(k2A * 0.42)), Color(238, 224, 194, 0), 16);
+            drawCircleRing(uiInkDraw, cabEdgeX + 8, by + boxH * 0.50, 12 + k2 * 54, Color(0, 0, 0, 0), 1.3, Color(232, 220, 196, k2A), 28);
         }
 
-        // 四镜同源补线青布袖口（直接调用 cuff_shots.drawPatchedCuff，共享 CUFF_PALETTE 6 针斜补线）
+        // 四镜同源补线青布袖口（直接调用 cuff_shots.drawPatchedCuff + uiArt，严格复用同一张手绘袖口）
         const extendK = smoothstep(MUSEUM_TIMINGS.returnKnock2At + 0.08, MUSEUM_TIMINGS.returnKnock2At + 1.05, t);
-        const wristX = bx + 115 + extendK * (cabEdgeX - bx - 168);
+        const wristX = w * 0.14 + extendK * (cabEdgeX - w * 0.24);
         const wristY = by + boxH * 0.50;
         drawPatchedCuff(uiInkDraw, uiGlow, {
             wristX,
             wristY,
             angleRad: -0.04 * (1 - extendK),
-            scale: 1.02,
+            scale: 1.18,
             pose: "reach",
             opacity: revealK,
             stitchHighlight: 0.48 + 0.22 * extendK,
             cuffPullBack: 0.06,
             warmth: 0.16,
+            uiArt,
+            instanceKey: "fe06_return_zhou_cuff",
+            layer: 4,
         });
 
-        // 素雅细框与微弱回柜提示
-        uiInkDraw.drawRect(Rect(bx, by, boxW, boxH), Color(0, 0, 0, 0), 1.2, toColor(PALETTE.silkDim, Math.round(160 * revealK)));
         const tipA = smoothstep(MUSEUM_TIMINGS.returnKnock2At + 0.45, MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut;
         if (tipA > 0.03) {
-            drawSilkVeil(uiDraw, uiArt, "fe06_return_veil", w * 0.5, by - 30, 320, 32, PALETTE.inkVoid, 0.72 * tipA, 1);
+            drawSilkVeil(uiDraw, uiArt, "fe06_return_veil", w * 0.5, barH + 34, 320, 32, PALETTE.inkVoid, 0.72 * tipA, 6);
             ctx.texts.put(
                 "xs",
                 "两声轻敲落回柜板 · 寻回小满",
                 w * 0.5,
-                by - 30,
+                barH + 34,
                 toColor(PALETTE.textMid),
                 0.5,
                 0.5,
@@ -1860,7 +1881,7 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             );
         }
 
-        this.drawLetterbox(uiInkDraw, w, h, 42, 0.95 * fadeOut);
+        this.drawLetterbox(uiInkDraw, w, h, barH, 0.95 * fadeOut);
     }
 
     private drawLetterbox(draw: DrawNode.Type, w: number, h: number, barH: number, opacity: number): void {

@@ -1,7 +1,7 @@
--- 统一触屏多指路由、复杂交互、Android 独立包退出策略与生命周期专项验收：
--- 覆盖：多指并发与动态假鼠标隔离、2.5D 纵深与小满内圈慢走/防误蹲、推拉车握柄锁定、
+-- 统一触屏多指路由、复杂交互、Android 独立包退出策略与生命周期专项验收（target = "android" 纯触屏目标）：
+-- 覆盖：多指并发与鼠标合成事件隔离、2.5D 纵深与小满内圈慢走/防误蹲、推拉车握柄锁定、
 -- 空村投瓶拖拽与取消圈、3x3 换弹盘触控滑连与重画钮、选章两段确认、
--- 时间穿梭器按钮、护送试炼触控、Android BackButton 状态机与切后台防卡键。
+-- 时间穿梭器按钮、男主线折笺选卡与折戟小结触控、Android BackButton 状态机与切后台防卡键。
 
 local Dora = require("Dora")
 local Content = Dora.Content
@@ -17,17 +17,19 @@ do
 		Content:insertSearchPath(3, Path(repoRoot, "Script", "Lib"))
 	end
 end
+
+package.loaded["watch.target"] = "android"
+local targetMod = require("Script.watch.target")
+targetMod.resetActiveTarget()
+
 local new = require("lualib_bundle").__TS__New
 local rooms = require("Script.watch.rooms")
 local play = require("Script.watch.play")
 local platform = require("Script.watch.platform")
 local controlsCfg = require("Script.watch.controls_config")
 local Input = require("Script.watch.input").Input
-local TouchRouter = require("Script.watch.touch").TouchRouter
-local TouchControls = require("Script.watch.fe.ui.touch_controls").TouchControls
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
 local createRun = require("Script.watch.run").createRun
-local createTrial = require("Script.watch.run").createTrial
 
 local pass = 0
 local function check(tag, cond)
@@ -57,49 +59,59 @@ end
 local root = Dora.Node()
 local fe = new(Frontend, root)
 local input = new(Input)
-local router = new(TouchRouter, input.settings)
-router:attach(root)
-input:bindTouch(router)
-local ctrl = new(TouchControls, root)
+input:attach(root, {})
+local router = input:getTouchRouter()
+local ctrl = input:getTouchControls()
+check("android target creates TouchRouter and TouchControls without GamepadRouter",
+	router ~= nil and ctrl ~= nil and input:getGamepadRouter() == nil)
+check("slim TouchControls allocates 36 SDF Labels (down from 178)", ctrl:getAllocatedLabelCount() == 36)
 
 local W, H = 1280, 720
 local vp = platform.computeStageViewport(W, H)
 input:setStageViewport(vp)
 fe:setStagePlacement(vp)
-input:setModePref("auto")
-input:setInputMode("touch")
 input.settings.haptics = false
 
-local function syncTouch(screen, p, modeNum, runObj, talentBoxes)
+local function syncTouch(screen, p, modeNum, runObj, talentBoxes, deathBoxes)
 	return ctrl:syncContext({
 		viewport = vp,
 		mode = modeNum or 1,
 		screen = screen,
 		play = p,
 		run = runObj,
-		cam = fe.cam,
-		input = input,
+		cam = (modeNum or 1) == 1 and fe.cam or nil,
 		router = router,
+		overlayActive = true,
+		allowAutoGameplayTouch = true,
+		allowMouseOnOverlay = false,
+		showWebTopPills = false,
+		canToggleFullscreen = false,
 		assistHintsEnabled = false,
 		isMuted = false,
 		isFullscreen = false,
 		storyTalentBoxes = talentBoxes or {},
+		escortDeathBoxes = deathBoxes,
 		dt = 1 / 60,
 	})
 end
 
--- 1. 周戍街道：多指并发（左手摇杆右推 + 右屏点射互不串触，2.5D 上下纵深有效 + 动态假鼠标屏蔽）
+-- 1. 周戍街道：多指并发（左手摇杆右推 + 右屏点射互不串触，2.5D 上下纵深有效 + 鼠标合成事件直接忽略）
 local streetRun = createRun(20261124, "debug")
 local pStreet = new(play.Play, rooms.STREET_ROOM, nil, streetRun)
 fe.screen = "play"
 fe:bindPlay(pStreet, W, H)
 syncTouch("play", pStreet, 1, streetRun)
 
+-- Android 纯触屏直接忽略鼠标合成事件（enableMouseCompat=false）
+router:injectTouch("began", 99, 860, 260, true)
+router:injectTouch("ended", 99, 860, 260, true)
+input:update()
+check("android touch-only ignores synthetic mouse events", not input.fire.pressed)
+
 router:injectTouch("began", 1, 150, 150, false)
 router:injectTouch("moved", 1, 208, 195, false)
 input:update()
 check("stick moves right without false shot", input.moveX == 1 and input.moveY == -1 and not input.fire.pressed)
-check("active finger suppresses synthetic mouse", router:isSuppressingSyntheticMouse())
 
 router:injectTouch("began", 2, 860, 260, false)
 input:update()
@@ -108,13 +120,6 @@ router:injectTouch("ended", 2, 860, 260, false)
 router:injectTouch("ended", 1, 208, 195, false)
 input:update()
 check("releasing fingers zeroes stick", input.moveX == 0 and input.moveY == 0)
-
--- 冷却 0.30s 后允许外接物理鼠标恢复工作（不锁死安卓平板外接键鼠）
-for _ = 1, 20 do
-	syncTouch("play", pStreet, 1, streetRun)
-	input:update()
-end
-check("synthetic mouse suppression clears after cooldown", not router:isSuppressingSyntheticMouse())
 
 -- 2. 小满空村：非纵深房下推摇杆不误蹲 + 内圈慢走 + 蹲伏切跳顺滑起身
 local pVillage = new(play.Play, rooms.VILLAGE_ROOM)
@@ -241,7 +246,7 @@ pOutside:update(1 / 60, input)
 input:endStep()
 check("second tap cleanly ungrips cart", (not router.cartGripLatched) and (not pOutside.gripping))
 
--- 5. 男主线 escort1：3x3 换弹盘触控一笔滑连 + 时间穿梭器钮 + 三选一天赋卡点击
+-- 5. 男主线 escort1：居中央折笺三选一轻暂停直点 -> 选毕切回战斗浮钮 + 时间穿梭器钮 + 3x3 换弹盘滑连
 local escRun = createRun(20261124, "official", { childCleared = true, soldierCleared = true, artifactOwned = true, museumPhase = "done", museumSeen = true })
 escRun.story.route = "soldier"
 escRun.story.settled = true
@@ -249,7 +254,18 @@ local pEsc = new(play.Play, rooms.ESCORT1_ROOM, nil, escRun)
 fe:bindPlay(pEsc, W, H)
 router:clearRoomStates()
 local tBoxes = fe:getStoryTalentBoxes(pEsc, W, H, true)
-local ctxEsc = syncTouch("play", pEsc, 1, escRun, tBoxes)
+local ctxDraft = syncTouch("play", pEsc, 1, escRun, tBoxes)
+check("talent draft modal suppresses gameplay fire button", pEsc.talentModalActive and findBtn(ctxDraft, "fire") == nil)
+local tZone0 = findZone(ctxDraft, "talent:0")
+check("talent:0 rectZone registered", tZone0 ~= nil)
+router:injectTouch("began", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
+router:injectTouch("ended", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
+input:update()
+check("tapping talent card emits zoneTap without firing", input.touchZoneTap == "talent:0" and not input.fire.pressed)
+pEsc:chooseTalent(0)
+check("choosing talent exits folded-slip modal", not pEsc.talentModalActive and #pEsc:getStoryTalentOffers() == 0)
+
+local ctxEsc = syncTouch("play", pEsc, 1, escRun, {})
 local artBtn = findBtn(ctxEsc, "artifact")
 check("artifact button appears when artifactOwned=true", artBtn ~= nil)
 check("no dead flare button in soldier touch layout", findBtn(ctxEsc, "flare") == nil)
@@ -258,13 +274,6 @@ router:injectTouch("ended", 15, artBtn.x, artBtn.y, false)
 input:update()
 check("artifact tap emits artifactTogglePressed", input.artifactTogglePressed)
 check("toggleArtifactWeapon equips time_shuttler", pEsc:toggleArtifactWeapon() and pEsc.equippedWeapon == "time_shuttler")
-
-local tZone0 = findZone(ctxEsc, "talent:0")
-check("talent:0 rectZone registered", tZone0 ~= nil)
-router:injectTouch("began", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
-router:injectTouch("ended", 16, tZone0.rect.x + 20, tZone0.rect.y + 20, false)
-input:update()
-check("tapping talent card emits zoneTap without firing", input.touchZoneTap == "talent:0" and not input.fire.pressed)
 
 -- 触发 3x3 换弹并一笔触控滑连 0 -> 4 -> 8
 pEsc:submitFeIntent({ kind = "reloadOpen" })
@@ -311,17 +320,20 @@ router:injectTouch("ended", 19, st2x, st2y, false)
 input:update()
 check("second touch on same chapter confirms jump", act2.type == "jump")
 
--- 7. 护送试炼（mode === 2）触控上下文：天赋卡 + 暂停/结算按钮
-local trialRun = createTrial(42)
-local pTrial = new(play.Play, rooms.CAMPAIGN_ROOMS[1], nil, trialRun)
-local ctxTrialOffers = syncTouch("play", pTrial, 2, trialRun)
-check("trial mode offers expose clickable talent:0 zone", findZone(ctxTrialOffers, "talent:0") ~= nil)
-pTrial.paused = true
-local ctxTrialPaused = syncTouch("play", pTrial, 2, trialRun)
-check("trial mode pause exposes resume/retry/title zones",
-	findZone(ctxTrialPaused, "trial:resume") ~= nil
-	and findZone(ctxTrialPaused, "trial:retry") ~= nil
-	and findZone(ctxTrialPaused, "trial:title") ~= nil)
+-- 7. 男主线肉鸽「折戟山道」轮回小结触控热区：重整再赴 / 返回标题
+fe.screen = "play"
+pEsc.hp = 0
+pEsc:campaignFailed()
+check("escort defeat opens death summary modal", pEsc.escortFailed == true)
+local dBoxes = fe:getEscortDeathBoxes(pEsc, W, H)
+local ctxDeath = syncTouch("play", pEsc, 1, escRun, {}, dBoxes)
+local retryZ = findZone(ctxDeath, "escort:retry")
+local titleZ = findZone(ctxDeath, "escort:title")
+check("escort death summary exposes retry and title touch zones", retryZ ~= nil and titleZ ~= nil)
+router:injectTouch("began", 20, retryZ.rect.x + 20, retryZ.rect.y + 20, false)
+router:injectTouch("ended", 20, retryZ.rect.x + 20, retryZ.rect.y + 20, false)
+input:update()
+check("tapping escort:retry emits zoneTap without firing", input.touchZoneTap == "escort:retry" and not input.fire.pressed)
 
 -- 8. 触控配置切换与 BackButton 状态机（依托 app.start 完整钩子）
 local origOpacity = router.settings.touchOpacity
@@ -337,7 +349,8 @@ local appRoot = Dora.Node()
 app.start(appRoot, 1, "play")
 local hook = package.loaded["watch.fe"]
 local appTouch = package.loaded["watch.touch"]
-check("app exposes watch.touch hook", appTouch ~= nil)
+check("app exposes watch.touch hook and nil watch.gamepad on android target",
+	appTouch ~= nil and package.loaded["watch.gamepad"] == nil and hook.getTargetId() == "android")
 local appPlay = hook.getPlay()
 check("app play starts unpaused", appPlay ~= nil and not appPlay.paused)
 hook.handleBackButton()
@@ -358,6 +371,8 @@ check("background releaseAll clears stick completely", appInput.moveX == 0 and a
 
 -- 还原默认配置，避免污染用户存档
 controlsCfg.saveControlSettings(controlsCfg.defaultControlSettings())
+package.loaded["watch.target"] = nil
+targetMod.resetActiveTarget()
 appRoot:cleanup()
 root:cleanup()
 print("TOUCH INPUT VERIFY PASS " .. pass .. " / FAIL 0")

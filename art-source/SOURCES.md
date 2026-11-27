@@ -12,6 +12,22 @@
 
 本分支新增的场景和像素素材使用 Codex 内置 ImageGen 生成，按游戏规格裁切、校正脚底位置、整理帧并打包。补充动作以本工程生成的基础角色图作为参照。游戏运行时随包读取本地图像。Dora SSR 许可随官方发行包提供。
 
+## 高清人物与滑铲动作
+
+[周戍原画](characters/zhoushu.png)、[小满原画](characters/xiaoman.png)和[补充姿势](characters/extra-poses.png)来自本作原有明朝角色稿。站姿等常用姿势从原画重新导出，周戍由 66 提升至 198 像素高，小满由 48 提升至 144 像素高。跑步使用同一原画的上身、手臂、裤腿、裹腿和布鞋分层，按脚步循环逐帧合成，每人 160 张。引擎按位移取帧并复用一个精灵节点。
+
+[周戍滑铲原画](characters/zhoushu-slide.png)由 Codex 内置 ImageGen 参考原角色稿生成。按盔、肩、肘、膝和鞋跟等位置，在四张原画之间生成 64 张滑铲画面。低姿滑行时支撑鞋跟对齐地面，首尾接回站姿，整套沿用原地面冲刺计时。
+
+周戍和小满的起步与停步各有一张 96 帧过渡图集，由八个步相和十二档步幅合成。停步时保留脚步所在的步相并减小步幅，回到原站姿。使用已安装 Pillow 的 Python 运行 [build.py](characters/build.py) 重建角色图集、原跑步循环、起停过渡和滑铲。
+
+```text
+Use case: stylized-concept.
+Asset type: one production-quality transparent 2×2 key-pose sprite sheet for the original Chinese side-scroller 向西守望.
+Input image: visual identity and pixel-art reference for Zhou Shu, the same adult Ming-era guard in all twelve small cels. Preserve his matte iron helmet, small dark red plume, teal short quilted coat, old cloth wraps, brown belt, dark trousers, rough cloth boots, cheek and hair shape. Make four NEW poses of him, at finer pixel resolution with crisp clusters, quiet layered shading, small readable sleeve stitches and boot wraps. Use the same proportions and identity.
+All poses in strict flat right-facing side profile with orthographic game camera. These are four consecutive stages of one quick feet-first ground slide with a planted extended lead heel, not rolling, diving, bounding or skating. Top left: low braking entry, torso lowering back, one foot reaching right, the other knee starting to fold under the hip, arm opening for balance. Top right: full low slide, lead heel skimming along the ground to the right, rear leg folded below the hips, body leaning back with rear hand bracing close to ground, equipment follows torso. Bottom left: a continuation of the full slide, far knee pulls closer and the extended boot is beginning to tuck, torso slightly farther upright. Bottom right: one-foot planted low recovery squat, lead sole tucked nearly beneath the body, torso pitching forward only to rise. Clearly separate legs and boots, full readable silhouette and entirely visible helmet plume, grounded waist and lead foot.
+Precisely equal 2×2 cells, each pose centered with equal body scale and common foot-ground line within its cell and substantial transparent margins. Dark slate teal, subdued browns, pale canvas and warm skin, good contrast over a dark scene. Keep true transparent RGBA empty space. No floors, dust, cast shadows, extras, text, letters, grid borders, badges, or watermarks.
+```
+
 ## 水墨界面贴图与开源字体（`feature/fe-ink-ui`）
 
 - `assets/art/ui_ink.png` + `assets/art/ui_ink.clip`：宋明清雅水墨界面图集（含水袖飞白飘带、婉转烟岚流云曲线、烟黛渐变幕、霜月游丝细线、海棠菱花微结、纤细云肩折角、文人纤长孤印、玉簪体力细痕、月窗柔边墨云及 640×440 高清冷素宣纸页）。
@@ -131,3 +147,39 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
 - **游戏运行时透明资产（`assets/art/brand/`）**：
   - `game_logo_h.png`、`game_logo_v.png`、`team_logo_dark.png`、`team_badge.png`（真 Alpha 透明通道，经 `assets.ts` 各向异性过滤加载，用于开机 Splash 与标题页）
   - `team_logo_light.png`、`app_icon.png`（512 × 512 运行时/跨端通用图标）
+
+## 灰盒美术重制与全场景资产升级（Phase 1–3）
+
+围绕明代沿海海防写实基调，全面淘汰早期纯色灰盒、线框几何块与占位符号，采用 AI 图像生成辅助初稿并经离线像素去底、连通域杂点清理、脚底基线对齐及 Dora `.clip` 图集打包产出以下三阶段运行时资产（全部存放于 `assets/art/`，遵循本项目原创视觉规范，零第三方商用素材）：
+
+### Phase 1：2.5D 微缩场景 PBR-Lite 材质图集
+- `tex_diorama_ming.png`（1024 × 512）+ `tex_diorama_ming.clip`：8 类无缝可平铺明代材质瓦片（青砖 `ming_brick`、夯土/湿石板 `ming_stone`、风化旧木 `ming_timber`、灰瓦屋脊 `ming_tile`、斑驳白灰墙 `ming_plaster`、深潭水面 `ming_water`、草苔溪岸 `ming_earth`、铁木城闸 `ming_iron_wood`），配合 Dora 原生 `Grid` 透视细分网格渲染。
+
+### Phase 2：五大微缩场景手绘立牌与三大过场全幅 CG
+- `diorama_cutouts.png` + `diorama_cutouts.clip`：村口桌底/铁盆/瓦砾/酒坛/破门、松树冠/林溪树桩/芦苇丛、北塔门檐/城门铁环等透视立牌组件。
+- `cutscene_cuff_rig.png` + `cutscene_cuff_rig.clip`：贯穿 P03 / P05 / G05 / E02 / M03 的同源青布斜补线袖口与小满手部组件（`hand_zhoushu_reach`、`hand_xiaoman_reach`、`hand_zhoushu_cup`、`needle_pouch_compass`、`cuff_stitch_closeup`）。
+- `cutscene_story_parts.png` + `cutscene_story_parts.clip`：共同序章 P01–P04 与北塔结局 F03/M03 组件（窗纸、父掌、滚碗、门栓、暖汤碗、登记簿、毛笔、柜门等）。
+- `cutscene_well_museum.png` + `cutscene_well_museum.clip`：双通关水井反光（E01）与现代纪念展厅玻璃柜/黄铜西窗灯/指南针展品（E02）。
+- `cg_g05_reunion.png`（960 × 540）：城门风台 G05 周戍脱险归来特写全幅 CG。
+- `cg_tower_desk_cold.png` / `cg_tower_desk_warm.png`（960 × 540）：北塔值夜室 F03 寒窗空行 / M03 暖灯团圆成对全幅 CG。
+- `bg_museum_hall.png`（1024 × 576）：现代海防纪念馆西厅高顶晨光全幅背景。
+
+### Phase 3：2.5D 玩法道具、拓展角色帧、战斗特效与四大战役场景底图
+- `props_ming.png`（1024 × 240）+ `props_ming.clip`：8 类明代场景道具（窗板 `window_board`、架设残盾 `braced_shield`、村口瓶架 `bottle_rack`、草束试射靶 `target_dummy`、卷落木帘 `curtain`、石井栏 `well_curb`、竹筐墙 `basket_wall`、军粮麻袋 `grain_sack`）与 8 类拾取图标（`pickup_wood` / `bell` / `scrap` / `wedge` / `ammo` / `shield` / `pass` / `quickbelt`）。
+- `actors_extra.png`（1024 × 288）+ `actors_extra.clip`：三类精英倭寇正反态（藤盾手 `enemy_shield_*`、破障斧手 `enemy_breaker_*`、朱缨头领 `enemy_leader_*`）、北塔值夜守卒（`tower_guard_lantern` / `tower_guard_write`）以及周戍与小满合体精灵（牵手 `duo_hand_walk`、背负待机/奔跑/持铳射 `duo_carry_idle` / `run` / `fire`）。
+- `vfx_craft_art.png`（1024 × 480）+ `vfx_craft_art.clip`：黑火药枪口爆焰 `vfx_muzzle_blast`、火药硝烟 `vfx_smoke_plume`、木石碎屑爆裂 `vfx_debris_burst`、安全工台改制鸟铳插画（`craft_lantern_gun` / `craft_echo_gun`）及换弹连线小满指路手 `reload_child_finger`。
+- 四幅 640 × 360 专属战役场景底图：`bg_crossroad_drygoods.png`（十字街与布行）、`bg_archway_yard.png`（石牌楼与候检院）、`bg_granary.png`（军粮棚）、`bg_escort_ridge.png`（城外护送山道与远方北塔）。
+## 明月绘卷 · 像素幻灯片与扩展像素图集（`feature/pixel-slideshow-overhaul`）
+
+为全面消除过场动画、伪 3D 低模几何块及实机叠层中的生硬矢量几何绘图，本分支使用 AI 图像生成辅助绘制 32-bit 明代像素分镜底稿，并经离线脚本像素化重采样（`BOX` 锐利降采样 + 96 色限色调色板 + 品红抠底去溢色 + 手工像素粒子/纹章绘制 + Dora `.clip` 图集打包），全部以 `TextureFilter.Point` 渲染：
+
+- **像素幻灯片分镜（`assets/art/slides/`，共 41 张 PNG，合计约 2.5 MB）**：
+  - 共同序章（P01–P02）：`p01_01_curtain.png`、`p01_02_hand.png`、`p01_03_door.png`、`p02_01_shadows.png`、`p02_02_cut.png`、`p02_03_bowl_roll.png`、`p02_04_bowl_stop.png`、`p02_05_cabinet.png`（480 × 270）
+  - 青布补线袖口三联特写（P03 / P05 / G05）：`cuff_p03_01..04.png`、`cuff_p05_01..04.png`、`cuff_g05_01..04.png`（480 × 270）
+  - 城门 24 秒转场四阶段背景（G01–G03）：`gate_stage_01..04.png`（320 × 180）
+  - 北塔双结局与实景值夜室（F03 / M03）：`tower_porch_{f03,m03}_{closed,open}.png`、`tower_room_{f03_cold,f03_lit,m03_warm}.png`、`tower_interior_live.png`（480 × 270）
+  - 双通关古井匹配剪辑与现代纪念展厅（E01 / E02）：`e01_01_well.png`、`e01_02_compass.png`、`e01_03_vitrine.png`、`e02_window_dawn.png`、`e02_return_cabinet.png`（480 × 270）及 `e02_museum_hall.png`（640 × 360 展厅全景）
+  - 实机叙事小特写：`f01_sewing_memory.png`（F01 缝布回忆）、`m02_handover_lantern.png` / `m02_handover_echo.png`（M02 试握递铳，480 × 270）
+- **扩展像素精灵图集（`assets/art/sprites_fe.png` + `assets/art/sprites_fe.clip`，1024 × 256，62 帧，零修改原 `sprites.clip` 58 帧与 `ui_ink.clip` 15 帧）**：
+  - 角色与过场部件：背负合体（`carry_idle`、`carry_walk_a/b`、`carry_reload`）、单膝蹲背（`soldier_kneel_mount`）、门后听声（`child_listen_door`）、牵手伸臂（`soldier_hand_hold`）、北塔提灯守卒（`tower_guard_lantern`）、执笔手（`tower_brush_hand`）、换弹手势（`reload_hand_tap/trace`）、桌上袖口/热汤碗/针套指南针/提灯特写
+  - 场景道具与像素特效/地皮/前景：铁盆平放与倾斜、古井石栏、城外砖拱、稻草试射靶、明式木工案、木瓶架、木制残盾、引路灯铳与回声铳、灯柱木架、木纹筹/铃纹筹、藤盾、密林树根拱、暗渠石栅、3 帧风吹红布、枪口焰、命中火星、火药烟尘、热气、溪水倒影、3 枚换弹像素印章、砖地/软土/木柱/木梁/青石板地砖及桌下木沿/桌腿/垂松枝前景剪影。

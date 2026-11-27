@@ -1,10 +1,11 @@
--- 多端横竖屏布局、三模偏好切换与 Web 适配专项回归验收：
+-- Web 全包含端（target = "web"）横竖屏布局、三模偏好切换与假鼠标保护专项回归验收：
 -- 1. 横竖屏视口算法（横屏全屏 / 竖屏上半 16:9 画面 + 下半宋明水墨掌机区）与坐标逆变换；
 -- 2. 键鼠/触屏/手柄三模偏好循环（auto -> kbm -> touch -> gamepad -> auto）与显隐判定；
--- 3. 竖屏掌机菜单、男主线（2.5D 摇杆、快点开火锁存、贴掩体切换、3x3 换弹盘触屏划屏与「重画」钮）、
+-- 3. SDL 合成假鼠标 250ms 保护窗开启与冷却释放；
+-- 4. 竖屏掌机菜单、男主线（2.5D 摇杆、快点开火锁存、贴掩体切换、3x3 换弹盘触屏划屏与「重画」钮）、
 --    女主线（慢走/蹲伏切换、板车单点锁柄、投瓶拖瞄）；
--- 4. 音频全局静音切换与首手势解锁幂等性；
--- 5. 暂停菜单保持桌面 0..7 既有索引，第 8 项打开原地「操控设置」二级页并支持全平台切换操作模式。
+-- 5. 音频全局静音切换与首手势解锁幂等性；
+-- 6. 暂停菜单保持桌面 0..7 既有索引，第 8 项打开原地「操控设置」二级页并支持全三模切换。
 
 local Dora = require("Dora")
 local Content = Dora.Content
@@ -20,12 +21,15 @@ do
 		Content:insertSearchPath(3, Path(repoRoot, "Script", "Lib"))
 	end
 end
+
+package.loaded["watch.target"] = "web"
+local targetMod = require("Script.watch.target")
+targetMod.resetActiveTarget()
+
 local new = require("lualib_bundle").__TS__New
 local platform = require("Script.watch.platform")
 local controlsCfg = require("Script.watch.controls_config")
 local Input = require("Script.watch.input").Input
-local TouchRouter = require("Script.watch.touch").TouchRouter
-local TouchControls = require("Script.watch.fe.ui.touch_controls").TouchControls
 local rooms = require("Script.watch.rooms")
 local play = require("Script.watch.play")
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
@@ -72,14 +76,15 @@ check("viewToStage marks portrait lower deck outside stage", not mappedDeck.insi
 local vpPhone = platform.computeStageViewport(390, 844)
 check("mobile portrait 390x844 preserves 16:9", vpPhone.isPortrait and vpPhone.stageW == 390 and math.abs(vpPhone.stageH - 219) <= 2 and vpPhone.deckH >= 280)
 
--- 2. 全平台三模偏好循环与虚拟触控显隐逻辑
+-- 2. Web 三模偏好循环与虚拟触控显隐逻辑
 local root = Dora.Node()
 local fe = new(Frontend, root)
 local inp = new(Input)
-local router = new(TouchRouter, inp.settings)
-router:attach(root)
-inp:bindTouch(router)
-local ctrl = new(TouchControls, root)
+inp:attach(root, {})
+local router = inp:getTouchRouter()
+local ctrl = inp:getTouchControls()
+check("web target attaches all 3 drivers with 36-Label TouchControls",
+	router ~= nil and inp:getGamepadRouter() ~= nil and ctrl ~= nil and ctrl:getAllocatedLabelCount() == 36)
 
 inp:setStageViewport(vpLand)
 inp:setModePref("auto")
@@ -105,9 +110,13 @@ local function sync(vp, screen, p, modeNum)
 		screen = screen,
 		play = p,
 		run = nil,
-		cam = fe.cam,
-		input = inp,
+		cam = (modeNum or 1) == 1 and fe.cam or nil,
 		router = router,
+		overlayActive = inp:shouldShowTouchControls(),
+		allowAutoGameplayTouch = inp.settings.modePref == "auto" or inp.settings.modePref == "touch",
+		allowMouseOnOverlay = vp.isPortrait or inp.settings.modePref == "touch",
+		showWebTopPills = true,
+		canToggleFullscreen = true,
 		assistHintsEnabled = false,
 		isMuted = fe.audio:isAllMuted(),
 		isFullscreen = false,
@@ -138,7 +147,7 @@ inp:update()
 check("portrait handheld D-pad down emits navDown", inp.navDown)
 inp:consumeEdges()
 
--- 3b. 横屏男主线（长街）：摇杆 2.5D + 快点开火锁存 + 3x3 换弹盘划屏与重画钮
+-- 3b. 横屏男主线（长街）：摇杆 2.5D + 250ms 假鼠标隔离 + 快点开火锁存 + 3x3 换弹盘划屏与重画钮
 inp:setStageViewport(vpLand)
 fe:setStagePlacement(vpLand)
 inp:setInputMode("touch")
@@ -158,9 +167,16 @@ router:injectTouch("began", 11, 120, 120, false)
 router:injectTouch("moved", 11, 182, 182, false)
 inp:update()
 check("soldier touch joystick drives 2.5D movement", inp.moveX == 1 and inp.moveY == -1)
+check("active finger suppresses synthetic mouse on web", router:isSuppressingSyntheticMouse())
 router:injectTouch("ended", 11, 182, 182, false)
 inp:update()
 inp:consumeEdges()
+
+for _ = 1, 20 do
+	sync(vpLand, "play", soldierPlay, 1)
+	inp:update()
+end
+check("synthetic mouse suppression clears after 0.25s cooldown on web", not router:isSuppressingSyntheticMouse())
 
 -- 单帧快点舞台（同帧 began + ended）不丢开火边沿
 router:injectTouch("began", 12, 640, 320, false)
@@ -245,7 +261,7 @@ check("toggleAllMuted restores all tracks", fe.audio:toggleAllMuted() == false a
 fe.audio:unlockAndResyncAfterGesture()
 check("unlockAndResyncAfterGesture runs cleanly", true)
 
--- 5. 暂停菜单严格保持桌面 0..7 索引，第 8 项打开「操控设置」原地二级页
+-- 5. Web 端暂停菜单过滤「退出游戏」（共 8 项 0..7），末项索引 7 打开「操控设置」原地二级页
 inp:setStageViewport(vpLand)
 fe:setStagePlacement(vpLand)
 inp:markKeyboardActivity()
@@ -254,21 +270,21 @@ inp.uiInside = false
 soldierPlay.paused = true
 fe.screen = "play"
 fe.menus:openPause()
-for _ = 1, 8 do
+for _ = 1, 7 do
 	fe.menus:onKeyEvent("Down")
 	fe:renderPlay(1 / 60, soldierPlay, inp, 1280, 720)
 end
-check("pause menu selects settings at index 8", fe.menus.pauseSelected == 8)
+check("web pause menu selects settings at index 7 (quit omitted)", fe.menus.pauseSelected == 7)
 fe.menus:onKeyEvent("Return")
 fe:renderPlay(1 / 60, soldierPlay, inp, 1280, 720)
-check("pause index 8 opens in-place 操控设置 sub-panel", fe.menus:isShowingPauseSettings())
+check("web pause index 7 opens in-place 操控设置 sub-panel", fe.menus:isShowingPauseSettings())
 -- 第 0 行「操作模式」按右切为 kbm -> 再切 touch
 fe.menus:onKeyEvent("Right")
 fe:renderPlay(1 / 60, soldierPlay, inp, 1280, 720)
 check("settings row 0 switches modePref to kbm", inp.settings.modePref == "kbm" and inp.inputMode == "kbm")
 fe.menus:onKeyEvent("Right")
 fe:renderPlay(1 / 60, soldierPlay, inp, 1280, 720)
-check("settings row 0 switches modePref to touch on desktop too", inp.settings.modePref == "touch" and inp.inputMode == "touch" and inp:shouldShowTouchControls())
+check("settings row 0 switches modePref to touch on web too", inp.settings.modePref == "touch" and inp.inputMode == "touch" and inp:shouldShowTouchControls())
 -- Esc 返回暂歇主菜单
 fe.menus:onKeyEvent("Escape")
 fe:renderPlay(1 / 60, soldierPlay, inp, 1280, 720)
@@ -280,5 +296,7 @@ fe:renderMenu(1 / 60, inp, 1280, 720)
 check("touch controls guide page renders cleanly", true)
 
 controlsCfg.saveControlSettings(controlsCfg.defaultControlSettings())
+package.loaded["watch.target"] = nil
+targetMod.resetActiveTarget()
 root:cleanup()
 print("WEB ADAPT VERIFY PASS " .. pass .. " / FAIL 0")

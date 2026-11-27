@@ -7,22 +7,22 @@ local __TS__StringCharCodeAt = ____lualib.__TS__StringCharCodeAt -- 1
 local __TS__StringCharAt = ____lualib.__TS__StringCharAt -- 1
 local __TS__StringTrim = ____lualib.__TS__StringTrim -- 1
 local ____exports = {} -- 1
-local copyForWrite, absPath, lineValue, intOf, formatSave, parseSave, normalize, sameContent, backupPathFor, backupCorrupt, usableBackup, dirOf, ops, fault, currentFile, protectedPath -- 78
+local copyForWrite, absPath, lineValue, intOf, formatSave, parseSave, normalize, sameContent, backupPathFor, backupCorrupt, usableBackup, dirOf, ops, fault, currentFile, protectedPath -- 1
 local ____Dora = require("Dora") -- 11
 local Content = ____Dora.Content -- 11
 local ____run = require("Script.watch.run") -- 12
 local isMuseumPhase = ____run.isMuseumPhase -- 12
 function copyForWrite(from, to) -- 78
-	if fault == "replace" then -- 79
+	if fault == "replace" then -- 78
 		return false -- 80
 	end -- 80
 	return ops:copy(from, to) -- 82
 end -- 82
 function absPath(path) -- 92
-	if #path > 0 and (string.sub(path, 1, 1) == "/" or string.sub(path, 1, 1) == "\\") then -- 93
+	if #path > 0 and (string.sub(path, 1, 1) == "/" or string.sub(path, 1, 1) == "\\") then -- 92
 		return path -- 94
 	end -- 94
-	if #path >= 2 and string.sub(path, 2, 2) == ":" then -- 96
+	if #path >= 2 and string.sub(path, 2, 2) == ":" then -- 94
 		return path -- 97
 	end -- 97
 	local base = Content.writablePath -- 99
@@ -34,278 +34,278 @@ function absPath(path) -- 92
 	local trimmed = (__TS__StringEndsWith(base, "/") or __TS__StringEndsWith(base, "\\")) and string.sub(base, 1, -2) or base -- 102
 	return (trimmed .. sep) .. norm -- 103
 end -- 103
-function ____exports.emptySave() -- 151
-	return { -- 152
-		childCleared = false, -- 153
-		soldierCleared = false, -- 154
-		artifactOwned = false, -- 155
-		museumPhase = "locked", -- 156
-		museumSeen = false -- 157
-	} -- 157
-end -- 151
-function lineValue(text, key) -- 161
-	local lines = __TS__StringSplit(text, "\n") -- 162
-	local prefix = key .. "=" -- 163
-	local i = 0 -- 164
-	do -- 164
-		i = 0 -- 165
-		while i < #lines do -- 165
-			local line = lines[i + 1] -- 166
-			if #line >= #prefix and __TS__StringSubstring(line, 0, #prefix) == prefix then -- 167
-				return __TS__StringSubstring(line, #prefix) -- 168
-			end -- 168
-			i = i + 1 -- 165
-		end -- 165
-	end -- 165
-	return nil -- 171
-end -- 171
-function intOf(text, fallback) -- 174
-	if #text == 0 then -- 175
-		return fallback -- 176
-	end -- 176
-	local i = 0 -- 178
-	local sign = 1 -- 179
-	if string.sub(text, 1, 1) == "-" then -- 180
-		sign = -1 -- 181
-		i = 1 -- 182
-	end -- 182
-	local n = 0 -- 184
-	local digits = 0 -- 185
-	do -- 185
-		while i < #text do -- 186
-			local c = __TS__StringCharCodeAt(text, i) -- 187
-			if c < 48 or c > 57 then -- 188
-				return fallback -- 189
-			end -- 189
-			n = n * 10 + (c - 48) -- 191
-			digits = digits + 1 -- 192
-			i = i + 1 -- 186
-		end -- 186
+function ____exports.emptySave() -- 155
+	return { -- 156
+		childCleared = false, -- 157
+		soldierCleared = false, -- 158
+		artifactOwned = false, -- 159
+		museumPhase = "locked", -- 160
+		museumSeen = false -- 161
+	} -- 161
+end -- 155
+function lineValue(text, key) -- 165
+	local lines = __TS__StringSplit(text, "\n") -- 166
+	local prefix = key .. "=" -- 167
+	local i = 0 -- 168
+	do -- 168
+		i = 0 -- 169
+		while i < #lines do -- 169
+			local line = lines[i + 1] -- 170
+			if #line >= #prefix and __TS__StringSubstring(line, 0, #prefix) == prefix then -- 170
+				return __TS__StringSubstring(line, #prefix) -- 172
+			end -- 172
+			i = i + 1 -- 169
+		end -- 169
+	end -- 169
+	return nil -- 175
+end -- 175
+function intOf(text, fallback) -- 178
+	if #text == 0 then -- 178
+		return fallback -- 180
+	end -- 180
+	local i = 0 -- 182
+	local sign = 1 -- 183
+	if string.sub(text, 1, 1) == "-" then -- 183
+		sign = -1 -- 185
+		i = 1 -- 186
 	end -- 186
-	if digits == 0 then -- 194
-		return fallback -- 195
-	end -- 195
-	return sign * n -- 197
-end -- 197
-function formatSave(state) -- 200
-	return table.concat( -- 201
-		{ -- 201
-			"version=" .. tostring(____exports.SAVE_VERSION), -- 202
-			"childCleared=" .. (state.childCleared and "true" or "false"), -- 203
-			"soldierCleared=" .. (state.soldierCleared and "true" or "false"), -- 204
-			"artifactOwned=" .. (state.artifactOwned and "true" or "false"), -- 205
-			"museumPhase=" .. state.museumPhase, -- 206
-			"museumSeen=" .. (state.museumSeen and "true" or "false"), -- 207
-			"" -- 208
-		}, -- 208
-		"\n" -- 209
-	) -- 209
-end -- 209
-function parseSave(text) -- 223
-	local bad = { -- 224
-		ok = false, -- 224
-		status = "corrupt", -- 224
-		reason = "", -- 224
-		state = ____exports.emptySave() -- 224
-	} -- 224
-	if #text == 0 then -- 225
-		bad.reason = "档案为空" -- 226
-		return bad -- 227
-	end -- 227
-	local versionText = lineValue(text, "version") -- 229
-	if versionText == nil then -- 230
-		bad.reason = "缺少 version 行" -- 231
-		return bad -- 232
-	end -- 232
-	local version = intOf(versionText, -1) -- 234
-	if version < 0 then -- 235
-		bad.reason = "version 不是十进制整数" -- 236
-		return bad -- 237
-	end -- 237
-	if version > ____exports.SAVE_VERSION then -- 239
-		return { -- 240
-			ok = false, -- 240
-			status = "unsupported", -- 240
-			reason = (("版本 " .. tostring(version)) .. " 高于 ") .. tostring(____exports.SAVE_VERSION), -- 240
-			state = ____exports.emptySave() -- 240
-		} -- 240
-	end -- 240
-	if version ~= ____exports.SAVE_VERSION then -- 242
-		bad.reason = "不支持的旧版本 " .. tostring(version) -- 243
-		return bad -- 244
+	local n = 0 -- 188
+	local digits = 0 -- 189
+	do -- 189
+		while i < #text do -- 189
+			local c = __TS__StringCharCodeAt(text, i) -- 191
+			if c < 48 or c > 57 then -- 191
+				return fallback -- 193
+			end -- 193
+			n = n * 10 + (c - 48) -- 195
+			digits = digits + 1 -- 196
+			i = i + 1 -- 190
+		end -- 190
+	end -- 190
+	if digits == 0 then -- 190
+		return fallback -- 199
+	end -- 199
+	return sign * n -- 201
+end -- 201
+function formatSave(state) -- 204
+	return table.concat( -- 205
+		{ -- 205
+			"version=" .. tostring(____exports.SAVE_VERSION), -- 206
+			"childCleared=" .. (state.childCleared and "true" or "false"), -- 207
+			"soldierCleared=" .. (state.soldierCleared and "true" or "false"), -- 208
+			"artifactOwned=" .. (state.artifactOwned and "true" or "false"), -- 209
+			"museumPhase=" .. state.museumPhase, -- 210
+			"museumSeen=" .. (state.museumSeen and "true" or "false"), -- 211
+			"" -- 212
+		}, -- 212
+		"\n" -- 213
+	) -- 213
+end -- 213
+function parseSave(text) -- 227
+	local bad = { -- 228
+		ok = false, -- 228
+		status = "corrupt", -- 228
+		reason = "", -- 228
+		state = ____exports.emptySave() -- 228
+	} -- 228
+	if #text == 0 then -- 228
+		bad.reason = "档案为空" -- 230
+		return bad -- 231
+	end -- 231
+	local versionText = lineValue(text, "version") -- 233
+	if versionText == nil then -- 233
+		bad.reason = "缺少 version 行" -- 235
+		return bad -- 236
+	end -- 236
+	local version = intOf(versionText, -1) -- 238
+	if version < 0 then -- 238
+		bad.reason = "version 不是十进制整数" -- 240
+		return bad -- 241
+	end -- 241
+	if version > ____exports.SAVE_VERSION then -- 241
+		return { -- 244
+			ok = false, -- 244
+			status = "unsupported", -- 244
+			reason = (("版本 " .. tostring(version)) .. " 高于 ") .. tostring(____exports.SAVE_VERSION), -- 244
+			state = ____exports.emptySave() -- 244
+		} -- 244
 	end -- 244
-	local boolKeys = {"childCleared", "soldierCleared", "artifactOwned", "museumSeen"} -- 246
-	local bools = {} -- 247
-	local i = 0 -- 248
-	do -- 248
-		i = 0 -- 249
-		while i < #boolKeys do -- 249
-			local value = lineValue(text, boolKeys[i + 1]) -- 250
-			if value == nil then -- 251
-				bad.reason = "缺少字段 " .. boolKeys[i + 1] -- 252
-				return bad -- 253
-			end -- 253
-			if value ~= "true" and value ~= "false" then -- 255
-				bad.reason = ("字段 " .. boolKeys[i + 1]) .. " 不是布尔值" -- 256
+	if version ~= ____exports.SAVE_VERSION then -- 244
+		bad.reason = "不支持的旧版本 " .. tostring(version) -- 247
+		return bad -- 248
+	end -- 248
+	local boolKeys = {"childCleared", "soldierCleared", "artifactOwned", "museumSeen"} -- 250
+	local bools = {} -- 251
+	local i = 0 -- 252
+	do -- 252
+		i = 0 -- 253
+		while i < #boolKeys do -- 253
+			local value = lineValue(text, boolKeys[i + 1]) -- 254
+			if value == nil then -- 254
+				bad.reason = "缺少字段 " .. boolKeys[i + 1] -- 256
 				return bad -- 257
 			end -- 257
-			bools[#bools + 1] = value == "true" -- 259
-			i = i + 1 -- 249
-		end -- 249
-	end -- 249
-	local phase = lineValue(text, "museumPhase") -- 261
-	if phase == nil then -- 262
-		bad.reason = "缺少字段 museumPhase" -- 263
-		return bad -- 264
-	end -- 264
-	if not isMuseumPhase(phase) then -- 266
-		bad.reason = "museumPhase 不在枚举内" -- 267
+			if value ~= "true" and value ~= "false" then -- 257
+				bad.reason = ("字段 " .. boolKeys[i + 1]) .. " 不是布尔值" -- 260
+				return bad -- 261
+			end -- 261
+			bools[#bools + 1] = value == "true" -- 263
+			i = i + 1 -- 253
+		end -- 253
+	end -- 253
+	local phase = lineValue(text, "museumPhase") -- 265
+	if phase == nil then -- 265
+		bad.reason = "缺少字段 museumPhase" -- 267
 		return bad -- 268
 	end -- 268
-	return { -- 270
-		ok = true, -- 271
-		status = "ok", -- 272
-		reason = "版本 " .. tostring(version), -- 273
-		state = { -- 274
-			childCleared = bools[1], -- 275
-			soldierCleared = bools[2], -- 276
-			artifactOwned = bools[3], -- 277
-			museumPhase = phase, -- 278
-			museumSeen = bools[4] -- 279
-		} -- 279
-	} -- 279
-end -- 279
-function normalize(text) -- 284
-	return table.concat( -- 285
-		__TS__StringSplit( -- 285
-			table.concat( -- 285
-				__TS__StringSplit(text, "\r\n"), -- 285
-				"\n" -- 285
-			), -- 285
-			"\r" -- 285
-		), -- 285
-		"\n" -- 285
-	) -- 285
-end -- 285
-function sameContent(a, b) -- 289
-	local textA = ops:load(a) -- 290
-	local textB = ops:load(b) -- 291
-	if textA == nil or textB == nil then -- 292
-		return false -- 293
-	end -- 293
-	return normalize(textA) == normalize(textB) -- 295
-end -- 295
-function backupPathFor(target, suffix) -- 299
-	local candidate = target .. suffix -- 300
-	if not ops:exist(candidate) then -- 301
-		return candidate -- 302
-	end -- 302
-	local n = 2 -- 304
-	while n <= 9999 do -- 305
-		candidate = ((target .. suffix) .. ".") .. tostring(n) -- 306
-		if not ops:exist(candidate) then -- 307
-			return candidate -- 308
-		end -- 308
-		n = n + 1 -- 310
-	end -- 310
-	return "" -- 312
-end -- 312
-function backupCorrupt(target, suffix) -- 319
-	if not ops:exist(target) then -- 320
-		return "" -- 321
-	end -- 321
-	local backup = backupPathFor(target, suffix) -- 323
-	if backup == "" then -- 324
+	if not isMuseumPhase(phase) then -- 268
+		bad.reason = "museumPhase 不在枚举内" -- 271
+		return bad -- 272
+	end -- 272
+	return { -- 274
+		ok = true, -- 275
+		status = "ok", -- 276
+		reason = "版本 " .. tostring(version), -- 277
+		state = { -- 278
+			childCleared = bools[1], -- 279
+			soldierCleared = bools[2], -- 280
+			artifactOwned = bools[3], -- 281
+			museumPhase = phase, -- 282
+			museumSeen = bools[4] -- 283
+		} -- 283
+	} -- 283
+end -- 283
+function normalize(text) -- 288
+	return table.concat( -- 289
+		__TS__StringSplit( -- 289
+			table.concat( -- 289
+				__TS__StringSplit(text, "\r\n"), -- 289
+				"\n" -- 289
+			), -- 289
+			"\r" -- 289
+		), -- 289
+		"\n" -- 289
+	) -- 289
+end -- 289
+function sameContent(a, b) -- 293
+	local textA = ops:load(a) -- 294
+	local textB = ops:load(b) -- 295
+	if textA == nil or textB == nil then -- 295
+		return false -- 297
+	end -- 297
+	return normalize(textA) == normalize(textB) -- 299
+end -- 299
+function backupPathFor(target, suffix) -- 303
+	local candidate = target .. suffix -- 304
+	if not ops:exist(candidate) then -- 304
+		return candidate -- 306
+	end -- 306
+	local n = 2 -- 308
+	while n <= 9999 do -- 308
+		candidate = ((target .. suffix) .. ".") .. tostring(n) -- 310
+		if not ops:exist(candidate) then -- 310
+			return candidate -- 312
+		end -- 312
+		n = n + 1 -- 314
+	end -- 314
+	return "" -- 316
+end -- 316
+function backupCorrupt(target, suffix) -- 323
+	if not ops:exist(target) then -- 323
 		return "" -- 325
 	end -- 325
-	if not ops:copy(target, backup) then -- 327
-		return "" -- 328
-	end -- 328
-	if not sameContent(target, backup) then -- 330
-		return "" -- 331
-	end -- 331
-	return backup -- 333
-end -- 333
-function usableBackup(path) -- 346
-	if not ops:exist(path) then -- 347
-		return false -- 348
-	end -- 348
-	local text = ops:load(path) -- 350
-	return text ~= nil and parseSave(text).ok -- 351
-end -- 351
-function dirOf(path) -- 456
-	local i = #path - 1 -- 457
-	do -- 457
-		while i >= 0 do -- 458
-			local ch = __TS__StringCharAt(path, i) -- 459
-			if ch == "/" or ch == "\\" then -- 460
-				return __TS__StringSubstring(path, 0, i) -- 461
-			end -- 461
-			i = i - 1 -- 458
-		end -- 458
-	end -- 458
-	return "" -- 464
-end -- 464
+	local backup = backupPathFor(target, suffix) -- 327
+	if backup == "" then -- 327
+		return "" -- 329
+	end -- 329
+	if not ops:copy(target, backup) then -- 329
+		return "" -- 332
+	end -- 332
+	if not sameContent(target, backup) then -- 332
+		return "" -- 335
+	end -- 335
+	return backup -- 337
+end -- 337
+function usableBackup(path) -- 350
+	if not ops:exist(path) then -- 350
+		return false -- 352
+	end -- 352
+	local text = ops:load(path) -- 354
+	return text ~= nil and parseSave(text).ok -- 355
+end -- 355
+function dirOf(path) -- 460
+	local i = #path - 1 -- 461
+	do -- 461
+		while i >= 0 do -- 461
+			local ch = __TS__StringCharAt(path, i) -- 463
+			if ch == "/" or ch == "\\" then -- 463
+				return __TS__StringSubstring(path, 0, i) -- 465
+			end -- 465
+			i = i - 1 -- 462
+		end -- 462
+	end -- 462
+	return "" -- 468
+end -- 468
 --- 写入档案：写 `.tmp` → 校验 → 备份旧档到 `.prev`（校验成功才继续）→ 覆盖目标 → 回读校验。
 -- 失败语义：
 --   - 备份失败：不覆盖目标，清掉本次 `.tmp`（旧档完好），返回 false；
 --   - 覆盖失败：尝试从 `.prev` 回滚；`.tmp` 保留为最新候选，返回 false；
 --   - 校验失败：用 `.prev` 回滚；回滚失败则保留 `.tmp`，返回 false。
 -- 未知版本原件（按路径保护）拒绝写入。
-function ____exports.saveSave(state) -- 475
-	local target = absPath(currentFile) -- 476
-	if protectedPath == target then -- 477
-		return false -- 478
-	end -- 478
-	local dir = dirOf(target) -- 480
-	if dir ~= "" and not ops:isdir(dir) then -- 481
-		ops:mkdir(dir) -- 482
+function ____exports.saveSave(state) -- 479
+	local target = absPath(currentFile) -- 480
+	if protectedPath == target then -- 480
+		return false -- 482
 	end -- 482
-	local tmp = target .. ".tmp" -- 484
-	local prev = target .. ".prev" -- 485
-	local text = formatSave(state) -- 486
-	if fault == "write" then -- 488
-		return false -- 489
-	end -- 489
-	if not ops:save(tmp, text) then -- 491
-		ops:remove(tmp) -- 492
+	local dir = dirOf(target) -- 484
+	if dir ~= "" and not ops:isdir(dir) then -- 484
+		ops:mkdir(dir) -- 486
+	end -- 486
+	local tmp = target .. ".tmp" -- 488
+	local prev = target .. ".prev" -- 489
+	local text = formatSave(state) -- 490
+	if fault == "write" then -- 490
 		return false -- 493
 	end -- 493
-	local written = ops:load(tmp) -- 495
-	if written == nil or normalize(written) ~= normalize(text) then -- 496
-		ops:remove(tmp) -- 497
-		return false -- 498
-	end -- 498
-	local existed = ops:exist(target) -- 501
-	local backedUp = false -- 502
-	if existed then -- 503
-		if usableBackup(target) then -- 504
-			backedUp = ops:copy(target, prev) -- 505
-			if not backedUp or not usableBackup(prev) then -- 506
-				ops:remove(tmp) -- 508
-				return false -- 509
-			end -- 509
-		else -- 509
-			backupCorrupt(target, ".corrupt") -- 513
-		end -- 513
-	end -- 513
+	if not ops:save(tmp, text) then -- 493
+		ops:remove(tmp) -- 496
+		return false -- 497
+	end -- 497
+	local written = ops:load(tmp) -- 499
+	if written == nil or normalize(written) ~= normalize(text) then -- 499
+		ops:remove(tmp) -- 501
+		return false -- 502
+	end -- 502
+	local existed = ops:exist(target) -- 505
+	local backedUp = false -- 506
+	if existed then -- 506
+		if usableBackup(target) then -- 506
+			backedUp = ops:copy(target, prev) -- 509
+			if not backedUp or not usableBackup(prev) then -- 509
+				ops:remove(tmp) -- 512
+				return false -- 513
+			end -- 513
+		else -- 513
+			backupCorrupt(target, ".corrupt") -- 517
+		end -- 517
+	end -- 517
 	if not copyForWrite(tmp, target) then -- 517
-		if existed and backedUp and not sameContent(target, prev) then -- 518
-			ops:copy(prev, target) -- 519
-		end -- 519
-		return false -- 522
-	end -- 522
-	local check = ops:load(target) -- 525
-	if fault == "verify" or check == nil or normalize(check) ~= normalize(text) then -- 526
-		if existed and backedUp and ops:copy(prev, target) and usableBackup(target) then -- 527
-			ops:remove(tmp) -- 528
-			return false -- 529
-		end -- 529
-		return false -- 532
-	end -- 532
-	ops:remove(tmp) -- 535
-	return true -- 536
-end -- 475
+		if existed and backedUp and not sameContent(target, prev) then -- 517
+			ops:copy(prev, target) -- 523
+		end -- 523
+		return false -- 526
+	end -- 526
+	local check = ops:load(target) -- 529
+	if fault == "verify" or check == nil or normalize(check) ~= normalize(text) then -- 529
+		if existed and backedUp and ops:copy(prev, target) and usableBackup(target) then -- 529
+			ops:remove(tmp) -- 532
+			return false -- 533
+		end -- 533
+		return false -- 536
+	end -- 536
+	ops:remove(tmp) -- 539
+	return true -- 540
+end -- 479
 ____exports.SAVE_VERSION = 1 -- 14
 ____exports.SAVE_DIR = "watch-save" -- 15
 ____exports.SAVE_FILE = "watch-save/archive.txt" -- 16
@@ -349,13 +349,13 @@ end -- 121
 --- 把登记的档案落盘；成功才清登记，失败保留等下一帧重试。
 -- 登记属于别的档案路径时不写、返回 false（调用方应显式丢弃或先切回）。
 function ____exports.flushProfile() -- 129
-	if pending == nil then -- 130
+	if pending == nil then -- 129
 		return true -- 131
 	end -- 131
-	if pending.file ~= currentFile then -- 133
+	if pending.file ~= currentFile then -- 131
 		return false -- 134
 	end -- 134
-	if not ____exports.saveSave(pending.state) then -- 136
+	if not ____exports.saveSave(pending.state) then -- 134
 		return false -- 137
 	end -- 137
 	pending = nil -- 139
@@ -367,698 +367,724 @@ end -- 143
 function ____exports.getSaveFile() -- 147
 	return currentFile -- 148
 end -- 147
+function ____exports.savePath() -- 151
+	return absPath(currentFile) -- 152
+end -- 151
 --- 读文本；读不到按空串处理（解析会判 corrupt）。
-local function loadText(path) -- 337
-	local text = ops:load(path) -- 338
-	if text == nil then -- 339
-		return "" -- 340
-	end -- 340
-	return text -- 342
-end -- 337
+local function loadText(path) -- 341
+	local text = ops:load(path) -- 342
+	if text == nil then -- 342
+		return "" -- 344
+	end -- 344
+	return text -- 346
+end -- 341
 --- 用候选件恢复目标；成功（复制成功且回读解析一致）才清候选，失败保留候选并返回 false。
-local function restoreFrom(candidate, target, keepCandidate) -- 355
-	if not usableBackup(candidate) then -- 356
-		return false -- 357
-	end -- 357
-	if not ops:copy(candidate, target) then -- 359
-		return false -- 360
-	end -- 360
-	local again = parseSave(loadText(target)) -- 362
-	if not again.ok then -- 363
+local function restoreFrom(candidate, target, keepCandidate) -- 359
+	if not usableBackup(candidate) then -- 359
+		return false -- 361
+	end -- 361
+	if not ops:copy(candidate, target) then -- 361
 		return false -- 364
 	end -- 364
-	if not keepCandidate then -- 366
-		ops:remove(candidate) -- 367
-	end -- 367
-	return true -- 369
-end -- 355
+	local again = parseSave(loadText(target)) -- 366
+	if not again.ok then -- 366
+		return false -- 368
+	end -- 368
+	if not keepCandidate then -- 368
+		ops:remove(candidate) -- 371
+	end -- 371
+	return true -- 373
+end -- 359
 --- 读取档案。
 -- 自愈顺序：
 --   目标缺失 → 完整 `.tmp` → 完整 `.prev`；
 --   目标损坏 → 完整 `.tmp`（最新候选）→ 完整 `.prev`。
 -- 损坏/未知版本先派生备份；未知版本原件置保护位（按路径），普通写档拒绝覆盖。
-function ____exports.loadSave() -- 379
-	local target = absPath(currentFile) -- 380
-	local tmp = target .. ".tmp" -- 381
-	local prev = target .. ".prev" -- 382
-	local recovered = false -- 383
-	local recoveryDetail = "" -- 384
-	if not ops:exist(target) then -- 386
-		if restoreFrom(tmp, target, false) then -- 387
-			recovered = true -- 388
-			recoveryDetail = "目标缺失，已用完整 .tmp 恢复" -- 389
-		elseif restoreFrom(prev, target, true) then -- 390
-			recovered = true -- 391
-			recoveryDetail = "目标缺失，已用完整 .prev 恢复" -- 392
-		end -- 392
-	end -- 392
+function ____exports.loadSave() -- 383
+	local target = absPath(currentFile) -- 384
+	local tmp = target .. ".tmp" -- 385
+	local prev = target .. ".prev" -- 386
+	local recovered = false -- 387
+	local recoveryDetail = "" -- 388
+	if not ops:exist(target) then -- 388
+		if restoreFrom(tmp, target, false) then -- 388
+			recovered = true -- 392
+			recoveryDetail = "目标缺失，已用完整 .tmp 恢复" -- 393
+		elseif restoreFrom(prev, target, true) then -- 393
+			recovered = true -- 395
+			recoveryDetail = "目标缺失，已用完整 .prev 恢复" -- 396
+		end -- 396
+	end -- 396
 	if not ops:exist(target) then -- 396
-		return { -- 397
-			state = ____exports.emptySave(), -- 398
-			status = "missing", -- 398
-			detail = "无档案，按新档起局" .. (recovered and ("（" .. recoveryDetail) .. "）" or ""), -- 399
-			recovered = recovered, -- 400
-			backup = "", -- 400
-			action = "none" -- 400
-		} -- 400
-	end -- 400
-	local text = ops:load(target) -- 404
-	local parsed = parseSave(text == nil and "" or text) -- 405
-	if parsed.ok then -- 406
-		if ops:exist(tmp) and sameContent(tmp, target) then -- 408
-			ops:remove(tmp) -- 409
-		end -- 409
-		return { -- 411
-			state = parsed.state, -- 412
-			status = "ok", -- 412
-			detail = parsed.reason .. (recovered and ("（" .. recoveryDetail) .. "）" or ""), -- 413
-			recovered = recovered, -- 414
-			backup = "", -- 414
-			action = "keep" -- 414
-		} -- 414
-	end -- 414
+		return { -- 401
+			state = ____exports.emptySave(), -- 402
+			status = "missing", -- 402
+			detail = "无档案，按新档起局" .. (recovered and ("（" .. recoveryDetail) .. "）" or ""), -- 403
+			recovered = recovered, -- 404
+			backup = "", -- 404
+			action = "none" -- 404
+		} -- 404
+	end -- 404
+	local text = ops:load(target) -- 408
+	local parsed = parseSave(text == nil and "" or text) -- 409
+	if parsed.ok then -- 409
+		if ops:exist(tmp) and sameContent(tmp, target) then -- 409
+			ops:remove(tmp) -- 413
+		end -- 413
+		return { -- 415
+			state = parsed.state, -- 416
+			status = "ok", -- 416
+			detail = parsed.reason .. (recovered and ("（" .. recoveryDetail) .. "）" or ""), -- 417
+			recovered = recovered, -- 418
+			backup = "", -- 418
+			action = "keep" -- 418
+		} -- 418
+	end -- 418
 	if parsed.status == "corrupt" then -- 418
-		local broken = backupCorrupt(target, ".corrupt") -- 419
-		if restoreFrom(tmp, target, false) then -- 420
-			return { -- 421
-				state = parseSave(loadText(target)).state, -- 422
-				status = "ok", -- 423
-				detail = (("原档损坏（" .. parsed.reason) .. "），已用完整 .tmp 恢复，损坏件备份为 ") .. broken, -- 424
-				recovered = true, -- 425
-				backup = broken, -- 425
-				action = "keep" -- 425
-			} -- 425
-		end -- 425
-		if restoreFrom(prev, target, true) then -- 428
-			return { -- 429
-				state = parseSave(loadText(target)).state, -- 430
-				status = "ok", -- 431
-				detail = (("原档损坏（" .. parsed.reason) .. "），已用 .prev 恢复，损坏件备份为 ") .. broken, -- 432
-				recovered = true, -- 433
-				backup = broken, -- 433
-				action = "keep" -- 433
-			} -- 433
-		end -- 433
-		return { -- 437
-			state = ____exports.emptySave(), -- 438
-			status = "corrupt", -- 438
-			detail = (("档案损坏（" .. parsed.reason) .. "），原件保留") .. (broken ~= "" and "，损坏件备份为 " .. broken or "，备份失败（原件未动）"), -- 439
-			recovered = false, -- 441
-			backup = broken, -- 441
-			action = "reset" -- 441
-		} -- 441
-	end -- 441
-	local backup = backupCorrupt(target, ".unsupported") -- 445
-	protectedPath = target -- 446
-	return { -- 447
-		state = ____exports.emptySave(), -- 448
-		status = "unsupported", -- 448
-		detail = (("档案版本不支持（" .. parsed.reason) .. "），原件保留") .. (backup ~= "" and "：" .. backup or "，备份失败（原件未动）"), -- 449
-		recovered = recovered, -- 451
-		backup = backup, -- 451
-		action = "reset" -- 451
-	} -- 451
-end -- 379
+		local broken = backupCorrupt(target, ".corrupt") -- 423
+		if restoreFrom(tmp, target, false) then -- 423
+			return { -- 425
+				state = parseSave(loadText(target)).state, -- 426
+				status = "ok", -- 427
+				detail = (("原档损坏（" .. parsed.reason) .. "），已用完整 .tmp 恢复，损坏件备份为 ") .. broken, -- 428
+				recovered = true, -- 429
+				backup = broken, -- 429
+				action = "keep" -- 429
+			} -- 429
+		end -- 429
+		if restoreFrom(prev, target, true) then -- 429
+			return { -- 433
+				state = parseSave(loadText(target)).state, -- 434
+				status = "ok", -- 435
+				detail = (("原档损坏（" .. parsed.reason) .. "），已用 .prev 恢复，损坏件备份为 ") .. broken, -- 436
+				recovered = true, -- 437
+				backup = broken, -- 437
+				action = "keep" -- 437
+			} -- 437
+		end -- 437
+		return { -- 441
+			state = ____exports.emptySave(), -- 442
+			status = "corrupt", -- 442
+			detail = (("档案损坏（" .. parsed.reason) .. "），原件保留") .. (broken ~= "" and "，损坏件备份为 " .. broken or "，备份失败（原件未动）"), -- 443
+			recovered = false, -- 445
+			backup = broken, -- 445
+			action = "reset" -- 445
+		} -- 445
+	end -- 445
+	local backup = backupCorrupt(target, ".unsupported") -- 449
+	protectedPath = target -- 450
+	return { -- 451
+		state = ____exports.emptySave(), -- 452
+		status = "unsupported", -- 452
+		detail = (("档案版本不支持（" .. parsed.reason) .. "），原件保留") .. (backup ~= "" and "：" .. backup or "，备份失败（原件未动）"), -- 453
+		recovered = recovered, -- 455
+		backup = backup, -- 455
+		action = "reset" -- 455
+	} -- 455
+end -- 383
 --- 恢复策略（给前端「档案损坏/版本不支持」页用）：把原件隔离到派生备份后删除。
 -- 只有备份复制成功、内容与原件一致、且备份本身可解析时才删除目标。
-function ____exports.resetSave() -- 543
-	local target = absPath(currentFile) -- 544
-	if not ops:exist(target) then -- 545
-		return false -- 546
-	end -- 546
-	local backup = backupCorrupt(target, ".reset") -- 548
-	if backup == "" then -- 549
+function ____exports.resetSave() -- 547
+	local target = absPath(currentFile) -- 548
+	if not ops:exist(target) then -- 548
 		return false -- 550
 	end -- 550
-	if not sameContent(target, backup) then -- 553
+	local backup = backupCorrupt(target, ".reset") -- 552
+	if backup == "" then -- 552
 		return false -- 554
 	end -- 554
-	if not ops:remove(target) then -- 556
-		return false -- 557
-	end -- 557
-	if protectedPath == target then -- 559
-		protectedPath = "" -- 560
-	end -- 560
-	return true -- 562
-end -- 543
+	if not sameContent(target, backup) then -- 554
+		return false -- 558
+	end -- 558
+	if not ops:remove(target) then -- 558
+		return false -- 561
+	end -- 561
+	if protectedPath == target then -- 561
+		protectedPath = "" -- 564
+	end -- 564
+	return true -- 566
+end -- 547
 --- 档案内容签名：用于「正式通关是否变化」的幂等判断。
-function ____exports.saveSignature(state) -- 566
-	return table.concat({ -- 567
-		state.childCleared and "1" or "0", -- 568
-		state.soldierCleared and "1" or "0", -- 569
-		state.artifactOwned and "1" or "0", -- 570
-		state.museumPhase, -- 571
-		state.museumSeen and "1" or "0" -- 572
-	}, "|") -- 573
-end -- 566
-____exports.SESSION_VERSION = 1 -- 580
-____exports.SESSION_FILE = "watch-save/session.txt" -- 581
-local currentSessionFile = ____exports.SESSION_FILE -- 647
-function ____exports.setSessionFile(path) -- 649
-	currentSessionFile = path == "" and ____exports.SESSION_FILE or path -- 650
-end -- 649
-function ____exports.getSessionFile() -- 653
-	return currentSessionFile -- 654
-end -- 653
-local function parseBoolField(raw, fallback) -- 657
-	if raw == nil then -- 658
-		return fallback -- 659
-	end -- 659
-	if raw == "true" or raw == "1" then -- 661
-		return true -- 662
-	end -- 662
-	if raw == "false" or raw == "0" then -- 664
-		return false -- 665
-	end -- 665
-	return nil -- 667
-end -- 657
-local function parseListField(raw) -- 670
-	if raw == nil or raw == "" then -- 671
-		return {} -- 672
-	end -- 672
-	local parts = __TS__StringSplit(raw, ",") -- 674
-	local out = {} -- 675
-	local i = 0 -- 676
-	do -- 676
-		i = 0 -- 677
-		while i < #parts do -- 677
-			local item = __TS__StringTrim(parts[i + 1]) -- 678
-			if item ~= "" then -- 679
-				out[#out + 1] = item -- 680
-			end -- 680
-			i = i + 1 -- 677
-		end -- 677
-	end -- 677
-	return out -- 683
-end -- 670
-local function formatSession(s) -- 686
-	return table.concat( -- 687
-		{ -- 687
-			"version=" .. tostring(____exports.SESSION_VERSION), -- 688
-			"roomKey=" .. s.roomKey, -- 689
-			"checkpoint=" .. tostring(math.floor(s.checkpoint + 0.5)), -- 690
-			"seed=" .. tostring(math.floor(s.seed + 0.5)), -- 691
-			"route=" .. s.route, -- 692
-			"hp=" .. tostring(math.floor(s.hp + 0.5)), -- 693
-			"maxHp=" .. tostring(math.floor(s.maxHp + 0.5)), -- 694
-			"hpAtGate=" .. tostring(math.floor(s.hpAtGate + 0.5)), -- 695
-			"maxHpAtGate=" .. tostring(math.floor(s.maxHpAtGate + 0.5)), -- 696
-			"settled=" .. (s.settled and "true" or "false"), -- 697
-			"phase=" .. s.phase, -- 698
-			"countTick=" .. tostring(math.floor(s.countTick + 0.5)), -- 699
-			"phaseTick=" .. tostring(math.floor(s.phaseTick + 0.5)), -- 700
-			"handTicks=" .. tostring(math.floor(s.handTicks + 0.5)), -- 701
-			"handDone=" .. (s.handDone and "true" or "false"), -- 702
-			"lineSaid=" .. (s.lineSaid and "true" or "false"), -- 703
-			"tied=" .. (s.tied and "true" or "false"), -- 704
-			"carry=" .. (s.carry and "true" or "false"), -- 705
-			"escortDone=" .. (s.escortDone and "true" or "false"), -- 706
-			"craftedWeapon=" .. s.craftedWeapon, -- 707
-			"equippedWeapon=" .. s.equippedWeapon, -- 708
-			"wood=" .. tostring(math.floor(s.wood + 0.5)), -- 709
-			"bell=" .. tostring(math.floor(s.bell + 0.5)), -- 710
-			"scrap=" .. tostring(math.floor(s.scrap + 0.5)), -- 711
-			"wedge=" .. tostring(math.floor(s.wedge + 0.5)), -- 712
-			"ammo=" .. tostring(math.floor(s.ammo + 0.5)), -- 713
-			"shield=" .. tostring(math.floor(s.shield + 0.5)), -- 714
-			"pass=" .. tostring(math.floor(s.pass + 0.5)), -- 715
-			"quickbelt=" .. tostring(math.floor(s.quickbelt + 0.5)), -- 716
-			"taken=" .. table.concat(s.taken, ","), -- 717
-			"segments=" .. table.concat(s.segments, ","), -- 718
-			"cartAxle=" .. tostring(math.floor(s.cartAxle + 0.5)), -- 719
-			"cartDocked=" .. (s.cartDocked and "true" or "false"), -- 720
-			"campaignRoute=" .. (s.campaignRoute or ""), -- 721
-			"joined=" .. (s.joined == true and "true" or "false"), -- 722
-			"c1Latch=" .. (s.c1Latch == true and "true" or "false"), -- 723
-			"c2Latch=" .. (s.c2Latch == true and "true" or "false"), -- 724
-			"talentSeed=" .. tostring(math.floor((s.talentSeed or 0) + 0.5)), -- 725
-			"talentRoom=" .. (s.talentRoom or ""), -- 726
-			"talentOffers=" .. (s.talentOffers == nil and "" or table.concat(s.talentOffers, ",")), -- 727
-			"talentVitality=" .. tostring(math.floor((s.talentVitality or 0) + 0.5)), -- 728
-			"talentReload=" .. tostring(math.floor((s.talentReload or 0) + 0.5)), -- 729
-			"talentGuard=" .. tostring(math.floor((s.talentGuard or 0) + 0.5)), -- 730
-			"talentCraft=" .. tostring(math.floor((s.talentCraft or 0) + 0.5)), -- 731
-			"props=" .. (s.props == nil and "" or table.concat(s.props, ",")), -- 732
-			"playerX=" .. tostring(s.playerX == nil and -1 or math.floor(s.playerX + 0.5)), -- 733
-			"playerY=" .. tostring(s.playerY == nil and 0 or math.floor(s.playerY + 0.5)), -- 734
-			"playerDepth=" .. tostring(s.playerDepth == nil and 0 or math.floor(s.playerDepth + 0.5)), -- 735
-			"gateTick=" .. tostring(math.floor((s.gateTick or 0) + 0.5)), -- 736
-			"hasBottle=" .. (s.hasBottle == true and "true" or "false"), -- 737
-			"villagePassed=" .. (s.villagePassed == true and "true" or "false"), -- 738
-			"" -- 739
-		}, -- 739
-		"\n" -- 740
-	) -- 740
-end -- 686
-local function parseSession(text) -- 743
-	if #text == 0 then -- 744
-		return {ok = false, status = "corrupt", reason = "局中存档为空"} -- 745
-	end -- 745
-	local verRaw = lineValue(text, "version") -- 747
-	if verRaw == nil then -- 748
-		return {ok = false, status = "corrupt", reason = "缺少 version 行"} -- 749
-	end -- 749
-	local ver = intOf(verRaw, -1) -- 751
-	if ver < 0 then -- 752
-		return {ok = false, status = "corrupt", reason = "version 非法"} -- 753
-	end -- 753
-	if ver > ____exports.SESSION_VERSION then -- 755
-		return { -- 756
-			ok = false, -- 756
-			status = "unsupported", -- 756
-			reason = (("局中存档版本 " .. tostring(ver)) .. " 高于当前 ") .. tostring(____exports.SESSION_VERSION) -- 756
-		} -- 756
-	end -- 756
-	local roomKey = lineValue(text, "roomKey") -- 758
-	if roomKey == nil or roomKey == "" then -- 759
-		return {ok = false, status = "corrupt", reason = "缺少 roomKey"} -- 760
-	end -- 760
-	local routeRaw = lineValue(text, "route") or "" -- 762
-	if routeRaw ~= "" and routeRaw ~= "child" and routeRaw ~= "soldier" then -- 763
-		return {ok = false, status = "corrupt", reason = "route 取值非法"} -- 764
-	end -- 764
-	local settled = parseBoolField( -- 766
-		lineValue(text, "settled"), -- 766
-		false -- 766
-	) -- 766
-	local handDone = parseBoolField( -- 767
-		lineValue(text, "handDone"), -- 767
-		false -- 767
-	) -- 767
-	local lineSaid = parseBoolField( -- 768
-		lineValue(text, "lineSaid"), -- 768
-		false -- 768
-	) -- 768
-	local tied = parseBoolField( -- 769
-		lineValue(text, "tied"), -- 769
-		false -- 769
-	) -- 769
-	local carry = parseBoolField( -- 770
-		lineValue(text, "carry"), -- 770
-		false -- 770
-	) -- 770
-	local escortDone = parseBoolField( -- 771
-		lineValue(text, "escortDone"), -- 771
-		false -- 771
-	) -- 771
-	local cartDocked = parseBoolField( -- 772
-		lineValue(text, "cartDocked"), -- 772
-		false -- 772
-	) -- 772
-	local joined = parseBoolField( -- 773
-		lineValue(text, "joined"), -- 773
-		false -- 773
-	) -- 773
-	local c1Latch = parseBoolField( -- 774
-		lineValue(text, "c1Latch"), -- 774
-		false -- 774
-	) -- 774
-	local c2Latch = parseBoolField( -- 775
-		lineValue(text, "c2Latch"), -- 775
-		false -- 775
-	) -- 775
-	if settled == nil or handDone == nil or lineSaid == nil or tied == nil or carry == nil or escortDone == nil or cartDocked == nil or joined == nil or c1Latch == nil or c2Latch == nil then -- 776
-		return {ok = false, status = "corrupt", reason = "布尔字段非法"} -- 779
-	end -- 779
-	local campRouteRaw = lineValue(text, "campaignRoute") or "" -- 781
-	if campRouteRaw ~= "" and campRouteRaw ~= "outer" and campRouteRaw ~= "drygoods" then -- 782
-		return {ok = false, status = "corrupt", reason = "campaignRoute 取值非法"} -- 783
-	end -- 783
-	local hp = intOf( -- 785
-		lineValue(text, "hp") or "3", -- 785
-		-1 -- 785
+function ____exports.saveSignature(state) -- 570
+	return table.concat({ -- 571
+		state.childCleared and "1" or "0", -- 572
+		state.soldierCleared and "1" or "0", -- 573
+		state.artifactOwned and "1" or "0", -- 574
+		state.museumPhase, -- 575
+		state.museumSeen and "1" or "0" -- 576
+	}, "|") -- 576
+end -- 570
+____exports.SESSION_VERSION = 1 -- 584
+____exports.SESSION_FILE = "watch-save/session.txt" -- 585
+local currentSessionFile = ____exports.SESSION_FILE -- 656
+function ____exports.setSessionFile(path) -- 658
+	currentSessionFile = path == "" and ____exports.SESSION_FILE or path -- 659
+end -- 658
+function ____exports.getSessionFile() -- 662
+	return currentSessionFile -- 663
+end -- 662
+local function parseBoolField(raw, fallback) -- 666
+	if raw == nil then -- 666
+		return fallback -- 668
+	end -- 668
+	if raw == "true" or raw == "1" then -- 668
+		return true -- 671
+	end -- 671
+	if raw == "false" or raw == "0" then -- 671
+		return false -- 674
+	end -- 674
+	return nil -- 676
+end -- 666
+local function parseListField(raw) -- 679
+	if raw == nil or raw == "" then -- 679
+		return {} -- 681
+	end -- 681
+	local parts = __TS__StringSplit(raw, ",") -- 683
+	local out = {} -- 684
+	local i = 0 -- 685
+	do -- 685
+		i = 0 -- 686
+		while i < #parts do -- 686
+			local item = __TS__StringTrim(parts[i + 1]) -- 687
+			if item ~= "" then -- 687
+				out[#out + 1] = item -- 689
+			end -- 689
+			i = i + 1 -- 686
+		end -- 686
+	end -- 686
+	return out -- 692
+end -- 679
+function ____exports.formatSession(s) -- 695
+	return table.concat( -- 696
+		{ -- 696
+			"version=" .. tostring(____exports.SESSION_VERSION), -- 697
+			"roomKey=" .. s.roomKey, -- 698
+			"checkpoint=" .. tostring(math.floor(s.checkpoint + 0.5)), -- 699
+			"seed=" .. tostring(math.floor(s.seed + 0.5)), -- 700
+			"route=" .. s.route, -- 701
+			"hp=" .. tostring(math.floor(s.hp + 0.5)), -- 702
+			"maxHp=" .. tostring(math.floor(s.maxHp + 0.5)), -- 703
+			"hpAtGate=" .. tostring(math.floor(s.hpAtGate + 0.5)), -- 704
+			"maxHpAtGate=" .. tostring(math.floor(s.maxHpAtGate + 0.5)), -- 705
+			"settled=" .. (s.settled and "true" or "false"), -- 706
+			"phase=" .. s.phase, -- 707
+			"countTick=" .. tostring(math.floor(s.countTick + 0.5)), -- 708
+			"phaseTick=" .. tostring(math.floor(s.phaseTick + 0.5)), -- 709
+			"handTicks=" .. tostring(math.floor(s.handTicks + 0.5)), -- 710
+			"handDone=" .. (s.handDone and "true" or "false"), -- 711
+			"lineSaid=" .. (s.lineSaid and "true" or "false"), -- 712
+			"tied=" .. (s.tied and "true" or "false"), -- 713
+			"carry=" .. (s.carry and "true" or "false"), -- 714
+			"escortDone=" .. (s.escortDone and "true" or "false"), -- 715
+			"craftedWeapon=" .. s.craftedWeapon, -- 716
+			"equippedWeapon=" .. s.equippedWeapon, -- 717
+			"wood=" .. tostring(math.floor(s.wood + 0.5)), -- 718
+			"bell=" .. tostring(math.floor(s.bell + 0.5)), -- 719
+			"scrap=" .. tostring(math.floor(s.scrap + 0.5)), -- 720
+			"wedge=" .. tostring(math.floor(s.wedge + 0.5)), -- 721
+			"ammo=" .. tostring(math.floor(s.ammo + 0.5)), -- 722
+			"shield=" .. tostring(math.floor(s.shield + 0.5)), -- 723
+			"pass=" .. tostring(math.floor(s.pass + 0.5)), -- 724
+			"quickbelt=" .. tostring(math.floor(s.quickbelt + 0.5)), -- 725
+			"taken=" .. table.concat(s.taken, ","), -- 726
+			"segments=" .. table.concat(s.segments, ","), -- 727
+			"cartAxle=" .. tostring(math.floor(s.cartAxle + 0.5)), -- 728
+			"cartDocked=" .. (s.cartDocked and "true" or "false"), -- 729
+			"campaignRoute=" .. (s.campaignRoute or ""), -- 730
+			"joined=" .. (s.joined == true and "true" or "false"), -- 731
+			"c1Latch=" .. (s.c1Latch == true and "true" or "false"), -- 732
+			"c2Latch=" .. (s.c2Latch == true and "true" or "false"), -- 733
+			"talentSeed=" .. tostring(math.floor((s.talentSeed or 0) + 0.5)), -- 734
+			"talentRoom=" .. (s.talentRoom or ""), -- 735
+			"talentOffers=" .. (s.talentOffers == nil and "" or table.concat(s.talentOffers, ",")), -- 736
+			"talentRanks=" .. (s.talentRanks == nil and "" or table.concat(s.talentRanks, ",")), -- 737
+			"escortAttempt=" .. tostring(math.floor((s.escortAttempt or 1) + 0.5)), -- 738
+			"escortVariant=" .. tostring(math.floor((s.escortVariant or 0) + 0.5)), -- 739
+			"talentDeferred=" .. (s.talentDeferred == true and "true" or "false"), -- 740
+			"talentVitality=" .. tostring(math.floor((s.talentVitality or 0) + 0.5)), -- 741
+			"talentReload=" .. tostring(math.floor((s.talentReload or 0) + 0.5)), -- 742
+			"talentGuard=" .. tostring(math.floor((s.talentGuard or 0) + 0.5)), -- 743
+			"talentCraft=" .. tostring(math.floor((s.talentCraft or 0) + 0.5)), -- 744
+			"props=" .. (s.props == nil and "" or table.concat(s.props, ",")), -- 745
+			"playerX=" .. tostring(s.playerX == nil and -1 or math.floor(s.playerX + 0.5)), -- 746
+			"playerY=" .. tostring(s.playerY == nil and 0 or math.floor(s.playerY + 0.5)), -- 747
+			"playerDepth=" .. tostring(s.playerDepth == nil and 0 or math.floor(s.playerDepth + 0.5)), -- 748
+			"gateTick=" .. tostring(math.floor((s.gateTick or 0) + 0.5)), -- 749
+			"hasBottle=" .. (s.hasBottle == true and "true" or "false"), -- 750
+			"villagePassed=" .. (s.villagePassed == true and "true" or "false"), -- 751
+			"" -- 752
+		}, -- 752
+		"\n" -- 753
+	) -- 753
+end -- 695
+function ____exports.parseSession(text) -- 756
+	if #text == 0 then -- 756
+		return {ok = false, status = "corrupt", reason = "局中存档为空"} -- 758
+	end -- 758
+	local verRaw = lineValue(text, "version") -- 760
+	if verRaw == nil then -- 760
+		return {ok = false, status = "corrupt", reason = "缺少 version 行"} -- 762
+	end -- 762
+	local ver = intOf(verRaw, -1) -- 764
+	if ver < 0 then -- 764
+		return {ok = false, status = "corrupt", reason = "version 非法"} -- 766
+	end -- 766
+	if ver > ____exports.SESSION_VERSION then -- 766
+		return { -- 769
+			ok = false, -- 769
+			status = "unsupported", -- 769
+			reason = (("局中存档版本 " .. tostring(ver)) .. " 高于当前 ") .. tostring(____exports.SESSION_VERSION) -- 769
+		} -- 769
+	end -- 769
+	local roomKey = lineValue(text, "roomKey") -- 771
+	if roomKey == nil or roomKey == "" then -- 771
+		return {ok = false, status = "corrupt", reason = "缺少 roomKey"} -- 773
+	end -- 773
+	local routeRaw = lineValue(text, "route") or "" -- 775
+	if routeRaw ~= "" and routeRaw ~= "child" and routeRaw ~= "soldier" then -- 775
+		return {ok = false, status = "corrupt", reason = "route 取值非法"} -- 777
+	end -- 777
+	local settled = parseBoolField( -- 779
+		lineValue(text, "settled"), -- 779
+		false -- 779
+	) -- 779
+	local handDone = parseBoolField( -- 780
+		lineValue(text, "handDone"), -- 780
+		false -- 780
+	) -- 780
+	local lineSaid = parseBoolField( -- 781
+		lineValue(text, "lineSaid"), -- 781
+		false -- 781
+	) -- 781
+	local tied = parseBoolField( -- 782
+		lineValue(text, "tied"), -- 782
+		false -- 782
+	) -- 782
+	local carry = parseBoolField( -- 783
+		lineValue(text, "carry"), -- 783
+		false -- 783
+	) -- 783
+	local escortDone = parseBoolField( -- 784
+		lineValue(text, "escortDone"), -- 784
+		false -- 784
+	) -- 784
+	local cartDocked = parseBoolField( -- 785
+		lineValue(text, "cartDocked"), -- 785
+		false -- 785
 	) -- 785
-	local maxHp = intOf( -- 786
-		lineValue(text, "maxHp") or "3", -- 786
-		-1 -- 786
+	local joined = parseBoolField( -- 786
+		lineValue(text, "joined"), -- 786
+		false -- 786
 	) -- 786
-	if hp < 0 or maxHp <= 0 then -- 787
-		return {ok = false, status = "corrupt", reason = "血量字段非法"} -- 788
-	end -- 788
-	return { -- 790
-		ok = true, -- 791
-		status = "ok", -- 792
-		reason = "ok", -- 793
-		state = { -- 794
-			roomKey = roomKey, -- 795
-			checkpoint = intOf( -- 796
-				lineValue(text, "checkpoint") or "0", -- 796
-				0 -- 796
-			), -- 796
-			seed = intOf( -- 797
-				lineValue(text, "seed") or "20261124", -- 797
-				20261124 -- 797
-			), -- 797
-			route = routeRaw, -- 798
-			hp = hp, -- 799
-			maxHp = maxHp, -- 800
-			hpAtGate = intOf( -- 801
-				lineValue(text, "hpAtGate") or "-1", -- 801
-				-1 -- 801
-			), -- 801
-			maxHpAtGate = intOf( -- 802
-				lineValue(text, "maxHpAtGate") or "-1", -- 802
-				-1 -- 802
-			), -- 802
-			settled = settled, -- 803
-			phase = lineValue(text, "phase") or "", -- 804
-			countTick = math.max( -- 805
-				0, -- 805
-				intOf( -- 805
-					lineValue(text, "countTick") or "0", -- 805
-					0 -- 805
-				) -- 805
-			), -- 805
-			phaseTick = math.max( -- 806
-				0, -- 806
-				intOf( -- 806
-					lineValue(text, "phaseTick") or "0", -- 806
-					0 -- 806
-				) -- 806
-			), -- 806
-			handTicks = math.max( -- 807
-				0, -- 807
-				intOf( -- 807
-					lineValue(text, "handTicks") or "0", -- 807
-					0 -- 807
-				) -- 807
-			), -- 807
-			handDone = handDone, -- 808
-			lineSaid = lineSaid, -- 809
-			tied = tied, -- 810
-			carry = carry, -- 811
-			escortDone = escortDone, -- 812
-			craftedWeapon = lineValue(text, "craftedWeapon") or "", -- 813
-			equippedWeapon = lineValue(text, "equippedWeapon") or "", -- 814
-			wood = math.max( -- 815
-				0, -- 815
-				intOf( -- 815
-					lineValue(text, "wood") or "0", -- 815
-					0 -- 815
-				) -- 815
+	local c1Latch = parseBoolField( -- 787
+		lineValue(text, "c1Latch"), -- 787
+		false -- 787
+	) -- 787
+	local c2Latch = parseBoolField( -- 788
+		lineValue(text, "c2Latch"), -- 788
+		false -- 788
+	) -- 788
+	if settled == nil or handDone == nil or lineSaid == nil or tied == nil or carry == nil or escortDone == nil or cartDocked == nil or joined == nil or c1Latch == nil or c2Latch == nil then -- 788
+		return {ok = false, status = "corrupt", reason = "布尔字段非法"} -- 792
+	end -- 792
+	local campRouteRaw = lineValue(text, "campaignRoute") or "" -- 794
+	if campRouteRaw ~= "" and campRouteRaw ~= "outer" and campRouteRaw ~= "drygoods" then -- 794
+		return {ok = false, status = "corrupt", reason = "campaignRoute 取值非法"} -- 796
+	end -- 796
+	local hp = intOf( -- 798
+		lineValue(text, "hp") or "3", -- 798
+		-1 -- 798
+	) -- 798
+	local maxHp = intOf( -- 799
+		lineValue(text, "maxHp") or "3", -- 799
+		-1 -- 799
+	) -- 799
+	if hp < 0 or maxHp <= 0 then -- 799
+		return {ok = false, status = "corrupt", reason = "血量字段非法"} -- 801
+	end -- 801
+	return { -- 803
+		ok = true, -- 804
+		status = "ok", -- 805
+		reason = "ok", -- 806
+		state = { -- 807
+			roomKey = roomKey, -- 808
+			checkpoint = intOf( -- 809
+				lineValue(text, "checkpoint") or "0", -- 809
+				0 -- 809
+			), -- 809
+			seed = intOf( -- 810
+				lineValue(text, "seed") or "20261124", -- 810
+				20261124 -- 810
+			), -- 810
+			route = routeRaw, -- 811
+			hp = hp, -- 812
+			maxHp = maxHp, -- 813
+			hpAtGate = intOf( -- 814
+				lineValue(text, "hpAtGate") or "-1", -- 814
+				-1 -- 814
+			), -- 814
+			maxHpAtGate = intOf( -- 815
+				lineValue(text, "maxHpAtGate") or "-1", -- 815
+				-1 -- 815
 			), -- 815
-			bell = math.max( -- 816
-				0, -- 816
-				intOf( -- 816
-					lineValue(text, "bell") or "0", -- 816
-					0 -- 816
-				) -- 816
-			), -- 816
-			scrap = math.max( -- 817
-				0, -- 817
-				intOf( -- 817
-					lineValue(text, "scrap") or "0", -- 817
-					0 -- 817
-				) -- 817
-			), -- 817
-			wedge = math.max( -- 818
+			settled = settled, -- 816
+			phase = lineValue(text, "phase") or "", -- 817
+			countTick = math.max( -- 818
 				0, -- 818
 				intOf( -- 818
-					lineValue(text, "wedge") or "0", -- 818
+					lineValue(text, "countTick") or "0", -- 818
 					0 -- 818
 				) -- 818
 			), -- 818
-			ammo = math.max( -- 819
+			phaseTick = math.max( -- 819
 				0, -- 819
 				intOf( -- 819
-					lineValue(text, "ammo") or "0", -- 819
+					lineValue(text, "phaseTick") or "0", -- 819
 					0 -- 819
 				) -- 819
 			), -- 819
-			shield = math.max( -- 820
+			handTicks = math.max( -- 820
 				0, -- 820
 				intOf( -- 820
-					lineValue(text, "shield") or "0", -- 820
+					lineValue(text, "handTicks") or "0", -- 820
 					0 -- 820
 				) -- 820
 			), -- 820
-			pass = math.max( -- 821
-				0, -- 821
-				intOf( -- 821
-					lineValue(text, "pass") or "0", -- 821
-					0 -- 821
-				) -- 821
-			), -- 821
-			quickbelt = math.max( -- 822
-				0, -- 822
-				intOf( -- 822
-					lineValue(text, "quickbelt") or "0", -- 822
-					0 -- 822
-				) -- 822
-			), -- 822
-			taken = parseListField(lineValue(text, "taken")), -- 823
-			segments = parseListField(lineValue(text, "segments")), -- 824
-			cartAxle = intOf( -- 825
-				lineValue(text, "cartAxle") or "0", -- 825
-				0 -- 825
-			), -- 825
-			cartDocked = cartDocked, -- 826
-			campaignRoute = campRouteRaw, -- 827
-			joined = joined, -- 828
-			c1Latch = c1Latch, -- 829
-			c2Latch = c2Latch, -- 830
-			talentSeed = math.max( -- 831
+			handDone = handDone, -- 821
+			lineSaid = lineSaid, -- 822
+			tied = tied, -- 823
+			carry = carry, -- 824
+			escortDone = escortDone, -- 825
+			craftedWeapon = lineValue(text, "craftedWeapon") or "", -- 826
+			equippedWeapon = lineValue(text, "equippedWeapon") or "", -- 827
+			wood = math.max( -- 828
+				0, -- 828
+				intOf( -- 828
+					lineValue(text, "wood") or "0", -- 828
+					0 -- 828
+				) -- 828
+			), -- 828
+			bell = math.max( -- 829
+				0, -- 829
+				intOf( -- 829
+					lineValue(text, "bell") or "0", -- 829
+					0 -- 829
+				) -- 829
+			), -- 829
+			scrap = math.max( -- 830
+				0, -- 830
+				intOf( -- 830
+					lineValue(text, "scrap") or "0", -- 830
+					0 -- 830
+				) -- 830
+			), -- 830
+			wedge = math.max( -- 831
 				0, -- 831
 				intOf( -- 831
-					lineValue(text, "talentSeed") or "0", -- 831
+					lineValue(text, "wedge") or "0", -- 831
 					0 -- 831
 				) -- 831
 			), -- 831
-			talentRoom = lineValue(text, "talentRoom") or "", -- 832
-			talentOffers = parseListField(lineValue(text, "talentOffers")), -- 833
-			talentVitality = math.max( -- 834
+			ammo = math.max( -- 832
+				0, -- 832
+				intOf( -- 832
+					lineValue(text, "ammo") or "0", -- 832
+					0 -- 832
+				) -- 832
+			), -- 832
+			shield = math.max( -- 833
+				0, -- 833
+				intOf( -- 833
+					lineValue(text, "shield") or "0", -- 833
+					0 -- 833
+				) -- 833
+			), -- 833
+			pass = math.max( -- 834
 				0, -- 834
 				intOf( -- 834
-					lineValue(text, "talentVitality") or "0", -- 834
+					lineValue(text, "pass") or "0", -- 834
 					0 -- 834
 				) -- 834
 			), -- 834
-			talentReload = math.max( -- 835
+			quickbelt = math.max( -- 835
 				0, -- 835
 				intOf( -- 835
-					lineValue(text, "talentReload") or "0", -- 835
+					lineValue(text, "quickbelt") or "0", -- 835
 					0 -- 835
 				) -- 835
 			), -- 835
-			talentGuard = math.max( -- 836
-				0, -- 836
-				intOf( -- 836
-					lineValue(text, "talentGuard") or "0", -- 836
-					0 -- 836
-				) -- 836
-			), -- 836
-			talentCraft = math.max( -- 837
-				0, -- 837
-				intOf( -- 837
-					lineValue(text, "talentCraft") or "0", -- 837
-					0 -- 837
-				) -- 837
-			), -- 837
-			props = parseListField(lineValue(text, "props")), -- 838
-			playerX = intOf( -- 839
-				lineValue(text, "playerX") or "-1", -- 839
-				-1 -- 839
-			), -- 839
-			playerY = intOf( -- 840
-				lineValue(text, "playerY") or "0", -- 840
-				0 -- 840
-			), -- 840
-			playerDepth = intOf( -- 841
-				lineValue(text, "playerDepth") or "0", -- 841
-				0 -- 841
-			), -- 841
-			gateTick = math.max( -- 842
-				0, -- 842
-				intOf( -- 842
-					lineValue(text, "gateTick") or "0", -- 842
-					0 -- 842
-				) -- 842
-			), -- 842
-			hasBottle = parseBoolField( -- 843
-				lineValue(text, "hasBottle"), -- 843
-				false -- 843
-			) == true, -- 843
-			villagePassed = parseBoolField( -- 844
-				lineValue(text, "villagePassed"), -- 844
-				false -- 844
-			) == true -- 844
-		} -- 844
-	} -- 844
-end -- 743
-local function usableSessionBackup(path) -- 849
-	if not ops:exist(path) then -- 850
-		return false -- 851
-	end -- 851
-	return parseSession(loadText(path)).ok -- 853
-end -- 849
-local function restoreSessionFrom(candidate, target, keepCandidate) -- 856
-	if not usableSessionBackup(candidate) then -- 857
-		return false -- 858
-	end -- 858
-	if not ops:copy(candidate, target) then -- 860
-		return false -- 861
-	end -- 861
-	if not sameContent(candidate, target) then -- 863
-		return false -- 864
-	end -- 864
-	if not keepCandidate then -- 866
-		ops:remove(candidate) -- 867
-	end -- 867
-	return true -- 869
-end -- 856
-function ____exports.hasSessionSave() -- 872
-	local target = absPath(currentSessionFile) -- 873
-	if usableSessionBackup(target) then -- 874
-		return true -- 875
+			taken = parseListField(lineValue(text, "taken")), -- 836
+			segments = parseListField(lineValue(text, "segments")), -- 837
+			cartAxle = intOf( -- 838
+				lineValue(text, "cartAxle") or "0", -- 838
+				0 -- 838
+			), -- 838
+			cartDocked = cartDocked, -- 839
+			campaignRoute = campRouteRaw, -- 840
+			joined = joined, -- 841
+			c1Latch = c1Latch, -- 842
+			c2Latch = c2Latch, -- 843
+			talentSeed = math.max( -- 844
+				0, -- 844
+				intOf( -- 844
+					lineValue(text, "talentSeed") or "0", -- 844
+					0 -- 844
+				) -- 844
+			), -- 844
+			talentRoom = lineValue(text, "talentRoom") or "", -- 845
+			talentOffers = parseListField(lineValue(text, "talentOffers")), -- 846
+			talentRanks = parseListField(lineValue(text, "talentRanks")), -- 847
+			escortAttempt = math.max( -- 848
+				1, -- 848
+				intOf( -- 848
+					lineValue(text, "escortAttempt") or "1", -- 848
+					1 -- 848
+				) -- 848
+			), -- 848
+			escortVariant = math.max( -- 849
+				0, -- 849
+				intOf( -- 849
+					lineValue(text, "escortVariant") or "0", -- 849
+					0 -- 849
+				) -- 849
+			), -- 849
+			talentDeferred = parseBoolField( -- 850
+				lineValue(text, "talentDeferred"), -- 850
+				false -- 850
+			) == true, -- 850
+			talentVitality = math.max( -- 851
+				0, -- 851
+				intOf( -- 851
+					lineValue(text, "talentVitality") or "0", -- 851
+					0 -- 851
+				) -- 851
+			), -- 851
+			talentReload = math.max( -- 852
+				0, -- 852
+				intOf( -- 852
+					lineValue(text, "talentReload") or "0", -- 852
+					0 -- 852
+				) -- 852
+			), -- 852
+			talentGuard = math.max( -- 853
+				0, -- 853
+				intOf( -- 853
+					lineValue(text, "talentGuard") or "0", -- 853
+					0 -- 853
+				) -- 853
+			), -- 853
+			talentCraft = math.max( -- 854
+				0, -- 854
+				intOf( -- 854
+					lineValue(text, "talentCraft") or "0", -- 854
+					0 -- 854
+				) -- 854
+			), -- 854
+			props = parseListField(lineValue(text, "props")), -- 855
+			playerX = intOf( -- 856
+				lineValue(text, "playerX") or "-1", -- 856
+				-1 -- 856
+			), -- 856
+			playerY = intOf( -- 857
+				lineValue(text, "playerY") or "0", -- 857
+				0 -- 857
+			), -- 857
+			playerDepth = intOf( -- 858
+				lineValue(text, "playerDepth") or "0", -- 858
+				0 -- 858
+			), -- 858
+			gateTick = math.max( -- 859
+				0, -- 859
+				intOf( -- 859
+					lineValue(text, "gateTick") or "0", -- 859
+					0 -- 859
+				) -- 859
+			), -- 859
+			hasBottle = parseBoolField( -- 860
+				lineValue(text, "hasBottle"), -- 860
+				false -- 860
+			) == true, -- 860
+			villagePassed = parseBoolField( -- 861
+				lineValue(text, "villagePassed"), -- 861
+				false -- 861
+			) == true -- 861
+		} -- 861
+	} -- 861
+end -- 756
+local function usableSessionBackup(path) -- 866
+	if not ops:exist(path) then -- 866
+		return false -- 868
+	end -- 868
+	return ____exports.parseSession(loadText(path)).ok -- 870
+end -- 866
+local function restoreSessionFrom(candidate, target, keepCandidate) -- 873
+	if not usableSessionBackup(candidate) then -- 873
+		return false -- 875
 	end -- 875
-	return usableSessionBackup(target .. ".tmp") or usableSessionBackup(target .. ".prev") -- 877
-end -- 872
-function ____exports.loadSession() -- 880
-	local target = absPath(currentSessionFile) -- 881
-	local tmp = target .. ".tmp" -- 882
-	local prev = target .. ".prev" -- 883
-	if not ops:exist(target) then -- 884
-		if restoreSessionFrom(tmp, target, false) then -- 885
-			local p = parseSession(loadText(target)) -- 886
-			return { -- 887
-				state = p.state, -- 887
-				status = "ok", -- 887
-				detail = "由 .tmp 恢复局中存档", -- 887
-				recovered = true, -- 887
-				backup = "" -- 887
-			} -- 887
-		end -- 887
-		if restoreSessionFrom(prev, target, true) then -- 889
-			local p = parseSession(loadText(target)) -- 890
-			return { -- 891
-				state = p.state, -- 891
-				status = "ok", -- 891
-				detail = "由 .prev 恢复局中存档", -- 891
-				recovered = true, -- 891
-				backup = "" -- 891
-			} -- 891
-		end -- 891
-		return { -- 893
-			state = nil, -- 893
-			status = "missing", -- 893
-			detail = "无局中存档", -- 893
-			recovered = false, -- 893
-			backup = "" -- 893
-		} -- 893
-	end -- 893
-	local parsed = parseSession(loadText(target)) -- 895
-	if parsed.ok and parsed.state ~= nil then -- 896
-		if ops:exist(tmp) and sameContent(tmp, target) then -- 897
-			ops:remove(tmp) -- 898
-		end -- 898
-		return { -- 900
-			state = parsed.state, -- 900
-			status = "ok", -- 900
-			detail = "局中存档读取成功", -- 900
-			recovered = false, -- 900
-			backup = "" -- 900
-		} -- 900
-	end -- 900
-	if parsed.status == "corrupt" then -- 902
-		local broken = backupCorrupt(target, ".corrupt") -- 903
-		if restoreSessionFrom(tmp, target, false) then -- 904
-			local p = parseSession(loadText(target)) -- 905
-			return { -- 906
-				state = p.state, -- 906
-				status = "ok", -- 906
-				detail = "原局中存档损坏，已用 .tmp 恢复", -- 906
-				recovered = true, -- 906
-				backup = broken -- 906
-			} -- 906
-		end -- 906
-		if restoreSessionFrom(prev, target, true) then -- 908
-			local p = parseSession(loadText(target)) -- 909
-			return { -- 910
-				state = p.state, -- 910
-				status = "ok", -- 910
-				detail = "原局中存档损坏，已用 .prev 恢复", -- 910
-				recovered = true, -- 910
-				backup = broken -- 910
-			} -- 910
-		end -- 910
-		return { -- 912
-			state = nil, -- 912
-			status = "corrupt", -- 912
-			detail = parsed.reason, -- 912
-			recovered = false, -- 912
-			backup = broken -- 912
-		} -- 912
-	end -- 912
-	local backup = backupCorrupt(target, ".unsupported") -- 914
-	return { -- 915
-		state = nil, -- 915
-		status = "unsupported", -- 915
-		detail = parsed.reason, -- 915
-		recovered = false, -- 915
-		backup = backup -- 915
-	} -- 915
-end -- 880
-function ____exports.saveSession(state) -- 918
-	local target = absPath(currentSessionFile) -- 919
-	local dir = dirOf(target) -- 920
-	if dir ~= "" and not ops:isdir(dir) then -- 921
-		ops:mkdir(dir) -- 922
-	end -- 922
-	local tmp = target .. ".tmp" -- 924
-	local prev = target .. ".prev" -- 925
-	local text = formatSession(state) -- 926
-	if not ops:save(tmp, text) then -- 927
-		ops:remove(tmp) -- 928
-		return false -- 929
+	if not ops:copy(candidate, target) then -- 875
+		return false -- 878
+	end -- 878
+	if not sameContent(candidate, target) then -- 878
+		return false -- 881
+	end -- 881
+	if not keepCandidate then -- 881
+		ops:remove(candidate) -- 884
+	end -- 884
+	return true -- 886
+end -- 873
+function ____exports.hasSessionSave() -- 889
+	local target = absPath(currentSessionFile) -- 890
+	if usableSessionBackup(target) then -- 890
+		return true -- 892
+	end -- 892
+	return usableSessionBackup(target .. ".tmp") or usableSessionBackup(target .. ".prev") -- 894
+end -- 889
+function ____exports.loadSession() -- 897
+	local target = absPath(currentSessionFile) -- 898
+	local tmp = target .. ".tmp" -- 899
+	local prev = target .. ".prev" -- 900
+	if not ops:exist(target) then -- 900
+		if restoreSessionFrom(tmp, target, false) then -- 900
+			local p = ____exports.parseSession(loadText(target)) -- 903
+			return { -- 904
+				state = p.state, -- 904
+				status = "ok", -- 904
+				detail = "由 .tmp 恢复局中存档", -- 904
+				recovered = true, -- 904
+				backup = "" -- 904
+			} -- 904
+		end -- 904
+		if restoreSessionFrom(prev, target, true) then -- 904
+			local p = ____exports.parseSession(loadText(target)) -- 907
+			return { -- 908
+				state = p.state, -- 908
+				status = "ok", -- 908
+				detail = "由 .prev 恢复局中存档", -- 908
+				recovered = true, -- 908
+				backup = "" -- 908
+			} -- 908
+		end -- 908
+		return { -- 910
+			state = nil, -- 910
+			status = "missing", -- 910
+			detail = "无局中存档", -- 910
+			recovered = false, -- 910
+			backup = "" -- 910
+		} -- 910
+	end -- 910
+	local parsed = ____exports.parseSession(loadText(target)) -- 912
+	if parsed.ok and parsed.state ~= nil then -- 912
+		if ops:exist(tmp) and sameContent(tmp, target) then -- 912
+			ops:remove(tmp) -- 915
+		end -- 915
+		return { -- 917
+			state = parsed.state, -- 917
+			status = "ok", -- 917
+			detail = "局中存档读取成功", -- 917
+			recovered = false, -- 917
+			backup = "" -- 917
+		} -- 917
+	end -- 917
+	if parsed.status == "corrupt" then -- 917
+		local broken = backupCorrupt(target, ".corrupt") -- 920
+		if restoreSessionFrom(tmp, target, false) then -- 920
+			local p = ____exports.parseSession(loadText(target)) -- 922
+			return { -- 923
+				state = p.state, -- 923
+				status = "ok", -- 923
+				detail = "原局中存档损坏，已用 .tmp 恢复", -- 923
+				recovered = true, -- 923
+				backup = broken -- 923
+			} -- 923
+		end -- 923
+		if restoreSessionFrom(prev, target, true) then -- 923
+			local p = ____exports.parseSession(loadText(target)) -- 926
+			return { -- 927
+				state = p.state, -- 927
+				status = "ok", -- 927
+				detail = "原局中存档损坏，已用 .prev 恢复", -- 927
+				recovered = true, -- 927
+				backup = broken -- 927
+			} -- 927
+		end -- 927
+		return { -- 929
+			state = nil, -- 929
+			status = "corrupt", -- 929
+			detail = parsed.reason, -- 929
+			recovered = false, -- 929
+			backup = broken -- 929
+		} -- 929
 	end -- 929
-	local written = ops:load(tmp) -- 931
-	if written == nil or normalize(written) ~= normalize(text) then -- 932
-		ops:remove(tmp) -- 933
-		return false -- 934
-	end -- 934
-	local existed = ops:exist(target) -- 936
-	local backedUp = false -- 937
-	if existed then -- 938
-		if usableSessionBackup(target) then -- 939
-			backedUp = ops:copy(target, prev) -- 940
-			if not backedUp or not usableSessionBackup(prev) then -- 941
-				ops:remove(tmp) -- 942
-				return false -- 943
-			end -- 943
-		else -- 943
-			backupCorrupt(target, ".corrupt") -- 946
-		end -- 946
+	local backup = backupCorrupt(target, ".unsupported") -- 931
+	return { -- 932
+		state = nil, -- 932
+		status = "unsupported", -- 932
+		detail = parsed.reason, -- 932
+		recovered = false, -- 932
+		backup = backup -- 932
+	} -- 932
+end -- 897
+function ____exports.saveSession(state) -- 935
+	local target = absPath(currentSessionFile) -- 936
+	local dir = dirOf(target) -- 937
+	if dir ~= "" and not ops:isdir(dir) then -- 937
+		ops:mkdir(dir) -- 939
+	end -- 939
+	local tmp = target .. ".tmp" -- 941
+	local prev = target .. ".prev" -- 942
+	local text = ____exports.formatSession(state) -- 943
+	if not ops:save(tmp, text) then -- 943
+		ops:remove(tmp) -- 945
+		return false -- 946
 	end -- 946
-	if not ops:copy(tmp, target) then -- 949
-		if existed and backedUp and not sameContent(target, prev) then -- 950
-			ops:copy(prev, target) -- 951
-		end -- 951
-		return false -- 953
-	end -- 953
-	local check = ops:load(target) -- 955
-	if check == nil or normalize(check) ~= normalize(text) then -- 956
-		if existed and backedUp and ops:copy(prev, target) and usableSessionBackup(target) then -- 957
-			ops:remove(tmp) -- 958
-		end -- 958
-		return false -- 960
-	end -- 960
-	ops:remove(tmp) -- 962
-	return true -- 963
-end -- 918
-function ____exports.clearSession() -- 966
-	local target = absPath(currentSessionFile) -- 967
-	local tmp = target .. ".tmp" -- 968
-	local prev = target .. ".prev" -- 969
-	local ok = true -- 970
-	if ops:exist(target) then -- 971
-		ok = ops:remove(target) and ok -- 972
-	end -- 972
-	if ops:exist(tmp) then -- 974
-		ops:remove(tmp) -- 975
-	end -- 975
-	if ops:exist(prev) then -- 977
-		ops:remove(prev) -- 978
-	end -- 978
-	return ok -- 980
-end -- 966
-return ____exports -- 966
+	local written = ops:load(tmp) -- 948
+	if written == nil or normalize(written) ~= normalize(text) then -- 948
+		ops:remove(tmp) -- 950
+		return false -- 951
+	end -- 951
+	local existed = ops:exist(target) -- 953
+	local backedUp = false -- 954
+	if existed then -- 954
+		if usableSessionBackup(target) then -- 954
+			backedUp = ops:copy(target, prev) -- 957
+			if not backedUp or not usableSessionBackup(prev) then -- 957
+				ops:remove(tmp) -- 959
+				return false -- 960
+			end -- 960
+		else -- 960
+			backupCorrupt(target, ".corrupt") -- 963
+		end -- 963
+	end -- 963
+	if not ops:copy(tmp, target) then -- 963
+		if existed and backedUp and not sameContent(target, prev) then -- 963
+			ops:copy(prev, target) -- 968
+		end -- 968
+		return false -- 970
+	end -- 970
+	local check = ops:load(target) -- 972
+	if check == nil or normalize(check) ~= normalize(text) then -- 972
+		if existed and backedUp and ops:copy(prev, target) and usableSessionBackup(target) then -- 972
+			ops:remove(tmp) -- 975
+		end -- 975
+		return false -- 977
+	end -- 977
+	ops:remove(tmp) -- 979
+	return true -- 980
+end -- 935
+function ____exports.clearSession() -- 983
+	local target = absPath(currentSessionFile) -- 984
+	local tmp = target .. ".tmp" -- 985
+	local prev = target .. ".prev" -- 986
+	local ok = true -- 987
+	if ops:exist(target) then -- 987
+		ok = ops:remove(target) and ok -- 989
+	end -- 989
+	if ops:exist(tmp) then -- 989
+		ops:remove(tmp) -- 992
+	end -- 992
+	if ops:exist(prev) then -- 992
+		ops:remove(prev) -- 995
+	end -- 995
+	return ok -- 997
+end -- 983
+return ____exports -- 983

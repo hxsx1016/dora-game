@@ -17,7 +17,7 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { Play } from "Script/watch/play";
+import { Play, PROLOGUE_CABINET_X } from "Script/watch/play";
 import { AudioDirector } from "Script/watch/fe/audio";
 import { DualRouteContract, DualRouteSnapshot } from "Script/watch/fe/contract";
 import { CUFF_PALETTE } from "Script/watch/fe/cutscenes/cuff_shots";
@@ -483,8 +483,11 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             } else if (phase === "prologue-hide" && this.stage !== "p02_hidden") {
                 this.enterHiddenCabinet();
             } else if (
-                (phase === "prologue-wait" || phase === "prologue-give")
-                && (this.stage === "p02_escape" || this.stage === "p02_hidden")
+                (phase === "prologue-wait" || phase === "prologue-give" || phase === "prologue-follow")
+                && (this.stage === "p01_wake"
+                    || this.stage === "p02_shadow"
+                    || this.stage === "p02_escape"
+                    || this.stage === "p02_hidden")
             ) {
                 this.stage = "idle";
                 this.vignetteAlpha = 0;
@@ -501,14 +504,15 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             if (ename === "prologueBeat" && ev.data["beat"] === "escapeRetry" && this.stage === "p02_escape") {
                 this.retryEscape();
             } else if (ename === "p04WallFlash" || ename === "wallPeekFlash") {
-                if (!this.p04TriggeredOnce) {
+                if (!this.p04TriggeredOnce && p.run.story.segments["p04_wall_flash"] !== true) {
+                    p.run.story.segments["p04_wall_flash"] = true;
                     this.triggerP04(p.player.x, p.player.y);
                 }
             }
         }
 
-        // 正式局内自然触发 P04：双人同行经兵房巷出口/十字街起始墙根段（单次去重，绝不锁控）
-        if (!this.p04TriggeredOnce && !p.childMode && p.player.alive && p.partner.alive) {
+        // 正式局内自然触发 P04：双人同行经兵房巷出口/十字街起始墙根段（跨房持久去重，避免序章与 S1 重复播放两次）
+        if (!this.p04TriggeredOnce && p.run.story.segments["p04_wall_flash"] !== true && !p.childMode && p.player.alive && p.partner.alive) {
             const inPrologueCourtyard = p.room.key === "prologue"
                 && p.phase === "prologue-follow"
                 && p.player.x >= p.ox + 470 && p.player.x <= p.ox + 635;
@@ -518,6 +522,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             const inS1WellRoot = p.room.key === "s1-crossroad"
                 && p.player.x >= p.ox + 185 && p.player.x <= p.ox + 320;
             if (inPrologueCourtyard || inStreetWallRoot || inS1WellRoot) {
+                p.run.story.segments["p04_wall_flash"] = true;
                 this.triggerP04(p.player.x, p.player.y);
             }
         }
@@ -565,9 +570,12 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         if (this.stageElapsed >= PROLOGUE_TIMINGS.p01Duration) {
             if (this.rehearsalSequence) {
                 this.enterStage("p02_shadow", PROLOGUE_TIMINGS.p02ShadowDuration);
-            } else {
+            } else if (this.rehearsalActive) {
                 this.stageElapsed = PROLOGUE_TIMINGS.p01Duration;
                 this.stage = "idle";
+            } else {
+                // 正式模式严格服从后端 prologue-wake → prologue-shadow 切换，防 worldDt 提前 1 帧切 idle 导致黑闪重播
+                this.stageElapsed = PROLOGUE_TIMINGS.p01Duration;
             }
         }
     }
@@ -618,8 +626,13 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         }
 
         if (this.stageElapsed >= PROLOGUE_TIMINGS.p02ShadowDuration) {
-            // 碗停、镜头归位与限时逃柜起表同拍对齐
-            this.enterEscapeFromDoorway(false);
+            if (this.rehearsalActive) {
+                // 排演态碗停、镜头归位与限时逃柜起表同拍对齐
+                this.enterEscapeFromDoorway(false);
+            } else {
+                // 正式态在末帧定格等待后端切入 prologue-escape，防双时钟抖动
+                this.stageElapsed = PROLOGUE_TIMINGS.p02ShadowDuration;
+            }
         }
     }
 
@@ -721,9 +734,6 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         if (this.stageElapsed >= PROLOGUE_TIMINGS.p02HiddenLinger) {
             this.stageElapsed = PROLOGUE_TIMINGS.p02HiddenLinger;
             this.vignetteAlpha = 0;
-            if (!this.rehearsalActive) {
-                this.stage = "idle";
-            }
         }
     }
 
@@ -749,17 +759,41 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         }
     }
 
-    /** 世界层叠绘：P04 枪火双人墙影、周戍侧肩挡光与窗板/石槽磨痕（不阻断走动与镜头） */
+    /** 世界层叠绘：P02 逃柜目标厨柜环境缝光引导 + P04 枪火双人墙影与磨痕（绝不阻断走动与镜头） */
     drawActorsOverlay(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
-        _worldArt: FePluginContext["worldArt"],
+        worldArt: FePluginContext["worldArt"],
         ctx: FePluginContext,
     ): void {
+        if (this.stage === "p02_escape" && !this.rehearsalActive && ctx.p.room.key === "prologue") {
+            const cam = ctx.cam;
+            const cabX = cam.sx(ctx.p.ox + PROLOGUE_CABINET_X + 18);
+            const cabY = cam.sy(0, 0);
+            const pulse = 0.65 + 0.35 * Math.sin(this.stageElapsed * 6.5);
+            const sway = Math.sin(this.stageElapsed * 9.0) * cam.len(2.5);
+            // 纯环境倒柜门缝暖光呼吸，无按键/箭头污染，确保低引导下也能一眼辨认藏身目标
+            fillRadialGlow(
+                fgGlow,
+                cabX + sway,
+                cabY + cam.len(34),
+                cam.len(38),
+                cam.len(46),
+                Color(232, 178, 104, Math.round(68 * pulse)),
+                Color(186, 118, 56, 0),
+                14,
+            );
+            fgDraw.drawSegment(
+                Vec2(cabX + sway, cabY + cam.len(4)),
+                Vec2(cabX + sway, cabY + cam.len(54)),
+                2.0,
+                Color(238, 198, 134, Math.round(165 * pulse)),
+            );
+        }
         if (!this.p04Active && this.p04PostHintAlpha <= 0.01) {
             return;
         }
-        this.drawP04WorldAction(fgDraw, fgGlow, ctx);
+        this.drawP04WorldAction(fgDraw, fgGlow, worldArt, ctx);
     }
 
     /** 过场与屏幕覆盖层：P01 睁眼、P02 墙影滚碗 / 逃柜红晕 / 入柜收声 */
@@ -775,7 +809,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             return true;
         }
         if (this.stage === "p02_shadow") {
-            this.drawP02ShadowAndBowl(uiDraw, uiInkDraw, uiGlow, ctx);
+            this.drawP02ShadowAndBowl(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
             return true;
         }
         if (this.stage === "p02_escape") {
@@ -784,7 +818,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             return true;
         }
         if (this.stage === "p02_hidden") {
-            this.drawP02HiddenCabinet(uiDraw, uiInkDraw, uiGlow, ctx);
+            this.drawP02HiddenCabinet(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
             return true;
         }
         return false;
@@ -819,7 +853,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             const sitLiftY = sitPan * h * 0.06;
             const fireFlicker = 0.84 + 0.16 * Math.sin(t * 9.5) * Math.cos(t * 5.2);
 
-            // 1. 粗麻床帐背景（暖橙火光透帐 + 右侧冷月青影）
+            // 1. 粗麻床帐背景（暖橙火光透帐 + 粗麻织纹叠层）
             fillVGradRect(
                 uiDraw,
                 0,
@@ -828,6 +862,20 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
                 h,
                 Color(16, 14, 18, Math.round(255 * eyeOpen * fadeOut)),
                 Color(34, 24, 24, Math.round(255 * eyeOpen * fadeOut)),
+            );
+            uiArt.tryPlacePath(
+                "assets/art/tex_diorama_ming.clip|ming_cloth",
+                "p01_canopy_linen",
+                w * 0.5 + panX * 0.45 + Math.sin(t * 1.1) * 6,
+                h * 0.62 - sitLiftY * 0.5,
+                w * 1.32,
+                h * 0.84,
+                {
+                    color: Color(74, 62, 54, 255),
+                    opacity: 0.44 * eyeOpen * fadeOut,
+                    smooth: true,
+                    layer: -2,
+                },
             );
             // 透过粗麻床帐的火光暖晕
             fillRadialGlow(
@@ -840,14 +888,14 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
                 Color(120, 52, 28, 0),
                 18,
             );
-            // 麻布垂褶竖纹（极克制像素质感条带）
+            // 麻布垂褶竖纹（柔和暗褶增强飘动层次）
             let fold = 0;
             for (fold = 0; fold < 11; fold++) {
                 const fx = w * (0.04 + fold * 0.095) + panX * 0.55 + Math.sin(t * 1.4 + fold) * 4;
                 const fw = 22 + (fold % 3) * 10;
                 const col = (fold & 1) === 0
-                    ? Color(52, 42, 36, Math.round(64 * eyeOpen * fadeOut))
-                    : Color(24, 20, 22, Math.round(78 * eyeOpen * fadeOut));
+                    ? Color(52, 42, 36, Math.round(48 * eyeOpen * fadeOut))
+                    : Color(24, 20, 22, Math.round(62 * eyeOpen * fadeOut));
                 fillHGradRect(uiDraw, fx, h * 0.24, fw, h * 0.72, Color(col.r, col.g, col.b, 0), col);
             }
 
@@ -916,69 +964,78 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
                 Color(138, 122, 106, Math.round(140 * eyeOpen * fadeOut)),
             );
 
-            // 父亲宽厚手掌撑住床沿（暗粗布袖口 + 指背火光微边）
+            // 父亲宽厚手掌撑住床沿陷进粗布褥子（优先使用手绘 cutscene_story_parts.clip|prologue_father_hand）
             if (handPress > 0.02) {
                 const hx = dipX;
-                const hy = bedTopY - pressDepth + 14;
-                const ha = Math.round(245 * handPress * fadeOut);
-                // 粗布前臂与袖口
-                uiDraw.drawPolygon([
-                    Vec2(hx - 62, hy + 135),
-                    Vec2(hx - 14, hy + 142),
-                    Vec2(hx + 8, hy + 28),
-                    Vec2(hx - 36, hy + 24),
-                ], Color(42, 46, 54, ha));
-                // 手背与撑褥五指轮廓
-                uiDraw.drawPolygon([
-                    Vec2(hx - 38, hy + 26),
-                    Vec2(hx + 16, hy + 28),
-                    Vec2(hx + 34, hy + 2),
-                    Vec2(hx + 22, hy - 14),
-                    Vec2(hx - 26, hy - 12),
-                    Vec2(hx - 42, hy + 4),
-                ], Color(148, 112, 86, ha));
-                // 指节分缝与指背暖光缘
-                let f = 0;
-                for (f = 0; f < 3; f++) {
-                    const fx = hx - 16 + f * 15;
-                    uiInkDraw.drawSegment(Vec2(fx, hy + 10), Vec2(fx + 2, hy - 11), 1.4, Color(68, 46, 36, ha));
+                const hy = bedTopY - pressDepth + 12;
+                const handOp = handPress * fadeOut;
+                const warmR = Math.round(218 + 26 * fireFlicker);
+                const warmG = Math.round(192 + 18 * fireFlicker);
+                const warmB = Math.round(172 + 10 * fireFlicker);
+                if (!uiArt.tryPlacePath(
+                    "assets/art/cutscene_story_parts.clip|prologue_father_hand",
+                    "p01_father_hand",
+                    hx + 18,
+                    hy + 32,
+                    360,
+                    295,
+                    {
+                        anchorX: 0.48,
+                        anchorY: 0.36,
+                        color: Color(warmR, warmG, warmB, 255),
+                        opacity: handOp,
+                        smooth: true,
+                        layer: 2,
+                    },
+                )) {
+                    const ha = Math.round(245 * handOp);
+                    uiDraw.drawPolygon([
+                        Vec2(hx - 62, hy + 135),
+                        Vec2(hx - 14, hy + 142),
+                        Vec2(hx + 8, hy + 28),
+                        Vec2(hx - 36, hy + 24),
+                    ], Color(42, 46, 54, ha));
+                    uiDraw.drawPolygon([
+                        Vec2(hx - 38, hy + 26),
+                        Vec2(hx + 16, hy + 28),
+                        Vec2(hx + 34, hy + 2),
+                        Vec2(hx + 22, hy - 14),
+                        Vec2(hx - 26, hy - 12),
+                        Vec2(hx - 42, hy + 4),
+                    ], Color(148, 112, 86, ha));
                 }
-                uiInkDraw.drawSegment(
-                    Vec2(hx - 34, hy + 22),
-                    Vec2(hx + 24, hy + 12),
-                    1.8,
-                    Color(214, 168, 126, Math.round(175 * handPress * fireFlicker * fadeOut)),
-                );
             }
         }
 
         // 4. 上下眼睑柔边开合遮幅（第一人称睁眼核心体感）
         const lidH = h * 0.52 * (1 - eyeOpen);
         if (lidH > 1) {
-            uiDraw.drawRect(Rect(0, h - lidH, w, lidH), Color(5, 6, 9, 255));
-            uiDraw.drawRect(Rect(0, 0, w, lidH), Color(5, 6, 9, 255));
+            ctx.uiMask.drawRect(Rect(0, h - lidH, w, lidH), Color(5, 6, 9, 255));
+            ctx.uiMask.drawRect(Rect(0, 0, w, lidH), Color(5, 6, 9, 255));
             const feather = Math.min(46, h * 0.08);
-            fillVGradRect(uiDraw, 0, h - lidH - feather, w, feather, Color(5, 6, 9, 0), Color(5, 6, 9, 235));
-            fillVGradRect(uiDraw, 0, lidH, w, feather, Color(5, 6, 9, 235), Color(5, 6, 9, 0));
+            fillVGradRect(ctx.uiMask, 0, h - lidH - feather, w, feather, Color(5, 6, 9, 0), Color(5, 6, 9, 235));
+            fillVGradRect(ctx.uiMask, 0, lidH, w, feather, Color(5, 6, 9, 235), Color(5, 6, 9, 0));
         }
 
-        // 5. 黑场与初醒时父亲唤「小满。」极简素幕字幕
-        const callAlpha = smoothstep(0.10, 0.32, t) * (1 - smoothstep(1.05, 1.55, t));
-        if (callAlpha > 0.02) {
-            drawSilkVeil(uiDraw, uiArt, "p01_call_veil", w * 0.5, h * 0.14, 240, 44, PALETTE.inkWash, 0.72 * callAlpha, 0);
-            ctx.texts.put(
-                "sm",
-                "「小满。」",
-                w * 0.5,
-                h * 0.14,
-                toColor(PALETTE.textBright),
-                0.5,
-                0.5,
-                TextAlign.Center,
-                2.0,
-                callAlpha,
-                0.08,
-            );
+        // 5. 排演态黑场父亲唤「小满。」极简素幕字幕（正式模式交由 NarrativeRenderer.drawCutsceneDialogue 呈现 D30/D31）
+        if (this.rehearsalActive) {
+            const callAlpha = smoothstep(0.10, 0.32, t) * (1 - smoothstep(1.05, 1.55, t));
+            if (callAlpha > 0.02) {
+                drawSilkVeil(uiDraw, uiArt, "p01_call_veil", w * 0.5, h * 0.14, 240, 44, PALETTE.inkWash, 0.72 * callAlpha, 0);
+                ctx.texts.put(
+                    "sm",
+                    "「小满。」",
+                    w * 0.5,
+                    h * 0.14,
+                    toColor(PALETTE.textBright),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    2.0,
+                    callAlpha,
+                    0.08,
+                );
+            }
         }
     }
 
@@ -987,6 +1044,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
     private drawP02ShadowAndBowl(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
+        uiArt: FePluginContext["uiArt"],
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): void {
@@ -995,17 +1053,28 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         const t = this.stageElapsed;
         const fireFlicker = 0.85 + 0.15 * Math.sin(t * 14.0);
 
-        // 1. 门槛内青砖土墙与地面
+        // 1. 门槛内明代青砖墙与旧木地（叠加真实青砖纹理，衬托墙面摇曳火光人影）
         const floorY = h * 0.25;
         fillVGradRect(uiDraw, 0, floorY, w, h - floorY, Color(38, 30, 28, 255), Color(20, 18, 24, 255));
         fillVGradRect(uiDraw, 0, 0, w, floorY, Color(12, 12, 16, 255), Color(28, 24, 24, 255));
-
-        // 砖墙纹理横缝
-        let row = 1;
-        for (row = 1; row <= 6; row++) {
-            const ry = floorY + (h - floorY) * (row / 7);
-            uiInkDraw.drawSegment(Vec2(0, ry), Vec2(w, ry), 0.9, Color(18, 16, 20, 110));
-        }
+        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_brick", "p02_wall_brick_l", w * 0.25, floorY + (h - floorY) * 0.5, w * 0.52, h - floorY, {
+            color: Color(72, 60, 54, 255),
+            opacity: 0.52,
+            smooth: true,
+            layer: -4,
+        });
+        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_brick", "p02_wall_brick_r", w * 0.75, floorY + (h - floorY) * 0.5, w * 0.52, h - floorY, {
+            color: Color(64, 54, 50, 255),
+            opacity: 0.52,
+            smooth: true,
+            layer: -4,
+        });
+        uiArt.tryPlacePath("assets/art/tex_diorama_ming.clip|ming_stone", "p02_floor_stone", w * 0.5, floorY * 0.5, w, floorY, {
+            color: Color(62, 58, 56, 255),
+            opacity: 0.48,
+            smooth: true,
+            layer: -3,
+        });
 
         // 左侧门框外透入的颤动火光
         fillRadialGlow(
@@ -1019,45 +1088,42 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             18,
         );
 
-        // 2. 墙上两道父母人影（0.0–0.68s 完整，0.68s 起被一道拉长袭城者长影斜切截断）
+        // 2. 墙上两道父母人影（绘于 uiInkDraw 使人影清晰投射在青砖纹理之上，0.68s 被袭城者长影斜切截断）
         const cutProg = smoothstep(0.62, 1.05, t);
         const tremble = Math.sin(t * 18) * 3;
         const p1X = w * 0.42 + tremble;
         const p2X = w * 0.56 - tremble * 0.6;
         const parentDrop = cutProg * 36;
-        // 左侧较高人影（父亲）
-        uiDraw.drawPolygon([
+        uiInkDraw.drawPolygon([
             Vec2(p1X - 42, floorY),
             Vec2(p1X + 34, floorY),
             Vec2(p1X + 26 + cutProg * 26, floorY + 218 - parentDrop),
             Vec2(p1X - 28 + cutProg * 14, floorY + 226 - parentDrop),
-        ], Color(10, 9, 13, 215));
-        uiDraw.drawCircle(Vec2(p1X + cutProg * 20, floorY + 248 - parentDrop), 24, Color(10, 9, 13, 215));
-        // 右侧稍矮人影（母亲）
-        uiDraw.drawPolygon([
+        ], Color(10, 9, 13, 212));
+        uiInkDraw.drawCircle(Vec2(p1X + cutProg * 20, floorY + 248 - parentDrop), 24, Color(10, 9, 13, 212));
+        uiInkDraw.drawPolygon([
             Vec2(p2X - 36, floorY),
             Vec2(p2X + 32, floorY),
             Vec2(p2X + 20 + cutProg * 32, floorY + 186 - parentDrop * 0.8),
             Vec2(p2X - 24 + cutProg * 18, floorY + 194 - parentDrop * 0.8),
-        ], Color(11, 10, 14, 205));
-        uiDraw.drawCircle(Vec2(p2X - 2 + cutProg * 26, floorY + 214 - parentDrop * 0.8), 21, Color(11, 10, 14, 205));
+        ], Color(11, 10, 14, 202));
+        uiInkDraw.drawCircle(Vec2(p2X - 2 + cutProg * 26, floorY + 214 - parentDrop * 0.8), 21, Color(11, 10, 14, 202));
 
         // 突入截断两道人影的袭城者长影（长杆火器/刀影斜切整墙）
         if (cutProg > 0.01) {
             const sx = w * (0.02 + cutProg * 0.46);
-            uiDraw.drawPolygon([
+            uiInkDraw.drawPolygon([
                 Vec2(0, floorY),
                 Vec2(sx + 58, floorY),
                 Vec2(sx + 135, h),
                 Vec2(0, h),
-            ], Color(6, 6, 10, Math.round(238 * cutProg)));
-            // 斜切长杆兵器剪影
-            uiDraw.drawPolygon([
+            ], Color(6, 6, 10, Math.round(234 * cutProg)));
+            uiInkDraw.drawPolygon([
                 Vec2(sx + 20, floorY + 160),
                 Vec2(sx + 275 * cutProg, floorY + 260),
                 Vec2(sx + 268 * cutProg, floorY + 276),
                 Vec2(sx + 14, floorY + 178),
-            ], Color(5, 5, 8, Math.round(235 * cutProg)));
+            ], Color(5, 5, 8, Math.round(232 * cutProg)));
         }
 
         // 3. 木门槛（地面实木横坎）
@@ -1065,29 +1131,33 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         uiDraw.drawRect(Rect(threshX, floorY - 22, 26, 30), Color(54, 38, 28, 255), 1.2, Color(112, 86, 62, 210));
         uiInkDraw.drawSegment(Vec2(threshX, floorY + 8), Vec2(threshX + 26, floorY + 8), 1.6, Color(156, 128, 96, 200));
 
-        // 4. 粗瓷碗从门后滚入并撞上门槛停在小满脚旁（1.00–1.85s 滚跳，1.85s 稳停）
+        // 4. 粗瓷缺口碗从门后滚入并撞上门槛停在小满脚旁（手绘 prologue_bowl_roll 旋转弹跳）
         const rollK = smoothstep(0.98, 1.85, t);
         if (t >= 0.96) {
             const startX = w * 0.14;
-            const stopX = threshX - 18;
+            const stopX = threshX - 22;
             const bx = startX + (stopX - startX) * rollK;
             const bounce = rollK < 1 ? Math.abs(Math.sin(rollK * Math.PI * 3.5)) * (1 - rollK) * 18 : 0;
-            const by = floorY + 8 + bounce;
-            const tilt = rollK * Math.PI * 3.2;
-            const br = 16;
+            const by = floorY + 14 + bounce;
 
-            // 瓷碗地面投影
-            uiDraw.drawEllipse(Vec2(bx, floorY + 2), 18, 4.5, Color(6, 6, 10, 175));
-            // 粗灰青瓷碗轮廓
-            uiDraw.drawCircle(Vec2(bx, by), br, Color(168, 164, 152, 245));
-            uiDraw.drawEllipse(
-                Vec2(bx + Math.cos(tilt) * 4, by + Math.sin(tilt) * 4),
-                br * 0.72,
-                br * 0.36,
-                Color(64, 60, 56, 235),
-            );
-            // 碗沿磕出的一道冷白微光与撞坎微震尘粒
-            uiInkDraw.drawArc(Vec2(bx, by), br - 1, 20, 155, 1.5, Color(224, 222, 214, 215));
+            uiInkDraw.drawEllipse(Vec2(bx, floorY + 2), 22, 5.2, Color(6, 6, 10, 175));
+            if (!uiArt.tryPlacePath(
+                "assets/art/cutscene_story_parts.clip|prologue_bowl_roll",
+                "p02_rolling_bowl",
+                bx,
+                by,
+                58,
+                46,
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    angle: rollK * 580,
+                    smooth: true,
+                    layer: 5,
+                },
+            )) {
+                uiInkDraw.drawCircle(Vec2(bx, by), 16, Color(168, 164, 152, 245));
+            }
             if (t >= 1.84) {
                 const impact = 1 - smoothstep(1.84, 2.0, t);
                 if (impact > 0.02) {
@@ -1101,14 +1171,30 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             }
         }
 
-        // 5. 右缘微微晃动的厨柜木门边角（纯环境构图引导，无文字提示）
-        const wobble = Math.sin(t * 11) * 5;
-        uiDraw.drawRect(Rect(w - 72 + wobble * 0.3, floorY, 64, 142), Color(42, 30, 24, 250), 1.1, Color(94, 72, 54, 180));
-        uiInkDraw.drawSegment(Vec2(w - 70 + wobble, floorY + 6), Vec2(w - 70 + wobble, floorY + 136), 2.0, Color(146, 118, 88, 185));
+        // 5. 右缘微微晃动的厨柜木门边角（复用真实手绘木厨柜门，纯环境构图引导）
+        const wobble = Math.sin(t * 11) * 4;
+        if (!uiArt.tryPlacePath(
+            "assets/art/cutscene_well_museum.clip|prologue_cabinet_doors",
+            "p02_shadow_cabinet_edge",
+            w + 22 + wobble * 0.4,
+            floorY + 88,
+            195,
+            198,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                color: Color(172, 152, 134, 255),
+                opacity: 0.96,
+                smooth: true,
+                layer: 3,
+            },
+        )) {
+            uiDraw.drawRect(Rect(w - 72 + wobble * 0.3, floorY, 64, 142), Color(42, 30, 24, 250), 1.1, Color(94, 72, 54, 180));
+        }
 
         // 上下克制电影黑边
-        uiDraw.drawRect(Rect(0, h - 46, w, 46), Color(6, 8, 12, 244));
-        uiDraw.drawRect(Rect(0, 0, w, 46), Color(6, 8, 12, 244));
+        uiInkDraw.drawRect(Rect(0, h - 46, w, 46), Color(6, 8, 12, 244));
+        uiInkDraw.drawRect(Rect(0, 0, w, 46), Color(6, 8, 12, 244));
     }
 
     // ==================== P02 可玩逃柜态：仅屏边红晕 + 心跳搏动 ====================
@@ -1162,9 +1248,8 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             uiDraw.drawRect(Rect(cabX, groundY, 74, 108), Color(42, 31, 24, 240), 1.2, Color(118, 92, 68, 195));
             uiInkDraw.drawSegment(Vec2(cabX + 8 + wobble * 0.5, groundY + 6), Vec2(cabX + 8 + wobble * 0.5, groundY + 100), 2.2, Color(176, 144, 106, 210));
             // 小满奔跑剪影（复用小满像素帧，缺失则绘轮廓）
-            if (!ctx.uiArt.tryPlace("child_run", "p02_escape_child", childX, groundY, 46, 74, {
+            if (!ctx.uiArt.tryPlaceRun("child", "p02_escape_child", childX, groundY, 46, 74, this.stageElapsed * 1.8, {
                 facing: 1,
-                frame: Math.floor(this.stageElapsed * 10),
                 layer: 3,
             })) {
                 uiDraw.drawRect(Rect(childX - 12, groundY, 24, 54), Color(168, 72, 54, 235));
@@ -1177,6 +1262,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
     private drawP02HiddenCabinet(
         uiDraw: DrawNode.Type,
         uiInkDraw: DrawNode.Type,
+        uiArt: FePluginContext["uiArt"],
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
     ): void {
@@ -1185,13 +1271,38 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         const t = this.stageElapsed;
         const closeK = smoothstep(0.0, 0.26, t);
 
-        // 厨柜内暗木门缝视角（两侧木板合拢，中央留一线冷月柜缝）
-        const slitW = w * (0.28 - 0.21 * closeK);
-        const leftW = (w - slitW) * 0.5;
-        uiDraw.drawRect(Rect(0, 0, leftW, h), Color(7, 7, 10, 248));
-        uiDraw.drawRect(Rect(w - leftW, 0, leftW, h), Color(7, 7, 10, 248));
-        uiInkDraw.drawSegment(Vec2(leftW, 0), Vec2(leftW, h), 1.4, Color(66, 52, 40, 175));
-        uiInkDraw.drawSegment(Vec2(w - leftW, 0), Vec2(w - leftW, h), 1.4, Color(66, 52, 40, 175));
+        // 厨柜内暗木门缝视角（手绘带中央透光门缝的实木厨柜双门 + 外侧遮暗，门缝随 closeK 收窄）
+        const doorW = w * (1.28 - 0.22 * closeK);
+        const doorH = h * 1.16;
+        const placedDoors = uiArt.tryPlacePath(
+            "assets/art/cutscene_well_museum.clip|prologue_cabinet_doors",
+            "p02_hidden_cabinet_doors",
+            w * 0.5,
+            h * 0.5,
+            doorW,
+            doorH,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                color: Color(78, 66, 56, 255),
+                opacity: 0.98,
+                smooth: true,
+                layer: 3,
+            },
+        );
+        if (!placedDoors) {
+            const slitW = w * (0.28 - 0.21 * closeK);
+            const leftW = (w - slitW) * 0.5;
+            uiDraw.drawRect(Rect(0, 0, leftW, h), Color(7, 7, 10, 248));
+            uiDraw.drawRect(Rect(w - leftW, 0, leftW, h), Color(7, 7, 10, 248));
+            uiInkDraw.drawSegment(Vec2(leftW, 0), Vec2(leftW, h), 1.4, Color(66, 52, 40, 175));
+            uiInkDraw.drawSegment(Vec2(w - leftW, 0), Vec2(w - leftW, h), 1.4, Color(66, 52, 40, 175));
+        } else {
+            // 柜内深影柔晕压暗四周，突出中央冷月柜缝
+            const edgeW = w * 0.24;
+            fillHGradRect(uiInkDraw, 0, 0, edgeW, h, Color(5, 6, 9, 232), Color(5, 6, 9, 0));
+            fillHGradRect(uiInkDraw, w - edgeW, 0, edgeW, h, Color(5, 6, 9, 0), Color(5, 6, 9, 232));
+        }
 
         // 柜缝外一缕冷灰暗影（模拟脚步远去后归于寂静）
         const footFade = 1 - smoothstep(0.30, 0.80, t);
@@ -1213,8 +1324,8 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
         if (this.vignetteAlpha > 0.005) {
             const a = Math.round(140 * this.vignetteAlpha);
             const edge = w * 0.08;
-            fillHGradRect(uiDraw, 0, 0, edge, h, Color(124, 38, 42, a), Color(124, 38, 42, 0));
-            fillHGradRect(uiDraw, w - edge, 0, edge, h, Color(124, 38, 42, 0), Color(124, 38, 42, a));
+            fillHGradRect(uiInkDraw, 0, 0, edge, h, Color(124, 38, 42, a), Color(124, 38, 42, 0));
+            fillHGradRect(uiInkDraw, w - edge, 0, edge, h, Color(124, 38, 42, 0), Color(124, 38, 42, a));
         }
     }
 
@@ -1223,6 +1334,7 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
     private drawP04WorldAction(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
+        worldArt: FePluginContext["worldArt"],
         ctx: FePluginContext,
     ): void {
         const p = ctx.p;
@@ -1301,42 +1413,55 @@ export class PrologueIntroPlugin implements FeRenderPlugin {
             }
         }
 
-        // 2. 小满沿脚边看见的「磨亮的布行窗板下沿」与「青石槽磨痕」（光灭后仍可辨认）
+        // 2. 小满沿脚边看见的「磨亮的布行窗板下沿」与「青石槽磨痕」（手绘 p04_window_board，光灭后仍可辨认）
         if (hintAlpha > 0.02) {
             const baseWx = this.p04AnchorWorldX > 0 ? this.p04AnchorWorldX : zhou.x;
             const hintBaseX = cam.sx(baseWx + 74);
             const groundY = cam.sy(0, 0);
-            const boardY = groundY + cam.len(34);
             const boardW = cam.len(62);
             const sheenBoost = flash * 0.55;
             const aNorm = clamp01(hintAlpha + sheenBoost);
 
-            // 布行窗板木体轮廓 + 被反复摸亮的浅木下沿
-            fgDraw.drawRect(
-                Rect(hintBaseX, boardY, boardW, cam.len(12)),
-                Color(54, 42, 32, Math.round(165 * aNorm)),
-                1.0,
-                Color(126, 102, 76, Math.round(150 * aNorm)),
+            const placedBoard = worldArt.tryPlacePath(
+                "assets/art/cutscene_well_museum.clip|p04_window_board",
+                "p04_polished_window_board",
+                hintBaseX + boardW * 0.5,
+                groundY - 2,
+                boardW * 1.15,
+                cam.len(68),
+                {
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    color: Color(
+                        Math.round(188 + 64 * flash),
+                        Math.round(184 + 54 * flash),
+                        Math.round(176 + 34 * flash),
+                        255,
+                    ),
+                    opacity: 0.88 * aNorm,
+                    smooth: true,
+                    layer: 4200,
+                },
             );
-            fgDraw.drawSegment(
-                Vec2(hintBaseX + 2, boardY + 1),
-                Vec2(hintBaseX + boardW - 2, boardY + 1),
-                2.0,
-                Color(214, 198, 168, Math.round(215 * aNorm)),
-            );
-
-            // 地面青石轨槽与磨亮槽沿（预告后续布行窗板与粮棚石槽线索，无箭标无文字）
-            const grooveX0 = hintBaseX - cam.len(18);
-            const grooveX1 = hintBaseX + boardW + cam.len(26);
-            fgDraw.drawRect(
-                Rect(grooveX0, groundY + 1, grooveX1 - grooveX0, cam.len(4)),
-                Color(22, 26, 32, Math.round(170 * aNorm)),
-            );
-            fgDraw.drawSegment(
-                Vec2(grooveX0 + 4, groundY + cam.len(5)),
-                Vec2(grooveX1 - 4, groundY + cam.len(5)),
-                1.6,
-                Color(196, 204, 210, Math.round(195 * aNorm)),
+            if (!placedBoard) {
+                const boardY = groundY + cam.len(34);
+                fgDraw.drawRect(
+                    Rect(hintBaseX, boardY, boardW, cam.len(12)),
+                    Color(54, 42, 32, Math.round(165 * aNorm)),
+                    1.0,
+                    Color(126, 102, 76, Math.round(150 * aNorm)),
+                );
+            }
+            // 沿磨亮窗板下沿的克制微反光（预告后续线索，无箭标无文字）
+            fillRadialGlow(
+                fgGlow,
+                hintBaseX + boardW * 0.52,
+                groundY + cam.len(8),
+                boardW * 0.55,
+                cam.len(12),
+                Color(232, 214, 178, Math.round((46 + 84 * flash) * aNorm)),
+                Color(214, 186, 142, 0),
+                12,
             );
         }
     }

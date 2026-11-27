@@ -27,7 +27,7 @@ import { AssetSlotHost } from "Script/watch/fe/assets";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { DualRouteSnapshot } from "Script/watch/fe/contract";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import {
     GATE_NIGHTMARE_LIGHT,
     LP_BUCKET,
@@ -455,131 +455,56 @@ export class GateTransitionPlugin implements FeRenderPlugin {
         const h = cam.viewH;
         const m = this.effectiveMorph;
 
-        // 1. 远景冷夜天穹（从城门余烬暗红缓慢退为宁村所海防寒夜青灰）
+        // 1. 远景夜空底层（保证任何宽高比零露白）
         const skyTop = lerpRGBA(rgba(14, 10, 14, 255), rgba(8, 13, 22, 255), m);
-        const skyMid = lerpRGBA(rgba(28, 17, 22, 255), rgba(16, 25, 38, 255), m);
-        const skyHor = lerpRGBA(rgba(54, 28, 30, 255), rgba(30, 44, 62, 255), m);
-        const splitY = h * 0.48;
-        fillVGradRect(bgDraw, 0, splitY, w, h - splitY, toColor(skyMid), toColor(skyTop));
-        fillVGradRect(bgDraw, 0, 0, w, splitY, toColor(skyHor), toColor(skyMid));
+        const skyBot = lerpRGBA(rgba(36, 22, 26, 255), rgba(22, 34, 48, 255), m);
+        fillVGradRect(bgDraw, 0, 0, w, h, toColor(skyBot), toColor(skyTop));
 
-        // 2. 0s 时与原有像素城门 bgFar_gate 100% 衔接，随 morph 拉大平滑淡出（男主线回切像素风时自然复现）
-        const pixelBgAlpha = 1 - smoothstep(0.08, 0.72, m);
-        if (pixelBgAlpha > 0.01) {
-            const span = Math.max(1, ctx.p.room.maxX - ctx.p.room.minX);
-            const progress = (cam.x - ctx.p.room.minX) / span - 0.5;
-            const artW = Math.max(w, h * 16 / 9) + w * 0.12;
-            const artH = artW * 9 / 16;
-            backdropArt.tryPlace("bgFar_gate", "gate_pixel_bg", w * (0.5 - progress * 0.09), (h - artH) * 0.5, artW, artH, {
-                opacity: pixelBgAlpha,
-                layer: 0,
-            });
+        // 2. 同机位 5 阶段像素绘卷平滑渐进叠化（彻底废弃矢量木台与白边门框！）
+        //    0s: bgFar_gate → 6s(0.25): slide_gate_01 → 12s(0.50): slide_gate_02
+        //    → 18s(0.75): slide_gate_03 → 24s(1.00): slide_gate_04
+        const artW = Math.max(w, h * 16 / 9);
+        const artH = artW * 9 / 16;
+        const artX = w * 0.5;
+        const artY = (h - artH) * 0.5;
+
+        const w0 = 1 - smoothstep(0.05, 0.28, m);
+        const w1 = smoothstep(0.04, 0.25, m) * (1 - smoothstep(0.32, 0.55, m));
+        const w2 = smoothstep(0.28, 0.50, m) * (1 - smoothstep(0.58, 0.80, m));
+        const w3 = smoothstep(0.54, 0.76, m) * (1 - smoothstep(0.82, 0.98, m));
+        const w4 = smoothstep(0.78, 0.96, m);
+
+        if (w0 > 0.01) {
+            backdropArt.tryPlace("bgFar_gate", "gate_px_stage0", artX, artY, artW, artH, { opacity: w0, layer: 0 });
+        }
+        if (w1 > 0.01) {
+            backdropArt.tryPlace("slide_gate_01", "gate_px_stage1", artX, artY, artW, artH, { opacity: w1, layer: 1 });
+        }
+        if (w2 > 0.01) {
+            backdropArt.tryPlace("slide_gate_02", "gate_px_stage2", artX, artY, artW, artH, { opacity: w2, layer: 2 });
+        }
+        if (w3 > 0.01) {
+            backdropArt.tryPlace("slide_gate_03", "gate_px_stage3", artX, artY, artW, artH, { opacity: w3, layer: 3 });
+        }
+        if (w4 > 0.01) {
+            backdropArt.tryPlace("slide_gate_04", "gate_px_stage4", artX, artY, artW, artH, { opacity: w4, layer: 4 });
         }
 
-        // 3. 低模远景：海滨山脊 + 分层海雾 + 宁村所远城墙垛口 + 远方北塔孤灯（18s 时远墙与山体在雾中清晰分离）
-        const farReveal = smoothstep(0.22, 0.85, m);
-        if (farReveal > 0.01) {
-            const scene = new LowpolyScene(cam, this.activeProjection, GATE_NIGHTMARE_LIGHT);
-            const xMin = this.lockThresholdX - 320;
-            const xMax = this.lockThresholdX + 680;
-
-            // 远方山体（z = 520，18s 以后与远墙拉开清晰层次）
-            const hillSep = smoothstep(0.45, 0.88, m);
-            scene.addDistantRidge(
-                [
-                    { x: xMin, y: 112 },
-                    { x: this.lockThresholdX - 60, y: 176 },
-                    { x: this.lockThresholdX + 120, y: 146 },
-                    { x: this.lockThresholdX + 280, y: 204 },
-                    { x: this.lockThresholdX + 460, y: 164 },
-                    { x: xMax, y: 132 },
-                ],
-                -40,
-                520,
-                MING_MATERIALS.distantHill,
-                { bucket: LP_BUCKET.BACKDROP, opacity: farReveal * (0.55 + 0.45 * hillSep) },
-            );
-
-            // 远山与远墙之间的深海雾帘（z = 360，显式把山体与远墙在雾中切开）
-            scene.addFogBand(xMin, xMax, -30, 190, 360, rgba(38, 54, 74, 255), 0.72 * hillSep, 0.06 * hillSep, {
-                bucket: LP_BUCKET.BACKDROP,
-            });
-
-            // 宁村所外城远墙与垛口（z = 225，无杂乱描边，纯雾中明代城垣低模剪影）
-            const wallMat = MING_MATERIALS.distantWall;
-            scene.addBox({
-                x0: this.lockThresholdX + 40,
-                x1: xMax,
-                y0: -48,
-                y1: 96,
-                z0: 215,
-                z1: 260,
-                material: wallMat,
-                bucket: LP_BUCKET.BACKDROP,
-                opacity: farReveal,
-                highlightTopEdge: true,
-                edgeWidth: 0,
-            });
-            // 明代城墙女墙垛口
-            let merlonX = this.lockThresholdX + 64;
-            let mi = 0;
-            for (mi = 0; mi < 10; mi++) {
-                scene.addBox({
-                    x0: merlonX,
-                    x1: merlonX + 28,
-                    y0: 96,
-                    y1: 112,
-                    z0: 215,
-                    z1: 242,
-                    material: wallMat,
-                    bucket: LP_BUCKET.BACKDROP,
-                    opacity: farReveal,
-                    sortBias: 0.05,
-                    edgeWidth: 0,
-                });
-                merlonX += 56;
-            }
-
-            // 远墙前的护城河低雾带（z = 148）
-            scene.addFogBand(xMin, xMax, -44, 108, 148, rgba(32, 46, 66, 255), 0.64 * farReveal, 0.04, {
-                bucket: LP_BUCKET.BACKDROP,
-            });
-
-            // 远方北塔一豆极克制的暖灯（方向引导，居中偏右与水墨数字清晰错开，不做夸张光柱）
-            const beaconP = projectWorld3D(this.lockThresholdX + 210, 146, 490, cam, this.activeProjection);
+        // 远山北塔一豆柔和暖灯微脉动（与像素画面融为一体）
+        const beaconVis = smoothstep(0.55, 0.88, m);
+        if (beaconVis > 0.02) {
             const pulse = 0.82 + 0.18 * Math.sin(this.animTime * 2.1);
             fillRadialGlow(
                 bgGlow,
-                beaconP.x,
-                beaconP.y,
-                34 * farReveal * pulse,
-                34 * farReveal * pulse,
-                Color(246, 212, 148, Math.round(92 * farReveal * pulse)),
+                w * 0.86,
+                h * 0.64,
+                26 * beaconVis * pulse,
+                26 * beaconVis * pulse,
+                Color(246, 212, 148, Math.round(78 * beaconVis * pulse)),
                 Color(232, 180, 96, 0),
-                16,
+                14,
             );
-            bgGlow.drawDot(Vec2(beaconP.x, beaconP.y), 2.6 * farReveal, Color(255, 244, 212, Math.round(235 * farReveal)));
-
-            // 护城河水面冷月细波（z = 120）
-            const moatY = -36;
-            const waterA = 0.42 * farReveal;
-            let ri = 0;
-            for (ri = 0; ri < 6; ri++) {
-                const rx = this.lockThresholdX + 110 + ri * 68 + Math.sin(this.animTime * 1.1 + ri * 1.7) * 8;
-                const pL = projectWorld3D(rx - 18, moatY - (ri % 2) * 6, 128 + ri * 12, cam, this.activeProjection);
-                const pR = projectWorld3D(rx + 18, moatY - (ri % 2) * 6, 128 + ri * 12, cam, this.activeProjection);
-                bgGlow.drawSegment(Vec2(pL.x, pL.y), Vec2(pR.x, pR.y), 1.1, Color(168, 198, 224, Math.round(90 * waterA)));
-            }
-
-            scene.flush(bgDraw, bgGlow);
         }
-
-        // 冷月微晕（居高开阔夜空，左避门楣、右避水墨报数字，不裁切不拥挤）
-        const mx = w * 0.66;
-        const my = h * 0.82;
-        const mr = Math.max(15, h * 0.032);
-        fillRadialGlow(bgGlow, mx, my, mr * 4.8, mr * 4.8, Color(164, 202, 232, Math.round(18 + 20 * m)), Color(24, 42, 68, 0), 18);
-        bgDraw.drawCircle(Vec2(mx, my), mr, Color(218, 232, 246, Math.round(115 + 85 * m)));
 
         return true;
     }
@@ -834,25 +759,50 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                 opacity: plankReveal,
                 highlightTopEdge: true,
             });
-            // 远处系在左端的旧红布（随风摆动，不翻面）
-            const clothBaseX = thX + 244;
-            const clothTopY = 34;
-            const windFreq = 2.8 + m * 1.4;
-            const wave1 = Math.sin(this.animTime * windFreq) * (4 + 6 * m);
-            const wave2 = Math.cos(this.animTime * windFreq * 0.85) * (3 + 4 * m);
-            scene.addTri3D(
-                vec3(clothBaseX, clothTopY, -12),
-                vec3(clothBaseX + 7, clothTopY - 2, -12),
-                vec3(clothBaseX - 8 + wave1, clothTopY - 24 + wave2 * 0.3, -15),
-                MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, opacity: plankReveal, sortBias: 0.35, edgeWidth: 0.9 },
+            // 12s 起右侧像素木桩风动旧红布（3 帧循环像素动画，作为 G04 视觉牵引点）
+            const clothReveal = smoothstep(0.28, 0.55, m);
+            if (clothReveal > 0.02) {
+                const clothX = cam.sx(thX + 244);
+                const clothY = cam.sy(32, p.player.depth);
+                worldArt.tryPlace("fe_red_cloth", "gate_px_red_cloth", clothX, clothY, cam.len(30), cam.len(22), {
+                    frame: Math.floor(this.animTime * 4.5),
+                    opacity: clothReveal * 0.96,
+                    layer: 36,
+                });
+            }
+
+            // 远处城墙外山岭望见的北塔轮廓与飞檐剪影（真实手绘立牌，随转景推进渐显去向）
+            scene.addCutout3D(
+                "assets/art/diorama_cutouts.clip|north_tower_distant",
+                thX + 365,
+                18,
+                250,
+                74,
+                95,
+                {
+                    bucket: LP_BUCKET.BACKDROP,
+                    opacity: 0.72 * plankReveal,
+                    color: rgba(146, 164, 186, 255),
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    sortBias: 0.08,
+                },
             );
-            scene.addTri3D(
-                vec3(clothBaseX + 7, clothTopY - 2, -12),
-                vec3(clothBaseX - 8 + wave1, clothTopY - 24 + wave2 * 0.3, -15),
-                vec3(clothBaseX + 2 + wave2, clothTopY - 20, -13),
-                MING_MATERIALS.mingRedCloth,
-                { bucket: LP_BUCKET.PROP, opacity: plankReveal * 0.9, sortBias: 0.36 },
+            scene.addCutout3D(
+                "assets/art/diorama_cutouts.clip|ming_eave_ruin",
+                thX - 56,
+                148,
+                22,
+                146,
+                96,
+                {
+                    bucket: LP_BUCKET.MIDGROUND,
+                    opacity: 0.90,
+                    color: rgba(168, 184, 202, 255),
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    sortBias: 0.12,
+                },
             );
         }
 
@@ -862,10 +812,10 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             sortBias: 0.45,
         });
 
-        // 8. 刷出全部 3D 低模几何
-        scene.flush(fgDraw, fgGlow);
+        // 8. 刷出全部 3D 微缩剧场纹理几何
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
 
-        // 9. 关门后用实心明代城墙与重门精灵遮蔽留在门内的 p.partner（周戍在 swapToChild 后仍 alive 站在门内 x<=860），
+        // 9. 关门后用贴图城墙与手绘明代铁铺首厚木重门遮蔽留在门内的 p.partner（周戍在 swapToChild 后仍 alive 站在门内 x<=860），
         //    男主线 G05 重逢切回像素风时淡出该遮挡，自然露出周戍身影；门槛位于 874，绝不越过门外小满 x=890！
         const hidePartnerInside = this.reunionPixelReturn < 0.85 && closeFrac > 0.60;
         if (hidePartnerInside) {
@@ -876,49 +826,62 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             const wallBotY = cam.sy(0, p.player.depth);
             const wallH = Math.max(2, wallTopY - wallBotY);
             const wallOp = clamp01((closeFrac - 0.60) / 0.28) * (1 - this.reunionPixelReturn);
-            worldArt.tryPlace(
-                "wall",
+            worldArt.tryPlacePath(
+                "assets/art/tex_diorama_ming.clip|ming_brick",
                 "gate_closed_wall_mask",
                 (wallLeftX + wallRightX) * 0.5,
                 wallBotY,
                 wallW,
                 wallH,
                 {
+                    anchorX: 0.5,
+                    anchorY: 0,
                     layer: 4102,
-                    color: Color(52, 56, 66, 255),
+                    color: Color(76, 84, 98, 255),
                     opacity: wallOp,
+                    smooth: true,
                 },
             );
             const doorPanelL = cam.sx(thX - 112);
             const doorPanelR = cam.sx(thX - 1);
-            worldArt.tryPlace(
-                "prop_tower_door",
+            worldArt.tryPlacePath(
+                "assets/art/cutscene_story_parts.clip|tower_porch_door",
                 "gate_closed_door_leaf",
                 (doorPanelL + doorPanelR) * 0.5,
                 wallBotY,
                 Math.max(2, doorPanelR - doorPanelL),
                 wallH,
                 {
+                    anchorX: 0.5,
+                    anchorY: 0,
                     layer: 4103,
-                    color: Color(86, 74, 62, 255),
+                    color: Color(156, 148, 140, 255),
                     opacity: wallOp,
+                    smooth: true,
                 },
             );
         }
 
-        // 10. 《小小梦魇》式前景压边木梁（位于角色前方 worldArt 高 layer，绝不遮挡小满与门槛对齐点）
+        // 10. 《小小梦魇》式前景压边松枝剪影（位于角色前方 worldArt 高 layer，绝不遮挡小满与门槛对齐点）
         const fgBeamAlpha = smoothstep(0.42, 0.95, m) * (1 - this.reunionPixelReturn);
         if (fgBeamAlpha > 0.02) {
-            scene.placeForegroundOccluder(
-                worldArt,
-                "cover_wood",
-                "gate_fg_beam_right",
-                thX + 266,
-                thX + 356,
-                -42,
-                22,
-                -68,
-                { color: Color(14, 17, 24, 255), opacity: 0.92 * fgBeamAlpha, layer: 5200 },
+            const pRight = scene.project(thX + 318, 128, -54);
+            worldArt.tryPlacePath(
+                "assets/art/diorama_cutouts.clip|fg_pine_bough",
+                "gate_fg_pine_right",
+                pRight.x,
+                pRight.y,
+                cam.len(168),
+                cam.len(108),
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    facing: -1,
+                    color: Color(36, 48, 56, 255),
+                    opacity: 0.88 * fgBeamAlpha,
+                    smooth: true,
+                    layer: 5200,
+                },
             );
         }
 
@@ -1114,7 +1077,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             if (view.assistHintsEnabled) {
                 ctx.texts.put(
                     "xs",
-                    adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout),
+                    getActiveTarget().adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout),
                     w * 0.5,
                     h - 26,
                     toColor(PALETTE.textDim),

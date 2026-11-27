@@ -224,12 +224,19 @@ function collectGameFiles() {
     }
     out["init.lua"] = new Uint8Array(fs.readFileSync(initPath));
 
+    const excludedTargetDirs = new Set([
+        "Script/watch/targets/windows",
+        "Script/watch/targets/android",
+        "Script/watch/targets/handheld",
+    ]);
+
     function walkLua(dir, relPrefix) {
         for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
             if (ent.name.startsWith(".")) continue;
             const abs = path.join(dir, ent.name);
             const rel = `${relPrefix}/${ent.name}`;
             if (ent.isDirectory()) {
+                if (excludedTargetDirs.has(rel)) continue;
                 walkLua(abs, rel);
             } else if (ent.isFile() && ent.name.endsWith(".lua")) {
                 if (rel === "Script/watch/testdrive.lua") continue;
@@ -260,18 +267,45 @@ function collectGameFiles() {
     walkLua(watchDir, "Script/watch");
     walkAssets(assetsDir, "assets");
 
+    // 静态绑定 Web 全包含目标，避免运行时动态字符串拼接与无用端分支
+    out["Script/watch/target.lua"] = enc(
+        [
+            "local ____exports = {}",
+            'local ____target = require("Script.watch.targets.web.index").TARGET',
+            "function ____exports.resolveTargetId()",
+            '\treturn "web"',
+            "end",
+            "function ____exports.resetActiveTarget()",
+            "end",
+            "function ____exports.getActiveTarget()",
+            "\treturn ____target",
+            "end",
+            "return ____exports",
+            "",
+        ].join("\n"),
+    );
+
     for (const required of [
         "init.lua",
         "Script/watch/app.lua",
+        "Script/watch/target.lua",
+        "Script/watch/target_types.lua",
         "Script/watch/platform.lua",
+        "Script/watch/platform_mobile.lua",
         "Script/watch/controls_config.lua",
-        "Script/watch/aim_assist.lua",
-        "Script/watch/gamepad.lua",
-        "Script/watch/touch.lua",
+        "Script/watch/input.lua",
+        "Script/watch/input/kbm_core.lua",
+        "Script/watch/input/aim_assist.lua",
+        "Script/watch/input/gamepad_core.lua",
+        "Script/watch/input/touch_core.lua",
+        "Script/watch/input/touch_interact_meta.lua",
+        "Script/watch/input/touch_hud_landscape.lua",
+        "Script/watch/input/touch_hud_portrait.lua",
+        "Script/watch/targets/web/index.lua",
         "Script/watch/fe/frontend.lua",
-        "Script/watch/fe/ui/control_prompts.lua",
-        "Script/watch/fe/ui/touch_controls.lua",
         "assets/art/title.png",
+        "assets/art/props_second_half.clip",
+        "assets/art/props_second_half.png",
         "assets/art/brand/app_icon.png",
         "assets/art/brand/game_logo_h.png",
         "assets/art/brand/game_logo_v.png",
@@ -280,6 +314,15 @@ function collectGameFiles() {
     ]) {
         if (!out[required]) {
             throw new Error(`白名单产物缺少关键运行文件: ${required}`);
+        }
+    }
+    for (const key of Object.keys(out)) {
+        if (
+            key.startsWith("Script/watch/targets/windows/") ||
+            key.startsWith("Script/watch/targets/android/") ||
+            key.startsWith("Script/watch/targets/handheld/")
+        ) {
+            throw new Error(`Web 白名单意外包含非 Web 目标文件: ${key}`);
         }
     }
     return out;

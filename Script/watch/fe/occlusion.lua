@@ -24,10 +24,10 @@ end -- 24
 local function hides(actor, prop) -- 28
 	local behind = actor.depth > prop.depth.min + 0.5 -- 29
 	local passingThrough = prop.passThrough and overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF) -- 30
-	if not actor.alive or not behind and not passingThrough or actor.x + actor.w * 0.5 <= prop.x0 or actor.x - actor.w * 0.5 >= prop.x1 then -- 31
+	if not actor.alive or not behind and not passingThrough or actor.x + actor.w * 0.5 <= prop.x0 or actor.x - actor.w * 0.5 >= prop.x1 then -- 30
 		return false -- 33
 	end -- 33
-	if actor.y >= prop.y1 and overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF) then -- 35
+	if actor.y >= prop.y1 and overlapsDepth(actor.depth, prop.depth, ACTOR_DEPTH_HALF) then -- 33
 		return false -- 36
 	end -- 36
 	local foot = actor.y + actor.depth * DEPTH_Y_SCALE -- 38
