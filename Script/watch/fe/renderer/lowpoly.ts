@@ -1650,23 +1650,6 @@ export function buildOutsideJettyLowpoly(
         });
     }
 
-    // 6. 栈台红布车投影底座影与随风波浪飘动的左端旧红布（固定在车身左端，不翻面）
-    const c = room.cart;
-    if (c.bodyW > 0) {
-        scene.addContactShadow(cartAxle, c.baseY, c.bodyW * 0.62, 14, 0.70, { bucket: LP_BUCKET.PROP });
-        const clothX = cartAxle - c.bodyW * 0.5;
-        const clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH;
-        scene.addWavingQuad3D(
-            vec3(clothX - 11, clothTop - 22, -6),
-            vec3(clothX + 5, clothTop - 20, -5),
-            vec3(clothX + 8, clothTop, -4),
-            vec3(clothX - 2, clothTop, -4),
-            MING_MATERIALS.mingRedCloth,
-            { ampX: 6.0, ampY: 2.2, phase: time * 3.1, freqU: 1.8, freqV: 2.6, pin: "top" },
-            { bucket: LP_BUCKET.PROP, sortBias: 0.4, subdivX: 3, subdivY: 4 },
-        );
-    }
-
     // 7. 小满脚底接触影（严格贴合 wz = 0）
     scene.addContactShadow(actorX, actorY, 15, 11, 0.78, { bucket: LP_BUCKET.PROP, sortBias: 0.5 });
 }

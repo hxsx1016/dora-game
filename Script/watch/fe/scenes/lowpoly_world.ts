@@ -1,4 +1,3 @@
-import { drawPixelSlidePlate, drawSlideFrameChrome } from "Script/watch/fe/renderer/slideshow";
 /**
  * 《向西守望》Wave 2 fe-04 小满单人线《小小梦魇》风低模四房主场景插件（feature/fe-04-child-lowpoly）。
  *
@@ -834,7 +833,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return this.forest.drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "outside") {
-            return this.drawOutsideCartLowpoly(fgDraw, fgGlow, ctx);
+            return this.drawOutsideCartLowpoly(fgDraw, fgGlow, worldArt, ctx);
         }
         if (key === "tower") {
             const p = ctx.p;
@@ -899,110 +898,39 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
     }
 
     /** 城外低模红布检修车（右柄抓握、左端旧红布绝不随小满转向翻面、木轮真实滚动、零黄球/全息标） */
-    private drawOutsideCartLowpoly(fgDraw: DrawNode.Type, fgGlow: DrawNode.Type, ctx: FePluginContext): boolean {
+    private drawOutsideCartLowpoly(
+        fgDraw: DrawNode.Type,
+        _fgGlow: DrawNode.Type,
+        worldArt: AssetSlotHost,
+        ctx: FePluginContext,
+    ): boolean {
         const p = ctx.p;
         const cam = ctx.cam;
         const c = p.room.cart;
         if (c.bodyW <= 0) {
             return true;
         }
-        const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
         const halfW = c.bodyW * 0.5;
         const axleX = p.cartAxle;
-        const axleY = c.baseY + c.wheelR;
-        const bodyBot = axleY + 2;
-        const bodyTop = bodyBot + c.bodyH;
+        const baseY = cam.sy(c.baseY);
+        const bodyTopY = cam.sy(c.baseY + c.wheelR + c.bodyH);
+        const cx = cam.sx(axleX);
+        const artW = cam.len(c.bodyW * 1.38);
+        const artH = cam.len((c.wheelR * 2 + c.bodyH) * 0.94);
 
-        // 1. 立体木车厢本体（z = -12..14）
-        scene.addBox({
-            x0: axleX - halfW,
-            x1: axleX + halfW,
-            y0: bodyBot,
-            y1: bodyTop,
-            z0: -12,
-            z1: 14,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            highlightTopEdge: true,
-            edgeWidth: 1.0,
-        });
-        // 车厢暗铁包角横箍
-        scene.addBox({
-            x0: axleX - halfW - 1,
-            x1: axleX + halfW + 1,
-            y0: bodyBot + 4,
-            y1: bodyBot + 8,
-            z0: -13,
-            z1: 15,
-            material: MING_MATERIALS.mingIron,
-            bucket: LP_BUCKET.PROP,
-            sortBias: 0.08,
-        });
-        // 右侧双木拉柄（小满抓右柄 handleOffset = +40，自然木色无发光黄球）
-        const handleX = axleX + c.handleOffset;
-        scene.addBox({
-            x0: axleX + halfW - 2,
-            x1: handleX,
-            y0: bodyTop - 6,
-            y1: bodyTop - 1,
-            z0: -10,
-            z1: -4,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            sortBias: 0.12,
-            highlightTopEdge: true,
-        });
-        scene.addBox({
-            x0: handleX - 3,
-            x1: handleX + 3,
-            y0: bodyTop - 8,
-            y1: bodyTop + 2,
-            z0: -11,
-            z1: 9,
-            material: MING_MATERIALS.mingTimber,
-            bucket: LP_BUCKET.PROP,
-            sortBias: 0.14,
-            highlightTopEdge: true,
+        fgDraw.drawEllipse(Vec2(cx, baseY + 1), cam.len(c.bodyW * 0.62), 4.0, Color(6, 10, 16, 155));
+        worldArt.tryPlace("prop_cart", "fe04_outside_cart", cx, baseY, artW, artH, {
+            color: Color(196, 210, 228, 255),
+            layer: 5,
         });
 
-        // 2. 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，Grid 粗麻织纹随风自然垂扬，绝不随小满转向翻面！）
+        // 车身左端固定旧红布与补丁（恒锚定在 axleX - halfW，绝不随小满转向翻面！）
         const clothX = axleX - halfW;
-        const clothTop = bodyTop + 1;
-        scene.addWavingQuad3D(
-            vec3(clothX - 15, clothTop - 23, -14),
-            vec3(clothX + 2, clothTop - 21, -12),
-            vec3(clothX + 11, clothTop, -11),
-            vec3(clothX - 2, clothTop + 1, -12),
-            MING_MATERIALS.mingRedCloth,
-            { ampX: 6.2, ampY: 2.4, phase: this.animTime * 3.1, freqU: 1.7, freqV: 2.6, pin: "top" },
-            { bucket: LP_BUCKET.PROP, sortBias: 0.28, subdivX: 3, subdivY: 4 },
-        );
-
-        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
-
-        // 3. 旋转木辐条双轮（贴合 wz = 0，随 cartAxle 真实转动）
-        const wheelXs = [axleX - halfW * 0.56, axleX + halfW * 0.56];
-        const wheelR = cam.len(c.wheelR);
-        const rollAngle = -axleX / Math.max(1, c.wheelR);
-        let wi = 0;
-        for (wi = 0; wi < wheelXs.length; wi++) {
-            const wp = projectWorld3D(wheelXs[wi], axleY, -10, cam, this.outsideProj);
-            fgDraw.drawCircle(Vec2(wp.x, wp.y), wheelR, Color(52, 40, 32, 255));
-            fgDraw.drawRing(Vec2(wp.x, wp.y), Math.max(1, wheelR - 2.6), wheelR, Color(0, 0, 0, 0), 1.4, Color(148, 126, 102, 220));
-            let sp = 0;
-            for (sp = 0; sp < 4; sp++) {
-                const a = rollAngle + (sp * Math.PI) / 4;
-                const dx = Math.cos(a) * (wheelR - 2);
-                const dy = Math.sin(a) * (wheelR - 2);
-                fgDraw.drawSegment(Vec2(wp.x - dx, wp.y - dy), Vec2(wp.x + dx, wp.y + dy), 1.0, Color(118, 92, 70, 210));
-            }
-            fgDraw.drawDot(Vec2(wp.x, wp.y), 2.4, Color(172, 160, 144, 230));
-        }
-
-        // 左端旧红布上的浅麻补丁细针脚（与回忆里缝的补丁前后呼应）
-        const patchP = projectWorld3D(clothX + 1, clothTop - 7, -13, cam, this.outsideProj);
-        fgDraw.drawSegment(Vec2(patchP.x - 3, patchP.y), Vec2(patchP.x + 3, patchP.y - 2), 1.0, Color(224, 212, 188, 215));
-        fgDraw.drawSegment(Vec2(patchP.x - 2, patchP.y - 4), Vec2(patchP.x + 2, patchP.y - 5), 0.9, Color(224, 212, 188, 195));
+        const clothFrame = Math.floor(this.animTime * (this.cartWheelVol > 0.05 ? 6.5 : 3.8)) % 3;
+        worldArt.tryPlace("fe_red_cloth", "fe04_outside_cart_cloth", cam.sx(clothX + 2), bodyTopY - cam.len(2), cam.len(24), cam.len(24), {
+            frame: clothFrame,
+            layer: 6,
+        });
 
         return true;
     }
@@ -1058,7 +986,7 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
      */
     private drawOutsideSewingMemoryOverlay(
         uiDraw: DrawNode.Type,
-        uiInkDraw: DrawNode.Type,
+        _uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
         uiGlow: DrawNode.Type,
         ctx: FePluginContext,
@@ -1067,29 +995,42 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const prog = clamp01(this.memoryTimer / SEWING_MEMORY_DURATION);
-        // 0..0.20 迅速浮现，0.20..0.72 稳拉最后一针，0.72..1.0 柔淡落回车柄
         const alpha = smoothstep(0, 0.20, prog) * (1 - smoothstep(0.72, 1.0, prog));
         if (alpha <= 0.01) {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
         const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
-        const cardW = 264;
-        const cardH = 148;
-        const cx = Math.max(cardW * 0.5 + 24, Math.min(ctx.uiW - cardW * 0.5 - 24, handPt.x * inv - 16));
-        const cy = Math.max(cardH * 0.5 + 32, Math.min(ctx.uiH - cardH * 0.5 - 32, handPt.y * inv + 102));
-        const rect = { x: Math.round(cx - cardW * 0.5), y: Math.round(cy - cardH * 0.5), w: cardW, h: cardH };
+        const cx = Math.max(190, Math.min(ctx.uiW - 190, handPt.x * inv - 20));
+        const cy = Math.max(170, Math.min(ctx.uiH - 150, handPt.y * inv + 104));
+        const pullT = smoothstep(0.14, 0.82, prog);
+        const zoom = 0.94 + pullT * 0.09;
 
-        fillRadialGlow(uiGlow, cx, cy, cardW * 0.82, cardH * 0.92, Color(238, 190, 122, Math.round(88 * alpha)), Color(218, 162, 92, 0), 20);
-        const zoom = 1.0 + prog * 0.036;
-        drawPixelSlidePlate(uiDraw, uiInkDraw, uiArt, "slide_f01_sewing", "fe04_sewing_mem", rect, alpha * 0.96, 3, 0, 0, zoom);
-        drawSlideFrameChrome(uiDraw, uiInkDraw, uiArt, rect, ctx.uiW, ctx.uiH, {
-            frameOpacity: 0.78,
-            letterboxH: 0,
-            opacity: alpha,
+        // 柔和暖灯回忆云晕（无生硬蛋形/矩形边框，自然浮于冷月夜空之上）
+        fillRadialGlow(uiGlow, cx, cy, 215 * zoom, 152 * zoom, Color(238, 186, 114, Math.round(88 * alpha)), Color(214, 152, 82, 0), 22);
+        uiArt.tryPlace("ink_petal_mist", "fe04_f01_memory_mist", cx, cy, 380 * zoom, 260 * zoom, {
+            color: Color(36, 24, 18, 255),
+            opacity: 0.72 * alpha,
             layer: 3,
-            instancePrefix: "fe04_sew",
         });
+        if (!uiArt.tryPlacePath(
+            "assets/art/cutscene_story_parts.clip|f01_mother_stitch",
+            "fe04_f01_mother_stitch",
+            cx + pullT * 6,
+            cy + pullT * 4,
+            296 * zoom,
+            218 * zoom,
+            {
+                anchorX: 0.5,
+                anchorY: 0.5,
+                color: Color(246, 224, 196, 255),
+                opacity: 0.96 * alpha,
+                smooth: true,
+                layer: 4,
+            },
+        )) {
+            uiDraw.drawEllipse(Vec2(cx, cy), 116, 70, Color(32, 22, 16, Math.round(196 * alpha)));
+        }
     }
 }
 

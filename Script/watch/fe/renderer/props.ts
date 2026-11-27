@@ -32,7 +32,7 @@ export class PropsRenderer {
         occlusion: DepthOcclusion,
         fadeDt: number,
     ): void {
-        this.drawZones(fgDraw, p, cam);
+        this.drawZones(fgDraw, assets, p, cam);
         this.drawMarks(fgDraw, fgGlow, assets, p, cam, time);
         this.drawCart(fgDraw, assets, p, cam, time, occlusion, fadeDt);
         this.drawBracedShield(fgDraw, assets, p, cam);
@@ -144,6 +144,7 @@ export class PropsRenderer {
 
     private drawZones(
         fgDraw: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
     ): void {
@@ -161,19 +162,13 @@ export class PropsRenderer {
                 const back = cam.sy(z.y, road?.max ?? 1);
                 fgDraw.drawRect(Rect(x0, front, zw, back - front), Color(50, 35, 29, 48));
             } else if (z.tint === 2) {
-                // 软土（消音落点）：深褐暗纹，无高光
-                fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
-                fgDraw.drawSegment(Vec2(x0, y0 + 2), Vec2(x1, y0 + 2), 1.4, Color(128, 98, 72, 190));
-            } else if (z.tint === 3) {
-                // 砖地（清脆发声落点）：清晰冷灰砖缝 + 微弱琥珀反光提示可引敌
-                fgDraw.drawRect(Rect(x0, y0 - 4, zw, 9), Color(118, 122, 130, 235));
-                const bricks = 4;
-                let b = 1;
-                for (b = 1; b < bricks; b++) {
-                    const bx = x0 + (zw * b) / bricks;
-                    fgDraw.drawSegment(Vec2(bx, y0 - 4), Vec2(bx, y0 + 5), 1, Color(42, 46, 56, 220));
+                if (!assets.tryPlace("fe_ground_soft", "zone_soft_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 1 })) {
+                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
                 }
-                fgDraw.drawSegment(Vec2(x0, y0 + 4), Vec2(x1, y0 + 4), 1.1, Color(168, 151, 127, 130));
+            } else if (z.tint === 3) {
+                if (!assets.tryPlace("fe_ground_brick", "zone_brick_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 1 })) {
+                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 9), Color(118, 122, 130, 235));
+                }
             }
         }
     }
@@ -301,26 +296,6 @@ export class PropsRenderer {
         if (painted) {
             return;
         }
-        // 标志性猩红布条（系在左侧，绝不镜像，随风微摆）
-        const clothAnchorX = c.clothSide < 0 ? x0 + 3 : x1 - 3;
-        const wave = Math.sin(time * 3.4) * 5 + (p.gripping ? -p.player.facing * 6 : 0);
-        const wave2 = Math.cos(time * 2.8) * 3.5;
-        const clothH = cam.len(26);
-        const clothW = cam.len(14);
-        fgDraw.drawPolygon([
-            Vec2(clothAnchorX - 3, bodyY1 + 2),
-            Vec2(clothAnchorX + clothW * 0.65, bodyY1 + 2),
-            Vec2(clothAnchorX + clothW * 0.45 + wave2, bodyY1 - clothH * 0.55),
-            Vec2(clothAnchorX - clothW * 0.35 + wave, bodyY1 - clothH),
-            Vec2(clothAnchorX - clothW * 0.72 + wave * 0.7, bodyY1 - clothH * 0.62),
-        ], toColor(PALETTE.clothRed));
-        // 红布受光亮边（城外一眼锁定红布）
-        fgDraw.drawSegment(
-            Vec2(clothAnchorX - 2, bodyY1 + 1),
-            Vec2(clothAnchorX - clothW * 0.35 + wave, bodyY1 - clothH),
-            1.6,
-            toColor(PALETTE.clothRedHighlight, 220),
-        );
     }
 
     private drawWheel(draw: DrawNode.Type, cx: number, cy: number, r: number, spin: number): void {

@@ -1480,42 +1480,13 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 			} -- 1649
 		) -- 1649
 	end -- 1649
-	local c = room.cart -- 1654
-	if c.bodyW > 0 then -- 1654
-		scene:addContactShadow( -- 1656
-			cartAxle, -- 1656
-			c.baseY, -- 1656
-			c.bodyW * 0.62, -- 1656
-			14, -- 1656
-			0.7, -- 1656
-			{bucket = ____exports.LP_BUCKET.PROP} -- 1656
-		) -- 1656
-		local clothX = cartAxle - c.bodyW * 0.5 -- 1657
-		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1658
-		scene:addWavingQuad3D( -- 1659
-			____exports.vec3(clothX - 11, clothTop - 22, -6), -- 1660
-			____exports.vec3(clothX + 5, clothTop - 20, -5), -- 1661
-			____exports.vec3(clothX + 8, clothTop, -4), -- 1662
-			____exports.vec3(clothX - 2, clothTop, -4), -- 1663
-			____exports.MING_MATERIALS.mingRedCloth, -- 1664
-			{ -- 1665
-				ampX = 6, -- 1665
-				ampY = 2.2, -- 1665
-				phase = time * 3.1, -- 1665
-				freqU = 1.8, -- 1665
-				freqV = 2.6, -- 1665
-				pin = "top" -- 1665
-			}, -- 1665
-			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, subdivX = 3, subdivY = 4} -- 1666
-		) -- 1666
-	end -- 1666
-	scene:addContactShadow( -- 1671
-		actorX, -- 1671
-		actorY, -- 1671
-		15, -- 1671
-		11, -- 1671
-		0.78, -- 1671
-		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1671
-	) -- 1671
+	scene:addContactShadow( -- 1654
+		actorX, -- 1654
+		actorY, -- 1654
+		15, -- 1654
+		11, -- 1654
+		0.78, -- 1654
+		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1654
+	) -- 1654
 end -- 1537
 return ____exports -- 1537

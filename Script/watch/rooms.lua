@@ -26,14 +26,14 @@ ____exports.CHECKPOINT_ROOM = { -- 276
 		label = "队栏 -430–-250 · 高 28", -- 289
 		lanes = {"lower", "middle"}, -- 289
 		art = "fence" -- 289
-	}, { -- 291
+	}, { -- 289
 		x = 240, -- 291
 		w = 100, -- 291
 		h = 44, -- 291
 		y = 0, -- 291
 		label = "柜台 240–340 · 高 44", -- 291
 		lanes = {"lower", "middle"} -- 291
-	}, { -- 292
+	}, { -- 291
 		x = 890, -- 292
 		w = 36, -- 292
 		h = 122, -- 292
@@ -90,19 +90,19 @@ ____exports.OUTSIDE_ROOM = { -- 325
 		y = 96, -- 341
 		id = "outside_red_cart", -- 341
 		label = "补丁红布车 · 挡住石阶口" -- 341
-	}, { -- 343
+	}, { -- 341
 		x = 512, -- 343
 		w = 88, -- 343
 		h = 134, -- 343
 		y = 96, -- 343
 		label = "台面右端城墙 · 下层可通" -- 343
-	}, { -- 344
+	}, { -- 343
 		x = 0, -- 344
 		w = 40, -- 344
 		h = 96, -- 344
 		y = 0, -- 344
 		label = "街口" -- 344
-	}, { -- 345
+	}, { -- 344
 		x = 1200, -- 345
 		w = 40, -- 345
 		h = 140, -- 345
@@ -124,7 +124,7 @@ ____exports.OUTSIDE_ROOM = { -- 325
 		y1 = 96, -- 350
 		steps = 5, -- 350
 		label = "石阶 0–96（每级 19.2 可直走）" -- 350
-	}, { -- 351
+	}, { -- 350
 		x0 = 700, -- 351
 		x1 = 820, -- 351
 		y0 = 0, -- 351
@@ -177,7 +177,7 @@ ____exports.VILLAGE_ROOM = { -- 385
 		y = 0, -- 395
 		label = "瓶架", -- 395
 		art = "cover_wood" -- 395
-	}, { -- 397
+	}, { -- 395
 		x = 672, -- 397
 		w = 48, -- 397
 		h = 96, -- 397
@@ -266,17 +266,17 @@ ____exports.VILLAGE_ROOM = { -- 385
 } -- 437
 --- 剧本锚点跟着 originX 一起搬，判定仍读世界坐标。
 local function shiftStory(story, ox) -- 441
-	if story == nil then -- 442
+	if story == nil then -- 441
 		return nil -- 443
 	end -- 443
-	if ox == 0 then -- 445
+	if ox == 0 then -- 443
 		return story -- 446
 	end -- 446
 	local out = {} -- 448
-	if story.prologue ~= nil then -- 449
+	if story.prologue ~= nil then -- 448
 		out.prologue = {giveReach = story.prologue.giveReach} -- 450
 	end -- 450
-	if story.gate ~= nil then -- 452
+	if story.gate ~= nil then -- 450
 		out.gate = { -- 453
 			winchX = story.gate.winchX + ox, -- 454
 			waitX = story.gate.waitX + ox, -- 455
@@ -285,16 +285,16 @@ local function shiftStory(story, ox) -- 441
 			holdTicks = story.gate.holdTicks -- 458
 		} -- 458
 	end -- 458
-	if story.gatepath ~= nil then -- 461
+	if story.gatepath ~= nil then -- 458
 		out.gatepath = {carryX = story.gatepath.carryX + ox, exitX = story.gatepath.exitX + ox, next = story.gatepath.next} -- 462
 	end -- 462
-	if story.dog ~= nil then -- 468
+	if story.dog ~= nil then -- 462
 		out.dog = {x0 = story.dog.x0 + ox, x1 = story.dog.x1 + ox, speed = story.dog.speed, range = story.dog.range} -- 469
 	end -- 469
-	if story.museum ~= nil then -- 471
+	if story.museum ~= nil then -- 469
 		out.museum = {cabinetX = story.museum.cabinetX + ox, hallX = story.museum.hallX + ox, lampX = story.museum.lampX + ox, exitX = story.museum.exitX + ox} -- 472
 	end -- 472
-	if story.tower ~= nil then -- 479
+	if story.tower ~= nil then -- 472
 		out.tower = {doorX = story.tower.doorX + ox, knockTicks = story.tower.knockTicks} -- 480
 	end -- 480
 	return out -- 482
@@ -413,14 +413,14 @@ ____exports.STREET_ROOM = { -- 533
 		y = 0, -- 544
 		label = "街心柜台 300–400 · 高 44", -- 544
 		lanes = {"lower", "middle"} -- 544
-	}, { -- 545
+	}, { -- 544
 		x = 620, -- 545
 		w = 60, -- 545
 		h = 36, -- 545
 		y = 0, -- 545
 		label = "街边矮墙 620", -- 545
 		lanes = {"upper"} -- 545
-	}, { -- 546
+	}, { -- 545
 		x = 892, -- 546
 		w = 40, -- 546
 		h = 120, -- 546
@@ -566,13 +566,13 @@ ____exports.GATE_PATH_ROOM = { -- 618
 		h = 180, -- 631
 		y = 0, -- 631
 		label = "城门内墙背影 0–60" -- 631
-	}, { -- 632
+	}, { -- 631
 		x = 560, -- 632
 		w = 44, -- 632
 		h = 28, -- 632
 		y = 0, -- 632
 		label = "倒石 560 · 高 28" -- 632
-	}, { -- 633
+	}, { -- 632
 		x = 1000, -- 633
 		w = 40, -- 633
 		h = 200, -- 633
@@ -635,21 +635,21 @@ ____exports.FOREST_ROOM = { -- 665
 		y = 0, -- 675
 		label = "草丛 300–380 · 高 24", -- 675
 		passable = true -- 675
-	}, { -- 676
+	}, { -- 675
 		x = 700, -- 676
 		w = 90, -- 676
 		h = 24, -- 676
 		y = 0, -- 676
 		label = "草丛 700–790 · 高 24", -- 676
 		passable = true -- 676
-	}, { -- 677
+	}, { -- 676
 		x = 1150, -- 677
 		w = 90, -- 677
 		h = 24, -- 677
 		y = 0, -- 677
 		label = "草丛 1150–1240 · 高 24", -- 677
 		passable = true -- 677
-	}, { -- 678
+	}, { -- 677
 		x = 1560, -- 678
 		w = 40, -- 678
 		h = 160, -- 678
@@ -663,21 +663,21 @@ ____exports.FOREST_ROOM = { -- 665
 		h = 6, -- 681
 		tint = 2, -- 681
 		label = "树根窄洞 300–380 · 蹲行" -- 681
-	}, { -- 682
+	}, { -- 681
 		x0 = 700, -- 682
 		x1 = 790, -- 682
 		y = 0, -- 682
 		h = 6, -- 682
 		tint = 3, -- 682
 		label = "旧渠 700–790 · 可跑" -- 682
-	}, { -- 683
+	}, { -- 682
 		x0 = 1180, -- 683
 		x1 = 1260, -- 683
 		y = 0, -- 683
 		h = 6, -- 683
 		tint = 1, -- 683
 		label = "溪湾 1180–1260 · 水里灯" -- 683
-	}, { -- 684
+	}, { -- 683
 		x0 = 1400, -- 684
 		x1 = 1470, -- 684
 		y = 0, -- 684
@@ -699,7 +699,7 @@ ____exports.FOREST_ROOM = { -- 665
 		y1 = 22, -- 688
 		steps = 1, -- 688
 		label = "矮台 520–640 · 高 22" -- 688
-	}, { -- 689
+	}, { -- 688
 		x0 = 980, -- 689
 		x1 = 1100, -- 689
 		y0 = 22, -- 689
@@ -787,7 +787,7 @@ ____exports.TOWER_ROOM = { -- 711
 		h = 8, -- 729
 		tint = 4, -- 729
 		label = "门廊 400–490" -- 729
-	}, { -- 730
+	}, { -- 729
 		x0 = 490, -- 730
 		x1 = 700, -- 730
 		y = 0, -- 730
@@ -888,14 +888,14 @@ ____exports.MUSEUM_ROOM = { -- 758
 		h = 16, -- 772
 		tint = 1, -- 772
 		label = "玻璃柜前" -- 772
-	}, { -- 773
+	}, { -- 772
 		x0 = 860, -- 773
 		x1 = 980, -- 773
 		y = 0, -- 773
 		h = 16, -- 773
 		tint = 2, -- 773
 		label = "走廊 · 孩子脚步" -- 773
-	}, { -- 774
+	}, { -- 773
 		x0 = 1210, -- 774
 		x1 = 1320, -- 774
 		y = 0, -- 774
@@ -1018,7 +1018,7 @@ ____exports.ESCORT1_ROOM = { -- 797
 		label = "火器手 820 · 中档", -- 820
 		kind = "gunner", -- 820
 		drop = "ammo" -- 820
-	}, { -- 821
+	}, { -- 820
 		x = 1020, -- 821
 		y = 0, -- 821
 		h = 84, -- 821
@@ -1026,7 +1026,7 @@ ____exports.ESCORT1_ROOM = { -- 797
 		label = "火器手 1020 · 浅档", -- 821
 		kind = "gunner", -- 821
 		drop = "ammo" -- 821
-	}, { -- 822
+	}, { -- 821
 		x = 1120, -- 822
 		y = 0, -- 822
 		h = 84, -- 822
@@ -1095,7 +1095,9 @@ ____exports.ESCORT2_ROOM = { -- 843
 			h = 32, -- 857
 			y = 0, -- 857
 			label = "倒粮袋 640 · 高 32", -- 857
-			lanes = {"lower"} -- 857
+			lanes = {"lower"}, -- 857
+			art = "grain_sack", -- 857
+			id = "e2_grain_sacks" -- 857
 		}, -- 857
 		{ -- 858
 			x = 980, -- 858
@@ -1149,7 +1151,7 @@ ____exports.ESCORT2_ROOM = { -- 843
 		label = "火器手 700 · 中档", -- 866
 		kind = "gunner", -- 866
 		drop = "ammo" -- 866
-	}, { -- 867
+	}, { -- 866
 		x = 1080, -- 867
 		y = 0, -- 867
 		h = 84, -- 867
@@ -1157,7 +1159,7 @@ ____exports.ESCORT2_ROOM = { -- 843
 		label = "火器手 1080 · 浅档", -- 867
 		kind = "gunner", -- 867
 		drop = "ammo" -- 867
-	}, { -- 868
+	}, { -- 867
 		x = 1200, -- 868
 		y = 0, -- 868
 		h = 84, -- 868
@@ -1174,13 +1176,13 @@ ____exports.ESCORT2_ROOM = { -- 843
 		x = 380, -- 881
 		y = 0, -- 881
 		label = "木纹筹 · 棚下" -- 881
-	}, { -- 882
+	}, { -- 881
 		id = "e2_bell", -- 882
 		kind = "bell", -- 882
 		x = 560, -- 882
 		y = 0, -- 882
 		label = "铃纹筹 · 粮袋后" -- 882
-	}, { -- 883
+	}, { -- 882
 		id = "e2_wood_b", -- 883
 		kind = "wood", -- 883
 		x = 820, -- 883
@@ -1283,7 +1285,7 @@ ____exports.ESCORT3_ROOM = { -- 892
 		depth = 16, -- 914
 		label = "试射靶一 820", -- 914
 		kind = "target" -- 914
-	}, { -- 915
+	}, { -- 914
 		x = 940, -- 915
 		y = 0, -- 915
 		h = 84, -- 915
@@ -1386,7 +1388,7 @@ ____exports.ESCORT4_ROOM = { -- 933
 		label = "火器手 620 · 中档", -- 955
 		kind = "gunner", -- 955
 		drop = "ammo" -- 955
-	}, { -- 956
+	}, { -- 955
 		x = 840, -- 956
 		y = 0, -- 956
 		h = 84, -- 956
@@ -1394,7 +1396,7 @@ ____exports.ESCORT4_ROOM = { -- 933
 		label = "火器手 840 · 浅档", -- 956
 		kind = "gunner", -- 956
 		drop = "ammo" -- 956
-	}, { -- 957
+	}, { -- 956
 		x = 1060, -- 957
 		y = 0, -- 957
 		h = 84, -- 957
@@ -1508,7 +1510,7 @@ ____exports.ESCORT5_ROOM = { -- 975
 		label = "火器手 560 · 中档", -- 997
 		kind = "gunner", -- 997
 		drop = "ammo" -- 997
-	}, { -- 998
+	}, { -- 997
 		x = 780, -- 998
 		y = 0, -- 998
 		h = 84, -- 998
@@ -1516,7 +1518,7 @@ ____exports.ESCORT5_ROOM = { -- 975
 		label = "火器手 780 · 浅档", -- 998
 		kind = "gunner", -- 998
 		drop = "ammo" -- 998
-	}, { -- 999
+	}, { -- 998
 		x = 980, -- 999
 		y = 0, -- 999
 		h = 84, -- 999
@@ -1647,7 +1649,7 @@ ____exports.S1_CROSSROAD = { -- 1018
 		label = "单方向火器手 760", -- 1042
 		kind = "gunner", -- 1042
 		drop = "ammo" -- 1042
-	}, { -- 1043
+	}, { -- 1042
 		x = 880, -- 1043
 		y = 0, -- 1043
 		h = 84, -- 1043
@@ -1687,7 +1689,7 @@ ____exports.S2_DRYGOODS = { -- 1064
 		y = 0, -- 1075
 		depth = 0, -- 1075
 		label = "废木料 · 薄木摊挡脚下" -- 1075
-	}, { -- 1076
+	}, { -- 1075
 		id = "s2_scrap_2", -- 1076
 		kind = "scrap", -- 1076
 		x = 760, -- 1076
@@ -1819,7 +1821,7 @@ ____exports.S2_DRYGOODS = { -- 1064
 		kind = "shield", -- 1104
 		shieldHp = 2, -- 1104
 		drop = "shield" -- 1104
-	}, { -- 1105
+	}, { -- 1104
 		x = 1060, -- 1105
 		y = 0, -- 1105
 		h = 84, -- 1105
@@ -1827,7 +1829,7 @@ ____exports.S2_DRYGOODS = { -- 1064
 		label = "远侧火器手 1060", -- 1105
 		kind = "gunner", -- 1105
 		drop = "ammo" -- 1105
-	}, { -- 1106
+	}, { -- 1105
 		x = 1140, -- 1106
 		y = 0, -- 1106
 		h = 84, -- 1106
@@ -1928,7 +1930,7 @@ ____exports.S3_ARCHWAY = { -- 1126
 		steps = 3, -- 1146
 		label = "进口台阶", -- 1146
 		lanes = {"upper"} -- 1146
-	}, { -- 1147
+	}, { -- 1146
 		x0 = 260, -- 1147
 		x1 = 380, -- 1147
 		y0 = 0, -- 1147
@@ -1946,7 +1948,7 @@ ____exports.S3_ARCHWAY = { -- 1126
 		label = "高处火器手 860", -- 1151
 		kind = "gunner", -- 1151
 		drop = "ammo" -- 1151
-	}, { -- 1152
+	}, { -- 1151
 		x = 980, -- 1152
 		y = 0, -- 1152
 		h = 84, -- 1152
@@ -2071,7 +2073,7 @@ ____exports.C1_YARD = { -- 1168
 		label = "截断压近者 900", -- 1195
 		kind = "breaker", -- 1195
 		drop = "wedge" -- 1195
-	}, { -- 1196
+	}, { -- 1195
 		x = 1200, -- 1196
 		y = 0, -- 1196
 		h = 84, -- 1196
@@ -2212,7 +2214,7 @@ ____exports.C2_GRANARY = { -- 1212
 		label = "棚尾火器手 1580", -- 1250
 		kind = "gunner", -- 1250
 		drop = "ammo" -- 1250
-	}, { -- 1251
+	}, { -- 1250
 		x = 1340, -- 1251
 		y = 0, -- 1251
 		h = 84, -- 1251
@@ -2267,7 +2269,7 @@ local function placeSolids(room) -- 1295
 	local blocks = {} -- 1296
 	for ____, solid in ipairs(room.solids) do -- 1297
 		local x = solid.x + room.originX -- 1298
-		if room.depth ~= nil and solid.lanes ~= nil then -- 1299
+		if room.depth ~= nil and solid.lanes ~= nil then -- 1298
 			for ____, depth in ipairs(laneFootprints(solid.lanes)) do -- 1300
 				blocks[#blocks + 1] = __TS__ObjectAssign({}, solid, {x = x, depth = depth, lanes = nil}) -- 1301
 			end -- 1301
@@ -2282,7 +2284,7 @@ local function placeStairs(room) -- 1310
 	for ____, stair in ipairs(room.stairs) do -- 1312
 		local x0 = stair.x0 + room.originX -- 1313
 		local x1 = stair.x1 + room.originX -- 1314
-		if room.depth ~= nil and stair.lanes ~= nil then -- 1315
+		if room.depth ~= nil and stair.lanes ~= nil then -- 1314
 			for ____, depth in ipairs(laneFootprints(stair.lanes)) do -- 1316
 				out[#out + 1] = __TS__ObjectAssign({}, stair, {x0 = x0, x1 = x1, depth = depth, lanes = nil}) -- 1317
 			end -- 1317
@@ -2296,7 +2298,7 @@ end -- 1310
 -- 返回新对象，`rooms.ts` 里的常量保持可读的段内读数。
 function ____exports.withOrigin(room) -- 1330
 	local ox = room.originX -- 1331
-	if ox == 0 then -- 1332
+	if ox == 0 then -- 1331
 		return room.depth == nil and room or __TS__ObjectAssign( -- 1333
 			{}, -- 1333
 			room, -- 1333

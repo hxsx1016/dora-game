@@ -1624,8 +1624,8 @@ function ReloadWheelPlugin.prototype.drawChildFinger(self, uiInkDraw, uiArt, uiG
 		local tipNode = #path > 0 and path[#path] or ____exports.RELOAD_START_NODE -- 1337
 		local pos = self:getNodeUiPos(tipNode) -- 1338
 		local tapPulse = #path <= 1 and math.sin(self.animTime * 4.8) * 3.5 or 0 -- 1339
-		fx = pos.x + shakeX - 2 - tapPulse * 0.3 -- 1340
-		fy = pos.y - 2 - tapPulse -- 1341
+		fx = pos.x + shakeX + 4 + tapPulse * 0.35 -- 1340
+		fy = pos.y - 4 - tapPulse -- 1341
 		if #path <= 1 then -- 1341
 			local ringR = 17 + math.sin(self.animTime * 4.2) * 2.5 -- 1344
 			uiInkDraw:drawRing( -- 1345
@@ -1660,95 +1660,128 @@ function ReloadWheelPlugin.prototype.drawChildFinger(self, uiInkDraw, uiArt, uiG
 		local frac = revFloat - idxA -- 1353
 		local pA = self:getNodeUiPos(path[idxA + 1]) -- 1354
 		local pB = self:getNodeUiPos(path[idxB + 1]) -- 1355
-		fx = pA.x + (pB.x - pA.x) * frac + shakeX - prog * 28 -- 1356
+		fx = pA.x + (pB.x - pA.x) * frac + shakeX + prog * 28 -- 1356
 		fy = pA.y + (pB.y - pA.y) * frac - prog * 22 -- 1357
 	else -- 1357
 		return -- 1359
 	end -- 1359
-	local handSlot = active and #path <= 1 and "fe_reload_hand_tap" or "fe_reload_hand_trace" -- 1363
-	if not uiArt:tryPlace( -- 1363
-		handSlot, -- 1364
-		"rw_child_finger", -- 1364
-		math.floor(fx + 0.5), -- 1364
-		math.floor(fy + 0.5), -- 1364
-		58, -- 1364
-		58, -- 1364
-		{opacity = 0.96 * appear, layer = 6} -- 1364
-	) then -- 1364
-		local a255 = math.floor(240 * appear + 0.5) -- 1368
-		uiInkDraw:drawCircle( -- 1369
-			Vec2(fx - 8, fy - 7), -- 1369
-			4.6, -- 1369
-			Color(238, 212, 182, a255) -- 1369
-		) -- 1369
-		uiInkDraw:drawSegment( -- 1370
-			Vec2(fx - 6, fy - 5), -- 1370
-			Vec2(fx, fy), -- 1370
-			2.4, -- 1370
-			Color(244, 222, 196, a255) -- 1370
-		) -- 1370
-	end -- 1370
-	uiGlow:drawDot( -- 1372
-		Vec2(fx, fy), -- 1372
-		3.4, -- 1372
-		toColor(PALETTE.amberCore, 80 * appear) -- 1372
-	) -- 1372
+	uiGlow:drawDot( -- 1362
+		Vec2(fx, fy), -- 1362
+		3.6, -- 1362
+		toColor(PALETTE.amberCore, 88 * appear) -- 1362
+	) -- 1362
+	if uiArt:tryPlacePath( -- 1362
+		"assets/art/vfx_craft_art.clip|reload_child_finger", -- 1363
+		"rw_child_finger", -- 1363
+		fx, -- 1363
+		fy, -- 1363
+		64, -- 1363
+		56, -- 1363
+		{ -- 1363
+			anchorX = 0.04, -- 1364
+			anchorY = 0.96, -- 1365
+			preserveAspect = true, -- 1366
+			smooth = true, -- 1367
+			opacity = 0.96 * appear, -- 1368
+			layer = 6 -- 1369
+		} -- 1369
+	) then -- 1369
+		return -- 1371
+	end -- 1371
+	local a255 = math.floor(240 * appear + 0.5) -- 1375
+	local inkCol = toColor(PALETTE.xuanInk, 180 * appear) -- 1376
+	uiInkDraw:drawPolygon( -- 1377
+		{ -- 1377
+			Vec2(fx - 30, fy - 20), -- 1378
+			Vec2(fx - 22, fy - 28), -- 1379
+			Vec2(fx - 11, fy - 14), -- 1380
+			Vec2(fx - 17, fy - 9) -- 1381
+		}, -- 1381
+		Color(164, 78, 54, a255), -- 1382
+		1, -- 1382
+		inkCol -- 1382
+	) -- 1382
+	uiInkDraw:drawSegment( -- 1383
+		Vec2(fx - 16, fy - 10), -- 1383
+		Vec2(fx - 11, fy - 15), -- 1383
+		2, -- 1383
+		Color(204, 174, 122, a255) -- 1383
+	) -- 1383
+	uiInkDraw:drawCircle( -- 1384
+		Vec2(fx - 9, fy - 8), -- 1384
+		4.8, -- 1384
+		Color(238, 212, 182, a255) -- 1384
+	) -- 1384
+	uiInkDraw:drawSegment( -- 1385
+		Vec2(fx - 7, fy - 6), -- 1385
+		Vec2(fx, fy), -- 1385
+		2.5, -- 1385
+		Color(244, 222, 196, a255) -- 1385
+	) -- 1385
+	uiInkDraw:drawRing( -- 1386
+		Vec2(fx, fy), -- 1386
+		2, -- 1386
+		3, -- 1386
+		Color(0, 0, 0, 0), -- 1386
+		0.9, -- 1386
+		inkCol -- 1386
+	) -- 1386
 end -- 1324
-function ReloadWheelPlugin.prototype.drawArmedEffectBadge(self, uiDraw, uiInkDraw, uiArt, ctx, effect) -- 1376
-	local safe = ctx.safeUi or ZERO_SAFE_INSETS -- 1383
-	local bx = 46 + safe.left -- 1384
-	local by = ctx.uiH - 134 - safe.top -- 1385
-	local col = effect == "echo" and PALETTE.rouge or (effect == "light" and PALETTE.amberCore or PALETTE.cyanCore) -- 1386
-	drawSilkVeil( -- 1387
-		uiDraw, -- 1387
-		uiArt, -- 1387
-		"rw_armed_veil", -- 1387
-		bx + 54, -- 1387
-		by, -- 1387
-		142, -- 1387
-		30, -- 1387
-		PALETTE.inkWash, -- 1387
-		0.72, -- 1387
-		-1 -- 1387
-	) -- 1387
-	____exports.drawReloadPatternGlyph( -- 1388
-		uiInkDraw, -- 1388
-		bx + 12, -- 1388
-		by, -- 1388
-		9, -- 1388
-		effect, -- 1388
-		col, -- 1388
-		0.96, -- 1388
-		uiArt, -- 1388
-		"rw_armed_glyph", -- 1388
-		4 -- 1388
-	) -- 1388
-	drawBlossomDot( -- 1389
-		uiInkDraw, -- 1389
-		uiArt, -- 1389
-		"rw_armed_dot", -- 1389
-		bx + 28, -- 1389
-		by, -- 1389
-		6, -- 1389
-		col, -- 1389
-		0.85, -- 1389
-		3 -- 1389
-	) -- 1389
-	ctx.texts:put( -- 1390
-		"xs", -- 1390
-		____exports.reloadEffectShortLabel(effect), -- 1390
-		bx + 38, -- 1390
-		by, -- 1390
-		toColor(PALETTE.textBright), -- 1390
-		0, -- 1390
-		0.5, -- 1390
-		"Left", -- 1390
-		1, -- 1390
-		0.94, -- 1390
-		0.08 -- 1390
-	) -- 1390
-end -- 1376
-function ____exports.createReloadWheelPlugin(contract) -- 1394
-	return __TS__New(____exports.ReloadWheelPlugin, contract) -- 1395
-end -- 1394
-return ____exports -- 1394
+function ReloadWheelPlugin.prototype.drawArmedEffectBadge(self, uiDraw, uiInkDraw, uiArt, ctx, effect) -- 1390
+	local safe = ctx.safeUi or ZERO_SAFE_INSETS -- 1397
+	local bx = 46 + safe.left -- 1398
+	local by = ctx.uiH - 134 - safe.top -- 1399
+	local col = effect == "echo" and PALETTE.rouge or (effect == "light" and PALETTE.amberCore or PALETTE.cyanCore) -- 1400
+	drawSilkVeil( -- 1401
+		uiDraw, -- 1401
+		uiArt, -- 1401
+		"rw_armed_veil", -- 1401
+		bx + 54, -- 1401
+		by, -- 1401
+		142, -- 1401
+		30, -- 1401
+		PALETTE.inkWash, -- 1401
+		0.72, -- 1401
+		-1 -- 1401
+	) -- 1401
+	____exports.drawReloadPatternGlyph( -- 1402
+		uiInkDraw, -- 1402
+		bx + 12, -- 1402
+		by, -- 1402
+		9, -- 1402
+		effect, -- 1402
+		col, -- 1402
+		0.96, -- 1402
+		uiArt, -- 1402
+		"rw_armed_glyph", -- 1402
+		4 -- 1402
+	) -- 1402
+	drawBlossomDot( -- 1403
+		uiInkDraw, -- 1403
+		uiArt, -- 1403
+		"rw_armed_dot", -- 1403
+		bx + 28, -- 1403
+		by, -- 1403
+		6, -- 1403
+		col, -- 1403
+		0.85, -- 1403
+		3 -- 1403
+	) -- 1403
+	ctx.texts:put( -- 1404
+		"xs", -- 1404
+		____exports.reloadEffectShortLabel(effect), -- 1404
+		bx + 38, -- 1404
+		by, -- 1404
+		toColor(PALETTE.textBright), -- 1404
+		0, -- 1404
+		0.5, -- 1404
+		"Left", -- 1404
+		1, -- 1404
+		0.94, -- 1404
+		0.08 -- 1404
+	) -- 1404
+end -- 1390
+function ____exports.createReloadWheelPlugin(contract) -- 1408
+	return __TS__New(____exports.ReloadWheelPlugin, contract) -- 1409
+end -- 1408
+return ____exports -- 1408

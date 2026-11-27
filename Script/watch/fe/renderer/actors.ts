@@ -564,21 +564,86 @@ export class ActorsRenderer {
         const W = cam.len(e.w);
         const f = p.player.x >= e.x ? 1 : -1;
 
-        // 试射靶（escort3 工台靶位）：使用专属像素明代草束靶架精灵
+        // 试射靶（escort3 工台靶位）：采用 props_ming.clip|target_dummy 明代草束木靶精灵，零线段拼接
         if (e.kind === "target") {
-            const lean = !e.alive ? f * cam.len(12) : (e.hitT > 0 ? f * cam.len(5) : 0);
-            const hitTint = e.hitT > 0 || !e.alive;
             const targetLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
-            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.52, 3.6, Color(12, 11, 13, 140));
-            if (!assets.tryPlace("fe_straw_target", "actor_target_" + index, cx + lean * 0.4, by, cam.len(40), H * (e.alive ? 0.94 : 0.66), {
-                angle: !e.alive ? f * 48 : (e.hitT > 0 ? f * 12 : 0),
-                color: hitTint ? Color(242, 188, 156, 255) : Color(255, 255, 255, 255),
+            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.56, 3.6, Color(12, 11, 13, 140));
+            const angle = !e.alive ? f * 62 : (e.hitT > 0 ? f * 18 : 0);
+            const tint = (e.hitT > 0 || !e.alive) ? Color(238, 196, 174, 255) : Color(255, 255, 255, 255);
+            if (assets.tryPlacePath("assets/art/props_ming.clip|target_dummy", "actor_target_" + index, cx, by, H * 0.82, H * 0.96, {
+                anchorX: 0.5,
+                anchorY: 0,
+                preserveAspect: true,
+                angle,
+                color: tint,
+                opacity: e.alive ? 1 : 0.76,
                 layer: targetLayer,
             })) {
-                const discR = Math.max(7, cam.len(13));
-                fgDraw.drawCircle(Vec2(cx + lean, by + H * 0.56), discR, Color(196, 174, 134, 250));
+                return;
             }
+            const lean = !e.alive ? f * cam.len(16) : (e.hitT > 0 ? f * cam.len(8) : 0);
+            const postTopY = by + H * (e.alive ? 0.78 : 0.42);
+            fgDraw.drawSegment(Vec2(cx - cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(92, 64, 42, 255));
+            fgDraw.drawSegment(Vec2(cx + cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(76, 52, 34, 255));
+            const discX = cx + lean;
+            const discY = by + H * (e.alive ? 0.56 : 0.30);
+            const discR = Math.max(7, cam.len(13));
+            const hitTint = e.hitT > 0 || !e.alive;
+            fgDraw.drawCircle(Vec2(discX, discY), discR, hitTint ? Color(214, 152, 116, 245) : Color(196, 174, 134, 250));
+            fgDraw.drawRing(Vec2(discX, discY), discR * 0.62, discR * 0.76, Color(0, 0, 0, 0), 1.4, Color(62, 46, 34, 230));
+            fgDraw.drawCircle(Vec2(discX, discY), discR * 0.30, toColor(PALETTE.rouge, hitTint ? 255 : 220));
             return;
+        }
+
+        const enemyLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
+        // Phase 3 三类精英倭寇专属像素精灵（盾手 / 破障斧手 / 朱缨头领），彻底替换几何方块盾与多边形斧粘贴
+        if (e.alive && e.hitT <= 0) {
+            let extraClip = "";
+            let extraAnchorX = 0.5;
+            let extraHeight = H * 0.96;
+            let extraTint = Color(255, 255, 255, 255);
+            if (e.kind === "shield" && (e.shieldHp ?? 0) > 0) {
+                extraClip = e.warnT > 0 ? "enemy_shield_aim" : "enemy_shield_idle";
+                extraAnchorX = e.warnT > 0 ? 0.45 : 0.50;
+                extraHeight = H * 0.94;
+                if ((e.shieldHp ?? 2) <= 1) {
+                    extraTint = Color(234, 198, 178, 255);
+                }
+            } else if (e.kind === "breaker") {
+                const swing = (e.swingT ?? 0) > 0 || e.warnT > 0;
+                extraClip = swing ? "enemy_breaker_aim" : "enemy_breaker_idle";
+                extraAnchorX = swing ? 0.52 : 0.38;
+                extraHeight = H * (swing ? 0.98 : 0.94);
+            } else if (e.kind === "leader") {
+                extraClip = e.warnT > 0 ? "enemy_leader_aim" : "enemy_leader_idle";
+                extraAnchorX = e.warnT > 0 ? 0.38 : 0.44;
+                extraHeight = H * 1.00;
+            }
+            if (extraClip !== "" && assets.tryPlacePath(
+                "assets/art/actors_extra.clip|" + extraClip,
+                "actor_enemy_" + index,
+                cx,
+                by,
+                W * 1.8,
+                extraHeight,
+                {
+                    anchorX: extraAnchorX,
+                    anchorY: 0,
+                    preserveAspect: true,
+                    facing: f,
+                    color: extraTint,
+                    layer: enemyLayer,
+                },
+            )) {
+                fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.58, 3.8, Color(12, 11, 13, 145));
+                if (e.kind === "breaker" && (e.swingT ?? 0) > 0) {
+                    fgGlow.drawArc(Vec2(cx + f * cam.len(10), by + H * 0.56), cam.len(18), f > 0 ? -40 : 140, f > 0 ? 50 : 230, 1.8, toColor(PALETTE.rouge, 195));
+                }
+                if (e.warnT > 0) {
+                    this.drawEnemyWarning(fgGlow, e, p, cam, f);
+                }
+                return;
+            }
         }
 
         let slot: AssetSlotKey = "enemy_idle";
@@ -590,7 +655,6 @@ export class ActorsRenderer {
             slot = "enemy_aim";
         }
         const height = e.alive ? H : H * 0.24;
-        const enemyLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
         if (assets.tryPlace(slot, "actor_enemy_" + index, cx, by, W, height, {
             facing: f, opacity: e.alive ? 1 : 0.78, layer: enemyLayer,
         })) {

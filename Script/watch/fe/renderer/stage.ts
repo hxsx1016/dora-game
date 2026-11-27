@@ -56,7 +56,7 @@ function dedicatedSolidProp(solid: SolidSpec): DedicatedPropArt | undefined {
     if (solid.id === "s1_well" || solid.art === "well" || solid.label.indexOf("井背") >= 0) {
         return { clip: "well_curb", natAR: 144 / 120, heightMul: 1.12, tileable: false };
     }
-    if (solid.label.indexOf("粮台") >= 0 || solid.label.indexOf("粮袋") >= 0) {
+    if (solid.art === "grain_sack" || solid.label.indexOf("粮台") >= 0 || solid.label.indexOf("粮袋") >= 0) {
         return { clip: "grain_sack", natAR: 144 / 74, heightMul: 1.12, tileable: true };
     }
     return undefined;
@@ -281,7 +281,7 @@ export class StageRenderer {
         if (p.room.key === "gate") {
             this.drawGateShutter(fgDraw, fgGlow, assets, p, cam, time);
         }
-        this.drawArch(fgDraw, p, cam);
+        this.drawArch(fgDraw, assets, p, cam);
     }
 
     /** 绘制柔和电影暗角（移除早期科幻钢梁/黑梯形压边，保持明代画面通透干净） */
@@ -644,7 +644,7 @@ export class StageRenderer {
         for (i = 0; i < p.room.solids.length; i++) {
             const s = p.room.solids[i];
             // 1) 装饰性实体（无碰撞）：不画成实心墙/掩体，避免出现能穿过去的假墙
-            if (s.decorative === true) {
+            if (s.decorative === true || s.id === "e3_bench" || s.id === "tower_desk") {
                 continue;
             }
             // 2) 同步运行时破碎/隐藏态（如薄木挡打碎、侧门抬闩、木帘未放落）
@@ -801,26 +801,31 @@ export class StageRenderer {
             }
         }
 
-        // 特例 1：细长竖木柱（檐柱/棚柱等 h > w*1.6 的木构）——绘制真实木柱，不再把横木柜竖拉 13.65×
+        // 特例 1：细长竖木柱（檐柱/棚柱等 h > w*1.6 的木构）——使用像素竖木柱 fe_pillar_wood 分段平铺
         if (timber && solid.h > solid.w * 1.6) {
-            const colFill = occlusionTint(opacity, Color(66, 48, 36, Math.round(248 * opacity)));
-            const colHi = occlusionTint(opacity, Color(122, 92, 68, Math.round(200 * opacity)));
-            const colSh = occlusionTint(opacity, Color(34, 24, 18, Math.round(220 * opacity)));
-            draw.drawRect(Rect(left, base, width, frontH), colFill, 1.0, colHi);
-            draw.drawRect(Rect(left + width * 0.65, base, width * 0.35, frontH), colSh);
-            draw.drawSegment(Vec2(left + width * 0.32, base + 2), Vec2(left + width * 0.32, top - 2), 0.9, colHi);
+            const segs = Math.max(1, Math.min(6, Math.round(solid.h / Math.max(24, solid.w * 3.5))));
+            const segH = frontH / segs;
+            const colTint = occlusionTint(opacity);
+            for (let pi = 0; pi < segs; pi++) {
+                const tk = pi === 0 ? key : key + "_p" + pi;
+                assets.tryPlace("fe_pillar_wood", tk, center, base + pi * segH, width + 0.5, segH + 0.5, {
+                    layer, opacity, color: colTint,
+                });
+            }
             return;
         }
 
-        // 特例 2：细长横向棚架木梁（w > h*5，如二段粮棚 600×8）——绘制分段木梁，消除 49.4× 拉扁
+        // 特例 2：细长横向棚架木梁（w > h*5，如二段粮棚 600×8）——使用像素木梁 fe_beam_wood 分段平铺
         if (solid.w > solid.h * 5) {
-            const beamFill = occlusionTint(opacity, Color(78, 58, 42, Math.round(248 * opacity)));
-            const beamEdge = occlusionTint(opacity, Color(142, 110, 82, Math.round(215 * opacity)));
-            draw.drawRect(Rect(left, base, width, Math.max(4, frontH)), beamFill, 1.0, beamEdge);
-            const posts = Math.max(2, Math.round(solid.w / 140));
-            for (let pi = 0; pi <= posts; pi++) {
-                const px = left + (width * pi) / posts;
-                draw.drawSegment(Vec2(px, base), Vec2(px, top), 1.4, Color(34, 24, 18, Math.round(210 * opacity)));
+            const segs = Math.max(2, Math.min(12, Math.round(solid.w / 64)));
+            const segW = width / segs;
+            const beamH = Math.max(5, frontH);
+            const beamTint = occlusionTint(opacity);
+            for (let bi = 0; bi < segs; bi++) {
+                const tk = bi === 0 ? key : key + "_b" + bi;
+                assets.tryPlace("fe_beam_wood", tk, left + (bi + 0.5) * segW, base, segW + 0.5, beamH, {
+                    layer, opacity, color: beamTint,
+                });
             }
             return;
         }
@@ -1155,6 +1160,7 @@ export class StageRenderer {
 
     private drawArch(
         draw: DrawNode.Type,
+        assets: AssetSlotHost,
         p: Play,
         cam: CameraDirector,
     ): void {
@@ -1167,34 +1173,20 @@ export class StageRenderer {
         const y0 = cam.sy(a.y);
         const y1 = cam.sy(a.y + a.h);
         const cx = (x0 + x1) * 0.5;
-        const rx = (x1 - x0) * 0.5;
-        const rise = cam.len(9);
-        const rim = cam.len(7);
-        const slices = 9;
-        const mortar = Color(31, 32, 35, 255);
-        const point = (i: number, edge: number): Vec2.Type => {
-            const angle = Math.PI * i / slices;
-            return Vec2(cx + Math.cos(angle) * (rx + edge), y1 + Math.sin(angle) * (rise + edge));
-        };
-        const opening = [Vec2(x0, y0), Vec2(x1, y0)];
-        for (let i = 0; i <= slices; i++) {
-            opening.push(point(i, 0));
+        const aw = x1 - x0;
+        const ah = y1 - y0;
+        draw.drawRect(Rect(x0, y0, aw, ah + cam.len(8)), Color(13, 15, 20, 242));
+        if (!assets.tryPlace("fe_outside_arch", "outside_arch_vault", cx, y0, aw + cam.len(24), ah + cam.len(22), { layer: 2 })) {
+            draw.drawRect(Rect(x0 - cam.len(7), y0, cam.len(7), ah), Color(62, 63, 67, 255));
+            draw.drawRect(Rect(x1, y0, cam.len(7), ah), Color(72, 72, 74, 255));
         }
-        draw.drawPolygon(opening, Color(13, 15, 20, 248));
-        draw.drawRect(Rect(x0 - rim, y0, rim, y1 - y0), Color(62, 63, 67, 255), 1, mortar);
-        draw.drawRect(Rect(x1, y0, rim, y1 - y0), Color(72, 72, 74, 255), 1, mortar);
-        for (let i = 0; i < slices; i++) {
-            const shade = 77 + (i % 3) * 8;
-            draw.drawPolygon([point(i, 0), point(i, rim), point(i + 1, rim), point(i + 1, 0)],
-                Color(shade, shade, shade + 1, 255), 1, mortar);
-        }
-        // 城外板车未入窝时，在拱口内绘制连至上层板车的可见阻挡木栓，入窝后自动收回
+        // 城外板车未入窝时，在拱口内绘制连至上层板车的像素阻挡木栓，入窝后自动收回
         if (!p.cartDocked) {
             const bx0 = cam.sx(Math.max(a.x0 + 4, p.cartAxle - 18));
             const bx1 = cam.sx(Math.min(a.x1 - 4, p.cartAxle + 18));
             if (bx1 > bx0 + 4) {
                 const deckY = cam.sy(p.room.cart.baseY);
-                draw.drawRect(Rect(bx0, y0 + 2, bx1 - bx0, y1 - y0 - 2), Color(72, 52, 36, 245), 1.1, Color(138, 108, 78, 210));
+                assets.tryPlace("fe_pillar_wood", "outside_arch_bolt", (bx0 + bx1) * 0.5, y0 + 2, bx1 - bx0, ah - 2, { layer: 3 });
                 draw.drawSegment(Vec2((bx0 + bx1) * 0.5, y1), Vec2((bx0 + bx1) * 0.5, deckY), 2.4, Color(96, 102, 110, 220));
             }
         }

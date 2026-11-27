@@ -50,7 +50,6 @@ import {
     rgba,
     toColor,
 } from "Script/watch/fe/theme";
-import { drawChildColdMoonGrade } from "Script/watch/fe/renderer/slideshow";
 
 const COUNT_ZH: string[] = [
     "", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
@@ -522,34 +521,302 @@ export class GateTransitionPlugin implements FeRenderPlugin {
         const p = ctx.p;
         const cam = ctx.cam;
         const m = this.effectiveMorph;
-        const thX = this.lockThresholdX;
+        const thX = this.lockThresholdX; // 门槛 X (848)
         const doorLeft = thX - 108;
 
+        const scene = new LowpolyScene(cam, this.activeProjection, GATE_NIGHTMARE_LIGHT);
+
+        // 1. 城门关闭进程（与 stage.ts 对齐：0..360 拍闸门合拢，360 拍后完全落稳）
         const closeFrac = p.phase === "gate-count"
             ? (0.44 + 0.56 * clamp01(ctx.view.countElapsedTicks / 360))
             : 1.0;
 
-        // 1. 像素级青石主走面（严格贴合 wz=0 脚底锚点，与 pixel 城门/像素风台无缝衔接）
-        const groundY = cam.sy(0, p.player.depth);
-        const deckL = cam.sx(doorLeft - 140);
-        const deckR = cam.sx(thX + 180);
-        const tileW = Math.max(48, Math.round(cam.len(54)));
-        const tileH = Math.max(12, Math.round(cam.len(16)));
-        let tx = deckL;
-        let ti = 0;
-        while (tx < deckR && ti < 24) {
-            worldArt.tryPlace("fe_road_stone", "gate_px_road_" + tostring(ti), tx + tileW * 0.5, groundY - tileH + 2, tileW + 2, tileH, {
-                opacity: 0.94,
-                color: Color(Math.round(230 - 52 * m), Math.round(234 - 38 * m), Math.round(240 - 18 * m), 255),
-                layer: 12,
-            });
-            tx += tileW;
-            ti += 1;
+        // 2. 后排石阶（位于 z = +24..+102，通往城外下层护城河栈道；12s 时会被前景木板挡住一角！）
+        const stepReveal = smoothstep(0.18, 0.58, m);
+        if (stepReveal > 0.01) {
+            const stairSpec = {
+                x0: thX + 108,
+                x1: thX + 292,
+                y0: -56,
+                y1: 2,
+                steps: 5,
+                label: "外壕石阶",
+            };
+            // 下行石阶：左高右低，逐级沉入护城河雾中
+            let k = 0;
+            const n = stairSpec.steps + 1;
+            const stepW = (stairSpec.x1 - stairSpec.x0) / n;
+            for (k = 0; k < n; k++) {
+                const wy = stairSpec.y1 - (stairSpec.y1 - stairSpec.y0) * (k / Math.max(1, n - 1));
+                const sx0 = stairSpec.x0 + k * stepW;
+                const sx1 = sx0 + stepW + 1;
+                scene.addBox({
+                    x0: sx0,
+                    x1: sx1,
+                    y0: -78,
+                    y1: wy,
+                    z0: 26,
+                    z1: 106,
+                    material: MING_MATERIALS.mingStoneStep,
+                    bucket: LP_BUCKET.MIDGROUND,
+                    opacity: stepReveal,
+                    sortBias: k * 0.02,
+                    highlightTopEdge: true,
+                    edgeWidth: 0.9,
+                });
+            }
         }
-        // 地基深墨承托
-        fgDraw.drawRect(Rect(0, 0, cam.viewW, Math.max(0, groundY - tileH + 3)), Color(8, 11, 18, Math.round(215 * (0.45 + 0.55 * m))));
 
-        // 2. 关门后用实心明代城墙与重门像素精灵遮蔽留在门内的周戍（男主线 G05 重逢时平滑淡出露周戍）
+        // 3. 外城门砖石城墙与立体门框（0s 时与像素 bgFar_gate 无缝衔接，随 morph 0.02..0.22 显露厚实低模墙体；
+        //    6s / morph = 0.25 时门框内壁侧面完全成形并承接第一道侧光！）
+        const wallReveal = smoothstep(0.02, 0.22, m);
+        const frameLightStrength = smoothstep(0.10, 0.34, m) * (1 - 0.35 * smoothstep(0.85, 1.0, m));
+        if (wallReveal > 0.01) {
+            scene.addBox({
+                x0: doorLeft - 140,
+                x1: thX - 18,
+                y0: -60,
+                y1: 230,
+                z0: -12,
+                z1: 88,
+                material: MING_MATERIALS.mingBrick,
+                bucket: LP_BUCKET.MIDGROUND,
+                opacity: wallReveal,
+                highlightTopEdge: true,
+                edgeWidth: 0.75,
+            });
+            // 门框立体内壁（x = thX-18..thX，z = -6..+72；随 morph 展开露出厚实石框侧面）
+            scene.addBox({
+                x0: thX - 18,
+                x1: thX,
+                y0: 0,
+                y1: 162,
+                z0: -6,
+                z1: 72,
+                material: MING_MATERIALS.mingStoneStep,
+                bucket: LP_BUCKET.MIDGROUND,
+                opacity: wallReveal,
+                sortBias: 0.08,
+                highlightTopEdge: true,
+                edgeWidth: 0.9,
+            });
+            // 门楣厚石过梁（克制外挑宽度，保留右侧开阔寒夜海空）
+            scene.addBox({
+                x0: doorLeft - 40,
+                x1: thX + 76,
+                y0: 160,
+                y1: 214,
+                z0: -14,
+                z1: 82,
+                material: MING_MATERIALS.mingBrickDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                opacity: wallReveal,
+                sortBias: 0.12,
+                highlightTopEdge: true,
+                edgeWidth: 0.8,
+            });
+        }
+
+        // 6 秒第一道擦过门框侧面的冷月侧光与光柱
+        if (frameLightStrength > 0.02) {
+            scene.addLightShaft(
+                thX + 16, thX + 34, 160,
+                thX - 4, thX + 24, 0,
+                16,
+                rgba(220, 234, 248, 255),
+                0.24 * frameLightStrength,
+                0.04 * frameLightStrength,
+            );
+            // 门框内壁亮棱线（在静音与灰度下也能一眼读出立体门框第一道侧面）
+            const pBotNear = scene.project(thX, 0, -6);
+            const pBotFar = scene.project(thX, 0, 72);
+            const pTopFar = scene.project(thX, 160, 72);
+            const pTopNear = scene.project(thX, 160, -6);
+            const glowA = Math.round(140 * frameLightStrength);
+            fgGlow.drawVertices([
+                [Vec2(pBotNear.x, pBotNear.y), Color(224, 236, 248, glowA)],
+                [Vec2(pBotFar.x, pBotFar.y), Color(168, 196, 224, Math.round(glowA * 0.25))],
+                [Vec2(pTopFar.x, pTopFar.y), Color(168, 196, 224, Math.round(glowA * 0.25))],
+                [Vec2(pBotNear.x, pBotNear.y), Color(224, 236, 248, glowA)],
+                [Vec2(pTopFar.x, pTopFar.y), Color(168, 196, 224, Math.round(glowA * 0.25))],
+                [Vec2(pTopNear.x, pTopNear.y), Color(224, 236, 248, glowA)],
+            ]);
+        }
+
+        // 厚重明代木铁城门板（在门洞左侧闭合，含横向暗铁门箍提升质感；男主线 G05 回切像素风时淡出敞开门廊）
+        const doorAlpha = 1 - this.reunionPixelReturn;
+        const doorBotY = 160 * (1 - closeFrac);
+        if (160 - doorBotY > 2 && doorAlpha > 0.02) {
+            scene.addBox({
+                x0: thX - 122,
+                x1: thX - 2,
+                y0: doorBotY,
+                y1: 160,
+                z0: 4,
+                z1: 22,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.MIDGROUND,
+                opacity: doorAlpha,
+                sortBias: 0.04,
+                edgeWidth: 0.9,
+            });
+            // 明代重门铁箍横梁
+            const bandYs = [doorBotY + 12, doorBotY + 42, doorBotY + 72];
+            let bi = 0;
+            for (bi = 0; bi < bandYs.length; bi++) {
+                const byBand = bandYs[bi];
+                if (byBand + 6 < 158) {
+                    scene.addBox({
+                        x0: thX - 120,
+                        x1: thX - 4,
+                        y0: byBand,
+                        y1: byBand + 6,
+                        z0: 2,
+                        z1: 10,
+                        material: MING_MATERIALS.mingIron,
+                        bucket: LP_BUCKET.MIDGROUND,
+                        opacity: doorAlpha,
+                        sortBias: 0.06,
+                        edgeWidth: 0.5,
+                    });
+                }
+            }
+            // 门底缝透出的城内微弱暖光（0..6s 渐灭，象征门内光声断绝）
+            if (closeFrac < 0.98) {
+                const gapAlpha = (1 - closeFrac) * 0.65 * doorAlpha;
+                scene.addLightShaft(
+                    thX - 96, thX - 2, Math.max(4, doorBotY),
+                    thX - 86, thX + 26, 0,
+                    2,
+                    rgba(232, 188, 128, 255),
+                    gapAlpha * 0.42,
+                    gapAlpha * 0.14,
+                );
+            }
+        }
+
+        // 4. 门槛青石条（严格位于 wz = 0，x = thX-10..thX+12，与小满脚底构成双对齐基准）
+        scene.addBox({
+            x0: thX - 10,
+            x1: thX + 12,
+            y0: -12,
+            y1: 2,
+            z0: -14,
+            z1: 28,
+            material: MING_MATERIALS.mingStoneStep,
+            bucket: LP_BUCKET.WALK_DECK,
+            sortBias: 0.02,
+            highlightTopEdge: true,
+            edgeWidth: 1.1,
+        });
+
+        // 5. 风台主走面（wz = 0 严丝合缝，0s 时与原石板地面齐平，随 morph 展开厚重明代青石+木栈台）
+        scene.addBox({
+            x0: doorLeft - 140,
+            x1: thX + 132,
+            y0: -68,
+            y1: 0,
+            z0: -20,
+            z1: 42,
+            material: MING_MATERIALS.mingBrickDark,
+            bucket: LP_BUCKET.WALK_DECK,
+            sortBias: 0,
+            highlightTopEdge: true,
+            edgeWidth: 0.85,
+        });
+
+        // 6. 近处木栈台铺板（z = -56..-4，12s / morph = 0.50 起明显探向前景并挡住后排石阶一角！）
+        const plankReveal = smoothstep(0.14, 0.52, m);
+        if (plankReveal > 0.01) {
+            const overhangZ0 = -10 - 48 * plankReveal;
+            scene.addPlankDeck(
+                thX + 58,
+                thX + 340,
+                0,
+                overhangZ0,
+                22,
+                5,
+                11,
+                MING_MATERIALS.mingTimber,
+                {
+                    bucket: LP_BUCKET.WALK_DECK,
+                    opacity: plankReveal,
+                    sortBias: 0.25,
+                    withPosts: true,
+                    postBottomY: -78,
+                },
+            );
+            // 栈台低矮石栏桩与远端系着旧红布的检修木桩/车柄剪影（G04 视觉牵引点）
+            scene.addBox({
+                x0: thX + 244,
+                x1: thX + 260,
+                y0: 0,
+                y1: 38,
+                z0: -12,
+                z1: 6,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.PROP,
+                opacity: plankReveal,
+                highlightTopEdge: true,
+            });
+            // 12s 起右侧像素木桩风动旧红布（3 帧循环像素动画，作为 G04 视觉牵引点）
+            const clothReveal = smoothstep(0.28, 0.55, m);
+            if (clothReveal > 0.02) {
+                const clothX = cam.sx(thX + 244);
+                const clothY = cam.sy(32, p.player.depth);
+                worldArt.tryPlace("fe_red_cloth", "gate_px_red_cloth", clothX, clothY, cam.len(30), cam.len(22), {
+                    frame: Math.floor(this.animTime * 4.5),
+                    opacity: clothReveal * 0.96,
+                    layer: 36,
+                });
+            }
+
+            // 远处城墙外山岭望见的北塔轮廓与飞檐剪影（真实手绘立牌，随转景推进渐显去向）
+            scene.addCutout3D(
+                "assets/art/diorama_cutouts.clip|north_tower_distant",
+                thX + 365,
+                18,
+                250,
+                74,
+                95,
+                {
+                    bucket: LP_BUCKET.BACKDROP,
+                    opacity: 0.72 * plankReveal,
+                    color: rgba(146, 164, 186, 255),
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    sortBias: 0.08,
+                },
+            );
+            scene.addCutout3D(
+                "assets/art/diorama_cutouts.clip|ming_eave_ruin",
+                thX - 56,
+                148,
+                22,
+                146,
+                96,
+                {
+                    bucket: LP_BUCKET.MIDGROUND,
+                    opacity: 0.90,
+                    color: rgba(168, 184, 202, 255),
+                    anchorX: 0.5,
+                    anchorY: 0,
+                    sortBias: 0.12,
+                },
+            );
+        }
+
+        // 7. 角色脚底接触影（严格贴合 wz = 0，24s 时清晰落在立体风台上）
+        scene.addContactShadow(p.player.x, p.player.y, 16, 12, 0.62 + 0.28 * m, {
+            bucket: LP_BUCKET.PROP,
+            sortBias: 0.45,
+        });
+
+        // 8. 刷出全部 3D 微缩剧场纹理几何
+        scene.flush(fgDraw, fgGlow, ctx.dioramaWorld);
+
+        // 9. 关门后用贴图城墙与手绘明代铁铺首厚木重门遮蔽留在门内的 p.partner（周戍在 swapToChild 后仍 alive 站在门内 x<=860），
+        //    男主线 G05 重逢切回像素风时淡出该遮挡，自然露出周戍身影；门槛位于 874，绝不越过门外小满 x=890！
         const hidePartnerInside = this.reunionPixelReturn < 0.85 && closeFrac > 0.60;
         if (hidePartnerInside) {
             const wallRightX = cam.sx(thX - 1);
@@ -559,55 +826,64 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             const wallBotY = cam.sy(0, p.player.depth);
             const wallH = Math.max(2, wallTopY - wallBotY);
             const wallOp = clamp01((closeFrac - 0.60) / 0.28) * (1 - this.reunionPixelReturn);
-            worldArt.tryPlace(
-                "wall",
+            worldArt.tryPlacePath(
+                "assets/art/tex_diorama_ming.clip|ming_brick",
                 "gate_closed_wall_mask",
                 (wallLeftX + wallRightX) * 0.5,
                 wallBotY,
                 wallW,
                 wallH,
                 {
+                    anchorX: 0.5,
+                    anchorY: 0,
                     layer: 4102,
-                    color: Color(Math.round(92 - 28 * m), Math.round(98 - 26 * m), Math.round(112 - 20 * m), 255),
+                    color: Color(76, 84, 98, 255),
                     opacity: wallOp,
+                    smooth: true,
                 },
             );
             const doorPanelL = cam.sx(thX - 112);
             const doorPanelR = cam.sx(thX - 1);
-            worldArt.tryPlace(
-                "prop_tower_door",
+            worldArt.tryPlacePath(
+                "assets/art/cutscene_story_parts.clip|tower_porch_door",
                 "gate_closed_door_leaf",
                 (doorPanelL + doorPanelR) * 0.5,
                 wallBotY,
                 Math.max(2, doorPanelR - doorPanelL),
                 wallH,
                 {
+                    anchorX: 0.5,
+                    anchorY: 0,
                     layer: 4103,
-                    color: Color(Math.round(138 - 34 * m), Math.round(122 - 30 * m), Math.round(108 - 22 * m), 255),
+                    color: Color(156, 148, 140, 255),
                     opacity: wallOp,
+                    smooth: true,
                 },
             );
         }
 
-        // 3. 12s 起右侧像素木桩风动旧红布（3 帧循环像素动画，作为 G04 视觉牵引点）
-        const clothReveal = smoothstep(0.28, 0.55, m);
-        if (clothReveal > 0.02) {
-            const clothX = cam.sx(thX + 244);
-            const clothY = cam.sy(32, p.player.depth);
-            worldArt.tryPlace("fe_red_cloth", "gate_px_red_cloth", clothX, clothY, cam.len(30), cam.len(22), {
-                frame: Math.floor(this.animTime * 4.5),
-                opacity: clothReveal * 0.96,
-                layer: 36,
-            });
+        // 10. 《小小梦魇》式前景压边松枝剪影（位于角色前方 worldArt 高 layer，绝不遮挡小满与门槛对齐点）
+        const fgBeamAlpha = smoothstep(0.42, 0.95, m) * (1 - this.reunionPixelReturn);
+        if (fgBeamAlpha > 0.02) {
+            const pRight = scene.project(thX + 318, 128, -54);
+            worldArt.tryPlacePath(
+                "assets/art/diorama_cutouts.clip|fg_pine_bough",
+                "gate_fg_pine_right",
+                pRight.x,
+                pRight.y,
+                cam.len(168),
+                cam.len(108),
+                {
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    facing: -1,
+                    color: Color(36, 48, 56, 255),
+                    opacity: 0.88 * fgBeamAlpha,
+                    smooth: true,
+                    layer: 5200,
+                },
+            );
         }
-
-        // 4. 脚底柔和接触影
-        const footSx = cam.sx(p.player.x);
-        const footSy = cam.sy(p.player.y, p.player.depth);
-        fgDraw.drawEllipse(Vec2(footSx, footSy + 1), cam.len(14), cam.len(4.2), Color(6, 9, 15, Math.round(165 + 45 * m)));
-
-        // 5. 冷月电影调色与极克制前景暗角（随 m 渐深，G05 回暖时同步散去）
-        drawChildColdMoonGrade(fgDraw, fgGlow, cam.viewW, cam.viewH, m * (1 - this.reunionPixelReturn), this.reunionPixelReturn);
 
         return true;
     }
@@ -705,6 +981,11 @@ export class GateTransitionPlugin implements FeRenderPlugin {
             const r1 = 8 + ringCycle * 34;
             const a1 = (1 - ringCycle) * 0.72;
             fgGlow.drawRing(Vec2(wallSx, knockY), Math.max(1, r1 - 1.5), r1, Color(0, 0, 0, 0), 1.3, toColor(PALETTE.amber, 210 * a1));
+            // 微微抬起的手势轮廓微芒
+            const handX = cx - cam.len(10);
+            const handY = by + H * 0.62 + Math.sin(this.animTime * 2.6) * 2;
+            fgDraw.drawSegment(Vec2(cx - cam.len(3), by + H * 0.56), Vec2(handX, handY), 2.4, Color(230, 206, 182, 220));
+            fgGlow.drawDot(Vec2(handX, handY), 2.4, toColor(PALETTE.amberCore, 165));
         }
     }
 
