@@ -7,8 +7,8 @@ local ____Dora = require("Dora") -- 21
 local Color = ____Dora.Color -- 21
 local Rect = ____Dora.Rect -- 21
 local Vec2 = ____Dora.Vec2 -- 21
-local ____control_prompts = require("Script.watch.fe.ui.control_prompts") -- 26
-local adaptHintSentence = ____control_prompts.adaptHintSentence -- 26
+local ____target = require("Script.watch.target") -- 26
+local getActiveTarget = ____target.getActiveTarget -- 26
 local ____gate_transition = require("Script.watch.fe.scenes.gate_transition") -- 28
 local G05_PIXEL_RETURN_END = ____gate_transition.G05_PIXEL_RETURN_END -- 29
 local G05_PIXEL_RETURN_START = ____gate_transition.G05_PIXEL_RETURN_START -- 30
@@ -1496,7 +1496,7 @@ function CuffShotsPlugin.prototype.renderG05LiveShot(self, uiDraw, uiInkDraw, ui
 			) -- 1058
 			ctx.texts:put( -- 1059
 				"xs", -- 1060
-				adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1061
+				getActiveTarget():adaptHintSentence("按住 E 牵住伸来的袖口", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1061
 				w * 0.5, -- 1062
 				h - 26, -- 1063
 				toColor(PALETTE.amberCore), -- 1064

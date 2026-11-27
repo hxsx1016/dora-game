@@ -18,7 +18,7 @@ import {
 } from "Script/watch/dialogues";
 import { FrameEvents } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
-import { adaptHintSentence } from "Script/watch/fe/ui/control_prompts";
+import { getActiveTarget } from "Script/watch/target";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import {
     PALETTE,
@@ -413,7 +413,7 @@ export class NarrativeRenderer {
         }
         const line = {
             cue: rawLine.cue,
-            text: assistHintsEnabled ? adaptHintSentence(rawLine.text, inputMode, gamepadLayout) : rawLine.text,
+            text: assistHintsEnabled ? getActiveTarget().adaptHintSentence(rawLine.text, inputMode, gamepadLayout) : rawLine.text,
             urgent: rawLine.urgent,
         };
         const hasCue = line.cue !== "";
@@ -808,7 +808,7 @@ export class NarrativeRenderer {
 
             drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 360, 32, PALETTE.inkWash, 0.72, 0);
             const rawEndHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
-            const endHint = adaptHintSentence(rawEndHint, inputMode, gamepadLayout);
+            const endHint = getActiveTarget().adaptHintSentence(rawEndHint, inputMode, gamepadLayout);
             texts.put("xs", endHint, midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
         }
     }

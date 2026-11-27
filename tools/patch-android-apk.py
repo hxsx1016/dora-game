@@ -48,7 +48,7 @@ ATTR_SCREEN_ORIENTATION_RES_ID = 0x0101001E
 ORIENTATION_VALUES = {
     "unspecified": -1,
     "sensorLandscape": 6,
-    "fullUser": 10,
+    "fullUser": 13,
 }
 ANDROID_NS_URI = "http://schemas.android.com/apk/res/android"
 
@@ -512,7 +512,9 @@ def rewrite_manifest(
     return header + new_sp + bytes(new_rm) + body
 
 
-def should_skip_template_entry(name: str, keep_abis: set[str]) -> bool:
+def should_skip_template_entry(name: str, keep_abis: set[str], strip_controller_db: bool = False) -> bool:
+    if strip_controller_db and name == "assets/gamecontrollerdb.txt":
+        return True
     if (
         name == "assets/Script/init.lua"
         or name == "assets/Script/init.yue"
@@ -560,6 +562,7 @@ def build_apk(
     abis: set[str],
     icon_png: Path | None,
     orientation: str = "fullUser",
+    strip_controller_db: bool = False,
 ) -> None:
     if not re.match(r"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$", package_name):
         raise ValueError(f"Invalid Android package name: {package_name}")
@@ -605,7 +608,7 @@ def build_apk(
         with zipfile.ZipFile(output_apk, "w") as zout:
             for item in zin.infolist():
                 name = item.filename
-                if item.is_dir() or should_skip_template_entry(name, abis):
+                if item.is_dir() or should_skip_template_entry(name, abis, strip_controller_db):
                     continue
                 if name == "AndroidManifest.xml":
                     zi = zipfile.ZipInfo(name)
@@ -667,6 +670,11 @@ def main() -> int:
         default="fullUser",
         help="MainActivity screenOrientation (default: fullUser for landscape/portrait auto switch)",
     )
+    ap.add_argument(
+        "--strip-controller-db",
+        action="store_true",
+        help="Strip assets/gamecontrollerdb.txt for touch-only Android phone APKs",
+    )
     args = ap.parse_args()
 
     abis = {a.strip() for a in args.abis.split(",") if a.strip()}
@@ -681,6 +689,7 @@ def main() -> int:
         abis=abis,
         icon_png=args.icon,
         orientation=args.orientation,
+        strip_controller_db=args.strip_controller_db,
     )
     return 0
 

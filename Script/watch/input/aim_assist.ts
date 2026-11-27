@@ -1,8 +1,7 @@
 /**
- * 《向西守望》共享瞄准目标采集与轻度敌兵磁吸辅助（触屏与手柄统一复用）。
+ * 《向西守望》共享瞄准目标采集与轻度敌兵磁吸辅助（仅安卓、掌机、Web 引入）。
  *
- * 所有坐标均以主舞台局部像素空间（左下原点，0..stageW, 0..stageH）表达，
- * 自动兼容横屏全屏、KTR 3:2 / 4:3 以及竖屏上方 16:9 舞台。
+ * Windows 发行包不引入、不打包本模块。
  */
 
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
@@ -27,32 +26,20 @@ function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** 从高清前端镜头采集当前房内可见活体敌兵的舞台坐标候选点。 */
-export function collectPlayAimTargets(
-    p: Play,
-    cam: CameraDirector,
-    stageW: number,
-    stageH: number,
-): AimTargetCandidate[] {
-    const out: AimTargetCandidate[] = [];
-    let i = 0;
-    for (i = 0; i < p.enemies.length; i++) {
-        const e = p.enemies[i];
-        if (!e.alive) continue;
-        const isShield = e.kind === "shield" && (e.shieldHp ?? 0) > 0;
-        const aimWorldY = e.y + e.h * (isShield ? 0.88 : 0.60);
-        const sx = cam.sx(e.x);
-        const sy = cam.sy(aimWorldY, e.depth ?? 0);
-        if (sx >= -64 && sx <= stageW + 64 && sy >= -48 && sy <= stageH + 48) {
-            out.push({ sx, sy, shield: isShield });
-        }
-    }
-    return out;
+/** Use the sprite camera when supplied by the renderer, otherwise project through Play.draw's viewport. */
+function projectAimPoint(p: Play, cam: CameraDirector | undefined, x: number, y: number, depth: number): { x: number; y: number } {
+    if (cam !== undefined) return { x: cam.sx(x), y: cam.sy(y, depth) };
+    return worldToScreen(x, y + depth * DEPTH_Y_SCALE, p.cam, p.view);
 }
 
-/** 从护送试炼（mode === 2）采集敌兵舞台坐标候选点。 */
-export function collectTrialAimTargets(
+export function projectMuzzle(p: Play, cam: CameraDirector | undefined): { x: number; y: number } {
+    const a = p.player;
+    return projectAimPoint(p, cam, a.x + a.facing * 8, a.y + a.h * 0.72, a.depth);
+}
+
+export function collectAimTargets(
     p: Play,
+    cam: CameraDirector | undefined,
     stageW: number,
     stageH: number,
 ): AimTargetCandidate[] {
@@ -63,7 +50,7 @@ export function collectTrialAimTargets(
         if (!e.alive) continue;
         const isShield = e.kind === "shield" && (e.shieldHp ?? 0) > 0;
         const aimWorldY = e.y + e.h * (isShield ? 0.88 : 0.60);
-        const pt = worldToScreen(e.x, aimWorldY + (e.depth ?? 0) * DEPTH_Y_SCALE, p.cam, p.view);
+        const pt = projectAimPoint(p, cam, e.x, aimWorldY, e.depth ?? 0);
         if (pt.x >= -64 && pt.x <= stageW + 64 && pt.y >= -48 && pt.y <= stageH + 48) {
             out.push({ sx: pt.x, sy: pt.y, shield: isShield });
         }

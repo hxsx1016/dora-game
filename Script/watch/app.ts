@@ -5,15 +5,12 @@
  *   供离线回放与自动验收读取真实运行态。
  */
 
-import { App, Color, DrawNode, Keyboard, KeyName, Label, Node, Rect, Size, Vec2, View } from "Dora";
+import { App, Color, Label, Node, Rect, Size, Vec2, View } from "Dora";
 import { CAMPAIGN_ROOMS, ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
-import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
-import { collectPlayAimTargets, collectTrialAimTargets } from "Script/watch/aim_assist";
 import { InputMode, InputModePref } from "Script/watch/controls_config";
-import { GamepadFrameContext, GamepadRawState, GamepadRouter } from "Script/watch/gamepad";
 import {
     StageViewport,
     canQuitApp,
@@ -22,15 +19,13 @@ import {
     getReleaseConfig,
     isReleaseMode,
 } from "Script/watch/platform";
-import { TouchRouter } from "Script/watch/touch";
+import { getActiveTarget } from "Script/watch/target";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createStoryTalents, createTrial, mmss, RunSource, RunState, Talent, talentNames } from "Script/watch/run";
 import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
     markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
     SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
-import { TouchControls } from "Script/watch/fe/ui/touch_controls";
-import { isCutsceneBlockingPlay } from "Script/watch/fe/ui/control_prompts";
 
 declare function print(...args: string[]): void;
 
@@ -58,9 +53,6 @@ let dirty = true;
 /** 1 = 正式游戏前端，2 = 独立护送试炼。 */
 let mode = 1;
 let input: Input | undefined;
-let touchRouter: TouchRouter | undefined;
-let gamepadRouter: GamepadRouter | undefined;
-let touchControls: TouchControls | undefined;
 let play: Play | undefined;
 let fe: WatchFrontend | undefined;
 const clock = new StepClock();
@@ -378,15 +370,54 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
 
     input = new Input();
     fe.audio.applyUserVolumes(input.settings);
-    touchRouter = new TouchRouter(input.settings);
-    touchRouter.attach(parent);
-    input.bindTouch(touchRouter);
-
-    gamepadRouter = new GamepadRouter(input.settings);
-    gamepadRouter.attach(parent);
-    input.bindGamepad(gamepadRouter);
-
-    touchControls = new TouchControls(parent);
+    input.attach(parent, {
+        onFirstUserGesture: () => {
+            onFirstUserGesture();
+            input?.markKeyboardActivity();
+        },
+        onToggleFullscreen: () => {
+            toggleFullscreen();
+        },
+        onKeyDownEvent: (key: string) => {
+            if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && key === "T") {
+                play.toggleArtifactWeapon();
+                return;
+            }
+            if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
+                && !play.craftBench.active && !play.reloadOpen && play.getStoryTalentOffers().length > 0) {
+                if (key === "1") {
+                    play.chooseTalent(0);
+                    input?.consumePickRoom();
+                    return;
+                }
+                if (key === "2") {
+                    play.chooseTalent(1);
+                    input?.consumePickRoom();
+                    return;
+                }
+                if (key === "3") {
+                    play.chooseTalent(2);
+                    input?.consumePickRoom();
+                    return;
+                }
+            }
+            const inPausedPlay = mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && play.paused;
+            if (fe !== undefined && mode === 1 && (fe.screen !== "play" || inPausedPlay)) {
+                fe.menus.onKeyEvent(key);
+            }
+            if (input !== undefined && ((mode === 1 && fe !== undefined && fe.screen === "play" && !inPausedPlay) || mode === 2)) {
+                if (key === "E") {
+                    input.interact.pressed = true;
+                } else if (key === "Space") {
+                    input.jump.pressed = true;
+                } else if (key === "Escape") {
+                    input.pause.pressed = true;
+                } else if (key === "R" && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
+                    input.retry.pressed = true;
+                }
+            }
+        },
+    });
 
     // 系统返回键、窗口关闭、切后台与焦点切换生命周期统一治理
     parent.gslot("AppEvent", (eventType: string) => {
@@ -426,63 +457,15 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         }
     });
 
-    // 开发与验收快捷键 + 瞬时按键边沿锁存（防止低帧率下短按 E / Space / Esc / 菜单方向键被轮询漏掉）
-    parent.onKeyDown((key: KeyName) => {
-        onFirstUserGesture();
-        input?.markKeyboardActivity();
-        if (key === KeyName.F11
-            || (key === KeyName.Return && (Keyboard.isKeyPressed(KeyName.LAlt) || Keyboard.isKeyPressed(KeyName.RAlt)))) {
-            toggleFullscreen();
-            return;
-        }
-        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused && key === KeyName.T) {
-            play.toggleArtifactWeapon();
-            return;
-        }
-        if (mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && !play.paused
-            && !play.craftBench.active && !play.reloadOpen && play.getStoryTalentOffers().length > 0) {
-            if (key === KeyName.Num1) {
-                play.chooseTalent(0);
-                input?.consumePickRoom();
-                return;
-            }
-            if (key === KeyName.Num2) {
-                play.chooseTalent(1);
-                input?.consumePickRoom();
-                return;
-            }
-            if (key === KeyName.Num3) {
-                play.chooseTalent(2);
-                input?.consumePickRoom();
-                return;
-            }
-        }
-        const inPausedPlay = mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && play.paused;
-        if (fe !== undefined && mode === 1 && (fe.screen !== "play" || inPausedPlay)) {
-            fe.menus.onKeyEvent(key);
-        }
-        if (input !== undefined && ((mode === 1 && fe !== undefined && fe.screen === "play" && !inPausedPlay) || mode === 2)) {
-            if (key === KeyName.E) {
-                input.interact.pressed = true;
-            } else if (key === KeyName.Space) {
-                input.jump.pressed = true;
-            } else if (key === KeyName.Escape) {
-                input.pause.pressed = true;
-            } else if (key === KeyName.R && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
-                input.retry.pressed = true;
-            }
-        }
-    });
-
     viewW = View.size.width;
     viewH = View.size.height;
     applySize();
 
-    // 验收钩子：保留 watch.input / watch.play / watch.room / watch.fe，并补充三模与多比例视口控制面
+    // 验收钩子：保留 watch.input / watch.play / watch.room / watch.fe，按当前端暴露外设句柄
     const reg = (globalThis as unknown as { package: { loaded: Record<string, unknown> } }).package.loaded;
     reg["watch.input"] = input;
-    reg["watch.touch"] = touchRouter;
-    reg["watch.gamepad"] = gamepadRouter;
+    reg["watch.touch"] = input.getTouchRouter();
+    reg["watch.gamepad"] = input.getGamepadRouter();
     reg["watch.fe"] = {
         setScreen: (sc: ScreenKind) => {
             if (fe === undefined) {
@@ -575,16 +558,17 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
         startTrial: () => startTrial(),
         handleBackButton: () => handleBackButton(),
         getViewport: () => stageVp,
-        getTouchController: () => touchControls,
-        getTouchRouter: () => touchRouter,
-        getGamepad: () => gamepadRouter,
-        setGamepadSim: (state?: GamepadRawState) => {
-            gamepadRouter?.setSimulatedState(state);
+        getTargetId: () => getActiveTarget().id,
+        getTouchController: () => input?.getTouchControls(),
+        getTouchRouter: () => input?.getTouchRouter(),
+        getGamepad: () => input?.getGamepadRouter(),
+        setGamepadSim: (state?: unknown) => {
+            input?.setGamepadSim(state);
         },
         injectTouch: (phase: "began" | "moved" | "ended", id: number, x: number, y: number, fromMouse?: boolean) => {
-            touchRouter?.injectTouch(phase, id, x, y, fromMouse);
+            input?.injectTouch(phase, id, x, y, fromMouse);
         },
-        getInputMode: () => input?.inputMode ?? "kbm",
+        getInputMode: () => input?.inputMode ?? getActiveTarget().defaultInputMode,
         setInputMode: (m: InputMode) => {
             input?.setInputMode(m);
         },
@@ -738,116 +722,44 @@ function syncFrameAdapters(frameDt: number): void {
     if (input === undefined) {
         return;
     }
+    const target = input.target;
+    if (!target.supportsTouch && !target.supportsGamepad) {
+        return;
+    }
     const p = play;
     const isPlayMode = mode === 1 && fe !== undefined && fe.screen === "play" && p !== undefined;
-    const isTrialMode = mode === 2 && p !== undefined;
-    const gameplayActive = isPlayMode || isTrialMode;
-
-    const storyTalentBoxes = isPlayMode && fe !== undefined && p !== undefined
+    const storyTalentBoxes = target.supportsTouch && isPlayMode && fe !== undefined && p !== undefined
         && !p.paused && !p.craftBench.active && !p.reloadOpen
         ? fe.getStoryTalentBoxes(p, stageVp.stageW, stageVp.stageH, input.isTouchMode())
         : [];
 
-    if (touchControls !== undefined && touchRouter !== undefined) {
-        let isFs = false;
-        if (canToggleFullscreen()) {
-            try {
-                isFs = App.fullScreen;
-            } catch {
-                isFs = false;
-            }
+    let isFs = false;
+    if (target.canToggleFullscreen()) {
+        try {
+            isFs = App.fullScreen;
+        } catch {
+            isFs = false;
         }
-        touchControls.syncContext({
-            viewport: stageVp,
-            mode,
-            screen: fe !== undefined ? fe.screen : "title",
-            play: p,
-            run,
-            cam: fe !== undefined ? fe.cam : undefined,
-            input,
-            router: touchRouter,
-            assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
-            isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
-            isFullscreen: isFs,
-            storyTalentBoxes,
-            dt: frameDt,
-        });
     }
-
-    if (gamepadRouter !== undefined) {
-        const trial = run?.trial;
-        const trialEnded = isTrialMode && trial !== undefined && (trial.lost || run?.finished === true);
-        const trialHasOffers = isTrialMode && trial !== undefined && trial.offers.length > 0 && p !== undefined && !p.paused && !trialEnded;
-        const modal = !gameplayActive
-            || (isPlayMode && p !== undefined && (p.paused || p.reloadOpen || p.craftBench.active))
-            || (isTrialMode && p !== undefined && (p.paused || trialEnded));
-        const reloadActive = isPlayMode && p !== undefined && !p.paused && p.reloadOpen;
-        const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
-        const talentOfferCount = isPlayMode && p !== undefined && !p.paused && !p.craftBench.active && !p.reloadOpen
-            ? p.getStoryTalentOffers().length
-            : (trialHasOffers && trial !== undefined ? trial.offers.length : 0);
-        const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
-        const allowDepth = p !== undefined && p.room.depth !== undefined
-            && (!p.childMode || p.phase === "prologue-escape");
-        const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
-        const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
-            && !modal && !cutsceneBlocking && !trialHasOffers && p.escort.state !== "calming";
-        const canBottleAim = isPlayMode && p !== undefined && p.childMode && p.room.key === "village"
-            && p.hasBottle && !p.passed && !modal && !cutsceneBlocking;
-        const inLowArch = p !== undefined && p.room.arch.h > 0
-            && p.player.x >= p.room.arch.x0 - 10 && p.player.x <= p.room.arch.x1 + 10
-            && p.player.y <= p.room.arch.y + p.room.arch.h;
-        const inTowerEnd = isPlayMode && p !== undefined && p.room.key === "tower" && p.phase === "tower-end";
-
-        let playerScreenX = stageVp.stageW * 0.5;
-        let playerScreenY = stageVp.stageH * 0.38;
-        if (p !== undefined) {
-            if (isPlayMode && fe !== undefined) {
-                playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
-                playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
-            } else {
-                // 护送试炼（mode === 2）按 Play.view 精确投影主角屏幕位置，保证手柄方向锥磁吸准心不偏心
-                const vz = p.view.zoom > 0 ? p.view.zoom : 1;
-                playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
-                playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
-            }
-        }
-
-        const enemyTargets = canShoot && p !== undefined
-            ? (isPlayMode && fe !== undefined
-                ? collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
-                : collectTrialAimTargets(p, stageVp.stageW, stageVp.stageH))
-            : [];
-
-        const gpCtx: GamepadFrameContext = {
-            stageW: stageVp.stageW,
-            stageH: stageVp.stageH,
-            uiScale: stageVp.uiScale,
-            modal,
-            gameplayActive,
-            reloadActive,
-            craftActive,
-            talentOfferCount,
-            childMode: p !== undefined && p.childMode,
-            allowDepth,
-            canShoot,
-            canBottleAim,
-            playerRolling: p !== undefined && p.player.rollT > 0,
-            inLowArch,
-            inTowerEnd,
-            playerFacing: p !== undefined ? p.player.facing : 1,
-            playerScreenX,
-            playerScreenY,
-            enemyTargets,
-        };
-        gamepadRouter.setFrameContext(gpCtx, frameDt);
-    }
+    input.syncFrame({
+        viewport: stageVp,
+        mode,
+        screen: fe !== undefined ? fe.screen : "title",
+        play: p,
+        run,
+        // PR #29 后正式剧情与护送试炼均通过 WatchFrontend.cam 渲染。
+        cam: fe?.cam,
+        input,
+        assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
+        isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
+        isFullscreen: isFs,
+        storyTalentBoxes,
+        dt: frameDt,
+    });
 }
 
 function renderTouchOverlay(): void {
-    if (touchControls !== undefined && touchRouter !== undefined) {
-        touchControls.render(touchRouter);
-    }
+    input?.renderOverlay();
 }
 
 function tick(frameDt: number): void {
@@ -1159,22 +1071,22 @@ function drawCampaignHud(p: Play): void {
         campaignHud.position = Vec2(stageVp.stageW * 0.5, h - 12 - safeT);
         campaignHud.visible = true;
     }
-
     if (campaignSub === undefined) {
         return;
     }
     let sub = p.flash;
-    if (trial !== undefined) {
-        if (trial.lost || (r !== undefined && r.finished)) {
-            sub = gpMode ? "A 再开一局 · START 返回标题" : (touchMode ? "点下方按钮再开或返回标题" : "R 再开一局 · Esc 返回标题");
+    if (trial !== undefined && r !== undefined) {
+        const curMode = input !== undefined ? input.inputMode : getActiveTarget().defaultInputMode;
+        if (trial.lost || r.finished) {
+            sub = getActiveTarget().trialSubHint(curMode, true, r.seed);
         } else if (p.paused) {
-            sub = gpMode ? "START 继续 · 长按 BACK 重开 · Y 返回标题" : (touchMode ? "点下方按钮继续 / 重开 / 返回标题" : "Esc 继续 · R 重新开局");
+            sub = getActiveTarget().trialSubHint(curMode, false, r.seed);
         } else if (trial.offers.length > 0) {
             sub = trial.offers.map((talent, index) => {
                 const mark = gpMode && index === trialTalentSelected ? "▶ " : "";
                 return mark + (index + 1) + " " + talentNames[talent];
             }).join("　");
-        } else if (sub === "" && r !== undefined) {
+        } else if (sub === "") {
             sub = r.joined ? "小满跟随" : "小满等待";
         }
     }
