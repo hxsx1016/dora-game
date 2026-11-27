@@ -53,6 +53,7 @@ export function collectPlayAimTargets(
 /** 从护送试炼（mode === 2）采集敌兵舞台坐标候选点。 */
 export function collectTrialAimTargets(
     p: Play,
+    cam: CameraDirector,
     stageW: number,
     stageH: number,
 ): AimTargetCandidate[] {
@@ -63,9 +64,10 @@ export function collectTrialAimTargets(
         if (!e.alive) continue;
         const isShield = e.kind === "shield" && (e.shieldHp ?? 0) > 0;
         const aimWorldY = e.y + e.h * (isShield ? 0.88 : 0.60);
-        const pt = worldToScreen(e.x, aimWorldY + (e.depth ?? 0) * DEPTH_Y_SCALE, p.cam, p.view);
-        if (pt.x >= -64 && pt.x <= stageW + 64 && pt.y >= -48 && pt.y <= stageH + 48) {
-            out.push({ sx: pt.x, sy: pt.y, shield: isShield });
+        const sx = cam.sx(e.x);
+        const sy = cam.sy(aimWorldY, e.depth ?? 0);
+        if (sx >= -64 && sx <= stageW + 64 && sy >= -48 && sy <= stageH + 48) {
+            out.push({ sx, sy, shield: isShield });
         }
     }
     return out;

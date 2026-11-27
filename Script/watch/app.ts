@@ -457,6 +457,12 @@ export function start(parent: Node.Type, initialMode: number = 1, startScreen: S
                 return;
             }
         }
+        if (mode === 2 && run?.trial !== undefined) {
+            if (key === KeyName.Num1 || key === KeyName.Num2 || key === KeyName.Num3) {
+                input?.requestPickRoom(key === KeyName.Num1 ? 1 : (key === KeyName.Num2 ? 2 : 3));
+                return;
+            }
+        }
         const inPausedPlay = mode === 1 && fe !== undefined && fe.screen === "play" && play !== undefined && play.paused;
         if (fe !== undefined && mode === 1 && (fe.screen !== "play" || inPausedPlay)) {
             fe.menus.onKeyEvent(key);
@@ -805,8 +811,11 @@ function syncFrameAdapters(frameDt: number): void {
             if (isPlayMode && fe !== undefined) {
                 playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
                 playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
+            } else if (fe !== undefined) {
+                // 护送试炼（mode === 2）与剧情用同一个实际渲染镜头，保证手柄方向锥与触屏瞄准原点不偏
+                playerScreenX = fe.cam.sx(p.player.x + p.player.facing * 8);
+                playerScreenY = fe.cam.sy(p.player.y + p.player.h * 0.72, p.player.depth);
             } else {
-                // 护送试炼（mode === 2）按 Play.view 精确投影主角屏幕位置，保证手柄方向锥磁吸准心不偏心
                 const vz = p.view.zoom > 0 ? p.view.zoom : 1;
                 playerScreenX = stageVp.stageW * 0.5 + (p.player.x + p.player.facing * 8 - p.cam.x) * vz;
                 playerScreenY = stageVp.stageH * 0.5 + (p.player.y + p.player.h * 0.72 + p.player.depth * DEPTH_Y_SCALE - p.cam.y) * vz;
@@ -816,7 +825,9 @@ function syncFrameAdapters(frameDt: number): void {
         const enemyTargets = canShoot && p !== undefined
             ? (isPlayMode && fe !== undefined
                 ? collectPlayAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
-                : collectTrialAimTargets(p, stageVp.stageW, stageVp.stageH))
+                : (fe !== undefined
+                    ? collectTrialAimTargets(p, fe.cam, stageVp.stageW, stageVp.stageH)
+                    : []))
             : [];
 
         const gpCtx: GamepadFrameContext = {
@@ -900,9 +911,8 @@ function tick(frameDt: number): void {
         input.pickRoom = 0;
     }
 
-    // 旧版灰盒视图与开发快跳（G / Tab / 数字键）已移除，这里只清输入边界，避免残留状态。
+    // 旧版灰盒视图与开发快跳（G / Tab）已移除，这里只清输入边界，避免残留状态。
     input.toggleView.pressed = false;
-    input.pickRoom = 0;
     input.tab.pressed = false;
 
     if (mode === 2) {
