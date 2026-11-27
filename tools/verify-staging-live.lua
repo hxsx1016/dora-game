@@ -5,7 +5,7 @@
 --  3. 共同序章 P01 -> P02 -> P03(180 拍) -> P04(跨房单次) + D30–D34/D01–D02 实机可见 + 低引导 flashSet 拆句
 --  4. S1 战后对白（D40/D41）与 C1 候检院对白（C1A/C1B/C1C）
 --  5. 城门 P05(gate-farewell) -> G01(gate-count) 零叠字叠音 + G05(gate-wait) D48 可见
---  6. 北塔 door_open 推门提灯过渡、无误弹横幅、D14->D16 节拍、低模值夜室与 M03 尾声 D55 可见
+--  6. 北塔 door_open 推门提灯过渡、无误弹横幅、D14->D15->D16 节拍、低模值夜室与 M03 尾声 D55 可见
 
 local Dora = require("Dora")
 local lualib = require("lualib_bundle")
@@ -332,7 +332,7 @@ do
 	root:cleanup()
 end
 
--- ---------------------------------------------------------------- 4. 北塔 door_open 过渡、无横幅重弹、D14->D16 与 M03 尾声 D55
+-- ---------------------------------------------------------------- 4. 北塔 door_open 过渡、无横幅重弹、D14->D15->D16 与 M03 尾声 D55
 do
 	local root = Dora.Node()
 	local fe = new(Frontend, root)
@@ -368,21 +368,34 @@ do
 		and not hasVisibleSubstr(fe, "叫什么名"),
 		"vis=" .. table.concat(visibleTexts(fe), " | "))
 
-	-- 跨门槛到桌前进入 tower-desk：再触发 D16(「叫什么名？」)
-	ptc.player.x = ptc.ox + 560
-	for _ = 1, 6 do
-		ptc:update(DT, inp)
-		fe:renderPlay(DT, ptc, inp, 1280, 720)
+	-- 开门立即跨门槛，逐帧记录可见字幕，直到桌前询名。
+	local function crossThreshold(p)
+		p.player.x = p.ox + 560
+		local seen = {}
+		for _ = 1, 600 do
+			p:update(DT, inp)
+			fe:renderPlay(DT, p, inp, 1280, 720)
+			local line = fe.narrative:getActiveDialogue()
+			if line.id ~= "" and line.id ~= seen[#seen] and hasVisibleSubstr(fe, line.text) then
+				seen[#seen + 1] = line.id
+			end
+			if line.id == "D16" then break end
+		end
+		return table.concat(seen, ",")
 	end
-	check("4.2 抵桌进 tower-desk 后再触发 D16(「叫什么名？」)",
-		ptc.phase == "tower-desk" and hasVisibleSubstr(fe, "叫什么名"),
-		"phase=" .. ptc.phase .. " vis=" .. table.concat(visibleTexts(fe), " | "))
+	local childSequence = crossThreshold(ptc)
+	check("4.2 跨门槛后播完小满的应门回答再询名",
+		ptc.phase == "tower-desk" and childSequence == "D14,D15,D16", childSequence)
 
 	-- 4B: 男主团圆线 M03 尾声：phaseTick >= 200 后实机可见 D55(「哥，灯还亮着。」)
 	local rs = runmod.createRun(20261127, "official", runmod.createArchive())
 	rs.story.route = "soldier"; rs.story.settled = true; rs.story.segments["escort5"] = true
 	local pts = new(playmod.Play, rooms.TOWER_ROOM, nil, rs)
 	fe:bindPlay(pts, 1280, 720)
+	pts.phase = "tower-enter"
+	fe:renderPlay(DT, pts, inp, 1280, 720)
+	local soldierSequence = crossThreshold(pts)
+	check("4.2b 兄妹同行时接上团圆线桌前对白", soldierSequence == "D14,D15,D53,D54,D16", soldierSequence)
 	pts.phase = "tower-end"
 	pts.phaseTick = 202
 	fe:renderPlay(DT, pts, inp, 1280, 720)

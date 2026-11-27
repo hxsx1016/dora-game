@@ -334,9 +334,9 @@ export class NarrativeRenderer {
                 this.triggerOnce("t2_knock", ["D14", "D15"], true);
             } else if (p.phase === "tower-desk") {
                 if (p.storyRoute === "soldier") {
-                    this.triggerOnce("t3_soldier_talk", ["D53", "D54", "D16", "D17", "D63", "D64"], true);
+                    this.triggerOnce("t3_soldier_talk", ["D53", "D54", "D16", "D17", "D63", "D64"]);
                 } else {
-                    this.triggerOnce("t3_child_talk", ["D16", "D17", "D63", "D64", "D18", "D19"], true);
+                    this.triggerOnce("t3_child_talk", ["D16", "D17", "D63", "D64", "D18", "D19"]);
                 }
             } else if (p.phase === "tower-end" && p.storyRoute === "soldier" && p.phaseTick >= 200) {
                 // 等 M03 前段 6.85s 叙事收净后再接团圆尾声对白 D55–D56–D65，零叠字
