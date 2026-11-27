@@ -2,7 +2,7 @@
 
 ## 接入项目
 
-在含 `init.ts` 与 `tsconfig.json` 的仓库根目录执行以下命令，确认检出包含 `Script/watch/`。Git 默认分支为 `main`。关卡重制、全局机制与护送试炼的集成分支为 `feature/watch-level-rework`。
+在含 `init.ts`、`LICENSE`（Apache-2.0）与 `tsconfig.json` 的仓库根目录执行以下命令，确认检出包含 `Script/watch/`。Git 默认分支为 `main`，多端适配与全阶段整合基线为 `exp/multi-device-adapt`（音频并行线为 `feature/audio-overhaul`，角色动作并行线为 `codex/character-motion`）。
 
 ```sh
 git fetch --all --prune
@@ -31,19 +31,21 @@ Dora cli run -p . --entry init.lua
 
 ## 提交前验证
 
-1. 在仓库根目录运行 `python3 tools/check-repo.py`（Windows 也可用 `py -3`）。工具需要 Git 和 Python 3.8+，检查正式入口与模块配对、Markdown 相对文件链接，以及已被 Git 跟踪的忽略文件。推送和 PR 在 GitHub Actions 执行同一命令。
+1. 在仓库根目录运行 `python3 tools/check-repo.py` 与 `python3 tools/audit-assets.py`（Windows 也可用 `py -3`），检查正式入口与模块配对、静/动态资产与 `.clip` 图集帧、全仓字库 0 缺字、Lua `require` 规范以及 Markdown 相对文件链接。推送和 PR 在 GitHub Actions 执行同类检查。
 2. 改动 TypeScript 后执行上面的 Dora 构建。核对实际生成的 Lua 差异。纯类型或注释的修改可能只改变 TS。核验已提交产物时，在干净检出中构建，再运行 `git diff --exit-code -- init.lua Script/watch/`。
-3. 改玩法时，在引擎的项目上下文执行相关回放。`verify-d6.lua` 有断言，失败时抛错。另两份脚本打印逐拍结果，按需求中的期望读数核对。
+3. 改玩法、前端或剧本对白时，在引擎的项目上下文执行核心回归脚本（含综合回归 `verify-remediation.lua`）：
 
 ```lua
-dofile("tools/verify-d6.lua")
-dofile("tools/verify-d7.lua")
-dofile("tools/verify-d8.lua")
-dofile("tools/verify-d9.lua")
-dofile("tools/verify-integration.lua")
-dofile("tools/verify-trial.lua")
-dofile("tools/replay-gate.lua")
-dofile("tools/replay-d5.lua")
+dofile("tools/verify-remediation.lua")
+dofile("tools/verify-story-gate.lua")
+dofile("tools/verify-b1.lua")
+dofile("tools/verify-b2.lua")
+dofile("tools/verify-c1.lua")
+dofile("tools/verify-c-fix.lua")
+dofile("tools/verify-m2.lua")
+dofile("tools/verify-fe01.lua")
+dofile("tools/verify-fe05.lua")
+dofile("tools/verify-touch-input.lua")
 ```
 
 4. 改输入、渲染或打包时，另记真实设备、系统、分辨率和测试结果。提交说明写明已跑的命令及结果，Windows 冷启动以实际解压运行记录为准。
