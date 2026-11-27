@@ -771,68 +771,79 @@ function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 459
 				input.gamepadLayout, -- 690
 				self.stageVp.safeUi -- 691
 			) -- 691
-		end -- 691
-		local suppressReticle = cutsceneHandled or view.reloadSession.active or view.craftBench.active -- 695
-		do -- 695
-			i = 0 -- 696
-			while i < #self.plugins do -- 696
-				local pl = self.plugins[i + 1] -- 697
-				if pl.drawFullSpeedUi ~= nil and pl:drawFullSpeedUi( -- 698
-					self.uiDraw, -- 699
-					self.uiInkDraw, -- 699
-					self.uiArt, -- 699
-					self.uiGlow, -- 699
-					ctx -- 699
-				) then -- 699
-					suppressReticle = true -- 700
-				end -- 700
-				i = i + 1 -- 696
-			end -- 696
-		end -- 696
-		if not suppressReticle then -- 703
-			self.hud:drawReticleOverlay( -- 704
-				self.uiInkDraw, -- 705
-				self.uiArt, -- 706
-				self.uiGlow, -- 707
-				p, -- 708
-				self.cam, -- 709
-				self.vfx, -- 710
-				self.narrative.letterbox, -- 711
-				uiScale, -- 712
-				input:isTouchMode() -- 713
-			) -- 713
-		end -- 713
-		if view.isRehearsal then -- 718
-			local badgeText = view.rehearsalTag ~= "" and "排演 · " .. view.rehearsalTag or "排演模式" -- 719
-			drawSilkVeil( -- 720
-				self.uiDraw, -- 720
-				self.uiArt, -- 720
-				"rehearsal_tag_veil", -- 720
-				uiW * 0.5, -- 720
-				uiH - 22 - self.stageVp.safeUi.top, -- 720
-				168, -- 720
-				26, -- 720
-				PALETTE.inkWarm, -- 720
-				0.74, -- 720
-				8 -- 720
-			) -- 720
-			self.texts:put( -- 721
-				"xs", -- 721
-				badgeText, -- 721
-				uiW * 0.5, -- 721
-				uiH - 22 - self.stageVp.safeUi.top, -- 721
-				toColor(PALETTE.amberCore), -- 721
-				0.5, -- 721
-				0.5, -- 721
-				"Center", -- 721
-				1.2, -- 721
-				0.92, -- 721
-				0.08 -- 721
-			) -- 721
-		end -- 721
-	end -- 721
-	self:drawToast(uiW) -- 725
-	self:finishFrame() -- 726
-	return action -- 727
+		else -- 691
+			self.narrative:drawCutsceneDialogue( -- 695
+				self.uiDraw, -- 696
+				self.uiInkDraw, -- 697
+				self.uiArt, -- 698
+				self.texts, -- 699
+				p, -- 700
+				uiW, -- 701
+				uiH, -- 702
+				self.stageVp.safeUi -- 703
+			) -- 703
+		end -- 703
+		local suppressReticle = cutsceneHandled or view.reloadSession.active or view.craftBench.active -- 707
+		do -- 707
+			i = 0 -- 708
+			while i < #self.plugins do -- 708
+				local pl = self.plugins[i + 1] -- 709
+				if pl.drawFullSpeedUi ~= nil and pl:drawFullSpeedUi( -- 710
+					self.uiDraw, -- 711
+					self.uiInkDraw, -- 711
+					self.uiArt, -- 711
+					self.uiGlow, -- 711
+					ctx -- 711
+				) then -- 711
+					suppressReticle = true -- 712
+				end -- 712
+				i = i + 1 -- 708
+			end -- 708
+		end -- 708
+		if not suppressReticle then -- 715
+			self.hud:drawReticleOverlay( -- 716
+				self.uiInkDraw, -- 717
+				self.uiArt, -- 718
+				self.uiGlow, -- 719
+				p, -- 720
+				self.cam, -- 721
+				self.vfx, -- 722
+				self.narrative.letterbox, -- 723
+				uiScale, -- 724
+				input:isTouchMode() -- 725
+			) -- 725
+		end -- 725
+		if view.isRehearsal then -- 730
+			local badgeText = view.rehearsalTag ~= "" and "排演 · " .. view.rehearsalTag or "排演模式" -- 731
+			drawSilkVeil( -- 732
+				self.uiDraw, -- 732
+				self.uiArt, -- 732
+				"rehearsal_tag_veil", -- 732
+				uiW * 0.5, -- 732
+				uiH - 22 - self.stageVp.safeUi.top, -- 732
+				168, -- 732
+				26, -- 732
+				PALETTE.inkWarm, -- 732
+				0.74, -- 732
+				8 -- 732
+			) -- 732
+			self.texts:put( -- 733
+				"xs", -- 733
+				badgeText, -- 733
+				uiW * 0.5, -- 733
+				uiH - 22 - self.stageVp.safeUi.top, -- 733
+				toColor(PALETTE.amberCore), -- 733
+				0.5, -- 733
+				0.5, -- 733
+				"Center", -- 733
+				1.2, -- 733
+				0.92, -- 733
+				0.08 -- 733
+			) -- 733
+		end -- 733
+	end -- 733
+	self:drawToast(uiW) -- 737
+	self:finishFrame() -- 738
+	return action -- 739
 end -- 459
 return ____exports -- 459

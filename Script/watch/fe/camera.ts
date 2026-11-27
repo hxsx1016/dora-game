@@ -105,7 +105,7 @@ export class CameraDirector {
                 desiredZoom = 1.12;
             } else if (p.phase === "gate-hand") {
                 desiredZoom = 1.22;
-            } else if (p.phase === "gate-send") {
+            } else if (p.phase === "gate-send" || p.phase === "gate-farewell") {
                 desiredZoom = 1.06;
             }
         } else if (p.room.key === "museum") {

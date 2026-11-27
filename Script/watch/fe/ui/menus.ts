@@ -81,6 +81,7 @@ export interface MenuAction {
         | "toggleFullscreen"
         | "quit";
     roomIndex?: number;
+    route?: "child" | "soldier";
 }
 
 const TITLE_ITEMS = [
@@ -91,9 +92,51 @@ const TITLE_ITEMS = [
     { id: "quit", zh: "退出游戏" },
 ];
 
+interface ChapterEntry {
+    room: (typeof ROOMS)[number];
+    roomIndex: number;
+    route?: "child" | "soldier";
+    titleOverride?: string;
+    shortNameOverride?: string;
+    lineTagOverride?: string;
+    whisperOverride?: string;
+}
+
 // 博物馆由双通关后的井口进入；旧版灰盒 street/checkpoint 仅保留给 debug 回归，不暴露在正式选章里。
-const CHAPTERS = ROOMS.map((room, roomIndex) => ({ room, roomIndex }))
-    .filter(chapter => chapter.room.key !== "museum" && chapter.room.key !== "street" && chapter.room.key !== "checkpoint");
+// 北塔按双结局拆分为小满留灯（低模）与周戍团圆（像素），保证选章直达也能完整呈现对应视觉与演出。
+const CHAPTERS: ChapterEntry[] = (() => {
+    const out: ChapterEntry[] = [];
+    let i = 0;
+    for (i = 0; i < ROOMS.length; i++) {
+        const room = ROOMS[i];
+        if (room.key === "museum" || room.key === "street" || room.key === "checkpoint") {
+            continue;
+        }
+        if (room.key === "tower") {
+            out.push({
+                room,
+                roomIndex: i,
+                route: "child",
+                titleOverride: "终章 · 北塔留灯",
+                shortNameOverride: "北塔·留灯",
+                lineTagOverride: "小满",
+                whisperOverride: "孤身叩响北塔门，西窗留一盏向西的灯。",
+            });
+            out.push({
+                room,
+                roomIndex: i,
+                route: "soldier",
+                titleOverride: "终章 · 北塔团圆",
+                shortNameOverride: "北塔·团圆",
+                lineTagOverride: "周戍",
+                whisperOverride: "兄妹并肩跨过塔门，两行姓名同落登记簿。",
+            });
+            continue;
+        }
+        out.push({ room, roomIndex: i });
+    }
+    return out;
+})();
 
 // 桌面端严格保持 0..7 既有顺序（4 = fullscreen，7 = quit），第 8 项追加「操控设置」二级页。
 const PAUSE_ITEMS = [
@@ -180,6 +223,12 @@ export class MenuRenderer {
     private historyFromEpilogue = false;
     /** 存在有效局中存档时，标题页首项显示「继续游戏」，无存档时保持原 5 项索引不变。 */
     hasSession = false;
+    /** 局中存档所在章节短名（显示于「继续游戏」右侧，便于分辨续读落点） */
+    sessionLabel = "";
+
+    setSessionRoomKey(roomKey: string): void {
+        this.sessionLabel = roomKey !== "" ? themeOf(roomKey).shortNameZh : "";
+    }
     /** 操作说明页当前分页（自动随最近输入模式同步，支持左右 / LB / RB / 点击切换） */
     controlsTab: InputMode = "kbm";
     /** 可选水墨 UI 交互音效回调（由 WatchFrontend 挂载，测试直调零耦合） */
@@ -603,6 +652,21 @@ export class MenuRenderer {
                 active ? 1.0 : 0.88,
                 0.10,
             );
+            if (items[i].id === "continue" && this.sessionLabel !== "") {
+                texts.put(
+                    "xs",
+                    "· " + this.sessionLabel,
+                    menuX + 168 + shiftX,
+                    cy,
+                    toColor(active ? PALETTE.amberCore : PALETTE.textDim),
+                    0,
+                    0.5,
+                    TextAlign.Left,
+                    1.2,
+                    active ? 0.92 : 0.72,
+                    0.08,
+                );
+            }
         }
 
         const titleHint = frame.mode === "gamepad"
@@ -696,8 +760,12 @@ export class MenuRenderer {
         texts.put("banner", "选择章节", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.5, 0.96, 0.10);
         drawHairline(uiInkDraw, uiArt, "chap_top_line", w * 0.5, topHeadY - 34, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
 
-        const activeRoom = CHAPTERS[this.chapterSelected].room;
+        const activeEntry = CHAPTERS[this.chapterSelected];
+        const activeRoom = activeEntry.room;
         const theme = themeOf(activeRoom.key);
+        const activeTitleZh = activeEntry.titleOverride ?? theme.titleZh;
+        const activeLineTag = activeEntry.lineTagOverride ?? theme.lineTag;
+        const activeWhisper = activeEntry.whisperOverride ?? theme.introWhisper;
         const winX = marginX;
         const winY = 266 + extraH * 0.44;
         const winW = Math.min(520, Math.max(360, (w - marginX * 2) * 0.46));
@@ -718,34 +786,34 @@ export class MenuRenderer {
         fillHGradRect(uiInkDraw, winX + winW - 34, winY, 34, winH, Color(10, 12, 19, 0), Color(10, 12, 19, 135));
         drawFiligreeCorners(uiInkDraw, uiArt, "chap_win_frame", winX, winY, winW, winH, winHover ? PALETTE.textBright : PALETTE.silkLine, winHover ? 0.92 : 0.72, 34, true, 3);
 
-        texts.put("xs", theme.actCode + "  ·  " + theme.lineTag, winX + 20, winY + 22, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
+        texts.put("xs", theme.actCode + "  ·  " + activeLineTag, winX + 20, winY + 22, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
 
         const infoX = winX + winW + 40;
         const infoW = Math.max(240, w - marginX - infoX);
         const infoCenterY = winY + winH * 0.5;
         drawMistCurve(uiArt, "chap_info_mist", infoX + infoW * 0.5, infoCenterY + 36, Math.min(420, infoW + 24), 88, theme.accent, 0.22, -1);
 
-        const volCol = theme.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber;
+        const volCol = activeLineTag === "周戍" ? PALETTE.cyan : PALETTE.amber;
         texts.put("xs", theme.volumeTagZh, infoX, winY + winH - 44, toColor(volCol), 0, 0.5, TextAlign.Left, 2.8, 0.92, 0.08);
 
         const sep = " · ";
-        const sIdx = theme.titleZh.indexOf(sep);
+        const sIdx = activeTitleZh.indexOf(sep);
         const titleY = winY + winH - 98;
         if (theme.backdropKey !== undefined) {
-            texts.put("lg", theme.titleZh, infoX, titleY, toColor(PALETTE.textBright));
+            texts.put("lg", activeTitleZh, infoX, titleY, toColor(PALETTE.textBright));
         } else if (sIdx > 0) {
-            const leftPart = theme.titleZh.slice(0, sIdx);
-            const rightPart = theme.titleZh.slice(sIdx + sep.length);
+            const leftPart = activeTitleZh.slice(0, sIdx);
+            const rightPart = activeTitleZh.slice(sIdx + sep.length);
             const lw = visualTextWidth(leftPart, 40);
             texts.put("banner", leftPart, infoX, titleY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.0, 1, 0.10);
             drawBlossomDot(uiInkDraw, uiArt, "chap_title_dot", infoX + lw + 16, titleY - 2, 11, activeRoom.key === "gate" ? PALETTE.rouge : PALETTE.silkLine, 0.90, 4);
             texts.put("banner", rightPart, infoX + lw + 32, titleY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.0, 1, 0.10);
         } else {
-            texts.put("banner", theme.titleZh, infoX, titleY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.4, 1, 0.10);
+            texts.put("banner", activeTitleZh, infoX, titleY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 2.4, 1, 0.10);
         }
 
         drawHairline(uiInkDraw, uiArt, "chap_info_line", infoX + Math.min(185, infoW * 0.5), titleY - 36, Math.min(370, infoW), PALETTE.silkDim, 0.58, false, 2);
-        texts.put("sm", theme.introWhisper, infoX, titleY - 72, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.8, 0.94, 0.08);
+        texts.put("sm", activeWhisper, infoX, titleY - 72, toColor(PALETTE.textMid), 0, 0.5, TextAlign.Left, 0.8, 0.94, 0.08);
 
         const goX = infoX;
         const goY = winY + 26;
@@ -784,9 +852,12 @@ export class MenuRenderer {
             const box = stationBoxes[i];
             const sx = box.x + box.width * 0.5;
             const sy = box.y + box.height * 0.5;
-            const rt = themeOf(CHAPTERS[i].room.key);
+            const entry = CHAPTERS[i];
+            const rt = themeOf(entry.room.key);
+            const entryLineTag = entry.lineTagOverride ?? rt.lineTag;
+            const entryShortName = entry.shortNameOverride ?? rt.shortNameZh;
             const active = this.chapterSelected === i;
-            const nodeCol = active ? PALETTE.rouge : (rt.lineTag === "周戍" ? PALETTE.cyan : PALETTE.amber);
+            const nodeCol = active ? PALETTE.rouge : (entryLineTag === "周戍" ? PALETTE.cyan : PALETTE.amber);
 
             if (active) {
                 fillRadialGlow(uiGlow, sx, sy, 26, 26, toColor(PALETTE.rouge, 36 * breathe), Color(182, 58, 56, 0), 12);
@@ -804,7 +875,7 @@ export class MenuRenderer {
             if (!splitTrack) {
                 texts.put("xs", rt.numeralZh, sx, sy + 25, toColor(active ? PALETTE.crimsonCore : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0, active ? 1 : 0.88, 0.08);
             }
-            texts.put("xs", rt.shortNameZh, sx, sy - 26, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, active ? 1 : 0.84, 0.08);
+            texts.put("xs", entryShortName, sx, sy - 26, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.0, active ? 1 : 0.84, 0.08);
         }
 
         const backX = marginX;
@@ -833,7 +904,11 @@ export class MenuRenderer {
             : (hitStation >= 0);
         if (keys.confirm || (frame.click && (stationConfirmed || winHover || goHover))) {
             this.emitSound("start");
-            return { type: "jump", roomIndex: CHAPTERS[this.chapterSelected].roomIndex };
+            return {
+                type: "jump",
+                roomIndex: CHAPTERS[this.chapterSelected].roomIndex,
+                route: CHAPTERS[this.chapterSelected].route,
+            };
         }
         return { type: "none" };
     }
