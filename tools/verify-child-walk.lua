@@ -139,7 +139,7 @@ moveTo(f, i, f.ox + 330, 160)
 check("5.1 蹲进树根窄洞", f.forestPath == "burrow", "path=" .. tostring(f.forestPath))
 i.crouch.held = false
 i.crouch.held = true
-moveTo(f, i, f.ox + 1210, 600)
+moveTo(f, i, f.ox + 1210, 720)
 i.crouch.held = false
 if f.waterSeen then
 	-- 已在溪湾

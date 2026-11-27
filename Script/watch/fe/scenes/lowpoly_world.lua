@@ -531,784 +531,813 @@ function LowpolyWorldPlugin.prototype.drawOutsideWorld(self, fgDraw, fgGlow, ctx
 			edgeWidth = 0 -- 525
 		}) -- 525
 	end -- 525
-	scene:addBox({ -- 530
-		x0 = ox + 128, -- 531
-		x1 = ox + 598, -- 532
-		y0 = 0, -- 533
-		y1 = 92, -- 534
-		z0 = 44, -- 535
-		z1 = 72, -- 536
-		material = MING_MATERIALS.mingBrickDark, -- 537
-		bucket = LP_BUCKET.MIDGROUND, -- 538
-		sortBias = -0.2, -- 539
-		edgeWidth = 0.5 -- 540
-	}) -- 540
-	scene:addQuad3D( -- 543
-		vec3(ox + 132, 26, 43), -- 544
-		vec3(ox + 592, 26, 43), -- 545
-		vec3(ox + 592, 31, 43), -- 546
-		vec3(ox + 132, 31, 43), -- 547
-		{base = rgba(138, 148, 158, 92)}, -- 548
-		{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = -0.1} -- 549
-	) -- 549
-	scene:addLightShaft( -- 553
-		ox + 1110, -- 554
-		ox + 1180, -- 554
-		170, -- 554
-		ox + 1040, -- 555
-		ox + 1140, -- 555
-		0, -- 555
-		34, -- 556
-		rgba(234, 198, 138, 255), -- 557
-		0.14, -- 558
-		0.03 -- 559
-	) -- 559
-	scene:flush(fgDraw, fgGlow) -- 562
-	local gi = 0 -- 565
-	do -- 565
-		gi = 0 -- 566
-		while gi < 6 do -- 566
-			local gx = ox + 165 + gi * 56 -- 567
-			local p0 = projectWorld3D( -- 568
-				gx, -- 568
-				0.5, -- 568
-				-14, -- 568
-				cam, -- 568
-				self.outsideProj -- 568
-			) -- 568
-			local p1 = projectWorld3D( -- 569
-				gx + 10, -- 569
-				0.5, -- 569
-				22, -- 569
-				cam, -- 569
-				self.outsideProj -- 569
-			) -- 569
-			fgDraw:drawSegment( -- 570
-				Vec2(p0.x, p0.y), -- 570
-				Vec2(p1.x, p1.y), -- 570
-				3, -- 570
-				Color(8, 12, 18, 76) -- 570
-			) -- 570
-			gi = gi + 1 -- 566
-		end -- 566
-	end -- 566
-	local row = 0 -- 574
-	do -- 574
-		row = 1 -- 575
-		while row <= 6 do -- 575
-			local wy = 96 + row * 19 -- 576
-			local bL = projectWorld3D( -- 577
-				ox + 513, -- 577
-				wy, -- 577
-				-8, -- 577
-				cam, -- 577
-				self.outsideProj -- 577
-			) -- 577
-			local bR = projectWorld3D( -- 578
-				ox + 599, -- 578
-				wy, -- 578
-				-8, -- 578
-				cam, -- 578
-				self.outsideProj -- 578
-			) -- 578
-			fgDraw:drawSegment( -- 579
-				Vec2(bL.x, bL.y), -- 579
-				Vec2(bR.x, bR.y), -- 579
-				0.9, -- 579
-				Color(34, 40, 50, 185) -- 579
-			) -- 579
-			local off = row % 2 * 18 -- 580
-			local colX = ox + 528 + off -- 581
-			while colX < ox + 594 do -- 581
-				local v0 = projectWorld3D( -- 583
-					colX, -- 583
-					wy - 19, -- 583
-					-8, -- 583
-					cam, -- 583
-					self.outsideProj -- 583
-				) -- 583
-				local v1 = projectWorld3D( -- 584
-					colX, -- 584
-					wy, -- 584
-					-8, -- 584
-					cam, -- 584
-					self.outsideProj -- 584
-				) -- 584
-				fgDraw:drawSegment( -- 585
-					Vec2(v0.x, v0.y), -- 585
-					Vec2(v1.x, v1.y), -- 585
-					0.8, -- 585
-					Color(32, 38, 48, 150) -- 585
-				) -- 585
-				colX = colX + 34 -- 586
-			end -- 586
-			row = row + 1 -- 575
-		end -- 575
-	end -- 575
-	return true -- 590
+	if not p.cartDocked and p.room.arch.h > 0 then -- 525
+		local bx0 = math.max(p.room.arch.x0 + 4, p.cartAxle - 18) -- 532
+		local bx1 = math.min(p.room.arch.x1 - 4, p.cartAxle + 18) -- 533
+		if bx1 > bx0 + 4 then -- 533
+			scene:addBox({ -- 535
+				x0 = bx0, -- 536
+				x1 = bx1, -- 537
+				y0 = 2, -- 538
+				y1 = p.room.arch.h, -- 539
+				z0 = -6, -- 540
+				z1 = 8, -- 541
+				material = MING_MATERIALS.mingTimberDark, -- 542
+				bucket = LP_BUCKET.PROP, -- 543
+				highlightTopEdge = true, -- 544
+				edgeWidth = 0.9 -- 545
+			}) -- 545
+			scene:addBox({ -- 548
+				x0 = (bx0 + bx1) * 0.5 - 3, -- 549
+				x1 = (bx0 + bx1) * 0.5 + 3, -- 550
+				y0 = p.room.arch.h, -- 551
+				y1 = p.room.cart.baseY, -- 552
+				z0 = -3, -- 553
+				z1 = 5, -- 554
+				material = MING_MATERIALS.mingIron, -- 555
+				bucket = LP_BUCKET.PROP, -- 556
+				edgeWidth = 0.6 -- 557
+			}) -- 557
+		end -- 557
+	end -- 557
+	scene:addBox({ -- 563
+		x0 = ox + 128, -- 564
+		x1 = ox + 598, -- 565
+		y0 = 0, -- 566
+		y1 = 92, -- 567
+		z0 = 44, -- 568
+		z1 = 72, -- 569
+		material = MING_MATERIALS.mingBrickDark, -- 570
+		bucket = LP_BUCKET.MIDGROUND, -- 571
+		sortBias = -0.2, -- 572
+		edgeWidth = 0.5 -- 573
+	}) -- 573
+	scene:addQuad3D( -- 576
+		vec3(ox + 132, 26, 43), -- 577
+		vec3(ox + 592, 26, 43), -- 578
+		vec3(ox + 592, 31, 43), -- 579
+		vec3(ox + 132, 31, 43), -- 580
+		{base = rgba(138, 148, 158, 92)}, -- 581
+		{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = -0.1} -- 582
+	) -- 582
+	scene:addLightShaft( -- 586
+		ox + 1110, -- 587
+		ox + 1180, -- 587
+		170, -- 587
+		ox + 1040, -- 588
+		ox + 1140, -- 588
+		0, -- 588
+		34, -- 589
+		rgba(234, 198, 138, 255), -- 590
+		0.14, -- 591
+		0.03 -- 592
+	) -- 592
+	scene:flush(fgDraw, fgGlow) -- 595
+	local gi = 0 -- 598
+	do -- 598
+		gi = 0 -- 599
+		while gi < 6 do -- 599
+			local gx = ox + 165 + gi * 56 -- 600
+			local p0 = projectWorld3D( -- 601
+				gx, -- 601
+				0.5, -- 601
+				-14, -- 601
+				cam, -- 601
+				self.outsideProj -- 601
+			) -- 601
+			local p1 = projectWorld3D( -- 602
+				gx + 10, -- 602
+				0.5, -- 602
+				22, -- 602
+				cam, -- 602
+				self.outsideProj -- 602
+			) -- 602
+			fgDraw:drawSegment( -- 603
+				Vec2(p0.x, p0.y), -- 603
+				Vec2(p1.x, p1.y), -- 603
+				3, -- 603
+				Color(8, 12, 18, 76) -- 603
+			) -- 603
+			gi = gi + 1 -- 599
+		end -- 599
+	end -- 599
+	local row = 0 -- 607
+	do -- 607
+		row = 1 -- 608
+		while row <= 6 do -- 608
+			local wy = 96 + row * 19 -- 609
+			local bL = projectWorld3D( -- 610
+				ox + 513, -- 610
+				wy, -- 610
+				-8, -- 610
+				cam, -- 610
+				self.outsideProj -- 610
+			) -- 610
+			local bR = projectWorld3D( -- 611
+				ox + 599, -- 611
+				wy, -- 611
+				-8, -- 611
+				cam, -- 611
+				self.outsideProj -- 611
+			) -- 611
+			fgDraw:drawSegment( -- 612
+				Vec2(bL.x, bL.y), -- 612
+				Vec2(bR.x, bR.y), -- 612
+				0.9, -- 612
+				Color(34, 40, 50, 185) -- 612
+			) -- 612
+			local off = row % 2 * 18 -- 613
+			local colX = ox + 528 + off -- 614
+			while colX < ox + 594 do -- 614
+				local v0 = projectWorld3D( -- 616
+					colX, -- 616
+					wy - 19, -- 616
+					-8, -- 616
+					cam, -- 616
+					self.outsideProj -- 616
+				) -- 616
+				local v1 = projectWorld3D( -- 617
+					colX, -- 617
+					wy, -- 617
+					-8, -- 617
+					cam, -- 617
+					self.outsideProj -- 617
+				) -- 617
+				fgDraw:drawSegment( -- 618
+					Vec2(v0.x, v0.y), -- 618
+					Vec2(v1.x, v1.y), -- 618
+					0.8, -- 618
+					Color(32, 38, 48, 150) -- 618
+				) -- 618
+				colX = colX + 34 -- 619
+			end -- 619
+			row = row + 1 -- 608
+		end -- 608
+	end -- 608
+	return true -- 623
 end -- 477
-function LowpolyWorldPlugin.prototype.drawTowerWorld(self, fgDraw, fgGlow, ctx) -- 593
-	local p = ctx.p -- 594
-	local cam = ctx.cam -- 595
-	local ox = p.ox -- 596
-	local opened = p.phase == "tower-given" or p.phase == "tower-end" -- 597
-	local scene = __TS__New(LowpolyScene, cam, self.towerProj, TOWER_WEST_LAMP_LIGHT) -- 598
-	scene:addBox({ -- 601
-		x0 = ox - 40, -- 602
-		x1 = ox + 760, -- 603
-		y0 = -52, -- 604
-		y1 = 0, -- 605
-		z0 = -26, -- 606
-		z1 = 96, -- 607
-		material = MING_MATERIALS.mingBrickDark, -- 608
-		bucket = LP_BUCKET.WALK_DECK, -- 609
-		highlightTopEdge = true -- 610
-	}) -- 610
-	scene:addBox({ -- 613
-		x0 = ox + 398, -- 614
-		x1 = ox + 492, -- 615
-		y0 = -4, -- 616
-		y1 = 2.5, -- 617
-		z0 = -16, -- 618
-		z1 = 26, -- 619
-		material = MING_MATERIALS.mingStoneStep, -- 620
-		bucket = LP_BUCKET.WALK_DECK, -- 621
-		sortBias = 0.15, -- 622
-		highlightTopEdge = true -- 623
-	}) -- 623
-	scene:addBox({ -- 627
-		x0 = ox + 180, -- 628
-		x1 = ox + 400, -- 629
-		y0 = 0, -- 630
-		y1 = 215, -- 631
-		z0 = 8, -- 632
-		z1 = 96, -- 633
-		material = MING_MATERIALS.mingBrick, -- 634
-		bucket = LP_BUCKET.MIDGROUND, -- 635
-		highlightTopEdge = true -- 636
-	}) -- 636
-	scene:addBox({ -- 638
-		x0 = ox + 490, -- 639
-		x1 = ox + 720, -- 640
-		y0 = 0, -- 641
-		y1 = 215, -- 642
-		z0 = 8, -- 643
-		z1 = 96, -- 644
-		material = MING_MATERIALS.mingBrick, -- 645
-		bucket = LP_BUCKET.MIDGROUND, -- 646
-		highlightTopEdge = true -- 647
-	}) -- 647
-	scene:addBeveledFrame( -- 651
-		ox + 400, -- 651
-		ox + 490, -- 651
-		0, -- 651
-		110, -- 651
-		14, -- 651
-		34, -- 651
-		-8, -- 651
-		68, -- 651
-		MING_MATERIALS.mingStoneStep, -- 651
-		{ -- 651
-			bucket = LP_BUCKET.MIDGROUND, -- 652
-			innerRimLight = rgba(244, 206, 140, 255), -- 653
-			innerRimStrength = opened and 0.78 or 0.32 -- 654
-		} -- 654
-	) -- 654
-	if not opened then -- 654
-		scene:addBox({ -- 659
-			x0 = ox + 404, -- 660
-			x1 = ox + 486, -- 661
-			y0 = 4, -- 662
-			y1 = 109, -- 663
-			z0 = 14, -- 664
-			z1 = 26, -- 665
-			material = MING_MATERIALS.mingTimberDark, -- 666
-			bucket = LP_BUCKET.MIDGROUND, -- 667
-			sortBias = 0.1, -- 668
-			edgeWidth = 0.9 -- 669
-		}) -- 669
-	else -- 669
-		scene:addQuad3D( -- 672
-			vec3(ox + 404, 2, 24), -- 673
-			vec3(ox + 486, 2, 24), -- 674
-			vec3(ox + 486, 109, 24), -- 675
-			vec3(ox + 404, 109, 24), -- 676
-			{base = rgba(112, 78, 42, 255)}, -- 677
-			{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = 0.08} -- 678
-		) -- 678
-	end -- 678
-	scene:addQuad3D( -- 683
-		vec3(ox + 286, 118, 6), -- 684
-		vec3(ox + 306, 118, 6), -- 685
-		vec3(ox + 306, 158, 6), -- 686
-		vec3(ox + 286, 158, 6), -- 687
-		{base = rgba(244, 204, 134, 255)}, -- 688
-		{ -- 689
-			bucket = LP_BUCKET.PROP, -- 689
-			unlit = true, -- 689
-			edgeColor = rgba(82, 68, 52, 255), -- 689
-			edgeWidth = 1.4 -- 689
-		} -- 689
-	) -- 689
-	local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 693
-	scene:addLightShaft( -- 694
-		ox + 412, -- 695
-		ox + 478, -- 695
-		106, -- 695
-		ox + 382, -- 696
-		ox + 506, -- 696
-		0, -- 696
-		6, -- 697
-		rgba(246, 208, 138, 255), -- 698
-		(opened and 0.34 or 0.08) * pulse, -- 699
-		(opened and 0.16 or 0.04) * pulse -- 700
-	) -- 700
-	scene:addContactShadow( -- 704
-		p.player.x, -- 704
-		p.player.y, -- 704
-		15, -- 704
-		11, -- 704
-		0.78, -- 704
-		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 704
-	) -- 704
-	scene:flush(fgDraw, fgGlow) -- 706
-	local lampP = projectWorld3D( -- 709
-		ox + 445, -- 709
-		102, -- 709
-		2, -- 709
-		cam, -- 709
-		self.towerProj -- 709
-	) -- 709
-	fillRadialGlow( -- 710
-		fgGlow, -- 711
-		lampP.x, -- 712
-		lampP.y, -- 713
-		cam:len(opened and 64 or 34) * pulse, -- 714
-		cam:len(opened and 64 or 34) * pulse, -- 715
-		Color( -- 716
-			248, -- 716
-			214, -- 716
-			146, -- 716
-			math.floor((opened and 132 or 76) * pulse + 0.5) -- 716
-		), -- 716
-		Color(232, 174, 82, 0), -- 717
-		16 -- 718
-	) -- 718
-	fgDraw:drawCircle( -- 720
-		Vec2(lampP.x, lampP.y), -- 720
-		4.2, -- 720
-		Color(255, 240, 202, 245) -- 720
-	) -- 720
-	local winP = projectWorld3D( -- 722
-		ox + 296, -- 722
-		138, -- 722
-		6, -- 722
-		cam, -- 722
-		self.towerProj -- 722
+function LowpolyWorldPlugin.prototype.drawTowerWorld(self, fgDraw, fgGlow, ctx) -- 626
+	local p = ctx.p -- 627
+	local cam = ctx.cam -- 628
+	local ox = p.ox -- 629
+	local opened = p.phase == "tower-given" or p.phase == "tower-end" -- 630
+	local scene = __TS__New(LowpolyScene, cam, self.towerProj, TOWER_WEST_LAMP_LIGHT) -- 631
+	scene:addBox({ -- 634
+		x0 = ox - 40, -- 635
+		x1 = ox + 760, -- 636
+		y0 = -52, -- 637
+		y1 = 0, -- 638
+		z0 = -26, -- 639
+		z1 = 96, -- 640
+		material = MING_MATERIALS.mingBrickDark, -- 641
+		bucket = LP_BUCKET.WALK_DECK, -- 642
+		highlightTopEdge = true -- 643
+	}) -- 643
+	scene:addBox({ -- 646
+		x0 = ox + 398, -- 647
+		x1 = ox + 492, -- 648
+		y0 = -4, -- 649
+		y1 = 2.5, -- 650
+		z0 = -16, -- 651
+		z1 = 26, -- 652
+		material = MING_MATERIALS.mingStoneStep, -- 653
+		bucket = LP_BUCKET.WALK_DECK, -- 654
+		sortBias = 0.15, -- 655
+		highlightTopEdge = true -- 656
+	}) -- 656
+	scene:addBox({ -- 660
+		x0 = ox + 180, -- 661
+		x1 = ox + 400, -- 662
+		y0 = 0, -- 663
+		y1 = 215, -- 664
+		z0 = -8, -- 665
+		z1 = 96, -- 666
+		material = MING_MATERIALS.mingBrick, -- 667
+		bucket = LP_BUCKET.MIDGROUND, -- 668
+		highlightTopEdge = true -- 669
+	}) -- 669
+	scene:addBox({ -- 671
+		x0 = ox + 490, -- 672
+		x1 = ox + 720, -- 673
+		y0 = 0, -- 674
+		y1 = 215, -- 675
+		z0 = -8, -- 676
+		z1 = 96, -- 677
+		material = MING_MATERIALS.mingBrick, -- 678
+		bucket = LP_BUCKET.MIDGROUND, -- 679
+		highlightTopEdge = true -- 680
+	}) -- 680
+	scene:addBeveledFrame( -- 684
+		ox + 400, -- 684
+		ox + 490, -- 684
+		0, -- 684
+		110, -- 684
+		14, -- 684
+		34, -- 684
+		-8, -- 684
+		68, -- 684
+		MING_MATERIALS.mingStoneStep, -- 684
+		{ -- 684
+			bucket = LP_BUCKET.MIDGROUND, -- 685
+			innerRimLight = rgba(244, 206, 140, 255), -- 686
+			innerRimStrength = opened and 0.78 or 0.32 -- 687
+		} -- 687
+	) -- 687
+	if not opened then -- 687
+		scene:addBox({ -- 692
+			x0 = ox + 404, -- 693
+			x1 = ox + 486, -- 694
+			y0 = 4, -- 695
+			y1 = 109, -- 696
+			z0 = 14, -- 697
+			z1 = 26, -- 698
+			material = MING_MATERIALS.mingTimberDark, -- 699
+			bucket = LP_BUCKET.MIDGROUND, -- 700
+			sortBias = 0.1, -- 701
+			edgeWidth = 0.9 -- 702
+		}) -- 702
+	else -- 702
+		scene:addQuad3D( -- 705
+			vec3(ox + 404, 2, 24), -- 706
+			vec3(ox + 486, 2, 24), -- 707
+			vec3(ox + 486, 109, 24), -- 708
+			vec3(ox + 404, 109, 24), -- 709
+			{base = rgba(112, 78, 42, 255)}, -- 710
+			{bucket = LP_BUCKET.MIDGROUND, unlit = true, sortBias = 0.08} -- 711
+		) -- 711
+	end -- 711
+	scene:addQuad3D( -- 716
+		vec3(ox + 286, 118, -9), -- 717
+		vec3(ox + 306, 118, -9), -- 718
+		vec3(ox + 306, 158, -9), -- 719
+		vec3(ox + 286, 158, -9), -- 720
+		{base = rgba(244, 204, 134, 255)}, -- 721
+		{ -- 722
+			bucket = LP_BUCKET.PROP, -- 722
+			unlit = true, -- 722
+			edgeColor = rgba(82, 68, 52, 255), -- 722
+			edgeWidth = 1.4 -- 722
+		} -- 722
 	) -- 722
-	fillRadialGlow( -- 723
-		fgGlow, -- 723
-		winP.x, -- 723
-		winP.y, -- 723
-		cam:len(38), -- 723
-		cam:len(42), -- 723
-		Color( -- 723
-			246, -- 723
-			206, -- 723
-			132, -- 723
-			math.floor(78 * pulse + 0.5) -- 723
-		), -- 723
-		Color(232, 174, 82, 0), -- 723
-		14 -- 723
-	) -- 723
-	local wBL = projectWorld3D( -- 725
-		ox + 286, -- 725
-		118, -- 725
-		6, -- 725
-		cam, -- 725
-		self.towerProj -- 725
-	) -- 725
-	local wTR = projectWorld3D( -- 726
-		ox + 306, -- 726
-		158, -- 726
-		6, -- 726
-		cam, -- 726
-		self.towerProj -- 726
-	) -- 726
-	local wMidX = (wBL.x + wTR.x) * 0.5 -- 727
-	local wMidY = (wBL.y + wTR.y) * 0.5 -- 728
-	fgDraw:drawSegment( -- 729
-		Vec2(wMidX, wBL.y), -- 729
-		Vec2(wMidX, wTR.y), -- 729
-		1.4, -- 729
-		Color(68, 52, 38, 225) -- 729
-	) -- 729
-	fgDraw:drawSegment( -- 730
-		Vec2(wBL.x, wMidY), -- 730
-		Vec2(wTR.x, wMidY), -- 730
-		1.4, -- 730
-		Color(68, 52, 38, 225) -- 730
-	) -- 730
-	local tr = 1 -- 731
-	do -- 731
-		tr = 1 -- 732
-		while tr <= 6 do -- 732
-			local ty = tr * 30 -- 733
-			local tl0 = projectWorld3D( -- 734
-				ox + 182, -- 734
-				ty, -- 734
-				8, -- 734
-				cam, -- 734
-				self.towerProj -- 734
-			) -- 734
-			local tl1 = projectWorld3D( -- 735
-				ox + 398, -- 735
-				ty, -- 735
-				8, -- 735
-				cam, -- 735
-				self.towerProj -- 735
-			) -- 735
-			fgDraw:drawSegment( -- 736
-				Vec2(tl0.x, tl0.y), -- 736
-				Vec2(tl1.x, tl1.y), -- 736
-				0.8, -- 736
-				Color(34, 38, 48, 135) -- 736
-			) -- 736
-			local tr0 = projectWorld3D( -- 737
-				ox + 492, -- 737
-				ty, -- 737
-				8, -- 737
-				cam, -- 737
-				self.towerProj -- 737
-			) -- 737
-			local tr1 = projectWorld3D( -- 738
-				ox + 718, -- 738
-				ty, -- 738
-				8, -- 738
-				cam, -- 738
-				self.towerProj -- 738
-			) -- 738
-			fgDraw:drawSegment( -- 739
-				Vec2(tr0.x, tr0.y), -- 739
-				Vec2(tr1.x, tr1.y), -- 739
-				0.8, -- 739
-				Color(34, 38, 48, 135) -- 739
-			) -- 739
-			tr = tr + 1 -- 732
-		end -- 732
-	end -- 732
-	return true -- 742
-end -- 593
-function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 745
-	if not self.active then -- 745
-		return false -- 752
-	end -- 752
-	local key = ctx.p.room.key -- 754
-	if key == "village" then -- 754
-		return self.village:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 756
-	end -- 756
-	if key == "forest" then -- 756
-		return self.forest:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 759
-	end -- 759
-	if key == "outside" then -- 759
-		return self:drawOutsideCartLowpoly(fgDraw, fgGlow, ctx) -- 762
-	end -- 762
-	if key == "tower" then -- 762
-		return true -- 765
+	local pulse = 0.88 + 0.12 * math.sin(self.animTime * 2.8) -- 726
+	scene:addLightShaft( -- 727
+		ox + 412, -- 728
+		ox + 478, -- 728
+		106, -- 728
+		ox + 382, -- 729
+		ox + 506, -- 729
+		0, -- 729
+		6, -- 730
+		rgba(246, 208, 138, 255), -- 731
+		(opened and 0.34 or 0.08) * pulse, -- 732
+		(opened and 0.16 or 0.04) * pulse -- 733
+	) -- 733
+	scene:addContactShadow( -- 737
+		p.player.x, -- 737
+		p.player.y, -- 737
+		15, -- 737
+		11, -- 737
+		0.78, -- 737
+		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 737
+	) -- 737
+	scene:flush(fgDraw, fgGlow) -- 739
+	local lampP = projectWorld3D( -- 742
+		ox + 445, -- 742
+		102, -- 742
+		2, -- 742
+		cam, -- 742
+		self.towerProj -- 742
+	) -- 742
+	fillRadialGlow( -- 743
+		fgGlow, -- 744
+		lampP.x, -- 745
+		lampP.y, -- 746
+		cam:len(opened and 64 or 34) * pulse, -- 747
+		cam:len(opened and 64 or 34) * pulse, -- 748
+		Color( -- 749
+			248, -- 749
+			214, -- 749
+			146, -- 749
+			math.floor((opened and 132 or 76) * pulse + 0.5) -- 749
+		), -- 749
+		Color(232, 174, 82, 0), -- 750
+		16 -- 751
+	) -- 751
+	fgDraw:drawCircle( -- 753
+		Vec2(lampP.x, lampP.y), -- 753
+		4.2, -- 753
+		Color(255, 240, 202, 245) -- 753
+	) -- 753
+	local winP = projectWorld3D( -- 755
+		ox + 296, -- 755
+		138, -- 755
+		-9, -- 755
+		cam, -- 755
+		self.towerProj -- 755
+	) -- 755
+	fillRadialGlow( -- 756
+		fgGlow, -- 756
+		winP.x, -- 756
+		winP.y, -- 756
+		cam:len(38), -- 756
+		cam:len(42), -- 756
+		Color( -- 756
+			246, -- 756
+			206, -- 756
+			132, -- 756
+			math.floor(78 * pulse + 0.5) -- 756
+		), -- 756
+		Color(232, 174, 82, 0), -- 756
+		14 -- 756
+	) -- 756
+	local wBL = projectWorld3D( -- 758
+		ox + 286, -- 758
+		118, -- 758
+		-9, -- 758
+		cam, -- 758
+		self.towerProj -- 758
+	) -- 758
+	local wTR = projectWorld3D( -- 759
+		ox + 306, -- 759
+		158, -- 759
+		-9, -- 759
+		cam, -- 759
+		self.towerProj -- 759
+	) -- 759
+	local wMidX = (wBL.x + wTR.x) * 0.5 -- 760
+	local wMidY = (wBL.y + wTR.y) * 0.5 -- 761
+	fgDraw:drawSegment( -- 762
+		Vec2(wMidX, wBL.y), -- 762
+		Vec2(wMidX, wTR.y), -- 762
+		1.4, -- 762
+		Color(68, 52, 38, 225) -- 762
+	) -- 762
+	fgDraw:drawSegment( -- 763
+		Vec2(wBL.x, wMidY), -- 763
+		Vec2(wTR.x, wMidY), -- 763
+		1.4, -- 763
+		Color(68, 52, 38, 225) -- 763
+	) -- 763
+	local tr = 1 -- 764
+	do -- 764
+		tr = 1 -- 765
+		while tr <= 6 do -- 765
+			local ty = tr * 30 -- 766
+			local tl0 = projectWorld3D( -- 767
+				ox + 182, -- 767
+				ty, -- 767
+				-8, -- 767
+				cam, -- 767
+				self.towerProj -- 767
+			) -- 767
+			local tl1 = projectWorld3D( -- 768
+				ox + 398, -- 768
+				ty, -- 768
+				-8, -- 768
+				cam, -- 768
+				self.towerProj -- 768
+			) -- 768
+			fgDraw:drawSegment( -- 769
+				Vec2(tl0.x, tl0.y), -- 769
+				Vec2(tl1.x, tl1.y), -- 769
+				0.8, -- 769
+				Color(34, 38, 48, 135) -- 769
+			) -- 769
+			local tr0 = projectWorld3D( -- 770
+				ox + 492, -- 770
+				ty, -- 770
+				-8, -- 770
+				cam, -- 770
+				self.towerProj -- 770
+			) -- 770
+			local tr1 = projectWorld3D( -- 771
+				ox + 718, -- 771
+				ty, -- 771
+				-8, -- 771
+				cam, -- 771
+				self.towerProj -- 771
+			) -- 771
+			fgDraw:drawSegment( -- 772
+				Vec2(tr0.x, tr0.y), -- 772
+				Vec2(tr1.x, tr1.y), -- 772
+				0.8, -- 772
+				Color(34, 38, 48, 135) -- 772
+			) -- 772
+			tr = tr + 1 -- 765
+		end -- 765
 	end -- 765
-	return false -- 767
-end -- 745
-function LowpolyWorldPlugin.prototype.drawOutsideCartLowpoly(self, fgDraw, fgGlow, ctx) -- 771
-	local p = ctx.p -- 772
-	local cam = ctx.cam -- 773
-	local c = p.room.cart -- 774
-	if c.bodyW <= 0 then -- 774
-		return true -- 776
-	end -- 776
-	local scene = __TS__New(LowpolyScene, cam, self.outsideProj, OUTSIDE_JETTY_LIGHT) -- 778
-	local halfW = c.bodyW * 0.5 -- 779
-	local axleX = p.cartAxle -- 780
-	local axleY = c.baseY + c.wheelR -- 781
-	local bodyBot = axleY + 2 -- 782
-	local bodyTop = bodyBot + c.bodyH -- 783
-	scene:addBox({ -- 786
-		x0 = axleX - halfW, -- 787
-		x1 = axleX + halfW, -- 788
-		y0 = bodyBot, -- 789
-		y1 = bodyTop, -- 790
-		z0 = -12, -- 791
-		z1 = 14, -- 792
-		material = MING_MATERIALS.mingTimber, -- 793
-		bucket = LP_BUCKET.PROP, -- 794
-		highlightTopEdge = true, -- 795
-		edgeWidth = 1 -- 796
-	}) -- 796
-	scene:addBox({ -- 799
-		x0 = axleX - halfW - 1, -- 800
-		x1 = axleX + halfW + 1, -- 801
-		y0 = bodyBot + 4, -- 802
-		y1 = bodyBot + 8, -- 803
-		z0 = -13, -- 804
-		z1 = 15, -- 805
-		material = MING_MATERIALS.mingIron, -- 806
-		bucket = LP_BUCKET.PROP, -- 807
-		sortBias = 0.08 -- 808
-	}) -- 808
-	local handleX = axleX + c.handleOffset -- 811
-	scene:addBox({ -- 812
-		x0 = axleX + halfW - 2, -- 813
-		x1 = handleX, -- 814
-		y0 = bodyTop - 6, -- 815
-		y1 = bodyTop - 1, -- 816
-		z0 = -10, -- 817
-		z1 = -4, -- 818
-		material = MING_MATERIALS.mingTimber, -- 819
-		bucket = LP_BUCKET.PROP, -- 820
-		sortBias = 0.12, -- 821
-		highlightTopEdge = true -- 822
-	}) -- 822
-	scene:addBox({ -- 824
-		x0 = handleX - 3, -- 825
-		x1 = handleX + 3, -- 826
-		y0 = bodyTop - 8, -- 827
-		y1 = bodyTop + 2, -- 828
-		z0 = -11, -- 829
-		z1 = 9, -- 830
-		material = MING_MATERIALS.mingTimber, -- 831
-		bucket = LP_BUCKET.PROP, -- 832
-		sortBias = 0.14, -- 833
-		highlightTopEdge = true -- 834
-	}) -- 834
-	local clothX = axleX - halfW -- 838
-	local clothTop = bodyTop + 1 -- 839
-	local sway = math.sin(self.animTime * 3.1) * 5.8 -- 840
-	local sway2 = math.cos(self.animTime * 2.6) * 3.6 -- 841
-	scene:addTri3D( -- 842
-		vec3(clothX - 2, clothTop + 1, -12), -- 843
-		vec3(clothX + 11, clothTop, -11), -- 844
-		vec3(clothX - 16 + sway, clothTop - 22, -14), -- 845
-		MING_MATERIALS.mingRedCloth, -- 846
-		{bucket = LP_BUCKET.PROP, sortBias = 0.28, edgeWidth = 0.9} -- 847
-	) -- 847
-	scene:addTri3D( -- 849
-		vec3(clothX + 11, clothTop, -11), -- 850
-		vec3(clothX - 16 + sway, clothTop - 22, -14), -- 851
-		vec3(clothX - 1 + sway2, clothTop - 24, -12), -- 852
-		MING_MATERIALS.mingRedCloth, -- 853
-		{bucket = LP_BUCKET.PROP, sortBias = 0.29, edgeWidth = 0.6} -- 854
-	) -- 854
-	scene:flush(fgDraw, fgGlow) -- 857
-	local wheelXs = {axleX - halfW * 0.56, axleX + halfW * 0.56} -- 860
-	local wheelR = cam:len(c.wheelR) -- 861
-	local rollAngle = -axleX / math.max(1, c.wheelR) -- 862
-	local wi = 0 -- 863
-	do -- 863
-		wi = 0 -- 864
-		while wi < #wheelXs do -- 864
-			local wp = projectWorld3D( -- 865
-				wheelXs[wi + 1], -- 865
-				axleY, -- 865
-				-10, -- 865
-				cam, -- 865
-				self.outsideProj -- 865
-			) -- 865
-			fgDraw:drawCircle( -- 866
-				Vec2(wp.x, wp.y), -- 866
-				wheelR, -- 866
-				Color(52, 40, 32, 255) -- 866
-			) -- 866
-			fgDraw:drawRing( -- 867
-				Vec2(wp.x, wp.y), -- 867
-				math.max(1, wheelR - 2.6), -- 867
-				wheelR, -- 867
-				Color(0, 0, 0, 0), -- 867
-				1.4, -- 867
-				Color(148, 126, 102, 220) -- 867
-			) -- 867
-			local sp = 0 -- 868
-			do -- 868
-				sp = 0 -- 869
-				while sp < 4 do -- 869
-					local a = rollAngle + sp * math.pi / 4 -- 870
-					local dx = math.cos(a) * (wheelR - 2) -- 871
-					local dy = math.sin(a) * (wheelR - 2) -- 872
-					fgDraw:drawSegment( -- 873
-						Vec2(wp.x - dx, wp.y - dy), -- 873
-						Vec2(wp.x + dx, wp.y + dy), -- 873
-						1, -- 873
-						Color(118, 92, 70, 210) -- 873
-					) -- 873
-					sp = sp + 1 -- 869
-				end -- 869
-			end -- 869
-			fgDraw:drawDot( -- 875
-				Vec2(wp.x, wp.y), -- 875
-				2.4, -- 875
-				Color(172, 160, 144, 230) -- 875
-			) -- 875
-			wi = wi + 1 -- 864
-		end -- 864
-	end -- 864
-	local patchP = projectWorld3D( -- 879
-		clothX + 1, -- 879
-		clothTop - 7, -- 879
-		-13, -- 879
-		cam, -- 879
-		self.outsideProj -- 879
-	) -- 879
-	fgDraw:drawSegment( -- 880
-		Vec2(patchP.x - 3, patchP.y), -- 880
-		Vec2(patchP.x + 3, patchP.y - 2), -- 880
-		1, -- 880
-		Color(224, 212, 188, 215) -- 880
+	return true -- 775
+end -- 626
+function LowpolyWorldPlugin.prototype.drawPropsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 778
+	if not self.active then -- 778
+		return false -- 785
+	end -- 785
+	local key = ctx.p.room.key -- 787
+	if key == "village" then -- 787
+		return self.village:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 789
+	end -- 789
+	if key == "forest" then -- 789
+		return self.forest:drawPropsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 792
+	end -- 792
+	if key == "outside" then -- 792
+		return self:drawOutsideCartLowpoly(fgDraw, fgGlow, ctx) -- 795
+	end -- 795
+	if key == "tower" then -- 795
+		return true -- 798
+	end -- 798
+	return false -- 800
+end -- 778
+function LowpolyWorldPlugin.prototype.drawOutsideCartLowpoly(self, fgDraw, fgGlow, ctx) -- 804
+	local p = ctx.p -- 805
+	local cam = ctx.cam -- 806
+	local c = p.room.cart -- 807
+	if c.bodyW <= 0 then -- 807
+		return true -- 809
+	end -- 809
+	local scene = __TS__New(LowpolyScene, cam, self.outsideProj, OUTSIDE_JETTY_LIGHT) -- 811
+	local halfW = c.bodyW * 0.5 -- 812
+	local axleX = p.cartAxle -- 813
+	local axleY = c.baseY + c.wheelR -- 814
+	local bodyBot = axleY + 2 -- 815
+	local bodyTop = bodyBot + c.bodyH -- 816
+	scene:addBox({ -- 819
+		x0 = axleX - halfW, -- 820
+		x1 = axleX + halfW, -- 821
+		y0 = bodyBot, -- 822
+		y1 = bodyTop, -- 823
+		z0 = -12, -- 824
+		z1 = 14, -- 825
+		material = MING_MATERIALS.mingTimber, -- 826
+		bucket = LP_BUCKET.PROP, -- 827
+		highlightTopEdge = true, -- 828
+		edgeWidth = 1 -- 829
+	}) -- 829
+	scene:addBox({ -- 832
+		x0 = axleX - halfW - 1, -- 833
+		x1 = axleX + halfW + 1, -- 834
+		y0 = bodyBot + 4, -- 835
+		y1 = bodyBot + 8, -- 836
+		z0 = -13, -- 837
+		z1 = 15, -- 838
+		material = MING_MATERIALS.mingIron, -- 839
+		bucket = LP_BUCKET.PROP, -- 840
+		sortBias = 0.08 -- 841
+	}) -- 841
+	local handleX = axleX + c.handleOffset -- 844
+	scene:addBox({ -- 845
+		x0 = axleX + halfW - 2, -- 846
+		x1 = handleX, -- 847
+		y0 = bodyTop - 6, -- 848
+		y1 = bodyTop - 1, -- 849
+		z0 = -10, -- 850
+		z1 = -4, -- 851
+		material = MING_MATERIALS.mingTimber, -- 852
+		bucket = LP_BUCKET.PROP, -- 853
+		sortBias = 0.12, -- 854
+		highlightTopEdge = true -- 855
+	}) -- 855
+	scene:addBox({ -- 857
+		x0 = handleX - 3, -- 858
+		x1 = handleX + 3, -- 859
+		y0 = bodyTop - 8, -- 860
+		y1 = bodyTop + 2, -- 861
+		z0 = -11, -- 862
+		z1 = 9, -- 863
+		material = MING_MATERIALS.mingTimber, -- 864
+		bucket = LP_BUCKET.PROP, -- 865
+		sortBias = 0.14, -- 866
+		highlightTopEdge = true -- 867
+	}) -- 867
+	local clothX = axleX - halfW -- 871
+	local clothTop = bodyTop + 1 -- 872
+	local sway = math.sin(self.animTime * 3.1) * 5.8 -- 873
+	local sway2 = math.cos(self.animTime * 2.6) * 3.6 -- 874
+	scene:addTri3D( -- 875
+		vec3(clothX - 2, clothTop + 1, -12), -- 876
+		vec3(clothX + 11, clothTop, -11), -- 877
+		vec3(clothX - 16 + sway, clothTop - 22, -14), -- 878
+		MING_MATERIALS.mingRedCloth, -- 879
+		{bucket = LP_BUCKET.PROP, sortBias = 0.28, edgeWidth = 0.9} -- 880
 	) -- 880
-	fgDraw:drawSegment( -- 881
-		Vec2(patchP.x - 2, patchP.y - 4), -- 881
-		Vec2(patchP.x + 2, patchP.y - 5), -- 881
-		0.9, -- 881
-		Color(224, 212, 188, 195) -- 881
-	) -- 881
-	return true -- 883
-end -- 771
-function LowpolyWorldPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 886
-	if not self.active then -- 886
-		return -- 893
-	end -- 893
-	local key = ctx.p.room.key -- 895
-	if key == "village" then -- 895
-		self.village:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 897
-	elseif key == "forest" then -- 897
-		self.forest:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 899
-	end -- 899
-end -- 886
-function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 907
-	if not self.active then -- 907
-		return false -- 915
-	end -- 915
-	local key = ctx.p.room.key -- 917
-	if key == "village" then -- 917
-		return self.village:drawForegroundOverlay( -- 919
-			uiDraw, -- 919
-			uiInkDraw, -- 919
-			uiArt, -- 919
-			uiGlow, -- 919
-			ctx -- 919
-		) -- 919
-	end -- 919
-	if key == "forest" then -- 919
-		return self.forest:drawForegroundOverlay( -- 922
-			uiDraw, -- 922
-			uiInkDraw, -- 922
-			uiArt, -- 922
-			uiGlow, -- 922
-			ctx -- 922
-		) -- 922
-	end -- 922
-	if key == "outside" then -- 922
-		self:drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiGlow, ctx) -- 925
-		return false -- 926
+	scene:addTri3D( -- 882
+		vec3(clothX + 11, clothTop, -11), -- 883
+		vec3(clothX - 16 + sway, clothTop - 22, -14), -- 884
+		vec3(clothX - 1 + sway2, clothTop - 24, -12), -- 885
+		MING_MATERIALS.mingRedCloth, -- 886
+		{bucket = LP_BUCKET.PROP, sortBias = 0.29, edgeWidth = 0.6} -- 887
+	) -- 887
+	scene:flush(fgDraw, fgGlow) -- 890
+	local wheelXs = {axleX - halfW * 0.56, axleX + halfW * 0.56} -- 893
+	local wheelR = cam:len(c.wheelR) -- 894
+	local rollAngle = -axleX / math.max(1, c.wheelR) -- 895
+	local wi = 0 -- 896
+	do -- 896
+		wi = 0 -- 897
+		while wi < #wheelXs do -- 897
+			local wp = projectWorld3D( -- 898
+				wheelXs[wi + 1], -- 898
+				axleY, -- 898
+				-10, -- 898
+				cam, -- 898
+				self.outsideProj -- 898
+			) -- 898
+			fgDraw:drawCircle( -- 899
+				Vec2(wp.x, wp.y), -- 899
+				wheelR, -- 899
+				Color(52, 40, 32, 255) -- 899
+			) -- 899
+			fgDraw:drawRing( -- 900
+				Vec2(wp.x, wp.y), -- 900
+				math.max(1, wheelR - 2.6), -- 900
+				wheelR, -- 900
+				Color(0, 0, 0, 0), -- 900
+				1.4, -- 900
+				Color(148, 126, 102, 220) -- 900
+			) -- 900
+			local sp = 0 -- 901
+			do -- 901
+				sp = 0 -- 902
+				while sp < 4 do -- 902
+					local a = rollAngle + sp * math.pi / 4 -- 903
+					local dx = math.cos(a) * (wheelR - 2) -- 904
+					local dy = math.sin(a) * (wheelR - 2) -- 905
+					fgDraw:drawSegment( -- 906
+						Vec2(wp.x - dx, wp.y - dy), -- 906
+						Vec2(wp.x + dx, wp.y + dy), -- 906
+						1, -- 906
+						Color(118, 92, 70, 210) -- 906
+					) -- 906
+					sp = sp + 1 -- 902
+				end -- 902
+			end -- 902
+			fgDraw:drawDot( -- 908
+				Vec2(wp.x, wp.y), -- 908
+				2.4, -- 908
+				Color(172, 160, 144, 230) -- 908
+			) -- 908
+			wi = wi + 1 -- 897
+		end -- 897
+	end -- 897
+	local patchP = projectWorld3D( -- 912
+		clothX + 1, -- 912
+		clothTop - 7, -- 912
+		-13, -- 912
+		cam, -- 912
+		self.outsideProj -- 912
+	) -- 912
+	fgDraw:drawSegment( -- 913
+		Vec2(patchP.x - 3, patchP.y), -- 913
+		Vec2(patchP.x + 3, patchP.y - 2), -- 913
+		1, -- 913
+		Color(224, 212, 188, 215) -- 913
+	) -- 913
+	fgDraw:drawSegment( -- 914
+		Vec2(patchP.x - 2, patchP.y - 4), -- 914
+		Vec2(patchP.x + 2, patchP.y - 5), -- 914
+		0.9, -- 914
+		Color(224, 212, 188, 195) -- 914
+	) -- 914
+	return true -- 916
+end -- 804
+function LowpolyWorldPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, worldArt, ctx) -- 919
+	if not self.active then -- 919
+		return -- 926
 	end -- 926
-	return false -- 928
-end -- 907
-function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 935
-	if self.memoryTimer < 0 or self.memoryTimer >= SEWING_MEMORY_DURATION then -- 935
-		return -- 942
-	end -- 942
-	local prog = clamp01(self.memoryTimer / SEWING_MEMORY_DURATION) -- 944
-	local alpha = smoothstep(0, 0.2, prog) * (1 - smoothstep(0.72, 1, prog)) -- 946
-	if alpha <= 0.01 then -- 946
-		return -- 948
+	local key = ctx.p.room.key -- 928
+	if key == "village" then -- 928
+		self.village:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 930
+	elseif key == "forest" then -- 930
+		self.forest:drawActorsOverlay(fgDraw, fgGlow, worldArt, ctx) -- 932
+	end -- 932
+end -- 919
+function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, uiGlow, ctx) -- 940
+	if not self.active then -- 940
+		return false -- 948
 	end -- 948
-	local inv = 1 / math.max(0.25, ctx.uiScale) -- 950
-	local handPt = projectWorld3D( -- 951
-		self.memoryAnchorWorldX, -- 951
-		self.memoryAnchorWorldY, -- 951
-		0, -- 951
-		ctx.cam, -- 951
-		self.outsideProj -- 951
-	) -- 951
-	local cx = math.max( -- 953
-		160, -- 953
-		math.min(ctx.uiW - 160, handPt.x * inv - 24) -- 953
-	) -- 953
-	local cy = math.max( -- 954
-		150, -- 954
-		math.min(ctx.uiH - 130, handPt.y * inv + 96) -- 954
-	) -- 954
-	local rx = 122 -- 955
-	local ry = 74 -- 956
-	fillRadialGlow( -- 959
-		uiGlow, -- 959
-		cx, -- 959
-		cy, -- 959
-		rx * 1.55, -- 959
-		ry * 1.55, -- 959
-		Color( -- 959
-			238, -- 959
-			190, -- 959
-			122, -- 959
-			math.floor(92 * alpha + 0.5) -- 959
-		), -- 959
-		Color(218, 162, 92, 0), -- 959
-		22 -- 959
-	) -- 959
-	uiDraw:drawEllipse( -- 960
-		Vec2(cx, cy), -- 960
-		rx * 1.12, -- 960
-		ry * 1.12, -- 960
-		Color( -- 960
-			36, -- 960
-			26, -- 960
-			20, -- 960
-			math.floor(128 * alpha + 0.5) -- 960
-		) -- 960
-	) -- 960
-	uiDraw:drawEllipse( -- 961
-		Vec2(cx, cy), -- 961
-		rx * 0.96, -- 961
-		ry * 0.96, -- 961
-		Color( -- 961
-			32, -- 961
-			22, -- 961
-			16, -- 961
-			math.floor(206 * alpha + 0.5) -- 961
-		) -- 961
-	) -- 961
-	uiDraw:drawPolygon( -- 964
-		{ -- 964
-			Vec2(cx - 72, cy - 34), -- 965
-			Vec2(cx + 62, cy - 28), -- 966
-			Vec2(cx + 70, cy + 32), -- 967
-			Vec2(cx - 64, cy + 28) -- 968
-		}, -- 968
-		Color( -- 969
-			148, -- 969
-			44, -- 969
-			40, -- 969
-			math.floor(230 * alpha + 0.5) -- 969
-		) -- 969
-	) -- 969
-	uiDraw:drawPolygon( -- 970
-		{ -- 970
-			Vec2(cx - 28, cy - 18), -- 971
-			Vec2(cx + 26, cy - 14), -- 972
-			Vec2(cx + 22, cy + 20), -- 973
-			Vec2(cx - 24, cy + 16) -- 974
-		}, -- 974
-		Color( -- 975
-			172, -- 975
-			62, -- 975
-			54, -- 975
-			math.floor(238 * alpha + 0.5) -- 975
-		), -- 975
-		1, -- 975
-		Color( -- 975
-			224, -- 975
-			210, -- 975
-			184, -- 975
-			math.floor(170 * alpha + 0.5) -- 975
-		) -- 975
-	) -- 975
-	local si = 0 -- 978
-	do -- 978
-		si = 0 -- 979
-		while si < 4 do -- 979
-			local sx = cx - 18 + si * 11 -- 980
-			uiInkDraw:drawSegment( -- 981
-				Vec2(sx, cy - 15), -- 981
-				Vec2(sx + 4, cy - 9), -- 981
-				1.3, -- 981
-				Color( -- 981
-					236, -- 981
-					224, -- 981
-					198, -- 981
-					math.floor(235 * alpha + 0.5) -- 981
-				) -- 981
-			) -- 981
-			si = si + 1 -- 979
-		end -- 979
-	end -- 979
-	local pullT = smoothstep(0.14, 0.82, prog) -- 985
-	local stitchAnchorX = cx + 22 -- 986
-	local stitchAnchorY = cy - 12 -- 987
-	local handX = cx + 32 + pullT * 34 -- 988
-	local handY = cy + 6 + pullT * 26 -- 989
-	local midX = (stitchAnchorX + handX) * 0.5 + (1 - pullT) * 10 -- 992
-	local midY = (stitchAnchorY + handY) * 0.5 - (1 - pullT) * 12 -- 993
-	uiInkDraw:drawSegment( -- 994
-		Vec2(stitchAnchorX, stitchAnchorY), -- 994
-		Vec2(midX, midY), -- 994
-		1.2, -- 994
+	local key = ctx.p.room.key -- 950
+	if key == "village" then -- 950
+		return self.village:drawForegroundOverlay( -- 952
+			uiDraw, -- 952
+			uiInkDraw, -- 952
+			uiArt, -- 952
+			uiGlow, -- 952
+			ctx -- 952
+		) -- 952
+	end -- 952
+	if key == "forest" then -- 952
+		return self.forest:drawForegroundOverlay( -- 955
+			uiDraw, -- 955
+			uiInkDraw, -- 955
+			uiArt, -- 955
+			uiGlow, -- 955
+			ctx -- 955
+		) -- 955
+	end -- 955
+	if key == "outside" then -- 955
+		self:drawOutsideSewingMemoryOverlay(uiDraw, uiInkDraw, uiGlow, ctx) -- 958
+		return false -- 959
+	end -- 959
+	return false -- 961
+end -- 940
+function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDraw, uiInkDraw, uiGlow, ctx) -- 968
+	if self.memoryTimer < 0 or self.memoryTimer >= SEWING_MEMORY_DURATION then -- 968
+		return -- 975
+	end -- 975
+	local prog = clamp01(self.memoryTimer / SEWING_MEMORY_DURATION) -- 977
+	local alpha = smoothstep(0, 0.2, prog) * (1 - smoothstep(0.72, 1, prog)) -- 979
+	if alpha <= 0.01 then -- 979
+		return -- 981
+	end -- 981
+	local inv = 1 / math.max(0.25, ctx.uiScale) -- 983
+	local handPt = projectWorld3D( -- 984
+		self.memoryAnchorWorldX, -- 984
+		self.memoryAnchorWorldY, -- 984
+		0, -- 984
+		ctx.cam, -- 984
+		self.outsideProj -- 984
+	) -- 984
+	local cx = math.max( -- 986
+		160, -- 986
+		math.min(ctx.uiW - 160, handPt.x * inv - 24) -- 986
+	) -- 986
+	local cy = math.max( -- 987
+		150, -- 987
+		math.min(ctx.uiH - 130, handPt.y * inv + 96) -- 987
+	) -- 987
+	local rx = 122 -- 988
+	local ry = 74 -- 989
+	fillRadialGlow( -- 992
+		uiGlow, -- 992
+		cx, -- 992
+		cy, -- 992
+		rx * 1.55, -- 992
+		ry * 1.55, -- 992
+		Color( -- 992
+			238, -- 992
+			190, -- 992
+			122, -- 992
+			math.floor(92 * alpha + 0.5) -- 992
+		), -- 992
+		Color(218, 162, 92, 0), -- 992
+		22 -- 992
+	) -- 992
+	uiDraw:drawEllipse( -- 993
+		Vec2(cx, cy), -- 993
+		rx * 1.12, -- 993
+		ry * 1.12, -- 993
+		Color( -- 993
+			36, -- 993
+			26, -- 993
+			20, -- 993
+			math.floor(128 * alpha + 0.5) -- 993
+		) -- 993
+	) -- 993
+	uiDraw:drawEllipse( -- 994
+		Vec2(cx, cy), -- 994
+		rx * 0.96, -- 994
+		ry * 0.96, -- 994
 		Color( -- 994
-			242, -- 994
-			234, -- 994
-			214, -- 994
-			math.floor(240 * alpha + 0.5) -- 994
+			32, -- 994
+			22, -- 994
+			16, -- 994
+			math.floor(206 * alpha + 0.5) -- 994
 		) -- 994
 	) -- 994
-	uiInkDraw:drawSegment( -- 995
-		Vec2(midX, midY), -- 995
-		Vec2(handX - 6, handY - 2), -- 995
-		1.2, -- 995
-		Color( -- 995
-			242, -- 995
-			234, -- 995
-			214, -- 995
-			math.floor(240 * alpha + 0.5) -- 995
-		) -- 995
-	) -- 995
-	uiInkDraw:drawSegment( -- 998
-		Vec2(handX - 16, handY - 8), -- 998
-		Vec2(handX + 2, handY + 4), -- 998
-		1.1, -- 998
-		Color( -- 998
-			230, -- 998
-			236, -- 998
-			242, -- 998
-			math.floor(225 * alpha + 0.5) -- 998
-		) -- 998
-	) -- 998
-	uiDraw:drawPolygon( -- 1001
-		{ -- 1001
-			Vec2(handX - 8, handY - 6), -- 1002
-			Vec2(handX + 18, handY + 2), -- 1003
-			Vec2(handX + 24, handY + 14), -- 1004
-			Vec2(handX + 4, handY + 14), -- 1005
-			Vec2(handX - 10, handY + 4) -- 1006
-		}, -- 1006
-		Color( -- 1007
-			214, -- 1007
-			174, -- 1007
-			142, -- 1007
-			math.floor(225 * alpha + 0.5) -- 1007
-		), -- 1007
-		1, -- 1007
-		Color( -- 1007
-			142, -- 1007
-			102, -- 1007
-			78, -- 1007
-			math.floor(180 * alpha + 0.5) -- 1007
-		) -- 1007
-	) -- 1007
-	uiDraw:drawEllipse( -- 1009
-		Vec2(cx - 20, cy + 4), -- 1009
-		16, -- 1009
-		9, -- 1009
-		Color( -- 1009
-			204, -- 1009
-			164, -- 1009
-			134, -- 1009
-			math.floor(220 * alpha + 0.5) -- 1009
-		) -- 1009
-	) -- 1009
-end -- 935
-function ____exports.createLowpolyWorldPlugin() -- 1013
-	return __TS__New(____exports.LowpolyWorldPlugin) -- 1014
-end -- 1013
+	uiDraw:drawPolygon( -- 997
+		{ -- 997
+			Vec2(cx - 72, cy - 34), -- 998
+			Vec2(cx + 62, cy - 28), -- 999
+			Vec2(cx + 70, cy + 32), -- 1000
+			Vec2(cx - 64, cy + 28) -- 1001
+		}, -- 1001
+		Color( -- 1002
+			148, -- 1002
+			44, -- 1002
+			40, -- 1002
+			math.floor(230 * alpha + 0.5) -- 1002
+		) -- 1002
+	) -- 1002
+	uiDraw:drawPolygon( -- 1003
+		{ -- 1003
+			Vec2(cx - 28, cy - 18), -- 1004
+			Vec2(cx + 26, cy - 14), -- 1005
+			Vec2(cx + 22, cy + 20), -- 1006
+			Vec2(cx - 24, cy + 16) -- 1007
+		}, -- 1007
+		Color( -- 1008
+			172, -- 1008
+			62, -- 1008
+			54, -- 1008
+			math.floor(238 * alpha + 0.5) -- 1008
+		), -- 1008
+		1, -- 1008
+		Color( -- 1008
+			224, -- 1008
+			210, -- 1008
+			184, -- 1008
+			math.floor(170 * alpha + 0.5) -- 1008
+		) -- 1008
+	) -- 1008
+	local si = 0 -- 1011
+	do -- 1011
+		si = 0 -- 1012
+		while si < 4 do -- 1012
+			local sx = cx - 18 + si * 11 -- 1013
+			uiInkDraw:drawSegment( -- 1014
+				Vec2(sx, cy - 15), -- 1014
+				Vec2(sx + 4, cy - 9), -- 1014
+				1.3, -- 1014
+				Color( -- 1014
+					236, -- 1014
+					224, -- 1014
+					198, -- 1014
+					math.floor(235 * alpha + 0.5) -- 1014
+				) -- 1014
+			) -- 1014
+			si = si + 1 -- 1012
+		end -- 1012
+	end -- 1012
+	local pullT = smoothstep(0.14, 0.82, prog) -- 1018
+	local stitchAnchorX = cx + 22 -- 1019
+	local stitchAnchorY = cy - 12 -- 1020
+	local handX = cx + 32 + pullT * 34 -- 1021
+	local handY = cy + 6 + pullT * 26 -- 1022
+	local midX = (stitchAnchorX + handX) * 0.5 + (1 - pullT) * 10 -- 1025
+	local midY = (stitchAnchorY + handY) * 0.5 - (1 - pullT) * 12 -- 1026
+	uiInkDraw:drawSegment( -- 1027
+		Vec2(stitchAnchorX, stitchAnchorY), -- 1027
+		Vec2(midX, midY), -- 1027
+		1.2, -- 1027
+		Color( -- 1027
+			242, -- 1027
+			234, -- 1027
+			214, -- 1027
+			math.floor(240 * alpha + 0.5) -- 1027
+		) -- 1027
+	) -- 1027
+	uiInkDraw:drawSegment( -- 1028
+		Vec2(midX, midY), -- 1028
+		Vec2(handX - 6, handY - 2), -- 1028
+		1.2, -- 1028
+		Color( -- 1028
+			242, -- 1028
+			234, -- 1028
+			214, -- 1028
+			math.floor(240 * alpha + 0.5) -- 1028
+		) -- 1028
+	) -- 1028
+	uiInkDraw:drawSegment( -- 1031
+		Vec2(handX - 16, handY - 8), -- 1031
+		Vec2(handX + 2, handY + 4), -- 1031
+		1.1, -- 1031
+		Color( -- 1031
+			230, -- 1031
+			236, -- 1031
+			242, -- 1031
+			math.floor(225 * alpha + 0.5) -- 1031
+		) -- 1031
+	) -- 1031
+	uiDraw:drawPolygon( -- 1034
+		{ -- 1034
+			Vec2(handX - 8, handY - 6), -- 1035
+			Vec2(handX + 18, handY + 2), -- 1036
+			Vec2(handX + 24, handY + 14), -- 1037
+			Vec2(handX + 4, handY + 14), -- 1038
+			Vec2(handX - 10, handY + 4) -- 1039
+		}, -- 1039
+		Color( -- 1040
+			214, -- 1040
+			174, -- 1040
+			142, -- 1040
+			math.floor(225 * alpha + 0.5) -- 1040
+		), -- 1040
+		1, -- 1040
+		Color( -- 1040
+			142, -- 1040
+			102, -- 1040
+			78, -- 1040
+			math.floor(180 * alpha + 0.5) -- 1040
+		) -- 1040
+	) -- 1040
+	uiDraw:drawEllipse( -- 1042
+		Vec2(cx - 20, cy + 4), -- 1042
+		16, -- 1042
+		9, -- 1042
+		Color( -- 1042
+			204, -- 1042
+			164, -- 1042
+			134, -- 1042
+			math.floor(220 * alpha + 0.5) -- 1042
+		) -- 1042
+	) -- 1042
+end -- 968
+function ____exports.createLowpolyWorldPlugin() -- 1046
+	return __TS__New(____exports.LowpolyWorldPlugin) -- 1047
+end -- 1046
 --- 零冲突注册辅助：供 M2 合流接线与 verify-fe04.lua 独立测试调用（避免循环 require）
-function ____exports.registerFe04Plugins(fe) -- 1018
-	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1021
-	fe:registerPlugin(lowpolyWorld) -- 1022
-	return {lowpolyWorld = lowpolyWorld} -- 1023
-end -- 1018
-return ____exports -- 1018
+function ____exports.registerFe04Plugins(fe) -- 1051
+	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1054
+	fe:registerPlugin(lowpolyWorld) -- 1055
+	return {lowpolyWorld = lowpolyWorld} -- 1056
+end -- 1051
+return ____exports -- 1051

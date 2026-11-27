@@ -8,6 +8,7 @@
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { FEAR_MAX } from "Script/watch/escort";
 import { WorldPrompt, deriveWorldPrompt } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
@@ -550,7 +551,8 @@ export class HudRenderer {
         let i = 0;
         for (i = 0; i < p.enemies.length; i++) {
             const e = p.enemies[i];
-            if (e.alive && Math.abs(wAim.x - e.x) <= e.w * 0.85 && wAim.y >= e.y - 6 && wAim.y <= e.y + e.h + 6) {
+            const ey = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE;
+            if (e.alive && Math.abs(wAim.x - e.x) <= e.w * 0.85 && wAim.y >= ey - 6 && wAim.y <= ey + e.h + 6) {
                 onEnemy = true;
             }
         }

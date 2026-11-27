@@ -1175,56 +1175,82 @@ function ____exports.buildOutsideJettyLowpoly(scene, room, actorX, actorY, cartA
 				bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1303
 				highlightTopEdge = true -- 1304
 			}) -- 1304
+			if s.y > 10 then -- 1304
+				scene:addBox({ -- 1307
+					x0 = s.x, -- 1308
+					x1 = s.x + 18, -- 1309
+					y0 = 0, -- 1310
+					y1 = s.y, -- 1311
+					z0 = 32, -- 1312
+					z1 = 72, -- 1313
+					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1314
+					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1315
+					sortBias = -0.08, -- 1316
+					edgeWidth = 0.7 -- 1317
+				}) -- 1317
+				scene:addBox({ -- 1319
+					x0 = s.x + s.w - 18, -- 1320
+					x1 = s.x + s.w, -- 1321
+					y0 = 0, -- 1322
+					y1 = s.y, -- 1323
+					z0 = 32, -- 1324
+					z1 = 72, -- 1325
+					material = ____exports.MING_MATERIALS.mingBrickDark, -- 1326
+					bucket = ____exports.LP_BUCKET.MIDGROUND, -- 1327
+					sortBias = -0.08, -- 1328
+					edgeWidth = 0.7 -- 1329
+				}) -- 1329
+			end -- 1329
 			i = i + 1 -- 1293
 		end -- 1293
 	end -- 1293
-	local arch = room.arch -- 1309
-	if arch.h > 0 and arch.x1 > arch.x0 then -- 1309
-		scene:addBeveledFrame( -- 1311
-			arch.x0, -- 1311
-			arch.x1, -- 1311
-			arch.y, -- 1311
-			arch.y + arch.h, -- 1311
-			22, -- 1311
-			18, -- 1311
-			-10, -- 1311
-			64, -- 1311
-			____exports.MING_MATERIALS.mingStoneStep, -- 1311
-			{ -- 1311
-				bucket = ____exports.LP_BUCKET.WALK_DECK, -- 1312
-				innerRimLight = rgba(176, 206, 228, 255), -- 1313
-				innerRimStrength = 0.45 -- 1314
-			} -- 1314
-		) -- 1314
-	end -- 1314
-	local c = room.cart -- 1319
-	if c.bodyW > 0 then -- 1319
-		scene:addContactShadow( -- 1321
-			cartAxle, -- 1321
-			c.baseY, -- 1321
-			c.bodyW * 0.62, -- 1321
-			14, -- 1321
-			0.7, -- 1321
-			{bucket = ____exports.LP_BUCKET.PROP} -- 1321
-		) -- 1321
-		local clothX = cartAxle - c.bodyW * 0.5 -- 1322
-		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1323
-		local sway = math.sin(time * 3.1) * 5.5 -- 1324
-		scene:addTri3D( -- 1325
-			____exports.vec3(clothX, clothTop, -4), -- 1326
-			____exports.vec3(clothX + 9, clothTop, -4), -- 1327
-			____exports.vec3(clothX - 5 + sway, clothTop - 22, -6), -- 1328
-			____exports.MING_MATERIALS.mingRedCloth, -- 1329
-			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, edgeWidth = 0.9} -- 1330
-		) -- 1330
-	end -- 1330
-	scene:addContactShadow( -- 1335
-		actorX, -- 1335
-		actorY, -- 1335
-		15, -- 1335
-		11, -- 1335
-		0.78, -- 1335
-		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1335
-	) -- 1335
+	local arch = room.arch -- 1335
+	if arch.h > 0 and arch.x1 > arch.x0 then -- 1335
+		scene:addBeveledFrame( -- 1337
+			arch.x0, -- 1337
+			arch.x1, -- 1337
+			arch.y, -- 1337
+			arch.y + arch.h, -- 1337
+			22, -- 1337
+			18, -- 1337
+			-10, -- 1337
+			64, -- 1337
+			____exports.MING_MATERIALS.mingStoneStep, -- 1337
+			{ -- 1337
+				bucket = ____exports.LP_BUCKET.WALK_DECK, -- 1338
+				innerRimLight = rgba(176, 206, 228, 255), -- 1339
+				innerRimStrength = 0.45 -- 1340
+			} -- 1340
+		) -- 1340
+	end -- 1340
+	local c = room.cart -- 1345
+	if c.bodyW > 0 then -- 1345
+		scene:addContactShadow( -- 1347
+			cartAxle, -- 1347
+			c.baseY, -- 1347
+			c.bodyW * 0.62, -- 1347
+			14, -- 1347
+			0.7, -- 1347
+			{bucket = ____exports.LP_BUCKET.PROP} -- 1347
+		) -- 1347
+		local clothX = cartAxle - c.bodyW * 0.5 -- 1348
+		local clothTop = c.baseY + c.wheelR * 1.05 + c.bodyH -- 1349
+		local sway = math.sin(time * 3.1) * 5.5 -- 1350
+		scene:addTri3D( -- 1351
+			____exports.vec3(clothX, clothTop, -4), -- 1352
+			____exports.vec3(clothX + 9, clothTop, -4), -- 1353
+			____exports.vec3(clothX - 5 + sway, clothTop - 22, -6), -- 1354
+			____exports.MING_MATERIALS.mingRedCloth, -- 1355
+			{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.4, edgeWidth = 0.9} -- 1356
+		) -- 1356
+	end -- 1356
+	scene:addContactShadow( -- 1361
+		actorX, -- 1361
+		actorY, -- 1361
+		15, -- 1361
+		11, -- 1361
+		0.78, -- 1361
+		{bucket = ____exports.LP_BUCKET.PROP, sortBias = 0.5} -- 1361
+	) -- 1361
 end -- 1231
 return ____exports -- 1231
