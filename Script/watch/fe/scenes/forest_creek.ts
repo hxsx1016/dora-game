@@ -84,6 +84,14 @@ const MAT_PINE_TRUNK: LowpolyMaterial = {
     bottomAo: 0.40,
 };
 
+const MAT_PINE_NEEDLE: LowpolyMaterial = {
+    base: rgba(24, 42, 38, 255),
+    edge: rgba(78, 108, 98, 135),
+    minShade: 0.22,
+    rimBoost: 0.18,
+    bottomAo: 0.36,
+};
+
 const MAT_ROOT_ARCH: LowpolyMaterial = {
     base: rgba(58, 46, 38, 255),
     edge: rgba(146, 134, 116, 170),
@@ -578,22 +586,39 @@ export class ForestCreekScene {
             { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.04, edgeWidth: 0 },
         );
 
-        // 2. 中景巨型古松树干（z = 36..82，营造《小小梦魇》小人穿巨林尺度）
+        // 2. 中景古松树干与分层松冠（z = 36..82，带自然锥形树干、斜枝与多层墨绿针叶冠，摆脱黑方柱观感）
         const midTrunks = [150, 415, 650, 910, 1255];
         let i = 0;
         for (i = 0; i < midTrunks.length; i++) {
             const tx = ox + midTrunks[i];
-            scene.addBox({
-                x0: tx - 14,
-                x1: tx + 14,
-                y0: -10,
-                y1: 210,
-                z0: 36 + (i % 2) * 18,
-                z1: 68 + (i % 2) * 18,
-                material: MAT_PINE_TRUNK,
-                bucket: LP_BUCKET.MIDGROUND,
-                edgeWidth: 0.7,
-            });
+            const tz = 38 + (i % 2) * 18;
+            const halfW = 10 + (i % 2) * 2;
+            const topW = halfW * 0.62;
+            // 微收分古松树干
+            scene.addQuad3D(
+                vec3(tx - halfW, -10, tz),
+                vec3(tx + halfW, -10, tz),
+                vec3(tx + topW, 205, tz),
+                vec3(tx - topW, 205, tz),
+                MAT_PINE_TRUNK,
+                { bucket: LP_BUCKET.MIDGROUND, edgeWidth: 0.7 },
+            );
+            // 侧向低垂古松枝与两层冷绿松针冠
+            const bDir = i % 2 === 0 ? 1 : -1;
+            scene.addTri3D(
+                vec3(tx - topW * 0.5, 118, tz - 2),
+                vec3(tx + bDir * 56, 108, tz - 4),
+                vec3(tx + bDir * 12, 142, tz - 2),
+                MAT_PINE_NEEDLE,
+                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.08, edgeWidth: 0.6 },
+            );
+            scene.addTri3D(
+                vec3(tx - bDir * 44, 146, tz - 2),
+                vec3(tx + bDir * 48, 152, tz - 3),
+                vec3(tx, 198, tz - 2),
+                MAT_PINE_NEEDLE,
+                { bucket: LP_BUCKET.MIDGROUND, sortBias: 0.10, edgeWidth: 0.6 },
+            );
         }
 
         // 3. 严格贴合 rooms.ts 两处矮台（520..640 / 980..1100，高 22）的盘结树根与青石坎

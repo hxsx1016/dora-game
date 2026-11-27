@@ -158,20 +158,20 @@ do
 	p.player.x = 360
 	p.player.y = 0
 	p.player.crouch = false
-	p.player.h = 64
+	p.player.h = 56
 	p.player.onGround = true
 	p:drainEvents()
 
 	-- 不按蹲键，仍应保持蹲姿。
 	step(p, i)
-	check("C1 桌下松蹲键仍蹲", p.player.crouch == true and p.player.h == 36,
+	check("C1 桌下松蹲键仍蹲", p.player.crouch == true and p.player.h == 34,
 		string.format("crouch=%s h=%.0f", tostring(p.player.crouch), p.player.h))
 
 	-- 走到桌外，下一拍恢复站姿。
 	p.player.x = 450
 	p.player.onGround = true
 	step(p, i)
-	check("C2 出拱后恢复站立", p.player.crouch == false and p.player.h == 64,
+	check("C2 出拱后恢复站立", p.player.crouch == false and p.player.h == 56,
 		string.format("crouch=%s h=%.0f", tostring(p.player.crouch), p.player.h))
 end
 

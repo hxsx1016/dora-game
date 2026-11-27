@@ -20,7 +20,7 @@ import {
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
-import { ACTOR_DEPTH_HALF, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
 import {
     RELOAD_ANSWER_PER_WORLD, RELOAD_ANSWER_TICKS, RELOAD_START, RELOAD_TARGET, ReloadEffect,
     reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
@@ -138,10 +138,10 @@ export interface PlayEvent {
     data: Record<string, unknown>;
 }
 
-/** 小满：高 64、蹲 36、走 160、慢走 80、跳初速 320（顶点 51）。 */
+/** 小满：高 56、蹲 34、走 160、慢走 80、跳初速 320（顶点 51）。 */
 const CHILD_W = 28;
-const CHILD_H = 64;
-const CHILD_CROUCH_H = 36;
+const CHILD_H = 56;
+const CHILD_CROUCH_H = 34;
 const CHILD_SPEED = 160;
 const CHILD_SLOW = 80;
 const CHILD_JUMP = 320;
@@ -1128,7 +1128,12 @@ export class Play {
                 const y = st.y0 + (st.y1 - st.y0) * k / (n - 1);
                 const x0 = st.x0 + stepW * k;
                 // 台阶做成单向平台：从台面下来能踩，从地面走过不会被挡住，也不会从下方撞头。
-                this.boxes.push({ x0: x0, x1: x0 + stepW, y0: -8, y1: y, passable: true });
+                // 2.5D 房间内台阶继承自身的纵深范围，避免其它空车道出现隐形悬空梯。
+                this.boxes.push({
+                    x0: x0, x1: x0 + stepW, y0: -8, y1: y,
+                    depth: room.depth === undefined ? undefined : st.depth,
+                    passable: true,
+                });
             }
         }
     }
@@ -1679,7 +1684,8 @@ export class Play {
             this.fallY(a, dt);
             return;
         }
-        a.crouch = isChild && (input.crouch.held || lowArch) && a.onGround;
+        const downCrouch = this.room.depth === undefined && input.moveY > 0;
+        a.crouch = isChild && (input.crouch.held || downCrouch || lowArch) && a.onGround;
         a.h = a.crouch ? CHILD_CROUCH_H : (isChild ? CHILD_H : SOLDIER_H);
         const nearCover = !isChild && this.nearCover(a);
         a.covered = nearCover && input.cover.held;
@@ -3233,6 +3239,12 @@ export class Play {
             if (wr.key === "c1-yard") {
                 this.run.c1Latch = true;
                 this.run.joined = true;
+                for (const door of this.boxes) {
+                    if (door.id === "c1_door") {
+                        door.broken = true;
+                    }
+                }
+                this.run.props["c1_door"] = { broken: true, hp: 0, wedge: false };
             } else {
                 this.run.c2Latch = true;
                 this.run.joined = true;
@@ -3256,7 +3268,7 @@ export class Play {
         const handleX = this.cartAxle + c.handleOffset;
         if (!this.gripping) {
             if (input.interact.pressed && !this.cartDocked && Math.abs(p.x - handleX) <= CART_REACH
-                && p.y <= c.baseY + (c.depth ?? 0) + 40 && !this.objectiveDone) {
+                && Math.abs(p.y - c.baseY) <= 40 && inReachDepth(p.depth, c.depth ?? 0) && !this.objectiveDone) {
                 this.gripping = true;
                 this.flashSet("握住车柄 · A/D 推", 1.0);
             }
@@ -3289,7 +3301,8 @@ export class Play {
                 }
             }
             p.x = this.cartAxle + c.handleOffset;
-            p.y = c.baseY + (c.depth ?? 0);
+            p.y = c.baseY;
+            p.depth = c.depth ?? 0;
             p.vx = 0;
             if (Math.abs(this.cartAxle - c.endX) < 0.5) {
                 this.cartAxle = c.endX;
@@ -3311,7 +3324,7 @@ export class Play {
             if (b.broken === true || b.breakable === undefined || b.soft === true) {
                 continue;
             }
-            const front = this.cartAxle + this.room.cart.handleOffset + this.room.cart.bodyW / 2;
+            const front = this.cartAxle + this.room.cart.bodyW / 2;
             if (b.y0 < 40 && b.x0 < front + 10 && b.x1 > front - 10) {
                 return true;
             }
@@ -4371,7 +4384,7 @@ export class Play {
         }
         const ox = a.x + a.facing * 8;
         const muzzleY = a.y + a.h * 0.72;
-        const oy = muzzleY + a.depth;
+        const oy = muzzleY + a.depth * DEPTH_Y_SCALE;
         // 先按准星可见的投影选择尝试命中的目标，再在场景中检测实体是否挡住这条线。
         const aim = this.worldMapper !== undefined
             ? this.worldMapper(this.aimX, this.aimY)
@@ -4395,7 +4408,7 @@ export class Play {
         const tEnemy = hitEnemy.t;
         const targetDepth = tEnemy > 0.001 ? (this.enemies[hitEnemy.index].depth ?? 0) : a.depth;
         const dDepth = tEnemy > 0.001 ? (targetDepth - a.depth) / tEnemy : 0;
-        const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth, depth: a.depth, dDepth });
+        const solid = this.raycastSolid({ ...ray, y: muzzleY, dy: dy - dDepth * DEPTH_Y_SCALE, depth: a.depth, dDepth });
         const tWall = solid.t;
         // 画盘效果 + 已装备武器：只有引路灯铳能把线照透，只有回声铳能惊起两处声源。
         const rawEffect = this.consumeReloadEffect();
@@ -4414,7 +4427,7 @@ export class Play {
             const e = this.enemies[i];
             const impactY = oy + dy * tEnemy;
             const fromFront = (a.x < e.x && dx > 0) || (a.x > e.x && dx < 0);
-            const shieldTop = e.y + (e.depth ?? 0) + 64;
+            const shieldTop = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE + 64;
             if (e.kind === "shield" && (e.shieldHp ?? 0) > 0 && fromFront && impactY <= shieldTop) {
                 e.shieldHp = (e.shieldHp ?? 0) - 1;
                 e.hitT = 0.3;
@@ -4529,7 +4542,7 @@ export class Play {
             if (!e.alive) {
                 continue;
             }
-            const y = e.y + (e.depth ?? 0);
+            const y = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE;
             const t = hitBox(ray, { x0: e.x - e.w / 2, x1: e.x + e.w / 2, y0: y, y1: y + e.h });
             if (t >= 0 && (best < 0 || t < best)) {
                 best = t;
@@ -4669,14 +4682,12 @@ export class Play {
                 }
             }
         }
-        // 城外：车身下缘在下层形成随车移动的阻挡（离地 0..44）。
-        // 车没落窝时封死整条通道（这就是「先把车拉走」的谜题）；
-        // 落窝后只挡站姿，蹲 36 能从车底钻过去——D4 的墙根小路在车之后。
-        if (this.room.key === "outside" && a.y < CART_CLEAR - 0.001) {
-            const blocked = !this.cartDocked || a.y + a.h > CART_CLEAR + 0.001;
-            const bx0 = this.cartAxle - CART_HALF;
-            const bx1 = this.cartAxle + CART_HALF;
-            if (blocked && nx + half > bx0 && nx - half < bx1) {
+        // 城外：未拉车入窝前，车底连杆挡栓封住下层拱口（arch.x0..arch.x1）；
+        // 车轮一旦落窝（cartDocked），挡栓收回，底层拱洞外平地彻底畅通，不再残留车底空气墙。
+        if (this.room.key === "outside" && !this.cartDocked && a.y < CART_CLEAR - 0.001) {
+            const bx0 = Math.max(room.arch.x0, this.cartAxle - CART_HALF);
+            const bx1 = Math.min(room.arch.x1, this.cartAxle + CART_HALF);
+            if (bx1 > bx0 && nx + half > bx0 && nx - half < bx1) {
                 if (a.x <= bx0) {
                     nx = bx0 - half;
                 } else if (a.x >= bx1) {
@@ -4713,8 +4724,8 @@ export class Play {
         let ny = a.y + a.vy * dt;
         const half = a.w / 2;
         if (a.vy <= 0) {
-            // 站在地上时多探 24 单位：矮台阶（每级 16–22）直接走上去，柜台 44、台面 96 仍要跳。
-            const reach = a.onGround ? STEP_UP : 0;
+            // 站在地上且未下蹲时多探 24 单位：矮台阶（每级 16–22）直接走上去，下蹲穿行不误爬单向梯，柜台 44/台面 96 仍要跳。
+            const reach = a.onGround && !a.crouch ? STEP_UP : 0;
             const ground = this.groundAt(a.x, a.y + 0.5 + reach, half, a.depth);
             if (ny <= ground) {
                 ny = ground;
@@ -5569,7 +5580,7 @@ function makeActor(room: RoomSpec, index: number): Actor {
         return { x: 0, y: 0, depth: 0, depthSpeed: 0, vx: 0, vy: 0, w: CHILD_W, h: CHILD_H, onGround: true, facing: 1, crouch: false, rollT: 0, covered: false, alive: false };
     }
     const s = sp[index];
-    const child = s.h <= CHILD_H;
+    const child = s.h < SOLDIER_H;
     const ground = room.depth;
     const depth = ground === undefined ? 0 : Math.max(ground.min, Math.min(ground.max, s.depth ?? 0));
     return {
@@ -5586,7 +5597,7 @@ function drawFigure(draw: DrawNode.Type, play: Play, w: number, h: number, a: Ac
     }
     const x0 = a.x - a.w / 2;
     const x1 = a.x + a.w / 2;
-    const y0 = a.y + a.depth;
+    const y0 = a.y + a.depth * DEPTH_Y_SCALE;
     const y1 = y0 + a.h;
     play.drawBox(draw, w, h, x0, x1, y0, y1 - a.h * 0.26, body);
     play.drawBox(draw, w, h, x0 + 2, x1 - 2, y1 - a.h * 0.26, y1, head);
@@ -5639,7 +5650,7 @@ function drawCartShape(draw: DrawNode.Type, play: Play, w: number, h: number, c:
     const half = c.bodyW / 2;
     const x0 = axleX - half;
     const x1 = axleX + half;
-    const axleY = c.baseY + (c.depth ?? 0) + c.wheelR;
+    const axleY = c.baseY + (c.depth ?? 0) * DEPTH_Y_SCALE + c.wheelR;
     play.drawBox(draw, w, h, x0, x1, axleY, axleY + c.bodyH, CART_FILL);
     draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
     draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));

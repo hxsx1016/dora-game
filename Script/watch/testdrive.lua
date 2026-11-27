@@ -294,7 +294,7 @@ local function stepRoom(sim, inp, route, maxNs)
         end
 
         -- 抬闩 / 放帘：走到机关位按 E。
-        if key == "c1-yard" and local_x >= 1782 and local_x <= 1848 and math.abs(p.depth - 32) < 18 then
+        if key == "c1-yard" and local_x >= 1740 and local_x <= 1848 and math.abs(p.depth - 32) < 18 then
             if interactCd == 0 and sim.run.latchOpen ~= true then
                 pressInteract(sim, inp)
                 interactCd = 14

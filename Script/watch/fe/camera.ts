@@ -6,6 +6,7 @@
  */
 
 import { Play } from "Script/watch/play";
+import { DEPTH_Y_SCALE } from "Script/watch/depth";
 import { themeOf } from "Script/watch/fe/theme";
 
 /** 基础竖直世界视野高度（zoom=1 时屏幕纵向容纳约 304 世界单位，1280×720 下约 2.37 px/单位） */
@@ -198,7 +199,7 @@ export class CameraDirector {
             }
             const footDepth = lock.footDepth ?? 0;
             this.x = lock.footWorldX - ((lock.screenFootFracX - 0.5) * this.viewW) / this.ppu;
-            const desiredYOffset = lock.footWorldY + footDepth - (lock.screenFootFracY * this.viewH - this.groundScreenY) / this.ppu;
+            const desiredYOffset = lock.footWorldY + footDepth * DEPTH_Y_SCALE - (lock.screenFootFracY * this.viewH - this.groundScreenY) / this.ppu;
             this.y = 82 + desiredYOffset / 0.45;
             return;
         }
@@ -227,10 +228,10 @@ export class CameraDirector {
         return this.viewW * 0.5 + (wx - this.x) * this.ppu + this.shakeX;
     }
 
-    /** 高度与地面纵深投影到屏幕同一轴。 */
+    /** 高度与地面纵深（经透视系数 DEPTH_Y_SCALE 压缩）投影到屏幕同一轴。 */
     sy(wy: number, depth: number = 0): number {
         const yOffset = (this.y - 82) * 0.45;
-        return this.groundScreenY + (wy + depth - yOffset) * this.ppu + this.shakeY;
+        return this.groundScreenY + (wy + depth * DEPTH_Y_SCALE - yOffset) * this.ppu + this.shakeY;
     }
 
     /** 世界长度 → 屏幕像素长度 */

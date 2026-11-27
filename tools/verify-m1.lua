@@ -155,7 +155,7 @@ do
 		mingMod.resolveMingBackdropSlot("gatepath") == "bgFar_outside"
 		and mingMod.resolveMingBackdropSlot("escort1") == "bgFar_outside"
 		and mingMod.resolveMingBackdropSlot("escort2") == "bgFar_checkpoint"
-		and mingMod.resolveMingBackdropSlot("escort3") == "bgFar_checkpoint"
+		and mingMod.resolveMingBackdropSlot("escort3") == "bgFar_forest"
 		and mingMod.resolveMingBackdropSlot("escort4") == "bgFar_forest"
 		and mingMod.resolveMingBackdropSlot("escort5") == "bgFar_tower")
 end

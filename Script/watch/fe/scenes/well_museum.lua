@@ -19,7 +19,7 @@ local fillHGradRect = ____theme.fillHGradRect -- 48
 local fillRadialGlow = ____theme.fillRadialGlow -- 49
 local fillVGradRect = ____theme.fillVGradRect -- 50
 local toColor = ____theme.toColor -- 52
-____exports.WELL_WORLD_X = 34 -- 55
+____exports.WELL_WORLD_X = 430 -- 55
 ____exports.WELL_INTERACT_REACH = 46 -- 56
 ____exports.MATCH_CUT_ANCHOR_NX = 0.5 -- 57
 ____exports.MATCH_CUT_ANCHOR_NY = 0.54 -- 58
@@ -1672,8 +1672,8 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 			end -- 1490
 		end -- 1490
 		local pedW = 148 -- 1499
-		local pedH = 88 -- 1500
-		local glassH = 148 -- 1501
+		local pedH = 92 -- 1500
+		local glassH = 128 -- 1501
 		uiDraw:drawRect( -- 1503
 			Rect(caseSx - pedW * 0.5, floorY, pedW, pedH), -- 1504
 			Color(22, 26, 33, 252), -- 1505
@@ -1738,10 +1738,10 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 	local winSx = toScreenX(self.lampX + 108) -- 1537
 	local reflectK = inLampTurn and smoothstep(____exports.MUSEUM_TIMINGS.lampReflectStart, 2.35, self.lampElapsed) or 0 -- 1538
 	if winSx > -260 and winSx < w + 260 then -- 1538
-		local winW = 196 -- 1543
-		local winH = 292 -- 1544
+		local winW = 204 -- 1543
+		local winH = 312 -- 1544
 		local winX = winSx - winW * 0.5 -- 1545
-		local winY = floorY + 46 -- 1546
+		local winY = floorY + 38 -- 1546
 		fillVGradRect( -- 1548
 			uiDraw, -- 1549
 			winX, -- 1550
@@ -1847,14 +1847,14 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 			Color(68, 76, 88, 235) -- 1590
 		) -- 1590
 		local standW = 34 -- 1593
-		local standH = 74 -- 1594
+		local standH = 96 -- 1594
 		uiDraw:drawRect( -- 1595
 			Rect(lampSx - standW * 0.5, floorY, standW, standH), -- 1595
 			Color(34, 39, 48, 250), -- 1595
 			1.1, -- 1595
 			Color(108, 118, 130, 190) -- 1595
 		) -- 1595
-		local pivotY = floorY + standH + 40 -- 1597
+		local pivotY = floorY + standH + 44 -- 1597
 		uiInkDraw:drawSegment( -- 1598
 			Vec2(lampSx, floorY + standH), -- 1598
 			Vec2(lampSx, pivotY), -- 1598
@@ -1925,18 +1925,21 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 	local moving = not inLampTurn and (self.hallMoving or math.abs(ctx.input.moveX) > 0.05) -- 1625
 	local slot = moving and "soldier_run" or "soldier_idle" -- 1626
 	local frame = moving and math.floor(self.hallWalkAnim) or 0 -- 1627
-	local charH = 114 -- 1628
-	local charW = 54 -- 1629
+	local charH = math.floor(192 * math.max( -- 1628
+		0.75, -- 1628
+		math.min(1.25, h / 720) -- 1628
+	) + 0.5) -- 1628
+	local charW = math.floor(charH * 0.45 + 0.5) -- 1629
 	uiDraw:drawEllipse( -- 1631
 		Vec2(playerSx, floorY + 2), -- 1631
-		26, -- 1631
-		5.5, -- 1631
+		34, -- 1631
+		6.5, -- 1631
 		Color(6, 8, 12, 178) -- 1631
 	) -- 1631
 	uiDraw:drawEllipse( -- 1632
-		Vec2(playerSx, floorY - 12), -- 1632
-		18, -- 1632
-		4, -- 1632
+		Vec2(playerSx, floorY - 14), -- 1632
+		24, -- 1632
+		4.5, -- 1632
 		Color(16, 20, 28, 62) -- 1632
 	) -- 1632
 	if not uiArt:tryPlace( -- 1632
@@ -1949,12 +1952,12 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 		{facing = self.hallFacing, frame = frame, layer = 3} -- 1633
 	) then -- 1633
 		uiDraw:drawRect( -- 1639
-			Rect(playerSx - 14, floorY + 2, 28, charH * 0.84), -- 1639
+			Rect(playerSx - 20, floorY + 2, 40, charH * 0.84), -- 1639
 			toColor(CUFF_PALETTE.indigoBase) -- 1639
 		) -- 1639
 		uiDraw:drawCircle( -- 1640
 			Vec2(playerSx, floorY + charH * 0.92), -- 1640
-			12, -- 1640
+			16, -- 1640
 			Color(66, 73, 76, 255) -- 1640
 		) -- 1640
 	end -- 1640
@@ -1964,7 +1967,7 @@ function WellMuseumPlugin.prototype.renderE02MuseumHall(self, uiDraw, uiInkDraw,
 			"xs", -- 1647
 			"已收起随身器物", -- 1648
 			caseSx, -- 1649
-			floorY + 286, -- 1650
+			floorY + 252, -- 1650
 			toColor(PALETTE.textMid), -- 1651
 			0.5, -- 1652
 			0.5, -- 1653
