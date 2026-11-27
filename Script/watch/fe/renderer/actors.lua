@@ -8,1321 +8,1435 @@ local ____Dora = require("Dora") -- 3
 local Color = ____Dora.Color -- 3
 local Rect = ____Dora.Rect -- 3
 local Vec2 = ____Dora.Vec2 -- 3
-local ____escort = require("Script.watch.escort") -- 5
-local FEAR_MAX = ____escort.FEAR_MAX -- 5
-local ____depth = require("Script.watch.depth") -- 6
-local ACTOR_DEPTH_HALF = ____depth.ACTOR_DEPTH_HALF -- 6
-local overlapsDepth = ____depth.overlapsDepth -- 6
-local ____occlusion = require("Script.watch.fe.occlusion") -- 7
-local depthOrder = ____occlusion.depthOrder -- 7
-local ____theme = require("Script.watch.fe.theme") -- 10
-local PALETTE = ____theme.PALETTE -- 10
-local drawDiamond = ____theme.drawDiamond -- 10
-local fillRadialGlow = ____theme.fillRadialGlow -- 10
-local toColor = ____theme.toColor -- 10
-____exports.ActorsRenderer = __TS__Class() -- 23
-local ActorsRenderer = ____exports.ActorsRenderer -- 23
-ActorsRenderer.name = "ActorsRenderer" -- 23
-function ActorsRenderer.prototype.____constructor(self) -- 23
-	self.ghosts = {} -- 24
-	self.ghostCooldown = 0 -- 25
-	self.animTime = 0 -- 26
-	self.previousHp = 3 -- 27
-	self.previousAxle = 0 -- 28
-	self.cartMoving = false -- 29
-	self.previousBottle = false -- 30
-	self.hitUntil = -1 -- 32
-	self.throwUntil = -1 -- 33
-	self.shotUntil = -1 -- 34
-end -- 23
-function ActorsRenderer.prototype.reset(self, p) -- 36
-	self.ghosts = {} -- 37
-	self.ghostCooldown = 0 -- 38
-	self.animTime = 0 -- 39
-	self.previousHp = p.hp -- 40
-	self.previousAxle = p.cartAxle -- 41
-	self.cartMoving = false -- 42
-	self.previousBottle = p.hasBottle -- 43
-	self.previousTrace = p.trace -- 44
-	self.hitUntil = -1 -- 45
-	self.throwUntil = -1 -- 46
-	self.shotUntil = -1 -- 47
-end -- 36
-function ActorsRenderer.prototype.update(self, dt, p) -- 51
-	self.animTime = self.animTime + dt -- 52
-	if p.hp < self.previousHp or p.gateNeedConfirm then -- 53
-		self.hitUntil = p.ticks + 14 -- 54
-	end -- 54
-	if self.previousBottle and not p.hasBottle and p.bottleFly ~= nil then -- 56
-		self.throwUntil = p.ticks + 12 -- 57
-	end -- 57
-	if p.trace ~= nil and p.trace ~= self.previousTrace then -- 59
-		self.shotUntil = p.ticks + 7 -- 60
+local ____play = require("Script.watch.play") -- 4
+local GATE_COUNT_END = ____play.GATE_COUNT_END -- 4
+local ____clock = require("Script.watch.clock") -- 5
+local STEP = ____clock.STEP -- 5
+local ____escort = require("Script.watch.escort") -- 6
+local FEAR_MAX = ____escort.FEAR_MAX -- 6
+local ____depth = require("Script.watch.depth") -- 7
+local ACTOR_DEPTH_HALF = ____depth.ACTOR_DEPTH_HALF -- 7
+local overlapsDepth = ____depth.overlapsDepth -- 7
+local ____occlusion = require("Script.watch.fe.occlusion") -- 8
+local depthOrder = ____occlusion.depthOrder -- 8
+local ____theme = require("Script.watch.fe.theme") -- 11
+local PALETTE = ____theme.PALETTE -- 11
+local drawDiamond = ____theme.drawDiamond -- 11
+local fillRadialGlow = ____theme.fillRadialGlow -- 11
+local toColor = ____theme.toColor -- 11
+local ____lowpoly = require("Script.watch.fe.renderer.lowpoly") -- 12
+local smoothstep = ____lowpoly.smoothstep -- 12
+local function strideAt(actor) -- 34
+	return { -- 35
+		actor = actor, -- 35
+		x = actor.x, -- 35
+		depth = actor.depth, -- 35
+		speed = 0, -- 35
+		cycle = 0, -- 35
+		effort = 0 -- 35
+	} -- 35
+end -- 34
+local RUN_START_T = 0.1 -- 38
+local RUN_STOP_T = 0.13 -- 39
+local function advanceStride(stride, steps, dt) -- 41
+	local a = stride.actor -- 42
+	if steps > 0 then -- 42
+		local dx = a.x - stride.x -- 44
+		local depth = a.depth - stride.depth -- 45
+		local speed = math.sqrt(dx * dx + depth * depth) / (steps * STEP) -- 46
+		stride.speed = speed <= 380 and speed or 0 -- 47
+		stride.x = a.x -- 48
+		stride.depth = a.depth -- 49
+	end -- 49
+	if not a.alive or not a.onGround or a.crouch or a.covered or a.rollT > 0 then -- 49
+		stride.effort = 0 -- 52
+		return -- 53
+	end -- 53
+	if stride.speed > 8 then -- 53
+		stride.effort = math.min(1, stride.effort + dt / RUN_START_T) -- 56
+		local strideLength = a.h * (a.w <= 28 and 1.4 or 1.32) -- 57
+		stride.cycle = (stride.cycle + stride.speed * dt / strideLength) % 1 -- 58
+	else -- 58
+		stride.effort = math.max(0, stride.effort - dt / RUN_STOP_T) -- 60
 	end -- 60
-	self.cartMoving = math.abs(p.cartAxle - self.previousAxle) > 0.01 -- 62
-	self.previousAxle = p.cartAxle -- 63
-	self.previousHp = p.hp -- 64
-	self.previousBottle = p.hasBottle -- 65
-	self.previousTrace = p.trace -- 66
-	if not p.childMode and p.player.rollT > 0 then -- 68
-		self.ghostCooldown = self.ghostCooldown - dt -- 69
-		if self.ghostCooldown <= 0 then -- 70
-			local ____self_ghosts_0 = self.ghosts -- 71
-			____self_ghosts_0[#____self_ghosts_0 + 1] = { -- 71
-				x = p.player.x, -- 72
-				y = p.player.y, -- 73
-				depth = p.player.depth, -- 74
-				h = p.player.h, -- 75
-				facing = p.player.facing, -- 76
-				life = 0.28, -- 77
-				maxLife = 0.28, -- 78
-				isRoll = true -- 79
-			} -- 79
-			self.ghostCooldown = 0.036 -- 81
-		end -- 81
-	else -- 81
-		self.ghostCooldown = 0 -- 84
-	end -- 84
-	local write = 0 -- 88
-	local i = 0 -- 89
-	do -- 89
-		i = 0 -- 90
-		while i < #self.ghosts do -- 90
-			local g = self.ghosts[i + 1] -- 91
-			g.life = g.life - dt -- 92
-			if g.life > 0 then -- 93
-				self.ghosts[write + 1] = g -- 94
-				write = write + 1 -- 95
-			end -- 95
-			i = i + 1 -- 90
-		end -- 90
-	end -- 90
-	__TS__ArraySetLength(self.ghosts, write) -- 98
-end -- 51
-function ActorsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, suppressPartner) -- 101
-	if suppressPartner == nil then -- 107
-		suppressPartner = false -- 107
+end -- 41
+____exports.ActorsRenderer = __TS__Class() -- 64
+local ActorsRenderer = ____exports.ActorsRenderer -- 64
+ActorsRenderer.name = "ActorsRenderer" -- 64
+function ActorsRenderer.prototype.____constructor(self) -- 64
+	self.ghosts = {} -- 65
+	self.ghostCooldown = 0 -- 66
+	self.animTime = 0 -- 67
+	self.strideTick = 0 -- 68
+	self.previousHp = 3 -- 71
+	self.previousAxle = 0 -- 72
+	self.cartMoving = false -- 73
+	self.previousBottle = false -- 74
+	self.hitUntil = -1 -- 76
+	self.throwUntil = -1 -- 77
+	self.shotUntil = -1 -- 78
+end -- 64
+function ActorsRenderer.prototype.reset(self, p) -- 80
+	self.ghosts = {} -- 81
+	self.ghostCooldown = 0 -- 82
+	self.animTime = 0 -- 83
+	self.strideTick = p.ticks -- 84
+	self.playerStride = strideAt(p.player) -- 85
+	self.partnerStride = strideAt(p.partner) -- 86
+	self.previousHp = p.hp -- 87
+	self.previousAxle = p.cartAxle -- 88
+	self.cartMoving = false -- 89
+	self.previousBottle = p.hasBottle -- 90
+	self.previousTrace = p.trace -- 91
+	self.hitUntil = -1 -- 92
+	self.throwUntil = -1 -- 93
+	self.shotUntil = -1 -- 94
+end -- 80
+function ActorsRenderer.prototype.update(self, dt, p) -- 98
+	self.animTime = self.animTime + dt -- 99
+	if p.hp < self.previousHp or p.gateNeedConfirm then -- 99
+		self.hitUntil = p.ticks + 14 -- 101
+	end -- 101
+	if self.previousBottle and not p.hasBottle and p.bottleFly ~= nil then -- 101
+		self.throwUntil = p.ticks + 12 -- 104
+	end -- 104
+	if p.trace ~= nil and p.trace ~= self.previousTrace then -- 104
+		self.shotUntil = p.ticks + 7 -- 107
 	end -- 107
-	self:drawAfterimages(fgGlow, cam) -- 110
-	local i = 0 -- 113
-	do -- 113
-		i = 0 -- 114
-		while i < #p.enemies do -- 114
-			self:drawEnemy( -- 115
-				fgDraw, -- 115
-				fgGlow, -- 115
-				assets, -- 115
-				p.enemies[i + 1], -- 115
-				i, -- 115
-				p, -- 115
-				cam -- 115
-			) -- 115
-			i = i + 1 -- 114
-		end -- 114
-	end -- 114
-	if p.room.key == "village" and p.room.scavenger ~= nil then -- 119
-		self:drawScavenger( -- 120
-			fgDraw, -- 120
-			fgGlow, -- 120
-			assets, -- 120
-			p, -- 120
-			cam -- 120
-		) -- 120
-	end -- 120
-	if p.room.key == "forest" and p.room.story ~= nil and p.room.story.dog ~= nil then -- 124
-		self:drawDog( -- 125
-			fgDraw, -- 125
-			fgGlow, -- 125
-			assets, -- 125
-			p, -- 125
-			cam -- 125
-		) -- 125
-	end -- 125
-	if p.partner.alive and not suppressPartner then -- 129
-		local partnerIsChild = p.partner.w <= 28 -- 130
-		if partnerIsChild then -- 131
-			self:drawXiaoman( -- 132
-				fgDraw, -- 132
-				fgGlow, -- 132
-				assets, -- 132
-				p.partner, -- 132
-				p, -- 132
-				cam, -- 132
-				false -- 132
-			) -- 132
-		else -- 132
-			self:drawZhouShu( -- 134
-				fgDraw, -- 134
-				fgGlow, -- 134
-				assets, -- 134
-				p.partner, -- 134
-				p, -- 134
-				cam, -- 134
-				false -- 134
-			) -- 134
-		end -- 134
-	end -- 134
-	if p.player.alive then -- 139
-		if p.childMode then -- 140
-			self:drawXiaoman( -- 141
-				fgDraw, -- 141
-				fgGlow, -- 141
-				assets, -- 141
-				p.player, -- 141
-				p, -- 141
-				cam, -- 141
-				true -- 141
-			) -- 141
-		else -- 141
-			self:drawZhouShu( -- 143
-				fgDraw, -- 143
-				fgGlow, -- 143
-				assets, -- 143
-				p.player, -- 143
-				p, -- 143
-				cam, -- 143
-				true -- 143
-			) -- 143
-		end -- 143
-	end -- 143
-end -- 101
-function ActorsRenderer.prototype.drawAfterimages(self, fgGlow, cam) -- 149
-	local i = 0 -- 150
-	do -- 150
-		i = 0 -- 151
-		while i < #self.ghosts do -- 151
-			local g = self.ghosts[i + 1] -- 152
-			local k = math.max( -- 153
-				0, -- 153
-				math.min(1, g.life / g.maxLife) -- 153
-			) -- 153
-			local spread = 1 - k -- 154
-			local cx = cam:sx(g.x) -- 155
-			local by = cam:sy(g.y, g.depth) -- 156
-			local f = g.facing -- 157
-			local rBase = cam:len(6 + spread * 9) -- 158
-			fgGlow:drawCircle( -- 160
-				Vec2( -- 161
-					cx - f * cam:len(6 + spread * 10), -- 161
-					by + cam:len(4 + spread * 5) -- 161
-				), -- 161
-				rBase, -- 162
-				Color( -- 163
-					156, -- 163
-					144, -- 163
-					124, -- 163
-					math.floor(78 * k + 0.5) -- 163
-				) -- 163
-			) -- 163
-			fgGlow:drawCircle( -- 165
-				Vec2( -- 166
-					cx - f * cam:len(14 + spread * 14), -- 166
-					by + cam:len(8 + spread * 8) -- 166
-				), -- 166
-				rBase * 0.72, -- 167
-				Color( -- 168
-					186, -- 168
-					174, -- 168
-					152, -- 168
-					math.floor(54 * k + 0.5) -- 168
-				) -- 168
-			) -- 168
-			i = i + 1 -- 151
-		end -- 151
-	end -- 151
-end -- 149
-function ActorsRenderer.prototype.supportGroundY(self, p, a) -- 174
-	local half = a.w * 0.5 -- 175
-	local g = 0 -- 176
-	local i = 0 -- 177
-	do -- 177
-		i = 0 -- 178
-		while i < #p.room.floors do -- 178
-			local f = p.room.floors[i + 1] -- 179
-			if a.x + half > f.x0 and a.x - half < f.x1 and f.y <= a.y + 0.5 and f.y > g then -- 180
-				g = f.y -- 181
-			end -- 181
-			i = i + 1 -- 178
-		end -- 178
-	end -- 178
-	do -- 178
-		i = 0 -- 184
-		while i < #p.boxes do -- 184
-			do -- 184
-				local b = p.boxes[i + 1] -- 185
-				if b.broken == true or b.hidden == true or b.soft == true then -- 186
-					goto __continue33 -- 187
-				end -- 187
-				if a.x + half > b.x0 and a.x - half < b.x1 and b.y1 <= a.y + 0.5 and b.y1 > g and overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF) then -- 189
-					g = b.y1 -- 191
-				end -- 191
-			end -- 191
-			::__continue33:: -- 191
-			i = i + 1 -- 184
-		end -- 184
-	end -- 184
-	return g -- 194
-end -- 174
-function ActorsRenderer.prototype.drawZhouShu(self, fgDraw, fgGlow, assets, a, p, cam, isControlled) -- 198
-	local cx = cam:sx(a.x) -- 207
-	local by = cam:sy(a.y, a.depth) -- 208
-	local depthEnabled = p.room.depth ~= nil -- 209
-	local shadowY = not a.onGround and cam:sy( -- 210
-		self:supportGroundY(p, a), -- 210
-		a.depth -- 210
-	) or by -- 210
-	local H = cam:len(a.h) -- 211
-	local W = cam:len(a.w) -- 212
-	local f = a.facing -- 213
-	local speed = math.max( -- 214
-		math.abs(a.vx), -- 214
-		math.abs(a.depthSpeed) -- 214
-	) -- 214
-	local slot = "soldier_idle" -- 216
-	local height = H -- 217
-	local frame = 0 -- 218
-	local facing = f -- 219
-	local step = math.floor(self.animTime * 10) -- 220
-	if isControlled and p.ticks < self.hitUntil then -- 221
-		slot = "soldier_hit" -- 222
-	elseif a.rollT > 0 then -- 223
-		slot = "soldier_roll" -- 224
-		height = height * 0.59 -- 225
-	elseif p.phase == "prologue-give" then -- 226
-		slot = "soldier_offer" -- 227
-		height = height * 0.75 -- 228
-		facing = p.partner.x >= a.x and 1 or -1 -- 229
-	elseif isControlled and p.gripping then -- 230
-		slot = "soldier_push" -- 231
-		frame = self.cartMoving and step or 0 -- 232
-		facing = p.room.cart.handleOffset < 0 and 1 or -1 -- 233
-		height = height * 0.91 -- 234
-	elseif isControlled and p.escort.state == "calming" then -- 235
-		slot = "soldier_knock" -- 236
-		local calm = p.escort.calmTick -- 237
-		frame = (calm >= 12 and calm < 18 or calm >= 36 and calm < 42) and 1 or 0 -- 238
-		height = height * 0.76 -- 239
-	else -- 239
-		local ____temp_3 = p.phase == "gate-send" -- 240
-		if ____temp_3 then -- 240
-			local ____opt_1 = p.room.story -- 240
-			____temp_3 = (____opt_1 and ____opt_1.gate) ~= nil -- 240
-		end -- 240
-		if ____temp_3 and math.abs(a.x - p.room.story.gate.doorX) <= 60 and speed <= 8 then -- 240
-			slot = "soldier_hold" -- 242
-			height = height * 1.11 -- 243
-		elseif isControlled and p.ticks < self.shotUntil then -- 244
-			local running = speed > 8 -- 245
-			slot = running and "soldier_fire_move" or "soldier_fire" -- 246
-			frame = running and step or 0 -- 247
-			facing = p.trace ~= nil and p.trace.x1 < p.trace.x0 and -1 or 1 -- 248
-		elseif a.covered or isControlled and p.coverHug then -- 249
-			slot = "soldier_cover" -- 250
-			height = height * 0.77 -- 251
-		elseif speed > 8 then -- 252
-			slot = "soldier_run" -- 253
-			frame = step -- 254
-		end -- 254
-	end -- 254
-	if assets:tryPlace( -- 256
-		slot, -- 256
-		"actor_soldier", -- 256
-		cx, -- 256
-		by, -- 256
-		W, -- 256
-		height, -- 256
-		{ -- 256
-			facing = facing, -- 257
-			frame = frame, -- 257
-			layer = depthEnabled and depthOrder(a.depth, 4) or 4 -- 257
-		} -- 257
-	) then -- 257
-		fgDraw:drawEllipse( -- 259
-			Vec2(cx, shadowY + 1), -- 259
-			W * 0.54, -- 259
-			4, -- 259
-			Color(12, 11, 13, 145) -- 259
-		) -- 259
-		return -- 260
-	end -- 260
-	fgDraw:drawEllipse( -- 264
-		Vec2(cx, shadowY + 1), -- 264
-		H * 0.24, -- 264
-		4.5, -- 264
-		Color(3, 5, 10, 175) -- 264
-	) -- 264
-	local walking = speed > 10 and a.onGround -- 266
-	local stride = walking and math.sin(self.animTime * 12.5) or 0 -- 267
-	local bob = walking and math.abs(math.cos(self.animTime * 12.5)) * 3.5 or math.sin(self.animTime * 2.6) * 1.4 -- 268
-	local calming = not p.childMode and p.escort.state == "calming" -- 269
-	local rolling = a.rollT > 0 -- 270
-	local crouching = a.covered or calming or rolling -- 271
-	local bodyH = rolling and H * 0.62 or (crouching and H * 0.82 or H) -- 274
-	local lean = rolling and f * H * 0.14 or (p.gripping and f * H * 0.1 or (walking and f * 6 or f * 2)) -- 275
-	local sw = H * 0.115 -- 276
-	local hipY = by + bodyH * 0.44 + bob * 0.4 -- 279
-	local kneeY = by + bodyH * 0.23 -- 280
-	local stepX = stride * H * 0.15 -- 281
-	local legDark = Color(14, 21, 34, 255) -- 282
-	local legFront = Color(26, 38, 58, 255) -- 283
-	local bkX = cx - f * 4 - stepX * 0.5 -- 285
-	local bfX = cx - f * 8 - stepX -- 286
-	fgDraw:drawSegment( -- 287
-		Vec2(cx - f * 3, hipY), -- 287
-		Vec2(bkX, kneeY), -- 287
-		H * 0.044, -- 287
-		legDark -- 287
-	) -- 287
-	fgDraw:drawSegment( -- 288
-		Vec2(bkX, kneeY), -- 288
-		Vec2(bfX, by + 3), -- 288
-		H * 0.038, -- 288
-		legDark -- 288
-	) -- 288
-	local fkX = cx + f * 6 + stepX * 0.55 -- 290
-	local ffX = cx + f * 7 + stepX -- 291
-	fgDraw:drawSegment( -- 292
-		Vec2(cx + f * 3, hipY), -- 292
-		Vec2(fkX, kneeY), -- 292
-		H * 0.048, -- 292
-		legFront -- 292
-	) -- 292
-	fgDraw:drawSegment( -- 293
-		Vec2(fkX, kneeY), -- 293
-		Vec2(ffX, by + 3), -- 293
-		H * 0.042, -- 293
-		legFront -- 293
-	) -- 293
-	fgDraw:drawSegment( -- 295
-		Vec2(ffX - f * 2, by + 3), -- 295
-		Vec2(ffX + f * 9, by + 3), -- 295
-		3.4, -- 295
-		Color(42, 60, 86, 255) -- 295
-	) -- 295
-	local shY = by + bodyH * 0.8 + bob -- 298
-	local coatDrag = -f * (walking and 24 or (rolling and 34 or 14)) + math.sin(self.animTime * 4.4) * 4 -- 299
-	fgDraw:drawPolygon( -- 300
-		{ -- 300
-			Vec2(cx - f * sw * 0.75 + lean * 0.5, shY - 6), -- 301
-			Vec2(cx + f * sw * 0.35 + lean * 0.5, hipY + 4), -- 302
-			Vec2(cx - f * sw * 0.25 + coatDrag * 0.45, by + bodyH * 0.16), -- 303
-			Vec2(cx - f * sw * 1.15 + coatDrag, by + bodyH * 0.22) -- 304
-		}, -- 304
-		Color(16, 26, 42, 248), -- 305
-		1.2, -- 305
-		Color(64, 118, 164, 195) -- 305
-	) -- 305
-	fgDraw:drawPolygon( -- 308
-		{ -- 308
-			Vec2(cx - sw * 0.62 + lean * 0.45, hipY), -- 309
-			Vec2(cx + sw * 0.62 + lean * 0.45, hipY), -- 310
-			Vec2(cx + sw * 1.05 + lean, shY), -- 311
-			Vec2(cx - sw * 0.98 + lean, shY) -- 312
-		}, -- 312
-		Color(24, 38, 60, 255), -- 313
-		1.3, -- 313
-		toColor(PALETTE.rimSilver, 190) -- 313
-	) -- 313
-	fgDraw:drawSegment( -- 315
-		Vec2(cx - sw * 0.7 + lean, shY - 2), -- 316
-		Vec2(cx + sw * 0.5 + lean * 0.5, hipY + 6), -- 317
-		2.4, -- 318
-		Color(173, 155, 125, 225) -- 319
-	) -- 319
-	fgDraw:drawPolygon( -- 321
-		{ -- 321
-			Vec2(cx - sw * 1.18 + lean, shY - 6), -- 322
-			Vec2(cx + sw * 1.12 + lean, shY - 3), -- 323
-			Vec2(cx + sw * 0.9 + lean, shY + 5), -- 324
-			Vec2(cx - sw * 0.95 + lean, shY + 4) -- 325
-		}, -- 325
-		Color(99, 105, 103, 248) -- 326
-	) -- 326
-	local headR = H * 0.088 -- 329
-	local headX = cx + lean + f * 3 -- 330
-	local headY = shY + headR * 1.35 -- 331
-	fgDraw:drawCircle( -- 332
-		Vec2(headX, headY - headR * 0.12), -- 332
-		headR * 0.86, -- 332
-		Color(181, 139, 106, 255) -- 332
-	) -- 332
-	fgDraw:drawEllipse( -- 333
-		Vec2(headX, headY + headR * 0.5), -- 333
-		headR * 1.12, -- 333
-		headR * 0.72, -- 333
-		Color(66, 73, 76, 255) -- 333
-	) -- 333
-	fgDraw:drawSegment( -- 334
-		Vec2(headX - headR, headY + 1), -- 334
-		Vec2(headX + headR, headY + 1), -- 334
-		1.6, -- 335
-		Color(97, 103, 101, 255) -- 335
-	) -- 335
-	fgDraw:drawSegment( -- 336
-		Vec2(headX, headY + headR), -- 336
-		Vec2(headX - f * headR * 0.38, headY + headR * 1.48), -- 336
-		1.6, -- 337
-		Color(177, 78, 51, 255) -- 337
-	) -- 337
-	if isControlled and not calming and not rolling and not p.gripping then -- 340
-		local gunPivotX = cx + lean + f * sw * 0.35 -- 341
-		local gunPivotY = shY - bodyH * 0.1 -- 342
-		local aimDx = f -- 343
-		local aimDy = 0 -- 344
-		if p.aimX > 0 or p.aimY > 0 then -- 345
-			aimDx = p.aimX - gunPivotX -- 346
-			aimDy = p.aimY - gunPivotY -- 347
-			local dLen = math.sqrt(aimDx * aimDx + aimDy * aimDy) -- 348
-			if dLen > 4 then -- 349
-				aimDx = aimDx / dLen -- 350
-				aimDy = aimDy / dLen -- 351
-			end -- 351
-		end -- 351
-		local barrelLen = H * 0.34 -- 354
-		local tipX = gunPivotX + aimDx * barrelLen -- 355
-		local tipY = gunPivotY + aimDy * barrelLen -- 356
-		local stockX = gunPivotX - aimDx * (H * 0.08) -- 357
-		local stockY = gunPivotY - aimDy * (H * 0.08) -- 358
-		fgDraw:drawSegment( -- 360
-			Vec2(cx + lean, shY - 5), -- 360
-			Vec2(gunPivotX + aimDx * 14, gunPivotY + aimDy * 14 - 4), -- 360
-			3.6, -- 360
-			Color(26, 40, 62, 255) -- 360
-		) -- 360
-		fgDraw:drawSegment( -- 361
-			Vec2(stockX, stockY), -- 361
-			Vec2(gunPivotX + aimDx * barrelLen * 0.62, gunPivotY + aimDy * barrelLen * 0.62), -- 361
-			3.8, -- 361
-			Color(105, 71, 50, 255) -- 361
-		) -- 361
-		fgDraw:drawSegment( -- 362
-			Vec2(gunPivotX, gunPivotY), -- 362
-			Vec2(tipX, tipY), -- 362
-			1.8, -- 362
-			Color(145, 140, 128, 245) -- 362
-		) -- 362
-	elseif calming then -- 363
-		fgDraw:drawSegment( -- 364
-			Vec2(cx + lean, shY - 6), -- 364
-			Vec2(cx + f * sw * 2.1, shY - 14), -- 364
-			3, -- 364
-			Color(196, 222, 240, 235) -- 364
-		) -- 364
-		fgGlow:drawDot( -- 365
-			Vec2(cx + f * sw * 2.15, shY - 14), -- 365
-			3.6, -- 365
-			toColor(PALETTE.amber, 225) -- 365
-		) -- 365
-	end -- 365
-end -- 198
-function ActorsRenderer.prototype.drawXiaoman(self, fgDraw, fgGlow, assets, a, p, cam, isControlled) -- 371
-	local cx = cam:sx(a.x) -- 380
-	local by = cam:sy(a.y, a.depth) -- 381
-	local depthEnabled = p.room.depth ~= nil -- 382
-	local shadowY = not a.onGround and cam:sy( -- 383
-		self:supportGroundY(p, a), -- 383
-		a.depth -- 383
-	) or by -- 383
-	local H = cam:len(a.h) -- 384
-	local W = cam:len(a.w) -- 385
-	local f = a.facing -- 386
-	local speed = math.max( -- 387
-		math.abs(a.vx), -- 387
-		math.abs(a.depthSpeed) -- 387
-	) -- 387
-	local afraid = not isControlled and p.escort.fear > 0 -- 389
-	local slot = "child_idle" -- 390
-	local height = H -- 391
-	local frame = 0 -- 392
-	local step = math.floor(self.animTime * 10) -- 393
-	local nearCover = __TS__ArraySome( -- 394
-		p.room.solids, -- 394
-		function(____, solid) return not solid.decorative and solid.h <= 64 and solid.y <= 2 and overlapsDepth(a.depth, solid.depth, ACTOR_DEPTH_HALF) and math.min( -- 394
-			math.abs(a.x - solid.x), -- 397
-			math.abs(a.x - solid.x - solid.w) -- 397
-		) <= 30 end -- 397
-	) -- 397
-	if p.phase == "tower-knock" and (p.phaseTick < 6 or p.phaseTick >= 12 and p.phaseTick < 18) then -- 399
-		slot = "child_knock" -- 400
-	elseif p.phase == "tower-given" and p.phaseTick >= 60 and p.phaseTick < 120 or p.phase == "prologue-give" and p.phaseTick >= 12 and p.phaseTick < 36 then -- 401
-		slot = "child_offer" -- 403
-	elseif isControlled and p.ticks < self.throwUntil then -- 404
-		slot = "child_throw" -- 405
-	elseif isControlled and p.hasBottle and p.aimHold > 0 then -- 406
-		slot = "child_aim" -- 407
-	elseif isControlled and p.gripping then -- 408
-		slot = "child_pull" -- 409
-		frame = self.cartMoving and step or 0 -- 410
-	elseif afraid and p.escort.state == "frozen" then -- 411
-		slot = "child_fear" -- 412
-		height = height * 0.74 -- 413
-	elseif not isControlled and nearCover and (p.room.key == "street" or p.room.key == "checkpoint") and speed < 8 then -- 414
-		slot = "child_peek" -- 416
-		height = height * 0.83 -- 417
-	elseif a.crouch then -- 418
-		slot = "child_crouch" -- 419
-		frame = speed > 8 and step or 0 -- 420
-	elseif speed > 8 then -- 421
-		slot = "child_run" -- 422
-		frame = step -- 423
-	end -- 423
-	local facing = slot == "child_pull" and (p.room.cart.handleOffset < 0 and 1 or -1) or f -- 425
-	if assets:tryPlace( -- 426
-		slot, -- 426
-		"actor_child", -- 426
-		cx, -- 426
-		by, -- 426
-		W, -- 426
-		height, -- 426
-		{ -- 426
-			facing = facing, -- 427
-			frame = frame, -- 427
-			layer = depthEnabled and depthOrder(a.depth, 5) or 5 -- 427
-		} -- 427
-	) then -- 427
-		fgDraw:drawEllipse( -- 429
-			Vec2(cx, shadowY + 1), -- 429
-			W * 0.48, -- 429
-			3, -- 429
-			Color(12, 11, 13, 125) -- 429
-		) -- 429
-		if afraid then -- 430
-			self:drawFear(fgGlow, p, cx, by + height + 14) -- 431
-		end -- 431
-		return -- 433
-	end -- 433
-	local jitter = not isControlled and p.escort.state == "frozen" and math.sin(self.animTime * 42) * 2.2 or 0 -- 436
-	local x = cx + jitter -- 437
-	local fullRef = a.crouch and H * 1.35 or H -- 439
-	local cw = fullRef * 0.16 -- 440
-	fgDraw:drawEllipse( -- 443
-		Vec2(x, shadowY + 1), -- 443
-		cw * 1.15, -- 443
-		3.6, -- 443
-		Color(4, 6, 10, 155) -- 443
-	) -- 443
-	local walking = speed > 6 and a.onGround -- 445
-	local stride = walking and math.sin(self.animTime * 11) or 0 -- 446
-	local bob = walking and math.abs(math.cos(self.animTime * 11)) * 2.8 or math.sin(self.animTime * 2.8) * 1.1 -- 447
-	local hipY = by + H * 0.3 -- 450
-	local legSwing = stride * cw * 0.85 -- 451
-	fgDraw:drawSegment( -- 452
-		Vec2(x - 2, hipY), -- 452
-		Vec2(x - legSwing, by + 2), -- 452
-		math.max(2.6, cw * 0.22), -- 452
-		Color(34, 30, 38, 255) -- 452
-	) -- 452
-	fgDraw:drawSegment( -- 453
-		Vec2(x + 2, hipY), -- 453
-		Vec2(x + legSwing, by + 2), -- 453
-		math.max(2.8, cw * 0.24), -- 453
-		Color(52, 46, 56, 255) -- 453
-	) -- 453
-	local cloakTopY = by + H * (a.crouch and 0.68 or 0.74) + bob -- 456
-	local cloakBotY = by + H * 0.2 -- 457
-	local cloakDrag = -f * (walking and 14 or 6) + math.sin(self.animTime * 3.8) * 2.8 -- 458
-	fgDraw:drawPolygon( -- 459
-		{ -- 459
-			Vec2(x - cw * 1.05 + cloakDrag * 0.45, cloakBotY), -- 460
-			Vec2(x + cw * 0.92, cloakBotY), -- 461
-			Vec2(x + cw * 0.62, cloakTopY), -- 462
-			Vec2(x - cw * 0.68, cloakTopY) -- 463
-		}, -- 463
-		Color(214, 166, 94, 255), -- 464
-		1.3, -- 464
-		Color(252, 232, 192, 225) -- 464
-	) -- 464
-	fgDraw:drawPolygon( -- 465
-		{ -- 465
-			Vec2(x - cw * 0.92 + cloakDrag * 0.38, cloakBotY + 2), -- 466
-			Vec2(x - f * cw * 0.12, cloakBotY + 2), -- 467
-			Vec2(x - f * cw * 0.18, cloakTopY - 3), -- 468
-			Vec2(x - cw * 0.6, cloakTopY - 2) -- 469
-		}, -- 469
-		Color(148, 108, 56, 215) -- 470
-	) -- 470
-	fgDraw:drawSegment( -- 471
-		Vec2(x - cw * 0.98 + cloakDrag * 0.42, cloakBotY + 3), -- 471
-		Vec2(x + cw * 0.88, cloakBotY + 3), -- 471
-		1.8, -- 471
-		toColor(PALETTE.amberCore, 200) -- 471
-	) -- 471
-	local scarfY = cloakTopY - 2 -- 474
-	local smidX = x - f * cw * 0.95 + cloakDrag * 0.55 -- 475
-	local smidY = scarfY - 6 + math.sin(self.animTime * 4.5) * 2.5 -- 476
-	local sendX = x - f * cw * 1.65 + cloakDrag -- 477
-	local sendY = scarfY - 12 + math.cos(self.animTime * 4.8) * 3.5 -- 478
-	fgDraw:drawQuadraticBezier( -- 479
-		Vec2(x - f * cw * 0.3, scarfY), -- 479
-		Vec2(smidX, smidY), -- 479
-		Vec2(sendX, sendY), -- 479
-		2.8, -- 479
-		toColor(PALETTE.amberCore, 235) -- 479
-	) -- 479
-	local headR = fullRef * (a.crouch and 0.118 or 0.126) -- 482
-	local headX = x + f * (a.crouch and 5 or 2) -- 483
-	local headY = math.min(by + H - headR - 1, cloakTopY + headR * 0.92) -- 484
-	fgDraw:drawCircle( -- 485
-		Vec2(headX, headY), -- 485
-		headR, -- 485
-		Color(240, 222, 198, 255) -- 485
-	) -- 485
-	fgDraw:drawPolygon( -- 487
-		{ -- 487
-			Vec2(headX - f * headR * 1.28, headY - headR * 0.72), -- 488
-			Vec2(headX - f * headR * 1.48, headY + headR * 0.35), -- 489
-			Vec2(headX - f * headR * 0.25, headY + headR * 1.15), -- 490
-			Vec2(headX + f * headR * 0.68, headY + headR * 0.82), -- 491
-			Vec2(headX - f * headR * 0.18, headY + headR * 0.15), -- 492
-			Vec2(headX - f * headR * 0.35, headY - headR * 0.78) -- 493
-		}, -- 493
-		Color(156, 114, 62, 248), -- 494
-		1.1, -- 494
-		Color(244, 214, 162, 200) -- 494
-	) -- 494
-	fgGlow:drawDot( -- 496
-		Vec2(headX + f * headR * 0.45, headY + 1), -- 496
-		2.2, -- 496
-		toColor(PALETTE.amberCore) -- 496
-	) -- 496
-	local hasCompass = isControlled or p.room.key ~= "prologue" or p.phase ~= "prologue-wait" -- 499
-	if hasCompass then -- 500
-		local compX = x + f * cw * 0.65 -- 501
-		local compY = by + H * 0.48 -- 502
-		local glowPulse = 0.78 + 0.22 * math.sin(self.animTime * 3.2) -- 503
-		fgGlow:drawDot( -- 504
-			Vec2(compX, compY), -- 504
-			2.6, -- 504
-			toColor(PALETTE.amberCore, 250) -- 504
-		) -- 504
-		fillRadialGlow( -- 505
-			fgGlow, -- 505
-			compX, -- 505
-			compY, -- 505
-			26 * glowPulse, -- 505
-			26 * glowPulse, -- 505
-			Color(248, 206, 120, 78 * glowPulse), -- 505
-			Color(248, 180, 72, 0), -- 505
-			14 -- 505
-		) -- 505
-	end -- 505
-	if afraid then -- 508
-		self:drawFear(fgGlow, p, x, by + H + 16) -- 509
-	end -- 509
-	if isControlled and walking and not a.crouch and speed > 100 then -- 513
-		local r = 10 + self.animTime * 32 % 24 -- 514
-		fgGlow:drawRing( -- 515
-			Vec2(x, by + 3), -- 515
-			r, -- 515
-			r + 1.5, -- 515
-			Color(0, 0, 0, 0), -- 515
-			1.1, -- 515
-			toColor(PALETTE.amber, 95 * (1 - r / 36)) -- 515
-		) -- 515
-	end -- 515
-end -- 371
-function ActorsRenderer.prototype.drawFear(self, fgGlow, p, x, y) -- 519
-	local tint = p.escort.state == "frozen" and PALETTE.crimson or PALETTE.amber -- 520
-	do -- 520
-		local i = 0 -- 521
-		while i < FEAR_MAX do -- 521
-			local lit = i < p.escort.fear -- 522
-			drawDiamond( -- 523
-				fgGlow, -- 523
-				x + (i - 1) * 13, -- 523
-				y, -- 523
-				4, -- 523
-				5, -- 523
-				toColor(lit and tint or PALETTE.steelDark, 215), -- 524
-				1, -- 524
-				toColor(tint, lit and 235 or 100) -- 524
-			) -- 524
-			i = i + 1 -- 521
-		end -- 521
-	end -- 521
-end -- 519
-function ActorsRenderer.prototype.drawEnemyWarning(self, fgGlow, e, p, cam, f) -- 528
-	local x = cam:sx(e.x + f * 20) -- 529
-	local y = cam:sy(e.y + e.h * 0.69, e.depth or 0) -- 530
-	local dx = cam:sx(p.player.x) - x -- 531
-	local dy = cam:sy(p.player.y + p.player.h * 0.56, p.player.depth) - y -- 532
-	local length = 0.4 + 0.6 * math.min(1, e.warnT / 36) -- 533
-	do -- 533
-		local i = 0 -- 534
-		while i < 8 do -- 534
-			local a = length * i / 8 -- 535
-			local b = length * (i + 1) / 8 -- 536
-			fgGlow:drawSegment( -- 537
-				Vec2(x + dx * a, y + dy * a), -- 537
-				Vec2(x + dx * b, y + dy * b), -- 537
-				1.3, -- 538
-				Color(220, 120, 88, 210) -- 538
-			) -- 538
-			i = i + 2 -- 534
-		end -- 534
-	end -- 534
-end -- 528
-function ActorsRenderer.prototype.drawEnemy(self, fgDraw, fgGlow, assets, e, index, p, cam) -- 543
-	local cx = cam:sx(e.x) -- 552
-	local depth = e.depth or 0 -- 553
-	local by = cam:sy(e.y, depth) -- 554
-	local H = cam:len(e.h) -- 555
-	local W = cam:len(e.w) -- 556
-	local f = p.player.x >= e.x and 1 or -1 -- 557
-	if e.kind == "target" then -- 560
-		local lean = not e.alive and f * cam:len(16) or (e.hitT > 0 and f * cam:len(8) or 0) -- 561
-		local postTopY = by + H * (e.alive and 0.78 or 0.42) -- 562
-		fgDraw:drawEllipse( -- 563
-			Vec2(cx, by + 1), -- 563
-			W * 0.52, -- 563
-			3.6, -- 563
-			Color(12, 11, 13, 140) -- 563
-		) -- 563
-		fgDraw:drawSegment( -- 565
-			Vec2( -- 565
-				cx - cam:len(9), -- 565
-				by -- 565
-			), -- 565
-			Vec2(cx + lean * 0.4, postTopY), -- 565
-			math.max( -- 565
-				2, -- 565
-				cam:len(3.2) -- 565
-			), -- 565
-			Color(92, 64, 42, 255) -- 565
-		) -- 565
-		fgDraw:drawSegment( -- 566
-			Vec2( -- 566
-				cx + cam:len(9), -- 566
-				by -- 566
-			), -- 566
-			Vec2(cx + lean * 0.4, postTopY), -- 566
-			math.max( -- 566
-				2, -- 566
-				cam:len(3.2) -- 566
-			), -- 566
-			Color(76, 52, 34, 255) -- 566
-		) -- 566
-		local discX = cx + lean -- 568
-		local discY = by + H * (e.alive and 0.56 or 0.3) -- 569
-		local discR = math.max( -- 570
-			7, -- 570
-			cam:len(13) -- 570
-		) -- 570
-		local hitTint = e.hitT > 0 or not e.alive -- 571
-		fgDraw:drawCircle( -- 572
-			Vec2(discX, discY), -- 572
-			discR, -- 572
-			hitTint and Color(214, 152, 116, 245) or Color(196, 174, 134, 250) -- 572
-		) -- 572
-		fgDraw:drawRing( -- 573
-			Vec2(discX, discY), -- 573
-			discR * 0.62, -- 573
-			discR * 0.76, -- 573
-			Color(0, 0, 0, 0), -- 573
-			1.4, -- 573
-			Color(62, 46, 34, 230) -- 573
-		) -- 573
-		fgDraw:drawCircle( -- 574
-			Vec2(discX, discY), -- 574
-			discR * 0.3, -- 574
-			toColor(PALETTE.rouge, hitTint and 255 or 220) -- 574
-		) -- 574
-		return -- 575
-	end -- 575
-	local slot = "enemy_idle" -- 578
-	if not e.alive then -- 579
-		slot = "enemy_down" -- 580
-	elseif e.hitT > 0 then -- 581
-		slot = "enemy_hit" -- 582
-	elseif e.warnT > 0 then -- 583
-		slot = "enemy_aim" -- 584
-	end -- 584
-	local height = e.alive and H or H * 0.24 -- 586
-	if assets:tryPlace( -- 587
-		slot, -- 587
-		"actor_enemy_" .. tostring(index), -- 587
-		cx, -- 587
-		by, -- 587
-		W, -- 587
-		height, -- 587
-		{ -- 587
-			facing = f, -- 588
-			opacity = e.alive and 1 or 0.78, -- 588
-			layer = p.room.depth == nil and 3 or depthOrder(depth, 3) -- 588
-		} -- 588
-	) then -- 588
-		if e.alive then -- 590
-			self:drawEnemyArchetypeGear( -- 591
-				fgDraw, -- 591
-				fgGlow, -- 591
-				e, -- 591
-				cx, -- 591
-				by, -- 591
-				H, -- 591
-				f, -- 591
-				cam -- 591
-			) -- 591
-			if e.warnT > 0 then -- 592
-				self:drawEnemyWarning( -- 593
-					fgGlow, -- 593
-					e, -- 593
-					p, -- 593
-					cam, -- 593
-					f -- 593
-				) -- 593
-			end -- 593
-		end -- 593
-		return -- 596
-	end -- 596
-	if not e.alive then -- 599
-		local flash = e.hitT > 0 and math.min(1, e.hitT / 0.4) or 0 -- 600
-		fgDraw:drawPolygon( -- 601
-			{ -- 601
-				Vec2(cx - H * 0.3, by), -- 602
-				Vec2(cx + H * 0.28, by), -- 603
-				Vec2(cx + H * 0.2, by + H * 0.14), -- 604
-				Vec2(cx - H * 0.24, by + H * 0.11) -- 605
-			}, -- 605
-			flash > 0.2 and Color(220, 120, 130, 220) or Color(28, 22, 34, 215) -- 606
-		) -- 606
-		if flash > 0 then -- 607
-			fillRadialGlow( -- 608
-				fgGlow, -- 608
-				cx, -- 608
-				by + 12, -- 608
-				34 * flash, -- 608
-				18 * flash, -- 608
-				toColor(PALETTE.crimson, 180 * flash), -- 608
-				Color(255, 48, 82, 0), -- 608
-				12 -- 608
+	self.cartMoving = math.abs(p.cartAxle - self.previousAxle) > 0.01 -- 109
+	self.previousAxle = p.cartAxle -- 110
+	self.previousHp = p.hp -- 111
+	self.previousBottle = p.hasBottle -- 112
+	self.previousTrace = p.trace -- 113
+	local ____opt_0 = self.playerStride -- 113
+	if (____opt_0 and ____opt_0.actor) ~= p.player then -- 113
+		self.playerStride = strideAt(p.player) -- 115
+	end -- 115
+	local ____opt_2 = self.partnerStride -- 115
+	if (____opt_2 and ____opt_2.actor) ~= p.partner then -- 115
+		self.partnerStride = strideAt(p.partner) -- 118
+	end -- 118
+	local steps = math.max(0, p.ticks - self.strideTick) -- 120
+	advanceStride(self.playerStride, steps, dt) -- 121
+	advanceStride(self.partnerStride, steps, dt) -- 122
+	self.strideTick = p.ticks -- 123
+	if not p.childMode and p.player.rollT > 0 then -- 123
+		self.ghostCooldown = self.ghostCooldown - dt -- 126
+		if self.ghostCooldown <= 0 then -- 126
+			local ____self_ghosts_4 = self.ghosts -- 126
+			____self_ghosts_4[#____self_ghosts_4 + 1] = { -- 128
+				x = p.player.x, -- 129
+				y = p.player.y, -- 130
+				depth = p.player.depth, -- 131
+				h = p.player.h, -- 132
+				facing = p.player.facing, -- 133
+				life = 0.28, -- 134
+				maxLife = 0.28, -- 135
+				isRoll = true -- 136
+			} -- 136
+			self.ghostCooldown = 0.036 -- 138
+		end -- 138
+	else -- 138
+		self.ghostCooldown = 0 -- 141
+	end -- 141
+	local write = 0 -- 145
+	local i = 0 -- 146
+	do -- 146
+		i = 0 -- 147
+		while i < #self.ghosts do -- 147
+			local g = self.ghosts[i + 1] -- 148
+			g.life = g.life - dt -- 149
+			if g.life > 0 then -- 149
+				self.ghosts[write + 1] = g -- 151
+				write = write + 1 -- 152
+			end -- 152
+			i = i + 1 -- 147
+		end -- 147
+	end -- 147
+	__TS__ArraySetLength(self.ghosts, write) -- 147
+end -- 98
+function ActorsRenderer.prototype.drawAll(self, fgDraw, fgGlow, assets, p, cam, suppressPartner) -- 158
+	if suppressPartner == nil then -- 158
+		suppressPartner = false -- 164
+	end -- 164
+	self:drawAfterimages(fgGlow, cam) -- 167
+	local i = 0 -- 170
+	do -- 170
+		i = 0 -- 171
+		while i < #p.enemies do -- 171
+			self:drawEnemy( -- 172
+				fgDraw, -- 172
+				fgGlow, -- 172
+				assets, -- 172
+				p.enemies[i + 1], -- 172
+				i, -- 172
+				p, -- 172
+				cam -- 172
+			) -- 172
+			i = i + 1 -- 171
+		end -- 171
+	end -- 171
+	if p.room.key == "village" and p.room.scavenger ~= nil then -- 171
+		self:drawScavenger( -- 177
+			fgDraw, -- 177
+			fgGlow, -- 177
+			assets, -- 177
+			p, -- 177
+			cam -- 177
+		) -- 177
+	end -- 177
+	if p.room.key == "forest" and p.room.story ~= nil and p.room.story.dog ~= nil then -- 177
+		self:drawDog( -- 182
+			fgDraw, -- 182
+			fgGlow, -- 182
+			assets, -- 182
+			p, -- 182
+			cam -- 182
+		) -- 182
+	end -- 182
+	local gateCloseUp = p.room.key == "gate" and p.phase == "gate-hand" and p.phaseTick >= 22 -- 186
+	local partnerInsideGate = p.childMode and p.room.key == "gate" and (p.phase == "gate-count" or p.phase == "gate-wait" or p.phase == "gate-walk") -- 187
+	if p.partner.alive and not suppressPartner and not partnerInsideGate and not gateCloseUp then -- 187
+		local partnerIsChild = p.partner.w <= 28 -- 190
+		if partnerIsChild then -- 190
+			self:drawXiaoman( -- 192
+				fgDraw, -- 192
+				fgGlow, -- 192
+				assets, -- 192
+				p.partner, -- 192
+				p, -- 192
+				cam, -- 192
+				false -- 192
+			) -- 192
+		else -- 192
+			self:drawZhouShu( -- 194
+				fgDraw, -- 194
+				fgGlow, -- 194
+				assets, -- 194
+				p.partner, -- 194
+				p, -- 194
+				cam, -- 194
+				false -- 194
+			) -- 194
+		end -- 194
+	end -- 194
+	if p.player.alive and not gateCloseUp then -- 194
+		if p.childMode then -- 194
+			self:drawXiaoman( -- 201
+				fgDraw, -- 201
+				fgGlow, -- 201
+				assets, -- 201
+				p.player, -- 201
+				p, -- 201
+				cam, -- 201
+				true -- 201
+			) -- 201
+		else -- 201
+			self:drawZhouShu( -- 203
+				fgDraw, -- 203
+				fgGlow, -- 203
+				assets, -- 203
+				p.player, -- 203
+				p, -- 203
+				cam, -- 203
+				true -- 203
+			) -- 203
+		end -- 203
+	end -- 203
+end -- 158
+function ActorsRenderer.prototype.drawAfterimages(self, fgGlow, cam) -- 209
+	local i = 0 -- 210
+	do -- 210
+		i = 0 -- 211
+		while i < #self.ghosts do -- 211
+			local g = self.ghosts[i + 1] -- 212
+			local k = math.max( -- 213
+				0, -- 213
+				math.min(1, g.life / g.maxLife) -- 213
+			) -- 213
+			local spread = 1 - k -- 214
+			local cx = cam:sx(g.x) -- 215
+			local by = cam:sy(g.y, g.depth) -- 216
+			local f = g.facing -- 217
+			local rBase = cam:len(6 + spread * 9) -- 218
+			fgGlow:drawCircle( -- 220
+				Vec2( -- 221
+					cx - f * cam:len(6 + spread * 10), -- 221
+					by + cam:len(4 + spread * 5) -- 221
+				), -- 221
+				rBase, -- 222
+				Color( -- 223
+					156, -- 223
+					144, -- 223
+					124, -- 223
+					math.floor(78 * k + 0.5) -- 223
+				) -- 223
+			) -- 223
+			fgGlow:drawCircle( -- 225
+				Vec2( -- 226
+					cx - f * cam:len(14 + spread * 14), -- 226
+					by + cam:len(8 + spread * 8) -- 226
+				), -- 226
+				rBase * 0.72, -- 227
+				Color( -- 228
+					186, -- 228
+					174, -- 228
+					152, -- 228
+					math.floor(54 * k + 0.5) -- 228
+				) -- 228
+			) -- 228
+			i = i + 1 -- 211
+		end -- 211
+	end -- 211
+end -- 209
+function ActorsRenderer.prototype.supportGroundY(self, p, a) -- 234
+	local half = a.w * 0.5 -- 235
+	local g = 0 -- 236
+	local i = 0 -- 237
+	do -- 237
+		i = 0 -- 238
+		while i < #p.room.floors do -- 238
+			local f = p.room.floors[i + 1] -- 239
+			if a.x + half > f.x0 and a.x - half < f.x1 and f.y <= a.y + 0.5 and f.y > g then -- 239
+				g = f.y -- 241
+			end -- 241
+			i = i + 1 -- 238
+		end -- 238
+	end -- 238
+	do -- 238
+		i = 0 -- 244
+		while i < #p.boxes do -- 244
+			do -- 244
+				local b = p.boxes[i + 1] -- 245
+				if b.broken == true or b.hidden == true or b.soft == true then -- 245
+					goto __continue41 -- 247
+				end -- 247
+				if a.x + half > b.x0 and a.x - half < b.x1 and b.y1 <= a.y + 0.5 and b.y1 > g and overlapsDepth(a.depth, b.depth, ACTOR_DEPTH_HALF) then -- 247
+					g = b.y1 -- 251
+				end -- 251
+			end -- 251
+			::__continue41:: -- 251
+			i = i + 1 -- 244
+		end -- 244
+	end -- 244
+	return g -- 254
+end -- 234
+function ActorsRenderer.prototype.drawZhouShu(self, fgDraw, fgGlow, assets, a, p, cam, isControlled) -- 258
+	local cx = cam:sx(a.x) -- 267
+	local by = cam:sy(a.y, a.depth) -- 268
+	local depthEnabled = p.room.depth ~= nil -- 269
+	local shadowY = not a.onGround and cam:sy( -- 270
+		self:supportGroundY(p, a), -- 270
+		a.depth -- 270
+	) or by -- 270
+	local H = cam:len(a.h) -- 271
+	local W = cam:len(a.w) -- 272
+	local f = a.facing -- 273
+	local speed = math.max( -- 274
+		math.abs(a.vx), -- 274
+		math.abs(a.depthSpeed) -- 274
+	) -- 274
+	local slot = "soldier_idle" -- 276
+	local height = H -- 277
+	local frame = 0 -- 278
+	local facing = f -- 279
+	local step = math.floor(self.animTime * 10) -- 280
+	if isControlled and p.ticks < self.hitUntil then -- 280
+		slot = "soldier_hit" -- 282
+	elseif a.rollT > 0 then -- 282
+		slot = "soldier_roll" -- 284
+		height = height * 0.59 -- 285
+	elseif p.phase == "prologue-give" then -- 285
+		slot = "soldier_offer" -- 287
+		height = height * 0.75 -- 288
+		facing = p.partner.x >= a.x and 1 or -1 -- 289
+	elseif isControlled and p.gripping then -- 289
+		slot = "soldier_push" -- 291
+		frame = self.cartMoving and step or 0 -- 292
+		facing = p.room.cart.handleOffset < 0 and 1 or -1 -- 293
+		height = height * 0.91 -- 294
+	elseif isControlled and p.escort.state == "calming" then -- 294
+		slot = "soldier_knock" -- 296
+		local calm = p.escort.calmTick -- 297
+		frame = (calm >= 12 and calm < 18 or calm >= 36 and calm < 42) and 1 or 0 -- 298
+		height = height * 0.76 -- 299
+	else -- 299
+		local ____temp_7 = p.phase == "gate-send" -- 300
+		if ____temp_7 then -- 300
+			local ____opt_5 = p.room.story -- 300
+			____temp_7 = (____opt_5 and ____opt_5.gate) ~= nil -- 300
+		end -- 300
+		if ____temp_7 and math.abs(a.x - p.room.story.gate.doorX) <= 60 and speed <= 8 then -- 300
+			slot = "soldier_hold" -- 302
+			height = height * 1.11 -- 303
+		elseif isControlled and p.ticks < self.shotUntil then -- 303
+			local running = speed > 8 -- 305
+			slot = running and "soldier_fire_move" or "soldier_fire" -- 306
+			frame = running and step or 0 -- 307
+			facing = p.trace ~= nil and p.trace.x1 < p.trace.x0 and -1 or 1 -- 308
+		elseif a.covered or isControlled and p.coverHug then -- 308
+			slot = "soldier_cover" -- 310
+			height = height * 0.77 -- 311
+		elseif speed > 8 then -- 311
+			slot = "soldier_run" -- 313
+			frame = step -- 314
+		end -- 314
+	end -- 314
+	local pose = { -- 316
+		facing = facing, -- 316
+		frame = frame, -- 316
+		layer = depthEnabled and depthOrder(a.depth, 4) or 4 -- 316
+	} -- 316
+	local ____isControlled_8 -- 317
+	if isControlled then -- 317
+		____isControlled_8 = self.playerStride -- 317
+	else -- 317
+		____isControlled_8 = self.partnerStride -- 317
+	end -- 317
+	local gait = ____isControlled_8 -- 317
+	local running = (slot == "soldier_run" or slot == "soldier_idle") and a.onGround and gait ~= nil and gait.effort > 0 and assets:tryPlaceRun( -- 318
+		"soldier", -- 320
+		"actor_soldier", -- 320
+		cx, -- 320
+		by, -- 320
+		W, -- 320
+		height, -- 320
+		gait.cycle, -- 320
+		pose, -- 320
+		gait.effort -- 320
+	) -- 320
+	if running or assets:tryPlace( -- 320
+		slot, -- 321
+		"actor_soldier", -- 321
+		cx, -- 321
+		by, -- 321
+		W, -- 321
+		height, -- 321
+		pose -- 321
+	) then -- 321
+		fgDraw:drawEllipse( -- 322
+			Vec2(cx, shadowY + 1), -- 322
+			W * 0.54, -- 322
+			4, -- 322
+			Color(12, 11, 13, 145) -- 322
+		) -- 322
+		return -- 323
+	end -- 323
+	fgDraw:drawEllipse( -- 327
+		Vec2(cx, shadowY + 1), -- 327
+		H * 0.24, -- 327
+		4.5, -- 327
+		Color(3, 5, 10, 175) -- 327
+	) -- 327
+	local walking = speed > 10 and a.onGround -- 329
+	local stride = walking and math.sin(self.animTime * 12.5) or 0 -- 330
+	local bob = walking and math.abs(math.cos(self.animTime * 12.5)) * 3.5 or math.sin(self.animTime * 2.6) * 1.4 -- 331
+	local calming = not p.childMode and p.escort.state == "calming" -- 332
+	local rolling = a.rollT > 0 -- 333
+	local crouching = a.covered or calming or rolling -- 334
+	local bodyH = rolling and H * 0.62 or (crouching and H * 0.82 or H) -- 337
+	local lean = rolling and f * H * 0.14 or (p.gripping and f * H * 0.1 or (walking and f * 6 or f * 2)) -- 338
+	local sw = H * 0.115 -- 339
+	local hipY = by + bodyH * 0.44 + bob * 0.4 -- 342
+	local kneeY = by + bodyH * 0.23 -- 343
+	local stepX = stride * H * 0.15 -- 344
+	local legDark = Color(14, 21, 34, 255) -- 345
+	local legFront = Color(26, 38, 58, 255) -- 346
+	local bkX = cx - f * 4 - stepX * 0.5 -- 348
+	local bfX = cx - f * 8 - stepX -- 349
+	fgDraw:drawSegment( -- 350
+		Vec2(cx - f * 3, hipY), -- 350
+		Vec2(bkX, kneeY), -- 350
+		H * 0.044, -- 350
+		legDark -- 350
+	) -- 350
+	fgDraw:drawSegment( -- 351
+		Vec2(bkX, kneeY), -- 351
+		Vec2(bfX, by + 3), -- 351
+		H * 0.038, -- 351
+		legDark -- 351
+	) -- 351
+	local fkX = cx + f * 6 + stepX * 0.55 -- 353
+	local ffX = cx + f * 7 + stepX -- 354
+	fgDraw:drawSegment( -- 355
+		Vec2(cx + f * 3, hipY), -- 355
+		Vec2(fkX, kneeY), -- 355
+		H * 0.048, -- 355
+		legFront -- 355
+	) -- 355
+	fgDraw:drawSegment( -- 356
+		Vec2(fkX, kneeY), -- 356
+		Vec2(ffX, by + 3), -- 356
+		H * 0.042, -- 356
+		legFront -- 356
+	) -- 356
+	fgDraw:drawSegment( -- 358
+		Vec2(ffX - f * 2, by + 3), -- 358
+		Vec2(ffX + f * 9, by + 3), -- 358
+		3.4, -- 358
+		Color(42, 60, 86, 255) -- 358
+	) -- 358
+	local shY = by + bodyH * 0.8 + bob -- 361
+	local coatDrag = -f * (walking and 24 or (rolling and 34 or 14)) + math.sin(self.animTime * 4.4) * 4 -- 362
+	fgDraw:drawPolygon( -- 363
+		{ -- 363
+			Vec2(cx - f * sw * 0.75 + lean * 0.5, shY - 6), -- 364
+			Vec2(cx + f * sw * 0.35 + lean * 0.5, hipY + 4), -- 365
+			Vec2(cx - f * sw * 0.25 + coatDrag * 0.45, by + bodyH * 0.16), -- 366
+			Vec2(cx - f * sw * 1.15 + coatDrag, by + bodyH * 0.22) -- 367
+		}, -- 367
+		Color(16, 26, 42, 248), -- 368
+		1.2, -- 368
+		Color(64, 118, 164, 195) -- 368
+	) -- 368
+	fgDraw:drawPolygon( -- 371
+		{ -- 371
+			Vec2(cx - sw * 0.62 + lean * 0.45, hipY), -- 372
+			Vec2(cx + sw * 0.62 + lean * 0.45, hipY), -- 373
+			Vec2(cx + sw * 1.05 + lean, shY), -- 374
+			Vec2(cx - sw * 0.98 + lean, shY) -- 375
+		}, -- 375
+		Color(24, 38, 60, 255), -- 376
+		1.3, -- 376
+		toColor(PALETTE.rimSilver, 190) -- 376
+	) -- 376
+	fgDraw:drawSegment( -- 378
+		Vec2(cx - sw * 0.7 + lean, shY - 2), -- 379
+		Vec2(cx + sw * 0.5 + lean * 0.5, hipY + 6), -- 380
+		2.4, -- 381
+		Color(173, 155, 125, 225) -- 382
+	) -- 382
+	fgDraw:drawPolygon( -- 384
+		{ -- 384
+			Vec2(cx - sw * 1.18 + lean, shY - 6), -- 385
+			Vec2(cx + sw * 1.12 + lean, shY - 3), -- 386
+			Vec2(cx + sw * 0.9 + lean, shY + 5), -- 387
+			Vec2(cx - sw * 0.95 + lean, shY + 4) -- 388
+		}, -- 388
+		Color(99, 105, 103, 248) -- 389
+	) -- 389
+	local headR = H * 0.088 -- 392
+	local headX = cx + lean + f * 3 -- 393
+	local headY = shY + headR * 1.35 -- 394
+	fgDraw:drawCircle( -- 395
+		Vec2(headX, headY - headR * 0.12), -- 395
+		headR * 0.86, -- 395
+		Color(181, 139, 106, 255) -- 395
+	) -- 395
+	fgDraw:drawEllipse( -- 396
+		Vec2(headX, headY + headR * 0.5), -- 396
+		headR * 1.12, -- 396
+		headR * 0.72, -- 396
+		Color(66, 73, 76, 255) -- 396
+	) -- 396
+	fgDraw:drawSegment( -- 397
+		Vec2(headX - headR, headY + 1), -- 397
+		Vec2(headX + headR, headY + 1), -- 397
+		1.6, -- 398
+		Color(97, 103, 101, 255) -- 398
+	) -- 398
+	fgDraw:drawSegment( -- 399
+		Vec2(headX, headY + headR), -- 399
+		Vec2(headX - f * headR * 0.38, headY + headR * 1.48), -- 399
+		1.6, -- 400
+		Color(177, 78, 51, 255) -- 400
+	) -- 400
+	if isControlled and not calming and not rolling and not p.gripping then -- 400
+		local gunPivotX = cx + lean + f * sw * 0.35 -- 404
+		local gunPivotY = shY - bodyH * 0.1 -- 405
+		local aimDx = f -- 406
+		local aimDy = 0 -- 407
+		if p.aimX > 0 or p.aimY > 0 then -- 407
+			aimDx = p.aimX - gunPivotX -- 409
+			aimDy = p.aimY - gunPivotY -- 410
+			local dLen = math.sqrt(aimDx * aimDx + aimDy * aimDy) -- 411
+			if dLen > 4 then -- 411
+				aimDx = aimDx / dLen -- 413
+				aimDy = aimDy / dLen -- 414
+			end -- 414
+		end -- 414
+		local barrelLen = H * 0.34 -- 417
+		local tipX = gunPivotX + aimDx * barrelLen -- 418
+		local tipY = gunPivotY + aimDy * barrelLen -- 419
+		local stockX = gunPivotX - aimDx * (H * 0.08) -- 420
+		local stockY = gunPivotY - aimDy * (H * 0.08) -- 421
+		fgDraw:drawSegment( -- 423
+			Vec2(cx + lean, shY - 5), -- 423
+			Vec2(gunPivotX + aimDx * 14, gunPivotY + aimDy * 14 - 4), -- 423
+			3.6, -- 423
+			Color(26, 40, 62, 255) -- 423
+		) -- 423
+		fgDraw:drawSegment( -- 424
+			Vec2(stockX, stockY), -- 424
+			Vec2(gunPivotX + aimDx * barrelLen * 0.62, gunPivotY + aimDy * barrelLen * 0.62), -- 424
+			3.8, -- 424
+			Color(105, 71, 50, 255) -- 424
+		) -- 424
+		fgDraw:drawSegment( -- 425
+			Vec2(gunPivotX, gunPivotY), -- 425
+			Vec2(tipX, tipY), -- 425
+			1.8, -- 425
+			Color(145, 140, 128, 245) -- 425
+		) -- 425
+	elseif calming then -- 425
+		fgDraw:drawSegment( -- 427
+			Vec2(cx + lean, shY - 6), -- 427
+			Vec2(cx + f * sw * 2.1, shY - 14), -- 427
+			3, -- 427
+			Color(196, 222, 240, 235) -- 427
+		) -- 427
+		fgGlow:drawDot( -- 428
+			Vec2(cx + f * sw * 2.15, shY - 14), -- 428
+			3.6, -- 428
+			toColor(PALETTE.amber, 225) -- 428
+		) -- 428
+	end -- 428
+end -- 258
+function ActorsRenderer.prototype.drawXiaoman(self, fgDraw, fgGlow, assets, a, p, cam, isControlled) -- 434
+	local cx = cam:sx(a.x) -- 443
+	local by = cam:sy(a.y, a.depth) -- 444
+	local depthEnabled = p.room.depth ~= nil -- 445
+	local shadowY = not a.onGround and cam:sy( -- 446
+		self:supportGroundY(p, a), -- 446
+		a.depth -- 446
+	) or by -- 446
+	local H = cam:len(a.h) -- 447
+	local W = cam:len(a.w) -- 448
+	local f = a.facing -- 449
+	local speed = math.max( -- 450
+		math.abs(a.vx), -- 450
+		math.abs(a.depthSpeed) -- 450
+	) -- 450
+	local afraid = not isControlled and p.escort.fear > 0 -- 452
+	local slot = "child_idle" -- 453
+	local height = H -- 454
+	local frame = 0 -- 455
+	local step = math.floor(self.animTime * 10) -- 456
+	local nearCover = __TS__ArraySome( -- 457
+		p.room.solids, -- 457
+		function(____, solid) return not solid.decorative and solid.h <= 64 and solid.y <= 2 and overlapsDepth(a.depth, solid.depth, ACTOR_DEPTH_HALF) and math.min( -- 457
+			math.abs(a.x - solid.x), -- 460
+			math.abs(a.x - solid.x - solid.w) -- 460
+		) <= 30 end -- 460
+	) -- 460
+	if p.phase == "tower-knock" and (p.phaseTick < 6 or p.phaseTick >= 12 and p.phaseTick < 18) then -- 460
+		slot = "child_knock" -- 463
+	elseif p.phase == "tower-given" and p.phaseTick >= 60 and p.phaseTick < 120 or p.phase == "prologue-give" and p.phaseTick >= 12 and p.phaseTick < 36 then -- 463
+		slot = "child_offer" -- 466
+	elseif isControlled and p.ticks < self.throwUntil then -- 466
+		slot = "child_throw" -- 468
+	elseif isControlled and p.hasBottle and p.aimHold > 0 then -- 468
+		slot = "child_aim" -- 470
+	elseif isControlled and p.gripping then -- 470
+		slot = "child_pull" -- 472
+		frame = self.cartMoving and step or 0 -- 473
+	elseif afraid and p.escort.state == "frozen" then -- 473
+		slot = "child_fear" -- 475
+		height = height * 0.74 -- 476
+	elseif not isControlled and nearCover and (p.room.key == "street" or p.room.key == "checkpoint") and speed < 8 then -- 476
+		slot = "child_peek" -- 479
+		height = height * 0.83 -- 480
+	elseif a.crouch then -- 480
+		slot = "child_crouch" -- 482
+		frame = speed > 8 and step or 0 -- 483
+	elseif speed > 8 then -- 483
+		slot = "child_run" -- 485
+		frame = step -- 486
+	end -- 486
+	local facing = slot == "child_pull" and (p.room.cart.handleOffset < 0 and 1 or -1) or f -- 488
+	local angle = 0 -- 489
+	if isControlled and p.room.key == "gate" then -- 489
+		if p.phase == "gate-count" then -- 489
+			local tick = p.countTick -- 492
+			local lean = smoothstep(1080, 1140, tick) * (1 - smoothstep(1432, 1462, tick)) -- 493
+			local settle = smoothstep(GATE_COUNT_END, GATE_COUNT_END + 18, tick) * (1 - smoothstep(GATE_COUNT_END + 23, GATE_COUNT_END + 46, tick)) -- 494
+			facing = tick < GATE_COUNT_END + 36 and -1 or 1 -- 496
+			angle = -12 * lean + 5 * settle -- 497
+			height = height * (1 - 0.035 * lean - 0.048 * settle + 0.009 * math.sin(self.animTime * 2.6)) -- 498
+		elseif p.phase == "gate-wait" then -- 498
+			facing = -1 -- 500
+			if p.knocks >= 2 then -- 500
+				slot = "child_knock" -- 502
+				angle = -4 * smoothstep(12, 25, p.phaseTick) -- 503
+			end -- 503
+		end -- 503
+	end -- 503
+	local pose = { -- 507
+		facing = facing, -- 507
+		frame = frame, -- 507
+		angle = angle, -- 507
+		layer = depthEnabled and depthOrder(a.depth, 5) or 5 -- 507
+	} -- 507
+	local ____isControlled_9 -- 508
+	if isControlled then -- 508
+		____isControlled_9 = self.playerStride -- 508
+	else -- 508
+		____isControlled_9 = self.partnerStride -- 508
+	end -- 508
+	local gait = ____isControlled_9 -- 508
+	local running = (slot == "child_run" or slot == "child_idle") and a.onGround and gait ~= nil and gait.effort > 0 and assets:tryPlaceRun( -- 509
+		"child", -- 511
+		"actor_child", -- 511
+		cx, -- 511
+		by, -- 511
+		W, -- 511
+		height, -- 511
+		gait.cycle, -- 511
+		pose, -- 511
+		gait.effort -- 511
+	) -- 511
+	if running or assets:tryPlace( -- 511
+		slot, -- 512
+		"actor_child", -- 512
+		cx, -- 512
+		by, -- 512
+		W, -- 512
+		height, -- 512
+		pose -- 512
+	) then -- 512
+		fgDraw:drawEllipse( -- 513
+			Vec2(cx, shadowY + 1), -- 513
+			W * 0.48, -- 513
+			3, -- 513
+			Color(12, 11, 13, 125) -- 513
+		) -- 513
+		if afraid then -- 513
+			self:drawFear(fgGlow, p, cx, by + height + 14) -- 515
+		end -- 515
+		return -- 517
+	end -- 517
+	local jitter = not isControlled and p.escort.state == "frozen" and math.sin(self.animTime * 42) * 2.2 or 0 -- 520
+	local x = cx + jitter -- 521
+	local fullRef = a.crouch and H * 1.35 or H -- 523
+	local cw = fullRef * 0.16 -- 524
+	fgDraw:drawEllipse( -- 527
+		Vec2(x, shadowY + 1), -- 527
+		cw * 1.15, -- 527
+		3.6, -- 527
+		Color(4, 6, 10, 155) -- 527
+	) -- 527
+	local walking = speed > 6 and a.onGround -- 529
+	local stride = walking and math.sin(self.animTime * 11) or 0 -- 530
+	local bob = walking and math.abs(math.cos(self.animTime * 11)) * 2.8 or math.sin(self.animTime * 2.8) * 1.1 -- 531
+	local hipY = by + H * 0.3 -- 534
+	local legSwing = stride * cw * 0.85 -- 535
+	fgDraw:drawSegment( -- 536
+		Vec2(x - 2, hipY), -- 536
+		Vec2(x - legSwing, by + 2), -- 536
+		math.max(2.6, cw * 0.22), -- 536
+		Color(34, 30, 38, 255) -- 536
+	) -- 536
+	fgDraw:drawSegment( -- 537
+		Vec2(x + 2, hipY), -- 537
+		Vec2(x + legSwing, by + 2), -- 537
+		math.max(2.8, cw * 0.24), -- 537
+		Color(52, 46, 56, 255) -- 537
+	) -- 537
+	local cloakTopY = by + H * (a.crouch and 0.68 or 0.74) + bob -- 540
+	local cloakBotY = by + H * 0.2 -- 541
+	local cloakDrag = -f * (walking and 14 or 6) + math.sin(self.animTime * 3.8) * 2.8 -- 542
+	fgDraw:drawPolygon( -- 543
+		{ -- 543
+			Vec2(x - cw * 1.05 + cloakDrag * 0.45, cloakBotY), -- 544
+			Vec2(x + cw * 0.92, cloakBotY), -- 545
+			Vec2(x + cw * 0.62, cloakTopY), -- 546
+			Vec2(x - cw * 0.68, cloakTopY) -- 547
+		}, -- 547
+		Color(214, 166, 94, 255), -- 548
+		1.3, -- 548
+		Color(252, 232, 192, 225) -- 548
+	) -- 548
+	fgDraw:drawPolygon( -- 549
+		{ -- 549
+			Vec2(x - cw * 0.92 + cloakDrag * 0.38, cloakBotY + 2), -- 550
+			Vec2(x - f * cw * 0.12, cloakBotY + 2), -- 551
+			Vec2(x - f * cw * 0.18, cloakTopY - 3), -- 552
+			Vec2(x - cw * 0.6, cloakTopY - 2) -- 553
+		}, -- 553
+		Color(148, 108, 56, 215) -- 554
+	) -- 554
+	fgDraw:drawSegment( -- 555
+		Vec2(x - cw * 0.98 + cloakDrag * 0.42, cloakBotY + 3), -- 555
+		Vec2(x + cw * 0.88, cloakBotY + 3), -- 555
+		1.8, -- 555
+		toColor(PALETTE.amberCore, 200) -- 555
+	) -- 555
+	local scarfY = cloakTopY - 2 -- 558
+	local smidX = x - f * cw * 0.95 + cloakDrag * 0.55 -- 559
+	local smidY = scarfY - 6 + math.sin(self.animTime * 4.5) * 2.5 -- 560
+	local sendX = x - f * cw * 1.65 + cloakDrag -- 561
+	local sendY = scarfY - 12 + math.cos(self.animTime * 4.8) * 3.5 -- 562
+	fgDraw:drawQuadraticBezier( -- 563
+		Vec2(x - f * cw * 0.3, scarfY), -- 563
+		Vec2(smidX, smidY), -- 563
+		Vec2(sendX, sendY), -- 563
+		2.8, -- 563
+		toColor(PALETTE.amberCore, 235) -- 563
+	) -- 563
+	local headR = fullRef * (a.crouch and 0.118 or 0.126) -- 566
+	local headX = x + f * (a.crouch and 5 or 2) -- 567
+	local headY = math.min(by + H - headR - 1, cloakTopY + headR * 0.92) -- 568
+	fgDraw:drawCircle( -- 569
+		Vec2(headX, headY), -- 569
+		headR, -- 569
+		Color(240, 222, 198, 255) -- 569
+	) -- 569
+	fgDraw:drawPolygon( -- 571
+		{ -- 571
+			Vec2(headX - f * headR * 1.28, headY - headR * 0.72), -- 572
+			Vec2(headX - f * headR * 1.48, headY + headR * 0.35), -- 573
+			Vec2(headX - f * headR * 0.25, headY + headR * 1.15), -- 574
+			Vec2(headX + f * headR * 0.68, headY + headR * 0.82), -- 575
+			Vec2(headX - f * headR * 0.18, headY + headR * 0.15), -- 576
+			Vec2(headX - f * headR * 0.35, headY - headR * 0.78) -- 577
+		}, -- 577
+		Color(156, 114, 62, 248), -- 578
+		1.1, -- 578
+		Color(244, 214, 162, 200) -- 578
+	) -- 578
+	fgGlow:drawDot( -- 580
+		Vec2(headX + f * headR * 0.45, headY + 1), -- 580
+		2.2, -- 580
+		toColor(PALETTE.amberCore) -- 580
+	) -- 580
+	local hasCompass = isControlled or p.room.key ~= "prologue" or p.phase ~= "prologue-wait" -- 583
+	if hasCompass then -- 583
+		local compX = x + f * cw * 0.65 -- 585
+		local compY = by + H * 0.48 -- 586
+		local glowPulse = 0.78 + 0.22 * math.sin(self.animTime * 3.2) -- 587
+		fgGlow:drawDot( -- 588
+			Vec2(compX, compY), -- 588
+			2.6, -- 588
+			toColor(PALETTE.amberCore, 250) -- 588
+		) -- 588
+		fillRadialGlow( -- 589
+			fgGlow, -- 589
+			compX, -- 589
+			compY, -- 589
+			26 * glowPulse, -- 589
+			26 * glowPulse, -- 589
+			Color(248, 206, 120, 78 * glowPulse), -- 589
+			Color(248, 180, 72, 0), -- 589
+			14 -- 589
+		) -- 589
+	end -- 589
+	if afraid then -- 589
+		self:drawFear(fgGlow, p, x, by + H + 16) -- 593
+	end -- 593
+	if isControlled and walking and not a.crouch and speed > 100 then -- 593
+		local r = 10 + self.animTime * 32 % 24 -- 598
+		fgGlow:drawRing( -- 599
+			Vec2(x, by + 3), -- 599
+			r, -- 599
+			r + 1.5, -- 599
+			Color(0, 0, 0, 0), -- 599
+			1.1, -- 599
+			toColor(PALETTE.amber, 95 * (1 - r / 36)) -- 599
+		) -- 599
+	end -- 599
+end -- 434
+function ActorsRenderer.prototype.drawFear(self, fgGlow, p, x, y) -- 603
+	local tint = p.escort.state == "frozen" and PALETTE.crimson or PALETTE.amber -- 604
+	do -- 604
+		local i = 0 -- 605
+		while i < FEAR_MAX do -- 605
+			local lit = i < p.escort.fear -- 606
+			drawDiamond( -- 607
+				fgGlow, -- 607
+				x + (i - 1) * 13, -- 607
+				y, -- 607
+				4, -- 607
+				5, -- 607
+				toColor(lit and tint or PALETTE.steelDark, 215), -- 608
+				1, -- 608
+				toColor(tint, lit and 235 or 100) -- 608
 			) -- 608
-		end -- 608
-		return -- 610
-	end -- 610
-	local sw = H * 0.112 -- 613
-	fgDraw:drawEllipse( -- 614
-		Vec2(cx, by + 1), -- 614
-		sw * 1.9, -- 614
-		4, -- 614
-		Color(4, 6, 10, 165) -- 614
-	) -- 614
-	local hipY = by + H * 0.44 -- 617
-	local kneeY = by + H * 0.23 -- 618
-	local shY = by + H * 0.79 -- 619
-	fgDraw:drawSegment( -- 620
-		Vec2(cx - 5, hipY), -- 620
-		Vec2(cx - 7, kneeY), -- 620
-		H * 0.044, -- 620
-		Color(20, 16, 26, 255) -- 620
-	) -- 620
-	fgDraw:drawSegment( -- 621
-		Vec2(cx - 7, kneeY), -- 621
-		Vec2(cx - 8, by + 2), -- 621
-		H * 0.038, -- 621
-		Color(20, 16, 26, 255) -- 621
-	) -- 621
-	fgDraw:drawSegment( -- 622
-		Vec2(cx + 5, hipY), -- 622
-		Vec2(cx + 7, kneeY), -- 622
-		H * 0.046, -- 622
-		Color(28, 22, 36, 255) -- 622
-	) -- 622
-	fgDraw:drawSegment( -- 623
-		Vec2(cx + 7, kneeY), -- 623
-		Vec2(cx + 8, by + 2), -- 623
-		H * 0.04, -- 623
-		Color(28, 22, 36, 255) -- 623
-	) -- 623
-	fgDraw:drawPolygon( -- 625
-		{ -- 625
-			Vec2(cx - sw * 0.68, hipY), -- 626
-			Vec2(cx + sw * 0.68, hipY), -- 627
-			Vec2(cx + sw * 1.12, shY), -- 628
-			Vec2(cx - sw * 1.12, shY) -- 629
-		}, -- 629
-		Color(111, 68, 55, 255), -- 630
-		1.3, -- 630
-		Color(143, 101, 66, 220) -- 630
-	) -- 630
-	fgDraw:drawPolygon( -- 631
-		{ -- 631
-			Vec2(cx - sw * 1.26, shY - 6), -- 632
-			Vec2(cx + sw * 1.26, shY - 6), -- 633
-			Vec2(cx + sw * 0.96, shY + 5), -- 634
-			Vec2(cx - sw * 0.96, shY + 5) -- 635
-		}, -- 635
-		Color(98, 82, 62, 255) -- 636
-	) -- 636
-	local headR = H * 0.086 -- 638
-	local headY = shY + headR * 1.32 -- 639
-	fgDraw:drawCircle( -- 640
-		Vec2(cx, headY), -- 640
-		headR * 0.82, -- 640
-		Color(187, 142, 103, 255) -- 640
-	) -- 640
-	fgDraw:drawPolygon( -- 641
-		{ -- 641
-			Vec2(cx - headR * 1.65, headY + headR * 0.22), -- 642
-			Vec2(cx + headR * 1.65, headY + headR * 0.22), -- 643
-			Vec2(cx - f * headR * 0.18, headY + headR * 1.22) -- 644
-		}, -- 644
-		Color(136, 105, 65, 255), -- 645
-		1.1, -- 645
-		Color(177, 145, 91, 220) -- 645
-	) -- 645
-	local gunX = cx + f * H * 0.34 -- 647
-	local gunY = by + H * 0.69 -- 648
-	fgDraw:drawSegment( -- 649
-		Vec2(cx - f * 6, gunY - 2), -- 649
-		Vec2(gunX, gunY), -- 649
-		2.8, -- 649
-		Color(118, 87, 61, 255) -- 649
-	) -- 649
-	self:drawEnemyArchetypeGear( -- 650
-		fgDraw, -- 650
-		fgGlow, -- 650
-		e, -- 650
-		cx, -- 650
-		by, -- 650
-		H, -- 650
-		f, -- 650
-		cam -- 650
-	) -- 650
-	if e.warnT > 0 then -- 651
-		self:drawEnemyWarning( -- 652
-			fgGlow, -- 652
-			e, -- 652
-			p, -- 652
-			cam, -- 652
-			f -- 652
-		) -- 652
-	end -- 652
-end -- 543
-function ActorsRenderer.prototype.drawEnemyArchetypeGear(self, fgDraw, fgGlow, e, cx, by, H, f, cam) -- 657
-	if e.kind == "shield" and (e.shieldHp or 0) > 0 then -- 667
-		local shX = cx + f * cam:len(13) -- 668
-		local shW = math.max( -- 669
-			5, -- 669
-			cam:len(8) -- 669
-		) -- 669
-		local shH = H * 0.72 -- 670
-		local cracked = (e.shieldHp or 2) <= 1 -- 671
-		fgDraw:drawRect( -- 672
-			Rect(shX - shW * 0.5, by + H * 0.08, shW, shH), -- 673
-			cracked and Color(122, 82, 52, 245) or Color(96, 66, 42, 250), -- 674
-			1.3, -- 675
-			Color(168, 174, 180, 230) -- 676
-		) -- 676
-		fgDraw:drawCircle( -- 678
-			Vec2(shX, by + H * 0.44), -- 678
-			math.max( -- 678
-				2.2, -- 678
-				cam:len(3.5) -- 678
-			), -- 678
-			Color(142, 148, 154, 240) -- 678
-		) -- 678
-		if cracked then -- 679
-			fgDraw:drawSegment( -- 680
-				Vec2(shX - shW * 0.4, by + H * 0.28), -- 680
-				Vec2(shX + shW * 0.4, by + H * 0.58), -- 680
-				1.4, -- 680
-				Color(24, 18, 16, 235) -- 680
-			) -- 680
-		end -- 680
-	elseif e.kind == "breaker" then -- 682
-		local swing = (e.swingT or 0) > 0 -- 683
-		local handleX0 = cx - f * cam:len(4) -- 684
-		local handleY0 = by + H * 0.44 -- 685
-		local tipX = cx + f * cam:len(swing and 26 or 19) -- 686
-		local tipY = by + H * (swing and 0.46 or 0.78) -- 687
-		fgDraw:drawSegment( -- 688
-			Vec2(handleX0, handleY0), -- 688
-			Vec2(tipX, tipY), -- 688
-			math.max( -- 688
-				2.2, -- 688
-				cam:len(3) -- 688
-			), -- 688
-			Color(98, 66, 44, 255) -- 688
-		) -- 688
-		fgDraw:drawPolygon( -- 689
-			{ -- 689
-				Vec2( -- 690
-					tipX - f * cam:len(3), -- 690
-					tipY - cam:len(4) -- 690
-				), -- 690
-				Vec2( -- 691
-					tipX + f * cam:len(9), -- 691
-					tipY - cam:len(1) -- 691
-				), -- 691
-				Vec2( -- 692
-					tipX + f * cam:len(7), -- 692
-					tipY + cam:len(9) -- 692
-				), -- 692
-				Vec2( -- 693
-					tipX - f * cam:len(2), -- 693
-					tipY + cam:len(6) -- 693
-				) -- 693
-			}, -- 693
-			Color(148, 154, 162, 250), -- 694
-			1, -- 694
-			Color(224, 228, 232, 220) -- 694
-		) -- 694
-		if swing then -- 695
-			fgGlow:drawArc( -- 696
-				Vec2( -- 696
-					cx + f * cam:len(10), -- 696
-					by + H * 0.56 -- 696
-				), -- 696
-				cam:len(18), -- 696
-				f > 0 and -40 or 140, -- 696
-				f > 0 and 50 or 230, -- 696
-				1.8, -- 696
-				toColor(PALETTE.rouge, 195) -- 696
-			) -- 696
-		end -- 696
-	elseif e.kind == "leader" then -- 698
-		local topY = by + H * 1.02 -- 700
-		fgDraw:drawSegment( -- 701
-			Vec2(cx, topY), -- 701
-			Vec2( -- 701
-				cx - f * cam:len(10), -- 701
-				topY + cam:len(9) -- 701
-			), -- 701
-			2.2, -- 701
-			toColor(PALETTE.rouge, 240) -- 701
-		) -- 701
-		fgDraw:drawDot( -- 702
-			Vec2( -- 702
-				cx - f * cam:len(10), -- 702
-				topY + cam:len(9) -- 702
-			), -- 702
-			2.6, -- 702
-			toColor(PALETTE.crimsonCore, 235) -- 702
-		) -- 702
-	end -- 702
-end -- 657
-function ActorsRenderer.prototype.drawScavenger(self, fgDraw, fgGlow, assets, p, cam) -- 707
-	local s = p.room.scavenger -- 714
-	if s == nil then -- 715
-		return -- 716
-	end -- 716
-	local cx = cam:sx(p.scavX) -- 718
-	local by = cam:sy(s.y) -- 719
-	local H = cam:len(s.h) -- 720
-	local W = cam:len(26) -- 721
-	local f = p.scavState == "chase" and (p.player.x >= p.scavX and 1 or -1) or p.scavDir -- 722
-	local alert = p.scavChase or p.scavSee > 0 -- 725
-	local coneCol = alert and PALETTE.crimson or PALETTE.amber -- 726
-	local eyeY = by + H * 0.8 -- 727
-	local coneLen = cam:len(alert and 155 or 115) -- 728
-	fgGlow:drawVertices({ -- 729
-		{ -- 730
-			Vec2(cx + f * 6, eyeY), -- 730
-			toColor(coneCol, alert and 78 or 34) -- 730
-		}, -- 730
-		{ -- 731
-			Vec2(cx + f * coneLen, by + H * 1.05), -- 731
-			Color(coneCol.r, coneCol.g, coneCol.b, 0) -- 731
-		}, -- 731
-		{ -- 732
-			Vec2(cx + f * coneLen, by + 4), -- 732
-			Color(coneCol.r, coneCol.g, coneCol.b, 0) -- 732
-		} -- 732
-	}) -- 732
-	local frame = 0 -- 735
-	if p.scavState == "turn" then -- 736
-		frame = 2 -- 737
-	elseif p.scavState == "chase" then -- 738
-		frame = math.floor(self.animTime * 12) % 2 == 0 and 3 or 1 -- 739
-	elseif p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" then -- 740
-		frame = math.floor(self.animTime * 8) % 2 -- 741
-	end -- 741
-	if assets:tryPlace( -- 743
-		"scavenger", -- 743
-		"actor_scav", -- 743
-		cx, -- 743
-		by, -- 743
-		W, -- 743
-		H, -- 743
-		{facing = f, frame = frame, layer = 3} -- 743
-	) then -- 743
-		return -- 744
-	end -- 744
-	fgDraw:drawEllipse( -- 747
-		Vec2(cx, by + 1), -- 747
-		W * 0.62, -- 747
-		4, -- 747
-		Color(4, 6, 10, 155) -- 747
-	) -- 747
-	local walk = p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" -- 748
-	local stride = walk and math.sin(self.animTime * (p.scavState == "chase" and 13 or 7)) * W * 0.36 or 0 -- 749
-	fgDraw:drawSegment( -- 751
-		Vec2(cx - 4, by + H * 0.4), -- 751
-		Vec2(cx - stride, by + 2), -- 751
-		W * 0.16, -- 751
-		Color(32, 30, 28, 255) -- 751
-	) -- 751
-	fgDraw:drawSegment( -- 752
-		Vec2(cx + 4, by + H * 0.4), -- 752
-		Vec2(cx + stride, by + 2), -- 752
-		W * 0.16, -- 752
-		Color(44, 40, 36, 255) -- 752
-	) -- 752
-	fgDraw:drawPolygon( -- 754
-		{ -- 754
-			Vec2(cx - W * 0.45, by + H * 0.25), -- 755
-			Vec2(cx + W * 0.42, by + H * 0.25), -- 756
-			Vec2(cx + f * W * 0.22 + W * 0.32, by + H * 0.78), -- 757
-			Vec2(cx + f * W * 0.22 - W * 0.34, by + H * 0.74) -- 758
-		}, -- 758
-		Color(56, 52, 46, 255), -- 759
-		1.2, -- 759
-		Color(128, 118, 100, 180) -- 759
-	) -- 759
-	local headX = cx + f * 5 -- 761
-	local headY = by + H * 0.88 -- 762
-	fgDraw:drawCircle( -- 763
-		Vec2(headX, headY), -- 763
-		W * 0.3, -- 763
-		Color(42, 38, 34, 255) -- 763
-	) -- 763
-	fgGlow:drawDot( -- 764
-		Vec2(headX + f * 6, headY), -- 764
-		3, -- 764
-		toColor(coneCol, 245) -- 764
-	) -- 764
-	local indY = by + H + 18 -- 767
-	if p.scavChase then -- 768
-		drawDiamond( -- 769
-			fgGlow, -- 769
-			cx, -- 769
-			indY, -- 769
-			9, -- 769
-			12, -- 769
-			toColor(PALETTE.crimson, 240), -- 769
-			1.5, -- 769
-			toColor(PALETTE.crimsonCore) -- 769
-		) -- 769
-	elseif p.scavSee > 0 then -- 770
-		local frac = math.min(1, p.scavSee / 24) -- 771
-		fgGlow:drawArc( -- 772
-			Vec2(cx, indY), -- 772
-			11, -- 772
-			90, -- 772
-			90 - 360 * frac, -- 772
-			2.4, -- 772
-			toColor(PALETTE.crimson, 235) -- 772
+			i = i + 1 -- 605
+		end -- 605
+	end -- 605
+end -- 603
+function ActorsRenderer.prototype.drawEnemyWarning(self, fgGlow, e, p, cam, f) -- 612
+	local x = cam:sx(e.x + f * 20) -- 613
+	local y = cam:sy(e.y + e.h * 0.69, e.depth or 0) -- 614
+	local dx = cam:sx(p.player.x) - x -- 615
+	local dy = cam:sy(p.player.y + p.player.h * 0.56, p.player.depth) - y -- 616
+	local length = 0.4 + 0.6 * math.min(1, e.warnT / 36) -- 617
+	do -- 617
+		local i = 0 -- 618
+		while i < 8 do -- 618
+			local a = length * i / 8 -- 619
+			local b = length * (i + 1) / 8 -- 620
+			fgGlow:drawSegment( -- 621
+				Vec2(x + dx * a, y + dy * a), -- 621
+				Vec2(x + dx * b, y + dy * b), -- 621
+				1.3, -- 622
+				Color(220, 120, 88, 210) -- 622
+			) -- 622
+			i = i + 2 -- 618
+		end -- 618
+	end -- 618
+end -- 612
+function ActorsRenderer.prototype.drawEnemy(self, fgDraw, fgGlow, assets, e, index, p, cam) -- 627
+	local cx = cam:sx(e.x) -- 636
+	local depth = e.depth or 0 -- 637
+	local by = cam:sy(e.y, depth) -- 638
+	local H = cam:len(e.h) -- 639
+	local W = cam:len(e.w) -- 640
+	local f = p.player.x >= e.x and 1 or -1 -- 641
+	if e.kind == "target" then -- 641
+		local lean = not e.alive and f * cam:len(16) or (e.hitT > 0 and f * cam:len(8) or 0) -- 645
+		local postTopY = by + H * (e.alive and 0.78 or 0.42) -- 646
+		fgDraw:drawEllipse( -- 647
+			Vec2(cx, by + 1), -- 647
+			W * 0.52, -- 647
+			3.6, -- 647
+			Color(12, 11, 13, 140) -- 647
+		) -- 647
+		fgDraw:drawSegment( -- 649
+			Vec2( -- 649
+				cx - cam:len(9), -- 649
+				by -- 649
+			), -- 649
+			Vec2(cx + lean * 0.4, postTopY), -- 649
+			math.max( -- 649
+				2, -- 649
+				cam:len(3.2) -- 649
+			), -- 649
+			Color(92, 64, 42, 255) -- 649
+		) -- 649
+		fgDraw:drawSegment( -- 650
+			Vec2( -- 650
+				cx + cam:len(9), -- 650
+				by -- 650
+			), -- 650
+			Vec2(cx + lean * 0.4, postTopY), -- 650
+			math.max( -- 650
+				2, -- 650
+				cam:len(3.2) -- 650
+			), -- 650
+			Color(76, 52, 34, 255) -- 650
+		) -- 650
+		local discX = cx + lean -- 652
+		local discY = by + H * (e.alive and 0.56 or 0.3) -- 653
+		local discR = math.max( -- 654
+			7, -- 654
+			cam:len(13) -- 654
+		) -- 654
+		local hitTint = e.hitT > 0 or not e.alive -- 655
+		fgDraw:drawCircle( -- 656
+			Vec2(discX, discY), -- 656
+			discR, -- 656
+			hitTint and Color(214, 152, 116, 245) or Color(196, 174, 134, 250) -- 656
+		) -- 656
+		fgDraw:drawRing( -- 657
+			Vec2(discX, discY), -- 657
+			discR * 0.62, -- 657
+			discR * 0.76, -- 657
+			Color(0, 0, 0, 0), -- 657
+			1.4, -- 657
+			Color(62, 46, 34, 230) -- 657
+		) -- 657
+		fgDraw:drawCircle( -- 658
+			Vec2(discX, discY), -- 658
+			discR * 0.3, -- 658
+			toColor(PALETTE.rouge, hitTint and 255 or 220) -- 658
+		) -- 658
+		return -- 659
+	end -- 659
+	local slot = "enemy_idle" -- 662
+	if not e.alive then -- 662
+		slot = "enemy_down" -- 664
+	elseif e.hitT > 0 then -- 664
+		slot = "enemy_hit" -- 666
+	elseif e.warnT > 0 then -- 666
+		slot = "enemy_aim" -- 668
+	end -- 668
+	local height = e.alive and H or H * 0.24 -- 670
+	if assets:tryPlace( -- 670
+		slot, -- 671
+		"actor_enemy_" .. tostring(index), -- 671
+		cx, -- 671
+		by, -- 671
+		W, -- 671
+		height, -- 671
+		{ -- 671
+			facing = f, -- 672
+			opacity = e.alive and 1 or 0.78, -- 672
+			layer = p.room.depth == nil and 3 or depthOrder(depth, 3) -- 672
+		} -- 672
+	) then -- 672
+		if e.alive then -- 672
+			self:drawEnemyArchetypeGear( -- 675
+				fgDraw, -- 675
+				fgGlow, -- 675
+				e, -- 675
+				cx, -- 675
+				by, -- 675
+				H, -- 675
+				f, -- 675
+				cam -- 675
+			) -- 675
+			if e.warnT > 0 then -- 675
+				self:drawEnemyWarning( -- 677
+					fgGlow, -- 677
+					e, -- 677
+					p, -- 677
+					cam, -- 677
+					f -- 677
+				) -- 677
+			end -- 677
+		end -- 677
+		return -- 680
+	end -- 680
+	if not e.alive then -- 680
+		local flash = e.hitT > 0 and math.min(1, e.hitT / 0.4) or 0 -- 684
+		fgDraw:drawPolygon( -- 685
+			{ -- 685
+				Vec2(cx - H * 0.3, by), -- 686
+				Vec2(cx + H * 0.28, by), -- 687
+				Vec2(cx + H * 0.2, by + H * 0.14), -- 688
+				Vec2(cx - H * 0.24, by + H * 0.11) -- 689
+			}, -- 689
+			flash > 0.2 and Color(220, 120, 130, 220) or Color(28, 22, 34, 215) -- 690
+		) -- 690
+		if flash > 0 then -- 690
+			fillRadialGlow( -- 692
+				fgGlow, -- 692
+				cx, -- 692
+				by + 12, -- 692
+				34 * flash, -- 692
+				18 * flash, -- 692
+				toColor(PALETTE.crimson, 180 * flash), -- 692
+				Color(255, 48, 82, 0), -- 692
+				12 -- 692
+			) -- 692
+		end -- 692
+		return -- 694
+	end -- 694
+	local sw = H * 0.112 -- 697
+	fgDraw:drawEllipse( -- 698
+		Vec2(cx, by + 1), -- 698
+		sw * 1.9, -- 698
+		4, -- 698
+		Color(4, 6, 10, 165) -- 698
+	) -- 698
+	local hipY = by + H * 0.44 -- 701
+	local kneeY = by + H * 0.23 -- 702
+	local shY = by + H * 0.79 -- 703
+	fgDraw:drawSegment( -- 704
+		Vec2(cx - 5, hipY), -- 704
+		Vec2(cx - 7, kneeY), -- 704
+		H * 0.044, -- 704
+		Color(20, 16, 26, 255) -- 704
+	) -- 704
+	fgDraw:drawSegment( -- 705
+		Vec2(cx - 7, kneeY), -- 705
+		Vec2(cx - 8, by + 2), -- 705
+		H * 0.038, -- 705
+		Color(20, 16, 26, 255) -- 705
+	) -- 705
+	fgDraw:drawSegment( -- 706
+		Vec2(cx + 5, hipY), -- 706
+		Vec2(cx + 7, kneeY), -- 706
+		H * 0.046, -- 706
+		Color(28, 22, 36, 255) -- 706
+	) -- 706
+	fgDraw:drawSegment( -- 707
+		Vec2(cx + 7, kneeY), -- 707
+		Vec2(cx + 8, by + 2), -- 707
+		H * 0.04, -- 707
+		Color(28, 22, 36, 255) -- 707
+	) -- 707
+	fgDraw:drawPolygon( -- 709
+		{ -- 709
+			Vec2(cx - sw * 0.68, hipY), -- 710
+			Vec2(cx + sw * 0.68, hipY), -- 711
+			Vec2(cx + sw * 1.12, shY), -- 712
+			Vec2(cx - sw * 1.12, shY) -- 713
+		}, -- 713
+		Color(111, 68, 55, 255), -- 714
+		1.3, -- 714
+		Color(143, 101, 66, 220) -- 714
+	) -- 714
+	fgDraw:drawPolygon( -- 715
+		{ -- 715
+			Vec2(cx - sw * 1.26, shY - 6), -- 716
+			Vec2(cx + sw * 1.26, shY - 6), -- 717
+			Vec2(cx + sw * 0.96, shY + 5), -- 718
+			Vec2(cx - sw * 0.96, shY + 5) -- 719
+		}, -- 719
+		Color(98, 82, 62, 255) -- 720
+	) -- 720
+	local headR = H * 0.086 -- 722
+	local headY = shY + headR * 1.32 -- 723
+	fgDraw:drawCircle( -- 724
+		Vec2(cx, headY), -- 724
+		headR * 0.82, -- 724
+		Color(187, 142, 103, 255) -- 724
+	) -- 724
+	fgDraw:drawPolygon( -- 725
+		{ -- 725
+			Vec2(cx - headR * 1.65, headY + headR * 0.22), -- 726
+			Vec2(cx + headR * 1.65, headY + headR * 0.22), -- 727
+			Vec2(cx - f * headR * 0.18, headY + headR * 1.22) -- 728
+		}, -- 728
+		Color(136, 105, 65, 255), -- 729
+		1.1, -- 729
+		Color(177, 145, 91, 220) -- 729
+	) -- 729
+	local gunX = cx + f * H * 0.34 -- 731
+	local gunY = by + H * 0.69 -- 732
+	fgDraw:drawSegment( -- 733
+		Vec2(cx - f * 6, gunY - 2), -- 733
+		Vec2(gunX, gunY), -- 733
+		2.8, -- 733
+		Color(118, 87, 61, 255) -- 733
+	) -- 733
+	self:drawEnemyArchetypeGear( -- 734
+		fgDraw, -- 734
+		fgGlow, -- 734
+		e, -- 734
+		cx, -- 734
+		by, -- 734
+		H, -- 734
+		f, -- 734
+		cam -- 734
+	) -- 734
+	if e.warnT > 0 then -- 734
+		self:drawEnemyWarning( -- 736
+			fgGlow, -- 736
+			e, -- 736
+			p, -- 736
+			cam, -- 736
+			f -- 736
+		) -- 736
+	end -- 736
+end -- 627
+function ActorsRenderer.prototype.drawEnemyArchetypeGear(self, fgDraw, fgGlow, e, cx, by, H, f, cam) -- 741
+	if e.kind == "shield" and (e.shieldHp or 0) > 0 then -- 741
+		local shX = cx + f * cam:len(13) -- 752
+		local shW = math.max( -- 753
+			5, -- 753
+			cam:len(8) -- 753
+		) -- 753
+		local shH = H * 0.72 -- 754
+		local cracked = (e.shieldHp or 2) <= 1 -- 755
+		fgDraw:drawRect( -- 756
+			Rect(shX - shW * 0.5, by + H * 0.08, shW, shH), -- 757
+			cracked and Color(122, 82, 52, 245) or Color(96, 66, 42, 250), -- 758
+			1.3, -- 759
+			Color(168, 174, 180, 230) -- 760
+		) -- 760
+		fgDraw:drawCircle( -- 762
+			Vec2(shX, by + H * 0.44), -- 762
+			math.max( -- 762
+				2.2, -- 762
+				cam:len(3.5) -- 762
+			), -- 762
+			Color(142, 148, 154, 240) -- 762
+		) -- 762
+		if cracked then -- 762
+			fgDraw:drawSegment( -- 764
+				Vec2(shX - shW * 0.4, by + H * 0.28), -- 764
+				Vec2(shX + shW * 0.4, by + H * 0.58), -- 764
+				1.4, -- 764
+				Color(24, 18, 16, 235) -- 764
+			) -- 764
+		end -- 764
+	elseif e.kind == "breaker" then -- 764
+		local swing = (e.swingT or 0) > 0 -- 767
+		local handleX0 = cx - f * cam:len(4) -- 768
+		local handleY0 = by + H * 0.44 -- 769
+		local tipX = cx + f * cam:len(swing and 26 or 19) -- 770
+		local tipY = by + H * (swing and 0.46 or 0.78) -- 771
+		fgDraw:drawSegment( -- 772
+			Vec2(handleX0, handleY0), -- 772
+			Vec2(tipX, tipY), -- 772
+			math.max( -- 772
+				2.2, -- 772
+				cam:len(3) -- 772
+			), -- 772
+			Color(98, 66, 44, 255) -- 772
 		) -- 772
-		fgGlow:drawDot( -- 773
-			Vec2(cx, indY), -- 773
-			3, -- 773
-			toColor(PALETTE.amber) -- 773
-		) -- 773
-	elseif p.scavState == "turn" or p.scavState == "walk" then -- 774
-		drawDiamond( -- 775
-			fgGlow, -- 775
-			cx, -- 775
-			indY, -- 775
-			6, -- 775
-			8, -- 775
-			toColor(PALETTE.amber, 220) -- 775
-		) -- 775
-	end -- 775
-end -- 707
-function ActorsRenderer.prototype.drawDog(self, fgDraw, fgGlow, assets, p, cam) -- 780
-	local cx = cam:sx(p.dogX) -- 787
-	local by = cam:sy(0) -- 788
-	local f = p.dogState == "chase" and (p.player.x >= p.dogX and 1 or -1) or p.dogDir -- 789
-	local W = cam:len(42) -- 790
-	local H = cam:len(34) -- 791
-	local frame = 0 -- 793
-	if p.dogState == "ear" then -- 794
-		frame = 1 -- 795
-	elseif p.dogState == "sniff" then -- 796
-		frame = 3 -- 797
-	elseif p.dogState == "patrol" or p.dogState == "chase" or p.dogState == "back" then -- 798
-		frame = math.floor(self.animTime * (p.dogState == "chase" and 14 or 8)) % 2 == 0 and 0 or 2 -- 799
-	end -- 799
-	if assets:tryPlace( -- 801
-		"dog", -- 801
-		"actor_dog", -- 801
-		cx, -- 801
-		by, -- 801
-		W, -- 801
-		H, -- 801
-		{facing = f, frame = frame, layer = 3} -- 801
-	) then -- 801
-		return -- 802
-	end -- 802
-	fgDraw:drawEllipse( -- 805
-		Vec2(cx, by + 1), -- 805
-		W * 0.56, -- 805
-		3.5, -- 805
-		Color(4, 8, 10, 155) -- 805
-	) -- 805
-	local running = p.dogState == "patrol" or p.dogState == "chase" or p.dogState == "back" -- 806
-	local gallop = running and math.sin(self.animTime * (p.dogState == "chase" and 18 or 10)) * 9 or 0 -- 807
-	fgDraw:drawSegment( -- 810
-		Vec2(cx - f * W * 0.28, by + H * 0.48), -- 810
-		Vec2(cx - f * W * 0.36 - gallop, by + 2), -- 810
-		2.8, -- 810
-		Color(26, 30, 34, 255) -- 810
-	) -- 810
-	fgDraw:drawSegment( -- 811
-		Vec2(cx + f * W * 0.28, by + H * 0.48), -- 811
-		Vec2(cx + f * W * 0.34 + gallop, by + 2), -- 811
-		2.8, -- 811
-		Color(36, 40, 44, 255) -- 811
-	) -- 811
-	fgDraw:drawPolygon( -- 813
-		{ -- 813
-			Vec2(cx - W * 0.42, by + H * 0.36), -- 814
-			Vec2(cx + W * 0.38, by + H * 0.42), -- 815
-			Vec2(cx + W * 0.34, by + H * 0.78), -- 816
-			Vec2(cx - W * 0.38, by + H * 0.72) -- 817
-		}, -- 817
-		Color(38, 42, 48, 255), -- 818
-		1.2, -- 818
-		Color(102, 118, 126, 175) -- 818
-	) -- 818
-	local hx = cx + f * W * 0.42 -- 819
-	local hy = by + H * 0.84 -- 820
-	fgDraw:drawPolygon( -- 821
-		{ -- 821
-			Vec2(hx - f * 8, hy - 6), -- 822
-			Vec2(hx + f * 12, hy - 2), -- 823
-			Vec2(hx + f * 4, hy + 8), -- 824
-			Vec2(hx - f * 6, hy + 14) -- 825
-		}, -- 825
-		Color(44, 48, 54, 255) -- 826
-	) -- 826
-	local alert = p.dogState == "ear" or p.dogState == "chase" -- 828
-	local eyeCol = alert and PALETTE.crimson or PALETTE.amber -- 829
-	fgGlow:drawDot( -- 830
-		Vec2(hx + f * 4, hy + 2), -- 830
-		2.8, -- 830
-		toColor(eyeCol, 250) -- 830
-	) -- 830
-	fillRadialGlow( -- 831
-		fgGlow, -- 831
-		hx + f * 4, -- 831
-		hy + 2, -- 831
-		16, -- 831
-		16, -- 831
-		toColor(eyeCol, alert and 135 or 70), -- 831
-		Color(eyeCol.r, eyeCol.g, eyeCol.b, 0), -- 831
-		12 -- 831
+		fgDraw:drawPolygon( -- 773
+			{ -- 773
+				Vec2( -- 774
+					tipX - f * cam:len(3), -- 774
+					tipY - cam:len(4) -- 774
+				), -- 774
+				Vec2( -- 775
+					tipX + f * cam:len(9), -- 775
+					tipY - cam:len(1) -- 775
+				), -- 775
+				Vec2( -- 776
+					tipX + f * cam:len(7), -- 776
+					tipY + cam:len(9) -- 776
+				), -- 776
+				Vec2( -- 777
+					tipX - f * cam:len(2), -- 777
+					tipY + cam:len(6) -- 777
+				) -- 777
+			}, -- 777
+			Color(148, 154, 162, 250), -- 778
+			1, -- 778
+			Color(224, 228, 232, 220) -- 778
+		) -- 778
+		if swing then -- 778
+			fgGlow:drawArc( -- 780
+				Vec2( -- 780
+					cx + f * cam:len(10), -- 780
+					by + H * 0.56 -- 780
+				), -- 780
+				cam:len(18), -- 780
+				f > 0 and -40 or 140, -- 780
+				f > 0 and 50 or 230, -- 780
+				1.8, -- 780
+				toColor(PALETTE.rouge, 195) -- 780
+			) -- 780
+		end -- 780
+	elseif e.kind == "leader" then -- 780
+		local topY = by + H * 1.02 -- 784
+		fgDraw:drawSegment( -- 785
+			Vec2(cx, topY), -- 785
+			Vec2( -- 785
+				cx - f * cam:len(10), -- 785
+				topY + cam:len(9) -- 785
+			), -- 785
+			2.2, -- 785
+			toColor(PALETTE.rouge, 240) -- 785
+		) -- 785
+		fgDraw:drawDot( -- 786
+			Vec2( -- 786
+				cx - f * cam:len(10), -- 786
+				topY + cam:len(9) -- 786
+			), -- 786
+			2.6, -- 786
+			toColor(PALETTE.crimsonCore, 235) -- 786
+		) -- 786
+	end -- 786
+end -- 741
+function ActorsRenderer.prototype.drawScavenger(self, fgDraw, fgGlow, assets, p, cam) -- 791
+	local s = p.room.scavenger -- 798
+	if s == nil then -- 798
+		return -- 800
+	end -- 800
+	local cx = cam:sx(p.scavX) -- 802
+	local by = cam:sy(s.y) -- 803
+	local H = cam:len(s.h) -- 804
+	local W = cam:len(26) -- 805
+	local f = p.scavState == "chase" and (p.player.x >= p.scavX and 1 or -1) or p.scavDir -- 806
+	local alert = p.scavChase or p.scavSee > 0 -- 809
+	local coneCol = alert and PALETTE.crimson or PALETTE.amber -- 810
+	local eyeY = by + H * 0.8 -- 811
+	local coneLen = cam:len(alert and 155 or 115) -- 812
+	fgGlow:drawVertices({ -- 813
+		{ -- 814
+			Vec2(cx + f * 6, eyeY), -- 814
+			toColor(coneCol, alert and 78 or 34) -- 814
+		}, -- 814
+		{ -- 815
+			Vec2(cx + f * coneLen, by + H * 1.05), -- 815
+			Color(coneCol.r, coneCol.g, coneCol.b, 0) -- 815
+		}, -- 815
+		{ -- 816
+			Vec2(cx + f * coneLen, by + 4), -- 816
+			Color(coneCol.r, coneCol.g, coneCol.b, 0) -- 816
+		} -- 816
+	}) -- 816
+	local frame = 0 -- 819
+	if p.scavState == "turn" then -- 819
+		frame = 2 -- 821
+	elseif p.scavState == "chase" then -- 821
+		frame = math.floor(self.animTime * 12) % 2 == 0 and 3 or 1 -- 823
+	elseif p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" then -- 823
+		frame = math.floor(self.animTime * 8) % 2 -- 825
+	end -- 825
+	if assets:tryPlace( -- 825
+		"scavenger", -- 827
+		"actor_scav", -- 827
+		cx, -- 827
+		by, -- 827
+		W, -- 827
+		H, -- 827
+		{facing = f, frame = frame, layer = 3} -- 827
+	) then -- 827
+		return -- 828
+	end -- 828
+	fgDraw:drawEllipse( -- 831
+		Vec2(cx, by + 1), -- 831
+		W * 0.62, -- 831
+		4, -- 831
+		Color(4, 6, 10, 155) -- 831
 	) -- 831
-	if alert then -- 833
-		local r = 12 + self.animTime * 42 % 24 -- 834
-		fgGlow:drawArc( -- 835
-			Vec2(hx, hy + 12), -- 835
-			r, -- 835
-			35, -- 835
-			145, -- 835
-			1.8, -- 835
-			toColor(PALETTE.crimson, 210 * (1 - r / 38)) -- 835
-		) -- 835
-	end -- 835
-end -- 780
-return ____exports -- 780
+	local walk = p.scavState == "patrol" or p.scavState == "walk" or p.scavState == "back" or p.scavState == "chase" -- 832
+	local stride = walk and math.sin(self.animTime * (p.scavState == "chase" and 13 or 7)) * W * 0.36 or 0 -- 833
+	fgDraw:drawSegment( -- 835
+		Vec2(cx - 4, by + H * 0.4), -- 835
+		Vec2(cx - stride, by + 2), -- 835
+		W * 0.16, -- 835
+		Color(32, 30, 28, 255) -- 835
+	) -- 835
+	fgDraw:drawSegment( -- 836
+		Vec2(cx + 4, by + H * 0.4), -- 836
+		Vec2(cx + stride, by + 2), -- 836
+		W * 0.16, -- 836
+		Color(44, 40, 36, 255) -- 836
+	) -- 836
+	fgDraw:drawPolygon( -- 838
+		{ -- 838
+			Vec2(cx - W * 0.45, by + H * 0.25), -- 839
+			Vec2(cx + W * 0.42, by + H * 0.25), -- 840
+			Vec2(cx + f * W * 0.22 + W * 0.32, by + H * 0.78), -- 841
+			Vec2(cx + f * W * 0.22 - W * 0.34, by + H * 0.74) -- 842
+		}, -- 842
+		Color(56, 52, 46, 255), -- 843
+		1.2, -- 843
+		Color(128, 118, 100, 180) -- 843
+	) -- 843
+	local headX = cx + f * 5 -- 845
+	local headY = by + H * 0.88 -- 846
+	fgDraw:drawCircle( -- 847
+		Vec2(headX, headY), -- 847
+		W * 0.3, -- 847
+		Color(42, 38, 34, 255) -- 847
+	) -- 847
+	fgGlow:drawDot( -- 848
+		Vec2(headX + f * 6, headY), -- 848
+		3, -- 848
+		toColor(coneCol, 245) -- 848
+	) -- 848
+	local indY = by + H + 18 -- 851
+	if p.scavChase then -- 851
+		drawDiamond( -- 853
+			fgGlow, -- 853
+			cx, -- 853
+			indY, -- 853
+			9, -- 853
+			12, -- 853
+			toColor(PALETTE.crimson, 240), -- 853
+			1.5, -- 853
+			toColor(PALETTE.crimsonCore) -- 853
+		) -- 853
+	elseif p.scavSee > 0 then -- 853
+		local frac = math.min(1, p.scavSee / 24) -- 855
+		fgGlow:drawArc( -- 856
+			Vec2(cx, indY), -- 856
+			11, -- 856
+			90, -- 856
+			90 - 360 * frac, -- 856
+			2.4, -- 856
+			toColor(PALETTE.crimson, 235) -- 856
+		) -- 856
+		fgGlow:drawDot( -- 857
+			Vec2(cx, indY), -- 857
+			3, -- 857
+			toColor(PALETTE.amber) -- 857
+		) -- 857
+	elseif p.scavState == "turn" or p.scavState == "walk" then -- 857
+		drawDiamond( -- 859
+			fgGlow, -- 859
+			cx, -- 859
+			indY, -- 859
+			6, -- 859
+			8, -- 859
+			toColor(PALETTE.amber, 220) -- 859
+		) -- 859
+	end -- 859
+end -- 791
+function ActorsRenderer.prototype.drawDog(self, fgDraw, fgGlow, assets, p, cam) -- 864
+	local cx = cam:sx(p.dogX) -- 871
+	local by = cam:sy(0) -- 872
+	local f = p.dogState == "chase" and (p.player.x >= p.dogX and 1 or -1) or p.dogDir -- 873
+	local W = cam:len(42) -- 874
+	local H = cam:len(34) -- 875
+	local frame = 0 -- 877
+	if p.dogState == "ear" then -- 877
+		frame = 1 -- 879
+	elseif p.dogState == "sniff" then -- 879
+		frame = 3 -- 881
+	elseif p.dogState == "patrol" or p.dogState == "chase" or p.dogState == "back" then -- 881
+		frame = math.floor(self.animTime * (p.dogState == "chase" and 14 or 8)) % 2 == 0 and 0 or 2 -- 883
+	end -- 883
+	if assets:tryPlace( -- 883
+		"dog", -- 885
+		"actor_dog", -- 885
+		cx, -- 885
+		by, -- 885
+		W, -- 885
+		H, -- 885
+		{facing = f, frame = frame, layer = 3} -- 885
+	) then -- 885
+		return -- 886
+	end -- 886
+	fgDraw:drawEllipse( -- 889
+		Vec2(cx, by + 1), -- 889
+		W * 0.56, -- 889
+		3.5, -- 889
+		Color(4, 8, 10, 155) -- 889
+	) -- 889
+	local running = p.dogState == "patrol" or p.dogState == "chase" or p.dogState == "back" -- 890
+	local gallop = running and math.sin(self.animTime * (p.dogState == "chase" and 18 or 10)) * 9 or 0 -- 891
+	fgDraw:drawSegment( -- 894
+		Vec2(cx - f * W * 0.28, by + H * 0.48), -- 894
+		Vec2(cx - f * W * 0.36 - gallop, by + 2), -- 894
+		2.8, -- 894
+		Color(26, 30, 34, 255) -- 894
+	) -- 894
+	fgDraw:drawSegment( -- 895
+		Vec2(cx + f * W * 0.28, by + H * 0.48), -- 895
+		Vec2(cx + f * W * 0.34 + gallop, by + 2), -- 895
+		2.8, -- 895
+		Color(36, 40, 44, 255) -- 895
+	) -- 895
+	fgDraw:drawPolygon( -- 897
+		{ -- 897
+			Vec2(cx - W * 0.42, by + H * 0.36), -- 898
+			Vec2(cx + W * 0.38, by + H * 0.42), -- 899
+			Vec2(cx + W * 0.34, by + H * 0.78), -- 900
+			Vec2(cx - W * 0.38, by + H * 0.72) -- 901
+		}, -- 901
+		Color(38, 42, 48, 255), -- 902
+		1.2, -- 902
+		Color(102, 118, 126, 175) -- 902
+	) -- 902
+	local hx = cx + f * W * 0.42 -- 903
+	local hy = by + H * 0.84 -- 904
+	fgDraw:drawPolygon( -- 905
+		{ -- 905
+			Vec2(hx - f * 8, hy - 6), -- 906
+			Vec2(hx + f * 12, hy - 2), -- 907
+			Vec2(hx + f * 4, hy + 8), -- 908
+			Vec2(hx - f * 6, hy + 14) -- 909
+		}, -- 909
+		Color(44, 48, 54, 255) -- 910
+	) -- 910
+	local alert = p.dogState == "ear" or p.dogState == "chase" -- 912
+	local eyeCol = alert and PALETTE.crimson or PALETTE.amber -- 913
+	fgGlow:drawDot( -- 914
+		Vec2(hx + f * 4, hy + 2), -- 914
+		2.8, -- 914
+		toColor(eyeCol, 250) -- 914
+	) -- 914
+	fillRadialGlow( -- 915
+		fgGlow, -- 915
+		hx + f * 4, -- 915
+		hy + 2, -- 915
+		16, -- 915
+		16, -- 915
+		toColor(eyeCol, alert and 135 or 70), -- 915
+		Color(eyeCol.r, eyeCol.g, eyeCol.b, 0), -- 915
+		12 -- 915
+	) -- 915
+	if alert then -- 915
+		local r = 12 + self.animTime * 42 % 24 -- 918
+		fgGlow:drawArc( -- 919
+			Vec2(hx, hy + 12), -- 919
+			r, -- 919
+			35, -- 919
+			145, -- 919
+			1.8, -- 919
+			toColor(PALETTE.crimson, 210 * (1 - r / 38)) -- 919
+		) -- 919
+	end -- 919
+end -- 864
+return ____exports -- 864

@@ -81,6 +81,7 @@ export interface CuffShotDebugState {
 }
 
 const GATE_AUDIO_ROOT = "assets/audio/gate/";
+const REUNION_ART = "assets/art/gate/reunion.png";
 const LINE_P05 = "「小满，慢慢数到二十。哥要是还没出来，你就往北塔走。」";
 const LINE_G05 = "「我们走吧。」";
 
@@ -418,6 +419,29 @@ function drawZhouShuReunionPortrait(
     inkDraw.drawRect(Rect(x0, y0, cardW, cardH), Color(0, 0, 0, 0), 1.1, toColor(PALETTE.silkDim, Math.round(165 * a)));
     inkDraw.drawRect(Rect(x0 + 4, y0 + 4, cardW - 8, cardH - 8), Color(0, 0, 0, 0), 0.7, toColor(PALETTE.amber, Math.round(78 * a)));
     fillRadialGlow(glow, cx + 12 * s, cy + 22 * s, 96 * s, 96 * s, Color(214, 224, 236, Math.round(38 * a)), Color(120, 148, 178, 0), 16);
+}
+
+function drawReunionArt(
+    draw: DrawNode.Type, art: AssetSlotHost,
+    w: number, h: number, tilt: number, alpha: number,
+): boolean {
+    if (alpha <= 0.01) {
+        return false;
+    }
+    // 构图以握住的手为中心。抬镜时手向画面下方滑，眼神渐成为焦点。
+    const height = h * (0.92 - 0.19 * tilt);
+    const handY = h * (0.437 - 0.095 * tilt);
+    const placed = art.tryPlacePath(
+        REUNION_ART, "g05_reunion_two_shot", w * 0.505, handY, height * 1.16, height,
+        { anchorX: 0.66, anchorY: 0.51, opacity: alpha, layer: 3, smooth: true },
+    );
+    if (placed) {
+        fillVGradRect(draw, 0, 0, w, h,
+            Color(7, 11, 18, Math.round(218 * alpha)),
+            Color(9, 16, 27, Math.round(142 * alpha)),
+        );
+    }
+    return placed;
 }
 
 export class CuffShotsPlugin implements FeRenderPlugin {
@@ -997,7 +1021,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         const view = ctx.view;
         const gr = view.gateReunion;
         const completed = ctx.p.phase === "gate-hand" || gr.completed;
-        const ext = clamp01(this.g05SleeveExtend);
+        const ext = smoothstep(0, 1, this.g05SleeveExtend);
 
         if (!completed) {
             // 等待 / 长按阶段：风台安静安全；随按住交互，补线袖口从左画边探出迎向小满抬起的手
@@ -1033,12 +1057,6 @@ export class CuffShotsPlugin implements FeRenderPlugin {
                     true,
                 );
 
-                // 极细霜月进度丝（贴近底部黑边，无现代仪表感）
-                const barW = 240;
-                const bx0 = w * 0.5 - barW * 0.5;
-                const by0 = 32;
-                uiInkDraw.drawSegment(Vec2(bx0, by0), Vec2(bx0 + barW, by0), 1.2, toColor(PALETTE.silkDim, 110));
-                uiInkDraw.drawSegment(Vec2(bx0, by0), Vec2(bx0 + barW * ext, by0), 2.4, toColor(PALETTE.amberCore, 230));
             } else {
                 // 尚未按下或已退回画边：仅在左缘露出一截极淡的补线衣角呼吸微动（零文字强引导）
                 const peekPulse = 0.5 + 0.5 * Math.sin(this.animTime * 2.4);
@@ -1077,14 +1095,14 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         const t = this.g05ReunionElapsed;
         const claspPull = smoothstep(0.0, 0.35, t);
         const tilt = smoothstep(G05_PIXEL_RETURN_START, G05_PIXEL_RETURN_END, t);
-        const armDropY = tilt * (h * 0.26);
-
-        // 1. 相握的双手与回抽一点露掌心的补线袖口（随抬镜自然下沉至画面下部）
-        const claspFade = 1 - smoothstep(0.95, 1.45, t) * 0.45;
+        const armDropY = tilt * (h * 0.095);
+        const artAlpha = smoothstep(0.10, 0.48, t) * (1 - smoothstep(1.19, 1.50, t) * 0.82);
+        const placed = drawReunionArt(uiDraw, uiArt, w, h, tilt, artAlpha);
+        const claspFade = (placed ? 1 - artAlpha : 1) * (1 - smoothstep(0.95, 1.48, t));
         drawPatchedCuff(uiDraw, uiGlow, {
-            wristX: w * 0.44,
+            wristX: w * 0.43,
             wristY: h * 0.44 - armDropY,
-            angleRad: -0.05 + tilt * 0.22,
+            angleRad: -0.05 + tilt * 0.18,
             scale: 1.08,
             pose: "clasp",
             opacity: claspFade,
@@ -1092,22 +1110,15 @@ export class CuffShotsPlugin implements FeRenderPlugin {
             cuffPullBack: claspPull * 0.85,
             warmth: tilt * 0.32,
         });
-        drawChildHand(
-            uiDraw,
-            w * 0.53,
-            h * 0.43 - armDropY,
-            Math.PI + 0.05 - tilt * 0.14,
-            1.08,
-            "clasp",
-            claspFade,
-            true,
-        );
+        if (claspFade > 0.01) {
+            drawChildHand(
+                uiDraw, w * 0.53, h * 0.43 - armDropY,
+                Math.PI + 0.05 - tilt * 0.14, 1.08, "clasp", claspFade, true,
+            );
+        }
 
-        // 2. 沿相握手臂抬镜显现序章像素风周戍近景（置于右半留白区，绝不遮挡左侧实景重逢双人）
-        const portraitAlpha = smoothstep(0.32, 0.88, t);
-        if (portraitAlpha > 0.02) {
-            const py = h * 0.56 + (1 - portraitAlpha) * 26;
-            drawZhouShuReunionPortrait(uiDraw, uiInkDraw, uiArt, uiGlow, w * 0.72, py, 1.0, portraitAlpha);
+        if (!placed && tilt > 0.02) {
+            drawZhouShuReunionPortrait(uiDraw, uiInkDraw, uiArt, uiGlow, w * 0.72, h * 0.56, 1.0, tilt);
         }
 
         // 3. 单次定稿台词「我们走吧。」（0.78s 浮现，兼容 live 1.5s 切房与排演 4s 定格）
@@ -1145,7 +1156,10 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         const bgBot = lerpRGBA(rgba(10, 15, 24, 250), rgba(14, 18, 26, 250), tilt);
         fillVGradRect(uiDraw, bx, by, boxW, boxH, toColor(bgBot), toColor(bgTop));
 
-        if (tilt > 0.05) {
+        const artAlpha = smoothstep(1.55, 2.1, t);
+        const placed = drawReunionArt(uiDraw, uiArt, w, h, tilt, artAlpha);
+        const handAlpha = placed ? 1 - artAlpha : 1;
+        if (!placed && tilt > 0.05) {
             drawZhouShuReunionPortrait(uiDraw, uiInkDraw, uiArt, uiGlow, bx + boxW * 0.72, by + boxH * 0.54 + (1 - tilt) * 24, 0.92, tilt);
         }
 
@@ -1155,7 +1169,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
             angleRad: -0.05 + tilt * 0.20,
             scale: 1.06,
             pose: t >= 1.40 ? "clasp" : "reach",
-            opacity: clamp01(0.25 + holdExt * 0.75),
+            opacity: handAlpha * clamp01(0.25 + holdExt * 0.75),
             stitchHighlight: 0.45 + 0.45 * holdExt * (1 - tilt * 0.4),
             cuffPullBack: claspPull * 0.85,
             warmth: tilt * 0.32,
@@ -1167,11 +1181,13 @@ export class CuffShotsPlugin implements FeRenderPlugin {
             Math.PI + 0.06,
             1.06,
             t >= 1.40 ? "clasp" : "reach_up",
-            clamp01(0.35 + holdExt * 0.65),
+            handAlpha * clamp01(0.35 + holdExt * 0.65),
             true,
         );
 
-        uiInkDraw.drawRect(Rect(bx, by, boxW, boxH), Color(0, 0, 0, 0), 1.0, toColor(PALETTE.silkDim, 145));
+        if (handAlpha > 0.01) {
+            uiInkDraw.drawRect(Rect(bx, by, boxW, boxH), Color(0, 0, 0, 0), 1.0, toColor(PALETTE.silkDim, Math.round(145 * handAlpha)));
+        }
 
         const lineAlpha = smoothstep(2.35, 2.65, t);
         if (lineAlpha > 0.02) {

@@ -1,13 +1,15 @@
 /** 角色像素帧随玩法姿态切换，脚底与当前相机共用世界坐标。 */
 
 import { Color, DrawNode, Rect, Vec2 } from "Dora";
-import { Actor, Enemy, Play, Trace } from "Script/watch/play";
+import { Actor, Enemy, GATE_COUNT_END, Play, Trace } from "Script/watch/play";
+import { STEP } from "Script/watch/clock";
 import { FEAR_MAX } from "Script/watch/escort";
 import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, overlapsDepth } from "Script/watch/depth";
 import { depthOrder } from "Script/watch/fe/occlusion";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
 import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/theme";
+import { smoothstep } from "Script/watch/fe/renderer/lowpoly";
 
 interface Afterimage {
     x: number;
@@ -20,10 +22,52 @@ interface Afterimage {
     isRoll: boolean;
 }
 
+interface Stride {
+    actor: Actor;
+    x: number;
+    depth: number;
+    speed: number;
+    cycle: number;
+    effort: number;
+}
+
+function strideAt(actor: Actor): Stride {
+    return { actor, x: actor.x, depth: actor.depth, speed: 0, cycle: 0, effort: 0 };
+}
+
+const RUN_START_T = 0.10;
+const RUN_STOP_T = 0.13;
+
+function advanceStride(stride: Stride, steps: number, dt: number): void {
+    const a = stride.actor;
+    if (steps > 0) {
+        const dx = a.x - stride.x;
+        const depth = a.depth - stride.depth;
+        const speed = Math.sqrt(dx * dx + depth * depth) / (steps * STEP);
+        stride.speed = speed <= 380 ? speed : 0;
+        stride.x = a.x;
+        stride.depth = a.depth;
+    }
+    if (!a.alive || !a.onGround || a.crouch || a.covered || a.rollT > 0) {
+        stride.effort = 0;
+        return;
+    }
+    if (stride.speed > 8) {
+        stride.effort = Math.min(1, stride.effort + dt / RUN_START_T);
+        const strideLength = a.h * (a.w <= 28 ? 1.40 : 1.32);
+        stride.cycle = (stride.cycle + stride.speed * dt / strideLength) % 1;
+    } else {
+        stride.effort = Math.max(0, stride.effort - dt / RUN_STOP_T);
+    }
+}
+
 export class ActorsRenderer {
     private ghosts: Afterimage[] = [];
     private ghostCooldown = 0;
     private animTime = 0;
+    private strideTick = 0;
+    private playerStride: Stride | undefined;
+    private partnerStride: Stride | undefined;
     private previousHp = 3;
     private previousAxle = 0;
     private cartMoving = false;
@@ -37,6 +81,9 @@ export class ActorsRenderer {
         this.ghosts = [];
         this.ghostCooldown = 0;
         this.animTime = 0;
+        this.strideTick = p.ticks;
+        this.playerStride = strideAt(p.player);
+        this.partnerStride = strideAt(p.partner);
         this.previousHp = p.hp;
         this.previousAxle = p.cartAxle;
         this.cartMoving = false;
@@ -64,6 +111,16 @@ export class ActorsRenderer {
         this.previousHp = p.hp;
         this.previousBottle = p.hasBottle;
         this.previousTrace = p.trace;
+        if (this.playerStride?.actor !== p.player) {
+            this.playerStride = strideAt(p.player);
+        }
+        if (this.partnerStride?.actor !== p.partner) {
+            this.partnerStride = strideAt(p.partner);
+        }
+        const steps = Math.max(0, p.ticks - this.strideTick);
+        advanceStride(this.playerStride, steps, dt);
+        advanceStride(this.partnerStride, steps, dt);
+        this.strideTick = p.ticks;
         // 周戍翻滚期间高频采样贴地扬尘步烟
         if (!p.childMode && p.player.rollT > 0) {
             this.ghostCooldown -= dt;
@@ -126,7 +183,10 @@ export class ActorsRenderer {
         }
 
         // 5. 同伴（先画同伴，再画主角，确保主角层级最突出；背负插件接管时一并跳过原生精灵与脚底阴影）
-        if (p.partner.alive && !suppressPartner) {
+        const gateCloseUp = p.room.key === "gate" && p.phase === "gate-hand" && p.phaseTick >= 22;
+        const partnerInsideGate = p.childMode && p.room.key === "gate" &&
+            (p.phase === "gate-count" || p.phase === "gate-wait" || p.phase === "gate-walk");
+        if (p.partner.alive && !suppressPartner && !partnerInsideGate && !gateCloseUp) {
             const partnerIsChild = p.partner.w <= 28;
             if (partnerIsChild) {
                 this.drawXiaoman(fgDraw, fgGlow, assets, p.partner, p, cam, false);
@@ -136,7 +196,7 @@ export class ActorsRenderer {
         }
 
         // 6. 当前操控主角
-        if (p.player.alive) {
+        if (p.player.alive && !gateCloseUp) {
             if (p.childMode) {
                 this.drawXiaoman(fgDraw, fgGlow, assets, p.player, p, cam, true);
             } else {
@@ -253,9 +313,12 @@ export class ActorsRenderer {
             slot = "soldier_run";
             frame = step;
         }
-        if (assets.tryPlace(slot, "actor_soldier", cx, by, W, height, {
-            facing, frame, layer: depthEnabled ? depthOrder(a.depth, 4) : 4,
-        })) {
+        const pose = { facing, frame, layer: depthEnabled ? depthOrder(a.depth, 4) : 4, };
+        const gait = isControlled ? this.playerStride : this.partnerStride;
+        const running = (slot === "soldier_run" || slot === "soldier_idle") && a.onGround
+            && gait !== undefined && gait.effort > 0
+            && assets.tryPlaceRun("soldier", "actor_soldier", cx, by, W, height, gait.cycle, pose, gait.effort);
+        if (running || assets.tryPlace(slot, "actor_soldier", cx, by, W, height, pose)) {
             fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.54, 4, Color(12, 11, 13, 145));
             return;
         }
@@ -422,10 +485,31 @@ export class ActorsRenderer {
             slot = "child_run";
             frame = step;
         }
-        const facing = slot === "child_pull" ? (p.room.cart.handleOffset < 0 ? 1 : -1) : f;
-        if (assets.tryPlace(slot, "actor_child", cx, by, W, height, {
-            facing, frame, layer: depthEnabled ? depthOrder(a.depth, 5) : 5,
-        })) {
+        let facing = slot === "child_pull" ? (p.room.cart.handleOffset < 0 ? 1 : -1) : f;
+        let angle = 0;
+        if (isControlled && p.room.key === "gate") {
+            if (p.phase === "gate-count") {
+                const tick = p.countTick;
+                const lean = smoothstep(1080, 1140, tick) * (1 - smoothstep(1432, 1462, tick));
+                const settle = smoothstep(GATE_COUNT_END, GATE_COUNT_END + 18, tick) *
+                    (1 - smoothstep(GATE_COUNT_END + 23, GATE_COUNT_END + 46, tick));
+                facing = tick < GATE_COUNT_END + 36 ? -1 : 1;
+                angle = -12 * lean + 5 * settle;
+                height *= 1 - 0.035 * lean - 0.048 * settle + 0.009 * Math.sin(this.animTime * 2.6);
+            } else if (p.phase === "gate-wait") {
+                facing = -1;
+                if (p.knocks >= 2) {
+                    slot = "child_knock";
+                    angle = -4 * smoothstep(12, 25, p.phaseTick);
+                }
+            }
+        }
+        const pose = { facing, frame, angle, layer: depthEnabled ? depthOrder(a.depth, 5) : 5, };
+        const gait = isControlled ? this.playerStride : this.partnerStride;
+        const running = (slot === "child_run" || slot === "child_idle") && a.onGround
+            && gait !== undefined && gait.effort > 0
+            && assets.tryPlaceRun("child", "actor_child", cx, by, W, height, gait.cycle, pose, gait.effort);
+        if (running || assets.tryPlace(slot, "actor_child", cx, by, W, height, pose)) {
             fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.48, 3, Color(12, 11, 13, 125));
             if (afraid) {
                 this.drawFear(fgGlow, p, cx, by + height + 14);

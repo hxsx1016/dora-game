@@ -1,4 +1,4 @@
-import { Color, Content, Node, Sprite, TextureFilter, Vec2 } from "Dora";
+import { Color, Content, Node, Rect, Size, Sprite, TextureFilter, Vec2 } from "Dora";
 
 export type AssetSlotKey =
     | "bgFar_prologue" | "bgFar_street" | "bgFar_checkpoint" | "bgFar_gate"
@@ -64,6 +64,30 @@ function inkClip(name: string, preserveAspect: boolean = false): AssetSlotConfig
 function actor(names: string | string[], anchorX?: number | number[]): AssetSlotConfig {
     return clip(names, 0, true, anchorX);
 }
+
+export const RUN_FRAME_COUNT = 160;
+export const RUN_TRANSITION_PHASES = 8;
+export const RUN_TRANSITION_LEVELS = 12;
+const ATLAS_GUTTER = 2;
+
+interface MotionAtlas {
+    path: string;
+    width: number;
+    height: number;
+    columns: number;
+}
+
+const RUN_ATLASES = {
+    soldier: { path: "assets/art/zhoushu-run.png", width: 180, height: 200, columns: 10 },
+    child: { path: "assets/art/xiaoman-run.png", width: 144, height: 164, columns: 10 },
+};
+const RUN_TRANSITIONS = {
+    soldier: { ...RUN_ATLASES.soldier, path: "assets/art/zhoushu-run-transition.png", columns: RUN_TRANSITION_PHASES },
+    child: { ...RUN_ATLASES.child, path: "assets/art/xiaoman-run-transition.png", columns: RUN_TRANSITION_PHASES },
+};
+
+const HD_ACTOR_CLIP = "assets/art/actors-hd.clip|";
+const BASE_ACTOR_CLIP = "assets/art/sprites.clip|";
 
 export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     bgFar_prologue: backdrop("prologue"),
@@ -176,6 +200,7 @@ export function unregisterDynamicSlot(key: string): void {
 }
 
 export class AssetSlotHost {
+    private hdCast = false;
     private container: Node.Type;
     private sprites: Record<string, Sprite.Type> = {};
     private unavailable: Record<string, boolean> = {};
@@ -192,6 +217,10 @@ export class AssetSlotHost {
     /** 在当前宿主实例上注册动态资源槽（也可使用顶层 registerDynamicSlot 全局注册） */
     registerDynamicSlot(key: string, cfg: AssetSlotConfig): void {
         this.localSlots[key] = cfg;
+    }
+
+    setHdCast(enabled: boolean): void {
+        this.hdCast = enabled;
     }
 
     beginFrame(): void {
@@ -214,7 +243,65 @@ export class AssetSlotHost {
         const anchorX = typeof cfg.anchorX === "number"
             ? cfg.anchorX
             : (cfg.anchorX !== undefined ? (cfg.anchorX[frame] ?? 0.5) : 0.5);
+        if (this.hdCast && path.startsWith(BASE_ACTOR_CLIP)
+            && (slotKey.startsWith("child_") || slotKey.startsWith("soldier_"))) {
+            const hdPath = HD_ACTOR_CLIP + path.slice(BASE_ACTOR_CLIP.length);
+            if (this.placeResolvedPath(hdPath, 0.5, cfg.anchorY, true, false, instanceKey, x, y, targetW, targetH, options)) {
+                return true;
+            }
+        }
         return this.placeResolvedPath(path, anchorX, cfg.anchorY, cfg.preserveAspect, cfg.smooth === true, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    /** 循环进度为圈数。每个人物只复用一个精灵节点，逐帧改同一张贴图的采样范围。 */
+    tryPlaceRun(
+        actor: keyof typeof RUN_ATLASES,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        cycles: number,
+        options: SpritePlacement = {},
+        effort: number = 1,
+    ): boolean {
+        if (!this.hdCast) {
+            return false;
+        }
+        if (effort < 1 && this.tryPlaceRunTransition(actor, instanceKey, x, y, targetW, targetH, cycles, effort, options)) {
+            return true;
+        }
+        const frame = Math.floor((cycles - Math.floor(cycles)) * RUN_FRAME_COUNT);
+        return this.tryPlaceMotionFrame(RUN_ATLASES[actor], frame, instanceKey, x, y, targetW, targetH, options);
+    }
+
+    /** 部分步幅沿用当前步相，急停后可收回同一只脚。 */
+    private tryPlaceRunTransition(
+        actor: keyof typeof RUN_TRANSITIONS,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        cycles: number, effort: number,
+        options: SpritePlacement = {},
+    ): boolean {
+        const phase = Math.floor((cycles - Math.floor(cycles)) * RUN_TRANSITION_PHASES + 0.5) % RUN_TRANSITION_PHASES;
+        const level = Math.max(0, Math.min(RUN_TRANSITION_LEVELS - 1, Math.round(effort * (RUN_TRANSITION_LEVELS + 1)) - 1));
+        return this.tryPlaceMotionFrame(RUN_TRANSITIONS[actor], level * RUN_TRANSITION_PHASES + phase,
+            instanceKey, x, y, targetW, targetH, options);
+    }
+
+    private tryPlaceMotionFrame(
+        atlas: MotionAtlas,
+        frame: number,
+        instanceKey: string,
+        x: number, y: number, targetW: number, targetH: number,
+        options: SpritePlacement,
+    ): boolean {
+        if (targetW <= 0 || targetH <= 0) {
+            return false;
+        }
+        const { path, width, height, columns } = atlas;
+        const col = frame % columns;
+        const row = Math.floor(frame / columns);
+        const rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER,
+            row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height);
+        return this.placeResolvedPath(path, 0.5, 0, true, false, instanceKey, x, y, targetW, targetH, options, rect);
     }
 
     /** 按具体资源路径或 clip 帧路径直接放置精灵，缺失时静默返回 false */
@@ -251,6 +338,7 @@ export class AssetSlotHost {
         instanceKey: string,
         x: number, y: number, targetW: number, targetH: number,
         options: SpritePlacement,
+        textureRect?: Rect.Type,
     ): boolean {
         const key = instanceKey + ":" + path;
         let sprite = this.sprites[key];
@@ -265,6 +353,9 @@ export class AssetSlotHost {
                 this.unavailable[path] = true;
                 return false;
             }
+            if (textureRect !== undefined) {
+                loaded.size = Size(textureRect.width, textureRect.height);
+            }
             loaded.anchor = Vec2(anchorX, anchorY);
             loaded.filter = smooth ? TextureFilter.Anisotropic : TextureFilter.Point;
             loaded.addTo(this.container);
@@ -272,9 +363,12 @@ export class AssetSlotHost {
             sprite = loaded;
         }
 
-        const scaleY = targetH / Math.max(1, sprite.height);
+        if (textureRect !== undefined) {
+            sprite.textureRect = textureRect;
+        }
+        const scaleY = targetH / Math.max(1, textureRect?.height ?? sprite.height);
         const scaleX = preserveAspect ? scaleY : targetW / Math.max(1, sprite.width);
-        sprite.position = Vec2(Math.round(x), Math.round(y));
+        sprite.position = textureRect === undefined ? Vec2(Math.round(x), Math.round(y)) : Vec2(x, y);
         sprite.scaleX = (options.facing ?? 1) < 0 ? -scaleX : scaleX;
         sprite.scaleY = options.flipY ? -scaleY : scaleY;
         sprite.angle = options.angle ?? 0;

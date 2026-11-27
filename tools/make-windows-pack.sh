@@ -211,6 +211,19 @@ for required in \
     "assets/art/brand/team_logo_dark.png" \
     "assets/art/brand/team_badge.png" \
     "assets/art/brand/app_icon.png" \
+    "assets/art/gate/moat-night.png" \
+    "assets/art/gate/brick-gate.png" \
+    "assets/art/gate/moat-flat.png" \
+    "assets/art/gate/brick-flat.png" \
+    "assets/art/gate/stone-apron.png" \
+    "assets/art/gate/board-edge.png" \
+    "assets/art/gate/reunion.png" \
+    "assets/art/actors-hd.clip" \
+    "assets/art/actors-hd.png" \
+    "assets/art/xiaoman-run.png" \
+    "assets/art/xiaoman-run-transition.png" \
+    "assets/art/zhoushu-run.png" \
+    "assets/art/zhoushu-run-transition.png" \
     "assets/art/sprites.clip" \
     "assets/font/lxgw-neo-zhisong.ttf" \
     "assets/font/longcang-brush.ttf" \

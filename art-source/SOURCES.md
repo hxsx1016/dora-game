@@ -19,6 +19,36 @@
 - 本项目源代码遵循根目录 `LICENSE`（Apache-2.0），美术与音频声明同步登记于 `docs/AI使用与素材声明.md`。
 - `assets/font/longcang-brush.ttf`：龙藏体（[Google Fonts Long Cang](https://github.com/google/fonts/tree/main/ofl/longcang)），按标题/章名/孤印/中文大写数字及常用字子集化，采用 SIL Open Font License 1.1（见 `assets/font/OFL-LongCang.txt`）。
 
+## 风台数到二十（Issue #8）
+
+场景继续使用风台两条故事路线、双锚点和现有分轨。风台环境与重逢像素特写用 Codex 内置 ImageGen 出图，沿用《向西守望》的明初宁村所设定与原有人物图集姿态。入库 PNG 均随离线包分发，运行时素材可在 [assets/art/gate](../assets/art/gate) 查看。
+
+- [moat-night.png](../assets/art/gate/moat-night.png) 为海壕、远墙与北塔远景。[moat-flat.png](../assets/art/gate/moat-flat.png) 是同构图的 320 × 180 像素底。
+- [brick-gate.png](../assets/art/gate/brick-gate.png) 为砖券木门正面。[brick-flat.png](../assets/art/gate/brick-flat.png) 为同一立面的低分辨率图。[stone-apron.png](../assets/art/gate/stone-apron.png) 和 [board-edge.png](../assets/art/gate/board-edge.png) 取同图的砖石和木纹，分别用于走面侧壁和栈台前缘。
+- 风台、出城及牵手段使用 [角色动作分支 b2235f4](https://github.com/hxsx1016/dora-game/commit/b2235f4ca0f3c06015e10a8a11b9bf47a7bf2ea3) 的高清角色图集与起步、跑步、停步图集。运行时图集按该提交原样复用。
+- [reunion.png](../assets/art/gate/reunion.png) 按同一套高清角色图集校正面部与服装，裁切留出透明边缘，以相握的手为锚点。
+- 风、水、数声、敲门和重逢继续采用项目已登记的 [风台分轨清册](../assets/audio/gate/MANIFEST.md)。
+
+### 生成原画提示词
+
+#### 护城河远景
+
+```text
+Use case: historical-scene. Create a single polished widescreen 16:9 background matte painting for the night cutscene of the original Chinese indie game 《向西守望》. The view is from just outside a Ming-dynasty coastal garrison water gate, inspired by early Ming Ningcun Suo in Wenzhou. Only paint the far and middle distance: the game will draw the close gate, wooden walkway and two-dimensional character separately. Eye height low, fixed side-view game composition, looking across a dark tidal moat toward a receding grey brick Ming seawall and layered low coastal hills. Keep the left 35% quiet and darker so the foreground gate can cover it. Quiet open navy sky dominates upper third, broad empty area at upper right for independently drawn moon and subtitles, no moon, no stars. A modest single-tier brick watchtower integrated into the distant wall at horizontal 67%, visually very small, with one pinpoint amber window. Place wall skyline around 45% from top, staggered layers run laterally, water and soft mist across lower 40%, with wet restrained horizontal reflections and subtle haze clearly separating three layers. Show a few credible hand-built brick courses and parapets in the middle distance, imperfect shore rocks, depth lost in vapor. Make foreground void dark enough for game silhouettes and the cold water reflections visibly readable. Palette of slate blue, indigo, desaturated grey-green, dark umber, one amber speck only. Painterly high-end game environment, deliberate value grouping, architectural low-poly shapes with finely painted granular texture, filmic moonlit atmosphere without a visible light source or lens effects. Make it rich, restrained, legible in 720p, and convincingly Chinese Ming in the architecture. No near foreground structures, no walkway, no arch framing, no character, no ship, no oversized towers, no fantasy pagodas, no modern elements, no red lanterns, no lettering, no blocks, no logo, no UI. One image edge to edge.
+```
+
+#### 砖券木门立面
+
+```text
+Use case: historical-scene. Asset type: one square opaque front-face game environment texture for a character-sized side-view scene, exterior of an early Ming dynasty coastal garrison water gate in Ningcun Suo, Wenzhou. Paint one authentic Ming grey-blue rectangular brick wall section completely edge-to-edge, with one closed stout dark-brown vertically planked double gate set into a low round-headed brick arch. Camera directly perpendicular to the wall, architectural front elevation, exactly zero perspective or oblique angle, no actual ground plane or scenery. Geometry and placement are strict: door and arch bottom on the bottom edge of the image; arch summit at 69 percent of the image height measured UP from the bottom; arch opening horizontally spans from about 43% to 88% from the left; leave left 40% solid receding wall, and leave the rightmost 11% a solid grey-blue stone jamb, next to the gate's corner that the game will separately draw. Wall continues beyond left, right and top edges, strictly fills canvas. Rust-black simple iron straps and subtle nailheads on timber, seams and vertical grain follow the planks, damp darker brick courses nearer the water, small repaired joints and weather-worn but sturdy masonry. The illumination is very soft cold blue moonlight grazing from the right, enough separation between dark wooden gate and the cool stone arch, right jamb slightly brighter, left side deep slate, middle clearly readable at game size. Sophisticated painted 2.5D game environment texture with believable relief and custom artisan detail. Palette cold charcoal, slate umber, steel blue, restrained desaturated moss. No spurious highlights, no vignette, no sky, no water, no floor or horizon, no adjacent structures, no characters, no lantern, no text, no UI, no fantasy or modern objects. Exactly one single square ambiently lit texture.
+```
+
+#### 重逢像素特写
+
+```text
+Use case: identity-preserve. Edit image 1, the transparent side-view reunion animation cel for 《向西守望》. Image 1 defines the pose and crop. Image 2 is the latest official character-motion sprite atlas, commit b2235f4, used only as the EXACT identity and costume source: the first two figures show Zhou Shu, the final two show Xiao Man. Refinish both figures in image 1 to closely match the final production faces, outfits, proportions, muted colors, and dense square pixel-art shading of image 2. Especially reproduce Zhou Shu's small brass rivets on the dark rounded iron helmet and shoulder plates, the restrained red helmet cord, indigo-gray quilted Ming coat with vertical light cloth trim, faded tan wrapping at both forearm and shins, and less rounded more mature reference face; keep the small diagonal pale repair stitches on his indigo cuff so it can be recognized before he faces camera. Match Xiao Man's slightly large reference eyes, side wisps, low double compact hair buns and red cloth ties, brick-red crossed jacket with thin light edging, side cloth purse and olive trousers with tan leg wraps. Keep her little tan needle sleeve at the wrist. Maintain the kneeling Zhou Shu at left, standing Xiao Man at right, shared bare handclasp from image 1, and exact placement of the joined hands and eyelids so the image can be cut into a live camera tilt. Zhou Shu's hand is open and relaxed around her fingers, no held prop. Give the little girl's arm natural bent forearm proportions. Full bodies, all shoes and helmet cord visible, same wide composition, robust crisp edges and restrained side moonlight. Transparency everywhere outside the characters, no background or surface, no broad glow outside silhouettes, no shadow on the ground, no letters, no other objects. The picture should read as the enlarged pixel cutscene pose of the two references, the same two people.
+```
+
 ## 初版生成提示词
 
 ### 城内四房间

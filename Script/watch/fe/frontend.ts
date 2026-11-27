@@ -264,6 +264,9 @@ export class WatchFrontend {
 
     /** 绑定新的 Play 实例（切房间或重试时调用），对齐镜头并挂接高清坐标反算 */
     bindPlay(p: Play, w: number, h: number): void {
+        const hdCast = p.room.key === "gate" || p.room.key === "gatepath" || p.room.key === "outside";
+        this.worldArt.setHdCast(hdCast);
+        this.uiArt.setHdCast(hdCast);
         this.syncRuntimeHooks();
         this.boundPlay = p;
         p.worldMapper = (sx: number, sy: number) => this.cam.screenToWorld(sx, sy);
