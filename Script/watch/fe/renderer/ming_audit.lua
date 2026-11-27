@@ -341,14 +341,17 @@ function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdro
 	local h = cam.viewH -- 368
 	local span = math.max(1, ctx.p.room.maxX - ctx.p.room.minX) -- 369
 	local progress = (cam.x - ctx.p.room.minX) / span - 0.5 -- 370
-	local ground = cam.groundScreenY -- 371
-	local artW = math.max(w, h * 16 / 9) + w * 0.12 -- 372
+	local backRoadY = cam:sy(0, ctx.p.room.depth ~= nil and ctx.p.room.depth.max or 0) -- 371
+	local artW = math.max(w, h * 16 / 9) * 1.1 -- 372
 	local artH = artW * 9 / 16 -- 373
-	local sceneY = math.min((h - artH) * 0.5, ground - artH * 0.24) -- 375
+	local sceneY = math.min( -- 375
+		0, -- 375
+		math.max(h - artH, backRoadY - artH * 0.25) -- 375
+	) -- 375
 	if backdropArt:tryPlace( -- 375
 		slot, -- 377
 		"ming_fallback_scene", -- 377
-		w * (0.5 - progress * 0.09), -- 377
+		w * (0.5 - progress * 0.08), -- 377
 		sceneY, -- 377
 		artW, -- 377
 		artH -- 377
@@ -360,21 +363,21 @@ function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdro
 			backdropArt:tryPlace( -- 382
 				"pine", -- 383
 				"ming_fallback_mid", -- 384
-				w * (0.76 - progress * 0.22), -- 385
-				ground - cam:len(8), -- 386
-				cam:len(122), -- 387
-				cam:len(107), -- 388
-				{layer = 1, opacity = 0.42} -- 389
+				w * (0.76 - progress * 0.24), -- 385
+				backRoadY - cam:len(4), -- 386
+				cam:len(118), -- 387
+				cam:len(104), -- 388
+				{layer = 1, opacity = 0.46} -- 389
 			) -- 389
 		elseif slot ~= "bgFar_granary" and slot ~= "bgFar_crossroad_drygoods" and slot ~= "bgFar_archway_yard" then -- 389
 			backdropArt:tryPlace( -- 392
 				"eaves", -- 393
 				"ming_fallback_mid", -- 394
-				w * (0.74 - progress * 0.25), -- 395
-				ground - cam:len(10), -- 396
-				cam:len(176), -- 397
-				cam:len(96), -- 398
-				{layer = 1, opacity = 0.44} -- 399
+				w * (0.74 - progress * 0.24), -- 395
+				backRoadY - cam:len(4), -- 396
+				cam:len(172), -- 397
+				cam:len(94), -- 398
+				{layer = 1, opacity = 0.46} -- 399
 			) -- 399
 		end -- 399
 		fillVGradRect( -- 402
@@ -389,11 +392,11 @@ function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdro
 		fillVGradRect( -- 403
 			bgGlow, -- 403
 			0, -- 403
-			ground - 1, -- 403
+			backRoadY - 2, -- 403
 			w, -- 403
-			h * 0.14, -- 403
-			Color(43, 49, 63, 15), -- 403
-			Color(43, 49, 63, 0) -- 403
+			h * 0.13, -- 403
+			Color(43, 52, 68, 18), -- 403
+			Color(43, 52, 68, 0) -- 403
 		) -- 403
 		return true -- 404
 	end -- 404

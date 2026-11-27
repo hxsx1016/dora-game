@@ -273,6 +273,8 @@ for required in \
     "assets/art/bg_escort_ridge.png" \
     "assets/art/props_second_half.clip" \
     "assets/art/props_second_half.png" \
+    "assets/art/scene_dark_pixel.clip" \
+    "assets/art/scene_dark_pixel.png" \
     "assets/art/actors-hd.clip" \
     "assets/art/actors-hd.png" \
     "assets/art/zhoushu-run.png" \

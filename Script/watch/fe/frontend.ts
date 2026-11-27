@@ -28,6 +28,7 @@ import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { EscortWorldRenderer } from "Script/watch/fe/scenes/escort_world";
 import { ensureSecondHalfAssetsRegistered } from "Script/watch/fe/scenes/second_half_assets";
+import { ensureDarkPixelAssetsRegistered } from "Script/watch/fe/scenes/dark_pixel_assets";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
@@ -53,12 +54,15 @@ export class WatchFrontend {
     private escortTowerDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
     private backdropArt: AssetSlotHost;
+    private groundDraw: DrawNode.Type;
+    private groundArt: AssetSlotHost;
     private dioramaBg: DioramaLayerHost;
     private dioramaWorld: DioramaLayerHost;
     private dioramaFg: DioramaLayerHost;
     private worldArt: AssetSlotHost;
     private uiArt: AssetSlotHost;
     private fgDraw: DrawNode.Type;
+    private worldOverlayDraw: DrawNode.Type;
     private fgGlow: DrawNode.Type;
     private uiLayer: Node.Type;
     private uiDraw: DrawNode.Type;
@@ -96,6 +100,7 @@ export class WatchFrontend {
         this.layerRoot.order = 5;
         this.layerRoot.addTo(parent);
         ensureSecondHalfAssetsRegistered();
+        ensureDarkPixelAssetsRegistered();
 
         this.audio.attachHost(this.layerRoot);
         this.menus.onUiSound = (kind: UiSoundKind) => {
@@ -123,8 +128,16 @@ export class WatchFrontend {
 
         this.backdropArt = new AssetSlotHost(this.layerRoot, 12);
         this.dioramaBg = new DioramaLayerHost(this.layerRoot, 14);
+        // 独立地表层（order 20/22），严格位于 worldArt(32) 与角色接触影之下，根治脚底阴影被路面贴图吞没。
+        this.groundDraw = DrawNode();
+        this.groundDraw.order = 20;
+        this.groundDraw.addTo(this.layerRoot);
+        this.groundArt = new AssetSlotHost(this.layerRoot, 22);
         this.dioramaWorld = new DioramaLayerHost(this.layerRoot, 28);
         this.worldArt = new AssetSlotHost(this.layerRoot, 32);
+        this.worldOverlayDraw = DrawNode();
+        this.worldOverlayDraw.order = 33;
+        this.worldOverlayDraw.addTo(this.layerRoot);
         this.dioramaFg = new DioramaLayerHost(this.layerRoot, 34);
 
         this.fgDraw = DrawNode();
@@ -338,13 +351,16 @@ export class WatchFrontend {
         this.bgDraw.clear();
         this.escortTowerDraw.clear();
         this.bgGlow.clear();
+        this.groundDraw.clear();
         this.fgDraw.clear();
+        this.worldOverlayDraw.clear();
         this.fgGlow.clear();
         this.uiDraw.clear();
         this.uiInkDraw.clear();
         this.uiGlow.clear();
         this.uiMask.clear();
         this.backdropArt.beginFrame();
+        this.groundArt.beginFrame();
         this.dioramaBg.beginFrame();
         this.dioramaWorld.beginFrame();
         this.dioramaFg.beginFrame();
@@ -355,6 +371,7 @@ export class WatchFrontend {
 
     private finishFrame(): void {
         this.backdropArt.endFrame();
+        this.groundArt.endFrame();
         this.dioramaBg.endFrame();
         this.dioramaWorld.endFrame();
         this.dioramaFg.endFrame();
@@ -660,7 +677,19 @@ export class WatchFrontend {
             }
         }
         if (!worldHandled) {
-            this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+            this.stage.drawPlayableWorld(
+                this.groundDraw,
+                this.fgGlow,
+                this.worldArt,
+                p,
+                this.cam,
+                this.time,
+                this.occlusion,
+                worldDt,
+                this.groundArt,
+                this.fgDraw,
+                this.worldOverlayDraw,
+            );
         }
 
         // 3. 互动道具（可由插件接管）
@@ -672,7 +701,7 @@ export class WatchFrontend {
             }
         }
         if (!propsHandled) {
-            this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+            this.props.drawAll(this.groundDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt, this.groundArt);
         }
         if (view.visualMode === "pixel") {
             this.escortWorld.drawWorldSetpieces(this.fgDraw, this.fgGlow, this.worldArt, p, view, this.cam, this.time);
@@ -687,7 +716,7 @@ export class WatchFrontend {
                     if (pose !== undefined) break;
                 }
             }
-            this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, pose);
+            this.actors.drawAll(this.worldOverlayDraw, this.fgGlow, this.worldArt, p, this.cam, pose);
         }
         for (i = 0; i < this.plugins.length; i++) {
             const pl = this.plugins[i];
@@ -702,8 +731,8 @@ export class WatchFrontend {
 
         // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边（低模与现代博物馆自有前景压边，不叠绘像素暗块）
         if (view.visualMode === "pixel") {
-            this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
-            this.escortWorld.drawForegroundFraming(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
+            this.stage.drawForegroundFraming(this.worldOverlayDraw, w, h, p, this.cam);
+            this.escortWorld.drawForegroundFraming(this.worldOverlayDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
         }
         this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
 

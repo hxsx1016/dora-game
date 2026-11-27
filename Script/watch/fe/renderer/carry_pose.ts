@@ -238,18 +238,22 @@ export class CarryPosePlugin implements FeRenderPlugin {
 
         // 地面站立/步行牵手时使用整体手绘合体精灵 duo_hand_walk（周戍左、小满右牵手前行），彻底告别拆散棍条手臂
         if (soldier.rollT <= 0 && !p.gripping) {
+            const dScale = cam.depthScale(soldier.depth, depthEnabled);
             const sx = cam.sx(soldier.x);
             const sy = cam.sy(soldier.y, soldier.depth);
             const bob = speed > 8 ? Math.abs(Math.sin(this.animTime * 10.5)) * cam.len(2.2) : Math.sin(this.animTime * 2.2) * cam.len(0.6);
-            const duoH = cam.len(soldier.h * 1.03);
+            const duoH = cam.len(soldier.h * 1.03) * dScale;
+            const duoLayer = depthEnabled ? depthOrder(soldier.depth, 4) : 4;
             if (worldArt.tryPlacePath("assets/art/actors_extra.clip|duo_hand_walk", "carry_duo_hand", sx, sy + bob, duoH, duoH, {
                 anchorX: 0.28,
                 anchorY: 0,
                 preserveAspect: true,
                 facing: f,
-                layer: depthEnabled ? depthOrder(soldier.depth, 4) : 4,
+                layer: duoLayer,
             })) {
-                fgDraw.drawEllipse(Vec2(sx + f * cam.len(24), sy + 1), cam.len(12), 3.0, Color(10, 10, 12, 125));
+                worldArt.tryPlace("dp_shadow_contact", "carry_duo_hand_sh", sx + f * cam.len(24) * dScale, sy + 1, cam.len(30) * dScale, cam.len(9) * dScale, {
+                    layer: duoLayer - 1, opacity: 0.82,
+                });
                 this.childAnchorX = childWX;
                 this.childAnchorY = childWY;
                 return { player: true, partner: true };
@@ -264,14 +268,18 @@ export class CarryPosePlugin implements FeRenderPlugin {
             childWY = soldier.y;
             childDepth = soldier.depth;
 
+            const dScale = cam.depthScale(childDepth, depthEnabled);
             const scx = cam.sx(childWX);
             const scy = cam.sy(childWY, childDepth);
-            const cW = cam.len(22);
-            const cH = cam.len(64);
-            const pose = { facing: f, layer: depthEnabled ? depthOrder(childDepth, 4) : 4 };
+            const cW = cam.len(22) * dScale;
+            const cH = cam.len(64) * dScale;
+            const cLayer = depthEnabled ? depthOrder(childDepth, 4) : 4;
+            const pose = { facing: f, layer: cLayer };
             partnerPlaced = (speed > 8 && worldArt.tryPlaceRun("child", "carry_child_walk", scx, scy, cW, cH, this.animTime * 1.8, pose))
                 || worldArt.tryPlace("child_idle", "carry_child_walk", scx, scy, cW, cH, pose);
-            fgDraw.drawEllipse(Vec2(scx, scy + 1), cW * 0.46, 3.2, Color(10, 10, 12, 130));
+            worldArt.tryPlace("dp_shadow_contact", "carry_child_walk_sh", scx, scy + 1, cW * 1.4, cam.len(8) * dScale, {
+                layer: cLayer - 1, opacity: 0.80,
+            });
         }
 
         this.childAnchorX = childWX;
@@ -366,8 +374,9 @@ export class CarryPosePlugin implements FeRenderPlugin {
             const duoAnchorX = firing ? 0.36 : 0.54;
             const duoFacing = firing ? this.shotFacing : faceSign;
             const duoLayer = depthEnabled ? depthOrder(soldier.depth, 4) : 4;
+            const dScale = cam.depthScale(soldier.depth, depthEnabled);
             const crouchScale = (soldier.covered || p.coverHug) ? 0.86 : 1.05;
-            const duoH = cam.len(soldier.h * crouchScale);
+            const duoH = cam.len(soldier.h * crouchScale) * dScale;
             const sx = cam.sx(soldier.x);
             const sy = cam.sy(soldier.y, soldier.depth) + cam.len(bob * 0.7);
             if (worldArt.tryPlacePath("assets/art/actors_extra.clip|" + duoClip, "carry_duo_sprite", sx, sy, duoH, duoH, {
@@ -431,18 +440,22 @@ export class CarryPosePlugin implements FeRenderPlugin {
         this.childAnchorX = childWX;
         this.childAnchorY = childWY;
 
+        const dScale = cam.depthScale(soldier.depth, depthEnabled);
         const cx = cam.sx(childWX);
         const cy = cam.sy(childWY, soldier.depth);
-        const cW = cam.len(22);
-        const cH = cam.len(64);
+        const cW = cam.len(22) * dScale;
+        const cH = cam.len(64) * dScale;
 
         const handing = ctx.view.craftBench.justCraftedTimer > 0;
         const slot = handing ? "child_offer" : "child_idle";
+        const benchLayer = depthEnabled ? depthOrder(soldier.depth, 5) : 5;
         const partnerPlaced = worldArt.tryPlace(slot, "carry_child_bench", cx, cy, cW, cH, {
             facing: -f,
-            layer: depthEnabled ? depthOrder(soldier.depth, 5) : 5,
+            layer: benchLayer,
         });
-        fgDraw.drawEllipse(Vec2(cx, cam.sy(soldier.y, soldier.depth) + 1), cW * 0.48 * dropK, 3.2, Color(10, 10, 12, 130));
+        worldArt.tryPlace("dp_shadow_contact", "carry_child_bench_sh", cx, cam.sy(soldier.y, soldier.depth) + 1, cW * 1.45 * Math.max(0.3, dropK), cam.len(8) * dScale, {
+            layer: benchLayer - 1, opacity: 0.80,
+        });
 
         // 首次制成/递交期间在两人手间展示专属像素鸟铳精灵（告别两段木棍画枪）
         if (handing) {
