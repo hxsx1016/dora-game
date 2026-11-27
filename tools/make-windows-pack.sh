@@ -258,6 +258,19 @@ for required in \
     "assets/art/sprites_fe.clip" \
     "assets/art/sprites_fe.png" \
     "assets/art/slides/p01_01_curtain.png" \
+    "assets/art/tex_diorama_ming.clip" \
+    "assets/art/tex_diorama_ming.png" \
+    "assets/art/diorama_cutouts.clip" \
+    "assets/art/diorama_cutouts.png" \
+    "assets/art/cutscene_cuff_rig.clip" \
+    "assets/art/cutscene_cuff_rig.png" \
+    "assets/art/props_ming.clip" \
+    "assets/art/props_ming.png" \
+    "assets/art/actors_extra.clip" \
+    "assets/art/actors_extra.png" \
+    "assets/art/vfx_craft_art.clip" \
+    "assets/art/vfx_craft_art.png" \
+    "assets/art/bg_escort_ridge.png" \
     "assets/art/props_second_half.clip" \
     "assets/art/props_second_half.png" \
     "assets/art/actors-hd.clip" \

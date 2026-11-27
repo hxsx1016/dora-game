@@ -248,7 +248,7 @@ local function prologueOut(p, i, tag)
 		tap(i.interact)
 		step(p, i)
 		rel(i.interact)
-		steps(p, i, 70)            -- prologue-give 12/36 闪、60 拍转 follow
+		steps(p, i, 190)           -- PR #22 prologue-give 180 拍（3s 拂瓷递针套）后转 follow
 		print(string.format("[%s 序章] 递针套后 phase=%s", tag, p.phase))
 	end
 	toDepth(p, i, 32, 40)        -- 绕开 x=344 中下道石柱，沿上道前行
@@ -333,7 +333,7 @@ local function gateSend(p, i, tag)
 	tap(i.interact)
 	step(p, i)
 	rel(i.interact)
-	steps(p, i, 2)
+	steps(p, i, 230)               -- PR #22 gate-farewell 220 拍（P05 城门送别）后进入 gate-count
 	print(string.format("[%s 门洞] phase=%s 控=%s route=%s", tag, p.phase, p.childMode and "小满" or "周戍", tostring(p.storyRoute)))
 	return p
 end

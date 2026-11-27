@@ -317,235 +317,238 @@ end -- 360
 function AssetSlotHost.prototype.registerDynamicSlot(self, key, cfg) -- 367
 	self.localSlots[key] = cfg -- 368
 end -- 367
-function AssetSlotHost.prototype.hideLastPlacement(self, instanceKey) -- 372
-	local sprite = self.lastPlacement[instanceKey] -- 373
-	if sprite ~= nil then -- 373
-		sprite.visible = false -- 375
-	end -- 375
+function AssetSlotHost.prototype.currentSprite(self, instanceKey, path) -- 372
+	return self.visibleThisFrame[(instanceKey .. ":") .. path] -- 373
 end -- 372
-function AssetSlotHost.prototype.beginFrame(self) -- 379
-	self.visibleThisFrame = {} -- 380
-end -- 379
-function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 383
-	if options == nil then -- 383
-		options = {} -- 387
-	end -- 387
-	local staticSlots = ____exports.ASSET_SLOTS -- 389
-	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 390
-	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 390
-		return false -- 392
+function AssetSlotHost.prototype.hideLastPlacement(self, instanceKey) -- 377
+	local sprite = self.lastPlacement[instanceKey] -- 378
+	if sprite ~= nil then -- 378
+		sprite.visible = false -- 380
+	end -- 380
+end -- 377
+function AssetSlotHost.prototype.beginFrame(self) -- 384
+	self.visibleThisFrame = {} -- 385
+end -- 384
+function AssetSlotHost.prototype.tryPlace(self, slotKey, instanceKey, x, y, targetW, targetH, options) -- 388
+	if options == nil then -- 388
+		options = {} -- 392
 	end -- 392
-	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 394
-	local path = cfg.paths[frame + 1] -- 395
-	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 396
-	return self:placeResolvedPath( -- 399
-		path, -- 399
-		anchorX, -- 399
-		cfg.anchorY, -- 399
-		cfg.preserveAspect, -- 399
-		cfg.smooth == true, -- 399
-		instanceKey, -- 399
-		x, -- 399
-		y, -- 399
-		targetW, -- 399
-		targetH, -- 399
-		options -- 399
-	) -- 399
-end -- 383
-function AssetSlotHost.prototype.tryPlaceRun(self, actor, instanceKey, x, y, targetW, targetH, cycles, options, effort) -- 404
-	if options == nil then -- 404
-		options = {} -- 409
-	end -- 409
-	if effort == nil then -- 409
-		effort = 1 -- 410
-	end -- 410
-	if effort < 1 and self:tryPlaceRunTransition( -- 410
-		actor, -- 412
-		instanceKey, -- 412
-		x, -- 412
-		y, -- 412
-		targetW, -- 412
-		targetH, -- 412
-		cycles, -- 412
-		effort, -- 412
-		options -- 412
-	) then -- 412
-		return true -- 413
-	end -- 413
-	local frame = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_FRAME_COUNT) -- 415
-	return self:tryPlaceMotionFrame( -- 416
-		RUN_ATLASES[actor], -- 416
-		frame, -- 416
-		instanceKey, -- 416
-		x, -- 416
-		y, -- 416
-		targetW, -- 416
-		targetH, -- 416
-		options -- 416
-	) -- 416
-end -- 404
-function AssetSlotHost.prototype.tryPlaceRunTransition(self, actor, instanceKey, x, y, targetW, targetH, cycles, effort, options) -- 420
-	if options == nil then -- 420
-		options = {} -- 425
-	end -- 425
-	local phase = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_TRANSITION_PHASES + 0.5) % ____exports.RUN_TRANSITION_PHASES -- 427
-	local level = math.max( -- 428
-		0, -- 428
-		math.min( -- 428
-			____exports.RUN_TRANSITION_LEVELS - 1, -- 428
-			math.floor(effort * (____exports.RUN_TRANSITION_LEVELS + 1) + 0.5) - 1 -- 428
-		) -- 428
-	) -- 428
-	return self:tryPlaceMotionFrame( -- 429
-		RUN_TRANSITIONS[actor], -- 429
-		level * ____exports.RUN_TRANSITION_PHASES + phase, -- 429
-		instanceKey, -- 430
-		x, -- 430
-		y, -- 430
-		targetW, -- 430
-		targetH, -- 430
-		options -- 430
-	) -- 430
-end -- 420
-function AssetSlotHost.prototype.tryPlaceSlide(self, instanceKey, x, y, targetW, targetH, progress, options) -- 433
-	if options == nil then -- 433
-		options = {} -- 437
-	end -- 437
-	local frame = math.max( -- 439
-		0, -- 439
-		math.min( -- 439
-			____exports.SLIDE_FRAME_COUNT - 1, -- 439
-			math.floor(progress * ____exports.SLIDE_FRAME_COUNT) -- 439
-		) -- 439
-	) -- 439
-	return self:tryPlaceMotionFrame( -- 440
-		SLIDE_ATLAS, -- 440
-		frame, -- 440
-		instanceKey, -- 440
-		x, -- 440
-		y, -- 440
-		targetW, -- 440
-		targetH, -- 440
-		options -- 440
-	) -- 440
-end -- 433
-function AssetSlotHost.prototype.tryPlaceMotionFrame(self, atlas, frame, instanceKey, x, y, targetW, targetH, options) -- 443
-	if targetW <= 0 or targetH <= 0 then -- 443
-		return false -- 451
-	end -- 451
-	local ____atlas_1 = atlas -- 453
-	local path = ____atlas_1.path -- 453
-	local width = ____atlas_1.width -- 453
-	local height = ____atlas_1.height -- 453
-	local columns = ____atlas_1.columns -- 453
-	local col = frame % columns -- 454
-	local row = math.floor(frame / columns) -- 455
-	local rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height) -- 456
-	return self:placeResolvedPath( -- 458
-		path, -- 458
-		0.5, -- 458
-		0, -- 458
-		true, -- 458
-		false, -- 458
-		instanceKey, -- 458
-		x, -- 458
-		y, -- 458
-		targetW, -- 458
-		targetH, -- 458
-		options, -- 458
-		rect -- 458
-	) -- 458
-end -- 443
-function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 462
-	if options == nil then -- 462
-		options = {} -- 466
-	end -- 466
-	if path == "" or targetW <= 0 or targetH <= 0 then -- 466
-		return false -- 469
-	end -- 469
-	local ____self_placeResolvedPath_4 = self.placeResolvedPath -- 471
-	local ____array_3 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 471
-	local ____options_preserveAspect_2 = options.preserveAspect -- 475
-	if ____options_preserveAspect_2 == nil then -- 475
-		____options_preserveAspect_2 = false -- 475
-	end -- 475
-	__TS__SparseArrayPush( -- 475
-		____array_3, -- 475
-		____options_preserveAspect_2, -- 475
-		options.smooth == true, -- 476
-		instanceKey, -- 477
-		x, -- 478
-		y, -- 479
-		targetW, -- 480
-		targetH, -- 481
-		options -- 482
-	) -- 482
-	return ____self_placeResolvedPath_4( -- 471
-		self, -- 471
-		__TS__SparseArraySpread(____array_3) -- 471
-	) -- 471
-end -- 462
-function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options, textureRect) -- 486
-	local key = (instanceKey .. ":") .. path -- 497
-	local sprite = self.sprites[key] -- 498
-	if sprite == nil then -- 498
-		if self.unavailable[path] then -- 498
-			return false -- 501
-		end -- 501
-		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 503
-		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 504
-		local ____Content_exist_result_5 -- 505
-		if Content:exist(file) then -- 505
-			____Content_exist_result_5 = Sprite(path) -- 505
-		else -- 505
-			____Content_exist_result_5 = nil -- 505
-		end -- 505
-		local loaded = ____Content_exist_result_5 -- 505
-		if loaded == nil then -- 505
-			self.unavailable[path] = true -- 507
-			return false -- 508
-		end -- 508
-		if textureRect ~= nil then -- 508
-			loaded.size = Size(textureRect.width, textureRect.height) -- 512
-		end -- 512
-		loaded.filter = smooth and "Anisotropic" or "Point" -- 515
-		loaded:addTo(self.container) -- 516
-		self.sprites[key] = loaded -- 517
-		sprite = loaded -- 518
-	end -- 518
-	if textureRect ~= nil then -- 518
-		sprite.textureRect = textureRect -- 522
-	end -- 522
-	local scaleY = targetH / math.max(1, textureRect and textureRect.height or sprite.height) -- 524
-	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 525
-	sprite.anchor = Vec2(anchorX, anchorY) -- 526
-	sprite.position = textureRect == nil and Vec2( -- 527
-		math.floor(x + 0.5), -- 527
-		math.floor(y + 0.5) -- 527
-	) or Vec2(x, y) -- 527
-	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 528
-	sprite.scaleY = options.flipY and -scaleY or scaleY -- 529
-	sprite.angle = options.angle or 0 -- 530
-	sprite.order = options.layer or 0 -- 531
-	local col = options.color or WHITE -- 532
-	sprite.color = col -- 533
-	local baseA = col.a / 255 -- 534
-	local op = options.opacity or 1 -- 535
-	sprite.opacity = math.max( -- 536
-		0, -- 536
-		math.min(1, baseA * op) -- 536
-	) -- 536
-	sprite.visible = true -- 537
-	self.visibleThisFrame[key] = sprite -- 538
-	self.lastPlacement[instanceKey] = sprite -- 539
-	return true -- 540
-end -- 486
-function AssetSlotHost.prototype.endFrame(self) -- 543
-	for key in pairs(self.visibleLastFrame) do -- 544
-		if self.visibleThisFrame[key] == nil then -- 544
-			self.visibleLastFrame[key].visible = false -- 546
-		end -- 546
-	end -- 546
-	self.visibleLastFrame = self.visibleThisFrame -- 549
-end -- 543
-return ____exports -- 543
+	local staticSlots = ____exports.ASSET_SLOTS -- 394
+	local cfg = staticSlots[slotKey] or self.localSlots[slotKey] or sharedDynamicSlots()[slotKey] -- 395
+	if cfg == nil or #cfg.paths == 0 or targetW <= 0 or targetH <= 0 then -- 395
+		return false -- 397
+	end -- 397
+	local frame = math.abs(math.floor(options.frame or 0)) % #cfg.paths -- 399
+	local path = cfg.paths[frame + 1] -- 400
+	local anchorX = type(cfg.anchorX) == "number" and cfg.anchorX or (cfg.anchorX ~= nil and (cfg.anchorX[frame + 1] or 0.5) or 0.5) -- 401
+	return self:placeResolvedPath( -- 404
+		path, -- 404
+		anchorX, -- 404
+		cfg.anchorY, -- 404
+		cfg.preserveAspect, -- 404
+		cfg.smooth == true, -- 404
+		instanceKey, -- 404
+		x, -- 404
+		y, -- 404
+		targetW, -- 404
+		targetH, -- 404
+		options -- 404
+	) -- 404
+end -- 388
+function AssetSlotHost.prototype.tryPlaceRun(self, actor, instanceKey, x, y, targetW, targetH, cycles, options, effort) -- 409
+	if options == nil then -- 409
+		options = {} -- 414
+	end -- 414
+	if effort == nil then -- 414
+		effort = 1 -- 415
+	end -- 415
+	if effort < 1 and self:tryPlaceRunTransition( -- 415
+		actor, -- 417
+		instanceKey, -- 417
+		x, -- 417
+		y, -- 417
+		targetW, -- 417
+		targetH, -- 417
+		cycles, -- 417
+		effort, -- 417
+		options -- 417
+	) then -- 417
+		return true -- 418
+	end -- 418
+	local frame = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_FRAME_COUNT) -- 420
+	return self:tryPlaceMotionFrame( -- 421
+		RUN_ATLASES[actor], -- 421
+		frame, -- 421
+		instanceKey, -- 421
+		x, -- 421
+		y, -- 421
+		targetW, -- 421
+		targetH, -- 421
+		options -- 421
+	) -- 421
+end -- 409
+function AssetSlotHost.prototype.tryPlaceRunTransition(self, actor, instanceKey, x, y, targetW, targetH, cycles, effort, options) -- 425
+	if options == nil then -- 425
+		options = {} -- 430
+	end -- 430
+	local phase = math.floor((cycles - math.floor(cycles)) * ____exports.RUN_TRANSITION_PHASES + 0.5) % ____exports.RUN_TRANSITION_PHASES -- 432
+	local level = math.max( -- 433
+		0, -- 433
+		math.min( -- 433
+			____exports.RUN_TRANSITION_LEVELS - 1, -- 433
+			math.floor(effort * (____exports.RUN_TRANSITION_LEVELS + 1) + 0.5) - 1 -- 433
+		) -- 433
+	) -- 433
+	return self:tryPlaceMotionFrame( -- 434
+		RUN_TRANSITIONS[actor], -- 434
+		level * ____exports.RUN_TRANSITION_PHASES + phase, -- 434
+		instanceKey, -- 435
+		x, -- 435
+		y, -- 435
+		targetW, -- 435
+		targetH, -- 435
+		options -- 435
+	) -- 435
+end -- 425
+function AssetSlotHost.prototype.tryPlaceSlide(self, instanceKey, x, y, targetW, targetH, progress, options) -- 438
+	if options == nil then -- 438
+		options = {} -- 442
+	end -- 442
+	local frame = math.max( -- 444
+		0, -- 444
+		math.min( -- 444
+			____exports.SLIDE_FRAME_COUNT - 1, -- 444
+			math.floor(progress * ____exports.SLIDE_FRAME_COUNT) -- 444
+		) -- 444
+	) -- 444
+	return self:tryPlaceMotionFrame( -- 445
+		SLIDE_ATLAS, -- 445
+		frame, -- 445
+		instanceKey, -- 445
+		x, -- 445
+		y, -- 445
+		targetW, -- 445
+		targetH, -- 445
+		options -- 445
+	) -- 445
+end -- 438
+function AssetSlotHost.prototype.tryPlaceMotionFrame(self, atlas, frame, instanceKey, x, y, targetW, targetH, options) -- 448
+	if targetW <= 0 or targetH <= 0 then -- 448
+		return false -- 456
+	end -- 456
+	local ____atlas_1 = atlas -- 458
+	local path = ____atlas_1.path -- 458
+	local width = ____atlas_1.width -- 458
+	local height = ____atlas_1.height -- 458
+	local columns = ____atlas_1.columns -- 458
+	local col = frame % columns -- 459
+	local row = math.floor(frame / columns) -- 460
+	local rect = Rect(col * (width + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, row * (height + 2 * ATLAS_GUTTER) + ATLAS_GUTTER, width, height) -- 461
+	return self:placeResolvedPath( -- 463
+		path, -- 463
+		0.5, -- 463
+		0, -- 463
+		true, -- 463
+		false, -- 463
+		instanceKey, -- 463
+		x, -- 463
+		y, -- 463
+		targetW, -- 463
+		targetH, -- 463
+		options, -- 463
+		rect -- 463
+	) -- 463
+end -- 448
+function AssetSlotHost.prototype.tryPlacePath(self, path, instanceKey, x, y, targetW, targetH, options) -- 467
+	if options == nil then -- 467
+		options = {} -- 471
+	end -- 471
+	if path == "" or targetW <= 0 or targetH <= 0 then -- 471
+		return false -- 474
+	end -- 474
+	local ____self_placeResolvedPath_4 = self.placeResolvedPath -- 476
+	local ____array_3 = __TS__SparseArrayNew(path, options.anchorX or 0.5, options.anchorY or 0.5) -- 476
+	local ____options_preserveAspect_2 = options.preserveAspect -- 480
+	if ____options_preserveAspect_2 == nil then -- 480
+		____options_preserveAspect_2 = false -- 480
+	end -- 480
+	__TS__SparseArrayPush( -- 480
+		____array_3, -- 480
+		____options_preserveAspect_2, -- 480
+		options.smooth == true, -- 481
+		instanceKey, -- 482
+		x, -- 483
+		y, -- 484
+		targetW, -- 485
+		targetH, -- 486
+		options -- 487
+	) -- 487
+	return ____self_placeResolvedPath_4( -- 476
+		self, -- 476
+		__TS__SparseArraySpread(____array_3) -- 476
+	) -- 476
+end -- 467
+function AssetSlotHost.prototype.placeResolvedPath(self, path, anchorX, anchorY, preserveAspect, smooth, instanceKey, x, y, targetW, targetH, options, textureRect) -- 491
+	local key = (instanceKey .. ":") .. path -- 502
+	local sprite = self.sprites[key] -- 503
+	if sprite == nil then -- 503
+		if self.unavailable[path] then -- 503
+			return false -- 506
+		end -- 506
+		local divider = (string.find(path, "|", nil, true) or 0) - 1 -- 508
+		local file = divider < 0 and path or __TS__StringSlice(path, 0, divider) -- 509
+		local ____Content_exist_result_5 -- 510
+		if Content:exist(file) then -- 510
+			____Content_exist_result_5 = Sprite(path) -- 510
+		else -- 510
+			____Content_exist_result_5 = nil -- 510
+		end -- 510
+		local loaded = ____Content_exist_result_5 -- 510
+		if loaded == nil then -- 510
+			self.unavailable[path] = true -- 512
+			return false -- 513
+		end -- 513
+		if textureRect ~= nil then -- 513
+			loaded.size = Size(textureRect.width, textureRect.height) -- 517
+		end -- 517
+		loaded.filter = smooth and "Anisotropic" or "Point" -- 520
+		loaded:addTo(self.container) -- 521
+		self.sprites[key] = loaded -- 522
+		sprite = loaded -- 523
+	end -- 523
+	if textureRect ~= nil then -- 523
+		sprite.textureRect = textureRect -- 527
+	end -- 527
+	local scaleY = targetH / math.max(1, textureRect and textureRect.height or sprite.height) -- 529
+	local scaleX = preserveAspect and scaleY or targetW / math.max(1, sprite.width) -- 530
+	sprite.anchor = Vec2(anchorX, anchorY) -- 531
+	sprite.position = textureRect == nil and Vec2( -- 532
+		math.floor(x + 0.5), -- 532
+		math.floor(y + 0.5) -- 532
+	) or Vec2(x, y) -- 532
+	sprite.scaleX = (options.facing or 1) < 0 and -scaleX or scaleX -- 533
+	sprite.scaleY = options.flipY and -scaleY or scaleY -- 534
+	sprite.angle = options.angle or 0 -- 535
+	sprite.order = options.layer or 0 -- 536
+	local col = options.color or WHITE -- 537
+	sprite.color = col -- 538
+	local baseA = col.a / 255 -- 539
+	local op = options.opacity or 1 -- 540
+	sprite.opacity = math.max( -- 541
+		0, -- 541
+		math.min(1, baseA * op) -- 541
+	) -- 541
+	sprite.visible = true -- 542
+	self.visibleThisFrame[key] = sprite -- 543
+	self.lastPlacement[instanceKey] = sprite -- 544
+	return true -- 545
+end -- 491
+function AssetSlotHost.prototype.endFrame(self) -- 548
+	for key in pairs(self.visibleLastFrame) do -- 549
+		if self.visibleThisFrame[key] == nil then -- 549
+			self.visibleLastFrame[key].visible = false -- 551
+		end -- 551
+	end -- 551
+	self.visibleLastFrame = self.visibleThisFrame -- 554
+end -- 548
+return ____exports -- 548
