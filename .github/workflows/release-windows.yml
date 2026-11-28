@@ -16,6 +16,7 @@ on:
       - 'tools/windows-pack-README.md'
       - 'tools/audit-assets.py'
       - '.github/workflows/release-windows.yml'
+      - '.github/workflows/publish-assets.yml'
   push:
     tags:
       - 'v*'
@@ -45,6 +46,7 @@ jobs:
     name: Build Native Windows Launcher & Patch Runtime PE Metadata
     runs-on: windows-latest
     outputs:
+      commit: ${{ steps.meta.outputs.commit }}
       version: ${{ steps.meta.outputs.version }}
       win_ver_dot: ${{ steps.meta.outputs.win_ver_dot }}
     steps:
@@ -56,16 +58,20 @@ jobs:
       - name: Resolve package version & numeric Windows PE version
         id: meta
         shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          $inputVer = "${{ inputs.version }}".Trim()
+          $inputVer = "$env:INPUT_VERSION".Trim()
           if ($inputVer -ne "") {
             $ver = $inputVer
-          } elseif ("${{ github.ref }}" -like "refs/tags/*") {
-            $ver = "${{ github.ref }}".Substring("refs/tags/".Length)
+          } elseif ($env:GITHUB_REF -like "refs/tags/*") {
+            $ver = $env:GITHUB_REF.Substring("refs/tags/".Length)
           } else {
             $ver = "dev-$("${{ github.sha }}".Substring(0, 7))"
           }
 
+          if ($ver -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._+-]*\z') { throw "Invalid package version" }
+          "commit=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
           if ($ver -match '^v?(\d+)\.(\d+)\.(\d+)') {
             $maj = [int]$matches[1]; $min = [int]$matches[2]; $pat = [int]$matches[3]
           } else {
@@ -187,6 +193,7 @@ jobs:
     needs: prepare-win-bins
     runs-on: ubuntu-24.04
     outputs:
+      commit: ${{ needs.prepare-win-bins.outputs.commit }}
       version: ${{ needs.prepare-win-bins.outputs.version }}
     steps:
       - name: Check out repository
@@ -253,7 +260,7 @@ jobs:
 
           (
             cd "$RUNNER_TEMP/release-out"
-            sha256sum ./*.zip | sed 's| \./|  |' > SHA256SUMS.txt
+            sha256sum *.zip > SHA256SUMS.txt
             cat SHA256SUMS.txt
           )
 
@@ -487,58 +494,12 @@ jobs:
           }
 
   publish-release:
-    name: Publish GitHub Release
     needs: [package, smoke-windows]
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
-    runs-on: ubuntu-24.04
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
     permissions:
       contents: write
-    steps:
-      - name: Download release bundle artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-bundles
-          path: ${{ runner.temp }}/bundles
-
-      - name: Create or update GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VER="${{ needs.package.outputs.version }}"
-          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
-          # 《向西守望》${VER} 便携发行版
-
-          本版本已通过仓库结构校验、静态资产与中文字库审计，以及 Windows CI 中文路径双击冷启动与便携存档/只读降级自动化冒烟验收。
-
-          ## 下载说明（免安装、绿色便携）
-
-          | 文件 | 适用场景 |
-          | --- | --- |
-          | \`${EXE_NAME}-${VER}-windows-x64.zip\` | **推荐（Windows 10/11 标准版）**：Direct3D 12 后端，完整解压后直接双击根目录 \`${EXE_NAME}.exe\` 即玩 |
-          | \`${EXE_NAME}-${VER}-windows-x64-opengl.zip\` | **兼容版（Windows 10/11 OpenGL）**：老旧显卡或虚拟机若提示 Direct3D 12 初始化失败请下载此版本 |
-          | \`${EXE_NAME}-${VER}-dora-source.zip\` | **Dora SSR v1.10.2 兼容源码包**：供 Dora 开源社区奖审核及跨平台 Dora 客户端直接运行 |
-          | \`SHA256SUMS.txt\` | 发行包 SHA-256 校验清单 |
-
-          ## 便携与存档说明
-
-          - 默认所有存档与设置均保存在游戏目录 \`saves/\` 内（\`profile.sav\`、\`autosave.sav\`、\`slots/slot_1..3.sav\`、\`settings.ini\`、\`backups/\`、\`logs/\`），整包拷贝即可随身携带；
-          - 支持自动存档 + 3 个手动存档槽位，旧版存档首次启动自动无损迁移；若解压至只读目录则自动回退至用户目录；
-          - 全屏切换快捷键：\`F11\` 或 \`Alt+Enter\`（自动保存）；标题页与暂停菜单均提供「读取存档 / 存取档案」「游戏设置」与「退出游戏」。
-          EOF
-
-          # 保留已有 Release Notes（避免覆盖 Android/Web 并发写入的说明）；仅在创建或尚未含多端说明时更新
-          if gh release view "${VER}" >/dev/null 2>&1; then
-            gh release upload "${VER}" "$RUNNER_TEMP/bundles/"* --clobber
-          else
-            PRERELEASE_FLAG=""
-            if [[ "${VER}" == *-* ]]; then
-              PRERELEASE_FLAG="--prerelease"
-            fi
-            if ! gh release create "${VER}" "$RUNNER_TEMP/bundles/"* \
-              --title "《向西守望》${VER}" \
-              --notes-file "$RUNNER_TEMP/release-notes.md" \
-              ${PRERELEASE_FLAG}; then
-              # 并发 tag 发布竞态兜底：另一工作流刚建完 Release，直接追加上传资产
-              gh release upload "${VER}" "$RUNNER_TEMP/bundles/"* --clobber
-            fi
-          fi
+    uses: ./.github/workflows/publish-assets.yml
+    with:
+      platform: windows
+      version: ${{ needs.package.outputs.version }}
+      commit: ${{ needs.package.outputs.commit }}

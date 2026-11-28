@@ -1,0 +1,137 @@
+name: Assemble tagged Release
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      commit:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: release-assets-${{ inputs.version }}
+      # All three producers must get a turn, including two that may be pending.
+      queue: max
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      VER: ${{ inputs.version }}
+      BUILD_COMMIT: ${{ inputs.commit }}
+      PLATFORM: ${{ inputs.platform }}
+    steps:
+      - name: Select this run's artifact
+        id: bundle
+        run: |
+          case "$PLATFORM" in
+            windows) name=release-bundles ;;
+            android) name=release-android-apks ;;
+            web) name=westward-watch-web-bundles ;;
+            *) exit 1 ;;
+          esac
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.bundle.outputs.name }}
+          path: ${{ runner.temp }}/release-assets
+
+      - name: Verify tag, stage platform files and publish the complete draft
+        shell: bash
+        working-directory: ${{ runner.temp }}/release-assets
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF" != "refs/tags/$VER" ]]; then
+            echo "Version $VER differs from triggering tag $GITHUB_REF" >&2
+            exit 1
+          fi
+          check_tag() {
+            local commit
+            commit=$(gh api "repos/$GH_REPO/commits/refs/tags/$VER" --jq .sha) || return 1
+            [[ "$commit" == "$BUILD_COMMIT" ]] || {
+              echo "$VER points to $commit, build used $BUILD_COMMIT" >&2
+              return 1
+            }
+          }
+          check_tag
+
+          prefix="WestwardWatch-$VER"
+          windows=("$prefix-windows-x64.zip" "$prefix-windows-x64-opengl.zip" "$prefix-dora-source.zip")
+          android=("$prefix-android-arm64.apk" "$prefix-android-universal.apk" "$prefix-handheld-arm64.apk")
+          web=("$prefix-web-html.zip")
+          case "$PLATFORM" in
+            windows) files=("${windows[@]}"); sums=SHA256SUMS.txt ;;
+            android) files=("${android[@]}"); sums=SHA256SUMS-android.txt ;;
+            web) files=("${web[@]}"); sums=SHA256SUMS-web.txt ;;
+          esac
+          sha256sum "${files[@]}" | sort > expected.txt
+          sort "$sums" | diff -u expected.txt -
+
+          # GraphQL resolves both published releases and drafts by their pending tag.
+          # API errors fail this step. Only a successful null lookup permits creation.
+          release=$(gh api graphql -f owner="${GH_REPO%/*}" -f repo="${GH_REPO#*/}" -f tag="$VER" \
+            -f query='query($owner:String!,$repo:String!,$tag:String!){repository(owner:$owner,name:$repo){release(tagName:$tag){isDraft description}}}' \
+            --jq '.data.repository.release | @json')
+          if [[ "$release" == null ]]; then
+            flags=()
+            if [[ "$VER" == *-* ]]; then flags+=(--prerelease); fi
+            cat > release-notes.md <<EOF
+          构建提交 $BUILD_COMMIT
+
+          | 下载 | 运行方式 |
+          | --- | --- |
+          | $prefix-windows-x64.zip、$prefix-windows-x64-opengl.zip | Windows 10/11 首选标准版，图形兼容问题可选 OpenGL 版。完整解压后运行 WestwardWatch.exe。 |
+          | $prefix-dora-source.zip | 使用 Dora SSR v1.10.2 打开源码包内的 init.lua。 |
+          | $prefix-android-arm64.apk、$prefix-android-universal.apk | ARM 手机或平板，32 位 ARM 设备选 universal。 |
+          | $prefix-handheld-arm64.apk | 安卓掌机横屏版，支持手柄与触屏。 |
+          | $prefix-web-html.zip | 完整解压后，用浏览器打开 index.html 即可离线游玩。 |
+
+          SHA256SUMS.txt 对应 Windows 与源码 ZIP，SHA256SUMS-android.txt 对应三个 APK，SHA256SUMS-web.txt 对应离线 Web ZIP。
+          EOF
+            gh release create "$VER" --repo "$GH_REPO" --verify-tag --target "$BUILD_COMMIT" --draft "${flags[@]}" \
+              --title "《向西守望》$VER" --notes-file release-notes.md
+            draft=true
+          else
+            draft=$(jq -r .isDraft <<< "$release")
+            if [[ "$draft" == true && "$(jq -r '.description | split("\n")[0]' <<< "$release")" != "构建提交 $BUILD_COMMIT" ]]; then
+              echo "Existing draft targets a different revision" >&2
+              exit 1
+            fi
+          fi
+          if [[ "$draft" == true ]]; then
+            gh release upload "$VER" --repo "$GH_REPO" "${files[@]}" "$sums" --clobber
+          fi
+
+          # Derive the manifests from GitHub's uploaded asset digests before exposing the draft.
+          gh release view "$VER" --repo "$GH_REPO" --json assets > inventory.json
+          for manifest in SHA256SUMS.txt SHA256SUMS-android.txt SHA256SUMS-web.txt; do
+            if ! jq -e --arg name "$manifest" 'any(.assets[]; .name == $name and .state == "uploaded")' inventory.json >/dev/null; then
+              if [[ "$draft" != true ]]; then echo "Public Release lacks $manifest" >&2; exit 1; fi
+              echo "$VER 草稿已保存，等待 $manifest。" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            case "$manifest" in
+              SHA256SUMS.txt) files=("${windows[@]}") ;;
+              SHA256SUMS-android.txt) files=("${android[@]}") ;;
+              SHA256SUMS-web.txt) files=("${web[@]}") ;;
+            esac
+            for file in "${files[@]}"; do
+              digest=$(jq -er --arg name "$file" '.assets[] | select(.name == $name and .state == "uploaded") | .digest | select(test("^sha256:[0-9a-f]{64}$"))' inventory.json)
+              printf '%s  %s\n' "${digest#sha256:}" "$file"
+            done | sort > expected.txt
+            gh release download "$VER" --repo "$GH_REPO" --pattern "$manifest" --output - | sort | diff -u expected.txt -
+          done
+          if [[ "$draft" == true ]]; then
+            check_tag
+            gh release edit "$VER" --repo "$GH_REPO" --draft=false
+          fi
