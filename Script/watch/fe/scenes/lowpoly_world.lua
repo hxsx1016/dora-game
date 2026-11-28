@@ -1298,7 +1298,7 @@ function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 		return false -- 1074
 	end -- 1074
 	local key = ctx.p.room.key -- 1076
-	if key == "village" then -- 1076
+	if key == "village" and ctx.cam.projection == nil then -- 1076
 		return self.village:drawForegroundOverlay( -- 1078
 			uiDraw, -- 1078
 			uiInkDraw, -- 1078
@@ -1307,7 +1307,7 @@ function LowpolyWorldPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDra
 			ctx -- 1078
 		) -- 1078
 	end -- 1078
-	if key == "forest" then -- 1078
+	if key == "forest" and ctx.cam.projection == nil then -- 1078
 		return self.forest:drawForegroundOverlay( -- 1081
 			uiDraw, -- 1081
 			uiInkDraw, -- 1081
@@ -1338,87 +1338,87 @@ function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDra
 		return -- 1107
 	end -- 1107
 	local inv = 1 / math.max(0.25, ctx.uiScale) -- 1109
-	local handPt = projectWorld3D( -- 1110
-		self.memoryAnchorWorldX, -- 1110
-		self.memoryAnchorWorldY, -- 1110
-		0, -- 1110
-		ctx.cam, -- 1110
-		self.outsideProj -- 1110
-	) -- 1110
-	local cx = math.max( -- 1111
-		190, -- 1111
-		math.min(ctx.uiW - 190, handPt.x * inv - 20) -- 1111
-	) -- 1111
-	local cy = math.max( -- 1112
-		170, -- 1112
-		math.min(ctx.uiH - 150, handPt.y * inv + 104) -- 1112
+	local handPt = ctx.cam.projection ~= nil and ctx.cam:worldToScreen(self.memoryAnchorWorldX, self.memoryAnchorWorldY) or projectWorld3D( -- 1110
+		self.memoryAnchorWorldX, -- 1112
+		self.memoryAnchorWorldY, -- 1112
+		0, -- 1112
+		ctx.cam, -- 1112
+		self.outsideProj -- 1112
 	) -- 1112
-	local pullT = smoothstep(0.14, 0.82, prog) -- 1113
-	local zoom = 0.94 + pullT * 0.09 -- 1114
-	fillRadialGlow( -- 1117
-		uiGlow, -- 1117
-		cx, -- 1117
-		cy, -- 1117
-		215 * zoom, -- 1117
-		152 * zoom, -- 1117
-		Color( -- 1117
-			238, -- 1117
-			186, -- 1117
-			114, -- 1117
-			math.floor(88 * alpha + 0.5) -- 1117
-		), -- 1117
-		Color(214, 152, 82, 0), -- 1117
-		22 -- 1117
-	) -- 1117
-	uiArt:tryPlace( -- 1118
-		"ink_petal_mist", -- 1118
-		"fe04_f01_memory_mist", -- 1118
-		cx, -- 1118
-		cy, -- 1118
-		380 * zoom, -- 1118
-		260 * zoom, -- 1118
-		{ -- 1118
-			color = Color(36, 24, 18, 255), -- 1119
-			opacity = 0.72 * alpha, -- 1120
-			layer = 3 -- 1121
-		} -- 1121
-	) -- 1121
-	if not uiArt:tryPlacePath( -- 1121
-		"assets/art/cutscene_story_parts.clip|f01_mother_stitch", -- 1124
-		"fe04_f01_mother_stitch", -- 1125
-		cx + pullT * 6, -- 1126
-		cy + pullT * 4, -- 1127
-		296 * zoom, -- 1128
-		218 * zoom, -- 1129
-		{ -- 1130
-			anchorX = 0.5, -- 1131
-			anchorY = 0.5, -- 1132
-			color = Color(246, 224, 196, 255), -- 1133
-			opacity = 0.96 * alpha, -- 1134
-			smooth = true, -- 1135
-			layer = 4 -- 1136
-		} -- 1136
-	) then -- 1136
-		uiDraw:drawEllipse( -- 1139
-			Vec2(cx, cy), -- 1139
-			116, -- 1139
-			70, -- 1139
-			Color( -- 1139
-				32, -- 1139
-				22, -- 1139
-				16, -- 1139
-				math.floor(196 * alpha + 0.5) -- 1139
-			) -- 1139
-		) -- 1139
-	end -- 1139
+	local cx = math.max( -- 1113
+		190, -- 1113
+		math.min(ctx.uiW - 190, handPt.x * inv - 20) -- 1113
+	) -- 1113
+	local cy = math.max( -- 1114
+		170, -- 1114
+		math.min(ctx.uiH - 150, handPt.y * inv + 104) -- 1114
+	) -- 1114
+	local pullT = smoothstep(0.14, 0.82, prog) -- 1115
+	local zoom = 0.94 + pullT * 0.09 -- 1116
+	fillRadialGlow( -- 1119
+		uiGlow, -- 1119
+		cx, -- 1119
+		cy, -- 1119
+		215 * zoom, -- 1119
+		152 * zoom, -- 1119
+		Color( -- 1119
+			238, -- 1119
+			186, -- 1119
+			114, -- 1119
+			math.floor(88 * alpha + 0.5) -- 1119
+		), -- 1119
+		Color(214, 152, 82, 0), -- 1119
+		22 -- 1119
+	) -- 1119
+	uiArt:tryPlace( -- 1120
+		"ink_petal_mist", -- 1120
+		"fe04_f01_memory_mist", -- 1120
+		cx, -- 1120
+		cy, -- 1120
+		380 * zoom, -- 1120
+		260 * zoom, -- 1120
+		{ -- 1120
+			color = Color(36, 24, 18, 255), -- 1121
+			opacity = 0.72 * alpha, -- 1122
+			layer = 3 -- 1123
+		} -- 1123
+	) -- 1123
+	if not uiArt:tryPlacePath( -- 1123
+		"assets/art/cutscene_story_parts.clip|f01_mother_stitch", -- 1126
+		"fe04_f01_mother_stitch", -- 1127
+		cx + pullT * 6, -- 1128
+		cy + pullT * 4, -- 1129
+		296 * zoom, -- 1130
+		218 * zoom, -- 1131
+		{ -- 1132
+			anchorX = 0.5, -- 1133
+			anchorY = 0.5, -- 1134
+			color = Color(246, 224, 196, 255), -- 1135
+			opacity = 0.96 * alpha, -- 1136
+			smooth = true, -- 1137
+			layer = 4 -- 1138
+		} -- 1138
+	) then -- 1138
+		uiDraw:drawEllipse( -- 1141
+			Vec2(cx, cy), -- 1141
+			116, -- 1141
+			70, -- 1141
+			Color( -- 1141
+				32, -- 1141
+				22, -- 1141
+				16, -- 1141
+				math.floor(196 * alpha + 0.5) -- 1141
+			) -- 1141
+		) -- 1141
+	end -- 1141
 end -- 1094
-function ____exports.createLowpolyWorldPlugin() -- 1144
-	return __TS__New(____exports.LowpolyWorldPlugin) -- 1145
-end -- 1144
+function ____exports.createLowpolyWorldPlugin() -- 1146
+	return __TS__New(____exports.LowpolyWorldPlugin) -- 1147
+end -- 1146
 --- 零冲突注册辅助：供 M2 合流接线与 verify-fe04.lua 独立测试调用（避免循环 require）
-function ____exports.registerFe04Plugins(fe) -- 1149
-	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1152
-	fe:registerPlugin(lowpolyWorld) -- 1153
-	return {lowpolyWorld = lowpolyWorld} -- 1154
-end -- 1149
-return ____exports -- 1149
+function ____exports.registerFe04Plugins(fe) -- 1151
+	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1154
+	fe:registerPlugin(lowpolyWorld) -- 1155
+	return {lowpolyWorld = lowpolyWorld} -- 1156
+end -- 1151
+return ____exports -- 1151

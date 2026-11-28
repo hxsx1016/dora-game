@@ -182,9 +182,13 @@ end
 do
     local play = new(gameplay.Play, rooms.OUTSIDE_ROOM)
     local input = new(Input)
-    input.moveY, input.crouch.held = 1, true
+    input.moveY = -1
     advance(play, input, 20)
-    check("child chapter still uses the crouch input", play.player.crouch and near(play.player.depth, 0))
+    local wentDeep = play.player.depth > 10
+    input.moveY, input.crouch.held = 1, true
+    advance(play, input, 55)
+    check("child chapter moves in 3D depth and uses crouch input",
+        wentDeep and play.player.crouch and play.player.depth < 0)
 end
 
 local root = Dora.Node()

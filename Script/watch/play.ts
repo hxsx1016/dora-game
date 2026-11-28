@@ -9,6 +9,7 @@
  * 本层只管前四步，表现由 draw() 一次画出。
  */
 
+import { Rect } from "Dora";
 import {
     BreakSpec, CartSpec, DepthRange, ESCORT_VARIANTS, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
@@ -175,8 +176,6 @@ const CART_SPEED = 64;
 /** 握把触发半径。 */
 export const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
-const CART_HALF = 24;
-const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
 /** 战具格与消耗品格各只放一件；满包时新东西留在原地，不吞物。 */
@@ -2008,8 +2007,11 @@ export class Play {
             return false;
         }
         const handleX = this.cartAxle + c.handleOffset;
+        const depthOk = this.childMode
+            ? Math.abs(a.depth - (c.depth ?? 0)) <= 48
+            : inReachDepth(a.depth, c.depth ?? 0);
         return Math.abs(a.x - handleX) <= CART_REACH && Math.abs(a.y - c.baseY) <= 40
-            && inReachDepth(a.depth, c.depth ?? 0);
+            && depthOk;
     }
 
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
@@ -2117,9 +2119,8 @@ export class Play {
         // 握车把或打开慢时换弹盘时，方向键归车/换弹盘使用，避免 W/A/S/D 同时带走人物。
         const handsBusy = this.gripping || gripIntent || this.reloadOpen;
         const dir = (this.gripping || this.reloadOpen) ? 0 : input.moveX;
-        // 逃柜段控制权在小满身上，但仍要允许她切里道绕过石柱；其余 childMode 段保持原行为。
-        const depthDir = this.room.depth !== undefined && !handsBusy
-            && (!isChild || this.phase === "prologue-escape") ? -input.moveY : 0;
+        // 凡定义了 depth 的房间均开放前后纵深四向行走（含小满 3D 单人线四房与序章逃柜）。
+        const depthDir = this.room.depth !== undefined && !handsBusy ? -input.moveY : 0;
         const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
@@ -4799,10 +4800,11 @@ export class Play {
             this.flashSet("暗渠口 · 蹲下钻过去", 1.4);
             this.emit("storyBeat", { beat: "ditch", x: p.x, room: "village" });
         }
-        // 过了第一院、走到院墙前就进北塔森林。
-        if (this.passed && p.x >= this.ox + 640) {
-            this.requestRoom("forest", "过第一院出院");
-            this.flashSet("钻出暗渠 · 北塔森林", 1.4);
+        // 暗渠口 560–640：站着过不去（院墙前必须蹲下从渠口钻入），与 3D 渠口几何同源。
+        const inCulvert = p.x >= this.ox + 560 && p.x <= this.ox + 640;
+        if (this.passed && inCulvert && p.crouch && this.wantRoom === "") {
+            this.requestRoom("forest", "蹲下钻过暗渠");
+            this.flashSet("钻进暗渠 · 北塔森林", 1.4);
         }
     }
 
@@ -5391,6 +5393,16 @@ export class Play {
         return next;
     }
 
+    /** 城外低拱中仍被车底挡栓占据的世界矩形。车轮落窝后挡栓收起。 */
+    cartLatchBounds(): Rect.Type | undefined {
+        if (this.room.key !== "outside" || this.cartDocked) return undefined;
+        const arch = this.room.arch;
+        const halfWidth = this.room.cart.bodyW / 2;
+        const left = Math.max(arch.x0, this.cartAxle - halfWidth);
+        const right = Math.min(arch.x1, this.cartAxle + halfWidth);
+        return right > left ? Rect(left, arch.y, right - left, arch.h) : undefined;
+    }
+
     /** 水平位移 + 实体/拱洞阻挡。 */
     private slideX(a: Actor, dx: number): void {
         let nx = a.x + dx;
@@ -5419,19 +5431,15 @@ export class Play {
                 }
             }
         }
-        // 城外：未拉车入窝前，车底连杆挡栓封住下层拱口（arch.x0..arch.x1）；
-        // 车轮一旦落窝（cartDocked），挡栓收回，底层拱洞外平地彻底畅通，不再残留车底空气墙。
-        if (this.room.key === "outside" && !this.cartDocked && a.y < CART_CLEAR - 0.001) {
-            const bx0 = Math.max(room.arch.x0, this.cartAxle - CART_HALF);
-            const bx1 = Math.min(room.arch.x1, this.cartAxle + CART_HALF);
-            if (bx1 > bx0 && nx + half > bx0 && nx - half < bx1) {
-                if (a.x <= bx0) {
-                    nx = bx0 - half;
-                } else if (a.x >= bx1) {
-                    nx = bx1 + half;
-                } else {
-                    nx = a.x;
-                }
+        const latch = this.cartLatchBounds();
+        if (latch !== undefined && a.y < latch.y + latch.height - 0.001
+            && nx + half > latch.x && nx - half < latch.x + latch.width) {
+            if (a.x <= latch.x) {
+                nx = latch.x - half;
+            } else if (a.x >= latch.x + latch.width) {
+                nx = latch.x + latch.width + half;
+            } else {
+                nx = a.x;
             }
         }
         // 拱洞（低洞）：身高超出净空就进不去。

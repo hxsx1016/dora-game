@@ -112,6 +112,9 @@ REQ_LUA=(
     Script/watch/fe/renderer/anim_controller.lua
     Script/watch/fe/renderer/scene_fx.lua
     Script/watch/fe/scenes/dark_pixel_assets.lua
+    Script/watch/fe/scenes/xiaoman3d.lua
+    Script/watch/fe/scenes/xiaoman3d_actor.lua
+    Script/watch/fe/scenes/xiaoman3d_entities.lua
 )
 if [ "$PROFILE" = "android" ]; then
     REQ_LUA+=(

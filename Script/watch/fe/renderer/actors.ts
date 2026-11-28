@@ -394,7 +394,7 @@ export class ActorsRenderer {
     }
 
     /** 计算角色脚下最近的支撑面高度，滞空阴影落在脚下平台而非穿底掉回 y=0。 */
-    private supportGroundY(p: Play, a: Actor): number {
+    supportGroundY(p: Play, a: Actor): number {
         const half = a.w * 0.5;
         let g = 0;
         let i = 0;

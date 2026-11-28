@@ -54,7 +54,7 @@ for _, raw in ipairs(allRooms) do
 				missingStairDepth[#missingStairDepth + 1] = r.key .. ":" .. st.label
 			end
 		end
-		if r.arch ~= nil and r.arch.h > 0 then
+		if r.arch ~= nil and r.arch.h > 0 and r.key ~= "outside" and r.key ~= "village" then
 			hiddenArch25D[#hiddenArch25D + 1] = r.key .. ":" .. r.arch.label
 		end
 	end
@@ -139,16 +139,16 @@ do
 		string.format("x=%.1f y=%.1f", p.player.x, p.player.y))
 end
 
--- 2.6 2D 房间支持 S 键下蹲穿桌底/低拱（与帮助面板一致）
+-- 2.6 小满 3D 四向纵深房支持 C/Ctrl 下蹲穿桌底，W/S 前后纵深行走（与帮助面板一致）
 do
 	local p = new(playmod.Play, rooms.VILLAGE_ROOM)
 	p.scavState = "gone"
 	p.player.x = 270
 	local inp = new(inputmod.Input)
 	inp.moveX = 1
-	inp.moveY = 1 -- 模拟按住 S
+	inp.crouch.held = true -- 模拟按住 C / Ctrl 蹲伏穿过桌底
 	step(p, inp, 130)
-	check("2.6 空村按住 S 下蹲可顺畅穿过桌底（304..416）", p.player.x > 430, "x=" .. tostring(p.player.x))
+	check("2.6 空村按住 C/Ctrl 下蹲可顺畅穿过桌底（304..416）", p.player.x > 430, "x=" .. tostring(p.player.x))
 end
 
 -- 2.7 FOREST：矮台 520..640 起点即抬至 y=22，与低模视觉 1:1 吻合无穿模

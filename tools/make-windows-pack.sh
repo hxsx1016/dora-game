@@ -251,6 +251,29 @@ for required in \
     "Script/watch/fe/renderer/anim_controller.lua" \
     "Script/watch/fe/renderer/scene_fx.lua" \
     "Script/watch/fe/scenes/dark_pixel_assets.lua" \
+    "Script/watch/fe/scenes/xiaoman3d.lua" \
+    "Script/watch/fe/scenes/xiaoman3d_actor.lua" \
+    "Script/watch/fe/scenes/xiaoman3d_entities.lua" \
+    "assets/xiaoman3d/outside.glb" \
+    "assets/xiaoman3d/village.glb" \
+    "assets/xiaoman3d/forest.glb" \
+    "assets/xiaoman3d/tower.glb" \
+    "assets/xiaoman3d/xiaoman.glb" \
+    "assets/xiaoman3d/scavenger.glb" \
+    "assets/xiaoman3d/dog.glb" \
+    "assets/xiaoman3d/guard.glb" \
+    "assets/xiaoman3d/cart.glb" \
+    "assets/xiaoman3d/bottle.glb" \
+    "assets/xiaoman3d/basin.glb" \
+    "assets/xiaoman3d/door.glb" \
+    "assets/xiaoman3d/lantern.glb" \
+    "assets/xiaoman3d/ledger.glb" \
+    "assets/xiaoman3d/pouch.glb" \
+    "assets/xiaoman3d/latch.glb" \
+    "assets/xiaoman3d/grass.glb" \
+    "assets/xiaoman3d/twig.glb" \
+    "assets/xiaoman3d/bough.glb" \
+    "assets/xiaoman3d/sky_backdrop.glb" \
     "assets/art/title.png" \
     "assets/art/brand/game_logo_h.png" \
     "assets/art/brand/game_logo_v.png" \

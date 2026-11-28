@@ -68,6 +68,9 @@ p.player.y = 96
 step(p, i, 2)
 print(string.format("[child 城外] x=%.1f y=%.1f 红布车=%s", p.player.x, p.player.y, tostring(p.redCartPulled)))
 
+local latch = p:cartLatchBounds()
+check("1.0 拉车前低拱内有挡栓", latch ~= nil and latch.width > 0 and latch.height == p.room.arch.h)
+
 -- 1) 走到红布车（96–140，台面 y96）按 E 拉开
 moveTo(p, i, 150, 60)
 tap(i, "interact")
@@ -77,6 +80,8 @@ for _, b in ipairs(p.boxes) do if b.id == "outside_red_cart" then box = b end en
 check("1.1 红布车从石阶口挪开", box ~= nil and math.abs(box.x0 - 430) < 1 and math.abs(box.x1 - 474) < 1,
 	string.format("x0=%.0f x1=%.0f pulled=%s", box and box.x0 or -1, box and box.x1 or -1, tostring(p.redCartPulled)))
 check("1.2 拉开一次写入跨房快照", r.story.segments["outside_cart"] == true, "segment=" .. tostring(r.story.segments["outside_cart"]))
+
+check("1.3 红布车落窝收起挡栓", p.cartDocked and p:cartLatchBounds() == nil)
 
 -- 2) 下石阶到 0 层，蹲过拱 280–360
 moveTo(p, i, 40, 240)
@@ -128,7 +133,17 @@ check("4.3 桌下听脚步提示触发", #footBeats > 0, "beats=" .. table.conca
 i.crouch.held = false
 moveTo(v, i, v.ox + 650, 260)
 step(v, i, 4)
-check("4.4 钻暗渠切森林", v.wantRoom == "forest" or v.room.key == "forest", "want=" .. tostring(v.wantRoom))
+check("4.4 站姿越过旧出口仍在空村", v.passed and v.player.x >= v.ox + 640
+    and not v.player.crouch and v.room.key == "village" and v.wantRoom == "",
+    string.format("x=%.1f want=%s", v.player.x - v.ox, v.wantRoom))
+moveTo(v, i, v.ox + 600, 90)
+step(v, i, 4)
+check("4.5 站在暗渠口保持本房", v.player.x >= v.ox + 560 and v.player.x <= v.ox + 640
+    and not v.player.crouch and v.wantRoom == "", string.format("x=%.1f", v.player.x - v.ox))
+i.crouch.held = true
+step(v, i, 1)
+check("4.6 原地蹲下钻暗渠切森林", v.player.crouch and v.wantRoom == "forest", "want=" .. tostring(v.wantRoom))
+i.crouch.held = false
 
 -- 5) 森林：树根窄洞 / 溪湾 / 林缘
 local f = new(play.Play, rooms.FOREST_ROOM, nil, r)

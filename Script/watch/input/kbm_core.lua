@@ -67,7 +67,7 @@ function KbmPoller.prototype.sample(self, vp) -- 81
 	local up = Keyboard:isKeyPressed("W") or Keyboard:isKeyPressed("Up") -- 118
 	local down = Keyboard:isKeyPressed("S") or Keyboard:isKeyPressed("Down") -- 119
 	local jump = Keyboard:isKeyPressed("Space") -- 120
-	local crouch = Keyboard:isKeyPressed("LCtrl") or Keyboard:isKeyPressed("RCtrl") -- 121
+	local crouch = Keyboard:isKeyPressed("LCtrl") or Keyboard:isKeyPressed("RCtrl") or Keyboard:isKeyPressed("C") -- 121
 	local cover = Keyboard:isKeyPressed("LShift") or Keyboard:isKeyPressed("RShift") -- 122
 	local interact = Keyboard:isKeyPressed("E") -- 123
 	local aim = Keyboard:isKeyPressed("F") -- 124

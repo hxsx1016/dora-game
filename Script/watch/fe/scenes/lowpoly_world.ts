@@ -1074,10 +1074,10 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return false;
         }
         const key = ctx.p.room.key;
-        if (key === "village") {
+        if (key === "village" && ctx.cam.projection === undefined) {
             return this.village.drawForegroundOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
         }
-        if (key === "forest") {
+        if (key === "forest" && ctx.cam.projection === undefined) {
             return this.forest.drawForegroundOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
         }
         if (key === "outside") {
@@ -1107,7 +1107,9 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
-        const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
+        const handPt = ctx.cam.projection !== undefined
+            ? ctx.cam.worldToScreen(this.memoryAnchorWorldX, this.memoryAnchorWorldY)
+            : projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
         const cx = Math.max(190, Math.min(ctx.uiW - 190, handPt.x * inv - 20));
         const cy = Math.max(170, Math.min(ctx.uiH - 150, handPt.y * inv + 104));
         const pullT = smoothstep(0.14, 0.82, prog);

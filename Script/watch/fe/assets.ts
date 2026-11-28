@@ -360,7 +360,7 @@ export class AssetSlotHost {
     private visibleThisFrame: Record<string, Sprite.Type> = {};
     private localSlots: Record<string, AssetSlotConfig> = {};
 
-    constructor(parent: Node.Type, order: number) {
+    constructor(parent: Node.Type, order: number, private placeInScene?: (sprite: Sprite.Type, key: string, instance: string, x: number, y: number) => void) {
         this.container = Node();
         this.container.order = order;
         this.container.addTo(parent);
@@ -547,6 +547,9 @@ export class AssetSlotHost {
         sprite.visible = true;
         this.visibleThisFrame[key] = sprite;
         this.lastPlacement[instanceKey] = sprite;
+        if (this.placeInScene !== undefined) {
+            this.placeInScene(sprite, key, instanceKey, x, y);
+        }
         return true;
     }
 
