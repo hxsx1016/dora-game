@@ -84,19 +84,9 @@ export function setSaveFault(value: SaveFault): void {
     fault = value;
 }
 
-/** `replace` 故障走真实的「copy 返回 false」分支，而不是提前跳过。 */
-function copyForWrite(from: string, to: string): boolean {
-    if (fault === "replace") {
-        return false;
-    }
-    return ops.copy(from, to);
-}
-
 let customSaveFile = "";
 /** 跨 Play 实例的待落盘档案：携带目标路径，切换档案后不会写错档。 */
 let pending: { state: SaveState; file: string } | undefined = undefined;
-/** 读到未知版本原件后置位：该路径的普通写档一律拒绝，切走再切回仍受保护。 */
-let protectedPath = "";
 
 function effectiveSaveFile(): string {
     if (customSaveFile !== "") {
@@ -148,7 +138,7 @@ function prevPathFor(target: string, useBackupsDir: boolean): string {
     return target + ".prev";
 }
 
-/** 测试用：切到隔离档案文件；传空则回正式档案。不清保护位（保护位按路径绑定）。 */
+/** 测试用：切到隔离档案文件；传空则回正式档案。写入时始终检查目标的实际版本。 */
 export function setSaveFile(path: string): void {
     customSaveFile = path;
 }
@@ -207,17 +197,16 @@ export function emptySave(): SaveState {
     };
 }
 
-function lineValue(text: string, key: string): string | undefined {
-    const lines = text.split("\n");
-    const prefix = key + "=";
-    let i = 0;
-    for (i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.length >= prefix.length && line.substring(0, prefix.length) === prefix) {
-            return line.substring(prefix.length);
-        }
+/** 一次解析整份键值档，兼容 Windows 换行，重复键沿用首项。 */
+function readFields(text: string): Record<string, string | undefined> {
+    const fields: Record<string, string | undefined> = {};
+    for (const line of normalize(text).split("\n")) {
+        const separator = line.indexOf("=");
+        if (separator <= 0) continue;
+        const key = line.substring(0, separator);
+        if (fields[key] === undefined) fields[key] = line.substring(separator + 1);
     }
-    return undefined;
+    return fields;
 }
 
 function intOf(text: string, fallback: number): number {
@@ -275,7 +264,8 @@ function parseSave(text: string): Parsed {
         bad.reason = "档案为空";
         return bad;
     }
-    const versionText = lineValue(text, "version");
+    const fields = readFields(text);
+    const versionText = fields.version;
     if (versionText === undefined) {
         bad.reason = "缺少 version 行";
         return bad;
@@ -296,7 +286,7 @@ function parseSave(text: string): Parsed {
     const bools: boolean[] = [];
     let i = 0;
     for (i = 0; i < boolKeys.length; i++) {
-        const value = lineValue(text, boolKeys[i]);
+        const value = fields[boolKeys[i]];
         if (value === undefined) {
             bad.reason = "缺少字段 " + boolKeys[i];
             return bad;
@@ -307,7 +297,7 @@ function parseSave(text: string): Parsed {
         }
         bools.push(value === "true");
     }
-    const phase = lineValue(text, "museumPhase");
+    const phase = fields.museumPhase;
     if (phase === undefined) {
         bad.reason = "缺少字段 museumPhase";
         return bad;
@@ -336,12 +326,13 @@ function normalize(text: string): string {
 
 /** 两个文件内容是否一致（读不到就是不一致）。 */
 function sameContent(a: string, b: string): boolean {
-    const textA = ops.load(a);
-    const textB = ops.load(b);
-    if (textA === undefined || textB === undefined) {
-        return false;
-    }
-    return normalize(textA) === normalize(textB);
+    const text = ops.load(a);
+    return text !== undefined && matchesText(b, text);
+}
+
+function matchesText(path: string, expected: string): boolean {
+    const actual = ops.load(path);
+    return actual !== undefined && normalize(actual) === normalize(expected);
 }
 
 /** 按当前档案路径派生备份名：便携模式收入 saves/backups/，常规/测试模式按原路径派生；找不到空位返回空串（拒绝覆盖）。 */
@@ -375,13 +366,7 @@ function backupCorrupt(target: string, suffix: string, useBackupsDir: boolean = 
         return "";
     }
     ensureDir(dirOf(backup));
-    if (!ops.copy(target, backup)) {
-        return "";
-    }
-    if (!sameContent(target, backup)) {
-        return "";
-    }
-    return backup;
+    return copyVerified(target, backup) ? backup : "";
 }
 
 /** 读文本；读不到按空串处理（解析会判 corrupt）。 */
@@ -393,30 +378,18 @@ function loadText(path: string): string {
     return text;
 }
 
-/** 备份是否有效（能解析出完整档案）。 */
-function usableBackup(path: string): boolean {
-    if (!ops.exist(path)) {
-        return false;
-    }
-    const text = ops.load(path);
-    return text !== undefined && parseSave(text).ok;
+type SaveParser = (text: string) => { status: LoadStatus };
+
+/** 复制成功并回读一致后，才允许删除候选件或覆盖唯一的有效档。 */
+function copyVerified(from: string, to: string): boolean {
+    return ops.copy(from, to) && sameContent(from, to);
 }
 
-/** 用候选件恢复目标；成功（复制成功且回读解析一致）才清候选，失败保留候选并返回 false。 */
-function restoreFrom(candidate: string, target: string, keepCandidate: boolean): boolean {
-    if (!usableBackup(candidate)) {
-        return false;
-    }
-    if (!ops.copy(candidate, target)) {
-        return false;
-    }
-    const again = parseSave(loadText(target));
-    if (!again.ok) {
-        return false;
-    }
-    if (!keepCandidate) {
-        ops.remove(candidate);
-    }
+function restoreFrom(candidate: string, target: string, keepCandidate: boolean, parse: SaveParser): boolean {
+    if (!ops.exist(candidate) || parse(loadText(candidate)).status !== "ok") return false;
+    ensureDir(dirOf(target));
+    if (!copyVerified(candidate, target)) return false;
+    if (!keepCandidate) ops.remove(candidate);
     return true;
 }
 
@@ -425,7 +398,7 @@ function restoreFrom(candidate: string, target: string, keepCandidate: boolean):
  * 自愈顺序：
  *   目标缺失 → 完整 `.tmp` → 完整 `.prev`；
  *   目标损坏 → 完整 `.tmp`（最新候选）→ 完整 `.prev`。
- * 损坏/未知版本先派生备份；未知版本原件置保护位（按路径），普通写档拒绝覆盖。
+ * 损坏/未知版本先派生备份；普通写档按原件版本判断能否覆盖。
  */
 export function loadSave(): LoadResult {
     const target = absPath(effectiveSaveFile());
@@ -436,10 +409,10 @@ export function loadSave(): LoadResult {
     let recoveryDetail = "";
 
     if (!ops.exist(target)) {
-        if (restoreFrom(tmp, target, false)) {
+        if (restoreFrom(tmp, target, false, parseSave)) {
             recovered = true;
             recoveryDetail = "目标缺失，已用完整 .tmp 恢复";
-        } else if (restoreFrom(prev, target, true)) {
+        } else if (restoreFrom(prev, target, true, parseSave)) {
             recovered = true;
             recoveryDetail = "目标缺失，已用完整 .prev 恢复";
         }
@@ -469,7 +442,7 @@ export function loadSave(): LoadResult {
 
     if (parsed.status === "corrupt") {
         const broken = backupCorrupt(target, ".corrupt", useBackups);
-        if (restoreFrom(tmp, target, false)) {
+        if (broken !== "" && restoreFrom(tmp, target, false, parseSave)) {
             return {
                 state: parseSave(loadText(target)).state,
                 status: "ok",
@@ -477,7 +450,7 @@ export function loadSave(): LoadResult {
                 recovered: true, backup: broken, action: "keep",
             };
         }
-        if (restoreFrom(prev, target, true)) {
+        if (broken !== "" && restoreFrom(prev, target, true, parseSave)) {
             return {
                 state: parseSave(loadText(target)).state,
                 status: "ok",
@@ -495,7 +468,6 @@ export function loadSave(): LoadResult {
     }
 
     const backup = backupCorrupt(target, ".unsupported", useBackups);
-    protectedPath = target;
     return {
         state: emptySave(), status: "unsupported",
         detail: "档案版本不支持（" + parsed.reason + "），原件保留"
@@ -525,71 +497,68 @@ function dirOf(path: string): string {
  * 未知版本原件（按路径保护）拒绝写入。
  */
 export function saveSave(state: SaveState): boolean {
-    const target = absPath(effectiveSaveFile());
-    if (protectedPath === target) {
-        return false;
-    }
-    const useBackups = usePortableBackupsForProfile();
+    return writeSaveFile(savePath(), formatSave(state), usePortableBackupsForProfile(), parseSave, fault);
+}
+
+function writeSaveFile(target: string, text: string, useBackups: boolean, parse: SaveParser, failure: SaveFault = ""): boolean {
+    if (failure === "write") return false;
     ensureDir(dirOf(target));
     const tmp = target + ".tmp";
     const prev = prevPathFor(target, useBackups);
-    const text = formatSave(state);
-
-    if (fault === "write") {
-        return false;
+    let status: LoadStatus = "missing";
+    if (ops.exist(target)) {
+        const original = ops.load(target);
+        if (original === undefined) return false;
+        status = parse(original).status;
+        if (status === "unsupported") return false;
+        if (status === "corrupt" && backupCorrupt(target, ".corrupt", useBackups) === "") return false;
     }
-    if (!ops.save(tmp, text)) {
+
+    // 首次写入也可能发生在上次中断之后。先保住唯一的有效临时件，再复用它的路径。
+    if (status !== "ok" && ops.exist(tmp)) {
+        const candidate = ops.load(tmp);
+        if (candidate === undefined) return false;
+        const candidateStatus = parse(candidate).status;
+        if (candidateStatus === "unsupported") return false;
+        if (candidateStatus === "ok") {
+            if (!copyVerified(tmp, target)) return false;
+            status = "ok";
+        }
+    }
+    if (!ops.save(tmp, text) || !matchesText(tmp, text)) {
         ops.remove(tmp);
         return false;
     }
-    const written = ops.load(tmp);
-    if (written === undefined || normalize(written) !== normalize(text)) {
-        ops.remove(tmp);
-        return false;
-    }
-
-    const existed = ops.exist(target);
-    let backedUp = false;
-    if (existed) {
-        if (usableBackup(target)) {
-            ensureDir(dirOf(prev));
-            backedUp = ops.copy(target, prev);
-            if (!backedUp || !usableBackup(prev)) {
-                // 备份不可用：绝不覆盖唯一有效旧档。
-                ops.remove(tmp);
-                return false;
-            }
-        } else {
-            // 原目标已损坏（非受保护高版本）：先隔离保留坏文件副本再允许写入新档，解除永久写死锁。
-            backupCorrupt(target, ".corrupt", useBackups);
-        }
-    }
-
-    if (!copyForWrite(tmp, target)) {
-        if (existed && backedUp && !sameContent(target, prev)) {
-            ops.copy(prev, target);
-        }
-        // `.tmp` 保留：它是本次唯一完整候选。
-        return false;
-    }
-
-    const check = ops.load(target);
-    if (fault === "verify" || check === undefined || normalize(check) !== normalize(text)) {
-        if (existed && backedUp && ops.copy(prev, target) && usableBackup(target)) {
+    if (status === "ok") {
+        ensureDir(dirOf(prev));
+        if (!copyVerified(target, prev)) {
             ops.remove(tmp);
             return false;
         }
-        // 回滚失败：保留 `.tmp` 候选与当前目标，不删任何可能有效的东西。
+    }
+    if (failure === "replace" || !ops.copy(tmp, target)) {
+        if (status === "ok" && !sameContent(target, prev)) copyVerified(prev, target);
         return false;
     }
-
+    if (failure === "verify" || !matchesText(target, text)) {
+        if (status === "ok" && copyVerified(prev, target)) ops.remove(tmp);
+        return false;
+    }
     ops.remove(tmp);
+    return true;
+}
+
+/** 先清理可复活进度的候选件，失败时保留当前主文件供重试。 */
+function removeSaveFiles(target: string, useBackups: boolean): boolean {
+    for (const path of [prevPathFor(target, useBackups), target + ".tmp", target]) {
+        if (ops.exist(path) && !ops.remove(path)) return false;
+    }
     return true;
 }
 
 /**
  * 恢复策略（给前端「档案损坏/版本不支持」页用）：把原件隔离到派生备份后删除。
- * 只有备份复制成功、内容与原件一致、且备份本身可解析时才删除目标。
+ * 只有备份复制成功、内容与原件一致，才删除目标和可恢复候选。
  */
 export function resetSave(): boolean {
     const target = absPath(effectiveSaveFile());
@@ -600,16 +569,8 @@ export function resetSave(): boolean {
     if (backup === "") {
         return false;
     }
-    // 原件本身可能不可解析（损坏/未知版本），这里只要求「复制成功且内容一致」。
-    if (!sameContent(target, backup)) {
-        return false;
-    }
-    if (!ops.remove(target)) {
-        return false;
-    }
-    if (protectedPath === target) {
-        protectedPath = "";
-    }
+    if (!removeSaveFiles(target, usePortableBackupsForProfile())) return false;
+    if (pendingMatchesCurrent()) clearProfilePending();
     return true;
 }
 
@@ -888,7 +849,8 @@ export function parseSession(text: string): { ok: boolean; status: LoadStatus; r
     if (text.length === 0) {
         return { ok: false, status: "corrupt", reason: "局中存档为空" };
     }
-    const verRaw = lineValue(text, "version");
+    const fields = readFields(text);
+    const verRaw = fields.version;
     if (verRaw === undefined) {
         return { ok: false, status: "corrupt", reason: "缺少 version 行" };
     }
@@ -899,35 +861,35 @@ export function parseSession(text: string): { ok: boolean; status: LoadStatus; r
     if (ver > SESSION_VERSION) {
         return { ok: false, status: "unsupported", reason: "局中存档版本 " + ver + " 高于当前 " + SESSION_VERSION };
     }
-    const roomKey = lineValue(text, "roomKey");
+    const roomKey = fields.roomKey;
     if (roomKey === undefined || roomKey === "") {
         return { ok: false, status: "corrupt", reason: "缺少 roomKey" };
     }
-    const routeRaw = lineValue(text, "route") ?? "";
+    const routeRaw = fields.route ?? "";
     if (routeRaw !== "" && routeRaw !== "child" && routeRaw !== "soldier") {
         return { ok: false, status: "corrupt", reason: "route 取值非法" };
     }
-    const settled = parseBoolField(lineValue(text, "settled"), false);
-    const handDone = parseBoolField(lineValue(text, "handDone"), false);
-    const lineSaid = parseBoolField(lineValue(text, "lineSaid"), false);
-    const tied = parseBoolField(lineValue(text, "tied"), false);
-    const carry = parseBoolField(lineValue(text, "carry"), false);
-    const escortDone = parseBoolField(lineValue(text, "escortDone"), false);
-    const cartDocked = parseBoolField(lineValue(text, "cartDocked"), false);
-    const joined = parseBoolField(lineValue(text, "joined"), false);
-    const c1Latch = parseBoolField(lineValue(text, "c1Latch"), false);
-    const c2Latch = parseBoolField(lineValue(text, "c2Latch"), false);
+    const settled = parseBoolField(fields.settled, false);
+    const handDone = parseBoolField(fields.handDone, false);
+    const lineSaid = parseBoolField(fields.lineSaid, false);
+    const tied = parseBoolField(fields.tied, false);
+    const carry = parseBoolField(fields.carry, false);
+    const escortDone = parseBoolField(fields.escortDone, false);
+    const cartDocked = parseBoolField(fields.cartDocked, false);
+    const joined = parseBoolField(fields.joined, false);
+    const c1Latch = parseBoolField(fields.c1Latch, false);
+    const c2Latch = parseBoolField(fields.c2Latch, false);
     if (settled === undefined || handDone === undefined || lineSaid === undefined
         || tied === undefined || carry === undefined || escortDone === undefined || cartDocked === undefined
         || joined === undefined || c1Latch === undefined || c2Latch === undefined) {
         return { ok: false, status: "corrupt", reason: "布尔字段非法" };
     }
-    const campRouteRaw = lineValue(text, "campaignRoute") ?? "";
+    const campRouteRaw = fields.campaignRoute ?? "";
     if (campRouteRaw !== "" && campRouteRaw !== "outer" && campRouteRaw !== "drygoods") {
         return { ok: false, status: "corrupt", reason: "campaignRoute 取值非法" };
     }
-    const hp = intOf(lineValue(text, "hp") ?? "3", -1);
-    const maxHp = intOf(lineValue(text, "maxHp") ?? "3", -1);
+    const hp = intOf(fields.hp ?? "3", -1);
+    const maxHp = intOf(fields.maxHp ?? "3", -1);
     if (hp < 0 || maxHp <= 0) {
         return { ok: false, status: "corrupt", reason: "血量字段非法" };
     }
@@ -937,95 +899,63 @@ export function parseSession(text: string): { ok: boolean; status: LoadStatus; r
         reason: "ok",
         state: {
             roomKey,
-            checkpoint: intOf(lineValue(text, "checkpoint") ?? "0", 0),
-            seed: intOf(lineValue(text, "seed") ?? "20261124", 20261124),
+            checkpoint: intOf(fields.checkpoint ?? "0", 0),
+            seed: intOf(fields.seed ?? "20261124", 20261124),
             route: routeRaw as StoryRoute,
             hp,
             maxHp,
-            hpAtGate: intOf(lineValue(text, "hpAtGate") ?? "-1", -1),
-            maxHpAtGate: intOf(lineValue(text, "maxHpAtGate") ?? "-1", -1),
+            hpAtGate: intOf(fields.hpAtGate ?? "-1", -1),
+            maxHpAtGate: intOf(fields.maxHpAtGate ?? "-1", -1),
             settled,
-            phase: lineValue(text, "phase") ?? "",
-            countTick: Math.max(0, intOf(lineValue(text, "countTick") ?? "0", 0)),
-            phaseTick: Math.max(0, intOf(lineValue(text, "phaseTick") ?? "0", 0)),
-            handTicks: Math.max(0, intOf(lineValue(text, "handTicks") ?? "0", 0)),
+            phase: fields.phase ?? "",
+            countTick: Math.max(0, intOf(fields.countTick ?? "0", 0)),
+            phaseTick: Math.max(0, intOf(fields.phaseTick ?? "0", 0)),
+            handTicks: Math.max(0, intOf(fields.handTicks ?? "0", 0)),
             handDone,
             lineSaid,
             tied,
             carry,
             escortDone,
-            craftedWeapon: lineValue(text, "craftedWeapon") ?? "",
-            equippedWeapon: lineValue(text, "equippedWeapon") ?? "",
-            wood: Math.max(0, intOf(lineValue(text, "wood") ?? "0", 0)),
-            bell: Math.max(0, intOf(lineValue(text, "bell") ?? "0", 0)),
-            scrap: Math.max(0, intOf(lineValue(text, "scrap") ?? "0", 0)),
-            wedge: Math.max(0, intOf(lineValue(text, "wedge") ?? "0", 0)),
-            ammo: Math.max(0, intOf(lineValue(text, "ammo") ?? "0", 0)),
-            shield: Math.max(0, intOf(lineValue(text, "shield") ?? "0", 0)),
-            pass: Math.max(0, intOf(lineValue(text, "pass") ?? "0", 0)),
-            quickbelt: Math.max(0, intOf(lineValue(text, "quickbelt") ?? "0", 0)),
-            taken: parseListField(lineValue(text, "taken")),
-            segments: parseListField(lineValue(text, "segments")),
-            cartAxle: intOf(lineValue(text, "cartAxle") ?? "0", 0),
+            craftedWeapon: fields.craftedWeapon ?? "",
+            equippedWeapon: fields.equippedWeapon ?? "",
+            wood: Math.max(0, intOf(fields.wood ?? "0", 0)),
+            bell: Math.max(0, intOf(fields.bell ?? "0", 0)),
+            scrap: Math.max(0, intOf(fields.scrap ?? "0", 0)),
+            wedge: Math.max(0, intOf(fields.wedge ?? "0", 0)),
+            ammo: Math.max(0, intOf(fields.ammo ?? "0", 0)),
+            shield: Math.max(0, intOf(fields.shield ?? "0", 0)),
+            pass: Math.max(0, intOf(fields.pass ?? "0", 0)),
+            quickbelt: Math.max(0, intOf(fields.quickbelt ?? "0", 0)),
+            taken: parseListField(fields.taken),
+            segments: parseListField(fields.segments),
+            cartAxle: intOf(fields.cartAxle ?? "0", 0),
             cartDocked,
             campaignRoute: campRouteRaw as RouteTag,
             joined,
             c1Latch,
             c2Latch,
-            talentSeed: Math.max(0, intOf(lineValue(text, "talentSeed") ?? "0", 0)),
-            talentRoom: lineValue(text, "talentRoom") ?? "",
-            talentOffers: parseListField(lineValue(text, "talentOffers")),
-            talentRanks: parseListField(lineValue(text, "talentRanks")),
-            escortAttempt: Math.max(1, intOf(lineValue(text, "escortAttempt") ?? "1", 1)),
-            escortVariant: Math.max(0, intOf(lineValue(text, "escortVariant") ?? "0", 0)),
-            talentDeferred: parseBoolField(lineValue(text, "talentDeferred"), false) === true,
-            talentVitality: Math.max(0, intOf(lineValue(text, "talentVitality") ?? "0", 0)),
-            talentReload: Math.max(0, intOf(lineValue(text, "talentReload") ?? "0", 0)),
-            talentGuard: Math.max(0, intOf(lineValue(text, "talentGuard") ?? "0", 0)),
-            talentCraft: Math.max(0, intOf(lineValue(text, "talentCraft") ?? "0", 0)),
-            props: parseListField(lineValue(text, "props")),
-            playerX: intOf(lineValue(text, "playerX") ?? "-1", -1),
-            playerY: intOf(lineValue(text, "playerY") ?? "0", 0),
-            playerDepth: intOf(lineValue(text, "playerDepth") ?? "0", 0),
-            gateTick: Math.max(0, intOf(lineValue(text, "gateTick") ?? "0", 0)),
-            hasBottle: parseBoolField(lineValue(text, "hasBottle"), false) === true,
-            villagePassed: parseBoolField(lineValue(text, "villagePassed"), false) === true,
-            savedAt: Math.max(0, intOf(lineValue(text, "savedAt") ?? "0", 0)),
-            playSeconds: Math.max(0, intOf(lineValue(text, "playSeconds") ?? "0", 0)),
+            talentSeed: Math.max(0, intOf(fields.talentSeed ?? "0", 0)),
+            talentRoom: fields.talentRoom ?? "",
+            talentOffers: parseListField(fields.talentOffers),
+            talentRanks: parseListField(fields.talentRanks),
+            escortAttempt: Math.max(1, intOf(fields.escortAttempt ?? "1", 1)),
+            escortVariant: Math.max(0, intOf(fields.escortVariant ?? "0", 0)),
+            talentDeferred: parseBoolField(fields.talentDeferred, false) === true,
+            talentVitality: Math.max(0, intOf(fields.talentVitality ?? "0", 0)),
+            talentReload: Math.max(0, intOf(fields.talentReload ?? "0", 0)),
+            talentGuard: Math.max(0, intOf(fields.talentGuard ?? "0", 0)),
+            talentCraft: Math.max(0, intOf(fields.talentCraft ?? "0", 0)),
+            props: parseListField(fields.props),
+            playerX: intOf(fields.playerX ?? "-1", -1),
+            playerY: intOf(fields.playerY ?? "0", 0),
+            playerDepth: intOf(fields.playerDepth ?? "0", 0),
+            gateTick: Math.max(0, intOf(fields.gateTick ?? "0", 0)),
+            hasBottle: parseBoolField(fields.hasBottle, false) === true,
+            villagePassed: parseBoolField(fields.villagePassed, false) === true,
+            savedAt: Math.max(0, intOf(fields.savedAt ?? "0", 0)),
+            playSeconds: Math.max(0, intOf(fields.playSeconds ?? "0", 0)),
         },
     };
-}
-
-function usableSessionBackup(path: string): boolean {
-    if (!ops.exist(path)) {
-        return false;
-    }
-    return parseSession(loadText(path)).ok;
-}
-
-function restoreSessionFrom(candidate: string, target: string, keepCandidate: boolean): boolean {
-    if (!usableSessionBackup(candidate)) {
-        return false;
-    }
-    ensureDir(dirOf(target));
-    if (!ops.copy(candidate, target)) {
-        return false;
-    }
-    if (!sameContent(candidate, target)) {
-        return false;
-    }
-    if (!keepCandidate) {
-        ops.remove(candidate);
-    }
-    return true;
-}
-
-function hasSessionAtPath(relFile: string, useBackups: boolean): boolean {
-    const target = absPath(relFile);
-    if (usableSessionBackup(target)) {
-        return true;
-    }
-    return usableSessionBackup(target + ".tmp") || usableSessionBackup(prevPathFor(target, useBackups));
 }
 
 function loadSessionAtPath(relFile: string, useBackups: boolean): SessionLoadResult {
@@ -1033,11 +963,11 @@ function loadSessionAtPath(relFile: string, useBackups: boolean): SessionLoadRes
     const tmp = target + ".tmp";
     const prev = prevPathFor(target, useBackups);
     if (!ops.exist(target)) {
-        if (restoreSessionFrom(tmp, target, false)) {
+        if (restoreFrom(tmp, target, false, parseSession)) {
             const p = parseSession(loadText(target));
             return { state: p.state, status: "ok", detail: "由 .tmp 恢复局中存档", recovered: true, backup: "" };
         }
-        if (restoreSessionFrom(prev, target, true)) {
+        if (restoreFrom(prev, target, true, parseSession)) {
             const p = parseSession(loadText(target));
             return { state: p.state, status: "ok", detail: "由 .prev 恢复局中存档", recovered: true, backup: "" };
         }
@@ -1052,11 +982,11 @@ function loadSessionAtPath(relFile: string, useBackups: boolean): SessionLoadRes
     }
     if (parsed.status === "corrupt") {
         const broken = backupCorrupt(target, ".corrupt", useBackups);
-        if (restoreSessionFrom(tmp, target, false)) {
+        if (broken !== "" && restoreFrom(tmp, target, false, parseSession)) {
             const p = parseSession(loadText(target));
             return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .tmp 恢复", recovered: true, backup: broken };
         }
-        if (restoreSessionFrom(prev, target, true)) {
+        if (broken !== "" && restoreFrom(prev, target, true, parseSession)) {
             const p = parseSession(loadText(target));
             return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .prev 恢复", recovered: true, backup: broken };
         }
@@ -1064,69 +994,6 @@ function loadSessionAtPath(relFile: string, useBackups: boolean): SessionLoadRes
     }
     const backup = backupCorrupt(target, ".unsupported", useBackups);
     return { state: undefined, status: "unsupported", detail: parsed.reason, recovered: false, backup };
-}
-
-function saveSessionAtPath(relFile: string, state: SessionSave, useBackups: boolean): boolean {
-    const target = absPath(relFile);
-    ensureDir(dirOf(target));
-    const tmp = target + ".tmp";
-    const prev = prevPathFor(target, useBackups);
-    const text = formatSession(state);
-    if (!ops.save(tmp, text)) {
-        ops.remove(tmp);
-        return false;
-    }
-    const written = ops.load(tmp);
-    if (written === undefined || normalize(written) !== normalize(text)) {
-        ops.remove(tmp);
-        return false;
-    }
-    const existed = ops.exist(target);
-    let backedUp = false;
-    if (existed) {
-        if (usableSessionBackup(target)) {
-            ensureDir(dirOf(prev));
-            backedUp = ops.copy(target, prev);
-            if (!backedUp || !usableSessionBackup(prev)) {
-                ops.remove(tmp);
-                return false;
-            }
-        } else {
-            backupCorrupt(target, ".corrupt", useBackups);
-        }
-    }
-    if (!ops.copy(tmp, target)) {
-        if (existed && backedUp && !sameContent(target, prev)) {
-            ops.copy(prev, target);
-        }
-        return false;
-    }
-    const check = ops.load(target);
-    if (check === undefined || normalize(check) !== normalize(text)) {
-        if (existed && backedUp && ops.copy(prev, target) && usableSessionBackup(target)) {
-            ops.remove(tmp);
-        }
-        return false;
-    }
-    ops.remove(tmp);
-    return true;
-}
-
-function clearSessionAtPath(relFile: string, useBackups: boolean): boolean {
-    const target = absPath(relFile);
-    const tmp = target + ".tmp";
-    const prev = prevPathFor(target, useBackups);
-    let ok = true;
-    if (ops.exist(target)) {
-        ok = ops.remove(target) && ok;
-    }
-    if (ops.exist(tmp)) {
-        ops.remove(tmp);
-    }
-    if (ops.exist(prev)) {
-        ops.remove(prev);
-    }
-    return ok;
 }
 
 function peekSlotSummary(slot: SaveSlotId): SaveSlotSummary {
@@ -1176,6 +1043,7 @@ function peekSlotSummary(slot: SaveSlotId): SaveSlotSummary {
         }
         if (i === 0) {
             primaryStatus = parsed.status;
+            if (primaryStatus === "unsupported") break;
         }
     }
     if (primaryStatus !== "missing") {
@@ -1185,7 +1053,7 @@ function peekSlotSummary(slot: SaveSlotId): SaveSlotSummary {
 }
 
 export function hasSlotSave(slot: SaveSlotId): boolean {
-    return hasSessionAtPath(getSlotFile(slot), usePortableBackupsForSession());
+    return peekSlotSummary(slot).exists;
 }
 
 export function loadSlot(slot: SaveSlotId): SessionLoadResult {
@@ -1193,11 +1061,11 @@ export function loadSlot(slot: SaveSlotId): SessionLoadResult {
 }
 
 export function saveSlot(slot: SaveSlotId, state: SessionSave): boolean {
-    return saveSessionAtPath(getSlotFile(slot), state, usePortableBackupsForSession());
+    return writeSaveFile(absPath(getSlotFile(slot)), formatSession(state), usePortableBackupsForSession(), parseSession);
 }
 
 export function deleteSlot(slot: SaveSlotId): boolean {
-    return clearSessionAtPath(getSlotFile(slot), usePortableBackupsForSession());
+    return removeSaveFiles(absPath(getSlotFile(slot)), usePortableBackupsForSession());
 }
 
 export function listSaveSlots(): SaveSlotSummary[] {

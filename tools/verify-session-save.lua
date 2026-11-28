@@ -143,6 +143,76 @@ do
 		bad.status == "corrupt" and bad.backup ~= "" and Content:exist(bad.backup) == true)
 end
 
+-- 7. 自动档与手动档共用的跨版本、恢复和删除边界。槽位跟随隔离测试路径。
+do
+	local slot = 1
+	local path = absOf(savemod.getSlotFile(slot))
+	local lf = "version=1\nroomKey=gate\nroute=child\nhp=2\nmaxHp=3\n"
+	local future = "version=9\nroomKey=future-room\n"
+	local snap = assert(savemod.parseSession(lf).state)
+	local function write(target, text) assert(Content:save(target, text)) end
+	local function intercept(copy, remove)
+		savemod.setFileOpsForTest({
+			exist = function(_, p) return Content:exist(p) end,
+			load = function(_, p) return Content:load(p) end,
+			save = function(_, p, text) return Content:save(p, text) end,
+			copy = function(_, a, b) return copy(a, b) end,
+			remove = function(_, p) return remove(p) end,
+			isdir = function(_, p) return Content:isdir(p) end,
+			mkdir = function(_, p) return Content:mkdir(p) end,
+		})
+	end
+	local function realCopy(a, b) return Content:copy(a, b) end
+	local function realRemove(p) return Content:remove(p) end
+	local crlf = lf:gsub("\n", "\r\n")
+	local parsed = savemod.parseSession(crlf .. "roomKey=duplicate\r\n")
+	check("7.1 CRLF 与重复键按旧格式读取", parsed.ok and parsed.state.roomKey == "gate" and parsed.state.hp == 2)
+
+	write(path, future)
+	write(path .. ".prev", lf)
+	write(path .. ".tmp", lf)
+	local summary = savemod.listSaveSlots()[2]
+	check("7.2 新版主文件不因旧备份而显示可读", summary.status == "unsupported" and not summary.exists and not savemod.hasSlotSave(slot))
+	check("7.3 未先读档也保护新版及其恢复候选", not savemod.saveSlot(slot, snap)
+		and Content:load(path) == future and Content:load(path .. ".tmp") == lf and Content:load(path .. ".prev") == lf)
+	local archivePath = absOf(TEST_ARCHIVE)
+	write(archivePath, future)
+	check("7.4 主档案直接写入也保护新版", not savemod.saveSave(savemod.emptySave()) and Content:load(archivePath) == future)
+
+	write(path, "broken")
+	write(path .. ".tmp", lf)
+	intercept(function(a, b)
+		if b:find(".corrupt", 1, true) then return false end
+		return realCopy(a, b)
+	end, realRemove)
+	local failedRead = savemod.loadSlot(slot)
+	local failedWrite = savemod.saveSlot(slot, snap)
+	savemod.setFileOpsForTest(nil)
+	check("7.5 隔离失败保留损坏原件与恢复候选", failedRead.status == "corrupt" and not failedRead.recovered
+		and not failedWrite and Content:load(path) == "broken" and Content:load(path .. ".tmp") == lf)
+
+	write(path, lf)
+	write(path .. ".prev", lf)
+	intercept(realCopy, function(p)
+		if p == path .. ".prev" then return false end
+		return realRemove(p)
+	end)
+	local deleted = savemod.deleteSlot(slot)
+	savemod.setFileOpsForTest(nil)
+	check("7.6 备份删除失败保留当前进度并返回失败", not deleted and Content:load(path) == lf)
+	check("7.7 重试删除后槽位保持为空", savemod.deleteSlot(slot) and not savemod.hasSlotSave(slot) and savemod.loadSlot(slot).status == "missing")
+
+	write(path .. ".tmp", lf)
+	intercept(function(a, b)
+		if b == path then return false end
+		return realCopy(a, b)
+	end, realRemove)
+	local saved = savemod.saveSlot(slot, snap)
+	savemod.setFileOpsForTest(nil)
+	check("7.8 写入失败保留唯一的旧临时档", not saved and Content:load(path .. ".tmp") == lf)
+	savemod.deleteSlot(slot)
+end
+
 cleanupFiles()
 savemod.setSaveFile(origSave)
 savemod.setSessionFile(origSess)
