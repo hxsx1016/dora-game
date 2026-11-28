@@ -206,180 +206,177 @@ function WindowsInputDriver.prototype.pollInto(self, input, dt) -- 153
 	input.uiWheelY = s.mouseWheelY -- 217
 	if (input.aim.held or input.fire.held) and s.mouseRightPressed then -- 217
 		input.bottleCanceled = true -- 220
-		input.aim.held = false -- 221
-		input.aim.pressed = false -- 222
-		input.aim.released = false -- 223
-	end -- 223
-	input.navUp = s.navUp -- 226
-	input.navDown = s.navDown -- 227
-	input.navLeft = s.navLeft -- 228
-	input.navRight = s.navRight -- 229
-	input.navConfirm = s.navConfirm -- 230
-	input.navBack = false -- 231
-	input.craftConfirm = s.uiConfirmWithE -- 232
-	input.craftCancel = s.uiBackSpace -- 233
-	local rCol = (s.navRight and 1 or 0) - (s.navLeft and 1 or 0) -- 235
-	local rRow = (s.navUp and 1 or 0) - (s.navDown and 1 or 0) -- 236
-	if rCol ~= 0 or rRow ~= 0 then -- 236
-		input.reloadDirCol = rCol -- 238
-		input.reloadDirRow = rRow -- 239
-		input.reloadStepEdge = true -- 240
-		input.reloadAutoStep = false -- 241
-	end -- 241
-	input.reloadConfirm = s.uiConfirmWithE -- 243
-	input.reloadReset = s.uiBackSpace -- 244
-	input:applyPickRoom(s.pick) -- 246
-	input.frameInteractPressed = input.interact.pressed -- 247
-	input.mdx = s.mouseStageX - input.mx -- 249
-	input.mdy = s.mouseStageY - input.my -- 250
-	input.mx = s.mouseStageX -- 251
-	input.my = s.mouseStageY -- 252
-	input.inside = s.mouseInsideStage -- 253
-	input.uiX = s.mouseStageX -- 255
-	input.uiY = s.mouseStageY -- 256
-	input.uiDx = input.mdx -- 257
-	input.uiDy = input.mdy -- 258
-	input.uiInside = s.mouseInsideStage -- 259
-	input.uiHeld = s.mouseLeft and s.mouseInsideStage -- 260
-	input.uiPressed = s.mouseLeftPressed and s.mouseInsideStage -- 261
-	input.uiReleased = s.mouseLeftReleased -- 262
-	input.uiRightPressed = s.mouseRightPressed and s.mouseInsideStage -- 263
+	end -- 220
+	input.navUp = s.navUp -- 223
+	input.navDown = s.navDown -- 224
+	input.navLeft = s.navLeft -- 225
+	input.navRight = s.navRight -- 226
+	input.navConfirm = s.navConfirm -- 227
+	input.navBack = false -- 228
+	input.craftConfirm = s.uiConfirmWithE -- 229
+	input.craftCancel = s.uiBackSpace -- 230
+	local rCol = (s.navRight and 1 or 0) - (s.navLeft and 1 or 0) -- 232
+	local rRow = (s.navUp and 1 or 0) - (s.navDown and 1 or 0) -- 233
+	if rCol ~= 0 or rRow ~= 0 then -- 233
+		input.reloadDirCol = rCol -- 235
+		input.reloadDirRow = rRow -- 236
+		input.reloadStepEdge = true -- 237
+		input.reloadAutoStep = false -- 238
+	end -- 238
+	input.reloadConfirm = s.uiConfirmWithE -- 240
+	input.reloadReset = s.uiBackSpace -- 241
+	input:applyPickRoom(s.pick) -- 243
+	input.frameInteractPressed = input.interact.pressed -- 244
+	input.mdx = s.mouseStageX - input.mx -- 246
+	input.mdy = s.mouseStageY - input.my -- 247
+	input.mx = s.mouseStageX -- 248
+	input.my = s.mouseStageY -- 249
+	input.inside = s.mouseInsideStage -- 250
+	input.uiX = s.mouseStageX -- 252
+	input.uiY = s.mouseStageY -- 253
+	input.uiDx = input.mdx -- 254
+	input.uiDy = input.mdy -- 255
+	input.uiInside = s.mouseInsideStage -- 256
+	input.uiHeld = s.mouseLeft and s.mouseInsideStage -- 257
+	input.uiPressed = s.mouseLeftPressed and s.mouseInsideStage -- 258
+	input.uiReleased = s.mouseLeftReleased -- 259
+	input.uiRightPressed = s.mouseRightPressed and s.mouseInsideStage -- 260
 end -- 153
-____exports.TARGET = { -- 267
-	id = "windows", -- 268
-	supportsKbm = true, -- 269
-	supportsTouch = false, -- 270
-	supportsGamepad = false, -- 271
-	supportsPortrait = false, -- 272
-	defaultInputMode = "kbm", -- 273
-	supportedModes = {"kbm"}, -- 274
-	modePrefOrder = {"kbm"}, -- 275
-	controlsGuideTabs = {{mode = "kbm", label = "键鼠"}}, -- 276
-	getPlatformCaps = function(self) -- 278
-		local cfg = getReleaseConfig() -- 279
-		return { -- 280
-			kind = desktopKind(), -- 281
-			target = "windows", -- 282
-			isDesktop = true, -- 283
-			isMobile = false, -- 284
-			isWeb = false, -- 285
-			isStandaloneAndroidApk = false, -- 286
-			canToggleFullscreen = true, -- 287
-			canQuit = true, -- 288
-			hasBackButton = false, -- 289
-			supportsHaptics = false, -- 290
-			needsAudioUnlock = false, -- 291
-			isRelease = cfg ~= nil and cfg.isRelease == true, -- 292
-			defaultInputMode = "kbm" -- 293
-		} -- 293
-	end, -- 278
-	canToggleFullscreen = function(self) -- 297
-		return true -- 298
-	end, -- 297
-	canQuitApp = function(self) -- 301
-		return true -- 302
-	end, -- 301
-	isReleaseMode = function(self) -- 305
-		local cfg = getReleaseConfig() -- 306
-		return cfg ~= nil and cfg.isRelease == true -- 307
-	end, -- 305
-	computeStageViewport = function(self, fullW, fullH) -- 310
-		return computeWindowsViewport(fullW, fullH) -- 311
-	end, -- 310
-	triggerHaptics = function(self, _seconds, _enabled) -- 314
-	end, -- 314
-	keyTagFor = function(self, action, _mode, _layout) -- 318
-		return keyTagKbm(action) -- 319
-	end, -- 318
-	adaptWorldKeyTag = function(self, rawKeyTag, _mode, _layout) -- 322
-		if rawKeyTag == "按住 F" then -- 322
-			return "按住 F / 左键" -- 323
-		end -- 323
-		if rawKeyTag == "松开 F" then -- 323
-			return "松开 F / 左键" -- 324
-		end -- 324
-		if rawKeyTag == "按住 Ctrl" then -- 324
-			return "C / CTRL" -- 325
-		end -- 325
-		return rawKeyTag -- 326
-	end, -- 322
-	adaptHintSentence = function(self, text, _mode, _layout) -- 329
-		return text -- 330
-	end, -- 329
-	controlsGuideRows = function(self, _tab) -- 333
-		return WINDOWS_GUIDE -- 334
-	end, -- 333
-	splashSkipHint = function(self, _mode, _layout) -- 337
-		return "点击 / ESC / SPACE  跳过" -- 338
-	end, -- 337
-	titleFooterHint = function(self, _mode, _layout) -- 341
-		return "上下/滚轮择项   ·   回车或左键启程" -- 342
-	end, -- 341
-	chapterFooterHint = function(self, _mode, _confirmTag) -- 345
-		return "方向键/滚轮选择   ·   回车或左键进入   ·   Esc/右键返回" -- 346
-	end, -- 345
-	pauseFooterHint = function(self, _mode, _layout) -- 349
-		return "Esc 续行   ·   滚轮/上下择项   ·   Enter 或左键确认" -- 350
-	end, -- 349
-	settingsFooterHint = function(self, _mode, _layout) -- 353
-		return "←/→ · 滚轮 · 点击 ‹/› 调节   ·   Esc / 右键返回   ·   自动保存" -- 354
-	end, -- 353
-	controlsFooterRightHint = function(self, _mode) -- 357
-		return "F11 / Alt+Enter 全屏 · 鼠标右键返回 · 标题与暂歇菜单可调游戏设置" -- 358
-	end, -- 357
-	epilogueFooterHint = function(self, _mode, _layout) -- 361
-		return "↑/↓ 或滚轮选择   ·   Enter / 左键确认   ·   Esc / 右键返回标题" -- 362
-	end, -- 361
-	settingsRows = function(self) -- 365
-		return WINDOWS_SETTINGS_ROWS -- 366
-	end, -- 365
-	settingsPauseLabel = function(self, _settings) -- 369
-		return "游戏设置" -- 370
-	end, -- 369
-	settingsHeaderTitle = function(self) -- 373
-		return "游戏设置" -- 374
-	end, -- 373
-	settingsHeaderSummary = function(self, _activeMode) -- 377
-		return "键鼠模式 · 音量、显示、按键辅助与蹲伏方式自动保存" -- 378
-	end, -- 377
-	settingsValueText = function(self, rowId, settings, _activeMode) -- 381
-		if rowId == "fullscreen" then -- 381
-			return App.fullScreen and "全屏" or "窗口" -- 383
+____exports.TARGET = { -- 264
+	id = "windows", -- 265
+	supportsKbm = true, -- 266
+	supportsTouch = false, -- 267
+	supportsGamepad = false, -- 268
+	supportsPortrait = false, -- 269
+	defaultInputMode = "kbm", -- 270
+	supportedModes = {"kbm"}, -- 271
+	modePrefOrder = {"kbm"}, -- 272
+	controlsGuideTabs = {{mode = "kbm", label = "键鼠"}}, -- 273
+	getPlatformCaps = function(self) -- 275
+		local cfg = getReleaseConfig() -- 276
+		return { -- 277
+			kind = desktopKind(), -- 278
+			target = "windows", -- 279
+			isDesktop = true, -- 280
+			isMobile = false, -- 281
+			isWeb = false, -- 282
+			isStandaloneAndroidApk = false, -- 283
+			canToggleFullscreen = true, -- 284
+			canQuit = true, -- 285
+			hasBackButton = false, -- 286
+			supportsHaptics = false, -- 287
+			needsAudioUnlock = false, -- 288
+			isRelease = cfg ~= nil and cfg.isRelease == true, -- 289
+			defaultInputMode = "kbm" -- 290
+		} -- 290
+	end, -- 275
+	canToggleFullscreen = function(self) -- 294
+		return true -- 295
+	end, -- 294
+	canQuitApp = function(self) -- 298
+		return true -- 299
+	end, -- 298
+	isReleaseMode = function(self) -- 302
+		local cfg = getReleaseConfig() -- 303
+		return cfg ~= nil and cfg.isRelease == true -- 304
+	end, -- 302
+	computeStageViewport = function(self, fullW, fullH) -- 307
+		return computeWindowsViewport(fullW, fullH) -- 308
+	end, -- 307
+	triggerHaptics = function(self, _seconds, _enabled) -- 311
+	end, -- 311
+	keyTagFor = function(self, action, _mode, _layout) -- 315
+		return keyTagKbm(action) -- 316
+	end, -- 315
+	adaptWorldKeyTag = function(self, rawKeyTag, _mode, _layout) -- 319
+		if rawKeyTag == "按住 F" then -- 319
+			return "按住 F / 左键" -- 320
+		end -- 320
+		if rawKeyTag == "松开 F" then -- 320
+			return "松开 F / 左键" -- 321
+		end -- 321
+		if rawKeyTag == "按住 Ctrl" then -- 321
+			return "C / CTRL" -- 322
+		end -- 322
+		return rawKeyTag -- 323
+	end, -- 319
+	adaptHintSentence = function(self, text, _mode, _layout) -- 326
+		return text -- 327
+	end, -- 326
+	controlsGuideRows = function(self, _tab) -- 330
+		return WINDOWS_GUIDE -- 331
+	end, -- 330
+	splashSkipHint = function(self, _mode, _layout) -- 334
+		return "点击 / ESC / SPACE  跳过" -- 335
+	end, -- 334
+	titleFooterHint = function(self, _mode, _layout) -- 338
+		return "上下/滚轮择项   ·   回车或左键启程" -- 339
+	end, -- 338
+	chapterFooterHint = function(self, _mode, _confirmTag) -- 342
+		return "方向键/滚轮选择   ·   回车或左键进入   ·   Esc/右键返回" -- 343
+	end, -- 342
+	pauseFooterHint = function(self, _mode, _layout) -- 346
+		return "Esc 续行   ·   滚轮/上下择项   ·   Enter 或左键确认" -- 347
+	end, -- 346
+	settingsFooterHint = function(self, _mode, _layout) -- 350
+		return "←/→ · 滚轮 · 点击 ‹/› 调节   ·   Esc / 右键返回   ·   自动保存" -- 351
+	end, -- 350
+	controlsFooterRightHint = function(self, _mode) -- 354
+		return "F11 / Alt+Enter 全屏 · 鼠标右键返回 · 标题与暂歇菜单可调游戏设置" -- 355
+	end, -- 354
+	epilogueFooterHint = function(self, _mode, _layout) -- 358
+		return "↑/↓ 或滚轮选择   ·   Enter / 左键确认   ·   Esc / 右键返回标题" -- 359
+	end, -- 358
+	settingsRows = function(self) -- 362
+		return WINDOWS_SETTINGS_ROWS -- 363
+	end, -- 362
+	settingsPauseLabel = function(self, _settings) -- 366
+		return "游戏设置" -- 367
+	end, -- 366
+	settingsHeaderTitle = function(self) -- 370
+		return "游戏设置" -- 371
+	end, -- 370
+	settingsHeaderSummary = function(self, _activeMode) -- 374
+		return "键鼠模式 · 音量、显示、按键辅助与蹲伏方式自动保存" -- 375
+	end, -- 374
+	settingsValueText = function(self, rowId, settings, _activeMode) -- 378
+		if rowId == "fullscreen" then -- 378
+			return App.fullScreen and "全屏" or "窗口" -- 380
+		end -- 380
+		if rowId == "assistHints" then -- 380
+			return settings.assistHints and "开" or "关" -- 383
 		end -- 383
-		if rowId == "assistHints" then -- 383
-			return settings.assistHints and "开" or "关" -- 386
+		if rowId == "crouchToggle" then -- 383
+			return settings.crouchToggle and "点按切换" or "按住蹲伏" -- 386
 		end -- 386
-		if rowId == "crouchToggle" then -- 386
-			return settings.crouchToggle and "点按切换" or "按住蹲伏" -- 389
-		end -- 389
-		return volumeSettingText(rowId, settings) -- 391
-	end, -- 381
-	applySettingsDelta = function(self, rowId, delta, settings, _input) -- 394
-		if rowId == "back" then -- 394
-			return "back" -- 400
-		end -- 400
-		if rowId == "fullscreen" then -- 400
-			return "display" -- 401
-		end -- 401
-		if rowId == "assistHints" then -- 401
-			settings.assistHints = not settings.assistHints -- 403
-			saveControlSettings(settings) -- 404
-			return "assist" -- 405
-		end -- 405
-		if rowId == "crouchToggle" then -- 405
-			settings.crouchToggle = not settings.crouchToggle -- 408
-			saveControlSettings(settings) -- 409
-			return "control" -- 410
-		end -- 410
-		local step = delta >= 2 and 1 or (delta <= -2 and -1 or delta) -- 412
-		local wrap = math.abs(delta) >= 2 -- 413
-		if applyVolumeSetting(rowId, step, settings, wrap) then -- 413
-			return "audio" -- 414
-		end -- 414
-		return "none" -- 415
-	end, -- 394
-	createDriver = function(self, settings) -- 418
-		return __TS__New(WindowsInputDriver, settings) -- 419
-	end -- 418
-} -- 418
-return ____exports -- 418
+		return volumeSettingText(rowId, settings) -- 388
+	end, -- 378
+	applySettingsDelta = function(self, rowId, delta, settings, _input) -- 391
+		if rowId == "back" then -- 391
+			return "back" -- 397
+		end -- 397
+		if rowId == "fullscreen" then -- 397
+			return "display" -- 398
+		end -- 398
+		if rowId == "assistHints" then -- 398
+			settings.assistHints = not settings.assistHints -- 400
+			saveControlSettings(settings) -- 401
+			return "assist" -- 402
+		end -- 402
+		if rowId == "crouchToggle" then -- 402
+			settings.crouchToggle = not settings.crouchToggle -- 405
+			saveControlSettings(settings) -- 406
+			return "control" -- 407
+		end -- 407
+		local step = delta >= 2 and 1 or (delta <= -2 and -1 or delta) -- 409
+		local wrap = math.abs(delta) >= 2 -- 410
+		if applyVolumeSetting(rowId, step, settings, wrap) then -- 410
+			return "audio" -- 411
+		end -- 411
+		return "none" -- 412
+	end, -- 391
+	createDriver = function(self, settings) -- 415
+		return __TS__New(WindowsInputDriver, settings) -- 416
+	end -- 415
+} -- 415
+return ____exports -- 415

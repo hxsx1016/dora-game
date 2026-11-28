@@ -218,9 +218,6 @@ class WindowsInputDriver implements TargetInputDriver {
 
         if ((input.aim.held || input.fire.held) && s.mouseRightPressed) {
             input.bottleCanceled = true;
-            input.aim.held = false;
-            input.aim.pressed = false;
-            input.aim.released = false;
         }
 
         input.navUp = s.navUp;

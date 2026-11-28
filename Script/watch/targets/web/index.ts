@@ -552,11 +552,8 @@ class WebInputDriver implements TargetInputDriver {
             input.aim.released = false;
         }
 
-        if (!suppressMouse && input.inputMode === "kbm" && input.aim.held && kbm.mouseRightPressed) {
+        if (!suppressMouse && input.inputMode === "kbm" && (input.aim.held || input.fire.held) && kbm.mouseRightPressed) {
             input.bottleCanceled = true;
-            input.aim.held = false;
-            input.aim.pressed = false;
-            input.aim.released = false;
         }
 
         input.applyPickRoom(kbm.pick);

@@ -52,8 +52,6 @@ let lastAppliedIdle: boolean | undefined;
 let pendingWinSizeSaveTimer = -1;
 let startupNoticeShown = false;
 const WINDOW_CLOSE_FORCE_COUNT = 4;
-const WINDOW_CLOSE_FORCE_WINDOW = 2.0;
-let windowCloseClicks: number[] = [];
 
 function randomRunSeed(): number {
     return Math.max(1, Math.floor(Math.abs(App.rand)) % 2147483646);
@@ -211,18 +209,8 @@ function handleBackButton(): void {
  * - 2 秒内连续点击 4 次：立即安全落盘并强制退出（原生 C++ 渲染线程亦同步计数兜底，主循环卡死也可强退）。
  */
 function handleWindowClose(nativeCount?: number): void {
-    const now = appClock;
-    const kept: number[] = [];
-    let i = 0;
-    for (i = 0; i < windowCloseClicks.length; i++) {
-        if (now - windowCloseClicks[i] <= WINDOW_CLOSE_FORCE_WINDOW) {
-            kept.push(windowCloseClicks[i]);
-        }
-    }
-    kept.push(now);
-    windowCloseClicks = kept;
-
-    const count = Math.max(windowCloseClicks.length, typeof nativeCount === "number" ? Math.floor(nativeCount) : 0);
+    // 原生消息带有按实际时间计算的连击次数；失焦或低帧率时游戏时钟会减慢。
+    const count = nativeCount !== undefined && nativeCount > 0 ? Math.floor(nativeCount) : 1;
     if (count >= WINDOW_CLOSE_FORCE_COUNT || fe === undefined) {
         quitGame();
         return;
@@ -297,6 +285,16 @@ function refreshTitleSessionFlag(): void {
         }
         fe.menus.refreshSaveSlots();
     }
+}
+
+/** 清档成功后才能创建新局，失败时把重试留给玩家。 */
+function clearSessionForRestart(): boolean {
+    if (!clearSession()) {
+        fe?.showToast("清理自动存档失败，请检查目录写权限后重试", 3.0);
+        return false;
+    }
+    refreshTitleSessionFlag();
+    return true;
 }
 
 function exportSessionWithMeta(): SessionSave | undefined {
@@ -1121,14 +1119,18 @@ function applyRoomTransition(p: Play): boolean {
     // adoptEvents 会丢掉旧房间的 knock，避免跨出口同拍按 E 时在新房重播旧房敲声。
     // 切房同拍：旧实例的档案变化先落盘；失败则留 profileDirty，由后续帧重试。
     flushProfile();
-    const leaving = p.drainEvents();
-    // 片尾回序章：重开一份正式局内状态（路线/材料/拾取/检查点清零），档案仍是同一份。
-    if (p.restartStory) {
-        if (storyRun !== undefined && storyRun.source === "official") {
-            clearSession();
-            refreshTitleSessionFlag();
+    if (p.restartStory && storyRun?.source === "official" && !clearSessionForRestart()) {
+        p.restartStory = false;
+        if (fe !== undefined) {
+            fe.menus.openEpilogue(p.storyRoute === "soldier" ? "reunion" : "lamp", profile.childCleared && profile.soldierCleared);
+            fe.screen = "epilogue";
         }
-        const nextSource: RunSource = (storyRun !== undefined && storyRun.source === "debug") ? "debug" : "official";
+        input?.clearTransient(true);
+        return true;
+    }
+    const leaving = p.drainEvents();
+    if (p.restartStory) {
+        const nextSource = storyRun?.source ?? "debug";
         const nextSeed = nextSource === "official" ? randomRunSeed() : 20261124;
         storyRun = createRun(nextSeed, nextSource, profile);
     }
@@ -1162,13 +1164,10 @@ function tickFrontend(frameDt: number): void {
             fe.screen = "title";
         } else if (act.type === "continue") {
             if (continueOfficialStory() === undefined) {
-                enterPlayRoom(officialStartIndex(), "official", true);
+                fe.showToast("读取存档失败", 2.2);
             }
-        } else if (act.type === "start") {
-            // 馆内中途退出过：从档案里的同一步续读；否则照常从序章起并清除旧局中档。
-            clearSession();
-            refreshTitleSessionFlag();
-            enterPlayRoom(officialStartIndex(), "official", true);
+        } else if (act.type === "start" || act.type === "replayStory") {
+            if (clearSessionForRestart()) enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "jump" && act.roomIndex !== undefined) {
             enterPlayRoom(act.roomIndex, "chapter", false, undefined, act.route);
         } else if (act.type === "openChapters") {
@@ -1197,10 +1196,6 @@ function tickFrontend(frameDt: number): void {
         } else if (act.type === "backEpilogue") {
             fe.menus.resetInput();
             fe.screen = "epilogue";
-        } else if (act.type === "replayStory") {
-            clearSession();
-            refreshTitleSessionFlag();
-            enterPlayRoom(officialStartIndex(), "official", true);
         } else if (act.type === "backTitle") {
             fe.menus.resetInput();
             fe.screen = "title";

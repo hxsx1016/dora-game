@@ -195,6 +195,35 @@ do
 	inp.fire.released = false
 	check("Xiaoman left-click release throws bottle", not pChild.hasBottle and pChild.bottleFly ~= nil)
 
+	-- 用正式键鼠驱动采样：F 蓄力后右击，持续按 F 再松开仍应保留瓶子。
+	local poller = inp.driver.kbm
+	local sample = poller.sample
+	local holdF, cancel = true, false
+	poller.sample = function(self, ...)
+		local keys = sample(self, ...)
+		keys.aim, keys.mouseRightPressed = holdF, cancel
+		keys.mouseLeft = false
+		return keys
+	end
+	local retryBottle = new(playMod.Play, rooms.VILLAGE_ROOM)
+	retryBottle.hasBottle = true
+	local function bottleFrames(count)
+		for _ = 1, count do
+			inp:update(1 / 60)
+			retryBottle:update(1 / 60, inp)
+			inp:endStep()
+		end
+	end
+	bottleFrames(15)
+	cancel = true
+	bottleFrames(1)
+	cancel = false
+	bottleFrames(15)
+	holdF = false
+	bottleFrames(1)
+	check("right-click cancels F aim until the key is released", retryBottle.hasBottle and retryBottle.aimHold == 0 and retryBottle.bottleFly == nil)
+	poller.sample = sample
+
 	-- 周戍护送段：右键快捷呼出 3x3 换弹盘
 	local escort2Room = nil
 	for _, r in ipairs(rooms.ROOMS) do

@@ -336,19 +336,11 @@ function matchesText(path: string, expected: string): boolean {
 }
 
 /** 按当前档案路径派生备份名：便携模式收入 saves/backups/，常规/测试模式按原路径派生；找不到空位返回空串（拒绝覆盖）。 */
-function backupPathFor(target: string, suffix: string, useBackupsDir: boolean = false): string {
+function backupPathFor(target: string, suffix: string, useBackupsDir: boolean, reuseVerified: boolean): string {
     const prefix = useBackupsDir ? absPath("backups/" + baseNameOf(target)) : target;
-    let candidate = prefix + suffix;
-    if (!ops.exist(candidate)) {
-        return candidate;
-    }
-    let n = 2;
-    while (n <= 9999) {
-        candidate = prefix + suffix + "." + n;
-        if (!ops.exist(candidate)) {
-            return candidate;
-        }
-        n += 1;
+    for (let n = 1; n <= 9999; n++) {
+        const candidate = prefix + suffix + (n === 1 ? "" : "." + n);
+        if (!ops.exist(candidate) || (reuseVerified && sameContent(target, candidate))) return candidate;
     }
     return "";
 }
@@ -357,14 +349,15 @@ function backupPathFor(target: string, suffix: string, useBackupsDir: boolean = 
  * 把当前档案复制到派生的损坏/未知版本备份，返回备份路径（无原件/复制失败/内容不符则空串）。
  * 备份保留的是原件字节，可能是损坏档，所以不能用 `parseSave` 校验，只校验「复制成功且内容一致」。
  */
-function backupCorrupt(target: string, suffix: string, useBackupsDir: boolean = false): string {
+function backupCorrupt(target: string, suffix: string, useBackupsDir: boolean = false, reuseVerified: boolean = false): string {
     if (!ops.exist(target)) {
         return "";
     }
-    const backup = backupPathFor(target, suffix, useBackupsDir);
+    const backup = backupPathFor(target, suffix, useBackupsDir, reuseVerified);
     if (backup === "") {
         return "";
     }
+    if (reuseVerified && ops.exist(backup)) return sameContent(target, backup) ? backup : "";
     ensureDir(dirOf(backup));
     return copyVerified(target, backup) ? backup : "";
 }
@@ -383,6 +376,17 @@ type SaveParser = (text: string) => { status: LoadStatus };
 /** 复制成功并回读一致后，才允许删除候选件或覆盖唯一的有效档。 */
 function copyVerified(from: string, to: string): boolean {
     return ops.copy(from, to) && sameContent(from, to);
+}
+
+/** 复用恢复件路径前，先保留当前版本无法解释的进度。 */
+function preserveUnrecognizedFile(path: string, parse: SaveParser, useBackups: boolean): boolean {
+    if (!ops.exist(path)) return true;
+    const text = ops.load(path);
+    if (text === undefined) return false;
+    const status = parse(text).status;
+    if (status === "ok") return true;
+    const suffix = status === "unsupported" ? ".unsupported" : ".corrupt";
+    return backupCorrupt(path, suffix, useBackups, true) !== "";
 }
 
 function restoreFrom(candidate: string, target: string, keepCandidate: boolean, parse: SaveParser): boolean {
@@ -525,6 +529,9 @@ function writeSaveFile(target: string, text: string, useBackups: boolean, parse:
             status = "ok";
         }
     }
+    // 可读主档可能与另一版本留下的恢复件并存。只检查即将被复用的路径。
+    if (!preserveUnrecognizedFile(tmp, parse, useBackups)
+        || (status === "ok" && !preserveUnrecognizedFile(prev, parse, useBackups))) return false;
     if (!ops.save(tmp, text) || !matchesText(tmp, text)) {
         ops.remove(tmp);
         return false;
@@ -1094,5 +1101,25 @@ export function saveSession(state: SessionSave): boolean {
 }
 
 export function clearSession(): boolean {
-    return deleteSlot("auto");
+    // 开新局及片尾也调用此入口；标题页只对可续读的进度显示覆盖确认。
+    const target = absPath(getSlotFile("auto"));
+    const useBackups = usePortableBackupsForSession();
+    const files: { path: string; status: LoadStatus }[] = [];
+    let needsBackup = false;
+    for (const path of [target, target + ".tmp", prevPathFor(target, useBackups)]) {
+        if (!ops.exist(path)) continue;
+        const text = ops.load(path);
+        if (text === undefined) return false;
+        const status = parseSession(text).status;
+        files.push({ path, status });
+        if (status !== "ok") needsBackup = true;
+    }
+    // 同组恢复件可能是唯一可读的旧进度；整组隔离成功后再让新局占用自动槽。
+    if (needsBackup) {
+        for (const file of files) {
+            const suffix = file.status === "ok" ? ".reset" : "." + file.status;
+            if (backupCorrupt(file.path, suffix, useBackups, true) === "") return false;
+        }
+    }
+    return removeSaveFiles(target, useBackups);
 }

@@ -4718,14 +4718,13 @@ export class Play {
             const kbmMouseAim = input.isKbmMode() && input.inside;
             const rawAimHeld = input.aim.held || (kbmMouseAim && input.fire.held);
             const rawAimReleased = input.aim.released || (kbmMouseAim && input.fire.released);
-            if (!rawAimHeld) {
-                this.bottleAimCancelLatch = false;
-            }
             if (input.bottleCanceled) {
                 this.aimHold = 0;
                 this.bottleAimX = -1;
                 this.bottleAimCancelLatch = rawAimHeld;
-            } else if (rawAimHeld && !this.bottleAimCancelLatch) {
+            } else if (this.bottleAimCancelLatch) {
+                this.bottleAimCancelLatch = rawAimHeld;
+            } else if (rawAimHeld) {
                 this.aimHold += dt;
                 if (this.aimHold > 1.2) {
                     this.aimHold = 1.2;
@@ -4734,7 +4733,7 @@ export class Play {
                 const cached = this.bottleEnd();
                 this.bottleAimX = cached.x;
                 this.bottleAimY = cached.y;
-            } else if (rawAimReleased && !this.bottleAimCancelLatch) {
+            } else if (rawAimReleased) {
                 if (this.aimHold < 0.12) {
                     // 原地误点一下不算投：先说清楚要按住瞄准。
                     this.flashSet(input.isKbmMode() ? "按住 F 或左键瞄一下再松手" : "按住 F 瞄一下再松手", 0.9);

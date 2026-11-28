@@ -929,342 +929,339 @@ function WebInputDriver.prototype.pollInto(self, input, dt) -- 414
 		input.aim.pressed = false -- 551
 		input.aim.released = false -- 552
 	end -- 552
-	if not suppressMouse and input.inputMode == "kbm" and input.aim.held and kbm.mouseRightPressed then -- 552
+	if not suppressMouse and input.inputMode == "kbm" and (input.aim.held or input.fire.held) and kbm.mouseRightPressed then -- 552
 		input.bottleCanceled = true -- 556
-		input.aim.held = false -- 557
-		input.aim.pressed = false -- 558
-		input.aim.released = false -- 559
-	end -- 559
-	input:applyPickRoom(kbm.pick) -- 562
-	input.frameInteractPressed = input.interact.pressed -- 563
-	if touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside then -- 563
-		input.uiX = touch.uiX -- 566
-		input.uiY = touch.uiY -- 567
-		input.uiDx = touch.uiDx -- 568
-		input.uiDy = touch.uiDy -- 569
-		input.uiInside = touch.uiInside -- 570
-		input.uiHeld = touch.uiHeld -- 571
-		input.uiPressed = touch.uiPressed -- 572
-		input.uiReleased = touch.uiReleased -- 573
-		input.uiRightPressed = false -- 574
-		if touch.uiHeld or touch.uiPressed then -- 574
-			input.mdx = touch.uiDx -- 576
-			input.mdy = touch.uiDy -- 577
-			input.mx = touch.uiX -- 578
-			input.my = touch.uiY -- 579
-			input.inside = true -- 580
-		elseif touch.hasAim then -- 580
-			input.mdx = touch.aimX - input.mx -- 582
-			input.mdy = touch.aimY - input.my -- 583
-			input.mx = touch.aimX -- 584
-			input.my = touch.aimY -- 585
-			input.inside = true -- 586
-		else -- 586
-			input.mdx = 0 -- 588
-			input.mdy = 0 -- 589
-			input.inside = touch.uiInside -- 590
-		end -- 590
-		return -- 592
-	end -- 592
-	if input.inputMode == "gamepad" then -- 592
-		if gp.hasAim then -- 592
-			input.mdx = gp.aimX - input.mx -- 597
-			input.mdy = gp.aimY - input.my -- 598
-			input.mx = gp.aimX -- 599
-			input.my = gp.aimY -- 600
-			input.inside = true -- 601
-		else -- 601
-			input.mdx = 0 -- 603
-			input.mdy = 0 -- 604
-			input.inside = false -- 605
-		end -- 605
-		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 605
-			input.uiDx = kbm.mouseStageX - input.uiX -- 608
-			input.uiDy = kbm.mouseStageY - input.uiY -- 609
-			input.uiX = kbm.mouseStageX -- 610
-			input.uiY = kbm.mouseStageY -- 611
-			input.uiInside = true -- 612
-			input.uiHeld = kbm.mouseLeft -- 613
-			input.uiPressed = kbm.mouseLeftPressed -- 614
-			input.uiReleased = kbm.mouseLeftReleased -- 615
-			input.uiRightPressed = kbm.mouseRightPressed -- 616
-		else -- 616
-			input.uiX = input.mx -- 618
-			input.uiY = input.my -- 619
-			input.uiDx = 0 -- 620
-			input.uiDy = 0 -- 621
-			input.uiInside = false -- 622
-			input.uiHeld = false -- 623
-			input.uiPressed = false -- 624
-			input.uiReleased = false -- 625
-			input.uiRightPressed = false -- 626
-		end -- 626
-		return -- 628
-	end -- 628
-	if input.inputMode == "touch" then -- 628
-		if touch.hasAim then -- 628
-			input.mdx = touch.aimX - input.mx -- 633
-			input.mdy = touch.aimY - input.my -- 634
-			input.mx = touch.aimX -- 635
-			input.my = touch.aimY -- 636
-			input.inside = true -- 637
-		else -- 637
-			input.mdx = 0 -- 639
-			input.mdy = 0 -- 640
-			input.inside = false -- 641
-		end -- 641
-		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 641
-			input.uiDx = kbm.mouseStageX - input.uiX -- 644
-			input.uiDy = kbm.mouseStageY - input.uiY -- 645
-			input.uiX = kbm.mouseStageX -- 646
-			input.uiY = kbm.mouseStageY -- 647
-			input.uiInside = true -- 648
-			input.uiHeld = kbm.mouseLeft -- 649
-			input.uiPressed = kbm.mouseLeftPressed -- 650
-			input.uiReleased = kbm.mouseLeftReleased -- 651
-			input.uiRightPressed = kbm.mouseRightPressed -- 652
-		else -- 652
-			input.uiDx = 0 -- 654
-			input.uiDy = 0 -- 655
-			input.uiInside = false -- 656
-			input.uiHeld = false -- 657
-			input.uiPressed = false -- 658
-			input.uiReleased = false -- 659
-			input.uiRightPressed = false -- 660
-		end -- 660
-		return -- 662
-	end -- 662
-	input.mdx = kbm.mouseStageX - input.mx -- 665
-	input.mdy = kbm.mouseStageY - input.my -- 666
-	input.mx = kbm.mouseStageX -- 667
-	input.my = kbm.mouseStageY -- 668
-	input.inside = kbm.mouseInsideStage -- 669
-	input.uiX = kbm.mouseStageX -- 671
-	input.uiY = kbm.mouseStageY -- 672
-	input.uiDx = input.mdx -- 673
-	input.uiDy = input.mdy -- 674
-	input.uiInside = kbm.mouseInsideStage -- 675
-	input.uiHeld = not suppressMouse and kbm.mouseLeft and kbm.mouseInsideStage -- 676
-	input.uiPressed = not suppressMouse and kbm.mouseLeftPressed and kbm.mouseInsideStage -- 677
-	input.uiReleased = not suppressMouse and kbm.mouseLeftReleased -- 678
-	input.uiRightPressed = not suppressMouse and kbm.mouseRightPressed and kbm.mouseInsideStage -- 679
+	end -- 556
+	input:applyPickRoom(kbm.pick) -- 559
+	input.frameInteractPressed = input.interact.pressed -- 560
+	if touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside then -- 560
+		input.uiX = touch.uiX -- 563
+		input.uiY = touch.uiY -- 564
+		input.uiDx = touch.uiDx -- 565
+		input.uiDy = touch.uiDy -- 566
+		input.uiInside = touch.uiInside -- 567
+		input.uiHeld = touch.uiHeld -- 568
+		input.uiPressed = touch.uiPressed -- 569
+		input.uiReleased = touch.uiReleased -- 570
+		input.uiRightPressed = false -- 571
+		if touch.uiHeld or touch.uiPressed then -- 571
+			input.mdx = touch.uiDx -- 573
+			input.mdy = touch.uiDy -- 574
+			input.mx = touch.uiX -- 575
+			input.my = touch.uiY -- 576
+			input.inside = true -- 577
+		elseif touch.hasAim then -- 577
+			input.mdx = touch.aimX - input.mx -- 579
+			input.mdy = touch.aimY - input.my -- 580
+			input.mx = touch.aimX -- 581
+			input.my = touch.aimY -- 582
+			input.inside = true -- 583
+		else -- 583
+			input.mdx = 0 -- 585
+			input.mdy = 0 -- 586
+			input.inside = touch.uiInside -- 587
+		end -- 587
+		return -- 589
+	end -- 589
+	if input.inputMode == "gamepad" then -- 589
+		if gp.hasAim then -- 589
+			input.mdx = gp.aimX - input.mx -- 594
+			input.mdy = gp.aimY - input.my -- 595
+			input.mx = gp.aimX -- 596
+			input.my = gp.aimY -- 597
+			input.inside = true -- 598
+		else -- 598
+			input.mdx = 0 -- 600
+			input.mdy = 0 -- 601
+			input.inside = false -- 602
+		end -- 602
+		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 602
+			input.uiDx = kbm.mouseStageX - input.uiX -- 605
+			input.uiDy = kbm.mouseStageY - input.uiY -- 606
+			input.uiX = kbm.mouseStageX -- 607
+			input.uiY = kbm.mouseStageY -- 608
+			input.uiInside = true -- 609
+			input.uiHeld = kbm.mouseLeft -- 610
+			input.uiPressed = kbm.mouseLeftPressed -- 611
+			input.uiReleased = kbm.mouseLeftReleased -- 612
+			input.uiRightPressed = kbm.mouseRightPressed -- 613
+		else -- 613
+			input.uiX = input.mx -- 615
+			input.uiY = input.my -- 616
+			input.uiDx = 0 -- 617
+			input.uiDy = 0 -- 618
+			input.uiInside = false -- 619
+			input.uiHeld = false -- 620
+			input.uiPressed = false -- 621
+			input.uiReleased = false -- 622
+			input.uiRightPressed = false -- 623
+		end -- 623
+		return -- 625
+	end -- 625
+	if input.inputMode == "touch" then -- 625
+		if touch.hasAim then -- 625
+			input.mdx = touch.aimX - input.mx -- 630
+			input.mdy = touch.aimY - input.my -- 631
+			input.mx = touch.aimX -- 632
+			input.my = touch.aimY -- 633
+			input.inside = true -- 634
+		else -- 634
+			input.mdx = 0 -- 636
+			input.mdy = 0 -- 637
+			input.inside = false -- 638
+		end -- 638
+		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 638
+			input.uiDx = kbm.mouseStageX - input.uiX -- 641
+			input.uiDy = kbm.mouseStageY - input.uiY -- 642
+			input.uiX = kbm.mouseStageX -- 643
+			input.uiY = kbm.mouseStageY -- 644
+			input.uiInside = true -- 645
+			input.uiHeld = kbm.mouseLeft -- 646
+			input.uiPressed = kbm.mouseLeftPressed -- 647
+			input.uiReleased = kbm.mouseLeftReleased -- 648
+			input.uiRightPressed = kbm.mouseRightPressed -- 649
+		else -- 649
+			input.uiDx = 0 -- 651
+			input.uiDy = 0 -- 652
+			input.uiInside = false -- 653
+			input.uiHeld = false -- 654
+			input.uiPressed = false -- 655
+			input.uiReleased = false -- 656
+			input.uiRightPressed = false -- 657
+		end -- 657
+		return -- 659
+	end -- 659
+	input.mdx = kbm.mouseStageX - input.mx -- 662
+	input.mdy = kbm.mouseStageY - input.my -- 663
+	input.mx = kbm.mouseStageX -- 664
+	input.my = kbm.mouseStageY -- 665
+	input.inside = kbm.mouseInsideStage -- 666
+	input.uiX = kbm.mouseStageX -- 668
+	input.uiY = kbm.mouseStageY -- 669
+	input.uiDx = input.mdx -- 670
+	input.uiDy = input.mdy -- 671
+	input.uiInside = kbm.mouseInsideStage -- 672
+	input.uiHeld = not suppressMouse and kbm.mouseLeft and kbm.mouseInsideStage -- 673
+	input.uiPressed = not suppressMouse and kbm.mouseLeftPressed and kbm.mouseInsideStage -- 674
+	input.uiReleased = not suppressMouse and kbm.mouseLeftReleased -- 675
+	input.uiRightPressed = not suppressMouse and kbm.mouseRightPressed and kbm.mouseInsideStage -- 676
 end -- 414
-____exports.TARGET = { -- 683
-	id = "web", -- 684
-	supportsKbm = true, -- 685
-	supportsTouch = true, -- 686
-	supportsGamepad = true, -- 687
-	supportsPortrait = true, -- 688
-	defaultInputMode = "kbm", -- 689
-	supportedModes = {"kbm", "touch", "gamepad"}, -- 690
-	modePrefOrder = MODE_PREF_ORDER, -- 691
-	controlsGuideTabs = {{mode = "kbm", label = "键鼠"}, {mode = "gamepad", label = "手柄"}, {mode = "touch", label = "触屏"}}, -- 692
-	getPlatformCaps = function(self) -- 698
-		local cfg = getReleaseConfig() -- 699
-		local ____temp_7 -- 712
-		if cfg ~= nil and cfg.isRelease ~= nil then -- 712
-			____temp_7 = cfg.isRelease == true -- 712
-		else -- 712
-			____temp_7 = true -- 712
-		end -- 712
-		return { -- 700
-			kind = "web", -- 701
-			target = "web", -- 702
-			isDesktop = false, -- 703
-			isMobile = false, -- 704
-			isWeb = true, -- 705
-			isStandaloneAndroidApk = false, -- 706
-			canToggleFullscreen = true, -- 707
-			canQuit = false, -- 708
-			hasBackButton = false, -- 709
-			supportsHaptics = false, -- 710
-			needsAudioUnlock = true, -- 711
-			isRelease = ____temp_7, -- 712
-			defaultInputMode = "kbm" -- 713
-		} -- 713
-	end, -- 698
-	canToggleFullscreen = function(self) -- 717
-		return true -- 718
-	end, -- 717
-	canQuitApp = function(self) -- 721
-		return false -- 722
-	end, -- 721
-	isReleaseMode = function(self) -- 725
-		local cfg = getReleaseConfig() -- 726
-		if cfg ~= nil and cfg.isRelease ~= nil then -- 726
-			return cfg.isRelease == true -- 728
-		end -- 728
-		return true -- 730
-	end, -- 725
-	computeStageViewport = function(self, fullW, fullH) -- 733
-		return computeAdaptiveViewport(fullW, fullH) -- 734
-	end, -- 733
-	triggerHaptics = function(self, seconds, enabled) -- 737
-		triggerMobileHaptics(seconds, enabled) -- 738
-	end, -- 737
-	keyTagFor = function(self, action, mode, layout) -- 741
-		return keyTagWeb(action, mode, layout) -- 742
-	end, -- 741
-	adaptWorldKeyTag = function(self, rawKeyTag, mode, _layout) -- 745
-		return adaptWorldKeyTagWeb(rawKeyTag, mode) -- 746
-	end, -- 745
-	adaptHintSentence = function(self, text, mode, layout) -- 749
-		return adaptHintSentenceWeb(text, mode, layout) -- 750
-	end, -- 749
-	controlsGuideRows = function(self, tab) -- 753
-		if tab == "gamepad" then -- 753
-			return GUIDE_GAMEPAD -- 754
-		end -- 754
-		if tab == "touch" then -- 754
-			return GUIDE_TOUCH -- 755
-		end -- 755
-		return GUIDE_KBM -- 756
-	end, -- 753
-	splashSkipHint = function(self, mode, layout) -- 759
-		if mode == "touch" then -- 759
-			return "轻触跳过" -- 760
-		end -- 760
-		if mode == "gamepad" then -- 760
-			return keyTagWeb("confirm", "gamepad", layout) .. " / START  跳过" -- 761
-		end -- 761
-		return "ESC / SPACE  SKIP" -- 762
-	end, -- 759
-	titleFooterHint = function(self, mode, layout) -- 765
-		if mode == "gamepad" then -- 765
-			return ("左摇杆 / 十字键择项   ·   " .. keyTagWeb("confirm", "gamepad", layout)) .. " 或点选启程" -- 767
-		end -- 767
-		if mode == "touch" then -- 767
-			return "轻触择项启程   ·   支持键鼠与手柄" -- 769
-		end -- 769
-		return "上下择项   ·   回车或点选启程" -- 770
-	end, -- 765
-	chapterFooterHint = function(self, mode, confirmTag) -- 773
-		if mode == "gamepad" then -- 773
-			return ("摇杆/十字键选择   ·   " .. confirmTag) .. " 或点选进入" -- 774
-		end -- 774
-		if mode == "touch" then -- 774
-			return "轻触驿站预览   ·   再点或轻触入此卷章" -- 775
-		end -- 775
-		return "方向键选择   ·   回车或点击进入" -- 776
-	end, -- 773
-	pauseFooterHint = function(self, mode, layout) -- 779
-		if mode == "gamepad" then -- 779
-			return ((keyTagWeb("back", "gamepad", layout) .. " / START 续行   ·   ") .. keyTagWeb("confirm", "gamepad", layout)) .. " 确认" -- 781
-		end -- 781
-		if mode == "touch" then -- 781
-			return "轻触确认   ·   点「继续游戏」续行" -- 783
-		end -- 783
-		return "Esc 续行   ·   Enter 或点击确认" -- 784
-	end, -- 779
-	settingsFooterHint = function(self, mode, layout) -- 787
-		if mode == "gamepad" then -- 787
-			return ((("左右或 " .. keyTagWeb("confirm", "gamepad", layout)) .. " 切换   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回暂停" -- 789
-		end -- 789
-		if mode == "touch" then -- 789
-			return "轻触任意条目切换   ·   设置自动保存" -- 791
-		end -- 791
-		return "←/→ 或回车/点击切换   ·   Esc 返回暂停" -- 792
-	end, -- 787
-	controlsFooterRightHint = function(self, mode) -- 795
-		if mode == "gamepad" then -- 795
-			return "LB / RB 或左右切换键位图" -- 796
-		end -- 796
-		if mode == "touch" then -- 796
-			return "轻触右上页签切图 · 暂歇菜单可调操控设置" -- 797
-		end -- 797
-		return "←/→ 切页   ·   F11 / Alt+Enter 全屏" -- 798
-	end, -- 795
-	epilogueFooterHint = function(self, mode, layout) -- 801
-		if mode == "gamepad" then -- 801
-			return ((keyTagWeb("confirm", "gamepad", layout) .. " 确认   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回标题" -- 803
-		end -- 803
-		if mode == "touch" then -- 803
-			return "轻触任一入口继续" -- 805
-		end -- 805
-		return "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题" -- 806
-	end, -- 801
-	settingsRows = function(self) -- 809
-		return WEB_SETTINGS_ROWS -- 810
-	end, -- 809
-	settingsPauseLabel = function(self, settings) -- 813
-		return "操控设置 · " .. modePrefLabelOf(settings.modePref) -- 814
-	end, -- 813
-	settingsHeaderTitle = function(self) -- 817
-		return "操控与声音" -- 818
-	end, -- 817
-	settingsHeaderSummary = function(self, activeMode) -- 821
-		return ("当前模式：" .. inputModeLabelOf(activeMode)) .. " · 操控与四通道音量实时生效" -- 822
-	end, -- 821
-	settingsValueText = function(self, rowId, settings, activeMode) -- 825
-		if rowId == "modePref" then -- 825
-			return settings.modePref == "auto" and ("自动切换（" .. inputModeLabelOf(activeMode)) .. "）" or "锁定 · " .. modePrefLabelOf(settings.modePref) -- 827
-		end -- 827
-		if rowId == "aimAssist" then -- 827
-			return settings.aimAssist and "开（触屏与手柄共用）" or "关" -- 831
+____exports.TARGET = { -- 680
+	id = "web", -- 681
+	supportsKbm = true, -- 682
+	supportsTouch = true, -- 683
+	supportsGamepad = true, -- 684
+	supportsPortrait = true, -- 685
+	defaultInputMode = "kbm", -- 686
+	supportedModes = {"kbm", "touch", "gamepad"}, -- 687
+	modePrefOrder = MODE_PREF_ORDER, -- 688
+	controlsGuideTabs = {{mode = "kbm", label = "键鼠"}, {mode = "gamepad", label = "手柄"}, {mode = "touch", label = "触屏"}}, -- 689
+	getPlatformCaps = function(self) -- 695
+		local cfg = getReleaseConfig() -- 696
+		local ____temp_7 -- 709
+		if cfg ~= nil and cfg.isRelease ~= nil then -- 709
+			____temp_7 = cfg.isRelease == true -- 709
+		else -- 709
+			____temp_7 = true -- 709
+		end -- 709
+		return { -- 697
+			kind = "web", -- 698
+			target = "web", -- 699
+			isDesktop = false, -- 700
+			isMobile = false, -- 701
+			isWeb = true, -- 702
+			isStandaloneAndroidApk = false, -- 703
+			canToggleFullscreen = true, -- 704
+			canQuit = false, -- 705
+			hasBackButton = false, -- 706
+			supportsHaptics = false, -- 707
+			needsAudioUnlock = true, -- 708
+			isRelease = ____temp_7, -- 709
+			defaultInputMode = "kbm" -- 710
+		} -- 710
+	end, -- 695
+	canToggleFullscreen = function(self) -- 714
+		return true -- 715
+	end, -- 714
+	canQuitApp = function(self) -- 718
+		return false -- 719
+	end, -- 718
+	isReleaseMode = function(self) -- 722
+		local cfg = getReleaseConfig() -- 723
+		if cfg ~= nil and cfg.isRelease ~= nil then -- 723
+			return cfg.isRelease == true -- 725
+		end -- 725
+		return true -- 727
+	end, -- 722
+	computeStageViewport = function(self, fullW, fullH) -- 730
+		return computeAdaptiveViewport(fullW, fullH) -- 731
+	end, -- 730
+	triggerHaptics = function(self, seconds, enabled) -- 734
+		triggerMobileHaptics(seconds, enabled) -- 735
+	end, -- 734
+	keyTagFor = function(self, action, mode, layout) -- 738
+		return keyTagWeb(action, mode, layout) -- 739
+	end, -- 738
+	adaptWorldKeyTag = function(self, rawKeyTag, mode, _layout) -- 742
+		return adaptWorldKeyTagWeb(rawKeyTag, mode) -- 743
+	end, -- 742
+	adaptHintSentence = function(self, text, mode, layout) -- 746
+		return adaptHintSentenceWeb(text, mode, layout) -- 747
+	end, -- 746
+	controlsGuideRows = function(self, tab) -- 750
+		if tab == "gamepad" then -- 750
+			return GUIDE_GAMEPAD -- 751
+		end -- 751
+		if tab == "touch" then -- 751
+			return GUIDE_TOUCH -- 752
+		end -- 752
+		return GUIDE_KBM -- 753
+	end, -- 750
+	splashSkipHint = function(self, mode, layout) -- 756
+		if mode == "touch" then -- 756
+			return "轻触跳过" -- 757
+		end -- 757
+		if mode == "gamepad" then -- 757
+			return keyTagWeb("confirm", "gamepad", layout) .. " / START  跳过" -- 758
+		end -- 758
+		return "ESC / SPACE  SKIP" -- 759
+	end, -- 756
+	titleFooterHint = function(self, mode, layout) -- 762
+		if mode == "gamepad" then -- 762
+			return ("左摇杆 / 十字键择项   ·   " .. keyTagWeb("confirm", "gamepad", layout)) .. " 或点选启程" -- 764
+		end -- 764
+		if mode == "touch" then -- 764
+			return "轻触择项启程   ·   支持键鼠与手柄" -- 766
+		end -- 766
+		return "上下择项   ·   回车或点选启程" -- 767
+	end, -- 762
+	chapterFooterHint = function(self, mode, confirmTag) -- 770
+		if mode == "gamepad" then -- 770
+			return ("摇杆/十字键选择   ·   " .. confirmTag) .. " 或点选进入" -- 771
+		end -- 771
+		if mode == "touch" then -- 771
+			return "轻触驿站预览   ·   再点或轻触入此卷章" -- 772
+		end -- 772
+		return "方向键选择   ·   回车或点击进入" -- 773
+	end, -- 770
+	pauseFooterHint = function(self, mode, layout) -- 776
+		if mode == "gamepad" then -- 776
+			return ((keyTagWeb("back", "gamepad", layout) .. " / START 续行   ·   ") .. keyTagWeb("confirm", "gamepad", layout)) .. " 确认" -- 778
+		end -- 778
+		if mode == "touch" then -- 778
+			return "轻触确认   ·   点「继续游戏」续行" -- 780
+		end -- 780
+		return "Esc 续行   ·   Enter 或点击确认" -- 781
+	end, -- 776
+	settingsFooterHint = function(self, mode, layout) -- 784
+		if mode == "gamepad" then -- 784
+			return ((("左右或 " .. keyTagWeb("confirm", "gamepad", layout)) .. " 切换   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回暂停" -- 786
+		end -- 786
+		if mode == "touch" then -- 786
+			return "轻触任意条目切换   ·   设置自动保存" -- 788
+		end -- 788
+		return "←/→ 或回车/点击切换   ·   Esc 返回暂停" -- 789
+	end, -- 784
+	controlsFooterRightHint = function(self, mode) -- 792
+		if mode == "gamepad" then -- 792
+			return "LB / RB 或左右切换键位图" -- 793
+		end -- 793
+		if mode == "touch" then -- 793
+			return "轻触右上页签切图 · 暂歇菜单可调操控设置" -- 794
+		end -- 794
+		return "←/→ 切页   ·   F11 / Alt+Enter 全屏" -- 795
+	end, -- 792
+	epilogueFooterHint = function(self, mode, layout) -- 798
+		if mode == "gamepad" then -- 798
+			return ((keyTagWeb("confirm", "gamepad", layout) .. " 确认   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回标题" -- 800
+		end -- 800
+		if mode == "touch" then -- 800
+			return "轻触任一入口继续" -- 802
+		end -- 802
+		return "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题" -- 803
+	end, -- 798
+	settingsRows = function(self) -- 806
+		return WEB_SETTINGS_ROWS -- 807
+	end, -- 806
+	settingsPauseLabel = function(self, settings) -- 810
+		return "操控设置 · " .. modePrefLabelOf(settings.modePref) -- 811
+	end, -- 810
+	settingsHeaderTitle = function(self) -- 814
+		return "操控与声音" -- 815
+	end, -- 814
+	settingsHeaderSummary = function(self, activeMode) -- 818
+		return ("当前模式：" .. inputModeLabelOf(activeMode)) .. " · 操控与四通道音量实时生效" -- 819
+	end, -- 818
+	settingsValueText = function(self, rowId, settings, activeMode) -- 822
+		if rowId == "modePref" then -- 822
+			return settings.modePref == "auto" and ("自动切换（" .. inputModeLabelOf(activeMode)) .. "）" or "锁定 · " .. modePrefLabelOf(settings.modePref) -- 824
+		end -- 824
+		if rowId == "aimAssist" then -- 824
+			return settings.aimAssist and "开（触屏与手柄共用）" or "关" -- 828
+		end -- 828
+		if rowId == "gpLayout" then -- 828
+			return layoutLabelOf(settings.gamepadLayout) -- 829
+		end -- 829
+		if rowId == "crouchMode" then -- 829
+			return settings.crouchToggle and "点按切换" or "持续按住" -- 830
+		end -- 830
+		if rowId == "touchOpacity" then -- 830
+			return opacityLabelOf(settings.touchOpacity) -- 831
 		end -- 831
-		if rowId == "gpLayout" then -- 831
-			return layoutLabelOf(settings.gamepadLayout) -- 832
+		if rowId == "touchScale" then -- 831
+			return scaleLabelOf(settings.touchScale) -- 832
 		end -- 832
-		if rowId == "crouchMode" then -- 832
-			return settings.crouchToggle and "点按切换" or "持续按住" -- 833
+		if rowId == "haptics" then -- 832
+			return settings.haptics and "开（仅移动端生效）" or "关" -- 833
 		end -- 833
-		if rowId == "touchOpacity" then -- 833
-			return opacityLabelOf(settings.touchOpacity) -- 834
-		end -- 834
-		if rowId == "touchScale" then -- 834
-			return scaleLabelOf(settings.touchScale) -- 835
-		end -- 835
-		if rowId == "haptics" then -- 835
-			return settings.haptics and "开（仅移动端生效）" or "关" -- 836
-		end -- 836
-		return volumeSettingText(rowId, settings) -- 837
-	end, -- 825
-	applySettingsDelta = function(self, rowId, delta, settings, input) -- 840
-		if rowId == "back" then -- 840
-			return "back" -- 841
+		return volumeSettingText(rowId, settings) -- 834
+	end, -- 822
+	applySettingsDelta = function(self, rowId, delta, settings, input) -- 837
+		if rowId == "back" then -- 837
+			return "back" -- 838
+		end -- 838
+		if rowId == "modePref" then -- 838
+			input:cycleModePref(delta) -- 840
+			return "control" -- 841
 		end -- 841
-		if rowId == "modePref" then -- 841
-			input:cycleModePref(delta) -- 843
-			return "control" -- 844
-		end -- 844
-		if rowId == "aimAssist" then -- 844
-			settings.aimAssist = not settings.aimAssist -- 847
-			saveControlSettings(settings) -- 848
-			return "control" -- 849
-		end -- 849
-		if rowId == "gpLayout" then -- 849
-			settings.gamepadLayout = settings.gamepadLayout == "xbox" and "nintendo" or "xbox" -- 852
-			input.gamepadLayout = settings.gamepadLayout -- 853
-			saveControlSettings(settings) -- 854
-			return "control" -- 855
-		end -- 855
-		if rowId == "crouchMode" then -- 855
-			settings.crouchToggle = not settings.crouchToggle -- 858
-			saveControlSettings(settings) -- 859
-			return "control" -- 860
-		end -- 860
-		if rowId == "touchOpacity" then -- 860
-			settings.touchOpacity = nextStepValue(settings.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 863
-			saveControlSettings(settings) -- 864
-			return "control" -- 865
-		end -- 865
-		if rowId == "touchScale" then -- 865
-			settings.touchScale = nextStepValue(settings.touchScale, TOUCH_SCALE_STEPS, delta) -- 868
-			saveControlSettings(settings) -- 869
-			return "control" -- 870
-		end -- 870
-		if rowId == "haptics" then -- 870
-			settings.haptics = not settings.haptics -- 873
-			saveControlSettings(settings) -- 874
-			return "control" -- 875
-		end -- 875
-		if applyVolumeSetting(rowId, delta, settings) then -- 875
-			return "audio" -- 877
-		end -- 877
-		return "none" -- 878
-	end, -- 840
-	createDriver = function(self, settings) -- 881
-		return __TS__New(WebInputDriver, settings) -- 882
-	end -- 881
-} -- 881
-return ____exports -- 881
+		if rowId == "aimAssist" then -- 841
+			settings.aimAssist = not settings.aimAssist -- 844
+			saveControlSettings(settings) -- 845
+			return "control" -- 846
+		end -- 846
+		if rowId == "gpLayout" then -- 846
+			settings.gamepadLayout = settings.gamepadLayout == "xbox" and "nintendo" or "xbox" -- 849
+			input.gamepadLayout = settings.gamepadLayout -- 850
+			saveControlSettings(settings) -- 851
+			return "control" -- 852
+		end -- 852
+		if rowId == "crouchMode" then -- 852
+			settings.crouchToggle = not settings.crouchToggle -- 855
+			saveControlSettings(settings) -- 856
+			return "control" -- 857
+		end -- 857
+		if rowId == "touchOpacity" then -- 857
+			settings.touchOpacity = nextStepValue(settings.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 860
+			saveControlSettings(settings) -- 861
+			return "control" -- 862
+		end -- 862
+		if rowId == "touchScale" then -- 862
+			settings.touchScale = nextStepValue(settings.touchScale, TOUCH_SCALE_STEPS, delta) -- 865
+			saveControlSettings(settings) -- 866
+			return "control" -- 867
+		end -- 867
+		if rowId == "haptics" then -- 867
+			settings.haptics = not settings.haptics -- 870
+			saveControlSettings(settings) -- 871
+			return "control" -- 872
+		end -- 872
+		if applyVolumeSetting(rowId, delta, settings) then -- 872
+			return "audio" -- 874
+		end -- 874
+		return "none" -- 875
+	end, -- 837
+	createDriver = function(self, settings) -- 878
+		return __TS__New(WebInputDriver, settings) -- 879
+	end -- 878
+} -- 878
+return ____exports -- 878
