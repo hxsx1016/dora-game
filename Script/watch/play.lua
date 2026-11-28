@@ -5408,8 +5408,8 @@ function Play.prototype.cartLatchBounds(self) -- 5359
 	end -- 5360
 	local arch = self.room.arch -- 5361
 	local halfWidth = self.room.cart.bodyW / 2 -- 5362
-	local left = math.max(arch.x0, self.cartAxle - halfWidth) -- 5363
-	local right = math.min(arch.x1, self.cartAxle + halfWidth) -- 5364
+	local left = math.max(arch.x0, self.room.cart.startX - halfWidth) -- 5363
+	local right = math.min(arch.x1, self.room.cart.startX + halfWidth) -- 5364
 	return right > left and Rect(left, arch.y, right - left, arch.h) or nil -- 5365
 end -- 5359
 function Play.prototype.slideX(self, a, dx) -- 5369

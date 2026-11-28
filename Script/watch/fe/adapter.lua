@@ -624,18 +624,18 @@ function ____exports.deriveWorldPrompt(p) -- 566
 			return { -- 657
 				x = handleX, -- 658
 				y = cart.baseY + cart.bodyH + 36, -- 658
-				keyTag = "→", -- 659
+				keyTag = player.x > handleX and "←" or "→", -- 659
 				label = "红布车右柄", -- 659
 				urgent = false -- 659
 			} -- 659
 		end -- 659
 	end -- 659
-	if room.key == "outside" and p.cartDocked and p.checkpoint < room.arch.x1 and player.y > room.arch.h + 2 then -- 659
+	if room.key == "outside" and p.cartDocked and p.checkpoint < room.arch.x1 and player.y > room.arch.y + 1 then -- 659
 		local stairs = room.stairs[1] -- 664
 		if stairs ~= nil then -- 664
 			return { -- 666
-				x = stairs.x1, -- 666
-				y = stairs.y1 + 30, -- 666
+				x = stairs.x0, -- 666
+				y = stairs.y0 + 30, -- 666
 				keyTag = "←", -- 666
 				label = "从石阶下到地面", -- 666
 				urgent = false -- 666

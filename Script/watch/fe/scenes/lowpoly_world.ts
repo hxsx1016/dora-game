@@ -559,35 +559,34 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
         // 2b. 板车未入窝前，车底连杆挡木垂直探入下层拱口，直观呈现「拉车开拱」的物理阻挡因果；
         //     车轮一旦落窝（cartDocked），挡木收回，拱口与底层完全畅通。
-        if (!p.cartDocked && p.room.arch.h > 0) {
-            const bx0 = Math.max(p.room.arch.x0 + 4, p.cartAxle - 18);
-            const bx1 = Math.min(p.room.arch.x1 - 4, p.cartAxle + 18);
-            if (bx1 > bx0 + 4) {
-                scene.addBox({
-                    x0: bx0,
-                    x1: bx1,
-                    y0: 2,
-                    y1: p.room.arch.h,
-                    z0: -6,
-                    z1: 8,
-                    material: MING_MATERIALS.mingTimberDark,
-                    bucket: LP_BUCKET.PROP,
-                    highlightTopEdge: true,
-                    edgeWidth: 0.9,
-                });
-                // 连至上层板车底梁的铁链/拉杆
-                scene.addBox({
-                    x0: (bx0 + bx1) * 0.5 - 3,
-                    x1: (bx0 + bx1) * 0.5 + 3,
-                    y0: p.room.arch.h,
-                    y1: p.room.cart.baseY,
-                    z0: -3,
-                    z1: 5,
-                    material: MING_MATERIALS.mingIron,
-                    bucket: LP_BUCKET.PROP,
-                    edgeWidth: 0.6,
-                });
-            }
+        const latch = p.cartLatchBounds();
+        if (latch !== undefined) {
+            const bx0 = latch.x;
+            const bx1 = latch.x + latch.width;
+            scene.addBox({
+                x0: bx0,
+                x1: bx1,
+                y0: 2,
+                y1: p.room.arch.h,
+                z0: -6,
+                z1: 8,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.PROP,
+                highlightTopEdge: true,
+                edgeWidth: 0.9,
+            });
+            // 连至上层板车底梁的铁链/拉杆
+            scene.addBox({
+                x0: (bx0 + bx1) * 0.5 - 3,
+                x1: (bx0 + bx1) * 0.5 + 3,
+                y0: p.room.arch.h,
+                y1: p.room.cart.baseY,
+                z0: -3,
+                z1: 5,
+                material: MING_MATERIALS.mingIron,
+                bucket: LP_BUCKET.PROP,
+                edgeWidth: 0.6,
+            });
         }
 
         // 3. 下层水门检修廊背景墙与盐碱高水线（位于 z = 44..72，不侵占拱洞净空）

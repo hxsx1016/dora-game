@@ -5360,8 +5360,8 @@ export class Play {
         if (this.room.key !== "outside" || this.cartDocked) return undefined;
         const arch = this.room.arch;
         const halfWidth = this.room.cart.bodyW / 2;
-        const left = Math.max(arch.x0, this.cartAxle - halfWidth);
-        const right = Math.min(arch.x1, this.cartAxle + halfWidth);
+        const left = Math.max(arch.x0, this.room.cart.startX - halfWidth);
+        const right = Math.min(arch.x1, this.room.cart.startX + halfWidth);
         return right > left ? Rect(left, arch.y, right - left, arch.h) : undefined;
     }
 

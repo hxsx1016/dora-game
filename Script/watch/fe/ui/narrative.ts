@@ -727,6 +727,17 @@ export class NarrativeRenderer {
                     return { cue, text, urgent: isDanger };
                 }
             }
+            if (p.childMode && key === "outside" && p.checkpoint < p.room.arch.x1) {
+                const text = !p.cartDocked ? "红布车右边伸着车柄，前面是个空车窝。"
+                    : (p.player.y > p.room.arch.y + 1 ? "车轮落进窝里，左边的石阶通向拱下。"
+                        : "拱下的铁栓收起来了，伏低身子就能过去。");
+                return { cue: "", text, urgent: false };
+            }
+            if (p.childMode && key === "tower") {
+                if (p.phase === "tower-wait") return { cue: "", text: "木门里透出灯光。她还记得那两声叩门。", urgent: false };
+                if (p.phase === "tower-enter") return { cue: "", text: "守卒让开门槛，值夜桌上摊着登记簿。", urgent: false };
+                if (p.phase === "tower-desk") return { cue: "", text: "守卒伸过手来，等她放下针套、指南针和纸条。", urgent: false };
+            }
             return { cue: "", text: "", urgent: false };
         }
 
@@ -847,13 +858,13 @@ export class NarrativeRenderer {
                 }
                 const text = p.player.y < p.room.cart.baseY - 25
                     ? "沿左侧石阶上台，去找红布车右柄"
-                    : "向右走到红布车的右柄";
+                    : (p.player.x > p.cartAxle + p.room.cart.handleOffset ? "向左走回红布车右柄" : "向右走到红布车的右柄");
                 return { cue: "", text, urgent: false };
             }
             if (p.checkpoint < p.room.arch.x1) {
-                const text = p.player.y > p.room.arch.h + 2
+                const text = p.player.y > p.room.arch.y + 1
                     ? "车轮落窝了。往左返回石阶，下到地面"
-                    : "向右走到矮拱，按住 [CTRL] 蹲着穿过";
+                    : "在石阶底按住 [CTRL]，蹲着向右穿过矮拱";
                 return { cue: "潜", text, urgent: false };
             }
             return { cue: "", text: "穿过矮拱，沿墙根小路向北塔灯火前行", urgent: false };

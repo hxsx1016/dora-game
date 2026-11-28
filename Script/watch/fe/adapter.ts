@@ -656,14 +656,14 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
         if (room.key === "outside") {
             return {
                 x: handleX, y: cart.baseY + cart.bodyH + 36,
-                keyTag: "→", label: "红布车右柄", urgent: false,
+                keyTag: player.x > handleX ? "←" : "→", label: "红布车右柄", urgent: false,
             };
         }
     }
-    if (room.key === "outside" && p.cartDocked && p.checkpoint < room.arch.x1 && player.y > room.arch.h + 2) {
+    if (room.key === "outside" && p.cartDocked && p.checkpoint < room.arch.x1 && player.y > room.arch.y + 1) {
         const stairs = room.stairs[0];
         if (stairs !== undefined) {
-            return { x: stairs.x1, y: stairs.y1 + 30, keyTag: "←", label: "从石阶下到地面", urgent: false };
+            return { x: stairs.x0, y: stairs.y0 + 30, keyTag: "←", label: "从石阶下到地面", urgent: false };
         }
     }
 
