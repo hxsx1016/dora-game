@@ -110,7 +110,6 @@ export class Xiaoman3DEntities {
 
     // Outside 城外
     private cart: Model3D.Type | undefined;
-    private blockingCart: Model3D.Type | undefined;
     private latch: Model3D.Type | undefined;
     private outsideLantern: Model3D.Type | undefined;
     private cartAnim = "";
@@ -195,7 +194,6 @@ export class Xiaoman3DEntities {
 
     private hideAllEntities(): void {
         if (this.cart !== undefined) this.cart.visible = false;
-        if (this.blockingCart !== undefined) this.blockingCart.visible = false;
         if (this.latch !== undefined) this.latch.visible = false;
         if (this.outsideLantern !== undefined) this.outsideLantern.visible = false;
 
@@ -326,32 +324,7 @@ export class Xiaoman3DEntities {
             this.cart.speed = rolling ? 1.15 : 0.75;
         }
 
-        // 2. 挡在石阶口的补丁红布车（拉走后 box.x0 移至 430 且主车落窝，直接收起避免双车重叠！）
-        let blockingBox: { x0: number; x1: number; y0: number } | undefined;
-        if (!p.cartDocked) {
-            let i = 0;
-            for (i = 0; i < p.boxes.length; i++) {
-                const b = p.boxes[i];
-                if (b.id === "outside_red_cart" && !b.broken && b.x0 < 250) {
-                    blockingBox = b;
-                    break;
-                }
-            }
-        }
-        if (blockingBox !== undefined) {
-            if (this.blockingCart === undefined) {
-                this.blockingCart = this.registerAnimated(mountModel(this.container, PATH_CART));
-                this.blockingCart.play("idle", true);
-            }
-            this.blockingCart.visible = true;
-            this.blockingCart.position = Vec3((blockingBox.x0 + blockingBox.x1) * 0.005, blockingBox.y0 / 100, 0.02);
-            this.blockingCart.angles = Vec3(0, 14, 0);
-            this.blockingCart.scale = Vec3(0.84, 0.90, 0.90);
-        } else if (this.blockingCart !== undefined) {
-            this.blockingCart.visible = false;
-        }
-
-        // 3. 拱下联动铁栓（拉车落窝后自然移开）
+        // 2. 拱下联动铁栓（拉车落窝后自然移开）
         const latchBounds = p.cartLatchBounds();
         if (latchBounds !== undefined) {
             if (this.latch === undefined) {
@@ -364,7 +337,7 @@ export class Xiaoman3DEntities {
             this.latch.visible = false;
         }
 
-        // 4. 墙根尽头高悬的远望塔灯
+        // 3. 墙根尽头的远望塔灯
         if (this.outsideLantern === undefined) {
             this.outsideLantern = mountModel(this.container, PATH_LANTERN);
         }
@@ -713,6 +686,7 @@ export class Xiaoman3DEntities {
 
     private updateTower(p: Play, dt: number): void {
         const ox = p.ox / 100;
+        const doorX = (p.room.story?.tower?.doorX ?? p.ox + 445) / 100;
 
         // 塔外寒夜冷月 vs 室内值夜暖灯强烈冷暖对比
         this.moonLight.color = Color3(126, 158, 208);
@@ -736,16 +710,16 @@ export class Xiaoman3DEntities {
 
         // 门廊溢出的暖黄门缝光
         this.roomLightB.color = Color3(255, 204, 122);
-        this.roomLightB.intensity = (0.45 + this.doorOpenFrac * 1.35) * lampPulse;
+        this.roomLightB.intensity = (1.35 + this.doorOpenFrac * 0.65) * lampPulse;
         this.roomLightB.range = 3.0;
-        this.roomLightB.position = Vec3(ox + 4.50, 0.72, 0.18);
+        this.roomLightB.position = Vec3(doorX, 1.05, 0.55);
 
-        // 1. 铰链厚木塔门（准确嵌在 tower.glb 门框 x=4.36..4.64, z=-0.95..-0.55 中！）
+        // 门扇和门槛共用 X 位置，贴在剖视边前，避免被塔墙挡住。
         if (this.door === undefined) {
             this.door = mountModel(this.container, PATH_DOOR);
         }
         this.door.visible = true;
-        this.door.position = Vec3(ox + 4.35, 0.0, -0.58);
+        this.door.position = Vec3(doorX - 0.10, 0.0, 0.12);
         this.door.scale = Vec3(0.90, 1.0, 1.0);
         const knockJitter = p.phase === "tower-knock" ? Math.sin(this.time * 36) * 2.2 : 0;
         this.door.angles = Vec3(0, -this.doorOpenFrac * 96 + knockJitter, 0);

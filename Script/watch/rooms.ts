@@ -326,7 +326,7 @@ export const CHECKPOINT_ROOM: RoomSpec = {
 export const OUTSIDE_ROOM: RoomSpec = {
     key: "outside",
     name: "城外 · 台面 y=96 / 墙根 1240",
-    caption: "从右柄按住 E+D 朝空窝拉 128 单位，轮子落窝后沿台面回左端跳下，蹲过 44 高的拱；洞后墙根小路走到底可看见塔灯",
+    caption: "走到红布车右侧，按住 E+D 拉车入窝。回左边下石阶，按住 Ctrl 蹲过矮拱，再沿墙根去找塔灯。",
     // 装卸台与拱都在原位，洞后 600–1240 是 D4 新接的墙根小路。
     originX: 0,
     minX: 0,
@@ -339,8 +339,6 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { y: 64, x0: 820, x1: 940 },
     ],
     solids: [
-        // 补丁红布车：原本斜停在石阶口，挡住台面下行的路；点一次 E 拉开后石阶口才露出来。
-        { x: 96, w: 44, h: 34, y: 96, depth: LANE_ROAD, id: "outside_red_cart", art: "red_cart", label: "补丁红布车 · 挡住石阶口" },
         // 城墙基座：只占 96 以上，挡住台面上的玩家；下层 0–96 是通的，墙根小路就从下面穿过去。
         { x: 512, w: 88, h: 134, y: 96, depth: LANE_ROAD, label: "台面右端城墙 · 下层可通" },
         { x: 0, w: 40, h: 96, y: 0, depth: LANE_ROAD, label: "街口" },
@@ -371,8 +369,7 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { x: 1120, y: 64, kind: 6, label: "塔灯 1120" },
     ],
     dims: [
-        { x0: 96, x1: 140, text: "红布车 · E 拉开" },
-        { x0: 304, x1: 432, text: "空窝 128 · 右柄 E+D" },
+        { x0: 304, x1: 432, text: "红布车入窝 · 右柄 E+D" },
         { x0: 128, x1: 512, text: "台面 384" },
         { x0: 280, x1: 360, text: "拱 80" },
         { x0: 600, x1: 1240, text: "墙根 640" },

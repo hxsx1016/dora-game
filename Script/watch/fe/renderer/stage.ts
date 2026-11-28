@@ -1150,14 +1150,13 @@ export class StageRenderer {
             draw.drawRect(Rect(x1, y0, cam.len(7), ah), Color(72, 72, 74, 255));
         }
         // 城外板车未入窝时，在拱口内绘制连至上层板车的像素阻挡木栓，入窝后自动收回
-        if (!p.cartDocked) {
-            const bx0 = cam.sx(Math.max(a.x0 + 4, p.cartAxle - 18));
-            const bx1 = cam.sx(Math.min(a.x1 - 4, p.cartAxle + 18));
-            if (bx1 > bx0 + 4) {
-                const deckY = cam.sy(p.room.cart.baseY);
-                assets.tryPlace("fe_pillar_wood", "outside_arch_bolt", (bx0 + bx1) * 0.5, y0 + 2, bx1 - bx0, ah - 2, { layer: 3 });
-                draw.drawSegment(Vec2((bx0 + bx1) * 0.5, y1), Vec2((bx0 + bx1) * 0.5, deckY), 2.4, Color(96, 102, 110, 220));
-            }
+        const latch = p.cartLatchBounds();
+        if (latch !== undefined) {
+            const bx0 = cam.sx(latch.x);
+            const bx1 = cam.sx(latch.x + latch.width);
+            const deckY = cam.sy(p.room.cart.baseY);
+            assets.tryPlace("fe_pillar_wood", "outside_arch_bolt", (bx0 + bx1) * 0.5, y0 + 2, bx1 - bx0, ah - 2, { layer: 3 });
+            draw.drawSegment(Vec2((bx0 + bx1) * 0.5, y1), Vec2((bx0 + bx1) * 0.5, deckY), 2.4, Color(96, 102, 110, 220));
         }
     }
 }

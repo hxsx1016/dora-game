@@ -278,9 +278,14 @@ export class Xiaoman3DScene implements WorldProjection {
 
         const offsetX = (vp.stageX + w / 2 - this.fullW / 2) * length / this.focal;
         const offsetY = (vp.stageY + h / 2 - this.fullH / 2) * length / this.focal;
-        const focusWorldX = p.room.key === "tower"
-            ? (p.towerDoorOpen ? Math.max(5.35, (p.ox + 490) / 100 + (p.player.x - (p.ox + 490)) * 0.0045) : Math.max(4.85, p.player.x / 100 + 0.55))
-            : cam.x / 100;
+        const towerDoor = p.room.story?.tower;
+        let focusWorldX = cam.x / 100;
+        if (towerDoor !== undefined) {
+            const doorX = towerDoor.doorX;
+            // 从门外构图逐步接到值夜桌。入场与开门时让小满和门扇同框。
+            const across = Math.max(0, Math.min(1, (p.player.x - doorX) / 95));
+            focusWorldX = (p.player.x + doorX) / 200 + 0.74 * across;
+        }
         const tx = focusWorldX - offsetX;
         const ty = baseTargetY + (cam.y - 82) * 0.0045 - offsetY * this.pitchCos;
         // 镜头深度温和跟随小满前后纵深，凸显 3D 空间透视且不打乱互逆投影
