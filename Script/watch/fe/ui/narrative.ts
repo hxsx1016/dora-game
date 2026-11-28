@@ -7,7 +7,8 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { GATE_COUNT_END, gateCountAtTick, Play } from "Script/watch/play";
+import { inReachDepth } from "Script/watch/depth";
+import { CART_REACH, GATE_COUNT_END, gateCountAtTick, Play } from "Script/watch/play";
 import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import { SafeInsets, ZERO_SAFE_INSETS } from "Script/watch/platform";
 import {
@@ -669,13 +670,30 @@ export class NarrativeRenderer {
 
     /** 军粮棚保留一句推进目标，按键随辅助设置显示。 */
     private granaryCue(p: Play, showKeys: boolean): string {
+        const { player, room } = p;
         if (p.cartDocked) {
-            if (p.run.c2Latch) return "等小满跟上，一起从右侧出棚";
-            return showKeys ? "到连杆旁按 [E] 抬闩，再带小满出棚" : "抬起车窝右边的门闩，再带小满出棚";
+            if (p.run.c2Latch) {
+                const exit = room.campaign?.exitX;
+                if (exit !== undefined && player.x >= exit) return "在棚口等小满跟上";
+                return "带小满沿中道往右出棚";
+            }
+            return showKeys ? "到轮窝右边的中道，靠近连杆按 [E] 抬闩" : "到轮窝右边的中道，靠近连杆抬闩";
         }
-        if (p.gripping) return showKeys ? "按 [D] 把车推入轮窝" : "往右把车推入轮窝";
-        if (p.cartHandleInReach()) return showKeys ? "按 [E] 握车柄，再按 [D] 推车" : "握住车柄，往右推车";
-        return showKeys ? "按 [W] 绕到粮袋后，再往右走到车柄" : "从粮袋后面的空地绕过去，再往右找车柄";
+        if (p.gripping) return "往右把车推入轮窝";
+        if (p.cartHandleInReach()) return showKeys ? "按 [E] 握车柄，再往右推车" : "握住车柄，往右推车";
+
+        const bypass = room.companion?.groundBypass;
+        if (bypass !== undefined && player.x - player.w / 2 < bypass.x1) {
+            if (player.x + player.w / 2 <= bypass.x0) return "从远处绕到粮袋后面，再往右走";
+            return "沿粮袋后面往右走，过了矮台再回到中道";
+        }
+        const track = room.cart.depth ?? 0;
+        if (!inReachDepth(player.depth, track)) {
+            return player.depth > track ? "往近处回到中道，找板车左侧的车柄" : "往远处回到中道，找板车左侧的车柄";
+        }
+        const handleX = p.cartAxle + room.cart.handleOffset;
+        if (Math.abs(player.x - handleX) <= CART_REACH) return "落到地面，靠近车柄";
+        return player.x < handleX ? "往右走到车柄旁" : "往左回到车柄旁";
     }
 
     /** 将后端状态译作剧情对白和随进度变化的提示。 */

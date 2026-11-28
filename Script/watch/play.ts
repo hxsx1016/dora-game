@@ -3785,7 +3785,7 @@ export class Play {
             if (input.interact.pressed && !this.cartDocked && Math.abs(p.x - handleX) <= CART_REACH
                 && Math.abs(p.y - c.baseY) <= 40 && inReachDepth(p.depth, c.depth ?? 0) && !this.objectiveDone) {
                 this.gripping = true;
-                this.flashSet("握住车柄 · A/D 推", 1.0);
+                this.flashSet("握住车柄 · 往右推车", 1.0);
             }
             return;
         }

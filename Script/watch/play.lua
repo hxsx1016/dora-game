@@ -3746,7 +3746,7 @@ function Play.prototype.stepCampaignCart(self, dt, input) -- 3776
 	if not self.gripping then -- 3783
 		if input.interact.pressed and not self.cartDocked and math.abs(p.x - handleX) <= ____exports.CART_REACH and math.abs(p.y - c.baseY) <= 40 and inReachDepth(p.depth, c.depth or 0) and not self.objectiveDone then -- 3783
 			self.gripping = true -- 3787
-			self:flashSet("握住车柄 · A/D 推", 1) -- 3788
+			self:flashSet("握住车柄 · 往右推车", 1) -- 3788
 		end -- 3788
 		return -- 3790
 	end -- 3790
