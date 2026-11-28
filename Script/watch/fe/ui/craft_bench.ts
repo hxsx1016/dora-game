@@ -1020,25 +1020,44 @@ export class CraftBenchPlugin implements FeRenderPlugin {
         const seq: readonly ComicKeyframe[] = isFullFirstCraft
             ? (isEcho
                 ? [
-                    { slot: "comic_m02_echo_01_offer", start: 0.00, end: 0.25, zoomFrom: 1.00, zoomTo: 1.015 },
-                    { slot: "comic_m02_echo_02_grip", start: 0.25, end: 0.52, zoomFrom: 1.005, zoomTo: 1.018 },
-                    { slot: "comic_m02_echo_03_heft", start: 0.52, end: 0.78, zoomFrom: 1.01, zoomTo: 1.024 },
-                    { slot: "comic_m02_echo_04_ready", start: 0.78, end: 1.00, zoomFrom: 1.01, zoomTo: 1.00 },
+                    { slot: "comic_m02_echo_f01", start: 0.000, end: 0.095, transition: "cut" },
+                    { slot: "comic_m02_echo_f02", start: 0.095, end: 0.185, transition: "cut" },
+                    { slot: "comic_m02_echo_f03", start: 0.185, end: 0.275, transition: "cut" },
+                    { slot: "comic_m02_echo_f04", start: 0.275, end: 0.365, transition: "cut" },
+                    { slot: "comic_m02_echo_f05", start: 0.365, end: 0.450, transition: "cut" },
+                    { slot: "comic_m02_echo_f06", start: 0.450, end: 0.530, transition: "cut" },
+                    { slot: "comic_m02_echo_f07", start: 0.530, end: 0.610, transition: "cut" },
+                    { slot: "comic_m02_echo_f08", start: 0.610, end: 0.695, transition: "cut" },
+                    { slot: "comic_m02_echo_f09", start: 0.695, end: 0.785, transition: "cut" },
+                    { slot: "comic_m02_echo_f10", start: 0.785, end: 0.885, transition: "cut" },
+                    { slot: "comic_m02_echo_f11", start: 0.885, end: 1.000, transition: "cut" },
                 ]
                 : [
-                    { slot: "comic_m02_lantern_01_offer", start: 0.00, end: 0.25, zoomFrom: 1.00, zoomTo: 1.015 },
-                    { slot: "comic_m02_lantern_02_grip", start: 0.25, end: 0.52, zoomFrom: 1.005, zoomTo: 1.018 },
-                    { slot: "comic_m02_lantern_03_heft", start: 0.52, end: 0.78, zoomFrom: 1.01, zoomTo: 1.024 },
-                    { slot: "comic_m02_lantern_04_ready", start: 0.78, end: 1.00, zoomFrom: 1.01, zoomTo: 1.00 },
+                    { slot: "comic_m02_lantern_f01", start: 0.000, end: 0.083, transition: "cut" },
+                    { slot: "comic_m02_lantern_f02", start: 0.083, end: 0.166, transition: "cut" },
+                    { slot: "comic_m02_lantern_f03", start: 0.166, end: 0.250, transition: "cut" },
+                    { slot: "comic_m02_lantern_f04", start: 0.250, end: 0.333, transition: "cut" },
+                    { slot: "comic_m02_lantern_f05", start: 0.333, end: 0.416, transition: "cut" },
+                    { slot: "comic_m02_lantern_f06", start: 0.416, end: 0.500, transition: "cut" },
+                    { slot: "comic_m02_lantern_f07", start: 0.500, end: 0.583, transition: "cut" },
+                    { slot: "comic_m02_lantern_f08", start: 0.583, end: 0.666, transition: "cut" },
+                    { slot: "comic_m02_lantern_f09", start: 0.666, end: 0.750, transition: "cut" },
+                    { slot: "comic_m02_lantern_f10", start: 0.750, end: 0.833, transition: "cut" },
+                    { slot: "comic_m02_lantern_f11", start: 0.833, end: 0.916, transition: "cut" },
+                    { slot: "comic_m02_lantern_f12", start: 0.916, end: 1.000, transition: "cut" },
                 ])
             : (isEcho
                 ? [
-                    { slot: "comic_m02_echo_02_grip", start: 0.00, end: 0.50, zoomFrom: 1.00, zoomTo: 1.015 },
-                    { slot: "comic_m02_echo_04_ready", start: 0.50, end: 1.00, zoomFrom: 1.005, zoomTo: 1.00 },
+                    { slot: "comic_m02_echo_f05", start: 0.00, end: 0.24, transition: "cut" },
+                    { slot: "comic_m02_echo_f07", start: 0.24, end: 0.50, transition: "cut" },
+                    { slot: "comic_m02_echo_f08", start: 0.50, end: 0.76, transition: "cut" },
+                    { slot: "comic_m02_echo_f11", start: 0.76, end: 1.00, transition: "cut" },
                 ]
                 : [
-                    { slot: "comic_m02_lantern_02_grip", start: 0.00, end: 0.50, zoomFrom: 1.00, zoomTo: 1.015 },
-                    { slot: "comic_m02_lantern_04_ready", start: 0.50, end: 1.00, zoomFrom: 1.005, zoomTo: 1.00 },
+                    { slot: "comic_m02_lantern_f06", start: 0.00, end: 0.24, transition: "cut" },
+                    { slot: "comic_m02_lantern_f08", start: 0.24, end: 0.50, transition: "cut" },
+                    { slot: "comic_m02_lantern_f10", start: 0.50, end: 0.76, transition: "cut" },
+                    { slot: "comic_m02_lantern_f12", start: 0.76, end: 1.00, transition: "cut" },
                 ]);
 
         fillRadialGlow(

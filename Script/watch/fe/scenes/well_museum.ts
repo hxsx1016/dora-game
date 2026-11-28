@@ -102,24 +102,52 @@ export const MUSEUM_AUDIO = {
 const LOOP_WELL_DRIP = "fe06_well_drip";
 const LOOP_HALL_AMBIENCE = "fe06_hall_ambience";
 
-/** E01 井底白灯 → 指南针叠合 → 0px 光学匹配剪辑闪切 → 现代玻璃展柜硬核漫画拍表（3.2s） */
+/** E01 井底白灯波纹 → 指南针叠合 → 0px 光学匹配剪辑闪切 → 现代玻璃展柜 16 帧逐帧动画拍表（3.60s，峰值 8.5 fps） */
 const E01_MATCH_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_museum_e01_01_well_water", start: 0.00, end: 0.92, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_museum_e01_02_compass_align", start: 0.92, end: 1.90, zoomFrom: 1.005, zoomTo: 1.018, transition: "cut" },
-    { slot: "comic_museum_e01_03_match_flash", start: 1.90, end: 2.26, zoomFrom: 1.03, zoomTo: 1.03, transition: "cut", impactFlash: true, impactDur: 0.24, shakeAmp: 5.5, shakeFreq: 64 },
-    { slot: "comic_museum_e01_04_vitrine_emerge", start: 2.26, end: 3.60, zoomFrom: 1.014, zoomTo: 1.00, transition: "cut" },
+    { slot: "comic_e01_f01", start: 0.00, end: 0.23, transition: "cut" },
+    { slot: "comic_e01_f02", start: 0.23, end: 0.46, transition: "cut" },
+    { slot: "comic_e01_f03", start: 0.46, end: 0.69, transition: "cut" },
+    { slot: "comic_e01_f04", start: 0.69, end: 0.92, transition: "cut" },
+    { slot: "comic_e01_f05", start: 0.92, end: 1.16, transition: "cut" },
+    { slot: "comic_e01_f06", start: 1.16, end: 1.40, transition: "cut" },
+    { slot: "comic_e01_f07", start: 1.40, end: 1.66, transition: "cut" },
+    { slot: "comic_e01_f08", start: 1.66, end: 1.86, zoomFrom: 1.02, zoomTo: 1.02, transition: "cut", impactFlash: true, impactDur: 0.16, shakeAmp: 4.5, shakeFreq: 60 },
+    { slot: "comic_e01_f09", start: 1.86, end: 1.98, zoomFrom: 1.028, zoomTo: 1.028, transition: "cut", impactFlash: true, impactDur: 0.18, shakeAmp: 5.5, shakeFreq: 64 },
+    { slot: "comic_e01_f10", start: 1.98, end: 2.10, transition: "cut", shakeAmp: 3.5, shakeFreq: 56 },
+    { slot: "comic_e01_f11", start: 2.10, end: 2.24, transition: "cut" },
+    { slot: "comic_e01_f12", start: 2.24, end: 2.48, transition: "cut" },
+    { slot: "comic_e01_f13", start: 2.48, end: 2.74, transition: "cut" },
+    { slot: "comic_e01_f14", start: 2.74, end: 3.04, transition: "cut" },
+    { slot: "comic_e01_f15", start: 3.04, end: 3.34, transition: "cut" },
+    { slot: "comic_e01_f16", start: 3.34, end: 3.60, transition: "cut" },
 ];
 
-/** E02 现代展厅西窗转灯与破晓映古井硬核漫画拍表（3.8s） */
+/** E02 现代展厅西窗转灯与破晓映古井 12 帧逐帧动画拍表（4.50s） */
 const E02_LAMP_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_museum_e02_01_west_window", start: 0.00, end: 0.55, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
-    { slot: "comic_museum_e02_02_lamp_turn", start: 0.55, end: 1.48, zoomFrom: 1.006, zoomTo: 1.018, transition: "cut" },
-    { slot: "comic_museum_e02_03_dawn_well_reflect", start: 1.48, end: 4.50, zoomFrom: 1.012, zoomTo: 1.00, transition: "cut" },
+    { slot: "comic_e02_f01", start: 0.00, end: 0.20, transition: "cut" },
+    { slot: "comic_e02_f02", start: 0.20, end: 0.40, transition: "cut" },
+    { slot: "comic_e02_f03", start: 0.40, end: 0.60, transition: "cut" },
+    { slot: "comic_e02_f04", start: 0.60, end: 0.80, transition: "cut" },
+    { slot: "comic_e02_f05", start: 0.80, end: 1.02, transition: "cut" },
+    { slot: "comic_e02_f06", start: 1.02, end: 1.24, transition: "cut" },
+    { slot: "comic_e02_f07", start: 1.24, end: 1.46, transition: "cut" },
+    { slot: "comic_e02_f08", start: 1.46, end: 1.68, transition: "cut" },
+    { slot: "comic_e02_f09", start: 1.68, end: 2.25, transition: "cut" },
+    { slot: "comic_e02_f10", start: 2.25, end: 2.85, transition: "cut" },
+    { slot: "comic_e02_f11", start: 2.85, end: 3.95, transition: "cut" },
+    { slot: "comic_e02_f12", start: 3.95, end: 4.50, transition: "cut" },
 ];
 
-/** E02 尾声：第二声实木轻叩落回明初厨柜缝与四镜同源五针补线袖口（2.6s） */
+/** E02 尾声：实木轻叩落回明初厨柜缝与四镜同源五针补线袖口 8 帧逐帧动画拍表（3.00s） */
 const E02_RETURN_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_museum_e02_04_cabinet_cuff_return", start: 0.00, end: 3.00, zoomFrom: 1.015, zoomTo: 1.00, transition: "cut", shakeAmp: 2.8, shakeFreq: 50 },
+    { slot: "comic_e02_f13", start: 0.00, end: 0.16, transition: "cut" },
+    { slot: "comic_e02_f14", start: 0.16, end: 0.32, transition: "cut" },
+    { slot: "comic_e02_f15", start: 0.32, end: 0.48, transition: "cut" },
+    { slot: "comic_e02_f16", start: 0.48, end: 0.68, transition: "cut", shakeAmp: 4.2, shakeFreq: 56 },
+    { slot: "comic_e02_f17", start: 0.68, end: 1.10, transition: "cut" },
+    { slot: "comic_e02_f18", start: 1.10, end: 1.58, transition: "cut" },
+    { slot: "comic_e02_f19", start: 1.58, end: 2.12, transition: "cut" },
+    { slot: "comic_e02_f20", start: 2.12, end: 3.00, transition: "cut" },
 ];
 
 export interface WellMuseumResumeState {

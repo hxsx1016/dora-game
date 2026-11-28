@@ -125,42 +125,77 @@ const P03_COMIC_SEQ: readonly ComicKeyframe[] = [
     { slot: "comic_p03_f24", start: 0.9167, end: 1.0000, transition: "cut" },
 ];
 
-/** P05 城门送别硬核木刻漫画逐帧拍表（归一化进度 0..1，含 0.72 落门单帧三色木刻冲击） */
+/** P05 城门送别硬核木刻漫画 17 帧逐帧动画拍表（归一化进度 0..1，含 0.72 落门单帧三色木刻冲击与峰值 11 fps 爆裂收指） */
 const P05_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_p05_01_clutch_cuff", start: 0.00, end: 0.20, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
-    { slot: "comic_p05_02_brother_pinch", start: 0.20, end: 0.44, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
-    { slot: "comic_p05_03_sleeve_pull", start: 0.44, end: 0.64, zoomFrom: 1.008, zoomTo: 1.02, transition: "cut" },
-    { slot: "comic_p05_04_gate_drop", start: 0.64, end: 0.72, zoomFrom: 1.015, zoomTo: 1.028, transition: "cut", shakeAmp: 4.0, shakeFreq: 62 },
-    { slot: "comic_p05_05_gate_slam_impact", start: 0.72, end: 0.79, zoomFrom: 1.036, zoomTo: 1.036, transition: "cut", impactFlash: true, impactDur: 0.07, shakeAmp: 12.0, shakeFreq: 74 },
-    { slot: "comic_p05_06_open_fingers", start: 0.79, end: 1.00, zoomFrom: 1.012, zoomTo: 1.00, transition: "cut", shakeAmp: 2.2 },
+    { slot: "comic_p05_f01", start: 0.000, end: 0.095, transition: "cut" },
+    { slot: "comic_p05_f02", start: 0.095, end: 0.190, transition: "cut" },
+    { slot: "comic_p05_f03", start: 0.190, end: 0.285, transition: "cut" },
+    { slot: "comic_p05_f04", start: 0.285, end: 0.375, transition: "cut" },
+    { slot: "comic_p05_f05", start: 0.375, end: 0.460, transition: "cut" },
+    { slot: "comic_p05_f06", start: 0.460, end: 0.540, transition: "cut" },
+    { slot: "comic_p05_f07", start: 0.540, end: 0.610, transition: "cut" },
+    { slot: "comic_p05_f08", start: 0.610, end: 0.665, transition: "cut", shakeAmp: 3.2, shakeFreq: 56 },
+    { slot: "comic_p05_f09", start: 0.665, end: 0.720, transition: "cut", shakeAmp: 5.0, shakeFreq: 64 },
+    { slot: "comic_p05_f10", start: 0.720, end: 0.770, zoomFrom: 1.036, zoomTo: 1.036, transition: "cut", impactFlash: true, impactDur: 0.06, shakeAmp: 12.0, shakeFreq: 74 },
+    { slot: "comic_p05_f11", start: 0.770, end: 0.805, transition: "cut", shakeAmp: 4.5, shakeFreq: 60 },
+    { slot: "comic_p05_f12", start: 0.805, end: 0.840, transition: "cut", shakeAmp: 2.5 },
+    { slot: "comic_p05_f13", start: 0.840, end: 0.875, transition: "cut" },
+    { slot: "comic_p05_f14", start: 0.875, end: 0.908, transition: "cut" },
+    { slot: "comic_p05_f15", start: 0.908, end: 0.940, transition: "cut" },
+    { slot: "comic_p05_f16", start: 0.940, end: 0.970, transition: "cut" },
+    { slot: "comic_p05_f17", start: 0.970, end: 1.000, transition: "cut" },
 ];
 
-/** G05 长按伸袖交互拍表（严格跟随 holdProgress 0..1） */
+/** G05 长按伸袖交互 8 帧连续拍表（严格跟随 holdProgress 0..1） */
 const G05_HOLD_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_g05_01_cuff_peek", start: 0.00, end: 0.30, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
-    { slot: "comic_g05_02_cuff_extend", start: 0.30, end: 0.70, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
-    { slot: "comic_g05_03_hands_meet", start: 0.70, end: 1.00, zoomFrom: 1.01, zoomTo: 1.02, transition: "cut" },
+    { slot: "comic_g05_f01", start: 0.000, end: 0.125, transition: "cut" },
+    { slot: "comic_g05_f02", start: 0.125, end: 0.250, transition: "cut" },
+    { slot: "comic_g05_f03", start: 0.250, end: 0.375, transition: "cut" },
+    { slot: "comic_g05_f04", start: 0.375, end: 0.500, transition: "cut" },
+    { slot: "comic_g05_f05", start: 0.500, end: 0.625, transition: "cut" },
+    { slot: "comic_g05_f06", start: 0.625, end: 0.750, transition: "cut" },
+    { slot: "comic_g05_f07", start: 0.750, end: 0.875, transition: "cut" },
+    { slot: "comic_g05_f08", start: 0.875, end: 1.000, transition: "cut" },
 ];
 
-/** G05 握稳重逢顺臂抬镜至周戍露脸拍表（秒） */
+/** G05 握稳重逢顺臂抬镜至周戍露脸暖笑 12 帧连续拍表（秒） */
 const G05_REUNION_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_g05_04_hands_clasp", start: 0.00, end: 0.38, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_g05_05_tilt_arm", start: 0.38, end: 0.78, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
-    { slot: "comic_g05_06_tilt_shoulder", start: 0.78, end: 1.18, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
-    { slot: "comic_g05_07_zhoushu_reveal", start: 1.18, end: 1.72, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_g05_08_zhoushu_warm", start: 1.72, end: 12.0, zoomFrom: 1.008, zoomTo: 1.00, transition: "cut" },
+    { slot: "comic_g05_f09", start: 0.00, end: 0.16, transition: "cut" },
+    { slot: "comic_g05_f10", start: 0.16, end: 0.32, transition: "cut" },
+    { slot: "comic_g05_f11", start: 0.32, end: 0.48, transition: "cut" },
+    { slot: "comic_g05_f12", start: 0.48, end: 0.66, transition: "cut" },
+    { slot: "comic_g05_f13", start: 0.66, end: 0.84, transition: "cut" },
+    { slot: "comic_g05_f14", start: 0.84, end: 1.02, transition: "cut" },
+    { slot: "comic_g05_f15", start: 1.02, end: 1.20, transition: "cut" },
+    { slot: "comic_g05_f16", start: 1.20, end: 1.40, transition: "cut" },
+    { slot: "comic_g05_f17", start: 1.40, end: 1.62, transition: "cut" },
+    { slot: "comic_g05_f18", start: 1.62, end: 1.86, transition: "cut" },
+    { slot: "comic_g05_f19", start: 1.86, end: 2.12, transition: "cut" },
+    { slot: "comic_g05_f20", start: 2.12, end: 12.0, transition: "cut" },
 ];
 
-/** G05 4 秒独立排演全 8 帧连续拍表 */
+/** G05 4.5 秒独立排演全 20 帧连续拍表（6–8 fps） */
 const G05_REHEARSAL_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_g05_01_cuff_peek", start: 0.00, end: 0.50, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
-    { slot: "comic_g05_02_cuff_extend", start: 0.50, end: 1.00, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
-    { slot: "comic_g05_03_hands_meet", start: 1.00, end: 1.45, zoomFrom: 1.005, zoomTo: 1.015, transition: "cut" },
-    { slot: "comic_g05_04_hands_clasp", start: 1.45, end: 1.88, zoomFrom: 1.005, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_g05_05_tilt_arm", start: 1.88, end: 2.30, zoomFrom: 1.005, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_g05_06_tilt_shoulder", start: 2.30, end: 2.72, zoomFrom: 1.005, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_g05_07_zhoushu_reveal", start: 2.72, end: 3.30, zoomFrom: 1.00, zoomTo: 1.01, transition: "cut" },
-    { slot: "comic_g05_08_zhoushu_warm", start: 3.30, end: 4.50, zoomFrom: 1.006, zoomTo: 1.00, transition: "cut" },
+    { slot: "comic_g05_f01", start: 0.00, end: 0.19, transition: "cut" },
+    { slot: "comic_g05_f02", start: 0.19, end: 0.38, transition: "cut" },
+    { slot: "comic_g05_f03", start: 0.38, end: 0.57, transition: "cut" },
+    { slot: "comic_g05_f04", start: 0.57, end: 0.76, transition: "cut" },
+    { slot: "comic_g05_f05", start: 0.76, end: 0.94, transition: "cut" },
+    { slot: "comic_g05_f06", start: 0.94, end: 1.12, transition: "cut" },
+    { slot: "comic_g05_f07", start: 1.12, end: 1.30, transition: "cut" },
+    { slot: "comic_g05_f08", start: 1.30, end: 1.48, transition: "cut" },
+    { slot: "comic_g05_f09", start: 1.48, end: 1.66, transition: "cut" },
+    { slot: "comic_g05_f10", start: 1.66, end: 1.84, transition: "cut" },
+    { slot: "comic_g05_f11", start: 1.84, end: 2.02, transition: "cut" },
+    { slot: "comic_g05_f12", start: 2.02, end: 2.20, transition: "cut" },
+    { slot: "comic_g05_f13", start: 2.20, end: 2.38, transition: "cut" },
+    { slot: "comic_g05_f14", start: 2.38, end: 2.58, transition: "cut" },
+    { slot: "comic_g05_f15", start: 2.58, end: 2.78, transition: "cut" },
+    { slot: "comic_g05_f16", start: 2.78, end: 3.00, transition: "cut" },
+    { slot: "comic_g05_f17", start: 3.00, end: 3.24, transition: "cut" },
+    { slot: "comic_g05_f18", start: 3.24, end: 3.50, transition: "cut" },
+    { slot: "comic_g05_f19", start: 3.50, end: 3.80, transition: "cut" },
+    { slot: "comic_g05_f20", start: 3.80, end: 4.50, transition: "cut" },
 ];
 
 /** 统一明初守卒补线青布袖口色板（与《明朝全局美术设定》完全一致，灰度亮度差 > 60%） */

@@ -1290,141 +1290,94 @@ function CraftBenchPlugin.prototype.drawHandoverOverlay(self, uiDraw, uiInkDraw,
 	local panelH = math.floor(panelW * 9 / 16 + 0.5) -- 1017
 	local isEcho = self.handoverEffect == "echo" -- 1018
 	local isFullFirstCraft = self.handoverDuration >= 0.8 -- 1019
-	local seq = isFullFirstCraft and (isEcho and ({{ -- 1020
-		slot = "comic_m02_echo_01_offer", -- 1023
-		start = 0, -- 1023
-		["end"] = 0.25, -- 1023
-		zoomFrom = 1, -- 1023
-		zoomTo = 1.015 -- 1023
-	}, { -- 1023
-		slot = "comic_m02_echo_02_grip", -- 1024
-		start = 0.25, -- 1024
-		["end"] = 0.52, -- 1024
-		zoomFrom = 1.005, -- 1024
-		zoomTo = 1.018 -- 1024
-	}, { -- 1024
-		slot = "comic_m02_echo_03_heft", -- 1025
-		start = 0.52, -- 1025
-		["end"] = 0.78, -- 1025
-		zoomFrom = 1.01, -- 1025
-		zoomTo = 1.024 -- 1025
-	}, { -- 1025
-		slot = "comic_m02_echo_04_ready", -- 1026
-		start = 0.78, -- 1026
-		["end"] = 1, -- 1026
-		zoomFrom = 1.01, -- 1026
-		zoomTo = 1 -- 1026
-	}}) or ({{ -- 1026
-		slot = "comic_m02_lantern_01_offer", -- 1029
-		start = 0, -- 1029
-		["end"] = 0.25, -- 1029
-		zoomFrom = 1, -- 1029
-		zoomTo = 1.015 -- 1029
-	}, { -- 1029
-		slot = "comic_m02_lantern_02_grip", -- 1030
-		start = 0.25, -- 1030
-		["end"] = 0.52, -- 1030
-		zoomFrom = 1.005, -- 1030
-		zoomTo = 1.018 -- 1030
-	}, { -- 1030
-		slot = "comic_m02_lantern_03_heft", -- 1031
-		start = 0.52, -- 1031
-		["end"] = 0.78, -- 1031
-		zoomFrom = 1.01, -- 1031
-		zoomTo = 1.024 -- 1031
-	}, { -- 1031
-		slot = "comic_m02_lantern_04_ready", -- 1032
-		start = 0.78, -- 1032
-		["end"] = 1, -- 1032
-		zoomFrom = 1.01, -- 1032
-		zoomTo = 1 -- 1032
-	}})) or (isEcho and ({{ -- 1032
-		slot = "comic_m02_echo_02_grip", -- 1036
-		start = 0, -- 1036
-		["end"] = 0.5, -- 1036
-		zoomFrom = 1, -- 1036
-		zoomTo = 1.015 -- 1036
-	}, { -- 1036
-		slot = "comic_m02_echo_04_ready", -- 1037
-		start = 0.5, -- 1037
-		["end"] = 1, -- 1037
-		zoomFrom = 1.005, -- 1037
-		zoomTo = 1 -- 1037
-	}}) or ({{ -- 1037
-		slot = "comic_m02_lantern_02_grip", -- 1040
-		start = 0, -- 1040
-		["end"] = 0.5, -- 1040
-		zoomFrom = 1, -- 1040
-		zoomTo = 1.015 -- 1040
-	}, { -- 1040
-		slot = "comic_m02_lantern_04_ready", -- 1041
-		start = 0.5, -- 1041
-		["end"] = 1, -- 1041
-		zoomFrom = 1.005, -- 1041
-		zoomTo = 1 -- 1041
-	}})) -- 1041
-	fillRadialGlow( -- 1044
-		uiGlow, -- 1045
-		cx, -- 1046
-		cy, -- 1047
-		panelW * 0.68, -- 1048
-		panelH * 0.72, -- 1049
-		toColor( -- 1050
-			isEcho and PALETTE.jadeMist or PALETTE.amberCore, -- 1050
-			math.floor(58 * fade + 0.5) -- 1050
-		), -- 1050
-		Color(24, 22, 18, 0), -- 1051
-		16 -- 1052
-	) -- 1052
-	drawComicInsertPanel( -- 1054
-		uiDraw, -- 1055
-		uiInkDraw, -- 1056
-		uiArt, -- 1057
-		seq, -- 1058
-		prog, -- 1059
-		{x = cx - panelW * 0.5, y = cy - panelH * 0.5, w = panelW, h = panelH}, -- 1060
-		fade, -- 1061
-		isEcho and "cb_m02_echo" or "cb_m02_lantern", -- 1062
-		4 -- 1063
-	) -- 1063
-	local capY = cy - panelH * 0.5 - 24 -- 1066
-	drawSilkVeil( -- 1067
-		uiDraw, -- 1067
-		uiArt, -- 1067
-		"cb_handover_veil", -- 1067
-		cx, -- 1067
-		capY, -- 1067
-		panelW + 24, -- 1067
-		30, -- 1067
-		PALETTE.inkWash, -- 1067
-		0.86 * fade, -- 1067
-		5 -- 1067
-	) -- 1067
-	drawReloadPatternGlyph( -- 1068
-		uiInkDraw, -- 1068
-		cx - panelW * 0.42, -- 1068
-		capY, -- 1068
-		7.5, -- 1068
-		self.handoverEffect, -- 1068
-		PALETTE.amberCore, -- 1068
-		fade -- 1068
-	) -- 1068
-	local caption = isFullFirstCraft and self.handoverWeaponName .. " 已成 · 周戍试握上手" or self.handoverWeaponName .. " 已交接佩用" -- 1069
-	ctx.texts:put( -- 1072
-		"xs", -- 1072
-		caption, -- 1072
-		cx + 8, -- 1072
-		capY, -- 1072
-		toColor(PALETTE.amberCore), -- 1072
-		0.5, -- 1072
-		0.5, -- 1072
-		"Center", -- 1072
-		1.4, -- 1072
-		0.96 * fade, -- 1072
-		0.08 -- 1072
-	) -- 1072
+	local seq = isFullFirstCraft and (isEcho and ({ -- 1020
+		{slot = "comic_m02_echo_f01", start = 0, ["end"] = 0.095, transition = "cut"}, -- 1023
+		{slot = "comic_m02_echo_f02", start = 0.095, ["end"] = 0.185, transition = "cut"}, -- 1024
+		{slot = "comic_m02_echo_f03", start = 0.185, ["end"] = 0.275, transition = "cut"}, -- 1025
+		{slot = "comic_m02_echo_f04", start = 0.275, ["end"] = 0.365, transition = "cut"}, -- 1026
+		{slot = "comic_m02_echo_f05", start = 0.365, ["end"] = 0.45, transition = "cut"}, -- 1027
+		{slot = "comic_m02_echo_f06", start = 0.45, ["end"] = 0.53, transition = "cut"}, -- 1028
+		{slot = "comic_m02_echo_f07", start = 0.53, ["end"] = 0.61, transition = "cut"}, -- 1029
+		{slot = "comic_m02_echo_f08", start = 0.61, ["end"] = 0.695, transition = "cut"}, -- 1030
+		{slot = "comic_m02_echo_f09", start = 0.695, ["end"] = 0.785, transition = "cut"}, -- 1031
+		{slot = "comic_m02_echo_f10", start = 0.785, ["end"] = 0.885, transition = "cut"}, -- 1032
+		{slot = "comic_m02_echo_f11", start = 0.885, ["end"] = 1, transition = "cut"} -- 1033
+	}) or ({ -- 1033
+		{slot = "comic_m02_lantern_f01", start = 0, ["end"] = 0.083, transition = "cut"}, -- 1036
+		{slot = "comic_m02_lantern_f02", start = 0.083, ["end"] = 0.166, transition = "cut"}, -- 1037
+		{slot = "comic_m02_lantern_f03", start = 0.166, ["end"] = 0.25, transition = "cut"}, -- 1038
+		{slot = "comic_m02_lantern_f04", start = 0.25, ["end"] = 0.333, transition = "cut"}, -- 1039
+		{slot = "comic_m02_lantern_f05", start = 0.333, ["end"] = 0.416, transition = "cut"}, -- 1040
+		{slot = "comic_m02_lantern_f06", start = 0.416, ["end"] = 0.5, transition = "cut"}, -- 1041
+		{slot = "comic_m02_lantern_f07", start = 0.5, ["end"] = 0.583, transition = "cut"}, -- 1042
+		{slot = "comic_m02_lantern_f08", start = 0.583, ["end"] = 0.666, transition = "cut"}, -- 1043
+		{slot = "comic_m02_lantern_f09", start = 0.666, ["end"] = 0.75, transition = "cut"}, -- 1044
+		{slot = "comic_m02_lantern_f10", start = 0.75, ["end"] = 0.833, transition = "cut"}, -- 1045
+		{slot = "comic_m02_lantern_f11", start = 0.833, ["end"] = 0.916, transition = "cut"}, -- 1046
+		{slot = "comic_m02_lantern_f12", start = 0.916, ["end"] = 1, transition = "cut"} -- 1047
+	})) or (isEcho and ({{slot = "comic_m02_echo_f05", start = 0, ["end"] = 0.24, transition = "cut"}, {slot = "comic_m02_echo_f07", start = 0.24, ["end"] = 0.5, transition = "cut"}, {slot = "comic_m02_echo_f08", start = 0.5, ["end"] = 0.76, transition = "cut"}, {slot = "comic_m02_echo_f11", start = 0.76, ["end"] = 1, transition = "cut"}}) or ({{slot = "comic_m02_lantern_f06", start = 0, ["end"] = 0.24, transition = "cut"}, {slot = "comic_m02_lantern_f08", start = 0.24, ["end"] = 0.5, transition = "cut"}, {slot = "comic_m02_lantern_f10", start = 0.5, ["end"] = 0.76, transition = "cut"}, {slot = "comic_m02_lantern_f12", start = 0.76, ["end"] = 1, transition = "cut"}})) -- 1047
+	fillRadialGlow( -- 1063
+		uiGlow, -- 1064
+		cx, -- 1065
+		cy, -- 1066
+		panelW * 0.68, -- 1067
+		panelH * 0.72, -- 1068
+		toColor( -- 1069
+			isEcho and PALETTE.jadeMist or PALETTE.amberCore, -- 1069
+			math.floor(58 * fade + 0.5) -- 1069
+		), -- 1069
+		Color(24, 22, 18, 0), -- 1070
+		16 -- 1071
+	) -- 1071
+	drawComicInsertPanel( -- 1073
+		uiDraw, -- 1074
+		uiInkDraw, -- 1075
+		uiArt, -- 1076
+		seq, -- 1077
+		prog, -- 1078
+		{x = cx - panelW * 0.5, y = cy - panelH * 0.5, w = panelW, h = panelH}, -- 1079
+		fade, -- 1080
+		isEcho and "cb_m02_echo" or "cb_m02_lantern", -- 1081
+		4 -- 1082
+	) -- 1082
+	local capY = cy - panelH * 0.5 - 24 -- 1085
+	drawSilkVeil( -- 1086
+		uiDraw, -- 1086
+		uiArt, -- 1086
+		"cb_handover_veil", -- 1086
+		cx, -- 1086
+		capY, -- 1086
+		panelW + 24, -- 1086
+		30, -- 1086
+		PALETTE.inkWash, -- 1086
+		0.86 * fade, -- 1086
+		5 -- 1086
+	) -- 1086
+	drawReloadPatternGlyph( -- 1087
+		uiInkDraw, -- 1087
+		cx - panelW * 0.42, -- 1087
+		capY, -- 1087
+		7.5, -- 1087
+		self.handoverEffect, -- 1087
+		PALETTE.amberCore, -- 1087
+		fade -- 1087
+	) -- 1087
+	local caption = isFullFirstCraft and self.handoverWeaponName .. " 已成 · 周戍试握上手" or self.handoverWeaponName .. " 已交接佩用" -- 1088
+	ctx.texts:put( -- 1091
+		"xs", -- 1091
+		caption, -- 1091
+		cx + 8, -- 1091
+		capY, -- 1091
+		toColor(PALETTE.amberCore), -- 1091
+		0.5, -- 1091
+		0.5, -- 1091
+		"Center", -- 1091
+		1.4, -- 1091
+		0.96 * fade, -- 1091
+		0.08 -- 1091
+	) -- 1091
 end -- 1005
-function ____exports.createCraftBenchPlugin(contract) -- 1076
-	return __TS__New(____exports.CraftBenchPlugin, contract) -- 1077
-end -- 1076
-return ____exports -- 1076
+function ____exports.createCraftBenchPlugin(contract) -- 1095
+	return __TS__New(____exports.CraftBenchPlugin, contract) -- 1096
+end -- 1095
+return ____exports -- 1095

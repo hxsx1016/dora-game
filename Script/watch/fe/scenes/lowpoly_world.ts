@@ -1114,10 +1114,18 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         const cx = Math.max(panelW * 0.5 + 24, Math.min(ctx.uiW - panelW * 0.5 - 24, handPt.x * inv - 16));
         const cy = Math.max(panelH * 0.5 + 28, Math.min(ctx.uiH - panelH * 0.5 - 28, handPt.y * inv + 112));
         const seq: readonly ComicKeyframe[] = [
-            { slot: "comic_f01_01_thumb_cloth", start: 0.00, end: 0.22, zoomFrom: 1.00, zoomTo: 1.015 },
-            { slot: "comic_f01_02_needle_pierce", start: 0.22, end: 0.48, zoomFrom: 1.005, zoomTo: 1.018 },
-            { slot: "comic_f01_03_thread_pull", start: 0.48, end: 0.76, zoomFrom: 1.01, zoomTo: 1.022 },
-            { slot: "comic_f01_04_stitch_smooth", start: 0.76, end: 1.00, zoomFrom: 1.01, zoomTo: 1.00 },
+            { slot: "comic_f01_f01", start: 0.000, end: 0.083, transition: "cut" },
+            { slot: "comic_f01_f02", start: 0.083, end: 0.166, transition: "cut" },
+            { slot: "comic_f01_f03", start: 0.166, end: 0.250, transition: "cut" },
+            { slot: "comic_f01_f04", start: 0.250, end: 0.333, transition: "cut" },
+            { slot: "comic_f01_f05", start: 0.333, end: 0.416, transition: "cut" },
+            { slot: "comic_f01_f06", start: 0.416, end: 0.500, transition: "cut" },
+            { slot: "comic_f01_f07", start: 0.500, end: 0.583, transition: "cut" },
+            { slot: "comic_f01_f08", start: 0.583, end: 0.666, transition: "cut" },
+            { slot: "comic_f01_f09", start: 0.666, end: 0.750, transition: "cut" },
+            { slot: "comic_f01_f10", start: 0.750, end: 0.833, transition: "cut" },
+            { slot: "comic_f01_f11", start: 0.833, end: 0.916, transition: "cut" },
+            { slot: "comic_f01_f12", start: 0.916, end: 1.000, transition: "cut" },
         ];
 
         // 柔和明代油灯盏暖光云晕 + 非阻塞硬核漫画插格（保留小满持续拉车操控）

@@ -229,14 +229,26 @@ export interface TowerRehearsalOptions {
 const F03_DIALOGUE = "「朝西那盏灯，能留着吗？」";
 const M03_DIALOGUE = "「周戍。」";
 
-/** F03 / M03 北塔门廊同机位配对硬核漫画拍表（0.00..0.60s 门外两叩 → 0.60..1.40s 推门提灯） */
+/** F03 / M03 北塔门廊同机位配对 8 帧逐帧动画拍表（0.00..0.60s 叩门透光 → 0.60..1.50s 推门提灯跨槛，5.3–8.0 fps） */
 const F03_PORCH_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_tower_f03_porch_01_knock", start: 0.00, end: 0.60, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_tower_f03_porch_02_open", start: 0.60, end: 1.50, zoomFrom: 1.008, zoomTo: 1.02, transition: "cut" },
+    { slot: "comic_f03_f01", start: 0.00, end: 0.16, transition: "cut" },
+    { slot: "comic_f03_f02", start: 0.16, end: 0.30, transition: "cut", shakeAmp: 2.2, shakeFreq: 54 },
+    { slot: "comic_f03_f03", start: 0.30, end: 0.46, transition: "cut" },
+    { slot: "comic_f03_f04", start: 0.46, end: 0.62, transition: "cut" },
+    { slot: "comic_f03_f05", start: 0.62, end: 0.82, transition: "cut" },
+    { slot: "comic_f03_f06", start: 0.82, end: 1.02, transition: "cut" },
+    { slot: "comic_f03_f07", start: 1.02, end: 1.24, transition: "cut" },
+    { slot: "comic_f03_f08", start: 1.24, end: 1.50, transition: "cut" },
 ];
 const M03_PORCH_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_tower_m03_porch_01_knock", start: 0.00, end: 0.60, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_tower_m03_porch_02_open", start: 0.60, end: 1.50, zoomFrom: 1.008, zoomTo: 1.02, transition: "cut" },
+    { slot: "comic_m03_f01", start: 0.00, end: 0.16, transition: "cut" },
+    { slot: "comic_m03_f02", start: 0.16, end: 0.30, transition: "cut", shakeAmp: 2.2, shakeFreq: 54 },
+    { slot: "comic_m03_f03", start: 0.30, end: 0.46, transition: "cut" },
+    { slot: "comic_m03_f04", start: 0.46, end: 0.62, transition: "cut" },
+    { slot: "comic_m03_f05", start: 0.62, end: 0.82, transition: "cut" },
+    { slot: "comic_m03_f06", start: 0.82, end: 1.02, transition: "cut" },
+    { slot: "comic_m03_f07", start: 1.02, end: 1.24, transition: "cut" },
+    { slot: "comic_m03_f08", start: 1.24, end: 1.50, transition: "cut" },
 ];
 
 /** F03 拂晓冷室灯光预设（挪灯前），向 TOWER_WEST_LAMP_LIGHT（西窗暖灯）平滑插值 */
@@ -1326,11 +1338,18 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const imgW = 960 * scaleCover;
         const imgH = 540 * scaleCover;
         const t = this.seqElapsed;
-        const f03Slot = t < 3.40
-            ? "comic_tower_f03_room_01_cold"
-            : (t < 5.20
-                ? "comic_tower_f03_room_02_hover"
-                : (t < 6.20 ? "comic_tower_f03_room_03_move_lamp" : "comic_tower_f03_room_04_lit_bowl"));
+        const f03Slot = t < 2.40 ? "comic_f03_f09"
+            : t < 3.40 ? "comic_f03_f10"
+            : t < 4.30 ? "comic_f03_f11"
+            : t < 5.20 ? "comic_f03_f12"
+            : t < 5.45 ? "comic_f03_f13"
+            : t < 5.70 ? "comic_f03_f14"
+            : t < 5.95 ? "comic_f03_f15"
+            : t < 6.20 ? "comic_f03_f16"
+            : t < 6.65 ? "comic_f03_f17"
+            : t < 7.10 ? "comic_f03_f18"
+            : t < 7.60 ? "comic_f03_f19"
+            : "comic_f03_f20";
         const placedComic = uiArt.tryPlace(
             f03Slot,
             "fe05_f03_comic_bg",
@@ -1387,11 +1406,18 @@ export class TowerEndingsPlugin implements FeRenderPlugin {
         const imgW = 960 * scaleCover;
         const imgH = 540 * scaleCover;
         const t = this.seqElapsed;
-        const m03Slot = t < 4.20
-            ? "comic_tower_m03_room_01_warm"
-            : (t < 5.45
-                ? "comic_tower_m03_room_02_speak"
-                : (t < 6.08 ? "comic_tower_m03_room_03_pouch" : "comic_tower_m03_room_04_bowl"));
+        const m03Slot = t < 2.40 ? "comic_m03_f09"
+            : t < 3.20 ? "comic_m03_f10"
+            : t < 3.75 ? "comic_m03_f11"
+            : t < 4.20 ? "comic_m03_f12"
+            : t < 4.68 ? "comic_m03_f13"
+            : t < 5.16 ? "comic_m03_f14"
+            : t < 5.62 ? "comic_m03_f15"
+            : t < 6.08 ? "comic_m03_f16"
+            : t < 6.55 ? "comic_m03_f17"
+            : t < 7.05 ? "comic_m03_f18"
+            : t < 7.60 ? "comic_m03_f19"
+            : "comic_m03_f20";
         const placedWarm = uiArt.tryPlace(
             m03Slot,
             "fe05_m03_comic_bg",

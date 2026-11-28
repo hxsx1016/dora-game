@@ -71,147 +71,81 @@ export const PROLOGUE_TIMINGS = {
 };
 
 /**
- * P01 父亲叫醒小满硬核明代木刻暗黑漫画逐帧拍表（总长 4.00s，与 D30/D31 及 bed_creak 1.78s 精确咬合）：
- * 黑场透光 → 掀帐见火 → 父亲粗手压褥撑床沿 → 坐起望见火光门缝无缝衔接 P02。
+ * P01 父亲叫醒小满硬核明代木刻暗黑漫画 22 帧逐帧动画拍表（总长 4.00s，均速 5.5–7.5 fps，与 D30/D31 及 bed_creak 1.78s 精确咬合）：
+ * 黑场火光透帐（F01–F04）→ 掀帐见火（F05–F08）→ 父亲粗手压褥撑床沿（F09–F14）→ 小满坐起望门（F15–F22）。
  */
 const P01_WAKE_COMIC_SEQ: readonly ComicKeyframe[] = [
-    {
-        slot: "comic_p01_01_curtain_dark",
-        start: 0.00,
-        end: 0.92,
-        zoomFrom: 1.00,
-        zoomTo: 1.014,
-        transition: "cut",
-    },
-    {
-        slot: "comic_p01_02_curtain_glow",
-        start: 0.92,
-        end: 1.78,
-        zoomFrom: 1.005,
-        zoomTo: 1.018,
-        transition: "cut",
-    },
-    {
-        slot: "comic_p01_03_hand_bedrail",
-        start: 1.78,
-        end: 2.90,
-        zoomFrom: 1.012,
-        zoomTo: 1.024,
-        transition: "cut",
-        shakeAmp: 3.2,
-        shakeFreq: 52,
-    },
-    {
-        slot: "comic_p01_04_look_door",
-        start: 2.90,
-        end: 4.00,
-        zoomFrom: 1.008,
-        zoomTo: 1.02,
-        transition: "cut",
-    },
+    { slot: "comic_p01_f01", start: 0.00, end: 0.20, transition: "cut" },
+    { slot: "comic_p01_f02", start: 0.20, end: 0.40, transition: "cut" },
+    { slot: "comic_p01_f03", start: 0.40, end: 0.60, transition: "cut" },
+    { slot: "comic_p01_f04", start: 0.60, end: 0.80, transition: "cut" },
+    { slot: "comic_p01_f05", start: 0.80, end: 0.99, transition: "cut" },
+    { slot: "comic_p01_f06", start: 0.99, end: 1.18, transition: "cut" },
+    { slot: "comic_p01_f07", start: 1.18, end: 1.37, transition: "cut" },
+    { slot: "comic_p01_f08", start: 1.37, end: 1.56, transition: "cut" },
+    { slot: "comic_p01_f09", start: 1.56, end: 1.74, transition: "cut" },
+    { slot: "comic_p01_f10", start: 1.74, end: 1.92, transition: "cut", shakeAmp: 3.2, shakeFreq: 52 },
+    { slot: "comic_p01_f11", start: 1.92, end: 2.10, transition: "cut" },
+    { slot: "comic_p01_f12", start: 2.10, end: 2.28, transition: "cut" },
+    { slot: "comic_p01_f13", start: 2.28, end: 2.46, transition: "cut" },
+    { slot: "comic_p01_f14", start: 2.46, end: 2.64, transition: "cut" },
+    { slot: "comic_p01_f15", start: 2.64, end: 2.80, transition: "cut" },
+    { slot: "comic_p01_f16", start: 2.80, end: 2.96, transition: "cut" },
+    { slot: "comic_p01_f17", start: 2.96, end: 3.12, transition: "cut" },
+    { slot: "comic_p01_f18", start: 3.12, end: 3.28, transition: "cut" },
+    { slot: "comic_p01_f19", start: 3.28, end: 3.46, transition: "cut" },
+    { slot: "comic_p01_f20", start: 3.46, end: 3.64, transition: "cut" },
+    { slot: "comic_p01_f21", start: 3.64, end: 3.82, transition: "cut" },
+    { slot: "comic_p01_f22", start: 3.82, end: 4.00, transition: "cut" },
 ];
 
 /**
- * P02 硬核明代木刻暗黑漫画逐帧拍表（总长 4.50s，等步幅跨度 + 零重影硬切 + 1.55s 单帧冲击 + 3.88s 撞槛定格）：
+ * P02 硬核明代木刻暗黑漫画 25 帧逐帧动画拍表（总长 4.50s，动作峰值 9–12 fps + 1.55s 三色劈砍冲击 + 3.88s 破碗撞槛爆发）：
  * 全部时间点与 stepP02Shadow 音效触发毫秒级咬合。
  */
 const P02_SHADOW_COMIC_SEQ: readonly ComicKeyframe[] = [
-    {
-        slot: "comic_p02_01_shadows",
-        start: 0.00,
-        end: 0.85,
-        zoomFrom: 1.00,
-        zoomTo: 1.012,
-        transition: "cut",
-    },
-    {
-        slot: "comic_p02_02a_door_intrude",
-        start: 0.85,
-        end: 1.55,
-        zoomFrom: 1.01,
-        zoomTo: 1.022,
-        transition: "cut",
-    },
-    {
-        slot: "comic_p02_03_impact_cut",
-        start: 1.55,
-        end: 1.74,
-        zoomFrom: 1.035,
-        zoomTo: 1.035,
-        transition: "cut",
-        impactFlash: true,
-        impactDur: 0.19,
-        shakeAmp: 11,
-        shakeFreq: 72,
-    },
-    {
-        slot: "comic_p02_04_shadows_fall",
-        start: 1.74,
-        end: 2.70,
-        zoomFrom: 1.015,
-        zoomTo: 1.00,
-        transition: "cut",
-        shakeAmp: 3.5,
-        shakeFreq: 48,
-    },
-    {
-        slot: "comic_p02_05_bowl_roll1",
-        start: 2.70,
-        end: 3.32,
-        zoomFrom: 1.00,
-        zoomTo: 1.014,
-        transition: "slash_cut",
-        transitionDur: 0.10,
-    },
-    {
-        slot: "comic_p02_06_bowl_roll2",
-        start: 3.32,
-        end: 3.88,
-        zoomFrom: 1.008,
-        zoomTo: 1.02,
-        transition: "cut",
-        shakeAmp: 2.5,
-    },
-    {
-        slot: "comic_p02_07_bowl_smash",
-        start: 3.88,
-        end: 4.50,
-        zoomFrom: 1.028,
-        zoomTo: 1.00,
-        transition: "cut",
-        impactFlash: true,
-        impactDur: 0.18,
-        shakeAmp: 9.5,
-        shakeFreq: 66,
-    },
+    // 火光剪影迫近与门破（F01–F04）
+    { slot: "comic_p02_f01", start: 0.00, end: 0.30, transition: "cut" },
+    { slot: "comic_p02_f02", start: 0.30, end: 0.60, transition: "cut" },
+    { slot: "comic_p02_f03", start: 0.60, end: 0.90, transition: "cut" },
+    { slot: "comic_p02_f04", start: 0.90, end: 1.22, transition: "cut" },
+    // 挥刀起势→动态残影→1.55s 单帧三色木刻冲击→余震（F05–F08，峰值 9–11 fps）
+    { slot: "comic_p02_f05", start: 1.22, end: 1.44, transition: "cut" },
+    { slot: "comic_p02_f06", start: 1.44, end: 1.55, transition: "cut" },
+    { slot: "comic_p02_f07", start: 1.55, end: 1.72, zoomFrom: 1.032, zoomTo: 1.032, transition: "cut", impactFlash: true, impactDur: 0.17, shakeAmp: 11, shakeFreq: 72 },
+    { slot: "comic_p02_f08", start: 1.72, end: 1.88, transition: "cut", shakeAmp: 4.5, shakeFreq: 56 },
+    // 剪影坠倒与火星飞溅（F09–F12）
+    { slot: "comic_p02_f09", start: 1.88, end: 2.08, transition: "cut" },
+    { slot: "comic_p02_f10", start: 2.08, end: 2.28, transition: "cut" },
+    { slot: "comic_p02_f11", start: 2.28, end: 2.48, transition: "cut" },
+    { slot: "comic_p02_f12", start: 2.48, end: 2.68, transition: "cut" },
+    // 粗瓷碗被踹滚出并加速滚向门槛（F13–F19，6.5–8.3 fps）
+    { slot: "comic_p02_f13", start: 2.68, end: 2.83, transition: "slash_cut", transitionDur: 0.08 },
+    { slot: "comic_p02_f14", start: 2.83, end: 2.98, transition: "cut" },
+    { slot: "comic_p02_f15", start: 2.98, end: 3.13, transition: "cut" },
+    { slot: "comic_p02_f16", start: 3.13, end: 3.28, transition: "cut" },
+    { slot: "comic_p02_f17", start: 3.28, end: 3.44, transition: "cut" },
+    { slot: "comic_p02_f18", start: 3.44, end: 3.60, transition: "cut" },
+    { slot: "comic_p02_f19", start: 3.60, end: 3.76, transition: "cut", shakeAmp: 2.5 },
+    // 3.88s 撞槛爆裂特写 + 全景碎瓷四溅 + 贼足踏入（F20–F25，峰值 8.7 fps）
+    { slot: "comic_p02_f20", start: 3.76, end: 3.88, zoomFrom: 1.022, zoomTo: 1.022, transition: "cut", shakeAmp: 6.0, shakeFreq: 62 },
+    { slot: "comic_p02_f21", start: 3.88, end: 4.04, zoomFrom: 1.026, zoomTo: 1.00, transition: "cut", impactFlash: true, impactDur: 0.16, shakeAmp: 9.5, shakeFreq: 66 },
+    { slot: "comic_p02_f22", start: 4.04, end: 4.15, transition: "cut", shakeAmp: 3.0 },
+    { slot: "comic_p02_f23", start: 4.15, end: 4.26, transition: "cut" },
+    { slot: "comic_p02_f24", start: 4.26, end: 4.38, transition: "cut" },
+    { slot: "comic_p02_f25", start: 4.38, end: 4.50, transition: "cut" },
 ];
 
-/** P02 入柜收声三阶合缝拍表（总长 1.80s：贼足掠过 → 门缝半合 → 合缝一线冷月死寂） */
+/** P02 入柜收声 8 帧逐帧合缝拍表（总长 1.80s：贼足四步掠过 → 双门对称收窄至 1% 一线冷月死寂） */
 const P02_HIDDEN_COMIC_SEQ: readonly ComicKeyframe[] = [
-    {
-        slot: "comic_p02_08a_cabinet_slit",
-        start: 0.00,
-        end: 0.65,
-        zoomFrom: 1.00,
-        zoomTo: 1.008,
-        transition: "cut",
-    },
-    {
-        slot: "comic_p02_08m_cabinet_narrowing",
-        start: 0.65,
-        end: 1.12,
-        zoomFrom: 1.00,
-        zoomTo: 1.005,
-        transition: "cut",
-    },
-    {
-        slot: "comic_p02_08b_cabinet_shut",
-        start: 1.12,
-        end: 1.80,
-        zoomFrom: 1.00,
-        zoomTo: 1.00,
-        transition: "cut",
-    },
+    { slot: "comic_p02_f26", start: 0.00, end: 0.22, transition: "cut" },
+    { slot: "comic_p02_f27", start: 0.22, end: 0.44, transition: "cut" },
+    { slot: "comic_p02_f28", start: 0.44, end: 0.66, transition: "cut" },
+    { slot: "comic_p02_f29", start: 0.66, end: 0.88, transition: "cut" },
+    { slot: "comic_p02_f30", start: 0.88, end: 1.08, transition: "cut" },
+    { slot: "comic_p02_f31", start: 1.08, end: 1.28, transition: "cut" },
+    { slot: "comic_p02_f32", start: 1.28, end: 1.50, transition: "cut" },
+    { slot: "comic_p02_f33", start: 1.50, end: 1.80, transition: "cut" },
 ];
 
 const PROLOGUE_AUDIO = {

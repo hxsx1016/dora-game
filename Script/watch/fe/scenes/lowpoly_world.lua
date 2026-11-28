@@ -1360,65 +1360,54 @@ function LowpolyWorldPlugin.prototype.drawOutsideSewingMemoryOverlay(self, uiDra
 		panelH * 0.5 + 28, -- 1115
 		math.min(ctx.uiH - panelH * 0.5 - 28, handPt.y * inv + 112) -- 1115
 	) -- 1115
-	local seq = {{ -- 1116
-		slot = "comic_f01_01_thumb_cloth", -- 1117
-		start = 0, -- 1117
-		["end"] = 0.22, -- 1117
-		zoomFrom = 1, -- 1117
-		zoomTo = 1.015 -- 1117
-	}, { -- 1117
-		slot = "comic_f01_02_needle_pierce", -- 1118
-		start = 0.22, -- 1118
-		["end"] = 0.48, -- 1118
-		zoomFrom = 1.005, -- 1118
-		zoomTo = 1.018 -- 1118
-	}, { -- 1118
-		slot = "comic_f01_03_thread_pull", -- 1119
-		start = 0.48, -- 1119
-		["end"] = 0.76, -- 1119
-		zoomFrom = 1.01, -- 1119
-		zoomTo = 1.022 -- 1119
-	}, { -- 1119
-		slot = "comic_f01_04_stitch_smooth", -- 1120
-		start = 0.76, -- 1120
-		["end"] = 1, -- 1120
-		zoomFrom = 1.01, -- 1120
-		zoomTo = 1 -- 1120
-	}} -- 1120
-	fillRadialGlow( -- 1124
-		uiGlow, -- 1124
-		cx, -- 1124
-		cy, -- 1124
-		panelW * 0.68, -- 1124
-		panelH * 0.76, -- 1124
-		Color( -- 1124
-			238, -- 1124
-			186, -- 1124
-			114, -- 1124
-			math.floor(74 * alpha + 0.5) -- 1124
-		), -- 1124
-		Color(214, 152, 82, 0), -- 1124
-		20 -- 1124
-	) -- 1124
-	drawComicInsertPanel( -- 1125
-		uiDraw, -- 1126
-		uiInkDraw, -- 1127
-		uiArt, -- 1128
-		seq, -- 1129
-		prog, -- 1130
-		{x = cx - panelW * 0.5, y = cy - panelH * 0.5, w = panelW, h = panelH}, -- 1131
-		alpha, -- 1132
-		"fe04_f01_comic", -- 1133
-		4 -- 1134
-	) -- 1134
+	local seq = { -- 1116
+		{slot = "comic_f01_f01", start = 0, ["end"] = 0.083, transition = "cut"}, -- 1117
+		{slot = "comic_f01_f02", start = 0.083, ["end"] = 0.166, transition = "cut"}, -- 1118
+		{slot = "comic_f01_f03", start = 0.166, ["end"] = 0.25, transition = "cut"}, -- 1119
+		{slot = "comic_f01_f04", start = 0.25, ["end"] = 0.333, transition = "cut"}, -- 1120
+		{slot = "comic_f01_f05", start = 0.333, ["end"] = 0.416, transition = "cut"}, -- 1121
+		{slot = "comic_f01_f06", start = 0.416, ["end"] = 0.5, transition = "cut"}, -- 1122
+		{slot = "comic_f01_f07", start = 0.5, ["end"] = 0.583, transition = "cut"}, -- 1123
+		{slot = "comic_f01_f08", start = 0.583, ["end"] = 0.666, transition = "cut"}, -- 1124
+		{slot = "comic_f01_f09", start = 0.666, ["end"] = 0.75, transition = "cut"}, -- 1125
+		{slot = "comic_f01_f10", start = 0.75, ["end"] = 0.833, transition = "cut"}, -- 1126
+		{slot = "comic_f01_f11", start = 0.833, ["end"] = 0.916, transition = "cut"}, -- 1127
+		{slot = "comic_f01_f12", start = 0.916, ["end"] = 1, transition = "cut"} -- 1128
+	} -- 1128
+	fillRadialGlow( -- 1132
+		uiGlow, -- 1132
+		cx, -- 1132
+		cy, -- 1132
+		panelW * 0.68, -- 1132
+		panelH * 0.76, -- 1132
+		Color( -- 1132
+			238, -- 1132
+			186, -- 1132
+			114, -- 1132
+			math.floor(74 * alpha + 0.5) -- 1132
+		), -- 1132
+		Color(214, 152, 82, 0), -- 1132
+		20 -- 1132
+	) -- 1132
+	drawComicInsertPanel( -- 1133
+		uiDraw, -- 1134
+		uiInkDraw, -- 1135
+		uiArt, -- 1136
+		seq, -- 1137
+		prog, -- 1138
+		{x = cx - panelW * 0.5, y = cy - panelH * 0.5, w = panelW, h = panelH}, -- 1139
+		alpha, -- 1140
+		"fe04_f01_comic", -- 1141
+		4 -- 1142
+	) -- 1142
 end -- 1095
-function ____exports.createLowpolyWorldPlugin() -- 1139
-	return __TS__New(____exports.LowpolyWorldPlugin) -- 1140
-end -- 1139
+function ____exports.createLowpolyWorldPlugin() -- 1147
+	return __TS__New(____exports.LowpolyWorldPlugin) -- 1148
+end -- 1147
 --- 零冲突注册辅助：供 M2 合流接线与 verify-fe04.lua 独立测试调用（避免循环 require）
-function ____exports.registerFe04Plugins(fe) -- 1144
-	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1147
-	fe:registerPlugin(lowpolyWorld) -- 1148
-	return {lowpolyWorld = lowpolyWorld} -- 1149
-end -- 1144
-return ____exports -- 1144
+function ____exports.registerFe04Plugins(fe) -- 1152
+	local lowpolyWorld = __TS__New(____exports.LowpolyWorldPlugin) -- 1155
+	fe:registerPlugin(lowpolyWorld) -- 1156
+	return {lowpolyWorld = lowpolyWorld} -- 1157
+end -- 1152
+return ____exports -- 1152
