@@ -53,6 +53,9 @@ function dedicatedSolidProp(solid: SolidSpec): DedicatedPropArt | undefined {
     if (solid.art === "board") {
         return { clip: "window_board", natAR: 88 / 144, heightMul: 1.04, tileable: false };
     }
+    if (solid.art === "thin_wood") {
+        return { clip: "window_board", natAR: 88 / 144, heightMul: 1, tileable: true };
+    }
     if (solid.id === "s1_well" || solid.art === "well" || solid.label.indexOf("井背") >= 0) {
         return { clip: "well_curb", natAR: 144 / 120, heightMul: 1.12, tileable: false };
     }
@@ -68,6 +71,9 @@ function coverArt(solid: SolidSpec): AssetSlotKey {
     }
     if (solid.art === "thin_wood" || solid.art === "board" || solid.art === "cover_wood") {
         return "cover_wood";
+    }
+    if (solid.art === "cover_stone") {
+        return "cover_stone";
     }
     if (solid.art === "fence") {
         return "fence";
@@ -582,7 +588,7 @@ export class StageRenderer {
             }
 
             // 城外悬空城墙（y > 10）：使用暗黑石砖立柱贴图支撑，消除灰矩形砖墩
-            if (p.room.key === "outside" && s.y > 10 && s.id !== "outside_red_cart") {
+            if (p.room.key === "outside" && s.y > 10) {
                 const groundY = cam.sy(0);
                 const pierW = cam.len(16);
                 assets.tryPlace("dp_wall_side", "outside_pier_l_" + i, x0 + pierW * 0.5, groundY, pierW, y0 - groundY, { layer: 0 });
@@ -784,7 +790,7 @@ export class StageRenderer {
         }
 
         // 特例 2：细长横向棚架木梁（w > h*5，如二段粮棚 600×8）
-        if (solid.w > solid.h * 5) {
+        if (timber && solid.w > solid.h * 5) {
             const segs = Math.max(2, Math.min(12, Math.round(solid.w / 64)));
             const segW = width / segs;
             const beamH = Math.max(5, frontH);

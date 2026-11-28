@@ -7,7 +7,8 @@
  */
 
 import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
-import { GATE_COUNT_END, gateCountAtTick, Play } from "Script/watch/play";
+import { inReachDepth } from "Script/watch/depth";
+import { CART_REACH, GATE_COUNT_END, gateCountAtTick, Play } from "Script/watch/play";
 import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import { SafeInsets, ZERO_SAFE_INSETS } from "Script/watch/platform";
 import {
@@ -454,7 +455,7 @@ export class NarrativeRenderer {
         p: Play,
         w: number,
         h: number,
-        assistHintsEnabled: boolean = false,
+        assistHintsEnabled: boolean = true,
         inputMode: InputMode = "kbm",
         gamepadLayout: GamepadLayout = "xbox",
         safe: SafeInsets = ZERO_SAFE_INSETS,
@@ -667,7 +668,35 @@ export class NarrativeRenderer {
         }
     }
 
-    /** 将后端状态译作清雅克制的古风旁白；默认低引导下屏蔽按键教学与催促文案，开「按键辅助」后恢复 */
+    /** 军粮棚保留一句推进目标，按键随辅助设置显示。 */
+    private granaryCue(p: Play, showKeys: boolean): string {
+        const { player, room } = p;
+        if (p.cartDocked) {
+            if (p.run.c2Latch) {
+                const exit = room.campaign?.exitX;
+                if (exit !== undefined && player.x >= exit) return "在棚口等小满跟上";
+                return "带小满沿中道往右出棚";
+            }
+            return showKeys ? "到轮窝右边的中道，靠近连杆按 [E] 抬闩" : "到轮窝右边的中道，靠近连杆抬闩";
+        }
+        if (p.gripping) return "往右把车推入轮窝";
+        if (p.cartHandleInReach()) return showKeys ? "按 [E] 握车柄，再往右推车" : "握住车柄，往右推车";
+
+        const bypass = room.companion?.groundBypass;
+        if (bypass !== undefined && player.x - player.w / 2 < bypass.x1) {
+            if (player.x + player.w / 2 <= bypass.x0) return "从远处绕到粮袋后面，再往右走";
+            return "沿粮袋后面往右走，过了矮台再回到中道";
+        }
+        const track = room.cart.depth ?? 0;
+        if (!inReachDepth(player.depth, track)) {
+            return player.depth > track ? "往近处回到中道，找板车左侧的车柄" : "往远处回到中道，找板车左侧的车柄";
+        }
+        const handleX = p.cartAxle + room.cart.handleOffset;
+        if (Math.abs(player.x - handleX) <= CART_REACH) return "落到地面，靠近车柄";
+        return player.x < handleX ? "往右走到车柄旁" : "往左回到车柄旁";
+    }
+
+    /** 将后端状态译作剧情对白和随进度变化的提示。 */
     private composeNarrativeLine(p: Play, assistHintsEnabled: boolean): { cue: string; text: string; urgent: boolean } {
         const key = p.room.key;
         const theme = themeOf(key);
@@ -726,6 +755,9 @@ export class NarrativeRenderer {
                     }
                     return { cue, text, urgent: isDanger };
                 }
+            }
+            if (key === "c2-granary") {
+                return { cue: "", text: this.granaryCue(p, false), urgent: false };
             }
             if (p.childMode && key === "outside" && p.checkpoint < p.room.arch.x1) {
                 const text = !p.cartDocked ? "红布车右边伸着车柄，前面是个空车窝。"
@@ -822,6 +854,10 @@ export class NarrativeRenderer {
                 return { cue: "战", text: "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent: false };
             }
             return { cue: "", text: "带小满穿过右侧门洞，进入检查站", urgent: false };
+        }
+
+        if (key === "c2-granary") {
+            return { cue: "", text: this.granaryCue(p, true), urgent: false };
         }
 
         if (key === "checkpoint") {
@@ -1041,8 +1077,10 @@ export class NarrativeRenderer {
             texts.put("banner", "向西守望", midX - 18, signY, toColor(PALETTE.xuanInk), 0.5, 0.5, TextAlign.Center, 6.5, 0.92, 0);
             drawLoneSeal(uiInkDraw, art, texts, "reg_lone_seal", midX + 86, signY, 22, 42, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.92, 4);
 
-            drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 360, 32, PALETTE.inkWash, 0.72, 0);
-            const rawEndHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
+            drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 390, 32, PALETTE.inkWash, 0.72, 0);
+            const rawEndHint = assistHintsEnabled
+                ? (inputMode === "kbm" ? "按 E / 左键继续     ·     Esc 暂歇" : "按 E 再次启程     ·     Esc 暂歇")
+                : "Esc 暂歇";
             const endHint = getActiveTarget().adaptHintSentence(rawEndHint, inputMode, gamepadLayout);
             texts.put("xs", endHint, midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
         }

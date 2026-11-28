@@ -92,7 +92,7 @@ function ____exports.defaultControlSettings() -- 83
 		winWidth = 0, -- 99
 		winHeight = 0, -- 100
 		muted = false, -- 101
-		assistHints = false -- 102
+		assistHints = true -- 102
 	} -- 102
 end -- 83
 local function applyKvLines(raw, out) -- 106
@@ -358,42 +358,70 @@ function ____exports.volumeLabelOf(vol) -- 318
 	) * 100 + 0.5) -- 319
 	return pct <= 0 and "静音" or tostring(pct) .. "%" -- 320
 end -- 318
-function ____exports.applyVolumeSetting(rowId, delta, s) -- 323
-	if rowId == "masterVol" then -- 323
-		s.masterVol = ____exports.nextStepValue(s.masterVol, VOLUME_STEPS, delta) -- 329
-		____exports.saveControlSettings(s) -- 330
-		return true -- 331
-	end -- 331
-	if rowId == "bgmVol" then -- 331
-		s.bgmVol = ____exports.nextStepValue(s.bgmVol, VOLUME_STEPS, delta) -- 334
-		____exports.saveControlSettings(s) -- 335
-		return true -- 336
-	end -- 336
-	if rowId == "sfxVol" then -- 336
-		s.sfxVol = ____exports.nextStepValue(s.sfxVol, VOLUME_STEPS, delta) -- 339
-		____exports.saveControlSettings(s) -- 340
-		return true -- 341
-	end -- 341
-	if rowId == "voiceVol" then -- 341
-		s.voiceVol = ____exports.nextStepValue(s.voiceVol, VOLUME_STEPS, delta) -- 344
-		____exports.saveControlSettings(s) -- 345
-		return true -- 346
-	end -- 346
-	return false -- 348
+function ____exports.nextClampedStepValue(cur, steps, delta) -- 323
+	if delta == nil then -- 323
+		delta = 1 -- 323
+	end -- 323
+	local bestIdx = 0 -- 324
+	local bestDist = 999 -- 325
+	local i = 0 -- 326
+	do -- 326
+		i = 0 -- 327
+		while i < #steps do -- 327
+			local d = math.abs(steps[i + 1] - cur) -- 328
+			if d < bestDist then -- 328
+				bestDist = d -- 330
+				bestIdx = i -- 331
+			end -- 331
+			i = i + 1 -- 327
+		end -- 327
+	end -- 327
+	local clamped = math.max( -- 334
+		0, -- 334
+		math.min(#steps - 1, bestIdx + delta) -- 334
+	) -- 334
+	return steps[clamped + 1] -- 335
 end -- 323
-function ____exports.volumeSettingText(rowId, s) -- 351
-	if rowId == "masterVol" then -- 351
-		return ____exports.volumeLabelOf(s.masterVol) -- 352
-	end -- 352
-	if rowId == "bgmVol" then -- 352
-		return ____exports.volumeLabelOf(s.bgmVol) -- 353
+function ____exports.applyVolumeSetting(rowId, delta, s, wrap) -- 338
+	if wrap == nil then -- 338
+		wrap = false -- 342
+	end -- 342
+	local stepFn = wrap and ____exports.nextStepValue or ____exports.nextClampedStepValue -- 344
+	if rowId == "masterVol" then -- 344
+		s.masterVol = stepFn(s.masterVol, VOLUME_STEPS, delta) -- 346
+		____exports.saveControlSettings(s) -- 347
+		return true -- 348
+	end -- 348
+	if rowId == "bgmVol" then -- 348
+		s.bgmVol = stepFn(s.bgmVol, VOLUME_STEPS, delta) -- 351
+		____exports.saveControlSettings(s) -- 352
+		return true -- 353
 	end -- 353
 	if rowId == "sfxVol" then -- 353
-		return ____exports.volumeLabelOf(s.sfxVol) -- 354
-	end -- 354
-	if rowId == "voiceVol" then -- 354
-		return ____exports.volumeLabelOf(s.voiceVol) -- 355
-	end -- 355
-	return "" -- 356
-end -- 351
-return ____exports -- 351
+		s.sfxVol = stepFn(s.sfxVol, VOLUME_STEPS, delta) -- 356
+		____exports.saveControlSettings(s) -- 357
+		return true -- 358
+	end -- 358
+	if rowId == "voiceVol" then -- 358
+		s.voiceVol = stepFn(s.voiceVol, VOLUME_STEPS, delta) -- 361
+		____exports.saveControlSettings(s) -- 362
+		return true -- 363
+	end -- 363
+	return false -- 365
+end -- 338
+function ____exports.volumeSettingText(rowId, s) -- 368
+	if rowId == "masterVol" then -- 368
+		return ____exports.volumeLabelOf(s.masterVol) -- 369
+	end -- 369
+	if rowId == "bgmVol" then -- 369
+		return ____exports.volumeLabelOf(s.bgmVol) -- 370
+	end -- 370
+	if rowId == "sfxVol" then -- 370
+		return ____exports.volumeLabelOf(s.sfxVol) -- 371
+	end -- 371
+	if rowId == "voiceVol" then -- 371
+		return ____exports.volumeLabelOf(s.voiceVol) -- 372
+	end -- 372
+	return "" -- 373
+end -- 368
+return ____exports -- 368

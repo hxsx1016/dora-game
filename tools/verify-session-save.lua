@@ -143,6 +143,173 @@ do
 		bad.status == "corrupt" and bad.backup ~= "" and Content:exist(bad.backup) == true)
 end
 
+-- 7. 自动档与手动档共用的跨版本、恢复和删除边界。槽位跟随隔离测试路径。
+do
+	local slot = 1
+	local path = absOf(savemod.getSlotFile(slot))
+	local lf = "version=1\nroomKey=gate\nroute=child\nhp=2\nmaxHp=3\n"
+	local future = "version=9\nroomKey=future-room\n"
+	local snap = assert(savemod.parseSession(lf).state)
+	local function write(target, text) assert(Content:save(target, text)) end
+	local function intercept(copy, remove)
+		savemod.setFileOpsForTest({
+			exist = function(_, p) return Content:exist(p) end,
+			load = function(_, p) return Content:load(p) end,
+			save = function(_, p, text) return Content:save(p, text) end,
+			copy = function(_, a, b) return copy(a, b) end,
+			remove = function(_, p) return remove(p) end,
+			isdir = function(_, p) return Content:isdir(p) end,
+			mkdir = function(_, p) return Content:mkdir(p) end,
+		})
+	end
+	local function realCopy(a, b) return Content:copy(a, b) end
+	local function realRemove(p) return Content:remove(p) end
+	local crlf = lf:gsub("\n", "\r\n")
+	local parsed = savemod.parseSession(crlf .. "roomKey=duplicate\r\n")
+	check("7.1 CRLF 与重复键按旧格式读取", parsed.ok and parsed.state.roomKey == "gate" and parsed.state.hp == 2)
+
+	write(path, future)
+	write(path .. ".prev", lf)
+	write(path .. ".tmp", lf)
+	local summary = savemod.listSaveSlots()[2]
+	check("7.2 新版主文件不因旧备份而显示可读", summary.status == "unsupported" and not summary.exists and not savemod.hasSlotSave(slot))
+	check("7.3 未先读档也保护新版及其恢复候选", not savemod.saveSlot(slot, snap)
+		and Content:load(path) == future and Content:load(path .. ".tmp") == lf and Content:load(path .. ".prev") == lf)
+	local archivePath = absOf(TEST_ARCHIVE)
+	write(archivePath, future)
+	check("7.4 主档案直接写入也保护新版", not savemod.saveSave(savemod.emptySave()) and Content:load(archivePath) == future)
+
+	write(path, "broken")
+	write(path .. ".tmp", lf)
+	intercept(function(a, b)
+		if b:find(".corrupt", 1, true) then return false end
+		return realCopy(a, b)
+	end, realRemove)
+	local failedRead = savemod.loadSlot(slot)
+	local failedWrite = savemod.saveSlot(slot, snap)
+	savemod.setFileOpsForTest(nil)
+	check("7.5 隔离失败保留损坏原件与恢复候选", failedRead.status == "corrupt" and not failedRead.recovered
+		and not failedWrite and Content:load(path) == "broken" and Content:load(path .. ".tmp") == lf)
+
+	write(path, lf)
+	write(path .. ".prev", lf)
+	intercept(realCopy, function(p)
+		if p == path .. ".prev" then return false end
+		return realRemove(p)
+	end)
+	local deleted = savemod.deleteSlot(slot)
+	savemod.setFileOpsForTest(nil)
+	check("7.6 备份删除失败保留当前进度并返回失败", not deleted and Content:load(path) == lf)
+	check("7.7 重试删除后槽位保持为空", savemod.deleteSlot(slot) and not savemod.hasSlotSave(slot) and savemod.loadSlot(slot).status == "missing")
+
+	write(path .. ".tmp", lf)
+	intercept(function(a, b)
+		if b == path then return false end
+		return realCopy(a, b)
+	end, realRemove)
+	local saved = savemod.saveSlot(slot, snap)
+	savemod.setFileOpsForTest(nil)
+	check("7.8 写入失败保留唯一的旧临时档", not saved and Content:load(path .. ".tmp") == lf)
+	savemod.deleteSlot(slot)
+
+	-- 标题页对不兼容档不显示续读；新局清理前须隔离原件，仍允许新局正常保存。
+	local auto = absOf(TEST_SESSION)
+	local function cleanAuto()
+		for _, suffix in ipairs({"", ".tmp", ".prev", ".unsupported", ".tmp.corrupt", ".prev.reset"}) do
+			if Content:exist(auto .. suffix) then Content:remove(auto .. suffix) end
+		end
+	end
+	cleanAuto()
+	write(auto, future)
+	write(auto .. ".tmp", "partial")
+	write(auto .. ".prev", lf)
+	intercept(function(a, b)
+		if a == auto .. ".prev" then return false end
+		return realCopy(a, b)
+	end, realRemove)
+	local cleared = savemod.clearSession()
+	savemod.setFileOpsForTest(nil)
+	check("7.9 新局隔离失败时三个原件均保留", not cleared and Content:load(auto) == future
+		and Content:load(auto .. ".tmp") == "partial" and Content:load(auto .. ".prev") == lf)
+	check("7.10 新局清理保留无法读取的进度，新自动档仍能续读",
+		not savemod.hasSessionSave() and savemod.clearSession()
+		and Content:load(auto .. ".unsupported") == future and Content:load(auto .. ".tmp.corrupt") == "partial"
+		and Content:load(auto .. ".prev.reset") == lf and not Content:exist(auto .. ".unsupported.2")
+		and savemod.saveSession(snap) and savemod.loadSession().state.roomKey == snap.roomKey)
+	cleanAuto()
+
+	for _, suffix in ipairs({".tmp", ".prev"}) do
+		local preserved = path .. suffix .. ".unsupported"
+		if Content:exist(preserved) then Content:remove(preserved) end
+		write(path, lf)
+		write(path .. suffix, future)
+		intercept(function(a, b)
+			if a == path .. suffix and b == preserved then return false end
+			return realCopy(a, b)
+		end, realRemove)
+		local wrote = savemod.saveSlot(slot, snap)
+		savemod.setFileOpsForTest(nil)
+		check("7.11 隔离失败时覆写保留旧档与 " .. suffix, not wrote
+			and Content:load(path) == lf and Content:load(path .. suffix) == future)
+		check("7.12 覆写前隔离高版本 " .. suffix, savemod.saveSlot(slot, snap)
+			and Content:load(preserved) == future and Content:load(path .. ".prev") == lf)
+		savemod.deleteSlot(slot)
+		if Content:exist(preserved) then Content:remove(preserved) end
+	end
+
+	-- 驱动 app 的真实帧循环；仅替换菜单选择与文件故障，不绕过开局／切房分派。
+	local appRoot, scheduler = Dora.Node(), Dora.Scheduler()
+	appRoot.scheduler = scheduler
+	Dora.Director.entry:addChild(appRoot)
+	app.start(appRoot, 1, "title")
+	local wf = package.loaded["watch.fe"]
+	local fe = wf.getFrontend()
+	local renderMenu = fe.renderMenu
+	local function selectAction(action)
+		fe.renderMenu = function() return { type = action } end
+		scheduler:update(1 / 60)
+		fe.renderMenu = renderMenu
+	end
+	local tower = "version=1\nroomKey=tower\nroute=child\nhp=2\nmaxHp=3\n"
+	write(auto, tower)
+	local old = assert(wf.continueStory())
+	wf.setScreen("title")
+	write(auto .. ".tmp", "partial")
+	intercept(function(a, b)
+		if a == auto .. ".tmp" then return false end
+		return realCopy(a, b)
+	end, realRemove)
+	selectAction("start")
+	check("8.1 标题开局隔离失败留在标题并可重试", fe.screen == "title" and wf.getPlay() == old
+		and wf.getToast():find("失败", 1, true) and Content:load(auto) == tower)
+	savemod.setFileOpsForTest(nil)
+	Content:remove(auto .. ".tmp")
+	wf.setScreen("epilogue")
+	intercept(realCopy, function(p)
+		if p == auto then return false end
+		return realRemove(p)
+	end)
+	selectAction("replayStory")
+	check("8.2 片尾再玩删除失败留在片尾", fe.screen == "epilogue" and wf.getPlay() == old and Content:load(auto) == tower)
+	old = assert(wf.continueStory())
+	old.phase, old.run.finished = "tower-end", true
+	old.wantRoom, old.restartStory = "prologue", true
+	scheduler:update(1 / 60)
+	check("8.3 房间重开删除失败保留北塔运行态并回到片尾", fe.screen == "epilogue" and wf.getPlay() == old
+		and old.wantRoom == "" and not old.restartStory and Content:load(auto) == tower)
+	savemod.setFileOpsForTest(nil)
+	scheduler:update(1 / 60)
+	check("8.4 故障解除后停留原页，旧进度仍能续读", fe.screen == "epilogue" and Content:load(auto) == tower
+		and wf.continueStory().room.key == "tower")
+	wf.setScreen("epilogue")
+	selectAction("replayStory")
+	check("8.5 玩家重试后才进入正式序章并清掉旧自动档", fe.screen == "play" and wf.getPlay().room.key == "prologue"
+		and wf.getPlay().run.source == "official" and not Content:exist(auto))
+	appRoot:removeFromParent()
+	cleanAuto()
+	if Content:exist(auto .. ".reset") then Content:remove(auto .. ".reset") end
+end
+
 cleanupFiles()
 savemod.setSaveFile(origSave)
 savemod.setSessionFile(origSess)

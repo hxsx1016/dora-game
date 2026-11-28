@@ -771,12 +771,27 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                 });
             }
 
-            // 远处城墙外山岭望见的北塔轮廓与飞檐剪影（真实手绘立牌，随转景推进渐显去向）
+            // 远处北塔与山脊使用同一透视平面，石脚压住坡顶。
+            const towerX = thX + 320;
+            const towerBaseY = 18;
+            const towerZ = 250;
+            scene.addDistantRidge([
+                { x: towerX - 148, y: -22 },
+                { x: towerX - 98, y: -2 },
+                { x: towerX - 43, y: towerBaseY + 3 },
+                { x: towerX + 43, y: towerBaseY + 3 },
+                { x: towerX + 94, y: 3 },
+                { x: towerX + 151, y: -20 },
+            ], -62, towerZ, MING_MATERIALS.distantHill, {
+                bucket: LP_BUCKET.BACKDROP,
+                opacity: 0.88 * plankReveal,
+                sortBias: 0.04,
+            });
             scene.addCutout3D(
                 "assets/art/diorama_cutouts.clip|north_tower_distant",
-                thX + 365,
-                18,
-                250,
+                towerX,
+                towerBaseY,
+                towerZ,
                 74,
                 95,
                 {
@@ -785,7 +800,7 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                     color: rgba(146, 164, 186, 255),
                     anchorX: 0.5,
                     anchorY: 0,
-                    sortBias: 0.08,
+                    sortBias: 0.10,
                 },
             );
             scene.addCutout3D(
@@ -819,11 +834,12 @@ export class GateTransitionPlugin implements FeRenderPlugin {
         //    男主线 G05 重逢切回像素风时淡出该遮挡，自然露出周戍身影；门槛位于 874，绝不越过门外小满 x=890！
         const hidePartnerInside = this.reunionPixelReturn < 0.85 && closeFrac > 0.60;
         if (hidePartnerInside) {
-            const wallRightX = cam.sx(thX - 1);
-            const wallLeftX = cam.sx(doorLeft - 140);
+            const front = 4;
+            const wallRightX = scene.project(thX - 1, 0, front).x;
+            const wallLeftX = scene.project(doorLeft - 140, 0, front).x;
             const wallW = Math.max(2, wallRightX - wallLeftX);
-            const wallTopY = cam.sy(164, p.player.depth);
-            const wallBotY = cam.sy(0, p.player.depth);
+            const wallTopY = scene.project(thX - 1, 164, front).y;
+            const wallBotY = scene.project(thX - 1, 0, front).y;
             const wallH = Math.max(2, wallTopY - wallBotY);
             const wallOp = clamp01((closeFrac - 0.60) / 0.28) * (1 - this.reunionPixelReturn);
             worldArt.tryPlacePath(
@@ -842,15 +858,16 @@ export class GateTransitionPlugin implements FeRenderPlugin {
                     smooth: true,
                 },
             );
-            const doorPanelL = cam.sx(thX - 112);
-            const doorPanelR = cam.sx(thX - 1);
+            const doorPanelL = scene.project(thX - 122, doorBotY, front);
+            const doorPanelR = scene.project(thX - 2, doorBotY, front);
+            const doorTop = scene.project(thX - 2, 160, front);
             worldArt.tryPlacePath(
                 "assets/art/cutscene_story_parts.clip|tower_porch_door",
                 "gate_closed_door_leaf",
-                (doorPanelL + doorPanelR) * 0.5,
-                wallBotY,
-                Math.max(2, doorPanelR - doorPanelL),
-                wallH,
+                (doorPanelL.x + doorPanelR.x) * 0.5,
+                doorPanelR.y,
+                Math.max(2, doorPanelR.x - doorPanelL.x),
+                Math.max(2, doorTop.y - doorPanelR.y),
                 {
                     anchorX: 0.5,
                     anchorY: 0,

@@ -13,6 +13,7 @@ local inputmod = require("Script.watch.input")
 local depthmod = require("Script.watch.depth")
 local runmod = require("Script.watch.run")
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
+local Narrative = require("Script.watch.fe.ui.narrative").NarrativeRenderer
 
 local PASS, FAIL = 0, 0
 local function check(tag, cond, detail)
@@ -269,6 +270,78 @@ do
 		pS1.player.x > 1270, "x=" .. tostring(pS1.player.x))
 
 	root:cleanup()
+end
+
+print("== 5. C2 军粮棚从入口到抬闩，与小满汇合 ==")
+do
+	local p = new(playmod.Play, rooms.C2_GRANARY, nil, runmod.createRun(20261128, "official"))
+	local inp = new(inputmod.Input)
+	p.enemies = {} -- 只检查走位、实体和机关，战斗结算在专项回归里验证。
+	local maxStep, maxY = 0, 0
+	local function walk(n)
+		for _ = 1, n do
+			local x = p.partner.x
+			step(p, inp, 1)
+			maxStep = math.max(maxStep, math.abs(p.partner.x - x))
+			maxY = math.max(maxY, p.partner.y)
+		end
+	end
+	inp.moveX = 1
+	walk(190)
+	check("5.1 粮袋挡住中道实体边，周戍没有穿模", p.player.x < p.ox + 600 and p.player.x > p.ox + 560)
+	inp.moveX, inp.moveY = 0, -1
+	walk(44)
+	check("5.2 可平滑往里绕入粮袋后侧", p.player.depth >= depthmod.LANE_DEPTH.upper)
+	inp.moveX, inp.moveY = 1, 0
+	for _ = 1, 200 do
+		if p.player.x >= p.ox + 1096 then break end
+		walk(1)
+	end
+	inp.moveX = 0
+	walk(100)
+	check("5.3 小满沿空地抵达粮袋后等候，不跳上粮袋",
+		math.abs(p.partner.x - p.room.companion.waitX) <= 18.1 and p.partner.depth >= 26 and maxY == 0,
+		string.format("x=%.1f depth=%.1f y=%.1f", p.partner.x - p.ox, p.partner.depth, maxY))
+	inp.moveY = 1
+	for _ = 1, 60 do
+		if p.player.depth <= 1 then break end
+		walk(1)
+	end
+	inp.moveY, inp.interact.pressed = 0, true
+	walk(1)
+	inp.moveX = 1
+	for _ = 1, 380 do
+		if p.cartDocked then break end
+		walk(1)
+	end
+	check("5.4 从真实车柄握车并推入轮窝", p.cartDocked, "axle=" .. tostring(p.cartAxle - p.ox))
+	for _ = 1, 80 do
+		if p.player.x >= p.ox + 1534 then break end
+		walk(1)
+	end
+	inp.moveX, inp.interact.pressed = 0, true
+	walk(1)
+	check("5.5 轮窝入位后能按 E 抬闩", p.run.c2Latch)
+	inp.moveX = 1
+	walk(230)
+	check("5.6 小满全程连续走地面，跟上后成功出棚",
+		p.wantRoom == "gate" and maxStep < 4 and maxY == 0,
+		string.format("room=%s partnerX=%.1f maxStep=%.2f maxY=%.1f", p.wantRoom, p.partner.x - p.ox, maxStep, maxY))
+end
+
+print("== 6. 关闭按键辅助也显示必经目标 ==")
+do
+	local narr = new(Narrative)
+	local cases = {
+		{ room = rooms.C2_GRANARY, target = "粮袋" },
+		{ room = rooms.OUTSIDE_ROOM, target = "车柄" },
+		{ room = rooms.TOWER_ROOM, target = "木门" },
+	}
+	for _, case in ipairs(cases) do
+		local p = new(playmod.Play, case.room)
+		local text = narr:composeNarrativeLine(p, false).text
+		check("6.1 " .. case.room.key .. " 低引导显示当前目标", text:find(case.target, 1, true) and not text:find("[", 1, true), text)
+	end
 end
 
 print(string.format("MAP AUDIT SUMMARY: %d PASS / %d FAIL", PASS, FAIL))

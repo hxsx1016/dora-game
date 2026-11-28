@@ -8,12 +8,12 @@
  */
 
 import { Camera3D, Color, Director, DrawNode, Model3D, Node, Node3D, Size, Surface3D, Vec2, Vec3, View } from "Dora";
-import { GRAVITY, Play } from "Script/watch/play";
+import { BOTTLE_FLY_TIME, BottlePoint, GRAVITY, Play } from "Script/watch/play";
 import { StageViewport } from "Script/watch/platform";
 import { CameraDirector, WorldProjection } from "Script/watch/fe/camera";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
 import { Xiaoman3DActor, Xiaoman3DActorDebug } from "Script/watch/fe/scenes/xiaoman3d_actor";
-import { Xiaoman3DEntities, Xiaoman3DEntitiesDebug } from "Script/watch/fe/scenes/xiaoman3d_entities";
+import { BASIN_DEPTH, BASIN_BASE_HEIGHT, Xiaoman3DEntities, Xiaoman3DEntitiesDebug } from "Script/watch/fe/scenes/xiaoman3d_entities";
 
 const ROOM_MODELS: Record<string, string> = {
     outside: "assets/xiaoman3d/outside.glb",
@@ -41,6 +41,15 @@ export interface Xiaoman3DDebugState {
 
 function getView3D(): View3DLike {
     return Director.entry as unknown as View3DLike;
+}
+
+function rayInterval(origin: number, slope: number, low: number, high: number): { min: number; max: number } {
+    if (Math.abs(slope) < 0.000001) {
+        return { min: origin >= low && origin <= high ? -Infinity : Infinity, max: Infinity };
+    }
+    const first = (low - origin) / slope;
+    const last = (high - origin) / slope;
+    return { min: Math.min(first, last), max: Math.max(first, last) };
 }
 
 /** GLB coordinates stay Y-up. Collision and interaction authority stays in rooms.ts/Play. */
@@ -138,6 +147,7 @@ export class Xiaoman3DScene implements WorldProjection {
     }
 
     hide(): void {
+        if (this.p !== undefined) this.p.bottleMapper = undefined;
         this.root.visible = false;
         this.actor.hide();
         this.entities.hide();
@@ -148,7 +158,7 @@ export class Xiaoman3DScene implements WorldProjection {
         }
     }
 
-    render(p: Play, cam: CameraDirector, actors: ActorsRenderer, dt: number, w: number, h: number, vp: StageViewport): void {
+    render(p: Play, cam: CameraDirector, actors: ActorsRenderer, dt: number, w: number, h: number, vp: StageViewport, overlay: DrawNode.Type): void {
         this.p = p;
         const safeDt = p.paused ? 0 : dt;
         this.time += safeDt;
@@ -188,6 +198,7 @@ export class Xiaoman3DScene implements WorldProjection {
 
         this.updateCamera(p, cam, w, h, vp);
         cam.projection = this;
+        if (p.room.key === "village") p.bottleMapper = this.villageBottlePoint;
 
         this.glow.clear();
         this.groundFx.clear();
@@ -211,13 +222,12 @@ export class Xiaoman3DScene implements WorldProjection {
 
         // 更新 3D 体素主角小满 + 暗黑写实 3D NPC / 动态道具 / 光照
         this.actor.update(p, safeDt);
-        this.entities.update(p, safeDt, cam.x, this.glow, this.groundFx);
+        this.entities.update(p, safeDt, cam.x, this.glow, this.groundFx, overlay, this);
 
-        // 投瓶抛物线瞄准预览（位于玩家当前纵深平面）
-        this.drawBottleAimPreview(p);
+        this.drawBottleAimPreview(p, overlay);
     }
 
-    private drawBottleAimPreview(p: Play): void {
+    private drawBottleAimPreview(p: Play, overlay: DrawNode.Type): void {
         if (!p.hasBottle || p.aimHold <= 0 || p.bottleAimX < 0) {
             return;
         }
@@ -225,19 +235,22 @@ export class Xiaoman3DScene implements WorldProjection {
         const endY = p.bottleAimY;
         const x0 = p.player.x + (endX >= p.player.x ? 10 : -10);
         const y0 = p.player.y + p.player.h * 0.7;
-        const duration = 0.62;
+        const duration = BOTTLE_FLY_TIME;
         const vx = (endX - x0) / duration;
         const vy = (endY - y0 + 0.5 * GRAVITY * duration * duration) / duration;
         let i = 1;
         for (i = 1; i <= 18; i++) {
             const t = (i / 18) * duration;
-            this.glow.drawDot(
-                Vec2(x0 + vx * t, y0 + vy * t - 0.5 * GRAVITY * t * t),
-                1.4,
-                Color(246, 220, 152, 224),
-            );
+            const depth = p.player.depth + (p.bottleAimDepth - p.player.depth) * (t / duration);
+            const x = x0 + vx * t;
+            const y = y0 + vy * t - 0.5 * GRAVITY * t * t;
+            const pt = this.worldToScreen(x, y, depth);
+            const edge = this.worldToScreen(x + 1.4, y, depth);
+            overlay.drawDot(Vec2(pt.x, pt.y), edge.x - pt.x, Color(246, 220, 152, 224));
         }
-        this.glow.drawEllipse(Vec2(endX, endY + 1.5), 9, 2.4, Color(246, 220, 152, 190));
+        const end = this.worldToScreen(endX, endY, p.bottleAimDepth);
+        const radius = this.worldToScreen(endX + 9, endY, p.bottleAimDepth).x - end.x;
+        overlay.drawEllipse(Vec2(end.x, end.y), radius, radius * 0.27, Color(246, 220, 152, 190));
     }
 
     private placeShadow(key: string, x: number, y: number, depth: number, rx: number, rz: number, opacity: number = 1): void {
@@ -308,16 +321,61 @@ export class Xiaoman3DScene implements WorldProjection {
         };
     }
 
-    screenToWorld(x: number, y: number): { x: number; y: number } {
+    screenToWorld(x: number, y: number, depth: number = this.p?.player.depth ?? 0): { x: number; y: number } {
         const u = (x + this.stageX - this.fullW / 2) / this.focal;
         const v = (y + this.stageY - this.fullH / 2) / this.focal;
         const rayY = v * this.pitchCos - this.pitchSin;
         const rayZ = -v * this.pitchSin - this.pitchCos;
-        // Bottle trajectories live on the player's gameplay plane.
-        const z = -(this.p?.player.depth ?? 0) / 100;
+        const z = -depth / 100;
         const t = (z - this.cameraZ) / rayZ;
         return { x: (this.cameraX + u * t) * 100, y: (this.cameraY + rayY * t) * 100 };
     }
+
+    // 同一屏幕射线与两个纵深平面的交点定义 x(depth)、y(depth)，沿光线取最近的村口表面。
+    private villageBottlePoint = (sx: number, sy: number): BottlePoint => {
+        const p = this.p!;
+        const mid = this.screenToWorld(sx, sy, 0);
+        const far = this.screenToWorld(sx, sy, 100);
+        const dx = (far.x - mid.x) / 100;
+        const dy = (far.y - mid.y) / 100;
+        // anchors_village 的院土地面纵深 ±2 m；指向地平线上方时投向院落远沿。
+        let depth = dy < -0.000001 ? Math.max(-200, Math.min(200, -mid.y / dy)) : 200;
+        let height = 0;
+        let hitBasin = false;
+        const brickX = p.room.brickX;
+        if (brickX !== undefined) {
+            // 砖地实体从 brickX 到右墙，高 2，纵深 ±90；侧面和顶面均可瞄。
+            const xs = rayInterval(mid.x, dx, brickX, p.room.maxX);
+            const ys = rayInterval(mid.y, dy, 0, 2);
+            const near = Math.max(-90, xs.min, ys.min);
+            if (near <= Math.min(90, xs.max, ys.max, depth) + 0.000001) {
+                depth = near;
+                height = Math.max(0, Math.min(2, mid.y + dy * depth));
+            }
+        }
+        const bx = p.room.basinX;
+        if (bx !== undefined) {
+            // 地图的圆形盆座接在活动盆身下。两段的高度与半径均以游戏单位计。
+            const ox = mid.x - bx;
+            const a = dx * dx + 1;
+            const b = ox * dx - BASIN_DEPTH;
+            const intersectBasin = (radius: number, bottom: number, top: number): void => {
+                const disc = b * b - a * (ox * ox + BASIN_DEPTH * BASIN_DEPTH - radius * radius);
+                if (disc < 0) return;
+                const span = Math.sqrt(disc);
+                const ys = rayInterval(mid.y, dy, bottom, top);
+                const near = Math.max((-b - span) / a, ys.min);
+                if (near <= Math.min((-b + span) / a, ys.max, depth) + 0.000001) {
+                    depth = near;
+                    height = Math.max(bottom, Math.min(top, mid.y + dy * depth));
+                    hitBasin = true;
+                }
+            };
+            intersectBasin(19, 0, 10);
+            intersectBasin(16.8, BASIN_BASE_HEIGHT, BASIN_BASE_HEIGHT + 11.2);
+        }
+        return { x: mid.x + dx * depth, y: height, depth, hitBasin };
+    };
 
     getDebugState(): Xiaoman3DDebugState {
         const v3 = getView3D();

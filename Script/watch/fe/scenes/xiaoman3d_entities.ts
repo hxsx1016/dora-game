@@ -13,7 +13,8 @@
  */
 
 import { Color, Color3, DirectionalLight3D, DrawNode, Model3D, Node3D, PointLight3D, Vec2, Vec3 } from "Dora";
-import { Play } from "Script/watch/play";
+import type { WorldProjection } from "Script/watch/fe/camera";
+import { BOTTLE_FLY_TIME, Play } from "Script/watch/play";
 
 const PATH_SKY      = "assets/xiaoman3d/sky_backdrop.glb";
 const PATH_SCAV     = "assets/xiaoman3d/scavenger.glb";
@@ -31,12 +32,16 @@ const PATH_GRASS    = "assets/xiaoman3d/grass.glb";
 const PATH_TWIG     = "assets/xiaoman3d/twig.glb";
 const PATH_BOUGH    = "assets/xiaoman3d/bough.glb";
 
+export const BASIN_DEPTH = 18;
+export const BASIN_BASE_HEIGHT = 9.5;
+
 const TWIG_OFFSETS: readonly number[] = [235, 455, 865, 1115];
 const GRASS_CENTERS: readonly number[] = [340, 745, 1195];
 
 interface EchoRing3D {
     x: number;
-    z: number;
+    depth: number;
+    y: number;
     age: number;
     duration: number;
     maxRadius: number;
@@ -44,6 +49,7 @@ interface EchoRing3D {
 }
 
 interface Shard3D {
+    depth?: number;
     x: number;
     y: number;
     vx: number;
@@ -86,12 +92,13 @@ function smoothstep(e0: number, e1: number, x: number): number {
     return t * t * (3 - 2 * t);
 }
 
-function drawGroundRing(draw: DrawNode.Type, cx: number, cy: number, radius: number, col: Color.Type, segs: number = 28): void {
+function drawGroundRing(draw: DrawNode.Type, cam: WorldProjection, ring: EchoRing3D, radius: number, col: Color.Type, segs: number = 28): void {
     const pts: Vec2.Type[] = [];
     let i = 0;
     for (i = 0; i < segs; i++) {
         const a = (i / segs) * Math.PI * 2;
-        pts.push(Vec2(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius));
+        const pt = cam.worldToScreen(ring.x + Math.cos(a) * radius, ring.y, ring.depth + Math.sin(a) * radius);
+        pts.push(Vec2(pt.x, pt.y));
     }
     draw.drawPolygon(pts, Color(0, 0, 0, 0), 1.4, col);
 }
@@ -233,7 +240,7 @@ export class Xiaoman3DEntities {
         }
     }
 
-    update(p: Play, dt: number, camX: number, glow: DrawNode.Type, groundFx: DrawNode.Type): void {
+    update(p: Play, dt: number, camX: number, glow: DrawNode.Type, groundFx: DrawNode.Type, overlay: DrawNode.Type, cam: WorldProjection): void {
         const paused = p.paused || dt <= 0;
         const safeDt = paused ? 0 : Math.min(0.05, dt);
         this.setPaused(paused);
@@ -276,7 +283,7 @@ export class Xiaoman3DEntities {
         }
 
         // 推进与绘制地面声波环（3D 贴地透视）和空中碎屑
-        this.stepAndDrawFx(safeDt, glow, groundFx);
+        this.stepAndDrawFx(safeDt, glow, overlay, cam);
     }
 
     // ---------------------------------------------------------------- Outside 城外栈台与墙根小路
@@ -387,8 +394,8 @@ export class Xiaoman3DEntities {
         }
         if (p.bottleFly !== undefined) {
             this.airBottle.visible = true;
-            const prog = clamp01(p.bottleFly.t / 0.62);
-            const z = (-p.player.depth / 100) * (1 - prog);
+            const prog = clamp01(p.bottleFly.t / BOTTLE_FLY_TIME);
+            const z = -(p.bottleFly.startDepth + (p.bottleFly.target.depth - p.bottleFly.startDepth) * prog) / 100;
             this.airBottle.position = Vec3(p.bottleFly.x / 100, p.bottleFly.y / 100, z);
             this.airBottle.angles = Vec3(this.time * 240, 0, -this.time * 540);
         } else {
@@ -398,10 +405,8 @@ export class Xiaoman3DEntities {
         // 检测本帧瓶子刚刚落地，触发对应材质 3D 视效反馈（硬砖 / 铁盆 / 软土）
         if (p.bottleLandT > this.prevBottleLandT + 0.1 && p.bottleLandX >= 0) {
             const lx = p.bottleLandX;
-            const isSoft = p.room.softX !== undefined && Math.abs(lx - p.room.softX) <= 34;
-            const isIron = p.room.basinX !== undefined && Math.abs(lx - p.room.basinX) <= 24;
-            const kind: "brick" | "iron" | "soft" = isSoft ? "soft" : (isIron ? "iron" : "brick");
-            this.spawnBottleImpactFx(lx, p.bottleLandY, kind);
+            const kind = p.bottleLandSurface;
+            this.spawnBottleImpactFx(lx, p.bottleLandY, p.bottleLandDepth, kind);
             if (kind === "iron") {
                 this.basinShakeTimer = 1.15;
             }
@@ -414,7 +419,7 @@ export class Xiaoman3DEntities {
         }
         const basinX = (p.room.basinX !== undefined ? p.room.basinX : p.ox + 548) / 100;
         this.basin.visible = true;
-        this.basin.position = Vec3(basinX, 0.095, -0.18);
+        this.basin.position = Vec3(basinX, BASIN_BASE_HEIGHT / 100, -BASIN_DEPTH / 100);
         if (this.basinShakeTimer > 0) {
             this.basinShakeTimer = Math.max(0, this.basinShakeTimer - dt);
             const amp = (this.basinShakeTimer / 1.15);
@@ -492,14 +497,14 @@ export class Xiaoman3DEntities {
         }
     }
 
-    private spawnBottleImpactFx(x: number, y: number, kind: "brick" | "iron" | "soft"): void {
+    private spawnBottleImpactFx(x: number, y: number, depth: number, kind: "brick" | "iron" | "soft"): void {
         if (kind === "iron") {
-            this.rings.push({ x, z: 0, age: 0, duration: 1.05, maxRadius: 96, kind });
-            this.rings.push({ x, z: 0, age: -0.22, duration: 1.15, maxRadius: 122, kind });
+            this.rings.push({ x, y, depth, age: 0, duration: 1.05, maxRadius: 96, kind });
+            this.rings.push({ x, y, depth, age: -0.22, duration: 1.15, maxRadius: 122, kind });
         } else if (kind === "brick") {
-            this.rings.push({ x, z: 0, age: 0, duration: 0.62, maxRadius: 68, kind });
+            this.rings.push({ x, y, depth, age: 0, duration: 0.62, maxRadius: 68, kind });
         } else {
-            this.rings.push({ x, z: 0, age: 0, duration: 0.45, maxRadius: 26, kind });
+            this.rings.push({ x, y, depth, age: 0, duration: 0.45, maxRadius: 26, kind });
         }
 
         const count = kind === "soft" ? 5 : 9;
@@ -511,6 +516,7 @@ export class Xiaoman3DEntities {
             const frac = (i / count) - 0.5;
             this.shards.push({
                 x: x + frac * 10,
+                depth,
                 y: y + 4,
                 vx: frac * (kind === "soft" ? 45 : 135),
                 vy: (kind === "soft" ? 48 : 115) + (i % 3) * 28,
@@ -762,7 +768,7 @@ export class Xiaoman3DEntities {
 
     // ---------------------------------------------------------------- 3D 地面波纹与碎屑更新绘制
 
-    private stepAndDrawFx(dt: number, glow: DrawNode.Type, groundFx: DrawNode.Type): void {
+    private stepAndDrawFx(dt: number, glow: DrawNode.Type, overlay: DrawNode.Type, cam: WorldProjection): void {
         const aliveRings: EchoRing3D[] = [];
         let i = 0;
         for (i = 0; i < this.rings.length; i++) {
@@ -777,7 +783,7 @@ export class Xiaoman3DEntities {
                     const col = r.kind === "iron"
                         ? Color(216, 232, 248, alpha)
                         : (r.kind === "brick" ? Color(224, 198, 152, alpha) : Color(138, 122, 100, alpha));
-                    drawGroundRing(groundFx, r.x, r.z, rad, col, 28);
+                    drawGroundRing(overlay, cam, r, rad, col, 28);
                 }
             }
         }
@@ -793,7 +799,13 @@ export class Xiaoman3DEntities {
                 s.vy -= 480 * dt;
                 aliveShards.push(s);
                 const sz = 2.2 * (1 - s.life / s.maxLife);
-                glow.drawDot(Vec2(s.x, s.y), Math.max(0.8, sz), s.color);
+                if (s.depth === undefined) {
+                    glow.drawDot(Vec2(s.x, s.y), Math.max(0.8, sz), s.color);
+                } else {
+                    const pt = cam.worldToScreen(s.x, s.y, s.depth);
+                    const edge = cam.worldToScreen(s.x + Math.max(0.8, sz), s.y, s.depth);
+                    overlay.drawDot(Vec2(pt.x, pt.y), edge.x - pt.x, s.color);
+                }
             }
         }
         this.shards = aliveShards;

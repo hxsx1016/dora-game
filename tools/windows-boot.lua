@@ -200,6 +200,7 @@ if Content:exist(smokeFlag) then
 		assertCheck("watch.fe hook loaded", hook ~= nil)
 		assertCheck("isRelease enabled", hook ~= nil and hook.isRelease() == true)
 		assertCheck("target locked to windows", hook ~= nil and hook.getTargetId() == "windows")
+		assertCheck("assistHints enabled by default", hook ~= nil and hook.getFrontend().contract:isAssistHintsEnabled() == true)
 		assertCheck("no touch/gamepad overlay in windows pack", hook ~= nil and hook.getTouchController() == nil and hook.getTouchRouter() == nil and hook.getGamepad() == nil)
 		assertCheck("stripped touch_core.lua", not Content:exist("Script/watch/input/touch_core.lua"))
 		assertCheck("stripped gamepad_core.lua", not Content:exist("Script/watch/input/gamepad_core.lua"))
@@ -251,5 +252,36 @@ if Content:exist(smokeFlag) then
 		end
 		sleep(0.2)
 		App:shutdown()
+	end)
+end
+
+-- CI 自动化窗口关闭拦截验收钩子（正式发行包中不包含 .ci-close-test 文件，对玩家零影响）
+local closeFlag = Path(gameRoot, ".ci-close-test")
+if not Content:exist(closeFlag) then
+	closeFlag = Path(assetRoot, ".ci-close-test")
+end
+if Content:exist(closeFlag) then
+	thread(function()
+		sleep(1.0)
+		local hook = package.loaded["watch.fe"]
+		if hook ~= nil then
+			hook.setScreen("play")
+		end
+		sleep(0.4)
+		local readyPath = Path(gameRoot, ".ci-close-ready.txt")
+		Content:save(readyPath, "READY\n")
+		local sawPaused = false
+		for _ = 1, 120 do
+			sleep(0.1)
+			local curPlay = package.loaded["watch.play"]
+			if curPlay ~= nil and curPlay.paused == true and not sawPaused then
+				sawPaused = true
+				local toast = hook ~= nil and hook.getToast() or ""
+				Content:save(
+					Path(gameRoot, ".ci-close-result.txt"),
+					"WINDOW_CLOSE_INTERCEPTED_PAUSE=true\ntoast=" .. tostring(toast) .. "\n"
+				)
+			end
+		end
 	end)
 end

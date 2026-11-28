@@ -598,660 +598,670 @@ function WebInputDriver.prototype.____constructor(self, settings) -- 264
 	self.gamepadRouter = __TS__New(GamepadRouter, settings) -- 270
 end -- 264
 function WebInputDriver.prototype.attach(self, parent, hooks) -- 273
-	self.kbm:attach(parent, hooks) -- 274
-	self.touchRouter:attach(parent) -- 275
-	self.gamepadRouter:attach(parent) -- 276
-	if self.touchControls == nil then -- 276
-		self.touchControls = __TS__New(TouchControls, parent, PORTRAIT_TOUCH_DELEGATE) -- 278
-	end -- 278
+	self.kbm:attach(parent, hooks, {latchTouchEvents = false, disableIme = false}) -- 274
+	self.touchRouter:attach(parent) -- 278
+	self.gamepadRouter:attach(parent) -- 279
+	if self.touchControls == nil then -- 279
+		self.touchControls = __TS__New(TouchControls, parent, PORTRAIT_TOUCH_DELEGATE) -- 281
+	end -- 281
 end -- 273
-function WebInputDriver.prototype.syncFrame(self, ctx) -- 282
-	local vp = ctx.viewport -- 283
-	local p = ctx.play -- 284
-	local isPlayMode = ctx.mode == 1 and ctx.screen == "play" and p ~= nil -- 285
-	local gameplayActive = isPlayMode -- 286
-	local modal = not gameplayActive or p == nil or p.paused or p.reloadOpen or p.craftBench.active or p.escortFailed or p.talentModalActive or ctx.ledgerOpen == true -- 287
-	local reloadActive = isPlayMode and p ~= nil and not p.paused and p.reloadOpen -- 289
-	local craftActive = isPlayMode and p ~= nil and not p.paused and p.craftBench.active -- 290
-	local talentOfferCount = #ctx.storyTalentBoxes -- 291
-	local ____temp_0 -- 292
-	if isPlayMode and p ~= nil then -- 292
-		____temp_0 = isCutsceneBlockingPlay(p) -- 292
-	else -- 292
-		____temp_0 = false -- 292
-	end -- 292
-	local cutsceneBlocking = ____temp_0 -- 292
-	local allowDepth = p ~= nil and p.room.depth ~= nil -- 293
-	local peacefulRoom = p ~= nil and (p.room.key == "museum" or p.room.key == "tower") -- 294
-	local canShoot = gameplayActive and p ~= nil and not p.childMode and not peacefulRoom and not p.gripping and not modal and not cutsceneBlocking and p.escort.state ~= "calming" -- 295
-	local canBottleAim = isPlayMode and p ~= nil and p.childMode and p.room.key == "village" and p.hasBottle and not p.passed and not modal and not cutsceneBlocking -- 297
-	local inLowArch = p ~= nil and p.room.arch.h > 0 and p.player.x >= p.room.arch.x0 - 10 and p.player.x <= p.room.arch.x1 + 10 and p.player.y <= p.room.arch.y + p.room.arch.h -- 299
-	local inTowerEnd = isPlayMode and p ~= nil and p.room.key == "tower" and p.phase == "tower-end" -- 302
-	local enemyTargets = canShoot and self.settings.aimAssist and p ~= nil and collectAimTargets(p, ctx.cam, vp.stageW, vp.stageH) or ({}) -- 305
-	if self.touchControls ~= nil then -- 305
-		local pref = self.settings.modePref -- 310
-		self.touchControls:syncContext({ -- 311
-			viewport = vp, -- 312
-			mode = ctx.mode, -- 313
-			screen = ctx.screen, -- 314
-			play = p, -- 315
-			run = ctx.run, -- 316
-			cam = ctx.cam, -- 317
-			router = self.touchRouter, -- 318
-			overlayActive = self:shouldShowTouchControls(ctx.input, vp), -- 319
-			allowAutoGameplayTouch = pref == "auto" or pref == "touch", -- 320
-			allowMouseOnOverlay = vp.isPortrait or pref == "touch", -- 321
-			showWebTopPills = true, -- 322
-			canToggleFullscreen = true, -- 323
-			assistHintsEnabled = ctx.assistHintsEnabled, -- 324
-			isMuted = ctx.isMuted, -- 325
-			isFullscreen = ctx.isFullscreen, -- 326
-			storyTalentBoxes = ctx.storyTalentBoxes, -- 327
-			escortDeathBoxes = ctx.escortDeathBoxes, -- 328
-			ledgerOpen = ctx.ledgerOpen, -- 329
-			ledgerBox = ctx.ledgerBox, -- 330
-			enemyTargets = enemyTargets, -- 331
-			dt = ctx.dt -- 332
-		}) -- 332
-	end -- 332
-	local muzzle = p ~= nil and projectMuzzle(p, ctx.cam) or nil -- 336
-	local playerScreenX = muzzle and muzzle.x or vp.stageW * 0.5 -- 337
-	local playerScreenY = muzzle and muzzle.y or vp.stageH * 0.38 -- 338
-	local gpCtx = { -- 340
-		stageW = vp.stageW, -- 341
-		stageH = vp.stageH, -- 342
-		uiScale = vp.uiScale, -- 343
-		modal = modal, -- 344
-		gameplayActive = gameplayActive, -- 345
-		reloadActive = reloadActive, -- 346
-		craftActive = craftActive, -- 347
-		talentOfferCount = talentOfferCount, -- 348
-		childMode = p ~= nil and p.childMode, -- 349
-		allowDepth = allowDepth, -- 350
-		canShoot = canShoot, -- 351
-		canBottleAim = canBottleAim, -- 352
-		playerRolling = p ~= nil and p.player.rollT > 0, -- 353
-		inLowArch = inLowArch, -- 354
-		inTowerEnd = inTowerEnd, -- 355
-		playerFacing = p ~= nil and p.player.facing or 1, -- 356
-		playerScreenX = playerScreenX, -- 357
-		playerScreenY = playerScreenY, -- 358
-		enemyTargets = enemyTargets -- 359
-	} -- 359
-	self.gamepadRouter:setFrameContext(gpCtx, ctx.dt) -- 361
-end -- 282
-function WebInputDriver.prototype.renderOverlay(self) -- 364
-	local ____opt_5 = self.touchControls -- 364
-	if ____opt_5 ~= nil then -- 364
-		____opt_5:render(self.touchRouter) -- 365
-	end -- 365
-end -- 364
-function WebInputDriver.prototype.clearTransient(self, keepTouchToggles) -- 368
-	self.touchRouter:releaseAll(keepTouchToggles) -- 369
-	self.gamepadRouter:clearTransient() -- 370
-end -- 368
-function WebInputDriver.prototype.vibrate(self, seconds) -- 373
-	self.touchRouter:vibrate(seconds) -- 374
-end -- 373
-function WebInputDriver.prototype.onInputModeChanged(self, mode) -- 377
-	if mode ~= "touch" then -- 377
-		self.touchRouter:releaseAll(false) -- 379
-	end -- 379
+function WebInputDriver.prototype.syncFrame(self, ctx) -- 285
+	local vp = ctx.viewport -- 286
+	local p = ctx.play -- 287
+	local isPlayMode = ctx.mode == 1 and ctx.screen == "play" and p ~= nil -- 288
+	local gameplayActive = isPlayMode -- 289
+	local modal = not gameplayActive or p == nil or p.paused or p.reloadOpen or p.craftBench.active or p.escortFailed or p.talentModalActive or ctx.ledgerOpen == true -- 290
+	local reloadActive = isPlayMode and p ~= nil and not p.paused and p.reloadOpen -- 292
+	local craftActive = isPlayMode and p ~= nil and not p.paused and p.craftBench.active -- 293
+	local talentOfferCount = #ctx.storyTalentBoxes -- 294
+	local ____temp_0 -- 295
+	if isPlayMode and p ~= nil then -- 295
+		____temp_0 = isCutsceneBlockingPlay(p) -- 295
+	else -- 295
+		____temp_0 = false -- 295
+	end -- 295
+	local cutsceneBlocking = ____temp_0 -- 295
+	local allowDepth = p ~= nil and p.room.depth ~= nil -- 296
+	local peacefulRoom = p ~= nil and (p.room.key == "museum" or p.room.key == "tower") -- 297
+	local canShoot = gameplayActive and p ~= nil and not p.childMode and not peacefulRoom and not p.gripping and not modal and not cutsceneBlocking and p.escort.state ~= "calming" -- 298
+	local canBottleAim = isPlayMode and p ~= nil and p.childMode and p.room.key == "village" and p.hasBottle and not p.passed and not modal and not cutsceneBlocking -- 300
+	local inLowArch = p ~= nil and p.room.arch.h > 0 and p.player.x >= p.room.arch.x0 - 10 and p.player.x <= p.room.arch.x1 + 10 and p.player.y <= p.room.arch.y + p.room.arch.h -- 302
+	local inTowerEnd = isPlayMode and p ~= nil and p.room.key == "tower" and p.phase == "tower-end" -- 305
+	local enemyTargets = canShoot and self.settings.aimAssist and p ~= nil and collectAimTargets(p, ctx.cam, vp.stageW, vp.stageH) or ({}) -- 308
+	if self.touchControls ~= nil then -- 308
+		local pref = self.settings.modePref -- 313
+		self.touchControls:syncContext({ -- 314
+			viewport = vp, -- 315
+			mode = ctx.mode, -- 316
+			screen = ctx.screen, -- 317
+			play = p, -- 318
+			run = ctx.run, -- 319
+			cam = ctx.cam, -- 320
+			router = self.touchRouter, -- 321
+			overlayActive = self:shouldShowTouchControls(ctx.input, vp), -- 322
+			allowAutoGameplayTouch = pref == "auto" or pref == "touch", -- 323
+			allowMouseOnOverlay = vp.isPortrait or pref == "touch", -- 324
+			showWebTopPills = true, -- 325
+			canToggleFullscreen = true, -- 326
+			assistHintsEnabled = ctx.assistHintsEnabled, -- 327
+			isMuted = ctx.isMuted, -- 328
+			isFullscreen = ctx.isFullscreen, -- 329
+			storyTalentBoxes = ctx.storyTalentBoxes, -- 330
+			escortDeathBoxes = ctx.escortDeathBoxes, -- 331
+			ledgerOpen = ctx.ledgerOpen, -- 332
+			ledgerBox = ctx.ledgerBox, -- 333
+			enemyTargets = enemyTargets, -- 334
+			dt = ctx.dt -- 335
+		}) -- 335
+	end -- 335
+	local muzzle = p ~= nil and projectMuzzle(p, ctx.cam) or nil -- 339
+	local playerScreenX = muzzle and muzzle.x or vp.stageW * 0.5 -- 340
+	local playerScreenY = muzzle and muzzle.y or vp.stageH * 0.38 -- 341
+	local gpCtx = { -- 343
+		stageW = vp.stageW, -- 344
+		stageH = vp.stageH, -- 345
+		uiScale = vp.uiScale, -- 346
+		modal = modal, -- 347
+		gameplayActive = gameplayActive, -- 348
+		reloadActive = reloadActive, -- 349
+		craftActive = craftActive, -- 350
+		talentOfferCount = talentOfferCount, -- 351
+		childMode = p ~= nil and p.childMode, -- 352
+		allowDepth = allowDepth, -- 353
+		canShoot = canShoot, -- 354
+		canBottleAim = canBottleAim, -- 355
+		playerRolling = p ~= nil and p.player.rollT > 0, -- 356
+		inLowArch = inLowArch, -- 357
+		inTowerEnd = inTowerEnd, -- 358
+		playerFacing = p ~= nil and p.player.facing or 1, -- 359
+		playerScreenX = playerScreenX, -- 360
+		playerScreenY = playerScreenY, -- 361
+		enemyTargets = enemyTargets -- 362
+	} -- 362
+	self.gamepadRouter:setFrameContext(gpCtx, ctx.dt) -- 364
+end -- 285
+function WebInputDriver.prototype.renderOverlay(self) -- 367
+	local ____opt_5 = self.touchControls -- 367
+	if ____opt_5 ~= nil then -- 367
+		____opt_5:render(self.touchRouter) -- 368
+	end -- 368
+end -- 367
+function WebInputDriver.prototype.clearTransient(self, keepTouchToggles) -- 371
+	self.kbm:clearTransient() -- 372
+	self.touchRouter:releaseAll(keepTouchToggles) -- 373
+	self.gamepadRouter:clearTransient() -- 374
+end -- 371
+function WebInputDriver.prototype.vibrate(self, seconds) -- 377
+	self.touchRouter:vibrate(seconds) -- 378
 end -- 377
-function WebInputDriver.prototype.shouldShowTouchControls(self, input, vp) -- 383
-	if vp.isPortrait then -- 383
-		return true -- 384
-	end -- 384
-	if self.settings.modePref == "touch" then -- 384
-		return true -- 385
-	end -- 385
-	if self.settings.modePref == "kbm" or self.settings.modePref == "gamepad" then -- 385
-		return false -- 386
-	end -- 386
-	return input.inputMode == "touch" -- 387
-end -- 383
-function WebInputDriver.prototype.getTouchRouter(self) -- 390
-	return self.touchRouter -- 391
-end -- 390
-function WebInputDriver.prototype.getGamepadRouter(self) -- 394
-	return self.gamepadRouter -- 395
+function WebInputDriver.prototype.onInputModeChanged(self, mode) -- 381
+	if mode ~= "touch" then -- 381
+		self.touchRouter:releaseAll(false) -- 383
+	end -- 383
+end -- 381
+function WebInputDriver.prototype.shouldShowTouchControls(self, input, vp) -- 387
+	if vp.isPortrait then -- 387
+		return true -- 388
+	end -- 388
+	if self.settings.modePref == "touch" then -- 388
+		return true -- 389
+	end -- 389
+	if self.settings.modePref == "kbm" or self.settings.modePref == "gamepad" then -- 389
+		return false -- 390
+	end -- 390
+	return input.inputMode == "touch" -- 391
+end -- 387
+function WebInputDriver.prototype.getTouchRouter(self) -- 394
+	return self.touchRouter -- 395
 end -- 394
-function WebInputDriver.prototype.getTouchControls(self) -- 398
-	return self.touchControls -- 399
+function WebInputDriver.prototype.getGamepadRouter(self) -- 398
+	return self.gamepadRouter -- 399
 end -- 398
-function WebInputDriver.prototype.injectTouch(self, phase, id, x, y, fromMouse) -- 402
-	self.touchRouter:injectTouch( -- 403
-		phase, -- 403
-		id, -- 403
-		x, -- 403
-		y, -- 403
-		fromMouse == true -- 403
-	) -- 403
+function WebInputDriver.prototype.getTouchControls(self) -- 402
+	return self.touchControls -- 403
 end -- 402
-function WebInputDriver.prototype.setGamepadSim(self, state) -- 406
-	self.gamepadRouter:setSimulatedState(state) -- 407
+function WebInputDriver.prototype.injectTouch(self, phase, id, x, y, fromMouse) -- 406
+	self.touchRouter:injectTouch( -- 407
+		phase, -- 407
+		id, -- 407
+		x, -- 407
+		y, -- 407
+		fromMouse == true -- 407
+	) -- 407
 end -- 406
-function WebInputDriver.prototype.pollInto(self, input) -- 410
-	input.gamepadLayout = self.settings.gamepadLayout -- 411
-	local touch = self.touchRouter:consumeSnapshot() -- 412
-	local gp = self.gamepadRouter:consumeSnapshot() -- 413
-	local kbm = self.kbm:sample(input:getStageViewport()) -- 414
-	local suppressMouse = touch.suppressSyntheticMouse or touch.mouseConsumedByOverlay -- 416
-	local realMouseActive = not suppressMouse and (kbm.mouseMoved or kbm.mouseClicked and kbm.mouseInsideStage) -- 417
-	if kbm.anyKb or realMouseActive or gp.hadGamepadInput or touch.hadRealTouch then -- 417
-		input.userInteracted = true -- 420
-	end -- 420
-	if self.settings.modePref ~= "auto" then -- 420
-		input:setInputMode(self.settings.modePref) -- 424
-	elseif gp.hadGamepadInput then -- 424
-		input:setInputMode("gamepad") -- 426
-	elseif touch.hadGameplayTouch then -- 426
-		input:setInputMode("touch") -- 428
-	elseif kbm.anyKb or realMouseActive then -- 428
-		input:setInputMode("kbm") -- 430
-	elseif touch.hadUiTouch and input.inputMode == "kbm" then -- 430
-		input:setInputMode("touch") -- 432
-	end -- 432
-	input.moveX = kbm.moveX ~= 0 and kbm.moveX or (gp.moveX ~= 0 and gp.moveX or touch.moveX) -- 435
-	input.moveY = kbm.moveY ~= 0 and kbm.moveY or (gp.moveY ~= 0 and gp.moveY or touch.moveY) -- 436
-	local allowMouseFire = not suppressMouse and input.inputMode == "kbm" and kbm.mouseInsideStage -- 438
-	local rawFireHeld = allowMouseFire and kbm.mouseLeft or gp.fireHeld or touch.fireHeld -- 439
-	input:applyKeyHeld( -- 441
-		kbm.jump or gp.jumpHeld or touch.jumpHeld, -- 442
-		kbm.crouch or gp.crouchHeld or touch.crouchHeld, -- 443
-		kbm.cover or gp.coverHeld or touch.coverHeld, -- 444
-		kbm.interact or gp.interactHeld or touch.interactHeld, -- 445
-		kbm.aim or gp.aimHeld or touch.aimHeld, -- 446
-		rawFireHeld, -- 447
-		kbm.flare or gp.flareHeld, -- 448
-		kbm.pause, -- 449
-		kbm.retry, -- 450
-		kbm.toggleView, -- 451
-		kbm.tab -- 452
-	) -- 452
-	input:resetFrameSignals() -- 455
-	input.navUp = kbm.navUp -- 458
-	input.navDown = kbm.navDown -- 459
-	input.navLeft = kbm.navLeft -- 460
-	input.navRight = kbm.navRight -- 461
-	input.navConfirm = kbm.navConfirm -- 462
-	input.craftConfirm = kbm.uiConfirmWithE -- 463
-	input.craftCancel = kbm.uiBackSpace -- 464
-	local kCol = (kbm.navRight and 1 or 0) - (kbm.navLeft and 1 or 0) -- 465
-	local kRow = (kbm.navUp and 1 or 0) - (kbm.navDown and 1 or 0) -- 466
-	if kCol ~= 0 or kRow ~= 0 then -- 466
-		input.reloadDirCol = kCol -- 468
-		input.reloadDirRow = kRow -- 469
-		input.reloadStepEdge = true -- 470
-		input.reloadAutoStep = false -- 471
-	end -- 471
-	input.reloadConfirm = kbm.uiConfirmWithE -- 473
-	input.reloadReset = kbm.uiBackSpace -- 474
-	if gp.jumpPressed then -- 474
-		input.jump.pressed = true -- 476
-	end -- 476
-	if gp.crouchPressed then -- 476
-		input.crouch.pressed = true -- 477
-	end -- 477
-	if gp.interactPressed then -- 477
-		input.interact.pressed = true -- 478
-	end -- 478
-	if gp.aimPressed then -- 478
-		input.aim.pressed = true -- 479
-	end -- 479
-	if gp.firePressed then -- 479
-		input.fire.pressed = true -- 480
-	end -- 480
-	if gp.flarePressed then -- 480
-		input.flare.pressed = true -- 481
-	end -- 481
-	if gp.pausePressed then -- 481
-		input.pause.pressed = true -- 482
-	end -- 482
-	if gp.retryPressed then -- 482
-		input.retry.pressed = true -- 483
-	end -- 483
-	if gp.artifactPressed then -- 483
-		input.artifactTogglePressed = true -- 484
-	end -- 484
-	if gp.anyButtonPressed then -- 484
-		input.splashSkipPressed = true -- 485
-	end -- 485
-	if gp.bottleCanceled then -- 485
-		input.bottleCanceled = true -- 487
-		input.aim.held = false -- 488
-		input.aim.pressed = false -- 489
-		input.aim.released = false -- 490
-	end -- 490
-	if gp.navUp then -- 490
-		input.navUp = true -- 492
-	end -- 492
-	if gp.navDown then -- 492
-		input.navDown = true -- 493
-	end -- 493
-	if gp.navLeft then -- 493
-		input.navLeft = true -- 494
-	end -- 494
-	if gp.navRight then -- 494
-		input.navRight = true -- 495
-	end -- 495
-	if gp.navConfirm then -- 495
-		input.navConfirm = true -- 497
-		input.craftConfirm = true -- 498
-	end -- 498
-	if gp.navBack then -- 498
-		input.navBack = true -- 501
-		input.craftCancel = true -- 502
-	end -- 502
-	input.navPrevTab = gp.navPrevTab -- 504
-	input.navNextTab = gp.navNextTab -- 505
-	if gp.reloadStepEdge then -- 505
-		input.reloadDirCol = gp.reloadDirCol -- 507
-		input.reloadDirRow = gp.reloadDirRow -- 508
-		input.reloadStepEdge = true -- 509
-		input.reloadAutoStep = gp.reloadAutoStep -- 510
-	end -- 510
-	if gp.reloadConfirm then -- 510
-		input.reloadConfirm = true -- 512
-	end -- 512
-	if gp.reloadReset then -- 512
-		input.reloadReset = true -- 513
-	end -- 513
-	input.talentDelta = gp.talentDelta -- 514
-	input.talentConfirm = gp.talentConfirm -- 515
-	input.retryHoldProgress = gp.retryHoldProgress -- 516
-	if touch.jumpPressed then -- 516
-		input.jump.pressed = true -- 518
-	end -- 518
-	if touch.interactPressed then -- 518
-		input.interact.pressed = true -- 519
-	end -- 519
-	if touch.firePressed then -- 519
-		input.fire.pressed = true -- 520
-	end -- 520
-	if touch.pausePressed then -- 520
-		input.pause.pressed = true -- 521
-	end -- 521
-	if touch.retryPressed then -- 521
-		input.retry.pressed = true -- 522
-	end -- 522
-	if touch.artifactPressed then -- 522
-		input.artifactTogglePressed = true -- 523
-	end -- 523
-	if touch.mutePressed then -- 523
-		input.muteTogglePressed = true -- 524
-	end -- 524
-	if touch.fullscreenPressed then -- 524
-		input.fullscreenTogglePressed = true -- 525
-	end -- 525
-	if touch.anyTapBegan then -- 525
-		input.splashSkipPressed = true -- 526
-	end -- 526
-	if touch.zoneTap ~= "" then -- 526
-		input.touchZoneTap = touch.zoneTap -- 527
-	end -- 527
-	if touch.navUp then -- 527
-		input.navUp = true -- 528
-	end -- 528
-	if touch.navDown then -- 528
-		input.navDown = true -- 529
-	end -- 529
-	if touch.navLeft then -- 529
-		input.navLeft = true -- 530
-	end -- 530
-	if touch.navRight then -- 530
-		input.navRight = true -- 531
-	end -- 531
-	if touch.navConfirm then -- 531
-		input.navConfirm = true -- 533
-		input.craftConfirm = true -- 534
-	end -- 534
-	if touch.navBack then -- 534
-		input.navBack = true -- 537
-		input.craftCancel = true -- 538
-	end -- 538
-	if touch.bottleCanceled then -- 538
-		input.bottleCanceled = true -- 541
-		input.aim.held = false -- 542
-		input.aim.pressed = false -- 543
-		input.aim.released = false -- 544
-	end -- 544
-	if not suppressMouse and input.inputMode == "kbm" and input.aim.held and kbm.mouseRightPressed then -- 544
-		input.bottleCanceled = true -- 548
-		input.aim.held = false -- 549
-		input.aim.pressed = false -- 550
-		input.aim.released = false -- 551
-	end -- 551
-	input:applyPickRoom(kbm.pick) -- 554
-	input.frameInteractPressed = input.interact.pressed -- 555
-	if touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside then -- 555
-		input.uiX = touch.uiX -- 558
-		input.uiY = touch.uiY -- 559
-		input.uiDx = touch.uiDx -- 560
-		input.uiDy = touch.uiDy -- 561
-		input.uiInside = touch.uiInside -- 562
-		input.uiHeld = touch.uiHeld -- 563
-		input.uiPressed = touch.uiPressed -- 564
-		input.uiReleased = touch.uiReleased -- 565
-		input.uiRightPressed = false -- 566
-		if touch.uiHeld or touch.uiPressed then -- 566
-			input.mdx = touch.uiDx -- 568
-			input.mdy = touch.uiDy -- 569
-			input.mx = touch.uiX -- 570
-			input.my = touch.uiY -- 571
-			input.inside = true -- 572
-		elseif touch.hasAim then -- 572
-			input.mdx = touch.aimX - input.mx -- 574
-			input.mdy = touch.aimY - input.my -- 575
-			input.mx = touch.aimX -- 576
-			input.my = touch.aimY -- 577
-			input.inside = true -- 578
-		else -- 578
-			input.mdx = 0 -- 580
-			input.mdy = 0 -- 581
-			input.inside = touch.uiInside -- 582
-		end -- 582
-		return -- 584
-	end -- 584
-	if input.inputMode == "gamepad" then -- 584
-		if gp.hasAim then -- 584
-			input.mdx = gp.aimX - input.mx -- 589
-			input.mdy = gp.aimY - input.my -- 590
-			input.mx = gp.aimX -- 591
-			input.my = gp.aimY -- 592
-			input.inside = true -- 593
-		else -- 593
-			input.mdx = 0 -- 595
-			input.mdy = 0 -- 596
-			input.inside = false -- 597
-		end -- 597
-		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 597
-			input.uiDx = kbm.mouseStageX - input.uiX -- 600
-			input.uiDy = kbm.mouseStageY - input.uiY -- 601
-			input.uiX = kbm.mouseStageX -- 602
-			input.uiY = kbm.mouseStageY -- 603
-			input.uiInside = true -- 604
-			input.uiHeld = kbm.mouseLeft -- 605
-			input.uiPressed = kbm.mouseLeftPressed -- 606
-			input.uiReleased = kbm.mouseLeftReleased -- 607
-			input.uiRightPressed = kbm.mouseRightPressed -- 608
-		else -- 608
-			input.uiX = input.mx -- 610
-			input.uiY = input.my -- 611
-			input.uiDx = 0 -- 612
-			input.uiDy = 0 -- 613
-			input.uiInside = false -- 614
-			input.uiHeld = false -- 615
-			input.uiPressed = false -- 616
-			input.uiReleased = false -- 617
-			input.uiRightPressed = false -- 618
-		end -- 618
-		return -- 620
-	end -- 620
-	if input.inputMode == "touch" then -- 620
-		if touch.hasAim then -- 620
-			input.mdx = touch.aimX - input.mx -- 625
-			input.mdy = touch.aimY - input.my -- 626
-			input.mx = touch.aimX -- 627
-			input.my = touch.aimY -- 628
-			input.inside = true -- 629
-		else -- 629
-			input.mdx = 0 -- 631
-			input.mdy = 0 -- 632
-			input.inside = false -- 633
-		end -- 633
-		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 633
-			input.uiDx = kbm.mouseStageX - input.uiX -- 636
-			input.uiDy = kbm.mouseStageY - input.uiY -- 637
-			input.uiX = kbm.mouseStageX -- 638
-			input.uiY = kbm.mouseStageY -- 639
-			input.uiInside = true -- 640
-			input.uiHeld = kbm.mouseLeft -- 641
-			input.uiPressed = kbm.mouseLeftPressed -- 642
-			input.uiReleased = kbm.mouseLeftReleased -- 643
-			input.uiRightPressed = kbm.mouseRightPressed -- 644
-		else -- 644
-			input.uiDx = 0 -- 646
-			input.uiDy = 0 -- 647
-			input.uiInside = false -- 648
-			input.uiHeld = false -- 649
-			input.uiPressed = false -- 650
-			input.uiReleased = false -- 651
-			input.uiRightPressed = false -- 652
-		end -- 652
-		return -- 654
-	end -- 654
-	input.mdx = kbm.mouseStageX - input.mx -- 657
-	input.mdy = kbm.mouseStageY - input.my -- 658
-	input.mx = kbm.mouseStageX -- 659
-	input.my = kbm.mouseStageY -- 660
-	input.inside = kbm.mouseInsideStage -- 661
-	input.uiX = kbm.mouseStageX -- 663
-	input.uiY = kbm.mouseStageY -- 664
-	input.uiDx = input.mdx -- 665
-	input.uiDy = input.mdy -- 666
-	input.uiInside = kbm.mouseInsideStage -- 667
-	input.uiHeld = not suppressMouse and kbm.mouseLeft and kbm.mouseInsideStage -- 668
-	input.uiPressed = not suppressMouse and kbm.mouseLeftPressed and kbm.mouseInsideStage -- 669
-	input.uiReleased = not suppressMouse and kbm.mouseLeftReleased -- 670
-	input.uiRightPressed = not suppressMouse and kbm.mouseRightPressed and kbm.mouseInsideStage -- 671
+function WebInputDriver.prototype.setGamepadSim(self, state) -- 410
+	self.gamepadRouter:setSimulatedState(state) -- 411
 end -- 410
-____exports.TARGET = { -- 675
-	id = "web", -- 676
-	supportsKbm = true, -- 677
-	supportsTouch = true, -- 678
-	supportsGamepad = true, -- 679
-	supportsPortrait = true, -- 680
-	defaultInputMode = "kbm", -- 681
-	supportedModes = {"kbm", "touch", "gamepad"}, -- 682
-	modePrefOrder = MODE_PREF_ORDER, -- 683
-	controlsGuideTabs = {{mode = "kbm", label = "键鼠"}, {mode = "gamepad", label = "手柄"}, {mode = "touch", label = "触屏"}}, -- 684
-	getPlatformCaps = function(self) -- 690
-		local cfg = getReleaseConfig() -- 691
-		local ____temp_7 -- 704
-		if cfg ~= nil and cfg.isRelease ~= nil then -- 704
-			____temp_7 = cfg.isRelease == true -- 704
-		else -- 704
-			____temp_7 = true -- 704
-		end -- 704
-		return { -- 692
-			kind = "web", -- 693
-			target = "web", -- 694
-			isDesktop = false, -- 695
-			isMobile = false, -- 696
-			isWeb = true, -- 697
-			isStandaloneAndroidApk = false, -- 698
-			canToggleFullscreen = true, -- 699
-			canQuit = false, -- 700
-			hasBackButton = false, -- 701
-			supportsHaptics = false, -- 702
-			needsAudioUnlock = true, -- 703
-			isRelease = ____temp_7, -- 704
-			defaultInputMode = "kbm" -- 705
-		} -- 705
-	end, -- 690
-	canToggleFullscreen = function(self) -- 709
-		return true -- 710
-	end, -- 709
-	canQuitApp = function(self) -- 713
-		return false -- 714
-	end, -- 713
-	isReleaseMode = function(self) -- 717
-		local cfg = getReleaseConfig() -- 718
-		if cfg ~= nil and cfg.isRelease ~= nil then -- 718
-			return cfg.isRelease == true -- 720
-		end -- 720
-		return true -- 722
-	end, -- 717
-	computeStageViewport = function(self, fullW, fullH) -- 725
-		return computeAdaptiveViewport(fullW, fullH) -- 726
-	end, -- 725
-	triggerHaptics = function(self, seconds, enabled) -- 729
-		triggerMobileHaptics(seconds, enabled) -- 730
-	end, -- 729
-	keyTagFor = function(self, action, mode, layout) -- 733
-		return keyTagWeb(action, mode, layout) -- 734
-	end, -- 733
-	adaptWorldKeyTag = function(self, rawKeyTag, mode, _layout) -- 737
-		return adaptWorldKeyTagWeb(rawKeyTag, mode) -- 738
-	end, -- 737
-	adaptHintSentence = function(self, text, mode, layout) -- 741
-		return adaptHintSentenceWeb(text, mode, layout) -- 742
-	end, -- 741
-	controlsGuideRows = function(self, tab) -- 745
-		if tab == "gamepad" then -- 745
-			return GUIDE_GAMEPAD -- 746
-		end -- 746
-		if tab == "touch" then -- 746
-			return GUIDE_TOUCH -- 747
-		end -- 747
-		return GUIDE_KBM -- 748
-	end, -- 745
-	splashSkipHint = function(self, mode, layout) -- 751
-		if mode == "touch" then -- 751
-			return "轻触跳过" -- 752
+function WebInputDriver.prototype.pollInto(self, input, dt) -- 414
+	if dt == nil then -- 414
+		dt = 1 / 60 -- 414
+	end -- 414
+	input.gamepadLayout = self.settings.gamepadLayout -- 415
+	local touch = self.touchRouter:consumeSnapshot() -- 416
+	local gp = self.gamepadRouter:consumeSnapshot() -- 417
+	local kbm = self.kbm:sample( -- 418
+		input:getStageViewport(), -- 418
+		dt -- 418
+	) -- 418
+	local suppressMouse = touch.suppressSyntheticMouse or touch.mouseConsumedByOverlay -- 420
+	local realMouseActive = not suppressMouse and (kbm.mouseMoved or kbm.mouseClicked and kbm.mouseInsideStage) -- 421
+	if kbm.anyKb or realMouseActive or gp.hadGamepadInput or touch.hadRealTouch then -- 421
+		input.userInteracted = true -- 424
+	end -- 424
+	if self.settings.modePref ~= "auto" then -- 424
+		input:setInputMode(self.settings.modePref) -- 428
+	elseif gp.hadGamepadInput then -- 428
+		input:setInputMode("gamepad") -- 430
+	elseif touch.hadGameplayTouch then -- 430
+		input:setInputMode("touch") -- 432
+	elseif kbm.anyKb or realMouseActive then -- 432
+		input:setInputMode("kbm") -- 434
+	elseif touch.hadUiTouch and input.inputMode == "kbm" then -- 434
+		input:setInputMode("touch") -- 436
+	end -- 436
+	input.moveX = kbm.moveX ~= 0 and kbm.moveX or (gp.moveX ~= 0 and gp.moveX or touch.moveX) -- 439
+	input.moveY = kbm.moveY ~= 0 and kbm.moveY or (gp.moveY ~= 0 and gp.moveY or touch.moveY) -- 440
+	local allowMouseFire = not suppressMouse and input.inputMode == "kbm" and kbm.mouseInsideStage -- 442
+	local rawFireHeld = allowMouseFire and kbm.mouseLeft or gp.fireHeld or touch.fireHeld -- 443
+	input:applyKeyHeld( -- 445
+		kbm.jump or gp.jumpHeld or touch.jumpHeld, -- 446
+		kbm.crouch or gp.crouchHeld or touch.crouchHeld, -- 447
+		kbm.cover or gp.coverHeld or touch.coverHeld, -- 448
+		kbm.interact or gp.interactHeld or touch.interactHeld, -- 449
+		kbm.aim or gp.aimHeld or touch.aimHeld, -- 450
+		rawFireHeld, -- 451
+		kbm.flare or gp.flareHeld, -- 452
+		kbm.pause, -- 453
+		kbm.retry, -- 454
+		kbm.toggleView, -- 455
+		kbm.tab -- 456
+	) -- 456
+	input:resetFrameSignals() -- 459
+	input.uiWheelY = kbm.mouseWheelY -- 460
+	input.ledgerTogglePressed = kbm.ledgerTogglePressed -- 461
+	input.retryTapPressed = kbm.retryTapPressed -- 462
+	if kbm.pausePressed then -- 462
+		input.pause.pressed = true -- 463
+	end -- 463
+	input.navUp = kbm.navUp -- 466
+	input.navDown = kbm.navDown -- 467
+	input.navLeft = kbm.navLeft -- 468
+	input.navRight = kbm.navRight -- 469
+	input.navConfirm = kbm.navConfirm -- 470
+	input.craftConfirm = kbm.uiConfirmWithE -- 471
+	input.craftCancel = kbm.uiBackSpace -- 472
+	local kCol = (kbm.navRight and 1 or 0) - (kbm.navLeft and 1 or 0) -- 473
+	local kRow = (kbm.navUp and 1 or 0) - (kbm.navDown and 1 or 0) -- 474
+	if kCol ~= 0 or kRow ~= 0 then -- 474
+		input.reloadDirCol = kCol -- 476
+		input.reloadDirRow = kRow -- 477
+		input.reloadStepEdge = true -- 478
+		input.reloadAutoStep = false -- 479
+	end -- 479
+	input.reloadConfirm = kbm.uiConfirmWithE -- 481
+	input.reloadReset = kbm.uiBackSpace -- 482
+	if gp.jumpPressed then -- 482
+		input.jump.pressed = true -- 484
+	end -- 484
+	if gp.crouchPressed then -- 484
+		input.crouch.pressed = true -- 485
+	end -- 485
+	if gp.interactPressed then -- 485
+		input.interact.pressed = true -- 486
+	end -- 486
+	if gp.aimPressed then -- 486
+		input.aim.pressed = true -- 487
+	end -- 487
+	if gp.firePressed then -- 487
+		input.fire.pressed = true -- 488
+	end -- 488
+	if gp.flarePressed then -- 488
+		input.flare.pressed = true -- 489
+	end -- 489
+	if gp.pausePressed then -- 489
+		input.pause.pressed = true -- 490
+	end -- 490
+	if gp.retryPressed then -- 490
+		input.retry.pressed = true -- 491
+	end -- 491
+	if gp.artifactPressed then -- 491
+		input.artifactTogglePressed = true -- 492
+	end -- 492
+	if gp.anyButtonPressed then -- 492
+		input.splashSkipPressed = true -- 493
+	end -- 493
+	if gp.bottleCanceled then -- 493
+		input.bottleCanceled = true -- 495
+		input.aim.held = false -- 496
+		input.aim.pressed = false -- 497
+		input.aim.released = false -- 498
+	end -- 498
+	if gp.navUp then -- 498
+		input.navUp = true -- 500
+	end -- 500
+	if gp.navDown then -- 500
+		input.navDown = true -- 501
+	end -- 501
+	if gp.navLeft then -- 501
+		input.navLeft = true -- 502
+	end -- 502
+	if gp.navRight then -- 502
+		input.navRight = true -- 503
+	end -- 503
+	if gp.navConfirm then -- 503
+		input.navConfirm = true -- 505
+		input.craftConfirm = true -- 506
+	end -- 506
+	if gp.navBack then -- 506
+		input.navBack = true -- 509
+		input.craftCancel = true -- 510
+	end -- 510
+	input.navPrevTab = gp.navPrevTab -- 512
+	input.navNextTab = gp.navNextTab -- 513
+	if gp.reloadStepEdge then -- 513
+		input.reloadDirCol = gp.reloadDirCol -- 515
+		input.reloadDirRow = gp.reloadDirRow -- 516
+		input.reloadStepEdge = true -- 517
+		input.reloadAutoStep = gp.reloadAutoStep -- 518
+	end -- 518
+	if gp.reloadConfirm then -- 518
+		input.reloadConfirm = true -- 520
+	end -- 520
+	if gp.reloadReset then -- 520
+		input.reloadReset = true -- 521
+	end -- 521
+	input.talentDelta = gp.talentDelta -- 522
+	input.talentConfirm = gp.talentConfirm -- 523
+	input.retryHoldProgress = gp.retryHoldProgress -- 524
+	if touch.jumpPressed then -- 524
+		input.jump.pressed = true -- 526
+	end -- 526
+	if touch.interactPressed then -- 526
+		input.interact.pressed = true -- 527
+	end -- 527
+	if touch.firePressed then -- 527
+		input.fire.pressed = true -- 528
+	end -- 528
+	if touch.pausePressed then -- 528
+		input.pause.pressed = true -- 529
+	end -- 529
+	if touch.retryPressed then -- 529
+		input.retry.pressed = true -- 530
+	end -- 530
+	if touch.artifactPressed then -- 530
+		input.artifactTogglePressed = true -- 531
+	end -- 531
+	if touch.mutePressed then -- 531
+		input.muteTogglePressed = true -- 532
+	end -- 532
+	if touch.fullscreenPressed then -- 532
+		input.fullscreenTogglePressed = true -- 533
+	end -- 533
+	if touch.anyTapBegan then -- 533
+		input.splashSkipPressed = true -- 534
+	end -- 534
+	if touch.zoneTap ~= "" then -- 534
+		input.touchZoneTap = touch.zoneTap -- 535
+	end -- 535
+	if touch.navUp then -- 535
+		input.navUp = true -- 536
+	end -- 536
+	if touch.navDown then -- 536
+		input.navDown = true -- 537
+	end -- 537
+	if touch.navLeft then -- 537
+		input.navLeft = true -- 538
+	end -- 538
+	if touch.navRight then -- 538
+		input.navRight = true -- 539
+	end -- 539
+	if touch.navConfirm then -- 539
+		input.navConfirm = true -- 541
+		input.craftConfirm = true -- 542
+	end -- 542
+	if touch.navBack then -- 542
+		input.navBack = true -- 545
+		input.craftCancel = true -- 546
+	end -- 546
+	if touch.bottleCanceled then -- 546
+		input.bottleCanceled = true -- 549
+		input.aim.held = false -- 550
+		input.aim.pressed = false -- 551
+		input.aim.released = false -- 552
+	end -- 552
+	if not suppressMouse and input.inputMode == "kbm" and (input.aim.held or input.fire.held) and kbm.mouseRightPressed then -- 552
+		input.bottleCanceled = true -- 556
+	end -- 556
+	input:applyPickRoom(kbm.pick) -- 559
+	input.frameInteractPressed = input.interact.pressed -- 560
+	if touch.uiHeld or touch.uiPressed or touch.uiReleased or touch.uiInside then -- 560
+		input.uiX = touch.uiX -- 563
+		input.uiY = touch.uiY -- 564
+		input.uiDx = touch.uiDx -- 565
+		input.uiDy = touch.uiDy -- 566
+		input.uiInside = touch.uiInside -- 567
+		input.uiHeld = touch.uiHeld -- 568
+		input.uiPressed = touch.uiPressed -- 569
+		input.uiReleased = touch.uiReleased -- 570
+		input.uiRightPressed = false -- 571
+		if touch.uiHeld or touch.uiPressed then -- 571
+			input.mdx = touch.uiDx -- 573
+			input.mdy = touch.uiDy -- 574
+			input.mx = touch.uiX -- 575
+			input.my = touch.uiY -- 576
+			input.inside = true -- 577
+		elseif touch.hasAim then -- 577
+			input.mdx = touch.aimX - input.mx -- 579
+			input.mdy = touch.aimY - input.my -- 580
+			input.mx = touch.aimX -- 581
+			input.my = touch.aimY -- 582
+			input.inside = true -- 583
+		else -- 583
+			input.mdx = 0 -- 585
+			input.mdy = 0 -- 586
+			input.inside = touch.uiInside -- 587
+		end -- 587
+		return -- 589
+	end -- 589
+	if input.inputMode == "gamepad" then -- 589
+		if gp.hasAim then -- 589
+			input.mdx = gp.aimX - input.mx -- 594
+			input.mdy = gp.aimY - input.my -- 595
+			input.mx = gp.aimX -- 596
+			input.my = gp.aimY -- 597
+			input.inside = true -- 598
+		else -- 598
+			input.mdx = 0 -- 600
+			input.mdy = 0 -- 601
+			input.inside = false -- 602
+		end -- 602
+		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 602
+			input.uiDx = kbm.mouseStageX - input.uiX -- 605
+			input.uiDy = kbm.mouseStageY - input.uiY -- 606
+			input.uiX = kbm.mouseStageX -- 607
+			input.uiY = kbm.mouseStageY -- 608
+			input.uiInside = true -- 609
+			input.uiHeld = kbm.mouseLeft -- 610
+			input.uiPressed = kbm.mouseLeftPressed -- 611
+			input.uiReleased = kbm.mouseLeftReleased -- 612
+			input.uiRightPressed = kbm.mouseRightPressed -- 613
+		else -- 613
+			input.uiX = input.mx -- 615
+			input.uiY = input.my -- 616
+			input.uiDx = 0 -- 617
+			input.uiDy = 0 -- 618
+			input.uiInside = false -- 619
+			input.uiHeld = false -- 620
+			input.uiPressed = false -- 621
+			input.uiReleased = false -- 622
+			input.uiRightPressed = false -- 623
+		end -- 623
+		return -- 625
+	end -- 625
+	if input.inputMode == "touch" then -- 625
+		if touch.hasAim then -- 625
+			input.mdx = touch.aimX - input.mx -- 630
+			input.mdy = touch.aimY - input.my -- 631
+			input.mx = touch.aimX -- 632
+			input.my = touch.aimY -- 633
+			input.inside = true -- 634
+		else -- 634
+			input.mdx = 0 -- 636
+			input.mdy = 0 -- 637
+			input.inside = false -- 638
+		end -- 638
+		if not suppressMouse and kbm.mouseInsideStage and (kbm.mouseLeft or kbm.mouseLeftPressed or kbm.mouseLeftReleased) then -- 638
+			input.uiDx = kbm.mouseStageX - input.uiX -- 641
+			input.uiDy = kbm.mouseStageY - input.uiY -- 642
+			input.uiX = kbm.mouseStageX -- 643
+			input.uiY = kbm.mouseStageY -- 644
+			input.uiInside = true -- 645
+			input.uiHeld = kbm.mouseLeft -- 646
+			input.uiPressed = kbm.mouseLeftPressed -- 647
+			input.uiReleased = kbm.mouseLeftReleased -- 648
+			input.uiRightPressed = kbm.mouseRightPressed -- 649
+		else -- 649
+			input.uiDx = 0 -- 651
+			input.uiDy = 0 -- 652
+			input.uiInside = false -- 653
+			input.uiHeld = false -- 654
+			input.uiPressed = false -- 655
+			input.uiReleased = false -- 656
+			input.uiRightPressed = false -- 657
+		end -- 657
+		return -- 659
+	end -- 659
+	input.mdx = kbm.mouseStageX - input.mx -- 662
+	input.mdy = kbm.mouseStageY - input.my -- 663
+	input.mx = kbm.mouseStageX -- 664
+	input.my = kbm.mouseStageY -- 665
+	input.inside = kbm.mouseInsideStage -- 666
+	input.uiX = kbm.mouseStageX -- 668
+	input.uiY = kbm.mouseStageY -- 669
+	input.uiDx = input.mdx -- 670
+	input.uiDy = input.mdy -- 671
+	input.uiInside = kbm.mouseInsideStage -- 672
+	input.uiHeld = not suppressMouse and kbm.mouseLeft and kbm.mouseInsideStage -- 673
+	input.uiPressed = not suppressMouse and kbm.mouseLeftPressed and kbm.mouseInsideStage -- 674
+	input.uiReleased = not suppressMouse and kbm.mouseLeftReleased -- 675
+	input.uiRightPressed = not suppressMouse and kbm.mouseRightPressed and kbm.mouseInsideStage -- 676
+end -- 414
+____exports.TARGET = { -- 680
+	id = "web", -- 681
+	supportsKbm = true, -- 682
+	supportsTouch = true, -- 683
+	supportsGamepad = true, -- 684
+	supportsPortrait = true, -- 685
+	defaultInputMode = "kbm", -- 686
+	supportedModes = {"kbm", "touch", "gamepad"}, -- 687
+	modePrefOrder = MODE_PREF_ORDER, -- 688
+	controlsGuideTabs = {{mode = "kbm", label = "键鼠"}, {mode = "gamepad", label = "手柄"}, {mode = "touch", label = "触屏"}}, -- 689
+	getPlatformCaps = function(self) -- 695
+		local cfg = getReleaseConfig() -- 696
+		local ____temp_7 -- 709
+		if cfg ~= nil and cfg.isRelease ~= nil then -- 709
+			____temp_7 = cfg.isRelease == true -- 709
+		else -- 709
+			____temp_7 = true -- 709
+		end -- 709
+		return { -- 697
+			kind = "web", -- 698
+			target = "web", -- 699
+			isDesktop = false, -- 700
+			isMobile = false, -- 701
+			isWeb = true, -- 702
+			isStandaloneAndroidApk = false, -- 703
+			canToggleFullscreen = true, -- 704
+			canQuit = false, -- 705
+			hasBackButton = false, -- 706
+			supportsHaptics = false, -- 707
+			needsAudioUnlock = true, -- 708
+			isRelease = ____temp_7, -- 709
+			defaultInputMode = "kbm" -- 710
+		} -- 710
+	end, -- 695
+	canToggleFullscreen = function(self) -- 714
+		return true -- 715
+	end, -- 714
+	canQuitApp = function(self) -- 718
+		return false -- 719
+	end, -- 718
+	isReleaseMode = function(self) -- 722
+		local cfg = getReleaseConfig() -- 723
+		if cfg ~= nil and cfg.isRelease ~= nil then -- 723
+			return cfg.isRelease == true -- 725
+		end -- 725
+		return true -- 727
+	end, -- 722
+	computeStageViewport = function(self, fullW, fullH) -- 730
+		return computeAdaptiveViewport(fullW, fullH) -- 731
+	end, -- 730
+	triggerHaptics = function(self, seconds, enabled) -- 734
+		triggerMobileHaptics(seconds, enabled) -- 735
+	end, -- 734
+	keyTagFor = function(self, action, mode, layout) -- 738
+		return keyTagWeb(action, mode, layout) -- 739
+	end, -- 738
+	adaptWorldKeyTag = function(self, rawKeyTag, mode, _layout) -- 742
+		return adaptWorldKeyTagWeb(rawKeyTag, mode) -- 743
+	end, -- 742
+	adaptHintSentence = function(self, text, mode, layout) -- 746
+		return adaptHintSentenceWeb(text, mode, layout) -- 747
+	end, -- 746
+	controlsGuideRows = function(self, tab) -- 750
+		if tab == "gamepad" then -- 750
+			return GUIDE_GAMEPAD -- 751
+		end -- 751
+		if tab == "touch" then -- 751
+			return GUIDE_TOUCH -- 752
 		end -- 752
-		if mode == "gamepad" then -- 752
-			return keyTagWeb("confirm", "gamepad", layout) .. " / START  跳过" -- 753
-		end -- 753
-		return "ESC / SPACE  SKIP" -- 754
-	end, -- 751
-	titleFooterHint = function(self, mode, layout) -- 757
+		return GUIDE_KBM -- 753
+	end, -- 750
+	splashSkipHint = function(self, mode, layout) -- 756
+		if mode == "touch" then -- 756
+			return "轻触跳过" -- 757
+		end -- 757
 		if mode == "gamepad" then -- 757
-			return ("左摇杆 / 十字键择项   ·   " .. keyTagWeb("confirm", "gamepad", layout)) .. " 或点选启程" -- 759
-		end -- 759
-		if mode == "touch" then -- 759
-			return "轻触择项启程   ·   支持键鼠与手柄" -- 761
-		end -- 761
-		return "上下择项   ·   回车或点选启程" -- 762
-	end, -- 757
-	chapterFooterHint = function(self, mode, confirmTag) -- 765
-		if mode == "gamepad" then -- 765
-			return ("摇杆/十字键选择   ·   " .. confirmTag) .. " 或点选进入" -- 766
+			return keyTagWeb("confirm", "gamepad", layout) .. " / START  跳过" -- 758
+		end -- 758
+		return "ESC / SPACE  SKIP" -- 759
+	end, -- 756
+	titleFooterHint = function(self, mode, layout) -- 762
+		if mode == "gamepad" then -- 762
+			return ("左摇杆 / 十字键择项   ·   " .. keyTagWeb("confirm", "gamepad", layout)) .. " 或点选启程" -- 764
+		end -- 764
+		if mode == "touch" then -- 764
+			return "轻触择项启程   ·   支持键鼠与手柄" -- 766
 		end -- 766
-		if mode == "touch" then -- 766
-			return "轻触驿站预览   ·   再点或轻触入此卷章" -- 767
-		end -- 767
-		return "方向键选择   ·   回车或点击进入" -- 768
-	end, -- 765
-	pauseFooterHint = function(self, mode, layout) -- 771
-		if mode == "gamepad" then -- 771
-			return ((keyTagWeb("back", "gamepad", layout) .. " / START 续行   ·   ") .. keyTagWeb("confirm", "gamepad", layout)) .. " 确认" -- 773
-		end -- 773
-		if mode == "touch" then -- 773
-			return "轻触确认   ·   点「继续游戏」续行" -- 775
-		end -- 775
-		return "Esc 续行   ·   Enter 或点击确认" -- 776
-	end, -- 771
-	settingsFooterHint = function(self, mode, layout) -- 779
-		if mode == "gamepad" then -- 779
-			return ((("左右或 " .. keyTagWeb("confirm", "gamepad", layout)) .. " 切换   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回暂停" -- 781
-		end -- 781
-		if mode == "touch" then -- 781
-			return "轻触任意条目切换   ·   设置自动保存" -- 783
-		end -- 783
-		return "←/→ 或回车/点击切换   ·   Esc 返回暂停" -- 784
-	end, -- 779
-	controlsFooterRightHint = function(self, mode) -- 787
-		if mode == "gamepad" then -- 787
-			return "LB / RB 或左右切换键位图" -- 788
+		return "上下择项   ·   回车或点选启程" -- 767
+	end, -- 762
+	chapterFooterHint = function(self, mode, confirmTag) -- 770
+		if mode == "gamepad" then -- 770
+			return ("摇杆/十字键选择   ·   " .. confirmTag) .. " 或点选进入" -- 771
+		end -- 771
+		if mode == "touch" then -- 771
+			return "轻触驿站预览   ·   再点或轻触入此卷章" -- 772
+		end -- 772
+		return "方向键选择   ·   回车或点击进入" -- 773
+	end, -- 770
+	pauseFooterHint = function(self, mode, layout) -- 776
+		if mode == "gamepad" then -- 776
+			return ((keyTagWeb("back", "gamepad", layout) .. " / START 续行   ·   ") .. keyTagWeb("confirm", "gamepad", layout)) .. " 确认" -- 778
+		end -- 778
+		if mode == "touch" then -- 778
+			return "轻触确认   ·   点「继续游戏」续行" -- 780
+		end -- 780
+		return "Esc 续行   ·   Enter 或点击确认" -- 781
+	end, -- 776
+	settingsFooterHint = function(self, mode, layout) -- 784
+		if mode == "gamepad" then -- 784
+			return ((("左右或 " .. keyTagWeb("confirm", "gamepad", layout)) .. " 切换   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回暂停" -- 786
+		end -- 786
+		if mode == "touch" then -- 786
+			return "轻触任意条目切换   ·   设置自动保存" -- 788
 		end -- 788
-		if mode == "touch" then -- 788
-			return "轻触右上页签切图 · 暂歇菜单可调操控设置" -- 789
-		end -- 789
-		return "←/→ 切页   ·   F11 / Alt+Enter 全屏" -- 790
-	end, -- 787
-	epilogueFooterHint = function(self, mode, layout) -- 793
-		if mode == "gamepad" then -- 793
-			return ((keyTagWeb("confirm", "gamepad", layout) .. " 确认   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回标题" -- 795
-		end -- 795
-		if mode == "touch" then -- 795
-			return "轻触任一入口继续" -- 797
-		end -- 797
-		return "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题" -- 798
-	end, -- 793
-	settingsRows = function(self) -- 801
-		return WEB_SETTINGS_ROWS -- 802
-	end, -- 801
-	settingsPauseLabel = function(self, settings) -- 805
-		return "操控设置 · " .. modePrefLabelOf(settings.modePref) -- 806
-	end, -- 805
-	settingsHeaderTitle = function(self) -- 809
-		return "操控与声音" -- 810
-	end, -- 809
-	settingsHeaderSummary = function(self, activeMode) -- 813
-		return ("当前模式：" .. inputModeLabelOf(activeMode)) .. " · 操控与四通道音量实时生效" -- 814
-	end, -- 813
-	settingsValueText = function(self, rowId, settings, activeMode) -- 817
-		if rowId == "modePref" then -- 817
-			return settings.modePref == "auto" and ("自动切换（" .. inputModeLabelOf(activeMode)) .. "）" or "锁定 · " .. modePrefLabelOf(settings.modePref) -- 819
-		end -- 819
-		if rowId == "aimAssist" then -- 819
-			return settings.aimAssist and "开（触屏与手柄共用）" or "关" -- 823
-		end -- 823
-		if rowId == "gpLayout" then -- 823
-			return layoutLabelOf(settings.gamepadLayout) -- 824
+		return "←/→ 或回车/点击切换   ·   Esc 返回暂停" -- 789
+	end, -- 784
+	controlsFooterRightHint = function(self, mode) -- 792
+		if mode == "gamepad" then -- 792
+			return "LB / RB 或左右切换键位图" -- 793
+		end -- 793
+		if mode == "touch" then -- 793
+			return "轻触右上页签切图 · 暂歇菜单可调操控设置" -- 794
+		end -- 794
+		return "←/→ 切页   ·   F11 / Alt+Enter 全屏" -- 795
+	end, -- 792
+	epilogueFooterHint = function(self, mode, layout) -- 798
+		if mode == "gamepad" then -- 798
+			return ((keyTagWeb("confirm", "gamepad", layout) .. " 确认   ·   ") .. keyTagWeb("back", "gamepad", layout)) .. " 返回标题" -- 800
+		end -- 800
+		if mode == "touch" then -- 800
+			return "轻触任一入口继续" -- 802
+		end -- 802
+		return "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题" -- 803
+	end, -- 798
+	settingsRows = function(self) -- 806
+		return WEB_SETTINGS_ROWS -- 807
+	end, -- 806
+	settingsPauseLabel = function(self, settings) -- 810
+		return "操控设置 · " .. modePrefLabelOf(settings.modePref) -- 811
+	end, -- 810
+	settingsHeaderTitle = function(self) -- 814
+		return "操控与声音" -- 815
+	end, -- 814
+	settingsHeaderSummary = function(self, activeMode) -- 818
+		return ("当前模式：" .. inputModeLabelOf(activeMode)) .. " · 操控与四通道音量实时生效" -- 819
+	end, -- 818
+	settingsValueText = function(self, rowId, settings, activeMode) -- 822
+		if rowId == "modePref" then -- 822
+			return settings.modePref == "auto" and ("自动切换（" .. inputModeLabelOf(activeMode)) .. "）" or "锁定 · " .. modePrefLabelOf(settings.modePref) -- 824
 		end -- 824
-		if rowId == "crouchMode" then -- 824
-			return settings.crouchToggle and "点按切换" or "持续按住" -- 825
-		end -- 825
-		if rowId == "touchOpacity" then -- 825
-			return opacityLabelOf(settings.touchOpacity) -- 826
-		end -- 826
-		if rowId == "touchScale" then -- 826
-			return scaleLabelOf(settings.touchScale) -- 827
-		end -- 827
-		if rowId == "haptics" then -- 827
-			return settings.haptics and "开（仅移动端生效）" or "关" -- 828
+		if rowId == "aimAssist" then -- 824
+			return settings.aimAssist and "开（触屏与手柄共用）" or "关" -- 828
 		end -- 828
-		return volumeSettingText(rowId, settings) -- 829
-	end, -- 817
-	applySettingsDelta = function(self, rowId, delta, settings, input) -- 832
-		if rowId == "back" then -- 832
-			return "back" -- 833
+		if rowId == "gpLayout" then -- 828
+			return layoutLabelOf(settings.gamepadLayout) -- 829
+		end -- 829
+		if rowId == "crouchMode" then -- 829
+			return settings.crouchToggle and "点按切换" or "持续按住" -- 830
+		end -- 830
+		if rowId == "touchOpacity" then -- 830
+			return opacityLabelOf(settings.touchOpacity) -- 831
+		end -- 831
+		if rowId == "touchScale" then -- 831
+			return scaleLabelOf(settings.touchScale) -- 832
+		end -- 832
+		if rowId == "haptics" then -- 832
+			return settings.haptics and "开（仅移动端生效）" or "关" -- 833
 		end -- 833
-		if rowId == "modePref" then -- 833
-			input:cycleModePref(delta) -- 835
-			return "control" -- 836
-		end -- 836
-		if rowId == "aimAssist" then -- 836
-			settings.aimAssist = not settings.aimAssist -- 839
-			saveControlSettings(settings) -- 840
+		return volumeSettingText(rowId, settings) -- 834
+	end, -- 822
+	applySettingsDelta = function(self, rowId, delta, settings, input) -- 837
+		if rowId == "back" then -- 837
+			return "back" -- 838
+		end -- 838
+		if rowId == "modePref" then -- 838
+			input:cycleModePref(delta) -- 840
 			return "control" -- 841
 		end -- 841
-		if rowId == "gpLayout" then -- 841
-			settings.gamepadLayout = settings.gamepadLayout == "xbox" and "nintendo" or "xbox" -- 844
-			input.gamepadLayout = settings.gamepadLayout -- 845
-			saveControlSettings(settings) -- 846
-			return "control" -- 847
-		end -- 847
-		if rowId == "crouchMode" then -- 847
-			settings.crouchToggle = not settings.crouchToggle -- 850
+		if rowId == "aimAssist" then -- 841
+			settings.aimAssist = not settings.aimAssist -- 844
+			saveControlSettings(settings) -- 845
+			return "control" -- 846
+		end -- 846
+		if rowId == "gpLayout" then -- 846
+			settings.gamepadLayout = settings.gamepadLayout == "xbox" and "nintendo" or "xbox" -- 849
+			input.gamepadLayout = settings.gamepadLayout -- 850
 			saveControlSettings(settings) -- 851
 			return "control" -- 852
 		end -- 852
-		if rowId == "touchOpacity" then -- 852
-			settings.touchOpacity = nextStepValue(settings.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 855
+		if rowId == "crouchMode" then -- 852
+			settings.crouchToggle = not settings.crouchToggle -- 855
 			saveControlSettings(settings) -- 856
 			return "control" -- 857
 		end -- 857
-		if rowId == "touchScale" then -- 857
-			settings.touchScale = nextStepValue(settings.touchScale, TOUCH_SCALE_STEPS, delta) -- 860
+		if rowId == "touchOpacity" then -- 857
+			settings.touchOpacity = nextStepValue(settings.touchOpacity, TOUCH_OPACITY_STEPS, delta) -- 860
 			saveControlSettings(settings) -- 861
 			return "control" -- 862
 		end -- 862
-		if rowId == "haptics" then -- 862
-			settings.haptics = not settings.haptics -- 865
+		if rowId == "touchScale" then -- 862
+			settings.touchScale = nextStepValue(settings.touchScale, TOUCH_SCALE_STEPS, delta) -- 865
 			saveControlSettings(settings) -- 866
 			return "control" -- 867
 		end -- 867
-		if applyVolumeSetting(rowId, delta, settings) then -- 867
-			return "audio" -- 869
-		end -- 869
-		return "none" -- 870
-	end, -- 832
-	createDriver = function(self, settings) -- 873
-		return __TS__New(WebInputDriver, settings) -- 874
-	end -- 873
-} -- 873
-return ____exports -- 873
+		if rowId == "haptics" then -- 867
+			settings.haptics = not settings.haptics -- 870
+			saveControlSettings(settings) -- 871
+			return "control" -- 872
+		end -- 872
+		if applyVolumeSetting(rowId, delta, settings) then -- 872
+			return "audio" -- 874
+		end -- 874
+		return "none" -- 875
+	end, -- 837
+	createDriver = function(self, settings) -- 878
+		return __TS__New(WebInputDriver, settings) -- 879
+	end -- 878
+} -- 878
+return ____exports -- 878

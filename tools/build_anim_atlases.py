@@ -16,16 +16,14 @@
    - assets/art/actors_duo_anim.png/.clip
    - assets/art/actors_enemies_anim.png/.clip
    - assets/art/vfx_ming_fx.png/.clip
-5. 用全新手绘感高帧跑步/滑铲原画重新烘焙 5 套既有运动图集（100% 保持 verify-integration.lua
-   对 160 帧跑步、96 帧起停过渡、64 帧滑铲的精确网格与尺寸契约，彻底消除旧版刚体剪纸撕裂与鬼影）：
-   - assets/art/zhoushu-run.png / zhoushu-run-transition.png
-   - assets/art/xiaoman-run.png / xiaoman-run-transition.png
-   - assets/art/zhoushu-slide.png
+5. 从角色原画与关节参数重建各 160 张跑步帧、96 张起停帧和 64 张滑铲。
 6. 在 scratch 目录输出拼帧审验图，便于视觉逐帧质检。
 """
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from collections import deque
 from pathlib import Path
 from xml.etree import ElementTree as XML
@@ -349,35 +347,6 @@ def pack_clip_atlas(name: str, frames: dict[str, Image.Image], max_w: int = MAX_
     return atlas_w, atlas_h
 
 
-def fit_in_motion_cel(im: Image.Image, cel_size: tuple[int, int], lift_px: int = 0) -> Image.Image:
-    """将一帧完整放入固定尺寸运动图集格子（脚底贴齐底边、重心水平居中）。"""
-    cw, ch = cel_size
-    if im.width > cw - 2 or im.height > ch - 2:
-        ratio = min((cw - 2) / im.width, (ch - 2) / im.height)
-        im = im.resize((max(2, int(round(im.width * ratio))), max(2, int(round(im.height * ratio)))), Image.Resampling.LANCZOS)
-    cx = torso_center_x(im)
-    px = int(round(cw * 0.5 - cx))
-    px = max(0, min(cw - im.width, px))
-    py = max(0, min(ch - im.height, ch - im.height - lift_px))
-    canvas = Image.new("RGBA", (cw, ch))
-    canvas.alpha_composite(im, (px, py))
-    return canvas
-
-
-def save_motion_grid(name: str, frames: list[Image.Image], cel_size: tuple[int, int], cols: int) -> None:
-    w, h = cel_size
-    tw, th = w + 2 * GUTTER, h + 2 * GUTTER
-    rows = (len(frames) + cols - 1) // cols
-    atlas = Image.new("RGBA", (tw * cols, th * rows))
-    for i, fr in enumerate(frames):
-        px = (i % cols) * tw + GUTTER
-        py = (i // cols) * th + GUTTER
-        atlas.paste(fr, (px, py))
-    out_path = ART / f"{name}.png"
-    atlas.save(out_path, optimize=True)
-    print(f"  [MOTION] {name}.png ({atlas.size[0]}x{atlas.size[1]}, {len(frames)} cels, {out_path.stat().st_size // 1024}KB)")
-
-
 def make_pixel_leaf(variant: int) -> Image.Image:
     """生成 2 帧精致明代松叶/暗林飘叶像素精灵（无粗黑边，暗松青 + 浅玉青叶脉高光）。"""
     im = Image.new("RGBA", (14, 10), (0, 0, 0, 0))
@@ -393,29 +362,16 @@ def make_pixel_leaf(variant: int) -> Image.Image:
     return im
 
 
-def load_existing_hd_cel(clip_name: str) -> Image.Image:
-    """读取 actors-hd.clip 中已有原画帧（用于精准衔接起停过渡首尾）。"""
-    tree = XML.parse(ART / "actors-hd.clip")
-    hd = Image.open(ART / "actors-hd.png").convert("RGBA")
-    for el in tree.getroot().findall("B"):
-        if el.attrib.get("A") == clip_name:
-            x, y, w, h = (int(v) for v in el.attrib["B"].split(","))
-            return hd.crop((x, y, x + w, y + h))
-    raise KeyError(clip_name)
-
-
 def main() -> None:
     print("=== 开始构建《向西守望》高帧动画与暗黑像素特效图集 ===")
 
     # ------------------------------------------------------------------ 1. 周戍全套高帧动作
-    zs_run_raw = [chroma_key_magenta(c, keep_main_only=True) for c in split_grid_valleys(SRC / "zs_run_8f.jpg", 4, 2, inset=2)]
     zs_idle_jump_raw = [chroma_key_magenta(c, keep_main_only=True) for c in split_grid_valleys(SRC / "zs_idle_jump_8f.jpg", 4, 2, inset=2)]
     zs_combat_raw = [chroma_key_magenta(c, keep_main_only=True) for c in split_grid_valleys(SRC / "zs_combat_8f.jpg", 4, 2, inset=3)]
     zs_slide_push_raw = [chroma_key_magenta(c, keep_main_only=True) for c in split_grid_valleys(SRC / "zs_slide_push_8f.jpg", 4, 2, inset=2)]
 
     # 基准缩放：站立高度 = 198px（严格对齐 actors-hd.clip 的 soldier_idle = 198px）
     zs_idle_scale = 198.0 / max(1, zs_idle_jump_raw[0].height)
-    zs_run_scale = 194.0 / max(1, zs_run_raw[0].height)
     zs_combat_scale = 196.0 / max(1, zs_combat_raw[0].height)
     zs_slide_scale = 192.0 / max(1, zs_slide_push_raw[4].height)  # 以推车直立迈步为同图比例尺
 
@@ -449,67 +405,7 @@ def main() -> None:
 
     pack_clip_atlas("actors_zhoushu_anim", zs_frames)
 
-    # ------------------------------------------------------------------ 2. 重烘焙周戍运动图集（160 跑步 / 96 起停 / 64 滑铲）
-    zs_run_cels = [fit_in_motion_cel(normalize_character_cel(c, zs_run_scale, 196), (180, 200)) for c in zs_run_raw]
-    # 160 帧循环：按 8 个真实手绘关键相位均匀分布，配以微幅真实重心起伏（0/1/2px 像素对齐，零鬼影、零刚体撕裂！）
-    run_bounce = (0, 0, 1, 3, 0, 0, 1, 3)
-    zs_run_160: list[Image.Image] = []
-    for idx in range(160):
-        key_idx = (idx * 8) // 160
-        sub_t = ((idx * 8) % 160) / 160.0
-        extra_lift = 1 if (key_idx in (3, 7) and 0.25 <= sub_t <= 0.75) else 0
-        zs_run_160.append(fit_in_motion_cel(zs_run_raw[key_idx].resize(
-            (max(2, int(round(zs_run_raw[key_idx].width * zs_run_scale))),
-             max(2, int(round(zs_run_raw[key_idx].height * zs_run_scale)))),
-            Image.Resampling.LANCZOS,
-        ), (180, 200), lift_px=run_bounce[key_idx] + extra_lift))
-    save_motion_grid("zhoushu-run", zs_run_160, (180, 200), cols=10)
-
-    # 96 帧起停过渡（12 档 effort × 8 步相）：低档平稳走过 idle→警觉前倾→低蹬起步→正式步相，彻底消除轮廓闪变
-    zs_hd_idle = load_existing_hd_cel("soldier_idle")
-    zs_idle_stand = fit_in_motion_cel(zs_hd_idle, (180, 200))
-    zs_lean = fit_in_motion_cel(zs_idle_jump_raw[2].resize(
-        (int(round(zs_idle_jump_raw[2].width * zs_idle_scale)), int(round(zs_idle_jump_raw[2].height * zs_idle_scale))),
-        Image.Resampling.LANCZOS,
-    ), (180, 200))
-    zs_brake = fit_in_motion_cel(zs_slide_push_raw[3].resize(
-        (int(round(zs_slide_push_raw[3].width * zs_slide_scale)), int(round(zs_slide_push_raw[3].height * zs_slide_scale))),
-        Image.Resampling.LANCZOS,
-    ), (180, 200))
-    zs_trans_96: list[Image.Image] = []
-    for level in range(12):
-        for phase in range(8):
-            if level <= 2:
-                zs_trans_96.append(zs_idle_stand)
-            elif level <= 5:
-                zs_trans_96.append(zs_lean)
-            elif level <= 7:
-                zs_trans_96.append(zs_brake)
-            else:
-                zs_trans_96.append(zs_run_cels[phase])
-    save_motion_grid("zhoushu-run-transition", zs_trans_96, (180, 200), cols=8)
-
-    # 64 帧滑铲：非线性爆发节奏（切入 9 帧 → 压低疾滑 27 帧 → 收腿蓄势 14 帧 → 蹬地起身 11 帧 → 回站 3 帧）
-    zs_slide_idle = fit_in_motion_cel(zs_hd_idle, (300, 198))
-    zs_slide_64: list[Image.Image] = []
-    for idx in range(64):
-        u = idx / 63.0
-        if u < 0.04:
-            zs_slide_64.append(zs_slide_idle)
-        elif u < 0.18:
-            zs_slide_64.append(zs_slide_cels[0])
-        elif u < 0.60:
-            zs_slide_64.append(zs_slide_cels[1])
-        elif u < 0.80:
-            zs_slide_64.append(zs_slide_cels[2])
-        elif u < 0.95:
-            zs_slide_64.append(zs_slide_cels[3])
-        else:
-            zs_slide_64.append(zs_slide_idle)
-    save_motion_grid("zhoushu-slide", zs_slide_64, (300, 198), cols=8)
-
     # ------------------------------------------------------------------ 3. 小满全套高帧动作
-    xm_run_raw = [chroma_key_magenta(c, keep_main_only=True) for c in split_grid_valleys(SRC / "xm_run_8f.jpg", 4, 2, inset=2)]
     xm_idle_jump_raw = [chroma_key_magenta(c, keep_main_only=True) for c in split_grid_valleys(SRC / "xm_idle_jump_8f.jpg", 4, 2, inset=2)]
     xm_stealth_cells = split_grid_valleys(SRC / "xm_stealth_action_8f.jpg", 4, 2, inset=2)
     xm_stealth_raw = [
@@ -518,7 +414,6 @@ def main() -> None:
     ]
 
     xm_idle_scale = 144.0 / max(1, xm_idle_jump_raw[0].height)
-    xm_run_scale = 142.0 / max(1, xm_run_raw[0].height)
     xm_stealth_scale = 142.0 / max(1, xm_stealth_raw[4].height)  # R2C1 站姿拉车作为基准尺
 
     xm_frames: dict[str, Image.Image] = {}
@@ -538,37 +433,6 @@ def main() -> None:
 
     pack_clip_atlas("actors_xiaoman_anim", xm_frames)
 
-    # 重烘焙小满运动图集（160 帧跑步 / 96 帧起停）
-    xm_run_cels = [fit_in_motion_cel(normalize_character_cel(c, xm_run_scale, 144), (144, 164)) for c in xm_run_raw]
-    xm_run_160: list[Image.Image] = []
-    for idx in range(160):
-        key_idx = (idx * 8) // 160
-        sub_t = ((idx * 8) % 160) / 160.0
-        extra_lift = 1 if (key_idx in (3, 7) and 0.25 <= sub_t <= 0.75) else 0
-        xm_run_160.append(fit_in_motion_cel(xm_run_raw[key_idx].resize(
-            (max(2, int(round(xm_run_raw[key_idx].width * xm_run_scale))),
-             max(2, int(round(xm_run_raw[key_idx].height * xm_run_scale)))),
-            Image.Resampling.LANCZOS,
-        ), (144, 164), lift_px=run_bounce[key_idx] + extra_lift))
-    save_motion_grid("xiaoman-run", xm_run_160, (144, 164), cols=10)
-
-    xm_hd_idle = load_existing_hd_cel("child_idle")
-    xm_idle_stand = fit_in_motion_cel(xm_hd_idle, (144, 164))
-    xm_lean = fit_in_motion_cel(xm_idle_jump_raw[4].resize(
-        (int(round(xm_idle_jump_raw[4].width * xm_idle_scale)), int(round(xm_idle_jump_raw[4].height * xm_idle_scale))),
-        Image.Resampling.LANCZOS,
-    ), (144, 164))
-    xm_trans_96: list[Image.Image] = []
-    for level in range(12):
-        for phase in range(8):
-            if level <= 2:
-                xm_trans_96.append(xm_idle_stand)
-            elif level <= 6:
-                xm_trans_96.append(xm_lean)
-            else:
-                xm_trans_96.append(xm_run_cels[phase])
-    save_motion_grid("xiaoman-run-transition", xm_trans_96, (144, 164), cols=8)
-
     # ------------------------------------------------------------------ 4. 兄妹合体全高帧（正统精像素风）
     duo_run_raw = [chroma_key_magenta(c) for c in split_grid(SRC / "duo_carry_run_8f.jpg", 4, 2, inset=4)]
     duo_idle_fire_raw = [chroma_key_magenta(c) for c in split_grid(SRC / "duo_carry_idle_fire_8f.jpg", 4, 2, inset=4)]
@@ -580,8 +444,9 @@ def main() -> None:
     duo_mount_scale = 208.0 / max(1, duo_hand_mount_raw[7].height)  # R2C4 站稳高度作为基准
 
     duo_frames: dict[str, Image.Image] = {}
-    for i in range(8):
-        duo_frames[f"duo_carry_run_{i}"] = normalize_character_cel(duo_run_raw[i], duo_run_scale, 210, foot_lift=run_bounce[i])
+    duo_run_bounce = (0, 0, 1, 3, 0, 0, 1, 3)
+    for i, foot_lift in enumerate(duo_run_bounce):
+        duo_frames[f"duo_carry_run_{i}"] = normalize_character_cel(duo_run_raw[i], duo_run_scale, 210, foot_lift=foot_lift)
     for i in range(4):
         duo_frames[f"duo_carry_idle_{i}"] = normalize_character_cel(duo_idle_fire_raw[i], duo_idle_scale, 210)
         duo_frames[f"duo_carry_fire_{i}"] = normalize_character_cel(duo_idle_fire_raw[4 + i], duo_idle_scale, 210, center_ratio=0.38)
@@ -597,6 +462,8 @@ def main() -> None:
     guard_raw = [chroma_key_magenta(c) for c in split_grid(SRC / "tower_guard_anim_8f.jpg", 4, 2, inset=4)]
 
     gun_scale = 192.0 / max(1, gunner_raw[0].height)
+    gun_aim_scale = 192.0 / max(1, gunner_raw[4].height)
+    gun_fire_scale = 192.0 / max(1, gunner_raw[5].height)
     shd_scale = 188.0 / max(1, elites_raw[0].height)
     brk_scale = 192.0 / max(1, elites_raw[4].height)
     ldr_scale = 196.0 / max(1, elites_raw[8].height)
@@ -605,13 +472,13 @@ def main() -> None:
     guard_scale = 190.0 / max(1, guard_raw[0].height)
 
     enemy_frames: dict[str, Image.Image] = {
-        # 普通倭寇火器手
+        # 普通倭寇火器手：站姿、举铳和开火的帽顶对齐，切换时不突然矮一截。
         "en_gun_idle_0": normalize_character_cel(gunner_raw[0], gun_scale, 196),
         "en_gun_idle_1": normalize_character_cel(gunner_raw[1], gun_scale, 196),
         "en_gun_walk_0": normalize_character_cel(gunner_raw[2], gun_scale, 196),
         "en_gun_walk_1": normalize_character_cel(gunner_raw[3], gun_scale, 196),
-        "en_gun_aim": normalize_character_cel(gunner_raw[4], gun_scale, 196, center_ratio=0.36),
-        "en_gun_fire": normalize_character_cel(gunner_raw[5], gun_scale, 196, center_ratio=0.38),
+        "en_gun_aim": normalize_character_cel(gunner_raw[4], gun_aim_scale, 196, center_ratio=0.36),
+        "en_gun_fire": normalize_character_cel(gunner_raw[5], gun_fire_scale, 196, center_ratio=0.38),
         "en_gun_hit": normalize_character_cel(gunner_raw[6], gun_scale, 196),
         "en_gun_down": normalize_character_cel(gunner_raw[7], gun_scale, 196),
         # 精英 1：藤盾手
@@ -707,6 +574,7 @@ def main() -> None:
     }
     pack_clip_atlas("vfx_ming_fx", vfx_frames)
 
+    subprocess.run([sys.executable, str(CHAR_SRC / "build.py")], check=True)
     print("=== 全部图集构建完成！ ===")
 
 

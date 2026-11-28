@@ -99,7 +99,7 @@ export function defaultControlSettings(): ControlSettings {
         winWidth: 0,
         winHeight: 0,
         muted: false,
-        assistHints: false,
+        assistHints: true,
     };
 }
 
@@ -320,28 +320,45 @@ export function volumeLabelOf(vol: number): string {
     return pct <= 0 ? "静音" : (pct + "%");
 }
 
+export function nextClampedStepValue(cur: number, steps: number[], delta: number = 1): number {
+    let bestIdx = 0;
+    let bestDist = 999;
+    let i = 0;
+    for (i = 0; i < steps.length; i++) {
+        const d = Math.abs(steps[i] - cur);
+        if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+        }
+    }
+    const clamped = Math.max(0, Math.min(steps.length - 1, bestIdx + delta));
+    return steps[clamped];
+}
+
 export function applyVolumeSetting(
     rowId: string,
     delta: number,
     s: ControlSettings,
+    wrap: boolean = false,
 ): boolean {
+    const stepFn = wrap ? nextStepValue : nextClampedStepValue;
     if (rowId === "masterVol") {
-        s.masterVol = nextStepValue(s.masterVol, VOLUME_STEPS, delta);
+        s.masterVol = stepFn(s.masterVol, VOLUME_STEPS, delta);
         saveControlSettings(s);
         return true;
     }
     if (rowId === "bgmVol") {
-        s.bgmVol = nextStepValue(s.bgmVol, VOLUME_STEPS, delta);
+        s.bgmVol = stepFn(s.bgmVol, VOLUME_STEPS, delta);
         saveControlSettings(s);
         return true;
     }
     if (rowId === "sfxVol") {
-        s.sfxVol = nextStepValue(s.sfxVol, VOLUME_STEPS, delta);
+        s.sfxVol = stepFn(s.sfxVol, VOLUME_STEPS, delta);
         saveControlSettings(s);
         return true;
     }
     if (rowId === "voiceVol") {
-        s.voiceVol = nextStepValue(s.voiceVol, VOLUME_STEPS, delta);
+        s.voiceVol = stepFn(s.voiceVol, VOLUME_STEPS, delta);
         saveControlSettings(s);
         return true;
     }

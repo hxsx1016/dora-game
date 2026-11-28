@@ -206,11 +206,15 @@ do
 	pV.player.x = 332
 	inp.crouch.held = true
 	stepFrames(pV, inp, fe, 2)
-	local basinPt = fe.cam:worldToScreen(548, 0, pV.player.depth)
-	inp.mx, inp.my = basinPt.x, basinPt.y
-	pV.aimX, pV.aimY = basinPt.x, basinPt.y
+	local basin = fe.xiaoman3d.entities.basin
+	local rimY = basin:getWorldBoundsMax().y * 100
 	inp.aim.held = true
-	stepFrames(pV, inp, fe, 12)
+	for _ = 1, 12 do
+		local pt = fe.cam:worldToScreen(basin.x * 100, rimY, -basin.z * 100)
+		inp.mx, inp.my = pt.x, pt.y
+		pV.aimX, pV.aimY = inp.mx, inp.my
+		stepFrames(pV, inp, fe, 1)
+	end
 	local stAim = fe.xiaoman3d:getDebugState()
 	inp.aim.held = false
 	inp.aim.released = true
