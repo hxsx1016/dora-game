@@ -1,8 +1,8 @@
 /**
- * 《向西守望》统一配置持久化（watch-save/controls.txt）。
+ * 《向西守望》统一配置持久化（便携版 saves/settings.ini，常规端 watch-save/controls.txt）。
  *
  * 保持与旧版 controls.txt / touch.txt / gamepad.txt 的完全兼容，
- * 各端只向玩家展示与修改本端支持的设置项，落盘时保留全部字段防跨端覆盖丢失。
+ * 各端只向玩家展示与修改本端支持的设置项，落盘时采用 .tmp 回读校验原子替换并保留全部字段防跨端覆盖丢失。
  */
 
 import { Content } from "Dora";
@@ -14,6 +14,7 @@ import {
     TOUCH_OPACITY_STEPS,
     TOUCH_SCALE_STEPS,
     VOLUME_STEPS,
+    getReleaseConfig,
 } from "Script/watch/target_types";
 
 export {
@@ -29,17 +30,26 @@ export {
 export const MODE_PREF_ORDER: InputModePref[] = ["auto", "kbm", "touch", "gamepad"];
 
 const DEFAULT_CONTROLS_FILE = "watch-save/controls.txt";
+const PORTABLE_SETTINGS_FILE = "settings.ini";
 const LEGACY_TOUCH_FILE = "watch-save/touch.txt";
 const LEGACY_GAMEPAD_FILE = "watch-save/gamepad.txt";
 
 let customControlsFile = "";
+
+function isPortableLayout(): boolean {
+    const cfg = getReleaseConfig();
+    return cfg !== undefined && cfg.saveLayout === "portable";
+}
 
 export function setControlSettingsFile(path: string): void {
     customControlsFile = path;
 }
 
 export function getControlSettingsFile(): string {
-    return customControlsFile !== "" ? customControlsFile : DEFAULT_CONTROLS_FILE;
+    if (customControlsFile !== "") {
+        return customControlsFile;
+    }
+    return isPortableLayout() ? PORTABLE_SETTINGS_FILE : DEFAULT_CONTROLS_FILE;
 }
 
 function isAbsolutePath(p: string): boolean {
@@ -85,6 +95,11 @@ export function defaultControlSettings(): ControlSettings {
         bgmVol: 0.8,
         sfxVol: 0.9,
         voiceVol: 1.0,
+        fullscreen: false,
+        winWidth: 0,
+        winHeight: 0,
+        muted: false,
+        assistHints: false,
     };
 }
 
@@ -93,10 +108,11 @@ function applyKvLines(raw: string, out: ControlSettings): void {
     let i = 0;
     for (i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
+        if (line === "" || line.charAt(0) === "#" || line.charAt(0) === ";") continue;
         const eq = line.indexOf("=");
         if (eq <= 0) continue;
-        const k = line.slice(0, eq);
-        const v = line.slice(eq + 1);
+        const k = line.slice(0, eq).trim();
+        const v = line.slice(eq + 1).trim();
         if (k === "modePref") {
             if (v === "auto" || v === "kbm" || v === "touch" || v === "gamepad") {
                 out.modePref = v;
@@ -133,6 +149,18 @@ function applyKvLines(raw: string, out: ControlSettings): void {
         } else if (k === "voiceVol") {
             const n = Number(v);
             if (n >= 0 && n <= 1) out.voiceVol = n;
+        } else if (k === "fullscreen") {
+            out.fullscreen = v === "1" || v === "true";
+        } else if (k === "winWidth") {
+            const n = Math.round(Number(v));
+            if (n >= 640 && n <= 7680) out.winWidth = n;
+        } else if (k === "winHeight") {
+            const n = Math.round(Number(v));
+            if (n >= 360 && n <= 4320) out.winHeight = n;
+        } else if (k === "muted") {
+            out.muted = v === "1" || v === "true";
+        } else if (k === "assistHints") {
+            out.assistHints = v === "1" || v === "true";
         }
     }
 }
@@ -148,7 +176,25 @@ export function loadControlSettings(): ControlSettings {
             }
             return out;
         }
+        const tmpPath = mainPath + ".tmp";
+        if (Content.exist(tmpPath)) {
+            const raw = Content.load(tmpPath);
+            if (raw !== undefined && raw !== "") {
+                applyKvLines(raw, out);
+                return out;
+            }
+        }
         if (customControlsFile === "") {
+            if (isPortableLayout()) {
+                const legacyControls = resolvePath(DEFAULT_CONTROLS_FILE);
+                if (Content.exist(legacyControls)) {
+                    const raw = Content.load(legacyControls);
+                    if (raw !== undefined && raw !== "") {
+                        applyKvLines(raw, out);
+                        return out;
+                    }
+                }
+            }
             const legacyTouch = resolvePath(LEGACY_TOUCH_FILE);
             if (Content.exist(legacyTouch)) {
                 const raw = Content.load(legacyTouch);
@@ -190,7 +236,23 @@ export function saveControlSettings(s: ControlSettings): void {
             + "masterVol=" + s.masterVol.toFixed(2) + "\n"
             + "bgmVol=" + s.bgmVol.toFixed(2) + "\n"
             + "sfxVol=" + s.sfxVol.toFixed(2) + "\n"
-            + "voiceVol=" + s.voiceVol.toFixed(2) + "\n";
+            + "voiceVol=" + s.voiceVol.toFixed(2) + "\n"
+            + "fullscreen=" + (s.fullscreen ? "1" : "0") + "\n"
+            + "winWidth=" + Math.round(s.winWidth) + "\n"
+            + "winHeight=" + Math.round(s.winHeight) + "\n"
+            + "muted=" + (s.muted ? "1" : "0") + "\n"
+            + "assistHints=" + (s.assistHints ? "1" : "0") + "\n";
+        const tmp = target + ".tmp";
+        if (Content.save(tmp, text)) {
+            const readBack = Content.load(tmp);
+            if (readBack !== undefined && readBack.split("\r\n").join("\n") === text) {
+                if (Content.copy(tmp, target)) {
+                    Content.remove(tmp);
+                    return;
+                }
+            }
+            Content.remove(tmp);
+        }
         Content.save(target, text);
     } catch {
         // 只读环境下静默忽略落盘失败

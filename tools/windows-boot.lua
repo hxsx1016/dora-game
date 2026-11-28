@@ -1,9 +1,11 @@
--- 《向西守望》Windows 便携发行包启动引导
+-- 《向西守望》Windows 便携发行包启动引导（位于 runtime/Script/init.lua）
 --
--- 1. 启用独立发行模式：关闭 devMode（确保退出游戏真实关闭进程），注入 watch.release 禁用开发调试跳关热键；
--- 2. 存档策略：默认使用 dora-game-id 提供的隔离用户目录；若包根存在 save/ 目录则切为纯绿色便携存档；
--- 3. 锁定资源搜索路径（Script -> Script/Lib -> 语言包 -> 资源根），再加载 TSTL 编译入口 Script.main；
--- 4. 若存在仅由 CI 临时创建的 .ci-smoke-test 标记文件，则在真实拉起标题页后执行冷启动自检并正常退出。
+-- 1. 启用独立发行模式：关闭 devMode 与 Web IDE，注入 watch.release 禁用开发调试跳关热键；
+-- 2. 默认便携存档：将 Content.writablePath 定向至 <游戏根目录>/saves/（采用常规单机结构：
+--    profile.sav / autosave.sav / slots/slot_1..3.sav / settings.ini / backups/ / logs/），
+--    首次启动自动平滑迁移旧版 save/watch-save 或 %APPDATA% 存档；若游戏目录只读则自动安全降级至用户目录；
+-- 3. 锁定最小资源搜索路径（Script -> Script/Lib -> runtime 根），用 xpcall 保护主入口并在启动崩溃时导出 logs/crash.log；
+-- 4. 若存在仅由 CI 临时创建的 .ci-smoke-test 标记文件，则在真实拉起标题页后执行冷启动与存档/降级自检并正常退出。
 
 local _ENV = Dora
 
@@ -19,8 +21,17 @@ pcall(function()
 	App.webIDEEnabled = false
 end)
 
+local assetRoot = Content.assetPath
+local gameRoot = assetRoot
+if Path:getFilename(assetRoot):lower() == "runtime" then
+	local parent = Path:getPath(assetRoot)
+	if parent and parent ~= "" then
+		gameRoot = parent
+	end
+end
+
 local version = "release"
-local versionFile = Path(Content.assetPath, "VERSION.txt")
+local versionFile = Path(assetRoot, "VERSION.txt")
 if Content:exist(versionFile) then
 	local raw = Content:load(versionFile)
 	if raw and raw ~= "" then
@@ -31,12 +42,81 @@ if Content:exist(versionFile) then
 	end
 end
 
--- 可选纯绿色便携存档：在可执行文件同目录建立 save/ 文件夹即把存档写入该目录。
+local function probeWritableDir(dir)
+	if not Content:exist(dir) then
+		Content:mkdir(dir)
+	end
+	if not Content:isdir(dir) then
+		return false
+	end
+	local probe = Path(dir, "._rw_probe.tmp")
+	local wrote = Content:save(probe, "ok\n")
+	local readBack = wrote and Content:load(probe) or ""
+	pcall(function()
+		Content:remove(probe)
+	end)
+	return wrote == true and readBack:find("ok", 1, true) ~= nil
+end
+
+local function copyIfMissing(src, dst)
+	if not Content:exist(src) or Content:exist(dst) then
+		return false
+	end
+	local dstParent = Path:getPath(dst)
+	if dstParent and dstParent ~= "" and not Content:exist(dstParent) then
+		Content:mkdir(dstParent)
+	end
+	return Content:copy(src, dst) == true
+end
+
+-- 默认便携存档目录：<游戏根目录>/saves/；若目录不可写（如 Program Files / 只读介质），自动降级至系统用户目录。
+local portableSavesDir = Path(gameRoot, "saves")
 local portableSave = false
-local portableDir = Path(Content.assetPath, "save")
-if Content:exist(portableDir) and Content:isdir(portableDir) then
-	Content.writablePath = portableDir
+local saveFallbackReason = ""
+local migratedFrom = ""
+
+if probeWritableDir(portableSavesDir) then
+	Content.writablePath = portableSavesDir
 	portableSave = true
+	Content:mkdir(Path(portableSavesDir, "slots"))
+	Content:mkdir(Path(portableSavesDir, "backups"))
+	Content:mkdir(Path(portableSavesDir, "logs"))
+
+	-- 旧存档平滑迁移（只复制不删除旧件）：优先旧便携目录 save/watch-save，其次旧 C 盘 %APPDATA% 隔离目录
+	local hasAnyNew = Content:exist(Path(portableSavesDir, "profile.sav"))
+		or Content:exist(Path(portableSavesDir, "autosave.sav"))
+		or Content:exist(Path(portableSavesDir, "settings.ini"))
+	if not hasAnyNew then
+		local legacySources = {
+			{ label = "save", dir = Path(gameRoot, "save", "watch-save") },
+			{ label = "appdata", dir = Path(Content.appPath, "watch-save") },
+		}
+		for _, src in ipairs(legacySources) do
+			if Content:exist(src.dir) and Content:isdir(src.dir) then
+				local moved = false
+				moved = copyIfMissing(Path(src.dir, "archive.txt"), Path(portableSavesDir, "profile.sav")) or moved
+				moved = copyIfMissing(Path(src.dir, "session.txt"), Path(portableSavesDir, "autosave.sav")) or moved
+				moved = copyIfMissing(Path(src.dir, "controls.txt"), Path(portableSavesDir, "settings.ini")) or moved
+				if moved then
+					migratedFrom = src.label
+					break
+				end
+			end
+		end
+	end
+else
+	-- 只读回退：仍采用干净的便携文件结构落在 Content.appPath/saves 下，避免双层 watch-save 嵌套
+	local fallbackDir = Path(Content.appPath, "saves")
+	if probeWritableDir(fallbackDir) then
+		Content.writablePath = fallbackDir
+	else
+		Content.writablePath = Content.appPath
+	end
+	Content:mkdir(Path(Content.writablePath, "slots"))
+	Content:mkdir(Path(Content.writablePath, "backups"))
+	Content:mkdir(Path(Content.writablePath, "logs"))
+	portableSave = false
+	saveFallbackReason = "readonly"
 end
 
 package.loaded["watch.target"] = "windows"
@@ -45,29 +125,56 @@ package.loaded["watch.release"] = {
 	version = version,
 	target = "windows",
 	portableSave = portableSave,
+	saveLayout = "portable",
+	saveFallbackReason = saveFallbackReason,
+	migratedFrom = migratedFrom,
+	gameRoot = gameRoot,
 }
 
 Content.searchPaths = {
-	Path(Content.assetPath, "Script"),
-	Path(Content.assetPath, "Script", "Lib"),
-	Path(Content.assetPath, "Script", "Lib", "Dora", App.locale:match("^zh") and "zh-Hans" or "en"),
-	Content.assetPath,
+	Path(assetRoot, "Script"),
+	Path(assetRoot, "Script", "Lib"),
+	assetRoot,
 }
 
-require("Script.main")
+local bootOk, bootErr = xpcall(function()
+	require("Script.main")
+end, debug.traceback)
+
+if not bootOk then
+	local logsDir = Path(Content.writablePath, "logs")
+	Content:mkdir(logsDir)
+	local crashPath = Path(logsDir, "crash.log")
+	pcall(function()
+		App:saveLog(Path(logsDir, "engine.log"))
+	end)
+	pcall(function()
+		Content:save(crashPath, "WestwardWatch boot error (" .. tostring(version) .. "):\n" .. tostring(bootErr) .. "\n")
+	end)
+	error(bootErr, 0)
+end
 
 -- CI 自动化冷启动冒烟钩子（正式发行包中不包含 .ci-smoke-test 文件，对玩家零影响）
-local smokeFlag = Path(Content.assetPath, ".ci-smoke-test")
+local smokeFlag = Path(gameRoot, ".ci-smoke-test")
+if not Content:exist(smokeFlag) then
+	smokeFlag = Path(assetRoot, ".ci-smoke-test")
+end
 if Content:exist(smokeFlag) then
 	thread(function()
 		sleep(1.5)
 		local hook = package.loaded["watch.fe"]
+		local saveMod = require("Script.watch.save")
+		local ctrlMod = require("Script.watch.controls_config")
 		local ok = true
 		local lines = {
 			"version=" .. tostring(version),
 			"platform=" .. tostring(App.platform),
 			"target=" .. tostring(hook ~= nil and hook.getTargetId() or "unknown"),
 			"portableSave=" .. tostring(portableSave),
+			"saveFallbackReason=" .. tostring(saveFallbackReason),
+			"migratedFrom=" .. tostring(migratedFrom),
+			"writablePath=" .. tostring(Content.writablePath),
+			"gameRoot=" .. tostring(gameRoot),
 		}
 		local function assertCheck(name, cond)
 			if cond then
@@ -85,7 +192,11 @@ if Content:exist(smokeFlag) then
 		assertCheck("stripped gamepad_core.lua", not Content:exist("Script/watch/input/gamepad_core.lua"))
 		assertCheck("stripped aim_assist.lua", not Content:exist("Script/watch/input/aim_assist.lua"))
 		assertCheck("stripped gamecontrollerdb.txt", not Content:exist("gamecontrollerdb.txt"))
-		assertCheck("root LICENSE exists", Content:exist("LICENSE"))
+		assertCheck("stripped Dora Agent lib", not Content:exist(Path(assetRoot, "Script", "Lib", "Agent")))
+		assertCheck("stripped Dora sarasa font", not Content:exist(Path(assetRoot, "Font", "sarasa-mono-sc-regular.ttf")))
+		assertCheck("stripped Dora default logo", not Content:exist(Path(assetRoot, "Image", "logo.png")))
+		assertCheck("root LICENSE exists", Content:exist(Path(gameRoot, "LICENSE")))
+		assertCheck("root cmd script removed", not Content:exist(Path(gameRoot, "启动-向西守望.cmd")))
 		assertCheck("dialogues module loads", pcall(require, "Script.watch.dialogues") == true)
 		assertCheck("title backdrop exists", Content:exist("assets/art/title.png"))
 		assertCheck("brand game logo exists", Content:exist("assets/art/brand/game_logo_h.png"))
@@ -96,16 +207,35 @@ if Content:exist(smokeFlag) then
 		assertCheck("combat shot wav exists", Content:exist("assets/audio/combat/shot.wav"))
 		assertCheck("prologue wav exists", Content:exist("assets/audio/prologue/night_distant_fire.wav"))
 		assertCheck("sfx knock wav exists", Content:exist("assets/audio/sfx/knock.wav"))
-		-- 真写盘回读自检（验证默认隔离目录或绿色 save/ 目录真实可写）
-		local saveDir = Path(Content.writablePath, "watch-save")
-		Content:mkdir(saveDir)
-		local probePath = Path(saveDir, "_ci_smoke_rw.tmp")
-		local wrote = Content:save(probePath, "smoke_ok=1\n")
-		local readBack = wrote and Content:load(probePath) or ""
-		pcall(function() Content:remove(probePath) end)
-		assertCheck("writablePath save write/readback", wrote == true and readBack:find("smoke_ok=1", 1, true) ~= nil)
+
+		-- 便携存档体系真写盘回读自检（profile.sav / slots / settings.ini / backups）
+		local testProfile = saveMod.emptySave()
+		testProfile.childCleared = true
+		local savedProfile = saveMod.saveSave(testProfile)
+		local loadedProfile = saveMod.loadSave()
+		assertCheck("portable profile.sav write/readback", savedProfile == true and Content:exist(Path(Content.writablePath, "profile.sav")) and loadedProfile.status == "ok" and loadedProfile.state.childCleared == true)
+		assertCheck("no legacy watch-save nesting", not Content:exist(Path(Content.writablePath, "watch-save")))
+
+		local s = ctrlMod.defaultControlSettings()
+		s.masterVol = 0.8
+		s.assistHints = true
+		ctrlMod.saveControlSettings(s)
+		local sBack = ctrlMod.loadControlSettings()
+		assertCheck("portable settings.ini write/readback", Content:exist(Path(Content.writablePath, "settings.ini")) and sBack.assistHints == true)
+
+		local slots = saveMod.listSaveSlots()
+		assertCheck("multi-slot API returns 4 slots", slots ~= nil and #slots == 4)
+
+		-- 清理冒烟自检生成的测试档案，避免污染后续轮次
+		pcall(function() Content:remove(Path(Content.writablePath, "profile.sav")) end)
+		pcall(function() Content:remove(Path(Content.writablePath, "settings.ini")) end)
+
 		lines[#lines + 1] = ok and "SMOKE_OK" or "SMOKE_FAIL"
-		Content:save(Path(Content.assetPath, ".ci-smoke-result.txt"), table.concat(lines, "\n") .. "\n")
+		local resultText = table.concat(lines, "\n") .. "\n"
+		local resultPath = Path(gameRoot, ".ci-smoke-result.txt")
+		if not Content:save(resultPath, resultText) then
+			Content:save(Path(Content.writablePath, ".ci-smoke-result.txt"), resultText)
+		end
 		sleep(0.2)
 		App:shutdown()
 	end)

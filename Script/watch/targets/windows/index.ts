@@ -9,7 +9,7 @@
 
 import { App, Node, PlatformType, View } from "Dora";
 import { KbmPoller } from "Script/watch/input/kbm_core";
-import { applyVolumeSetting, volumeSettingText } from "Script/watch/controls_config";
+import { applyVolumeSetting, saveControlSettings, volumeSettingText } from "Script/watch/controls_config";
 import type { Input } from "Script/watch/input";
 import {
     ControlSettings,
@@ -34,7 +34,9 @@ const WINDOWS_SETTINGS_ROWS: SettingsRowDef[] = [
     { id: "bgmVol", title: "音乐音量" },
     { id: "sfxVol", title: "音效与环境" },
     { id: "voiceVol", title: "人声音量" },
-    { id: "back", title: "返回暂歇菜单" },
+    { id: "fullscreen", title: "显示模式" },
+    { id: "assistHints", title: "按键辅助" },
+    { id: "back", title: "返回" },
 ];
 
 const WINDOWS_GUIDE: ControlsGuidePage = {
@@ -285,11 +287,11 @@ export const TARGET: TargetRuntime = {
     },
 
     settingsFooterHint(_mode: InputMode, _layout: GamepadLayout): string {
-        return "←/→ 或回车/点击切换   ·   Esc 返回暂停";
+        return "←/→ 或回车/点击切换   ·   Esc 返回   ·   设置自动保存";
     },
 
     controlsFooterRightHint(_mode: InputMode): string {
-        return "F11 / Alt+Enter 全屏   ·   暂歇菜单可调声音设置";
+        return "F11 / Alt+Enter 全屏   ·   标题与暂歇菜单可调游戏设置";
     },
 
     epilogueFooterHint(_mode: InputMode, _layout: GamepadLayout): string {
@@ -301,23 +303,40 @@ export const TARGET: TargetRuntime = {
     },
 
     settingsPauseLabel(_settings: ControlSettings): string {
-        return "声音设置";
+        return "游戏设置";
     },
 
     settingsHeaderTitle(): string {
-        return "声音设置";
+        return "游戏设置";
     },
 
     settingsHeaderSummary(_activeMode: InputMode): string {
-        return "当前模式：键鼠 · 四通道音量实时生效";
+        return "键鼠模式 · 音量、显示与按键辅助自动保存";
     },
 
     settingsValueText(rowId: string, settings: ControlSettings, _activeMode: InputMode): string {
+        if (rowId === "fullscreen") {
+            return App.fullScreen ? "全屏" : "窗口";
+        }
+        if (rowId === "assistHints") {
+            return settings.assistHints ? "开" : "关";
+        }
         return volumeSettingText(rowId, settings);
     },
 
-    applySettingsDelta(rowId: string, delta: number, settings: ControlSettings, _input: Input): "none" | "audio" | "back" | "control" {
+    applySettingsDelta(
+        rowId: string,
+        delta: number,
+        settings: ControlSettings,
+        _input: Input,
+    ): "none" | "audio" | "back" | "control" | "display" | "assist" {
         if (rowId === "back") return "back";
+        if (rowId === "fullscreen") return "display";
+        if (rowId === "assistHints") {
+            settings.assistHints = !settings.assistHints;
+            saveControlSettings(settings);
+            return "assist";
+        }
         if (applyVolumeSetting(rowId, delta, settings)) return "audio";
         return "none";
     },
