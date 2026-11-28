@@ -1,6 +1,6 @@
 # 《向西守望》2026 开源游戏开发大赛 · 发版与 AtomGit 同步指南
 
-首个公开试玩计划使用 **`v0.1.0`**。GitHub Release 和 AtomGit Release 共用一个 tag、一个构建提交和同一批附件。
+首个公开试玩使用 **`v0.1.0`**。同步到 AtomGit 时应使用与 GitHub Release 相同的 tag、构建提交和附件。
 
 ## 1. 玩家下载哪一个包
 
@@ -18,7 +18,7 @@
 
 Actions 的 `westward-watch-web-bundles` 保留 14 天，内含 **`WestwardWatch-<版本>-web-html.zip`、`WestwardWatch-<版本>-web-server.zip` 和 `SHA256SUMS-web.txt`**。清单仅覆盖离线 ZIP。`web-server.zip` 供 HTTP 静态托管，Pages 部署使用同一次导出的 `web-server/`。GitHub 自动生成的 Source code (zip/tar.gz) 与表内 Dora 源码包是不同的下载项。
 
-项目代码许可、AI 使用与素材署名可在同 tag 仓库中查阅。Windows 便携包和 Dora 源码包包含根 LICENSE。[项目许可](../LICENSE) · [AI 使用与素材声明](AI使用与素材声明.md)
+项目代码许可、AI 使用与素材署名可在同 tag 仓库中查阅。Windows、Dora 和 Web 包根目录含 LICENSE，Android APK 内为 `assets/LICENSE`。[项目许可](../LICENSE) · [AI 使用与素材声明](AI使用与素材声明.md)
 
 ## 2. 从验收提交发出首个公开试玩
 
