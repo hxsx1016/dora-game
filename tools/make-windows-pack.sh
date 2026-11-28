@@ -9,7 +9,7 @@
 #   ├── README.md                  ← 玩家说明
 #   ├── LICENSE                    ← Apache-2.0 开源许可
 #   └── runtime/                   ← 引擎与游戏运行时全部收拢于此
-#       ├── WestwardWatchRuntime.exe  ← 原 Dora.exe（注入图标与 PE 元信息）
+#       ├── WestwardWatchRuntime.exe  ← 经 dora-windows-ux.patch 构建的 Dora.exe
 #       ├── *.dll                     ← 最小运行库 DLL（排除 dora_godot.dll / wa.dll）
 #       ├── dora-game-id              ← 固定 32 位 ID（锁定 assetPath = runtime/、单实例锁）
 #       ├── VERSION.txt / LICENSES/ / Shader/
@@ -21,7 +21,7 @@
 #     [--backend d3d12|opengl] \
 #     [--engine-dir <解压后的 Dora 官方 Windows 包目录>] \
 #     [--launcher <编译好的根目录启动器 WestwardWatch.exe>] \
-#     [--runtime-exe <可选：已注入图标/版本信息的 Dora.exe 路径>] \
+#     [--runtime-exe <匹配后端的已打补丁 Dora.exe；默认检查引擎目录的 Dora.exe>] \
 #     [--out-dir <输出目录，默认 dist>] \
 #     [--version <版本标识，默认取 git tag/sha>] \
 #     [--exe-name <根目录可执行文件名，默认 WestwardWatch>] \
@@ -111,6 +111,16 @@ if [ ! -f "$RUNTIME_SRC_EXE" ]; then
     echo "缺少引擎发行包：请在 $SRC/ 放置含 Dora.exe 的 Dora SSR v1.10.2 Windows ($BACKEND_LABEL) 解压文件" >&2
     exit 1
 fi
+# WindowClose is the native AppEvent added by tools/patches/dora-windows-ux.patch.
+# Stock engines have the same file name and can boot the game without providing this event.
+python3 - "$RUNTIME_SRC_EXE" <<'PYTHON'
+from pathlib import Path
+import sys
+
+runtime = Path(sys.argv[1])
+if b"WindowClose\0" not in runtime.read_bytes():
+    sys.exit(f"{runtime} 缺少原生 WindowClose 事件。请通过 --runtime-exe 指定对应后端的 #41 补丁运行时。")
+PYTHON
 if [ ! -f "$ROOT/init.lua" ] || [ ! -f "$ROOT/Script/watch/fe/frontend.lua" ] || [ ! -f "$ROOT/Script/watch/app.lua" ]; then
     echo "缺少 Lua 构建产物：先在仓库根执行 Dora TS 构建。" >&2
     exit 1
