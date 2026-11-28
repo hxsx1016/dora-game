@@ -244,6 +244,7 @@ rsync -a --exclude '.DS_Store' --exclude '._*' --exclude '*.md' "$ROOT/assets/" 
     printf 'engine=Dora SSR v1.10.2\n'
     printf 'commit=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 } > "$STAGE/assets/VERSION.txt"
+cp "$ROOT/LICENSE" "$STAGE/assets/LICENSE"
 
 UNSIGNED_APK="$STAGE/unsigned.apk"
 ALIGNED_APK="$STAGE/aligned.apk"

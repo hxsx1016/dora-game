@@ -799,6 +799,7 @@ const HTML_LOADER_FN = `async function(config) {
 
 function assembleServerPackage(runtimeFiles, runtimeIndex, brandIcons, gameFiles, version) {
     const files = { ...runtimeFiles, ...brandIcons };
+    files["LICENSE"] = fs.readFileSync(path.join(PROJECT, "LICENSE"));
     files["index.html"] = enc(buildIndexHtml("server", version));
     files[".nojekyll"] = enc("");
     files["runtime.json"] = enc(
