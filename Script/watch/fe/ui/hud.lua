@@ -37,1494 +37,1572 @@ function HudRenderer.prototype.____constructor(self) -- 33
 	self.time = 0 -- 36
 	self.talentSelected = 0 -- 38
 	self.roguelikeUiHandled = false -- 40
+	self.lastInteractPromptMode = "none" -- 45
 end -- 33
-function HudRenderer.prototype.reset(self, p) -- 44
-	self.ghostHp = p ~= nil and p.hp or 3 -- 45
-	self.talentSelected = 0 -- 46
-end -- 44
-function HudRenderer.prototype.update(self, dt, p) -- 49
-	self.time = self.time + dt -- 50
-	if self.ghostHp > p.hp then -- 50
-		self.ghostHp = math.max(p.hp, self.ghostHp - dt * 1.45) -- 52
-	else -- 52
-		self.ghostHp = p.hp -- 54
-	end -- 54
-end -- 49
-function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, texts, p, cam, vfx, letterboxFrac, uiScale, assistHintsEnabled, suppressReticle, inputMode, gamepadLayout, safe, retryHoldProgress, touchOverlayVisible) -- 58
-	if assistHintsEnabled == nil then -- 58
-		assistHintsEnabled = false -- 69
-	end -- 69
-	if suppressReticle == nil then -- 69
-		suppressReticle = false -- 70
-	end -- 70
-	if inputMode == nil then -- 70
-		inputMode = "kbm" -- 71
-	end -- 71
-	if gamepadLayout == nil then -- 71
-		gamepadLayout = "xbox" -- 72
-	end -- 72
-	if safe == nil then -- 72
-		safe = ZERO_SAFE_INSETS -- 73
-	end -- 73
-	if retryHoldProgress == nil then -- 73
-		retryHoldProgress = 0 -- 74
-	end -- 74
-	if touchOverlayVisible == nil then -- 74
-		touchOverlayVisible = false -- 75
-	end -- 75
-	local w = cam.viewW / uiScale -- 77
-	local h = cam.viewH / uiScale -- 78
-	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 79
-	if hudAlpha > 0.05 then -- 79
-		if p.childMode then -- 79
-			self:drawChildStatus( -- 83
-				uiDraw, -- 83
-				uiInkDraw, -- 83
-				uiArt, -- 83
-				texts, -- 83
-				p, -- 83
-				h, -- 83
-				hudAlpha, -- 83
-				assistHintsEnabled, -- 83
-				inputMode, -- 83
-				gamepadLayout, -- 83
-				safe -- 83
-			) -- 83
-		else -- 83
-			self:drawSoldierStatus( -- 85
-				uiDraw, -- 85
-				uiInkDraw, -- 85
-				uiArt, -- 85
-				texts, -- 85
-				p, -- 85
-				h, -- 85
-				hudAlpha, -- 85
-				assistHintsEnabled, -- 85
-				inputMode, -- 85
-				gamepadLayout, -- 85
-				safe -- 85
-			) -- 85
-		end -- 85
-		self:drawChapterBadge( -- 88
-			uiDraw, -- 88
-			uiArt, -- 88
-			texts, -- 88
-			p, -- 88
-			w, -- 88
-			h, -- 88
-			hudAlpha, -- 88
-			inputMode, -- 88
-			safe, -- 88
-			touchOverlayVisible -- 88
-		) -- 88
-		self:drawContextualObjective( -- 89
-			uiDraw, -- 89
-			uiInkDraw, -- 89
-			uiArt, -- 89
-			texts, -- 89
-			p, -- 89
-			w, -- 89
-			h, -- 89
-			hudAlpha, -- 89
-			assistHintsEnabled, -- 89
-			inputMode, -- 89
-			gamepadLayout, -- 89
-			safe -- 89
-		) -- 89
-		if assistHintsEnabled then -- 89
-			local prompt = deriveWorldPrompt(p) -- 92
-			if prompt ~= nil then -- 92
-				local adapted = { -- 94
-					x = prompt.x, -- 95
-					y = prompt.y, -- 96
-					keyTag = getActiveTarget():adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout), -- 97
-					label = prompt.label, -- 98
-					urgent = prompt.urgent, -- 99
-					progress = prompt.progress -- 100
-				} -- 100
-				self:drawWorldPrompts( -- 102
-					uiDraw, -- 102
-					uiInkDraw, -- 102
-					uiArt, -- 102
-					texts, -- 102
-					{adapted}, -- 102
-					cam, -- 102
-					hudAlpha, -- 102
-					uiScale, -- 102
-					safe -- 102
-				) -- 102
-			end -- 102
-		end -- 102
-		if vfx.deflectFlash > 0.25 then -- 102
-			local dx = cam:sx(vfx.deflectX) / uiScale -- 107
-			local dy = cam:sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 16 -- 108
-			texts:put( -- 109
-				"sm", -- 109
-				"掩体挡下", -- 109
-				dx, -- 109
-				dy, -- 109
-				toColor(PALETTE.textBright), -- 109
-				0.5, -- 109
-				0.5, -- 109
-				"Center", -- 109
-				2, -- 109
-				vfx.deflectFlash, -- 109
-				0.1 -- 109
+function HudRenderer.prototype.reset(self, p) -- 47
+	self.ghostHp = p ~= nil and p.hp or 3 -- 48
+	self.talentSelected = 0 -- 49
+	self.lastInteractPromptRect = nil -- 50
+	self.lastInteractPromptMode = "none" -- 51
+end -- 47
+function HudRenderer.prototype.getChapterPauseRect(self, w, h, safe, touchOverlayVisible) -- 55
+	if safe == nil then -- 55
+		safe = ZERO_SAFE_INSETS -- 55
+	end -- 55
+	if touchOverlayVisible == nil then -- 55
+		touchOverlayVisible = false -- 55
+	end -- 55
+	if touchOverlayVisible then -- 55
+		return Rect(0, 0, 0, 0) -- 57
+	end -- 57
+	local rx = w - 32 - safe.right -- 59
+	local cy = h - 44 - safe.top -- 60
+	return Rect(rx - 202, cy - 22, 210, 44) -- 61
+end -- 55
+function HudRenderer.prototype.getInteractPromptHit(self) -- 64
+	if self.lastInteractPromptRect == nil or self.lastInteractPromptMode == "none" then -- 64
+		return nil -- 66
+	end -- 66
+	return {rect = self.lastInteractPromptRect, mode = self.lastInteractPromptMode} -- 68
+end -- 64
+function HudRenderer.prototype.update(self, dt, p) -- 71
+	self.time = self.time + dt -- 72
+	if self.ghostHp > p.hp then -- 72
+		self.ghostHp = math.max(p.hp, self.ghostHp - dt * 1.45) -- 74
+	else -- 74
+		self.ghostHp = p.hp -- 76
+	end -- 76
+end -- 71
+function HudRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiArt, uiGlow, texts, p, cam, vfx, letterboxFrac, uiScale, assistHintsEnabled, suppressReticle, inputMode, gamepadLayout, safe, retryHoldProgress, touchOverlayVisible, pointerUi, pointerInside) -- 80
+	if assistHintsEnabled == nil then -- 80
+		assistHintsEnabled = true -- 91
+	end -- 91
+	if suppressReticle == nil then -- 91
+		suppressReticle = false -- 92
+	end -- 92
+	if inputMode == nil then -- 92
+		inputMode = "kbm" -- 93
+	end -- 93
+	if gamepadLayout == nil then -- 93
+		gamepadLayout = "xbox" -- 94
+	end -- 94
+	if safe == nil then -- 94
+		safe = ZERO_SAFE_INSETS -- 95
+	end -- 95
+	if retryHoldProgress == nil then -- 95
+		retryHoldProgress = 0 -- 96
+	end -- 96
+	if touchOverlayVisible == nil then -- 96
+		touchOverlayVisible = false -- 97
+	end -- 97
+	if pointerInside == nil then -- 97
+		pointerInside = false -- 99
+	end -- 99
+	local w = cam.viewW / uiScale -- 101
+	local h = cam.viewH / uiScale -- 102
+	local hudAlpha = math.max(0, 1 - letterboxFrac * 1.15) -- 103
+	self.lastInteractPromptRect = nil -- 104
+	self.lastInteractPromptMode = "none" -- 105
+	if hudAlpha > 0.05 then -- 105
+		if p.childMode then -- 105
+			self:drawChildStatus( -- 109
+				uiDraw, -- 109
+				uiInkDraw, -- 109
+				uiArt, -- 109
+				texts, -- 109
+				p, -- 109
+				h, -- 109
+				hudAlpha, -- 109
+				assistHintsEnabled, -- 109
+				inputMode, -- 109
+				gamepadLayout, -- 109
+				safe -- 109
 			) -- 109
-		end -- 109
-	end -- 109
-	if retryHoldProgress > 0.02 then -- 109
-		local cx = w * 0.5 -- 115
-		local cy = h - 32 - safe.top -- 116
-		local bw = 220 -- 117
-		drawSilkVeil( -- 118
-			uiDraw, -- 118
-			uiArt, -- 118
-			"hud_retry_hold_veil", -- 118
-			cx, -- 118
-			cy, -- 118
-			bw + 60, -- 118
-			34, -- 118
-			PALETTE.inkWarm, -- 118
-			0.84, -- 118
-			2 -- 118
-		) -- 118
-		texts:put( -- 119
-			"xs", -- 119
-			"长按 BACK 重试检查点", -- 119
-			cx, -- 119
-			cy + 7, -- 119
-			toColor(PALETTE.amberCore), -- 119
-			0.5, -- 119
-			0.5, -- 119
-			"Center", -- 119
-			1, -- 119
-			0.96, -- 119
-			0.08 -- 119
-		) -- 119
-		local x0 = cx - bw * 0.44 -- 120
-		local x1 = cx + bw * 0.44 -- 121
-		uiInkDraw:drawSegment( -- 122
-			Vec2(x0, cy - 8), -- 122
-			Vec2(x1, cy - 8), -- 122
-			1.4, -- 122
-			toColor(PALETTE.silkDim, 120) -- 122
-		) -- 122
-		uiInkDraw:drawSegment( -- 123
-			Vec2(x0, cy - 8), -- 123
-			Vec2( -- 123
-				x0 + (x1 - x0) * math.min(1, retryHoldProgress), -- 123
-				cy - 8 -- 123
-			), -- 123
-			2.8, -- 123
-			toColor(PALETTE.rouge, 235) -- 123
-		) -- 123
-	end -- 123
-	if not suppressReticle then -- 123
-		self:drawReticleOverlay( -- 127
-			uiInkDraw, -- 127
-			uiArt, -- 127
-			uiGlow, -- 127
-			p, -- 127
-			cam, -- 127
-			vfx, -- 127
-			letterboxFrac, -- 127
-			uiScale, -- 127
-			inputMode == "touch" -- 127
-		) -- 127
-	end -- 127
-end -- 58
-function HudRenderer.prototype.talentCardRects(self, w, h, count, touchMode, safeTop) -- 132
-	if touchMode == nil then -- 132
-		touchMode = false -- 132
-	end -- 132
-	if safeTop == nil then -- 132
-		safeTop = 0 -- 132
-	end -- 132
-	if self.talentRectProvider ~= nil then -- 132
-		return self:talentRectProvider( -- 134
-			w, -- 134
-			h, -- 134
-			count, -- 134
-			touchMode, -- 134
-			safeTop -- 134
-		) -- 134
-	end -- 134
-	local out = {} -- 136
-	if count <= 0 then -- 136
-		return out -- 138
+		else -- 109
+			self:drawSoldierStatus( -- 111
+				uiDraw, -- 111
+				uiInkDraw, -- 111
+				uiArt, -- 111
+				texts, -- 111
+				p, -- 111
+				h, -- 111
+				hudAlpha, -- 111
+				assistHintsEnabled, -- 111
+				inputMode, -- 111
+				gamepadLayout, -- 111
+				safe -- 111
+			) -- 111
+		end -- 111
+		self:drawChapterBadge( -- 114
+			uiDraw, -- 114
+			uiInkDraw, -- 114
+			uiArt, -- 114
+			texts, -- 114
+			p, -- 114
+			w, -- 114
+			h, -- 114
+			hudAlpha, -- 114
+			inputMode, -- 114
+			safe, -- 114
+			touchOverlayVisible, -- 114
+			pointerUi, -- 114
+			pointerInside -- 114
+		) -- 114
+		self:drawContextualObjective( -- 115
+			uiDraw, -- 115
+			uiInkDraw, -- 115
+			uiArt, -- 115
+			texts, -- 115
+			p, -- 115
+			w, -- 115
+			h, -- 115
+			hudAlpha, -- 115
+			assistHintsEnabled, -- 115
+			inputMode, -- 115
+			gamepadLayout, -- 115
+			safe -- 115
+		) -- 115
+		if assistHintsEnabled then -- 115
+			local prompt = deriveWorldPrompt(p) -- 118
+			if prompt ~= nil then -- 118
+				local clickMode = prompt.keyTag == "E" and "tap" or ((prompt.keyTag == "按住 E" or prompt.keyTag == "松开再按住 E") and "hold" or "none") -- 120
+				local adapted = { -- 123
+					x = prompt.x, -- 124
+					y = prompt.y, -- 125
+					keyTag = getActiveTarget():adaptWorldKeyTag(prompt.keyTag, inputMode, gamepadLayout), -- 126
+					label = prompt.label, -- 127
+					urgent = prompt.urgent, -- 128
+					progress = prompt.progress -- 129
+				} -- 129
+				self:drawWorldPrompts( -- 131
+					uiDraw, -- 131
+					uiInkDraw, -- 131
+					uiArt, -- 131
+					texts, -- 131
+					{adapted}, -- 131
+					cam, -- 131
+					hudAlpha, -- 131
+					uiScale, -- 131
+					safe, -- 131
+					clickMode, -- 131
+					inputMode, -- 131
+					pointerUi, -- 131
+					pointerInside -- 131
+				) -- 131
+			end -- 131
+		end -- 131
+		if vfx.deflectFlash > 0.25 then -- 131
+			local dx = cam:sx(vfx.deflectX) / uiScale -- 136
+			local dy = cam:sy(vfx.deflectY) / uiScale + 34 + (1 - vfx.deflectFlash) * 16 -- 137
+			texts:put( -- 138
+				"sm", -- 138
+				"掩体挡下", -- 138
+				dx, -- 138
+				dy, -- 138
+				toColor(PALETTE.textBright), -- 138
+				0.5, -- 138
+				0.5, -- 138
+				"Center", -- 138
+				2, -- 138
+				vfx.deflectFlash, -- 138
+				0.1 -- 138
+			) -- 138
+		end -- 138
 	end -- 138
-	local cardW = touchMode and 212 or 204 -- 140
-	local cardH = touchMode and 50 or 38 -- 141
-	local gap = 14 -- 142
-	local totalW = count * cardW + (count - 1) * gap -- 143
-	local startX = (w - totalW) * 0.5 -- 144
-	local y = h - (touchMode and 132 or 120) - safeTop -- 145
-	local i = 0 -- 146
-	do -- 146
-		i = 0 -- 147
-		while i < count do -- 147
-			out[#out + 1] = Rect(startX + i * (cardW + gap), y, cardW, cardH) -- 148
-			i = i + 1 -- 147
-		end -- 147
-	end -- 147
-	return out -- 150
-end -- 132
-function HudRenderer.prototype.drawReticleOverlay(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, letterboxFrac, uiScale, touchMode) -- 154
-	if touchMode == nil then -- 154
-		touchMode = false -- 163
+	local inTowerEnding = p.room.key == "tower" and p.phase ~= "tower-wait" -- 143
+	local inPrologueIntro = p.room.key == "prologue" and (p.phase == "prologue-wake" or p.phase == "prologue-shadow" or p.phase == "prologue-escape" or p.phase == "prologue-hide") -- 144
+	local canRetryNow = not inTowerEnding and not inPrologueIntro and not p.craftBench.active and not p.reloadOpen and not p.escortFailed and not p.talentModalActive -- 146
+	if retryHoldProgress > 0.02 and canRetryNow then -- 146
+		local cx = w * 0.5 -- 148
+		local cy = h - 32 - safe.top -- 149
+		local bw = 240 -- 150
+		local isMaleRoguelike = p.run.source == "official" and p.storyRoute == "soldier" and p:isEscortRoom() -- 151
+		local holdKey = inputMode == "gamepad" and "BACK" or "R" -- 152
+		local holdLabel = isMaleRoguelike and ("长按 " .. holdKey) .. " 重开本轮护送" or ("长按 " .. holdKey) .. " 重试检查点" -- 153
+		drawSilkVeil( -- 154
+			uiDraw, -- 154
+			uiArt, -- 154
+			"hud_retry_hold_veil", -- 154
+			cx, -- 154
+			cy, -- 154
+			bw + 60, -- 154
+			34, -- 154
+			PALETTE.inkWarm, -- 154
+			0.84, -- 154
+			2 -- 154
+		) -- 154
+		texts:put( -- 155
+			"xs", -- 155
+			holdLabel, -- 155
+			cx, -- 155
+			cy + 7, -- 155
+			toColor(PALETTE.amberCore), -- 155
+			0.5, -- 155
+			0.5, -- 155
+			"Center", -- 155
+			1, -- 155
+			0.96, -- 155
+			0.08 -- 155
+		) -- 155
+		local x0 = cx - bw * 0.44 -- 156
+		local x1 = cx + bw * 0.44 -- 157
+		uiInkDraw:drawSegment( -- 158
+			Vec2(x0, cy - 8), -- 158
+			Vec2(x1, cy - 8), -- 158
+			1.4, -- 158
+			toColor(PALETTE.silkDim, 120) -- 158
+		) -- 158
+		uiInkDraw:drawSegment( -- 159
+			Vec2(x0, cy - 8), -- 159
+			Vec2( -- 159
+				x0 + (x1 - x0) * math.min(1, retryHoldProgress), -- 159
+				cy - 8 -- 159
+			), -- 159
+			2.8, -- 159
+			toColor(PALETTE.rouge, 235) -- 159
+		) -- 159
+	end -- 159
+	if not suppressReticle then -- 159
+		self:drawReticleOverlay( -- 163
+			uiInkDraw, -- 163
+			uiArt, -- 163
+			uiGlow, -- 163
+			p, -- 163
+			cam, -- 163
+			vfx, -- 163
+			letterboxFrac, -- 163
+			uiScale, -- 163
+			inputMode == "touch" -- 163
+		) -- 163
 	end -- 163
-	if not p.paused and letterboxFrac < 0.5 and not p.gripping and p.escort.state ~= "calming" and not p.gateNeedConfirm and p.phase ~= "prologue-give" then -- 163
-		self:drawReticle( -- 167
-			uiInkDraw, -- 167
-			uiArt, -- 167
-			uiGlow, -- 167
-			p, -- 167
-			cam, -- 167
-			vfx, -- 167
-			uiScale, -- 167
-			touchMode -- 167
-		) -- 167
-	end -- 167
-end -- 154
-function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 171
-	local bx = 28 + safe.left -- 184
-	local by = h - 72 - safe.top -- 185
-	local lowHp = p.hp <= 1 -- 186
-	local segCount = math.max(1, p.maxHp) -- 188
-	local segW = segCount >= 5 and 42 or 54 -- 189
-	local segH = 9 -- 190
-	local gap = segCount >= 5 and 6 or 8 -- 191
-	local veilW = math.max(340, 124 + segCount * (segW + gap)) -- 192
-	drawSilkVeil( -- 193
-		uiDraw, -- 193
-		uiArt, -- 193
-		"hud_soldier_veil", -- 193
-		bx + veilW * 0.44, -- 193
-		by + 24, -- 193
-		veilW, -- 193
-		56, -- 193
-		PALETTE.inkWash, -- 193
-		0.62 * alpha, -- 193
-		-1 -- 193
-	) -- 193
-	texts:put( -- 194
-		"md", -- 194
-		"戍", -- 194
-		bx + 16, -- 194
-		by + 25, -- 194
-		toColor(lowHp and PALETTE.rouge or PALETTE.cyanCore), -- 194
-		0.5, -- 194
-		0.5, -- 194
-		"Center", -- 194
-		0, -- 194
-		alpha, -- 194
-		0.1 -- 194
-	) -- 194
-	uiInkDraw:drawSegment( -- 195
-		Vec2(bx + 32, by + 9), -- 195
-		Vec2(bx + 32, by + 40), -- 195
-		0.8, -- 195
-		toColor(PALETTE.silkDim, 130 * alpha) -- 195
-	) -- 195
-	texts:put( -- 196
-		"xs", -- 196
-		"周戍 · 体力", -- 196
-		bx + 44, -- 196
-		by + 36, -- 196
-		toColor(PALETTE.textMid), -- 196
-		0, -- 196
-		0.5, -- 196
-		"Left", -- 196
-		1.4, -- 196
-		alpha, -- 196
-		0.08 -- 196
-	) -- 196
-	local barX = bx + 44 -- 198
-	local barY = by + 16 -- 199
-	local i = 0 -- 201
-	do -- 201
-		i = 0 -- 202
-		while i < segCount do -- 202
-			local sx = barX + i * (segW + gap) -- 203
-			local scx = sx + segW * 0.5 -- 204
-			if not uiArt:tryPlace( -- 204
-				"ink_bamboo_slot", -- 205
-				"hp_slot_" .. tostring(i), -- 205
-				scx, -- 205
-				barY, -- 205
-				segW, -- 205
-				segH, -- 205
-				{ -- 205
-					color = toColor(PALETTE.silkDim), -- 206
-					opacity = 0.72 * alpha, -- 206
-					layer = 1 -- 206
-				} -- 206
-			) then -- 206
-				uiInkDraw:drawRect( -- 208
-					Rect(sx, barY - 3, segW, 6), -- 208
-					Color(0, 0, 0, 0), -- 208
-					0.8, -- 208
-					toColor(PALETTE.silkDim, 145 * alpha) -- 208
-				) -- 208
-			end -- 208
-			if self.ghostHp > i and self.ghostHp > p.hp then -- 208
-				local frac = math.min(1, self.ghostHp - i) -- 211
-				uiInkDraw:drawRect( -- 212
-					Rect(sx + 3, barY - 2, (segW - 6) * frac, 4), -- 212
-					toColor(PALETTE.crimsonCore, 150 * alpha) -- 212
-				) -- 212
-			end -- 212
-			if p.hp > i then -- 212
-				local pulse = lowHp and 0.72 + 0.28 * math.sin(self.time * 7) or 1 -- 215
-				local fillCol = lowHp and PALETTE.rouge or PALETTE.moonPale -- 216
-				if not uiArt:tryPlace( -- 216
-					"ink_bamboo_slip", -- 217
-					"hp_fill_" .. tostring(i), -- 217
-					scx, -- 217
-					barY, -- 217
-					segW, -- 217
-					segH, -- 217
-					{ -- 217
-						color = toColor(fillCol), -- 218
-						opacity = 0.94 * alpha * pulse, -- 218
-						layer = 2 -- 218
-					} -- 218
-				) then -- 218
-					uiInkDraw:drawRect( -- 220
-						Rect(sx + 2, barY - 2.5, segW - 4, 5), -- 220
-						toColor(fillCol, 230 * alpha * pulse) -- 220
-					) -- 220
-				end -- 220
-			end -- 220
-			i = i + 1 -- 202
-		end -- 202
-	end -- 202
-	local covX = barX + segCount * (segW + gap) + 6 -- 225
-	local hasAliveEnemy = false -- 226
-	do -- 226
-		i = 0 -- 227
-		while i < #p.enemies do -- 227
-			if p.enemies[i + 1].alive then -- 227
-				hasAliveEnemy = true -- 229
-				break -- 230
-			end -- 230
-			i = i + 1 -- 227
-		end -- 227
-	end -- 227
-	if p.coverHug then -- 227
-		if hasAliveEnemy and not p.coverBlocking then -- 227
-			uiInkDraw:drawRect( -- 235
-				Rect(covX, barY - 9, 72, 18), -- 235
-				toColor(PALETTE.inkWarm, 185 * alpha), -- 235
-				0.8, -- 235
-				toColor(PALETTE.amber, 200 * alpha) -- 235
-			) -- 235
-			texts:put( -- 236
-				"xs", -- 236
-				"背向掩体", -- 236
-				covX + 36, -- 236
-				barY, -- 236
-				toColor(PALETTE.amberCore), -- 236
-				0.5, -- 236
-				0.5, -- 236
-				"Center", -- 236
-				0.6, -- 236
-				alpha, -- 236
-				0 -- 236
-			) -- 236
-		else -- 236
-			uiInkDraw:drawRect( -- 238
-				Rect(covX, barY - 9, 54, 18), -- 238
-				toColor(PALETTE.cyanDim, 165 * alpha), -- 238
-				0.8, -- 238
-				toColor(PALETTE.cyanCore, 180 * alpha) -- 238
-			) -- 238
-			texts:put( -- 239
-				"xs", -- 239
-				"掩体中", -- 239
-				covX + 27, -- 239
-				barY, -- 239
-				toColor(PALETTE.textBright), -- 239
-				0.5, -- 239
-				0.5, -- 239
-				"Center", -- 239
-				0.6, -- 239
-				alpha, -- 239
-				0 -- 239
-			) -- 239
-		end -- 239
-	elseif assistHintsEnabled and p.coverNear then -- 239
-		uiInkDraw:drawRect( -- 242
-			Rect(covX, barY - 9, 54, 18), -- 242
-			Color( -- 242
-				14, -- 242
-				17, -- 242
-				25, -- 242
-				math.floor(150 * alpha + 0.5) -- 242
-			), -- 242
-			0.8, -- 242
-			toColor(PALETTE.silkLine, 165 * alpha) -- 242
-		) -- 242
-		texts:put( -- 243
-			"xs", -- 243
-			"可贴靠", -- 243
-			covX + 27, -- 243
-			barY, -- 243
-			toColor(PALETTE.textMid), -- 243
-			0.5, -- 243
-			0.5, -- 243
-			"Center", -- 243
-			0.6, -- 243
-			alpha, -- 243
-			0.08 -- 243
-		) -- 243
-	end -- 243
-	local ____p_isCampaign_5 = p.isCampaign -- 246
-	if ____p_isCampaign_5 then -- 246
-		local ____opt_0 = p.room.campaign -- 246
-		local ____temp_4 = (____opt_0 and ____opt_0.chapter) == "S" -- 246
-		if not ____temp_4 then -- 246
-			local ____opt_2 = p.room.campaign -- 246
-			____temp_4 = (____opt_2 and ____opt_2.chapter) == "C" -- 246
-		end -- 246
-		____p_isCampaign_5 = ____temp_4 -- 246
-	end -- 246
-	local showCampaignFear = ____p_isCampaign_5 and (p.escort.fear > 0 or p.escort.state == "frozen" or p.escort.state == "calming") -- 246
-	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" or showCampaignFear then -- 246
-		local subY = by - 24 -- 249
-		local frozen = p.escort.state == "frozen" -- 250
-		local calming = p.escort.state == "calming" -- 251
-		drawSilkVeil( -- 253
-			uiDraw, -- 253
-			uiArt, -- 253
-			"hud_fear_veil", -- 253
-			bx + 126, -- 253
-			subY + 6, -- 253
-			260, -- 253
-			30, -- 253
-			frozen and PALETTE.inkWarm or PALETTE.inkWash, -- 253
-			0.64 * alpha, -- 253
-			-1 -- 253
-		) -- 253
-		texts:put( -- 254
-			"xs", -- 254
-			"小满 · 惊惧", -- 254
-			bx + 14, -- 254
-			subY + 6, -- 254
-			toColor(frozen and PALETTE.crimsonCore or PALETTE.textMid), -- 254
-			0, -- 254
-			0.5, -- 254
-			"Left", -- 254
-			1, -- 254
-			alpha, -- 254
-			0.08 -- 254
-		) -- 254
-		local k = 0 -- 256
-		do -- 256
-			k = 0 -- 257
-			while k < FEAR_MAX do -- 257
-				local dx = bx + 114 + k * 20 -- 258
-				local dy = subY + 6 -- 259
-				local lit = k < p.escort.fear -- 260
-				local dc = frozen and PALETTE.rouge or PALETTE.amber -- 261
-				uiArt:tryPlace( -- 262
-					"ink_enso_fine", -- 262
-					"fear_ring_" .. tostring(k), -- 262
-					dx, -- 262
-					dy, -- 262
-					14, -- 262
-					14, -- 262
-					{ -- 262
-						color = toColor(lit and dc or PALETTE.silkLine), -- 263
-						opacity = (lit and 0.92 or 0.64) * alpha, -- 263
-						layer = 2 -- 263
-					} -- 263
-				) -- 263
-				if lit then -- 263
-					drawBlossomDot( -- 266
-						uiInkDraw, -- 266
-						uiArt, -- 266
-						"fear_dot_" .. tostring(k), -- 266
-						dx, -- 266
-						dy, -- 266
-						10, -- 266
-						dc, -- 266
-						0.96 * alpha, -- 266
-						3 -- 266
-					) -- 266
-				end -- 266
-				k = k + 1 -- 257
-			end -- 257
-		end -- 257
-		if frozen then -- 257
-			local pulse = 0.65 + 0.35 * math.sin(self.time * 7) -- 271
-			if assistHintsEnabled then -- 271
-				local calmKey = getActiveTarget():adaptWorldKeyTag("E", inputMode, gamepadLayout) -- 273
-				local keyW = math.max( -- 274
-					22, -- 274
-					visualTextWidth(calmKey, 15) + 10 -- 274
-				) -- 274
-				drawSilkKeycap( -- 275
-					uiInkDraw, -- 275
-					texts, -- 275
-					bx + 170, -- 275
-					subY - 5, -- 275
-					keyW, -- 275
-					22, -- 275
-					calmKey, -- 275
-					PALETTE.rouge, -- 275
-					alpha * pulse, -- 275
-					true -- 275
-				) -- 275
-				texts:put( -- 276
-					"xs", -- 276
-					"轻敲安抚", -- 276
-					bx + 176 + keyW, -- 276
-					subY + 6, -- 276
-					toColor(PALETTE.crimsonCore), -- 276
-					0, -- 276
-					0.5, -- 276
-					"Left", -- 276
-					0.8, -- 276
-					alpha * pulse, -- 276
-					0.08 -- 276
-				) -- 276
-			else -- 276
-				texts:put( -- 278
-					"xs", -- 278
-					"受惊停步", -- 278
-					bx + 172, -- 278
-					subY + 6, -- 278
-					toColor(PALETTE.crimsonCore), -- 278
-					0, -- 278
-					0.5, -- 278
-					"Left", -- 278
-					0.8, -- 278
-					alpha * pulse, -- 278
-					0.08 -- 278
-				) -- 278
-			end -- 278
-		elseif calming then -- 278
-			texts:put( -- 281
-				"xs", -- 281
-				"轻敲安抚中", -- 281
-				bx + 172, -- 281
-				subY + 6, -- 281
-				toColor(PALETTE.emerald), -- 281
-				0, -- 281
-				0.5, -- 281
-				"Left", -- 281
-				0.8, -- 281
-				alpha, -- 281
-				0.08 -- 281
-			) -- 281
-		end -- 281
-	end -- 281
-	if not self.roguelikeUiHandled then -- 281
-		local ranks = p:getStoryTalentRanks() -- 286
-		if ranks ~= nil then -- 286
-			local parts = {} -- 288
-			if ranks.vitality > 0 then -- 288
-				parts[#parts + 1] = "厚甲" .. tostring(ranks.vitality) -- 289
-			end -- 289
-			if ranks.focus > 0 then -- 289
-				parts[#parts + 1] = "凝神" .. tostring(ranks.focus) -- 290
-			end -- 290
-			if ranks.guard > 0 then -- 290
-				parts[#parts + 1] = "护身" .. tostring(ranks.guard) -- 291
-			end -- 291
-			if ranks.salvage > 0 then -- 291
-				parts[#parts + 1] = "拾料" .. tostring(ranks.salvage) -- 292
-			end -- 292
-			if #parts > 0 then -- 292
-				local subY = by - 22 -- 294
-				local txt = "本领 · " .. table.concat(parts, " · ") -- 295
-				drawSilkVeil( -- 296
-					uiDraw, -- 296
-					uiArt, -- 296
-					"hud_talent_ranks_veil", -- 296
-					bx + 126, -- 296
-					subY + 6, -- 296
-					260, -- 296
-					26, -- 296
-					PALETTE.inkWash, -- 296
-					0.56 * alpha, -- 296
-					-1 -- 296
-				) -- 296
-				texts:put( -- 297
-					"xs", -- 297
-					txt, -- 297
-					bx + 14, -- 297
-					subY + 6, -- 297
-					toColor(PALETTE.amberCore), -- 297
-					0, -- 297
-					0.5, -- 297
-					"Left", -- 297
-					0.8, -- 297
-					alpha, -- 297
-					0.08 -- 297
-				) -- 297
-			end -- 297
-		elseif p.isCampaign and p.room.campaign ~= nil and (p.room.campaign.chapter == "S" or p.room.campaign.chapter == "C") then -- 297
-			local inv = p.run.inventory -- 300
-			local items = {} -- 301
-			if inv.shield > 0 then -- 301
-				items[#items + 1] = "残盾" .. tostring(inv.shield) -- 302
-			end -- 302
-			if inv.wedge > 0 then -- 302
-				items[#items + 1] = "木楔" .. tostring(inv.wedge) -- 303
-			end -- 303
-			if inv.ammo > 0 then -- 303
-				items[#items + 1] = "弹包" .. tostring(inv.ammo) -- 304
-			end -- 304
-			if inv.scrap > 0 then -- 304
-				items[#items + 1] = "木料" .. tostring(inv.scrap) -- 305
-			end -- 305
-			local companionText = p.run.joined and "小满同行" or "小满等待" -- 306
-			local summary = #items > 0 and (companionText .. " · ") .. table.concat(items, " ") or companionText -- 307
-			local subY = by - 22 -- 308
-			drawSilkVeil( -- 309
-				uiDraw, -- 309
-				uiArt, -- 309
-				"hud_camp_veil", -- 309
-				bx + 126, -- 309
-				subY + 6, -- 309
-				260, -- 309
-				26, -- 309
-				PALETTE.inkWash, -- 309
-				0.54 * alpha, -- 309
-				-1 -- 309
-			) -- 309
-			texts:put( -- 310
-				"xs", -- 310
-				summary, -- 310
-				bx + 14, -- 310
-				subY + 6, -- 310
-				toColor(p.run.joined and PALETTE.cyanCore or PALETTE.amberCore), -- 310
-				0, -- 310
-				0.5, -- 310
-				"Left", -- 310
-				0.8, -- 310
-				alpha, -- 310
-				0.08 -- 310
-			) -- 310
-		end -- 310
-	end -- 310
-end -- 171
-function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 315
-	local bx = 28 + safe.left -- 328
-	local by = h - 68 - safe.top -- 329
-	local alert = p.scavChase or p.dogState == "chase" or p.dogState == "ear" or p.scavSee > 0 -- 330
-	local leadCol = alert and PALETTE.rouge or (p.player.crouch and PALETTE.emerald or PALETTE.amberCore) -- 331
-	drawSilkVeil( -- 333
-		uiDraw, -- 333
-		uiArt, -- 333
-		"hud_child_veil", -- 333
-		bx + 144, -- 333
-		by + 22, -- 333
-		316, -- 333
-		48, -- 333
-		alert and PALETTE.inkWarm or PALETTE.inkWash, -- 333
-		0.58 * alpha, -- 333
-		-1 -- 333
-	) -- 333
-	texts:put( -- 334
-		"md", -- 334
-		alert and "危" or "满", -- 334
-		bx + 16, -- 334
-		by + 22, -- 334
-		toColor(leadCol), -- 334
-		0.5, -- 334
-		0.5, -- 334
-		"Center", -- 334
-		0, -- 334
-		alpha, -- 334
-		0.1 -- 334
-	) -- 334
-	uiInkDraw:drawSegment( -- 335
-		Vec2(bx + 32, by + 7), -- 335
-		Vec2(bx + 32, by + 37), -- 335
-		0.8, -- 335
-		toColor(PALETTE.silkDim, 130 * alpha) -- 335
-	) -- 335
-	texts:put( -- 336
-		"xs", -- 336
-		"小满 · 潜行", -- 336
-		bx + 44, -- 336
-		by + 33, -- 336
-		toColor(PALETTE.amberCore), -- 336
-		0, -- 336
-		0.5, -- 336
-		"Left", -- 336
-		1.4, -- 336
-		alpha, -- 336
-		0.08 -- 336
-	) -- 336
-	local posture = assistHintsEnabled and "轻步前行 · 保持隐蔽" or "轻步前行" -- 338
-	local col = PALETTE.textMid -- 339
-	if alert then -- 339
-		posture = (p.scavChase or p.dogState == "chase") and (assistHintsEnabled and "已被发现 · 速寻隐蔽" or "已被发现") or (assistHintsEnabled and "引起警觉 · 停步蹲伏" or "引起警觉") -- 341
-		col = PALETTE.crimsonCore -- 344
-	elseif p.player.crouch then -- 344
-		posture = assistHintsEnabled and "低姿伏行 · 匿迹于影" or "低姿伏行" -- 346
-		col = PALETTE.emerald -- 347
-	elseif p.hasBottle then -- 347
-		posture = assistHintsEnabled and getActiveTarget():adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout) or "手持陶瓶" -- 349
-		col = PALETTE.amberCore -- 352
-	end -- 352
-	texts:put( -- 354
-		"xs", -- 354
-		posture, -- 354
-		bx + 44, -- 354
-		by + 12, -- 354
-		toColor(col), -- 354
-		0, -- 354
-		0.5, -- 354
-		"Left", -- 354
-		0.6, -- 354
-		alpha, -- 354
-		0.08 -- 354
-	) -- 354
-end -- 315
-function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiArt, texts, p, w, h, alpha, inputMode, safe, touchOverlayVisible) -- 357
-	local theme = themeOf(p.room.key) -- 369
-	local rx = w - 32 - safe.right - (touchOverlayVisible and 208 or 0) -- 370
-	local cy = h - 44 - safe.top -- 371
-	local pauseTip = inputMode == "gamepad" and "START 暂歇" or "Esc 暂歇" -- 372
-	drawSilkVeil( -- 374
-		uiDraw, -- 374
-		uiArt, -- 374
-		"hud_chap_veil", -- 374
-		rx - 82, -- 374
-		cy, -- 374
-		240, -- 374
-		44, -- 374
-		PALETTE.inkWash, -- 374
-		0.44 * alpha, -- 374
-		-1 -- 374
-	) -- 374
-	texts:put( -- 375
-		"xs", -- 375
-		(theme.numeralZh .. " · ") .. theme.titleZh, -- 375
-		rx, -- 375
-		touchOverlayVisible and cy or cy + 9, -- 375
-		toColor(PALETTE.textBright), -- 375
-		1, -- 375
-		0.5, -- 375
-		"Right", -- 375
-		1.2, -- 375
-		alpha, -- 375
-		0.08 -- 375
-	) -- 375
-	if not touchOverlayVisible then -- 375
-		texts:put( -- 377
-			"xs", -- 377
-			pauseTip, -- 377
-			rx, -- 377
-			cy - 11, -- 377
-			toColor(PALETTE.textDim), -- 377
-			1, -- 377
-			0.5, -- 377
-			"Right", -- 377
-			1, -- 377
-			0.78 * alpha, -- 377
-			0.08 -- 377
-		) -- 377
-	end -- 377
-end -- 357
-function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 381
-	local touchMode = inputMode == "touch" -- 395
-	local talentOffers = p:getStoryTalentOffers() -- 396
-	if not self.roguelikeUiHandled and #talentOffers > 0 and not p.craftBench.active and not p.reloadOpen then -- 396
-		local boxes = self:talentCardRects( -- 398
-			w, -- 398
-			h, -- 398
-			#talentOffers, -- 398
-			touchMode, -- 398
-			safe.top -- 398
-		) -- 398
-		local cx = w * 0.5 -- 399
-		local titleY = h - 54 - safe.top -- 400
-		local talentHint = inputMode == "gamepad" and "护送本领三选一 · LB/RB 择项 · L3 确认或点选" or (touchMode and "护送本领三选一 · 轻触卡面习得" or "护送本领三选一 · 按 1 / 2 / 3 或点击习得") -- 401
-		drawSilkVeil( -- 406
-			uiDraw, -- 406
-			uiArt, -- 406
-			"hud_talent_head_veil", -- 406
-			cx, -- 406
-			titleY, -- 406
-			410, -- 406
-			26, -- 406
-			PALETTE.inkWash, -- 406
-			0.72 * alpha, -- 406
-			-1 -- 406
-		) -- 406
-		drawHairline( -- 407
-			uiInkDraw, -- 407
-			uiArt, -- 407
-			"hud_talent_head_line", -- 407
-			cx, -- 407
-			titleY + 13, -- 407
-			330, -- 407
-			PALETTE.amber, -- 407
-			0.52 * alpha, -- 407
-			true, -- 407
-			2 -- 407
-		) -- 407
-		texts:put( -- 408
-			"xs", -- 408
-			talentHint, -- 408
-			cx, -- 408
-			titleY, -- 408
-			toColor(PALETTE.amberCore), -- 408
-			0.5, -- 408
-			0.5, -- 408
-			"Center", -- 408
-			1.2, -- 408
-			alpha, -- 408
-			0.08 -- 408
-		) -- 408
-		local ti = 0 -- 410
-		do -- 410
-			ti = 0 -- 411
-			while ti < #talentOffers do -- 411
-				local box = boxes[ti + 1] -- 412
-				local bx = box.x -- 413
-				local by = box.y -- 414
-				local bh = box.height -- 415
-				local cy = by + bh * 0.5 -- 416
-				local gpFocus = inputMode == "gamepad" and ti == self.talentSelected -- 417
-				local borderCol = gpFocus and PALETTE.rouge or PALETTE.amber -- 418
-				uiDraw:drawRect( -- 419
-					box, -- 420
-					toColor( -- 421
-						gpFocus and PALETTE.inkWarm or PALETTE.panelBgDeep, -- 421
-						math.floor((gpFocus and 235 or 215) * alpha + 0.5) -- 421
-					), -- 421
-					gpFocus and 1.5 or 0.9, -- 422
-					toColor( -- 423
-						borderCol, -- 423
-						math.floor((gpFocus and 235 or 185) * alpha + 0.5) -- 423
-					) -- 423
-				) -- 423
-				if inputMode == "kbm" then -- 423
-					drawSilkKeycap( -- 426
-						uiInkDraw, -- 426
-						texts, -- 426
-						bx + 8, -- 426
-						cy - 11, -- 426
-						22, -- 426
-						22, -- 426
-						"" .. tostring(ti + 1), -- 426
-						borderCol, -- 426
-						alpha, -- 426
-						true -- 426
-					) -- 426
-					texts:put( -- 427
-						"xs", -- 427
-						talentNames[talentOffers[ti + 1]], -- 427
-						bx + 38, -- 427
-						cy, -- 427
-						toColor(PALETTE.textBright), -- 427
-						0, -- 427
-						0.5, -- 427
-						"Left", -- 427
-						0.6, -- 427
-						alpha, -- 427
-						0.08 -- 427
-					) -- 427
-				else -- 427
-					drawBlossomDot( -- 429
-						uiInkDraw, -- 429
-						uiArt, -- 429
-						"hud_talent_dot_" .. tostring(ti), -- 429
-						bx + 18, -- 429
-						cy, -- 429
-						gpFocus and 12 or 8, -- 429
-						borderCol, -- 429
-						alpha, -- 429
-						4 -- 429
-					) -- 429
-					texts:put( -- 430
-						"xs", -- 430
-						talentNames[talentOffers[ti + 1]], -- 430
-						bx + 34, -- 430
-						cy, -- 430
-						toColor(PALETTE.textBright), -- 430
-						0, -- 430
-						0.5, -- 430
-						"Left", -- 430
-						0.6, -- 430
-						alpha, -- 430
-						0.08 -- 430
-					) -- 430
-				end -- 430
-				ti = ti + 1 -- 411
-			end -- 411
-		end -- 411
-	end -- 411
-	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 411
-		local g = p.room.story.gate -- 439
-		if p.phase == "gate-wait" or p.phase == "gate-hand" then -- 439
-			local bw = 400 -- 441
-			local cx = w * 0.5 -- 442
-			local by = h - 64 - safe.top -- 443
-			local tied = p.phase == "gate-hand" -- 444
-			local ratio = tied and 1 or math.max( -- 445
-				0, -- 445
-				math.min( -- 445
-					1, -- 445
-					p.handTicks / math.max(1, p.handNeedTicks) -- 445
-				) -- 445
-			) -- 445
-			local holdInteractKey = getActiveTarget():adaptWorldKeyTag("按住 E", inputMode, gamepadLayout) -- 446
-			local reholdInteractKey = getActiveTarget():adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout) -- 447
-			local label = tied and "我们走吧。" or (p.handTicks > 0 and (("牵起小满 · " .. tostring(p.handTicks)) .. " / ") .. tostring(p.handNeedTicks) or (p.handArmed and holdInteractKey .. " · 把手伸给她" or reholdInteractKey .. " · 把手伸给她")) -- 448
-			drawSilkVeil( -- 452
-				uiDraw, -- 452
-				uiArt, -- 452
-				"hud_hand_veil", -- 452
-				cx, -- 452
-				by + 18, -- 452
-				bw + 90, -- 452
-				48, -- 452
-				PALETTE.inkWash, -- 452
-				0.76 * alpha, -- 452
-				-1 -- 452
-			) -- 452
-			drawHairline( -- 453
-				uiInkDraw, -- 453
-				uiArt, -- 453
-				"hud_hand_top", -- 453
-				cx, -- 453
-				by + 39, -- 453
-				bw - 20, -- 453
-				PALETTE.amber, -- 453
-				0.55 * alpha, -- 453
-				false, -- 453
-				2 -- 453
-			) -- 453
-			texts:put( -- 454
-				"xs", -- 454
-				label, -- 454
-				cx, -- 454
-				by + 26, -- 454
-				toColor(PALETTE.textBright), -- 454
-				0.5, -- 454
-				0.5, -- 454
-				"Center", -- 454
-				1.8, -- 454
-				alpha, -- 454
-				0.08 -- 454
-			) -- 454
-			local pbw = bw - 80 -- 456
-			local pbx = cx - pbw * 0.5 -- 457
-			local pby = by + 9 -- 458
-			uiInkDraw:drawSegment( -- 459
-				Vec2(pbx, pby), -- 459
-				Vec2(pbx + pbw, pby), -- 459
-				1.4, -- 459
-				toColor(PALETTE.silkDim, 115 * alpha) -- 459
-			) -- 459
-			if ratio > 0.002 then -- 459
-				uiInkDraw:drawSegment( -- 461
-					Vec2(pbx, pby), -- 461
-					Vec2(pbx + pbw * ratio, pby), -- 461
-					2.8, -- 461
-					toColor(PALETTE.amber, 230 * alpha) -- 461
-				) -- 461
-				uiInkDraw:drawSegment( -- 462
-					Vec2(pbx, pby), -- 462
-					Vec2(pbx + pbw * ratio, pby), -- 462
-					1, -- 462
-					toColor(PALETTE.amberCore, 165 * alpha) -- 462
-				) -- 462
-			end -- 462
-			uiArt:tryPlace( -- 464
-				"ink_enso_fine", -- 464
-				"hand_knock_1", -- 464
-				pbx + pbw * 0.62, -- 464
-				pby, -- 464
-				11, -- 464
-				11, -- 464
-				{ -- 464
-					color = toColor(PALETTE.amber), -- 465
-					opacity = (p.knocks >= 1 and 0.9 or 0.45) * alpha, -- 465
-					layer = 3 -- 465
-				} -- 465
-			) -- 465
-			uiArt:tryPlace( -- 467
-				"ink_enso_fine", -- 467
-				"hand_knock_2", -- 467
-				pbx + pbw * 0.72, -- 467
-				pby, -- 467
-				11, -- 467
-				11, -- 467
-				{ -- 467
-					color = toColor(PALETTE.amber), -- 468
-					opacity = (p.knocks >= 2 and 0.9 or 0.45) * alpha, -- 468
-					layer = 3 -- 468
-				} -- 468
-			) -- 468
-		end -- 468
-		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 468
-			local bw = 400 -- 472
-			local cx = w * 0.5 -- 473
-			local by = h - 64 - safe.top -- 474
-			local ratio = math.max( -- 475
-				0, -- 475
-				math.min( -- 475
-					1, -- 475
-					p.gateTick / math.max(1, g.holdTicks) -- 475
-				) -- 475
-			) -- 475
-			local secLeft = math.max(0, (g.holdTicks - p.gateTick) / 60) -- 476
-			local secStr = __TS__NumberToFixed(secLeft, 1) -- 477
-			drawSilkVeil( -- 479
-				uiDraw, -- 479
-				uiArt, -- 479
-				"hud_gate_veil", -- 479
-				cx, -- 479
-				by + 18, -- 479
-				bw + 90, -- 479
-				48, -- 479
-				PALETTE.inkWash, -- 479
-				0.76 * alpha, -- 479
-				-1 -- 479
-			) -- 479
-			drawHairline( -- 480
-				uiInkDraw, -- 480
-				uiArt, -- 480
-				"hud_gate_top", -- 480
-				cx, -- 480
-				by + 39, -- 480
-				bw - 20, -- 480
-				PALETTE.rougeSoft, -- 480
-				0.55 * alpha, -- 480
-				false, -- 480
-				2 -- 480
-			) -- 480
-			local idleNeedConfirmLabel = assistHintsEnabled and getActiveTarget():adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout) or "绞盘待命" -- 482
-			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and idleNeedConfirmLabel or "待小满就位 · 绞盘启") or ("城门死守 · 余 " .. secStr) .. " 秒" -- 485
-			texts:put( -- 488
-				"xs", -- 488
-				label, -- 488
-				cx, -- 488
-				by + 26, -- 488
-				toColor(PALETTE.textBright), -- 488
-				0.5, -- 488
-				0.5, -- 488
-				"Center", -- 488
-				1.8, -- 488
-				alpha, -- 488
-				0.08 -- 488
-			) -- 488
-			local pbw = bw - 80 -- 490
-			local pbx = cx - pbw * 0.5 -- 491
-			local pby = by + 9 -- 492
-			uiInkDraw:drawSegment( -- 493
-				Vec2(pbx, pby), -- 493
-				Vec2(pbx + pbw, pby), -- 493
-				1.4, -- 493
-				toColor(PALETTE.silkDim, 115 * alpha) -- 493
-			) -- 493
-			if ratio > 0.002 then -- 493
-				uiInkDraw:drawSegment( -- 495
-					Vec2(pbx, pby), -- 495
-					Vec2(pbx + pbw * ratio, pby), -- 495
-					2.8, -- 495
-					toColor(PALETTE.rouge, 230 * alpha) -- 495
-				) -- 495
-				uiInkDraw:drawSegment( -- 496
-					Vec2(pbx, pby), -- 496
-					Vec2(pbx + pbw * ratio, pby), -- 496
-					1, -- 496
-					toColor(PALETTE.crimsonCore, 165 * alpha) -- 496
-				) -- 496
-			end -- 496
-			local waves = {0, 540 / 2700, 900 / 2700, 1500 / 2700} -- 498
-			local k = 0 -- 499
-			do -- 499
-				k = 0 -- 500
-				while k < #waves do -- 500
-					local wx = pbx + pbw * waves[k + 1] -- 501
-					local passed = p.gateSpawned > k -- 502
-					if passed then -- 502
-						drawBlossomDot( -- 504
-							uiInkDraw, -- 504
-							uiArt, -- 504
-							"gate_wave_" .. tostring(k), -- 504
-							wx, -- 504
-							pby, -- 504
-							10, -- 504
-							PALETTE.moonPale, -- 504
-							0.92 * alpha, -- 504
-							3 -- 504
-						) -- 504
-					else -- 504
-						uiArt:tryPlace( -- 506
-							"ink_enso_fine", -- 506
-							"gate_wave_" .. tostring(k), -- 506
-							wx, -- 506
-							pby, -- 506
-							11, -- 506
-							11, -- 506
-							{ -- 506
-								color = toColor(PALETTE.rouge), -- 507
-								opacity = 0.84 * alpha, -- 507
-								layer = 3 -- 507
-							} -- 507
-						) -- 507
-					end -- 507
-					k = k + 1 -- 500
-				end -- 500
-			end -- 500
-		end -- 500
-		return -- 512
-	end -- 512
-	if not assistHintsEnabled then -- 512
-		return -- 516
-	end -- 516
-	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 516
-		local cx = w * 0.5 -- 519
-		local by = h - 44 - safe.top -- 520
-		local step1 = p.cartDocked -- 521
-		local ____temp_6 -- 522
-		if p.room.key == "checkpoint" then -- 522
-			____temp_6 = p.gateOpen -- 522
-		else -- 522
-			____temp_6 = p.checkpoint >= p.room.arch.x1 -- 522
-		end -- 522
-		local step2 = ____temp_6 -- 522
-		local t1 = p.room.key == "checkpoint" and "红布板车入窝" or "上层拉车让拱" -- 523
-		local t2 = p.room.key == "checkpoint" and "双人汇合出口" or "蹲伏穿拱赴塔" -- 524
-		drawSilkVeil( -- 526
-			uiDraw, -- 526
-			uiArt, -- 526
-			"hud_obj_veil", -- 526
-			cx, -- 526
-			by, -- 526
-			380, -- 526
-			34, -- 526
-			PALETTE.inkWash, -- 526
-			0.58 * alpha, -- 526
-			-1 -- 526
-		) -- 526
-		local x1 = cx - 134 -- 528
-		if step1 then -- 528
-			drawBlossomDot( -- 530
-				uiInkDraw, -- 530
-				uiArt, -- 530
-				"obj_m1", -- 530
-				x1, -- 530
-				by, -- 530
-				11, -- 530
-				PALETTE.emerald, -- 530
-				0.94 * alpha, -- 530
-				3 -- 530
-			) -- 530
-		else -- 530
-			uiArt:tryPlace( -- 532
-				"ink_enso_fine", -- 532
-				"obj_m1", -- 532
-				x1, -- 532
-				by, -- 532
-				11, -- 532
-				11, -- 532
-				{ -- 532
-					color = toColor(PALETTE.silkLine), -- 532
-					opacity = 0.72 * alpha, -- 532
-					layer = 3 -- 532
-				} -- 532
-			) -- 532
-		end -- 532
-		texts:put( -- 534
-			"xs", -- 534
-			t1, -- 534
-			x1 + 13, -- 534
-			by, -- 534
-			toColor(step1 and PALETTE.emerald or PALETTE.textMid), -- 534
-			0, -- 534
-			0.5, -- 534
-			"Left", -- 534
-			1, -- 534
-			alpha, -- 534
-			0.08 -- 534
-		) -- 534
-		local x2 = cx + 18 -- 536
-		if step2 then -- 536
-			drawBlossomDot( -- 538
-				uiInkDraw, -- 538
-				uiArt, -- 538
-				"obj_m2", -- 538
-				x2, -- 538
-				by, -- 538
-				11, -- 538
-				PALETTE.emerald, -- 538
-				0.94 * alpha, -- 538
-				3 -- 538
-			) -- 538
-		else -- 538
-			uiArt:tryPlace( -- 540
-				"ink_enso_fine", -- 540
-				"obj_m2", -- 540
-				x2, -- 540
-				by, -- 540
-				11, -- 540
-				11, -- 540
-				{ -- 540
-					color = toColor(PALETTE.silkDim), -- 540
-					opacity = 0.62 * alpha, -- 540
-					layer = 3 -- 540
-				} -- 540
-			) -- 540
-		end -- 540
-		texts:put( -- 542
-			"xs", -- 542
-			t2, -- 542
-			x2 + 13, -- 542
-			by, -- 542
-			toColor(step2 and PALETTE.emerald or PALETTE.textDim), -- 542
-			0, -- 542
-			0.5, -- 542
-			"Left", -- 542
-			1, -- 542
-			alpha, -- 542
-			0.08 -- 542
-		) -- 542
-	end -- 542
-end -- 381
-function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiInkDraw, uiArt, texts, prompts, cam, alpha, uiScale, safe) -- 546
-	local bob = math.sin(self.time * 3.4) * 2.8 -- 557
-	local viewW = cam.viewW / uiScale -- 558
-	local viewH = cam.viewH / uiScale -- 559
-	local i = 0 -- 560
-	do -- 560
-		i = 0 -- 561
-		while i < #prompts do -- 561
-			local pr = prompts[i + 1] -- 562
-			local keyW = math.max( -- 563
-				24, -- 563
-				visualTextWidth(pr.keyTag, 15) + 16 -- 563
-			) -- 563
-			local labelW = visualTextWidth(pr.label, 15) -- 564
-			local pillW = keyW + labelW + 24 -- 565
-			local padX = math.max(115, pillW * 0.5 + 24) -- 566
-			local point = cam:worldToScreen(pr.x, pr.y) -- 567
-			local sx = math.max( -- 568
-				padX + safe.left, -- 568
-				math.min(viewW - padX - safe.right, point.x / uiScale) -- 568
-			) -- 568
-			local sy = math.max( -- 569
-				96 + safe.bottom, -- 569
-				math.min(viewH - 110 - safe.top, point.y / uiScale + bob) -- 569
-			) -- 569
-			local accent = pr.urgent and PALETTE.rouge or PALETTE.silkLine -- 570
-			uiInkDraw:drawSegment( -- 572
-				Vec2(sx, sy - 14), -- 572
-				Vec2(sx, sy - 27), -- 572
-				0.8, -- 572
-				toColor(accent, 135 * alpha) -- 572
-			) -- 572
-			drawBlossomDot( -- 573
-				uiInkDraw, -- 573
-				uiArt, -- 573
-				"wp_anchor_" .. tostring(i), -- 573
-				sx, -- 573
-				sy - 28, -- 573
-				7, -- 573
-				accent, -- 573
-				0.85 * alpha, -- 573
-				3 -- 573
-			) -- 573
-			local px = sx - pillW * 0.5 -- 575
-			local py = sy - 12 -- 576
-			drawSilkVeil( -- 578
-				uiDraw, -- 578
-				uiArt, -- 578
-				"wp_bg_" .. tostring(i), -- 578
-				sx, -- 578
-				py + 12, -- 578
-				pillW + 40, -- 578
-				32, -- 578
-				PALETTE.inkWash, -- 578
-				0.78 * alpha, -- 578
-				0 -- 578
-			) -- 578
-			drawHairline( -- 579
+end -- 80
+function HudRenderer.prototype.talentCardRects(self, w, h, count, touchMode, safeTop) -- 168
+	if touchMode == nil then -- 168
+		touchMode = false -- 168
+	end -- 168
+	if safeTop == nil then -- 168
+		safeTop = 0 -- 168
+	end -- 168
+	if self.talentRectProvider ~= nil then -- 168
+		return self:talentRectProvider( -- 170
+			w, -- 170
+			h, -- 170
+			count, -- 170
+			touchMode, -- 170
+			safeTop -- 170
+		) -- 170
+	end -- 170
+	local out = {} -- 172
+	if count <= 0 then -- 172
+		return out -- 174
+	end -- 174
+	local cardW = touchMode and 212 or 204 -- 176
+	local cardH = touchMode and 50 or 38 -- 177
+	local gap = 14 -- 178
+	local totalW = count * cardW + (count - 1) * gap -- 179
+	local startX = (w - totalW) * 0.5 -- 180
+	local y = h - (touchMode and 132 or 120) - safeTop -- 181
+	local i = 0 -- 182
+	do -- 182
+		i = 0 -- 183
+		while i < count do -- 183
+			out[#out + 1] = Rect(startX + i * (cardW + gap), y, cardW, cardH) -- 184
+			i = i + 1 -- 183
+		end -- 183
+	end -- 183
+	return out -- 186
+end -- 168
+function HudRenderer.prototype.drawReticleOverlay(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, letterboxFrac, uiScale, touchMode) -- 190
+	if touchMode == nil then -- 190
+		touchMode = false -- 199
+	end -- 199
+	if not p.paused and letterboxFrac < 0.5 and not p.gripping and p.escort.state ~= "calming" and not p.gateNeedConfirm and p.phase ~= "prologue-give" then -- 199
+		self:drawReticle( -- 203
+			uiInkDraw, -- 203
+			uiArt, -- 203
+			uiGlow, -- 203
+			p, -- 203
+			cam, -- 203
+			vfx, -- 203
+			uiScale, -- 203
+			touchMode -- 203
+		) -- 203
+	end -- 203
+end -- 190
+function HudRenderer.prototype.drawSoldierStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 207
+	local bx = 28 + safe.left -- 220
+	local by = h - 72 - safe.top -- 221
+	local lowHp = p.hp <= 1 -- 222
+	local segCount = math.max(1, p.maxHp) -- 224
+	local segW = segCount >= 5 and 42 or 54 -- 225
+	local segH = 9 -- 226
+	local gap = segCount >= 5 and 6 or 8 -- 227
+	local veilW = math.max(340, 124 + segCount * (segW + gap)) -- 228
+	drawSilkVeil( -- 229
+		uiDraw, -- 229
+		uiArt, -- 229
+		"hud_soldier_veil", -- 229
+		bx + veilW * 0.44, -- 229
+		by + 24, -- 229
+		veilW, -- 229
+		56, -- 229
+		PALETTE.inkWash, -- 229
+		0.62 * alpha, -- 229
+		-1 -- 229
+	) -- 229
+	texts:put( -- 230
+		"md", -- 230
+		"戍", -- 230
+		bx + 16, -- 230
+		by + 25, -- 230
+		toColor(lowHp and PALETTE.rouge or PALETTE.cyanCore), -- 230
+		0.5, -- 230
+		0.5, -- 230
+		"Center", -- 230
+		0, -- 230
+		alpha, -- 230
+		0.1 -- 230
+	) -- 230
+	uiInkDraw:drawSegment( -- 231
+		Vec2(bx + 32, by + 9), -- 231
+		Vec2(bx + 32, by + 40), -- 231
+		0.8, -- 231
+		toColor(PALETTE.silkDim, 130 * alpha) -- 231
+	) -- 231
+	texts:put( -- 232
+		"xs", -- 232
+		"周戍 · 体力", -- 232
+		bx + 44, -- 232
+		by + 36, -- 232
+		toColor(PALETTE.textMid), -- 232
+		0, -- 232
+		0.5, -- 232
+		"Left", -- 232
+		1.4, -- 232
+		alpha, -- 232
+		0.08 -- 232
+	) -- 232
+	local barX = bx + 44 -- 234
+	local barY = by + 16 -- 235
+	local i = 0 -- 237
+	do -- 237
+		i = 0 -- 238
+		while i < segCount do -- 238
+			local sx = barX + i * (segW + gap) -- 239
+			local scx = sx + segW * 0.5 -- 240
+			if not uiArt:tryPlace( -- 240
+				"ink_bamboo_slot", -- 241
+				"hp_slot_" .. tostring(i), -- 241
+				scx, -- 241
+				barY, -- 241
+				segW, -- 241
+				segH, -- 241
+				{ -- 241
+					color = toColor(PALETTE.silkDim), -- 242
+					opacity = 0.72 * alpha, -- 242
+					layer = 1 -- 242
+				} -- 242
+			) then -- 242
+				uiInkDraw:drawRect( -- 244
+					Rect(sx, barY - 3, segW, 6), -- 244
+					Color(0, 0, 0, 0), -- 244
+					0.8, -- 244
+					toColor(PALETTE.silkDim, 145 * alpha) -- 244
+				) -- 244
+			end -- 244
+			if self.ghostHp > i and self.ghostHp > p.hp then -- 244
+				local frac = math.min(1, self.ghostHp - i) -- 247
+				uiInkDraw:drawRect( -- 248
+					Rect(sx + 3, barY - 2, (segW - 6) * frac, 4), -- 248
+					toColor(PALETTE.crimsonCore, 150 * alpha) -- 248
+				) -- 248
+			end -- 248
+			if p.hp > i then -- 248
+				local pulse = lowHp and 0.72 + 0.28 * math.sin(self.time * 7) or 1 -- 251
+				local fillCol = lowHp and PALETTE.rouge or PALETTE.moonPale -- 252
+				if not uiArt:tryPlace( -- 252
+					"ink_bamboo_slip", -- 253
+					"hp_fill_" .. tostring(i), -- 253
+					scx, -- 253
+					barY, -- 253
+					segW, -- 253
+					segH, -- 253
+					{ -- 253
+						color = toColor(fillCol), -- 254
+						opacity = 0.94 * alpha * pulse, -- 254
+						layer = 2 -- 254
+					} -- 254
+				) then -- 254
+					uiInkDraw:drawRect( -- 256
+						Rect(sx + 2, barY - 2.5, segW - 4, 5), -- 256
+						toColor(fillCol, 230 * alpha * pulse) -- 256
+					) -- 256
+				end -- 256
+			end -- 256
+			i = i + 1 -- 238
+		end -- 238
+	end -- 238
+	local covX = barX + segCount * (segW + gap) + 6 -- 261
+	local hasAliveEnemy = false -- 262
+	do -- 262
+		i = 0 -- 263
+		while i < #p.enemies do -- 263
+			if p.enemies[i + 1].alive then -- 263
+				hasAliveEnemy = true -- 265
+				break -- 266
+			end -- 266
+			i = i + 1 -- 263
+		end -- 263
+	end -- 263
+	if p.coverHug then -- 263
+		if hasAliveEnemy and not p.coverBlocking then -- 263
+			uiInkDraw:drawRect( -- 271
+				Rect(covX, barY - 9, 72, 18), -- 271
+				toColor(PALETTE.inkWarm, 185 * alpha), -- 271
+				0.8, -- 271
+				toColor(PALETTE.amber, 200 * alpha) -- 271
+			) -- 271
+			texts:put( -- 272
+				"xs", -- 272
+				"背向掩体", -- 272
+				covX + 36, -- 272
+				barY, -- 272
+				toColor(PALETTE.amberCore), -- 272
+				0.5, -- 272
+				0.5, -- 272
+				"Center", -- 272
+				0.6, -- 272
+				alpha, -- 272
+				0 -- 272
+			) -- 272
+		else -- 272
+			uiInkDraw:drawRect( -- 274
+				Rect(covX, barY - 9, 54, 18), -- 274
+				toColor(PALETTE.cyanDim, 165 * alpha), -- 274
+				0.8, -- 274
+				toColor(PALETTE.cyanCore, 180 * alpha) -- 274
+			) -- 274
+			texts:put( -- 275
+				"xs", -- 275
+				"掩体中", -- 275
+				covX + 27, -- 275
+				barY, -- 275
+				toColor(PALETTE.textBright), -- 275
+				0.5, -- 275
+				0.5, -- 275
+				"Center", -- 275
+				0.6, -- 275
+				alpha, -- 275
+				0 -- 275
+			) -- 275
+		end -- 275
+	elseif assistHintsEnabled and p.coverNear then -- 275
+		uiInkDraw:drawRect( -- 278
+			Rect(covX, barY - 9, 54, 18), -- 278
+			Color( -- 278
+				14, -- 278
+				17, -- 278
+				25, -- 278
+				math.floor(150 * alpha + 0.5) -- 278
+			), -- 278
+			0.8, -- 278
+			toColor(PALETTE.silkLine, 165 * alpha) -- 278
+		) -- 278
+		texts:put( -- 279
+			"xs", -- 279
+			"可贴靠", -- 279
+			covX + 27, -- 279
+			barY, -- 279
+			toColor(PALETTE.textMid), -- 279
+			0.5, -- 279
+			0.5, -- 279
+			"Center", -- 279
+			0.6, -- 279
+			alpha, -- 279
+			0.08 -- 279
+		) -- 279
+	end -- 279
+	local ____p_isCampaign_5 = p.isCampaign -- 282
+	if ____p_isCampaign_5 then -- 282
+		local ____opt_0 = p.room.campaign -- 282
+		local ____temp_4 = (____opt_0 and ____opt_0.chapter) == "S" -- 282
+		if not ____temp_4 then -- 282
+			local ____opt_2 = p.room.campaign -- 282
+			____temp_4 = (____opt_2 and ____opt_2.chapter) == "C" -- 282
+		end -- 282
+		____p_isCampaign_5 = ____temp_4 -- 282
+	end -- 282
+	local showCampaignFear = ____p_isCampaign_5 and (p.escort.fear > 0 or p.escort.state == "frozen" or p.escort.state == "calming") -- 282
+	if p.room.key == "prologue" or p.room.key == "street" or p.room.key == "checkpoint" or showCampaignFear then -- 282
+		local subY = by - 24 -- 285
+		local frozen = p.escort.state == "frozen" -- 286
+		local calming = p.escort.state == "calming" -- 287
+		drawSilkVeil( -- 289
+			uiDraw, -- 289
+			uiArt, -- 289
+			"hud_fear_veil", -- 289
+			bx + 126, -- 289
+			subY + 6, -- 289
+			260, -- 289
+			30, -- 289
+			frozen and PALETTE.inkWarm or PALETTE.inkWash, -- 289
+			0.64 * alpha, -- 289
+			-1 -- 289
+		) -- 289
+		texts:put( -- 290
+			"xs", -- 290
+			"小满 · 惊惧", -- 290
+			bx + 14, -- 290
+			subY + 6, -- 290
+			toColor(frozen and PALETTE.crimsonCore or PALETTE.textMid), -- 290
+			0, -- 290
+			0.5, -- 290
+			"Left", -- 290
+			1, -- 290
+			alpha, -- 290
+			0.08 -- 290
+		) -- 290
+		local k = 0 -- 292
+		do -- 292
+			k = 0 -- 293
+			while k < FEAR_MAX do -- 293
+				local dx = bx + 114 + k * 20 -- 294
+				local dy = subY + 6 -- 295
+				local lit = k < p.escort.fear -- 296
+				local dc = frozen and PALETTE.rouge or PALETTE.amber -- 297
+				uiArt:tryPlace( -- 298
+					"ink_enso_fine", -- 298
+					"fear_ring_" .. tostring(k), -- 298
+					dx, -- 298
+					dy, -- 298
+					14, -- 298
+					14, -- 298
+					{ -- 298
+						color = toColor(lit and dc or PALETTE.silkLine), -- 299
+						opacity = (lit and 0.92 or 0.64) * alpha, -- 299
+						layer = 2 -- 299
+					} -- 299
+				) -- 299
+				if lit then -- 299
+					drawBlossomDot( -- 302
+						uiInkDraw, -- 302
+						uiArt, -- 302
+						"fear_dot_" .. tostring(k), -- 302
+						dx, -- 302
+						dy, -- 302
+						10, -- 302
+						dc, -- 302
+						0.96 * alpha, -- 302
+						3 -- 302
+					) -- 302
+				end -- 302
+				k = k + 1 -- 293
+			end -- 293
+		end -- 293
+		if frozen then -- 293
+			local pulse = 0.65 + 0.35 * math.sin(self.time * 7) -- 307
+			if assistHintsEnabled then -- 307
+				local calmKey = getActiveTarget():adaptWorldKeyTag("E", inputMode, gamepadLayout) -- 309
+				local keyW = math.max( -- 310
+					22, -- 310
+					visualTextWidth(calmKey, 15) + 10 -- 310
+				) -- 310
+				drawSilkKeycap( -- 311
+					uiInkDraw, -- 311
+					texts, -- 311
+					bx + 170, -- 311
+					subY - 5, -- 311
+					keyW, -- 311
+					22, -- 311
+					calmKey, -- 311
+					PALETTE.rouge, -- 311
+					alpha * pulse, -- 311
+					true -- 311
+				) -- 311
+				texts:put( -- 312
+					"xs", -- 312
+					"轻敲安抚", -- 312
+					bx + 176 + keyW, -- 312
+					subY + 6, -- 312
+					toColor(PALETTE.crimsonCore), -- 312
+					0, -- 312
+					0.5, -- 312
+					"Left", -- 312
+					0.8, -- 312
+					alpha * pulse, -- 312
+					0.08 -- 312
+				) -- 312
+			else -- 312
+				texts:put( -- 314
+					"xs", -- 314
+					"受惊停步", -- 314
+					bx + 172, -- 314
+					subY + 6, -- 314
+					toColor(PALETTE.crimsonCore), -- 314
+					0, -- 314
+					0.5, -- 314
+					"Left", -- 314
+					0.8, -- 314
+					alpha * pulse, -- 314
+					0.08 -- 314
+				) -- 314
+			end -- 314
+		elseif calming then -- 314
+			texts:put( -- 317
+				"xs", -- 317
+				"轻敲安抚中", -- 317
+				bx + 172, -- 317
+				subY + 6, -- 317
+				toColor(PALETTE.emerald), -- 317
+				0, -- 317
+				0.5, -- 317
+				"Left", -- 317
+				0.8, -- 317
+				alpha, -- 317
+				0.08 -- 317
+			) -- 317
+		end -- 317
+	end -- 317
+	if not self.roguelikeUiHandled then -- 317
+		local ranks = p:getStoryTalentRanks() -- 322
+		if ranks ~= nil then -- 322
+			local parts = {} -- 324
+			if ranks.vitality > 0 then -- 324
+				parts[#parts + 1] = "厚甲" .. tostring(ranks.vitality) -- 325
+			end -- 325
+			if ranks.focus > 0 then -- 325
+				parts[#parts + 1] = "凝神" .. tostring(ranks.focus) -- 326
+			end -- 326
+			if ranks.guard > 0 then -- 326
+				parts[#parts + 1] = "护身" .. tostring(ranks.guard) -- 327
+			end -- 327
+			if ranks.salvage > 0 then -- 327
+				parts[#parts + 1] = "拾料" .. tostring(ranks.salvage) -- 328
+			end -- 328
+			if #parts > 0 then -- 328
+				local subY = by - 22 -- 330
+				local txt = "本领 · " .. table.concat(parts, " · ") -- 331
+				drawSilkVeil( -- 332
+					uiDraw, -- 332
+					uiArt, -- 332
+					"hud_talent_ranks_veil", -- 332
+					bx + 126, -- 332
+					subY + 6, -- 332
+					260, -- 332
+					26, -- 332
+					PALETTE.inkWash, -- 332
+					0.56 * alpha, -- 332
+					-1 -- 332
+				) -- 332
+				texts:put( -- 333
+					"xs", -- 333
+					txt, -- 333
+					bx + 14, -- 333
+					subY + 6, -- 333
+					toColor(PALETTE.amberCore), -- 333
+					0, -- 333
+					0.5, -- 333
+					"Left", -- 333
+					0.8, -- 333
+					alpha, -- 333
+					0.08 -- 333
+				) -- 333
+			end -- 333
+		elseif p.isCampaign and p.room.campaign ~= nil and (p.room.campaign.chapter == "S" or p.room.campaign.chapter == "C") then -- 333
+			local inv = p.run.inventory -- 336
+			local items = {} -- 337
+			if inv.shield > 0 then -- 337
+				items[#items + 1] = "残盾" .. tostring(inv.shield) -- 338
+			end -- 338
+			if inv.wedge > 0 then -- 338
+				items[#items + 1] = "木楔" .. tostring(inv.wedge) -- 339
+			end -- 339
+			if inv.ammo > 0 then -- 339
+				items[#items + 1] = "弹包" .. tostring(inv.ammo) -- 340
+			end -- 340
+			if inv.scrap > 0 then -- 340
+				items[#items + 1] = "木料" .. tostring(inv.scrap) -- 341
+			end -- 341
+			local companionText = p.run.joined and "小满同行" or "小满等待" -- 342
+			local summary = #items > 0 and (companionText .. " · ") .. table.concat(items, " ") or companionText -- 343
+			local subY = by - 22 -- 344
+			drawSilkVeil( -- 345
+				uiDraw, -- 345
+				uiArt, -- 345
+				"hud_camp_veil", -- 345
+				bx + 126, -- 345
+				subY + 6, -- 345
+				260, -- 345
+				26, -- 345
+				PALETTE.inkWash, -- 345
+				0.54 * alpha, -- 345
+				-1 -- 345
+			) -- 345
+			texts:put( -- 346
+				"xs", -- 346
+				summary, -- 346
+				bx + 14, -- 346
+				subY + 6, -- 346
+				toColor(p.run.joined and PALETTE.cyanCore or PALETTE.amberCore), -- 346
+				0, -- 346
+				0.5, -- 346
+				"Left", -- 346
+				0.8, -- 346
+				alpha, -- 346
+				0.08 -- 346
+			) -- 346
+		end -- 346
+	end -- 346
+end -- 207
+function HudRenderer.prototype.drawChildStatus(self, uiDraw, uiInkDraw, uiArt, texts, p, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 351
+	local bx = 28 + safe.left -- 364
+	local by = h - 68 - safe.top -- 365
+	local alert = p.scavChase or p.dogState == "chase" or p.dogState == "ear" or p.scavSee > 0 -- 366
+	local leadCol = alert and PALETTE.rouge or (p.player.crouch and PALETTE.emerald or PALETTE.amberCore) -- 367
+	drawSilkVeil( -- 369
+		uiDraw, -- 369
+		uiArt, -- 369
+		"hud_child_veil", -- 369
+		bx + 144, -- 369
+		by + 22, -- 369
+		316, -- 369
+		48, -- 369
+		alert and PALETTE.inkWarm or PALETTE.inkWash, -- 369
+		0.58 * alpha, -- 369
+		-1 -- 369
+	) -- 369
+	texts:put( -- 370
+		"md", -- 370
+		alert and "危" or "满", -- 370
+		bx + 16, -- 370
+		by + 22, -- 370
+		toColor(leadCol), -- 370
+		0.5, -- 370
+		0.5, -- 370
+		"Center", -- 370
+		0, -- 370
+		alpha, -- 370
+		0.1 -- 370
+	) -- 370
+	uiInkDraw:drawSegment( -- 371
+		Vec2(bx + 32, by + 7), -- 371
+		Vec2(bx + 32, by + 37), -- 371
+		0.8, -- 371
+		toColor(PALETTE.silkDim, 130 * alpha) -- 371
+	) -- 371
+	texts:put( -- 372
+		"xs", -- 372
+		"小满 · 潜行", -- 372
+		bx + 44, -- 372
+		by + 33, -- 372
+		toColor(PALETTE.amberCore), -- 372
+		0, -- 372
+		0.5, -- 372
+		"Left", -- 372
+		1.4, -- 372
+		alpha, -- 372
+		0.08 -- 372
+	) -- 372
+	local posture = assistHintsEnabled and "轻步前行 · 保持隐蔽" or "轻步前行" -- 374
+	local col = PALETTE.textMid -- 375
+	if alert then -- 375
+		posture = (p.scavChase or p.dogState == "chase") and (assistHintsEnabled and "已被发现 · 速寻隐蔽" or "已被发现") or (assistHintsEnabled and "引起警觉 · 停步蹲伏" or "引起警觉") -- 377
+		col = PALETTE.crimsonCore -- 380
+	elseif p.player.crouch then -- 380
+		posture = assistHintsEnabled and "低姿伏行 · 匿迹于影" or "低姿伏行" -- 382
+		col = PALETTE.emerald -- 383
+	elseif p.hasBottle then -- 383
+		posture = assistHintsEnabled and getActiveTarget():adaptHintSentence(inputMode == "kbm" and "手持陶瓶 · 按住 [F] 或左键瞄投" or "手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout) or "手持陶瓶" -- 385
+		col = PALETTE.amberCore -- 392
+	end -- 392
+	texts:put( -- 394
+		"xs", -- 394
+		posture, -- 394
+		bx + 44, -- 394
+		by + 12, -- 394
+		toColor(col), -- 394
+		0, -- 394
+		0.5, -- 394
+		"Left", -- 394
+		0.6, -- 394
+		alpha, -- 394
+		0.08 -- 394
+	) -- 394
+end -- 351
+function HudRenderer.prototype.drawChapterBadge(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha, inputMode, safe, touchOverlayVisible, pointerUi, pointerInside) -- 397
+	if pointerInside == nil then -- 397
+		pointerInside = false -- 410
+	end -- 410
+	local theme = themeOf(p.room.key) -- 412
+	local rx = w - 32 - safe.right - (touchOverlayVisible and 208 or 0) -- 413
+	local cy = h - 44 - safe.top -- 414
+	local pauseTip = inputMode == "gamepad" and "START 暂歇" or "Esc / 点击 暂歇" -- 415
+	local box = self:getChapterPauseRect(w, h, safe, touchOverlayVisible) -- 416
+	local hover = inputMode == "kbm" and not touchOverlayVisible and pointerInside and pointerUi ~= nil and box.width > 0 and box:containsPoint(pointerUi) -- 417
+	drawSilkVeil( -- 420
+		uiDraw, -- 420
+		uiArt, -- 420
+		"hud_chap_veil", -- 420
+		rx - 82, -- 420
+		cy, -- 420
+		240, -- 420
+		44, -- 420
+		hover and PALETTE.inkWarm or PALETTE.inkWash, -- 420
+		(hover and 0.72 or 0.44) * alpha, -- 420
+		-1 -- 420
+	) -- 420
+	if hover then -- 420
+		uiInkDraw:drawRect( -- 422
+			box, -- 422
+			Color(0, 0, 0, 0), -- 422
+			0.9, -- 422
+			toColor(PALETTE.amber, 175 * alpha) -- 422
+		) -- 422
+	end -- 422
+	texts:put( -- 424
+		"xs", -- 424
+		(theme.numeralZh .. " · ") .. theme.titleZh, -- 424
+		rx, -- 424
+		touchOverlayVisible and cy or cy + 9, -- 424
+		toColor(PALETTE.textBright), -- 424
+		1, -- 424
+		0.5, -- 424
+		"Right", -- 424
+		1.2, -- 424
+		alpha, -- 424
+		0.08 -- 424
+	) -- 424
+	if not touchOverlayVisible then -- 424
+		texts:put( -- 426
+			"xs", -- 426
+			pauseTip, -- 426
+			rx, -- 426
+			cy - 11, -- 426
+			toColor(hover and PALETTE.amberCore or PALETTE.textDim), -- 426
+			1, -- 426
+			0.5, -- 426
+			"Right", -- 426
+			1, -- 426
+			(hover and 0.98 or 0.78) * alpha, -- 426
+			0.08 -- 426
+		) -- 426
+	end -- 426
+end -- 397
+function HudRenderer.prototype.drawContextualObjective(self, uiDraw, uiInkDraw, uiArt, texts, p, w, h, alpha, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 430
+	local touchMode = inputMode == "touch" -- 444
+	local talentOffers = p:getStoryTalentOffers() -- 445
+	if not self.roguelikeUiHandled and #talentOffers > 0 and not p.craftBench.active and not p.reloadOpen then -- 445
+		local boxes = self:talentCardRects( -- 447
+			w, -- 447
+			h, -- 447
+			#talentOffers, -- 447
+			touchMode, -- 447
+			safe.top -- 447
+		) -- 447
+		local cx = w * 0.5 -- 448
+		local titleY = h - 54 - safe.top -- 449
+		local talentHint = inputMode == "gamepad" and "护送本领三选一 · LB/RB 择项 · L3 确认或点选" or (touchMode and "护送本领三选一 · 轻触卡面习得" or "护送本领三选一 · 按 1 / 2 / 3 或点击习得") -- 450
+		drawSilkVeil( -- 455
+			uiDraw, -- 455
+			uiArt, -- 455
+			"hud_talent_head_veil", -- 455
+			cx, -- 455
+			titleY, -- 455
+			410, -- 455
+			26, -- 455
+			PALETTE.inkWash, -- 455
+			0.72 * alpha, -- 455
+			-1 -- 455
+		) -- 455
+		drawHairline( -- 456
+			uiInkDraw, -- 456
+			uiArt, -- 456
+			"hud_talent_head_line", -- 456
+			cx, -- 456
+			titleY + 13, -- 456
+			330, -- 456
+			PALETTE.amber, -- 456
+			0.52 * alpha, -- 456
+			true, -- 456
+			2 -- 456
+		) -- 456
+		texts:put( -- 457
+			"xs", -- 457
+			talentHint, -- 457
+			cx, -- 457
+			titleY, -- 457
+			toColor(PALETTE.amberCore), -- 457
+			0.5, -- 457
+			0.5, -- 457
+			"Center", -- 457
+			1.2, -- 457
+			alpha, -- 457
+			0.08 -- 457
+		) -- 457
+		local ti = 0 -- 459
+		do -- 459
+			ti = 0 -- 460
+			while ti < #talentOffers do -- 460
+				local box = boxes[ti + 1] -- 461
+				local bx = box.x -- 462
+				local by = box.y -- 463
+				local bh = box.height -- 464
+				local cy = by + bh * 0.5 -- 465
+				local gpFocus = inputMode == "gamepad" and ti == self.talentSelected -- 466
+				local borderCol = gpFocus and PALETTE.rouge or PALETTE.amber -- 467
+				uiDraw:drawRect( -- 468
+					box, -- 469
+					toColor( -- 470
+						gpFocus and PALETTE.inkWarm or PALETTE.panelBgDeep, -- 470
+						math.floor((gpFocus and 235 or 215) * alpha + 0.5) -- 470
+					), -- 470
+					gpFocus and 1.5 or 0.9, -- 471
+					toColor( -- 472
+						borderCol, -- 472
+						math.floor((gpFocus and 235 or 185) * alpha + 0.5) -- 472
+					) -- 472
+				) -- 472
+				if inputMode == "kbm" then -- 472
+					drawSilkKeycap( -- 475
+						uiInkDraw, -- 475
+						texts, -- 475
+						bx + 8, -- 475
+						cy - 11, -- 475
+						22, -- 475
+						22, -- 475
+						"" .. tostring(ti + 1), -- 475
+						borderCol, -- 475
+						alpha, -- 475
+						true -- 475
+					) -- 475
+					texts:put( -- 476
+						"xs", -- 476
+						talentNames[talentOffers[ti + 1]], -- 476
+						bx + 38, -- 476
+						cy, -- 476
+						toColor(PALETTE.textBright), -- 476
+						0, -- 476
+						0.5, -- 476
+						"Left", -- 476
+						0.6, -- 476
+						alpha, -- 476
+						0.08 -- 476
+					) -- 476
+				else -- 476
+					drawBlossomDot( -- 478
+						uiInkDraw, -- 478
+						uiArt, -- 478
+						"hud_talent_dot_" .. tostring(ti), -- 478
+						bx + 18, -- 478
+						cy, -- 478
+						gpFocus and 12 or 8, -- 478
+						borderCol, -- 478
+						alpha, -- 478
+						4 -- 478
+					) -- 478
+					texts:put( -- 479
+						"xs", -- 479
+						talentNames[talentOffers[ti + 1]], -- 479
+						bx + 34, -- 479
+						cy, -- 479
+						toColor(PALETTE.textBright), -- 479
+						0, -- 479
+						0.5, -- 479
+						"Left", -- 479
+						0.6, -- 479
+						alpha, -- 479
+						0.08 -- 479
+					) -- 479
+				end -- 479
+				ti = ti + 1 -- 460
+			end -- 460
+		end -- 460
+	end -- 460
+	if p.room.key == "gate" and p.room.story ~= nil and p.room.story.gate ~= nil then -- 460
+		local g = p.room.story.gate -- 488
+		if p.phase == "gate-wait" or p.phase == "gate-hand" then -- 488
+			local bw = 400 -- 490
+			local cx = w * 0.5 -- 491
+			local by = h - 64 - safe.top -- 492
+			local tied = p.phase == "gate-hand" -- 493
+			local ratio = tied and 1 or math.max( -- 494
+				0, -- 494
+				math.min( -- 494
+					1, -- 494
+					p.handTicks / math.max(1, p.handNeedTicks) -- 494
+				) -- 494
+			) -- 494
+			local holdInteractKey = getActiveTarget():adaptWorldKeyTag("按住 E", inputMode, gamepadLayout) -- 495
+			local reholdInteractKey = getActiveTarget():adaptWorldKeyTag("松开再按住 E", inputMode, gamepadLayout) -- 496
+			local label = tied and "我们走吧。" or (p.handTicks > 0 and (("牵起小满 · " .. tostring(p.handTicks)) .. " / ") .. tostring(p.handNeedTicks) or (p.handArmed and holdInteractKey .. " · 把手伸给她" or reholdInteractKey .. " · 把手伸给她")) -- 497
+			drawSilkVeil( -- 501
+				uiDraw, -- 501
+				uiArt, -- 501
+				"hud_hand_veil", -- 501
+				cx, -- 501
+				by + 18, -- 501
+				bw + 90, -- 501
+				48, -- 501
+				PALETTE.inkWash, -- 501
+				0.76 * alpha, -- 501
+				-1 -- 501
+			) -- 501
+			drawHairline( -- 502
+				uiInkDraw, -- 502
+				uiArt, -- 502
+				"hud_hand_top", -- 502
+				cx, -- 502
+				by + 39, -- 502
+				bw - 20, -- 502
+				PALETTE.amber, -- 502
+				0.55 * alpha, -- 502
+				false, -- 502
+				2 -- 502
+			) -- 502
+			texts:put( -- 503
+				"xs", -- 503
+				label, -- 503
+				cx, -- 503
+				by + 26, -- 503
+				toColor(PALETTE.textBright), -- 503
+				0.5, -- 503
+				0.5, -- 503
+				"Center", -- 503
+				1.8, -- 503
+				alpha, -- 503
+				0.08 -- 503
+			) -- 503
+			local pbw = bw - 80 -- 505
+			local pbx = cx - pbw * 0.5 -- 506
+			local pby = by + 9 -- 507
+			uiInkDraw:drawSegment( -- 508
+				Vec2(pbx, pby), -- 508
+				Vec2(pbx + pbw, pby), -- 508
+				1.4, -- 508
+				toColor(PALETTE.silkDim, 115 * alpha) -- 508
+			) -- 508
+			if ratio > 0.002 then -- 508
+				uiInkDraw:drawSegment( -- 510
+					Vec2(pbx, pby), -- 510
+					Vec2(pbx + pbw * ratio, pby), -- 510
+					2.8, -- 510
+					toColor(PALETTE.amber, 230 * alpha) -- 510
+				) -- 510
+				uiInkDraw:drawSegment( -- 511
+					Vec2(pbx, pby), -- 511
+					Vec2(pbx + pbw * ratio, pby), -- 511
+					1, -- 511
+					toColor(PALETTE.amberCore, 165 * alpha) -- 511
+				) -- 511
+			end -- 511
+			uiArt:tryPlace( -- 513
+				"ink_enso_fine", -- 513
+				"hand_knock_1", -- 513
+				pbx + pbw * 0.62, -- 513
+				pby, -- 513
+				11, -- 513
+				11, -- 513
+				{ -- 513
+					color = toColor(PALETTE.amber), -- 514
+					opacity = (p.knocks >= 1 and 0.9 or 0.45) * alpha, -- 514
+					layer = 3 -- 514
+				} -- 514
+			) -- 514
+			uiArt:tryPlace( -- 516
+				"ink_enso_fine", -- 516
+				"hand_knock_2", -- 516
+				pbx + pbw * 0.72, -- 516
+				pby, -- 516
+				11, -- 516
+				11, -- 516
+				{ -- 516
+					color = toColor(PALETTE.amber), -- 517
+					opacity = (p.knocks >= 2 and 0.9 or 0.45) * alpha, -- 517
+					layer = 3 -- 517
+				} -- 517
+			) -- 517
+		end -- 517
+		if p.phase == "gate-hold" or p.phase == "gate-idle" then -- 517
+			local bw = 400 -- 521
+			local cx = w * 0.5 -- 522
+			local by = h - 64 - safe.top -- 523
+			local ratio = math.max( -- 524
+				0, -- 524
+				math.min( -- 524
+					1, -- 524
+					p.gateTick / math.max(1, g.holdTicks) -- 524
+				) -- 524
+			) -- 524
+			local secLeft = math.max(0, (g.holdTicks - p.gateTick) / 60) -- 525
+			local secStr = __TS__NumberToFixed(secLeft, 1) -- 526
+			drawSilkVeil( -- 528
+				uiDraw, -- 528
+				uiArt, -- 528
+				"hud_gate_veil", -- 528
+				cx, -- 528
+				by + 18, -- 528
+				bw + 90, -- 528
+				48, -- 528
+				PALETTE.inkWash, -- 528
+				0.76 * alpha, -- 528
+				-1 -- 528
+			) -- 528
+			drawHairline( -- 529
+				uiInkDraw, -- 529
+				uiArt, -- 529
+				"hud_gate_top", -- 529
+				cx, -- 529
+				by + 39, -- 529
+				bw - 20, -- 529
+				PALETTE.rougeSoft, -- 529
+				0.55 * alpha, -- 529
+				false, -- 529
+				2 -- 529
+			) -- 529
+			local idleNeedConfirmLabel = assistHintsEnabled and getActiveTarget():adaptHintSentence("绞盘待命 · 按 [E] 重新守门", inputMode, gamepadLayout) or "绞盘待命" -- 531
+			local label = p.phase == "gate-idle" and (p.gateNeedConfirm and idleNeedConfirmLabel or "待小满就位 · 绞盘启") or ("城门死守 · 余 " .. secStr) .. " 秒" -- 534
+			texts:put( -- 537
+				"xs", -- 537
+				label, -- 537
+				cx, -- 537
+				by + 26, -- 537
+				toColor(PALETTE.textBright), -- 537
+				0.5, -- 537
+				0.5, -- 537
+				"Center", -- 537
+				1.8, -- 537
+				alpha, -- 537
+				0.08 -- 537
+			) -- 537
+			local pbw = bw - 80 -- 539
+			local pbx = cx - pbw * 0.5 -- 540
+			local pby = by + 9 -- 541
+			uiInkDraw:drawSegment( -- 542
+				Vec2(pbx, pby), -- 542
+				Vec2(pbx + pbw, pby), -- 542
+				1.4, -- 542
+				toColor(PALETTE.silkDim, 115 * alpha) -- 542
+			) -- 542
+			if ratio > 0.002 then -- 542
+				uiInkDraw:drawSegment( -- 544
+					Vec2(pbx, pby), -- 544
+					Vec2(pbx + pbw * ratio, pby), -- 544
+					2.8, -- 544
+					toColor(PALETTE.rouge, 230 * alpha) -- 544
+				) -- 544
+				uiInkDraw:drawSegment( -- 545
+					Vec2(pbx, pby), -- 545
+					Vec2(pbx + pbw * ratio, pby), -- 545
+					1, -- 545
+					toColor(PALETTE.crimsonCore, 165 * alpha) -- 545
+				) -- 545
+			end -- 545
+			local waves = {0, 540 / 2700, 900 / 2700, 1500 / 2700} -- 547
+			local k = 0 -- 548
+			do -- 548
+				k = 0 -- 549
+				while k < #waves do -- 549
+					local wx = pbx + pbw * waves[k + 1] -- 550
+					local passed = p.gateSpawned > k -- 551
+					if passed then -- 551
+						drawBlossomDot( -- 553
+							uiInkDraw, -- 553
+							uiArt, -- 553
+							"gate_wave_" .. tostring(k), -- 553
+							wx, -- 553
+							pby, -- 553
+							10, -- 553
+							PALETTE.moonPale, -- 553
+							0.92 * alpha, -- 553
+							3 -- 553
+						) -- 553
+					else -- 553
+						uiArt:tryPlace( -- 555
+							"ink_enso_fine", -- 555
+							"gate_wave_" .. tostring(k), -- 555
+							wx, -- 555
+							pby, -- 555
+							11, -- 555
+							11, -- 555
+							{ -- 555
+								color = toColor(PALETTE.rouge), -- 556
+								opacity = 0.84 * alpha, -- 556
+								layer = 3 -- 556
+							} -- 556
+						) -- 556
+					end -- 556
+					k = k + 1 -- 549
+				end -- 549
+			end -- 549
+		end -- 549
+		return -- 561
+	end -- 561
+	if not assistHintsEnabled then -- 561
+		return -- 565
+	end -- 565
+	if p.room.key == "checkpoint" or p.room.key == "outside" then -- 565
+		local cx = w * 0.5 -- 568
+		local by = h - 44 - safe.top -- 569
+		local step1 = p.cartDocked -- 570
+		local ____temp_6 -- 571
+		if p.room.key == "checkpoint" then -- 571
+			____temp_6 = p.gateOpen -- 571
+		else -- 571
+			____temp_6 = p.checkpoint >= p.room.arch.x1 -- 571
+		end -- 571
+		local step2 = ____temp_6 -- 571
+		local t1 = p.room.key == "checkpoint" and "红布板车入窝" or "上层拉车让拱" -- 572
+		local t2 = p.room.key == "checkpoint" and "双人汇合出口" or "蹲伏穿拱赴塔" -- 573
+		drawSilkVeil( -- 575
+			uiDraw, -- 575
+			uiArt, -- 575
+			"hud_obj_veil", -- 575
+			cx, -- 575
+			by, -- 575
+			380, -- 575
+			34, -- 575
+			PALETTE.inkWash, -- 575
+			0.58 * alpha, -- 575
+			-1 -- 575
+		) -- 575
+		local x1 = cx - 134 -- 577
+		if step1 then -- 577
+			drawBlossomDot( -- 579
 				uiInkDraw, -- 579
 				uiArt, -- 579
-				"wp_line_" .. tostring(i), -- 579
-				sx, -- 579
-				py + 24, -- 579
-				pillW + 4, -- 579
-				accent, -- 579
-				0.45 * alpha, -- 579
-				false, -- 579
-				2 -- 579
+				"obj_m1", -- 579
+				x1, -- 579
+				by, -- 579
+				11, -- 579
+				PALETTE.emerald, -- 579
+				0.94 * alpha, -- 579
+				3 -- 579
 			) -- 579
-			drawSilkKeycap( -- 580
-				uiInkDraw, -- 580
-				texts, -- 580
-				px + 2, -- 580
-				py + 2, -- 580
-				keyW, -- 580
-				20, -- 580
-				pr.keyTag, -- 580
-				accent, -- 580
-				alpha, -- 580
-				pr.urgent -- 580
-			) -- 580
-			texts:put( -- 581
-				"xs", -- 581
-				pr.label, -- 581
-				px + keyW + 12, -- 581
-				py + 12, -- 581
-				toColor(PALETTE.textBright), -- 581
-				0, -- 581
-				0.5, -- 581
-				"Left", -- 581
-				0.8, -- 581
-				alpha, -- 581
-				0.08 -- 581
+		else -- 579
+			uiArt:tryPlace( -- 581
+				"ink_enso_fine", -- 581
+				"obj_m1", -- 581
+				x1, -- 581
+				by, -- 581
+				11, -- 581
+				11, -- 581
+				{ -- 581
+					color = toColor(PALETTE.silkLine), -- 581
+					opacity = 0.72 * alpha, -- 581
+					layer = 3 -- 581
+				} -- 581
 			) -- 581
-			i = i + 1 -- 561
-		end -- 561
-	end -- 561
-end -- 546
-function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale, touchMode) -- 585
-	local mx = p.aimX / uiScale -- 595
-	local my = p.aimY / uiScale -- 596
-	if mx <= 0 and my <= 0 then -- 596
-		return -- 598
-	end -- 598
-	if p.childMode then -- 598
-		local aiming = p.room.key == "village" and p.hasBottle -- 602
-		if touchMode and (not aiming or p.aimHold <= 0) then -- 602
-			return -- 604
-		end -- 604
-		local col = aiming and PALETTE.amberCore or PALETTE.silkDim -- 606
-		uiInkDraw:drawDot( -- 607
-			Vec2(mx, my), -- 607
-			aiming and 2 or 1.6, -- 607
-			toColor(col, aiming and 215 or 120) -- 607
-		) -- 607
-		if aiming then -- 607
-			local sz = p.aimHold > 0 and 32 or 24 -- 609
-			uiArt:tryPlace( -- 610
-				"ink_enso_fine", -- 610
-				"reticle_child", -- 610
-				mx, -- 610
-				my, -- 610
-				sz, -- 610
-				sz, -- 610
-				{ -- 610
-					color = toColor(PALETTE.amberCore), -- 611
-					opacity = 0.82, -- 611
-					angle = self.time * 24, -- 611
-					layer = 5 -- 611
-				} -- 611
-			) -- 611
-		end -- 611
-		return -- 614
+		end -- 581
+		texts:put( -- 583
+			"xs", -- 583
+			t1, -- 583
+			x1 + 13, -- 583
+			by, -- 583
+			toColor(step1 and PALETTE.emerald or PALETTE.textMid), -- 583
+			0, -- 583
+			0.5, -- 583
+			"Left", -- 583
+			1, -- 583
+			alpha, -- 583
+			0.08 -- 583
+		) -- 583
+		local x2 = cx + 18 -- 585
+		if step2 then -- 585
+			drawBlossomDot( -- 587
+				uiInkDraw, -- 587
+				uiArt, -- 587
+				"obj_m2", -- 587
+				x2, -- 587
+				by, -- 587
+				11, -- 587
+				PALETTE.emerald, -- 587
+				0.94 * alpha, -- 587
+				3 -- 587
+			) -- 587
+		else -- 587
+			uiArt:tryPlace( -- 589
+				"ink_enso_fine", -- 589
+				"obj_m2", -- 589
+				x2, -- 589
+				by, -- 589
+				11, -- 589
+				11, -- 589
+				{ -- 589
+					color = toColor(PALETTE.silkDim), -- 589
+					opacity = 0.62 * alpha, -- 589
+					layer = 3 -- 589
+				} -- 589
+			) -- 589
+		end -- 589
+		texts:put( -- 591
+			"xs", -- 591
+			t2, -- 591
+			x2 + 13, -- 591
+			by, -- 591
+			toColor(step2 and PALETTE.emerald or PALETTE.textDim), -- 591
+			0, -- 591
+			0.5, -- 591
+			"Left", -- 591
+			1, -- 591
+			alpha, -- 591
+			0.08 -- 591
+		) -- 591
+	end -- 591
+end -- 430
+function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiInkDraw, uiArt, texts, prompts, cam, alpha, uiScale, safe, clickMode, inputMode, pointerUi, pointerInside) -- 595
+	if clickMode == nil then -- 595
+		clickMode = "none" -- 605
+	end -- 605
+	if inputMode == nil then -- 605
+		inputMode = "kbm" -- 606
+	end -- 606
+	if pointerInside == nil then -- 606
+		pointerInside = false -- 608
+	end -- 608
+	local bob = math.sin(self.time * 3.4) * 2.8 -- 610
+	local viewW = cam.viewW / uiScale -- 611
+	local viewH = cam.viewH / uiScale -- 612
+	local i = 0 -- 613
+	do -- 613
+		i = 0 -- 614
+		while i < #prompts do -- 614
+			local pr = prompts[i + 1] -- 615
+			local keyW = math.max( -- 616
+				24, -- 616
+				visualTextWidth(pr.keyTag, 15) + 16 -- 616
+			) -- 616
+			local labelW = visualTextWidth(pr.label, 15) -- 617
+			local pillW = keyW + labelW + 24 -- 618
+			local padX = math.max(115, pillW * 0.5 + 24) -- 619
+			local point = cam:worldToScreen(pr.x, pr.y) -- 620
+			local sx = math.max( -- 621
+				padX + safe.left, -- 621
+				math.min(viewW - padX - safe.right, point.x / uiScale) -- 621
+			) -- 621
+			local sy = math.max( -- 622
+				96 + safe.bottom, -- 622
+				math.min(viewH - 110 - safe.top, point.y / uiScale + bob) -- 622
+			) -- 622
+			local px = sx - pillW * 0.5 -- 624
+			local py = sy - 12 -- 625
+			local pillRect = Rect(px - 10, py - 5, pillW + 20, 34) -- 626
+			local hover = i == 0 and clickMode ~= "none" and inputMode == "kbm" and pointerInside and pointerUi ~= nil and pillRect:containsPoint(pointerUi) -- 627
+			if i == 0 and clickMode ~= "none" then -- 627
+				self.lastInteractPromptRect = pillRect -- 630
+				self.lastInteractPromptMode = clickMode -- 631
+			end -- 631
+			local accent = hover and PALETTE.amberCore or (pr.urgent and PALETTE.rouge or PALETTE.silkLine) -- 633
+			uiInkDraw:drawSegment( -- 635
+				Vec2(sx, sy - 14), -- 635
+				Vec2(sx, sy - 27), -- 635
+				0.8, -- 635
+				toColor(accent, 135 * alpha) -- 635
+			) -- 635
+			drawBlossomDot( -- 636
+				uiInkDraw, -- 636
+				uiArt, -- 636
+				"wp_anchor_" .. tostring(i), -- 636
+				sx, -- 636
+				sy - 28, -- 636
+				7, -- 636
+				accent, -- 636
+				0.85 * alpha, -- 636
+				3 -- 636
+			) -- 636
+			drawSilkVeil( -- 638
+				uiDraw, -- 638
+				uiArt, -- 638
+				"wp_bg_" .. tostring(i), -- 638
+				sx, -- 638
+				py + 12, -- 638
+				pillW + 40, -- 638
+				32, -- 638
+				hover and PALETTE.inkWarm or PALETTE.inkWash, -- 638
+				(hover and 0.9 or 0.78) * alpha, -- 638
+				0 -- 638
+			) -- 638
+			if hover then -- 638
+				uiInkDraw:drawRect( -- 640
+					pillRect, -- 640
+					Color(0, 0, 0, 0), -- 640
+					1, -- 640
+					toColor(PALETTE.amberCore, 210 * alpha) -- 640
+				) -- 640
+			end -- 640
+			drawHairline( -- 642
+				uiInkDraw, -- 642
+				uiArt, -- 642
+				"wp_line_" .. tostring(i), -- 642
+				sx, -- 642
+				py + 24, -- 642
+				pillW + 4, -- 642
+				accent, -- 642
+				(hover and 0.78 or 0.45) * alpha, -- 642
+				false, -- 642
+				2 -- 642
+			) -- 642
+			drawSilkKeycap( -- 643
+				uiInkDraw, -- 643
+				texts, -- 643
+				px + 2, -- 643
+				py + 2, -- 643
+				keyW, -- 643
+				20, -- 643
+				pr.keyTag, -- 643
+				accent, -- 643
+				alpha, -- 643
+				pr.urgent or hover -- 643
+			) -- 643
+			texts:put( -- 644
+				"xs", -- 644
+				pr.label, -- 644
+				px + keyW + 12, -- 644
+				py + 12, -- 644
+				toColor(hover and PALETTE.amberCore or PALETTE.textBright), -- 644
+				0, -- 644
+				0.5, -- 644
+				"Left", -- 644
+				0.8, -- 644
+				alpha, -- 644
+				0.08 -- 644
+			) -- 644
+			i = i + 1 -- 614
+		end -- 614
 	end -- 614
-	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 617
-	local onEnemy = false -- 618
-	local i = 0 -- 619
-	do -- 619
-		i = 0 -- 620
-		while i < #p.enemies do -- 620
-			local e = p.enemies[i + 1] -- 621
-			local ey = e.y + (e.depth or 0) * DEPTH_Y_SCALE -- 622
-			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= ey - 6 and wAim.y <= ey + e.h + 6 then -- 622
-				onEnemy = true -- 624
-			end -- 624
-			i = i + 1 -- 620
-		end -- 620
-	end -- 620
-	local col = onEnemy and PALETTE.rouge or PALETTE.textBright -- 628
-	local gap = (onEnemy and 5.5 or 7) + vfx.crosshairKick * 0.72 -- 629
-	local arm = onEnemy and 8.5 or 9.5 -- 630
-	local bg = Color(10, 12, 18, 160) -- 631
-	uiInkDraw:drawSegment( -- 633
-		Vec2(mx - gap - arm, my), -- 633
-		Vec2(mx - gap, my), -- 633
-		2.1, -- 633
-		bg -- 633
-	) -- 633
-	uiInkDraw:drawSegment( -- 634
-		Vec2(mx + gap, my), -- 634
-		Vec2(mx + gap + arm, my), -- 634
-		2.1, -- 634
-		bg -- 634
-	) -- 634
-	uiInkDraw:drawSegment( -- 635
-		Vec2(mx, my - gap - arm), -- 635
-		Vec2(mx, my - gap), -- 635
-		2.1, -- 635
-		bg -- 635
-	) -- 635
-	uiInkDraw:drawSegment( -- 636
-		Vec2(mx, my + gap), -- 636
-		Vec2(mx, my + gap + arm), -- 636
-		2.1, -- 636
-		bg -- 636
-	) -- 636
-	uiInkDraw:drawSegment( -- 638
-		Vec2(mx - gap - arm, my), -- 638
-		Vec2(mx - gap, my), -- 638
-		1.1, -- 638
-		toColor(col, 230) -- 638
-	) -- 638
-	uiInkDraw:drawSegment( -- 639
-		Vec2(mx + gap, my), -- 639
-		Vec2(mx + gap + arm, my), -- 639
-		1.1, -- 639
-		toColor(col, 230) -- 639
-	) -- 639
-	uiInkDraw:drawSegment( -- 640
-		Vec2(mx, my - gap - arm), -- 640
-		Vec2(mx, my - gap), -- 640
-		1.1, -- 640
-		toColor(col, 230) -- 640
-	) -- 640
-	uiInkDraw:drawSegment( -- 641
-		Vec2(mx, my + gap), -- 641
-		Vec2(mx, my + gap + arm), -- 641
-		1.1, -- 641
-		toColor(col, 230) -- 641
-	) -- 641
-	uiInkDraw:drawDot( -- 642
-		Vec2(mx, my), -- 642
-		1.8, -- 642
-		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.textBright, 240) -- 642
-	) -- 642
-	if onEnemy then -- 642
-		local sz = 30 + math.sin(self.time * 11) * 1.8 -- 645
-		uiArt:tryPlace( -- 646
-			"ink_enso_fine", -- 646
-			"reticle_lock", -- 646
-			mx, -- 646
-			my, -- 646
-			sz, -- 646
-			sz, -- 646
-			{ -- 646
-				color = toColor(PALETTE.rouge), -- 647
-				opacity = 0.88, -- 647
-				angle = self.time * 38, -- 647
-				layer = 5 -- 647
-			} -- 647
-		) -- 647
-		fillRadialGlow( -- 649
-			uiGlow, -- 649
-			mx, -- 649
-			my, -- 649
-			16, -- 649
-			16, -- 649
-			toColor(PALETTE.rouge, 30), -- 649
-			Color(182, 58, 56, 0), -- 649
-			10 -- 649
-		) -- 649
-	end -- 649
-end -- 585
-return ____exports -- 585
+end -- 595
+function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale, touchMode) -- 648
+	local mx = p.aimX / uiScale -- 658
+	local my = p.aimY / uiScale -- 659
+	if mx <= 0 and my <= 0 then -- 659
+		return -- 661
+	end -- 661
+	if p.childMode then -- 661
+		local aiming = p.room.key == "village" and p.hasBottle -- 665
+		if touchMode and (not aiming or p.aimHold <= 0) then -- 665
+			return -- 667
+		end -- 667
+		local col = aiming and PALETTE.amberCore or PALETTE.silkDim -- 669
+		uiInkDraw:drawDot( -- 670
+			Vec2(mx, my), -- 670
+			aiming and 2 or 1.6, -- 670
+			toColor(col, aiming and 215 or 120) -- 670
+		) -- 670
+		if aiming then -- 670
+			local sz = p.aimHold > 0 and 32 or 24 -- 672
+			uiArt:tryPlace( -- 673
+				"ink_enso_fine", -- 673
+				"reticle_child", -- 673
+				mx, -- 673
+				my, -- 673
+				sz, -- 673
+				sz, -- 673
+				{ -- 673
+					color = toColor(PALETTE.amberCore), -- 674
+					opacity = 0.82, -- 674
+					angle = self.time * 24, -- 674
+					layer = 5 -- 674
+				} -- 674
+			) -- 674
+		end -- 674
+		return -- 677
+	end -- 677
+	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 680
+	local onEnemy = false -- 681
+	local i = 0 -- 682
+	do -- 682
+		i = 0 -- 683
+		while i < #p.enemies do -- 683
+			local e = p.enemies[i + 1] -- 684
+			local ey = e.y + (e.depth or 0) * DEPTH_Y_SCALE -- 685
+			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= ey - 6 and wAim.y <= ey + e.h + 6 then -- 685
+				onEnemy = true -- 687
+			end -- 687
+			i = i + 1 -- 683
+		end -- 683
+	end -- 683
+	local col = onEnemy and PALETTE.rouge or PALETTE.textBright -- 691
+	local gap = (onEnemy and 5.5 or 7) + vfx.crosshairKick * 0.72 -- 692
+	local arm = onEnemy and 8.5 or 9.5 -- 693
+	local bg = Color(10, 12, 18, 160) -- 694
+	uiInkDraw:drawSegment( -- 696
+		Vec2(mx - gap - arm, my), -- 696
+		Vec2(mx - gap, my), -- 696
+		2.1, -- 696
+		bg -- 696
+	) -- 696
+	uiInkDraw:drawSegment( -- 697
+		Vec2(mx + gap, my), -- 697
+		Vec2(mx + gap + arm, my), -- 697
+		2.1, -- 697
+		bg -- 697
+	) -- 697
+	uiInkDraw:drawSegment( -- 698
+		Vec2(mx, my - gap - arm), -- 698
+		Vec2(mx, my - gap), -- 698
+		2.1, -- 698
+		bg -- 698
+	) -- 698
+	uiInkDraw:drawSegment( -- 699
+		Vec2(mx, my + gap), -- 699
+		Vec2(mx, my + gap + arm), -- 699
+		2.1, -- 699
+		bg -- 699
+	) -- 699
+	uiInkDraw:drawSegment( -- 701
+		Vec2(mx - gap - arm, my), -- 701
+		Vec2(mx - gap, my), -- 701
+		1.1, -- 701
+		toColor(col, 230) -- 701
+	) -- 701
+	uiInkDraw:drawSegment( -- 702
+		Vec2(mx + gap, my), -- 702
+		Vec2(mx + gap + arm, my), -- 702
+		1.1, -- 702
+		toColor(col, 230) -- 702
+	) -- 702
+	uiInkDraw:drawSegment( -- 703
+		Vec2(mx, my - gap - arm), -- 703
+		Vec2(mx, my - gap), -- 703
+		1.1, -- 703
+		toColor(col, 230) -- 703
+	) -- 703
+	uiInkDraw:drawSegment( -- 704
+		Vec2(mx, my + gap), -- 704
+		Vec2(mx, my + gap + arm), -- 704
+		1.1, -- 704
+		toColor(col, 230) -- 704
+	) -- 704
+	uiInkDraw:drawDot( -- 705
+		Vec2(mx, my), -- 705
+		1.8, -- 705
+		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.textBright, 240) -- 705
+	) -- 705
+	if onEnemy then -- 705
+		local sz = 30 + math.sin(self.time * 11) * 1.8 -- 708
+		uiArt:tryPlace( -- 709
+			"ink_enso_fine", -- 709
+			"reticle_lock", -- 709
+			mx, -- 709
+			my, -- 709
+			sz, -- 709
+			sz, -- 709
+			{ -- 709
+				color = toColor(PALETTE.rouge), -- 710
+				opacity = 0.88, -- 710
+				angle = self.time * 38, -- 710
+				layer = 5 -- 710
+			} -- 710
+		) -- 710
+		fillRadialGlow( -- 712
+			uiGlow, -- 712
+			mx, -- 712
+			my, -- 712
+			16, -- 712
+			16, -- 712
+			toColor(PALETTE.rouge, 30), -- 712
+			Color(182, 58, 56, 0), -- 712
+			10 -- 712
+		) -- 712
+	end -- 712
+end -- 648
+return ____exports -- 648

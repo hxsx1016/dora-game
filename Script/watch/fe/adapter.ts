@@ -638,7 +638,18 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
         }
     }
     if ((room.key === "escort2" || room.key === "escort3" || room.key === "escort4" || room.key === "escort5") && p.carryOn) {
-        return { x: player.x, y: player.y + player.h + 24, keyTag: "→", label: "带她走到出口", urgent: false };
+        let hasAliveEnemy = false;
+        let ei = 0;
+        for (ei = 0; ei < p.enemies.length; ei++) {
+            if (p.enemies[ei].alive) {
+                hasAliveEnemy = true;
+                break;
+            }
+        }
+        const nearExit = room.campaign !== undefined && (room.campaign.exitX - player.x) <= 280;
+        if (!hasAliveEnemy || nearExit) {
+            return { x: player.x, y: player.y + player.h + 24, keyTag: "→", label: "带她走到出口", urgent: false };
+        }
     }
 
     const cart = room.cart;

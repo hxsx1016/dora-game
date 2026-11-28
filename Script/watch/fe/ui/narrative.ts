@@ -454,7 +454,7 @@ export class NarrativeRenderer {
         p: Play,
         w: number,
         h: number,
-        assistHintsEnabled: boolean = false,
+        assistHintsEnabled: boolean = true,
         inputMode: InputMode = "kbm",
         gamepadLayout: GamepadLayout = "xbox",
         safe: SafeInsets = ZERO_SAFE_INSETS,
@@ -1041,8 +1041,10 @@ export class NarrativeRenderer {
             texts.put("banner", "向西守望", midX - 18, signY, toColor(PALETTE.xuanInk), 0.5, 0.5, TextAlign.Center, 6.5, 0.92, 0);
             drawLoneSeal(uiInkDraw, art, texts, "reg_lone_seal", midX + 86, signY, 22, 42, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.92, 4);
 
-            drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 360, 32, PALETTE.inkWash, 0.72, 0);
-            const rawEndHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
+            drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 390, 32, PALETTE.inkWash, 0.72, 0);
+            const rawEndHint = assistHintsEnabled
+                ? (inputMode === "kbm" ? "按 E / 左键继续     ·     Esc 暂歇" : "按 E 再次启程     ·     Esc 暂歇")
+                : "Esc 暂歇";
             const endHint = getActiveTarget().adaptHintSentence(rawEndHint, inputMode, gamepadLayout);
             texts.put("xs", endHint, midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
         }

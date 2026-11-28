@@ -71,7 +71,7 @@ for _, pl in ipairs(fe:getPlugins()) do
 	if pl.id == "fe-02-craft-bench" then hasCraft = true end
 end
 check("registered 3 fe-02 plugins", #fe:getPlugins() >= 3 and hasCarry and hasReload and hasCraft)
-check("default low guidance assistHintsEnabled=false", not fe.contract:isAssistHintsEnabled())
+check("default guidance assistHintsEnabled=true", fe.contract:isAssistHintsEnabled())
 
 local input = new(Input)
 input.inside = true
