@@ -398,8 +398,6 @@ export class Play {
     bottleLandT = 0;
     /** 按住 F 的时长（只用于提示与动作反馈，不改变投掷参数）。 */
     aimHold = 0;
-    /** 城外补丁红布车是否已拉开（石阶口露出）。 */
-    private redCartPulled = false;
     /** F01 补丁红布车半秒家庭回忆计时（拍）。 */
     redCartMemoryT = 0;
     /** 桌下脚步提示的节流拍数。 */
@@ -1228,18 +1226,9 @@ export class Play {
         story.museumReturn = false;
         this.escortDone = story.escortDone;
         this.syncCraftBench();
-        // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口与下层水路敞开。
-        if (story.segments["outside_cart"] === true) {
-            this.redCartPulled = true;
-            const redBox = this.boxes.find((b) => b.id === "outside_red_cart");
-            if (redBox !== undefined) {
-                redBox.x0 = 430;
-                redBox.x1 = 474;
-            }
-            if (this.room.key === "outside" && this.room.cart.bodyW > 0) {
-                this.cartAxle = this.room.cart.endX;
-                this.cartDocked = true;
-            }
+        if (this.room.key === "outside" && story.segments["outside_cart"] === true) {
+            this.cartAxle = this.room.cart.endX;
+            this.cartDocked = true;
         }
         this.forestPath = story.segments["forest_burrow"] === true ? "burrow"
             : story.segments["forest_ditch"] === true ? "ditch" : "";
@@ -4583,57 +4572,27 @@ export class Play {
         this.emit("gateFailed", { failCount: this.gateFailCount, hp: 0, maxHp: this.maxHp });
     }
 
-    /** 城外：补丁红布车斜停在石阶口，点一次 E 拉开并触发 F01 半秒缝布家庭回忆，台面到石阶的路才通。 */
-    private stepRedCart(input: Input): void {
-        if (this.redCartMemoryT > 0) {
-            this.redCartMemoryT -= 1;
-        }
-        if (this.room.key !== "outside" || this.redCartPulled) {
-            return;
-        }
-        const box = this.boxes.find((b) => b.id === "outside_red_cart");
-        if (box === undefined) {
-            this.redCartPulled = true;
-            return;
-        }
-        const cx = (box.x0 + box.x1) * 0.5;
-        const p = this.player;
-        if (Math.abs(p.x - cx) > 70 || Math.abs(p.y - 96) > 26) {
-            return;
-        }
-        if (!input.interact.pressed) {
-            return;
-        }
-        box.x0 = 430;
-        box.x1 = 474;
-        // 这辆车原本也堵着台面下的墙根小路：拉开后整辆车挪到空窝，下层一起放开。
-        this.cartAxle = this.room.cart.endX;
-        this.cartDocked = true;
-        this.redCartPulled = true;
+    /** 唯一的红布车落窝后，收起拱下铁栓并保存缝布回忆。 */
+    private finishOutsideCart(): void {
         this.redCartMemoryT = 30;
         if (this.run.story !== undefined) {
             this.run.story.segments["outside_cart"] = true;
             this.run.story.segments["outside_memory"] = true;
         }
         this.sessionDirty = true;
-        this.flashSet("红布补丁 · 想起家里那一针 · 石阶口露出来", 1.8);
-        this.emit("storyBeat", { beat: "red_cart", x: p.x, room: "outside" });
-        this.emit("storyBeat", { beat: "red_cart_memory", x: p.x, room: "outside", durationTicks: 30 });
+        this.emit("storyBeat", { beat: "red_cart_memory", x: this.player.x, room: "outside", durationTicks: 30 });
     }
 
     private stepInteract(dt: number, input: Input): void {
         const p = this.player;
-        this.stepRedCart(input);
+        this.redCartMemoryT = Math.max(0, this.redCartMemoryT - 1);
         const calmUsed = this.calmConsumed;
         this.calmConsumed = false;
         // 安抚从进入到第 59 拍占用动作：期间 E/D 不抓车、不推车、不转通用敲击。
         const calming = this.escort.state === "calming";
         this.focusCart = false;
         if (this.room.key === "outside") {
-            const c = this.room.cart;
-            const dx = p.x - (this.cartAxle + c.handleOffset);
-            const dy = p.y - c.baseY;
-            this.focusCart = !calmUsed && !calming && dx * dx + dy * dy < CART_REACH * CART_REACH;
+            this.focusCart = !calmUsed && !calming && this.cartHandleInReach(p);
         }
         // 安抚优先消费当拍 E：同一只 E 不再抓车把。
         if (!calmUsed && !calming) {
@@ -5020,6 +4979,9 @@ export class Play {
             this.gripping = false;
             this.emit("cartDocked", { axle: this.cartAxle, playerX: p.x, room: this.room.key });
             this.flashSet("车轮落窝", 1.2);
+            if (this.room.key === "outside") {
+                this.finishOutsideCart();
+            }
         } else if (Math.abs(this.cartAxle - c.startX) < 0.01) {
             this.flashSet("车轮回到起点", 0.5);
         }

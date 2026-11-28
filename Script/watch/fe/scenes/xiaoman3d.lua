@@ -290,49 +290,59 @@ function Xiaoman3DScene.prototype.updateCamera(self, p, cam, w, h, vp) -- 261
 	self.pitchCos = distance / length -- 277
 	local offsetX = (vp.stageX + w / 2 - self.fullW / 2) * length / self.focal -- 279
 	local offsetY = (vp.stageY + h / 2 - self.fullH / 2) * length / self.focal -- 280
-	local focusWorldX = p.room.key == "tower" and (p.towerDoorOpen and math.max(5.35, (p.ox + 490) / 100 + (p.player.x - (p.ox + 490)) * 0.0045) or math.max(4.85, p.player.x / 100 + 0.55)) or cam.x / 100 -- 281
-	local tx = focusWorldX - offsetX -- 284
-	local ty = baseTargetY + (cam.y - 82) * 0.0045 - offsetY * self.pitchCos -- 285
-	local tz = -p.player.depth * 0.0035 + offsetY * self.pitchSin -- 287
-	self.cameraX = tx -- 289
-	self.cameraY = ty + rise -- 290
-	self.cameraZ = tz + distance -- 291
-	self.camera:lookAt( -- 292
-		Vec3(self.cameraX, self.cameraY, self.cameraZ), -- 292
-		Vec3(tx, ty, tz) -- 292
-	) -- 292
+	local ____opt_0 = p.room.story -- 280
+	local towerDoor = ____opt_0 and ____opt_0.tower -- 281
+	local focusWorldX = cam.x / 100 -- 282
+	if towerDoor ~= nil then -- 282
+		local doorX = towerDoor.doorX -- 284
+		local across = math.max( -- 286
+			0, -- 286
+			math.min(1, (p.player.x - doorX) / 95) -- 286
+		) -- 286
+		focusWorldX = (p.player.x + doorX) / 200 + 0.74 * across -- 287
+	end -- 287
+	local tx = focusWorldX - offsetX -- 289
+	local ty = baseTargetY + (cam.y - 82) * 0.0045 - offsetY * self.pitchCos -- 290
+	local tz = -p.player.depth * 0.0035 + offsetY * self.pitchSin -- 292
+	self.cameraX = tx -- 294
+	self.cameraY = ty + rise -- 295
+	self.cameraZ = tz + distance -- 296
+	self.camera:lookAt( -- 297
+		Vec3(self.cameraX, self.cameraY, self.cameraZ), -- 297
+		Vec3(tx, ty, tz) -- 297
+	) -- 297
 end -- 261
-function Xiaoman3DScene.prototype.worldToScreen(self, x, y, depth) -- 295
-	if depth == nil then -- 295
-		depth = 0 -- 295
-	end -- 295
-	local dx = x / 100 - self.cameraX -- 296
-	local dy = y / 100 - self.cameraY -- 297
-	local dz = -depth / 100 - self.cameraZ -- 298
-	local forward = -dy * self.pitchSin - dz * self.pitchCos -- 299
-	return {x = self.fullW / 2 + dx * self.focal / forward - self.stageX, y = self.fullH / 2 + (dy * self.pitchCos - dz * self.pitchSin) * self.focal / forward - self.stageY} -- 300
-end -- 295
-function Xiaoman3DScene.prototype.screenToWorld(self, x, y) -- 306
-	local u = (x + self.stageX - self.fullW / 2) / self.focal -- 307
-	local v = (y + self.stageY - self.fullH / 2) / self.focal -- 308
-	local rayY = v * self.pitchCos - self.pitchSin -- 309
-	local rayZ = -v * self.pitchSin - self.pitchCos -- 310
-	local ____opt_0 = self.p -- 310
-	local z = -(____opt_0 and ____opt_0.player.depth or 0) / 100 -- 312
-	local t = (z - self.cameraZ) / rayZ -- 313
-	return {x = (self.cameraX + u * t) * 100, y = (self.cameraY + rayY * t) * 100} -- 314
-end -- 306
-function Xiaoman3DScene.prototype.getDebugState(self) -- 317
-	local v3 = getView3D() -- 318
-	local stats = v3.stats -- 319
-	return { -- 320
-		active = self.active, -- 321
-		room = self.room, -- 322
-		actor = self.actor:getDebugState(self.p), -- 323
-		entities = self.entities:getDebugState(), -- 324
-		cameraPos = {x = self.cameraX, y = self.cameraY, z = self.cameraZ}, -- 325
-		drawCalls = stats ~= nil and stats.drawCalls or 0, -- 326
-		visibleModels = stats ~= nil and stats.visibleModels or 0 -- 327
-	} -- 327
-end -- 317
-return ____exports -- 317
+function Xiaoman3DScene.prototype.worldToScreen(self, x, y, depth) -- 300
+	if depth == nil then -- 300
+		depth = 0 -- 300
+	end -- 300
+	local dx = x / 100 - self.cameraX -- 301
+	local dy = y / 100 - self.cameraY -- 302
+	local dz = -depth / 100 - self.cameraZ -- 303
+	local forward = -dy * self.pitchSin - dz * self.pitchCos -- 304
+	return {x = self.fullW / 2 + dx * self.focal / forward - self.stageX, y = self.fullH / 2 + (dy * self.pitchCos - dz * self.pitchSin) * self.focal / forward - self.stageY} -- 305
+end -- 300
+function Xiaoman3DScene.prototype.screenToWorld(self, x, y) -- 311
+	local u = (x + self.stageX - self.fullW / 2) / self.focal -- 312
+	local v = (y + self.stageY - self.fullH / 2) / self.focal -- 313
+	local rayY = v * self.pitchCos - self.pitchSin -- 314
+	local rayZ = -v * self.pitchSin - self.pitchCos -- 315
+	local ____opt_2 = self.p -- 315
+	local z = -(____opt_2 and ____opt_2.player.depth or 0) / 100 -- 317
+	local t = (z - self.cameraZ) / rayZ -- 318
+	return {x = (self.cameraX + u * t) * 100, y = (self.cameraY + rayY * t) * 100} -- 319
+end -- 311
+function Xiaoman3DScene.prototype.getDebugState(self) -- 322
+	local v3 = getView3D() -- 323
+	local stats = v3.stats -- 324
+	return { -- 325
+		active = self.active, -- 326
+		room = self.room, -- 327
+		actor = self.actor:getDebugState(self.p), -- 328
+		entities = self.entities:getDebugState(), -- 329
+		cameraPos = {x = self.cameraX, y = self.cameraY, z = self.cameraZ}, -- 330
+		drawCalls = stats ~= nil and stats.drawCalls or 0, -- 331
+		visibleModels = stats ~= nil and stats.visibleModels or 0 -- 332
+	} -- 332
+end -- 322
+return ____exports -- 322

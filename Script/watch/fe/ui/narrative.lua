@@ -1013,528 +1013,539 @@ function NarrativeRenderer.prototype.composeNarrativeLine(self, p, assistHintsEn
 	end -- 840
 	if key == "outside" then -- 840
 		if not p.cartDocked then -- 840
-			return {cue = "", text = "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent = false} -- 845
-		end -- 845
-		if p.checkpoint < p.room.arch.x1 then -- 845
-			return {cue = "潜", text = "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent = false} -- 848
-		end -- 848
-		return {cue = "", text = "穿过矮拱，沿墙根小路向北塔灯火前行", urgent = false} -- 850
-	end -- 850
-	if key == "village" then -- 850
-		if p.scavChase then -- 850
-			return {cue = "危", text = "拾荒者追上来了！按住 [CTRL] 钻进桌底甩开视线", urgent = true} -- 855
-		end -- 855
-		if p.passed then -- 855
-			return {cue = "", text = "越过了第一院。继续向右，走进通往北塔的森林", urgent = false} -- 858
-		end -- 858
-		if p.hasBottle then -- 858
-			return {cue = "诱", text = "按住 [F] 瞄准右侧砖地，松开投瓶 —— 引开拾荒者后按 [CTRL] 钻过桌下", urgent = false} -- 861
-		end -- 861
-		if p.bottleFly ~= nil then -- 861
-			return {cue = "潜", text = "瓶子正落向砖地，屏息等拾荒者被声响引开", urgent = false} -- 864
+			if p.gripping or p:cartHandleInReach() then -- 840
+				return {cue = "", text = "按住 [E]+[D]，把红布车拉进右侧车窝", urgent = false} -- 846
+			end -- 846
+			local text = p.player.y < p.room.cart.baseY - 25 and "沿左侧石阶上台，去找红布车右柄" or "向右走到红布车的右柄" -- 848
+			return {cue = "", text = text, urgent = false} -- 851
+		end -- 851
+		if p.checkpoint < p.room.arch.x1 then -- 851
+			local text = p.player.y > p.room.arch.h + 2 and "车轮落窝了。往左返回石阶，下到地面" or "向右走到矮拱，按住 [CTRL] 蹲着穿过" -- 854
+			return {cue = "潜", text = text, urgent = false} -- 857
+		end -- 857
+		return {cue = "", text = "穿过矮拱，沿墙根小路向北塔灯火前行", urgent = false} -- 859
+	end -- 859
+	if key == "village" then -- 859
+		if p.scavChase then -- 859
+			return {cue = "危", text = "拾荒者追上来了！按住 [CTRL] 钻进桌底甩开视线", urgent = true} -- 864
 		end -- 864
-		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 864
-			return {cue = "潜", text = "拾荒者循声走开了 —— 趁隙按住 [CTRL] 钻过桌下", urgent = false} -- 867
+		if p.passed then -- 864
+			return {cue = "", text = "越过了第一院。继续向右，走进通往北塔的森林", urgent = false} -- 867
 		end -- 867
-		return {cue = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 869
-	end -- 869
-	if key == "forest" then -- 869
-		if p.dogState == "chase" then -- 869
-			return {cue = "危", text = "猎犬追上来了 —— 速按 [CTRL] 蹲进草丛匿迹！", urgent = true} -- 874
-		end -- 874
-		if p.dogState == "ear" then -- 874
-			return {cue = "警", text = "猎犬竖起了耳朵 —— 立刻按住 [CTRL] 蹲下别出声！", urgent = true} -- 877
-		end -- 877
-		return {cue = "", text = "林间有猎犬巡逻。按住 [SHIFT] 轻步慢走或 [CTRL] 伏低，绕开猎犬抵达北塔", urgent = false} -- 879
-	end -- 879
-	if key == "tower" then -- 879
-		if p.phase == "tower-wait" then -- 879
-			return {cue = "", text = "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent = false} -- 884
-		end -- 884
-		if p.phase == "tower-knock" then -- 884
-			return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 887
-		end -- 887
-		if p.phase == "tower-given" then -- 887
-			return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 890
-		end -- 890
-		return {cue = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 892
-	end -- 892
-	return {cue = "", text = theme.introWhisper, urgent = false} -- 895
+		if p.hasBottle then -- 867
+			return {cue = "诱", text = "按住 [F] 瞄准右侧砖地，松开投瓶 —— 引开拾荒者后按 [CTRL] 钻过桌下", urgent = false} -- 870
+		end -- 870
+		if p.bottleFly ~= nil then -- 870
+			return {cue = "潜", text = "瓶子正落向砖地，屏息等拾荒者被声响引开", urgent = false} -- 873
+		end -- 873
+		if p.scavState == "turn" or p.scavState == "walk" or p.scavState == "stall" then -- 873
+			return {cue = "潜", text = "拾荒者循声走开了 —— 趁隙按住 [CTRL] 钻过桌下", urgent = false} -- 876
+		end -- 876
+		return {cue = "", text = "废村院里游荡着拾荒者。走到瓶架旁按 [E] 拾瓶，设法引开他", urgent = false} -- 878
+	end -- 878
+	if key == "forest" then -- 878
+		if p.dogState == "chase" then -- 878
+			return {cue = "危", text = "猎犬追上来了 —— 速按 [CTRL] 蹲进草丛匿迹！", urgent = true} -- 883
+		end -- 883
+		if p.dogState == "ear" then -- 883
+			return {cue = "警", text = "猎犬竖起了耳朵 —— 立刻按住 [CTRL] 蹲下别出声！", urgent = true} -- 886
+		end -- 886
+		return {cue = "", text = "林间有猎犬巡逻。按住 [SHIFT] 轻步慢走或 [CTRL] 伏低，绕开猎犬抵达北塔", urgent = false} -- 888
+	end -- 888
+	if key == "tower" then -- 888
+		if p.phase == "tower-wait" then -- 888
+			return {cue = "", text = "走到木门前，按 [E] 叩门", urgent = false} -- 893
+		end -- 893
+		if p.phase == "tower-knock" then -- 893
+			return {cue = "", text = "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent = false} -- 896
+		end -- 896
+		if p.phase == "tower-enter" then -- 896
+			return {cue = "", text = "门开了。向右跨过门槛，走到值夜桌前", urgent = false} -- 899
+		end -- 899
+		if p.phase == "tower-desk" then -- 899
+			return {cue = "", text = "走到值夜桌前，按住 [E] 交出针套、指南针和纸条", urgent = false} -- 902
+		end -- 902
+		if p.phase == "tower-given" then -- 902
+			return {cue = "", text = "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent = false} -- 905
+		end -- 905
+		return {cue = "", text = "抵达北塔。按 [E] 重新开始一段新的守望，或按 [ESC] 打开菜单", urgent = false} -- 907
+	end -- 907
+	return {cue = "", text = theme.introWhisper, urgent = false} -- 910
 end -- 671
-function NarrativeRenderer.prototype.drawGateCountOverlay(self, uiDraw, uiInkDraw, art, texts, p, w, h) -- 898
-	local frac = math.min(1, p.countTick / GATE_COUNT_END) -- 907
-	local countNum = gateCountAtTick(p.countTick) -- 908
-	uiDraw:drawRect( -- 909
-		Rect(0, 0, w, h), -- 909
-		Color( -- 909
-			7, -- 909
-			9, -- 909
-			15, -- 909
-			math.floor(78 + frac * 116 + 0.5) -- 909
-		) -- 909
-	) -- 909
-	local cy = h * 0.56 -- 911
-	art:tryPlace( -- 912
-		"ink_petal_mist", -- 912
-		"gate_count_mist", -- 912
-		w * 0.5, -- 912
-		cy, -- 912
-		290, -- 912
-		220, -- 912
-		{ -- 912
-			color = toColor(PALETTE.inkMist), -- 913
-			opacity = 0.34 + frac * 0.2, -- 913
-			layer = 0 -- 913
-		} -- 913
-	) -- 913
-	drawMistCurve( -- 915
-		art, -- 915
-		"gate_count_wisp", -- 915
-		w * 0.5, -- 915
-		cy - 8, -- 915
-		420, -- 915
-		76, -- 915
-		PALETTE.jadeMist, -- 915
-		0.22, -- 915
-		0 -- 915
-	) -- 915
-	local numZh = toChineseUpper(countNum) -- 917
-	texts:put( -- 918
-		"title", -- 918
-		numZh, -- 918
-		w * 0.5, -- 918
-		cy + 8, -- 918
-		toColor(PALETTE.textBright), -- 918
-		0.5, -- 918
-		0.5, -- 918
-		"Center", -- 918
-		12, -- 918
-		0.42 + frac * 0.56, -- 918
-		0.1 -- 918
-	) -- 918
-	drawHairline( -- 919
-		uiInkDraw, -- 919
-		art, -- 919
-		"gate_count_div", -- 919
-		w * 0.5, -- 919
-		cy - 34, -- 919
-		240, -- 919
-		PALETTE.silkDim, -- 919
-		0.62, -- 919
-		true, -- 919
-		2 -- 919
-	) -- 919
-	texts:put( -- 920
-		"sm", -- 920
-		"城外静候 · 默数至二十", -- 920
-		w * 0.5, -- 920
-		cy - 58, -- 920
-		toColor(PALETTE.textMid), -- 920
-		0.5, -- 920
-		0.5, -- 920
-		"Center", -- 920
-		3.4, -- 920
-		0.84, -- 920
-		0.08 -- 920
-	) -- 920
-end -- 898
-function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout) -- 930
-	local cardW = 588 -- 943
-	local cardH = 382 -- 944
-	local cx = (w - cardW) * 0.5 -- 945
-	local cy = (h - cardH) * 0.5 + 10 -- 946
-	local midX = w * 0.5 -- 947
-	local midY = cy + cardH * 0.5 -- 948
-	uiDraw:drawRect( -- 951
-		Rect(0, 0, w, h), -- 951
-		Color(7, 9, 15, 174) -- 951
-	) -- 951
-	art:tryPlace( -- 952
-		"ink_frame_mask", -- 952
-		"reg_shadow", -- 952
-		midX, -- 952
-		midY - 6, -- 952
-		cardW + 58, -- 952
-		cardH + 50, -- 952
-		{ -- 952
-			color = toColor(PALETTE.voidDark), -- 953
-			opacity = 0.82, -- 953
-			layer = -1 -- 953
-		} -- 953
-	) -- 953
-	if not art:tryPlace( -- 953
-		"ink_song_paper", -- 957
-		"registry_song_paper", -- 957
-		midX, -- 957
-		midY, -- 957
-		cardW, -- 957
-		cardH, -- 957
-		{opacity = 0.98, layer = 1} -- 957
-	) then -- 957
-		uiDraw:drawRect( -- 958
-			Rect(cx, cy, cardW, cardH), -- 958
-			toColor(PALETTE.xuanPaper, 246), -- 958
-			1, -- 958
-			toColor(PALETTE.silkDim, 180) -- 958
-		) -- 958
-	end -- 958
-	fillRadialGlow( -- 960
-		uiGlow, -- 960
-		midX, -- 960
-		midY + 46, -- 960
-		240, -- 960
-		130, -- 960
-		Color(235, 224, 202, 14), -- 960
-		Color(235, 224, 202, 0), -- 960
-		14 -- 960
-	) -- 960
-	local padX = 46 -- 963
-	local padY = 36 -- 964
-	local inX = cx + padX -- 965
-	local inY = cy + padY -- 966
-	local inW = cardW - padX * 2 -- 967
-	local inH = cardH - padY * 2 -- 968
-	local redSilk = toColor(PALETTE.rouge, 118) -- 969
-	local redSilkFaint = toColor(PALETTE.rouge, 64) -- 970
-	uiInkDraw:drawRect( -- 972
-		Rect(inX, inY, inW, inH), -- 972
-		Color(0, 0, 0, 0), -- 972
-		0.9, -- 972
-		redSilk -- 972
-	) -- 972
-	uiInkDraw:drawRect( -- 973
-		Rect(inX + 4, inY + 4, inW - 8, inH - 8), -- 973
-		Color(0, 0, 0, 0), -- 973
-		0.55, -- 973
-		redSilkFaint -- 973
-	) -- 973
-	local headY = inY + inH - 28 -- 976
-	texts:put( -- 977
-		"md", -- 977
-		"北塔入塔登记簿 · 末页", -- 977
-		inX + 20, -- 977
-		headY, -- 977
-		toColor(PALETTE.xuanInk), -- 977
-		0, -- 977
-		0.5, -- 977
-		"Left", -- 977
-		2.4, -- 977
-		0.94, -- 977
-		0 -- 977
-	) -- 977
-	texts:put( -- 978
-		"xs", -- 978
-		"守望行记", -- 978
-		inX + inW - 20, -- 978
-		headY, -- 978
-		toColor(PALETTE.xuanInkSub), -- 978
-		1, -- 978
-		0.5, -- 978
-		"Right", -- 978
-		2, -- 978
-		0.78, -- 978
-		0 -- 978
-	) -- 978
-	uiInkDraw:drawSegment( -- 979
-		Vec2(inX + 14, headY - 22), -- 979
-		Vec2(inX + inW - 14, headY - 22), -- 979
-		0.85, -- 979
-		redSilk -- 979
-	) -- 979
-	local reunion = #p.endingLines >= 2 and p.endingLines[2] ~= "" or p.storyRoute == "soldier" -- 982
-	local row1Y = headY - 56 -- 983
-	texts:put( -- 984
-		"sm", -- 984
-		"肆拾壹   小满 · 持黄铜指南针与纸条 · 已入塔", -- 984
-		inX + 20, -- 984
-		row1Y, -- 984
-		toColor(PALETTE.xuanInk), -- 984
-		0, -- 984
-		0.5, -- 984
-		"Left", -- 984
-		0.8, -- 984
-		0.94, -- 984
-		0 -- 984
-	) -- 984
-	texts:put( -- 985
-		"xs", -- 986
-		reunion and "附注：兄妹并肩抵塔；怀铜针、手书一纸。" or (("附注：" .. NEEDLE_NOTE_LINES[1]) .. " —— ") .. NEEDLE_NOTE_LINES[2], -- 987
-		inX + 20, -- 988
-		row1Y - 28, -- 989
-		toColor(PALETTE.xuanInkSub), -- 990
-		0, -- 991
+function NarrativeRenderer.prototype.drawGateCountOverlay(self, uiDraw, uiInkDraw, art, texts, p, w, h) -- 913
+	local frac = math.min(1, p.countTick / GATE_COUNT_END) -- 922
+	local countNum = gateCountAtTick(p.countTick) -- 923
+	uiDraw:drawRect( -- 924
+		Rect(0, 0, w, h), -- 924
+		Color( -- 924
+			7, -- 924
+			9, -- 924
+			15, -- 924
+			math.floor(78 + frac * 116 + 0.5) -- 924
+		) -- 924
+	) -- 924
+	local cy = h * 0.56 -- 926
+	art:tryPlace( -- 927
+		"ink_petal_mist", -- 927
+		"gate_count_mist", -- 927
+		w * 0.5, -- 927
+		cy, -- 927
+		290, -- 927
+		220, -- 927
+		{ -- 927
+			color = toColor(PALETTE.inkMist), -- 928
+			opacity = 0.34 + frac * 0.2, -- 928
+			layer = 0 -- 928
+		} -- 928
+	) -- 928
+	drawMistCurve( -- 930
+		art, -- 930
+		"gate_count_wisp", -- 930
+		w * 0.5, -- 930
+		cy - 8, -- 930
+		420, -- 930
+		76, -- 930
+		PALETTE.jadeMist, -- 930
+		0.22, -- 930
+		0 -- 930
+	) -- 930
+	local numZh = toChineseUpper(countNum) -- 932
+	texts:put( -- 933
+		"title", -- 933
+		numZh, -- 933
+		w * 0.5, -- 933
+		cy + 8, -- 933
+		toColor(PALETTE.textBright), -- 933
+		0.5, -- 933
+		0.5, -- 933
+		"Center", -- 933
+		12, -- 933
+		0.42 + frac * 0.56, -- 933
+		0.1 -- 933
+	) -- 933
+	drawHairline( -- 934
+		uiInkDraw, -- 934
+		art, -- 934
+		"gate_count_div", -- 934
+		w * 0.5, -- 934
+		cy - 34, -- 934
+		240, -- 934
+		PALETTE.silkDim, -- 934
+		0.62, -- 934
+		true, -- 934
+		2 -- 934
+	) -- 934
+	texts:put( -- 935
+		"sm", -- 935
+		"城外静候 · 默数至二十", -- 935
+		w * 0.5, -- 935
+		cy - 58, -- 935
+		toColor(PALETTE.textMid), -- 935
+		0.5, -- 935
+		0.5, -- 935
+		"Center", -- 935
+		3.4, -- 935
+		0.84, -- 935
+		0.08 -- 935
+	) -- 935
+end -- 913
+function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout) -- 945
+	local cardW = 588 -- 958
+	local cardH = 382 -- 959
+	local cx = (w - cardW) * 0.5 -- 960
+	local cy = (h - cardH) * 0.5 + 10 -- 961
+	local midX = w * 0.5 -- 962
+	local midY = cy + cardH * 0.5 -- 963
+	uiDraw:drawRect( -- 966
+		Rect(0, 0, w, h), -- 966
+		Color(7, 9, 15, 174) -- 966
+	) -- 966
+	art:tryPlace( -- 967
+		"ink_frame_mask", -- 967
+		"reg_shadow", -- 967
+		midX, -- 967
+		midY - 6, -- 967
+		cardW + 58, -- 967
+		cardH + 50, -- 967
+		{ -- 967
+			color = toColor(PALETTE.voidDark), -- 968
+			opacity = 0.82, -- 968
+			layer = -1 -- 968
+		} -- 968
+	) -- 968
+	if not art:tryPlace( -- 968
+		"ink_song_paper", -- 972
+		"registry_song_paper", -- 972
+		midX, -- 972
+		midY, -- 972
+		cardW, -- 972
+		cardH, -- 972
+		{opacity = 0.98, layer = 1} -- 972
+	) then -- 972
+		uiDraw:drawRect( -- 973
+			Rect(cx, cy, cardW, cardH), -- 973
+			toColor(PALETTE.xuanPaper, 246), -- 973
+			1, -- 973
+			toColor(PALETTE.silkDim, 180) -- 973
+		) -- 973
+	end -- 973
+	fillRadialGlow( -- 975
+		uiGlow, -- 975
+		midX, -- 975
+		midY + 46, -- 975
+		240, -- 975
+		130, -- 975
+		Color(235, 224, 202, 14), -- 975
+		Color(235, 224, 202, 0), -- 975
+		14 -- 975
+	) -- 975
+	local padX = 46 -- 978
+	local padY = 36 -- 979
+	local inX = cx + padX -- 980
+	local inY = cy + padY -- 981
+	local inW = cardW - padX * 2 -- 982
+	local inH = cardH - padY * 2 -- 983
+	local redSilk = toColor(PALETTE.rouge, 118) -- 984
+	local redSilkFaint = toColor(PALETTE.rouge, 64) -- 985
+	uiInkDraw:drawRect( -- 987
+		Rect(inX, inY, inW, inH), -- 987
+		Color(0, 0, 0, 0), -- 987
+		0.9, -- 987
+		redSilk -- 987
+	) -- 987
+	uiInkDraw:drawRect( -- 988
+		Rect(inX + 4, inY + 4, inW - 8, inH - 8), -- 988
+		Color(0, 0, 0, 0), -- 988
+		0.55, -- 988
+		redSilkFaint -- 988
+	) -- 988
+	local headY = inY + inH - 28 -- 991
+	texts:put( -- 992
+		"md", -- 992
+		"北塔入塔登记簿 · 末页", -- 992
+		inX + 20, -- 992
+		headY, -- 992
+		toColor(PALETTE.xuanInk), -- 992
+		0, -- 992
 		0.5, -- 992
-		"Left", -- 993
-		0.6, -- 994
-		0.88, -- 995
-		0 -- 996
-	) -- 996
-	uiInkDraw:drawSegment( -- 998
-		Vec2(inX + 16, row1Y - 48), -- 998
-		Vec2(inX + inW - 16, row1Y - 48), -- 998
-		0.65, -- 998
-		redSilkFaint -- 998
-	) -- 998
-	local blankY = row1Y - 80 -- 1001
-	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.2) -- 1002
-	if reunion then -- 1002
-		texts:put( -- 1004
-			"sm", -- 1004
-			"肆拾贰   周戍 · 兄妹同行 · 已入塔", -- 1004
-			inX + 20, -- 1004
-			blankY, -- 1004
-			toColor(PALETTE.xuanInk), -- 1004
-			0, -- 1004
-			0.5, -- 1004
-			"Left", -- 1004
-			0.8, -- 1004
-			0.94, -- 1004
-			0 -- 1004
-		) -- 1004
-		texts:put( -- 1005
-			"xs", -- 1005
-			"附注：门内断后脱身，同抵北塔值夜室。", -- 1005
-			inX + 20, -- 1005
-			blankY - 26, -- 1005
-			toColor(PALETTE.xuanInkSub), -- 1005
-			0, -- 1005
-			0.5, -- 1005
-			"Left", -- 1005
-			0.6, -- 1005
-			0.86, -- 1005
-			0 -- 1005
-		) -- 1005
-	else -- 1005
-		texts:put( -- 1007
-			"sm", -- 1007
-			"肆拾贰", -- 1007
-			inX + 20, -- 1007
-			blankY, -- 1007
-			toColor(PALETTE.rouge), -- 1007
-			0, -- 1007
-			0.5, -- 1007
-			"Left", -- 1007
-			1, -- 1007
-			0.92, -- 1007
-			0 -- 1007
-		) -- 1007
-		uiInkDraw:drawSegment( -- 1008
-			Vec2(inX + 94, blankY - 7), -- 1008
-			Vec2(inX + inW - 116, blankY - 7), -- 1008
-			0.95, -- 1008
-			toColor(PALETTE.xuanInkSub, 155 * pulse) -- 1008
-		) -- 1008
-		texts:put( -- 1009
-			"xs", -- 1009
-			"（空行留待）", -- 1009
-			inX + inW - 104, -- 1009
-			blankY, -- 1009
-			toColor(PALETTE.xuanInkSub), -- 1009
-			0, -- 1009
-			0.5, -- 1009
-			"Left", -- 1009
-			1, -- 1009
-			0.82 * pulse, -- 1009
-			0 -- 1009
-		) -- 1009
-	end -- 1009
-	if p.phase == "tower-end" then -- 1009
-		local signY = inY + 46 -- 1014
-		texts:put( -- 1015
-			"banner", -- 1015
-			"向西守望", -- 1015
-			midX - 18, -- 1015
-			signY, -- 1015
-			toColor(PALETTE.xuanInk), -- 1015
-			0.5, -- 1015
-			0.5, -- 1015
-			"Center", -- 1015
-			6.5, -- 1015
-			0.92, -- 1015
-			0 -- 1015
-		) -- 1015
-		drawLoneSeal( -- 1016
-			uiInkDraw, -- 1016
-			art, -- 1016
-			texts, -- 1016
-			"reg_lone_seal", -- 1016
-			midX + 86, -- 1016
-			signY, -- 1016
-			22, -- 1016
-			42, -- 1016
-			"守", -- 1016
-			"望", -- 1016
-			PALETTE.sealRed, -- 1016
-			PALETTE.sealText, -- 1016
-			0.92, -- 1016
-			4 -- 1016
-		) -- 1016
-		drawSilkVeil( -- 1018
-			uiDraw, -- 1018
-			art, -- 1018
-			"reg_hint_veil", -- 1018
-			midX, -- 1018
-			cy - 28, -- 1018
-			360, -- 1018
-			32, -- 1018
-			PALETTE.inkWash, -- 1018
-			0.72, -- 1018
-			0 -- 1018
-		) -- 1018
-		local rawEndHint = assistHintsEnabled and "按 E 再次启程     ·     Esc 暂歇" or "Esc 暂歇" -- 1019
-		local endHint = getActiveTarget():adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 1020
-		texts:put( -- 1021
-			"xs", -- 1021
-			endHint, -- 1021
-			midX, -- 1021
-			cy - 28, -- 1021
-			toColor(PALETTE.textMid), -- 1021
-			0.5, -- 1021
-			0.5, -- 1021
-			"Center", -- 1021
-			1.6, -- 1021
-			0.92, -- 1021
-			0.08 -- 1021
-		) -- 1021
-	end -- 1021
-end -- 930
-function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 1025
-	local theme = themeOf(roomKey) -- 1034
-	local t = self.bannerT / self.bannerMax -- 1035
-	local alpha = 1 -- 1036
-	if t > 0.82 then -- 1036
-		alpha = (1 - t) / 0.18 -- 1038
-	elseif t < 0.28 then -- 1038
-		alpha = t / 0.28 -- 1040
-	end -- 1040
-	local cx = w * 0.5 -- 1042
-	local cy = h * 0.77 -- 1043
-	local spread = math.min(1, alpha * 1.15) -- 1044
-	drawSilkVeil( -- 1047
-		uiDraw, -- 1047
-		art, -- 1047
-		"banner_veil", -- 1047
-		cx, -- 1047
-		cy - 2, -- 1047
-		480 * spread + 100, -- 1047
-		92, -- 1047
-		PALETTE.inkWash, -- 1047
-		0.76 * alpha, -- 1047
-		-1 -- 1047
-	) -- 1047
-	drawMistCurve( -- 1048
-		art, -- 1048
-		"banner_mist", -- 1048
-		cx, -- 1048
-		cy + 4, -- 1048
-		460 * spread, -- 1048
-		72, -- 1048
-		theme.accent, -- 1048
-		0.28 * alpha, -- 1048
-		0 -- 1048
-	) -- 1048
-	drawHairline( -- 1049
-		uiInkDraw, -- 1049
-		art, -- 1049
-		"banner_line", -- 1049
-		cx, -- 1049
-		cy - 16, -- 1049
-		320 * spread, -- 1049
-		PALETTE.silkLine, -- 1049
-		0.64 * alpha, -- 1049
-		false, -- 1049
-		2 -- 1049
-	) -- 1049
-	local sep = " · " -- 1052
-	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 1053
-	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 1054
-	if theme.backdropKey ~= nil then -- 1054
-		texts:put( -- 1056
-			"lg", -- 1056
-			theme.titleZh, -- 1056
-			cx, -- 1056
-			cy + 14, -- 1056
-			toColor(PALETTE.textBright), -- 1056
-			0.5, -- 1057
-			0.5, -- 1057
-			"Center", -- 1057
-			1, -- 1057
-			alpha, -- 1057
-			0.1 -- 1057
-		) -- 1057
-	elseif idx > 0 then -- 1057
-		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 1059
-		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 1060
-		local lw = visualTextWidth(leftPart, 42) -- 1061
-		local rw = visualTextWidth(rightPart, 42) -- 1062
-		local dotGap = 28 -- 1063
-		local totalW = lw + rw + dotGap -- 1064
-		local leftEdge = cx - totalW * 0.5 -- 1065
-		local dotX = leftEdge + lw + dotGap * 0.5 -- 1066
-		texts:put( -- 1068
-			"banner", -- 1068
-			leftPart, -- 1068
-			leftEdge, -- 1068
-			cy + 14, -- 1068
-			toColor(PALETTE.textBright), -- 1068
-			0, -- 1068
-			0.5, -- 1068
-			"Left", -- 1068
-			2, -- 1068
-			alpha, -- 1068
-			0.1 -- 1068
-		) -- 1068
-		drawBlossomDot( -- 1069
-			uiInkDraw, -- 1069
-			art, -- 1069
-			"banner_mid_dot", -- 1069
-			dotX, -- 1069
-			cy + 12, -- 1069
-			11, -- 1069
-			dotCol, -- 1069
-			0.92 * alpha, -- 1069
-			4 -- 1069
-		) -- 1069
-		texts:put( -- 1070
-			"banner", -- 1070
-			rightPart, -- 1070
-			dotX + dotGap * 0.5, -- 1070
-			cy + 14, -- 1070
-			toColor(PALETTE.textBright), -- 1070
-			0, -- 1070
-			0.5, -- 1070
-			"Left", -- 1070
-			2, -- 1070
-			alpha, -- 1070
-			0.1 -- 1070
-		) -- 1070
-	else -- 1070
-		texts:put( -- 1072
-			"banner", -- 1072
-			theme.titleZh, -- 1072
-			cx, -- 1072
-			cy + 14, -- 1072
-			toColor(PALETTE.textBright), -- 1072
+		"Left", -- 992
+		2.4, -- 992
+		0.94, -- 992
+		0 -- 992
+	) -- 992
+	texts:put( -- 993
+		"xs", -- 993
+		"守望行记", -- 993
+		inX + inW - 20, -- 993
+		headY, -- 993
+		toColor(PALETTE.xuanInkSub), -- 993
+		1, -- 993
+		0.5, -- 993
+		"Right", -- 993
+		2, -- 993
+		0.78, -- 993
+		0 -- 993
+	) -- 993
+	uiInkDraw:drawSegment( -- 994
+		Vec2(inX + 14, headY - 22), -- 994
+		Vec2(inX + inW - 14, headY - 22), -- 994
+		0.85, -- 994
+		redSilk -- 994
+	) -- 994
+	local reunion = #p.endingLines >= 2 and p.endingLines[2] ~= "" or p.storyRoute == "soldier" -- 997
+	local row1Y = headY - 56 -- 998
+	texts:put( -- 999
+		"sm", -- 999
+		"肆拾壹   小满 · 持黄铜指南针与纸条 · 已入塔", -- 999
+		inX + 20, -- 999
+		row1Y, -- 999
+		toColor(PALETTE.xuanInk), -- 999
+		0, -- 999
+		0.5, -- 999
+		"Left", -- 999
+		0.8, -- 999
+		0.94, -- 999
+		0 -- 999
+	) -- 999
+	texts:put( -- 1000
+		"xs", -- 1001
+		reunion and "附注：兄妹并肩抵塔；怀铜针、手书一纸。" or (("附注：" .. NEEDLE_NOTE_LINES[1]) .. " —— ") .. NEEDLE_NOTE_LINES[2], -- 1002
+		inX + 20, -- 1003
+		row1Y - 28, -- 1004
+		toColor(PALETTE.xuanInkSub), -- 1005
+		0, -- 1006
+		0.5, -- 1007
+		"Left", -- 1008
+		0.6, -- 1009
+		0.88, -- 1010
+		0 -- 1011
+	) -- 1011
+	uiInkDraw:drawSegment( -- 1013
+		Vec2(inX + 16, row1Y - 48), -- 1013
+		Vec2(inX + inW - 16, row1Y - 48), -- 1013
+		0.65, -- 1013
+		redSilkFaint -- 1013
+	) -- 1013
+	local blankY = row1Y - 80 -- 1016
+	local pulse = 0.66 + 0.34 * math.sin(self.time * 2.2) -- 1017
+	if reunion then -- 1017
+		texts:put( -- 1019
+			"sm", -- 1019
+			"肆拾贰   周戍 · 兄妹同行 · 已入塔", -- 1019
+			inX + 20, -- 1019
+			blankY, -- 1019
+			toColor(PALETTE.xuanInk), -- 1019
+			0, -- 1019
+			0.5, -- 1019
+			"Left", -- 1019
+			0.8, -- 1019
+			0.94, -- 1019
+			0 -- 1019
+		) -- 1019
+		texts:put( -- 1020
+			"xs", -- 1020
+			"附注：门内断后脱身，同抵北塔值夜室。", -- 1020
+			inX + 20, -- 1020
+			blankY - 26, -- 1020
+			toColor(PALETTE.xuanInkSub), -- 1020
+			0, -- 1020
+			0.5, -- 1020
+			"Left", -- 1020
+			0.6, -- 1020
+			0.86, -- 1020
+			0 -- 1020
+		) -- 1020
+	else -- 1020
+		texts:put( -- 1022
+			"sm", -- 1022
+			"肆拾贰", -- 1022
+			inX + 20, -- 1022
+			blankY, -- 1022
+			toColor(PALETTE.rouge), -- 1022
+			0, -- 1022
+			0.5, -- 1022
+			"Left", -- 1022
+			1, -- 1022
+			0.92, -- 1022
+			0 -- 1022
+		) -- 1022
+		uiInkDraw:drawSegment( -- 1023
+			Vec2(inX + 94, blankY - 7), -- 1023
+			Vec2(inX + inW - 116, blankY - 7), -- 1023
+			0.95, -- 1023
+			toColor(PALETTE.xuanInkSub, 155 * pulse) -- 1023
+		) -- 1023
+		texts:put( -- 1024
+			"xs", -- 1024
+			"（空行留待）", -- 1024
+			inX + inW - 104, -- 1024
+			blankY, -- 1024
+			toColor(PALETTE.xuanInkSub), -- 1024
+			0, -- 1024
+			0.5, -- 1024
+			"Left", -- 1024
+			1, -- 1024
+			0.82 * pulse, -- 1024
+			0 -- 1024
+		) -- 1024
+	end -- 1024
+	if p.phase == "tower-end" then -- 1024
+		local signY = inY + 46 -- 1029
+		texts:put( -- 1030
+			"banner", -- 1030
+			"向西守望", -- 1030
+			midX - 18, -- 1030
+			signY, -- 1030
+			toColor(PALETTE.xuanInk), -- 1030
+			0.5, -- 1030
+			0.5, -- 1030
+			"Center", -- 1030
+			6.5, -- 1030
+			0.92, -- 1030
+			0 -- 1030
+		) -- 1030
+		drawLoneSeal( -- 1031
+			uiInkDraw, -- 1031
+			art, -- 1031
+			texts, -- 1031
+			"reg_lone_seal", -- 1031
+			midX + 86, -- 1031
+			signY, -- 1031
+			22, -- 1031
+			42, -- 1031
+			"守", -- 1031
+			"望", -- 1031
+			PALETTE.sealRed, -- 1031
+			PALETTE.sealText, -- 1031
+			0.92, -- 1031
+			4 -- 1031
+		) -- 1031
+		drawSilkVeil( -- 1033
+			uiDraw, -- 1033
+			art, -- 1033
+			"reg_hint_veil", -- 1033
+			midX, -- 1033
+			cy - 28, -- 1033
+			360, -- 1033
+			32, -- 1033
+			PALETTE.inkWash, -- 1033
+			0.72, -- 1033
+			0 -- 1033
+		) -- 1033
+		local rawEndHint = assistHintsEnabled and "按 E 再次启程     ·     Esc 暂歇" or "Esc 暂歇" -- 1034
+		local endHint = getActiveTarget():adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 1035
+		texts:put( -- 1036
+			"xs", -- 1036
+			endHint, -- 1036
+			midX, -- 1036
+			cy - 28, -- 1036
+			toColor(PALETTE.textMid), -- 1036
+			0.5, -- 1036
+			0.5, -- 1036
+			"Center", -- 1036
+			1.6, -- 1036
+			0.92, -- 1036
+			0.08 -- 1036
+		) -- 1036
+	end -- 1036
+end -- 945
+function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 1040
+	local theme = themeOf(roomKey) -- 1049
+	local t = self.bannerT / self.bannerMax -- 1050
+	local alpha = 1 -- 1051
+	if t > 0.82 then -- 1051
+		alpha = (1 - t) / 0.18 -- 1053
+	elseif t < 0.28 then -- 1053
+		alpha = t / 0.28 -- 1055
+	end -- 1055
+	local cx = w * 0.5 -- 1057
+	local cy = h * 0.77 -- 1058
+	local spread = math.min(1, alpha * 1.15) -- 1059
+	drawSilkVeil( -- 1062
+		uiDraw, -- 1062
+		art, -- 1062
+		"banner_veil", -- 1062
+		cx, -- 1062
+		cy - 2, -- 1062
+		480 * spread + 100, -- 1062
+		92, -- 1062
+		PALETTE.inkWash, -- 1062
+		0.76 * alpha, -- 1062
+		-1 -- 1062
+	) -- 1062
+	drawMistCurve( -- 1063
+		art, -- 1063
+		"banner_mist", -- 1063
+		cx, -- 1063
+		cy + 4, -- 1063
+		460 * spread, -- 1063
+		72, -- 1063
+		theme.accent, -- 1063
+		0.28 * alpha, -- 1063
+		0 -- 1063
+	) -- 1063
+	drawHairline( -- 1064
+		uiInkDraw, -- 1064
+		art, -- 1064
+		"banner_line", -- 1064
+		cx, -- 1064
+		cy - 16, -- 1064
+		320 * spread, -- 1064
+		PALETTE.silkLine, -- 1064
+		0.64 * alpha, -- 1064
+		false, -- 1064
+		2 -- 1064
+	) -- 1064
+	local sep = " · " -- 1067
+	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 1068
+	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 1069
+	if theme.backdropKey ~= nil then -- 1069
+		texts:put( -- 1071
+			"lg", -- 1071
+			theme.titleZh, -- 1071
+			cx, -- 1071
+			cy + 14, -- 1071
+			toColor(PALETTE.textBright), -- 1071
 			0.5, -- 1072
 			0.5, -- 1072
 			"Center", -- 1072
-			3, -- 1072
+			1, -- 1072
 			alpha, -- 1072
 			0.1 -- 1072
 		) -- 1072
-	end -- 1072
-	texts:put( -- 1074
-		"xs", -- 1074
-		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 1074
-		cx, -- 1074
-		cy - 34, -- 1074
-		toColor(PALETTE.textMid), -- 1074
-		0.5, -- 1074
-		0.5, -- 1074
-		"Center", -- 1074
-		2.2, -- 1074
-		0.82 * alpha, -- 1074
-		0.08 -- 1074
-	) -- 1074
-end -- 1025
-return ____exports -- 1025
+	elseif idx > 0 then -- 1072
+		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 1074
+		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 1075
+		local lw = visualTextWidth(leftPart, 42) -- 1076
+		local rw = visualTextWidth(rightPart, 42) -- 1077
+		local dotGap = 28 -- 1078
+		local totalW = lw + rw + dotGap -- 1079
+		local leftEdge = cx - totalW * 0.5 -- 1080
+		local dotX = leftEdge + lw + dotGap * 0.5 -- 1081
+		texts:put( -- 1083
+			"banner", -- 1083
+			leftPart, -- 1083
+			leftEdge, -- 1083
+			cy + 14, -- 1083
+			toColor(PALETTE.textBright), -- 1083
+			0, -- 1083
+			0.5, -- 1083
+			"Left", -- 1083
+			2, -- 1083
+			alpha, -- 1083
+			0.1 -- 1083
+		) -- 1083
+		drawBlossomDot( -- 1084
+			uiInkDraw, -- 1084
+			art, -- 1084
+			"banner_mid_dot", -- 1084
+			dotX, -- 1084
+			cy + 12, -- 1084
+			11, -- 1084
+			dotCol, -- 1084
+			0.92 * alpha, -- 1084
+			4 -- 1084
+		) -- 1084
+		texts:put( -- 1085
+			"banner", -- 1085
+			rightPart, -- 1085
+			dotX + dotGap * 0.5, -- 1085
+			cy + 14, -- 1085
+			toColor(PALETTE.textBright), -- 1085
+			0, -- 1085
+			0.5, -- 1085
+			"Left", -- 1085
+			2, -- 1085
+			alpha, -- 1085
+			0.1 -- 1085
+		) -- 1085
+	else -- 1085
+		texts:put( -- 1087
+			"banner", -- 1087
+			theme.titleZh, -- 1087
+			cx, -- 1087
+			cy + 14, -- 1087
+			toColor(PALETTE.textBright), -- 1087
+			0.5, -- 1087
+			0.5, -- 1087
+			"Center", -- 1087
+			3, -- 1087
+			alpha, -- 1087
+			0.1 -- 1087
+		) -- 1087
+	end -- 1087
+	texts:put( -- 1089
+		"xs", -- 1089
+		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 1089
+		cx, -- 1089
+		cy - 34, -- 1089
+		toColor(PALETTE.textMid), -- 1089
+		0.5, -- 1089
+		0.5, -- 1089
+		"Center", -- 1089
+		2.2, -- 1089
+		0.82 * alpha, -- 1089
+		0.08 -- 1089
+	) -- 1089
+end -- 1040
+return ____exports -- 1040

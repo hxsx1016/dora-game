@@ -62,26 +62,36 @@ end
 local r = makeRun()
 local p = new(play.Play, rooms.OUTSIDE_ROOM, nil, r)
 local i = newInput()
-p.checkpoint = 380
 p.player.x = 160
 p.player.y = 96
 step(p, i, 2)
-print(string.format("[child 城外] x=%.1f y=%.1f 红布车=%s", p.player.x, p.player.y, tostring(p.redCartPulled)))
+print(string.format("[child 城外] x=%.1f y=%.1f 车轴=%.1f", p.player.x, p.player.y, p.cartAxle))
 
 local latch = p:cartLatchBounds()
 check("1.0 拉车前低拱内有挡栓", latch ~= nil and latch.width > 0 and latch.height == p.room.arch.h)
 
--- 1) 走到红布车（96–140，台面 y96）按 E 拉开
-moveTo(p, i, 150, 60)
+-- 1) 从出生点走到唯一红布车的右柄，按住 E + D 拉车。
+local duplicateCart = false
+for _, b in ipairs(p.boxes) do
+	duplicateCart = duplicateCart or b.id == "outside_red_cart"
+end
+check("1.1 石阶旁没有第二个红布车实体", not duplicateCart)
+moveTo(p, i, p.cartAxle + p.room.cart.handleOffset, 150)
 tap(i, "interact")
-step(p, i, 3)
-local box = nil
-for _, b in ipairs(p.boxes) do if b.id == "outside_red_cart" then box = b end end
-check("1.1 红布车从石阶口挪开", box ~= nil and math.abs(box.x0 - 430) < 1 and math.abs(box.x1 - 474) < 1,
-	string.format("x0=%.0f x1=%.0f pulled=%s", box and box.x0 or -1, box and box.x1 or -1, tostring(p.redCartPulled)))
+step(p, i, 1)
+check("1.2 右柄接手后仍需拉到车窝", p.gripping and not p.cartDocked)
+for _ = 1, 200 do
+	i.moveX = 1
+	step(p, i, 1)
+	if p.cartDocked then break end
+end
+i.interact.held = false
 check("1.2 拉开一次写入跨房快照", r.story.segments["outside_cart"] == true, "segment=" .. tostring(r.story.segments["outside_cart"]))
 
-check("1.3 红布车落窝收起挡栓", p.cartDocked and p:cartLatchBounds() == nil)
+check("1.3 红布车落窝收起挡栓", p.cartDocked and p:cartLatchBounds() == nil
+	and math.abs(p.cartAxle - p.room.cart.endX) < 0.01)
+local resumed = new(play.Play, rooms.OUTSIDE_ROOM, nil, r)
+check("1.4 重进城外时仍从已入窝的单车状态继续", resumed.cartDocked and resumed:cartLatchBounds() == nil)
 
 -- 2) 下石阶到 0 层，蹲过拱 280–360
 moveTo(p, i, 40, 240)

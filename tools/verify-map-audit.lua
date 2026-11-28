@@ -128,10 +128,7 @@ do
 	step(p, inp, 60)
 	check("2.5a 城外板车入窝后底层 x=408..456 站姿直行无空气墙", p.player.x > 480, "x=" .. tostring(p.player.x))
 
-	-- 先拉开红布车（与正式流程一致），再测石阶顺滑直上 y=96 台面
-	for _, b in ipairs(p.boxes) do
-		if b.id == "outside_red_cart" then b.x0, b.x1 = 430, 474 end
-	end
+	-- 石阶口始终留给行走，拉车后只移开拱底铁栓。
 	p.player.x, p.player.y, p.player.onGround = 46, 0, true
 	inp.moveX = 1
 	step(p, inp, 60)

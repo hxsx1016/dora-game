@@ -842,10 +842,19 @@ export class NarrativeRenderer {
 
         if (key === "outside") {
             if (!p.cartDocked) {
-                return { cue: "", text: "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent: false };
+                if (p.gripping || p.cartHandleInReach()) {
+                    return { cue: "", text: "按住 [E]+[D]，把红布车拉进右侧车窝", urgent: false };
+                }
+                const text = p.player.y < p.room.cart.baseY - 25
+                    ? "沿左侧石阶上台，去找红布车右柄"
+                    : "向右走到红布车的右柄";
+                return { cue: "", text, urgent: false };
             }
             if (p.checkpoint < p.room.arch.x1) {
-                return { cue: "潜", text: "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent: false };
+                const text = p.player.y > p.room.arch.h + 2
+                    ? "车轮落窝了。往左返回石阶，下到地面"
+                    : "向右走到矮拱，按住 [CTRL] 蹲着穿过";
+                return { cue: "潜", text, urgent: false };
             }
             return { cue: "", text: "穿过矮拱，沿墙根小路向北塔灯火前行", urgent: false };
         }
@@ -881,10 +890,16 @@ export class NarrativeRenderer {
 
         if (key === "tower") {
             if (p.phase === "tower-wait") {
-                return { cue: "", text: "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent: false };
+                return { cue: "", text: "走到木门前，按 [E] 叩门", urgent: false };
             }
             if (p.phase === "tower-knock") {
                 return { cue: "", text: "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent: false };
+            }
+            if (p.phase === "tower-enter") {
+                return { cue: "", text: "门开了。向右跨过门槛，走到值夜桌前", urgent: false };
+            }
+            if (p.phase === "tower-desk") {
+                return { cue: "", text: "走到值夜桌前，按住 [E] 交出针套、指南针和纸条", urgent: false };
             }
             if (p.phase === "tower-given") {
                 return { cue: "", text: "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent: false };
