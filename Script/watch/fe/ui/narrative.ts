@@ -173,7 +173,7 @@ export class NarrativeRenderer {
                     this.triggerOnce("p0_wake_dad", ["D31"], true);
                 }
             } else if (p.phase === "prologue-shadow") {
-                if (p.introTick < 90) {
+                if (p.introTick < 105) {
                     this.triggerOnce("p0_shadow_call", ["D32"], true);
                 } else {
                     this.triggerOnce("p0_shadow_raider", ["D33"], true);

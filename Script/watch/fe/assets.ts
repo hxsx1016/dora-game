@@ -32,6 +32,85 @@ export type AssetSlotKey =
     | "slide_e01_well" | "slide_e01_compass" | "slide_e01_vitrine"
     | "slide_e02_museum_hall" | "slide_e02_window_dawn" | "slide_e02_return_cabinet"
     | "slide_f01_sewing" | "slide_m02_lantern_gun" | "slide_m02_echo_gun"
+    // ── 硬核明代木刻暗黑漫画过场原画（assets/art/cutscenes/**/*.png，6–12 FPS 全 10 段 237 帧 + 兼容旧锚点） ──
+    | "comic_p01_01_curtain_dark" | "comic_p01_02_curtain_glow" | "comic_p01_03_hand_bedrail" | "comic_p01_04_look_door"
+    | "comic_p01_f01" | "comic_p01_f02" | "comic_p01_f03" | "comic_p01_f04"
+    | "comic_p01_f05" | "comic_p01_f06" | "comic_p01_f07" | "comic_p01_f08"
+    | "comic_p01_f09" | "comic_p01_f10" | "comic_p01_f11" | "comic_p01_f12"
+    | "comic_p01_f13" | "comic_p01_f14" | "comic_p01_f15" | "comic_p01_f16"
+    | "comic_p01_f17" | "comic_p01_f18" | "comic_p01_f19" | "comic_p01_f20"
+    | "comic_p01_f21" | "comic_p01_f22"
+    | "comic_p02_01_shadows" | "comic_p02_02a_door_intrude" | "comic_p02_03_impact_cut" | "comic_p02_04_shadows_fall"
+    | "comic_p02_05_bowl_roll1" | "comic_p02_06_bowl_roll2" | "comic_p02_07_bowl_smash"
+    | "comic_p02_08a_cabinet_slit" | "comic_p02_08m_cabinet_narrowing" | "comic_p02_08b_cabinet_shut"
+    | "comic_p02_f01" | "comic_p02_f02" | "comic_p02_f03" | "comic_p02_f04"
+    | "comic_p02_f05" | "comic_p02_f06" | "comic_p02_f07" | "comic_p02_f08"
+    | "comic_p02_f09" | "comic_p02_f10" | "comic_p02_f11" | "comic_p02_f12"
+    | "comic_p02_f13" | "comic_p02_f14" | "comic_p02_f15" | "comic_p02_f16"
+    | "comic_p02_f17" | "comic_p02_f18" | "comic_p02_f19" | "comic_p02_f20"
+    | "comic_p02_f21" | "comic_p02_f22" | "comic_p02_f23" | "comic_p02_f24"
+    | "comic_p02_f25" | "comic_p02_f26" | "comic_p02_f27" | "comic_p02_f28"
+    | "comic_p02_f29" | "comic_p02_f30" | "comic_p02_f31" | "comic_p02_f32" | "comic_p02_f33"
+    | "comic_p03_01_two_fingers" | "comic_p03_02_cuff_enter" | "comic_p03_03_cuff_wipe" | "comic_p03_04_hand_meet"
+    | "comic_p03_f01" | "comic_p03_f02" | "comic_p03_f03" | "comic_p03_f04"
+    | "comic_p03_f05" | "comic_p03_f06" | "comic_p03_f07" | "comic_p03_f08"
+    | "comic_p03_f09" | "comic_p03_f10" | "comic_p03_f11" | "comic_p03_f12"
+    | "comic_p03_f13" | "comic_p03_f14" | "comic_p03_f15" | "comic_p03_f16"
+    | "comic_p03_f17" | "comic_p03_f18" | "comic_p03_f19" | "comic_p03_f20"
+    | "comic_p03_f21" | "comic_p03_f22" | "comic_p03_f23" | "comic_p03_f24"
+    | "comic_p05_01_clutch_cuff" | "comic_p05_02_brother_pinch" | "comic_p05_03_sleeve_pull"
+    | "comic_p05_04_gate_drop" | "comic_p05_05_gate_slam_impact" | "comic_p05_06_open_fingers"
+    | "comic_p05_f01" | "comic_p05_f02" | "comic_p05_f03" | "comic_p05_f04"
+    | "comic_p05_f05" | "comic_p05_f06" | "comic_p05_f07" | "comic_p05_f08"
+    | "comic_p05_f09" | "comic_p05_f10" | "comic_p05_f11" | "comic_p05_f12"
+    | "comic_p05_f13" | "comic_p05_f14" | "comic_p05_f15" | "comic_p05_f16" | "comic_p05_f17"
+    | "comic_g05_01_cuff_peek" | "comic_g05_02_cuff_extend" | "comic_g05_03_hands_meet" | "comic_g05_04_hands_clasp"
+    | "comic_g05_05_tilt_arm" | "comic_g05_06_tilt_shoulder" | "comic_g05_07_zhoushu_reveal" | "comic_g05_08_zhoushu_warm"
+    | "comic_g05_f01" | "comic_g05_f02" | "comic_g05_f03" | "comic_g05_f04"
+    | "comic_g05_f05" | "comic_g05_f06" | "comic_g05_f07" | "comic_g05_f08"
+    | "comic_g05_f09" | "comic_g05_f10" | "comic_g05_f11" | "comic_g05_f12"
+    | "comic_g05_f13" | "comic_g05_f14" | "comic_g05_f15" | "comic_g05_f16"
+    | "comic_g05_f17" | "comic_g05_f18" | "comic_g05_f19" | "comic_g05_f20"
+    | "comic_gate_01_beam" | "comic_gate_02_dock" | "comic_gate_03_fog" | "comic_gate_04_terrace"
+    | "comic_gate_f01" | "comic_gate_f02" | "comic_gate_f03" | "comic_gate_f04" | "comic_gate_f05"
+    | "comic_gate_f06" | "comic_gate_f07" | "comic_gate_f08" | "comic_gate_f09" | "comic_gate_f10"
+    | "comic_f01_01_thumb_cloth" | "comic_f01_02_needle_pierce" | "comic_f01_03_thread_pull" | "comic_f01_04_stitch_smooth"
+    | "comic_f01_f01" | "comic_f01_f02" | "comic_f01_f03" | "comic_f01_f04"
+    | "comic_f01_f05" | "comic_f01_f06" | "comic_f01_f07" | "comic_f01_f08"
+    | "comic_f01_f09" | "comic_f01_f10" | "comic_f01_f11" | "comic_f01_f12"
+    | "comic_m02_lantern_01_offer" | "comic_m02_lantern_02_grip" | "comic_m02_lantern_03_heft" | "comic_m02_lantern_04_ready"
+    | "comic_m02_lantern_f01" | "comic_m02_lantern_f02" | "comic_m02_lantern_f03" | "comic_m02_lantern_f04"
+    | "comic_m02_lantern_f05" | "comic_m02_lantern_f06" | "comic_m02_lantern_f07" | "comic_m02_lantern_f08"
+    | "comic_m02_lantern_f09" | "comic_m02_lantern_f10" | "comic_m02_lantern_f11" | "comic_m02_lantern_f12"
+    | "comic_m02_echo_01_offer" | "comic_m02_echo_02_grip" | "comic_m02_echo_03_heft" | "comic_m02_echo_04_ready"
+    | "comic_m02_echo_f01" | "comic_m02_echo_f02" | "comic_m02_echo_f03" | "comic_m02_echo_f04"
+    | "comic_m02_echo_f05" | "comic_m02_echo_f06" | "comic_m02_echo_f07" | "comic_m02_echo_f08"
+    | "comic_m02_echo_f09" | "comic_m02_echo_f10" | "comic_m02_echo_f11"
+    | "comic_tower_f03_porch_01_knock" | "comic_tower_f03_porch_02_open"
+    | "comic_tower_m03_porch_01_knock" | "comic_tower_m03_porch_02_open"
+    | "comic_tower_f03_room_01_cold" | "comic_tower_f03_room_02_hover" | "comic_tower_f03_room_03_move_lamp" | "comic_tower_f03_room_04_lit_bowl"
+    | "comic_tower_m03_room_01_warm" | "comic_tower_m03_room_02_speak" | "comic_tower_m03_room_03_pouch" | "comic_tower_m03_room_04_bowl"
+    | "comic_f03_f01" | "comic_f03_f02" | "comic_f03_f03" | "comic_f03_f04"
+    | "comic_f03_f05" | "comic_f03_f06" | "comic_f03_f07" | "comic_f03_f08"
+    | "comic_f03_f09" | "comic_f03_f10" | "comic_f03_f11" | "comic_f03_f12"
+    | "comic_f03_f13" | "comic_f03_f14" | "comic_f03_f15" | "comic_f03_f16"
+    | "comic_f03_f17" | "comic_f03_f18" | "comic_f03_f19" | "comic_f03_f20"
+    | "comic_m03_f01" | "comic_m03_f02" | "comic_m03_f03" | "comic_m03_f04"
+    | "comic_m03_f05" | "comic_m03_f06" | "comic_m03_f07" | "comic_m03_f08"
+    | "comic_m03_f09" | "comic_m03_f10" | "comic_m03_f11" | "comic_m03_f12"
+    | "comic_m03_f13" | "comic_m03_f14" | "comic_m03_f15" | "comic_m03_f16"
+    | "comic_m03_f17" | "comic_m03_f18" | "comic_m03_f19" | "comic_m03_f20"
+    | "comic_museum_e01_01_well_water" | "comic_museum_e01_02_compass_align" | "comic_museum_e01_03_match_flash" | "comic_museum_e01_04_vitrine_emerge"
+    | "comic_e01_f01" | "comic_e01_f02" | "comic_e01_f03" | "comic_e01_f04"
+    | "comic_e01_f05" | "comic_e01_f06" | "comic_e01_f07" | "comic_e01_f08"
+    | "comic_e01_f09" | "comic_e01_f10" | "comic_e01_f11" | "comic_e01_f12"
+    | "comic_e01_f13" | "comic_e01_f14" | "comic_e01_f15" | "comic_e01_f16"
+    | "comic_museum_e02_01_west_window" | "comic_museum_e02_02_lamp_turn" | "comic_museum_e02_03_dawn_well_reflect" | "comic_museum_e02_04_cabinet_cuff_return"
+    | "comic_e02_f01" | "comic_e02_f02" | "comic_e02_f03" | "comic_e02_f04"
+    | "comic_e02_f05" | "comic_e02_f06" | "comic_e02_f07" | "comic_e02_f08"
+    | "comic_e02_f09" | "comic_e02_f10" | "comic_e02_f11" | "comic_e02_f12"
+    | "comic_e02_f13" | "comic_e02_f14" | "comic_e02_f15" | "comic_e02_f16"
+    | "comic_e02_f17" | "comic_e02_f18" | "comic_e02_f19" | "comic_e02_f20"
     // ── 扩展像素精灵图集（assets/art/sprites_fe.clip，零改动旧图集） ──
     | "fe_carry_idle" | "fe_carry_walk" | "fe_carry_reload"
     | "fe_soldier_kneel_mount" | "fe_child_listen_door" | "fe_soldier_hand_hold" | "fe_tower_guard_lantern"
@@ -102,6 +181,10 @@ function actor(names: string | string[], anchorX?: number | number[]): AssetSlot
 
 function slide(name: string): AssetSlotConfig {
     return { paths: ["assets/art/slides/" + name + ".png"], anchorY: 0.5, preserveAspect: false };
+}
+
+function comicCutscene(rel: string): AssetSlotConfig {
+    return { paths: ["assets/art/cutscenes/" + rel + ".png"], anchorY: 0.5, preserveAspect: false, smooth: true };
 }
 
 function feClip(
@@ -268,6 +351,312 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     slide_f01_sewing: slide("f01_sewing_memory"),
     slide_m02_lantern_gun: slide("m02_handover_lantern"),
     slide_m02_echo_gun: slide("m02_handover_echo"),
+    // ── 硬核明代木刻暗黑漫画过场原画 ──
+    comic_p01_01_curtain_dark: comicCutscene("p01/p01_01_curtain_dark"),
+    comic_p01_02_curtain_glow: comicCutscene("p01/p01_02_curtain_glow"),
+    comic_p01_03_hand_bedrail: comicCutscene("p01/p01_03_hand_bedrail"),
+    comic_p01_04_look_door: comicCutscene("p01/p01_04_look_door"),
+    comic_p01_f01: comicCutscene("p01/p01_f01"),
+    comic_p01_f02: comicCutscene("p01/p01_f02"),
+    comic_p01_f03: comicCutscene("p01/p01_f03"),
+    comic_p01_f04: comicCutscene("p01/p01_f04"),
+    comic_p01_f05: comicCutscene("p01/p01_f05"),
+    comic_p01_f06: comicCutscene("p01/p01_f06"),
+    comic_p01_f07: comicCutscene("p01/p01_f07"),
+    comic_p01_f08: comicCutscene("p01/p01_f08"),
+    comic_p01_f09: comicCutscene("p01/p01_f09"),
+    comic_p01_f10: comicCutscene("p01/p01_f10"),
+    comic_p01_f11: comicCutscene("p01/p01_f11"),
+    comic_p01_f12: comicCutscene("p01/p01_f12"),
+    comic_p01_f13: comicCutscene("p01/p01_f13"),
+    comic_p01_f14: comicCutscene("p01/p01_f14"),
+    comic_p01_f15: comicCutscene("p01/p01_f15"),
+    comic_p01_f16: comicCutscene("p01/p01_f16"),
+    comic_p01_f17: comicCutscene("p01/p01_f17"),
+    comic_p01_f18: comicCutscene("p01/p01_f18"),
+    comic_p01_f19: comicCutscene("p01/p01_f19"),
+    comic_p01_f20: comicCutscene("p01/p01_f20"),
+    comic_p01_f21: comicCutscene("p01/p01_f21"),
+    comic_p01_f22: comicCutscene("p01/p01_f22"),
+    comic_p02_01_shadows: comicCutscene("p02/p02_01_shadows"),
+    comic_p02_02a_door_intrude: comicCutscene("p02/p02_02a_door_intrude"),
+    comic_p02_03_impact_cut: comicCutscene("p02/p02_03_impact_cut"),
+    comic_p02_04_shadows_fall: comicCutscene("p02/p02_04_shadows_fall"),
+    comic_p02_05_bowl_roll1: comicCutscene("p02/p02_05_bowl_roll1"),
+    comic_p02_06_bowl_roll2: comicCutscene("p02/p02_06_bowl_roll2"),
+    comic_p02_07_bowl_smash: comicCutscene("p02/p02_07_bowl_smash"),
+    comic_p02_08a_cabinet_slit: comicCutscene("p02/p02_08a_cabinet_slit"),
+    comic_p02_08m_cabinet_narrowing: comicCutscene("p02/p02_08m_cabinet_narrowing"),
+    comic_p02_08b_cabinet_shut: comicCutscene("p02/p02_08b_cabinet_shut"),
+    comic_p02_f01: comicCutscene("p02/p02_f01"),
+    comic_p02_f02: comicCutscene("p02/p02_f02"),
+    comic_p02_f03: comicCutscene("p02/p02_f03"),
+    comic_p02_f04: comicCutscene("p02/p02_f04"),
+    comic_p02_f05: comicCutscene("p02/p02_f05"),
+    comic_p02_f06: comicCutscene("p02/p02_f06"),
+    comic_p02_f07: comicCutscene("p02/p02_f07"),
+    comic_p02_f08: comicCutscene("p02/p02_f08"),
+    comic_p02_f09: comicCutscene("p02/p02_f09"),
+    comic_p02_f10: comicCutscene("p02/p02_f10"),
+    comic_p02_f11: comicCutscene("p02/p02_f11"),
+    comic_p02_f12: comicCutscene("p02/p02_f12"),
+    comic_p02_f13: comicCutscene("p02/p02_f13"),
+    comic_p02_f14: comicCutscene("p02/p02_f14"),
+    comic_p02_f15: comicCutscene("p02/p02_f15"),
+    comic_p02_f16: comicCutscene("p02/p02_f16"),
+    comic_p02_f17: comicCutscene("p02/p02_f17"),
+    comic_p02_f18: comicCutscene("p02/p02_f18"),
+    comic_p02_f19: comicCutscene("p02/p02_f19"),
+    comic_p02_f20: comicCutscene("p02/p02_f20"),
+    comic_p02_f21: comicCutscene("p02/p02_f21"),
+    comic_p02_f22: comicCutscene("p02/p02_f22"),
+    comic_p02_f23: comicCutscene("p02/p02_f23"),
+    comic_p02_f24: comicCutscene("p02/p02_f24"),
+    comic_p02_f25: comicCutscene("p02/p02_f25"),
+    comic_p02_f26: comicCutscene("p02/p02_f26"),
+    comic_p02_f27: comicCutscene("p02/p02_f27"),
+    comic_p02_f28: comicCutscene("p02/p02_f28"),
+    comic_p02_f29: comicCutscene("p02/p02_f29"),
+    comic_p02_f30: comicCutscene("p02/p02_f30"),
+    comic_p02_f31: comicCutscene("p02/p02_f31"),
+    comic_p02_f32: comicCutscene("p02/p02_f32"),
+    comic_p02_f33: comicCutscene("p02/p02_f33"),
+    comic_p03_01_two_fingers: comicCutscene("p03/p03_01_two_fingers"),
+    comic_p03_02_cuff_enter: comicCutscene("p03/p03_02_cuff_enter"),
+    comic_p03_03_cuff_wipe: comicCutscene("p03/p03_03_cuff_wipe"),
+    comic_p03_04_hand_meet: comicCutscene("p03/p03_04_hand_meet"),
+    comic_p03_f01: comicCutscene("p03/p03_f01"),
+    comic_p03_f02: comicCutscene("p03/p03_f02"),
+    comic_p03_f03: comicCutscene("p03/p03_f03"),
+    comic_p03_f04: comicCutscene("p03/p03_f04"),
+    comic_p03_f05: comicCutscene("p03/p03_f05"),
+    comic_p03_f06: comicCutscene("p03/p03_f06"),
+    comic_p03_f07: comicCutscene("p03/p03_f07"),
+    comic_p03_f08: comicCutscene("p03/p03_f08"),
+    comic_p03_f09: comicCutscene("p03/p03_f09"),
+    comic_p03_f10: comicCutscene("p03/p03_f10"),
+    comic_p03_f11: comicCutscene("p03/p03_f11"),
+    comic_p03_f12: comicCutscene("p03/p03_f12"),
+    comic_p03_f13: comicCutscene("p03/p03_f13"),
+    comic_p03_f14: comicCutscene("p03/p03_f14"),
+    comic_p03_f15: comicCutscene("p03/p03_f15"),
+    comic_p03_f16: comicCutscene("p03/p03_f16"),
+    comic_p03_f17: comicCutscene("p03/p03_f17"),
+    comic_p03_f18: comicCutscene("p03/p03_f18"),
+    comic_p03_f19: comicCutscene("p03/p03_f19"),
+    comic_p03_f20: comicCutscene("p03/p03_f20"),
+    comic_p03_f21: comicCutscene("p03/p03_f21"),
+    comic_p03_f22: comicCutscene("p03/p03_f22"),
+    comic_p03_f23: comicCutscene("p03/p03_f23"),
+    comic_p03_f24: comicCutscene("p03/p03_f24"),
+    comic_p05_01_clutch_cuff: comicCutscene("p05/p05_01_clutch_cuff"),
+    comic_p05_02_brother_pinch: comicCutscene("p05/p05_02_brother_pinch"),
+    comic_p05_03_sleeve_pull: comicCutscene("p05/p05_03_sleeve_pull"),
+    comic_p05_04_gate_drop: comicCutscene("p05/p05_04_gate_drop"),
+    comic_p05_05_gate_slam_impact: comicCutscene("p05/p05_05_gate_slam_impact"),
+    comic_p05_06_open_fingers: comicCutscene("p05/p05_06_open_fingers"),
+    comic_p05_f01: comicCutscene("p05/p05_f01"),
+    comic_p05_f02: comicCutscene("p05/p05_f02"),
+    comic_p05_f03: comicCutscene("p05/p05_f03"),
+    comic_p05_f04: comicCutscene("p05/p05_f04"),
+    comic_p05_f05: comicCutscene("p05/p05_f05"),
+    comic_p05_f06: comicCutscene("p05/p05_f06"),
+    comic_p05_f07: comicCutscene("p05/p05_f07"),
+    comic_p05_f08: comicCutscene("p05/p05_f08"),
+    comic_p05_f09: comicCutscene("p05/p05_f09"),
+    comic_p05_f10: comicCutscene("p05/p05_f10"),
+    comic_p05_f11: comicCutscene("p05/p05_f11"),
+    comic_p05_f12: comicCutscene("p05/p05_f12"),
+    comic_p05_f13: comicCutscene("p05/p05_f13"),
+    comic_p05_f14: comicCutscene("p05/p05_f14"),
+    comic_p05_f15: comicCutscene("p05/p05_f15"),
+    comic_p05_f16: comicCutscene("p05/p05_f16"),
+    comic_p05_f17: comicCutscene("p05/p05_f17"),
+    comic_g05_01_cuff_peek: comicCutscene("g05/g05_01_cuff_peek"),
+    comic_g05_02_cuff_extend: comicCutscene("g05/g05_02_cuff_extend"),
+    comic_g05_03_hands_meet: comicCutscene("g05/g05_03_hands_meet"),
+    comic_g05_04_hands_clasp: comicCutscene("g05/g05_04_hands_clasp"),
+    comic_g05_05_tilt_arm: comicCutscene("g05/g05_05_tilt_arm"),
+    comic_g05_06_tilt_shoulder: comicCutscene("g05/g05_06_tilt_shoulder"),
+    comic_g05_07_zhoushu_reveal: comicCutscene("g05/g05_07_zhoushu_reveal"),
+    comic_g05_08_zhoushu_warm: comicCutscene("g05/g05_08_zhoushu_warm"),
+    comic_g05_f01: comicCutscene("g05/g05_f01"),
+    comic_g05_f02: comicCutscene("g05/g05_f02"),
+    comic_g05_f03: comicCutscene("g05/g05_f03"),
+    comic_g05_f04: comicCutscene("g05/g05_f04"),
+    comic_g05_f05: comicCutscene("g05/g05_f05"),
+    comic_g05_f06: comicCutscene("g05/g05_f06"),
+    comic_g05_f07: comicCutscene("g05/g05_f07"),
+    comic_g05_f08: comicCutscene("g05/g05_f08"),
+    comic_g05_f09: comicCutscene("g05/g05_f09"),
+    comic_g05_f10: comicCutscene("g05/g05_f10"),
+    comic_g05_f11: comicCutscene("g05/g05_f11"),
+    comic_g05_f12: comicCutscene("g05/g05_f12"),
+    comic_g05_f13: comicCutscene("g05/g05_f13"),
+    comic_g05_f14: comicCutscene("g05/g05_f14"),
+    comic_g05_f15: comicCutscene("g05/g05_f15"),
+    comic_g05_f16: comicCutscene("g05/g05_f16"),
+    comic_g05_f17: comicCutscene("g05/g05_f17"),
+    comic_g05_f18: comicCutscene("g05/g05_f18"),
+    comic_g05_f19: comicCutscene("g05/g05_f19"),
+    comic_g05_f20: comicCutscene("g05/g05_f20"),
+    comic_gate_01_beam: { paths: ["assets/art/cutscenes/gate/gate_01_beam.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_02_dock: { paths: ["assets/art/cutscenes/gate/gate_02_dock.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_03_fog: { paths: ["assets/art/cutscenes/gate/gate_03_fog.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_04_terrace: { paths: ["assets/art/cutscenes/gate/gate_04_terrace.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f01: { paths: ["assets/art/cutscenes/gate/gate_f01.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f02: { paths: ["assets/art/cutscenes/gate/gate_f02.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f03: { paths: ["assets/art/cutscenes/gate/gate_f03.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f04: { paths: ["assets/art/cutscenes/gate/gate_f04.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f05: { paths: ["assets/art/cutscenes/gate/gate_f05.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f06: { paths: ["assets/art/cutscenes/gate/gate_f06.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f07: { paths: ["assets/art/cutscenes/gate/gate_f07.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f08: { paths: ["assets/art/cutscenes/gate/gate_f08.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f09: { paths: ["assets/art/cutscenes/gate/gate_f09.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_gate_f10: { paths: ["assets/art/cutscenes/gate/gate_f10.png"], anchorY: 0, preserveAspect: false, smooth: true },
+    comic_f01_01_thumb_cloth: comicCutscene("f01/f01_01_thumb_cloth"),
+    comic_f01_02_needle_pierce: comicCutscene("f01/f01_02_needle_pierce"),
+    comic_f01_03_thread_pull: comicCutscene("f01/f01_03_thread_pull"),
+    comic_f01_04_stitch_smooth: comicCutscene("f01/f01_04_stitch_smooth"),
+    comic_f01_f01: comicCutscene("f01/f01_f01"),
+    comic_f01_f02: comicCutscene("f01/f01_f02"),
+    comic_f01_f03: comicCutscene("f01/f01_f03"),
+    comic_f01_f04: comicCutscene("f01/f01_f04"),
+    comic_f01_f05: comicCutscene("f01/f01_f05"),
+    comic_f01_f06: comicCutscene("f01/f01_f06"),
+    comic_f01_f07: comicCutscene("f01/f01_f07"),
+    comic_f01_f08: comicCutscene("f01/f01_f08"),
+    comic_f01_f09: comicCutscene("f01/f01_f09"),
+    comic_f01_f10: comicCutscene("f01/f01_f10"),
+    comic_f01_f11: comicCutscene("f01/f01_f11"),
+    comic_f01_f12: comicCutscene("f01/f01_f12"),
+    comic_m02_lantern_01_offer: comicCutscene("m02/m02_lantern_01_offer"),
+    comic_m02_lantern_02_grip: comicCutscene("m02/m02_lantern_02_grip"),
+    comic_m02_lantern_03_heft: comicCutscene("m02/m02_lantern_03_heft"),
+    comic_m02_lantern_04_ready: comicCutscene("m02/m02_lantern_04_ready"),
+    comic_m02_lantern_f01: comicCutscene("m02/m02_lantern_f01"),
+    comic_m02_lantern_f02: comicCutscene("m02/m02_lantern_f02"),
+    comic_m02_lantern_f03: comicCutscene("m02/m02_lantern_f03"),
+    comic_m02_lantern_f04: comicCutscene("m02/m02_lantern_f04"),
+    comic_m02_lantern_f05: comicCutscene("m02/m02_lantern_f05"),
+    comic_m02_lantern_f06: comicCutscene("m02/m02_lantern_f06"),
+    comic_m02_lantern_f07: comicCutscene("m02/m02_lantern_f07"),
+    comic_m02_lantern_f08: comicCutscene("m02/m02_lantern_f08"),
+    comic_m02_lantern_f09: comicCutscene("m02/m02_lantern_f09"),
+    comic_m02_lantern_f10: comicCutscene("m02/m02_lantern_f10"),
+    comic_m02_lantern_f11: comicCutscene("m02/m02_lantern_f11"),
+    comic_m02_lantern_f12: comicCutscene("m02/m02_lantern_f12"),
+    comic_m02_echo_01_offer: comicCutscene("m02/m02_echo_01_offer"),
+    comic_m02_echo_02_grip: comicCutscene("m02/m02_echo_02_grip"),
+    comic_m02_echo_03_heft: comicCutscene("m02/m02_echo_03_heft"),
+    comic_m02_echo_04_ready: comicCutscene("m02/m02_echo_04_ready"),
+    comic_m02_echo_f01: comicCutscene("m02/m02_echo_f01"),
+    comic_m02_echo_f02: comicCutscene("m02/m02_echo_f02"),
+    comic_m02_echo_f03: comicCutscene("m02/m02_echo_f03"),
+    comic_m02_echo_f04: comicCutscene("m02/m02_echo_f04"),
+    comic_m02_echo_f05: comicCutscene("m02/m02_echo_f05"),
+    comic_m02_echo_f06: comicCutscene("m02/m02_echo_f06"),
+    comic_m02_echo_f07: comicCutscene("m02/m02_echo_f07"),
+    comic_m02_echo_f08: comicCutscene("m02/m02_echo_f08"),
+    comic_m02_echo_f09: comicCutscene("m02/m02_echo_f09"),
+    comic_m02_echo_f10: comicCutscene("m02/m02_echo_f10"),
+    comic_m02_echo_f11: comicCutscene("m02/m02_echo_f11"),
+    comic_tower_f03_porch_01_knock: comicCutscene("tower/f03_porch_01_knock"),
+    comic_tower_f03_porch_02_open: comicCutscene("tower/f03_porch_02_open"),
+    comic_tower_m03_porch_01_knock: comicCutscene("tower/m03_porch_01_knock"),
+    comic_tower_m03_porch_02_open: comicCutscene("tower/m03_porch_02_open"),
+    comic_tower_f03_room_01_cold: comicCutscene("tower/f03_room_01_cold"),
+    comic_tower_f03_room_02_hover: comicCutscene("tower/f03_room_02_hover"),
+    comic_tower_f03_room_03_move_lamp: comicCutscene("tower/f03_room_03_move_lamp"),
+    comic_tower_f03_room_04_lit_bowl: comicCutscene("tower/f03_room_04_lit_bowl"),
+    comic_tower_m03_room_01_warm: comicCutscene("tower/m03_room_01_warm"),
+    comic_tower_m03_room_02_speak: comicCutscene("tower/m03_room_02_speak"),
+    comic_tower_m03_room_03_pouch: comicCutscene("tower/m03_room_03_pouch"),
+    comic_tower_m03_room_04_bowl: comicCutscene("tower/m03_room_04_bowl"),
+    comic_f03_f01: comicCutscene("tower/f03_f01"),
+    comic_f03_f02: comicCutscene("tower/f03_f02"),
+    comic_f03_f03: comicCutscene("tower/f03_f03"),
+    comic_f03_f04: comicCutscene("tower/f03_f04"),
+    comic_f03_f05: comicCutscene("tower/f03_f05"),
+    comic_f03_f06: comicCutscene("tower/f03_f06"),
+    comic_f03_f07: comicCutscene("tower/f03_f07"),
+    comic_f03_f08: comicCutscene("tower/f03_f08"),
+    comic_f03_f09: comicCutscene("tower/f03_f09"),
+    comic_f03_f10: comicCutscene("tower/f03_f10"),
+    comic_f03_f11: comicCutscene("tower/f03_f11"),
+    comic_f03_f12: comicCutscene("tower/f03_f12"),
+    comic_f03_f13: comicCutscene("tower/f03_f13"),
+    comic_f03_f14: comicCutscene("tower/f03_f14"),
+    comic_f03_f15: comicCutscene("tower/f03_f15"),
+    comic_f03_f16: comicCutscene("tower/f03_f16"),
+    comic_f03_f17: comicCutscene("tower/f03_f17"),
+    comic_f03_f18: comicCutscene("tower/f03_f18"),
+    comic_f03_f19: comicCutscene("tower/f03_f19"),
+    comic_f03_f20: comicCutscene("tower/f03_f20"),
+    comic_m03_f01: comicCutscene("tower/m03_f01"),
+    comic_m03_f02: comicCutscene("tower/m03_f02"),
+    comic_m03_f03: comicCutscene("tower/m03_f03"),
+    comic_m03_f04: comicCutscene("tower/m03_f04"),
+    comic_m03_f05: comicCutscene("tower/m03_f05"),
+    comic_m03_f06: comicCutscene("tower/m03_f06"),
+    comic_m03_f07: comicCutscene("tower/m03_f07"),
+    comic_m03_f08: comicCutscene("tower/m03_f08"),
+    comic_m03_f09: comicCutscene("tower/m03_f09"),
+    comic_m03_f10: comicCutscene("tower/m03_f10"),
+    comic_m03_f11: comicCutscene("tower/m03_f11"),
+    comic_m03_f12: comicCutscene("tower/m03_f12"),
+    comic_m03_f13: comicCutscene("tower/m03_f13"),
+    comic_m03_f14: comicCutscene("tower/m03_f14"),
+    comic_m03_f15: comicCutscene("tower/m03_f15"),
+    comic_m03_f16: comicCutscene("tower/m03_f16"),
+    comic_m03_f17: comicCutscene("tower/m03_f17"),
+    comic_m03_f18: comicCutscene("tower/m03_f18"),
+    comic_m03_f19: comicCutscene("tower/m03_f19"),
+    comic_m03_f20: comicCutscene("tower/m03_f20"),
+    comic_museum_e01_01_well_water: comicCutscene("museum/e01_01_well_water"),
+    comic_museum_e01_02_compass_align: comicCutscene("museum/e01_02_compass_align"),
+    comic_museum_e01_03_match_flash: comicCutscene("museum/e01_03_match_flash"),
+    comic_museum_e01_04_vitrine_emerge: comicCutscene("museum/e01_04_vitrine_emerge"),
+    comic_e01_f01: comicCutscene("museum/e01_f01"),
+    comic_e01_f02: comicCutscene("museum/e01_f02"),
+    comic_e01_f03: comicCutscene("museum/e01_f03"),
+    comic_e01_f04: comicCutscene("museum/e01_f04"),
+    comic_e01_f05: comicCutscene("museum/e01_f05"),
+    comic_e01_f06: comicCutscene("museum/e01_f06"),
+    comic_e01_f07: comicCutscene("museum/e01_f07"),
+    comic_e01_f08: comicCutscene("museum/e01_f08"),
+    comic_e01_f09: comicCutscene("museum/e01_f09"),
+    comic_e01_f10: comicCutscene("museum/e01_f10"),
+    comic_e01_f11: comicCutscene("museum/e01_f11"),
+    comic_e01_f12: comicCutscene("museum/e01_f12"),
+    comic_e01_f13: comicCutscene("museum/e01_f13"),
+    comic_e01_f14: comicCutscene("museum/e01_f14"),
+    comic_e01_f15: comicCutscene("museum/e01_f15"),
+    comic_e01_f16: comicCutscene("museum/e01_f16"),
+    comic_museum_e02_01_west_window: comicCutscene("museum/e02_01_west_window"),
+    comic_museum_e02_02_lamp_turn: comicCutscene("museum/e02_02_lamp_turn"),
+    comic_museum_e02_03_dawn_well_reflect: comicCutscene("museum/e02_03_dawn_well_reflect"),
+    comic_museum_e02_04_cabinet_cuff_return: comicCutscene("museum/e02_04_cabinet_cuff_return"),
+    comic_e02_f01: comicCutscene("museum/e02_f01"),
+    comic_e02_f02: comicCutscene("museum/e02_f02"),
+    comic_e02_f03: comicCutscene("museum/e02_f03"),
+    comic_e02_f04: comicCutscene("museum/e02_f04"),
+    comic_e02_f05: comicCutscene("museum/e02_f05"),
+    comic_e02_f06: comicCutscene("museum/e02_f06"),
+    comic_e02_f07: comicCutscene("museum/e02_f07"),
+    comic_e02_f08: comicCutscene("museum/e02_f08"),
+    comic_e02_f09: comicCutscene("museum/e02_f09"),
+    comic_e02_f10: comicCutscene("museum/e02_f10"),
+    comic_e02_f11: comicCutscene("museum/e02_f11"),
+    comic_e02_f12: comicCutscene("museum/e02_f12"),
+    comic_e02_f13: comicCutscene("museum/e02_f13"),
+    comic_e02_f14: comicCutscene("museum/e02_f14"),
+    comic_e02_f15: comicCutscene("museum/e02_f15"),
+    comic_e02_f16: comicCutscene("museum/e02_f16"),
+    comic_e02_f17: comicCutscene("museum/e02_f17"),
+    comic_e02_f18: comicCutscene("museum/e02_f18"),
+    comic_e02_f19: comicCutscene("museum/e02_f19"),
+    comic_e02_f20: comicCutscene("museum/e02_f20"),
     // ── 扩展像素精灵图集（sprites_fe.clip） ──
     fe_carry_idle: feClip("carry_idle", 0, true, 0.50),
     fe_carry_walk: feClip(["carry_walk_a", "carry_idle", "carry_walk_b", "carry_idle"], 0, true, [0.50, 0.50, 0.50, 0.50]),

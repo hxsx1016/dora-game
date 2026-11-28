@@ -419,3 +419,296 @@ export function drawChildColdMoonGrade(
         );
     }
 }
+
+// ============================================================================
+// 墨帧动漫播放器（Stepped Motion-Comic Animatic Engine）
+// 专为《向西守望》硬核明代木刻暗黑漫画过场设计：
+// - 不等时原画拍表（X-Sheet）：缺省零重影硬切（cut），彻底杜绝 PPT 淡化感；
+// - 单帧冲击帧（impactFlash）与定向阻尼震屏（shakeAmp），完全由 worldDt 时间轴确定性驱动；
+// - 漫画斜切转场（slash_cut）与非阻塞斜切破格插格（drawComicInsertPanel），适配 F01/M02 等插入演出。
+// ============================================================================
+
+export type ComicTransitionMode = "cut" | "slash_cut" | "dark_dip" | "crossfade";
+
+export interface ComicKeyframe {
+    /** 对应 ASSET_SLOTS 或动态槽位中的高清漫画原画键名 */
+    slot: string;
+    /** 帧起止时间（秒或 0..1 归一化进度） */
+    start: number;
+    end: number;
+    /** 极克制呼吸微缩放（如 1.00 -> 1.015），拒绝大幅度幻灯片平移 */
+    zoomFrom?: number;
+    zoomTo?: number;
+    panFromX?: number;
+    panToX?: number;
+    panFromY?: number;
+    panToY?: number;
+    /** 入帧转场：默认 cut（干脆硬切，零重影） */
+    transition?: ComicTransitionMode;
+    transitionDur?: number;
+    /** 冲击帧标识：开启后在入帧瞬间叠绘暗朱/骨白高反差漫画冲击边框 */
+    impactFlash?: boolean;
+    impactDur?: number;
+    /** 入帧阻尼微震幅度（逻辑像素），随 elapsed 指数衰减，暂停即刻冻结 */
+    shakeAmp?: number;
+    /** 震屏角频率（rad/s，默认 58） */
+    shakeFreq?: number;
+    /** 可选色调叠乘 */
+    tint?: RGBA;
+}
+
+export interface ComicSequenceOptions {
+    /** 上下电影遮幅高度（默认按 7% 视口高度） */
+    letterboxH?: number;
+    /** 整体不透明度 */
+    opacity?: number;
+    /** 渲染层序基值 */
+    layer?: number;
+    /** 唯一实例前缀，避免同帧多组动画冲突 */
+    instancePrefix: string;
+    /** 电影遮幅内侧是否勾勒细雅霜月/朱砂界线 */
+    accentBorder?: boolean;
+}
+
+/** 绘制全屏硬核木刻暗黑漫画逐帧序列（确定性时间轴，暂停即刻冻结） */
+export function drawComicSequence(
+    uiDraw: DrawNode.Type,
+    uiInkDraw: DrawNode.Type,
+    uiArt: AssetSlotHost,
+    keyframes: readonly ComicKeyframe[],
+    t: number,
+    uiW: number,
+    uiH: number,
+    opts: ComicSequenceOptions,
+): number {
+    if (keyframes.length === 0) {
+        return -1;
+    }
+    const baseOp = clamp01(opts.opacity ?? 1);
+    if (baseOp <= 0.004) {
+        return -1;
+    }
+    const baseLayer = opts.layer ?? 2;
+    const barH = opts.letterboxH ?? Math.round(uiH * 0.068);
+
+    // 鸦青死黑底幕，严防底层实机或宽屏边缘透穿
+    uiDraw.drawRect(Rect(0, 0, uiW, uiH), Color(6, 7, 10, Math.round(255 * baseOp)));
+
+    let activeIdx = keyframes.length - 1;
+    let i = 0;
+    for (i = 0; i < keyframes.length; i++) {
+        if (t < keyframes[i].end || i === keyframes.length - 1) {
+            activeIdx = i;
+            break;
+        }
+    }
+
+    const kf = keyframes[activeIdx];
+    const span = Math.max(0.0001, kf.end - kf.start);
+    const localT = Math.max(0, t - kf.start);
+    const localU = clamp01(localT / span);
+    const easedU = smooth(localU);
+
+    const panX = (kf.panFromX ?? 0) + ((kf.panToX ?? 0) - (kf.panFromX ?? 0)) * easedU;
+    const panY = (kf.panFromY ?? 0) + ((kf.panToY ?? 0) - (kf.panFromY ?? 0)) * easedU;
+    const zoom = (kf.zoomFrom ?? 1) + ((kf.zoomTo ?? 1) - (kf.zoomFrom ?? 1)) * easedU;
+
+    // 确定性阻尼微震（仅由 localT 决定，暂停时严格静止）
+    let shakeX = 0;
+    let shakeY = 0;
+    const amp = kf.shakeAmp ?? 0;
+    if (amp > 0.05) {
+        const decay = Math.exp(-localT * 13.5);
+        if (decay > 0.02) {
+            const freq = kf.shakeFreq ?? 58;
+            // 量化为离散步进震感，贴合手绘漫画冲击韵律
+            const steppedT = Math.floor(localT * 24) / 24;
+            shakeX = Math.round(Math.sin(steppedT * freq + 0.6) * amp * decay);
+            shakeY = Math.round(Math.cos(steppedT * freq * 1.17) * amp * 0.68 * decay);
+        }
+    }
+
+    const coverRect = computeFullscreenSlideRect(uiW, uiH);
+    const shiftedRect: SlideRect = {
+        x: coverRect.x + shakeX,
+        y: coverRect.y + shakeY,
+        w: coverRect.w,
+        h: coverRect.h,
+    };
+
+    const trans: ComicTransitionMode = kf.transition ?? "cut";
+    const transDur = Math.max(0.001, kf.transitionDur ?? 0.10);
+
+    if (activeIdx > 0 && localT < transDur && trans === "slash_cut") {
+        // 漫画斜切刀锋硬切：黑底斜刀闪白/暗朱，干脆利落切入新机位
+        const prev = keyframes[activeIdx - 1];
+        const k = clamp01(localT / transDur);
+        if (k < 0.42) {
+            drawPixelSlidePlate(
+                uiDraw, uiInkDraw, uiArt,
+                prev.slot, opts.instancePrefix + "_prev_" + tostring(activeIdx - 1),
+                coverRect, baseOp, baseLayer,
+                prev.panToX ?? 0, prev.panToY ?? 0, prev.zoomTo ?? 1, prev.tint,
+            );
+        } else {
+            drawPixelSlidePlate(
+                uiDraw, uiInkDraw, uiArt,
+                kf.slot, opts.instancePrefix + "_cur_" + tostring(activeIdx),
+                shiftedRect, baseOp, baseLayer,
+                panX, panY, zoom, kf.tint,
+            );
+        }
+        // 斜向黑幕与骨白/暗朱刀锋斜线
+        const slashAlpha = Math.sin(k * Math.PI);
+        uiInkDraw.drawRect(Rect(0, 0, uiW, uiH), Color(6, 7, 10, Math.round(230 * slashAlpha * baseOp)));
+        const sx0 = uiW * (0.86 - k * 0.14);
+        const sx1 = uiW * (0.18 - k * 0.14);
+        uiInkDraw.drawSegment(Vec2(sx0, uiH), Vec2(sx1, 0), 5.5, Color(242, 234, 218, Math.round(240 * slashAlpha * baseOp)));
+        uiInkDraw.drawSegment(Vec2(sx0 + 7, uiH), Vec2(sx1 + 7, 0), 3.0, Color(196, 44, 44, Math.round(235 * slashAlpha * baseOp)));
+    } else if (activeIdx > 0 && localT < transDur && trans === "crossfade") {
+        const prev = keyframes[activeIdx - 1];
+        const k = smooth(localT / transDur);
+        drawPixelSlidePlate(
+            uiDraw, uiInkDraw, uiArt,
+            prev.slot, opts.instancePrefix + "_prev_" + tostring(activeIdx - 1),
+            coverRect, baseOp * (1 - k * 0.65), baseLayer,
+            prev.panToX ?? 0, prev.panToY ?? 0, prev.zoomTo ?? 1, prev.tint,
+        );
+        drawPixelSlidePlate(
+            uiDraw, uiInkDraw, uiArt,
+            kf.slot, opts.instancePrefix + "_cur_" + tostring(activeIdx),
+            shiftedRect, baseOp * k, baseLayer + 1,
+            panX, panY, zoom, kf.tint,
+        );
+    } else if (activeIdx > 0 && localT < transDur && trans === "dark_dip") {
+        const prev = keyframes[activeIdx - 1];
+        const k = clamp01(localT / transDur);
+        const dip = Math.sin(k * Math.PI);
+        if (k < 0.5) {
+            drawPixelSlidePlate(
+                uiDraw, uiInkDraw, uiArt,
+                prev.slot, opts.instancePrefix + "_prev_" + tostring(activeIdx - 1),
+                coverRect, baseOp * (1 - dip), baseLayer,
+                prev.panToX ?? 0, prev.panToY ?? 0, prev.zoomTo ?? 1, prev.tint,
+            );
+        } else {
+            drawPixelSlidePlate(
+                uiDraw, uiInkDraw, uiArt,
+                kf.slot, opts.instancePrefix + "_cur_" + tostring(activeIdx),
+                shiftedRect, baseOp * (1 - dip), baseLayer,
+                panX, panY, zoom, kf.tint,
+            );
+        }
+        uiInkDraw.drawRect(Rect(0, 0, uiW, uiH), Color(6, 7, 10, Math.round(245 * dip * baseOp)));
+    } else {
+        drawPixelSlidePlate(
+            uiDraw, uiInkDraw, uiArt,
+            kf.slot, opts.instancePrefix + "_cur_" + tostring(activeIdx),
+            shiftedRect, baseOp, baseLayer,
+            panX, panY, zoom, kf.tint,
+        );
+    }
+
+    // 冲击帧高反差朱砂/骨白漫画震框
+    if (kf.impactFlash === true) {
+        const impDur = kf.impactDur ?? Math.min(0.22, span);
+        if (localT <= impDur) {
+            const impK = 1 - clamp01(localT / Math.max(0.01, impDur));
+            const borderA = Math.round((165 + 85 * impK) * baseOp);
+            const insetY = barH;
+            const boxH = Math.max(40, uiH - insetY * 2);
+            uiInkDraw.drawRect(
+                Rect(2, insetY + 1, uiW - 4, boxH - 2),
+                Color(0, 0, 0, 0),
+                3.2,
+                Color(204, 42, 42, borderA),
+            );
+            uiInkDraw.drawRect(
+                Rect(6, insetY + 5, uiW - 12, boxH - 10),
+                Color(0, 0, 0, 0),
+                1.2,
+                Color(246, 240, 226, Math.round(140 * impK * baseOp)),
+            );
+        }
+    }
+
+    // 上下硬核宽银幕遮幅（纯墨黑 + 克制内侧界线）
+    if (barH > 0) {
+        const barA = Math.round(252 * baseOp);
+        uiInkDraw.drawRect(Rect(0, uiH - barH, uiW, barH), Color(6, 7, 10, barA));
+        uiInkDraw.drawRect(Rect(0, 0, uiW, barH), Color(6, 7, 10, barA));
+        if (opts.accentBorder !== false) {
+            const lineCol = kf.impactFlash === true
+                ? Color(204, 46, 46, Math.round(180 * baseOp))
+                : toColor(PALETTE.silkDim, Math.round(84 * baseOp));
+            uiInkDraw.drawSegment(Vec2(0, uiH - barH), Vec2(uiW, uiH - barH), 1.0, lineCol);
+            uiInkDraw.drawSegment(Vec2(0, barH), Vec2(uiW, barH), 1.0, lineCol);
+        }
+    }
+
+    return activeIdx;
+}
+
+/**
+ * 绘制非阻塞漫画插格（供 F01 缝衣闪回、M02 工台试握等在实机画面上炸出的高张力漫画格）。
+ * 具备硬黑底衬、骨白内框与暗朱角线，绝不阻断输入或遮盖主操作区。
+ */
+export function drawComicInsertPanel(
+    uiDraw: DrawNode.Type,
+    uiInkDraw: DrawNode.Type,
+    uiArt: AssetSlotHost,
+    keyframes: readonly ComicKeyframe[],
+    t: number,
+    rect: SlideRect,
+    opacity: number,
+    instancePrefix: string,
+    layer: number = 4,
+): number {
+    const op = clamp01(opacity);
+    if (keyframes.length === 0 || op <= 0.01) {
+        return -1;
+    }
+    let activeIdx = keyframes.length - 1;
+    let i = 0;
+    for (i = 0; i < keyframes.length; i++) {
+        if (t < keyframes[i].end || i === keyframes.length - 1) {
+            activeIdx = i;
+            break;
+        }
+    }
+    const kf = keyframes[activeIdx];
+    const span = Math.max(0.0001, kf.end - kf.start);
+    const localU = clamp01((t - kf.start) / span);
+    const zoom = (kf.zoomFrom ?? 1) + ((kf.zoomTo ?? 1) - (kf.zoomFrom ?? 1)) * smooth(localU);
+
+    // 漫画硬投影外框（右下偏置硬黑影 + 骨白细边 + 暗朱破格折角）
+    const pad = 6;
+    uiDraw.drawRect(
+        Rect(rect.x - pad + 5, rect.y - pad - 5, rect.w + pad * 2, rect.h + pad * 2),
+        Color(5, 6, 9, Math.round(230 * op)),
+    );
+    uiDraw.drawRect(
+        Rect(rect.x - pad, rect.y - pad, rect.w + pad * 2, rect.h + pad * 2),
+        Color(8, 9, 13, Math.round(248 * op)),
+    );
+    drawPixelSlidePlate(
+        uiDraw, uiInkDraw, uiArt,
+        kf.slot, instancePrefix + "_ins_" + tostring(activeIdx),
+        rect, op, layer,
+        0, 0, zoom, kf.tint,
+    );
+    uiInkDraw.drawRect(
+        Rect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2),
+        Color(0, 0, 0, 0),
+        2.0,
+        Color(232, 224, 208, Math.round(220 * op)),
+    );
+    // 左上与右下暗朱漫画压角线
+    const corner = 24;
+    const red = Color(192, 48, 46, Math.round(235 * op));
+    uiInkDraw.drawSegment(Vec2(rect.x - 4, rect.y + rect.h + 4), Vec2(rect.x + corner, rect.y + rect.h + 4), 2.4, red);
+    uiInkDraw.drawSegment(Vec2(rect.x - 4, rect.y + rect.h + 4), Vec2(rect.x - 4, rect.y + rect.h - corner), 2.4, red);
+    uiInkDraw.drawSegment(Vec2(rect.x + rect.w + 4, rect.y - 4), Vec2(rect.x + rect.w - corner, rect.y - 4), 2.4, red);
+    uiInkDraw.drawSegment(Vec2(rect.x + rect.w + 4, rect.y - 4), Vec2(rect.x + rect.w + 4, rect.y + corner), 2.4, red);
+    return activeIdx;
+}

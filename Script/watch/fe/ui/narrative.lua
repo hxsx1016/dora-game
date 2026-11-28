@@ -169,7 +169,7 @@ function NarrativeRenderer.prototype.stepScriptedBeats(self, p, events, interact
 				self:triggerOnce("p0_wake_dad", {"D31"}, true) -- 173
 			end -- 173
 		elseif p.phase == "prologue-shadow" then -- 173
-			if p.introTick < 90 then -- 173
+			if p.introTick < 105 then -- 173
 				self:triggerOnce("p0_shadow_call", {"D32"}, true) -- 177
 			else -- 177
 				self:triggerOnce("p0_shadow_raider", {"D33"}, true) -- 179

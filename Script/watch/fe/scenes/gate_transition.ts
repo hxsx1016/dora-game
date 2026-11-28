@@ -460,34 +460,38 @@ export class GateTransitionPlugin implements FeRenderPlugin {
         const skyBot = lerpRGBA(rgba(36, 22, 26, 255), rgba(22, 34, 48, 255), m);
         fillVGradRect(bgDraw, 0, 0, w, h, toColor(skyBot), toColor(skyTop));
 
-        // 2. 同机位 5 阶段像素绘卷平滑渐进叠化（彻底废弃矢量木台与白边门框！）
-        //    0s: bgFar_gate → 6s(0.25): slide_gate_01 → 12s(0.50): slide_gate_02
-        //    → 18s(0.75): slide_gate_03 → 24s(1.00): slide_gate_04
+        // 2. 同机位 10 阶硬核木刻漫画平滑渐进叠化（bgFar_gate → gate_f01..f10，全程锁机位无跳切）
         const artW = Math.max(w, h * 16 / 9);
         const artH = artW * 9 / 16;
         const artX = w * 0.5;
         const artY = (h - artH) * 0.5;
 
-        const w0 = 1 - smoothstep(0.05, 0.28, m);
-        const w1 = smoothstep(0.04, 0.25, m) * (1 - smoothstep(0.32, 0.55, m));
-        const w2 = smoothstep(0.28, 0.50, m) * (1 - smoothstep(0.58, 0.80, m));
-        const w3 = smoothstep(0.54, 0.76, m) * (1 - smoothstep(0.82, 0.98, m));
-        const w4 = smoothstep(0.78, 0.96, m);
-
+        const w0 = 1 - smoothstep(0.02, 0.14, m);
         if (w0 > 0.01) {
             backdropArt.tryPlace("bgFar_gate", "gate_px_stage0", artX, artY, artW, artH, { opacity: w0, layer: 0 });
         }
-        if (w1 > 0.01) {
-            backdropArt.tryPlace("slide_gate_01", "gate_px_stage1", artX, artY, artW, artH, { opacity: w1, layer: 1 });
-        }
-        if (w2 > 0.01) {
-            backdropArt.tryPlace("slide_gate_02", "gate_px_stage2", artX, artY, artW, artH, { opacity: w2, layer: 2 });
-        }
-        if (w3 > 0.01) {
-            backdropArt.tryPlace("slide_gate_03", "gate_px_stage3", artX, artY, artW, artH, { opacity: w3, layer: 3 });
-        }
-        if (w4 > 0.01) {
-            backdropArt.tryPlace("slide_gate_04", "gate_px_stage4", artX, artY, artW, artH, { opacity: w4, layer: 4 });
+        const gateStages = [
+            "comic_gate_f01", "comic_gate_f02", "comic_gate_f03", "comic_gate_f04", "comic_gate_f05",
+            "comic_gate_f06", "comic_gate_f07", "comic_gate_f08", "comic_gate_f09", "comic_gate_f10",
+        ] as const;
+        const pos = clamp01((m - 0.04) / 0.94) * (gateStages.length - 1);
+        const idxA = Math.min(gateStages.length - 1, Math.floor(pos));
+        const idxB = Math.min(gateStages.length - 1, idxA + 1);
+        const frac = smoothstep(0, 1, pos - idxA);
+        const comicVis = smoothstep(0.02, 0.14, m);
+        if (comicVis > 0.01) {
+            if (idxA === idxB) {
+                backdropArt.tryPlace(gateStages[idxA], "gate_px_stageA", artX, artY, artW, artH, { opacity: comicVis, layer: 1 });
+            } else {
+                const opA = comicVis * (1 - frac);
+                const opB = comicVis * frac;
+                if (opA > 0.01) {
+                    backdropArt.tryPlace(gateStages[idxA], "gate_px_stageA", artX, artY, artW, artH, { opacity: opA, layer: 1 });
+                }
+                if (opB > 0.01) {
+                    backdropArt.tryPlace(gateStages[idxB], "gate_px_stageB", artX, artY, artW, artH, { opacity: opB, layer: 2 });
+                }
+            }
         }
 
         // 远山北塔一豆柔和暖灯微脉动（与像素画面融为一体）

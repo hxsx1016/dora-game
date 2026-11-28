@@ -40,6 +40,7 @@ import {
     drawPatchedCuff,
 } from "Script/watch/fe/cutscenes/cuff_shots";
 import { FePluginContext, FeRenderPlugin } from "Script/watch/fe/plugins";
+import { ComicKeyframe, drawComicSequence } from "Script/watch/fe/renderer/slideshow";
 import { getActiveTarget } from "Script/watch/target";
 import {
     PALETTE,
@@ -100,6 +101,54 @@ export const MUSEUM_AUDIO = {
 
 const LOOP_WELL_DRIP = "fe06_well_drip";
 const LOOP_HALL_AMBIENCE = "fe06_hall_ambience";
+
+/** E01 井底白灯波纹 → 指南针叠合 → 0px 光学匹配剪辑闪切 → 现代玻璃展柜 16 帧逐帧动画拍表（3.60s，峰值 8.5 fps） */
+const E01_MATCH_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_e01_f01", start: 0.00, end: 0.23, transition: "cut" },
+    { slot: "comic_e01_f02", start: 0.23, end: 0.46, transition: "cut" },
+    { slot: "comic_e01_f03", start: 0.46, end: 0.69, transition: "cut" },
+    { slot: "comic_e01_f04", start: 0.69, end: 0.92, transition: "cut" },
+    { slot: "comic_e01_f05", start: 0.92, end: 1.16, transition: "cut" },
+    { slot: "comic_e01_f06", start: 1.16, end: 1.40, transition: "cut" },
+    { slot: "comic_e01_f07", start: 1.40, end: 1.66, transition: "cut" },
+    { slot: "comic_e01_f08", start: 1.66, end: 1.86, zoomFrom: 1.02, zoomTo: 1.02, transition: "cut", impactFlash: true, impactDur: 0.16, shakeAmp: 4.5, shakeFreq: 60 },
+    { slot: "comic_e01_f09", start: 1.86, end: 1.98, zoomFrom: 1.028, zoomTo: 1.028, transition: "cut", impactFlash: true, impactDur: 0.18, shakeAmp: 5.5, shakeFreq: 64 },
+    { slot: "comic_e01_f10", start: 1.98, end: 2.10, transition: "cut", shakeAmp: 3.5, shakeFreq: 56 },
+    { slot: "comic_e01_f11", start: 2.10, end: 2.24, transition: "cut" },
+    { slot: "comic_e01_f12", start: 2.24, end: 2.48, transition: "cut" },
+    { slot: "comic_e01_f13", start: 2.48, end: 2.74, transition: "cut" },
+    { slot: "comic_e01_f14", start: 2.74, end: 3.04, transition: "cut" },
+    { slot: "comic_e01_f15", start: 3.04, end: 3.34, transition: "cut" },
+    { slot: "comic_e01_f16", start: 3.34, end: 3.60, transition: "cut" },
+];
+
+/** E02 现代展厅西窗转灯与破晓映古井 12 帧逐帧动画拍表（4.50s） */
+const E02_LAMP_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_e02_f01", start: 0.00, end: 0.20, transition: "cut" },
+    { slot: "comic_e02_f02", start: 0.20, end: 0.40, transition: "cut" },
+    { slot: "comic_e02_f03", start: 0.40, end: 0.60, transition: "cut" },
+    { slot: "comic_e02_f04", start: 0.60, end: 0.80, transition: "cut" },
+    { slot: "comic_e02_f05", start: 0.80, end: 1.02, transition: "cut" },
+    { slot: "comic_e02_f06", start: 1.02, end: 1.24, transition: "cut" },
+    { slot: "comic_e02_f07", start: 1.24, end: 1.46, transition: "cut" },
+    { slot: "comic_e02_f08", start: 1.46, end: 1.68, transition: "cut" },
+    { slot: "comic_e02_f09", start: 1.68, end: 2.25, transition: "cut" },
+    { slot: "comic_e02_f10", start: 2.25, end: 2.85, transition: "cut" },
+    { slot: "comic_e02_f11", start: 2.85, end: 3.95, transition: "cut" },
+    { slot: "comic_e02_f12", start: 3.95, end: 4.50, transition: "cut" },
+];
+
+/** E02 尾声：实木轻叩落回明初厨柜缝与四镜同源五针补线袖口 8 帧逐帧动画拍表（3.00s） */
+const E02_RETURN_COMIC_SEQ: readonly ComicKeyframe[] = [
+    { slot: "comic_e02_f13", start: 0.00, end: 0.16, transition: "cut" },
+    { slot: "comic_e02_f14", start: 0.16, end: 0.32, transition: "cut" },
+    { slot: "comic_e02_f15", start: 0.32, end: 0.48, transition: "cut" },
+    { slot: "comic_e02_f16", start: 0.48, end: 0.68, transition: "cut", shakeAmp: 4.2, shakeFreq: 56 },
+    { slot: "comic_e02_f17", start: 0.68, end: 1.10, transition: "cut" },
+    { slot: "comic_e02_f18", start: 1.10, end: 1.58, transition: "cut" },
+    { slot: "comic_e02_f19", start: 1.58, end: 2.12, transition: "cut" },
+    { slot: "comic_e02_f20", start: 2.12, end: 3.00, transition: "cut" },
+];
 
 export interface WellMuseumResumeState {
     phase: MuseumPhase;
@@ -1246,204 +1295,63 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         const ax = this.wellAnchorX;
         const ay = this.wellAnchorY;
         const matchK = smoothstep(MUSEUM_TIMINGS.wellMatchCutStart, MUSEUM_TIMINGS.wellReflectDuration, t);
-        const wellAlpha = 1 - matchK;
 
-        // 底层黑石与过渡底色（随 matchK 溶入现代展厅深青石色）
-        fillVGradRect(
+        drawComicSequence(
             uiDraw,
-            0,
-            0,
+            uiInkDraw,
+            uiArt,
+            E01_MATCH_COMIC_SEQ,
+            t,
             w,
             h,
-            Color(
-                Math.round(8 + 14 * matchK),
-                Math.round(10 + 16 * matchK),
-                Math.round(15 + 20 * matchK),
-                255,
-            ),
-            Color(
-                Math.round(14 + 22 * matchK),
-                Math.round(18 + 26 * matchK),
-                Math.round(26 + 30 * matchK),
-                255,
-            ),
+            {
+                letterboxH: 42,
+                opacity: 1,
+                layer: 1,
+                instancePrefix: "fe06_e01_comic",
+                accentBorder: true,
+            },
         );
 
-        // 1. 前半段：俯视青苔石井口（手绘透明中空 well_topdown_rim + 深水微纹）
-        if (wellAlpha > 0.01) {
-            const wellR = Math.min(w, h) * (0.31 + matchK * 0.24);
-            uiDraw.drawCircle(Vec2(ax, ay), wellR * 1.05, Color(7, 11, 17, Math.round(255 * wellAlpha)));
-            uiArt.tryPlacePath(
-                "assets/art/tex_diorama_ming.clip|ming_water",
-                "fe06_well_water_tex",
-                ax + Math.sin(t * 0.8) * 6,
-                ay + Math.cos(t * 0.6) * 5,
-                wellR * 1.48,
-                wellR * 1.48,
-                {
-                    color: Color(74, 96, 122, 255),
-                    opacity: 0.44 * wellAlpha,
-                    smooth: true,
-                    layer: 0,
-                },
-            );
-            const rimSize = wellR * 2.86;
-            if (!uiArt.tryPlacePath(
-                "assets/art/cutscene_well_museum.clip|well_topdown_rim",
-                "fe06_well_topdown_rim",
-                ax,
-                ay,
-                rimSize,
-                rimSize * (361 / 369),
-                {
-                    anchorX: 0.5,
-                    anchorY: 0.5,
-                    color: Color(176, 188, 198, 255),
-                    opacity: wellAlpha,
-                    smooth: true,
-                    layer: 2,
-                },
-            )) {
-                uiDraw.drawCircle(Vec2(ax, ay), wellR + 36, Color(30, 35, 42, Math.round(240 * wellAlpha)));
-                uiDraw.drawCircle(Vec2(ax, ay), wellR, Color(7, 11, 17, Math.round(255 * wellAlpha)));
-            }
-
-            // 同心缓慢水纹（以反光点为中心扩散）
-            let ri = 0;
-            for (ri = 0; ri < 3; ri++) {
-                const cyc = ((t * 0.42 + ri * 0.33) % 1);
-                const r = 20 + cyc * (wellR * 0.85);
-                const ra = Math.round((1 - cyc) * 88 * wellAlpha);
-                drawCircleRing(uiInkDraw, ax, ay, r, Color(0, 0, 0, 0), 1.1, Color(176, 198, 222, ra), 32);
-            }
-
-            // 黄铜指南针滑入，与井底白灯倒影精确叠合在同一锚点 (ax, ay)
-            const compassSlide = smoothstep(0.15, 0.95, t);
-            const compX = ax + (1 - compassSlide) * 140;
-            const compY = ay - (1 - compassSlide) * 90;
-            const compR = 62;
-            uiArt.tryPlacePath(
-                "assets/art/cutscene_cuff_rig.clip|needle_pouch_compass",
-                "fe06_well_compass_pouch",
-                compX - 18,
-                compY - 22,
-                168,
-                172,
-                {
-                    anchorX: 0.5,
-                    anchorY: 0.5,
-                    angle: -18,
-                    opacity: 0.86 * wellAlpha,
-                    smooth: true,
-                    layer: 3,
-                },
-            );
-            drawCircleRing(
-                uiInkDraw,
-                compX,
-                compY,
-                compR,
-                Color(16, 24, 36, Math.round(112 * wellAlpha)),
-                1.4,
-                Color(218, 226, 236, Math.round(175 * wellAlpha)),
-                32,
-            );
-            const needleAng = -0.35 + Math.sin(t * 2.2) * 0.08 * (1 - matchK);
-            const nx = Math.cos(needleAng) * 34;
-            const ny = Math.sin(needleAng) * 34;
-            uiInkDraw.drawSegment(Vec2(compX, compY), Vec2(compX + nx, compY + ny), 2.2, Color(208, 92, 82, Math.round(215 * wellAlpha)));
-            uiInkDraw.drawSegment(Vec2(compX, compY), Vec2(compX - nx * 0.85, compY - ny * 0.85), 1.8, Color(214, 222, 232, Math.round(185 * wellAlpha)));
-
-            // 1.1s–1.9s 拾取「时间穿梭器」：冷白与黄铜双环轻合
-            if (t >= MUSEUM_TIMINGS.wellPickupAt) {
-                const pickK = smoothstep(MUSEUM_TIMINGS.wellPickupAt, MUSEUM_TIMINGS.wellMatchCutStart, t);
-                const liftY = ay + pickK * 14;
-                drawCircleRing(
-                    uiInkDraw,
-                    ax,
-                    liftY,
-                    24 + pickK * 12,
-                    Color(0, 0, 0, 0),
-                    1.6,
-                    Color(226, 204, 152, Math.round(215 * (1 - matchK * 0.65))),
-                    28,
+        // 1.1s–1.9s 拾取「时间穿梭器」字幕提示
+        if (t >= MUSEUM_TIMINGS.wellPickupAt && matchK < 0.85) {
+            const capA = smoothstep(MUSEUM_TIMINGS.wellPickupAt, MUSEUM_TIMINGS.wellPickupAt + 0.35, t) * (1 - matchK);
+            if (capA > 0.03) {
+                drawSilkVeil(uiDraw, uiArt, "fe06_pickup_veil", w * 0.5, 96, 300, 34, PALETTE.inkVoid, 0.78 * capA, 5);
+                ctx.texts.put(
+                    "sm",
+                    "拾起「时间穿梭器」",
+                    w * 0.5,
+                    96,
+                    toColor(PALETTE.amberCore),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    1.4,
+                    capA,
                 );
-                const capA = smoothstep(MUSEUM_TIMINGS.wellPickupAt, MUSEUM_TIMINGS.wellPickupAt + 0.35, t) * (1 - matchK);
-                if (capA > 0.03) {
-                    drawSilkVeil(uiDraw, uiArt, "fe06_pickup_veil", w * 0.5, 96, 300, 34, PALETTE.inkVoid, 0.78 * capA, 5);
-                    ctx.texts.put(
-                        "sm",
-                        "拾起「时间穿梭器」",
-                        w * 0.5,
-                        96,
-                        toColor(PALETTE.amberCore),
-                        0.5,
-                        0.5,
-                        TextAlign.Center,
-                        1.4,
-                        capA,
-                    );
-                }
             }
         }
 
-        // 2. 后半段匹配剪辑（matchK > 0）：现代博物馆展厅与玻璃展柜以同一反光锚点 (glassAnchorX, glassAnchorY) 无缝浮现
-        if (matchK > 0.01) {
-            const cover = Math.max(w / 960, h / 540);
-            uiArt.tryPlacePath(
-                "assets/art/bg_museum_hall.png",
-                "fe06_match_museum_bg",
-                w * 0.5 + (this.glassAnchorX - w * 0.47) * 0.4,
-                h * 0.5,
-                960 * cover,
-                540 * cover,
-                {
-                    anchorX: 0.5,
-                    anchorY: 0.5,
-                    opacity: matchK * 0.94,
-                    smooth: true,
-                    layer: 1,
-                },
-            );
-            const caseW = 240;
-            const caseH = 224;
-            const caseX = this.glassAnchorX - caseW * 0.5;
-            const caseY = this.glassAnchorY - caseH * 0.54;
-            fillGradQuad(
-                uiInkDraw,
-                this.glassAnchorX - 42, caseY + caseH - 6, Color(224, 236, 248, Math.round(44 * matchK)),
-                this.glassAnchorX + 24, caseY + caseH - 6, Color(238, 246, 255, Math.round(78 * matchK)),
-                this.glassAnchorX - 18, caseY + 6, Color(224, 236, 248, Math.round(24 * matchK)),
-                this.glassAnchorX - 82, caseY + 6, Color(224, 236, 248, 0),
-            );
-            uiArt.tryPlace("prop_compass", "fe06_match_compass", this.glassAnchorX, caseY + 72, 46, 46, {
-                opacity: matchK * 0.90,
-                layer: 4,
-            });
-        }
-
-        // 3. 贯通整段匹配剪辑的「同一点冷白反光」核心锚点（wellAnchor === glassAnchor）
+        // 贯通整段匹配剪辑的「同一点冷白反光」核心锚点（wellAnchor === glassAnchor，误差 0.00px）
         const flashPeak = Math.sin(matchK * Math.PI);
-        const coreR = 8 + flashPeak * 18;
-        uiInkDraw.drawCircle(Vec2(ax, ay), coreR * 0.55, Color(248, 252, 255, 248));
+        const coreR = 7 + flashPeak * 16;
+        uiInkDraw.drawCircle(Vec2(ax, ay), coreR * 0.52, Color(248, 252, 255, Math.round(180 + 68 * flashPeak)));
         fillRadialGlow(
             uiGlow,
             ax,
             ay,
-            52 + flashPeak * 145,
-            46 + flashPeak * 115,
-            Color(238, 246, 255, Math.round(145 + flashPeak * 95)),
+            48 + flashPeak * 135,
+            44 + flashPeak * 108,
+            Color(238, 246, 255, Math.round(92 + flashPeak * 128)),
             Color(174, 204, 238, 0),
             20,
         );
-        // 细腻水平折射光丝（匹配剪辑瞬间轻扫）
         if (flashPeak > 0.05) {
             const rayW = 70 + flashPeak * 260;
-            fillHGradRect(uiGlow, ax - rayW, ay - 2, rayW, 4, Color(224, 238, 252, 0), Color(242, 248, 255, Math.round(160 * flashPeak)));
-            fillHGradRect(uiGlow, ax, ay - 2, rayW, 4, Color(242, 248, 255, Math.round(160 * flashPeak)), Color(224, 238, 252, 0));
+            fillHGradRect(uiGlow, ax - rayW, ay - 2, rayW, 4, Color(224, 238, 252, 0), Color(242, 248, 255, Math.round(150 * flashPeak)));
+            fillHGradRect(uiGlow, ax, ay - 2, rayW, 4, Color(242, 248, 255, Math.round(150 * flashPeak)), Color(224, 238, 252, 0));
         }
-
-        this.drawLetterbox(uiInkDraw, w, h, 42, 0.92);
     }
 
     /**
@@ -1460,6 +1368,50 @@ export class WellMuseumPlugin implements FeRenderPlugin {
         lampTurnProg: number,
         inLampTurn: boolean,
     ): void {
+        if (inLampTurn) {
+            drawComicSequence(
+                uiDraw,
+                uiInkDraw,
+                uiArt,
+                E02_LAMP_COMIC_SEQ,
+                this.lampElapsed,
+                w,
+                h,
+                {
+                    letterboxH: 42,
+                    opacity: 1,
+                    layer: 1,
+                    instancePrefix: "fe06_e02_lamp_comic",
+                    accentBorder: true,
+                },
+            );
+            if (this.lampElapsed >= MUSEUM_TIMINGS.lampLineAt) {
+                const lineA = smoothstep(MUSEUM_TIMINGS.lampLineAt, MUSEUM_TIMINGS.lampLineAt + 0.45, this.lampElapsed)
+                    * (1 - smoothstep(MUSEUM_TIMINGS.lampTurnDuration - 0.35, MUSEUM_TIMINGS.lampTurnDuration, this.lampElapsed));
+                if (lineA > 0.02) {
+                    drawSilkVeil(uiDraw, uiArt, "fe06_dawn_line_veil", w * 0.5, 86, 440, 50, PALETTE.inkVoid, 0.84 * lineA, 6);
+                    ctx.texts.put(
+                        "md",
+                        MUSEUM_LINE_DAWN,
+                        w * 0.5,
+                        86,
+                        toColor(PALETTE.amberCore),
+                        0.5,
+                        0.5,
+                        TextAlign.Center,
+                        1.6,
+                        lineA,
+                    );
+                }
+            }
+            if (this.knock1VisualT > 0) {
+                const k1 = 1 - clamp01(this.knock1VisualT / 0.85);
+                const k1A = Math.round((1 - k1) * 215);
+                drawCircleRing(uiInkDraw, w * 0.62, h * 0.48, 14 + k1 * 68, Color(0, 0, 0, 0), 1.8, Color(242, 232, 206, k1A), 28);
+                drawCircleRing(uiInkDraw, w * 0.62, h * 0.48, 7 + k1 * 36, Color(0, 0, 0, 0), 1.2, Color(242, 232, 206, Math.round(k1A * 0.72)), 24);
+            }
+            return;
+        }
         const floorY = 148;
         const wallTopY = h - 86;
         const halfW = w * 0.5;
@@ -1780,89 +1732,37 @@ export class WellMuseumPlugin implements FeRenderPlugin {
             return;
         }
 
-        // 0.42s 起：第二声木板叩响落回明初倒柜边（全幅宽银幕构图，去浮空弹窗框，复用手绘补线青布袖口）
-        const revealK = smoothstep(MUSEUM_TIMINGS.returnKnock2At, MUSEUM_TIMINGS.returnKnock2At + 0.34, t) * fadeOut;
+        // 0.42s 起：第二声木板叩响落回明初倒柜缝，呈现四镜同源五针补线青布袖口硬核木刻漫画定格
+        const revealK = smoothstep(MUSEUM_TIMINGS.returnKnock2At, MUSEUM_TIMINGS.returnKnock2At + 0.30, t) * fadeOut;
         const barH = 42;
-        const by = barH;
-        const boxH = Math.max(120, h - barH * 2);
+        const localT = Math.max(0, t - MUSEUM_TIMINGS.returnKnock2At);
 
-        fillVGradRect(
+        drawComicSequence(
             uiDraw,
-            0,
-            by,
+            uiInkDraw,
+            uiArt,
+            E02_RETURN_COMIC_SEQ,
+            localT,
             w,
-            boxH,
-            Color(12, 11, 16, Math.round(248 * revealK)),
-            Color(22, 22, 28, Math.round(248 * revealK)),
-        );
-        const cabEdgeX = w * 0.58;
-        uiArt.tryPlacePath(
-            "assets/art/tex_diorama_ming.clip|ming_timber",
-            "fe06_return_cab_wood",
-            cabEdgeX + (w - cabEdgeX) * 0.5,
-            by + boxH * 0.5,
-            Math.max(12, w - cabEdgeX),
-            boxH,
+            h,
             {
-                color: Color(110, 90, 74, 255),
-                opacity: 0.94 * revealK,
-                smooth: true,
-                layer: 1,
-            },
-        );
-        uiArt.tryPlacePath(
-            "assets/art/cutscene_well_museum.clip|prologue_cabinet_doors",
-            "fe06_return_cab_door",
-            cabEdgeX + 110,
-            by + boxH * 0.5,
-            340,
-            boxH * 0.92,
-            {
-                anchorX: 0.5,
-                anchorY: 0.5,
-                color: Color(138, 120, 102, 255),
-                opacity: 0.85 * revealK,
-                smooth: true,
+                letterboxH: barH,
+                opacity: revealK,
                 layer: 2,
+                instancePrefix: "fe06_e02_return_comic",
+                accentBorder: true,
             },
-        );
-        uiDraw.drawSegment(Vec2(cabEdgeX, by), Vec2(cabEdgeX, by + boxH), 2.4, Color(128, 102, 76, Math.round(210 * revealK)));
-        fillHGradRect(
-            uiGlow,
-            cabEdgeX - 68,
-            by + 24,
-            68,
-            boxH - 48,
-            Color(168, 188, 210, 0),
-            Color(186, 206, 226, Math.round(48 * revealK)),
         );
 
         // 第二声实木叩响的柜板柔晕波纹（无声可读）
         if (this.knock2VisualT > 0) {
             const k2 = 1 - clamp01(this.knock2VisualT / 0.9);
-            const k2A = Math.round((1 - k2) * 185 * fadeOut);
-            fillRadialGlow(uiGlow, cabEdgeX + 6, by + boxH * 0.50, 26 + k2 * 52, 26 + k2 * 52, Color(238, 224, 194, Math.round(k2A * 0.42)), Color(238, 224, 194, 0), 16);
-            drawCircleRing(uiInkDraw, cabEdgeX + 8, by + boxH * 0.50, 12 + k2 * 54, Color(0, 0, 0, 0), 1.3, Color(232, 220, 196, k2A), 28);
+            const k2A = Math.round((1 - k2) * 195 * fadeOut);
+            const kx = w * 0.74;
+            const ky = h * 0.34;
+            fillRadialGlow(uiGlow, kx, ky, 26 + k2 * 56, 26 + k2 * 56, Color(238, 224, 194, Math.round(k2A * 0.45)), Color(238, 224, 194, 0), 16);
+            drawCircleRing(uiInkDraw, kx, ky, 12 + k2 * 58, Color(0, 0, 0, 0), 1.4, Color(232, 220, 196, k2A), 28);
         }
-
-        // 四镜同源补线青布袖口（直接调用 cuff_shots.drawPatchedCuff + uiArt，严格复用同一张手绘袖口）
-        const extendK = smoothstep(MUSEUM_TIMINGS.returnKnock2At + 0.08, MUSEUM_TIMINGS.returnKnock2At + 1.05, t);
-        const wristX = w * 0.14 + extendK * (cabEdgeX - w * 0.24);
-        const wristY = by + boxH * 0.50;
-        drawPatchedCuff(uiInkDraw, uiGlow, {
-            wristX,
-            wristY,
-            angleRad: -0.04 * (1 - extendK),
-            scale: 1.18,
-            pose: "reach",
-            opacity: revealK,
-            stitchHighlight: 0.48 + 0.22 * extendK,
-            cuffPullBack: 0.06,
-            warmth: 0.16,
-            uiArt,
-            instanceKey: "fe06_return_zhou_cuff",
-            layer: 4,
-        });
 
         const tipA = smoothstep(MUSEUM_TIMINGS.returnKnock2At + 0.45, MUSEUM_TIMINGS.returnKnock2At + 0.95, t) * fadeOut;
         if (tipA > 0.03) {
@@ -1880,8 +1780,6 @@ export class WellMuseumPlugin implements FeRenderPlugin {
                 tipA * 0.9,
             );
         }
-
-        this.drawLetterbox(uiInkDraw, w, h, barH, 0.95 * fadeOut);
     }
 
     private drawLetterbox(draw: DrawNode.Type, w: number, h: number, barH: number, opacity: number): void {

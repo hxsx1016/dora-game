@@ -120,12 +120,13 @@ do
 	check("P01 4s 结束自动接 P02 墙影", sP02.stage == "p02_shadow", "stage=" .. tostring(sP02.stage))
 	check("P01 手撑床沿音仅播一次", countCue(fe.audio, "prologue:p01_bed_press") == 1)
 
-	-- ---------------------------------------------------------------- 3. P02 2 秒墙影滚碗 → 限时逃柜
-	for _ = 1, 125 do
+	-- ---------------------------------------------------------------- 3. P02 墙影滚碗（按 PROLOGUE_TIMINGS.p02ShadowDuration 舒展拍表）→ 限时逃柜
+	local p02Ticks = math.ceil(prologueMod.PROLOGUE_TIMINGS.p02ShadowDuration * 60) + 5
+	for _ = 1, p02Ticks do
 		fe:renderPlay(DT, p, inp, 1280, 720)
 	end
 	local sEsc0 = prologuePlugin:getSnapshot()
-	check("P02 2s 碗停切入限时逃柜", sEsc0.stage == "p02_escape" and not sEsc0.blocksPlayerControl,
+	check("P02 碗停切入限时逃柜", sEsc0.stage == "p02_escape" and not sEsc0.blocksPlayerControl,
 		"stage=" .. tostring(sEsc0.stage))
 	check("P02 瓷碗滚动与撞坎各响一次",
 		countCue(fe.audio, "prologue:p02_bowl_roll") == 1 and countCue(fe.audio, "prologue:p02_bowl_hit") == 1)

@@ -363,6 +363,20 @@ for required in \
     "runtime/assets/art/sprites_fe.clip" \
     "runtime/assets/art/sprites_fe.png" \
     "runtime/assets/art/slides/p01_01_curtain.png" \
+    "runtime/assets/art/cutscenes/p01/p01_01_curtain_dark.png" \
+    "runtime/assets/art/cutscenes/p02/p02_01_shadows.png" \
+    "runtime/assets/art/cutscenes/p02/p02_07_bowl_smash.png" \
+    "runtime/assets/art/cutscenes/p03/p03_01_two_fingers.png" \
+    "runtime/assets/art/cutscenes/p05/p05_05_gate_slam_impact.png" \
+    "runtime/assets/art/cutscenes/g05/g05_07_zhoushu_reveal.png" \
+    "runtime/assets/art/cutscenes/gate/gate_04_terrace.png" \
+    "runtime/assets/art/cutscenes/f01/f01_03_thread_pull.png" \
+    "runtime/assets/art/cutscenes/m02/m02_lantern_03_heft.png" \
+    "runtime/assets/art/cutscenes/m02/m02_echo_03_heft.png" \
+    "runtime/assets/art/cutscenes/tower/f03_room_04_lit_bowl.png" \
+    "runtime/assets/art/cutscenes/tower/m03_room_04_bowl.png" \
+    "runtime/assets/art/cutscenes/museum/e01_04_vitrine_emerge.png" \
+    "runtime/assets/art/cutscenes/museum/e02_04_cabinet_cuff_return.png" \
     "runtime/assets/art/tex_diorama_ming.clip" \
     "runtime/assets/art/tex_diorama_ming.png" \
     "runtime/assets/art/diorama_cutouts.clip" \

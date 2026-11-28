@@ -187,7 +187,7 @@ do
 		p.phase == "prologue-shadow" and hasVisibleSubstr(fe, "爹？娘？"),
 		"phase=" .. p.phase .. " vis=" .. table.concat(visibleTexts(fe), " | "))
 
-	for _ = 1, 125 do
+	for _ = 1, playmod.PROLOGUE_SHADOW_TICKS + 5 do
 		p:update(DT, inp)
 		fe:renderPlay(DT, p, inp, 1280, 720)
 	end
@@ -195,9 +195,9 @@ do
 		p.phase == "prologue-escape" and (hasVisibleSubstr(fe, "搜干净") or hasVisibleSubstr(fe, "……娘。")),
 		"phase=" .. p.phase .. " vis=" .. table.concat(visibleTexts(fe), " | "))
 
-	-- 跑到倒柜入柜 -> 等 51 拍进入 prologue-wait
+	-- 跑到倒柜入柜 -> 等 PROLOGUE_HIDE_TICKS 进入 prologue-wait
 	p.player.x = p.ox + playmod.PROLOGUE_CABINET_X + 2
-	for _ = 1, 55 do
+	for _ = 1, playmod.PROLOGUE_HIDE_TICKS + 5 do
 		p:update(DT, inp)
 		fe:renderPlay(DT, p, inp, 1280, 720)
 	end
