@@ -126,10 +126,7 @@ const XM_THROW_REL_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_throw_rel";
 const XM_FEAR_B_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_fear_b";
 const XM_PEEK_B_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_peek_b";
 
-const EN_GUN_IDLE_CLIPS = [
-    "assets/art/actors_enemies_anim.clip|en_gun_idle_0",
-    "assets/art/actors_enemies_anim.clip|en_gun_idle_1",
-];
+const EN_GUN_IDLE_CLIP = "assets/art/actors_enemies_anim.clip|en_gun_idle_0";
 const EN_GUN_WALK_CLIPS = [
     "assets/art/actors_enemies_anim.clip|en_gun_walk_0",
     "assets/art/actors_enemies_anim.clip|en_gun_walk_1",
@@ -532,7 +529,6 @@ export class ActorsRenderer {
         } else if (p.phase === "gate-send" && p.room.story?.gate !== undefined &&
             Math.abs(a.x - p.room.story.gate.doorX) <= 60 && speed <= 8) {
             slot = "soldier_hold";
-            height *= 1.11;
         } else if (isControlled && p.ticks < this.shotUntil) {
             const running = speed > 8;
             slot = running ? "soldier_fire_move" : "soldier_fire";
@@ -878,7 +874,7 @@ export class ActorsRenderer {
             } else if (moving) {
                 enemyClip = EN_GUN_WALK_CLIPS[walkStep];
             } else {
-                enemyClip = EN_GUN_IDLE_CLIPS[Math.floor((this.animTime + (es?.idlePhase ?? index)) * 2.1) % 2];
+                enemyClip = EN_GUN_IDLE_CLIP;
             }
         }
 

@@ -798,385 +798,404 @@ function GateTransitionPlugin.prototype.drawWorld(self, fgDraw, fgGlow, worldArt
 				} -- 770
 			) -- 770
 		end -- 770
-		scene:addCutout3D( -- 775
-			"assets/art/diorama_cutouts.clip|north_tower_distant", -- 776
-			thX + 365, -- 777
-			18, -- 778
-			250, -- 779
-			74, -- 780
-			95, -- 781
-			{ -- 782
-				bucket = LP_BUCKET.BACKDROP, -- 783
-				opacity = 0.72 * plankReveal, -- 784
-				color = rgba(146, 164, 186, 255), -- 785
-				anchorX = 0.5, -- 786
-				anchorY = 0, -- 787
-				sortBias = 0.08 -- 788
-			} -- 788
-		) -- 788
-		scene:addCutout3D( -- 791
-			"assets/art/diorama_cutouts.clip|ming_eave_ruin", -- 792
-			thX - 56, -- 793
-			148, -- 794
-			22, -- 795
-			146, -- 796
-			96, -- 797
-			{ -- 798
-				bucket = LP_BUCKET.MIDGROUND, -- 799
-				opacity = 0.9, -- 800
-				color = rgba(168, 184, 202, 255), -- 801
-				anchorX = 0.5, -- 802
-				anchorY = 0, -- 803
-				sortBias = 0.12 -- 804
-			} -- 804
-		) -- 804
-	end -- 804
-	scene:addContactShadow( -- 810
-		p.player.x, -- 810
-		p.player.y, -- 810
-		16, -- 810
-		12, -- 810
-		0.62 + 0.28 * m, -- 810
-		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 810
-	) -- 810
-	scene:flush(fgDraw, fgGlow, ctx.dioramaWorld) -- 816
-	local hidePartnerInside = self.reunionPixelReturn < 0.85 and closeFrac > 0.6 -- 820
-	if hidePartnerInside then -- 820
-		local wallRightX = cam:sx(thX - 1) -- 822
-		local wallLeftX = cam:sx(doorLeft - 140) -- 823
-		local wallW = math.max(2, wallRightX - wallLeftX) -- 824
-		local wallTopY = cam:sy(164, p.player.depth) -- 825
-		local wallBotY = cam:sy(0, p.player.depth) -- 826
-		local wallH = math.max(2, wallTopY - wallBotY) -- 827
-		local wallOp = clamp01((closeFrac - 0.6) / 0.28) * (1 - self.reunionPixelReturn) -- 828
-		worldArt:tryPlacePath( -- 829
-			"assets/art/tex_diorama_ming.clip|ming_brick", -- 830
-			"gate_closed_wall_mask", -- 831
-			(wallLeftX + wallRightX) * 0.5, -- 832
-			wallBotY, -- 833
-			wallW, -- 834
-			wallH, -- 835
-			{ -- 836
-				anchorX = 0.5, -- 837
-				anchorY = 0, -- 838
-				layer = 4102, -- 839
-				color = Color(76, 84, 98, 255), -- 840
-				opacity = wallOp, -- 841
-				smooth = true -- 842
-			} -- 842
-		) -- 842
-		local doorPanelL = cam:sx(thX - 112) -- 845
-		local doorPanelR = cam:sx(thX - 1) -- 846
-		worldArt:tryPlacePath( -- 847
-			"assets/art/cutscene_story_parts.clip|tower_porch_door", -- 848
-			"gate_closed_door_leaf", -- 849
-			(doorPanelL + doorPanelR) * 0.5, -- 850
-			wallBotY, -- 851
-			math.max(2, doorPanelR - doorPanelL), -- 852
-			wallH, -- 853
-			{ -- 854
-				anchorX = 0.5, -- 855
-				anchorY = 0, -- 856
-				layer = 4103, -- 857
-				color = Color(156, 148, 140, 255), -- 858
-				opacity = wallOp, -- 859
-				smooth = true -- 860
-			} -- 860
-		) -- 860
-	end -- 860
-	local fgBeamAlpha = smoothstep(0.42, 0.95, m) * (1 - self.reunionPixelReturn) -- 866
-	if fgBeamAlpha > 0.02 then -- 866
-		local pRight = scene:project(thX + 318, 128, -54) -- 868
-		worldArt:tryPlacePath( -- 869
-			"assets/art/diorama_cutouts.clip|fg_pine_bough", -- 870
-			"gate_fg_pine_right", -- 871
-			pRight.x, -- 872
-			pRight.y, -- 873
-			cam:len(168), -- 874
-			cam:len(108), -- 875
-			{ -- 876
-				anchorX = 0.5, -- 877
-				anchorY = 0.5, -- 878
-				facing = -1, -- 879
-				color = Color(36, 48, 56, 255), -- 880
-				opacity = 0.88 * fgBeamAlpha, -- 881
-				smooth = true, -- 882
-				layer = 5200 -- 883
-			} -- 883
-		) -- 883
-	end -- 883
-	return true -- 888
+		local towerX = thX + 320 -- 775
+		local towerBaseY = 18 -- 776
+		local towerZ = 250 -- 777
+		scene:addDistantRidge( -- 778
+			{ -- 778
+				{x = towerX - 148, y = -22}, -- 779
+				{x = towerX - 98, y = -2}, -- 780
+				{x = towerX - 43, y = towerBaseY + 3}, -- 781
+				{x = towerX + 43, y = towerBaseY + 3}, -- 782
+				{x = towerX + 94, y = 3}, -- 783
+				{x = towerX + 151, y = -20} -- 784
+			}, -- 784
+			-62, -- 784
+			towerZ, -- 785
+			MING_MATERIALS.distantHill, -- 785
+			{bucket = LP_BUCKET.BACKDROP, opacity = 0.88 * plankReveal, sortBias = 0.04} -- 785
+		) -- 785
+		scene:addCutout3D( -- 790
+			"assets/art/diorama_cutouts.clip|north_tower_distant", -- 791
+			towerX, -- 792
+			towerBaseY, -- 793
+			towerZ, -- 794
+			74, -- 795
+			95, -- 796
+			{ -- 797
+				bucket = LP_BUCKET.BACKDROP, -- 798
+				opacity = 0.72 * plankReveal, -- 799
+				color = rgba(146, 164, 186, 255), -- 800
+				anchorX = 0.5, -- 801
+				anchorY = 0, -- 802
+				sortBias = 0.1 -- 803
+			} -- 803
+		) -- 803
+		scene:addCutout3D( -- 806
+			"assets/art/diorama_cutouts.clip|ming_eave_ruin", -- 807
+			thX - 56, -- 808
+			148, -- 809
+			22, -- 810
+			146, -- 811
+			96, -- 812
+			{ -- 813
+				bucket = LP_BUCKET.MIDGROUND, -- 814
+				opacity = 0.9, -- 815
+				color = rgba(168, 184, 202, 255), -- 816
+				anchorX = 0.5, -- 817
+				anchorY = 0, -- 818
+				sortBias = 0.12 -- 819
+			} -- 819
+		) -- 819
+	end -- 819
+	scene:addContactShadow( -- 825
+		p.player.x, -- 825
+		p.player.y, -- 825
+		16, -- 825
+		12, -- 825
+		0.62 + 0.28 * m, -- 825
+		{bucket = LP_BUCKET.PROP, sortBias = 0.45} -- 825
+	) -- 825
+	scene:flush(fgDraw, fgGlow, ctx.dioramaWorld) -- 831
+	local hidePartnerInside = self.reunionPixelReturn < 0.85 and closeFrac > 0.6 -- 835
+	if hidePartnerInside then -- 835
+		local front = 4 -- 837
+		local wallRightX = scene:project(thX - 1, 0, front).x -- 838
+		local wallLeftX = scene:project(doorLeft - 140, 0, front).x -- 839
+		local wallW = math.max(2, wallRightX - wallLeftX) -- 840
+		local wallTopY = scene:project(thX - 1, 164, front).y -- 841
+		local wallBotY = scene:project(thX - 1, 0, front).y -- 842
+		local wallH = math.max(2, wallTopY - wallBotY) -- 843
+		local wallOp = clamp01((closeFrac - 0.6) / 0.28) * (1 - self.reunionPixelReturn) -- 844
+		worldArt:tryPlacePath( -- 845
+			"assets/art/tex_diorama_ming.clip|ming_brick", -- 846
+			"gate_closed_wall_mask", -- 847
+			(wallLeftX + wallRightX) * 0.5, -- 848
+			wallBotY, -- 849
+			wallW, -- 850
+			wallH, -- 851
+			{ -- 852
+				anchorX = 0.5, -- 853
+				anchorY = 0, -- 854
+				layer = 4102, -- 855
+				color = Color(76, 84, 98, 255), -- 856
+				opacity = wallOp, -- 857
+				smooth = true -- 858
+			} -- 858
+		) -- 858
+		local doorPanelL = scene:project(thX - 122, doorBotY, front) -- 861
+		local doorPanelR = scene:project(thX - 2, doorBotY, front) -- 862
+		local doorTop = scene:project(thX - 2, 160, front) -- 863
+		worldArt:tryPlacePath( -- 864
+			"assets/art/cutscene_story_parts.clip|tower_porch_door", -- 865
+			"gate_closed_door_leaf", -- 866
+			(doorPanelL.x + doorPanelR.x) * 0.5, -- 867
+			doorPanelR.y, -- 868
+			math.max(2, doorPanelR.x - doorPanelL.x), -- 869
+			math.max(2, doorTop.y - doorPanelR.y), -- 870
+			{ -- 871
+				anchorX = 0.5, -- 872
+				anchorY = 0, -- 873
+				layer = 4103, -- 874
+				color = Color(156, 148, 140, 255), -- 875
+				opacity = wallOp, -- 876
+				smooth = true -- 877
+			} -- 877
+		) -- 877
+	end -- 877
+	local fgBeamAlpha = smoothstep(0.42, 0.95, m) * (1 - self.reunionPixelReturn) -- 883
+	if fgBeamAlpha > 0.02 then -- 883
+		local pRight = scene:project(thX + 318, 128, -54) -- 885
+		worldArt:tryPlacePath( -- 886
+			"assets/art/diorama_cutouts.clip|fg_pine_bough", -- 887
+			"gate_fg_pine_right", -- 888
+			pRight.x, -- 889
+			pRight.y, -- 890
+			cam:len(168), -- 891
+			cam:len(108), -- 892
+			{ -- 893
+				anchorX = 0.5, -- 894
+				anchorY = 0.5, -- 895
+				facing = -1, -- 896
+				color = Color(36, 48, 56, 255), -- 897
+				opacity = 0.88 * fgBeamAlpha, -- 898
+				smooth = true, -- 899
+				layer = 5200 -- 900
+			} -- 900
+		) -- 900
+	end -- 900
+	return true -- 905
 end -- 512
-function GateTransitionPlugin.prototype.drawPropsOverlay(self, _fgDraw, _fgGlow, _worldArt, ctx) -- 891
-	return self.active and ctx.p.phase ~= "gate-walk" -- 898
-end -- 891
-function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 901
-	if not self.active then -- 901
-		return -- 908
-	end -- 908
-	local p = ctx.p -- 910
-	local view = ctx.view -- 911
-	local cam = ctx.cam -- 912
-	local tick = view.countElapsedTicks -- 913
-	local cx = cam:sx(p.player.x) -- 914
-	local by = cam:sy(p.player.y, p.player.depth) -- 915
-	local H = cam:len(p.player.h) -- 916
-	if p.phase == "gate-count" and tick >= 1080 and tick < view.countDurationTicks then -- 916
-		local leanK = smoothstep(1080, 1130, tick) -- 920
-		local doorSx = cam:sx(self.lockThresholdX) -- 921
-		local headY = by + H * 0.8 -- 922
-		local earPulse = 0.55 + 0.45 * math.sin(self.animTime * 2.2) -- 924
-		fgGlow:drawArc( -- 925
-			Vec2(doorSx + 4, headY), -- 926
-			12 + (1 - earPulse) * 8, -- 927
-			-38, -- 927
-			38, -- 929
-			1.1, -- 930
-			Color( -- 931
-				214, -- 931
-				224, -- 931
-				236, -- 931
-				math.floor(78 * leanK * earPulse + 0.5) -- 931
-			) -- 931
-		) -- 931
-		if tick >= 1260 then -- 931
-			local breathCycle = self.animTime * 0.7 % 1 -- 935
-			local bAlpha = math.sin(breathCycle * math.pi) * 0.48 -- 936
-			local bx = cx - 10 - breathCycle * 18 -- 937
-			local bY = headY - 4 + breathCycle * 6 -- 938
-			fillRadialGlow( -- 939
-				fgGlow, -- 940
-				bx, -- 941
-				bY, -- 942
-				12 + breathCycle * 10, -- 943
-				7 + breathCycle * 6, -- 944
-				Color( -- 945
-					220, -- 945
-					232, -- 945
-					244, -- 945
-					math.floor(110 * bAlpha + 0.5) -- 945
-				), -- 945
-				Color(180, 204, 228, 0), -- 946
-				12 -- 947
-			) -- 947
-		end -- 947
-	end -- 947
-	local isChildIdle = p.phase == "gate-count" and tick >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 953
-	if isChildIdle then -- 953
-		local pouchX = cx + cam:len(6) -- 957
-		local pouchY = by + H * 0.48 -- 958
-		local pulse = 0.72 + 0.28 * math.sin(self.animTime * 2.4) -- 959
-		fillRadialGlow( -- 960
-			fgGlow, -- 961
-			pouchX, -- 962
-			pouchY, -- 963
-			18 * pulse, -- 964
-			18 * pulse, -- 965
-			Color( -- 966
-				236, -- 966
-				198, -- 966
-				128, -- 966
-				math.floor(64 * pulse + 0.5) -- 966
-			), -- 966
-			Color(220, 168, 86, 0), -- 967
-			12 -- 968
-		) -- 968
-		fgGlow:drawDot( -- 970
-			Vec2(pouchX, pouchY), -- 970
-			2.1, -- 970
-			toColor( -- 970
-				PALETTE.amberCore, -- 970
-				math.floor(190 * pulse + 0.5) -- 970
-			) -- 970
-		) -- 970
-	end -- 970
-	local isSoldierWait = view.storyRoute == "soldier" and not view.gateReunion.completed and (p.phase == "gate-wait" or p.phase == "gate-count" and view.gateReunion.active) -- 974
-	if isSoldierWait then -- 974
-		local wallSx = cam:sx(self.lockThresholdX + 2) -- 978
-		local knockY = by + H * 0.56 -- 979
-		local ringCycle = self.animTime * 0.85 % 1 -- 980
-		local r1 = 8 + ringCycle * 34 -- 981
-		local a1 = (1 - ringCycle) * 0.72 -- 982
-		fgGlow:drawRing( -- 983
-			Vec2(wallSx, knockY), -- 983
-			math.max(1, r1 - 1.5), -- 983
-			r1, -- 983
-			Color(0, 0, 0, 0), -- 983
-			1.3, -- 983
-			toColor(PALETTE.amber, 210 * a1) -- 983
-		) -- 983
-		local handX = cx - cam:len(10) -- 985
-		local handY = by + H * 0.62 + math.sin(self.animTime * 2.6) * 2 -- 986
-		fgDraw:drawSegment( -- 987
-			Vec2( -- 987
-				cx - cam:len(3), -- 987
-				by + H * 0.56 -- 987
-			), -- 987
-			Vec2(handX, handY), -- 987
-			2.4, -- 987
-			Color(230, 206, 182, 220) -- 987
+function GateTransitionPlugin.prototype.drawPropsOverlay(self, _fgDraw, _fgGlow, _worldArt, ctx) -- 908
+	return self.active and ctx.p.phase ~= "gate-walk" -- 915
+end -- 908
+function GateTransitionPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, _worldArt, ctx) -- 918
+	if not self.active then -- 918
+		return -- 925
+	end -- 925
+	local p = ctx.p -- 927
+	local view = ctx.view -- 928
+	local cam = ctx.cam -- 929
+	local tick = view.countElapsedTicks -- 930
+	local cx = cam:sx(p.player.x) -- 931
+	local by = cam:sy(p.player.y, p.player.depth) -- 932
+	local H = cam:len(p.player.h) -- 933
+	if p.phase == "gate-count" and tick >= 1080 and tick < view.countDurationTicks then -- 933
+		local leanK = smoothstep(1080, 1130, tick) -- 937
+		local doorSx = cam:sx(self.lockThresholdX) -- 938
+		local headY = by + H * 0.8 -- 939
+		local earPulse = 0.55 + 0.45 * math.sin(self.animTime * 2.2) -- 941
+		fgGlow:drawArc( -- 942
+			Vec2(doorSx + 4, headY), -- 943
+			12 + (1 - earPulse) * 8, -- 944
+			-38, -- 944
+			38, -- 946
+			1.1, -- 947
+			Color( -- 948
+				214, -- 948
+				224, -- 948
+				236, -- 948
+				math.floor(78 * leanK * earPulse + 0.5) -- 948
+			) -- 948
+		) -- 948
+		if tick >= 1260 then -- 948
+			local breathCycle = self.animTime * 0.7 % 1 -- 952
+			local bAlpha = math.sin(breathCycle * math.pi) * 0.48 -- 953
+			local bx = cx - 10 - breathCycle * 18 -- 954
+			local bY = headY - 4 + breathCycle * 6 -- 955
+			fillRadialGlow( -- 956
+				fgGlow, -- 957
+				bx, -- 958
+				bY, -- 959
+				12 + breathCycle * 10, -- 960
+				7 + breathCycle * 6, -- 961
+				Color( -- 962
+					220, -- 962
+					232, -- 962
+					244, -- 962
+					math.floor(110 * bAlpha + 0.5) -- 962
+				), -- 962
+				Color(180, 204, 228, 0), -- 963
+				12 -- 964
+			) -- 964
+		end -- 964
+	end -- 964
+	local isChildIdle = p.phase == "gate-count" and tick >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 970
+	if isChildIdle then -- 970
+		local pouchX = cx + cam:len(6) -- 974
+		local pouchY = by + H * 0.48 -- 975
+		local pulse = 0.72 + 0.28 * math.sin(self.animTime * 2.4) -- 976
+		fillRadialGlow( -- 977
+			fgGlow, -- 978
+			pouchX, -- 979
+			pouchY, -- 980
+			18 * pulse, -- 981
+			18 * pulse, -- 982
+			Color( -- 983
+				236, -- 983
+				198, -- 983
+				128, -- 983
+				math.floor(64 * pulse + 0.5) -- 983
+			), -- 983
+			Color(220, 168, 86, 0), -- 984
+			12 -- 985
+		) -- 985
+		fgGlow:drawDot( -- 987
+			Vec2(pouchX, pouchY), -- 987
+			2.1, -- 987
+			toColor( -- 987
+				PALETTE.amberCore, -- 987
+				math.floor(190 * pulse + 0.5) -- 987
+			) -- 987
 		) -- 987
-		fgGlow:drawDot( -- 988
-			Vec2(handX, handY), -- 988
-			2.4, -- 988
-			toColor(PALETTE.amberCore, 165) -- 988
-		) -- 988
-	end -- 988
-end -- 901
-function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, _uiGlow, ctx) -- 992
-	if not self.active then -- 992
-		return false -- 1000
-	end -- 1000
-	local p = ctx.p -- 1002
-	local view = ctx.view -- 1003
-	local w = ctx.uiW -- 1004
-	local h = ctx.uiH -- 1005
-	if p.phase == "gate-walk" then -- 1005
-		return false -- 1009
-	end -- 1009
-	local barH = math.floor(52 * (1 - self.reunionPixelReturn * 0.35) + 0.5) -- 1013
-	uiDraw:drawRect( -- 1014
-		Rect(0, h - barH, w, barH), -- 1014
-		Color(8, 10, 16, 236) -- 1014
-	) -- 1014
-	uiDraw:drawRect( -- 1015
-		Rect(0, 0, w, barH), -- 1015
-		Color(8, 10, 16, 236) -- 1015
-	) -- 1015
-	uiInkDraw:drawSegment( -- 1016
-		Vec2(0, h - barH), -- 1016
-		Vec2(w, h - barH), -- 1016
-		0.7, -- 1016
-		toColor(PALETTE.silkDim, 68) -- 1016
-	) -- 1016
-	uiInkDraw:drawSegment( -- 1017
-		Vec2(0, barH), -- 1017
-		Vec2(w, barH), -- 1017
-		0.7, -- 1017
-		toColor(PALETTE.silkDim, 68) -- 1017
-	) -- 1017
-	local inCounting = p.phase == "gate-count" and view.countElapsedTicks < view.countDurationTicks -- 1020
-	if inCounting and self.activeCountZh ~= "" then -- 1020
-		local isBreathNum = view.countNumber == 19 -- 1022
-		local fadeIn = smoothstep(0, 0.16, self.countCueAge) -- 1023
-		local holdOut = 1 - smoothstep(isBreathNum and 2.1 or 1.15, isBreathNum and 2.85 or 1.65, self.countCueAge) -- 1024
-		local numAlpha = clamp01(fadeIn * math.max(0.28, holdOut)) * (isBreathNum and 0.68 or 0.9) -- 1025
-		local nx = w * 0.84 -- 1027
-		local ny = h * 0.74 -- 1028
-		drawMistCurve( -- 1029
-			uiArt, -- 1029
-			"gate_whisper_mist", -- 1029
-			nx, -- 1029
-			ny, -- 1029
-			190, -- 1029
-			44, -- 1029
-			PALETTE.jadeMist, -- 1029
-			0.18 * numAlpha, -- 1029
-			0 -- 1029
-		) -- 1029
-		ctx.texts:put( -- 1030
-			"banner", -- 1031
-			self.activeCountZh, -- 1032
-			nx, -- 1033
-			ny + 6, -- 1034
-			toColor(PALETTE.textBright), -- 1035
-			0.5, -- 1036
-			0.5, -- 1037
-			"Center", -- 1038
-			4, -- 1039
-			numAlpha, -- 1040
-			0.1 -- 1041
-		) -- 1041
-		local whisperText = view.countNumber == 18 and "「十八……」" or (view.countNumber == 19 and "「……十九……」" or ("「" .. self.activeCountZh) .. "……」") -- 1044
-		drawSilkVeil( -- 1047
-			uiDraw, -- 1047
-			uiArt, -- 1047
-			"gate_count_sub_veil", -- 1047
-			w * 0.5, -- 1047
-			26, -- 1047
-			320, -- 1047
-			36, -- 1047
-			PALETTE.inkWash, -- 1047
-			0.72 * numAlpha, -- 1047
-			-1 -- 1047
-		) -- 1047
-		ctx.texts:put( -- 1048
-			"sm", -- 1048
-			whisperText, -- 1048
-			w * 0.5, -- 1048
-			26, -- 1048
-			toColor(PALETTE.textMid), -- 1048
-			0.5, -- 1048
-			0.5, -- 1048
-			"Center", -- 1048
-			1.4, -- 1048
-			numAlpha, -- 1048
-			0.08 -- 1048
-		) -- 1048
-		return true -- 1049
-	end -- 1049
-	local isChildDone = p.phase == "gate-count" and view.countElapsedTicks >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 1053
-	if isChildDone then -- 1053
-		local lineAlpha = self.g04LineAge >= 0 and smoothstep(0, 0.25, self.g04LineAge) * (1 - smoothstep(3.8, 5.2, self.g04LineAge)) or 0.9 -- 1057
-		if lineAlpha > 0.02 then -- 1057
-			drawSilkVeil( -- 1061
-				uiDraw, -- 1061
-				uiArt, -- 1061
-				"gate_g04_veil", -- 1061
-				w * 0.5, -- 1061
-				26, -- 1061
-				460, -- 1061
-				38, -- 1061
-				PALETTE.inkWash, -- 1061
-				0.78 * lineAlpha, -- 1061
-				-1 -- 1061
-			) -- 1061
-			drawHairline( -- 1062
-				uiInkDraw, -- 1062
-				uiArt, -- 1062
-				"gate_g04_line", -- 1062
-				w * 0.5, -- 1062
-				44, -- 1062
-				300, -- 1062
-				PALETTE.silkDim, -- 1062
-				0.45 * lineAlpha, -- 1062
-				true, -- 1062
-				2 -- 1062
-			) -- 1062
-			ctx.texts:put( -- 1063
-				"sm", -- 1064
-				"「……二十了。我往北去了。」", -- 1065
-				w * 0.5, -- 1066
-				26, -- 1067
-				toColor(PALETTE.textBright), -- 1068
-				0.5, -- 1069
-				0.5, -- 1070
-				"Center", -- 1071
-				1.2, -- 1072
-				lineAlpha, -- 1073
-				0.08 -- 1074
-			) -- 1074
-		end -- 1074
-		if view.assistHintsEnabled then -- 1074
-			ctx.texts:put( -- 1078
-				"xs", -- 1079
-				getActiveTarget():adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1080
-				w * 0.5, -- 1081
-				h - 26, -- 1082
-				toColor(PALETTE.textDim), -- 1083
-				0.5, -- 1084
-				0.5, -- 1085
-				"Center", -- 1086
-				1.2, -- 1087
-				0.78, -- 1088
-				0.08 -- 1089
-			) -- 1089
-		end -- 1089
-		return true -- 1092
-	end -- 1092
-	return true -- 1096
-end -- 992
-function ____exports.createGateTransitionPlugin() -- 1100
-	return __TS__New(____exports.GateTransitionPlugin) -- 1101
-end -- 1100
-return ____exports -- 1100
+	end -- 987
+	local isSoldierWait = view.storyRoute == "soldier" and not view.gateReunion.completed and (p.phase == "gate-wait" or p.phase == "gate-count" and view.gateReunion.active) -- 991
+	if isSoldierWait then -- 991
+		local wallSx = cam:sx(self.lockThresholdX + 2) -- 995
+		local knockY = by + H * 0.56 -- 996
+		local ringCycle = self.animTime * 0.85 % 1 -- 997
+		local r1 = 8 + ringCycle * 34 -- 998
+		local a1 = (1 - ringCycle) * 0.72 -- 999
+		fgGlow:drawRing( -- 1000
+			Vec2(wallSx, knockY), -- 1000
+			math.max(1, r1 - 1.5), -- 1000
+			r1, -- 1000
+			Color(0, 0, 0, 0), -- 1000
+			1.3, -- 1000
+			toColor(PALETTE.amber, 210 * a1) -- 1000
+		) -- 1000
+		local handX = cx - cam:len(10) -- 1002
+		local handY = by + H * 0.62 + math.sin(self.animTime * 2.6) * 2 -- 1003
+		fgDraw:drawSegment( -- 1004
+			Vec2( -- 1004
+				cx - cam:len(3), -- 1004
+				by + H * 0.56 -- 1004
+			), -- 1004
+			Vec2(handX, handY), -- 1004
+			2.4, -- 1004
+			Color(230, 206, 182, 220) -- 1004
+		) -- 1004
+		fgGlow:drawDot( -- 1005
+			Vec2(handX, handY), -- 1005
+			2.4, -- 1005
+			toColor(PALETTE.amberCore, 165) -- 1005
+		) -- 1005
+	end -- 1005
+end -- 918
+function GateTransitionPlugin.prototype.drawCutsceneOverlay(self, uiDraw, uiInkDraw, uiArt, _uiGlow, ctx) -- 1009
+	if not self.active then -- 1009
+		return false -- 1017
+	end -- 1017
+	local p = ctx.p -- 1019
+	local view = ctx.view -- 1020
+	local w = ctx.uiW -- 1021
+	local h = ctx.uiH -- 1022
+	if p.phase == "gate-walk" then -- 1022
+		return false -- 1026
+	end -- 1026
+	local barH = math.floor(52 * (1 - self.reunionPixelReturn * 0.35) + 0.5) -- 1030
+	uiDraw:drawRect( -- 1031
+		Rect(0, h - barH, w, barH), -- 1031
+		Color(8, 10, 16, 236) -- 1031
+	) -- 1031
+	uiDraw:drawRect( -- 1032
+		Rect(0, 0, w, barH), -- 1032
+		Color(8, 10, 16, 236) -- 1032
+	) -- 1032
+	uiInkDraw:drawSegment( -- 1033
+		Vec2(0, h - barH), -- 1033
+		Vec2(w, h - barH), -- 1033
+		0.7, -- 1033
+		toColor(PALETTE.silkDim, 68) -- 1033
+	) -- 1033
+	uiInkDraw:drawSegment( -- 1034
+		Vec2(0, barH), -- 1034
+		Vec2(w, barH), -- 1034
+		0.7, -- 1034
+		toColor(PALETTE.silkDim, 68) -- 1034
+	) -- 1034
+	local inCounting = p.phase == "gate-count" and view.countElapsedTicks < view.countDurationTicks -- 1037
+	if inCounting and self.activeCountZh ~= "" then -- 1037
+		local isBreathNum = view.countNumber == 19 -- 1039
+		local fadeIn = smoothstep(0, 0.16, self.countCueAge) -- 1040
+		local holdOut = 1 - smoothstep(isBreathNum and 2.1 or 1.15, isBreathNum and 2.85 or 1.65, self.countCueAge) -- 1041
+		local numAlpha = clamp01(fadeIn * math.max(0.28, holdOut)) * (isBreathNum and 0.68 or 0.9) -- 1042
+		local nx = w * 0.84 -- 1044
+		local ny = h * 0.74 -- 1045
+		drawMistCurve( -- 1046
+			uiArt, -- 1046
+			"gate_whisper_mist", -- 1046
+			nx, -- 1046
+			ny, -- 1046
+			190, -- 1046
+			44, -- 1046
+			PALETTE.jadeMist, -- 1046
+			0.18 * numAlpha, -- 1046
+			0 -- 1046
+		) -- 1046
+		ctx.texts:put( -- 1047
+			"banner", -- 1048
+			self.activeCountZh, -- 1049
+			nx, -- 1050
+			ny + 6, -- 1051
+			toColor(PALETTE.textBright), -- 1052
+			0.5, -- 1053
+			0.5, -- 1054
+			"Center", -- 1055
+			4, -- 1056
+			numAlpha, -- 1057
+			0.1 -- 1058
+		) -- 1058
+		local whisperText = view.countNumber == 18 and "「十八……」" or (view.countNumber == 19 and "「……十九……」" or ("「" .. self.activeCountZh) .. "……」") -- 1061
+		drawSilkVeil( -- 1064
+			uiDraw, -- 1064
+			uiArt, -- 1064
+			"gate_count_sub_veil", -- 1064
+			w * 0.5, -- 1064
+			26, -- 1064
+			320, -- 1064
+			36, -- 1064
+			PALETTE.inkWash, -- 1064
+			0.72 * numAlpha, -- 1064
+			-1 -- 1064
+		) -- 1064
+		ctx.texts:put( -- 1065
+			"sm", -- 1065
+			whisperText, -- 1065
+			w * 0.5, -- 1065
+			26, -- 1065
+			toColor(PALETTE.textMid), -- 1065
+			0.5, -- 1065
+			0.5, -- 1065
+			"Center", -- 1065
+			1.4, -- 1065
+			numAlpha, -- 1065
+			0.08 -- 1065
+		) -- 1065
+		return true -- 1066
+	end -- 1066
+	local isChildDone = p.phase == "gate-count" and view.countElapsedTicks >= view.countDurationTicks and view.storyRoute ~= "soldier" -- 1070
+	if isChildDone then -- 1070
+		local lineAlpha = self.g04LineAge >= 0 and smoothstep(0, 0.25, self.g04LineAge) * (1 - smoothstep(3.8, 5.2, self.g04LineAge)) or 0.9 -- 1074
+		if lineAlpha > 0.02 then -- 1074
+			drawSilkVeil( -- 1078
+				uiDraw, -- 1078
+				uiArt, -- 1078
+				"gate_g04_veil", -- 1078
+				w * 0.5, -- 1078
+				26, -- 1078
+				460, -- 1078
+				38, -- 1078
+				PALETTE.inkWash, -- 1078
+				0.78 * lineAlpha, -- 1078
+				-1 -- 1078
+			) -- 1078
+			drawHairline( -- 1079
+				uiInkDraw, -- 1079
+				uiArt, -- 1079
+				"gate_g04_line", -- 1079
+				w * 0.5, -- 1079
+				44, -- 1079
+				300, -- 1079
+				PALETTE.silkDim, -- 1079
+				0.45 * lineAlpha, -- 1079
+				true, -- 1079
+				2 -- 1079
+			) -- 1079
+			ctx.texts:put( -- 1080
+				"sm", -- 1081
+				"「……二十了。我往北去了。」", -- 1082
+				w * 0.5, -- 1083
+				26, -- 1084
+				toColor(PALETTE.textBright), -- 1085
+				0.5, -- 1086
+				0.5, -- 1087
+				"Center", -- 1088
+				1.2, -- 1089
+				lineAlpha, -- 1090
+				0.08 -- 1091
+			) -- 1091
+		end -- 1091
+		if view.assistHintsEnabled then -- 1091
+			ctx.texts:put( -- 1095
+				"xs", -- 1096
+				getActiveTarget():adaptHintSentence("松开后重新按方向键迈步", ctx.input.inputMode, ctx.input.gamepadLayout), -- 1097
+				w * 0.5, -- 1098
+				h - 26, -- 1099
+				toColor(PALETTE.textDim), -- 1100
+				0.5, -- 1101
+				0.5, -- 1102
+				"Center", -- 1103
+				1.2, -- 1104
+				0.78, -- 1105
+				0.08 -- 1106
+			) -- 1106
+		end -- 1106
+		return true -- 1109
+	end -- 1109
+	return true -- 1113
+end -- 1009
+function ____exports.createGateTransitionPlugin() -- 1117
+	return __TS__New(____exports.GateTransitionPlugin) -- 1118
+end -- 1117
+return ____exports -- 1117

@@ -667,7 +667,18 @@ export class NarrativeRenderer {
         }
     }
 
-    /** 将后端状态译作清雅克制的古风旁白；默认低引导下屏蔽按键教学与催促文案，开「按键辅助」后恢复 */
+    /** 军粮棚保留一句推进目标，按键随辅助设置显示。 */
+    private granaryCue(p: Play, showKeys: boolean): string {
+        if (p.cartDocked) {
+            if (p.run.c2Latch) return "等小满跟上，一起从右侧出棚";
+            return showKeys ? "到连杆旁按 [E] 抬闩，再带小满出棚" : "抬起车窝右边的门闩，再带小满出棚";
+        }
+        if (p.gripping) return showKeys ? "按 [D] 把车推入轮窝" : "往右把车推入轮窝";
+        if (p.cartHandleInReach()) return showKeys ? "按 [E] 握车柄，再按 [D] 推车" : "握住车柄，往右推车";
+        return showKeys ? "按 [W] 绕到粮袋后，再往右走到车柄" : "从粮袋后面的空地绕过去，再往右找车柄";
+    }
+
+    /** 将后端状态译作剧情对白和随进度变化的提示。 */
     private composeNarrativeLine(p: Play, assistHintsEnabled: boolean): { cue: string; text: string; urgent: boolean } {
         const key = p.room.key;
         const theme = themeOf(key);
@@ -726,6 +737,9 @@ export class NarrativeRenderer {
                     }
                     return { cue, text, urgent: isDanger };
                 }
+            }
+            if (key === "c2-granary") {
+                return { cue: "", text: this.granaryCue(p, false), urgent: false };
             }
             if (p.childMode && key === "outside" && p.checkpoint < p.room.arch.x1) {
                 const text = !p.cartDocked ? "红布车右边伸着车柄，前面是个空车窝。"
@@ -822,6 +836,10 @@ export class NarrativeRenderer {
                 return { cue: "战", text: "前方有倭寇。鼠标瞄准，左键发射火铳，按 [W/S] 绕开柜台", urgent: false };
             }
             return { cue: "", text: "带小满穿过右侧门洞，进入检查站", urgent: false };
+        }
+
+        if (key === "c2-granary") {
+            return { cue: "", text: this.granaryCue(p, true), urgent: false };
         }
 
         if (key === "checkpoint") {

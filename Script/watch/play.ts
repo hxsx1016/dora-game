@@ -21,7 +21,7 @@ import {
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
-import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, INTERACT_DEPTH_REACH, LANE_DEPTH, inReachDepth, overlapsDepth } from "Script/watch/depth";
 import {
     RELOAD_ANSWER_PER_WORLD, RELOAD_ANSWER_TICKS, RELOAD_START, RELOAD_TARGET, ReloadEffect,
     reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
@@ -3922,6 +3922,33 @@ export class Play {
             wait = true;
             targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
             targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
+        }
+        const bypass = cp?.groundBypass;
+        if (bypass !== undefined) {
+            // 车入窝前跟到粮袋后等候，出发与汇合都踩着空路走。
+            if (wait && !this.cartDocked && a.x < targetX - 18) {
+                targetX = Math.min(targetX, Math.max(a.x, p.x - 52));
+            }
+            const approachesBypass = a.x >= bypass.x0 - 80 && a.x <= bypass.x1 + 80
+                && Math.max(a.x, targetX) >= bypass.x0 - a.w * 0.5
+                && Math.min(a.x, targetX) <= bypass.x1 + a.w * 0.5;
+            const walkDepth = approachesBypass ? (cp?.waitDepth ?? LANE_DEPTH.upper) : 0;
+            const depthStep = CHILD_SPEED * DEPTH_SPEED_RATIO * dt;
+            const lastDepth = a.depth;
+            const lastX = a.x;
+            a.h = CHILD_H;
+            a.crouch = false;
+            this.slideDepth(a, Math.max(-depthStep, Math.min(depthStep, walkDepth - lastDepth)));
+            const dx = targetX - a.x;
+            if (Math.abs(dx) > (wait ? 18 : 74)) {
+                const speed = !wait && Math.abs(dx) > 260 ? CHILD_SPEED * 1.4 : CHILD_SPEED;
+                a.facing = dx > 0 ? 1 : -1;
+                this.slideX(a, a.facing * Math.min(Math.abs(dx), speed * dt));
+            }
+            a.depthSpeed = dt > 0 ? (a.depth - lastDepth) / dt : 0;
+            a.vx = dt > 0 ? (a.x - lastX) / dt : 0;
+            this.fallY(a, dt);
+            return;
         }
         if (this.partnerStuck > 0.3) {
             // 撞在柱列 / 台角上：退出障碍侧面，并直接换到 中 → 上 → 下 的下一条空档。

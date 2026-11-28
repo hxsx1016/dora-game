@@ -54,6 +54,8 @@ export interface CompanionSpec {
     waitX?: number;
     waitDepth?: number;
     joinX?: number;
+    /** 在等待点一侧的空地绕过这段实体，x0/x1 为关卡坐标。 */
+    groundBypass?: { x0: number; x1: number };
     /** 完成这个机关后她才离开等待点。 */
     followAfter?: "open_board" | "lower_curtain" | "raise_latch";
 }
@@ -1208,7 +1210,7 @@ export const S3_ARCHWAY: RoomSpec = {
     floors: [{ y: 0, x0: 0, x1: 1400 }],
     solids: [
         { x: 0, w: 180, h: 32, y: 0, label: "高处进口台 0–180 · 高 32", lanes: ["upper"], art: "cover_stone" },
-        { x: 380, w: 140, h: 64, y: 0, label: "装卸高台 380–520 · 高 64", lanes: ["upper"], art: "cover_wood" },
+        { x: 380, w: 140, h: 64, y: 0, label: "装卸石台 380–520 · 高 64", lanes: ["upper"], art: "cover_stone" },
         { x: 560, w: 160, h: 48, y: 0, label: "粮袋堆 560–720 · 高 48", lanes: ["lower", "middle"], art: "grain_sack" },
         { x: 1260, w: 30, h: 140, y: 0, label: "候检门左柱", lanes: ["lower", "upper"], art: "gate_post" },
         { x: 1330, w: 30, h: 140, y: 0, label: "候检门右柱", lanes: ["lower", "upper"], art: "gate_post" },
@@ -1330,7 +1332,7 @@ export const C2_GRANARY: RoomSpec = {
         { x: 1700, y: 0, kind: 0, label: "棚尾出口 1700" },
     ],
     dims: [{ x0: 1150, x1: 1500, text: "推车 350" }, { x0: 1240, x1: 1360, text: "木帘 120" }],
-    companion: { waitX: 760, waitDepth: 0, joinX: 1700 },
+    companion: { waitX: 760, waitDepth: LANE_DEPTH.upper, joinX: 1700, groundBypass: { x0: 600, x1: 1020 } },
     campaign: { chapter: "C", act: 2, budget: 360, goal: "dock_cart", exitX: 1700, checkpoint: 5 },
 };
 
@@ -1444,6 +1446,9 @@ export function withOrigin(room: RoomSpec): RoomSpec {
             ...room.companion,
             waitX: room.companion.waitX === undefined ? undefined : shift(room.companion.waitX),
             joinX: room.companion.joinX === undefined ? undefined : shift(room.companion.joinX),
+            groundBypass: room.companion.groundBypass === undefined ? undefined : {
+                x0: shift(room.companion.groundBypass.x0), x1: shift(room.companion.groundBypass.x1),
+            },
         },
         story: shiftStory(room.story, ox),
     };

@@ -5,8 +5,8 @@
   <B A="soldier_roll" B="414,2,220,198" />
   <B A="soldier_cover" B="638,2,218,198" />
   <B A="soldier_push" B="860,2,198,198" />
-  <B A="soldier_hold" B="1062,2,140,198" />
-  <B A="soldier_offer" B="1206,2,204,198" />
+  <B A="soldier_hold" B="1062,2,122,198" />
+  <B A="soldier_offer" B="1188,2,204,198" />
   <B A="soldier_knock" B="2,204,214,198" />
   <B A="soldier_hit" B="220,204,144,198" />
   <B A="soldier_fire" B="368,204,244,198" />
