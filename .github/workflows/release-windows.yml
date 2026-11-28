@@ -392,6 +392,32 @@ jobs:
             }
           }
 
+          # Seed old-layout recovery files. The new settings file must not suppress either import.
+          $legacyUser = Join-Path $appdataDir "watch-save"
+          $legacyPortable = Join-Path $packDir "save\watch-save"
+          New-Item -ItemType Directory -Path $legacyUser, $legacyPortable -Force | Out-Null
+          $legacyProfile = "version=1`nchildCleared=false`nsoldierCleared=true`nartifactOwned=false`nmuseumPhase=locked`nmuseumSeen=false`n"
+          $userSession = "version=1`nroomKey=outside`nhp=2`n"
+          $portableSession = "version=1`nroomKey=gate`nhp=1`n"
+          [IO.File]::WriteAllText((Join-Path $legacyUser "archive.txt.tmp"), $legacyProfile)
+          [IO.File]::WriteAllText((Join-Path $legacyUser "session.txt.prev"), $userSession)
+          [IO.File]::WriteAllText((Join-Path $legacyPortable "session.txt.prev"), $portableSession)
+          [IO.File]::WriteAllText((Join-Path $packDir "saves\settings.ini"), "masterVol=0.5`n")
+
+          function Assert-MigratedProgress($saveDir, $session) {
+            # Boot recovered the profile before the smoke hook replaced it and rotated it to .prev.
+            foreach ($entry in @{
+              "backups\profile.sav.prev" = $legacyProfile
+              "backups\autosave.sav.prev" = $session
+              "autosave.sav" = $session
+            }.GetEnumerator()) {
+              $path = Join-Path $saveDir $entry.Key
+              if ([IO.File]::ReadAllText($path) -cne $entry.Value) {
+                throw "Legacy progress mismatch at $path"
+              }
+            }
+          }
+
           # Round 1: default out-of-the-box portable saves/ mode launched directly via root WestwardWatch.exe (cwd != game dir)
           Set-Content -Path (Join-Path $packDir ".ci-smoke-test") -Value "1" -Encoding ascii
           $proc = Start-Process -FilePath $exe -WorkingDirectory $env:RUNNER_TEMP -PassThru
@@ -417,6 +443,13 @@ jobs:
             throw "Smoke round 1 exited with non-zero code: $($proc.ExitCode)"
           }
 
+          Assert-MigratedProgress (Join-Path $packDir "saves") $portableSession
+          if ([IO.File]::ReadAllText((Join-Path $legacyPortable "session.txt.prev")) -cne $portableSession) {
+            throw "Portable legacy source was modified"
+          }
+          # Exercise an ordinary old installation in round 2, with only the AppData source.
+          Rename-Item -LiteralPath $legacyPortable -NewName "watch-save.round1"
+
           # Round 2: read-only / non-writable saves/ fallback test (deny write ACL on saves/ -> automatic safe fallback to %APPDATA%)
           Remove-Item $resultFile -Force
           $savesPath = Join-Path $packDir "saves"
@@ -439,6 +472,11 @@ jobs:
             if ($res2 -notmatch "SMOKE_OK" -or $res2 -match "FAIL " -or $res2 -notmatch "portableSave=false" -or $res2 -notmatch "saveFallbackReason=readonly") {
               Dump-DoraLogs "round2-failed"
               throw "Smoke round 2 failed verification"
+            }
+            Assert-MigratedProgress (Join-Path $appdataDir "saves") $userSession
+            if ([IO.File]::ReadAllText((Join-Path $legacyUser "archive.txt.tmp")) -cne $legacyProfile -or
+                [IO.File]::ReadAllText((Join-Path $legacyUser "session.txt.prev")) -cne $userSession) {
+              throw "AppData legacy source was modified"
             }
             if ($proc2.ExitCode -ne 0) {
               Dump-DoraLogs "round2-exit"

@@ -58,17 +58,6 @@ local function probeWritableDir(dir)
 	return wrote == true and readBack:find("ok", 1, true) ~= nil
 end
 
-local function copyIfMissing(src, dst)
-	if not Content:exist(src) or Content:exist(dst) then
-		return false
-	end
-	local dstParent = Path:getPath(dst)
-	if dstParent and dstParent ~= "" and not Content:exist(dstParent) then
-		Content:mkdir(dstParent)
-	end
-	return Content:copy(src, dst) == true
-end
-
 -- 默认便携存档目录：<游戏根目录>/saves/；若目录不可写（如 Program Files / 只读介质），自动降级至系统用户目录。
 local portableSavesDir = Path(gameRoot, "saves")
 local portableSave = false
@@ -78,32 +67,6 @@ local migratedFrom = ""
 if probeWritableDir(portableSavesDir) then
 	Content.writablePath = portableSavesDir
 	portableSave = true
-	Content:mkdir(Path(portableSavesDir, "slots"))
-	Content:mkdir(Path(portableSavesDir, "backups"))
-	Content:mkdir(Path(portableSavesDir, "logs"))
-
-	-- 旧存档平滑迁移（只复制不删除旧件）：优先旧便携目录 save/watch-save，其次旧 C 盘 %APPDATA% 隔离目录
-	local hasAnyNew = Content:exist(Path(portableSavesDir, "profile.sav"))
-		or Content:exist(Path(portableSavesDir, "autosave.sav"))
-		or Content:exist(Path(portableSavesDir, "settings.ini"))
-	if not hasAnyNew then
-		local legacySources = {
-			{ label = "save", dir = Path(gameRoot, "save", "watch-save") },
-			{ label = "appdata", dir = Path(Content.appPath, "watch-save") },
-		}
-		for _, src in ipairs(legacySources) do
-			if Content:exist(src.dir) and Content:isdir(src.dir) then
-				local moved = false
-				moved = copyIfMissing(Path(src.dir, "archive.txt"), Path(portableSavesDir, "profile.sav")) or moved
-				moved = copyIfMissing(Path(src.dir, "session.txt"), Path(portableSavesDir, "autosave.sav")) or moved
-				moved = copyIfMissing(Path(src.dir, "controls.txt"), Path(portableSavesDir, "settings.ini")) or moved
-				if moved then
-					migratedFrom = src.label
-					break
-				end
-			end
-		end
-	end
 else
 	-- 只读回退：仍采用干净的便携文件结构落在 Content.appPath/saves 下，避免双层 watch-save 嵌套
 	local fallbackDir = Path(Content.appPath, "saves")
@@ -112,12 +75,62 @@ else
 	else
 		Content.writablePath = Content.appPath
 	end
-	Content:mkdir(Path(Content.writablePath, "slots"))
-	Content:mkdir(Path(Content.writablePath, "backups"))
-	Content:mkdir(Path(Content.writablePath, "logs"))
-	portableSave = false
 	saveFallbackReason = "readonly"
 end
+
+local saveRoot = Content.writablePath
+local backups = Path(saveRoot, "backups")
+Content:mkdir(Path(saveRoot, "slots"))
+Content:mkdir(backups)
+Content:mkdir(Path(saveRoot, "logs"))
+
+local legacySources = {
+	{ label = "save", dir = Path(gameRoot, "save", "watch-save") },
+	{ label = "appdata", dir = Path(Content.appPath, "watch-save") },
+}
+
+-- 同一档案的主件和恢复件只从一个旧目录取。每组成功后单独记账，避免删档后再次导入。
+local function migrateLegacyFile(oldName, newName, hasRecovery)
+	local marker = Path(backups, newName .. ".legacy-imported")
+	if Content:exist(marker) and Content:load(marker) == "done" then return end
+	local primary = Path(saveRoot, newName)
+	local tmp = primary .. ".tmp"
+	local prev = Path(backups, newName .. ".prev")
+	-- 新版中断写入后只剩恢复件时，保留它的读取优先级。
+	local pendingRecovery = hasRecovery and not Content:exist(primary)
+		and (Content:exist(tmp) or Content:exist(prev))
+	local files = { { suffix = "", dst = primary, skip = pendingRecovery } }
+	if hasRecovery then
+		files[#files + 1] = { suffix = ".tmp", dst = tmp, skip = pendingRecovery }
+		files[#files + 1] = { suffix = ".prev", dst = prev }
+	end
+	for _, source in ipairs(legacySources) do
+		local found = false
+		for _, file in ipairs(files) do
+			local src = Path(source.dir, oldName .. file.suffix)
+			if Content:exist(src) and not Content:isdir(src) then
+				found = true
+				if not file.skip and not Content:exist(file.dst) then
+					local staging = file.dst .. ".importing"
+					if not Content:copy(src, staging) or Content:load(src) ~= Content:load(staging)
+						or not Content:move(staging, file.dst) then
+						Content:remove(staging)
+						return
+					end
+					migratedFrom = source.label
+				end
+			end
+		end
+		if found then
+			Content:save(marker, "done")
+			return
+		end
+	end
+end
+
+migrateLegacyFile("archive.txt", "profile.sav", true)
+migrateLegacyFile("session.txt", "autosave.sav", true)
+migrateLegacyFile("controls.txt", "settings.ini", false)
 
 package.loaded["watch.target"] = "windows"
 package.loaded["watch.release"] = {
