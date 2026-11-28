@@ -97,17 +97,48 @@ do
 	r.story.route = "child"; r.story.settled = true
 	local p = new(playmod.Play, rooms.OUTSIDE_ROOM, nil, r)
 	local i = newInput()
-	p.player.x = 148; p.player.y = 96
-	i.interact.pressed = true; i.interact.held = true
-	p:update(playmod.STEP, i)
-	i.interact.pressed = false; i.interact.held = false
-	local hasMemBeat = false
-	for _, e in ipairs(p.events) do
-		if e.name == "storyBeat" and e.data.beat == "red_cart_memory" then hasMemBeat = true end
+	-- 从出生点走到车柄，拉过拱口后中途松手，再从下层尝试通行。
+	local function walkTo(x)
+		for _ = 1, 450 do
+			if math.abs(p.player.x - x) <= 4 then break end
+			i.moveX = p.player.x < x and 1 or -1
+			p:update(playmod.STEP, i)
+		end
+		i.moveX = 0
 	end
-	check("2.1 城外拉开红布车触发 F01 半秒家庭回忆节拍",
-		hasMemBeat and p.redCartMemoryT == 30 and r.story.segments["outside_memory"] == true,
-		string.format("beat=%s memT=%d", tostring(hasMemBeat), p.redCartMemoryT))
+	local function pullTo(x)
+		walkTo(p.cartAxle + p.room.cart.handleOffset)
+		i.interact.pressed, i.interact.held = true, true
+		p:update(playmod.STEP, i)
+		i.interact.pressed, i.moveX = false, 1
+		for _ = 1, 200 do
+			p:update(playmod.STEP, i)
+			if p.cartDocked or p.cartAxle >= x then break end
+		end
+		i.interact.held, i.moveX = false, 0
+	end
+	pullTo(396)
+	p:update(playmod.STEP, i)
+	walkTo(54)
+	for _ = 1, 30 do p:update(playmod.STEP, i) end
+	i.crouch.held = true
+	walkTo(400)
+	check("2.1 半程松柄，拱底仍锁住，不能提交洞后检查点",
+		p.cartAxle >= 396 and not p.cartDocked and p:cartLatchBounds() ~= nil
+		and p.player.y == 0 and p.player.x < p.room.arch.x1 and p.checkpoint < 380
+		and not r.story.segments.outside_memory,
+		string.format("axle=%.1f x=%.1f cp=%d", p.cartAxle, p.player.x, p.checkpoint))
+	walkTo(54)
+	i.crouch.held = false
+	pullTo(p.room.cart.endX)
+	local memories = 0
+	for _, e in ipairs(p.events) do
+		if e.name == "storyBeat" and e.data.beat == "red_cart_memory" then memories = memories + 1 end
+	end
+	check("2.2 再握右柄拉到车窝，收起挡栓并记录一次半秒回忆",
+		p.cartDocked and p:cartLatchBounds() == nil and memories == 1 and p.redCartMemoryT == 30
+		and r.story.segments.outside_cart and r.story.segments.outside_memory,
+		string.format("axle=%.1f beats=%d memT=%d", p.cartAxle, memories, p.redCartMemoryT))
 end
 
 -- 3. 密林双路实质差异（窄洞隐蔽庇护 vs 旧渠提速高警戒）+ 溪湾水光镜头联动

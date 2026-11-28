@@ -118,7 +118,7 @@ export class KbmPoller {
         const up = Keyboard.isKeyPressed(KeyName.W) || Keyboard.isKeyPressed(KeyName.Up);
         const down = Keyboard.isKeyPressed(KeyName.S) || Keyboard.isKeyPressed(KeyName.Down);
         const jump = Keyboard.isKeyPressed(KeyName.Space);
-        const crouch = Keyboard.isKeyPressed(KeyName.LCtrl) || Keyboard.isKeyPressed(KeyName.RCtrl);
+        const crouch = Keyboard.isKeyPressed(KeyName.LCtrl) || Keyboard.isKeyPressed(KeyName.RCtrl) || Keyboard.isKeyPressed(KeyName.C);
         const cover = Keyboard.isKeyPressed(KeyName.LShift) || Keyboard.isKeyPressed(KeyName.RShift);
         const interact = Keyboard.isKeyPressed(KeyName.E);
         const aim = Keyboard.isKeyPressed(KeyName.F);

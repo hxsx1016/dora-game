@@ -292,180 +292,175 @@ function TouchControls.prototype.syncContext(self, params) -- 250
 	local gameplayActive = isPlayMode -- 273
 	local modal = not isPlayMode or p == nil or p.paused or p.reloadOpen or p.craftBench.active or p.escortFailed or p.talentModalActive or params.ledgerOpen == true -- 274
 	local cutsceneBlocking = isPlayMode and p ~= nil and isCutsceneBlockingPlay(p) -- 276
-	local allowDepth = p ~= nil and p.room.depth ~= nil and (not p.childMode or p.phase == "prologue-escape") -- 278
-	local cart = p ~= nil and p.room.cart or nil -- 280
-	local cartNearby = p ~= nil and cart ~= nil and not p.cartDocked and cart.bodyW > 0 and (p.gripping or p:cartHandleInReach()) -- 281
-	local canBottleAim = isPlayMode and p ~= nil and p.childMode and p.room.key == "village" and p.hasBottle and not p.passed -- 283
-	local peacefulRoom = p ~= nil and (p.room.key == "museum" or p.room.key == "tower") -- 284
-	local canShoot = gameplayActive and p ~= nil and not p.childMode and not peacefulRoom and not p.gripping and not cutsceneBlocking and not modal and p.escort.state ~= "calming" -- 285
-	local buttons = {} -- 288
-	local rectZones = {} -- 289
-	local pGeom = isPortrait and pDel ~= nil and pDel:computeStickGeom( -- 291
-		vp, -- 292
-		ovW, -- 292
-		safeL, -- 292
-		safeB, -- 292
-		sc -- 292
-	) or nil -- 292
-	local stickMaxR = pGeom ~= nil and pGeom.stickMaxR or STICK_BASE_R_LANDSCAPE * sc -- 294
-	local stickDefaultX = pGeom ~= nil and pGeom.stickDefaultX or safeL + 126 * sc -- 295
-	local stickDefaultY = pGeom ~= nil and pGeom.stickDefaultY or safeB + 126 * sc -- 296
-	local stickZoneMaxX = pGeom ~= nil and pGeom.stickZoneMaxX or ovW * 0.46 -- 297
-	local stickZoneMaxY = pGeom ~= nil and pGeom.stickZoneMaxY or ovH - 110 -- 298
-	local bottleCancelCenter = {x = ovW - safeR - 106 * sc, y = safeB + 124 * sc, r = 44 * sc} -- 300
-	if overlayActive then -- 300
-		if isPortrait and pDel ~= nil then -- 300
-			pDel:pushTopButtons( -- 305
-				buttons, -- 306
-				vp, -- 306
-				ovW, -- 306
-				ovH, -- 306
-				safeR, -- 306
-				gameplayActive, -- 306
-				p, -- 306
-				params.isMuted, -- 307
-				params.isFullscreen, -- 307
-				params.canToggleFullscreen -- 307
-			) -- 307
-		elseif isPlayMode and not modal then -- 307
-			local px = ovW - safeR - 112 -- 310
-			local py = ovH - safeT - 66 -- 311
-			buttons[#buttons + 1] = { -- 312
-				id = "pause", -- 313
-				x = px + 46, -- 314
-				y = py + 21, -- 315
-				r = 28, -- 316
-				shape = "pill", -- 317
-				rect = Rect(px, py, 94, 42), -- 318
-				label = "暂歇", -- 319
-				accent = "silk", -- 320
-				active = false, -- 321
-				highlighted = false, -- 322
-				progress = 0, -- 323
-				dimmed = false -- 324
-			} -- 324
-			if params.showWebTopPills then -- 324
-				local mw = 58 -- 327
-				local mx = px - mw - 10 -- 328
-				buttons[#buttons + 1] = { -- 329
-					id = "mute", -- 330
-					x = mx + mw * 0.5, -- 331
-					y = py + 21, -- 332
-					r = 22, -- 333
-					shape = "pill", -- 334
-					rect = Rect(mx, py + 4, mw, 34), -- 335
-					label = params.isMuted and "静音" or "有声", -- 336
-					accent = params.isMuted and "rouge" or "cyan", -- 337
-					active = params.isMuted, -- 338
-					highlighted = false, -- 339
-					progress = 0, -- 340
-					dimmed = false -- 341
-				} -- 341
-				if params.canToggleFullscreen then -- 341
-					local fw = 58 -- 344
-					local fx = mx - fw - 8 -- 345
-					buttons[#buttons + 1] = { -- 346
-						id = "fullscreen", -- 347
-						x = fx + fw * 0.5, -- 348
-						y = py + 21, -- 349
-						r = 22, -- 350
-						shape = "pill", -- 351
-						rect = Rect(fx, py + 4, fw, 34), -- 352
-						label = params.isFullscreen and "窗口" or "全屏", -- 353
-						accent = "silk", -- 354
-						active = params.isFullscreen, -- 355
-						highlighted = false, -- 356
-						progress = 0, -- 357
-						dimmed = false -- 358
-					} -- 358
-				end -- 358
-			end -- 358
-		end -- 358
-	end -- 358
-	if isPortrait and pDel ~= nil and overlayActive and params.screen ~= "splash" and (not gameplayActive or isPlayMode and p ~= nil and p.paused) then -- 358
-		pDel:pushMenuNavButtons( -- 368
-			buttons, -- 368
-			vp, -- 368
-			ovW, -- 368
-			safeL, -- 368
-			safeR, -- 368
-			safeB -- 368
-		) -- 368
-	end -- 368
-	local prompt -- 372
-	if isPlayMode and p ~= nil and not p.paused and not p.reloadOpen and not p.craftBench.active and not cutsceneBlocking then -- 372
-		local function addZone(id, b) -- 374
-			rectZones[#rectZones + 1] = { -- 375
-				id = id, -- 375
-				rect = Rect((vp.stageX + b.x * vp.uiScale) / overlayScale, (vp.stageY + b.y * vp.uiScale) / overlayScale, b.width * vp.uiScale / overlayScale, b.height * vp.uiScale / overlayScale) -- 375
-			} -- 375
-		end -- 374
-		if not p.escortFailed and not params.ledgerOpen and params.ledgerBox and params.ledgerBox.width > 0 then -- 374
-			addZone("ledger:toggle", params.ledgerBox) -- 380
-		end -- 380
-		if params.escortDeathBoxes then -- 380
-			addZone("escort:retry", params.escortDeathBoxes.retry) -- 383
-			addZone("escort:title", params.escortDeathBoxes.title) -- 384
-		end -- 384
-		do -- 384
-			local i = 0 -- 386
-			while i < #params.storyTalentBoxes do -- 386
-				addZone( -- 387
-					"talent:" .. tostring(i), -- 387
-					params.storyTalentBoxes[i + 1] -- 387
-				) -- 387
-				i = i + 1 -- 386
-			end -- 386
-		end -- 386
-		if isPortrait and overlayActive and vp.deckH >= 220 then -- 386
-			local offers = p:getStoryTalentOffers() -- 390
-			local count = math.min(#offers, #params.storyTalentBoxes) -- 391
-			if count > 0 then -- 391
-				local padX = math.max(12, safeL + 10) -- 393
-				local gap = 8 -- 394
-				local availW = ovW - padX * 2 -- 395
-				local cardW = (availW - gap * (count - 1)) / count -- 396
-				local cardH = 34 -- 397
-				local cardY = vp.deckH - cardH - 8 -- 398
-				do -- 398
-					local ti = 0 -- 399
-					while ti < count do -- 399
-						local r = Rect(padX + ti * (cardW + gap), cardY, cardW, cardH) -- 400
-						rectZones[#rectZones + 1] = { -- 401
-							id = "talent:" .. tostring(ti), -- 401
-							rect = r -- 401
-						} -- 401
-						local ____self_portraitTalentCards_8 = self.portraitTalentCards -- 401
-						____self_portraitTalentCards_8[#____self_portraitTalentCards_8 + 1] = {slot = ti, id = offers[ti + 1], rect = r} -- 402
-						ti = ti + 1 -- 399
-					end -- 399
-				end -- 399
-			end -- 399
-		end -- 399
-	end -- 399
-	if isPlayMode and p ~= nil and not modal and not cutsceneBlocking then -- 399
-		prompt = deriveWorldPrompt(p) -- 408
-		if prompt ~= nil and (string.find(prompt.keyTag, "E", nil, true) or 0) - 1 >= 0 and params.cam ~= nil and params.assistHintsEnabled then -- 408
-			local keyW = math.max( -- 411
-				24, -- 411
-				visualTextWidth(prompt.keyTag, 15) + 16 -- 411
-			) -- 411
-			local labelW = visualTextWidth(prompt.label, 15) -- 412
-			local pillW = keyW + labelW + 24 -- 413
-			local padX = math.max(115, pillW * 0.5 + 24) -- 414
+	local allowDepth = p ~= nil and p.room.depth ~= nil -- 278
+	local cart = p ~= nil and p.room.cart or nil -- 279
+	local cartNearby = p ~= nil and cart ~= nil and not p.cartDocked and cart.bodyW > 0 and (p.gripping or p:cartHandleInReach()) -- 280
+	local canBottleAim = isPlayMode and p ~= nil and p.childMode and p.room.key == "village" and p.hasBottle and not p.passed -- 282
+	local peacefulRoom = p ~= nil and (p.room.key == "museum" or p.room.key == "tower") -- 283
+	local canShoot = gameplayActive and p ~= nil and not p.childMode and not peacefulRoom and not p.gripping and not cutsceneBlocking and not modal and p.escort.state ~= "calming" -- 284
+	local buttons = {} -- 287
+	local rectZones = {} -- 288
+	local pGeom = isPortrait and pDel ~= nil and pDel:computeStickGeom( -- 290
+		vp, -- 291
+		ovW, -- 291
+		safeL, -- 291
+		safeB, -- 291
+		sc -- 291
+	) or nil -- 291
+	local stickMaxR = pGeom ~= nil and pGeom.stickMaxR or STICK_BASE_R_LANDSCAPE * sc -- 293
+	local stickDefaultX = pGeom ~= nil and pGeom.stickDefaultX or safeL + 126 * sc -- 294
+	local stickDefaultY = pGeom ~= nil and pGeom.stickDefaultY or safeB + 126 * sc -- 295
+	local stickZoneMaxX = pGeom ~= nil and pGeom.stickZoneMaxX or ovW * 0.46 -- 296
+	local stickZoneMaxY = pGeom ~= nil and pGeom.stickZoneMaxY or ovH - 110 -- 297
+	local bottleCancelCenter = {x = ovW - safeR - 106 * sc, y = safeB + 124 * sc, r = 44 * sc} -- 299
+	if overlayActive then -- 299
+		if isPortrait and pDel ~= nil then -- 299
+			pDel:pushTopButtons( -- 304
+				buttons, -- 305
+				vp, -- 305
+				ovW, -- 305
+				ovH, -- 305
+				safeR, -- 305
+				gameplayActive, -- 305
+				p, -- 305
+				params.isMuted, -- 306
+				params.isFullscreen, -- 306
+				params.canToggleFullscreen -- 306
+			) -- 306
+		elseif isPlayMode and not modal then -- 306
+			local px = ovW - safeR - 112 -- 309
+			local py = ovH - safeT - 66 -- 310
+			buttons[#buttons + 1] = { -- 311
+				id = "pause", -- 312
+				x = px + 46, -- 313
+				y = py + 21, -- 314
+				r = 28, -- 315
+				shape = "pill", -- 316
+				rect = Rect(px, py, 94, 42), -- 317
+				label = "暂歇", -- 318
+				accent = "silk", -- 319
+				active = false, -- 320
+				highlighted = false, -- 321
+				progress = 0, -- 322
+				dimmed = false -- 323
+			} -- 323
+			if params.showWebTopPills then -- 323
+				local mw = 58 -- 326
+				local mx = px - mw - 10 -- 327
+				buttons[#buttons + 1] = { -- 328
+					id = "mute", -- 329
+					x = mx + mw * 0.5, -- 330
+					y = py + 21, -- 331
+					r = 22, -- 332
+					shape = "pill", -- 333
+					rect = Rect(mx, py + 4, mw, 34), -- 334
+					label = params.isMuted and "静音" or "有声", -- 335
+					accent = params.isMuted and "rouge" or "cyan", -- 336
+					active = params.isMuted, -- 337
+					highlighted = false, -- 338
+					progress = 0, -- 339
+					dimmed = false -- 340
+				} -- 340
+				if params.canToggleFullscreen then -- 340
+					local fw = 58 -- 343
+					local fx = mx - fw - 8 -- 344
+					buttons[#buttons + 1] = { -- 345
+						id = "fullscreen", -- 346
+						x = fx + fw * 0.5, -- 347
+						y = py + 21, -- 348
+						r = 22, -- 349
+						shape = "pill", -- 350
+						rect = Rect(fx, py + 4, fw, 34), -- 351
+						label = params.isFullscreen and "窗口" or "全屏", -- 352
+						accent = "silk", -- 353
+						active = params.isFullscreen, -- 354
+						highlighted = false, -- 355
+						progress = 0, -- 356
+						dimmed = false -- 357
+					} -- 357
+				end -- 357
+			end -- 357
+		end -- 357
+	end -- 357
+	if isPortrait and pDel ~= nil and overlayActive and params.screen ~= "splash" and (not gameplayActive or isPlayMode and p ~= nil and p.paused) then -- 357
+		pDel:pushMenuNavButtons( -- 367
+			buttons, -- 367
+			vp, -- 367
+			ovW, -- 367
+			safeL, -- 367
+			safeR, -- 367
+			safeB -- 367
+		) -- 367
+	end -- 367
+	local prompt -- 371
+	if isPlayMode and p ~= nil and not p.paused and not p.reloadOpen and not p.craftBench.active and not cutsceneBlocking then -- 371
+		local function addZone(id, b) -- 373
+			rectZones[#rectZones + 1] = { -- 374
+				id = id, -- 374
+				rect = Rect((vp.stageX + b.x * vp.uiScale) / overlayScale, (vp.stageY + b.y * vp.uiScale) / overlayScale, b.width * vp.uiScale / overlayScale, b.height * vp.uiScale / overlayScale) -- 374
+			} -- 374
+		end -- 373
+		if not p.escortFailed and not params.ledgerOpen and params.ledgerBox and params.ledgerBox.width > 0 then -- 373
+			addZone("ledger:toggle", params.ledgerBox) -- 379
+		end -- 379
+		if params.escortDeathBoxes then -- 379
+			addZone("escort:retry", params.escortDeathBoxes.retry) -- 382
+			addZone("escort:title", params.escortDeathBoxes.title) -- 383
+		end -- 383
+		do -- 383
+			local i = 0 -- 385
+			while i < #params.storyTalentBoxes do -- 385
+				addZone( -- 386
+					"talent:" .. tostring(i), -- 386
+					params.storyTalentBoxes[i + 1] -- 386
+				) -- 386
+				i = i + 1 -- 385
+			end -- 385
+		end -- 385
+		if isPortrait and overlayActive and vp.deckH >= 220 then -- 385
+			local offers = p:getStoryTalentOffers() -- 389
+			local count = math.min(#offers, #params.storyTalentBoxes) -- 390
+			if count > 0 then -- 390
+				local padX = math.max(12, safeL + 10) -- 392
+				local gap = 8 -- 393
+				local availW = ovW - padX * 2 -- 394
+				local cardW = (availW - gap * (count - 1)) / count -- 395
+				local cardH = 34 -- 396
+				local cardY = vp.deckH - cardH - 8 -- 397
+				do -- 397
+					local ti = 0 -- 398
+					while ti < count do -- 398
+						local r = Rect(padX + ti * (cardW + gap), cardY, cardW, cardH) -- 399
+						rectZones[#rectZones + 1] = { -- 400
+							id = "talent:" .. tostring(ti), -- 400
+							rect = r -- 400
+						} -- 400
+						local ____self_portraitTalentCards_8 = self.portraitTalentCards -- 400
+						____self_portraitTalentCards_8[#____self_portraitTalentCards_8 + 1] = {slot = ti, id = offers[ti + 1], rect = r} -- 401
+						ti = ti + 1 -- 398
+					end -- 398
+				end -- 398
+			end -- 398
+		end -- 398
+	end -- 398
+	if isPlayMode and p ~= nil and not modal and not cutsceneBlocking then -- 398
+		prompt = deriveWorldPrompt(p) -- 407
+		if prompt ~= nil and (string.find(prompt.keyTag, "E", nil, true) or 0) - 1 >= 0 and params.cam ~= nil and params.assistHintsEnabled then -- 407
+			local keyW = math.max( -- 410
+				24, -- 410
+				visualTextWidth(prompt.keyTag, 15) + 16 -- 410
+			) -- 410
+			local labelW = visualTextWidth(prompt.label, 15) -- 411
+			local pillW = keyW + labelW + 24 -- 412
+			local padX = math.max(115, pillW * 0.5 + 24) -- 413
+			local point = params.cam:worldToScreen(prompt.x, prompt.y) -- 414
 			local sxUi = math.max( -- 415
 				padX + vp.safeUi.left, -- 415
-				math.min( -- 415
-					vp.uiW - padX - vp.safeUi.right, -- 415
-					params.cam:sx(prompt.x) / vp.uiScale -- 415
-				) -- 415
+				math.min(vp.uiW - padX - vp.safeUi.right, point.x / vp.uiScale) -- 415
 			) -- 415
 			local syUi = math.max( -- 416
 				96 + vp.safeUi.bottom, -- 416
-				math.min( -- 416
-					vp.uiH - 110 - vp.safeUi.top, -- 416
-					params.cam:sy(prompt.y) / vp.uiScale -- 416
-				) -- 416
+				math.min(vp.uiH - 110 - vp.safeUi.top, point.y / vp.uiScale) -- 416
 			) -- 416
 			local vx = vp.stageX + (sxUi - pillW * 0.5 - 12) * vp.uiScale -- 417
 			local vy = vp.stageY + (syUi - 22) * vp.uiScale -- 418

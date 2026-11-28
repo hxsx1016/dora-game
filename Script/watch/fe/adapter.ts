@@ -653,6 +653,18 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
                 urgent: false,
             };
         }
+        if (room.key === "outside") {
+            return {
+                x: handleX, y: cart.baseY + cart.bodyH + 36,
+                keyTag: player.x > handleX ? "←" : "→", label: "红布车右柄", urgent: false,
+            };
+        }
+    }
+    if (room.key === "outside" && p.cartDocked && p.checkpoint < room.arch.x1 && player.y > room.arch.y + 1) {
+        const stairs = room.stairs[0];
+        if (stairs !== undefined) {
+            return { x: stairs.x0, y: stairs.y0 + 30, keyTag: "←", label: "从石阶下到地面", urgent: false };
+        }
     }
 
     if (p.isCampaign) {
@@ -728,8 +740,9 @@ export function deriveWorldPrompt(p: Play): WorldPrompt | undefined {
     }
 
     const tower = room.story?.tower;
-    if (p.phase === "tower-wait" && tower !== undefined && Math.abs(player.x - tower.doorX) <= 50) {
-        return { x: tower.doorX, y: 96, keyTag: "E", label: "敲两下 · 守卒应门", urgent: false };
+    if (p.phase === "tower-wait" && tower !== undefined) {
+        const near = Math.abs(player.x - tower.doorX) <= 50;
+        return { x: tower.doorX, y: 127, keyTag: near ? "E" : "→", label: near ? "敲木门" : "走到木门前", urgent: false };
     }
     if (p.phase === "tower-enter") {
         return { x: 605, y: 64, keyTag: "→", label: "跨过门槛 · 走到值夜桌前", urgent: false };

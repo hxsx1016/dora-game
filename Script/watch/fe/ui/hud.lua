@@ -1310,226 +1310,221 @@ function HudRenderer.prototype.drawWorldPrompts(self, uiDraw, uiInkDraw, uiArt, 
 			local labelW = visualTextWidth(pr.label, 15) -- 564
 			local pillW = keyW + labelW + 24 -- 565
 			local padX = math.max(115, pillW * 0.5 + 24) -- 566
-			local sx = math.max( -- 567
-				padX + safe.left, -- 567
-				math.min( -- 567
-					viewW - padX - safe.right, -- 567
-					cam:sx(pr.x) / uiScale -- 567
-				) -- 567
-			) -- 567
-			local sy = math.max( -- 568
-				96 + safe.bottom, -- 568
-				math.min( -- 568
-					viewH - 110 - safe.top, -- 568
-					cam:sy(pr.y) / uiScale + bob -- 568
-				) -- 568
+			local point = cam:worldToScreen(pr.x, pr.y) -- 567
+			local sx = math.max( -- 568
+				padX + safe.left, -- 568
+				math.min(viewW - padX - safe.right, point.x / uiScale) -- 568
 			) -- 568
-			local accent = pr.urgent and PALETTE.rouge or PALETTE.silkLine -- 569
-			uiInkDraw:drawSegment( -- 571
-				Vec2(sx, sy - 14), -- 571
-				Vec2(sx, sy - 27), -- 571
-				0.8, -- 571
-				toColor(accent, 135 * alpha) -- 571
-			) -- 571
-			drawBlossomDot( -- 572
-				uiInkDraw, -- 572
-				uiArt, -- 572
-				"wp_anchor_" .. tostring(i), -- 572
-				sx, -- 572
-				sy - 28, -- 572
-				7, -- 572
-				accent, -- 572
-				0.85 * alpha, -- 572
-				3 -- 572
+			local sy = math.max( -- 569
+				96 + safe.bottom, -- 569
+				math.min(viewH - 110 - safe.top, point.y / uiScale + bob) -- 569
+			) -- 569
+			local accent = pr.urgent and PALETTE.rouge or PALETTE.silkLine -- 570
+			uiInkDraw:drawSegment( -- 572
+				Vec2(sx, sy - 14), -- 572
+				Vec2(sx, sy - 27), -- 572
+				0.8, -- 572
+				toColor(accent, 135 * alpha) -- 572
 			) -- 572
-			local px = sx - pillW * 0.5 -- 574
-			local py = sy - 12 -- 575
-			drawSilkVeil( -- 577
-				uiDraw, -- 577
-				uiArt, -- 577
-				"wp_bg_" .. tostring(i), -- 577
-				sx, -- 577
-				py + 12, -- 577
-				pillW + 40, -- 577
-				32, -- 577
-				PALETTE.inkWash, -- 577
-				0.78 * alpha, -- 577
-				0 -- 577
-			) -- 577
-			drawHairline( -- 578
-				uiInkDraw, -- 578
+			drawBlossomDot( -- 573
+				uiInkDraw, -- 573
+				uiArt, -- 573
+				"wp_anchor_" .. tostring(i), -- 573
+				sx, -- 573
+				sy - 28, -- 573
+				7, -- 573
+				accent, -- 573
+				0.85 * alpha, -- 573
+				3 -- 573
+			) -- 573
+			local px = sx - pillW * 0.5 -- 575
+			local py = sy - 12 -- 576
+			drawSilkVeil( -- 578
+				uiDraw, -- 578
 				uiArt, -- 578
-				"wp_line_" .. tostring(i), -- 578
+				"wp_bg_" .. tostring(i), -- 578
 				sx, -- 578
-				py + 24, -- 578
-				pillW + 4, -- 578
-				accent, -- 578
-				0.45 * alpha, -- 578
-				false, -- 578
-				2 -- 578
+				py + 12, -- 578
+				pillW + 40, -- 578
+				32, -- 578
+				PALETTE.inkWash, -- 578
+				0.78 * alpha, -- 578
+				0 -- 578
 			) -- 578
-			drawSilkKeycap( -- 579
+			drawHairline( -- 579
 				uiInkDraw, -- 579
-				texts, -- 579
-				px + 2, -- 579
-				py + 2, -- 579
-				keyW, -- 579
-				20, -- 579
-				pr.keyTag, -- 579
+				uiArt, -- 579
+				"wp_line_" .. tostring(i), -- 579
+				sx, -- 579
+				py + 24, -- 579
+				pillW + 4, -- 579
 				accent, -- 579
-				alpha, -- 579
-				pr.urgent -- 579
+				0.45 * alpha, -- 579
+				false, -- 579
+				2 -- 579
 			) -- 579
-			texts:put( -- 580
-				"xs", -- 580
-				pr.label, -- 580
-				px + keyW + 12, -- 580
-				py + 12, -- 580
-				toColor(PALETTE.textBright), -- 580
-				0, -- 580
-				0.5, -- 580
-				"Left", -- 580
-				0.8, -- 580
+			drawSilkKeycap( -- 580
+				uiInkDraw, -- 580
+				texts, -- 580
+				px + 2, -- 580
+				py + 2, -- 580
+				keyW, -- 580
+				20, -- 580
+				pr.keyTag, -- 580
+				accent, -- 580
 				alpha, -- 580
-				0.08 -- 580
+				pr.urgent -- 580
 			) -- 580
+			texts:put( -- 581
+				"xs", -- 581
+				pr.label, -- 581
+				px + keyW + 12, -- 581
+				py + 12, -- 581
+				toColor(PALETTE.textBright), -- 581
+				0, -- 581
+				0.5, -- 581
+				"Left", -- 581
+				0.8, -- 581
+				alpha, -- 581
+				0.08 -- 581
+			) -- 581
 			i = i + 1 -- 561
 		end -- 561
 	end -- 561
 end -- 546
-function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale, touchMode) -- 584
-	local mx = p.aimX / uiScale -- 594
-	local my = p.aimY / uiScale -- 595
-	if mx <= 0 and my <= 0 then -- 595
-		return -- 597
-	end -- 597
-	if p.childMode then -- 597
-		local aiming = p.room.key == "village" and p.hasBottle -- 601
-		if touchMode and (not aiming or p.aimHold <= 0) then -- 601
-			return -- 603
-		end -- 603
-		local col = aiming and PALETTE.amberCore or PALETTE.silkDim -- 605
-		uiInkDraw:drawDot( -- 606
-			Vec2(mx, my), -- 606
-			aiming and 2 or 1.6, -- 606
-			toColor(col, aiming and 215 or 120) -- 606
-		) -- 606
-		if aiming then -- 606
-			local sz = p.aimHold > 0 and 32 or 24 -- 608
-			uiArt:tryPlace( -- 609
-				"ink_enso_fine", -- 609
-				"reticle_child", -- 609
-				mx, -- 609
-				my, -- 609
-				sz, -- 609
-				sz, -- 609
-				{ -- 609
-					color = toColor(PALETTE.amberCore), -- 610
-					opacity = 0.82, -- 610
-					angle = self.time * 24, -- 610
-					layer = 5 -- 610
-				} -- 610
-			) -- 610
-		end -- 610
-		return -- 613
-	end -- 613
-	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 616
-	local onEnemy = false -- 617
-	local i = 0 -- 618
-	do -- 618
-		i = 0 -- 619
-		while i < #p.enemies do -- 619
-			local e = p.enemies[i + 1] -- 620
-			local ey = e.y + (e.depth or 0) * DEPTH_Y_SCALE -- 621
-			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= ey - 6 and wAim.y <= ey + e.h + 6 then -- 621
-				onEnemy = true -- 623
-			end -- 623
-			i = i + 1 -- 619
-		end -- 619
-	end -- 619
-	local col = onEnemy and PALETTE.rouge or PALETTE.textBright -- 627
-	local gap = (onEnemy and 5.5 or 7) + vfx.crosshairKick * 0.72 -- 628
-	local arm = onEnemy and 8.5 or 9.5 -- 629
-	local bg = Color(10, 12, 18, 160) -- 630
-	uiInkDraw:drawSegment( -- 632
-		Vec2(mx - gap - arm, my), -- 632
-		Vec2(mx - gap, my), -- 632
-		2.1, -- 632
-		bg -- 632
-	) -- 632
+function HudRenderer.prototype.drawReticle(self, uiInkDraw, uiArt, uiGlow, p, cam, vfx, uiScale, touchMode) -- 585
+	local mx = p.aimX / uiScale -- 595
+	local my = p.aimY / uiScale -- 596
+	if mx <= 0 and my <= 0 then -- 596
+		return -- 598
+	end -- 598
+	if p.childMode then -- 598
+		local aiming = p.room.key == "village" and p.hasBottle -- 602
+		if touchMode and (not aiming or p.aimHold <= 0) then -- 602
+			return -- 604
+		end -- 604
+		local col = aiming and PALETTE.amberCore or PALETTE.silkDim -- 606
+		uiInkDraw:drawDot( -- 607
+			Vec2(mx, my), -- 607
+			aiming and 2 or 1.6, -- 607
+			toColor(col, aiming and 215 or 120) -- 607
+		) -- 607
+		if aiming then -- 607
+			local sz = p.aimHold > 0 and 32 or 24 -- 609
+			uiArt:tryPlace( -- 610
+				"ink_enso_fine", -- 610
+				"reticle_child", -- 610
+				mx, -- 610
+				my, -- 610
+				sz, -- 610
+				sz, -- 610
+				{ -- 610
+					color = toColor(PALETTE.amberCore), -- 611
+					opacity = 0.82, -- 611
+					angle = self.time * 24, -- 611
+					layer = 5 -- 611
+				} -- 611
+			) -- 611
+		end -- 611
+		return -- 614
+	end -- 614
+	local wAim = cam:screenToWorld(p.aimX, p.aimY) -- 617
+	local onEnemy = false -- 618
+	local i = 0 -- 619
+	do -- 619
+		i = 0 -- 620
+		while i < #p.enemies do -- 620
+			local e = p.enemies[i + 1] -- 621
+			local ey = e.y + (e.depth or 0) * DEPTH_Y_SCALE -- 622
+			if e.alive and math.abs(wAim.x - e.x) <= e.w * 0.85 and wAim.y >= ey - 6 and wAim.y <= ey + e.h + 6 then -- 622
+				onEnemy = true -- 624
+			end -- 624
+			i = i + 1 -- 620
+		end -- 620
+	end -- 620
+	local col = onEnemy and PALETTE.rouge or PALETTE.textBright -- 628
+	local gap = (onEnemy and 5.5 or 7) + vfx.crosshairKick * 0.72 -- 629
+	local arm = onEnemy and 8.5 or 9.5 -- 630
+	local bg = Color(10, 12, 18, 160) -- 631
 	uiInkDraw:drawSegment( -- 633
-		Vec2(mx + gap, my), -- 633
-		Vec2(mx + gap + arm, my), -- 633
+		Vec2(mx - gap - arm, my), -- 633
+		Vec2(mx - gap, my), -- 633
 		2.1, -- 633
 		bg -- 633
 	) -- 633
 	uiInkDraw:drawSegment( -- 634
-		Vec2(mx, my - gap - arm), -- 634
-		Vec2(mx, my - gap), -- 634
+		Vec2(mx + gap, my), -- 634
+		Vec2(mx + gap + arm, my), -- 634
 		2.1, -- 634
 		bg -- 634
 	) -- 634
 	uiInkDraw:drawSegment( -- 635
-		Vec2(mx, my + gap), -- 635
-		Vec2(mx, my + gap + arm), -- 635
+		Vec2(mx, my - gap - arm), -- 635
+		Vec2(mx, my - gap), -- 635
 		2.1, -- 635
 		bg -- 635
 	) -- 635
-	uiInkDraw:drawSegment( -- 637
-		Vec2(mx - gap - arm, my), -- 637
-		Vec2(mx - gap, my), -- 637
-		1.1, -- 637
-		toColor(col, 230) -- 637
-	) -- 637
+	uiInkDraw:drawSegment( -- 636
+		Vec2(mx, my + gap), -- 636
+		Vec2(mx, my + gap + arm), -- 636
+		2.1, -- 636
+		bg -- 636
+	) -- 636
 	uiInkDraw:drawSegment( -- 638
-		Vec2(mx + gap, my), -- 638
-		Vec2(mx + gap + arm, my), -- 638
+		Vec2(mx - gap - arm, my), -- 638
+		Vec2(mx - gap, my), -- 638
 		1.1, -- 638
 		toColor(col, 230) -- 638
 	) -- 638
 	uiInkDraw:drawSegment( -- 639
-		Vec2(mx, my - gap - arm), -- 639
-		Vec2(mx, my - gap), -- 639
+		Vec2(mx + gap, my), -- 639
+		Vec2(mx + gap + arm, my), -- 639
 		1.1, -- 639
 		toColor(col, 230) -- 639
 	) -- 639
 	uiInkDraw:drawSegment( -- 640
-		Vec2(mx, my + gap), -- 640
-		Vec2(mx, my + gap + arm), -- 640
+		Vec2(mx, my - gap - arm), -- 640
+		Vec2(mx, my - gap), -- 640
 		1.1, -- 640
 		toColor(col, 230) -- 640
 	) -- 640
-	uiInkDraw:drawDot( -- 641
-		Vec2(mx, my), -- 641
-		1.8, -- 641
-		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.textBright, 240) -- 641
+	uiInkDraw:drawSegment( -- 641
+		Vec2(mx, my + gap), -- 641
+		Vec2(mx, my + gap + arm), -- 641
+		1.1, -- 641
+		toColor(col, 230) -- 641
 	) -- 641
-	if onEnemy then -- 641
-		local sz = 30 + math.sin(self.time * 11) * 1.8 -- 644
-		uiArt:tryPlace( -- 645
-			"ink_enso_fine", -- 645
-			"reticle_lock", -- 645
-			mx, -- 645
-			my, -- 645
-			sz, -- 645
-			sz, -- 645
-			{ -- 645
-				color = toColor(PALETTE.rouge), -- 646
-				opacity = 0.88, -- 646
-				angle = self.time * 38, -- 646
-				layer = 5 -- 646
-			} -- 646
-		) -- 646
-		fillRadialGlow( -- 648
-			uiGlow, -- 648
-			mx, -- 648
-			my, -- 648
-			16, -- 648
-			16, -- 648
-			toColor(PALETTE.rouge, 30), -- 648
-			Color(182, 58, 56, 0), -- 648
-			10 -- 648
-		) -- 648
-	end -- 648
-end -- 584
-return ____exports -- 584
+	uiInkDraw:drawDot( -- 642
+		Vec2(mx, my), -- 642
+		1.8, -- 642
+		toColor(onEnemy and PALETTE.crimsonCore or PALETTE.textBright, 240) -- 642
+	) -- 642
+	if onEnemy then -- 642
+		local sz = 30 + math.sin(self.time * 11) * 1.8 -- 645
+		uiArt:tryPlace( -- 646
+			"ink_enso_fine", -- 646
+			"reticle_lock", -- 646
+			mx, -- 646
+			my, -- 646
+			sz, -- 646
+			sz, -- 646
+			{ -- 646
+				color = toColor(PALETTE.rouge), -- 647
+				opacity = 0.88, -- 647
+				angle = self.time * 38, -- 647
+				layer = 5 -- 647
+			} -- 647
+		) -- 647
+		fillRadialGlow( -- 649
+			uiGlow, -- 649
+			mx, -- 649
+			my, -- 649
+			16, -- 649
+			16, -- 649
+			toColor(PALETTE.rouge, 30), -- 649
+			Color(182, 58, 56, 0), -- 649
+			10 -- 649
+		) -- 649
+	end -- 649
+end -- 585
+return ____exports -- 585

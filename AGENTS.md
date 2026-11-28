@@ -7,9 +7,9 @@
 ## 项目信息
 
 - 项目：《向西守望》，Dora SSR + TypeScript 双线叙事游戏
-- 世界与美术：故事发生在明朝。涉及角色、敌人、八房场景、道具、特效、UI 或封面时，先读[明朝全局美术设定](docs/守望-明朝全局美术设定.md)。旧灰盒与外部动作样片不定义时代；不为美术换装改玩法或后端。
+- 世界与美术：故事发生在明朝。涉及角色、敌人、场景、道具、特效、UI 或封面时，先读[明朝全局美术设定](docs/守望-明朝全局美术设定.md)。旧灰盒与外部动作样片不定义时代；不为美术换装改玩法或后端。
 - 默认分支：`main`
-- 共享仓库为 `hxsx1016/dora-game`，本检出的远端名为 `origin`。用 `git remote -v` 核对自己的检出。
+- 共享仓库为 `hxsx1016/dora-game`，本文命令以 `origin` 指代共享远端。用 `git remote -v` 核对自己的检出。
 - 入口源码：`init.ts`
 - 开发与验证命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。`init.ts` 和 `Script/watch/` 下的 TypeScript 为守望源码，对应 Lua 随引擎构建更新。
 - 忽略目录：`.agent/`、`.cache/`、`.build/`、`.download/`、`.upload/`
@@ -18,8 +18,8 @@
 
 - [ ] 核对远端地址、默认分支 `main`、当前分支与 upstream。
 - [ ] 确认仓库根目录存在 `AGENTS.md`，且包含「长任务与远端分支协作」规范；缺失时先补齐，再开始开发。
-- [ ] 检查 `git status` 是否干净；如有未提交改动，先询问用户如何处理。
-- [ ] 多端适配与参赛版整备以 `exp/multi-device-adapt` 为当前整合基线（音频总线重构在 `feature/audio-overhaul`，角色动作在 `codex/character-motion`，并行协作勿重复实现或误覆盖）。新任务的基线和 PR 目标见开发指南。
+- [ ] 用 `git status -sb` 与 `git worktree list` 检查现有工作。并行任务从指定基础 SHA 建独立工作树，保留已有改动。
+- [ ] 核对任务基础与 PR 目标。首个公开试玩版 `v0.1.0` 的玩法基线是 `feature/dev-20261127` 合入 PR #39 后的 `55826e793`，发行整理目标为 `main`。后续任务重新查询远端及打开的 PR。
 - [ ] 记录任务分支、远端地址、开始时间和验证方式。
 
 ## 长任务与远端分支协作
@@ -29,6 +29,8 @@
 预计超过 30 分钟、涉及多个文件或多次提交，或需要跨多个步骤完成的任务。
 
 ### 定期提交与推送
+
+按任务授权选择交付方式。要求本地交付时，在独立工作树提交，交付基础 SHA、提交号或补丁。以下推送步骤适用于已授权更新远端任务分支的工作。
 
 - 至少每 30—60 分钟，或每完成一个可验证的小阶段，执行一次 `git add` → `git commit` → `git push`，推送到当前任务对应的远端分支。
 - 提交前必须：
@@ -104,13 +106,8 @@
 待询问用户：
 ```
 
-## 前端双线开发快捷入口（`feature/fe-dual-route`）
+## 玩法与文档核对
 
-本分支是前端团队基于 `feature/watch-level-rework@648ff43` 建立的前端总集成分支（后端零侵入，最终整条合好交付 tqym）。
-
-若用户在新对话中发出以下任一**快捷开工口令**，Agent 须立即阅读[前端双线开发总控与阶段任务书](docs/前端双线开发总控与阶段任务书.md)及对应阶段施工书，按规范切出独立任务 worktree 与分支后直接开工（严禁修改 `play.ts`/`run.ts`/`rooms.ts`/`depth.ts`/`app.ts` 等后端文件）：
-
-- `开工前端第零阶段` / `开工 fe-00` → [docs/fe-phases/00-foundation.md](docs/fe-phases/00-foundation.md)（串行必先完成，形成合流点 M0）
-- `开工前端01` / `开工前端02` / `开工前端03` → [docs/fe-phases/wave1-01-03.md](docs/fe-phases/wave1-01-03.md)（M0 后三路并行，完成后合流 M1）
-- `开工前端04` / `开工前端05` / `开工前端06` → [docs/fe-phases/wave2-04-06.md](docs/fe-phases/wave2-04-06.md)（M1 后三路并行，完成后合流 M2）
-- `开工前端收口阶段` / `开工 fe-07` → [docs/fe-phases/07-qa-pack.md](docs/fe-phases/07-qa-pack.md)（M2 后串行收口与离线包验收）
+- 启动与存取档从 `init.ts`、`Script/watch/app.ts`、`save.ts`（同目录）及 `fe/ui/menus.ts` 核对，分别走正式开局、续读和章节预览。
+- 小满城外红布车的握柄、落窝和矮拱通行由 `rooms.ts` 和 `play.ts` 判定。独行线的低模四房由 `fe/scenes/xiaoman3d.ts` 读取 GLB。修改提示或画面时，对照同一个房间和路线验证。
+- 平台能力查 `Script/watch/targets/`。目录、回归脚本和发行流程见[开发与提交指南](CONTRIBUTING.md)。阶段任务书、历次验收与开发日志保留原文，玩家入口与现行协作说明在根目录文档维护。

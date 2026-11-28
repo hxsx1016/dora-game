@@ -183,24 +183,24 @@ ____exports.MING_LEGACY_FINDINGS = { -- 93
 } -- 146
 function ____exports.resolveMingBackdropSlot(roomKey) -- 193
 	local direct = ____exports.CORE_MING_BACKDROPS[roomKey] -- 194
-	if direct ~= nil then -- 194
+	if direct ~= nil then -- 195
 		return direct -- 196
 	end -- 196
 	local mapped = ____exports.FALLBACK_MING_BACKDROPS[roomKey] -- 198
-	if mapped ~= nil then -- 198
+	if mapped ~= nil then -- 199
 		return mapped -- 200
 	end -- 200
 	return "bgFar_street" -- 202
 end -- 193
 function ____exports.isWoodCoverLabel(art, label) -- 205
-	if art == "cover_wood" or art == "thin_wood" or art == "board" or art == "fence" or art == "basket_wall" then -- 205
+	if art == "cover_wood" or art == "thin_wood" or art == "board" or art == "fence" or art == "basket_wall" then -- 206
 		return true -- 207
 	end -- 207
-	if art == "cover_stone" or art == "wall" or art == "gate_post" or art == "well" then -- 207
+	if art == "cover_stone" or art == "wall" or art == "gate_post" or art == "well" then -- 209
 		return false -- 210
 	end -- 210
-	if label ~= nil then -- 210
-		if (string.find(label, "柜", nil, true) or 0) - 1 >= 0 or (string.find(label, "木", nil, true) or 0) - 1 >= 0 or (string.find(label, "桌", nil, true) or 0) - 1 >= 0 or (string.find(label, "货", nil, true) or 0) - 1 >= 0 or (string.find(label, "棚", nil, true) or 0) - 1 >= 0 or (string.find(label, "栏", nil, true) or 0) - 1 >= 0 then -- 210
+	if label ~= nil then -- 212
+		if (string.find(label, "柜", nil, true) or 0) - 1 >= 0 or (string.find(label, "木", nil, true) or 0) - 1 >= 0 or (string.find(label, "桌", nil, true) or 0) - 1 >= 0 or (string.find(label, "货", nil, true) or 0) - 1 >= 0 or (string.find(label, "棚", nil, true) or 0) - 1 >= 0 or (string.find(label, "栏", nil, true) or 0) - 1 >= 0 then -- 214
 			return true -- 221
 		end -- 221
 	end -- 221
@@ -233,7 +233,7 @@ function MingArtAuditPlugin.prototype.onBindPlay(self, p, _view) -- 249
 	self.scorches = {} -- 252
 	self.animTime = 0 -- 253
 	self.lastRoomKey = p.room.key -- 254
-	if p.room.cart.bodyW > 0 and p.room.cart.clothSide >= 0 then -- 254
+	if p.room.cart.bodyW > 0 and p.room.cart.clothSide >= 0 then -- 255
 		self.cartLeftInvariantOk = false -- 256
 	end -- 256
 	self:syncRuntimeHook() -- 258
@@ -247,13 +247,13 @@ function MingArtAuditPlugin.prototype.syncRuntimeHook(self) -- 261
 		____temp_0 = nil -- 263
 	end -- 263
 	local loaded = ____temp_0 -- 263
-	if loaded == nil then -- 263
+	if loaded == nil then -- 264
 		return -- 265
 	end -- 265
 	local rawFe = loaded["watch.fe"] -- 267
-	if rawFe ~= nil and type(rawFe) == "table" then -- 267
+	if rawFe ~= nil and type(rawFe) == "table" then -- 268
 		local watchFe = rawFe -- 269
-		if watchFe.mingAudit ~= self then -- 269
+		if watchFe.mingAudit ~= self then -- 270
 			watchFe.mingAudit = self -- 271
 		end -- 271
 	end -- 271
@@ -261,24 +261,24 @@ end -- 261
 function MingArtAuditPlugin.prototype.update(self, ctx) -- 276
 	self:syncRuntimeHook() -- 277
 	local p = ctx.p -- 278
-	if self.lastRoomKey ~= "" and self.lastRoomKey ~= p.room.key then -- 278
+	if self.lastRoomKey ~= "" and self.lastRoomKey ~= p.room.key then -- 280
 		self:onBindPlay(p, ctx.view) -- 281
 	end -- 281
-	if p.room.cart.bodyW > 0 and p.room.cart.clothSide >= 0 then -- 281
+	if p.room.cart.bodyW > 0 and p.room.cart.clothSide >= 0 then -- 283
 		self.cartLeftInvariantOk = false -- 284
 	end -- 284
-	if ctx.paused or ctx.worldDt <= 0 then -- 284
+	if ctx.paused or ctx.worldDt <= 0 then -- 287
 		return -- 288
 	end -- 288
 	local dt = ctx.worldDt -- 291
 	self.animTime = self.animTime + dt -- 292
-	if ctx.events.coverDeflect then -- 292
+	if ctx.events.coverDeflect then -- 295
 		self:spawnCoverMaterialDebris(p) -- 296
 	end -- 296
-	if ctx.events.shotFired and ctx.events.shotTrace ~= nil then -- 296
+	if ctx.events.shotFired and ctx.events.shotTrace ~= nil then -- 300
 		local tr = ctx.events.shotTrace -- 301
 		self:spawnMatchlockSmoke(tr.x0, tr.y0, tr.x1 >= tr.x0 and 1 or -1) -- 302
-		if not tr.hit and tr.y1 <= 42 then -- 302
+		if not tr.hit and tr.y1 <= 42 then -- 303
 			self:addScorch( -- 304
 				tr.x1, -- 304
 				math.max(0, tr.y1) -- 304
@@ -292,11 +292,11 @@ function MingArtAuditPlugin.prototype.update(self, ctx) -- 276
 		while i < #self.chips do -- 311
 			local c = self.chips[i + 1] -- 312
 			c.life = c.life - dt -- 313
-			if c.life > 0 then -- 313
+			if c.life > 0 then -- 314
 				c.vy = c.vy - (c.isWood and 360 or 210) * dt -- 315
 				c.x = c.x + c.vx * dt -- 316
 				c.y = c.y + c.vy * dt -- 317
-				if c.y < 0 then -- 317
+				if c.y < 0 then -- 318
 					c.y = 0 -- 319
 					c.vy = -c.vy * 0.25 -- 320
 					c.vx = c.vx * 0.65 -- 321
@@ -307,14 +307,14 @@ function MingArtAuditPlugin.prototype.update(self, ctx) -- 276
 			i = i + 1 -- 311
 		end -- 311
 	end -- 311
-	__TS__ArraySetLength(self.chips, w) -- 311
+	__TS__ArraySetLength(self.chips, w) -- 327
 	w = 0 -- 330
 	do -- 330
 		i = 0 -- 331
 		while i < #self.puffs do -- 331
 			local pf = self.puffs[i + 1] -- 332
 			pf.life = pf.life - dt -- 333
-			if pf.life > 0 then -- 333
+			if pf.life > 0 then -- 334
 				pf.x = pf.x + pf.vx * dt -- 335
 				pf.y = pf.y + pf.vy * dt -- 336
 				pf.vx = pf.vx * math.max(0, 1 - dt * 3.4) -- 337
@@ -325,14 +325,14 @@ function MingArtAuditPlugin.prototype.update(self, ctx) -- 276
 			i = i + 1 -- 331
 		end -- 331
 	end -- 331
-	__TS__ArraySetLength(self.puffs, w) -- 331
+	__TS__ArraySetLength(self.puffs, w) -- 343
 end -- 276
 function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdropArt, ctx) -- 350
 	local roomKey = ctx.p.room.key -- 356
-	if ____exports.CORE_MING_BACKDROPS[roomKey] ~= nil then -- 356
+	if ____exports.CORE_MING_BACKDROPS[roomKey] ~= nil then -- 357
 		return false -- 358
 	end -- 358
-	if ctx.view.visualMode == "lowpoly" or ctx.view.visualMode == "museum" then -- 358
+	if ctx.view.visualMode == "lowpoly" or ctx.view.visualMode == "museum" then -- 361
 		return false -- 362
 	end -- 362
 	local slot = ____exports.resolveMingBackdropSlot(roomKey) -- 365
@@ -341,14 +341,17 @@ function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdro
 	local h = cam.viewH -- 368
 	local span = math.max(1, ctx.p.room.maxX - ctx.p.room.minX) -- 369
 	local progress = (cam.x - ctx.p.room.minX) / span - 0.5 -- 370
-	local ground = cam.groundScreenY -- 371
-	local artW = math.max(w, h * 16 / 9) + w * 0.12 -- 372
+	local backRoadY = cam:sy(0, ctx.p.room.depth ~= nil and ctx.p.room.depth.max or 0) -- 371
+	local artW = math.max(w, h * 16 / 9) * 1.1 -- 372
 	local artH = artW * 9 / 16 -- 373
-	local sceneY = math.min((h - artH) * 0.5, ground - artH * 0.24) -- 375
-	if backdropArt:tryPlace( -- 375
+	local sceneY = math.min( -- 375
+		0, -- 375
+		math.max(h - artH, backRoadY - artH * 0.25) -- 375
+	) -- 375
+	if backdropArt:tryPlace( -- 377
 		slot, -- 377
 		"ming_fallback_scene", -- 377
-		w * (0.5 - progress * 0.09), -- 377
+		w * (0.5 - progress * 0.08), -- 377
 		sceneY, -- 377
 		artW, -- 377
 		artH -- 377
@@ -356,25 +359,25 @@ function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdro
 		self.fallbackInterceptCount = self.fallbackInterceptCount + 1 -- 378
 		local theme = themeOf(roomKey) -- 379
 		local outdoorRidge = slot == "bgFar_outside" or slot == "bgFar_escort_ridge" or slot == "bgFar_forest" -- 380
-		if outdoorRidge then -- 380
+		if outdoorRidge then -- 381
 			backdropArt:tryPlace( -- 382
 				"pine", -- 383
 				"ming_fallback_mid", -- 384
-				w * (0.76 - progress * 0.22), -- 385
-				ground - cam:len(8), -- 386
-				cam:len(122), -- 387
-				cam:len(107), -- 388
-				{layer = 1, opacity = 0.42} -- 389
+				w * (0.76 - progress * 0.24), -- 385
+				backRoadY - cam:len(4), -- 386
+				cam:len(118), -- 387
+				cam:len(104), -- 388
+				{layer = 1, opacity = 0.46} -- 389
 			) -- 389
-		elseif slot ~= "bgFar_granary" and slot ~= "bgFar_crossroad_drygoods" and slot ~= "bgFar_archway_yard" then -- 389
+		elseif slot ~= "bgFar_granary" and slot ~= "bgFar_crossroad_drygoods" and slot ~= "bgFar_archway_yard" and slot ~= "bgFar_tower" then -- 391
 			backdropArt:tryPlace( -- 392
 				"eaves", -- 393
 				"ming_fallback_mid", -- 394
-				w * (0.74 - progress * 0.25), -- 395
-				ground - cam:len(10), -- 396
-				cam:len(176), -- 397
-				cam:len(96), -- 398
-				{layer = 1, opacity = 0.44} -- 399
+				w * (0.74 - progress * 0.24), -- 395
+				backRoadY - cam:len(4), -- 396
+				cam:len(172), -- 397
+				cam:len(94), -- 398
+				{layer = 1, opacity = 0.46} -- 399
 			) -- 399
 		end -- 399
 		fillVGradRect( -- 402
@@ -389,11 +392,11 @@ function MingArtAuditPlugin.prototype.drawBackdrop(self, bgDraw, bgGlow, backdro
 		fillVGradRect( -- 403
 			bgGlow, -- 403
 			0, -- 403
-			ground - 1, -- 403
+			backRoadY - 2, -- 403
 			w, -- 403
-			h * 0.14, -- 403
-			Color(43, 49, 63, 15), -- 403
-			Color(43, 49, 63, 0) -- 403
+			h * 0.13, -- 403
+			Color(43, 52, 68, 18), -- 403
+			Color(43, 52, 68, 0) -- 403
 		) -- 403
 		return true -- 404
 	end -- 404
@@ -403,13 +406,13 @@ function MingArtAuditPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, wo
 	local p = ctx.p -- 416
 	local cam = ctx.cam -- 417
 	local isPixelStyle = ctx.view.visualMode == "pixel" or ctx.view.visualMode == "transition" -- 418
-	if isPixelStyle and p.room.key == "village" then -- 418
+	if isPixelStyle and p.room.key == "village" then -- 421
 		self:drawVillageGrayscaleSurfaces(fgDraw, worldArt, p, cam) -- 422
 	end -- 422
-	if isPixelStyle and p.room.key == "forest" then -- 422
+	if isPixelStyle and p.room.key == "forest" then -- 426
 		self:drawForestSilhouetteSeparation(fgDraw, p, cam) -- 427
 	end -- 427
-	if isPixelStyle and (p.room.key == "checkpoint" or p.room.key == "outside") and p.room.cart.bodyW > 0 then -- 427
+	if isPixelStyle and (p.room.key == "checkpoint" or p.room.key == "outside") and p.room.cart.bodyW > 0 then -- 431
 		self:drawLeftEndRedClothAccent(worldArt, p, cam) -- 432
 	end -- 432
 	local i = 0 -- 436
@@ -444,7 +447,7 @@ function MingArtAuditPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, wo
 				1.5, -- 449
 				cam:len(c.h) -- 449
 			) -- 449
-			if c.isWood then -- 449
+			if c.isWood then -- 450
 				fgDraw:drawRect( -- 451
 					Rect(sx - sw * 0.5, sy - sh * 0.5, sw, sh), -- 451
 					Color( -- 451
@@ -501,7 +504,7 @@ function MingArtAuditPlugin.prototype.drawActorsOverlay(self, fgDraw, fgGlow, wo
 				8, -- 465
 				cam:len(pf.r * 3.4) -- 465
 			) -- 465
-			if not worldArt:tryPlace( -- 465
+			if not worldArt:tryPlace( -- 466
 				"fe_vfx_smoke", -- 466
 				"ming_puff_" .. tostring(i), -- 466
 				sx, -- 466
@@ -557,15 +560,15 @@ function MingArtAuditPlugin.prototype.spawnCoverMaterialDebris(self, p) -- 478
 		while i < #p.room.solids do -- 484
 			do -- 484
 				local s = p.room.solids[i + 1] -- 485
-				if s.passable or s.decorative or s.y > p.player.y + 4 or s.h > 72 then -- 485
+				if s.passable or s.decorative or s.y > p.player.y + 4 or s.h > 72 then -- 486
 					goto __continue53 -- 487
 				end -- 487
-				if not overlapsDepth(p.player.depth, s.depth, ACTOR_DEPTH_HALF) then -- 487
+				if not overlapsDepth(p.player.depth, s.depth, ACTOR_DEPTH_HALF) then -- 489
 					goto __continue53 -- 490
 				end -- 490
 				local edge = p.player.x < s.x and s.x or s.x + s.w -- 492
 				local gap = math.abs(p.player.x - edge) -- 493
-				if gap < nearest then -- 493
+				if gap < nearest then -- 494
 					nearest = gap -- 495
 					hitX = edge -- 496
 					local ____s_y_3 = s.y -- 497
@@ -578,7 +581,7 @@ function MingArtAuditPlugin.prototype.spawnCoverMaterialDebris(self, p) -- 478
 			i = i + 1 -- 484
 		end -- 484
 	end -- 484
-	if isWood then -- 484
+	if isWood then -- 502
 		self.woodDebrisCount = self.woodDebrisCount + 1 -- 503
 	else -- 503
 		self.brickDebrisCount = self.brickDebrisCount + 1 -- 505
@@ -590,7 +593,7 @@ function MingArtAuditPlugin.prototype.spawnCoverMaterialDebris(self, p) -- 478
 			local ang = (self:rand() - 0.5) * math.pi * 1.15 -- 510
 			local spd = (isWood and 85 or 58) * (0.45 + self:rand() * 0.75) -- 511
 			local life = (isWood and 0.34 or 0.42) + self:rand() * 0.16 -- 512
-			local ____self_chips_4 = self.chips -- 512
+			local ____self_chips_4 = self.chips -- 513
 			____self_chips_4[#____self_chips_4 + 1] = { -- 513
 				x = hitX, -- 514
 				y = hitY, -- 515
@@ -613,7 +616,7 @@ function MingArtAuditPlugin.prototype.spawnMatchlockSmoke(self, wx, wy, dir) -- 
 		i = 0 -- 530
 		while i < 5 do -- 530
 			local life = 0.24 + self:rand() * 0.18 -- 531
-			local ____self_puffs_5 = self.puffs -- 531
+			local ____self_puffs_5 = self.puffs -- 532
 			____self_puffs_5[#____self_puffs_5 + 1] = { -- 532
 				x = wx + dir * (4 + i * 3.5), -- 533
 				y = wy + (self:rand() - 0.4) * 5, -- 534
@@ -628,21 +631,21 @@ function MingArtAuditPlugin.prototype.spawnMatchlockSmoke(self, wx, wy, dir) -- 
 	end -- 530
 end -- 527
 function MingArtAuditPlugin.prototype.addScorch(self, wx, wy) -- 544
-	local ____self_scorches_6 = self.scorches -- 544
+	local ____self_scorches_6 = self.scorches -- 545
 	____self_scorches_6[#____self_scorches_6 + 1] = { -- 545
 		x = wx, -- 545
 		y = wy, -- 545
 		rx = 5.5 + self:rand() * 3 -- 545
 	} -- 545
-	if #self.scorches > 16 then -- 545
+	if #self.scorches > 16 then -- 546
 		table.remove(self.scorches, 1) -- 547
 	end -- 547
 end -- 544
 function MingArtAuditPlugin.prototype.drawVillageGrayscaleSurfaces(self, fgDraw, worldArt, p, cam) -- 551
 	local y0 = cam:sy(0) -- 557
-	if p.room.brickX ~= nil then -- 557
+	if p.room.brickX ~= nil then -- 559
 		local bx = cam:sx(p.room.brickX) -- 560
-		if not worldArt:tryPlace( -- 560
+		if not worldArt:tryPlace( -- 561
 			"fe_ground_brick", -- 561
 			"ming_vil_brick", -- 561
 			bx, -- 561
@@ -674,9 +677,9 @@ function MingArtAuditPlugin.prototype.drawVillageGrayscaleSurfaces(self, fgDraw,
 			Color(228, 232, 238, 170) -- 564
 		) -- 564
 	end -- 564
-	if p.room.softX ~= nil then -- 564
+	if p.room.softX ~= nil then -- 567
 		local sx = cam:sx(p.room.softX) -- 568
-		if not worldArt:tryPlace( -- 568
+		if not worldArt:tryPlace( -- 569
 			"fe_ground_soft", -- 569
 			"ming_vil_soft", -- 569
 			sx, -- 569
@@ -704,13 +707,13 @@ function MingArtAuditPlugin.prototype.drawForestSilhouetteSeparation(self, fgDra
 		i = 0 -- 579
 		while i < #p.room.solids do -- 579
 			local s = p.room.solids[i + 1] -- 580
-			if s.passable == true and p.player.x >= s.x - 16 and p.player.x <= s.x + s.w + 16 then -- 580
+			if s.passable == true and p.player.x >= s.x - 16 and p.player.x <= s.x + s.w + 16 then -- 581
 				childInGrass = true -- 582
 			end -- 582
 			i = i + 1 -- 579
 		end -- 579
 	end -- 579
-	if childInGrass and p.player.alive then -- 579
+	if childInGrass and p.player.alive then -- 585
 		local cx = cam:sx(p.player.x) -- 586
 		local topY = cam:sy(p.player.y + p.player.h) -- 587
 		fgDraw:drawArc( -- 588
@@ -749,7 +752,7 @@ function MingArtAuditPlugin.prototype.runAudit(self, host) -- 607
 		local slotKey = ____exports.CORE_MING_BACKDROPS[roomKey] -- 610
 		local cfg = ASSET_SLOTS[slotKey] -- 611
 		local path = cfg ~= nil and #cfg.paths > 0 and cfg.paths[1] or "" -- 612
-		if path == "" or not Content:exist(path) then -- 612
+		if path == "" or not Content:exist(path) then -- 613
 			missingBackdrops[#missingBackdrops + 1] = (roomKey .. ":") .. path -- 614
 		end -- 614
 	end -- 614
@@ -760,7 +763,7 @@ function MingArtAuditPlugin.prototype.runAudit(self, host) -- 607
 		while i < #____exports.MING_PRESERVED_SPRITE_CLIPS do -- 620
 			local clipName = ____exports.MING_PRESERVED_SPRITE_CLIPS[i + 1] -- 621
 			local path = "assets/art/sprites.clip|" .. clipName -- 622
-			if host ~= nil then -- 622
+			if host ~= nil then -- 623
 				local ok = host:tryPlacePath( -- 624
 					path, -- 624
 					"audit_spr_" .. clipName, -- 624
@@ -769,10 +772,10 @@ function MingArtAuditPlugin.prototype.runAudit(self, host) -- 607
 					16, -- 624
 					16 -- 624
 				) -- 624
-				if not ok then -- 624
+				if not ok then -- 625
 					missingSpriteClips[#missingSpriteClips + 1] = clipName -- 626
 				end -- 626
-			elseif not Content:exist("assets/art/sprites.clip") then -- 626
+			elseif not Content:exist("assets/art/sprites.clip") then -- 628
 				missingSpriteClips[#missingSpriteClips + 1] = clipName -- 629
 			end -- 629
 			i = i + 1 -- 620
@@ -784,7 +787,7 @@ function MingArtAuditPlugin.prototype.runAudit(self, host) -- 607
 		while i < #____exports.MING_PRESERVED_UI_CLIPS do -- 634
 			local uiName = ____exports.MING_PRESERVED_UI_CLIPS[i + 1] -- 635
 			local path = "assets/art/ui_ink.clip|" .. uiName -- 636
-			if host ~= nil then -- 636
+			if host ~= nil then -- 637
 				local ok = host:tryPlacePath( -- 638
 					path, -- 638
 					"audit_ui_" .. uiName, -- 638
@@ -793,10 +796,10 @@ function MingArtAuditPlugin.prototype.runAudit(self, host) -- 607
 					16, -- 638
 					16 -- 638
 				) -- 638
-				if not ok then -- 638
+				if not ok then -- 639
 					missingUiClips[#missingUiClips + 1] = uiName -- 640
 				end -- 640
-			elseif not Content:exist("assets/art/ui_ink.clip") then -- 640
+			elseif not Content:exist("assets/art/ui_ink.clip") then -- 642
 				missingUiClips[#missingUiClips + 1] = uiName -- 643
 			end -- 643
 			i = i + 1 -- 634

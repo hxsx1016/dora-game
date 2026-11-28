@@ -33,7 +33,9 @@
 | `assets/font/lxgw-neo-zhisong.ttf` | 霞鹜新致宋（LXGW Neo ZhiSong） | SIL OFL 1.1 | [OFL-LXGW-NeoZhiSong.txt](../assets/font/OFL-LXGW-NeoZhiSong.txt) |
 | `assets/font/longcang-brush.ttf` | 龙藏体（Long Cang） | SIL OFL 1.1 | [OFL-LongCang.txt](../assets/font/OFL-LongCang.txt) |
 
-### 2. 美术资源（`assets/art/` 与 `art-source/`）
+### 2. 美术资源（`assets/art/`、`assets/xiaoman3d/` 与 `art-source/`）
+
+- 小满独行线使用四个 GLB 场景。结构网格参考源关卡选段的构件布局重建，材质、角色动画与道具由项目脚本生成。源关卡、构件映射与生成脚本见[地图说明](小满线3D地图-261127.md)和[美术来源记录](../art-source/SOURCES.md)。
 - 灰盒全面重制美术包（Phase 1–3）：含明代微缩场景 8 材质图集（`tex_diorama_ming`）、五大微缩场景立牌与三大过场全幅 CG（`diorama_cutouts`、`cutscene_cuff_rig`、`cutscene_story_parts`、`cutscene_well_museum`、`cg_g05_reunion.png`、`cg_tower_desk_cold.png`、`cg_tower_desk_warm.png`、`bg_museum_hall.png`），以及 2.5D 明代道具/拾取/精英敌人/双人合体/火药特效图集（`props_ming`、`actors_extra`、`vfx_craft_art`）与四幅新增战役底图（`bg_crossroad_drygoods.png`、`bg_archway_yard.png`、`bg_granary.png`、`bg_escort_ridge.png`），均为项目内 AI 辅助生图后经离线去底、连通域质检、脚底基线校准与 `.clip` 图集打包，无第三方商业版权限制。
 - 场景背景图（`prologue.png`、`street.png`、`checkpoint.png`、`gate.png`、`outside.png`、`village.png`、`forest.png`、`tower.png`、`title.png`）与角色精灵表（`sprites.png`/`sprites.clip`）在开发期内采用 Codex 内置 ImageGen 辅助生成并经团队手工二次像素整理、坐标裁切与风格统一；像素幻灯片分镜集（`assets/art/slides/*.png`，41 张）与扩展像素精灵图集（`assets/art/sprites_fe.png`/`sprites_fe.clip`，62 帧）经 AI 底稿生成、像素限色降采样、透明抠底与手工像素特效补绘制成；水墨 UI 图集（`ui_ink.png`/`ui_ink.clip`）为项目内程序/手工创作整理，均无未授权商业素材，详情见 [art-source/SOURCES.md](../art-source/SOURCES.md)。
 - 品牌与多端图标资产（`assets/art/brand/` 与 `art-source/brand/`）：包含《向西守望》G2 横版/竖版水墨题签主标、I2 暗夜北塔西窗 1:1 应用图标（及 Windows `.ico` / Android `ic_launcher_512.png` / Web `favicon` 派生集）、「局外人（OUTSIDER）」T2 六边暖灯团队标（暗底/紧凑角标）及 16:9 宣传封面，均为团队设计定稿并由 AI 辅助生成后经程序透明抠底与人工质检产出，无第三方版权限制。

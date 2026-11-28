@@ -28,7 +28,7 @@ function hypot(dx: number, dy: number): number {
 
 /** Use the sprite camera when supplied by the renderer, otherwise project through Play.draw's viewport. */
 function projectAimPoint(p: Play, cam: CameraDirector | undefined, x: number, y: number, depth: number): { x: number; y: number } {
-    if (cam !== undefined) return { x: cam.sx(x), y: cam.sy(y, depth) };
+    if (cam !== undefined) return cam.worldToScreen(x, y, depth);
     return worldToScreen(x, y + depth * DEPTH_Y_SCALE, p.cam, p.view);
 }
 

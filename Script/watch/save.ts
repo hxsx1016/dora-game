@@ -10,10 +10,20 @@
  */
 import { Content } from "Dora";
 import { MuseumPhase, RouteTag, StoryRoute, isMuseumPhase } from "Script/watch/run";
+import { getReleaseConfig } from "Script/watch/target_types";
 
 export const SAVE_VERSION = 1;
 export const SAVE_DIR = "watch-save";
 export const SAVE_FILE = "watch-save/archive.txt";
+export const PORTABLE_PROFILE_FILE = "profile.sav";
+export const PORTABLE_AUTOSAVE_FILE = "autosave.sav";
+export const SAVE_SLOT_COUNT = 3;
+export type SaveSlotId = "auto" | 1 | 2 | 3;
+
+function isPortableSaveLayout(): boolean {
+    const cfg = getReleaseConfig();
+    return cfg !== undefined && cfg.saveLayout === "portable";
+}
 
 export interface SaveState {
     childCleared: boolean;
@@ -82,11 +92,22 @@ function copyForWrite(from: string, to: string): boolean {
     return ops.copy(from, to);
 }
 
-let currentFile = SAVE_FILE;
+let customSaveFile = "";
 /** 跨 Play 实例的待落盘档案：携带目标路径，切换档案后不会写错档。 */
 let pending: { state: SaveState; file: string } | undefined = undefined;
 /** 读到未知版本原件后置位：该路径的普通写档一律拒绝，切走再切回仍受保护。 */
 let protectedPath = "";
+
+function effectiveSaveFile(): string {
+    if (customSaveFile !== "") {
+        return customSaveFile;
+    }
+    return isPortableSaveLayout() ? PORTABLE_PROFILE_FILE : SAVE_FILE;
+}
+
+function usePortableBackupsForProfile(): boolean {
+    return customSaveFile === "" && isPortableSaveLayout();
+}
 
 /** 引擎的 `exist/load/copy/remove` 只认绝对路径；兼容 Unix `/` 与 Windows 盘符 `C:\...`。 */
 function absPath(path: string): string {
@@ -103,14 +124,38 @@ function absPath(path: string): string {
     return trimmed + sep + norm;
 }
 
+function baseNameOf(path: string): string {
+    let i = path.length - 1;
+    for (; i >= 0; i--) {
+        const ch = path.charAt(i);
+        if (ch === "/" || ch === "\\") {
+            return path.substring(i + 1);
+        }
+    }
+    return path;
+}
+
+function ensureDir(dir: string): void {
+    if (dir !== "" && !ops.isdir(dir)) {
+        ops.mkdir(dir);
+    }
+}
+
+function prevPathFor(target: string, useBackupsDir: boolean): string {
+    if (useBackupsDir) {
+        return absPath("backups/" + baseNameOf(target) + ".prev");
+    }
+    return target + ".prev";
+}
+
 /** 测试用：切到隔离档案文件；传空则回正式档案。不清保护位（保护位按路径绑定）。 */
 export function setSaveFile(path: string): void {
-    currentFile = path === "" ? SAVE_FILE : path;
+    customSaveFile = path;
 }
 
 /** 登记一份待落盘档案（同拍切房、写失败都由调用方重新登记）。 */
 export function markProfilePending(state: SaveState): void {
-    pending = { state: state, file: currentFile };
+    pending = { state: state, file: effectiveSaveFile() };
 }
 
 export function profilePending(): boolean {
@@ -119,7 +164,7 @@ export function profilePending(): boolean {
 
 /** 待落盘档案是否属于当前档案路径（切档后不应写错目标）。 */
 export function pendingMatchesCurrent(): boolean {
-    return pending !== undefined && pending.file === currentFile;
+    return pending !== undefined && pending.file === effectiveSaveFile();
 }
 
 /**
@@ -130,7 +175,7 @@ export function flushProfile(): boolean {
     if (pending === undefined) {
         return true;
     }
-    if (pending.file !== currentFile) {
+    if (pending.file !== effectiveSaveFile()) {
         return false;
     }
     if (!saveSave(pending.state)) {
@@ -145,11 +190,11 @@ export function clearProfilePending(): void {
 }
 
 export function getSaveFile(): string {
-    return currentFile;
+    return effectiveSaveFile();
 }
 
 export function savePath(): string {
-    return absPath(currentFile);
+    return absPath(effectiveSaveFile());
 }
 
 export function emptySave(): SaveState {
@@ -299,15 +344,16 @@ function sameContent(a: string, b: string): boolean {
     return normalize(textA) === normalize(textB);
 }
 
-/** 按当前档案路径派生备份名：archive.txt.corrupt / .corrupt.2 …；找不到空位就返回空串（拒绝覆盖）。 */
-function backupPathFor(target: string, suffix: string): string {
-    let candidate = target + suffix;
+/** 按当前档案路径派生备份名：便携模式收入 saves/backups/，常规/测试模式按原路径派生；找不到空位返回空串（拒绝覆盖）。 */
+function backupPathFor(target: string, suffix: string, useBackupsDir: boolean = false): string {
+    const prefix = useBackupsDir ? absPath("backups/" + baseNameOf(target)) : target;
+    let candidate = prefix + suffix;
     if (!ops.exist(candidate)) {
         return candidate;
     }
     let n = 2;
     while (n <= 9999) {
-        candidate = target + suffix + "." + n;
+        candidate = prefix + suffix + "." + n;
         if (!ops.exist(candidate)) {
             return candidate;
         }
@@ -320,14 +366,15 @@ function backupPathFor(target: string, suffix: string): string {
  * 把当前档案复制到派生的损坏/未知版本备份，返回备份路径（无原件/复制失败/内容不符则空串）。
  * 备份保留的是原件字节，可能是损坏档，所以不能用 `parseSave` 校验，只校验「复制成功且内容一致」。
  */
-function backupCorrupt(target: string, suffix: string): string {
+function backupCorrupt(target: string, suffix: string, useBackupsDir: boolean = false): string {
     if (!ops.exist(target)) {
         return "";
     }
-    const backup = backupPathFor(target, suffix);
+    const backup = backupPathFor(target, suffix, useBackupsDir);
     if (backup === "") {
         return "";
     }
+    ensureDir(dirOf(backup));
     if (!ops.copy(target, backup)) {
         return "";
     }
@@ -381,9 +428,10 @@ function restoreFrom(candidate: string, target: string, keepCandidate: boolean):
  * 损坏/未知版本先派生备份；未知版本原件置保护位（按路径），普通写档拒绝覆盖。
  */
 export function loadSave(): LoadResult {
-    const target = absPath(currentFile);
+    const target = absPath(effectiveSaveFile());
+    const useBackups = usePortableBackupsForProfile();
     const tmp = target + ".tmp";
-    const prev = target + ".prev";
+    const prev = prevPathFor(target, useBackups);
     let recovered = false;
     let recoveryDetail = "";
 
@@ -420,7 +468,7 @@ export function loadSave(): LoadResult {
     }
 
     if (parsed.status === "corrupt") {
-        const broken = backupCorrupt(target, ".corrupt");
+        const broken = backupCorrupt(target, ".corrupt", useBackups);
         if (restoreFrom(tmp, target, false)) {
             return {
                 state: parseSave(loadText(target)).state,
@@ -446,7 +494,7 @@ export function loadSave(): LoadResult {
         };
     }
 
-    const backup = backupCorrupt(target, ".unsupported");
+    const backup = backupCorrupt(target, ".unsupported", useBackups);
     protectedPath = target;
     return {
         state: emptySave(), status: "unsupported",
@@ -477,16 +525,14 @@ function dirOf(path: string): string {
  * 未知版本原件（按路径保护）拒绝写入。
  */
 export function saveSave(state: SaveState): boolean {
-    const target = absPath(currentFile);
+    const target = absPath(effectiveSaveFile());
     if (protectedPath === target) {
         return false;
     }
-    const dir = dirOf(target);
-    if (dir !== "" && !ops.isdir(dir)) {
-        ops.mkdir(dir);
-    }
+    const useBackups = usePortableBackupsForProfile();
+    ensureDir(dirOf(target));
     const tmp = target + ".tmp";
-    const prev = target + ".prev";
+    const prev = prevPathFor(target, useBackups);
     const text = formatSave(state);
 
     if (fault === "write") {
@@ -506,6 +552,7 @@ export function saveSave(state: SaveState): boolean {
     let backedUp = false;
     if (existed) {
         if (usableBackup(target)) {
+            ensureDir(dirOf(prev));
             backedUp = ops.copy(target, prev);
             if (!backedUp || !usableBackup(prev)) {
                 // 备份不可用：绝不覆盖唯一有效旧档。
@@ -514,7 +561,7 @@ export function saveSave(state: SaveState): boolean {
             }
         } else {
             // 原目标已损坏（非受保护高版本）：先隔离保留坏文件副本再允许写入新档，解除永久写死锁。
-            backupCorrupt(target, ".corrupt");
+            backupCorrupt(target, ".corrupt", useBackups);
         }
     }
 
@@ -545,11 +592,11 @@ export function saveSave(state: SaveState): boolean {
  * 只有备份复制成功、内容与原件一致、且备份本身可解析时才删除目标。
  */
 export function resetSave(): boolean {
-    const target = absPath(currentFile);
+    const target = absPath(effectiveSaveFile());
     if (!ops.exist(target)) {
         return false;
     }
-    const backup = backupCorrupt(target, ".reset");
+    const backup = backupCorrupt(target, ".reset", usePortableBackupsForProfile());
     if (backup === "") {
         return false;
     }
@@ -643,6 +690,9 @@ export interface SessionSave {
     gateTick?: number;
     hasBottle?: boolean;
     villagePassed?: boolean;
+    /** 局中存档元数据：Unix 秒时间戳与累计游玩时长（秒），向后兼容旧档。 */
+    savedAt?: number;
+    playSeconds?: number;
 }
 
 export interface SessionLoadResult {
@@ -653,14 +703,93 @@ export interface SessionLoadResult {
     backup: string;
 }
 
-let currentSessionFile = SESSION_FILE;
+export interface SaveSlotSummary {
+    id: SaveSlotId;
+    exists: boolean;
+    status: LoadStatus;
+    roomKey: string;
+    route: StoryRoute;
+    hp: number;
+    maxHp: number;
+    savedAt: number;
+    playSeconds: number;
+    recovered: boolean;
+}
+
+let customSessionFile = "";
+
+function effectiveSessionFile(): string {
+    if (customSessionFile !== "") {
+        return customSessionFile;
+    }
+    return isPortableSaveLayout() ? PORTABLE_AUTOSAVE_FILE : SESSION_FILE;
+}
+
+function usePortableBackupsForSession(): boolean {
+    return customSessionFile === "" && isPortableSaveLayout();
+}
+
+export function getSlotFile(slot: SaveSlotId): string {
+    if (slot === "auto") {
+        return effectiveSessionFile();
+    }
+    if (customSessionFile !== "") {
+        return customSessionFile + ".slot" + slot;
+    }
+    return isPortableSaveLayout()
+        ? ("slots/slot_" + slot + ".sav")
+        : ("watch-save/slots/slot_" + slot + ".sav");
+}
 
 export function setSessionFile(path: string): void {
-    currentSessionFile = path === "" ? SESSION_FILE : path;
+    customSessionFile = path;
 }
 
 export function getSessionFile(): string {
-    return currentSessionFile;
+    return effectiveSessionFile();
+}
+
+export function nowUnixSeconds(): number {
+    const g = globalThis as unknown as { os?: { time?: (this: void) => number } };
+    const timeFn = g.os !== undefined ? g.os.time : undefined;
+    if (typeof timeFn === "function") {
+        const t = timeFn();
+        if (typeof t === "number" && t > 0) {
+            return Math.floor(t);
+        }
+    }
+    return 0;
+}
+
+export function formatSavedAt(ts: number): string {
+    if (ts <= 0) {
+        return "";
+    }
+    const g = globalThis as unknown as { os?: { date?: (this: void, fmt: string, t: number) => string } };
+    const dateFn = g.os !== undefined ? g.os.date : undefined;
+    if (typeof dateFn === "function") {
+        const s = dateFn("%Y-%m-%d %H:%M", ts);
+        if (typeof s === "string") {
+            return s;
+        }
+    }
+    return "";
+}
+
+export function formatPlayDuration(sec: number): string {
+    const total = Math.max(0, Math.floor(sec));
+    if (total <= 0) {
+        return "";
+    }
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const mm = m < 10 ? "0" + m : "" + m;
+    const ss = s < 10 ? "0" + s : "" + s;
+    if (h > 0) {
+        return h + ":" + mm + ":" + ss;
+    }
+    return mm + ":" + ss;
 }
 
 function parseBoolField(raw: string | undefined, fallback: boolean): boolean | undefined {
@@ -749,6 +878,8 @@ export function formatSession(s: SessionSave): string {
         "gateTick=" + Math.round(s.gateTick ?? 0),
         "hasBottle=" + (s.hasBottle === true ? "true" : "false"),
         "villagePassed=" + (s.villagePassed === true ? "true" : "false"),
+        "savedAt=" + Math.round(s.savedAt !== undefined && s.savedAt > 0 ? s.savedAt : nowUnixSeconds()),
+        "playSeconds=" + Math.max(0, Math.round(s.playSeconds ?? 0)),
         "",
     ].join("\n");
 }
@@ -859,6 +990,8 @@ export function parseSession(text: string): { ok: boolean; status: LoadStatus; r
             gateTick: Math.max(0, intOf(lineValue(text, "gateTick") ?? "0", 0)),
             hasBottle: parseBoolField(lineValue(text, "hasBottle"), false) === true,
             villagePassed: parseBoolField(lineValue(text, "villagePassed"), false) === true,
+            savedAt: Math.max(0, intOf(lineValue(text, "savedAt") ?? "0", 0)),
+            playSeconds: Math.max(0, intOf(lineValue(text, "playSeconds") ?? "0", 0)),
         },
     };
 }
@@ -874,6 +1007,7 @@ function restoreSessionFrom(candidate: string, target: string, keepCandidate: bo
     if (!usableSessionBackup(candidate)) {
         return false;
     }
+    ensureDir(dirOf(target));
     if (!ops.copy(candidate, target)) {
         return false;
     }
@@ -886,18 +1020,18 @@ function restoreSessionFrom(candidate: string, target: string, keepCandidate: bo
     return true;
 }
 
-export function hasSessionSave(): boolean {
-    const target = absPath(currentSessionFile);
+function hasSessionAtPath(relFile: string, useBackups: boolean): boolean {
+    const target = absPath(relFile);
     if (usableSessionBackup(target)) {
         return true;
     }
-    return usableSessionBackup(target + ".tmp") || usableSessionBackup(target + ".prev");
+    return usableSessionBackup(target + ".tmp") || usableSessionBackup(prevPathFor(target, useBackups));
 }
 
-export function loadSession(): SessionLoadResult {
-    const target = absPath(currentSessionFile);
+function loadSessionAtPath(relFile: string, useBackups: boolean): SessionLoadResult {
+    const target = absPath(relFile);
     const tmp = target + ".tmp";
-    const prev = target + ".prev";
+    const prev = prevPathFor(target, useBackups);
     if (!ops.exist(target)) {
         if (restoreSessionFrom(tmp, target, false)) {
             const p = parseSession(loadText(target));
@@ -917,7 +1051,7 @@ export function loadSession(): SessionLoadResult {
         return { state: parsed.state, status: "ok", detail: "局中存档读取成功", recovered: false, backup: "" };
     }
     if (parsed.status === "corrupt") {
-        const broken = backupCorrupt(target, ".corrupt");
+        const broken = backupCorrupt(target, ".corrupt", useBackups);
         if (restoreSessionFrom(tmp, target, false)) {
             const p = parseSession(loadText(target));
             return { state: p.state, status: "ok", detail: "原局中存档损坏，已用 .tmp 恢复", recovered: true, backup: broken };
@@ -928,18 +1062,15 @@ export function loadSession(): SessionLoadResult {
         }
         return { state: undefined, status: "corrupt", detail: parsed.reason, recovered: false, backup: broken };
     }
-    const backup = backupCorrupt(target, ".unsupported");
+    const backup = backupCorrupt(target, ".unsupported", useBackups);
     return { state: undefined, status: "unsupported", detail: parsed.reason, recovered: false, backup };
 }
 
-export function saveSession(state: SessionSave): boolean {
-    const target = absPath(currentSessionFile);
-    const dir = dirOf(target);
-    if (dir !== "" && !ops.isdir(dir)) {
-        ops.mkdir(dir);
-    }
+function saveSessionAtPath(relFile: string, state: SessionSave, useBackups: boolean): boolean {
+    const target = absPath(relFile);
+    ensureDir(dirOf(target));
     const tmp = target + ".tmp";
-    const prev = target + ".prev";
+    const prev = prevPathFor(target, useBackups);
     const text = formatSession(state);
     if (!ops.save(tmp, text)) {
         ops.remove(tmp);
@@ -954,13 +1085,14 @@ export function saveSession(state: SessionSave): boolean {
     let backedUp = false;
     if (existed) {
         if (usableSessionBackup(target)) {
+            ensureDir(dirOf(prev));
             backedUp = ops.copy(target, prev);
             if (!backedUp || !usableSessionBackup(prev)) {
                 ops.remove(tmp);
                 return false;
             }
         } else {
-            backupCorrupt(target, ".corrupt");
+            backupCorrupt(target, ".corrupt", useBackups);
         }
     }
     if (!ops.copy(tmp, target)) {
@@ -980,10 +1112,10 @@ export function saveSession(state: SessionSave): boolean {
     return true;
 }
 
-export function clearSession(): boolean {
-    const target = absPath(currentSessionFile);
+function clearSessionAtPath(relFile: string, useBackups: boolean): boolean {
+    const target = absPath(relFile);
     const tmp = target + ".tmp";
-    const prev = target + ".prev";
+    const prev = prevPathFor(target, useBackups);
     let ok = true;
     if (ops.exist(target)) {
         ok = ops.remove(target) && ok;
@@ -995,4 +1127,104 @@ export function clearSession(): boolean {
         ops.remove(prev);
     }
     return ok;
+}
+
+function peekSlotSummary(slot: SaveSlotId): SaveSlotSummary {
+    const rel = getSlotFile(slot);
+    const useBackups = usePortableBackupsForSession();
+    const target = absPath(rel);
+    const tmp = target + ".tmp";
+    const prev = prevPathFor(target, useBackups);
+    const empty: SaveSlotSummary = {
+        id: slot,
+        exists: false,
+        status: "missing",
+        roomKey: "",
+        route: "",
+        hp: 0,
+        maxHp: 0,
+        savedAt: 0,
+        playSeconds: 0,
+        recovered: false,
+    };
+    const candidates: { path: string; rec: boolean }[] = [
+        { path: target, rec: false },
+        { path: tmp, rec: true },
+        { path: prev, rec: true },
+    ];
+    let primaryStatus: LoadStatus = "missing";
+    let i = 0;
+    for (i = 0; i < candidates.length; i++) {
+        const c = candidates[i];
+        if (!ops.exist(c.path)) {
+            continue;
+        }
+        const parsed = parseSession(loadText(c.path));
+        if (parsed.ok && parsed.state !== undefined) {
+            return {
+                id: slot,
+                exists: true,
+                status: "ok",
+                roomKey: parsed.state.roomKey,
+                route: parsed.state.route,
+                hp: parsed.state.hp,
+                maxHp: parsed.state.maxHp,
+                savedAt: parsed.state.savedAt ?? 0,
+                playSeconds: parsed.state.playSeconds ?? 0,
+                recovered: c.rec,
+            };
+        }
+        if (i === 0) {
+            primaryStatus = parsed.status;
+        }
+    }
+    if (primaryStatus !== "missing") {
+        empty.status = primaryStatus;
+    }
+    return empty;
+}
+
+export function hasSlotSave(slot: SaveSlotId): boolean {
+    return hasSessionAtPath(getSlotFile(slot), usePortableBackupsForSession());
+}
+
+export function loadSlot(slot: SaveSlotId): SessionLoadResult {
+    return loadSessionAtPath(getSlotFile(slot), usePortableBackupsForSession());
+}
+
+export function saveSlot(slot: SaveSlotId, state: SessionSave): boolean {
+    return saveSessionAtPath(getSlotFile(slot), state, usePortableBackupsForSession());
+}
+
+export function deleteSlot(slot: SaveSlotId): boolean {
+    return clearSessionAtPath(getSlotFile(slot), usePortableBackupsForSession());
+}
+
+export function listSaveSlots(): SaveSlotSummary[] {
+    return [
+        peekSlotSummary("auto"),
+        peekSlotSummary(1),
+        peekSlotSummary(2),
+        peekSlotSummary(3),
+    ];
+}
+
+export function hasAnySaveSlot(): boolean {
+    return hasSlotSave("auto") || hasSlotSave(1) || hasSlotSave(2) || hasSlotSave(3);
+}
+
+export function hasSessionSave(): boolean {
+    return hasSlotSave("auto");
+}
+
+export function loadSession(): SessionLoadResult {
+    return loadSlot("auto");
+}
+
+export function saveSession(state: SessionSave): boolean {
+    return saveSlot("auto", state);
+}
+
+export function clearSession(): boolean {
+    return deleteSlot("auto");
 }

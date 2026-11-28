@@ -2,7 +2,8 @@
 -- 进入 official 新局，然后按输入逐拍推进：
 --   序章递针套 → 街口 → 检查点推车 → 城门守点 → 送别/数数/牵手
 --   → 高石阶背起 → 五段护送（含换弹盘） → 北塔结局
--- 两条路线各跑一遍：带伤 2/3 → child outside；满血 3/3 → soldier 团圆。
+-- 两条路线各跑一遍：带伤 2/3 → 城外、空村、密林、北塔留灯；满血 3/3 → 护送团圆。
+-- 分线前沿用街道/检查站的短回放夹具，守点快进。小满分线后的切房必须由输入触发。
 --
 -- 入口方式（脚本放仓库根，输出进引擎日志）：
 --   Dora cli run -p . --entry tmp-replay-d.lua
@@ -513,12 +514,49 @@ local function runChild()
 	p = childCountAndWalk(p, i, "A")
 	print(string.format("[D-A 存档] route=%s hp=%d/%d seed=%s want(outside后)=%s",
 		tostring(p.run.story.route), p.hp, p.maxHp, tostring(p.run.seed), tostring(p.wantRoom)))
-	-- outside 之后走满 1120 到塔灯（女主旧路预设：village/forest 直接切房，标注夹具）
-	p = switchRoom(p, "village", p.run, "A 村口")
-	clearFoes(p)
-	p = switchRoom(p, "forest", p.run, "A 林缘")
-	p = switchRoom(p, "tower", p.run, "A 塔前")
+	assert(p.room.key == "outside" and p.storyRoute == "child", "带伤送别后应进入小满城外线")
+	assert(walkTo(p, i, p.cartAxle + p.room.cart.handleOffset), "未到城外右柄")
+	tap(i.interact)
+	step(p, i)
+	i.moveX = 1
+	for _ = 1, 200 do
+		step(p, i)
+		if p.cartDocked then break end
+	end
+	i.moveX = 0
+	rel(i.interact)
+	assert(p.cartDocked and p.run.story.segments.outside_memory, "红布车未入窝")
+	walkTo(p, i, 54)
+	steps(p, i, 30)
+	i.crouch.held = true
+	walkTo(p, i, 400)
+	assert(p.checkpoint == 380, "未从下层蹲过矮拱")
+	i.crouch.held = false
+	walkTo(p, i, 1160)
+	assert(p.wantRoom == "village", "墙根尽头未进空村")
+	p = switchRoom(p, p.wantRoom, p.run, "A 村口")
+	walkTo(p, i, p.room.bottle.x)
+	tap(i.interact)
+	step(p, i)
+	rel(i.interact)
+	assert(p.hasBottle, "空村未拾瓶")
+	p:aimAt(p.room.brickX, 34)
+	i.aim.held = true
+	steps(p, i, 40)
+	i.aim.held, i.aim.released = false, true
+	step(p, i)
+	i.aim.released = false
+	i.crouch.held = true
+	walkTo(p, i, p.ox + 610)
+	assert(p.wantRoom == "forest", "未蹲入空村暗渠")
+	p = switchRoom(p, p.wantRoom, p.run, "A 林缘")
+	walkTo(p, i, p.ox + 1460, 1800)
+	i.crouch.held = false
+	assert(p.wantRoom == "tower" and p.waterSeen, "未越过溪湾抵达北塔")
+	p = switchRoom(p, p.wantRoom, p.run, "A 塔前")
 	p = towerEnd(p, i, "A")
+	assert(p.phase == "tower-end" and p.towerHanded and p.run.story.ending == "lamp"
+		and p.archive.childCleared, "北塔交物后未达正式留灯结局")
 	print(string.format("[D-A 结局] ending=%s child=%s artifact=%s",
 		tostring(p.run.story.ending), tostring(p.archive.childCleared), tostring(p.archive.artifactOwned)))
 end

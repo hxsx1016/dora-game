@@ -109,6 +109,12 @@ REQ_LUA=(
     Script/watch/input/touch_core.lua
     Script/watch/input/touch_interact_meta.lua
     Script/watch/input/touch_hud_landscape.lua
+    Script/watch/fe/renderer/anim_controller.lua
+    Script/watch/fe/renderer/scene_fx.lua
+    Script/watch/fe/scenes/dark_pixel_assets.lua
+    Script/watch/fe/scenes/xiaoman3d.lua
+    Script/watch/fe/scenes/xiaoman3d_actor.lua
+    Script/watch/fe/scenes/xiaoman3d_entities.lua
 )
 if [ "$PROFILE" = "android" ]; then
     REQ_LUA+=(
@@ -238,6 +244,7 @@ rsync -a --exclude '.DS_Store' --exclude '._*' --exclude '*.md' "$ROOT/assets/" 
     printf 'engine=Dora SSR v1.10.2\n'
     printf 'commit=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 } > "$STAGE/assets/VERSION.txt"
+cp "$ROOT/LICENSE" "$STAGE/assets/LICENSE"
 
 UNSIGNED_APK="$STAGE/unsigned.apk"
 ALIGNED_APK="$STAGE/aligned.apk"

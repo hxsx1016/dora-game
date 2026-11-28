@@ -9,7 +9,7 @@
  * 本层只管前四步，表现由 draw() 一次画出。
  */
 
-import { Color, DrawNode, Rect, Vec2 } from "Dora";
+import { Rect } from "Dora";
 import {
     BreakSpec, CartSpec, DepthRange, ESCORT_VARIANTS, InteractSpec, PickupSpec, RoomSpec, ScavSpec, SolidSpec,
     withOrigin, CHECKPOINT_ROOM, OUTSIDE_ROOM,
@@ -176,8 +176,6 @@ const CART_SPEED = 64;
 /** 握把触发半径。 */
 export const CART_REACH = 70;
 /** 车身半宽与下缘净高（城外下层阻挡）。 */
-const CART_HALF = 24;
-const CART_CLEAR = 44;
 /** 城门敌兵：举枪预警 36 拍、开火冷却 150 拍、射程 480。 */
 const WARN_TICKS = 36;
 /** 战具格与消耗品格各只放一件；满包时新东西留在原地，不吞物。 */
@@ -199,41 +197,6 @@ const WALL_ROAD_END = 1150;
 const STEP_UP = 24;
 const DEPTH_SPEED_RATIO = 0.55;
 const DIAGONAL_SCALE = 1 / Math.sqrt(2);
-
-const INK = Color(232, 232, 228, 255);
-const INK_DIM = Color(150, 152, 150, 255);
-const BG_VOID = Color(8, 9, 10, 255);
-const BG_FAR = Color(24, 26, 28, 255);
-const BG_MID = Color(31, 34, 37, 255);
-const GROUND = Color(112, 114, 112, 255);
-const FLOOR_DECK = Color(66, 70, 72, 255);
-const SOLID_FILL = Color(84, 86, 84, 255);
-const SOLID_EDGE = Color(126, 130, 126, 255);
-const CART_FILL = Color(122, 78, 56, 255);
-const CLOTH = Color(178, 52, 46, 255);
-const DANGER = Color(150, 54, 48, 46);
-const DANGER_LINE = Color(178, 78, 64, 200);
-const HOLE_FILL = Color(10, 11, 12, 255);
-const SOLDIER_BODY = Color(96, 148, 196, 255);
-const SOLDIER_HEAD = Color(206, 214, 220, 255);
-const CHILD_BODY = Color(214, 168, 96, 255);
-const CHILD_HEAD = Color(232, 214, 186, 255);
-const ENEMY_BODY = Color(176, 92, 84, 255);
-const ENEMY_DEAD = Color(86, 74, 74, 255);
-const CHECK = Color(96, 186, 122, 255);
-const STAND = Color(226, 186, 84, 255);
-const AIM = Color(236, 236, 232, 230);
-const AIM_HIT = Color(236, 96, 84, 255);
-/** 村口：软土、砖地、通行线、瓶与拾荒者。 */
-const SOFT = Color(96, 78, 58, 70);
-const SOFT_LINE = Color(140, 112, 80, 190);
-const BRICK = Color(126, 118, 110, 70);
-const BRICK_LINE = Color(160, 152, 142, 200);
-const PASS = Color(96, 186, 122, 40);
-const PASS_LINE = Color(96, 186, 122, 200);
-const BOTTLE = Color(120, 186, 160, 255);
-const SCAV_BODY = Color(128, 118, 96, 255);
-const SCAV_HEAD = Color(196, 182, 158, 255);
 
 /** 轴对齐盒（世界单位）。 */
 export interface Box {
@@ -435,8 +398,6 @@ export class Play {
     bottleLandT = 0;
     /** 按住 F 的时长（只用于提示与动作反馈，不改变投掷参数）。 */
     aimHold = 0;
-    /** 城外补丁红布车是否已拉开（石阶口露出）。 */
-    private redCartPulled = false;
     /** F01 补丁红布车半秒家庭回忆计时（拍）。 */
     redCartMemoryT = 0;
     /** 桌下脚步提示的节流拍数。 */
@@ -1265,18 +1226,9 @@ export class Play {
         story.museumReturn = false;
         this.escortDone = story.escortDone;
         this.syncCraftBench();
-        // 城外红布车一旦拉开，后续所有 outside 实例都保持石阶口与下层水路敞开。
-        if (story.segments["outside_cart"] === true) {
-            this.redCartPulled = true;
-            const redBox = this.boxes.find((b) => b.id === "outside_red_cart");
-            if (redBox !== undefined) {
-                redBox.x0 = 430;
-                redBox.x1 = 474;
-            }
-            if (this.room.key === "outside" && this.room.cart.bodyW > 0) {
-                this.cartAxle = this.room.cart.endX;
-                this.cartDocked = true;
-            }
+        if (this.room.key === "outside" && story.segments["outside_cart"] === true) {
+            this.cartAxle = this.room.cart.endX;
+            this.cartDocked = true;
         }
         this.forestPath = story.segments["forest_burrow"] === true ? "burrow"
             : story.segments["forest_ditch"] === true ? "ditch" : "";
@@ -2044,8 +1996,11 @@ export class Play {
             return false;
         }
         const handleX = this.cartAxle + c.handleOffset;
+        const depthOk = this.childMode
+            ? Math.abs(a.depth - (c.depth ?? 0)) <= 48
+            : inReachDepth(a.depth, c.depth ?? 0);
         return Math.abs(a.x - handleX) <= CART_REACH && Math.abs(a.y - c.baseY) <= 40
-            && inReachDepth(a.depth, c.depth ?? 0);
+            && depthOk;
     }
 
     /** 面前是否有一人高的台面：是则空格改成翻上去，平地仍是翻滚。 */
@@ -2153,9 +2108,8 @@ export class Play {
         // 握车把或打开慢时换弹盘时，方向键归车/换弹盘使用，避免 W/A/S/D 同时带走人物。
         const handsBusy = this.gripping || gripIntent || this.reloadOpen;
         const dir = (this.gripping || this.reloadOpen) ? 0 : input.moveX;
-        // 逃柜段控制权在小满身上，但仍要允许她切里道绕过石柱；其余 childMode 段保持原行为。
-        const depthDir = this.room.depth !== undefined && !handsBusy
-            && (!isChild || this.phase === "prologue-escape") ? -input.moveY : 0;
+        // 凡定义了 depth 的房间均开放前后纵深四向行走（含小满 3D 单人线四房与序章逃柜）。
+        const depthDir = this.room.depth !== undefined && !handsBusy ? -input.moveY : 0;
         const diagonal = dir !== 0 && depthDir !== 0 ? DIAGONAL_SCALE : 1;
         if (dir !== 0) {
             a.facing = dir > 0 ? 1 : -1;
@@ -4618,57 +4572,27 @@ export class Play {
         this.emit("gateFailed", { failCount: this.gateFailCount, hp: 0, maxHp: this.maxHp });
     }
 
-    /** 城外：补丁红布车斜停在石阶口，点一次 E 拉开并触发 F01 半秒缝布家庭回忆，台面到石阶的路才通。 */
-    private stepRedCart(input: Input): void {
-        if (this.redCartMemoryT > 0) {
-            this.redCartMemoryT -= 1;
-        }
-        if (this.room.key !== "outside" || this.redCartPulled) {
-            return;
-        }
-        const box = this.boxes.find((b) => b.id === "outside_red_cart");
-        if (box === undefined) {
-            this.redCartPulled = true;
-            return;
-        }
-        const cx = (box.x0 + box.x1) * 0.5;
-        const p = this.player;
-        if (Math.abs(p.x - cx) > 70 || Math.abs(p.y - 96) > 26) {
-            return;
-        }
-        if (!input.interact.pressed) {
-            return;
-        }
-        box.x0 = 430;
-        box.x1 = 474;
-        // 这辆车原本也堵着台面下的墙根小路：拉开后整辆车挪到空窝，下层一起放开。
-        this.cartAxle = this.room.cart.endX;
-        this.cartDocked = true;
-        this.redCartPulled = true;
+    /** 唯一的红布车落窝后，收起拱下铁栓并保存缝布回忆。 */
+    private finishOutsideCart(): void {
         this.redCartMemoryT = 30;
         if (this.run.story !== undefined) {
             this.run.story.segments["outside_cart"] = true;
             this.run.story.segments["outside_memory"] = true;
         }
         this.sessionDirty = true;
-        this.flashSet("红布补丁 · 想起家里那一针 · 石阶口露出来", 1.8);
-        this.emit("storyBeat", { beat: "red_cart", x: p.x, room: "outside" });
-        this.emit("storyBeat", { beat: "red_cart_memory", x: p.x, room: "outside", durationTicks: 30 });
+        this.emit("storyBeat", { beat: "red_cart_memory", x: this.player.x, room: "outside", durationTicks: 30 });
     }
 
     private stepInteract(dt: number, input: Input): void {
         const p = this.player;
-        this.stepRedCart(input);
+        this.redCartMemoryT = Math.max(0, this.redCartMemoryT - 1);
         const calmUsed = this.calmConsumed;
         this.calmConsumed = false;
         // 安抚从进入到第 59 拍占用动作：期间 E/D 不抓车、不推车、不转通用敲击。
         const calming = this.escort.state === "calming";
         this.focusCart = false;
         if (this.room.key === "outside") {
-            const c = this.room.cart;
-            const dx = p.x - (this.cartAxle + c.handleOffset);
-            const dy = p.y - c.baseY;
-            this.focusCart = !calmUsed && !calming && dx * dx + dy * dy < CART_REACH * CART_REACH;
+            this.focusCart = !calmUsed && !calming && this.cartHandleInReach(p);
         }
         // 安抚优先消费当拍 E：同一只 E 不再抓车把。
         if (!calmUsed && !calming) {
@@ -4835,10 +4759,11 @@ export class Play {
             this.flashSet("暗渠口 · 蹲下钻过去", 1.4);
             this.emit("storyBeat", { beat: "ditch", x: p.x, room: "village" });
         }
-        // 过了第一院、走到院墙前就进北塔森林。
-        if (this.passed && p.x >= this.ox + 640) {
-            this.requestRoom("forest", "过第一院出院");
-            this.flashSet("钻出暗渠 · 北塔森林", 1.4);
+        // 暗渠口 560–640：站着过不去（院墙前必须蹲下从渠口钻入），与 3D 渠口几何同源。
+        const inCulvert = p.x >= this.ox + 560 && p.x <= this.ox + 640;
+        if (this.passed && inCulvert && p.crouch && this.wantRoom === "") {
+            this.requestRoom("forest", "蹲下钻过暗渠");
+            this.flashSet("钻进暗渠 · 北塔森林", 1.4);
         }
     }
 
@@ -5054,6 +4979,9 @@ export class Play {
             this.gripping = false;
             this.emit("cartDocked", { axle: this.cartAxle, playerX: p.x, room: this.room.key });
             this.flashSet("车轮落窝", 1.2);
+            if (this.room.key === "outside") {
+                this.finishOutsideCart();
+            }
         } else if (Math.abs(this.cartAxle - c.startX) < 0.01) {
             this.flashSet("车轮回到起点", 0.5);
         }
@@ -5427,6 +5355,16 @@ export class Play {
         return next;
     }
 
+    /** 城外低拱中仍被车底挡栓占据的世界矩形。车轮落窝后挡栓收起。 */
+    cartLatchBounds(): Rect.Type | undefined {
+        if (this.room.key !== "outside" || this.cartDocked) return undefined;
+        const arch = this.room.arch;
+        const halfWidth = this.room.cart.bodyW / 2;
+        const left = Math.max(arch.x0, this.room.cart.startX - halfWidth);
+        const right = Math.min(arch.x1, this.room.cart.startX + halfWidth);
+        return right > left ? Rect(left, arch.y, right - left, arch.h) : undefined;
+    }
+
     /** 水平位移 + 实体/拱洞阻挡。 */
     private slideX(a: Actor, dx: number): void {
         let nx = a.x + dx;
@@ -5455,19 +5393,15 @@ export class Play {
                 }
             }
         }
-        // 城外：未拉车入窝前，车底连杆挡栓封住下层拱口（arch.x0..arch.x1）；
-        // 车轮一旦落窝（cartDocked），挡栓收回，底层拱洞外平地彻底畅通，不再残留车底空气墙。
-        if (this.room.key === "outside" && !this.cartDocked && a.y < CART_CLEAR - 0.001) {
-            const bx0 = Math.max(room.arch.x0, this.cartAxle - CART_HALF);
-            const bx1 = Math.min(room.arch.x1, this.cartAxle + CART_HALF);
-            if (bx1 > bx0 && nx + half > bx0 && nx - half < bx1) {
-                if (a.x <= bx0) {
-                    nx = bx0 - half;
-                } else if (a.x >= bx1) {
-                    nx = bx1 + half;
-                } else {
-                    nx = a.x;
-                }
+        const latch = this.cartLatchBounds();
+        if (latch !== undefined && a.y < latch.y + latch.height - 0.001
+            && nx + half > latch.x && nx - half < latch.x + latch.width) {
+            if (a.x <= latch.x) {
+                nx = latch.x - half;
+            } else if (a.x >= latch.x + latch.width) {
+                nx = latch.x + latch.width + half;
+            } else {
+                nx = a.x;
             }
         }
         // 拱洞（低洞）：身高超出净空就进不去。
@@ -5947,410 +5881,6 @@ export class Play {
         }
         return "A / D 移动 · 左键点射 · Shift 贴掩体 · 空格翻滚 · E 敲两下 · 两人到出口才开门";
     }
-
-    // ---------- 绘制 ----------
-
-    draw(draw: DrawNode.Type, w: number, h: number): void {
-        this.viewW = w;
-        this.viewH = h;
-        this.view = computeViewport(w, h);
-        this.clampCamera(w, h);
-        draw.clear();
-        // 画布外的黑边与画布底
-        draw.drawRect(Rect(0, 0, w, h), BG_VOID);
-        const box = this.canvasRect(w, h);
-        draw.drawRect(box, BG_FAR);
-        draw.drawRect(Rect(box.x, box.y + box.height * 0.38, box.width, box.height * 0.62), BG_MID);
-
-        this.drawFloors(draw, w, h);
-        this.drawSolids(draw, w, h);
-        this.drawZones(draw, w, h);
-        this.drawArch(draw, w, h);
-        this.drawCart(draw, w, h);
-        this.drawCampaignProps(draw, w, h);
-        this.drawActors(draw, w, h);
-        this.drawTrace(draw, w, h);
-        this.drawAim(draw, w, h);
-    }
-
-    /** 画布矩形（窗口坐标，左下原点）。 */
-    canvasRect(w: number, h: number): Rect.Type {
-        const v = this.view;
-        return Rect(v.ox, v.oy, LOGIC_W * v.zoom, LOGIC_H * v.zoom);
-    }
-
-    /** 逻辑像素长度 → 屏幕像素。用于线宽、圆点等。 */
-    px(n: number): number {
-        return n * this.view.zoom;
-    }
-
-    /** 世界 x → 窗口 x。量化到逻辑像素格，保证边缘锐利。 */
-    sx(wx: number, w: number): number {
-        const v = this.view;
-        const lx = Math.round((wx - this.cam.x) / UNITS_PER_PX + LOGIC_W / 2);
-        return v.ox + lx * v.zoom;
-    }
-
-    /** 世界 y → 窗口 y。 */
-    sy(wy: number, h: number): number {
-        const v = this.view;
-        const ly = Math.round((wy - this.cam.y) / UNITS_PER_PX + LOGIC_H / 2);
-        return v.oy + ly * v.zoom;
-    }
-
-    drawBox(draw: DrawNode.Type, w: number, h: number, x0: number, x1: number, y0: number, y1: number, color: Color.Type): void {
-        const px0 = this.sx(x0, w);
-        const px1 = this.sx(x1, w);
-        const py0 = this.sy(y0, h);
-        const py1 = this.sy(y1, h);
-        if (px1 <= px0 || py1 <= py0) {
-            return;
-        }
-        draw.drawRect(Rect(px0, py0, px1 - px0, py1 - py0), color);
-    }
-
-    private drawFloors(draw: DrawNode.Type, w: number, h: number): void {
-        let i = 0;
-        for (i = 0; i < this.room.floors.length; i++) {
-            const f = this.room.floors[i];
-            const road = f.y === 0 ? this.room.depth : undefined;
-            const y = this.sy(f.y + (road?.min ?? 0), h);
-            const x0 = this.sx(f.x0, w);
-            const x1 = this.sx(f.x1, w);
-            const deck = this.px(5);
-            if (road !== undefined) {
-                const back = this.sy(f.y + road.max, h);
-                draw.drawRect(Rect(x0, y, x1 - x0, back - y), FLOOR_DECK, this.px(1), SOLID_EDGE);
-            }
-            draw.drawRect(Rect(x0, y - deck, x1 - x0, deck), FLOOR_DECK);
-            draw.drawSegment(Vec2(x0, y), Vec2(x1, y), this.px(1), GROUND);
-        }
-    }
-
-    private drawSolids(draw: DrawNode.Type, w: number, h: number): void {
-        let i = 0;
-        for (i = 0; i < this.boxes.length; i++) {
-            const b = this.boxes[i];
-            if (b.id === "braced_shield" || b.hidden === true) {
-                continue;
-            }
-            if (b.broken === true) {
-                // 碎屑留在地上，只作读数，不挡路。
-                if (b.breakable !== undefined) {
-                    const gy = this.sy(b.y0, h);
-                    const rgb = b.breakable.kind === "basket_wall" ? Color(0.52, 0.42, 0.28, 1) : Color(0.46, 0.34, 0.22, 1);
-                    let k = 0;
-                    for (k = 0; k < 3; k++) {
-                        const gx = this.sx(b.x0 + (b.x1 - b.x0) * (0.2 + k * 0.3), w);
-                        draw.drawSegment(Vec2(gx - this.px(4), gy + this.px(k % 2)), Vec2(gx + this.px(5), gy + this.px(k % 2)), this.px(1), rgb);
-                    }
-                }
-                continue;
-            }
-            const front = b.depth?.min ?? 0;
-            const back = b.depth?.max ?? 0;
-            let fill = SOLID_FILL;
-            let line = SOLID_EDGE;
-            if (b.soft === true) {
-                fill = SOFT;
-                line = SOFT_LINE;
-            } else if (b.breakable !== undefined) {
-                line = DANGER_LINE;
-                fill = Color(0.30, 0.24, 0.16, 1);
-            } else if (b.interact !== undefined) {
-                line = PASS_LINE;
-            }
-            this.drawBox(draw, w, h, b.x0, b.x1, b.y0 + front, b.y1 + back, fill);
-            draw.drawSegment(Vec2(this.sx(b.x0, w), this.sy(b.y1 + front, h)),
-                Vec2(this.sx(b.x1, w), this.sy(b.y1 + front, h)), this.px(1), line);
-            // 承击一次：顶面一道短斜线，读作「还可以再扛一下」。
-            if (b.breakable !== undefined) {
-                const cxp = this.sx((b.x0 + b.x1) / 2, w);
-                const cyp = this.sy(b.y1 + front, h);
-                draw.drawSegment(Vec2(cxp - this.px(4), cyp + this.px(1)), Vec2(cxp + this.px(3), cyp + this.px(5)), this.px(1), line);
-            }
-        }
-    }
-
-    /** 掉落物与架起的残盾：只画在玩法层，不影响碰撞。 */
-    private drawCampaignProps(draw: DrawNode.Type, w: number, h: number): void {
-        let i = 0;
-        for (i = 0; i < this.pickups.length; i++) {
-            const pk = this.pickups[i];
-            if (this.run.taken[pk.id] === true) {
-                continue;
-            }
-            const gy = pk.y + (pk.depth ?? 0);
-            const bob = Math.sin((this.run.ticks + pk.x) * 0.12) * 2;
-            draw.drawRect(Rect(this.sx(pk.x - 5, w), this.sy(gy + 12 + bob, h), this.px(10), this.px(10)),
-                Color(0.84, 0.70, 0.30, 1));
-            draw.drawSegment(Vec2(this.sx(pk.x - 5, w), this.sy(gy + 12 + bob, h)),
-                Vec2(this.sx(pk.x + 5, w), this.sy(gy + 12 + bob, h)), this.px(1), Color(0.95, 0.86, 0.52, 1));
-        }
-        if (this.bracedShield !== undefined) {
-            const sh = this.bracedShield;
-            draw.drawRect(Rect(this.sx(sh.x - sh.w / 2, w), this.sy(sh.y, h), this.px(sh.w), this.px(sh.h)),
-                Color(0.42, 0.40, 0.34, 1));
-            draw.drawSegment(Vec2(this.sx(sh.x - sh.w / 2, w), this.sy(sh.y + sh.h, h)),
-                Vec2(this.sx(sh.x + sh.w / 2, w), this.sy(sh.y + sh.h, h)), this.px(1), Color(0.74, 0.72, 0.62, 1));
-        }
-    }
-
-    private drawZones(draw: DrawNode.Type, w: number, h: number): void {
-        let i = 0;
-        for (i = 0; i < this.room.zones.length; i++) {
-            const z = this.room.zones[i];
-            let fill = DANGER;
-            let line = DANGER_LINE;
-            if (z.tint === 2) {
-                fill = SOFT;
-                line = SOFT_LINE;
-            } else if (z.tint === 3) {
-                fill = BRICK;
-                line = BRICK_LINE;
-            } else if (z.tint === 4) {
-                fill = PASS;
-                line = PASS_LINE;
-            }
-            this.drawBox(draw, w, h, z.x0, z.x1, z.y, z.y + z.h, fill);
-            draw.drawSegment(Vec2(this.sx(z.x0, w), this.sy(z.y, h)), Vec2(this.sx(z.x0, w), this.sy(z.y + z.h, h)), this.px(1), line);
-            draw.drawSegment(Vec2(this.sx(z.x1, w), this.sy(z.y, h)), Vec2(this.sx(z.x1, w), this.sy(z.y + z.h, h)), this.px(1), line);
-        }
-    }
-
-    private drawArch(draw: DrawNode.Type, w: number, h: number): void {
-        const a = this.room.arch;
-        if (a.h <= 0) {
-            return;
-        }
-        this.drawBox(draw, w, h, a.x0, a.x1, a.y, a.y + a.h, HOLE_FILL);
-        draw.drawSegment(Vec2(this.sx(a.x0, w), this.sy(a.y + a.h, h)), Vec2(this.sx(a.x1, w), this.sy(a.y + a.h, h)), this.px(1), SOLID_EDGE);
-        draw.drawSegment(Vec2(this.sx(a.x0, w), this.sy(a.y, h)), Vec2(this.sx(a.x0, w), this.sy(a.y + a.h, h)), this.px(1), SOLID_EDGE);
-        draw.drawSegment(Vec2(this.sx(a.x1, w), this.sy(a.y, h)), Vec2(this.sx(a.x1, w), this.sy(a.y + a.h, h)), this.px(1), SOLID_EDGE);
-    }
-
-    private drawCart(draw: DrawNode.Type, w: number, h: number): void {
-        const c: CartSpec = this.room.cart;
-        if (c.bodyW <= 0) {
-            return;
-        }
-        drawCartShape(draw, this, w, h, c, this.cartAxle);
-        draw.drawRect(Rect(this.sx(this.cartAxle + c.handleOffset, w) - this.px(1), this.sy(c.baseY + (c.depth ?? 0) + 40, h), this.px(2), this.px(40)), STAND);
-    }
-
-    private drawActors(draw: DrawNode.Type, w: number, h: number): void {
-        const p = this.player;
-        const isChild = this.childMode;
-        const footY = p.y + p.depth * DEPTH_Y_SCALE;
-        // 贴住掩体时在身前画一条短竖线，和「压低的肩」一起表示真的靠住了。
-        if (p.covered) {
-            const edge = p.x + p.facing * (p.w / 2 + 2);
-            draw.drawSegment(Vec2(this.sx(edge, w), this.sy(footY + 8, h)), Vec2(this.sx(edge, w), this.sy(footY + p.h * 0.62, h)), this.px(2), STAND);
-            // 头顶这道横线是「压低身位」的读数：按住 Shift 且贴住才有。
-            draw.drawSegment(Vec2(this.sx(p.x - 8, w), this.sy(footY + p.h + 3, h)), Vec2(this.sx(p.x + 8, w), this.sy(footY + p.h + 3, h)), this.px(2), STAND);
-        } else if (this.coverNear && !isChild) {
-            // 能贴、但还没按 Shift：脚边一个方点，提示这里有掩体可用。
-            draw.drawRect(Rect(this.sx(p.x - 3, w), this.sy(footY + 1, h), this.px(3), this.px(3)), STAND);
-        }
-        drawFigure(draw, this, w, h, p, isChild ? CHILD_BODY : SOLDIER_BODY, isChild ? CHILD_HEAD : SOLDIER_HEAD);
-        const q = this.partner;
-        if (q.alive) {
-            const childPartner = q.w === CHILD_W;
-            drawFigure(draw, this, w, h, q, childPartner ? CHILD_BODY : SOLDIER_BODY, childPartner ? CHILD_HEAD : SOLDIER_HEAD);
-        }
-        let i = 0;
-        for (i = 0; i < this.enemies.length; i++) {
-            const e = this.enemies[i];
-            const col = e.alive ? ENEMY_BODY : ENEMY_DEAD;
-            const enemyY = e.y + (e.depth ?? 0) * DEPTH_Y_SCALE;
-            this.drawBox(draw, w, h, e.x - e.w / 2, e.x + e.w / 2, enemyY, enemyY + e.h, col);
-            if (e.alive) {
-                const ef = p.x >= e.x ? 1 : -1;
-                if (e.kind === "shield") {
-                    const sh = (e.shieldHp ?? 0) > 0;
-                    draw.drawRect(Rect(this.sx(e.x + ef * (e.w / 2 + 2) - 3, w), this.sy(enemyY, h), this.px(6), this.px(64)),
-                        sh ? Color(0.46, 0.44, 0.38, 1) : Color(0.28, 0.26, 0.22, 1));
-                } else if (e.kind === "breaker") {
-                    draw.drawSegment(Vec2(this.sx(e.x + ef * 12, w), this.sy(enemyY + 8, h)),
-                        Vec2(this.sx(e.x + ef * 22, w), this.sy(enemyY + 46, h)), this.px(3), Color(0.50, 0.36, 0.22, 1));
-                }
-            }
-            // 举枪预警：枪口到周戍的红色准线，越接近开火越短。
-            if (e.alive && e.warnT > 0) {
-                const gunX = this.sx(e.x, w);
-                const gunY = this.sy(enemyY + e.h * 0.72, h);
-                const aimX = this.sx(p.x, w);
-                const aimY = this.sy(footY + p.h * 0.55, h);
-                const seg = 8;
-                let s = 0;
-                for (s = 0; s < seg; s += 2) {
-                    const t0 = s / seg;
-                    const t1 = (s + 1) / seg;
-                    draw.drawSegment(
-                        Vec2(gunX + (aimX - gunX) * t0, gunY + (aimY - gunY) * t0),
-                        Vec2(gunX + (aimX - gunX) * t1, gunY + (aimY - gunY) * t1),
-                        this.px(1), DANGER);
-                }
-            }
-        }
-        // 检查点标记
-        let k = 0;
-        for (k = 0; k < this.room.marks.length; k++) {
-            const m = this.room.marks[k];
-            if (m.kind !== 0) {
-                continue;
-            }
-            const on = this.checkpoint === m.x;
-            const x = this.sx(m.x, w);
-            const y = this.sy(m.y, h);
-            draw.drawSegment(Vec2(x, y), Vec2(x, y + this.px(35)), this.px(1), on ? CHECK : INK_DIM);
-            draw.drawDot(Vec2(x, y + this.px(35)), this.px(2), on ? CHECK : INK_DIM);
-        }
-
-        // 安全锚、通行线、砖地落点：细竖线
-        let j = 0;
-        for (j = 0; j < this.room.marks.length; j++) {
-            const m = this.room.marks[j];
-            if (m.kind !== 1 && m.kind !== 4 && m.kind !== 5) {
-                continue;
-            }
-            if (m.kind === 1 && this.room.key !== "checkpoint" && this.room.key !== "prologue"
-                && this.room.key !== "gate" && this.room.key !== "tower") {
-                continue;
-            }
-            let col = STAND;
-            if (m.kind === 4) {
-                col = PASS_LINE;
-            } else if (m.kind === 5) {
-                col = BRICK_LINE;
-            }
-            const mx = this.sx(m.x, w);
-            const my = this.sy(m.y, h);
-            draw.drawSegment(Vec2(mx, my), Vec2(mx, my + this.px(24)), this.px(1), col);
-        }
-        // 塔灯：灯柱 + 灯头，城外墙根小路尽头的地标
-        let t = 0;
-        for (t = 0; t < this.room.marks.length; t++) {
-            const m = this.room.marks[t];
-            if (m.kind !== 6) {
-                continue;
-            }
-            const mx = this.sx(m.x, w);
-            const my = this.sy(m.y, h);
-            draw.drawSegment(Vec2(mx, my), Vec2(mx, my + this.px(30)), this.px(1), INK_DIM);
-            this.drawBox(draw, w, h, m.x - 5, m.x + 5, m.y + 30, m.y + 40, CHECK);
-        }
-        if (this.room.key === "village") {
-            this.drawVillage(draw, w, h);
-        }
-        if (this.room.key === "forest") {
-            this.drawDog(draw, w, h);
-        }
-    }
-
-    /** 森林的狗：四足简笔，转耳时头顶画一道短竖线。 */
-    private drawDog(draw: DrawNode.Type, w: number, h: number): void {
-        const x = this.dogX;
-        this.drawBox(draw, w, h, x - 14, x + 14, 0, 20, SCAV_BODY);
-        this.drawBox(draw, w, h, x - 10, x - 2, 20, 30, SCAV_BODY);
-        this.drawBox(draw, w, h, x + 2, x + 10, 20, 30, SCAV_HEAD);
-        if (this.dogState === "ear" || this.dogState === "chase") {
-            draw.drawSegment(Vec2(this.sx(x, w), this.sy(30, h)),
-                Vec2(this.sx(x, w), this.sy(40, h)), this.px(1), DANGER);
-        }
-    }
-
-    /** 村口道具：瓶架、桌子、拾荒者、手上的瓶、飞行与落地余音。 */
-    private drawVillage(draw: DrawNode.Type, w: number, h: number): void {
-        const bottle = this.room.bottle;
-        if (bottle !== undefined) {
-            this.drawBox(draw, w, h, bottle.x - 14, bottle.x + 14, 0, 64, SOLID_FILL);
-            if (!this.hasBottle && this.bottleFly === undefined && this.bottleLandT <= 0) {
-                this.drawBottle(draw, w, h, bottle.x, 64);
-            }
-        }
-        // 桌面：304..416，桌下净高 44；桌腿只做视觉，碰撞交给 arch。
-        this.drawBox(draw, w, h, 300, 420, 44, 50, FLOOR_DECK);
-        this.drawBox(draw, w, h, 300, 306, 0, 44, FLOOR_DECK);
-        this.drawBox(draw, w, h, 414, 420, 0, 44, FLOOR_DECK);
-
-        const s = this.room.scavenger;
-        if (s !== undefined) {
-            const sx0 = this.scavX;
-            this.drawBox(draw, w, h, sx0 - 12, sx0 + 12, 0, s.h - 14, SCAV_BODY);
-            this.drawBox(draw, w, h, sx0 - 7, sx0 + 7, s.h - 14, s.h, SCAV_HEAD);
-            if (this.scavState === "turn") {
-                const fx = sx0 + (this.scavDir > 0 ? 12 : -12);
-                draw.drawSegment(Vec2(this.sx(sx0, w), this.sy(s.h - 6, h)), Vec2(this.sx(fx, w), this.sy(s.h - 6, h)), this.px(1), INK);
-            }
-        }
-
-        if (this.hasBottle) {
-            const p = this.player;
-            this.drawBottle(draw, w, h, p.x + p.facing * 10, p.y + p.h * 0.62);
-        }
-        if (this.bottleFly !== undefined) {
-            this.drawBottle(draw, w, h, this.bottleFly.x, this.bottleFly.y);
-        }
-        if (this.bottleLandT > 0 && this.bottleLandX >= 0) {
-            const r = (1 - this.bottleLandT / 0.9) * 28;
-            draw.drawCircle(Vec2(this.sx(this.bottleLandX, w), this.sy(0, h)), this.px(r / UNITS_PER_PX), BRICK_LINE);
-        }
-    }
-
-    private drawBottle(draw: DrawNode.Type, w: number, h: number, x: number, y: number): void {
-        this.drawBox(draw, w, h, x - 3, x + 3, y - 10, y, BOTTLE);
-    }
-
-    private drawTrace(draw: DrawNode.Type, w: number, h: number): void {
-        const t = this.trace;
-        if (t === undefined || this.traceT <= 0) {
-            return;
-        }
-        draw.drawSegment(
-            Vec2(this.sx(t.x0, w), this.sy(t.y0, h)),
-            Vec2(this.sx(t.x1, w), this.sy(t.y1, h)),
-            this.px(1), t.hit ? AIM_HIT : INK_DIM);
-    }
-
-    private drawAim(draw: DrawNode.Type, w: number, h: number): void {
-        // 准星按逻辑像素画：中心留 1 像素缺口，四臂各 3 像素，外圈 1 像素。
-        const v = this.view;
-        const gx = v.ox + Math.round((this.aimX - v.ox) / v.zoom) * v.zoom;
-        const gy = v.oy + Math.round((this.aimY - v.oy) / v.zoom) * v.zoom;
-        const dot = this.px(1);
-        const arm = this.px(3);
-        const gap = this.px(1);
-        draw.drawSegment(Vec2(gx - arm - gap, gy), Vec2(gx - gap, gy), dot / 2, AIM);
-        draw.drawSegment(Vec2(gx + gap, gy), Vec2(gx + arm + gap, gy), dot / 2, AIM);
-        draw.drawSegment(Vec2(gx, gy - arm - gap), Vec2(gx, gy - gap), dot / 2, AIM);
-        draw.drawSegment(Vec2(gx, gy + gap), Vec2(gx, gy + arm + gap), dot / 2, AIM);
-
-        // 村口：手上有瓶时画落点弧线；弧线终点就是鼠标指的位置（落点）。
-        if (this.room.key === "village" && this.hasBottle) {
-            const p = this.player;
-            // 预览优先用按住 F 时缓存的落点：它和松手投掷的目标是同一个数。
-            const end = this.bottleAimX >= 0 ? { x: this.bottleAimX, y: this.bottleAimY } : this.bottleEnd();
-            const dir = end.x >= p.x ? 1 : -1;
-            const x0 = p.x + dir * 10;
-            const y0 = p.y + p.h * 0.7;
-            const T = BOTTLE_FLY_TIME;
-            const vx = (end.x - x0) / T;
-            const vy = (end.y - y0 + 0.5 * GRAVITY * T * T) / T;
-            let pxr = x0;
-            let pyr = y0;
-            let t = 1;
-            for (t = 1; t <= 12; t++) {
-                const tt = (t / 12) * T;
-                const nx = x0 + vx * tt;
-                const ny = y0 + vy * tt - 0.5 * GRAVITY * tt * tt;
-                draw.drawSegment(Vec2(this.sx(pxr, w), this.sy(pyr, h)), Vec2(this.sx(nx, w), this.sy(ny, h)), this.px(1) / 2, BOTTLE);
-                pxr = nx;
-                pyr = ny;
-            }
-            draw.drawCircle(Vec2(this.sx(end.x, w), this.sy(end.y + 2, h)), this.px(2), BOTTLE);
-        }
-    }
 }
 
 function makeActor(room: RoomSpec, index: number): Actor {
@@ -6368,21 +5898,6 @@ function makeActor(room: RoomSpec, index: number): Actor {
         h: child ? CHILD_H : SOLDIER_H,
         onGround: true, facing: 1, crouch: false, rollT: 0, covered: false, alive: true,
     };
-}
-
-function drawFigure(draw: DrawNode.Type, play: Play, w: number, h: number, a: Actor, body: Color.Type, head: Color.Type): void {
-    if (!a.alive) {
-        return;
-    }
-    const x0 = a.x - a.w / 2;
-    const x1 = a.x + a.w / 2;
-    const y0 = a.y + a.depth * DEPTH_Y_SCALE;
-    const y1 = y0 + a.h;
-    play.drawBox(draw, w, h, x0, x1, y0, y1 - a.h * 0.26, body);
-    play.drawBox(draw, w, h, x0 + 2, x1 - 2, y1 - a.h * 0.26, y1, head);
-    // 眼睛：1 逻辑像素的亮点，朝向前方
-    const eyeX = a.facing > 0 ? a.x + a.w * 0.16 : a.x - a.w * 0.28;
-    play.drawBox(draw, w, h, eyeX, eyeX + 4, y1 - a.h * 0.14, y1 - a.h * 0.08, INK);
 }
 
 /** 窗口坐标（局部、左下原点）→ 世界。用实际画面原点、显示倍数与相机反算。 */
@@ -6423,16 +5938,4 @@ function hitBox(ray: Ray, box: Box): number {
         leave = Math.min(leave, depth.max);
     }
     return leave >= enter ? enter : -1;
-}
-
-function drawCartShape(draw: DrawNode.Type, play: Play, w: number, h: number, c: CartSpec, axleX: number): void {
-    const half = c.bodyW / 2;
-    const x0 = axleX - half;
-    const x1 = axleX + half;
-    const axleY = c.baseY + (c.depth ?? 0) * DEPTH_Y_SCALE + c.wheelR;
-    play.drawBox(draw, w, h, x0, x1, axleY, axleY + c.bodyH, CART_FILL);
-    draw.drawCircle(Vec2(play.sx(x0 + c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
-    draw.drawCircle(Vec2(play.sx(x1 - c.bodyW * 0.28, w), play.sy(axleY, h)), play.px(c.wheelR / UNITS_PER_PX), Color(52, 50, 48, 255));
-    const cx = c.clothSide < 0 ? x0 : x1;
-    play.drawBox(draw, w, h, cx - 10, cx + 10, axleY + c.bodyH, axleY + c.bodyH + 18, CLOTH);
 }

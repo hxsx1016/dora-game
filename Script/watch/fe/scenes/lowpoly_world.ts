@@ -511,35 +511,8 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
         const ox = p.ox;
         const scene = new LowpolyScene(cam, this.outsideProj, OUTSIDE_JETTY_LIGHT);
 
-        // 1. 复用 fe-01 核心低模栈台构建器（floors / stairs / solids / 无垂布低拱 / 左端红布投影 / 脚底接触影）
+        // 1. 复用 fe-01 核心低模栈台、红布车和脚底接触影。
         buildOutsideJettyLowpoly(scene, p.room, p.player.x, p.player.y, p.cartAxle, this.animTime);
-
-        // 1b. 挡住石阶口的补丁红布独轮车（实时跟随后端 outside_red_cart 坐标，避免画成灰砖墙与高墩）
-        const redBox = p.boxes.find((b) => b.id === "outside_red_cart");
-        if (redBox !== undefined && redBox.broken !== true && redBox.hidden !== true) {
-            scene.addBox({
-                x0: redBox.x0 + 2,
-                x1: redBox.x1 - 2,
-                y0: redBox.y0 + 10,
-                y1: redBox.y1,
-                z0: -10,
-                z1: 12,
-                material: MING_MATERIALS.mingTimber,
-                bucket: LP_BUCKET.PROP,
-                highlightTopEdge: true,
-                edgeWidth: 0.9,
-            });
-            // 车沿系着的旧补丁红布（Grid 织纹波浪飘动）
-            scene.addWavingQuad3D(
-                vec3(redBox.x0 - 4, redBox.y0 + 10, -12),
-                vec3(redBox.x0 + 14, redBox.y0 + 12, -11),
-                vec3(redBox.x0 + 18, redBox.y1, -10),
-                vec3(redBox.x0 + 4, redBox.y1, -11),
-                MING_MATERIALS.mingRedCloth,
-                { ampX: 4.5, ampY: 1.8, phase: this.animTime * 2.9, freqU: 1.8, freqV: 2.4, pin: "top" },
-                { bucket: LP_BUCKET.PROP, sortBias: 0.26, subdivX: 3, subdivY: 3 },
-            );
-        }
 
         // 2. 增补城外细部：上层木轮车辙与空窝物理凹槽（x = 432）、下层廊顶铁格栅条影与盐碱高水线
         const c = p.room.cart;
@@ -586,35 +559,34 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
 
         // 2b. 板车未入窝前，车底连杆挡木垂直探入下层拱口，直观呈现「拉车开拱」的物理阻挡因果；
         //     车轮一旦落窝（cartDocked），挡木收回，拱口与底层完全畅通。
-        if (!p.cartDocked && p.room.arch.h > 0) {
-            const bx0 = Math.max(p.room.arch.x0 + 4, p.cartAxle - 18);
-            const bx1 = Math.min(p.room.arch.x1 - 4, p.cartAxle + 18);
-            if (bx1 > bx0 + 4) {
-                scene.addBox({
-                    x0: bx0,
-                    x1: bx1,
-                    y0: 2,
-                    y1: p.room.arch.h,
-                    z0: -6,
-                    z1: 8,
-                    material: MING_MATERIALS.mingTimberDark,
-                    bucket: LP_BUCKET.PROP,
-                    highlightTopEdge: true,
-                    edgeWidth: 0.9,
-                });
-                // 连至上层板车底梁的铁链/拉杆
-                scene.addBox({
-                    x0: (bx0 + bx1) * 0.5 - 3,
-                    x1: (bx0 + bx1) * 0.5 + 3,
-                    y0: p.room.arch.h,
-                    y1: p.room.cart.baseY,
-                    z0: -3,
-                    z1: 5,
-                    material: MING_MATERIALS.mingIron,
-                    bucket: LP_BUCKET.PROP,
-                    edgeWidth: 0.6,
-                });
-            }
+        const latch = p.cartLatchBounds();
+        if (latch !== undefined) {
+            const bx0 = latch.x;
+            const bx1 = latch.x + latch.width;
+            scene.addBox({
+                x0: bx0,
+                x1: bx1,
+                y0: 2,
+                y1: p.room.arch.h,
+                z0: -6,
+                z1: 8,
+                material: MING_MATERIALS.mingTimberDark,
+                bucket: LP_BUCKET.PROP,
+                highlightTopEdge: true,
+                edgeWidth: 0.9,
+            });
+            // 连至上层板车底梁的铁链/拉杆
+            scene.addBox({
+                x0: (bx0 + bx1) * 0.5 - 3,
+                x1: (bx0 + bx1) * 0.5 + 3,
+                y0: p.room.arch.h,
+                y1: p.room.cart.baseY,
+                z0: -3,
+                z1: 5,
+                material: MING_MATERIALS.mingIron,
+                bucket: LP_BUCKET.PROP,
+                edgeWidth: 0.6,
+            });
         }
 
         // 3. 下层水门检修廊背景墙与盐碱高水线（位于 z = 44..72，不侵占拱洞净空）
@@ -1074,10 +1046,10 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return false;
         }
         const key = ctx.p.room.key;
-        if (key === "village") {
+        if (key === "village" && ctx.cam.projection === undefined) {
             return this.village.drawForegroundOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
         }
-        if (key === "forest") {
+        if (key === "forest" && ctx.cam.projection === undefined) {
             return this.forest.drawForegroundOverlay(uiDraw, uiInkDraw, uiArt, uiGlow, ctx);
         }
         if (key === "outside") {
@@ -1107,7 +1079,9 @@ export class LowpolyWorldPlugin implements FeRenderPlugin {
             return;
         }
         const inv = 1 / Math.max(0.25, ctx.uiScale);
-        const handPt = projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
+        const handPt = ctx.cam.projection !== undefined
+            ? ctx.cam.worldToScreen(this.memoryAnchorWorldX, this.memoryAnchorWorldY)
+            : projectWorld3D(this.memoryAnchorWorldX, this.memoryAnchorWorldY, 0, ctx.cam, this.outsideProj);
         const cx = Math.max(190, Math.min(ctx.uiW - 190, handPt.x * inv - 20));
         const cy = Math.max(170, Math.min(ctx.uiH - 150, handPt.y * inv + 104));
         const pullT = smoothstep(0.14, 0.82, prog);

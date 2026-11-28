@@ -71,9 +71,9 @@ const GUIDE_KBM: ControlsGuidePage = {
         ["ESC / R / T", "暂歇菜单 / 重试检查点 / 切神器"],
     ],
     childRows: [
-        ["A / D · ← / →", "左右潜行"],
+        ["WASD / 方向键", "前后左右纵深潜行"],
         ["按住 SHIFT", "轻步慢走（压低脚步声）"],
-        ["按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
+        ["按住 C / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
         ["SPACE", "跳跃攀上石阶与矮台"],
         ["E", "拾瓶 / 敲塔门 / 按住+D 拉车"],
         ["F 按住→松开", "瞄准砖地/铁盆投瓶 · 右键取消"],
@@ -290,8 +290,7 @@ class WebInputDriver implements TargetInputDriver {
         const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
         const talentOfferCount = ctx.storyTalentBoxes.length;
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
-        const allowDepth = p !== undefined && p.room.depth !== undefined
-            && (!p.childMode || p.phase === "prologue-escape");
+        const allowDepth = p !== undefined && p.room.depth !== undefined;
         const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
         const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
             && !modal && !cutsceneBlocking && p.escort.state !== "calming";

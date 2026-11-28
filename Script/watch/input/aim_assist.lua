@@ -14,10 +14,7 @@ end -- 25
 --- Use the sprite camera when supplied by the renderer, otherwise project through Play.draw's viewport.
 local function projectAimPoint(p, cam, x, y, depth) -- 30
 	if cam ~= nil then -- 30
-		return { -- 31
-			x = cam:sx(x), -- 31
-			y = cam:sy(y, depth) -- 31
-		} -- 31
+		return cam:worldToScreen(x, y, depth) -- 31
 	end -- 31
 	return worldToScreen(x, y + depth * DEPTH_Y_SCALE, p.cam, p.view) -- 32
 end -- 30

@@ -4,20 +4,24 @@ import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { Play } from "Script/watch/play";
 import { STEP, StepClock } from "Script/watch/clock";
-import { InputMode, InputModePref } from "Script/watch/controls_config";
+import { InputMode, InputModePref, saveControlSettings } from "Script/watch/controls_config";
 import {
     StageViewport,
     canQuitApp,
     canToggleFullscreen,
     computeStageViewport,
     getReleaseConfig,
+    isDesktopNative,
     isReleaseMode,
 } from "Script/watch/platform";
 import { WatchFrontend } from "Script/watch/fe/frontend";
 import { createRun, createStoryTalents, normalizeLegacyTalent, RunSource, RunState, Talent } from "Script/watch/run";
-import { emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
+import {
+    emptySave, loadSave, saveSave, SaveState, setSaveFile, getSaveFile,
     markProfilePending, flushProfile as flushSaveProfile, clearProfilePending, profilePending,
-    SessionSave, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile } from "Script/watch/save";
+    SessionSave, SaveSlotId, loadSession, saveSession, clearSession, hasSessionSave, setSessionFile, getSessionFile,
+    listSaveSlots, loadSlot, saveSlot, deleteSlot, nowUnixSeconds,
+} from "Script/watch/save";
 import { ScreenKind } from "Script/watch/fe/ui/menus";
 
 let root: Node.Type | undefined;
@@ -39,6 +43,14 @@ let testViewportOverride: { w: number; h: number } | undefined;
 let audioUnlocked = false;
 let appClock = 0;
 let lastBackPressClock = -10;
+let runPlaySeconds = 0;
+let autosaveTimer = 0;
+let autosaveCooldown = 0;
+let lastAutosaveSig = "";
+let windowFocused = true;
+let lastAppliedIdle: boolean | undefined;
+let pendingWinSizeSaveTimer = -1;
+let startupNoticeShown = false;
 
 function randomRunSeed(): number {
     return Math.max(1, Math.floor(Math.abs(App.rand)) % 2147483646);
@@ -46,6 +58,25 @@ function randomRunSeed(): number {
 
 function isReleaseBuild(): boolean {
     return isReleaseMode();
+}
+
+function syncPowerMode(): void {
+    if (!isDesktopNative()) {
+        return;
+    }
+    const wantIdle = !windowFocused
+        || fe === undefined
+        || fe.screen !== "play"
+        || (play !== undefined && play.paused);
+    if (lastAppliedIdle === wantIdle) {
+        return;
+    }
+    lastAppliedIdle = wantIdle;
+    try {
+        App.idled = wantIdle;
+    } catch {
+        // 忽略不支持 idled 的宿主环境
+    }
 }
 
 function onFirstUserGesture(): void {
@@ -63,15 +94,41 @@ function toggleFullscreen(): boolean {
     try {
         const next = !App.fullScreen;
         App.fullScreen = next;
+        if (input !== undefined) {
+            input.settings.fullscreen = next;
+            saveControlSettings(input.settings);
+        }
         return next;
     } catch {
         return false;
     }
 }
 
+function slotDisplayName(slot: SaveSlotId): string {
+    if (slot === "auto") return "自动存档";
+    if (slot === 1) return "档案一";
+    if (slot === 2) return "档案二";
+    return "档案三";
+}
+
 function quitGame(): void {
     flushProfile();
     saveCurrentSession();
+    if (input !== undefined && isDesktopNative()) {
+        try {
+            input.settings.fullscreen = App.fullScreen;
+            if (!App.fullScreen) {
+                const ws = App.winSize;
+                if (ws.width >= 640 && ws.height >= 360) {
+                    input.settings.winWidth = Math.round(ws.width);
+                    input.settings.winHeight = Math.round(ws.height);
+                }
+            }
+            saveControlSettings(input.settings);
+        } catch {
+            // ignore
+        }
+    }
     input?.clearTransient(false);
     if (fe !== undefined) {
         fe.audio.stopRoomTransient();
@@ -101,7 +158,7 @@ function handleBackButton(): void {
         fe.menus.resetInput();
         return;
     }
-    if (fe.screen === "chapters" || fe.screen === "controls" || fe.screen === "epilogue" || fe.screen === "history") {
+    if (fe.screen === "chapters" || fe.screen === "controls" || fe.screen === "saves" || fe.screen === "settings" || fe.screen === "epilogue" || fe.screen === "history") {
         fe.menus.triggerBack();
         return;
     }
@@ -170,28 +227,101 @@ function refreshTitleSessionFlag(): void {
         } else {
             fe.menus.setSessionRoomKey("");
         }
+        fe.menus.refreshSaveSlots();
     }
+}
+
+function exportSessionWithMeta(): SessionSave | undefined {
+    if (play === undefined) {
+        return undefined;
+    }
+    const snap = play.exportSession();
+    snap.savedAt = nowUnixSeconds();
+    snap.playSeconds = Math.max(0, Math.floor(runPlaySeconds));
+    return snap;
+}
+
+function sessionMilestoneSignature(p: Play): string {
+    const inv = p.run.inventory;
+    let takenCount = 0;
+    for (const k in p.run.taken) {
+        if (p.run.taken[k] === true) takenCount++;
+    }
+    let segCount = 0;
+    for (const k in p.run.story.segments) {
+        if (p.run.story.segments[k] === true) segCount++;
+    }
+    return p.room.key
+        + "|" + p.checkpoint
+        + "|" + p.phase
+        + "|" + p.run.story.hp
+        + "|" + p.run.story.route
+        + "|" + inv.wood + ":" + inv.bell + ":" + inv.scrap + ":" + inv.wedge + ":" + inv.ammo
+        + "|" + takenCount + ":" + segCount
+        + "|" + (p.cartDocked ? "1" : "0")
+        + "|" + (p.hasBottle ? "1" : "0")
+        + "|" + (p.passed ? "1" : "0")
+        + "|" + p.equippedWeapon;
 }
 
 function saveCurrentSession(): boolean {
     if (!canSaveSession() || play === undefined) {
         return false;
     }
-    const ok = saveSession(play.exportSession());
+    const snap = exportSessionWithMeta();
+    if (snap === undefined) {
+        return false;
+    }
+    const ok = saveSession(snap);
     play.sessionDirty = !ok;
+    if (ok) {
+        autosaveTimer = 0;
+        autosaveCooldown = 2.5;
+        lastAutosaveSig = sessionMilestoneSignature(play);
+    }
     refreshTitleSessionFlag();
     return ok;
 }
 
+function saveToManualSlot(slot: SaveSlotId): boolean {
+    if (!canSaveSession() || play === undefined) {
+        fe?.showToast("当前段落无法手动存档", 2.0);
+        return false;
+    }
+    const snap = exportSessionWithMeta();
+    if (snap === undefined) {
+        return false;
+    }
+    const ok = saveSlot(slot, snap);
+    refreshTitleSessionFlag();
+    if (ok) {
+        fe?.showToast("已保存至" + slotDisplayName(slot), 2.0);
+    } else {
+        fe?.showToast("保存失败，请检查目录写权限", 2.4);
+    }
+    return ok;
+}
+
+function deleteSaveSlotById(slot: SaveSlotId): boolean {
+    const ok = deleteSlot(slot);
+    refreshTitleSessionFlag();
+    fe?.showToast(ok ? ("已删除" + slotDisplayName(slot)) : "删除存档失败", 2.0);
+    return ok;
+}
+
 function continueOfficialStory(): Play | undefined {
-    if (play?.escortFailed && play.run.source === "official" && play.sessionDirty) {
+    return loadOfficialSlot("auto");
+}
+
+function loadOfficialSlot(slot: SaveSlotId): Play | undefined {
+    if (slot === "auto" && play?.escortFailed && play.run.source === "official" && play.sessionDirty) {
         // 落盘失败时仍可从内存进入已结算的新一轮，切房会再次尝试保存。
         play.confirmEscortRestart();
         applyRoomTransition(play);
         if (fe !== undefined) fe.screen = "play";
         return play;
     }
-    const res = loadSession();
+    const res = loadSlot(slot);
     if (res.status !== "ok" || res.state === undefined) {
         refreshTitleSessionFlag();
         return undefined;
@@ -201,6 +331,10 @@ function continueOfficialStory(): Play | undefined {
     if (ROOMS[idx].key !== s.roomKey) {
         return undefined;
     }
+    runPlaySeconds = Math.max(0, s.playSeconds ?? 0);
+    autosaveTimer = 0;
+    autosaveCooldown = 2.5;
+    lastAutosaveSig = "";
     storyRun = createRun(s.seed, "official", profile);
     storyRun.checkpoint = s.checkpoint;
     storyRun.story.route = s.route;
@@ -362,6 +496,35 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
 
     input = new Input();
     fe.audio.applyUserVolumes(input.settings);
+    fe.contract.setAssistHintsEnabled(input.settings.assistHints);
+    if (input.settings.muted) {
+        fe.audio.setAllMuted(true);
+    }
+    fe.menus.onToggleFullscreen = () => {
+        toggleFullscreen();
+    };
+    // 桌面原生端启动时恢复持久化的显示偏好（全屏或上次窗口大小）
+    if (isDesktopNative() && canToggleFullscreen() && testViewportOverride === undefined) {
+        try {
+            if (input.settings.fullscreen) {
+                if (!App.fullScreen) {
+                    App.fullScreen = true;
+                }
+            } else if (input.settings.winWidth >= 640 && input.settings.winHeight >= 360) {
+                const curSize = App.winSize;
+                if (Math.abs(curSize.width - input.settings.winWidth) > 2
+                    || Math.abs(curSize.height - input.settings.winHeight) > 2) {
+                    App.winSize = Size(input.settings.winWidth, input.settings.winHeight);
+                }
+            }
+        } catch {
+            // 无头或不支持窗口尺寸修改的宿主静默跳过
+        }
+    }
+    windowFocused = true;
+    lastAppliedIdle = undefined;
+    startupNoticeShown = false;
+    syncPowerMode();
     input.attach(parent, {
         onFirstUserGesture: () => {
             onFirstUserGesture();
@@ -399,6 +562,23 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
         },
     });
 
+    // 窗口尺寸或全屏状态变化时同步持久化设置（尺寸拖拽防抖落盘）
+    parent.gslot("AppChange", (settingName: string) => {
+        if (input === undefined || !isDesktopNative()) {
+            return;
+        }
+        if (settingName === "FullScreen") {
+            try {
+                input.settings.fullscreen = App.fullScreen;
+                saveControlSettings(input.settings);
+            } catch {
+                // ignore
+            }
+        } else if (settingName === "Size") {
+            pendingWinSizeSaveTimer = 0.45;
+        }
+    });
+
     // 系统返回键、窗口关闭、切后台与焦点切换生命周期统一治理
     parent.gslot("AppEvent", (eventType: string) => {
         if (eventType === "BackButton") {
@@ -412,6 +592,7 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
             return;
         }
         if (eventType === "WillEnterBackground" || eventType === "DidEnterBackground" || eventType === "WindowFocusLost") {
+            windowFocused = false;
             flushProfile();
             saveCurrentSession();
             input?.clearTransient(true);
@@ -424,13 +605,16 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
             if (fe !== undefined) {
                 fe.audio.setPaused(true);
             }
+            syncPowerMode();
             return;
         }
         if (eventType === "DidEnterForeground" || eventType === "WindowFocusGained") {
+            windowFocused = true;
             if (fe !== undefined) {
                 const paused = play !== undefined && play.paused && fe.screen === "play";
                 fe.audio.setPaused(paused);
             }
+            syncPowerMode();
         }
     });
 
@@ -527,6 +711,11 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
             return ok;
         },
         continueStory: () => continueOfficialStory(),
+        listSaveSlots: () => listSaveSlots(),
+        saveToSlot: (slot: SaveSlotId) => saveToManualSlot(slot),
+        loadFromSlot: (slot: SaveSlotId) => loadOfficialSlot(slot),
+        deleteSlot: (slot: SaveSlotId) => deleteSaveSlotById(slot),
+        canSaveSession: () => canSaveSession(),
         saveNow: () => saveSave(profile),
         getSaveFile,
         isRelease: () => isReleaseBuild(),
@@ -654,6 +843,11 @@ function enterPlayRoom(idx: number, source: RunSource = "debug", fresh = false, 
     // 标题「新的旅程」进序章视为正式开新局；章节直达始终起干净独立预览局，不泄漏或污染正式局状态。
     if (fresh || source === "chapter" || storyRun === undefined) {
         storyRun = createRun(seedOverride ?? (source === "debug" ? 20261124 : randomRunSeed()), source, profile);
+        if (fresh || source === "official") {
+            runPlaySeconds = 0;
+            autosaveTimer = 0;
+            lastAutosaveSig = "";
+        }
         if (source === "chapter") {
             const targetKey = ROOMS[current] !== undefined ? ROOMS[current].key : "";
             applyChapterPreviewRoute(storyRun, targetKey, chapterRoute);
@@ -750,13 +944,44 @@ function tick(frameDt: number): void {
     if (input.userInteracted) {
         onFirstUserGesture();
     }
+    if (pendingWinSizeSaveTimer > 0) {
+        pendingWinSizeSaveTimer -= frameDt;
+        if (pendingWinSizeSaveTimer <= 0 && isDesktopNative()) {
+            try {
+                if (!App.fullScreen) {
+                    const ws = App.winSize;
+                    if (ws.width >= 640 && ws.height >= 360) {
+                        input.settings.winWidth = Math.round(ws.width);
+                        input.settings.winHeight = Math.round(ws.height);
+                        saveControlSettings(input.settings);
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        }
+    }
     if (input.muteTogglePressed && fe !== undefined) {
         input.muteTogglePressed = false;
-        fe.audio.toggleAllMuted();
+        const muted = fe.audio.toggleAllMuted();
+        input.settings.muted = muted;
+        saveControlSettings(input.settings);
     }
     if (input.fullscreenTogglePressed) {
         input.fullscreenTogglePressed = false;
         toggleFullscreen();
+    }
+    syncPowerMode();
+    if (!startupNoticeShown && fe !== undefined && fe.screen === "title") {
+        startupNoticeShown = true;
+        const rel = getReleaseConfig();
+        if (rel !== undefined && rel.saveFallbackReason === "readonly") {
+            fe.showToast("游戏目录不可写，存档已自动回退至用户目录", 4.5);
+        } else if (rel !== undefined && rel.migratedFrom !== undefined && rel.migratedFrom !== "") {
+            fe.showToast("已自动迁移旧存档至 saves 目录", 3.5);
+        } else if (profileStatus === "corrupt" || profileStatus === "unsupported") {
+            fe.showToast("主档案异常，原件已备份至 backups 目录", 4.5);
+        }
     }
     if (input.artifactTogglePressed) {
         input.artifactTogglePressed = false;
@@ -882,6 +1107,20 @@ function tickFrontend(frameDt: number): void {
         } else if (act.type === "openControls") {
             fe.menus.resetInput();
             fe.screen = "controls";
+        } else if (act.type === "openSaves") {
+            fe.menus.openSaves(false);
+            fe.screen = "saves";
+        } else if (act.type === "openSettings") {
+            fe.menus.openSettings();
+            fe.screen = "settings";
+        } else if (act.type === "loadSlot" && act.slot !== undefined) {
+            if (loadOfficialSlot(act.slot) !== undefined) {
+                fe.showToast("已读取" + slotDisplayName(act.slot), 2.0);
+            } else {
+                fe.showToast("读取存档失败", 2.2);
+            }
+        } else if (act.type === "deleteSlot" && act.slot !== undefined) {
+            deleteSaveSlotById(act.slot);
         } else if (act.type === "openHistory") {
             fe.menus.openHistory(true);
             fe.screen = "history";
@@ -1060,6 +1299,16 @@ function tickFrontend(frameDt: number): void {
             fe.screen = "chapters";
         } else if (pauseAct.type === "toggleFullscreen") {
             toggleFullscreen();
+        } else if (pauseAct.type === "saveSlot" && pauseAct.slot !== undefined) {
+            saveToManualSlot(pauseAct.slot);
+        } else if (pauseAct.type === "loadSlot" && pauseAct.slot !== undefined) {
+            if (loadOfficialSlot(pauseAct.slot) !== undefined) {
+                fe.showToast("已读取" + slotDisplayName(pauseAct.slot), 2.0);
+            } else {
+                fe.showToast("读取存档失败", 2.2);
+            }
+        } else if (pauseAct.type === "deleteSlot" && pauseAct.slot !== undefined) {
+            deleteSaveSlotById(pauseAct.slot);
         } else if (pauseAct.type === "quit") {
             quitGame();
         } else if (pauseAct.type === "toTitle") {
@@ -1105,11 +1354,25 @@ function tickFrontend(frameDt: number): void {
 
     // 档案变化（正式通关、井口取器）在下一个渲染帧落盘；写失败保留旧文件，下次再试。
     flushProfile();
+    if (p.run.source === "official" && !p.paused && !p.run.finished) {
+        runPlaySeconds += Math.min(0.1, Math.max(0, frameDt));
+        autosaveTimer += Math.min(0.1, Math.max(0, frameDt));
+        if (autosaveCooldown > 0) {
+            autosaveCooldown = Math.max(0, autosaveCooldown - frameDt);
+        }
+    }
     if (p.run.finished && p.run.source === "official" && hasSessionSave()) {
         clearSession();
         refreshTitleSessionFlag();
     } else if (p.sessionDirty) {
         saveCurrentSession();
+    } else if (canSaveSession() && autosaveCooldown <= 0) {
+        const sig = sessionMilestoneSignature(p);
+        if (lastAutosaveSig === "") {
+            lastAutosaveSig = sig;
+        } else if (sig !== lastAutosaveSig || autosaveTimer >= 20.0) {
+            saveCurrentSession();
+        }
     }
     fe.renderPlay(frameDt, p, input, stageVp.stageW, stageVp.stageH);
 }

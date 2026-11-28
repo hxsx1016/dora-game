@@ -241,7 +241,7 @@ export const ROOM_THEMES: Record<string, RoomTheme> = {
         fogBottom: rgba(118, 42, 42, 62),
         groundTop: rgba(54, 48, 52, 255),
         groundBody: rgba(18, 16, 21, 255),
-        groundRim: rgba(188, 68, 64, 195),
+        groundRim: rgba(116, 76, 72, 168),
         accent: PALETTE.rouge,
         beamColor: rgba(196, 76, 62, 38),
         ambient: "ash",

@@ -1,61 +1,85 @@
 # 《向西守望》2026 开源游戏开发大赛 · 发版与 AtomGit 同步指南
 
-> 对应赛事：**2026 开源游戏开发大赛（OSGJ）**
-> 关键节点：`2026-11-28 00:00` 开放作品提交 · `2026-12-06 23:59` 集中开发截止 · `2026-12-27 23:59` 原子派社区点赞公示截止
+首个公开试玩使用 **`v0.1.0`**。同步到 AtomGit 时应使用与 GitHub Release 相同的 tag、构建提交和附件。
 
-## 一、全平台发行矩阵（一次发版同时满足主赛道、KTR 掌机赛道与 Dora 开源社区奖）
+## 1. 玩家下载哪一个包
 
-工作流自动生成并校验四端产物（均随包附带根 [Apache-2.0 LICENSE](../LICENSE) 与 [AI 使用与素材声明](AI使用与素材声明.md)）：
+下表中的文件名都带有前缀 `WestwardWatch-v0.1.0-`。右栏是同一 Release 下可单独下载的 SHA-256 清单。
 
-1. **`WestwardWatch-<ver>-windows-x64.zip`**（**主赛道主推**，`.github/workflows/release-windows.yml`）：Windows 10/11 Direct3D 12 绿色便携包，禁用 Web IDE，写入独立 `dora-game-id`，解压后双击 `WestwardWatch.exe` 或 `启动-向西守望.cmd` 即可游玩。
-2. **`WestwardWatch-<ver>-windows-x64-opengl.zip`**（**主赛道兼容兜底**）：Windows 10/11 OpenGL 绿色便携包，供不支持 Direct3D 12 的老旧核显或虚拟机使用。
-3. **`WestwardWatch-<ver>-dora-source.zip`**（**Dora 开源社区奖 / KTR 掌机专供**）：含 `init.ts`、`init.lua`、`LICENSE`、`Script/`、`assets/` 与 `Dora平台运行说明.md`，可直接在 Dora SSR v1.10.2 / Dora Go 跨平台打开运行。
-4. **`WestwardWatch-<ver>-android-arm64.apk`**（**Android 独立签名 APK**，`.github/workflows/release-android.yml`）：支持横竖屏自由切换与 16KB 页对齐，含统一北塔图标与开机品牌序幕。
-5. **Web 在线版 & 离线 HTML 包**（`.github/workflows/deploy-web.yml` / `node tools/export-html.mjs --mode both`）：GitHub Pages 在线试玩与本地离线启动包。
+| 文件名后半段 | 内容与启动方法 | 校验清单 |
+| --- | --- | --- |
+| `windows-x64.zip` | Windows 10/11 x64，Direct3D 12。完整解压，双击 `WestwardWatch/WestwardWatch.exe`。 | `SHA256SUMS.txt` |
+| `windows-x64-opengl.zip` | Windows OpenGL 兼容版，启动方式同上。 | `SHA256SUMS.txt` |
+| `dora-source.zip` | Dora SSR v1.10.2 源码包，含 TS、预编译 Lua、素材及 `Dora平台运行说明.md`。解压后在 Dora 中运行 `init.lua`。 | `SHA256SUMS.txt` |
+| `android-arm64.apk` | 64 位 ARM 手机或平板，触屏，支持横竖屏。 | `SHA256SUMS-android.txt` |
+| `android-universal.apk` | 同一手机版，同时包含 arm64-v8a 和 armeabi-v7a。 | `SHA256SUMS-android.txt` |
+| `handheld-arm64.apk` | 64 位 ARM 安卓掌机，触屏和手柄，横屏。三种 APK 共用包名，选一种安装。 | `SHA256SUMS-android.txt` |
+| `web-html.zip` | 离线浏览器版。完整解压后双击根目录 `index.html`，保留同级 `html-loader.js`、`html-assets/`、引擎脚本、图标及其他随包文件。 | `SHA256SUMS-web.txt` |
 
-## 二、触发自动构建与 GitHub Release
+Actions 的 `westward-watch-web-bundles` 保留 14 天，内含 **`WestwardWatch-<版本>-web-html.zip`、`WestwardWatch-<版本>-web-server.zip` 和 `SHA256SUMS-web.txt`**。清单仅覆盖离线 ZIP。`web-server.zip` 供 HTTP 静态托管，Pages 部署使用同一次导出的 `web-server/`。GitHub 自动生成的 Source code (zip/tar.gz) 与表内 Dora 源码包是不同的下载项。
 
-### 方式 1：手动触发试玩候选版（RC）
-在 GitHub 仓库 `Actions -> Release Windows Portable Packages -> Run workflow`：
-- `version`：填写如 `v0.1.0-rc1`（留空自动生成 `dev-<sha>`）；
-- `publish_release`：勾选 `true` 即可在通过 Windows 冷启动冒烟测试后自动发布预发行版（Prerelease）。
+项目代码许可、AI 使用与素材署名可在同 tag 仓库中查阅。Windows、Dora 和 Web 包根目录含 LICENSE，Android APK 内为 `assets/LICENSE`。[项目许可](../LICENSE) · [AI 使用与素材声明](AI使用与素材声明.md)
 
-### 方式 2：打正式 Tag 发版
-```bash
-git fetch origin --prune
-git tag -a v1.0.0 origin/main -m "release: 《向西守望》v1.0.0 参赛正式版"
-git push origin v1.0.0
-```
-推送 `v*` Tag 后，CI 将自动执行：
-1. `check-repo.py` + `audit-assets.py`（全资产存在与中文字库 0 缺字校验）；
-2. 下载并校验官方 Dora SSR `v1.10.2` 运行时哈希，组装三件套；
-3. 在 `windows-latest` Runner 解压至**含中文与空格的路径**，实测默认隔离存档模式与纯绿色 `save/` 便携存档模式双轮冷启动与正常退出；
-4. 全部通过后自动创建 GitHub Release 并上传三件套与 `SHA256SUMS.txt`。
+## 2. 从验收提交发出首个公开试玩
 
-## 三、同步至 AtomGit（大赛硬性要求）
-
-大赛规定所有参赛项目必须在 **AtomGit** 建立仓库并提交对应的版本标识与可运行发行版：
+1. 将发行修正与游戏内容整合到要发布的提交。记录验收通过的 **40 位提交 SHA**，确认该提交含三个平台的 tag 工作流和 `.github/workflows/publish-assets.yml`。本轮核对基线为 `55826e793a38d4b27907c4d4204734c6fcb76091`，修正也必须随 tag 进入版本。
+2. 需要候选包时，可在 Actions 手动运行 Windows、Android，保留 `publish_release=false`。Web 手动运行可关闭 `deploy_pages`。分支上留空版本会生成 `dev-<短SHA>`（Windows/Android）或 `web-<短SHA>`。Android 公开发布要求正式签名，仓库 Secrets 为 `ANDROID_KEYSTORE_B64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
+3. 用有推送权的账号执行以下 Bash 命令。让这次 tag push 触发三个工作流，Release 页由 CI 创建。直接用 Releases API 创建公开版本会绕过草稿组装；若从另一个 Actions 工作流推 tag，默认 `GITHUB_TOKEN` 的 push 通常不会触发下游工作流。
 
 ```bash
-# 1. 在 AtomGit 创建公开仓库（申请 Dora 开源社区奖必须开源）后添加远端
-git remote add atomgit https://atomgit.com/<你的命名空间>/<仓库名>.git
-
-# 2. 同步主干分支与版本 Tag
-git fetch origin --prune
-git push atomgit origin/main:refs/heads/main
-git push atomgit refs/tags/v1.0.0
-
-# 3. 从 GitHub Release 下载三件套与 SHA256SUMS.txt，上传至 AtomGit 对应 Tag 的 Release 页面
-gh release download v1.0.0 --dir /tmp/osgj-release
+set -eu
+repo=hxsx1016/dora-game
+tag=v0.1.0
+: "${RELEASE_SHA:?请先将 RELEASE_SHA 设为已验收的完整提交 SHA}"
+test "$(git rev-parse "$RELEASE_SHA^{commit}")" = "$RELEASE_SHA"
+git merge-base --is-ancestor 55826e793a38d4b27907c4d4204734c6fcb76091 "$RELEASE_SHA"
+git tag -a "$tag" "$RELEASE_SHA" -m "《向西守望》首个公开试玩 $tag"
+git push origin "refs/tags/$tag"
+test "$(gh api "repos/$repo/commits/refs/tags/$tag" --jq .sha)" = "$RELEASE_SHA"
 ```
 
-## 四、大赛最终提交核对清单（个人中心 → 作品提交）
+4. 在 Actions 查看该 tag 的 Windows、Android、Web 三次运行。Windows 校验三个 ZIP，在原生 runner 检查 OpenGL 包结构及 PE 元数据，对 D3D12 版做中文空格路径启动、便携存档及只读回退测试。Android 检查 APK 清单、签名、16 KB ZIP 对齐及分端裁剪。Web 校验白名单、资源预算、两种目录和离线加载脚本。
+5. 三端独立构建，发布 job 按版本排队。各自核对远端 tag 解引用后的 commit 和本端清单，然后将附件上传到同一草稿。最后一个 job 用 GitHub 记录的资产摘要比对三份清单，七个包齐备后公开。`v0.1.0` 为普通 Release，含连字符的版本（如 `v0.1.0-rc1`）标记为预发行。构建、签名或上传失败时，到原 tag 对应的运行选择 **Re-run failed jobs**。Windows/Android 的手动补发须勾选 `publish_release`，指定已存在、指向本次构建提交的 tag。保持草稿首行的构建 SHA 以便重试。已公开版本的重跑只核对附件；内容修订使用新 tag。
 
-- [x] **开源许可证与 AI 声明**：仓库根目录已提交 `LICENSE`（Apache-2.0）并纳入四端打包白名单，已核对定稿 [AI使用与素材声明.md](AI使用与素材声明.md)。
-- [ ] **26 条真人配音替换占位人声**：按 `assets/audio/README.md` 与 `docs/向西守望-剧情与剧本.md` 录制替换 `PLACEHOLDER_VOICE` WAV（待配音完成，音频总线由 `feature/audio-overhaul` 统一接入）。
-- [ ] **AtomGit 仓库与版本标识**：公开仓库链接 + `v1.0.0` Tag / Release，上传 Windows 双后端 ZIP、Dora 源码包、Android APK 与 `SHA256SUMS.txt`。
-- [ ] **多端真机验收**：在真实 Windows 10/11、Android 手机/平板与 KTR 掌机完成冷启动、三模操控、全屏/横竖屏切换、音频播放、双通关存档与正常退出复核。
-- [ ] **5 分钟内演示视频**：实机录制核心双线玩法、风台数到二十、慢时连线换弹、片尾史话与博物馆彩蛋，同步发布至 B 站并附指定大赛话题。
-- [ ] **≥ 3 篇不重复开发者日志**：从 `origin/docs/dev-log-2026-11-26` 分支的 `docs/dev-log/` 挑选提炼。
-- [ ] **Dora 开源社区奖（可选必冲）**：将兼容 Dora SSR v1.10.2 的开源版本上架**原子派社区**（注意正式参赛仍须走大赛个人中心通道），于 `12-27 23:59` 前完成 ≥ 20 个点赞与审核。
-- [ ] **3 人默认设置盲测与时长记录**：用 Windows 便携包完成至少 3 位首次试玩者盲测并记录体验反馈与调整项。
+**Pages 与离线试玩独立。** Web 的 `v*` tag 只构建并参与 Release。匹配路径的 PR 和两个监听分支（`main`、`exp/multi-device-adapt`）均可产出 Actions ZIP。仅 `main` push 或勾选 `deploy_pages` 的手动运行会查询仓库的 `has_pages`。为 false 时保留 ZIP 并跳过部署。要开放在线入口，由管理员在 Settings → Pages 配置 GitHub Actions 后再部署，以成功部署给出的地址为准。
+
+## 3. 下载核验并同步 AtomGit
+
+先从已公开的 GitHub Release 下载 **10 个附件** 到空目录。用上一步记录的 SHA 核对源 tag。以下示例适用 Bash 和 GNU coreutils，macOS 可将 `sha256sum -c` 换成 `shasum -a 256 -c`。
+
+```bash
+set -eu
+repo=hxsx1016/dora-game
+tag=v0.1.0
+: "${RELEASE_SHA:?请使用已验收的完整提交 SHA}"
+test "$(gh api "repos/$repo/commits/refs/tags/$tag" --jq .sha)" = "$RELEASE_SHA"
+out=$(mktemp -d)
+gh release download "$tag" --repo "$repo" --dir "$out"
+(
+  cd "$out"
+  sha256sum -c SHA256SUMS.txt
+  sha256sum -c SHA256SUMS-android.txt
+  sha256sum -c SHA256SUMS-web.txt
+)
+echo "已校验的 AtomGit 附件目录：$out"
+```
+
+在 AtomGit 建立公开仓库，首次添加远端时将下例 URL 换成实际地址。将已验收提交推至 AtomGit 的 main，并推送同一个本地附注 tag。如目标 main 已前进且推送遭拒，先核对两端历史。以下命令不会强推。
+
+```bash
+git remote add atomgit 'https://atomgit.com/<命名空间>/<仓库名>.git'
+test "$(git rev-parse "refs/tags/$tag^{commit}")" = "$RELEASE_SHA"
+git push atomgit "$RELEASE_SHA:refs/heads/main" "refs/tags/$tag"
+test "$(git ls-remote atomgit "refs/tags/$tag^{}" | cut -f1)" = "$RELEASE_SHA"
+```
+
+在 AtomGit 为该 tag 创建 Release，原样上传下载目录中的 7 个包和 3 份清单。从 AtomGit 下载附件复核三份清单后，将公开仓库、tag 和可运行发行页链接填入大赛个人中心。
+
+## 4. 参赛提交核对
+
+- [ ] 核对开源许可及 AI/素材声明，按最终包确认 26 份人声的实际来源；如替换真人录音，同步更新署名。
+- [ ] 真机验收 Windows 标准版与兼容版、Android 手机与 KTR 掌机，并在浏览器离线打开 Web 包；按平台核对输入、音频、存档与退出。
+- [ ] 至少 3 位首次试玩者用默认设置盲测，记录时长、反馈及调整。
+- [ ] 准备 5 分钟以内的实机演示，覆盖双线、风台数到二十、慢时连线换弹与片尾，发布至 B 站并附赛事话题。
+- [ ] 整理至少 3 篇不重复的开发者日志，可从 `docs/dev-log-2026-11-26` 分支的 `docs/dev-log/` 选稿。
+- [ ] 大赛个人中心在 11 月 28 日 00:00 开放提交，集中开发截止 12 月 6 日 23:59。申报 Dora 开源社区奖还需将兼容版本上架原子派社区，按赛事要求在 12 月 27 日 23:59 前核对 ≥ 20 个点赞和审核状态。
