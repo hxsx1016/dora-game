@@ -184,9 +184,9 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
   - 角色与过场部件：背负合体（`carry_idle`、`carry_walk_a/b`、`carry_reload`）、单膝蹲背（`soldier_kneel_mount`）、门后听声（`child_listen_door`）、牵手伸臂（`soldier_hand_hold`）、北塔提灯守卒（`tower_guard_lantern`）、执笔手（`tower_brush_hand`）、换弹手势（`reload_hand_tap/trace`）、桌上袖口/热汤碗/针套指南针/提灯特写
   - 场景道具与像素特效/地皮/前景：铁盆平放与倾斜、古井石栏、城外砖拱、稻草试射靶、明式木工案、木瓶架、木制残盾、引路灯铳与回声铳、灯柱木架、木纹筹/铃纹筹、藤盾、密林树根拱、暗渠石栅、3 帧风吹红布、枪口焰、命中火星、火药烟尘、热气、溪水倒影、3 枚换弹像素印章、砖地/软土/木柱/木梁/青石板地砖及桌下木沿/桌腿/垂松枝前景剪影。
 
-## 硬核明代木刻暗黑漫画过场动画（`feature/dev-261127-cutscene-anim` · 全 10 段 237 帧 6–12 FPS 步进动画）
+## 硬核明代木刻暗黑漫画过场动画（`feature/dev-261127-cutscene-anim` · V100 MiniMax H3 图生视频步进重制 · 全 10 段 237 帧）
 
-为将过场动画从早期 1–2 fps 分镜幻灯片升级为具备手绘拍二/拍三运动张力的真正步进漫画动画，本分支基于「硬核明代木刻暗黑漫画（极重浓墨块面 + 锋利枯笔墨线 + 零重影步进硬切 + 动作段 8–12 fps 中割与停顿段 6–7 fps 火光/微尘呼吸循环）」定调，通过 2×2 连续动效表（`art-source/comic_cutscenes/<id>/*_sheet_*.jpg`）与局部羽化蒙版引导图，经人工逐张目检、光学锚点配准与 800×450 160 色 `MEDIANCUT` 无抖动量化导出全 10 段 **237 帧** 运行时动画帧（同时完整保留初版 68 帧旧槽位兼容 HTML/Windows 打包校验）：
+为彻底根治早期逐格多图拼贴产生的背景漂移、跨表瞬移与人物走形问题，本分支在局域网 GPU 主机 `ubuntu-ai`（Tesla V100-SXM2-16GB + ComfyUI + `MiniMax H3 FL2VA` 8-step Turbo LoRA + V100 FP16 精确补丁）上，以定稿明代木刻暗黑漫画关键帧为首帧 / 首尾帧锚点（`896×512`，24fps 连续时空一致视频），累计生成 **18 支独立锁机位镜头视频**，经逐片人工审看后按 **8–12 FPS 步进抽帧（拍三 / 拍二）+ 轻度木刻线稿锐化 + 单镜头共享 160 色 `MEDIANCUT` 无抖动量化**导出全 10 段 **237 帧** 运行时资产（`800×450`，`assets/art/cutscenes/` 总计 56 MB，同时完整保留初版 68 帧旧槽位与标志性单帧三色冲击/0px 同心漩涡帧）：
 
 - **风格圣经母版（`art-source/comic_cutscenes/style_master_bible.png`）**：锁定周戍、小满、核心图腾暗靛五针补线袖口与明代真器物（指南针布套、明代粗陶平口油灯盏、木骨素纸提灯、缺口粗瓷碗，杜绝西式玻璃煤油灯穿帮）。
 - **共同序章 P01 / P02（`p01_f01..f22` 22 帧、`p02_f01..f33` 33 帧）**：
