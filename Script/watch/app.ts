@@ -51,6 +51,9 @@ let windowFocused = true;
 let lastAppliedIdle: boolean | undefined;
 let pendingWinSizeSaveTimer = -1;
 let startupNoticeShown = false;
+const WINDOW_CLOSE_FORCE_COUNT = 4;
+const WINDOW_CLOSE_FORCE_WINDOW = 2.0;
+let windowCloseClicks: number[] = [];
 
 function randomRunSeed(): number {
     return Math.max(1, Math.floor(Math.abs(App.rand)) % 2147483646);
@@ -64,10 +67,8 @@ function syncPowerMode(): void {
     if (!isDesktopNative()) {
         return;
     }
-    const wantIdle = !windowFocused
-        || fe === undefined
-        || fe.screen !== "play"
-        || (play !== undefined && play.paused);
+    // 仅在窗口失焦/切后台时启用 idled 省电，避免片头/标题/暂歇菜单因 SDL_WaitEvent 冻结动效或切页后需晃鼠标才刷新。
+    const wantIdle = !windowFocused;
     if (lastAppliedIdle === wantIdle) {
         return;
     }
@@ -202,6 +203,73 @@ function handleBackButton(): void {
         fe.menus.openPause();
         input?.clearTransient(true);
     }
+}
+
+/**
+ * Windows 窗口右上角「×」拦截状态机：
+ * - 单次点击：局内自动存档并弹出 ESC 暂歇菜单；若已在暂歇/标题页则将光标聚焦至「退出游戏」；
+ * - 2 秒内连续点击 4 次：立即安全落盘并强制退出（原生 C++ 渲染线程亦同步计数兜底，主循环卡死也可强退）。
+ */
+function handleWindowClose(nativeCount?: number): void {
+    const now = appClock;
+    const kept: number[] = [];
+    let i = 0;
+    for (i = 0; i < windowCloseClicks.length; i++) {
+        if (now - windowCloseClicks[i] <= WINDOW_CLOSE_FORCE_WINDOW) {
+            kept.push(windowCloseClicks[i]);
+        }
+    }
+    kept.push(now);
+    windowCloseClicks = kept;
+
+    const count = Math.max(windowCloseClicks.length, typeof nativeCount === "number" ? Math.floor(nativeCount) : 0);
+    if (count >= WINDOW_CLOSE_FORCE_COUNT || fe === undefined) {
+        quitGame();
+        return;
+    }
+
+    const remain = Math.max(1, WINDOW_CLOSE_FORCE_COUNT - count);
+    if (fe.screen === "splash") {
+        fe.menus.resetSplash();
+        fe.screen = "title";
+        fe.menus.focusQuit("title");
+        fe.showToast("已跳过片头 · 再连点关闭 " + remain + " 次可强制退出", 2.6);
+        return;
+    }
+    if (fe.screen === "play" && play !== undefined) {
+        if (fe.roguelikeUi.isLedgerOpen()) {
+            fe.roguelikeUi.closeLedger();
+        }
+        if (!play.paused) {
+            if (play.craftBench.active) {
+                play.closeCraftBench();
+            }
+            play.paused = true;
+            play.aimHold = 0;
+            play.bottleAimX = -1;
+            saveCurrentSession();
+            fe.menus.openPause();
+            fe.audio.playUi("ui:pause_open", "assets/audio/ui/pause_open.wav", 0.68, 0.08);
+            input?.clearTransient(true);
+            syncPowerMode();
+            fe.showToast("已暂歇并自动存档 · 如需强制退出请连点关闭（还差 " + remain + " 次）", 3.0);
+            return;
+        }
+        fe.menus.focusQuit("play");
+        fe.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.50, 0.045);
+        fe.showToast("点击「退出游戏」安全退出 · 连点关闭还差 " + remain + " 次强制退出", 2.6);
+        return;
+    }
+    if (fe.screen === "title") {
+        fe.menus.focusQuit("title");
+        fe.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.50, 0.045);
+        fe.showToast("点击「退出游戏」安全退出 · 连点关闭还差 " + remain + " 次强制退出", 2.6);
+        return;
+    }
+    fe.screen = "title";
+    fe.menus.focusQuit("title");
+    fe.audio.playUi("ui:back", "assets/audio/ui/menu_back.wav", 0.66, 0.05);
+    fe.showToast("已返回标题 · 点击「退出游戏」或再连点关闭 " + remain + " 次强制退出", 2.6);
 }
 
 function canSaveSession(): boolean {
@@ -555,8 +623,6 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
                     input.jump.pressed = true;
                 } else if (key === "Escape") {
                     input.pause.pressed = true;
-                } else if (key === "R" && (play === undefined || (!play.craftBench.active && !play.reloadOpen))) {
-                    input.retry.pressed = true;
                 }
             }
         },
@@ -580,9 +646,13 @@ export function start(parent: Node.Type, _initialMode: number = 1, startScreen: 
     });
 
     // 系统返回键、窗口关闭、切后台与焦点切换生命周期统一治理
-    parent.gslot("AppEvent", (eventType: string) => {
+    parent.gslot("AppEvent", (eventType: string, payload?: unknown) => {
         if (eventType === "BackButton") {
             handleBackButton();
+            return;
+        }
+        if (eventType === "WindowClose") {
+            handleWindowClose(typeof payload === "number" ? payload : undefined);
             return;
         }
         if (eventType === "Quit" || eventType === "Shutdown") {
@@ -911,7 +981,7 @@ function syncFrameAdapters(frameDt: number): void {
         run: storyRun,
         cam: isPlayMode ? fe?.cam : undefined,
         input,
-        assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : false,
+        assistHintsEnabled: fe !== undefined ? fe.contract.isAssistHintsEnabled() : true,
         isMuted: fe !== undefined ? fe.audio.isAllMuted() : false,
         isFullscreen: isFs,
         storyTalentBoxes,
@@ -939,7 +1009,7 @@ function tick(frameDt: number): void {
         return;
     }
     syncFrameAdapters(frameDt);
-    input.update();
+    input.update(frameDt);
 
     if (input.userInteracted) {
         onFirstUserGesture();
@@ -1173,7 +1243,7 @@ function tickFrontend(frameDt: number): void {
             }
             if (input.pause.pressed || input.navBack) {
                 deathAction = "title";
-            } else if (p.escortFailedTicks >= 24 && input.retry.pressed) {
+            } else if (p.escortFailedTicks >= 24 && (input.retry.pressed || input.retryTapPressed)) {
                 deathAction = "retry";
             } else if (p.escortFailedTicks >= 24 && input.navConfirm) {
                 deathAction = fe.roguelikeUi.deathSelected === 0 ? "retry" : "title";
@@ -1239,12 +1309,13 @@ function tickFrontend(frameDt: number): void {
         }
     }
 
-    // 北塔尾声满 8 秒读完后，按确认键（E / 手柄确认 / 触屏）收页进入片尾落款与史话入口
+    // 北塔尾声满 8 秒读完后，按确认键（E / 左键 / 手柄确认 / 触屏）收页进入片尾落款与史话入口
     if (!p.paused && p.room.key === "tower" && p.phase === "tower-end") {
         if (input.navConfirm) {
             input.interact.pressed = true;
         }
-        if (p.towerEndReady() && (input.interact.pressed || input.retry.pressed)) {
+        const towerMouseContinue = input.inputMode !== "gamepad" && (input.uiPressed || input.fire.pressed);
+        if (p.towerEndReady() && (input.interact.pressed || input.retry.pressed || input.retryTapPressed || towerMouseContinue)) {
             flushProfile();
             if (p.run.source === "official" && hasSessionSave()) {
                 clearSession();
@@ -1266,6 +1337,12 @@ function tickFrontend(frameDt: number): void {
         p.closeCraftBench();
         input.consumeEdges();
         return;
+    }
+    if (!p.paused && !p.escortFailed && fe.tryClickHudPause(p, input, stageVp.stageW, stageVp.stageH)) {
+        input.pause.pressed = true;
+        input.fire.pressed = false;
+        input.fire.held = false;
+        input.uiPressed = false;
     }
     if (!p.paused && !p.escortFailed && input.pause.pressed) {
         p.paused = true;
@@ -1334,6 +1411,23 @@ function tickFrontend(frameDt: number): void {
             ensurePlay({ checkpoint: p.checkpoint });
         }
         return;
+    }
+
+    const worldPromptClick = fe.tryClickWorldPrompt(p, input, stageVp.stageW, stageVp.stageH);
+    if (worldPromptClick === "tap") {
+        input.interact.pressed = true;
+        input.interact.held = true;
+        input.frameInteractPressed = true;
+        input.fire.pressed = false;
+        input.fire.held = false;
+    } else if (worldPromptClick === "hold") {
+        if (input.uiPressed || input.fire.pressed) {
+            input.interact.pressed = true;
+            input.frameInteractPressed = true;
+        }
+        input.interact.held = true;
+        input.fire.pressed = false;
+        input.fire.held = false;
     }
 
     const steps = clock.advance(frameDt);

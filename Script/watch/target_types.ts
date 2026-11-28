@@ -177,7 +177,7 @@ export interface TargetInputDriver {
     readonly defaultMode: InputMode;
     attach(parent: Node.Type, hooks: TargetAttachHooks): void;
     syncFrame(ctx: TargetFrameSync): void;
-    pollInto(input: Input): void;
+    pollInto(input: Input, dt?: number): void;
     renderOverlay(): void;
     clearTransient(keepTouchToggles: boolean): void;
     vibrate(seconds: number): void;

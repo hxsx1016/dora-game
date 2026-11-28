@@ -449,7 +449,7 @@ function NarrativeRenderer.prototype.update(self, dt, p, events, interactPressed
 end -- 410
 function NarrativeRenderer.prototype.draw(self, uiDraw, uiInkDraw, uiGlow, art, texts, p, w, h, assistHintsEnabled, inputMode, gamepadLayout, safe) -- 448
 	if assistHintsEnabled == nil then -- 448
-		assistHintsEnabled = false -- 457
+		assistHintsEnabled = true -- 457
 	end -- 457
 	if inputMode == nil then -- 457
 		inputMode = "kbm" -- 458
@@ -1401,130 +1401,106 @@ function NarrativeRenderer.prototype.drawTowerRegistryCard(self, uiDraw, uiInkDr
 			"reg_hint_veil", -- 1044
 			midX, -- 1044
 			cy - 28, -- 1044
-			360, -- 1044
+			390, -- 1044
 			32, -- 1044
 			PALETTE.inkWash, -- 1044
 			0.72, -- 1044
 			0 -- 1044
 		) -- 1044
-		local rawEndHint = assistHintsEnabled and "按 E 再次启程     ·     Esc 暂歇" or "Esc 暂歇" -- 1045
-		local endHint = getActiveTarget():adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 1046
-		texts:put( -- 1047
-			"xs", -- 1047
-			endHint, -- 1047
-			midX, -- 1047
-			cy - 28, -- 1047
-			toColor(PALETTE.textMid), -- 1047
-			0.5, -- 1047
-			0.5, -- 1047
-			"Center", -- 1047
-			1.6, -- 1047
-			0.92, -- 1047
-			0.08 -- 1047
-		) -- 1047
-	end -- 1047
+		local rawEndHint = assistHintsEnabled and (inputMode == "kbm" and "按 E / 左键继续     ·     Esc 暂歇" or "按 E 再次启程     ·     Esc 暂歇") or "Esc 暂歇" -- 1045
+		local endHint = getActiveTarget():adaptHintSentence(rawEndHint, inputMode, gamepadLayout) -- 1048
+		texts:put( -- 1049
+			"xs", -- 1049
+			endHint, -- 1049
+			midX, -- 1049
+			cy - 28, -- 1049
+			toColor(PALETTE.textMid), -- 1049
+			0.5, -- 1049
+			0.5, -- 1049
+			"Center", -- 1049
+			1.6, -- 1049
+			0.92, -- 1049
+			0.08 -- 1049
+		) -- 1049
+	end -- 1049
 end -- 956
-function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 1051
-	local theme = themeOf(roomKey) -- 1060
-	local t = self.bannerT / self.bannerMax -- 1061
-	local alpha = 1 -- 1062
-	if t > 0.82 then -- 1062
-		alpha = (1 - t) / 0.18 -- 1064
-	elseif t < 0.28 then -- 1064
-		alpha = t / 0.28 -- 1066
-	end -- 1066
-	local cx = w * 0.5 -- 1068
-	local cy = h * 0.77 -- 1069
-	local spread = math.min(1, alpha * 1.15) -- 1070
-	drawSilkVeil( -- 1073
-		uiDraw, -- 1073
-		art, -- 1073
-		"banner_veil", -- 1073
-		cx, -- 1073
-		cy - 2, -- 1073
-		480 * spread + 100, -- 1073
-		92, -- 1073
-		PALETTE.inkWash, -- 1073
-		0.76 * alpha, -- 1073
-		-1 -- 1073
-	) -- 1073
-	drawMistCurve( -- 1074
-		art, -- 1074
-		"banner_mist", -- 1074
-		cx, -- 1074
-		cy + 4, -- 1074
-		460 * spread, -- 1074
-		72, -- 1074
-		theme.accent, -- 1074
-		0.28 * alpha, -- 1074
-		0 -- 1074
-	) -- 1074
-	drawHairline( -- 1075
-		uiInkDraw, -- 1075
+function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art, texts, roomKey, w, h) -- 1053
+	local theme = themeOf(roomKey) -- 1062
+	local t = self.bannerT / self.bannerMax -- 1063
+	local alpha = 1 -- 1064
+	if t > 0.82 then -- 1064
+		alpha = (1 - t) / 0.18 -- 1066
+	elseif t < 0.28 then -- 1066
+		alpha = t / 0.28 -- 1068
+	end -- 1068
+	local cx = w * 0.5 -- 1070
+	local cy = h * 0.77 -- 1071
+	local spread = math.min(1, alpha * 1.15) -- 1072
+	drawSilkVeil( -- 1075
+		uiDraw, -- 1075
 		art, -- 1075
-		"banner_line", -- 1075
+		"banner_veil", -- 1075
 		cx, -- 1075
-		cy - 16, -- 1075
-		320 * spread, -- 1075
-		PALETTE.silkLine, -- 1075
-		0.64 * alpha, -- 1075
-		false, -- 1075
-		2 -- 1075
+		cy - 2, -- 1075
+		480 * spread + 100, -- 1075
+		92, -- 1075
+		PALETTE.inkWash, -- 1075
+		0.76 * alpha, -- 1075
+		-1 -- 1075
 	) -- 1075
-	local sep = " · " -- 1078
-	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 1079
-	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 1080
-	if theme.backdropKey ~= nil then -- 1080
-		texts:put( -- 1082
-			"lg", -- 1082
-			theme.titleZh, -- 1082
-			cx, -- 1082
-			cy + 14, -- 1082
-			toColor(PALETTE.textBright), -- 1082
-			0.5, -- 1083
-			0.5, -- 1083
-			"Center", -- 1083
-			1, -- 1083
-			alpha, -- 1083
-			0.1 -- 1083
-		) -- 1083
-	elseif idx > 0 then -- 1083
-		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 1085
-		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 1086
-		local lw = visualTextWidth(leftPart, 42) -- 1087
-		local rw = visualTextWidth(rightPart, 42) -- 1088
-		local dotGap = 28 -- 1089
-		local totalW = lw + rw + dotGap -- 1090
-		local leftEdge = cx - totalW * 0.5 -- 1091
-		local dotX = leftEdge + lw + dotGap * 0.5 -- 1092
-		texts:put( -- 1094
-			"banner", -- 1094
-			leftPart, -- 1094
-			leftEdge, -- 1094
-			cy + 14, -- 1094
-			toColor(PALETTE.textBright), -- 1094
-			0, -- 1094
-			0.5, -- 1094
-			"Left", -- 1094
-			2, -- 1094
-			alpha, -- 1094
-			0.1 -- 1094
-		) -- 1094
-		drawBlossomDot( -- 1095
-			uiInkDraw, -- 1095
-			art, -- 1095
-			"banner_mid_dot", -- 1095
-			dotX, -- 1095
-			cy + 12, -- 1095
-			11, -- 1095
-			dotCol, -- 1095
-			0.92 * alpha, -- 1095
-			4 -- 1095
-		) -- 1095
+	drawMistCurve( -- 1076
+		art, -- 1076
+		"banner_mist", -- 1076
+		cx, -- 1076
+		cy + 4, -- 1076
+		460 * spread, -- 1076
+		72, -- 1076
+		theme.accent, -- 1076
+		0.28 * alpha, -- 1076
+		0 -- 1076
+	) -- 1076
+	drawHairline( -- 1077
+		uiInkDraw, -- 1077
+		art, -- 1077
+		"banner_line", -- 1077
+		cx, -- 1077
+		cy - 16, -- 1077
+		320 * spread, -- 1077
+		PALETTE.silkLine, -- 1077
+		0.64 * alpha, -- 1077
+		false, -- 1077
+		2 -- 1077
+	) -- 1077
+	local sep = " · " -- 1080
+	local idx = (string.find(theme.titleZh, sep, nil, true) or 0) - 1 -- 1081
+	local dotCol = roomKey == "gate" and PALETTE.rouge or PALETTE.silkLine -- 1082
+	if theme.backdropKey ~= nil then -- 1082
+		texts:put( -- 1084
+			"lg", -- 1084
+			theme.titleZh, -- 1084
+			cx, -- 1084
+			cy + 14, -- 1084
+			toColor(PALETTE.textBright), -- 1084
+			0.5, -- 1085
+			0.5, -- 1085
+			"Center", -- 1085
+			1, -- 1085
+			alpha, -- 1085
+			0.1 -- 1085
+		) -- 1085
+	elseif idx > 0 then -- 1085
+		local leftPart = __TS__StringSlice(theme.titleZh, 0, idx) -- 1087
+		local rightPart = __TS__StringSlice(theme.titleZh, idx + #sep) -- 1088
+		local lw = visualTextWidth(leftPart, 42) -- 1089
+		local rw = visualTextWidth(rightPart, 42) -- 1090
+		local dotGap = 28 -- 1091
+		local totalW = lw + rw + dotGap -- 1092
+		local leftEdge = cx - totalW * 0.5 -- 1093
+		local dotX = leftEdge + lw + dotGap * 0.5 -- 1094
 		texts:put( -- 1096
 			"banner", -- 1096
-			rightPart, -- 1096
-			dotX + dotGap * 0.5, -- 1096
+			leftPart, -- 1096
+			leftEdge, -- 1096
 			cy + 14, -- 1096
 			toColor(PALETTE.textBright), -- 1096
 			0, -- 1096
@@ -1534,33 +1510,57 @@ function NarrativeRenderer.prototype.drawAreaBanner(self, uiDraw, uiInkDraw, art
 			alpha, -- 1096
 			0.1 -- 1096
 		) -- 1096
-	else -- 1096
+		drawBlossomDot( -- 1097
+			uiInkDraw, -- 1097
+			art, -- 1097
+			"banner_mid_dot", -- 1097
+			dotX, -- 1097
+			cy + 12, -- 1097
+			11, -- 1097
+			dotCol, -- 1097
+			0.92 * alpha, -- 1097
+			4 -- 1097
+		) -- 1097
 		texts:put( -- 1098
 			"banner", -- 1098
-			theme.titleZh, -- 1098
-			cx, -- 1098
+			rightPart, -- 1098
+			dotX + dotGap * 0.5, -- 1098
 			cy + 14, -- 1098
 			toColor(PALETTE.textBright), -- 1098
+			0, -- 1098
 			0.5, -- 1098
-			0.5, -- 1098
-			"Center", -- 1098
-			3, -- 1098
+			"Left", -- 1098
+			2, -- 1098
 			alpha, -- 1098
 			0.1 -- 1098
 		) -- 1098
-	end -- 1098
-	texts:put( -- 1100
-		"xs", -- 1100
-		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 1100
-		cx, -- 1100
-		cy - 34, -- 1100
-		toColor(PALETTE.textMid), -- 1100
-		0.5, -- 1100
-		0.5, -- 1100
-		"Center", -- 1100
-		2.2, -- 1100
-		0.82 * alpha, -- 1100
-		0.08 -- 1100
-	) -- 1100
-end -- 1051
-return ____exports -- 1051
+	else -- 1098
+		texts:put( -- 1100
+			"banner", -- 1100
+			theme.titleZh, -- 1100
+			cx, -- 1100
+			cy + 14, -- 1100
+			toColor(PALETTE.textBright), -- 1100
+			0.5, -- 1100
+			0.5, -- 1100
+			"Center", -- 1100
+			3, -- 1100
+			alpha, -- 1100
+			0.1 -- 1100
+		) -- 1100
+	end -- 1100
+	texts:put( -- 1102
+		"xs", -- 1102
+		(theme.actCode .. "  ·  ") .. theme.volumeTagZh, -- 1102
+		cx, -- 1102
+		cy - 34, -- 1102
+		toColor(PALETTE.textMid), -- 1102
+		0.5, -- 1102
+		0.5, -- 1102
+		"Center", -- 1102
+		2.2, -- 1102
+		0.82 * alpha, -- 1102
+		0.08 -- 1102
+	) -- 1102
+end -- 1053
+return ____exports -- 1053
