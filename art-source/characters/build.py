@@ -11,8 +11,6 @@ from xml.etree import ElementTree as XML
 
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
 
-from pixel_style import export_cast, paint_motion, paint_pose
-
 
 HERE = Path(__file__).resolve().parent
 ART = HERE.parents[1] / "assets" / "art"
@@ -216,14 +214,14 @@ def running_frames(image, rig, samples):
         yield canvas.resize(rig.cel, Image.Resampling.LANCZOS)
 
 
-def motion_atlas(name, frames, size, count=FRAMES, columns=COLUMNS, *, soldier):
+def motion_atlas(name, frames, size, count=FRAMES, columns=COLUMNS):
     w, h = size
     tile_w, tile_h = w + 2 * GUTTER, h + 2 * GUTTER
     atlas = Image.new("RGBA", (tile_w * columns, tile_h * ((count + columns - 1) // columns)))
     for index, frame in enumerate(frames):
         x = (index % columns) * tile_w + GUTTER
         y = (index // columns) * tile_h + GUTTER
-        atlas.paste(paint_motion(frame, soldier), (x, y))
+        atlas.paste(frame, (x, y))
     atlas.save(ART / (name + ".png"), optimize=True)
 
 
@@ -409,17 +407,14 @@ def main():
     )):
         cels[f"soldier_slide_{index}"] = pose_cel(trim(image), height, center, SLIDE_SIZE)
 
-    pose_atlas({key: paint_pose(key, cel) for key, cel in cels.items()})
+    pose_atlas(cels)
     for name, key, rig in (("zhoushu", "soldier", SOLDIER), ("xiaoman", "child", CHILD)):
         source = sources[f"{key}_run"]
         samples = ((index / FRAMES, 1) for index in range(FRAMES))
-        motion_atlas(f"{name}-run", running_frames(source, rig, samples),
-                     rig.cel, soldier=rig is SOLDIER)
+        motion_atlas(f"{name}-run", running_frames(source, rig, samples), rig.cel)
         motion_atlas(f"{name}-run-transition", transition_frames(source, rig, cels[f"{key}_idle"]),
-                     rig.cel, TRANSITION_LEVELS * TRANSITION_PHASES, TRANSITION_PHASES,
-                     soldier=rig is SOLDIER)
-    motion_atlas("zhoushu-slide", slide_frames(cels), SLIDE_SIZE, SLIDE_FRAMES, 8, soldier=True)
-    export_cast(ART)
+                     rig.cel, TRANSITION_LEVELS * TRANSITION_PHASES, TRANSITION_PHASES)
+    motion_atlas("zhoushu-slide", slide_frames(cels), SLIDE_SIZE, SLIDE_FRAMES, 8)
 
 
 if __name__ == "__main__":
