@@ -99,7 +99,7 @@ do
 	check("windows: portrait viewport disabled even on 390x844",
 		not vpNarrow.isPortrait and vpNarrow.deckH == 0 and not inp:shouldShowTouchControls())
 
-	check("windows: settings has 5 rows (4 volumes + back)", #t:settingsRows() == 5 and t:settingsHeaderTitle() == "声音设置")
+	check("windows: settings has 7 rows (4 volumes + display + assist + back)", #t:settingsRows() == 7 and t:settingsHeaderTitle() == "游戏设置")
 	check("windows: controls guide has single kbm page", #t.controlsGuideTabs == 1 and t.controlsGuideTabs[1].mode == "kbm")
 	check("windows: adaptHintSentence is zero-allocation passthrough",
 		t:adaptHintSentence("按 [E] 交互，左键发铳", "kbm", "xbox") == "按 [E] 交互，左键发铳")

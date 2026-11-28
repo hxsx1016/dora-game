@@ -13,6 +13,13 @@ import { ROOMS } from "Script/watch/rooms";
 import { Input } from "Script/watch/input";
 import { GamepadLayout, InputMode } from "Script/watch/controls_config";
 import {
+    SaveSlotId,
+    SaveSlotSummary,
+    formatPlayDuration,
+    formatSavedAt,
+    listSaveSlots,
+} from "Script/watch/save";
+import {
     SafeInsets,
     ZERO_SAFE_INSETS,
     canQuitApp,
@@ -41,7 +48,7 @@ import {
     visualTextWidth,
 } from "Script/watch/fe/theme";
 
-export type ScreenKind = "splash" | "title" | "chapters" | "controls" | "epilogue" | "history" | "play";
+export type ScreenKind = "splash" | "title" | "chapters" | "controls" | "saves" | "settings" | "epilogue" | "history" | "play";
 
 export type UiSoundKind = "hover" | "confirm" | "back" | "start" | "pauseOpen" | "pauseClose" | "toggle";
 
@@ -58,6 +65,11 @@ export interface MenuAction {
         | "toTitle"
         | "openChapters"
         | "openControls"
+        | "openSaves"
+        | "openSettings"
+        | "loadSlot"
+        | "saveSlot"
+        | "deleteSlot"
         | "openHistory"
         | "backTitle"
         | "backEpilogue"
@@ -66,12 +78,15 @@ export interface MenuAction {
         | "quit";
     roomIndex?: number;
     route?: "child" | "soldier";
+    slot?: SaveSlotId;
 }
 
 const TITLE_ITEMS = [
     { id: "start", zh: "开始游戏" },
     { id: "chapters", zh: "选择章节" },
     { id: "controls", zh: "操作说明" },
+    { id: "saves", zh: "读取存档" },
+    { id: "settings", zh: "游戏设置" },
     { id: "quit", zh: "退出游戏" },
 ];
 
@@ -121,7 +136,7 @@ const CHAPTERS: ChapterEntry[] = (() => {
     return out;
 })();
 
-// 桌面端严格保持 0..7 既有顺序（4 = fullscreen，7 = quit），第 8 项追加「操控设置」二级页。
+// 桌面端严格保持 0..9 既有顺序（4 = fullscreen，7 = quit，8 = settings，9 = ledger），末项追加「存取档案」。
 const PAUSE_ITEMS = [
     { id: "resume", zh: "继续游戏" },
     { id: "retry", zh: "重试检查点" },
@@ -133,6 +148,7 @@ const PAUSE_ITEMS = [
     { id: "quit", zh: "退出游戏" },
     { id: "settings", zh: "操控设置" },
     { id: "ledger", zh: "行军札记" },
+    { id: "saves", zh: "存取档案" },
 ];
 
 const VERTICAL_TITLE = ["向", "西", "守", "望"];
@@ -174,15 +190,19 @@ export class MenuRenderer {
     chapterSelected = 0;
     pauseSelected = 0;
     settingsSelected = 0;
+    saveSelected = 0;
+    saveActionSelected = 0;
     epilogueSelected = 0;
     epilogueEnding: "lamp" | "reunion" = "lamp";
     epilogueBothCleared = false;
     historyCardIndex = 0;
     private historyFromEpilogue = false;
-    /** 存在有效局中存档时，标题页首项显示「继续游戏」，无存档时保持原 5 项索引不变。 */
+    /** 存在有效局中存档时，标题页首项显示「继续游戏」，无存档时保持原索引。 */
     hasSession = false;
     /** 局中存档所在章节短名（显示于「继续游戏」右侧，便于分辨续读落点） */
     sessionLabel = "";
+    /** 存档管理页当前缓存的四槽位摘要（自动档 + 档位 1..3） */
+    saveSlots: SaveSlotSummary[] = [];
 
     setSessionRoomKey(roomKey: string): void {
         this.sessionLabel = roomKey !== "" ? themeOf(roomKey).shortNameZh : "";
@@ -193,6 +213,10 @@ export class MenuRenderer {
     onUiSound?: (kind: UiSoundKind) => void;
     /** 音量设置项实时变化回调 */
     onAudioSettingsChanged?: (input: Input) => void;
+    /** 按键辅助设置项实时变化回调 */
+    onAssistSettingsChanged?: (input: Input) => void;
+    /** 显示模式全屏切换回调（由 app.ts 挂载以同步持久化配置） */
+    onToggleFullscreen?: () => void;
 
     private emitSound(kind: UiSoundKind): void {
         if (this.onUiSound !== undefined) {
@@ -203,6 +227,12 @@ export class MenuRenderer {
     private chaptersFromPause = false;
     private pauseShowControls = false;
     private pauseShowSettings = false;
+    private pauseShowSaves = false;
+    private titleConfirmNewGame = false;
+    private titleConfirmSel = 1;
+    private saveConfirmKind: "" | "overwrite" | "delete" = "";
+    private saveConfirmSlot: SaveSlotId = 1;
+    private saveConfirmSel = 1;
     private controlsTabManual = false;
     private queuedKeys: Partial<MenuKeys> = {};
     private queuedBack = false;
@@ -224,8 +254,39 @@ export class MenuRenderer {
         return this.pauseShowSettings;
     }
 
+    isShowingPauseSaves(): boolean {
+        return this.pauseShowSaves;
+    }
+
+    isShowingTitleConfirm(): boolean {
+        return this.titleConfirmNewGame;
+    }
+
+    refreshSaveSlots(): void {
+        this.saveSlots = listSaveSlots();
+    }
+
+    openSaves(fromPause: boolean = false): void {
+        this.refreshSaveSlots();
+        this.saveSelected = fromPause ? 1 : 0;
+        this.saveActionSelected = 0;
+        this.saveConfirmKind = "";
+        this.saveConfirmSel = 1;
+        this.pauseShowControls = false;
+        this.pauseShowSettings = false;
+        this.pauseShowSaves = fromPause;
+        this.resetInput();
+    }
+
+    openSettings(): void {
+        this.settingsSelected = 0;
+        this.titleConfirmNewGame = false;
+        this.resetInput();
+    }
+
     openPauseSettings(): void {
         this.pauseShowControls = false;
+        this.pauseShowSaves = false;
         this.pauseShowSettings = true;
         this.settingsSelected = 0;
         this.resetInput();
@@ -236,6 +297,8 @@ export class MenuRenderer {
         this.chapterSelected = Math.max(0, CHAPTERS.findIndex(chapter => chapter.roomIndex === roomIndex));
         this.pauseShowControls = false;
         this.pauseShowSettings = false;
+        this.pauseShowSaves = false;
+        this.titleConfirmNewGame = false;
         this.resetInput();
     }
 
@@ -243,6 +306,8 @@ export class MenuRenderer {
         this.pauseSelected = 0;
         this.pauseShowControls = false;
         this.pauseShowSettings = false;
+        this.pauseShowSaves = false;
+        this.saveConfirmKind = "";
         this.resetInput();
     }
 
@@ -383,6 +448,15 @@ export class MenuRenderer {
         }
         if (screen === "chapters") {
             return this.drawChapters(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
+        }
+        if (screen === "saves") {
+            return this.drawSavesPanel(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, false, false);
+        }
+        if (screen === "settings") {
+            if (this.drawPauseSettings(frame, input, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h)) {
+                return { type: "backTitle" };
+            }
+            return { type: "none" };
         }
         if (screen === "epilogue") {
             return this.drawEpilogue(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h);
@@ -556,25 +630,30 @@ export class MenuRenderer {
         if (this.selected >= items.length) {
             this.selected = 0;
         }
+        const denseTitle = items.length >= 6;
+        const veryDenseTitle = items.length >= 7;
         const menuX = 112 + frame.safe.left * 0.6;
         const btnW = 280;
-        const btnH = frame.mode === "touch" ? 44 : 40;
-        const gap = this.hasSession ? 6 : 8;
-        const startY = (this.hasSession ? 298 : 268) + extraH * 0.35;
+        const btnH = veryDenseTitle ? 34 : (denseTitle ? 36 : (frame.mode === "touch" ? 44 : 40));
+        const gap = veryDenseTitle ? 5 : (denseTitle ? 5 : 8);
+        const startY = (veryDenseTitle ? 306 : (denseTitle ? 274 : 268)) + extraH * 0.35;
         const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < items.length; i++) {
             boxes.push(Rect(menuX - 10, startY - i * (btnH + gap), btnW + 10, btnH));
         }
-        const prevTitleSel = this.selected;
-        this.selected = this.verticalSelection(this.selected, boxes, frame);
-        if (this.selected !== prevTitleSel) {
-            this.emitSound("hover");
+
+        if (!this.titleConfirmNewGame) {
+            const prevTitleSel = this.selected;
+            this.selected = this.verticalSelection(this.selected, boxes, frame);
+            if (this.selected !== prevTitleSel) {
+                this.emitSound("hover");
+            }
         }
 
         for (i = 0; i < items.length; i++) {
             const by = boxes[i].y;
-            const active = this.selected === i;
+            const active = !this.titleConfirmNewGame && this.selected === i;
             const cy = by + btnH * 0.5;
             const shiftX = active ? 10 : 0;
 
@@ -582,14 +661,14 @@ export class MenuRenderer {
                 const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.2);
                 drawSilkRibbon(uiDraw, uiArt, "title_rib_red_" + i, menuX + 124, cy, 290, btnH, PALETTE.rougeSoft, 0.52 * breathe, 0);
                 drawHairline(uiInkDraw, uiArt, "title_rib_line_" + i, menuX + 114, by + 4, 230, PALETTE.silkLine, 0.42 * breathe, false, 2);
-                drawBlossomDot(uiInkDraw, uiArt, "title_dot_" + i, menuX + 14, cy, 16, PALETTE.rouge, 0.96, 4);
+                drawBlossomDot(uiInkDraw, uiArt, "title_dot_" + i, menuX + 14, cy, 15, PALETTE.rouge, 0.96, 4);
                 fillRadialGlow(uiGlow, menuX + 14, cy, 22, 16, toColor(PALETTE.rouge, 28 * breathe), Color(182, 58, 56, 0), 10);
             } else {
                 drawBlossomDot(uiInkDraw, uiArt, "title_dot_" + i, menuX + 14, cy, 8, PALETTE.silkDim, 0.40, 3);
             }
 
             texts.put(
-                "md",
+                veryDenseTitle ? "sm" : "md",
                 items[i].zh,
                 menuX + 34 + shiftX,
                 cy,
@@ -597,7 +676,7 @@ export class MenuRenderer {
                 0,
                 0.5,
                 TextAlign.Left,
-                active ? 4.4 : 2.8,
+                active ? 4.0 : 2.6,
                 active ? 1.0 : 0.88,
                 0.10,
             );
@@ -619,7 +698,7 @@ export class MenuRenderer {
         }
 
         const titleHint = getActiveTarget().titleFooterHint(frame.mode, frame.layout);
-        texts.put("xs", titleHint, menuX + 12, 42 + frame.safe.bottom * 0.45, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
+        texts.put("xs", titleHint, menuX + 12, 34 + frame.safe.bottom * 0.45, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.88, 0.08);
 
         // 右下角克制团队落款（局外人 T2 微光角标）
         const badgeRight = w - frame.safe.right * 0.5;
@@ -629,17 +708,445 @@ export class MenuRenderer {
             opacity: 0.95, layer: 3,
         });
 
+        if (this.titleConfirmNewGame) {
+            const dlgRes = this.drawConfirmDialog(
+                frame,
+                uiDraw,
+                uiInkDraw,
+                uiArt,
+                texts,
+                w,
+                h,
+                "开启新旅程",
+                "当前已有自动存档，开始新游戏将覆盖自动存档（手动槽位保留）。",
+                "确认开始",
+                "取消返回",
+                this.titleConfirmSel,
+                (sel: number) => {
+                    this.titleConfirmSel = sel;
+                },
+            );
+            if (dlgRes === "confirm") {
+                this.titleConfirmNewGame = false;
+                this.emitSound("start");
+                this.resetInput();
+                return { type: "start" };
+            }
+            if (dlgRes === "cancel") {
+                this.titleConfirmNewGame = false;
+                this.emitSound("back");
+                this.resetInput();
+            }
+            return { type: "none" };
+        }
+
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.selected;
             const id = items[idx].id;
             if (id === "continue") { this.emitSound("start"); return { type: "continue" }; }
-            if (id === "start") { this.emitSound("start"); return { type: "start" }; }
+            if (id === "start") {
+                if (this.hasSession) {
+                    this.titleConfirmNewGame = true;
+                    this.titleConfirmSel = 1;
+                    this.emitSound("confirm");
+                    this.resetInput();
+                    return { type: "none" };
+                }
+                this.emitSound("start");
+                return { type: "start" };
+            }
             if (id === "chapters") { this.emitSound("confirm"); return { type: "openChapters" }; }
+            if (id === "saves") {
+                this.openSaves(false);
+                this.emitSound("confirm");
+                return { type: "openSaves" };
+            }
+            if (id === "settings") {
+                this.openSettings();
+                this.emitSound("confirm");
+                return { type: "openSettings" };
+            }
             if (id === "quit") { this.emitSound("back"); return { type: "quit" }; }
             this.emitSound("confirm");
             return { type: "openControls" };
         }
+        return { type: "none" };
+    }
+
+    /** 居中水墨二次确认弹窗（用于覆盖自动存档 / 覆盖槽位 / 删除槽位，默认选中「取消」防误删）。 */
+    private drawConfirmDialog(
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        texts: TextPool,
+        w: number,
+        h: number,
+        heading: string,
+        message: string,
+        confirmLabel: string,
+        cancelLabel: string,
+        selected: number,
+        setSelected: (next: number) => void,
+    ): "none" | "confirm" | "cancel" {
+        if (frame.back) {
+            return "cancel";
+        }
+        const dlgW = Math.min(540, w - 120);
+        const dlgH = 224;
+        const dlgX = (w - dlgW) * 0.5;
+        const dlgY = (h - dlgH) * 0.5;
+        const btnW = 166;
+        const btnH = 40;
+        const btnGap = 28;
+        const btnY = dlgY + 28;
+        const btn0X = w * 0.5 - btnW - btnGap * 0.5;
+        const btn1X = w * 0.5 + btnGap * 0.5;
+        const boxes = [Rect(btn0X, btnY, btnW, btnH), Rect(btn1X, btnY, btnW, btnH)];
+
+        const hit = hitIndex(boxes, frame.pointer, frame.inside);
+        let cur = selected;
+        if (frame.click && hit >= 0) {
+            cur = hit;
+        } else if (frame.keys.left || frame.keys.up) {
+            cur = 0;
+        } else if (frame.keys.right || frame.keys.down) {
+            cur = 1;
+        } else if (frame.pointerMoved && hit >= 0 && !frame.keys.confirm) {
+            cur = hit;
+        }
+        if (cur !== selected) {
+            setSelected(cur);
+            this.emitSound("hover");
+        }
+
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(6, 8, 14, 186));
+        uiDraw.drawRect(Rect(dlgX, dlgY, dlgW, dlgH), Color(14, 17, 26, 244));
+        drawFiligreeCorners(uiInkDraw, uiArt, "confirm_dlg_frame", dlgX, dlgY, dlgW, dlgH, PALETTE.silkLine, 0.85, 28, true, 5);
+        texts.put("lg", heading, w * 0.5, dlgY + dlgH - 44, toColor(PALETTE.textBright), 0.5, 0.5, TextAlign.Center, 3.0, 0.98, 0.10);
+        drawHairline(uiInkDraw, uiArt, "confirm_dlg_div", w * 0.5, dlgY + dlgH - 72, dlgW - 84, PALETTE.silkDim, 0.56, true, 4);
+        texts.put("sm", message, w * 0.5, dlgY + dlgH - 110, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.8, 0.94, 0.08);
+
+        const labels = [confirmLabel, cancelLabel];
+        let bi = 0;
+        for (bi = 0; bi < 2; bi++) {
+            const bx = boxes[bi];
+            const isSel = cur === bi;
+            const fillCol = isSel
+                ? (bi === 0 ? toColor(PALETTE.rougeSoft, 185) : Color(32, 40, 56, 215))
+                : Color(18, 22, 32, 165);
+            const borderCol = isSel
+                ? (bi === 0 ? PALETTE.rouge : PALETTE.amberCore)
+                : PALETTE.silkDim;
+            uiInkDraw.drawRect(bx, fillCol, 1.1, toColor(borderCol, isSel ? 235 : 145));
+            texts.put(
+                "sm",
+                labels[bi],
+                bx.x + bx.width * 0.5,
+                bx.y + bx.height * 0.5,
+                toColor(isSel ? PALETTE.textBright : PALETTE.textMid),
+                0.5,
+                0.5,
+                TextAlign.Center,
+                2.0,
+                isSel ? 1.0 : 0.84,
+                0.08,
+            );
+        }
+
+        if ((frame.click && hit >= 0) || frame.keys.confirm) {
+            return cur === 0 ? "confirm" : "cancel";
+        }
+        return "none";
+    }
+
+    /** 多槽位存档管理页（自动存档 + 档案一/二/三；支持标题页读删与暂停页存取删及覆盖/删除确认）。 */
+    private drawSavesPanel(
+        frame: MenuFrame,
+        uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
+        uiArt: AssetSlotHost,
+        uiGlow: DrawNode.Type,
+        texts: TextPool,
+        w: number,
+        h: number,
+        fromPause: boolean,
+        canSave: boolean,
+    ): MenuAction {
+        const backAction: MenuAction = { type: fromPause ? "backPause" : "backTitle" };
+        if (this.saveSlots.length === 0) {
+            this.refreshSaveSlots();
+        }
+        const slots = this.saveSlots;
+        if (this.saveSelected >= slots.length) {
+            this.saveSelected = 0;
+        }
+
+        if (this.saveConfirmKind === "" && frame.back) {
+            this.emitSound("back");
+            return backAction;
+        }
+
+        uiDraw.drawRect(Rect(0, 0, w, h), Color(10, 12, 19, 208));
+
+        const marginX = Math.max(96, 56 + Math.max(frame.safe.left, frame.safe.right));
+        const topHeadY = h - 58 - frame.safe.top * 0.35;
+        texts.put("lg", fromPause ? "存取档案" : "读取存档", marginX, topHeadY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 4.0, 0.98, 0.10);
+        const subDesc = fromPause
+            ? (canSave ? "自动存档随进度更新 · 可存入或读取三处手动槽位" : "当前段落仅可读取或清理已有存档")
+            : "便携目录 saves/ · 支持自动存档与三处独立槽位";
+        texts.put("xs", subDesc, marginX + 168, topHeadY - 2, toColor(PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.2, 0.86, 0.08);
+        drawHairline(uiInkDraw, uiArt, "saves_top_line", w * 0.5, topHeadY - 30, w - marginX * 2, PALETTE.silkDim, 0.60, true, 2);
+
+        const panelW = Math.min(880, w - marginX * 2);
+        const panelX = (w - panelW) * 0.5;
+        const cardH = 92;
+        const cardGap = 16;
+        const firstTop = topHeadY - 58;
+        const cardBoxes: Rect.Type[] = [];
+        let i = 0;
+        for (i = 0; i < slots.length; i++) {
+            const cyBottom = firstTop - (i + 1) * cardH - i * cardGap;
+            cardBoxes.push(Rect(panelX, cyBottom, panelW, cardH));
+        }
+
+        const actionsForSlot = (slot: SaveSlotSummary): { id: "save" | "load" | "delete"; zh: string }[] => {
+            const acts: { id: "save" | "load" | "delete"; zh: string }[] = [];
+            if (fromPause && canSave && slot.id !== "auto") {
+                acts.push({ id: "save", zh: slot.exists ? "覆盖保存" : "存入此档" });
+            }
+            if (slot.exists) {
+                acts.push({ id: "load", zh: "读取" });
+                acts.push({ id: "delete", zh: "删除" });
+            }
+            return acts;
+        };
+
+        if (this.saveConfirmKind === "") {
+            const prevSel = this.saveSelected;
+            this.saveSelected = this.verticalSelection(this.saveSelected, cardBoxes, frame);
+            if (this.saveSelected !== prevSel) {
+                this.saveActionSelected = 0;
+                this.emitSound("hover");
+            }
+        }
+
+        const slotTitleOf = (id: SaveSlotId): string => {
+            if (id === "auto") return "自动存档";
+            if (id === 1) return "档案一";
+            if (id === 2) return "档案二";
+            return "档案三";
+        };
+
+        let activeActionBoxes: Rect.Type[] = [];
+        let activeActions: { id: "save" | "load" | "delete"; zh: string }[] = [];
+
+        for (i = 0; i < slots.length; i++) {
+            const slot = slots[i];
+            const box = cardBoxes[i];
+            const active = this.saveSelected === i && this.saveConfirmKind === "";
+            const acts = actionsForSlot(slot);
+            if (this.saveSelected === i) {
+                activeActions = acts;
+                if (this.saveActionSelected >= acts.length) {
+                    this.saveActionSelected = 0;
+                }
+            }
+
+            const cardBg = active ? Color(22, 26, 38, 224) : Color(13, 16, 24, 182);
+            const cardBorder = active ? PALETTE.rouge : PALETTE.silkDim;
+            uiInkDraw.drawRect(box, cardBg, active ? 1.3 : 0.8, toColor(cardBorder, active ? 225 : 120));
+            if (active) {
+                const breathe = 0.84 + 0.16 * Math.sin(this.time * 2.2);
+                drawSilkRibbon(uiDraw, uiArt, "save_rib_" + i, panelX + panelW * 0.5, box.y + box.height * 0.5, panelW + 10, box.height - 6, PALETTE.rougeSoft, 0.24 * breathe, 0);
+                drawBlossomDot(uiInkDraw, uiArt, "save_dot_" + i, box.x + 22, box.y + box.height - 28, 13, PALETTE.rouge, 0.96, 4);
+                fillRadialGlow(uiGlow, box.x + 22, box.y + box.height - 28, 18, 14, toColor(PALETTE.rouge, 24 * breathe), Color(182, 58, 56, 0), 10);
+            } else {
+                drawBlossomDot(uiInkDraw, uiArt, "save_dot_" + i, box.x + 22, box.y + box.height - 28, 7, PALETTE.silkDim, 0.48, 3);
+            }
+
+            const titleX = box.x + 44;
+            const titleY = box.y + box.height - 28;
+            texts.put("md", slotTitleOf(slot.id), titleX, titleY, toColor(active ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 2.2, active ? 1.0 : 0.88, 0.08);
+
+            if (slot.exists) {
+                const rt = themeOf(slot.roomKey);
+                const routeZh = slot.route === "soldier" ? "周戍线" : (slot.route === "child" ? "小满线" : "序章");
+                const chapTag = rt.shortNameZh + " · " + routeZh;
+                texts.put("sm", chapTag, titleX + 118, titleY, toColor(slot.route === "soldier" ? PALETTE.cyanCore : PALETTE.amberCore), 0, 0.5, TextAlign.Left, 1.4, 0.94, 0.08);
+
+                const parts: string[] = [];
+                parts.push("血量 " + slot.hp + "/" + slot.maxHp);
+                const dur = formatPlayDuration(slot.playSeconds);
+                if (dur !== "") {
+                    parts.push("时长 " + dur);
+                }
+                const savedStr = formatSavedAt(slot.savedAt);
+                if (savedStr !== "") {
+                    parts.push("保存于 " + savedStr);
+                }
+                if (slot.recovered) {
+                    parts.push("备份恢复");
+                }
+                texts.put("xs", parts.join("   ·   "), titleX, box.y + 26, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 0.8, 0.88, 0.08);
+            } else if (slot.status === "corrupt" || slot.status === "unsupported") {
+                texts.put("sm", slot.status === "corrupt" ? "存档已损坏" : "版本不兼容", titleX + 118, titleY, toColor(PALETTE.rouge), 0, 0.5, TextAlign.Left, 1.4, 0.94, 0.08);
+                texts.put("xs", "原件已隔离于 backups 目录，可覆盖保存或忽略", titleX, box.y + 26, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 0.8, 0.82, 0.08);
+            } else {
+                texts.put("sm", "空档", titleX + 118, titleY, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 1.4, 0.72, 0.08);
+                const emptyTip = slot.id === "auto"
+                    ? "推进剧情、切房或暂停时自动记录"
+                    : (fromPause && canSave ? "按回车或点击右侧「存入此档」保存当前进度" : "游玩中可在暂歇菜单手动保存");
+                texts.put("xs", emptyTip, titleX, box.y + 26, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 0.8, 0.70, 0.08);
+            }
+
+            // 右侧操作按钮组
+            const btnW = 88;
+            const btnH = 30;
+            const btnGap = 8;
+            const totalActW = acts.length > 0 ? (acts.length * btnW + (acts.length - 1) * btnGap) : 0;
+            const actStartX = box.x + box.width - 18 - totalActW;
+            const actY = box.y + (box.height - btnH) * 0.5;
+            const rowBtnBoxes: Rect.Type[] = [];
+            let ai = 0;
+            for (ai = 0; ai < acts.length; ai++) {
+                const bx = Rect(actStartX + ai * (btnW + btnGap), actY, btnW, btnH);
+                rowBtnBoxes.push(bx);
+                const btnFocused = active && this.saveActionSelected === ai;
+                const btnHover = this.saveConfirmKind === "" && frame.inside && bx.containsPoint(frame.pointer);
+                const highlight = btnFocused || btnHover;
+                const isDel = acts[ai].id === "delete";
+                const bg = highlight
+                    ? (isDel ? Color(118, 36, 36, 210) : toColor(PALETTE.rougeSoft, 195))
+                    : Color(18, 22, 32, 168);
+                const bd = highlight
+                    ? (isDel ? PALETTE.rouge : PALETTE.amberCore)
+                    : PALETTE.silkDim;
+                uiInkDraw.drawRect(bx, bg, 1.0, toColor(bd, highlight ? 235 : 135));
+                texts.put(
+                    "xs",
+                    acts[ai].zh,
+                    bx.x + bx.width * 0.5,
+                    bx.y + bx.height * 0.5,
+                    toColor(highlight ? PALETTE.textBright : PALETTE.textMid),
+                    0.5,
+                    0.5,
+                    TextAlign.Center,
+                    0.8,
+                    highlight ? 1.0 : 0.86,
+                    0.08,
+                );
+            }
+            if (this.saveSelected === i) {
+                activeActionBoxes = rowBtnBoxes;
+            }
+        }
+
+        const backX = marginX;
+        const backY = 38 + frame.safe.bottom * 0.45;
+        const backBox = Rect(backX - 6, backY - 6, 210, 44);
+        const backHover = this.saveConfirmKind === "" && frame.inside && backBox.containsPoint(frame.pointer);
+        drawSilkKeycap(uiInkDraw, texts, backX, backY + 4, 52, 24, "ESC", backHover ? PALETTE.rouge : PALETTE.silkDim, 0.92, backHover);
+        texts.put("sm", fromPause ? "返回暂停" : "返回标题", backX + 64, backY + 16, toColor(backHover ? PALETTE.textBright : PALETTE.textMid), 0, 0.5, TextAlign.Left, 1.8, 0.90, 0.08);
+        texts.put("xs", "上下选槽位   ·   左右选动作   ·   回车或点击确认", w - marginX, backY + 16, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.2, 0.78, 0.08);
+
+        if (this.saveConfirmKind !== "") {
+            const isDel = this.saveConfirmKind === "delete";
+            const dlgRes = this.drawConfirmDialog(
+                frame,
+                uiDraw,
+                uiInkDraw,
+                uiArt,
+                texts,
+                w,
+                h,
+                isDel ? "删除存档" : "覆盖存档",
+                isDel
+                    ? ("确定删除「" + slotTitleOf(this.saveConfirmSlot) + "」？删除后无法恢复。")
+                    : ("确定覆盖「" + slotTitleOf(this.saveConfirmSlot) + "」？原存档进度将被替换。"),
+                isDel ? "确认删除" : "确认覆盖",
+                "取消",
+                this.saveConfirmSel,
+                (sel: number) => {
+                    this.saveConfirmSel = sel;
+                },
+            );
+            if (dlgRes === "confirm") {
+                const kind = this.saveConfirmKind;
+                const slotId = this.saveConfirmSlot;
+                this.saveConfirmKind = "";
+                this.resetInput();
+                this.emitSound(kind === "delete" ? "back" : "confirm");
+                return { type: kind === "delete" ? "deleteSlot" : "saveSlot", slot: slotId };
+            }
+            if (dlgRes === "cancel") {
+                this.saveConfirmKind = "";
+                this.emitSound("back");
+                this.resetInput();
+            }
+            return { type: "none" };
+        }
+
+        if (frame.click && backHover) {
+            this.emitSound("back");
+            return backAction;
+        }
+
+        if (activeActions.length > 0) {
+            const hitAct = hitIndex(activeActionBoxes, frame.pointer, frame.inside);
+            if (frame.pointerMoved && hitAct >= 0 && !frame.keys.confirm && hitAct !== this.saveActionSelected) {
+                this.saveActionSelected = hitAct;
+                this.emitSound("hover");
+            }
+            if (frame.keys.left) {
+                this.saveActionSelected = (this.saveActionSelected + activeActions.length - 1) % activeActions.length;
+                this.emitSound("hover");
+            } else if (frame.keys.right) {
+                this.saveActionSelected = (this.saveActionSelected + 1) % activeActions.length;
+                this.emitSound("hover");
+            }
+
+            let triggerIdx = -1;
+            if (frame.click && hitAct >= 0) {
+                this.saveActionSelected = hitAct;
+                triggerIdx = hitAct;
+            } else if (frame.keys.confirm) {
+                triggerIdx = this.saveActionSelected;
+            }
+
+            if (triggerIdx >= 0 && triggerIdx < activeActions.length) {
+                const chosen = activeActions[triggerIdx];
+                const slot = slots[this.saveSelected];
+                if (chosen.id === "load") {
+                    this.emitSound("start");
+                    this.resetInput();
+                    return { type: "loadSlot", slot: slot.id };
+                }
+                if (chosen.id === "save") {
+                    if (slot.exists) {
+                        this.saveConfirmKind = "overwrite";
+                        this.saveConfirmSlot = slot.id;
+                        this.saveConfirmSel = 1;
+                        this.emitSound("confirm");
+                        this.resetInput();
+                        return { type: "none" };
+                    }
+                    this.emitSound("confirm");
+                    this.resetInput();
+                    return { type: "saveSlot", slot: slot.id };
+                }
+                if (chosen.id === "delete") {
+                    this.saveConfirmKind = "delete";
+                    this.saveConfirmSlot = slot.id;
+                    this.saveConfirmSel = 1;
+                    this.emitSound("confirm");
+                    this.resetInput();
+                    return { type: "none" };
+                }
+            }
+        }
+
         return { type: "none" };
     }
 
@@ -1052,6 +1559,20 @@ export class MenuRenderer {
             if (res === "audio" && this.onAudioSettingsChanged !== undefined) {
                 this.onAudioSettingsChanged(input);
             }
+            if (res === "assist" && this.onAssistSettingsChanged !== undefined) {
+                this.onAssistSettingsChanged(input);
+            }
+            if (res === "display") {
+                if (this.onToggleFullscreen !== undefined) {
+                    this.onToggleFullscreen();
+                } else if (canToggleFullscreen()) {
+                    try {
+                        App.fullScreen = !App.fullScreen;
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
             if (res !== "none") {
                 this.emitSound("toggle");
             }
@@ -1150,6 +1671,7 @@ export class MenuRenderer {
         isMaleRoguelike: boolean = false,
         showLedgerEntry: boolean = false,
         onOpenLedger?: () => void,
+        canSaveSlots: boolean = false,
     ): MenuAction {
         this.time += dt;
         const frame = this.readFrame(input, uiScale, safeUi);
@@ -1171,9 +1693,24 @@ export class MenuRenderer {
             return { type: "none" };
         }
 
+        if (this.pauseShowSaves) {
+            const saveAct = this.drawSavesPanel(frame, uiDraw, uiInkDraw, uiArt, uiGlow, texts, w, h, true, canSaveSlots);
+            if (saveAct.type === "backPause") {
+                this.pauseShowSaves = false;
+                this.resetInput();
+                return { type: "none" };
+            }
+            if (saveAct.type === "loadSlot") {
+                this.pauseShowSaves = false;
+                return saveAct;
+            }
+            return saveAct;
+        }
+
         if (frame.back) {
             this.pauseShowControls = false;
             this.pauseShowSettings = false;
+            this.pauseShowSaves = false;
             this.emitSound("pauseClose");
             return { type: "resume" };
         }
@@ -1194,8 +1731,9 @@ export class MenuRenderer {
         fillHGradRect(uiDraw, w * 0.27 + frame.safe.left, 0, w * 0.21, h, Color(10, 13, 21, 198), Color(10, 13, 21, 0));
 
         const menuX = 110 + frame.safe.left * 0.6;
+        const veryCompact = pauseItems.length >= 10;
         const compact = pauseItems.length > 8;
-        const headY = (compact ? h - 122 : h - 146) - frame.safe.top * 0.35;
+        const headY = (veryCompact ? h - 92 : (compact ? h - 114 : h - 146)) - frame.safe.top * 0.35;
         uiArt.tryPlace("ink_vstream", "pause_vstream", menuX - 32, h * 0.5, 34, h * 0.78, {
             color: toColor(PALETTE.silkDim), opacity: 0.48, layer: 1,
         });
@@ -1203,11 +1741,11 @@ export class MenuRenderer {
 
         texts.put("banner", "暂歇", menuX + 16, headY, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 10.0, 0.98, 0.10);
         texts.put("xs", "月夜暂驻 · 卷页留痕", menuX + 18, headY - 36, toColor(PALETTE.textDim), 0, 0.5, TextAlign.Left, 2.0, 0.80, 0.08);
-        drawHairline(uiInkDraw, uiArt, "pause_div", menuX + 124, headY - 60, 240, PALETTE.silkDim, 0.58, true, 2);
+        drawHairline(uiInkDraw, uiArt, "pause_div", menuX + 124, headY - 56, 240, PALETTE.silkDim, 0.58, true, 2);
 
-        const rowStep = compact ? 42 : 46;
-        const rowH = compact ? 36 : 38;
-        const firstY = compact ? (headY - 112) : (headY - 120);
+        const rowStep = veryCompact ? 37 : (compact ? 42 : 46);
+        const rowH = veryCompact ? 32 : (compact ? 36 : 38);
+        const firstY = veryCompact ? (headY - 88) : (compact ? (headY - 106) : (headY - 120));
         const boxes: Rect.Type[] = [];
         let i = 0;
         for (i = 0; i < pauseItems.length; i++) {
@@ -1276,6 +1814,11 @@ export class MenuRenderer {
             }
             if (id === "settings") {
                 this.openPauseSettings();
+                this.emitSound("confirm");
+                return { type: "none" };
+            }
+            if (id === "saves") {
+                this.openSaves(true);
                 this.emitSound("confirm");
                 return { type: "none" };
             }

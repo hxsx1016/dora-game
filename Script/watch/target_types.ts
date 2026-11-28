@@ -65,6 +65,10 @@ export interface ReleaseConfig {
     isRelease?: boolean;
     version?: string;
     portableSave?: boolean;
+    saveLayout?: "portable" | "legacy";
+    saveFallbackReason?: string;
+    migratedFrom?: string;
+    gameRoot?: string;
     platform?: string;
     target?: TargetProfileId;
 }
@@ -99,6 +103,11 @@ export interface ControlSettings {
     bgmVol: number;
     sfxVol: number;
     voiceVol: number;
+    fullscreen: boolean;
+    winWidth: number;
+    winHeight: number;
+    muted: boolean;
+    assistHints: boolean;
 }
 
 export type KeyActionId =
@@ -224,7 +233,7 @@ export interface TargetRuntime {
         delta: number,
         settings: ControlSettings,
         input: Input,
-    ): "none" | "audio" | "back" | "control";
+    ): "none" | "audio" | "back" | "control" | "display" | "assist";
 
     // 创建该端专属输入驱动
     createDriver(settings: ControlSettings): TargetInputDriver;

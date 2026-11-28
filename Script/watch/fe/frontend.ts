@@ -12,6 +12,7 @@
 import { BlendFunc, BlendOp, DrawNode, Node, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { Input } from "Script/watch/input";
+import { saveControlSettings } from "Script/watch/controls_config";
 import { StageViewport, computeStageViewport } from "Script/watch/platform";
 import { FrameEvents, PlayAdapter } from "Script/watch/fe/adapter";
 import { AssetSlotHost } from "Script/watch/fe/assets";
@@ -34,7 +35,7 @@ import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
 import { MenuAction, MenuRenderer, ScreenKind, UiSoundKind } from "Script/watch/fe/ui/menus";
-import { PALETTE, drawSilkVeil, themeOf, toColor } from "Script/watch/fe/theme";
+import { PALETTE, drawSilkVeil, themeOf, toColor, visualTextWidth } from "Script/watch/fe/theme";
 import { MingArtAuditPlugin } from "Script/watch/fe/renderer/ming_audit";
 import { GateTransitionPlugin } from "Script/watch/fe/scenes/gate_transition";
 import { Xiaoman3DScene } from "Script/watch/fe/scenes/xiaoman3d";
@@ -113,6 +114,9 @@ export class WatchFrontend {
         };
         this.menus.onAudioSettingsChanged = (inp: Input) => {
             this.audio.applyUserVolumes(inp.settings);
+        };
+        this.menus.onAssistSettingsChanged = (inp: Input) => {
+            this.contract.setAssistHintsEnabled(inp.settings.assistHints);
         };
 
         const additive = BlendFunc(BlendOp.SrcAlpha, BlendOp.One);
@@ -413,7 +417,8 @@ export class WatchFrontend {
         const alpha = Math.min(1, this.toastTimer * 2.4);
         const cx = uiW * 0.5;
         const cy = 82 + this.stageVp.safeUi.bottom * 0.6;
-        drawSilkVeil(this.uiDraw, this.uiArt, "fe_toast_veil", cx, cy, 340, 38, PALETTE.inkWarm, 0.86 * alpha, 9);
+        const veilW = Math.max(340, Math.min(uiW - 80, visualTextWidth(this.toastText, 19) + 64));
+        drawSilkVeil(this.uiDraw, this.uiArt, "fe_toast_veil", cx, cy, veilW, 40, PALETTE.inkWarm, 0.88 * alpha, 9);
         this.texts.put("sm", this.toastText, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * alpha, 0.08);
     }
 
@@ -770,6 +775,10 @@ export class WatchFrontend {
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
         let action: MenuAction = { type: "none" };
         if (p.paused) {
+            const canSaveCurrent = p.run.source === "official"
+                && !p.run.finished
+                && p.room.key !== "museum"
+                && !(p.room.key === "tower" && p.phase === "tower-end");
             action = this.menus.updateAndDrawPause(
                 safeDt,
                 input,
@@ -783,7 +792,9 @@ export class WatchFrontend {
                 uiScale,
                 view.assistHintsEnabled,
                 () => {
-                    this.contract.toggleAssistHints();
+                    const next = this.contract.toggleAssistHints();
+                    input.settings.assistHints = next;
+                    saveControlSettings(input.settings);
                 },
                 this.stageVp.safeUi,
                 p.run.source === "official" && p.storyRoute === "soldier" && p.isEscortRoom(),
@@ -791,6 +802,7 @@ export class WatchFrontend {
                 () => {
                     this.roguelikeUi.openLedger();
                 },
+                canSaveCurrent,
             );
         } else {
             // 先判定过场插件（P01/P02/P03/P05/G01-G05 等）；过场接管时压隐 HUD 文本与常规准星，避免 TextPool 透穿黑屏与特写
