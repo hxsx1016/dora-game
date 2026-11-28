@@ -2,7 +2,7 @@
 
 ## 检出与运行
 
-共享仓库为 `hxsx1016/dora-game`，默认分支为 `main`。首个公开试玩版 `v0.1.0` 以 `feature/dev-20261127` 合入 [PR #39](https://github.com/hxsx1016/dora-game/pull/39) 后的提交 `55826e793a38d4b27907c4d4204734c6fcb76091` 为玩法基线。发行整理将合入 `main`，再在对应的 `main` 提交上打标签。
+共享仓库为 `hxsx1016/dora-game`，默认分支为 `main`。首个公开试玩版 `v0.1.0` 以 `feature/dev-20261127` 合入 [PR #39](https://github.com/hxsx1016/dora-game/pull/39) 后的提交 `55826e793a38d4b27907c4d4204734c6fcb76091` 为玩法基线。发行标签指向合入后的 `main` 提交。
 
 接手任务时用 `git remote -v`、`git fetch origin --prune` 和 `git status -sb` 确认远端与当前检出，按任务指定的 SHA 创建工作树。用 `git branch -r --sort=-committerdate` 及打开的 PR 核对同模块工作与合入目标。长任务协作见 [AGENTS.md](AGENTS.md)。
 
@@ -48,6 +48,6 @@ Windows 引导会探测写权限。便携目录只读时，优先写入引擎用
 
 - **Windows 与 Dora 源码包**使用 [Windows 发行工作流](.github/workflows/release-windows.yml)。`v*` 标签触发标准版、OpenGL 兼容版与源码包组装，并在 Windows 上检查标准版便携启动及只读回退。本地组包入口为 `tools/make-windows-pack.sh` 和 `tools/make-dora-source-pack.sh`；Windows 包需要对应后端的 Dora SSR v1.10.2 引擎及 Win32 启动器。
 - **Android** 由 [Android 发行工作流](.github/workflows/release-android.yml) 构建手机和掌机 APK。上传至公开发行页需要正式签名。
-- **Web 离线包**在发行标签上手动运行 [Web 工作流](.github/workflows/deploy-web.yml)，指定 `version=v0.1.0`、`deploy_pages=false`。从 `westward-watch-web-bundles` 构建产物中取出 `WestwardWatch-v0.1.0-web-html.zip`，完整解压并打开 `index.html` 验证后，将该 ZIP 附到同版 Release。
+- **Web 离线包**由 [Web 工作流](.github/workflows/deploy-web.yml) 随版本标签构建并上传到同版 Release。完整解压 `web-html.zip` 结尾的文件后打开 `index.html`。部署 GitHub Pages 是单独的可选步骤。
 
 发行记录注明标签对应的完整提交 SHA、附件的 SHA-256 和各端实际验证结果。玩家下载入口统一指向 [GitHub Releases](https://github.com/hxsx1016/dora-game/releases)。

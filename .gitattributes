@@ -8,3 +8,11 @@
 *.cmd text eol=crlf
 *.png binary
 *.psd binary
+*.glb binary
+*.wav binary
+*.ogg binary
+*.ttf binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.doc binary
