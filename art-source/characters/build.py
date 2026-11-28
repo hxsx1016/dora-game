@@ -21,6 +21,8 @@ TRANSITION_PHASES = 8
 TRANSITION_LEVELS = 12
 SLIDE_FRAMES = 64
 SLIDE_SIZE = (300, 198)
+# A small midtone lift keeps the original cloth and skin hues readable at dusk.
+MIDTONES = [value + round(9 * value * (255 - value) / 16256) for value in range(256)] * 3
 
 
 def grid(name, columns, rows):
@@ -214,6 +216,17 @@ def running_frames(image, rig, samples):
         yield canvas.resize(rig.cel, Image.Resampling.LANCZOS)
 
 
+def finish_pixels(cel, step=2):
+    """Sample finer pixel clusters while preserving the engine's frame rectangles."""
+    grid_size = round(cel.width / step), round(cel.height / step)
+    sample = cel.resize(grid_size, Image.Resampling.BOX)
+    alpha = sample.getchannel("A").point(lambda value: 255 if value >= 115 else 0)
+    toned = sample.convert("RGB").point(MIDTONES)
+    toned.putalpha(alpha)
+    clean = Image.composite(toned, Image.new("RGBA", grid_size), alpha)
+    return clean.resize(cel.size, Image.Resampling.NEAREST)
+
+
 def motion_atlas(name, frames, size, count=FRAMES, columns=COLUMNS):
     w, h = size
     tile_w, tile_h = w + 2 * GUTTER, h + 2 * GUTTER
@@ -221,7 +234,7 @@ def motion_atlas(name, frames, size, count=FRAMES, columns=COLUMNS):
     for index, frame in enumerate(frames):
         x = (index % columns) * tile_w + GUTTER
         y = (index // columns) * tile_h + GUTTER
-        atlas.paste(frame, (x, y))
+        atlas.paste(finish_pixels(frame), (x, y))
     atlas.save(ART / (name + ".png"), optimize=True)
 
 
@@ -253,11 +266,29 @@ def pose_atlas(cels):
     atlas = Image.new("RGBA", (width, y + row_height + GUTTER))
     manifest = XML.Element("A", A="actors-hd.png")
     for key, image, x, y in placements:
-        atlas.paste(image, (x, y))
+        atlas.paste(finish_pixels(image), (x, y))
         XML.SubElement(manifest, "B", A=key, B=f"{x},{y},{image.width},{image.height}")
     atlas.save(ART / "actors-hd.png", optimize=True)
     XML.indent(manifest, "  ")
     (ART / "actors-hd.clip").write_text(XML.tostring(manifest, encoding="unicode") + "\n", encoding="utf-8")
+
+
+def export_duo():
+    """Apply the same finish to holding hands and carrying poses."""
+    manifest = XML.parse(ART / "actors_extra.clip").getroot()
+    atlas_path = ART / manifest.attrib["A"]
+    with Image.open(atlas_path) as image:
+        atlas = image.convert("RGBA")
+    with Image.open(HERE / "duo-poses.png") as source:
+        offset = 0
+        for frame in manifest:
+            if not frame.attrib["A"].startswith("duo_"):
+                continue
+            x, y, w, h = map(int, frame.attrib["B"].split(","))
+            cel = source.crop((offset, 0, offset + w, h))
+            atlas.paste(finish_pixels(cel, step=1.42), (x, y))
+            offset += w
+    atlas.save(atlas_path, optimize=True)
 
 
 def ease(t):
@@ -415,6 +446,7 @@ def main():
         motion_atlas(f"{name}-run-transition", transition_frames(source, rig, cels[f"{key}_idle"]),
                      rig.cel, TRANSITION_LEVELS * TRANSITION_PHASES, TRANSITION_PHASES)
     motion_atlas("zhoushu-slide", slide_frames(cels), SLIDE_SIZE, SLIDE_FRAMES, 8)
+    export_duo()
 
 
 if __name__ == "__main__":
