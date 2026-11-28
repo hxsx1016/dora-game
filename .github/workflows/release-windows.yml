@@ -124,7 +124,7 @@ jobs:
             $expected = $matches[1].ToLower()
             $actual = (Get-FileHash -Algorithm SHA256 -Path (Join-Path $engDir $zipName)).Hash.ToLower()
             if ($actual -ne $expected) {
-              throw "SHA256 mismatch for $zipName: expected $expected got $actual"
+              throw "SHA256 mismatch for ${zipName}: expected $expected got $actual"
             }
             Write-Host "Verified $zipName ($actual)"
           }
