@@ -417,9 +417,60 @@ export class WatchFrontend {
         const alpha = Math.min(1, this.toastTimer * 2.4);
         const cx = uiW * 0.5;
         const cy = 82 + this.stageVp.safeUi.bottom * 0.6;
-        const veilW = Math.max(340, Math.min(uiW - 80, visualTextWidth(this.toastText, 19) + 64));
+        const veilW = Math.max(340, Math.min(uiW - 80, visualTextWidth(this.toastText, 18) + 84));
         drawSilkVeil(this.uiDraw, this.uiArt, "fe_toast_veil", cx, cy, veilW, 40, PALETTE.inkWarm, 0.88 * alpha, 9);
         this.texts.put("sm", this.toastText, cx, cy, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.4, 0.96 * alpha, 0.08);
+    }
+
+    /** 局内键鼠模式：检测左键点击是否命中右上角「Esc 暂歇」章节徽章。 */
+    tryClickHudPause(p: Play, input: Input, w: number, h: number): boolean {
+        if (!input.isKbmMode() || p.paused || p.escortFailed || p.craftBench.active || p.reloadOpen
+            || p.talentModalActive || this.roguelikeUi.isLedgerOpen() || this.narrative.letterbox >= 0.5) {
+            return false;
+        }
+        const useUiPtr = input.uiInside || input.uiPressed;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        const pressed = useUiPtr ? input.uiPressed : input.fire.pressed;
+        if (!inside || !pressed) {
+            return false;
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const pointer = Vec2(rawX / uiScale, rawY / uiScale);
+        const touchOverlayVisible = input.shouldShowTouchControls() && !this.stageVp.isPortrait;
+        const rect = this.hud.getChapterPauseRect(w / uiScale, h / uiScale, this.stageVp.safeUi, touchOverlayVisible);
+        return rect.width > 0 && rect.containsPoint(pointer);
+    }
+
+    /** 局内键鼠模式：检测左键点击/按住是否命中世界交互提示胶囊（[E] / [按住 E]）。 */
+    tryClickWorldPrompt(p: Play, input: Input, w: number, h: number): "none" | "tap" | "hold" {
+        if (!input.isKbmMode() || p.paused || p.escortFailed || p.craftBench.active || p.reloadOpen
+            || p.talentModalActive || this.roguelikeUi.isLedgerOpen() || this.narrative.letterbox >= 0.5) {
+            return "none";
+        }
+        const hit = this.hud.getInteractPromptHit();
+        if (hit === undefined) {
+            return "none";
+        }
+        const useUiPtr = input.uiInside || input.uiPressed || input.uiHeld;
+        const inside = useUiPtr ? input.uiInside : input.inside;
+        const pressed = useUiPtr ? input.uiPressed : input.fire.pressed;
+        const held = useUiPtr ? input.uiHeld : input.fire.held;
+        if (!inside) {
+            return "none";
+        }
+        if (hit.mode === "tap" && !pressed) {
+            return "none";
+        }
+        if (hit.mode === "hold" && !held && !pressed) {
+            return "none";
+        }
+        const uiScale = Math.max(0.25, Math.min(w / 1280, h / 720));
+        const rawX = useUiPtr ? input.uiX : input.mx;
+        const rawY = useUiPtr ? input.uiY : input.my;
+        const pointer = Vec2(rawX / uiScale, rawY / uiScale);
+        return hit.rect.containsPoint(pointer) ? hit.mode : "none";
     }
 
     canPickStoryTalent(p: Play): boolean {
@@ -818,6 +869,9 @@ export class WatchFrontend {
             const roguelikeModal = !cutsceneHandled && this.roguelikeUi.isModalOverlayActive();
             if (!cutsceneHandled && !roguelikeModal) {
                 const touchOverlayVisible = input.shouldShowTouchControls() && !this.stageVp.isPortrait;
+                const useHudPtr = input.uiInside || input.uiPressed || input.uiHeld;
+                const hudPtrInside = useHudPtr ? input.uiInside : input.inside;
+                const hudPtr = Vec2((useHudPtr ? input.uiX : input.mx) / uiScale, (useHudPtr ? input.uiY : input.my) / uiScale);
                 this.hud.draw(
                     this.uiDraw,
                     this.uiInkDraw,
@@ -836,6 +890,8 @@ export class WatchFrontend {
                     this.stageVp.safeUi,
                     input.retryHoldProgress,
                     touchOverlayVisible,
+                    hudPtr,
+                    hudPtrInside,
                 );
                 const suppressBanner = this.roguelikeUi.isSuppressingRoomBanner();
                 const savedBannerT = this.narrative.bannerT;

@@ -14,6 +14,7 @@ on:
       - 'tools/windows-boot.lua'
       - 'tools/windows-game-id'
       - 'tools/windows-pack-README.md'
+      - 'tools/patches/**'
       - 'tools/audit-assets.py'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/publish-assets.yml'
@@ -42,8 +43,106 @@ env:
   RUNTIME_NAME: WestwardWatchRuntime
 
 jobs:
+  build-dora-windows:
+    name: Build Patched Dora Runtime (${{ matrix.backend }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        backend: [d3d12, wgl]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Restore cached patched Dora.exe (${{ matrix.backend }})
+        id: dora-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/patched-dora-${{ matrix.backend }}/Dora.exe
+          key: dora-win-patched-${{ env.DORA_VERSION }}-${{ matrix.backend }}-${{ hashFiles('tools/patches/dora-windows-ux.patch') }}
+
+      - name: Setup Python
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup xmake
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+
+      - name: Setup MSYS2 MinGW64 for dora-wa
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: mingw-w64-x86_64-gcc
+
+      - name: Export MinGW64 gcc for Go cgo
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          mingw64_bin="$(cygpath -w /mingw64/bin)"
+          mingw64_gcc="$(cygpath -w /mingw64/bin/gcc.exe)"
+          test -x /mingw64/bin/gcc.exe
+          echo "${mingw64_bin}" >> "${GITHUB_PATH}"
+          echo "DORA_WA_CC=${mingw64_gcc}" >> "${GITHUB_ENV}"
+
+      - name: Clone Dora SSR, apply Windows UX patch, and compile Dora.exe
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $patchFile = (Resolve-Path "tools/patches/dora-windows-ux.patch").Path
+          $srcDir = Join-Path $env:RUNNER_TEMP "dora-src-${{ matrix.backend }}"
+          $outDir = Join-Path $env:RUNNER_TEMP "patched-dora-${{ matrix.backend }}"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          git clone --depth 1 --branch "$env:DORA_VERSION" https://github.com/IppClub/Dora-SSR.git $srcDir
+          if ($LASTEXITCODE -ne 0) { throw "Failed to clone Dora-SSR $env:DORA_VERSION" }
+
+          Push-Location $srcDir
+          try {
+            git apply --check $patchFile
+            if ($LASTEXITCODE -ne 0) { throw "dora-windows-ux.patch failed --check" }
+            git apply $patchFile
+            if ($LASTEXITCODE -ne 0) { throw "dora-windows-ux.patch failed to apply" }
+            git diff --stat
+
+            Remove-Item Env:MSYSTEM -ErrorAction SilentlyContinue
+            $buildDir = Join-Path $srcDir "build/windows-host/${{ matrix.backend }}"
+            xmake f -P . -y -p windows -a x64 -m release --dora_godot_runtime=n --dora_godot_windows_backend=${{ matrix.backend }} --builddir=$buildDir
+            if ($LASTEXITCODE -ne 0) { throw "xmake configure failed" }
+            xmake build -P . Dora
+            if ($LASTEXITCODE -ne 0) { throw "xmake build Dora failed" }
+
+            $builtExe = Join-Path $buildDir "windows/x64/release/Dora.exe"
+            if (-not (Test-Path $builtExe)) {
+              throw "Expected built Dora.exe not found at $builtExe"
+            }
+            Copy-Item -Path $builtExe -Destination (Join-Path $outDir "Dora.exe") -Force
+            Get-Item (Join-Path $outDir "Dora.exe") | Format-List Name, Length, LastWriteTime
+          } finally {
+            Pop-Location
+          }
+
+      - name: Upload patched Dora.exe (${{ matrix.backend }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-dora-${{ matrix.backend }}
+          path: ${{ runner.temp }}/patched-dora-${{ matrix.backend }}/Dora.exe
+          if-no-files-found: error
+          retention-days: 1
+
   prepare-win-bins:
     name: Build Native Windows Launcher & Patch Runtime PE Metadata
+    needs: build-dora-windows
     runs-on: windows-latest
     outputs:
       commit: ${{ steps.meta.outputs.commit }}
@@ -103,40 +202,29 @@ jobs:
           popd
           dir "%RUNNER_TEMP%\win-bins\%EXE_NAME%.exe"
 
-      - name: Download Dora SSR Windows binaries and patch icons & PE metadata with rcedit
+      - name: Download patched Dora.exe (d3d12)
+        uses: actions/download-artifact@v4
+        with:
+          name: patched-dora-d3d12
+          path: ${{ runner.temp }}/patched-dora/d3d12
+
+      - name: Download patched Dora.exe (wgl)
+        uses: actions/download-artifact@v4
+        with:
+          name: patched-dora-wgl
+          path: ${{ runner.temp }}/patched-dora/opengl
+
+      - name: Patch icons & PE metadata on patched Dora runtimes with rcedit
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $tmp = $env:RUNNER_TEMP
-          $engDir = Join-Path $tmp "dora-engine"
-          $d3dDir = Join-Path $tmp "win-d3d12"
-          $oglDir = Join-Path $tmp "win-opengl"
+          $d3dDir = Join-Path $tmp "patched-dora\d3d12"
+          $oglDir = Join-Path $tmp "patched-dora\opengl"
           $rceditDir = Join-Path $tmp "rcedit"
           $outDir = Join-Path $tmp "win-bins"
-          New-Item -ItemType Directory -Path $engDir, $d3dDir, $oglDir, $rceditDir, (Join-Path $outDir "d3d12"), (Join-Path $outDir "opengl") -Force | Out-Null
-
-          gh release download "$env:DORA_VERSION" --repo IppClub/Dora-SSR --dir $engDir `
-            --pattern "dora-ssr-$env:DORA_VERSION-windows-x64.zip" `
-            --pattern "dora-ssr-$env:DORA_VERSION-windows-x64-opengl.zip" `
-            --pattern "SHA256SUMS"
-
-          $sums = Get-Content (Join-Path $engDir "SHA256SUMS")
-          foreach ($zipName in @("dora-ssr-$env:DORA_VERSION-windows-x64.zip", "dora-ssr-$env:DORA_VERSION-windows-x64-opengl.zip")) {
-            $line = $sums | Where-Object { $_ -match ([regex]::Escape($zipName) + '$') } | Select-Object -First 1
-            if (-not $line -or $line -notmatch '^([0-9a-fA-F]{64})\s+') {
-              throw "Missing SHA256SUMS entry for $zipName"
-            }
-            $expected = $matches[1].ToLower()
-            $actual = (Get-FileHash -Algorithm SHA256 -Path (Join-Path $engDir $zipName)).Hash.ToLower()
-            if ($actual -ne $expected) {
-              throw "SHA256 mismatch for ${zipName}: expected $expected got $actual"
-            }
-            Write-Host "Verified $zipName ($actual)"
-          }
-
-          Expand-Archive -Path (Join-Path $engDir "dora-ssr-$env:DORA_VERSION-windows-x64.zip") -DestinationPath $d3dDir -Force
-          Expand-Archive -Path (Join-Path $engDir "dora-ssr-$env:DORA_VERSION-windows-x64-opengl.zip") -DestinationPath $oglDir -Force
+          New-Item -ItemType Directory -Path $rceditDir, (Join-Path $outDir "d3d12"), (Join-Path $outDir "opengl") -Force | Out-Null
 
           gh release download "v2.0.0" --repo electron/rcedit --dir $rceditDir --pattern "rcedit-x64.exe"
           $rcedit = Join-Path $rceditDir "rcedit-x64.exe"
@@ -491,6 +579,78 @@ jobs:
             }
           } finally {
             icacls $savesPath /remove:d $env:USERNAME | Out-Null
+          }
+
+          # Round 3: native WM_CLOSE interception -> ESC pause menu on 1st click, force-quit on 4 rapid clicks
+          Remove-Item (Join-Path $packDir ".ci-smoke-test") -Force -ErrorAction SilentlyContinue
+          Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+          $closeReady = Join-Path $packDir ".ci-close-ready.txt"
+          $closeResult = Join-Path $packDir ".ci-close-result.txt"
+          Remove-Item $closeReady, $closeResult -Force -ErrorAction SilentlyContinue
+          Set-Content -Path (Join-Path $packDir ".ci-close-test") -Value "1" -Encoding ascii
+
+          $proc3 = Start-Process -FilePath $exe -WorkingDirectory $packDir -PassThru
+          try {
+            $readyOk = $false
+            for ($w = 0; $w -lt 150; $w++) {
+              if (Test-Path $closeReady) { $readyOk = $true; break }
+              if ($proc3.HasExited) { break }
+              Start-Sleep -Milliseconds 200
+            }
+            if (-not $readyOk) {
+              Dump-DoraLogs "round3-not-ready"
+              throw "Smoke round 3 never became ready (exited=$($proc3.HasExited))"
+            }
+
+            $rtProc = $null
+            for ($w = 0; $w -lt 30; $w++) {
+              $rtProc = Get-Process -Name $env:RUNTIME_NAME -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+              if ($rtProc) { break }
+              Start-Sleep -Milliseconds 100
+            }
+            if (-not $rtProc) {
+              Dump-DoraLogs "round3-no-hwnd"
+              throw "Smoke round 3 could not locate $env:RUNTIME_NAME main window"
+            }
+
+            # 1st WM_CLOSE: must NOT close the app; must pause gameplay and show toast
+            [void]$rtProc.CloseMainWindow()
+            $pausedOk = $false
+            for ($w = 0; $w -lt 40; $w++) {
+              if (Test-Path $closeResult) { $pausedOk = $true; break }
+              Start-Sleep -Milliseconds 100
+            }
+            $rtProc.Refresh()
+            if (-not $pausedOk) {
+              Dump-DoraLogs "round3-no-pause"
+              throw "Smoke round 3 did not record pause interception after 1st WM_CLOSE (exited=$($rtProc.HasExited))"
+            }
+            $res3 = Get-Content $closeResult -Raw
+            Write-Host "=== Smoke Round 3 (Native WM_CLOSE Interception + Rapid Force-Quit) ==="
+            Write-Host $res3
+            if ($res3 -notmatch "WINDOW_CLOSE_INTERCEPTED_PAUSE=true" -or $rtProc.HasExited) {
+              Dump-DoraLogs "round3-bad-pause"
+              throw "Smoke round 3 failed 1st WM_CLOSE interception check (exited=$($rtProc.HasExited))"
+            }
+
+            # 4 rapid WM_CLOSE messages within 2s: native render thread must force-quit cleanly
+            for ($k = 0; $k -lt 4; $k++) {
+              $rtProc.Refresh()
+              if ($rtProc.HasExited) { break }
+              [void]$rtProc.CloseMainWindow()
+              Start-Sleep -Milliseconds 120
+            }
+            if (-not $proc3.WaitForExit(8000)) {
+              Dump-DoraLogs "round3-force-quit-timeout"
+              throw "Smoke round 3 did not force-quit after 4 rapid WM_CLOSE calls"
+            }
+            Write-Host "Smoke Round 3 passed (exit=$($proc3.ExitCode))."
+          } finally {
+            Get-Process -Name $env:RUNTIME_NAME -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            if (-not $proc3.HasExited) {
+              Stop-Process -Id $proc3.Id -Force -ErrorAction SilentlyContinue
+            }
           }
 
   publish-release:

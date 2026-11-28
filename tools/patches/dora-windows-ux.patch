@@ -1,0 +1,105 @@
+diff --git a/Source/Basic/Application.cpp b/Source/Basic/Application.cpp
+index 250eddf..f8b4296 100644
+--- a/Source/Basic/Application.cpp
++++ b/Source/Basic/Application.cpp
+@@ -35,6 +35,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
+ #if BX_PLATFORM_WINDOWS
+ #include "Basic/WindowsGame.h"
+ #include "Basic/WindowsUpdate.h"
++#include <imm.h>
+ #endif
+ #if BX_PLATFORM_OSX
+ namespace Dora {
+@@ -1268,6 +1269,12 @@ int Application::run(MainFunc mainFunc) {
+ 	SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
+ 	SDL_SetHint(SDL_HINT_VIDEO_EXTERNAL_CONTEXT, "1");
+ 	SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
++#if BX_PLATFORM_WINDOWS && !defined(DORA_AS_LIB)
++	const bool standaloneWindowsGame = !windowsGameId().empty();
++	if (standaloneWindowsGame) {
++		SDL_SetHint(SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, "0");
++	}
++#endif
+ 	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight Portrait PortraitUpsideDown");
+ 
+ 	uint32_t windowFlags = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_RESIZABLE;
+@@ -1328,6 +1335,14 @@ int Application::run(MainFunc mainFunc) {
+ #endif // BX_PLATFORM
+ 
+ 	Application::setupSdlWindow();
++#if BX_PLATFORM_WINDOWS && !defined(DORA_AS_LIB)
++	if (standaloneWindowsGame) {
++		SDL_StopTextInput();
++		if (_platformData.nwh) {
++			ImmAssociateContextEx(static_cast<HWND>(_platformData.nwh), nullptr, 0);
++		}
++	}
++#endif
+ 
+ #if BX_PLATFORM_EMSCRIPTEN
+ 	_logicThreadID = std::this_thread::get_id();
+@@ -1476,6 +1491,37 @@ int Application::run(MainFunc mainFunc) {
+ 						case SDL_WINDOWEVENT_MOVED:
+ 							_winPosition = Vec2{s_cast<float>(event.window.data1), s_cast<float>(event.window.data2)};
+ 							break;
++#if BX_PLATFORM_WINDOWS && !defined(DORA_AS_LIB)
++						case SDL_WINDOWEVENT_FOCUS_GAINED:
++						case SDL_WINDOWEVENT_SHOWN: {
++							if (standaloneWindowsGame && !SDL_IsTextInputActive()) {
++								SDL_StopTextInput();
++								if (_platformData.nwh) {
++									ImmAssociateContextEx(static_cast<HWND>(_platformData.nwh), nullptr, 0);
++								}
++							}
++							break;
++						}
++						case SDL_WINDOWEVENT_CLOSE: {
++							if (standaloneWindowsGame) {
++								static std::deque<double> closeClicks;
++								const double now = bx::getHPCounter() / _frequency;
++								while (!closeClicks.empty() && (now - closeClicks.front()) > 2.0) {
++									closeClicks.pop_front();
++								}
++								closeClicks.push_back(now);
++								const int count = s_cast<int>(closeClicks.size());
++								if (count >= 4) {
++									if (Singleton<DB>::isInitialized()) {
++										SharedDB.stop();
++									}
++									std::_Exit(EXIT_SUCCESS);
++								}
++								event.window.data1 = count;
++							}
++							break;
++						}
++#endif
+ 					}
+ 					break;
+ 				}
+diff --git a/Source/Basic/Director.cpp b/Source/Basic/Director.cpp
+index 819565a..30f2fe1 100644
+--- a/Source/Basic/Director.cpp
++++ b/Source/Basic/Director.cpp
+@@ -964,6 +964,9 @@ void Director::handleSDLEvent(const SDL_Event& event) {
+ 				case SDL_WINDOWEVENT_MOVED:
+ 					Event::send("AppChange"_slice, "Position"s);
+ 					break;
++				case SDL_WINDOWEVENT_CLOSE:
++					Event::send("AppEvent"_slice, "WindowClose"s, s_cast<int>(event.window.data1));
++					break;
+ 			}
+ 			break;
+ 		}
+diff --git a/Source/Input/TouchDispather.cpp b/Source/Input/TouchDispather.cpp
+index 5da1a72..98f0ab6 100644
+--- a/Source/Input/TouchDispather.cpp
++++ b/Source/Input/TouchDispather.cpp
+@@ -22,7 +22,7 @@ NS_DORA_BEGIN
+ /* Touch */
+ 
+ uint32_t Touch::_source =
+-#if BX_PLATFORM_EMSCRIPTEN
++#if BX_PLATFORM_EMSCRIPTEN || BX_PLATFORM_WINDOWS
+ 	Touch::FromMouseAndTouch;
+ #elif BX_PLATFORM_OSX
+ 	Touch::FromMouse;

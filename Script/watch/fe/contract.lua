@@ -419,7 +419,7 @@ DualRouteContract.name = "DualRouteContract" -- 631
 function DualRouteContract.prototype.____constructor(self, canPickTalent) -- 646
 	self.canPickTalent = canPickTalent -- 646
 	self.source = "live" -- 632
-	self.assistHintsEnabled = false -- 635
+	self.assistHintsEnabled = true -- 635
 	self.livePendingCraftRequests = {} -- 637
 	self.liveReleasedAbortCount = 0 -- 639
 	self.liveReloadInvalidFlash = 0 -- 640

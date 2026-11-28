@@ -21,7 +21,7 @@ import {
 import { Input } from "Script/watch/input";
 import { STEP } from "Script/watch/clock";
 import { CALM_REACH, Escort, FEAR_MAX, safeAnchorX } from "Script/watch/escort";
-import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, INTERACT_DEPTH_REACH, inReachDepth, overlapsDepth } from "Script/watch/depth";
+import { ACTOR_DEPTH_HALF, DEPTH_Y_SCALE, INTERACT_DEPTH_REACH, LANE_DEPTH, inReachDepth, overlapsDepth } from "Script/watch/depth";
 import {
     RELOAD_ANSWER_PER_WORLD, RELOAD_ANSWER_TICKS, RELOAD_START, RELOAD_TARGET, ReloadEffect,
     reloadAdjacent, reloadEffectName, reloadEffectOf, reloadPathValid,
@@ -396,8 +396,10 @@ export class Play {
     bottleTargetX = -1;
     bottleTargetY = 0;
     bottleLandT = 0;
-    /** 按住 F 的时长（只用于提示与动作反馈，不改变投掷参数）。 */
+    /** 按住 F / 鼠标左键的时长（只用于提示与动作反馈，不改变投掷参数）。 */
     aimHold = 0;
+    /** 投瓶被右键取消后锁到松开左键，避免同次按住立刻重启瞄准。 */
+    private bottleAimCancelLatch = false;
     /** F01 补丁红布车半秒家庭回忆计时（拍）。 */
     redCartMemoryT = 0;
     /** 桌下脚步提示的节流拍数。 */
@@ -2134,9 +2136,11 @@ export class Play {
         if (!isChild && !peacefulRoom && !this.gripping && !gripIntent && !this.reloadOpen && input.fire.pressed) {
             this.shoot(a);
         }
-        // 手动起盘换弹（Q 键）：在支持慢时连线换弹的护送段允许随时主动调出 3×3 盘面。
+        // 手动起盘换弹（Q 键 / 键鼠右键）：在支持慢时连线换弹的护送段允许随时主动调出 3×3 盘面。
+        const wantManualReload = input.flare.pressed || (input.isKbmMode() && input.uiRightPressed);
         if (!isChild && !peacefulRoom && !this.gripping && !this.reloadOpen && this.reloadPendingEffect === ""
-            && this.room.campaign?.reloadPuzzle === true && input.flare.pressed) {
+            && this.room.campaign?.reloadPuzzle === true && wantManualReload) {
+            input.uiRightPressed = false;
             this.beginReload();
         }
     }
@@ -3919,6 +3923,33 @@ export class Play {
             targetX = cp === undefined ? a.x : (cp.waitX ?? a.x);
             targetDepth = cp === undefined ? a.depth : (cp.waitDepth ?? 0);
         }
+        const bypass = cp?.groundBypass;
+        if (bypass !== undefined) {
+            // 车入窝前跟到粮袋后等候，出发与汇合都踩着空路走。
+            if (wait && !this.cartDocked && a.x < targetX - 18) {
+                targetX = Math.min(targetX, Math.max(a.x, p.x - 52));
+            }
+            const approachesBypass = a.x >= bypass.x0 - 80 && a.x <= bypass.x1 + 80
+                && Math.max(a.x, targetX) >= bypass.x0 - a.w * 0.5
+                && Math.min(a.x, targetX) <= bypass.x1 + a.w * 0.5;
+            const walkDepth = approachesBypass ? (cp?.waitDepth ?? LANE_DEPTH.upper) : 0;
+            const depthStep = CHILD_SPEED * DEPTH_SPEED_RATIO * dt;
+            const lastDepth = a.depth;
+            const lastX = a.x;
+            a.h = CHILD_H;
+            a.crouch = false;
+            this.slideDepth(a, Math.max(-depthStep, Math.min(depthStep, walkDepth - lastDepth)));
+            const dx = targetX - a.x;
+            if (Math.abs(dx) > (wait ? 18 : 74)) {
+                const speed = !wait && Math.abs(dx) > 260 ? CHILD_SPEED * 1.4 : CHILD_SPEED;
+                a.facing = dx > 0 ? 1 : -1;
+                this.slideX(a, a.facing * Math.min(Math.abs(dx), speed * dt));
+            }
+            a.depthSpeed = dt > 0 ? (a.depth - lastDepth) / dt : 0;
+            a.vx = dt > 0 ? (a.x - lastX) / dt : 0;
+            this.fallY(a, dt);
+            return;
+        }
         if (this.partnerStuck > 0.3) {
             // 撞在柱列 / 台角上：退出障碍侧面，并直接换到 中 → 上 → 下 的下一条空档。
             a.x += a.facing * 44;
@@ -4682,12 +4713,19 @@ export class Play {
             }
         }
 
-        // 按住 F 瞄，松手才投；右键/取消键清零放弃投掷
+        // 按住 F（或键鼠模式下按住鼠标左键）瞄，松手才投；右键/取消键清零放弃投掷
         if (this.hasBottle) {
+            const kbmMouseAim = input.isKbmMode() && input.inside;
+            const rawAimHeld = input.aim.held || (kbmMouseAim && input.fire.held);
+            const rawAimReleased = input.aim.released || (kbmMouseAim && input.fire.released);
+            if (!rawAimHeld) {
+                this.bottleAimCancelLatch = false;
+            }
             if (input.bottleCanceled) {
                 this.aimHold = 0;
                 this.bottleAimX = -1;
-            } else if (input.aim.held) {
+                this.bottleAimCancelLatch = rawAimHeld;
+            } else if (rawAimHeld && !this.bottleAimCancelLatch) {
                 this.aimHold += dt;
                 if (this.aimHold > 1.2) {
                     this.aimHold = 1.2;
@@ -4696,10 +4734,10 @@ export class Play {
                 const cached = this.bottleEnd();
                 this.bottleAimX = cached.x;
                 this.bottleAimY = cached.y;
-            } else if (input.aim.released) {
+            } else if (rawAimReleased && !this.bottleAimCancelLatch) {
                 if (this.aimHold < 0.12) {
                     // 原地误点一下不算投：先说清楚要按住瞄准。
-                    this.flashSet("按住 F 瞄一下再松手", 0.9);
+                    this.flashSet(input.isKbmMode() ? "按住 F 或左键瞄一下再松手" : "按住 F 瞄一下再松手", 0.9);
                     this.aimHold = 0;
                 } else {
                     const end = this.bottleAimX >= 0 ? { x: this.bottleAimX, y: this.bottleAimY } : this.bottleEnd();
@@ -4710,6 +4748,7 @@ export class Play {
         } else {
             this.aimHold = 0;
             this.bottleAimX = -1;
+            this.bottleAimCancelLatch = false;
         }
 
         // 瓶子飞行：位置按出手时定下的解析轨迹走；t 到固定飞行时长、且在下降，

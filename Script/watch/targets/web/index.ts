@@ -271,7 +271,10 @@ class WebInputDriver implements TargetInputDriver {
     }
 
     attach(parent: Node.Type, hooks: TargetAttachHooks): void {
-        this.kbm.attach(parent, hooks);
+        this.kbm.attach(parent, hooks, {
+            latchTouchEvents: false,
+            disableIme: false,
+        });
         this.touchRouter.attach(parent);
         this.gamepadRouter.attach(parent);
         if (this.touchControls === undefined) {
@@ -366,6 +369,7 @@ class WebInputDriver implements TargetInputDriver {
     }
 
     clearTransient(keepTouchToggles: boolean): void {
+        this.kbm.clearTransient();
         this.touchRouter.releaseAll(keepTouchToggles);
         this.gamepadRouter.clearTransient();
     }
@@ -407,11 +411,11 @@ class WebInputDriver implements TargetInputDriver {
         this.gamepadRouter.setSimulatedState(state as GamepadRawState | undefined);
     }
 
-    pollInto(input: Input): void {
+    pollInto(input: Input, dt: number = 1 / 60): void {
         input.gamepadLayout = this.settings.gamepadLayout;
         const touch = this.touchRouter.consumeSnapshot();
         const gp = this.gamepadRouter.consumeSnapshot();
-        const kbm = this.kbm.sample(input.getStageViewport());
+        const kbm = this.kbm.sample(input.getStageViewport(), dt);
 
         const suppressMouse = touch.suppressSyntheticMouse || touch.mouseConsumedByOverlay;
         const realMouseActive = !suppressMouse && (kbm.mouseMoved || (kbm.mouseClicked && kbm.mouseInsideStage));
@@ -453,6 +457,10 @@ class WebInputDriver implements TargetInputDriver {
         );
 
         input.resetFrameSignals();
+        input.uiWheelY = kbm.mouseWheelY;
+        input.ledgerTogglePressed = kbm.ledgerTogglePressed;
+        input.retryTapPressed = kbm.retryTapPressed;
+        if (kbm.pausePressed) input.pause.pressed = true;
 
         // KBM 模态导航与换弹盘/工台按键边沿
         input.navUp = kbm.navUp;

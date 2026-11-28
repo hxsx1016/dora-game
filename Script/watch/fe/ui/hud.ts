@@ -40,10 +40,32 @@ export class HudRenderer {
     roguelikeUiHandled = false;
     /** 指向 RoguelikeUiPlugin 的选筹热区单一真源（保持 hud.talentCardRects 100% 兼容） */
     talentRectProvider?: (w: number, h: number, count: number, touchMode: boolean, safeTop: number) => Rect.Type[];
+    /** 最近一帧可点击的世界交互提示胶囊热区（[E] / [按住 E]），供鼠标点击交互 */
+    private lastInteractPromptRect: Rect.Type | undefined;
+    private lastInteractPromptMode: "none" | "tap" | "hold" = "none";
 
     reset(p?: Play): void {
         this.ghostHp = p !== undefined ? p.hp : 3;
         this.talentSelected = 0;
+        this.lastInteractPromptRect = undefined;
+        this.lastInteractPromptMode = "none";
+    }
+
+    /** 计算右上角「Esc 暂歇」章节徽章的 UI 坐标热区（渲染与鼠标点击共用单一真源）。 */
+    getChapterPauseRect(w: number, h: number, safe: SafeInsets = ZERO_SAFE_INSETS, touchOverlayVisible: boolean = false): Rect.Type {
+        if (touchOverlayVisible) {
+            return Rect(0, 0, 0, 0);
+        }
+        const rx = w - 32 - safe.right;
+        const cy = h - 44 - safe.top;
+        return Rect(rx - 202, cy - 22, 210, 44);
+    }
+
+    getInteractPromptHit(): { rect: Rect.Type; mode: "tap" | "hold" } | undefined {
+        if (this.lastInteractPromptRect === undefined || this.lastInteractPromptMode === "none") {
+            return undefined;
+        }
+        return { rect: this.lastInteractPromptRect, mode: this.lastInteractPromptMode };
     }
 
     update(dt: number, p: Play): void {
@@ -66,17 +88,21 @@ export class HudRenderer {
         vfx: VfxSystem,
         letterboxFrac: number,
         uiScale: number,
-        assistHintsEnabled: boolean = false,
+        assistHintsEnabled: boolean = true,
         suppressReticle: boolean = false,
         inputMode: InputMode = "kbm",
         gamepadLayout: GamepadLayout = "xbox",
         safe: SafeInsets = ZERO_SAFE_INSETS,
         retryHoldProgress: number = 0,
         touchOverlayVisible: boolean = false,
+        pointerUi?: Vec2.Type,
+        pointerInside: boolean = false,
     ): void {
         const w = cam.viewW / uiScale;
         const h = cam.viewH / uiScale;
         const hudAlpha = Math.max(0, 1 - letterboxFrac * 1.15);
+        this.lastInteractPromptRect = undefined;
+        this.lastInteractPromptMode = "none";
 
         if (hudAlpha > 0.05) {
             if (p.childMode) {
@@ -85,12 +111,15 @@ export class HudRenderer {
                 this.drawSoldierStatus(uiDraw, uiInkDraw, uiArt, texts, p, h, hudAlpha, assistHintsEnabled, inputMode, gamepadLayout, safe);
             }
 
-            this.drawChapterBadge(uiDraw, uiArt, texts, p, w, h, hudAlpha, inputMode, safe, touchOverlayVisible);
+            this.drawChapterBadge(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha, inputMode, safe, touchOverlayVisible, pointerUi, pointerInside);
             this.drawContextualObjective(uiDraw, uiInkDraw, uiArt, texts, p, w, h, hudAlpha, assistHintsEnabled, inputMode, gamepadLayout, safe);
 
             if (assistHintsEnabled) {
                 const prompt = deriveWorldPrompt(p);
                 if (prompt !== undefined) {
+                    const clickMode: "none" | "tap" | "hold" = prompt.keyTag === "E"
+                        ? "tap"
+                        : ((prompt.keyTag === "按住 E" || prompt.keyTag === "松开再按住 E") ? "hold" : "none");
                     const adapted: WorldPrompt = {
                         x: prompt.x,
                         y: prompt.y,
@@ -99,7 +128,7 @@ export class HudRenderer {
                         urgent: prompt.urgent,
                         progress: prompt.progress,
                     };
-                    this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, [adapted], cam, hudAlpha, uiScale, safe);
+                    this.drawWorldPrompts(uiDraw, uiInkDraw, uiArt, texts, [adapted], cam, hudAlpha, uiScale, safe, clickMode, inputMode, pointerUi, pointerInside);
                 }
             }
 
@@ -110,13 +139,20 @@ export class HudRenderer {
             }
         }
 
-        // 手柄长按 BACK 重试检查点进度条（避让 Dora Go Back+Start 组合键）
-        if (retryHoldProgress > 0.02) {
+        // 长按 R（键鼠）或长按 BACK（手柄）重试检查点 / 重开护送进度条（防止误触瞬退）
+        const inTowerEnding = p.room.key === "tower" && p.phase !== "tower-wait";
+        const inPrologueIntro = p.room.key === "prologue"
+            && (p.phase === "prologue-wake" || p.phase === "prologue-shadow" || p.phase === "prologue-escape" || p.phase === "prologue-hide");
+        const canRetryNow = !inTowerEnding && !inPrologueIntro && !p.craftBench.active && !p.reloadOpen && !p.escortFailed && !p.talentModalActive;
+        if (retryHoldProgress > 0.02 && canRetryNow) {
             const cx = w * 0.5;
             const cy = h - 32 - safe.top;
-            const bw = 220;
+            const bw = 240;
+            const isMaleRoguelike = p.run.source === "official" && p.storyRoute === "soldier" && p.isEscortRoom();
+            const holdKey = inputMode === "gamepad" ? "BACK" : "R";
+            const holdLabel = isMaleRoguelike ? ("长按 " + holdKey + " 重开本轮护送") : ("长按 " + holdKey + " 重试检查点");
             drawSilkVeil(uiDraw, uiArt, "hud_retry_hold_veil", cx, cy, bw + 60, 34, PALETTE.inkWarm, 0.84, 2);
-            texts.put("xs", "长按 BACK 重试检查点", cx, cy + 7, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.0, 0.96, 0.08);
+            texts.put("xs", holdLabel, cx, cy + 7, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 1.0, 0.96, 0.08);
             const x0 = cx - bw * 0.44;
             const x1 = cx + bw * 0.44;
             uiInkDraw.drawSegment(Vec2(x0, cy - 8), Vec2(x1, cy - 8), 1.4, toColor(PALETTE.silkDim, 120));
@@ -347,7 +383,11 @@ export class HudRenderer {
             col = PALETTE.emerald;
         } else if (p.hasBottle) {
             posture = assistHintsEnabled
-                ? getActiveTarget().adaptHintSentence("手持陶瓶 · 按住 [F] 瞄投", inputMode, gamepadLayout)
+                ? getActiveTarget().adaptHintSentence(
+                    inputMode === "kbm" ? "手持陶瓶 · 按住 [F] 或左键瞄投" : "手持陶瓶 · 按住 [F] 瞄投",
+                    inputMode,
+                    gamepadLayout,
+                )
                 : "手持陶瓶";
             col = PALETTE.amberCore;
         }
@@ -356,6 +396,7 @@ export class HudRenderer {
 
     private drawChapterBadge(
         uiDraw: DrawNode.Type,
+        uiInkDraw: DrawNode.Type,
         uiArt: AssetSlotHost,
         texts: TextPool,
         p: Play,
@@ -365,16 +406,24 @@ export class HudRenderer {
         inputMode: InputMode,
         safe: SafeInsets,
         touchOverlayVisible: boolean,
+        pointerUi?: Vec2.Type,
+        pointerInside: boolean = false,
     ): void {
         const theme = themeOf(p.room.key);
         const rx = w - 32 - safe.right - (touchOverlayVisible ? 208 : 0);
         const cy = h - 44 - safe.top;
-        const pauseTip = inputMode === "gamepad" ? "START 暂歇" : "Esc 暂歇";
+        const pauseTip = inputMode === "gamepad" ? "START 暂歇" : "Esc / 点击 暂歇";
+        const box = this.getChapterPauseRect(w, h, safe, touchOverlayVisible);
+        const hover = inputMode === "kbm" && !touchOverlayVisible && pointerInside && pointerUi !== undefined
+            && box.width > 0 && box.containsPoint(pointerUi);
 
-        drawSilkVeil(uiDraw, uiArt, "hud_chap_veil", rx - 82, cy, 240, 44, PALETTE.inkWash, 0.44 * alpha, -1);
+        drawSilkVeil(uiDraw, uiArt, "hud_chap_veil", rx - 82, cy, 240, 44, hover ? PALETTE.inkWarm : PALETTE.inkWash, (hover ? 0.72 : 0.44) * alpha, -1);
+        if (hover) {
+            uiInkDraw.drawRect(box, Color(0, 0, 0, 0), 0.9, toColor(PALETTE.amber, 175 * alpha));
+        }
         texts.put("xs", theme.numeralZh + " · " + theme.titleZh, rx, touchOverlayVisible ? cy : cy + 9, toColor(PALETTE.textBright), 1, 0.5, TextAlign.Right, 1.2, alpha, 0.08);
         if (!touchOverlayVisible) {
-            texts.put("xs", pauseTip, rx, cy - 11, toColor(PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.0, 0.78 * alpha, 0.08);
+            texts.put("xs", pauseTip, rx, cy - 11, toColor(hover ? PALETTE.amberCore : PALETTE.textDim), 1, 0.5, TextAlign.Right, 1.0, (hover ? 0.98 : 0.78) * alpha, 0.08);
         }
     }
 
@@ -553,6 +602,10 @@ export class HudRenderer {
         alpha: number,
         uiScale: number,
         safe: SafeInsets,
+        clickMode: "none" | "tap" | "hold" = "none",
+        inputMode: InputMode = "kbm",
+        pointerUi?: Vec2.Type,
+        pointerInside: boolean = false,
     ): void {
         const bob = Math.sin(this.time * 3.4) * 2.8;
         const viewW = cam.viewW / uiScale;
@@ -567,18 +620,28 @@ export class HudRenderer {
             const point = cam.worldToScreen(pr.x, pr.y);
             const sx = Math.max(padX + safe.left, Math.min(viewW - padX - safe.right, point.x / uiScale));
             const sy = Math.max(96 + safe.bottom, Math.min(viewH - 110 - safe.top, point.y / uiScale + bob));
-            const accent = pr.urgent ? PALETTE.rouge : PALETTE.silkLine;
+
+            const px = sx - pillW * 0.5;
+            const py = sy - 12;
+            const pillRect = Rect(px - 10, py - 5, pillW + 20, 34);
+            const hover = i === 0 && clickMode !== "none" && inputMode === "kbm"
+                && pointerInside && pointerUi !== undefined && pillRect.containsPoint(pointerUi);
+            if (i === 0 && clickMode !== "none") {
+                this.lastInteractPromptRect = pillRect;
+                this.lastInteractPromptMode = clickMode;
+            }
+            const accent = hover ? PALETTE.amberCore : (pr.urgent ? PALETTE.rouge : PALETTE.silkLine);
 
             uiInkDraw.drawSegment(Vec2(sx, sy - 14), Vec2(sx, sy - 27), 0.8, toColor(accent, 135 * alpha));
             drawBlossomDot(uiInkDraw, uiArt, "wp_anchor_" + i, sx, sy - 28, 7, accent, 0.85 * alpha, 3);
 
-            const px = sx - pillW * 0.5;
-            const py = sy - 12;
-
-            drawSilkVeil(uiDraw, uiArt, "wp_bg_" + i, sx, py + 12, pillW + 40, 32, PALETTE.inkWash, 0.78 * alpha, 0);
-            drawHairline(uiInkDraw, uiArt, "wp_line_" + i, sx, py + 24, pillW + 4, accent, 0.45 * alpha, false, 2);
-            drawSilkKeycap(uiInkDraw, texts, px + 2, py + 2, keyW, 20, pr.keyTag, accent, alpha, pr.urgent);
-            texts.put("xs", pr.label, px + keyW + 12, py + 12, toColor(PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
+            drawSilkVeil(uiDraw, uiArt, "wp_bg_" + i, sx, py + 12, pillW + 40, 32, hover ? PALETTE.inkWarm : PALETTE.inkWash, (hover ? 0.90 : 0.78) * alpha, 0);
+            if (hover) {
+                uiInkDraw.drawRect(pillRect, Color(0, 0, 0, 0), 1.0, toColor(PALETTE.amberCore, 210 * alpha));
+            }
+            drawHairline(uiInkDraw, uiArt, "wp_line_" + i, sx, py + 24, pillW + 4, accent, (hover ? 0.78 : 0.45) * alpha, false, 2);
+            drawSilkKeycap(uiInkDraw, texts, px + 2, py + 2, keyW, 20, pr.keyTag, accent, alpha, pr.urgent || hover);
+            texts.put("xs", pr.label, px + keyW + 12, py + 12, toColor(hover ? PALETTE.amberCore : PALETTE.textBright), 0, 0.5, TextAlign.Left, 0.8, alpha, 0.08);
         }
     }
 

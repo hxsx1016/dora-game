@@ -141,7 +141,7 @@ const PAUSE_ITEMS = [
     { id: "resume", zh: "继续游戏" },
     { id: "retry", zh: "重试检查点" },
     { id: "controls", zh: "操作说明" },
-    { id: "assist", zh: "按键辅助：关" },
+    { id: "assist", zh: "按键辅助：开" },
     { id: "fullscreen", zh: "显示：窗口" },
     { id: "chapters", zh: "选择章节" },
     { id: "title", zh: "返回标题" },
@@ -172,6 +172,8 @@ interface MenuFrame {
     pointer: Vec2.Type;
     inside: boolean;
     click: boolean;
+    rightClick: boolean;
+    wheelY: number;
     pointerMoved: boolean;
     mode: InputMode;
     layout: GamepadLayout;
@@ -238,11 +240,47 @@ export class MenuRenderer {
     private queuedBack = false;
     private queuedSkip = false;
     private splashTime = 0;
+    private splashGuardT = 0;
     private time = 0;
 
     resetSplash(): void {
         this.splashTime = 0;
+        this.splashGuardT = 0;
         this.queuedSkip = false;
+        this.resetInput();
+    }
+
+    /** 将焦点定位到当前页的「退出游戏」项（供窗口关闭按钮连击引导使用）。 */
+    focusQuit(screen: ScreenKind): void {
+        if (screen === "title") {
+            const baseItems = canQuitApp()
+                ? TITLE_ITEMS
+                : TITLE_ITEMS.filter(it => it.id !== "quit");
+            const items = this.hasSession
+                ? [{ id: "continue", zh: "继续游戏" }, ...baseItems]
+                : baseItems;
+            const qIdx = items.findIndex(it => it.id === "quit");
+            if (qIdx >= 0) {
+                this.selected = qIdx;
+            }
+            this.titleConfirmNewGame = false;
+        } else if (screen === "play") {
+            this.pauseShowControls = false;
+            this.pauseShowSettings = false;
+            this.pauseShowSaves = false;
+            this.saveConfirmKind = "";
+            const allowFs = canToggleFullscreen();
+            const allowQuit = canQuitApp();
+            const pauseItems = PAUSE_ITEMS.filter(item =>
+                (item.id !== "fullscreen" || allowFs)
+                && (item.id !== "quit" || allowQuit)
+                && item.id !== "ledger",
+            );
+            const qIdx = pauseItems.findIndex(item => item.id === "quit");
+            if (qIdx >= 0) {
+                this.pauseSelected = qIdx;
+            }
+        }
         this.resetInput();
     }
 
@@ -357,6 +395,7 @@ export class MenuRenderer {
 
     private readFrame(input: Input, scale: number, safe: SafeInsets): MenuFrame {
         const queued = this.queuedKeys;
+        const guarded = this.splashGuardT > 0;
 
         // 优先使用规范化渲染帧 UI 指针；保留直接写 input.mx/fire.pressed 的验收脚本兼容
         const useUiPtr = input.uiInside || input.uiPressed;
@@ -374,7 +413,7 @@ export class MenuRenderer {
                 down: queued.down === true || input.navDown,
                 left: queued.left === true || input.navLeft,
                 right: queued.right === true || input.navRight,
-                confirm: queued.confirm === true || input.navConfirm,
+                confirm: !guarded && (queued.confirm === true || input.navConfirm),
             },
             back: this.queuedBack || input.pause.pressed || input.navBack,
             prevTab: input.navPrevTab,
@@ -382,7 +421,9 @@ export class MenuRenderer {
             skipInput: this.queuedSkip || input.splashSkipPressed,
             pointer: Vec2(rawX / scale, rawY / scale),
             inside,
-            click,
+            click: !guarded && click,
+            rightClick: !guarded && input.uiRightPressed,
+            wheelY: input.uiWheelY,
             pointerMoved: !touchMode && inside && Math.abs(rawDx) + Math.abs(rawDy) >= scale,
             mode: input.inputMode,
             layout: input.gamepadLayout,
@@ -394,15 +435,15 @@ export class MenuRenderer {
         return frame;
     }
 
-    private verticalSelection(selected: number, boxes: Rect.Type[], frame: MenuFrame): number {
+    private verticalSelection(selected: number, boxes: Rect.Type[], frame: MenuFrame, allowWheel: boolean = true): number {
         const hit = hitIndex(boxes, frame.pointer, frame.inside);
         if (frame.click && hit >= 0) {
             return hit;
         }
-        if (frame.keys.up) {
+        if (frame.keys.up || (allowWheel && frame.wheelY > 0.1)) {
             return (selected + boxes.length - 1) % boxes.length;
         }
-        if (frame.keys.down) {
+        if (frame.keys.down || (allowWheel && frame.wheelY < -0.1)) {
             return (selected + 1) % boxes.length;
         }
         return frame.pointerMoved && hit >= 0 && !frame.keys.confirm ? hit : selected;
@@ -427,6 +468,9 @@ export class MenuRenderer {
         safeUi: SafeInsets = ZERO_SAFE_INSETS,
     ): MenuAction {
         this.time += dt;
+        if (this.splashGuardT > 0) {
+            this.splashGuardT = Math.max(0, this.splashGuardT - Math.min(0.05, Math.max(0, dt)));
+        }
         const splashDissolving = screen === "splash" && this.splashTime >= 4.15;
         if (screen !== "splash" || splashDissolving) {
             const artW = Math.max(w, h * 16 / 9);
@@ -489,6 +533,9 @@ export class MenuRenderer {
         const wantSkip = t >= 0.25 && (frame.skipInput || frame.click || frame.keys.confirm || frame.back);
         if (wantSkip || t >= 4.65) {
             this.splashTime = 0;
+            if (wantSkip) {
+                this.splashGuardT = 0.18;
+            }
             return { type: "splashDone" };
         }
 
@@ -790,7 +837,7 @@ export class MenuRenderer {
         selected: number,
         setSelected: (next: number) => void,
     ): "none" | "confirm" | "cancel" {
-        if (frame.back) {
+        if (frame.back || frame.rightClick) {
             return "cancel";
         }
         const dlgW = Math.min(540, w - 120);
@@ -883,7 +930,7 @@ export class MenuRenderer {
             this.saveSelected = 0;
         }
 
-        if (this.saveConfirmKind === "" && frame.back) {
+        if (this.saveConfirmKind === "" && (frame.back || frame.rightClick)) {
             this.emitSound("back");
             return backAction;
         }
@@ -1161,7 +1208,7 @@ export class MenuRenderer {
         h: number,
     ): MenuAction {
         const back: MenuAction = { type: this.chaptersFromPause ? "backPause" : "backTitle" };
-        if (frame.back) {
+        if (frame.back || frame.rightClick) {
             this.emitSound("back");
             return back;
         }
@@ -1196,6 +1243,9 @@ export class MenuRenderer {
             this.chapterSelected = Math.min(CHAPTERS.length - 1, this.chapterSelected + perRow);
         } else if (keys.up && this.chapterSelected >= perRow) {
             this.chapterSelected -= perRow;
+        } else if (frame.wheelY > 0.1 || frame.wheelY < -0.1) {
+            const step = frame.wheelY > 0.1 ? -1 : 1;
+            this.chapterSelected = (this.chapterSelected + step + CHAPTERS.length) % CHAPTERS.length;
         } else if (frame.pointerMoved && hitStation >= 0 && !keys.confirm) {
             this.chapterSelected = hitStation;
         }
@@ -1409,7 +1459,7 @@ export class MenuRenderer {
         const backY = 40 + frame.safe.bottom * 0.45;
         const backBox = Rect(backX - 6, backY - 6, 250, 46);
         const backHover = frame.inside && backBox.containsPoint(frame.pointer);
-        if (frame.back || (frame.keys.confirm && !(frame.click && hitTab >= 0)) || (frame.click && backHover)) {
+        if (frame.back || frame.rightClick || (frame.keys.confirm && !(frame.click && hitTab >= 0)) || (frame.click && backHover)) {
             this.emitSound("back");
             return { type: "backTitle" };
         }
@@ -1544,8 +1594,12 @@ export class MenuRenderer {
         for (i = 0; i < rows.length; i++) {
             boxes.push(Rect(panelX, firstY - i * rowStep, panelW, rowH));
         }
+        const decMinX = panelX + panelW - 196;
+        const incMinX = panelX + panelW - 92;
+        const hoverRow = hitIndex(boxes, frame.pointer, frame.inside);
+        const wheelOnValueRow = frame.wheelY !== 0 && hoverRow >= 0 && rows[hoverRow].id !== "back";
         const prevSetSel = this.settingsSelected;
-        this.settingsSelected = this.verticalSelection(this.settingsSelected, boxes, frame);
+        this.settingsSelected = this.verticalSelection(this.settingsSelected, boxes, frame, !wheelOnValueRow);
         if (this.settingsSelected !== prevSetSel) {
             this.emitSound("hover");
         }
@@ -1611,8 +1665,15 @@ export class MenuRenderer {
 
             const val = target.settingsValueText(row.id, s, input.inputMode);
             if (val !== "") {
+                const hoverDec = hoverRow === i && frame.pointer.x >= decMinX && frame.pointer.x < incMinX;
+                const hoverInc = hoverRow === i && frame.pointer.x >= incMinX;
+                if (hoverDec) {
+                    uiInkDraw.drawRect(Rect(decMinX, box.y + 4, incMinX - decMinX - 4, box.height - 8), toColor(PALETTE.rougeSoft, 90), 0.8, toColor(PALETTE.amberCore, 165));
+                } else if (hoverInc) {
+                    uiInkDraw.drawRect(Rect(incMinX + 4, box.y + 4, panelX + panelW - incMinX - 8, box.height - 8), toColor(PALETTE.rougeSoft, 90), 0.8, toColor(PALETTE.amberCore, 165));
+                }
                 const valCol = active ? PALETTE.amberCore : PALETTE.cyanCore;
-                const decorated = active ? ("‹  " + val + "  ›") : val;
+                const decorated = (active || hoverRow === i) ? ("‹  " + val + "  ›") : val;
                 texts.put("sm", decorated, panelX + panelW - 24, cy, toColor(valCol), 1, 0.5, TextAlign.Right, 1.0, active ? 1.0 : 0.86, 0.08);
             }
         }
@@ -1621,10 +1682,36 @@ export class MenuRenderer {
         const hint = target.settingsFooterHint(frame.mode, frame.layout);
         texts.put("xs", hint, w * 0.5, backY + 14, toColor(PALETTE.textDim), 0.5, 0.5, TextAlign.Center, 1.2, 0.84, 0.08);
 
+        if (frame.rightClick) {
+            if (hoverRow >= 0 && rows[hoverRow].id !== "back") {
+                this.settingsSelected = hoverRow;
+                applyDelta(rows[hoverRow].id, -1);
+                this.resetInput();
+                return false;
+            }
+            this.emitSound("back");
+            return true;
+        }
+        if (wheelOnValueRow) {
+            this.settingsSelected = hoverRow;
+            applyDelta(rows[hoverRow].id, frame.wheelY > 0 ? 1 : -1);
+            this.resetInput();
+            return false;
+        }
+
         const hit = frame.click ? hitIndex(boxes, frame.pointer, frame.inside) : -1;
         if (hit >= 0) {
             this.settingsSelected = hit;
-            if (applyDelta(rows[hit].id, 1)) {
+            const rowId = rows[hit].id;
+            let clickDelta = target.id === "windows" ? 2 : 1;
+            if (rowId !== "back") {
+                if (frame.pointer.x >= decMinX && frame.pointer.x < incMinX) {
+                    clickDelta = -1;
+                } else if (frame.pointer.x >= incMinX) {
+                    clickDelta = 1;
+                }
+            }
+            if (applyDelta(rowId, clickDelta)) {
                 return true;
             }
             this.resetInput();
@@ -1638,9 +1725,17 @@ export class MenuRenderer {
             }
             return false;
         }
-        if (frame.keys.right || frame.nextTab || frame.keys.confirm) {
+        if (frame.keys.right || frame.nextTab) {
             const id = rows[this.settingsSelected].id;
-            if (applyDelta(id, 1)) {
+            if (id !== "back") {
+                applyDelta(id, 1);
+                this.resetInput();
+            }
+            return false;
+        }
+        if (frame.keys.confirm) {
+            const id = rows[this.settingsSelected].id;
+            if (applyDelta(id, target.id === "windows" ? 2 : 1)) {
                 return true;
             }
             this.resetInput();
@@ -1665,7 +1760,7 @@ export class MenuRenderer {
         w: number,
         h: number,
         uiScale: number,
-        assistHintsEnabled: boolean = false,
+        assistHintsEnabled: boolean = true,
         onToggleAssist?: () => void,
         safeUi: SafeInsets = ZERO_SAFE_INSETS,
         isMaleRoguelike: boolean = false,
@@ -1707,7 +1802,7 @@ export class MenuRenderer {
             return saveAct;
         }
 
-        if (frame.back) {
+        if (frame.back || frame.rightClick) {
             this.pauseShowControls = false;
             this.pauseShowSettings = false;
             this.pauseShowSaves = false;
@@ -1870,7 +1965,8 @@ export class MenuRenderer {
         w: number,
         h: number,
     ): MenuAction {
-        if (frame.back) {
+        if (frame.back || frame.rightClick) {
+            this.emitSound("back");
             return { type: "backTitle" };
         }
 
@@ -1914,7 +2010,11 @@ export class MenuRenderer {
         for (i = 0; i < items.length; i++) {
             boxes.push(Rect(cx - btnW * 0.5, baseY - i * (btnH + gap), btnW, btnH));
         }
+        const prevEpSel = this.epilogueSelected;
         this.epilogueSelected = this.verticalSelection(this.epilogueSelected, boxes, frame);
+        if (this.epilogueSelected !== prevEpSel) {
+            this.emitSound("hover");
+        }
 
         for (i = 0; i < items.length; i++) {
             const box = boxes[i];
@@ -1951,8 +2051,9 @@ export class MenuRenderer {
         if (hit >= 0 || frame.keys.confirm) {
             const idx = hit >= 0 ? hit : this.epilogueSelected;
             const id = items[idx].id;
-            if (id === "history") return { type: "openHistory" };
-            if (id === "replay") return { type: "replayStory" };
+            if (id === "history") { this.emitSound("confirm"); return { type: "openHistory" }; }
+            if (id === "replay") { this.emitSound("start"); return { type: "replayStory" }; }
+            this.emitSound("back");
             return { type: "backTitle" };
         }
         return { type: "none" };
@@ -1972,15 +2073,18 @@ export class MenuRenderer {
         w: number,
         h: number,
     ): MenuAction {
-        if (frame.back) {
+        if (frame.back || frame.rightClick) {
+            this.emitSound("back");
             return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
         }
 
         const total = HISTORY_CARDS.length;
-        if (frame.keys.left || frame.prevTab) {
+        if (frame.keys.left || frame.prevTab || frame.wheelY > 0.1) {
             this.historyCardIndex = (this.historyCardIndex + total - 1) % total;
-        } else if (frame.keys.right || frame.nextTab) {
+            this.emitSound("toggle");
+        } else if (frame.keys.right || frame.nextTab || frame.wheelY < -0.1) {
             this.historyCardIndex = (this.historyCardIndex + 1) % total;
+            this.emitSound("toggle");
         }
         const card = HISTORY_CARDS[this.historyCardIndex];
 
@@ -2079,18 +2183,23 @@ export class MenuRenderer {
 
         if (drawNavBtn(prevBox, "prev", "上一篇")) {
             this.historyCardIndex = (this.historyCardIndex + total - 1) % total;
+            this.emitSound("toggle");
         }
         if (drawNavBtn(nextBox, "next", "下一篇")) {
             this.historyCardIndex = (this.historyCardIndex + 1) % total;
+            this.emitSound("toggle");
         }
         if (drawNavBtn(backBox, "back", this.historyFromEpilogue ? "返回尾声" : "返回标题")) {
+            this.emitSound("back");
             return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
         }
 
         if (frame.keys.confirm) {
             if (this.historyCardIndex + 1 < total) {
                 this.historyCardIndex += 1;
+                this.emitSound("toggle");
             } else {
+                this.emitSound("back");
                 return { type: this.historyFromEpilogue ? "backEpilogue" : "backTitle" };
             }
         }

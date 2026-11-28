@@ -5,6 +5,7 @@ running source cel. The output atlases keep one planted-heel baseline.
 """
 
 from dataclasses import dataclass
+from hashlib import sha256
 from math import cos, hypot, pi, sin, sqrt
 from pathlib import Path
 from xml.etree import ElementTree as XML
@@ -21,6 +22,8 @@ TRANSITION_PHASES = 8
 TRANSITION_LEVELS = 12
 SLIDE_FRAMES = 64
 SLIDE_SIZE = (300, 198)
+# A small midtone lift keeps the original cloth and skin hues readable at dusk.
+MIDTONES = [value + round(9 * value * (255 - value) / 16256) for value in range(256)] * 3
 
 
 def grid(name, columns, rows):
@@ -111,8 +114,8 @@ class Rig:
 
 
 SOLDIER = Rig(
-    field=(290, 323), cel=(180, 200), pelvis=(121, 182), knee=(174, 234), ankle=(197, 280),
-    shoulders=((112, 96), (151, 107)), hip_height=109, stride=78, rise=55,
+    field=(290, 338), cel=(180, 200), pelvis=(121, 182), knee=(174, 234), ankle=(197, 280),
+    shoulders=((112, 96), (151, 107)), hip_height=140, stride=63, rise=17,
     torso=((123, 0), (204, 0), (204, 72), (182, 78), (166, 112), (158, 146),
            (157, 171), (177, 195), (145, 191), (125, 216), (91, 221), (76, 207),
            (12, 219), (26, 190), (64, 174), (84, 123), (81, 98), (98, 74)),
@@ -129,8 +132,8 @@ SOLDIER = Rig(
 )
 
 CHILD = Rig(
-    field=(266, 305), cel=(144, 164), pelvis=(106, 180), knee=(147, 225), ankle=(159, 268),
-    shoulders=((83, 101), (131, 110)), hip_height=101, stride=62, rise=56,
+    field=(266, 326), cel=(144, 164), pelvis=(106, 180), knee=(147, 225), ankle=(159, 268),
+    shoulders=((83, 101), (131, 110)), hip_height=129, stride=48, rise=15,
     torso=((75, 0), (180, 0), (186, 71), (167, 91), (150, 115), (150, 142),
            (137, 152), (124, 187), (110, 197), (73, 200), (43, 189), (40, 168),
            (59, 150), (62, 126), (55, 108), (57, 81), (76, 63)),
@@ -159,7 +162,7 @@ def kneel(hip, ankle, upper, lower):
 
 
 def boot_path(phase, rig):
-    contact = 0.46
+    contact = 0.50
     if phase < contact:
         progress = phase / contact
         return rig.stride * (1 - 2 * progress), 0, 0
@@ -185,7 +188,7 @@ def running_frames(image, rig, samples):
     for phase, effort in samples:
         turn = phase * 2 * pi
         relax = 1 - effort
-        bob = 6 * (0.5 - 0.5 * cos(2 * turn)) * effort + 6 * relax
+        bob = 4 * (0.5 - 0.5 * cos(2 * turn)) * effort + 6 * relax
         hip = (rig.field[0] * 0.5, baseline - rig.hip_height - bob)
         lean = 0.036 * sin(2 * turn + 0.33) * effort - 0.06 * relax
         shoulders = [
@@ -211,17 +214,47 @@ def running_frames(image, rig, samples):
         draw_leg(legs[1], phase, 5)
         draw_rotated(canvas, torso, rig.pelvis, hip, lean)
         draw_rotated(canvas, near_arm, rig.shoulders[0], shoulders[0], lean + swing - 0.52 * relax)
-        yield canvas.resize(rig.cel, Image.Resampling.LANCZOS)
+        cel = canvas.resize(rig.cel, Image.Resampling.LANCZOS)
+        _, _, _, bottom = cel.getchannel("A").point(lambda alpha: 255 if alpha >= 192 else 0).getbbox()
+        planted = Image.new("RGBA", rig.cel)
+        planted.paste(cel, (0, rig.cel[1] - bottom - 1))
+        yield planted
 
 
-def motion_atlas(name, frames, size, count=FRAMES, columns=COLUMNS):
+def finish_pixels(cel, step=2):
+    """Sample finer pixel clusters while preserving the engine's frame rectangles."""
+    grid_size = round(cel.width / step), round(cel.height / step)
+    sample = cel.resize(grid_size, Image.Resampling.BOX)
+    alpha = sample.getchannel("A").point(lambda value: 255 if value >= 115 else 0)
+    toned = sample.convert("RGB").point(MIDTONES)
+    toned.putalpha(alpha)
+    clean = Image.composite(toned, Image.new("RGBA", grid_size), alpha)
+    return clean.resize(cel.size, Image.Resampling.NEAREST)
+
+
+def motion_atlas(name, frames, size, count=FRAMES, columns=COLUMNS, *, require_unique=False):
     w, h = size
     tile_w, tile_h = w + 2 * GUTTER, h + 2 * GUTTER
     atlas = Image.new("RGBA", (tile_w * columns, tile_h * ((count + columns - 1) // columns)))
+    visible_cels = set()
+    rendered = 0
     for index, frame in enumerate(frames):
+        frame = finish_pixels(frame)
+        _, _, _, sole = frame.getbbox()
+        if sole < h:
+            grounded = Image.new("RGBA", size)
+            grounded.paste(frame, (0, h - sole))
+            frame = grounded
+        if require_unique:
+            visible_cels.add(sha256(frame.convert("RGBa").tobytes()).digest())
         x = (index % columns) * tile_w + GUTTER
         y = (index // columns) * tile_h + GUTTER
         atlas.paste(frame, (x, y))
+        rendered += 1
+    if rendered != count:
+        raise ValueError(f"{name}: expected {count} cels, rendered {rendered}")
+    if require_unique and len(visible_cels) != count:
+        raise ValueError(f"{name}: expected {count} distinct visible cels, found {len(visible_cels)}")
     atlas.save(ART / (name + ".png"), optimize=True)
 
 
@@ -253,11 +286,29 @@ def pose_atlas(cels):
     atlas = Image.new("RGBA", (width, y + row_height + GUTTER))
     manifest = XML.Element("A", A="actors-hd.png")
     for key, image, x, y in placements:
-        atlas.paste(image, (x, y))
+        atlas.paste(finish_pixels(image), (x, y))
         XML.SubElement(manifest, "B", A=key, B=f"{x},{y},{image.width},{image.height}")
     atlas.save(ART / "actors-hd.png", optimize=True)
     XML.indent(manifest, "  ")
     (ART / "actors-hd.clip").write_text(XML.tostring(manifest, encoding="unicode") + "\n", encoding="utf-8")
+
+
+def export_duo():
+    """Apply the same finish to holding hands and carrying poses."""
+    manifest = XML.parse(ART / "actors_extra.clip").getroot()
+    atlas_path = ART / manifest.attrib["A"]
+    with Image.open(atlas_path) as image:
+        atlas = image.convert("RGBA")
+    with Image.open(HERE / "duo-poses.png") as source:
+        offset = 0
+        for frame in manifest:
+            if not frame.attrib["A"].startswith("duo_"):
+                continue
+            x, y, w, h = map(int, frame.attrib["B"].split(","))
+            cel = source.crop((offset, 0, offset + w, h))
+            atlas.paste(finish_pixels(cel, step=1.42), (x, y))
+            offset += w
+    atlas.save(atlas_path, optimize=True)
 
 
 def ease(t):
@@ -396,6 +447,8 @@ def main():
         sources.update((key, trim(cel)) for key, cel in zip(order, grid(name, 4, 3)))
     extra_names = ("soldier_fire_run", "soldier_fire_run_step", "child_pull_step", "child_peek")
     sources.update((key, trim(cel)) for key, cel in zip(extra_names, grid("extra-poses.png", 2, 2)))
+    with Image.open(HERE / "zhoushu-hold.png") as hold:
+        sources["soldier_hold"] = trim(hold.convert("RGBA"))
 
     cels = {
         key: pose_cel(source, 198 if key.startswith("soldier") else 144,
@@ -411,10 +464,11 @@ def main():
     for name, key, rig in (("zhoushu", "soldier", SOLDIER), ("xiaoman", "child", CHILD)):
         source = sources[f"{key}_run"]
         samples = ((index / FRAMES, 1) for index in range(FRAMES))
-        motion_atlas(f"{name}-run", running_frames(source, rig, samples), rig.cel)
+        motion_atlas(f"{name}-run", running_frames(source, rig, samples), rig.cel, require_unique=True)
         motion_atlas(f"{name}-run-transition", transition_frames(source, rig, cels[f"{key}_idle"]),
-                     rig.cel, TRANSITION_LEVELS * TRANSITION_PHASES, TRANSITION_PHASES)
+                     rig.cel, TRANSITION_LEVELS * TRANSITION_PHASES, TRANSITION_PHASES, require_unique=True)
     motion_atlas("zhoushu-slide", slide_frames(cels), SLIDE_SIZE, SLIDE_FRAMES, 8)
+    export_duo()
 
 
 if __name__ == "__main__":
