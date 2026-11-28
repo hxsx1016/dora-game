@@ -16,7 +16,7 @@ local rooms = require("Script.watch.rooms")
 local play = require("Script.watch.play")
 local Input = require("Script.watch.input").Input
 local Frontend = require("Script.watch.fe.frontend").WatchFrontend
-local lowpoly = require("Script.watch.fe.renderer.lowpoly")
+local platform = require("Script.watch.platform")
 local lowpolyWorld = require("Script.watch.fe.scenes.lowpoly_world")
 
 local pass = 0
@@ -50,6 +50,7 @@ local function newInput()
 end
 
 local function stepOne(p, input, fe, w, h)
+	p.aimX, p.aimY = input.mx, input.my
 	p:update(play.STEP, input)
 	input.interact.pressed = false
 	input.interact.released = false
@@ -57,7 +58,32 @@ local function stepOne(p, input, fe, w, h)
 	input.aim.released = false
 	input.jump.pressed = false
 	input.pause.pressed = false
-	fe:renderPlay(play.STEP, p, input, w or 1280, h or 720)
+	fe:renderPlay(play.STEP, p, input, w or fe.cam.viewW, h or fe.cam.viewH)
+end
+
+-- 用正在渲染的 Dora Camera3D 位姿和 View 视场角作独立参考；舞台坐标为左下原点。
+local function cameraPixel(camera, vp, x, y, depth)
+	local eye, target = camera.position, camera.target
+	local fy, fz = target.y - eye.y, target.z - eye.z
+	local length = math.sqrt(fy * fy + fz * fz)
+	fy, fz = fy / length, fz / length
+	local dy, dz = y / 100 - eye.y, -depth / 100 - eye.z
+	local view = Dora.View.size
+	local scale = view.height / (2 * math.tan(math.rad(Dora.View.fieldOfView / 2)) * (fy * dy + fz * dz))
+	return view.width / 2 - vp.stageX + (x / 100 - eye.x) * scale,
+		view.height / 2 - vp.stageY + (-fz * dy + fy * dz) * scale
+end
+
+local function throwAt(p, inp, fe, x, y, depth)
+	inp.aim.held = true
+	for _ = 1, 10 do
+		inp.mx, inp.my = cameraPixel(fe.xiaoman3d.camera, fe.stageVp, x, y, depth)
+		stepOne(p, inp, fe)
+	end
+	local preview = {x = p.bottleAimX, y = p.bottleAimY, depth = p.bottleAimDepth}
+	inp.aim.held, inp.aim.released = false, true
+	stepOne(p, inp, fe)
+	return preview
 end
 
 local function countCue(audio, cueId)
@@ -150,18 +176,23 @@ do
 	local resolutions = { { 1280, 720 }, { 1920, 1080 } }
 	local maxFwd, maxInv = 0, 0
 	for _, res in ipairs(resolutions) do
+		local vp = platform.computeStageViewport(res[1], res[2])
+		fe:setStagePlacement(vp)
 		for _, c in ipairs(cases) do
 			local pr = new(play.Play, c.room)
 			fe:bindPlay(pr, res[1], res[2])
 			fe:renderPlay(play.STEP, pr, inp, res[1], res[2])
-			local proj = lpPl:getActiveProjection(c.room.key)
+			assert(fe.cam.projection == fe.xiaoman3d and Dora.Director.currentCamera == fe.xiaoman3d.camera)
 			for _, pt in ipairs(c.pts) do
-				local chk = lowpoly.verifyWalkPlaneAlignment(fe.cam, proj, pt[1], pt[2])
-				if chk.forwardErrPx > maxFwd then maxFwd = chk.forwardErrPx end
-				if chk.inverseErrWorld > maxInv then maxInv = chk.inverseErrWorld end
+				local sx, sy = cameraPixel(Dora.Director.currentCamera, vp, pt[1], pt[2], 0)
+				local forward = fe.cam:worldToScreen(pt[1], pt[2], 0)
+				local inv = pr.worldMapper(sx, sy)
+				maxFwd = math.max(maxFwd, math.abs(forward.x - sx), math.abs(forward.y - sy))
+				maxInv = math.max(maxInv, math.abs(inv.x - pt[1]), math.abs(inv.y - pt[2]))
 			end
 		end
 	end
+	fe:setStagePlacement(platform.computeStageViewport(1280, 720))
 	check("3.1 四房全部关键点 wz=0 跨分辨率零误差", maxFwd < 0.001 and maxInv < 0.001,
 		string.format("fwd=%.6f inv=%.6f", maxFwd, maxInv))
 	fe.contract:exitRehearsal()
@@ -255,17 +286,7 @@ do
 	p.player.x = 332
 	inp.crouch.held = true
 	stepOne(p, inp, fe)
-	local brickScr = fe.cam:worldToScreen(608, 0)
-	inp.mx, inp.my = brickScr.x, brickScr.y
-	p.aimX, p.aimY = brickScr.x, brickScr.y
-	inp.aim.held = true
-	for _ = 1, 10 do
-		p.aimX, p.aimY = fe.cam:sx(608), fe.cam:sy(0)
-		stepOne(p, inp, fe)
-	end
-	inp.aim.held = false
-	inp.aim.released = true
-	stepOne(p, inp, fe)
+	throwAt(p, inp, fe, 608, 2, 0)
 	-- 推进 60 拍等待落地(37 拍) + 转头(18 拍) -> 进入 walk
 	local brickToePaused = false
 	for _ = 1, 60 do
@@ -285,17 +306,7 @@ do
 
 	-- 第二投：给回瓶子，瞄准铁盆(548)投出 -> 盆沿颤动 + 金属余振 + 拾荒者跟往铁盆方向
 	p.hasBottle = true
-	local basinScr = fe.cam:worldToScreen(548, 0)
-	inp.mx, inp.my = basinScr.x, basinScr.y
-	p.aimX, p.aimY = basinScr.x, basinScr.y
-	inp.aim.held = true
-	for _ = 1, 10 do
-		p.aimX, p.aimY = fe.cam:sx(548), fe.cam:sy(0)
-		stepOne(p, inp, fe)
-	end
-	inp.aim.held = false
-	inp.aim.released = true
-	stepOne(p, inp, fe)
+	throwAt(p, inp, fe, 548, 20.7, 18)
 	local basinShook = false
 	for _ = 1, 56 do
 		stepOne(p, inp, fe)
@@ -314,15 +325,7 @@ do
 
 	-- 第三投：软土(272)消音判定验证
 	p.hasBottle = true
-	p.aimX, p.aimY = fe.cam:sx(272), fe.cam:sy(0)
-	inp.aim.held = true
-	for _ = 1, 10 do
-		p.aimX, p.aimY = fe.cam:sx(272), fe.cam:sy(0)
-		stepOne(p, inp, fe)
-	end
-	inp.aim.held = false
-	inp.aim.released = true
-	stepOne(p, inp, fe)
+	throwAt(p, inp, fe, 272, 0, 0)
 	for _ = 1, 42 do
 		stepOne(p, inp, fe)
 	end
@@ -347,6 +350,41 @@ do
 	check("5.5 投瓶反馈不限制玩家钻出桌下过暗渠通行线", p.passed == true and p.player.x >= 440,
 		string.format("x=%.1f passed=%s", p.player.x, tostring(p.passed)))
 	fe.contract:exitRehearsal()
+end
+
+-- 三个站位各瞄同一中线砖边、偏纵深砖面和可见盆口；移动出手后的角色不能拖走瓶身。
+do
+	local view = Dora.View.size
+	local vp = platform.computeStageViewport(view.width, view.height)
+	fe:setStagePlacement(vp)
+	fe.contract:enterRehearsal("fe04-depth")
+	fe.contract:setMockRoute("child")
+	for _, depth in ipairs({-30, 0, 30}) do
+		for _, target in ipairs({{608, 0, 0, "brick"}, {618, 2, -22, "brick"},
+			{548, 20.7, 18, "iron"}, {548, 0, -37, "brick"}}) do
+			local p, inp = new(play.Play, rooms.VILLAGE_ROOM), newInput()
+			fe:bindPlay(p, vp.stageW, vp.stageH)
+			p.player.x, p.player.depth, p.hasBottle, inp.crouch.held = 332, depth, true, true
+			for _ = 1, 150 do fe:renderPlay(play.STEP, p, inp, vp.stageW, vp.stageH) end
+			local x, y, d = target[1], target[2], target[3]
+			local preview = throwAt(p, inp, fe, x, y, d)
+			local fly = assert(p.bottleFly)
+			p.player.depth = -depth
+			stepOne(p, inp, fe)
+			local model = fe.xiaoman3d.entities.airBottle
+			local z = -(depth + (d - depth) * fly.t / play.BOTTLE_FLY_TIME)
+			local flightErr = math.max(math.abs(model.z * 100 - z), math.abs(fly.target.x - x), math.abs(fly.target.y - y))
+			for _ = 1, 40 do stepOne(p, inp, fe) end
+			local err = math.max(flightErr, math.abs(preview.x - x), math.abs(preview.y - y),
+				math.abs(preview.depth - d), math.abs(p.bottleLandX - x), math.abs(p.bottleLandY - y),
+				math.abs(p.bottleLandDepth - d))
+			check("5.6 跨纵深预览、飞行与落点", err < 0.001 and p.bottleLandSurface == target[4],
+				string.format("站位=%d 目标=(%g,%g,%g) 落点=(%.4f,%.4f,%.4f) 误差=%.6f 材质=%s",
+					depth, x, y, d, p.bottleLandX, p.bottleLandY, p.bottleLandDepth, err, p.bottleLandSurface))
+		end
+	end
+	fe.contract:exitRehearsal()
+	fe:setStagePlacement(platform.computeStageViewport(1280, 720))
 end
 
 -- ---------------------------------------------------------------- 6. forest 密林枯枝、林犬、溪湾持续涟漪与拨枝见真灯

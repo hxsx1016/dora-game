@@ -7,7 +7,7 @@
 -- 3. 后半段专属像素/宋明图集 props_second_half.clip 17 枚动态槽位完整注册且可加载
 -- 4. 男主线 EscortWorldRenderer 覆盖 gatepath + escort1..5，且不破坏 11 枚核心插件清单，离开护送房零残留
 -- 5. escort2 粮袋（e2_grain_sacks / grain_sack）、wood/bell 筹牌槽位与 escort3 工台/草束练习靶渲染正常
--- 6. 女主线四房融合景箱：贴图网格、outside O3 盐寮、village 手绘铁盆、forest 树洞与溪湾、tower 剖面揭开守塔老卒与桌案
+-- 6. 女主线四房融合景箱：贴图网格、outside O3 盐寮、village 单个活动铁盆模型、forest 树洞与溪湾、tower 剖面揭开守塔老卒与桌案
 -- 7. 后半段新增低声对白（E1A..E5B / O3_WIND / F4_CREEK / OPT_SHELL / OPT_NEEDLEBOX / OPT_HOLLOW）全部就位
 -- 8. 结局 F03/M03 与现代展厅 E02 专属展板/陈列柜加载正常，且仍守住标签数 <= 10 与袖口同源口径
 
@@ -254,15 +254,36 @@ do
 			pc.towerDoorOpen = true
 			pc.phase = "tower-enter"
 		end
-		fe:bindPlay(pc, 1280, 720)
-		stepFrames(pc, inp, fe, 8)
+		-- Dora 的 Node3D 未暴露子节点遍历；记录本次入村真正构造的盆，再核对场景挂载和可见性。
+		local models = {}
+		local modelClass = getmetatable(Dora.Model3D)
+		local construct = modelClass.__call
+		if r.key == "village" then
+			modelClass.__call = function(class, path, ...)
+				local model = construct(class, path, ...)
+				if path == "assets/xiaoman3d/basin.glb" then models[#models + 1] = model end
+				return model
+			end
+		end
+		local ok, err = pcall(function()
+			fe:bindPlay(pc, 1280, 720)
+			stepFrames(pc, inp, fe, 8)
+		end)
+		modelClass.__call = construct
+		assert(ok, err)
 		local dbg = lp:getDebugState(pc)
 		if r.key == "village" then
-			local basins = 0
-			for key, count in pairs(fe.dioramaWorld.spriteCursor) do
-				if key:find("diorama_cutouts.clip|iron_basin", 1, true) then basins = basins + count end
+			local visible, painted = 0, 0
+			for _, model in ipairs(models) do
+				local node = model
+				while node and node.visible and node ~= Dora.Director.entry.scene do node = node.parent end
+				if node == Dora.Director.entry.scene then visible = visible + 1 end
 			end
-			check("village_one_painted_basin", basins == 1)
+			for key, count in pairs(fe.dioramaWorld.spriteCursor) do
+				if key:find("diorama_cutouts.clip|iron_basin", 1, true) then painted = painted + count end
+			end
+			check("village_one_visible_3d_basin", visible == 1 and painted == 0,
+				string.format("visible models=%d cutouts=%d", visible, painted))
 		end
 		check("child_diorama_active_" .. r.key, dbg.active == true, string.format("room=%s active=%s", r.key, tostring(dbg.active)))
 	end

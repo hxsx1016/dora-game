@@ -70,7 +70,14 @@ export function gateCountAtTick(tick: number): number {
     return 1 + Math.floor(Math.max(0, tick) / 48);
 }
 /** 投瓶的固定飞行时长（秒）：触地拍 = 松手拍 + 37 拍。 */
-const BOTTLE_FLY_TIME = 0.62;
+export interface BottlePoint {
+    x: number;
+    y: number;
+    depth: number;
+    hitBasin?: boolean;
+}
+
+export const BOTTLE_FLY_TIME = 0.62;
 
 /**
  * 前端可消费的一次性事件。
@@ -390,9 +397,11 @@ export class Play {
     /** 手上是否有瓶。 */
     hasBottle = false;
     /** 投出的瓶子（飞行中）：解析轨迹，t 到 BOTTLE_FLY_TIME 才算触地。 */
-    bottleFly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number } | undefined;
+    bottleFly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number; startDepth: number; target: BottlePoint } | undefined;
     /** 最近一次落点与余音计时。 */
     bottleLandX = -1;
+    bottleLandDepth = 0;
+    bottleLandSurface: "soft" | "iron" | "brick" = "brick";
     bottleTargetX = -1;
     bottleTargetY = 0;
     bottleLandT = 0;
@@ -473,6 +482,9 @@ export class Play {
     /** 按住 F 期间每拍缓存的落点；预览与投掷共用它，避免松手那拍镜头移动造成偏差。 */
     bottleAimX = -1;
     bottleAimY = 0;
+    bottleAimDepth = 0;
+    private bottleAimHitBasin?: boolean;
+    bottleMapper?: (sx: number, sy: number) => BottlePoint;
     /** 上一次投掷的落点表面高度；飞行只在这个高度上触地。 */
     bottleSurfaceY = -1;
     /** 最近一次落地的世界坐标，给前端画砸地扬尘。 */
@@ -4733,14 +4745,18 @@ export class Play {
                 const cached = this.bottleEnd();
                 this.bottleAimX = cached.x;
                 this.bottleAimY = cached.y;
+                this.bottleAimDepth = cached.depth;
+                this.bottleAimHitBasin = cached.hitBasin;
             } else if (rawAimReleased) {
                 if (this.aimHold < 0.12) {
                     // 原地误点一下不算投：先说清楚要按住瞄准。
                     this.flashSet(input.isKbmMode() ? "按住 F 或左键瞄一下再松手" : "按住 F 瞄一下再松手", 0.9);
                     this.aimHold = 0;
                 } else {
-                    const end = this.bottleAimX >= 0 ? { x: this.bottleAimX, y: this.bottleAimY } : this.bottleEnd();
-                    this.throwBottle(end.x, end.y);
+                    const end = this.bottleAimX >= 0 ? {
+                        x: this.bottleAimX, y: this.bottleAimY, depth: this.bottleAimDepth, hitBasin: this.bottleAimHitBasin,
+                    } : this.bottleEnd();
+                    this.throwBottle(end);
                     this.aimHold = 0;
                 }
             }
@@ -4806,17 +4822,24 @@ export class Play {
     }
 
     /** 准星点的世界坐标换算成「实际落点」：横向钳位在房间内（防投出屏外负坐标），纵向取该处地面。 */
-    private bottleEnd(): { x: number; y: number } {
+    private bottleEnd(): BottlePoint {
+        if (this.bottleMapper !== undefined) {
+            const hit = this.bottleMapper(this.aimX, this.aimY);
+            hit.x = Math.max(this.room.minX + 12, Math.min(this.room.maxX - 12, hit.x));
+            return hit;
+        }
         const aim = this.worldMapper !== undefined
             ? this.worldMapper(this.aimX, this.aimY)
             : screenToWorld(this.aimX, this.aimY, this.cam, this.view);
         const clampedX = Math.max(this.room.minX + 12, Math.min(this.room.maxX - 12, aim.x));
         const g = this.groundAt(clampedX, aim.y + 240, 3);
-        return { x: clampedX, y: g };
+        return { x: clampedX, y: g, depth: 0 };
     }
 
     /** 固定飞行时间反解初速；终点就是准星指定的落点，预览与触地用同一套参数。 */
-    private throwBottle(tx: number, ty: number): void {
+    private throwBottle(end: BottlePoint): void {
+        const tx = end.x;
+        const ty = end.y;
         const p = this.player;
         // 起点朝着目标出手：原地站着把瓶子扔到背后时，弧线不能从身体里穿过去。
         const dir = tx >= p.x ? 1 : -1;
@@ -4828,7 +4851,7 @@ export class Play {
         this.bottleSurfaceY = ty;
         const vx = (tx - x0) / BOTTLE_FLY_TIME;
         const vy = (ty - y0 + 0.5 * GRAVITY * BOTTLE_FLY_TIME * BOTTLE_FLY_TIME) / BOTTLE_FLY_TIME;
-        this.bottleFly = { x: x0, y: y0, x0: x0, y0: y0, vx: vx, vy: vy, t: 0 };
+        this.bottleFly = { x: x0, y: y0, x0: x0, y0: y0, vx: vx, vy: vy, t: 0, startDepth: p.depth, target: end };
         this.hasBottle = false;
         this.flashSet("投出", 0.4);
         this.emit("bottleThrown", {
@@ -4841,22 +4864,22 @@ export class Play {
     }
 
     /** 空村三材质落点判定：软土消音 / 铁盆双响加长驻留 / 砖地常规单响。 */
-    private bottleSurfaceAt(x: number): "soft" | "iron" | "brick" {
+    private bottleSurfaceAt(x: number, hitBasin?: boolean): "soft" | "iron" | "brick" {
         if (this.room.softX !== undefined && Math.abs(x - this.room.softX) <= 34) {
             return "soft";
         }
-        if (this.room.basinX !== undefined && Math.abs(x - this.room.basinX) <= 24) {
+        if (hitBasin ?? (this.room.basinX !== undefined && Math.abs(x - this.room.basinX) <= 24)) {
             return "iron";
         }
         return "brick";
     }
 
     /** 触地：只在这里派发一次声音事件，落点固定用预览缓存，并显式携带材质供前端分轨渲染。 */
-    private landBottle(fly: { x: number; y: number; x0: number; y0: number; vx: number; vy: number; t: number }): void {
+    private landBottle(fly: { x: number; y: number; target: BottlePoint }): void {
         const x = this.bottleTargetX >= 0 ? this.bottleTargetX : fly.x;
         const y = this.bottleSurfaceY >= 0 ? this.bottleSurfaceY : fly.y;
         const s = this.room.scavenger;
-        const surface = this.bottleSurfaceAt(x);
+        const surface = this.bottleSurfaceAt(x, fly.target.hitBasin);
         const effRange = s === undefined ? 0 : (surface === "iron" ? s.range * 1.25 : s.range);
         const heard = surface !== "soft" && s !== undefined && Math.abs(x - this.scavX) <= effRange;
         const stallTicks = s === undefined ? 0 : (surface === "iron" ? s.stallTicks + 90 : s.stallTicks);
@@ -4866,6 +4889,8 @@ export class Play {
         this.bottleSurfaceY = -1;
         this.bottleLandX = x;
         this.bottleLandY = y;
+        this.bottleLandDepth = fly.target.depth;
+        this.bottleLandSurface = surface;
         this.bottleLandT = 0.9;
         this.emit("bottleLanded", {
             x: x,

@@ -731,7 +731,7 @@ export class WatchFrontend {
 
         const use3D = this.xiaoman3d.supports(p, view.visualMode);
         if (use3D) {
-            this.xiaoman3d.render(p, this.cam, this.actors, worldDt, w, h, this.stageVp);
+            this.xiaoman3d.render(p, this.cam, this.actors, worldDt, w, h, this.stageVp, this.worldOverlayDraw);
         } else {
             this.xiaoman3d.hide();
             this.cam.projection = undefined;

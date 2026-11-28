@@ -121,15 +121,23 @@ router:injectTouch("ended", 1, 208, 195, false)
 input:update()
 check("releasing fingers zeroes stick", input.moveX == 0 and input.moveY == 0)
 
--- 2. 小满空村：非纵深房下推摇杆不误蹲 + 内圈慢走 + 蹲伏切跳顺滑起身
+-- 2. 小满空村：3D 空村下推向前景走且不误蹲 + 内圈慢走 + 蹲伏切跳顺滑起身
 local pVillage = new(play.Play, rooms.VILLAGE_ROOM)
+pVillage.storyRoute, pVillage.storyRouteSettled, pVillage.childMode = "child", true, true
 fe:bindPlay(pVillage, W, H)
+fe:renderPlay(1 / 60, pVillage, input, W, H)
 syncTouch("play", pVillage, 1)
 
 router:injectTouch("began", 3, 150, 150, false)
 router:injectTouch("moved", 3, 150, 95, false)
 input:update()
-check("child non-depth room ignores downward stick for crouch", input.moveY == 0 and not input.crouch.held)
+local startDepth = pVillage.player.depth
+input:beginStep(true)
+pVillage:update(play.STEP, input)
+input:endStep()
+check("child downward stick walks toward foreground without crouching",
+	fe.xiaoman3d.active and input.moveY == 1 and pVillage.player.depth < startDepth
+	and not input.crouch.held and not pVillage.player.crouch)
 
 router:injectTouch("moved", 3, 174, 150, false)
 input:update()

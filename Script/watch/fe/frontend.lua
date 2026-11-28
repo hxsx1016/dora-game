@@ -833,7 +833,8 @@ function WatchFrontend.prototype.renderPlay(self, dt, p, input, w, h) -- 626
 			worldDt, -- 734
 			w, -- 734
 			h, -- 734
-			self.stageVp -- 734
+			self.stageVp, -- 734
+			self.worldOverlayDraw -- 734
 		) -- 734
 	else -- 734
 		self.xiaoman3d:hide() -- 736
