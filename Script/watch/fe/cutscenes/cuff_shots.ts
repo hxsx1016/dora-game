@@ -91,12 +91,38 @@ const GATE_AUDIO_ROOT = "assets/audio/gate/";
 const LINE_P05 = "「小满，慢慢数到二十。哥要是还没出来，你就往北塔走。」";
 const LINE_G05 = "「我们走吧。」";
 
-/** P03 柜边相认硬核木刻漫画逐帧拍表（归一化进度 0..1） */
+/** P03 柜边相认硬核木刻漫画 24 帧逐帧动画拍表（归一化 0..1 对应 3.00s，均速 8.0 fps、拂瓷高潮 11.4 fps） */
 const P03_COMIC_SEQ: readonly ComicKeyframe[] = [
-    { slot: "comic_p03_01_two_fingers", start: 0.00, end: 0.28, zoomFrom: 1.00, zoomTo: 1.012, transition: "cut" },
-    { slot: "comic_p03_02_cuff_enter", start: 0.28, end: 0.52, zoomFrom: 1.005, zoomTo: 1.016, transition: "cut" },
-    { slot: "comic_p03_03_cuff_wipe", start: 0.52, end: 0.76, zoomFrom: 1.01, zoomTo: 1.022, transition: "cut", shakeAmp: 2.6, shakeFreq: 52 },
-    { slot: "comic_p03_04_hand_meet", start: 0.76, end: 1.00, zoomFrom: 1.012, zoomTo: 1.00, transition: "cut" },
+    // Act I: 柜缝试探伸指与袖口初现（0.00–0.55s，7.3 fps）
+    { slot: "comic_p03_f01", start: 0.0000, end: 0.0467, transition: "cut" },
+    { slot: "comic_p03_f02", start: 0.0467, end: 0.0933, transition: "cut" },
+    { slot: "comic_p03_f03", start: 0.0933, end: 0.1400, transition: "cut" },
+    { slot: "comic_p03_f04", start: 0.1400, end: 0.1833, transition: "cut" },
+    // Act II: 五针补线袖口平稳入画逼近碎瓷（0.55–1.00s，8.9 fps）
+    { slot: "comic_p03_f05", start: 0.1833, end: 0.2200, transition: "cut" },
+    { slot: "comic_p03_f06", start: 0.2200, end: 0.2567, transition: "cut" },
+    { slot: "comic_p03_f07", start: 0.2567, end: 0.2933, transition: "cut" },
+    { slot: "comic_p03_f08", start: 0.2933, end: 0.3333, transition: "cut" },
+    // Act III: 拂瓷爆发段（1.00–1.35s，11.4 fps 拍二动作线）
+    { slot: "comic_p03_f09", start: 0.3333, end: 0.3633, transition: "cut", shakeAmp: 2.2, shakeFreq: 54 },
+    { slot: "comic_p03_f10", start: 0.3633, end: 0.3917, transition: "cut" },
+    { slot: "comic_p03_f11", start: 0.3917, end: 0.4200, transition: "cut" },
+    { slot: "comic_p03_f12", start: 0.4200, end: 0.4500, transition: "cut", shakeAmp: 4.5, shakeFreq: 66 },
+    // Act IV: 碎瓷坠落收势、抽袖翻掌摊开（1.35–1.82s，8.5 fps）
+    { slot: "comic_p03_f13", start: 0.4500, end: 0.4833, transition: "cut" },
+    { slot: "comic_p03_f14", start: 0.4833, end: 0.5200, transition: "cut" },
+    { slot: "comic_p03_f15", start: 0.5200, end: 0.5600, transition: "cut" },
+    { slot: "comic_p03_f16", start: 0.5600, end: 0.6067, transition: "cut" },
+    // Act V: 小满试探伸出小手轻触兄长指尖（1.82–2.32s，8.0 fps）
+    { slot: "comic_p03_f17", start: 0.6067, end: 0.6500, transition: "cut" },
+    { slot: "comic_p03_f18", start: 0.6500, end: 0.6900, transition: "cut" },
+    { slot: "comic_p03_f19", start: 0.6900, end: 0.7300, transition: "cut" },
+    { slot: "comic_p03_f20", start: 0.7300, end: 0.7733, transition: "cut" },
+    // Act VI: 落掌、微尘升起、温情拢指护握（2.32–3.00s，6.0–7.1 fps）
+    { slot: "comic_p03_f21", start: 0.7733, end: 0.8200, transition: "cut" },
+    { slot: "comic_p03_f22", start: 0.8200, end: 0.8667, transition: "cut" },
+    { slot: "comic_p03_f23", start: 0.8667, end: 0.9167, transition: "cut" },
+    { slot: "comic_p03_f24", start: 0.9167, end: 1.0000, transition: "cut" },
 ];
 
 /** P05 城门送别硬核木刻漫画逐帧拍表（归一化进度 0..1，含 0.72 落门单帧三色木刻冲击） */
@@ -898,7 +924,7 @@ export class CuffShotsPlugin implements FeRenderPlugin {
         h: number,
         prog: number,
     ): void {
-        const fade = smoothstep(0, 0.07, prog) * (1 - smoothstep(0.93, 1.0, prog));
+        const fade = smoothstep(0, 0.03, prog) * (1 - smoothstep(0.96, 1.0, prog));
         const barH = Math.round(h * 0.075);
 
         drawComicSequence(

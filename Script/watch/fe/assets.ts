@@ -38,6 +38,12 @@ export type AssetSlotKey =
     | "comic_p02_05_bowl_roll1" | "comic_p02_06_bowl_roll2" | "comic_p02_07_bowl_smash"
     | "comic_p02_08a_cabinet_slit" | "comic_p02_08m_cabinet_narrowing" | "comic_p02_08b_cabinet_shut"
     | "comic_p03_01_two_fingers" | "comic_p03_02_cuff_enter" | "comic_p03_03_cuff_wipe" | "comic_p03_04_hand_meet"
+    | "comic_p03_f01" | "comic_p03_f02" | "comic_p03_f03" | "comic_p03_f04"
+    | "comic_p03_f05" | "comic_p03_f06" | "comic_p03_f07" | "comic_p03_f08"
+    | "comic_p03_f09" | "comic_p03_f10" | "comic_p03_f11" | "comic_p03_f12"
+    | "comic_p03_f13" | "comic_p03_f14" | "comic_p03_f15" | "comic_p03_f16"
+    | "comic_p03_f17" | "comic_p03_f18" | "comic_p03_f19" | "comic_p03_f20"
+    | "comic_p03_f21" | "comic_p03_f22" | "comic_p03_f23" | "comic_p03_f24"
     | "comic_p05_01_clutch_cuff" | "comic_p05_02_brother_pinch" | "comic_p05_03_sleeve_pull"
     | "comic_p05_04_gate_drop" | "comic_p05_05_gate_slam_impact" | "comic_p05_06_open_fingers"
     | "comic_g05_01_cuff_peek" | "comic_g05_02_cuff_extend" | "comic_g05_03_hands_meet" | "comic_g05_04_hands_clasp"
@@ -308,6 +314,30 @@ export const ASSET_SLOTS: Record<AssetSlotKey, AssetSlotConfig> = {
     comic_p03_02_cuff_enter: comicCutscene("p03/p03_02_cuff_enter"),
     comic_p03_03_cuff_wipe: comicCutscene("p03/p03_03_cuff_wipe"),
     comic_p03_04_hand_meet: comicCutscene("p03/p03_04_hand_meet"),
+    comic_p03_f01: comicCutscene("p03/p03_f01"),
+    comic_p03_f02: comicCutscene("p03/p03_f02"),
+    comic_p03_f03: comicCutscene("p03/p03_f03"),
+    comic_p03_f04: comicCutscene("p03/p03_f04"),
+    comic_p03_f05: comicCutscene("p03/p03_f05"),
+    comic_p03_f06: comicCutscene("p03/p03_f06"),
+    comic_p03_f07: comicCutscene("p03/p03_f07"),
+    comic_p03_f08: comicCutscene("p03/p03_f08"),
+    comic_p03_f09: comicCutscene("p03/p03_f09"),
+    comic_p03_f10: comicCutscene("p03/p03_f10"),
+    comic_p03_f11: comicCutscene("p03/p03_f11"),
+    comic_p03_f12: comicCutscene("p03/p03_f12"),
+    comic_p03_f13: comicCutscene("p03/p03_f13"),
+    comic_p03_f14: comicCutscene("p03/p03_f14"),
+    comic_p03_f15: comicCutscene("p03/p03_f15"),
+    comic_p03_f16: comicCutscene("p03/p03_f16"),
+    comic_p03_f17: comicCutscene("p03/p03_f17"),
+    comic_p03_f18: comicCutscene("p03/p03_f18"),
+    comic_p03_f19: comicCutscene("p03/p03_f19"),
+    comic_p03_f20: comicCutscene("p03/p03_f20"),
+    comic_p03_f21: comicCutscene("p03/p03_f21"),
+    comic_p03_f22: comicCutscene("p03/p03_f22"),
+    comic_p03_f23: comicCutscene("p03/p03_f23"),
+    comic_p03_f24: comicCutscene("p03/p03_f24"),
     comic_p05_01_clutch_cuff: comicCutscene("p05/p05_01_clutch_cuff"),
     comic_p05_02_brother_pinch: comicCutscene("p05/p05_02_brother_pinch"),
     comic_p05_03_sleeve_pull: comicCutscene("p05/p05_03_sleeve_pull"),
