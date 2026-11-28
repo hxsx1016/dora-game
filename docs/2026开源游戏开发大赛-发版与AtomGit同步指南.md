@@ -7,7 +7,7 @@
 
 工作流自动生成并校验四端产物（均随包附带根 [Apache-2.0 LICENSE](../LICENSE) 与 [AI 使用与素材声明](AI使用与素材声明.md)）：
 
-1. **`WestwardWatch-<ver>-windows-x64.zip`**（**主赛道主推**，`.github/workflows/release-windows.yml`）：Windows 10/11 Direct3D 12 绿色便携包，禁用 Web IDE，写入独立 `dora-game-id`，解压后双击 `WestwardWatch.exe` 或 `启动-向西守望.cmd` 即可游玩。
+1. **`WestwardWatch-<ver>-windows-x64.zip`**（**主赛道主推**，`.github/workflows/release-windows.yml`）：Windows 10/11 Direct3D 12 绿色便携包（根目录单入口 `WestwardWatch.exe` + 默认便携目录 `saves/` + `runtime/` 收拢运行时），禁用 Web IDE，解压后直接双击根目录 `WestwardWatch.exe` 即可游玩。
 2. **`WestwardWatch-<ver>-windows-x64-opengl.zip`**（**主赛道兼容兜底**）：Windows 10/11 OpenGL 绿色便携包，供不支持 Direct3D 12 的老旧核显或虚拟机使用。
 3. **`WestwardWatch-<ver>-dora-source.zip`**（**Dora 开源社区奖 / KTR 掌机专供**）：含 `init.ts`、`init.lua`、`LICENSE`、`Script/`、`assets/` 与 `Dora平台运行说明.md`，可直接在 Dora SSR v1.10.2 / Dora Go 跨平台打开运行。
 4. **`WestwardWatch-<ver>-android-arm64.apk`**（**Android 独立签名 APK**，`.github/workflows/release-android.yml`）：支持横竖屏自由切换与 16KB 页对齐，含统一北塔图标与开机品牌序幕。
@@ -28,8 +28,8 @@ git push origin v1.0.0
 ```
 推送 `v*` Tag 后，CI 将自动执行：
 1. `check-repo.py` + `audit-assets.py`（全资产存在与中文字库 0 缺字校验）；
-2. 下载并校验官方 Dora SSR `v1.10.2` 运行时哈希，组装三件套；
-3. 在 `windows-latest` Runner 解压至**含中文与空格的路径**，实测默认隔离存档模式与纯绿色 `save/` 便携存档模式双轮冷启动与正常退出；
+2. 在 `windows-latest` 原生编译根目录启动器 `WestwardWatch.exe`、通过 `rcedit` 为 Dora SSR `v1.10.2` 运行时注入图标与 PE 元信息，并校验官方引擎包哈希组装三件套；
+3. 在 `windows-latest` Runner 解压至**含中文与空格的路径**，实测直接双击 `WestwardWatch.exe` 启动的默认 `saves/` 便携模式与只读目录自动降级双轮冷启动及正常退出；
 4. 全部通过后自动创建 GitHub Release 并上传三件套与 `SHA256SUMS.txt`。
 
 ## 三、同步至 AtomGit（大赛硬性要求）

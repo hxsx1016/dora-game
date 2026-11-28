@@ -4,12 +4,12 @@
  * 严格裁剪：
  * - 零触屏路由、零虚拟触控层（省去 178 个 SDF Label + 4 DrawNode）、零手柄 136 次/帧 FFI 轮询、零磁吸敌兵投影；
  * - 零竖屏掌机台代码、零触屏/手柄提示文案；
- * - 设置页仅暴露四通道音量；执器要诀仅显示键鼠单页。
+ * - 桌面专属体验：IME 自动屏蔽防 Shift 弹输入法、点击事件锁存防漏击、R 长按防误触重开、蹲伏切换模式可选。
  */
 
 import { App, Node, PlatformType, View } from "Dora";
 import { KbmPoller } from "Script/watch/input/kbm_core";
-import { applyVolumeSetting, volumeSettingText } from "Script/watch/controls_config";
+import { applyVolumeSetting, saveControlSettings, volumeSettingText } from "Script/watch/controls_config";
 import type { Input } from "Script/watch/input";
 import {
     ControlSettings,
@@ -29,31 +29,37 @@ import {
     getReleaseConfig,
 } from "Script/watch/target_types";
 
+const RETRY_HOLD_DEADZONE = 0.08;
+const RETRY_HOLD_DURATION = 0.65;
+
 const WINDOWS_SETTINGS_ROWS: SettingsRowDef[] = [
     { id: "masterVol", title: "主音量" },
     { id: "bgmVol", title: "音乐音量" },
     { id: "sfxVol", title: "音效与环境" },
     { id: "voiceVol", title: "人声音量" },
-    { id: "back", title: "返回暂歇菜单" },
+    { id: "fullscreen", title: "显示模式" },
+    { id: "assistHints", title: "按键辅助" },
+    { id: "crouchToggle", title: "蹲伏方式" },
+    { id: "back", title: "返回" },
 ];
 
 const WINDOWS_GUIDE: ControlsGuidePage = {
     subtitle: "键鼠操作说明 · Windows 桌面",
     soldierRows: [
         ["WASD / 方向键", "左右、前后纵深自由移动"],
-        ["鼠标 + 左键 / Q", "瞄准发射火铳 · Q 随时开换弹盘"],
+        ["鼠标 + 左键 / Q·右键", "瞄准发射火铳 · Q/右键开换弹盘"],
         ["按住 SHIFT / SPACE", "贴靠掩体挡弹 · 平地翻滚或翻越"],
-        ["E / 1·2·3", "交互推车工台 · 数字键选护送本领"],
+        ["E / 1·2·3 / 点提示", "交互推车工台 · 数字键或点击选本领"],
         ["拖线 / 方向+回车", "慢时 3×3 换弹盘 · 右键/退格重画"],
-        ["ESC / R / T", "暂歇菜单 / 重试检查点 / 切神器"],
+        ["ESC / 长按R / V / T", "暂歇 · 重试检查点 · 札记 · 切神器"],
     ],
     childRows: [
-        ["A / D · ← / →", "左右潜行"],
+        ["WASD / 方向键", "前后左右纵深潜行"],
         ["按住 SHIFT", "轻步慢走（压低脚步声）"],
-        ["按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
+        ["C / CTRL", "蹲伏隐蔽 · 穿低拱与桌底（可改切换）"],
         ["SPACE", "跳跃攀上石阶与矮台"],
-        ["E", "拾瓶 / 敲塔门 / 按住+D 拉车"],
-        ["F 按住→松开", "瞄准砖地/铁盆投瓶 · 右键取消"],
+        ["E / 点世界提示", "拾瓶 / 敲塔门 / 按住+D 拉车"],
+        ["F / 左键 按住→松开", "瞄准砖地/铁盆投瓶 · 右键取消"],
     ],
 };
 
@@ -67,12 +73,12 @@ function desktopKind(): PlatformKind {
 function keyTagKbm(action: KeyActionId): string {
     if (action === "interact") return "E";
     if (action === "jump") return "SPACE";
-    if (action === "crouch") return "CTRL";
+    if (action === "crouch") return "C / CTRL";
     if (action === "cover") return "SHIFT";
     if (action === "fire") return "左键";
-    if (action === "aim") return "F";
+    if (action === "aim") return "F / 左键";
     if (action === "pause") return "ESC";
-    if (action === "retry") return "R";
+    if (action === "retry") return "长按 R";
     if (action === "confirm") return "ENTER";
     if (action === "back") return "ESC";
     return "T";
@@ -103,9 +109,20 @@ function computeWindowsViewport(fullW: number, fullH: number): StageViewport {
 class WindowsInputDriver implements TargetInputDriver {
     readonly defaultMode: InputMode = "kbm";
     private kbm = new KbmPoller();
+    private settings: ControlSettings;
+    private crouchLatched = false;
+    private retryHoldSec = 0;
+    private retryFired = false;
+
+    constructor(settings: ControlSettings) {
+        this.settings = settings;
+    }
 
     attach(parent: Node.Type, hooks: TargetAttachHooks): void {
-        this.kbm.attach(parent, hooks);
+        this.kbm.attach(parent, hooks, {
+            latchTouchEvents: true,
+            disableIme: true,
+        });
     }
 
     syncFrame(_ctx: TargetFrameSync): void {
@@ -116,8 +133,13 @@ class WindowsInputDriver implements TargetInputDriver {
         // Windows 无虚拟触控覆盖层
     }
 
-    clearTransient(_keepTouchToggles: boolean): void {
-        // 纯键鼠无瞬时虚拟摇杆/手柄态
+    clearTransient(keepTouchToggles: boolean): void {
+        this.kbm.clearTransient();
+        this.retryHoldSec = 0;
+        this.retryFired = false;
+        if (!keepTouchToggles) {
+            this.crouchLatched = false;
+        }
     }
 
     vibrate(_seconds: number): void {
@@ -128,32 +150,73 @@ class WindowsInputDriver implements TargetInputDriver {
         return false;
     }
 
-    pollInto(input: Input): void {
+    pollInto(input: Input, dt: number = 1 / 60): void {
+        const safeDt = Math.min(0.05, Math.max(0.001, dt));
         input.inputMode = "kbm";
-        const s = this.kbm.sample(input.getStageViewport());
+        const s = this.kbm.sample(input.getStageViewport(), safeDt);
 
         if (s.anyKb || s.mouseMoved || (s.mouseClicked && s.mouseInsideStage)) {
             input.userInteracted = true;
+        }
+
+        // 可选切换蹲伏模式：开启后点按 C / Ctrl 切换蹲伏，跳跃自动起身
+        let crouchHeld = s.crouch;
+        if (this.settings.crouchToggle) {
+            if (s.crouchPressed) {
+                this.crouchLatched = !this.crouchLatched;
+            }
+            if (s.jump) {
+                this.crouchLatched = false;
+            }
+            crouchHeld = this.crouchLatched;
+        } else {
+            this.crouchLatched = false;
+        }
+
+        // 防误触：R 键改为长按 0.65s 触发重试检查点/重开护送，单按误碰不再炸档
+        let retryTriggered = false;
+        if (s.retry) {
+            this.retryHoldSec += safeDt;
+            if (this.retryHoldSec >= RETRY_HOLD_DURATION && !this.retryFired) {
+                this.retryFired = true;
+                retryTriggered = true;
+            }
+        } else {
+            this.retryHoldSec = 0;
+            this.retryFired = false;
         }
 
         input.moveX = s.moveX;
         input.moveY = s.moveY;
         input.applyKeyHeld(
             s.jump,
-            s.crouch,
+            crouchHeld,
             s.cover,
             s.interact,
             s.aim,
             s.mouseInsideStage && s.mouseLeft,
             s.flare,
             s.pause,
-            s.retry,
+            false,
             s.toggleView,
             s.tab,
         );
+        if (s.pausePressed) {
+            input.pause.pressed = true;
+        }
+        if (retryTriggered) {
+            input.retry.pressed = true;
+        }
 
         input.resetFrameSignals();
-        if (input.aim.held && s.mouseRightPressed) {
+        input.retryTapPressed = s.retryTapPressed;
+        input.retryHoldProgress = (!this.retryFired && this.retryHoldSec > RETRY_HOLD_DEADZONE)
+            ? Math.min(1, (this.retryHoldSec - RETRY_HOLD_DEADZONE) / (RETRY_HOLD_DURATION - RETRY_HOLD_DEADZONE))
+            : 0;
+        input.ledgerTogglePressed = s.ledgerTogglePressed;
+        input.uiWheelY = s.mouseWheelY;
+
+        if ((input.aim.held || input.fire.held) && s.mouseRightPressed) {
             input.bottleCanceled = true;
             input.aim.held = false;
             input.aim.pressed = false;
@@ -257,6 +320,9 @@ export const TARGET: TargetRuntime = {
     },
 
     adaptWorldKeyTag(rawKeyTag: string, _mode: InputMode, _layout: GamepadLayout): string {
+        if (rawKeyTag === "按住 F") return "按住 F / 左键";
+        if (rawKeyTag === "松开 F") return "松开 F / 左键";
+        if (rawKeyTag === "按住 Ctrl") return "C / CTRL";
         return rawKeyTag;
     },
 
@@ -269,31 +335,31 @@ export const TARGET: TargetRuntime = {
     },
 
     splashSkipHint(_mode: InputMode, _layout: GamepadLayout): string {
-        return "ESC / SPACE  SKIP";
+        return "点击 / ESC / SPACE  跳过";
     },
 
     titleFooterHint(_mode: InputMode, _layout: GamepadLayout): string {
-        return "上下择项   ·   回车或点选启程";
+        return "上下/滚轮择项   ·   回车或左键启程";
     },
 
     chapterFooterHint(_mode: InputMode, _confirmTag: string): string {
-        return "方向键选择   ·   回车或点击进入";
+        return "方向键/滚轮选择   ·   回车或左键进入   ·   Esc/右键返回";
     },
 
     pauseFooterHint(_mode: InputMode, _layout: GamepadLayout): string {
-        return "Esc 续行   ·   Enter 或点击确认";
+        return "Esc 续行   ·   滚轮/上下择项   ·   Enter 或左键确认";
     },
 
     settingsFooterHint(_mode: InputMode, _layout: GamepadLayout): string {
-        return "←/→ 或回车/点击切换   ·   Esc 返回暂停";
+        return "←/→ · 滚轮 · 点击 ‹/› 调节   ·   Esc / 右键返回   ·   自动保存";
     },
 
     controlsFooterRightHint(_mode: InputMode): string {
-        return "F11 / Alt+Enter 全屏   ·   暂歇菜单可调声音设置";
+        return "F11 / Alt+Enter 全屏 · 鼠标右键返回 · 标题与暂歇菜单可调游戏设置";
     },
 
     epilogueFooterHint(_mode: InputMode, _layout: GamepadLayout): string {
-        return "↑/↓ 选择   ·   Enter / 点击确认   ·   Esc 返回标题";
+        return "↑/↓ 或滚轮选择   ·   Enter / 左键确认   ·   Esc / 右键返回标题";
     },
 
     settingsRows(): SettingsRowDef[] {
@@ -301,28 +367,55 @@ export const TARGET: TargetRuntime = {
     },
 
     settingsPauseLabel(_settings: ControlSettings): string {
-        return "声音设置";
+        return "游戏设置";
     },
 
     settingsHeaderTitle(): string {
-        return "声音设置";
+        return "游戏设置";
     },
 
     settingsHeaderSummary(_activeMode: InputMode): string {
-        return "当前模式：键鼠 · 四通道音量实时生效";
+        return "键鼠模式 · 音量、显示、按键辅助与蹲伏方式自动保存";
     },
 
     settingsValueText(rowId: string, settings: ControlSettings, _activeMode: InputMode): string {
+        if (rowId === "fullscreen") {
+            return App.fullScreen ? "全屏" : "窗口";
+        }
+        if (rowId === "assistHints") {
+            return settings.assistHints ? "开" : "关";
+        }
+        if (rowId === "crouchToggle") {
+            return settings.crouchToggle ? "点按切换" : "按住蹲伏";
+        }
         return volumeSettingText(rowId, settings);
     },
 
-    applySettingsDelta(rowId: string, delta: number, settings: ControlSettings, _input: Input): "none" | "audio" | "back" | "control" {
+    applySettingsDelta(
+        rowId: string,
+        delta: number,
+        settings: ControlSettings,
+        _input: Input,
+    ): "none" | "audio" | "back" | "control" | "display" | "assist" {
         if (rowId === "back") return "back";
-        if (applyVolumeSetting(rowId, delta, settings)) return "audio";
+        if (rowId === "fullscreen") return "display";
+        if (rowId === "assistHints") {
+            settings.assistHints = !settings.assistHints;
+            saveControlSettings(settings);
+            return "assist";
+        }
+        if (rowId === "crouchToggle") {
+            settings.crouchToggle = !settings.crouchToggle;
+            saveControlSettings(settings);
+            return "control";
+        }
+        const step = delta >= 2 ? 1 : (delta <= -2 ? -1 : delta);
+        const wrap = Math.abs(delta) >= 2;
+        if (applyVolumeSetting(rowId, step, settings, wrap)) return "audio";
         return "none";
     },
 
-    createDriver(_settings: ControlSettings): TargetInputDriver {
-        return new WindowsInputDriver();
+    createDriver(settings: ControlSettings): TargetInputDriver {
+        return new WindowsInputDriver(settings);
     },
 };

@@ -84,6 +84,7 @@ export class Input {
     uiPressed = false;
     uiReleased = false;
     uiRightPressed = false;
+    uiWheelY = 0;
 
     readonly settings: ControlSettings = loadControlSettings();
     readonly target: TargetRuntime;
@@ -102,6 +103,8 @@ export class Input {
     muteTogglePressed = false;
     fullscreenTogglePressed = false;
     splashSkipPressed = false;
+    ledgerTogglePressed = false;
+    retryTapPressed = false;
 
     navUp = false;
     navDown = false;
@@ -258,8 +261,8 @@ export class Input {
         this.driver.clearTransient(keepTouchToggles);
     }
 
-    update(): void {
-        this.driver.pollInto(this);
+    update(dt: number = 1 / 60): void {
+        this.driver.pollInto(this, dt);
     }
 
     /** 供各端驱动写入核心玩法按键的电平与边沿态。 */
@@ -297,6 +300,9 @@ export class Input {
         this.muteTogglePressed = false;
         this.fullscreenTogglePressed = false;
         this.splashSkipPressed = false;
+        this.ledgerTogglePressed = false;
+        this.retryTapPressed = false;
+        this.uiWheelY = 0;
 
         this.navUp = false;
         this.navDown = false;

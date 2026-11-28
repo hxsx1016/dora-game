@@ -454,7 +454,7 @@ export class NarrativeRenderer {
         p: Play,
         w: number,
         h: number,
-        assistHintsEnabled: boolean = false,
+        assistHintsEnabled: boolean = true,
         inputMode: InputMode = "kbm",
         gamepadLayout: GamepadLayout = "xbox",
         safe: SafeInsets = ZERO_SAFE_INSETS,
@@ -727,6 +727,17 @@ export class NarrativeRenderer {
                     return { cue, text, urgent: isDanger };
                 }
             }
+            if (p.childMode && key === "outside" && p.checkpoint < p.room.arch.x1) {
+                const text = !p.cartDocked ? "红布车右边伸着车柄，前面是个空车窝。"
+                    : (p.player.y > p.room.arch.y + 1 ? "车轮落进窝里，左边的石阶通向拱下。"
+                        : "拱下的铁栓收起来了，伏低身子就能过去。");
+                return { cue: "", text, urgent: false };
+            }
+            if (p.childMode && key === "tower") {
+                if (p.phase === "tower-wait") return { cue: "", text: "木门里透出灯光。她还记得那两声叩门。", urgent: false };
+                if (p.phase === "tower-enter") return { cue: "", text: "守卒让开门槛，值夜桌上摊着登记簿。", urgent: false };
+                if (p.phase === "tower-desk") return { cue: "", text: "守卒伸过手来，等她放下针套、指南针和纸条。", urgent: false };
+            }
             return { cue: "", text: "", urgent: false };
         }
 
@@ -842,10 +853,19 @@ export class NarrativeRenderer {
 
         if (key === "outside") {
             if (!p.cartDocked) {
-                return { cue: "", text: "上层装卸台停着那辆系着红布的板车。按住 [E]+[D] 拉入空窝，让开下层拱洞", urgent: false };
+                if (p.gripping || p.cartHandleInReach()) {
+                    return { cue: "", text: "按住 [E]+[D]，把红布车拉进右侧车窝", urgent: false };
+                }
+                const text = p.player.y < p.room.cart.baseY - 25
+                    ? "沿左侧石阶上台，去找红布车右柄"
+                    : (p.player.x > p.cartAxle + p.room.cart.handleOffset ? "向左走回红布车右柄" : "向右走到红布车的右柄");
+                return { cue: "", text, urgent: false };
             }
             if (p.checkpoint < p.room.arch.x1) {
-                return { cue: "潜", text: "沿左侧石阶下到地面，按住 [CTRL] 蹲伏穿过矮拱洞", urgent: false };
+                const text = p.player.y > p.room.arch.y + 1
+                    ? "车轮落窝了。往左返回石阶，下到地面"
+                    : "在石阶底按住 [CTRL]，蹲着向右穿过矮拱";
+                return { cue: "潜", text, urgent: false };
             }
             return { cue: "", text: "穿过矮拱，沿墙根小路向北塔灯火前行", urgent: false };
         }
@@ -881,10 +901,16 @@ export class NarrativeRenderer {
 
         if (key === "tower") {
             if (p.phase === "tower-wait") {
-                return { cue: "", text: "北塔的灯终于近在眼前。走到门廊前，按 [E] 敲两下", urgent: false };
+                return { cue: "", text: "走到木门前，按 [E] 叩门", urgent: false };
             }
             if (p.phase === "tower-knock") {
                 return { cue: "", text: "咚、咚。她照着他教过的节奏，敲响了北塔的门。", urgent: false };
+            }
+            if (p.phase === "tower-enter") {
+                return { cue: "", text: "门开了。向右跨过门槛，走到值夜桌前", urgent: false };
+            }
+            if (p.phase === "tower-desk") {
+                return { cue: "", text: "走到值夜桌前，按住 [E] 交出针套、指南针和纸条", urgent: false };
             }
             if (p.phase === "tower-given") {
                 return { cue: "", text: "门开了。提灯的守卫接过指南针与纸条，翻开了登记簿最后一页。", urgent: false };
@@ -1015,8 +1041,10 @@ export class NarrativeRenderer {
             texts.put("banner", "向西守望", midX - 18, signY, toColor(PALETTE.xuanInk), 0.5, 0.5, TextAlign.Center, 6.5, 0.92, 0);
             drawLoneSeal(uiInkDraw, art, texts, "reg_lone_seal", midX + 86, signY, 22, 42, "守", "望", PALETTE.sealRed, PALETTE.sealText, 0.92, 4);
 
-            drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 360, 32, PALETTE.inkWash, 0.72, 0);
-            const rawEndHint = assistHintsEnabled ? "按 E 再次启程     ·     Esc 暂歇" : "Esc 暂歇";
+            drawSilkVeil(uiDraw, art, "reg_hint_veil", midX, cy - 28, 390, 32, PALETTE.inkWash, 0.72, 0);
+            const rawEndHint = assistHintsEnabled
+                ? (inputMode === "kbm" ? "按 E / 左键继续     ·     Esc 暂歇" : "按 E 再次启程     ·     Esc 暂歇")
+                : "Esc 暂歇";
             const endHint = getActiveTarget().adaptHintSentence(rawEndHint, inputMode, gamepadLayout);
             texts.put("xs", endHint, midX, cy - 28, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 1.6, 0.92, 0.08);
         }

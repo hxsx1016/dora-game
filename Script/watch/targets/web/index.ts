@@ -71,9 +71,9 @@ const GUIDE_KBM: ControlsGuidePage = {
         ["ESC / R / T", "暂歇菜单 / 重试检查点 / 切神器"],
     ],
     childRows: [
-        ["A / D · ← / →", "左右潜行"],
+        ["WASD / 方向键", "前后左右纵深潜行"],
         ["按住 SHIFT", "轻步慢走（压低脚步声）"],
-        ["按住 S / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
+        ["按住 C / CTRL", "蹲伏隐蔽 · 穿低拱与桌底"],
         ["SPACE", "跳跃攀上石阶与矮台"],
         ["E", "拾瓶 / 敲塔门 / 按住+D 拉车"],
         ["F 按住→松开", "瞄准砖地/铁盆投瓶 · 右键取消"],
@@ -271,7 +271,10 @@ class WebInputDriver implements TargetInputDriver {
     }
 
     attach(parent: Node.Type, hooks: TargetAttachHooks): void {
-        this.kbm.attach(parent, hooks);
+        this.kbm.attach(parent, hooks, {
+            latchTouchEvents: false,
+            disableIme: false,
+        });
         this.touchRouter.attach(parent);
         this.gamepadRouter.attach(parent);
         if (this.touchControls === undefined) {
@@ -290,8 +293,7 @@ class WebInputDriver implements TargetInputDriver {
         const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
         const talentOfferCount = ctx.storyTalentBoxes.length;
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
-        const allowDepth = p !== undefined && p.room.depth !== undefined
-            && (!p.childMode || p.phase === "prologue-escape");
+        const allowDepth = p !== undefined && p.room.depth !== undefined;
         const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
         const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
             && !modal && !cutsceneBlocking && p.escort.state !== "calming";
@@ -367,6 +369,7 @@ class WebInputDriver implements TargetInputDriver {
     }
 
     clearTransient(keepTouchToggles: boolean): void {
+        this.kbm.clearTransient();
         this.touchRouter.releaseAll(keepTouchToggles);
         this.gamepadRouter.clearTransient();
     }
@@ -408,11 +411,11 @@ class WebInputDriver implements TargetInputDriver {
         this.gamepadRouter.setSimulatedState(state as GamepadRawState | undefined);
     }
 
-    pollInto(input: Input): void {
+    pollInto(input: Input, dt: number = 1 / 60): void {
         input.gamepadLayout = this.settings.gamepadLayout;
         const touch = this.touchRouter.consumeSnapshot();
         const gp = this.gamepadRouter.consumeSnapshot();
-        const kbm = this.kbm.sample(input.getStageViewport());
+        const kbm = this.kbm.sample(input.getStageViewport(), dt);
 
         const suppressMouse = touch.suppressSyntheticMouse || touch.mouseConsumedByOverlay;
         const realMouseActive = !suppressMouse && (kbm.mouseMoved || (kbm.mouseClicked && kbm.mouseInsideStage));
@@ -454,6 +457,10 @@ class WebInputDriver implements TargetInputDriver {
         );
 
         input.resetFrameSignals();
+        input.uiWheelY = kbm.mouseWheelY;
+        input.ledgerTogglePressed = kbm.ledgerTogglePressed;
+        input.retryTapPressed = kbm.retryTapPressed;
+        if (kbm.pausePressed) input.pause.pressed = true;
 
         // KBM 模态导航与换弹盘/工台按键边沿
         input.navUp = kbm.navUp;

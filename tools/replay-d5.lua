@@ -1,6 +1,6 @@
 -- 守望 D5 整链逐拍回放
 --
--- 用途：画面通道不可用时，用固定步长逐拍喂输入，从默认入口（序章倒柜后）
+-- 用途：画面通道不可用时，用固定步长逐拍喂输入，从调试八房入口（序章倒柜后）
 -- 沿实际切场一路跑到塔门尾声，打印每段关键坐标、车轴、守点拍数与交权输入。
 --
 -- 用法（引擎内）：dofile("tools/replay-d5.lua")
@@ -49,18 +49,12 @@ local function roomOf(key)
 	return r
 end
 
-local function hop(p)
+local function hop(p, expected)
 	local key = p.wantRoom
-	if key == nil or key == "" then
-		return p
-	end
+	assert(key == expected, string.format("房间 %s 应进入 %s，实际 want=%s phase=%s x=%.1f", p.room.key, expected, tostring(key), p.phase, p.player.x))
 	p.wantRoom = ""
-	local r = roomOf(key)
-	if r == nil then
-		print("!! 找不到房间 " .. tostring(key))
-		return p
-	end
-	return lualib.__TS__New(play.Play, r)
+	local r = assert(roomOf(key), "找不到房间 " .. key)
+	return lualib.__TS__New(play.Play, r, nil, not p.restartStory and p.run or nil)
 end
 
 -- 一直向右走，卡住就自动起跳，直到 cond 成立或超步数。
@@ -110,7 +104,7 @@ local function show(tag, p)
 		p.cartAxle, tostring(p.phase), tostring(p.wantRoom)))
 end
 
-print("==== D5 整链回放 · 从序章默认入口开始 ====")
+print("==== D5 整链回放 · 从调试序章开始 ====")
 local i = newInput()
 local p = lualib.__TS__New(play.Play, rooms.PROLOGUE_ROOM)
 show("P0 出生", p)
@@ -133,10 +127,17 @@ p:update(STEP, i)
 rel(i.interact)
 print(string.format("P2 递物 phase=%s tick=%s", tostring(p.phase), tostring(p.phaseTick)))
 assert(p.phase == "prologue-give", "绕过石柱并在纵深上靠近以后应当能递针套")
-for _ = 1, 62 do
+for _ = 1, 182 do
 	p:update(STEP, i)
 end
 print(string.format("P3 递完 phase=%s 小满crouch=%s", p.phase, tostring(p.partner.crouch)))
+i.moveY = -1
+for _ = 1, 18 do p:update(STEP, i) end
+i.moveY = 0
+walkTo(p, i, 420, 160)
+i.moveY = 1
+for _ = 1, 18 do p:update(STEP, i) end
+i.moveY = 0
 i.moveX = 1
 local guard = 0
 while p.wantRoom == "" and guard < 900 do
@@ -145,7 +146,7 @@ while p.wantRoom == "" and guard < 900 do
 end
 i.moveX = 0
 show("P4 到门口", p)
-p = hop(p)
+p = hop(p, "street")
 show("S0 街道", p)
 
 -- 2) 街道：走到有射界的位置，用 Input.fire + 准星（aimAt）逐枪清敌
@@ -174,7 +175,7 @@ end
 print(string.format("S1 清敌 alive=%d 枪=%d", p:aliveEnemies(), shootGuard))
 guard = push(p, i, function() return p.wantRoom ~= "" end, 1200)
 show("S2 到入口", p)
-p = hop(p)
+p = hop(p, "checkpoint")
 show("K0 检查站", p)
 
 -- 3) 检查站：队栏 → 翻柜 → 推车 → 双人出口
@@ -202,9 +203,11 @@ end
 print(string.format("K4 gate=%s 两人=%.1f/%.1f", tostring(p.gateOpen), p.player.x, p.partner.x))
 guard = push(p, i, function() return p.wantRoom ~= "" end, 500)
 show("K5 出门", p)
-p = hop(p)
+p = hop(p, "gate")
 
 -- 4) 城门：小满自动到门洞，周戍回绞盘，守 45 秒
+-- D5 验证小满留灯线，按带伤进城门的局面回放。
+p.hp = p.maxHp - 1
 show("G0 城门", p)
 guard = push(p, i, function() return p.player.x >= 118 end, 400) -- 绞盘右侧就位
 print(string.format("G1 周戍到绞盘 x=%.1f 小满=%.1f phase=%s", p.player.x, p.partner.x, p.phase))
@@ -293,6 +296,7 @@ tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)
 print(string.format("G9 交换 phase=%s 小满=%.1f armed=%s", p.phase, p.player.x, tostring(p.countArmed)))
+i.moveX = 1
 
 -- 数数：D 一直按着，到 24 秒也不该迈步
 guard = 0
@@ -311,7 +315,7 @@ end
 print(string.format("C2 新按D phase=%s x=%.1f", p.phase, p.player.x))
 guard = push(p, i, function() return p.wantRoom ~= "" end, 700)
 show("C3 出城门", p)
-p = hop(p)
+p = hop(p, "outside")
 
 -- 5) 城外：拉车、蹲过拱、走到墙根尽头
 show("O0 城外", p)
@@ -339,7 +343,7 @@ i.crouch.held = false
 print(string.format("O4 蹲穿拱 p=%.1f/%.1f cp=%s", p.player.x, p.player.y, tostring(p.checkpoint)))
 guard = push(p, i, function() return p.wantRoom ~= "" end, 1600)
 show("O5 进村", p)
-p = hop(p)
+p = hop(p, "village")
 
 -- 6) 村口：先站着靠近，测一次被抓重试；再蹲行通过
 show("V0 村口", p)
@@ -403,12 +407,14 @@ i.crouch.held = true
 walkTo(p, i, 460, 900)
 i.crouch.held = false
 print(string.format("V9 过桌 x=%.1f passed=%s", p.player.x, tostring(p.passed)))
--- 钻出桌后立刻冲向 640 切线；被追就贴着地面跑，别停
+-- 钻出桌后沿地面蹲行，进入墙根暗渠。
+i.crouch.held = true
 guard = push(p, i, function() return p.wantRoom ~= "" end, 800)
+i.crouch.held = false
 print(string.format("V9b 冲线 x=%.1f caught=%.2f 拾荒者=%s@%.1f want=%s",
 	p.player.x, p.caughtT, tostring(p.scavState), p.scavX, tostring(p.wantRoom)))
 show("V5 出村", p)
-p = hop(p)
+p = hop(p, "forest")
 
 -- 7) 森林：狗先抓一次；再蹲行到林缘
 show("F0 森林", p)
@@ -423,11 +429,11 @@ i.crouch.held = true
 guard = push(p, i, function() return p.wantRoom ~= "" end, 2200)
 i.crouch.held = false
 show("F3 到林缘", p)
-p = hop(p)
+p = hop(p, "tower")
 
 -- 8) 塔门：一次 E 敲两下，递交，空行，片尾再玩
 show("T0 塔门", p)
-guard = push(p, i, function() return math.abs(p.player.x - 445) <= 3 end, 800)
+assert(math.abs(p.player.x - p.room.story.tower.doorX) <= 50, "北塔出生应在叩门范围")
 tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)
@@ -436,15 +442,19 @@ for _ = 1, 40 do
 	p:update(STEP, i)
 end
 print(string.format("T2 两声后 phase=%s knocks=%d", p.phase, p.knocks))
-for _ = 1, 200 do
-	p:update(STEP, i)
-end
+assert(p.phase == "tower-enter" and p.knocks == 2, "应门失败")
+walkTo(p, i, 545, 160)
+i.interact.held = true
+for _ = 1, 36 do p:update(STEP, i) end
+rel(i.interact)
+assert(p.towerHanded, "值夜桌交物失败")
+for _ = 1, play.TOWER_CONFIRM_TICKS do p:update(STEP, i) end
+assert(p.phase == "tower-end" and p.run.story.ending == "lamp", "未达留灯结局")
 print(string.format("T3 片尾 phase=%s", p.phase))
-for _ = 241, play.TOWER_CONFIRM_TICKS do p:update(STEP, i) end
 tap(i.interact)
 p:update(STEP, i)
 rel(i.interact)
 print(string.format("T4 再玩 want=%s", p.wantRoom))
-p = hop(p)
+p = hop(p, "prologue")
 show("T5 回序章", p)
 print("==== 回放结束 ====")

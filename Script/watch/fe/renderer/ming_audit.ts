@@ -388,7 +388,7 @@ export class MingArtAuditPlugin implements FeRenderPlugin {
                     cam.len(104),
                     { layer: 1, opacity: 0.46 },
                 );
-            } else if (slot !== "bgFar_granary" && slot !== "bgFar_crossroad_drygoods" && slot !== "bgFar_archway_yard") {
+            } else if (slot !== "bgFar_granary" && slot !== "bgFar_crossroad_drygoods" && slot !== "bgFar_archway_yard" && slot !== "bgFar_tower") {
                 backdropArt.tryPlace(
                     "eaves",
                     "ming_fallback_mid",

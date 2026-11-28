@@ -8,9 +8,10 @@
 
 import { Color, Content, Label, Node, TextAlign, Vec2 } from "Dora";
 
-const FONT_FALLBACK = "sarasa-mono-sc-regular";
 const FONT_BODY_PATH = "assets/font/lxgw-neo-zhisong.ttf";
 const FONT_CALLI_PATH = "assets/font/longcang-brush.ttf";
+const FONT_FALLBACK = FONT_BODY_PATH;
+const FONT_ENGINE_FALLBACK = "sarasa-mono-sc-regular";
 
 const DEFAULT_OUTLINE = Color(8, 10, 15, 200);
 
@@ -61,7 +62,7 @@ function resolveFont(useCalli: boolean): string {
     if (Content.exist(FONT_BODY_PATH)) {
         return FONT_BODY_PATH;
     }
-    return FONT_FALLBACK;
+    return FONT_ENGINE_FALLBACK;
 }
 
 export class TextPool {

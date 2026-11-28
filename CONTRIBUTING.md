@@ -62,7 +62,7 @@ dofile("tools/verify-touch-input.lua")
    bash tools/make-windows-pack.sh --backend opengl --version v0.1.0-rc1
    bash tools/make-dora-source-pack.sh --version v0.1.0-rc1
    ```
-   脚本采用白名单裁剪（排除 `Doc/`、`www/`、`dora-wa/`、`dora_godot.dll`、`wa.dll`、`GeneralUserGS.sf3` 等非运行时大文件），写入固定 `tools/windows-game-id` 以启用独立游戏模式（锚定资源路径、隔离单实例锁与 `%APPDATA%` 存档目录），将 `tools/windows-boot.lua` 复制为包内 `Script/init.lua`（注入发行标志禁用开发跳房热键，并支持根目录新建 `save/` 切换纯绿色便携存档），将 `init.lua` 复制为 `Script/main.lua`。
-2. 自动 CI 与冷启动冒烟：推送 `v*` Tag 或手动触发 `.github/workflows/release-windows.yml` 会自动拉取并校验官方引擎包哈希、组装三件套并在 `windows-latest` 中文路径下执行冷启动与退出冒烟验收。详见 [2026 开源游戏开发大赛发版与 AtomGit 同步指南](docs/2026开源游戏开发大赛-发版与AtomGit同步指南.md)。
+   脚本采用白名单裁剪并组装为「根目录原生 Win32 启动器 `WestwardWatch.exe` + `saves/` 默认便携存档目录 + `runtime/` 收拢运行时」结构（排除 `Doc/`、`www/`、`dora-wa/`、`dora_godot.dll`、`wa.dll`、`GeneralUserGS.sf3`、引擎 `Font/`、`Image/` 及 `Script/Lib` 除 `lualib_bundle.lua` 外的全部开发文件），写入固定 `tools/windows-game-id` 至 `runtime/dora-game-id`，将 `tools/windows-boot.lua` 复制为 `runtime/Script/init.lua`（注入发行标志、启用默认 `<游戏目录>/saves/` 多槽位存档与只读自动降级，并支持旧档平滑迁移），将 `init.lua` 复制为 `runtime/Script/main.lua`。
+2. 自动 CI 与冷启动冒烟：推送 `v*` Tag 或手动触发 `.github/workflows/release-windows.yml` 会在 `windows-latest` 原生编译根目录启动器 `WestwardWatch.exe` 并通过 `rcedit` 为运行时注入游戏图标与 PE 版本信息，随后组装三件套并在中文路径下完成双击直启、默认 `saves/` 便携读写与只读目录降级双轮冷启动冒烟验收。详见 [2026 开源游戏开发大赛发版与 AtomGit 同步指南](docs/2026开源游戏开发大赛-发版与AtomGit同步指南.md)。
 
 发行记录写入构建所用 Git 提交号、ZIP 的 SHA-256、断言结果及 Windows 真机状态。压缩包、引擎下载目录、类型声明与开发缓存留在本地。

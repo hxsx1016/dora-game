@@ -314,15 +314,20 @@ export class AudioDirector {
         return true;
     }
 
+    /** 直接设定全局静音状态（供启动恢复持久化配置调用） */
+    setAllMuted(muted: boolean): void {
+        let i = 0;
+        for (i = 0; i < ALL_TRACKS.length; i++) {
+            this.setTrackMuted(ALL_TRACKS[i], muted);
+        }
+        this.bgmMuted = muted;
+        this.syncBgmBusGain();
+    }
+
     /** 一键切换全局静音（同步覆盖 5 条世界音轨与 BGM 总线） */
     toggleAllMuted(): boolean {
         const next = !this.isAllMuted();
-        let i = 0;
-        for (i = 0; i < ALL_TRACKS.length; i++) {
-            this.setTrackMuted(ALL_TRACKS[i], next);
-        }
-        this.bgmMuted = next;
-        this.syncBgmBusGain();
+        this.setAllMuted(next);
         return next;
     }
 

@@ -326,30 +326,29 @@ export const CHECKPOINT_ROOM: RoomSpec = {
 export const OUTSIDE_ROOM: RoomSpec = {
     key: "outside",
     name: "城外 · 台面 y=96 / 墙根 1240",
-    caption: "从右柄按住 E+D 朝空窝拉 128 单位，轮子落窝后沿台面回左端跳下，蹲过 44 高的拱；洞后墙根小路走到底可看见塔灯",
+    caption: "走到红布车右侧，按住 E+D 拉车入窝。回左边下石阶，按住 Ctrl 蹲过矮拱，再沿墙根去找塔灯。",
     // 装卸台与拱都在原位，洞后 600–1240 是 D4 新接的墙根小路。
     originX: 0,
     minX: 0,
     maxX: 1240,
     height: 230,
+    depth: LANE_ROAD,
     floors: [
         { y: 0, x0: 0, x1: 1240 },
         { y: 96, x0: 128, x1: 512 },
         { y: 64, x0: 820, x1: 940 },
     ],
     solids: [
-        // 补丁红布车：原本斜停在石阶口，挡住台面下行的路；点一次 E 拉开后石阶口才露出来。
-        { x: 96, w: 44, h: 34, y: 96, id: "outside_red_cart", art: "red_cart", label: "补丁红布车 · 挡住石阶口" },
         // 城墙基座：只占 96 以上，挡住台面上的玩家；下层 0–96 是通的，墙根小路就从下面穿过去。
-        { x: 512, w: 88, h: 134, y: 96, label: "台面右端城墙 · 下层可通" },
-        { x: 0, w: 40, h: 96, y: 0, label: "街口" },
-        { x: 1200, w: 40, h: 140, y: 0, label: "墙根尽头" },
+        { x: 512, w: 88, h: 134, y: 96, depth: LANE_ROAD, label: "台面右端城墙 · 下层可通" },
+        { x: 0, w: 40, h: 96, y: 0, depth: LANE_ROAD, label: "街口" },
+        { x: 1200, w: 40, h: 140, y: 0, depth: LANE_ROAD, label: "墙根尽头" },
     ],
     zones: [],
     arch: { x0: 280, x1: 360, y: 0, h: 44, label: "拱 280–360 · 净高 44" },
     stairs: [
-        { x0: 56, x1: 128, y0: 0, y1: 96, steps: 5, label: "石阶 0–96（每级 19.2 可直走）" },
-        { x0: 700, x1: 820, y0: 0, y1: 64, steps: 3, label: "墙根石阶 0 / 16 / 32 / 48 / 64" },
+        { x0: 56, x1: 128, y0: 0, y1: 96, steps: 5, depth: LANE_ROAD, label: "石阶 0–96（每级 19.2 可直走）" },
+        { x0: 700, x1: 820, y0: 0, y1: 64, steps: 3, depth: LANE_ROAD, label: "墙根石阶 0 / 16 / 32 / 48 / 64" },
     ],
     cart: {
         startX: 304,
@@ -370,8 +369,7 @@ export const OUTSIDE_ROOM: RoomSpec = {
         { x: 1120, y: 64, kind: 6, label: "塔灯 1120" },
     ],
     dims: [
-        { x0: 96, x1: 140, text: "红布车 · E 拉开" },
-        { x0: 304, x1: 432, text: "空窝 128 · 右柄 E+D" },
+        { x0: 304, x1: 432, text: "红布车入窝 · 右柄 E+D" },
         { x0: 128, x1: 512, text: "台面 384" },
         { x0: 280, x1: 360, text: "拱 80" },
         { x0: 600, x1: 1240, text: "墙根 640" },
@@ -391,11 +389,12 @@ export const VILLAGE_ROOM: RoomSpec = {
     minX: 0,
     maxX: 720,
     height: 200,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
-        { x: 96, w: 32, h: 52, y: 0, label: "瓶架", art: "cover_wood" },
+        { x: 96, w: 32, h: 52, y: 0, depth: LANE_ROAD, label: "瓶架", art: "cover_wood" },
         // 桌腿只是视觉（drawVillage 补画），碰撞交给 arch：站 56 进不去、蹲 34 能过。
-        { x: 672, w: 48, h: 96, y: 0, label: "院墙" },
+        { x: 672, w: 48, h: 96, y: 0, depth: LANE_ROAD, label: "院墙" },
     ],
     zones: [
         { x0: 256, x1: 288, y: 0, h: 6, tint: 2, label: "软土 272" },
@@ -673,12 +672,13 @@ export const FOREST_ROOM: RoomSpec = {
     minX: 0,
     maxX: 1600,
     height: 200,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 1600 }],
     solids: [
-        { x: 300, w: 80, h: 24, y: 0, label: "草丛 300–380 · 高 24", passable: true },
-        { x: 700, w: 90, h: 24, y: 0, label: "草丛 700–790 · 高 24", passable: true },
-        { x: 1150, w: 90, h: 24, y: 0, label: "草丛 1150–1240 · 高 24", passable: true },
-        { x: 1560, w: 40, h: 160, y: 0, label: "林缘 1560" },
+        { x: 300, w: 80, h: 24, y: 0, depth: LANE_ROAD, label: "草丛 300–380 · 高 24", passable: true },
+        { x: 700, w: 90, h: 24, y: 0, depth: LANE_ROAD, label: "草丛 700–790 · 高 24", passable: true },
+        { x: 1150, w: 90, h: 24, y: 0, depth: LANE_ROAD, label: "草丛 1150–1240 · 高 24", passable: true },
+        { x: 1560, w: 40, h: 160, y: 0, depth: LANE_ROAD, label: "林缘 1560" },
     ],
     zones: [
         { x0: 300, x1: 380, y: 0, h: 6, tint: 2, label: "树根窄洞 300–380 · 蹲行" },
@@ -688,8 +688,8 @@ export const FOREST_ROOM: RoomSpec = {
     ],
     arch: { x0: 0, x1: 0, y: 0, h: 0, label: "" },
     stairs: [
-        { x0: 520, x1: 640, y0: 22, y1: 22, steps: 1, label: "矮台 520–640 · 高 22" },
-        { x0: 980, x1: 1100, y0: 22, y1: 22, steps: 1, label: "矮台 980–1100 · 高 22" },
+        { x0: 520, x1: 640, y0: 22, y1: 22, steps: 1, depth: LANE_ROAD, label: "矮台 520–640 · 高 22" },
+        { x0: 980, x1: 1100, y0: 22, y1: 22, steps: 1, depth: LANE_ROAD, label: "矮台 980–1100 · 高 22" },
     ],
     cart: { startX: 0, endX: 0, baseY: 0, bodyW: 0, bodyH: 0, wheelR: 0, handleOffset: 0, clothSide: 1 },
     spawns: [{ x: 120, y: 0, h: 56, label: "小满 120" }],
@@ -719,13 +719,14 @@ export const TOWER_ROOM: RoomSpec = {
     minX: 0,
     maxX: 720,
     height: 220,
+    depth: LANE_ROAD,
     floors: [{ y: 0, x0: 0, x1: 720 }],
     solids: [
-        { x: 180, w: 220, h: 200, y: 0, label: "塔身左 180–400" },
-        { x: 430, w: 40, h: 120, y: 0, id: "tower_door", label: "塔门 430–470 · E 叩两下" },
-        { x: 700, w: 20, h: 220, y: 0, label: "塔身右墙 700–720" },
-        { x: 400, w: 90, h: 30, y: 110, label: "门楣 400–490" },
-        { x: 560, w: 90, h: 32, y: 0, id: "tower_desk", art: "cover_wood", label: "值夜桌 560–650 · 长按 E 交物" },
+        { x: 180, w: 220, h: 200, y: 0, depth: LANE_ROAD, label: "塔身左 180–400" },
+        { x: 430, w: 40, h: 120, y: 0, depth: LANE_ROAD, id: "tower_door", label: "塔门 430–470 · E 叩两下" },
+        { x: 700, w: 20, h: 220, y: 0, depth: LANE_ROAD, label: "塔身右墙 700–720" },
+        { x: 400, w: 90, h: 30, y: 110, depth: LANE_ROAD, label: "门楣 400–490" },
+        { x: 560, w: 90, h: 32, y: 0, depth: LANE_ROAD, id: "tower_desk", art: "cover_wood", label: "值夜桌 560–650 · 长按 E 交物" },
         { x: 660, w: 40, h: 8, y: 120, decorative: true, label: "西窗 660–700" },
     ],
     zones: [

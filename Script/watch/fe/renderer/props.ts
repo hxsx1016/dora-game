@@ -184,13 +184,29 @@ export class PropsRenderer {
                         opacity: 0.72,
                     });
                 }
-            } else if (z.tint === 2) {
-                if (!groundArt.tryPlace("fe_ground_soft", "zone_soft_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 6 })) {
-                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 8), Color(74, 58, 44, 220));
-                }
-            } else if (z.tint === 3) {
-                if (!groundArt.tryPlace("fe_ground_brick", "zone_brick_" + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 6 })) {
-                    fgDraw.drawRect(Rect(x0, y0 - 4, zw, 9), Color(118, 122, 130, 235));
+            } else if (z.tint === 2 || z.tint === 3) {
+                const slot = z.tint === 2 ? "fe_ground_soft" : "fe_ground_brick";
+                const prefix = z.tint === 2 ? "zone_soft_" : "zone_brick_";
+                if (p.room.depth !== undefined) {
+                    // 2.5D 暗黑石路采用横向分段平铺与低明度压色，避免单张浅灰条带拉扁发白截断路面
+                    const tileW = Math.max(48, cam.len(64));
+                    const cols = Math.max(1, Math.ceil(zw / tileW));
+                    const segW = zw / cols;
+                    const bandH = cam.len(15);
+                    const tint = z.tint === 2 ? Color(148, 138, 124, 255) : Color(124, 134, 150, 255);
+                    const op = z.tint === 2 ? 0.46 : 0.36;
+                    for (let c = 0; c < cols; c++) {
+                        groundArt.tryPlace(slot, prefix + i + "_" + c, x0 + (c + 0.5) * segW, y0 - cam.len(5), segW + 0.6, bandH, {
+                            layer: 6,
+                            opacity: op,
+                            color: tint,
+                        });
+                    }
+                } else if (!groundArt.tryPlace(slot, prefix + i, (x0 + x1) * 0.5, y0 - cam.len(4), zw, cam.len(14), { layer: 6 })) {
+                    fgDraw.drawRect(
+                        Rect(x0, y0 - 4, zw, z.tint === 2 ? 8 : 9),
+                        z.tint === 2 ? Color(74, 58, 44, 220) : Color(118, 122, 130, 235),
+                    );
                 }
             }
         }
@@ -286,7 +302,10 @@ export class PropsRenderer {
             opacity: 0.85 * opacity,
         });
 
-        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY, cam.len(artWidth) * dScale, cam.len(artHeight) * dScale, {
+        const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
+        const moved = Math.abs(axleX - c.startX) > 0.25;
+        const rollJitter = moved ? Math.abs(Math.sin(wheelSpin * 2)) * cam.len(0.85) * dScale : 0;
+        const painted = assets.tryPlace("prop_cart", "cart", cx, baseY + rollJitter, cam.len(artWidth) * dScale, cam.len(artHeight) * dScale, {
             layer: cartLayer, opacity, color: occlusionTint(opacity),
         });
         if (!painted) {
@@ -299,7 +318,6 @@ export class PropsRenderer {
             fgDraw.drawSegment(Vec2(x0 - 2, bodyY1), Vec2(x1 + 2, bodyY1), 2.2, toColor(PALETTE.rimSilver, 220));
 
             // 旋转双轮（按位移真实滚动）
-            const wheelSpin = -(axleX - c.startX) / Math.max(1, c.wheelR);
             const wxA = x0 + bw * 0.24;
             const wxB = x1 - bw * 0.24;
             const wy = baseY + wr;

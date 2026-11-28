@@ -266,8 +266,7 @@ class HandheldInputDriver implements TargetInputDriver {
         const craftActive = isPlayMode && p !== undefined && !p.paused && p.craftBench.active;
         const talentOfferCount = ctx.storyTalentBoxes.length;
         const cutsceneBlocking = isPlayMode && p !== undefined ? isCutsceneBlockingPlay(p) : false;
-        const allowDepth = p !== undefined && p.room.depth !== undefined
-            && (!p.childMode || p.phase === "prologue-escape");
+        const allowDepth = p !== undefined && p.room.depth !== undefined;
         const peacefulRoom = p !== undefined && (p.room.key === "museum" || p.room.key === "tower");
         const canShoot = gameplayActive && p !== undefined && !p.childMode && !peacefulRoom && !p.gripping
             && !modal && !cutsceneBlocking && p.escort.state !== "calming";

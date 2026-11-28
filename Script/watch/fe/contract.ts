@@ -631,8 +631,8 @@ function deriveVisualMode(
 export class DualRouteContract {
     private source: ContractDataSource = "live";
     private rehearsal: RehearsalState | undefined;
-    /** 用户主动设置的「按键辅助」开关，默认关闭；切房、重试、退出排演均保持用户设置 */
-    private assistHintsEnabled = false;
+    /** 用户主动设置的「按键辅助」开关，默认开启并持久化；切房、重试、退出排演均保持用户设置 */
+    private assistHintsEnabled = true;
     /** 正式模式工台制作请求幂等防重表（切房/重试清空） */
     private livePendingCraftRequests: Record<string, boolean> = {};
     /** 正式模式瞬时交互计数（从后端一次性事件累计，切房/重试清零） */

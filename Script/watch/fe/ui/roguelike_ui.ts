@@ -14,7 +14,7 @@
  * - 模块 E：肉鸽轮回情绪闭环（「壹程告破」非阻塞行书流带 + 「折筹重整 · 残筹散墨」战死重置复盘幕）。
  */
 
-import { Color, DrawNode, Keyboard, KeyName, Mouse, Rect, TextAlign, Vec2 } from "Dora";
+import { Color, DrawNode, Rect, TextAlign, Vec2 } from "Dora";
 import { Play } from "Script/watch/play";
 import { mmss } from "Script/watch/run";
 import { DEPTH_Y_SCALE } from "Script/watch/depth";
@@ -258,10 +258,6 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
     // 行军札记按需抽屉
     private ledgerOpen = false;
     private ledgerAnimT = 0;
-    private prevKeyV = false;
-    private prevKeyEsc = false;
-    private prevKeyBack = false;
-    private prevLeftDown = false;
 
     // 随身战备拾取/满包动态反馈
     private pickupBounceMap: Record<string, number> = {};
@@ -461,12 +457,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
     }
 
     private resetInputEdges(): void {
-        if (getActiveTarget().supportsKbm && typeof Keyboard !== "undefined") {
-            this.prevKeyV = Keyboard.isKeyPressed(KeyName.V);
-            this.prevKeyEsc = Keyboard.isKeyPressed(KeyName.Escape);
-            this.prevKeyBack = Keyboard.isKeyPressed(KeyName.BackSpace);
-        }
-        this.prevLeftDown = getActiveTarget().supportsKbm && typeof Mouse !== "undefined" ? Mouse.leftButtonPressed : false;
+        // 统一由 Input / KbmPoller 管理边沿锁存，无需在此直读硬件键鼠状态
     }
 
     private startSealAnimation(talentId: string, ctx: FePluginContext): void {
@@ -757,24 +748,10 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         const inside = useUiPtr ? ctx.input.uiInside : ctx.input.inside;
         const ptr = Vec2(ptrX, ptrY);
 
-        const mouseLeftDown = ctx.input.inputMode === "kbm" && typeof Mouse !== "undefined" && Mouse.leftButtonPressed;
-        const leftClick = ctx.input.uiPressed || (mouseLeftDown && !this.prevLeftDown);
-        this.prevLeftDown = mouseLeftDown;
-
-        let vPressed = false;
-        let escPressed = false;
-        let backPressed = false;
-        if (getActiveTarget().supportsKbm && typeof Keyboard !== "undefined") {
-            const vDown = Keyboard.isKeyPressed(KeyName.V);
-            const escDown = Keyboard.isKeyPressed(KeyName.Escape);
-            const backDown = Keyboard.isKeyPressed(KeyName.BackSpace);
-            vPressed = vDown && !this.prevKeyV;
-            escPressed = escDown && !this.prevKeyEsc;
-            backPressed = backDown && !this.prevKeyBack;
-            this.prevKeyV = vDown;
-            this.prevKeyEsc = escDown;
-            this.prevKeyBack = backDown;
-        }
+        const leftClick = ctx.input.uiPressed || (!touchMode && ctx.input.inputMode === "kbm" && ctx.input.fire.pressed);
+        const vPressed = ctx.input.ledgerTogglePressed;
+        const escPressed = ctx.input.pause.pressed;
+        const backPressed = ctx.input.craftCancel || ctx.input.navBack || (!touchMode && ctx.input.uiRightPressed);
 
         // 触控热区点击打开/关闭「行军札记」
         if (ctx.input.touchZoneTap === "ledger:toggle" && rg.active && !modalBlocking) {
@@ -790,7 +767,7 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         }
 
         if (this.ledgerOpen) {
-            if (modalBlocking || escPressed || backPressed || ctx.input.navBack) {
+            if (modalBlocking || escPressed || backPressed) {
                 this.ledgerOpen = false;
                 ctx.audio.playUi("ui:ledger_close", "assets/audio/ui/pause_close.wav", 0.54, 0.08);
                 return;
@@ -1448,8 +1425,10 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         const togX = Math.min(ctx.uiW - 86 - safe.right, lastBox.x + lastBox.width - 52);
         const togRect = Rect(togX, headY - 12, 54, 24);
         this.expandToggleBox = togRect;
-        uiDraw.drawRoundedRect(togRect, 4, toColor(PALETTE.inkWash, 185 * appear), 0.85, toColor(PALETTE.silkDim, 165 * appear));
-        ctx.texts.put("xs", "收束", togRect.x + 27, headY, toColor(PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.6, 0.88 * appear, 0.08);
+        const expPtr = Vec2((ctx.input.uiInside ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale, (ctx.input.uiInside ? ctx.input.uiY : ctx.input.my) / ctx.uiScale);
+        const expTogHot = !touchMode && (ctx.input.uiInside || ctx.input.inside) && togRect.containsPoint(expPtr);
+        uiDraw.drawRoundedRect(togRect, 4, toColor(expTogHot ? PALETTE.inkWarm : PALETTE.inkWash, (expTogHot ? 225 : 185) * appear), expTogHot ? 1.15 : 0.85, toColor(expTogHot ? PALETTE.amberCore : PALETTE.silkDim, (expTogHot ? 225 : 165) * appear));
+        ctx.texts.put("xs", "收束", togRect.x + 27, headY, toColor(expTogHot ? PALETTE.amberCore : PALETTE.textMid), 0.5, 0.5, TextAlign.Center, 0.6, (expTogHot ? 0.98 : 0.88) * appear, 0.08);
 
         // 3. 逐张错落渲染宋明竖幅筹签卡
         let i = 0;
@@ -1668,8 +1647,10 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         const last = boxes[boxes.length - 1];
         const togRect = Rect(last.x + last.width + 8, last.y + (last.height - 26) * 0.5, 50, 26);
         this.expandToggleBox = togRect;
-        uiDraw.drawRoundedRect(togRect, 4, toColor(PALETTE.inkWash, 190), 0.9, toColor(PALETTE.amber, 175));
-        ctx.texts.put("xs", "展开", togRect.x + 25, togRect.y + 13, toColor(PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0.6, 0.92, 0.08);
+        const cmpPtr = Vec2((ctx.input.uiInside ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale, (ctx.input.uiInside ? ctx.input.uiY : ctx.input.my) / ctx.uiScale);
+        const cmpTogHot = !touchMode && (ctx.input.uiInside || ctx.input.inside) && togRect.containsPoint(cmpPtr);
+        uiDraw.drawRoundedRect(togRect, 4, toColor(cmpTogHot ? PALETTE.rougeSoft : PALETTE.inkWash, cmpTogHot ? 225 : 190), cmpTogHot ? 1.2 : 0.9, toColor(cmpTogHot ? PALETTE.amberCore : PALETTE.amber, cmpTogHot ? 235 : 175));
+        ctx.texts.put("xs", "展开", togRect.x + 25, togRect.y + 13, toColor(cmpTogHot ? PALETTE.textBright : PALETTE.amberCore), 0.5, 0.5, TextAlign.Center, 0.6, cmpTogHot ? 0.98 : 0.92, 0.08);
     }
 
     // ---------- 模块 A3：朱砂落印「契印」与二阶贝塞尔墨芒归身 ----------
@@ -1891,12 +1872,21 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         if (ctx.p.escortFailed) {
             const btns = computeEscortDeathButtons(ctx.uiW, ctx.uiH);
             const boxes = [btns.retry, btns.title];
+            const dPtr = Vec2((ctx.input.uiInside ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale, (ctx.input.uiInside ? ctx.input.uiY : ctx.input.my) / ctx.uiScale);
+            const dInside = !ctx.input.isTouchMode() && ctx.input.inputMode === "kbm" && (ctx.input.uiInside || ctx.input.inside);
+            const moved = Math.abs(ctx.input.uiDx) + Math.abs(ctx.input.uiDy) >= ctx.uiScale;
             for (let i = 0; i < boxes.length; i++) {
                 const box = boxes[i];
-                const color = i === this.deathSelected ? PALETTE.amberCore : PALETTE.silkLine;
-                uiDraw.drawRoundedRect(box, 4, toColor(PALETTE.inkWash, 220), 1.2, toColor(color));
+                const hovered = dInside && box.containsPoint(dPtr);
+                if (hovered && moved && this.deathSelected !== i) {
+                    this.deathSelected = i;
+                    ctx.audio.playUi("ui:hover", "assets/audio/ui/menu_hover.wav", 0.44, 0.045);
+                }
+                const active = i === this.deathSelected || hovered;
+                const color = active ? PALETTE.amberCore : PALETTE.silkLine;
+                uiDraw.drawRoundedRect(box, 4, toColor(active ? PALETTE.inkWarm : PALETTE.inkWash, active ? 236 : 210), active ? 1.45 : 1.0, toColor(color));
                 ctx.texts.put("sm", i === 0 ? "重整再赴" : "返回标题", box.x + box.width / 2,
-                    box.y + box.height / 2, toColor(color), 0.5, 0.5, TextAlign.Center);
+                    box.y + box.height / 2, toColor(active ? PALETTE.textBright : color), 0.5, 0.5, TextAlign.Center);
             }
         }
     }
@@ -1953,8 +1943,10 @@ export class RoguelikeUiPlugin implements FeRenderPlugin {
         const closeH = 26;
         const closeRect = Rect(inX + inW - closeW - 14, headY - closeH * 0.5, closeW, closeH);
         this.ledgerCloseBox = closeRect;
-        uiInkDraw.drawRect(closeRect, Color(168, 46, 44, Math.round(28 * appear)), 0.9, toColor(PALETTE.rouge, 185 * appear));
-        ctx.texts.put("xs", "合卷", closeRect.x + closeW * 0.5, headY, toColor(PALETTE.rouge), 0.5, 0.5, TextAlign.Center, 1.4, 0.95 * appear, 0);
+        const ledPtr = Vec2((ctx.input.uiInside ? ctx.input.uiX : ctx.input.mx) / ctx.uiScale, (ctx.input.uiInside ? ctx.input.uiY : ctx.input.my) / ctx.uiScale);
+        const closeHot = !ctx.input.isTouchMode() && (ctx.input.uiInside || ctx.input.inside) && closeRect.containsPoint(ledPtr);
+        uiInkDraw.drawRect(closeRect, Color(168, 46, 44, Math.round((closeHot ? 64 : 28) * appear)), closeHot ? 1.3 : 0.9, toColor(PALETTE.rouge, (closeHot ? 235 : 185) * appear));
+        ctx.texts.put("xs", "合卷", closeRect.x + closeW * 0.5, headY, toColor(PALETTE.rouge), 0.5, 0.5, TextAlign.Center, 1.4, (closeHot ? 1.0 : 0.92) * appear, 0);
         uiInkDraw.drawSegment(Vec2(inX + 12, headY - 20), Vec2(inX + inW - 12, headY - 20), 0.85, redSilk);
 
         // 中缝折页朱丝双线

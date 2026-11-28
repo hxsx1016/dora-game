@@ -8,11 +8,13 @@ on:
       - 'Script/**'
       - 'assets/**'
       - 'art-source/brand/icons/**'
+      - 'tools/windows-launcher/**'
       - 'tools/make-windows-pack.sh'
       - 'tools/make-dora-source-pack.sh'
       - 'tools/windows-boot.lua'
       - 'tools/windows-game-id'
       - 'tools/windows-pack-README.md'
+      - 'tools/patches/**'
       - 'tools/audit-assets.py'
       - '.github/workflows/release-windows.yml'
   push:
@@ -37,31 +39,254 @@ permissions:
 env:
   DORA_VERSION: v1.10.2
   EXE_NAME: WestwardWatch
+  RUNTIME_NAME: WestwardWatchRuntime
 
 jobs:
-  package:
-    name: Build Windows (D3D12 + OpenGL) & Dora Source Packages
-    runs-on: ubuntu-24.04
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
+  build-dora-windows:
+    name: Build Patched Dora Runtime (${{ matrix.backend }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        backend: [d3d12, wgl]
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
 
-      - name: Resolve package version
-        id: meta
+      - name: Restore cached patched Dora.exe (${{ matrix.backend }})
+        id: dora-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/patched-dora-${{ matrix.backend }}/Dora.exe
+          key: dora-win-patched-${{ env.DORA_VERSION }}-${{ matrix.backend }}-${{ hashFiles('tools/patches/dora-windows-ux.patch') }}
+
+      - name: Setup Python
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup xmake
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+
+      - name: Setup MSYS2 MinGW64 for dora-wa
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: mingw-w64-x86_64-gcc
+
+      - name: Export MinGW64 gcc for Go cgo
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            VER="${{ inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            VER="${GITHUB_REF#refs/tags/}"
-          else
-            VER="dev-${GITHUB_SHA::7}"
-          fi
-          echo "version=${VER}" >> "$GITHUB_OUTPUT"
-          echo "Packaging version: ${VER}"
+          mingw64_bin="$(cygpath -w /mingw64/bin)"
+          mingw64_gcc="$(cygpath -w /mingw64/bin/gcc.exe)"
+          test -x /mingw64/bin/gcc.exe
+          echo "${mingw64_bin}" >> "${GITHUB_PATH}"
+          echo "DORA_WA_CC=${mingw64_gcc}" >> "${GITHUB_ENV}"
+
+      - name: Clone Dora SSR, apply Windows UX patch, and compile Dora.exe
+        if: steps.dora-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $patchFile = (Resolve-Path "tools/patches/dora-windows-ux.patch").Path
+          $srcDir = Join-Path $env:RUNNER_TEMP "dora-src-${{ matrix.backend }}"
+          $outDir = Join-Path $env:RUNNER_TEMP "patched-dora-${{ matrix.backend }}"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          git clone --depth 1 --branch "$env:DORA_VERSION" https://github.com/IppClub/Dora-SSR.git $srcDir
+          if ($LASTEXITCODE -ne 0) { throw "Failed to clone Dora-SSR $env:DORA_VERSION" }
+
+          Push-Location $srcDir
+          try {
+            git apply --check $patchFile
+            if ($LASTEXITCODE -ne 0) { throw "dora-windows-ux.patch failed --check" }
+            git apply $patchFile
+            if ($LASTEXITCODE -ne 0) { throw "dora-windows-ux.patch failed to apply" }
+            git diff --stat
+
+            Remove-Item Env:MSYSTEM -ErrorAction SilentlyContinue
+            $buildDir = Join-Path $srcDir "build/windows-host/${{ matrix.backend }}"
+            xmake f -P . -y -p windows -a x64 -m release --dora_godot_runtime=n --dora_godot_windows_backend=${{ matrix.backend }} --builddir=$buildDir
+            if ($LASTEXITCODE -ne 0) { throw "xmake configure failed" }
+            xmake build -P . Dora
+            if ($LASTEXITCODE -ne 0) { throw "xmake build Dora failed" }
+
+            $builtExe = Join-Path $buildDir "windows/x64/release/Dora.exe"
+            if (-not (Test-Path $builtExe)) {
+              throw "Expected built Dora.exe not found at $builtExe"
+            }
+            Copy-Item -Path $builtExe -Destination (Join-Path $outDir "Dora.exe") -Force
+            Get-Item (Join-Path $outDir "Dora.exe") | Format-List Name, Length, LastWriteTime
+          } finally {
+            Pop-Location
+          }
+
+      - name: Upload patched Dora.exe (${{ matrix.backend }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-dora-${{ matrix.backend }}
+          path: ${{ runner.temp }}/patched-dora-${{ matrix.backend }}/Dora.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  prepare-win-bins:
+    name: Build Native Windows Launcher & Patch Runtime PE Metadata
+    needs: build-dora-windows
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      win_ver_dot: ${{ steps.meta.outputs.win_ver_dot }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Resolve package version & numeric Windows PE version
+        id: meta
+        shell: pwsh
+        run: |
+          $inputVer = "${{ inputs.version }}".Trim()
+          if ($inputVer -ne "") {
+            $ver = $inputVer
+          } elseif ("${{ github.ref }}" -like "refs/tags/*") {
+            $ver = "${{ github.ref }}".Substring("refs/tags/".Length)
+          } else {
+            $ver = "dev-$("${{ github.sha }}".Substring(0, 7))"
+          }
+
+          if ($ver -match '^v?(\d+)\.(\d+)\.(\d+)') {
+            $maj = [int]$matches[1]; $min = [int]$matches[2]; $pat = [int]$matches[3]
+          } else {
+            $maj = 0; $min = 1; $pat = 0
+          }
+          $winDot = "$maj.$min.$pat.0"
+          $winComma = "$maj,$min,$pat,0"
+
+          "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "win_ver_dot=$winDot" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "win_ver_comma=$winComma" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Packaging version=$ver, PE version=$winDot"
+
+      - name: Compile native Win32 GUI launcher (WestwardWatch.exe)
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
+          if not defined VSINSTALL (
+            echo Visual Studio C++ build tools not found >&2
+            exit /b 1
+          )
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
+          mkdir "%RUNNER_TEMP%\win-bins"
+          pushd tools\windows-launcher
+          rc /nologo /d "APP_VER_NUM=${{ steps.meta.outputs.win_ver_comma }}" /d "APP_VER_STR=\"${{ steps.meta.outputs.version }}\"" /fo "%RUNNER_TEMP%\win-bins\launcher.res" launcher.rc
+          if errorlevel 1 exit /b 1
+          cl /nologo /O2 /W4 /MT /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS launcher.c "%RUNNER_TEMP%\win-bins\launcher.res" /Fe:"%RUNNER_TEMP%\win-bins\%EXE_NAME%.exe" /link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup user32.lib kernel32.lib
+          if errorlevel 1 exit /b 1
+          popd
+          dir "%RUNNER_TEMP%\win-bins\%EXE_NAME%.exe"
+
+      - name: Download patched Dora.exe (d3d12)
+        uses: actions/download-artifact@v4
+        with:
+          name: patched-dora-d3d12
+          path: ${{ runner.temp }}/patched-dora/d3d12
+
+      - name: Download patched Dora.exe (wgl)
+        uses: actions/download-artifact@v4
+        with:
+          name: patched-dora-wgl
+          path: ${{ runner.temp }}/patched-dora/opengl
+
+      - name: Patch icons & PE metadata on patched Dora runtimes with rcedit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tmp = $env:RUNNER_TEMP
+          $d3dDir = Join-Path $tmp "patched-dora\d3d12"
+          $oglDir = Join-Path $tmp "patched-dora\opengl"
+          $rceditDir = Join-Path $tmp "rcedit"
+          $outDir = Join-Path $tmp "win-bins"
+          New-Item -ItemType Directory -Path $rceditDir, (Join-Path $outDir "d3d12"), (Join-Path $outDir "opengl") -Force | Out-Null
+
+          gh release download "v2.0.0" --repo electron/rcedit --dir $rceditDir --pattern "rcedit-x64.exe"
+          $rcedit = Join-Path $rceditDir "rcedit-x64.exe"
+          $ico = (Resolve-Path "art-source/brand/icons/WestwardWatch.ico").Path
+          $verStr = "${{ steps.meta.outputs.version }}"
+          $winDot = "${{ steps.meta.outputs.win_ver_dot }}"
+
+          foreach ($pair in @(
+            @{ Name = "d3d12"; SearchRoot = $d3dDir; Dest = (Join-Path $outDir "d3d12\Dora.exe") },
+            @{ Name = "opengl"; SearchRoot = $oglDir; Dest = (Join-Path $outDir "opengl\Dora.exe") }
+          )) {
+            $srcExe = (Get-ChildItem -Path $pair.SearchRoot -Recurse -Filter "Dora.exe" | Select-Object -First 1).FullName
+            Copy-Item -Path $srcExe -Destination $pair.Dest -Force
+            & $rcedit $pair.Dest `
+              --set-icon $ico `
+              --set-file-version $winDot `
+              --set-product-version $winDot `
+              --set-version-string "CompanyName" "Outsider Studio" `
+              --set-version-string "FileDescription" "Westward Watch Runtime" `
+              --set-version-string "ProductName" "Westward Watch" `
+              --set-version-string "InternalName" "$env:RUNTIME_NAME" `
+              --set-version-string "OriginalFilename" "$env:RUNTIME_NAME.exe" `
+              --set-version-string "LegalCopyright" "Copyright (C) 2026 Outsider Studio (Apache-2.0)" `
+              --set-version-string "ProductVersion" $verStr
+            if ($LASTEXITCODE -ne 0) {
+              throw "rcedit failed for $($pair.Name) runtime exe"
+            }
+            $vi = (Get-Item $pair.Dest).VersionInfo
+            Write-Host "Patched $($pair.Name) runtime: ProductName=$($vi.ProductName), FileDescription=$($vi.FileDescription), FileVersion=$($vi.FileVersion)"
+            if ($vi.ProductName -ne "Westward Watch") {
+              throw "Unexpected ProductName after rcedit: $($vi.ProductName)"
+            }
+          }
+
+          $launcherVi = (Get-Item (Join-Path $outDir "$env:EXE_NAME.exe")).VersionInfo
+          Write-Host "Built launcher: ProductName=$($launcherVi.ProductName), FileDescription=$($launcherVi.FileDescription), FileVersion=$($launcherVi.FileVersion)"
+          if ($launcherVi.ProductName -ne "Westward Watch") {
+            throw "Unexpected launcher ProductName: $($launcherVi.ProductName)"
+          }
+
+      - name: Upload prepared Windows executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-prepared-bins
+          path: |
+            ${{ runner.temp }}/win-bins/${{ env.EXE_NAME }}.exe
+            ${{ runner.temp }}/win-bins/d3d12/Dora.exe
+            ${{ runner.temp }}/win-bins/opengl/Dora.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    name: Assemble Windows (D3D12 + OpenGL) & Dora Source Packages
+    needs: prepare-win-bins
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ needs.prepare-win-bins.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Download prepared Windows executables
+        uses: actions/download-artifact@v4
+        with:
+          name: win-prepared-bins
+          path: ${{ runner.temp }}/win-bins
 
       - name: Run repository and asset audits
         run: |
@@ -93,20 +318,26 @@ jobs:
           bash tools/make-windows-pack.sh \
             --backend d3d12 \
             --engine-dir "$D3D12_DIR" \
+            --launcher "$RUNNER_TEMP/win-bins/${EXE_NAME}.exe" \
+            --runtime-exe "$RUNNER_TEMP/win-bins/d3d12/Dora.exe" \
             --out-dir "$RUNNER_TEMP/release-out" \
-            --version "${{ steps.meta.outputs.version }}" \
-            --exe-name "${EXE_NAME}"
+            --version "${{ needs.prepare-win-bins.outputs.version }}" \
+            --exe-name "${EXE_NAME}" \
+            --runtime-name "${RUNTIME_NAME}"
 
           bash tools/make-windows-pack.sh \
             --backend opengl \
             --engine-dir "$OPENGL_DIR" \
+            --launcher "$RUNNER_TEMP/win-bins/${EXE_NAME}.exe" \
+            --runtime-exe "$RUNNER_TEMP/win-bins/opengl/Dora.exe" \
             --out-dir "$RUNNER_TEMP/release-out" \
-            --version "${{ steps.meta.outputs.version }}" \
-            --exe-name "${EXE_NAME}"
+            --version "${{ needs.prepare-win-bins.outputs.version }}" \
+            --exe-name "${EXE_NAME}" \
+            --runtime-name "${RUNTIME_NAME}"
 
           bash tools/make-dora-source-pack.sh \
             --out-dir "$RUNNER_TEMP/release-out" \
-            --version "${{ steps.meta.outputs.version }}"
+            --version "${{ needs.prepare-win-bins.outputs.version }}"
 
           (
             cd "$RUNNER_TEMP/release-out"
@@ -125,7 +356,7 @@ jobs:
           retention-days: 14
 
   smoke-windows:
-    name: Windows Cold-Start Smoke Test (Chinese Path + Portable/Isolated Save)
+    name: Windows Cold-Start Smoke Test (Direct Exe + Default saves/ + Readonly Fallback)
     needs: package
     runs-on: windows-latest
     steps:
@@ -152,24 +383,77 @@ jobs:
             }
           }
 
-      - name: Verify OpenGL compatibility package structure and internal manifest
+      - name: Verify OpenGL compatibility package structure, trimming, and PE metadata
         shell: pwsh
         run: |
           $ver = "${{ needs.package.outputs.version }}"
           $zip = Join-Path $env:RUNNER_TEMP "bundles\${env:EXE_NAME}-${ver}-windows-x64-opengl.zip"
           $dest = Join-Path $env:RUNNER_TEMP "verify-opengl"
           Expand-Archive -Path $zip -DestinationPath $dest -Force
-          $root = Join-Path $dest "${env:EXE_NAME}-${ver}-windows-x64-opengl"
-          foreach ($req in @("${env:EXE_NAME}.exe", "${env:EXE_NAME}.ico", "LICENSE", "dora-game-id", "Script\init.lua", "Script\main.lua", "Script\watch\target.lua", "Script\watch\targets\windows\index.lua", "Script\watch\input\kbm_core.lua", "assets\art\title.png", "assets\art\brand\game_logo_h.png", "assets\art\brand\team_logo_dark.png", "assets\art\brand\app_icon.png", "assets\audio\combat\shot.wav", "SHA256SUMS")) {
+          $root = Join-Path $dest "${env:EXE_NAME}"
+          foreach ($req in @(
+            "${env:EXE_NAME}.exe",
+            "LICENSE",
+            "README.md",
+            "saves",
+            "saves\slots",
+            "saves\backups",
+            "saves\logs",
+            "runtime\${env:RUNTIME_NAME}.exe",
+            "runtime\dora-game-id",
+            "runtime\VERSION.txt",
+            "runtime\Script\init.lua",
+            "runtime\Script\main.lua",
+            "runtime\Script\Lib\lualib_bundle.lua",
+            "runtime\Script\watch\target.lua",
+            "runtime\Script\watch\targets\windows\index.lua",
+            "runtime\Script\watch\input\kbm_core.lua",
+            "runtime\assets\art\title.png",
+            "runtime\assets\art\brand\game_logo_h.png",
+            "runtime\assets\art\brand\team_logo_dark.png",
+            "runtime\assets\art\brand\app_icon.png",
+            "runtime\assets\audio\combat\shot.wav"
+          )) {
             $p = Join-Path $root $req
-            if (-not (Test-Path $p)) { throw "Missing required file in OpenGL pack: $req" }
+            if (-not (Test-Path $p)) { throw "Missing required entry in OpenGL pack: $req" }
           }
-          foreach ($bad in @("www", "Doc", "dora-wa", "dora_godot.dll", "wa.dll", "gamecontrollerdb.txt", "Script\Dev", "Script\Tools", "Script\watch\testdrive.lua", "Script\watch\platform_mobile.lua", "Script\watch\input\aim_assist.lua", "Script\watch\input\touch_core.lua", "Script\watch\input\touch_interact_meta.lua", "Script\watch\input\touch_hud_landscape.lua", "Script\watch\input\touch_hud_portrait.lua", "Script\watch\input\gamepad_core.lua", "Script\watch\targets\android", "Script\watch\targets\handheld", "Script\watch\targets\web")) {
-            if (Test-Path (Join-Path $root $bad)) { throw "Forbidden dev/cross-target file present in OpenGL pack: $bad" }
+          foreach ($bad in @(
+            "启动-向西守望.cmd",
+            "${env:EXE_NAME}.ico",
+            "SHA256SUMS",
+            "dora-game-id",
+            "runtime\www",
+            "runtime\Doc",
+            "runtime\dora-wa",
+            "runtime\dora_godot.dll",
+            "runtime\wa.dll",
+            "runtime\gamecontrollerdb.txt",
+            "runtime\Audio",
+            "runtime\Font",
+            "runtime\Image",
+            "runtime\Script\Dev",
+            "runtime\Script\Tools",
+            "runtime\Script\Lib\Agent",
+            "runtime\Script\Lib\Dora",
+            "runtime\Script\watch\testdrive.lua",
+            "runtime\Script\watch\platform_mobile.lua",
+            "runtime\Script\watch\input\aim_assist.lua",
+            "runtime\Script\watch\input\touch_core.lua",
+            "runtime\Script\watch\input\gamepad_core.lua",
+            "runtime\Script\watch\targets\android",
+            "runtime\Script\watch\targets\handheld",
+            "runtime\Script\watch\targets\web"
+          )) {
+            if (Test-Path (Join-Path $root $bad)) { throw "Forbidden/redundant entry present in OpenGL pack: $bad" }
           }
-          Write-Host "OpenGL package structure verified cleanly."
+          $lvi = (Get-Item (Join-Path $root "${env:EXE_NAME}.exe")).VersionInfo
+          $rvi = (Get-Item (Join-Path $root "runtime\${env:RUNTIME_NAME}.exe")).VersionInfo
+          if ($lvi.ProductName -ne "Westward Watch" -or $rvi.ProductName -ne "Westward Watch") {
+            throw "PE ProductName mismatch: launcher='$($lvi.ProductName)', runtime='$($rvi.ProductName)'"
+          }
+          Write-Host "OpenGL package clean layout and PE metadata verified."
 
-      - name: Run D3D12 portable cold-start smoke test in Chinese + space directory
+      - name: Run D3D12 portable cold-start smoke test via root WestwardWatch.exe
         shell: pwsh
         run: |
           $ver = "${{ needs.package.outputs.version }}"
@@ -177,14 +461,18 @@ jobs:
           $cnBase = Join-Path $env:RUNNER_TEMP "向西守望 便携验收测试"
           New-Item -ItemType Directory -Path $cnBase -Force | Out-Null
           Expand-Archive -Path $zip -DestinationPath $cnBase -Force
-          $packDir = Join-Path $cnBase "${env:EXE_NAME}-${ver}-windows-x64"
+          $packDir = Join-Path $cnBase "${env:EXE_NAME}"
           $exe = Join-Path $packDir "${env:EXE_NAME}.exe"
-          $gameId = (Get-Content (Join-Path $packDir "dora-game-id") -Raw).Trim()
-          $appdataLog = Join-Path $env:APPDATA "IppClub\DoraGame-$gameId\log.txt"
+          $gameId = (Get-Content (Join-Path $packDir "runtime\dora-game-id") -Raw).Trim()
+          $appdataDir = Join-Path $env:APPDATA "IppClub\DoraGame-$gameId"
 
           function Dump-DoraLogs($label) {
             Write-Host "=== Diagnostic logs ($label) ==="
-            foreach ($cand in @($appdataLog, (Join-Path $env:APPDATA "Dora\DoraGame-$gameId\log.txt"), (Join-Path $packDir "save\log.txt"))) {
+            foreach ($cand in @(
+              (Join-Path $appdataDir "log.txt"),
+              (Join-Path $packDir "saves\logs\crash.log"),
+              (Join-Path $packDir "saves\logs\engine.log")
+            )) {
               if (Test-Path $cand) {
                 Write-Host "--- $cand ---"
                 Get-Content $cand -Tail 60
@@ -192,7 +480,33 @@ jobs:
             }
           }
 
-          # Round 1: default isolated %APPDATA% save mode (cwd deliberately != exe dir to prove dora-game-id assetPath anchor)
+          # Seed old-layout recovery files. The new settings file must not suppress either import.
+          $legacyUser = Join-Path $appdataDir "watch-save"
+          $legacyPortable = Join-Path $packDir "save\watch-save"
+          New-Item -ItemType Directory -Path $legacyUser, $legacyPortable -Force | Out-Null
+          $legacyProfile = "version=1`nchildCleared=false`nsoldierCleared=true`nartifactOwned=false`nmuseumPhase=locked`nmuseumSeen=false`n"
+          $userSession = "version=1`nroomKey=outside`nhp=2`n"
+          $portableSession = "version=1`nroomKey=gate`nhp=1`n"
+          [IO.File]::WriteAllText((Join-Path $legacyUser "archive.txt.tmp"), $legacyProfile)
+          [IO.File]::WriteAllText((Join-Path $legacyUser "session.txt.prev"), $userSession)
+          [IO.File]::WriteAllText((Join-Path $legacyPortable "session.txt.prev"), $portableSession)
+          [IO.File]::WriteAllText((Join-Path $packDir "saves\settings.ini"), "masterVol=0.5`n")
+
+          function Assert-MigratedProgress($saveDir, $session) {
+            # Boot recovered the profile before the smoke hook replaced it and rotated it to .prev.
+            foreach ($entry in @{
+              "backups\profile.sav.prev" = $legacyProfile
+              "backups\autosave.sav.prev" = $session
+              "autosave.sav" = $session
+            }.GetEnumerator()) {
+              $path = Join-Path $saveDir $entry.Key
+              if ([IO.File]::ReadAllText($path) -cne $entry.Value) {
+                throw "Legacy progress mismatch at $path"
+              }
+            }
+          }
+
+          # Round 1: default out-of-the-box portable saves/ mode launched directly via root WestwardWatch.exe (cwd != game dir)
           Set-Content -Path (Join-Path $packDir ".ci-smoke-test") -Value "1" -Encoding ascii
           $proc = Start-Process -FilePath $exe -WorkingDirectory $env:RUNNER_TEMP -PassThru
           if (-not $proc.WaitForExit(45000)) {
@@ -206,9 +520,9 @@ jobs:
             throw "Smoke round 1 did not produce .ci-smoke-result.txt (exit=$($proc.ExitCode))"
           }
           $res1 = Get-Content $resultFile -Raw
-          Write-Host "=== Smoke Round 1 (D3D12, Isolated Save, cwd != exe dir) ==="
+          Write-Host "=== Smoke Round 1 (D3D12, Direct WestwardWatch.exe, Default Portable saves/, cwd != game dir) ==="
           Write-Host $res1
-          if ($res1 -notmatch "SMOKE_OK" -or $res1 -match "FAIL " -or $res1 -notmatch "portableSave=false" -or $res1 -notmatch "target=windows") {
+          if ($res1 -notmatch "SMOKE_OK" -or $res1 -match "FAIL " -or $res1 -notmatch "portableSave=true" -or $res1 -notmatch "target=windows") {
             Dump-DoraLogs "round1-failed"
             throw "Smoke round 1 failed verification"
           }
@@ -217,29 +531,119 @@ jobs:
             throw "Smoke round 1 exited with non-zero code: $($proc.ExitCode)"
           }
 
-          # Round 2: true portable save/ mode
+          Assert-MigratedProgress (Join-Path $packDir "saves") $portableSession
+          if ([IO.File]::ReadAllText((Join-Path $legacyPortable "session.txt.prev")) -cne $portableSession) {
+            throw "Portable legacy source was modified"
+          }
+          # Exercise an ordinary old installation in round 2, with only the AppData source.
+          Rename-Item -LiteralPath $legacyPortable -NewName "watch-save.round1"
+
+          # Round 2: read-only / non-writable saves/ fallback test (deny write ACL on saves/ -> automatic safe fallback to %APPDATA%)
           Remove-Item $resultFile -Force
-          New-Item -ItemType Directory -Path (Join-Path $packDir "save") -Force | Out-Null
-          $proc2 = Start-Process -FilePath $exe -WorkingDirectory $packDir -PassThru
-          if (-not $proc2.WaitForExit(45000)) {
-            Stop-Process -Id $proc2.Id -Force -ErrorAction SilentlyContinue
-            Dump-DoraLogs "round2-timeout"
-            throw "Smoke round 2 timed out after 45s"
+          $savesPath = Join-Path $packDir "saves"
+          icacls $savesPath /deny "$($env:USERNAME):(OI)(CI)(WD,AD,WA)" | Out-Null
+          try {
+            $proc2 = Start-Process -FilePath $exe -WorkingDirectory $packDir -PassThru
+            if (-not $proc2.WaitForExit(45000)) {
+              Stop-Process -Id $proc2.Id -Force -ErrorAction SilentlyContinue
+              Dump-DoraLogs "round2-timeout"
+              throw "Smoke round 2 timed out after 45s"
+            }
+            $res2Path = if (Test-Path $resultFile) { $resultFile } else { Join-Path $appdataDir "saves\.ci-smoke-result.txt" }
+            if (-not (Test-Path $res2Path)) {
+              Dump-DoraLogs "round2-missing-result"
+              throw "Smoke round 2 did not produce smoke result (exit=$($proc2.ExitCode))"
+            }
+            $res2 = Get-Content $res2Path -Raw
+            Write-Host "=== Smoke Round 2 (D3D12, Read-Only saves/ Automatic Fallback) ==="
+            Write-Host $res2
+            if ($res2 -notmatch "SMOKE_OK" -or $res2 -match "FAIL " -or $res2 -notmatch "portableSave=false" -or $res2 -notmatch "saveFallbackReason=readonly") {
+              Dump-DoraLogs "round2-failed"
+              throw "Smoke round 2 failed verification"
+            }
+            Assert-MigratedProgress (Join-Path $appdataDir "saves") $userSession
+            if ([IO.File]::ReadAllText((Join-Path $legacyUser "archive.txt.tmp")) -cne $legacyProfile -or
+                [IO.File]::ReadAllText((Join-Path $legacyUser "session.txt.prev")) -cne $userSession) {
+              throw "AppData legacy source was modified"
+            }
+            if ($proc2.ExitCode -ne 0) {
+              Dump-DoraLogs "round2-exit"
+              throw "Smoke round 2 exited with non-zero code: $($proc2.ExitCode)"
+            }
+          } finally {
+            icacls $savesPath /remove:d $env:USERNAME | Out-Null
           }
-          if (-not (Test-Path $resultFile)) {
-            Dump-DoraLogs "round2-missing-result"
-            throw "Smoke round 2 did not produce .ci-smoke-result.txt (exit=$($proc2.ExitCode))"
-          }
-          $res2 = Get-Content $resultFile -Raw
-          Write-Host "=== Smoke Round 2 (D3D12, Portable save/ Mode) ==="
-          Write-Host $res2
-          if ($res2 -notmatch "SMOKE_OK" -or $res2 -match "FAIL " -or $res2 -notmatch "portableSave=true") {
-            Dump-DoraLogs "round2-failed"
-            throw "Smoke round 2 failed verification"
-          }
-          if ($proc2.ExitCode -ne 0) {
-            Dump-DoraLogs "round2-exit"
-            throw "Smoke round 2 exited with non-zero code: $($proc2.ExitCode)"
+
+          # Round 3: native WM_CLOSE interception -> ESC pause menu on 1st click, force-quit on 4 rapid clicks
+          Remove-Item (Join-Path $packDir ".ci-smoke-test") -Force -ErrorAction SilentlyContinue
+          Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+          $closeReady = Join-Path $packDir ".ci-close-ready.txt"
+          $closeResult = Join-Path $packDir ".ci-close-result.txt"
+          Remove-Item $closeReady, $closeResult -Force -ErrorAction SilentlyContinue
+          Set-Content -Path (Join-Path $packDir ".ci-close-test") -Value "1" -Encoding ascii
+
+          $proc3 = Start-Process -FilePath $exe -WorkingDirectory $packDir -PassThru
+          try {
+            $readyOk = $false
+            for ($w = 0; $w -lt 150; $w++) {
+              if (Test-Path $closeReady) { $readyOk = $true; break }
+              if ($proc3.HasExited) { break }
+              Start-Sleep -Milliseconds 200
+            }
+            if (-not $readyOk) {
+              Dump-DoraLogs "round3-not-ready"
+              throw "Smoke round 3 never became ready (exited=$($proc3.HasExited))"
+            }
+
+            $rtProc = $null
+            for ($w = 0; $w -lt 30; $w++) {
+              $rtProc = Get-Process -Name $env:RUNTIME_NAME -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+              if ($rtProc) { break }
+              Start-Sleep -Milliseconds 100
+            }
+            if (-not $rtProc) {
+              Dump-DoraLogs "round3-no-hwnd"
+              throw "Smoke round 3 could not locate $env:RUNTIME_NAME main window"
+            }
+
+            # 1st WM_CLOSE: must NOT close the app; must pause gameplay and show toast
+            [void]$rtProc.CloseMainWindow()
+            $pausedOk = $false
+            for ($w = 0; $w -lt 40; $w++) {
+              if (Test-Path $closeResult) { $pausedOk = $true; break }
+              Start-Sleep -Milliseconds 100
+            }
+            $rtProc.Refresh()
+            if (-not $pausedOk) {
+              Dump-DoraLogs "round3-no-pause"
+              throw "Smoke round 3 did not record pause interception after 1st WM_CLOSE (exited=$($rtProc.HasExited))"
+            }
+            $res3 = Get-Content $closeResult -Raw
+            Write-Host "=== Smoke Round 3 (Native WM_CLOSE Interception + Rapid Force-Quit) ==="
+            Write-Host $res3
+            if ($res3 -notmatch "WINDOW_CLOSE_INTERCEPTED_PAUSE=true" -or $rtProc.HasExited) {
+              Dump-DoraLogs "round3-bad-pause"
+              throw "Smoke round 3 failed 1st WM_CLOSE interception check (exited=$($rtProc.HasExited))"
+            }
+
+            # 4 rapid WM_CLOSE messages within 2s: native render thread must force-quit cleanly
+            for ($k = 0; $k -lt 4; $k++) {
+              $rtProc.Refresh()
+              if ($rtProc.HasExited) { break }
+              [void]$rtProc.CloseMainWindow()
+              Start-Sleep -Milliseconds 120
+            }
+            if (-not $proc3.WaitForExit(8000)) {
+              Dump-DoraLogs "round3-force-quit-timeout"
+              throw "Smoke round 3 did not force-quit after 4 rapid WM_CLOSE calls"
+            }
+            Write-Host "Smoke Round 3 passed (exit=$($proc3.ExitCode))."
+          } finally {
+            Get-Process -Name $env:RUNTIME_NAME -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            if (-not $proc3.HasExited) {
+              Stop-Process -Id $proc3.Id -Force -ErrorAction SilentlyContinue
+            }
           }
 
   publish-release:
@@ -264,22 +668,22 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           # 《向西守望》${VER} 便携发行版
 
-          本版本已通过仓库结构校验、静态资产与中文字库审计，以及 Windows CI 中文路径冷启动自动化冒烟验收。
+          本版本已通过仓库结构校验、静态资产与中文字库审计，以及 Windows CI 中文路径双击冷启动与便携存档/只读降级自动化冒烟验收。
 
-          ## 下载说明（免安装、免配置环境）
+          ## 下载说明（免安装、绿色便携）
 
           | 文件 | 适用场景 |
           | --- | --- |
-          | \`${EXE_NAME}-${VER}-windows-x64.zip\` | **推荐（Windows 10/11 标准版）**：Direct3D 12 后端，完整解压后双击 \`${EXE_NAME}.exe\` 或 \`启动-向西守望.cmd\` 即玩 |
+          | \`${EXE_NAME}-${VER}-windows-x64.zip\` | **推荐（Windows 10/11 标准版）**：Direct3D 12 后端，完整解压后直接双击根目录 \`${EXE_NAME}.exe\` 即玩 |
           | \`${EXE_NAME}-${VER}-windows-x64-opengl.zip\` | **兼容版（Windows 10/11 OpenGL）**：老旧显卡或虚拟机若提示 Direct3D 12 初始化失败请下载此版本 |
           | \`${EXE_NAME}-${VER}-dora-source.zip\` | **Dora SSR v1.10.2 兼容源码包**：供 Dora 开源社区奖审核及跨平台 Dora 客户端直接运行 |
           | \`SHA256SUMS.txt\` | 发行包 SHA-256 校验清单 |
 
-          ## 便携提示
+          ## 便携与存档说明
 
-          - 默认存档自动隔离于 \`%APPDATA%\IppClub\DoraGame-7a9d4e21c8f34b6ea1d05c83b2f69e41\watch-save\archive.txt\`；
-          - 若希望将存档随身保存在游戏目录内，在 \`${EXE_NAME}.exe\` 同级新建空文件夹 \`save\` 即可。
-          - 全屏切换快捷键：\`F11\` 或 \`Alt+Enter\`；标题页与暂停菜单均提供「退出游戏」。
+          - 默认所有存档与设置均保存在游戏目录 \`saves/\` 内（\`profile.sav\`、\`autosave.sav\`、\`slots/slot_1..3.sav\`、\`settings.ini\`、\`backups/\`、\`logs/\`），整包拷贝即可随身携带；
+          - 支持自动存档 + 3 个手动存档槽位，旧版存档首次启动自动无损迁移；若解压至只读目录则自动回退至用户目录；
+          - 全屏切换快捷键：\`F11\` 或 \`Alt+Enter\`（自动保存）；标题页与暂停菜单均提供「读取存档 / 存取档案」「游戏设置」与「退出游戏」。
           EOF
 
           # 保留已有 Release Notes（避免覆盖 Android/Web 并发写入的说明）；仅在创建或尚未含多端说明时更新
