@@ -248,6 +248,12 @@ for required in \
     "Script/watch/targets/windows/index.lua" \
     "Script/watch/input/kbm_core.lua" \
     "Script/watch/fe/frontend.lua" \
+    "Script/watch/fe/renderer/anim_controller.lua" \
+    "Script/watch/fe/renderer/scene_fx.lua" \
+    "Script/watch/fe/scenes/dark_pixel_assets.lua" \
+    "Script/watch/fe/scenes/xiaoman3d.lua" \
+    "Script/watch/fe/scenes/xiaoman3d_actor.lua" \
+    "Script/watch/fe/scenes/xiaoman3d_entities.lua" \
     "assets/xiaoman3d/outside.glb" \
     "assets/xiaoman3d/village.glb" \
     "assets/xiaoman3d/forest.glb" \
@@ -293,8 +299,20 @@ for required in \
     "assets/art/bg_escort_ridge.png" \
     "assets/art/props_second_half.clip" \
     "assets/art/props_second_half.png" \
+    "assets/art/scene_dark_pixel.clip" \
+    "assets/art/scene_dark_pixel.png" \
     "assets/art/actors-hd.clip" \
     "assets/art/actors-hd.png" \
+    "assets/art/actors_zhoushu_anim.clip" \
+    "assets/art/actors_zhoushu_anim.png" \
+    "assets/art/actors_xiaoman_anim.clip" \
+    "assets/art/actors_xiaoman_anim.png" \
+    "assets/art/actors_duo_anim.clip" \
+    "assets/art/actors_duo_anim.png" \
+    "assets/art/actors_enemies_anim.clip" \
+    "assets/art/actors_enemies_anim.png" \
+    "assets/art/vfx_ming_fx.clip" \
+    "assets/art/vfx_ming_fx.png" \
     "assets/art/zhoushu-run.png" \
     "assets/art/xiaoman-run.png" \
     "assets/art/zhoushu-run-transition.png" \

@@ -254,6 +254,44 @@ export class CameraDirector {
         return worldLen * this.ppu;
     }
 
+    /**
+     * 2.5D 深度近大远小透视倍率（纯表现层，不改变物理碰撞）：
+     * - lower (-32) ≈ 1.058，middle (0) = 1.000，upper (+32) ≈ 0.942；
+     * - 2D 房间传 enabled=false 恒返回 1.0。
+     */
+    depthScale(depth: number, enabled: boolean = true): number {
+        if (!enabled) {
+            return 1.0;
+        }
+        const s = 1.0 - (depth / 44) * 0.08;
+        return Math.max(0.88, Math.min(1.08, s));
+    }
+
+    /**
+     * 2.5D 深度空气透视明度系数（远道微冷暗、近道高对比，帮助玩家一眼分辨所处车道）：
+     * - lower (-32) = 1.00，middle (0) ≈ 0.94，upper (+32) ≈ 0.84。
+     */
+    depthShade(depth: number, enabled: boolean = true): number {
+        if (!enabled) {
+            return 1.0;
+        }
+        const t = Math.max(0, Math.min(1, (depth + 44) / 88));
+        return 1.0 - t * 0.19;
+    }
+
+    /**
+     * 地面石板与立体掩体顶面/侧面的单点水平透视收敛横坐标：
+     * 越靠近后侧路缘（depth > 0），向视口中心轻微收敛，与横向卷轴视角协调一致。
+     */
+    perspectiveX(screenX: number, depth: number, enabled: boolean = true): number {
+        if (!enabled) {
+            return screenX;
+        }
+        const cx = this.viewW * 0.5;
+        const scale = this.depthScale(depth, true);
+        return cx + (screenX - cx) * scale;
+    }
+
     /** 世界坐标 → 屏幕局部坐标（与 screenToWorld 严格互逆） */
     worldToScreen(wx: number, wy: number, depth: number = 0): { x: number; y: number } {
         if (this.projection !== undefined) {

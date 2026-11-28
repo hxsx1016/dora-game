@@ -25,9 +25,11 @@ import { StageRenderer } from "Script/watch/fe/renderer/stage";
 import { PropsRenderer } from "Script/watch/fe/renderer/props";
 import { ActorsRenderer } from "Script/watch/fe/renderer/actors";
 import { DioramaLayerHost } from "Script/watch/fe/renderer/diorama_grid";
+import { SceneFxSystem } from "Script/watch/fe/renderer/scene_fx";
 import { VfxSystem } from "Script/watch/fe/renderer/vfx";
 import { EscortWorldRenderer } from "Script/watch/fe/scenes/escort_world";
 import { ensureSecondHalfAssetsRegistered } from "Script/watch/fe/scenes/second_half_assets";
+import { ensureDarkPixelAssetsRegistered } from "Script/watch/fe/scenes/dark_pixel_assets";
 import { TextPool } from "Script/watch/fe/ui/textpool";
 import { HudRenderer } from "Script/watch/fe/ui/hud";
 import { NarrativeRenderer } from "Script/watch/fe/ui/narrative";
@@ -54,12 +56,15 @@ export class WatchFrontend {
     private escortTowerDraw: DrawNode.Type;
     private bgGlow: DrawNode.Type;
     private backdropArt: AssetSlotHost;
+    private groundDraw: DrawNode.Type;
+    private groundArt: AssetSlotHost;
     private dioramaBg: DioramaLayerHost;
     private dioramaWorld: DioramaLayerHost;
     private dioramaFg: DioramaLayerHost;
     private worldArt: AssetSlotHost;
     private uiArt: AssetSlotHost;
     private fgDraw: DrawNode.Type;
+    private worldOverlayDraw: DrawNode.Type;
     private fgGlow: DrawNode.Type;
     private uiLayer: Node.Type;
     private uiDraw: DrawNode.Type;
@@ -77,6 +82,7 @@ export class WatchFrontend {
     readonly escortWorld = new EscortWorldRenderer();
     readonly props = new PropsRenderer();
     readonly actors = new ActorsRenderer();
+    readonly sceneFx = new SceneFxSystem();
     readonly vfx = new VfxSystem();
     readonly hud = new HudRenderer();
     readonly narrative = new NarrativeRenderer();
@@ -98,6 +104,7 @@ export class WatchFrontend {
         this.layerRoot.order = 5;
         this.layerRoot.addTo(parent);
         ensureSecondHalfAssetsRegistered();
+        ensureDarkPixelAssetsRegistered();
         this.xiaoman3d = new Xiaoman3DScene(this.layerRoot);
 
         this.audio.attachHost(this.layerRoot);
@@ -126,8 +133,16 @@ export class WatchFrontend {
 
         this.backdropArt = new AssetSlotHost(this.layerRoot, 12);
         this.dioramaBg = new DioramaLayerHost(this.layerRoot, 14);
+        // 独立地表层（order 20/22），严格位于 worldArt(32) 与角色接触影之下，根治脚底阴影被路面贴图吞没。
+        this.groundDraw = DrawNode();
+        this.groundDraw.order = 20;
+        this.groundDraw.addTo(this.layerRoot);
+        this.groundArt = new AssetSlotHost(this.layerRoot, 22);
         this.dioramaWorld = new DioramaLayerHost(this.layerRoot, 28);
         this.worldArt = new AssetSlotHost(this.layerRoot, 32);
+        this.worldOverlayDraw = DrawNode();
+        this.worldOverlayDraw.order = 33;
+        this.worldOverlayDraw.addTo(this.layerRoot);
         this.dioramaFg = new DioramaLayerHost(this.layerRoot, 34);
 
         this.fgDraw = DrawNode();
@@ -323,6 +338,7 @@ export class WatchFrontend {
         this.audio.stopRoomTransient();
         this.soundscape.resetForRoom(p);
         this.actors.reset(p);
+        this.sceneFx.reset(p.room.key);
         this.occlusion.reset();
         this.vfx.reset();
         this.hud.reset(p);
@@ -345,13 +361,16 @@ export class WatchFrontend {
         this.bgDraw.clear();
         this.escortTowerDraw.clear();
         this.bgGlow.clear();
+        this.groundDraw.clear();
         this.fgDraw.clear();
+        this.worldOverlayDraw.clear();
         this.fgGlow.clear();
         this.uiDraw.clear();
         this.uiInkDraw.clear();
         this.uiGlow.clear();
         this.uiMask.clear();
         this.backdropArt.beginFrame();
+        this.groundArt.beginFrame();
         this.dioramaBg.beginFrame();
         this.dioramaWorld.beginFrame();
         this.dioramaFg.beginFrame();
@@ -362,6 +381,7 @@ export class WatchFrontend {
 
     private finishFrame(): void {
         this.backdropArt.endFrame();
+        this.groundArt.endFrame();
         this.dioramaBg.endFrame();
         this.dioramaWorld.endFrame();
         this.dioramaFg.endFrame();
@@ -471,6 +491,7 @@ export class WatchFrontend {
     renderMenu(dt: number, input: Input, w: number, h: number): MenuAction {
         this.syncRuntimeHooks();
         const safeDt = Math.min(0.05, Math.max(0, dt));
+        this.time += safeDt;
         if (this.toastTimer > 0) {
             this.toastTimer = Math.max(0, this.toastTimer - safeDt);
         }
@@ -503,6 +524,9 @@ export class WatchFrontend {
             uiScale,
             this.stageVp.safeUi,
         );
+        if (this.screen === "title") {
+            this.sceneFx.drawTitleAtmosphere(this.bgGlow, this.fgGlow, this.backdropArt, this.worldArt, w, h, this.time);
+        }
         this.drawToast(w / uiScale);
         this.finishFrame();
         return act;
@@ -636,6 +660,10 @@ export class WatchFrontend {
             this.audio.setCameraRef(this.cam.x, w / Math.max(0.25, this.cam.ppu));
             this.soundscape.updatePlay(worldDt, p, view, this.audio);
             this.actors.update(worldDt, p);
+            this.vfx.ingestFootsteps(this.actors.drainFootsteps());
+            if (view.visualMode === "pixel") {
+                this.sceneFx.update(worldDt, p, this.cam);
+            }
             this.vfx.update(worldDt, themeOf(p.room.key).ambient);
             this.hud.update(safeDt, p);
             this.narrative.update(safeDt, p, ev, input.frameInteractPressed);
@@ -665,6 +693,7 @@ export class WatchFrontend {
             }
             if (view.visualMode === "pixel") {
                 this.escortWorld.drawBackdropOverlay(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam, this.time, this.escortTowerDraw);
+                this.sceneFx.drawBackdropFx(this.bgDraw, this.bgGlow, this.backdropArt, p, this.cam);
             }
 
             // 2. 逻辑平面建筑与地面（可由插件接管；淡化吃 worldDt）
@@ -676,7 +705,19 @@ export class WatchFrontend {
                 }
             }
             if (!worldHandled) {
-                this.stage.drawPlayableWorld(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+                this.stage.drawPlayableWorld(
+                    this.groundDraw,
+                    this.fgGlow,
+                    this.worldArt,
+                    p,
+                    this.cam,
+                    this.time,
+                    this.occlusion,
+                    worldDt,
+                    this.groundArt,
+                    this.fgDraw,
+                    this.worldOverlayDraw,
+                );
             }
 
             // 3. 互动道具（可由插件接管）
@@ -688,10 +729,11 @@ export class WatchFrontend {
                 }
             }
             if (!propsHandled) {
-                this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt);
+                this.props.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time, this.occlusion, worldDt, this.groundArt);
             }
             if (view.visualMode === "pixel") {
                 this.escortWorld.drawWorldSetpieces(this.fgDraw, this.fgGlow, this.worldArt, p, view, this.cam, this.time);
+                this.sceneFx.drawWorldFx(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam);
             }
 
             // 4. 关节剪影角色与插件角色叠层（博物馆态由 WellMuseumPlugin 全权绘制，防止暂停垂纱下透出明初序章精灵；背负态收净原生同伴孤儿脚影）
@@ -703,7 +745,7 @@ export class WatchFrontend {
                         if (pose !== undefined) break;
                     }
                 }
-                this.actors.drawAll(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, pose);
+                this.actors.drawAll(this.worldOverlayDraw, this.fgGlow, this.worldArt, p, this.cam, pose);
             }
             for (i = 0; i < this.plugins.length; i++) {
                 const pl = this.plugins[i];
@@ -711,18 +753,19 @@ export class WatchFrontend {
                     pl.drawActorsOverlay(this.fgDraw, this.fgGlow, this.worldArt, ctx);
                 }
             }
-            this.roguelikeUi.drawActorsOverlay(this.fgDraw, this.fgGlow, this.worldArt, ctx);
+            this.roguelikeUi.drawActorsOverlay(this.worldOverlayDraw, this.fgGlow, this.worldArt, ctx);
 
             // 5. 世界空间特效
-            this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam);
+            this.vfx.drawWorldVfx(this.fgGlow, this.worldArt, this.cam, p.room.depth !== undefined);
 
             // 6. 近景压边与暗角 + 屏幕环境粒子/受击红边（低模与现代博物馆自有前景压边，不叠绘像素暗块）
             if (view.visualMode === "pixel") {
-                this.stage.drawForegroundFraming(this.fgDraw, w, h, p, this.cam);
-                this.escortWorld.drawForegroundFraming(this.fgDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
+                this.stage.drawForegroundFraming(this.worldOverlayDraw, w, h, p, this.cam);
+                this.escortWorld.drawForegroundFraming(this.worldOverlayDraw, this.fgGlow, this.worldArt, p, this.cam, this.time);
+                this.sceneFx.drawForegroundWeather(this.fgGlow, p, this.cam, w, h);
             }
         }
-        this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key);
+        this.vfx.drawScreenVfx(this.fgGlow, w, h, p.room.key, view.visualMode !== "pixel");
 
         // 7. 水墨 HUD、旁白/过场插件、全速 UI 插件与暂停垂纱
         let action: MenuAction = { type: "none" };

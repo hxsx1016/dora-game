@@ -9,6 +9,7 @@ import { depthOrder } from "Script/watch/fe/occlusion";
 import { PartyPose } from "Script/watch/fe/plugins";
 import { CameraDirector } from "Script/watch/fe/camera";
 import { AssetSlotHost, AssetSlotKey } from "Script/watch/fe/assets";
+import { ActorAnimController, FootstepCue } from "Script/watch/fe/renderer/anim_controller";
 import { PALETTE, drawDiamond, fillRadialGlow, toColor } from "Script/watch/fe/theme";
 
 interface SlideDust {
@@ -69,6 +70,111 @@ function advanceStride(stride: Stride, steps: number, dt: number): void {
 
 const DUST_LIFE = 0.23;
 
+const ZS_IDLE_CLIPS = [
+    "assets/art/actors_zhoushu_anim.clip|zs_idle_0",
+    "assets/art/actors_zhoushu_anim.clip|zs_idle_1",
+    "assets/art/actors_zhoushu_anim.clip|zs_idle_2",
+    "assets/art/actors_zhoushu_anim.clip|zs_idle_3",
+];
+const ZS_JUMP_CLIPS = [
+    "assets/art/actors_zhoushu_anim.clip|zs_jump_0",
+    "assets/art/actors_zhoushu_anim.clip|zs_jump_1",
+    "assets/art/actors_zhoushu_anim.clip|zs_jump_2",
+    "assets/art/actors_zhoushu_anim.clip|zs_jump_3",
+];
+const ZS_FIRE_CLIPS = [
+    "assets/art/actors_zhoushu_anim.clip|zs_fire_0",
+    "assets/art/actors_zhoushu_anim.clip|zs_fire_1",
+    "assets/art/actors_zhoushu_anim.clip|zs_fire_2",
+    "assets/art/actors_zhoushu_anim.clip|zs_fire_3",
+];
+const ZS_COVER_CLIPS = [
+    "assets/art/actors_zhoushu_anim.clip|zs_cover_0",
+    "assets/art/actors_zhoushu_anim.clip|zs_cover_1",
+];
+const ZS_HIT_CLIPS = [
+    "assets/art/actors_zhoushu_anim.clip|zs_hit_0",
+    "assets/art/actors_zhoushu_anim.clip|zs_hit_1",
+];
+const ZS_PUSH_CLIPS = [
+    "assets/art/actors_zhoushu_anim.clip|zs_push_0",
+    "assets/art/actors_zhoushu_anim.clip|zs_push_1",
+    "assets/art/actors_zhoushu_anim.clip|zs_push_2",
+    "assets/art/actors_zhoushu_anim.clip|zs_push_3",
+];
+
+const XM_IDLE_CLIPS = [
+    "assets/art/actors_xiaoman_anim.clip|xm_idle_0",
+    "assets/art/actors_xiaoman_anim.clip|xm_idle_1",
+    "assets/art/actors_xiaoman_anim.clip|xm_idle_2",
+    "assets/art/actors_xiaoman_anim.clip|xm_idle_3",
+];
+const XM_JUMP_CLIPS = [
+    "assets/art/actors_xiaoman_anim.clip|xm_jump_0",
+    "assets/art/actors_xiaoman_anim.clip|xm_jump_1",
+    "assets/art/actors_xiaoman_anim.clip|xm_jump_2",
+    "assets/art/actors_xiaoman_anim.clip|xm_jump_3",
+];
+const XM_CRAWL_CLIPS = [
+    "assets/art/actors_xiaoman_anim.clip|xm_crawl_0",
+    "assets/art/actors_xiaoman_anim.clip|xm_crawl_1",
+    "assets/art/actors_xiaoman_anim.clip|xm_crawl_2",
+    "assets/art/actors_xiaoman_anim.clip|xm_crawl_3",
+];
+const XM_PULL_MID_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_pull_mid";
+const XM_THROW_REL_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_throw_rel";
+const XM_FEAR_B_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_fear_b";
+const XM_PEEK_B_CLIP = "assets/art/actors_xiaoman_anim.clip|xm_peek_b";
+
+const EN_GUN_IDLE_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|en_gun_idle_0",
+    "assets/art/actors_enemies_anim.clip|en_gun_idle_1",
+];
+const EN_GUN_WALK_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|en_gun_walk_0",
+    "assets/art/actors_enemies_anim.clip|en_gun_walk_1",
+];
+const EN_GUN_AIM_CLIP = "assets/art/actors_enemies_anim.clip|en_gun_aim";
+const EN_GUN_FIRE_CLIP = "assets/art/actors_enemies_anim.clip|en_gun_fire";
+const EN_GUN_HIT_CLIP = "assets/art/actors_enemies_anim.clip|en_gun_hit";
+const EN_GUN_DOWN_CLIP = "assets/art/actors_enemies_anim.clip|en_gun_down";
+
+const EN_SHD_IDLE_CLIP = "assets/art/actors_enemies_anim.clip|en_shd_idle";
+const EN_SHD_WALK_CLIP = "assets/art/actors_enemies_anim.clip|en_shd_walk_0";
+const EN_SHD_BASH_CLIP = "assets/art/actors_enemies_anim.clip|en_shd_bash";
+const EN_SHD_HIT_CLIP = "assets/art/actors_enemies_anim.clip|en_shd_hit";
+
+const EN_BRK_WALK_CLIP = "assets/art/actors_enemies_anim.clip|en_brk_walk";
+const EN_BRK_WINDUP_CLIP = "assets/art/actors_enemies_anim.clip|en_brk_windup";
+const EN_BRK_CLEAVE_CLIP = "assets/art/actors_enemies_anim.clip|en_brk_cleave";
+const EN_BRK_HIT_CLIP = "assets/art/actors_enemies_anim.clip|en_brk_hit";
+
+const EN_LDR_IDLE_CLIP = "assets/art/actors_enemies_anim.clip|en_ldr_idle";
+const EN_LDR_WALK_CLIP = "assets/art/actors_enemies_anim.clip|en_ldr_walk";
+const EN_LDR_AIM_CLIP = "assets/art/actors_enemies_anim.clip|en_ldr_aim";
+const EN_LDR_HIT_CLIP = "assets/art/actors_enemies_anim.clip|en_ldr_hit";
+
+const SCAV_WALK_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|scav_walk_0",
+    "assets/art/actors_enemies_anim.clip|scav_walk_1",
+];
+const SCAV_TURN_CLIP = "assets/art/actors_enemies_anim.clip|scav_turn";
+const SCAV_RUN_CLIP = "assets/art/actors_enemies_anim.clip|scav_run";
+
+const DOG_WALK_CLIP = "assets/art/actors_enemies_anim.clip|dog_walk";
+const DOG_ALERT_CLIP = "assets/art/actors_enemies_anim.clip|dog_alert";
+const DOG_RUN_CLIPS = [
+    "assets/art/actors_enemies_anim.clip|dog_run_0",
+    "assets/art/actors_enemies_anim.clip|dog_run_1",
+];
+
+const SLIDE_DUST_CLIPS = [
+    "assets/art/vfx_ming_fx.clip|dust_0",
+    "assets/art/vfx_ming_fx.clip|dust_1",
+];
+
+const IDLE_PING_PONG = [-1, 0, 1, 2, 3, 2, 1, 0];
+
 export class ActorsRenderer {
     private slideDust: SlideDust[] = [];
     private dustCooldown = 0;
@@ -77,15 +183,23 @@ export class ActorsRenderer {
     private strideTick = 0;
     private playerStride: Stride | undefined;
     private partnerStride: Stride | undefined;
+    private anim = new ActorAnimController();
     private animTime = 0;
     private previousHp = 3;
     private previousAxle = 0;
     private cartMoving = false;
     private previousBottle = false;
     private previousTrace: Trace | undefined;
+    private hitStartTick = 0;
     private hitUntil = -1;
+    private throwStartTick = 0;
     private throwUntil = -1;
+    private shotStartTick = 0;
     private shotUntil = -1;
+
+    drainFootsteps(): FootstepCue[] {
+        return this.anim.drainFootsteps();
+    }
 
     reset(p: Play): void {
         this.slideDust = [];
@@ -95,14 +209,18 @@ export class ActorsRenderer {
         this.strideTick = p.ticks;
         this.playerStride = strideAt(p.player);
         this.partnerStride = strideAt(p.partner);
+        this.anim.reset(p);
         this.animTime = 0;
         this.previousHp = p.hp;
         this.previousAxle = p.cartAxle;
         this.cartMoving = false;
         this.previousBottle = p.hasBottle;
         this.previousTrace = p.trace;
+        this.hitStartTick = 0;
         this.hitUntil = -1;
+        this.throwStartTick = 0;
         this.throwUntil = -1;
+        this.shotStartTick = 0;
         this.shotUntil = -1;
     }
 
@@ -110,13 +228,19 @@ export class ActorsRenderer {
     update(dt: number, p: Play): void {
         this.animTime += dt;
         if (p.hp < this.previousHp || p.gateNeedConfirm) {
-            this.hitUntil = p.ticks + 14;
+            this.hitStartTick = p.ticks;
+            this.hitUntil = p.ticks + 16;
+            this.anim.player.triggerHit(p.player.facing);
         }
         if (this.previousBottle && !p.hasBottle && p.bottleFly !== undefined) {
-            this.throwUntil = p.ticks + 12;
+            this.throwStartTick = p.ticks;
+            this.throwUntil = p.ticks + 16;
         }
         if (p.trace !== undefined && p.trace !== this.previousTrace) {
-            this.shotUntil = p.ticks + 7;
+            this.shotStartTick = p.ticks;
+            this.shotUntil = p.ticks + 16;
+            const shotDir = p.trace.x1 < p.trace.x0 ? -1 : 1;
+            this.anim.player.triggerRecoil(shotDir);
         }
         this.cartMoving = Math.abs(p.cartAxle - this.previousAxle) > 0.01;
         this.previousAxle = p.cartAxle;
@@ -134,6 +258,26 @@ export class ActorsRenderer {
         advanceStride(this.partnerStride, steps, dt);
         this.strideTick = p.ticks;
         this.updateSlide(dt, steps, p, this.playerStride.speed);
+
+        this.anim.player.update(
+            dt,
+            p.player,
+            this.playerStride.cycle,
+            this.playerStride.speed,
+            this.playerStride.effort,
+            p.player.covered || p.coverHug,
+            this.anim.footstepCues,
+        );
+        this.anim.partner.update(
+            dt,
+            p.partner,
+            this.partnerStride.cycle,
+            this.partnerStride.speed,
+            this.partnerStride.effort,
+            p.partner.covered,
+            this.anim.footstepCues,
+        );
+        this.anim.updateEnemiesAndNpcs(dt, p);
     }
 
     private slidePhase(a: Actor): number {
@@ -184,7 +328,7 @@ export class ActorsRenderer {
         cam: CameraDirector,
         pose?: PartyPose,
     ): void {
-        this.drawSlideDust(fgGlow, cam);
+        this.drawSlideDust(fgGlow, assets, p, cam);
 
         // 倭寇举铳时显示收紧的预警虚线。
         let i = 0;
@@ -222,16 +366,30 @@ export class ActorsRenderer {
         }
     }
 
-    private drawSlideDust(draw: DrawNode.Type, cam: CameraDirector): void {
-        for (const dust of this.slideDust) {
+    private drawSlideDust(draw: DrawNode.Type, assets: AssetSlotHost, p: Play, cam: CameraDirector): void {
+        const depthEnabled = p.room.depth !== undefined;
+        for (let i = 0; i < this.slideDust.length; i++) {
+            const dust = this.slideDust[i];
             const alpha = dust.life / DUST_LIFE;
             const spread = 1 - alpha;
+            const dScale = cam.depthScale(dust.depth, depthEnabled);
             const x = cam.sx(dust.x - dust.facing * spread * 17);
             const y = cam.sy(dust.y + 1.5 + spread * 2, dust.depth);
-            draw.drawEllipse(Vec2(x, y), cam.len(5 + spread * 7), cam.len(1.5 + spread * 2),
-                Color(166, 147, 124, 170 * alpha));
-            draw.drawDot(Vec2(x - dust.facing * cam.len(3), y + cam.len(4)),
-                cam.len(1.1), Color(195, 174, 148, 135 * alpha));
+            const dustSz = cam.len(14 + spread * 16) * dScale;
+            const clip = SLIDE_DUST_CLIPS[spread < 0.45 ? 0 : 1];
+            if (!assets.tryPlacePath(clip, "slide_dust_" + i, x, y, dustSz * 1.25, dustSz, {
+                anchorX: 0.5,
+                anchorY: 0,
+                preserveAspect: true,
+                facing: dust.facing,
+                opacity: alpha * 0.85,
+                layer: depthEnabled ? depthOrder(dust.depth, 5) : 6,
+            })) {
+                draw.drawEllipse(Vec2(x, y), cam.len(5 + spread * 7), cam.len(1.5 + spread * 2),
+                    Color(166, 147, 124, 170 * alpha));
+                draw.drawDot(Vec2(x - dust.facing * cam.len(3), y + cam.len(4)),
+                    cam.len(1.1), Color(195, 174, 148, 135 * alpha));
+            }
         }
     }
 
@@ -259,7 +417,48 @@ export class ActorsRenderer {
         return g;
     }
 
-    /** 周戍。动作贴图以脚底对齐，缺失时绘制守军轮廓。 */
+    /** 角色脚底接触影与滞空垂直投影锚点（直接放入 worldArt 以 layer-1 随深度排序，永不被地面吃掉）。 */
+    private drawGroundedShadow(
+        overlayDraw: DrawNode.Type,
+        assets: AssetSlotHost,
+        shadowKey: string,
+        cx: number,
+        by: number,
+        shadowY: number,
+        wPx: number,
+        airHeightWorld: number,
+        actorLayer: number,
+        depthScale: number,
+        isControlled: boolean,
+    ): void {
+        const airborne = airHeightWorld > 1.5;
+        const heightShrink = airborne ? Math.max(0.54, 1 / (1 + airHeightWorld / 82)) : 1.0;
+        const shW = Math.max(16, wPx * 1.48 * heightShrink);
+        const shH = Math.max(6, wPx * 0.42 * heightShrink);
+        assets.tryPlace(airborne ? "dp_shadow_air" : "dp_shadow_contact", shadowKey, cx, shadowY + 1, shW, shH, {
+            layer: actorLayer - 1,
+            opacity: airborne ? 0.88 : (isControlled ? 0.92 : 0.82),
+        });
+        if (airborne) {
+            // 滞空时在落地影与脚底之间绘极克制冷月垂线标尺，彻底区分“跳高 wy”与“进深 depth”
+            const tickTop = Math.min(by - 2, shadowY + Math.max(6, (by - shadowY) * 0.35));
+            if (tickTop > shadowY + 3) {
+                overlayDraw.drawSegment(Vec2(cx, shadowY + 2), Vec2(cx, tickTop), 1.1, Color(148, 178, 202, 118));
+            }
+        } else if (isControlled) {
+            // 主角脚下极淡月光足印描边，暗黑像素场景中一眼锁定自身所处车道
+            const rx = shW * 0.38;
+            const ry = Math.max(2.2, shH * 0.32);
+            const ring: Vec2.Type[] = [];
+            for (let i = 0; i < 12; i++) {
+                const ang = (i / 12) * Math.PI * 2;
+                ring.push(Vec2(cx + Math.cos(ang) * rx, shadowY + 1 + Math.sin(ang) * ry));
+            }
+            overlayDraw.drawPolygon(ring, Color(0, 0, 0, 0), 0.9, Color(146, 178, 200, Math.round(74 * depthScale)));
+        }
+    }
+
+    /** 周戍。动作贴图以脚底对齐（保持全部角色素材不变），按 2.5D 深度自适应近大远小与接地影。 */
     private drawZhouShu(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
@@ -273,20 +472,43 @@ export class ActorsRenderer {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
         const depthEnabled = p.room.depth !== undefined;
-        const shadowY = depthEnabled && !a.onGround ? cam.sy(this.supportGroundY(p, a), a.depth) : by;
-        const H = cam.len(a.h);
-        const W = cam.len(a.w);
+        const groundY = !a.onGround ? this.supportGroundY(p, a) : a.y;
+        const shadowY = !a.onGround ? cam.sy(groundY, a.depth) : by;
+        const airH = Math.max(0, a.y - groundY);
+        const dScale = cam.depthScale(a.depth, depthEnabled);
+        const H = cam.len(a.h) * dScale;
+        const W = cam.len(a.w) * dScale;
         const f = a.facing;
         const speed = Math.max(Math.abs(a.vx), Math.abs(a.depthSpeed));
+        const motion = isControlled ? this.anim.player : this.anim.partner;
+        const juice = motion.sampleJuice(cam.ppu);
+        const drawX = cx + juice.offsetX * dScale;
+        const actorLayer = depthEnabled ? depthOrder(a.depth, 4) : 4;
+        const dShade = cam.depthShade(a.depth, depthEnabled);
+        const tone = Math.round(255 * Math.min(1, dShade + 0.06));
+        const depthTint = depthEnabled && a.depth > 6 ? Color(tone, tone, Math.min(255, tone + 8), 255) : undefined;
+        const hitTint = juice.hitFlash > 0.12
+            ? Color(255, Math.round(230 - 38 * juice.hitFlash), Math.round(212 - 44 * juice.hitFlash), 255)
+            : depthTint;
+
+        this.drawGroundedShadow(fgDraw, assets, "shadow_soldier", cx, by, shadowY, W, airH, actorLayer, dScale, isControlled);
+        if (bodyPlaced) {
+            return;
+        }
 
         let slot: AssetSlotKey = "soldier_idle";
+        let animClip = "";
         let height = H;
         let frame = 0;
         let facing = f;
+        let extraScaleY = 1;
         const step = Math.floor(this.animTime * 10);
         const gait = isControlled ? this.playerStride : this.partnerStride;
+
         if (isControlled && p.ticks < this.hitUntil) {
             slot = "soldier_hit";
+            const elapsed = Math.max(0, p.ticks - this.hitStartTick);
+            animClip = ZS_HIT_CLIPS[elapsed < 7 ? 0 : 1];
         } else if (a.rollT > 0) {
             slot = "soldier_slide";
             const progress = this.slidePhase(a);
@@ -297,8 +519,10 @@ export class ActorsRenderer {
             facing = p.partner.x >= a.x ? 1 : -1;
         } else if (isControlled && p.gripping) {
             slot = "soldier_push";
-            frame = this.cartMoving ? step : 0;
             facing = p.room.cart.handleOffset < 0 ? 1 : -1;
+            const pushIdx = this.cartMoving ? (Math.floor(motion.pushCycle * 4) % 4) : 0;
+            animClip = ZS_PUSH_CLIPS[pushIdx];
+            frame = this.cartMoving ? step : 0;
             height *= 0.91;
         } else if (isControlled && p.escort.state === "calming") {
             slot = "soldier_knock";
@@ -314,134 +538,68 @@ export class ActorsRenderer {
             slot = running ? "soldier_fire_move" : "soldier_fire";
             frame = running ? step : 0;
             facing = p.trace !== undefined && p.trace.x1 < p.trace.x0 ? -1 : 1;
+            if (!running) {
+                const elapsed = Math.max(0, p.ticks - this.shotStartTick);
+                const fIdx = elapsed < 2 ? 0 : (elapsed < 5 ? 1 : (elapsed < 11 ? 2 : 3));
+                animClip = ZS_FIRE_CLIPS[fIdx];
+            }
         } else if (a.covered || (isControlled && p.coverHug)) {
             slot = "soldier_cover";
+            animClip = ZS_COVER_CLIPS[Math.floor(motion.coverTime * 2.2) % 2];
+            extraScaleY = 1 + Math.sin(motion.coverTime * 3.1) * 0.012;
             height *= 0.77;
+        } else if (!a.onGround) {
+            const jIdx = a.vy > 110 ? 0 : (a.vy > -35 ? 1 : 2);
+            animClip = ZS_JUMP_CLIPS[jIdx];
+        } else if (motion.landTimer > 0.05 && (gait?.speed ?? 0) <= 8) {
+            animClip = ZS_JUMP_CLIPS[3];
         } else if ((gait?.speed ?? 0) > 8) {
             slot = "soldier_run";
             frame = step;
+        } else if (motion.idleTime >= 0.14 && (gait?.effort ?? 0) <= 0.001) {
+            const beat = IDLE_PING_PONG[Math.floor((motion.idleTime - 0.14) * 3.4) % IDLE_PING_PONG.length];
+            if (beat >= 0) {
+                animClip = ZS_IDLE_CLIPS[beat];
+            }
+            extraScaleY = 1 + Math.sin(motion.idleTime * 2.4) * 0.008;
         }
         const pose = {
-            facing, frame, layer: depthEnabled ? depthOrder(a.depth, 4) : 4,
+            facing,
+            frame,
+            layer: actorLayer,
+            angle: juice.angleOffset,
+            scaleXMul: juice.scaleXMul,
+            scaleYMul: juice.scaleYMul * extraScaleY,
+            color: hitTint,
         };
-        const sliding = !bodyPlaced && slot === "soldier_slide"
-            && assets.tryPlaceSlide("actor_soldier", cx, by, W, height, this.slidePhase(a), pose);
-        const running = !bodyPlaced && (slot === "soldier_run" || slot === "soldier_idle") && a.onGround
+        const sliding = slot === "soldier_slide"
+            && assets.tryPlaceSlide("actor_soldier", cx, by, W, height, this.slidePhase(a), { facing, layer: actorLayer, color: hitTint });
+        const running = animClip === "" && (slot === "soldier_run" || slot === "soldier_idle") && a.onGround
             && gait !== undefined && gait.effort > 0
             && assets.tryPlaceRun("soldier", "actor_soldier", cx, by, W, height, gait.cycle, pose, gait.effort);
-        if (bodyPlaced || sliding || running || assets.tryPlace(slot, "actor_soldier", cx, by, W, height, pose)) {
-            fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.54, 4, Color(12, 11, 13, 145));
+        const placedAnim = animClip !== "" && assets.tryPlacePath(animClip, "actor_soldier", drawX, by, H, H, {
+            anchorX: 0.5,
+            anchorY: 0,
+            preserveAspect: true,
+            facing,
+            angle: juice.angleOffset,
+            scaleXMul: juice.scaleXMul,
+            scaleYMul: juice.scaleYMul * extraScaleY,
+            color: hitTint,
+            layer: actorLayer,
+        });
+        if (sliding || running || placedAnim || assets.tryPlace(slot, "actor_soldier", drawX, by, W, height, pose)) {
+            if (juice.hitFlash > 0.35) {
+                fillRadialGlow(fgGlow, drawX, by + H * 0.56, H * 0.38, H * 0.44,
+                    Color(255, 224, 198, Math.round(74 * juice.hitFlash)), Color(214, 72, 56, 0), 12);
+            }
             return;
         }
-
-        // 脚底接地阴影
-        fgDraw.drawEllipse(Vec2(cx, shadowY + 1), H * 0.24, 4.5, Color(3, 5, 10, 175));
-
-        const walking = speed > 10 && a.onGround;
-        const stride = walking ? Math.sin(this.animTime * 12.5) : 0;
-        const bob = walking ? Math.abs(Math.cos(this.animTime * 12.5)) * 3.5 : Math.sin(this.animTime * 2.6) * 1.4;
-        const calming = !p.childMode && p.escort.state === "calming";
-        const rolling = a.rollT > 0;
-        const crouching = a.covered || calming || rolling;
-
-        // 艾希风凌厉修长动漫比例：7 头身（headR ≈ H * 0.088，肩宽 ≈ H * 0.22，收腰 V 廓形）
-        const bodyH = rolling ? H * 0.62 : (crouching ? H * 0.82 : H);
-        const lean = rolling ? f * H * 0.14 : (p.gripping ? f * H * 0.10 : (walking ? f * 6 : f * 2));
-        const sw = H * 0.115; // 半肩宽
-
-        // 1. 双节 Articulated 腿部（大腿 + 小腿 + 战靴）
-        const hipY = by + bodyH * 0.44 + bob * 0.4;
-        const kneeY = by + bodyH * 0.23;
-        const stepX = stride * H * 0.15;
-        const legDark = Color(14, 21, 34, 255);
-        const legFront = Color(26, 38, 58, 255);
-        // 后腿
-        const bkX = cx - f * 4 - stepX * 0.5;
-        const bfX = cx - f * 8 - stepX;
-        fgDraw.drawSegment(Vec2(cx - f * 3, hipY), Vec2(bkX, kneeY), H * 0.044, legDark);
-        fgDraw.drawSegment(Vec2(bkX, kneeY), Vec2(bfX, by + 3), H * 0.038, legDark);
-        // 前腿
-        const fkX = cx + f * 6 + stepX * 0.55;
-        const ffX = cx + f * 7 + stepX;
-        fgDraw.drawSegment(Vec2(cx + f * 3, hipY), Vec2(fkX, kneeY), H * 0.048, legFront);
-        fgDraw.drawSegment(Vec2(fkX, kneeY), Vec2(ffX, by + 3), H * 0.042, legFront);
-        // 裹腿与布靴。
-        fgDraw.drawSegment(Vec2(ffX - f * 2, by + 3), Vec2(ffX + f * 9, by + 3), 3.4, Color(42, 60, 86, 255));
-
-        // 2. 飘动的袄摆。
-        const shY = by + bodyH * 0.80 + bob;
-        const coatDrag = -f * (walking ? 24 : (rolling ? 34 : 14)) + Math.sin(this.animTime * 4.4) * 4;
-        fgDraw.drawPolygon([
-            Vec2(cx - f * sw * 0.75 + lean * 0.5, shY - 6),
-            Vec2(cx + f * sw * 0.35 + lean * 0.5, hipY + 4),
-            Vec2(cx - f * sw * 0.25 + coatDrag * 0.45, by + bodyH * 0.16),
-            Vec2(cx - f * sw * 1.15 + coatDrag, by + bodyH * 0.22),
-        ], Color(16, 26, 42, 248), 1.2, Color(64, 118, 164, 195));
-
-        // 3. 青布短袄、斜襟和护肩。
-        fgDraw.drawPolygon([
-            Vec2(cx - sw * 0.62 + lean * 0.45, hipY),
-            Vec2(cx + sw * 0.62 + lean * 0.45, hipY),
-            Vec2(cx + sw * 1.05 + lean, shY),
-            Vec2(cx - sw * 0.98 + lean, shY),
-        ], Color(24, 38, 60, 255), 1.3, toColor(PALETTE.rimSilver, 190));
-        // 斜襟。
-        fgDraw.drawSegment(
-            Vec2(cx - sw * 0.7 + lean, shY - 2),
-            Vec2(cx + sw * 0.5 + lean * 0.5, hipY + 6),
-            2.4,
-            Color(173, 155, 125, 225),
-        );
-        fgDraw.drawPolygon([
-            Vec2(cx - sw * 1.18 + lean, shY - 6),
-            Vec2(cx + sw * 1.12 + lean, shY - 3),
-            Vec2(cx + sw * 0.90 + lean, shY + 5),
-            Vec2(cx - sw * 0.95 + lean, shY + 4),
-        ], Color(99, 105, 103, 248));
-
-        // 4. 铁盔与盔顶红缨。
-        const headR = H * 0.088;
-        const headX = cx + lean + f * 3;
-        const headY = shY + headR * 1.35;
-        fgDraw.drawCircle(Vec2(headX, headY - headR * 0.12), headR * 0.86, Color(181, 139, 106, 255));
-        fgDraw.drawEllipse(Vec2(headX, headY + headR * 0.5), headR * 1.12, headR * 0.72, Color(66, 73, 76, 255));
-        fgDraw.drawSegment(Vec2(headX - headR, headY + 1), Vec2(headX + headR, headY + 1),
-            1.6, Color(97, 103, 101, 255));
-        fgDraw.drawSegment(Vec2(headX, headY + headR), Vec2(headX - f * headR * 0.38, headY + headR * 1.48),
-            1.6, Color(177, 78, 51, 255));
-
-        // 5. 木托铁管火铳。
-        if (isControlled && !calming && !rolling && !p.gripping) {
-            const gunPivotX = cx + lean + f * sw * 0.35;
-            const gunPivotY = shY - bodyH * 0.10;
-            let aimDx = f;
-            let aimDy = 0;
-            if (p.aimX > 0 || p.aimY > 0) {
-                aimDx = p.aimX - gunPivotX;
-                aimDy = p.aimY - gunPivotY;
-                const dLen = Math.sqrt(aimDx * aimDx + aimDy * aimDy);
-                if (dLen > 4) {
-                    aimDx /= dLen;
-                    aimDy /= dLen;
-                }
-            }
-            const barrelLen = H * 0.34;
-            const tipX = gunPivotX + aimDx * barrelLen;
-            const tipY = gunPivotY + aimDy * barrelLen;
-            const stockX = gunPivotX - aimDx * (H * 0.08);
-            const stockY = gunPivotY - aimDy * (H * 0.08);
-            // 手臂
-            fgDraw.drawSegment(Vec2(cx + lean, shY - 5), Vec2(gunPivotX + aimDx * 14, gunPivotY + aimDy * 14 - 4), 3.6, Color(26, 40, 62, 255));
-            fgDraw.drawSegment(Vec2(stockX, stockY), Vec2(gunPivotX + aimDx * barrelLen * 0.62, gunPivotY + aimDy * barrelLen * 0.62), 3.8, Color(105, 71, 50, 255));
-            fgDraw.drawSegment(Vec2(gunPivotX, gunPivotY), Vec2(tipX, tipY), 1.8, Color(145, 140, 128, 245));
-        } else if (calming) {
-            fgDraw.drawSegment(Vec2(cx + lean, shY - 6), Vec2(cx + f * sw * 2.1, shY - 14), 3.0, Color(196, 222, 240, 235));
-            fgGlow.drawDot(Vec2(cx + f * sw * 2.15, shY - 14), 3.6, toColor(PALETTE.amber, 225));
-        }
-
+        // 极简缺图保底（正式资源全部存在，仅防极端缺失白屏）
+        fgDraw.drawRect(Rect(cx - W * 0.4, by, W * 0.8, height), Color(32, 46, 66, 220));
     }
 
-    /** 小满（孩子线主角 / 护送同伴）：优雅尖兜帽琥珀斗篷 + 飘带围巾 + 微光指南针 */
+    /** 小满（孩子线主角 / 护送同伴；保持原角色精灵不变，按 2.5D 深度缩放与接地影锚定）。 */
     private drawXiaoman(
         fgDraw: DrawNode.Type,
         fgGlow: DrawNode.Type,
@@ -454,17 +612,26 @@ export class ActorsRenderer {
         const cx = cam.sx(a.x);
         const by = cam.sy(a.y, a.depth);
         const depthEnabled = p.room.depth !== undefined;
-        const shadowY = depthEnabled && !a.onGround ? cam.sy(this.supportGroundY(p, a), a.depth) : by;
-        const H = cam.len(a.h);
-        const W = cam.len(a.w);
+        const groundY = !a.onGround ? this.supportGroundY(p, a) : a.y;
+        const shadowY = !a.onGround ? cam.sy(groundY, a.depth) : by;
+        const airH = Math.max(0, a.y - groundY);
+        const dScale = cam.depthScale(a.depth, depthEnabled);
+        const H = cam.len(a.h) * dScale;
+        const W = cam.len(a.w) * dScale;
         const f = a.facing;
         const speed = Math.max(Math.abs(a.vx), Math.abs(a.depthSpeed));
         const gait = isControlled ? this.playerStride : this.partnerStride;
+        const motion = isControlled ? this.anim.player : this.anim.partner;
+        const juice = motion.sampleJuice(cam.ppu);
+        const actorLayer = depthEnabled ? depthOrder(a.depth, 5) : 5;
 
         const afraid = !isControlled && p.escort.fear > 0;
         let slot: AssetSlotKey = "child_idle";
+        let animClip = "";
         let height = H;
         let frame = 0;
+        let extraScaleY = 1;
+        let shiverX = 0;
         const step = Math.floor(this.animTime * 10);
         const nearCover = p.room.solids.some(solid =>
             !solid.decorative && solid.h <= 64 && solid.y <= 2 &&
@@ -478,120 +645,94 @@ export class ActorsRenderer {
             slot = "child_offer";
         } else if (isControlled && p.ticks < this.throwUntil) {
             slot = "child_throw";
+            if (p.ticks - this.throwStartTick < 7) {
+                animClip = XM_THROW_REL_CLIP;
+            }
         } else if (isControlled && p.hasBottle && p.aimHold > 0) {
             slot = "child_aim";
         } else if (isControlled && p.gripping) {
             slot = "child_pull";
-            frame = this.cartMoving ? step : 0;
+            if (this.cartMoving) {
+                const pBeat = Math.floor(motion.pushCycle * 4) % 4;
+                if (pBeat === 1 || pBeat === 3) {
+                    animClip = XM_PULL_MID_CLIP;
+                } else {
+                    frame = pBeat === 2 ? 1 : 0;
+                }
+            }
         } else if (afraid && p.escort.state === "frozen") {
             slot = "child_fear";
             height *= 0.74;
+            shiverX = Math.sin(this.animTime * 42) * 1.4;
+            if (Math.floor(this.animTime * 7) % 2 === 1) {
+                animClip = XM_FEAR_B_CLIP;
+            }
         } else if (!isControlled && nearCover &&
             (p.room.key === "street" || p.room.key === "checkpoint") && speed < 8) {
             slot = "child_peek";
             height *= 0.83;
+            if (Math.floor(this.animTime * 2.2) % 2 === 1) {
+                animClip = XM_PEEK_B_CLIP;
+            }
         } else if (a.crouch) {
             slot = "child_crouch";
+            const crawlIdx = speed > 6 ? (Math.floor(motion.crouchCycle * 4) % 4) : 0;
+            animClip = XM_CRAWL_CLIPS[crawlIdx];
             frame = speed > 8 ? step : 0;
+        } else if (!a.onGround) {
+            const jIdx = a.vy > 100 ? 0 : (a.vy > -30 ? 1 : 2);
+            animClip = XM_JUMP_CLIPS[jIdx];
+        } else if (motion.landTimer > 0.05 && (gait?.speed ?? 0) <= 8) {
+            animClip = XM_JUMP_CLIPS[3];
         } else if ((gait?.speed ?? 0) > 8) {
             slot = "child_run";
             frame = step;
+        } else if (motion.idleTime >= 0.14 && (gait?.effort ?? 0) <= 0.001) {
+            const beat = IDLE_PING_PONG[Math.floor((motion.idleTime - 0.14) * 3.2) % IDLE_PING_PONG.length];
+            if (beat >= 0) {
+                animClip = XM_IDLE_CLIPS[beat];
+            }
+            extraScaleY = 1 + Math.sin(motion.idleTime * 2.8) * 0.01;
         }
+
         const facing = slot === "child_pull" ? (p.room.cart.handleOffset < 0 ? 1 : -1) : f;
+        const drawX = cx + (juice.offsetX + shiverX) * dScale;
+        const dShade = cam.depthShade(a.depth, depthEnabled);
+        const tone = Math.round(255 * Math.min(1, dShade + 0.06));
+        const depthTint = depthEnabled && a.depth > 6 ? Color(tone, tone, Math.min(255, tone + 6), 255) : undefined;
         const pose = {
-            facing, frame, layer: depthEnabled ? depthOrder(a.depth, 5) : 5,
+            facing,
+            frame,
+            layer: actorLayer,
+            angle: juice.angleOffset,
+            scaleXMul: juice.scaleXMul,
+            scaleYMul: juice.scaleYMul * extraScaleY,
+            color: depthTint,
         };
-        const running = (slot === "child_run" || slot === "child_idle") && a.onGround
+        this.drawGroundedShadow(fgDraw, assets, "shadow_child", cx, by, shadowY, W, airH, actorLayer, dScale, isControlled);
+        const running = animClip === "" && (slot === "child_run" || slot === "child_idle") && a.onGround
             && gait !== undefined && gait.effort > 0
             && assets.tryPlaceRun("child", "actor_child", cx, by, W, height, gait.cycle, pose, gait.effort);
-        if (running || assets.tryPlace(slot, "actor_child", cx, by, W, height, pose)) {
-            fgDraw.drawEllipse(Vec2(cx, shadowY + 1), W * 0.48, 3, Color(12, 11, 13, 125));
+        const placedAnim = animClip !== "" && assets.tryPlacePath(animClip, "actor_child", drawX, by, H, H, {
+            anchorX: 0.5,
+            anchorY: 0,
+            preserveAspect: true,
+            facing,
+            angle: juice.angleOffset,
+            scaleXMul: juice.scaleXMul,
+            scaleYMul: juice.scaleYMul * extraScaleY,
+            color: depthTint,
+            layer: actorLayer,
+        });
+        if (running || placedAnim || assets.tryPlace(slot, "actor_child", drawX, by, W, height, pose)) {
             if (afraid) {
-                this.drawFear(fgGlow, p, cx, by + height + 14);
+                this.drawFear(fgGlow, p, cx, by + H + 14);
             }
             return;
         }
-
-        const jitter = (!isControlled && p.escort.state === "frozen") ? Math.sin(this.animTime * 42) * 2.2 : 0;
-        const x = cx + jitter;
-
-        const fullRef = a.crouch ? H * 1.35 : H;
-        const cw = fullRef * 0.16;
-
-        // 接地阴影
-        fgDraw.drawEllipse(Vec2(x, shadowY + 1), cw * 1.15, 3.6, Color(4, 6, 10, 155));
-
-        const walking = speed > 6 && a.onGround;
-        const stride = walking ? Math.sin(this.animTime * 11) : 0;
-        const bob = walking ? Math.abs(Math.cos(this.animTime * 11)) * 2.8 : Math.sin(this.animTime * 2.8) * 1.1;
-
-        // 1. 腿部
-        const hipY = by + H * 0.30;
-        const legSwing = stride * cw * 0.85;
-        fgDraw.drawSegment(Vec2(x - 2, hipY), Vec2(x - legSwing, by + 2), Math.max(2.6, cw * 0.22), Color(34, 30, 38, 255));
-        fgDraw.drawSegment(Vec2(x + 2, hipY), Vec2(x + legSwing, by + 2), Math.max(2.8, cw * 0.24), Color(52, 46, 56, 255));
-
-        // 2. 层次感暖琥珀斗篷（外层亮面 + 内褶阴影 + 底边米白花边）
-        const cloakTopY = by + H * (a.crouch ? 0.68 : 0.74) + bob;
-        const cloakBotY = by + H * 0.20;
-        const cloakDrag = -f * (walking ? 14 : 6) + Math.sin(this.animTime * 3.8) * 2.8;
-        fgDraw.drawPolygon([
-            Vec2(x - cw * 1.05 + cloakDrag * 0.45, cloakBotY),
-            Vec2(x + cw * 0.92, cloakBotY),
-            Vec2(x + cw * 0.62, cloakTopY),
-            Vec2(x - cw * 0.68, cloakTopY),
-        ], Color(214, 166, 94, 255), 1.3, Color(252, 232, 192, 225));
-        fgDraw.drawPolygon([
-            Vec2(x - cw * 0.92 + cloakDrag * 0.38, cloakBotY + 2),
-            Vec2(x - f * cw * 0.12, cloakBotY + 2),
-            Vec2(x - f * cw * 0.18, cloakTopY - 3),
-            Vec2(x - cw * 0.60, cloakTopY - 2),
-        ], Color(148, 108, 56, 215));
-        fgDraw.drawSegment(Vec2(x - cw * 0.98 + cloakDrag * 0.42, cloakBotY + 3), Vec2(x + cw * 0.88, cloakBotY + 3), 1.8, toColor(PALETTE.amberCore, 200));
-
-        // 3. 双节飘动围巾丝带
-        const scarfY = cloakTopY - 2;
-        const smidX = x - f * cw * 0.95 + cloakDrag * 0.55;
-        const smidY = scarfY - 6 + Math.sin(this.animTime * 4.5) * 2.5;
-        const sendX = x - f * cw * 1.65 + cloakDrag;
-        const sendY = scarfY - 12 + Math.cos(this.animTime * 4.8) * 3.5;
-        fgDraw.drawQuadraticBezier(Vec2(x - f * cw * 0.3, scarfY), Vec2(smidX, smidY), Vec2(sendX, sendY), 2.8, toColor(PALETTE.amberCore, 235));
-
-        // 4. 柔和儿童比例头部 + 尖角兜帽轮廓
-        const headR = fullRef * (a.crouch ? 0.118 : 0.126);
-        const headX = x + f * (a.crouch ? 5 : 2);
-        const headY = Math.min(by + H - headR - 1, cloakTopY + headR * 0.92);
-        fgDraw.drawCircle(Vec2(headX, headY), headR, Color(240, 222, 198, 255));
-        // 尖角暖褐兜帽包裹头后侧，既可爱又极契合废土旅人剪影
-        fgDraw.drawPolygon([
-            Vec2(headX - f * headR * 1.28, headY - headR * 0.72),
-            Vec2(headX - f * headR * 1.48, headY + headR * 0.35),
-            Vec2(headX - f * headR * 0.25, headY + headR * 1.15),
-            Vec2(headX + f * headR * 0.68, headY + headR * 0.82),
-            Vec2(headX - f * headR * 0.18, headY + headR * 0.15),
-            Vec2(headX - f * headR * 0.35, headY - headR * 0.78),
-        ], Color(156, 114, 62, 248), 1.1, Color(244, 214, 162, 200));
-        // 明眸光点
-        fgGlow.drawDot(Vec2(headX + f * headR * 0.45, headY + 1), 2.2, toColor(PALETTE.amberCore));
-
-        // 5. 指南针微光
-        const hasCompass = isControlled || p.room.key !== "prologue" || p.phase !== "prologue-wait";
-        if (hasCompass) {
-            const compX = x + f * cw * 0.65;
-            const compY = by + H * 0.48;
-            const glowPulse = 0.78 + 0.22 * Math.sin(this.animTime * 3.2);
-            fgGlow.drawDot(Vec2(compX, compY), 2.6, toColor(PALETTE.amberCore, 250));
-            fillRadialGlow(fgGlow, compX, compY, 26 * glowPulse, 26 * glowPulse, Color(248, 206, 120, 78 * glowPulse), Color(248, 180, 72, 0), 14);
-        }
-
+        fgDraw.drawRect(Rect(cx - W * 0.4, by, W * 0.8, height), Color(168, 126, 72, 220));
         if (afraid) {
-            this.drawFear(fgGlow, p, x, by + H + 16);
-        }
-
-        // 7. 孩子线潜行脚步微环
-        if (isControlled && walking && !a.crouch && speed > 100) {
-            const r = 10 + (this.animTime * 32) % 24;
-            fgGlow.drawRing(Vec2(x, by + 3), r, r + 1.5, Color(0, 0, 0, 0), 1.1, toColor(PALETTE.amber, 95 * (1 - r / 36)));
+            this.drawFear(fgGlow, p, cx, by + H + 16);
         }
     }
 
@@ -630,18 +771,20 @@ export class ActorsRenderer {
     ): void {
         const cx = cam.sx(e.x);
         const depth = e.depth ?? 0;
+        const depthEnabled = p.room.depth !== undefined;
+        const dScale = cam.depthScale(depth, depthEnabled);
         const by = cam.sy(e.y, depth);
-        const H = cam.len(e.h);
-        const W = cam.len(e.w);
+        const H = cam.len(e.h) * dScale;
+        const W = cam.len(e.w) * dScale;
         const f = p.player.x >= e.x ? 1 : -1;
 
         // 试射靶（escort3 工台靶位）：采用 props_ming.clip|target_dummy 明代草束木靶精灵，零线段拼接
         if (e.kind === "target") {
-            const targetLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
-            fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.56, 3.6, Color(12, 11, 13, 140));
+            const targetLayer = depthEnabled ? depthOrder(depth, 3) : 3;
+            this.drawGroundedShadow(fgDraw, assets, "shadow_target_" + index, cx, by, by, W * 1.1, 0, targetLayer, dScale, false);
             const angle = !e.alive ? f * 62 : (e.hitT > 0 ? f * 18 : 0);
             const tint = (e.hitT > 0 || !e.alive) ? Color(238, 196, 174, 255) : Color(255, 255, 255, 255);
-            if (assets.tryPlacePath("assets/art/props_ming.clip|target_dummy", "actor_target_" + index, cx, by, H * 0.82, H * 0.96, {
+            assets.tryPlacePath("assets/art/props_ming.clip|target_dummy", "actor_target_" + index, cx, by, H * 0.82, H * 0.96, {
                 anchorX: 0.5,
                 anchorY: 0,
                 preserveAspect: true,
@@ -649,72 +792,127 @@ export class ActorsRenderer {
                 color: tint,
                 opacity: e.alive ? 1 : 0.76,
                 layer: targetLayer,
-            })) {
-                return;
-            }
-            const lean = !e.alive ? f * cam.len(16) : (e.hitT > 0 ? f * cam.len(8) : 0);
-            const postTopY = by + H * (e.alive ? 0.78 : 0.42);
-            fgDraw.drawSegment(Vec2(cx - cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(92, 64, 42, 255));
-            fgDraw.drawSegment(Vec2(cx + cam.len(9), by), Vec2(cx + lean * 0.4, postTopY), Math.max(2, cam.len(3.2)), Color(76, 52, 34, 255));
-            const discX = cx + lean;
-            const discY = by + H * (e.alive ? 0.56 : 0.30);
-            const discR = Math.max(7, cam.len(13));
-            const hitTint = e.hitT > 0 || !e.alive;
-            fgDraw.drawCircle(Vec2(discX, discY), discR, hitTint ? Color(214, 152, 116, 245) : Color(196, 174, 134, 250));
-            fgDraw.drawRing(Vec2(discX, discY), discR * 0.62, discR * 0.76, Color(0, 0, 0, 0), 1.4, Color(62, 46, 34, 230));
-            fgDraw.drawCircle(Vec2(discX, discY), discR * 0.30, toColor(PALETTE.rouge, hitTint ? 255 : 220));
+            });
             return;
         }
 
-        const enemyLayer = p.room.depth === undefined ? 3 : depthOrder(depth, 3);
-        // Phase 3 三类精英倭寇专属像素精灵（盾手 / 破障斧手 / 朱缨头领），彻底替换几何方块盾与多边形斧粘贴
-        if (e.alive && e.hitT <= 0) {
-            let extraClip = "";
-            let extraAnchorX = 0.5;
-            let extraHeight = H * 0.96;
-            let extraTint = Color(255, 255, 255, 255);
-            if (e.kind === "shield" && (e.shieldHp ?? 0) > 0) {
-                extraClip = e.warnT > 0 ? "enemy_shield_aim" : "enemy_shield_idle";
-                extraAnchorX = e.warnT > 0 ? 0.45 : 0.50;
-                extraHeight = H * 0.94;
-                if ((e.shieldHp ?? 2) <= 1) {
-                    extraTint = Color(234, 198, 178, 255);
-                }
-            } else if (e.kind === "breaker") {
-                const swing = (e.swingT ?? 0) > 0 || e.warnT > 0;
-                extraClip = swing ? "enemy_breaker_aim" : "enemy_breaker_idle";
-                extraAnchorX = swing ? 0.52 : 0.38;
-                extraHeight = H * (swing ? 0.98 : 0.94);
-            } else if (e.kind === "leader") {
-                extraClip = e.warnT > 0 ? "enemy_leader_aim" : "enemy_leader_idle";
-                extraAnchorX = e.warnT > 0 ? 0.38 : 0.44;
-                extraHeight = H * 1.00;
+        const enemyLayer = depthEnabled ? depthOrder(depth, 3) : 3;
+        if (e.alive) {
+            this.drawGroundedShadow(fgDraw, assets, "shadow_enemy_" + index, cx, by, by, W * 1.05, 0, enemyLayer, dScale, false);
+        } else {
+            assets.tryPlace("dp_shadow_contact", "shadow_enemy_" + index, cx, by + 1, Math.max(18, W * 1.65), Math.max(6, W * 0.42), {
+                layer: enemyLayer - 1,
+                opacity: 0.56,
+            });
+        }
+        const es = index < this.anim.enemies.length ? this.anim.enemies[index] : undefined;
+        const moving = (es?.speed ?? 0) > 6;
+        const walkStep = Math.floor((es?.walkCycle ?? 0) * 4) % 2;
+        const hitFlash = es !== undefined ? es.hitFlash : 0;
+        const dying = !e.alive && (es?.deathTime ?? 1) < 0.15;
+        const breathY = (e.alive && !moving && e.hitT <= 0)
+            ? (1 + Math.sin(this.animTime * 2.4 + (es?.idlePhase ?? index)) * 0.014)
+            : 1;
+        const knockX = (e.hitT > 0 || dying) ? -f * cam.len(3.5 * Math.max(0.3, hitFlash)) * dScale : 0;
+        const hitAngle = (e.hitT > 0 || dying) ? -f * 5.5 : 0;
+        const dShade = cam.depthShade(depth, depthEnabled);
+        const shadeMul = depthEnabled && depth > 6 ? Math.min(1, dShade + 0.06) : 1;
+        const baseTone = Math.round(255 * shadeMul);
+        let enemyClip = "";
+        let enemyTint = hitFlash > 0.12
+            ? Color(255, Math.round(220 - 42 * hitFlash), Math.round(196 - 52 * hitFlash), 255)
+            : Color(baseTone, baseTone, Math.min(255, baseTone + (depthEnabled && depth > 6 ? 8 : 0)), 255);
+        let drawHeight = H * 1.01;
+        let cleaving = false;
+
+        if (e.kind === "shield" && ((e.shieldHp ?? 0) > 0 || !e.alive || e.hitT > 0)) {
+            if (!e.alive) {
+                enemyClip = dying ? EN_SHD_HIT_CLIP : EN_GUN_DOWN_CLIP;
+            } else if (e.hitT > 0) {
+                enemyClip = EN_SHD_HIT_CLIP;
+            } else if (e.warnT > 0) {
+                enemyClip = EN_SHD_BASH_CLIP;
+            } else if (moving) {
+                enemyClip = walkStep === 0 ? EN_SHD_WALK_CLIP : EN_SHD_IDLE_CLIP;
+            } else {
+                enemyClip = EN_SHD_IDLE_CLIP;
             }
-            if (extraClip !== "" && assets.tryPlacePath(
-                "assets/art/actors_extra.clip|" + extraClip,
-                "actor_enemy_" + index,
-                cx,
-                by,
-                W * 1.8,
-                extraHeight,
-                {
-                    anchorX: extraAnchorX,
-                    anchorY: 0,
-                    preserveAspect: true,
-                    facing: f,
-                    color: extraTint,
-                    layer: enemyLayer,
-                },
-            )) {
-                fgDraw.drawEllipse(Vec2(cx, by + 1), W * 0.58, 3.8, Color(12, 11, 13, 145));
-                if (e.kind === "breaker" && (e.swingT ?? 0) > 0) {
-                    fgGlow.drawArc(Vec2(cx + f * cam.len(10), by + H * 0.56), cam.len(18), f > 0 ? -40 : 140, f > 0 ? 50 : 230, 1.8, toColor(PALETTE.rouge, 195));
-                }
-                if (e.warnT > 0) {
-                    this.drawEnemyWarning(fgGlow, e, p, cam, f);
-                }
-                return;
+            if (e.alive && (e.shieldHp ?? 2) <= 1 && hitFlash <= 0.12) {
+                enemyTint = Color(Math.round(238 * shadeMul), Math.round(198 * shadeMul), Math.round(174 * shadeMul), 255);
             }
+        } else if (e.kind === "breaker") {
+            drawHeight = H * 1.03;
+            if (!e.alive) {
+                enemyClip = dying ? EN_BRK_HIT_CLIP : EN_GUN_DOWN_CLIP;
+            } else if (e.hitT > 0) {
+                enemyClip = EN_BRK_HIT_CLIP;
+            } else if ((e.swingT ?? 0) > 0) {
+                cleaving = (es?.swingTime ?? 0) >= 0.12;
+                enemyClip = cleaving ? EN_BRK_CLEAVE_CLIP : EN_BRK_WINDUP_CLIP;
+            } else if (e.warnT > 0) {
+                enemyClip = EN_BRK_WINDUP_CLIP;
+            } else {
+                enemyClip = EN_BRK_WALK_CLIP;
+            }
+        } else if (e.kind === "leader") {
+            drawHeight = H * 1.04;
+            if (!e.alive) {
+                enemyClip = dying ? EN_LDR_HIT_CLIP : EN_GUN_DOWN_CLIP;
+            } else if (e.hitT > 0) {
+                enemyClip = EN_LDR_HIT_CLIP;
+            } else if (e.warnT > 0) {
+                enemyClip = EN_LDR_AIM_CLIP;
+            } else if (moving) {
+                enemyClip = walkStep === 0 ? EN_LDR_WALK_CLIP : EN_LDR_IDLE_CLIP;
+            } else {
+                enemyClip = EN_LDR_IDLE_CLIP;
+            }
+        } else {
+            // 普通倭寇火器手（8 帧高精像素全状态覆盖）
+            if (!e.alive) {
+                enemyClip = dying ? EN_GUN_HIT_CLIP : EN_GUN_DOWN_CLIP;
+            } else if (e.hitT > 0) {
+                enemyClip = EN_GUN_HIT_CLIP;
+            } else if (e.warnT > 0) {
+                enemyClip = e.warnT <= 6 ? EN_GUN_FIRE_CLIP : EN_GUN_AIM_CLIP;
+            } else if (moving) {
+                enemyClip = EN_GUN_WALK_CLIPS[walkStep];
+            } else {
+                enemyClip = EN_GUN_IDLE_CLIPS[Math.floor((this.animTime + (es?.idlePhase ?? index)) * 2.1) % 2];
+            }
+        }
+
+        if (enemyClip !== "" && assets.tryPlacePath(
+            enemyClip,
+            "actor_enemy_" + index,
+            cx + knockX,
+            by,
+            drawHeight,
+            drawHeight,
+            {
+                anchorX: 0.5,
+                anchorY: 0,
+                preserveAspect: true,
+                facing: f,
+                angle: hitAngle,
+                scaleYMul: breathY,
+                color: enemyTint,
+                opacity: e.alive ? 1 : 0.78,
+                layer: enemyLayer,
+            },
+        )) {
+            if (hitFlash > 0.35) {
+                fillRadialGlow(fgGlow, cx + knockX, by + H * 0.54, H * 0.34, H * 0.38,
+                    Color(255, 224, 186, Math.round(78 * hitFlash)), Color(214, 72, 52, 0), 12);
+            }
+            if (cleaving) {
+                fgGlow.drawArc(Vec2(cx + f * cam.len(12), by + H * 0.56), cam.len(22), f > 0 ? -48 : 132, f > 0 ? 54 : 234, 2.4, toColor(PALETTE.sealRedBright, 215));
+                fgGlow.drawArc(Vec2(cx + f * cam.len(12), by + H * 0.56), cam.len(18), f > 0 ? -40 : 140, f > 0 ? 48 : 228, 1.4, toColor(PALETTE.amberCore, 185));
+            }
+            if (e.alive && e.warnT > 0) {
+                this.drawEnemyWarning(fgGlow, e, p, cam, f);
+            }
+            return;
         }
 
         let slot: AssetSlotKey = "enemy_idle";
@@ -737,61 +935,8 @@ export class ActorsRenderer {
             }
             return;
         }
-
-        if (!e.alive) {
-            const flash = e.hitT > 0 ? Math.min(1, e.hitT / 0.4) : 0;
-            fgDraw.drawPolygon([
-                Vec2(cx - H * 0.30, by),
-                Vec2(cx + H * 0.28, by),
-                Vec2(cx + H * 0.20, by + H * 0.14),
-                Vec2(cx - H * 0.24, by + H * 0.11),
-            ], flash > 0.2 ? Color(220, 120, 130, 220) : Color(28, 22, 34, 215));
-            if (flash > 0) {
-                fillRadialGlow(fgGlow, cx, by + 12, 34 * flash, 18 * flash, toColor(PALETTE.crimson, 180 * flash), Color(255, 48, 82, 0), 12);
-            }
-            return;
-        }
-
-        const sw = H * 0.112;
-        fgDraw.drawEllipse(Vec2(cx, by + 1), sw * 1.9, 4, Color(4, 6, 10, 165));
-
-        // 布衣与蓑笠。
-        const hipY = by + H * 0.44;
-        const kneeY = by + H * 0.23;
-        const shY = by + H * 0.79;
-        fgDraw.drawSegment(Vec2(cx - 5, hipY), Vec2(cx - 7, kneeY), H * 0.044, Color(20, 16, 26, 255));
-        fgDraw.drawSegment(Vec2(cx - 7, kneeY), Vec2(cx - 8, by + 2), H * 0.038, Color(20, 16, 26, 255));
-        fgDraw.drawSegment(Vec2(cx + 5, hipY), Vec2(cx + 7, kneeY), H * 0.046, Color(28, 22, 36, 255));
-        fgDraw.drawSegment(Vec2(cx + 7, kneeY), Vec2(cx + 8, by + 2), H * 0.040, Color(28, 22, 36, 255));
-
-        fgDraw.drawPolygon([
-            Vec2(cx - sw * 0.68, hipY),
-            Vec2(cx + sw * 0.68, hipY),
-            Vec2(cx + sw * 1.12, shY),
-            Vec2(cx - sw * 1.12, shY),
-        ], Color(111, 68, 55, 255), 1.3, Color(143, 101, 66, 220));
-        fgDraw.drawPolygon([
-            Vec2(cx - sw * 1.26, shY - 6),
-            Vec2(cx + sw * 1.26, shY - 6),
-            Vec2(cx + sw * 0.96, shY + 5),
-            Vec2(cx - sw * 0.96, shY + 5),
-        ], Color(98, 82, 62, 255));
-
-        const headR = H * 0.086;
-        const headY = shY + headR * 1.32;
-        fgDraw.drawCircle(Vec2(cx, headY), headR * 0.82, Color(187, 142, 103, 255));
-        fgDraw.drawPolygon([
-            Vec2(cx - headR * 1.65, headY + headR * 0.22),
-            Vec2(cx + headR * 1.65, headY + headR * 0.22),
-            Vec2(cx - f * headR * 0.18, headY + headR * 1.22),
-        ], Color(136, 105, 65, 255), 1.1, Color(177, 145, 91, 220));
-
-        const gunX = cx + f * H * 0.34;
-        const gunY = by + H * 0.69;
-        fgDraw.drawSegment(Vec2(cx - f * 6, gunY - 2), Vec2(gunX, gunY), 2.8, Color(118, 87, 61, 255));
-        this.drawEnemyArchetypeGear(fgDraw, fgGlow, assets, e, index, cx, by, H, f, cam, enemyLayer + 1);
-        if (e.warnT > 0) {
-            this.drawEnemyWarning(fgGlow, e, p, cam, f);
+        if (e.alive) {
+            fgDraw.drawRect(Rect(cx - W * 0.4, by, W * 0.8, height), Color(96, 56, 48, 220));
         }
     }
 
@@ -876,15 +1021,42 @@ export class ActorsRenderer {
             [Vec2(cx + f * coneLen, by + 4), Color(coneCol.r, coneCol.g, coneCol.b, 0)],
         ]);
 
+        let scavClip = SCAV_WALK_CLIPS[0];
         let frame = 0;
         if (p.scavState === "turn") {
+            scavClip = SCAV_TURN_CLIP;
             frame = 2;
         } else if (p.scavState === "chase") {
-            frame = Math.floor(this.animTime * 12) % 2 === 0 ? 3 : 1;
+            const runBeat = Math.floor(this.anim.scavCycle * 4) % 2;
+            scavClip = runBeat === 0 ? SCAV_RUN_CLIP : SCAV_WALK_CLIPS[1];
+            frame = runBeat === 0 ? 3 : 1;
         } else if (p.scavState === "patrol" || p.scavState === "walk" || p.scavState === "back") {
-            frame = Math.floor(this.animTime * 8) % 2;
+            const walkBeat = Math.floor(this.anim.scavCycle * 4) % 2;
+            scavClip = SCAV_WALK_CLIPS[walkBeat];
+            frame = walkBeat;
         }
-        if (assets.tryPlace("scavenger", "actor_scav", cx, by, W, H, { facing: f, frame, layer: 3 })) {
+        const scavBreath = (p.scavState === "stall" || p.scavState === "turn")
+            ? (1 + Math.sin(this.animTime * 2.5) * 0.012)
+            : 1;
+        this.drawGroundedShadow(fgDraw, assets, "shadow_scav", cx, by, by, W * 0.96, 0, 3, 1, false);
+        if (assets.tryPlacePath(scavClip, "actor_scav", cx, by, H, H, {
+            anchorX: 0.5,
+            anchorY: 0,
+            preserveAspect: true,
+            facing: f,
+            scaleYMul: scavBreath,
+            layer: 3,
+        }) || assets.tryPlace("scavenger", "actor_scav", cx, by, W, H, { facing: f, frame, layer: 3 })) {
+            const indY = by + H + 16;
+            if (p.scavChase) {
+                drawDiamond(fgGlow, cx, indY, 8, 11, toColor(PALETTE.crimson, 240), 1.4, toColor(PALETTE.crimsonCore));
+            } else if (p.scavSee > 0) {
+                const frac = Math.min(1, p.scavSee / 24);
+                fgGlow.drawArc(Vec2(cx, indY), 10, 90, 90 - 360 * frac, 2.2, toColor(PALETTE.crimson, 235));
+                fgGlow.drawDot(Vec2(cx, indY), 2.8, toColor(PALETTE.amber));
+            } else if (p.scavState === "turn") {
+                drawDiamond(fgGlow, cx, indY, 5.5, 7.5, toColor(PALETTE.amber, 220));
+            }
             return;
         }
 
@@ -934,15 +1106,39 @@ export class ActorsRenderer {
         const W = cam.len(34);
         const H = cam.len(28);
 
+        let dogClip = DOG_WALK_CLIP;
         let frame = 0;
         if (p.dogState === "ear") {
+            dogClip = DOG_ALERT_CLIP;
             frame = 1;
         } else if (p.dogState === "sniff") {
+            dogClip = DOG_WALK_CLIP;
             frame = 3;
-        } else if (p.dogState === "patrol" || p.dogState === "chase" || p.dogState === "back") {
-            frame = Math.floor(this.animTime * (p.dogState === "chase" ? 14 : 8)) % 2 === 0 ? 0 : 2;
+        } else if (p.dogState === "chase") {
+            const beat = Math.floor(this.anim.dogCycle * 4) % 2;
+            dogClip = DOG_RUN_CLIPS[beat];
+            frame = beat === 0 ? 0 : 2;
+        } else if (p.dogState === "patrol" || p.dogState === "back") {
+            const beat = Math.floor(this.anim.dogCycle * 4) % 2;
+            dogClip = beat === 0 ? DOG_WALK_CLIP : DOG_RUN_CLIPS[1];
+            frame = beat === 0 ? 0 : 2;
         }
-        if (assets.tryPlace("dog", "actor_dog", cx, by, W, H, { facing: f, frame, layer: 3 })) {
+        const dogH = H * 1.12;
+        this.drawGroundedShadow(fgDraw, assets, "shadow_dog", cx, by, by, W * 0.92, 0, 3, 1, false);
+        if (assets.tryPlacePath(dogClip, "actor_dog", cx, by, dogH, dogH, {
+            anchorX: 0.5,
+            anchorY: 0,
+            preserveAspect: true,
+            facing: f,
+            layer: 3,
+        }) || assets.tryPlace("dog", "actor_dog", cx, by, W, H, { facing: f, frame, layer: 3 })) {
+            const alert = p.dogState === "ear" || p.dogState === "chase";
+            if (alert) {
+                const hx = cx + f * W * 0.34;
+                const hy = by + H * 0.86;
+                const r = 10 + (this.animTime * 40) % 22;
+                fgGlow.drawArc(Vec2(hx, hy + 8), r, 35, 145, 1.6, toColor(PALETTE.crimson, 200 * (1 - r / 34)));
+            }
             return;
         }
 

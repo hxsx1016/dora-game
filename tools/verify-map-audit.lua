@@ -54,7 +54,7 @@ for _, raw in ipairs(allRooms) do
 				missingStairDepth[#missingStairDepth + 1] = r.key .. ":" .. st.label
 			end
 		end
-		if r.arch ~= nil and r.arch.h > 0 then
+		if r.arch ~= nil and r.arch.h > 0 and r.key ~= "outside" and r.key ~= "village" then
 			hiddenArch25D[#hiddenArch25D + 1] = r.key .. ":" .. r.arch.label
 		end
 	end
@@ -139,16 +139,16 @@ do
 		string.format("x=%.1f y=%.1f", p.player.x, p.player.y))
 end
 
--- 2.6 2D 房间支持 S 键下蹲穿桌底/低拱（与帮助面板一致）
+-- 2.6 小满 3D 四向纵深房支持 C/Ctrl 下蹲穿桌底，W/S 前后纵深行走（与帮助面板一致）
 do
 	local p = new(playmod.Play, rooms.VILLAGE_ROOM)
 	p.scavState = "gone"
 	p.player.x = 270
 	local inp = new(inputmod.Input)
 	inp.moveX = 1
-	inp.moveY = 1 -- 模拟按住 S
+	inp.crouch.held = true -- 模拟按住 C / Ctrl 蹲伏穿过桌底
 	step(p, inp, 130)
-	check("2.6 空村按住 S 下蹲可顺畅穿过桌底（304..416）", p.player.x > 430, "x=" .. tostring(p.player.x))
+	check("2.6 空村按住 C/Ctrl 下蹲可顺畅穿过桌底（304..416）", p.player.x > 430, "x=" .. tostring(p.player.x))
 end
 
 -- 2.7 FOREST：矮台 520..640 起点即抬至 y=22，与低模视觉 1:1 吻合无穿模
@@ -220,6 +220,56 @@ do
 		if k:find("depth_solid_7600") and sp.visible then ghost = k end
 	end
 	check("4.2 打碎的可破坏掩体前端不再残留假墙", ghost == nil, "found=" .. tostring(ghost))
+
+	-- 4.3 渲染分层与脚底接触影防吞没断言 + 非小满线实体显式 art 防灰模断言
+	check("4.3a 地表层严格位于世界实体层之下（接触影不被地面吞没）",
+		fe.groundArt ~= nil and fe.groundArt.container.order < fe.worldArt.container.order,
+		string.format("groundArt=%s worldArt=%s",
+			tostring(fe.groundArt and fe.groundArt.container.order),
+			tostring(fe.worldArt and fe.worldArt.container.order)))
+
+	fe:bindPlay(pP, 1280, 720)
+	fe:renderPlay(playmod.STEP, pP, inp, 1280, 720)
+	local solShadow = fe.worldArt.visibleLastFrame["shadow_soldier:assets/art/scene_dark_pixel.clip|dp_shadow_contact"]
+	local solSprite = fe.worldArt.visibleLastFrame["actor_soldier:assets/art/actors-hd.clip|soldier_idle"]
+	check("4.3b 主角脚底接触影与角色同属 worldArt 且紧贴脚下（shadow.order < actor.order）",
+		solShadow ~= nil and solSprite ~= nil and solShadow.order < solSprite.order,
+		string.format("shadow=%s actor=%s",
+			tostring(solShadow and solShadow.order), tostring(solSprite and solSprite.order)))
+
+	local missingArt = {}
+	local childKeys = { outside = true, village = true, forest = true, tower = true, museum = true }
+	for _, raw in ipairs(allRooms) do
+		if not childKeys[raw.key] then
+			for _, s in ipairs(raw.solids) do
+				if not s.decorative and (s.art == nil or s.art == "") then
+					missingArt[#missingArt + 1] = raw.key .. ":" .. s.label
+				end
+			end
+		end
+	end
+	check("4.4 序章与男主线全部非装饰实体均已显式绑定 art（零隐式灰块退化）", #missingArt == 0, table.concat(missingArt, ", "))
+
+	-- 4.5 GATEPATH 升级 2.5D 窄巷 + ESCORT3 工台消除下道空气墙 + S1 前道清空窗柱
+	check("4.5a gatepath 已升级为 2.5D 窄巷（消除 gate->gatepath->escort1 维度锁死）",
+		rooms.GATE_PATH_ROOM.depth ~= nil and rooms.GATE_PATH_ROOM.depth.min < 0 and rooms.GATE_PATH_ROOM.depth.max > 0)
+
+	local rE3 = runmod.createRun(20261125, "official")
+	rE3.story.route = "soldier"; rE3.story.settled = true
+	local pE3 = new(playmod.Play, rooms.ESCORT3_ROOM, nil, rE3)
+	pE3.player.x, pE3.player.depth = 500, depthmod.LANE_DEPTH.lower
+	inp.moveX = 1
+	step(pE3, inp, 90)
+	check("4.5b escort3 工台移至中上道与工棚 1:1 对齐，下道无透明空气墙",
+		pE3.player.x > 690, "x=" .. tostring(pE3.player.x))
+
+	local pS1 = new(playmod.Play, rooms.S1_CROSSROAD)
+	pS1.enemies = {}
+	pS1.player.x, pS1.player.depth = 1080, depthmod.LANE_DEPTH.lower
+	inp.moveX = 1
+	step(pS1, inp, 90)
+	check("4.5c s1 窗柱已移靠后侧建筑立面，前道畅通无遮挡",
+		pS1.player.x > 1270, "x=" .. tostring(pS1.player.x))
 
 	root:cleanup()
 end

@@ -193,23 +193,60 @@ end -- 247
 function CameraDirector.prototype.len(self, worldLen) -- 253
 	return worldLen * self.ppu -- 254
 end -- 253
-function CameraDirector.prototype.worldToScreen(self, wx, wy, depth) -- 258
-	if depth == nil then -- 258
-		depth = 0 -- 258
-	end -- 258
-	if self.projection ~= nil then -- 258
-		return self.projection:worldToScreen(wx, wy, depth) -- 260
-	end -- 260
-	return { -- 262
-		x = self:sx(wx), -- 263
-		y = self:sy(wy, depth) -- 264
-	} -- 264
-end -- 258
-function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 269
-	if self.projection ~= nil then -- 269
-		return self.projection:screenToWorld(screenX, screenY) -- 271
-	end -- 271
-	local yOffset = (self.y - 82) * 0.45 -- 273
-	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 274
-end -- 269
-return ____exports -- 269
+function CameraDirector.prototype.depthScale(self, depth, enabled) -- 262
+	if enabled == nil then -- 262
+		enabled = true -- 262
+	end -- 262
+	if not enabled then -- 262
+		return 1 -- 264
+	end -- 264
+	local s = 1 - depth / 44 * 0.08 -- 266
+	return math.max( -- 267
+		0.88, -- 267
+		math.min(1.08, s) -- 267
+	) -- 267
+end -- 262
+function CameraDirector.prototype.depthShade(self, depth, enabled) -- 274
+	if enabled == nil then -- 274
+		enabled = true -- 274
+	end -- 274
+	if not enabled then -- 274
+		return 1 -- 276
+	end -- 276
+	local t = math.max( -- 278
+		0, -- 278
+		math.min(1, (depth + 44) / 88) -- 278
+	) -- 278
+	return 1 - t * 0.19 -- 279
+end -- 274
+function CameraDirector.prototype.perspectiveX(self, screenX, depth, enabled) -- 286
+	if enabled == nil then -- 286
+		enabled = true -- 286
+	end -- 286
+	if not enabled then -- 286
+		return screenX -- 288
+	end -- 288
+	local cx = self.viewW * 0.5 -- 290
+	local scale = self:depthScale(depth, true) -- 291
+	return cx + (screenX - cx) * scale -- 292
+end -- 286
+function CameraDirector.prototype.worldToScreen(self, wx, wy, depth) -- 296
+	if depth == nil then -- 296
+		depth = 0 -- 296
+	end -- 296
+	if self.projection ~= nil then -- 296
+		return self.projection:worldToScreen(wx, wy, depth) -- 298
+	end -- 298
+	return { -- 300
+		x = self:sx(wx), -- 301
+		y = self:sy(wy, depth) -- 302
+	} -- 302
+end -- 296
+function CameraDirector.prototype.screenToWorld(self, screenX, screenY) -- 307
+	if self.projection ~= nil then -- 307
+		return self.projection:screenToWorld(screenX, screenY) -- 309
+	end -- 309
+	local yOffset = (self.y - 82) * 0.45 -- 311
+	return {x = self.x + (screenX - self.shakeX - self.viewW * 0.5) / self.ppu, y = yOffset + (screenY - self.shakeY - self.groundScreenY) / self.ppu} -- 312
+end -- 307
+return ____exports -- 307

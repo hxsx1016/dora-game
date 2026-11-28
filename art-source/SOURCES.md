@@ -183,3 +183,16 @@ Use case: identity-preserve. New supplemental game animation cel sheet for the E
 - **扩展像素精灵图集（`assets/art/sprites_fe.png` + `assets/art/sprites_fe.clip`，1024 × 256，62 帧，零修改原 `sprites.clip` 58 帧与 `ui_ink.clip` 15 帧）**：
   - 角色与过场部件：背负合体（`carry_idle`、`carry_walk_a/b`、`carry_reload`）、单膝蹲背（`soldier_kneel_mount`）、门后听声（`child_listen_door`）、牵手伸臂（`soldier_hand_hold`）、北塔提灯守卒（`tower_guard_lantern`）、执笔手（`tower_brush_hand`）、换弹手势（`reload_hand_tap/trace`）、桌上袖口/热汤碗/针套指南针/提灯特写
   - 场景道具与像素特效/地皮/前景：铁盆平放与倾斜、古井石栏、城外砖拱、稻草试射靶、明式木工案、木瓶架、木制残盾、引路灯铳与回声铳、灯柱木架、木纹筹/铃纹筹、藤盾、密林树根拱、暗渠石栅、3 帧风吹红布、枪口焰、命中火星、火药烟尘、热气、溪水倒影、3 枚换弹像素印章、砖地/软土/木柱/木梁/青石板地砖及桌下木沿/桌腿/垂松枝前景剪影。
+
+## 高帧角色动作与暗黑像素场景动效升级（`feature/dev-261127-anim-fx`）
+
+在保持既有主角精像素人物基准（`actors-hd.png` / `art-source/characters/zhoushu.png`、`xiaoman.png`）与全部静态场景底图不变的前提下，针对动作帧数偏低、状态跳变生硬及场景静态化问题，使用 AI 图像生成辅助绘制 16 组品红底（`#FF00FF`）高帧动作与暗黑像素特效原画（存放于 `art-source/anim_v2/`），并经自动化脚本 `tools/build_anim_atlases.py`（谷底切缝 + 通道差漫水抠底 + 边缘去溢色 + 统一基准站姿缩放与脚底重心对齐 + `<= 2048×2048` 紧凑打包）生成以下运行时图集：
+
+- **5 套新增高帧动作与暗黑像素特效图集（`assets/art/`）**：
+  - `actors_zhoushu_anim.png` + `.clip`（24 帧）：周戍呼吸待机 4 帧、起跳/滞空/下落/落地缓冲 4 帧、举铳射击后坐 4 帧、掩体呼吸 2 帧、受击硬直/踉跄 2 帧、推板车发力步态 4 帧、滑铲重制关键帧 4 帧。
+  - `actors_xiaoman_anim.png` + `.clip`（16 帧）：小满呼吸眨眼待机 4 帧、跳跃起落 4 帧、潜行低姿爬行 4 帧、拉车过渡/投瓶出手/受惊微颤/探头呼吸补帧 4 帧。
+  - `actors_duo_anim.png` + `.clip`（24 帧）：与主角同源精像素画风的兄妹合体动作——8 帧背负奔跑、4 帧背负呼吸待机、4 帧背负举铳（小满护耳后坐）、4 帧牵手同行、4 帧单膝蹲背攀爬。
+  - `actors_enemies_anim.png` + `.clip`（36 帧）：普通倭寇火器手全状态 8 帧（待机/迈步/瞄准/开火/受击/倒地）、三类精英倭寇全状态 12 帧（藤盾手 / 破障斧手 / 朱缨头领，含受击与挥斧）、高清村口拾荒者 4 帧、高清森林猎犬 4 帧、北塔值夜守卒提灯与伏案书写 8 帧。
+  - `vfx_ming_fx.png` + `.clip`（26 帧，参考《重生细胞》高对比暗黑像素风）：4 帧鸟铳枪口爆焰、4 帧黑火药硝烟、命中暗朱星芒、木石碎屑、2 帧脚步/滑铲扬尘、4 帧铁火盆烈焰、2 帧摇曳灯焰、2 帧雨滴落地水花、4 帧风吹破损暗红明军战旗、2 帧飘落松叶。
+- **5 套重烘焙运动图集（保持 100% 既有网格与尺寸契约）**：
+  - `zhoushu-run.png`（160 格）、`zhoushu-run-transition.png`（96 格）、`zhoushu-slide.png`（64 格）、`xiaoman-run.png`（160 格）、`xiaoman-run-transition.png`（96 格）全部改由全新手绘 8 帧跑步与 4 帧滑铲原画重建，消除旧版刚体部件拼贴导致的轮廓撕裂与拖影，并显著缩减包体体积。

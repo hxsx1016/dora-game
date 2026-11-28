@@ -338,6 +338,21 @@ export function drawPixelSlideshow(
         );
     }
 
+    // 过场绘卷内活态浮尘微动（随过场时间轴轻盈漂游，消除纯静态幻灯片感）
+    const moteAlpha = baseOp * (1 - dipShade) * 0.58;
+    if (moteAlpha > 0.04) {
+        for (let m = 0; m < 14; m++) {
+            const seed = m * 37.3 + 11.7;
+            const u = ((Math.sin(seed) * 43758.5453) % 1 + 1) % 1;
+            const v = ((Math.sin(seed * 1.7) * 24634.6345) % 1 + 1) % 1;
+            const mx = shiftedRect.x + (((u + t * (0.018 + (m % 3) * 0.007)) % 1) * shiftedRect.w);
+            const my = shiftedRect.y + (((v + t * (0.012 + (m % 2) * 0.008)) % 1) * shiftedRect.h);
+            const tw = 0.45 + 0.55 * Math.sin(t * 2.4 + m * 1.9);
+            const col = (m % 3 === 0) ? PALETTE.amberCore : PALETTE.jadeMist;
+            uiInkDraw.drawDot(Vec2(mx, my), 1.1 + (m % 2) * 0.65, toColor(col, 118 * tw * moteAlpha));
+        }
+    }
+
     drawSlideFrameChrome(uiDraw, uiInkDraw, uiArt, shiftedRect, uiW, uiH, opts);
     return activeIdx;
 }
